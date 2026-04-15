@@ -20,7 +20,7 @@ Copy and paste this entire section into PowerShell:
 Write-Host "=== BreakThrough Stack Bootstrap ===" -ForegroundColor Cyan
 
 # --- STEP 1: CLEANUP OLD CONTAINERS ---
-Write-Host "[1/6] Cleaning up old containers..." -ForegroundColor Yellow
+Write-Host "[1/7] Cleaning up old containers..." -ForegroundColor Yellow
 cd E:\AI-Setup\dockerized-ai\redis
 
 # Stop and remove any existing Redis HA containers
@@ -31,14 +31,14 @@ docker stop redis-master redis-replica1 redis-replica2 sentinel1 sentinel2 senti
 docker rm redis-master redis-replica1 redis-replica2 sentinel1 sentinel2 sentinel3 2>$null
 
 # --- STEP 2: START REDIS HA CLUSTER ---
-Write-Host "[2/6] Starting Redis HA Cluster..." -ForegroundColor Yellow
+Write-Host "[2/7] Starting Redis HA Cluster..." -ForegroundColor Yellow
 docker compose -f docker-compose-ha.yml up -d
 
 # Wait for containers to start
 Start-Sleep -Seconds 10
 
 # --- STEP 3: VERIFY ALL 6 CONTAINERS ARE RUNNING ---
-Write-Host "[3/6] Verifying Redis HA containers..." -ForegroundColor Yellow
+Write-Host "[3/7] Verifying Redis HA containers..." -ForegroundColor Yellow
 $containers = @("redis-master", "redis-replica1", "redis-replica2", "sentinel1", "sentinel2", "sentinel3")
 $allRunning = $true
 
@@ -53,7 +53,7 @@ foreach ($c in $containers) {
 }
 
 # --- STEP 4: VERIFY REDIS IS WORKING ---
-Write-Host "[4/6] Verifying Redis functionality..." -ForegroundColor Yellow
+Write-Host "[4/7] Verifying Redis functionality..." -ForegroundColor Yellow
 $pong = docker exec redis-master redis-cli PING
 if ($pong -eq "PONG") {
     Write-Host "  [OK] Redis master responding" -ForegroundColor Green
@@ -66,7 +66,7 @@ $replInfo = docker exec redis-master redis-cli INFO replication | Select-String 
 Write-Host "  Replication: $replInfo" -ForegroundColor Cyan
 
 # --- STEP 5: START REDIS SYNC SERVICE ---
-Write-Host "[5/6] Starting Redis Sync Service..." -ForegroundColor Yellow
+Write-Host "[5/7] Starting Redis Sync Service..." -ForegroundColor Yellow
 cd E:\AI-Setup
 
 # Kill any existing sync process
@@ -87,8 +87,18 @@ if ($syncStatus -like "*True*") {
     Write-Host "  [WARN] Redis Sync may not be running, check manually" -ForegroundColor Yellow
 }
 
-# --- STEP 6: VERIFY MCP SERVER CAN LOAD ---
-Write-Host "[6/6] Verifying MCP Server..." -ForegroundColor Yellow
+# --- STEP 6: INITIALIZE PROJECT CONTEXT ---
+Write-Host "[6/7] Initializing Project Context..." -ForegroundColor Yellow
+$ctxTest = python -c "import sys; sys.path.insert(0, r'E:\AI-Setup'); from project_context import get_context_manager; mgr = get_context_manager(); ctx = mgr.get_full_context(); print('Context OK' if 'architecture' in str(ctx) else 'Context issue')" 2>&1
+if ($ctxTest -like "Context OK*") {
+    Write-Host "  [OK] Project Context ready" -ForegroundColor Green
+} else {
+    Write-Host "  [INIT] Initializing Project Context..." -ForegroundColor Yellow
+    python E:\AI-Setup\project_context.py --init
+}
+
+# --- STEP 7: VERIFY MCP SERVER CAN LOAD ---
+Write-Host "[7/7] Verifying MCP Server..." -ForegroundColor Yellow
 $mcpTest = python -c "import sys; sys.path.insert(0, r'E:\AI-Setup'); from ai_setup_mcp import get_session_info; print(get_session_info())" 2>&1
 if ($mcpTest -like '*"session_id"*') {
     Write-Host "  [OK] MCP Server ready" -ForegroundColor Green
@@ -102,6 +112,7 @@ Write-Host ""
 Write-Host "=== Bootstrap Complete ===" -ForegroundColor Cyan
 Write-Host "Redis HA: 1 Master + 2 Replicas + 3 Sentinels" -ForegroundColor White
 Write-Host "Sync: Every 5 seconds" -ForegroundColor White
+Write-Host "Context: Architectural, Big-Picture, Mid-Picture, Recent" -ForegroundColor White
 Write-Host "MCP: Run 'python E:\AI-Setup\ai_setup_mcp.py' to start" -ForegroundColor White
 Write-Host ""
 ```
@@ -198,6 +209,25 @@ python redis_sync.py --status
 | `dockerized-ai/redis/sentinel3.conf` | Sentinel 3 config |
 | `redis_sync.py` | Sync service |
 | `ai_setup_mcp.py` | MCP server |
+| `project_context.py` | Project context manager |
+
+### Project Context Commands
+```powershell
+# Get full context (for re-priming)
+python E:\AI-Setup\project_context.py --context
+
+# Add milestone
+python E:\AI-Setup\project_context.py --milestone "New Feature"
+
+# Add task
+python E:\AI-Setup\project_context.py --task "Implement feature X"
+
+# Set current work
+python E:\AI-Setup\project_context.py --current "Working on feature X"
+
+# Check progress via MCP
+python -c "from ai_setup_mcp import get_progress; print(get_progress())"
+```
 
 ### Start MCP Server (when needed)
 ```powershell
