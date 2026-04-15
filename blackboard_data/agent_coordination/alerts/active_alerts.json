@@ -1,0 +1,23 @@
+{
+  "alert_20260415_012157_26b011": {
+    "alert_id": "alert_20260415_012157_26b011",
+    "alert_type": "file_write_in_progress",
+    "tier": 2,
+    "agent_id": "agent_6e490189",
+    "description": "Refactoring authentication module",
+    "scope": [
+      "auth.py"
+    ],
+    "operations": [
+      "write"
+    ],
+    "started_at": "2026-04-15T01:21:57.402650",
+    "eta_minutes": 0,
+    "completed_at": null,
+    "risk_level": "medium",
+    "can_interrupt": true,
+    "rollback_available": true,
+    "related_alert_id": null,
+    "metadata": {}
+  }
+}

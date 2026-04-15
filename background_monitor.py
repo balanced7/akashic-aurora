@@ -349,6 +349,30 @@ class BackgroundMonitor:
                             WindowsNotifier.show("Help Offered", f"{content.get('offering_agent', 'unknown')}: {content.get('description', 'help available')}", "normal")
                             should_notify = True
                     
+                    elif msg_type == "operational_alert":
+                        if isinstance(content, dict):
+                            action = content.get("action", "")
+                            alert_data = content.get("alert", {})
+                            alert_type = alert_data.get("alert_type", "unknown")
+                            tier = alert_data.get("tier", 3)
+                            agent_id = alert_data.get("agent_id", "unknown")
+                            description = alert_data.get("description", "")
+                            
+                            tier_names = {1: "CRITICAL", 2: "HIGH", 3: "NORMAL", 4: "LOW"}
+                            tier_name = tier_names.get(tier, "NORMAL")
+                            
+                            if action == "created":
+                                urgency = "high" if tier <= 2 else "normal"
+                                WindowsNotifier.show(f"Op Alert [{tier_name}]", f"{agent_id}: {description}", urgency)
+                                if tier <= 2:
+                                    WindowsNotifier.ring_bell()
+                            elif action == "completed":
+                                WindowsNotifier.show("Op Complete", f"{agent_id}: {description[:50]}", "low")
+                            elif action == "cancelled":
+                                WindowsNotifier.show("Op Cancelled", f"{agent_id}: {description[:50]}", "normal")
+                            
+                            should_notify = True
+                    
                     if msg_type == "task_assign":
                         WindowsNotifier.show(title, f"Task: {content_str}", "high")
                         WindowsNotifier.ring_bell()

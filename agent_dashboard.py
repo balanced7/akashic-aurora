@@ -28,6 +28,8 @@ app = Flask(__name__)
 
 COORD_DIR = r"E:\AI-Setup\blackboard_data\agent_coordination"
 INBOX_DIR = os.path.join(COORD_DIR, "inbox")
+ALERTS_DIR = os.path.join(COORD_DIR, "alerts")
+ACTIVE_ALERTS_FILE = os.path.join(ALERTS_DIR, "active_alerts.json")
 STREAM_KEY = "agent_comm:stream"
 
 # ============================================================================
@@ -186,6 +188,33 @@ def messages():
         'count': len(msgs),
         'timestamp': datetime.now().isoformat()
     })
+
+
+@app.route('/api/alerts')
+def alerts():
+    """Get active operational alerts"""
+    try:
+        if not os.path.exists(ACTIVE_ALERTS_FILE):
+            return jsonify({'alerts': [], 'count': 0})
+        
+        with open(ACTIVE_ALERTS_FILE, 'r') as f:
+            data = json.load(f)
+        
+        alerts_list = []
+        for alert_id, alert_data in data.items():
+            if alert_data.get('completed_at'):
+                continue
+            alerts_list.append(alert_data)
+        
+        alerts_list.sort(key=lambda a: a.get('tier', 3))
+        
+        return jsonify({
+            'alerts': alerts_list,
+            'count': len(alerts_list),
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        return jsonify({'alerts': [], 'count': 0, 'error': str(e)})
 
 
 @app.route('/api/send', methods=['POST'])
@@ -681,6 +710,104 @@ def create_template():
             font-size: 0.875rem;
             color: var(--text-secondary);
         }
+        
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 0.75rem;
+            text-align: center;
+            cursor: pointer;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            border-bottom: 2px solid transparent;
+            transition: all 0.15s;
+        }
+        
+        .tab:hover {
+            color: var(--text-primary);
+            background: var(--bg-hover);
+        }
+        
+        .tab.active {
+            color: var(--accent-blue);
+            border-bottom-color: var(--accent-blue);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .alert-item {
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .alert-item:last-child {
+            border-bottom: none;
+        }
+        
+        .alert-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.25rem;
+        }
+        
+        .alert-tier {
+            font-size: 0.625rem;
+            padding: 0.125rem 0.5rem;
+            border-radius: 3px;
+            font-weight: 600;
+        }
+        
+        .alert-tier.critical { background: var(--accent-red); color: #fff; }
+        .alert-tier.high { background: var(--accent-orange); color: #000; }
+        .alert-tier.normal { background: var(--accent-blue); color: #fff; }
+        .alert-tier.low { background: var(--text-secondary); color: #fff; }
+        
+        .alert-agent {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+        
+        .alert-description {
+            font-size: 0.875rem;
+            color: var(--text-primary);
+            margin: 0.25rem 0;
+        }
+        
+        .alert-scope {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+        
+        .alert-count {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem;
+            background: var(--bg-dark);
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+        }
+        
+        .alert-count-num {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        
+        .alert-count-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
     </style>
 </head>
 <body>
@@ -735,22 +862,35 @@ def create_template():
         
         <aside class="panel info-panel">
             <div class="panel-header">System Info</div>
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('info')">Info</div>
+                <div class="tab" onclick="switchTab('alerts')">Alerts <span id="alertBadge" style="background:var(--accent-red);color:#fff;padding:0 6px;border-radius:10px;font-size:0.625rem;display:none;">0</span></div>
+            </div>
             <div class="panel-content">
-                <div class="info-item">
-                    <span class="info-label">My Agent ID</span>
-                    <span class="info-value" id="myAgentId">-</span>
+                <div id="tab-info" class="tab-content active">
+                    <div class="info-item">
+                        <span class="info-label">My Agent ID</span>
+                        <span class="info-value" id="myAgentId">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Stream Length</span>
+                        <span class="info-value" id="streamLength">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Last Update</span>
+                        <span class="info-value" id="lastUpdate">-</span>
+                    </div>
+                    
+                    <div class="log-container" id="logContainer">
+                        <div class="log-entry success">System initialized</div>
+                    </div>
                 </div>
-                <div class="info-item">
-                    <span class="info-label">Stream Length</span>
-                    <span class="info-value" id="streamLength">-</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Last Update</span>
-                    <span class="info-value" id="lastUpdate">-</span>
-                </div>
-                
-                <div class="log-container" id="logContainer">
-                    <div class="log-entry success">System initialized</div>
+                <div id="tab-alerts" class="tab-content">
+                    <div class="alert-count">
+                        <span class="alert-count-num" id="alertCountNum">0</span>
+                        <span class="alert-count-label">active<br>operations</span>
+                    </div>
+                    <div id="alertsList"></div>
                 </div>
             </div>
         </aside>
@@ -762,6 +902,7 @@ def create_template():
         // State
         let agents = [];
         let messages = [];
+        let alerts = [];
         
         // Elements
         const agentList = document.getElementById('agentList');
@@ -777,8 +918,10 @@ def create_template():
         async function init() {
             await loadStatus();
             await loadMessages();
+            await loadAlerts();
             connectStream();
             setInterval(loadStatus, 5000);
+            setInterval(loadAlerts, 5000);
         }
         
         async function loadStatus() {
@@ -817,6 +960,57 @@ def create_template():
             } catch (e) {
                 log('error', 'Failed to load messages: ' + e);
             }
+        }
+        
+        async function loadAlerts() {
+            try {
+                const res = await fetch('/api/alerts');
+                const data = await res.json();
+                alerts = data.alerts || [];
+                renderAlerts();
+                
+                const badge = document.getElementById('alertBadge');
+                const criticalHigh = alerts.filter(a => a.tier <= 2).length;
+                if (criticalHigh > 0) {
+                    badge.textContent = criticalHigh;
+                    badge.style.display = 'inline';
+                } else {
+                    badge.style.display = 'none';
+                }
+                
+                document.getElementById('alertCountNum').textContent = alerts.length;
+            } catch (e) {
+                log('error', 'Failed to load alerts: ' + e);
+            }
+        }
+        
+        function renderAlerts() {
+            const container = document.getElementById('alertsList');
+            if (alerts.length === 0) {
+                container.innerHTML = '<div class="log-entry">No active alerts</div>';
+                return;
+            }
+            
+            const tierNames = {1: 'critical', 2: 'high', 3: 'normal', 4: 'low'};
+            
+            container.innerHTML = alerts.map(a => `
+                <div class="alert-item">
+                    <div class="alert-header">
+                        <span class="alert-tier ${tierNames[a.tier] || 'normal'}">${tierNames[a.tier] || 'N'}</span>
+                        <span class="alert-agent">${(a.agent_id || '?').slice(-8)}</span>
+                    </div>
+                    <div class="alert-description">${a.description || ''}</div>
+                    ${a.scope && a.scope.length ? `<div class="alert-scope">Scope: ${a.scope.join(', ')}</div>` : ''}
+                </div>
+            `).join('');
+        }
+        
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            
+            document.querySelector(`.tab[onclick="switchTab('${tabName}')"]`).classList.add('active');
+            document.getElementById(`tab-${tabName}`).classList.add('active');
         }
         
         function renderAgents() {

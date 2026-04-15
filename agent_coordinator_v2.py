@@ -714,6 +714,105 @@ def check_conflicts(scope: List[str], areas: List[str]) -> List[Dict]:
     return coord.check_scoped_conflicts(scope, areas)
 
 
+def declare_operation(
+    intent: str,
+    scope: List[str] = None,
+    areas: List[str] = None,
+    alert_type: str = "intent_declared",
+    eta_minutes: int = 0,
+    risk_level: str = "low",
+    operations: List[str] = None
+) -> Optional[Dict]:
+    """
+    Declare an operation that updates both manifest AND creates an operational alert.
+    
+    This is the unified way to tell other agents what you're doing.
+    
+    Args:
+        intent: What you plan to do
+        scope: Files/resources affected
+        areas: Areas being worked on
+        alert_type: Type of operational alert (from AlertType enum values)
+        eta_minutes: Estimated completion time
+        risk_level: low/medium/high/critical
+        operations: What operations being performed
+    
+    Returns:
+        Dict with manifest and alert info, or None if failed
+    """
+    try:
+        from operational_alerts import AlertManager, AlertType
+        
+        coord = get_coordinator()
+        
+        alert_mgr = AlertManager()
+        
+        alert_type_enum = AlertType.INTENT_DECLARED
+        for at in AlertType:
+            if at.value == alert_type:
+                alert_type_enum = at
+                break
+        
+        manifest = coord.update_manifest(
+            intent=intent,
+            scope=scope or [],
+            areas=areas or [],
+            status=AgentStatus.BUSY,
+            eta_minutes=eta_minutes
+        )
+        
+        alert = alert_mgr.start_operation(
+            alert_type=alert_type_enum,
+            description=intent,
+            scope=scope or [],
+            operations=operations or ["working"],
+            eta_minutes=eta_minutes,
+            risk_level=risk_level
+        )
+        
+        return {
+            "manifest": manifest.to_dict(),
+            "alert": alert.to_dict()
+        }
+    except Exception as e:
+        print(f"declare_operation error: {e}")
+        return None
+
+
+def complete_operation(alert_id: str = None, scope: List[str] = None):
+    """
+    Complete an operation - marks alert done and updates manifest to idle.
+    
+    Args:
+        alert_id: Specific alert to complete
+        scope: If alert_id not provided, find alert by scope
+    """
+    try:
+        from operational_alerts import AlertManager
+        
+        coord = get_coordinator()
+        alert_mgr = AlertManager()
+        
+        if alert_id:
+            alert_mgr.complete_operation(alert_id)
+        elif scope:
+            alerts = alert_mgr.get_alerts_by_scope(scope, active_only=True)
+            for alert in alerts:
+                if alert.agent_id == coord.agent_id:
+                    alert_mgr.complete_operation(alert.alert_id)
+                    break
+        
+        coord.update_manifest(
+            intent="",
+            scope=[],
+            areas=[],
+            status=AgentStatus.IDLE,
+            progress_percent=100.0
+        )
+    except Exception as e:
+        print(f"complete_operation error: {e}")
+
+
 # ============================================================================
 # TEST
 # ============================================================================
