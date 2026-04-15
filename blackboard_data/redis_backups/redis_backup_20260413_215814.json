@@ -1,0 +1,182 @@
+{
+  "schema_version": "1.0",
+  "export_time": "2026-04-13T21:58:14.088091",
+  "export_timestamp_unix": 1776131894.088091,
+  "redis_host": "localhost",
+  "redis_port": 6379,
+  "total_keys": 33,
+  "keys": {
+    "chat:history": {
+      "type": "none",
+      "value": null
+    },
+    "kb:model:opencode:learnings": {
+      "type": "none",
+      "value": null
+    },
+    "session:opencode_20260413_020027:errors": {
+      "type": "none",
+      "value": null
+    },
+    "errors:faults": {
+      "type": "none",
+      "value": null
+    },
+    "kb:learning:ollama_gpu_fix": {
+      "type": "none",
+      "value": null
+    },
+    "kb:docs:gpu_status": {
+      "type": "hash",
+      "value": {
+        "created_at": "2026-04-14T02:00:00",
+        "author": "system",
+        "status": "CONFIRMED_WORKING",
+        "opencl": "AMD Radeon RX 9070 XT - 16GB",
+        "compute_units": "32",
+        "memory_gb": "16",
+        "rocminfo": "gfx1201 detected",
+        "clinfo": "OpenCL working"
+      }
+    },
+    "kb:docs:README": {
+      "type": "none",
+      "value": null
+    },
+    "kb:learning:latest_status": {
+      "type": "none",
+      "value": null
+    },
+    "learnings:gpu_passthrough": {
+      "type": "hash",
+      "value": {
+        "alternatives": "1) Ollama on Windows direct (no Docker) 2) CPU-only vLLM (slow) 3) Native Linux with ROCm 4) Wait for AMD WSL2 support",
+        "issue": "amdgpu kernel module not available in WSL2 - ROCm requires this for GPU inference",
+        "dxg_available": "true - but unused by ROCm",
+        "rocm_status": "Cannot initialize - Driver not initialized",
+        "status": "hardware_limitation"
+      }
+    },
+    "kb:learning:path_fix_20260413": {
+      "type": "none",
+      "value": null
+    },
+    "kb:docs:gpu_discovery": {
+      "type": "none",
+      "value": null
+    },
+    "learnings:system_architecture": {
+      "type": "none",
+      "value": null
+    },
+    "kb:docs:gpu_working": {
+      "type": "hash",
+      "value": {
+        "created_at": "2026-04-14T01:55:00",
+        "author": "system",
+        "rocminfo_status": "WORKING - GPU detected as gfx1201",
+        "docker_config": "/dev/dxg + /opt/rocm-7.2.1 mount",
+        "memory": "16GB",
+        "compute_units": "64"
+      }
+    },
+    "kb:learning:architecture_20260413": {
+      "type": "none",
+      "value": null
+    },
+    "kb:docs:keepalive": {
+      "type": "none",
+      "value": null
+    },
+    "kb:model:gpu_discovery_fix": {
+      "type": "none",
+      "value": null
+    },
+    "kb:learning:root_cause": {
+      "type": "none",
+      "value": null
+    },
+    "kb:model:gpu_discovery_fix:learnings": {
+      "type": "none",
+      "value": null
+    },
+    "kb:learning:current_status": {
+      "type": "none",
+      "value": null
+    },
+    "kb:docs:current_status": {
+      "type": "hash",
+      "value": {
+        "created_at": "2026-04-14T01:15:00",
+        "author": "system",
+        "redis_location": "WSL2 Docker",
+        "redis_status": "working_30_keys",
+        "ollama_location": "Windows native",
+        "ollama_status": "working_cpu_3.8s_per_token",
+        "vllm_location": "WSL2 Docker",
+        "vllm_status": "gpu_blocked_amdgpu_module",
+        "gpu_issue": "WSL2_amdgpu_kernel_module_required",
+        "inference_priority": "1_Ollama_on_CPU"
+      }
+    },
+    "kb:docs:architecture": {
+      "type": "hash",
+      "value": {
+        "created_at": "2026-04-14T01:15:00",
+        "author": "system",
+        "content_file": "E:\\\\AI-Setup\\\\ARCHITECTURE.md",
+        "version": "2.1",
+        "status": "stable",
+        "inference_priority": "Ollama_Windows_CPU"
+      }
+    },
+    "kb:model:system_diagnostic": {
+      "type": "none",
+      "value": null
+    },
+    "kb:model:system_diagnostic:learnings": {
+      "type": "none",
+      "value": null
+    },
+    "kb:learning:attribute_error_fix": {
+      "type": "none",
+      "value": null
+    },
+    "kb:model:keepalive_system:learnings": {
+      "type": "none",
+      "value": null
+    },
+    "kb:model:dashboard_fix:learnings": {
+      "type": "none",
+      "value": null
+    },
+    "kb:docs:setup_status": {
+      "type": "none",
+      "value": null
+    },
+    "learnings:ollama_gpu": {
+      "type": "none",
+      "value": null
+    },
+    "kb:learning:primer_20260413_comprehensive": {
+      "type": "none",
+      "value": null
+    },
+    "kb:model:keepalive_system": {
+      "type": "none",
+      "value": null
+    },
+    "learnings:journey": {
+      "type": "none",
+      "value": null
+    },
+    "kb:docs:diagnostic_history": {
+      "type": "none",
+      "value": null
+    },
+    "kb:models": {
+      "type": "none",
+      "value": null
+    }
+  }
+}

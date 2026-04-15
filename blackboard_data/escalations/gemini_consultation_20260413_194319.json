@@ -1,0 +1,8 @@
+{
+  "type": "gemini_consultation",
+  "timestamp": "2026-04-13T19:43:19.793655",
+  "topic": "Docker GPU Passthrough Architecture Decision",
+  "prompt": "Docker GPU passthrough dilemma - seeking strategic guidance",
+  "source": "opencode_local_agent",
+  "status": "pending_response"
+}

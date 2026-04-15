@@ -1,0 +1,16 @@
+{
+  "request_id": "dcb096e8f3be",
+  "timestamp": "2026-04-13T19:24:16.611165",
+  "local_context": "Test context - Florence-2 loading issue",
+  "observed_failure": "RobertaTokenizer has no attribute image_token",
+  "local_attempt": "Attempted direct model load, then pipeline approach",
+  "tier": "OPENCODE",
+  "retry_count": 3,
+  "sensitivity": "medium",
+  "vision_data": {
+    "caption": "Test",
+    "extracted_text": "Error"
+  },
+  "tracebacks": [],
+  "code_snippet": "model = Florence2Model.from_pretrained(...)"
+}

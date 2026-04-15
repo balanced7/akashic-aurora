@@ -1,0 +1,136 @@
+# Breakthrough Stack v1.0 - Docker Compose
+# ==========================================
+# Persistent deployment for AMD 9070 XT + 9950X3D
+#
+# Usage:
+#   docker-compose up -d     # Start services
+#   docker-compose down      # Stop services
+#   docker-compose down -v   # Stop AND delete volumes (careful!)
+
+services:
+  # ==========================================
+  # vLLM Inference Server
+  # ==========================================
+  vllm-server:
+    image: rocm/vllm:latest
+    container_name: vllm_breakthrough
+    restart: unless-stopped
+    ports:
+      - "8000:8000"  # OpenAI-compatible API
+    volumes:
+      # Persistent model cache - never redownload weights
+      - vllm_model_cache:/root/.cache/huggingface
+      # Setup directory for scripts
+      - ./:/app/setup
+    environment:
+      - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN:-}
+      - OLLAMA_NUM_PARALLEL=2
+      - OLLAMA_MAX_LOADED_MODELS=2
+    # GPU passthrough (requires WSL2 + ROCm)
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    group_add:
+      - video
+    privileged: true
+    network_mode: host
+    command: >
+      --model deepseek-ai/deepseek-coder-v2-16b
+      --gpu-memory-utilization 0.90
+      --max-model-len 16384
+      --dtype float16
+      --trust-remote-code
+      --seed 42
+
+  # ==========================================
+  # Redis (State Signals)
+  # ==========================================
+  redis:
+    image: redis:alpine
+    container_name: ai-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+  # ==========================================
+  # Ollama (Fallback/Secondary Inference)
+  # ==========================================
+  ollama:
+    image: ollama/ollama:rocm
+    container_name: ai-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_model_cache:/root/.ollama/models
+      - ./:/app/setup
+    environment:
+      - OLLAMA_NUM_PARALLEL=2
+      - OLLAMA_MAX_LOADED_MODELS=2
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    group_add:
+      - video
+    privileged: true
+
+  # ==========================================
+  # Open WebUI (Optional Frontend)
+  # ==========================================
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: ai-open-webui
+    restart: unless-stopped
+    ports:
+      - "3000:8080"
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - WEBUI_SECRET_KEY=breakthrough_stack_2024
+    volumes:
+      - openwebui_data:/app/backend/data
+    depends_on:
+      - ollama
+
+# ==========================================
+# Named Volumes (Persistence)
+# ==========================================
+volumes:
+  # Model caches - persist across container restarts
+  vllm_model_cache:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: E:\AI-Setup\model_cache
+  
+  ollama_model_cache:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: E:\AI-Setup\dockerized-ai\ollama\models
+  
+  redis_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: E:\AI-Setup\dockerized-ai\redis\data
+  
+  openwebui_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: E:\AI-Setup\dockerized-ai\openwebui\data
+
+# ==========================================
+# Networks
+# ==========================================
+networks:
+  default:
+    name: breakthrough_net
+    driver: bridge

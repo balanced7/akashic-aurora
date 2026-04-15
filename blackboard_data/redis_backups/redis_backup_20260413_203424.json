@@ -1,0 +1,330 @@
+{
+  "export_time": "2026-04-13T20:34:24.483993",
+  "redis_host": "localhost",
+  "redis_port": 6379,
+  "total_keys": 31,
+  "keys": {
+    "chat:history": {
+      "type": "list",
+      "value": [
+        "{\\",
+        "role\\: \\system\\, \\message\\: \\Session",
+        "2026-04-13:",
+        "Created",
+        "crash-safe",
+        "logging",
+        "system.",
+        "session_logger.py",
+        "crash_recovery.py",
+        "launch_verifier.py",
+        "OpenCode_Primed.bat.",
+        "Updated",
+        "ai_helper.py",
+        "with",
+        "logging",
+        "functions.",
+        "Documented",
+        "in",
+        "Redis",
+        "knowledge:facts.\\, \\timestamp\\: \\2026-04-13T02:00:00\\}",
+        "{\\",
+        "role\\: \\assistant\\, \\message\\: \\Exported",
+        "session",
+        "summary",
+        "to",
+        "E:\\\\\\\\AI-Setup\\\\\\\\session_logs\\\\\\\\opencode_20260413_020000_session_summary.md\\, \\timestamp\\: \\2026-04-13T02:05:00\\}",
+        "{role:assistant,message:Verifying session logging works - captured test screenshot, confirmed actions logged to Redis (session:opencode_20260413_020027:actions) and file (session_logs\\). Simplified session_logger.py working with log(), log_error(), log_chat(), log_screenshot(). Added screenshot_logger.py for session-aware screenshots with timestamp + tag. Updated ai_helper with screenshot() function.,timestamp:2026-04-13T02:10:00,session:opencode_20260413_020027}",
+        "{role:assistant,message:Verification complete: 1) Redis logging works - actions appear in session:{id}:actions, 2) File logging works - JSONL created in session_logs, 3) Screenshots work - saved with session_id_reason_tag_timestamp.png format, 4) Chat history updated for other LLMs. Test screenshot: test_verify_001_verify_test_20260413_015918.png exists in session_screenshots. Simplified session_logger is less cumbersome - just import and call log(), log_chat(), log_error(). Screenshot naming: {session_id}_{reason}_{tag}_{timestamp}.png for easy filtering.,timestamp:2026-04-13T02:12:00,session:opencode_20260413_020027}",
+        "{role:assistant,message:Created ui_scout.py wrapper for naturo with see, find, highlight, capture, diff commands. Updated ai_helper.py with ui_scout(), ui_find(), ui_highlight(), ui_screenshot(). Tested on OpenCode window - found 11 elements: Window, TabItems, SplitButton, Text, ScrollBar, MenuBar, MenuItem, Buttons. Can now deep-inspect any window with element tree, roles, names, and bounding boxes.,timestamp:2026-04-13T02:10:00,session:opencode_20260413_020027}",
+        "{role:assistant,message:Added UI interaction and hybrid OCR+UI functions: 1) click(x,y,window), double_click, right_click - click at coordinates, 2) type_text, press_keys, scroll - keyboard automation, 3) hybrid_inspect - combines Naturo UI tree + OCR for complete coverage, 4) smart_find - tries UI first then OCR fallback, 5) get_visual_context - returns all elements, text, clickable regions. Updated ai_helper with ui_click, ui_type, ui_press, ui_scroll, hybrid_inspect, smart_find, get_visual_context. Click tested and working!,timestamp:2026-04-13T02:15:00,session:opencode_20260413_020027}",
+        "{role:assistant,message:Verified catch-up works! New OpenCode session shows session logs in chat history - visible text includes session, crash, recovery, knowledge keywords. Session continuity verified: 1) Chat history has full session log from previous session, 2) Session logs in E:\\\\AI-Setup\\\\session_logs\\\\ preserved, 3) Screenshots saved with session IDs for context, 4) Redis has all key info in knowledge:facts and sessions:active.,timestamp:2026-04-13T02:20:00,session:verify_catchup_001}",
+        "{\"role\": \"assistant\", \"message\": \"This is a test message from the current session to verify logging works\", \"session\": \"opencode_20260413_022156\", \"timestamp\": \"2026-04-13T02:21:56.991275\"}",
+        "{\"role\": \"system\", \"message\": \"ERROR: launcher_window_failed - New terminal window had issues - need to investigate why it failed\", \"session\": \"opencode_20260413_020027\", \"timestamp\": \"2026-04-13T02:26:31.172268\"}",
+        "{\"role\": \"user\", \"message\": \"sorry for being paranoid but can you check session logs again after this query to make sure my text and your responses are captured?\", \"session\": \"opencode_20260413_020027\", \"timestamp\": \"2026-04-13T02:29:23.399830\"}",
+        "{\"role\": \"assistant\", \"message\": \"Checked session logging after paranoid question. Found: 33 messages in chat:history (includes all previous conversation). Redis and file logging both working. This message is being logged to verify capture.\", \"session\": \"opencode_20260413_020027\", \"timestamp\": \"2026-04-13T02:29:23.409579\"}",
+        "{\"role\": \"user\", \"message\": \"This is a test message to verify flush works\", \"session\": \"opencode_20260413_020027\", \"timestamp\": \"2026-04-13T02:37:54.853891\"}",
+        "{\"role\": \"user\", \"message\": \"This message should appear in session_all.jsonl\", \"session\": \"opencode_20260413_020027\", \"unique_id\": \"opencode_20260413_020027_024506\", \"timestamp\": \"2026-04-13T02:45:06.275179\"}",
+        "{\"role\": \"user\", \"message\": \"Test user message\", \"session\": \"opencode_20260413_020027\", \"unique_id\": \"opencode_20260413_020027_024813\", \"timestamp\": \"2026-04-13T02:48:13.852312\"}",
+        "{\"role\": \"system\", \"message\": \"ERROR: test_error - This is a test error\", \"session\": \"opencode_20260413_020027\", \"unique_id\": \"opencode_20260413_020027_024813\", \"timestamp\": \"2026-04-13T02:48:13.855311\"}",
+        "{\"role\": \"user\", \"message\": \"can you verify again that both are working as intended by seeing if they capture my text here and your response?\", \"session\": \"opencode_20260413_020027\", \"unique_id\": \"opencode_20260413_020027_024957\", \"timestamp\": \"2026-04-13T02:49:57.165273\"}",
+        "{\"role\": \"assistant\", \"message\": \"Yes! Let me verify both loggers captured this conversation by checking the files.\", \"session\": \"opencode_20260413_020027\", \"unique_id\": \"opencode_20260413_020027_024957\", \"timestamp\": \"2026-04-13T02:49:57.166774\"}",
+        "{\"role\": \"system\", \"message\": \"ERROR: test_error - Testing error logging from new session instance\", \"session\": \"opencode_20260413_020027\", \"unique_id\": \"opencode_20260413_020027_031713\", \"timestamp\": \"2026-04-13T03:17:13.081435\"}"
+      ]
+    },
+    "errors:faults": {
+      "type": "list",
+      "value": [
+        "{\"type\": \"error_doc\", \"system\": \"launcher\", \"error_type\": \"window_not_found\", \"severity\": \"high\", \"details\": \"Primed launcher opened new window but window had 'Python not found' error - PATH issue in new terminal context\", \"timestamp\": \"2026-04-13T02:54:57.407482\", \"session\": \"opencode_20260413_020027\"}",
+        "{\"type\": \"error_doc\", \"system\": \"logging\", \"error_type\": \"file_not_found\", \"severity\": \"high\", \"details\": \"Session logger created per-session files but they were empty - file flush issue\", \"timestamp\": \"2026-04-13T02:54:57.408984\", \"session\": \"opencode_20260413_020027\"}",
+        "{\"type\": \"error_doc\", \"system\": \"verification\", \"error_type\": \"timeout\", \"severity\": \"medium\", \"details\": \"Launch verification didn't detect 'Python not found' error in new window - OCR may not have caught it\", \"timestamp\": \"2026-04-13T02:54:57.410984\", \"session\": \"opencode_20260413_020027\"}",
+        "{\"type\": \"error_doc\", \"system\": \"launcher\", \"error_type\": \"python_not_found\", \"severity\": \"medium\", \"details\": \"Test: Python not in PATH for new window\", \"timestamp\": \"2026-04-13T02:56:15.616395\", \"session\": \"opencode_20260413_020027\"}",
+        "{\"type\": \"error_doc\", \"system\": \"verification\", \"error_type\": \"timeout\", \"severity\": \"medium\", \"details\": \"Test: Window verification timed out\", \"timestamp\": \"2026-04-13T02:56:15.617901\", \"session\": \"opencode_20260413_020027\"}",
+        "{\"type\": \"error_doc\", \"system\": \"logging\", \"error_type\": \"unknown\", \"severity\": \"medium\", \"details\": \"Test: File flush did not complete\", \"timestamp\": \"2026-04-13T02:56:15.619400\", \"session\": \"opencode_20260413_020027\"}",
+        "{\"type\": \"error_doc\", \"system\": \"ocr\", \"error_type\": \"unknown\", \"severity\": \"medium\", \"details\": \"Test: Tesseract not installed\", \"timestamp\": \"2026-04-13T02:56:15.620400\", \"session\": \"opencode_20260413_020027\"}",
+        "{\"type\": \"error_doc\", \"system\": \"ui\", \"error_type\": \"unknown\", \"severity\": \"medium\", \"details\": \"Test: Naturo couldn't find button\", \"timestamp\": \"2026-04-13T02:56:15.621901\", \"session\": \"opencode_20260413_020027\"}",
+        "{\"type\": \"error_doc\", \"system\": \"session\", \"error_type\": \"unknown\", \"severity\": \"low\", \"details\": \"Testing error logging via ai_helper\", \"timestamp\": \"2026-04-13T02:57:14.721068\", \"session\": \"opencode_20260413_020027\"}",
+        "{\"type\": \"error_doc\", \"system\": \"session\", \"error_type\": \"unknown\", \"severity\": \"medium\", \"details\": \"Testing error logging from new session instance\", \"timestamp\": \"2026-04-13T03:17:13.075893\", \"session\": \"opencode_20260413_020027\"}",
+        "{\"type\": \"error_doc\", \"system\": \"other\", \"error_type\": \"unknown\", \"severity\": \"high\", \"details\": \"python resolved to Windows Store stub - fixed by removing stub\", \"timestamp\": \"2026-04-13T03:40:48.775153\", \"session\": \"opencode_20260413_020027\"}",
+        "{\"type\": \"error_doc\", \"system\": \"system\", \"error_type\": \"unknown\", \"severity\": \"low\", \"details\": \"Barked Connection failed when actually just doing screen capture - wrong troubleshooting path. Should verify actual screen state before assuming connection issue.\", \"timestamp\": \"2026-04-13T20:17:32.127295\", \"session\": \"opencode_20260413_020027\"}",
+        "{\"type\": \"error_doc\", \"system\": \"system\", \"error_type\": \"unknown\", \"severity\": \"low\", \"details\": \"Added DirectML support for AMD GPU on Windows. torch_directml properly detects AMD 9070 XT as privateuseone:0. However model inference still runs on CPU - DirectML tensor ops work but transformers model must stay on CPU due to architecture compatibility.\", \"timestamp\": \"2026-04-13T20:22:00.413244\", \"session\": \"opencode_20260413_020027\"}"
+      ]
+    },
+    "kb:docs:README": {
+      "type": "hash",
+      "value": {
+        "created_at": "2026-04-12T23:58:19.659250",
+        "author": "system",
+        "content": "\n# AI Knowledge Base System\n\n## Purpose\nThis system enables multiple AI models to share learnings and context\nwithout destroying each other's work.\n\n## How It Works\n1. Each model registers itself on startup\n2. Models write learnings with unique keys (model_name:key format)\n3. All models can read from shared context\n4. Documentation is centrally stored\n\n## Key Principles\n- NEVER overwrite another model's learning without explicit permission\n- Always prefix your keys with your model name\n- Document changes in the knowledge base\n- Read existing context before writing\n\n## Usage\n```python\nfrom knowledge_base import KB\nkb = KB()\nkb.write(\"my_model\", \"some_key\", \"some_value\")\nvalue = kb.read(\"some_key\")\n```\n\n## Available Models\nUse kb.get_all_models() to see who's in the system.\n",
+        "name": "README",
+        "updated_at": "2026-04-12T23:58:19.659250"
+      }
+    },
+    "kb:docs:diagnostic_history": {
+      "type": "hash",
+      "value": {
+        "created_at": "2026-04-12T23:58:42.893164",
+        "author": "system_diagnostic",
+        "content": "\n# Diagnostic History\n\n## 2026-04-13\n- All services running\n- 15 windows detected\n- 3 Docker containers running\n- Ollama accessible via WSL2 portproxy\n\n## Known Issues\n- Ollama GPU discovery timeout (runs on CPU)\n- WSL2 IP changes on restart\n",
+        "name": "diagnostic_history",
+        "updated_at": "2026-04-12T23:58:42.893164"
+      }
+    },
+    "kb:docs:gpu_discovery": {
+      "type": "hash",
+      "value": {
+        "created_at": "2026-04-13T00:03:27.723885",
+        "author": "gpu_discovery_fix",
+        "content": "\n# GPU Discovery Fix for Ollama\n\n## The Problem\nOllama container exits immediately with:\n```\nlevel=WARN source=runner.go:464 msg=\"failure during GPU discovery\" \nerror=\"failed to finish discovery before timeout\"\n```\n\n## The Solution (Working Config)\nUse docker-compose.wsl2.yml which has all the correct ROCm settings:\n\n```yaml\nenvironment:\n  - HSA_ENABLE_DXG_DETECTION=1\n  - LD_LIBRARY_PATH=/opt/rocm/lib:/usr/lib/wsl/lib\n  - ROCM_PATH=/opt/rocm\n  - HIP_VISIBLE_DEVICES=0\n  - HSA_OVERRIDE_GFX_VERSION=12.0.1\n\nvolumes:\n  - /usr/lib/wsl/lib:/usr/lib/wsl/lib:ro\n  - /opt/rocm-7.2.1:/opt/rocm:ro\n\ndevices:\n  - /dev/dxg:/dev/dxg\n\nshm_size: 8g\ncap_add:\n  - SYS_PTRACE\nipc: host\n```\n\n## Key Files\n- Working compose: `E:\\AI-Setup\\dockerized-ai\\ollama\\docker-compose.wsl2.yml`\n- Launcher: `E:\\AI-Setup\\launch_dashboard.py`\n- GPU passthrough: `E:\\AI-Setup\\docker-gpu-passthrough.md`\n",
+        "name": "gpu_discovery",
+        "updated_at": "2026-04-13T00:03:27.723885"
+      }
+    },
+    "kb:docs:gpu_status": {
+      "type": "hash",
+      "value": {
+        "created_at": "2026-04-13T00:05:55.368044",
+        "author": "gpu_discovery_fix",
+        "content": "\n# GPU Discovery Status - 2026-04-13\n\n## Current Status\nOllama is RUNNING but on CPU fallback mode.\n\n## Root Cause\nAMD RX 9070 XT (gfx1201/RDN4) is too new for ROCm 7.2.1.\nThe GPU discovery process times out because ROCm can't detect the GPU.\n\n## Evidence\n1. `/opt/rocm/lib/` mounts correctly with all ROCm libraries\n2. `clinfo` shows 0 GPU devices\n3. Ollama logs: \"failure during GPU discovery before timeout\"\n4. Falls back to CPU: 30.5 GB available\n\n## What's Working\n- All Docker containers (Redis, Voice, WebUI)\n- Streamlit dashboard at http://127.0.0.1:8501\n- Ollama API responding (but CPU mode)\n- WSL2 port proxy for Ollama\n\n## Solutions to Try\n1. Wait for ROCm 7.3+ with RDNA4 support\n2. Try AMD ROCm staging builds\n3. Use CPU mode (current - works fine)\n4. Try Ollama nightly with better GPU support\n",
+        "name": "gpu_status",
+        "updated_at": "2026-04-13T00:05:55.368044"
+      }
+    },
+    "kb:docs:keepalive": {
+      "type": "hash",
+      "value": {
+        "created_at": "2026-04-13T00:20:14.178318",
+        "author": "keepalive_system",
+        "content": "\n# Ollama Keep-Alive System\n\n## Problem\nOllama container exits because GPU discovery times out.\n\n## Solution\nkeepalive_ollama.py pings Ollama every 30 seconds.\nIf not responding, it restarts the container.\n\n## Files\n- `E:\\AI-Setup\\keepalive_ollama.py` - Main script\n- `E:\\AI-Setup\\launch_dashboard.py` - Updated to start keepalive\n\n## Usage\n```bash\n# Manual start:\npython E:\\AI-Setup\\keepalive_ollama.py\n\n# Or run in background:\npython E:\\AI-Setup\\keepalive_ollama.py --background\n```\n\n## Status\nKeep-alive is running but still experimental.\nRoot cause needs ROCm update for GPU support.\n",
+        "name": "keepalive",
+        "updated_at": "2026-04-13T00:20:14.178318"
+      }
+    },
+    "kb:docs:setup_status": {
+      "type": "hash",
+      "value": {
+        "created_at": "2026-04-12T23:58:19.660250",
+        "author": "system",
+        "content": "\n# Setup Status & Journey\n\n## Current Services\n- Dashboard: http://127.0.0.1:8501 (Streamlit)\n- Ollama: http://127.0.0.1:11434 (WSL2 with ROCm)\n- Redis: 127.0.0.1:6379\n- Open WebUI: http://127.0.0.1:3000\n\n## Hardware\n- GPU: AMD RX 9070 XT\n- ROCm: 7.2.1\n\n## Known Issues\n- Ollama GPU discovery times out but runs on CPU\n- WSL2 IP changes on restart (requires portproxy update)\n\n## Files\n- Dashboard: E:\\AI-Setup\\dockerized-ai\\services\\dashboard\\app.py\n- Launcher: E:\\AI-Setup\\launch_dashboard.py\n- Diagnostic: E:\\AI-Setup\\system_diagnostic.py\n",
+        "name": "setup_status",
+        "updated_at": "2026-04-12T23:58:19.660250"
+      }
+    },
+    "kb:learning:architecture_20260413": {
+      "type": "hash",
+      "value": {
+        "updated_at": "2026-04-13T03:54:11.556575",
+        "model": "opencode",
+        "key": "architecture_20260413",
+        "created_at": "2026-04-13T03:54:11.556575",
+        "category": "documentation",
+        "value": "{\"file\": \"ARCHITECTURE.md\", \"purpose\": \"Complete system architecture documentation\", \"includes\": [\"System overview diagram\", \"Core module documentation (session_logger, error_doc, knowledge_base, ai_helper)\", \"Data flow diagrams\", \"Dependency graph\", \"Storage strategy (what goes where)\", \"File inventory\", \"Bug fixed: duplicate _write_log on line 174-175\"], \"primer_updated\": true, \"primer_change\": \"Added reference to ARCHITECTURE.md in header and Future Instances section\"}"
+      }
+    },
+    "kb:learning:attribute_error_fix": {
+      "type": "hash",
+      "value": {
+        "updated_at": "2026-04-13T00:25:27.712600",
+        "model": "dashboard_fix",
+        "key": "attribute_error_fix",
+        "created_at": "2026-04-13T00:25:27.712600",
+        "category": "general",
+        "value": "{\"error\": \"AttributeError: 'list' object has no attribute 'get'\", \"location\": \"app.py line 437 - render_header()\", \"root_cause\": \"results.get() returned list instead of dict for some services\", \"fixes_applied\": [\"render_header: Added isinstance() checks before .get() calls\", \"render_dashboard: Added safe_get_status() helper\", \"render_chat: Added isinstance() check for models list\", \"render_models: Added isinstance() checks\"], \"status\": \"fixed\"}"
+      }
+    },
+    "kb:learning:current_status": {
+      "type": "hash",
+      "value": {
+        "updated_at": "2026-04-13T00:20:14.177318",
+        "model": "keepalive_system",
+        "key": "current_status",
+        "created_at": "2026-04-13T00:20:14.177318",
+        "category": "general",
+        "value": "{\"status\": \"active\", \"interval_seconds\": 30, \"issue\": \"Ollama container exits due to GPU discovery timeout\", \"root_cause\": \"AMD RX 9070 XT (gfx1201) too new for ROCm 7.2.1\", \"solution\": \"Keep-alive pings every 30s to restart if exited\", \"files\": [\"E:\\\\AI-Setup\\\\keepalive_ollama.py\", \"E:\\\\AI-Setup\\\\launch_dashboard.py (updated with keepalive)\"]}"
+      }
+    },
+    "kb:learning:latest_status": {
+      "type": "hash",
+      "value": {
+        "updated_at": "2026-04-12T23:58:42.892164",
+        "model": "system_diagnostic",
+        "key": "latest_status",
+        "created_at": "2026-04-12T23:58:42.892164",
+        "category": "general",
+        "value": "{\"services\": {\"dashboard\": \"running\", \"ollama\": \"running\", \"redis\": \"running\", \"webui\": \"running\"}, \"windows\": [\"Start\", \"PowerShell\", \"AI Dashboard\", \"Brave\", \"Signal\", \"Docker Desktop\", \"File Explorer\", \"Settings\", \"Discord\"], \"docker_containers\": [\"ai-redis\", \"ai-voice\", \"ai-open-webui\"], \"timestamp\": \"2026-04-13\"}"
+      }
+    },
+    "kb:learning:ollama_gpu_fix": {
+      "type": "hash",
+      "value": {
+        "updated_at": "2026-04-13T00:03:27.722885",
+        "model": "gpu_discovery_fix",
+        "key": "ollama_gpu_fix",
+        "created_at": "2026-04-13T00:03:27.722885",
+        "category": "general",
+        "value": "{\"issue\": \"Ollama container exits immediately with GPU discovery timeout\", \"root_cause\": \"ROCm library path issues in WSL2 container\", \"solution\": {\"volumes\": [\"- /opt/rocm-7.2.1:/opt/rocm:ro\", \"- /usr/lib/wsl/lib:/usr/lib/wsl/lib:ro\"], \"environment\": [\"HSA_ENABLE_DXG_DETECTION=1\", \"LD_LIBRARY_PATH=/opt/rocm/lib:/usr/lib/wsl/lib\", \"ROCM_PATH=/opt/rocm\", \"HIP_VISIBLE_DEVICES=0\", \"HSA_OVERRIDE_GFX_VERSION=12.0.1\"], \"docker_args\": [\"--device=/dev/dxg\", \"--network host\", \"--shm-size=8g\", \"--cap-add=SYS_PTRACE\", \"--ipc=host\"]}, \"test_command\": \"wsl -d Ubuntu-24.04 -e curl -s http://localhost:11434/api/tags\", \"port_proxy\": \"netsh interface portproxy add v4tov4 listenport=11434 connectport=11434 connectaddress=<WSL_IP>\", \"source\": \"E:\\\\AI-Setup\\\\dockerized-ai\\\\ollama\\\\docker-compose.wsl2.yml\"}"
+      }
+    },
+    "kb:learning:path_fix_20260413": {
+      "type": "hash",
+      "value": {
+        "updated_at": "2026-04-13T03:40:39.380179",
+        "model": "opencode",
+        "key": "path_fix_20260413",
+        "created_at": "2026-04-13T03:40:39.380179",
+        "category": "system_fix",
+        "value": "{\"issue\": \"python command resolved to Windows Store stub\", \"stub_location\": \"C:\\\\Users\\\\L5\\\\AppData\\\\Local\\\\Microsoft\\\\WindowsApps\\\\python.exe\", \"real_python\": \"C:\\\\Users\\\\L5\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python311\\\\python.exe\", \"solution\": \"Removed Store stub, Python directories already in PATH\", \"paths_added\": [\"C:\\\\Users\\\\L5\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python311\", \"C:\\\\Users\\\\L5\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python311\\\\Scripts\"]}"
+      }
+    },
+    "kb:learning:primer_20260413_comprehensive": {
+      "type": "hash",
+      "value": {
+        "updated_at": "2026-04-13T03:46:00.113984",
+        "model": "opencode",
+        "key": "primer_20260413_comprehensive",
+        "created_at": "2026-04-13T03:46:00.113984",
+        "category": "documentation",
+        "value": "{\"change\": \"Complete primer rewrite\", \"sections_added\": [\"Log Entry Format (JSONL) with field explanations and examples\", \"Complete Tools Inventory tables (3 categories, 20+ tools)\", \"How to Document a New Tool (3-step process)\", \"Session Lifecycle (startup, during, shutdown, crash recovery)\", \"Essential Functions Reference expanded\", \"Error Categories expanded with system type\"], \"key_improvement\": \"Future instances now see exact JSON format and understand data dict usage\", \"tools_now_documented\": 20}"
+      }
+    },
+    "kb:learning:root_cause": {
+      "type": "hash",
+      "value": {
+        "updated_at": "2026-04-13T00:05:55.366544",
+        "model": "gpu_discovery_fix",
+        "key": "root_cause",
+        "created_at": "2026-04-13T00:05:55.366544",
+        "category": "general",
+        "value": "{\"issue\": \"GPU discovery timeout in Ollama container\", \"error_log\": \"failure during GPU discovery - failed to finish discovery before timeout\", \"root_cause\": \"AMD RX 9070 XT (gfx1201/RDNA4) is too new for ROCm 7.2.1\", \"rocminfo_result\": \"0 GPU devices found\", \"librocdxg_status\": \"Working - ROCm libs mount correctly\", \"fallback\": \"Runs on CPU (30.5GB available)\", \"status\": \"WORKING but CPU-only for now\"}"
+      }
+    },
+    "kb:model:dashboard_fix:learnings": {
+      "type": "set",
+      "value": [
+        "attribute_error_fix"
+      ]
+    },
+    "kb:model:gpu_discovery_fix": {
+      "type": "hash",
+      "value": {
+        "name": "gpu_discovery_fix",
+        "description": "GPU discovery and Ollama fix",
+        "capabilities": "docker,rocm,amd-gpu",
+        "registered_at": "2026-04-13T00:03:27.722385",
+        "last_active": "2026-04-13T00:03:27.722385"
+      }
+    },
+    "kb:model:gpu_discovery_fix:learnings": {
+      "type": "set",
+      "value": [
+        "ollama_gpu_fix",
+        "root_cause"
+      ]
+    },
+    "kb:model:keepalive_system": {
+      "type": "hash",
+      "value": {
+        "name": "keepalive_system",
+        "description": "Ollama keep-alive system",
+        "capabilities": "keepalive,monitoring",
+        "registered_at": "2026-04-13T00:20:14.176817",
+        "last_active": "2026-04-13T00:20:14.176817"
+      }
+    },
+    "kb:model:keepalive_system:learnings": {
+      "type": "set",
+      "value": [
+        "current_status"
+      ]
+    },
+    "kb:model:opencode:learnings": {
+      "type": "set",
+      "value": [
+        "primer_20260413_comprehensive",
+        "architecture_20260413",
+        "path_fix_20260413"
+      ]
+    },
+    "kb:model:system_diagnostic": {
+      "type": "hash",
+      "value": {
+        "name": "system_diagnostic",
+        "description": "Window and service diagnostic tool",
+        "capabilities": "windows,services,docker",
+        "registered_at": "2026-04-12T23:58:42.891664",
+        "last_active": "2026-04-12T23:58:42.891664"
+      }
+    },
+    "kb:model:system_diagnostic:learnings": {
+      "type": "set",
+      "value": [
+        "latest_status"
+      ]
+    },
+    "kb:models": {
+      "type": "set",
+      "value": [
+        "gpu_discovery_fix",
+        "system_diagnostic",
+        "knowledge_base",
+        "keepalive_system"
+      ]
+    },
+    "learnings:gpu_passthrough": {
+      "type": "list",
+      "value": [
+        "{\"instance\": \"admin-instance\", \"key\": \"docker_cli_path\", \"value\": \"Use full path C:\\\\Program Files\\\\Docker\\\\Docker\\\\resources\\\\bin\\\\docker.exe or add to PATH\", \"timestamp\": \"2026-04-12T05:10:00\"}"
+      ]
+    },
+    "learnings:journey": {
+      "type": "list",
+      "value": [
+        "{\"phase\": 1, \"title\": \"GPU Passthrough Setup\", \"approach\": \"Built librocdxg from source\", \"outcome\": \"GPU detection in WSL2 works but Docker container issue remains\"}"
+      ]
+    },
+    "learnings:ollama_gpu": {
+      "type": "list",
+      "value": [
+        "{\"instance\": \"admin-instance\", \"key\": \"rocmmount_issue\", \"value\": \"Docker Desktop WSL2 mount of /opt/rocm appears as empty overlay in container. rocminfo works in WSL2 directly but not in Docker container.\", \"timestamp\": \"2026-04-12T05:15:00\"}",
+        "{instance:admin-instance,key:docker_mount_issue,value:Docker Desktop bind mounts via 9p/drvfs show empty directory - ROCm libs in WSL2 /opt/rocm-7.2.1 not accessible in containers,timestamp:2026-04-12T05:20:00}"
+      ]
+    },
+    "learnings:system_architecture": {
+      "type": "list",
+      "value": [
+        "{\"instance\": \"admin-instance\", \"key\": \"onboarding_complete\", \"value\": \"System architecture stored in Redis - agents can now read knowledge:facts for onboarding info\", \"timestamp\": \"2026-04-12T05:30:00\"}"
+      ]
+    },
+    "session:opencode_20260413_020027:errors": {
+      "type": "list",
+      "value": [
+        "{\"timestamp\": \"2026-04-13T02:26:31.170768\", \"action\": \"launcher_window_failed\", \"data\": {\"details\": \"New terminal window had issues - need to investigate why it failed\", \"traceback\": \"NoneType: None\\n\"}}",
+        "{\"timestamp\": \"2026-04-13T02:48:13.853311\", \"action\": \"test_error\", \"data\": {\"details\": \"This is a test error\", \"traceback\": \"NoneType: None\\n\"}}",
+        "{\"timestamp\": \"2026-04-13T03:17:13.079419\", \"action\": \"test_error\", \"data\": {\"details\": \"Testing error logging from new session instance\", \"traceback\": \"NoneType: None\\n\"}}"
+      ]
+    },
+    "system:architecture": {
+      "type": "string",
+      "value": "{\"type\": \"Distributed Multi-Agent with Shared Memory\", \"components\": [{\"name\": \"Redis\", \"role\": \"Knowledge Repository\", \"port\": 6379}, {\"name\": \"Ollama\", \"role\": \"Local LLM Runtime\", \"port\": 11434}, {\"name\": \"OpenWebUI\", \"role\": \"Web Interface\", \"port\": 3000}, {\"name\": \"Voice AI\", \"role\": \"Speech I/O\", \"port\": 5000}], \"hardware\": {\"gpu\": \"AMD RX 9070 XT\", \"vram\": \"16GB\", \"ram\": \"32GB DDR5\"}, \"rocm\": \"7.2.1\", \"collaboration\": {\"gpu_sharing\": \"One heavy task at a time - check context before loading models\", \"memory_limit\": \"8GB per model max\", \"rules\": [\"Read Redis before major ops\", \"Save state after tasks\", \"Log to tasks:history\"]}}"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "type": "gemini_strategic_consultation",
+  "timestamp": "2026-04-13T19:45:53.566524",
+  "topic": "Docker GPU Passthrough Architecture Decision",
+  "response": "ARCHITECTURAL GUIDANCE FROM GEMINI:\n\n1. OLLAMA-NOW, VLLM-LATER STRATEGY:\n   - Ollama on Windows works with WDDM driver model\n   - Get 90% performance without WSL2 complexity\n   - vLLM superior for high-concurrency, defer until needed\n\n2. WSL2+ROCM INVESTMENT:\n   - DEFER until specific performance ceiling hit\n   - WSL2 ROCm breaks during Windows Updates\n   - Stay on Ollama path for single-user Breakthrough Stack\n\n3. PORTABLE ARCHITECTURE:\n   - Decouple API from Engine\n   - Write to OpenAI-compatible endpoint (localhost:11434/v1)\n   - Environment variables in .env file\n   - BASE_URL switch = single line config change\n\n4. MODEL PERSISTENCE:\n   - Storage issue, not GPU issue\n   - Continue using E:\\AI-Setup\\model_cache volume\n   - Files persist, just point new container to same folder\n\nIMPLEMENTATION PLAN:\n1. Standardize API: OpenAI-compatible (localhost:11434/v1)\n2. Hardened Volume Mounts: Use absolute Windows paths (E:/AI-Setup/models)\n3. Switch Variable: config.py with GPU_PROVIDER env var\n",
+  "source": "gemini_remote",
+  "key_decisions": [
+    "Use Ollama now, vLLM later",
+    "Defer WSL2+ROCm investment",
+    "OpenAI-compatible API for portability",
+    "config.py with GPU_PROVIDER switch"
+  ],
+  "saved_at": "2026-04-13T19:45:53.566524"
+}

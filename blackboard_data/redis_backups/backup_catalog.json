@@ -1,0 +1,60 @@
+{
+  "version": "1.0",
+  "last_updated": "2026-04-13T21:10:47.361913",
+  "backups": [
+    {
+      "backup_id": "redis_backup_20260413_211047",
+      "timestamp_iso": "2026-04-13T21:10:47.361913",
+      "timestamp_unix": 1776129047.361913,
+      "redis_host": "localhost",
+      "redis_port": 6379,
+      "keys_count": 30,
+      "data_size_bytes": 2055,
+      "checksum_sha256": "bed5e1a82643661b4917d6f4ec2537dceae7a3a70651265a098d3b2119dd7c2c",
+      "checksum_algorithm": "sha256",
+      "primary_path": "E:\\AI-Setup\\blackboard_data\\redis_backups\\redis_backup_20260413_211047.json",
+      "secondary_path": null,
+      "verified": true,
+      "verified_timestamp": "2026-04-13T21:10:47.361913",
+      "retention_tier": "hourly",
+      "compressed": false,
+      "compression_ratio": 1.0
+    },
+    {
+      "backup_id": "redis_backup_20260413_215814",
+      "timestamp_iso": "2026-04-13T21:58:14.088091",
+      "timestamp_unix": 1776131894.088091,
+      "redis_host": "localhost",
+      "redis_port": 6379,
+      "keys_count": 33,
+      "data_size_bytes": 3587,
+      "checksum_sha256": "b938b4e93df8bb4e7f6bd94d39e5e7262524a0b01dc861e9e22d808597551e00",
+      "checksum_algorithm": "sha256",
+      "primary_path": "E:\\AI-Setup\\blackboard_data\\redis_backups\\redis_backup_20260413_215814.json",
+      "secondary_path": null,
+      "verified": true,
+      "verified_timestamp": "2026-04-13T21:58:14.088091",
+      "retention_tier": "hourly",
+      "compressed": false,
+      "compression_ratio": 1.0
+    },
+    {
+      "backup_id": "redis_backup_20260413_220125",
+      "timestamp_iso": "2026-04-13T22:01:25.025056",
+      "timestamp_unix": 1776132085.025056,
+      "redis_host": "localhost",
+      "redis_port": 6379,
+      "keys_count": 38,
+      "data_size_bytes": 13106,
+      "checksum_sha256": "04a659c2df8627acab3ad193b07e98ac9eb8e90eea430870c3a95b6e4f83c67c",
+      "checksum_algorithm": "sha256",
+      "primary_path": "E:\\AI-Setup\\blackboard_data\\redis_backups\\redis_backup_20260413_220125.json",
+      "secondary_path": null,
+      "verified": true,
+      "verified_timestamp": "2026-04-13T22:01:25.025056",
+      "retention_tier": "hourly",
+      "compressed": false,
+      "compression_ratio": 1.0
+    }
+  ]
+}

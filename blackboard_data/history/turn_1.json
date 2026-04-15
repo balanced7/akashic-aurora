@@ -1,0 +1,34 @@
+{
+  "turn": 1,
+  "proposal": {
+    "turn": 1,
+    "agent": "TestGenerator",
+    "title": "Test task",
+    "description": "Testing the blackboard",
+    "steps": [
+      {
+        "action": "read",
+        "target": "test.txt",
+        "purpose": "Test"
+      }
+    ],
+    "metadata": {
+      "test": true
+    },
+    "timestamp": "2026-04-13T18:45:24.364997",
+    "id": "e9b64117-97bf-4c90-88db-b8f2d4062365",
+    "checksum": "832bf6905b4c615d"
+  },
+  "verdict": {
+    "status": "PASS",
+    "reason": "Looks good",
+    "checks": [
+      "path_check",
+      "safety_check"
+    ],
+    "agent": "TestAnalyst",
+    "timestamp": "2026-04-13T18:45:24.367497"
+  },
+  "final_state": "EXECUTING",
+  "archived_at": "2026-04-13T18:45:24.370997"
+}

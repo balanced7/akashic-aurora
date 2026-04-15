@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Node
+node_modules/
+.npm
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Docker
+dockerized-ai/services/dashboard-react/node_modules/
+
+# Logs (keep summary, exclude active logs)
+*.jsonl
+!SESSION_SUMMARY*.md
+!errors_and_faults.jsonl
+
+# Large files
+*.zip
+*.tar
+*.tar.gz
+*.bin
+
+# Windows
+*.exe
+
+# Keep important configs
+!.gitignore
