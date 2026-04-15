@@ -489,6 +489,292 @@ def get_active_blockers() -> str:
         return json.dumps({"error": str(e)})
 
 
+# ============ PROJECT CONTEXT RESOURCES ============
+
+@mcp.resource("project://architecture")
+def get_project_architecture() -> str:
+    """Get architectural documentation"""
+    if not redis_available:
+        return json.dumps({"error": "Redis not available"})
+    
+    try:
+        data = redis_client.get("context:architecture")
+        if data:
+            return data
+        return json.dumps({"error": "Architecture not yet documented"})
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+@mcp.resource("project://milestones")
+def get_project_milestones() -> str:
+    """Get all milestones"""
+    if not redis_available:
+        return json.dumps({"error": "Redis not available"})
+    
+    try:
+        milestones = []
+        data = redis_client.hgetall("context:milestones")
+        for m_id, m_json in data.items():
+            milestones.append(json.loads(m_json))
+        
+        # Group by status
+        by_status = {"pending": [], "in_progress": [], "completed": [], "blocked": []}
+        for m in milestones:
+            by_status[m.get("status", "pending")].append(m)
+        
+        return json.dumps({
+            "total": len(milestones),
+            "by_status": by_status
+        }, indent=2)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+@mcp.resource("project://tasks")
+def get_project_tasks() -> str:
+    """Get all tasks"""
+    if not redis_available:
+        return json.dumps({"error": "Redis not available"})
+    
+    try:
+        tasks = []
+        data = redis_client.hgetall("context:tasks")
+        for t_id, t_json in data.items():
+            tasks.append(json.loads(t_json))
+        
+        by_status = {"todo": [], "in_progress": [], "done": [], "blocked": []}
+        for t in tasks:
+            by_status[t.get("status", "todo")].append(t)
+        
+        return json.dumps({
+            "total": len(tasks),
+            "by_status": by_status
+        }, indent=2)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+@mcp.resource("project://blockers")
+def get_project_blockers() -> str:
+    """Get all blockers"""
+    if not redis_available:
+        return json.dumps({"error": "Redis not available"})
+    
+    try:
+        blockers = []
+        data = redis_client.hgetall("context:blockers")
+        for b_id, b_json in data.items():
+            blockers.append(json.loads(b_json))
+        
+        active = [b for b in blockers if b.get("status") == "active"]
+        resolved = [b for b in blockers if b.get("status") == "resolved"]
+        
+        return json.dumps({
+            "total": len(blockers),
+            "active": active,
+            "resolved_count": len(resolved)
+        }, indent=2)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+@mcp.resource("project://context")
+def get_full_project_context() -> str:
+    """Get complete project context for agent re-priming"""
+    if not redis_available:
+        return json.dumps({"error": "Redis not available"})
+    
+    try:
+        # Import here to avoid circular dependency
+        from project_context import get_context_manager
+        return json.dumps(get_context_manager().get_full_context(), indent=2, default=str)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+@mcp.resource("project://summary")
+def get_project_summary() -> str:
+    """Get a quick project summary"""
+    if not redis_available:
+        return json.dumps({"error": "Redis not available"})
+    
+    try:
+        arch = redis_client.get("context:architecture")
+        arch_data = json.loads(arch) if arch else {}
+        
+        milestones = redis_client.hgetall("context:milestones")
+        tasks = redis_client.hgetall("context:tasks")
+        blockers = redis_client.hgetall("context:blockers")
+        
+        active_blockers = [b for b in blockers.values() if json.loads(b).get("status") == "active"]
+        
+        return json.dumps({
+            "project": arch_data.get("name", "BreakThrough Stack"),
+            "purpose": arch_data.get("purpose", ""),
+            "milestones": {
+                "total": len(milestones),
+                "completed": len([m for m in milestones.values() if json.loads(m).get("status") == "completed"]),
+                "in_progress": len([m for m in milestones.values() if json.loads(m).get("status") == "in_progress"])
+            },
+            "tasks": {
+                "total": len(tasks),
+                "todo": len([t for t in tasks.values() if json.loads(t).get("status") == "todo"]),
+                "in_progress": len([t for t in tasks.values() if json.loads(t).get("status") == "in_progress"]),
+                "done": len([t for t in tasks.values() if json.loads(t).get("status") == "done"])
+            },
+            "active_blockers": len(active_blockers)
+        }, indent=2)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+# ============ PROJECT CONTEXT TOOLS ============
+
+@mcp.tool()
+def get_full_context() -> str:
+    """Get complete project context for agent re-priming (4 layers)"""
+    try:
+        from project_context import get_context_manager
+        return json.dumps(get_context_manager().get_full_context(), indent=2, default=str)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+@mcp.tool()
+def add_milestone(name: str, description: str = "", priority: int = 0) -> str:
+    """Add a new milestone"""
+    try:
+        from project_context import get_context_manager
+        mgr = get_context_manager()
+        mid = mgr.add_milestone(name, description, priority)
+        return json.dumps({"success": True, "milestone_id": mid})
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+@mcp.tool()
+def update_milestone_status(milestone_id: str, status: str) -> str:
+    """Update milestone status (pending|in_progress|completed|blocked)"""
+    try:
+        from project_context import get_context_manager
+        mgr = get_context_manager()
+        mgr.update_milestone_status(milestone_id, status)
+        return json.dumps({"success": True})
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+@mcp.tool()
+def add_task(title: str, description: str = "", milestone_id: str = "") -> str:
+    """Add a new task"""
+    try:
+        from project_context import get_context_manager
+        mgr = get_context_manager()
+        tid = mgr.add_task(title, description, milestone_id or None)
+        return json.dumps({"success": True, "task_id": tid})
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+@mcp.tool()
+def update_task_status(task_id: str, status: str) -> str:
+    """Update task status (todo|in_progress|done|blocked)"""
+    try:
+        from project_context import get_context_manager
+        mgr = get_context_manager()
+        mgr.update_task_status(task_id, status)
+        return json.dumps({"success": True})
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+@mcp.tool()
+def add_blocker(description: str, severity: str = "medium") -> str:
+    """Add a blocker"""
+    try:
+        from project_context import get_context_manager
+        mgr = get_context_manager()
+        bid = mgr.add_blocker(description, severity)
+        return json.dumps({"success": True, "blocker_id": bid})
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+@mcp.tool()
+def resolve_blocker(blocker_id: str) -> str:
+    """Resolve a blocker"""
+    try:
+        from project_context import get_context_manager
+        mgr = get_context_manager()
+        mgr.resolve_blocker(blocker_id)
+        return json.dumps({"success": True})
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+@mcp.tool()
+def set_current_work(task: str, details: str = "") -> str:
+    """Set what we're currently working on"""
+    try:
+        from project_context import get_context_manager
+        mgr = get_context_manager()
+        mgr.set_current_task(task, details)
+        mgr.add_to_work_log(f"Started: {task}")
+        return json.dumps({"success": True})
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+@mcp.tool()
+def get_progress() -> str:
+    """Get project progress summary"""
+    try:
+        from project_context import get_context_manager
+        mgr = get_context_manager()
+        
+        milestones = mgr.get_milestones()
+        tasks = mgr.get_tasks()
+        blockers = mgr.get_blockers(status="active")
+        
+        completed_milestones = len([m for m in milestones if m.status == "completed"])
+        done_tasks = len([t for t in tasks if t.status == "done"])
+        
+        progress = 0
+        total_items = len(milestones) + len(tasks)
+        if total_items > 0:
+            progress = int(100 * (completed_milestones + done_tasks) / total_items)
+        
+        return json.dumps({
+            "progress_percentage": progress,
+            "milestones": {
+                "total": len(milestones),
+                "completed": completed_milestones,
+                "in_progress": len([m for m in milestones if m.status == "in_progress"])
+            },
+            "tasks": {
+                "total": len(tasks),
+                "done": done_tasks,
+                "in_progress": len([t for t in tasks if t.status == "in_progress"])
+            },
+            "active_blockers": len(blockers)
+        }, indent=2)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+@mcp.tool()
+def print_context() -> str:
+    """Print human-readable full context to console"""
+    try:
+        from project_context import get_context_manager
+        mgr = get_context_manager()
+        mgr.print_full_context()
+        return json.dumps({"success": True})
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
 # ============ PROMPTS ============
 
 @mcp.prompt()

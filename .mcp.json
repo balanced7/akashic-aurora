@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "agent_comm": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["-m", "agent_comm"],
+      "cwd": "E:\\AI-Setup\\mcp_servers\\agent_comm",
+      "env": {
+        "PYTHONPATH": "E:\\AI-Setup"
+      }
+    }
+  }
+}

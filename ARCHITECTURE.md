@@ -12,15 +12,17 @@
 
 ---
 
-## CURRENT STATUS (2026-04-14)
+## CURRENT STATUS (2026-04-15)
 
 | Component | Status | Location | Notes |
 |-----------|--------|----------|-------|
-| Redis | [OK] | WSL2 Docker | 30 keys, backed up, enterprise manager |
+| Redis | [OK] | Docker (ai-redis) | 30 keys, backed up, enterprise manager |
 | Ollama | [OK] | Windows Native | CPU mode, 3.8s/token |
 | vLLM | [DEGRADED] | WSL2 Docker | GPU blocked by amdgpu kernel module |
 | Vision | [OK] | Windows Python | GPU-based Florence-2 (DirectML) |
 | Backup System | [OK] | E:\AI-Setup\ | 5-min intervals, SHA-256 verified |
+| Multi-Agent Comm | [OK] | Redis Streams + File | 100ms polling, operational alerts |
+| MCP Server | [OK] | E:\AI-Setup\mcp_servers\agent_comm\ | FastMCP, 7 tools |
 
 ---
 
@@ -111,6 +113,58 @@ WSL2 Docker cannot provide AMD GPU access to ROCm because:
 - **Monitoring:** 30-second health checks
 - **Catalog:** `E:\AI-Setup\blackboard_data\redis_backups\backup_catalog.json`
 
+### 6. MULTI-AGENT COMMUNICATION SYSTEM
+
+**Architecture Overview:**
+```
+OpenCode Instance (CLI)
+    │
+    ├── MCP Client ──────> MCP Server (agent_comm)
+    │                              │
+    │                              └── Redis Streams (messaging)
+    │                              └── File Inbox (persistence)
+    │                              └── Vector Store (semantic search)
+    │
+    └── Background Monitor (100ms polling)
+             │
+             └── Redis PubSub ────> Windows Notifications
+```
+
+**Key Components:**
+
+| File | Purpose |
+|------|---------|
+| `multi_agent.py` | Agent registry, MessageBus, SharedWorkspace |
+| `fast_agent_comm.py` | Redis Streams for reliable messaging |
+| `background_monitor.py` | 100ms polling, file inbox, notifications |
+| `agent_coordinator_v2.py` | Manifests, coordination, lock management |
+| `operational_alerts.py` | Tiered alerts (CRITICAL/HIGH/NORMAL/LOW) |
+| `agent_comm_helper.py` | Quick functions for OpenCode |
+| `agent_dashboard.py` | Flask web dashboard (port 5050) |
+
+**MCP Server (agent_comm):**
+
+| Tool | Description |
+|------|-------------|
+| `send_message` | Send message to agent or broadcast |
+| `check_messages` | Check inbox, returns structured messages |
+| `get_active_agents` | List all active agents |
+| `get_my_status` | Current manifest and alerts |
+| `declare_operation` | Start operation (manifest + alert) |
+| `complete_operation` | End operation |
+| `search_messages` | Semantic vector search |
+
+**Configuration:**
+- OpenCode MCP config: `E:\AI-Setup\mcp_servers\agent_comm\opencode_mcp.json`
+- Start with: `opencode mcp add agent_comm -- python -m agent_comm serve`
+
+**Message Flow:**
+1. Agent sends via `send_message()` → Redis Streams
+2. Background monitor polls at 100ms
+3. Messages written to file inbox
+4. Other agents check via `check_messages()` or MCP tool
+5. CRITICAL/HIGH alerts trigger Windows notifications
+
 ---
 
 ## FILE INVENTORY
@@ -120,6 +174,21 @@ WSL2 Docker cannot provide AMD GPU access to ROCm because:
 - `E:\AI-Setup\master.py` - Traffic controller
 - `E:\AI-Setup\model_lifecycle.py` - VRAM management
 - `E:\AI-Setup\config.py` - GPU provider configuration
+
+### Multi-Agent Communication
+- `E:\AI-Setup\multi_agent.py` - Agent registry, MessageBus, SharedWorkspace
+- `E:\AI-Setup\fast_agent_comm.py` - Redis Streams messaging
+- `E:\AI-Setup\background_monitor.py` - 100ms polling, notifications
+- `E:\AI-Setup\agent_coordinator_v2.py` - Manifests, coordination
+- `E:\AI-Setup\operational_alerts.py` - Tiered alert system
+- `E:\AI-Setup\agent_comm_helper.py` - Quick check/send functions
+- `E:\AI-Setup\agent_dashboard.py` - Flask web dashboard
+
+### MCP Server
+- `E:\AI-Setup\mcp_servers\agent_comm\` - MCP server package
+  - `server.py` - FastMCP server implementation
+  - `__init__.py` - Package exports
+  - `opencode_mcp.json` - OpenCode configuration
 
 ### Docker
 - `E:\AI-Setup\dockerized-ai\docker-compose-wsl2.yml` - WSL2 compose
@@ -146,9 +215,14 @@ WSL2 Docker cannot provide AMD GPU access to ROCm because:
 | Path | Purpose |
 |------|---------|
 | `E:\AI-Setup\blackboard_data\` | Redis backups, logs |
+| `E:\AI-Setup\blackboard_data\agent_coordination\` | Multi-agent coordination state |
+| `E:\AI-Setup\blackboard_data\agent_coordination\inbox\{agent_id}\` | Per-agent message inbox |
+| `E:\AI-Setup\blackboard_data\agent_coordination\manifests\{agent_id}.json` | Agent manifests |
+| `E:\AI-Setup\blackboard_data\agent_coordination\alerts\active_alerts.json` | Active alerts |
 | `E:\AI-Setup\assets\` | Cached downloads, models |
 | `E:\AI-Setup\session_logs\` | JSONL session logs |
 | `E:\AI-Setup\dockerized-ai\` | Docker compose files |
+| `E:\AI-Setup\mcp_servers\agent_comm\` | MCP server package |
 | `E:\AI-Setup\ARCHITECTURE.md` | This document |
 
 ---
@@ -167,6 +241,7 @@ WSL2 Docker cannot provide AMD GPU access to ROCm because:
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-04-15 | v2.2 | Added multi-agent comm system + MCP server |
 | 2026-04-14 | v2.1 | Updated status: Ollama working on CPU |
 | 2026-04-13 | v2.0 | Restructured for WSL2, Redis in Docker |
 | 2026-04-12 | v1.0 | Initial architecture |
