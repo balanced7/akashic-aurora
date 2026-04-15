@@ -1,18 +1,15 @@
 {
   "agent_id": "agent_6e490189",
   "role": "generator",
-  "intent": "Testing coordination broadcast",
+  "intent": "Testing coordination system",
   "intent_detail": "",
   "scope": [
-    "test_a.py",
-    "test_b.py"
+    "test_file.py"
   ],
-  "areas": [
-    "coordination"
-  ],
-  "status": "busy",
+  "areas": [],
+  "status": "idle",
   "priority": "normal",
-  "eta_minutes": 5,
+  "eta_minutes": 0,
   "started_at": "",
   "dependencies": [],
   "blocked_by": [],
@@ -20,6 +17,6 @@
   "current_task": "",
   "current_task_id": "",
   "progress_percent": 0.0,
-  "last_updated": "2026-04-15T01:16:28.389316",
+  "last_updated": "2026-04-15T01:38:01.463301",
   "session_id": ""
 }

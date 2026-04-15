@@ -52,32 +52,38 @@ os.makedirs(INBOX_DIR, exist_ok=True)
 
 
 class WindowsNotifier:
-    """Send Windows toast notifications"""
+    """Send Windows toast notifications - silent, color-coded by urgency"""
     
     SERVICE_NAME = "OpenCodeAgent"
     
+    URGENCY_COLORS = {
+        "critical": "FF4444",  # Red
+        "high": "FF8C00",      # Orange  
+        "normal": "58A6FF",    # Blue
+        "low": "8B949E"        # Gray
+    }
+    
     @staticmethod
     def show(title: str, message: str, urgency: str = "normal"):
-        """Show Windows toast notification"""
+        """Show silent Windows toast notification with color-coded text"""
         try:
             escaped_title = title.replace('"', "'").replace('\n', ' ')[:50]
             escaped_msg = message.replace('"', "'").replace('\n', ' ')[:200]
             
-            # Urgency affects sound
-            sound = "Notification.Default" if urgency == "normal" else "Notification.Looping.Alarm"
+            color = WindowsNotifier.URGENCY_COLORS.get(urgency, "58A6FF")
             
             script = f'''
 [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
 [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
 $template = @"
-<toast activationType="foreground">
+<toast activationType="foreground" launch="action=view">
     <visual>
         <binding template="ToastText02">
-            <text id="1">{escaped_title}</text>
-            <text id="2">{escaped_msg}</text>
+            <text id="1"><![CDATA[{escaped_title}]]></text>
+            <text id="2"><![CDATA[{escaped_msg}]]></text>
         </binding>
     </visual>
-    <audio src="ms-winsoundevent:{sound}"/>
+    <audio silent="true"/>
 </toast>
 "@
 $xml = New-Object Windows.Data.Xml.Dom.XmlDocument
@@ -90,11 +96,6 @@ $toast = [Windows.UI.Notifications.ToastNotification]::new($xml)
             return True
         except Exception as e:
             return False
-    
-    @staticmethod
-    def ring_bell():
-        """Ring terminal bell"""
-        print("\a", end="", flush=True)
 
 
 class MessageInbox:
@@ -297,7 +298,7 @@ class BackgroundMonitor:
                     # Add to inbox
                     MessageInbox.add_message(self.agent_id, msg)
                     
-                    # Determine notification priority
+                    # Handle different message types - only notify on significant events
                     msg_type = msg.get("msg_type", "")
                     content = msg.get("content", {})
                     
@@ -306,96 +307,55 @@ class BackgroundMonitor:
                     else:
                         content_str = str(content)[:100]
                     
-                    # Notify based on type
-                    should_notify = False
                     title = f"OpenCode: {msg_type}"
                     
-                    # Handle coordination messages
+                    # Handle coordination messages - update files silently
                     if msg_type == "manifest_update":
-                        # Update manifest file
                         if isinstance(content, dict):
                             manifest_file = os.path.join(MANIFEST_DIR, content.get('agent_id', 'unknown') + '.json')
                             try:
                                 with open(manifest_file, 'w') as f:
                                     json.dump(content, f, indent=2)
-                                print(f"[coordination] Manifest updated: {content.get('agent_id')}")
                             except:
                                 pass
-                        WindowsNotifier.show("Agent Update", f"{content.get('agent_id', 'unknown')}: {content.get('intent', 'updated')}", "low")
-                        should_notify = True
-                        
+                    
                     elif msg_type == "lock_update":
                         if isinstance(content, dict):
                             action = content.get('action', '')
                             lock = content.get('lock', {})
                             resource = lock.get('resource', 'unknown') if isinstance(lock, dict) else 'unknown'
                             if action == 'acquired':
-                                print(f"[coordination] Lock acquired: {resource} by {self.agent_id}")
+                                print(f"[coordination] Lock acquired: {resource}")
                             elif action == 'released':
                                 print(f"[coordination] Lock released: {resource}")
-                        should_notify = False  # Don't notify for locks - silent coordination
-                        
-                    elif msg_type == "help_request":
-                        if isinstance(content, dict):
-                            WindowsNotifier.show("Help Requested", f"{content.get('requesting_agent', 'unknown')}: {content.get('description', 'help needed')}", "high")
-                            WindowsNotifier.ring_bell()
-                            should_notify = True
-                        else:
-                            WindowsNotifier.show("Help Requested", str(content)[:100], "high")
-                            should_notify = True
-                            
-                    elif msg_type == "help_offer":
-                        if isinstance(content, dict):
-                            WindowsNotifier.show("Help Offered", f"{content.get('offering_agent', 'unknown')}: {content.get('description', 'help available')}", "normal")
-                            should_notify = True
                     
                     elif msg_type == "operational_alert":
                         if isinstance(content, dict):
                             action = content.get("action", "")
                             alert_data = content.get("alert", {})
-                            alert_type = alert_data.get("alert_type", "unknown")
                             tier = alert_data.get("tier", 3)
                             agent_id = alert_data.get("agent_id", "unknown")
                             description = alert_data.get("description", "")
                             
                             tier_names = {1: "CRITICAL", 2: "HIGH", 3: "NORMAL", 4: "LOW"}
                             tier_name = tier_names.get(tier, "NORMAL")
+                            urgency = "critical" if tier == 1 else ("high" if tier == 2 else "normal")
                             
-                            if action == "created":
-                                urgency = "high" if tier <= 2 else "normal"
-                                WindowsNotifier.show(f"Op Alert [{tier_name}]", f"{agent_id}: {description}", urgency)
-                                if tier <= 2:
-                                    WindowsNotifier.ring_bell()
-                            elif action == "completed":
-                                WindowsNotifier.show("Op Complete", f"{agent_id}: {description[:50]}", "low")
-                            elif action == "cancelled":
-                                WindowsNotifier.show("Op Cancelled", f"{agent_id}: {description[:50]}", "normal")
-                            
-                            should_notify = True
+                            # Only show notification for CRITICAL/HIGH tier alerts
+                            if tier <= 2:
+                                WindowsNotifier.show(f"[{tier_name}] {agent_id}", description[:80], urgency)
+                            elif action in ["completed", "cancelled"] and tier <= 3:
+                                # Show completion for NORMAL tier too
+                                WindowsNotifier.show(f"Op {action.capitalize()}", f"{agent_id}: {description[:60]}", "low")
                     
-                    if msg_type == "task_assign":
-                        WindowsNotifier.show(title, f"Task: {content_str}", "high")
-                        WindowsNotifier.ring_bell()
-                        should_notify = True
-                    elif msg_type == "request_help":
-                        WindowsNotifier.show(title, f"Help needed: {content_str}", "high")
-                        WindowsNotifier.ring_bell()
-                        should_notify = True
-                    elif msg_type == "coordinate":
-                        WindowsNotifier.show(title, f"Coordination: {content_str}", "normal")
-                        WindowsNotifier.ring_bell()
-                        should_notify = True
-                    elif msg_type == "broadcast" and NOTIFY_BROADCAST:
-                        WindowsNotifier.show(title, content_str, "low")
-                        WindowsNotifier.ring_bell()
-                        should_notify = True
+                    elif msg_type == "task_assign" and to_agent == self.agent_id:
+                        WindowsNotifier.show("Task Assigned", content_str[:80], "high")
+                    
+                    elif msg_type == "help_request":
+                        WindowsNotifier.show("Help Needed", f"{content.get('requesting_agent', '?')}: {content.get('description', '')[:60]}", "high")
+                    
                     elif to_agent == self.agent_id and NOTIFY_DIRECT:
-                        WindowsNotifier.show("OpenCode DM", content_str, "normal")
-                        WindowsNotifier.ring_bell()
-                        should_notify = True
-                    
-                    if should_notify:
-                        print(f"\n[MESSAGE] [{msg_type}] {content_str}")
+                        WindowsNotifier.show("Direct Message", content_str[:80], "normal")
                     
                 except Exception as e:
                     pass  # Skip malformed messages

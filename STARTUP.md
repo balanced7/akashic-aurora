@@ -321,9 +321,28 @@ IDLE → PLANNING → REVIEW → EXECUTING → VERIFYING → DONE
 
 ## 📊 DOCKER SERVICES
 
+### Redis HA Cluster (Recommended)
+
 | Container | Port | Purpose |
 |-----------|------|---------|
-| `ai-redis` | 6379 | Knowledge base & state |
+| `redis-master` | 6379 | Primary - writes |
+| `redis-replica1` | 6380 | Read replica |
+| `redis-replica2` | 6381 | Read replica |
+| `sentinel1` | 26379 | Failover monitor |
+| `sentinel2` | 26380 | Failover monitor |
+| `sentinel3` | 26381 | Failover monitor |
+
+**Commands:**
+```bash
+cd E:\AI-Setup\dockerized-ai\redis
+docker compose -f docker-compose-ha.yml up -d   # Start HA cluster
+docker compose -f docker-compose-ha.yml down     # Stop HA cluster
+```
+
+### Legacy Containers
+
+| Container | Port | Purpose |
+|-----------|------|---------|
 | `ai-ollama` | 11434 | LLM inference |
 | `ai-open-webui` | 3000 | Web interface |
 | `ai-voice` | 5000-5001 | Speech I/O |
@@ -333,6 +352,108 @@ IDLE → PLANNING → REVIEW → EXECUTING → VERIFYING → DONE
 docker ps                    # Check running
 docker start ai-redis       # Start Redis
 docker logs ai-redis        # View logs
+```
+
+---
+
+## 🔄 REDIS SYNC SERVICE
+
+The Redis Sync Service automatically syncs session logs to Redis for persistent context.
+
+### Start Sync Service
+
+```bash
+# Start background sync poller (runs every 5 seconds)
+python E:\AI-Setup\redis_sync.py --daemon
+
+# Check sync status
+python E:\AI-Setup\redis_sync.py --status
+
+# Reset and re-sync all
+python E:\AI-Setup\redis_sync.py --reset
+```
+
+### What Gets Synced
+
+- Session actions from `session_all.jsonl`
+- Chat history
+- Errors and faults
+- Active sessions
+
+### Sync State
+
+Sync positions are tracked in `blackboard_data/redis_sync_state.json` to avoid re-syncing.
+
+---
+
+## 🔌 MCP SERVER (Model Context Protocol)
+
+The system includes an MCP server that exposes session context, Redis data, and knowledge base to AI clients.
+
+### Start MCP Server
+
+```bash
+# Stdio transport (for OpenCode)
+python E:\AI-Setup\ai_setup_mcp.py
+
+# HTTP transport (for Claude Desktop and other clients)
+python E:\AI-Setup\ai_setup_mcp.py --http --port 8080
+```
+
+### MCP Resources Available
+
+| Resource | Description |
+|----------|-------------|
+| `session://current` | Current session info |
+| `session://actions` | Current session actions |
+| `session://log` | Session log entries |
+| `redis://stats` | Redis statistics |
+| `redis://keys` | All Redis keys |
+| `redis://key/{name}` | Specific key value |
+| `knowledge://recent` | Recent knowledge entries |
+| `learnings://all` | All learnings |
+| `context://summary` | Context summary |
+
+### MCP Tools Available
+
+| Tool | Description |
+|------|-------------|
+| `get_session_info` | Get detailed session info |
+| `search_knowledge` | Search knowledge base |
+| `search_learnings` | Search learnings |
+| `get_session_history` | Get historical sessions |
+| `get_chat_history` | Get chat messages |
+| `get_errors` | Get error history |
+| `search_session_logs` | Search log files |
+| `get_current_task` | Get current task |
+| `get_active_blockers` | Get current blockers |
+
+### OpenCode MCP Configuration
+
+Add to your OpenCode MCP config:
+```json
+{
+  "mcpServers": {
+    "ai-setup": {
+      "command": "python",
+      "args": ["E:\\AI-Setup\\ai_setup_mcp.py"]
+    }
+  }
+}
+```
+
+### Claude Desktop MCP Configuration
+
+Add to `claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "ai-setup": {
+      "command": "python",
+      "args": ["E:\\AI-Setup\\ai_setup_mcp.py"]
+    }
+  }
+}
 ```
 
 ---

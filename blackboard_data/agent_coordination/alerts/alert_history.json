@@ -1,0 +1,23 @@
+[
+  {
+    "alert_id": "alert_20260415_013801_a0579b",
+    "alert_type": "test_running",
+    "tier": 2,
+    "agent_id": "agent_6e490189",
+    "description": "Integration test",
+    "scope": [
+      "test_file.py"
+    ],
+    "operations": [
+      "testing"
+    ],
+    "started_at": "2026-04-15T01:38:01.465306",
+    "eta_minutes": 0,
+    "completed_at": "2026-04-15T01:38:01.966341",
+    "risk_level": "low",
+    "can_interrupt": true,
+    "rollback_available": true,
+    "related_alert_id": null,
+    "metadata": {}
+  }
+]

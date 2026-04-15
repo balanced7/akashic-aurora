@@ -228,9 +228,25 @@ class AgentCoordinator:
         if areas is not None:
             manifest.areas = areas
         if status is not None:
-            manifest.status = status
+            if isinstance(status, AgentStatus):
+                manifest.status = status
+            elif isinstance(status, str):
+                try:
+                    manifest.status = AgentStatus(status.lower())
+                except:
+                    manifest.status = AgentStatus.IDLE
+            else:
+                manifest.status = AgentStatus.IDLE
         if priority is not None:
-            manifest.priority = priority
+            if isinstance(priority, Priority):
+                manifest.priority = priority
+            elif isinstance(priority, str):
+                try:
+                    manifest.priority = Priority(priority.lower())
+                except:
+                    manifest.priority = Priority.NORMAL
+            else:
+                manifest.priority = Priority.NORMAL
         if eta_minutes is not None:
             manifest.eta_minutes = eta_minutes
         if current_task is not None:

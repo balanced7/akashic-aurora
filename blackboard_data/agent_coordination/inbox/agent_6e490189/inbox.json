@@ -733,5 +733,596 @@
     "reply_to": null,
     "expires_at": null,
     "metadata": {}
+  },
+  {
+    "msg_id": "msg_20260415_013625_4edaff",
+    "from_agent": "test_agent_001",
+    "to_agent": "broadcast",
+    "msg_type": "test",
+    "content": {
+      "hello": "world",
+      "test": true
+    },
+    "priority": 1,
+    "timestamp": "2026-04-15T01:36:25.423870",
+    "reply_to": null,
+    "expires_at": null,
+    "metadata": {}
+  },
+  {
+    "msg_id": "msg_20260415_013625_4edaff",
+    "from_agent": "test_agent_001",
+    "to_agent": "broadcast",
+    "msg_type": "test",
+    "content": {
+      "hello": "world",
+      "test": true
+    },
+    "priority": 1,
+    "timestamp": "2026-04-15T01:36:25.423870",
+    "reply_to": null,
+    "expires_at": null,
+    "metadata": {}
+  },
+  {
+    "msg_id": "msg_20260415_013625_4edaff",
+    "from_agent": "test_agent_001",
+    "to_agent": "broadcast",
+    "msg_type": "test",
+    "content": {
+      "hello": "world",
+      "test": true
+    },
+    "priority": 1,
+    "timestamp": "2026-04-15T01:36:25.423870",
+    "reply_to": null,
+    "expires_at": null,
+    "metadata": {}
+  },
+  {
+    "msg_id": "msg_20260415_013726_d876ef",
+    "from_agent": "agent_6e490189",
+    "to_agent": "broadcast",
+    "msg_type": "integration_test",
+    "content": {
+      "test": "broadcast",
+      "seq": 1
+    },
+    "priority": 1,
+    "timestamp": "2026-04-15T01:37:26.973791",
+    "reply_to": null,
+    "expires_at": null,
+    "metadata": {}
+  },
+  {
+    "msg_id": "msg_20260415_013726_d876ef",
+    "from_agent": "agent_6e490189",
+    "to_agent": "broadcast",
+    "msg_type": "integration_test",
+    "content": {
+      "test": "broadcast",
+      "seq": 1
+    },
+    "priority": 1,
+    "timestamp": "2026-04-15T01:37:26.973791",
+    "reply_to": null,
+    "expires_at": null,
+    "metadata": {}
+  },
+  {
+    "msg_id": "msg_20260415_013727_d547eb",
+    "from_agent": "agent_6e490189",
+    "to_agent": "agent_6e490189",
+    "msg_type": "wake_call",
+    "content": {
+      "message": "This is a wake test",
+      "action": "test_wake",
+      "seq": 2
+    },
+    "priority": 1,
+    "timestamp": "2026-04-15T01:37:27.476364",
+    "reply_to": null,
+    "expires_at": null,
+    "metadata": {}
+  },
+  {
+    "msg_id": "msg_20260415_013727_d547eb",
+    "from_agent": "agent_6e490189",
+    "to_agent": "agent_6e490189",
+    "msg_type": "wake_call",
+    "content": {
+      "message": "This is a wake test",
+      "action": "test_wake",
+      "seq": 2
+    },
+    "priority": 1,
+    "timestamp": "2026-04-15T01:37:27.476364",
+    "reply_to": null,
+    "expires_at": null,
+    "metadata": {}
+  },
+  {
+    "msg_id": "msg_20260415_013625_4edaff",
+    "from_agent": "test_agent_001",
+    "to_agent": "broadcast",
+    "msg_type": "test",
+    "content": {
+      "hello": "world",
+      "test": true
+    },
+    "priority": 1,
+    "timestamp": "2026-04-15T01:36:25.423870",
+    "reply_to": null,
+    "expires_at": null,
+    "metadata": {}
+  },
+  {
+    "msg_id": "msg_20260415_013726_d876ef",
+    "from_agent": "agent_6e490189",
+    "to_agent": "broadcast",
+    "msg_type": "integration_test",
+    "content": {
+      "test": "broadcast",
+      "seq": 1
+    },
+    "priority": 1,
+    "timestamp": "2026-04-15T01:37:26.973791",
+    "reply_to": null,
+    "expires_at": null,
+    "metadata": {}
+  },
+  {
+    "msg_id": "msg_20260415_013727_d547eb",
+    "from_agent": "agent_6e490189",
+    "to_agent": "agent_6e490189",
+    "msg_type": "wake_call",
+    "content": {
+      "message": "This is a wake test",
+      "action": "test_wake",
+      "seq": 2
+    },
+    "priority": 1,
+    "timestamp": "2026-04-15T01:37:27.476364",
+    "reply_to": null,
+    "expires_at": null,
+    "metadata": {}
+  },
+  {
+    "msg_id": "msg_20260415_013744_6eb639",
+    "from_agent": "agent_6e490189",
+    "to_agent": "broadcast",
+    "msg_type": "integration_test",
+    "content": {
+      "test": "broadcast",
+      "seq": 1
+    },
+    "priority": 1,
+    "timestamp": "2026-04-15T01:37:44.544357",
+    "reply_to": null,
+    "expires_at": null,
+    "metadata": {}
+  },
+  {
+    "msg_id": "msg_20260415_013744_6eb639",
+    "from_agent": "agent_6e490189",
+    "to_agent": "broadcast",
+    "msg_type": "integration_test",
+    "content": {
+      "test": "broadcast",
+      "seq": 1
+    },
+    "priority": 1,
+    "timestamp": "2026-04-15T01:37:44.544357",
+    "reply_to": null,
+    "expires_at": null,
+    "metadata": {}
+  },
+  {
+    "msg_id": "msg_20260415_013744_6eb639",
+    "from_agent": "agent_6e490189",
+    "to_agent": "broadcast",
+    "msg_type": "integration_test",
+    "content": {
+      "test": "broadcast",
+      "seq": 1
+    },
+    "priority": 1,
+    "timestamp": "2026-04-15T01:37:44.544357",
+    "reply_to": null,
+    "expires_at": null,
+    "metadata": {}
+  },
+  {
+    "msg_id": "msg_20260415_013745_8049ca",
+    "from_agent": "agent_6e490189",
+    "to_agent": "agent_6e490189",
+    "msg_type": "wake_call",
+    "content": {
+      "message": "This is a wake test",
+      "action": "test_wake",
+      "seq": 2
+    },
+    "priority": 1,
+    "timestamp": "2026-04-15T01:37:45.046915",
+    "reply_to": null,
+    "expires_at": null,
+    "metadata": {}
+  },
+  {
+    "msg_id": "msg_20260415_013745_8049ca",
+    "from_agent": "agent_6e490189",
+    "to_agent": "agent_6e490189",
+    "msg_type": "wake_call",
+    "content": {
+      "message": "This is a wake test",
+      "action": "test_wake",
+      "seq": 2
+    },
+    "priority": 1,
+    "timestamp": "2026-04-15T01:37:45.046915",
+    "reply_to": null,
+    "expires_at": null,
+    "metadata": {}
+  },
+  {
+    "msg_id": "msg_20260415_013745_8049ca",
+    "from_agent": "agent_6e490189",
+    "to_agent": "agent_6e490189",
+    "msg_type": "wake_call",
+    "content": {
+      "message": "This is a wake test",
+      "action": "test_wake",
+      "seq": 2
+    },
+    "priority": 1,
+    "timestamp": "2026-04-15T01:37:45.046915",
+    "reply_to": null,
+    "expires_at": null,
+    "metadata": {}
+  },
+  {
+    "msg_id": "msg_20260415_013625_4edaff",
+    "from_agent": "test_agent_001",
+    "to_agent": "broadcast",
+    "msg_type": "test",
+    "content": {
+      "hello": "world",
+      "test": true
+    },
+    "priority": 1,
+    "timestamp": "2026-04-15T01:36:25.423870",
+    "reply_to": null,
+    "expires_at": null,
+    "metadata": {}
+  },
+  {
+    "msg_id": "msg_20260415_013726_d876ef",
+    "from_agent": "agent_6e490189",
+    "to_agent": "broadcast",
+    "msg_type": "integration_test",
+    "content": {
+      "test": "broadcast",
+      "seq": 1
+    },
+    "priority": 1,
+    "timestamp": "2026-04-15T01:37:26.973791",
+    "reply_to": null,
+    "expires_at": null,
+    "metadata": {}
+  },
+  {
+    "msg_id": "msg_20260415_013727_d547eb",
+    "from_agent": "agent_6e490189",
+    "to_agent": "agent_6e490189",
+    "msg_type": "wake_call",
+    "content": {
+      "message": "This is a wake test",
+      "action": "test_wake",
+      "seq": 2
+    },
+    "priority": 1,
+    "timestamp": "2026-04-15T01:37:27.476364",
+    "reply_to": null,
+    "expires_at": null,
+    "metadata": {}
+  },
+  {
+    "msg_id": "msg_20260415_013744_6eb639",
+    "from_agent": "agent_6e490189",
+    "to_agent": "broadcast",
+    "msg_type": "integration_test",
+    "content": {
+      "test": "broadcast",
+      "seq": 1
+    },
+    "priority": 1,
+    "timestamp": "2026-04-15T01:37:44.544357",
+    "reply_to": null,
+    "expires_at": null,
+    "metadata": {}
+  },
+  {
+    "msg_id": "msg_20260415_013745_8049ca",
+    "from_agent": "agent_6e490189",
+    "to_agent": "agent_6e490189",
+    "msg_type": "wake_call",
+    "content": {
+      "message": "This is a wake test",
+      "action": "test_wake",
+      "seq": 2
+    },
+    "priority": 1,
+    "timestamp": "2026-04-15T01:37:45.046915",
+    "reply_to": null,
+    "expires_at": null,
+    "metadata": {}
+  },
+  {
+    "msg_id": "msg_20260415_013800_e4bef6",
+    "from_agent": "agent_6e490189",
+    "to_agent": "broadcast",
+    "msg_type": "integration_test",
+    "content": {
+      "test": "broadcast",
+      "seq": 1
+    },
+    "priority": 1,
+    "timestamp": "2026-04-15T01:38:00.455365",
+    "reply_to": null,
+    "expires_at": null,
+    "metadata": {}
+  },
+  {
+    "msg_id": "msg_20260415_013800_e4bef6",
+    "from_agent": "agent_6e490189",
+    "to_agent": "broadcast",
+    "msg_type": "integration_test",
+    "content": {
+      "test": "broadcast",
+      "seq": 1
+    },
+    "priority": 1,
+    "timestamp": "2026-04-15T01:38:00.455365",
+    "reply_to": null,
+    "expires_at": null,
+    "metadata": {}
+  },
+  {
+    "msg_id": "msg_20260415_013800_e6620a",
+    "from_agent": "agent_6e490189",
+    "to_agent": "agent_6e490189",
+    "msg_type": "wake_call",
+    "content": {
+      "message": "This is a wake test",
+      "action": "test_wake",
+      "seq": 2
+    },
+    "priority": 1,
+    "timestamp": "2026-04-15T01:38:00.957394",
+    "reply_to": null,
+    "expires_at": null,
+    "metadata": {}
+  },
+  {
+    "msg_id": "msg_20260415_013800_e6620a",
+    "from_agent": "agent_6e490189",
+    "to_agent": "agent_6e490189",
+    "msg_type": "wake_call",
+    "content": {
+      "message": "This is a wake test",
+      "action": "test_wake",
+      "seq": 2
+    },
+    "priority": 1,
+    "timestamp": "2026-04-15T01:38:00.957394",
+    "reply_to": null,
+    "expires_at": null,
+    "metadata": {}
+  },
+  {
+    "msg_id": "msg_20260415_013801_aac3f8",
+    "from_agent": "agent_6e490189",
+    "to_agent": "broadcast",
+    "msg_type": "manifest_update",
+    "content": {
+      "agent_id": "agent_6e490189",
+      "role": "generator",
+      "intent": "Testing coordination system",
+      "intent_detail": "",
+      "scope": [
+        "test_file.py"
+      ],
+      "areas": [],
+      "status": "idle",
+      "priority": "normal",
+      "eta_minutes": 0,
+      "started_at": "",
+      "dependencies": [],
+      "blocked_by": [],
+      "waiting_for": [],
+      "current_task": "",
+      "current_task_id": "",
+      "progress_percent": 0.0,
+      "last_updated": "2026-04-15T01:38:01.463301",
+      "session_id": ""
+    },
+    "priority": 1,
+    "timestamp": "2026-04-15T01:38:01.463301",
+    "reply_to": null,
+    "expires_at": null,
+    "metadata": {}
+  },
+  {
+    "msg_id": "msg_20260415_013801_aac3f8",
+    "from_agent": "agent_6e490189",
+    "to_agent": "broadcast",
+    "msg_type": "manifest_update",
+    "content": {
+      "agent_id": "agent_6e490189",
+      "role": "generator",
+      "intent": "Testing coordination system",
+      "intent_detail": "",
+      "scope": [
+        "test_file.py"
+      ],
+      "areas": [],
+      "status": "idle",
+      "priority": "normal",
+      "eta_minutes": 0,
+      "started_at": "",
+      "dependencies": [],
+      "blocked_by": [],
+      "waiting_for": [],
+      "current_task": "",
+      "current_task_id": "",
+      "progress_percent": 0.0,
+      "last_updated": "2026-04-15T01:38:01.463301",
+      "session_id": ""
+    },
+    "priority": 1,
+    "timestamp": "2026-04-15T01:38:01.463301",
+    "reply_to": null,
+    "expires_at": null,
+    "metadata": {}
+  },
+  {
+    "msg_id": "msg_20260415_013801_9ab4fc",
+    "from_agent": "agent_6e490189",
+    "to_agent": "broadcast",
+    "msg_type": "operational_alert",
+    "content": {
+      "action": "created",
+      "alert": {
+        "alert_id": "alert_20260415_013801_a0579b",
+        "alert_type": "test_running",
+        "tier": 2,
+        "agent_id": "agent_6e490189",
+        "description": "Integration test",
+        "scope": [
+          "test_file.py"
+        ],
+        "operations": [
+          "testing"
+        ],
+        "started_at": "2026-04-15T01:38:01.465306",
+        "eta_minutes": 0,
+        "completed_at": null,
+        "risk_level": "low",
+        "can_interrupt": true,
+        "rollback_available": true,
+        "related_alert_id": null,
+        "metadata": {}
+      }
+    },
+    "priority": 1,
+    "timestamp": "2026-04-15T01:38:01.465802",
+    "reply_to": null,
+    "expires_at": null,
+    "metadata": {}
+  },
+  {
+    "msg_id": "msg_20260415_013801_9ab4fc",
+    "from_agent": "agent_6e490189",
+    "to_agent": "broadcast",
+    "msg_type": "operational_alert",
+    "content": {
+      "action": "created",
+      "alert": {
+        "alert_id": "alert_20260415_013801_a0579b",
+        "alert_type": "test_running",
+        "tier": 2,
+        "agent_id": "agent_6e490189",
+        "description": "Integration test",
+        "scope": [
+          "test_file.py"
+        ],
+        "operations": [
+          "testing"
+        ],
+        "started_at": "2026-04-15T01:38:01.465306",
+        "eta_minutes": 0,
+        "completed_at": null,
+        "risk_level": "low",
+        "can_interrupt": true,
+        "rollback_available": true,
+        "related_alert_id": null,
+        "metadata": {}
+      }
+    },
+    "priority": 1,
+    "timestamp": "2026-04-15T01:38:01.465802",
+    "reply_to": null,
+    "expires_at": null,
+    "metadata": {}
+  },
+  {
+    "msg_id": "msg_20260415_013801_7e88c7",
+    "from_agent": "agent_6e490189",
+    "to_agent": "broadcast",
+    "msg_type": "operational_alert",
+    "content": {
+      "action": "completed",
+      "alert": {
+        "alert_id": "alert_20260415_013801_a0579b",
+        "alert_type": "test_running",
+        "tier": 2,
+        "agent_id": "agent_6e490189",
+        "description": "Integration test",
+        "scope": [
+          "test_file.py"
+        ],
+        "operations": [
+          "testing"
+        ],
+        "started_at": "2026-04-15T01:38:01.465306",
+        "eta_minutes": 0,
+        "completed_at": "2026-04-15T01:38:01.966341",
+        "risk_level": "low",
+        "can_interrupt": true,
+        "rollback_available": true,
+        "related_alert_id": null,
+        "metadata": {}
+      }
+    },
+    "priority": 1,
+    "timestamp": "2026-04-15T01:38:01.966848",
+    "reply_to": null,
+    "expires_at": null,
+    "metadata": {}
+  },
+  {
+    "msg_id": "msg_20260415_013801_7e88c7",
+    "from_agent": "agent_6e490189",
+    "to_agent": "broadcast",
+    "msg_type": "operational_alert",
+    "content": {
+      "action": "completed",
+      "alert": {
+        "alert_id": "alert_20260415_013801_a0579b",
+        "alert_type": "test_running",
+        "tier": 2,
+        "agent_id": "agent_6e490189",
+        "description": "Integration test",
+        "scope": [
+          "test_file.py"
+        ],
+        "operations": [
+          "testing"
+        ],
+        "started_at": "2026-04-15T01:38:01.465306",
+        "eta_minutes": 0,
+        "completed_at": "2026-04-15T01:38:01.966341",
+        "risk_level": "low",
+        "can_interrupt": true,
+        "rollback_available": true,
+        "related_alert_id": null,
+        "metadata": {}
+      }
+    },
+    "priority": 1,
+    "timestamp": "2026-04-15T01:38:01.966848",
+    "reply_to": null,
+    "expires_at": null,
+    "metadata": {}
   }
 ]

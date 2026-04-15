@@ -1,26 +1,26 @@
 {
-  "msg_id": "msg_20260415_012157_63b511",
+  "msg_id": "msg_20260415_013801_7e88c7",
   "from_agent": "agent_6e490189",
   "to_agent": "broadcast",
   "msg_type": "operational_alert",
   "content": {
-    "action": "created",
+    "action": "completed",
     "alert": {
-      "alert_id": "alert_20260415_012157_26b011",
-      "alert_type": "file_write_in_progress",
+      "alert_id": "alert_20260415_013801_a0579b",
+      "alert_type": "test_running",
       "tier": 2,
       "agent_id": "agent_6e490189",
-      "description": "Refactoring authentication module",
+      "description": "Integration test",
       "scope": [
-        "auth.py"
+        "test_file.py"
       ],
       "operations": [
-        "write"
+        "testing"
       ],
-      "started_at": "2026-04-15T01:21:57.402650",
+      "started_at": "2026-04-15T01:38:01.465306",
       "eta_minutes": 0,
-      "completed_at": null,
-      "risk_level": "medium",
+      "completed_at": "2026-04-15T01:38:01.966341",
+      "risk_level": "low",
       "can_interrupt": true,
       "rollback_available": true,
       "related_alert_id": null,
@@ -28,7 +28,7 @@
     }
   },
   "priority": 1,
-  "timestamp": "2026-04-15T01:21:57.484729",
+  "timestamp": "2026-04-15T01:38:01.966848",
   "reply_to": null,
   "expires_at": null,
   "metadata": {}

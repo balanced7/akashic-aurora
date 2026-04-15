@@ -1,0 +1,9 @@
+{
+  "session_all_position": 200,
+  "session_all_lines": 200,
+  "backup_session_position": 193,
+  "errors_position": 1,
+  "last_sync": "2026-04-15T01:36:41.777367",
+  "last_redis_check": "2026-04-15T01:36:41.776868",
+  "redis_available": true
+}
