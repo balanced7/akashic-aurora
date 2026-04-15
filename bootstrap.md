@@ -1,90 +1,137 @@
-# bootstrap.md - DEPRECATED
-> **⚠️ DEPRECATED**: Read `STARTUP.md` instead. This file is kept for reference only.
+# bootstrap.md - BreakThrough Stack Bootstrap
+> **IMPORTANT**: This file must be read and executed at the START of every session.
 
-**Superseded by**: `E:\AI-Setup\STARTUP.md`
-
----
-
-## Quick Redirect
-
-If you're starting a new session, read these files **in order**:
-
-1. **`STARTUP.md`** (this directory) - Session initialization, re-prime detection
-2. **`ARCHITECTURE.md`** - System architecture and design
-3. **`AGENT_PRIMER.md`** - Best practices, ports, Docker, GPU setup
-4. **`COORDINATION_PRIMER.md`** - Enterprise coordination patterns
+**Version**: 5.0  
+**Updated**: 2026-04-15  
 
 ---
 
-## What Changed
+## 🚀 FIRST STEPS (Do These Immediately)
 
-### Old Bootstrap System (DEPRECATED)
-- Multiple bootstrap files: `bootstrap.md`, `bootstrap_generator.md`, `bootstrap_analyst.md`, `bootstrap_master.md`, `bootstrap_common.md`
-- No automatic session change detection
-- Confusing startup sequence across files
+When starting a new session, run these commands in order:
 
-### New Startup System (CURRENT)
-- **Single entry point**: `STARTUP.md`
-- **Automatic session detection**: `session_manager.py`
-- **Re-prime triggers**: When SESSION_ID changes
-- **Unified initialization**: `session_logger.py` integrates with `session_manager.py`
+### Step 1: Start Redis HA Cluster
 
----
-
-## Migration
-
-### Old Way (DEPRECATED)
-```python
-# scattered across files
-from session_logger import log
-from blackboard import init_blackboard
-# confusing order of operations
+```powershell
+cd E:\AI-Setup\dockerized-ai\redis
+docker compose -f docker-compose-ha.yml up -d
 ```
 
-### New Way (CURRENT)
-```python
-# Single import auto-detects session changes
-from session_logger import log, SESSION_ID, SESSION_UNIQUE
-from session_manager import check_and_reprime
+Verify Redis is running:
+```powershell
+docker exec redis-master redis-cli PING
+# Should return: PONG
+```
 
-state = check_and_reprime(SESSION_ID, SESSION_UNIQUE)
-if state.is_new:
-    print("RE-PRIME REQUIRED")
+### Step 2: Start Redis Sync Service (Background)
+
+```powershell
+python E:\AI-Setup\redis_sync.py --daemon
+```
+
+Verify sync is working:
+```powershell
+python E:\AI-Setup\redis_sync.py --status
+# Should show: Running: True, Redis Available: True
+```
+
+### Step 3: Start MCP Server
+
+For OpenCode (stdio transport):
+```powershell
+python E:\AI-Setup\ai_setup_mcp.py
+```
+
+For Claude Desktop (HTTP transport):
+```powershell
+python E:\AI-Setup\ai_setup_mcp.py --http --port 8080
 ```
 
 ---
 
-## Key Files
+## ✅ VERIFICATION CHECKLIST
 
-| File | Status | Purpose |
-|------|--------|---------|
-| `STARTUP.md` | **CURRENT** | Primary startup documentation |
-| `ARCHITECTURE.md` | Current | System architecture |
-| `AGENT_PRIMER.md` | Current | Best practices |
-| `COORDINATION_PRIMER.md` | Current | Enterprise patterns |
-| `bootstrap.md` | DEPRECATED | This file - redirect only |
-| `bootstrap_*.md` | DEPRECATED | Superseded by STARTUP.md |
+After starting, verify all services are working:
 
----
-
-## Commands
-
-### Check Session State
-```bash
-python E:\AI-Setup\reprime.py --check
-```
-
-### Force Re-prime
-```bash
-python E:\AI-Setup\reprime.py --force
-```
-
-### Run Full Initialization
-```bash
-python E:\AI-Setup\init_session.py
-```
+| Service | Verify Command | Expected |
+|---------|---------------|----------|
+| Redis Master | `docker exec redis-master redis-cli PING` | `PONG` |
+| Redis Replica | `docker exec redis-replica1 redis-cli PING` | `PONG` |
+| Redis Sync | `python E:\AI-Setup\redis_sync.py --status` | `Running: True` |
+| MCP Server | `python -c "from ai_setup_mcp import get_session_info; print(get_session_info())"` | JSON with session info |
 
 ---
 
-**Last Updated**: 2026-04-14  
-**Supersedes**: All `bootstrap_*.md` files
+## 📋 COMPLETE BOOTSTRAP SCRIPT
+
+Run this entire bootstrap sequence:
+
+```powershell
+# 1. Start Redis HA
+cd E:\AI-Setup\dockerized-ai\redis
+docker compose -f docker-compose-ha.yml up -d
+Start-Sleep -Seconds 5
+
+# 2. Verify Redis
+docker exec redis-master redis-cli PING
+
+# 3. Start Redis Sync (background)
+Start-Job -ScriptBlock { 
+    cd E:\AI-Setup
+    python redis_sync.py --daemon
+}
+
+# 4. Start MCP Server (background)
+Start-Job -ScriptBlock { 
+    cd E:\AI-Setup
+    python ai_setup_mcp.py
+}
+
+# 5. Verify services
+python E:\AI-Setup\redis_sync.py --status
+python -c "from ai_setup_mcp import get_session_info; print(get_session_info())"
+```
+
+---
+
+## 🔧 TROUBLESHOOTING
+
+### Redis won't start
+```powershell
+cd E:\AI-Setup\dockerized-ai\redis
+docker compose -f docker-compose-ha.yml down
+docker compose -f docker-compose-ha.yml up -d
+```
+
+### Redis sync not running
+```powershell
+# Kill existing sync
+Get-Process python | Where-Object { $_.CommandLine -like "*redis_sync*" } | Stop-Process -Force
+
+# Restart sync
+python E:\AI-Setup\redis_sync.py --daemon
+```
+
+### MCP server won't start
+```powershell
+# Check if MCP is installed
+pip show mcp
+
+# If not, install
+pip install "mcp[cli]"
+```
+
+---
+
+## 📁 KEY FILES
+
+| File | Purpose |
+|------|---------|
+| `ai_setup_mcp.py` | MCP server - exposes session context via MCP protocol |
+| `redis_sync.py` | Syncs session logs to Redis for persistence |
+| `dockerized-ai/redis/docker-compose-ha.yml` | Redis HA cluster configuration |
+| `STARTUP.md` | Full startup documentation |
+
+---
+
+**Last Updated**: 2026-04-15
