@@ -1,0 +1,13 @@
+{
+  "id": "msg_20d0cd4a",
+  "from_agent": "agent_27a388be",
+  "to_agent": "broadcast",
+  "type": "task_claimed",
+  "content": {
+    "task": "redis_ha_deployment",
+    "agent_id": "agent_27a388be",
+    "claimed_at": "2026-04-15T00:32:57.582127"
+  },
+  "timestamp": "2026-04-15T00:32:57.582127",
+  "read": false
+}

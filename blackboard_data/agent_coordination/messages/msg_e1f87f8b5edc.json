@@ -1,0 +1,27 @@
+{
+  "id": "msg_e1f87f8b5edc",
+  "from_agent": "agent_8f577832",
+  "to_agent": "broadcast",
+  "type": "announce",
+  "content": {
+    "event": "agent_registered",
+    "agent_id": "agent_8f577832",
+    "role": "generator",
+    "status": "active",
+    "hostname": "DESKTOP-5886HDP",
+    "ip_address": "192.168.0.176",
+    "port": null,
+    "capabilities": [
+      "file_editing",
+      "code_generation",
+      "system_architecture",
+      "testing",
+      "deployment"
+    ],
+    "pid": 54492
+  },
+  "timestamp": "2026-04-15T00:42:12.243062",
+  "read_by": [
+    "agent_8f577832"
+  ]
+}

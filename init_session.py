@@ -39,17 +39,25 @@ def initialize():
         state = None
     
     # 2. Start Redis
-    print("\n[2/6] Starting Redis...")
+    print("\n[2/9] Starting Redis...")
     try:
         import subprocess
-        result = subprocess.run(['docker', 'start', 'ai-redis'], 
+        # NOTE: wsl-ai-redis is the correct container name per AGENT_PRIMER.md
+        result = subprocess.run(['docker', 'start', 'wsl-ai-redis'], 
                              capture_output=True, timeout=30)
         if result.returncode == 0:
-            print("  Redis started")
+            print("  Redis started (wsl-ai-redis)")
             results.append(("redis", "OK", "started"))
         else:
-            print(f"  WARNING: {result.stderr.decode() if result.stderr else 'unknown'}")
-            results.append(("redis", "WARN", "may not be running"))
+            # Try ai-redis as fallback for legacy setups
+            result = subprocess.run(['docker', 'start', 'ai-redis'], 
+                                 capture_output=True, timeout=30)
+            if result.returncode == 0:
+                print("  Redis started (ai-redis)")
+                results.append(("redis", "OK", "started"))
+            else:
+                print(f"  WARNING: {result.stderr.decode() if result.stderr else 'unknown'}")
+                results.append(("redis", "WARN", "may not be running"))
     except Exception as e:
         print(f"  ERROR: {e}")
         results.append(("redis", "ERROR", str(e)))
@@ -70,7 +78,9 @@ def initialize():
     print("\n[4/6] Verifying logging...")
     try:
         from session_logger import log, verify_logs
-        log("init_session", "Full initialization run", source="system")
+        log("init_session", "Full initialization run", 
+            data={"results": results, "session_id": SESSION_ID}, 
+            source="system")
         
         verify_result = verify_logs(100)
         if verify_result['corrupted'] > 0:
@@ -104,7 +114,7 @@ def initialize():
         results.append(("catchup", "ERROR", str(e)))
     
     # 6. Service health check
-    print("\n[6/6] Checking service health...")
+    print("\n[6/9] Checking service health...")
     try:
         from master import check_prerequisites
         checks = check_prerequisites()
@@ -116,7 +126,7 @@ def initialize():
         results.append(("health", "ERROR", str(e)))
     
     # 7. Initialize harness enforcement
-    print("\n[7/7] Initializing harness enforcement...")
+    print("\n[7/9] Initializing harness enforcement...")
     try:
         from harness_enforcer import get_harness_enforcer, install_harness_hooks
         
@@ -130,8 +140,62 @@ def initialize():
         print(f"  WARNING: Could not initialize harness: {e}")
         results.append(("harness", "WARN", str(e)))
     
-    # 8. Run directives compliance check
-    print("\n[8/8] Checking directives compliance...")
+    # 8. Initialize multi-agent system
+    print("\n[8/9] Initializing multi-agent system...")
+    try:
+        from multi_agent import initialize_multi_agent, get_agent_registry
+        
+        # Get session info from session_logger
+        from session_logger import SESSION_ID, SESSION_UNIQUE
+        
+        # Detect role from session or default to general
+        role = os.environ.get('OPENCODE_AGENT_ROLE', 'general')
+        
+        ma_result = initialize_multi_agent(
+            session_id=SESSION_ID,
+            session_unique=SESSION_UNIQUE,
+            role=role
+        )
+        
+        if ma_result['initialized']:
+            print(f"  Agent ID: {ma_result['agent_id']}")
+            print(f"  Role: {ma_result['role']}")
+            if ma_result['active_agents']:
+                print(f"  Other agents: {len(ma_result['active_agents'])}")
+                for agent in ma_result['active_agents']:
+                    print(f"    - {agent['agent_id']} ({agent['role']})")
+            results.append(("multi_agent", "OK", ma_result['agent_id'] or 'registered'))
+        else:
+            print(f"  WARNING: {ma_result.get('warnings', ['unknown'])[0]}")
+            results.append(("multi_agent", "WARN", ma_result.get('warnings', ['unknown'])[0]))
+    except Exception as e:
+        print(f"  WARNING: Multi-agent init failed: {e}")
+        results.append(("multi_agent", "WARN", str(e)))
+    
+    # 9. Initialize real-time communication service
+    print("\n[9/10] Initializing real-time communication...")
+    try:
+        from agent_comm_service import get_comm_service, TerminalWaker
+        
+        # Get comm service (auto-initializes)
+        comm = get_comm_service()
+        
+        print(f"  Agent ID: {comm._agent_id}")
+        
+        # Broadcast that we're online
+        comm.broadcast_status("online", "initialization_complete")
+        
+        # Wake any waiting agents
+        TerminalWaker.print_wake_signal()
+        
+        results.append(("comm_service", "OK", comm._agent_id))
+        
+    except Exception as e:
+        print(f"  WARNING: Comm service init failed: {e}")
+        results.append(("comm_service", "WARN", str(e)))
+    
+    # 10. Run directives compliance check
+    print("\n[10/10] Checking directives compliance...")
     try:
         from directives_checker import check_compliance, print_directives_report
         

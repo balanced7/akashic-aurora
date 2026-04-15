@@ -1,0 +1,16 @@
+{
+  "id": "msg_ea885316e1fa",
+  "from_agent": "agent_6e490189",
+  "to_agent": "broadcast",
+  "type": "announce",
+  "content": {
+    "event": "agent_initialized",
+    "agent_id": "agent_6e490189",
+    "role": "generator",
+    "message": "Initialized unified agent layer with identity persistence"
+  },
+  "timestamp": "2026-04-15T00:48:16.885673",
+  "read_by": [
+    "agent_6e490189"
+  ]
+}

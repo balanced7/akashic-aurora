@@ -1,6 +1,6 @@
 """
 AI Knowledge Base & Documentation System
-==========================================
+=========================================
 All AI models should use this system to store and retrieve learnings.
 This ensures cohesive, non-destructive collaboration.
 
@@ -8,17 +8,20 @@ Features:
 - Connection pooling for Redis
 - Pipeline support for batch operations
 - TTL support for expiring learnings
+- DUAL STORAGE: Redis + Vector Store for fast similarity search
+- Automatic sync between formats
 
 Usage:
     from knowledge_base import KB
     
     kb = KB()
-    kb.write("model_name", "key", "value")  # Write learning
+    kb.write("model_name", "key", "value")  # Write learning (stores in BOTH Redis and Vector)
     kb.write("model_name", "temp_key", "data", ttl=86400)  # With 24h expiry
     kb.read("key")                            # Read learning
     kb.get_all_models()                       # List all models
     kb.get_model_context("model_name")        # Get model context
-    kb.search("pattern")                      # Search learnings
+    kb.search("pattern")                      # Search learnings (uses vector store)
+    kb.vector_search("semantic query")        # Vector similarity search
 """
 
 import redis
@@ -42,6 +45,20 @@ def _get_redis_pool():
             max_connections=10
         )
     return _redis_pool
+
+
+def _get_vector_store():
+    """Lazy-load vector store to avoid circular imports"""
+    global _vector_store
+    if _vector_store is None:
+        try:
+            from vector_store import get_vector_store as _get_vs
+            _vector_store = _get_vs()
+        except ImportError:
+            _vector_store = None
+    return _vector_store
+
+_vector_store = None
 
 
 class KnowledgeBase:
@@ -137,6 +154,8 @@ class KnowledgeBase:
         """
         Write a learning/knowledge item.
         
+        DUAL STORAGE: Stores in BOTH Redis (primary) and Vector Store (for fast search).
+        
         Args:
             model_name: Name of the AI model writing this
             key: Unique key for this learning
@@ -145,39 +164,47 @@ class KnowledgeBase:
             ttl: Optional TTL in seconds. If None, learning persists until overwritten.
                  Recommended: 86400 (1 day) for temporary, 604800 (1 week) for transient.
         """
-        if not self.client: return False
+        redis_success = False
         
+        # Store in Redis
+        if self.client:
+            try:
+                learning = {
+                    "model": model_name,
+                    "key": key,
+                    "value": json.dumps(value),
+                    "category": category,
+                    "created_at": datetime.now().isoformat(),
+                    "updated_at": datetime.now().isoformat(),
+                }
+                if ttl is not None:
+                    learning["ttl"] = str(ttl)
+                
+                full_key = f"{self.PREFIX_LEARNING_PREFIX}{key}"
+                self.client.hset(full_key, mapping=learning)
+                
+                if ttl:
+                    self.client.expire(full_key, ttl)
+                
+                model_key = f"{self.PREFIX_MODEL_PREFIX}{model_name}:learnings"
+                self.client.sadd(model_key, key)
+                if ttl:
+                    self.client.expire(model_key, ttl)
+                
+                redis_success = True
+                
+            except Exception as e:
+                print(f"Error writing learning to Redis: {e}")
+        
+        # Store in Vector Store (for fast similarity search)
         try:
-            # Create structured learning entry
-            learning = {
-                "model": model_name,
-                "key": key,
-                "value": json.dumps(value),
-                "category": category,
-                "created_at": datetime.now().isoformat(),
-                "updated_at": datetime.now().isoformat(),
-            }
-            if ttl is not None:
-                learning["ttl"] = str(ttl)  # Store as string to avoid Redis None issue
-            
-            # Store in Redis
-            full_key = f"{self.PREFIX_LEARNING_PREFIX}{key}"
-            self.client.hset(full_key, mapping=learning)
-            
-            # Set TTL if specified
-            if ttl:
-                self.client.expire(full_key, ttl)
-            
-            # Also add to model's personal namespace (with same TTL)
-            model_key = f"{self.PREFIX_MODEL_PREFIX}{model_name}:learnings"
-            self.client.sadd(model_key, key)
-            if ttl:
-                self.client.expire(model_key, ttl)
-            
-            return True
+            vs = _get_vector_store()
+            if vs:
+                vs.embed_learning(model_name, key, value, category)
         except Exception as e:
-            print(f"Error writing learning: {e}")
-            return False
+            print(f"Warning: Could not embed in vector store: {e}")
+        
+        return redis_success
     
     def read(self, key: str) -> Optional[Any]:
         """Read a learning by key"""
@@ -243,6 +270,86 @@ class KnowledgeBase:
             return results
         except:
             return []
+    
+    def vector_search(self, query: str, top_k: int = 5, model: str = None) -> List[Dict]:
+        """
+        Vector similarity search across all learnings.
+        Uses FAISS for fast nearest-neighbor search.
+        
+        Args:
+            query: Natural language query
+            top_k: Number of results to return
+            model: Optional model filter
+            
+        Returns:
+            List of learnings with similarity scores
+        """
+        try:
+            vs = _get_vector_store()
+            if vs is None:
+                print("Vector store not available, falling back to keyword search")
+                return self.search(query)
+            
+            results = vs.search(query, top_k=top_k, model_filter=model)
+            
+            # Enrich with full data from Redis
+            enriched = []
+            for r in results:
+                full_learning = self.read(r["key"])
+                if full_learning is not None:
+                    enriched.append({
+                        **r,
+                        "value": full_learning
+                    })
+                else:
+                    enriched.append(r)
+            
+            return enriched
+            
+        except Exception as e:
+            print(f"Vector search error: {e}")
+            return self.search(query)
+    
+    def sync_to_vector_store(self) -> int:
+        """
+        Sync all learnings from Redis to vector store.
+        Useful after vector store initialization or recovery.
+        
+        Returns:
+            Number of learnings synced
+        """
+        try:
+            vs = _get_vector_store()
+            if vs is None:
+                print("Vector store not available")
+                return 0
+            
+            synced = 0
+            if self.client:
+                for key in self.client.scan_iter(f"{self.PREFIX_LEARNING_PREFIX}*"):
+                    key_name = key.replace(self.PREFIX_LEARNING_PREFIX, "")
+                    data = self.client.hgetall(key)
+                    
+                    if data:
+                        model = data.get("model", "unknown")
+                        value = data.get("value", "")
+                        category = data.get("category", "general")
+                        
+                        try:
+                            value_obj = json.loads(value)
+                        except:
+                            value_obj = value
+                        
+                        vs.embed_learning(model, key_name, value_obj, category)
+                        synced += 1
+            
+            vs.save()
+            print(f"Synced {synced} learnings to vector store")
+            return synced
+            
+        except Exception as e:
+            print(f"Sync error: {e}")
+            return 0
     
     # ============ DOCUMENTATION ============
     

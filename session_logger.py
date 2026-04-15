@@ -485,47 +485,70 @@ def recover():
 
 # Integrate with SessionManager for re-prime detection
 _session_state = None
+_initialization_run = False  # Guard against multiple initializations
 
 def get_session_state():
     """Get the session state (for external use)"""
     return _session_state
 
-# Auto-register session on import
-try:
-    if SESSION_ID:
-        # Import here to avoid circular dependency
-        try:
-            from session_manager import check_and_reprime, get_session_manager
-            _session_state = check_and_reprime(SESSION_ID, SESSION_UNIQUE)
+def is_initialized():
+    """Check if session logger was properly initialized"""
+    return _initialization_run
+
+# Auto-register session on import (only once)
+if not _initialization_run:
+    try:
+        if SESSION_ID:
+            # Import here to avoid circular dependency
+            try:
+                from session_manager import check_and_reprime, get_session_manager
+                _session_state = check_and_reprime(SESSION_ID, SESSION_UNIQUE)
+                
+                if _session_state.is_new:
+                    print("\n" + "=" * 60)
+                    print("NEW SESSION DETECTED - RE-PRIME REQUIRED")
+                    print("=" * 60)
+                    print(get_session_manager().get_reprime_instructions())
+                    print()
+                    
+            except ImportError as e:
+                # session_manager not available - this is a CONFIGURATION ERROR
+                print("[session_logger] CRITICAL: session_manager import failed")
+                print("[session_logger] This means escape detection is DISABLED")
+                print("[session_logger] Error:", str(e))
+                print("[session_logger] FIX: Ensure E:\\AI-Setup is in PYTHONPATH")
+                _session_state = None
+            except Exception as e:
+                # Other error - log it but continue
+                print("[session_logger] Initialization warning:", str(e))
+                _session_state = None
             
-            if _session_state.is_new:
-                print("\n" + "=" * 60)
-                print("NEW SESSION DETECTED - RE-PRIME REQUIRED")
-                print("=" * 60)
-                print(get_session_manager().get_reprime_instructions())
-                print()
-        except ImportError:
-            # session_manager not available, continue without re-prime detection
-            pass
-        
-        _write_log({
-            "type": "logger_startup",
-            "session": SESSION_ID,
-            "unique_id": SESSION_UNIQUE,
-            "is_new_session": _session_state.is_new if _session_state else True,
-            "redis": REDIS_AVAILABLE,
-            "timestamp": datetime.now().isoformat(),
-            "log_file": LOG_FILE,
-            "backup_file": BACKUP_LOG_FILE
-        })
-        
-        if _session_state and _session_state.is_new:
-            log("session_start", "New session - re-prime required", {"is_new": True}, source="system")
-        else:
-            log("session_start", "Session continuing", {"is_new": False}, source="system")
-        
-except Exception as e:
-    print(f"[session_logger] Initialization error: {e}")
+            _write_log({
+                "type": "action",
+                "action": "logger_startup",
+                "description": "Session logger initialized",
+                "timestamp": datetime.now().isoformat(),
+                "session": SESSION_ID,
+                "unique_id": SESSION_UNIQUE,
+                "source": "system",
+                "data": {
+                    "is_new_session": _session_state.is_new if _session_state else True,
+                    "redis_available": REDIS_AVAILABLE,
+                    "session_manager_loaded": _session_state is not None,
+                    "log_file": LOG_FILE
+                }
+            })
+            
+            if _session_state and _session_state.is_new:
+                log("session_start", "New session - re-prime required", {"is_new": True}, source="system")
+            else:
+                log("session_start", "Session continuing" if _session_state else "Session (session_manager unavailable)", 
+                    {"is_new": _session_state.is_new if _session_state else True}, source="system")
+            
+    except Exception as e:
+        print(f"[session_logger] Initialization error: {e}")
+    
+    _initialization_run = True
 
 
 # ============ AUTO-EXPORT ON SHUTDOWN ============

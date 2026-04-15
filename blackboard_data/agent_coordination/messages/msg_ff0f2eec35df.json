@@ -1,0 +1,15 @@
+{
+  "id": "msg_ff0f2eec35df",
+  "from_agent": "agent_df2680b1",
+  "to_agent": "broadcast",
+  "type": "task_claim",
+  "content": {
+    "task": "task_harness_fixes",
+    "agent_id": "agent_df2680b1",
+    "lock_id": "de1da1e9ab6f4e3c84a78280ac0f1fc2"
+  },
+  "timestamp": "2026-04-15T00:42:45.755142",
+  "read_by": [
+    "agent_df2680b1"
+  ]
+}

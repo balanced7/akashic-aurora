@@ -1,0 +1,1 @@
+{"id": "msg_2a5cbf4d4e05", "from_agent": "agent_7be47c33", "to_agent": "broadcast", "type": "test", "content": {"message": "Hello from comm service test", "from": "agent_7be47c33"}, "timestamp": "2026-04-15T00:46:56.896712"}

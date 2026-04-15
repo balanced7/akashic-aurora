@@ -1,0 +1,19 @@
+{
+  "id": "msg_d33a7e85fa66",
+  "from_agent": "agent_c573ab53",
+  "to_agent": "broadcast",
+  "type": "learning",
+  "content": {
+    "learning": {
+      "topic": "multi_agent_coordination",
+      "learning": "Built agent_coordinator.py with vectorized search",
+      "confidence": 0.9
+    },
+    "shared_by": "agent_c573ab53",
+    "timestamp": "2026-04-15T00:46:24.133233"
+  },
+  "timestamp": "2026-04-15T00:46:24.133233",
+  "read_by": [
+    "agent_c573ab53"
+  ]
+}

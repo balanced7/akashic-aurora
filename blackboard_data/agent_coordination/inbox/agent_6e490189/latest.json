@@ -1,0 +1,36 @@
+{
+  "msg_id": "msg_20260415_011628_8d1dc0",
+  "from_agent": "agent_6e490189",
+  "to_agent": "broadcast",
+  "msg_type": "manifest_update",
+  "content": {
+    "agent_id": "agent_6e490189",
+    "role": "generator",
+    "intent": "Testing coordination broadcast",
+    "intent_detail": "",
+    "scope": [
+      "test_a.py",
+      "test_b.py"
+    ],
+    "areas": [
+      "coordination"
+    ],
+    "status": "busy",
+    "priority": "normal",
+    "eta_minutes": 5,
+    "started_at": "",
+    "dependencies": [],
+    "blocked_by": [],
+    "waiting_for": [],
+    "current_task": "",
+    "current_task_id": "",
+    "progress_percent": 0.0,
+    "last_updated": "2026-04-15T01:16:28.389316",
+    "session_id": ""
+  },
+  "priority": 1,
+  "timestamp": "2026-04-15T01:16:28.416377",
+  "reply_to": null,
+  "expires_at": null,
+  "metadata": {}
+}

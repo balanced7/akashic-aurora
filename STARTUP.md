@@ -17,6 +17,59 @@ Session change is detected by comparing SESSION_ID from `session_logger.py` agai
 
 ---
 
+## 🚀 LAUNCH OPTIONS
+
+### Quick Start
+
+```bash
+python E:\AI-Setup\launch.py
+```
+
+This presents a menu with 5 options:
+
+| Option | Mode | Best For |
+|--------|------|----------|
+| 1 | Single Primed Agent | Focused single-task work |
+| 2 | Generator + Analyst | Proposal writing, code review |
+| 3 | Custom Role Launch | Specific role (generator/analyst/master/etc) |
+| 4 | Spawn Helper | Add another agent to help |
+| 5 | System Status | Check active agents and blackboard |
+
+### Auto-Launch
+
+```bash
+# Launch single agent
+python E:\AI-Setup\launch.py --auto 1
+
+# Launch generator + analyst pair
+python E:\AI-Setup\launch.py --auto 2
+
+# Check status
+python E:\AI-Setup\launch.py --status
+```
+
+### Spawning Helpers from Within an Agent
+
+```python
+from multi_agent import spawn_helper_agent, create_help_request
+
+# Request a helper (auto-launches)
+spawn_helper_agent(
+    help_type="analyst",
+    description="Need help reviewing authentication code",
+    context={"file": "auth.py", "task": "security review"}
+)
+
+# Or just create a request for another agent to pick up
+create_help_request(
+    help_type="researcher",
+    description="Find best practices for rate limiting",
+    priority="high"
+)
+```
+
+---
+
 ## 🚀 STARTUP SEQUENCE (Run These First)
 
 ### Step 1: Initialize Session Manager
@@ -284,6 +337,163 @@ docker logs ai-redis        # View logs
 
 ---
 
+## 🤖 MULTI-AGENT MODE
+
+The system supports multiple OpenCode instances running concurrently via Redis + VectorStore.
+
+### Initialization
+
+```python
+from multi_agent import initialize_multi_agent, get_agent_registry, get_message_bus
+
+# On startup (after session_logger)
+result = initialize_multi_agent(
+    session_id=SESSION_ID,
+    session_unique=SESSION_UNIQUE,
+    role="generator"  # generator, analyst, master, orchestrator, general
+)
+
+print(f"Agent ID: {result['agent_id']}")
+print(f"Other agents: {len(result['active_agents'])}")
+```
+
+### Key Components
+
+| Component | Purpose |
+|-----------|---------|
+| `AgentRegistry` | Track active agents, heartbeat, presence |
+| `MessageBus` | Vector-based agent-to-agent messaging |
+| `SharedWorkspace` | Collaborative task workspace with locking |
+
+### Detecting Other Agents
+
+```python
+registry = get_agent_registry()
+
+# Check if any other agents are active
+if registry.is_any_other_agent_active():
+    agents = registry.get_active_agents()
+    for agent in agents:
+        print(f"{agent.agent_id}: {agent.role} in {agent.session_id}")
+
+# Get agents by role
+analysts = registry.get_agent_by_role("analyst")
+```
+
+### Agent Messaging
+
+```python
+bus = get_message_bus()
+
+# Send message to specific agent
+bus.send_message(
+    to_agent="analyst",
+    msg_type="task_request",
+    content="Review code for security",
+    metadata={"file": "auth.py"}
+)
+
+# Broadcast to all agents
+bus.broadcast_to_agents(
+    msg_type="alert",
+    content="Starting deployment",
+    metadata={"target": "production"}
+)
+
+# Search messages semantically
+results = bus.search_messages("security review", top_k=5)
+```
+
+### Shared Workspace
+
+```python
+ws = get_shared_workspace()
+
+# Put item (auto-locks if another agent is editing)
+ws.put("current_task", {"task": "refactor", "file": "main.py"})
+
+# Lock for exclusive access
+ws.lock("shared_resource")
+
+# Release lock
+ws.unlock("shared_resource")
+
+# Search shared items
+items = ws.search_items("refactor task")
+```
+
+### Collaborative Spaces
+
+Spaces are isolated workspaces for different projects or tasks:
+
+```python
+ws = get_shared_workspace()
+
+# Create a new space for a project
+ws.create_space("project_alpha", "Main development workspace")
+
+# List all spaces
+spaces = ws.get_spaces()
+for s in spaces:
+    print(f"  {s['name']}: {s['description']}")
+```
+
+### Help Requests
+
+When an agent needs assistance, it can create a help request:
+
+```python
+from multi_agent import create_help_request, spawn_helper_agent, get_pending_help_requests
+
+# Create a help request (for another agent to pick up)
+request = create_help_request(
+    help_type="analyst",
+    description="Review authentication flow for security issues",
+    priority="high"
+)
+
+# Or spawn a helper immediately
+spawn_helper_agent(
+    help_type="tester",
+    description="Run tests on the new authentication module",
+    context={"module": "auth", "test_suite": "integration"}
+)
+
+# Check pending requests
+pending = get_pending_help_requests()
+for req in pending:
+    print(f"[{req.help_type}] {req.description} from {req.from_agent}")
+```
+
+### Multi-Agent Escape Conditions
+
+| Escape | Description |
+|---------|-------------|
+| `MULTI_AGENT_CONFLICT` | Acting without coordinating with other agents |
+| `IGNORE_OTHER_AGENTS` | Not checking for active agents before actions |
+| `RESOURCE_LOCKED_BY_OTHER` | Trying to access locked resource |
+
+### Harness Enforcement in Multi-Agent Mode
+
+```python
+he = get_harness_enforcer()
+
+# Check if running in multi-agent mode
+if he.is_multi_agent_mode():
+    other_agents = he.get_other_agents()
+    print(f"{len(other_agents)} other agent(s) active")
+    
+    # Check if resource is locked
+    locked_by = he.check_resource_lock("important_file.py")
+    if locked_by:
+        print(f"Locked by: {locked_by['agent_id']}")
+
+# Send message to other agents
+he.send_agent_message("analyst", "query", "Need code review")
+```
+
+---
+
 ## 🛡️ HARNESS ENFORCEMENT
 
 The system includes **Harness Enforcer** (`harness_enforcer.py`) that continuously monitors for escape conditions:
@@ -301,6 +511,8 @@ The system includes **Harness Enforcer** (`harness_enforcer.py`) that continuous
 | `SKIP_SELF_CORRECTION` | Analyst ignoring fault learnings | CRITICAL |
 | `SKIP_TESTING` | Assuming things work without testing | HIGH |
 | `IMPATIENT_EXIT` | Exiting without session summary | MEDIUM |
+| `MULTI_AGENT_CONFLICT` | Not coordinating with other agents | HIGH |
+| `RESOURCE_LOCKED_BY_OTHER` | Accessing locked resource | HIGH |
 
 ### Using Harness Enforcer
 

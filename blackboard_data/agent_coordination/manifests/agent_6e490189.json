@@ -1,0 +1,25 @@
+{
+  "agent_id": "agent_6e490189",
+  "role": "generator",
+  "intent": "Testing coordination broadcast",
+  "intent_detail": "",
+  "scope": [
+    "test_a.py",
+    "test_b.py"
+  ],
+  "areas": [
+    "coordination"
+  ],
+  "status": "busy",
+  "priority": "normal",
+  "eta_minutes": 5,
+  "started_at": "",
+  "dependencies": [],
+  "blocked_by": [],
+  "waiting_for": [],
+  "current_task": "",
+  "current_task_id": "",
+  "progress_percent": 0.0,
+  "last_updated": "2026-04-15T01:16:28.389316",
+  "session_id": ""
+}

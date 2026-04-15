@@ -1,0 +1,15 @@
+{
+  "id": "msg_417d1d62d734",
+  "from_agent": "agent_df2680b1",
+  "to_agent": "broadcast",
+  "type": "task_claim",
+  "content": {
+    "task": "task_vectorized_bridge",
+    "agent_id": "agent_df2680b1",
+    "lock_id": "ced40225a49548a5ad557e7242619db1"
+  },
+  "timestamp": "2026-04-15T00:42:45.757142",
+  "read_by": [
+    "agent_df2680b1"
+  ]
+}

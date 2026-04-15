@@ -1,0 +1,19 @@
+{
+  "id": "msg_c41edac45c44",
+  "from_agent": "agent_c573ab53",
+  "to_agent": "broadcast",
+  "type": "learning",
+  "content": {
+    "learning": {
+      "topic": "redis_sentinel",
+      "learning": "Built redis_ha_manager.py with triple redundancy",
+      "confidence": 0.9
+    },
+    "shared_by": "agent_c573ab53",
+    "timestamp": "2026-04-15T00:46:24.131733"
+  },
+  "timestamp": "2026-04-15T00:46:24.131733",
+  "read_by": [
+    "agent_c573ab53"
+  ]
+}
