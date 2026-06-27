@@ -36,7 +36,7 @@ from core.narrative.beat_log import BeatLog, get_beat_log
 from core.narrative.schema import (
     Beat, Chapter, Track, Theme, Atlas, Edge,
     beat_key, chapter_key, track_key, theme_key, ATLAS_KEY,
-    validate_beat, STORY_FORMAT_VERSION,
+    validate_beat, STORY_FORMAT_VERSION, BOUNDARY_KINDS,
 )
 from core.narrative.chapter_lifecycle import (
     persist_chapter_in_place,
@@ -70,6 +70,8 @@ class BoundaryDetector:
     """Find chapter boundaries within a per-Track Beat sequence.
 
     Heuristic triggers (ES-Mem/HingeMem boundary research, reduced to cheap signals):
+    - explicit: a beat whose kind is in BOUNDARY_KINDS (an agent-declared `mark`) —
+      always cuts, regardless of weight/time. This is the human-in-the-loop signal.
     - time_gap: >min_gap_hours since the previous beat (session boundary)
     - milestone: a weight >= salience_weight beat (salience spike)
 
@@ -103,6 +105,8 @@ class BoundaryDetector:
         """Would beat[i] start a new chapter given beat[i-1]?"""
         prev = beats[i - 1]
         curr = beats[i]
+        if curr.kind in BOUNDARY_KINDS:          # explicit mark_chapter — always cuts
+            return True
         if _hour_gap(prev.at, curr.at) >= self.min_gap_hours:
             return True
         if curr.weight >= self.salience_weight:
@@ -259,7 +263,10 @@ class Chronicler:
         raw = f"{track}_{seg_index}_{span_start}"
         ch_id = f"chapter_{hashlib.md5(raw.encode()).hexdigest()[:12]}"
 
-        best = max(beats, key=lambda b: (b.weight, b.at))
+        # An explicit `mark` names its own chapter; otherwise the most salient beat
+        # (highest weight, then latest) supplies the title.
+        marks = [b for b in beats if b.kind in BOUNDARY_KINDS]
+        best = marks[0] if marks else max(beats, key=lambda b: (b.weight, b.at))
         title = (best.summary[:77] + "...") if len(best.summary) > 80 else best.summary
 
         beat_ids = [b.id for b in beats]
@@ -318,23 +325,31 @@ class Chronicler:
         rebuilt to active, resolvable chapters only (no stale/superseded accumulation).
         """
         for ch in chapters:
-            persist_chapter_in_place(self.store, ch)
-            write_learning_chapter_backlinks(self.store, ch)
-            for bid in ch.beats:
-                raw = self.store.get(beat_key(bid))
-                if raw:
-                    try:
-                        b = Beat.from_dict(json.loads(raw))
-                        b.chapter = ch.id          # bidirectional back-link
-                        self.store.set(beat_key(b.id), json.dumps(b.to_dict()))
-                    except Exception:
-                        pass
+            # Per-chapter best-effort: one bad chapter must not abort the whole
+            # chronicle (the Atlas is written last; losing it would blank the story).
+            try:
+                persist_chapter_in_place(self.store, ch)
+                write_learning_chapter_backlinks(self.store, ch)
+                for bid in ch.beats:
+                    raw = self.store.get(beat_key(bid))
+                    if raw:
+                        try:
+                            b = Beat.from_dict(json.loads(raw))
+                            b.chapter = ch.id          # bidirectional back-link
+                            self.store.set(beat_key(b.id), json.dumps(b.to_dict()))
+                        except Exception:
+                            pass
+            except Exception:
+                continue
 
         by_track: Dict[str, List[str]] = defaultdict(list)
         for ch in chapters:
             by_track[ch.track].append(ch.id)
         for track_id, cids in by_track.items():
-            rebuild_track_chapter_list(self.store, track_id, cids)
+            try:
+                rebuild_track_chapter_list(self.store, track_id, cids)
+            except Exception:
+                continue
 
         # Theme index: accumulate EVERY member beat (a theme is multi-beat AND
         # cross-track), loading each Theme once per run then writing it back.

@@ -40,11 +40,16 @@ ATLAS_KEY = f"{NARR}:atlas:current"
 MIN_WEIGHT, MAX_WEIGHT = 0, 5
 # Default salience per Beat kind — the Chronicler surfaces high-weight Beats in
 # summaries and keeps low-weight ones as quiet drill-down.
+#   mark    : an explicit, agent-declared chapter boundary + title (weight 5 = salient).
+#   session : session start/end markers that bound a default chapter (low salience).
 DEFAULT_WEIGHT = {
-    "milestone": 5, "decision": 4, "learning": 4,
-    "blocker": 3, "commit": 2, "note": 1,
+    "milestone": 5, "mark": 5, "decision": 4, "learning": 4,
+    "blocker": 3, "commit": 2, "note": 1, "session": 1,
 }
 BEAT_KINDS = tuple(DEFAULT_WEIGHT.keys())
+
+# Kinds that force a new Chapter boundary regardless of weight/time (explicit intent).
+BOUNDARY_KINDS = ("mark",)
 
 
 def clamp_weight(w: Any) -> int:

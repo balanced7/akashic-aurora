@@ -40,6 +40,9 @@ def test_blocker_loader():
     import context.project_context as pcmod
     pcmod.ProjectContextManager._instance = None      # fresh isolated singleton
     mgr = pcmod.ProjectContextManager()
+    # Blockers persist in a shared store hash; clear it so this test is hermetic even
+    # when an earlier test in the same run recorded blockers into the same test DB.
+    mgr.store.delete(mgr._key("blockers"))
     mgr.record_blocker_preventing_task("GPU allocation unavailable", "critical")
     mgr.record_blocker_preventing_task("minor cosmetic typo", "low")
     out = load_blockers_preventing_progress("", context_manager=mgr)

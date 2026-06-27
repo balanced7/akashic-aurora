@@ -93,10 +93,12 @@ def test_track_list_drops_superseded():
 
 def test_learning_chapter_backlink():
     s = _store()
-    s.set("learn:experiment:demo_exp", json.dumps({
+    # learn:experiment:{id} is a Redis HASH in production -- store it as one here so the
+    # test exercises the same type path as canonical Redis (a string would mask WRONGTYPE).
+    s.hset("learn:experiment:demo_exp", mapping={
         "experiment_name": "demo_exp",
         "recommendation": "try this",
-    }))
+    })
     ch = Chapter(
         id="chapter_link1",
         track="research",
@@ -108,10 +110,12 @@ def test_learning_chapter_backlink():
         commits=[],
     )
     persist_chapter_in_place(s, ch)
-    write_learning_chapter_backlinks(s, ch)
-    rec = json.loads(s.get("learn:experiment:demo_exp"))
+    n = write_learning_chapter_backlinks(s, ch)
+    assert n == 1
+    rec = s.hgetall("learn:experiment:demo_exp")
     assert rec.get("narrative_chapter") == "chapter_link1"
     assert rec.get("narrative_track") == "research"
+    assert rec.get("experiment_name") == "demo_exp"   # original fields preserved
     print("  backlink: learning record stamped with chapter OK")
 
 

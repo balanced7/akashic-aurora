@@ -34,6 +34,8 @@ def _run_cli(args, store=None):
         pass
     fa = FakeArgs()
     fa.chronicle = "--chronicle" in args
+    fa.session_end = "--session-end" in args
+    fa.mark = None
     fa.track = None
     fa.theme = None
     fa.themes = "--themes" in args

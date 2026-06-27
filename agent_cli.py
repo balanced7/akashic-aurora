@@ -175,17 +175,28 @@ def cmd_story(args, store=None):
     beat_log = BeatLog(store)
     atlas_raw = store.get("narr:atlas:current")
 
-    # --session-end: emit session-end beat then chronicle
-    if args.session_end:
-        try:
-            beat_log.emit("session", summary="Session ended", source="bootstrap:end",
-                          hint=RouteHint(category="meta", task="session_end"))
-        except Exception:
-            pass
-        # fall through to --chronicle
+    # --mark "title": declare an explicit chapter boundary + title (Slice 1/4).
+    # A `mark` beat forces a new chapter and names it, then we re-chronicle.
+    mark_title = getattr(args, "mark", None)
+    if mark_title:
+        from datetime import datetime as _dtm
+        beat_log.emit("mark", summary=mark_title, source=f"mark:{_dtm.utcnow().isoformat()}",
+                      hint=RouteHint(category="meta", task="mark_chapter"))
 
-    # --chronicle flag: run chronicle_all first
-    if args.chronicle or args.session_end:
+    # --session-end: close the session (emits session-end beat) then chronicle.
+    if getattr(args, "session_end", False):
+        from core.narrative.session import end_session
+        end_session(store, now=args.at if args.at else None)
+        if not args.json:
+            print("  (session closed)")
+        atlas_raw = store.get("narr:atlas:current")
+        if atlas_raw and not args.chronicle:
+            atlas = Atlas.from_dict(_json.loads(atlas_raw))
+            _print_atlas(atlas, store)
+        return 0
+
+    # --chronicle flag (also triggered by --mark): run chronicle_all first
+    if args.chronicle or mark_title:
         c = Chronicler(beat_log=beat_log, store=store)
         report = c.chronicle_all(now=args.at if args.at else None)
         atlas_raw = store.get("narr:atlas:current")
@@ -532,7 +543,9 @@ def main():
 
     st = sub.add_parser("story", help="print narrative story views")
     st.add_argument("--chronicle", action="store_true", help="run chronicle_all first")
-    st.add_argument("--session-end", action="store_true", help="emit session-end beat then chronicle")
+    st.add_argument("--mark", default=None, metavar="TITLE",
+                    help="declare an explicit chapter boundary titled TITLE, then chronicle")
+    st.add_argument("--session-end", action="store_true", help="close the session then chronicle")
     st.add_argument("--track", default=None, help="filter to a named track")
     st.add_argument("--theme", default=None, help="filter chapters by theme")
     st.add_argument("--themes", action="store_true", help="list all themes with beat counts")

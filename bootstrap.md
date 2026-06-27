@@ -77,10 +77,13 @@ py agent_cli.py boot <your_agent_id> --task "<what you are doing>"
 - Guardrails (`scripts/check_boundaries.py`): **enforced, green**. Code on GitHub
   (private mirror); knowledge backed up via `scripts/snapshot_knowledge.py`.
 
-> ⚠️ Older root docs (`SYSTEM_STATUS.md`, `ACTUAL_INVENTORY.md`,
-> `CONTINUATION_SESSION_SUMMARY.txt`, `PHASE_1_CHECKPOINT.md`, …) are **historical
-> snapshots and may be stale** (they predate the build-out). For current truth use:
-> this Status, `py agent_cli.py status`, `git log`, and `docs/ROADMAP.md`.
+> ⚠️ **Truth is generated, not hand-written.** The old root status snapshots
+> (`SYSTEM_STATUS.md`, `ACTUAL_INVENTORY.md`, `PHASE_1_CHECKPOINT.md`,
+> `CONTINUATION_SESSION_SUMMARY.txt`, …) have been **retired to `docs/_archive/`** —
+> they drifted the moment code moved. For current truth use:
+> `py agent_cli.py story` (the chronicled narrative), `py agent_cli.py status`,
+> `git log`, and `docs/ROADMAP.md`. A guardrail keeps them from creeping back:
+> `py scripts/check_doc_freshness.py` (fails on any status snapshot at the repo root).
 
 Redis is optional everywhere — the Hybrid backends fall back to files, so the
 system works with Redis down (just slower / no cross-process sharing).

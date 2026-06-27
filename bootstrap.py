@@ -179,14 +179,16 @@ def main():
     else:
         log("    [..] Redis down — counts unavailable (data is in session_logs/ files)", YELLOW)
 
-    # Session logging: emit a session-start beat (best-effort, never crash)
+    # Session logging (Slice 1 auto-capture): open a new session, which first closes
+    # any still-open prior session and re-chronicles it. The spine fills itself --
+    # no agent has to remember to log. Best-effort: never crash boot.
     try:
-        from core.narrative.beat_log import get_beat_log
-        from core.narrative.track_router import RouteHint
-        bl = get_beat_log()
-        bl.emit("session", summary="Session started", source="bootstrap:start",
-                hint=RouteHint(category="meta", task="bootstrap"))
-        log("[*] Session start recorded", CYAN)
+        from core.narrative.session import start_session
+        rep = start_session()
+        if rep.get("closed_prior"):
+            log("[*] Prior session closed + chronicled; new session started", CYAN)
+        else:
+            log("[*] Session start recorded", CYAN)
     except Exception as e:
         log(f"[!] Session logging unavailable ({type(e).__name__})", YELLOW)
 
@@ -208,6 +210,7 @@ def main():
         print("    docs/LEXICON.md                 - the vocabulary")
         print("    docs/BACKUP_AND_RECOVERY.md     - how code + knowledge are backed up")
         print("    py scripts/check_boundaries.py  - verify architectural boundaries")
+        print("    py scripts/check_doc_freshness.py - flag stale hand-written status docs")
         print("    py scripts/snapshot_knowledge.py snapshot   - back up the knowledge store")
         print()
 

@@ -88,24 +88,28 @@ def correct_chapter(store, old_id: str, new_chapter: Chapter, *, now: Optional[s
 
 def write_learning_chapter_backlinks(store, chapter: Chapter) -> int:
     """Stamp ``narrative_chapter`` on learn:experiment records referenced by the chapter
-    (the bidirectional-pointer rule: any atom knows its place in the story)."""
+    (the bidirectional-pointer rule: any atom knows its place in the story).
+
+    learn:experiment:{id} is a Redis HASH (see core/learning/learning_store.py), so the
+    back-link is written as hash FIELDS -- NOT a string get/set, which would raise
+    WRONGTYPE on real Redis and clobber the record's other fields. Best-effort per record:
+    a single bad/missing key never aborts the chronicle.
+    """
     linked = 0
     for src in chapter.learnings or []:
         if not src.startswith("learn:experiment:"):
             continue
-        exp = src.split("learn:experiment:", 1)[-1]
-        key = f"learn:experiment:{exp}"
-        raw = store.get(key)
-        if not raw:
-            continue
+        key = src                                  # source already IS the hash key
         try:
-            rec = json.loads(raw)
-        except json.JSONDecodeError:
+            if not store.exists(key):
+                continue
+            store.hset(key, mapping={
+                "narrative_chapter": chapter.id,
+                "narrative_track": chapter.track or "",
+            })
+            linked += 1
+        except Exception:
             continue
-        rec["narrative_chapter"] = chapter.id
-        rec["narrative_track"] = chapter.track
-        store.set(key, json.dumps(rec))
-        linked += 1
     return linked
 
 

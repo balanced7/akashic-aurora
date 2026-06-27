@@ -1,0 +1,210 @@
+{
+  "version": "0",
+  "generated_at": "2026-06-27T22:33:32.548270",
+  "atlas": {
+    "generated_at": "2026-06-27T22:33:32.548270",
+    "summary": "ai-setup: 3 chapter(s); research: 1 chapter(s)",
+    "tracks": [
+      "ai-setup",
+      "research"
+    ],
+    "relates": []
+  },
+  "storyline": {
+    "ai-setup": [
+      "chapter_f6c22117c0b0",
+      "chapter_7e4b1ccc927d",
+      "chapter_a359afc45e7b"
+    ],
+    "research": [
+      "chapter_41201bc3dadc"
+    ]
+  },
+  "chapters": [
+    {
+      "id": "chapter_f6c22117c0b0",
+      "track": "ai-setup",
+      "title": "Update bootstrap.md with project context initialization step",
+      "span_start": "2026-04-15T01:21:48-04:00",
+      "span_end": "2026-04-15T02:12:35-04:00",
+      "summary": "- Update bootstrap.md with project context initialization step  (source: git:0aab01cdd44a)\n- Add project context system for multi-agent context awareness  (source: git:510c347f2366)\n- Complete rewrite of bootstrap.md - foolproof startup for any new OpenCode instance  (source: git:87eed675c31e)\n- Update bootstrap.md with Redis HA, MCP, and Redis Sync startup  (source: git:e91b96700015)\n- Add MCP server and Redis sync service  [relates: member_of]  (source: git:54fc1c04773c)\n- Add persistent Redis sync poller  (source: git:754674b1446f)\n- Redis HA deployment with triple redundancy  [relates: member_of]  (source: git:b41e88c8342e)\n- Add multi-agent comm system and Redis HA  [relates: member_of]  (source: git:f641195f6e8d)\n- Initial BreakThrough Stack commit  [relates: member_of]  (source: git:cdcf354da98a)",
+      "beats": [
+        "beat_1776230508_4140",
+        "beat_1776230523_5327",
+        "beat_1776231025_8164",
+        "beat_1776231429_3901",
+        "beat_1776231842_5746",
+        "beat_1776231935_3553",
+        "beat_1776232054_6140",
+        "beat_1776233482_8219",
+        "beat_1776233555_4956"
+      ],
+      "learnings": [],
+      "commits": [
+        "git:cdcf354da98a",
+        "git:f641195f6e8d",
+        "git:b41e88c8342e",
+        "git:754674b1446f",
+        "git:54fc1c04773c",
+        "git:e91b96700015",
+        "git:87eed675c31e",
+        "git:510c347f2366",
+        "git:0aab01cdd44a"
+      ],
+      "relates": [
+        {
+          "type": "part_of",
+          "target": "narr:track:ai-setup",
+          "note": ""
+        }
+      ],
+      "parent": "narr:atlas:current",
+      "valid_from": "2026-04-15T01:21:48-04:00",
+      "valid_to": null,
+      "recorded_at": "2026-06-27T22:33:32.548270",
+      "critic_ok": true
+    },
+    {
+      "id": "chapter_7e4b1ccc927d",
+      "track": "ai-setup",
+      "title": "conftest.py to fix path; clear shared store keys per-test for count assertion...",
+      "span_start": "2026-06-27T12:50:14-04:00",
+      "span_end": "2026-06-27T22:25:08.548966",
+      "summary": "- conftest.py to fix path; clear shared store keys per-test for count assertions; retire pre-rebuild tests to _archive instead of leaving false-signal broken collection  [relates: member_of]  (source: learn:experiment:narrative_test_suite_hermeticity)\n- Any code touching a foreign namespace must use that namespace's real Redis type (hset/hgetall here); add a test that stores the record as a HASH (not a string) so...  [relates: member_of]  (source: learn:experiment:narrative_filestore_vs_redis_wrongtype)\n- Themes are multi-label so gate on micro-F1 over (beat,theme) pairs, NOT NMI (NMI assumes a partition); label gold by MEANING independent of the assigner keywords so the...  [relates: member_of]  (source: learn:experiment:narrative_slice8_eval_harness)\n- A metric must be able to FAIL: write a test that drops a high-weight item and assert the metric falls. Measure summary inclusion vs all candidates, not the included set...  [relates: member_of]  (source: learn:experiment:narrative_metric_pinned_at_100)\n- Wire heuristic assigners into emit at write-time (assign-at-write); when adding a Slice verify the production call path exists, not just unit tests on the class  [relates: member_of]  (source: learn:experiment:narrative_slice5_themeassigner_not_wired)\n- Slice 2 complete -- see narrative_slice_2_trackrouter. Next: Slice 7 boot feed.  (source: learn:experiment:narrative_slice_1_beatlog)\n- Import isolate_canonical in subprocess CLI tests; never mix beat_log and chronicle stores  (source: learn:experiment:narrative_test_isolation_gap)\n- Commit untracked narrative files; next is Slice 7 bi-temporal plus boot feed  (source: learn:experiment:narrative_slices_3_5_built)\n- TrackRouter Tier 0 is default; Slice 6 embeddings failed ablation -- do not ship as default  (source: learn:experiment:narrative_slice_2_trackrouter)\n- The shared memory system is functional. Experiments are found by their experiment_name or keyword overlap in recommendation text.  (source: learn:experiment:shared_memory_verification)\n- Slice 2: TrackRouter (heuristic) + gold fixture + benchmark metrics; ARI 0.86 / WindowDiff 0.15 (bar met); routing wired into emit  (source: git:043d55b24e22)\n- Slice 1: BeatLog (time-ordered Beats) + learn->Beat & mirror-commit->Beat hooks + tests  (source: git:d5a1d58452b9)\n- Next Slice 2: TrackRouter heuristic to route Beats to domain Tracks. Beats currently unrouted (track=None)  (source: learn:experiment:narrative_slice_1_beatlog)\n- Slice 8: narrative evaluation harness + gold themes/QA + multi-label metric  [relates: member_of]  (source: git:ab21b4551f94)\n- Review fixes: wire ThemeAssigner, make coverage/faithfulness real, harden Slice 7  [relates: member_of]  (source: git:15b3658feccb)\n- Narrative Slices 3-7: Chronicler, story CLI, themes, boot feed, test isolation  [relates: member_of]  (source: git:df771d1f80ed)\n- Slice 0: narrative schema (Beat/Chapter/Track/Theme/Atlas/Edge) + edge validation vs real 66-type vocab + lexicon; fix fake relationship names in design  [relates: member_of]  (source: git:dea5829af72e)\n- Fix stale bootstrap.md: mark Systems 1-5 built, CLI init, current status + stale-doc warning  (source: git:3f8fd8945b04)\n- Agent-interface refinements + knowledge backup/restore tooling  [relates: member_of]  (source: git:2aba7a181f51)\n- Post-refactor architecture baseline (Store/Ledger + primitives + Context + ACI)  [relates: member_of]  (source: git:10a960c05305)\n- Capture perspectives+maps design note (schema-on-read + lenses for agent memory); record research  (source: git:fcf1ee6cbb20)\n- Add narrative test & verification plan: per-slice acceptance bars + benchmark metrics + self-tests  (source: git:6b0d501091f7)\n- Add closest-analogues research (RAPTOR/GraphRAG/HippoRAG/Amory + Zettelkasten/PARA) + what we uniquely combine  [relates: member_of]  (source: git:6c6489593161)\n- Multi-domain narrative: Tracks/Themes + relationship-type edge schema + TrackRouter (context-inferred) + revised slices  [relates: member_of]  (source: git:ccc86487040c)\n- Refine narrative-spine plan with our naming/architecture research; resolve the 4 decisions  [relates: member_of]  (source: git:cdf05cff5954)\n- Add narrative-spine design plan (System 4 capstone) w/ prior-art lessons  [relates: member_of]  (source: git:83e70b7d7e74)\n- Agent-init discovery endpoint + followable source pointers + py auto-detect  (source: git:9a7c41a745d7)\n- Add scripts/mirror.py: one-step commit + push helper  [relates: member_of]  (source: git:0abcc62f6881)\n- Session ended  (source: bootstrap:end)\n- Wired session logging: bootstrap emits session-start, agent_cli log subcommand, story --session-end  (source: session:wireup)\n- Session started  (source: bootstrap:start)",
+      "beats": [
+        "beat_1782579014_1110",
+        "beat_1782579376_6678",
+        "beat_1782585983_8896",
+        "beat_1782586540_4835",
+        "beat_1782586732_8818",
+        "beat_1782587773_8352",
+        "beat_1782588222_5264",
+        "beat_1782589027_8872",
+        "beat_1782589482_9056",
+        "beat_1782589960_5153",
+        "beat_1782596514_4197",
+        "beat_1782597142_7333",
+        "beat_1782597800_2299",
+        "beat_1782604764_2969",
+        "beat_1782604764_6939",
+        "beat_1782605058_8514",
+        "beat_1782605834_1645",
+        "beat_1782606929_3921",
+        "beat_1782607754_3580",
+        "beat_1782610219_2855",
+        "beat_1782610227_8032",
+        "beat_1782610230_7863",
+        "beat_1782610906_4437",
+        "beat_1782610906_6830",
+        "beat_1782610906_1299",
+        "beat_1782610907_7050",
+        "beat_1782611530_3232",
+        "beat_1782611530_7071",
+        "beat_1782612193_1325",
+        "beat_1782613504_6883",
+        "beat_1782613508_8608"
+      ],
+      "learnings": [
+        "learn:experiment:narrative_slice_1_beatlog",
+        "learn:experiment:shared_memory_verification",
+        "learn:experiment:narrative_slice_2_trackrouter",
+        "learn:experiment:narrative_slices_3_5_built",
+        "learn:experiment:narrative_test_isolation_gap",
+        "learn:experiment:narrative_slice_1_beatlog",
+        "learn:experiment:narrative_slice5_themeassigner_not_wired",
+        "learn:experiment:narrative_metric_pinned_at_100",
+        "learn:experiment:narrative_slice8_eval_harness",
+        "learn:experiment:narrative_filestore_vs_redis_wrongtype",
+        "learn:experiment:narrative_test_suite_hermeticity"
+      ],
+      "commits": [
+        "git:10a960c05305",
+        "git:2aba7a181f51",
+        "git:0abcc62f6881",
+        "git:9a7c41a745d7",
+        "git:3f8fd8945b04",
+        "git:83e70b7d7e74",
+        "git:cdf05cff5954",
+        "git:ccc86487040c",
+        "git:6c6489593161",
+        "git:dea5829af72e",
+        "git:df771d1f80ed",
+        "git:15b3658feccb",
+        "git:ab21b4551f94",
+        "git:d5a1d58452b9",
+        "git:6b0d501091f7",
+        "git:043d55b24e22",
+        "git:fcf1ee6cbb20"
+      ],
+      "relates": [
+        {
+          "type": "part_of",
+          "target": "narr:track:ai-setup",
+          "note": ""
+        }
+      ],
+      "parent": "narr:atlas:current",
+      "valid_from": "2026-06-27T12:50:14-04:00",
+      "valid_to": null,
+      "recorded_at": "2026-06-27T22:33:32.548270",
+      "critic_ok": true
+    },
+    {
+      "id": "chapter_41201bc3dadc",
+      "track": "research",
+      "title": "Keep heuristic as default Tier 0; optional experimental Tier 1 behind flag only",
+      "span_start": "2026-06-27T20:35:28.900770",
+      "span_end": "2026-06-27T21:41:46.768288",
+      "summary": "- Keep heuristic as default Tier 0; optional experimental Tier 1 behind flag only  (source: learn:experiment:narrative_slice_6_ablation_failed)\n- Tier 1 embedding routing skipped - keeping heuristic as default router  (source: session:slice6)\n- Benchmark showed embedding ARI=0.212 vs heuristic ARI=0.754 - ablation gate not met  (source: session:slice6)\n- Capture now build later (rule of three, after narrative graph has edges). See docs/perspectives-maps-design-note.md. Honest bound: superlinear leverage not exponential...  (source: learn:experiment:perspectives_maps_swappable_interpretation)\n- Researched Slice 6 embedding routing: SBERT centroid-based vs heuristic on gold fixture  (source: session:slice6)",
+      "beats": [
+        "beat_1782606928_8090",
+        "beat_1782610222_3008",
+        "beat_1782610226_8517",
+        "beat_1782610227_2347",
+        "beat_1782610906_1546"
+      ],
+      "learnings": [
+        "learn:experiment:perspectives_maps_swappable_interpretation",
+        "learn:experiment:narrative_slice_6_ablation_failed"
+      ],
+      "commits": [],
+      "relates": [
+        {
+          "type": "part_of",
+          "target": "narr:track:research",
+          "note": ""
+        }
+      ],
+      "parent": "narr:atlas:current",
+      "valid_from": "2026-06-27T20:35:28.900770",
+      "valid_to": null,
+      "recorded_at": "2026-06-27T22:33:32.548270",
+      "critic_ok": true
+    },
+    {
+      "id": "chapter_a359afc45e7b",
+      "track": "ai-setup",
+      "title": "Slice 1 finished (mark_chapter + auto-capture), dogfood seed, doc-freshness g...",
+      "span_start": "2026-06-27T22:25:17.311691",
+      "span_end": "2026-06-27T22:25:17.311691",
+      "summary": "- Slice 1 finished (mark_chapter + auto-capture), dogfood seed, doc-freshness guardrail, robustness sweep  [relates: member_of]  (source: mark:2026-06-27T22:25:17.311691)",
+      "beats": [
+        "beat_1782613517_5697"
+      ],
+      "learnings": [],
+      "commits": [],
+      "relates": [
+        {
+          "type": "part_of",
+          "target": "narr:track:ai-setup",
+          "note": ""
+        }
+      ],
+      "parent": "narr:atlas:current",
+      "valid_from": "2026-06-27T22:25:17.311691",
+      "valid_to": null,
+      "recorded_at": "2026-06-27T22:33:32.548270",
+      "critic_ok": true
+    }
+  ]
+}
