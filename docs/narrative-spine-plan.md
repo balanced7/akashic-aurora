@@ -60,14 +60,75 @@ window** instead of by task.
 
 ---
 
+## 2b. Multi-domain: Tracks, Themes & inferred routing
+
+The narrative is a weave of **three axes** connected by relationship-typed edges — not
+one linear story (the system is for *all* work, not just code):
+
+- **Track (which domain)** — a long-running thread per project/domain: `ai-setup`,
+  `stemroller`, `vision`, `voice`, `research`, `ideas`. Each Track has its own Chapters
+  + arc. **Git commits are only the *code* tracks' beat-source**; research/decisions/
+  milestones/notes feed the others. A Beat's *evidence* (`source`) is decoupled from its
+  *domain* (`track`).
+- **Time (when)** — the shared spine; Tracks run in parallel.
+- **Theme (which idea)** — cross-cutting idea-groups (e.g. "local-first") that weave
+  across Tracks. A Beat carries one `track` + many `themes[]`.
+
+Hierarchy: **Atlas → Track → Chapter → Beat**, with **Themes orthogonal**.
+
+### The 66 relationship types ARE the edge schema
+The schema falls out of the vocabulary we already built — no new edge model:
+
+| Category | Example types | Connects | Navigation it gives |
+|---|---|---|---|
+| Temporal | precedes, follows, concurrent_with | beat ↔ beat | the sequence (within & across tracks) |
+| Causal | causes, enables, prevents, led_to | beat → beat | *why* / what unblocked what |
+| Hierarchical | part_of, derived_from, depends_on | beat→chapter→track; track→track | structure, containment, dependency |
+| Versioning | is_version_of, supersedes | iterations | v1→v2 / what replaced what (bi-temporal) |
+| Semantic | is_about, exemplifies, advances | beat → **Theme** | which idea-group it advances |
+| Associative | relates_to, inspired_by, analogous_to | **track → track** | **cross-domain pollination** |
+| Agent-based | created_by, contributed_by | beat → agent | who did it |
+| Spatial | located_in, hosted_on | beat → repo/machine | where it lives |
+
+Tracks = group by `part_of` a domain. Themes = group by `is_about` an idea. Cross-domain
+= `associative`. Time = `temporal`.
+
+### Tracks are INFERRED from context, not declared (the TrackRouter)
+The system recognizes when work switches domains and files beats accordingly — no
+`--track` flag. This is a known problem with strong prior art (see §10b):
+**conversation disentanglement** (assign interleaved messages to threads = assign a Beat
+to its Track), **topic segmentation / topic-shift detection** (detect the switch),
+**intent/task-drift detection** (recognize drift via embedding-centroid cosine), and
+**unsupervised topic discovery + auto-tagging** (spawn + name a *new* Track when nothing
+matches). All can be done unsupervised.
+
+**TrackRouter — tiered, heuristic-first (our standard pattern):**
+- **Tier 0 (ships first, no ML):** infer from cheap signals — a commit's touched
+  repo/dir (`core/`→ai-setup, stemroller paths→stemroller); a learning/decision's
+  category + the agent's active task keyword. The active Track **persists** until a
+  switch. Switch = repo change / task-keyword change / time gap / explicit marker.
+- **Tier 1 (embeddings, later slice):** per-Beat embedding via the Ranker's existing
+  `relevance_fn` seam; per-Track **centroid**; assign to nearest centroid by cosine;
+  **spawn a new Track when max-similarity < threshold** (novelty); flag a **switch when
+  the running representation drifts** past a threshold (DeepContext). Unsupervised
+  (clustering / contrastive — needs no labels).
+- **Tier 2 (LLM, optional):** disambiguate hard cases; auto-name new Tracks/Themes
+  (cluster-tagging).
+
+Themes use the same machinery, multi-label. Boundary detection (§5) runs **per-Track**.
+
 ## 3. Lexicon additions
 
 | Term | Meaning | Genus |
 |---|---|---|
 | **Beat** | one salient, time-anchored narrative event (points to its atom) | narrative event |
-| **Chapter** | a bounded coherent stretch of Beats (mid view) | narrative segment |
-| **Storyline** | the rolled-up arc of Chapter summaries (broad view) | narrative |
+| **Chapter** | a bounded coherent stretch of Beats in one Track (mid view) | narrative segment |
+| **Track** | a long-running per-domain/project thread (its own Chapters + arc) | narrative thread |
+| **Theme** | a cross-cutting idea-group weaving across Tracks (orthogonal) | narrative thread |
+| **Atlas** | the broad view across all Tracks over time | narrative overview |
+| **Storyline** | one Track's rolled-up arc of Chapter summaries | narrative |
 | **Chronicler** | builds Chapters/Storyline from the Ledger (writes the chronicle) | derivation process |
+| **TrackRouter** | infers a Beat's Track from context + detects switches | router |
 | **narrative weight** | salience score stamped on an event at log time (0–5) | scalar |
 | **bi-temporal** | `valid_from/valid_to` (true-in-world) vs `recorded_at` (logged) | time model |
 
@@ -257,9 +318,26 @@ The 2023→2026 literature has solved pieces of this; our design folds in the le
 - **Surveys**: Memory for Autonomous LLM Agents (https://arxiv.org/pdf/2603.07670);
   governing evolving memory / **SSGM** risks (https://arxiv.org/html/2603.11768v1).
 
+**Track inference & context-switch detection** (the "infer, don't declare" problem) —
+four bodies of prior art map onto the TrackRouter (§2b):
+- **Conversation disentanglement** — assign interleaved messages to threads = assign a
+  Beat to its Track. Siamese similarity + ranking; contrastive/clustering (no labels);
+  discourse-graph + GCN beats GPT-4. https://aclanthology.org/N18-1164/ ·
+  https://arxiv.org/pdf/2210.15265
+- **Dialogue topic segmentation / topic-shift detection** — detect the switch (BERT+TCN
+  sequence labeling; sentence-embedding similarity between consecutive units + threshold;
+  unsupervised topic-shift in chats). https://arxiv.org/pdf/2305.01195
+- **Intent / task-drift detection** — recognize the switch via the temporal trajectory of
+  intent; **embedding-centroid drift (cosine)**, PSI / KS tests. DeepContext:
+  https://arxiv.org/html/2602.16935v1
+- **Unsupervised topic discovery + auto-tagging** — SBERT + clustering; a cluster-tagging
+  engine that **spawns a new tag when nothing matches** = spawn + name a new Track.
+  https://arxiv.org/pdf/2108.08543
+
 **Our novel angle:** most systems are conversation-only; we weave **three dimensions
-into one spine — events (Ledger) + knowledge (learnings) + code (git commits)**.
-Local-first (no Neo4j); a lightweight temporal graph on our Store/Ledger.
+into one spine — events (Ledger) + knowledge (learnings) + code (git commits)** — across
+**multiple parallel domain Tracks** with inferred routing. Local-first (no Neo4j); a
+lightweight temporal graph on our Store/Ledger.
 
 ---
 
@@ -321,20 +399,37 @@ source-pointer invariant). Add a `test_narrative.py` modeled on `test_robustness
 
 ## 13. Phased slice plan (build order)
 
-- **Slice 0 — schema + lexicon.** `narr:` schema, lexicon entries, `chronicles/story.*`
-  format. No behavior yet.
-- **Slice 1 — logging hooks (the prerequisite).** narrative-weight on signals;
-  `learn` → Beat; `mirror.py` → commit Beat; `mark_chapter` verb. Beats accrete.
-- **Slice 2 — Chronicler (heuristic).** boundary triggers + windowed Ranker/Distiller
-  → Chapters + Storyline; regenerate-from-atoms + critic gate. Renders `story.md/.json`.
-- **Slice 3 — the verbs.** `story`, `story <id>`, `beat`, `--json/--since/--grep`.
-- **Slice 4 — bi-temporal + back-links.** extend Supersession; learning↔chapter links.
-- **Slice 5 — evaluation.** `test_narrative.py` (timeline QA + faithfulness).
-- **Slice 6 (optional) — LLM writer/critic + embeddings** for richer summaries/retrieval.
+- **Slice 0 — schema + lexicon.** `narr:` schema (Beat/Chapter/**Track**/**Theme**/
+  Atlas), relationship-type edge schema, `chronicles/story.*` format, lexicon entries.
+  No behavior.
+- **Slice 1 — logging hooks (the prerequisite).** narrative-weight on signals; `learn`
+  → Beat; `mirror.py` commit → Beat (with touched-paths); session start/end Beats.
+  Beats accrete (unrouted).
+- **Slice 2 — TrackRouter (Tier 0, heuristic).** assign each Beat to a Track from cheap
+  signals (commit repo/dir; category + active task keyword); persist active Track;
+  heuristic switch (repo / task-keyword / time-gap). **This is the "smart enough to
+  recognize the switch" piece — heuristic first.** Test on a labeled fixture of beats.
+- **Slice 3 — Chronicler (per-Track, heuristic).** per-Track boundary triggers + windowed
+  Ranker/Distiller → Chapters + per-Track Storyline + the Atlas; regenerate-from-atoms +
+  critic gate. Renders `story.md`/`story.index.json`.
+- **Slice 4 — the `story` verb.** `story` (Atlas), `--track`, `--at`, `--chapter`,
+  `--beat`, `--json`; budgeted; errors-that-teach.
+- **Slice 5 — Themes.** theme assignment (keyword → later embedding), `is_about` edges,
+  `story --theme` (cross-domain view).
+- **Slice 6 — embedding routing (Tier 1).** SBERT embeddings via the Ranker `relevance_fn`
+  seam; per-Track centroids; nearest-centroid assignment; novelty→new Track; drift→switch;
+  unsupervised Theme clustering. Upgrades Slices 2 & 5 behind the seam.
+- **Slice 7 — bi-temporal + back-links + feed `boot`.** extend Supersession to validity
+  intervals; learning↔chapter links; inject the recent Atlas/Track into `boot` context
+  (closes the stale-recall loop).
+- **Slice 8 — evaluation.** `test_narrative.py` — timeline QA + faithfulness + TrackRouter
+  assignment accuracy on the fixture.
+- **Slice 9 (optional) — LLM writer/critic + LLM Track/Theme naming.**
 
 Each slice is independently testable and leaves the system green. Seed the first real
-Storyline by chronicling **this build-out** (so an agent recalling "what's been done"
-finally gets the truth) — which also retires the stale status docs at the root.
+narrative by chronicling **this build-out** across its Tracks (ai-setup, research, …) so
+an agent recalling "what's been done" finally gets the truth — which also retires the
+stale status docs at the root.
 
 ---
 
