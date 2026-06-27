@@ -90,7 +90,6 @@ def test_facade_delegates():
     health = c.health_check()
     assert "sync_status" in health
     print("\n--- facade delegation ---\n  emit/learn/status/stats/health via primitives OK")
-    return c
 
 
 def main():
@@ -99,7 +98,7 @@ def main():
     print("=" * 60)
     test_reconciler_redis_down()
     test_reconciler_backfill_if_redis()
-    c = test_facade_delegates()
+    test_facade_delegates()
     _teardown()
     print("\n" + "=" * 60)
     print("ALL SYNC RECONCILER TESTS PASSED")
