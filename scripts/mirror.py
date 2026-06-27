@@ -30,6 +30,19 @@ def git(*args, check=True):
     return r
 
 
+def _emit_commit_beat(msg, files):
+    """Narrative spine (Slice 1): a commit is a Beat in the code tracks. Salience-
+    weighted so routine 'Mirror progress' commits stay quiet drill-down. Best-effort."""
+    try:
+        sys.path.insert(0, ROOT)
+        from core.narrative.beat_log import get_beat_log
+        sha = git("rev-parse", "HEAD", check=False).stdout.strip()[:12]
+        salient = msg.lower().startswith(("feat", "fix")) or any(f.startswith("core/") for f in files)
+        get_beat_log().emit("commit", summary=msg, source=f"git:{sha}", weight=4 if salient else 2)
+    except Exception:
+        pass
+
+
 def main():
     push_only = "--push-only" in sys.argv
     msg_args = [a for a in sys.argv[1:] if not a.startswith("--")]
@@ -42,6 +55,7 @@ def main():
             msg = msg_args[0] if msg_args else f"Mirror progress {datetime.now():%Y-%m-%d %H:%M}"
             git("commit", "-m", msg)
             print(f"[mirror] committed {len(staged.splitlines())} file(s): {msg}")
+            _emit_commit_beat(msg, staged.splitlines())
         else:
             print("[mirror] no file changes to commit")
 

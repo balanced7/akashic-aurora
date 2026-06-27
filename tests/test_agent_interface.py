@@ -136,6 +136,16 @@ def test_status_and_recall_ascii():
     ok("status + recall are ASCII-safe and succeed")
 
 
+def test_learn_emits_a_beat():
+    """Slice 1 hook: recording a lesson via the CLI also appends a narrative Beat."""
+    from core.narrative.beat_log import get_beat_log
+    before = get_beat_log().count()
+    run("learn", "beat_agent", "--experiment", "beat_hook_exp",
+        "--tried", "wire learn->beat", "--result", "a beat appears")
+    assert get_beat_log().count() == before + 1, "learn must emit exactly one Beat"
+    ok("learn emits a narrative Beat (the timeline grows)")
+
+
 def main():
     import redis
     db0_before = redis.Redis(port=16379, db=0).dbsize()
@@ -143,6 +153,7 @@ def main():
     test_agents_md_front_loaded()
     test_boot_output_front_loaded_and_ascii()
     test_full_loop_agent_a_to_b()
+    test_learn_emits_a_beat()
     test_learn_validation()
     test_messy_input_is_sanitized()
     test_rerecord_does_not_duplicate_index()

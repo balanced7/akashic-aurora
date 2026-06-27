@@ -97,6 +97,17 @@ def cmd_learn(args):
     except Exception as e:
         print(f"ERROR recording lesson: {type(e).__name__}: {e}")
         return 1
+    if ok:
+        # narrative spine (Slice 1): a recorded lesson is also a Beat, pointing back
+        # to the learning. Best-effort -- a narrative hiccup must not fail `learn`.
+        try:
+            from core.narrative.beat_log import get_beat_log
+            get_beat_log().emit(
+                "learning",
+                summary=signal.get("recommendation") or signal.get("actual_outcome") or signal["experiment_name"],
+                source=f"learn:experiment:{signal['experiment_name']}")
+        except Exception:
+            pass
     if args.json:
         print(json.dumps({"recorded": bool(ok), "experiment": signal["experiment_name"]}))
     else:
