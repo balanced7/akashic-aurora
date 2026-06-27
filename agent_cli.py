@@ -102,10 +102,12 @@ def cmd_learn(args):
         # to the learning. Best-effort -- a narrative hiccup must not fail `learn`.
         try:
             from core.narrative.beat_log import get_beat_log
+            from core.narrative.track_router import RouteHint
             get_beat_log().emit(
                 "learning",
                 summary=signal.get("recommendation") or signal.get("actual_outcome") or signal["experiment_name"],
-                source=f"learn:experiment:{signal['experiment_name']}")
+                source=f"learn:experiment:{signal['experiment_name']}",
+                hint=RouteHint(category=signal.get("category", ""), task=signal.get("experiment_name", "")))
         except Exception:
             pass
     if args.json:

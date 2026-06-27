@@ -36,9 +36,11 @@ def _emit_commit_beat(msg, files):
     try:
         sys.path.insert(0, ROOT)
         from core.narrative.beat_log import get_beat_log
+        from core.narrative.track_router import RouteHint
         sha = git("rev-parse", "HEAD", check=False).stdout.strip()[:12]
         salient = msg.lower().startswith(("feat", "fix")) or any(f.startswith("core/") for f in files)
-        get_beat_log().emit("commit", summary=msg, source=f"git:{sha}", weight=4 if salient else 2)
+        get_beat_log().emit("commit", summary=msg, source=f"git:{sha}", weight=4 if salient else 2,
+                            hint=RouteHint(paths=files))
     except Exception:
         pass
 

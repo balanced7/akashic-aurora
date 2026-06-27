@@ -25,6 +25,7 @@ from core.narrative.schema import (
 )
 
 TIMELINE = "narr:beats:timeline"
+ROUTER_ACTIVE = "narr:router:active"
 
 
 def _epoch(iso: str) -> float:
@@ -43,8 +44,9 @@ class BeatLog:
     def emit(self, kind: str, summary: str, source: str, *,
              weight: Optional[int] = None, at: Optional[str] = None,
              track: Optional[str] = None, themes: Optional[List[str]] = None,
-             relates: Optional[List[Edge]] = None) -> Optional[Beat]:
+             relates: Optional[List[Edge]] = None, hint=None) -> Optional[Beat]:
         """Append a Beat. Requires a followable `source` (lossless-pointer rule).
+        If `track` is not given, the TrackRouter infers it from `hint`/context (Slice 2).
         Returns the Beat, or None on a refusal (no source / invalid). Never raises."""
         if not source:
             return None
@@ -56,9 +58,29 @@ class BeatLog:
                     weight=weight, track=track, themes=themes or [], relates=relates or [])
         if validate_beat(beat):
             return None
+        if track is None:
+            self._route(beat, hint, _epoch(at))   # sets beat.track + persists + indexes
         self.store.set(beat_key(bid), json.dumps(beat.to_dict()))
         self.store.zadd(TIMELINE, {bid: _epoch(at)})
         return beat
+
+    def _route(self, beat: Beat, hint, score: float) -> None:
+        """Assign the Beat to a Track (Slice 2). Best-effort -- an unrouted Beat is
+        still a valid Beat, so a routing hiccup never blocks logging."""
+        try:
+            from core.narrative.track_router import get_track_router, RouteHint
+            from core.narrative.schema import track_key, Track
+            active = self.store.get(ROUTER_ACTIVE)
+            res = get_track_router().route_one(beat, hint or RouteHint(), active)
+            beat.track = res.track
+            self.store.set(ROUTER_ACTIVE, res.track)
+            self.store.zadd(f"narr:track:{res.track}:beats", {beat.id: score})
+            if not self.store.get(track_key(res.track)):
+                self.store.set(track_key(res.track), json.dumps(
+                    Track(id=res.track, title=res.track.replace("-", " ").title(),
+                          created_at=beat.at).to_dict()))
+        except Exception:
+            pass
 
     def _load(self, beat_id: str) -> Optional[Beat]:
         raw = self.store.get(beat_key(beat_id))
