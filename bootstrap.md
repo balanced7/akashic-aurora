@@ -12,6 +12,10 @@
 > The full contract is in **`AGENTS.md`** (read that, not the internals). Use `py`,
 > not `python` (the `python` alias may be unset on Windows). Do **not** import the
 > internal Python modules directly — `agent_cli.py` is the supported door.
+>
+> Lost, or arriving from another directory? Get a machine-readable map of exactly
+> what to run: **`py bootstrap.py --agent-init`** (emits JSON: init command, the
+> working `python_cmd`, Redis status, lesson count).
 
 ## What this system is
 

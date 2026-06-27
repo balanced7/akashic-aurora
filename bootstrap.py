@@ -13,10 +13,53 @@ Usage:
 
 import sys
 import os
+import json
+import shutil
 import argparse
 from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+
+def detect_python_cmd():
+    """First working Python launcher on PATH. Agents often guess `python` (which is
+    unset on this Windows host); report the one that actually works."""
+    for cmd in ("py", "python3", "python"):
+        if shutil.which(cmd):
+            return cmd
+    return "py"
+
+
+def emit_agent_init():
+    """Machine-readable orientation an agent can consume from ANY directory:
+    `py bootstrap.py --agent-init`. No file-hunting, no vocabulary needed."""
+    py = detect_python_cmd()
+    host, port, reachable, lessons = "localhost", None, False, None
+    try:
+        from core.foundation.redis_connection import (
+            connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
+        host, port = DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
+        c = connect_to_redis_with_fail_fast(host=host, port=port, timeout_seconds=2)
+        reachable = c is not None
+        lessons = len(c.keys("learn:experiment:*")) if c else None
+    except Exception:
+        pass
+    print(json.dumps({
+        "you_are": "an agent connecting to the AI-Setup shared-memory system",
+        "init_command": f'{py} agent_cli.py boot <your_agent_id> --task "<what you are doing>"',
+        "commands": {
+            "boot":   f'{py} agent_cli.py boot <id> --task "..."   (load ranked context)',
+            "learn":  f'{py} agent_cli.py learn <id> --experiment NAME --tried "..." --result "..."',
+            "recall": f'{py} agent_cli.py recall "<query>"   (or: {py} agent_cli.py list)',
+            "status": f'{py} agent_cli.py status',
+        },
+        "contract_doc": "AGENTS.md",
+        "python_cmd": py,
+        "redis": {"host": host, "port": port, "reachable": reachable},
+        "lessons_stored": lessons,
+        "trial_mode": "set REDIS_DB=15 to sandbox your writes (never touches canonical db 0)",
+        "data_backed_up_by": f"{py} scripts/snapshot_knowledge.py snapshot",
+    }, indent=2))
 
 GREEN, RED, YELLOW, CYAN, RESET = '\033[92m', '\033[91m', '\033[93m', '\033[96m', '\033[0m'
 
@@ -92,7 +135,13 @@ def check_logging_available():
 def main():
     parser = argparse.ArgumentParser(description="Stack bootstrap & status check")
     parser.add_argument('--brief', action='store_true', help='Status only, no extras')
+    parser.add_argument('--agent-init', action='store_true',
+                        help='Emit machine-readable agent orientation (JSON) and exit')
     args = parser.parse_args()
+
+    if args.agent_init:
+        emit_agent_init()
+        return
 
     print()
     log("=" * 64, CYAN)

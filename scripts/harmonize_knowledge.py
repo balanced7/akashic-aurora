@@ -143,8 +143,10 @@ def _canonical_records():
             "anti_pattern": "",
             "root_cause": "",
             "timestamp": rich.get("timestamp", ""),
-            # lossy summary above + lossless pointer + full detail (lose nothing, even in-store)
-            "source": f"learnings.jsonl:L{lineno}",
+            # lossy summary above + lossless pointer + full detail (lose nothing, even in-store).
+            # Path is repo-root-relative so an agent can actually open it (the pointer
+            # must be FOLLOWABLE -- an unresolvable pointer isn't lossless).
+            "source": f"session_logs/learnings.jsonl:L{lineno}",
             "detail_json": json.dumps(rich, ensure_ascii=False),
         }
     return recs
