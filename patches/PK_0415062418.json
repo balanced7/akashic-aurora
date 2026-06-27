@@ -1,0 +1,13 @@
+{
+  "id": "PK_0415062418",
+  "timestamp": "2026-04-15T06:24:18.299322",
+  "system": "patch_log",
+  "change_type": "feat",
+  "title": "Added dual-write: Redis primary + file failsafe",
+  "goal": "Ensure patches persist even if Redis fails",
+  "result": "SUCCESS - file writes continue as backup",
+  "version_from": "v0.13.0",
+  "version_to": "v0.14.0",
+  "tags": [],
+  "evidence": []
+}

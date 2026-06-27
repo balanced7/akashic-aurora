@@ -1,0 +1,424 @@
+"""
+Agent Memory: a multi-type memory for agents (decisions, experiences, reflections, approaches)
+
+Semantic Relationship: AgentMemory persists_through Store
+
+WHAT THIS IS
+------------
+A richer learning model than the experiment-signal `LearningStore`. It mirrors
+the standard agent-memory taxonomy (CoALA):
+
+- Decisions   (ADR-style)            -> semantic memory  ("we decided X because Y")
+- Experiences (task/approach/result) -> episodic memory  ("what happened on an attempt")
+- Reflections (what went wrong/help) -> the Reflexion loop (episodic -> semantic)
+- Approaches  (per-component)        -> procedural memory ("what works for a component")
+
+PHASE A (foundation fit)
+------------------------
+This persists through a `Store` (core.foundation.store) -- Redis when up, File
+always -- so it survives Redis being down (the old learning/store.py was
+Redis-only and returned empty on an outage). Behavior and shape are otherwise
+unchanged from that original; richer retrieval, temporal supersession, and the
+consolidation->chronicle loop are later phases (see docs/learning-memory-integration-plan.md).
+
+It uses the `mem:` namespace, distinct from the `learn:` namespace of the
+experiment-signal LearningStore, so the two never collide.
+
+Usage:
+    from core.learning.agent_memory import get_agent_memory
+
+    mem = get_agent_memory()
+    mem.decide(title="Use Sentinel", decision="Redis HA via Sentinel", rationale=["auto failover"])
+    mem.record(task="install ComfyUI", success=True, learnings=["use custom nodes"])
+    ctx = mem.get_context("what should I know before installing?")
+"""
+
+import json
+import random
+import logging
+from datetime import datetime, timedelta
+from typing import List, Dict, Optional, Any
+from dataclasses import dataclass, asdict
+
+from core.foundation.store import Store, create_store
+
+logger = logging.getLogger("agent_memory")
+
+
+@dataclass
+class Decision:
+    id: str
+    title: str
+    status: str
+    context: str
+    decision: str
+    rationale: List[str]
+    alternatives: List[Dict]
+    consequences: Dict[str, List[str]]
+    created_at: str
+    session_id: str = ""
+    supersedes: Optional[str] = None   # id of the decision this one replaces
+    superseded: bool = False           # set True when a newer decision supersedes it
+
+
+@dataclass
+class Experience:
+    id: str
+    task: str
+    approach: str
+    result: str
+    success: bool
+    score: float
+    learnings: List[str]
+    timestamp: str
+    session_id: str = ""
+    supersedes: Optional[str] = None
+    superseded: bool = False
+
+
+@dataclass
+class Reflection:
+    id: str
+    task: str
+    attempt: int
+    what_went_wrong: str
+    why_it_failed: str
+    what_would_help: str
+    corrective_action: str
+    confidence: float
+    created_at: str
+
+
+class AgentMemory:
+    """
+    Multi-type agent memory backed by a swappable Store.
+
+    Semantic Relationship: AgentMemory indexes_memories_in Store
+
+    Stores decisions, experiences, reflections, and per-component approaches,
+    and assembles relevant context for a task.
+    """
+
+    PREFIX = "mem"
+    KEY_DECISIONS = f"{PREFIX}:decisions"
+    KEY_DECISION_INDEX = f"{PREFIX}:decisions:idx"
+    KEY_EXPERIENCES = f"{PREFIX}:experiences"
+    KEY_EXPERIENCES_SUCCESS = f"{PREFIX}:experiences:success"
+    KEY_EXPERIENCES_FAILURE = f"{PREFIX}:experiences:failure"
+    KEY_REFLECTIONS = f"{PREFIX}:reflections"
+    KEY_REFLECTION_INDEX = f"{PREFIX}:reflections:idx"
+    KEY_APPROACHES = f"{PREFIX}:approaches"
+    KEY_APPROACH_BY_COMPONENT = f"{PREFIX}:approaches:by_component"
+
+    MAX_REFLECTIONS = 50  # keep only the newest N reflections in the index
+
+    def __init__(self, store: Optional[Store] = None):
+        self.store = store if store is not None else create_store(prefer_redis=True)
+
+    @property
+    def redis_available(self) -> bool:
+        return bool(getattr(self.store, "redis_available", False))
+
+    def _gen_id(self, prefix: str) -> str:
+        return f"{prefix}_{datetime.now().strftime('%m%d%H%M%S')}_{random.randint(1000, 9999)}"
+
+    # ----- decisions (semantic) -----
+    def _retire_record(self, hash_key: str, record_id: str) -> None:
+        """Mark a stored record superseded (inactive) so reads/ranking skip it."""
+        from core.primitives import supersession
+        data = self.store.hget(hash_key, record_id)
+        if data:
+            rec = supersession.retire(json.loads(data))
+            self.store.hset(hash_key, field=record_id, value=json.dumps(rec))
+
+    def decide(self, title: str, decision: str, context: str = "",
+               rationale: List[str] = None, alternatives: List[Dict] = None,
+               consequences: Dict[str, List[str]] = None, session_id: str = "",
+               supersedes: Optional[str] = None) -> str:
+        """Record an architectural decision. If `supersedes` is given, the named
+        prior decision is retired (Supersession), so reads/ranking surface only this."""
+        dec_id = self._gen_id("ADR")
+        created = datetime.now().isoformat()
+        dec = Decision(
+            id=dec_id, title=title, status="accepted", context=context,
+            decision=decision, rationale=rationale or [], alternatives=alternatives or [],
+            consequences=consequences or {"positive": [], "negative": []},
+            created_at=created, session_id=session_id, supersedes=supersedes,
+        )
+        try:
+            self.store.hset(self.KEY_DECISIONS, field=dec_id, value=json.dumps(asdict(dec)))
+            self.store.zadd(self.KEY_DECISION_INDEX, {dec_id: datetime.fromisoformat(created).timestamp()})
+            if supersedes:
+                self._retire_record(self.KEY_DECISIONS, supersedes)
+            logger.info(f"Decision {dec_id}: {title}")
+            return dec_id
+        except Exception as e:
+            logger.error(f"Failed to record decision: {e}")
+            return ""
+
+    def get_decisions(self, days: int = 30) -> List[Decision]:
+        """Get active (not superseded) decisions from the last `days`, newest first."""
+        decisions = []
+        cutoff = (datetime.now() - timedelta(days=days)).timestamp()
+        try:
+            for dec_id in self.store.zrangebyscore(self.KEY_DECISION_INDEX, cutoff, "+inf"):
+                data = self.store.hget(self.KEY_DECISIONS, dec_id)
+                if data:
+                    d = json.loads(data)
+                    if d.get("superseded"):
+                        continue  # retired by a newer decision
+                    decisions.append(Decision(**d))
+            decisions.sort(key=lambda x: x.created_at, reverse=True)
+        except Exception as e:
+            logger.error(f"Failed to get decisions: {e}")
+        return decisions
+
+    # ----- experiences (episodic) -----
+    def record(self, task: str, success: bool, approach: str = "", result: str = "",
+               score: float = 0, learnings: List[str] = None, session_id: str = "",
+               supersedes: Optional[str] = None) -> str:
+        """Record an experience. If `supersedes` is given, the named prior
+        experience is retired (Supersession)."""
+        exp_id = self._gen_id("exp")
+        created = datetime.now().isoformat()
+        exp = Experience(
+            id=exp_id, task=task[:200], approach=approach[:100] if approach else "",
+            result=result[:200] if result else ("Success" if success else "Failed"),
+            success=success, score=score, learnings=learnings or [],
+            timestamp=created, session_id=session_id, supersedes=supersedes,
+        )
+        try:
+            self.store.hset(self.KEY_EXPERIENCES, field=exp_id, value=json.dumps(asdict(exp)))
+            key = self.KEY_EXPERIENCES_SUCCESS if success else self.KEY_EXPERIENCES_FAILURE
+            self.store.zadd(key, {exp_id: datetime.fromisoformat(created).timestamp()})
+            if supersedes:
+                self._retire_record(self.KEY_EXPERIENCES, supersedes)
+            logger.info(f"Experience {exp_id}: {task[:40]}")
+            return exp_id
+        except Exception as e:
+            logger.error(f"Failed to record experience: {e}")
+            return ""
+
+    def get_similar(self, task: str, limit: int = 5) -> List[Experience]:
+        """Find similar past experiences (keyword overlap; richer retrieval is Phase C)."""
+        similar = []
+        seen = set()
+        try:
+            for key in [self.KEY_EXPERIENCES_SUCCESS, self.KEY_EXPERIENCES_FAILURE]:
+                for exp_id in self.store.zrange(key, 0, 50, desc=True):
+                    if exp_id in seen:
+                        continue
+                    data = self.store.hget(self.KEY_EXPERIENCES, exp_id)
+                    if data:
+                        parsed = json.loads(data)
+                        if parsed.get("superseded"):
+                            continue  # retired by a newer experience
+                        exp = Experience(**parsed)
+                        if any(w in task.lower() for w in exp.task.lower().split() if len(w) > 3):
+                            seen.add(exp_id)
+                            similar.append(exp)
+                            if len(similar) >= limit:
+                                break
+        except Exception as e:
+            logger.error(f"Failed to get similar experiences: {e}")
+        return similar
+
+    def load_all_experiences(self) -> List[Experience]:
+        """All active (not superseded) experiences, newest first across success+failure."""
+        out, seen = [], set()
+        try:
+            for key in (self.KEY_EXPERIENCES_SUCCESS, self.KEY_EXPERIENCES_FAILURE):
+                for exp_id in self.store.zrange(key, 0, -1, desc=True):
+                    if exp_id in seen:
+                        continue
+                    data = self.store.hget(self.KEY_EXPERIENCES, exp_id)
+                    if data:
+                        parsed = json.loads(data)
+                        if parsed.get("superseded"):
+                            continue
+                        seen.add(exp_id)
+                        out.append(Experience(**parsed))
+        except Exception as e:
+            logger.error(f"Failed to load all experiences: {e}")
+        return out
+
+    # ----- reflections (Reflexion loop) -----
+    def reflect(self, task: str, what_went_wrong: str, what_would_help: str,
+                attempt: int = 1, confidence: float = 0.5) -> str:
+        """Record a reflection on a failure."""
+        refl_id = self._gen_id("refl")
+        created = datetime.now().isoformat()
+        refl = Reflection(
+            id=refl_id, task=task[:100], attempt=attempt,
+            what_went_wrong=what_went_wrong[:200], why_it_failed="",
+            what_would_help=what_would_help[:200], corrective_action="",
+            confidence=confidence, created_at=created,
+        )
+        try:
+            self.store.hset(self.KEY_REFLECTIONS, field=refl_id, value=json.dumps(asdict(refl)))
+            self.store.zadd(self.KEY_REFLECTION_INDEX, {refl_id: datetime.fromisoformat(created).timestamp()})
+            # Keep only the newest MAX_REFLECTIONS by dropping the lowest-ranked.
+            self.store.zremrangebyrank(self.KEY_REFLECTION_INDEX, 0, -(self.MAX_REFLECTIONS + 1))
+            return refl_id
+        except Exception as e:
+            logger.error(f"Failed to reflect: {e}")
+            return ""
+
+    def get_insights(self, min_confidence: float = 0.6) -> List[Dict]:
+        """Get actionable insights from recent reflections above a confidence floor."""
+        insights = []
+        try:
+            for refl_id in self.store.zrange(self.KEY_REFLECTION_INDEX, 0, 50, desc=True):
+                data = self.store.hget(self.KEY_REFLECTIONS, refl_id)
+                if data:
+                    r = json.loads(data)
+                    if r.get("confidence", 0) >= min_confidence:
+                        insights.append(r)
+        except Exception as e:
+            logger.error(f"Failed to get insights: {e}")
+        return insights
+
+    # ----- approaches (procedural) -----
+    def register_approach(self, component: str, name: str, status: str,
+                          learnings: List[str] = None, evidence: Dict = None) -> str:
+        """Register an approach (working/failed/in_progress) for a component."""
+        app_id = f"{component}_{name[:20].lower().replace(' ', '_')}_{datetime.now().strftime('%m%d%H%M')}"
+        app = {
+            "id": app_id, "component": component, "name": name, "status": status,
+            "learnings": learnings or [], "evidence": evidence or {},
+            "created_at": datetime.now().isoformat(),
+        }
+        try:
+            self.store.hset(self.KEY_APPROACHES, field=app_id, value=json.dumps(app))
+            existing = self.store.hget(self.KEY_APPROACH_BY_COMPONENT, component) or ""
+            parts = [a for a in existing.split(",") if a] + [app_id]
+            self.store.hset(self.KEY_APPROACH_BY_COMPONENT, field=component, value=",".join(parts))
+            return app_id
+        except Exception as e:
+            logger.error(f"Failed to register approach: {e}")
+            return ""
+
+    def get_component_status(self, component: str) -> Dict[str, List[Dict]]:
+        """Get all approaches for a component, grouped by status."""
+        result = {"working": [], "failed": [], "in_progress": []}
+        try:
+            app_ids = self.store.hget(self.KEY_APPROACH_BY_COMPONENT, component) or ""
+            for app_id in app_ids.split(","):
+                if not app_id:
+                    continue
+                data = self.store.hget(self.KEY_APPROACHES, app_id)
+                if data:
+                    app = json.loads(data)
+                    status = app.get("status", "failed")
+                    if status in result:
+                        result[status].append(app)
+        except Exception as e:
+            logger.error(f"Failed to get component status: {e}")
+        return result
+
+    # ----- retrieval + stats -----
+    def get_context(self, query: str = "") -> Dict[str, Any]:
+        """Assemble relevant memory for a task: decisions, experiences, insights, stats."""
+        decisions = self.get_decisions(days=30)
+        recent_experiences = []
+        try:
+            for exp_id in self.store.zrange(self.KEY_EXPERIENCES_SUCCESS, 0, 9, desc=True):
+                data = self.store.hget(self.KEY_EXPERIENCES, exp_id)
+                if data:
+                    recent_experiences.append(Experience(**json.loads(data)))
+        except Exception as e:
+            logger.error(f"Failed to load recent experiences: {e}")
+
+        return {
+            "decisions": [asdict(d) for d in decisions[:5]],
+            "recent_experiences": [asdict(e) for e in recent_experiences[:5]],
+            "insights": self.get_insights()[:5],
+            "stats": self.get_stats(),
+        }
+
+    def get_stats(self) -> Dict:
+        """Overall memory statistics."""
+        try:
+            decisions = self.store.zcard(self.KEY_DECISION_INDEX)
+            successes = self.store.zcard(self.KEY_EXPERIENCES_SUCCESS)
+            failures = self.store.zcard(self.KEY_EXPERIENCES_FAILURE)
+            reflections = self.store.zcard(self.KEY_REFLECTION_INDEX)
+            total = successes + failures
+            return {
+                "decisions": decisions,
+                "experiences": total,
+                "success_rate": successes / total if total > 0 else 0,
+                "reflections": reflections,
+                "recent_successes": successes,
+                "recent_failures": failures,
+            }
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def log_failure(self, title: str, root_cause: str, fix_applied: str = "",
+                    component: str = "system", learnings: List[str] = None,
+                    session_id: str = "") -> str:
+        """
+        Log a failure: records it as an experience, a reflection, and indexed detail.
+
+        Semantic Relationship: Failure recorded_as Experience AND Reflection
+        """
+        exp_id = self.record(
+            task=title, success=False,
+            approach=f"fix_attempt:{fix_applied[:50]}" if fix_applied else "",
+            result=f"Failed: {root_cause[:100]}", score=0,
+            learnings=learnings or [root_cause], session_id=session_id,
+        )
+
+        if component:
+            try:
+                self.store.zadd(f"{self.PREFIX}:experience:by_task:{component}",
+                                {exp_id: datetime.now().timestamp()})
+            except Exception as e:
+                logger.error(f"Failed to index failure by component: {e}")
+
+        refl_id = self.reflect(
+            task=title[:100], what_went_wrong=title,
+            what_would_help=(fix_applied or (learnings[0] if learnings else "Unknown")),
+            attempt=1, confidence=0.8,
+        )
+
+        try:
+            failure_data = {
+                "id": exp_id, "title": title, "root_cause": root_cause,
+                "fix_applied": fix_applied, "component": component,
+                "learnings": learnings or [], "timestamp": datetime.now().isoformat(),
+                "reflection_id": refl_id,
+            }
+            self.store.hset(f"{self.PREFIX}:failures:detailed", field=exp_id, value=json.dumps(failure_data))
+            self.store.zadd(f"{self.PREFIX}:failures:index", {exp_id: datetime.now().timestamp()})
+        except Exception as e:
+            logger.error(f"Failed to store failure detail: {e}")
+
+        logger.info(f"Failure logged: {title[:50]}")
+        return exp_id
+
+
+# Global instance
+_agent_memory: Optional[AgentMemory] = None
+
+
+def get_agent_memory(store: Optional[Store] = None) -> AgentMemory:
+    """
+    Get or create the global AgentMemory instance.
+
+    Semantic Relationship: AgentMemoryInstance references_to GlobalInstance
+    """
+    global _agent_memory
+    if _agent_memory is None:
+        _agent_memory = AgentMemory(store=store)
+    return _agent_memory
+
+
+if __name__ == "__main__":
+    mem = get_agent_memory()
+    print("=" * 50)
+    print("  AGENT MEMORY STATUS")
+    print("=" * 50)
+    for k, v in mem.get_stats().items():
+        print(f"  {k}: {v}")

@@ -1,0 +1,49 @@
+[
+  {
+    "id": "ADR_0415053909",
+    "type": "decision",
+    "title": "Use Redis",
+    "content": "Use Redis (Because: Fast)",
+    "timestamp": "2026-04-15T05:39:09.181148",
+    "status": "accepted",
+    "confidence": 0.7,
+    "verified": false,
+    "tags": [
+      "redis"
+    ],
+    "evidence": []
+  },
+  {
+    "id": "ADR_0415053834",
+    "type": "decision",
+    "title": "Use Redis",
+    "content": "Use Redis (Because: Fast)",
+    "timestamp": "2026-04-15T05:38:34.340232",
+    "status": "accepted",
+    "confidence": 0.7,
+    "verified": false,
+    "tags": [
+      "redis"
+    ],
+    "evidence": []
+  },
+  {
+    "id": "DEC_0415053628",
+    "type": "decision",
+    "title": "Decided to use Redis",
+    "content": "Decided to use Redis",
+    "timestamp": "2026-04-15T05:36:28.653226",
+    "status": "alpha",
+    "confidence": 0.5,
+    "verified": false,
+    "tags": [
+      "redis",
+      "decided"
+    ],
+    "related": [
+      "action"
+    ],
+    "evidence": [],
+    "superseded_by": ""
+  }
+]

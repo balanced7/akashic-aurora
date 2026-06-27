@@ -1,0 +1,44 @@
+[
+  {
+    "id": "FL_0415060522",
+    "type": "failure",
+    "title": "Session not auto-logged to Redis",
+    "content": "OpenCode session produced zero entries in Redis. session_logger.py and smart_log.py require explicit import/call - no auto-hook exists.",
+    "timestamp": "2026-04-15T06:05:22.963090",
+    "status": "mitigated",
+    "confidence": 0.9,
+    "verified": true,
+    "tags": ["logging", "redis", "session", "automation"],
+    "related": ["session_logger.py", "smart_log.py", "bootstrap.py", "services/session_monitor.py"],
+    "evidence": [
+      "Redis keys 'session*' show no entries from OpenCode session",
+      "bootstrap.py now auto-initializes logging - verified working",
+      "5 entries written to Redis when bootstrap.py runs",
+      "Session monitor created - tracks 24 sessions, detects silent ones",
+      "Monitor can nudge silent sessions via Redis key + pub/sub"
+    ],
+    "root_cause": "Paradigm mismatch: bootstrap.py is USER-run (works), OpenCode is separate AI process (doesn't auto-run anything)",
+    "fix_needed": "MITIGATED: bootstrap.py fix + session monitor provides detection and nudge capability",
+    "fix_applied": "2026-04-15T06:10:00 - bootstrap.py auto-init added; 06:15:00 - session_monitor.py created",
+    "remaining_gap": "OpenCode AI agents still need explicit instruction to import logger. Monitor provides detection + nudge, but agents must respond.",
+    "mitigation": "Session monitor (services/session_monitor.py) now tracks sessions and can nudge silent ones to start logging."
+  },
+  {
+    "id": "FAI_0415053628",
+    "type": "failure",
+    "title": "Failed to connect",
+    "content": "Failed to connect",
+    "timestamp": "2026-04-15T05:36:28.652727",
+    "status": "alpha",
+    "confidence": 0.5,
+    "verified": false,
+    "tags": [
+      "connect"
+    ],
+    "related": [
+      "action"
+    ],
+    "evidence": [],
+    "superseded_by": ""
+  }
+]

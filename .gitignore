@@ -1,41 +1,59 @@
-# Python
+# ============================================================
+# AI-Setup .gitignore
+# Git tracks the ARCHITECTURE (code, docs, curated chronicles).
+# Volatile knowledge DATA (the live Store / learnings / session logs) is backed up
+# separately by scripts/snapshot_knowledge.py -- NOT committed (it churns constantly
+# and would bloat history). See docs/BACKUP_AND_RECOVERY.md.
+# ============================================================
+
+# --- Heavy third-party / generated trees (NOT our architecture) ---
+ComfyUI-Zluda/
+dockerized-ai/
+backup_wsl_migration/
+models/
+assets/
+session_screenshots/
+build/
+dist/
+temp/
+backups/
+sessions/
+
+# --- Virtualenvs / dependencies / caches ---
+**/venv/
+**/.venv/
+**/node_modules/
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
 *.egg-info/
-dist/
-build/
+.Python
 
-# Node
-node_modules/
-.npm
+# --- Volatile knowledge DATA (recover via scripts/snapshot_knowledge.py) ---
+session_logs/
+blackboard_data/
+*.jsonl
 
-# OS
+# --- Secrets (never commit) ---
+.env
+*.env
+*.key
+*.pem
+secrets.*
+credentials.*
+
+# --- OS / IDE ---
 .DS_Store
 Thumbs.db
-
-# IDE
 .vscode/
 .idea/
 
-# Docker
-dockerized-ai/services/dashboard-react/node_modules/
-
-# Logs (keep summary, exclude active logs)
-*.jsonl
-!SESSION_SUMMARY*.md
-!errors_and_faults.jsonl
-
-# Large files
+# --- Binaries / archives ---
 *.zip
 *.tar
 *.tar.gz
 *.bin
-
-# Windows
 *.exe
 
-# Keep important configs
 !.gitignore

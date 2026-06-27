@@ -1,0 +1,6 @@
+[COORDINATOR] [2026-06-17 00:37:09,240] Could not connect to Redis: Timeout connecting to server
+[COORDINATOR] [2026-06-17 00:38:04,057] Could not connect to Redis: Timeout connecting to server
+[COORDINATOR] [2026-06-17 00:38:55,985] Could not connect to Redis: Timeout connecting to server
+[COORDINATOR] [2026-06-17 00:39:48,254] Could not connect to Redis: Timeout connecting to server
+[COORDINATOR] [2026-06-17 00:40:40,161] Could not connect to Redis: Timeout connecting to server
+[COORDINATOR] [2026-06-17 11:26:56,458] Could not connect to Redis; using file fallback

@@ -1,0 +1,286 @@
+[
+  {
+    "id": "MIL_0423001103",
+    "type": "milestone",
+    "title": "Implemented Gemma Realtime Voice AI",
+    "content": "Real-time voice chat with Gemma: streaming LLM (gemma2:2b), Faster-Whisper STT, Kokoro/espeak TTS, WebSocket audio, interrupt detection, multi-format file analysis",
+    "timestamp": "2026-04-23T00:11:03.355516",
+    "status": "beta",
+    "confidence": 0.8,
+    "verified": true,
+    "tags": [
+      "voice-ai",
+      "gemma",
+      "realtime",
+      "streaming",
+      "websocket",
+      "stt",
+      "tts",
+      "interrupt"
+    ],
+    "components": {
+      "server": "E:/AI-Setup/gemma_realtime/server.py (port 5000)",
+      "stt": "faster-whisper base",
+      "tts": "kokoro-tts + espeak-ng",
+      "llm": "gemma2:2b via Ollama",
+      "vad": "silero-vad (basic)"
+    },
+    "gui": "http://localhost:5000",
+    "features": [
+      "text_chat",
+      "voice_input",
+      "file_drag_drop",
+      "voice_selection",
+      "speed_control"
+    ],
+    "evidence": [],
+    "issues": [
+      "VAD needs tuning",
+      "Voice import UI not implemented"
+    ]
+  },
+  {
+    "id": "MIL_0415055030",
+    "type": "milestone",
+    "title": "Verified deployment",
+    "content": "Verified deployment",
+    "timestamp": "2026-04-15T05:50:30.425764",
+    "status": "beta",
+    "confidence": 0.8,
+    "verified": false,
+    "tags": [
+      "verified",
+      "deployment"
+    ],
+    "evidence": []
+  },
+  {
+    "id": "MIL_0415055030",
+    "type": "milestone",
+    "title": "Implemented backup system",
+    "content": "Implemented backup system",
+    "timestamp": "2026-04-15T05:50:30.422764",
+    "status": "claimed",
+    "confidence": 0.4,
+    "verified": false,
+    "tags": [
+      "implemented",
+      "backup",
+      "system"
+    ],
+    "evidence": []
+  },
+  {
+    "id": "MIL_0415055023",
+    "type": "milestone",
+    "title": "Verified deployment works",
+    "content": "Verified deployment works",
+    "timestamp": "2026-04-15T05:50:23.670550",
+    "status": "beta",
+    "confidence": 0.8,
+    "verified": false,
+    "tags": [
+      "verified",
+      "deployment"
+    ],
+    "evidence": []
+  },
+  {
+    "id": "MIL_0415055023",
+    "type": "milestone",
+    "title": "Implemented backup system",
+    "content": "Implemented backup system",
+    "timestamp": "2026-04-15T05:50:23.666648",
+    "status": "claimed",
+    "confidence": 0.4,
+    "verified": false,
+    "tags": [
+      "implemented",
+      "backup",
+      "system"
+    ],
+    "evidence": []
+  },
+  {
+    "id": "MIL_0415055012",
+    "type": "milestone",
+    "title": "Verified deployment works",
+    "content": "Verified deployment works",
+    "timestamp": "2026-04-15T05:50:12.977945",
+    "status": "beta",
+    "confidence": 0.8,
+    "verified": false,
+    "tags": [],
+    "evidence": []
+  },
+  {
+    "id": "MIL_0415055012",
+    "type": "milestone",
+    "title": "Implemented backup system",
+    "content": "Implemented backup system",
+    "timestamp": "2026-04-15T05:50:12.974946",
+    "status": "claimed",
+    "confidence": 0.4,
+    "verified": false,
+    "tags": [
+      "implemented",
+      "backup",
+      "system"
+    ],
+    "evidence": []
+  },
+  {
+    "id": "MIL_0415054936",
+    "type": "milestone",
+    "title": "Implemented backup system",
+    "content": "Implemented backup system",
+    "timestamp": "2026-04-15T05:49:36.449237",
+    "status": "claimed",
+    "confidence": 0.4,
+    "verified": false,
+    "tags": [
+      "backup"
+    ],
+    "evidence": []
+  },
+  {
+    "id": "MIL_0415053909",
+    "type": "milestone",
+    "title": "Tested implementation",
+    "content": "Tested implementation",
+    "timestamp": "2026-04-15T05:39:09.179147",
+    "status": "beta",
+    "confidence": 0.8,
+    "verified": false,
+    "tags": [
+      "implementation"
+    ],
+    "evidence": []
+  },
+  {
+    "id": "MIL_0415053909",
+    "type": "milestone",
+    "title": "Completed Redis backup",
+    "content": "Completed Redis backup",
+    "timestamp": "2026-04-15T05:39:09.178147",
+    "status": "claimed",
+    "confidence": 0.4,
+    "verified": false,
+    "tags": [
+      "completed",
+      "redis",
+      "backup"
+    ],
+    "evidence": []
+  },
+  {
+    "id": "MIL_0415053834",
+    "type": "milestone",
+    "title": "Tested implementation",
+    "content": "Tested implementation",
+    "timestamp": "2026-04-15T05:38:34.338731",
+    "status": "beta",
+    "confidence": 0.8,
+    "verified": false,
+    "tags": [
+      "implementation"
+    ],
+    "evidence": []
+  },
+  {
+    "id": "MIL_0415053834",
+    "type": "milestone",
+    "title": "Completed Redis backup",
+    "content": "Completed Redis backup",
+    "timestamp": "2026-04-15T05:38:34.337232",
+    "status": "claimed",
+    "confidence": 0.4,
+    "verified": false,
+    "tags": [
+      "redis",
+      "backup"
+    ],
+    "evidence": []
+  },
+  {
+    "id": "MIL_0415053628",
+    "type": "milestone",
+    "title": "Implemented DirectML GPU acceleration for Florence-2",
+    "content": "Implemented DirectML GPU acceleration for Florence-2",
+    "timestamp": "2026-04-15T05:36:28.653727",
+    "status": "claimed",
+    "confidence": 0.4,
+    "verified": false,
+    "tags": [
+      "acceleration",
+      "gpu",
+      "florence-2",
+      "directml"
+    ],
+    "related": [
+      "action"
+    ],
+    "evidence": [],
+    "superseded_by": ""
+  },
+  {
+    "id": "MIL_0415053628",
+    "type": "milestone",
+    "title": "Deployed to production",
+    "content": "Deployed to production",
+    "timestamp": "2026-04-15T05:36:28.652727",
+    "status": "beta",
+    "confidence": 0.8,
+    "verified": false,
+    "tags": [
+      "deployed",
+      "production"
+    ],
+    "related": [
+      "action"
+    ],
+    "evidence": [],
+    "superseded_by": ""
+  },
+  {
+    "id": "MIL_0415053628",
+    "type": "milestone",
+    "title": "Completed Redis backup implementation",
+    "content": "Completed Redis backup implementation",
+    "timestamp": "2026-04-15T05:36:28.652227",
+    "status": "claimed",
+    "confidence": 0.4,
+    "verified": false,
+    "tags": [
+      "redis",
+      "implementation",
+      "backup"
+    ],
+    "related": [
+      "action"
+    ],
+    "evidence": [],
+    "superseded_by": ""
+  },
+  {
+    "id": "MIL_0415053628",
+    "type": "milestone",
+    "title": "Created vision engine with ComfyUI integration",
+    "content": "Created vision engine with ComfyUI integration",
+    "timestamp": "2026-04-15T05:36:28.651726",
+    "status": "prototype",
+    "confidence": 0.6,
+    "verified": false,
+    "tags": [
+      "engine",
+      "vision",
+      "comfyui",
+      "integration"
+    ],
+    "related": [
+      "action"
+    ],
+    "evidence": [],
+    "superseded_by": ""
+  }
+]

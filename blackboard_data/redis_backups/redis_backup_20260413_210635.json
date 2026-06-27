@@ -1,9 +1,0 @@
-{
-  "schema_version": "1.0",
-  "export_time": "2026-04-13T21:06:35.710947",
-  "export_timestamp_unix": 1776128795.710947,
-  "redis_host": "localhost",
-  "redis_port": 6379,
-  "total_keys": 0,
-  "keys": {}
-}

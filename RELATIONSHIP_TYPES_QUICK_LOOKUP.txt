@@ -1,0 +1,168 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                   RELATIONSHIP TYPES QUICK LOOKUP TABLE                      ║
+║                          66 Types • 10 Domains                               ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+STRUCTURAL (Part-Whole)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  part_of ↔ has_part                 (formal: BFO:0000050)
+  component_of ↔ has_component       (functional part)
+  member_of ↔ has_member             (group membership)
+  contained_in ↔ contains            (physical/logical containment)
+
+
+HIERARCHICAL/TAXONOMIC (Classification)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  is_a ↔ has_subclass                (class inheritance)
+  instance_of ↔ has_instance         (instance of class)
+
+
+CAUSAL (Cause-Effect, Transformation)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  causes ↔ caused_by                 (direct causation)
+  derives_from ↔ derives_into        (transformation/evolution)
+  develops_from ↔ develops_into      (biological/developmental)
+  influences ↔ influenced_by         (weaker causation)
+  prevents ↔ prevented_by            (negative causation)
+
+
+SEMANTIC/EQUIVALENCE (Meaning)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  equivalent_to ↔ equivalent_to      (exact equivalence)
+  similar_to ↔ similar_to            (close match)
+  synonym_of ↔ synonym_of            (same meaning)
+  opposite_of ↔ opposite_of          (antonym)
+  related_to ↔ related_to            (general connection)
+
+
+TEMPORAL (Time-based)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  precedes ↔ preceded_by             (before/after)
+  follows ↔ followed_by              (after/before)
+  occurs_during ↔ has_event          (time period)
+  contemporary_with ↔ contemporary_with (simultaneous)
+
+
+AGENT/ATTRIBUTION (Creator/Agency)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  authored_by ↔ authored             (creator)
+  created_by ↔ created               (creation)
+  attributed_to ↔ attributed         (responsibility)
+  performed_by ↔ performed           (action performance)
+
+
+SPATIAL (Location/Position)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  located_in ↔ has_location          (location)
+  adjacent_to ↔ adjacent_to          (proximity)
+  overlaps_with ↔ overlaps_with      (intersection)
+
+
+DOCUMENTATION (References, Knowledge)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  references ↔ referenced_by         (citation)
+  documents ↔ documented_by          (documentation)
+  based_on ↔ basis_for              (foundation)
+
+
+VERSIONING (Version Control)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  is_version_of ↔ has_version        (version tracking)
+  replaces ↔ replaced_by             (supersession)
+
+
+ASSOCIATIVE (General Associations)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  associated_with ↔ associated_with  (general connection)
+  depends_on ↔ dependency_of         (dependency)
+  requires ↔ required_by             (requirement)
+  supports ↔ supported_by            (support)
+  complements ↔ complemented_by      (complement)
+  conflicts_with ↔ conflicts_with    (conflict)
+
+
+USAGE PATTERNS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Quick: Use short_name
+  "type": "part_of"
+
+Formal: Use formal_name for external systems
+  "formal_type": "BFO:0000050"
+
+With Inverse: Always document both directions
+  {"from": "A", "to": "B", "type": "part_of", "inverse": "has_part"}
+
+
+EXAMPLES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Architecture:
+  Redis supports → Session_Logger
+  MCP_Server depends_on → Redis
+  Sync_Service maintains → Redis
+
+Knowledge:
+  Dog is_a → Animal
+  Fido instance_of → Dog
+  Butter derives_from → Milk
+
+Causality:
+  Heat causes → Melting
+  Disease prevented_by → Medicine
+  Culture influences → Art
+
+Documentation:
+  Code based_on → Specification
+  Paper references → Study
+  Manual documents → Device
+
+
+PYTHON API
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+from relationship_types import (
+    RelationshipType,
+    get_relationship_by_name,
+    get_relationships_by_domain,
+    list_all_domains
+)
+
+# Get a relationship
+rel = get_relationship_by_name("part_of")
+print(rel.short_name, rel.inverse, rel.formal_name)
+
+# List all in domain
+rels = get_relationships_by_domain("structural")
+
+# All domains
+domains = list_all_domains()
+
+# Print full reference
+from relationship_types import print_relationship_reference
+print_relationship_reference()
+
+
+STANDARDS USED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✓ Dublin Core Metadata Terms (DCMI)
+✓ OBO Relation Ontology (RO) - biomedical standard
+✓ RDF/RDFS (Resource Description Framework)
+✓ OWL (Web Ontology Language)
+✓ SKOS (Simple Knowledge Organization System)
+✓ PROV (Provenance Ontology)
+✓ OWL-Time (Temporal relationships)
+✓ Schema.org
+
+→ These are international standards used by Wikipedia, Wikidata, libraries,
+  governments, and the scientific community.
+
+
+GETTING STARTED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Read: RELATIONSHIP_TYPES_GUIDE.md
+2. Test: python relationship_types.py
+3. Use:  from relationship_types import get_relationship_by_name
+4. Integrate: See INTEGRATE_RELATIONSHIP_TYPES.md

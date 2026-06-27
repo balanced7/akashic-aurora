@@ -113,15 +113,15 @@ class FastAgentComm:
     def _init_redis(self):
         """Initialize Redis connection"""
         try:
-            import redis
-            self._redis = redis.Redis(
+            from core.foundation.redis_connection import connect_to_redis_with_fail_fast
+            self._redis = connect_to_redis_with_fail_fast(
                 host=REDIS_HOST,
                 port=REDIS_PORT,
-                db=0,
+                timeout_seconds=3,
                 decode_responses=True,
-                socket_connect_timeout=3
             )
-            self._redis.ping()
+            if self._redis is None:
+                raise ConnectionError(f"Redis not reachable at {REDIS_HOST}:{REDIS_PORT}")
             self._available = True
             
             # Create consumer group if not exists

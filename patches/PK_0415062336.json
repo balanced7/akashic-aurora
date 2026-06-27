@@ -1,0 +1,13 @@
+{
+  "id": "PK_0415062336",
+  "timestamp": "2026-04-15T06:23:36.433536",
+  "system": "test",
+  "change_type": "fix",
+  "title": "Test Redis storage",
+  "goal": "Verify Redis primary storage works",
+  "result": "SUCCESS",
+  "version_from": "v0.12.2",
+  "version_to": "v0.12.3",
+  "tags": [],
+  "evidence": []
+}

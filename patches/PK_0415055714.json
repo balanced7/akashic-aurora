@@ -1,0 +1,13 @@
+{
+  "id": "PK_0415055714",
+  "timestamp": "2026-04-15T05:57:14.573084",
+  "system": "redis",
+  "change_type": "fix",
+  "title": "Fixed backup corruption",
+  "goal": "Prevent data loss",
+  "result": "PARTIAL",
+  "version_from": "v0.2.0",
+  "version_to": "v0.2.1",
+  "tags": [],
+  "evidence": []
+}

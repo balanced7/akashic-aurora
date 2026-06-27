@@ -1,656 +1,484 @@
 """
-Session Logger - Automatic Action Logging to Redis + Files
-==========================================================
-Every action is logged to Redis AND files for crash recovery.
+Session Logger - Unified Logging with Compact Format
+=================================================
 
-Features:
-- Dual JSONL file write with fsync for crash protection
-- Parallel file writes using ThreadPoolExecutor
-- Log rotation (daily + size-based at 100MB)
-- Checksum verification for dual-write integrity
-- Redis fallback to file-only mode
-- Per-entry checksums for corruption detection
-- Connection pooling for Redis
+New logging system with:
+- Compact JSONL (no noise)
+- Auto-tagging
+- Session digests
+- Archive to sessions/ directory
 
 Usage:
-    from session_logger import log, log_error, log_chat, verify_logs
+    from session_logger import log_action, log_decision, log_error
+    from session_logger import get_session_id, save_session
     
-    log("action", "description")
-    log_error("error", "details")
-    log_chat("user", "message")
-    verify_logs()  # Verify dual-write integrity
+    log_action("Created file", tags=["architecture"])
+    log_decision("Use Redis", rationale=["Fast"])
+    
+    # End of session:
+    save_session()
 """
+
 import os
+import sys
 import json
-import time
-import hashlib
-import traceback
-from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor
 import redis
+from datetime import datetime
+from pathlib import Path
+from typing import List, Dict, Optional
+from collections import Counter
 
-# ============ CONFIGURATION ============
-LOG_DIR = r"E:\AI-Setup\session_logs"
-LOG_FILE = os.path.join(LOG_DIR, "session_all.jsonl")
-BACKUP_LOG_FILE = os.path.join(LOG_DIR, "backup_session_all.jsonl")
-MAX_LOG_SIZE_MB = 100  # Rotate when file exceeds this size
-ROTATION_CHECK_INTERVAL = 100  # Check rotation every N writes
+BASE_DIR = Path(r"E:\AI-Setup")
+ARCHIVE_DIR = BASE_DIR / "sessions"
+INDEX_FILE = ARCHIVE_DIR / "index.json"
+LOG_DIR = BASE_DIR / "session_logs"
 
-# Try to connect to Redis with fallback
-def _get_redis_connection():
-    """Get Redis connection with automatic fallback"""
-    try:
-        r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True, socket_connect_timeout=2)
-        r.ping()
-        return r, True
-    except:
-        return None, False
+LOG_FILE = LOG_DIR / "session_all.jsonl"
+BACKUP_LOG_FILE = LOG_DIR / "backup_session_all.jsonl"
 
-r, REDIS_AVAILABLE = _get_redis_connection()
-
-if not REDIS_AVAILABLE:
-    print("[session_logger] Redis not available - file-only mode")
-else:
-    print("[session_logger] Redis connected")
-
+os.makedirs(ARCHIVE_DIR, exist_ok=True)
 os.makedirs(LOG_DIR, exist_ok=True)
 
-# Session ID management
-def _get_or_create_session():
-    """Get existing active session or create new one"""
-    if not REDIS_AVAILABLE:
-        return f"opencode_{datetime.now().strftime('%Y%m%d_%H%M%S')}", False
+sys.path.insert(0, str(BASE_DIR))
+from config import get_redis_config
+
+TAG_PATTERNS = {
+    "vision": ["vision", "comfyui", "florence", "ocr", "image"],
+    "infrastructure": ["redis", "backup", "ha", "sentinel", "docker", "container"],
+    "multi-agent": ["mcp", "agent", "comm", "message", "coordinate", "broadcast", "alert"],
+    "learning": ["learning", "decision", "experience", "reflection", "reflexion", "context"],
+    "architecture": ["consolidat", "refactor", "architecture", "design", "merge", "file", "folder"],
+    "setup": ["install", "setup", "configur", "deploy", "build", "bootstrap"],
+    "debugging": ["bug", "fix", "error", "crash", "debug", "issue", "problem"],
+    "automation": ["automation", "pyautogui", "selenium", "ui", "window"],
+}
+
+
+class SessionLogger:
+    """Compact session logger with auto-tagging and digest generation"""
     
-    try:
-        sessions = r.hgetall("sessions:active")
-        for sid, data in sessions.items():
-            try:
-                info = json.loads(data)
-                if info.get("status") == "active":
-                    return sid, True
-            except:
-                pass
-    except:
-        pass
+    _instance = None
     
-    return f"opencode_{datetime.now().strftime('%Y%m%d_%H%M%S')}", False
-
-SESSION_ID, _session_existed = _get_or_create_session()
-SESSION_UNIQUE = f"{SESSION_ID}_{datetime.now().strftime('%H%M%S')}"
-
-# Track message sequence (per-instance, not global - see ARCHITECTURE.md)
-_message_sequence = 0
-_write_count = 0  # For rotation checking
-
-# ============ LOG ROTATION ============
-
-def _should_rotate():
-    """Check if log files should be rotated based on size"""
-    try:
-        main_size = os.path.getsize(LOG_FILE) / (1024 * 1024)  # MB
-        return main_size >= MAX_LOG_SIZE_MB
-    except:
-        return False
-
-def _rotate_logs():
-    """Rotate log files - archive current, start fresh"""
-    global LOG_FILE, BACKUP_LOG_FILE
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._init()
+        return cls._instance
     
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    
-    try:
-        if os.path.exists(LOG_FILE) and os.path.getsize(LOG_FILE) > 0:
-            archive_main = os.path.join(LOG_DIR, f"session_{timestamp}.jsonl")
-            os.rename(LOG_FILE, archive_main)
-            print(f"[session_logger] Rotated main log to {archive_main}")
-    except Exception as e:
-        print(f"[session_logger] Rotation error (main): {e}")
-    
-    try:
-        if os.path.exists(BACKUP_LOG_FILE) and os.path.getsize(BACKUP_LOG_FILE) > 0:
-            archive_backup = os.path.join(LOG_DIR, f"backup_{timestamp}.jsonl")
-            os.rename(BACKUP_LOG_FILE, archive_backup)
-            print(f"[session_logger] Rotated backup log to {archive_backup}")
-    except Exception as e:
-        print(f"[session_logger] Rotation error (backup): {e}")
-
-# ============ CHECKSUM HELPERS ============
-
-def _compute_checksum(entry):
-    """Compute SHA256 checksum for a log entry"""
-    entry_copy = {k: v for k, v in entry.items() if k != 'checksum'}
-    content = json.dumps(entry_copy, sort_keys=True, ensure_ascii=False)
-    return hashlib.sha256(content.encode()).hexdigest()[:16]
-
-def _add_checksum(entry):
-    """Add checksum to entry for corruption detection"""
-    entry['checksum'] = _compute_checksum(entry)
-    return entry
-
-def _verify_entry(entry):
-    """Verify entry checksum, return True if valid or no checksum"""
-    if 'checksum' not in entry:
-        return True
-    expected = _compute_checksum(entry)
-    return entry['checksum'] == expected
-
-
-# ============ PARALLEL FILE WRITE ============
-
-def _fsync_write(filepath, entry_str):
-    """Write entry to file with fsync - for parallel execution"""
-    with open(filepath, "a", encoding="utf-8") as f:
-        f.write(entry_str)
-        f.flush()
-        os.fsync(f.fileno())
-
-# ============ DUAL-WRITE WITH VERIFICATION ============
-
-def _write_log(entry):
-    """
-    Write to both log files with checksum verification.
-    OPTIMIZED: Uses ThreadPoolExecutor for parallel writes.
-    """
-    global _write_count
-    
-    # Check rotation periodically
-    _write_count += 1
-    if _write_count >= ROTATION_CHECK_INTERVAL:
-        _write_count = 0
-        if _should_rotate():
-            _rotate_logs()
-    
-    # Add checksum to entry
-    entry = _add_checksum(entry)
-    entry_str = json.dumps(entry, ensure_ascii=False) + "\n"
-    
-    # Parallel write to both files
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        f1 = executor.submit(_fsync_write, LOG_FILE, entry_str)
-        f2 = executor.submit(_fsync_write, BACKUP_LOG_FILE, entry_str)
-        f1.result()
-        f2.result()
-    
-    # Verify writes match (last entry in each file)
-    try:
-        with open(LOG_FILE, "rb") as f:
-            f.seek(-len(entry_str) - 1, 2)
-            main_line = f.readline()
-            main_verify = hashlib.sha256(main_line).hexdigest()
+    def _init(self):
+        self.entries: List[Dict] = []
+        self.sequence = 0
+        self.session_id = f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        self.started_at = datetime.now().isoformat()
+        self._pending_tags: List[str] = []
         
-        with open(BACKUP_LOG_FILE, "rb") as f:
-            f.seek(-len(entry_str) - 1, 2)
-            backup_line = f.readline()
-            backup_verify = hashlib.sha256(backup_line).hexdigest()
+        try:
+            from core.foundation.redis_connection import connect_to_redis_with_fail_fast
+            cfg = get_redis_config()
+            self._redis = connect_to_redis_with_fail_fast(
+                host=cfg["host"],
+                port=cfg["port"],
+                timeout_seconds=cfg.get("socket_connect_timeout", 5),
+                decode_responses=cfg.get("decode_responses", True),
+            )
+            self._redis_available = self._redis is not None
+        except Exception:
+            self._redis = None
+            self._redis_available = False
+    
+    def _auto_tag(self, content: str, tags: List[str] = None) -> List[str]:
+        """Auto-generate tags from content"""
+        result = list(tags) if tags else []
+        content_lower = content.lower()
         
-        if main_verify != backup_verify:
-            print(f"[session_logger] WARNING: Dual-write mismatch detected!")
-            return False
-    except Exception as e:
-        print(f"[session_logger] Verification error: {e}")
-        return False
+        for tag, patterns in TAG_PATTERNS.items():
+            if any(p in content_lower for p in patterns):
+                if tag not in result:
+                    result.append(tag)
+        
+        return result or ["general"]
     
-    return True
-
-
-# ============ REDIS OPERATIONS ============
-
-def _log_to_redis(category, action, data):
-    """Log to Redis with automatic reconnection"""
-    global r, REDIS_AVAILABLE
-    
-    if not REDIS_AVAILABLE:
-        # Try to reconnect
-        r, REDIS_AVAILABLE = _get_redis_connection()
-        if not REDIS_AVAILABLE:
-            return
-    
-    try:
-        key = f"session:{SESSION_ID}:{category}"
+    def _log(self, type_: str, content: str, tags: List[str] = None, data: Dict = None):
+        """Internal log method with DUAL-WRITE fault tolerance"""
+        self.sequence += 1
+        auto_tags = self._auto_tag(content, tags)
+        
         entry = {
+            "type": type_,
             "timestamp": datetime.now().isoformat(),
-            "action": action,
-            "data": data
+            "sequence": self.sequence,
+            "session": self.session_id,
+            "content": content[:200],
+            "tags": auto_tags,
+            "data": data or {}
         }
         
-        r.rpush(key, json.dumps(entry))
-        r.expire(key, 86400 * 7)
+        self.entries.append(entry)
         
-        # Update active session - batch these operations
-        r.hset("sessions:active", SESSION_ID, json.dumps({
-            "status": "active",
-            "task": data.get("task", "unknown"),
-            "last_action": action,
-            "last_update": datetime.now().isoformat()
-        }))
-    except redis.ConnectionError:
-        REDIS_AVAILABLE = False
-        r = None
-    except Exception:
-        pass
-
-
-# ============ PUBLIC API ============
-
-def log(action, description="", data=None, source="system"):
-    """Log an action
-    
-    Args:
-        action: Action name
-        description: Human-readable description
-        data: Additional metadata dict
-        source: Source of the log (e.g., 'generator', 'analyst', 'system', 'master')
-    """
-    global _message_sequence
-    _message_sequence += 1
-    
-    entry = {
-        "type": "action",
-        "timestamp": datetime.now().isoformat(),
-        "session": SESSION_ID,
-        "unique_id": SESSION_UNIQUE,
-        "sequence": _message_sequence,
-        "source": source,  # Added for agent identification
-        "action": action,
-        "description": description,
-        "data": data or {}
-    }
-    
-    print(f"[LOG][{source}] {action}: {description}")
-    _write_log(entry)
-    _log_to_redis("actions", action, {"task": description, "source": source, **(data or {})})
-
-
-def log_error(error_type, details=None):
-    """Log an error - also documents to error system"""
-    global _message_sequence
-    _message_sequence += 1
-    
-    error_str = str(details) if details else str(error_type)
-    
-    entry = {
-        "type": "error",
-        "timestamp": datetime.now().isoformat(),
-        "session": SESSION_ID,
-        "unique_id": SESSION_UNIQUE,
-        "sequence": _message_sequence,
-        "error_type": error_type,
-        "details": error_str,
-        "message_length": len(error_str),
-        "traceback": traceback.format_exc()
-    }
-    
-    print(f"[ERROR] {error_type}: {details}")
-    
-    # Also log to error documentation system (non-blocking)
-    try:
-        from error_documentation import ErrorDoc
-        doc = ErrorDoc()
-        system = "session"
-        if "launch" in error_type.lower(): system = "launcher"
-        elif "verify" in error_type.lower(): system = "verification"  
-        elif "log" in error_type.lower() or "flush" in error_type.lower(): system = "logging"
-        elif "ocr" in error_type.lower(): system = "ocr"
-        elif "ui" in error_type.lower(): system = "ui"
+        # DUAL-WRITE: Write to Redis AND both files
+        # This ensures continuity even if one write fails or agent forgets
         
-        doc.log_error(system, error_type.lower().replace(" ", "_"), details or error_type)
-    except:
-        pass
-    
-    _write_log(entry)
-    _log_to_redis("errors", error_type, {"details": details, "traceback": traceback.format_exc()})
-    
-    log_chat("system", f"ERROR: {error_type} - {details}")
-
-
-def log_chat(role, message):
-    """Log chat message for all LLMs"""
-    global _message_sequence
-    _message_sequence += 1
-    
-    entry = {
-        "type": "chat",
-        "timestamp": datetime.now().isoformat(),
-        "session": SESSION_ID,
-        "unique_id": SESSION_UNIQUE,
-        "sequence": _message_sequence,
-        "role": role,
-        "message": message[:500] if len(message) > 500 else message,
-        "message_length": len(message)
-    }
-    
-    _write_log(entry)
-    
-    if REDIS_AVAILABLE:
+        # 1. Redis (if available)
+        if self._redis_available:
+            try:
+                self._redis.rpush(f"session:{self.session_id}:log", json.dumps(entry))
+            except:
+                pass
+        
+        # 2. Primary JSONL file
         try:
-            r.rpush("chat:history", json.dumps({
-                "role": role,
-                "message": message,
-                "session": SESSION_ID,
-                "unique_id": SESSION_UNIQUE,
-                "timestamp": datetime.now().isoformat()
-            }))
-            r.ltrim("chat:history", -1000, -1)
-        except:
+            with open(LOG_FILE, 'a', encoding='utf-8') as f:
+                f.write(json.dumps(entry) + '\n')
+        except Exception as e:
+            # Fall through to backup
             pass
-
-
-def log_screenshot(reason, tag=None, filepath=None):
-    """Log screenshot capture"""
-    entry = {
-        "type": "screenshot",
-        "timestamp": datetime.now().isoformat(),
-        "session": SESSION_ID,
-        "reason": reason,
-        "tag": tag,
-        "filepath": filepath
-    }
+        
+        # 3. BACKUP JSONL file (failsafe - ALWAYS write this)
+        try:
+            with open(BACKUP_LOG_FILE, 'a', encoding='utf-8') as f:
+                f.write(json.dumps(entry) + '\n')
+        except Exception as e:
+            # Last resort: log to console if file write fails
+            print(f"[LOG FAILSAFE] {entry.get('type')}: {content[:80]}", file=sys.stderr)
     
-    _write_log(entry)
-    _log_to_redis("screenshots", reason, {"tag": tag, "filepath": filepath})
+    def action(self, description: str, tags: List[str] = None):
+        """Log an action"""
+        self._log("action", description, tags)
+    
+    def decision(self, title: str, rationale: List[str] = None, tags: List[str] = None):
+        """Log a decision"""
+        content = f"Decision: {title}"
+        if rationale:
+            content += f" - Rationale: {', '.join(rationale[:2])}"
+        self._log("decision", content, tags or ["learning"], {"rationale": rationale or []})
+    
+    def error(self, details: str, tags: List[str] = None):
+        """Log an error"""
+        self._log("error", details, tags or ["debugging"])
+    
+    def learning(self, content: str, tags: List[str] = None):
+        """Log a learning"""
+        self._log("learning", content, tags or ["learning"])
+    
+    def system(self, content: str):
+        """Log system message"""
+        self._log("system", content)
+    
+    def save(self) -> Dict:
+        """Save session digest and update index"""
+        now = datetime.now()
+        date_str = now.strftime('%Y-%m-%d')
+        duration = max(1, int((now - datetime.fromisoformat(self.started_at)).total_seconds() / 60))
+        
+        tags = self._get_tags()
+        summary = self._generate_summary()
+        
+        actions = [e["content"] for e in self.entries if e["type"] == "action" and "continu" not in e["content"].lower()][:10]
+        learnings = [e["content"] for e in self.entries if e["type"] == "learning"][:5]
+        decisions = [e["content"] for e in self.entries if e["type"] == "decision"][:5]
+        error_count = sum(1 for e in self.entries if e["type"] == "error")
+        
+        digest_lines = [
+            f"# Session {self.session_id}",
+            "",
+            f"**Date**: {date_str}",
+            f"**Duration**: ~{duration} min",
+            f"**Tags**: [{'] ['.join(tags)}]",
+            "",
+            "## Summary",
+            summary,
+            "",
+        ]
+        
+        if actions:
+            digest_lines.extend(["## Key Actions"] + [f"- {a}" for a in actions] + [""])
+        
+        if learnings:
+            digest_lines.extend(["## Learnings"] + [f"- {l}" for l in learnings] + [""])
+        
+        if decisions:
+            digest_lines.extend(["## Decisions"] + [f"- {d}" for d in decisions] + [""])
+        
+        digest_lines.extend(["---", f"*Logged: {now.isoformat()}*"])
+        
+        date_dir = ARCHIVE_DIR / date_str
+        date_dir.mkdir(parents=True, exist_ok=True)
+        
+        digest_path = date_dir / f"{self.session_id}_digest.md"
+        raw_path = date_dir / f"{self.session_id}_raw.jsonl"
+        
+        digest_path.write_text("\n".join(digest_lines), encoding='utf-8')
+        with open(raw_path, 'w', encoding='utf-8') as f:
+            for e in self.entries:
+                f.write(json.dumps(e) + '\n')
+        
+        digest = {
+            "session_id": self.session_id,
+            "date": date_str,
+            "started_at": self.started_at,
+            "ended_at": now.isoformat(),
+            "duration_minutes": duration,
+            "tags": tags,
+            "summary": summary,
+            "key_actions": actions,
+            "learnings": learnings,
+            "decisions": decisions,
+            "message_count": len(self.entries),
+            "error_count": error_count,
+            "digest_file": str(digest_path),
+            "raw_file": str(raw_path)
+        }
+        
+        self._update_index(digest)
+        
+        return digest
+    
+    def _update_index(self, digest: Dict):
+        """Update master index"""
+        sessions = []
+        if INDEX_FILE.exists():
+            try:
+                with open(INDEX_FILE, 'r') as f:
+                    sessions = json.load(f)
+            except:
+                sessions = []
+        
+        sessions.insert(0, digest)
+        
+        with open(INDEX_FILE, 'w') as f:
+            json.dump(sessions, f, indent=2)
+    
+    def _get_tags(self) -> List[str]:
+        """Get top tags from session"""
+        counter = Counter()
+        for e in self.entries:
+            for t in e.get("tags", []):
+                counter[t] += 1
+        return [t for t, _ in counter.most_common(5)]
+    
+    def _generate_summary(self) -> str:
+        """Generate session summary"""
+        actions = [e["content"] for e in self.entries if e["type"] == "action" and len(e["content"]) > 20][:3]
+        if actions:
+            return f"Actions: {', '.join(actions)}"
+        return f"Session: {len(self.entries)} entries"
 
 
-# ============ VERIFICATION ============
+_logger: Optional[SessionLogger] = None
 
-def verify_logs(limit=100):
-    """
-    Verify dual-write integrity by comparing checksums.
-    Returns dict with verification results.
-    """
-    results = {
-        "total": 0,
-        "valid": 0,
-        "corrupted": 0,
-        "missing_checksum": 0,
-        "mismatches": [],
-        "corrupted_entries": []
-    }
+def get_logger() -> SessionLogger:
+    global _logger
+    if _logger is None:
+        _logger = SessionLogger()
+    return _logger
+
+def log_action(description: str, tags: List[str] = None):
+    get_logger().action(description, tags)
+
+def log_decision(title: str, rationale: List[str] = None, tags: List[str] = None):
+    get_logger().decision(title, rationale, tags)
+
+def log_error(details: str, tags: List[str] = None):
+    get_logger().error(details, tags)
+
+def log_learning(content: str, tags: List[str] = None):
+    get_logger().learning(content, tags)
+
+def log_system(content: str):
+    get_logger().system(content)
+
+def save_session():
+    return get_logger().save()
+
+def get_session_id() -> str:
+    return get_logger().session_id
+
+SESSION_ID = get_session_id()
+
+
+# Legacy compatibility
+def log(type_: str, description: str, data: Dict = None):
+    """Legacy log function - routes to appropriate method"""
+    if type_ == "action":
+        log_action(description, data.get("tags") if data else None)
+    elif type_ == "decision":
+        log_decision(description, data.get("rationale") if data else None)
+    elif type_ == "error":
+        log_error(description)
+    else:
+        log_system(f"{type_}: {description}")
+
+
+# Legacy functions for compatibility
+def get_chat_history(limit: int = 50):
+    """Get recent chat messages from current session log file"""
+    chats = []
+    try:
+        if LOG_FILE.exists():
+            with open(LOG_FILE, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+                for line in lines[-limit:]:
+                    try:
+                        entry = json.loads(line)
+                        if entry.get("type") == "chat" or entry.get("role"):
+                            chats.append(entry)
+                    except:
+                        pass
+    except Exception as e:
+        print(f"[session_logger] get_chat_history error: {e}")
+    return chats
+
+
+def get_recent_sessions(limit: int = 5):
+    """Get recent sessions from index"""
+    sessions = []
+    try:
+        if INDEX_FILE.exists():
+            with open(INDEX_FILE, 'r') as f:
+                all_sessions = json.load(f)
+                for s in all_sessions[:limit]:
+                    sessions.append({
+                        "session_id": s.get("session_id"),
+                        "date": s.get("date"),
+                        "summary": s.get("summary", "")[:100],
+                        "tags": s.get("tags", []),
+                        "duration": s.get("duration_minutes", 0)
+                    })
+    except Exception as e:
+        print(f"[session_logger] get_recent_sessions error: {e}")
+    return sessions
+
+
+def verify_logs():
+    """Verify log file integrity"""
+    results = {"log_file": str(LOG_FILE), "exists": False, "entries": 0, "valid": True, "errors": []}
     
     try:
-        with open(LOG_FILE, "r", encoding="utf-8") as f_main, \
-             open(BACKUP_LOG_FILE, "r", encoding="utf-8") as f_backup:
-            
-            main_lines = f_main.readlines()[-limit:]
-            backup_lines = f_backup.readlines()[-limit:]
-            
-            for i, (main_line, backup_line) in enumerate(zip(main_lines, backup_lines)):
-                results["total"] += 1
-                
-                try:
-                    main_entry = json.loads(main_line)
-                    backup_entry = json.loads(backup_line)
-                except json.JSONDecodeError:
-                    results["corrupted"] += 1
-                    results["corrupted_entries"].append({"index": i, "file": "both", "error": "JSON parse failed"})
-                    continue
-                
-                if main_line != backup_line:
-                    results["mismatches"].append({"index": i, "line": main_line[:100]})
-                
-                if _verify_entry(main_entry):
-                    results["valid"] += 1
-                elif "checksum" not in main_entry:
-                    results["missing_checksum"] += 1
-                else:
-                    results["corrupted"] += 1
-                    results["corrupted_entries"].append({"index": i, "entry": main_entry})
-    
+        results["exists"] = LOG_FILE.exists()
+        results["size_kb"] = LOG_FILE.stat().st_size / 1024 if results["exists"] else 0
+        
+        if results["exists"]:
+            with open(LOG_FILE, 'r', encoding='utf-8') as f:
+                for i, line in enumerate(f):
+                    try:
+                        json.loads(line)
+                        results["entries"] += 1
+                    except json.JSONDecodeError as e:
+                        results["valid"] = False
+                        results["errors"].append(f"Line {i+1}: {str(e)}")
+                        if len(results["errors"]) >= 5:
+                            break
     except Exception as e:
-        results["error"] = str(e)
+        results["valid"] = False
+        results["errors"].append(str(e))
     
     return results
 
 
-# ============ QUERY FUNCTIONS ============
-
-def get_chat_history(count=50):
-    """Get recent chat history for all LLMs"""
-    if not REDIS_AVAILABLE:
-        # Fall back to reading from file
-        chats = []
+def log_chat(role: str, message: str):
+    """Log a chat message"""
+    _logger = get_logger()
+    _logger.entries.append({
+        "type": "chat",
+        "role": role,
+        "message": message,
+        "timestamp": datetime.now().isoformat(),
+        "sequence": _logger.sequence + 1,
+        "session": _logger.session_id
+    })
+    _logger.sequence += 1
+    if _logger._redis_available:
         try:
-            with open(LOG_FILE, "r", encoding="utf-8") as f:
-                for line in f:
-                    try:
-                        entry = json.loads(line)
-                        if entry.get("type") == "chat":
-                            chats.append(entry)
-                    except:
-                        pass
-            return chats[-count:]
+            _logger._redis.rpush(f"session:{_logger.session_id}:chats", json.dumps({"role": role, "message": message}))
         except:
-            return []
+            pass
+
+
+# ============ FAILSAFE LOGGING ============
+# Manual failsafe for when agents forget to log or harness misses non-compliance
+
+def failsafe(type_: str, content: str, data: Dict = None):
+    """
+    MANUAL FAILSAFE logging - Use this when agent forgets to log.
+    Writes to ALL destinations: Redis + Primary + Backup files.
     
+    This is the last line of defense for continuity.
+    """
+    entry = {
+        "type": type_,
+        "timestamp": datetime.now().isoformat(),
+        "sequence": 0,
+        "session": SESSION_ID,
+        "content": content[:200],
+        "tags": ["failsafe"],
+        "data": data or {}
+    }
+    entry_json = json.dumps(entry)
+    
+    destinations_ok = 0
+    
+    # 1. Redis
     try:
-        chats = r.lrange("chat:history", -count, -1)
-        return [json.loads(c) for c in chats]
-    except:
-        return []
-
-
-def get_recent_sessions(max_sessions=5):
-    """Get recent session summaries for catch-up"""
-    if not REDIS_AVAILABLE:
-        return []
-    
-    try:
-        sessions = r.hgetall("sessions:active")
-        recent = []
-        for sid, data in sessions.items():
-            try:
-                info = json.loads(data)
-                recent.append({
-                    "session_id": sid,
-                    "task": info.get("task", "unknown"),
-                    "status": info.get("status", "unknown"),
-                    "last_action": info.get("last_action", "none")
-                })
-            except:
-                pass
-        
-        return sorted(recent, key=lambda x: x.get("session_id", ""), reverse=True)[:max_sessions]
-    except:
-        return []
-
-
-def recover():
-    """Show crash recovery info"""
-    print("=" * 60)
-    print("  SESSION RECOVERY")
-    print("=" * 60)
-    print(f"\nCurrent session: {SESSION_ID}")
-    print(f"Log file: {LOG_FILE}")
-    print(f"Redis: {'Available' if REDIS_AVAILABLE else 'Not available (file-only mode)'}")
-    print()
-    
-    recent = get_recent_sessions()
-    if recent:
-        print("RECENT SESSIONS:")
-        for s in recent[:3]:
-            print(f"  [{s['session_id']}] {s.get('task', 'unknown')} - {s.get('status', 'unknown')}")
-    
-    chats = get_chat_history(10)
-    if chats:
-        print(f"\nRecent chats ({len(chats)}):")
-        for c in chats[-5:]:
-            role = c.get("role", "?")
-            msg = c.get("message", "")[:60]
-            print(f"  {role}: {msg}")
-    
-    print()
-    print("=" * 60)
-
-
-# ============ SESSION INITIALIZATION ============
-
-# Integrate with SessionManager for re-prime detection
-_session_state = None
-_initialization_run = False  # Guard against multiple initializations
-
-def get_session_state():
-    """Get the session state (for external use)"""
-    return _session_state
-
-def is_initialized():
-    """Check if session logger was properly initialized"""
-    return _initialization_run
-
-# Auto-register session on import (only once)
-if not _initialization_run:
-    try:
-        if SESSION_ID:
-            # Import here to avoid circular dependency
-            try:
-                from session_manager import check_and_reprime, get_session_manager
-                _session_state = check_and_reprime(SESSION_ID, SESSION_UNIQUE)
-                
-                if _session_state.is_new:
-                    print("\n" + "=" * 60)
-                    print("NEW SESSION DETECTED - RE-PRIME REQUIRED")
-                    print("=" * 60)
-                    print(get_session_manager().get_reprime_instructions())
-                    print()
-                    
-            except ImportError as e:
-                # session_manager not available - this is a CONFIGURATION ERROR
-                print("[session_logger] CRITICAL: session_manager import failed")
-                print("[session_logger] This means escape detection is DISABLED")
-                print("[session_logger] Error:", str(e))
-                print("[session_logger] FIX: Ensure E:\\AI-Setup is in PYTHONPATH")
-                _session_state = None
-            except Exception as e:
-                # Other error - log it but continue
-                print("[session_logger] Initialization warning:", str(e))
-                _session_state = None
-            
-            _write_log({
-                "type": "action",
-                "action": "logger_startup",
-                "description": "Session logger initialized",
-                "timestamp": datetime.now().isoformat(),
-                "session": SESSION_ID,
-                "unique_id": SESSION_UNIQUE,
-                "source": "system",
-                "data": {
-                    "is_new_session": _session_state.is_new if _session_state else True,
-                    "redis_available": REDIS_AVAILABLE,
-                    "session_manager_loaded": _session_state is not None,
-                    "log_file": LOG_FILE
-                }
-            })
-            
-            if _session_state and _session_state.is_new:
-                log("session_start", "New session - re-prime required", {"is_new": True}, source="system")
-            else:
-                log("session_start", "Session continuing" if _session_state else "Session (session_manager unavailable)", 
-                    {"is_new": _session_state.is_new if _session_state else True}, source="system")
-            
-    except Exception as e:
-        print(f"[session_logger] Initialization error: {e}")
-    
-    _initialization_run = True
-
-
-# ============ AUTO-EXPORT ON SHUTDOWN ============
-import atexit
-
-_auto_start_time = datetime.now()
-
-def _count_messages():
-    """Count messages logged for current session"""
-    count = 0
-    try:
-        with open(LOG_FILE, "r", encoding="utf-8") as f:
-            for line in f:
-                try:
-                    entry = json.loads(line)
-                    if entry.get("session") == SESSION_ID:
-                        count += 1
-                except:
-                    pass
+        from core.foundation.redis_connection import connect_to_redis_with_fail_fast
+        cfg = get_redis_config()
+        r = connect_to_redis_with_fail_fast(
+            host=cfg["host"],
+            port=cfg["port"],
+            timeout_seconds=cfg.get("socket_connect_timeout", 5),
+            decode_responses=cfg.get("decode_responses", True),
+        )
+        if r is not None:
+            r.rpush(f"session:{SESSION_ID}:log", entry_json)
+            destinations_ok += 1
     except:
         pass
-    return count
-
-def _auto_export():
-    """Called on interpreter shutdown - export session and log shutdown"""
+    
+    # 2. Primary file
     try:
-        _write_log({
-            "type": "logger_shutdown",
-            "session": SESSION_ID,
-            "total_messages": _count_messages(),
-            "duration_seconds": (datetime.now() - _auto_start_time).total_seconds(),
-            "timestamp": datetime.now().isoformat()
-        })
-        export_current_session()
+        with open(LOG_FILE, 'a', encoding='utf-8') as f:
+            f.write(entry_json + '\n')
+        destinations_ok += 1
     except:
         pass
-
-try:
-    atexit.register(_auto_export)
-except:
-    pass
-
-
-# ============ EXPORT FUNCTION ============
-
-def export_current_session():
-    """Export current session to markdown file for quick catch-up"""
+    
+    # 3. Backup file (MOST IMPORTANT - always should work)
     try:
-        all_entries = []
-        with open(LOG_FILE, "r", encoding="utf-8") as f:
-            for line in f:
-                try:
-                    entry = json.loads(line)
-                    if entry.get("session") == SESSION_ID:
-                        all_entries.append(entry)
-                except:
-                    pass
-        
-        actions = []
-        errors = []
-        chats = []
-        
-        for entry in all_entries:
-            if entry.get("type") == "chat":
-                chats.append(entry)
-            elif entry.get("type") == "error":
-                errors.append(entry)
-            elif entry.get("type") == "action":
-                actions.append(entry)
-        
-        export_file = os.path.join(LOG_DIR, f"{SESSION_ID}_export.md")
-        
-        with open(export_file, "w", encoding="utf-8") as f:
-            f.write(f"# Session Export - {SESSION_ID}\n")
-            f.write(f"**Exported**: {datetime.now().isoformat()}\n\n")
-            
-            f.write("## Actions\n")
-            f.write("---\n")
-            for a in actions:
-                ts = a.get("timestamp", "")[11:19] if a.get("timestamp") else ""
-                action = a.get("action", "unknown")
-                desc = a.get("description", "")
-                f.write(f"- *{ts}* {action}: {desc}\n")
-            
-            f.write("\n## Errors\n")
-            f.write("---\n")
-            if errors:
-                for e in errors:
-                    f.write(f"- {e.get('error_type', 'error')}: {e.get('details', 'N/A')}\n")
-            else:
-                f.write("No errors logged\n")
-            
-            f.write("\n## Chat\n")
-            f.write("---\n")
-            for c in chats:
-                role = c.get("role", "unknown")
-                msg = c.get("message", "")[:200]
-                f.write(f"**{role}**: {msg}\n")
-        
-        print(f"[export] Session exported to: {export_file}")
-        return export_file
-        
+        with open(BACKUP_LOG_FILE, 'a', encoding='utf-8') as f:
+            f.write(entry_json + '\n')
+        destinations_ok += 1
     except Exception as e:
-        print(f"[export] Error: {e}")
-        return None
+        # LAST RESORT: Print to console
+        print(f"[FAILSAFE CRITICAL] Could not write to backup: {e}", file=sys.stderr)
+        print(f"[FAILSAFE] {type_}: {content}", file=sys.stderr)
+    
+    if destinations_ok < 3:
+        print(f"[FAILSAFE WARNING] Only {destinations_ok}/3 destinations written", file=sys.stderr)
+    
+    return destinations_ok
+
+
+def manual_log(description: str, type_: str = "action", tags: List[str] = None):
+    """
+    MANUAL LOG - Call this when agent realizes they forgot to log something.
+    This ensures the action is captured regardless of previous misses.
+    """
+    return failsafe(type_, description, {"tags": tags or [], "manual": True, "note": "Agent manually logged this"})
+
+
+# Export SessionLogger alias for legacy code
+SessionLogger = SessionLogger
+
+
+if __name__ == "__main__":
+    logger = get_logger()
+    print(f"Session ID: {logger.session_id}")
+    print(f"Redis: {'Connected' if logger._redis_available else 'Not available'}")
+    print()
+    
+    logger.action("Testing new session logger", tags=["setup"])
+    logger.decision("Use compact format", rationale=["Cleaner", "Faster"])
+    
+    digest = logger.save()
+    print(f"\nSaved: {digest['session_id']}")
+    print(f"Tags: {digest['tags']}")
+    print(f"Digest: {digest['digest_file']}")
