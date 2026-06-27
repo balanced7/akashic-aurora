@@ -83,7 +83,28 @@ no translation layer. When you reach for a name, reach for one of these.
   budget. Used by both the Context summarizer and the consolidation→chronicle loop.
 - **relationship type** — one of 66 standardized relations (Dublin Core / OBO /
   RDF) in `core/foundation/relationship_types.py`; the vocabulary semantic method
-  names are built from (`derived_from`, `prevents`, `supersedes`, …).
+  names are built from. Real short-names include `part_of`, `causes`, `prevents`,
+  `precedes`, `influences`, `is_version_of`, `replaces`, `member_of`, `instance_of`,
+  `related_to` (NOT `derived_from`/`supersedes`/`led_to` — those are not in the set;
+  validate with `get_relationship_by_name`).
+
+## Narrative spine (System 4 — `core/narrative/`, see docs/narrative-spine-plan.md)
+
+- **Beat** — one salient, time-anchored narrative event; points to its raw atom
+  (a learning / commit / ledger event) via a followable `source`.
+- **Chapter** — a bounded coherent stretch of Beats within one Track (the mid view).
+- **Track** — a long-running per-domain/project thread (`ai-setup`, `stemroller`,
+  `vision`, `research`, …); has its own Chapters + arc.
+- **Theme** — a cross-cutting idea-group weaving across Tracks (orthogonal to Tracks).
+- **Atlas** — the broad view across all Tracks over time.
+- **Storyline** — one Track's rolled-up arc of Chapter summaries.
+- **Chronicler** — the process that distills the Ledger into Chapters/Storyline
+  (generalizes `consolidation.py`); writes `chronicles/`.
+- **TrackRouter** — infers a Beat's Track from context + detects domain switches.
+- **narrative weight** — salience (0–5) stamped on a Beat at log time.
+- Three axes: **Time** (when) × **Track** (which domain) × **Theme** (which idea);
+  edges are relationship-types. Beat `source` obeys the lossy-summary + lossless-pointer
+  rule.
 
 ## Layers (who may depend on whom)
 

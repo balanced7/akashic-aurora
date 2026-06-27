@@ -79,19 +79,26 @@ Hierarchy: **Atlas → Track → Chapter → Beat**, with **Themes orthogonal**.
 ### The 66 relationship types ARE the edge schema
 The schema falls out of the vocabulary we already built — no new edge model:
 
-| Category | Example types | Connects | Navigation it gives |
-|---|---|---|---|
-| Temporal | precedes, follows, concurrent_with | beat ↔ beat | the sequence (within & across tracks) |
-| Causal | causes, enables, prevents, led_to | beat → beat | *why* / what unblocked what |
-| Hierarchical | part_of, derived_from, depends_on | beat→chapter→track; track→track | structure, containment, dependency |
-| Versioning | is_version_of, supersedes | iterations | v1→v2 / what replaced what (bi-temporal) |
-| Semantic | is_about, exemplifies, advances | beat → **Theme** | which idea-group it advances |
-| Associative | relates_to, inspired_by, analogous_to | **track → track** | **cross-domain pollination** |
-| Agent-based | created_by, contributed_by | beat → agent | who did it |
-| Spatial | located_in, hosted_on | beat → repo/machine | where it lives |
+Using the **real** short-names from the 66-type vocabulary (`relationship_types.py`) —
+verified, not invented:
 
-Tracks = group by `part_of` a domain. Themes = group by `is_about` an idea. Cross-domain
-= `associative`. Time = `temporal`.
+| Domain → real short-names | Connects | Navigation it gives |
+|---|---|---|
+| **Temporal** — precedes, follows, occurs_during, contemporary_with | beat ↔ beat | the sequence (within & across tracks) |
+| **Causal** — causes, prevents, influences, develops_into, derives_from | beat → beat | *why* / what unblocked / lineage |
+| **Structural** — part_of, contains, member_of | beat→chapter→track; beat→**Theme** (member_of) | containment & grouping |
+| **Hierarchical** — is_a, instance_of | beat→**Theme** (instance_of); kind taxonomy | typing |
+| **Semantic** — related_to, similar_to, synonym_of | beat ↔ beat | association / analogy |
+| **Associative** — associated_with, depends_on, supports, complements, conflicts_with | **track ↔ track** | dependency & **cross-domain links** |
+| **Versioning** — is_version_of, replaces, replaced_by | iterations | v1→v2 / supersession (bi-temporal) |
+| **Agent** — created_by, authored_by, attributed_to | beat → agent | who did it |
+| **Spatial** — located_in, has_location | beat → repo/machine | where it lives |
+| **Reference** — references, documents, based_on | beat → source | provenance / citation |
+
+Tracks = group by `part_of` a domain. Themes = group beats by `member_of`/`instance_of`.
+Cross-domain pollination = `influences` / `related_to` / `associated_with`. Time =
+`precedes`/`follows`. (The diagram's `led_to`/`inspired_by` labels were illustrative;
+the schema validates every edge against these real short-names.)
 
 ### Tracks are INFERRED from context, not declared (the TrackRouter)
 The system recognizes when work switches domains and files beats accordingly — no
