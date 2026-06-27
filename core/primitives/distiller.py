@@ -34,6 +34,16 @@ def _useful(value: Any) -> bool:
     return isinstance(value, str) and value.strip().lower() not in _EMPTY_TOKENS
 
 
+def _clip_words(s: str, max_chars: int) -> str:
+    """Clip to max_chars but on a WORD boundary (no ugly mid-word cuts like
+    'is_versio'). ASCII '...' so it stays cp1252-safe on the Windows console."""
+    s = s.strip()
+    if len(s) <= max_chars:
+        return s
+    cut = s[:max_chars].rsplit(" ", 1)[0].rstrip(" ,.;:")
+    return (cut or s[:max_chars]) + "..."
+
+
 @dataclass
 class Distillation:
     skeleton: str                       # compact human-readable text (the shape)
@@ -50,10 +60,10 @@ def _summarize_item(item: Dict[str, Any], max_chars: int) -> str:
     for f in _SUMMARY_FIELDS:
         v = item.get(f)
         if _useful(v):
-            return str(v)[:max_chars].strip()
+            return _clip_words(str(v), max_chars)
     for v in item.values():
         if _useful(v):
-            return str(v)[:max_chars].strip()
+            return _clip_words(str(v), max_chars)
     return ""
 
 
@@ -71,7 +81,7 @@ class Distiller:
     def __init__(self, *,
                  writer: Optional[Callable] = None,
                  critic: Optional[Callable] = None,
-                 max_chars_per_entry: int = 120):
+                 max_chars_per_entry: int = 170):
         self.writer = writer    # writer(items, token_budget, instruction) -> Distillation
         self.critic = critic    # critic(items, skeleton, entries) -> (ok: bool, notes: list)
         self.max_chars_per_entry = max_chars_per_entry

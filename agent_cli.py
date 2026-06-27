@@ -37,7 +37,10 @@ _MAX = 4000   # clamp absurdly long fields an agent might paste
 
 def _clip(s, n=_MAX):
     s = "" if s is None else str(s)
-    return s if len(s) <= n else s[:n] + " ...[truncated]"
+    if len(s) <= n:
+        return s
+    cut = s[:n].rsplit(" ", 1)[0].rstrip(" ,.;:")   # clip on a word boundary, not mid-word
+    return (cut or s[:n]) + " ...[truncated]"
 
 
 # --------------------------------------------------------------------------- boot
@@ -104,21 +107,32 @@ def cmd_learn(args):
 
 # ------------------------------------------------------------------------- recall
 def cmd_recall(args):
+    """Search lessons by keyword; with no query, list ALL lessons."""
     from core.learning.learning_store import get_learning_store
-    hits = []
+    ls = get_learning_store()
+    query = (args.query or "").strip()
     try:
-        hits = get_learning_store().search_learnings_by_keyword(_clip(args.query, 200))
+        hits = ls.load_all_learnings_from_store() if not query \
+            else ls.search_learnings_by_keyword(_clip(query, 200))
     except Exception as e:
         print(f"ERROR searching: {type(e).__name__}: {e}")
         return 1
     if args.json:
         print(json.dumps(hits, indent=2, default=str))
         return 0
-    print(f"# {len(hits)} lesson(s) matching '{args.query}'")
-    for h in hits[:10]:
+    label = "all lessons" if not query else f"lesson(s) matching '{query}'"
+    print(f"# {len(hits)} {label}")
+    for h in hits[:25]:
         rec = h.get("recommendation") or h.get("actual") or h.get("what_tried", "")
-        print(f"  - {h.get('experiment_name', '?')}: {_clip(rec, 140)}")
+        print(f"  - [{h.get('category', '?')}] {h.get('experiment_name', '?')}: {_clip(rec, 160)}")
     return 0
+
+
+# --------------------------------------------------------------------------- list
+def cmd_list(args):
+    """Alias for recall with no query -- show everything in memory."""
+    args.query = ""
+    return cmd_recall(args)
 
 
 # ------------------------------------------------------------------------- status
@@ -158,9 +172,13 @@ def main():
     l.add_argument("--confidence", default=None); l.add_argument("--json", action="store_true")
     l.set_defaults(fn=cmd_learn)
 
-    r = sub.add_parser("recall", help="search past lessons")
-    r.add_argument("query"); r.add_argument("--json", action="store_true")
+    r = sub.add_parser("recall", help="search past lessons (no query = list all)")
+    r.add_argument("query", nargs="?", default=""); r.add_argument("--json", action="store_true")
     r.set_defaults(fn=cmd_recall)
+
+    li = sub.add_parser("list", help="list ALL lessons in memory")
+    li.add_argument("--json", action="store_true")
+    li.set_defaults(fn=cmd_list)
 
     s = sub.add_parser("status", help="honest system status")
     s.add_argument("--json", action="store_true")

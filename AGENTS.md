@@ -34,8 +34,23 @@ py agent_cli.py status            # is the store up? how many lessons?
 
 That's the whole contract. Boot to load context, learn to give back. ---
 
+## Trial mode (sandbox -- recommended for your first run)
+
+To experiment WITHOUT touching real shared memory, set one environment variable so
+all reads/writes go to an isolated database (logical db 15), not canonical (db 0):
+
+```
+# PowerShell:  $env:REDIS_DB = "15"   then run agent_cli.py as usual
+# bash:        REDIS_DB=15 py agent_cli.py boot test_agent --task "trying things"
+```
+
+Anything you `learn` in trial mode stays in the sandbox. Unset it (or use db 0) when
+you want your lessons to persist for real agents. The maintainer can wipe the sandbox
+any time with: `py -c "import redis; redis.Redis(port=16379,db=15).flushdb()"`.
+
 ## Details (optional)
 
+- **Use `py`, not `python`** on this Windows host (the `python` alias may be unset).
 - **Fail-soft:** if the database (Redis) is down, everything still works off local
   files -- you never need to check or start it.
 - **`--json`** on any command gives machine-readable output if you'd rather parse it.
