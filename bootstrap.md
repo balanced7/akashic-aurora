@@ -24,10 +24,10 @@ work or re-decides what another already settled. It's built as a layered stack;
 each layer sits on the one below, and agents touch only the top.
 
 ```
-System 5  Agent Interface (ACI)      how agents DO things
-System 4  Context pillar             what agents KNOW (8-10k token re-priming)
-System 1-3 Memory · Signals · Coordination   the domain
-System 0  Store + Ledger             persistence (state / events)   [built]
+System 5  Agent Interface (ACI)      how agents DO things          [built: agent_cli.py]
+System 4  Context pillar             what agents KNOW (8-10k token re-priming)  [built]
+System 1-3 Memory · Signals · Coordination   the domain            [built]
+System 0  Store + Ledger             persistence (state / events)  [built]
 ```
 
 The vocabulary below is exact — see **`docs/LEXICON.md`** for every term.
@@ -59,19 +59,28 @@ py scripts/check_boundaries.py  # enforce core/ boundaries (should exit 0)
 
 ## Initialize an agent
 
-```python
-from agent.initializer import derive_agent_context_from_startup_sources
+Use the CLI (see the 🤖 callout at the top). Don't import the internals:
 
-ctx = derive_agent_context_from_startup_sources("my_agent", task_keyword="my_task")
-# ctx carries the agent's starting context
+```
+py agent_cli.py boot <your_agent_id> --task "<what you are doing>"
 ```
 
-## Status (2026-06-19)
+## Status (current — 2026-06-27)
 
-- System 0 (Store + Ledger): **built & tested**.
-- AgentMemory: **Phase A done** (on Store). Phases B–E planned.
-- Context pillar (System 4) & Agent Interface (System 5): **designed**, not yet built.
-- Foundation guardrails (`scripts/check_boundaries.py`): **enforced, green**.
+- **All layers built & in use**: Store + Ledger (System 0), Memory · Signals ·
+  Coordination (1–3), Context pillar (System 4), Agent Interface `agent_cli.py` (System 5).
+- AgentMemory: Phases A, B (supersession), D (consolidation→chronicle) **done**;
+  `mem:`/`proj:` namespaces currently empty (clean slate — no agent has written yet).
+- Knowledge store: **6 canonical lessons**, harmonized (one source of truth; live on
+  Redis 16379 db0 + file mirror). The *only* real knowledge so far is the
+  semantic-refactoring lessons — recall them with `py agent_cli.py list`.
+- Guardrails (`scripts/check_boundaries.py`): **enforced, green**. Code on GitHub
+  (private mirror); knowledge backed up via `scripts/snapshot_knowledge.py`.
+
+> ⚠️ Older root docs (`SYSTEM_STATUS.md`, `ACTUAL_INVENTORY.md`,
+> `CONTINUATION_SESSION_SUMMARY.txt`, `PHASE_1_CHECKPOINT.md`, …) are **historical
+> snapshots and may be stale** (they predate the build-out). For current truth use:
+> this Status, `py agent_cli.py status`, `git log`, and `docs/ROADMAP.md`.
 
 Redis is optional everywhere — the Hybrid backends fall back to files, so the
 system works with Redis down (just slower / no cross-process sharing).
