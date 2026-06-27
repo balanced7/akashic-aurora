@@ -4,10 +4,11 @@ the benchmark metrics from the relevant research fields. Reused across slices.
 
   Clustering / disentanglement:  ari(), nmi(), purity(), accuracy()
   Segmentation:                  boundaries(), windowdiff(), pk(), boundary_f1()
+  Multi-label (themes):          multilabel_prf(), jaccard_multilabel()
 """
 import math
 from collections import Counter, defaultdict
-from typing import List, Sequence
+from typing import Iterable, List, Sequence, Tuple
 
 
 def _comb2(x: int) -> int:
@@ -136,3 +137,39 @@ def boundary_f1(gold_b: List[int], pred_b: List[int], tol: int = 1) -> float:
     prec = tp / (tp + fp) if (tp + fp) else 1.0
     rec = tp / (tp + fn) if (tp + fn) else 1.0
     return 2 * prec * rec / (prec + rec) if (prec + rec) else 0.0
+
+
+def multilabel_prf(
+    gold_sets: Iterable[Iterable[str]],
+    pred_sets: Iterable[Iterable[str]],
+) -> Tuple[float, float, float]:
+    """Micro-averaged precision / recall / F1 over (item, label) membership pairs.
+
+    The correct metric for MULTI-LABEL assignment (themes): NMI assumes a partition,
+    but a Beat can carry many themes. Micro-averaging over all (beat, theme) pairs
+    weights every membership equally and degrades gracefully on empty label sets.
+    """
+    tp = fp = fn = 0
+    for g, p in zip(gold_sets, pred_sets):
+        g, p = set(g), set(p)
+        tp += len(g & p)
+        fp += len(p - g)
+        fn += len(g - p)
+    prec = tp / (tp + fp) if (tp + fp) else 1.0
+    rec = tp / (tp + fn) if (tp + fn) else 1.0
+    f1 = 2 * prec * rec / (prec + rec) if (prec + rec) else 0.0
+    return prec, rec, f1
+
+
+def jaccard_multilabel(
+    gold_sets: Iterable[Iterable[str]],
+    pred_sets: Iterable[Iterable[str]],
+) -> float:
+    """Mean per-item Jaccard overlap of label sets (1.0 = identical sets each item)."""
+    scores, n = 0.0, 0
+    for g, p in zip(gold_sets, pred_sets):
+        g, p = set(g), set(p)
+        union = g | p
+        scores += (len(g & p) / len(union)) if union else 1.0
+        n += 1
+    return scores / n if n else 1.0
