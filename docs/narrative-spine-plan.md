@@ -174,18 +174,28 @@ not the rendering.
 
 ## 7. The three views + agent verbs (navigation)
 
-Progressive disclosure, end to end:
+**ACI discipline (`docs/agent-interface-aci.md`): keep the verb surface tiny and
+stable — reach subsystems *through* existing verbs, don't add a tool per node type.**
+So the whole narrative is **one new verb, `story`**, with progressive-disclosure
+args (not three separate verbs):
 
 ```
-py agent_cli.py story                 # BROAD: the arc (10–15 lines, chapters as beats + ids)
-py agent_cli.py story <chapter_id>    # MID:   that chapter's summary + its learnings/commits/beats as links
-py agent_cli.py recall <name>         # NARROW: the learning atom        (exists)
-git show <sha>                        # NARROW: the file/commit atom
-py agent_cli.py beat <beat_id>        # NARROW: a single event + its source pointer
+py agent_cli.py story                 # BROAD: the arc (budgeted; chapters as beats + ids)
+py agent_cli.py story <chapter_id>    # MID:   that chapter's summary + learnings/commits/beats as links
+py agent_cli.py story --beat <id>     # NARROW: a single event + its source pointer
+py agent_cli.py story --at <date>     # jump to the chapter covering a moment
+py agent_cli.py story --mark "title"  # (rare) declare a chapter boundary; boundaries are mostly auto
 ```
+Existing verbs already cover the deepest drill-down: `recall <name>` (learning atom),
+`git show <sha>` (file atom). `--json` on each for machines; output is **budgeted**
+(context-rot lesson) with explicit drill hints; **errors teach** ("no chapters yet —
+run `story --rebuild`"). Each level carries pointers **down**; back-links go **up**.
 
-`--json` on each for machine consumption. `--since <date>` / `--grep <term>` for
-time/keyword filtering. Each level carries pointers **down**; back-links go **up**.
+**Closing the loop (the fix for stale recall):** the recent Storyline/Chapter is also
+injected into `agent_cli.py boot` context. A fresh agent then gets the *true, generated*
+"what's been done lately" in its startup context — instead of reaching for the stale
+hand-written `SYSTEM_STATUS.md`. The narrative *feeds the Context pillar*; the spine and
+the harness are the same machinery pointed at time.
 
 ---
 
@@ -253,6 +263,40 @@ Local-first (no Neo4j); a lightweight temporal graph on our Store/Ledger.
 
 ---
 
+## 10b. Synthesis from our *own* prior research (naming + architecture)
+
+The external prior art (§10) says *what* to build; our four internal research docs say
+*how to build it so it stays coherent*. The best of each, applied:
+
+- **Ubiquitous Language + genus-before-species + names-must-not-lie**
+  (`coding-principles-research.md`). The narrative tier uses domain-genus names: a story
+  has a **Storyline → Chapters → Beats** (a "Beat" *is* the skeleton-research **Entry** —
+  the leaf — named in story terms). `Chronicler` writes `chronicles/` (our reserved word
+  for curated-derived views) — no name lies. Add the new terms to `docs/LEXICON.md` in
+  the same pass.
+- **Build the primitive once / rule of three** (`shared-primitives-and-coherence.md`).
+  The `Chronicler` is **not new code — it generalizes `core/learning/consolidation.py`**
+  (which already distills a collection → a chronicle with source pointers). `lessons.md`
+  and `story.md` become two outputs of one chronicler. Beats/Chapters are another
+  `IndexedRecords` user — they ride the same Store index/hydrate shape.
+- **The harness owns context over the event stream** (`context-compaction-skeleton-research.md`).
+  Our Ledger *is* the event stream; the Chronicler and the Context pillar are the **same
+  harness pointed at different slices** (time-window vs task). `story.md` is the
+  researched **MD+YAML skeleton** (`Domain>Topic>Entry` ⇒ `Storyline>Chapter>Beat`,
+  edges = relationship_types, each node `type/tags/relates/confidence/source`). The
+  pitfalls table there (context rot, irreversible discard, hallucinated summaries, stale
+  facts) maps directly onto our defenses (budget, append-only Ledger, writer→critic,
+  Supersession).
+- **ACI: tiny stable verb surface, descriptions-as-prompts, errors-that-teach, budgeted
+  progressive-disclosure returns** (`agent-interface-aci.md`). → one `story` verb (§7),
+  not four; the narrative feeds the inbound Context surface so "know" and "do" stay
+  siblings.
+- **Cleanup-at-scale discipline** (`coding-principles-research.md`): the Chronicler is a
+  *strangler-fig* over the stale status docs — once the generated Storyline is trusted,
+  the hand-written `SYSTEM_STATUS.md`/`ACTUAL_INVENTORY.md` are retired (Slice plan).
+  Consider a **doc-freshness guardrail** (extend `check_boundaries.py`): flag hand-written
+  status docs so generated truth can't silently drift again.
+
 ## 11. Evaluation
 
 Borrow the long-horizon QA target these systems benchmark on (LoCoMo-style): can an
@@ -294,10 +338,32 @@ finally gets the truth) — which also retires the stale status docs at the root
 
 ---
 
-## 14. Open decisions (for sign-off before Slice 0)
+## 14. Decisions — resolved by the synthesis (for final sign-off)
 
-1. **Chapter grain** — default is sub-goal-within-session (finer, mergeable). OK, or
-   one-chapter-per-session?
-2. **Where `story.md` lives** — `chronicles/story.md` (proposed) vs `docs/`.
-3. **Auto-run cadence** — Chronicler at session end via a hook, on-demand only, or both?
-4. **Scope of git indexing** — all commits as Beats, or only `mirror.py`/tagged commits?
+1. **Chapter grain → sub-goal, with session as a tag (3 explicit levels).**
+   The event-segmentation literature (ES-Mem/HingeMem) segments *sub-session* episodes,
+   and the skeleton research wants a real 3-level hierarchy. One-chapter-per-session
+   collapses to 2 useful levels. So: `Storyline (broad) > Chapter = sub-goal (mid) >
+   Beat (narrow)`, each Chapter carrying a `session` tag for filtering, and Chapters are
+   **mergeable** (a single-goal session → one chapter). Richest navigation, matches
+   broad/mid/narrow exactly.
+
+2. **`story.md` → `chronicles/`.** It's a *generated curated derived view*; the skeleton
+   research and our lexicon both put those in `chronicles/` (alongside `lessons.md`).
+   `docs/` stays hand-authored design. (`chronicles/story.md` + `chronicles/story.index.json`.)
+
+3. **Cadence → incremental auto at session-end + on-demand full rebuild.** Compaction
+   fires at *boundaries*, not continuously (cost + the "summarize near the limit"
+   pattern). A session-end hook (piggybacking the `mirror.py` commit / a session-end
+   signal) chronicles only the *new* window into a new Chapter (cheap, heuristic writer);
+   `story --rebuild` regenerates the whole thing on demand. LLM writer/critic is Slice 6.
+
+4. **Git indexing → index ALL commits as Beats, but weight by salience.** Completeness
+   is a stated narrative objective (Narrative Consolidation), and `git log` is cheap — so
+   every commit becomes a *low-weight* Beat (complete, followable file-history). Commits
+   with salience signals (merge, tag, conventional-commit `feat:`/`fix:`, or touching
+   `core/`) get **higher narrative weight** and surface in Chapter summaries; routine
+   "Mirror progress" commits stay as quiet drill-down. Honors both completeness
+   (Narrative Consolidation) and importance-at-write-time (Generative Agents).
+
+With these resolved, **Slice 0 (schema + lexicon, zero behavior) is ready to start.**
