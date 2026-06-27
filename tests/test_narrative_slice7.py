@@ -13,13 +13,15 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.foundation.store import FileStore
 from core.narrative.beat_log import BeatLog, reset_beat_log_singleton
 from core.narrative.chapter_lifecycle import (
+    correct_chapter,
     is_active_chapter,
     load_chapter_from_store,
-    persist_chapter_with_supersession,
+    persist_chapter_in_place,
+    rebuild_track_chapter_list,
     write_learning_chapter_backlinks,
 )
 from core.narrative.chronicler import Chronicler
-from core.narrative.schema import Chapter, ATLAS_KEY, chapter_key
+from core.narrative.schema import Chapter, Track, ATLAS_KEY, chapter_key, track_key
 from core.primitives.ranker import Ranker
 from core.primitives.distiller import Distiller
 from context.narrative_loader import load_recent_narrative_for_boot
@@ -30,35 +32,63 @@ def _store():
     return FileStore(os.path.join(tempfile.mkdtemp(), "s.json"))
 
 
-def test_supersession_on_content_change():
+def test_regenerate_in_place_keeps_stable_id():
+    """Re-writing the same logical chapter with changed content keeps the id
+    (regenerate-from-atoms) and preserves valid_from while refreshing recorded_at."""
     s = _store()
-    ch1 = Chapter(
-        id="chapter_abc123",
-        track="ai-setup",
-        title="First version",
-        span_start="2026-06-27T10:00:00",
-        summary="- old summary",
-        beats=["b1"],
-        learnings=[],
-        commits=[],
-    )
-    persist_chapter_with_supersession(s, ch1, now="2026-06-27T12:00:00")
-    ch2 = Chapter(
-        id="chapter_abc123",
-        track="ai-setup",
-        title="First version",
-        span_start="2026-06-27T10:00:00",
-        summary="- corrected summary with new facts",
-        beats=["b1", "b2"],
-        learnings=[],
-        commits=[],
-    )
-    out = persist_chapter_with_supersession(s, ch2, now="2026-06-27T13:00:00")
-    old = load_chapter_from_store(s, "chapter_abc123")
-    assert old is not None and old.valid_to, "old chapter must be closed"
-    assert out.id != "chapter_abc123", "new chapter gets a new id"
+    ch1 = Chapter(id="chapter_abc123", track="ai-setup", title="v1",
+                  span_start="2026-06-27T10:00:00", summary="- old summary",
+                  beats=["b1"], learnings=[], commits=[])
+    persist_chapter_in_place(s, ch1, now="2026-06-27T12:00:00")
+    ch2 = Chapter(id="chapter_abc123", track="ai-setup", title="v1",
+                  span_start="2026-06-27T10:00:00", summary="- corrected, with new facts",
+                  beats=["b1", "b2"], learnings=[], commits=[])
+    out = persist_chapter_in_place(s, ch2, now="2026-06-27T13:00:00")
+    assert out.id == "chapter_abc123", "regenerate keeps the deterministic id"
+    assert out.valid_from == "2026-06-27T10:00:00", "valid_from is never moved"
+    assert out.recorded_at == "2026-06-27T13:00:00", "recorded_at refreshes"
     assert is_active_chapter(out)
-    print("  supersession: content change closes old chapter OK")
+    print("  in-place: regenerate keeps stable id + bi-temporal anchors OK")
+
+
+def test_explicit_correction_supersedes_with_edges():
+    """A genuine correction (different id) retires the old chapter and links both
+    with real 66-type edges; only the new one is active."""
+    s = _store()
+    old = Chapter(id="chapter_old", track="ai-setup", title="old",
+                  span_start="2026-06-27T10:00:00", summary="- old", beats=["b1"])
+    persist_chapter_in_place(s, old, now="2026-06-27T12:00:00")
+    new = Chapter(id="chapter_new", track="ai-setup", title="corrected",
+                  span_start="2026-06-27T10:00:00", summary="- corrected", beats=["b1", "b2"])
+    out = correct_chapter(s, "chapter_old", new, now="2026-06-27T13:00:00")
+    closed = load_chapter_from_store(s, "chapter_old")
+    assert closed.valid_to == "2026-06-27T13:00:00", "old chapter validity closed"
+    assert any(e.type == "replaces" and e.target == "chapter_new" for e in closed.relates)
+    assert any(e.type == "is_version_of" and e.target == "chapter_old" for e in out.relates)
+    assert is_active_chapter(out) and not is_active_chapter(closed)
+    print("  correction: explicit supersession closes old + links versions OK")
+
+
+def test_track_list_drops_superseded():
+    """rebuild_track_chapter_list never keeps a superseded/missing chapter id
+    (the double-count bug guard)."""
+    s = _store()
+    a = Chapter(id="chapter_a", track="ai-setup", title="a",
+                span_start="2026-06-27T10:00:00", summary="- a", beats=["b1"])
+    b = Chapter(id="chapter_b", track="ai-setup", title="b",
+                span_start="2026-06-27T11:00:00", summary="- b", beats=["b2"])
+    persist_chapter_in_place(s, a)
+    persist_chapter_in_place(s, b)
+    rebuild_track_chapter_list(s, "ai-setup", ["chapter_a", "chapter_b"])
+    # supersede a with a new chapter
+    c = Chapter(id="chapter_c", track="ai-setup", title="c",
+                span_start="2026-06-27T10:00:00", summary="- c", beats=["b1"])
+    correct_chapter(s, "chapter_a", c)
+    tr = rebuild_track_chapter_list(s, "ai-setup", ["chapter_c", "chapter_b"])
+    assert "chapter_a" not in tr.chapters, "superseded chapter must be pruned"
+    assert set(tr.chapters) == {"chapter_b", "chapter_c"}
+    assert len(tr.chapters) == len(set(tr.chapters)), "no duplicates"
+    print("  track-hygiene: superseded ids pruned, no double-count OK")
 
 
 def test_learning_chapter_backlink():
@@ -77,7 +107,7 @@ def test_learning_chapter_backlink():
         learnings=["learn:experiment:demo_exp"],
         commits=[],
     )
-    persist_chapter_with_supersession(s, ch)
+    persist_chapter_in_place(s, ch)
     write_learning_chapter_backlinks(s, ch)
     rec = json.loads(s.get("learn:experiment:demo_exp"))
     assert rec.get("narrative_chapter") == "chapter_link1"
@@ -149,16 +179,79 @@ def test_beat_log_isolated_under_test_env():
     print("  isolation: BeatLog skips singleton under test env OK")
 
 
+def test_theme_assigner_wired_into_emit():
+    """Regression: emit() must INFER themes when none are passed (Slice 5 was dead
+    code — the assigner existed but nothing called it in the production path)."""
+    s = _store()
+    bl = BeatLog(s)
+    from core.narrative.track_router import RouteHint
+    b = bl.emit("learning", "TrackRouter routing benchmark fixture", "learn:experiment:x",
+                at="2026-06-27T10:00:00",
+                hint=RouteHint(category="research", task="routing"))
+    assert "routing" in b.themes, f"themes should be inferred, got {b.themes}"
+    assert "evaluation" in b.themes, "multi-label inference expected"
+    # explicit themes (incl. []) are honored verbatim, not overwritten
+    b2 = bl.emit("note", "routing words here", "src:2",
+                 at="2026-06-27T11:00:00", themes=[])
+    assert b2.themes == [], "explicit empty themes must be respected"
+    print("  theme-wiring: emit infers themes; explicit list honored OK")
+
+
+def test_theme_index_accumulates_all_member_beats():
+    """Regression: every beat sharing a theme must land in that theme's beat index
+    (the old theme_seen guard recorded only the first)."""
+    s = _store()
+    bl = BeatLog(s)
+    from core.narrative.track_router import RouteHint
+    bl.emit("note", "routing fix one", "src:1", at="2026-06-27T10:00:00",
+            themes=["routing"], hint=RouteHint(paths=["core/"]))
+    bl.emit("note", "routing fix two", "src:2", at="2026-06-27T11:00:00",
+            themes=["routing"], hint=RouteHint(category="research"))
+    c = Chronicler(beat_log=bl, store=s, chronicle_dir=tempfile.mkdtemp(),
+                   ranker=Ranker(), distiller=Distiller(max_chars_per_entry=170))
+    c.chronicle_all(now="2026-06-27T12:00:00")
+    from core.narrative.schema import Theme, theme_key
+    t = Theme.from_dict(json.loads(s.get(theme_key("routing"))))
+    assert len(t.beats) == 2, f"theme should index both beats, got {t.beats}"
+    print("  theme-index: all member beats recorded OK")
+
+
+def test_coverage_drops_when_high_weight_beat_omitted():
+    """Regression: coverage must actually fall when the Distiller drops a high-weight
+    beat (the old metric compared a set to itself and was pinned at 100%)."""
+    s = _store()
+    bl = BeatLog(s)
+    from core.narrative.track_router import RouteHint
+    # three high-weight beats in one chapter, but a tiny budget so not all fit
+    for i in range(3):
+        bl.emit("decision", f"high weight decision number {i} with enough text to cost budget",
+                f"ledger:d{i}", at=f"2026-06-27T1{i}:00:00", weight=5,
+                hint=RouteHint(category="research", task="x"))
+    c = Chronicler(beat_log=bl, store=s, chronicle_dir=tempfile.mkdtemp(),
+                   ranker=Ranker(), distiller=Distiller(max_chars_per_entry=170),
+                   token_budget=15)  # deliberately too small for all three
+    report = c.chronicle_all(now="2026-06-27T20:00:00")
+    assert report["coverage"] < 100.0, \
+        f"coverage must drop when beats are omitted, got {report['coverage']}"
+    assert report["faithful"] is True, "what IS summarized must still resolve"
+    print(f"  coverage-real: dropped beat lowers coverage to {report['coverage']}% OK")
+
+
 def main():
     print("=" * 60)
-    print("NARRATIVE SLICE 7 TESTS")
+    print("NARRATIVE SLICE 7 + REVIEW-FIX TESTS")
     print("=" * 60)
-    test_supersession_on_content_change()
+    test_regenerate_in_place_keeps_stable_id()
+    test_explicit_correction_supersedes_with_edges()
+    test_track_list_drops_superseded()
     test_learning_chapter_backlink()
     test_boot_includes_narrative()
     test_beat_log_isolated_under_test_env()
+    test_theme_assigner_wired_into_emit()
+    test_theme_index_accumulates_all_member_beats()
+    test_coverage_drops_when_high_weight_beat_omitted()
     print("\n" + "=" * 60)
-    print("ALL SLICE 7 TESTS PASSED")
+    print("ALL SLICE 7 + REVIEW-FIX TESTS PASSED")
     print("=" * 60)
 
 

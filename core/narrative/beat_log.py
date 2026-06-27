@@ -55,15 +55,30 @@ class BeatLog:
         at = at or datetime.utcnow().isoformat()
         weight = clamp_weight(weight if weight is not None else DEFAULT_WEIGHT.get(kind, 1))
         bid = f"beat_{int(_epoch(at))}_{random.randint(1000, 9999)}"
+        # `themes=None` means "infer at write time" (the assign-at-write rule, like the
+        # TrackRouter); an explicit list (incl. []) is honored verbatim.
+        explicit_themes = themes is not None
         beat = Beat(id=bid, at=at, kind=kind, summary=str(summary)[:500], source=str(source),
-                    weight=weight, track=track, themes=themes or [], relates=relates or [])
+                    weight=weight, track=track, themes=list(themes) if themes else [],
+                    relates=relates or [])
         if validate_beat(beat):
             return None
         if track is None:
             self._route(beat, hint, _epoch(at))   # sets beat.track + persists + indexes
+        if not explicit_themes:
+            self._assign_themes(beat, hint)        # multi-label themes inferred from context
         self.store.set(beat_key(bid), json.dumps(beat.to_dict()))
         self.store.zadd(TIMELINE, {bid: _epoch(at)})
         return beat
+
+    def _assign_themes(self, beat: Beat, hint) -> None:
+        """Infer cross-cutting Themes for a Beat (Slice 5). Best-effort -- a Beat with
+        no themes is still valid, so a hiccup never blocks logging."""
+        try:
+            from core.narrative.theme_assigner import get_theme_assigner
+            beat.themes = get_theme_assigner().assign(beat, hint)
+        except Exception:
+            pass
 
     def _route(self, beat: Beat, hint, score: float) -> None:
         """Assign the Beat to a Track (Slice 2). Best-effort -- an unrouted Beat is

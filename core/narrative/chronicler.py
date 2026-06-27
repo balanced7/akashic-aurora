@@ -25,6 +25,7 @@ Read-only on beat raw data. Best-effort: failures never raise into caller.
 import hashlib
 import json
 import os
+import re
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -38,7 +39,8 @@ from core.narrative.schema import (
     validate_beat, STORY_FORMAT_VERSION,
 )
 from core.narrative.chapter_lifecycle import (
-    persist_chapter_with_supersession,
+    persist_chapter_in_place,
+    rebuild_track_chapter_list,
     write_learning_chapter_backlinks,
 )
 from core.primitives.ranker import Ranker
@@ -310,61 +312,62 @@ class Chronicler:
     # ---- persistence ----
 
     def _persist(self, chapters: List[Chapter], atlas: Atlas) -> None:
-        """Write chapters, back-links, track refs, and atlas to the Store."""
-        id_map: Dict[str, str] = {}
+        """Write chapters, back-links, track refs, and atlas to the Store.
+
+        Chapters keep their deterministic ids (regenerate-in-place); track lists are
+        rebuilt to active, resolvable chapters only (no stale/superseded accumulation).
+        """
         for ch in chapters:
-            persisted = persist_chapter_with_supersession(self.store, ch)
-            id_map[ch.id] = persisted.id
-            write_learning_chapter_backlinks(self.store, persisted)
-            for bid in persisted.beats:
+            persist_chapter_in_place(self.store, ch)
+            write_learning_chapter_backlinks(self.store, ch)
+            for bid in ch.beats:
                 raw = self.store.get(beat_key(bid))
                 if raw:
                     try:
                         b = Beat.from_dict(json.loads(raw))
-                        b.chapter = persisted.id
+                        b.chapter = ch.id          # bidirectional back-link
                         self.store.set(beat_key(b.id), json.dumps(b.to_dict()))
                     except Exception:
                         pass
-        track_seen: set = set()
+
+        by_track: Dict[str, List[str]] = defaultdict(list)
         for ch in chapters:
-            cid = id_map.get(ch.id, ch.id)
-            if ch.track not in track_seen:
-                track_seen.add(ch.track)
-                existing = self.store.get(track_key(ch.track))
-                try:
-                    if existing:
-                        t = Track.from_dict(json.loads(existing))
-                    else:
-                        t = Track(id=ch.track, title=ch.track, chapters=[])
-                    if cid not in t.chapters:
-                        t.chapters.append(cid)
-                    self.store.set(track_key(ch.track), json.dumps(t.to_dict()))
-                except Exception:
-                    pass
-        theme_seen: set = set()
+            by_track[ch.track].append(ch.id)
+        for track_id, cids in by_track.items():
+            rebuild_track_chapter_list(self.store, track_id, cids)
+
+        # Theme index: accumulate EVERY member beat (a theme is multi-beat AND
+        # cross-track), loading each Theme once per run then writing it back.
+        theme_cache: Dict[str, Theme] = {}
         for ch in chapters:
-            cid = id_map.get(ch.id, ch.id)
             for bid in ch.beats:
                 raw = self.store.get(beat_key(bid))
                 if not raw:
                     continue
                 try:
                     b = Beat.from_dict(json.loads(raw))
+                    beat_dirty = False
                     for th in b.themes:
-                        if th not in theme_seen:
-                            theme_seen.add(th)
+                        if th not in theme_cache:
                             existing = self.store.get(theme_key(th))
-                            t = Theme.from_dict(json.loads(existing)) if existing else Theme(id=th, title=th, beats=[])
-                            if bid not in t.beats:
-                                t.beats.append(bid)
-                            self.store.set(theme_key(th), json.dumps(t.to_dict()))
+                            theme_cache[th] = (
+                                Theme.from_dict(json.loads(existing)) if existing
+                                else Theme(id=th, title=th, beats=[])
+                            )
+                        t = theme_cache[th]
+                        if bid not in t.beats:
+                            t.beats.append(bid)
                         edge_target = f"narr:theme:{th}"
                         if not any(e.target == edge_target for e in b.relates):
                             b.relates.append(Edge("member_of", edge_target))
-                            b.chapter = cid
-                            self.store.set(beat_key(bid), json.dumps(b.to_dict()))
+                            beat_dirty = True
+                    if beat_dirty:
+                        b.chapter = ch.id
+                        self.store.set(beat_key(bid), json.dumps(b.to_dict()))
                 except Exception:
                     pass
+        for th, t in theme_cache.items():
+            self.store.set(theme_key(th), json.dumps(t.to_dict()))
         self.store.set(ATLAS_KEY, json.dumps(atlas.to_dict()))
 
     # ---- rendering ----
@@ -433,48 +436,51 @@ class Chronicler:
             "coverage": coverage,
         }
 
+    _SOURCE_RE = re.compile(r"\(source:\s*([^)]+?)\s*\)")
+
     def _compute_metrics(
         self, chapters: List[Chapter]
     ) -> tuple:
-        """Compute faithfulness and coverage.
+        """Compute faithfulness and coverage -- the two real acceptance bars.
 
-        Faithfulness: every chapter's summary entries resolve to a real Beat source
-        (the Distiller's lossless-pointer invariant).
-        Coverage: % of weight->=4 Beats that appear in at least one chapter.
+        Faithfulness (bar = 100%): EVERY `(source: X)` claim in a chapter summary
+        must resolve to the source of a Beat actually belonging to that chapter. A
+        claim pointing at a beat that isn't in the chapter is a fabricated pointer.
+
+        Coverage (bar >= 95%): of all weight->=4 Beats, the fraction whose source
+        actually appears in their chapter's distilled summary. This DROPS when the
+        Distiller has to omit a high-weight Beat to fit the budget -- the whole point
+        of measuring it (the old check compared a set against itself and was pinned
+        at 100%).
         """
-        all_chapter_beat_ids: set = set()
-        for ch in chapters:
-            for bid in ch.beats:
-                all_chapter_beat_ids.add(bid)
-
         faithful = True
         for ch in chapters:
             if not ch.beats:
                 faithful = False
                 break
-            any_resolved = False
+            chapter_sources = set()
             for bid in ch.beats:
-                raw = self.store.get(beat_key(bid))
-                if raw:
-                    any_resolved = True
+                b = self._load_beat(bid)
+                if b is not None and b.source:
+                    chapter_sources.add(b.source)
+            for claimed in self._SOURCE_RE.findall(ch.summary or ""):
+                if claimed not in chapter_sources:
+                    faithful = False
                     break
-            if not any_resolved:
-                faithful = False
+            if not faithful:
                 break
 
         high_weight = 0
         covered = 0
-        for bid in list(all_chapter_beat_ids):
-            raw = self.store.get(beat_key(bid))
-            if raw:
-                try:
-                    b = Beat.from_dict(json.loads(raw))
-                    if b.weight >= 4:
-                        high_weight += 1
-                        if bid in all_chapter_beat_ids:
-                            covered += 1
-                except Exception:
-                    pass
+        for ch in chapters:
+            summary = ch.summary or ""
+            for bid in ch.beats:
+                b = self._load_beat(bid)
+                if b is None or b.weight < 4:
+                    continue
+                high_weight += 1
+                if b.source and b.source in summary:
+                    covered += 1
 
         coverage_pct = (covered / high_weight * 100) if high_weight > 0 else 100.0
         return faithful, round(coverage_pct, 1)

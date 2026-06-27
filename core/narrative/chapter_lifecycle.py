@@ -1,46 +1,35 @@
 """
-Chapter lifecycle helpers (Slice 7) — bi-temporal supersession + active filtering.
+Chapter lifecycle helpers (Slice 7) — bi-temporal stamping, in-place regeneration,
+explicit supersession, and track-list hygiene.
 
-Semantic Relationship: NewChapter supersedes OldChapter (valid_to interval closes)
+Semantic Relationship: Chapter regenerated_from Beats (stable id) ; CorrectedChapter supersedes OldChapter
 
-Chapters are never deleted; a corrected rebuild stamps ``valid_to`` on the old
-record and links the replacement with a ``replaces`` edge (66-type vocabulary).
+Design rules this enforces (docs/narrative-spine-plan.md §4–5, sota-comparison):
+- **Stable, deterministic ids.** A chapter regenerated from the same atoms keeps its
+  id (idempotent re-runs → stable cross-references). Regenerating in place IS the
+  anti-drift rule (regenerate-from-atoms), not an edit that must be preserved.
+- **Bi-temporal.** `valid_from` = first time the chapter became true; `recorded_at`
+  = last time it was written. Set once / refreshed on write.
+- **Supersession is for real corrections only** (a *different* id replaces this one).
+  It closes `valid_to`, adds a `replaces` edge, and retargets back-links — it does
+  NOT fire on ordinary regenerate (that stranded old ids in the track list before).
+- **Track lists stay clean.** Only active (not superseded), resolvable chapter ids,
+  newest-first.
 """
-import hashlib
 import json
 from datetime import datetime
 from typing import List, Optional
 
-from core.narrative.schema import Chapter, Edge, chapter_key
+from core.narrative.schema import Chapter, Edge, Track, chapter_key, track_key
 
 
 def is_active_chapter(ch: Chapter) -> bool:
-    """True when the chapter is current (not superseded)."""
+    """True when the chapter is current (its validity interval is still open)."""
     return not ch.valid_to
 
 
 def active_chapters(chapters: List[Chapter]) -> List[Chapter]:
     return [ch for ch in chapters if is_active_chapter(ch)]
-
-
-def supersede_chapter(old: Chapter, new_id: str, now: Optional[str] = None) -> Chapter:
-    """Close the validity interval on ``old`` and point to its replacement."""
-    now_iso = now or datetime.utcnow().isoformat()
-    old.valid_to = now_iso
-    old.relates = list(old.relates or [])
-    if not any(e.type == "replaces" and e.target == new_id for e in old.relates):
-        old.relates.append(Edge("replaces", new_id))
-    return old
-
-
-def chapter_content_fingerprint(ch: Chapter) -> str:
-    """Stable fingerprint for detecting material chapter changes."""
-    return "|".join([
-        ch.track or "",
-        ch.title or "",
-        ch.summary or "",
-        ",".join(ch.beats or []),
-    ])
 
 
 def load_chapter_from_store(store, chapter_id: str) -> Optional[Chapter]:
@@ -53,37 +42,53 @@ def load_chapter_from_store(store, chapter_id: str) -> Optional[Chapter]:
         return None
 
 
-def persist_chapter_with_supersession(
-    store,
-    chapter: Chapter,
-    *,
-    now: Optional[str] = None,
-) -> Chapter:
-    """Write ``chapter``; supersede an existing active chapter at the same id if content changed."""
+def persist_chapter_in_place(store, chapter: Chapter, *, now: Optional[str] = None) -> Chapter:
+    """Write ``chapter`` under its deterministic id, preserving bi-temporal anchors.
+
+    ``valid_from`` is set the first time the chapter is seen and never moved;
+    ``recorded_at`` is refreshed on every write. The id never changes here — a
+    regenerate-from-atoms rebuild is the same logical chapter, so it stays stable
+    and idempotent.
+    """
     now_iso = now or datetime.utcnow().isoformat()
     existing = load_chapter_from_store(store, chapter.id)
-    if existing and is_active_chapter(existing):
-        if chapter_content_fingerprint(existing) != chapter_content_fingerprint(chapter):
-            raw = f"{chapter.id}_superseded_{now_iso}"
-            new_id = f"{chapter.id}_v{hashlib.md5(raw.encode()).hexdigest()[:8]}"
-            supersede_chapter(existing, new_id, now=now_iso)
-            store.set(chapter_key(existing.id), json.dumps(existing.to_dict()))
-            d = chapter.to_dict()
-            d["id"] = new_id
-            chapter = Chapter.from_dict(d)
-            chapter.relates = list(chapter.relates or [])
-            chapter.relates.append(Edge("is_version_of", existing.id))
-            chapter.recorded_at = now_iso
+    if existing is not None and existing.valid_from:
+        chapter.valid_from = existing.valid_from           # never move the origin
     if not chapter.valid_from:
         chapter.valid_from = chapter.span_start
+    # Respect a recorded_at the caller already stamped (the Chronicler stamps it from
+    # its run `now`, which keeps re-runs byte-identical / idempotent). Only fall back
+    # to wall-clock when none was provided.
     if not chapter.recorded_at:
         chapter.recorded_at = now_iso
     store.set(chapter_key(chapter.id), json.dumps(chapter.to_dict()))
     return chapter
 
 
+def correct_chapter(store, old_id: str, new_chapter: Chapter, *, now: Optional[str] = None) -> Chapter:
+    """Explicit correction: a *different*-id chapter supersedes ``old_id``.
+
+    Closes the old chapter's validity interval, links the two with the real
+    ``replaces`` / ``is_version_of`` edges (66-type vocabulary), and writes the
+    replacement. History stays queryable; only the new chapter is active.
+    """
+    now_iso = now or datetime.utcnow().isoformat()
+    old = load_chapter_from_store(store, old_id)
+    if old is not None and is_active_chapter(old):
+        old.valid_to = now_iso
+        old.relates = list(old.relates or [])
+        if not any(e.type == "replaces" and e.target == new_chapter.id for e in old.relates):
+            old.relates.append(Edge("replaces", new_chapter.id))
+        store.set(chapter_key(old.id), json.dumps(old.to_dict()))
+        new_chapter.relates = list(new_chapter.relates or [])
+        if not any(e.type == "is_version_of" and e.target == old_id for e in new_chapter.relates):
+            new_chapter.relates.append(Edge("is_version_of", old_id))
+    return persist_chapter_in_place(store, new_chapter, now=now_iso)
+
+
 def write_learning_chapter_backlinks(store, chapter: Chapter) -> int:
-    """Stamp ``narrative_chapter`` on learn:experiment records referenced by the chapter."""
+    """Stamp ``narrative_chapter`` on learn:experiment records referenced by the chapter
+    (the bidirectional-pointer rule: any atom knows its place in the story)."""
     linked = 0
     for src in chapter.learnings or []:
         if not src.startswith("learn:experiment:"):
@@ -102,3 +107,40 @@ def write_learning_chapter_backlinks(store, chapter: Chapter) -> int:
         store.set(key, json.dumps(rec))
         linked += 1
     return linked
+
+
+def rebuild_track_chapter_list(store, track_id: str, current_ids: List[str]) -> Track:
+    """Set a Track's chapter list to active, resolvable chapters only, newest-first.
+
+    Merges the ids produced this run with any pre-existing ones (so a windowed
+    chronicle doesn't lose earlier chapters), then drops anything that is missing
+    or superseded — preventing the stale/superseded-id accumulation that would
+    otherwise double-count chapters in the Atlas.
+    """
+    raw = store.get(track_key(track_id))
+    track = None
+    if raw:
+        try:
+            track = Track.from_dict(json.loads(raw))
+        except (ValueError, TypeError, json.JSONDecodeError):
+            track = None
+    if track is None:
+        track = Track(id=track_id, title=track_id, chapters=[])
+
+    merged: List[str] = []
+    seen = set()
+    for cid in list(track.chapters or []) + list(current_ids):
+        if cid in seen:
+            continue
+        seen.add(cid)
+        ch = load_chapter_from_store(store, cid)
+        if ch is not None and is_active_chapter(ch):
+            merged.append(cid)
+
+    merged.sort(
+        key=lambda cid: (load_chapter_from_store(store, cid).span_start or ""),
+        reverse=True,
+    )
+    track.chapters = merged
+    store.set(track_key(track_id), json.dumps(track.to_dict()))
+    return track
