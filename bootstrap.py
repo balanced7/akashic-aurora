@@ -179,6 +179,17 @@ def main():
     else:
         log("    [..] Redis down — counts unavailable (data is in session_logs/ files)", YELLOW)
 
+    # Session logging: emit a session-start beat (best-effort, never crash)
+    try:
+        from core.narrative.beat_log import get_beat_log
+        from core.narrative.track_router import RouteHint
+        bl = get_beat_log()
+        bl.emit("session", summary="Session started", source="bootstrap:start",
+                hint=RouteHint(category="meta", task="bootstrap"))
+        log("[*] Session start recorded", CYAN)
+    except Exception as e:
+        log(f"[!] Session logging unavailable ({type(e).__name__})", YELLOW)
+
     # Orientation
     print()
     log("=" * 64, CYAN)

@@ -148,6 +148,330 @@ def cmd_list(args):
     return cmd_recall(args)
 
 
+# -------------------------------------------------------------------------- story
+def cmd_story(args, store=None):
+    """Print narrative story views: Atlas, Track, Chapter, Beat, or time-lookup.
+
+    Usage:
+      py agent_cli.py story                -> Atlas overview (tracks + chapter counts)
+      py agent_cli.py story --chronicle    -> run chronicle_all first, then Atlas
+      py agent_cli.py story --track NAME   -> chapters in that track
+      py agent_cli.py story --theme NAME   -> chapters with beats in that theme
+      py agent_cli.py story --themes       -> list all themes with beat counts
+      py agent_cli.py story --at ISO       -> find chapter containing that timestamp
+      py agent_cli.py story --chapter ID   -> full chapter detail
+      py agent_cli.py story --beat ID      -> full beat detail
+      py agent_cli.py story --json         -> any of the above as JSON
+    """
+    from core.narrative.chronicler import Chronicler
+    from core.narrative.schema import Beat, Chapter, Track, Atlas, Edge, beat_key, chapter_key, track_key
+    from core.foundation.store import create_store
+    from core.narrative.track_router import RouteHint
+    import json as _json
+
+    if store is None:
+        store = create_store()
+    from core.narrative.beat_log import BeatLog
+    beat_log = BeatLog(store)
+    atlas_raw = store.get("narr:atlas:current")
+
+    # --session-end: emit session-end beat then chronicle
+    if args.session_end:
+        try:
+            beat_log.emit("session", summary="Session ended", source="bootstrap:end",
+                          hint=RouteHint(category="meta", task="session_end"))
+        except Exception:
+            pass
+        # fall through to --chronicle
+
+    # --chronicle flag: run chronicle_all first
+    if args.chronicle or args.session_end:
+        c = Chronicler(beat_log=beat_log, store=store)
+        report = c.chronicle_all(now=args.at if args.at else None)
+        atlas_raw = store.get("narr:atlas:current")
+        if args.json:
+            print(_json.dumps(report, indent=2, default=str))
+            return 0
+        if atlas_raw:
+            atlas = Atlas.from_dict(_json.loads(atlas_raw))
+            _print_atlas(atlas, store)
+        print(f"  (chronicled {report['chapters']} chapters, "
+              f"{report['tracks']} tracks, {report['total_beats']} beats)")
+        return 0
+
+    # --beat ID: full beat detail
+    if args.beat:
+        raw = store.get(beat_key(args.beat))
+        if not raw:
+            raw = store.get(f"narr:beat:{args.beat}")
+        if not raw:
+            print(f"ERROR: beat '{args.beat}' not found.")
+            return 2
+        try:
+            beat = Beat.from_dict(_json.loads(raw))
+        except _json.JSONDecodeError:
+            print(f"ERROR: corrupt data for beat '{args.beat}'.")
+            return 2
+        if args.json:
+            print(_json.dumps(beat.to_dict(), indent=2, default=str))
+            return 0
+        _print_beat(beat)
+        return 0
+
+    # --chapter ID: full chapter detail
+    if args.chapter:
+        raw = store.get(chapter_key(args.chapter))
+        if not raw:
+            raw = store.get(f"narr:chapter:{args.chapter}")
+        if not raw:
+            print(f"ERROR: chapter '{args.chapter}' not found.")
+            return 2
+        try:
+            ch = Chapter.from_dict(_json.loads(raw))
+        except _json.JSONDecodeError:
+            print(f"ERROR: corrupt data for chapter '{args.chapter}'.")
+            return 2
+        if args.json:
+            print(_json.dumps(ch.to_dict(), indent=2, default=str))
+            return 0
+        _print_chapter(ch, store)
+        return 0
+
+    # No atlas -> no story yet
+    if not atlas_raw:
+        print("ERROR: no story found. Run `py agent_cli.py story --chronicle` first.")
+        return 2
+
+    try:
+        atlas = Atlas.from_dict(_json.loads(atlas_raw))
+    except _json.JSONDecodeError:
+        print("ERROR: corrupt atlas data.")
+        return 2
+
+    # --at ISO: find which chapter contains this time
+    if args.at and not args.chronicle:
+        from datetime import datetime as _dt
+        try:
+            target = _dt.fromisoformat(args.at)
+            target_ts = target.timestamp()
+        except (ValueError, TypeError):
+            print(f"ERROR: invalid timestamp '{args.at}'. Use ISO format like 2026-06-27T10:00:00.")
+            return 2
+
+        found = []
+        for t in atlas.tracks:
+            raw_t = store.get(track_key(t))
+            if raw_t:
+                tr = Track.from_dict(_json.loads(raw_t))
+                for cid in tr.chapters:
+                    raw_ch = store.get(chapter_key(cid))
+                    if raw_ch:
+                        ch = Chapter.from_dict(_json.loads(raw_ch))
+                        try:
+                            start = _dt.fromisoformat(ch.span_start).timestamp()
+                            end = _dt.fromisoformat(ch.span_end).timestamp() if ch.span_end else float("inf")
+                            if start <= target_ts <= end:
+                                found.append(ch)
+                        except (ValueError, TypeError):
+                            continue
+        if args.json:
+            print(_json.dumps([ch.to_dict() for ch in found], indent=2, default=str))
+            return 0
+        if not found:
+            print(f"No chapter contains {args.at}")
+            return 1
+        print(f"# Chapters containing {args.at}")
+        for ch in found:
+            _print_chapter(ch, store)
+        return 0
+
+    # --themes: list all themes with beat counts
+    if args.themes:
+        all_chapters = []
+        for t in atlas.tracks:
+            raw_t = store.get(track_key(t))
+            if raw_t:
+                tr = Track.from_dict(_json.loads(raw_t))
+                for cid in tr.chapters:
+                    raw_ch = store.get(chapter_key(cid))
+                    if raw_ch:
+                        all_chapters.append(Chapter.from_dict(_json.loads(raw_ch)))
+        theme_counts = {}
+        for ch in all_chapters:
+            for bid in ch.beats:
+                raw_b = store.get(beat_key(bid))
+                if raw_b:
+                    b = Beat.from_dict(_json.loads(raw_b))
+                    for th in b.themes:
+                        theme_counts[th] = theme_counts.get(th, 0) + 1
+        if args.json:
+            print(_json.dumps(theme_counts, indent=2))
+            return 0
+        print("# Themes")
+        if not theme_counts:
+            print("  (no themes found)")
+            return 0
+        for th, count in sorted(theme_counts.items(), key=lambda x: -x[1]):
+            print(f"  {th}: {count} beat(s)")
+        return 0
+
+    # --theme NAME: cross-track chapters containing beats with this theme
+    if args.theme:
+        found = []
+        for t in atlas.tracks:
+            raw_t = store.get(track_key(t))
+            if raw_t:
+                tr = Track.from_dict(_json.loads(raw_t))
+                for cid in tr.chapters:
+                    raw_ch = store.get(chapter_key(cid))
+                    if raw_ch:
+                        ch = Chapter.from_dict(_json.loads(raw_ch))
+                        for bid in ch.beats:
+                            raw_b = store.get(beat_key(bid))
+                            if raw_b:
+                                b = Beat.from_dict(_json.loads(raw_b))
+                                if args.theme in b.themes:
+                                    found.append(ch)
+                                    break
+        if args.json:
+            print(_json.dumps([ch.to_dict() for ch in found], indent=2, default=str))
+            return 0
+        if not found:
+            print(f"No chapters contain theme '{args.theme}'")
+            return 1
+        print(f"# Theme: {args.theme} ({len(found)} chapters)")
+        for ch in found:
+            _print_chapter_summary(ch)
+        return 0
+
+    # --track NAME: chapters in that track
+    if args.track:
+        ch_ids = None
+        raw_t = store.get(track_key(args.track))
+        if raw_t:
+            try:
+                tr = Track.from_dict(_json.loads(raw_t))
+            except _json.JSONDecodeError:
+                print(f"ERROR: corrupt data for track '{args.track}'.")
+                return 2
+            ch_ids = tr.chapters
+        else:
+            print(f"ERROR: track '{args.track}' not found. Available: {', '.join(atlas.tracks)}")
+            return 2
+        chapters = []
+        for cid in ch_ids:
+            raw_ch = store.get(chapter_key(cid))
+            if raw_ch:
+                chapters.append(Chapter.from_dict(_json.loads(raw_ch)))
+        chapters.sort(key=lambda c: c.span_start)
+        if args.json:
+            print(_json.dumps([ch.to_dict() for ch in chapters], indent=2, default=str))
+            return 0
+        print(f"# Track: {args.track} ({len(chapters)} chapters)")
+        for ch in chapters:
+            _print_chapter_summary(ch)
+        return 0
+
+    # Default: Atlas overview
+    if args.json:
+        print(_json.dumps(atlas.to_dict(), indent=2, default=str))
+        return 0
+
+    _print_atlas(atlas, store)
+    return 0
+
+
+def _print_atlas(atlas, store) -> None:
+    """Print atlas overview to stdout."""
+    from core.narrative.schema import Track, track_key, chapter_key
+    import json
+    print(f"# Story Atlas")
+    print(f"Generated: {atlas.generated_at}")
+    print(f"Tracks: {', '.join(atlas.tracks)}")
+    for t in atlas.tracks:
+        raw = store.get(track_key(t))
+        count = 0
+        if raw:
+            tr = Track.from_dict(json.loads(raw))
+            count = len(tr.chapters)
+        print(f"  {t}: {count} chapter(s)")
+    print(f"\n{atlas.summary}")
+
+
+def _print_chapter_summary(ch) -> None:
+    """Short summary line for a chapter."""
+    print(f"  [{ch.track}] {ch.id}: \"{ch.title}\" ({len(ch.beats)} beats, "
+          f"{ch.span_start} -> {ch.span_end or 'present'})")
+
+
+def _print_chapter(ch, store) -> None:
+    """Full chapter detail."""
+    from core.narrative.schema import chapter_key
+    print(f"# Chapter: {ch.id}")
+    print(f"Track: {ch.track}")
+    print(f"Title: {ch.title}")
+    print(f"Span: {ch.span_start} -> {ch.span_end or 'present'}")
+    print(f"Beats: {len(ch.beats)}  |  Critic-ok: {ch.critic_ok}")
+    print(f"Recorded: {ch.recorded_at}")
+    print(f"\n{ch.summary}\n")
+    if ch.commits:
+        print("Commits:")
+        for s in ch.commits[:5]:
+            print(f"  {s}")
+    if ch.beats:
+        print("\nDrill into a beat:")
+        print(f'  py agent_cli.py story --beat {ch.beats[0]}')
+    if ch.id:
+        print(f"\nRaw JSON:")
+        print(f'  py agent_cli.py story --chapter {ch.id} --json')
+
+
+def _print_beat(beat) -> None:
+    """Full beat detail."""
+    from core.narrative.schema import chapter_key
+    print(f"# Beat: {beat.id}")
+    print(f"Kind: {beat.kind}  |  Track: {beat.track}  |  Weight: {beat.weight}")
+    print(f"At: {beat.at}")
+    print(f"Source: {beat.source}")
+    print(f"Summary: {beat.summary}")
+    if beat.chapter:
+        print(f"Chapter: {beat.chapter}")
+        print(f'  py agent_cli.py story --chapter {beat.chapter}')
+    if beat.relates:
+        for e in beat.relates:
+            print(f"  relates: ({e.type}) {e.target}")
+    if beat.themes:
+        print(f"Themes: {', '.join(beat.themes)}")
+
+
+# --------------------------------------------------------------------------- log
+def cmd_log(args):
+    """Record an arbitrary narrative Beat (action/task/note) without a learning entry.
+
+    Usage:
+      py agent_cli.py log <kind> --summary "what happened" --source "who:action"
+                             [--category C] [--task T] [--json]
+    """
+    from core.narrative.beat_log import get_beat_log
+    from core.narrative.track_router import RouteHint
+    kind = args.kind or "note"
+    summary = args.summary or "no summary"
+    source = args.source or "agent_cli:log"
+    try:
+        beat = get_beat_log().emit(
+            kind, summary=summary, source=source,
+            hint=RouteHint(category=args.category or "", task=args.task or ""))
+        ok = beat is not None
+    except Exception as e:
+        print(f"ERROR: {type(e).__name__}: {e}")
+        return 1
+    if args.json:
+        print(json.dumps({"recorded": ok, "kind": kind, "beat_id": beat.id if beat else None}))
+    else:
+        print(f"[{'OK' if ok else 'FAIL'}] {kind}: {summary[:80]}")
+    return 0 if ok else 1
+
+
 # ------------------------------------------------------------------------- status
 def cmd_status(args):
     from core.foundation.redis_connection import (
@@ -196,6 +520,27 @@ def main():
     s = sub.add_parser("status", help="honest system status")
     s.add_argument("--json", action="store_true")
     s.set_defaults(fn=cmd_status)
+
+    lg = sub.add_parser("log", help="record an arbitrary narrative Beat")
+    lg.add_argument("kind", nargs="?", default="note", help="beat kind (session/note/commit/learning/...)")
+    lg.add_argument("--summary", default="", help="summary of what happened")
+    lg.add_argument("--source", default="", help="source identifier (who:action)")
+    lg.add_argument("--category", default="", help="route hint category")
+    lg.add_argument("--task", default="", help="route hint task")
+    lg.add_argument("--json", action="store_true", help="JSON output")
+    lg.set_defaults(fn=cmd_log)
+
+    st = sub.add_parser("story", help="print narrative story views")
+    st.add_argument("--chronicle", action="store_true", help="run chronicle_all first")
+    st.add_argument("--session-end", action="store_true", help="emit session-end beat then chronicle")
+    st.add_argument("--track", default=None, help="filter to a named track")
+    st.add_argument("--theme", default=None, help="filter chapters by theme")
+    st.add_argument("--themes", action="store_true", help="list all themes with beat counts")
+    st.add_argument("--at", default=None, help="find chapter containing this ISO timestamp")
+    st.add_argument("--chapter", default=None, help="show full chapter detail by ID")
+    st.add_argument("--beat", default=None, help="show full beat detail by ID")
+    st.add_argument("--json", action="store_true", help="JSON output")
+    st.set_defaults(fn=cmd_story)
 
     args = p.parse_args()
     sys.exit(args.fn(args))

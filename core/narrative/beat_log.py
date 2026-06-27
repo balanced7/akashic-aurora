@@ -15,6 +15,7 @@ Best-effort by design: emit() never raises into the caller's main flow, so hooki
 into `learn`/`mirror` can't break those commands.
 """
 import json
+import os
 import random
 from datetime import datetime
 from typing import List, Optional
@@ -106,11 +107,24 @@ class BeatLog:
 _INSTANCE: Optional[BeatLog] = None
 
 
+def reset_beat_log_singleton() -> None:
+    """Clear the module singleton (tests only)."""
+    global _INSTANCE
+    _INSTANCE = None
+
+
 def get_beat_log(store: Optional[Store] = None) -> BeatLog:
-    """Module singleton (lazy). Pass `store` to get an isolated BeatLog (tests/trial)."""
+    """Module singleton (lazy). Pass `store` to get an isolated BeatLog (tests/trial).
+
+    When ``_AISETUP_TEST_ISOLATED`` is set (see tests/isolate_canonical.py), never
+    cache a singleton — each call uses a fresh Store so subprocess CLI tests cannot
+    pollute canonical db 0.
+    """
     global _INSTANCE
     if store is not None:
         return BeatLog(store)
+    if os.environ.get("_AISETUP_TEST_ISOLATED"):
+        return BeatLog(create_store())
     if _INSTANCE is None:
         _INSTANCE = BeatLog()
     return _INSTANCE

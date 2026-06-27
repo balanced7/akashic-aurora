@@ -8,7 +8,9 @@ import os
 import sys
 import tempfile
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_TESTS = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.dirname(_TESTS))
+sys.path.insert(0, _TESTS)
 
 from core.narrative.track_router import TrackRouter, RouteHint
 from core.narrative.schema import Beat

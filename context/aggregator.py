@@ -22,14 +22,16 @@ from context.learning_loader import load_learnings_ranked_by_relevance
 from context.decision_loader import load_decisions_applicable_to_task
 from context.blocker_loader import load_blockers_preventing_progress
 from context.briefing_loader import load_briefing_from_previous_handoff
+from context.narrative_loader import load_recent_narrative_for_boot
 
 # Fraction of the token budget allotted to each section (high-signal first).
 SECTION_BUDGET_FRACTION = {
-    "briefing": 0.15,
-    "decisions": 0.22,
-    "learnings": 0.28,
-    "blockers": 0.11,
-    "project_state": 0.17,
+    "briefing": 0.12,
+    "narrative": 0.13,
+    "decisions": 0.20,
+    "learnings": 0.25,
+    "blockers": 0.10,
+    "project_state": 0.15,
 }
 
 
@@ -71,6 +73,7 @@ def assemble_context(
     learning_store: Any = None,
     context_manager: Any = None,
     signal_ledger: Any = None,
+    store: Any = None,
     now: Optional[float] = None,
 ) -> Dict[str, Any]:
     """
@@ -100,6 +103,10 @@ def assemble_context(
     sections["blockers"] = load_blockers_preventing_progress(
         task, top_k=8, context_manager=context_manager, now=now)
 
+    narrative = load_recent_narrative_for_boot(store=store)
+    if narrative:
+        sections["narrative"] = narrative
+
     # Compact project-state summary (high-signal, not the full dump).
     full = context_manager.derive_full_context_for_agent_repriming()
     big = full.get("big_picture", {})
@@ -118,6 +125,13 @@ def assemble_context(
     # disclosure: this is the small overview an agent reads; `sections` is the
     # structured backing it drills into via each entry's source pointer).
     skeleton_items = []
+    narrative = fitted.get("narrative")
+    if narrative:
+        skeleton_items.append({
+            "summary": narrative.get("summary", ""),
+            "source": narrative.get("source", "narr:atlas:current"),
+            "kind": "narrative",
+        })
     for kind in ("decisions", "learnings", "blockers"):
         for entry in fitted.get(kind, []):
             skeleton_items.append({**entry, "kind": kind})

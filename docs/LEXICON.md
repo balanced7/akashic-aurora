@@ -99,7 +99,8 @@ no translation layer. When you reach for a name, reach for one of these.
 - **Atlas** — the broad view across all Tracks over time.
 - **Storyline** — one Track's rolled-up arc of Chapter summaries.
 - **Chronicler** — the process that distills the Ledger into Chapters/Storyline
-  (generalizes `consolidation.py`); writes `chronicles/`.
+  (generalizes `consolidation.py`); implemented in `core/narrative/chronicler.py`;
+  writes `chronicles/story.md` + `chronicles/story.index.json`.
 - **TrackRouter** — infers a Beat's Track from context + detects domain switches.
 - **narrative weight** — salience (0–5) stamped on a Beat at log time.
 - Three axes: **Time** (when) × **Track** (which domain) × **Theme** (which idea);
