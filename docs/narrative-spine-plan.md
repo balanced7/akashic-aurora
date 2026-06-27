@@ -1,0 +1,303 @@
+# Narrative Spine — design plan (System 4 capstone)
+
+> **Status:** DESIGN (plan-first, build-in-slices). 2026-06-27.
+> Plan before code, like `docs/knowledge-harmonization-plan.md` and
+> `docs/context-pillar-plan.md`. This doc defines the model, schema, the Chronicler,
+> the agent-facing views, the auto-logging hooks, the prior art we're learning from,
+> and a phased slice plan. No code until the model here is agreed.
+
+---
+
+## 1. The problem
+
+Three observations, all from real use:
+
+- **Isolated learnings have no connective tissue.** The LearningStore holds *point
+  facts* (6 refactoring lessons). There is no *story* — no "what happened, in what
+  order, why, and what it led to."
+- **Fresh agents recall a stale, false picture.** Two OpenCode tests asked "what's
+  been done?" and got a months-old answer, because the agent read hand-written status
+  docs (`SYSTEM_STATUS.md`, …) that had drifted from reality. The system does not
+  remember its own construction history in a trustworthy, queryable way.
+- **No multi-resolution navigation.** An agent needs to zoom **broad → mid → narrow**
+  and jump from any point in the story straight into the concrete learning, file, or
+  moment that produced it. Today there's no spine to navigate.
+
+**Goal:** a time-ordered, cross-linked *narrative spine* over the event Ledger, with
+three zoom levels, where the skeletal learnings hang off the narrative and every node
+is a skeleton-with-a-followable-pointer. Generated from real events, so it **cannot
+drift** the way the hand-written docs did.
+
+---
+
+## 2. The model
+
+A narrative is a **multi-resolution spine over the append-only Ledger.** Timestamps
+are the backbone; everything is time-anchored; edges use our `relationship_types`
+vocabulary so it's a *graph*, not a flat log.
+
+```
+BROAD   Storyline   the whole journey (ordered Chapter summaries)        [generated]
+MID     Chapters    coherent stretches of work (a session / sub-goal)    [generated]
+NARROW  Beats       salient time-anchored events  ── point to ──>  atoms [logged]
+                                                  learnings · files/commits · ledger events
+```
+
+- **Beat** — a single narrative-weighted event on the spine (a decision, a learning
+  recorded, a milestone reached, a commit). Distinct from raw Ledger noise: a Beat is
+  a *salient* event (see narrative weight, §4). Each Beat points to its underlying
+  atom (a learning id, a commit sha, a ledger event id).
+- **Chapter** — a coherent stretch of Beats, bounded by triggers (§5): `{id, title,
+  span:[t0,t1], summary, beats:[…], learnings:[…], commits:[…], relates:[{type,target}],
+  parent:storyline_id}`.
+- **Storyline** — the ordered roll-up of Chapter summaries, distilled to the highest-
+  signal arc. Each arc point links to its Chapter.
+- **Chronicler** — the process that folds a Ledger window (+ `git log`) into a Chapter
+  and re-rolls the Storyline. The time-windowed sibling of `core/learning/consolidation.py`.
+
+Reuses the exact Ranker → Distiller pipeline we already built — just scoped by **time
+window** instead of by task.
+
+---
+
+## 3. Lexicon additions
+
+| Term | Meaning | Genus |
+|---|---|---|
+| **Beat** | one salient, time-anchored narrative event (points to its atom) | narrative event |
+| **Chapter** | a bounded coherent stretch of Beats (mid view) | narrative segment |
+| **Storyline** | the rolled-up arc of Chapter summaries (broad view) | narrative |
+| **Chronicler** | builds Chapters/Storyline from the Ledger (writes the chronicle) | derivation process |
+| **narrative weight** | salience score stamped on an event at log time (0–5) | scalar |
+| **bi-temporal** | `valid_from/valid_to` (true-in-world) vs `recorded_at` (logged) | time model |
+
+`chronicle` stays our reserved word for *curated derived views*; the Storyline/Chapters
+render into `chronicles/story.md` (human) + `chronicles/story.index.json` (machine).
+
+---
+
+## 4. Data model
+
+All nodes live on the existing **Store** (`narr:` namespace) + render to `chronicles/`.
+Raw stays in the **Ledger** (never rewritten).
+
+**Beat** (`narr:beat:<id>`)
+```yaml
+id: beat_<ts>_<rand>
+at: <iso timestamp>            # spine anchor
+kind: decision | learning | milestone | commit | blocker | note
+weight: 0..5                   # narrative salience (write-time, see below)
+summary: "<one line>"
+source: "<followable pointer>" # learn:experiment:X | git:<sha> | ledger:<stream>:<id> | session_logs/…:Ln
+relates: [{type: <relationship_type>, target: <node id>}]
+chapter: <chapter_id>          # back-link (bidirectional provenance)
+```
+
+**Chapter** (`narr:chapter:<id>`)
+```yaml
+id: chapter_<ts>
+title: "Harmonize the knowledge store"
+span: [<t0>, <t1>]
+summary: "<2-3 sentences, regenerated from the Beats>"
+beats: [beat_id, …]
+learnings: [experiment_name, …]   # convenience index
+commits: [<sha>, …]
+relates: [{type: led_to, target: chapter_id}, …]
+parent: storyline
+# bi-temporal:
+valid_from: <t0>
+valid_to: null | <ts>             # set when superseded by a corrected chapter
+recorded_at: <ts>
+critic_ok: true|false             # faithfulness gate result
+```
+
+**Storyline** (`narr:storyline:current`) = ordered `[chapter_id]` + a distilled arc
+summary + `relates` edges between chapters.
+
+**Edges** use `core/foundation/relationship_types.py`: `caused`, `led_to`, `part_of`,
+`derived_from`, `prevents`, `supersedes`, `produced`, `depends_on`. The graph is what
+lets an agent ask "*why* did this happen" not just "*what*."
+
+**Bidirectional pointers (Zep lesson):** a Beat knows its Chapter; a learning gains a
+`chapter` back-link. Any narrative claim is traceable to source; any atom knows its
+place in the story.
+
+---
+
+## 5. The Chronicler (how it's built)
+
+Pipeline, run at session end or on demand (`agent_cli.py chronicle` / a hook):
+
+1. **Collect** the new window: Ledger events since the last Chapter + `git log`
+   commits in the span + learnings recorded in the span.
+2. **Promote to Beats**: keep events whose **narrative weight ≥ threshold** (drop
+   noise). Weight is stamped at log time (decisions/milestones/learnings high;
+   routine reads low) — *importance-at-write-time*, the Generative Agents lesson.
+3. **Segment into Chapters (boundary triggers, not ML)** — cut a new Chapter when ANY
+   fires (the ES-Mem/HingeMem lesson, reduced to cheap heuristics):
+   - explicit `mark_chapter` signal (an agent/session declares a boundary),
+   - **task/topic shift** (the agent's task keyword changes),
+   - a **git-commit cluster** gap (e.g., >N hours, or a "milestone" commit),
+   - a **salience spike** (a high-weight decision/milestone Beat).
+   Boundaries are tunable and **mergeable/splittable** later (over-segmentation guard).
+4. **Distill** each Chapter: Ranker (salience × recency × relevance) → Distiller
+   (writer→critic) over the Chapter's Beats → the `summary` + `relates`. **Regenerate
+   from Beats, never summarize-the-summary** (anti-drift, the timeline-summarization
+   lesson). The critic gate sets `critic_ok`.
+5. **Roll up** the Storyline: distill the Chapter summaries into the arc. Same rule —
+   regenerate from Chapters, keep pointers.
+6. **Supersede, don't overwrite** (Zep/bi-temporal): a corrected Chapter sets the old
+   one's `valid_to` and adds a `supersedes` edge. History stays queryable.
+
+Read-only on raw. Empty-graceful. Idempotent per window.
+
+---
+
+## 6. Auto-logging hooks ("as things get built, they get logged")
+
+The spine fills itself — the key is making meaningful actions emit **narrative-grade
+Beats**, which is the one real prerequisite:
+
+- **Signals → Ledger** (already the design): decisions, learnings, blockers, milestones
+  emit signals; add a `weight` field at emit time.
+- **`agent_cli.py learn`** already records a learning → also emits a `learning` Beat.
+- **`scripts/mirror.py` commit** → emits a `commit` Beat (sha + message + touched
+  files). Git *is* the file-narrative; we just index it.
+- **`mark_chapter <title>`** verb → an explicit boundary + title (mirrors the harness
+  chapter concept; lets a session name its own arc).
+- **Session start/end** → Beats that bound a default Chapter.
+
+Without these, the Chronicler has thin material — so **Slice 1 is the logging hooks**,
+not the rendering.
+
+---
+
+## 7. The three views + agent verbs (navigation)
+
+Progressive disclosure, end to end:
+
+```
+py agent_cli.py story                 # BROAD: the arc (10–15 lines, chapters as beats + ids)
+py agent_cli.py story <chapter_id>    # MID:   that chapter's summary + its learnings/commits/beats as links
+py agent_cli.py recall <name>         # NARROW: the learning atom        (exists)
+git show <sha>                        # NARROW: the file/commit atom
+py agent_cli.py beat <beat_id>        # NARROW: a single event + its source pointer
+```
+
+`--json` on each for machine consumption. `--since <date>` / `--grep <term>` for
+time/keyword filtering. Each level carries pointers **down**; back-links go **up**.
+
+---
+
+## 8. Rendering
+
+The MD+YAML skeleton from our compaction research (`docs/context-compaction-skeleton-
+research.md`): hierarchical `Storyline > Chapter > Beat`, each node human-readable +
+machine-parseable with `type/span/relates/source`. Two artifacts, both generated:
+- `chronicles/story.md` — the readable narrative (broad at top, chapters below).
+- `chronicles/story.index.json` — the machine index the verbs query.
+
+Serves **both** audiences (the open question from before): agents navigate the index
+via verbs; humans read the MD. Default Chapter grain = **sub-goal within a session**
+(finer, mergeable) per the event-segmentation literature, not one-chapter-per-session.
+
+---
+
+## 9. Reuse vs. new
+
+| Reuse (already built) | New (this plan) |
+|---|---|
+| Ledger (append-only spine, timestamps) | Chronicler (windowed distill + boundary triggers) |
+| Ranker (salience × recency × relevance) | Beat/Chapter/Storyline schema (`narr:`) |
+| Distiller (writer→critic, budgeted skeleton) | `story` / `beat` / `mark_chapter` verbs |
+| Supersession → extend to bi-temporal | narrative-weight at emit time + back-links |
+| relationship_types (edges) | git-commit → Beat indexing |
+| chronicles/ + consolidation.py (template) | story.md + story.index.json renderers |
+| followable source pointers | evaluation harness (timeline QA) |
+
+Most of it is reuse — consistent with "build the primitive once."
+
+---
+
+## 10. Prior art & lessons (what we're learning from)
+
+The 2023→2026 literature has solved pieces of this; our design folds in the lessons.
+
+- **Generative Agents** (Park et al., 2023) — memory stream + retrieval (recency ×
+  importance × relevance) + **reflection**. → validates the Ranker; **reflection = our
+  Chapters/Storyline**; stamp **importance at write time**.
+  https://ar5iv.labs.arxiv.org/html/2304.03442
+- **Zep / Graphiti** (2025) — temporal knowledge graph; **bi-temporal**, **invalidate-
+  don't-delete**, **bidirectional provenance** for citation. → our bi-temporal Chapter
+  fields + back-links. https://arxiv.org/html/2501.13956v1
+- **A-MEM** (NeurIPS 2025) — Zettelkasten atomic notes + explicit links + evolution. →
+  atomic Beats + typed edges; **evolve via supersession, not in-place** (see SSGM).
+  https://arxiv.org/abs/2502.12110
+- **MemGPT / Letta** (2023) — tiered memory (core/recall/archival) + paging. → the
+  agent **pages a zoom level into context** (story → chapter → atom), not the whole
+  story. https://arxiv.org/abs/2310.08560
+- **Event-segmentation cluster** (2026: ES-Mem, HiMem, HyperMem, HingeMem) — segment a
+  stream into coherent episodes via **boundary triggers** (topic shift / salience /
+  entity change). → our cheap boundary heuristics; **no ML needed to start.**
+  https://arxiv.org/abs/2601.07582 · https://arxiv.org/pdf/2601.06377 · https://arxiv.org/html/2604.06845v1
+- **Timeline Summarization / NexusSum / Narrative Consolidation** (NLP) — multi-level
+  timelines; chronological integrity via a Temporal Alignment Event Graph. →
+  **regenerate-from-atoms + critic gate** to avoid summary drift.
+  https://arxiv.org/html/2505.24575v1 · https://arxiv.org/html/2512.18041
+- **Surveys**: Memory for Autonomous LLM Agents (https://arxiv.org/pdf/2603.07670);
+  governing evolving memory / **SSGM** risks (https://arxiv.org/html/2603.11768v1).
+
+**Our novel angle:** most systems are conversation-only; we weave **three dimensions
+into one spine — events (Ledger) + knowledge (learnings) + code (git commits)**.
+Local-first (no Neo4j); a lightweight temporal graph on our Store/Ledger.
+
+---
+
+## 11. Evaluation
+
+Borrow the long-horizon QA target these systems benchmark on (LoCoMo-style): can an
+agent, given only the narrative + drill-down, correctly answer **"what happened around
+date X, why, and what did it lead to?"** Plus a **faithfulness test**: every Chapter
+claim must resolve to a real Beat/source (no orphan claims — extends the Distiller's
+source-pointer invariant). Add a `test_narrative.py` modeled on `test_robustness.py`.
+
+---
+
+## 12. Risks & mitigations
+
+| Risk (from the literature) | Mitigation |
+|---|---|
+| Summary drift (compounding) | Regenerate each level from atoms; faithfulness critic; keep pointers |
+| Evolving-memory corruption (SSGM) | Supersession + critic, never silent in-place edits |
+| Over-/under-segmentation | Tunable triggers; chapters mergeable/splittable; `mark_chapter` override |
+| Thin material (events not logged) | Slice 1 = logging hooks first |
+| LLM cost of reflection | Run at boundaries/session-end; budget via Distiller; heuristic writer ships first |
+
+---
+
+## 13. Phased slice plan (build order)
+
+- **Slice 0 — schema + lexicon.** `narr:` schema, lexicon entries, `chronicles/story.*`
+  format. No behavior yet.
+- **Slice 1 — logging hooks (the prerequisite).** narrative-weight on signals;
+  `learn` → Beat; `mirror.py` → commit Beat; `mark_chapter` verb. Beats accrete.
+- **Slice 2 — Chronicler (heuristic).** boundary triggers + windowed Ranker/Distiller
+  → Chapters + Storyline; regenerate-from-atoms + critic gate. Renders `story.md/.json`.
+- **Slice 3 — the verbs.** `story`, `story <id>`, `beat`, `--json/--since/--grep`.
+- **Slice 4 — bi-temporal + back-links.** extend Supersession; learning↔chapter links.
+- **Slice 5 — evaluation.** `test_narrative.py` (timeline QA + faithfulness).
+- **Slice 6 (optional) — LLM writer/critic + embeddings** for richer summaries/retrieval.
+
+Each slice is independently testable and leaves the system green. Seed the first real
+Storyline by chronicling **this build-out** (so an agent recalling "what's been done"
+finally gets the truth) — which also retires the stale status docs at the root.
+
+---
+
+## 14. Open decisions (for sign-off before Slice 0)
+
+1. **Chapter grain** — default is sub-goal-within-session (finer, mergeable). OK, or
+   one-chapter-per-session?
+2. **Where `story.md` lives** — `chronicles/story.md` (proposed) vs `docs/`.
+3. **Auto-run cadence** — Chronicler at session end via a hook, on-demand only, or both?
+4. **Scope of git indexing** — all commits as Beats, or only `mirror.py`/tagged commits?
