@@ -30,6 +30,16 @@ from core.narrative.track_router import RouteHint
 SESSION_OPEN_KEY = "narr:session:open"
 
 
+def _capture_session(summary: str, ref: str, *, at: str, detail: Optional[dict] = None) -> None:
+    """Auto-logger (Slice 2): mirror a session boundary into the RAW event firehose, so the
+    full-fidelity timeline shows session spans too. Best-effort -- never blocks the session."""
+    try:
+        from core.events.event_log import capture_event
+        capture_event("session", summary, agent_id="system", at=at, refs=[ref], detail=detail)
+    except Exception:
+        pass
+
+
 def _chronicle(store: Store, bl: BeatLog, now: str) -> None:
     """Re-distill the spine (best-effort). Imported lazily to avoid a heavy import
     on the hot boot path when chronicling is disabled."""
@@ -56,6 +66,8 @@ def start_session(store: Optional[Store] = None, *, now: Optional[str] = None,
         if prior:
             bl.emit("session", "Session ended", "session:end", at=now_iso,
                     hint=RouteHint(category="meta", task="session"))
+            _capture_session("Session ended (auto-closed on boot)", "session:end", at=now_iso,
+                             detail={"start": prior, "end": now_iso})
             store.delete(SESSION_OPEN_KEY)
             report["closed_prior"] = True
             if chronicle:
@@ -63,6 +75,7 @@ def start_session(store: Optional[Store] = None, *, now: Optional[str] = None,
 
         bl.emit("session", "Session started", "session:start", at=now_iso,
                 hint=RouteHint(category="meta", task="session"))
+        _capture_session("Session started", "session:start", at=now_iso)
         store.set(SESSION_OPEN_KEY, now_iso)
         report["start"] = now_iso
     except Exception:
@@ -88,6 +101,7 @@ def end_session(store: Optional[Store] = None, *, now: Optional[str] = None,
         if store.get(SESSION_OPEN_KEY):
             bl.emit("session", "Session ended", "session:end", at=now_iso,
                     hint=RouteHint(category="meta", task="session"))
+            _capture_session("Session ended", "session:end", at=now_iso)
             store.delete(SESSION_OPEN_KEY)
             report["closed"] = True
         if chronicle:

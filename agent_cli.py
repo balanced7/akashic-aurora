@@ -48,6 +48,15 @@ def cmd_boot(args):
     from agent.initializer import derive_agent_context_from_startup_sources
     res = derive_agent_context_from_startup_sources(args.agent_id, args.task, verbose=False)
     ctx = res.get("context") or {}
+    # Auto-logger (Slice 2): record that this agent booted (raw, full-fidelity). Best-effort.
+    try:
+        from core.events.event_log import capture_event
+        capture_event("boot", f"{args.agent_id} booted" + (f" -- task: {args.task}" if args.task else ""),
+                      agent_id=args.agent_id,
+                      detail={"task": args.task, "status": res.get("status"),
+                              "approx_tokens": ctx.get("approx_tokens")})
+    except Exception:
+        pass
     if args.json:
         print(json.dumps({"status": res.get("status"), "context": ctx}, indent=2, default=str))
         return 0 if res.get("status") == "success" else 1
@@ -108,6 +117,17 @@ def cmd_learn(args):
                 summary=signal.get("recommendation") or signal.get("actual_outcome") or signal["experiment_name"],
                 source=f"learn:experiment:{signal['experiment_name']}",
                 hint=RouteHint(category=signal.get("category", ""), task=signal.get("experiment_name", "")))
+        except Exception:
+            pass
+        # Auto-logger (Slice 2): the lesson is also a RAW event -- the full experiment
+        # payload as drill-down detail beneath the salient learning Beat. Best-effort.
+        try:
+            from core.events.event_log import capture_event
+            capture_event("learning", f"lesson: {signal['experiment_name']}",
+                          agent_id=signal.get("agent_id"),
+                          refs=[f"learn:experiment:{signal['experiment_name']}"],
+                          detail={"tried": signal.get("what_tried"), "result": signal.get("actual_outcome"),
+                                  "category": signal.get("category"), "success": signal.get("success")})
         except Exception:
             pass
     if args.json:
@@ -227,6 +247,20 @@ def cmd_story(args, store=None):
             print(_json.dumps(beat.to_dict(), indent=2, default=str))
             return 0
         _print_beat(beat)
+        # --raw: drill from this Beat into the un-distilled record beneath it (Slice 4)
+        if getattr(args, "raw", False):
+            from core.narrative.event_bridge import raw_for_beat
+            res = raw_for_beat(args.beat, store=store)
+            if res.get("atom"):
+                print(f"\nRaw atom (this beat's source):\n  [{res['atom'].get('kind')}] "
+                      f"{_clip(res['atom'].get('summary', ''), 90)}")
+            evs = res.get("events", [])
+            print(f"\n## RAW EVENTS around this beat ({len(evs)})")
+            for e in evs[:20]:
+                print(f"  [{e.get('kind', '?')}] {str(e.get('at', ''))[:19]}  "
+                      f"{_clip(e.get('summary', ''), 80)}")
+            if not evs:
+                print("  (none captured in this window)")
         return 0
 
     # --chapter ID: full chapter detail
@@ -476,11 +510,128 @@ def cmd_log(args):
     except Exception as e:
         print(f"ERROR: {type(e).__name__}: {e}")
         return 1
+    # Auto-logger (Slice 2): a logged action is also a RAW event. We stamp the Beat's id
+    # into refs so Slice 5 promotion won't create a redundant Beat for it. Best-effort.
+    try:
+        from core.events.event_log import capture_event
+        refs = [r for r in [f"beat:{beat.id}" if beat else None, source] if r]
+        capture_event(kind, summary, refs=refs or None,
+                      detail={"category": args.category or "", "task": args.task or ""})
+    except Exception:
+        pass
     if args.json:
         print(json.dumps({"recorded": ok, "kind": kind, "beat_id": beat.id if beat else None}))
     else:
         print(f"[{'OK' if ok else 'FAIL'}] {kind}: {summary[:80]}")
     return 0 if ok else 1
+
+
+# ------------------------------------------------------------------------- events
+def _print_events(evs, args, header):
+    """Render raw events ASCII-safe, front-loaded, with drill pointers."""
+    if args.json:
+        print(json.dumps(evs, indent=2, default=str))
+        return
+    print(header)
+    if not evs:
+        print("  (none)")
+        return
+    for e in evs:
+        at = str(e.get("at", ""))[:19]
+        line = f"  [{e.get('kind', '?')}] {at}  {_clip(e.get('summary', ''), 90)}"
+        print(line)
+        tail = e.get("_ref", "")
+        if e.get("track"):
+            tail += f"   track={e['track']}"
+        if e.get("agent_id"):
+            tail += f"   by={e['agent_id']}"
+        print(f"      {tail}")
+    print("\nDrill into one:")
+    print(f"  py agent_cli.py events --get {evs[0].get('_ref')}")
+
+
+def cmd_events(args):
+    """Search / drill / capture the raw event firehose (the auto-logger's read door).
+
+    Usage:
+      py agent_cli.py events                              -> recent raw events
+      py agent_cli.py events --search "query" [filters]   -> rank by relevance
+      py agent_cli.py events --around <beat|chapter|ISO> [--window 30m]
+      py agent_cli.py events --get event:events:raw:<id>  -> one event
+      py agent_cli.py events --capture --kind K --summary "..." [--detail-json '{...}']
+    Filters: --kind --agent --track --since ISO --until ISO --limit N --json
+    """
+    from core.events.event_log import get_event_log
+    from core.events.event_query import get_event_query
+    eq = get_event_query()
+
+    # --capture: external-runtime write door (the agent shells in one raw event)
+    if args.capture:
+        detail = None
+        if args.detail_json:
+            try:
+                detail = json.loads(args.detail_json)
+            except (ValueError, TypeError):
+                print("ERROR: --detail-json must be valid JSON.")
+                return 2
+        refs = [r for r in (args.refs or "").split(",") if r.strip()] or None
+        ev = get_event_log().capture(args.kind or "note", args.summary or "",
+                                     detail=detail, agent_id=args.agent, refs=refs,
+                                     track=args.track)
+        if args.json:
+            print(json.dumps(ev, default=str))
+        else:
+            print(f"[{'OK' if ev else 'FAIL'}] captured {args.kind or 'note'}: "
+                  f"{_clip(args.summary or '', 80)}" + (f"  -> {ev['_ref']}" if ev else ""))
+        return 0 if ev else 1
+
+    # --promote: consolidate salient raw events into Beats (reflection; rate-limited)
+    if args.promote:
+        from core.narrative.event_promoter import promote_salient
+        rep = promote_salient(threshold=args.threshold if args.threshold is not None else 3,
+                              max_promote=args.limit or 10)
+        if args.json:
+            print(json.dumps(rep))
+        else:
+            print(f"# promotion: {rep['promoted']} promoted / {rep['eligible']} eligible "
+                  f"(scanned {rep['scanned']}, skipped {rep['skipped_dup']} dup + "
+                  f"{rep['skipped_beat']} already-beat)")
+        return 0
+
+    # --get: resolve one followable pointer
+    if args.get:
+        ev = eq.get(args.get)
+        if not ev:
+            print(f"ERROR: no event for '{args.get}'.")
+            return 2
+        print(json.dumps(ev, indent=2, default=str) if args.json
+              else f"[{ev.get('kind')}] {ev.get('at')}\n  {ev.get('summary')}\n  detail: {ev.get('detail')}")
+        return 0
+
+    # --around: the timeline bridge (chapter/beat/timestamp -> raw events under it)
+    if args.around:
+        from core.narrative.event_bridge import events_around, parse_window
+        res = events_around(args.around, window_seconds=parse_window(args.window),
+                            kind=args.kind, agent=args.agent, track=args.track, limit=args.limit)
+        if res["span"] is None:
+            print(f"ERROR: could not resolve '{args.around}' to a chapter / beat / ISO timestamp.")
+            return 2
+        sp = res["span"]
+        _print_events(res["events"], args,
+                      f"# {len(res['events'])} raw event(s) in {sp['start'][:19]} -> {sp['end'][:19]}")
+        return 0
+
+    # --search: relevance-ranked; or default: recent
+    if args.search is not None:
+        evs = eq.search(_clip(args.search, 200), kind=args.kind, agent=args.agent,
+                        track=args.track, since=args.since, until=args.until,
+                        top_k=args.limit or 10)
+        _print_events(evs, args, f"# {len(evs)} event(s) matching '{args.search}'")
+    else:
+        evs = get_event_log().recent(args.limit or 20, agent=args.agent)
+        _print_events(evs, args, f"# {len(evs)} recent raw event(s)"
+                      + (f" by {args.agent}" if args.agent else ""))
+    return 0
 
 
 # ------------------------------------------------------------------------- status
@@ -552,8 +703,32 @@ def main():
     st.add_argument("--at", default=None, help="find chapter containing this ISO timestamp")
     st.add_argument("--chapter", default=None, help="show full chapter detail by ID")
     st.add_argument("--beat", default=None, help="show full beat detail by ID")
+    st.add_argument("--raw", action="store_true",
+                    help="with --beat: also show the raw events around it (auto-logger drill-down)")
     st.add_argument("--json", action="store_true", help="JSON output")
     st.set_defaults(fn=cmd_story)
+
+    ev = sub.add_parser("events", help="search / drill / capture the raw event firehose")
+    ev.add_argument("--search", default=None, metavar="QUERY", help="rank raw events by relevance to QUERY")
+    ev.add_argument("--around", default=None, metavar="REF",
+                    help="raw events around a beat id / chapter id / ISO timestamp")
+    ev.add_argument("--window", default=None, help="window around --around target (e.g. 30m, 2h, 1d; default 30m)")
+    ev.add_argument("--get", default=None, metavar="REF", help="resolve one event:<stream>:<id> pointer")
+    ev.add_argument("--capture", action="store_true", help="append a raw event (external runtimes)")
+    ev.add_argument("--promote", action="store_true",
+                    help="consolidate salient raw events into narrative Beats (rate-limited)")
+    ev.add_argument("--threshold", type=int, default=None, help="promote: min salience 0..5 (default 3)")
+    ev.add_argument("--kind", default=None, help="filter, or kind to capture (tool_call/command/...)")
+    ev.add_argument("--summary", default=None, help="capture: the event summary")
+    ev.add_argument("--detail-json", default=None, dest="detail_json", help="capture: JSON detail payload")
+    ev.add_argument("--refs", default=None, help="capture: comma-separated source refs")
+    ev.add_argument("--agent", default=None, help="filter / capture agent id")
+    ev.add_argument("--track", default=None, help="filter / capture track")
+    ev.add_argument("--since", default=None, help="search: ISO lower time bound")
+    ev.add_argument("--until", default=None, help="search: ISO upper time bound")
+    ev.add_argument("--limit", type=int, default=None, help="max results")
+    ev.add_argument("--json", action="store_true", help="JSON output")
+    ev.set_defaults(fn=cmd_events)
 
     args = p.parse_args()
     sys.exit(args.fn(args))

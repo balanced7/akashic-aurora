@@ -41,6 +41,15 @@ def _emit_commit_beat(msg, files):
         salient = msg.lower().startswith(("feat", "fix")) or any(f.startswith("core/") for f in files)
         get_beat_log().emit("commit", summary=msg, source=f"git:{sha}", weight=4 if salient else 2,
                             hint=RouteHint(paths=files))
+        # Auto-logger (Slice 2): the commit is also a RAW event -- full file list as the
+        # drill-down detail beneath the salient Beat. Best-effort; never blocks the commit.
+        try:
+            from core.events.event_log import capture_event
+            capture_event("command", f"git commit: {msg}", agent_id="mirror",
+                          refs=[f"git:{sha}"],
+                          detail={"sha": sha, "message": msg, "files": files})
+        except Exception:
+            pass
     except Exception:
         pass
 

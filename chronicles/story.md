@@ -1,12 +1,13 @@
-# Story — generated 2026-06-27T22:33:32.548270
+# Story — generated 2026-06-27T23:41:45.955158
 
 Version: 0
 
 ## Atlas
-- **ai-setup**: 3 chapter(s)
+- **ai-setup**: 5 chapter(s)
 - **research**: 1 chapter(s)
+- **stemroller**: 1 chapter(s)
 
-Summary: ai-setup: 3 chapter(s); research: 1 chapter(s)
+Summary: ai-setup: 5 chapter(s); research: 1 chapter(s); stemroller: 1 chapter(s)
 
 ## Update bootstrap.md with project context initialization step (ai-setup)
 Span: 2026-04-15T01:21:48-04:00 → 2026-04-15T02:12:35-04:00
@@ -38,7 +39,7 @@ Beats: 31  · Critic: True
 - The shared memory system is functional. Experiments are found by their experiment_name or keyword overlap in recommendation text.  (source: learn:experiment:shared_memory_verification)
 - Slice 2: TrackRouter (heuristic) + gold fixture + benchmark metrics; ARI 0.86 / WindowDiff 0.15 (bar met); routing wired into emit  (source: git:043d55b24e22)
 - Slice 1: BeatLog (time-ordered Beats) + learn->Beat & mirror-commit->Beat hooks + tests  (source: git:d5a1d58452b9)
-- Next Slice 2: TrackRouter heuristic to route Beats to domain Tracks. Beats currently unrouted (track=None)  (source: learn:experiment:narrative_slice_1_beatlog)
+- Next Slice 2: TrackRouter heuristic to route Beats to domain Tracks. Beats currently unrouted (track=None)  [relates: member_of]  (source: learn:experiment:narrative_slice_1_beatlog)
 - Slice 8: narrative evaluation harness + gold themes/QA + multi-label metric  [relates: member_of]  (source: git:ab21b4551f94)
 - Review fixes: wire ThemeAssigner, make coverage/faithfulness real, harden Slice 7  [relates: member_of]  (source: git:15b3658feccb)
 - Narrative Slices 3-7: Chronicler, story CLI, themes, boot feed, test isolation  [relates: member_of]  (source: git:df771d1f80ed)
@@ -73,3 +74,22 @@ Span: 2026-06-27T22:25:17.311691 → 2026-06-27T22:25:17.311691
 Beats: 1  · Critic: True
 
 - Slice 1 finished (mark_chapter + auto-capture), dogfood seed, doc-freshness guardrail, robustness sweep  [relates: member_of]  (source: mark:2026-06-27T22:25:17.311691)
+
+## Auto-logger Slice 2 shipped: capture auto-hooks on boot/learn/log/commit/session (ai-setup)
+Span: 2026-06-27T23:15:01.311967 → 2026-06-27T23:15:01.311967
+Beats: 1  · Critic: True
+
+- Auto-logger Slice 2 shipped: capture auto-hooks on boot/learn/log/commit/session  (source: agent_cli:slice2)
+
+## Auto-logger Slice 2 shipped: capture auto-hooks on boot/learn/log/commit/session (ai-setup)
+Span: 2026-06-27T23:15:01.330970 → 2026-06-27T23:15:01.330970
+Beats: 1  · Critic: True
+
+- Auto-logger Slice 2 shipped: capture auto-hooks on boot/learn/log/commit/session  (source: event:events:raw:1782602101332-0)
+
+## error: ZLUDA build failed during slice 5 dogfood (stemroller)
+Span: 2026-06-27T23:40:34.162424 → 2026-06-27T23:41:45.530230
+Beats: 2  · Critic: True
+
+- error: ZLUDA build failed during slice 5 dogfood  (source: event:events:raw:1782603705531-0)
+- error: ZLUDA build failed during slice 5 dogfood  (source: event:events:raw:1782603634164-0)

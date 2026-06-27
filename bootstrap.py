@@ -189,6 +189,16 @@ def main():
             log("[*] Prior session closed + chronicled; new session started", CYAN)
         else:
             log("[*] Session start recorded", CYAN)
+        # Auto-logger (Slice 5): a boot is a session boundary -- consolidate any salient raw
+        # events that didn't flow through a verb into Beats (reflection). Rate-limited +
+        # deduped, so this never floods the spine. Best-effort: never crash boot.
+        try:
+            from core.narrative.event_promoter import promote_salient
+            pr = promote_salient()
+            if pr.get("promoted"):
+                log(f"[*] Consolidated {pr['promoted']} salient raw event(s) into the story", CYAN)
+        except Exception:
+            pass
     except Exception as e:
         log(f"[!] Session logging unavailable ({type(e).__name__})", YELLOW)
 
