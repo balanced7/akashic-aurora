@@ -375,6 +375,57 @@ The external prior art (§10) says *what* to build; our four internal research d
   Consider a **doc-freshness guardrail** (extend `check_boundaries.py`): flag hand-written
   status docs so generated truth can't silently drift again.
 
+## 10c. Closest analogues — and what we uniquely combine
+
+Two worlds build *pieces* of this; nobody combines all of them.
+
+**Machine / retrieval:**
+- **RAPTOR** (https://arxiv.org/abs/2401.18059) — recursively embed→cluster→summarize
+  into a tree of multi-level summaries; retrieve at any abstraction. = our broad/mid/
+  narrow skeleton, built bottom-up. → a concrete algorithm for the **Chronicler's roll-up**.
+- **Microsoft GraphRAG** (https://microsoft.github.io/graphrag/) — entity KG + **Leiden
+  hierarchical community detection** + community summaries + local↔global queries. =
+  cross-domain clusters (communities ≈ Themes/Tracks, *auto-discovered*) + multi-
+  resolution. → **Track/Theme discovery via community detection** (TrackRouter Tier-1);
+  the "global query" = the **Atlas**, answered cheaply from community summaries.
+- **HippoRAG** (https://arxiv.org/html/2405.14831v1) — hippocampal *index* over neocortex
+  *store*; schemaless KG + Personalized PageRank + cosine **synonymy edges**. = our
+  skeleton (index) → atoms (store); synonymy/association edges = **cross-domain
+  pollination**; PageRank = "what relates to X across everything," single-step + cheap.
+- **Amory** (https://arxiv.org/html/2601.06282, "narrative-driven agent memory"),
+  **AriGraph**, **Temporal-Semantic Memory** (https://arxiv.org/pdf/2601.07468) — THE
+  direct analogues: a KG of **episodic events + semantic facts**; episodic → **durative**
+  via temporal segmentation + semantic abstraction = **beats → chapters/themes**, exactly.
+  This precise combination is a 2026 frontier — we're not alone, and we're aligned.
+
+**Human / tools-for-thought (closest in spirit):**
+- **Zettelkasten + Roam/Logseq/Obsidian** — daily notes (temporal journal = the spine) +
+  atomic notes + **block-level bidirectional links** (cross-domain graph), in **local
+  Markdown**. = our spine + followable beat-level pointers + back-links, local-first. →
+  make `story.md` **Obsidian/Logseq-compatible** (wiki-links) so the *human* browses the
+  same narrative the agents navigate.
+- **Building a Second Brain (CODE + PARA + Progressive Summarization)** — **PARA** =
+  Tracks (file by project/domain); **atomic Zettelkasten notes** = Themes (cross-connect);
+  **Progressive Summarization** = the Distiller skeleton; **CODE** (Capture→Organize→
+  Distill→Express) = our pipeline (log→route→chronicle→serve). The PKM world's proven
+  split — *project-file for action, atomic-note for connection* — **is exactly our
+  Tracks + Themes.**
+
+**What WE uniquely combine** (the intersection none of them spans): a **temporal narrative
+spine** × an **auto-built multi-resolution skeleton** × **cross-domain hierarchical
+clustering with inferred routing** × **followable lossless pointers to ground truth** ×
+**relationship-typed edges** × **local-first** × spanning **code + knowledge + ideas**.
+Each analogue validates one slice; the product is new.
+
+**Concrete refinements these add to later slices:**
+- Chronicler roll-up (Slice 3) ← **RAPTOR** recursive cluster+summarize tree.
+- Track/Theme discovery (Slice 6) ← **GraphRAG** Leiden community detection; Atlas =
+  GraphRAG "global query" over community summaries.
+- Cross-domain links + retrieval ← **HippoRAG** cosine synonymy edges + Personalized
+  PageRank ("what relates to X across all domains").
+- `story.md` rendering (Slice 3) ← **Obsidian-compatible** wiki-links (human browses the
+  agent's narrative in a PKM tool).
+
 ## 11. Evaluation
 
 Borrow the long-horizon QA target these systems benchmark on (LoCoMo-style): can an
