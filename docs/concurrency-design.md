@@ -92,8 +92,13 @@ produced them — defense in depth beneath Layer 2. Every denial names the rule 
   `git commit -a*`. Wired in `.claude/settings.json`; Cursor's hook config is owned by Cursor (snippet in the
   adapter docstring). 29 tests (`tests/test_git_guard.py`); suite 375 green. Unscoped-*write* blocking deferred
   to C2 (needs the path-locks/zones). Live-validated: caught Cursor's `ai_setup_mcp.py` staged in the shared index.
-- **C1 — worktree setup + integration flow.** `scripts/worktree_*.py` (or doc) to spin a per-agent worktree on
-  `agent/<name>`, plus the merge-back-to-master recipe. Test: two worktrees, isolated edits, clean merge.
+- **C1 — worktree setup + integration flow. ✅ DONE 2026-06-28.** `scripts/worktree.py` with
+  `setup/list/sync/integrate/remove`: each agent gets a sibling worktree (`<repo>-<agent>`) on branch
+  `agent/<name>` sharing one `.git`; `integrate` merges a green branch to master (run from master) and pushes;
+  `sync` rebases a branch on `origin/master`. The shared Redis substrate is untouched (process-level). 6 tests
+  incl. the real setup→commit→integrate flow + git's same-branch collision guard. **Daily flow:** agents live in
+  their worktrees, master is the integration point — see the module docstring. *Provisioning the two real
+  worktrees is a one-time `setup claude` / `setup cursor` the user runs when ready.*
 - **C2 — advisory path-locks on the Bus.** `lock(path)`/`unlock(path)` with fencing token; surfaced in boot + presence;
   Layer-2 hook consults it. Test: second claimant denied; stale lock (TTL) reclaimable; fencing token rejected on commit.
 - **C3 — optimistic CAS on the Store.** version/etag on mutable keys; conflicting write → retry. Test: lost-update prevented.
