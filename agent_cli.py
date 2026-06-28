@@ -401,7 +401,20 @@ def cmd_story(args, store=None):
                 return 2
             ch_ids = tr.chapters
         else:
-            print(f"ERROR: track '{args.track}' not found. Available: {', '.join(atlas.tracks)}")
+            ch_ids = []
+        # Errors that teach (ACI): a track can have Beats but no Chapters yet (not
+        # chronicled). Say so, and the exact next step -- don't just say "not found".
+        if not ch_ids:
+            try:
+                nbeats = store.zcard(f"narr:track:{args.track}:beats")
+            except Exception:
+                nbeats = 0
+            if nbeats:
+                print(f"Track '{args.track}' has {nbeats} beat(s) but no chapters yet -- "
+                      f"run `py agent_cli.py story --chronicle` first, then retry.")
+            else:
+                print(f"ERROR: track '{args.track}' not found. "
+                      f"Available: {', '.join(atlas.tracks) or '(none yet)'}")
             return 2
         chapters = []
         for cid in ch_ids:

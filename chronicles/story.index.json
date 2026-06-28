@@ -1,13 +1,12 @@
 {
   "version": "0",
-  "generated_at": "2026-06-27T23:41:45.955158",
+  "generated_at": "2026-06-28T00:04:12.903458",
   "atlas": {
-    "generated_at": "2026-06-27T23:41:45.955158",
-    "summary": "ai-setup: 5 chapter(s); research: 1 chapter(s); stemroller: 1 chapter(s)",
+    "generated_at": "2026-06-28T00:04:12.903458",
+    "summary": "ai-setup: 6 chapter(s); research: 1 chapter(s)",
     "tracks": [
       "ai-setup",
-      "research",
-      "stemroller"
+      "research"
     ],
     "relates": []
   },
@@ -17,13 +16,11 @@
       "chapter_7e4b1ccc927d",
       "chapter_a359afc45e7b",
       "chapter_99c6bdb7bb21",
-      "chapter_bdd02cc90a1b"
+      "chapter_bdd02cc90a1b",
+      "chapter_8a8456f3d4ec"
     ],
     "research": [
       "chapter_41201bc3dadc"
-    ],
-    "stemroller": [
-      "chapter_ce6a7d85cfd4"
     ]
   },
   "chapters": [
@@ -67,7 +64,7 @@
       "parent": "narr:atlas:current",
       "valid_from": "2026-04-15T01:21:48-04:00",
       "valid_to": null,
-      "recorded_at": "2026-06-27T23:41:45.955158",
+      "recorded_at": "2026-06-28T00:04:12.903458",
       "critic_ok": true
     },
     {
@@ -152,26 +149,30 @@
       "parent": "narr:atlas:current",
       "valid_from": "2026-06-27T12:50:14-04:00",
       "valid_to": null,
-      "recorded_at": "2026-06-27T23:41:45.955158",
+      "recorded_at": "2026-06-28T00:04:12.903458",
       "critic_ok": true
     },
     {
       "id": "chapter_41201bc3dadc",
       "track": "research",
-      "title": "Keep heuristic as default Tier 0; optional experimental Tier 1 behind flag only",
+      "title": "Frame salience() honestly as a Tier-0 baseline with the embedding/LLM poignan...",
       "span_start": "2026-06-27T20:35:28.900770",
-      "span_end": "2026-06-27T21:41:46.768288",
-      "summary": "- Keep heuristic as default Tier 0; optional experimental Tier 1 behind flag only  (source: learn:experiment:narrative_slice_6_ablation_failed)\n- Tier 1 embedding routing skipped - keeping heuristic as default router  (source: session:slice6)\n- Benchmark showed embedding ARI=0.212 vs heuristic ARI=0.754 - ablation gate not met  (source: session:slice6)\n- Capture now build later (rule of three, after narrative graph has edges). See docs/perspectives-maps-design-note.md. Honest bound: superlinear leverage not exponential...  (source: learn:experiment:perspectives_maps_swappable_interpretation)\n- Researched Slice 6 embedding routing: SBERT centroid-based vs heuristic on gold fixture  (source: session:slice6)",
+      "span_end": "2026-06-27T23:44:09.992055",
+      "summary": "- Frame salience() honestly as a Tier-0 baseline with the embedding/LLM poignancy scorer as a documented drop-in seam at one function. Gate any upgrade behind an ablation...  [relates: member_of]  (source: learn:experiment:Heuristic importance scoring is a Tier-0 baseline, not the answer)\n- Reuse the established design: per-event importance score, promote when it crosses a THRESHOLD (natural rate-limit, not a schedule), preserve a provenance pointer to the...  (source: learn:experiment:Salience promotion is the reflection/consolidation layer (prior art))\n- Keep heuristic as default Tier 0; optional experimental Tier 1 behind flag only  (source: learn:experiment:narrative_slice_6_ablation_failed)\n- Tier 1 embedding routing skipped - keeping heuristic as default router  (source: session:slice6)\n- Benchmark showed embedding ARI=0.212 vs heuristic ARI=0.754 - ablation gate not met  (source: session:slice6)\n- Capture now build later (rule of three, after narrative graph has edges). See docs/perspectives-maps-design-note.md. Honest bound: superlinear leverage not exponential...  (source: learn:experiment:perspectives_maps_swappable_interpretation)\n- Researched Slice 6 embedding routing: SBERT centroid-based vs heuristic on gold fixture  (source: session:slice6)",
       "beats": [
         "beat_1782606928_8090",
         "beat_1782610222_3008",
         "beat_1782610226_8517",
         "beat_1782610227_2347",
-        "beat_1782610906_1546"
+        "beat_1782610906_1546",
+        "beat_1782618243_6891",
+        "beat_1782618249_6938"
       ],
       "learnings": [
         "learn:experiment:perspectives_maps_swappable_interpretation",
-        "learn:experiment:narrative_slice_6_ablation_failed"
+        "learn:experiment:narrative_slice_6_ablation_failed",
+        "learn:experiment:Salience promotion is the reflection/consolidation layer (prior art)",
+        "learn:experiment:Heuristic importance scoring is a Tier-0 baseline, not the answer"
       ],
       "commits": [],
       "relates": [
@@ -184,7 +185,7 @@
       "parent": "narr:atlas:current",
       "valid_from": "2026-06-27T20:35:28.900770",
       "valid_to": null,
-      "recorded_at": "2026-06-27T23:41:45.955158",
+      "recorded_at": "2026-06-28T00:04:12.903458",
       "critic_ok": true
     },
     {
@@ -209,7 +210,7 @@
       "parent": "narr:atlas:current",
       "valid_from": "2026-06-27T22:25:17.311691",
       "valid_to": null,
-      "recorded_at": "2026-06-27T23:41:45.955158",
+      "recorded_at": "2026-06-28T00:04:12.903458",
       "critic_ok": true
     },
     {
@@ -218,7 +219,7 @@
       "title": "Auto-logger Slice 2 shipped: capture auto-hooks on boot/learn/log/commit/session",
       "span_start": "2026-06-27T23:15:01.311967",
       "span_end": "2026-06-27T23:15:01.311967",
-      "summary": "- Auto-logger Slice 2 shipped: capture auto-hooks on boot/learn/log/commit/session  (source: agent_cli:slice2)",
+      "summary": "- Auto-logger Slice 2 shipped: capture auto-hooks on boot/learn/log/commit/session  [relates: member_of]  (source: agent_cli:slice2)",
       "beats": [
         "beat_1782616501_3149"
       ],
@@ -234,7 +235,7 @@
       "parent": "narr:atlas:current",
       "valid_from": "2026-06-27T23:15:01.311967",
       "valid_to": null,
-      "recorded_at": "2026-06-27T23:41:45.955158",
+      "recorded_at": "2026-06-28T00:04:12.903458",
       "critic_ok": true
     },
     {
@@ -243,7 +244,7 @@
       "title": "Auto-logger Slice 2 shipped: capture auto-hooks on boot/learn/log/commit/session",
       "span_start": "2026-06-27T23:15:01.330970",
       "span_end": "2026-06-27T23:15:01.330970",
-      "summary": "- Auto-logger Slice 2 shipped: capture auto-hooks on boot/learn/log/commit/session  (source: event:events:raw:1782602101332-0)",
+      "summary": "- Auto-logger Slice 2 shipped: capture auto-hooks on boot/learn/log/commit/session  [relates: member_of]  (source: event:events:raw:1782602101332-0)",
       "beats": [
         "beat_1782616501_1377"
       ],
@@ -259,33 +260,44 @@
       "parent": "narr:atlas:current",
       "valid_from": "2026-06-27T23:15:01.330970",
       "valid_to": null,
-      "recorded_at": "2026-06-27T23:41:45.955158",
+      "recorded_at": "2026-06-28T00:04:12.903458",
       "critic_ok": true
     },
     {
-      "id": "chapter_ce6a7d85cfd4",
-      "track": "stemroller",
-      "title": "error: ZLUDA build failed during slice 5 dogfood",
-      "span_start": "2026-06-27T23:40:34.162424",
-      "span_end": "2026-06-27T23:41:45.530230",
-      "summary": "- error: ZLUDA build failed during slice 5 dogfood  (source: event:events:raw:1782603705531-0)\n- error: ZLUDA build failed during slice 5 dogfood  (source: event:events:raw:1782603634164-0)",
+      "id": "chapter_8a8456f3d4ec",
+      "track": "ai-setup",
+      "title": "Auto-logger Slice 5 shipped: salience promotion (reflection/consolidation) - ...",
+      "span_start": "2026-06-27T23:42:48.338753",
+      "span_end": "2026-06-27T23:56:22.293574",
+      "summary": "- Auto-logger Slice 5 shipped: salience promotion (reflection/consolidation) - score raw events, promote salient ones to Beats with provenance, rate-limited...  (source: agent_cli:slice5)\n- Back up OpenCode/Cursor work: auto-logger (EventLog on Ledger + bridge/promoter) + event tests + conftest hermeticity  [relates: member_of]  (source: git:b3d9baa78e60)\n- Rate-limit consolidation three ways: salience threshold + per-run cap + persistent dedup. And make hooks that emit a Beat stamp the beat id back onto the raw event so...  [relates: member_of]  (source: learn:experiment:Prevent double-promotion by stamping provenance both directions)\n- Always dogfood a new slice through the real CLI against canonical-shaped data, not just isolated unit fixtures. Unit tests verify the units; dogfooding verifies the...  [relates: member_of]  (source: learn:experiment:Dogfooding caught an integration gap unit tests missed)\n- Do NOT pass an explicit track to emit() when you want a first-class Track; pass a RouteHint(task=...) instead so _route() registers + indexes it. Explicit track is a...  [relates: member_of]  (source: learn:experiment:BeatLog.emit explicit track skips track registration)\n- Cleanup stray keys + standardize on pytest (pytest.ini, fix return-not-none) + Perspectives/Maps build plan  [relates: member_of]  (source: git:624b6e7838f4)",
       "beats": [
-        "beat_1782618034_1771",
-        "beat_1782618105_8173"
+        "beat_1782618168_3130",
+        "beat_1782618224_8258",
+        "beat_1782618231_2935",
+        "beat_1782618258_7607",
+        "beat_1782618446_9804",
+        "beat_1782618982_2508"
       ],
-      "learnings": [],
-      "commits": [],
+      "learnings": [
+        "learn:experiment:BeatLog.emit explicit track skips track registration",
+        "learn:experiment:Dogfooding caught an integration gap unit tests missed",
+        "learn:experiment:Prevent double-promotion by stamping provenance both directions"
+      ],
+      "commits": [
+        "git:b3d9baa78e60",
+        "git:624b6e7838f4"
+      ],
       "relates": [
         {
           "type": "part_of",
-          "target": "narr:track:stemroller",
+          "target": "narr:track:ai-setup",
           "note": ""
         }
       ],
       "parent": "narr:atlas:current",
-      "valid_from": "2026-06-27T23:40:34.162424",
+      "valid_from": "2026-06-27T23:42:48.338753",
       "valid_to": null,
-      "recorded_at": "2026-06-27T23:41:45.955158",
+      "recorded_at": "2026-06-28T00:04:12.903458",
       "critic_ok": true
     }
   ]

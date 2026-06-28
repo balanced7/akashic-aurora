@@ -261,18 +261,27 @@ class LearningStore:
         Semantic Relationship: SearchResults derived_from Learnings (by keyword)
         """
         try:
-            keyword_lower = keyword.lower()
-            results = []
+            # Tokenize + OR-match: a multi-word query matches any learning containing
+            # ANY of its terms, ranked by how many terms hit (so the closest matches
+            # surface first). A single substring match made multi-word queries return
+            # nothing -- the worst failure mode for a memory system (Cursor caught this).
+            terms = [t for t in (keyword or "").lower().split() if t]
+            if not terms:
+                return []
+            scored, seen = [], set()
             for exp_id in self.store.lrange("learn:experiments:all", 0, -1):
+                if exp_id in seen:
+                    continue
+                seen.add(exp_id)
                 data = self._load_experiment(exp_id)
                 if not data:
                     continue
-                haystack = exp_id.lower() + " " + " ".join(
-                    str(v).lower() for v in data.values()
-                )
-                if keyword_lower in haystack:
-                    results.append({"id": exp_id, **data})
-            return results
+                haystack = exp_id.lower() + " " + " ".join(str(v).lower() for v in data.values())
+                hits = sum(1 for t in terms if t in haystack)
+                if hits:
+                    scored.append((hits, {"id": exp_id, **data}))
+            scored.sort(key=lambda x: -x[0])   # most terms matched first
+            return [d for _, d in scored]
         except Exception as e:
             self.logger.error(f"Error searching learnings: {e}")
             return []

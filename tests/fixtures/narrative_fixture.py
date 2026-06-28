@@ -68,6 +68,7 @@ _ROWS = [
     ("ai-setup", "learning", [], "testing", "", "beatlog isolated tests green", ("logging", "evaluation")),
     ("ai-setup", "commit", ["tests/narrative_metrics.py", "tests/fixtures/narrative_fixture.py"], "", "", "Slice 2 fixture + metrics", ("evaluation", "narrative")),
     ("ai-setup", "note", [], "", "", "stretch break, then back to it", ()),                 # no signal -> persist (ai-setup)
+    ("ai-setup", "note", [], "", "", "error: ZLUDA build failed during dogfood", ()),       # REGRESSION: ZLUDA is shared infra -> must persist ai-setup, NOT route to stemroller
     ("research", "note", [], "", "narrative spine", "is our narrative design truly novel vs Amory?", ("narrative",)),  # honest MISS (track): 'narrative' -> routes ai-setup
     ("ai-setup", "commit", ["agent_cli.py"], "", "", "agent_cli list command + recall", ("memory",)),
     ("ai-setup", "decision", [], "project_management", "narrative spine", "build each slice test-first against acceptance bars", ("evaluation", "narrative")),

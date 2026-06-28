@@ -30,7 +30,11 @@ PATH_RULES: List[Tuple[str, str]] = [
 
 # --- strong domain keywords (product/domain names) -> track (beat the category) ---
 STRONG_KEYWORDS: List[Tuple[Tuple[str, ...], str]] = [
-    (("stemroller", "demucs", "zluda", "stem separation", "vocals"), "stemroller"),
+    # NOTE: "zluda" is deliberately NOT here -- it's shared GPU infra (the StemRoller
+    # AMD fork AND the ComfyUI/vision stack both use ZLUDA), so it's too ambiguous to
+    # force a track. (Regression: a "ZLUDA build failed during dogfood" beat must NOT
+    # route to stemroller -- see the gold fixture.)
+    (("stemroller", "demucs", "stem separation", "vocals"), "stemroller"),
     (("florence", "comfyui", "comfy", "ocr", "directml"), "vision"),
     (("gemma", "whisper", "kokoro", "tts", "voice chat", "realtime voice"), "voice"),
 ]

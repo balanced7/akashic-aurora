@@ -1,13 +1,12 @@
-# Story — generated 2026-06-27T23:41:45.955158
+# Story — generated 2026-06-28T00:04:12.903458
 
 Version: 0
 
 ## Atlas
-- **ai-setup**: 5 chapter(s)
+- **ai-setup**: 6 chapter(s)
 - **research**: 1 chapter(s)
-- **stemroller**: 1 chapter(s)
 
-Summary: ai-setup: 5 chapter(s); research: 1 chapter(s); stemroller: 1 chapter(s)
+Summary: ai-setup: 6 chapter(s); research: 1 chapter(s)
 
 ## Update bootstrap.md with project context initialization step (ai-setup)
 Span: 2026-04-15T01:21:48-04:00 → 2026-04-15T02:12:35-04:00
@@ -59,10 +58,12 @@ Beats: 31  · Critic: True
 - Wired session logging: bootstrap emits session-start, agent_cli log subcommand, story --session-end  (source: session:wireup)
 - Session started  (source: bootstrap:start)
 
-## Keep heuristic as default Tier 0; optional experimental Tier 1 behind flag only (research)
-Span: 2026-06-27T20:35:28.900770 → 2026-06-27T21:41:46.768288
-Beats: 5  · Critic: True
+## Frame salience() honestly as a Tier-0 baseline with the embedding/LLM poignan... (research)
+Span: 2026-06-27T20:35:28.900770 → 2026-06-27T23:44:09.992055
+Beats: 7  · Critic: True
 
+- Frame salience() honestly as a Tier-0 baseline with the embedding/LLM poignancy scorer as a documented drop-in seam at one function. Gate any upgrade behind an ablation...  [relates: member_of]  (source: learn:experiment:Heuristic importance scoring is a Tier-0 baseline, not the answer)
+- Reuse the established design: per-event importance score, promote when it crosses a THRESHOLD (natural rate-limit, not a schedule), preserve a provenance pointer to the...  (source: learn:experiment:Salience promotion is the reflection/consolidation layer (prior art))
 - Keep heuristic as default Tier 0; optional experimental Tier 1 behind flag only  (source: learn:experiment:narrative_slice_6_ablation_failed)
 - Tier 1 embedding routing skipped - keeping heuristic as default router  (source: session:slice6)
 - Benchmark showed embedding ARI=0.212 vs heuristic ARI=0.754 - ablation gate not met  (source: session:slice6)
@@ -79,17 +80,21 @@ Beats: 1  · Critic: True
 Span: 2026-06-27T23:15:01.311967 → 2026-06-27T23:15:01.311967
 Beats: 1  · Critic: True
 
-- Auto-logger Slice 2 shipped: capture auto-hooks on boot/learn/log/commit/session  (source: agent_cli:slice2)
+- Auto-logger Slice 2 shipped: capture auto-hooks on boot/learn/log/commit/session  [relates: member_of]  (source: agent_cli:slice2)
 
 ## Auto-logger Slice 2 shipped: capture auto-hooks on boot/learn/log/commit/session (ai-setup)
 Span: 2026-06-27T23:15:01.330970 → 2026-06-27T23:15:01.330970
 Beats: 1  · Critic: True
 
-- Auto-logger Slice 2 shipped: capture auto-hooks on boot/learn/log/commit/session  (source: event:events:raw:1782602101332-0)
+- Auto-logger Slice 2 shipped: capture auto-hooks on boot/learn/log/commit/session  [relates: member_of]  (source: event:events:raw:1782602101332-0)
 
-## error: ZLUDA build failed during slice 5 dogfood (stemroller)
-Span: 2026-06-27T23:40:34.162424 → 2026-06-27T23:41:45.530230
-Beats: 2  · Critic: True
+## Auto-logger Slice 5 shipped: salience promotion (reflection/consolidation) - ... (ai-setup)
+Span: 2026-06-27T23:42:48.338753 → 2026-06-27T23:56:22.293574
+Beats: 6  · Critic: True
 
-- error: ZLUDA build failed during slice 5 dogfood  (source: event:events:raw:1782603705531-0)
-- error: ZLUDA build failed during slice 5 dogfood  (source: event:events:raw:1782603634164-0)
+- Auto-logger Slice 5 shipped: salience promotion (reflection/consolidation) - score raw events, promote salient ones to Beats with provenance, rate-limited...  (source: agent_cli:slice5)
+- Back up OpenCode/Cursor work: auto-logger (EventLog on Ledger + bridge/promoter) + event tests + conftest hermeticity  [relates: member_of]  (source: git:b3d9baa78e60)
+- Rate-limit consolidation three ways: salience threshold + per-run cap + persistent dedup. And make hooks that emit a Beat stamp the beat id back onto the raw event so...  [relates: member_of]  (source: learn:experiment:Prevent double-promotion by stamping provenance both directions)
+- Always dogfood a new slice through the real CLI against canonical-shaped data, not just isolated unit fixtures. Unit tests verify the units; dogfooding verifies the...  [relates: member_of]  (source: learn:experiment:Dogfooding caught an integration gap unit tests missed)
+- Do NOT pass an explicit track to emit() when you want a first-class Track; pass a RouteHint(task=...) instead so _route() registers + indexes it. Explicit track is a...  [relates: member_of]  (source: learn:experiment:BeatLog.emit explicit track skips track registration)
+- Cleanup stray keys + standardize on pytest (pytest.ini, fix return-not-none) + Perspectives/Maps build plan  [relates: member_of]  (source: git:624b6e7838f4)
