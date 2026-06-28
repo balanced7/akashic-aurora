@@ -21,7 +21,6 @@ Ledger) and the shared Ranker (core/primitives). It does NOT import the narrativ
 routing a raw event to a Track / linking it to a Beat is the BRIDGE concern (Slice 4),
 which lives in System 4 where importing the TrackRouter is layering-legal.
 """
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from core.events.event_log import EventLog, get_event_log
@@ -30,11 +29,7 @@ from core.primitives.ranker import Ranker
 _DEFAULT_SCAN = 20000   # how many recent events a query considers (briefing_loader precedent)
 
 
-def _epoch(iso: str) -> float:
-    try:
-        return datetime.fromisoformat(str(iso)).timestamp()
-    except (ValueError, TypeError):
-        return 0.0
+from core.foundation.timeutil import to_epoch as _epoch   # unified tz-safe epoch (S5)
 
 
 class EventQuery:

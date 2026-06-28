@@ -20,7 +20,6 @@ Storage (on the Store, canonical or injected):
   persp:assoc:node:<id>    -> set of neighbour ids
 """
 import json
-from datetime import datetime
 from typing import List, Optional, Tuple
 
 from core.foundation.store import Store, create_store
@@ -30,13 +29,7 @@ LEARNING_RATE = 0.34
 HALF_LIFE_SECONDS = 30 * 24 * 3600   # 30 days
 
 
-def _epoch(t) -> float:
-    if isinstance(t, (int, float)):
-        return float(t)
-    try:
-        return datetime.fromisoformat(t).timestamp()
-    except (ValueError, TypeError):
-        return 0.0
+from core.foundation.timeutil import to_epoch as _epoch   # unified tz-safe epoch (S5)
 
 
 class ReinforcedGraph:

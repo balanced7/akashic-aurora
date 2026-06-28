@@ -26,7 +26,6 @@ Safety invariants enforced here:
   I4 reversibility -- rollback re-asserts a prior value by appending (history preserved).
 """
 import json
-from datetime import datetime
 from typing import Optional, Tuple
 
 from core.foundation.store import Store, create_store
@@ -34,11 +33,7 @@ from core.narrative.schema import Beat, Track, beat_key, track_key
 from core.narrative.tagging import TagHistory
 
 
-def _epoch(iso) -> float:
-    try:
-        return datetime.fromisoformat(iso).timestamp()
-    except (ValueError, TypeError):
-        return 0.0
+from core.foundation.timeutil import to_epoch as _epoch   # unified tz-safe epoch (S5)
 
 
 class TagGovernor:

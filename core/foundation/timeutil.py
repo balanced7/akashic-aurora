@@ -31,6 +31,8 @@ def to_epoch(iso: Any) -> float:
     constant offset that cancels in any sort or subtraction -- so it is a strict, no-regression
     improvement that ONLY changes behavior when tz-aware timestamps are actually present.
     """
+    if isinstance(iso, (int, float)):
+        return float(iso)            # already an epoch -> pass through (drop-in for prior _epoch copies)
     try:
         dt = datetime.fromisoformat(str(iso))
     except (ValueError, TypeError):

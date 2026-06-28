@@ -16,7 +16,6 @@ See docs/tag-governance-plan.md.
 """
 import json
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Callable, List, Optional, Tuple
 
 from core.foundation.store import Store, create_store
@@ -25,13 +24,6 @@ from core.narrative.tagging import TagHistory
 
 # scorer seam: given a Beat, return (predicted_track, confidence) or (None, 0.0) to abstain.
 Scorer = Callable[[Beat], Tuple[Optional[str], float]]
-
-
-def _epoch(iso) -> float:
-    try:
-        return datetime.fromisoformat(iso).timestamp()
-    except (ValueError, TypeError):
-        return 0.0
 
 
 @dataclass

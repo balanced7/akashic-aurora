@@ -29,11 +29,7 @@ TIMELINE = "narr:beats:timeline"
 ROUTER_ACTIVE = "narr:router:active"
 
 
-def _epoch(iso: str) -> float:
-    try:
-        return datetime.fromisoformat(iso).timestamp()
-    except (ValueError, TypeError):
-        return 0.0
+from core.foundation.timeutil import to_epoch as _epoch   # unified tz-safe epoch (S5)
 
 
 class BeatLog:

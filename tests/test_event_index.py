@@ -133,7 +133,7 @@ def test_flat_latency_at_scale():
     """Range-scan beats full replay: a 1-event window over a 100k index must be fast and
     return exactly 1 -- the whole point of the index (no O(n) scan per query)."""
     import json
-    from datetime import datetime
+    from datetime import datetime, timezone
     store = _store()
     idx = EventIndex(store, maxlen=200_000)
     base = 1_750_000_000
@@ -143,9 +143,10 @@ def test_flat_latency_at_scale():
     # (zrangebyscore over 100k) without 100k disk writes.
     store.zadd("events:raw:tindex", {f"id{i}": base + i for i in range(100_000)})
     target = base + 50_000
+    # Build the iso as tz-aware UTC so to_epoch round-trips back to `target` (the zset score).
+    iso = datetime.fromtimestamp(target, tz=timezone.utc).isoformat()
     store.set(f"events:raw:byid:id50000", json.dumps(
-        {"id": "id50000", "at": datetime.fromtimestamp(target).isoformat(), "summary": "needle"}))
-    iso = datetime.fromtimestamp(target).isoformat()
+        {"id": "id50000", "at": iso, "summary": "needle"}))
     t0 = time.perf_counter()
     got = idx.window(iso, iso)                   # 1-event-wide window deep in the middle
     dt = time.perf_counter() - t0

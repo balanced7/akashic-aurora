@@ -24,7 +24,6 @@ must never break capture (the Ledger write already succeeded; the event is safe 
 """
 import json
 import logging
-from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional
 
 from core.foundation.store import Store, create_store
@@ -36,11 +35,7 @@ BYID_PREFIX = "events:raw:byid:"
 DEFAULT_MAXLEN = 100_000          # match the firehose (event_log.CANONICAL_MAXLEN)
 
 
-def _epoch(iso) -> float:
-    try:
-        return datetime.fromisoformat(str(iso)).timestamp()
-    except (ValueError, TypeError):
-        return 0.0
+from core.foundation.timeutil import to_epoch as _epoch   # unified tz-safe epoch (S5)
 
 
 def byid_key(event_id: str) -> str:
