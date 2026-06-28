@@ -83,5 +83,28 @@ def test_wait_wakes_on_a_new_message():
         _cleanup(c, ns)
 
 
+def test_wait_blocks_past_the_fast_socket_timeout():
+    """Regression: the fail-fast client has a ~2-3s socket timeout; a blocking wait() longer than
+    that must use a dedicated long-timeout client (else it aborts early and 'wakes' with nothing)."""
+    c, ns = _client(), _ns()
+    try:
+        a = Bus("alice", c, namespace=ns)
+        b = Bus("bob", c, namespace=ns)
+        result = {}
+
+        def waiter():
+            result["m"] = b.wait(timeout_ms=8000)
+
+        t = threading.Thread(target=waiter)
+        t.start()
+        time.sleep(4.5)                              # well past the ~3s fail-fast socket timeout
+        a.send("bob", "chat", "late but here")
+        t.join(9)
+        assert result.get("m") and result["m"][0].content == "late but here", \
+            "wait() must keep blocking past the fast socket timeout"
+    finally:
+        _cleanup(c, ns)
+
+
 if __name__ == "__main__":
     print("wake tests run under pytest (need redis)")

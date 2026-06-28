@@ -224,16 +224,43 @@ class Bus:
         consuming, so the agent can then `inbox()` the message normally. Returns [] on timeout/offline."""
         return self._drain(block=int(timeout_ms), limit=limit, advance=advance)
 
+    def _blocking_client(self, block_ms):
+        """A dedicated client for a BLOCKING xread: its socket timeout must exceed the block, or
+        the fail-fast client's short socket_timeout (~2-3s) aborts a long block prematurely. block_ms
+        of 0 (block forever) -> no socket timeout. Falls back to the shared client on any error."""
+        try:
+            import redis
+            kw = self._client.connection_pool.connection_kwargs
+            socket_timeout = None if not block_ms else (block_ms / 1000.0 + 5)
+            return redis.Redis(host=kw.get("host", "localhost"), port=kw.get("port", 16379),
+                               db=kw.get("db", 0), decode_responses=True,
+                               socket_timeout=socket_timeout, socket_connect_timeout=3)
+        except Exception:
+            return None
+
     def _drain(self, *, block, limit: int, advance: bool) -> List[Message]:
         if not self.online:
             return []
         self._touch()
         cur = self._read_cursor()
+        client, temp = self._client, None
+        if block is not None:                      # a blocking wait() needs a long-socket-timeout client
+            temp = self._blocking_client(block)
+            if temp is not None:
+                client = temp
         try:
-            res = self._client.xread(
+            res = client.xread(
                 {self._inbox_key(self.agent_id): cur["inbox"], self._bc_key: cur["bc"]},
                 count=max(1, limit), block=block)
         except Exception:
+            res = None
+        finally:
+            if temp is not None:
+                try:
+                    temp.close()
+                except Exception:
+                    pass
+        if not res:
             return []
         new_inbox, new_bc = cur["inbox"], cur["bc"]
         out: List[Message] = []
