@@ -47,6 +47,12 @@ from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_P
 logger = logging.getLogger("store")
 
 
+class CASConflict(Exception):
+    """Raised by update_atomic when optimistic retries are exhausted (the key kept
+    changing under us). Concurrency design C3: a lost update was PREVENTED, not silently
+    applied -- the caller should re-read and decide, not blindly overwrite."""
+
+
 class Store(ABC):
     """
     Abstract persistence interface mirroring the used Redis command surface.
@@ -163,6 +169,35 @@ class Store(ABC):
     @abstractmethod
     def keys(self, pattern: str = "*") -> List[str]: ...
 
+    # ----- optimistic concurrency (C3) -----
+    def cas(self, key: str, expected: Optional[str], value: str) -> bool:
+        """Compare-and-set: atomically set key=value IFF its current value equals
+        `expected` (expected=None means "the key must not exist yet"). Returns True
+        if the write happened. This is the lost-update guard for two agents writing
+        the same key.
+
+        Default is a NON-atomic get-then-set fallback for unknown backends; the real
+        backends (Redis via Lua/NX, File under its lock) override this atomically.
+        """
+        cur = self.get(key)
+        if cur == expected:
+            return self.set(key, value)
+        return False
+
+    def update_atomic(self, key: str, fn, retries: int = 8) -> Optional[str]:
+        """Read-modify-write under optimistic concurrency: read the current value,
+        compute fn(current)->new, and cas() it; retry on conflict. Returns the value
+        written. Raises CASConflict if `retries` are exhausted. If fn returns None,
+        it's a no-op and the current value is returned unchanged."""
+        for _ in range(max(1, retries)):
+            cur = self.get(key)
+            new = fn(cur)
+            if new is None:
+                return cur
+            if self.cas(key, cur, str(new)):
+                return str(new)
+        raise CASConflict(f"update_atomic: '{key}' kept changing across {retries} retries")
+
     # ----- lifecycle -----
     @abstractmethod
     def is_available(self) -> bool:
@@ -208,6 +243,14 @@ class RedisStore(Store):
     def set(self, key, value): return bool(self._client.set(key, value))
     def delete(self, *keys): return int(self._client.delete(*keys)) if keys else 0
     def exists(self, key): return bool(self._client.exists(key))
+
+    # optimistic concurrency (C3): atomic in Redis -- NX for create, Lua for compare
+    _CAS_LUA = "if redis.call('GET',KEYS[1])==ARGV[1] then redis.call('SET',KEYS[1],ARGV[2]) return 1 else return 0 end"
+
+    def cas(self, key, expected, value):
+        if expected is None:
+            return bool(self._client.set(key, str(value), nx=True))
+        return bool(self._client.eval(self._CAS_LUA, 1, key, str(expected), str(value)))
 
     # expiry (TTL)
     def setex(self, key, seconds, value): return bool(self._client.setex(key, int(seconds), value))
@@ -358,6 +401,19 @@ class FileStore(Store):
             if removed:
                 self._flush()
         return removed
+
+    def cas(self, key, expected, value):
+        # atomic under the reentrant lock: compare current kv to expected, set if equal
+        with self._lock:
+            self._evict_if_expired(key)
+            cur = self._data["kv"].get(key)
+            want = None if expected is None else str(expected)
+            if cur != want:
+                return False
+            self._data["kv"][key] = str(value)
+            self._expiry.pop(key, None)
+            self._flush()
+            return True
 
     def exists(self, key):
         with self._lock:
@@ -651,6 +707,18 @@ class HybridStore(Store):
     def set(self, key, value): return self._write("set", key, value)
     def delete(self, *keys): return self._write("delete", *keys)
     def exists(self, key): return self._read().exists(key)
+
+    def cas(self, key, expected, value):
+        """CAS against the authoritative backend, then heal the other. When Redis is up
+        it is the atomic authority (matches read-Redis-first); on success we mirror to
+        File so the durable record converges -- closing the divergence gap. Redis down
+        -> File is authority."""
+        if self.redis_available:
+            ok = self._redis.cas(key, expected, value)
+            if ok:
+                self._file.set(key, value)   # heal: durable record matches Redis
+            return ok
+        return self._file.cas(key, expected, value)
 
     # expiry (TTL)
     def setex(self, key, seconds, value): return self._write("setex", key, seconds, value)

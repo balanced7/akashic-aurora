@@ -108,7 +108,16 @@ produced them — defense in depth beneath Layer 2. Every denial names the rule 
   holder-only release, fencing rejects a stale token after steal, TTL reclaim, fail-soft, hook veto. Suite 392.
   *MCP `bifrost_lock*` wrappers deferred — `ai_setup_mcp.py` is being actively edited by Cursor; let Cursor add
   them (same thin-wrapper pattern).*
-- **C3 — optimistic CAS on the Store.** version/etag on mutable keys; conflicting write → retry. Test: lost-update prevented.
+- **C3 — optimistic CAS on the Store. ✅ DONE 2026-06-28.** `Store.cas(key, expected, value)` (atomic: Redis
+  via NX/Lua, File under its lock, Hybrid = Redis-authoritative then mirror-to-File to heal divergence) +
+  `update_atomic(key, fn)` read-modify-write with retry, raising `CASConflict` when exhausted (a lost update is
+  PREVENTED, not silently applied). Closes the old Redis/File divergence gap for CAS'd keys. 8 tests
+  (`tests/test_store_cas.py`, hermetic File/Hybrid + guarded live-Redis Lua path). Suite 401.
+
+**Bus-reading ergonomics (token hygiene, supports the doctrine).** `bifrost-sync --digest` emits one cheap
+headline per *unread* message (cursor-based, only-new) so an agent reads the bus without paying to reread the
+conversation; drill a headline with full `bifrost-sync` / `--json`. The structural answer remains: wake into a
+fresh minimal session (boot + cursor), not the long transcript — continuity lives in the ledger/handoffs.
 - **C4 — pre-commit backstop + name the model.** repo pre-commit mirrors the hook rules; LEXICON entry for
   blackboard/stigmergy framing.
 
