@@ -154,6 +154,11 @@ class Store(ABC):
         Returns how many were removed."""
         ...
 
+    @abstractmethod
+    def zrem(self, key: str, *members: str) -> int:
+        """Remove the given members from the sorted set. Returns how many were removed."""
+        ...
+
     # ----- keyspace -----
     @abstractmethod
     def keys(self, pattern: str = "*") -> List[str]: ...
@@ -240,6 +245,8 @@ class RedisStore(Store):
     def zcard(self, key): return int(self._client.zcard(key))
     def zremrangebyrank(self, key, start, end):
         return int(self._client.zremrangebyrank(key, start, end))
+    def zrem(self, key, *members):
+        return int(self._client.zrem(key, *members)) if members else 0
 
     # keyspace
     def keys(self, pattern="*"): return list(self._client.keys(pattern))
@@ -528,6 +535,17 @@ class FileStore(Store):
             self._evict_if_expired(key)
             return len(self._data["zset"].get(key, {}))
 
+    def zrem(self, key, *members):
+        with self._lock:
+            z = self._data["zset"].get(key, {})
+            removed = 0
+            for m in members:
+                if str(m) in z:
+                    del z[str(m)]
+                    removed += 1
+            self._flush()
+            return removed
+
     def zremrangebyrank(self, key, start, end):
         with self._lock:
             self._evict_if_expired(key)
@@ -667,6 +685,8 @@ class HybridStore(Store):
     def zcard(self, key): return self._read().zcard(key)
     def zremrangebyrank(self, key, start, end):
         return self._write("zremrangebyrank", key, start, end)
+    def zrem(self, key, *members):
+        return self._write("zrem", key, *members)
 
     # keyspace
     def keys(self, pattern="*"): return self._read().keys(pattern)

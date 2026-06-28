@@ -89,6 +89,12 @@ class BeatLog:
             active = self.store.get(ROUTER_ACTIVE)
             res = get_track_router().route_one(beat, hint or RouteHint(), active)
             beat.track = res.track
+            # G1: seed the tag-history with the router's decision (basis -> confidence),
+            # so every beat carries an auditable, governable opinion from the start.
+            from core.narrative.tagging import TagHistory
+            h = TagHistory()
+            h.add(res.track, source=res.basis, at=beat.at)
+            beat.tag_history = h.to_list()
             self.store.set(ROUTER_ACTIVE, res.track)
             self.store.zadd(f"narr:track:{res.track}:beats", {beat.id: score})
             if not self.store.get(track_key(res.track)):
