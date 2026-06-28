@@ -14,6 +14,7 @@ This makes successive cleanup runs structurally non-destructive (invariants I3 a
 I4 reversible): the worst a bad re-tag can do is sit in the history and lose the current()
 ranking. G1 adds the confidence-gated write path on top of this.
 """
+import math
 from dataclasses import dataclass, field, asdict
 from typing import Any, Dict, List, Optional
 
@@ -34,6 +35,22 @@ BASIS_CONFIDENCE = {
 def confidence_for(source: str) -> float:
     """Confidence for a source/basis name; unknown sources get a neutral 0.5."""
     return BASIS_CONFIDENCE.get(source, 0.5)
+
+
+def _as_unit_confidence(c: Any) -> Optional[float]:
+    """Coerce `c` to a FINITE confidence clamped to [0,1], or None if it isn't a finite
+    number. This is the D3 guard: a non-finite confidence (``inf``/``nan``) must never enter
+    the resolver -- `inf` would beat every real tag and silently degrade `current()`, breaking
+    the monotonicity guarantee. Finite-but-out-of-range values are clamped into [0,1]; non-finite
+    or non-numeric values return None so the caller can DROP that opinion (the fact is untouched
+    -- we only refuse to count an untrustworthy vote)."""
+    try:
+        c = float(c)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(c):
+        return None
+    return 0.0 if c < 0.0 else 1.0 if c > 1.0 else c
 
 
 @dataclass
@@ -65,7 +82,13 @@ class TagHistory:
 
     def add(self, value: str, *, source: str = "unknown", at: str = "",
             confidence: Optional[float] = None, confirmed: bool = False) -> TagEntry:
-        conf = 1.0 if confirmed else (confidence if confidence is not None else confidence_for(source))
+        if confirmed:
+            conf = 1.0
+        else:
+            raw = confidence if confidence is not None else confidence_for(source)
+            conf = _as_unit_confidence(raw)
+            if conf is None:            # caller passed inf/nan -> untrusted; use the basis default
+                conf = confidence_for(source)
         return self.append(TagEntry(value=value, confidence=float(conf),
                                     source=("human" if confirmed else source), at=at, confirmed=confirmed))
 
@@ -108,8 +131,11 @@ class TagHistory:
         for d in raw or []:
             try:
                 e = d if isinstance(d, TagEntry) else TagEntry(**d)
-                float(e.confidence)      # corrupt confidence -> skip this entry
-                out.append(e)
             except (TypeError, ValueError):
-                continue                 # robustness: a corrupt entry is skipped, not fatal
+                continue                 # robustness: a structurally corrupt entry is skipped
+            clean = _as_unit_confidence(e.confidence)
+            if clean is None:
+                continue                 # D3: drop a non-finite/non-numeric confidence (no vote)
+            e.confidence = clean         # persist the clamp so [0,1] holds downstream
+            out.append(e)
         return cls(out)

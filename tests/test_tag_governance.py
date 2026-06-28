@@ -92,6 +92,23 @@ def test_crdt_monotonicity_fuzz():
     assert fact.source == "git:abc" and fact.summary == "Slice 0 schema", "I1: fact never changed"
 
 
+def test_d3_tampered_nonfinite_confidence_cannot_degrade(monkeypatch=None):
+    """D3 at the governance layer: even if a hostile/corrupt inf-confidence opinion is written
+    DIRECTLY into the stored beat (bypassing the sanitizing write path), reading current() drops
+    it -- the confirmed real tag still wins, and the fact is untouched."""
+    import json
+    store, gov, b = _setup()
+    gov.confirm(b.id, "ai-setup", at="2026-01-02T00:00:00")     # the real, pinned tag
+    raw = json.loads(store.get(beat_key(b.id)))
+    raw["tag_history"].append({"value": "stemroller", "confidence": float("inf"),
+                               "source": "tamper", "at": "2026-09-09T00:00:00", "confirmed": False})
+    store.set(beat_key(b.id), json.dumps(raw))                  # tamper the store directly
+    assert gov.current(b.id) == "ai-setup", "an injected inf opinion must not hijack current()"
+    # the FACT (the beat's source/summary) is untouched -- we only refused to count the bad vote
+    fact = BeatLog(store)._load(b.id)
+    assert fact.source == "git:abc" and fact.summary == "Slice 0 schema"
+
+
 def test_crdt_convergence_order_independent():
     """Same set of records in two different orders -> identical current (commutative)."""
     records = [("research", "category", "2026-03-01T00:00:00"),
