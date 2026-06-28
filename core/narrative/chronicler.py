@@ -46,6 +46,7 @@ from core.narrative.chapter_lifecycle import (
 )
 from core.primitives.ranker import Ranker
 from core.primitives.distiller import Distiller
+from core.primitives.consolidator import Consolidator
 
 TIMELINE = "narr:beats:timeline"
 ROUTER_ACTIVE = "narr:router:active"
@@ -139,6 +140,10 @@ class Chronicler:
         )
         self.boundary_detector = boundary_detector or BoundaryDetector()
         self.token_budget = token_budget
+        # the shared rank->distill engine (S1) -- same one learning/consolidation and the Codex
+        # Curator use, built from this Chronicler's (possibly injected) ranker/distiller/budget.
+        self.consolidator = Consolidator(ranker=self.ranker, distiller=self.distiller,
+                                         token_budget=self.token_budget)
         base = (
             Path(chronicle_dir)
             if chronicle_dir
@@ -227,26 +232,16 @@ class Chronicler:
         Uses Ranker + Distiller to produce a budgeted summary with lossless
         source pointers. Every entry in the summary resolves to a real Beat source.
         """
-        items = []
-        for b in beats:
-            items.append(
-                {
-                    "text": b.summary,
-                    "importance": b.weight,
-                    "timestamp": b.at,
-                    "source": b.source,
-                    "relationship_type": b.relates[0].type if b.relates else None,
-                }
+        items = [
+            Consolidator.item(
+                text=b.summary, source=b.source, importance=b.weight, timestamp=b.at,
+                relationship_type=(b.relates[0].type if b.relates else None),
             )
-
+            for b in beats
+        ]
         now_ts = _epoch(now) if now else None
-        ranked = [s.item for s in self.ranker.rank(items, query="", now=now_ts)]
-        distillation = self.distiller.distill(
-            ranked,
-            token_budget=self.token_budget,
-            instruction=f"chapter summary for {track}",
-            kind="beat",
-        )
+        distillation = self.consolidator.consolidate(
+            items, instruction=f"chapter summary for {track}", kind="beat", now=now_ts)
 
         span_start = beats[0].at
         span_end = beats[-1].at

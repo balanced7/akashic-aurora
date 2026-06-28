@@ -25,6 +25,7 @@ from typing import Any, Dict, Optional
 from core.learning.agent_memory import AgentMemory, get_agent_memory
 from core.primitives.ranker import Ranker
 from core.primitives.distiller import Distiller
+from core.primitives.consolidator import Consolidator
 
 
 def consolidate_learnings_into_chronicle(
@@ -46,8 +47,7 @@ def consolidate_learnings_into_chronicle(
     """
     from core.learning.learning_store import get_learning_store
     ls = learning_store or get_learning_store()
-    ranker = ranker or Ranker()
-    distiller = distiller or Distiller()
+    consolidator = Consolidator(ranker=ranker, distiller=distiller, token_budget=token_budget)
     base = Path(chronicle_dir) if chronicle_dir else \
         Path(os.getenv("AI_SETUP", "E:\\AI-Setup")) / "chronicles"
     base.mkdir(parents=True, exist_ok=True)
@@ -55,18 +55,17 @@ def consolidate_learnings_into_chronicle(
     items = []
     for rec in ls.load_all_learnings_from_store():
         summary = rec.get("recommendation") or rec.get("actual") or rec.get("what_tried", "")
-        items.append({
-            "text": summary,
-            "source": rec.get("source") or rec.get("experiment_name"),
-            "kind": "lesson",
-            "relationship_type": rec.get("category"),
-            "importance": 4 if str(rec.get("success", "")).lower() in ("yes", "true") else 3,
-            "timestamp": rec.get("timestamp"),
-        })
+        items.append(Consolidator.item(
+            text=summary,
+            source=rec.get("source") or rec.get("experiment_name"),
+            kind="lesson",
+            relationship_type=rec.get("category"),
+            importance=4 if str(rec.get("success", "")).lower() in ("yes", "true") else 3,
+            timestamp=rec.get("timestamp"),
+        ))
 
-    ranked = [s.item for s in ranker.rank(items, query="", now=now)]
-    distillation = distiller.distill(ranked, token_budget=token_budget,
-                                     instruction="durable lessons from experiments")
+    distillation = consolidator.consolidate(
+        items, instruction="durable lessons from experiments", now=now)
 
     path = base / "lessons.md"
     header = (
