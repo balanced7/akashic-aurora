@@ -1,5 +1,5 @@
 """
-stack_manager — BreakThrough Stack Orchestrator
+stack_manager — Akashic Aurora Orchestrator
 ===============================================
 Modular process supervisor, service discovery, resource tracker,
 and network mapper across Windows, WSL2, and Docker.

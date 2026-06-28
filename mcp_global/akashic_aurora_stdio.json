@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "breakthrough-stack": {
+    "akashic-aurora": {
       "command": "py",
       "args": ["-3", "E:\\AI-Setup\\ai_setup_mcp.py"],
       "cwd": "E:\\AI-Setup",

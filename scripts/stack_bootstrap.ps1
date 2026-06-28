@@ -1,4 +1,4 @@
-# DAG orchestrator — starts BreakThrough services in dependency order.
+# DAG orchestrator — starts Akashic Aurora services in dependency order.
 # Run from anywhere:
 #   powershell -ExecutionPolicy Bypass -File E:\AI-Setup\scripts\stack_bootstrap.ps1 start
 #

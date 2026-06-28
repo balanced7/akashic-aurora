@@ -84,7 +84,7 @@ def _get_kill_methods():
 def cmd_start():
     ports = PortManager(); resources = ResourceTracker(); routes = RoutingTable()
     print(f"\n{_c('C','='*60)}")
-    print(_c('C','  STACK LAUNCH — BreakThrough (DAG / E:\\AI-Setup)'))
+    print(_c('C','  STACK LAUNCH — Akashic Aurora (DAG / E:\\AI-Setup)'))
     print(_c('C','='*60))
 
     conflicts = ports.detect_conflicts()

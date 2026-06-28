@@ -21,8 +21,8 @@ from dataclasses import dataclass
 
 sys.path.insert(0, r"E:\AI-Setup")
 
-# Default ports for Breakthrough Stack
-BREAKTHROUGH_STACK_PORTS = {
+# Default ports for Akashic Aurora
+AKASHIC_AURORA_PORTS = {
     "redis": {
         "port": 6379,
         "protocol": "tcp",
@@ -129,7 +129,7 @@ class PortManager:
     def _sync_to_redis(self):
         """Sync default port allocations to Redis."""
         import datetime
-        for name, info in BREAKTHROUGH_STACK_PORTS.items():
+        for name, info in AKASHIC_AURORA_PORTS.items():
             key = f"{self.REDIS_PREFIX}{name}"
             self.redis.hset(key, mapping={
                 "port": info["port"],
@@ -139,7 +139,7 @@ class PortManager:
                 "allocated_at": datetime.datetime.now().isoformat(),
                 "allocated_by": "system"
             })
-        self.redis.set(self.ALLOCATIONS_KEY, json.dumps(list(BREAKTHROUGH_STACK_PORTS.keys())))
+        self.redis.set(self.ALLOCATIONS_KEY, json.dumps(list(AKASHIC_AURORA_PORTS.keys())))
     
     def allocate_port(self, name: str, port: int = None, description: str = None, 
                       container: str = None, allocated_by: str = "manual") -> Optional[int]:
@@ -279,13 +279,13 @@ def sync_ports_to_redis():
 
     # Store as single hash for quick access
     all_ports = {}
-    for name, info in BREAKTHROUGH_STACK_PORTS.items():
+    for name, info in AKASHIC_AURORA_PORTS.items():
         all_ports[f"{name}_port"] = info["port"]
         all_ports[f"{name}_desc"] = info["description"]
     
     r.hset("system:ports", mapping=all_ports)
     
-    print(f"Synced {len(BREAKTHROUGH_STACK_PORTS)} ports to Redis")
+    print(f"Synced {len(AKASHIC_AURORA_PORTS)} ports to Redis")
     return pm
 
 

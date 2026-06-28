@@ -1,8 +1,8 @@
 # ==========================================
-# BreakThrough Stack Bootstrap (WSL2 + Redis Stack)
+# Akashic Aurora Bootstrap (WSL2 + Redis Stack)
 # ==========================================
 
-Write-Host "=== BreakThrough Stack Bootstrap (WSL2 + Redis Stack) ===" -ForegroundColor Cyan
+Write-Host "=== Akashic Aurora Bootstrap (WSL2 + Redis Stack) ===" -ForegroundColor Cyan
 
 # Step 1: Check WSL2
 Write-Host "[1/7] Checking WSL2..." -ForegroundColor Yellow

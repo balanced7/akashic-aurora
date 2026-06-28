@@ -1,5 +1,5 @@
 """
-Service definitions — DAG inputs for BreakThrough Stack (E:\\AI-Setup).
+Service definitions — DAG inputs for Akashic Aurora (E:\\AI-Setup).
 
 Tiers are resolved by ``dag.resolve_tiers()`` from ``depends`` edges.
 
@@ -101,7 +101,7 @@ SERVICES = {
         "startup_timeout": 45,
     },
     "win-mcp": {
-        "description": "BreakThrough MCP (stdio-capable); HTTP mode on 8080",
+        "description": "Akashic Aurora MCP (stdio-capable); HTTP mode on 8080",
         "runtime": "windows",
         "command": (
             "if (Get-Process python -ErrorAction SilentlyContinue | Where-Object "
@@ -165,7 +165,7 @@ SERVICES = {
         "startup_timeout": 18,
     },
     "win-stack-gui": {
-        "description": "BreakThrough Stack web GUI (FastAPI stack_gui on 8090)",
+        "description": "Akashic Aurora web GUI (FastAPI stack_gui on 8090)",
         "runtime": "windows",
         "command": (
             "if (Get-Process python -ErrorAction SilentlyContinue | Where-Object "

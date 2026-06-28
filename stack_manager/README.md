@@ -1,6 +1,6 @@
 # stack_manager — DAG orchestration
 
-Starts BreakThrough services in **dependency tiers** (see `dag.py`: topological sort + parallelism).
+Starts Akashic Aurora services in **dependency tiers** (see `dag.py`: topological sort + parallelism).
 
 ## Requirements
 

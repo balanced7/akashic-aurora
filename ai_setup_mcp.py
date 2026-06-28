@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-ai_setup_mcp.py -- the MCP-transport door into the BreakThrough Stack (System 5).
+ai_setup_mcp.py -- the MCP-transport door into the Akashic Aurora (System 5).
 
 This is the MCP twin of ``agent_cli.py``. It exposes the SAME verbs
 (boot / learn / recall / status / log / story / events / handoff) as MCP tools,
@@ -77,9 +77,9 @@ def _run(fn, **overrides) -> str:
 
 
 mcp = FastMCP(
-    "breakthrough-stack",
+    "akashic-aurora",
     instructions=(
-        "BreakThrough Stack: a shared-memory system for a team of agents. FIRST on any "
+        "Akashic Aurora: a shared-memory system for a team of agents. FIRST on any "
         "task, call boot(agent, task) to load your ranked startup context (past lessons, "
         "the latest handoff addressed to you, project state) distilled to a token budget. "
         "As you work, give back: learn(...) records a reusable lesson; log(...) records a "
@@ -179,7 +179,7 @@ def events(search: str = "", agent: str = "", kind: str = "", limit: int = 20) -
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="BreakThrough Stack MCP (door over agent_cli/core)")
+    parser = argparse.ArgumentParser(description="Akashic Aurora MCP (door over agent_cli/core)")
     parser.add_argument("--http", action="store_true", help="serve over streamable-HTTP instead of stdio")
     parser.add_argument("--port", type=int, default=18765, help="HTTP port (with --http)")
     a = parser.parse_args()

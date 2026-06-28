@@ -715,9 +715,9 @@ class ProjectContextManager:
         """Deprecated: Use print_full_context_for_repriming() instead"""
         return self.print_full_context_for_repriming()
 
-    def initialize_with_breakthrough_stack_defaults(self) -> None:
+    def initialize_with_akashic_aurora_defaults(self) -> None:
         """
-        Initialize project context with BreakThrough Stack defaults.
+        Initialize project context with Akashic Aurora defaults.
 
         Semantic Relationship: ProjectContext initialized_with StandardDefaults
 
@@ -757,12 +757,12 @@ class ProjectContextManager:
             self.record_milestone_marking_progress("Bootstrap Automation", "Foolproof bootstrap for new OpenCode instances", priority=6)
             self.record_milestone_marking_progress("Project Context Tracking", "Milestones, tasks, blockers for project management", priority=5)
 
-        print("[ProjectContext] Initialized with BreakThrough Stack defaults")
+        print("[ProjectContext] Initialized with Akashic Aurora defaults")
 
     # Backward compatibility alias
     def initialize_defaults(self) -> None:
-        """Deprecated: Use initialize_with_breakthrough_stack_defaults() instead"""
-        return self.initialize_with_breakthrough_stack_defaults()
+        """Deprecated: Use initialize_with_akashic_aurora_defaults() instead"""
+        return self.initialize_with_akashic_aurora_defaults()
 
 
 # Singleton instance
@@ -807,7 +807,7 @@ if __name__ == "__main__":
     mgr = get_project_context_manager_instance()
 
     if args.init:
-        mgr.initialize_with_breakthrough_stack_defaults()
+        mgr.initialize_with_akashic_aurora_defaults()
         print("Initialized with defaults")
 
     if args.context:
