@@ -174,8 +174,14 @@ cluster assignments + **merge/split proposals** with cohesion scores. Determinis
 **Research-to-do:** HDBSCAN vs agglomerative vs Leiden-on-kNN-graph; cohesion metric (silhouette / intra-vs-inter);
 hysteresis/stability strategy.
 **Bar:** on a labeled fixture, recovers the real domains (voice/vision) as clusters, proposes one correct merge
-and one correct split; **re-run stability** (same input → same clusters; small perturbation → no thrash).
-**Worst cases:** singletons (rule-of-three: no cluster <3), one-giant-cluster, all-distinct, re-run churn.
+and one correct split; **re-run stability** (same input → same clusters; small perturbation → no thrash);
+**▲ preserves high-salience outliers** — a high-importance/high-effort atom is NEVER force-absorbed into a
+generic cluster (anti-compression bias; review delta D6); **▲ validated on REAL canonical atoms**, not only the
+synthetic fixture (clusters of dense code tokens must look sane, not just synonym pairs; review delta D3).
+**Worst cases:** singletons (rule-of-three: no cluster <3), one-giant-cluster, all-distinct, re-run churn,
+a lone high-importance atom (must stay its own cluster, not merge).
+Note: embeddings here are a **clustering** signal (where they shine), not a replacement for keyword/path
+retrieval (the hybrid stance — review delta D3).
 
 ### C2 — Resource schema + lifecycle
 **Goal:** the knowledge-axis node — `Resource(id, title, summary, atom_ids, centroid, confidence, maturity,
@@ -246,3 +252,45 @@ Resource built on invalidated atoms is flagged stale (Graphiti *invalidate-not-d
 **First slice to build: C0 (embedding substrate),** beginning with the research-to-do — benchmark 2–3 local
 embedding models on a labeled fixture and pick one — then the `Embedder` primitive + cache + the ablation-gated
 routing win. Same test-first, ablation-gated, mirror-per-slice cadence as Wave 1.
+
+---
+
+## 9. Amendments from external review (Gemini, 2026-06-28)
+
+An external architectural review pressure-tested the brief. The critique was sharp on *judgment* (scope,
+scale-fit, the Codex bet). Adopted deltas, each tied to the slice it changes:
+
+- **D1 — Optimistic apply + time-travel rollback (changes C6).** "Flag-then-confirm for every semantic op →
+  reviewer fatigue → blind-approve → the interface dies." Since the substrate is append-only and projections
+  regenerate from atoms, **rollback is free**, so the default flips: high-confidence curator actions execute
+  immediately; one CLI command rolls the *derived projections* back to a timestamp. Confirmation is reserved for
+  the lowest-confidence / least-reversible few — not the default. (More aligned with our architecture than the
+  original flag-first plan.)
+- **D2 — Defer MDL as the objective (changes C3).** At a few-hundred-atom scale the sample is too small for
+  description-length minimization to find real global regularities (over-clusters, fragile boundaries). C3 uses
+  **local cohesion + rule-of-three + salience** for merge/split; MDL stays a documented *future* direction for
+  when scale justifies it.
+- **D3 — Hybrid retrieval, not embeddings-as-primary (changes C7 + the router stance).** For dense, non-fungible
+  technical tokens (`zset`, `CRDT`), lexical/path heuristics usually beat CPU MiniLM. Keep TrackRouter
+  keyword/path-first; use embeddings where they actually shine — **clustering (C1)** and **semantic boundary
+  detection / the faithfulness critic (C4)** — and make retrieval a **hybrid (BM25 + embedding)**, not a swap.
+- **D4 — Index raw atoms, not only summaries (changes C7; near-term recall).** The "lossless pointer illusion":
+  if search only scores the *lossy summary*, the rich atom is discoverability-dead though the pointer exists.
+  Retrieval must hit **raw atom text**; summaries are the reading layer, not the only index.
+- **D5 — Gentle, lens-scoped decay (changes Perspectives).** For a *personal* KB, retention ≫ freshness — a rare
+  insight you haven't queried in months is precious, not stale. Decay stays on *edge strength* (atoms are never
+  dropped) AND lens-scoped AND gentle; a direct query must never let decay bury a relevant atom.
+- **D6 — The Codex is a librarian, not an author (changes C1–C6 posture).** A pure compressor merges a 4-hour
+  Redis-failover fight into a generic "Infrastructure Troubleshooting" bucket — optimizing away the idiosyncratic
+  edge case that made it worth recording. So: cluster / suggest / link / flag-stale, but **preserve high-salience
+  & high-effort atoms as their own resources** (anti-compression bias), and treat human/agent-authored framing as
+  a first-class, un-mergeable signal. The machine maintains the shelves; it doesn't rewrite the books.
+- **D7 — Two smaller fixes.** (a) **Edge `intent` annotation** — keep the closed 66-type vocabulary for traversal
+  but add a free-text intent field so a novel relationship's nuance isn't force-fit/lost (feeds a future
+  "promote a new type" step). (b) **Redis-failover chaos test** — ordering is keyed on the caller-provided `at`
+  (not write/arrival time), so failover async timing should not fracture the timeline; the real exposure is
+  dual-write set-divergence (the `sync_reconciler`'s job) — prove it with a kill-Redis-mid-write test.
+
+**Open answer carried forward:** "is the Distiller dropping low-frequency high-importance nuance?" — today only
+a *coverage* metric (the pointer survived), which is necessary-not-sufficient. The real answer is **C4**, the
+entailment faithfulness critic. Critique and roadmap converge on the same next ML investment.
