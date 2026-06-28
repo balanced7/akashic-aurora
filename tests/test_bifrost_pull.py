@@ -20,6 +20,15 @@ from core.comm.bus import Bus
 from core.comm.promoter import PROMOTED_KIND
 
 
+def test_format_digest_line_is_compact():
+    line = bifrost_pull.format_digest_line(
+        {"frm": "cursor", "kind": "handoff", "ts": "2026-06-28T22:43:55+00:00",
+         "content": "x" * 500})
+    assert "[handoff]" in line and "cursor>" in line and "22:43" in line
+    assert "...[truncated]" in line          # long body is clipped, not dumped
+    assert len(line) < 120                    # a cheap one-liner, not the full body
+
+
 def _redis_client():
     from core.foundation.redis_connection import (
         connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)

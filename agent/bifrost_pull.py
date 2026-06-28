@@ -111,6 +111,16 @@ def format_inbox_line(msg: Dict[str, Any], max_len: int = 220) -> str:
     return f"[{kind}] from {frm}: {body}"
 
 
+def format_digest_line(msg: Dict[str, Any]) -> str:
+    """Ultra-compact one-liner for a cheap scan: kind, sender, a 64-char teaser.
+    The full body is one drill away (`bifrost-sync` without --digest, or --json)."""
+    frm = msg.get("frm", "?")
+    kind = msg.get("kind", "?")
+    ts = (msg.get("ts") or "")[11:16]   # HH:MM
+    teaser = _clip(_content_str(msg.get("content")), 64)
+    return f"  {ts} [{kind}] {frm}> {teaser}"
+
+
 def print_boot_bifrost_section(block: Dict[str, Any]) -> None:
     print("\n## UNREAD BIFROST (live bus)")
     if not block.get("bus_online"):

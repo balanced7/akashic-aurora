@@ -816,7 +816,8 @@ def cmd_promoted(args):
 def cmd_bifrost_sync(args):
     """Presence heartbeat + unread inbox peek (pull floor). --consume advances the cursor."""
     from agent.bifrost_pull import (collect_boot_bifrost, consume_inbox, format_inbox_line,
-                                     print_boot_bifrost_section, print_boot_locks_section)
+                                     format_digest_line, print_boot_bifrost_section,
+                                     print_boot_locks_section)
     if args.consume:
         msgs = consume_inbox(args.agent_id, limit=args.limit or 20)
         if args.json:
@@ -832,6 +833,16 @@ def cmd_bifrost_sync(args):
     block = collect_boot_bifrost(args.agent_id, limit=args.limit or 10)
     if args.json:
         print(json.dumps(block, indent=2, default=str))
+        return 0
+    if getattr(args, "digest", False):
+        # cheap scan: only-new headlines (cursor-based, no body) -- read the bus without
+        # paying to reread the conversation. Drill a headline with `bifrost-sync` (full) or --json.
+        msgs = block.get("messages") or []
+        print(f"# bifrost digest for {args.agent_id}: {len(msgs)} unread"
+              + (" (bus OFFLINE)" if not block.get("bus_online") else ""))
+        for m in msgs:
+            print(format_digest_line(m))
+        print_boot_locks_section(block, args.agent_id)
         return 0
     print(f"# bifrost-sync for {args.agent_id}")
     print_boot_bifrost_section(block)
@@ -1009,6 +1020,7 @@ def main():
     bs.add_argument("agent_id", help="your stable agent id (e.g. cursor)")
     bs.add_argument("--limit", type=int, default=None)
     bs.add_argument("--consume", action="store_true", help="read inbox and advance cursor (ack)")
+    bs.add_argument("--digest", action="store_true", help="cheap one-line-per-unread headlines (no bodies)")
     bs.add_argument("--json", action="store_true")
     bs.set_defaults(fn=cmd_bifrost_sync)
 
