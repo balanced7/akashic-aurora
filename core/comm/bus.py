@@ -125,11 +125,14 @@ class Bus:
     """An agent's handle on the Bifrost transport. One per agent identity."""
 
     def __init__(self, agent_id: str, client: Optional[Any] = None, *,
-                 namespace: str = NS, maxlen: int = DEFAULT_MAXLEN):
+                 namespace: str = NS, maxlen: int = DEFAULT_MAXLEN, promote: Optional[bool] = None):
         self.agent_id = str(agent_id or "unknown")
         self.ns = namespace
         self.maxlen = maxlen
         self._client = client if client is not None else _connect()
+        # B2: durably project salient kinds by default -- but NOT under pytest, so transport tests
+        # never leak into the canonical firehose. Pass promote=True/False to force the behavior.
+        self._promote = (os.getenv("PYTEST_CURRENT_TEST") is None) if promote is None else bool(promote)
 
     # ------------------------------------------------------------------ identity / health
     @property
@@ -204,6 +207,12 @@ class Bus:
         try:
             mid = str(self._client.xadd(stream, env, maxlen=self.maxlen, approximate=True))
             self._touch()
+            try:                                   # B2: durably project salient kinds (best-effort)
+                from core.comm.promoter import is_salient, promote
+                if self._promote and is_salient(kind):
+                    promote(self.agent_id, to, kind, content, mid, env["ts"])
+            except Exception:
+                pass
             return mid
         except Exception:
             return None
