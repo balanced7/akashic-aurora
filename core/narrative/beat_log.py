@@ -78,7 +78,8 @@ class BeatLog:
             from core.narrative.theme_assigner import get_theme_assigner
             beat.themes = get_theme_assigner().assign(beat, hint)
         except Exception:
-            pass
+            from core.narrative.health import bump
+            bump(self.store, "theme:error")
 
     def _route(self, beat: Beat, hint, score: float) -> None:
         """Assign the Beat to a Track (Slice 2). Best-effort -- an unrouted Beat is
@@ -101,8 +102,11 @@ class BeatLog:
                 self.store.set(track_key(res.track), json.dumps(
                     Track(id=res.track, title=res.track.replace("-", " ").title(),
                           created_at=beat.at).to_dict()))
+            from core.narrative.health import bump
+            bump(self.store, f"route:{res.basis}")   # observable: which signal routed this beat
         except Exception:
-            pass
+            from core.narrative.health import bump
+            bump(self.store, "route:error")          # a silent routing failure now leaves a trace
 
     def _load(self, beat_id: str) -> Optional[Beat]:
         raw = self.store.get(beat_key(beat_id))

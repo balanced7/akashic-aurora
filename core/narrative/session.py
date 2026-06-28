@@ -43,11 +43,13 @@ def _capture_session(summary: str, ref: str, *, at: str, detail: Optional[dict] 
 def _chronicle(store: Store, bl: BeatLog, now: str) -> None:
     """Re-distill the spine (best-effort). Imported lazily to avoid a heavy import
     on the hot boot path when chronicling is disabled."""
+    from core.narrative.health import bump
     try:
         from core.narrative.chronicler import Chronicler
         Chronicler(beat_log=bl, store=store).chronicle_all(now=now)
+        bump(store, "chronicle:run")
     except Exception:
-        pass
+        bump(store, "chronicle:error")     # the story stopped refreshing -- make it visible
 
 
 def start_session(store: Optional[Store] = None, *, now: Optional[str] = None,

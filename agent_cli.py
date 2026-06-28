@@ -658,13 +658,28 @@ def cmd_status(args):
     if client is not None:
         backend = f"Redis {DEFAULT_REDIS_HOST}:{DEFAULT_REDIS_PORT} (+ File mirror)"
         learn, mem, total = len(client.keys("learn:*")), len(client.keys("mem:*")), len(client.keys("*"))
-    info = {"backend": backend, "learnings": learn, "agent_memory": mem, "total_keys": total}
+    # narrative health -- surface the best-effort paths so silent degradation is visible (W-c)
+    health = {}
+    try:
+        from core.foundation.store import create_store
+        from core.narrative.health import snapshot
+        health = snapshot(create_store())
+    except Exception:
+        health = {}
+    info = {"backend": backend, "learnings": learn, "agent_memory": mem, "total_keys": total,
+            "narrative_health": health}
     if args.json:
         print(json.dumps(info, default=str)); return 0
     print(f"# system status")
     print(f"  backend     : {backend}")
     print(f"  learnings   : {learn if learn is not None else 'n/a (see session_logs/)'}")
     print(f"  agent memory: {mem if mem is not None else 'n/a'}")
+    if health:
+        errors = {k: v for k, v in health.items() if k.endswith(":error")}
+        flag = "  [!] errors present" if errors else ""
+        print(f"  spine health: {health}{flag}")
+    else:
+        print(f"  spine health: (no counters yet)")
     return 0
 
 
