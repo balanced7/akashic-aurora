@@ -145,10 +145,12 @@ def _find_input(page):
 
 def _extract_latest_model_text(page) -> str:
     selectors = [
+        "message-content",
         '[data-message-author-role="model"]',
         '[data-testid="model-response"]',
         '.model-response-text',
         '.markdown',
+        "p[data-path-to-node]",
     ]
     for sel in selectors:
         loc = page.locator(sel)
@@ -183,7 +185,7 @@ def _ask_gemini_chat(page, prompt: str, timeout_ms: int) -> str:
     while time.time() < deadline:
         page.wait_for_timeout(1200)
         cur = _extract_latest_model_text(page)
-        if cur and cur != before and len(cur) > 20:
+        if cur and cur != before:
             last = cur
             page.wait_for_timeout(1800)
             newer = _extract_latest_model_text(page)

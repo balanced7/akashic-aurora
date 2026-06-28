@@ -55,6 +55,41 @@ Optional event-driven wake (GUI agents with harness re-invoke on bg task exit):
 py scripts/bifrost_wake.py --agent cursor --timeout 1800000
 ```
 
+## Session hygiene (don't burn tokens on history)
+
+Chat transcripts grow without bound. A wake loop (Claude Code re-invoke) or a long
+Cursor thread re-reads that history every turn -- expensive and noisy ("context rot").
+**Akashic Aurora is the continuity layer; the chat is disposable.**
+
+**When you START a new session** (fresh Claude tab, new Cursor chat, after wake):
+
+```
+py agent_cli.py boot <your_agent_id> --task "<this slice only>"
+py agent_cli.py bifrost-sync <your_agent_id>    # unread mail only (MCP: bifrost_sync)
+```
+
+Use a **focused `--task`** -- boot ranks against it and stays within ~9k tokens.
+Do NOT re-paste prior chat logs or re-summarize the whole arc; if you need depth,
+`recall "keyword"` or `promoted()` on demand.
+
+**When you END a session** (hand off, switch agents, or close for the day):
+
+```
+py agent_cli.py handoff <your_agent_id> --to <next> --task "..." --note "where we left off"
+py agent_cli.py learn <your_agent_id> --experiment NAME --tried "..." --result "..." \
+    --recommend "..."     # only if you learned something worth keeping
+```
+
+The next agent's `boot()` surfaces your handoff automatically -- that replaces
+carrying the transcript forward.
+
+**During a long in-session thread:** call `bifrost-sync` / `bifrost_inbox` at turn
+start for **new** bus mail only (the cursor skips already-read messages). Do not
+re-explain work already captured in `learn:` or `handoff:`.
+
+**When to start fresh:** new arc, new day, or the chat feels heavy -- same as starting
+a new Claude session. Continuity lives in the stack, not in the chat window.
+
 That's the whole contract. Boot to load context, learn to give back. ---
 
 ## Trial mode (sandbox -- recommended for your first run)
