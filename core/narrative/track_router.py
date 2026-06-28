@@ -14,8 +14,21 @@ Inference priority (strongest signal first):
 Tier 1 (embeddings via the Ranker relevance_fn seam) is a later slice and must BEAT this
 baseline on the fixture (ARI) or it doesn't ship.
 """
+import re
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
+from typing import List, Optional, Pattern, Tuple
+
+
+def compile_keyword_group(kws: Tuple[str, ...]) -> Pattern:
+    """One case-insensitive WORD-BOUNDARY regex matching any keyword/phrase in the group.
+
+    D2 fix: matching was raw substring (`kw in text`), so a keyword fired *inside* a larger
+    word -- `store` matched `restore`, routing it to ai-setup. Anchoring each keyword with
+    `\\b...\\b` means it only matches as a whole word (phrases keep their internal spaces).
+    Keywords are re.escaped, so hyphens/underscores in `prior-art` / `agent_cli` are literal.
+    """
+    alts = "|".join(re.escape(k) for k in kws if k)
+    return re.compile(r"\b(?:" + alts + r")\b", re.IGNORECASE) if alts else re.compile(r"(?!x)x")
 
 # --- path prefix/substring -> track (domain repos before the ai-setup system itself) ---
 PATH_RULES: List[Tuple[str, str]] = [
@@ -35,7 +48,9 @@ STRONG_KEYWORDS: List[Tuple[Tuple[str, ...], str]] = [
     # force a track. (Regression: a "ZLUDA build failed during dogfood" beat must NOT
     # route to stemroller -- see the gold fixture.)
     (("stemroller", "demucs", "stem separation", "vocals"), "stemroller"),
-    (("florence", "comfyui", "comfy", "ocr", "directml"), "vision"),
+    # NOTE: bare "comfy" was dropped -- it's a common adjective ("comfy sweater") that
+    # false-routed to vision. The product is ComfyUI, so we match "comfyui"/"comfy ui" only.
+    (("florence", "comfyui", "comfy ui", "ocr", "directml"), "vision"),
     (("gemma", "whisper", "kokoro", "tts", "voice chat", "realtime voice"), "voice"),
 ]
 
@@ -79,6 +94,10 @@ class TrackRouter:
         self.strong = strong
         self.category_rules = category_rules
         self.generic = generic
+        # Precompile each keyword group to a word-boundary regex (D2). Paths stay substring
+        # (file-path fragments like "core/" are meant to match as substrings, not words).
+        self._strong_re: List[Tuple[Pattern, str]] = [(compile_keyword_group(kws), tk) for kws, tk in strong]
+        self._generic_re: List[Tuple[Pattern, str]] = [(compile_keyword_group(kws), tk) for kws, tk in generic]
 
     def _infer(self, beat, hint: RouteHint) -> Tuple[Optional[str], str]:
         # 1. paths
@@ -87,10 +106,10 @@ class TrackRouter:
             for needle, track in self.path_rules:
                 if needle in pl:
                     return track, "path"
-        text = f"{hint.task} {getattr(beat, 'summary', '')} {getattr(beat, 'source', '')}".lower()
-        # 2. strong domain keywords
-        for kws, track in self.strong:
-            if any(kw in text for kw in kws):
+        text = f"{hint.task} {getattr(beat, 'summary', '')} {getattr(beat, 'source', '')}"
+        # 2. strong domain keywords (word-boundary -- see compile_keyword_group)
+        for rx, track in self._strong_re:
+            if rx.search(text):
                 return track, "strong"
         # 3. category
         c = (hint.category or "").lower()
@@ -98,9 +117,9 @@ class TrackRouter:
             return self.category_rules[c], "category"
         if c in AI_SETUP_CATEGORIES:
             return "ai-setup", "category"
-        # 4. generic keywords
-        for kws, track in self.generic:
-            if any(kw in text for kw in kws):
+        # 4. generic keywords (word-boundary)
+        for rx, track in self._generic_re:
+            if rx.search(text):
                 return track, "generic"
         return None, "persist"
 

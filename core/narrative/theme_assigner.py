@@ -34,15 +34,15 @@ class ThemeAssigner:
 
     def __init__(self, keywords: Optional[List[Tuple[Tuple[str, ...], str]]] = None):
         self.keywords = keywords or THEME_KEYWORDS
+        # Word-boundary matching (D2): a theme keyword must match as a whole word, not inside
+        # a larger one. Multi-label, so we check every group (not first-match).
+        from core.narrative.track_router import compile_keyword_group
+        self._theme_re = [(compile_keyword_group(kws), theme_id) for kws, theme_id in self.keywords]
 
     def assign(self, beat, hint=None) -> List[str]:
-        """Return all theme IDs whose keywords appear in the beat's text."""
-        text = self._text_of(beat, hint).lower()
-        matched: List[str] = []
-        for kws, theme_id in self.keywords:
-            if any(kw in text for kw in kws):
-                matched.append(theme_id)
-        return matched
+        """Return all theme IDs whose keywords appear (as whole words) in the beat's text."""
+        text = self._text_of(beat, hint)
+        return [theme_id for rx, theme_id in self._theme_re if rx.search(text)]
 
     @staticmethod
     def _text_of(beat, hint) -> str:
