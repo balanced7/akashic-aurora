@@ -1,11 +1,16 @@
 """
 mirror.py -- commit local changes and push to GitHub in one step.
 
-    py scripts/mirror.py ["commit message"]
+    py scripts/mirror.py "commit message" [path ...]   # stage+commit those paths
+    py scripts/mirror.py "commit message"              # commit only what's STAGED
+    py scripts/mirror.py "commit message" --all        # sweep the WHOLE tree (opt-in)
+    py scripts/mirror.py --push-only                   # just push unpushed commits
 
-Stages everything tracked-or-new (respecting .gitignore -> code/docs only, never the
-17GB bulk or the volatile knowledge data), commits, and pushes the current branch to
-origin. If there's nothing to commit it still pushes any unpushed commits.
+Two agents share this working tree, so mirror does NOT blanket-stage by default --
+that bundles the other agent's unreviewed work into your commit (the FM1 failure,
+2026-06-28; see docs/concurrency-design.md). Name the paths that are yours, or stage
+them first with `git add <path>`. `--all` is the explicit opt-in to stage everything
+(it prints the full file list first).
 
 This mirrors the CODE/architecture. Knowledge DATA is not in git -- snapshot it
 separately:  py scripts/snapshot_knowledge.py snapshot
@@ -56,19 +61,41 @@ def _emit_commit_beat(msg, files):
 
 def main():
     push_only = "--push-only" in sys.argv
-    msg_args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    add_all = "--all" in sys.argv
+    pos = [a for a in sys.argv[1:] if not a.startswith("--")]
     branch = git("rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
 
     if not push_only:
-        git("add", "-A")
+        msg = pos[0] if pos else None
+        paths = pos[1:]
+        if add_all:
+            # explicit opt-in to blanket staging -- show exactly what we're about to grab
+            dirty = git("status", "--porcelain").stdout.strip()
+            print("[mirror] --all: staging the ENTIRE working tree:")
+            print(dirty or "  (clean)")
+            git("add", "-A")
+        elif paths:
+            git("add", "--", *paths)
+        # else: stage nothing -- commit only what the agent already staged explicitly
+
         staged = git("diff", "--cached", "--name-only").stdout.strip()
         if staged:
-            msg = msg_args[0] if msg_args else f"Mirror progress {datetime.now():%Y-%m-%d %H:%M}"
+            msg = msg or f"Mirror progress {datetime.now():%Y-%m-%d %H:%M}"
             git("commit", "-m", msg)
             print(f"[mirror] committed {len(staged.splitlines())} file(s): {msg}")
             _emit_commit_beat(msg, staged.splitlines())
         else:
-            print("[mirror] no file changes to commit")
+            dirty = git("status", "--porcelain").stdout.strip()
+            if dirty and not add_all and not paths:
+                # refuse to silently do nothing on a dirty tree -- teach the agent
+                print("[mirror] nothing staged -- refusing to blanket-commit a shared tree.")
+                print("  Name what's YOURS:")
+                print('    py scripts/mirror.py "msg" path1 path2   (stage + commit those)')
+                print("  or stage first (git add <path>), or --all to sweep everything.")
+                print("  Dirty files:")
+                print(dirty)
+                sys.exit(2)
+            print("[mirror] no staged changes to commit")
 
     # Push (also flushes any earlier unpushed commits). Fail-soft on a missing upstream.
     ahead = git("rev-list", "--count", f"origin/{branch}..{branch}", check=False).stdout.strip()

@@ -83,9 +83,15 @@ produced them — defense in depth beneath Layer 2. Every denial names the rule 
 
 ## 4. Sliced build plan (each gated by a test, mirrored per slice — explicitly, not `add -A`)
 
-- **C0 — mirror.py de-blanket + door veto.** Replace `git add -A` with explicit staging/confirm; PreToolUse +
-  Cursor hooks blocking `git add -A|.` and unscoped writes (exit 2, teaching reason). Test: hook denies blanket-add,
-  allows pathspec. *(Highest leverage, smallest change — FM1+FM4.)*
+- **C0 — mirror.py de-blanket + door veto. ✅ DONE 2026-06-28.** `scripts/mirror.py` no longer blanket-stages:
+  it commits explicit pathspecs or already-staged files, refuses on a dirty tree with a teaching message, and
+  gates `git add -A` behind an explicit `--all` (which previews the file list). Shared rulebook
+  `agent/policy/git_guard.py` (`check_git_command`) consulted by BOTH hooks — `scripts/hooks/claude_pretooluse.py`
+  (PreToolUse, denies via `permissionDecision:"deny"` JSON; exit-1 footgun avoided) and
+  `scripts/hooks/cursor_beforeshell.py` — so the policy can't drift. Blocks `git add -A|.|--all|:/` and
+  `git commit -a*`. Wired in `.claude/settings.json`; Cursor's hook config is owned by Cursor (snippet in the
+  adapter docstring). 29 tests (`tests/test_git_guard.py`); suite 375 green. Unscoped-*write* blocking deferred
+  to C2 (needs the path-locks/zones). Live-validated: caught Cursor's `ai_setup_mcp.py` staged in the shared index.
 - **C1 — worktree setup + integration flow.** `scripts/worktree_*.py` (or doc) to spin a per-agent worktree on
   `agent/<name>`, plus the merge-back-to-master recipe. Test: two worktrees, isolated edits, clean merge.
 - **C2 — advisory path-locks on the Bus.** `lock(path)`/`unlock(path)` with fencing token; surfaced in boot + presence;
