@@ -31,6 +31,7 @@ from core.comm.blobs import get_blob_store
 NS = "bifrost"
 DEFAULT_MAXLEN = 10_000
 BROADCAST_TO = "*"
+PRESENCE_TTL = 90          # seconds an agent is considered "online" after its last activity
 
 
 def _now() -> str:
@@ -139,6 +140,33 @@ class Bus:
     def status(self) -> Dict[str, Any]:
         return {"online": self.online, "agent_id": self.agent_id, "pending": self.pending()}
 
+    # ------------------------------------------------------------------ presence (B3)
+    def register(self, ttl: int = PRESENCE_TTL) -> bool:
+        """Heartbeat: mark this agent online for `ttl` seconds. Returns True if recorded."""
+        if not self.online:
+            return False
+        try:
+            self._client.set(f"{self.ns}:presence:{self.agent_id}", _now(), ex=ttl)
+            return True
+        except Exception:
+            return False
+
+    def _touch(self) -> None:
+        """Refresh presence as a side effect of using the bus (sending/reading = being active)."""
+        self.register()
+
+    def presence(self) -> List[Dict[str, str]]:
+        """The agents currently online (presence keys not yet expired), by id."""
+        if not self.online:
+            return []
+        try:
+            keys = self._client.keys(f"{self.ns}:presence:*")
+            out = [{"agent": str(k).rsplit(":", 1)[-1], "last_seen": self._client.get(k) or ""}
+                   for k in (keys or [])]
+            return sorted(out, key=lambda x: x["agent"])
+        except Exception:
+            return []
+
     # ------------------------------------------------------------------ keys
     def _inbox_key(self, agent: str) -> str:
         return f"{self.ns}:inbox:{agent}"
@@ -174,7 +202,9 @@ class Bus:
                "meta": json.dumps(meta or {}, default=str),
                "parts": json.dumps(part_dicts, default=str)}
         try:
-            return str(self._client.xadd(stream, env, maxlen=self.maxlen, approximate=True))
+            mid = str(self._client.xadd(stream, env, maxlen=self.maxlen, approximate=True))
+            self._touch()
+            return mid
         except Exception:
             return None
 
@@ -186,6 +216,7 @@ class Bus:
         own broadcasts are not delivered back to it. Returns [] (never raises) when offline."""
         if not self.online:
             return []
+        self._touch()
         cur = self._read_cursor()
         try:
             res = self._client.xread(

@@ -178,6 +178,52 @@ def events(search: str = "", agent: str = "", kind: str = "", limit: int = 20) -
                 kind=kind or None, limit=limit or 20)
 
 
+# ---------------------------------------------------------------- Bifrost: real-time agent bus
+# Unlike the verbs above (durable Store/Ledger via agent_cli), these are the LIVE message bus
+# (core/comm/bus.py): direct/broadcast messages an agent reads from its own inbox cursor. Use a
+# short stable id ('cursor', 'claude'). The bus is ephemeral; durable handoffs still use handoff().
+
+@mcp.tool()
+def bifrost_send(from_agent: str, to: str, kind: str = "chat", text: str = "") -> str:
+    """Send a direct real-time message to another agent's Bifrost inbox (live, low-latency)."""
+    from core.comm.bus import Bus
+    mid = Bus(from_agent).send(to, kind, text)
+    return f"sent {mid} -> {to}" if mid else "BUS OFFLINE (Redis unreachable)"
+
+
+@mcp.tool()
+def bifrost_broadcast(from_agent: str, kind: str = "announce", text: str = "") -> str:
+    """Broadcast a message to EVERY agent on the Bifrost bus (each reads it from its own cursor)."""
+    from core.comm.bus import Bus
+    mid = Bus(from_agent).broadcast(kind, text)
+    return f"broadcast {mid}" if mid else "BUS OFFLINE (Redis unreachable)"
+
+
+@mcp.tool()
+def bifrost_inbox(agent: str, limit: int = 20) -> str:
+    """Read NEW Bifrost messages addressed to you (direct + broadcast). Advances your read cursor."""
+    from core.comm.bus import Bus
+    msgs = Bus(agent).inbox(limit=limit)
+    if not msgs:
+        return "(no new messages)"
+    out = []
+    for m in msgs:
+        extra = f"  [+{len(m.parts)} part(s): {', '.join(p.ref or p.content_type for p in m.parts)}]" if m.parts else ""
+        out.append(f"[{m.kind}] from {m.frm}: {str(m.content)[:300]}{extra}")
+    return "\n".join(out)
+
+
+@mcp.tool()
+def bifrost_presence(agent: str = "") -> str:
+    """Who is online on the Bifrost bus right now. Pass your `agent` id to also mark yourself online."""
+    from core.comm.bus import Bus
+    b = Bus(agent or "observer")
+    if agent:
+        b.register()
+    live = b.presence()
+    return "online: " + ", ".join(p["agent"] for p in live) if live else "(no agents online)"
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Akashic Aurora MCP (door over agent_cli/core)")
     parser.add_argument("--http", action="store_true", help="serve over streamable-HTTP instead of stdio")
