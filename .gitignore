@@ -60,3 +60,6 @@ Thumbs.db
 
 # local secrets (API keys) -- never commit
 .secrets/
+
+# Bifrost media blobs (content-addressed, not source)
+blobs/

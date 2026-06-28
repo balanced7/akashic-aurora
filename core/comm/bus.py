@@ -26,6 +26,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
+from core.comm.blobs import get_blob_store
+
 NS = "bifrost"
 DEFAULT_MAXLEN = 10_000
 BROADCAST_TO = "*"
@@ -56,6 +58,52 @@ def _connect():
 
 
 @dataclass
+class Part:
+    """An A2A-style atomic content unit: a typed value that is either INLINE (small/text) or a
+    `blob:<sha>` REFERENCE (media/large) the receiver fetches on demand (lossless-pointer rule)."""
+    content_type: str               # text/plain | application/json | image/png | ...
+    inline: Any = None              # the value, when carried inline
+    ref: Optional[str] = None       # a blob ref, when stored out-of-band
+
+    @property
+    def is_ref(self) -> bool:
+        return self.ref is not None
+
+    def resolve(self, blobs=None) -> Any:
+        """The Part's value: the inline value, or the fetched blob bytes (None if the blob is gone)."""
+        if self.ref is not None:
+            return (blobs or get_blob_store()).get(self.ref)
+        return self.inline
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {"content_type": self.content_type, "inline": self.inline, "ref": self.ref}
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "Part":
+        return cls(content_type=d.get("content_type", "application/octet-stream"),
+                   inline=d.get("inline"), ref=d.get("ref"))
+
+
+def text_part(s: Any) -> Part:
+    return Part("text/plain", inline=str(s))
+
+
+def json_part(obj: Any) -> Part:
+    return Part("application/json", inline=obj)
+
+
+def media_part(data, content_type: str, *, blobs=None) -> Part:
+    """Store bytes/str as a content-addressed blob and carry only the ref (media-by-reference)."""
+    return Part(content_type, ref=(blobs or get_blob_store()).put(data))
+
+
+def file_part(path, *, content_type: Optional[str] = None, blobs=None) -> Part:
+    import mimetypes
+    ct = content_type or mimetypes.guess_type(str(path))[0] or "application/octet-stream"
+    return Part(ct, ref=(blobs or get_blob_store()).put_path(path))
+
+
+@dataclass
 class Message:
     id: str                 # the stream entry id (also the read cursor / offset)
     frm: str
@@ -64,10 +112,12 @@ class Message:
     content: Any
     ts: str
     meta: Dict[str, Any] = field(default_factory=dict)
+    parts: List[Part] = field(default_factory=list)    # A2A parts (inline or blob refs)
 
     def to_dict(self) -> Dict[str, Any]:
         return {"id": self.id, "frm": self.frm, "to": self.to, "kind": self.kind,
-                "content": self.content, "ts": self.ts, "meta": self.meta}
+                "content": self.content, "ts": self.ts, "meta": self.meta,
+                "parts": [p.to_dict() for p in self.parts]}
 
 
 class Bus:
@@ -101,20 +151,28 @@ class Bus:
         return f"{self.ns}:cursor:{self.agent_id}"
 
     # ------------------------------------------------------------------ send
-    def send(self, to: str, kind: str, content: Any, meta: Optional[Dict[str, Any]] = None) -> Optional[str]:
-        """Direct message to one agent's inbox. Returns the message id, or None if the bus is offline."""
-        return self._emit(self._inbox_key(str(to)), to=str(to), kind=kind, content=content, meta=meta)
+    def send(self, to: str, kind: str, content: Any = None, *, parts: Optional[List[Part]] = None,
+             meta: Optional[Dict[str, Any]] = None) -> Optional[str]:
+        """Direct message to one agent's inbox (optionally with `parts` -- inline or media-by-ref).
+        Returns the message id, or None if the bus is offline."""
+        return self._emit(self._inbox_key(str(to)), to=str(to), kind=kind, content=content,
+                          parts=parts, meta=meta)
 
-    def broadcast(self, kind: str, content: Any, meta: Optional[Dict[str, Any]] = None) -> Optional[str]:
+    def broadcast(self, kind: str, content: Any = None, *, parts: Optional[List[Part]] = None,
+                  meta: Optional[Dict[str, Any]] = None) -> Optional[str]:
         """Fan-out to every agent (each reads it from its own cursor). Returns the message id or None."""
-        return self._emit(self._bc_key, to=BROADCAST_TO, kind=kind, content=content, meta=meta)
+        return self._emit(self._bc_key, to=BROADCAST_TO, kind=kind, content=content,
+                          parts=parts, meta=meta)
 
-    def _emit(self, stream: str, *, to: str, kind: str, content: Any, meta) -> Optional[str]:
+    def _emit(self, stream: str, *, to: str, kind: str, content: Any,
+              parts: Optional[List[Part]] = None, meta=None) -> Optional[str]:
         if not self.online:
             return None
+        part_dicts = [(p.to_dict() if isinstance(p, Part) else p) for p in (parts or [])]
         env = {"frm": self.agent_id, "to": to, "kind": str(kind),
                "content": json.dumps(content, default=str), "ts": _now(),
-               "meta": json.dumps(meta or {}, default=str)}
+               "meta": json.dumps(meta or {}, default=str),
+               "parts": json.dumps(part_dicts, default=str)}
         try:
             return str(self._client.xadd(stream, env, maxlen=self.maxlen, approximate=True))
         except Exception:
@@ -173,9 +231,10 @@ class Bus:
             pass
 
     def _to_msg(self, sid: str, fields: Dict[str, Any]) -> Message:
+        parts = [Part.from_dict(d) for d in (_loads(fields.get("parts")) or []) if isinstance(d, dict)]
         return Message(id=str(sid), frm=fields.get("frm", ""), to=fields.get("to", ""),
                        kind=fields.get("kind", ""), content=_loads(fields.get("content")),
-                       ts=fields.get("ts", ""), meta=_loads(fields.get("meta")) or {})
+                       ts=fields.get("ts", ""), meta=_loads(fields.get("meta")) or {}, parts=parts)
 
 
 _INSTANCES: Dict[str, Bus] = {}
