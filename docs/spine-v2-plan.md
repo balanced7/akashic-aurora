@@ -136,7 +136,15 @@ Same discipline as the tag-governance slices: build small, each gated by an exec
 bar and the worst-case tests that prove robustness. **Wave 1 is the hardening you're nervous about;
 do it first.** Wave 2 is research-backed capability and can wait.
 
-### Wave 1 — Correctness & robustness hardening
+### Wave 1 — Correctness & robustness hardening  ✅ **COMPLETE 2026-06-28**
+
+All five shipped, each its own tested slice (full suite 265, guardrails clean, mirrored):
+**D1** time-indexed EventQuery (`event_index.py`, 8 tests) · **D3** confidence hardening
+(drop non-finite / clamp range, 5 tests) · **D2** word-boundary router+theme matching
+(confusable corpus, ARI bar held, 4 tests) · **D4** timezone-safe comparison
+(`foundation/timeutil.py`, 6 tests) · **W-c** narrative health counters (`narrative/health.py`,
+surfaced in `status`, 4 tests). Original specs below.
+
 
 **V1 — Time-indexed EventQuery (fixes D1).**  ✅ **SHIPPED 2026-06-28** — `core/events/event_index.py`
 (Store-backed CQRS read-model: `events:raw:tindex` zset + per-id payload keys, bounded + rebuildable;
