@@ -87,17 +87,15 @@ def test_hybrid_cas_uses_file_when_redis_down(tmp_path):
     assert h.get("k") == "v2"
 
 
-# ----------------------------------------------------- live Redis (guarded, cleaned up)
+# ----------------------------------------------------- live Redis (isolated test DB 15)
 def test_redis_cas_atomic_lua_path():
-    rs = RedisStore.connect()
-    if not rs.is_available():
+    from redis_test_helpers import fresh_test_store
+    rs = fresh_test_store()          # db 15, flushed -- NEVER canonical db 0
+    if rs is None:
         pytest.skip("Redis not available")
     key = f"test:cas:{uuid.uuid4().hex}"
-    try:
-        assert rs.cas(key, None, "v1") is True          # NX create
-        assert rs.cas(key, None, "v2") is False
-        assert rs.cas(key, "v1", "v2") is True           # Lua compare
-        assert rs.cas(key, "v1", "v3") is False          # stale
-        assert rs.get(key) == "v2"
-    finally:
-        rs.delete(key)                                   # no canonical pollution
+    assert rs.cas(key, None, "v1") is True          # NX create
+    assert rs.cas(key, None, "v2") is False
+    assert rs.cas(key, "v1", "v2") is True           # Lua compare
+    assert rs.cas(key, "v1", "v3") is False          # stale
+    assert rs.get(key) == "v2"

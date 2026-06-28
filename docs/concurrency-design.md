@@ -118,8 +118,12 @@ produced them — defense in depth beneath Layer 2. Every denial names the rule 
 headline per *unread* message (cursor-based, only-new) so an agent reads the bus without paying to reread the
 conversation; drill a headline with full `bifrost-sync` / `--json`. The structural answer remains: wake into a
 fresh minimal session (boot + cursor), not the long transcript — continuity lives in the ledger/handoffs.
-- **C4 — pre-commit backstop + name the model.** repo pre-commit mirrors the hook rules; LEXICON entry for
-  blackboard/stigmergy framing.
+- **C4 — pre-commit backstop + name the model. ✅ DONE 2026-06-28.** `scripts/hooks/pre_commit.py` (installed
+  via `scripts/hooks/install_git_hooks.py` → `core.hooksPath=scripts/githooks`, tracked + shared across worktrees)
+  rejects a commit that stages a file a PEER holds an advisory lock on (defense-in-depth beneath C0/C2, regardless
+  of which agent or which missing editor-hook); keyed on `AKASHIC_AGENT_ID`, fail-open for human commits, exit 1
+  aborts (git-hook contract). LEXICON gained a **Coordination patterns** section (blackboard, stigmergy, advisory
+  lock, fencing token, optimistic CAS). Tests in `tests/test_pre_commit.py`.
 
 ## 5. Anti-patterns — what NOT to build (all are orchestrator-shaped or solve problems we don't have)
 Redlock · etcd/ZooKeeper/Chubby · CRDT · Operational Transform · Contract-Net · full Raft / leader election.
@@ -149,3 +153,38 @@ git worktree https://git-scm.com/docs/git-worktree · Claude Code hooks https://
 Cursor hooks https://cursor.com/docs/hooks · fencing tokens https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html ·
 event sourcing https://martinfowler.com/eaaDev/EventSourcing.html · blackboard https://en.wikipedia.org/wiki/Blackboard_system ·
 stigmergy https://en.wikipedia.org/wiki/Stigmergy · A2A vs MCP https://a2a-protocol.org/latest/topics/a2a-and-mcp/
+
+---
+
+## 7. Plane 3 — singleton OS resources (CR track)
+
+Cursor surfaced (2026-06-28, on the bus) a failure class the three planes above don't
+cover. The two planes we'd named: **Plane 1 Coordination** (Bus/Store/Ledger — shared) ·
+**Plane 2 Workspace** (git tree — isolated via worktrees). The third:
+
+> **Plane 3 — singleton OS resources** (browser profiles, tool runners, ports). Concretely:
+> `gemini_web.py` uses ONE Playwright persistent profile; Chromium allows one process per
+> `user_data_dir`, so the warm `bifrost_runner` pool + the MCP `ask_gemini_web` subprocess +
+> the CLI all fight for it → profile-lock, visible Chrome flashes, timeouts.
+
+Same principle applies: **share the immutable substrate, isolate the mutable, enforce at the
+door.** A singleton resource is the *opposite* of the git tree — you can't give each agent its
+own (they need the one Google session), so here you **serialize** access rather than isolate it.
+
+**Layers (Cursor's R0–R4) + verdict:**
+- **R0 — route, don't duplicate** (build first). When a runner is online *and its Agent Card
+  advertises* `caps=[gemini_web]`, the MCP/CLI SENDS to bus `@gemini` and awaits the reply
+  instead of spawning a second subprocess. Gate on presence/caps — don't assume the runner is up.
+- **R1 — file lock on the profile dir** (build first). `gemini_web.py` takes an exclusive lock
+  on `.secrets/gemini_web_profile.lock` before `launch_persistent_context`; fail-fast with a
+  teaching message. The mechanical mutex for the subprocess fallback path.
+- **R2 — resource locks on the Bus — ALREADY AVAILABLE.** The C2 `LockManager` keys on any
+  normalized string, so a resource is just a path-like key: `py agent_cli.py lock <agent>
+  gemini_chrome_profile` gives fencing token + TTL + boot/presence visibility *today*. Reuse C2;
+  do not build a new lock type.
+- **R3 — per-agent profiles** — only if you want parallel sessions; skip if one Google account.
+- **R4 — tool-broker daemon** — defer until a 2nd singleton tool appears (YAGNI).
+
+**Build order:** R0 + R1 first (fix ~90% of the pain), lean on R2 (free) for awareness/fencing,
+R4 only later. Anti-patterns (agreed): Redlock/etcd, a 2nd MCP server per agent, "remember not
+to call gemini while the runner runs." **Split:** Cursor builds R0+R1; this doc owns the design.

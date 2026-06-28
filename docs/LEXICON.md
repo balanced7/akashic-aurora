@@ -148,6 +148,25 @@ Harmonized 2026-06-20 (see `docs/knowledge-harmonization-plan.md`):
 Rule: raw is sacred; the Store summarizes-with-pointer; chronicles are regenerated from
 the Store. Never hand-edit a derived view as if it were a source.
 
+## Coordination patterns (two-agent concurrency — see `docs/concurrency-design.md`)
+
+Names for what the system already does, so we can reason about it precisely:
+
+- **Blackboard** — agents coordinate *indirectly* by reading/writing a shared knowledge
+  space rather than messaging each other directly. Our **Akasha Ledger** is the blackboard.
+- **Stigmergy** — coordination via traces left in a shared environment (the ledger/git
+  state) that trigger the next agent's action; no direct talk required. What two agents
+  writing one ledger are doing.
+- **Advisory lock** — a lock honored only by cooperating writers (not OS-enforced). Correct
+  here because we own both agents. `core/comm/locks.py`; `py agent_cli.py lock`.
+- **Fencing token** — a monotonic number issued per lock acquisition; a stale/paused holder
+  is detected by a too-old token at the commit gate. The one must-have lock-safety property.
+- **Optimistic CAS** — compare-and-set: write only if the value is unchanged since you read
+  it; a conflicting write is rejected (lost-update guard), not silently applied. `Store.cas` /
+  `Store.update_atomic` → `CASConflict`.
+- **Three planes** — *coordination* (shared substrate) · *workspace* (isolated per agent via
+  git worktrees) · *singleton OS resources* (serialized: route/lock, never duplicated).
+
 ## Redis topology & test isolation
 
 - **Canonical endpoint** = `config.REDIS_PORT` (16379, the Docker master). The 6379/6380
