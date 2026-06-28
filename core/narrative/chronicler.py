@@ -437,7 +437,10 @@ class Chronicler:
             "coverage": coverage,
         }
 
-    _SOURCE_RE = re.compile(r"\(source:\s*([^)]+?)\s*\)")
+    # Each distilled line ENDS with "(source: <src>)". Capture greedily to the LINE-FINAL ')'
+    # so a source that itself contains parentheses (e.g. learn:experiment:...(prior art)) is
+    # extracted whole, not truncated at its first ')' -- the latter false-flagged faithfulness.
+    _SOURCE_RE = re.compile(r"\(source:\s*(.+)\)\s*$", re.M)
 
     def _compute_metrics(
         self, chapters: List[Chapter]
