@@ -43,6 +43,64 @@ def _clip(s, n=_MAX):
     return (cut or s[:n]) + " ...[truncated]"
 
 
+def _working_tree_status():
+    """Best-effort git cleanliness for the repo this file lives in.
+
+    Returns {ok, dirty, ahead, branch, summary}. ok=False means git is unavailable
+    or this isn't a repo -- callers treat that as 'nothing to warn about'. The whole
+    repo (E:\\AI-Setup) is the unit of mirroring, regardless of the agent's cwd.
+    Never raises -- a guardrail must not break the door it guards.
+    """
+    import subprocess
+    root = os.path.dirname(os.path.abspath(__file__))
+    env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}   # never hang on a credential prompt
+
+    def _git(*a):
+        return subprocess.run(["git", *a], cwd=root, env=env, capture_output=True, text=True)
+
+    try:
+        st = _git("status", "--porcelain")
+        if st.returncode != 0:
+            return {"ok": False, "dirty": 0, "ahead": 0, "branch": "", "summary": ""}
+        dirty = [ln for ln in st.stdout.splitlines() if ln.strip()]
+        branch = _git("rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
+        ahead = 0
+        rc = _git("rev-list", "--count", f"origin/{branch}..{branch}")
+        if rc.returncode == 0 and rc.stdout.strip().isdigit():
+            ahead = int(rc.stdout.strip())
+        return {"ok": True, "dirty": len(dirty), "ahead": ahead, "branch": branch,
+                "summary": ", ".join(d[3:] for d in dirty[:6])}
+    except Exception:
+        return {"ok": False, "dirty": 0, "ahead": 0, "branch": "", "summary": ""}
+
+
+def _warn_unmirrored(soft=False):
+    """Tell the agent if it has uncommitted/unpushed work -- a slice isn't done until
+    it's mirrored. `soft` is a one-line heads-up (boot); otherwise it's the loud
+    session-end nag (handoff). Returns True if it warned. Silent when git is
+    unavailable or the tree is clean.
+    """
+    s = _working_tree_status()
+    if not s.get("ok") or (s["dirty"] == 0 and s["ahead"] == 0):
+        return False
+    bits = []
+    if s["dirty"]:
+        bits.append(f"{s['dirty']} uncommitted file(s)")
+    if s["ahead"]:
+        bits.append(f"{s['ahead']} unpushed commit(s)")
+    label = ", ".join(bits)
+    if soft:
+        print(f"\n[i] Heads-up: {label} not yet mirrored -- "
+              'run `py scripts/mirror.py "msg"` when this slice is done.')
+        return True
+    print(f"\n[!] UNMIRRORED WORK: {label} -- a slice isn't done until it's mirrored.")
+    if s.get("summary"):
+        print(f"    changed: {s['summary']}" + (" ..." if s["dirty"] > 6 else ""))
+    print('    Run:  py scripts/mirror.py "<msg>"  (commit+push),'
+          ' then  py scripts/snapshot_knowledge.py snapshot')
+    return True
+
+
 # --------------------------------------------------------------------------- boot
 def cmd_boot(args):
     from agent.initializer import derive_agent_context_from_startup_sources
@@ -88,6 +146,7 @@ def cmd_boot(args):
     print("\n## BIFROST (live + durable)")
     print("  py agent_cli.py bifrost-sync <agent>     # peek unread (same as boot section)")
     print("  py agent_cli.py promoted [--limit N]       # durable salient msgs (kind=bifrost_msg)")
+    _warn_unmirrored(soft=True)   # heads-up if you're resuming on top of unmirrored work
     return 0 if res.get("status") == "success" else 1
 
 
@@ -631,6 +690,7 @@ def cmd_handoff(args):
     else:
         print(f"[{'OK' if ok else 'FAIL'}] handoff {args.agent_id} -> {to_agent}: {_clip(task, 80)}")
         print(f"  (the target's next `boot` will surface this as its briefing)")
+        _warn_unmirrored()   # session-end: don't hand off on top of unmirrored work
     return 0 if ok else 1
 
 
