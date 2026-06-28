@@ -3,7 +3,7 @@ chcp 65001 >nul
 setlocal enabledelayedexpansion
 
 :: ============================================================
-:: BREAKTHROUGH STACK - FAST LAUNCHER
+:: AKASHIC AURORA - FAST LAUNCHER
 :: Single-click to launch fully primed OpenCode
 :: ============================================================
 
@@ -16,7 +16,7 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo ============================================================
-echo BREAKTHROUGH STACK - FAST LAUNCH
+echo AKASHIC AURORA - FAST LAUNCH
 echo ============================================================
 echo.
 

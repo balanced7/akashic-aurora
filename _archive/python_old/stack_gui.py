@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Stack GUI — Web Dashboard for BreakThrough Stack Manager
+Stack GUI — Web Dashboard for Akashic Aurora Manager
 =========================================================
 Modular panel architecture. Each panel is an isolated subsystem
 that can fail independently without breaking the whole UI.
@@ -64,7 +64,7 @@ VOICE_BASE_URL = os.environ.get("AI_VOICE_URL", "http://127.0.0.1:5000").rstrip(
 OLLAMA_BASE_URL = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434").rstrip("/")
 
 app = FastAPI(
-    title="BreakThrough Stack Manager",
+    title="Akashic Aurora Manager",
     version="1.0.0",
     docs_url="/api/docs",
 )
@@ -569,7 +569,7 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BreakThrough Stack Manager</title>
+<title>Akashic Aurora Manager</title>
 <style>
 :root {
   --bg: #0d1117;
@@ -649,7 +649,7 @@ th { color:var(--dim); font-weight:600; }
 <body>
 
 <header>
-  <h1>&#9883; BreakThrough Stack</h1>
+  <h1>&#9883; Akashic Aurora</h1>
   <nav>
     <a href="/" style="color:var(--dim);text-decoration:none;padding:6px 14px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;margin-right:8px;">AI Console</a>
     <button class="active" data-tab="dashboard">Dashboard</button>

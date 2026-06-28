@@ -1,5 +1,5 @@
 """
-ENTERPRISE COORDINATION PRIMER - BREAKTHROUGH STACK
+ENTERPRISE COORDINATION PRIMER - AKASHIC AURORA
 ================================================
 Version: 3.0
 Updated: 2026-04-14

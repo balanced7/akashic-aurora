@@ -1,4 +1,4 @@
-# BreakThrough Stack - Index
+# Akashic Aurora - Index
 
 ## Logging Strategy: Smart Log System
 

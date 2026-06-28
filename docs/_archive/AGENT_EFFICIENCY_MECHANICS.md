@@ -274,7 +274,7 @@ agent_profiles = {
 When generating briefing for Cursor:
 ```
 Briefing for Cursor (minimalist version)
-- Project: breakthrough-stack (45%)
+- Project: akashic-aurora (45%)
 - Your job: Implement retry logic (OpenCode's design)
 - Key constraint: Use async/await pattern
 - Blockers: None

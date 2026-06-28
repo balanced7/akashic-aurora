@@ -17,7 +17,7 @@ def test_port(host, port, timeout=2):
 
 def main():
     print("=" * 60)
-    print("BreakThrough Stack - Redis & Session Cache Diagnostics")
+    print("Akashic Aurora - Redis & Session Cache Diagnostics")
     print("=" * 60)
     print()
 

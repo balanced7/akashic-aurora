@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Stack Manager — Full Orchestrator for BreakThrough Stack
+Stack Manager — Full Orchestrator for Akashic Aurora
 =========================================================
 Unified process supervisor, service discovery, resource tracker, and
 network mapper across Windows, WSL2, and Docker.
@@ -965,7 +965,7 @@ def cmd_start():
     # ── Pre-flight checks ──
     print()
     print(c("B", "\u2501" * 60))
-    print(c("C", "  BREAKTHROUGH STACK — Full Orchestrated Launch"))
+    print(c("C", "  AKASHIC AURORA — Full Orchestrated Launch"))
     print(c("B", "\u2501" * 60))
 
     # 1. Port conflict check

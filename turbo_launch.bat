@@ -3,7 +3,7 @@ chcp 65001 >nul
 setlocal enabledelayedexpansion
 
 :: ============================================================
-:: BREAKTHROUGH STACK - TURBO LAUNCH
+:: AKASHIC AURORA - TURBO LAUNCH
 :: Optimized for fastest possible OpenCode startup
 :: ============================================================
 
@@ -16,7 +16,7 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo ============================================================
-echo BREAKTHROUGH STACK - TURBO LAUNCH
+echo AKASHIC AURORA - TURBO LAUNCH
 echo ============================================================
 echo.
 

@@ -66,7 +66,7 @@ Agents don't have declared specializations or capabilities.
   "max_concurrent_tasks": 1,
   "handoff_expertise": ["opencode"],
   "status": "available",
-  "current_project": "breakthrough-stack"
+  "current_project": "akashic-aurora"
 }
 ```
 
@@ -184,7 +184,7 @@ Collaboration:
   "agent_id": "claude_20260616_001",
   "timestamp": "2026-06-16T00:35:00Z",
   "event_type": "work_start|work_progress|decision|blocker|handoff_request|handoff_complete",
-  "project": "breakthrough-stack",
+  "project": "akashic-aurora",
   "content": "...",
   "milestones_affected": ["milestone-id"],
   "next_agent": "opencode_xxx" (if handoff)
@@ -292,7 +292,7 @@ class AgentHandoff:
 # Agent Briefing: {project_name}
 
 ## Your Role
-You are Claude Code, assuming work on the BreakThrough Stack.
+You are Claude Code, assuming work on the Akashic Aurora.
 
 ## Previous Agent
 - ID: opencode_20260415_001327

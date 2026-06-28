@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BreakThrough Stack - File-Based Session Logger (Fallback)
+Akashic Aurora - File-Based Session Logger (Fallback)
 =========================================================
 
 Works when Redis is unavailable. Provides same interface as redis-based logger.

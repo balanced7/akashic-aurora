@@ -1,4 +1,4 @@
-# STARTUP.md - BreakThrough Stack Initialization
+# STARTUP.md - Akashic Aurora Initialization
 > **FOR ALL AGENTS**: Read this FIRST. This is the only file you need on startup.
 
 **Version**: 4.0  
@@ -155,7 +155,7 @@ Save as `E:\AI-Setup\init_session.py` and run on every startup:
 ```python
 #!/usr/bin/env python3
 """
-BreakThrough Stack - Session Initialization
+Akashic Aurora - Session Initialization
 Run this at the START of every session.
 """
 import sys
@@ -784,4 +784,4 @@ os.remove(r"E:\AI-Setup\blackboard_data\session_state.json")
 
 ---
 
-**Welcome to BreakThrough Stack!** 🎉
+**Welcome to Akashic Aurora!** 🎉

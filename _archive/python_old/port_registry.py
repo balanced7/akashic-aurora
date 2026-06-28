@@ -5,7 +5,7 @@ import json
 r = redis.Redis(host='localhost', port=6379, decode_responses=True)
 
 print("=" * 60)
-print("  BREAKTHROUGH STACK - PORT & SERVICE REGISTRY")
+print("  AKASHIC AURORA - PORT & SERVICE REGISTRY")
 print("=" * 60)
 
 print("\n[1] PORT ALLOCATIONS")

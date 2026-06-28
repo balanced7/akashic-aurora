@@ -101,7 +101,7 @@ class RedisHAManager:
     def get_current_master_via_sentinel(self) -> Optional[Tuple[str, int]]:
         """Get current master address from Sentinel"""
         for host, port in self.sentinel_clients:
-            output, code = self._sentinel_command(host, port, f"SENTINEL get-master-addr-by-name breakthrough")
+            output, code = self._sentinel_command(host, port, f"SENTINEL get-master-addr-by-name akasha")
             if code == 0 and output:
                 parts = output.split('\n')
                 if len(parts) >= 2:
@@ -143,7 +143,7 @@ class RedisHAManager:
     
     def get_sentinel_master_info(self, host: str, port: int) -> Dict[str, Any]:
         """Get master info from Sentinel"""
-        output, code = self._sentinel_command(host, port, "SENTINEL master breakthrough")
+        output, code = self._sentinel_command(host, port, "SENTINEL master akasha")
         if code != 0:
             return {"status": "error"}
         
@@ -370,10 +370,10 @@ networks:
 def create_sentinel_config(port: int, output_path: str):
     """Create a Sentinel configuration file"""
     config = f"""port {port}
-sentinel monitor breakthrough 127.0.0.1 6379 2
-sentinel down-after-milliseconds breakthrough 5000
-sentinel failover-timeout breakthrough 60000
-sentinel parallel-syncs breakthrough 1
+sentinel monitor akasha 127.0.0.1 6379 2
+sentinel down-after-milliseconds akasha 5000
+sentinel failover-timeout akasha 60000
+sentinel parallel-syncs akasha 1
 sentinel deny-scripts-reconfig yes
 dir /tmp
 """
@@ -394,7 +394,7 @@ def get_current_master_from_sentinel(host: str = "127.0.0.1", port: int = 26379)
     """Get current master address from Sentinel"""
     try:
         client = get_sentinel_client(host, port)
-        result = client.execute_command("SENTINEL", "get-master-addr-by-name", "breakthrough")
+        result = client.execute_command("SENTINEL", "get-master-addr-by-name", "akasha")
         if result:
             return (result[0].decode(), int(result[1]))
     except Exception as e:

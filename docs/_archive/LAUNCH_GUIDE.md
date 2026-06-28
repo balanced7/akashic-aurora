@@ -1,4 +1,4 @@
-# BREAKTHROUGH STACK - QUICK LAUNCH GUIDE
+# AKASHIC AURORA - QUICK LAUNCH GUIDE
 
 ## One-Click Launch (Recommended)
 
@@ -19,7 +19,7 @@ Double-click **`turbo_launch.bat`** for the fastest startup:
 ## First-Time Setup
 
 1. Run `install_shortcuts.bat` to create Desktop shortcuts
-2. Pin "BreakThrough Launch" to taskbar for 1-click startup
+2. Pin "Akashic Aurora Launch" to taskbar for 1-click startup
 3. Docker Desktop should auto-start with Windows (enable in Docker settings)
 
 ## Startup Flow

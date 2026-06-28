@@ -1,7 +1,7 @@
 @echo off
 chcp 65001 >nul
 echo ============================================================
-echo BREAKTHROUGH STACK - BOOTSTRAP
+echo AKASHIC AURORA - BOOTSTRAP
 echo ============================================================
 echo.
 

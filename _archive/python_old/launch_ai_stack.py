@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Launch AI Stack — thin Tk launcher for BreakThrough stack_manager.
+Launch AI Stack — thin Tk launcher for Akashic Aurora stack_manager.
 
 Double-click or run:  python launch_ai_stack.py
 

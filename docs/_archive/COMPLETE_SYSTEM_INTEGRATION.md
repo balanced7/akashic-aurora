@@ -191,7 +191,7 @@ Task: Agent needs to make a decision about architecture
 
 Step 1: Load System Prompt (500 tokens)
 ────────────────────────────────────
-You are a senior AI architect working on the breakthrough-stack project.
+You are a senior AI architect working on the akashic-aurora project.
 Your job: Review technical decisions and provide guidance.
 Context: You have full access to session history, past decisions, and project state.
 Rules: Be concise, decisive, explain tradeoffs.

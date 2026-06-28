@@ -1,4 +1,4 @@
-# Breakthrough Stack v1.0 - Docker Compose
+# Akashic Aurora v1.0 - Docker Compose
 # ==========================================
 # Persistent deployment for AMD 9070 XT + 9950X3D
 #
@@ -13,7 +13,7 @@ services:
   # ==========================================
   vllm-server:
     image: rocm/vllm:latest
-    container_name: vllm_breakthrough
+    container_name: vllm_akashic_aurora
     restart: unless-stopped
     ports:
       - "8000:8000"  # OpenAI-compatible API
@@ -88,7 +88,7 @@ services:
       - "3000:8080"
     environment:
       - OLLAMA_BASE_URL=http://ollama:11434
-      - WEBUI_SECRET_KEY=breakthrough_stack_2024
+      - WEBUI_SECRET_KEY=akashic_aurora_2024
     volumes:
       - openwebui_data:/app/backend/data
     depends_on:
@@ -132,5 +132,5 @@ volumes:
 # ==========================================
 networks:
   default:
-    name: breakthrough_net
+    name: akashic_aurora_net
     driver: bridge

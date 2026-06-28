@@ -1,5 +1,5 @@
 """
-AGENT PRIMER - BREAKTHROUGH STACK
+AGENT PRIMER - AKASHIC AURORA
 =================================
 Every agent MUST read this on startup. This is the source of truth.
 
@@ -25,7 +25,7 @@ Search keys: "primer", "best_practices", "architecture", "ports", "docker", "scr
 # ============================================================================
 
 SYSTEM_ARCHITECTURE = """
-BREAKTHROUGH STACK ARCHITECTURE:
+AKASHIC AURORA ARCHITECTURE:
 
 Windows Host (Docker Desktop + WSL2)
 ├── Windows Docker

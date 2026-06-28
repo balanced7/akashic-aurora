@@ -489,7 +489,7 @@ class ContextWindowManager:
         
         # System prompt (fixed, 500 tokens)
         system = """
-You are a specialized agent working on the breakthrough-stack project.
+You are a specialized agent working on the akashic-aurora project.
 Your role: Analyze and reason about complex technical problems.
 Context: You have access to session history, past decisions, and project state.
 Output: Provide clear, actionable reasoning.

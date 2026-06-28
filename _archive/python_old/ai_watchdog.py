@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-AI Watchdog — unified infra observer for BreakThrough Stack.
+AI Watchdog — unified infra observer for Akashic Aurora.
 
 Combines:
   • Port management — ``stack_manager.Ports.PortManager`` (conflicts, host scan, Redis registry sync)

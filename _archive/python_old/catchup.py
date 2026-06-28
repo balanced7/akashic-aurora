@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BreakThrough Stack - Session Catchup
+Akashic Aurora - Session Catchup
 ===================================
 
 Shows context for resuming work across all systems:
@@ -48,7 +48,7 @@ INDEX_FILE = ARCHIVE_DIR / "index.json"
 def print_header():
     print()
     print("=" * 70)
-    print("  BREAKTHROUGH STACK - SESSION CATCHUP")
+    print("  AKASHIC AURORA - SESSION CATCHUP")
     print(f"  {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 70)
 

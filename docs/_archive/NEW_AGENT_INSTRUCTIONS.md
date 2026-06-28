@@ -2,7 +2,7 @@
 
 ## YOUR TASK
 
-You are a NEW OpenCode agent that needs to get up to speed with the BreakThrough Stack project. Follow these steps in order:
+You are a NEW OpenCode agent that needs to get up to speed with the Akashic Aurora project. Follow these steps in order:
 
 ### STEP 1: Read Bootstrap File
 Read and execute `E:\AI-Setup\bootstrap.md` to initialize all services:

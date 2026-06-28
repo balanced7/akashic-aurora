@@ -1,4 +1,4 @@
-# BreakThrough Agent Protocol (all agents)
+# Akashic Aurora Agent Protocol (all agents)
 
 **Applies to:** Cursor, Claude (Desktop / API hosts), OpenCode, and any tooling that attaches to MCP.
 
@@ -31,7 +31,7 @@ Single source reference: **`bootstrap.md`** (infrastructure bootstrap + deep lin
 | WSL Redis **writes** | **6380** | Application master |
 | WSL replicas / read | 6379, 6381 | Often read-only |
 | Docker Redis Stack | **16379** | Single instance; summaries mirrored here |
-| BreakThrough MCP HTTP | **8080** | Optional; stdio preferred for Cursor/OpenCode |
+| Akashic Aurora MCP HTTP | **8080** | Optional; stdio preferred for Cursor/OpenCode |
 
 ## Unified MCP integration
 

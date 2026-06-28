@@ -1,7 +1,7 @@
 """
-BreakThrough Stack Unified MCP Server
+Akashic Aurora Unified MCP Server
 ====================================
-Single MCP server for all BreakThrough Stack tools:
+Single MCP server for all Akashic Aurora tools:
 
 - Session Context & Logging (Redis)
 - Project Management  
@@ -44,7 +44,7 @@ os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 
 LAUNCH_CONTRACT_JSON = json.dumps(
     {
-        "description": "BreakThrough agent boot contract",
+        "description": "Akashic Aurora agent boot contract",
         "resource_uri": "breakthrough://launch-contract",
         "redis_write_host": "localhost",
         "redis_write_port": 6380,
@@ -108,9 +108,9 @@ SCREENSPACE_CATALOG_JSON = json.dumps(
 )
 
 mcp = FastMCP(
-    "BreakThrough Stack",
+    "Akashic Aurora",
     instructions=(
-        "Unified MCP for BreakThrough Stack. FIRST on a new session: call breakthrough_bootstrap(agent, tier, intent, systems_worked) "
+        "Unified MCP for Akashic Aurora. FIRST on a new session: call breakthrough_bootstrap(agent, tier, intent, systems_worked) "
         "OR session_infra_ensure then session_register. Resource breakthrough://launch-contract has the full boot schema JSON. "
         "Then catchup / get_full_context. Log with session_append_event; ADRs with learning_record_decision. "
         "Ops health: ai_watchdog_report (ports + canonical logging + infra snapshot); optional ai_watchdog_ensure_infra. "
@@ -387,7 +387,7 @@ def set_current_work(task: str) -> str:
 
 @mcp.tool()
 def session_set_identity(session_id: str) -> str:
-    """Persist the active BreakThrough session id (shared by Cursor / Claude / OpenCode)."""
+    """Persist the active Akashic Aurora session id (shared by Cursor / Claude / OpenCode)."""
     try:
         from session_canonical import persist_session_id
 
@@ -650,7 +650,7 @@ def breakthrough_bootstrap(
                 agent=agent,
                 event_type="start",
                 intent=intent or f"Bootstrap ({agent})",
-                systems_worked=systems_worked or "BreakThrough stack; see breakthrough://launch-contract",
+                systems_worked=systems_worked or "Akashic Aurora stack; see breakthrough://launch-contract",
             )
 
         snap = bootstrap_context_snapshot(session_id=sid)
@@ -1271,7 +1271,7 @@ def ping_redis() -> str:
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="BreakThrough Stack Unified MCP")
+    parser = argparse.ArgumentParser(description="Akashic Aurora Unified MCP")
     parser.add_argument("--http", action="store_true", help="HTTP transport")
     parser.add_argument("--port", type=int, default=8080, help="HTTP port")
     args = parser.parse_args()
