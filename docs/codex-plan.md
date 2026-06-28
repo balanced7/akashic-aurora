@@ -183,14 +183,27 @@ a lone high-importance atom (must stay its own cluster, not merge).
 Note: embeddings here are a **clustering** signal (where they shine), not a replacement for keyword/path
 retrieval (the hybrid stance — review delta D3).
 
-### C2 — Resource schema + lifecycle
-**Goal:** the knowledge-axis node — `Resource(id, title, summary, atom_ids, centroid, confidence, maturity,
-valid_from/valid_to, recorded_at, relates[supersession/parent/child])`. Reuse `chapter_lifecycle`
-(regenerate-in-place stable id, `correct_*` supersede, bi-temporal).
-**Research-to-do:** maturity ladder (seedling→budding→evergreen, digital-garden style) mapped to confidence.
-**Bar:** regenerate-from-atoms is idempotent (stable id); merge unions provenance + supersedes olds; split
-partitions atoms into two + supersedes old; **no atom lost** (I7); every op reversible (I4).
-**Worst cases:** merge, split, round-trip, backward-compat with pre-Codex data, empty cluster.
+### C2 — Resource schema + shared bi-temporal lifecycle  *(revised by live pre-build review, E1–E4)*
+**Goal:** the knowledge-axis node `Resource(id, title, summary, atom_ids, centroid, confidence,
+valid_from/valid_to, recorded_at, relates, version_hash)`.
+- **E1 — stable identity, NOT membership-derived.** `id` is assigned once and never changes; a `version_hash`
+  (over atom_ids + summary) tracks content. A merge/split is a SUPERSESSION (new resource ids supersede the
+  old, which keep their ids + a `replaces` edge), so inbound links *forward*, never break. (A content-derived
+  id is right for the stable-membership Chapter, wrong for the mutable-membership Resource.)
+- **E2 — numeric confidence, no maturity ladder.** Keep `confidence` (it drives the Ranker weight + the C6
+  auto-apply gate — real behavior); CUT seedling→evergreen (ceremony with no transition logic).
+- **E3 — shared lifecycle = functions over a PROTOCOL, not a base class.** Generalize the bi-temporal /
+  supersession logic into type-agnostic functions over a structural `BiTemporal` protocol (id + valid_from/
+  valid_to/recorded_at + relates). Chapter and Resource each keep their own id strategy and satisfy it — no
+  `Node` base class, no `if type==Chapter` scatter.
+- **E4 — `valid_to` is the canonical supersession for bi-temporal nodes (single writer).** `is_active` excludes
+  a node if field-`superseded` OR `valid_to`-closed (no false-active), but a bi-temporal node's WRITE path only
+  closes `valid_to`; the field survives only for simple non-bi-temporal records. Fixes the latent Ranker bug.
+**Bar:** id STABLE across regenerate AND across membership change (merge/split → new entities supersede, old id
+intact, links forward); no atom orphaned (I7); `is_active` excludes a `valid_to`-closed Resource (bug
+regression); a superseded / low-confidence Resource ranks out via the Ranker; regenerate idempotent
+(unchanged `version_hash` → no rewrite).
+**Worst cases:** merge, split, regenerate, backward-compat, empty cluster, a node with BOTH mechanisms set.
 
 ### C3 — MDL scorer + merge/split decision
 **Goal:** the objective function — a description-length estimate + usage weighting + rule-of-three + hysteresis

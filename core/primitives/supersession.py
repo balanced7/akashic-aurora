@@ -22,8 +22,15 @@ from typing import Any, Dict, Iterable, List, Optional
 
 
 def is_active(record: Dict[str, Any]) -> bool:
-    """True unless this record has been superseded by a newer one."""
-    return not record.get("superseded", False)
+    """True unless this record has been superseded by a newer one.
+
+    Honors BOTH supersession mechanisms so neither can leave a retired node falsely active
+    (the latent Ranker bug, delta E4): the lightweight field `superseded` (used by simple,
+    non-bi-temporal records) AND a closed bi-temporal `valid_to` (the canonical mechanism for
+    Chapters/Resources). A record with neither field present is active (safe for legacy data)."""
+    if record.get("superseded", False):
+        return False
+    return not record.get("valid_to")        # open/absent valid_to = active; a closed interval = retired
 
 
 def mark_supersedes(new_record: Dict[str, Any], old_id: Optional[str]) -> Dict[str, Any]:
