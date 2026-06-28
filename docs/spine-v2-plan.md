@@ -138,7 +138,11 @@ do it first.** Wave 2 is research-backed capability and can wait.
 
 ### Wave 1 — Correctness & robustness hardening
 
-**V1 — Time-indexed EventQuery (fixes D1).**
+**V1 — Time-indexed EventQuery (fixes D1).**  ✅ **SHIPPED 2026-06-28** — `core/events/event_index.py`
+(Store-backed CQRS read-model: `events:raw:tindex` zset + per-id payload keys, bounded + rebuildable;
+Ledger stays system-of-record). Index is opt-in via a Store (ledger-only callers degrade to the bounded
+scan); canonical singleton wires it. `events_in_window` is now a range-scan with total in-retention recall.
+8 worst-case tests green (`tests/test_event_index.py`), full suite 246. Below = the original spec.
 Add a per-stream time index (`events:raw:tindex` zset `{event_id: epoch}`, written on capture) so
 `events_in_window` is a **range scan**, not a full replay; resolve ids → events by direct lookup.
 Delete the false "recall=100%" claim or make it true within a declared horizon.

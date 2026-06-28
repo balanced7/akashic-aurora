@@ -69,8 +69,19 @@ class EventLog:
     Semantic Relationship: EventLog records RawEvents (full-fidelity, cross-agent)
     """
 
-    def __init__(self, ledger: Optional[Ledger] = None):
+    def __init__(self, ledger: Optional[Ledger] = None, store: Optional["object"] = None):
         self.ledger = ledger if ledger is not None else create_ledger()
+        # Optional time index (Slice V1): a Store-backed read-model that makes window
+        # queries a range-scan instead of a capped replay (fixes silent recall loss). It's
+        # OPT-IN -- only built when a Store is provided, so ledger-only callers (tests) keep
+        # the pure-Ledger behavior and never touch a Store. See core/events/event_index.py.
+        self.index = None
+        if store is not None:
+            try:
+                from core.events.event_index import EventIndex
+                self.index = EventIndex(store, maxlen=CANONICAL_MAXLEN)
+            except Exception:
+                self.index = None
 
     # --------------------------------------------------------------- capture (write)
     def capture(self, kind: str, summary: str, *,
@@ -111,6 +122,8 @@ class EventLog:
             out = dict(event)
             out["id"] = str(eid)
             out["_ref"] = event_ref(RAW_STREAM, str(eid))
+            if self.index is not None:
+                self.index.add(out)   # best-effort; the Ledger write above is the record
             return out
         except Exception as e:
             logger.warning(f"capture failed (ignored): {type(e).__name__}: {e}")
@@ -136,6 +149,17 @@ class EventLog:
         if limit is not None and len(events) > limit:
             events = events[-limit:]
         return events
+
+    def rebuild_index(self) -> int:
+        """Replay the canonical firehose into the time index (Slice V1). Backfills events
+        captured before the index existed and self-heals a cold/lost index. No-op (0) when
+        no index is configured. Best-effort -- never raises."""
+        if self.index is None:
+            return 0
+        try:
+            return self.index.rebuild(self._read_all(RAW_STREAM))
+        except Exception:
+            return 0
 
     def get(self, ref: str) -> Optional[Dict[str, Any]]:
         """Resolve a followable `event:<stream>:<id>` pointer to its stored raw event."""
@@ -255,5 +279,12 @@ def get_event_log(ledger: Optional[Ledger] = None) -> EventLog:
     if os.environ.get("_AISETUP_TEST_ISOLATED"):
         return EventLog(create_ledger())
     if _INSTANCE is None:
-        _INSTANCE = EventLog()
+        # Canonical singleton: wire a Store so the time index is live in production (window
+        # queries become range-scans). Index build is best-effort -- a Store hiccup just
+        # falls back to the Ledger scan, so this can never block event capture.
+        try:
+            from core.foundation.store import create_store
+            _INSTANCE = EventLog(store=create_store())
+        except Exception:
+            _INSTANCE = EventLog()
     return _INSTANCE

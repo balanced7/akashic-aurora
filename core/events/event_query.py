@@ -57,12 +57,26 @@ class EventQuery:
         """Raw events whose `at` falls in [start, end] (inclusive), oldest-first, filtered.
 
         The core timeline-drill primitive: pass a Chapter/Beat span to see what actually
-        happened in it. Returns ALL matches (recall = 100%) up to `limit`. Never raises.
+        happened in it. When the EventLog has a time index (Slice V1), this is a range-scan
+        with TOTAL recall within retention. Without one (ledger-only / index cold), it falls
+        back to a bounded replay of the newest `scan` events -- correct, but matches older
+        than that horizon are not visible until the index is built (`EventLog.rebuild_index`).
+        Never raises.
         """
         try:
             lo, hi = _epoch(start_iso), _epoch(end_iso)
             if lo > hi:
                 lo, hi = hi, lo
+            index = getattr(self.log, "index", None)
+            if index is not None:
+                # range-scan the read-model (all-agent firehose), then apply ALL secondary
+                # filters in-window -- incl. agent, which the scan path got from the per-agent
+                # stream but the index must apply explicitly.
+                candidates = index.window(start_iso, end_iso)
+                out = [e for e in candidates
+                       if (agent is None or e.get("agent_id") == agent)
+                       and self._match(e, kind=kind, track=track)]
+                return out[:limit] if limit else out
             out = []
             for e in self.log.scan(agent=agent, limit=self.scan):
                 if lo <= _epoch(e.get("at", "")) <= hi and self._match(e, kind=kind, track=track):
