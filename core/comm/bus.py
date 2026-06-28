@@ -225,16 +225,17 @@ class Bus:
         return self._drain(block=int(timeout_ms), limit=limit, advance=advance)
 
     def _blocking_client(self, block_ms):
-        """A dedicated client for a BLOCKING xread: its socket timeout must exceed the block, or
-        the fail-fast client's short socket_timeout (~2-3s) aborts a long block prematurely. block_ms
-        of 0 (block forever) -> no socket timeout. Falls back to the shared client on any error."""
+        """A client whose socket timeout EXCEEDS the block: the fail-fast client's short socket_timeout
+        (~2-3s) would abort a long blocking xread prematurely. Built via the canonical connector (so we
+        honor redis-only-via-connector) by passing a long `timeout_seconds` (which becomes the socket
+        timeout). block_ms of 0 (block 'forever') -> a day. Falls back to the shared client on error."""
         try:
-            import redis
-            kw = self._client.connection_pool.connection_kwargs
-            socket_timeout = None if not block_ms else (block_ms / 1000.0 + 5)
-            return redis.Redis(host=kw.get("host", "localhost"), port=kw.get("port", 16379),
-                               db=kw.get("db", 0), decode_responses=True,
-                               socket_timeout=socket_timeout, socket_connect_timeout=3)
+            from core.foundation.redis_connection import (
+                connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
+            socket_timeout = (block_ms / 1000.0 + 5) if block_ms else 86400.0
+            return connect_to_redis_with_fail_fast(
+                host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT,
+                timeout_seconds=socket_timeout, decode_responses=True)
         except Exception:
             return None
 
