@@ -2,6 +2,9 @@
 
 **Date:** 2026-06-28
 **Status:** plan / design (no code yet) — the Wave-2 direction, reframed around documentation self-management.
+**Pressure-tested by:** `docs/codex-inventory.md` (2026-06-28) — inventory + slice placement + 8 simplifications.
+That pass found the Codex needs only **2 net-new primitives** (Embedder, Clusterer) + reuse, and reorders the
+build to do three unifications first (time fn, shared Consolidator, node-lifecycle). Read it alongside this.
 **Companions:** `docs/spine-v2-plan.md` (Wave-1 hardening, done), `docs/tag-governance-plan.md` (the governance pattern this reuses), `docs/perspectives-maps-plan.md` (lenses), `ROADMAP.md`.
 
 ---
