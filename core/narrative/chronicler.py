@@ -32,6 +32,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from core.foundation.store import Store, create_store
+from core.foundation.timeutil import to_epoch, hours_between
 from core.narrative.beat_log import BeatLog, get_beat_log
 from core.narrative.schema import (
     Beat, Chapter, Track, Theme, Atlas, Edge,
@@ -50,20 +51,10 @@ TIMELINE = "narr:beats:timeline"
 ROUTER_ACTIVE = "narr:router:active"
 
 
-def _epoch(iso: str) -> float:
-    try:
-        return datetime.fromisoformat(iso).timestamp()
-    except (ValueError, TypeError):
-        return 0.0
-
-
-def _hour_gap(iso_a: str, iso_b: str) -> float:
-    try:
-        ta = datetime.fromisoformat(iso_a)
-        tb = datetime.fromisoformat(iso_b)
-        return abs((tb - ta).total_seconds()) / 3600.0
-    except (ValueError, TypeError):
-        return 0.0
+# Timezone-safe comparison (D4): naive == UTC, so mixed naive/tz-aware beats sort and
+# gap-measure consistently instead of mis-ordering / silently collapsing to a 0.0 gap.
+_epoch = to_epoch
+_hour_gap = hours_between
 
 
 class BoundaryDetector:
@@ -174,7 +165,7 @@ class Chronicler:
                 beats.append(b)
         if not beats:
             return self._empty_report()
-        beats.sort(key=lambda b: b.at)
+        beats.sort(key=lambda b: to_epoch(b.at))
         return self._chronicle(beats, beats[0].at, beats[-1].at, now=now)
 
     # ---- core pipeline ----
@@ -194,7 +185,7 @@ class Chronicler:
 
         chapters: List[Chapter] = []
         for track, track_beats in sorted(by_track.items()):
-            track_beats.sort(key=lambda x: x.at)
+            track_beats.sort(key=lambda x: to_epoch(x.at))
             cuts = self.boundary_detector.detect(track_beats)
             for seg_i in range(len(cuts) - 1):
                 seg = track_beats[cuts[seg_i]:cuts[seg_i + 1]]
@@ -207,7 +198,7 @@ class Chronicler:
                         self._build_chapter(track, seg, len(cuts) - 1, now=now_iso)
                     )
 
-        chapters.sort(key=lambda c: c.span_start)
+        chapters.sort(key=lambda c: to_epoch(c.span_start))
 
         storyline = self._build_storyline(chapters)
         atlas = self._build_atlas(chapters, start_iso, end_iso, now=now_iso)
@@ -398,7 +389,7 @@ class Chronicler:
         self.chronicle_dir.mkdir(parents=True, exist_ok=True)
         now_iso = now or datetime.utcnow().isoformat()
 
-        chapters.sort(key=lambda c: c.span_start)
+        chapters.sort(key=lambda c: to_epoch(c.span_start))
 
         md_lines = [
             f"# Story — generated {now_iso}",
