@@ -99,8 +99,15 @@ produced them — defense in depth beneath Layer 2. Every denial names the rule 
   incl. the real setup→commit→integrate flow + git's same-branch collision guard. **Daily flow:** agents live in
   their worktrees, master is the integration point — see the module docstring. *Provisioning the two real
   worktrees is a one-time `setup claude` / `setup cursor` the user runs when ready.*
-- **C2 — advisory path-locks on the Bus.** `lock(path)`/`unlock(path)` with fencing token; surfaced in boot + presence;
-  Layer-2 hook consults it. Test: second claimant denied; stale lock (TTL) reclaimable; fencing token rejected on commit.
+- **C2 — advisory path-locks on the Bus. ✅ DONE 2026-06-28.** `core/comm/locks.py` `LockManager`
+  (acquire/release/holder/validate_token/list_locks) — Redis-backed, monotonic **fencing token**, **TTL**
+  auto-expiry (reclaimable, no deadlock), re-entrant self-refresh, fail-soft offline. Door: `py agent_cli.py
+  lock|unlock|locks`; held locks surfaced at `boot`/`bifrost-sync`. The Claude hook now also vetoes `Edit/Write`
+  on a path a PEER holds (keyed on `AKASHIC_AGENT_ID`; matcher added to `.claude/settings.json`). `path_conflict()`
+  is the shared check. 11 tests (`tests/test_locks.py`, hermetic fake-Redis): acquire/deny, re-entrancy,
+  holder-only release, fencing rejects a stale token after steal, TTL reclaim, fail-soft, hook veto. Suite 392.
+  *MCP `bifrost_lock*` wrappers deferred — `ai_setup_mcp.py` is being actively edited by Cursor; let Cursor add
+  them (same thin-wrapper pattern).*
 - **C3 — optimistic CAS on the Store.** version/etag on mutable keys; conflicting write → retry. Test: lost-update prevented.
 - **C4 — pre-commit backstop + name the model.** repo pre-commit mirrors the hook rules; LEXICON entry for
   blackboard/stigmergy framing.

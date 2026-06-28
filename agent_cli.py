@@ -104,7 +104,7 @@ def _warn_unmirrored(soft=False):
 # --------------------------------------------------------------------------- boot
 def cmd_boot(args):
     from agent.initializer import derive_agent_context_from_startup_sources
-    from agent.bifrost_pull import collect_boot_bifrost, print_boot_bifrost_section
+    from agent.bifrost_pull import collect_boot_bifrost, print_boot_bifrost_section, print_boot_locks_section
     res = derive_agent_context_from_startup_sources(args.agent_id, args.task, verbose=False)
     bifrost = collect_boot_bifrost(args.agent_id, limit=8)
     ctx = res.get("context") or {}
@@ -140,6 +140,7 @@ def cmd_boot(args):
         for b in blockers[:5]:
             print(f"  [{b.get('severity', '?')}] {_clip(b.get('description', ''), 120)}")
     print_boot_bifrost_section(bifrost)
+    print_boot_locks_section(bifrost, args.agent_id)
     print("\n## TO CONTRIBUTE A LESSON, run:")
     print(f'  py agent_cli.py learn {args.agent_id} --experiment NAME '
           f'--tried "..." --result "..." --recommend "..."')
@@ -814,7 +815,8 @@ def cmd_promoted(args):
 
 def cmd_bifrost_sync(args):
     """Presence heartbeat + unread inbox peek (pull floor). --consume advances the cursor."""
-    from agent.bifrost_pull import collect_boot_bifrost, consume_inbox, format_inbox_line, print_boot_bifrost_section
+    from agent.bifrost_pull import (collect_boot_bifrost, consume_inbox, format_inbox_line,
+                                     print_boot_bifrost_section, print_boot_locks_section)
     if args.consume:
         msgs = consume_inbox(args.agent_id, limit=args.limit or 20)
         if args.json:
@@ -833,6 +835,45 @@ def cmd_bifrost_sync(args):
         return 0
     print(f"# bifrost-sync for {args.agent_id}")
     print_boot_bifrost_section(block)
+    print_boot_locks_section(block, args.agent_id)
+    return 0
+
+
+# -------------------------------------------------------------------------- locks
+def cmd_lock(args):
+    """Claim an advisory path-lock so the peer sees you're editing it (C2). Re-claiming
+    your own lock refreshes its TTL. Advisory: it coordinates, it does not OS-enforce."""
+    from core.comm.locks import LockManager
+    res = LockManager(args.agent_id).acquire(args.path, ttl=args.ttl or 900)
+    if args.json:
+        print(json.dumps(res, default=str)); return 0 if res.get("ok") else 1
+    if not res.get("online"):
+        print("[lock] bus OFFLINE (Redis down) -- no advisory locking available."); return 1
+    if res.get("ok"):
+        print(f"[lock] held: {res['path']}  (you={args.agent_id}, token {res['token']})"); return 0
+    print(f"[lock] DENIED: {res['path']} is held by {res['held_by']} (token {res['token']}). "
+          f"Edit a file you hold, or request a handoff via the bus."); return 1
+
+
+def cmd_unlock(args):
+    from core.comm.locks import LockManager
+    ok = LockManager(args.agent_id).release(args.path)
+    print(f"[unlock] {'released' if ok else 'not yours / not held'}: {args.path}")
+    return 0 if ok else 1
+
+
+def cmd_locks(args):
+    """Awareness: who holds what right now (across both agents)."""
+    from core.comm.locks import LockManager
+    locks = LockManager(args.agent_id or "viewer").list_locks()
+    if args.json:
+        print(json.dumps(locks, indent=2, default=str)); return 0
+    if not locks:
+        print("# no advisory path-locks held"); return 0
+    print(f"# {len(locks)} advisory path-lock(s) held")
+    for lk in locks:
+        mine = " (you)" if lk.get("agent") == args.agent_id else ""
+        print(f"  {lk.get('path')}  <- {lk.get('agent')}{mine}  token {lk.get('token')}")
     return 0
 
 
@@ -970,6 +1011,19 @@ def main():
     bs.add_argument("--consume", action="store_true", help="read inbox and advance cursor (ack)")
     bs.add_argument("--json", action="store_true")
     bs.set_defaults(fn=cmd_bifrost_sync)
+
+    lk = sub.add_parser("lock", help="claim an advisory path-lock (C2)")
+    lk.add_argument("agent_id"); lk.add_argument("path")
+    lk.add_argument("--ttl", type=int, default=None); lk.add_argument("--json", action="store_true")
+    lk.set_defaults(fn=cmd_lock)
+
+    ul = sub.add_parser("unlock", help="release your advisory path-lock")
+    ul.add_argument("agent_id"); ul.add_argument("path")
+    ul.set_defaults(fn=cmd_unlock)
+
+    lks = sub.add_parser("locks", help="show who holds which advisory path-locks")
+    lks.add_argument("agent_id", nargs="?", default=""); lks.add_argument("--json", action="store_true")
+    lks.set_defaults(fn=cmd_locks)
 
     args = p.parse_args()
     sys.exit(args.fn(args))

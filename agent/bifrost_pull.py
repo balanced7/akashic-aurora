@@ -81,8 +81,17 @@ def consume_inbox(agent_id: str, limit: int = 20) -> List[Dict[str, Any]]:
         return []
 
 
+def peek_locks(agent_id: str) -> List[Dict[str, Any]]:
+    """Advisory path-locks currently held (C2 awareness). Never raises."""
+    try:
+        from core.comm.locks import LockManager
+        return LockManager(str(agent_id or "viewer")).list_locks()
+    except Exception:
+        return []
+
+
 def collect_boot_bifrost(agent_id: str, limit: int = 8) -> Dict[str, Any]:
-    """Presence + unread peek for boot() / bifrost-sync."""
+    """Presence + unread peek + held locks for boot() / bifrost-sync."""
     pres = register_presence(agent_id)
     msgs = peek_inbox(agent_id, limit=limit)
     return {
@@ -91,6 +100,7 @@ def collect_boot_bifrost(agent_id: str, limit: int = 8) -> Dict[str, Any]:
         "agents_online": pres["agents_online"],
         "pending": len(msgs),
         "messages": msgs,
+        "locks": peek_locks(agent_id),
     }
 
 
@@ -116,6 +126,17 @@ def print_boot_bifrost_section(block: Dict[str, Any]) -> None:
     print(f"  {pending} unread (peek -- use bifrost_inbox or `py agent_cli.py bifrost-sync --consume` to ack):")
     for msg in block.get("messages") or []:
         print(f"  {format_inbox_line(msg)}")
+
+
+def print_boot_locks_section(block: Dict[str, Any], agent_id: str = "") -> None:
+    """Awareness: who holds which advisory path-locks (only prints if any are held)."""
+    locks = block.get("locks") or []
+    if not locks:
+        return
+    print("\n## ADVISORY PATH-LOCKS (who's editing what -- C2)")
+    for lk in locks:
+        mine = " (you)" if lk.get("agent") == agent_id else ""
+        print(f"  {lk.get('path')}  <- {lk.get('agent')}{mine}  token {lk.get('token')}")
 
 
 def format_promoted_events(events: List[Dict[str, Any]], *, json_out: bool = False) -> str:

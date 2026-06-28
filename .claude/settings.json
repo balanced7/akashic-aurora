@@ -9,6 +9,15 @@
             "command": "py scripts/hooks/claude_pretooluse.py"
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py scripts/hooks/claude_pretooluse.py"
+          }
+        ]
       }
     ]
   }

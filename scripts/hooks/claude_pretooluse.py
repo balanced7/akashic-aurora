@@ -28,20 +28,46 @@ def _deny(reason: str) -> None:
     }}))
 
 
-def main() -> int:
-    try:
-        data = json.load(sys.stdin)
-    except Exception:
-        return 0   # unparseable -> allow
-    if (data.get("tool_name") or "") != "Bash":
-        return 0
+def _check_bash(data) -> str:
     command = ((data.get("tool_input") or {}).get("command")) or ""
     try:
         from agent.policy.git_guard import check_git_command
         allowed, reason = check_git_command(command)
     except Exception:
-        return 0   # policy unavailable -> allow
-    if not allowed:
+        return ""   # policy unavailable -> allow
+    return "" if allowed else reason
+
+
+def _check_write(data) -> str:
+    """Block editing a path a PEER holds an advisory lock on (C2). Needs the agent's id
+    in AKASHIC_AGENT_ID; without it we can't know who we are, so we allow (fail-open)."""
+    me = os.getenv("AKASHIC_AGENT_ID")
+    if not me:
+        return ""
+    path = (data.get("tool_input") or {}).get("file_path") or ""
+    if not path:
+        return ""
+    try:
+        from core.comm.locks import path_conflict
+        c = path_conflict(path, me)
+    except Exception:
+        return ""
+    return c["reason"] if c.get("conflict") else ""
+
+
+def main() -> int:
+    try:
+        data = json.load(sys.stdin)
+    except Exception:
+        return 0   # unparseable -> allow
+    tool = data.get("tool_name") or ""
+    if tool == "Bash":
+        reason = _check_bash(data)
+    elif tool in ("Edit", "Write", "NotebookEdit"):
+        reason = _check_write(data)
+    else:
+        return 0
+    if reason:
         _deny(reason)
     return 0
 
