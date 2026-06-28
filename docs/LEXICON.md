@@ -107,6 +107,21 @@ no translation layer. When you reach for a name, reach for one of these.
   edges are relationship-types. Beat `source` obeys the lossy-summary + lossless-pointer
   rule.
 
+## Perspectives layer (System 4 — `core/perspectives/`, see docs/perspectives-maps-plan.md)
+
+The interpretation layer over the narrative graph. **Substrate stays sacred; this is swappable.**
+
+- **Map** — a *structural* projection: which relationship-type *domains* (causal / temporal /
+  structural / …) form the graph you traverse. Selects a sub-graph of the substrate.
+- **Lens** (Perspective) — a *value-set*: factor weights (relevance/importance/recency/
+  strength) + per-relation weights + an optional focus seed. Parameterizes the Ranker.
+- **ReinforcedGraph** — an association graph whose edges **strengthen with co-use**
+  (bounded Hebbian) and **decay without it** (half-life). Turns the static typed graph into
+  a living, experience-shaped map. Read-only on the substrate; bounded reinforcement is the
+  only write-back (lens-law safe). Decay is the anti-ossification guard.
+- A **view** = `Map × Lens` applied to the substrate (read-only). Swap either → a different
+  surfaced map from the same data.
+
 ## Layers (who may depend on whom)
 
 `System 0 (foundation)` ← `1–3 (domain)` ← `4 (context)` ← `5 (interface)`.
