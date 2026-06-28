@@ -1,4 +1,9 @@
-# LEXICON — the ubiquitous language of E:\AI-Setup
+# LEXICON — the ubiquitous language of Akashic Aurora
+
+> **Akashic Aurora** is the name of this system. **Akasha** = the immutable, append-only substrate (the
+> Ledger of every atom — the record that is never rewritten). **Aurora** = the self-organizing knowledge
+> that emerges *over* the record (the narrative spine, the Codex, recall). Order, lit up over the total record.
+> (The repo directory is still `E:\AI-Setup`; the MCP server rename is coordinated with Cursor separately.)
 
 One authoritative definition per term. We use these words the same way in
 conversation and in code (Domain-Driven Design "ubiquitous language") so there's

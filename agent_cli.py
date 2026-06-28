@@ -539,6 +539,92 @@ def cmd_log(args):
     return 0 if ok else 1
 
 
+# ------------------------------------------------------------------------ handoff
+def _incoming_handoffs(target_agent, scan=10000):
+    """Every handoff signal addressed to `target_agent`, oldest-first."""
+    from core.signals.agent_signal_ledger import AgentSignalLedger
+    sl = AgentSignalLedger()
+    out = []
+    for _cid, sig in sl.replay_signals(after_id="0", count=scan):
+        if sig.get("signal_type") == "handoff" and sig.get("target_agent") == target_agent:
+            out.append(sig)
+    return out
+
+
+def cmd_handoff(args):
+    """Hand work to another agent (cross-agent continuity).
+
+    Writing a handoff leaves a briefing that the TARGET agent's next `boot` surfaces
+    automatically (Context pillar reads the latest handoff addressed to it). With
+    --list, show the handoffs currently addressed to an agent instead of writing one.
+
+    Usage:
+      py agent_cli.py handoff <from_agent> --to <agent> --task "..." [--note "..."]
+                              [--blocker "a || b"] [--json]
+      py agent_cli.py handoff <from_agent> --list [--to <agent>] [--json]
+    """
+    # --list: read mode -- show handoffs addressed to (--to OR this agent).
+    if args.list:
+        who = (args.to or args.agent_id or "").strip()
+        items = _incoming_handoffs(who)
+        if args.json:
+            print(json.dumps(items, indent=2, default=str)); return 0
+        print(f"# {len(items)} handoff(s) addressed to '{who}' (newest last)")
+        for s in items[-25:]:
+            note = (s.get("context") or {}).get("note", "")
+            print(f"  - from {s.get('agent_id', '?')}: {_clip(s.get('task', ''), 120)}"
+                  + (f"  | {_clip(note, 80)}" if note else ""))
+        return 0
+
+    to_agent = (args.to or "").strip()
+    task = (args.task or "").strip()
+    if not to_agent or not task:
+        print("ERROR: need --to <agent> and --task \"...\" (or --list to read).")
+        print('Example: py agent_cli.py handoff cursor --to claude '
+              '--task "finish C3 threshold tuning" --note "see docs/codex-plan.md"')
+        return 2
+
+    from core.signals.coordinator_api import SignalEmitter
+    ctx = {}
+    if (args.note or "").strip():
+        ctx["note"] = _clip(args.note, 1000)
+    blockers = [b.strip() for b in (args.blocker or "").split("||") if b.strip()]
+    try:
+        em = SignalEmitter(_clip(args.agent_id, 200))
+        em.emit_handoff_to_target_agent(to_agent, _clip(task, 500), context=ctx, blockers=blockers)
+        ok = True
+    except Exception as e:
+        print(f"ERROR recording handoff: {type(e).__name__}: {e}")
+        return 1
+
+    # Narrative spine + raw firehose visibility (best-effort): a handoff is a salient
+    # Beat AND a raw event, so it shows up in `story` and the cross-agent `events`.
+    try:
+        from core.narrative.beat_log import get_beat_log
+        from core.narrative.track_router import RouteHint
+        get_beat_log().emit("handoff",
+                            summary=f"{args.agent_id} -> {to_agent}: {task}",
+                            source=f"handoff:{args.agent_id}->{to_agent}",
+                            hint=RouteHint(category="handoff", task=task))
+    except Exception:
+        pass
+    try:
+        from core.events.event_log import capture_event
+        capture_event("handoff", f"{args.agent_id} -> {to_agent}: {task}",
+                      agent_id=args.agent_id,
+                      detail={"target_agent": to_agent, "task": task,
+                              "note": ctx.get("note", ""), "blockers": blockers})
+    except Exception:
+        pass
+
+    if args.json:
+        print(json.dumps({"recorded": ok, "from": args.agent_id, "to": to_agent, "task": task}))
+    else:
+        print(f"[{'OK' if ok else 'FAIL'}] handoff {args.agent_id} -> {to_agent}: {_clip(task, 80)}")
+        print(f"  (the target's next `boot` will surface this as its briefing)")
+    return 0 if ok else 1
+
+
 # ------------------------------------------------------------------------- events
 def _print_events(evs, args, header):
     """Render raw events ASCII-safe, front-loaded, with drill pointers."""
@@ -735,6 +821,16 @@ def main():
                     help="with --beat: also show the raw events around it (auto-logger drill-down)")
     st.add_argument("--json", action="store_true", help="JSON output")
     st.set_defaults(fn=cmd_story)
+
+    h = sub.add_parser("handoff", help="hand work to another agent (writes a briefing its next boot reads)")
+    h.add_argument("agent_id", help="who is handing off (you)")
+    h.add_argument("--to", default=None, help="target agent who picks the work up")
+    h.add_argument("--task", default=None, help="what the target should do")
+    h.add_argument("--note", default=None, help="free-form context note for the target")
+    h.add_argument("--blocker", default=None, help="blockers to flag, separated by ' || '")
+    h.add_argument("--list", action="store_true", help="list handoffs addressed to --to (or you) instead of writing")
+    h.add_argument("--json", action="store_true", help="JSON output")
+    h.set_defaults(fn=cmd_handoff)
 
     ev = sub.add_parser("events", help="search / drill / capture the raw event firehose")
     ev.add_argument("--search", default=None, metavar="QUERY", help="rank raw events by relevance to QUERY")

@@ -1,5 +1,5 @@
 """
-Centralized Configuration - BreakThrough Stack
+Centralized Configuration - Akashic Aurora
 =============================================
 
 Single source of truth for all configuration values.

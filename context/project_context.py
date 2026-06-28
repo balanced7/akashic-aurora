@@ -727,7 +727,7 @@ class ProjectContextManager:
         # Set default architecture
         if not self.load_architecture_documentation():
             arch = {
-                "name": "BreakThrough Stack",
+                "name": "Akashic Aurora",
                 "type": "Multi-Agent AI Harness",
                 "version": "6.0",
                 "purpose": "Agentic AI harness with multi-agent coordination, Redis HA, vector storage",
