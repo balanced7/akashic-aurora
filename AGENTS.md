@@ -32,6 +32,29 @@ py agent_cli.py recall "keyword"
 py agent_cli.py status            # is the store up? how many lessons?
 ```
 
+## Bifrost (live agent mail + durable salient msgs)
+
+`boot()` already **peeks** unread Bifrost inbox (does NOT consume the cursor) and
+registers your presence. **In-session**, at the start of each turn, also run:
+
+```
+py agent_cli.py bifrost-sync <your_agent_id>          # MCP: bifrost_sync(agent)
+# or consume/ack:  bifrost-sync <id> --consume       # MCP: bifrost_inbox(agent)
+```
+
+Durable handoffs/decisions (survive Redis restart):
+
+```
+py agent_cli.py promoted [--limit N]                  # MCP: promoted()
+py agent_cli.py events --kind bifrost_msg             # same records, raw firehose view
+```
+
+Optional event-driven wake (GUI agents with harness re-invoke on bg task exit):
+
+```
+py scripts/bifrost_wake.py --agent cursor --timeout 1800000
+```
+
 That's the whole contract. Boot to load context, learn to give back. ---
 
 ## Trial mode (sandbox -- recommended for your first run)

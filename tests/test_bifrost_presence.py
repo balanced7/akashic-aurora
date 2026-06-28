@@ -90,6 +90,32 @@ def test_presence_expires(monkeypatch=None):
         _cleanup(c, ns)
 
 
+def test_presence_carries_agent_card():
+    c, ns = _client(), _ns()
+    try:
+        card = {"runtime_class": "api", "wake_mode": "runner", "door": "runner", "caps": ["review"]}
+        g = Bus("gemini", c, namespace=ns, promote=False)
+        g.register(card=card)
+        rec = [p for p in g.presence() if p["agent"] == "gemini"][0]
+        assert rec["runtime_class"] == "api" and rec["wake_mode"] == "runner"
+        assert rec["door"] == "runner" and rec["caps"] == ["review"] and rec["last_seen"]
+        g.send("someone", "chat", "hi")                  # an auto-touch heartbeat...
+        rec2 = [p for p in g.presence() if p["agent"] == "gemini"][0]
+        assert rec2["runtime_class"] == "api", "the card survives the auto-touch heartbeat"
+    finally:
+        _cleanup(c, ns)
+
+
+def test_presence_backward_compat_bare_timestamp():
+    c, ns = _client(), _ns()
+    try:
+        c.set(f"{ns}:presence:legacy", "2026-06-28T00:00:00", ex=60)   # old-style bare ts
+        rec = [p for p in Bus("x", c, namespace=ns).presence() if p["agent"] == "legacy"][0]
+        assert rec["last_seen"] == "2026-06-28T00:00:00" and "runtime_class" not in rec
+    finally:
+        _cleanup(c, ns)
+
+
 if __name__ == "__main__":
     test_presence_offline_is_empty()
     test_mcp_server_imports_with_bifrost_tools()

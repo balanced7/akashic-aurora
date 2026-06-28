@@ -29,13 +29,18 @@ import argparse
 import contextlib
 import io
 import os
+import subprocess
 import sys
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from mcp.server.fastmcp import FastMCP
 
 import agent_cli
+
+ROOT = Path(__file__).resolve().parent
+SCRIPTS = ROOT / "scripts"
 
 # Defaults for EVERY attribute any cmd_* reads off its argparse Namespace. A tool
 # overrides only the fields it cares about; everything else falls back to these, so a
@@ -52,6 +57,7 @@ _ARG_DEFAULTS = dict(
     search=None, around=None, window=None, get=None, capture=False, promote=False,
     threshold=None, detail_json=None, refs=None, agent=None, since=None, until=None,
     limit=None,
+    consume=False,
     # handoff
     to=None, note=None, blocker=None, list=False,
 )
@@ -76,6 +82,31 @@ def _run(fn, **overrides) -> str:
     return buf.getvalue().strip() or "(no output)"
 
 
+def _run_script(script: str, *args: str, prompt: str = "", timeout: int = 240) -> str:
+    """Run a scripts/*.py helper; optional stdin prompt."""
+    cmd = [sys.executable, str(SCRIPTS / script), *args]
+    try:
+        p = subprocess.run(
+            cmd,
+            input=prompt if prompt else None,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            cwd=str(ROOT),
+        )
+        out = (p.stdout or "").strip()
+        err = (p.stderr or "").strip()
+        if p.returncode != 0 and not out:
+            return f"ERROR (exit {p.returncode}): {err or '(no output)'}"
+        if err and "WARNING" not in err.upper():
+            return f"{out}\n{err}".strip() if out else err
+        return out or "(no output)"
+    except subprocess.TimeoutExpired:
+        return f"ERROR: timed out after {timeout}s running {script}"
+    except Exception as e:
+        return f"ERROR: {type(e).__name__}: {e}"
+
+
 mcp = FastMCP(
     "akashic-aurora",
     instructions=(
@@ -84,10 +115,12 @@ mcp = FastMCP(
         "the latest handoff addressed to you, project state) distilled to a token budget. "
         "As you work, give back: learn(...) records a reusable lesson; log(...) records a "
         "narrative beat; handoff(...) leaves a briefing the NEXT agent's boot surfaces "
-        "automatically (cross-agent continuity). recall/status/story/events are read tools. "
-        "Use a short, STABLE agent id (e.g. 'cursor', 'claude') so your contributions are "
+        "automatically (cross-agent continuity). recall/status/story/events/promoted/bifrost_sync "
+        "are read tools. bifrost_inbox/bifrost_send are the LIVE bus (ephemeral). Use a short, STABLE "
         "attributed and your handoffs route correctly. Everything persists on shared Redis, "
-        "so writes from any agent (via CLI or MCP) feed every other agent's next boot."
+        "so writes from any agent (via CLI or MCP) feed every other agent's next boot. "
+        "FIRST each turn: boot(agent, task) surfaces unread Bifrost mail; in-session also call "
+        "bifrost_inbox(agent) or bifrost_sync(agent) before acting on live messages."
     ),
 )
 
@@ -178,6 +211,26 @@ def events(search: str = "", agent: str = "", kind: str = "", limit: int = 20) -
                 kind=kind or None, limit=limit or 20)
 
 
+@mcp.tool()
+def promoted(limit: int = 20, since: str = "", until: str = "") -> str:
+    """Query durable salient Bifrost messages (B2: kind=bifrost_msg in the event firehose).
+
+    Survives Redis restarts via the File ledger. Salient kinds only: handoff/decision/
+    completion/blocker. Ephemeral chat is NOT here -- use bifrost_inbox for live mail.
+    """
+    return _run(agent_cli.cmd_promoted, limit=limit, since=since or None, until=until or None)
+
+
+@mcp.tool()
+def bifrost_sync(agent: str, limit: int = 10, consume: bool = False) -> str:
+    """Bifrost pull floor: refresh presence + peek unread inbox (same data boot() shows).
+
+    Default is non-consuming (cursor unchanged). Set consume=true to ack/read messages
+    (same as bifrost_inbox). Call at turn-start in-session; boot() already peeks on startup.
+    """
+    return _run(agent_cli.cmd_bifrost_sync, agent_id=agent, limit=limit, consume=bool(consume))
+
+
 # ---------------------------------------------------------------- Bifrost: real-time agent bus
 # Unlike the verbs above (durable Store/Ledger via agent_cli), these are the LIVE message bus
 # (core/comm/bus.py): direct/broadcast messages an agent reads from its own inbox cursor. Use a
@@ -222,6 +275,75 @@ def bifrost_presence(agent: str = "") -> str:
         b.register()
     live = b.presence()
     return "online: " + ", ".join(p["agent"] for p in live) if live else "(no agents online)"
+
+
+# ---------------------------------------------------------------- Gemini panel (web UI + AI Mode — bypass API token limits)
+# Uses a dedicated Playwright Chrome profile (.secrets/gemini_web_profile). One-time login required.
+# Cannot reuse your main Chrome profile or inject your Google account credentials — sign in manually once.
+
+@mcp.tool()
+def ask_gemini_web(prompt: str, mode: str = "gemini", system: str = "") -> str:
+    """Ask Gemini via the FREE Google web surfaces (not API billing).
+
+    `mode`:
+      gemini   — gemini.google.com chat (frontier web model)
+      ai_mode  — Google Search AI Mode (?udm=50)
+      both     — run both and return labeled answers (good for panel reviews)
+      api      — fallback to ask_gemini.py (API key / free-tier API quota)
+
+    First-time setup: call gemini_web_login(), sign in with your Google account once.
+    NOTE: prompt is sent to Google's web UI — don't pass secrets you wouldn't share with Google.
+    """
+    args = ["--mode", mode]
+    if system:
+        args += ["--system", system]
+    return _run_script("gemini_web.py", *args, prompt=prompt)
+
+
+@mcp.tool()
+def gemini_web_login() -> str:
+    """One-time setup: opens Chrome so YOU can sign in to Google for free Gemini web + AI Mode.
+
+    Sign in as your Google account (or your preferred account). Session persists in
+    .secrets/gemini_web_profile/ — not your main Chrome profile (Google blocks that).
+    A browser window opens on your machine; close it when done, then press Enter in the terminal.
+    """
+    if not (SCRIPTS / "gemini_web.py").exists():
+        return "ERROR: scripts/gemini_web.py missing"
+    try:
+        subprocess.Popen(
+            [sys.executable, str(SCRIPTS / "gemini_web.py"), "--login"],
+            cwd=str(ROOT),
+        )
+    except Exception as e:
+        return f"ERROR: could not start login browser: {e}"
+    return (
+        "Login browser launching.\n"
+        "1) Sign in with your Google account when prompted\n"
+        "2) Confirm gemini.google.com and Google AI Mode load\n"
+        "3) Close the browser, then press Enter in the login terminal\n"
+        f"Profile saved under: {ROOT / '.secrets' / 'gemini_web_profile'}"
+    )
+
+
+@mcp.tool()
+def ask_gemini_panel(prompt: str, system: str = "", web_mode: str = "both") -> str:
+    """Fan one question to the frontier panel: Gemini web (+ AI Mode) plus optional API.
+
+    Runs ask_gemini_web(mode=web_mode) then ask_gemini(mode=api) when an API key exists.
+    Use for 3-way collab (you + Claude + Gemini) without burning Cursor/Claude tokens on the ask.
+    """
+    parts = []
+    web = ask_gemini_web(prompt, mode=web_mode, system=system)
+    parts.append(f"===== GEMINI WEB ({web_mode}) =====\n{web}")
+    api_out = _run_script(
+        "ask_gemini.py",
+        *(["--system", system] if system else []),
+        prompt=prompt,
+    )
+    if api_out and not api_out.startswith("NO_KEY"):
+        parts.append(f"\n===== GEMINI API (fallback) =====\n{api_out}")
+    return "\n".join(parts)
 
 
 if __name__ == "__main__":

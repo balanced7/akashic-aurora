@@ -46,19 +46,24 @@ def _clip(s, n=_MAX):
 # --------------------------------------------------------------------------- boot
 def cmd_boot(args):
     from agent.initializer import derive_agent_context_from_startup_sources
+    from agent.bifrost_pull import collect_boot_bifrost, print_boot_bifrost_section
     res = derive_agent_context_from_startup_sources(args.agent_id, args.task, verbose=False)
+    bifrost = collect_boot_bifrost(args.agent_id, limit=8)
     ctx = res.get("context") or {}
+    ctx["bifrost"] = bifrost
     # Auto-logger (Slice 2): record that this agent booted (raw, full-fidelity). Best-effort.
     try:
         from core.events.event_log import capture_event
         capture_event("boot", f"{args.agent_id} booted" + (f" -- task: {args.task}" if args.task else ""),
                       agent_id=args.agent_id,
                       detail={"task": args.task, "status": res.get("status"),
-                              "approx_tokens": ctx.get("approx_tokens")})
+                              "approx_tokens": ctx.get("approx_tokens"),
+                              "bifrost_pending": bifrost.get("pending", 0)})
     except Exception:
         pass
     if args.json:
-        print(json.dumps({"status": res.get("status"), "context": ctx}, indent=2, default=str))
+        print(json.dumps({"status": res.get("status"), "context": ctx, "bifrost": bifrost},
+                         indent=2, default=str))
         return 0 if res.get("status") == "success" else 1
 
     sk = (ctx.get("skeleton") or "").strip()
@@ -76,9 +81,13 @@ def cmd_boot(args):
         print("\n## ACTIVE BLOCKERS")
         for b in blockers[:5]:
             print(f"  [{b.get('severity', '?')}] {_clip(b.get('description', ''), 120)}")
+    print_boot_bifrost_section(bifrost)
     print("\n## TO CONTRIBUTE A LESSON, run:")
     print(f'  py agent_cli.py learn {args.agent_id} --experiment NAME '
           f'--tried "..." --result "..." --recommend "..."')
+    print("\n## BIFROST (live + durable)")
+    print("  py agent_cli.py bifrost-sync <agent>     # peek unread (same as boot section)")
+    print("  py agent_cli.py promoted [--limit N]       # durable salient msgs (kind=bifrost_msg)")
     return 0 if res.get("status") == "success" else 1
 
 
@@ -733,6 +742,40 @@ def cmd_events(args):
     return 0
 
 
+# ---------------------------------------------------------------------- promoted (B2 read side)
+def cmd_promoted(args):
+    """Query durable salient Bifrost messages (kind=bifrost_msg in the event firehose)."""
+    from core.comm.promoter import promoted
+    from agent.bifrost_pull import format_promoted_events
+    evs = promoted(limit=args.limit or 20, since=args.since, until=args.until)
+    print(format_promoted_events(evs, json_out=bool(args.json)))
+    return 0
+
+
+def cmd_bifrost_sync(args):
+    """Presence heartbeat + unread inbox peek (pull floor). --consume advances the cursor."""
+    from agent.bifrost_pull import collect_boot_bifrost, consume_inbox, format_inbox_line, print_boot_bifrost_section
+    if args.consume:
+        msgs = consume_inbox(args.agent_id, limit=args.limit or 20)
+        if args.json:
+            print(json.dumps({"consumed": msgs}, indent=2, default=str))
+            return 0
+        if not msgs:
+            print("(no messages consumed)")
+            return 0
+        print(f"# consumed {len(msgs)} message(s) for {args.agent_id}")
+        for m in msgs:
+            print(f"  {format_inbox_line(m)}")
+        return 0
+    block = collect_boot_bifrost(args.agent_id, limit=args.limit or 10)
+    if args.json:
+        print(json.dumps(block, indent=2, default=str))
+        return 0
+    print(f"# bifrost-sync for {args.agent_id}")
+    print_boot_bifrost_section(block)
+    return 0
+
+
 # ------------------------------------------------------------------------- status
 def cmd_status(args):
     from core.foundation.redis_connection import (
@@ -853,6 +896,20 @@ def main():
     ev.add_argument("--limit", type=int, default=None, help="max results")
     ev.add_argument("--json", action="store_true", help="JSON output")
     ev.set_defaults(fn=cmd_events)
+
+    pr = sub.add_parser("promoted", help="query durable salient Bifrost msgs (kind=bifrost_msg / B2)")
+    pr.add_argument("--limit", type=int, default=None)
+    pr.add_argument("--since", default=None, help="ISO lower time bound")
+    pr.add_argument("--until", default=None, help="ISO upper time bound")
+    pr.add_argument("--json", action="store_true")
+    pr.set_defaults(fn=cmd_promoted)
+
+    bs = sub.add_parser("bifrost-sync", help="Bifrost pull floor: presence + unread inbox peek")
+    bs.add_argument("agent_id", help="your stable agent id (e.g. cursor)")
+    bs.add_argument("--limit", type=int, default=None)
+    bs.add_argument("--consume", action="store_true", help="read inbox and advance cursor (ack)")
+    bs.add_argument("--json", action="store_true")
+    bs.set_defaults(fn=cmd_bifrost_sync)
 
     args = p.parse_args()
     sys.exit(args.fn(args))

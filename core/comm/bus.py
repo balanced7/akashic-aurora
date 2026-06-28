@@ -133,6 +133,7 @@ class Bus:
         # B2: durably project salient kinds by default -- but NOT under pytest, so transport tests
         # never leak into the canonical firehose. Pass promote=True/False to force the behavior.
         self._promote = (os.getenv("PYTEST_CURRENT_TEST") is None) if promote is None else bool(promote)
+        self._card: Dict[str, Any] = {}        # the agent's A2A-style card (runtime_class/wake_mode/door/caps)
 
     # ------------------------------------------------------------------ identity / health
     @property
@@ -144,12 +145,17 @@ class Bus:
         return {"online": self.online, "agent_id": self.agent_id, "pending": self.pending()}
 
     # ------------------------------------------------------------------ presence (B3)
-    def register(self, ttl: int = PRESENCE_TTL) -> bool:
-        """Heartbeat: mark this agent online for `ttl` seconds. Returns True if recorded."""
+    def register(self, ttl: int = PRESENCE_TTL, *, card: Optional[Dict[str, Any]] = None) -> bool:
+        """Heartbeat: mark this agent online for `ttl` seconds, carrying an optional A2A-style Agent
+        Card ({runtime_class, wake_mode, door, caps, ...}). The card is remembered so every later
+        heartbeat (incl. the auto-touch on send/inbox) refreshes WITH it. Returns True if recorded."""
         if not self.online:
             return False
+        if card is not None:
+            self._card = dict(card)
         try:
-            self._client.set(f"{self.ns}:presence:{self.agent_id}", _now(), ex=ttl)
+            value = json.dumps({"ts": _now(), **self._card}, default=str)
+            self._client.set(f"{self.ns}:presence:{self.agent_id}", value, ex=ttl)
             return True
         except Exception:
             return False
@@ -158,14 +164,24 @@ class Bus:
         """Refresh presence as a side effect of using the bus (sending/reading = being active)."""
         self.register()
 
-    def presence(self) -> List[Dict[str, str]]:
-        """The agents currently online (presence keys not yet expired), by id."""
+    def presence(self) -> List[Dict[str, Any]]:
+        """The agents currently online (presence keys not yet expired), with their Agent Card fields
+        (runtime_class/wake_mode/door/caps) if registered. Backward-compatible with bare-timestamp
+        presence records. Sorted by id."""
         if not self.online:
             return []
         try:
-            keys = self._client.keys(f"{self.ns}:presence:*")
-            out = [{"agent": str(k).rsplit(":", 1)[-1], "last_seen": self._client.get(k) or ""}
-                   for k in (keys or [])]
+            out: List[Dict[str, Any]] = []
+            for k in (self._client.keys(f"{self.ns}:presence:*") or []):
+                agent = str(k).rsplit(":", 1)[-1]
+                raw = self._client.get(k)
+                card = _loads(raw)
+                if isinstance(card, dict):
+                    rec = {"agent": agent, "last_seen": card.get("ts", "")}
+                    rec.update({kk: vv for kk, vv in card.items() if kk != "ts"})
+                else:
+                    rec = {"agent": agent, "last_seen": raw or ""}
+                out.append(rec)
             return sorted(out, key=lambda x: x["agent"])
         except Exception:
             return []
