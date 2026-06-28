@@ -214,6 +214,17 @@ class Bus:
 
         `advance=True` moves the cursor past what's returned (so the next call won't re-read). An agent's
         own broadcasts are not delivered back to it. Returns [] (never raises) when offline."""
+        return self._drain(block=None, limit=limit, advance=advance)
+
+    def wait(self, timeout_ms: int = 0, *, limit: int = 50, advance: bool = False) -> List[Message]:
+        """BLOCK until a new message arrives (or `timeout_ms` elapses; 0 = forever), then return it.
+
+        The event-driven wake primitive: an idle agent (or a backgrounded watcher) blocks here at ~0
+        cost and returns the instant a message lands. Defaults to advance=False -- it *detects* without
+        consuming, so the agent can then `inbox()` the message normally. Returns [] on timeout/offline."""
+        return self._drain(block=int(timeout_ms), limit=limit, advance=advance)
+
+    def _drain(self, *, block, limit: int, advance: bool) -> List[Message]:
         if not self.online:
             return []
         self._touch()
@@ -221,7 +232,7 @@ class Bus:
         try:
             res = self._client.xread(
                 {self._inbox_key(self.agent_id): cur["inbox"], self._bc_key: cur["bc"]},
-                count=max(1, limit))
+                count=max(1, limit), block=block)
         except Exception:
             return []
         new_inbox, new_bc = cur["inbox"], cur["bc"]
