@@ -99,6 +99,10 @@ class Beat:
     themes: List[str] = field(default_factory=list)
     relates: List[Edge] = field(default_factory=list)
     chapter: Optional[str] = None    # back-link (bidirectional provenance)
+    # tag governance (G0): the append-only history of track opinions (TagEntry dicts).
+    # `track` above is the cached current value; tag_history is the auditable record.
+    # Empty for beats predating G0 (backward-compatible). See core/narrative/tagging.py.
+    tag_history: List[Dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
