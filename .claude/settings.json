@@ -22,6 +22,17 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash|Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py scripts/hooks/claude_posttooluse.py"
+          }
+        ]
+      }
     ]
   }
 }

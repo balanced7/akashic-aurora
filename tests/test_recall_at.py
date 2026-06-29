@@ -152,6 +152,38 @@ def test_usefulness_reranks_equally_relevant():
     print("--- usefulness re-rank ---\n  proven-useful lesson outranks an equally-relevant one OK")
 
 
+def test_usefulness_factor_helped():
+    from core.recall.at_action import usefulness_factor
+    assert usefulness_factor({"helped": 3, "surfaced": 3}) > 1.2, "proven by flips -> boosted"
+    assert usefulness_factor({"helped": 2, "surfaced": 4}) > usefulness_factor({"surfaced": 4}), "helped beats no-signal"
+    assert usefulness_factor({"helped": 99, "surfaced": 1}) <= 1.5, "can't farm a jackpot (capped + bounded)"
+    print("--- usefulness factor (helped) ---\n  flips boost, capped, never a jackpot OK")
+
+
+def test_implicit_helped_flip():
+    import core.recall.at_action as aa
+    from core.foundation.store import FileStore
+    d = tempfile.mkdtemp()
+    old = (aa._CACHE_DIR, aa._IMP_DIR, aa._OUTCOME_DIR)
+    aa._CACHE_DIR, aa._IMP_DIR, aa._OUTCOME_DIR = d, os.path.join(d, "imp"), os.path.join(d, "outcome")
+    st = FileStore(os.path.join(d, "use.json"))
+    try:
+        sid, tgt = "sess1", "p:/x/consolidator.py"
+        aa.mark_impression(sid, tgt, ["learn:experiment:A", "learn:experiment:B"])
+        # first-try SUCCESS (no prior FAIL) credits NOTHING -- the contrastive gate
+        assert aa.resolve_outcome(sid, tgt, True, store=st) == 0, "first-try success must not credit"
+        # FAIL then SUCCESS -> credit both surfaced lessons
+        aa.resolve_outcome(sid, tgt, False, store=st)
+        assert aa.resolve_outcome(sid, tgt, True, store=st) == 2, "FAIL->SUCCESS credits surfaced lessons"
+        assert aa._load_use(st, "learn:experiment:A").get("helped") == 1
+        # consume-on-credit: another FAIL->SUCCESS doesn't re-credit (impressions were consumed)
+        aa.resolve_outcome(sid, tgt, False, store=st)
+        assert aa.resolve_outcome(sid, tgt, True, store=st) == 0, "consumed impressions never re-credit"
+    finally:
+        aa._CACHE_DIR, aa._IMP_DIR, aa._OUTCOME_DIR = old
+    print("--- implicit helped flip ---\n  FAIL->SUCCESS credits once; first-try + re-success credit nothing OK")
+
+
 def test_render_formats_and_empties():
     res = {"lessons": [{"text": "route every source through the one consolidator seam",
                         "source": "learn:experiment:spine1_unify"}],
@@ -184,6 +216,8 @@ if __name__ == "__main__":
     test_usefulness_factor()
     test_record_feedback_counters()
     test_usefulness_reranks_equally_relevant()
+    test_usefulness_factor_helped()
+    test_implicit_helped_flip()
     test_render_formats_and_empties()
     test_fail_soft_on_empty_and_bad_input()
     print("\n" + "=" * 60)

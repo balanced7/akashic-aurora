@@ -117,21 +117,22 @@ def warm_cache(learning_store: Optional[Any] = None) -> int:
 
 
 def prune_state(max_age_days: float = 7.0) -> int:
-    """Best-effort sweep of stale per-session anti-repeat files (one accrues per session). Returns the
-    count removed. The cache itself is a single self-refreshing file, so it needs no pruning."""
+    """Best-effort sweep of stale per-session state files (anti-repeat seen-sets, open impressions, and
+    last-outcomes). Returns the count removed. The cache itself is a single self-refreshing file."""
     removed = 0
-    try:
-        cutoff = time.time() - max_age_days * 86400.0
-        for name in os.listdir(_SEEN_DIR):
-            p = os.path.join(_SEEN_DIR, name)
-            try:
-                if os.path.isfile(p) and os.stat(p).st_mtime < cutoff:
-                    os.remove(p)
-                    removed += 1
-            except Exception:
-                pass
-    except Exception:
-        pass
+    cutoff = time.time() - max_age_days * 86400.0
+    for d in (_SEEN_DIR, _IMP_DIR, _OUTCOME_DIR):
+        try:
+            for name in os.listdir(d):
+                p = os.path.join(d, name)
+                try:
+                    if os.path.isfile(p) and os.stat(p).st_mtime < cutoff:
+                        os.remove(p)
+                        removed += 1
+                except Exception:
+                    pass
+        except Exception:
+            pass
     return removed
 
 
@@ -173,17 +174,18 @@ def usefulness_factor(use: Optional[Dict[str, int]]) -> float:
     use = use or {}
     useful = int(use.get("useful", 0))
     noise = int(use.get("noise", 0))
+    helped = int(use.get("helped", 0))            # automatic contrastive positive (FAIL->SUCCESS flip)
     surfaced = int(use.get("surfaced", 0))
-    eff = useful - noise
-    denom = max(surfaced, useful + noise) + 2.0
-    rate = max(0.0, min(1.0, (eff + 1.0) / denom))   # ~0.5 neutral; ->1 useful; ->0 stale/noise
+    eff = useful - noise + min(helped, surfaced)  # cap helped at impressions (defends join drift)
+    denom = max(surfaced, useful + noise + helped) + 2.0   # rate, not raw count -> anti-runaway
+    rate = max(0.0, min(1.0, (eff + 1.0) / denom))   # ~0.5 neutral; ->1 proven; ->0 stale/noise
     return 0.5 + rate
 
 
 def record_feedback(source: str, kind: str = "useful", *, store=None) -> bool:
-    """Record an explicit usefulness vote for a recalled lesson (kind: 'useful' | 'noise'). Shapes
-    future recall ranking. Best-effort; safe to call repeatedly."""
-    if not source or kind not in ("useful", "noise"):
+    """Record a usefulness signal for a recalled lesson. kind: 'useful'/'noise' (explicit votes) or
+    'helped' (the automatic contrastive positive -- a FAIL->SUCCESS flip). Best-effort, repeatable."""
+    if not source or kind not in ("useful", "noise", "helped"):
         return False
     try:
         store = store or _store()
@@ -205,6 +207,127 @@ def bump_surfaced(sources, *, store=None) -> None:
             store.set(_USE_PREFIX + str(s), json.dumps(use))
     except Exception:
         pass
+
+
+# --- implicit-useful: the contrastive FAIL->SUCCESS flip (automatic positive, no agent vote needed).
+# At surface time PreToolUse records an "open impression" {target -> sources}; a PostToolUse hook calls
+# resolve_outcome() when the action completes. If a target that JUST FAILED now SUCCEEDS, the lessons
+# surfaced for it are credited 'helped' (consume-on-credit). Contrastive by construction: a first-try
+# success credits nothing. All best-effort + fail-soft (a PostToolUse hook must never affect the action).
+_IMP_DIR = os.path.join(_CACHE_DIR, "imp")
+_OUTCOME_DIR = os.path.join(_CACHE_DIR, "outcome")
+
+
+def _safe_id(session_id: str) -> str:
+    return "".join(c for c in str(session_id) if c.isalnum() or c in "-_")[:128] or "nosession"
+
+
+def normalize_target(path: Optional[str] = None, command: Optional[str] = None) -> str:
+    """Stable key for a point of action -- MUST be identical at surface (PreToolUse) and resolve
+    (PostToolUse) time or the join silently evaporates. Paths -> normcased absolute; commands ->
+    lowercased + whitespace-collapsed."""
+    if path:
+        try:
+            return "p:" + os.path.normcase(os.path.abspath(path))
+        except Exception:
+            return "p:" + str(path)
+    if command:
+        return "c:" + " ".join(str(command).lower().split())
+    return ""
+
+
+def mark_impression(session_id: str, target: str, sources) -> None:
+    """Record that `sources` were surfaced for `target` this session (the outcome-join key)."""
+    srcs = [s for s in (sources or []) if s]
+    if not session_id or not target or not srcs:
+        return
+    try:
+        os.makedirs(_IMP_DIR, exist_ok=True)
+        with open(os.path.join(_IMP_DIR, _safe_id(session_id) + ".jsonl"), "a", encoding="utf-8") as f:
+            f.write(json.dumps({"t": target, "s": srcs}) + "\n")
+    except Exception:
+        pass
+
+
+def _impressions_for(session_id: str, target: str) -> list:
+    out = []
+    try:
+        with open(os.path.join(_IMP_DIR, _safe_id(session_id) + ".jsonl"), encoding="utf-8") as f:
+            for line in f:
+                try:
+                    rec = json.loads(line)
+                    if rec.get("t") == target:
+                        out += rec.get("s", [])
+                except Exception:
+                    pass
+    except Exception:
+        pass
+    return list(dict.fromkeys(out))   # dedup, order-stable
+
+
+def _clear_impressions(session_id: str, target: str) -> None:
+    try:
+        p = os.path.join(_IMP_DIR, _safe_id(session_id) + ".jsonl")
+        kept = []
+        with open(p, encoding="utf-8") as f:
+            for line in f:
+                try:
+                    if json.loads(line).get("t") != target:
+                        kept.append(line)
+                except Exception:
+                    pass
+        with open(p, "w", encoding="utf-8") as f:
+            f.writelines(kept)
+    except Exception:
+        pass
+
+
+def _outcome_file(session_id: str) -> str:
+    return os.path.join(_OUTCOME_DIR, _safe_id(session_id) + ".json")
+
+
+def _get_outcome(session_id: str, target: str):
+    try:
+        with open(_outcome_file(session_id), encoding="utf-8") as f:
+            return json.load(f).get(target)
+    except Exception:
+        return None
+
+
+def _set_outcome(session_id: str, target: str, status: str) -> None:
+    try:
+        os.makedirs(_OUTCOME_DIR, exist_ok=True)
+        p = _outcome_file(session_id)
+        d = {}
+        try:
+            with open(p, encoding="utf-8") as f:
+                d = json.load(f)
+        except Exception:
+            d = {}
+        d[target] = status
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(d, f)
+    except Exception:
+        pass
+
+
+def resolve_outcome(session_id: str, target: str, success: bool, *, store=None) -> int:
+    """PostToolUse resolver. If `target` SUCCEEDS now after having JUST FAILED, credit the lessons
+    surfaced for it with 'helped' (consume-on-credit, so one flip can't be farmed). Returns the number
+    credited. Best-effort + fail-soft -- a first-try success credits nothing (the contrastive gate)."""
+    if not session_id or not target:
+        return 0
+    credited = 0
+    try:
+        if success and _get_outcome(session_id, target) == "FAIL":
+            for src in _impressions_for(session_id, target):
+                if record_feedback(src, "helped", store=store):
+                    credited += 1
+            _clear_impressions(session_id, target)
+        _set_outcome(session_id, target, "SUCCESS" if success else "FAIL")
+    except Exception:
+        pass
+    return credited
 
 
 def _query_from(path: Optional[str], command: Optional[str]) -> str:

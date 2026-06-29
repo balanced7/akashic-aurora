@@ -123,13 +123,16 @@ def _recall_context(data) -> str:
         return ""
     session_id = data.get("session_id") or ""
     try:
-        from core.recall.at_action import recall_at, render
+        from core.recall.at_action import recall_at, render, mark_impression, normalize_target
         res = recall_at(path=path or None, command=command or None,
                         agent_id=os.getenv("AKASHIC_AGENT_ID"),
                         exclude_sources=_load_seen(session_id), count_surface=True)
         out = render(res)
         if out:
-            _mark_seen(session_id, [l.get("source") for l in res.get("lessons", [])])
+            srcs = [l.get("source") for l in res.get("lessons", [])]
+            _mark_seen(session_id, srcs)
+            # open impression for the implicit FAIL->SUCCESS credit (resolved by the PostToolUse hook)
+            mark_impression(session_id, normalize_target(path or None, command or None), srcs)
         return out
     except Exception:
         return ""   # recall must never brick the action
