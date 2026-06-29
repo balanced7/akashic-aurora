@@ -241,6 +241,22 @@ def cmd_list(args):
     return cmd_recall(args)
 
 
+# ----------------------------------------------------------------------- recall-at
+def cmd_recall_at(args):
+    """Recall-at-action: given a file path and/or command, surface the FEW highest-signal active
+    lessons + a lock/peer warning with source pointers. Deterministic, FAITH-gated, fail-soft.
+    The same engine the PreToolUse hook calls to inject additionalContext at the moment of action."""
+    from core.recall.at_action import recall_at, render
+    res = recall_at(path=args.path, command=args.command,
+                    agent_id=args.agent_id or os.getenv("AKASHIC_AGENT_ID"),
+                    limit=args.limit or 3)
+    if args.json:
+        print(json.dumps(res, default=str)); return 0
+    out = render(res)
+    print(out if out else "# recall-at-action: nothing relevant (silence beats a weak hint)")
+    return 0
+
+
 # -------------------------------------------------------------------------- story
 def cmd_story(args, store=None):
     """Print narrative story views: Atlas, Track, Chapter, Beat, or time-lookup.
@@ -951,6 +967,14 @@ def main():
     li = sub.add_parser("list", help="list ALL lessons in memory")
     li.add_argument("--json", action="store_true")
     li.set_defaults(fn=cmd_list)
+
+    ra = sub.add_parser("recall-at", help="recall-at-action: relevant lessons/locks for a path or command")
+    ra.add_argument("--path", default=None, help="the file path about to be acted on")
+    ra.add_argument("--command", default=None, help="the shell command about to run")
+    ra.add_argument("--agent-id", dest="agent_id", default=None, help="who is asking (defaults to $AKASHIC_AGENT_ID)")
+    ra.add_argument("--limit", type=int, default=3, help="max items to surface (default 3)")
+    ra.add_argument("--json", action="store_true")
+    ra.set_defaults(fn=cmd_recall_at)
 
     s = sub.add_parser("status", help="honest system status")
     s.add_argument("--json", action="store_true")
