@@ -264,6 +264,18 @@ def cmd_recall_at(args):
     return 0
 
 
+# ------------------------------------------------------------------ recall-feedback
+def cmd_recall_feedback(args):
+    """Teach recall what's load-bearing: mark a surfaced lesson 'useful' (it changed what you did) or
+    'noise' (off-target). Boosts/decays it in future recall ranking. Source = the lesson's pointer,
+    e.g. learn:experiment:NAME."""
+    from core.recall.at_action import record_feedback
+    kind = "noise" if args.noise else "useful"
+    ok = record_feedback(args.source, kind)
+    print(f"[recall-feedback] {'recorded' if ok else 'failed'}: {kind} <- {args.source}")
+    return 0 if ok else 1
+
+
 # -------------------------------------------------------------------------- story
 def cmd_story(args, store=None):
     """Print narrative story views: Atlas, Track, Chapter, Beat, or time-lookup.
@@ -982,6 +994,12 @@ def main():
     ra.add_argument("--limit", type=int, default=3, help="max items to surface (default 3)")
     ra.add_argument("--json", action="store_true")
     ra.set_defaults(fn=cmd_recall_at)
+
+    rf = sub.add_parser("recall-feedback", help="mark a recalled lesson useful/noise (teaches recall what helps)")
+    rf.add_argument("--source", required=True, help="the lesson's source pointer, e.g. learn:experiment:NAME")
+    rf.add_argument("--useful", action="store_true", help="it changed what you did (default)")
+    rf.add_argument("--noise", action="store_true", help="it was off-target")
+    rf.set_defaults(fn=cmd_recall_feedback)
 
     s = sub.add_parser("status", help="honest system status")
     s.add_argument("--json", action="store_true")

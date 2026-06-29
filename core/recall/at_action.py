@@ -77,7 +77,7 @@ def _cached_items(learning_store: Optional[Any]) -> List[Dict[str, Any]]:
         pass
     try:
         from core.learning.learning_store import get_learning_store
-        items = _project_items(get_learning_store().load_all_learnings_from_store())
+        items = _with_usefulness(_project_items(get_learning_store().load_all_learnings_from_store()))
         if items:
             try:
                 os.makedirs(_CACHE_DIR, exist_ok=True)
@@ -107,7 +107,7 @@ def warm_cache(learning_store: Optional[Any] = None) -> int:
         if learning_store is None:
             from core.learning.learning_store import get_learning_store
             learning_store = get_learning_store()
-        items = _project_items(learning_store.load_all_learnings_from_store())
+        items = _with_usefulness(_project_items(learning_store.load_all_learnings_from_store()))
         os.makedirs(_CACHE_DIR, exist_ok=True)
         with open(_CACHE_FILE, "w", encoding="utf-8") as f:
             json.dump(items, f)
@@ -135,6 +135,78 @@ def prune_state(max_age_days: float = 7.0) -> int:
     return removed
 
 
+# --- usefulness feedback loop: recall learns what's LOAD-BEARING. Each lesson accrues counters in the
+# Store (recall:use:<source>): `surfaced` (auto, each time it's shown) + explicit `useful`/`noise` votes
+# (via `agent_cli.py recall-feedback`). A smoothed factor then boosts proven-useful lessons and decays
+# ones surfaced often yet never useful -- self-improving relevance, deterministic, no LLM. Counters are
+# baked into the warm cache at build time, so the hot path stays a pure file read.
+_USE_PREFIX = "recall:use:"
+
+
+def _store():
+    from core.foundation.store import create_store
+    return create_store()
+
+
+def _load_use(store, source: str) -> Dict[str, int]:
+    try:
+        raw = store.get(_USE_PREFIX + str(source))
+        return json.loads(raw) if raw else {}
+    except Exception:
+        return {}
+
+
+def _with_usefulness(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Attach each lesson's usefulness counters (read once at cache-build time -> off the hot path)."""
+    try:
+        store = _store()
+        for it in items:
+            it["_use"] = _load_use(store, it.get("source"))
+    except Exception:
+        pass
+    return items
+
+
+def usefulness_factor(use: Optional[Dict[str, int]]) -> float:
+    """Smoothed ranking multiplier in [0.5, 1.5]. Neutral (1.0) for unseen; ->1.5 for proven-useful;
+    ->0.5 for noise-voted or surfaced-often-yet-never-useful (the automatic noise decay)."""
+    use = use or {}
+    useful = int(use.get("useful", 0))
+    noise = int(use.get("noise", 0))
+    surfaced = int(use.get("surfaced", 0))
+    eff = useful - noise
+    denom = max(surfaced, useful + noise) + 2.0
+    rate = max(0.0, min(1.0, (eff + 1.0) / denom))   # ~0.5 neutral; ->1 useful; ->0 stale/noise
+    return 0.5 + rate
+
+
+def record_feedback(source: str, kind: str = "useful", *, store=None) -> bool:
+    """Record an explicit usefulness vote for a recalled lesson (kind: 'useful' | 'noise'). Shapes
+    future recall ranking. Best-effort; safe to call repeatedly."""
+    if not source or kind not in ("useful", "noise"):
+        return False
+    try:
+        store = store or _store()
+        use = _load_use(store, source)
+        use[kind] = int(use.get(kind, 0)) + 1
+        store.set(_USE_PREFIX + str(source), json.dumps(use))
+        return True
+    except Exception:
+        return False
+
+
+def bump_surfaced(sources, *, store=None) -> None:
+    """Increment the `surfaced` (impression) counter for shown lessons -- best-effort, fire-and-forget."""
+    try:
+        store = store or _store()
+        for s in sources:
+            use = _load_use(store, s)
+            use["surfaced"] = int(use.get("surfaced", 0)) + 1
+            store.set(_USE_PREFIX + str(s), json.dumps(use))
+    except Exception:
+        pass
+
+
 def _query_from(path: Optional[str], command: Optional[str]) -> str:
     """Build a keyword query from a path (dir/stem tokens) and/or command. Keeps tokens len>3
     (the Ranker's keyword_relevance ignores shorter ones) minus generic noise; order-stable, deduped."""
@@ -159,7 +231,7 @@ def _lessons(query: str, now: Optional[float], limit: int, min_relevance: float,
     from core.primitives.ranker import Ranker
     items = _cached_items(learning_store)
     excl = exclude_sources or set()
-    out: List[Dict[str, Any]] = []
+    cands: List = []
     seen = set()
     for s in Ranker().rank(items, query=query, now=now):   # Ranker excludes superseded (is_active)
         if s.components.get("relevance", 0.0) <= min_relevance:
@@ -168,10 +240,10 @@ def _lessons(query: str, now: Optional[float], limit: int, min_relevance: float,
         if src in seen or src in excl:
             continue   # intra-call dedup + cross-action anti-repeat (each item adds NEW info)
         seen.add(src)
-        out.append(s.item)
-        if len(out) >= limit:
-            break
-    return out
+        # usefulness re-rank: proven-useful lessons rise; surfaced-often-yet-never-useful decay
+        cands.append((s.score * usefulness_factor(s.item.get("_use")), s.item))
+    cands.sort(key=lambda t: t[0], reverse=True)
+    return [it for _, it in cands[:limit]]
 
 
 def _locks(path: Optional[str], agent_id: Optional[str]) -> List[Dict[str, Any]]:
@@ -192,7 +264,8 @@ def recall_at(*, path: Optional[str] = None, command: Optional[str] = None,
               agent_id: Optional[str] = None, limit: int = 3,
               min_relevance: float = 0.0, now: Optional[float] = None,
               learning_store: Optional[Any] = None,
-              exclude_sources: Optional[set] = None) -> Dict[str, Any]:
+              exclude_sources: Optional[set] = None,
+              count_surface: bool = False) -> Dict[str, Any]:
     """Given a point of action (path and/or command), return the few highest-signal active items.
     `exclude_sources` (lesson sources already shown this session) enables hook anti-repeat.
     Deterministic, no-LLM, FAITH-gated, fail-soft (returns an empty result on any error)."""
@@ -208,6 +281,8 @@ def recall_at(*, path: Optional[str] = None, command: Optional[str] = None,
             faithful, conf = rep["faithful"], rep["confidence"]
             if not faithful:
                 lessons = []   # never surface unfaithful recall — silence beats a fabricated hint
+        if count_surface and lessons:
+            bump_surfaced([l.get("source") for l in lessons])   # impression count (best-effort, feeds noise-decay)
         return {"path": path, "command": command, "query": query, "lessons": lessons,
                 "locks": locks, "shown": len(lessons) + len(locks),
                 "faithful": faithful, "confidence": conf}

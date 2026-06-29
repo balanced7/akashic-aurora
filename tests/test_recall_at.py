@@ -111,6 +111,47 @@ def test_warm_cache_and_prune():
         aa._CACHE_DIR, aa._CACHE_FILE, aa._SEEN_DIR = old
 
 
+def test_usefulness_factor():
+    from core.recall.at_action import usefulness_factor
+    assert abs(usefulness_factor(None) - 1.0) < 0.01, "unseen -> neutral 1.0"
+    assert usefulness_factor({"useful": 3, "surfaced": 3}) > 1.2, "proven-useful -> boosted"
+    assert usefulness_factor({"surfaced": 10}) < 0.7, "shown often, never useful -> noise decay"
+    assert usefulness_factor({"noise": 2, "surfaced": 2}) < 0.7, "noise-voted -> demoted"
+    print("--- usefulness factor ---\n  neutral / boost / noise-decay / demote OK")
+
+
+def test_record_feedback_counters():
+    from core.recall.at_action import record_feedback, _load_use
+    from core.foundation.store import FileStore
+    st = FileStore(os.path.join(tempfile.mkdtemp(), "use.json"))
+    assert record_feedback("learn:experiment:x", "useful", store=st) is True
+    assert record_feedback("learn:experiment:x", "useful", store=st) is True
+    assert record_feedback("learn:experiment:x", "noise", store=st) is True
+    use = _load_use(st, "learn:experiment:x")
+    assert use.get("useful") == 2 and use.get("noise") == 1, f"counters should accumulate, got {use}"
+    assert record_feedback("", "useful", store=st) is False, "empty source rejected"
+    assert record_feedback("y", "bogus", store=st) is False, "bad kind rejected"
+    print("--- record_feedback ---\n  votes accumulate; bad input rejected OK")
+
+
+def test_usefulness_reranks_equally_relevant():
+    import core.recall.at_action as aa
+    items = [
+        {"text": "alpha consolidator lesson", "source": "learn:experiment:A", "importance": 3, "_use": {}},
+        {"text": "beta consolidator lesson", "source": "learn:experiment:B", "importance": 3,
+         "_use": {"useful": 5, "surfaced": 5}},
+    ]
+    orig = aa._cached_items
+    aa._cached_items = lambda ls: items   # both equally relevant to "consolidator"; B is proven-useful
+    try:
+        out = aa._lessons("consolidator", None, 2, 0.0)
+        assert out and out[0]["source"] == "learn:experiment:B", \
+            f"proven-useful lesson should rank first: {[o['source'] for o in out]}"
+    finally:
+        aa._cached_items = orig
+    print("--- usefulness re-rank ---\n  proven-useful lesson outranks an equally-relevant one OK")
+
+
 def test_render_formats_and_empties():
     res = {"lessons": [{"text": "route every source through the one consolidator seam",
                         "source": "learn:experiment:spine1_unify"}],
@@ -140,6 +181,9 @@ if __name__ == "__main__":
     test_exclude_sources_anti_repeat()
     test_query_builder_drops_noise()
     test_warm_cache_and_prune()
+    test_usefulness_factor()
+    test_record_feedback_counters()
+    test_usefulness_reranks_equally_relevant()
     test_render_formats_and_empties()
     test_fail_soft_on_empty_and_bad_input()
     print("\n" + "=" * 60)

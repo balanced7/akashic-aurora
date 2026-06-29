@@ -45,6 +45,11 @@ this automatically. In the **read-bootstrap flow (launched from elsewhere)** the
 can't fire -- so make this a habit before an Edit/Write/Bash on a repo file. Cheap,
 deterministic, fail-soft.
 
+**Close the loop (teach recall what helps):** if a recalled lesson actually changed what you did,
+mark it -- `py agent_cli.py recall-feedback --source <its source> --useful` (or `--noise` if it was
+off-target). Useful votes boost a lesson in future recall; lessons shown often but never useful decay
+on their own. This is how recall gets smarter about what's load-bearing.
+
 ## Bifrost (live agent mail + durable salient msgs)
 
 `boot()` already **peeks** unread Bifrost inbox (does NOT consume the cursor) and

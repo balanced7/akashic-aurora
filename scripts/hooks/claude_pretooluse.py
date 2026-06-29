@@ -126,7 +126,7 @@ def _recall_context(data) -> str:
         from core.recall.at_action import recall_at, render
         res = recall_at(path=path or None, command=command or None,
                         agent_id=os.getenv("AKASHIC_AGENT_ID"),
-                        exclude_sources=_load_seen(session_id))
+                        exclude_sources=_load_seen(session_id), count_surface=True)
         out = render(res)
         if out:
             _mark_seen(session_id, [l.get("source") for l in res.get("lessons", [])])
