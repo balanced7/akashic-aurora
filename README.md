@@ -34,20 +34,25 @@ Two organizing ideas:
 
 - **Foundation (S0):** `Store` (Redis+File hybrid, graceful fallback), `Ledger` (append-only streams), a tz-safe
   time layer, a 66-type relationship vocabulary.
-- **Primitives (cross-cutting):** `Ranker`, `Distiller`, `Supersession`, `Consolidator`, `Embedder`, `Clusterer`.
+- **Primitives (cross-cutting):** `Ranker`, `Distiller`, `Supersession`, `Consolidator`, `Embedder`, `Clusterer`,
+  and a deterministic, no-LLM **faithfulness critic** — every distilled claim must resolve to a real source.
 - **Domain (S1–3):** learning store + episodic memory, an event firehose with a time-indexed read model, agent
   coordination signals.
 - **Projections (S4):** the **narrative spine** (Chronicler, TrackRouter, bi-temporal chapter lifecycle,
   tag-governance CRDT) and the **Codex** (Resources over embedding clusters); **Perspectives** (swappable lenses).
-- **Interface (S5):** a single CLI "agent door" + the agent-comm bus.
+- **Interface (S5):** a single CLI "agent door" + the agent-comm bus, and **recall-at-action** — a PreToolUse
+  hook that surfaces the right lessons + peer locks *at the moment you edit a file or run a command*:
+  deterministic, faithfulness-gated, deduped per session, warm-cached, and fail-soft.
 
 ## Status
 
 - **Wave 1 — spine hardening:** complete (silent recall loss, router precision, confidence robustness, timezone
   safety, observability).
 - **Wave 2 — the Codex (self-curating knowledge):** in progress — embedding substrate, shared consolidator,
-  clusterer, and the Resource lifecycle are in; the curator loop is next.
-- Built in small, test-gated slices with an automated layer-boundary checker. **297 tests green** at last mirror.
+  clusterer, Resource lifecycle, and a **faithfulness gate** (FAITH-1) are in; the curator loop is next.
+- **Recall-at-action:** shipped — knowledge surfaces automatically at the point of action, ranked and
+  faithfulness-checked, so lessons get *read when they matter*, not just written.
+- Built in small, test-gated slices with an automated layer-boundary checker. **447 tests green** at last mirror.
 
 ## Where to read next
 
