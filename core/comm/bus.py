@@ -32,6 +32,14 @@ NS = "bifrost"
 DEFAULT_MAXLEN = 10_000
 BROADCAST_TO = "*"
 PRESENCE_TTL = 90          # seconds an agent is considered "online" after its last activity
+BELL_NS = f"{NS}:bell"     # Bifrost Mesh W1: pub/sub doorbell channel prefix
+
+
+def bell_channel(to: str) -> str:
+    """The pub/sub doorbell channel for a recipient ('*' = broadcast). A Dispatcher PSUBSCRIBEs
+    `bifrost:bell:*` to wake in ~ms; the notice is payload-free and SAFE TO LOSE (the Stream +
+    cursor remain the durable truth)."""
+    return f"{BELL_NS}:{to}"
 
 
 def _now() -> str:
@@ -223,6 +231,7 @@ class Bus:
         try:
             mid = str(self._client.xadd(stream, env, maxlen=self.maxlen, approximate=True))
             self._touch()
+            self._ring_bell(to, mid, str(kind))    # W1 doorbell: low-latency notify (lose-safe)
             try:                                   # B2: durably project salient kinds (best-effort)
                 from core.comm.promoter import is_salient, promote
                 if self._promote and is_salient(kind):
@@ -232,6 +241,16 @@ class Bus:
             return mid
         except Exception:
             return None
+
+    def _ring_bell(self, to: str, mid: str, kind: str) -> None:
+        """Doorbell (Bifrost Mesh W1): a payload-free pub/sub notice so a Dispatcher wakes in ~ms.
+        At-most-once and SAFE TO LOSE -- the Stream + cursor are the durable truth; a dropped bell is
+        caught by the next inbox peek / safety re-scan. Best-effort: never blocks or fails a send."""
+        try:
+            notice = json.dumps({"mid": mid, "frm": self.agent_id, "to": to, "kind": kind})
+            self._client.publish(bell_channel(to), notice)
+        except Exception:
+            pass
 
     # ------------------------------------------------------------------ receive
     def inbox(self, limit: int = 50, *, advance: bool = True) -> List[Message]:
