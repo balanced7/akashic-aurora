@@ -1,0 +1,20 @@
+# Akashic Aurora — Python dependencies
+#
+# The CORE system requires NO third-party packages: it runs on the Python 3.11+
+# standard library alone, with the Store/Ledger transparently falling back to local
+# files when Redis is absent. Everything below is OPTIONAL — a first run needs none of it.
+#
+#   pip install -r requirements.txt     # installs redis + pytest (recommended)
+
+# Real Redis backend — enables cross-process / multi-agent sharing and is faster.
+# Without it the Hybrid Store/Ledger use local files (single process; still fully works).
+redis>=5,<9
+
+# Run the test suite (`pytest`) — the project's quality gate (450+ tests).
+pytest>=8
+
+# --- Optional extras (uncomment to enable) -----------------------------------------
+# Semantic embeddings for the Embedder/Clusterer. Hardware-gated and OFF by default —
+# the deterministic keyword/path pipeline is the always-on default and needs none of this:
+# numpy>=1.26
+# sentence-transformers>=3

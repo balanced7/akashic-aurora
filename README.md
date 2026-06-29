@@ -54,12 +54,30 @@ Two organizing ideas:
   faithfulness-checked, so lessons get *read when they matter*, not just written.
 - Built in small, test-gated slices with an automated layer-boundary checker. **447 tests green** at last mirror.
 
+## Get started
+
+```bash
+git clone https://github.com/balanced7/akashic-aurora.git && cd akashic-aurora
+py -m pip install -r requirements.txt   # optional — the core runs on the stdlib alone
+py bootstrap.py --agent-init            # verify: prints the init command + Redis/lesson status
+py agent_cli.py boot me --task "trying Akashic Aurora"
+```
+
+No third-party packages are required for a first run; Redis is optional (the store falls back to files).
+On macOS/Linux use `python3` instead of `py`. Full setup — Redis, the test suite, and the Claude Code
+**recall-at-action** hooks — is in **[`docs/DEPLOY.md`](docs/DEPLOY.md)**.
+
 ## Where to read next
 
+- [`docs/DEPLOY.md`](docs/DEPLOY.md) — install & run it yourself
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — the synthesis (layers, waves, what's done)
 - [`docs/LEXICON.md`](docs/LEXICON.md) — the ubiquitous language
 - [`docs/codex-plan.md`](docs/codex-plan.md) + [`docs/codex-inventory.md`](docs/codex-inventory.md) — the current build
 - [`docs/tag-governance-plan.md`](docs/tag-governance-plan.md) — the CRDT governance + safety invariants
 - [`AGENTS.md`](AGENTS.md) — the agent-facing contract
+
+## License
+
+[Apache License 2.0](LICENSE) — see also [`NOTICE`](NOTICE). © 2026 balanced7.
 
 *A personal research project. Names must not lie; the record must not decay.*
