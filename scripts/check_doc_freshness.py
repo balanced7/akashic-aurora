@@ -1,98 +1,54 @@
-"""
-Doc-freshness guardrail -- keep hand-written STATUS/INVENTORY snapshots from drifting.
+"""Doc-freshness guardrail -- the repo ROOT holds only living, intentionally-maintained docs.
 
 Semantic Relationship: Guardrails enforce GeneratedTruthOverHandwrittenStatus
 
 WHY THIS EXISTS
 ---------------
-The project's "current state" used to live in hand-written snapshots (SYSTEM_STATUS.md,
-ACTUAL_INVENTORY.md, PHASE_1_CHECKPOINT.md, ...). They go stale the moment code moves
-and quietly mislead the next agent -- the exact problem the narrative spine replaces.
-Generated truth now comes from:
+Pre-rename caps-docs (AGENT_ONBOARDING, SYSTEMS_ARCHITECTURE, SIGNAL_REFERENCE, ERROR_HANDLING_GUIDE,
+...) and hand-written STATUS snapshots drift the moment code moves and quietly mislead the next agent
+-- the exact problem the narrative spine replaces. Truth is generated:
     py agent_cli.py status      # live system + lesson/blocker counts
     py agent_cli.py story       # the narrative Atlas (chronicled from Beats + git)
     git log                     # the commit ground-truth
     docs/ROADMAP.md             # the living plan
 
-This guardrail flags status-snapshot docs that have crept back so generated truth can't
-silently drift again (strangler-fig: the generated story replaces the manual status doc).
+POLICY (ALLOWLIST, not blocklist -- review DOC-02)
+-------------------------------------------------
+The old version only flagged STATUS/INVENTORY/CHECKPOINT-shaped *names*, so misleading docs that
+didn't match those patterns (AGENT_ONBOARDING.md, SYSTEMS_ARCHITECTURE.md, ...) passed clean. Now:
+  FAIL (exit 1) if any root-level *.md is NOT in the small allowlist of permitted living root docs.
+New design/plan docs belong in docs/; retired docs belong in _archive/. The root stays minimal.
 
-Policy:
-  - FAIL (exit 1) if a stale-pattern snapshot appears at the REPO ROOT -- that's the
-    first thing an agent sees, and where drift does the most damage.
-  - WARN (listed, exit 0 contribution) for snapshots elsewhere (e.g. docs/current/),
-    so they're visible and trackable without blocking.
-  - docs/_archive/ and _archive/ are exempt: retiring a doc THERE is the fix.
-
-Run: py scripts/check_doc_freshness.py        (exit 0 = clean root, 1 = drift at root)
+Run: py scripts/check_doc_freshness.py        (exit 0 = clean root, 1 = an unlisted root doc)
 """
 import os
-import re
 import sys
 from pathlib import Path
 
 ROOT = Path(os.getenv("AI_SETUP", "E:\\AI-Setup"))
 
-# Basenames that denote a hand-written point-in-time status/snapshot (drift-prone).
-STALE_PATTERNS = [
-    re.compile(r".*STATUS.*", re.I),
-    re.compile(r".*INVENTORY.*", re.I),
-    re.compile(r".*CHECKPOINT.*", re.I),
-    re.compile(r"CONTINUATION_.*", re.I),
-    re.compile(r".*SESSION_SUMMARY.*", re.I),
-    re.compile(r".*_COMPLETE\.(md|txt)$", re.I),
-    re.compile(r"SLEEP_SAFELY.*", re.I),
-]
-
-# Exempt directories (retiring a doc here IS the remedy; deps live here too).
-EXEMPT_DIRS = {"_archive", ".git", "node_modules", "__pycache__", ".pytest_cache",
-               "patches", "session_briefings", "session_logs"}
-
-# Explicitly-living docs that may match a pattern but are intentionally maintained.
-ALLOWLIST = set()  # e.g. {"docs/ROADMAP.md"} -- none today
-
-
-def _is_stale_name(name: str) -> bool:
-    return any(p.match(name) for p in STALE_PATTERNS)
-
-
-def _iter_docs():
-    for dirpath, dirnames, filenames in os.walk(ROOT):
-        dirnames[:] = [d for d in dirnames if d not in EXEMPT_DIRS]
-        for fn in filenames:
-            if fn.lower().endswith((".md", ".txt")) and _is_stale_name(fn):
-                p = Path(dirpath) / fn
-                rel = p.relative_to(ROOT).as_posix()
-                if rel in ALLOWLIST:
-                    continue
-                yield rel
+# The ONLY *.md files allowed at the repo root -- the agent's designated entry points.
+ALLOWED_ROOT_MD = {"README.md", "AGENTS.md", "bootstrap.md"}
 
 
 def check() -> int:
-    root_hits, other_hits = [], []
-    for rel in _iter_docs():
-        (root_hits if "/" not in rel else other_hits).append(rel)
+    offenders = sorted(p.name for p in ROOT.glob("*.md") if p.name not in ALLOWED_ROOT_MD)
 
     print("=" * 60)
-    print("DOC-FRESHNESS CHECK")
+    print("DOC-FRESHNESS CHECK (root allowlist)")
     print("=" * 60)
+    print("Allowed at root: " + ", ".join(sorted(ALLOWED_ROOT_MD)))
     print("Generated truth: `py agent_cli.py status` | `story` | `git log` | docs/ROADMAP.md\n")
 
-    if other_hits:
-        print(f"Snapshot docs outside root (visible, not blocking) -- {len(other_hits)}:")
-        for rel in sorted(other_hits):
-            print(f"  - {rel}")
-        print("  -> prefer the generated story; archive to docs/_archive/ when truly dead.\n")
-
-    if root_hits:
-        print(f"ROOT-LEVEL STALE SNAPSHOTS ({len(root_hits)}):")
-        for rel in sorted(root_hits):
-            print(f"  - {rel}")
-        print("\nFAIL: status snapshots at the repo root drift and mislead agents.")
-        print("      Retire them:  git mv <doc> docs/_archive/   (truth is generated).")
+    if offenders:
+        print(f"UNLISTED ROOT DOCS ({len(offenders)}):")
+        for n in offenders:
+            print(f"  - {n}")
+        print("\nFAIL: only living entry-point docs belong at the root; these drift and mislead.")
+        print("      Move a design/plan doc to docs/, or retire it:  git mv <doc> _archive/")
         return 1
 
-    print("PASS: no stale status snapshots at the repo root.")
+    print("PASS: the repo root holds only the allowlisted living docs.")
     return 0
 
 
