@@ -276,6 +276,33 @@ def cmd_recall_feedback(args):
     return 0 if ok else 1
 
 
+# ------------------------------------------------------------------------ discover
+def list_verbs(query=""):
+    """Introspect the live argparse subparsers -> [(verb, purpose)]. ONE source of truth (the parser
+    itself), so the door can never describe a verb that doesn't exist or omit one that does."""
+    sa = next((a for a in build_parser()._actions if isinstance(a, argparse._SubParsersAction)), None)
+    verbs = [(ca.dest, (ca.help or "").strip()) for ca in (sa._choices_actions if sa else [])]
+    q = (query or "").strip().lower()
+    if q:
+        verbs = [(n, h) for n, h in verbs if q in n.lower() or q in h.lower()]
+    return verbs
+
+
+def cmd_discover(args):
+    """The self-describing door: list every verb + its one-line purpose (the L1 skeleton). Optional
+    QUERY filters by substring. Run `py agent_cli.py <verb> -h` for a verb's full arguments."""
+    verbs = list_verbs(args.query)
+    if args.json:
+        print(json.dumps([{"verb": n, "purpose": h} for n, h in verbs], indent=2)); return 0
+    q = (args.query or "").strip()
+    print(f"# agent_cli.py - {len(verbs)} verb(s)" + (f" matching '{q}'" if q else "")
+          + "   (run `py agent_cli.py <verb> -h` for arguments)")
+    width = max((len(n) for n, _ in verbs), default=0)
+    for n, h in verbs:
+        print(f"  {n.ljust(width)}  {h}")
+    return 0
+
+
 # -------------------------------------------------------------------------- story
 def cmd_story(args, store=None):
     """Print narrative story views: Atlas, Track, Chapter, Beat, or time-lookup.
@@ -963,13 +990,18 @@ def cmd_status(args):
     return 0
 
 
-def main():
+def build_parser():
     p = argparse.ArgumentParser(prog="agent_cli.py", description="Agent door to the AI-Setup system.")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     b = sub.add_parser("boot", help="print an agent's startup context")
     b.add_argument("agent_id"); b.add_argument("--task", default=None); b.add_argument("--json", action="store_true")
     b.set_defaults(fn=cmd_boot)
+
+    dsc = sub.add_parser("discover", help="list every verb + its purpose (the self-describing door)")
+    dsc.add_argument("query", nargs="?", default="", help="optional substring to filter verbs by name/purpose")
+    dsc.add_argument("--json", action="store_true")
+    dsc.set_defaults(fn=cmd_discover)
 
     l = sub.add_parser("learn", help="record a lesson")
     l.add_argument("agent_id"); l.add_argument("--experiment", required=True)
@@ -1090,6 +1122,11 @@ def main():
     lks.add_argument("agent_id", nargs="?", default=""); lks.add_argument("--json", action="store_true")
     lks.set_defaults(fn=cmd_locks)
 
+    return p
+
+
+def main():
+    p = build_parser()
     args = p.parse_args()
     sys.exit(args.fn(args))
 
