@@ -184,6 +184,23 @@ def recall(query: str = "") -> str:
 
 
 @mcp.tool()
+def recall_at(path: str = "", command: str = "", agent: str = "", limit: int = 3) -> str:
+    """Recall-at-action: the few highest-signal ACTIVE lessons + any peer lock for a file PATH or
+    COMMAND you're about to act on, with source pointers. Deterministic, faithfulness-gated, and
+    silent when nothing is relevant. Pass `path` OR `command`."""
+    return _run(agent_cli.cmd_recall_at, path=path or None, command=command or None,
+                agent_id=agent or None, limit=limit)
+
+
+@mcp.tool()
+def recall_feedback(source: str, useful: bool = True, noise: bool = False) -> str:
+    """Teach recall what's load-bearing: mark a recalled lesson 'useful' (default) or 'noise'
+    (off-target). `source` is the lesson's pointer (e.g. learn:experiment:NAME); useful votes boost it
+    in future recall, and lessons surfaced often but never useful decay on their own."""
+    return _run(agent_cli.cmd_recall_feedback, source=source, useful=useful, noise=noise)
+
+
+@mcp.tool()
 def status() -> str:
     """Honest system status: backend, lesson count, agent-memory count, spine health."""
     return _run(agent_cli.cmd_status)
