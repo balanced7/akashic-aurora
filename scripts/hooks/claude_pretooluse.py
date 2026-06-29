@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """Claude Code PreToolUse hook -> git-safety guard (Concurrency design C0).
 
-Wire it in .claude/settings.json:
+Wire it in .claude/settings.json (project-launch, relative path):
   {"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[
     {"type":"command","command":"py scripts/hooks/claude_pretooluse.py"}]}]}}
+Or register at the USER level with an ABSOLUTE path so it fires for EVERY session launched from
+any cwd (the read-bootstrap flow), e.g. command "py E:/AI-Setup/scripts/hooks/claude_pretooluse.py".
+The _in_scope() guard makes it a silent no-op outside this repo, so global registration is safe.
 
 Reads the tool-call JSON on stdin. If the Bash command blanket-stages git (or a peer holds
 an advisory lock on the target path), emit a DENY decision (the reason is fed back to Claude).
@@ -23,6 +26,38 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+# Repo root = three dirs up from scripts/hooks/<this file>. Used to SCOPE the guard: this hook can
+# be registered at the USER level (so it fires for every Claude session, launched from any cwd --
+# e.g. the read-bootstrap flow), but it MUST stay a silent no-op outside this repo so it never
+# blocks edits or injects AI-Setup lessons into unrelated projects.
+_ROOT = os.path.normcase(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+
+def _under_root(p: str) -> bool:
+    if not p:
+        return False
+    try:
+        a = os.path.normcase(os.path.abspath(p))
+    except Exception:
+        return False
+    return a == _ROOT or a.startswith(_ROOT + os.sep)
+
+
+def _in_scope(tool: str, data) -> bool:
+    """True iff this action belongs to THIS repo, so a global registration is a silent no-op
+    elsewhere. Edit/Write: the target file is under the repo (the strongest signal). Bash: the
+    session cwd is in the repo, or the command clearly invokes it (agent_cli.py / an AI-Setup path).
+    In a project-launched session (cwd = repo) both branches are naturally True, so behavior is
+    unchanged from before."""
+    ti = data.get("tool_input") or {}
+    if tool in ("Edit", "Write", "NotebookEdit"):
+        return _under_root(ti.get("file_path") or "")
+    cwd = data.get("cwd") or os.getcwd()
+    if _under_root(cwd):
+        return True
+    cl = (ti.get("command") or "").lower()
+    return "ai-setup" in cl or "agent_cli.py" in cl
 
 
 def _deny(reason: str) -> None:
@@ -98,19 +133,24 @@ def main() -> int:
     except Exception:
         return 0   # unparseable -> allow
     tool = data.get("tool_name") or ""
+    if tool not in ("Bash", "Edit", "Write", "NotebookEdit"):
+        return 0
+    if not _in_scope(tool, data):
+        return 0   # outside this repo -> silent no-op (safe for user-level / global registration)
     if tool == "Bash":
         reason = _check_bash(data)
-    elif tool in ("Edit", "Write", "NotebookEdit"):
-        reason = _check_write(data)
     else:
-        return 0
+        reason = _check_write(data)
     if reason:
         _deny(reason)
         return 0
-    # Allow path: surface recall-at-action context (non-blocking, fail-open, capped, FAITH-gated).
-    ctx = _recall_context(data)
-    if ctx:
-        _emit_context(ctx)
+    # Recall-at-action fires only for WRITE tools (you're about to MODIFY this file) -- the targeted,
+    # high-signal trigger. Bash recall fired on nearly every command and re-injected the same lessons;
+    # too noisy without anti-repeat (the git-guard above is Bash's job). Re-enable once anti-repeat lands.
+    if tool != "Bash":
+        ctx = _recall_context(data)
+        if ctx:
+            _emit_context(ctx)
     return 0
 
 
