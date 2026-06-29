@@ -181,7 +181,7 @@ answer of record.
 ## 4. Sequenced Execute Order (a compounding chain)
 
 Respecting: prefer **wiring** over building; **local-hardware** (no embedding on hot path); **determinism**
-(no LLM judge inline); **no separate cursor folder**; **do not touch `ai_setup_mcp.py`** (Cursor-owned).
+(no LLM judge inline); **no separate cursor folder**. (Per-agent file ownership RETIRED 2026-06-29 — any agent edits any file, coordinating via locks.)
 
 > ### ⭐ FIRST MOVE (highest leverage) — ✅ SHIPPED (31a1b67): **`additionalContext` wired into the PreToolUse hook via `core/recall/at_action.py` + a `recall-at` CLI verb.**
 > It is the single seam that turns passive storage into active recall, it is *ahead of published SOTA* (mem0 2026
@@ -250,9 +250,9 @@ shipped with its consumer in the **same slice** so nothing new becomes built-not
 - **Two writers, one substrate.** Cursor + Claude concurrent appends/supersessions rely on `Store.cas` (C3,
   `core/foundation/store.py:173`) which has **no domain (non-test) caller today** (called only internally) — the
   memory unifier may be its **first** domain consumer, so prove CAS under contention before trusting it against lost updates.
-- **Door parity is intentionally one-sided for now.** We must not touch Cursor-owned `ai_setup_mcp.py`, so new
-  verbs land CLI-first; flag the temporary CLI>MCP asymmetry explicitly and let the parity contract test + a Cursor
-  handoff reconcile it. Do **not** create a separate cursor folder.
+- **Door parity (DONE 2026-06-29).** `recall_at`/`recall_feedback` are now MCP tools in `ai_setup_mcp.py` too —
+  with no per-agent file ownership, whichever agent adds a CLI verb keeps the MCP wrapper in parity directly
+  (thin `_run()` wrappers, so they can't drift). Do **not** create a separate cursor folder.
 - **`MEMORY.md` is auto-injected into every session.** A malformed/over-long projector output degrades **every**
   future session (context rot). Keep L1 strictly token-bounded, validate the rendered file, and **prove a lossless
   round-trip before overwriting** the human-maintained copy; keep originals until proven.

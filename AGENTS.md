@@ -50,6 +50,23 @@ mark it -- `py agent_cli.py recall-feedback --source <its source> --useful` (or 
 off-target). Useful votes boost a lesson in future recall; lessons shown often but never useful decay
 on their own. This is how recall gets smarter about what's load-bearing.
 
+## Who does what (no fixed split)
+
+**Any agent does any task and may touch any file.** There is no permanent per-agent ownership of files
+or tasks -- whoever is online (or whoever the human is driving) does the work. The only coordination is
+**dynamic**: when two agents are live at once, claim an advisory lock before editing a shared path so you
+don't clobber each other --
+
+```
+py agent_cli.py lock <your_agent_id> <path>      # transient "I'm editing this now"
+py agent_cli.py unlock <your_agent_id> <path>    # release when done
+py agent_cli.py locks                            # who holds what right now
+```
+
+Locks are released when you're done, not owned. Use a stable `AKASHIC_AGENT_ID` so locks/handoffs
+attribute correctly. (Fixing one agent to one task is reserved for a deliberate architectural choice --
+e.g. handing a narrow job to a local LLM on purpose -- not the default.)
+
 ## Bifrost (live agent mail + durable salient msgs)
 
 `boot()` already **peeks** unread Bifrost inbox (does NOT consume the cursor) and

@@ -89,7 +89,7 @@ produced them — defense in depth beneath Layer 2. Every denial names the rule 
   `agent/policy/git_guard.py` (`check_git_command`) consulted by BOTH hooks — `scripts/hooks/claude_pretooluse.py`
   (PreToolUse, denies via `permissionDecision:"deny"` JSON; exit-1 footgun avoided) and
   `scripts/hooks/cursor_beforeshell.py` — so the policy can't drift. Blocks `git add -A|.|--all|:/` and
-  `git commit -a*`. Wired in `.claude/settings.json`; Cursor's hook config is owned by Cursor (snippet in the
+  `git commit -a*`. Wired in `.claude/settings.json`; each agent maintains its own hook config (Cursor's snippet in the
   adapter docstring). 29 tests (`tests/test_git_guard.py`); suite 375 green. Unscoped-*write* blocking deferred
   to C2 (needs the path-locks/zones). Live-validated: caught Cursor's `ai_setup_mcp.py` staged in the shared index.
 - **C1 — worktree setup + integration flow. ✅ DONE 2026-06-28.** `scripts/worktree.py` with
@@ -187,4 +187,4 @@ own (they need the one Google session), so here you **serialize** access rather 
 
 **Build order:** R0 + R1 first (fix ~90% of the pain), lean on R2 (free) for awareness/fencing,
 R4 only later. Anti-patterns (agreed): Redlock/etcd, a 2nd MCP server per agent, "remember not
-to call gemini while the runner runs." **Split:** Cursor builds R0+R1; this doc owns the design.
+to call gemini while the runner runs." **(Historical split, RETIRED 2026-06-29 — no fixed per-agent assignment: whoever is online builds R0+R1.)**

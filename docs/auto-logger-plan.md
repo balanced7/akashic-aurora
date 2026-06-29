@@ -154,7 +154,7 @@ py agent_cli.py story --beat <id> --raw                              # Beat's at
   `tests/isolate_canonical.py` + `redis_test_helpers.py` (isolation).
 - **Avoid / do not revive:** `session_logger`, `auto_logger`, `agent_logger`,
   `session_summarizer`, `session_canonical` — dead/fragmented, bypass the Ledger. Their
-  cleanup is out of scope here (owned by Claude per the current split).
+  cleanup is out of scope here (any agent can pick it up — no fixed per-agent split).
 
 ## Slice plan (each with its acceptance bar)
 
