@@ -24,6 +24,7 @@ non-blocking error and PROCEEDS with the action.
 import json
 import os
 import sys
+import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
@@ -75,9 +76,44 @@ def _emit_context(text: str) -> None:
     }}))
 
 
+# --- anti-repeat: a lesson already surfaced THIS session must not be shown again. The hook is a
+# fresh process per call, so shown lesson-sources are tracked in a per-session file keyed by session_id.
+_SEEN_DIR = os.path.join(tempfile.gettempdir(), "akashic_recall", "seen")
+
+
+def _seen_path(session_id: str) -> str:
+    safe = "".join(c for c in session_id if c.isalnum() or c in "-_")[:128]
+    return os.path.join(_SEEN_DIR, (safe or "nosession") + ".txt")
+
+
+def _load_seen(session_id: str) -> set:
+    if not session_id:
+        return set()
+    try:
+        with open(_seen_path(session_id), encoding="utf-8") as f:
+            return {ln.strip() for ln in f if ln.strip()}
+    except Exception:
+        return set()
+
+
+def _mark_seen(session_id: str, sources) -> None:
+    srcs = [s for s in (sources or []) if s]
+    if not session_id or not srcs:
+        return
+    try:
+        os.makedirs(_SEEN_DIR, exist_ok=True)
+        with open(_seen_path(session_id), "a", encoding="utf-8") as f:
+            for s in srcs:
+                f.write(s + "\n")
+    except Exception:
+        pass
+
+
 def _recall_context(data) -> str:
-    """Recall-at-action: relevant active lessons + lock/peer warning for the path/command about to
-    be acted on. Best-effort, capped, FAITH-gated, fail-open. Kill switch: AKASHIC_RECALL_AT_ACTION=0."""
+    """Recall-at-action: relevant active lessons + lock/peer warning for the path/command about to be
+    acted on. Best-effort, capped, FAITH-gated, fail-open. ANTI-REPEAT: lessons already surfaced this
+    session (per session_id) are excluded so the same hint never repeats. Locks always surface (safety).
+    Kill switch: AKASHIC_RECALL_AT_ACTION=0."""
     if os.getenv("AKASHIC_RECALL_AT_ACTION", "1") == "0":
         return ""
     ti = data.get("tool_input") or {}
@@ -85,10 +121,16 @@ def _recall_context(data) -> str:
     command = ti.get("command") or ""
     if not path and not command:
         return ""
+    session_id = data.get("session_id") or ""
     try:
         from core.recall.at_action import recall_at, render
-        return render(recall_at(path=path or None, command=command or None,
-                                agent_id=os.getenv("AKASHIC_AGENT_ID")))
+        res = recall_at(path=path or None, command=command or None,
+                        agent_id=os.getenv("AKASHIC_AGENT_ID"),
+                        exclude_sources=_load_seen(session_id))
+        out = render(res)
+        if out:
+            _mark_seen(session_id, [l.get("source") for l in res.get("lessons", [])])
+        return out
     except Exception:
         return ""   # recall must never brick the action
 

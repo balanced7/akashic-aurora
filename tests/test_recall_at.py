@@ -71,6 +71,15 @@ def test_dedup_by_source():
     print("--- dedup ---\n  duplicate source collapses to one OK")
 
 
+def test_exclude_sources_anti_repeat():
+    res1 = recall_at(command="edit the consolidator seam", learning_store=_STORE)
+    srcs1 = {l["source"] for l in res1["lessons"]}
+    assert "learn:experiment:spine1_unify" in srcs1, "first call should surface the consolidator lesson"
+    res2 = recall_at(command="edit the consolidator seam", exclude_sources=srcs1, learning_store=_STORE)
+    assert all(l["source"] not in srcs1 for l in res2["lessons"]), "excluded sources must not reappear"
+    print("--- anti-repeat ---\n  sources shown once are excluded next time OK")
+
+
 def test_query_builder_drops_noise():
     q = _query_from("core/primitives/faithfulness.py", None)
     assert "faithfulness" in q and "primitives" in q

@@ -18,15 +18,20 @@ Design — deterministic, no-LLM, fail-soft (SOTA-informed; see docs/agent-exper
   fabricated/unresolvable pointer) ever reaches the agent.
 - **fully degrades to empty** on any error — a recall path must never brick the action.
 
-LATENCY (honest): v1 loads + ranks the learning store on each call (correctness-first, fail-soft).
-Since the hook fires on every Read/Edit/Write, the SOTA target is ~<=50ms via an mtime-keyed cache
-pre-warmed at SessionStart (aider diskcache / Cursor Merkle pattern) — a documented next step, not v1.
-The PreToolUse hook is non-blocking + fail-open, so cold-load latency delays a hint, never the action.
+LATENCY: lesson items are served from a TTL disk cache (a fresh hook process can't hold an in-memory
+one), so after warm-up a call is a ~1ms file read + rank, not a store round-trip. On a cold/down store
+the cache returns last-known-good (stale fallback) instead of empty — this kills the cold-start empty.
+The PreToolUse hook is also non-blocking + fail-open, so even a cold first call delays a hint, never the
+action. Anti-repeat (don't re-surface a lesson already shown this session) is handled by the hook via
+`exclude_sources`. Tunables: AKASHIC_RECALL_CACHE_TTL (sec), AKASHIC_RECALL_AT_ACTION=0 (off).
 """
 from __future__ import annotations
 
+import json
 import os
 import re
+import tempfile
+import time
 from typing import Any, Dict, List, Optional
 
 _TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
@@ -34,6 +39,59 @@ _TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
 _STOP = {"core", "self", "true", "false", "none", "null", "test", "tests", "json",
          "http", "https", "www", "com", "the", "and", "for", "with", "this", "that",
          "py", "python", "git", "main", "init", "args", "data", "path", "file"}
+
+# --- warm disk cache: a fresh hook process can't keep an in-memory cache, so cache the projected
+# lesson items to a small JSON file (read ~1ms) instead of cold-connecting the store every call.
+# Fresh (within TTL) -> read it; expired -> refresh from the store; store fails (cold/down) -> fall
+# back to the STALE cache (last-known-good) -- this is what kills the cold-start empty. Env-tunable.
+_CACHE_DIR = os.path.join(tempfile.gettempdir(), "akashic_recall")
+_CACHE_FILE = os.path.join(_CACHE_DIR, "lesson_items.json")
+_CACHE_TTL = float(os.getenv("AKASHIC_RECALL_CACHE_TTL", "120"))
+
+
+def _project_items(recs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    items: List[Dict[str, Any]] = []
+    for rec in recs:
+        summary = rec.get("recommendation") or rec.get("actual") or rec.get("what_tried") or ""
+        if not summary:
+            continue
+        items.append({
+            "text": summary,
+            "source": f"learn:experiment:{rec.get('experiment_name')}",
+            "importance": 4 if str(rec.get("success", "")).lower() in ("yes", "true") else 3,
+            "timestamp": rec.get("timestamp"), "kind": "lesson",
+        })
+    return items
+
+
+def _cached_items(learning_store: Optional[Any]) -> List[Dict[str, Any]]:
+    """Projected lesson items via a TTL disk cache with stale-fallback. An INJECTED store (tests)
+    bypasses the cache for determinism; only the production singleton path is cached."""
+    if learning_store is not None:
+        return _project_items(learning_store.load_all_learnings_from_store())
+    try:
+        if (time.time() - os.stat(_CACHE_FILE).st_mtime) < _CACHE_TTL:
+            with open(_CACHE_FILE, encoding="utf-8") as f:
+                return json.load(f)          # fresh cache hit (~1ms, no store round-trip)
+    except Exception:
+        pass
+    try:
+        from core.learning.learning_store import get_learning_store
+        items = _project_items(get_learning_store().load_all_learnings_from_store())
+        if items:
+            try:
+                os.makedirs(_CACHE_DIR, exist_ok=True)
+                with open(_CACHE_FILE, "w", encoding="utf-8") as f:
+                    json.dump(items, f)
+            except Exception:
+                pass
+        return items
+    except Exception:
+        try:                                  # store cold/down -> last-known-good (kills cold empties)
+            with open(_CACHE_FILE, encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return []
 
 
 def _query_from(path: Optional[str], command: Optional[str]) -> str:
@@ -53,32 +111,21 @@ def _query_from(path: Optional[str], command: Optional[str]) -> str:
 
 
 def _lessons(query: str, now: Optional[float], limit: int, min_relevance: float,
-             learning_store: Optional[Any] = None) -> List[Dict[str, Any]]:
-    """Rank ACTIVE lessons by relevance to the query; keep only those above the show-nothing floor."""
+             learning_store: Optional[Any] = None,
+             exclude_sources: Optional[set] = None) -> List[Dict[str, Any]]:
+    """Rank ACTIVE lessons by relevance; keep those above the show-nothing floor, minus any already
+    surfaced this session (`exclude_sources` -> anti-repeat) and intra-call source dups."""
     from core.primitives.ranker import Ranker
-    if learning_store is None:
-        from core.learning.learning_store import get_learning_store
-        learning_store = get_learning_store()
-    recs = learning_store.load_all_learnings_from_store()
-    items: List[Dict[str, Any]] = []
-    for rec in recs:
-        summary = rec.get("recommendation") or rec.get("actual") or rec.get("what_tried") or ""
-        if not summary:
-            continue
-        items.append({
-            "text": summary,
-            "source": f"learn:experiment:{rec.get('experiment_name')}",
-            "importance": 4 if str(rec.get("success", "")).lower() in ("yes", "true") else 3,
-            "timestamp": rec.get("timestamp"), "kind": "lesson",
-        })
+    items = _cached_items(learning_store)
+    excl = exclude_sources or set()
     out: List[Dict[str, Any]] = []
     seen = set()
     for s in Ranker().rank(items, query=query, now=now):   # Ranker excludes superseded (is_active)
         if s.components.get("relevance", 0.0) <= min_relevance:
             continue   # SHOW-NOTHING floor (T_min): must actually match this path/command; never pad to `limit`
         src = s.item.get("source")
-        if src in seen:
-            continue   # dedup by source (one line per experiment — MMR-style: each item adds new info)
+        if src in seen or src in excl:
+            continue   # intra-call dedup + cross-action anti-repeat (each item adds NEW info)
         seen.add(src)
         out.append(s.item)
         if len(out) >= limit:
@@ -103,12 +150,14 @@ def _locks(path: Optional[str], agent_id: Optional[str]) -> List[Dict[str, Any]]
 def recall_at(*, path: Optional[str] = None, command: Optional[str] = None,
               agent_id: Optional[str] = None, limit: int = 3,
               min_relevance: float = 0.0, now: Optional[float] = None,
-              learning_store: Optional[Any] = None) -> Dict[str, Any]:
+              learning_store: Optional[Any] = None,
+              exclude_sources: Optional[set] = None) -> Dict[str, Any]:
     """Given a point of action (path and/or command), return the few highest-signal active items.
+    `exclude_sources` (lesson sources already shown this session) enables hook anti-repeat.
     Deterministic, no-LLM, FAITH-gated, fail-soft (returns an empty result on any error)."""
     try:
         query = _query_from(path, command)
-        lessons = _lessons(query, now, limit, min_relevance, learning_store) if query else []
+        lessons = _lessons(query, now, limit, min_relevance, learning_store, exclude_sources) if query else []
         locks = _locks(path, agent_id)
         faithful, conf = True, 1.0
         if lessons:
