@@ -119,6 +119,13 @@ def cmd_boot(args):
                               "bifrost_pending": bifrost.get("pending", 0)})
     except Exception:
         pass
+    # Pre-warm recall-at-action so the agent's FIRST edit this session gets instant recall (boot is
+    # the universal session-start ritual -> covers the read-bootstrap flow). Prune stale state too.
+    try:
+        from core.recall.at_action import warm_cache, prune_state
+        warm_cache(); prune_state()
+    except Exception:
+        pass
     if args.json:
         print(json.dumps({"status": res.get("status"), "context": ctx, "bifrost": bifrost},
                          indent=2, default=str))

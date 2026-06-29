@@ -186,13 +186,12 @@ def main() -> int:
     if reason:
         _deny(reason)
         return 0
-    # Recall-at-action fires only for WRITE tools (you're about to MODIFY this file) -- the targeted,
-    # high-signal trigger. Bash recall fired on nearly every command and re-injected the same lessons;
-    # too noisy without anti-repeat (the git-guard above is Bash's job). Re-enable once anti-repeat lands.
-    if tool != "Bash":
-        ctx = _recall_context(data)
-        if ctx:
-            _emit_context(ctx)
+    # Recall-at-action for ALL in-scope tools (Edit/Write AND Bash). Anti-repeat (per-session
+    # exclude_sources) now prevents the same lesson repeating, so Bash recall front-loads relevant
+    # knowledge then goes quiet instead of spamming. The git-guard above remains Bash's job.
+    ctx = _recall_context(data)
+    if ctx:
+        _emit_context(ctx)
     return 0
 
 

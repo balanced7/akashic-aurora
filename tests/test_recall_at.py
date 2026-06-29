@@ -16,6 +16,7 @@ Uses an injected fake learning store so it never touches canonical Redis, and `c
 import os
 import sys
 import tempfile
+import time
 
 os.environ.setdefault("AI_SETUP", tempfile.mkdtemp())
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -87,6 +88,29 @@ def test_query_builder_drops_noise():
     print(f"--- query builder ---\n  '{q}' (dropped core/py) OK")
 
 
+def test_warm_cache_and_prune():
+    import core.recall.at_action as aa
+    d = tempfile.mkdtemp()
+    old = (aa._CACHE_DIR, aa._CACHE_FILE, aa._SEEN_DIR)
+    aa._CACHE_DIR = d
+    aa._CACHE_FILE = os.path.join(d, "cache.json")
+    aa._SEEN_DIR = os.path.join(d, "seen")
+    try:
+        n = aa.warm_cache(learning_store=_STORE)
+        assert n == 3 and os.path.exists(aa._CACHE_FILE), f"warm_cache should write 3 items, got {n}"
+        os.makedirs(aa._SEEN_DIR, exist_ok=True)
+        oldf = os.path.join(aa._SEEN_DIR, "old.txt")
+        newf = os.path.join(aa._SEEN_DIR, "new.txt")
+        open(oldf, "w").close()
+        open(newf, "w").close()
+        os.utime(oldf, (time.time() - 10 * 86400, time.time() - 10 * 86400))  # 10 days stale
+        removed = aa.prune_state(max_age_days=7)
+        assert removed == 1 and not os.path.exists(oldf) and os.path.exists(newf), "prune should drop only the stale file"
+        print("--- warm cache + prune ---\n  warm wrote 3 items; prune dropped the 10-day-old seen file OK")
+    finally:
+        aa._CACHE_DIR, aa._CACHE_FILE, aa._SEEN_DIR = old
+
+
 def test_render_formats_and_empties():
     res = {"lessons": [{"text": "route every source through the one consolidator seam",
                         "source": "learn:experiment:spine1_unify"}],
@@ -113,7 +137,9 @@ if __name__ == "__main__":
     test_show_nothing_when_irrelevant()
     test_never_pads_to_limit()
     test_dedup_by_source()
+    test_exclude_sources_anti_repeat()
     test_query_builder_drops_noise()
+    test_warm_cache_and_prune()
     test_render_formats_and_empties()
     test_fail_soft_on_empty_and_bad_input()
     print("\n" + "=" * 60)

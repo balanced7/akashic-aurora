@@ -94,6 +94,47 @@ def _cached_items(learning_store: Optional[Any]) -> List[Dict[str, Any]]:
             return []
 
 
+# Per-session anti-repeat files live here (the hook writes them; this module prunes them). Keep this
+# path in sync with claude_pretooluse.py:_SEEN_DIR.
+_SEEN_DIR = os.path.join(_CACHE_DIR, "seen")
+
+
+def warm_cache(learning_store: Optional[Any] = None) -> int:
+    """Force-refresh the lesson-item disk cache from the store (ignores TTL). Best-effort; returns the
+    item count (0 on failure). Call at session start (SessionStart hook / boot) so the FIRST recall is
+    already warm -- the last cold-start corner."""
+    try:
+        if learning_store is None:
+            from core.learning.learning_store import get_learning_store
+            learning_store = get_learning_store()
+        items = _project_items(learning_store.load_all_learnings_from_store())
+        os.makedirs(_CACHE_DIR, exist_ok=True)
+        with open(_CACHE_FILE, "w", encoding="utf-8") as f:
+            json.dump(items, f)
+        return len(items)
+    except Exception:
+        return 0
+
+
+def prune_state(max_age_days: float = 7.0) -> int:
+    """Best-effort sweep of stale per-session anti-repeat files (one accrues per session). Returns the
+    count removed. The cache itself is a single self-refreshing file, so it needs no pruning."""
+    removed = 0
+    try:
+        cutoff = time.time() - max_age_days * 86400.0
+        for name in os.listdir(_SEEN_DIR):
+            p = os.path.join(_SEEN_DIR, name)
+            try:
+                if os.path.isfile(p) and os.stat(p).st_mtime < cutoff:
+                    os.remove(p)
+                    removed += 1
+            except Exception:
+                pass
+    except Exception:
+        pass
+    return removed
+
+
 def _query_from(path: Optional[str], command: Optional[str]) -> str:
     """Build a keyword query from a path (dir/stem tokens) and/or command. Keeps tokens len>3
     (the Ranker's keyword_relevance ignores shorter ones) minus generic noise; order-stable, deduped."""
