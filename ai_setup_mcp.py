@@ -20,6 +20,9 @@ Transport: stdio by default (no port, no manual start -- Cursor/Claude spawn it)
     py -3 ai_setup_mcp.py              # stdio (default)
     py -3 ai_setup_mcp.py --http --port 18765   # optional shared HTTP process
 
+Cursor MCP config key (see mcp_global/cursor.mcp.json): ``akashic-aurora`` — not the
+legacy ``breakthrough-stack`` name.
+
 Cross-agent continuity: every write verb (learn / log / handoff) persists through the
 shared Store/Ledger on the canonical Redis (config.py: localhost:16379), so a lesson
 or handoff one agent records is surfaced by the NEXT agent's `boot` -- regardless of
@@ -82,9 +85,22 @@ def _run(fn, **overrides) -> str:
     return buf.getvalue().strip() or "(no output)"
 
 
-def _run_script(script: str, *args: str, prompt: str = "", timeout: int = 240) -> str:
+_GEMINI_WEB_ENV = {
+    "GEMINI_WEB_BROWSER": "invisible",
+    "PYTHONUNBUFFERED": "1",
+}
+
+
+def _run_script(
+    script: str,
+    *args: str,
+    prompt: str = "",
+    timeout: int = 240,
+    extra_env: dict | None = None,
+) -> str:
     """Run a scripts/*.py helper; optional stdin prompt."""
     cmd = [sys.executable, str(SCRIPTS / script), *args]
+    env = {**os.environ, **extra_env} if extra_env else None
     try:
         p = subprocess.run(
             cmd,
@@ -93,6 +109,7 @@ def _run_script(script: str, *args: str, prompt: str = "", timeout: int = 240) -
             text=True,
             timeout=timeout,
             cwd=str(ROOT),
+            env=env,
         )
         out = (p.stdout or "").strip()
         err = (p.stderr or "").strip()
@@ -107,6 +124,13 @@ def _run_script(script: str, *args: str, prompt: str = "", timeout: int = 240) -
         return f"ERROR: {type(e).__name__}: {e}"
 
 
+def _run_gemini_web(*args: str, prompt: str = "", timeout: int = 240) -> str:
+    """Run gemini_web.py with off-screen Chrome (no visible window flash)."""
+    return _run_script(
+        "gemini_web.py", *args, prompt=prompt, timeout=timeout, extra_env=_GEMINI_WEB_ENV
+    )
+
+
 mcp = FastMCP(
     "akashic-aurora",
     instructions=(
@@ -117,10 +141,12 @@ mcp = FastMCP(
         "narrative beat; handoff(...) leaves a briefing the NEXT agent's boot surfaces "
         "automatically (cross-agent continuity). recall/status/story/events/promoted/bifrost_sync "
         "are read tools. bifrost_inbox/bifrost_send are the LIVE bus (ephemeral). Use a short, STABLE "
-        "attributed and your handoffs route correctly. Everything persists on shared Redis, "
+        "agent id so contributions are attributed and handoffs route correctly. Everything persists on shared Redis, "
         "so writes from any agent (via CLI or MCP) feed every other agent's next boot. "
         "FIRST each turn: boot(agent, task) surfaces unread Bifrost mail; in-session also call "
-        "bifrost_inbox(agent) or bifrost_sync(agent) before acting on live messages."
+        "bifrost_inbox(agent) or bifrost_sync(agent) before acting on live messages. "
+        "Free Gemini via web: ask_gemini_web(prompt, mode=gemini|ai_mode|both) uses invisible "
+        "Chrome (gemini_web_login once). ask_gemini_panel fans to web + optional API."
     ),
 )
 
@@ -285,19 +311,24 @@ def bifrost_presence(agent: str = "") -> str:
 def ask_gemini_web(prompt: str, mode: str = "gemini", system: str = "") -> str:
     """Ask Gemini via the FREE Google web surfaces (not API billing).
 
+    Uses invisible off-screen Chrome by default (real renderer, no on-screen window).
+    Typical latency: ai_mode ~15-60s; gemini chat ~30-90s.
+
     `mode`:
       gemini   — gemini.google.com chat (frontier web model)
       ai_mode  — Google Search AI Mode (?udm=50)
       both     — run both and return labeled answers (good for panel reviews)
       api      — fallback to ask_gemini.py (API key / free-tier API quota)
 
-    First-time setup: call gemini_web_login(), sign in with your Google account once.
+    First-time setup: call gemini_web_login() — opens a visible browser window for
+    one-time Google sign-in; session persists in .secrets/gemini_web_profile/.
     NOTE: prompt is sent to Google's web UI — don't pass secrets you wouldn't share with Google.
     """
     args = ["--mode", mode]
     if system:
         args += ["--system", system]
-    return _run_script("gemini_web.py", *args, prompt=prompt)
+    timeout = 300 if mode in ("ai_mode", "both") else 180
+    return _run_gemini_web(*args, prompt=prompt, timeout=timeout)
 
 
 @mcp.tool()

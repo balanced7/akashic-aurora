@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": "py scripts/hooks/cursor_beforeshell.py",
+        "matcher": "git\\s+(add|commit)",
+        "failClosed": true
+      }
+    ]
+  }
+}

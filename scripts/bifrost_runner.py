@@ -19,6 +19,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
+sys.path.insert(0, HERE)
 
 from core.comm.bus import Bus
 
@@ -40,6 +41,7 @@ WEB_FAIL_MARKERS = (
     "LOGIN_REQUIRED",
     "GEMINI_WEB_ERROR",
     "AI_MODE_ERROR",
+    "AI_MODE_UNAVAILABLE",
     "PLAYWRIGHT_MISSING",
     "UNKNOWN_MODE",
 )
@@ -72,11 +74,19 @@ def provider_reply_api(prompt: str, model: str, system: str) -> str:
 
 
 def provider_reply_web(prompt: str, system: str, web_mode: str = "gemini") -> str:
-    """Call the free Gemini web UI bridge as a subprocess."""
-    args = ["--mode", web_mode]
-    if system:
-        args += ["--system", system]
-    return _run_bridge("gemini_web.py", prompt, args, timeout=180)
+    """In-process web bridge with warm invisible browser (no subprocess flash per message)."""
+    try:
+        import gemini_web
+
+        return gemini_web.ask_web_message(
+            prompt,
+            mode=web_mode,
+            system=system,
+            reuse_browser=True,
+            stealth=True,
+        )
+    except Exception as e:
+        return f"(runner error calling gemini_web: {type(e).__name__}: {e})"
 
 
 def provider_reply(
@@ -169,6 +179,13 @@ def main() -> int:
                 break
     except (KeyboardInterrupt, EOFError):
         pass
+    finally:
+        try:
+            import gemini_web
+
+            gemini_web.close_browser_pool()
+        except Exception:
+            pass
     print("[runner] stopped.")
     return 0
 
