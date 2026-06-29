@@ -189,9 +189,16 @@ Increment lightweight Store counters on each silent path (`narr:health:routed|pe
 
 ### Wave 2 — Research-backed capability upgrades (each must BEAT its Tier-0 baseline or it doesn't ship)
 
-**V6 — Theme discovery v2 (fixes W-a).** Seed-plus-discover embedding clustering over beat summaries
-(BERTopic-style) replacing hand keywords. *Bar:* discovers the user's real domains (voice, vision) as
-themes and beats hand-keyword theme-recall on a labeled fixture.
+**V6 — Theme discovery v2 (fixes W-a). ✅ DONE 2026-06-28** (`core/narrative/theme_discovery.py`, 16 tests).
+*Shape (measured, not assumed):* pure-embedding routing wins recall but TANKS precision (sprays false
+themes → loses F1), so the shipped design is **HYBRID — keyword themes ∪ confident embedding themes**
+(per-theme short EXEMPLAR phrases, max-pooled cosine, τ=0.44 frozen on a wide 0.38–0.46 plateau). **V6a**
+seed router + ablation gate; **V6b** `discover()` clusters the residual (C1 Clusterer) into net-new themes
+labeled by c-TF-IDF (no LLM), cold-start-guarded; **V6c** wired into BeatLog via `select_theme_assigner()`
+— DETERMINISTIC opt-in (`AKASHIC_EMBED_THEMES=1`), default keyword (no model load on the CLI write path).
+*Ablation gate PASSES on the gold fixture:* recall 0.625→0.750, F1 0.741→0.800, precision 0.857, 4
+keyword-miss beats recovered. *Follow-on:* a batch consolidation re-theme pass to upgrade an existing
+corpus off the hot path (the clean way to re-theme regardless of the per-write flag).
 
 **V7 — Embedding TrackRouter / Tier-1 (the planned Slice 6).** Embedding nearest-track via the Ranker
 `relevance_fn` seam. *Bar:* beats Tier-0 heuristic ARI on the gold fixture (ablation gate) or it stays off.
