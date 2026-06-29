@@ -20,6 +20,7 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.foundation.store import FileStore
+pytest.importorskip("numpy")  # optional embedding subsystem -> skip cleanly when numpy is absent
 from core.primitives.embedder import Embedder, get_embedder
 from core.primitives.ranker import Ranker, keyword_relevance
 

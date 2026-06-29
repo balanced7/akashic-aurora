@@ -17,6 +17,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+pytest.importorskip("numpy")  # optional embedding subsystem -> skip cleanly when numpy is absent
 from narrative_metrics import multilabel_prf
 from fixtures.narrative_fixture import gold_rows
 from core.narrative.theme_assigner import ThemeAssigner
