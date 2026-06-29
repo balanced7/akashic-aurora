@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from narrative_metrics import multilabel_prf
 from fixtures.narrative_fixture import gold_rows
 from core.narrative.theme_assigner import ThemeAssigner
-from core.narrative.theme_discovery import ThemeDiscoverer, EXEMPLARS, DEFAULT_TAU
+from core.narrative.theme_discovery import ThemeDiscoverer, EXEMPLARS, DEFAULT_TAU, _ctfidf_terms
 from core.primitives.embedder import get_embedder
 
 
@@ -122,3 +122,58 @@ def test_seed_vocab_matches_theme_assigner():
     from core.narrative.theme_assigner import THEME_KEYWORDS
     kw_ids = {tid for _, tid in THEME_KEYWORDS}
     assert set(EXEMPLARS.keys()) == kw_ids
+
+
+# --------------------------------------------------------------- V6b: residual discovery
+def test_ctfidf_picks_distinctive_terms():
+    terms = _ctfidf_terms([
+        ["whisper voice transcription", "audio voice separation", "speech voice recognition"],
+        ["florence vision ocr", "image vision detection", "screenshot vision scan"],
+    ])
+    assert "voice" in terms[0] and "vision" in terms[1]
+
+
+def _discovery_fixture():
+    # one seed (alpha=[1,0,0,0]); two NET-NEW domains orthogonal to it, separable from each other
+    table = {"a1": [1, 0, 0, 0]}
+    voice = ["whisper voice transcription", "audio voice separation",
+             "speech voice recognition", "voice activity capture"]
+    vision = ["florence vision ocr", "image vision detection",
+              "screenshot vision scan", "vision model directml"]
+    for t in voice:
+        table[t] = [0, 0, 1, 0]
+    for t in vision:
+        table[t] = [0, 0, 0, 1]
+    items = ([{"id": f"v{i}", "text": t} for i, t in enumerate(voice)]
+             + [{"id": f"w{i}", "text": t} for i, t in enumerate(vision)])
+    return FakeEmbedder(table), items
+
+
+def test_discover_surfaces_net_new_themes_with_labels():
+    fe, items = _discovery_fixture()
+    d = ThemeDiscoverer(embedder=fe, tau=0.5, seeds={"alpha": ["a1"]})
+    found = d.discover(items, min_residual=6)
+    assert len(found) == 2
+    labels = " ".join(f["label"] for f in found)
+    assert "voice" in labels and "vision" in labels
+    assert all(f["size"] == 4 for f in found)
+
+
+def test_discover_cold_start_returns_nothing():
+    fe, items = _discovery_fixture()
+    d = ThemeDiscoverer(embedder=fe, tau=0.5, seeds={"alpha": ["a1"]})
+    assert d.discover(items[:3], min_residual=6) == []      # below the floor -> no discovery
+
+
+def test_discover_excludes_beats_a_seed_claims():
+    fe, items = _discovery_fixture()
+    fe.table["seeded one"] = _unit([1, 0, 0, 0])             # matches seed alpha
+    items = items + [{"id": "seeded", "text": "seeded one"}]
+    d = ThemeDiscoverer(embedder=fe, tau=0.5, seeds={"alpha": ["a1"]})
+    found = d.discover(items, min_residual=6)
+    assert "seeded" not in {bid for f in found for bid in f["beat_ids"]}
+
+
+def test_discover_empty_when_model_unavailable():
+    d = ThemeDiscoverer(embedder=FakeEmbedder({}), seeds={"alpha": ["a1"]})
+    assert d.discover([{"id": "x", "text": "anything"}] * 8) == []

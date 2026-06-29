@@ -21,11 +21,43 @@ Deterministic & fail-soft: if the model is unavailable the exemplars don't embed
 """
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Sequence
+import math
+import re
+from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
 
 from core.primitives.embedder import Embedder, get_embedder
+
+_TOKEN = re.compile(r"[a-z][a-z0-9_]{2,}")
+# generic words that shouldn't become theme labels (c-TF-IDF already downweights cross-cluster
+# words; this just drops obvious noise so tiny corpora still label cleanly)
+_STOP = {"the", "and", "for", "with", "into", "from", "that", "this", "was", "are", "but",
+         "not", "you", "your", "our", "its", "has", "have", "had", "will", "can", "onto",
+         "per", "via", "add", "fix", "use", "using", "new", "get", "set", "run", "ran"}
+
+
+def _ctfidf_terms(clusters_texts: Sequence[Sequence[str]], topk: int = 3) -> List[List[str]]:
+    """Class-based TF-IDF (BERTopic-style, no LLM): the words that distinguish each CLUSTER
+    from the others. Returns the top-k distinctive terms per cluster."""
+    toks = [[w for w in _TOKEN.findall(" ".join(ts).lower()) if w not in _STOP]
+            for ts in clusters_texts]
+    if not toks:
+        return []
+    global_freq: Dict[str, int] = {}
+    for tl in toks:
+        for w in tl:
+            global_freq[w] = global_freq.get(w, 0) + 1
+    A = (sum(len(tl) for tl in toks) / len(toks)) or 1.0
+    out: List[List[str]] = []
+    for tl in toks:
+        n = len(tl) or 1
+        tf: Dict[str, int] = {}
+        for w in tl:
+            tf[w] = tf.get(w, 0) + 1
+        weights = {w: (c / n) * math.log(1 + A / global_freq[w]) for w, c in tf.items()}
+        out.append(sorted(weights, key=lambda w: (-weights[w], w))[:topk])
+    return out
 
 # tau frozen by the V6c ablation sweep on the gold fixture (F1 peak on a wide 0.38-0.46 plateau).
 DEFAULT_TAU = 0.44
@@ -105,6 +137,31 @@ class ThemeDiscoverer:
         if not self._ok:
             return kw
         return sorted(set(kw) | set(self.route(ThemeAssigner._text_of(beat, hint))))
+
+    # ------------------------------------------------------------------ V6b: discover net-new themes
+    def discover(self, items: Sequence[Dict[str, Any]], *, min_residual: int = 6) -> List[Dict[str, Any]]:
+        """Cluster the RESIDUAL beats (no seed theme claims them) to surface NET-NEW themes not in
+        the seed vocabulary, labeled by c-TF-IDF (no LLM). `items`: dicts with id/text/[importance].
+        Returns [{label, terms, beat_ids, size, cohesion}]. Empty below the cold-start floor or
+        when the model is unavailable -- small-N clustering is unreliable."""
+        if not self._ok:
+            return []
+        residual = [it for it in items if not self.route(str(it.get("text", "")))]
+        if len(residual) < min_residual:
+            return []                                   # cold-start guard
+        from core.primitives.clusterer import get_clusterer
+        clustering = get_clusterer(self.embedder).cluster(
+            [{"id": it["id"], "text": it.get("text", ""), "importance": it.get("importance", 1)}
+             for it in residual])
+        text_by_id = {it["id"]: str(it.get("text", "")) for it in residual}
+        cl_texts = [[text_by_id[a] for a in c.atom_ids] for c in clustering.clusters]
+        term_lists = _ctfidf_terms(cl_texts)
+        out: List[Dict[str, Any]] = []
+        for c, terms in zip(clustering.clusters, term_lists):
+            out.append({"label": " / ".join(terms) if terms else c.label[:40], "terms": terms,
+                        "beat_ids": c.atom_ids, "size": len(c.atom_ids),
+                        "cohesion": round(c.cohesion, 3)})
+        return out
 
 
 _INSTANCE: Optional[ThemeDiscoverer] = None
