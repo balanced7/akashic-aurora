@@ -183,7 +183,7 @@ answer of record.
 Respecting: prefer **wiring** over building; **local-hardware** (no embedding on hot path); **determinism**
 (no LLM judge inline); **no separate cursor folder**; **do not touch `ai_setup_mcp.py`** (Cursor-owned).
 
-> ### ⭐ FIRST MOVE (highest leverage): **Wire `additionalContext` into the PreToolUse hook via a new `cmd_recall_at`.**
+> ### ⭐ FIRST MOVE (highest leverage) — ✅ SHIPPED (31a1b67): **`additionalContext` wired into the PreToolUse hook via `core/recall/at_action.py` + a `recall-at` CLI verb.**
 > It is the single seam that turns passive storage into active recall, it is *ahead of published SOTA* (mem0 2026
 > confirms no one has recall-at-action), it forces the Index's first real consumer to exist, and it is nearly
 > pure wiring (the hook already parses inputs and imports `core.*`; the `additionalContext` field already ships).
