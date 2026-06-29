@@ -21,7 +21,9 @@ Two complementary stores, kept distinct (different names + Redis namespaces):
 
 from .learning_store import LearningStore, get_learning_store
 from .agent_memory import AgentMemory, get_agent_memory
-from .consolidation import consolidate_memory_into_chronicle
+from .consolidation import (consolidate_into_chronicle, consolidate_memory_into_chronicle,
+                            consolidate_learnings_into_chronicle)
 
 __all__ = ["LearningStore", "get_learning_store", "AgentMemory", "get_agent_memory",
-           "consolidate_memory_into_chronicle"]
+           "consolidate_into_chronicle", "consolidate_memory_into_chronicle",
+           "consolidate_learnings_into_chronicle"]
