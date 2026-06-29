@@ -47,6 +47,7 @@ def test_presence_offline_is_empty():
 
 
 def test_mcp_server_imports_with_bifrost_tools():
+    pytest.importorskip("mcp")  # the MCP SDK is an optional interface dep -> skip when absent (e.g. CI)
     import ai_setup_mcp
     for t in ("bifrost_send", "bifrost_broadcast", "bifrost_inbox", "bifrost_presence"):
         assert hasattr(ai_setup_mcp, t), f"MCP tool {t} missing from the door"
