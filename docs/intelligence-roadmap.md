@@ -16,11 +16,12 @@ has the least slack for unranked noise or fabricated memory, so **trust and dens
 1. **P0 — `AKASHIC_AGENT_ID` fail-closed.** ✅ DONE (a2a9c48). Substrate integrity before belief.
 2. **SPINE-1 — unify the curation spine.** ✅ DONE (aaa01cc). One `consolidate_into_chronicle` path; no
    clobber. *Must precede FAITH-1* (can't gate faithfulness against a clobbered file).
-3. **FAITH-1 — faithfulness critic in the seam.** The `Distiller(critic=)` seam already exists;
-   `chronicler._compute_metrics` already computes faithfulness/coverage then discards it. **Critic's
-   correction: that metric is UNVALIDATED (had a known false-positive bug). First slice = CHARACTERIZE its
-   error rate on the real corpus, wire it OBSERVATIONAL (record, don't hard-block), THEN enforce.** Arms
-   chronicle + lessons + future Resources at once. (Prior art: RAGAS faithfulness, NLI grounding; avoid LLM-judge.)
+3. **FAITH-1 — faithfulness critic in the seam.** ✅ DONE. `core/primitives/faithfulness.py`: a
+   deterministic, no-LLM critic injected at the Consolidator seam (one seam → chronicle + lessons +
+   future Resources). HARD-gates pointer-resolution + number/identifier consistency + traceability;
+   grounding overlap is SOFT (reported, paraphrase-safe). No-op on today's extractive writer
+   (characterized: conf=1.0, zero false-positives) and the forward gate for an LLM writer — shadow
+   posture. SOTA synthesis + citations in `docs/faithfulness-research.md`. Suite 438.
 4. **FC-01 — the Codex curator.** `core/codex/curate.py`: cluster atoms (Clusterer) → centroid-match to
    persisted cluster-links → regenerate/mint/supersede Resources, **gated by the now-validated FAITH critic**.
    The keystone that makes the Aurora thesis run. (Prior art: A-MEM, Zep/Graphiti, Generative-Agents reflection.)
@@ -48,4 +49,4 @@ flip) · **SEC-01** bus trust (overlaps Bifrost Mesh W5) · **ARCH-03/04/06** gu
 
 ## Status
 ✅ Applied: P0, ARCH-02 (dead comm stack), DOC-01/02 (root docs + freshness allowlist), RC-05 (handoff kind),
-SPINE-1. **Next executable: FAITH-1 (characterize → observational → enforce) → FC-01.** Suite 431 green throughout.
+SPINE-1, FAITH-1. **Next executable: FC-01 (Codex curator, gated by the FAITH critic).** Suite 438 green throughout.

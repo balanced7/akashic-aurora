@@ -22,6 +22,7 @@ from typing import Any, Dict, List, Optional
 
 from core.primitives.ranker import Ranker
 from core.primitives.distiller import Distiller, Distillation
+from core.primitives.faithfulness import faithfulness_critic
 
 
 class Consolidator:
@@ -33,7 +34,11 @@ class Consolidator:
     def __init__(self, ranker: Optional[Ranker] = None, distiller: Optional[Distiller] = None,
                  token_budget: int = DEFAULT_TOKEN_BUDGET):
         self.ranker = ranker or Ranker()
-        self.distiller = distiller or Distiller(max_chars_per_entry=self.DEFAULT_MAX_CHARS)
+        # FAITH-1: every consumer (chronicle, lessons, future Codex Resources) inherits the
+        # faithfulness gate here -- ONE seam. It's a no-op on the extractive heuristic writer
+        # (which copies each item's source verbatim) and the forward gate for an LLM writer.
+        self.distiller = distiller or Distiller(max_chars_per_entry=self.DEFAULT_MAX_CHARS,
+                                                critic=faithfulness_critic)
         self.token_budget = token_budget
 
     @staticmethod

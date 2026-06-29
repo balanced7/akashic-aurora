@@ -130,7 +130,11 @@ class Distiller:
         if skipped_no_source:
             notes.append(f"{skipped_no_source} item(s) skipped (no source pointer — not traceable)")
         if self.critic is not None:
-            ok, notes = self.critic(items, skeleton, entries)
+            # AUGMENT, not replace: an injected critic (e.g. the faithfulness gate) ADDS to the
+            # budget/lossless-pointer checks -- BOTH must pass. Replacing would silently drop them.
+            cok, cnotes = self.critic(items, skeleton, entries)
+            ok = ok and bool(cok)
+            notes = notes + list(cnotes or [])
         return Distillation(skeleton=skeleton, entries=entries, included_sources=included,
                             dropped_sources=dropped, approx_tokens=used,
                             critic_ok=ok, critic_notes=notes, skipped_no_source=skipped_no_source)
