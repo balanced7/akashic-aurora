@@ -45,7 +45,15 @@ def test_allows_own_locked_file(monkeypatch):
     assert ok is True
 
 
-def test_fail_open_without_agent_id(monkeypatch):
-    _patch_locks(monkeypatch, {"agent_cli.py": "cursor"})   # would conflict...
-    ok, reason = pre_commit.check_staged(["agent_cli.py"], agent=None)   # ...but no agent id
-    assert ok is True and reason == ""          # never block a human commit
+def test_fails_closed_without_agent_id_when_locked(monkeypatch):
+    # RC-01 fix: an unset id must NOT silently disable the backstop -- a staged peer-locked file
+    # fails closed with a teaching message instead of fail-open.
+    _patch_locks(monkeypatch, {"agent_cli.py": "cursor"})
+    ok, reason = pre_commit.check_staged(["agent_cli.py"], agent=None)
+    assert ok is False and "AKASHIC_AGENT_ID" in reason
+
+
+def test_allows_without_agent_id_when_nothing_locked(monkeypatch):
+    _patch_locks(monkeypatch, {})               # no locks -> a human commit is never blocked
+    ok, reason = pre_commit.check_staged(["agent_cli.py"], agent=None)
+    assert ok is True and reason == ""

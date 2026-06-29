@@ -22,28 +22,32 @@ def _staged_files():
 
 
 def check_staged(files, agent, client=None):
-    """Return (ok, reason). ok=False -> abort the commit. Fail-open (allow) when there is
-    no agent id, or the lock layer is unavailable -- a backstop must not block humans."""
-    if not agent:
-        return True, ""
+    """Return (ok, reason). ok=False -> abort the commit. With an `agent` id, only a PEER's lock
+    blocks (you may commit files you hold). WITHOUT one we can't verify ownership, so we fail
+    CLOSED on any staged locked file (teaching the fix) rather than silently allowing -- an unset
+    id must not disable the backstop (the RC-01 fail-open). Lock layer unavailable -> allow."""
     try:
         from core.comm.locks import path_conflict
     except Exception:
         return True, ""
+    who_me = agent or "(unidentified)"
     conflicts = []
     for f in files:
         try:
-            c = path_conflict(f, agent, client=client)
+            c = path_conflict(f, who_me, client=client)
         except Exception:
             continue
         if c.get("conflict"):
             conflicts.append((f, c.get("held_by")))
-    if conflicts:
-        body = "\n".join(f"  {f} -> locked by {who}" for f, who in conflicts)
-        return False, ("pre-commit BLOCKED: you staged file(s) a peer holds an advisory lock on:\n"
-                       + body + "\nCommit only files you hold, or coordinate via the bus "
-                       "(see docs/concurrency-design.md C2/C4).")
-    return True, ""
+    if not conflicts:
+        return True, ""
+    body = "\n".join(f"  {f} -> locked by {who}" for f, who in conflicts)
+    if not agent:
+        return False, ("pre-commit BLOCKED: AKASHIC_AGENT_ID is not set, so lock ownership can't be "
+                       "verified and you staged file(s) a peer may hold a lock on:\n" + body +
+                       "\nSet AKASHIC_AGENT_ID=<your agent id> (e.g. in .claude/settings.json env).")
+    return False, ("pre-commit BLOCKED: you staged file(s) a peer holds an advisory lock on:\n" + body +
+                   "\nCommit only files you hold, or coordinate via the bus (see docs/concurrency-design.md C2/C4).")
 
 
 def main():

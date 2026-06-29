@@ -148,6 +148,10 @@ def cmd_boot(args):
     print("  py agent_cli.py bifrost-sync <agent>     # peek unread (same as boot section)")
     print("  py agent_cli.py promoted [--limit N]       # durable salient msgs (kind=bifrost_msg)")
     _warn_unmirrored(soft=True)   # heads-up if you're resuming on top of unmirrored work
+    if not os.getenv("AKASHIC_AGENT_ID"):
+        print("\n[i] AKASHIC_AGENT_ID not set -- peer-lock enforcement (C2/C4) is degraded: "
+              "edits/commits to a peer-locked path fail CLOSED until it's set. Set it per agent "
+              "(e.g. .claude/settings.json env).")
     return 0 if res.get("status") == "success" else 1
 
 

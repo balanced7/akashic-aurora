@@ -1,4 +1,7 @@
 {
+  "env": {
+    "AKASHIC_AGENT_ID": "claude"
+  },
   "hooks": {
     "PreToolUse": [
       {
