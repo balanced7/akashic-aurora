@@ -43,10 +43,12 @@ MIN_WEIGHT, MAX_WEIGHT = 0, 5
 #   mark    : an explicit, agent-declared chapter boundary + title (weight 5 = salient).
 #   session : session start/end markers that bound a default chapter (low salience).
 DEFAULT_WEIGHT = {
-    "milestone": 5, "mark": 5, "decision": 4, "learning": 4,
+    "milestone": 5, "mark": 5, "decision": 4, "learning": 4, "handoff": 4,
     "blocker": 3, "commit": 2, "note": 1, "session": 1,
 }
 BEAT_KINDS = tuple(DEFAULT_WEIGHT.keys())
+# RC-05: 'handoff' (the most salient cross-agent event) was absent, so beat_log.emit silently
+# rewrote it to a weight-1 'note' the Distiller preferentially drops. Registered at weight 4.
 
 # Kinds that force a new Chapter boundary regardless of weight/time (explicit intent).
 BOUNDARY_KINDS = ("mark",)
