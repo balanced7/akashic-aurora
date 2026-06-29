@@ -22,6 +22,7 @@ Deterministic & fail-soft: if the model is unavailable the exemplars don't embed
 from __future__ import annotations
 
 import math
+import os
 import re
 from typing import Any, Dict, List, Optional, Sequence
 
@@ -172,3 +173,21 @@ def get_theme_discoverer() -> ThemeDiscoverer:
     if _INSTANCE is None:
         _INSTANCE = ThemeDiscoverer()
     return _INSTANCE
+
+
+def select_theme_assigner(embedder: Optional[Embedder] = None):
+    """The spine's write-path theme assigner (V6c). DETERMINISTIC by config: embedding theming is
+    OPT-IN via `AKASHIC_EMBED_THEMES=1` -- so the same beat always themes the same way for a given
+    configuration, and a short-lived CLI write never pays a cold model load by surprise.
+
+      flag off (default) -> fast keyword baseline (unchanged behavior)
+      flag on + model reachable -> hybrid ThemeDiscoverer (recovers keyword-miss themes)
+      flag on + model absent -> keyword baseline (graceful)
+
+    A consolidation re-theme pass (off the hot path) is the way to upgrade an existing corpus
+    regardless of the flag -- that's the clean batch path; this seam is the per-write choice."""
+    from core.narrative.theme_assigner import get_theme_assigner
+    if os.getenv("AKASHIC_EMBED_THEMES", "").lower() not in ("1", "true", "yes", "on"):
+        return get_theme_assigner()
+    emb = embedder or get_embedder()
+    return get_theme_discoverer() if emb.available else get_theme_assigner()

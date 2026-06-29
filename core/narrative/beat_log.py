@@ -71,8 +71,10 @@ class BeatLog:
         """Infer cross-cutting Themes for a Beat (Slice 5). Best-effort -- a Beat with
         no themes is still valid, so a hiccup never blocks logging."""
         try:
-            from core.narrative.theme_assigner import get_theme_assigner
-            beat.themes = get_theme_assigner().assign(beat, hint)
+            # V6c: hybrid embedding themes when the model is already warm (long-lived agents),
+            # else the fast keyword baseline -- so a short-lived CLI write never pays a cold load.
+            from core.narrative.theme_discovery import select_theme_assigner
+            beat.themes = select_theme_assigner().assign(beat, hint)
         except Exception:
             from core.narrative.health import bump
             bump(self.store, "theme:error")

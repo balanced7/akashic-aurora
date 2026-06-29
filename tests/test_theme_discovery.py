@@ -20,7 +20,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from narrative_metrics import multilabel_prf
 from fixtures.narrative_fixture import gold_rows
 from core.narrative.theme_assigner import ThemeAssigner
-from core.narrative.theme_discovery import ThemeDiscoverer, EXEMPLARS, DEFAULT_TAU, _ctfidf_terms
+from core.narrative.theme_discovery import (ThemeDiscoverer, EXEMPLARS, DEFAULT_TAU,
+                                            _ctfidf_terms, select_theme_assigner)
 from core.primitives.embedder import get_embedder
 
 
@@ -33,6 +34,10 @@ class FakeEmbedder:
     """Maps registered texts to fixed unit vectors; unknown text -> None (model-miss)."""
     def __init__(self, table):
         self.table = {k: _unit(v) for k, v in table.items()}
+
+    @property
+    def available(self):
+        return bool(self.table)
 
     def embed(self, text):
         return self.table.get(text)
@@ -177,3 +182,30 @@ def test_discover_excludes_beats_a_seed_claims():
 def test_discover_empty_when_model_unavailable():
     d = ThemeDiscoverer(embedder=FakeEmbedder({}), seeds={"alpha": ["a1"]})
     assert d.discover([{"id": "x", "text": "anything"}] * 8) == []
+
+
+# --------------------------------------------------------------- V6c: write-path selection
+def test_is_loaded_does_not_trigger_a_load():
+    from core.primitives.embedder import Embedder
+    e = Embedder(cache=False)
+    assert e.is_loaded is False          # fresh model is not loaded...
+    assert e._tried is False             # ...and asking did NOT attempt a load (hot path stays fast)
+
+
+def test_select_default_is_keyword_deterministic(monkeypatch):
+    monkeypatch.delenv("AKASHIC_EMBED_THEMES", raising=False)
+    from core.narrative.theme_assigner import ThemeAssigner
+    assert isinstance(select_theme_assigner(), ThemeAssigner)   # default: fast, deterministic
+
+
+def test_select_flag_on_falls_back_when_model_absent(monkeypatch):
+    monkeypatch.setenv("AKASHIC_EMBED_THEMES", "1")
+    from core.narrative.theme_assigner import ThemeAssigner
+    assert isinstance(select_theme_assigner(FakeEmbedder({})), ThemeAssigner)   # opt-in but no model
+
+
+def test_select_flag_on_uses_discoverer_when_available(monkeypatch):
+    if not get_embedder().available:
+        pytest.skip("embedding model unavailable")
+    monkeypatch.setenv("AKASHIC_EMBED_THEMES", "1")
+    assert isinstance(select_theme_assigner(), ThemeDiscoverer)

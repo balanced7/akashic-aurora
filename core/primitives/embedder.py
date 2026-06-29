@@ -61,6 +61,13 @@ class Embedder:
             self._load()
         return bool(self._available)
 
+    @property
+    def is_loaded(self) -> bool:
+        """Whether the model is ALREADY loaded -- does NOT trigger a load. Lets a hot path (e.g.
+        BeatLog write) pick the fast keyword route instead of paying a cold model load in a
+        short-lived CLI process, while warm long-lived agents get embeddings for free."""
+        return self._available is True
+
     def _load(self) -> None:
         if self._tried:
             return
