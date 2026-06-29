@@ -32,6 +32,19 @@ py agent_cli.py recall "keyword"
 py agent_cli.py status            # is the store up? how many lessons?
 ```
 
+## Before you EDIT a file or run a command (recall-at-action):
+
+```
+py agent_cli.py recall-at --path <file>          # or: --command "<shell cmd>"
+```
+
+Returns the few highest-signal ACTIVE lessons + any peer lock on that path, with
+`source` pointers -- the right knowledge AT THE MOMENT you act (silent when nothing is
+relevant; never padded). If you launched Claude FROM the repo, the PreToolUse hook does
+this automatically. In the **read-bootstrap flow (launched from elsewhere)** the hook
+can't fire -- so make this a habit before an Edit/Write/Bash on a repo file. Cheap,
+deterministic, fail-soft.
+
 ## Bifrost (live agent mail + durable salient msgs)
 
 `boot()` already **peeks** unread Bifrost inbox (does NOT consume the cursor) and
