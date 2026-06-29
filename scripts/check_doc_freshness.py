@@ -28,7 +28,7 @@ from pathlib import Path
 ROOT = Path(os.getenv("AI_SETUP", "E:\\AI-Setup"))
 
 # The ONLY *.md files allowed at the repo root -- the agent's designated entry points.
-ALLOWED_ROOT_MD = {"README.md", "AGENTS.md", "bootstrap.md"}
+ALLOWED_ROOT_MD = {"README.md", "AGENTS.md", "bootstrap.md", "CONTRIBUTING.md"}
 
 
 def check() -> int:
