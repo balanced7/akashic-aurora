@@ -35,6 +35,24 @@ def test_caps_per_section():
     print("--- caps ---\n  per-section cap respected OK")
 
 
+def test_write_last_session_draft_to_file():
+    import tempfile
+    d = tempfile.mkdtemp()
+    path = os.path.join(d, "chronicles", "last-session-draft.md")
+    commits = [("abc123", "ship: gated slice")]
+    lessons = [{"experiment_name": "e1", "recommendation": "r1"}]
+    notes = [SimpleNamespace(id="ADR_1", title="next-focus", decision="FC-01")]
+    out = agent_cli.write_last_session_draft(path, commits, lessons, notes, trigger="PreCompact")
+    assert out == path and os.path.exists(path), "draft file is written"
+    text = open(path, encoding="utf-8").read()
+    assert "Last-session draft" in text and "PreCompact" in text, text[:120]
+    assert "(git:abc123)" in text and "next-focus" in text, "draft body + pointers present"
+    # no activity -> no file, returns None (don't write an empty draft)
+    p2 = os.path.join(d, "chronicles", "empty.md")
+    assert agent_cli.write_last_session_draft(p2, [], [], []) is None and not os.path.exists(p2)
+    print("--- write draft file ---\n  auto-capture writes a draft file with header + pointers; empty -> None OK")
+
+
 if __name__ == "__main__":
     print("=" * 60)
     print("WRAP DRAFT TESTS")
@@ -42,6 +60,7 @@ if __name__ == "__main__":
     test_draft_has_sections_and_pointers()
     test_empty_session_draft()
     test_caps_per_section()
+    test_write_last_session_draft_to_file()
     print("\n" + "=" * 60)
     print("ALL WRAP TESTS PASSED")
     print("=" * 60)

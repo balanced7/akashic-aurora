@@ -156,6 +156,14 @@ def cmd_boot(args):
                 print(f"  [{d.created_at[:10]}] {d.title}: {_clip(d.decision, 110)}")
     except Exception:
         pass
+    try:   # auto-captured last-session draft (SessionEnd/PreCompact) -- a trail if the last end was abrupt
+        import time as _t
+        dp = last_session_draft_path()
+        if os.path.isfile(dp) and (_t.time() - os.path.getmtime(dp)) < 2 * 86400:
+            print(f"\n## LAST-SESSION DRAFT (auto-captured) -> {dp}")
+            print("   review it; promote with: py agent_cli.py wrap --commit")
+    except Exception:
+        pass
     print_boot_bifrost_section(bifrost)
     print_boot_locks_section(bifrost, args.agent_id)
     print("\n## TO CONTRIBUTE A LESSON, run:")
@@ -480,6 +488,31 @@ def cmd_wrap(args):
           + (f" - superseded prior {supersedes}" if supersedes else "")
           + "\n     surfaces at your next `boot`; edit by re-noting the same title.")
     return 0
+
+
+LAST_SESSION_DRAFT = "last-session-draft.md"   # under chronicles/; auto-captured by the SessionEnd/PreCompact hook
+
+
+def last_session_draft_path():
+    return str(Path(os.getenv("AI_SETUP", "E:\\AI-Setup")) / "chronicles" / LAST_SESSION_DRAFT)
+
+
+def write_last_session_draft(path, commits, lessons, notes, trigger=""):
+    """Write a session draft to a FILE (not a note) -- the auto-capture target for the SessionEnd/
+    PreCompact hook, so an abrupt end still leaves a trail. boot surfaces a pointer; you promote it
+    with `wrap --commit` only if it's worth keeping. Returns the path, or None if there was no activity."""
+    from datetime import datetime
+    draft = build_session_draft(commits, lessons, notes)
+    if not draft or draft == "(no session activity captured)":
+        return None
+    when = datetime.now().isoformat(timespec="seconds")
+    header = (f"# Last-session draft (auto-captured {when}"
+              f"{' at ' + trigger if trigger else ''}) — review, then promote with "
+              "`py agent_cli.py wrap --commit`\n\n")
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(header + draft + "\n", encoding="utf-8")
+    return str(p)
 
 
 # -------------------------------------------------------------------------- story

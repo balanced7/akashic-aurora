@@ -33,6 +33,26 @@
           }
         ]
       }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py scripts/hooks/claude_sessionend.py"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py scripts/hooks/claude_sessionend.py"
+          }
+        ]
+      }
     ]
   }
 }
