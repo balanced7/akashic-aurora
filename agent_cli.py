@@ -29,6 +29,7 @@ import argparse
 import json
 import os
 import sys
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # make `core`/`agent` importable
 
@@ -146,6 +147,15 @@ def cmd_boot(args):
         print("\n## ACTIVE BLOCKERS")
         for b in blockers[:5]:
             print(f"  [{b.get('severity', '?')}] {_clip(b.get('description', ''), 120)}")
+    try:   # durable project notes (write-once) -- surface WHERE-WE-ARE at session start
+        from core.learning.agent_memory import get_agent_memory
+        notes = get_agent_memory().get_decisions(days=60)
+        if notes:
+            print("\n## RECENT NOTES (durable project memory)")
+            for d in notes[:6]:
+                print(f"  [{d.created_at[:10]}] {d.title}: {_clip(d.decision, 110)}")
+    except Exception:
+        pass
     print_boot_bifrost_section(bifrost)
     print_boot_locks_section(bifrost, args.agent_id)
     print("\n## TO CONTRIBUTE A LESSON, run:")
@@ -300,6 +310,97 @@ def cmd_discover(args):
     width = max((len(n) for n, _ in verbs), default=0)
     for n, h in verbs:
         print(f"  {n.ljust(width)}  {h}")
+    return 0
+
+
+# ----------------------------------------------------------------------------- note
+def project_notes(memory=None, chronicle_dir=None):
+    """Regenerate chronicles/memory.md from ACTIVE notes -- the file is a DERIVED projection (write-once:
+    record one atom, the digest is generated, never hand-edited). Distilled via the shared, faithfulness-
+    gated Consolidator. Returns the path. Best-effort caller wraps it."""
+    from core.learning.agent_memory import get_agent_memory
+    from core.primitives.consolidator import Consolidator
+    mem = memory or get_agent_memory()
+    decs = mem.get_decisions(days=3650)
+    items = [Consolidator.item(text=f"{d.title}: {d.decision}", source=f"mem:decision:{d.id}",
+                               importance=4, timestamp=d.created_at) for d in decs]
+    dist = Consolidator().consolidate(items, instruction="durable project notes")
+    base = Path(chronicle_dir) if chronicle_dir else \
+        Path(os.getenv("AI_SETUP", "E:\\AI-Setup")) / "chronicles"
+    base.mkdir(parents=True, exist_ok=True)
+    path = base / "memory.md"
+    header = ("# Project memory (auto-generated from notes — do not hand-edit)\n\n"
+              f"_Distilled from {len(items)} active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_\n\n"
+              "Record durable project state once with `note`; correct it by re-noting the same title.\n\n")
+    body = dist.skeleton if dist.skeleton else "_(no notes yet)_"
+    path.write_text(header + body + "\n", encoding="utf-8")
+    return str(path)
+
+
+def cmd_note(args):
+    """Write-once durable project note: record WHERE-WE-ARE / a decision in ONE place (the substrate),
+    not by hand-editing files. Re-noting the same --title (or --supersedes ID) RETIRES the prior note
+    (correct by superseding, never edit). Surfaces at `boot` + `notes`; reprojects chronicles/memory.md."""
+    from core.learning.agent_memory import get_agent_memory
+    if not args.title or not args.note:
+        print("ERROR: need --title and --note.")
+        print('Example: py agent_cli.py note me --title "checkpoint: recall done" --note "next: write-once"')
+        return 2
+    mem = get_agent_memory()
+    title = _clip(args.title, 200)
+    supersedes = args.supersedes
+    if not supersedes:   # re-noting the same title updates-in-place (write-once correction)
+        try:
+            for d in mem.get_decisions(days=3650):
+                if d.title == title:
+                    supersedes = d.id
+                    break
+        except Exception:
+            pass
+    dec_id = mem.decide(title=title, decision=_clip(args.note), context=_clip(args.context or "", 1000),
+                        supersedes=supersedes or None, session_id=args.session or "")
+    if not dec_id:
+        print("ERROR recording note (store unavailable?)"); return 1
+    try:   # narrative + firehose fanout (best-effort), mirroring cmd_learn
+        from core.narrative.beat_log import get_beat_log
+        from core.narrative.track_router import RouteHint
+        get_beat_log().emit("decision", summary=f"{title}: {_clip(args.note, 160)}",
+                            source=f"mem:decision:{dec_id}",
+                            hint=RouteHint(category=args.category or "", task=title))
+    except Exception:
+        pass
+    try:
+        from core.events.event_log import capture_event
+        capture_event("decision", f"note: {title}", agent_id=args.agent_id,
+                      refs=[f"mem:decision:{dec_id}"], detail={"note": args.note, "context": args.context})
+    except Exception:
+        pass
+    try:
+        project_notes()   # keep the generated digest fresh
+    except Exception:
+        pass
+    if args.json:
+        print(json.dumps({"recorded": True, "id": dec_id, "title": title,
+                          "superseded": supersedes or None})); return 0
+    print(f"[OK] noted '{title}' (id {dec_id})" + (f" - superseded prior {supersedes}" if supersedes else ""))
+    return 0
+
+
+def cmd_notes(args):
+    """List active (non-superseded) project notes, newest first. The write-once read side."""
+    from core.learning.agent_memory import get_agent_memory
+    if args.project:
+        try:
+            print(f"[OK] regenerated {project_notes()}"); return 0
+        except Exception as e:
+            print(f"ERROR projecting notes: {type(e).__name__}: {e}"); return 1
+    decs = get_agent_memory().get_decisions(days=args.days or 3650)
+    if args.json:
+        print(json.dumps([{"id": d.id, "title": d.title, "note": d.decision, "at": d.created_at}
+                          for d in decs], indent=2, default=str)); return 0
+    print(f"# {len(decs)} active note(s)")
+    for d in decs[:(args.limit or 25)]:
+        print(f"  [{d.created_at[:10]}] {d.title}: {_clip(d.decision, 140)}   (id {d.id})")
     return 0
 
 
@@ -1032,6 +1133,24 @@ def build_parser():
     rf.add_argument("--useful", action="store_true", help="it changed what you did (default)")
     rf.add_argument("--noise", action="store_true", help="it was off-target")
     rf.set_defaults(fn=cmd_recall_feedback)
+
+    nt = sub.add_parser("note", help="record a durable project note (write-once; re-note same title to update)")
+    nt.add_argument("agent_id")
+    nt.add_argument("--title", required=True, help="short stable title (re-noting it supersedes the prior)")
+    nt.add_argument("--note", default="", help="the note / decision body")
+    nt.add_argument("--context", default="", help="optional supporting context")
+    nt.add_argument("--category", default="", help="route-hint category")
+    nt.add_argument("--supersedes", default=None, help="explicit prior note id to retire")
+    nt.add_argument("--session", default="", help="session id")
+    nt.add_argument("--json", action="store_true")
+    nt.set_defaults(fn=cmd_note)
+
+    nts = sub.add_parser("notes", help="list active project notes (--project regenerates chronicles/memory.md)")
+    nts.add_argument("--limit", type=int, default=25)
+    nts.add_argument("--days", type=int, default=None)
+    nts.add_argument("--project", action="store_true", help="regenerate the chronicles/memory.md digest")
+    nts.add_argument("--json", action="store_true")
+    nts.set_defaults(fn=cmd_notes)
 
     s = sub.add_parser("status", help="honest system status")
     s.add_argument("--json", action="store_true")
