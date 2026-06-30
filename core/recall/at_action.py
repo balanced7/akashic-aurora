@@ -16,6 +16,11 @@ Design — deterministic, no-LLM, fail-soft (SOTA-informed; see docs/agent-exper
 - **cap at a few entries** (default 3) — skeleton-first, lossy summary + lossless `source` pointer.
 - **FAITH-1 gate** — recalled text runs through `faithfulness_report`; nothing unfaithful (a
   fabricated/unresolvable pointer) ever reaches the agent.
+- **provenance-labelled** — each item is prefixed with outcome-status + author + claim-kind
+  (worked / partial / unverified / anti-pattern; `advice` marks a forward-looking recommendation),
+  so a self-authored, unverified hypothesis never returns framed as an external verified fact
+  (Factor 1: opinion-laundering). Status reflects the AUTHOR'S OWN report (`worked` = self-reported
+  success, not an independent check). The store already holds this; projection carries it to the surface.
 - **fully degrades to empty** on any error — a recall path must never brick the action.
 
 LATENCY: lesson items are served from a TTL disk cache (a fresh hook process can't hold an in-memory
@@ -52,14 +57,30 @@ _CACHE_TTL = float(os.getenv("AKASHIC_RECALL_CACHE_TTL", "120"))
 def _project_items(recs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     items: List[Dict[str, Any]] = []
     for rec in recs:
-        summary = rec.get("recommendation") or rec.get("actual") or rec.get("what_tried") or ""
+        # Track WHICH field the surfaced text came from: `recommendation` is forward-looking advice
+        # (a claim), `actual` is an observed outcome (evidence), `what_tried` is the action. The
+        # reader must be able to tell a claim from evidence, so carry the field through (-> _provenance_tag).
+        summary, field = "", ""
+        for f in ("recommendation", "actual", "what_tried"):
+            if rec.get(f):
+                summary, field = rec[f], f
+                break
         if not summary:
             continue
+        success = str(rec.get("success", "")).lower()
         items.append({
             "text": summary,
             "source": f"learn:experiment:{rec.get('experiment_name')}",
-            "importance": 4 if str(rec.get("success", "")).lower() in ("yes", "true") else 3,
+            "importance": 4 if success in ("yes", "true") else 3,
             "timestamp": rec.get("timestamp"), "kind": "lesson",
+            # Provenance carried to the surface so a self-authored, unverified hypothesis can never
+            # return wearing the costume of an external verified fact (Factor 1: opinion-laundering).
+            # The store already holds all of this; the old projection discarded it at this seam.
+            "success": success,
+            "agent_id": rec.get("agent_id", ""),
+            "confidence": rec.get("confidence", ""),
+            "anti_pattern": rec.get("anti_pattern", ""),
+            "field": field,
         })
     return items
 
@@ -414,8 +435,42 @@ def recall_at(*, path: Optional[str] = None, command: Optional[str] = None,
                 "shown": 0, "faithful": True, "confidence": 1.0, "error": type(e).__name__}
 
 
+def _provenance_tag(item: Dict[str, Any]) -> str:
+    """A terse, honest status prefix for a recalled lesson — the antidote to opinion-laundering
+    (Factor 1). Encodes outcome-status + author + claim-kind from provenance the store already
+    holds, so a self-authored, unverified hypothesis can't come back framed as an external verified
+    fact. Status is the AUTHOR'S OWN report ('worked' = self-reported success, not an independent
+    check). Kept ASCII + short to stay off the context-rot / meta-noise line (Factors 6, 9).
+
+    NB: the store normalizes a MISSING success to 'no', so the non-success bucket is labelled
+    'unverified' ('not a confirmed success' — failed OR never checked), never the over-claim 'failed'.
+    A populated `anti_pattern` is the one case we *can* call out as actively known-bad."""
+    success = str(item.get("success", "")).lower()
+    author = str(item.get("agent_id") or "").strip()
+    field = item.get("field") or ""
+    parts: List[str] = []
+    if item.get("anti_pattern"):
+        parts.append("anti-pattern")          # documented known-bad: doing this IS the mistake
+    elif success in ("yes", "true"):
+        # 'worked', NOT 'verified': success=yes is the AUTHOR'S OWN report, not an independent check.
+        # Calling it 'verified' would re-launder a self-claim as external fact (the exact Factor-1 trap).
+        # Independent corroboration (a cross-agent `helped`) could later earn a stronger 'confirmed' tag.
+        parts.append("worked")
+    elif success == "partial":
+        parts.append("partial")
+    else:
+        parts.append("unverified")
+    if author and author.lower() != "unknown":
+        parts.append(author)
+    if field == "recommendation" and success not in ("yes", "true"):
+        parts.append("advice")                # forward-looking suggestion, not an observation
+    return "[" + " ".join(parts) + "]"
+
+
 def render(result: Dict[str, Any], *, max_chars: int = 110) -> str:
-    """Compact, agent-readable rendering for the hook's additionalContext. Empty result -> ''."""
+    """Compact, agent-readable rendering for the hook's additionalContext. Each lesson is prefixed
+    with a provenance tag (verification-status + author + claim-kind) so the agent reads it with the
+    right epistemic weight rather than as a settled fact. Empty result -> ''."""
     lines: List[str] = []
     for lk in result.get("locks", []):
         lines.append(f"[lock] {lk.get('held_by')} holds an advisory lock on this path — coordinate before editing")
@@ -423,7 +478,7 @@ def render(result: Dict[str, Any], *, max_chars: int = 110) -> str:
         s = l.get("text", "")
         if len(s) > max_chars:
             s = s[:max_chars].rsplit(" ", 1)[0] + "..."
-        lines.append(f"[lesson] {s} (source: {l.get('source')})")
+        lines.append(f"{_provenance_tag(l)} {s} (source: {l.get('source')})")
     if not lines:
         return ""
     # Factual framing (not imperative — imperative trips prompt-injection defenses). Hard total cap

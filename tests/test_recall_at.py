@@ -189,10 +189,29 @@ def test_render_formats_and_empties():
                         "source": "learn:experiment:spine1_unify"}],
            "locks": [{"held_by": "cursor", "reason": "editing"}]}
     out = render(res)
-    assert "[lock] cursor" in out and "[lesson]" in out and "(source: learn:experiment:spine1_unify)" in out
+    # a lesson with no provenance fields surfaces as [unverified] -- NOT framed as a settled fact
+    assert "[lock] cursor" in out and "[unverified]" in out and "(source: learn:experiment:spine1_unify)" in out
     assert len(out) <= 900
     assert render({"lessons": [], "locks": []}) == "", "empty result must render to ''"
     print("--- render ---\n  factual lock+lesson lines; empty -> '' OK")
+
+
+def test_provenance_tag_resists_laundering():
+    """Factor 1: a self-authored, unverified hypothesis must never wear a verified costume."""
+    from core.recall.at_action import _provenance_tag, render
+    # a self-reported success -> [worked claude] ('worked', not 'verified': it's the author's own report)
+    assert _provenance_tag({"success": "yes", "agent_id": "claude", "field": "recommendation"}) == "[worked claude]"
+    # a recommendation NOT backed by a success -> flagged as unverified advice (the laundering case)
+    assert _provenance_tag({"success": "no", "agent_id": "cursor", "field": "recommendation"}) == "[unverified cursor advice]"
+    # a documented anti-pattern wins the status slot (actively known-bad, not merely unverified)
+    assert _provenance_tag({"success": "no", "anti_pattern": "loop_unroll_python", "field": "recommendation"}).startswith("[anti-pattern")
+    # partial outcome; unknown author is omitted (no false attribution)
+    assert _provenance_tag({"success": "partial", "agent_id": "unknown", "field": "actual"}) == "[partial]"
+    # end-to-end: a 'no' recommendation renders with the honest tag, never as a success costume
+    out = render({"lessons": [{"text": "probe reachability first", "source": "learn:experiment:redis_probe",
+                               "success": "no", "field": "recommendation", "agent_id": "claude"}], "locks": []})
+    assert "[unverified claude advice]" in out and "[worked" not in out
+    print("--- provenance tag ---\n  verified/partial/unverified/anti-pattern + advice flag; no laundering OK")
 
 
 def test_fail_soft_on_empty_and_bad_input():
@@ -219,6 +238,7 @@ if __name__ == "__main__":
     test_usefulness_factor_helped()
     test_implicit_helped_flip()
     test_render_formats_and_empties()
+    test_provenance_tag_resists_laundering()
     test_fail_soft_on_empty_and_bad_input()
     print("\n" + "=" * 60)
     print("ALL RECALL-AT-ACTION TESTS PASSED")
