@@ -34,7 +34,8 @@ __pycache__/
 session_logs/
 blackboard_data/
 *.jsonl
-chronicles/last-session-draft.md   # auto-captured per-session draft (SessionEnd/PreCompact); ephemeral
+# auto-captured per-session draft (SessionEnd/PreCompact); ephemeral, regenerated each session
+chronicles/last-session-draft.md
 
 # --- Secrets (never commit) ---
 .env
