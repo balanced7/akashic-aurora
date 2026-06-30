@@ -404,6 +404,84 @@ def cmd_notes(args):
     return 0
 
 
+# ----------------------------------------------------------------------------- wrap
+def build_session_draft(commits, lessons, notes, max_per=8):
+    """Distill a session's own activity into a DRAFT where-we-are -- PURE (testable). Each line keeps a
+    lossless source pointer (git:<sha> / learn:experiment:<name> / mem:decision:<id>)."""
+    lines = []
+    if commits:
+        lines.append("Shipped:")
+        for sha, subj in commits[:max_per]:
+            lines.append(f"  - {subj}  (git:{sha})")
+    if lessons:
+        lines.append("Learned:")
+        for l in lessons[:max_per]:
+            rec = l.get("recommendation") or l.get("actual") or l.get("what_tried") or ""
+            lines.append(f"  - {l.get('experiment_name')}: {_clip(rec, 120)}  (learn:experiment:{l.get('experiment_name')})")
+    if notes:
+        lines.append("Decided / noted:")
+        for d in notes[:max_per]:
+            lines.append(f"  - {d.title}: {_clip(d.decision, 120)}  (mem:decision:{d.id})")
+    return "\n".join(lines) if lines else "(no session activity captured)"
+
+
+def _recent_commits(hours=12, limit=12):
+    import subprocess
+    try:
+        r = subprocess.run(["git", "log", f"--since={hours} hours ago", "--pretty=%h\t%s"],
+                           cwd=os.getenv("AI_SETUP", "E:\\AI-Setup"), capture_output=True, text=True, timeout=10)
+        out = []
+        for line in (r.stdout or "").splitlines()[:limit]:
+            if "\t" in line:
+                sha, subj = line.split("\t", 1)
+                out.append((sha, subj))
+        return out
+    except Exception:
+        return []
+
+
+def _recent_lessons(limit=8):
+    from core.learning.learning_store import get_learning_store
+    try:
+        recs = get_learning_store().load_all_learnings_from_store()
+        recs.sort(key=lambda r: str(r.get("timestamp") or ""), reverse=True)
+        return recs[:limit]
+    except Exception:
+        return []
+
+
+def cmd_wrap(args):
+    """Ambient session capture: distill this session's own commits + lessons + notes into a DRAFT
+    where-we-are, so you APPROVE/correct instead of authoring blank. Preview by default; --commit
+    records the draft as a note (supersede-by-title) so it surfaces at the next boot."""
+    from datetime import datetime
+    from core.learning.agent_memory import get_agent_memory
+    commits = _recent_commits(args.hours or 12)
+    lessons = _recent_lessons(8)
+    notes = get_agent_memory().get_decisions(days=1)
+    draft = build_session_draft(commits, lessons, notes)
+    if not args.commit:
+        print("# DRAFT where-we-are (review it; record with: "
+              'py agent_cli.py wrap --commit --title "where-we-are ...")\n')
+        print(draft)
+        print(f"\n# from {len(commits)} commit(s), {len(lessons)} lesson(s), {len(notes)} note(s) this session")
+        return 0
+    title = args.title or f"where-we-are {datetime.now().date().isoformat()}"
+    mem = get_agent_memory()
+    supersedes = next((d.id for d in mem.get_decisions(days=3650) if d.title == title), None)
+    dec_id = mem.decide(title=title, decision=draft, supersedes=supersedes or None)
+    if not dec_id:
+        print("ERROR recording the wrapped note"); return 1
+    try:
+        project_notes()
+    except Exception:
+        pass
+    print(f"[OK] wrapped this session -> note '{title}' (id {dec_id})"
+          + (f" - superseded prior {supersedes}" if supersedes else "")
+          + "\n     surfaces at your next `boot`; edit by re-noting the same title.")
+    return 0
+
+
 # -------------------------------------------------------------------------- story
 def cmd_story(args, store=None):
     """Print narrative story views: Atlas, Track, Chapter, Beat, or time-lookup.
@@ -1151,6 +1229,12 @@ def build_parser():
     nts.add_argument("--project", action="store_true", help="regenerate the chronicles/memory.md digest")
     nts.add_argument("--json", action="store_true")
     nts.set_defaults(fn=cmd_notes)
+
+    wr = sub.add_parser("wrap", help="distill this session (commits+lessons+notes) into a DRAFT where-we-are note")
+    wr.add_argument("--hours", type=int, default=12, help="look-back window for commits (default 12)")
+    wr.add_argument("--commit", action="store_true", help="record the draft as a note (default: just preview)")
+    wr.add_argument("--title", default=None, help="note title (default: where-we-are <date>)")
+    wr.set_defaults(fn=cmd_wrap)
 
     s = sub.add_parser("status", help="honest system status")
     s.add_argument("--json", action="store_true")
