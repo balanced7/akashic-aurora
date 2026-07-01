@@ -178,9 +178,11 @@ def learn(agent: str, experiment: str, tried: str = "", result: str = "",
 
 
 @mcp.tool()
-def recall(query: str = "") -> str:
-    """Search past lessons by keyword. Empty query lists ALL lessons."""
-    return _run(agent_cli.cmd_recall, query=query)
+def recall(query: str = "", full: str = "") -> str:
+    """Search past lessons by keyword. Empty query lists ALL lessons.
+    Pass `full` = a lesson's source pointer (e.g. learn:experiment:NAME) to pull its WHOLE record
+    instead -- the one-hop escape from a capped recall_at surface to the raw evidence."""
+    return _run(agent_cli.cmd_recall, query=query, full=full or None)
 
 
 @mcp.tool()

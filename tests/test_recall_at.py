@@ -81,6 +81,60 @@ def test_exclude_sources_anti_repeat():
     print("--- anti-repeat ---\n  sources shown once are excluded next time OK")
 
 
+def test_total_reflects_all_that_cleared_the_floor_not_just_limit():
+    # 5 lessons all relevant to "consolidator"; limit=2 must still report total=5 (INC1: the pull-side
+    # escape needs the TRUE count of what exists, not the capped surface size).
+    many = _FakeStore([
+        {"experiment_name": f"consolidator_{i}", "success": "yes",
+         "recommendation": "route every consolidator seam through the same path"}
+        for i in range(5)
+    ])
+    res = recall_at(command="touch the consolidator seam", limit=2, learning_store=many)
+    assert len(res["lessons"]) == 2, f"surface stays capped at limit, got {len(res['lessons'])}"
+    assert res["total"] == 5, f"total must reflect all that cleared the floor, got {res['total']}"
+    print("--- total vs limit ---\n  5 relevant, limit=2 -> 2 shown, total=5 OK")
+
+
+def test_render_n_of_m_escape_line():
+    res = {"lessons": [{"text": "route every source through the one consolidator seam",
+                        "source": "learn:experiment:spine1_unify"}],
+           "locks": [], "total": 4}
+    out = render(res)
+    assert "1 of 4 relevant lesson(s) shown" in out and "recall --full <source>" in out, out
+    # total == shown (nothing hidden) -> no escape line
+    res["total"] = 1
+    out2 = render(res)
+    assert "of 4" not in out2 and "shown" not in out2, f"no hidden lessons -> no escape line, got {out2}"
+    print("--- N-of-M escape ---\n  hidden lessons -> escape line; nothing hidden -> silent OK")
+
+
+def test_full_record_pulls_the_whole_record():
+    from core.recall.at_action import full_record
+    from core.learning.learning_store import LearningStore
+    from core.foundation.store import FileStore
+    ls = LearningStore(store=FileStore(os.path.join(tempfile.mkdtemp(), "learn.json")))
+    ls.persist_learning_derived_from_experiment({
+        "experiment_name": "pull_test", "what_tried": "tried X", "expected_outcome": "Y",
+        "actual_outcome": "Z", "success": "yes", "recommendation": "do X",
+        "root_cause": "because X causes Y", "agent_id": "claude",
+    })
+    rec = full_record("learn:experiment:pull_test", learning_store=ls)
+    assert rec.get("what_tried") == "tried X" and rec.get("root_cause") == "because X causes Y", rec
+    assert rec.get("recommendation") == "do X", "the full record must carry fields the summary drops"
+    print("--- full_record ---\n  one-hop pull returns the whole record (what_tried/root_cause/...) OK")
+
+
+def test_full_record_fails_soft():
+    from core.recall.at_action import full_record
+    from core.learning.learning_store import LearningStore
+    from core.foundation.store import FileStore
+    empty = LearningStore(store=FileStore(os.path.join(tempfile.mkdtemp(), "empty.json")))
+    assert full_record("") == {}
+    assert full_record("not-a-lesson-pointer") == {}
+    assert full_record("learn:experiment:nonexistent", learning_store=empty) == {}
+    print("--- full_record fail-soft ---\n  empty/bad/unknown pointer -> {} , never raises OK")
+
+
 def test_query_builder_drops_noise():
     q = _query_from("core/primitives/faithfulness.py", None)
     assert "faithfulness" in q and "primitives" in q
@@ -144,9 +198,10 @@ def test_usefulness_reranks_equally_relevant():
     orig = aa._cached_items
     aa._cached_items = lambda ls: items   # both equally relevant to "consolidator"; B is proven-useful
     try:
-        out = aa._lessons("consolidator", None, 2, 0.0)
+        out, total = aa._lessons("consolidator", None, 2, 0.0)
         assert out and out[0]["source"] == "learn:experiment:B", \
             f"proven-useful lesson should rank first: {[o['source'] for o in out]}"
+        assert total == 2, f"total should count both candidates, got {total}"
     finally:
         aa._cached_items = orig
     print("--- usefulness re-rank ---\n  proven-useful lesson outranks an equally-relevant one OK")
@@ -230,6 +285,10 @@ if __name__ == "__main__":
     test_never_pads_to_limit()
     test_dedup_by_source()
     test_exclude_sources_anti_repeat()
+    test_total_reflects_all_that_cleared_the_floor_not_just_limit()
+    test_render_n_of_m_escape_line()
+    test_full_record_pulls_the_whole_record()
+    test_full_record_fails_soft()
     test_query_builder_drops_noise()
     test_warm_cache_and_prune()
     test_usefulness_factor()

@@ -238,7 +238,20 @@ def cmd_learn(args):
 
 # ------------------------------------------------------------------------- recall
 def cmd_recall(args):
-    """Search lessons by keyword; with no query, list ALL lessons."""
+    """Search lessons by keyword; with no query, list ALL lessons. --full SOURCE pulls the whole
+    faithful record behind one recalled lesson's source pointer (the one-hop escape from a capped
+    recall-at surface to the raw evidence, e.g. learn:experiment:NAME)."""
+    full = getattr(args, "full", None)
+    if full:
+        from core.recall.at_action import full_record
+        rec = full_record(full)
+        if args.json:
+            print(json.dumps(rec, default=str)); return 0
+        if not rec:
+            print(f"# no record found for '{full}'"); return 1
+        for k, v in rec.items():
+            print(f"  {k}: {v}")
+        return 0
     from core.learning.learning_store import get_learning_store
     ls = get_learning_store()
     query = (args.query or "").strip()
@@ -1225,6 +1238,8 @@ def build_parser():
 
     r = sub.add_parser("recall", help="search past lessons (no query = list all)")
     r.add_argument("query", nargs="?", default=""); r.add_argument("--json", action="store_true")
+    r.add_argument("--full", default=None, help="pull the FULL record for one lesson's source pointer "
+                    "(e.g. learn:experiment:NAME) -- the one-hop escape from a capped recall-at surface")
     r.set_defaults(fn=cmd_recall)
 
     li = sub.add_parser("list", help="list ALL lessons in memory")

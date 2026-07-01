@@ -218,6 +218,25 @@ def record_feedback(source: str, kind: str = "useful", *, store=None) -> bool:
         return False
 
 
+def full_record(source: str, *, learning_store: Optional[Any] = None) -> Dict[str, Any]:
+    """The one-hop pull from a recalled lesson's lossy summary to its WHOLE record (what_tried,
+    expected, actual, root_cause, metrics, ...) -- the escape hatch `render()` points to when more
+    exists than the capped surface shows. `source` is the pointer already carried on every recalled
+    item, e.g. `learn:experiment:NAME`. Fail-soft: {} on any error, bad pointer, or unknown source
+    (a failed pull must never brick the caller, same discipline as recall_at)."""
+    prefix = "learn:experiment:"
+    try:
+        if not source or not str(source).startswith(prefix):
+            return {}
+        exp_id = str(source)[len(prefix):]
+        if learning_store is None:
+            from core.learning.learning_store import get_learning_store
+            learning_store = get_learning_store()
+        return learning_store._load_experiment(exp_id) or {}
+    except Exception:
+        return {}
+
+
 def bump_surfaced(sources, *, store=None) -> None:
     """Increment the `surfaced` (impression) counter for shown lessons -- best-effort, fire-and-forget."""
     try:
@@ -369,9 +388,11 @@ def _query_from(path: Optional[str], command: Optional[str]) -> str:
 
 def _lessons(query: str, now: Optional[float], limit: int, min_relevance: float,
              learning_store: Optional[Any] = None,
-             exclude_sources: Optional[set] = None) -> List[Dict[str, Any]]:
+             exclude_sources: Optional[set] = None) -> "tuple[List[Dict[str, Any]], int]":
     """Rank ACTIVE lessons by relevance; keep those above the show-nothing floor, minus any already
-    surfaced this session (`exclude_sources` -> anti-repeat) and intra-call source dups."""
+    surfaced this session (`exclude_sources` -> anti-repeat) and intra-call source dups. Returns
+    (items capped at `limit`, TOTAL that cleared the floor) -- the total is what powers the N-of-M
+    escape line in render(): the agent should know more exists even when `limit` hides it."""
     from core.primitives.ranker import Ranker
     items = _cached_items(learning_store)
     excl = exclude_sources or set()
@@ -387,7 +408,7 @@ def _lessons(query: str, now: Optional[float], limit: int, min_relevance: float,
         # usefulness re-rank: proven-useful lessons rise; surfaced-often-yet-never-useful decay
         cands.append((s.score * usefulness_factor(s.item.get("_use")), s.item))
     cands.sort(key=lambda t: t[0], reverse=True)
-    return [it for _, it in cands[:limit]]
+    return [it for _, it in cands[:limit]], len(cands)
 
 
 def _locks(path: Optional[str], agent_id: Optional[str]) -> List[Dict[str, Any]]:
@@ -415,7 +436,8 @@ def recall_at(*, path: Optional[str] = None, command: Optional[str] = None,
     Deterministic, no-LLM, FAITH-gated, fail-soft (returns an empty result on any error)."""
     try:
         query = _query_from(path, command)
-        lessons = _lessons(query, now, limit, min_relevance, learning_store, exclude_sources) if query else []
+        lessons, total = _lessons(query, now, limit, min_relevance, learning_store, exclude_sources) \
+            if query else ([], 0)
         locks = _locks(path, agent_id)
         faithful, conf = True, 1.0
         if lessons:
@@ -424,15 +446,15 @@ def recall_at(*, path: Optional[str] = None, command: Optional[str] = None,
             rep = faithfulness_report(lessons, skeleton)
             faithful, conf = rep["faithful"], rep["confidence"]
             if not faithful:
-                lessons = []   # never surface unfaithful recall — silence beats a fabricated hint
+                lessons, total = [], 0   # never surface unfaithful recall — silence beats a fabricated hint
         if count_surface and lessons:
             bump_surfaced([l.get("source") for l in lessons])   # impression count (best-effort, feeds noise-decay)
         return {"path": path, "command": command, "query": query, "lessons": lessons,
-                "locks": locks, "shown": len(lessons) + len(locks),
+                "locks": locks, "shown": len(lessons) + len(locks), "total": total,
                 "faithful": faithful, "confidence": conf}
     except Exception as e:
         return {"path": path, "command": command, "query": "", "lessons": [], "locks": [],
-                "shown": 0, "faithful": True, "confidence": 1.0, "error": type(e).__name__}
+                "shown": 0, "total": 0, "faithful": True, "confidence": 1.0, "error": type(e).__name__}
 
 
 def _provenance_tag(item: Dict[str, Any]) -> str:
@@ -470,7 +492,11 @@ def _provenance_tag(item: Dict[str, Any]) -> str:
 def render(result: Dict[str, Any], *, max_chars: int = 110) -> str:
     """Compact, agent-readable rendering for the hook's additionalContext. Each lesson is prefixed
     with a provenance tag (verification-status + author + claim-kind) so the agent reads it with the
-    right epistemic weight rather than as a settled fact. Empty result -> ''."""
+    right epistemic weight rather than as a settled fact. Empty result -> ''.
+
+    When more lessons cleared the relevance floor than `limit` surfaced, appends a single N-of-M
+    escape line — the cheap one-hop pull to the rest, instead of silently truncating (the "recommend
+    less, retrieve more" pull-side: a capped surface should say so, not pretend it's complete)."""
     lines: List[str] = []
     for lk in result.get("locks", []):
         lines.append(f"[lock] {lk.get('held_by')} holds an advisory lock on this path — coordinate before editing")
@@ -481,6 +507,10 @@ def render(result: Dict[str, Any], *, max_chars: int = 110) -> str:
         lines.append(f"{_provenance_tag(l)} {s} (source: {l.get('source')})")
     if not lines:
         return ""
+    shown, total = len(result.get("lessons", [])), result.get("total", 0)
+    if total > shown:
+        lines.append(f"... {shown} of {total} relevant lesson(s) shown — `recall-at --limit {total}` for the rest, "
+                      f"or `recall --full <source>` for any one's whole record")
     # Factual framing (not imperative — imperative trips prompt-injection defenses). Hard total cap
     # well under Claude Code's 10k-char additionalContext limit.
     body = "Recall-at-action (Akashic) - facts relevant to what you're about to do:\n" + "\n".join(lines)
