@@ -439,22 +439,34 @@ def recall_at(*, path: Optional[str] = None, command: Optional[str] = None,
         lessons, total = _lessons(query, now, limit, min_relevance, learning_store, exclude_sources) \
             if query else ([], 0)
         locks = _locks(path, agent_id)
+        counter = None
         faithful, conf = True, 1.0
         if lessons:
+            # Dissent (Tier 1): the strongest genuine counter to the TOP lesson, or None (silent).
+            # Searched across the whole corpus (not just the surfaced few), so a disagreement that
+            # doesn't itself match the action can still surface. Precision-first, deterministic, fail-soft.
+            try:
+                from core.recall.dissent import find_counter
+                counter = find_counter(lessons[0], _cached_items(learning_store))
+            except Exception:
+                counter = None
             from core.primitives.faithfulness import faithfulness_report
-            skeleton = "\n".join(f"- {l['text']}  (source: {l['source']})" for l in lessons)
-            rep = faithfulness_report(lessons, skeleton)
+            checked = list(lessons) + ([{"text": counter["text"], "source": counter["source"]}]
+                                       if counter else [])
+            skeleton = "\n".join(f"- {c['text']}  (source: {c['source']})" for c in checked)
+            rep = faithfulness_report(checked, skeleton)
             faithful, conf = rep["faithful"], rep["confidence"]
             if not faithful:
-                lessons, total = [], 0   # never surface unfaithful recall — silence beats a fabricated hint
+                lessons, total, counter = [], 0, None   # silence beats a fabricated hint (counter included)
         if count_surface and lessons:
             bump_surfaced([l.get("source") for l in lessons])   # impression count (best-effort, feeds noise-decay)
         return {"path": path, "command": command, "query": query, "lessons": lessons,
-                "locks": locks, "shown": len(lessons) + len(locks), "total": total,
-                "faithful": faithful, "confidence": conf}
+                "locks": locks, "counter": counter, "shown": len(lessons) + len(locks),
+                "total": total, "faithful": faithful, "confidence": conf}
     except Exception as e:
         return {"path": path, "command": command, "query": "", "lessons": [], "locks": [],
-                "shown": 0, "total": 0, "faithful": True, "confidence": 1.0, "error": type(e).__name__}
+                "counter": None, "shown": 0, "total": 0, "faithful": True, "confidence": 1.0,
+                "error": type(e).__name__}
 
 
 def _provenance_tag(item: Dict[str, Any]) -> str:
@@ -505,6 +517,19 @@ def render(result: Dict[str, Any], *, max_chars: int = 110) -> str:
         if len(s) > max_chars:
             s = s[:max_chars].rsplit(" ", 1)[0] + "..."
         lines.append(f"{_provenance_tag(l)} {s} (source: {l.get('source')})")
+    # Dissent line: the strongest genuine counter to the TOP lesson (Tier 1). Silent when none — a
+    # manufactured counter would be a hallucinated disagreement, the exact failure we're avoiding.
+    counter = result.get("counter")
+    if counter and counter.get("text"):
+        shown_src = {l.get("source") for l in result.get("lessons", [])}
+        if counter.get("source") in shown_src:
+            # the counter is one of the lessons already shown -> flag the disagreement, don't repeat text
+            lines.append(f"[counter] the top lesson is disputed above by {counter.get('source')}")
+        else:
+            cs = counter["text"]
+            if len(cs) > max_chars:
+                cs = cs[:max_chars].rsplit(" ", 1)[0] + "..."
+            lines.append(f"[counter] {cs} (source: {counter.get('source')})")
     if not lines:
         return ""
     shown, total = len(result.get("lessons", [])), result.get("total", 0)
