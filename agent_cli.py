@@ -198,6 +198,7 @@ def cmd_learn(args):
         "category": _clip(args.category, 80) or "uncategorized",
         "success": args.success or "yes",
         "confidence": args.confidence or "medium",
+        "anti_pattern": _clip(getattr(args, "anti_pattern", ""), 200),
     }
     try:
         ok = get_learning_store().record_learning(signal)
@@ -233,6 +234,32 @@ def cmd_learn(args):
     else:
         print(f"[{'OK' if ok else 'FAIL'}] recorded lesson '{signal['experiment_name']}' "
               f"(category: {signal['category']}, success: {signal['success']})")
+    # Slice 2 capture nudge: a failure with no anti_pattern is where a reusable known-bad hides, and
+    # this instant (just recorded, context fresh) is the moment to name it. Auto-draft a candidate NAME
+    # (removing the naming cost) and hand back the exact one-line tag command. Silent for successes or
+    # when an anti_pattern was already given -- high-signal, no nag.
+    if ok and not args.json and str(signal["success"]).lower() in ("no", "false", "partial") \
+            and not signal.get("anti_pattern"):
+        from core.learning.learning_store import draft_anti_pattern_slug
+        slug = draft_anti_pattern_slug(signal.get("what_tried", ""), "", signal.get("recommendation", ""))
+        if slug:
+            print("[hint] if this failure names a reusable known-bad, tag it so recall can warn others:")
+            print(f"       py agent_cli.py tag-anti-pattern {args.agent_id} "
+                  f"--experiment {signal['experiment_name']} --name {slug}   (edit the name if a better fits)")
+    return 0 if ok else 1
+
+
+def cmd_tag_anti_pattern(args):
+    """Tag an EXISTING lesson as documenting a reusable known-bad, without clobbering its other fields
+    (the safe follow-up the `learn` capture nudge points at). Grows the disconfirmers recall needs."""
+    from core.learning.learning_store import get_learning_store
+    ok = get_learning_store().tag_anti_pattern(args.experiment, args.name, reason=args.reason)
+    if args.json:
+        print(json.dumps({"tagged": bool(ok), "experiment": args.experiment, "anti_pattern": args.name}))
+    elif ok:
+        print(f"[OK] tagged '{args.experiment}' as anti-pattern '{args.name}' -- recall will now warn on it")
+    else:
+        print(f"[FAIL] no lesson '{args.experiment}' to tag (record it first with `learn`)")
     return 0 if ok else 1
 
 
@@ -1234,7 +1261,15 @@ def build_parser():
     l.add_argument("--expected", default=""); l.add_argument("--recommend", default="")
     l.add_argument("--category", default=""); l.add_argument("--success", default=None)
     l.add_argument("--confidence", default=None); l.add_argument("--json", action="store_true")
+    l.add_argument("--anti-pattern", dest="anti_pattern", default="",
+                   help="name a reusable known-bad this lesson documents (recall's dissent-finder warns on it)")
     l.set_defaults(fn=cmd_learn)
+
+    ap = sub.add_parser("tag-anti-pattern", help="tag an EXISTING lesson as a reusable known-bad")
+    ap.add_argument("agent_id"); ap.add_argument("--experiment", required=True)
+    ap.add_argument("--name", required=True, help="the anti-pattern name/slug")
+    ap.add_argument("--reason", default=""); ap.add_argument("--json", action="store_true")
+    ap.set_defaults(fn=cmd_tag_anti_pattern)
 
     r = sub.add_parser("recall", help="search past lessons (no query = list all)")
     r.add_argument("query", nargs="?", default=""); r.add_argument("--json", action="store_true")

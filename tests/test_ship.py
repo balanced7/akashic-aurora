@@ -18,7 +18,8 @@ import ship
 
 def _args(**over):
     base = dict(message="msg", paths=["a.py", "b.py"], agent="claude", learn_exp=None,
-                tried="", result="", recommend="", no_test=False, no_snapshot=False, dry_run=False)
+                tried="", result="", recommend="", anti_pattern="", no_test=False,
+                no_snapshot=False, dry_run=False)
     base.update(over)
     return Namespace(**base)
 
@@ -59,6 +60,15 @@ def test_learn_step_included_with_args():
     print("--- lesson step ---\n  --learn-exp adds a faithful learn step OK")
 
 
+def test_anti_pattern_threaded_into_learn():
+    plan = ship.build_plan(_args(learn_exp="ship_test", anti_pattern="sync_flush_bad"))
+    learn = dict(plan)["record lesson"]
+    assert "--anti-pattern" in learn and "sync_flush_bad" in learn, learn
+    # and absent when not provided (no empty flag leaking into the command)
+    assert "--anti-pattern" not in dict(ship.build_plan(_args(learn_exp="x")))["record lesson"]
+    print("--- anti-pattern threaded ---\n  --anti-pattern flows into the learn step, absent otherwise OK")
+
+
 if __name__ == "__main__":
     print("=" * 60)
     print("SHIP PLAN TESTS")
@@ -67,6 +77,7 @@ if __name__ == "__main__":
     test_no_test_skips_gate()
     test_no_snapshot()
     test_learn_step_included_with_args()
+    test_anti_pattern_threaded_into_learn()
     print("\n" + "=" * 60)
     print("ALL SHIP TESTS PASSED")
     print("=" * 60)

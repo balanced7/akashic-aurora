@@ -39,6 +39,8 @@ def build_plan(args):
             learn += ["--result", args.result]
         if args.recommend:
             learn += ["--recommend", args.recommend]
+        if getattr(args, "anti_pattern", ""):
+            learn += ["--anti-pattern", args.anti_pattern]
         steps.append(("record lesson", learn))
     if not args.no_snapshot:
         steps.append(("snapshot", [PY, "scripts/snapshot_knowledge.py", "snapshot"]))
@@ -59,6 +61,8 @@ def main():
     p.add_argument("--tried", default="")
     p.add_argument("--result", default="")
     p.add_argument("--recommend", default="")
+    p.add_argument("--anti-pattern", dest="anti_pattern", default="",
+                   help="tag the recorded lesson as a reusable known-bad (recall's dissent-finder warns on it)")
     p.add_argument("--no-test", action="store_true", help="skip the gate (rare; e.g. a docs-only fixup)")
     p.add_argument("--no-snapshot", action="store_true")
     p.add_argument("--dry-run", action="store_true", help="print the plan and exit")

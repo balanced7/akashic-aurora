@@ -37,12 +37,39 @@ Usage:
 
 import json
 import logging
+import re
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 from pathlib import Path
 import os
 
 from core.foundation.store import Store, create_store
+
+# Generic verbs/nouns that describe *that* something failed rather than *what* the known-bad is;
+# stripped so an auto-drafted slug names the pattern, not the failure event.
+_DRAFT_STOP = {"the", "and", "for", "with", "this", "that", "use", "used", "using", "via", "from",
+               "into", "was", "were", "then", "when", "because", "cause", "only", "gave", "made",
+               "make", "does", "did", "not", "but", "our", "its", "have", "has", "had", "will",
+               "would", "could", "should", "must", "tried", "trying", "failed", "fails", "fail",
+               "error", "errors", "issue", "problem", "result", "results", "instead", "again"}
+
+
+def draft_anti_pattern_slug(what_tried: str = "", root_cause: str = "", recommendation: str = "",
+                            max_words: int = 4) -> str:
+    """Auto-draft a candidate anti-pattern slug from a failure lesson's own words -- removes the
+    'what do I even name it' cost of capturing a known-bad (Slice 2). Prefers root_cause (it names
+    WHY it failed), then what_tried, then recommendation. Returns a snake_case slug of the most
+    salient content tokens, or '' when there is nothing meaningful to name (stay silent)."""
+    source = (root_cause or "").strip() or (what_tried or "").strip() or (recommendation or "").strip()
+    if not source:
+        return ""
+    words: List[str] = []
+    for w in re.findall(r"[A-Za-z0-9]+", source.lower()):
+        if len(w) > 3 and w not in _DRAFT_STOP and w not in words:
+            words.append(w)
+        if len(words) >= max_words:
+            break
+    return "_".join(words)
 
 
 class LearningStore:
@@ -175,6 +202,33 @@ class LearningStore:
     def record_learning(self, learning_signal: Dict[str, Any]) -> bool:
         """Deprecated: Use persist_learning_derived_from_experiment() instead"""
         return self.persist_learning_derived_from_experiment(learning_signal)
+
+    def tag_anti_pattern(self, experiment_id: str, name: str, reason: str = "") -> bool:
+        """Attach an anti_pattern NAME to an EXISTING lesson WITHOUT clobbering its other fields.
+
+        Re-recording a lesson rewrites the whole hash (every field, blanks included), so it can't be
+        used to add one field. This does a targeted merge-hset of just `anti_pattern`, then indexes
+        the anti-pattern (so recall's dissent-finder can surface it). Returns False if the lesson is
+        unknown. This is the safe write path behind Slice 2's capture nudge: record the failure first,
+        then tag it as a reusable known-bad in one cheap follow-up -- growing the disconfirmers the
+        dissent-finder needs, without the confirmation-biased corpus ever losing data."""
+        key = f"learn:experiment:{experiment_id}"
+        if not name or not self.store.exists(key):
+            return False
+        try:
+            self.store.hset(key, mapping={"anti_pattern": str(name)})   # merge: only this field
+            self.store.sadd("learn:anti_patterns", str(name))
+            existing = self._load_experiment(experiment_id)
+            self.store.hset(f"learn:anti_pattern:{name}", mapping={
+                "experiments": experiment_id,
+                "reason": str(reason or existing.get("root_cause") or existing.get("recommendation") or ""),
+                "severity": "medium",
+                "first_seen": datetime.utcnow().isoformat(),
+            })
+            return True
+        except Exception as e:
+            self.logger.error(f"tag_anti_pattern failed for {experiment_id}: {e}")
+            return False
 
     def _index_learning(self, learning_signal: Dict[str, Any]) -> None:
         """
