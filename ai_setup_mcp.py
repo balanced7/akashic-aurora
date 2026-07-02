@@ -63,6 +63,8 @@ _ARG_DEFAULTS = dict(
     consume=False,
     # handoff
     to=None, note=None, blocker=None, list=False,
+    # stats
+    hours=None,
 )
 
 
@@ -206,6 +208,14 @@ def recall_feedback(source: str, useful: bool = True, noise: bool = False) -> st
 def status() -> str:
     """Honest system status: backend, lesson count, agent-memory count, spine health."""
     return _run(agent_cli.cmd_status)
+
+
+@mcp.tool()
+def stats(hours: float = 24) -> str:
+    """The recall-value funnel: corpus size, surfaced impressions, votes, helped credits,
+    and the recent window's flips vs lessons-recorded (capture-rate). The health check for
+    whether recalled knowledge is actually helping and earned lessons are being captured."""
+    return _run(agent_cli.cmd_stats, hours=hours)
 
 
 @mcp.tool()

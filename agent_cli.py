@@ -549,6 +549,74 @@ def cmd_wrap(args):
     return 0
 
 
+def cmd_stats(args):
+    """The recall-value funnel (leapfrog T3): is surfaced knowledge actually HELPING, and are
+    earned lessons being CAPTURED? Reads only what the loop already records -- recall:use:*
+    usefulness counters (all-time), the per-session flip logs, and lesson timestamps. The one
+    number to watch: capture-rate = lessons recorded / flips (a flip is an earned lesson)."""
+    import json as _json
+    from datetime import datetime, timedelta
+    from core.foundation.store import create_store
+    from core.learning.learning_store import get_learning_store
+    from core.recall.at_action import recent_flips
+    hours = float(args.hours or 24)
+    use = {}
+    try:
+        store = create_store()
+        for k in store.keys("recall:use:*"):
+            try:
+                use[k[len("recall:use:"):]] = _json.loads(store.get(k) or "{}")
+            except Exception:
+                pass
+    except Exception:
+        pass
+    surfaced = sum(int(u.get("surfaced", 0)) for u in use.values())
+    helped = sum(int(u.get("helped", 0)) for u in use.values())
+    useful = sum(int(u.get("useful", 0)) for u in use.values())
+    noise = sum(int(u.get("noise", 0)) for u in use.values())
+    with_track = sum(1 for u in use.values() if int(u.get("helped", 0)) or int(u.get("useful", 0)))
+    try:
+        recs = get_learning_store().load_all_learnings_from_store()
+    except Exception:
+        recs = []
+    cutoff = datetime.now() - timedelta(hours=hours)
+
+    def _in_window(r):
+        try:
+            return datetime.fromisoformat(str(r.get("timestamp"))[:19]) >= cutoff
+        except Exception:
+            return False
+
+    new_lessons = [r for r in recs if _in_window(r)]
+    flips = recent_flips(hours)
+    credited = sum(1 for f in flips if f.get("credited"))
+    # 'lessons_per_flip' not 'capture rate': recorded lessons are NOT all flip-caused, so a ratio
+    # over 1.0 is legitimate -- the name must not lie. ASCII-only output (Windows console cp1252).
+    window = {"flips": len(flips), "flips_credited": credited,
+              "flips_corpus_gap": len(flips) - credited,
+              "lessons_recorded": len(new_lessons),
+              "lessons_per_flip": (round(len(new_lessons) / len(flips), 2) if flips else None)}
+    out = {"corpus_lessons": len(recs), "tracked_sources": len(use),
+           "surfaced_impressions": surfaced, "votes": {"useful": useful, "noise": noise},
+           "helped_credits": helped, "lessons_with_track_record": with_track,
+           "window_hours": hours, "window": window}
+    if getattr(args, "json", False):
+        print(_json.dumps(out, indent=2))
+        return 0
+    print("RECALL-VALUE FUNNEL  (all-time counters + a recent window)")
+    print(f"  corpus: {len(recs)} lesson(s), {len(use)} tracked by recall")
+    print(f"  surfaced impressions: {surfaced} | votes: useful={useful} noise={noise}")
+    print(f"  helped credits (flips that credited a surfaced lesson): {helped}")
+    print(f"  lessons with a track record (helped or useful > 0): {with_track}")
+    print(f"  last {hours:g}h: flips={window['flips']} (credited={window['flips_credited']}, "
+          f"corpus-gap={window['flips_corpus_gap']}) | lessons recorded={window['lessons_recorded']}"
+          f" | lessons-per-flip={window['lessons_per_flip']}")
+    if window["flips_corpus_gap"] and not window["lessons_recorded"]:
+        print("  hint: flips happened where NO stored lesson helped and nothing was recorded --"
+              " `wrap` has pre-filled candidates.")
+    return 0
+
+
 LAST_SESSION_DRAFT = "last-session-draft.md"   # under chronicles/; auto-captured by the SessionEnd/PreCompact hook
 
 
@@ -1341,6 +1409,11 @@ def build_parser():
     s = sub.add_parser("status", help="honest system status")
     s.add_argument("--json", action="store_true")
     s.set_defaults(fn=cmd_status)
+
+    sts = sub.add_parser("stats", help="recall-value funnel: surfaced -> helped -> flips -> captured")
+    sts.add_argument("--hours", type=float, default=24, help="window for flips/lessons-recorded (default 24)")
+    sts.add_argument("--json", action="store_true")
+    sts.set_defaults(fn=cmd_stats)
 
     lg = sub.add_parser("log", help="record an arbitrary narrative Beat")
     lg.add_argument("kind", nargs="?", default="note", help="beat kind (session/note/commit/learning/...)")

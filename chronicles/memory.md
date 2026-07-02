@@ -4,8 +4,8 @@ _Distilled from 14 active note(s) · regenerate via `py agent_cli.py note` / `no
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
-- where-we-are: T1 SHIPPED (implicit FAIL->SUCCESS credit real + proven live, first helped credit in system history) AND presentation pass SHIPPED (2026-07-01): tracked...  (source: mem:decision:ADR_0701225643_5172)
-- next-focus: NEXT per docs/leapfrog-plan.md triage (loop fires -> corpus grows -> numbers exist): T2 = write-side friction fixes (JIT learn-it? prompt at the...  (source: mem:decision:ADR_0701223907_7327)
+- next-focus: T2 done -> NEXT per docs/leapfrog-plan.md triage: T3 = funnel instrumentation (a 'stats' verb: surfaced -> acted -> outcome -> flips -> lessons-recorded per...  (source: mem:decision:ADR_0701233243_9563)
+- where-we-are: T2 SHIPPED 2026-07-01 (leapfrog Wave A, friction-audit D5): the JIT learn nudge is live and PROVEN in-session -- a FAIL->SUCCESS flip now (1) credits...  (source: mem:decision:ADR_0701233220_3729)
 - open-question: implicit-useful payload: RESOLVED 2026-07-01 (T1 shipped, gated green). Live capture proved the old assumption unfixable rather than mistuned: Claude Code...  (source: mem:decision:ADR_0701223906_5443)
 - leapfrog-plan: Full plan = docs/leapfrog-plan.md (2026-07-01, max-effort synthesis of repo audit + docs read + competitive survey + DS4/antirez case study). THESIS...  (source: mem:decision:ADR_0701221002_3682)
 - competitive-landscape-2026-07: Web survey 2026-07-01 (full sources in session transcript). FIELD STATE: memory is now native in every harness -- Claude Code auto-memory...  (source: mem:decision:ADR_0701215407_2479)
