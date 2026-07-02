@@ -258,21 +258,19 @@ def test_null_baseline_characterizes_todays_blindness():
           "every existing counter (the starting line)")
 
 
-def test_naive_reference_moves_the_needle_but_leaves_the_hard_gap():
+def test_naive_reference_manufactures_false_balance():
+    """The naive keyword+outcome floor trips on the agrees-distractors: it surfaces an on-topic
+    anti-pattern the thesis AGREES with -- a hallucinated counter. That is exactly the failure the
+    real finder must avoid; kept here as the contrast to test_dissent_precision_first_after_slice3.
+    It also structurally can't catch same-success conflicts (needs stance)."""
     m = evaluate(gold_cases(), naive_reference_detector)
-    # it beats the null floor on recall (the harness can MEASURE an improvement)...
-    assert m["counter_recall"] > 0.0, "naive reference must catch some real counters"
-    # ...without manufacturing false balance (precision perfect; silence intact) — the hard rule
-    assert m["counter_precision"] == 1.0, f"naive must never surface a non-counter, got {m['counter_precision']}"
-    assert m["silence_accuracy"] == 1.0, f"naive must stay silent on all no-counter cases, got {m['silence_accuracy']}"
-    # ...and it CANNOT close the hard case: conflicting recommendations between two successes.
-    assert m["counter_recall"] < 1.0, "naive should NOT be perfect — that's the gap Slice 1 exists to close"
+    assert m["counter_recall"] > 0.0, "naive still catches some genuine counters"
+    assert m["counter_precision"] < 1.0, "naive manufactures false balance on the agrees-distractors"
+    assert m["silence_accuracy"] < 1.0, "naive fires on an on-topic anti-pattern the thesis agrees with"
     assert m["per_kind"].get("conflicting_recommendation", 0.0) == 0.0, \
-        "keyword+outcome heuristic structurally can't catch same-success conflicts (needs stance)"
-    print("--- naive reference ---\n  "
-          f"recall={m['counter_recall']:.3f} precision={m['counter_precision']:.3f} "
-          f"silence={m['silence_accuracy']:.3f}; conflicting_recommendation recall="
-          f"{m['per_kind'].get('conflicting_recommendation', 0.0):.2f} (the Slice 1 target)")
+        "keyword+outcome structurally can't catch same-success conflicts (needs stance)"
+    print(f"--- naive false balance ---\n  precision={m['counter_precision']:.3f} "
+          f"silence={m['silence_accuracy']:.3f} -- naive surfaces agreements as counters (the bug to avoid)")
 
 
 def test_counter_density_metric_is_correct():
@@ -301,41 +299,47 @@ def test_curated_sample_is_counter_starved():
           f"{cov['n_success']} successes -> confirmation-by-omission is the current state")
 
 
-def test_dissent_requires_explicit_stance_never_outcome():
-    """The core Slice 1 property (proven necessary by the experiments): opposite OUTCOME alone must
-    NEVER surface a counter — that manufactures false balance. An explicit stance (anti_pattern /
-    contradicts-link) on-topic is what fires."""
+def test_dissent_fires_only_on_explicit_contradiction():
+    """Slice 3 fix: neither opposite OUTCOME nor a populated anti_pattern triggers a counter. An
+    anti-pattern is a known-bad PRACTICE, on-topic with the many lessons that AGREE with it, so it
+    produced only false counters on the real corpus. The one reliable deterministic trigger is an
+    author-declared contradicts link; everything else waits for the semantic tier."""
     from core.recall.dissent import find_counter
-    thesis = {"source": "t", "text": "use synchronous blocking writes for ranker store consistency",
+    thesis = {"source": "t", "text": "expose the new capability on the door agents already use",
               "success": "yes"}
-    opp = {"source": "o", "text": "synchronous blocking writes for the ranker store hung and failed",
-           "success": "no"}                      # opposite outcome, same topic, but NO stance signal
-    assert find_counter(thesis, [opp]) is None, "opposite outcome alone must not trigger a counter"
-    ap = {"source": "a", "text": "synchronous blocking writes for the ranker store are known bad",
-          "success": "no", "anti_pattern": "sync_blocking_writes"}
-    got = find_counter(thesis, [opp, ap])
-    assert got and got["source"] == "a" and got["kind"] == "anti_pattern", \
-        f"an on-topic anti_pattern must trigger the counter, got {got}"
-    print("--- dissent stance gate ---\n  opposite-outcome alone -> silent; on-topic anti_pattern -> counter OK")
+    # opposite outcome alone -> silent
+    assert find_counter(thesis, [{"source": "o", "success": "no",
+        "text": "we skipped exposing the capability on the door and it failed"}]) is None
+    # an ON-TOPIC anti_pattern the thesis AGREES with -> silent (the exact bug Slice 3 fixed)
+    ap = {"source": "a", "success": "no", "anti_pattern": "capability_without_a_door",
+          "text": "shipped a capability but never exposed it on any door"}
+    assert find_counter(thesis, [ap]) is None, "an on-topic anti_pattern the thesis agrees with must NOT be a counter"
+    # an explicit contradicts link -> fires (the one reliable signal)
+    link = {"source": "c", "success": "yes", "relationship_type": "contradicts",
+            "text": "never expose internal capabilities on the shared door agents use"}
+    got = find_counter(thesis, [link])
+    assert got and got["source"] == "c" and got["kind"] == "explicit_link", \
+        f"an explicit contradicts link should fire, got {got}"
+    print("--- dissent explicit-only ---\n  opposite-outcome + on-topic anti_pattern -> silent; "
+          "explicit contradicts link -> counter OK")
 
 
-def test_dissent_on_gold_precise_with_honest_deferred_gap():
-    """On the gold set the real finder is PERFECTLY precise and silent-correct, catches the explicit
-    anti_pattern counters, and honestly MISSES the same-success/vocabulary-mismatch conflicts
-    (opposite_success + conflicting_recommendation) — that recall gap is deferred to a semantic tier,
-    not faked. Contrast the naive floor, which 'caught' opposite_success only by using a signal that
-    floods on the real corpus."""
+def test_dissent_precision_first_after_slice3():
+    """After Slice 3 the deterministic finder surfaces NOTHING on the gold set (it has no explicit
+    contradiction links) -- precision-first: zero false counters, INCLUDING the agrees-distractors
+    the naive floor trips on. All genuine-counter detection (opposite_success, conflicting_rec, and
+    directional anti-pattern cases) is deferred to the semantic tier, not faked. Recall returns only
+    when that gate lands. Silence here is the honest state, not a miss."""
     m = evaluate(gold_cases(), dissent_detector)
-    assert m["counter_precision"] == 1.0, f"must never manufacture a counter, got {m['counter_precision']}"
-    assert m["silence_accuracy"] == 1.0, f"must stay silent on all no-counter cases, got {m['silence_accuracy']}"
-    assert m["per_kind"].get("anti_pattern", 0.0) >= 0.66, \
-        f"should catch the explicit-stance (anti_pattern) counters, got {m['per_kind']}"
-    assert m["per_kind"].get("opposite_success", 0.0) == 0.0, "opposite_success is deferred (no stance signal)"
-    assert m["per_kind"].get("conflicting_recommendation", 0.0) == 0.0, \
-        "same-success conflicts need semantics — deferred, not faked"
-    print(f"--- dissent on gold ---\n  precision={m['counter_precision']:.2f} silence={m['silence_accuracy']:.2f} "
-          f"anti_pattern-recall={m['per_kind'].get('anti_pattern', 0.0):.2f}; "
-          f"opposite/conflicting deferred to a semantic tier (honest)")
+    assert m["n_surfaced"] == 0, f"no explicit links in the gold set -> nothing surfaces, got {m['n_surfaced']}"
+    assert m["silence_accuracy"] == 1.0, "silent on every no-counter case (incl. the agrees-distractors)"
+    assert m["counter_recall"] == 0.0, "all genuine-counter detection is deferred to the semantic tier (honest)"
+    # the specific fix: the agrees-distractor the naive floor mis-surfaces stays silent here
+    agrees = next(c for c in gold_cases() if c["id"] == "syn-antipattern-agrees")
+    surfaced, _ = dissent_detector(agrees["thesis"], agrees["corpus"])
+    assert surfaced is False, "the on-topic anti-pattern the thesis agrees with must stay silent (the Slice 3 fix)"
+    print("--- dissent precision-first (Slice 3) ---\n  surfaces nothing it can't verify; agrees-distractor "
+          "silent where naive trips; recall deferred to the semantic tier")
 
 
 if __name__ == "__main__":
@@ -371,8 +375,10 @@ if __name__ == "__main__":
                    for r in recs]
         idfm = _idf(document_frequencies(adapted), len(adapted))
         fired = [t["source"] for t in adapted if find_counter(t, adapted, idf=idfm, n_docs=len(adapted))]
-        print(f"  Slice 1 dissent finder on the same corpus: {len(fired)} counters surfaced "
-              f"(stance required; 0 anti-patterns -> ~0 is correct -> Slice 2 is the lever).")
+        print(f"  dissent finder on the same corpus: {len(fired)} counters surfaced "
+              f"(Slice 3: a populated anti_pattern no longer triggers a counter -- it is an "
+              f"action-warning, not a contradiction; only explicit contradicts-links fire, and there "
+              f"are none yet -> correctly silent until the semantic tier lands).")
     except Exception as e:
         print(f"  (live store unavailable: {type(e).__name__})")
     print("\nOK — run `py -m pytest tests/test_counter_eval.py -q` for the asserts.")

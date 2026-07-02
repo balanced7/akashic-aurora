@@ -59,31 +59,28 @@ def test_tag_anti_pattern_merges_without_clobber():
     print("--- tag merge ---\n  anti_pattern attached; what_tried/recommendation preserved; unknown -> False OK")
 
 
-def test_capture_to_dissent_loop_closure():
-    """The headline: capture (Slice 2) makes the finder (Slice 1) light up -- before/after one tag."""
+def test_capture_stores_but_does_not_mis_surface_as_counter():
+    """Corrected loop (Slice 3): capturing an anti-pattern STORES + indexes it (available for the
+    future action-warning channel), but it is NOT surfaced as a counter to an on-topic thesis -- an
+    anti-pattern is a warning about an action, not a contradiction of a claim, so treating it as a
+    thesis-counter only manufactured false balance. Recall stays silent (no hallucinated disagreement)."""
     ls = _store()
     ls.persist_learning_derived_from_experiment({
         "experiment_name": "use_sync_flush", "success": "yes", "agent_id": "tester",
         "recommendation": "flush synchronous writes to the ranker store for durability"})
     ls.persist_learning_derived_from_experiment({
-        "experiment_name": "sync_flush_bad", "success": "no", "agent_id": "tester",
-        "root_cause": "blocking IO",
+        "experiment_name": "sync_flush_bad", "success": "no", "agent_id": "tester", "root_cause": "blocking IO",
         "recommendation": "synchronous flush on every write hung the ranker store for 48s; make it async"})
-    q = "synchronous flush ranker store durability"
-    # BEFORE: sync_flush_bad is a failure but carries no stance signal -> finder stays silent (precision)
-    before = recall_at(command=q, learning_store=ls)
-    assert before["lessons"] and before["lessons"][0]["source"] == "learn:experiment:use_sync_flush", \
-        f"the success should rank as the top (thesis) lesson: {[l['source'] for l in before['lessons']]}"
-    assert before["counter"] is None, "no anti-pattern yet -> no counter (silent is correct, not a miss)"
-    # CAPTURE the known-bad through the write door (Slice 2)...
     assert ls.tag_anti_pattern("sync_flush_bad", "sync_flush_every_write") is True
-    # ...and the SAME recall now surfaces the counter. Writer fed reader.
-    after = recall_at(command=q, learning_store=ls)
-    assert after["counter"] is not None, "after tagging, the finder should surface the counter"
-    assert after["counter"]["source"] == "learn:experiment:sync_flush_bad", after["counter"]
-    assert after["counter"]["kind"] == "anti_pattern", after["counter"]
-    print("--- loop closure ---\n  before capture: silent; after one tag: counter surfaces -> the write-side "
-          "IS the lever OK")
+    # capture worked: stored on the record + indexed as a documented anti-pattern
+    assert ls._load_experiment("sync_flush_bad").get("anti_pattern") == "sync_flush_every_write"
+    assert any("sync_flush_every_write" in str(a) for a in ls.load_documented_anti_patterns()), \
+        "the anti-pattern should be indexed / discoverable for the action-warning channel"
+    # ...but it is NOT surfaced as a counter to an on-topic thesis (the Slice 3 precision fix)
+    res = recall_at(command="synchronous flush ranker store durability", learning_store=ls)
+    assert res["counter"] is None, "an on-topic anti-pattern must NOT be surfaced as a thesis-counter"
+    print("--- capture stored, not mis-surfaced ---\n  anti-pattern captured + indexed; recall stays silent "
+          "(no false counter) OK")
 
 
 if __name__ == "__main__":
@@ -92,7 +89,7 @@ if __name__ == "__main__":
     print("=" * 60)
     test_draft_anti_pattern_slug()
     test_tag_anti_pattern_merges_without_clobber()
-    test_capture_to_dissent_loop_closure()
+    test_capture_stores_but_does_not_mis_surface_as_counter()
     print("\n" + "=" * 60)
     print("ALL SLICE 2 TESTS PASSED")
     print("=" * 60)

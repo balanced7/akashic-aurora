@@ -246,6 +246,29 @@ GOLD_CASES: List[Dict[str, Any]] = [
           [], None,
           "shares the 'redis' topic but neighbours agree -> no genuine counter -> silence"),
 
+    # PRECISION (Slice 3): an on-topic ANTI-PATTERN that the thesis AGREES with. The thesis advocates
+    # the fix the anti-pattern implies, so it is NOT a contradiction -- surfacing it is hallucinated
+    # disagreement. This is the real dogfooding false-positive distilled (the finder fired 7/7 of these
+    # on the live corpus). Must stay SILENT: "has anti_pattern + on-topic" != "contradicts this thesis".
+    _case("syn-antipattern-agrees", "synthetic",
+          L("expose_on_door", "yes",
+            "always expose a new capability on the same door agents already use, in the same slice"),
+          [L("cap_no_door", "no",
+             "we shipped a capability but never exposed it on any door, so it went unused",
+             anti_pattern="capability_without_a_door"),
+           L("naming_ddd3", "yes", "use ubiquitous domain names for new modules")],
+          [], None,
+          "thesis AGREES with the on-topic anti-pattern (both: expose on the door) -> not a counter -> silent"),
+
+    _case("syn-antipattern-agrees-2", "synthetic",
+          L("async_flush_good", "yes",
+            "make the store flush async and non-blocking so the write path never stalls"),
+          [L("sync_flush_bad2", "no",
+             "a synchronous blocking flush hung the store; never block the write path",
+             anti_pattern="sync_blocking_flush")],
+          [], None,
+          "thesis (async, non-blocking) AGREES with the anti-pattern (never block) -> silent"),
+
     # ============ NO-COUNTER: singleton + real agreement ============
     _case("syn-singleton", "synthetic",
           L("lonely_lesson", "yes", "this is the only lesson on its very specific topic"),

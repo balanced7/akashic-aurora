@@ -21,11 +21,15 @@ Design — deterministic, no-LLM, fail-soft, PRECISION-FIRST (evidence in docs/r
      `yes` lesson (observed: a headless-failure lesson still recommending "use invisible mode", the
      same as the success). So surfacing on opposite-success alone manufactures FALSE BALANCE — a
      hallucinated disagreement, the exact failure this whole effort exists to avoid.
-     FIX: a **stance signal is REQUIRED**. We fire only on an EXPLICIT declaration of opposition:
-       (a) the candidate documents an `anti_pattern` (author-declared known-bad), or
-       (b) an explicit contradicts/refutes relationship link.
-     Opposite `success` is at most a weak corroborator (raises confidence when a stance already
-     fired); it is NEVER a trigger on its own.
+     FIX: a **stance signal is REQUIRED** -- and (Slice 3) it must be an EXPLICIT CONTRADICTION LINK,
+     not merely a populated `anti_pattern`. Dogfooding the corpus's first real anti-pattern showed
+     that "has anti_pattern + on-topic" produced 7/7 FALSE counters: an anti-pattern names a bad
+     PRACTICE and is on-topic with many lessons that AGREE with it (the fix), so topic-adjacency is
+     not contradiction. An anti-pattern is a WARNING about an ACTION, not a counter to a thesis; it
+     will be routed to an action-warning channel, gated by a semantic judge, in a later slice.
+     Opposite `success` is likewise never a trigger (outcome != stance). The one reliable
+     deterministic trigger left is an author-declared contradicts/refutes relationship link;
+     everything else waits for the semantic tier (so today the finder is correctly near-silent).
 
 CONSEQUENCE (honest): on a corpus that is ~95% self-reported successes with 0 anti-patterns, this
 surfaces almost nothing — which is correct (there is little real dissent to show) and is the evidence
@@ -104,11 +108,15 @@ def topic_cosine(a_tokens: set, b_tokens: set, idf: Dict[str, float]) -> float:
 
 
 def _stance(cand: Dict[str, Any]) -> Optional[str]:
-    """The REQUIRED explicit opposition signal on a candidate, or None. Never inferred from outcome."""
-    if str(cand.get("anti_pattern", "")).strip():
-        return "anti_pattern"                       # author-declared known-bad
+    """The REQUIRED explicit CONTRADICTION signal on a candidate, or None. Never inferred from
+    outcome, and (Slice 3 fix) NOT from a populated `anti_pattern` either -- an anti-pattern marks a
+    known-bad PRACTICE and is on-topic with the many lessons that AGREE with it, so treating it as a
+    thesis-counter yielded only false positives on the real corpus. An anti-pattern is a warning
+    about an ACTION (a later, separately-gated channel), not a counter to a claim. The only reliable
+    deterministic counter trigger is an author-declared contradicts/refutes link; genuine
+    same-topic disagreement otherwise waits for the semantic tier."""
     if str(cand.get("relationship_type", "")).lower() in _CONTRADICT_RELS:
-        return "explicit_link"                      # author-declared contradiction
+        return "explicit_link"                      # author-declared contradiction (the one reliable signal)
     return None
 
 
