@@ -33,6 +33,11 @@ __pycache__/
 # --- Volatile knowledge DATA (recover via scripts/snapshot_knowledge.py) ---
 session_logs/
 blackboard_data/
+coordinator_logs/
+.pytest_out.txt
+test_memory.json
+test_data.json
+test_code.json
 *.jsonl
 # test fixtures are CODE, not volatile data: exempt them from the jsonl blanket
 !tests/fixtures/**/*.jsonl

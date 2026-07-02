@@ -121,17 +121,6 @@ def report_memory_counts():
         return None
 
 
-def check_logging_available():
-    """Is session logging importable? READ-ONLY -- bootstrap is a status check and
-    must not write to the shared store (it used to log a session:* key to canonical
-    on every run). Returns True/False."""
-    try:
-        from session_logger import get_logger  # noqa: F401
-        return True
-    except Exception:
-        return False
-
-
 def main():
     parser = argparse.ArgumentParser(description="Stack bootstrap & status check")
     parser.add_argument('--brief', action='store_true', help='Status only, no extras')
@@ -148,11 +137,6 @@ def main():
     log("  STACK BOOTSTRAP", CYAN)
     log(f"  {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", CYAN)
     log("=" * 64, CYAN)
-    print()
-
-    has_logging = check_logging_available()
-    log("[*] Session logging available (read-only check)" if has_logging
-        else "[!] Session logging unavailable", GREEN if has_logging else YELLOW)
     print()
 
     # [1] Foundation (Pillar 0)

@@ -1,1 +1,0 @@
-{"code": "result = 2 + 2\nprint(f'2 + 2 = {result}')\nresult"}
