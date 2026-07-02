@@ -1,0 +1,40 @@
+{
+ "session_id": "6e115f70-3274-46b8-a8fd-36ef5522d171",
+ "transcript_path": "C:\\Users\\L5\\.claude\\projects\\C--Users-L5\\6e115f70-3274-46b8-a8fd-36ef5522d171.jsonl",
+ "cwd": "C:\\Users\\L5",
+ "prompt_id": "b0455cea-44fb-4b28-a6dc-8ad8d4f5fe2d",
+ "permission_mode": "bypassPermissions",
+ "effort": {
+  "level": "max"
+ },
+ "hook_event_name": "PostToolUse",
+ "tool_name": "Edit",
+ "tool_input": {
+  "file_path": "E:\\AI-Setup\\.t1_scratch.txt",
+  "old_string": "line one",
+  "new_string": "line one edited",
+  "replace_all": false
+ },
+ "tool_response": {
+  "filePath": "E:\\AI-Setup\\.t1_scratch.txt",
+  "oldString": "line one",
+  "newString": "line one edited",
+  "originalFile": "t1 payload probe line one\n",
+  "structuredPatch": [
+   {
+    "oldStart": 1,
+    "oldLines": 1,
+    "newStart": 1,
+    "newLines": 1,
+    "lines": [
+     "-t1 payload probe line one",
+     "+t1 payload probe line one edited"
+    ]
+   }
+  ],
+  "userModified": false,
+  "replaceAll": false
+ },
+ "tool_use_id": "toolu_01TdnqHNGnX5Je6py2PsFY8E",
+ "duration_ms": 6
+}

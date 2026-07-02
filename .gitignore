@@ -34,6 +34,8 @@ __pycache__/
 session_logs/
 blackboard_data/
 *.jsonl
+# test fixtures are CODE, not volatile data: exempt them from the jsonl blanket
+!tests/fixtures/**/*.jsonl
 # auto-captured per-session draft (SessionEnd/PreCompact); ephemeral, regenerated each session
 chronicles/last-session-draft.md
 

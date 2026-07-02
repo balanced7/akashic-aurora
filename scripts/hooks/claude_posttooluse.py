@@ -9,12 +9,29 @@ Or user-level with an ABSOLUTE path (same as the PreToolUse hook).
 After a tool runs, if the target (file path / command) JUST FAILED and now SUCCEEDS, the lessons
 recall surfaced for it are credited 'helped' -- the contrastive auto-positive (a first-try success
 credits nothing). Scope-guarded to this repo, fail-OPEN, side-effect-only (the action already ran).
-Success detection is conservative: when unsure it assumes success, so the signal stays INERT rather
-than mis-crediting. Disable with AKASHIC_RECALL_AT_ACTION=0.
+
+PAYLOAD GROUND TRUTH (captured live 2026-07-01; fixtures in tests/fixtures/claude_payloads/):
+Claude Code fires PostToolUse ONLY for SUCCESSFUL tool calls. A failing Bash (nonzero exit) or a
+failed Edit produces NO hook event at all, and success payloads carry NO error/exit markers
+(Bash tool_response = {stdout, stderr, interrupted, isImage, noOutputExpected}). So the FAIL half
+of the flip can never arrive as a hook event -- it is SYNTHESIZED from the session transcript
+(`transcript_path` in the payload), where every tool_result INCLUDING failures is recorded with
+is_error + tool_use_id. Each failure is processed once (per-session watermark by the failure's
+tool_use_id), then handed to the engine as resolve_outcome(False) BEFORE the current success, so
+core/recall's contrastive gate sees FAIL->SUCCESS exactly as designed. Harness-specific transcript
+parsing lives in THIS adapter on purpose -- core/recall stays harness-agnostic.
+
+COMPLEMENTARY FAST PATH: current Claude Code also ships a PostToolUseFailure event (register this
+same script for it). When it fires, the FAIL is recorded immediately + watermarked. It is NOT
+sufficient alone: per docs/issue #24908 it does not fire for tool_use_error failures of built-in
+tools (e.g. Edit old_string-not-found -- confirmed live), so the transcript synthesis above stays
+the primary, version-tolerant mechanism. Disable with AKASHIC_RECALL_AT_ACTION=0.
 """
 import json
 import os
 import sys
+import tempfile
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
@@ -43,12 +60,57 @@ def _in_scope(tool, data):
     return "ai-setup" in cl or "agent_cli.py" in cl
 
 
+# --- payload capture: the ONLY ground truth for what tool_response actually looks like per harness
+# version (the _is_success contract). Bounded (newest _CAP_MAX files), string-truncated (shape, not
+# content), tempdir-only, fail-soft, kill switch AKASHIC_PAYLOAD_CAPTURE=0. Feeds tests/fixtures/
+# claude_payloads/ so the contract test tracks the LIVE harness, not an assumption.
+_CAP_DIR = os.path.join(tempfile.gettempdir(), "akashic_recall", "payloads")
+_CAP_MAX = 200
+_CAP_STR = 400
+
+
+def _truncated(o, depth=0):
+    """Copy with long strings cut to _CAP_STR chars — the SHAPE is the contract, not the content."""
+    if depth > 6:
+        return "..."
+    if isinstance(o, str):
+        return o if len(o) <= _CAP_STR else o[:_CAP_STR] + f"...[+{len(o) - _CAP_STR} chars]"
+    if isinstance(o, dict):
+        return {k: _truncated(v, depth + 1) for k, v in o.items()}
+    if isinstance(o, list):
+        return [_truncated(v, depth + 1) for v in o[:20]]
+    return o
+
+
+def _capture(data) -> None:
+    if os.getenv("AKASHIC_PAYLOAD_CAPTURE", "1") == "0":
+        return
+    try:
+        os.makedirs(_CAP_DIR, exist_ok=True)
+        name = "%d_%s_%s.json" % (int(time.time() * 1000), data.get("tool_name") or "unknown", os.getpid())
+        with open(os.path.join(_CAP_DIR, name), "w", encoding="utf-8") as f:
+            json.dump(_truncated(data), f, indent=1)
+        stale = sorted(os.listdir(_CAP_DIR))[:-_CAP_MAX]   # ms-epoch prefix -> lexical sort = oldest first
+        for n in stale:
+            try:
+                os.remove(os.path.join(_CAP_DIR, n))
+            except Exception:
+                pass
+    except Exception:
+        pass   # capture is diagnostics; it must never affect the agent
+
+
 def _is_success(data) -> bool:
-    """Best-effort, CONSERVATIVE: only call it a failure on a clear error marker; otherwise success.
-    Biasing to success keeps the FAIL->SUCCESS signal inert when the payload is unclear (never mis-credits)."""
+    """Best-effort, CONSERVATIVE: only call it a failure on a clear marker; otherwise success.
+    GROUND TRUTH: every event that reaches this hook IS a success (failures never fire PostToolUse),
+    and real payloads carry none of the error markers below -- they are kept only as cheap
+    future-proofing against harness changes. `interrupted` is the one real negative signal observed
+    in live payloads: a user-aborted command must not count as the SUCCESS half of a flip."""
     tr = data.get("tool_response")
     if isinstance(tr, dict):
         if tr.get("is_error") is True or tr.get("error"):
+            return False
+        if tr.get("interrupted") is True:
             return False
         if "success" in tr:
             return bool(tr.get("success"))
@@ -65,6 +127,98 @@ def _is_success(data) -> bool:
     return True
 
 
+# --- transcript-derived FAIL synthesis: the hook never receives failure events, but the session
+# transcript records every tool_result -- failures included -- as JSONL. At each (success) event we
+# look for the NEWEST failed attempt of the SAME normalized target and, if not yet processed
+# (per-session watermark keyed by the failure's tool_use_id), backfill resolve_outcome(False) so the
+# engine's contrastive FAIL->SUCCESS gate fires exactly as designed. Bounded tail read, fail-soft.
+_TAIL_BYTES = int(os.getenv("AKASHIC_TRANSCRIPT_TAIL_BYTES", str(4 * 1024 * 1024)))
+_TXW_DIR = os.path.join(tempfile.gettempdir(), "akashic_recall", "txw")
+
+
+def _tail_lines(path: str):
+    """Yield the transcript's last <= _TAIL_BYTES worth of complete lines (drops a partial first line
+    after a seek). Text lines, utf-8, errors ignored -- the parse must never throw."""
+    with open(path, "rb") as f:
+        f.seek(0, os.SEEK_END)
+        size = f.tell()
+        start = max(0, size - _TAIL_BYTES)
+        f.seek(start)
+        blob = f.read()
+    if start > 0:
+        nl = blob.find(b"\n")
+        blob = blob[nl + 1:] if nl >= 0 else b""
+    for raw in blob.splitlines():
+        yield raw.decode("utf-8", errors="ignore")
+
+
+def _latest_failure_id(transcript_path: str, target: str):
+    """tool_use_id of the NEWEST failed (is_error) tool call whose normalized target == `target`,
+    or None. Pairs assistant tool_use blocks (id -> target) with user tool_result blocks."""
+    if not transcript_path or not target:
+        return None
+    try:
+        from core.recall.at_action import normalize_target
+        uses = {}
+        latest = None
+        for line in _tail_lines(transcript_path):
+            try:
+                rec = json.loads(line)
+            except Exception:
+                continue
+            content = (rec.get("message") or {}).get("content")
+            if not isinstance(content, list):
+                continue
+            for b in content:
+                if not isinstance(b, dict):
+                    continue
+                bt = b.get("type")
+                if bt == "tool_use":
+                    inp = b.get("input") or {}
+                    tgt = normalize_target(inp.get("file_path") or None, inp.get("command") or None)
+                    if tgt:
+                        uses[b.get("id")] = tgt
+                elif bt == "tool_result" and b.get("is_error") is True:
+                    if uses.get(b.get("tool_use_id")) == target:
+                        latest = b.get("tool_use_id")
+        return latest
+    except Exception:
+        return None
+
+
+def _safe(session_id: str) -> str:
+    return "".join(c for c in str(session_id) if c.isalnum() or c in "-_")[:128] or "nosession"
+
+
+def _txw_path(session_id: str) -> str:
+    return os.path.join(_TXW_DIR, _safe(session_id) + ".json")
+
+
+def _failure_processed(session_id: str, target: str, fid: str) -> bool:
+    try:
+        with open(_txw_path(session_id), encoding="utf-8") as f:
+            return json.load(f).get(target) == fid
+    except Exception:
+        return False
+
+
+def _mark_failure_processed(session_id: str, target: str, fid: str) -> None:
+    try:
+        os.makedirs(_TXW_DIR, exist_ok=True)
+        p = _txw_path(session_id)
+        d = {}
+        try:
+            with open(p, encoding="utf-8") as f:
+                d = json.load(f)
+        except Exception:
+            d = {}
+        d[target] = fid
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(d, f)
+    except Exception:
+        pass
+
+
 def main() -> int:
     if os.getenv("AKASHIC_RECALL_AT_ACTION", "1") == "0":
         return 0
@@ -77,11 +231,30 @@ def main() -> int:
         return 0
     if not _in_scope(tool, data):
         return 0
+    _capture(data)
     try:
         from core.recall.at_action import normalize_target, resolve_outcome
         ti = data.get("tool_input") or {}
         target = normalize_target(ti.get("file_path") or None, ti.get("command") or None)
-        resolve_outcome(data.get("session_id") or "", target, _is_success(data))
+        sid = data.get("session_id") or ""
+        if (data.get("hook_event_name") or "") == "PostToolUseFailure":
+            # Direct failure signal (fast path; Bash/Write only per #24908). Record the FAIL now and
+            # watermark its tool_use_id so the transcript scan never double-processes this failure.
+            if target:
+                resolve_outcome(sid, target, False)
+                fid = data.get("tool_use_id")
+                if fid:
+                    _mark_failure_processed(sid, target, fid)
+            return 0
+        ok = _is_success(data)
+        if ok and target:
+            # Backfill the FAIL the hook never received (see module docstring), exactly once per
+            # failure, BEFORE resolving the current success -- the engine then sees FAIL->SUCCESS.
+            fid = _latest_failure_id(data.get("transcript_path") or "", target)
+            if fid and not _failure_processed(sid, target, fid):
+                resolve_outcome(sid, target, False)
+                _mark_failure_processed(sid, target, fid)
+        resolve_outcome(sid, target, ok)
     except Exception:
         pass   # resolving a credit must never affect the agent
     return 0

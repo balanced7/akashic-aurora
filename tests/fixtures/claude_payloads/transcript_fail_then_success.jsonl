@@ -1,0 +1,10 @@
+{"type":"assistant","message":{"content":[{"type":"tool_use","id":"toolu_fail_bash_1","name":"Bash","input":{"command":"cd E:/AI-Setup && py probe_thing.py --flag","description":"probe"}}]},"timestamp":"2026-07-02T02:19:02.000Z"}
+{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_fail_bash_1","is_error":true,"content":[{"type":"text","text":"Exit code 3\ndeliberate probe failure"}]}]},"timestamp":"2026-07-02T02:19:02.749Z"}
+{"type":"assistant","message":{"content":[{"type":"text","text":"narration line, no tool use"}]},"timestamp":"2026-07-02T02:19:10.000Z"}
+this line is not json and must be tolerated
+{"type":"assistant","message":{"content":[{"type":"tool_use","id":"toolu_ok_bash_1","name":"Bash","input":{"command":"cd E:/AI-Setup && echo fine","description":"unrelated success"}}]},"timestamp":"2026-07-02T02:19:20.000Z"}
+{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_ok_bash_1","content":[{"type":"text","text":"fine"}]}]},"timestamp":"2026-07-02T02:19:20.500Z"}
+{"type":"assistant","message":{"content":[{"type":"tool_use","id":"toolu_fail_edit_1","name":"Edit","input":{"file_path":"E:\\AI-Setup\\.t1_scratch.txt","old_string":"NOT PRESENT","new_string":"x","replace_all":false}}]},"timestamp":"2026-07-02T02:19:41.000Z"}
+{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_fail_edit_1","is_error":true,"content":[{"type":"text","text":"<tool_use_error>String to replace not found in file.</tool_use_error>"}]}]},"timestamp":"2026-07-02T02:19:42.015Z"}
+{"type":"assistant","message":{"content":[{"type":"tool_use","id":"toolu_fail_bash_2","name":"Bash","input":{"command":"cd E:/AI-Setup && py probe_thing.py --flag","description":"retry, still failing"}}]},"timestamp":"2026-07-02T02:20:00.000Z"}
+{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_fail_bash_2","is_error":true,"content":[{"type":"text","text":"Exit code 3\ndeliberate probe failure again"}]}]},"timestamp":"2026-07-02T02:20:00.700Z"}

@@ -118,6 +118,10 @@ def _cached_items(learning_store: Optional[Any]) -> List[Dict[str, Any]]:
 # Per-session anti-repeat files live here (the hook writes them; this module prunes them). Keep this
 # path in sync with claude_pretooluse.py:_SEEN_DIR.
 _SEEN_DIR = os.path.join(_CACHE_DIR, "seen")
+# Hook-owned per-session state this module only PRUNES: transcript-failure watermarks (see
+# claude_posttooluse.py:_TXW_DIR) and captured payload samples (claude_posttooluse.py:_CAP_DIR).
+_TXW_DIR = os.path.join(_CACHE_DIR, "txw")
+_PAYLOAD_DIR = os.path.join(_CACHE_DIR, "payloads")
 
 
 def warm_cache(learning_store: Optional[Any] = None) -> int:
@@ -142,7 +146,7 @@ def prune_state(max_age_days: float = 7.0) -> int:
     last-outcomes). Returns the count removed. The cache itself is a single self-refreshing file."""
     removed = 0
     cutoff = time.time() - max_age_days * 86400.0
-    for d in (_SEEN_DIR, _IMP_DIR, _OUTCOME_DIR):
+    for d in (_SEEN_DIR, _IMP_DIR, _OUTCOME_DIR, _TXW_DIR, _PAYLOAD_DIR):
         try:
             for name in os.listdir(d):
                 p = os.path.join(d, name)

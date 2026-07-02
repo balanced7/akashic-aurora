@@ -1,0 +1,25 @@
+{
+ "session_id": "6e115f70-3274-46b8-a8fd-36ef5522d171",
+ "transcript_path": "C:\\Users\\L5\\.claude\\projects\\C--Users-L5\\6e115f70-3274-46b8-a8fd-36ef5522d171.jsonl",
+ "cwd": "C:\\Users\\L5",
+ "prompt_id": "b0455cea-44fb-4b28-a6dc-8ad8d4f5fe2d",
+ "permission_mode": "bypassPermissions",
+ "effort": {
+  "level": "max"
+ },
+ "hook_event_name": "PostToolUse",
+ "tool_name": "Bash",
+ "tool_input": {
+  "command": "cd E:/AI-Setup && py -m py_compile scripts/hooks/claude_posttooluse.py && echo COMPILE_OK",
+  "description": "Syntax-check the edited hook"
+ },
+ "tool_response": {
+  "stdout": "COMPILE_OK",
+  "stderr": "\nShell cwd was reset to C:\\Users\\L5",
+  "interrupted": false,
+  "isImage": false,
+  "noOutputExpected": false
+ },
+ "tool_use_id": "toolu_01FNHAXbZtEMc1adSxSNWZr6",
+ "duration_ms": 136
+}

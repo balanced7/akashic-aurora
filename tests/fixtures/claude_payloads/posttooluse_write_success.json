@@ -1,0 +1,26 @@
+{
+ "session_id": "6e115f70-3274-46b8-a8fd-36ef5522d171",
+ "transcript_path": "C:\\Users\\L5\\.claude\\projects\\C--Users-L5\\6e115f70-3274-46b8-a8fd-36ef5522d171.jsonl",
+ "cwd": "C:\\Users\\L5",
+ "prompt_id": "b0455cea-44fb-4b28-a6dc-8ad8d4f5fe2d",
+ "permission_mode": "bypassPermissions",
+ "effort": {
+  "level": "max"
+ },
+ "hook_event_name": "PostToolUse",
+ "tool_name": "Write",
+ "tool_input": {
+  "file_path": "E:\\AI-Setup\\.t1_scratch.txt",
+  "content": "t1 payload probe line one\n"
+ },
+ "tool_response": {
+  "type": "create",
+  "filePath": "E:\\AI-Setup\\.t1_scratch.txt",
+  "content": "t1 payload probe line one\n",
+  "structuredPatch": [],
+  "originalFile": null,
+  "userModified": false
+ },
+ "tool_use_id": "toolu_01H6oomuoJwYdvKTRrVwR3Rx",
+ "duration_ms": 4
+}
