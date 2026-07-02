@@ -135,7 +135,13 @@ The field measures memory by retrieval quality. Nobody measures **causal memory 
 
 Issues and PRs welcome — [`CONTRIBUTING.md`](CONTRIBUTING.md) explains the slice discipline (small change + its test + green gates), and [`AGENTS.md`](AGENTS.md) is the contract your *agent* reads. Good entry points: run the quickstart, then `py agent_cli.py discover` — every verb describes itself.
 
-**How this is built:** designed and directed by a human architect working with AI agents (Claude, Cursor) as the implementation team, under gates none of them can skip: every slice test-gated, layer boundaries enforced in CI, status docs generated rather than hand-maintained. The repo is its own proving ground — the memory system you're reading about is the one the agents use while building it.
+## About this project
+
+Akashic Aurora is a solo passion project. I'm not a professional programmer — I started this to understand how AI agents actually work by building the thing I kept wishing existed, and to sharpen my own thinking with the same discipline the system demands of itself: claims need tests, designs get checked against the research literature before they're built, and status is generated from the record instead of hand-written.
+
+In practice that means I set the direction, the architecture, and the quality bars; AI agents write most of the code; and gates none of us can skip — CI, layer-boundary checks, test-gated slices — keep all of us honest. The memory system described above is the one those agents use while building it, so every example in this README is also a live demo.
+
+— Daniel Ruban · [LinkedIn](https://www.linkedin.com/in/daniel-ruban-69873ab7/)
 
 ## The name
 

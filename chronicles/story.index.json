@@ -1,9 +1,9 @@
 {
   "version": "0",
-  "generated_at": "2026-06-28T21:55:56.909504",
+  "generated_at": "2026-07-02T02:52:25.856601",
   "atlas": {
-    "generated_at": "2026-06-28T21:55:56.909504",
-    "summary": "ai-setup: 7 chapter(s); research: 2 chapter(s); vision: 1 chapter(s)",
+    "generated_at": "2026-07-02T02:52:25.856601",
+    "summary": "ai-setup: 16 chapter(s); research: 4 chapter(s); vision: 1 chapter(s)",
     "tracks": [
       "ai-setup",
       "research",
@@ -19,11 +19,22 @@
       "chapter_99c6bdb7bb21",
       "chapter_bdd02cc90a1b",
       "chapter_8a8456f3d4ec",
-      "chapter_2d3db91bbf22"
+      "chapter_2d3db91bbf22",
+      "chapter_2614d3bbc3b9",
+      "chapter_c9b98857ea7c",
+      "chapter_91d8aedca1c1",
+      "chapter_e923b5191a1e",
+      "chapter_87bea698e94d",
+      "chapter_c7b4eebc7606",
+      "chapter_89307c74d305",
+      "chapter_660f4e9b6a10",
+      "chapter_e714dff6736d"
     ],
     "research": [
       "chapter_41201bc3dadc",
-      "chapter_7e541ae93d59"
+      "chapter_7e541ae93d59",
+      "chapter_139c310ae055",
+      "chapter_68decfc8d88f"
     ],
     "vision": [
       "chapter_b97f9b6ba607"
@@ -70,7 +81,7 @@
       "parent": "narr:atlas:current",
       "valid_from": "2026-04-15T01:21:48-04:00",
       "valid_to": null,
-      "recorded_at": "2026-06-28T21:55:56.909504",
+      "recorded_at": "2026-07-02T02:52:25.856601",
       "critic_ok": true
     },
     {
@@ -155,7 +166,7 @@
       "parent": "narr:atlas:current",
       "valid_from": "2026-06-27T12:50:14-04:00",
       "valid_to": null,
-      "recorded_at": "2026-06-28T21:55:56.909504",
+      "recorded_at": "2026-07-02T02:52:25.856601",
       "critic_ok": true
     },
     {
@@ -191,7 +202,7 @@
       "parent": "narr:atlas:current",
       "valid_from": "2026-06-27T20:35:28.900770",
       "valid_to": null,
-      "recorded_at": "2026-06-28T21:55:56.909504",
+      "recorded_at": "2026-07-02T02:52:25.856601",
       "critic_ok": true
     },
     {
@@ -216,7 +227,7 @@
       "parent": "narr:atlas:current",
       "valid_from": "2026-06-27T22:25:17.311691",
       "valid_to": null,
-      "recorded_at": "2026-06-28T21:55:56.909504",
+      "recorded_at": "2026-07-02T02:52:25.856601",
       "critic_ok": true
     },
     {
@@ -241,7 +252,7 @@
       "parent": "narr:atlas:current",
       "valid_from": "2026-06-27T23:15:01.311967",
       "valid_to": null,
-      "recorded_at": "2026-06-28T21:55:56.909504",
+      "recorded_at": "2026-07-02T02:52:25.856601",
       "critic_ok": true
     },
     {
@@ -266,7 +277,7 @@
       "parent": "narr:atlas:current",
       "valid_from": "2026-06-27T23:15:01.330970",
       "valid_to": null,
-      "recorded_at": "2026-06-28T21:55:56.909504",
+      "recorded_at": "2026-07-02T02:52:25.856601",
       "critic_ok": true
     },
     {
@@ -307,16 +318,16 @@
       "parent": "narr:atlas:current",
       "valid_from": "2026-06-27T23:42:48.338753",
       "valid_to": null,
-      "recorded_at": "2026-06-28T21:55:56.909504",
+      "recorded_at": "2026-07-02T02:52:25.856601",
       "critic_ok": true
     },
     {
       "id": "chapter_2d3db91bbf22",
       "track": "ai-setup",
-      "title": "Bifrost runner + Agent Card: Gemini is now a bus citizen (scripts/bifrost_run...",
+      "title": "Use bifrost_runner_web.bat for live gemini on bus. AI Mode needs headed (defa...",
       "span_start": "2026-06-28T12:11:26.188260",
-      "span_end": "2026-06-28T21:55:56.909504",
-      "summary": "- Do the 3 unifications FIRST (S5 time fn, S1 Consolidator extract, S4 node-lifecycle) so every later slice is built on one engine/lifecycle/seam -- connections simplify...  [relates: member_of]  (source: learn:experiment:codex_inventory_pressure_test)\n- When unifying a helper that computes PERSISTED scores, ship a re-score migration in the same slice or windowed queries silently lose recall at the old/new boundary...  [relates: member_of]  (source: learn:experiment:codex_s5_time_unification)\n- Codex S5: unify time handling -- collapse 6 _epoch copies into timeutil.to_epoch + re-score migration (canonical: 80/80/35); 5 tests, suite 270  [relates: member_of]  (source: git:132eb23c3630)\n- Cache-first + lazy-load is the key pattern for the per-command-process model: warm Store cache means most calls never pay the 7.5s model load. ONE embedding seam...  [relates: member_of]  (source: learn:experiment:codex_c0_embedder)\n- Codex C0: Embedder primitive (all-MiniLM-L6-v2, CPU, cached+lazy, keyword fallback) into the Ranker.relevance_fn seam; ablation gate passes (embeddings beat keyword); 6...  (source: git:11a34d0af171)\n- The real prize isn't DRY -- it's the SINGLE point where Ranker+Distiller (and at C4, the faithfulness critic) are constructed: wire the gate into Consolidator once...  [relates: member_of]  (source: learn:experiment:codex_s1_consolidator)\n- Codex S1: extract shared Consolidator primitive -- chronicler + learning/consolidation onto one rank->distill engine (behavior-identical); 4 tests, suite 280  [relates: member_of]  (source: git:5113746be6b5)\n- Re-parsing rendered text for a gate is fragile (delimiters collide with content). The robust long-term fix (C4) is to check faithfulness against the Distillation's...  [relates: member_of]  (source: learn:experiment:spine_faithfulness_parens_fix)\n- Fix faithfulness metric: source pointers containing ')' (greedy capture to line-final paren) -- canonical story faithful=True again; 2 regression tests, suite 282  [relates: member_of]  (source: git:69b748a8dd9a)\n- Codex C1: Clusterer primitive (embedding clusters + merge/split proposals, salient-outlier-preserving, flag-only); 8 tests, suite 290. Dogfood surfaces the...  (source: git:3b93485afc59)\n- Codex C2: Resource schema + shared bi-temporal lifecycle (pre-build-reviewed E1-E4: stable id + version_hash, supersession forwards links, valid_to canonical) +...  (source: git:02bcdf63616d)\n- Keep MCP tools as thin wrappers over agent_cli cmd_* via _run() capture so CLI and MCP can never drift. For cross-agent handoff, write a handoff signal (boot already...  (source: learn:experiment:mcp_door_over_agent_cli)\n- After user reloads Cursor MCP: call boot(agent, task) first. Use handoff(from_agent, to, task, note) at session end. MCP and CLI share one code path \u2014 prefer MCP tools...  (source: learn:experiment:bootstrap_mcp_handoff_session)\n- When renaming a system built on an immutable substrate, do NOT rewrite the historical record -- rename the forward-facing identity (README/lexicon/canonical name value)...  (source: learn:experiment:project_renamed_akashic_aurora)\n- Per-agent cursor (XREAD from stored last-id) beats consumer groups for FAN-OUT: groups load-balance (one consumer per message), cursors give every agent every message it...  [relates: member_of]  (source: learn:experiment:bifrost_b0_bus_transport)\n- Bifrost B0: unified bus (core/comm/bus.py) -- one Redis-Streams transport, canonical port, real per-agent fan-out (fixes broken broadcast), explicit offline; 7 tests...  (source: git:c0abe46bfb77)\n- For local agents the FILESYSTEM is the shared blob store -- no Redis round-trip for media; the bus carries pointers, bytes fetched on demand...  [relates: member_of]  (source: learn:experiment:bifrost_b1_parts_media)\n- Bifrost B1: Parts + media-by-reference (core/comm/blobs.py content-addressed BlobStore + Part inline|ref wired into the bus); 7 tests, suite 311. Dogfood: shared a doc...  (source: git:3a8c134fb459)\n- Adding bus tools to the server an agent ALREADY connects to (ai_setup_mcp) beats a new server (zero client config). Presence via auto-touch + TTL = liveness for free...  (source: learn:experiment:bifrost_b3_doors_presence)\n- Bifrost B3 (doors): presence (register/heartbeat/TTL) + bifrost_send/broadcast/inbox/presence MCP tools on ai_setup_mcp.py (Cursor's existing server, zero new config); 5...  (source: git:04520ec2e496)\n- For local multi-agent + a human, a live shared chat console beats OS notifications: the human sees everything + can interject, no sound spam. Use prompt_toolkit...  (source: learn:experiment:bifrost_console_wake)\n- For a turn-based agent in a harness that re-invokes on background-task completion, a backgrounded blocking XREAD is the ideal wake: ~0 idle cost, exact wake, re-armable...  (source: learn:experiment:bifrost_event_driven_wake)\n- Bifrost event-driven wake: Bus.wait() blocking primitive + scripts/bifrost_wake.py background watcher -> harness re-invokes the agent on a message (no API key, no OS...  (source: git:3a725d152370)\n- A fail-fast Redis client (short socket_timeout) CANNOT do long blocking reads -- XREAD/BLPOP need a separate client whose socket_timeout exceeds the block (or None)...  (source: learn:experiment:bifrost_wake_socket_timeout_fix)\n- Fix Bifrost wake: blocking XREAD needs a dedicated long-socket-timeout client (fail-fast client's ~3s timeout aborted the block); regression test blocks past 3s; suite...  (source: git:84576b1342ec)\n- Fix Bifrost wake boundary: build the blocking client via the canonical connector (long timeout_seconds), not a raw redis client; guardrails green, suite 324  (source: git:0a7e331e30c0)\n- An auto side-effect inside a transport/primitive (writing to a canonical store) WILL pollute canonical during tests -- guard it (pytest env or an explicit flag) and...  (source: learn:experiment:bifrost_b2_promoter)\n- Bifrost B2: durable promoter (salient bus msgs -> firehose as bifrost_msg, queryable + Redis-restart-survivable) + pytest pollution guard; 5 tests, suite 329  (source: git:6394bd4d49f1)\n- A 'runner' loop (wait->bridge->reply) turns ANY stateless API into a first-class bus citizen with presence + inbox + replies, no MCP. wait(advance=True) for a consumer...  (source: learn:experiment:bifrost_runner_and_card)\n- Bifrost runner + Agent Card: Gemini is now a bus citizen (scripts/bifrost_runner.py, api/runner card) -- answered a real question on the bus; presence carries Agent...  (source: git:303dc25dab5e)\n- Spine W-c: narrative health counters (route/theme/chronicle) surfaced in status -- silent best-effort failures now observable; 4 tests, suite 265. Wave-1 hardening...  [relates: member_of]  (source: git:f8caedac801e)\n- Observability counters must themselves be best-effort (never raise into the path they observe). Keep them in the narrative layer; lower primitives log their own...  [relates: member_of]  (source: learn:experiment:spine_wc_health_counters)\n- Spine D4: timezone-safe chronicler comparison (core/foundation/timeutil) -- mixed naive/tz-aware no longer mis-sorts/mis-segments; 6 tests, suite 261  [relates: member_of]  (source: git:ebc4afc3e650)\n- For naive timestamps, .timestamp() is locale-dependent -- always normalize naive==UTC before comparing. Fix comparison (recomputed) freely; persisted scores need a...  (source: learn:experiment:spine_d4_timezone_safe)\n- Spine D2: word-boundary router/theme matching (fixes substring false positives) + drop ambiguous 'comfy'; confusable corpus, ARI bar held, suite 255  [relates: member_of]  (source: git:0be2aff99984)\n- Spine D3: harden tag confidence (drop non-finite, clamp out-of-range) -- defends the CRDT no-degrade guarantee against tampered/corrupt entries; 5 new tests, suite 251  [relates: member_of]  (source: git:35b8c3bb6f54)\n- Drop-don't-clamp for non-finite is the right call (clamping inf->1.0 would still let it win); clamp only finite drift. Read-path sanitization protects against...  [relates: member_of]  (source: learn:experiment:spine_d3_confidence_hardening)\n- Spine V1: time-indexed EventQuery (fixes D1 silent recall loss) -- Store-backed CQRS read-model, bounded+rebuildable, opt-in; 8 worst-case tests, suite 246  [relates: member_of]  (source: git:b07a0ce97ab1)\n- CQRS read-model over an append-only Ledger is the clean pattern: Ledger = system-of-record + rebuild source, Store index = queryable projection. Opt-in-by-store kept...  [relates: member_of]  (source: learn:experiment:spine_v1_event_time_index)\n- Wave 1 hardening V1-V5 (time-index events, word-boundary matching, clamp confidence finite[0,1], normalize tz at boundary, health counters) FIRST; Wave 2 V6-V9...  [relates: member_of]  (source: learn:experiment:spine_v2_reevaluation)\n- scorer seam IS the Cleanlab/confident-learning hook for Slice-6 embeddings -- plug an embedding/LLM scorer there. Backfill tag_history on pre-G1 beats to cut...  [relates: member_of]  (source: learn:experiment:tag_governance_g2_detection)\n- Tag Governance G2: confident-learning mis-tag detection (flag-only, I6 read-only) + scorer seam for Slice-6 embeddings; worst-case tests (238 pass)  [relates: member_of]  (source: git:4066eff6345f)\n- Tag Governance G1: confidence-gated append-only re-tag (a CRDT) + Store.zrem + BeatLog tag-history seed; worst-case invariant tests (233 pass)  [relates: member_of]  (source: git:0ee32b23a2fc)\n- Tag stores should be CRDTs (MV-register + survivorship resolver) for self-cleanup without data loss. Sources: Shapiro CRDTs, MDM survivorship/golden-record...  [relates: member_of]  (source: learn:experiment:tag_governance_g1_crdt)\n- Tag Governance G0: tag-history + confidence schema (TagEntry/TagHistory, basis->confidence, append-only + rollback) + Beat.tag_history + worst-case tests  [relates: member_of]  (source: git:f2cd9cf3fe32)\n- Codex plan (Wave 2): self-curating knowledge layer over immutable atoms -- MDL-under-faithfulness objective, prior-art-grounded, sliced C0-C7. docs/codex-plan.md  (source: git:b18c8233d700)\n- Codex pressure-test: inventory + slice placement + 8 simplifications (one Consolidator, one embedding seam, unify supersession, collapse _epoch) ->...  [relates: member_of]  (source: git:e26fa6f98b42)\n- Rename project to Akashic Aurora: README + LEXICON + project_context name + config; GitHub repo renamed ai-setup->akashic-aurora. (MCP server name left for Cursor...  (source: git:2a2884c4b0ec)\n- Finish Akashic Aurora rename: MCP server name + configs (files renamed), stack_manager, services/port_manager, bootstrap scripts, project_context method. Left: Redis...  (source: git:2b5e4ed28e2f)\n- Akashic Aurora naming consistency: Redis Sentinel master breakthrough->akasha (3 confs + client, lockstep; no live sentinel), docker-compose/net/launchers/templates...  (source: git:78b10355d4de)\n- Bifrost plan: agent comm/handoff layer -- review of 4 fragmented layers + A2A-model SOTA synthesis + Gemini pre-review (F1-F4: bus!=ledger, media-by-ref safety, simple...  (source: git:d8dce4332028)\n- Bifrost Console: live chat TUI onto the bus (scripts/bifrost_console.py) -- watch agents talk + interject, no OS toasts/sounds; prompt_toolkit+rich, color-coded...  (source: git:14f3feaaa374)\n- Spine v2 plan: mark Wave-1 hardening complete (D1-D4 + W-c)  [relates: member_of]  (source: git:0e8a02b0851b)\n- Spine v2 re-evaluation: adversarial audit of every slice (4 confirmed defects + prior-art-backed v2 plan) -> docs/spine-v2-plan.md + tests/spine_probes.py  [relates: member_of]  (source: git:25803d5f4245)\n- cursor -> claude: Finish MCP integration testing + C3 threshold tuning  (source: handoff:cursor->claude)\n- cursor -> claude: MCP server rebuilt and handoff verb live \u2014 verify after user reloads Cursor  (source: handoff:cursor->claude)\n- Bootstrap/MCP session complete: rebuilt ai_setup_mcp.py, added handoff verb, fixed config+rule drift, user reloading Cursor MCP  (source: cursor:bootstrap_mcp_session)\n- Session started  (source: session:start)\n- cursor -> claude: Realtime comm test ping from Cursor  [relates: member_of]  (source: handoff:cursor->claude)\n- Session ended  (source: session:end)\n- Session started  (source: session:start)\n- claude -> claude: Resume Akashic Aurora: Codex parked at C4 (faithfulness critic) + Bifrost agent-comms (Cursor building its pull-side). Pick a track; keep tokens low...  (source: handoff:claude->claude)\n- cursor -> cursor: Continue Akashic Aurora: Bifrost pull-side done; Gemini web scaffold shelved; align with Claude on Agent Card + runner  (source: handoff:cursor->cursor)\n- Session ended  (source: session:end)",
+      "span_end": "2026-06-28T22:19:23.022712",
+      "summary": "- Use bifrost_runner_web.bat for live gemini on bus. AI Mode needs headed (default). Stack cheat sheet: boot=load context, learn=lessons, log=milestone beats...  [relates: member_of]  (source: learn:experiment:gemini_web_session_arc)\n- AI Mode requires headed+stealth (default for ai_mode). Headless still gets gated. Use --probe to diagnose.  (source: learn:experiment:gemini_ai_mode_stealth)\n- Default runner to --provider auto (web-first). User runs bifrost_runner_web.bat to keep Gemini live on the bus without API keys.  (source: learn:experiment:gemini_web_short_response_fix)\n- A slice isn't done until it's mirrored (scripts/mirror.py commit+push) AND the decision is a lesson (+ snapshot_knowledge for data). Do NOT rely on docs/memory to...  [relates: member_of]  (source: learn:experiment:bifrost_pull_session_hygiene)\n- Bifrost runner + Agent Card: Gemini is now a bus citizen (scripts/bifrost_runner.py, api/runner card) -- answered a real question on the bus; presence carries Agent...  (source: git:303dc25dab5e)\n- A 'runner' loop (wait->bridge->reply) turns ANY stateless API into a first-class bus citizen with presence + inbox + replies, no MCP. wait(advance=True) for a consumer...  [relates: member_of]  (source: learn:experiment:bifrost_runner_and_card)\n- Bifrost B2: durable promoter (salient bus msgs -> firehose as bifrost_msg, queryable + Redis-restart-survivable) + pytest pollution guard; 5 tests, suite 329  (source: git:6394bd4d49f1)\n- An auto side-effect inside a transport/primitive (writing to a canonical store) WILL pollute canonical during tests -- guard it (pytest env or an explicit flag) and...  [relates: member_of]  (source: learn:experiment:bifrost_b2_promoter)\n- Fix Bifrost wake boundary: build the blocking client via the canonical connector (long timeout_seconds), not a raw redis client; guardrails green, suite 324  (source: git:0a7e331e30c0)\n- Fix Bifrost wake: blocking XREAD needs a dedicated long-socket-timeout client (fail-fast client's ~3s timeout aborted the block); regression test blocks past 3s; suite...  [relates: member_of]  (source: git:84576b1342ec)\n- A fail-fast Redis client (short socket_timeout) CANNOT do long blocking reads -- XREAD/BLPOP need a separate client whose socket_timeout exceeds the block (or None)...  [relates: member_of]  (source: learn:experiment:bifrost_wake_socket_timeout_fix)\n- Bifrost event-driven wake: Bus.wait() blocking primitive + scripts/bifrost_wake.py background watcher -> harness re-invokes the agent on a message (no API key, no OS...  (source: git:3a725d152370)\n- For a turn-based agent in a harness that re-invokes on background-task completion, a backgrounded blocking XREAD is the ideal wake: ~0 idle cost, exact wake, re-armable...  (source: learn:experiment:bifrost_event_driven_wake)\n- For local multi-agent + a human, a live shared chat console beats OS notifications: the human sees everything + can interject, no sound spam. Use prompt_toolkit...  (source: learn:experiment:bifrost_console_wake)\n- Bifrost B3 (doors): presence (register/heartbeat/TTL) + bifrost_send/broadcast/inbox/presence MCP tools on ai_setup_mcp.py (Cursor's existing server, zero new config); 5...  (source: git:04520ec2e496)\n- Adding bus tools to the server an agent ALREADY connects to (ai_setup_mcp) beats a new server (zero client config). Presence via auto-touch + TTL = liveness for free...  (source: learn:experiment:bifrost_b3_doors_presence)\n- Bifrost B1: Parts + media-by-reference (core/comm/blobs.py content-addressed BlobStore + Part inline|ref wired into the bus); 7 tests, suite 311. Dogfood: shared a doc...  (source: git:3a8c134fb459)\n- For local agents the FILESYSTEM is the shared blob store -- no Redis round-trip for media; the bus carries pointers, bytes fetched on demand...  [relates: member_of]  (source: learn:experiment:bifrost_b1_parts_media)\n- Bifrost B0: unified bus (core/comm/bus.py) -- one Redis-Streams transport, canonical port, real per-agent fan-out (fixes broken broadcast), explicit offline; 7 tests...  (source: git:c0abe46bfb77)\n- Per-agent cursor (XREAD from stored last-id) beats consumer groups for FAN-OUT: groups load-balance (one consumer per message), cursors give every agent every message it...  [relates: member_of]  (source: learn:experiment:bifrost_b0_bus_transport)\n- When renaming a system built on an immutable substrate, do NOT rewrite the historical record -- rename the forward-facing identity (README/lexicon/canonical name value)...  (source: learn:experiment:project_renamed_akashic_aurora)\n- After user reloads Cursor MCP: call boot(agent, task) first. Use handoff(from_agent, to, task, note) at session end. MCP and CLI share one code path \u2014 prefer MCP tools...  (source: learn:experiment:bootstrap_mcp_handoff_session)\n- Keep MCP tools as thin wrappers over agent_cli cmd_* via _run() capture so CLI and MCP can never drift. For cross-agent handoff, write a handoff signal (boot already...  (source: learn:experiment:mcp_door_over_agent_cli)\n- Codex C2: Resource schema + shared bi-temporal lifecycle (pre-build-reviewed E1-E4: stable id + version_hash, supersession forwards links, valid_to canonical) +...  (source: git:02bcdf63616d)\n- Codex C1: Clusterer primitive (embedding clusters + merge/split proposals, salient-outlier-preserving, flag-only); 8 tests, suite 290. Dogfood surfaces the...  (source: git:3b93485afc59)\n- Fix faithfulness metric: source pointers containing ')' (greedy capture to line-final paren) -- canonical story faithful=True again; 2 regression tests, suite 282  [relates: member_of]  (source: git:69b748a8dd9a)\n- Re-parsing rendered text for a gate is fragile (delimiters collide with content). The robust long-term fix (C4) is to check faithfulness against the Distillation's...  [relates: member_of]  (source: learn:experiment:spine_faithfulness_parens_fix)\n- Codex S1: extract shared Consolidator primitive -- chronicler + learning/consolidation onto one rank->distill engine (behavior-identical); 4 tests, suite 280  [relates: member_of]  (source: git:5113746be6b5)\n- The real prize isn't DRY -- it's the SINGLE point where Ranker+Distiller (and at C4, the faithfulness critic) are constructed: wire the gate into Consolidator once...  [relates: member_of]  (source: learn:experiment:codex_s1_consolidator)\n- Codex C0: Embedder primitive (all-MiniLM-L6-v2, CPU, cached+lazy, keyword fallback) into the Ranker.relevance_fn seam; ablation gate passes (embeddings beat keyword); 6...  (source: git:11a34d0af171)\n- Cache-first + lazy-load is the key pattern for the per-command-process model: warm Store cache means most calls never pay the 7.5s model load. ONE embedding seam...  [relates: member_of]  (source: learn:experiment:codex_c0_embedder)\n- Codex S5: unify time handling -- collapse 6 _epoch copies into timeutil.to_epoch + re-score migration (canonical: 80/80/35); 5 tests, suite 270  [relates: member_of]  (source: git:132eb23c3630)\n- When unifying a helper that computes PERSISTED scores, ship a re-score migration in the same slice or windowed queries silently lose recall at the old/new boundary...  [relates: member_of]  (source: learn:experiment:codex_s5_time_unification)\n- Do the 3 unifications FIRST (S5 time fn, S1 Consolidator extract, S4 node-lifecycle) so every later slice is built on one engine/lifecycle/seam -- connections simplify...  [relates: member_of]  (source: learn:experiment:codex_inventory_pressure_test)\n- Spine W-c: narrative health counters (route/theme/chronicle) surfaced in status -- silent best-effort failures now observable; 4 tests, suite 265. Wave-1 hardening...  [relates: member_of]  (source: git:f8caedac801e)\n- Observability counters must themselves be best-effort (never raise into the path they observe). Keep them in the narrative layer; lower primitives log their own...  [relates: member_of]  (source: learn:experiment:spine_wc_health_counters)\n- Spine D4: timezone-safe chronicler comparison (core/foundation/timeutil) -- mixed naive/tz-aware no longer mis-sorts/mis-segments; 6 tests, suite 261  [relates: member_of]  (source: git:ebc4afc3e650)\n- For naive timestamps, .timestamp() is locale-dependent -- always normalize naive==UTC before comparing. Fix comparison (recomputed) freely; persisted scores need a...  (source: learn:experiment:spine_d4_timezone_safe)\n- Spine D2: word-boundary router/theme matching (fixes substring false positives) + drop ambiguous 'comfy'; confusable corpus, ARI bar held, suite 255  [relates: member_of]  (source: git:0be2aff99984)\n- Spine D3: harden tag confidence (drop non-finite, clamp out-of-range) -- defends the CRDT no-degrade guarantee against tampered/corrupt entries; 5 new tests, suite 251  [relates: member_of]  (source: git:35b8c3bb6f54)\n- Drop-don't-clamp for non-finite is the right call (clamping inf->1.0 would still let it win); clamp only finite drift. Read-path sanitization protects against...  [relates: member_of]  (source: learn:experiment:spine_d3_confidence_hardening)\n- Spine V1: time-indexed EventQuery (fixes D1 silent recall loss) -- Store-backed CQRS read-model, bounded+rebuildable, opt-in; 8 worst-case tests, suite 246  [relates: member_of]  (source: git:b07a0ce97ab1)\n- CQRS read-model over an append-only Ledger is the clean pattern: Ledger = system-of-record + rebuild source, Store index = queryable projection. Opt-in-by-store kept...  [relates: member_of]  (source: learn:experiment:spine_v1_event_time_index)\n- Wave 1 hardening V1-V5 (time-index events, word-boundary matching, clamp confidence finite[0,1], normalize tz at boundary, health counters) FIRST; Wave 2 V6-V9...  [relates: member_of]  (source: learn:experiment:spine_v2_reevaluation)\n- scorer seam IS the Cleanlab/confident-learning hook for Slice-6 embeddings -- plug an embedding/LLM scorer there. Backfill tag_history on pre-G1 beats to cut...  [relates: member_of]  (source: learn:experiment:tag_governance_g2_detection)\n- Tag Governance G2: confident-learning mis-tag detection (flag-only, I6 read-only) + scorer seam for Slice-6 embeddings; worst-case tests (238 pass)  [relates: member_of]  (source: git:4066eff6345f)\n- Tag Governance G1: confidence-gated append-only re-tag (a CRDT) + Store.zrem + BeatLog tag-history seed; worst-case invariant tests (233 pass)  [relates: member_of]  (source: git:0ee32b23a2fc)\n- Tag stores should be CRDTs (MV-register + survivorship resolver) for self-cleanup without data loss. Sources: Shapiro CRDTs, MDM survivorship/golden-record...  [relates: member_of]  (source: learn:experiment:tag_governance_g1_crdt)\n- Tag Governance G0: tag-history + confidence schema (TagEntry/TagHistory, basis->confidence, append-only + rollback) + Beat.tag_history + worst-case tests  [relates: member_of]  (source: git:f2cd9cf3fe32)\n- claude -> claude: Resume Akashic Aurora: Codex parked at C4 (faithfulness critic) + Bifrost agent-comms (Cursor building its pull-side). Pick a track; keep tokens low...  (source: event:events:raw:1782683527939-0)\n- AGENTS.md: Session-hygiene doctrine (pull-side token reduction) -- commit+mirror the contract Cursor left uncommitted; lesson bifrost_pull_session_hygiene logged  [relates: member_of]  (source: git:e0b8d236adb2)\n- Bifrost Console: live chat TUI onto the bus (scripts/bifrost_console.py) -- watch agents talk + interject, no OS toasts/sounds; prompt_toolkit+rich, color-coded...  [relates: member_of]  (source: git:14f3feaaa374)\n- Bifrost plan: agent comm/handoff layer -- review of 4 fragmented layers + A2A-model SOTA synthesis + Gemini pre-review (F1-F4: bus!=ledger, media-by-ref safety, simple...  (source: git:d8dce4332028)\n- Akashic Aurora naming consistency: Redis Sentinel master breakthrough->akasha (3 confs + client, lockstep; no live sentinel), docker-compose/net/launchers/templates...  (source: git:78b10355d4de)\n- Finish Akashic Aurora rename: MCP server name + configs (files renamed), stack_manager, services/port_manager, bootstrap scripts, project_context method. Left: Redis...  (source: git:2b5e4ed28e2f)\n- Rename project to Akashic Aurora: README + LEXICON + project_context name + config; GitHub repo renamed ai-setup->akashic-aurora. (MCP server name left for Cursor...  (source: git:2a2884c4b0ec)\n- Codex pressure-test: inventory + slice placement + 8 simplifications (one Consolidator, one embedding seam, unify supersession, collapse _epoch) ->...  [relates: member_of]  (source: git:e26fa6f98b42)\n- Codex plan (Wave 2): self-curating knowledge layer over immutable atoms -- MDL-under-faithfulness objective, prior-art-grounded, sliced C0-C7. docs/codex-plan.md  (source: git:b18c8233d700)\n- Spine v2 plan: mark Wave-1 hardening complete (D1-D4 + W-c)  [relates: member_of]  (source: git:0e8a02b0851b)\n- Spine v2 re-evaluation: adversarial audit of every slice (4 confirmed defects + prior-art-backed v2 plan) -> docs/spine-v2-plan.md + tests/spine_probes.py  [relates: member_of]  (source: git:25803d5f4245)\n- claude -> claude: guardrail smoke test  [relates: member_of]  (source: handoff:claude->claude)\n- claude -> cursor: Follow the per-slice continuity protocol: commit+mirror AND record a lesson  [relates: member_of]  (source: handoff:claude->cursor)\n- Session started  (source: session:start)\n- Session ended  (source: session:end)\n- cursor -> cursor: Continue Akashic Aurora: Bifrost pull-side done; Gemini web scaffold shelved; align with Claude on Agent Card + runner  (source: handoff:cursor->cursor)\n- claude -> claude: Resume Akashic Aurora: Codex parked at C4 (faithfulness critic) + Bifrost agent-comms (Cursor building its pull-side). Pick a track; keep tokens low...  (source: handoff:claude->claude)\n- Session ended  (source: session:end)\n- Session started  (source: session:start)\n- cursor -> claude: Realtime comm test ping from Cursor  [relates: member_of]  (source: handoff:cursor->claude)\n- Session started  (source: session:start)\n- Bootstrap/MCP session complete: rebuilt ai_setup_mcp.py, added handoff verb, fixed config+rule drift, user reloading Cursor MCP  (source: cursor:bootstrap_mcp_session)\n- cursor -> claude: MCP server rebuilt and handoff verb live \u2014 verify after user reloads Cursor  (source: handoff:cursor->claude)\n- cursor -> claude: Finish MCP integration testing + C3 threshold tuning  (source: handoff:cursor->claude)",
       "beats": [
         "beat_1782663086_9512",
         "beat_1782663980_6093",
@@ -380,8 +391,17 @@
         "beat_1782683273_3444",
         "beat_1782683274_2735",
         "beat_1782683527_3364",
+        "beat_1782683527_9922",
         "beat_1782683685_8352",
-        "beat_1782683756_2336"
+        "beat_1782683756_2189",
+        "beat_1782683756_2336",
+        "beat_1782684262_8075",
+        "beat_1782684265_3131",
+        "beat_1782684275_4620",
+        "beat_1782684301_8343",
+        "beat_1782684464_5218",
+        "beat_1782684735_2153",
+        "beat_1782685163_8892"
       ],
       "learnings": [
         "learn:experiment:tag_governance_g1_crdt",
@@ -406,7 +426,11 @@
         "learn:experiment:bifrost_event_driven_wake",
         "learn:experiment:bifrost_wake_socket_timeout_fix",
         "learn:experiment:bifrost_b2_promoter",
-        "learn:experiment:bifrost_runner_and_card"
+        "learn:experiment:bifrost_runner_and_card",
+        "learn:experiment:bifrost_pull_session_hygiene",
+        "learn:experiment:gemini_web_short_response_fix",
+        "learn:experiment:gemini_ai_mode_stealth",
+        "learn:experiment:gemini_web_session_arc"
       ],
       "commits": [
         "git:f2cd9cf3fe32",
@@ -439,7 +463,8 @@
         "git:84576b1342ec",
         "git:0a7e331e30c0",
         "git:6394bd4d49f1",
-        "git:303dc25dab5e"
+        "git:303dc25dab5e",
+        "git:e0b8d236adb2"
       ],
       "relates": [
         {
@@ -451,7 +476,7 @@
       "parent": "narr:atlas:current",
       "valid_from": "2026-06-28T12:11:26.188260",
       "valid_to": null,
-      "recorded_at": "2026-06-28T21:55:56.909504",
+      "recorded_at": "2026-07-02T02:52:25.856601",
       "critic_ok": true
     },
     {
@@ -478,7 +503,7 @@
       "parent": "narr:atlas:current",
       "valid_from": "2026-06-28T15:19:03.234169",
       "valid_to": null,
-      "recorded_at": "2026-06-28T21:55:56.909504",
+      "recorded_at": "2026-07-02T02:52:25.856601",
       "critic_ok": true
     },
     {
@@ -487,7 +512,7 @@
       "title": "Adopt A2A data MODEL not its enterprise HTTP transport (local-first). The bus...",
       "span_start": "2026-06-28T18:09:39.135268",
       "span_end": "2026-06-28T20:31:10.340476",
-      "summary": "- Start C0 (embedding substrate) with research-to-do: benchmark EmbeddingGemma-300M vs E5-small vs bge-small on a local fixture, then Embedder primitive + cache +...  [relates: member_of]  (source: learn:experiment:codex_plan_wave2)\n- Dogfood made Gemini's tension VISIBLE + bidirectional: salient_importance=4 with weight-4-learning-heavy data -> over-preservation (54 singletons, ~no curation); the one...  (source: learn:experiment:codex_c1_clusterer)\n- PRE-build review beats post-build: Gemini caught the membership-derived-id trap before any code -- stable-entity-id + version-hash + supersession-forwards-links is the...  (source: learn:experiment:codex_c2_resource_lifecycle)\n- Adopt A2A data MODEL not its enterprise HTTP transport (local-first). The bus is ephemeral (Redis Streams, per-agent inbox fan-out); the durable record is a Ledger...  (source: learn:experiment:bifrost_plan_agent_comm)",
+      "summary": "- Adopt A2A data MODEL not its enterprise HTTP transport (local-first). The bus is ephemeral (Redis Streams, per-agent inbox fan-out); the durable record is a Ledger...  (source: learn:experiment:bifrost_plan_agent_comm)\n- PRE-build review beats post-build: Gemini caught the membership-derived-id trap before any code -- stable-entity-id + version-hash + supersession-forwards-links is the...  (source: learn:experiment:codex_c2_resource_lifecycle)\n- Dogfood made Gemini's tension VISIBLE + bidirectional: salient_importance=4 with weight-4-learning-heavy data -> over-preservation (54 singletons, ~no curation); the one...  (source: learn:experiment:codex_c1_clusterer)\n- Start C0 (embedding substrate) with research-to-do: benchmark EmbeddingGemma-300M vs E5-small vs bge-small on a local fixture, then Embedder primitive + cache +...  [relates: member_of]  (source: learn:experiment:codex_plan_wave2)",
       "beats": [
         "beat_1782684579_4795",
         "beat_1782674028_8084",
@@ -511,7 +536,430 @@
       "parent": "narr:atlas:current",
       "valid_from": "2026-06-28T18:09:39.135268",
       "valid_to": null,
-      "recorded_at": "2026-06-28T21:55:56.909504",
+      "recorded_at": "2026-07-02T02:52:25.856601",
+      "critic_ok": true
+    },
+    {
+      "id": "chapter_2614d3bbc3b9",
+      "track": "ai-setup",
+      "title": "Gemini web stealth: AI Mode gate bypassed with headed real Chrome + playwrigh...",
+      "span_start": "2026-06-28T22:19:23.342233",
+      "span_end": "2026-06-28T22:19:23.342233",
+      "summary": "- Gemini web stealth: AI Mode gate bypassed with headed real Chrome + playwright-stealth (was bot detection, not account lock)  (source: learn:experiment:gemini_ai_mode_stealth)",
+      "beats": [
+        "beat_1782685163_3747"
+      ],
+      "learnings": [
+        "learn:experiment:gemini_ai_mode_stealth"
+      ],
+      "commits": [],
+      "relates": [
+        {
+          "type": "part_of",
+          "target": "narr:track:ai-setup",
+          "note": ""
+        }
+      ],
+      "parent": "narr:atlas:current",
+      "valid_from": "2026-06-28T22:19:23.342233",
+      "valid_to": null,
+      "recorded_at": "2026-07-02T02:52:25.856601",
+      "critic_ok": true
+    },
+    {
+      "id": "chapter_c9b98857ea7c",
+      "track": "ai-setup",
+      "title": "Bifrost web runner live: gemini answers bus via free gemini.google.com (bifro...",
+      "span_start": "2026-06-28T22:19:23.626667",
+      "span_end": "2026-06-28T22:19:26.392297",
+      "summary": "- Bifrost web runner live: gemini answers bus via free gemini.google.com (bifrost_runner --provider web)  (source: learn:experiment:gemini_web_short_response_fix)\n- AI Mode defaults headed+stealth; gemini chat can stay headless; isolated profile .secrets/gemini_web_profile  (source: cursor:gemini-web-policy)\n- cursor -> cursor: Gemini web + Bifrost slice complete; optional: tune runner system prompt, bifrost_runner --web-mode ai_mode dogfood  (source: handoff:cursor->cursor)",
+      "beats": [
+        "beat_1782685163_8734",
+        "beat_1782685163_7239",
+        "beat_1782685166_5682"
+      ],
+      "learnings": [
+        "learn:experiment:gemini_web_short_response_fix"
+      ],
+      "commits": [],
+      "relates": [
+        {
+          "type": "part_of",
+          "target": "narr:track:ai-setup",
+          "note": ""
+        }
+      ],
+      "parent": "narr:atlas:current",
+      "valid_from": "2026-06-28T22:19:23.626667",
+      "valid_to": null,
+      "recorded_at": "2026-07-02T02:52:25.856601",
+      "critic_ok": true
+    },
+    {
+      "id": "chapter_91d8aedca1c1",
+      "track": "ai-setup",
+      "title": "Gemini web stealth + free models on the Bifrost bus",
+      "span_start": "2026-06-28T22:19:26.728603",
+      "span_end": "2026-06-29T08:21:11.155622",
+      "summary": "- Gemini web stealth + free models on the Bifrost bus  (source: mark:2026-06-28T22:19:26.728603)\n- Execute the up-close wiring (the gold), in order: (1) LEXICON entries + confirm AGENT_ID per agent, (2) discover verb from argparse subparsers + check_boundaries rule...  (source: learn:experiment:agent_experience_plan)\n- FC-01 next: build core/codex/curate.py, gated by faithfulness_critic. Defer NER entity-consistency + sentence/dependency entailment (SummaC/DAE/AlignScore-355M) until an...  (source: learn:experiment:faith1_faithfulness_critic)\n- Next executable: FAITH-1 = lift chronicler._compute_metrics into core/primitives/faithfulness.py, CHARACTERIZE its false-positive rate on the real corpus, wire via...  (source: learn:experiment:intelligence_roadmap_and_spine1)\n- The agnostic 'zero custom code' is true for send/read (MCP/Redis) but NOT for wake -- every runtime needs a small turn-starter; pull-floor is the honest default, push is...  (source: learn:experiment:bifrost_mesh_comm)\n- P0 = set AKASHIC_AGENT_ID at the door + make hooks fail-closed-with-teaching. Then: route contended writes through Store.update_atomic (CAS has 0 callers); kill the dead...  (source: learn:experiment:architecture_review_2026_06_28)\n- When an ablation gate exists, MEASURE before committing a shape -- the obvious approach (embeddings replace keywords) lost; hybrid won. Short exemplar phrases beat one...  (source: learn:experiment:spine_v6_theme_discovery)\n- Git hooks abort on ANY non-zero exit -- use exit 1 (the exit-2 rule is Claude-PreToolUse-only). core.hooksPath is shared config; relative path resolves per worktree...  (source: learn:experiment:concurrency_c4_and_worktrees_live)\n- Read-without-reread: the structural fix is to wake into a FRESH minimal session (boot + cursor), not resume the transcript; --digest is the cheap mid-session scan. On...  (source: learn:experiment:concurrency_c3_store_cas)\n- Advisory locks suit peers we own; the fencing token (monotonic, validated at the commit gate) is the one must-have safety property. Keep it fail-soft: offline => no...  (source: learn:experiment:concurrency_c2_path_locks)\n- Restart Cursor MCP server to pick up ai_setup_mcp.py changes; avoid concurrent gemini_web profile users (bifrost_runner + MCP subprocess)  (source: learn:experiment:gemini_mcp_invisible_env)\n- Use ask_gemini_web(mode=ai_mode|both) on user-akashic-aurora; invisible mode default  (source: learn:experiment:mcp_gemini_web_ai_mode)\n- Daily model: agents live in worktrees, master is the integration point; integrate only from master, sync rebases on origin/master. Combine with C0 (mirror with explicit...  (source: learn:experiment:concurrency_c1_worktrees)\n- When committing in a shared tree, never trust the index: git add <your paths> then git commit -- <your paths> (only-mode), or mirror.py with explicit paths. Claude...  (source: learn:experiment:concurrency_c0_git_guard)\n- True headless cannot pass Google AI Mode gate on this account; use invisible mode. --engine patchright optional for invisible.  (source: learn:experiment:patchright_headless_google)\n- Principle: share the immutable substrate, isolate the mutable workspace, enforce at the door not in memory. Build C0 first (de-blanket mirror.py + hooks) -- highest...  (source: learn:experiment:concurrent_agents_design)\n- Default invisible. --headed for debug/login only. Don't run CLI gemini_web while bifrost_runner holds profile.  (source: learn:experiment:gemini_web_invisible_mode)\n- claude -> cursor: Set AKASHIC_AGENT_ID=cursor on your side (review P0)  (source: handoff:claude->cursor)\n- cursor -> claude: PAUSE worktree-per-agent experiment \u2014 back to single tree  (source: handoff:cursor->claude)\n- cursor -> claude: Review singleton-tool contention plan (R0 bus-routing + R1 file lock + C2 resource locks)  (source: handoff:cursor->claude)\n- claude -> cursor: master history was rewritten -- fetch + reset to avoid divergence  (source: handoff:claude->cursor)\n- claude -> cursor: Wire the C0 git-guard hook on Cursor's side (beforeShellExecution)  (source: handoff:claude->cursor)",
+      "beats": [
+        "beat_1782685166_6914",
+        "beat_1782685322_5964",
+        "beat_1782685435_3093",
+        "beat_1782685669_3223",
+        "beat_1782686024_7720",
+        "beat_1782686040_8325",
+        "beat_1782686314_3080",
+        "beat_1782686466_8959",
+        "beat_1782686490_2528",
+        "beat_1782686524_6829",
+        "beat_1782686624_4608",
+        "beat_1782687105_4596",
+        "beat_1782687799_8433",
+        "beat_1782688304_8653",
+        "beat_1782688752_1593",
+        "beat_1782700911_3123",
+        "beat_1782709987_9281",
+        "beat_1782710263_6360",
+        "beat_1782712801_6688",
+        "beat_1782717740_5220",
+        "beat_1782718714_5025",
+        "beat_1782721271_3507"
+      ],
+      "learnings": [
+        "learn:experiment:gemini_web_invisible_mode",
+        "learn:experiment:concurrent_agents_design",
+        "learn:experiment:patchright_headless_google",
+        "learn:experiment:concurrency_c0_git_guard",
+        "learn:experiment:concurrency_c1_worktrees",
+        "learn:experiment:mcp_gemini_web_ai_mode",
+        "learn:experiment:gemini_mcp_invisible_env",
+        "learn:experiment:concurrency_c2_path_locks",
+        "learn:experiment:concurrency_c3_store_cas",
+        "learn:experiment:concurrency_c4_and_worktrees_live",
+        "learn:experiment:spine_v6_theme_discovery",
+        "learn:experiment:architecture_review_2026_06_28",
+        "learn:experiment:bifrost_mesh_comm",
+        "learn:experiment:intelligence_roadmap_and_spine1",
+        "learn:experiment:faith1_faithfulness_critic",
+        "learn:experiment:agent_experience_plan"
+      ],
+      "commits": [],
+      "relates": [
+        {
+          "type": "part_of",
+          "target": "narr:track:ai-setup",
+          "note": ""
+        }
+      ],
+      "parent": "narr:atlas:current",
+      "valid_from": "2026-06-28T22:19:26.728603",
+      "valid_to": null,
+      "recorded_at": "2026-07-02T02:52:25.856601",
+      "critic_ok": true
+    },
+    {
+      "id": "chapter_139c310ae055",
+      "track": "research",
+      "title": "Differentiator confirmed by research: action-trigger + deterministic ranking ...",
+      "span_start": "2026-06-29T08:34:55.284291",
+      "span_end": "2026-06-29T08:34:55.284291",
+      "summary": "- Differentiator confirmed by research: action-trigger + deterministic ranking is ahead of SOTA (mem0/Zep/claude-mem all inject at turn-start). NEXT refinements: (1)...  (source: learn:experiment:recall_at_action_v1)",
+      "beats": [
+        "beat_1782722095_7223"
+      ],
+      "learnings": [
+        "learn:experiment:recall_at_action_v1"
+      ],
+      "commits": [],
+      "relates": [
+        {
+          "type": "part_of",
+          "target": "narr:track:research",
+          "note": ""
+        }
+      ],
+      "parent": "narr:atlas:current",
+      "valid_from": "2026-06-29T08:34:55.284291",
+      "valid_to": null,
+      "recorded_at": "2026-07-02T02:52:25.856601",
+      "critic_ok": true
+    },
+    {
+      "id": "chapter_e923b5191a1e",
+      "track": "ai-setup",
+      "title": "Honest caveat: PostToolUse success/FAIL detection depends on the tool_respons...",
+      "span_start": "2026-06-29T12:29:40.152518",
+      "span_end": "2026-06-29T13:54:50.676433",
+      "summary": "- Honest caveat: PostToolUse success/FAIL detection depends on the tool_response payload shape (assumed is_error/error/exit_code); if it differs, the signal stays INERT...  (source: learn:experiment:door_discover_and_implicit_useful)\n- When adding a root doc, update check_doc_freshness ALLOWLIST. Guard every test that imports an optional-dep module (numpy/mcp/torch/sentence_transformers/fastapi) with...  (source: learn:experiment:ci_and_deploy_hardening)\n- claude -> cursor: Add MCP parity for recall-feedback (and recall-at)  (source: handoff:claude->cursor)\n- Deploy facts for future agents: core = stdlib-only (no required deps); Redis optional (16379); the deploy guide is docs/DEPLOY.md; license is Apache-2.0. Non-Windows...  (source: learn:experiment:deploy_kit_public)\n- The loop's POSITIVE signal (boost) needs votes -- works only if the agent/user actually marks useful (AGENTS.md now instructs it); the NEGATIVE signal (noise-decay) is...  (source: learn:experiment:recall_at_action_usefulness)\n- recall-at-action is now COMPLETE end-to-end: engine -> CLI -> project hook -> bootstrap contract -> guarded global hook -> anti-repeat -> warm cache -> SessionStart...  (source: learn:experiment:recall_at_action_polish)\n- Remaining recall polish (optional): (1) a SessionStart hook to pre-warm the cache so even the first edit is instant; (2) best-effort prune of old per-session seen files...  (source: learn:experiment:recall_at_action_ergonomics)\n- NEXT ergonomics, in order: (1) anti-repeat within a session (persist shown lesson-ids in a session temp file keyed by session id) -- biggest remaining noise source on...  (source: learn:experiment:recall_at_action_global_hook)\n- Two doors for recall-at-action: (1) PreToolUse hook = automatic but ONLY when Claude is launched FROM the repo (cwd=E:/AI-Setup); (2) AGENTS.md contract = agent runs...  (source: learn:experiment:recall_at_action_bootstrap_flow)",
+      "beats": [
+        "beat_1782736180_1623",
+        "beat_1782736976_9229",
+        "beat_1782737483_4290",
+        "beat_1782737971_8582",
+        "beat_1782738920_7326",
+        "beat_1782739490_3133",
+        "beat_1782739752_3003",
+        "beat_1782741290_3155",
+        "beat_1782741290_3130"
+      ],
+      "learnings": [
+        "learn:experiment:recall_at_action_bootstrap_flow",
+        "learn:experiment:recall_at_action_global_hook",
+        "learn:experiment:recall_at_action_ergonomics",
+        "learn:experiment:recall_at_action_polish",
+        "learn:experiment:recall_at_action_usefulness",
+        "learn:experiment:deploy_kit_public",
+        "learn:experiment:ci_and_deploy_hardening",
+        "learn:experiment:door_discover_and_implicit_useful"
+      ],
+      "commits": [],
+      "relates": [
+        {
+          "type": "part_of",
+          "target": "narr:track:ai-setup",
+          "note": ""
+        }
+      ],
+      "parent": "narr:atlas:current",
+      "valid_from": "2026-06-29T12:29:40.152518",
+      "valid_to": null,
+      "recorded_at": "2026-07-02T02:52:25.856601",
+      "critic_ok": true
+    },
+    {
+      "id": "chapter_87bea698e94d",
+      "track": "ai-setup",
+      "title": "next-focus: TOMORROW: run the epistemic-risk ULTRACODE workflow -- 'how do re...",
+      "span_start": "2026-06-29T23:30:04.725893",
+      "span_end": "2026-06-30T04:19:22.691110",
+      "summary": "- next-focus: TOMORROW: run the epistemic-risk ULTRACODE workflow -- 'how do recall-at-action + the usefulness feedback loop + write-once notes + ambient capture DEGRADE...  (source: mem:decision:ADR_0630001922_5755)\n- never put trailing comments on .gitignore pattern lines; only lines STARTING with # are comments -- put the comment on its own line above the pattern  (source: learn:experiment:gitignore_no_inline_comments)\n- fix: .gitignore inline comment broke draft-ignore; track memory.md digest  (source: git:da87164d76a2)\n- ALWAYS add matcher '*' (or a specific value) to SessionStart/SessionEnd/PreCompact entries -- without it they may not register. Keep these hooks SILENT on stdout...  (source: learn:experiment:session_hooks_need_matcher)\n- Ambient capture = continuity INSURANCE for abrupt ends (esp. PreCompact = compaction, the main where-we-are-loss moment); redundant when you wrap manually. It DRAFTS to...  (source: learn:experiment:wrap_autocapture_shipped)\n- Ship every slice with: py scripts/ship.py MSG paths --learn-exp NAME --tried .. --result .. --recommend .. -- it gates (boundaries+doc-freshness+full pytest) BEFORE...  (source: learn:experiment:ship_and_wrap_shipped)\n- Resume each session from boot + notes --json, NOT a hand-edited wall. Trade-offs observed: RECENT NOTES truncates to ~110 chars (drill full bodies via notes --json) --...  (source: learn:experiment:native_checkpoint_migrated_to_notes)\n- cursor-status: Cursor's gemini-web slice was taken over + committed by claude (gemini_web.py, bifrost_runner --provider web, ai_setup_mcp _run_gemini_web...  (source: mem:decision:ADR_0629214304_3549)\n- open-docket: Explored-not-built: mutual agent invocation (claude -p / cursor-agent headless + generalized bifrost_runner + optional ask_agent RPC; blocked on CLIs not...  (source: mem:decision:ADR_0629214303_8701)\n- remaining-review-items: From the 2026-06-28 architecture review: RC-02 route contended writes through Store.update_atomic (CAS has no domain callers); store-hardening...  (source: mem:decision:ADR_0629214302_4317)\n- next-focus: NEXT options: (1) FC-01 = build core/codex/curate.py (cluster atoms via Clusterer -> mint/regenerate/supersede Resources) gated by faithfulness_critic -- the...  (source: mem:decision:ADR_0629214302_5390)\n- where-we-are 2026-06-29: Akashic Aurora status: recall-at-action COMPLETE end-to-end (engine, CLI recall-at, PreToolUse hook additionalContext, bootstrap contract...  (source: mem:decision:ADR_0629214301_5916)\n- Write durable 'where-we-are'/decision state with  (one write), not by hand-editing the native checkpoint -- it surfaces at boot + in chronicles/memory.md. Correct by...  (source: learn:experiment:write_once_notes_shipped)\n- open-question: implicit-useful payload: PostToolUse _is_success assumes tool_response shape; verify against a live payload so the FAIL->SUCCESS signal actually fires.  (source: mem:decision:ADR_0629210203_6519)\n- where-we-are 2026-06-29: Recall-at-action COMPLETE; repo PUBLIC; write-once notes SHIPPED (note/notes/boot-surface/memory.md). Next: recall-learning loop or FC-01...  (source: mem:decision:ADR_0629210203_1187)\n- where-we-are 2026-06-29: Recall-at-action COMPLETE; repo PUBLIC (Apache-2.0, CI green); contributor=balanced7.  (source: mem:decision:ADR_0629210202_2063)\n- CRITICAL: the rewrite CHANGED EVERY COMMIT SHA. Any SHA recorded in lessons/memory/docs BEFORE this (e.g. FAITH-1 6b81e9f, SPINE-1 aaa01cc, recall-at 31a1b67, deploy...  (source: learn:experiment:git_history_rewritten_balanced7)\n- Don't reintroduce per-agent file/task ownership in docs/memory/handoffs. Coordinate concurrent edits with locks (transient), attribute with AKASHIC_AGENT_ID, but never...  (source: learn:experiment:collaboration_model_no_ownership)\n- Taking over a peer agent's stranded slice: review (parses? stubs? referenced files exist?), confirm tests pass, confirm CI-safety (heavy deps lazy + in a separate...  (source: learn:experiment:cursor_slice_taken_over)\n- claude -> cursor: Your gemini-web slice is COMMITTED + MCP parity DONE \u2014 verify live + set your agent id  (source: handoff:claude->cursor)\n- hooks: add required matcher to SessionStart/SessionEnd/PreCompact (verified via docs)  (source: git:7c9df00a1ab0)\n- wrap auto-capture: PreCompact/SessionEnd -> draft file + boot pointer  (source: git:3bde06f1aed4)\n- ship + wrap: one-command gated ship + ambient session capture  (source: git:28c3afdaf0ec)",
+      "beats": [
+        "beat_1782775804_9419",
+        "beat_1782775805_6625",
+        "beat_1782776263_8442",
+        "beat_1782777023_1904",
+        "beat_1782781322_5228",
+        "beat_1782781323_4628",
+        "beat_1782781323_5689",
+        "beat_1782781388_6731",
+        "beat_1782783781_9562",
+        "beat_1782783782_3674",
+        "beat_1782783782_3402",
+        "beat_1782783783_8058",
+        "beat_1782783784_3044",
+        "beat_1782783964_6518",
+        "beat_1782788381_9285",
+        "beat_1782788383_1522",
+        "beat_1782790311_5972",
+        "beat_1782790313_4683",
+        "beat_1782790624_5928",
+        "beat_1782790626_2083",
+        "beat_1782791226_2818",
+        "beat_1782791227_1323",
+        "beat_1782793162_6724"
+      ],
+      "learnings": [
+        "learn:experiment:cursor_slice_taken_over",
+        "learn:experiment:collaboration_model_no_ownership",
+        "learn:experiment:git_history_rewritten_balanced7",
+        "learn:experiment:write_once_notes_shipped",
+        "learn:experiment:native_checkpoint_migrated_to_notes",
+        "learn:experiment:ship_and_wrap_shipped",
+        "learn:experiment:wrap_autocapture_shipped",
+        "learn:experiment:session_hooks_need_matcher",
+        "learn:experiment:gitignore_no_inline_comments"
+      ],
+      "commits": [
+        "git:28c3afdaf0ec",
+        "git:3bde06f1aed4",
+        "git:7c9df00a1ab0",
+        "git:da87164d76a2"
+      ],
+      "relates": [
+        {
+          "type": "part_of",
+          "target": "narr:track:ai-setup",
+          "note": ""
+        }
+      ],
+      "parent": "narr:atlas:current",
+      "valid_from": "2026-06-29T23:30:04.725893",
+      "valid_to": null,
+      "recorded_at": "2026-07-02T02:52:25.856601",
+      "critic_ok": true
+    },
+    {
+      "id": "chapter_c7b4eebc7606",
+      "track": "ai-setup",
+      "title": "retrieval-critic-design: Design research for an automatic retrieval critic = ...",
+      "span_start": "2026-06-30T12:58:21.865926",
+      "span_end": "2026-06-30T13:30:36.287830",
+      "summary": "- retrieval-critic-design: Design research for an automatic retrieval critic = docs/retrieval-critic-design.md (2026-06-30, user idea: ground context retrieval so it is...  (source: mem:decision:ADR_0630093036_6716)\n- directive-friction-audit: Friction audit of the agent directives = docs/directive-friction-audit.md (written 2026-06-30, in response to user principle: make the right...  (source: mem:decision:ADR_0630092509_1059)\n- epistemic-risk-register: EPISTEMIC-RISK REGISTER (manual deep pass; grounded in real code + literature; skeptic-checked). Loop under study: usefulness -> rank -> surface...  (source: mem:decision:ADR_0630091418_4717)\n- epistemic-risk-register: Accumulating per-factor risk register for the recall/memory loop (manual deep pass; grounded in real code + literature; skeptic-checked for...  (source: mem:decision:ADR_0630085845_9543)\n- next-focus: Epistemic-risk work is now MANUAL factor-by-factor in max-effort, NOT the ultracode workflow (user found ultracode missed the salient self-suggestion risks...  (source: mem:decision:ADR_0630085821_5236)",
+      "beats": [
+        "beat_1782824301_2374",
+        "beat_1782824325_3797",
+        "beat_1782825258_4646",
+        "beat_1782825909_2234",
+        "beat_1782826236_2803"
+      ],
+      "learnings": [],
+      "commits": [],
+      "relates": [
+        {
+          "type": "part_of",
+          "target": "narr:track:ai-setup",
+          "note": ""
+        }
+      ],
+      "parent": "narr:atlas:current",
+      "valid_from": "2026-06-30T12:58:21.865926",
+      "valid_to": null,
+      "recorded_at": "2026-07-02T02:52:25.856601",
+      "critic_ok": true
+    },
+    {
+      "id": "chapter_89307c74d305",
+      "track": "ai-setup",
+      "title": "session 2026-06-30: F1 provenance-labelled recall (opinion-laundering fix) + ...",
+      "span_start": "2026-06-30T23:33:38.652259",
+      "span_end": "2026-06-30T23:34:18.331526",
+      "summary": "- session 2026-06-30: F1 provenance-labelled recall (opinion-laundering fix) + directive-friction-audit & retrieval-critic design docs; ranking slice paused  (source: git:b7ac45b67168)\n- next-focus: Full current state + resume options = note where-we-are (refreshed 2026-06-30, before a Claude update). SHORT: Factor 1 opinion-laundering SHIPPED...  (source: mem:decision:ADR_0630193400_4519)\n- where-we-are: SESSION 2026-06-30 (paused for a Claude update). ARC: deep MANUAL max-effort epistemic-risk pass (NOT ultracode -- it missed the salient self-suggestion...  (source: mem:decision:ADR_0630193338_5557)",
+      "beats": [
+        "beat_1782862418_5642",
+        "beat_1782862441_4704",
+        "beat_1782862458_1226"
+      ],
+      "learnings": [],
+      "commits": [
+        "git:b7ac45b67168"
+      ],
+      "relates": [
+        {
+          "type": "part_of",
+          "target": "narr:track:ai-setup",
+          "note": ""
+        }
+      ],
+      "parent": "narr:atlas:current",
+      "valid_from": "2026-06-30T23:33:38.652259",
+      "valid_to": null,
+      "recorded_at": "2026-07-02T02:52:25.856601",
+      "critic_ok": true
+    },
+    {
+      "id": "chapter_660f4e9b6a10",
+      "track": "ai-setup",
+      "title": "next-focus: Full current state + resume options = note where-we-are (refreshe...",
+      "span_start": "2026-07-01T04:11:47.846790",
+      "span_end": "2026-07-01T05:01:22.414000",
+      "summary": "- next-focus: Full current state + resume options = note where-we-are (refreshed 2026-07-01). SHORT: ranking-feedback INC1 pull slice SHIPPED (recall --full, total, N-of-M...  (source: mem:decision:ADR_0701010122_3781)\n- adversarial-critic-partner-idea: User idea (2026-07-01): design an adversarial partner/critic for Claude that TRAINS INDEPENDENTLY (not just prompted-in-context) and...  (source: mem:decision:ADR_0701010114_6136)\n- where-we-are: SESSION 2026-06-30/07-01. Reviewed + approved both design docs (directive-friction-audit, retrieval-critic-design) -- no changes requested, both ready to...  (source: mem:decision:ADR_0701001207_4003)\n- next: the friction-audit roadmap's remaining quick-wins (auto-boot at SessionStart, turn-start bus-sync hook, identity fail-closed) or the retrieval-critic Tier 1...  (source: learn:experiment:ranking_feedback_inc1_pull)\n- ranking & feedback INC1: pull-side escape (recall --full, recall_at total, render N-of-M line)  (source: git:19f0b918b0ce)",
+      "beats": [
+        "beat_1782879107_4228",
+        "beat_1782879109_5118",
+        "beat_1782879127_1321",
+        "beat_1782882074_4480",
+        "beat_1782882082_5326"
+      ],
+      "learnings": [
+        "learn:experiment:ranking_feedback_inc1_pull"
+      ],
+      "commits": [
+        "git:19f0b918b0ce"
+      ],
+      "relates": [
+        {
+          "type": "part_of",
+          "target": "narr:track:ai-setup",
+          "note": ""
+        }
+      ],
+      "parent": "narr:atlas:current",
+      "valid_from": "2026-07-01T04:11:47.846790",
+      "valid_to": null,
+      "recorded_at": "2026-07-02T02:52:25.856601",
+      "critic_ok": true
+    },
+    {
+      "id": "chapter_e714dff6736d",
+      "track": "ai-setup",
+      "title": "next-focus: NEXT per docs/leapfrog-plan.md triage (loop fires -> corpus grows...",
+      "span_start": "2026-07-01T23:20:43.667129",
+      "span_end": "2026-07-02T02:52:25.856601",
+      "summary": "- Recall dissent (Slices 0-1): eval harness + precision-first counter-finder  (source: git:bbb93b38bb1b)\n- Precision-first + silent-when-starved is correct: the binding constraint is corpus content, not the reader. Next lever = Slice 2 (write-side capture of anti_patterns /...  (source: learn:experiment:recall_dissent_slice01)\n- Build the yardstick + a real-corpus probe before the mechanism; trust the curated fixture and treat any detector-relative corpus metric as suspect until a precise...  (source: learn:experiment:eval_harness_before_fix)\n- where-we-are: RECALL-CRITIC ARC (2026-07-01). Goal: stop recall being a confirmation-bias engine. Plan = docs/recall-critic-decision.md (Path 2 dialectical retrieval...  (source: mem:decision:ADR_0701192312_2889)\n- next-focus: NEXT = Slice 2 of the recall-critic arc = write-side dissent capture. VERIFIED gap: agent_cli.py learn exposes only ...[truncated]  (source: mem:decision:ADR_0701192315_6475)\n- Recall dissent (Slice 2): write-side capture -- expose, tag, auto-draft anti-patterns  (source: git:f799c8946194)\n- A write door must OFFER a field or it stays empty (0 anti-patterns came from a missing flag, not agent laziness). Auto-draft the NAME to remove the naming cost and hand...  (source: learn:experiment:recall_dissent_slice2_capture)\n- when adding a capability to a lower layer, expose it on the SAME door agents already use, in the same slice, or it stays dead; treat door-exposure as part of done  (source: learn:experiment:capability_without_a_door)\n- where-we-are: RECALL-CRITIC ARC (2026-07-01). Goal: stop recall being a confirmation-bias engine. Plan = docs/recall-critic-decision.md. SHIPPED + pushed, all gated...  (source: mem:decision:ADR_0701194515_9161)\n- next-focus: TOP PRIORITY (reprioritized by a dogfooding finding): fix Slice-1 PRECISION on real anti-patterns. The finder surfaces 7 false counters on the live corpus...  (source: mem:decision:ADR_0701194521_1667)\n- Recall dissent (Slice 3): precision fix -- an on-topic anti-pattern is not a contradiction  (source: git:380b4dc3a399)\n- An on-topic anti-pattern != a contradiction of a thesis; topic-adjacency conflates with stance. Precision-first: surface nothing you cannot verify. NEXT...  (source: learn:experiment:recall_dissent_slice3_precision)\n- where-we-are: RECALL-CRITIC ARC (2026-07-01). Goal: stop recall being a confirmation-bias engine. Plan = docs/recall-critic-decision.md. SHIPPED + pushed (gated green)...  (source: mem:decision:ADR_0701201344_4961)\n- next-focus: NEXT = build the SEMANTIC GATE (the deferred tier), now that its yardstick exists (tests/test_semantic_eval.py) and an LLM-judge probe cleared it -- incl...  (source: mem:decision:ADR_0701201350_1440)\n- T1: make the implicit FAIL->SUCCESS credit real: transcript-synthesized failures + live payload contract  (source: git:0d77da61ecbc)\n- Never trust an assumed hook payload shape: auto-capture real payloads (bounded, tempdir/akashic_recall/payloads), pin them as fixtures in a contract test...  (source: learn:experiment:recall_implicit_credit_payload_truth)\n- open-question: implicit-useful payload: RESOLVED 2026-07-01 (T1 shipped, gated green). Live capture proved the old assumption unfixable rather than mistuned: Claude Code...  (source: mem:decision:ADR_0701223906_5443)\n- where-we-are: T1 (leapfrog plan Wave A) SHIPPED 2026-07-01: the implicit FAIL->SUCCESS credit loop is REAL end-to-end -- proven live in-session, first helped credit ever...  (source: mem:decision:ADR_0701223906_9239)\n- next-focus: NEXT per docs/leapfrog-plan.md triage (loop fires -> corpus grows -> numbers exist): T2 = write-side friction fixes (JIT learn-it? prompt at the...  (source: mem:decision:ADR_0701223907_7327)\n- Session ended  (source: session:end)",
+      "beats": [
+        "beat_1782948043_5554",
+        "beat_1782948045_5384",
+        "beat_1782948095_5278",
+        "beat_1782948192_4399",
+        "beat_1782948195_5312",
+        "beat_1782949299_7964",
+        "beat_1782949301_8970",
+        "beat_1782949339_9718",
+        "beat_1782949515_2666",
+        "beat_1782949521_1473",
+        "beat_1782950824_7017",
+        "beat_1782950826_3524",
+        "beat_1782951224_6645",
+        "beat_1782951230_3220",
+        "beat_1782959901_6698",
+        "beat_1782959902_9833",
+        "beat_1782959946_4194",
+        "beat_1782959946_9139",
+        "beat_1782959947_1877",
+        "beat_1782960745_2789"
+      ],
+      "learnings": [
+        "learn:experiment:recall_dissent_slice01",
+        "learn:experiment:eval_harness_before_fix",
+        "learn:experiment:recall_dissent_slice2_capture",
+        "learn:experiment:capability_without_a_door",
+        "learn:experiment:recall_dissent_slice3_precision",
+        "learn:experiment:recall_implicit_credit_payload_truth"
+      ],
+      "commits": [
+        "git:bbb93b38bb1b",
+        "git:f799c8946194",
+        "git:380b4dc3a399",
+        "git:0d77da61ecbc"
+      ],
+      "relates": [
+        {
+          "type": "part_of",
+          "target": "narr:track:ai-setup",
+          "note": ""
+        }
+      ],
+      "parent": "narr:atlas:current",
+      "valid_from": "2026-07-01T23:20:43.667129",
+      "valid_to": null,
+      "recorded_at": "2026-07-02T02:52:25.856601",
+      "critic_ok": true
+    },
+    {
+      "id": "chapter_68decfc8d88f",
+      "track": "research",
+      "title": "leapfrog-plan: Full plan = docs/leapfrog-plan.md (2026-07-01, max-effort synt...",
+      "span_start": "2026-07-02T01:54:07.427964",
+      "span_end": "2026-07-02T02:10:02.912138",
+      "summary": "- competitive-landscape-2026-07: Web survey 2026-07-01 (full sources in session transcript). FIELD STATE: memory is now native in every harness -- Claude Code auto-memory...  (source: mem:decision:ADR_0701215407_2479)\n- leapfrog-plan: Full plan = docs/leapfrog-plan.md (2026-07-01, max-effort synthesis of repo audit + docs read + competitive survey + DS4/antirez case study). THESIS...  (source: mem:decision:ADR_0701221002_3682)",
+      "beats": [
+        "beat_1782957247_3560",
+        "beat_1782958202_7061"
+      ],
+      "learnings": [],
+      "commits": [],
+      "relates": [
+        {
+          "type": "part_of",
+          "target": "narr:track:research",
+          "note": ""
+        }
+      ],
+      "parent": "narr:atlas:current",
+      "valid_from": "2026-07-02T01:54:07.427964",
+      "valid_to": null,
+      "recorded_at": "2026-07-02T02:52:25.856601",
       "critic_ok": true
     }
   ]
