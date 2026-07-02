@@ -363,6 +363,28 @@ def cmd_recall_at(args):
     return 0
 
 
+# --------------------------------------------------------------------- harnesses
+def cmd_harnesses(args):
+    """The integration-tier matrix: what each harness ACTUALLY delivers, T0 door .. T6 close.
+    Data = agent/harness/registry.py (the adapters' single source of truth; the prose story is
+    docs/integration-tiers.md). An honest 'unavailable' beats a pretended capability -- plan
+    around what your runtime does, not what you wish it did."""
+    from agent.harness.registry import HARNESSES, TIERS, supported
+    if args.json:
+        print(json.dumps({"tiers": list(TIERS), "harnesses": HARNESSES}, indent=2))
+        return 0
+    print("# INTEGRATION TIERS  (T0 door .. T6 close; the story: docs/integration-tiers.md)")
+    for name, spec in HARNESSES.items():
+        auto = sum(1 for t in TIERS if supported(name, t))
+        print(f"\n## {name}  (agent id: {spec.get('default_agent_id') or '<set AKASHIC_AGENT_ID>'}; "
+              f"{auto}/{len(TIERS)} tiers automated)")
+        print(f"   adapters: {spec.get('adapters')}")
+        for t in TIERS:
+            mark = "+" if supported(name, t) else "-"
+            print(f"   {mark} {t}: {spec['tiers'][t]}")
+    return 0
+
+
 # --------------------------------------------------------------------- injections
 def cmd_injections(args):
     """The injection ledger: everything recall PUSHED into agent contexts recently -- when,
@@ -1498,6 +1520,11 @@ def build_parser():
     ij.add_argument("--hours", type=float, default=24, help="window (default 24)")
     ij.add_argument("--json", action="store_true")
     ij.set_defaults(fn=cmd_injections)
+
+    hz = sub.add_parser("harnesses",
+                        help="integration-tier matrix: what each harness (claude-code/cursor/bare-cli) actually delivers")
+    hz.add_argument("--json", action="store_true")
+    hz.set_defaults(fn=cmd_harnesses)
 
     gr = sub.add_parser("graduate",
                         help="retire a lesson from recall surfacing -- automation now enforces its rule")

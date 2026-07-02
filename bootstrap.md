@@ -10,11 +10,14 @@
 > py agent_cli.py list                                                 # see all lessons
 > py agent_cli.py recall-at --path <file>                              # relevant lessons/locks BEFORE you edit
 > ```
-> Hooks (recall-at-action, locks, git-guard, FAIL→SUCCESS credit) are registered at the
-> **user level with absolute paths** on this host, so they fire for ANY session cwd —
-> including this read-bootstrap flow — and stay silent outside the repo (`_in_scope`).
-> Only run `recall-at` by hand if your harness has **no hook wiring at all** (the hooks are
-> Claude-Code-specific; other harnesses follow this contract manually).
+> Hooks (recall-at-action, locks, git-guard, FAIL→SUCCESS credit) are wired for **Claude
+> Code** (user-level, absolute paths — they fire for ANY session cwd, including this
+> read-bootstrap flow, and stay silent outside the repo) AND for **Cursor** (project
+> `.cursor/hooks.json`; your agent id there is `composer`, set automatically at
+> sessionStart). What your runtime actually delivers, tier by tier:
+> **`py agent_cli.py harnesses`** (story: `docs/integration-tiers.md`). Only run
+> `recall-at` by hand if your harness has **no hook wiring at all** (bare CLI follows
+> this contract manually).
 > The full contract is in **`AGENTS.md`** (read that, not the internals). Use `py`,
 > not `python` (the `python` alias may be unset on Windows). Do **not** import the
 > internal Python modules directly — `agent_cli.py` is the supported door.
@@ -54,6 +57,7 @@ The vocabulary below is exact — see **`docs/LEXICON.md`** for every term.
 | Understand the memory design | `docs/learning-memory-analysis.md` + `-integration-plan.md` |
 | Understand the context goal | `docs/context-pillar-plan.md` |
 | Understand the agent interface | `docs/agent-interface-aci.md` |
+| See what YOUR harness delivers | **`docs/integration-tiers.md`** + `py agent_cli.py harnesses` |
 | See the cleanup backlog | `docs/codebase-audit.md` |
 
 ## Quick checks
@@ -71,17 +75,17 @@ Use the CLI (see the 🤖 callout at the top). Don't import the internals:
 py agent_cli.py boot <your_agent_id> --task "<what you are doing>"
 ```
 
-## Status (current — 2026-06-27)
+## Status (current — 2026-07-02)
 
 - **All layers built & in use**: Store + Ledger (System 0), Memory · Signals ·
-  Coordination (1–3), Context pillar (System 4), Agent Interface `agent_cli.py` (System 5).
-- AgentMemory: Phases A, B (supersession), D (consolidation→chronicle) **done**;
-  `mem:`/`proj:` namespaces currently empty (clean slate — no agent has written yet).
-- Knowledge store: **6 canonical lessons**, harmonized (one source of truth; live on
-  Redis 16379 db0 + file mirror). The *only* real knowledge so far is the
-  semantic-refactoring lessons — recall them with `py agent_cli.py list`.
-- Guardrails (`scripts/check_boundaries.py`): **enforced, green**. Code on GitHub
-  (private mirror); knowledge backed up via `scripts/snapshot_knowledge.py`.
+  Coordination (1–3), Context pillar (System 4), Agent Interface `agent_cli.py` (System 5),
+  plus the harness adapter layer (`agent/harness/` + `scripts/hooks/` — Claude Code and
+  Cursor both wired; `docs/integration-tiers.md`).
+- Knowledge store: live on Redis 16379 db0 + file mirror. **Counts rot in prose** — get
+  them generated: `py agent_cli.py stats` (lessons + funnel value), `list`, `story`.
+- Guardrails (`scripts/check_boundaries.py`, `scripts/check_doc_freshness.py`):
+  **enforced, green**; every ship is gated (`scripts/ship.py`). Code public on GitHub
+  (`balanced7/akashic-aurora`); knowledge backed up via `scripts/snapshot_knowledge.py`.
 
 > ⚠️ **Truth is generated, not hand-written.** The old root status snapshots
 > (`SYSTEM_STATUS.md`, `ACTUAL_INVENTORY.md`, `PHASE_1_CHECKPOINT.md`,
