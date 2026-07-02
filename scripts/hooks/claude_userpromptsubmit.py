@@ -20,6 +20,11 @@ impression, so they can earn explicit useful/noise votes but never an implicit '
 (there is no target to join a flip against). This DILUTES value rate by design honesty --
 the ledger's altitude field keeps per-altitude analysis possible.
 
+Also carried per-turn (H0b): ONE unread-bus line (silent-at-0) -- mid-session bus mail
+otherwise waits for the next session's boot whisper; the turn start is its natural read
+point. A cue like the whisper, not a lesson push, so it is not ledgered (and
+AKASHIC_PLAN_RECALL=0 kills lesson injection only, never the mail cue).
+
 Wire (user-level absolute path; the "*" matcher is REQUIRED -- lifecycle entries without one
 may be silently skipped):
   {"hooks":{"UserPromptSubmit":[{"matcher":"*","hooks":[
@@ -51,6 +56,19 @@ def build_plan_recall(prompt: str, session_id: str, agent_id: str) -> str:
     return out
 
 
+def build_bus_line(agent_id: str) -> str:
+    """One line when unread bus mail waits, "" otherwise (silent-at-0). Fail-soft: an
+    unreachable bus means no line, never a broken hook."""
+    try:
+        from agent.harness.context import _unread_count
+        n = _unread_count(agent_id)
+    except Exception:
+        return ""
+    if not n:
+        return ""
+    return f"[akashic] mail: {n} unread bus msg(s) -> py agent_cli.py bifrost-sync {agent_id}"
+
+
 def main() -> int:
     try:
         data = json.load(sys.stdin)
@@ -64,9 +82,11 @@ def main() -> int:
             if os.getenv("AKASHIC_DEBUG"):
                 print(f"[plan-recall] out of scope: cwd={cwd!r}", file=sys.stderr)
             return 0   # unrelated project -> full silence
-        ctx = build_plan_recall(data.get("prompt") or "",
-                                data.get("session_id") or "",
-                                os.getenv("AKASHIC_AGENT_ID") or "claude")
+        agent_id = os.getenv("AKASHIC_AGENT_ID") or "claude"
+        pieces = [build_plan_recall(data.get("prompt") or "",
+                                    data.get("session_id") or "", agent_id),
+                  build_bus_line(agent_id)]
+        ctx = "\n".join(p for p in pieces if p)
         if ctx:
             print(json.dumps({"hookSpecificOutput": {
                 "hookEventName": "UserPromptSubmit",

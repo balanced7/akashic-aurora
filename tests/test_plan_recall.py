@@ -10,9 +10,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from scripts.hooks import claude_userpromptsubmit as hook
 
 
-def _wire(monkeypatch, lessons, seen=None, seen_log=None, inj_log=None):
+def _wire(monkeypatch, lessons, seen=None, seen_log=None, inj_log=None, unread=0):
     import core.recall.at_action as aa
     from agent.harness import seen as seenmod
+    from agent.harness import context as ctx
     monkeypatch.setattr(aa, "recall_at",
                         lambda **kw: {"lessons": lessons, "locks": [], "counter": None,
                                       "shown": len(lessons), "total": len(lessons),
@@ -22,6 +23,7 @@ def _wire(monkeypatch, lessons, seen=None, seen_log=None, inj_log=None):
                         lambda sid, srcs: (seen_log if seen_log is not None else []).extend(srcs))
     monkeypatch.setattr(aa, "log_injection",
                         lambda *a, **k: (inj_log if inj_log is not None else []).append(a))
+    monkeypatch.setattr(ctx, "_unread_count", lambda agent_id: unread)
 
 
 def test_plan_recall_surfaces_with_plan_header(monkeypatch):
@@ -66,3 +68,45 @@ def test_main_in_repo_emits_valid_json(monkeypatch, capsys):
     out = json.loads(capsys.readouterr().out)
     assert out["hookSpecificOutput"]["hookEventName"] == "UserPromptSubmit"
     assert "Plan-time recall" in out["hookSpecificOutput"]["additionalContext"]
+
+
+# --- H0b: the unread-bus line rides the plan hook (silent-at-0, independent of recall) -------------
+
+def _main_ctx(monkeypatch, capsys, prompt="plan the slice"):
+    from agent.harness.scope import repo_root
+    payload = {"cwd": repo_root(), "prompt": prompt, "session_id": "s"}
+    monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps(payload)))
+    assert hook.main() == 0
+    raw = capsys.readouterr().out.strip()
+    return json.loads(raw)["hookSpecificOutput"]["additionalContext"] if raw else ""
+
+
+def test_bus_line_composes_after_recall(monkeypatch, capsys):
+    _wire(monkeypatch, [{"text": "t", "source": "learn:experiment:x"}], unread=2)
+    ctx = _main_ctx(monkeypatch, capsys)
+    assert "Plan-time recall" in ctx and "2 unread bus msg(s)" in ctx
+    assert ctx.splitlines()[-1].startswith("[akashic] mail:"), "mail cue rides last, one line"
+
+
+def test_bus_line_alone_when_no_lessons(monkeypatch, capsys):
+    _wire(monkeypatch, [], unread=3)
+    ctx = _main_ctx(monkeypatch, capsys)
+    assert ctx == "[akashic] mail: 3 unread bus msg(s) -> py agent_cli.py bifrost-sync claude"
+
+
+def test_bus_silent_at_zero_and_recall_kill_leaves_mail_cue(monkeypatch, capsys):
+    _wire(monkeypatch, [], unread=0)
+    assert _main_ctx(monkeypatch, capsys) == "", "nothing to say -> full silence"
+    _wire(monkeypatch, [{"text": "t", "source": "learn:experiment:x"}], unread=1)
+    monkeypatch.setenv("AKASHIC_PLAN_RECALL", "0")
+    ctx = _main_ctx(monkeypatch, capsys)
+    assert "Plan-time recall" not in ctx and "1 unread" in ctx, \
+        "the kill switch silences lesson injection only, never the mail cue"
+
+
+def test_bus_line_fail_soft(monkeypatch, capsys):
+    _wire(monkeypatch, [], unread=0)
+    from agent.harness import context as ctx_mod
+    monkeypatch.setattr(ctx_mod, "_unread_count",
+                        lambda agent_id: (_ for _ in ()).throw(RuntimeError("bus down")))
+    assert _main_ctx(monkeypatch, capsys) == "", "an unreachable bus means no line, not a broken hook"
