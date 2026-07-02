@@ -95,37 +95,24 @@ def _recall_context(data) -> str:
 
 
 def _check_bash(data) -> str:
-    command = ((data.get("tool_input") or {}).get("command")) or ""
+    """Blanket git-staging veto -- verdict text from the shared policy (agent/harness/guards.py)."""
     try:
-        from agent.policy.git_guard import check_git_command
-        allowed, reason = check_git_command(command)
+        from agent.harness.guards import git_veto
+        return git_veto(((data.get("tool_input") or {}).get("command")) or "")
     except Exception:
         return ""   # policy unavailable -> allow
-    return "" if allowed else reason
 
 
 def _check_write(data) -> str:
-    """Block editing a path a PEER holds an advisory lock on (C2). With AKASHIC_AGENT_ID set we
-    know who we are and only a PEER's lock blocks. With it UNSET we can't verify ownership, so we
-    fail CLOSED on any locked path (teaching the fix) -- a silently-unset id must not disable the
-    guard (the RC-01 fail-open). An unlocked path is always allowed; the lock layer being
-    unavailable allows (advisory)."""
-    path = (data.get("tool_input") or {}).get("file_path") or ""
-    if not path:
-        return ""
-    me = os.getenv("AKASHIC_AGENT_ID")
+    """Peer-lock veto (C2), incl. the RC-01 fail-closed-when-unidentified rule -- shared policy
+    (agent/harness/guards.py); this adapter only says where Claude sets its env."""
     try:
-        from core.comm.locks import path_conflict
-        c = path_conflict(path, me or "(unidentified)")
+        from agent.harness.guards import lock_veto
+        return lock_veto((data.get("tool_input") or {}).get("file_path") or "",
+                         os.getenv("AKASHIC_AGENT_ID"),
+                         "e.g. in .claude/settings.json env")
     except Exception:
         return ""   # lock layer unavailable -> allow (advisory)
-    if not c.get("conflict"):
-        return ""
-    if not me:
-        return (f"AKASHIC_AGENT_ID is not set, so lock ownership can't be verified and this path is "
-                f"locked by {c.get('held_by')}. Set AKASHIC_AGENT_ID=<your agent id> "
-                f"(e.g. in .claude/settings.json env) so the peer-lock guard can tell your edits from a peer's.")
-    return c.get("reason", "")
 
 
 def main() -> int:

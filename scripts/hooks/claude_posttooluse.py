@@ -36,7 +36,6 @@ import json
 import os
 import sys
 import tempfile
-import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
@@ -55,44 +54,18 @@ def _in_scope(tool, data):
     return shell_in_scope(data.get("cwd") or os.getcwd(), ti.get("command") or "")
 
 
-# --- payload capture: the ONLY ground truth for what tool_response actually looks like per harness
-# version (the _is_success contract). Bounded (newest _CAP_MAX files), string-truncated (shape, not
-# content), tempdir-only, fail-soft, kill switch AKASHIC_PAYLOAD_CAPTURE=0. Feeds tests/fixtures/
+# --- payload capture (agent/harness/capture.py): the ONLY ground truth for what tool_response
+# actually looks like per harness version (the _is_success contract). Feeds tests/fixtures/
 # claude_payloads/ so the contract test tracks the LIVE harness, not an assumption.
 # State root honors AKASHIC_RECALL_STATE_DIR (test isolation; in sync with core/recall/at_action.py).
 _STATE_ROOT = os.getenv("AKASHIC_RECALL_STATE_DIR") or os.path.join(tempfile.gettempdir(), "akashic_recall")
 _CAP_DIR = os.path.join(_STATE_ROOT, "payloads")
-_CAP_MAX = 200
-_CAP_STR = 400
-
-
-def _truncated(o, depth=0):
-    """Copy with long strings cut to _CAP_STR chars — the SHAPE is the contract, not the content."""
-    if depth > 6:
-        return "..."
-    if isinstance(o, str):
-        return o if len(o) <= _CAP_STR else o[:_CAP_STR] + f"...[+{len(o) - _CAP_STR} chars]"
-    if isinstance(o, dict):
-        return {k: _truncated(v, depth + 1) for k, v in o.items()}
-    if isinstance(o, list):
-        return [_truncated(v, depth + 1) for v in o[:20]]
-    return o
 
 
 def _capture(data) -> None:
-    if os.getenv("AKASHIC_PAYLOAD_CAPTURE", "1") == "0":
-        return
     try:
-        os.makedirs(_CAP_DIR, exist_ok=True)
-        name = "%d_%s_%s.json" % (int(time.time() * 1000), data.get("tool_name") or "unknown", os.getpid())
-        with open(os.path.join(_CAP_DIR, name), "w", encoding="utf-8") as f:
-            json.dump(_truncated(data), f, indent=1)
-        stale = sorted(os.listdir(_CAP_DIR))[:-_CAP_MAX]   # ms-epoch prefix -> lexical sort = oldest first
-        for n in stale:
-            try:
-                os.remove(os.path.join(_CAP_DIR, n))
-            except Exception:
-                pass
+        from agent.harness.capture import capture
+        capture(data, _CAP_DIR, label=data.get("tool_name") or "unknown")
     except Exception:
         pass   # capture is diagnostics; it must never affect the agent
 
@@ -189,44 +162,18 @@ def _safe(session_id: str) -> str:
 
 # --- JIT learn nudge (friction audit D5): a FAIL->SUCCESS flip is the moment a lesson was just
 # earned, so THAT is when we ask for it -- one small additionalContext block, silent otherwise.
-# Rate-limited three ways (the hook-discipline lesson): once per target per session, a per-session
-# cap (AKASHIC_LEARN_NUDGE_CAP, default 3), and a kill switch (AKASHIC_LEARN_NUDGE=0).
+# Rate limiting is the shared agent/harness/nudge.py (once per target, session cap, kill switch).
 _NUDGE_DIR = os.path.join(_STATE_ROOT, "nudge")
 
 
-def _nudge_state_path(session_id: str) -> str:
-    return os.path.join(_NUDGE_DIR, _safe(session_id) + ".json")
-
-
 def _nudge_allowed(session_id: str, target: str) -> bool:
-    if os.getenv("AKASHIC_LEARN_NUDGE", "1") == "0":
-        return False
-    try:
-        cap = int(os.getenv("AKASHIC_LEARN_NUDGE_CAP", "3"))
-    except Exception:
-        cap = 3
-    try:
-        with open(_nudge_state_path(session_id), encoding="utf-8") as f:
-            st = json.load(f)
-    except Exception:
-        st = {}
-    return target not in st.get("targets", []) and len(st.get("targets", [])) < cap
+    from agent.harness.nudge import nudge_allowed
+    return nudge_allowed(_NUDGE_DIR, session_id, target)
 
 
 def _mark_nudged(session_id: str, target: str) -> None:
-    try:
-        os.makedirs(_NUDGE_DIR, exist_ok=True)
-        p = _nudge_state_path(session_id)
-        try:
-            with open(p, encoding="utf-8") as f:
-                st = json.load(f)
-        except Exception:
-            st = {}
-        st.setdefault("targets", []).append(target)
-        with open(p, "w", encoding="utf-8") as f:
-            json.dump(st, f)
-    except Exception:
-        pass
+    from agent.harness.nudge import mark_nudged
+    mark_nudged(_NUDGE_DIR, session_id, target)
 
 
 def _emit_context(text: str) -> None:

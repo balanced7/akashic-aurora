@@ -5,7 +5,8 @@
       "args": ["-3", "E:\\AI-Setup\\ai_setup_mcp.py"],
       "cwd": "E:\\AI-Setup",
       "env": {
-        "PYTHONIOENCODING": "utf-8"
+        "PYTHONIOENCODING": "utf-8",
+        "AKASHIC_AGENT_ID": "composer"
       }
     }
   }
