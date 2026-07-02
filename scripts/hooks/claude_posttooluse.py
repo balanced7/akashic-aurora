@@ -190,6 +190,55 @@ def _safe(session_id: str) -> str:
     return "".join(c for c in str(session_id) if c.isalnum() or c in "-_")[:128] or "nosession"
 
 
+# --- JIT learn nudge (friction audit D5): a FAIL->SUCCESS flip is the moment a lesson was just
+# earned, so THAT is when we ask for it -- one small additionalContext block, silent otherwise.
+# Rate-limited three ways (the hook-discipline lesson): once per target per session, a per-session
+# cap (AKASHIC_LEARN_NUDGE_CAP, default 3), and a kill switch (AKASHIC_LEARN_NUDGE=0).
+_NUDGE_DIR = os.path.join(tempfile.gettempdir(), "akashic_recall", "nudge")
+
+
+def _nudge_state_path(session_id: str) -> str:
+    return os.path.join(_NUDGE_DIR, _safe(session_id) + ".json")
+
+
+def _nudge_allowed(session_id: str, target: str) -> bool:
+    if os.getenv("AKASHIC_LEARN_NUDGE", "1") == "0":
+        return False
+    try:
+        cap = int(os.getenv("AKASHIC_LEARN_NUDGE_CAP", "3"))
+    except Exception:
+        cap = 3
+    try:
+        with open(_nudge_state_path(session_id), encoding="utf-8") as f:
+            st = json.load(f)
+    except Exception:
+        st = {}
+    return target not in st.get("targets", []) and len(st.get("targets", [])) < cap
+
+
+def _mark_nudged(session_id: str, target: str) -> None:
+    try:
+        os.makedirs(_NUDGE_DIR, exist_ok=True)
+        p = _nudge_state_path(session_id)
+        try:
+            with open(p, encoding="utf-8") as f:
+                st = json.load(f)
+        except Exception:
+            st = {}
+        st.setdefault("targets", []).append(target)
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(st, f)
+    except Exception:
+        pass
+
+
+def _emit_context(text: str) -> None:
+    print(json.dumps({"hookSpecificOutput": {
+        "hookEventName": "PostToolUse",
+        "additionalContext": text,
+    }}))
+
+
 def _txw_path(session_id: str) -> str:
     return os.path.join(_TXW_DIR, _safe(session_id) + ".json")
 
@@ -233,7 +282,7 @@ def main() -> int:
         return 0
     _capture(data)
     try:
-        from core.recall.at_action import normalize_target, resolve_outcome
+        from core.recall.at_action import normalize_target, resolve_action_outcome, build_learn_nudge
         ti = data.get("tool_input") or {}
         target = normalize_target(ti.get("file_path") or None, ti.get("command") or None)
         sid = data.get("session_id") or ""
@@ -241,7 +290,7 @@ def main() -> int:
             # Direct failure signal (fast path; Bash/Write only per #24908). Record the FAIL now and
             # watermark its tool_use_id so the transcript scan never double-processes this failure.
             if target:
-                resolve_outcome(sid, target, False)
+                resolve_action_outcome(sid, target, False)
                 fid = data.get("tool_use_id")
                 if fid:
                     _mark_failure_processed(sid, target, fid)
@@ -252,9 +301,23 @@ def main() -> int:
             # failure, BEFORE resolving the current success -- the engine then sees FAIL->SUCCESS.
             fid = _latest_failure_id(data.get("transcript_path") or "", target)
             if fid and not _failure_processed(sid, target, fid):
-                resolve_outcome(sid, target, False)
+                resolve_action_outcome(sid, target, False)
                 _mark_failure_processed(sid, target, fid)
-        resolve_outcome(sid, target, ok)
+        rep = resolve_action_outcome(sid, target, ok)
+        if rep.get("flipped"):
+            try:   # durable funnel signal (flips observed vs lessons recorded) -- best-effort
+                from core.events.event_log import capture_event
+                capture_event("flip", f"FAIL->SUCCESS: {target}",
+                              agent_id=os.getenv("AKASHIC_AGENT_ID") or "unknown",
+                              detail={"target": target, "credited": rep.get("credited", 0),
+                                      "sources": rep.get("sources", [])})
+            except Exception:
+                pass
+            # JIT learn nudge at the moment of insight (friction audit D5) -- rate-limited.
+            if _nudge_allowed(sid, target):
+                _emit_context(build_learn_nudge(target, rep.get("credited", 0), rep.get("sources"),
+                                                os.getenv("AKASHIC_AGENT_ID")))
+                _mark_nudged(sid, target)
     except Exception:
         pass   # resolving a credit must never affect the agent
     return 0

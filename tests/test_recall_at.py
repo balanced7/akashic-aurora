@@ -219,8 +219,9 @@ def test_implicit_helped_flip():
     import core.recall.at_action as aa
     from core.foundation.store import FileStore
     d = tempfile.mkdtemp()
-    old = (aa._CACHE_DIR, aa._IMP_DIR, aa._OUTCOME_DIR)
-    aa._CACHE_DIR, aa._IMP_DIR, aa._OUTCOME_DIR = d, os.path.join(d, "imp"), os.path.join(d, "outcome")
+    old = (aa._CACHE_DIR, aa._IMP_DIR, aa._OUTCOME_DIR, aa._FLIP_DIR)
+    aa._CACHE_DIR, aa._IMP_DIR, aa._OUTCOME_DIR, aa._FLIP_DIR = \
+        d, os.path.join(d, "imp"), os.path.join(d, "outcome"), os.path.join(d, "flips")
     st = FileStore(os.path.join(d, "use.json"))
     try:
         sid, tgt = "sess1", "p:/x/consolidator.py"
@@ -235,7 +236,7 @@ def test_implicit_helped_flip():
         aa.resolve_outcome(sid, tgt, False, store=st)
         assert aa.resolve_outcome(sid, tgt, True, store=st) == 0, "consumed impressions never re-credit"
     finally:
-        aa._CACHE_DIR, aa._IMP_DIR, aa._OUTCOME_DIR = old
+        aa._CACHE_DIR, aa._IMP_DIR, aa._OUTCOME_DIR, aa._FLIP_DIR = old
     print("--- implicit helped flip ---\n  FAIL->SUCCESS credits once; first-try + re-success credit nothing OK")
 
 

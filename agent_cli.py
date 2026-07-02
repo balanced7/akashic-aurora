@@ -453,9 +453,12 @@ def cmd_notes(args):
 
 
 # ----------------------------------------------------------------------------- wrap
-def build_session_draft(commits, lessons, notes, max_per=8):
+def build_session_draft(commits, lessons, notes, max_per=8, flips=None):
     """Distill a session's own activity into a DRAFT where-we-are -- PURE (testable). Each line keeps a
-    lossless source pointer (git:<sha> / learn:experiment:<name> / mem:decision:<id>)."""
+    lossless source pointer (git:<sha> / learn:experiment:<name> / mem:decision:<id>). `flips` are the
+    session's FAIL->SUCCESS moments (core.recall.at_action.recent_flips) -- each is a lesson that was
+    just EARNED, so the draft turns them into pre-filled candidate `learn` commands (friction audit D5:
+    capture as a byproduct of the work, edit-a-draft instead of author-from-scratch)."""
     lines = []
     if commits:
         lines.append("Shipped:")
@@ -470,6 +473,17 @@ def build_session_draft(commits, lessons, notes, max_per=8):
         lines.append("Decided / noted:")
         for d in notes[:max_per]:
             lines.append(f"  - {d.title}: {_clip(d.decision, 120)}  (mem:decision:{d.id})")
+    if flips:
+        from core.recall.at_action import learn_command_for
+        # A retry loop flips the same target repeatedly -- one candidate per target (keep the last,
+        # its credited count reflects the final state), else the draft is a wall of duplicates.
+        by_target = {}
+        for fl in flips:
+            by_target[str(fl.get("t", ""))] = fl
+        lines.append("Candidate lessons (FAIL->SUCCESS flips this session -- record the transferable ones):")
+        for t, fl in list(by_target.items())[:max_per]:
+            lines.append(f"  - {_clip(t, 90)} (credited: {fl.get('credited', 0)})")
+            lines.append(f"    {learn_command_for(t)}")
     return "\n".join(lines) if lines else "(no session activity captured)"
 
 
@@ -507,7 +521,12 @@ def cmd_wrap(args):
     commits = _recent_commits(args.hours or 12)
     lessons = _recent_lessons(8)
     notes = get_agent_memory().get_decisions(days=1)
-    draft = build_session_draft(commits, lessons, notes)
+    try:
+        from core.recall.at_action import recent_flips
+        flips = recent_flips(args.hours or 12)
+    except Exception:
+        flips = []
+    draft = build_session_draft(commits, lessons, notes, flips=flips)
     if not args.commit:
         print("# DRAFT where-we-are (review it; record with: "
               'py agent_cli.py wrap --commit --title "where-we-are ...")\n')
@@ -537,12 +556,12 @@ def last_session_draft_path():
     return str(Path(os.getenv("AI_SETUP", "E:\\AI-Setup")) / "chronicles" / LAST_SESSION_DRAFT)
 
 
-def write_last_session_draft(path, commits, lessons, notes, trigger=""):
+def write_last_session_draft(path, commits, lessons, notes, trigger="", flips=None):
     """Write a session draft to a FILE (not a note) -- the auto-capture target for the SessionEnd/
     PreCompact hook, so an abrupt end still leaves a trail. boot surfaces a pointer; you promote it
     with `wrap --commit` only if it's worth keeping. Returns the path, or None if there was no activity."""
     from datetime import datetime
-    draft = build_session_draft(commits, lessons, notes)
+    draft = build_session_draft(commits, lessons, notes, flips=flips)
     if not draft or draft == "(no session activity captured)":
         return None
     when = datetime.now().isoformat(timespec="seconds")

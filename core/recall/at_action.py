@@ -119,9 +119,14 @@ def _cached_items(learning_store: Optional[Any]) -> List[Dict[str, Any]]:
 # path in sync with claude_pretooluse.py:_SEEN_DIR.
 _SEEN_DIR = os.path.join(_CACHE_DIR, "seen")
 # Hook-owned per-session state this module only PRUNES: transcript-failure watermarks (see
-# claude_posttooluse.py:_TXW_DIR) and captured payload samples (claude_posttooluse.py:_CAP_DIR).
+# claude_posttooluse.py:_TXW_DIR), captured payload samples (claude_posttooluse.py:_CAP_DIR), and
+# the learn-nudge rate-limit state (claude_posttooluse.py:_NUDGE_DIR).
 _TXW_DIR = os.path.join(_CACHE_DIR, "txw")
 _PAYLOAD_DIR = os.path.join(_CACHE_DIR, "payloads")
+_NUDGE_DIR = os.path.join(_CACHE_DIR, "nudge")
+# Owned by THIS module: the per-session FAIL->SUCCESS flip log (written by resolve_action_outcome,
+# read by the JIT learn nudge and the wrap-time candidate-lesson drafts).
+_FLIP_DIR = os.path.join(_CACHE_DIR, "flips")
 
 
 def warm_cache(learning_store: Optional[Any] = None) -> int:
@@ -146,7 +151,7 @@ def prune_state(max_age_days: float = 7.0) -> int:
     last-outcomes). Returns the count removed. The cache itself is a single self-refreshing file."""
     removed = 0
     cutoff = time.time() - max_age_days * 86400.0
-    for d in (_SEEN_DIR, _IMP_DIR, _OUTCOME_DIR, _TXW_DIR, _PAYLOAD_DIR):
+    for d in (_SEEN_DIR, _IMP_DIR, _OUTCOME_DIR, _TXW_DIR, _PAYLOAD_DIR, _NUDGE_DIR, _FLIP_DIR):
         try:
             for name in os.listdir(d):
                 p = os.path.join(d, name)
@@ -355,23 +360,117 @@ def _set_outcome(session_id: str, target: str, status: str) -> None:
         pass
 
 
-def resolve_outcome(session_id: str, target: str, success: bool, *, store=None) -> int:
-    """PostToolUse resolver. If `target` SUCCEEDS now after having JUST FAILED, credit the lessons
-    surfaced for it with 'helped' (consume-on-credit, so one flip can't be farmed). Returns the number
-    credited. Best-effort + fail-soft -- a first-try success credits nothing (the contrastive gate)."""
+def resolve_action_outcome(session_id: str, target: str, success: bool, *, store=None) -> Dict[str, Any]:
+    """PostToolUse resolver, full report. If `target` SUCCEEDS now after having JUST FAILED:
+    (1) credit the lessons surfaced for it with 'helped' (consume-on-credit, so one flip can't be
+    farmed), and (2) append the flip to the per-session FLIP LOG -- a flip is the moment a lesson
+    was just earned, so it is the raw material for the JIT learn nudge and the wrap-time candidate
+    lessons (friction audit D5). Returns {"flipped", "credited", "sources"}; best-effort + fail-soft
+    -- a first-try success credits and logs nothing (the contrastive gate)."""
+    out: Dict[str, Any] = {"flipped": False, "credited": 0, "sources": []}
     if not session_id or not target:
-        return 0
-    credited = 0
+        return out
     try:
         if success and _get_outcome(session_id, target) == "FAIL":
-            for src in _impressions_for(session_id, target):
+            out["flipped"] = True
+            out["sources"] = _impressions_for(session_id, target)
+            for src in out["sources"]:
                 if record_feedback(src, "helped", store=store):
-                    credited += 1
+                    out["credited"] += 1
             _clear_impressions(session_id, target)
+            _log_flip(session_id, target, out["credited"], out["sources"])
         _set_outcome(session_id, target, "SUCCESS" if success else "FAIL")
     except Exception:
         pass
-    return credited
+    return out
+
+
+def resolve_outcome(session_id: str, target: str, success: bool, *, store=None) -> int:
+    """Compat shim: the original int contract (number credited). See resolve_action_outcome."""
+    return resolve_action_outcome(session_id, target, success, store=store)["credited"]
+
+
+def _log_flip(session_id: str, target: str, credited: int, sources) -> None:
+    try:
+        os.makedirs(_FLIP_DIR, exist_ok=True)
+        rec = {"t": target, "credited": credited, "s": list(sources or []), "at": time.time()}
+        with open(os.path.join(_FLIP_DIR, _safe_id(session_id) + ".jsonl"), "a", encoding="utf-8") as f:
+            f.write(json.dumps(rec) + "\n")
+    except Exception:
+        pass
+
+
+def session_flips(session_id: str) -> List[Dict[str, Any]]:
+    """FAIL->SUCCESS flips recorded for one session (oldest first). Fail-soft: [] on any error."""
+    out: List[Dict[str, Any]] = []
+    try:
+        with open(os.path.join(_FLIP_DIR, _safe_id(session_id) + ".jsonl"), encoding="utf-8") as f:
+            for line in f:
+                try:
+                    out.append(json.loads(line))
+                except Exception:
+                    pass
+    except Exception:
+        pass
+    return out
+
+
+def recent_flips(hours: float = 12.0) -> List[Dict[str, Any]]:
+    """Flips across ALL sessions in the last `hours` (oldest first). The wrap draft reads this --
+    the CLI has no hook session_id, and 'this working session' is a time window anyway."""
+    cutoff = time.time() - hours * 3600.0
+    out: List[Dict[str, Any]] = []
+    try:
+        for name in os.listdir(_FLIP_DIR):
+            p = os.path.join(_FLIP_DIR, name)
+            try:
+                if not (os.path.isfile(p) and os.stat(p).st_mtime >= cutoff):
+                    continue
+                with open(p, encoding="utf-8") as f:
+                    for line in f:
+                        try:
+                            rec = json.loads(line)
+                            if float(rec.get("at", 0)) >= cutoff:
+                                out.append(rec)
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+    except Exception:
+        pass
+    out.sort(key=lambda r: r.get("at", 0))
+    return out
+
+
+def _slug_from_target(target: str) -> str:
+    """A pre-filled --experiment name candidate from the target's meaningful tokens (defaults do
+    the work -- the agent edits a suggestion instead of authoring a name from scratch)."""
+    toks = [t.lower() for t in _TOKEN_RE.findall(str(target)) if len(t) > 3 and t.lower() not in _STOP]
+    return "fix_" + "_".join(toks[:3]) if toks else "fix_this"
+
+
+def learn_command_for(target: str, agent_id: Optional[str] = None) -> str:
+    """The pre-filled `learn` command skeleton for a flip target -- defaults do the work (friction
+    audit fix #3): the agent edits two placeholders instead of authoring a command from scratch."""
+    agent = agent_id or os.getenv("AKASHIC_AGENT_ID") or "<agent>"
+    return (f'py agent_cli.py learn {agent} --experiment {_slug_from_target(target)} '
+            f'--tried "<what failed>" --result "<what fixed it>"')
+
+
+def build_learn_nudge(target: str, credited: int, sources, agent_id: Optional[str] = None) -> str:
+    """The JIT 'learn it?' prompt for a FAIL->SUCCESS flip (friction audit D5: a cue at the moment
+    of insight converts lesson capture from memory to a signal prompt). Silent-when-irrelevant is
+    the CALLER's job (only call on a real flip); this stays small-when-not: three short lines with
+    a pre-filled command skeleton, so capture costs one edit, not authorship."""
+    short = target if len(target) <= 90 else target[:90] + "..."
+    lines = [f"[flip] FAIL->SUCCESS on: {short}"]
+    if credited:
+        lines.append(f"{credited} stored lesson(s) just earned 'helped' credit here.")
+    else:
+        lines.append("No stored lesson helped here -- if the fix generalizes, this is a corpus gap worth filling.")
+    lines.append("If there's a transferable lesson, record it now (one line): "
+                 + learn_command_for(target, agent_id))
+    return "\n".join(lines)
 
 
 def _query_from(path: Optional[str], command: Optional[str]) -> str:

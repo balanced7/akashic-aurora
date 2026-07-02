@@ -29,9 +29,14 @@ def main() -> int:
         commits = agent_cli._recent_commits(24)
         lessons = agent_cli._recent_lessons(8)
         notes = get_agent_memory().get_decisions(days=1)
+        try:   # FAIL->SUCCESS flips -> pre-filled candidate lessons in the draft (friction audit D5)
+            from core.recall.at_action import recent_flips
+            flips = recent_flips(24)
+        except Exception:
+            flips = []
         agent_cli.write_last_session_draft(
             agent_cli.last_session_draft_path(), commits, lessons, notes,
-            trigger=str(data.get("hook_event_name") or "session end"))
+            trigger=str(data.get("hook_event_name") or "session end"), flips=flips)
     except Exception:
         pass   # auto-capture is best-effort; never block the end
     return 0

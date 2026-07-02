@@ -104,8 +104,9 @@ def _run_main(monkeypatch, payload, calls, tmp_txw):
     monkeypatch.setattr(hook, "_TXW_DIR", str(tmp_txw))
     monkeypatch.setattr(hook, "_CAP_DIR", str(tmp_txw / "cap"))
     import core.recall.at_action as aa
-    monkeypatch.setattr(aa, "resolve_outcome",
-                        lambda sid, tgt, ok, **kw: calls.append((sid, tgt, ok)) or 0)
+    monkeypatch.setattr(aa, "resolve_action_outcome",
+                        lambda sid, tgt, ok, **kw: (calls.append((sid, tgt, ok)) or
+                                                    {"flipped": False, "credited": 0, "sources": []}))
     monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps(payload)))
     assert hook.main() == 0
 
