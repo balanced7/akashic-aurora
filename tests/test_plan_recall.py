@@ -12,13 +12,13 @@ from scripts.hooks import claude_userpromptsubmit as hook
 
 def _wire(monkeypatch, lessons, seen=None, seen_log=None, inj_log=None):
     import core.recall.at_action as aa
-    from scripts.hooks import claude_pretooluse as pre
+    from agent.harness import seen as seenmod
     monkeypatch.setattr(aa, "recall_at",
                         lambda **kw: {"lessons": lessons, "locks": [], "counter": None,
                                       "shown": len(lessons), "total": len(lessons),
                                       "faithful": True, "confidence": 1.0})
-    monkeypatch.setattr(pre, "_load_seen", lambda sid: set(seen or set()))
-    monkeypatch.setattr(pre, "_mark_seen",
+    monkeypatch.setattr(seenmod, "load_seen", lambda sid: set(seen or set()))
+    monkeypatch.setattr(seenmod, "mark_seen",
                         lambda sid, srcs: (seen_log if seen_log is not None else []).extend(srcs))
     monkeypatch.setattr(aa, "log_injection",
                         lambda *a, **k: (inj_log if inj_log is not None else []).append(a))
@@ -59,8 +59,8 @@ def test_main_out_of_scope_is_silent(monkeypatch, capsys):
 
 def test_main_in_repo_emits_valid_json(monkeypatch, capsys):
     _wire(monkeypatch, [{"text": "t", "source": "learn:experiment:x"}])
-    from scripts.hooks.claude_sessionstart import _ROOT_RAW
-    payload = {"cwd": _ROOT_RAW, "prompt": "plan the slice", "session_id": "s"}
+    from agent.harness.scope import repo_root
+    payload = {"cwd": repo_root(), "prompt": "plan the slice", "session_id": "s"}
     monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps(payload)))
     assert hook.main() == 0
     out = json.loads(capsys.readouterr().out)

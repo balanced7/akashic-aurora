@@ -39,14 +39,14 @@ def build_plan_recall(prompt: str, session_id: str, agent_id: str) -> str:
     if not (prompt or "").strip():
         return ""
     from core.recall.at_action import recall_at, render, log_injection
-    from scripts.hooks.claude_pretooluse import _load_seen, _mark_seen
+    from agent.harness.seen import load_seen, mark_seen
     res = recall_at(command=prompt, agent_id=agent_id, limit=2,
-                    exclude_sources=_load_seen(session_id), count_surface=True)
+                    exclude_sources=load_seen(session_id), count_surface=True)
     out = render(res, header="Plan-time recall (Akashic) - corpus knowledge relevant to this request:")
     if not out:
         return ""
     srcs = [l.get("source") for l in res.get("lessons", [])]
-    _mark_seen(session_id, srcs)
+    mark_seen(session_id, srcs)
     log_injection(session_id, "plan", "", srcs, len(out))
     return out
 
@@ -58,9 +58,9 @@ def main() -> int:
         print(f"[plan-recall] stdin unparseable: {type(e).__name__}: {e}", file=sys.stderr)
         return 0
     try:
-        from scripts.hooks.claude_sessionstart import _under_root, _is_home
+        from agent.harness.scope import session_in_scope
         cwd = data.get("cwd") or os.getcwd()
-        if not (_under_root(cwd) or _is_home(cwd)):
+        if not session_in_scope(cwd):
             if os.getenv("AKASHIC_DEBUG"):
                 print(f"[plan-recall] out of scope: cwd={cwd!r}", file=sys.stderr)
             return 0   # unrelated project -> full silence

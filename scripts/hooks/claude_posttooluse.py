@@ -40,30 +40,19 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-_ROOT = os.path.normcase(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-
-def _under_root(p):
-    if not p:
-        return False
-    try:
-        a = os.path.normcase(os.path.abspath(p))
-    except Exception:
-        return False
-    return a == _ROOT or a.startswith(_ROOT + os.sep)
+_FILE_TOOLS = ("Edit", "Write", "NotebookEdit")
+_SHELL_TOOLS = ("Bash", "PowerShell")
 
 
 def _in_scope(tool, data):
-    """Silent no-op outside this repo (so a global registration is safe). Mirrors the PreToolUse
-    guard: Edit/Write scope by target file; shell tools (Bash/PowerShell) by cwd or command."""
+    """Silent no-op outside this repo (so a global registration is safe). Claude tool names ->
+    the shared scope policy (agent/harness/scope.py), same mapping as the PreToolUse guard:
+    file tools scope by target path, shell tools by session cwd or the command itself."""
+    from agent.harness.scope import file_in_scope, shell_in_scope
     ti = data.get("tool_input") or {}
-    if tool in ("Edit", "Write", "NotebookEdit"):
-        return _under_root(ti.get("file_path") or "")
-    cwd = data.get("cwd") or os.getcwd()
-    if _under_root(cwd):
-        return True
-    cl = (ti.get("command") or "").lower()
-    return "ai-setup" in cl or "agent_cli.py" in cl
+    if tool in _FILE_TOOLS:
+        return file_in_scope(ti.get("file_path") or "")
+    return shell_in_scope(data.get("cwd") or os.getcwd(), ti.get("command") or "")
 
 
 # --- payload capture: the ONLY ground truth for what tool_response actually looks like per harness
@@ -284,7 +273,7 @@ def main() -> int:
     except Exception:
         return 0
     tool = data.get("tool_name") or ""
-    if tool not in ("Bash", "PowerShell", "Edit", "Write", "NotebookEdit"):
+    if tool not in _SHELL_TOOLS + _FILE_TOOLS:
         return 0
     if not _in_scope(tool, data):
         return 0
