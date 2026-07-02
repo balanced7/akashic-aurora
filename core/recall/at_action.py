@@ -55,8 +55,18 @@ _CACHE_TTL = float(os.getenv("AKASHIC_RECALL_CACHE_TTL", "120"))
 
 
 def _project_items(recs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    try:
+        from core.learning.learning_store import is_graduated
+    except Exception:
+        def is_graduated(_):
+            return False   # predicate unavailable -> fail OPEN (surface rather than lose)
     items: List[Dict[str, Any]] = []
     for rec in recs:
+        # A GRADUATED lesson (rule now enforced by automation -- LearningStore.mark_graduated)
+        # never enters the recall cache: the hook/guardrail does its job, so the surface slot
+        # goes to knowledge that still needs remembering. Full record stays one hop away.
+        if is_graduated(rec):
+            continue
         # Track WHICH field the surfaced text came from: `recommendation` is forward-looking advice
         # (a claim), `actual` is an observed outcome (evidence), `what_tried` is the action. The
         # reader must be able to tell a claim from evidence, so carry the field through (-> _provenance_tag).
@@ -601,6 +611,17 @@ def _provenance_tag(item: Dict[str, Any]) -> str:
         parts.append(author)
     if field == "recommendation" and success not in ("yes", "true"):
         parts.append("advice")                # forward-looking suggestion, not an observation
+    # Track record (the confidence-score analog Greptile v4 validated as triage UI): EARNED
+    # credit only -- 'helped' (automatic FAIL->SUCCESS) and 'useful' (explicit votes). Silent at
+    # zero; counts ride the cached _use counters (<= cache-TTL stale, same as ranking already is).
+    use = item.get("_use") or {}
+    for kind in ("helped", "useful"):
+        try:
+            n = int(use.get(kind, 0) or 0)
+        except Exception:
+            n = 0
+        if n > 0:
+            parts.append(f"{kind} {n}x")
     return "[" + " ".join(parts) + "]"
 
 

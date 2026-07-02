@@ -311,7 +311,10 @@ def cmd_recall(args):
     print(f"# {len(hits)} {label}")
     for h in hits[:25]:
         rec = h.get("recommendation") or h.get("actual") or h.get("what_tried", "")
-        print(f"  - [{h.get('category', '?')}] {h.get('experiment_name', '?')}: {_clip(rec, 160)}")
+        # [graduated] = rule now enforced by automation (see `graduate`); kept for history,
+        # excluded from recall surfacing -- the tag says WHY it never shows up at action time.
+        flag = " [graduated]" if str(h.get("graduated") or "").strip() else ""
+        print(f"  - [{h.get('category', '?')}] {h.get('experiment_name', '?')}{flag}: {_clip(rec, 160)}")
     return 0
 
 
@@ -335,6 +338,48 @@ def cmd_recall_at(args):
         print(json.dumps(res, default=str)); return 0
     out = render(res)
     print(out if out else "# recall-at-action: nothing relevant (silence beats a weak hint)")
+    return 0
+
+
+# ----------------------------------------------------------------------- graduate
+def cmd_graduate(args):
+    """A lesson's rule became a FORCING FUNCTION (hook / guardrail / CI check)? Graduate it:
+    it keeps its history and full-corpus visibility (`list` shows a [graduated] tag) but stops
+    competing for recall surface slots -- the automation does the reminding now. Reversible
+    with --undo. (Greptile's 'disable what a deterministic tool covers', on our spectrum:
+    forcing-function > just-in-time prompt > documentation > memory.)"""
+    from core.learning.learning_store import get_learning_store
+    exp = (args.experiment or "").strip()
+    enforced = (args.enforced_by or "").strip()
+    if not exp or (not args.undo and not enforced):
+        print("ERROR: need --experiment NAME and --enforced-by \"<the automation that enforces it>\""
+              " (or --undo to reverse a graduation).")
+        print('Example: py agent_cli.py graduate claude --experiment git_blanket_staging '
+              '--enforced-by "git-guard PreToolUse hook (C0)"')
+        return 2
+    ls = get_learning_store()
+    if not ls.mark_graduated(exp, enforced, undo=bool(args.undo)):
+        print(f"ERROR: no lesson named '{exp}' -- check the name with `py agent_cli.py list`.")
+        return 1
+    try:   # recall must reflect graduation NOW, not at the next cache TTL expiry
+        from core.recall.at_action import warm_cache
+        warm_cache()
+    except Exception:
+        pass
+    from core.events.event_log import capture_event
+    capture_event("graduate",
+                  (f"un-graduate: {exp}" if args.undo else f"graduate: {exp} -> enforced by {enforced}"),
+                  agent_id=args.agent_id,
+                  detail={"experiment": exp, "enforced_by": enforced, "undo": bool(args.undo)})
+    if args.json:
+        print(json.dumps({"experiment": exp, "graduated": not args.undo,
+                          "enforced_by": enforced if not args.undo else ""}))
+        return 0
+    if args.undo:
+        print(f"[OK] un-graduated '{exp}' -- it competes for recall surface slots again.")
+    else:
+        print(f"[OK] graduated '{exp}' -- enforced by: {enforced}")
+        print("     It keeps history (`list` tags it [graduated]) but no longer takes recall slots.")
     return 0
 
 
@@ -605,6 +650,9 @@ def cmd_stats(args):
     print(f"  surfaced impressions: {out['surfaced_impressions']} | "
           f"votes: useful={out['votes']['useful']} noise={out['votes']['noise']}")
     print(f"  helped credits (flips that credited a surfaced lesson): {out['helped_credits']}")
+    if out.get("value_rate") is not None:
+        print(f"  value rate ((useful+helped)/surfaced): {out['value_rate'] * 100:.1f}%"
+              " -- the steering number; watch the trend, not the level")
     print(f"  lessons with a track record (helped or useful > 0): {out['lessons_with_track_record']}")
     print(f"  last {hours:g}h: flips={window['flips']} (credited={window['flips_credited']}, "
           f"corpus-gap={window['flips_corpus_gap']}) | lessons recorded={window['lessons_recorded']}"
@@ -1391,6 +1439,16 @@ def build_parser():
     rf.add_argument("--useful", action="store_true", help="it changed what you did (default)")
     rf.add_argument("--noise", action="store_true", help="it was off-target")
     rf.set_defaults(fn=cmd_recall_feedback)
+
+    gr = sub.add_parser("graduate",
+                        help="retire a lesson from recall surfacing -- automation now enforces its rule")
+    gr.add_argument("agent_id", help="who is graduating it (you)")
+    gr.add_argument("--experiment", default=None, help="the lesson's experiment name")
+    gr.add_argument("--enforced-by", dest="enforced_by", default=None,
+                    help='the automation that enforces it, e.g. "git-guard PreToolUse hook (C0)"')
+    gr.add_argument("--undo", action="store_true", help="reverse a graduation (it surfaces again)")
+    gr.add_argument("--json", action="store_true")
+    gr.set_defaults(fn=cmd_graduate)
 
     nt = sub.add_parser("note", help="record a durable project note (write-once; re-note same title to update)")
     nt.add_argument("agent_id")

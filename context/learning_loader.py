@@ -22,7 +22,7 @@ See docs/context-pillar-plan.md and docs/shared-primitives-spec.md.
 from typing import Any, Dict, List, Optional
 
 from core.primitives.ranker import Ranker
-from core.learning.learning_store import LearningStore, get_learning_store_instance
+from core.learning.learning_store import LearningStore, get_learning_store_instance, is_graduated
 
 # confidence -> base importance (1..5)
 _CONFIDENCE_IMPORTANCE = {"high": 5, "medium": 3, "low": 2}
@@ -77,6 +77,8 @@ def load_learnings_ranked_by_relevance(
             "_learning": l,
         }
         for l in learnings
+        # graduated = rule enforced by automation now; boot's ranked slots go to live knowledge
+        if not is_graduated(l)
     ]
 
     ranked = ranker.rank(items, query=task, now=now, top_k=top_k)

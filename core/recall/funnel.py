@@ -94,9 +94,15 @@ def snapshot(hours: float = 24.0, *, store: Any = None, learning_store: Any = No
               "flips_corpus_gap": len(flips) - credited,
               "lessons_recorded": len(new_lessons),
               "lessons_per_flip": (round(len(new_lessons) / len(flips), 2) if flips else None)}
+    # Value rate = (useful + helped) / surfaced: of everything recall pushed, how much earned
+    # credit. The one steering ratio (Greptile managed its whole noise war by the analogous
+    # address rate, 19%->55%). OBSERVABILITY ONLY -- never feed it back into ranking as an
+    # optimizer input (epistemic-risk register F2: a proxy under optimization pressure Goodharts).
+    value_rate = round((useful + helped) / surfaced, 4) if surfaced else None
     return {"corpus_lessons": len(recs), "tracked_sources": len(use),
             "surfaced_impressions": surfaced, "votes": {"useful": useful, "noise": noise},
             "helped_credits": helped, "lessons_with_track_record": with_track,
+            "value_rate": value_rate,
             "window_hours": hours, "window": window}
 
 
@@ -106,10 +112,12 @@ def summary_line(snap: Dict[str, Any]) -> str:
     v = snap.get("votes") or {}
     hrs = float(snap.get("window_hours", 24))
     span = f"{hrs / 24:g}d" if hrs >= 48 else f"{hrs:g}h"
+    rate = snap.get("value_rate")
     return (f"{snap.get('corpus_lessons', 0)} lessons | surfaced {snap.get('surfaced_impressions', 0)}"
             f" | votes useful={v.get('useful', 0)} noise={v.get('noise', 0)}"
             f" | helped {snap.get('helped_credits', 0)}"
-            f" | last {span}: +{w.get('lessons_recorded', 0)} lesson(s), {w.get('flips', 0)} flip(s)")
+            + (f" | value {rate * 100:.1f}%" if rate is not None else "")
+            + f" | last {span}: +{w.get('lessons_recorded', 0)} lesson(s), {w.get('flips', 0)} flip(s)")
 
 
 def trend(days: int = 7, *, learning_store: Any = None, event_log: Any = None,

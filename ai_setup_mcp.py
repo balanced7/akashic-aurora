@@ -65,6 +65,8 @@ _ARG_DEFAULTS = dict(
     to=None, note=None, blocker=None, list=False,
     # stats
     hours=None, days=None,
+    # graduate
+    enforced_by=None, undo=False,
 )
 
 
@@ -217,6 +219,15 @@ def stats(hours: float = 24, days: int = 0) -> str:
     whether recalled knowledge is actually helping and earned lessons are being captured.
     days > 0 ALSO prints a per-day trend (durable records) + the 30d pace vs the Wave-A gate."""
     return _run(agent_cli.cmd_stats, hours=hours, days=(days or None))
+
+
+@mcp.tool()
+def graduate(agent: str, experiment: str, enforced_by: str = "", undo: bool = False) -> str:
+    """Retire a lesson from recall surfacing because AUTOMATION now enforces its rule (a hook,
+    guardrail, or CI check). It keeps full history and stays in list/recall with a [graduated]
+    tag; it just stops competing for action-time recall slots. undo=True reverses a mistake."""
+    return _run(agent_cli.cmd_graduate, agent_id=agent, experiment=experiment,
+                enforced_by=enforced_by, undo=undo)
 
 
 @mcp.tool()

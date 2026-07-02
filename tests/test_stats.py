@@ -70,6 +70,7 @@ def test_stats_json_funnel(tmp_path, monkeypatch):
     assert out["surfaced_impressions"] == 8 and out["helped_credits"] == 2
     assert out["votes"] == {"useful": 1, "noise": 1}
     assert out["lessons_with_track_record"] == 2
+    assert out["value_rate"] == 0.375, "(useful+helped)/surfaced = 3/8 -- the steering ratio"
     w = out["window"]
     assert w["flips"] == 2 and w["flips_credited"] == 1 and w["flips_corpus_gap"] == 1
     assert w["lessons_recorded"] == 1, "only the recent lesson falls in the window"
@@ -80,7 +81,16 @@ def test_stats_human_output_ascii(tmp_path, monkeypatch):
     recs, use, flips = _fixture(time.time())
     out = _run_stats(monkeypatch, tmp_path, recs, use, flips)
     assert "RECALL-VALUE FUNNEL" in out and "lessons-per-flip=0.5" in out
+    assert "value rate ((useful+helped)/surfaced): 37.5%" in out
     assert out == out.encode("ascii", errors="replace").decode(), "ASCII-only (Windows console)"
+
+
+def test_stats_no_impressions_no_value_rate(tmp_path, monkeypatch):
+    """value_rate must be None (and its line absent), not a divide-by-zero or a fake 0%."""
+    out = json.loads(_run_stats(monkeypatch, tmp_path, [], {}, [], as_json=True))
+    assert out["value_rate"] is None
+    human = _run_stats(monkeypatch, tmp_path, [], {}, [])
+    assert "value rate" not in human
 
 
 def test_stats_empty_everything_is_calm(tmp_path, monkeypatch):
@@ -134,7 +144,16 @@ def test_summary_line_is_one_ascii_line():
     line = summary_line(snapshot(hours=7 * 24, store=_FakeStore({}),
                                  learning_store=_FakeLearningStore([]), flips=[]))
     assert "\n" not in line and "lessons" in line and "last 7d" in line
+    assert "value" not in line, "no impressions -> no value segment (silent, not 0%)"
     assert line == line.encode("ascii", errors="replace").decode()
+
+
+def test_summary_line_carries_value_rate_when_measurable():
+    from core.recall.funnel import snapshot, summary_line
+    use = {"recall:use:learn:experiment:a": json.dumps({"surfaced": 8, "helped": 2, "useful": 1})}
+    line = summary_line(snapshot(hours=24, store=_FakeStore(use),
+                                 learning_store=_FakeLearningStore([]), flips=[]))
+    assert "value 37.5%" in line
 
 
 def test_stats_days_prints_trend_and_pace(tmp_path, monkeypatch):

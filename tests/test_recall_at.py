@@ -263,6 +263,15 @@ def test_provenance_tag_resists_laundering():
     assert _provenance_tag({"success": "no", "anti_pattern": "loop_unroll_python", "field": "recommendation"}).startswith("[anti-pattern")
     # partial outcome; unknown author is omitted (no false attribution)
     assert _provenance_tag({"success": "partial", "agent_id": "unknown", "field": "actual"}) == "[partial]"
+    # track record (earned credit) rides the tag -- and stays SILENT at zero (no "helped 0x" noise)
+    assert _provenance_tag({"success": "yes", "agent_id": "claude", "field": "actual",
+                            "_use": {"helped": 2, "useful": 1, "surfaced": 40}}) \
+        == "[worked claude helped 2x useful 1x]"
+    assert _provenance_tag({"success": "yes", "agent_id": "claude", "field": "actual",
+                            "_use": {"surfaced": 9}}) == "[worked claude]"
+    assert _provenance_tag({"success": "yes", "agent_id": "claude", "field": "actual",
+                            "_use": {"helped": "junk"}}) == "[worked claude]", \
+        "a corrupt counter must degrade to silence, never brick the render"
     # end-to-end: a 'no' recommendation renders with the honest tag, never as a success costume
     out = render({"lessons": [{"text": "probe reachability first", "source": "learn:experiment:redis_probe",
                                "success": "no", "field": "recommendation", "agent_id": "claude"}], "locks": []})

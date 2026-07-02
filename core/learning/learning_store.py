@@ -230,6 +230,31 @@ class LearningStore:
             self.logger.error(f"tag_anti_pattern failed for {experiment_id}: {e}")
             return False
 
+    def mark_graduated(self, experiment_id: str, enforced_by: str = "", *, undo: bool = False) -> bool:
+        """GRADUATE a lesson: its rule is now ENFORCED by automation (a hook / guardrail / CI
+        check), so it stops competing for recall surface slots while keeping its full history
+        and full-corpus visibility (append-only ethos: graduation is state on the record, never
+        a delete). This is Greptile's "disable what a deterministic tool already covers" mapped
+        onto the friction-audit spectrum: once a lesson becomes a forcing function, re-surfacing
+        the reminder is pure noise. PARTIAL hash update on purpose -- a re-record via
+        record_learning would blank unset fields, and hset merges so a later re-record can't
+        blank THIS. `undo=True` clears it (a mistaken graduation must be reversible).
+
+        Semantic Relationship: Lesson superseded_by Automation (enforced_by)
+        """
+        key = f"learn:experiment:{experiment_id}"
+        try:
+            if not self.store.exists(key):
+                return False
+            self.store.hset(key, mapping={
+                "graduated": "" if undo else datetime.utcnow().isoformat(),
+                "enforced_by": "" if undo else str(enforced_by or ""),
+            })
+            return True
+        except Exception as e:
+            self.logger.error(f"mark_graduated failed for {experiment_id}: {e}")
+            return False
+
     def _index_learning(self, learning_signal: Dict[str, Any]) -> None:
         """
         Index a learning signal into all Store structures (single code path).
@@ -574,6 +599,14 @@ class LearningStore:
     def get_stats(self) -> Dict[str, Any]:
         """Deprecated: Use get_learning_store_stats() instead"""
         return self.get_learning_store_stats()
+
+
+def is_graduated(rec: Dict[str, Any]) -> bool:
+    """True when a lesson's rule is enforced by automation (see mark_graduated). The contract:
+    graduated lessons stay OUT of recall SURFACES (recall-at cache, boot ranking) but stay IN
+    full-corpus queries (list / recall / --full) wearing a [graduated] tag -- history preserved,
+    hot path decluttered."""
+    return bool(str((rec or {}).get("graduated") or "").strip())
 
 
 # Global instance
