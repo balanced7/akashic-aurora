@@ -70,7 +70,9 @@ def _in_scope(tool, data):
 # version (the _is_success contract). Bounded (newest _CAP_MAX files), string-truncated (shape, not
 # content), tempdir-only, fail-soft, kill switch AKASHIC_PAYLOAD_CAPTURE=0. Feeds tests/fixtures/
 # claude_payloads/ so the contract test tracks the LIVE harness, not an assumption.
-_CAP_DIR = os.path.join(tempfile.gettempdir(), "akashic_recall", "payloads")
+# State root honors AKASHIC_RECALL_STATE_DIR (test isolation; in sync with core/recall/at_action.py).
+_STATE_ROOT = os.getenv("AKASHIC_RECALL_STATE_DIR") or os.path.join(tempfile.gettempdir(), "akashic_recall")
+_CAP_DIR = os.path.join(_STATE_ROOT, "payloads")
 _CAP_MAX = 200
 _CAP_STR = 400
 
@@ -139,7 +141,7 @@ def _is_success(data) -> bool:
 # (per-session watermark keyed by the failure's tool_use_id), backfill resolve_outcome(False) so the
 # engine's contrastive FAIL->SUCCESS gate fires exactly as designed. Bounded tail read, fail-soft.
 _TAIL_BYTES = int(os.getenv("AKASHIC_TRANSCRIPT_TAIL_BYTES", str(4 * 1024 * 1024)))
-_TXW_DIR = os.path.join(tempfile.gettempdir(), "akashic_recall", "txw")
+_TXW_DIR = os.path.join(_STATE_ROOT, "txw")
 
 
 def _tail_lines(path: str):
@@ -200,7 +202,7 @@ def _safe(session_id: str) -> str:
 # earned, so THAT is when we ask for it -- one small additionalContext block, silent otherwise.
 # Rate-limited three ways (the hook-discipline lesson): once per target per session, a per-session
 # cap (AKASHIC_LEARN_NUDGE_CAP, default 3), and a kill switch (AKASHIC_LEARN_NUDGE=0).
-_NUDGE_DIR = os.path.join(tempfile.gettempdir(), "akashic_recall", "nudge")
+_NUDGE_DIR = os.path.join(_STATE_ROOT, "nudge")
 
 
 def _nudge_state_path(session_id: str) -> str:

@@ -39,6 +39,7 @@ def _run_stats(monkeypatch, tmp_path, recs, use, flip_recs, hours=24, as_json=Fa
     monkeypatch.setattr(fs, "create_store", lambda *a, **k: _FakeStore(use))
     monkeypatch.setattr(ls, "get_learning_store", lambda *a, **k: _FakeLearningStore(recs))
     monkeypatch.setattr(aa, "_FLIP_DIR", str(tmp_path / "flips"))
+    monkeypatch.setattr(aa, "_INJ_DIR", str(tmp_path / "inj"))   # hermetic: never the real ledger
     os.makedirs(str(tmp_path / "flips"), exist_ok=True)
     with open(str(tmp_path / "flips" / "s.jsonl"), "w", encoding="utf-8") as f:
         for r in flip_recs:
@@ -142,7 +143,7 @@ def test_trend_flags_a_capped_event_scan():
 def test_summary_line_is_one_ascii_line():
     from core.recall.funnel import snapshot, summary_line
     line = summary_line(snapshot(hours=7 * 24, store=_FakeStore({}),
-                                 learning_store=_FakeLearningStore([]), flips=[]))
+                                 learning_store=_FakeLearningStore([]), flips=[], injections=[]))
     assert "\n" not in line and "lessons" in line and "last 7d" in line
     assert "value" not in line, "no impressions -> no value segment (silent, not 0%)"
     assert line == line.encode("ascii", errors="replace").decode()
@@ -152,8 +153,18 @@ def test_summary_line_carries_value_rate_when_measurable():
     from core.recall.funnel import snapshot, summary_line
     use = {"recall:use:learn:experiment:a": json.dumps({"surfaced": 8, "helped": 2, "useful": 1})}
     line = summary_line(snapshot(hours=24, store=_FakeStore(use),
-                                 learning_store=_FakeLearningStore([]), flips=[]))
+                                 learning_store=_FakeLearningStore([]), flips=[], injections=[]))
     assert "value 37.5%" in line
+
+
+def test_snapshot_counts_injection_cost():
+    from core.recall.funnel import snapshot
+    inj = [{"at": 1.0, "alt": "action", "t": "c:x", "s": ["learn:experiment:a"], "chars": 400},
+           {"at": 2.0, "alt": "plan", "t": "", "s": ["learn:experiment:b"], "chars": 200}]
+    snap = snapshot(hours=24, store=_FakeStore({}), learning_store=_FakeLearningStore([]),
+                    flips=[], injections=inj)
+    assert snap["window"]["injections"] == 2
+    assert snap["window"]["injected_tokens_approx"] == 150, "(400+200)//4"
 
 
 def test_stats_days_prints_trend_and_pace(tmp_path, monkeypatch):

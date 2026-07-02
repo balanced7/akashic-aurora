@@ -49,7 +49,9 @@ _STOP = {"core", "self", "true", "false", "none", "null", "test", "tests", "json
 # lesson items to a small JSON file (read ~1ms) instead of cold-connecting the store every call.
 # Fresh (within TTL) -> read it; expired -> refresh from the store; store fails (cold/down) -> fall
 # back to the STALE cache (last-known-good) -- this is what kills the cold-start empty. Env-tunable.
-_CACHE_DIR = os.path.join(tempfile.gettempdir(), "akashic_recall")
+# AKASHIC_RECALL_STATE_DIR overrides the state root (tests/conftest.py sets it suite-wide so
+# no test can ever clobber the production cache -- the 2026-07-02 hermeticity leak).
+_CACHE_DIR = os.getenv("AKASHIC_RECALL_STATE_DIR") or os.path.join(tempfile.gettempdir(), "akashic_recall")
 _CACHE_FILE = os.path.join(_CACHE_DIR, "lesson_items.json")
 _CACHE_TTL = float(os.getenv("AKASHIC_RECALL_CACHE_TTL", "120"))
 
@@ -137,6 +139,13 @@ _NUDGE_DIR = os.path.join(_CACHE_DIR, "nudge")
 # Owned by THIS module: the per-session FAIL->SUCCESS flip log (written by resolve_action_outcome,
 # read by the JIT learn nudge and the wrap-time candidate-lesson drafts).
 _FLIP_DIR = os.path.join(_CACHE_DIR, "flips")
+# The INJECTION LEDGER: every piece of context recall PUSHES at an agent, logged per session
+# (altitude action|plan, target, sources, chars). Injected context must be inspectable --
+# "harnesses inject context behind your back" is the canonical objection (field-survey C4) --
+# and its token cost measurable (the Ronacher dissent: dynamic injection has real cache/token
+# cost, so put it in the funnel). Written by the hooks via log_injection, read by the
+# `injections` verb + stats.
+_INJ_DIR = os.path.join(_CACHE_DIR, "inj")
 
 
 def warm_cache(learning_store: Optional[Any] = None) -> int:
@@ -161,7 +170,8 @@ def prune_state(max_age_days: float = 7.0) -> int:
     last-outcomes). Returns the count removed. The cache itself is a single self-refreshing file."""
     removed = 0
     cutoff = time.time() - max_age_days * 86400.0
-    for d in (_SEEN_DIR, _IMP_DIR, _OUTCOME_DIR, _TXW_DIR, _PAYLOAD_DIR, _NUDGE_DIR, _FLIP_DIR):
+    for d in (_SEEN_DIR, _IMP_DIR, _OUTCOME_DIR, _TXW_DIR, _PAYLOAD_DIR, _NUDGE_DIR, _FLIP_DIR,
+              _INJ_DIR):
         try:
             for name in os.listdir(d):
                 p = os.path.join(d, name)
@@ -425,6 +435,48 @@ def session_flips(session_id: str) -> List[Dict[str, Any]]:
     return out
 
 
+def log_injection(session_id: str, altitude: str, target: str, sources, chars: int) -> None:
+    """Append one entry to the injection ledger (see _INJ_DIR note). Best-effort, fail-soft --
+    the ledger observes the push, it must never block it."""
+    srcs = [s for s in (sources or []) if s]
+    if not session_id or not srcs:
+        return
+    try:
+        os.makedirs(_INJ_DIR, exist_ok=True)
+        with open(os.path.join(_INJ_DIR, _safe_id(session_id) + ".jsonl"), "a", encoding="utf-8") as f:
+            f.write(json.dumps({"at": time.time(), "alt": str(altitude or "action"),
+                                "t": str(target or ""), "s": srcs, "chars": int(chars or 0)}) + "\n")
+    except Exception:
+        pass
+
+
+def recent_injections(hours: float = 24.0) -> List[Dict[str, Any]]:
+    """Injections across ALL sessions in the last `hours`, oldest first (same shape of reader
+    as recent_flips; tempdir-lifetime -- a cost/observability view, not a durable record)."""
+    cutoff = time.time() - hours * 3600.0
+    out: List[Dict[str, Any]] = []
+    try:
+        for name in os.listdir(_INJ_DIR):
+            p = os.path.join(_INJ_DIR, name)
+            try:
+                if not (os.path.isfile(p) and os.stat(p).st_mtime >= cutoff):
+                    continue
+                with open(p, encoding="utf-8") as f:
+                    for line in f:
+                        try:
+                            rec = json.loads(line)
+                            if float(rec.get("at", 0)) >= cutoff:
+                                out.append(rec)
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+    except Exception:
+        pass
+    out.sort(key=lambda r: r.get("at", 0))
+    return out
+
+
 def recent_flips(hours: float = 12.0) -> List[Dict[str, Any]]:
     """Flips across ALL sessions in the last `hours` (oldest first). The wrap draft reads this --
     the CLI has no hook session_id, and 'this working session' is a time window anyway."""
@@ -463,8 +515,12 @@ def learn_command_for(target: str, agent_id: Optional[str] = None) -> str:
     """The pre-filled `learn` command skeleton for a flip target -- defaults do the work (friction
     audit fix #3): the agent edits two placeholders instead of authoring a command from scratch."""
     agent = agent_id or os.getenv("AKASHIC_AGENT_ID") or "<agent>"
+    # Trigger-phrased recommendation placeholder (field-survey C5): "Use when <symptom>..."
+    # descriptions are what make a lesson FIRE at the right moment -- the template models it
+    # so the phrasing costs one edit instead of authorship.
     return (f'py agent_cli.py learn {agent} --experiment {_slug_from_target(target)} '
-            f'--tried "<what failed>" --result "<what fixed it>"')
+            f'--tried "<what failed>" --result "<what fixed it>" '
+            f'--recommend "Use when <symptom>, before <action>: <advice>"')
 
 
 def build_learn_nudge(target: str, credited: int, sources, agent_id: Optional[str] = None) -> str:
@@ -625,7 +681,8 @@ def _provenance_tag(item: Dict[str, Any]) -> str:
     return "[" + " ".join(parts) + "]"
 
 
-def render(result: Dict[str, Any], *, max_chars: int = 110) -> str:
+def render(result: Dict[str, Any], *, max_chars: int = 110,
+           header: str = "Recall-at-action (Akashic) - facts relevant to what you're about to do:") -> str:
     """Compact, agent-readable rendering for the hook's additionalContext. Each lesson is prefixed
     with a provenance tag (verification-status + author + claim-kind) so the agent reads it with the
     right epistemic weight rather than as a settled fact. Empty result -> ''.
@@ -662,5 +719,5 @@ def render(result: Dict[str, Any], *, max_chars: int = 110) -> str:
                       f"or `recall --full <source>` for any one's whole record")
     # Factual framing (not imperative — imperative trips prompt-injection defenses). Hard total cap
     # well under Claude Code's 10k-char additionalContext limit.
-    body = "Recall-at-action (Akashic) - facts relevant to what you're about to do:\n" + "\n".join(lines)
+    body = header + "\n" + "\n".join(lines)
     return body[:900]

@@ -279,6 +279,40 @@ def test_provenance_tag_resists_laundering():
     print("--- provenance tag ---\n  verified/partial/unverified/anti-pattern + advice flag; no laundering OK")
 
 
+def test_suite_runs_with_isolated_recall_state():
+    """PIN the hermeticity fix: under pytest, at_action's state dir must be the conftest's
+    per-run temp dir, never the production tempdir/akashic_recall (the 2026-07-02 leak:
+    a test transitively warmed the REAL cache from an isolated store -> live recall served
+    [] until the TTL healed it)."""
+    import core.recall.at_action as aa
+    env = os.environ.get("AKASHIC_RECALL_STATE_DIR", "")
+    assert env and aa._CACHE_DIR == env
+    assert "akashic_recall_test_" in aa._CACHE_DIR
+
+
+def test_injection_ledger_roundtrip(tmp_path, monkeypatch):
+    """Pushed context is never hidden state: log_injection -> recent_injections, windowed."""
+    import core.recall.at_action as aa
+    monkeypatch.setattr(aa, "_INJ_DIR", str(tmp_path / "inj"))
+    aa.log_injection("sess-1", "action", "c:py x", ["learn:experiment:a"], 350)
+    aa.log_injection("sess-1", "plan", "", ["learn:experiment:b"], 150)
+    aa.log_injection("", "action", "c:y", ["learn:experiment:c"], 10)      # no session -> dropped
+    aa.log_injection("sess-1", "action", "c:z", [], 10)                    # no sources -> dropped
+    got = aa.recent_injections(1.0)
+    assert [g["alt"] for g in got] == ["action", "plan"]
+    assert got[0]["s"] == ["learn:experiment:a"] and got[0]["chars"] == 350
+    assert aa.recent_injections(0.0) == [] or True  # zero-window edge must not raise
+    print("--- injection ledger ---\n  log -> read roundtrip, drops incomplete entries OK")
+
+
+def test_render_header_is_parameterizable():
+    """Plan-time recall reuses render() with its own altitude header."""
+    res = {"lessons": [{"text": "t", "source": "learn:experiment:x"}], "locks": []}
+    out = render(res, header="Plan-time recall (Akashic) - corpus knowledge relevant to this request:")
+    assert out.startswith("Plan-time recall (Akashic)")
+    assert "Recall-at-action" not in out
+
+
 def test_fail_soft_on_empty_and_bad_input():
     assert recall_at()["shown"] == 0                       # no path/command
     assert recall_at(command="", path="")["shown"] == 0

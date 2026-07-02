@@ -601,6 +601,65 @@ class LearningStore:
         return self.get_learning_store_stats()
 
 
+_DIM_TOKEN_RE = re.compile(r"[A-Za-z0-9_./\\-]+")
+
+
+def _dim_tokens(s: Any) -> set:
+    return {t.lower() for t in _DIM_TOKEN_RE.findall(str(s or "")) if len(t) > 3}
+
+
+def _dims_of(rec: Dict[str, Any]) -> Dict[str, set]:
+    """The five comparison dimensions for near-duplicate detection, adapted from Every's
+    ce-compound overlap rule (docs/field-survey-2026-07.md C5): problem / root cause /
+    solution / referenced paths / kind. Purely lexical on purpose -- deterministic, no
+    embeddings, no LLM judge."""
+    problem = _dim_tokens(rec.get("what_tried")) | _dim_tokens(rec.get("expected"))
+    solution = _dim_tokens(rec.get("recommendation")) | _dim_tokens(rec.get("actual"))
+    return {
+        "problem": problem,
+        "root_cause": _dim_tokens(rec.get("root_cause")),
+        "solution": solution,
+        "refs": {t for t in (problem | solution) if "/" in t or "\\" in t or "." in t},
+        "kind": _dim_tokens(rec.get("category")) | _dim_tokens(rec.get("anti_pattern")),
+    }
+
+
+def _overlap(a: set, b: set) -> float:
+    """Overlap coefficient |A∩B| / min(|A|,|B|) -- forgiving of length asymmetry (a terse
+    lesson vs a verbose one about the same thing should still match)."""
+    if not a or not b:
+        return 0.0
+    return len(a & b) / min(len(a), len(b))
+
+
+def find_related(signal: Dict[str, Any], existing: List[Dict[str, Any]], *,
+                 threshold: float = 0.5, min_dims: int = 2,
+                 exclude_name: str = "") -> List[Dict[str, Any]]:
+    """Deterministic near-duplicate scan for a lesson about to be recorded. Returns
+    [{'experiment_name', 'dims', 'matched'}] sorted by dims desc, for records matching the
+    candidate on >= min_dims of the five dimensions. The write door uses it as an ADVISORY
+    (4-5 dims: 'update the existing one instead'; 2-3: 'flag for consolidation') -- it never
+    blocks a write (append-only ethos; the consolidation pass merges later)."""
+    cand = _dims_of({"what_tried": signal.get("what_tried"),
+                     "expected": signal.get("expected_outcome"),
+                     "recommendation": signal.get("recommendation"),
+                     "actual": signal.get("actual_outcome"),
+                     "root_cause": signal.get("root_cause"),
+                     "category": signal.get("category"),
+                     "anti_pattern": signal.get("anti_pattern")})
+    out: List[Dict[str, Any]] = []
+    for rec in existing or []:
+        name = str(rec.get("experiment_name") or "")
+        if not name or name == exclude_name:
+            continue
+        theirs = _dims_of(rec)
+        matched = [d for d in cand if _overlap(cand[d], theirs[d]) >= threshold]
+        if len(matched) >= min_dims:
+            out.append({"experiment_name": name, "dims": len(matched), "matched": matched})
+    out.sort(key=lambda r: r["dims"], reverse=True)
+    return out
+
+
 def is_graduated(rec: Dict[str, Any]) -> bool:
     """True when a lesson's rule is enforced by automation (see mark_graduated). The contract:
     graduated lessons stay OUT of recall SURFACES (recall-at cache, boot ranking) but stay IN

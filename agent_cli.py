@@ -216,6 +216,15 @@ def cmd_learn(args):
         "confidence": args.confidence or "medium",
         "anti_pattern": _clip(getattr(args, "anti_pattern", ""), 200),
     }
+    related = []
+    try:   # near-duplicate scan BEFORE recording (advisory only -- writes are never blocked)
+        from core.learning.learning_store import find_related
+        ls = get_learning_store()
+        if not ls._load_experiment(signal["experiment_name"]):   # a re-record IS the update path
+            related = find_related(signal, ls.load_all_learnings_from_store(),
+                                   exclude_name=signal["experiment_name"])
+    except Exception:
+        related = []
     try:
         ok = get_learning_store().record_learning(signal)
     except Exception as e:
@@ -262,6 +271,19 @@ def cmd_learn(args):
             print("[hint] if this failure names a reusable known-bad, tag it so recall can warn others:")
             print(f"       py agent_cli.py tag-anti-pattern {args.agent_id} "
                   f"--experiment {signal['experiment_name']} --name {slug}   (edit the name if a better fits)")
+    # Near-duplicate advisory (ce-compound's overlap rule, field-survey C5): 4-5 dims -> this is
+    # probably the SAME lesson, update that one next time (same --experiment name = update);
+    # 2-3 dims -> related, worth merging in a consolidation pass. Never blocks (append-only).
+    if ok and not args.json and related:
+        top = related[0]
+        if top["dims"] >= 4:
+            print(f"[i] near-duplicate: overlaps '{top['experiment_name']}' on {top['dims']}/5 dimensions"
+                  f" ({', '.join(top['matched'])}).")
+            print(f"    Next time update it instead: re-record with --experiment {top['experiment_name']}"
+                  " (same name = update, no dupes).")
+        else:
+            print(f"[i] related lesson: '{top['experiment_name']}' ({top['dims']}/5 dims)"
+                  " -- candidates for a future consolidation pass.")
     return 0 if ok else 1
 
 
@@ -338,6 +360,35 @@ def cmd_recall_at(args):
         print(json.dumps(res, default=str)); return 0
     out = render(res)
     print(out if out else "# recall-at-action: nothing relevant (silence beats a weak hint)")
+    return 0
+
+
+# --------------------------------------------------------------------- injections
+def cmd_injections(args):
+    """The injection ledger: everything recall PUSHED into agent contexts recently -- when,
+    at which altitude (action/plan), for which target, which lessons, and what it cost.
+    Injected context must never be hidden state; this is the inspection window."""
+    from core.recall.at_action import recent_injections
+    hours = float(args.hours or 24)
+    inj = recent_injections(hours)
+    if args.json:
+        print(json.dumps({"window_hours": hours, "count": len(inj),
+                          "tokens_approx": sum(int(i.get("chars", 0)) for i in inj) // 4,
+                          "injections": inj}, indent=2))
+        return 0
+    print(f"# INJECTION LEDGER  (last {hours:g}h: {len(inj)} injection(s), "
+          f"~{sum(int(i.get('chars', 0)) for i in inj) // 4} tokens pushed)")
+    if not inj:
+        print("  (none -- either quiet, or nothing cleared the relevance floor)")
+        return 0
+    import datetime as _dt
+    for i in inj[-25:]:
+        when = _dt.datetime.fromtimestamp(float(i.get("at", 0))).strftime("%m-%d %H:%M")
+        tgt = _human_flip_target(i.get("t", "")) if i.get("t") else "(prompt)"
+        print(f"  [{when}] {i.get('alt', 'action'):<6} {_clip(tgt, 60)}  "
+              f"{len(i.get('s', []))} lesson(s), {i.get('chars', 0)} chars")
+        for s in i.get("s", [])[:3]:
+            print(f"           - {s}")
     return 0
 
 
@@ -660,6 +711,9 @@ def cmd_stats(args):
     if window["flips_corpus_gap"] and not window["lessons_recorded"]:
         print("  hint: flips happened where NO stored lesson helped and nothing was recorded --"
               " `wrap` has pre-filled candidates.")
+    if window.get("injections"):
+        print(f"  push cost last {hours:g}h: {window['injections']} injection(s), "
+              f"~{window['injected_tokens_approx']} tokens -- `injections` for the ledger")
     if tr:
         print(f"\nTREND (last {tr['days']}d, durable records: lesson timestamps + flip events)")
         for b in tr["per_day"]:
@@ -1439,6 +1493,11 @@ def build_parser():
     rf.add_argument("--useful", action="store_true", help="it changed what you did (default)")
     rf.add_argument("--noise", action="store_true", help="it was off-target")
     rf.set_defaults(fn=cmd_recall_feedback)
+
+    ij = sub.add_parser("injections", help="the injection ledger: what recall pushed into contexts + cost")
+    ij.add_argument("--hours", type=float, default=24, help="window (default 24)")
+    ij.add_argument("--json", action="store_true")
+    ij.set_defaults(fn=cmd_injections)
 
     gr = sub.add_parser("graduate",
                         help="retire a lesson from recall surfacing -- automation now enforces its rule")

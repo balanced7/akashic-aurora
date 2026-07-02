@@ -1,0 +1,83 @@
+#!/usr/bin/env python3
+"""Claude Code UserPromptSubmit hook -> PLAN-TIME recall (field-survey C3).
+
+Review leverage runs research > plan > code: a lesson injected at PreToolUse arrives AFTER
+the plan is committed and can only save the line in front of the agent. This hook surfaces
+the corpus BEFORE planning starts, ranked against the user's prompt itself -- the highest
+altitude the harness offers per-turn.
+
+Discipline (same rules as every recall surface):
+  - top 2 only, relevance-floored, FAITH-gated, silent-when-empty (recall_at does all of it)
+  - SHARED anti-repeat with the PreToolUse hook (one seen-file per session): a lesson shown
+    at plan time never re-injects at action time, and vice versa
+  - logged to the injection ledger with altitude="plan" (inspectable, cost-measured)
+  - scope: repo or home-dir sessions only (the SessionStart whisper's tiering) -- unrelated
+    projects stay unpolluted
+  - fail-OPEN, kill switch AKASHIC_PLAN_RECALL=0
+
+NOTE on crediting: plan-time impressions bump `surfaced` counters but open NO action-target
+impression, so they can earn explicit useful/noise votes but never an implicit 'helped'
+(there is no target to join a flip against). This DILUTES value rate by design honesty --
+the ledger's altitude field keeps per-altitude analysis possible.
+
+Wire (user-level absolute path; the "*" matcher is REQUIRED -- lifecycle entries without one
+may be silently skipped):
+  {"hooks":{"UserPromptSubmit":[{"matcher":"*","hooks":[
+    {"type":"command","command":"py E:/AI-Setup/scripts/hooks/claude_userpromptsubmit.py"}]}]}}
+"""
+import json
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+
+def build_plan_recall(prompt: str, session_id: str, agent_id: str) -> str:
+    """The plan-altitude context block for this prompt, or "" for silence."""
+    if os.getenv("AKASHIC_PLAN_RECALL", "1") == "0":
+        return ""
+    if not (prompt or "").strip():
+        return ""
+    from core.recall.at_action import recall_at, render, log_injection
+    from scripts.hooks.claude_pretooluse import _load_seen, _mark_seen
+    res = recall_at(command=prompt, agent_id=agent_id, limit=2,
+                    exclude_sources=_load_seen(session_id), count_surface=True)
+    out = render(res, header="Plan-time recall (Akashic) - corpus knowledge relevant to this request:")
+    if not out:
+        return ""
+    srcs = [l.get("source") for l in res.get("lessons", [])]
+    _mark_seen(session_id, srcs)
+    log_injection(session_id, "plan", "", srcs, len(out))
+    return out
+
+
+def main() -> int:
+    try:
+        data = json.load(sys.stdin)
+    except Exception as e:
+        print(f"[plan-recall] stdin unparseable: {type(e).__name__}: {e}", file=sys.stderr)
+        return 0
+    try:
+        from scripts.hooks.claude_sessionstart import _under_root, _is_home
+        cwd = data.get("cwd") or os.getcwd()
+        if not (_under_root(cwd) or _is_home(cwd)):
+            if os.getenv("AKASHIC_DEBUG"):
+                print(f"[plan-recall] out of scope: cwd={cwd!r}", file=sys.stderr)
+            return 0   # unrelated project -> full silence
+        ctx = build_plan_recall(data.get("prompt") or "",
+                                data.get("session_id") or "",
+                                os.getenv("AKASHIC_AGENT_ID") or "claude")
+        if ctx:
+            print(json.dumps({"hookSpecificOutput": {
+                "hookEventName": "UserPromptSubmit",
+                "additionalContext": ctx,
+            }}))
+    except Exception as e:
+        # fail-OPEN for the agent, but never SILENT for the operator: a swallowed error here
+        # cost a debugging session on 2026-07-02. stderr is invisible to the model.
+        print(f"[plan-recall] suppressed: {type(e).__name__}: {e}", file=sys.stderr)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

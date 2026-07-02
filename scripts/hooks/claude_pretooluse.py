@@ -81,7 +81,9 @@ def _emit_context(text: str) -> None:
 
 # --- anti-repeat: a lesson already surfaced THIS session must not be shown again. The hook is a
 # fresh process per call, so shown lesson-sources are tracked in a per-session file keyed by session_id.
-_SEEN_DIR = os.path.join(tempfile.gettempdir(), "akashic_recall", "seen")
+# State root honors AKASHIC_RECALL_STATE_DIR (test isolation; keep in sync with core/recall/at_action.py).
+_STATE_ROOT = os.getenv("AKASHIC_RECALL_STATE_DIR") or os.path.join(tempfile.gettempdir(), "akashic_recall")
+_SEEN_DIR = os.path.join(_STATE_ROOT, "seen")
 
 
 def _seen_path(session_id: str) -> str:
@@ -126,7 +128,8 @@ def _recall_context(data) -> str:
         return ""
     session_id = data.get("session_id") or ""
     try:
-        from core.recall.at_action import recall_at, render, mark_impression, normalize_target
+        from core.recall.at_action import (recall_at, render, mark_impression, normalize_target,
+                                           log_injection)
         res = recall_at(path=path or None, command=command or None,
                         agent_id=os.getenv("AKASHIC_AGENT_ID"),
                         exclude_sources=_load_seen(session_id), count_surface=True)
@@ -134,8 +137,11 @@ def _recall_context(data) -> str:
         if out:
             srcs = [l.get("source") for l in res.get("lessons", [])]
             _mark_seen(session_id, srcs)
+            target = normalize_target(path or None, command or None)
             # open impression for the implicit FAIL->SUCCESS credit (resolved by the PostToolUse hook)
-            mark_impression(session_id, normalize_target(path or None, command or None), srcs)
+            mark_impression(session_id, target, srcs)
+            # injection ledger: pushed context must be inspectable + cost-measurable (survey C4)
+            log_injection(session_id, "action", target, srcs, len(out))
         return out
     except Exception:
         return ""   # recall must never brick the action

@@ -25,6 +25,14 @@ py agent_cli.py learn <your_agent_id> --experiment SHORT_NAME \
 Record real lessons only (a fix that worked, an approach that failed, a gotcha).
 Re-recording the same `--experiment` name UPDATES it (no duplicates) -- safe.
 
+Write the recommendation **trigger-phrased** -- `"Use when <symptom>, before <action>:
+<advice>. Don't when <contraindication>."` -- a lesson fires at the right moment only if
+its text says when that moment is. Put failed approaches in `--tried` (what did NOT work
+saves the next agent the most). **When the human corrects you, that is a lesson too**:
+record it immediately with `--category correction`, don't just comply and move on. The
+door warns on near-duplicates (5-dimension overlap) -- heed it and update the existing
+experiment instead of minting a twin.
+
 ## To search memory mid-task:
 
 ```

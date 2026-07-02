@@ -222,6 +222,14 @@ def stats(hours: float = 24, days: int = 0) -> str:
 
 
 @mcp.tool()
+def injections(hours: float = 24) -> str:
+    """The injection ledger: everything recall pushed into agent contexts in the window --
+    when, at which altitude (action/plan), for which target, which lessons, and the
+    approximate token cost. Injected context is never hidden state."""
+    return _run(agent_cli.cmd_injections, hours=hours)
+
+
+@mcp.tool()
 def graduate(agent: str, experiment: str, enforced_by: str = "", undo: bool = False) -> str:
     """Retire a lesson from recall surfacing because AUTOMATION now enforces its rule (a hook,
     guardrail, or CI check). It keeps full history and stays in list/recall with a [graduated]

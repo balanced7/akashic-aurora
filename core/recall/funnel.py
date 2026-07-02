@@ -45,6 +45,7 @@ def _parse_ts(s: Any) -> Optional[datetime]:
 
 def snapshot(hours: float = 24.0, *, store: Any = None, learning_store: Any = None,
              flips: Optional[List[Dict[str, Any]]] = None,
+             injections: Optional[List[Dict[str, Any]]] = None,
              now: Optional[datetime] = None) -> Dict[str, Any]:
     """All-time funnel counters + one recent window. The dict `stats` prints verbatim."""
     if store is None:
@@ -88,12 +89,21 @@ def snapshot(hours: float = 24.0, *, store: Any = None, learning_store: Any = No
         except Exception:
             flips = []
     credited = sum(1 for f in flips if f.get("credited"))
+    if injections is None:
+        try:
+            from core.recall.at_action import recent_injections
+            injections = recent_injections(hours)
+        except Exception:
+            injections = []
     # 'lessons_per_flip' not 'capture rate': recorded lessons are NOT all flip-caused, so a
     # ratio over 1.0 is legitimate -- the name must not lie.
     window = {"flips": len(flips), "flips_credited": credited,
               "flips_corpus_gap": len(flips) - credited,
               "lessons_recorded": len(new_lessons),
-              "lessons_per_flip": (round(len(new_lessons) / len(flips), 2) if flips else None)}
+              "lessons_per_flip": (round(len(new_lessons) / len(flips), 2) if flips else None),
+              # what the push side COSTS (the Ronacher dissent: measure it): count + ~tokens
+              "injections": len(injections),
+              "injected_tokens_approx": sum(int(i.get("chars", 0)) for i in injections) // 4}
     # Value rate = (useful + helped) / surfaced: of everything recall pushed, how much earned
     # credit. The one steering ratio (Greptile managed its whole noise war by the analogous
     # address rate, 19%->55%). OBSERVABILITY ONLY -- never feed it back into ranking as an
