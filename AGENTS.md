@@ -40,10 +40,11 @@ py agent_cli.py recall-at --path <file>          # or: --command "<shell cmd>"
 
 Returns the few highest-signal ACTIVE lessons + any peer lock on that path, with
 `source` pointers -- the right knowledge AT THE MOMENT you act (silent when nothing is
-relevant; never padded). If you launched Claude FROM the repo, the PreToolUse hook does
-this automatically. In the **read-bootstrap flow (launched from elsewhere)** the hook
-can't fire -- so make this a habit before an Edit/Write/Bash on a repo file. Cheap,
-deterministic, fail-soft.
+relevant; never padded). **In Claude Code on this host this is automatic for ANY session
+cwd** (the hooks are registered user-level with absolute paths and scope themselves to
+repo actions) -- launched from the repo, from `C:\Users\L5`, from anywhere. Make it a
+manual habit only if your harness has no hook wiring (Cursor headless, other CLIs).
+Cheap, deterministic, fail-soft.
 
 **Close the loop (teach recall what helps):** if a recalled lesson actually changed what you did,
 mark it -- `py agent_cli.py recall-feedback --source <its source> --useful` (or `--noise` if it was
@@ -144,6 +145,9 @@ any time with: `py -c "import redis; redis.Redis(port=16379,db=15).flushdb()"`.
 ## Details (optional)
 
 - **Use `py`, not `python`** on this Windows host (the `python` alias may be unset).
+- **Launched from outside the repo?** Some harness shells reset cwd between calls --
+  prefix repo commands with `Set-Location E:\AI-Setup; ` (PowerShell) / `cd E:/AI-Setup && `
+  (bash), or the relative paths in the commands above won't resolve.
 - **Fail-soft:** if the database (Redis) is down, everything still works off local
   files -- you never need to check or start it.
 - **`--json`** on any command gives machine-readable output if you'd rather parse it.

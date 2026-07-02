@@ -2,8 +2,11 @@
 """Claude Code PreToolUse hook -> git-safety guard (Concurrency design C0).
 
 Wire it in .claude/settings.json (project-launch, relative path):
-  {"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[
+  {"hooks":{"PreToolUse":[{"matcher":"Bash|PowerShell","hooks":[
     {"type":"command","command":"py scripts/hooks/claude_pretooluse.py"}]}]}}
+(PowerShell is the harness's PRIMARY shell tool on Windows -- a Bash-only matcher routes every
+shell command around the guard/recall/credit pipeline entirely. Matchers, the tool filter in
+main(), and _in_scope must all know a new shell tool, or it is invisible.)
 Or register at the USER level with an ABSOLUTE path so it fires for EVERY session launched from
 any cwd (the read-bootstrap flow), e.g. command "py E:/AI-Setup/scripts/hooks/claude_pretooluse.py".
 The _in_scope() guard makes it a silent no-op outside this repo, so global registration is safe.
@@ -47,10 +50,10 @@ def _under_root(p: str) -> bool:
 
 def _in_scope(tool: str, data) -> bool:
     """True iff this action belongs to THIS repo, so a global registration is a silent no-op
-    elsewhere. Edit/Write: the target file is under the repo (the strongest signal). Bash: the
-    session cwd is in the repo, or the command clearly invokes it (agent_cli.py / an AI-Setup path).
-    In a project-launched session (cwd = repo) both branches are naturally True, so behavior is
-    unchanged from before."""
+    elsewhere. Edit/Write: the target file is under the repo (the strongest signal). Shell tools
+    (Bash/PowerShell): the session cwd is in the repo, or the command clearly invokes it
+    (agent_cli.py / an AI-Setup path). In a project-launched session (cwd = repo) both branches
+    are naturally True, so behavior is unchanged from before."""
     ti = data.get("tool_input") or {}
     if tool in ("Edit", "Write", "NotebookEdit"):
         return _under_root(ti.get("file_path") or "")
@@ -178,11 +181,11 @@ def main() -> int:
     except Exception:
         return 0   # unparseable -> allow
     tool = data.get("tool_name") or ""
-    if tool not in ("Bash", "Edit", "Write", "NotebookEdit"):
+    if tool not in ("Bash", "PowerShell", "Edit", "Write", "NotebookEdit"):
         return 0
     if not _in_scope(tool, data):
         return 0   # outside this repo -> silent no-op (safe for user-level / global registration)
-    if tool == "Bash":
+    if tool in ("Bash", "PowerShell"):
         reason = _check_bash(data)
     else:
         reason = _check_write(data)

@@ -41,7 +41,8 @@ def _transcript_path():
 
 @pytest.mark.parametrize("name", ["posttooluse_bash_success.json",
                                   "posttooluse_edit_success.json",
-                                  "posttooluse_write_success.json"])
+                                  "posttooluse_write_success.json",
+                                  "posttooluse_powershell_success.json"])
 def test_live_success_payloads_are_success(name):
     assert hook._is_success(_load(name)) is True
 
@@ -158,6 +159,44 @@ def test_main_posttoolusefailure_records_fail_and_watermarks(tmp_path, monkeypat
 def test_main_out_of_scope_is_silent(tmp_path, monkeypatch):
     data = _load("posttooluse_bash_success.json")
     data["tool_input"]["command"] = "echo unrelated"
+    data["cwd"] = "C:\\Somewhere\\Else"
+    calls = []
+    _run_main(monkeypatch, data, calls, tmp_path)
+    assert calls == []
+
+
+# --- 5. PowerShell: the Windows harness's PRIMARY shell tool goes through the same pipeline -------
+# (2026-07-02 blindspot: Bash-only matchers + filters made every PowerShell command invisible to
+# recall/credit.) posttooluse_powershell_success.json is a LIVE capture (2026-07-02, same session
+# the blindspot was found): tool_response = {stdout, stderr, interrupted, isImage} -- Bash's shape
+# minus noOutputExpected, and like Bash it carries NO error/exit markers.
+
+def _powershell_payload_for(command):
+    data = _load("posttooluse_powershell_success.json")
+    data["tool_input"]["command"] = command
+    data["transcript_path"] = _transcript_path()
+    data["session_id"] = "contract-e2e"
+    return data
+
+
+def test_powershell_success_payload_has_no_error_markers():
+    """Same pin as Bash: if outcome markers ever appear, _is_success can get direct signal."""
+    tr = _load("posttooluse_powershell_success.json")["tool_response"]
+    for marker in ("is_error", "error", "success", "exit_code", "exitCode", "returncode", "code"):
+        assert marker not in tr
+
+
+def test_main_powershell_flip_credits_like_bash(tmp_path, monkeypatch):
+    cmd = "cd E:/AI-Setup && py probe_thing.py --flag"    # transcript's failed-then-retried target
+    tgt = normalize_target(None, cmd)
+    calls = []
+    _run_main(monkeypatch, _powershell_payload_for(cmd), calls, tmp_path)
+    assert calls == [("contract-e2e", tgt, False), ("contract-e2e", tgt, True)], \
+        "a PowerShell success after a transcript failure must flip exactly like Bash"
+
+
+def test_main_powershell_out_of_scope_is_silent(tmp_path, monkeypatch):
+    data = _powershell_payload_for("echo unrelated")
     data["cwd"] = "C:\\Somewhere\\Else"
     calls = []
     _run_main(monkeypatch, data, calls, tmp_path)

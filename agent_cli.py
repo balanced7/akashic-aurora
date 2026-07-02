@@ -22,7 +22,8 @@ Design notes:
   * Front-loaded: the most useful output is in the FIRST lines (a 50-line reader
     still gets the gist).
   * Fail-soft: Redis down -> File fallback. Never crashes on a missing backend.
-  * ASCII only: safe on the Windows console (cp1252).
+  * ASCII-only AUTHORED output; stdout/stderr are forced to UTF-8 (errors=replace) so
+    STORED text from peers (em-dashes etc.) survives Windows pipes without mojibake.
   * Robust at the seam: partial / empty / None / huge inputs are sanitized, not fatal.
 """
 import argparse
@@ -32,6 +33,15 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # make `core`/`agent` importable
+
+# Harness pipes and CI read this output as UTF-8, but a Windows PIPE defaults to cp1252 --
+# a peer agent's em-dash rendered as U+FFFD mojibake at every boot (2026-07-02 friction log).
+# Authored output stays ASCII (module docstring); this keeps STORED text faithful in transit.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass   # non-reconfigurable stream (exotic wrapper/capture) -> old behavior, still safe
 
 _MAX = 4000   # clamp absurdly long fields an agent might paste
 
@@ -154,6 +164,12 @@ def cmd_boot(args):
             print("\n## RECENT NOTES (durable project memory)")
             for d in notes[:6]:
                 print(f"  [{d.created_at[:10]}] {d.title}: {_clip(d.decision, 110)}")
+    except Exception:
+        pass
+    try:   # T3: one-line funnel pulse -- watch the loop's trend without a separate command
+        from core.recall.funnel import snapshot, summary_line
+        print("\n## FUNNEL (recall value -- full: py agent_cli.py stats --days 7)")
+        print("  " + summary_line(snapshot(hours=7 * 24)))
     except Exception:
         pass
     try:   # auto-captured last-session draft (SessionEnd/PreCompact) -- a trail if the last end was abrupt
@@ -453,6 +469,24 @@ def cmd_notes(args):
 
 
 # ----------------------------------------------------------------------------- wrap
+def _human_flip_target(target):
+    """normalize_target keys (p:<abs path> / c:<command>) are JOIN keys, not prose -- the draft
+    renders what a human recognizes: a repo-relative path or the command line itself."""
+    s = str(target)
+    if s.startswith("p:"):
+        p = s[2:]
+        try:
+            rel = os.path.relpath(p, os.getenv("AI_SETUP", "E:\\AI-Setup"))
+            if not rel.startswith(".."):
+                p = rel.replace("\\", "/")
+        except Exception:
+            pass   # different drive / unparseable -> keep the absolute path
+        return "file " + p
+    if s.startswith("c:"):
+        return "command: " + s[2:]
+    return s
+
+
 def build_session_draft(commits, lessons, notes, max_per=8, flips=None):
     """Distill a session's own activity into a DRAFT where-we-are -- PURE (testable). Each line keeps a
     lossless source pointer (git:<sha> / learn:experiment:<name> / mem:decision:<id>). `flips` are the
@@ -482,7 +516,7 @@ def build_session_draft(commits, lessons, notes, max_per=8, flips=None):
             by_target[str(fl.get("t", ""))] = fl
         lines.append("Candidate lessons (FAIL->SUCCESS flips this session -- record the transferable ones):")
         for t, fl in list(by_target.items())[:max_per]:
-            lines.append(f"  - {_clip(t, 90)} (credited: {fl.get('credited', 0)})")
+            lines.append(f"  - {_clip(_human_flip_target(t), 100)} (credited: {fl.get('credited', 0)})")
             lines.append(f"    {learn_command_for(t)}")
     return "\n".join(lines) if lines else "(no session activity captured)"
 
@@ -551,69 +585,45 @@ def cmd_wrap(args):
 
 def cmd_stats(args):
     """The recall-value funnel (leapfrog T3): is surfaced knowledge actually HELPING, and are
-    earned lessons being CAPTURED? Reads only what the loop already records -- recall:use:*
-    usefulness counters (all-time), the per-session flip logs, and lesson timestamps. The one
-    number to watch: capture-rate = lessons recorded / flips (a flip is an earned lesson)."""
+    earned lessons being CAPTURED? Computation lives in core/recall/funnel.py (shared with the
+    boot pulse + SessionStart whisper); this renders it. --days N adds a per-day trend from
+    DURABLE records (flip events + lesson timestamps) and the 30d pace vs the Wave-A gate."""
     import json as _json
-    from datetime import datetime, timedelta
-    from core.foundation.store import create_store
-    from core.learning.learning_store import get_learning_store
-    from core.recall.at_action import recent_flips
+    from core.recall.funnel import snapshot, trend, TARGET_LESSONS_30D
     hours = float(args.hours or 24)
-    use = {}
-    try:
-        store = create_store()
-        for k in store.keys("recall:use:*"):
-            try:
-                use[k[len("recall:use:"):]] = _json.loads(store.get(k) or "{}")
-            except Exception:
-                pass
-    except Exception:
-        pass
-    surfaced = sum(int(u.get("surfaced", 0)) for u in use.values())
-    helped = sum(int(u.get("helped", 0)) for u in use.values())
-    useful = sum(int(u.get("useful", 0)) for u in use.values())
-    noise = sum(int(u.get("noise", 0)) for u in use.values())
-    with_track = sum(1 for u in use.values() if int(u.get("helped", 0)) or int(u.get("useful", 0)))
-    try:
-        recs = get_learning_store().load_all_learnings_from_store()
-    except Exception:
-        recs = []
-    cutoff = datetime.now() - timedelta(hours=hours)
-
-    def _in_window(r):
-        try:
-            return datetime.fromisoformat(str(r.get("timestamp"))[:19]) >= cutoff
-        except Exception:
-            return False
-
-    new_lessons = [r for r in recs if _in_window(r)]
-    flips = recent_flips(hours)
-    credited = sum(1 for f in flips if f.get("credited"))
-    # 'lessons_per_flip' not 'capture rate': recorded lessons are NOT all flip-caused, so a ratio
-    # over 1.0 is legitimate -- the name must not lie. ASCII-only output (Windows console cp1252).
-    window = {"flips": len(flips), "flips_credited": credited,
-              "flips_corpus_gap": len(flips) - credited,
-              "lessons_recorded": len(new_lessons),
-              "lessons_per_flip": (round(len(new_lessons) / len(flips), 2) if flips else None)}
-    out = {"corpus_lessons": len(recs), "tracked_sources": len(use),
-           "surfaced_impressions": surfaced, "votes": {"useful": useful, "noise": noise},
-           "helped_credits": helped, "lessons_with_track_record": with_track,
-           "window_hours": hours, "window": window}
+    out = snapshot(hours=hours)
+    days = getattr(args, "days", None)
+    tr = trend(days=days) if days else None
     if getattr(args, "json", False):
+        if tr:
+            out = {**out, "trend": tr}
         print(_json.dumps(out, indent=2))
         return 0
+    use_n, window = out["tracked_sources"], out["window"]
     print("RECALL-VALUE FUNNEL  (all-time counters + a recent window)")
-    print(f"  corpus: {len(recs)} lesson(s), {len(use)} tracked by recall")
-    print(f"  surfaced impressions: {surfaced} | votes: useful={useful} noise={noise}")
-    print(f"  helped credits (flips that credited a surfaced lesson): {helped}")
-    print(f"  lessons with a track record (helped or useful > 0): {with_track}")
+    print(f"  corpus: {out['corpus_lessons']} lesson(s), {use_n} tracked by recall")
+    print(f"  surfaced impressions: {out['surfaced_impressions']} | "
+          f"votes: useful={out['votes']['useful']} noise={out['votes']['noise']}")
+    print(f"  helped credits (flips that credited a surfaced lesson): {out['helped_credits']}")
+    print(f"  lessons with a track record (helped or useful > 0): {out['lessons_with_track_record']}")
     print(f"  last {hours:g}h: flips={window['flips']} (credited={window['flips_credited']}, "
           f"corpus-gap={window['flips_corpus_gap']}) | lessons recorded={window['lessons_recorded']}"
           f" | lessons-per-flip={window['lessons_per_flip']}")
     if window["flips_corpus_gap"] and not window["lessons_recorded"]:
         print("  hint: flips happened where NO stored lesson helped and nothing was recorded --"
               " `wrap` has pre-filled candidates.")
+    if tr:
+        print(f"\nTREND (last {tr['days']}d, durable records: lesson timestamps + flip events)")
+        for b in tr["per_day"]:
+            bar = "#" * min(b["lessons"], 40)
+            print(f"  {b['date']}  lessons={b['lessons']:<3} flips={b['flips']:<3} "
+                  f"credited={b['credited']:<3} {bar}")
+        pace = tr["lessons_30d"] / 30.0
+        need = TARGET_LESSONS_30D / 30.0
+        print(f"  30d pace: {tr['lessons_30d']} recorded vs target {tr['target_30d']} "
+              f"({pace:.1f}/day vs {need:.1f}/day needed)")
+        if tr["events_capped"]:
+            print("  note: event scan hit its cap -- older flips may be missing from the trend.")
     return 0
 
 
@@ -1412,6 +1422,8 @@ def build_parser():
 
     sts = sub.add_parser("stats", help="recall-value funnel: surfaced -> helped -> flips -> captured")
     sts.add_argument("--hours", type=float, default=24, help="window for flips/lessons-recorded (default 24)")
+    sts.add_argument("--days", type=int, default=None,
+                     help="ALSO print a per-day trend over N days (durable records) + the 30d pace")
     sts.add_argument("--json", action="store_true")
     sts.set_defaults(fn=cmd_stats)
 

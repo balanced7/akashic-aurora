@@ -172,6 +172,7 @@ def test_session_draft_dedupes_repeated_flip_target():
              {"t": "c:py probe.py", "credited": 2, "s": ["learn:experiment:a"], "at": 2.0},
              {"t": "p:/other.py", "credited": 0, "s": [], "at": 3.0}]
     d = agent_cli.build_session_draft([], [], [], flips=flips)
-    assert d.count("c:py probe.py") == 1, "one candidate per target, not one per retry"
+    assert d.count("command: py probe.py") == 1, "one candidate per target, not one per retry"
+    assert "c:py probe.py" not in d, "the raw join key never reaches the human draft"
     assert "(credited: 2)" in d, "the LAST flip's credited count wins"
     assert d.count("py agent_cli.py learn") == 2

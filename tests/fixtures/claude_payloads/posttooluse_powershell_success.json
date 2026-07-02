@@ -1,0 +1,24 @@
+{
+ "session_id": "5804071d-88cf-433c-8bf5-5401b8b23534",
+ "transcript_path": "C:\\Users\\L5\\.claude\\projects\\C--Users-L5\\5804071d-88cf-433c-8bf5-5401b8b23534.jsonl",
+ "cwd": "C:\\Users\\L5",
+ "prompt_id": "758e6d6b-a3c0-440d-b58a-50ca67a5bd5f",
+ "permission_mode": "bypassPermissions",
+ "effort": {
+  "level": "max"
+ },
+ "hook_event_name": "PostToolUse",
+ "tool_name": "PowerShell",
+ "tool_input": {
+  "command": "Set-Location E:\\AI-Setup; py -m pytest tests/test_git_guard.py tests/test_claude_hook_contract.py -q 2>&1 | Select-Object -Last 5",
+  "description": "Run git-guard and hook-contract tests"
+ },
+ "tool_response": {
+  "stdout": "...............................................                          [100%]",
+  "stderr": "\nShell cwd was reset to C:\\Users\\L5",
+  "interrupted": false,
+  "isImage": false
+ },
+ "tool_use_id": "toolu_01EnLZ84dyC4r3zK7v4q3LZg",
+ "duration_ms": 778
+}

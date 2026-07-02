@@ -1,28 +1,150 @@
 #!/usr/bin/env python3
-"""Claude Code SessionStart hook -> pre-warm recall-at-action + prune stale session state.
+"""Claude Code SessionStart hook -> light auto-boot + pre-warm recall + prune stale state.
 
-Wire it in .claude/settings.json (project-launch, relative path):
-  {"hooks":{"SessionStart":[{"hooks":[
+Wire it in .claude/settings.json (project-launch, relative path -- the "*" matcher is
+REQUIRED: session-lifecycle entries without one are silently skipped):
+  {"hooks":{"SessionStart":[{"matcher":"*","hooks":[
     {"type":"command","command":"py scripts/hooks/claude_sessionstart.py"}]}]}}
+Or user-level with an ABSOLUTE path (fires for every session, any cwd).
 
-At session start it (a) force-refreshes the recall lesson-item cache so the FIRST edit is already
-warm (no cold-load hint-delay), and (b) prunes per-session anti-repeat files older than a week.
-Silent and fail-OPEN -- a warm-up must never delay or break session start. (The read-bootstrap
-flow also warms via `agent_cli.py boot`, so this is the repo-launch path's belt-and-suspenders.)
+Friction audit D2 / fix #2: SessionStart used to only warm the cache -- context still
+required remembering to run `boot` (diligence decays; the cue must come TO the agent).
+This hook now injects a LIGHT context whisper via additionalContext, tiered by where
+the session started, because context rot is real and unrelated projects deserve silence:
+
+  cwd in the repo, or cwd == the user home dir (the read-bootstrap flow's launch point):
+      a compact whisper -- newest note titles, the funnel pulse, unread bus mail, a
+      fresh last-session-draft pointer, and the one-hop full-boot command. <= ~10 lines.
+  anywhere else:
+      SILENT unless something is genuinely NEW (unread mail / fresh draft) -- then one
+      line pointing home. Never a standing banner in unrelated projects.
+
+Full boot stays one hop away and remains the ritual (this whisper never replaces it --
+it makes forgetting it cheap instead of costly). Kill switch: AKASHIC_AUTOBOOT=0.
+Fail-OPEN and silent on ANY error -- session start must never be delayed or broken.
 """
+import json
 import os
 import sys
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+_ROOT = os.path.normcase(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+_ROOT_RAW = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_DRAFT_FRESH_SECS = 2 * 86400
+
+
+def _under_root(p: str) -> bool:
+    if not p:
+        return False
+    try:
+        a = os.path.normcase(os.path.abspath(p))
+    except Exception:
+        return False
+    return a == _ROOT or a.startswith(_ROOT + os.sep)
+
+
+def _is_home(p: str) -> bool:
+    """The read-bootstrap flow launches from the user home dir EXACTLY. Children of home
+    (Desktop/Projects/...) are other projects and must NOT match."""
+    try:
+        return os.path.normcase(os.path.abspath(p or "")) == os.path.normcase(os.path.expanduser("~"))
+    except Exception:
+        return False
+
+
+def _notes_line(limit: int = 3) -> str:
+    from core.learning.agent_memory import get_agent_memory
+    notes = get_agent_memory().get_decisions(days=60)[:limit]
+    if not notes:
+        return ""
+    return "notes: " + "; ".join(f"{d.title} [{str(d.created_at)[5:10]}]" for d in notes)
+
+
+def _funnel_line() -> str:
+    from core.recall.funnel import snapshot, summary_line
+    return "funnel: " + summary_line(snapshot(hours=7 * 24))
+
+
+def _unread_count(agent_id: str) -> int:
+    from agent.bifrost_pull import collect_boot_bifrost
+    return int((collect_boot_bifrost(agent_id, limit=8) or {}).get("pending", 0) or 0)
+
+
+def _draft_fresh() -> bool:
+    p = os.path.join(_ROOT_RAW, "chronicles", "last-session-draft.md")
+    try:
+        return os.path.isfile(p) and (time.time() - os.path.getmtime(p)) < _DRAFT_FRESH_SECS
+    except Exception:
+        return False
+
+
+def build_autoboot_context(cwd: str, agent_id: str) -> str:
+    """The whisper text for this session's start point, or "" for silence. Each data pull
+    is independently fail-soft: a broken piece drops out, it never blanks the rest."""
+    if os.getenv("AKASHIC_AUTOBOOT", "1") == "0":
+        return ""
+    home_or_repo = _under_root(cwd) or _is_home(cwd)
+
+    unread = 0
+    try:
+        unread = _unread_count(agent_id)
+    except Exception:
+        pass
+    fresh_draft = _draft_fresh()
+
+    if not home_or_repo:
+        if not unread and not fresh_draft:
+            return ""   # unrelated project, nothing new -> full silence
+        bits = []
+        if unread:
+            bits.append(f"{unread} unread bus msg(s)")
+        if fresh_draft:
+            bits.append("a fresh last-session draft")
+        return (f"[akashic] {' and '.join(bits)} waiting -- "
+                f"py agent_cli.py boot {agent_id} --task \"...\"  (repo: {_ROOT_RAW})")
+
+    lines = [f"[akashic] Akashic Aurora memory (light auto-boot; full context: "
+             f"py agent_cli.py boot {agent_id} --task \"<this slice>\")"]
+    for build in (_notes_line, _funnel_line):
+        try:
+            piece = build()
+            if piece:
+                lines.append("  " + piece)
+        except Exception:
+            pass
+    if unread:
+        lines.append(f"  mail: {unread} unread -> py agent_cli.py bifrost-sync {agent_id}")
+    if fresh_draft:
+        lines.append("  draft: chronicles/last-session-draft.md -> review; promote with "
+                     "`py agent_cli.py wrap --commit`")
+    if len(lines) == 1:
+        return ""   # nothing behind the header -> stay silent rather than print a banner
+    return "\n".join(lines)
+
 
 def main() -> int:
+    try:
+        data = json.load(sys.stdin)
+    except Exception:
+        data = {}
     try:
         from core.recall.at_action import warm_cache, prune_state
         warm_cache()
         prune_state()
     except Exception:
         pass   # warm-up is best-effort; never block session start
+    try:
+        ctx = build_autoboot_context(data.get("cwd") or os.getcwd(),
+                                     os.getenv("AKASHIC_AGENT_ID") or "claude")
+        if ctx:
+            print(json.dumps({"hookSpecificOutput": {
+                "hookEventName": "SessionStart",
+                "additionalContext": ctx,
+            }}))
+    except Exception:
+        pass   # the whisper is a bonus; silence beats a broken session start
     return 0
 
 

@@ -64,7 +64,7 @@ _ARG_DEFAULTS = dict(
     # handoff
     to=None, note=None, blocker=None, list=False,
     # stats
-    hours=None,
+    hours=None, days=None,
 )
 
 
@@ -211,11 +211,12 @@ def status() -> str:
 
 
 @mcp.tool()
-def stats(hours: float = 24) -> str:
+def stats(hours: float = 24, days: int = 0) -> str:
     """The recall-value funnel: corpus size, surfaced impressions, votes, helped credits,
     and the recent window's flips vs lessons-recorded (capture-rate). The health check for
-    whether recalled knowledge is actually helping and earned lessons are being captured."""
-    return _run(agent_cli.cmd_stats, hours=hours)
+    whether recalled knowledge is actually helping and earned lessons are being captured.
+    days > 0 ALSO prints a per-day trend (durable records) + the 30d pace vs the Wave-A gate."""
+    return _run(agent_cli.cmd_stats, hours=hours, days=(days or None))
 
 
 @mcp.tool()

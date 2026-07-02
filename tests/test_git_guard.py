@@ -92,8 +92,22 @@ def test_claude_hook_allows_pathspec_add():
     assert out.strip() == ""               # silent allow
 
 
+def test_claude_hook_guards_powershell_like_bash():
+    """PowerShell is the harness's PRIMARY shell tool on Windows -- a Bash-only filter would route
+    every shell command around the git guard (the 2026-07-02 blindspot). Same rulebook, both shells."""
+    rc, out = _run_claude({"tool_name": "PowerShell", "tool_input": {"command": "git add -A"}})
+    assert rc == 0
+    assert json.loads(out)["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
 def test_claude_hook_ignores_non_bash_tool():
     rc, out = _run_claude({"tool_name": "Edit", "tool_input": {"file_path": "x"}})
+    assert rc == 0
+    assert out.strip() == ""
+
+
+def test_claude_hook_ignores_unknown_tool():
+    rc, out = _run_claude({"tool_name": "Glob", "tool_input": {"command": "git add -A"}})
     assert rc == 0
     assert out.strip() == ""
 

@@ -1,7 +1,7 @@
 # bootstrap.md — system entry point
 
 > **START HERE.** This orients you in ~3 minutes, then points you to the right doc.
-> Last updated: 2026-06-29.
+> Last updated: 2026-07-02.
 
 > ### 🤖 If you are an AGENT, you don't need this file — use the CLI:
 > ```
@@ -10,8 +10,11 @@
 > py agent_cli.py list                                                 # see all lessons
 > py agent_cli.py recall-at --path <file>                              # relevant lessons/locks BEFORE you edit
 > ```
-> Launched from elsewhere (this read-bootstrap flow)? The PreToolUse hook can't fire,
-> so run `recall-at` yourself before an Edit/Write. Launched from the repo? It's automatic.
+> Hooks (recall-at-action, locks, git-guard, FAIL→SUCCESS credit) are registered at the
+> **user level with absolute paths** on this host, so they fire for ANY session cwd —
+> including this read-bootstrap flow — and stay silent outside the repo (`_in_scope`).
+> Only run `recall-at` by hand if your harness has **no hook wiring at all** (the hooks are
+> Claude-Code-specific; other harnesses follow this contract manually).
 > The full contract is in **`AGENTS.md`** (read that, not the internals). Use `py`,
 > not `python` (the `python` alias may be unset on Windows). Do **not** import the
 > internal Python modules directly — `agent_cli.py` is the supported door.

@@ -70,6 +70,53 @@ def test_full_assembly():
     print(f"  coverage={ctx['coverage']}  ~tokens={ctx['approx_tokens']}/{ctx['token_budget']}  skeleton_entries={len(ctx['skeleton_entries'])}")
 
 
+def test_handoff_retires_once_target_agent_records_a_lesson():
+    """A consumed briefing must stop topping every boot (2026-07-02 friction log): the target's
+    first lesson AFTER the handoff proves the baton changed hands -> the briefing retires."""
+    from context.briefing_loader import load_briefing_from_previous_handoff
+
+    sl = AgentSignalLedger(ledger=FileLedger(tempfile.mkdtemp()))
+    sl.append_signal({"agent_id": "planner", "signal_type": "handoff", "signal_number": 0,
+                      "target_agent": "builder", "task": "build the aggregator",
+                      "timestamp": "2026-06-29T21:00:00"})
+    ls = LearningStore(store=FileStore(os.path.join(tempfile.mkdtemp(), "l.json")))
+
+    # not yet acted on -> surfaces
+    assert load_briefing_from_previous_handoff("builder", signal_ledger=sl, learning_store=ls)
+
+    # a lesson by ANOTHER agent after the handoff does not consume it
+    ls.record_learning({"experiment_name": "other_agent_work", "agent_id": "planner",
+                        "what_tried": "x", "success": "yes", "timestamp": "2026-06-30T09:00:00"})
+    assert load_briefing_from_previous_handoff("builder", signal_ledger=sl, learning_store=ls)
+
+    # a lesson by the TARGET but BEFORE the handoff does not consume it
+    ls.record_learning({"experiment_name": "old_builder_work", "agent_id": "builder",
+                        "what_tried": "x", "success": "yes", "timestamp": "2026-06-28T08:00:00"})
+    assert load_briefing_from_previous_handoff("builder", signal_ledger=sl, learning_store=ls)
+
+    # the target records a lesson AFTER the handoff -> consumed -> retired
+    ls.record_learning({"experiment_name": "builder_gave_back", "agent_id": "builder",
+                        "what_tried": "x", "success": "yes", "timestamp": "2026-06-30T10:00:00"})
+    assert load_briefing_from_previous_handoff("builder", signal_ledger=sl, learning_store=ls) is None
+    print("\n--- handoff retirement ---\n  surfaces until the target gives back a lesson, then retires OK")
+
+
+def test_handoff_without_timestamp_fails_open():
+    """A legacy handoff (no timestamp) must keep surfacing -- losing a live briefing is worse
+    than repeating a stale one."""
+    from context.briefing_loader import load_briefing_from_previous_handoff
+
+    sl = AgentSignalLedger(ledger=FileLedger(tempfile.mkdtemp()))
+    sl.append_signal({"agent_id": "planner", "signal_type": "handoff", "signal_number": 0,
+                      "target_agent": "builder", "task": "no-stamp handoff"})
+    ls = LearningStore(store=FileStore(os.path.join(tempfile.mkdtemp(), "l.json")))
+    ls.record_learning({"experiment_name": "later_work", "agent_id": "builder",
+                        "what_tried": "x", "success": "yes", "timestamp": "2099-01-01T00:00:00"})
+    got = load_briefing_from_previous_handoff("builder", signal_ledger=sl, learning_store=ls)
+    assert got and got["task"] == "no-stamp handoff"
+    print("\n--- handoff fail-open ---\n  timestamp-less handoff keeps surfacing OK")
+
+
 def test_budget_trims():
     mem, ls, cm, sl = _isolated_sources()
     # extra learnings so there's something to trim
@@ -91,6 +138,8 @@ if __name__ == "__main__":
     print("AGGREGATOR TESTS")
     print("=" * 60)
     test_full_assembly()
+    test_handoff_retires_once_target_agent_records_a_lesson()
+    test_handoff_without_timestamp_fails_open()
     test_budget_trims()
     print("\n" + "=" * 60)
     print("ALL AGGREGATOR TESTS PASSED")

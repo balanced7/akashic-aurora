@@ -2,9 +2,14 @@
 """Claude Code PostToolUse hook -> resolve the recall-at-action implicit-useful signal.
 
 Wire it in .claude/settings.json (project-launch, relative path):
-  {"hooks":{"PostToolUse":[{"matcher":"Bash|Edit|Write|NotebookEdit","hooks":[
+  {"hooks":{"PostToolUse":[{"matcher":"Bash|PowerShell|Edit|Write|NotebookEdit","hooks":[
     {"type":"command","command":"py scripts/hooks/claude_posttooluse.py"}]}]}}
 Or user-level with an ABSOLUTE path (same as the PreToolUse hook).
+
+PowerShell is the harness's PRIMARY shell tool on Windows; treat it exactly like Bash (its
+tool_input carries the same `command` field). Its tool_response SHAPE has no pinned fixture yet
+-- _is_success stays conservative (an event arriving at all means success; see below), and the
+auto-capture will grab real PowerShell payloads to pin in tests/fixtures/claude_payloads/.
 
 After a tool runs, if the target (file path / command) JUST FAILED and now SUCCEEDS, the lessons
 recall surfaced for it are credited 'helped' -- the contrastive auto-positive (a first-try success
@@ -49,7 +54,8 @@ def _under_root(p):
 
 
 def _in_scope(tool, data):
-    """Silent no-op outside this repo (so a global registration is safe). Mirrors the PreToolUse guard."""
+    """Silent no-op outside this repo (so a global registration is safe). Mirrors the PreToolUse
+    guard: Edit/Write scope by target file; shell tools (Bash/PowerShell) by cwd or command."""
     ti = data.get("tool_input") or {}
     if tool in ("Edit", "Write", "NotebookEdit"):
         return _under_root(ti.get("file_path") or "")
@@ -276,7 +282,7 @@ def main() -> int:
     except Exception:
         return 0
     tool = data.get("tool_name") or ""
-    if tool not in ("Bash", "Edit", "Write", "NotebookEdit"):
+    if tool not in ("Bash", "PowerShell", "Edit", "Write", "NotebookEdit"):
         return 0
     if not _in_scope(tool, data):
         return 0

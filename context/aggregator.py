@@ -92,7 +92,8 @@ def assemble_context(
     sections: Dict[str, Any] = {}
 
     if agent:
-        briefing = load_briefing_from_previous_handoff(agent, signal_ledger=signal_ledger)
+        briefing = load_briefing_from_previous_handoff(
+            agent, signal_ledger=signal_ledger, learning_store=learning_store)
         if briefing:
             sections["briefing"] = briefing
 
