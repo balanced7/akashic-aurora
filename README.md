@@ -137,9 +137,11 @@ Issues and PRs welcome — [`CONTRIBUTING.md`](CONTRIBUTING.md) explains the sli
 
 ## About this project
 
-Akashic Aurora is a solo passion project. I'm not a professional programmer — I started this to understand how AI agents actually work by building the thing I kept wishing existed, and to sharpen my own thinking with the same discipline the system demands of itself: claims need tests, designs get checked against the research literature before they're built, and status is generated from the record instead of hand-written.
+I started out writing a simple session logger. One thing led to another, and somehow I've ended up building an agentic AI harness and knowledge base.
 
-In practice that means I set the direction, the architecture, and the quality bars; AI agents write most of the code; and gates none of us can skip — CI, layer-boundary checks, test-gated slices — keep all of us honest. The memory system described above is the one those agents use while building it, so every example in this README is also a live demo.
+There's a lot I don't know yet. I'm not a professional programmer — I'm learning this field piece by piece, and this project is how: directing and steering state-of-the-art models to see if I can't make something special. The agents write most of the code. Since I can't personally vouch for every line, the rules are strict instead: nothing lands without a test, the full suite runs in CI on every push, and automated checks enforce the architecture. Trust the gates, not the author.
+
+I hope you find it fascinating to poke around in — maybe even useful for your own work. If you'd like to use it, break it, or help make it better: let's connect.
 
 — Daniel Ruban · [LinkedIn](https://www.linkedin.com/in/daniel-ruban-69873ab7/)
 
