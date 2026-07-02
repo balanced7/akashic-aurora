@@ -137,11 +137,11 @@ Issues and PRs welcome — [`CONTRIBUTING.md`](CONTRIBUTING.md) explains the sli
 
 ## About this project
 
-I started out writing a simple session logger. One thing led to another, and somehow I've ended up building an agentic AI harness and knowledge base.
+I started out writing a simple session logger. One thing led to another, and somehow I've ended up trying to build an agentic AI harness/ Self Improving Knowledgebase w/ Just In Time Context
 
-There's a lot I don't know yet. I'm not a professional programmer — I'm learning this field piece by piece, and this project is how: directing and steering state-of-the-art models to see if I can't make something special. The agents write most of the code. Since I can't personally vouch for every line, the rules are strict instead: nothing lands without a test, the full suite runs in CI on every push, and automated checks enforce the architecture. Trust the gates, not the author.
 
-I hope you find it fascinating to poke around in — maybe even useful for your own work. If you'd like to use it, break it, or help make it better: let's connect.
+
+I hope you find this project fascinating to poke around in — maybe even useful for your own work. If you'd like to use it, break it, or help make it better: let's connect!
 
 — Daniel Ruban · [LinkedIn](https://www.linkedin.com/in/daniel-ruban-69873ab7/)
 
@@ -150,7 +150,7 @@ I hope you find it fascinating to poke around in — maybe even useful for your 
 - **Akasha** — Sanskrit, the *aether*: the medium said to hold the record of everything. Here: the immutable, append-only substrate (Ledger + Store). The record is sacred; it is never rewritten.
 - **Aurora** — the light that dawns across that sky. Here: the self-organizing knowledge that emerges over the record — ranked, distilled, recalled at the right instant.
 
-*Order emerging luminously from the total record. Anti-entropy as a dawn that keeps coming.*
+*This was supposed to be a simple session logger mdanit!*
 
 ## License
 
