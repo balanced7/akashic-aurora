@@ -131,6 +131,9 @@ def triage(min_surfaced: int = 5, *, store: Any = None, learning_store: Any = No
       noise_voted    explicitly voted noise -- review the trigger phrasing or retire
       watch          surfaced 1..min_surfaced-1, no credit yet -- too early to judge
       dormant_count  in corpus, never surfaced -- costs nothing until shown
+      ghosts         learn:experiment:* counters naming NO live lesson (bookkeeping
+                     debt from retired lessons, not knowledge) -- kept out of the
+                     adjudication buckets; fold with `recall-counters --fold`
     """
     if store is None:
         try:
@@ -149,11 +152,14 @@ def triage(min_surfaced: int = 5, *, store: Any = None, learning_store: Any = No
         except Exception:
             pass
     n_corpus = 0
+    corpus_names: set = set()
     try:
         if learning_store is None:
             from core.learning.learning_store import get_learning_store
             learning_store = get_learning_store()
-        n_corpus = len(learning_store.load_all_learnings_from_store())
+        recs = learning_store.load_all_learnings_from_store()
+        n_corpus = len(recs)
+        corpus_names = {r.get("experiment_name") for r in recs}
     except Exception:
         pass
     # window-scoped push cost per source (injection ledger is tempdir-lifetime: a cost
@@ -172,14 +178,25 @@ def triage(min_surfaced: int = 5, *, store: Any = None, learning_store: Any = No
             for s in srcs:
                 win_chars[s] = win_chars.get(s, 0) + per
 
-    rows = []
+    # A ghost is a lesson-shaped counter whose lesson is gone (retired/renamed): bookkeeping
+    # debt, not adjudicable knowledge -- bucketing it as cost would propose retiring a phantom.
+    # Classified only when the corpus read yielded names (a broken read must not ghost everything).
+    _LESSON = "learn:experiment:"
+    rows, ghosts, live_lessons = [], [], 0
     for src, u in use.items():
-        rows.append({"source": src,
-                     "surfaced": int(u.get("surfaced", 0)),
-                     "useful": int(u.get("useful", 0)),
-                     "noise": int(u.get("noise", 0)),
-                     "helped": int(u.get("helped", 0)),
-                     "window_tokens_approx": win_chars.get(src, 0) // 4})
+        row = {"source": src,
+               "surfaced": int(u.get("surfaced", 0)),
+               "useful": int(u.get("useful", 0)),
+               "noise": int(u.get("noise", 0)),
+               "helped": int(u.get("helped", 0)),
+               "window_tokens_approx": win_chars.get(src, 0) // 4}
+        if src.startswith(_LESSON):
+            if corpus_names and src[len(_LESSON):] not in corpus_names:
+                ghosts.append(row)
+                continue
+            live_lessons += 1
+        rows.append(row)
+    ghosts.sort(key=lambda r: r["surfaced"], reverse=True)
     protect = sorted((r for r in rows if r["helped"] or r["useful"]),
                      key=lambda r: (r["helped"], r["useful"]), reverse=True)
     noise_voted = [r for r in rows if r["noise"] and not (r["helped"] or r["useful"])]
@@ -187,12 +204,13 @@ def triage(min_surfaced: int = 5, *, store: Any = None, learning_store: Any = No
     cost_no_return = sorted((r for r in rest if r["surfaced"] >= min_surfaced),
                             key=lambda r: r["surfaced"], reverse=True)
     watch = [r for r in rest if 0 < r["surfaced"] < min_surfaced]
-    return {"corpus_lessons": n_corpus, "tracked": len(rows),
-            "dormant_count": max(0, n_corpus - len(rows)),
+    return {"corpus_lessons": n_corpus, "tracked": len(rows) + len(ghosts),
+            "tracked_lessons": live_lessons, "ghosts": ghosts,
+            "dormant_count": max(0, n_corpus - live_lessons),
             "min_surfaced": min_surfaced,
             "protect": protect, "cost_no_return": cost_no_return,
             "noise_voted": noise_voted, "watch_count": len(watch),
-            "window_injected_tokens_approx": sum(r["window_tokens_approx"] for r in rows)}
+            "window_injected_tokens_approx": sum(r["window_tokens_approx"] for r in rows + ghosts)}
 
 
 def summary_line(snap: Dict[str, Any]) -> str:

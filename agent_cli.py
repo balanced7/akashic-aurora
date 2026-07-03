@@ -375,7 +375,9 @@ def cmd_triage(args):
     if args.json:
         print(json.dumps(t, indent=1))
         return 0
+    ghosts = t.get("ghosts", [])
     print(f"# TRIAGE (S1)  corpus={t['corpus_lessons']} tracked={t['tracked']} "
+          f"(lessons={t.get('tracked_lessons', t['tracked'])}, ghosts={len(ghosts)}) "
           f"dormant={t['dormant_count']} | window push cost ~{t['window_injected_tokens_approx']} tokens")
     print(f"\n## PROTECT ({len(t['protect'])}) -- earned credit; the proven core")
     for r in t["protect"][:15]:
@@ -389,7 +391,76 @@ def cmd_triage(args):
         print(f"  noise={r['noise']} surfaced={r['surfaced']:<4} {r['source']}")
     print(f"\n## WATCH: {t['watch_count']} lesson(s) surfaced but too early to judge "
           f"(< {t['min_surfaced']} impressions)")
+    if ghosts:
+        credited = [g for g in ghosts if g["useful"] or g["helped"] or g["noise"]]
+        print(f"\n## GHOSTS ({len(ghosts)}) -- counters naming NO live lesson (retired/renamed); "
+              f"bookkeeping debt, not knowledge")
+        for g in ghosts[:10]:
+            tag = "  <-- has credit: adjudicate (fold into successor)" if (
+                g["useful"] or g["helped"] or g["noise"]) else ""
+            print(f"  surfaced={g['surfaced']:<4} u={g['useful']} h={g['helped']} "
+                  f"n={g['noise']}  {g['source']}{tag}")
+        zero = len(ghosts) - len(credited)
+        print(f"  -> {zero} zero-credit (safe auto-fold), {len(credited)} credited (needs a decision). "
+              f"Apply: py agent_cli.py recall-counters --fold")
     print("\n(adjudication is human/frontier judgment -- this report never auto-prunes)")
+    return 0
+
+
+# --------------------------------------------------------------------- recall-counters
+def cmd_recall_counters(args):
+    """Counter hygiene (sharpening S2a). recall:use:* keys are mutable Store STATE, and two forms
+    of debt accumulate: (1) BARE-SLUG counters from votes cast without the learn:experiment: prefix
+    (they open a parallel counter that never joins the lesson's totals); (2) GHOSTS -- lesson-shaped
+    counters whose lesson was retired or renamed. Report-only by default; --fold applies the fix:
+    bare slugs merge into their canonical key, and ZERO-credit ghosts are deleted. A ghost that
+    carries credit (useful/helped/noise) is earned history and is KEPT + reported for S2 to fold
+    into the superseding lesson -- never auto-dropped (that would silently discard a real signal)."""
+    from core.recall.at_action import merge_use_counters, prune_ghost_counters, canonicalize_source, _store, _USE_PREFIX
+    from core.learning.learning_store import get_learning_store
+    ls = get_learning_store()
+    store = _store()
+    names = {r.get("experiment_name") for r in ls.load_all_learnings_from_store()}
+    # survey (read-only) -- what fold WOULD touch
+    bare, ghosts_zero, ghosts_credited = [], [], []
+    lesson_prefix = "learn:experiment:"
+    try:
+        for k in store.keys(_USE_PREFIX + "*"):
+            src = k[len(_USE_PREFIX):]
+            if ":" not in src:
+                if canonicalize_source(src, learning_store=ls) != src:
+                    bare.append(src)
+            elif src.startswith(lesson_prefix) and names and src[len(lesson_prefix):] not in names:
+                use = json.loads(store.get(k) or "{}")
+                (ghosts_credited if any(int(use.get(f, 0)) for f in ("useful", "helped", "noise"))
+                 else ghosts_zero).append(src)
+    except Exception:
+        pass
+    if not args.fold:
+        print(f"# COUNTER HYGIENE (S2a)  -- report only; apply with --fold")
+        print(f"  bare-slug counters to merge : {len(bare)}   {bare[:6]}")
+        print(f"  zero-credit ghosts to prune : {len(ghosts_zero)}   {ghosts_zero[:6]}")
+        print(f"  credited ghosts (KEPT; S2 adjudicates): {len(ghosts_credited)}   {ghosts_credited[:6]}")
+        if not (bare or ghosts_zero or ghosts_credited):
+            print("  -> counters are clean.")
+        return 0
+    merged = merge_use_counters(store=store, learning_store=ls)
+    res = prune_ghost_counters(store=store, learning_store=ls)
+    try:   # counters feed the warm cache's ranking -- rebuild so the fix takes effect now
+        from core.recall.at_action import warm_cache
+        warm_cache()
+    except Exception:
+        pass
+    from core.events.event_log import capture_event
+    capture_event("recall_counters_fold",
+                  f"folded {merged} bare-slug, pruned {len(res['pruned'])} ghost counter(s)",
+                  agent_id=args.agent_id or os.getenv("AKASHIC_AGENT_ID"),
+                  detail={"merged": merged, "pruned": res["pruned"], "kept_credited": res["kept_credited"]})
+    print(f"[OK] folded {merged} bare-slug counter(s) into canonical keys.")
+    print(f"[OK] pruned {len(res['pruned'])} zero-credit ghost(s): {res['pruned'][:8]}")
+    if res["kept_credited"]:
+        print(f"[!] KEPT {len(res['kept_credited'])} credited ghost(s) -- these carry earned signal and")
+        print(f"    need an S2 decision (fold credit into the successor lesson): {res['kept_credited']}")
     return 0
 
 
@@ -1562,6 +1633,12 @@ def build_parser():
                     help="impressions before zero-credit counts as cost (default 5)")
     tr.add_argument("--json", action="store_true")
     tr.set_defaults(fn=cmd_triage)
+
+    rc = sub.add_parser("recall-counters",
+                        help="sharpening S2a: fold bare-slug + ghost recall:use:* counters (report; --fold applies)")
+    rc.add_argument("--fold", action="store_true", help="apply the fix (merge bare slugs, prune zero-credit ghosts)")
+    rc.add_argument("--agent-id", dest="agent_id", default=None, help="who ran it (defaults to $AKASHIC_AGENT_ID)")
+    rc.set_defaults(fn=cmd_recall_counters)
 
     gr = sub.add_parser("graduate",
                         help="retire a lesson from recall surfacing -- automation now enforces its rule")

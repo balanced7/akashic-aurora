@@ -7,7 +7,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.recall.at_action import canonicalize_source, merge_use_counters, record_feedback
+from core.recall.at_action import (canonicalize_source, merge_use_counters,
+                                    prune_ghost_counters, record_feedback)
 
 
 class _FakeLearning:
@@ -75,3 +76,31 @@ def test_record_feedback_lands_on_canonical_key(monkeypatch):
     assert record_feedback("session_hooks_need_matcher", "useful", store=st)
     assert "recall:use:learn:experiment:session_hooks_need_matcher" in st.d
     assert "recall:use:session_hooks_need_matcher" not in st.d
+
+
+# --------------------------------------------------------- ghost counters (retired lessons)
+def test_prune_drops_zero_credit_ghost_keeps_credited_and_live():
+    """A ghost = a learn:experiment:* counter whose lesson is gone. Zero-credit ghosts are
+    bookkeeping debt (deleted); a ghost WITH credit is earned signal outliving its lesson
+    (kept for S2 to fold into the successor). Live-lesson and non-lesson keys are untouched."""
+    st = _FakeStore({
+        "recall:use:learn:experiment:session_hooks_need_matcher": json.dumps({"surfaced": 9, "useful": 1}),
+        "recall:use:learn:experiment:gone_no_credit": json.dumps({"surfaced": 4}),          # zero-credit ghost
+        "recall:use:learn:experiment:gone_with_credit": json.dumps({"surfaced": 3, "helped": 1}),  # credited ghost
+        "recall:use:ADR_0701010114_6136": json.dumps({"useful": 1}),                        # note id: not a lesson
+    })
+    res = prune_ghost_counters(store=st, learning_store=_LS)
+    assert res["pruned"] == ["learn:experiment:gone_no_credit"]
+    assert res["kept_credited"] == ["learn:experiment:gone_with_credit"]
+    assert "recall:use:learn:experiment:gone_no_credit" not in st.d, "zero-credit ghost deleted"
+    assert "recall:use:learn:experiment:gone_with_credit" in st.d, "credited ghost kept for adjudication"
+    assert "recall:use:learn:experiment:session_hooks_need_matcher" in st.d, "live lesson untouched"
+    assert "recall:use:ADR_0701010114_6136" in st.d, "non-lesson source untouched"
+    assert prune_ghost_counters(store=st, learning_store=_LS)["pruned"] == [], "idempotent re-run"
+
+
+def test_prune_is_noop_on_empty_corpus():
+    """A broken/empty corpus read must NOT classify every counter as a ghost and wipe the store."""
+    st = _FakeStore({"recall:use:learn:experiment:real": json.dumps({"surfaced": 5})})
+    res = prune_ghost_counters(store=st, learning_store=_FakeLearning([]))
+    assert res["pruned"] == [] and "recall:use:learn:experiment:real" in st.d

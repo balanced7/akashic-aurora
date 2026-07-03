@@ -278,6 +278,40 @@ def merge_use_counters(*, store=None, learning_store: Optional[Any] = None) -> i
     return merged
 
 
+def prune_ghost_counters(*, store=None, learning_store: Optional[Any] = None) -> Dict[str, Any]:
+    """Fold counter debt left by retired lessons (sharpening S2a, second key form): a GHOST is a
+    learn:experiment:* counter whose lesson no longer exists in the corpus. Zero-credit ghosts
+    (impressions only) are bookkeeping rows pointing at nothing -- deleted (counters are mutable
+    Store STATE, not Ledger history). A ghost WITH credit (useful/helped/noise) is earned history
+    outliving its lesson -- that is an adjudication case for S2 supersession (fold the credit into
+    the superseding lesson), so it is KEPT and reported, never auto-dropped. Recurs by design:
+    every consolidation pass that retires lessons mints new ghosts. Safe to re-run."""
+    pruned: List[str] = []
+    kept: List[str] = []
+    lesson_prefix = "learn:experiment:"
+    try:
+        if learning_store is None:
+            from core.learning.learning_store import get_learning_store
+            learning_store = get_learning_store()
+        names = {r.get("experiment_name") for r in learning_store.load_all_learnings_from_store()}
+        if not names:            # empty/broken corpus read must not classify everything as ghost
+            return {"pruned": pruned, "kept_credited": kept}
+        store = store or _store()
+        for k in list(store.keys(_USE_PREFIX + lesson_prefix + "*")):
+            src = k[len(_USE_PREFIX):]
+            if src[len(lesson_prefix):] in names:
+                continue
+            use = _load_use(store, src)
+            if any(int(use.get(f, 0)) for f in ("useful", "noise", "helped")):
+                kept.append(src)
+                continue
+            store.delete(k)
+            pruned.append(src)
+    except Exception:
+        pass
+    return {"pruned": pruned, "kept_credited": kept}
+
+
 def record_feedback(source: str, kind: str = "useful", *, store=None) -> bool:
     """Record a usefulness signal for a recalled lesson. kind: 'useful'/'noise' (explicit votes) or
     'helped' (the automatic contrastive positive -- a FAIL->SUCCESS flip). Best-effort, repeatable.

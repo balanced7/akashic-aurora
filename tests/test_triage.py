@@ -22,15 +22,23 @@ class _FakeStore:
 
 
 class _FakeLearning:
-    def __init__(self, n):
-        self._n = n
+    def __init__(self, names):
+        self._names = list(names)
 
     def load_all_learnings_from_store(self):
-        return [{"experiment_name": f"l{i}"} for i in range(self._n)]
+        return [{"experiment_name": n} for n in self._names]
 
 
-def _t(use, n_corpus=10, injections=(), **kw):
-    return triage(store=_FakeStore(use), learning_store=_FakeLearning(n_corpus),
+_LP = "learn:experiment:"
+
+
+def _t(use, n_corpus=10, injections=(), corpus_names=None, **kw):
+    # Realistic default: every lesson-shaped counter names a REAL lesson (so nothing reads as a
+    # ghost), padded with fillers to n_corpus. Pass corpus_names explicitly to test ghosts.
+    if corpus_names is None:
+        live = [k[len(_LP):] for k in use if k.startswith(_LP)]
+        corpus_names = live + [f"_filler{i}" for i in range(max(0, n_corpus - len(live)))]
+    return triage(store=_FakeStore(use), learning_store=_FakeLearning(corpus_names),
                   injections=list(injections), **kw)
 
 
@@ -81,6 +89,28 @@ def test_window_token_cost_attributed_per_source():
     assert t["window_injected_tokens_approx"] == 300
 
 
+def test_ghosts_split_out_of_adjudication_buckets():
+    """A learn:experiment:* counter naming no live lesson is a GHOST -- bookkeeping debt, not
+    knowledge. It must not land in cost_no_return (that would propose retiring a phantom); it
+    goes to its own bucket, and `tracked_lessons` counts only live-lesson counters."""
+    t = _t({
+        "learn:experiment:live":    {"surfaced": 8, "useful": 0, "noise": 0, "helped": 0},  # live freeloader
+        "learn:experiment:retired": {"surfaced": 7, "useful": 0, "noise": 0, "helped": 0},  # ghost (absent below)
+    }, corpus_names=["live"] + [f"f{i}" for i in range(9)])  # 10 lessons; 'retired' is gone
+    assert [r["source"] for r in t["ghosts"]] == ["learn:experiment:retired"]
+    assert [r["source"] for r in t["cost_no_return"]] == ["learn:experiment:live"], "ghost not proposed as cost"
+    assert t["tracked_lessons"] == 1 and t["tracked"] == 2
+    assert t["dormant_count"] == 9, "corpus 10 - 1 live-lesson counter"
+
+
+def test_broken_corpus_read_ghosts_nothing():
+    """If the corpus read yields no names, NOTHING is a ghost (a broken read must not phantom
+    the whole store into the ghost bucket)."""
+    t = _t({"learn:experiment:x": {"surfaced": 6, "useful": 0, "noise": 0, "helped": 0}},
+           corpus_names=[])
+    assert t["ghosts"] == [] and [r["source"] for r in t["cost_no_return"]] == ["learn:experiment:x"]
+
+
 class _BrokenStore:
     def keys(self, pattern):
         raise RuntimeError("store down")
@@ -89,5 +119,5 @@ class _BrokenStore:
 def test_fail_soft_on_broken_backend():
     """A dead store yields an empty report, never a raise (and never a silent fallback
     to the real store -- that's why this passes a BROKEN fake, not None)."""
-    t = triage(store=_BrokenStore(), learning_store=_FakeLearning(0), injections=[])
+    t = triage(store=_BrokenStore(), learning_store=_FakeLearning([]), injections=[])
     assert t["tracked"] == 0 and t["protect"] == [] and t["dormant_count"] == 0
