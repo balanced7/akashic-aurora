@@ -81,7 +81,14 @@ while ($done -lt $MaxTasks) {
     Log "- [$(Get-Date -Format HH:mm)] START $($task.Name) -> drafts/$slug.md"
 
     $prompt = @"
-You are $AgentId, a research worker in the Akashic Aurora repo. Read research/article-contract.md and follow it EXACTLY. Write your provisional article to research/drafts/$slug.md (the Write tool). Fetch every source you cite -- prefer WebFetch; if WebFetch fails, use Bash: curl -sL <url>. Anything you could not fetch this session is marked UNVERIFIED, never asserted bare. Under 150 lines. When the article is written, re-read the file to verify, then stop.
+You are $AgentId, a research worker in the Akashic Aurora repo. Read research/article-contract.md and follow it EXACTLY. Write your provisional article to research/drafts/$slug.md (the Write tool).
+
+Your hands:
+- SEARCH (discovery): Bash: py scripts/local/websearch.py "your query" --n 8   (local SearXNG; finds candidates, never counts as fetching)
+- FETCH (verification): WebFetch on a URL; if WebFetch fails, Bash: curl -sL <url>. Fetch every source you cite; anything unfetched is marked UNVERIFIED, never asserted bare.
+- REPO (context): Grep/Glob/Read for code and docs; Bash: py agent_cli.py recall "keywords" to consult the shared corpus before researching from scratch.
+
+Under 150 lines. When the article is written, re-read the file to verify, then stop.
 
 Your task (from research/queue/$($task.Name)):
 
@@ -97,7 +104,7 @@ $taskBody
     $proc = Start-Process -FilePath $claudeExe -WorkingDirectory $repo -PassThru -WindowStyle Hidden `
             -RedirectStandardInput $promptFile `
             -RedirectStandardOutput $outLog -RedirectStandardError "$outLog.err" `
-            -ArgumentList @('-p', '--allowedTools=WebFetch,Read,Write,Edit,Bash(curl *)')
+            -ArgumentList @('-p', '--allowedTools=WebFetch,Grep,Glob,Read,Write,Edit,Bash(curl *),Bash(py *)')
     if (-not $proc.WaitForExit($TaskTimeoutMin * 60 * 1000)) {
         & taskkill /T /F /PID $proc.Id 2>$null | Out-Null
         Set-TaskStatus $task.FullName "running" "failed"

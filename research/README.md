@@ -34,6 +34,14 @@ seeds:
 notes: <angle, constraints, what "done" means for this task>
 ```
 
+## The worker's hands (R2)
+
+Discovery: a self-hosted SearXNG (`docker start akashic-searxng`, loopback :8888) via
+`py scripts/local/websearch.py "query"` -- free, key-less, private; the local backend has
+no server-side WebSearch. Verification: WebFetch / `curl -sL`. Repo: Grep/Glob/Read and
+`py agent_cli.py recall` (the corpus may already know). Search finds; only a FETCH
+earns a citation.
+
 ## Ground rules (why drafts are trustworthy enough to review)
 
 - **Provisional by construction**: every draft is stamped `provisional-by: <agent>` and

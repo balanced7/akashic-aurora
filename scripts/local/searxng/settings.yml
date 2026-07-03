@@ -1,0 +1,11 @@
+# SearXNG settings for the Akashic local research fleet (mounted into the container).
+# Minimal delta from defaults: enable the JSON API (websearch.py consumes it) and drop
+# the rate limiter (single local consumer on a loopback port; not exposed to a network).
+use_default_settings: true
+server:
+  secret_key: "akashic-local-search-not-a-secret"
+  limiter: false
+search:
+  formats:
+    - html
+    - json

@@ -20,13 +20,18 @@
   real repo command and answered correctly; hooks fired + ledgered as `glm_local`
   (lesson: local_agent_first_e2e).
 
-## The three scripts
+## The scripts
 
 | Script | Job |
 |--------|-----|
 | `preflight_local_model.py` | version / model / tool-call / context-canary / speed gate — a failed probe is a session saved |
 | `launch_local_agent.ps1` | one command: server up → model pulled → probe → Claude Code with every model tier pinned local + AKASHIC identity |
 | `run_research_day.ps1` | the shift: one fresh headless session per research/queue task, hard timeout, draft validation, runlog |
+| `websearch.py` | discovery door (R2): CLI over the self-hosted SearXNG (`akashic-searxng` container, loopback :8888, JSON API via `searxng/settings.yml`) — WebSearch doesn't exist on a local backend |
+
+Worker grants (R2): `WebFetch, Grep, Glob, Read, Write, Edit, Bash(curl *), Bash(py *)` —
+near-frontier hands; the tree stays safe because enforcement lives at the door
+(git-guard + peer locks + gated ships), not in model compliance.
 
 ## Operating rules
 

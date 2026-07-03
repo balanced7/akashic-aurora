@@ -30,6 +30,11 @@ sources agree" or "low -- single vendor blog").
 Rules:
 - FETCH what you cite (WebFetch, or `curl -sL <url>` via Bash if WebFetch is
   unavailable). Quote sparingly, synthesize mostly.
+- DISCOVERY: `py scripts/local/websearch.py "query"` finds candidate sources beyond
+  your seeds -- use it when seeds are thin or a claim needs corroboration. A search
+  snippet is NOT a fetch: cite only pages you actually fetched.
+- CORPUS FIRST: `py agent_cli.py recall "keywords"` before researching from scratch --
+  the repo may already know; cite lessons/notes as `[corpus: <source>]`.
 - Contradictions between sources are FINDINGS, not noise -- report them.
 - If a seed URL is dead or off-topic, say so in Findings; do not substitute
   imagined content.
