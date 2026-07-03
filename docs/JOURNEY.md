@@ -34,6 +34,8 @@ sync pollers, a multi-agent communication mesh — infrastructure built with rea
 enthusiasm, before we knew what the system was actually *for*. Almost none of it
 survived on its own terms. What survived was the itch: agents that keep what they learn.
 
+*Lesson we kept: build the smallest architecture that can answer the research question.*
+
 ## The audit, and getting religious about names (June 19)
 
 A codebase audit found what you'd expect: a clean-ish core surrounded by stale shells
@@ -46,6 +48,8 @@ and ~65 bare `except:` clauses. Two decisions from that week shaped everything a
   because we'd already watched good intentions decay. The principle we wrote down then —
   *make the implicit explicit, then let a machine hold the line* — is still the most
   load-bearing sentence in the repo.
+
+*Lesson we kept: make the implicit explicit, then let a machine hold the line.*
 
 ## The substrate decision (late June)
 
@@ -61,6 +65,8 @@ summary. (The substrate preserves recoverability; projections and retrieval can 
 drift in their own ways, and need their own guards — we don't claim immunity.) We'd
 like to claim foresight; it was mostly conservatism.
 
+*Lesson we kept: never rewrite the substrate; regenerate everything else.*
+
 ## The narrative spine, in gated slices (June 27)
 
 One long day built the story layer — Beats, Chapters, Tracks, Themes — as small slices,
@@ -71,6 +77,8 @@ semantic routing underperformed the boring heuristic on that same fixture, so th
 heuristic shipped as the default and embeddings stayed off. That set a pattern we've
 kept: the fancy thing has to *beat the yardstick*, not just exist.
 
+*Lesson we kept: fancy mechanisms don't survive unless they beat boring baselines.*
+
 ## Renaming, and letting go of ownership (June 28–29)
 
 *BreakThrough Stack* became **Akashic Aurora** — Akasha for the immutable record,
@@ -80,6 +88,8 @@ locks and enforced at the door (git hooks that block blanket staging) rather tha
 memory or convention. Then the repo went public — which forced the honesty that's now
 house style: the README's "what's proven, tested, and not yet" section exists because
 we couldn't vouch for everything and decided to say so.
+
+*Lesson we kept: coordinate at the moment of contention, not by standing assignment.*
 
 ## The pivot that made the whole thesis work (July 1)
 
@@ -99,6 +109,8 @@ be compared against them. Two disciplines came out of that week and are now refl
 **capture payloads before trusting their shape**, and **an assumption is not a design
 input until it has survived contact with a live system**.
 
+*Lesson we kept: runtime truth outranks documentation.*
+
 ## Learning from the field, on purpose (July 2)
 
 A three-agent survey of memory-and-context practice produced a ranked adoption plan,
@@ -112,6 +124,8 @@ cost-normalized value, and cite the prior art."
 The same day, the harness layer got honest: a capability matrix of what each
 agent-runtime can actually deliver (Cursor's hooks can't inject context before an
 action — so there, lessons arrive one beat late, and the docs say so plainly).
+
+*Lesson we kept: mine the field for sequencing, not just validation — and cite whoever got there first.*
 
 ## The fleet (July 2, evening)
 
@@ -129,6 +143,8 @@ watching the local model *refuse to make something up*: it couldn't fetch a pape
 it marked every finding UNVERIFIED and moved on. The review caught the gap; a frontier
 fetch closed it.
 
+*Lesson we kept: frontier tokens for judgment, local tokens for gathering — and trust the gates, not the model.*
+
 ## Standing on 750 years of shoulders (July 3)
 
 An idea about organizing knowledge by *shape* — reusable reasoning structures that
@@ -145,6 +161,8 @@ from our own corpus, never invent them; cap the vocabulary at tens; name and doc
 every one (the literature is blunt that undocumented abstractions *hurt*); and gate the
 whole thing on beating our own baseline retrieval — if it doesn't, it ships nothing.
 
+*Lesson we kept: mine vocabularies from usage; invented ones collapse at the boundary.*
+
 ## The system measured itself, and we didn't love the answer (July 3)
 
 The first value-triage over live counters: of 127 tracked lessons, **8 hold every
@@ -156,6 +174,8 @@ over-deletion warnings (faithfulness-only metrics reward deletion —
 deletion measurably helps — [arXiv 2505.16067](https://arxiv.org/abs/2505.16067))
 earned a two-sided gate (faithfulness *and* coverage) before any retirement happens. The number's job is to steer the curation work, and to be
 re-measured after it.
+
+*Lesson we kept: measure before curating — the report proposes, judgment disposes.*
 
 ## Working principles (so far)
 

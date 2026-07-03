@@ -7,7 +7,9 @@
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](#quickstart)
 [![Tests](https://img.shields.io/badge/tests-601%20green-brightgreen.svg)](tests/)
 
-Most agent memory answers *"what did we store?"* This project explores a harder question: **did remembering it change the result?**
+Most agent memory answers *"what did we store?"* and is graded on retrieval quality. Whether a remembered lesson actually **changed what the agent did — and whether that helped** — usually goes unmeasured, because measuring it takes three things at once: injection at the moment of action, an outcome record, and a credit loop connecting them.
+
+**Akashic Aurora is an experimental memory substrate that measures whether remembered knowledge changes agent outcomes.** Everything else in this repository — the append-only ledger, the narrative spine, the faithfulness gates, a local-model fleet that gathers research evidence overnight — exists to serve that one measurement, or to keep us honest when we're wrong about it.
 
 A "lesson" here is an operational unit, not a general fact: *what was tried, what failed, what fixed it, and the trigger for when to apply it* — the kind of knowledge whose impact on an outcome can actually be attributed.
 
@@ -102,7 +104,7 @@ S0  FOUNDATION    Store ("what IS true")  +  Ledger ("what HAPPENED, in order")
                   three interchangeable backends: Redis / File / Hybrid (fail-soft)
 ```
 
-Design rules that hold it together:
+Design rules that hold it together (the full set, each with the episode that earned it, is [`docs/PRINCIPLES.md`](docs/PRINCIPLES.md)):
 
 - **One immutable substrate, many projections.** Raw records are append-only and never rewritten; everything readable (tags, chapters, digests) is regenerable *from* them. Corrections supersede; they never delete.
 - **Multi-agent by default.** Claude and Cursor share the same lessons, message bus, and advisory locks on one repo — any agent, any task, no permanent ownership. What each runtime's hooks can actually deliver is documented honestly, tier by tier, in [`docs/integration-tiers.md`](docs/integration-tiers.md) (`py agent_cli.py harnesses` prints the live matrix).
@@ -196,13 +198,6 @@ I started out writing a simple session logger. One thing led to another, and som
 I hope you find this project fascinating to poke around in — maybe even useful for your own work. If you'd like to use it, break it, or help make it better: let's connect!
 
 — Daniel Ruban · [LinkedIn](https://www.linkedin.com/in/daniel-ruban-69873ab7/)
-
-## The name
-
-- **Akasha** — Sanskrit, the *aether*: the medium said to hold the record of everything. Here: the immutable, append-only substrate (Ledger + Store). The record is sacred; it is never rewritten.
-- **Aurora** — the light that dawns across that sky. Here: the self-organizing knowledge that emerges over the record — ranked, distilled, recalled at the right instant.
-
-*This was supposed to be a simple session logger mdanit!*
 
 ## License
 
