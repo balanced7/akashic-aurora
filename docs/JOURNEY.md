@@ -177,6 +177,24 @@ re-measured after it.
 
 *Lesson we kept: measure before curating — the report proposes, judgment disposes.*
 
+## Teaching the repo to speak (July 3)
+
+With a first watcher on the repo (hi, friend-of-the-founder) came the question of how
+to present any of this without triggering the exact skepticism we'd feel reading
+someone else's README. The answer became a system of its own: claims about ourselves
+keep their evidence; claims about the field become "our survey didn't find this —
+corrections welcome"; beliefs get marked as working principles; numbers are never
+invented, even when a reviewer suggests plausible ones. Every public document then went
+through outside-model review loops — GPT and Gemini, adjudicated never auto-folded,
+because the reviewers misquoted text, "corrected" true dates into false ones, and
+invented mechanisms we don't have, right alongside their genuinely good catches (the
+fossil record, the inverted opening, the one-sentence thesis were all reviewer ideas).
+The register converged in three rounds; the rules live in `docs/VOICE.md`; the
+acceptance test is the owner's own inner skeptic going quiet.
+
+*Lesson we kept: present the work the way we build it — evidence attached, failures
+included, reviews verified, and nothing shipped that we couldn't defend to ourselves.*
+
 ## Working principles (so far)
 
 These are principles that *appear to hold* in our context — each earned from more than

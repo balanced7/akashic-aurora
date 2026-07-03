@@ -54,6 +54,7 @@ That `helped` counter feeds back into ranking: lessons with a track record rise;
 ## Quickstart
 
 ```bash
+# Python 3.11+; on macOS/Linux use python3 instead of py
 git clone https://github.com/balanced7/akashic-aurora.git && cd akashic-aurora
 py bootstrap.py --agent-init            # status probe: prints the init command + Redis/lesson state
 py agent_cli.py boot me --task "trying Akashic Aurora"
@@ -81,7 +82,7 @@ py agent_cli.py recall-at --path core/foundation/store.py   # what would surface
              failure can never be farmed; first-try success credits nothing)
              "failed" = a tool_result recorded with is_error in the transcript;
              "succeeded" = the post-tool event arriving (it only fires on
-             success), with user-interrupted runs excluded
+             success), with user-cancelled runs excluded
                        ▼
    RE-RANK   usefulness factor [0.5×–1.5×] folds the track record into every
              future ranking — proven lessons rise, noise decays

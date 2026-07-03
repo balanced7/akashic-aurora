@@ -63,6 +63,11 @@ hollow?" Then **adjudicate — never auto-fold**:
   artifact ("revised after review passes by two outside models; their misfires taught
   us to verify reviews too").
 
+**The acceptance test** (owner's words, 2026-07-03, after the loops converged): iterate
+until nothing "triggers my own inner skeptic / desire to squash an arrogant unverifiable
+claim." The README is the door into the system — the owner's inner skeptic is the final
+gate, and no artifact ships public while it still fires.
+
 The machine-readable versions of these rules live in the knowledge store
 (`public_claims_falsifiable_humility`, `naming_industry_standard_tools` — correction
 category) so they surface to any agent writing public text.
