@@ -1,10 +1,24 @@
 # The journey so far
 
-> A human-readable history of this project's direction, decisions, and pivots — kept
-> because the pivots are where the learning lives. New entries are appended at each
+> **Akashic Aurora** is an open-source memory layer for AI agents: lessons injected at
+> the moment of action, credited by whether they changed the outcome, kept on an
+> append-only substrate. This document is the human-readable history of its direction,
+> decisions, and pivots — kept because the pivots are where the learning lives. New entries are appended at each
 > arc's close, written at wrap time and reviewed by a human. The machine-generated
 > version of this record is `py agent_cli.py story` (the narrative spine); this file is
-> the curated telling. First published as a Discussion, 2026-07-03.
+> the curated telling. Abandoned decisions are preserved separately in the
+> [fossil record](FOSSILS.md). First published as a Discussion, 2026-07-03.
+
+## The one idea everything leans on
+
+An outside reviewer of an early draft pointed out that the center of gravity here isn't
+any feature — it's one sentence: **append-only substrate, regenerable projections.**
+On reflection, they're right, so it goes first. The record of what happened is sacred
+and never rewritten; everything above it — summaries, chapters, topic clusters, the
+future shape index — is a projection that can be regenerated from the record. That's
+what makes the rest of this document possible: summaries can be wrong, compaction can
+be aggressive, experiments can fail, and nothing is lost. Everything is disposable
+*because* the substrate isn't.
 
 ---
 
@@ -40,16 +54,20 @@ append-only **Ledger** ("what happened, in order"), with the rule that the subst
 sacred: nothing is ever rewritten, only superseded. At the time this was a
 tidiness decision. It turned out to be the one we now lean on hardest — months later we
 read the 2026 literature on memory systems whose repeated LLM consolidation drifts
-knowledge into generic mush, and our architecture is immune to that failure *by
-construction*, for reasons we only partly understood when we made the call. We'd like
-to claim foresight; it was mostly conservatism.
+knowledge into generic mush ([arXiv 2605.12978](https://arxiv.org/abs/2605.12978); our
+full survey with citations is in `research/reviewed/`), and our architecture avoids
+that particular source of drift by construction: re-distillation always consumes the originals, never the previous
+summary. (The substrate preserves recoverability; projections and retrieval can still
+drift in their own ways, and need their own guards — we don't claim immunity.) We'd
+like to claim foresight; it was mostly conservatism.
 
 ## The narrative spine, in gated slices (June 27)
 
 One long day built the story layer — Beats, Chapters, Tracks, Themes — as small slices,
-each with a benchmark bar it had to clear before landing. The honest highlight isn't
-what worked, it's what didn't: **embeddings lost the ablation.** The "obviously better"
-semantic routing underperformed the boring heuristic on our gold fixture, so the
+each with a benchmark bar it had to clear before landing (the routing slice shipped at
+ARI 0.86 / WindowDiff 0.15 against a gold fixture). The honest highlight isn't what
+worked, it's what didn't: **embeddings lost the ablation.** The "obviously better"
+semantic routing underperformed the boring heuristic on that same fixture, so the
 heuristic shipped as the default and embeddings stayed off. That set a pattern we've
 kept: the fancy thing has to *beat the yardstick*, not just exist.
 
@@ -74,7 +92,10 @@ the captured payloads didn't care.
 The pivot: synthesize the failure half from session transcripts (where failures *are*
 recorded), watermark each failure so it can't be double-counted, and keep the direct
 failure event as a fast path where it exists. The first outcome-credited lesson landed
-live that evening. Two disciplines came out of that week and are now reflexes:
+live that evening; within the next two days the internal value rate (credited + voted
+per surfaced impression) moved from 1.1% to 1.9% and lesson capture ran at ~105 new
+lessons per week — small numbers on a small corpus, recorded here so later entries can
+be compared against them. Two disciplines came out of that week and are now reflexes:
 **capture payloads before trusting their shape**, and **an assumption is not a design
 input until it has survived contact with a live system**.
 
@@ -130,11 +151,17 @@ The first value-triage over live counters: of 127 tracked lessons, **8 hold ever
 earned credit, and 94 have surfaced five-plus times with zero return.** Small corpus,
 internal numbers — but that's the honest shape of our memory today: most of what we
 push isn't (yet) paying rent. We chose not to mass-delete; the literature's
-over-deletion warnings earned a two-sided gate (faithfulness *and* coverage) before any
-retirement happens. The number's job is to steer the curation work, and to be
+over-deletion warnings (faithfulness-only metrics reward deletion —
+[arXiv 2404.03278](https://arxiv.org/abs/2404.03278) — while utility-scored *selective*
+deletion measurably helps — [arXiv 2505.16067](https://arxiv.org/abs/2505.16067))
+earned a two-sided gate (faithfulness *and* coverage) before any retirement happens. The number's job is to steer the curation work, and to be
 re-measured after it.
 
-## What's been most transformational (so far)
+## Working principles (so far)
+
+These are principles that *appear to hold* in our context — each earned from more than
+one episode, none of them proven laws. Future entries should revise this list when the
+evidence does.
 
 - **Payload truth.** Capture what the system actually sends before designing against
   what the docs say it sends. This single habit has caught more wrong assumptions than
@@ -142,14 +169,14 @@ re-measured after it.
 - **Enforce at the door.** Guards live in hooks and gates, not in model compliance or
   agent memory. Every time we've relied on "the agent will remember to," it eventually
   didn't.
-- **Append-only substrate, regenerable projections.** The accidental decision that
-  keeps paying: summaries can be wrong, compaction can be aggressive, and nothing is
-  ever lost, because everything above the ledger can be rebuilt from it.
+- **Never rewrite the substrate.** (The thesis, restated as a rule.) Projections may be
+  regenerated, superseded, or discarded; the record may only grow.
 - **The yardstick before the mechanism.** Benchmarks first killed our embeddings, then
   our "novel" bench idea, then our hand-designed taxonomy instincts. Losing to the
   yardstick early is much cheaper than losing to reality later.
-- **Corrections are the best corpus.** The highest-value lessons in the store are the
-  ones where a human said "that's wrong, and here's why." We record every one.
+- *Working principle:* **corrections appear to produce the highest-value lessons** in
+  our current corpus. We record every one; whether this holds as the corpus grows is
+  exactly the kind of thing the funnel exists to check.
 
 ## Where we set off next
 

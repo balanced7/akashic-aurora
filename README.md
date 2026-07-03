@@ -45,7 +45,7 @@ And this is the feedback loop closing — a lesson was surfaced for a failing ta
 recall:use:learn:experiment:faith1_faithfulness_critic  =>  {"surfaced": 5, "helped": 1}
 ```
 
-That `helped` counter feeds back into ranking: lessons with a track record rise; lessons surfaced often but never useful decay. The system runs on itself — the agents building this repo use it while building it, and the examples above are from that work, unedited.
+That `helped` counter feeds back into ranking: lessons with a track record rise; lessons surfaced often but never useful decay. The agents building this repo use it while they build it — the examples above are from that work, unedited.
 
 ## Quickstart
 
