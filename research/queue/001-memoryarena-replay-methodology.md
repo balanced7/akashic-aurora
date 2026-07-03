@@ -1,4 +1,4 @@
-status: failed
+status: queued
 # TASK: What exactly does MemoryArena (arXiv 2602.16313) replay, with which metrics, and where are the gaps our Ledger Replay Bench can differentiate on?
 seeds:
 - https://arxiv.org/abs/2602.16313
