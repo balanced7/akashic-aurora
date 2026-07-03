@@ -1,4 +1,4 @@
-status: queued
+status: done
 # TASK: How does Hermes Agent's Mixture of Agents 2.0 work in detail, and which elements should Akashic Aurora adopt for its local-model fleet?
 feeds: SQ2+SQ3 (MoA aggregation for fleet + critic independence)
 seeds:
