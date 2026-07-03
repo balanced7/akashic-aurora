@@ -1,13 +1,13 @@
-# Story — generated 2026-07-02T02:52:25.856601
+# Story — generated 2026-07-02T05:56:52.635785
 
 Version: 0
 
 ## Atlas
-- **ai-setup**: 16 chapter(s)
+- **ai-setup**: 26 chapter(s)
 - **research**: 4 chapter(s)
 - **vision**: 1 chapter(s)
 
-Summary: ai-setup: 16 chapter(s); research: 4 chapter(s); vision: 1 chapter(s)
+Summary: ai-setup: 26 chapter(s); research: 4 chapter(s); vision: 1 chapter(s)
 
 ## Update bootstrap.md with project context initialization step (ai-setup)
 Span: 2026-04-15T01:21:48-04:00 → 2026-04-15T02:12:35-04:00
@@ -214,71 +214,71 @@ Span: 2026-06-28T22:19:26.728603 → 2026-06-29T08:21:11.155622
 Beats: 22  · Critic: True
 
 - Gemini web stealth + free models on the Bifrost bus  (source: mark:2026-06-28T22:19:26.728603)
-- Execute the up-close wiring (the gold), in order: (1) LEXICON entries + confirm AGENT_ID per agent, (2) discover verb from argparse subparsers + check_boundaries rule...  (source: learn:experiment:agent_experience_plan)
+- Execute the up-close wiring (the gold), in order: (1) LEXICON entries + confirm AGENT_ID per agent, (2) discover verb from argparse subparsers + check_boundaries rule...  [relates: member_of]  (source: learn:experiment:agent_experience_plan)
 - FC-01 next: build core/codex/curate.py, gated by faithfulness_critic. Defer NER entity-consistency + sentence/dependency entailment (SummaC/DAE/AlignScore-355M) until an...  (source: learn:experiment:faith1_faithfulness_critic)
-- Next executable: FAITH-1 = lift chronicler._compute_metrics into core/primitives/faithfulness.py, CHARACTERIZE its false-positive rate on the real corpus, wire via...  (source: learn:experiment:intelligence_roadmap_and_spine1)
+- Next executable: FAITH-1 = lift chronicler._compute_metrics into core/primitives/faithfulness.py, CHARACTERIZE its false-positive rate on the real corpus, wire via...  [relates: member_of]  (source: learn:experiment:intelligence_roadmap_and_spine1)
 - The agnostic 'zero custom code' is true for send/read (MCP/Redis) but NOT for wake -- every runtime needs a small turn-starter; pull-floor is the honest default, push is...  (source: learn:experiment:bifrost_mesh_comm)
-- P0 = set AKASHIC_AGENT_ID at the door + make hooks fail-closed-with-teaching. Then: route contended writes through Store.update_atomic (CAS has 0 callers); kill the dead...  (source: learn:experiment:architecture_review_2026_06_28)
-- When an ablation gate exists, MEASURE before committing a shape -- the obvious approach (embeddings replace keywords) lost; hybrid won. Short exemplar phrases beat one...  (source: learn:experiment:spine_v6_theme_discovery)
+- P0 = set AKASHIC_AGENT_ID at the door + make hooks fail-closed-with-teaching. Then: route contended writes through Store.update_atomic (CAS has 0 callers); kill the dead...  [relates: member_of]  (source: learn:experiment:architecture_review_2026_06_28)
+- When an ablation gate exists, MEASURE before committing a shape -- the obvious approach (embeddings replace keywords) lost; hybrid won. Short exemplar phrases beat one...  [relates: member_of]  (source: learn:experiment:spine_v6_theme_discovery)
 - Git hooks abort on ANY non-zero exit -- use exit 1 (the exit-2 rule is Claude-PreToolUse-only). core.hooksPath is shared config; relative path resolves per worktree...  (source: learn:experiment:concurrency_c4_and_worktrees_live)
-- Read-without-reread: the structural fix is to wake into a FRESH minimal session (boot + cursor), not resume the transcript; --digest is the cheap mid-session scan. On...  (source: learn:experiment:concurrency_c3_store_cas)
-- Advisory locks suit peers we own; the fencing token (monotonic, validated at the commit gate) is the one must-have safety property. Keep it fail-soft: offline => no...  (source: learn:experiment:concurrency_c2_path_locks)
+- Read-without-reread: the structural fix is to wake into a FRESH minimal session (boot + cursor), not resume the transcript; --digest is the cheap mid-session scan. On...  [relates: member_of]  (source: learn:experiment:concurrency_c3_store_cas)
+- Advisory locks suit peers we own; the fencing token (monotonic, validated at the commit gate) is the one must-have safety property. Keep it fail-soft: offline => no...  [relates: member_of]  (source: learn:experiment:concurrency_c2_path_locks)
 - Restart Cursor MCP server to pick up ai_setup_mcp.py changes; avoid concurrent gemini_web profile users (bifrost_runner + MCP subprocess)  (source: learn:experiment:gemini_mcp_invisible_env)
 - Use ask_gemini_web(mode=ai_mode|both) on user-akashic-aurora; invisible mode default  (source: learn:experiment:mcp_gemini_web_ai_mode)
-- Daily model: agents live in worktrees, master is the integration point; integrate only from master, sync rebases on origin/master. Combine with C0 (mirror with explicit...  (source: learn:experiment:concurrency_c1_worktrees)
-- When committing in a shared tree, never trust the index: git add <your paths> then git commit -- <your paths> (only-mode), or mirror.py with explicit paths. Claude...  (source: learn:experiment:concurrency_c0_git_guard)
+- Daily model: agents live in worktrees, master is the integration point; integrate only from master, sync rebases on origin/master. Combine with C0 (mirror with explicit...  [relates: member_of]  (source: learn:experiment:concurrency_c1_worktrees)
+- When committing in a shared tree, never trust the index: git add <your paths> then git commit -- <your paths> (only-mode), or mirror.py with explicit paths. Claude...  [relates: member_of]  (source: learn:experiment:concurrency_c0_git_guard)
 - True headless cannot pass Google AI Mode gate on this account; use invisible mode. --engine patchright optional for invisible.  (source: learn:experiment:patchright_headless_google)
-- Principle: share the immutable substrate, isolate the mutable workspace, enforce at the door not in memory. Build C0 first (de-blanket mirror.py + hooks) -- highest...  (source: learn:experiment:concurrent_agents_design)
+- Principle: share the immutable substrate, isolate the mutable workspace, enforce at the door not in memory. Build C0 first (de-blanket mirror.py + hooks) -- highest...  [relates: member_of]  (source: learn:experiment:concurrent_agents_design)
 - Default invisible. --headed for debug/login only. Don't run CLI gemini_web while bifrost_runner holds profile.  (source: learn:experiment:gemini_web_invisible_mode)
 - claude -> cursor: Set AKASHIC_AGENT_ID=cursor on your side (review P0)  (source: handoff:claude->cursor)
 - cursor -> claude: PAUSE worktree-per-agent experiment — back to single tree  (source: handoff:cursor->claude)
-- cursor -> claude: Review singleton-tool contention plan (R0 bus-routing + R1 file lock + C2 resource locks)  (source: handoff:cursor->claude)
+- cursor -> claude: Review singleton-tool contention plan (R0 bus-routing + R1 file lock + C2 resource locks)  [relates: member_of]  (source: handoff:cursor->claude)
 - claude -> cursor: master history was rewritten -- fetch + reset to avoid divergence  (source: handoff:claude->cursor)
-- claude -> cursor: Wire the C0 git-guard hook on Cursor's side (beforeShellExecution)  (source: handoff:claude->cursor)
+- claude -> cursor: Wire the C0 git-guard hook on Cursor's side (beforeShellExecution)  [relates: member_of]  (source: handoff:claude->cursor)
 
 ## Differentiator confirmed by research: action-trigger + deterministic ranking ... (research)
 Span: 2026-06-29T08:34:55.284291 → 2026-06-29T08:34:55.284291
 Beats: 1  · Critic: True
 
-- Differentiator confirmed by research: action-trigger + deterministic ranking is ahead of SOTA (mem0/Zep/claude-mem all inject at turn-start). NEXT refinements: (1)...  (source: learn:experiment:recall_at_action_v1)
+- Differentiator confirmed by research: action-trigger + deterministic ranking is ahead of SOTA (mem0/Zep/claude-mem all inject at turn-start). NEXT refinements: (1)...  [relates: member_of]  (source: learn:experiment:recall_at_action_v1)
 
 ## Honest caveat: PostToolUse success/FAIL detection depends on the tool_respons... (ai-setup)
 Span: 2026-06-29T12:29:40.152518 → 2026-06-29T13:54:50.676433
 Beats: 9  · Critic: True
 
-- Honest caveat: PostToolUse success/FAIL detection depends on the tool_response payload shape (assumed is_error/error/exit_code); if it differs, the signal stays INERT...  (source: learn:experiment:door_discover_and_implicit_useful)
-- When adding a root doc, update check_doc_freshness ALLOWLIST. Guard every test that imports an optional-dep module (numpy/mcp/torch/sentence_transformers/fastapi) with...  (source: learn:experiment:ci_and_deploy_hardening)
-- claude -> cursor: Add MCP parity for recall-feedback (and recall-at)  (source: handoff:claude->cursor)
-- Deploy facts for future agents: core = stdlib-only (no required deps); Redis optional (16379); the deploy guide is docs/DEPLOY.md; license is Apache-2.0. Non-Windows...  (source: learn:experiment:deploy_kit_public)
-- The loop's POSITIVE signal (boost) needs votes -- works only if the agent/user actually marks useful (AGENTS.md now instructs it); the NEGATIVE signal (noise-decay) is...  (source: learn:experiment:recall_at_action_usefulness)
-- recall-at-action is now COMPLETE end-to-end: engine -> CLI -> project hook -> bootstrap contract -> guarded global hook -> anti-repeat -> warm cache -> SessionStart...  (source: learn:experiment:recall_at_action_polish)
-- Remaining recall polish (optional): (1) a SessionStart hook to pre-warm the cache so even the first edit is instant; (2) best-effort prune of old per-session seen files...  (source: learn:experiment:recall_at_action_ergonomics)
-- NEXT ergonomics, in order: (1) anti-repeat within a session (persist shown lesson-ids in a session temp file keyed by session id) -- biggest remaining noise source on...  (source: learn:experiment:recall_at_action_global_hook)
-- Two doors for recall-at-action: (1) PreToolUse hook = automatic but ONLY when Claude is launched FROM the repo (cwd=E:/AI-Setup); (2) AGENTS.md contract = agent runs...  (source: learn:experiment:recall_at_action_bootstrap_flow)
+- Honest caveat: PostToolUse success/FAIL detection depends on the tool_response payload shape (assumed is_error/error/exit_code); if it differs, the signal stays INERT...  [relates: member_of]  (source: learn:experiment:door_discover_and_implicit_useful)
+- When adding a root doc, update check_doc_freshness ALLOWLIST. Guard every test that imports an optional-dep module (numpy/mcp/torch/sentence_transformers/fastapi) with...  [relates: member_of]  (source: learn:experiment:ci_and_deploy_hardening)
+- claude -> cursor: Add MCP parity for recall-feedback (and recall-at)  [relates: member_of]  (source: handoff:claude->cursor)
+- Deploy facts for future agents: core = stdlib-only (no required deps); Redis optional (16379); the deploy guide is docs/DEPLOY.md; license is Apache-2.0. Non-Windows...  [relates: member_of]  (source: learn:experiment:deploy_kit_public)
+- The loop's POSITIVE signal (boost) needs votes -- works only if the agent/user actually marks useful (AGENTS.md now instructs it); the NEGATIVE signal (noise-decay) is...  [relates: member_of]  (source: learn:experiment:recall_at_action_usefulness)
+- recall-at-action is now COMPLETE end-to-end: engine -> CLI -> project hook -> bootstrap contract -> guarded global hook -> anti-repeat -> warm cache -> SessionStart...  [relates: member_of]  (source: learn:experiment:recall_at_action_polish)
+- Remaining recall polish (optional): (1) a SessionStart hook to pre-warm the cache so even the first edit is instant; (2) best-effort prune of old per-session seen files...  [relates: member_of]  (source: learn:experiment:recall_at_action_ergonomics)
+- NEXT ergonomics, in order: (1) anti-repeat within a session (persist shown lesson-ids in a session temp file keyed by session id) -- biggest remaining noise source on...  [relates: member_of]  (source: learn:experiment:recall_at_action_global_hook)
+- Two doors for recall-at-action: (1) PreToolUse hook = automatic but ONLY when Claude is launched FROM the repo (cwd=E:/AI-Setup); (2) AGENTS.md contract = agent runs...  [relates: member_of]  (source: learn:experiment:recall_at_action_bootstrap_flow)
 
 ## next-focus: TOMORROW: run the epistemic-risk ULTRACODE workflow -- 'how do re... (ai-setup)
 Span: 2026-06-29T23:30:04.725893 → 2026-06-30T04:19:22.691110
 Beats: 23  · Critic: True
 
-- next-focus: TOMORROW: run the epistemic-risk ULTRACODE workflow -- 'how do recall-at-action + the usefulness feedback loop + write-once notes + ambient capture DEGRADE...  (source: mem:decision:ADR_0630001922_5755)
+- next-focus: TOMORROW: run the epistemic-risk ULTRACODE workflow -- 'how do recall-at-action + the usefulness feedback loop + write-once notes + ambient capture DEGRADE...  [relates: member_of]  (source: mem:decision:ADR_0630001922_5755)
 - never put trailing comments on .gitignore pattern lines; only lines STARTING with # are comments -- put the comment on its own line above the pattern  (source: learn:experiment:gitignore_no_inline_comments)
-- fix: .gitignore inline comment broke draft-ignore; track memory.md digest  (source: git:da87164d76a2)
+- fix: .gitignore inline comment broke draft-ignore; track memory.md digest  [relates: member_of]  (source: git:da87164d76a2)
 - ALWAYS add matcher '*' (or a specific value) to SessionStart/SessionEnd/PreCompact entries -- without it they may not register. Keep these hooks SILENT on stdout...  (source: learn:experiment:session_hooks_need_matcher)
-- Ambient capture = continuity INSURANCE for abrupt ends (esp. PreCompact = compaction, the main where-we-are-loss moment); redundant when you wrap manually. It DRAFTS to...  (source: learn:experiment:wrap_autocapture_shipped)
-- Ship every slice with: py scripts/ship.py MSG paths --learn-exp NAME --tried .. --result .. --recommend .. -- it gates (boundaries+doc-freshness+full pytest) BEFORE...  (source: learn:experiment:ship_and_wrap_shipped)
+- Ambient capture = continuity INSURANCE for abrupt ends (esp. PreCompact = compaction, the main where-we-are-loss moment); redundant when you wrap manually. It DRAFTS to...  [relates: member_of]  (source: learn:experiment:wrap_autocapture_shipped)
+- Ship every slice with: py scripts/ship.py MSG paths --learn-exp NAME --tried .. --result .. --recommend .. -- it gates (boundaries+doc-freshness+full pytest) BEFORE...  [relates: member_of]  (source: learn:experiment:ship_and_wrap_shipped)
 - Resume each session from boot + notes --json, NOT a hand-edited wall. Trade-offs observed: RECENT NOTES truncates to ~110 chars (drill full bodies via notes --json) --...  (source: learn:experiment:native_checkpoint_migrated_to_notes)
 - cursor-status: Cursor's gemini-web slice was taken over + committed by claude (gemini_web.py, bifrost_runner --provider web, ai_setup_mcp _run_gemini_web...  (source: mem:decision:ADR_0629214304_3549)
 - open-docket: Explored-not-built: mutual agent invocation (claude -p / cursor-agent headless + generalized bifrost_runner + optional ask_agent RPC; blocked on CLIs not...  (source: mem:decision:ADR_0629214303_8701)
-- remaining-review-items: From the 2026-06-28 architecture review: RC-02 route contended writes through Store.update_atomic (CAS has no domain callers); store-hardening...  (source: mem:decision:ADR_0629214302_4317)
+- remaining-review-items: From the 2026-06-28 architecture review: RC-02 route contended writes through Store.update_atomic (CAS has no domain callers); store-hardening...  [relates: member_of]  (source: mem:decision:ADR_0629214302_4317)
 - next-focus: NEXT options: (1) FC-01 = build core/codex/curate.py (cluster atoms via Clusterer -> mint/regenerate/supersede Resources) gated by faithfulness_critic -- the...  (source: mem:decision:ADR_0629214302_5390)
-- where-we-are 2026-06-29: Akashic Aurora status: recall-at-action COMPLETE end-to-end (engine, CLI recall-at, PreToolUse hook additionalContext, bootstrap contract...  (source: mem:decision:ADR_0629214301_5916)
-- Write durable 'where-we-are'/decision state with  (one write), not by hand-editing the native checkpoint -- it surfaces at boot + in chronicles/memory.md. Correct by...  (source: learn:experiment:write_once_notes_shipped)
+- where-we-are 2026-06-29: Akashic Aurora status: recall-at-action COMPLETE end-to-end (engine, CLI recall-at, PreToolUse hook additionalContext, bootstrap contract...  [relates: member_of]  (source: mem:decision:ADR_0629214301_5916)
+- Write durable 'where-we-are'/decision state with  (one write), not by hand-editing the native checkpoint -- it surfaces at boot + in chronicles/memory.md. Correct by...  [relates: member_of]  (source: learn:experiment:write_once_notes_shipped)
 - open-question: implicit-useful payload: PostToolUse _is_success assumes tool_response shape; verify against a live payload so the FAIL->SUCCESS signal actually fires.  (source: mem:decision:ADR_0629210203_6519)
-- where-we-are 2026-06-29: Recall-at-action COMPLETE; repo PUBLIC; write-once notes SHIPPED (note/notes/boot-surface/memory.md). Next: recall-learning loop or FC-01...  (source: mem:decision:ADR_0629210203_1187)
-- where-we-are 2026-06-29: Recall-at-action COMPLETE; repo PUBLIC (Apache-2.0, CI green); contributor=balanced7.  (source: mem:decision:ADR_0629210202_2063)
-- CRITICAL: the rewrite CHANGED EVERY COMMIT SHA. Any SHA recorded in lessons/memory/docs BEFORE this (e.g. FAITH-1 6b81e9f, SPINE-1 aaa01cc, recall-at 31a1b67, deploy...  (source: learn:experiment:git_history_rewritten_balanced7)
-- Don't reintroduce per-agent file/task ownership in docs/memory/handoffs. Coordinate concurrent edits with locks (transient), attribute with AKASHIC_AGENT_ID, but never...  (source: learn:experiment:collaboration_model_no_ownership)
-- Taking over a peer agent's stranded slice: review (parses? stubs? referenced files exist?), confirm tests pass, confirm CI-safety (heavy deps lazy + in a separate...  (source: learn:experiment:cursor_slice_taken_over)
+- where-we-are 2026-06-29: Recall-at-action COMPLETE; repo PUBLIC; write-once notes SHIPPED (note/notes/boot-surface/memory.md). Next: recall-learning loop or FC-01...  [relates: member_of]  (source: mem:decision:ADR_0629210203_1187)
+- where-we-are 2026-06-29: Recall-at-action COMPLETE; repo PUBLIC (Apache-2.0, CI green); contributor=balanced7.  [relates: member_of]  (source: mem:decision:ADR_0629210202_2063)
+- CRITICAL: the rewrite CHANGED EVERY COMMIT SHA. Any SHA recorded in lessons/memory/docs BEFORE this (e.g. FAITH-1 6b81e9f, SPINE-1 aaa01cc, recall-at 31a1b67, deploy...  [relates: member_of]  (source: learn:experiment:git_history_rewritten_balanced7)
+- Don't reintroduce per-agent file/task ownership in docs/memory/handoffs. Coordinate concurrent edits with locks (transient), attribute with AKASHIC_AGENT_ID, but never...  [relates: member_of]  (source: learn:experiment:collaboration_model_no_ownership)
+- Taking over a peer agent's stranded slice: review (parses? stubs? referenced files exist?), confirm tests pass, confirm CI-safety (heavy deps lazy + in a separate...  [relates: member_of]  (source: learn:experiment:cursor_slice_taken_over)
 - claude -> cursor: Your gemini-web slice is COMMITTED + MCP parity DONE — verify live + set your agent id  (source: handoff:claude->cursor)
 - hooks: add required matcher to SessionStart/SessionEnd/PreCompact (verified via docs)  (source: git:7c9df00a1ab0)
 - wrap auto-capture: PreCompact/SessionEnd -> draft file + boot pointer  (source: git:3bde06f1aed4)
@@ -288,17 +288,17 @@ Beats: 23  · Critic: True
 Span: 2026-06-30T12:58:21.865926 → 2026-06-30T13:30:36.287830
 Beats: 5  · Critic: True
 
-- retrieval-critic-design: Design research for an automatic retrieval critic = docs/retrieval-critic-design.md (2026-06-30, user idea: ground context retrieval so it is...  (source: mem:decision:ADR_0630093036_6716)
+- retrieval-critic-design: Design research for an automatic retrieval critic = docs/retrieval-critic-design.md (2026-06-30, user idea: ground context retrieval so it is...  [relates: member_of]  (source: mem:decision:ADR_0630093036_6716)
 - directive-friction-audit: Friction audit of the agent directives = docs/directive-friction-audit.md (written 2026-06-30, in response to user principle: make the right...  (source: mem:decision:ADR_0630092509_1059)
 - epistemic-risk-register: EPISTEMIC-RISK REGISTER (manual deep pass; grounded in real code + literature; skeptic-checked). Loop under study: usefulness -> rank -> surface...  (source: mem:decision:ADR_0630091418_4717)
-- epistemic-risk-register: Accumulating per-factor risk register for the recall/memory loop (manual deep pass; grounded in real code + literature; skeptic-checked for...  (source: mem:decision:ADR_0630085845_9543)
+- epistemic-risk-register: Accumulating per-factor risk register for the recall/memory loop (manual deep pass; grounded in real code + literature; skeptic-checked for...  [relates: member_of]  (source: mem:decision:ADR_0630085845_9543)
 - next-focus: Epistemic-risk work is now MANUAL factor-by-factor in max-effort, NOT the ultracode workflow (user found ultracode missed the salient self-suggestion risks...  (source: mem:decision:ADR_0630085821_5236)
 
 ## session 2026-06-30: F1 provenance-labelled recall (opinion-laundering fix) + ... (ai-setup)
 Span: 2026-06-30T23:33:38.652259 → 2026-06-30T23:34:18.331526
 Beats: 3  · Critic: True
 
-- session 2026-06-30: F1 provenance-labelled recall (opinion-laundering fix) + directive-friction-audit & retrieval-critic design docs; ranking slice paused  (source: git:b7ac45b67168)
+- session 2026-06-30: F1 provenance-labelled recall (opinion-laundering fix) + directive-friction-audit & retrieval-critic design docs; ranking slice paused  [relates: member_of]  (source: git:b7ac45b67168)
 - next-focus: Full current state + resume options = note where-we-are (refreshed 2026-06-30, before a Claude update). SHORT: Factor 1 opinion-laundering SHIPPED...  (source: mem:decision:ADR_0630193400_4519)
 - where-we-are: SESSION 2026-06-30 (paused for a Claude update). ARC: deep MANUAL max-effort epistemic-risk pass (NOT ultracode -- it missed the salient self-suggestion...  (source: mem:decision:ADR_0630193338_5557)
 
@@ -306,40 +306,130 @@ Beats: 3  · Critic: True
 Span: 2026-07-01T04:11:47.846790 → 2026-07-01T05:01:22.414000
 Beats: 5  · Critic: True
 
-- next-focus: Full current state + resume options = note where-we-are (refreshed 2026-07-01). SHORT: ranking-feedback INC1 pull slice SHIPPED (recall --full, total, N-of-M...  (source: mem:decision:ADR_0701010122_3781)
+- next-focus: Full current state + resume options = note where-we-are (refreshed 2026-07-01). SHORT: ranking-feedback INC1 pull slice SHIPPED (recall --full, total, N-of-M...  [relates: member_of]  (source: mem:decision:ADR_0701010122_3781)
 - adversarial-critic-partner-idea: User idea (2026-07-01): design an adversarial partner/critic for Claude that TRAINS INDEPENDENTLY (not just prompted-in-context) and...  (source: mem:decision:ADR_0701010114_6136)
-- where-we-are: SESSION 2026-06-30/07-01. Reviewed + approved both design docs (directive-friction-audit, retrieval-critic-design) -- no changes requested, both ready to...  (source: mem:decision:ADR_0701001207_4003)
-- next: the friction-audit roadmap's remaining quick-wins (auto-boot at SessionStart, turn-start bus-sync hook, identity fail-closed) or the retrieval-critic Tier 1...  (source: learn:experiment:ranking_feedback_inc1_pull)
-- ranking & feedback INC1: pull-side escape (recall --full, recall_at total, render N-of-M line)  (source: git:19f0b918b0ce)
+- where-we-are: SESSION 2026-06-30/07-01. Reviewed + approved both design docs (directive-friction-audit, retrieval-critic-design) -- no changes requested, both ready to...  [relates: member_of]  (source: mem:decision:ADR_0701001207_4003)
+- next: the friction-audit roadmap's remaining quick-wins (auto-boot at SessionStart, turn-start bus-sync hook, identity fail-closed) or the retrieval-critic Tier 1...  [relates: member_of]  (source: learn:experiment:ranking_feedback_inc1_pull)
+- ranking & feedback INC1: pull-side escape (recall --full, recall_at total, render N-of-M line)  [relates: member_of]  (source: git:19f0b918b0ce)
 
-## next-focus: NEXT per docs/leapfrog-plan.md triage (loop fires -> corpus grows... (ai-setup)
-Span: 2026-07-01T23:20:43.667129 → 2026-07-02T02:52:25.856601
-Beats: 20  · Critic: True
+## next-focus: NEXT = Slice 2 of the recall-critic arc = write-side dissent capt... (ai-setup)
+Span: 2026-07-01T23:20:43.667129 → 2026-07-01T23:23:15.842580
+Beats: 5  · Critic: True
 
-- Recall dissent (Slices 0-1): eval harness + precision-first counter-finder  (source: git:bbb93b38bb1b)
-- Precision-first + silent-when-starved is correct: the binding constraint is corpus content, not the reader. Next lever = Slice 2 (write-side capture of anti_patterns /...  (source: learn:experiment:recall_dissent_slice01)
-- Build the yardstick + a real-corpus probe before the mechanism; trust the curated fixture and treat any detector-relative corpus metric as suspect until a precise...  (source: learn:experiment:eval_harness_before_fix)
-- where-we-are: RECALL-CRITIC ARC (2026-07-01). Goal: stop recall being a confirmation-bias engine. Plan = docs/recall-critic-decision.md (Path 2 dialectical retrieval...  (source: mem:decision:ADR_0701192312_2889)
-- next-focus: NEXT = Slice 2 of the recall-critic arc = write-side dissent capture. VERIFIED gap: agent_cli.py learn exposes only ...[truncated]  (source: mem:decision:ADR_0701192315_6475)
-- Recall dissent (Slice 2): write-side capture -- expose, tag, auto-draft anti-patterns  (source: git:f799c8946194)
-- A write door must OFFER a field or it stays empty (0 anti-patterns came from a missing flag, not agent laziness). Auto-draft the NAME to remove the naming cost and hand...  (source: learn:experiment:recall_dissent_slice2_capture)
+- next-focus: NEXT = Slice 2 of the recall-critic arc = write-side dissent capture. VERIFIED gap: agent_cli.py learn exposes only ...[truncated]  [relates: member_of]  (source: mem:decision:ADR_0701192315_6475)
+- where-we-are: RECALL-CRITIC ARC (2026-07-01). Goal: stop recall being a confirmation-bias engine. Plan = docs/recall-critic-decision.md (Path 2 dialectical retrieval...  [relates: member_of]  (source: mem:decision:ADR_0701192312_2889)
+- Build the yardstick + a real-corpus probe before the mechanism; trust the curated fixture and treat any detector-relative corpus metric as suspect until a precise...  [relates: member_of]  (source: learn:experiment:eval_harness_before_fix)
+- Precision-first + silent-when-starved is correct: the binding constraint is corpus content, not the reader. Next lever = Slice 2 (write-side capture of anti_patterns /...  [relates: member_of]  (source: learn:experiment:recall_dissent_slice01)
+- Recall dissent (Slices 0-1): eval harness + precision-first counter-finder  [relates: member_of]  (source: git:bbb93b38bb1b)
+
+## note: next-focus (ai-setup)
+Span: 2026-07-01T23:23:15.981254 → 2026-07-01T23:45:15.698417
+Beats: 5  · Critic: True
+
+- note: next-focus  (source: event:events:raw:1782948195984-0)
+- where-we-are: RECALL-CRITIC ARC (2026-07-01). Goal: stop recall being a confirmation-bias engine. Plan = docs/recall-critic-decision.md. SHIPPED + pushed, all gated...  [relates: member_of]  (source: mem:decision:ADR_0701194515_9161)
 - when adding a capability to a lower layer, expose it on the SAME door agents already use, in the same slice, or it stays dead; treat door-exposure as part of done  (source: learn:experiment:capability_without_a_door)
-- where-we-are: RECALL-CRITIC ARC (2026-07-01). Goal: stop recall being a confirmation-bias engine. Plan = docs/recall-critic-decision.md. SHIPPED + pushed, all gated...  (source: mem:decision:ADR_0701194515_9161)
+- A write door must OFFER a field or it stays empty (0 anti-patterns came from a missing flag, not agent laziness). Auto-draft the NAME to remove the naming cost and hand...  (source: learn:experiment:recall_dissent_slice2_capture)
+- Recall dissent (Slice 2): write-side capture -- expose, tag, auto-draft anti-patterns  [relates: member_of]  (source: git:f799c8946194)
+
+## note: where-we-are (ai-setup)
+Span: 2026-07-01T23:45:15.812912 → 2026-07-01T23:45:21.995557
+Beats: 2  · Critic: True
+
+- note: where-we-are  (source: event:events:raw:1782949515816-0)
 - next-focus: TOP PRIORITY (reprioritized by a dogfooding finding): fix Slice-1 PRECISION on real anti-patterns. The finder surfaces 7 false counters on the live corpus...  (source: mem:decision:ADR_0701194521_1667)
-- Recall dissent (Slice 3): precision fix -- an on-topic anti-pattern is not a contradiction  (source: git:380b4dc3a399)
+
+## note: next-focus (ai-setup)
+Span: 2026-07-01T23:45:22.118491 → 2026-07-02T00:13:44.875130
+Beats: 4  · Critic: True
+
+- note: next-focus  (source: event:events:raw:1782949522122-0)
+- where-we-are: RECALL-CRITIC ARC (2026-07-01). Goal: stop recall being a confirmation-bias engine. Plan = docs/recall-critic-decision.md. SHIPPED + pushed (gated green)...  [relates: member_of]  (source: mem:decision:ADR_0701201344_4961)
 - An on-topic anti-pattern != a contradiction of a thesis; topic-adjacency conflates with stance. Precision-first: surface nothing you cannot verify. NEXT...  (source: learn:experiment:recall_dissent_slice3_precision)
-- where-we-are: RECALL-CRITIC ARC (2026-07-01). Goal: stop recall being a confirmation-bias engine. Plan = docs/recall-critic-decision.md. SHIPPED + pushed (gated green)...  (source: mem:decision:ADR_0701201344_4961)
+- Recall dissent (Slice 3): precision fix -- an on-topic anti-pattern is not a contradiction  [relates: member_of]  (source: git:380b4dc3a399)
+
+## note: where-we-are (ai-setup)
+Span: 2026-07-02T00:13:44.995427 → 2026-07-02T00:13:50.925220
+Beats: 2  · Critic: True
+
+- note: where-we-are  (source: event:events:raw:1782951224998-0)
 - next-focus: NEXT = build the SEMANTIC GATE (the deferred tier), now that its yardstick exists (tests/test_semantic_eval.py) and an LLM-judge probe cleared it -- incl...  (source: mem:decision:ADR_0701201350_1440)
-- T1: make the implicit FAIL->SUCCESS credit real: transcript-synthesized failures + live payload contract  (source: git:0d77da61ecbc)
-- Never trust an assumed hook payload shape: auto-capture real payloads (bounded, tempdir/akashic_recall/payloads), pin them as fixtures in a contract test...  (source: learn:experiment:recall_implicit_credit_payload_truth)
-- open-question: implicit-useful payload: RESOLVED 2026-07-01 (T1 shipped, gated green). Live capture proved the old assumption unfixable rather than mistuned: Claude Code...  (source: mem:decision:ADR_0701223906_5443)
-- where-we-are: T1 (leapfrog plan Wave A) SHIPPED 2026-07-01: the implicit FAIL->SUCCESS credit loop is REAL end-to-end -- proven live in-session, first helped credit ever...  (source: mem:decision:ADR_0701223906_9239)
-- next-focus: NEXT per docs/leapfrog-plan.md triage (loop fires -> corpus grows -> numbers exist): T2 = write-side friction fixes (JIT learn-it? prompt at the...  (source: mem:decision:ADR_0701223907_7327)
-- Session ended  (source: session:end)
+
+## note: next-focus (ai-setup)
+Span: 2026-07-02T00:13:51.046144 → 2026-07-02T00:13:51.046144
+Beats: 1  · Critic: True
+
+- note: next-focus  (source: event:events:raw:1782951231050-0)
 
 ## leapfrog-plan: Full plan = docs/leapfrog-plan.md (2026-07-01, max-effort synt... (research)
 Span: 2026-07-02T01:54:07.427964 → 2026-07-02T02:10:02.912138
 Beats: 2  · Critic: True
 
-- competitive-landscape-2026-07: Web survey 2026-07-01 (full sources in session transcript). FIELD STATE: memory is now native in every harness -- Claude Code auto-memory...  (source: mem:decision:ADR_0701215407_2479)
 - leapfrog-plan: Full plan = docs/leapfrog-plan.md (2026-07-01, max-effort synthesis of repo audit + docs read + competitive survey + DS4/antirez case study). THESIS...  (source: mem:decision:ADR_0701221002_3682)
+- competitive-landscape-2026-07: Web survey 2026-07-01 (full sources in session transcript). FIELD STATE: memory is now native in every harness -- Claude Code auto-memory...  [relates: member_of]  (source: mem:decision:ADR_0701215407_2479)
+
+## note: competitive-landscape-2026-07 (ai-setup)
+Span: 2026-07-02T01:54:07.539263 → 2026-07-02T01:54:07.539263
+Beats: 1  · Critic: True
+
+- note: competitive-landscape-2026-07  (source: event:events:raw:1782957247542-0)
+
+## note: leapfrog-plan (ai-setup)
+Span: 2026-07-02T02:10:03.026276 → 2026-07-02T02:39:06.403141
+Beats: 4  · Critic: True
+
+- note: leapfrog-plan  (source: event:events:raw:1782958203028-0)
+- T1: make the implicit FAIL->SUCCESS credit real: transcript-synthesized failures + live payload contract  [relates: member_of]  (source: git:0d77da61ecbc)
+- Never trust an assumed hook payload shape: auto-capture real payloads (bounded, tempdir/akashic_recall/payloads), pin them as fixtures in a contract test...  [relates: member_of]  (source: learn:experiment:recall_implicit_credit_payload_truth)
+- open-question: implicit-useful payload: RESOLVED 2026-07-01 (T1 shipped, gated green). Live capture proved the old assumption unfixable rather than mistuned: Claude Code...  (source: mem:decision:ADR_0701223906_5443)
+
+## note: open-question: implicit-useful payload (ai-setup)
+Span: 2026-07-02T02:39:06.538266 → 2026-07-02T02:39:06.877696
+Beats: 2  · Critic: True
+
+- note: open-question: implicit-useful payload  (source: event:events:raw:1782959946541-0)
+- where-we-are: T1 (leapfrog plan Wave A) SHIPPED 2026-07-01: the implicit FAIL->SUCCESS credit loop is REAL end-to-end -- proven live in-session, first helped credit ever...  (source: mem:decision:ADR_0701223906_9239)
+
+## note: where-we-are (ai-setup)
+Span: 2026-07-02T02:39:06.976744 → 2026-07-02T02:39:07.318281
+Beats: 2  · Critic: True
+
+- note: where-we-are  (source: event:events:raw:1782959946979-0)
+- next-focus: NEXT per docs/leapfrog-plan.md triage (loop fires -> corpus grows -> numbers exist): T2 = write-side friction fixes (JIT learn-it? prompt at the...  (source: mem:decision:ADR_0701223907_7327)
+
+## note: next-focus (ai-setup)
+Span: 2026-07-02T02:39:07.431424 → 2026-07-02T05:56:52.635785
+Beats: 32  · Critic: True
+
+- note: next-focus  (source: event:events:raw:1782959947434-0)
+- For a public showcase repo, audit git ls-files (what visitors SEE), not ls (what's local); archive-don't-delete via git mv keeps the append-only ethos; put a REAL...  (source: learn:experiment:repo_presentation_cleanup)
+- where-we-are: T1 SHIPPED (implicit FAIL->SUCCESS credit real + proven live, first helped credit in system history) AND presentation pass SHIPPED (2026-07-01): tracked...  (source: mem:decision:ADR_0701225643_5172)
+- T2: JIT learn nudge at the flip instant + wrap-time candidate lessons (friction audit D5)  (source: git:1295b8f8c23c)
+- When adding a per-session state dir: update prune_state AND every dir-swapping test in the same slice; eyeball a REAL wrap render before shipping; never assert on a...  (source: learn:experiment:t2_jit_learn_nudge_live)
+- where-we-are: T2 SHIPPED 2026-07-01 (leapfrog Wave A, friction-audit D5): the JIT learn nudge is live and PROVEN in-session -- a FAIL->SUCCESS flip now (1) credits...  (source: mem:decision:ADR_0701233220_3729)
+- next-focus: T2 done -> NEXT per docs/leapfrog-plan.md triage: T3 = funnel instrumentation (a  verb: surfaced -> acted -> outcome -> flips -> lessons-recorded per session...  (source: mem:decision:ADR_0701233220_7796)
+- next-focus: T2 done -> NEXT per docs/leapfrog-plan.md triage: T3 = funnel instrumentation (a 'stats' verb: surfaced -> acted -> outcome -> flips -> lessons-recorded per...  (source: mem:decision:ADR_0701233243_9563)
+- After context compaction/summarization, re-Read the exact target region before any Edit; budget a handful of lines, not the file  (source: learn:experiment:edit_after_context_reset)
+- Instrument by READING existing records, never by adding write paths; name ratios exactly what they measure; keep console output ASCII; ship CLI verb + MCP tool + tests...  (source: learn:experiment:t3_stats_funnel_first_slice)
+- next-focus: T3 FIRST SLICE SHIPPED 2026-07-02 (stats verb: recall-value funnel, CLI+MCP+tests; first reading: 104 lessons / 370 impressions / 1 helped / lessons-per-flip...  (source: mem:decision:ADR_0701234325_5590)
+- Add PowerShell to the PreToolUse/PostToolUse/PostToolUseFailure matchers in C:/Users/L5/.claude/settings.json AND to the tool-name filters in both hook scripts (treat it...  (source: learn:experiment:powershell_tool_hook_blindspot)
+- Friction sweep + T3 trend: PowerShell hook coverage (live fixture pinned), handoff retirement, UTF-8 pipes, human flip targets, SessionStart light auto-boot, per-day...  (source: git:909d46d3e85c)
+- Fix hook-coverage gaps live and verify in-session: edit matcher, run one in-scope call, check tempdir akashic_recall for the artifact. Never defer a payload-fixture pin...  (source: learn:experiment:hook_matchers_hot_reload)
+- where-we-are: FRICTION SWEEP + T3 SLICE 2 SHIPPED 2026-07-02 (one commit, gated green, ~570 tests): (1) PowerShell hook blindspot CLOSED -- matchers + both hook script...  (source: mem:decision:ADR_0702010130_2847)
+- next-focus: Wave A is now FULLY shipped (T1 credit loop + T2 JIT nudge + T3 funnel/trend/pace + T4 contract tests incl live PowerShell fixture + friction fixes #1-#6...  (source: mem:decision:ADR_0702010131_5819)
+- research: greptile + skill-format 2026-07-02: Researched github.com/michaelshimeles/skills + Greptile (production AI code review) for routine/quality lessons. GREPTILE...  (source: mem:decision:ADR_0702010906_4755)
+- Greptile-informed recall polish: value-rate steering number, lesson graduation (superseded-by-automation), track-record tags on surfaced lessons  (source: git:dc5a92c9dda1)
+- Mine a production competitor for SEQUENCING not just validation: their FAILED approaches close our open questions for free (LLM-as-judge self-severity nearly random =...  (source: learn:experiment:greptile_informed_recall_polish)
+- where-we-are: GREPTILE-INFORMED SLICES 1-3 SHIPPED 2026-07-02 (second gated commit today, on top of the friction sweep): (1) VALUE RATE = (useful+helped)/surfaced now...  (source: mem:decision:ADR_0702012220_6352)
+- next-focus: RESUME POINT 2026-07-02: Wave A fully shipped + friction sweep + Greptile slices 1-3 (see where-we-are ADR_0702012220). IN PROGRESS: research detour #2 --...  (source: mem:decision:ADR_0702012657_1258)
+- research: field survey 2026-07: FIELD SURVEY COMPLETE 2026-07-02 (3 parallel research agents: skills ecosystem, individual practitioners, memory/context-engineering...  (source: mem:decision:ADR_0702013752_3553)
+- next-focus: RESUME POINT 2026-07-02 (post field-survey): detour #2 COMPLETE -- see docs/field-survey-2026-07.md + note research: field survey 2026-07. USER PICKS NEXT...  (source: mem:decision:ADR_0702013753_4817)
+- Use when any module keeps state under a module-constant tempdir path and tests can reach it transitively, before shipping: derive the path from an env var at import and...  (source: learn:experiment:recall_state_hermeticity_env)
+- presentation: clean tracked root to 26 entries, archive legacy subprojects, rewrite README around the proven loop  (source: git:4b24caac766c)
+- README: honest About section -- solo passion project, learning in public, author link  (source: git:490a13b82334)
+- README: About section in the author's own voice  (source: git:effcb366afcf)
+- T3: stats verb -- the recall-value funnel (surfaced -> helped -> flips -> captured), CLI + MCP  (source: git:b1ca4f64edda)
+- docs: field survey 2026-07 -- skills ecosystem + practitioners + memory canon; convergences, dissent, ranked adoption plan  (source: git:426802752772)
+- Session ended  (source: session:end)
+- Session started  (source: session:start)
+- Session ended  (source: session:end)

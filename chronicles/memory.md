@@ -1,15 +1,25 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 14 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 23 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
-- next-focus: T2 done -> NEXT per docs/leapfrog-plan.md triage: T3 = funnel instrumentation (a 'stats' verb: surfaced -> acted -> outcome -> flips -> lessons-recorded per...  (source: mem:decision:ADR_0701233243_9563)
-- where-we-are: T2 SHIPPED 2026-07-01 (leapfrog Wave A, friction-audit D5): the JIT learn nudge is live and PROVEN in-session -- a FAIL->SUCCESS flip now (1) credits...  (source: mem:decision:ADR_0701233220_3729)
+- where-we-are 2026-07-03: Shipped:
+  - Research bookkeeping: 002/003/005 reviewed+done, fleet tasks 008-010 queued (critic calibration, minimal critic strength, MoE...  (source: mem:decision:ADR_0703113036_7567)
+- next-focus: PRIORITY RE-CUT 2026-07-03 (post vision-reveal + bakeoff adjudication; user near plan limit). DOCTRINE: methodical foundation-first, NO alpha-rush to the...  (source: mem:decision:ADR_0703102009_6940)
+- a-series: the assistant layer (the revealed end goal): VISION REVEALED 2026-07-03 (user, on seeing Rika's feature list): 'Akashic Aurora is just the scaffolding' -- the...  (source: mem:decision:ADR_0703095414_5724)
+- landscape: rika (convergent dreaming, no measurement): SQ1 THESIS-GUARD CHECK 2026-07-03 (user spotted github.com/nssriraam/rika via HuggingFace discord...  (source: mem:decision:ADR_0703094830_9886)
+- adversarial-critic-partner-idea: SCOPING RESOLVED 2026-07-03 (user: 'Integrate and lets go'): (Q1) INTEGRATE into Akashic Aurora -- reuse FAITH-1, ledger, learning...  (source: mem:decision:ADR_0703080157_1469)
+- s1-triage-adjudication: S1 FIRST TRIAGE ADJUDICATED 2026-07-03 (verb: py agent_cli.py triage; shipped gated). NUMBERS: 127 tracked sources, 8 PROTECT (all earned credit...  (source: mem:decision:ADR_0703063551_8888)
+- idea: knowledge primitives (shape axis) + tests-as-schema: USER IDEATION 2026-07-03 (via GPT chat, user-relayed; extends the sharpening-sword thesis). TWO IDEAS: (1)...  (source: mem:decision:ADR_0703000542_6378)
+- research: knowledge compaction + consolidation field state 2026-07: TWO-AGENT SWEEP 2026-07-02 (all claims fetched+cited; feeds SQ1+SQ3; trigger: user's 'ever-sharpening...  (source: mem:decision:ADR_0702233250_1531)
+- where-we-are: LOCAL-AGENT FLEET + RESEARCH-DAY PIPELINE SHIPPED PUBLIC 2026-07-02 (after Integration Tiers H0-H3 same day). glm_local = glm-4.7-flash on native Ollama...  (source: mem:decision:ADR_0702192945_4841)
+- research: local/free models via Claude Code 2026-07: RESEARCH COMPLETE 2026-07-02 (3 parallel agents, all claims source-verified; trigger: user shared a video on free...  (source: mem:decision:ADR_0702090107_7768)
+- research: field survey 2026-07: FIELD SURVEY COMPLETE 2026-07-02 (3 parallel research agents: skills ecosystem, individual practitioners, memory/context-engineering...  (source: mem:decision:ADR_0702013752_3553)
+- research: greptile + skill-format 2026-07-02: Researched github.com/michaelshimeles/skills + Greptile (production AI code review) for routine/quality lessons. GREPTILE...  (source: mem:decision:ADR_0702010906_4755)
 - open-question: implicit-useful payload: RESOLVED 2026-07-01 (T1 shipped, gated green). Live capture proved the old assumption unfixable rather than mistuned: Claude Code...  (source: mem:decision:ADR_0701223906_5443)
 - leapfrog-plan: Full plan = docs/leapfrog-plan.md (2026-07-01, max-effort synthesis of repo audit + docs read + competitive survey + DS4/antirez case study). THESIS...  (source: mem:decision:ADR_0701221002_3682)
 - competitive-landscape-2026-07: Web survey 2026-07-01 (full sources in session transcript). FIELD STATE: memory is now native in every harness -- Claude Code auto-memory...  (source: mem:decision:ADR_0701215407_2479)
-- adversarial-critic-partner-idea: User idea (2026-07-01): design an adversarial partner/critic for Claude that TRAINS INDEPENDENTLY (not just prompted-in-context) and...  (source: mem:decision:ADR_0701010114_6136)
 - retrieval-critic-design: Design research for an automatic retrieval critic = docs/retrieval-critic-design.md (2026-06-30, user idea: ground context retrieval so it is...  (source: mem:decision:ADR_0630093036_6716)
 - directive-friction-audit: Friction audit of the agent directives = docs/directive-friction-audit.md (written 2026-06-30, in response to user principle: make the right...  (source: mem:decision:ADR_0630092509_1059)
 - epistemic-risk-register: EPISTEMIC-RISK REGISTER (manual deep pass; grounded in real code + literature; skeptic-checked). Loop under study: usefulness -> rank -> surface...  (source: mem:decision:ADR_0630091418_4717)
