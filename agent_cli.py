@@ -464,6 +464,76 @@ def cmd_recall_counters(args):
     return 0
 
 
+# --------------------------------------------------------------------- fleet
+def cmd_fleet(args):
+    """Fleet dispatch: the local-model roster + a direct one-shot caller -- the structure for calling
+    small models (docs/fleet-dispatch-design.md). Actions:
+      list   -- the roster (status / capabilities / disqualifier); --probe adds live Ollama availability
+      select -- pick the best model for a capability + constraints (what to RUN right now)
+      call   -- run a bounded subtask on one model and print its output (also the manual smoke test)
+    Reads are fail-soft; a failed call surfaces the error, never a silent empty string."""
+    from core.fleet import roster
+    action = args.action or "list"
+    if action == "list":
+        rows = roster.models(status=args.status, capability=args.capability)
+        probe = roster.probe_availability() if args.probe else None
+        present = set(probe["present"]) if probe and probe.get("ok") else None
+        if args.json:
+            out = {"models": rows}
+            if probe is not None:
+                out["availability"] = probe
+            print(json.dumps(out, indent=1))
+            return 0
+        hdr = f"# FLEET ROSTER  ({len(rows)} model(s)"
+        hdr += f", status={args.status}" if args.status else ""
+        hdr += f", capability={args.capability}" if args.capability else ""
+        print(hdr + ")")
+        if args.probe:
+            live = "ollama up" if (probe and probe.get("ok")) else "ollama unreachable"
+            print(f"  live: {live}" + (f" -- present: {probe['declared_present']}"
+                                       if probe and probe.get("ok") else ""))
+        for m in rows:
+            up = ""
+            if present is not None:
+                up = " [up]" if (m["tag"] in present or m["tag"].split(":")[0] in present) else " [--]"
+            vram = f"{m['vram_gb']}GB" if m.get("vram_gb") is not None else "?GB"
+            tps = f"{m['throughput_toks']}tps" if m.get("throughput_toks") is not None else "?tps"
+            print(f"  {m['status']:<9} {m['tag']:<20}{up} {vram:<6} {tps:<7} ctx={m.get('context')}  "
+                  f"[{', '.join(m.get('capabilities') or [])}]")
+            if m.get("disqualifier"):
+                print(f"            GATED: {m['disqualifier']}")
+        return 0
+    if action == "select":
+        pick = roster.select(args.capability, status=(args.status or "active"),
+                             max_vram=args.max_vram, min_context=args.min_context)
+        if args.json:
+            print(json.dumps(pick, indent=1) if pick else "null")
+            return 0 if pick else 1
+        if not pick:
+            print(f"# FLEET SELECT -- nothing fits (capability={args.capability}, "
+                  f"max_vram={args.max_vram}, min_context={args.min_context}, status={args.status or 'active'})")
+            return 1
+        vram = f"{pick['vram_gb']}GB" if pick.get("vram_gb") is not None else "?GB"
+        print(f"# FLEET SELECT -> {pick['tag']}  ({pick['status']}, {vram}, ctx={pick.get('context')})")
+        print(f"  why: capability={args.capability or 'any'} + constraints; {pick.get('notes', '')}")
+        return 0
+    if action == "call":
+        if not args.model or not args.prompt:
+            print("ERROR: fleet call needs --model TAG and --prompt TEXT")
+            return 2
+        from core.fleet.caller import call, FleetCallError
+        try:
+            out = call(args.model, args.prompt, system=args.system, max_tokens=args.max_tokens,
+                       temperature=args.temperature, fmt=("json" if args.json_out else None))
+        except FleetCallError as e:
+            print(f"[FAIL] {e}")
+            return 1
+        print(out)
+        return 0
+    print(f"ERROR: unknown fleet action '{action}' (list | select | call)")
+    return 2
+
+
 # --------------------------------------------------------------------- harnesses
 def cmd_harnesses(args):
     """The integration-tier matrix: what each harness ACTUALLY delivers, T0 door .. T6 close.
@@ -1626,6 +1696,26 @@ def build_parser():
                         help="integration-tier matrix: what each harness (claude-code/cursor/bare-cli) actually delivers")
     hz.add_argument("--json", action="store_true")
     hz.set_defaults(fn=cmd_harnesses)
+
+    fl = sub.add_parser("fleet",
+                        help="local-model dispatch: roster (list) + capability select + direct one-shot call")
+    fl.add_argument("action", nargs="?", default="list", choices=["list", "select", "call"],
+                    help="list the roster | select a model for a capability | call a model once")
+    fl.add_argument("--capability", default=None,
+                    help="capability label to filter/route on (generalist, tool-use, extract, summarize, classify, faithful, ...)")
+    fl.add_argument("--status", default=None, help="filter by status (active|tested|candidate|gated)")
+    fl.add_argument("--probe", action="store_true", help="list: also check live Ollama availability (/api/tags)")
+    fl.add_argument("--max-vram", dest="max_vram", type=float, default=None, help="select: max GB VRAM")
+    fl.add_argument("--min-context", dest="min_context", type=int, default=None, help="select: min context tokens")
+    fl.add_argument("--model", default=None, help="call: the model tag to invoke")
+    fl.add_argument("--prompt", default=None, help="call: the prompt text")
+    fl.add_argument("--system", default=None, help="call: optional system prompt")
+    fl.add_argument("--max-tokens", dest="max_tokens", type=int, default=512, help="call: max output tokens (default 512)")
+    fl.add_argument("--temperature", type=float, default=0.2, help="call: sampling temperature (default 0.2)")
+    fl.add_argument("--json-out", dest="json_out", action="store_true",
+                    help="call: request JSON-formatted MODEL output (Ollama format=json)")
+    fl.add_argument("--json", action="store_true", help="print the CLI result as JSON")
+    fl.set_defaults(fn=cmd_fleet)
 
     tr = sub.add_parser("triage",
                         help="sharpening S1: lessons ranked by measured value (protect / cost-no-return / noise) for review")
