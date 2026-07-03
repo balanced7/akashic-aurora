@@ -9,3 +9,7 @@ notes: We already know (field survey 2026-07) that MemoryArena published replay 
   source, their credit/attribution method, whether they do per-memory counterfactual swaps
   (2605.17641-style CMI), and what they explicitly list as limitations/future work. "Done" =
   a findings list a bench designer can act on without reading the paper.
+escalation (2026-07-03 review): 2x timeout -- arxiv paper reading exceeds local prefill
+  budget. ESCALATED TO FRONTIER: fold into the Wave B design session together with the
+  CMI methodology (already frontier-fetched, see reviewed/cmi-counterfactual-method.md).
+  Not requeued to the fleet.

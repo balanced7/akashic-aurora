@@ -1,4 +1,4 @@
-status: queued
+status: done
 # TASK: How does the CMI paper (arXiv 2605.17641) run per-memory counterfactual swaps, and what exactly must our Wave B bench copy or beat?
 feeds: SQ1 (Ledger Replay Bench design -- causal memory utility)
 seeds:

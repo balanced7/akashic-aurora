@@ -17,3 +17,8 @@ notes: User request (2026-07-02): heard V4 mirrors some of our approach. IMPORTA
   their own tooling. For EACH finding add a "parallel:" line mapping it to an Akashic
   concept (Store/Ledger, recall-at-action, gated ship, funnel credit) or "no parallel".
   "Done" = a parallels table a designer can mine for adoption candidates, fetched sources.
+requeue-feedback (2026-07-03 review): second class of timeout -- the full V4 report HTML
+  is too heavy for local prefill. NARROWED: use websearch.py to find a SECONDARY analysis
+  (blog/summary) of the V4 architecture instead of the primary paper; max 2 fetches, no
+  arxiv HTML. Architecture parallels only; training-pipeline gating dropped (frontier
+  covers it when needed).

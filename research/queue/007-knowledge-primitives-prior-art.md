@@ -1,4 +1,4 @@
-status: queued
+status: done
 # TASK: What prior art exists for organizing knowledge by STRUCTURAL SHAPE (cross-domain reasoning primitives), and what does it teach about mining vs inventing the vocabulary?
 feeds: SQ3 (sharpening loop S4 candidate -- shape axis as third projection over atoms)
 seeds:
@@ -18,3 +18,6 @@ notes: User idea (2026-07-03, note 'idea: knowledge primitives (shape axis) + te
   embeddings); (5) failure modes of pattern languages (Alexander in software: what
   degenerated into cargo-cult). For each: a "parallel:" line to Akashic concepts.
   "Done" = a mine-don't-invent recipe sketch + the 3 strongest reasons this fails.
+review-note (2026-07-03): SUPERSEDED by frontier -- the overnight deep pass answered this
+  far more thoroughly: research/reviewed/frontier-knowledge-primitives-2026-07.md.
+  Marked done; no requeue.

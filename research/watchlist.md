@@ -22,12 +22,12 @@ pattern to catch early).
 
 | source | feeds | watching for | last-swept |
 |--------|-------|--------------|------------|
-| arXiv follow-ups: 2602.16313 (MemoryArena), 2605.17641 (CMI), 2407.00215 (CriticGPT), 2407.13692 (prover-verifier) | SQ1, SQ2 | new versions, citing papers | 2026-07-02 (tasks 001/002) |
+| arXiv follow-ups: 2602.16313 (MemoryArena), 2605.17641 (CMI), 2407.00215 (CriticGPT), 2407.13692 (prover-verifier) | SQ1, SQ2 | new versions, citing papers | 2026-07-03 (001 escalated; 002+006 reviewed) |
 | Letta / Mem0 / Zep blogs + releases | SQ1, SQ3 | anyone adding outcome-credit or replay evals | 2026-07-01 (competitive survey) |
 | Anthropic engineering blog + Claude Code changelog | SQ3, SQ4 | hook/event surface changes, memory features, multi-agent patterns | 2026-07-02 (tiers arc) |
 | Cursor changelog + hooks docs | SQ4 | hook capabilities (esp. inject-on-allow, beforeSubmitPrompt) | 2026-07-02 (pinned) |
 | Ollama blog + releases | SQ4, SQ5 | API compat, tool-call parsing fixes, scheduler/VRAM changes | 2026-07-02 (L0 research) |
-| Nous Research / Hermes Agent repo + HermesBench | SQ2, SQ3, SQ5 | MoA mechanics, aggregator prompts, bench methodology | 2026-07-02 (task 005) |
+| Nous Research / Hermes Agent repo + HermesBench | SQ2, SQ3, SQ5 | MoA mechanics, aggregator prompts, bench methodology | 2026-07-03 (005 reviewed: 6x latency 80x cost teardown) |
 | DeepSeek org (papers + repos) | SQ3, SQ5 | V4 architecture, training-pipeline gating, sparse attention | 2026-07-02 (task 004) |
 | Qwen / Z.ai-GLM / Moonshot-Kimi release channels | SQ5 | coder-model releases, tool-format changes, local weights | 2026-07-02 (local-models research) |
 | Terminal-Bench leaderboard (tbench.ai) | SQ5 | open-vs-frontier gap trend on shell loops (fleet ceiling) | 2026-07-02 |
@@ -37,7 +37,7 @@ pattern to catch early).
 | Hamel Husain / eval-practice circle | SQ1, SQ3 | eval methodology that could sharpen the bench | 2026-07-01 |
 | Manus + Dex/HumanLayer + Ronacher posts | SQ3 | context-engineering practice (C2-C4 sources) | 2026-07-02 (field survey) |
 | HN + r/LocalLLaMA (via websearch queries, not feeds) | SQ5 | field reports: what actually works in harnesses | 2026-07-02 |
-| unsloth / axolotl / llama-factory releases | SQ2, SQ5 | AMD/consumer-GPU training support (critic trainability) | 2026-07-02 (task 003) |
+| unsloth / axolotl / llama-factory releases | SQ2, SQ5 | AMD/consumer-GPU training support (critic trainability) | 2026-07-03 (003 reviewed: 7B QLoRA local-feasible) |
 
 ## Cadence
 
