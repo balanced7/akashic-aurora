@@ -1,4 +1,5 @@
-status: queued
+status: done
+# reviewed: research/reviewed/frontier-small-models-2026-07.md (2026-07-03, deep-research on Opus)
 # TASK: What are the current standout SMALL models (~1B-15B, fit 16GB VRAM with 32K+ ctx, ideally Ollama-packaged) for bounded fleet SUBTASKS -- summarization, classification/routing, schema extraction, query generation, short tool-call chains?
 feeds: SQ5 (fleet throughput / subtask specialization) + bakeoff round 2 candidate list
 seeds:
