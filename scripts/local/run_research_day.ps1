@@ -83,7 +83,7 @@ while ($done -lt $MaxTasks) {
     $prompt = @"
 You are $AgentId, a research worker in the Akashic Aurora repo. Read research/article-contract.md and follow it EXACTLY. Write your provisional article to research/drafts/$slug.md (the Write tool).
 
-Your hands:
+Your tools:
 - SEARCH (discovery): Bash: py scripts/local/websearch.py "your query" --n 8   (local SearXNG; finds candidates, never counts as fetching)
 - FETCH (verification): WebFetch on a URL; if WebFetch fails, Bash: curl -sL <url>. Fetch every source you cite; anything unfetched is marked UNVERIFIED, never asserted bare.
 - REPO (context): Grep/Glob/Read for code and docs; Bash: py agent_cli.py recall "keywords" to consult the shared corpus before researching from scratch.

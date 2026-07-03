@@ -34,7 +34,7 @@ seeds:
 notes: <angle, constraints, what "done" means for this task>
 ```
 
-## The worker's hands (R2)
+## Worker toolset (R2)
 
 Discovery: a self-hosted SearXNG (`docker start akashic-searxng`, loopback :8888) via
 `py scripts/local/websearch.py "query"` -- free, key-less, private; the local backend has

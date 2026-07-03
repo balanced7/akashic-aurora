@@ -29,8 +29,8 @@
 | `run_research_day.ps1` | the shift: one fresh headless session per research/queue task, hard timeout, draft validation, runlog |
 | `websearch.py` | discovery door (R2): CLI over the self-hosted SearXNG (`akashic-searxng` container, loopback :8888, JSON API via `searxng/settings.yml`) — WebSearch doesn't exist on a local backend |
 
-Worker grants (R2): `WebFetch, Grep, Glob, Read, Write, Edit, Bash(curl *), Bash(py *)` —
-near-frontier hands; the tree stays safe because enforcement lives at the door
+Worker tool grants (R2): `WebFetch, Grep, Glob, Read, Write, Edit, Bash(curl *), Bash(py *)` —
+near-frontier tool access; the tree stays safe because enforcement lives at the door
 (git-guard + peer locks + gated ships), not in model compliance.
 
 ## Operating rules
