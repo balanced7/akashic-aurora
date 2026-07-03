@@ -21,8 +21,16 @@ frontier agent (eve)   "review the research day"                   # grade, prom
 | `queue/NNN-slug.md` | one task: a `status:` line, the question, seed URLs |
 | `drafts/<slug>.md` | the local agent's provisional article (contract below) |
 | `reviewed/` | accepted articles (frontier-graded; promotion to docs/ or a store note happens here) |
+| `reviewed/frontier-<topic>-<date>.md` | FULL-fidelity records of frontier agent sweeps (see rule below) |
 | `article-contract.md` | the structure every draft must follow |
 | `runlog-<date>.md` | the runner's per-task log (start/end/verdict) |
+
+**Full-fidelity rule (2026-07-02):** expensive research NEVER lives only in a chat.
+When frontier agents return reports, their complete findings + citations are written to
+`reviewed/frontier-<topic>-<date>.md` (with a provenance line) and shipped, before the
+synthesis. Store notes are the sharpened projection; these files are the atoms they stay
+re-derivable from. Forcing-function upgrade queued: a PostToolUse hook auto-archiving
+Agent tool results (in-scope sessions only) — graduate the lesson when it ships.
 
 ## Task file format (queue/)
 
