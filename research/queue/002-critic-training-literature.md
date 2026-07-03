@@ -1,5 +1,6 @@
 status: queued
 # TASK: How do CriticGPT and prover-verifier-style systems TRAIN a critic that improves at catching a generator's real mistakes, and what parts transfer to a local-model critic?
+feeds: SQ2 (adversarial-critic-partner design)
 seeds:
 - https://arxiv.org/abs/2407.00215
 - https://arxiv.org/abs/2407.13692

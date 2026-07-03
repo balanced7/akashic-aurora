@@ -1,5 +1,6 @@
 status: queued
 # TASK: How is DeepSeek V4 designed and built, and which of its design choices parallel Akashic Aurora's architecture?
+feeds: SQ3+SQ5 (architecture adoption candidates from DeepSeek V4)
 seeds:
 - https://arxiv.org/abs/2606.19348
 - https://github.com/deepseek-ai

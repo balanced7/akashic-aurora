@@ -29,6 +29,8 @@ frontier agent (eve)   "review the research day"                   # grade, prom
 ```markdown
 status: queued            <- queued | running | done | failed  (runner-managed)
 # TASK: <the research question, one line>
+feeds: <SQn or roadmap item> <- the DECISION this task serves (watchlist.md lists SQ1-SQ5);
+                               a task that can't name one doesn't get queued
 seeds:
 - https://...             <- starting URLs; the agent must FETCH what it cites
 notes: <angle, constraints, what "done" means for this task>
@@ -41,6 +43,22 @@ Discovery: a self-hosted SearXNG (`docker start akashic-searxng`, loopback :8888
 no server-side WebSearch. Verification: WebFetch / `curl -sL`. Repo: Grep/Glob/Read and
 `py agent_cli.py recall` (the corpus may already know). Search finds; only a FETCH
 earns a citation.
+
+## Landscape watch (the frontier-tracking venture)
+
+`watchlist.md` = curated sources, each mapped to a standing question (SQ1-SQ5) and a
+maturity stage (paper → reference-impl → framework → commodity; the stage decides
+adoption TIMING). Weekly fleet sweeps ask for the DELTA since last-swept, from
+`queue/_sweep-template.md`. Discipline that keeps this a venture, not a distraction:
+
+- **Findings become hypotheses or discards** at the evening review — a finding that
+  changes no action is noise, and the review says so explicitly.
+- **WIP limit**: no new sweep tasks while >5 unadjudicated drafts sit in `drafts/` —
+  reading must never outrun acting.
+- **Kill criterion**: a month of sweeps with zero adopted changes or roadmap
+  corrections kills or re-scopes the venture. Decided 2026-07-02, before starting.
+- **First duty = thesis guard (SQ1)**: the most valuable single delta is early warning
+  that someone shipped causal memory-utility measurement.
 
 ## Ground rules (why drafts are trustworthy enough to review)
 

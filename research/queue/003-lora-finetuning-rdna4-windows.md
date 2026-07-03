@@ -1,5 +1,6 @@
 status: queued
 # TASK: Is LoRA/QLoRA fine-tuning of a 7-30B model feasible on an AMD RX 9070 XT (RDNA4, 16GB) under Windows in mid-2026, and with which stack?
+feeds: SQ2+SQ5 (critic trainability on local hardware)
 seeds:
 - https://rocm.docs.amd.com/
 - https://github.com/unslothai/unsloth
