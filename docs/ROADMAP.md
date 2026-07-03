@@ -1,5 +1,13 @@
 # Master Roadmap — synthesis & sequenced next steps
 
+> **STATUS 2026-07-03 — this doc is the FOUNDATION-era synthesis (Waves 0–5, through 2026-06-20)
+> and is now historical.** Those waves shipped; the work since (intelligence spine, recall-at-action
+> + the outcome-credited funnel, the leapfrog plan, the local-model fleet, corpus sharpening S1/S2,
+> and the revealed a-series assistant goal) lives in the durable **notes** — run `py agent_cli.py boot claude`
+> then `notes --json`; that is the living "START HERE". Recent design docs: `docs/fleet-dispatch-design.md`
+> (calling local models), `docs/s2-consolidation-design.md` (corpus sharpening). The waves below still
+> hold as the bedrock they built.
+
 Date: 2026-06-19. This ties together everything in `docs/` and memory into one
 plan, grouped so each piece of work serves multiple goals and no research is
 wasted. Read this first; the linked docs are the depth.
