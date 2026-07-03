@@ -5,9 +5,9 @@
 [![CI](https://github.com/balanced7/akashic-aurora/actions/workflows/ci.yml/badge.svg)](https://github.com/balanced7/akashic-aurora/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](#quickstart)
-[![Tests](https://img.shields.io/badge/tests-499%20green-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-601%20green-brightgreen.svg)](tests/)
 
-Most agent memory answers *"what did we store?"* This project answers a harder question: **did remembering it change the result?**
+Most agent memory answers *"what did we store?"* This project explores a harder question: **did remembering it change the result?**
 
 ---
 
@@ -105,10 +105,12 @@ Design rules that hold it together:
 
 ## What's proven, tested, and not yet
 
-Built in small **test-gated slices** — no capability lands without the test that proves it. **499 tests** run on every push (full suite + boundary checker + doc-freshness guard, against a live Redis service).
+Built in small **test-gated slices** — no capability lands without the test that proves it. **601 tests** run on every push (full suite + boundary checker + doc-freshness guard, against a live Redis service).
 
 **Proven live (not just unit-tested)**
 - The full recall loop, end to end: surface → impression → transcript-synthesized failure → outcome credit. First credited flip landed 2026-07-01, in-session, and the payload contract is pinned to live-captured fixtures.
+- A **free local model as a first-class agent**: glm-4.7-flash behind the same Claude Code harness ran real repo commands with every hook firing and its lessons attributed — then worked a 7-task research shift overnight, unattended (5 articles accepted at review; the 3 failures were all the same diagnosable cause, now encoded back into the task format).
+- **The system measures its own memory**: `py agent_cli.py triage` reports, from live counters, that 8 lessons currently hold all earned credit while 94 have surfaced five-plus times with zero return. Internal numbers, small corpus — but they exist, and they steer what we curate next.
 
 **Solidly tested**
 - Foundation (all three backends, CAS/atomic update, time unification, supersession) · shared primitives (Ranker, Distiller, Consolidator, faithfulness critic) · narrative spine (~100 tests incl. a fuzzed CRDT) · events · Bifrost bus + locks + git-guard · recall ranking, anti-repeat, warm cache, usefulness factor · the CLI/MCP door ("no silent verb" is itself a test).
@@ -122,18 +124,59 @@ Built in small **test-gated slices** — no capability lands without the test th
 - The Codex curator loop (topic-axis self-curation) — parts built and tested, the loop that ties them is queued.
 - Whether surfaced lessons improve outcomes *at scale* — the credit mechanism is live; the numbers now need field time. The measurement plan (a replay benchmark over the append-only ledger) is [`docs/leapfrog-plan.md`](docs/leapfrog-plan.md).
 
-## Where this is going
+## The fleet
 
-The field measures memory by retrieval quality. Nobody measures **causal memory utility** — *did this memory change the action and improve the outcome?* — because that takes action-time injection, an outcome ledger, and a credit loop all at once. All three are live here. The roadmap ([`docs/leapfrog-plan.md`](docs/leapfrog-plan.md), [`docs/ROADMAP.md`](docs/ROADMAP.md)):
+Frontier tokens are for **deciding**; local tokens are for **gathering**. A free local model
+(glm-4.7-flash on a single consumer GPU, ~25 tok/s) runs behind the *same* Claude Code
+harness — same hooks, same recall, same outcome credit, its own agent identity — and works
+a research queue all day: one fresh session per task, hard timeouts, drafts validated
+against a fetch-before-cite contract ([`research/`](research/)). A frontier agent reviews in
+the evening: accept with corrections, requeue with feedback, escalate what local prefill
+can't handle. Discovery runs through a self-hosted SearXNG, so the whole shift costs
+nothing but electricity. The first unattended overnight shift produced five accepted
+research articles — the reviews, verdicts and all, are in
+[`research/reviewed/`](research/reviewed/).
 
-1. **Grow the corpus** — capture lessons as a byproduct of work, not a chore (just-in-time prompts at the exact fail→success instant the hook already detects).
-2. **Ledger Replay Bench** — replay recorded sessions with memory off / at session-start / at action-time and publish the outcome deltas, reproducibly.
-3. **Dialectical recall v2** — a budget-bounded semantic gate for counter-evidence (yardstick already in the test suite).
-4. **Local-first judges** — near-zero-marginal-cost consolidation and critique on local models.
+> The project's full history — direction, decision making, and the pivots that taught us
+> the most — is kept human-readable in [`docs/JOURNEY.md`](docs/JOURNEY.md).
+
+## The facets we chose, and where they've led
+
+We picked three questions our field surveys suggested were underexplored. The survey
+records — every finding with its citation — are in [`research/reviewed/`](research/reviewed/);
+**if you know prior art we missed, we'd genuinely like the pointer.**
+
+1. **Outcome-credited memory.** We set out to measure whether injected lessons change
+   results, not just whether retrieval looks relevant. The first design assumed the
+   harness reported tool failures; live payload capture proved it doesn't (failures emit
+   no event at all), so we pivoted to synthesizing the failure half from session
+   transcripts — that pivot is why the credit loop works. So far, internally: the loop
+   runs live, and credit concentrates in a small core (8 of 127 tracked lessons hold all
+   of it). Next: a replay benchmark over the append-only ledger, adopting the
+   perturbation-stability check we liked in [CMI (2605.17641)](https://arxiv.org/abs/2605.17641)
+   and adding the error-trace confound control we didn't find there
+   ([`docs/leapfrog-plan.md`](docs/leapfrog-plan.md)).
+2. **Curation by compression.** The goal is a corpus that gets *better, not bigger* —
+   compress only as far as the knowledge still does its job. We deferred MDL as the live
+   objective once when the corpus was too small to support it (that was the right call at
+   the time), and revived the plan now that usage data exists to weight it. Our survey of
+   consolidation practice found retrieval benchmarks published everywhere and curation-
+   quality evidence almost nowhere — which made us cautious: retirement here waits for a
+   two-sided gate (faithfulness *and* coverage), because the literature shows repeated
+   LLM consolidation can drive utility below a no-memory baseline.
+3. **Retrieval by structure.** The most transformational reading we did: analogical
+   retrieval fails on surface bias in humans and LLMs alike, and program-synthesis
+   library learning already mines reusable abstractions from solved corpora under a
+   compression objective. We're attempting that assembly for a free-text lesson store —
+   gated honestly: if the shape index doesn't beat our own baseline retrieval on held-out
+   lessons, it ships nothing. Recipe and sources: the knowledge-primitives record in
+   [`research/reviewed/`](research/reviewed/).
 
 ## Contributing
 
 Issues and PRs welcome — [`CONTRIBUTING.md`](CONTRIBUTING.md) explains the slice discipline (small change + its test + green gates), and [`AGENTS.md`](AGENTS.md) is the contract your *agent* reads. Good entry points: run the quickstart, then `py agent_cli.py discover` — every verb describes itself.
+
+Writeups from the most salient research runs — the local-fleet build, the memory-that-measures-itself numbers, what 750 years of failed universal knowledge schemes teach an agent memory system — are published in [**Discussions**](https://github.com/balanced7/akashic-aurora/discussions) as they land.
 
 ## About this project
 

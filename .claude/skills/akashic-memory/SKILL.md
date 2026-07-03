@@ -56,7 +56,10 @@ py agent_cli.py wrap            # review the draft; then: wrap --commit
 py agent_cli.py handoff <id> --to <next> --task "..." --note "where we left off"
 ```
 A slice is not done until it is mirrored (`py scripts/ship.py` for code, `py scripts/mirror.py`
-for docs) and the where-we-are note is current.
+for docs) and the where-we-are note is current. When an ARC closes (not every slice),
+append its entry to `docs/JOURNEY.md` — what we set out to do, what actually happened,
+why we pivoted, what it yielded — in the humble register that file models. The human
+reviews it before it ships.
 
 ## Mid-task pulls (don't wait to be shown)
 `py agent_cli.py recall "<keywords>"` searches the corpus; `recall --full <source>` pulls
