@@ -1,12 +1,13 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 23 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 24 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
 - where-we-are 2026-07-03: Shipped:
-  - Research bookkeeping: 002/003/005 reviewed+done, fleet tasks 008-010 queued (critic calibration, minimal critic strength, MoE...  (source: mem:decision:ADR_0703113036_7567)
-- next-focus: PRIORITY RE-CUT 2026-07-03 (post vision-reveal + bakeoff adjudication; user near plan limit). DOCTRINE: methodical foundation-first, NO alpha-rush to the...  (source: mem:decision:ADR_0703102009_6940)
+  - ROADMAP: status banner -- the Waves 0-5 synthesis is foundation-era/historical; living START HERE is now the boot notes + the...  (source: mem:decision:ADR_0703123020_5091)
+- next-focus: PRIORITY RE-CUT 2026-07-03 (Opus continuation after Fable hit its limit mid-session). SHIPPED THIS RUN: (1) counter-hygiene S2a 2nd-form -- ghost counters +...  (source: mem:decision:ADR_0703123007_9545)
+- research: standout small models for fleet subtasks 2026-07: R013 deep-research on Opus (re-run after prior session's fleet sub-agents died on credit exhaustion...  (source: mem:decision:ADR_0703121637_1686)
 - a-series: the assistant layer (the revealed end goal): VISION REVEALED 2026-07-03 (user, on seeing Rika's feature list): 'Akashic Aurora is just the scaffolding' -- the...  (source: mem:decision:ADR_0703095414_5724)
 - landscape: rika (convergent dreaming, no measurement): SQ1 THESIS-GUARD CHECK 2026-07-03 (user spotted github.com/nssriraam/rika via HuggingFace discord...  (source: mem:decision:ADR_0703094830_9886)
 - adversarial-critic-partner-idea: SCOPING RESOLVED 2026-07-03 (user: 'Integrate and lets go'): (Q1) INTEGRATE into Akashic Aurora -- reuse FAITH-1, ledger, learning...  (source: mem:decision:ADR_0703080157_1469)
