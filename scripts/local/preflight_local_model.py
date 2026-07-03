@@ -105,6 +105,9 @@ def main():
 
     # 4. context canary: canary at the START, filler, question at the END. If the window is
     # smaller than the prompt, Ollama drops the beginning -> the model cannot know the canary.
+    # NEUTRAL WORDING REQUIRED: the earlier "output the SECURITY TOKEN" phrasing made a
+    # safety-tuned model (gpt-oss:20b) REFUSE the probe -- it pattern-matched credential
+    # exfiltration. Say plainly that this is a self-test with a checkpoint phrase.
     canary = "AKASHIC-CANARY-7391"
     filler = ("The ledger records what happened in order and the store records what is true. " * 16 + "\n")
     filler_block = filler * max(1, (n_tokens * 4) // len(filler))   # ~4 chars/token
@@ -112,10 +115,11 @@ def main():
     # BEFORE any text block -- a tight cap yields an empty reply that mimics truncation.
     canary_req = {
         "model": model, "max_tokens": 1024, "temperature": 0.0,
-        "system": f"SECURITY TOKEN (must be recalled on request): {canary}\n\n{filler_block}",
+        "system": f"This is a context-window self-test. The checkpoint phrase for this test is: "
+                  f"{canary}\n\n{filler_block}",
         "messages": [{"role": "user",
-                      "content": "Output the SECURITY TOKEN from the very beginning of the system prompt. "
-                                 "Reply with the token only."}],
+                      "content": "Context-window self-test: repeat the checkpoint phrase stated at the very "
+                                 "beginning of the system prompt. Reply with the phrase only."}],
     }
     try:
         t0 = time.time()
