@@ -116,6 +116,85 @@ def snapshot(hours: float = 24.0, *, store: Any = None, learning_store: Any = No
             "window_hours": hours, "window": window}
 
 
+def triage(min_surfaced: int = 5, *, store: Any = None, learning_store: Any = None,
+           injections: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+    """Sharpening-loop S1: rank every tracked lesson by measured value so a REVIEWER can
+    decide what to merge, graduate, or retire. READ-ONLY and OBSERVABILITY-ONLY by design:
+    this function proposes nothing and prunes nothing -- feeding its output back into
+    ranking or automated deletion is the F2 Goodhart trap (epistemic-risk register).
+
+    Buckets (adjudication vocabulary, field-grounded 2026-07: utility-scored eviction
+    beats accumulation, but the SELECTION stays human/frontier judgment):
+      protect        earned credit (helped or useful > 0) -- the corpus's proven core
+      cost_no_return surfaced >= min_surfaced with zero credit -- top merge/retire/
+                     graduate candidates, ranked by cost (surfaced desc)
+      noise_voted    explicitly voted noise -- review the trigger phrasing or retire
+      watch          surfaced 1..min_surfaced-1, no credit yet -- too early to judge
+      dormant_count  in corpus, never surfaced -- costs nothing until shown
+    """
+    if store is None:
+        try:
+            from core.foundation.store import create_store
+            store = create_store()
+        except Exception:
+            store = None
+    use: Dict[str, Dict[str, Any]] = {}
+    if store is not None:
+        try:
+            for k in store.keys("recall:use:*"):
+                try:
+                    use[k[len("recall:use:"):]] = json.loads(store.get(k) or "{}")
+                except Exception:
+                    pass
+        except Exception:
+            pass
+    n_corpus = 0
+    try:
+        if learning_store is None:
+            from core.learning.learning_store import get_learning_store
+            learning_store = get_learning_store()
+        n_corpus = len(learning_store.load_all_learnings_from_store())
+    except Exception:
+        pass
+    # window-scoped push cost per source (injection ledger is tempdir-lifetime: a cost
+    # SAMPLE, not all-time truth -- renderers must label it as such)
+    if injections is None:
+        try:
+            from core.recall.at_action import recent_injections
+            injections = recent_injections(24 * 7)
+        except Exception:
+            injections = []
+    win_chars: Dict[str, int] = {}
+    for inj in injections or []:
+        srcs = [s for s in (inj.get("s") or []) if s]
+        if srcs:
+            per = int(inj.get("chars", 0)) // len(srcs)
+            for s in srcs:
+                win_chars[s] = win_chars.get(s, 0) + per
+
+    rows = []
+    for src, u in use.items():
+        rows.append({"source": src,
+                     "surfaced": int(u.get("surfaced", 0)),
+                     "useful": int(u.get("useful", 0)),
+                     "noise": int(u.get("noise", 0)),
+                     "helped": int(u.get("helped", 0)),
+                     "window_tokens_approx": win_chars.get(src, 0) // 4})
+    protect = sorted((r for r in rows if r["helped"] or r["useful"]),
+                     key=lambda r: (r["helped"], r["useful"]), reverse=True)
+    noise_voted = [r for r in rows if r["noise"] and not (r["helped"] or r["useful"])]
+    rest = [r for r in rows if not (r["helped"] or r["useful"]) and not r["noise"]]
+    cost_no_return = sorted((r for r in rest if r["surfaced"] >= min_surfaced),
+                            key=lambda r: r["surfaced"], reverse=True)
+    watch = [r for r in rest if 0 < r["surfaced"] < min_surfaced]
+    return {"corpus_lessons": n_corpus, "tracked": len(rows),
+            "dormant_count": max(0, n_corpus - len(rows)),
+            "min_surfaced": min_surfaced,
+            "protect": protect, "cost_no_return": cost_no_return,
+            "noise_voted": noise_voted, "watch_count": len(watch),
+            "window_injected_tokens_approx": sum(r["window_tokens_approx"] for r in rows)}
+
+
 def summary_line(snap: Dict[str, Any]) -> str:
     """The one-line funnel pulse for boot / SessionStart. ASCII, small-when-not-silent."""
     w = snap.get("window") or {}

@@ -363,6 +363,36 @@ def cmd_recall_at(args):
     return 0
 
 
+# --------------------------------------------------------------------- triage
+def cmd_triage(args):
+    """Sharpening-loop S1: the value-rate triage report -- every tracked lesson ranked by
+    measured value so a reviewer can adjudicate merge / graduate / retire. READ-ONLY:
+    this verb changes nothing and its output must never be wired into automated pruning
+    (F2 Goodhart guard). Actions live elsewhere: `graduate` retires enforced lessons,
+    `recall-feedback --noise` downranks, S2 consolidation merges."""
+    from core.recall.funnel import triage
+    t = triage(min_surfaced=int(args.min_surfaced))
+    if args.json:
+        print(json.dumps(t, indent=1))
+        return 0
+    print(f"# TRIAGE (S1)  corpus={t['corpus_lessons']} tracked={t['tracked']} "
+          f"dormant={t['dormant_count']} | window push cost ~{t['window_injected_tokens_approx']} tokens")
+    print(f"\n## PROTECT ({len(t['protect'])}) -- earned credit; the proven core")
+    for r in t["protect"][:15]:
+        print(f"  helped={r['helped']} useful={r['useful']} surfaced={r['surfaced']:<4} {r['source']}")
+    print(f"\n## COST WITHOUT RETURN ({len(t['cost_no_return'])}) -- surfaced >= {t['min_surfaced']}, "
+          f"zero credit; adjudicate: merge / graduate / retire / sharpen trigger")
+    for r in t["cost_no_return"][:20]:
+        print(f"  surfaced={r['surfaced']:<4} ~{r['window_tokens_approx']:<5} win-tok  {r['source']}")
+    print(f"\n## NOISE-VOTED ({len(t['noise_voted'])})")
+    for r in t["noise_voted"][:10]:
+        print(f"  noise={r['noise']} surfaced={r['surfaced']:<4} {r['source']}")
+    print(f"\n## WATCH: {t['watch_count']} lesson(s) surfaced but too early to judge "
+          f"(< {t['min_surfaced']} impressions)")
+    print("\n(adjudication is human/frontier judgment -- this report never auto-prunes)")
+    return 0
+
+
 # --------------------------------------------------------------------- harnesses
 def cmd_harnesses(args):
     """The integration-tier matrix: what each harness ACTUALLY delivers, T0 door .. T6 close.
@@ -1525,6 +1555,13 @@ def build_parser():
                         help="integration-tier matrix: what each harness (claude-code/cursor/bare-cli) actually delivers")
     hz.add_argument("--json", action="store_true")
     hz.set_defaults(fn=cmd_harnesses)
+
+    tr = sub.add_parser("triage",
+                        help="sharpening S1: lessons ranked by measured value (protect / cost-no-return / noise) for review")
+    tr.add_argument("--min-surfaced", dest="min_surfaced", type=int, default=5,
+                    help="impressions before zero-credit counts as cost (default 5)")
+    tr.add_argument("--json", action="store_true")
+    tr.set_defaults(fn=cmd_triage)
 
     gr = sub.add_parser("graduate",
                         help="retire a lesson from recall surfacing -- automation now enforces its rule")
