@@ -41,6 +41,11 @@ preserved in [FOSSILS.md](FOSSILS.md) with their reusable lesson.
 - **Daniel's voice for Daniel's sections.** Plain, self-deprecating, true ("one thing
   led to another"). Do not corporate-polish it — a reviewer suggested exactly that and
   was overruled on standing calibration. Fix grammar quietly; keep the warmth.
+  *Settled (2026-07-03):* two independent model reviewers flagged the "somehow I've
+  ended up trying to build…" origin sentence as trust-reducing; the owner kept it,
+  with a rationale that is itself a voice rule: **"it's the honest truth. If someone
+  doesn't want to read the rest, it means my value add was not significant or clear
+  enough."** The work carries the credibility; the origin story stays true.
 - **Value to the reader over positioning.** Every section should leave a skeptical
   visitor with something usable: a number they can check, a file they can open, a
   gotcha that saves them an evening.
