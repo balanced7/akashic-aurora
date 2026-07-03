@@ -232,12 +232,60 @@ def usefulness_factor(use: Optional[Dict[str, int]]) -> float:
     return 0.5 + rate
 
 
+def canonicalize_source(source: str, *, learning_store: Optional[Any] = None) -> str:
+    """One counter key per lesson (sharpening S2a). A bare slug that names a known lesson
+    becomes its full pointer (learn:experiment:<slug>); anything namespaced (contains ':')
+    or unknown passes through unchanged -- note ids and other source types are not lessons.
+    Without this, a vote cast as 'session_hooks_need_matcher' opens a parallel counter
+    that never joins the lesson's surfaced counts (found by the first triage run)."""
+    s = str(source or "").strip()
+    if not s or ":" in s:
+        return s
+    try:
+        if learning_store is None:
+            from core.learning.learning_store import get_learning_store
+            learning_store = get_learning_store()
+        names = {r.get("experiment_name") for r in learning_store.load_all_learnings_from_store()}
+        if s in names:
+            return f"learn:experiment:{s}"
+    except Exception:
+        pass
+    return s
+
+
+def merge_use_counters(*, store=None, learning_store: Optional[Any] = None) -> int:
+    """One-time S2a migration: fold bare-slug counters into their canonical keys (counters
+    are mutable Store STATE, not Ledger history -- correcting state is legitimate). Returns
+    the number of keys merged. Safe to re-run: no bare keys, no work."""
+    merged = 0
+    try:
+        store = store or _store()
+        for k in list(store.keys(_USE_PREFIX + "*")):
+            src = k[len(_USE_PREFIX):]
+            canon = canonicalize_source(src, learning_store=learning_store)
+            if canon == src:
+                continue
+            bare = _load_use(store, src)
+            full = _load_use(store, canon)
+            for f in ("surfaced", "useful", "noise", "helped"):
+                if int(bare.get(f, 0)):
+                    full[f] = int(full.get(f, 0)) + int(bare.get(f, 0))
+            store.set(_USE_PREFIX + canon, json.dumps(full))
+            store.delete(k)
+            merged += 1
+    except Exception:
+        pass
+    return merged
+
+
 def record_feedback(source: str, kind: str = "useful", *, store=None) -> bool:
     """Record a usefulness signal for a recalled lesson. kind: 'useful'/'noise' (explicit votes) or
-    'helped' (the automatic contrastive positive -- a FAIL->SUCCESS flip). Best-effort, repeatable."""
+    'helped' (the automatic contrastive positive -- a FAIL->SUCCESS flip). Best-effort, repeatable.
+    Sources are canonicalized (S2a) so votes always land on the lesson's one counter."""
     if not source or kind not in ("useful", "noise", "helped"):
         return False
     try:
+        source = canonicalize_source(source)
         store = store or _store()
         use = _load_use(store, source)
         use[kind] = int(use.get(kind, 0)) + 1
