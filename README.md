@@ -133,6 +133,8 @@ Built in small **test-gated slices** — no capability lands without the test th
 - The Codex curator loop (topic-axis self-curation) — parts built and tested, the loop that ties them is queued.
 - Whether surfaced lessons improve outcomes *at scale* — the credit mechanism is live; the numbers now need field time. The measurement plan (a replay benchmark over the append-only ledger) is [`docs/leapfrog-plan.md`](docs/leapfrog-plan.md).
 
+Skeptical by now? Good — the hard questions (*isn't this just RAG? where are the benchmarks? what's actually novel?*) are answered head-on in [`docs/FSQ.md`](docs/FSQ.md), and [Discussion #2](https://github.com/balanced7/akashic-aurora/discussions/2) is open for the ones we missed.
+
 ## The fleet
 
 Frontier tokens are for **deciding**; local tokens are for **gathering**. A free local model
