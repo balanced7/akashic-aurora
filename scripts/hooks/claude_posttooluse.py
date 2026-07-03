@@ -220,6 +220,17 @@ def main() -> int:
     except Exception:
         return 0
     tool = data.get("tool_name") or ""
+    if tool == "Task":
+        # Agent-result payloads: CAPTURE ONLY for now (payload-truth discipline -- the
+        # auto-archive forcing function builds against pinned shapes, not assumptions).
+        # Session-scoped: repo/home sessions only, so unrelated projects never land here.
+        try:
+            from agent.harness.scope import session_in_scope
+            if session_in_scope(data.get("cwd") or os.getcwd()):
+                _capture(data)
+        except Exception:
+            pass
+        return 0
     if tool not in _SHELL_TOOLS + _FILE_TOOLS:
         return 0
     if not _in_scope(tool, data):
