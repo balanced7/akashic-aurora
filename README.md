@@ -9,6 +9,8 @@
 
 Most agent memory answers *"what did we store?"* This project explores a harder question: **did remembering it change the result?**
 
+A "lesson" here is an operational unit, not a general fact: *what was tried, what failed, what fixed it, and the trigger for when to apply it* — the kind of knowledge whose impact on an outcome can actually be attributed.
+
 ---
 
 ## Why this exists
@@ -75,6 +77,9 @@ py agent_cli.py recall-at --path core/foundation/store.py   # what would surface
    RESOLVE   on success after a just-failed attempt of the same target, the
              surfaced lessons are credited `helped` (consume-on-credit — one
              failure can never be farmed; first-try success credits nothing)
+             "failed" = a tool_result recorded with is_error in the transcript;
+             "succeeded" = the post-tool event arriving (it only fires on
+             success), with user-interrupted runs excluded
                        ▼
    RE-RANK   usefulness factor [0.5×–1.5×] folds the track record into every
              future ranking — proven lessons rise, noise decays
@@ -89,7 +94,8 @@ Each layer builds strictly on the one below; a CI boundary checker fails the bui
 ```
 S5  INTERFACE     agent_cli.py (one self-describing CLI) · the same verbs as MCP tools ·
                   recall-at-action hooks · Bifrost cross-agent bus · advisory locks
-S4  PROJECTIONS   narrative spine (Beat→Chapter→Track→Atlas) · tag-governance CRDT ·
+S4  PROJECTIONS   narrative spine (Beat→Chapter→Track→Atlas: the time-axis view —
+                  session events distilled into a regenerable story) · tag CRDT ·
                   shared primitives: Ranker · Distiller · Consolidator · Faithfulness critic
 S1–3 DOMAIN       LearningStore (lessons) · AgentMemory (decisions) · signal ledger · coordinator
 S0  FOUNDATION    Store ("what IS true")  +  Ledger ("what HAPPENED, in order")
@@ -99,7 +105,7 @@ S0  FOUNDATION    Store ("what IS true")  +  Ledger ("what HAPPENED, in order")
 Design rules that hold it together:
 
 - **One immutable substrate, many projections.** Raw records are append-only and never rewritten; everything readable (tags, chapters, digests) is regenerable *from* them. Corrections supersede; they never delete.
-- **Multi-agent by default.** Claude and Cursor share the same lessons, message bus, and advisory locks on one repo — any agent, any task, no permanent ownership.
+- **Multi-agent by default.** Claude and Cursor share the same lessons, message bus, and advisory locks on one repo — any agent, any task, no permanent ownership. What each runtime's hooks can actually deliver is documented honestly, tier by tier, in [`docs/integration-tiers.md`](docs/integration-tiers.md) (`py agent_cli.py harnesses` prints the live matrix).
 - **Fail soft, everywhere.** Redis down, embeddings absent, bus unreachable — every path degrades instead of breaking the agent, and a hook must never brick the action it decorates.
 - **Names must not lie.** The vocabulary is written down ([`docs/LEXICON.md`](docs/LEXICON.md)) and enforced by guardrail scripts in CI.
 
@@ -132,7 +138,10 @@ harness — same hooks, same recall, same outcome credit, its own agent identity
 a research queue all day: one fresh session per task, hard timeouts, drafts validated
 against a fetch-before-cite contract ([`research/`](research/)). A frontier agent reviews in
 the evening: accept with corrections, requeue with feedback, escalate what local prefill
-can't handle. Discovery runs through a self-hosted SearXNG, so the whole shift costs
+can't handle. ("Review" here means a frontier *agent* grades each draft against the
+fetch-before-cite contract and stamps its verdict — corrections and rejection reasons
+included — into the file itself; it is not human peer review and we don't present it as
+such.) Discovery runs through a self-hosted SearXNG, so the whole shift costs
 nothing but electricity. The first unattended overnight shift produced five accepted
 research articles — the reviews, verdicts and all, are in
 [`research/reviewed/`](research/reviewed/).
