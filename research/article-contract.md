@@ -30,6 +30,10 @@ sources agree" or "low -- single vendor blog").
 Rules:
 - FETCH what you cite (WebFetch, or `curl -sL <url>` via Bash if WebFetch is
   unavailable). Quote sparingly, synthesize mostly.
+- **Verbatim proof-of-fetch**: every source listed as fetched MUST include one short
+  verbatim quote (<=25 words) from that page in your Sources entry. If you cannot
+  quote it, you did not read it — mark it UNVERIFIED instead. (Added after a bench
+  run where a model cited a PDF it admitted was unreadable binary.)
 - DISCOVERY: `py scripts/local/websearch.py "query"` finds candidate sources beyond
   your seeds -- use it when seeds are thin or a claim needs corroboration. A search
   snippet is NOT a fetch: cite only pages you actually fetched.

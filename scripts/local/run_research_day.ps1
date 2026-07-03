@@ -88,7 +88,7 @@ Your tools:
 - FETCH (verification): WebFetch on a URL; if WebFetch fails, Bash: curl -sL <url>. Fetch every source you cite; anything unfetched is marked UNVERIFIED, never asserted bare.
 - REPO (context): Grep/Glob/Read for code and docs; Bash: py agent_cli.py recall "keywords" to consult the shared corpus before researching from scratch.
 
-Under 150 lines. When the article is written, re-read the file to verify, then stop.
+You are running UNATTENDED: every tool listed above is pre-approved -- never ask for permission or confirmation, act directly. Under 150 lines. When the article is written, re-read the file to verify, then stop.
 
 Your task (from research/queue/$($task.Name)):
 

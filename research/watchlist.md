@@ -38,6 +38,7 @@ pattern to catch early).
 | Manus + Dex/HumanLayer + Ronacher posts | SQ3 | context-engineering practice (C2-C4 sources) | 2026-07-02 (field survey) |
 | HN + r/LocalLLaMA (via websearch queries, not feeds) | SQ5 | field reports: what actually works in harnesses | 2026-07-02 |
 | unsloth / axolotl / llama-factory releases | SQ2, SQ5 | AMD/consumer-GPU training support (critic trainability) | 2026-07-03 (003 reviewed: 7B QLoRA local-feasible) |
+| Rika (github.com/nssriraam/rika) | SQ1, SQ3 | closed-source convergent dreaming-pass; watch for ANY outcome measurement appearing | 2026-07-03 (frontier assessment, note filed) |
 
 ## Cadence
 

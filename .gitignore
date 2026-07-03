@@ -76,3 +76,7 @@ blobs/
 # research-day runner: per-session stdout logs are scratch, not knowledge
 research/drafts/*.session.log
 research/drafts/*.session.log.err
+
+# research/bakeoff outputs are bench artifacts until graded; only the report + promoted drafts ship
+research/bakeoff/*/
+!research/bakeoff/tasks/
