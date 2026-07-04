@@ -472,23 +472,13 @@ class ToolBox:
             return f"ERROR: bifrost_steer failed: {type(e).__name__}: {e}"
 
     def reload_ui(self, port=8788):
-        """Reload the running Bifrost UI so edits to scripts/bifrost_ui.py take effect -- lets you SOLO-DRIVE
-        UI work without a human restart, and without needing shell/exec: it just POSTs the UI's own /reload
-        endpoint (localhost only), which re-execs the server. Call this AFTER you finish editing the UI."""
-        import json as _json
-        from urllib import request as _rq
-        errs = []
-        for p in ([int(port)] if port else []) + [8788, 8787]:
-            try:
-                req = _rq.Request(f"http://127.0.0.1:{p}/reload", data=b"{}",
-                                  headers={"Content-Type": "application/json"}, method="POST")
-                with _rq.urlopen(req, timeout=4) as resp:
-                    body = resp.read().decode("utf-8", "replace")
-                if '"ok"' in body or resp.status == 200:
-                    return f"reloaded the UI on :{p}. Refresh the browser to see your changes."
-            except Exception as e:
-                errs.append(f":{p} {type(e).__name__}")
-        return f"ERROR: no UI reachable to reload (tried {', '.join(errs)}). Is bifrost_ui.py running?"
+        """DISABLED for this agent. The Bifrost UI and its port (8788) are claude/harness-managed:
+        POSTing /reload re-execs the server and breaks the harness-owned preview (this was a recurring
+        failure). Do not reload directly -- coordinate UI changes with claude on the bus; claude/the
+        harness owns reloading. No-op by design."""
+        return ("reload_ui is disabled for you -- the Bifrost UI + port 8788 are claude/harness-managed "
+                "(your reload re-execs the server and breaks the preview). Edit the UI only when claude "
+                "hands you the lock, and let claude/the harness reload it.")
 
     # -- guarded write (live only when the runner is started with --allow-write) --
     def _yield_notice(self, path, held_by):
