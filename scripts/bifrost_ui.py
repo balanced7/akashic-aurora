@@ -359,21 +359,39 @@ PAGE = r"""<!doctype html>
     --text:#e7e9f0; --muted:#8b90a2; --faint:#5a5f70;
     --claude:#e0915c; --deepseek:#7aa2f7; --user:#5fd39b; --system:#7c8296;
     --accent:#7aa2f7; --accent2:#9d7cf7; --amber:#f0b246; --danger:#f0666e;
+    --fleet:#f472b6;
     --shadow:0 8px 30px rgba(0,0,0,.35);
+    /* aurora glow tints (per-theme tunable) + glass */
+    --glow1:rgba(240,145,92,.16); --glow2:rgba(122,162,247,.20); --glow3:rgba(72,230,191,.14); --glow4:rgba(157,124,247,.16);
+    --glass:rgba(18,20,28,.55); --glass-line:rgba(255,255,255,.08); --glass-hi:rgba(255,255,255,.06);
   }
   *{box-sizing:border-box}
   html,body{height:100%}
   body{
-    margin:0; background:radial-gradient(1200px 600px at 70% -10%, #171a26 0%, var(--bg) 55%);
+    margin:0; position:relative;
+    background:
+      radial-gradient(1100px 700px at 8% -8%, var(--glow1), transparent 60%),
+      radial-gradient(1000px 720px at 92% 6%, var(--glow2), transparent 60%),
+      radial-gradient(1200px 800px at 60% 108%, var(--glow3), transparent 62%),
+      radial-gradient(900px 900px at 28% 92%, var(--glow4), transparent 60%),
+      var(--bg);
     color:var(--text); font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,system-ui,sans-serif;
     -webkit-font-smoothing:antialiased;
   }
-  .app{display:flex; flex-direction:column; height:100vh; max-width:1020px; margin:0 auto}
+  body::before{content:""; position:fixed; inset:-25%; z-index:-1; pointer-events:none; opacity:.7;
+    background:conic-gradient(from 200deg at 42% 40%, var(--glow2),var(--glow3),var(--glow1),var(--glow4),var(--glow2));
+    filter:blur(70px); animation:auroraDrift 40s linear infinite}
+  body::after{content:""; position:fixed; inset:0; z-index:-1; pointer-events:none; opacity:.5; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/></svg>")}
+  @keyframes auroraDrift{to{transform:rotate(1turn)}}
+  @media (prefers-reduced-motion:reduce){body::before{animation:none}}
+  .app{display:flex; flex-direction:column; height:100vh; max-width:1020px; margin:0 auto; position:relative; z-index:1}
   /* header */
   header{
     display:flex; align-items:center; gap:14px; padding:14px 20px;
-    border-bottom:1px solid var(--border); background:rgba(12,13,18,.72); backdrop-filter:blur(10px);
-    position:sticky; top:0; z-index:5;
+    border-bottom:1px solid var(--glass-line); background:var(--glass);
+    backdrop-filter:blur(24px) saturate(1.3); -webkit-backdrop-filter:blur(24px) saturate(1.3);
+    box-shadow:0 1px 0 var(--glass-hi) inset; position:sticky; top:0; z-index:5;
   }
   .brand{display:flex; align-items:center; gap:11px; font-weight:650; letter-spacing:.2px}
   .logo{width:26px;height:26px;border-radius:8px;
@@ -472,7 +490,7 @@ PAGE = r"""<!doctype html>
   .tdot:nth-child(2){animation-delay:.2s} .tdot:nth-child(3){animation-delay:.4s}
   @keyframes blink{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-3px)}}
   /* composer */
-  .composer{padding:12px 16px 18px; border-top:1px solid var(--border); background:rgba(12,13,18,.72); backdrop-filter:blur(10px)}
+  .composer{padding:12px 16px 18px; border-top:1px solid var(--glass-line); background:var(--glass); backdrop-filter:blur(24px) saturate(1.3); -webkit-backdrop-filter:blur(24px) saturate(1.3); position:relative}
   .cwrap{display:flex; gap:10px; align-items:flex-end; background:var(--panel); border:1px solid var(--border);
     border-radius:14px; padding:8px 8px 8px 14px; transition:.15s}
   .cwrap:focus-within{border-color:#3b425e; box-shadow:0 0 0 3px rgba(122,162,247,.12)}
@@ -486,6 +504,42 @@ PAGE = r"""<!doctype html>
     background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; font-size:17px;
     display:grid;place-items:center; transition:.15s} .send:hover{filter:brightness(1.1)} .send:disabled{opacity:.4;cursor:default}
   .hint{color:var(--faint); font-size:11.5px; margin:7px 4px 0; display:flex; gap:5px; align-items:center}
+  /* --- Slice 2: centered fidelity ladder + animated recipient selector --- */
+  @property --spin{syntax:'<angle>'; inherits:false; initial-value:0deg}
+  @keyframes ladderSweep{to{--spin:360deg}}
+  @keyframes rpulse{0%{box-shadow:0 0 0 0 rgba(122,162,247,.4)}100%{box-shadow:0 0 0 10px rgba(122,162,247,0)}}
+  .ladder{display:flex; justify-content:center; margin:0 0 10px}
+  .ladder .seg{font:inherit; font-size:12.5px; color:var(--muted); background:var(--bg2); border:1px solid var(--border);
+    border-right:none; padding:6px 16px; cursor:pointer; transition:.15s}
+  .ladder .seg:first-child{border-radius:10px 0 0 10px}
+  .ladder .seg:last-child{border-radius:0 10px 10px 0; border-right:1px solid var(--border)}
+  .ladder .seg:hover{color:var(--text)}
+  .ladder .seg.on{color:var(--text); background:var(--panel2); position:relative; z-index:1}
+  .ladder .seg.on::after{content:""; position:absolute; inset:-1px; border-radius:inherit; padding:1px; pointer-events:none;
+    background:conic-gradient(from var(--spin), var(--accent),var(--user),var(--claude),var(--accent2),var(--accent));
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0); -webkit-mask-composite:xor;
+    mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0); mask-composite:exclude; animation:ladderSweep 4s linear infinite}
+  @media (prefers-reduced-motion:reduce){.ladder .seg.on::after{animation:none}}
+  .recipient{align-self:center; flex:none; display:flex; align-items:center; gap:9px; height:40px; padding:0 11px 0 7px;
+    border:1px solid var(--border); border-radius:11px; background:var(--bg2); cursor:pointer; transition:border-color .15s,background .15s}
+  .recipient:hover{border-color:var(--accent); background:rgba(122,162,247,.06)}
+  .recipient.pulse{animation:rpulse .5s cubic-bezier(.2,.9,.3,1.2)}
+  .rstack{display:flex; align-items:center; height:28px}
+  .rstack .cav{width:28px;height:28px;border-radius:8px; margin-left:-11px; box-shadow:0 0 0 2px var(--panel);
+    display:grid;place-items:center; font-size:11px;font-weight:700; color:#0a0b0f; will-change:transform,opacity}
+  .rstack .cav:first-child{margin-left:0}
+  .rlabel{display:flex; flex-direction:column; line-height:1.2; min-width:46px}
+  .rlabel b{font-size:12px; color:var(--text); font-weight:600; white-space:nowrap}
+  .rlabel .cue{font-size:9.5px; color:var(--faint); white-space:nowrap}
+  .roster-pop{display:none; position:absolute; bottom:66px; left:16px; z-index:20; background:var(--panel);
+    border:1px solid var(--border); border-radius:12px; padding:7px; box-shadow:var(--shadow); min-width:186px}
+  .roster-pop.show{display:block; animation:drop .16s ease}
+  .roster-pop .ri{display:flex; align-items:center; gap:9px; padding:7px 9px; border-radius:8px; cursor:pointer; font-size:13px; color:var(--text)}
+  .roster-pop .ri:hover{background:var(--panel2)}
+  .roster-pop .ri.sel{background:rgba(122,162,247,.12)}
+  .roster-pop .ri .cav{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;font-size:10px;font-weight:700;color:#0a0b0f}
+  .roster-pop .chk{margin-left:auto; color:var(--accent); font-size:13px; opacity:0}
+  .roster-pop .ri.sel .chk{opacity:1}
   /* dropzone */
   #drop{position:fixed; inset:0; z-index:20; display:none; place-items:center;
     background:rgba(8,9,13,.82); backdrop-filter:blur(4px)}
@@ -670,18 +724,23 @@ PAGE = r"""<!doctype html>
   <div id="log"></div>
   <div class="activity" id="activity"></div>
   <div class="composer">
+    <div class="ladder" id="ladder">
+      <button type="button" class="seg" data-fid="inform" onclick="setFidelity('inform')">Inform</button>
+      <button type="button" class="seg" data-fid="steer" onclick="setFidelity('steer')">Steer</button>
+      <button type="button" class="seg" data-fid="interrupt" onclick="setFidelity('interrupt')">Interrupt</button>
+    </div>
     <div class="cwrap">
-      <select id="target" class="target" title="who receives your message"></select>
-      <select id="fidelity" class="fidsel" title="how the signal lands" onchange="fidChanged()">
-        <option value="chat">💬 Chat</option>
-        <option value="inform">🟢 Inform</option>
-        <option value="steer">🔵 Steer</option>
-        <option value="interrupt">🔴 Interrupt</option>
-      </select>
+      <div class="recipient" id="recipient" role="button" tabindex="0" title="who receives your message — click to choose" onclick="toggleRoster()">
+        <div class="rstack" id="rstack"></div>
+        <div class="rlabel" id="rlabel"></div>
+      </div>
+      <select id="target" style="display:none"></select>
+      <select id="fidelity" style="display:none"><option value="inform">inform</option><option value="steer">steer</option><option value="interrupt">interrupt</option><option value="chat">chat</option></select>
       <textarea id="input" rows="1" placeholder="Message the agents… (Enter to send, Shift+Enter for newline)"></textarea>
       <button class="send" id="sendBtn" onclick="send()">➤</button>
     </div>
-    <div class="hint" id="fidhint">↳ Chat/Inform = adopt at next turn · Steer = fold into current task (no stop) · Interrupt = drop &amp; switch · ⏸ Pause = freeze everyone</div>
+    <div class="roster-pop" id="rosterPop"></div>
+    <div class="hint" id="fidhint">↳ Inform = adopt next turn · Steer = fold into current task (no stop) · Interrupt = drop &amp; switch · ⏸ Pause = freeze everyone</div>
   </div>
 </div>
 <div id="drop"><div class="dz"><div class="big">Drop files to share</div><div class="sub">saved into the project · agents can read them with their tools</div></div></div>
@@ -760,6 +819,11 @@ function connect(){
   es.onerror = ()=>{ /* browser auto-reconnects */ };
 }
 connect();
+setFidelity('inform');                           // default fidelity + light the ladder (renderRecipient runs after _recips is defined, below)
+document.addEventListener('click', function(e){  // click-away closes the roster popover
+  var p=document.getElementById('rosterPop'), r=document.getElementById('recipient');
+  if(p && p.classList.contains('show') && !p.contains(e.target) && r && !r.contains(e.target)) p.classList.remove('show');
+});
 
 // --- send ---
 const input = document.getElementById('input');
@@ -767,35 +831,111 @@ input.addEventListener('input', ()=>{ input.style.height='auto'; input.style.hei
 input.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); } });
 const FIDLABEL = {chat:'💬 sent', inform:'🟢 informed', steer:'🔵 steered (folds into current task)', interrupt:'🔴 interrupted (drop & switch)'};
 function fidChanged(){
-  const f = document.getElementById('fidelity');
-  f.className = 'fidsel' + ((f.value==='interrupt'||f.value==='steer') ? ' '+f.value : '');
+  var f = document.getElementById('fidelity'); if(!f) return;
+  [].forEach.call(document.querySelectorAll('#ladder .seg'), function(b){ b.classList.toggle('on', b.dataset.fid===f.value); });
 }
+function setFidelity(v){ var f=document.getElementById('fidelity'); if(f) f.value=v; fidChanged(); }
 async function send(){
   const text = input.value.trim(); if(!text) return;
-  const to = (document.getElementById('target')||{}).value || 'all';
-  const fidelity = (document.getElementById('fidelity')||{}).value || 'chat';
-  if((fidelity==='steer'||fidelity==='interrupt') && (to==='all'||to==='')){
+  const fidelity = (document.getElementById('fidelity')||{}).value || 'inform';
+  var isAll = _recips.length===1 && _recips[0]==='all';
+  var ids = _recipIds();
+  if((fidelity==='steer'||fidelity==='interrupt') && (isAll || ids.length!==1)){
     toast('pick ONE agent for '+fidelity+' (it targets a single peer)'); return;
   }
   input.value=''; input.style.height='auto';
+  var targets = isAll ? ['all'] : ids;
   try{
-    const r = await fetch('/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text, to, fidelity})});
-    const j = await r.json();
-    if(j && j.ok){ toast((FIDLABEL[fidelity]||'sent')+' → '+(to==='all'?'all':to)); }
-    else { toast('send failed — bus offline?'); }
+    var ok=true;
+    for(const to of targets){
+      const r = await fetch('/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text, to, fidelity})});
+      const j = await r.json(); if(!(j&&j.ok)) ok=false;
+    }
+    toast(ok ? (FIDLABEL[fidelity]||'sent')+' → '+(isAll?'all':ids.join(', ')) : 'send failed — bus offline?');
   }catch(e){ toast('send failed — bus offline?'); }
 }
+
+// --- Slice 2: animated recipient selector (state = who you're messaging; last-messaged persists) ---
+var _recips = ['all'];                          // ['all'] (broadcast) or a list of agent ids
+function _aiRoster(){                            // AI agents in the hidden target select (excludes 'all')
+  var t=document.getElementById('target'); if(!t) return [];
+  return [].map.call(t.options,function(o){return o.value;}).filter(function(v){return v!=='all';});
+}
+function avatarInfo(a){
+  var m={claude:['#f0a56c','#e0724f','C'], deepseek:['#7aa2f7','#9d7cf7','D'], user:['#48e6bf','#2fbf8f','U']};
+  if(m[a]) return {a:m[a][0], b:m[a][1], l:m[a][2]};
+  var h=0; for(var i=0;i<a.length;i++){ h=(h*31+a.charCodeAt(i))%360; }   // dynamic agents -> stable hue
+  return {a:'hsl('+h+' 68% 62%)', b:'hsl('+((h+38)%360)+' 62% 52%)', l:(a[0]||'?').toUpperCase()};
+}
+function _cav(a){
+  var v=avatarInfo(a), el=document.createElement('div');
+  el.className='cav'; el.dataset.id=a; el.textContent=v.l; el.title=a;
+  el.style.background='linear-gradient(140deg,'+v.a+','+v.b+')'; return el;
+}
+// reusable FLIP group animator: reconcile container's children to `ids`, animating enter/exit/reorder
+function animateGroup(container, ids, makeEl){
+  if(!container) return;
+  var reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+  // reconcile FIRST, synchronously: drop any child not in `ids`. Correctness over a fade-out --
+  // async removal races applyStatus's periodic re-render and leaves ghosts/duplicates.
+  [].slice.call(container.children).forEach(function(el){ if(ids.indexOf(el.dataset.id)<0) el.remove(); });
+  var live={}, old={};
+  [].forEach.call(container.children,function(el){ live[el.dataset.id]=el; old[el.dataset.id]=el.getBoundingClientRect(); });
+  // enters + reorder
+  ids.forEach(function(id){
+    var el=live[id];
+    if(!el){ el=makeEl(id); container.appendChild(el);
+      if(!reduce) el.animate([{opacity:0,transform:'scale(.4)'},{opacity:1,transform:'scale(1)'}],{duration:280,easing:'cubic-bezier(.2,.9,.3,1.35)'});
+    } else { container.appendChild(el); }
+  });
+  // FLIP the survivors from their old x to the new x
+  if(!reduce) ids.forEach(function(id){
+    var el=live[id], o=old[id]; if(!el||!o) return;
+    var dx=o.left-el.getBoundingClientRect().left;
+    if(dx) el.animate([{transform:'translateX('+dx+'px)'},{transform:'translateX(0)'}],{duration:300,easing:'cubic-bezier(.2,.9,.3,1.2)'});
+  });
+}
+function _recipIds(){ return (_recips.length===1 && _recips[0]==='all') ? _aiRoster() : _recips.slice(); }
+function renderRecipient(){
+  var stack=document.getElementById('rstack'), label=document.getElementById('rlabel'), box=document.getElementById('recipient');
+  if(!stack) return;
+  var isAll=_recips.length===1 && _recips[0]==='all';
+  var ids=_recipIds(); if(!ids.length) ids=_aiRoster();
+  animateGroup(stack, ids.slice(0,4), _cav);
+  label.innerHTML = isAll ? '<b>Broadcast</b><span class="cue">'+ids.length+' agent'+(ids.length===1?'':'s')+'</span>'
+                  : ids.length===1 ? '<b>'+esc(ids[0])+'</b><span class="cue">last messaged</span>'
+                  : '<b>'+ids.length+' agents</b><span class="cue">multi-cast</span>';
+  if(box){ box.classList.remove('pulse'); void box.offsetWidth; box.classList.add('pulse'); }
+  var t=document.getElementById('target'); if(t){ t.value = isAll ? 'all' : (_recips.length===1 ? _recips[0] : 'all'); }
+  renderRosterPop();
+}
+function setRecipients(list){ _recips = (list && list.length) ? list : ['all']; renderRecipient(); }
+function toggleRecipient(a){
+  if(a==='all'){ setRecipients(['all']); return; }
+  var s=new Set(_recips.filter(function(x){return x!=='all';}));
+  if(s.has(a)) s.delete(a); else s.add(a);
+  setRecipients(Array.from(s));
+}
+function toggleRoster(){ var p=document.getElementById('rosterPop'); if(p){ renderRosterPop(); p.classList.toggle('show'); } }
+function renderRosterPop(){
+  var p=document.getElementById('rosterPop'); if(!p) return;
+  var ids=_aiRoster(), isAll=_recips.length===1 && _recips[0]==='all';
+  var rows='<div class="ri'+(isAll?' sel':'')+'" onclick="toggleRecipient(\'all\')"><div class="cav" style="background:linear-gradient(140deg,#7aa2f7,#48e6bf)">*</div>All agents<span class="chk">✓</span></div>';
+  rows+=ids.map(function(a){ var v=avatarInfo(a), sel=!isAll && _recips.indexOf(a)>=0;
+    return '<div class="ri'+(sel?' sel':'')+'" onclick="toggleRecipient(\''+esc(a)+'\')"><div class="cav" style="background:linear-gradient(140deg,'+v.a+','+v.b+')">'+v.l+'</div>'+esc(a)+'<span class="chk">✓</span></div>';
+  }).join('');
+  p.innerHTML=rows;
+}
+renderRecipient();                                // first paint (now that _recips + helpers are defined)
 
 // --- pill click -> set composer target ---
 function setTarget(aid){
   var tsel=document.getElementById('target');
-  if(tsel){
-    for(const o of tsel.options){ if(o.value===aid){ tsel.value=aid; updateAshChroma(); return; } }
-    const opt=document.createElement('option'); opt.value=aid; opt.textContent=aid;
-    tsel.appendChild(opt);
-    tsel.value=aid;
-    updateAshChroma();
+  if(tsel && ![].some.call(tsel.options,function(o){return o.value===aid;})){
+    var opt=document.createElement('option'); opt.value=aid; opt.textContent=aid; tsel.appendChild(opt);
   }
+  setRecipients([aid]);                          // pill click -> single recipient (animated)
+  if(typeof updateAshChroma==='function') updateAshChroma();
 }
 
 // --- reload (after an agent edits the UI source) ---
@@ -850,6 +990,7 @@ function applyStatus(s){
     }
   }
   renderActivity(s.activities||{});
+  renderRecipient();                             // keep the animated recipient chip in sync with the roster
 }
 async function poll(){ try{ applyStatus(await (await fetch('/status')).json()); }catch(e){} }
 poll(); setInterval(poll, 1200);
