@@ -129,6 +129,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._static("scripts/theme-void.js", "application/javascript")
         if path == "/presence-rail.js":
             return self._static("scripts/presence-rail.js", "application/javascript")
+        if path == "/presence-cloud.js":
+            return self._static("scripts/presence-cloud.js", "application/javascript")
         self.send_error(404)
 
     def _html(self):
@@ -2189,6 +2191,7 @@ initViz();
 </script>
 <script src="/theme-void.js"></script>
 <script src="/presence-rail.js"></script>
+<script src="/presence-cloud.js"></script>
 </body>
 </html>
 """
