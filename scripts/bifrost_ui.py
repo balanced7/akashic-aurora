@@ -421,7 +421,7 @@ PAGE = r"""<!doctype html>
     --fleet:#f472b6;
     --shadow:0 8px 30px rgba(0,0,0,.35);
     /* aurora glow tints (per-theme tunable) + glass */
-    --glow1:rgba(240,145,92,.16); --glow2:rgba(122,162,247,.20); --glow3:rgba(72,230,191,.14); --glow4:rgba(157,124,247,.16);
+    --glow1:rgba(240,145,92,.05); --glow2:rgba(122,162,247,.06); --glow3:rgba(72,230,191,.04); --glow4:rgba(157,124,247,.05);
     --glass:rgba(18,20,28,.55); --glass-line:rgba(255,255,255,.08); --glass-hi:rgba(255,255,255,.06);
   }
   *{box-sizing:border-box}
@@ -654,7 +654,7 @@ PAGE = r"""<!doctype html>
   .ladder .seg:first-child{border-radius:10px 0 0 10px}
   .ladder .seg:last-child{border-radius:0 10px 10px 0; border-right:1px solid var(--border)}
   .ladder .seg:hover{color:var(--text)}
-  .ladder .seg.on{color:var(--text); background:var(--panel2); position:relative; z-index:1}
+  .ladder .seg.on{color:var(--text); background:var(--panel2); position:relative; z-index:1; box-shadow:0 0 22px -6px var(--accent)}
   .ladder .seg.on::after{content:""; position:absolute; inset:-1px; border-radius:inherit; padding:1px; pointer-events:none;
     background:conic-gradient(from var(--spin), var(--accent),var(--user),var(--claude),var(--accent2),var(--accent));
     -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0); -webkit-mask-composite:xor;

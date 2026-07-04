@@ -78,6 +78,11 @@
     var sig=d.signals||{};
     var runner=(d.agents||[]).find(function(a){ return (sig[a]||{}).runner; });
     if(runner) return {aid:runner, act:{state:'idle'}};
+    // ALWAYS show some agent so the bottom-left avatar is a persistent fixture (Daniel's ask)
+    var online=(d.agents||[]).filter(function(a){ return a!=='user'; });
+    if(online.length) return {aid:online[0], act:{state:'idle'}};
+    var known=(d.known||[]).filter(function(a){ return a!=='user'; });
+    if(known.length) return {aid:known[0], act:{state:'idle'}};
     return null;
   }
 

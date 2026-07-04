@@ -151,7 +151,7 @@
       this.state = 0;
       this.stateLerp = 1.0;                // 1 = fully at target
       this.speed = 1.0;                    // live-tunable params (Shader Park ethos); UI sliders call the setters
-      this.intensity = 1.0;
+      this.intensity = 0.7;                // dark-first: aurora present in the top bands, not an overpowering wash
       this.startTime = (global.performance ? performance.now() : 0) / 1000;
       this.animating = false;
       this._frames = 0;                    // for the fps watchdog
