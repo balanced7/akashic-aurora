@@ -462,12 +462,12 @@ PAGE = r"""<!doctype html>
     filter:blur(60px)}
   body::after{content:""; position:fixed; inset:0; z-index:-1; pointer-events:none; opacity:.3;
     background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/></svg>")}
-  .app{display:flex; flex-direction:column; height:100vh; max-width:1020px; margin:0 auto; position:relative; z-index:1}
+  .app{display:flex; flex-direction:column; height:100vh; max-width:1180px; margin:0 auto; position:relative; z-index:1}
   /* header */
   header{
     display:flex; align-items:center; gap:14px; padding:14px 20px;
     border-bottom:1px solid var(--glass-line); background:var(--glass);
-    backdrop-filter:blur(12px) saturate(1.2); -webkit-backdrop-filter:blur(12px) saturate(1.2);
+    backdrop-filter:blur(26px) saturate(1.35); -webkit-backdrop-filter:blur(26px) saturate(1.35);
     box-shadow:0 1px 0 var(--glass-hi) inset; position:sticky; top:0; z-index:5;
   }
   .brand{display:flex; align-items:center; gap:11px; font-weight:650; letter-spacing:.2px}
@@ -508,7 +508,7 @@ PAGE = r"""<!doctype html>
   .av.claude{background:linear-gradient(135deg,#e0915c,#d97b5a)}
   .av.deepseek{background:linear-gradient(135deg,#7aa2f7,#9d7cf7)}
   .av.user{background:linear-gradient(135deg,#5fd39b,#3fbf86)}
-  .bubble{max-width:78%; background:var(--panel); border:1px solid var(--border); border-radius:4px 14px 14px 14px;
+  .bubble{max-width:78%; background:var(--panel); border:1px solid var(--border); border-radius:5px 15px 15px 15px;
     padding:10px 14px; box-shadow:var(--shadow)}
   .row{display:flex; align-items:baseline; gap:8px; margin-bottom:3px}
   .who{font-weight:650; font-size:13px}
