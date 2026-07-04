@@ -4,8 +4,9 @@
     {
       "name": "bifrost-ui",
       "runtimeExecutable": "py",
-      "runtimeArgs": ["scripts/bifrost_ui.py", "--port", "8788"],
-      "port": 8788
+      "runtimeArgs": ["scripts/bifrost_ui.py", "--port", "8790"],
+      "port": 8790,
+      "autoPort": false
     }
   ]
 }
