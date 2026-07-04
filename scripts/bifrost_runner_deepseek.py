@@ -182,9 +182,16 @@ def main() -> int:
                 control.set_activity(args.agent, "thinking")
                 try:
                     out = responder(m.frm, prompt) if args.agentic else responder(prompt)
-                    bus.send(m.frm, "reply", out,
-                             meta={"via": f"{args.agent}-runner", "model": args.model, "hops": hops})
-                    print(f"[deepseek-runner] -> {m.frm}: {out[:80]}")
+                    reply_meta = {"via": f"{args.agent}-runner", "model": args.model, "hops": hops}
+                    # Channel mirror: a message that arrived by BROADCAST is replied by broadcast, so the
+                    # whole group (Claude + the console) sees it -- not just the sender. Direct stays direct.
+                    if str(m.to) == "*":
+                        bus.broadcast("reply", out, meta=reply_meta)
+                        dest = "*(broadcast -> all)"
+                    else:
+                        bus.send(m.frm, "reply", out, meta=reply_meta)
+                        dest = m.frm
+                    print(f"[deepseek-runner] -> {dest}: {out[:80]}")
                 finally:
                     control.clear_activity(args.agent)   # back to idle -> UI stops showing it working
             if args.once:
