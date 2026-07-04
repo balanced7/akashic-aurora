@@ -55,6 +55,17 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py scripts/hooks/claude_stop.py"
+          }
+        ]
+      }
     ]
   }
 }
