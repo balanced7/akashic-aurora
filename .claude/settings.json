@@ -5,6 +5,15 @@
   "hooks": {
     "PreToolUse": [
       {
+        "matcher": "Bash|PowerShell|Read|Edit|Write|NotebookEdit|Glob|Grep|Task|WebFetch|WebSearch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py scripts/hooks/claude_trace.py"
+          }
+        ]
+      },
+      {
         "matcher": "Bash",
         "hooks": [
           {
