@@ -29,12 +29,15 @@ from typing import Any, Callable, Dict, Optional
 HALT = "halt"
 STEER = "steer"
 ASK = "ask"
+RESUME = "resume"
 
 # Strong stop / redirect signals -> the human is taking the wheel.
 _HALT_RE = re.compile(
     r"\b(stop|wait|hold\s+(?:on|up)|halt|abort|cancel|scrap|forget\s+it|never\s?mind|"
-    r"no+|nope|don'?t|do\s+not|that'?s\s+wrong|it'?s\s+wrong|wrong|not\s+what|not\s+right|"
-    r"redo|revert|undo|back\s+up|start\s+over|instead|actually)\b", re.I)
+    r"no+|nope|don'?t|do\s+not|that'?s\s+wrong|it'?s\s+wrong|not\s+what|not\s+right|"
+    r"redo|revert|undo|start\s+over)\b", re.I)
+# NB: 'instead'/'actually'/'wrong'/'back up' were dropped from the always-halt set -- they false-fire
+# on descriptive text ("...keep triggering INSTEAD of staying put" is a bug report, not a stop command).
 # Leading stop words -> near-certain halt (someone slamming the brakes types the verb first).
 _HALT_LEAD_RE = re.compile(r"^\s*(stop|wait|hold|halt|no|nope|abort|cancel|don'?t|scrap)\b", re.I)
 # Question form -> wants an answer, not a halt.
@@ -46,6 +49,9 @@ _STEER_RE = re.compile(
     r"\b(also|and\s+also|additionally|plus|make\s+sure|ensure|fyi|note\s+that|nb|btw|"
     r"by\s+the\s+way|consider|keep\s+in\s+mind|remember\s+to|one\s+more|as\s+well|prefer|"
     r"priorit(?:y|ise|ize)|make\s+it|can\s+you\s+also)\b", re.I)
+# A bare resume command (the WHOLE message) -> unfreeze the agents, don't send it as chat.
+_RESUME_RE = re.compile(r"^\s*(resume|continue|unpause|go\s+on|keep\s+going|carry\s+on|proceed|"
+                        r"go\s+ahead|resume\s+work|go)\s*[.!]*\s*$", re.I)
 
 
 def classify_intent(text: Any, *, llm: Optional[Callable[[str], str]] = None,
@@ -56,6 +62,8 @@ def classify_intent(text: Any, *, llm: Optional[Callable[[str], str]] = None,
     t = str(text or "").strip()
     if not t:
         return {"intent": STEER, "confidence": 0.0, "why": "empty message", "source": "heuristic"}
+    if _RESUME_RE.match(t):
+        return {"intent": RESUME, "confidence": 0.95, "why": "resume command", "source": "heuristic"}
 
     lead_halt = bool(_HALT_LEAD_RE.search(t))
     halt = lead_halt or bool(_HALT_RE.search(t))
@@ -84,6 +92,11 @@ def classify_intent(text: Any, *, llm: Optional[Callable[[str], str]] = None,
 def should_pause(intent: str) -> bool:
     """The one action rule the caller needs: only a HALT freezes ongoing work."""
     return intent == HALT
+
+
+def should_resume(intent: str) -> bool:
+    """A bare 'resume'/'continue' typed into the console unfreezes the work."""
+    return intent == RESUME
 
 
 _LLM_PROMPT = (

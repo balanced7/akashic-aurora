@@ -199,8 +199,12 @@ class Handler(BaseHTTPRequestHandler):
         to = (data.get("to") or "deepseek").strip()
         if not text:
             return self._json({"ok": False, "error": "empty"}, 400)
-        verdict = interject.classify_intent(text)            # adaptive: halt | steer | ask
+        verdict = interject.classify_intent(text)            # adaptive: resume | halt | steer | ask
         intent = verdict["intent"]
+        if interject.should_resume(intent):                  # a bare "resume"/"continue" unfreezes the work
+            control.resume()
+            BUS.send(to, "note", text, meta={"hops": 0, "via": "console", "intent": intent})
+            return self._json({"ok": True, "resumed": True, "intent": intent, "why": verdict["why"]})
         paused = interject.should_pause(intent)
         if paused:                                           # a course-correction freezes the work
             control.pause(reason=f"interjection ({verdict['why']}): {text[:40]}", by="user")
@@ -483,7 +487,11 @@ async function send(){
   try{
     const r = await fetch('/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
     const j = await r.json();
-    if(j && j.paused){ paused=true;
+    if(j && j.resumed){ paused=false;
+      const b=document.getElementById('pauseBtn'); b.textContent='⏸ Pause'; b.classList.remove('paused');
+      document.getElementById('banner').classList.remove('show');
+      toast('▶ resumed'); }
+    else if(j && j.paused){ paused=true;
       const b=document.getElementById('pauseBtn'); b.textContent='▶ Resume'; b.classList.add('paused');
       document.getElementById('banner').classList.add('show');
       toast('⏸ "'+(j.intent||'halt')+'" detected — work paused ('+(j.why||'')+')'); }
