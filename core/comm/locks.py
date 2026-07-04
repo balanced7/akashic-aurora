@@ -168,3 +168,28 @@ def path_conflict(path: str, agent: str, client: Optional[Any] = None) -> Dict[s
             f"Edit a file you hold, request a handoff via the bus, or wait for release "
             f"(advisory lock, see docs/concurrency-design.md C2).")}
     return {"conflict": False, "held_by": None, "reason": ""}
+
+
+def guard_write(path: str, agent: str, ttl: int = DEFAULT_TTL, client: Optional[Any] = None) -> Dict[str, Any]:
+    """The ONE environmental write-gate an agent calls BEFORE editing `path` (A0.1).
+
+    Turns coordination from social (negotiate: 'stand down please') into environmental (read shared
+    state, react): it PROACTIVELY claims the advisory lock so peers are auto-blocked, or YIELDS if a
+    peer already holds it. The claim is re-entrant, so calling it on every edit REFRESHES the TTL --
+    a lock never lapses mid-task while its holder keeps working (the gap that reopened today's
+    collision window). The lock holder IS the influence map: `locks` / holder(path) shows who's in a
+    file before anyone types. Fail-open: no Redis -> ok (never wedge a local edit).
+
+    Returns {ok, held_by, claimed, reason}. When ok is False the caller should YIELD (not retry) and
+    surface `reason` on the bus so the yield is visible, not silent."""
+    lm = LockManager(agent, client=client)
+    res = lm.acquire(path, ttl=ttl)                     # re-entrant: extends the TTL if already mine
+    if res.get("ok"):
+        return {"ok": True, "held_by": agent, "claimed": True, "reason": ""}
+    if res.get("online"):                               # a peer holds it -> yield, don't clobber
+        h = lm.holder(path) or {}
+        who = h.get("agent") or res.get("held_by")
+        return {"ok": False, "held_by": who, "claimed": False, "reason": (
+            f"'{normalize_path(path)}' is being edited by {who} (advisory lock). Yielding -- "
+            f"coordinate on the bus or wait for release (C2, docs/concurrency-design.md).")}
+    return {"ok": True, "held_by": agent, "claimed": False, "reason": ""}   # offline -> fail-open

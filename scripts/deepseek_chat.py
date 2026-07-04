@@ -453,6 +453,17 @@ class ToolBox:
         return f"ERROR: no UI reachable to reload (tried {', '.join(errs)}). Is bifrost_ui.py running?"
 
     # -- guarded write (live only when the runner is started with --allow-write) --
+    def _yield_notice(self, path, held_by):
+        """A0.1: make a write-yield VISIBLE on the bus (environmental signal, not a silent error).
+        Best-effort -- never let a notice failure block the guarded write path."""
+        try:
+            from core.comm.bus import Bus
+            Bus(self.agent_id or "deepseek").broadcast(
+                "inform", f"↩ yielded {path} to {held_by} (advisory lock) -- coordinating, not clobbering.",
+                meta={"via": f"{self.agent_id or 'deepseek'}-guard", "hops": 0})
+        except Exception:
+            pass
+
     def _prewrite(self, path):
         """Shared guards for write/edit: capability ON, path IN-ROOT and NON-secret, and no ADVISORY
         lock held by ANOTHER agent (C2 coordination). Returns (resolved_path, error) -- error is None
@@ -470,12 +481,12 @@ class ToolBox:
         if rel.startswith("security/") or rel == "agents.md" or rel.endswith("/agents.md"):
             return None, (f"ERROR: '{rel}' is a protected trust/contract path -- writes are blocked even under "
                           "--allow-write (an agent cannot escalate its own ACL/launch surface). Ask a super-admin.")
-        try:                                              # advisory lock: don't clobber a file another agent holds
-            from core.comm.locks import LockManager
-            res = LockManager(self.agent_id or "deepseek").acquire(str(p), ttl=900)
-            if res.get("online") and not res.get("ok"):
-                return None, (f"ERROR: {path} is held (advisory lock) by {res.get('held_by')}. "
-                              "Coordinate via the bus before editing it.")
+        try:                                              # A0.1 environmental write-gate: claim, or YIELD visibly
+            from core.comm.locks import guard_write
+            g = guard_write(str(p), self.agent_id or "deepseek")
+            if not g.get("ok"):
+                self._yield_notice(path, g.get("held_by"))   # surface the yield on the bus, not a silent error
+                return None, f"YIELDED: {g.get('reason')}"
         except Exception:
             pass                                          # locks are advisory; never block a write on lock errors
         return p, None
