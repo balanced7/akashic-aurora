@@ -1,9 +1,35 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 25 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 38 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
+- competitive positioning: policy-swappable coordination control plane: Web-model landscape analysis relayed 2026-07-04 (updates competitive-landscape-2026-07). VERDICT...  (source: mem:decision:ADR_0704152438_8163)
+- checkpoint-2026-07-04-deepseek-slice: DeepSeek's working set at checkpoint (2026-07-04 evening):
+
+SHIPPED + GREEN:
+- core/coord/metrics.py — Solution-Space-Shrinkage...  (source: mem:decision:ADR_0704151927_8794)
+- critique: JIT context-hydration is an optimization, not a phase change: Web-panel (gpt+deepseek+gemini) critique series, 2026-07-04, on enriching orphaned bus events...  (source: mem:decision:ADR_0704145609_6378)
+- modern-doom-idtech-primitives-for-bifrost-ui: # Modern Doom Engine Primitives for Bifrost UI (id Tech 6/7, Doom 2016/Eternal)
+
+This supersedes the earlier "classic Doom"...  (source: mem:decision:ADR_0704145239_1170)
+- doom-engine-primitives-for-bifrost-ui: # Doom Engine Primitives Applied to Bifrost UI
+
+## Why Doom's design matters for a chat UI
+
+Doom ran at 35 fps on a 33 MHz 486...  (source: mem:decision:ADR_0704144917_2065)
+- belief-architecture-three-layer-2026-07-04: # Three-Layer Belief Architecture (GPT + DeepSeek web, 2026-07-04)
+
+## The insight
+GPT identified the missing layer between...  (source: mem:decision:ADR_0704143513_4651)
+- MILESTONE: intent-declaration (Policy 0) is real + live-proven: 2026-07-04: core/coord/intent.py shipped @294a666, 7 tests + live-proven. Coordinate by INTENT not file...  (source: mem:decision:ADR_0704142502_9672)
+- deepseek-kb-write-enabled: DeepSeek can now author KB notes/lessons via knowledge_note/knowledge_learn (kb.learn gated). Enabled 2026-07-04.  (source: mem:decision:ADR_0704141507_2501)
+- Stage-3 evidence #1: intent-gate beats lock-gate (measured): FIRST measured result from core/coord/experiment.py (committed 9e3ab9d, 5 tests green, A/B/C+W evaluator)...  (source: mem:decision:ADR_0704140942_1347)
+- coordination: intent-first (Policy 0), locks as enforcement + 3-part evaluator: ADJUSTMENT from GPT critique (2026-07-04...  (source: mem:decision:ADR_0704140127_7983)
+- Stage-2 verdict + Stage-3 evidence mandate (multi-model review): 2026-07-04 multi-model design review (Gemini+GPT+DeepSeek web, Daniel-curated) -> full record...  (source: mem:decision:ADR_0704134029_8082)
+- coordination reframe: social -> environmental (game-AI lens): DeepSeek's game-AI analysis (2026-07-04, user-shared screenshot; claims VERIFIED against code) reframes the...  (source: mem:decision:ADR_0704132351_4717)
+- directive: token frugality (claude+deepseek): STANDING RULE (Daniel, 2026-07-04): both claude and deepseek default to the cheapest path that fully does the job. (1) min...  (source: mem:decision:ADR_0704121954_8946)
+- where-we-are: 2026-07-04 (big night). SHIPPED: multi-agent Bifrost fleet (4 agents: claude super_admin, deepseek admin/UI-writer, deepseek-ui member/design-consultant...  (source: mem:decision:ADR_0704062131_6748)
 - research: shift 2026-07-03 evening review: SHIFT RESULT: 12 tasks attempted, 5 clean DONE (001,004,008,012,018 by runner's format-only bar), but 'done' means...  (source: mem:decision:ADR_0703231229_7143)
 - where-we-are 2026-07-03: Shipped:
   - ROADMAP: status banner -- the Waves 0-5 synthesis is foundation-era/historical; living START HERE is now the boot notes + the...  (source: mem:decision:ADR_0703123020_5091)
@@ -15,7 +41,6 @@ Record durable project state once with `note`; correct it by re-noting the same 
 - s1-triage-adjudication: S1 FIRST TRIAGE ADJUDICATED 2026-07-03 (verb: py agent_cli.py triage; shipped gated). NUMBERS: 127 tracked sources, 8 PROTECT (all earned credit...  (source: mem:decision:ADR_0703063551_8888)
 - idea: knowledge primitives (shape axis) + tests-as-schema: USER IDEATION 2026-07-03 (via GPT chat, user-relayed; extends the sharpening-sword thesis). TWO IDEAS: (1)...  (source: mem:decision:ADR_0703000542_6378)
 - research: knowledge compaction + consolidation field state 2026-07: TWO-AGENT SWEEP 2026-07-02 (all claims fetched+cited; feeds SQ1+SQ3; trigger: user's 'ever-sharpening...  (source: mem:decision:ADR_0702233250_1531)
-- where-we-are: LOCAL-AGENT FLEET + RESEARCH-DAY PIPELINE SHIPPED PUBLIC 2026-07-02 (after Integration Tiers H0-H3 same day). glm_local = glm-4.7-flash on native Ollama...  (source: mem:decision:ADR_0702192945_4841)
 - research: local/free models via Claude Code 2026-07: RESEARCH COMPLETE 2026-07-02 (3 parallel agents, all claims source-verified; trigger: user shared a video on free...  (source: mem:decision:ADR_0702090107_7768)
 - research: field survey 2026-07: FIELD SURVEY COMPLETE 2026-07-02 (3 parallel research agents: skills ecosystem, individual practitioners, memory/context-engineering...  (source: mem:decision:ADR_0702013752_3553)
 - research: greptile + skill-format 2026-07-02: Researched github.com/michaelshimeles/skills + Greptile (production AI code review) for routine/quality lessons. GREPTILE...  (source: mem:decision:ADR_0702010906_4755)

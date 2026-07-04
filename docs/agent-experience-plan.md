@@ -44,10 +44,10 @@ into a tiny **narrow phase** (rank + distill the few candidates in the hit box),
 **disclosed skeleton-first** (lossy summary + lossless `source` pointer), **trust-weighted by FAITH-1**
 (superseded or unfaithful items never surface), and **portable** — knowledge written once is recallable by
 future-me-after-compaction and by any peer agent (Cursor / next Claude) because it lives in the shared atom
-substrate, not in any one agent's private memory. The differentiator nobody else has (RAPTOR/GraphRAG/MemGPT/Zep
-all lack it) is that the substrate is **bi-temporal and append-only**, so every index is a regenerable
-projection and **the worst case of any optimization is a no-op** — which is what makes aggressive local recall
-acceleration *safe*.
+substrate, not in any one agent's private memory. Our design choice (not yet proven superior) is that the
+substrate is **bi-temporal and append-only**, so every index is a regenerable projection and **the worst
+case of any optimization is a no-op** — which is what makes aggressive local recall acceleration *safe*.
+Whether this approach produces better outcomes than alternatives is an open question the MVH exists to answer.
 
 ---
 
@@ -184,9 +184,10 @@ Respecting: prefer **wiring** over building; **local-hardware** (no embedding on
 (no LLM judge inline); **no separate cursor folder**. (Per-agent file ownership RETIRED 2026-06-29 — any agent edits any file, coordinating via locks.)
 
 > ### ⭐ FIRST MOVE (highest leverage) — ✅ SHIPPED (31a1b67): **`additionalContext` wired into the PreToolUse hook via `core/recall/at_action.py` + a `recall-at` CLI verb.**
-> It is the single seam that turns passive storage into active recall, it is *ahead of published SOTA* (mem0 2026
-> confirms no one has recall-at-action), it forces the Index's first real consumer to exist, and it is nearly
-> pure wiring (the hook already parses inputs and imports `core.*`; the `additionalContext` field already ships).
+> It is the single seam that turns passive storage into active recall. mem0 (2026) notes that recall-at-action
+> timing is uncommon in published systems — whether it produces better outcomes than turn-start injection is an
+> open hypothesis. It forces the Index's first real consumer to exist, and it is nearly pure wiring (the hook
+> already parses inputs and imports `core.*`; the `additionalContext` field already ships).
 > Ship it **observational-first**, fail-open, ≤1–3 entries, FAITH-gated.
 
 1. **Vocabulary + the AGENT_ID usability fix (parallel, S):** Add the LEXICON entries (`discover`, memory-atom,

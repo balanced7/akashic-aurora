@@ -122,6 +122,123 @@ def release(agent: str, intent: str, client: Any = None) -> bool:
         return False
 
 
+# --- negotiation round: brief window after user input where agents declare plans ---
+
+PROPOSAL_TIMEOUT = 8.0          # seconds agents have to respond before the round auto-closes
+PROPOSAL_NS = f"{NS}:proposal"
+PROPOSAL_TTL = 60               # proposal records auto-expire after a minute
+
+
+def propose(agent: str, plan: Dict[str, Any], client: Any = None) -> Dict[str, Any]:
+    """Submit a proposal for the current negotiation round. The plan MUST include:
+      - what: short description of the task
+      - scope: list of files/dirs/topics
+      - estimate: rough time/effort (e.g. '~5 min', '1 slice')
+    Returns the full round state: every agent's proposal + conflict verdicts.
+    Fail-open: no Redis -> admitted but no peer visibility."""
+    c = client or _client()
+    if c is None:
+        return {"ok": True, "offline": True, "round": {}}
+    key = f"{PROPOSAL_NS}:{_round_id()}:{agent}"
+    payload = {
+        "agent": agent, "what": str(plan.get("what", "")), "intent": slug(plan.get("intent") or plan.get("what", "")),
+        "scope": _norm_scope(plan.get("scope")),
+        "estimate": str(plan.get("estimate", "")), "ts": _now(),
+    }
+    try:
+        c.set(key, json.dumps(payload), ex=PROPOSAL_TTL)
+    except Exception:
+        pass
+    return {"ok": True, "round": _round_state(c)}
+
+
+def round_state(client: Any = None) -> Dict[str, Any]:
+    """Current state of the negotiation round: every proposal + conflict map."""
+    return _round_state(client or _client())
+
+
+def _round_id() -> str:
+    """Stable round id: minute-granularity so proposals within the same brief window group together."""
+    return time.strftime("%Y%m%d%H%M")
+
+
+def _round_state(c) -> Dict[str, Any]:
+    if c is None:
+        return {"proposals": [], "conflicts": [], "verdict": "offline", "agents": []}
+    rid = _round_id()
+    proposals: List[Dict[str, Any]] = []
+    try:
+        for k in (c.keys(f"{PROPOSAL_NS}:{rid}:*") or []):
+            raw = c.get(k)
+            if raw:
+                try:
+                    proposals.append(json.loads(raw))
+                except Exception:
+                    pass
+    except Exception:
+        pass
+    agents = sorted({p["agent"] for p in proposals})
+    # conflicts: two agents claiming the same scope file
+    conflicts = _scope_conflicts(proposals)
+    # verdict: green (no conflicts), amber (same file different intents — fine but flag),
+    #          red (same file same intent — coordinate)
+    conflict_files = {c["file"] for c in conflicts}
+    same_intent = [c for c in conflicts if c.get("same_intent")]
+    if same_intent:
+        verdict = "red"
+        reason = "duplicate intent on: " + ", ".join(c["file"] for c in same_intent)
+    elif conflict_files:
+        verdict = "amber"
+        reason = "shared files with different intents: " + ", ".join(sorted(conflict_files))
+    else:
+        verdict = "green"
+        reason = "no scope conflicts"
+    return {
+        "proposals": proposals, "conflicts": conflicts, "verdict": verdict,
+        "reason": reason, "agents": agents, "round": rid,
+    }
+
+
+def _scope_conflicts(proposals: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Find files claimed by more than one agent. Returns list of {file, agents, same_intent}.
+
+    Intent matching v1 (honest): uses the explicit 'intent' TAG field if present, falling back to
+    slug('what') only for backward compat. The TAG is the coordination key; 'what' is human-readable
+    description. This avoids the fuzzy-intent trap (slug('restyle header') != slug('restyle the header'))
+    by requiring agents to use the same tag for the same work. Fuzzy semantic overlap is deferred."""
+    file_agents: Dict[str, List[Dict[str, Any]]] = {}
+    for p in proposals:
+        for f in p.get("scope", []):
+            file_agents.setdefault(f, []).append(p)
+    out = []
+    for f, claimers in file_agents.items():
+        if len(claimers) > 1:
+            agents = [c["agent"] for c in claimers]
+            # Prefer explicit intent tag, fall back to slug(what) for backward compat
+            intent_tags = [slug(c.get("intent", "") or c.get("what", "")) for c in claimers]
+            out.append({
+                "file": f, "agents": agents,
+                "same_intent": len(set(intent_tags)) < len(intent_tags),  # any duplicate tags?
+            })
+    return out
+
+
+def clear_round(client: Any = None) -> int:
+    """Remove all proposals for the current round. Returns count deleted."""
+    c = client or _client()
+    if c is None:
+        return 0
+    rid = _round_id()
+    count = 0
+    try:
+        for k in (c.keys(f"{PROPOSAL_NS}:{rid}:*") or []):
+            c.delete(k)
+            count += 1
+    except Exception:
+        pass
+    return count
+
+
 def covers(agent: str, path: str, client: Any = None) -> bool:
     """True iff `agent` holds an active intent whose scope covers `path` (prefix match). The enforcement
     backstop asks this: an agent writing a file it declared no intent for is acting outside its plan."""
