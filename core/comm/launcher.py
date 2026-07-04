@@ -158,11 +158,14 @@ def _load_registry() -> Dict[str, AgentSpec]:
 
 # Patterns in stderr/stdout that indicate token/credit exhaustion
 _TOKEN_EXHAUSTED_PATTERNS = [
-    "token", "credit", "limit", "quota", "billing", "rate limit",
-    "exceeded your", "run out of", "insufficient", "balance",
-    "429", "you've reached", "too many requests",
+    # Multi-word phrases (safe substring match) + single words only when strongly indicative.
+    # Bare "token", "limit", "429", "balance" removed — too eager; the phrases below cover real cases.
+    "credit", "quota", "billing", "rate limit",
+    "exceeded your", "run out of", "insufficient",
+    "you've reached", "too many requests",
     "context length", "context window", "maximum context",
     "token budget", "token limit", "max tokens",
+    "out of credit", "out of token",
 ]
 _AUTH_ERROR_PATTERNS = [
     "api_key", "api key", "unauthorized", "authentication",
@@ -353,11 +356,9 @@ class Launcher:
             proc.exit_reason = "killed"
             proc.exit_seen_at = time.strftime("%Y-%m-%dT%H:%M:%S")
             try:
-                proc.stdout_tail = (handle.stdout.read() or "")[-500:] if handle.stdout else ""
-            except Exception:
-                pass
-            try:
-                proc.stderr_tail = (handle.stderr.read() or "")[-500:] if handle.stderr else ""
+                out, err = handle.communicate(timeout=5)
+                proc.stdout_tail = (out or "")[-500:]
+                proc.stderr_tail = (err or "")[-500:]
             except Exception:
                 pass
 
@@ -396,11 +397,9 @@ class Launcher:
                     proc.exit_code = code
                     proc.exit_seen_at = time.strftime("%Y-%m-%dT%H:%M:%S")
                     try:
-                        proc.stdout_tail = (handle.stdout.read() or "")[-500:] if handle.stdout else ""
-                    except Exception:
-                        pass
-                    try:
-                        proc.stderr_tail = (handle.stderr.read() or "")[-500:] if handle.stderr else ""
+                        out, err = handle.communicate(timeout=5)
+                        proc.stdout_tail = (out or "")[-500:]
+                        proc.stderr_tail = (err or "")[-500:]
                     except Exception:
                         pass
                     proc.exit_reason = _classify_exit(

@@ -157,6 +157,8 @@ TOOLS = [
     _fn("bifrost_steer", "SOFT steer a specific peer WITHOUT interrupting it: queue a fact it folds into its CURRENT task between rounds. Use when a peer is working and should adjust course, not stop.",
         {"to": {"type": "string", "description": "the ONE peer to steer, e.g. 'claude'"},
          "text": {"type": "string", "description": "the fact/adjustment to fold into its current work"}}, ["to", "text"]),
+    _fn("reload_ui", "Reload the running Bifrost UI so your edits to scripts/bifrost_ui.py take effect (no shell needed -- POSTs the UI's own /reload endpoint). Call AFTER you finish editing the UI, then tell the user to refresh their browser. This is how you SOLO-DRIVE UI work end to end.",
+        {"port": {"type": "integer", "description": "UI port (default 8788; falls back to 8787)"}}),
     _fn("edit_file", "Make a TARGETED change: replace one exact, unique string in a file with new text. GUARDED (only when the runner allows writes; path-scoped; secrets blocked; git-tracked/reversible). Prefer this over write_file for small edits. old_string must match exactly (incl. whitespace) and be unique.",
         {"path": {"type": "string", "description": "path relative to the project root"},
          "old_string": {"type": "string", "description": "exact text to replace (unique in the file)"},
@@ -430,6 +432,25 @@ class ToolBox:
             return f"steered {to} (folds into its current task; id {mid})" if mid else "ERROR: steer failed"
         except Exception as e:
             return f"ERROR: bifrost_steer failed: {type(e).__name__}: {e}"
+
+    def reload_ui(self, port=8788):
+        """Reload the running Bifrost UI so edits to scripts/bifrost_ui.py take effect -- lets you SOLO-DRIVE
+        UI work without a human restart, and without needing shell/exec: it just POSTs the UI's own /reload
+        endpoint (localhost only), which re-execs the server. Call this AFTER you finish editing the UI."""
+        import json as _json
+        from urllib import request as _rq
+        errs = []
+        for p in ([int(port)] if port else []) + [8788, 8787]:
+            try:
+                req = _rq.Request(f"http://127.0.0.1:{p}/reload", data=b"{}",
+                                  headers={"Content-Type": "application/json"}, method="POST")
+                with _rq.urlopen(req, timeout=4) as resp:
+                    body = resp.read().decode("utf-8", "replace")
+                if '"ok"' in body or resp.status == 200:
+                    return f"reloaded the UI on :{p}. Refresh the browser to see your changes."
+            except Exception as e:
+                errs.append(f":{p} {type(e).__name__}")
+        return f"ERROR: no UI reachable to reload (tried {', '.join(errs)}). Is bifrost_ui.py running?"
 
     # -- guarded write (live only when the runner is started with --allow-write) --
     def _prewrite(self, path):

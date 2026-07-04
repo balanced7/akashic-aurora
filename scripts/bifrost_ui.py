@@ -27,7 +27,6 @@ sys.path.insert(0, REPO)
 
 from core.comm.bus import Bus
 from core.comm import control
-from core.comm import interject
 from core.comm import promoter
 from core.comm.launcher import get_launcher
 from core.trust import registry
@@ -537,6 +536,103 @@ PAGE = r"""<!doctype html>
   .lspinner{width:12px;height:12px;border:2px solid var(--border);border-top-color:var(--accent);
     border-radius:50%;animation:lspin .7s linear infinite;display:none}
   .lspinner.show{display:inline-block}
+
+  /* === V2 PRESENTATION REGISTRY === */
+  /* settings panel */
+  #setp{display:none; margin:0 16px 10px; background:var(--panel); border:1px solid var(--border);
+    border-radius:14px; padding:14px 16px; box-shadow:var(--shadow); animation:drop .25s ease}
+  #setp.show{display:block}
+  .setrow{display:flex; align-items:center; gap:12px; padding:9px 6px; border-bottom:1px solid rgba(255,255,255,.04)}
+  .setrow:last-child{border-bottom:none}
+  .setrow label{font-weight:600; font-size:13px; color:var(--text); min-width:70px}
+  .setrow select{flex:1; background:var(--bg2); border:1px solid var(--border); color:var(--text);
+    border-radius:8px; padding:7px 10px; font:inherit; font-size:13px; outline:none; cursor:pointer}
+  .setrow select:hover{border-color:#39405a}
+  .setrow .setdesc{font-size:11.5px; color:var(--faint); min-width:80px; text-align:right}
+  /* glass-card tiles (strangler: lives alongside pills, shown when glass-card variant active) */
+  #tiles{display:none; flex-wrap:wrap; gap:10px; padding:0}
+  #tiles.show{display:flex}
+  .gcard{position:relative; background:rgba(20,22,29,.7); backdrop-filter:blur(12px);
+    border:1px solid var(--border); border-radius:14px; padding:10px 14px; min-width:125px;
+    cursor:pointer; transition:.18s; display:flex; align-items:center; gap:10px; box-shadow:var(--shadow)}
+  .gcard:hover{border-color:#39405a; background:rgba(23,26,34,.82)}
+  .gcard.online{border-color:rgba(95,211,155,.22)}
+  .gcard.online .gdot{background:var(--user); box-shadow:0 0 10px var(--user)}
+  .gcard.nudged{border-color:rgba(240,102,110,.4); animation:gpulse 1.5s infinite}
+  .gcard.steered{border-color:rgba(122,162,247,.32)}
+  @keyframes gpulse{0%,100%{box-shadow:0 0 0 0 rgba(240,102,110,.3)}50%{box-shadow:0 0 14px 4px rgba(240,102,110,.18)}}
+  .gdot{width:8px;height:8px;border-radius:50%;background:var(--faint); flex:none}
+  .gname{font-weight:650; font-size:13px; color:var(--text)}
+  .gbadge{font-size:9.5px; font-weight:700; padding:1px 6px; border-radius:5px; text-transform:uppercase; letter-spacing:.3px}
+  .gbadge.admin{color:var(--accent); background:rgba(122,162,247,.15); border:1px solid rgba(122,162,247,.25)}
+  .gcard .gactions{display:none; position:absolute; top:calc(100% + 2px); left:0; right:0; z-index:10;
+    background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:8px;
+    box-shadow:var(--shadow); flex-direction:column; gap:5px}
+  .gcard.expanded .gactions{display:flex}
+  .gactions button{font:inherit; font-size:11.5px; padding:5px 9px; border-radius:7px;
+    cursor:pointer; border:1px solid var(--border); background:var(--panel); color:var(--text); transition:.15s; text-align:left}
+  .gactions button:hover{border-color:#39405a}
+  .gactions .gact-spawn{background:rgba(122,162,247,.15); border-color:rgba(122,162,247,.3); color:var(--accent)}
+  .gactions .gact-kill{color:var(--danger); border-color:rgba(240,102,110,.25)}
+  /* compact glass-card: icon-only */
+  #tiles.compact .gcard{min-width:auto; padding:8px 10px}
+  #tiles.compact .gcard .gname,#tiles.compact .gcard .gbadge,#tiles.compact .gcard .sig{display:none}
+  #tiles.compact .gcard .gdot{width:10px;height:10px}
+
+  /* === iso-cube tile === */
+  .icube-row{display:flex; gap:20px; flex-wrap:wrap}
+  .icube{position:relative; width:90px; height:90px; cursor:pointer; perspective:600px; flex:none}
+  .icube-inner{position:relative; width:100%; height:100%; transform:rotateX(-25deg)rotateY(-35deg); transform-style:preserve-3d; transition:transform .35s ease}
+  .icube:hover .icube-inner,.icube.sel .icube-inner{transform:rotateX(-25deg)rotateY(-35deg) translateZ(12px)}
+  .icube-face{position:absolute; width:90px; height:90px; border:2px solid var(--border); border-radius:12px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; backface-visibility:hidden}
+  .icube-top{transform:rotateX(90deg)translateZ(45px); background:rgba(20,22,29,.76)}
+  .icube-front{transform:translateZ(45px); background:rgba(20,22,29,.82)}
+  .icube-right{transform:rotateY(90deg)translateZ(45px); background:rgba(16,18,24,.78)}
+  .icube .iavid{display:none}
+  .icube .iav{width:28px;height:28px;border-radius:7px; display:grid;place-items:center;
+    font-weight:700; font-size:11px; color:#0a0b0f}
+  .iav.claude{background:linear-gradient(135deg,#e0915c,#d97b5a)}
+  .iav.deepseek{background:linear-gradient(135deg,#7aa2f7,#9d7cf7)}
+  .iav.user{background:linear-gradient(135deg,#5fd39b,#3fbf86)}
+  .icube .iname{font-size:11px;font-weight:650;color:var(--text)}
+  .icube.online .icube-front{border-color:rgba(95,211,155,.4); box-shadow:0 0 16px rgba(95,211,155,.18)}
+  .icube.nudged .icube-front{border-color:rgba(240,102,110,.55); animation:gpulse 1.5s infinite}
+  .icube .igact{display:none; position:absolute; top:calc(100% + 4px); left:-10px; z-index:10;
+    background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:7px; box-shadow:var(--shadow);
+    flex-direction:column; gap:4px; min-width:110px}
+  .icube.expanded .igact{display:flex}
+  .igact button{font:inherit; font-size:11px; padding:5px 8px; border-radius:7px; cursor:pointer;
+    border:1px solid var(--border); background:var(--panel); color:var(--text); transition:.15s; text-align:left}
+  .igact button:hover{border-color:#39405a}
+  .igact .ig-spawn{background:rgba(122,162,247,.15); border-color:rgba(122,162,247,.3); color:var(--accent)}
+  .igact .ig-kill{color:var(--danger); border-color:rgba(240,102,110,.25)}
+
+  /* === RAZER SQUARE selector frame === */
+  #ash{display:flex; align-items:center; gap:0; margin:0 16px 12px; position:relative}
+  #ash-frame{flex:none; width:56px; height:56px; border-radius:16px;
+    background:var(--panel); border:2.5px solid var(--border); cursor:pointer; transition:.25s ease;
+    display:grid; place-items:center; position:relative; z-index:2; font-size:22px; color:var(--muted)}
+  #ash-frame.open{border-radius:18px 18px 4px 18px}
+  @keyframes chroma-breath{
+    0%,100%{box-shadow:0 0 6px 0 rgba(122,162,247,.25),inset 0 0 6px 0 rgba(122,162,247,.08)}
+    50%{box-shadow:0 0 18px 4px rgba(122,162,247,.45),inset 0 0 12px 2px rgba(122,162,247,.14)}
+  }
+  #ash-frame.chroma-claude{animation:chroma-breath-c 2.2s ease-in-out infinite; border-color:rgba(224,145,92,.5)}
+  #ash-frame.chroma-deepseek{animation:chroma-breath-d 2.2s ease-in-out infinite; border-color:rgba(122,162,247,.5)}
+  #ash-frame.chroma-user{animation:chroma-breath-u 2.2s ease-in-out infinite; border-color:rgba(95,211,155,.5)}
+  @keyframes chroma-breath-c{0%,100%{box-shadow:0 0 6px 0 rgba(224,145,92,.2),inset 0 0 6px 0 rgba(224,145,92,.06)}50%{box-shadow:0 0 20px 5px rgba(224,145,92,.42),inset 0 0 14px 3px rgba(224,145,92,.12)}}
+  @keyframes chroma-breath-d{0%,100%{box-shadow:0 0 6px 0 rgba(122,162,247,.25),inset 0 0 6px 0 rgba(122,162,247,.08)}50%{box-shadow:0 0 20px 5px rgba(122,162,247,.48),inset 0 0 14px 3px rgba(122,162,247,.14)}}
+  @keyframes chroma-breath-u{0%,100%{box-shadow:0 0 6px 0 rgba(95,211,155,.2),inset 0 0 6px 0 rgba(95,211,155,.06)}50%{box-shadow:0 0 20px 5px rgba(95,211,155,.38),inset 0 0 14px 3px rgba(95,211,155,.11)}}
+  #ash-content{display:none; align-items:center; gap:2px; overflow:hidden; animation:ashSlide .22s ease}
+  #ash-content.show{display:flex}
+  @keyframes ashSlide{from{opacity:0;max-width:0;transform:translateX(-12px)}to{opacity:1;max-width:600px;transform:none}}
+  #ash-sep{width:1px;height:34px;background:var(--border); margin:0 8px; flex:none}
+
+  /* === settings per-variant config === */
+  .setcfg{margin-top:3px; display:flex; flex-wrap:wrap; gap:8px; padding-left:82px}
+  .setcfg label{font-size:11.5px; color:var(--muted); display:flex; align-items:center; gap:5px; cursor:pointer}
+  .setcfg input[type=checkbox]{accent-color:var(--accent); width:14px; height:14px; cursor:pointer}
 </style>
 </head>
 <body>
@@ -545,17 +641,31 @@ PAGE = r"""<!doctype html>
     <div class="brand"><div class="logo"></div> Bifrost <small>live agent console</small></div>
     <div class="spacer"></div>
     <div class="pills" id="pills"></div>
+    <div id="tiles"></div>
     <button class="ctl" id="reloadBtn" onclick="reloadUI()" title="reload the UI server (after an agent edits it)">↻</button>
+    <button class="lctl" id="gearBtn" onclick="toggleSettings()" title="presentation settings">⚙</button>
     <button class="lctl" id="lnchrBtn" onclick="toggleLauncher()" title="launch &amp; manage agents">🚀 Agents</button>
     <button class="ctl pause" id="pauseBtn" onclick="togglePause()">⏸ Pause</button>
   </header>
   <div class="banner" id="banner">⏸ Paused — the agents are frozen. Type below to interject, then Resume.</div>
+  <div id="ash">
+    <div id="ash-frame" onclick="toggleAsh()" title="agent selector">⏣</div>
+    <div id="ash-sep"></div>
+    <div id="ash-content"></div>
+  </div>
   <div id="lnchr">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
       <span style="font-weight:650;font-size:13px">Agent Launcher</span>
       <span style="color:var(--faint);font-size:11.5px">— one-click start/stop, primed with context</span>
     </div>
     <div id="lnchrRows"></div>
+  </div>
+  <div id="setp">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <span style="font-weight:650;font-size:13px">⚙ Presentation</span>
+      <span style="color:var(--faint);font-size:11.5px">— pick variants per slot; swaps live</span>
+    </div>
+    <div id="setpRows"></div>
   </div>
   <div id="log"></div>
   <div class="activity" id="activity"></div>
@@ -603,12 +713,12 @@ function addMsg(m){
   if(kind==='trace'){   // live tool-call / thinking line, streamed under the agent
     const d=document.createElement('div'); d.className='traceline';
     d.innerHTML='<span class="trav '+cls(from)+'">'+esc(from)+'</span><span class="trat">'+esc(m.content||'')+'</span>';
-    log.appendChild(d); autoscroll(); return;
+    _msgPlacer(d, m); autoscroll(); return;
   }
   if(from==='system' || kind==='note' || kind==='_ready'){
     if(kind==='_ready') return;
     const d=document.createElement('div'); d.className='sys'+(isGuard?' guard':'');
-    d.innerHTML='<span>'+esc(m.content||'')+'</span>'; log.appendChild(d); autoscroll(); return;
+    d.innerHTML='<span>'+esc(m.content||'')+'</span>'; _msgPlacer(d, m); autoscroll(); return;
   }
   const me = from==='user';
   const c = cls(from);
@@ -619,8 +729,8 @@ function addMsg(m){
     '<div class="av '+c+'">'+initials(from)+'</div>'+
     '<div class="bubble"><div class="row"><span class="who '+c+'">'+esc(from)+'</span>'+
     '<span class="time">'+now(m.ts)+'</span>'+intent+hop+'</div>'+
-    '<div class="content">'+fmt(m.content)+'</div></div>';
-  log.appendChild(wrap); autoscroll();
+    '<div class="content">'+_msgRenderer(m)+'</div></div>';
+  _msgPlacer(wrap, m); autoscroll();
 }
 function autoscroll(){ if(nearBottom) log.scrollTop = log.scrollHeight; }
 // real rich presence: what each agent is actually doing, from /status (not a client-side guess)
@@ -678,13 +788,13 @@ async function send(){
 
 // --- pill click -> set composer target ---
 function setTarget(aid){
-  const tsel=document.getElementById('target');
+  var tsel=document.getElementById('target');
   if(tsel){
-    for(const o of tsel.options){ if(o.value===aid){ tsel.value=aid; return; } }
-    // if not yet in dropdown (race), add it
+    for(const o of tsel.options){ if(o.value===aid){ tsel.value=aid; updateAshChroma(); return; } }
     const opt=document.createElement('option'); opt.value=aid; opt.textContent=aid;
     tsel.appendChild(opt);
     tsel.value=aid;
+    updateAshChroma();
   }
 }
 
@@ -706,29 +816,35 @@ function applyStatus(s){
   b.textContent = paused ? '▶ Resume' : '⏸ Pause';
   b.classList.toggle('paused', paused);
   banner.classList.toggle('show', paused);
-  // dynamic roster: ALL known agents (from registry), online or asleep. Click a pill to set the
-  // composer target — even an offline agent can be messaged (queues to its inbox, wakes on next poll).
+  // dynamic roster: UNION of ACL-registered + currently-online agents.
+  // An online-but-unknown agent gets a '⚠ unknown' marker (security onboarding cue).
   const agents=(s.agents||[]).map(a=>a.agent).filter(Boolean);
   const online=new Set(agents);
   const known=s.known||[];
+  const roster=[...new Set([...known, ...agents, 'user'])];
+  const isKnown=new Set(known);
   const sig=s.signals||{};
   const pills=document.getElementById('pills');
-  const roster=[...new Set([...known,'user'])];
   pills.innerHTML = roster.map(a=>{
     const g=sig[a]||{};
     const isOnline=online.has(a)||a==='user';
+    const unknown=!isKnown.has(a) && a!=='user';
     const marks=(g.steer_pending?'<span class="sig steer" title="steer facts queued">↝'+g.steer_pending+'</span>':'')
-              +(g.nudged?'<span class="sig nudge" title="interrupt pending">⚡</span>':'');
-    return '<div class="pill'+(isOnline?' on':' off')+'" onclick="setTarget(\''+esc(a)+'\')" title="click to message '+esc(a)+'"><span class="dot"></span>'+esc(a)+(isOnline?'':' 💤')+marks+'</div>';
+              +(g.nudged?'<span class="sig nudge" title="interrupt pending">⚡</span>':'')
+              +(unknown?' <span title="online but not ACL-registered — security onboarding cue" style="color:var(--amber);font-size:11px">⚠ unknown</span>':'');
+    return '<div class="pill'+(isOnline?' on':' off')+'" onclick="setTarget(\''+esc(a)+'\')" title="click to message '+esc(a)+(unknown?' (unregistered)':'')+'"><span class="dot"></span>'+esc(a)+(isOnline?'':' 💤')+marks+'</div>';
   }).join('');
-  // keep the recipient dropdown in sync with ALL known agents (online + asleep), not just online
+  // keep the recipient dropdown in sync with union of ACL-registered + online agents
   const tsel=document.getElementById('target');
   if(tsel){
-    const targets=known.filter(a=>a!=='user');
+    const targets=roster.filter(a=>a!=='user');
     const sigStr='all|'+targets.join('|');
     if(tsel.dataset.sig!==sigStr){
       const cur=tsel.value||'all';
-      tsel.innerHTML='<option value="all">All</option>'+targets.map(a=>'<option value="'+esc(a)+'">'+esc(a)+'</option>').join('');
+      tsel.innerHTML='<option value="all">All</option>'+targets.map(a=>{
+        const label=esc(a)+(isKnown.has(a)?'':' ⚠');
+        return '<option value="'+esc(a)+'">'+label+'</option>';
+      }).join('');
       tsel.value=[...tsel.options].some(o=>o.value===cur)?cur:'all';
       tsel.dataset.sig=sigStr;
     }
@@ -834,6 +950,369 @@ async function killAgent(tag){
 }
 // poll launcher status when open
 const LPOLL=setInterval(()=>{ if(lnchrOpen) refreshLauncher(); }, 5000);
+
+// ==================================================================
+//  V2 PRESENTATION REGISTRY  —  strangler alongside existing UI
+//  Slots: theme | tile | message | viewmode
+//  Each slot holds registered variants; getPref/setPref persist to
+//  localStorage; mountAll() applies the active variant per slot.
+//  Reference variants: aurora, glass-card, markdown, feed.
+// ==================================================================
+const SLOTS=['theme','tile','message','viewmode'];
+const DEFAULTS={theme:'aurora',tile:'glass-card',message:'markdown',viewmode:'feed'};
+const REGISTRY={theme:{},tile:{},message:{},viewmode:{}};
+let _activeVariant={...DEFAULTS};
+let _glassCardData={agents:[],known:[],signals:{}};
+
+function getPref(slot){ try{ return localStorage.getItem('bifrost_pref_'+slot)||DEFAULTS[slot]; }catch(e){ return DEFAULTS[slot]; } }
+function setPref(slot,id){
+  try{ localStorage.setItem('bifrost_pref_'+slot,id); }catch(e){}
+  mountSlot(slot,id);
+}
+function mountSlot(slot,id){
+  if(!REGISTRY[slot]||!REGISTRY[slot][id]) return;
+  if(_activeVariant[slot]===id) return;
+  var oldId=_activeVariant[slot];
+  if(oldId&&REGISTRY[slot][oldId]&&REGISTRY[slot][oldId].unmount) REGISTRY[slot][oldId].unmount();
+  _activeVariant[slot]=id;
+  if(REGISTRY[slot][id].mount) REGISTRY[slot][id].mount();
+  refreshSettingsPanel();
+}
+function mountAll(){
+  SLOTS.forEach(function(s){
+    var id=getPref(s);
+    _activeVariant[s]='';
+    mountSlot(s,id);
+  });
+}
+function registerVariant(slot,id,label,desc,mount,unmount,config,applyCfg){
+  if(!REGISTRY[slot]) REGISTRY[slot]={};
+  REGISTRY[slot][id]={label:label||id,desc:desc||'',mount:mount||noop,unmount:unmount||noop,
+    config:config||null, applyConfig:applyCfg||null};
+}
+// variant config read/write (per-slot+id key)
+function getVariantCfg(slot,id){
+  try{ return JSON.parse(localStorage.getItem('bifrost_cfg_'+slot+'_'+id)||'{}'); }catch(e){ return {}; }
+}
+function setVariantCfg(slot,id,cfg){
+  try{ localStorage.setItem('bifrost_cfg_'+slot+'_'+id, JSON.stringify(cfg)); }catch(e){}
+  var v=REGISTRY[slot]&&REGISTRY[slot][id];
+  if(v&&v.applyConfig) v.applyConfig(cfg);
+  if(_activeVariant[slot]===id) refreshSettingsPanel();
+}
+
+// --- reference variants (one per slot, drop-in ready) ---
+
+// theme variants — inject/remove a <style id="bifrost-theme-v2"> to swap :root
+var THEME_CSS = {
+  aurora:'',
+  ember:' :root{--bg:#0d0a07;--bg2:#14100c;--panel:#1a1510;--panel2:#1f1913;--border:#2d2418;--text:#f0e6d3;--muted:#a08c70;--faint:#6a5a43;--claude:#e0915c;--deepseek:#f0b246;--user:#5fd39b;--system:#8a7c6e;--accent:#f0b246;--accent2:#e8783a;--amber:#f5c542;--danger:#f0666e;--shadow:0 8px 30px rgba(0,0,0,.45);}',
+  abyss:' :root{--bg:#050a0f;--bg2:#080f17;--panel:#0c1520;--panel2:#101a28;--border:#1a2a3a;--text:#d0e0f0;--muted:#7088a8;--faint:#4a6078;--claude:#5fd0d9;--deepseek:#48c0ff;--user:#5fd39b;--system:#6088a0;--accent:#48c0ff;--accent2:#3090e0;--amber:#a0c040;--danger:#f0666e;--shadow:0 8px 30px rgba(0,0,0,.55);}',
+  frost:' :root{--bg:#f2f4f8;--bg2:#e8ecf2;--panel:#ffffff;--panel2:#f5f7fa;--border:#d8dde5;--text:#1a1e2e;--muted:#6b7280;--faint:#9ca3af;--claude:#d97746;--deepseek:#4f7cf7;--user:#2ea87a;--system:#7c8ba0;--accent:#4f7cf7;--accent2:#7c4ff7;--amber:#d4a017;--danger:#e04040;--shadow:0 4px 16px rgba(0,0,0,.08);}'
+};
+function _mountTheme(id){
+  var el=document.getElementById('bifrost-theme-v2');
+  if(!el){ el=document.createElement('style'); el.id='bifrost-theme-v2'; document.head.appendChild(el); }
+  el.textContent=THEME_CSS[id]||'';
+}
+function _unmountTheme(){ var el=document.getElementById('bifrost-theme-v2'); if(el) el.textContent=''; }
+
+registerVariant('theme','aurora','Aurora','dark cosmic (default)');
+registerVariant('theme','ember','Ember','warm amber coals',function(){_mountTheme('ember');},_unmountTheme);
+registerVariant('theme','abyss','Abyss','deep ocean trench',function(){_mountTheme('abyss');},_unmountTheme);
+registerVariant('theme','frost','Frost','arctic clean light',function(){_mountTheme('frost');},_unmountTheme);
+
+// tile='glass-card' — frosted card with role badge, state-glow, expand-to-roster
+// actions channel: {onSelect, onSetTarget, onSetFidelity, onSpawn, onKill}
+// config: {compact:true} collapses cards to icon-only (space-saver)
+registerVariant('tile','glass-card','Glass Card','frosted card + state glow + expand actions',
+  function mountGlassCard(){
+    document.getElementById('pills').style.display='none';
+    var t=document.getElementById('tiles'); t.classList.add('show');
+    var cfg=getVariantCfg('tile','glass-card');
+    t.classList.toggle('compact',!!cfg.compact);
+    renderGlassCards();
+  },
+  function unmountGlassCard(){
+    document.getElementById('pills').style.display='';
+    document.getElementById('tiles').classList.remove('show','compact');
+  },
+  [{key:'compact',type:'bool',default:false,label:'Compact (icon-only)'}],
+  function(cfg){ document.getElementById('tiles').classList.toggle('compact',!!cfg.compact); }
+);
+
+// tile='iso-cube' — CSS 3D isometric cube, one per agent. Face colors from agent class.
+// animateExpand(el, agents, actions) renders cubes into the selector frame content.
+registerVariant('tile','iso-cube','Iso Cube','CSS 3D isometric cube per agent',
+  function mountIsoCube(){
+    document.getElementById('pills').style.display='none';
+    var t=document.getElementById('tiles'); t.classList.add('show');
+    renderIsoCubes();
+  },
+  function unmountIsoCube(){
+    document.getElementById('pills').style.display='';
+    document.getElementById('tiles').classList.remove('show');
+  },
+  [{key:'labelOnTop',type:'bool',default:true,label:'Labels on top face'}],
+  function(cfg){ /* no live re-render needed for label toggle on existing cubes */ }
+);
+
+// message='markdown' — current fmt() (code + backtick); no-op. Variant overrides
+// _msgRenderer(msg) → returns HTML string; called by addMsg instead of fmt()
+var _msgRenderer = function(msg){ return fmt(msg.content); };
+registerVariant('message','markdown','Markdown','code-block + backtick formatter',
+  function(){ _msgRenderer = function(msg){ return fmt(msg.content); }; },
+  function(){ _msgRenderer = function(msg){ return fmt(msg.content); }; }
+);
+
+// viewmode='feed' — appends to #log. Variant overrides _msgPlacer(el, msg)
+// to control where a message DOM element lands (split-view, threaded, etc.)
+var _msgPlacer = function(el, msg){ log.appendChild(el); };
+registerVariant('viewmode','feed','Feed','single chronological log',
+  function(){ _msgPlacer = function(el, msg){ log.appendChild(el); }; },
+  function(){ _msgPlacer = function(el, msg){ log.appendChild(el); }; }
+);
+
+// ---- glass-card renderer ----
+function renderGlassCards(){
+  var box=document.getElementById('tiles');
+  var d=_glassCardData;
+  var agents=d.agents||[];
+  var sig=d.signals||{};
+  var isKnown=d.isKnown||new Set(d.known||[]);
+  var roster=d.roster||[];
+  var online=new Set(agents);
+  box.innerHTML=roster.map(function(aid){
+    var isOnline=online.has(aid)||aid==='user';
+    var g=sig[aid]||{};
+    var nudged=g.nudged, steered=g.steer_pending;
+    var unknown=!isKnown.has(aid) && aid!=='user';
+    var cl='gcard';
+    if(isOnline) cl+=' online';
+    if(nudged) cl+=' nudged';
+    if(steered) cl+=' steered';
+    var roleHtml=(aid==='deepseek'||aid==='claude')?'<span class="gbadge admin">admin</span>':'';
+    if(unknown) roleHtml+=' <span class="gbadge" style="color:var(--amber);background:rgba(240,178,70,.12);border-color:rgba(240,178,70,.25)">⚠ unknown</span>';
+    var statusMark=isOnline?'':' \u{1f4a4}';
+    var steerMark=steered?'<span class="sig steer" title="steer pending">\u21dd'+steered+'</span>':'';
+    var nudgeMark=nudged?'<span class="sig nudge" title="nudge pending">\u26a1</span>':'';
+    return '<div class="'+cl+'" onclick="toggleGCard(event,\''+esc(aid)+'\')">'+
+      '<div class="gdot"></div>'+
+      '<div style="flex:1;min-width:0"><div class="gname">'+esc(aid)+statusMark+'</div>'+roleHtml+'</div>'+
+      steerMark+nudgeMark+
+      '<div class="gactions">'+
+        '<button onclick="event.stopPropagation();setTarget(\''+esc(aid)+'\')">\u{1f3af} Select</button>'+
+        '<button onclick="event.stopPropagation();setTargetFidelity(\''+esc(aid)+'\',\'chat\')">\u{1f4ac} Chat</button>'+
+        '<button onclick="event.stopPropagation();setTargetFidelity(\''+esc(aid)+'\',\'steer\')">\u{1f535} Steer</button>'+
+        '<button onclick="event.stopPropagation();setTargetFidelity(\''+esc(aid)+'\',\'interrupt\')">\u{1f534} Interrupt</button>'+
+        '<button class="gact-spawn" onclick="event.stopPropagation();glassSpawn(\''+esc(aid)+'\')">\u25b6 Spawn</button>'+
+        '<button class="gact-kill" onclick="event.stopPropagation();glassKill(\''+esc(aid)+'\')">\u2715 Kill</button>'+
+      '</div></div>';
+  }).join('');
+}
+
+// ---- iso-cube renderer ----
+function renderIsoCubes(){
+  var box=document.getElementById('tiles');
+  var d=_glassCardData;
+  var agents=d.agents||[]; var sig=d.signals||{};
+  var isKnown=d.isKnown||new Set(d.known||[]);
+  var roster=d.roster||[];
+  var online=new Set(agents);
+  box.className='icube-row';
+  box.innerHTML=roster.map(function(aid){
+    var isOnline=online.has(aid)||aid==='user';
+    var g=sig[aid]||{}; var nudged=g.nudged, steered=g.steer_pending;
+    var unknown=!isKnown.has(aid) && aid!=='user';
+    var cl='icube'; if(isOnline) cl+=' online'; if(nudged) cl+=' nudged';
+    var ca=cls(aid);
+    return '<div class="'+cl+'" onclick="toggleICube(event,\''+esc(aid)+'\')">'+
+      '<div class="icube-inner">'+
+        '<div class="icube-face icube-top"><div class="iname">'+esc(aid)+'</div></div>'+
+        '<div class="icube-face icube-front"><div class="iav '+ca+'">'+initials(aid)+'</div></div>'+
+        '<div class="icube-face icube-right"></div>'+
+      '</div>'+
+      (unknown?'<span style="position:absolute;bottom:-2px;right:2px;font-size:9px;color:var(--amber)" title="online but not ACL-registered">⚠</span>':'')+
+      (steered?'<span class="sig steer" style="position:absolute;top:-4px;right:-4px" title="steer pending">\u21dd</span>':'')+
+      (nudged?'<span class="sig nudge" style="position:absolute;top:-4px;right:14px" title="interrupt pending">\u26a1</span>':'')+
+      '<div class="igact">'+
+        '<button onclick="event.stopPropagation();setTarget(\''+esc(aid)+'\')">\u{1f3af} Select</button>'+
+        '<button onclick="event.stopPropagation();setTargetFidelity(\''+esc(aid)+'\',\'chat\')">\u{1f4ac} Chat</button>'+
+        '<button onclick="event.stopPropagation();setTargetFidelity(\''+esc(aid)+'\',\'steer\')">\u{1f535} Steer</button>'+
+        '<button onclick="event.stopPropagation();setTargetFidelity(\''+esc(aid)+'\',\'interrupt\')">\u{1f534} Interrupt</button>'+
+        '<button class="ig-spawn" onclick="event.stopPropagation();glassSpawn(\''+esc(aid)+'\')">\u25b6 Spawn</button>'+
+        '<button class="ig-kill" onclick="event.stopPropagation();glassKill(\''+esc(aid)+'\')">\u2715 Kill</button>'+
+      '</div></div>';
+  }).join('');
+}
+function toggleICube(e,aid){
+  e.stopPropagation();
+  var c=e.currentTarget; var was=c.classList.contains('expanded');
+  document.querySelectorAll('.icube.expanded').forEach(function(el){el.classList.remove('expanded');});
+  if(!was){ c.classList.add('expanded'); setTarget(aid); }
+}
+document.addEventListener('click',function(){ document.querySelectorAll('.icube.expanded').forEach(function(c){c.classList.remove('expanded');}); });
+
+// ---- tile variant animateExpand (for selector frame) ----
+function animateExpandTiles(el, agents, actions){
+  var d=_glassCardData; var sig=d.signals||{};
+  var isKnown=d.isKnown||new Set(d.known||[]);
+  var roster=d.roster||[];
+  var online=new Set(agents);
+  var vt=REGISTRY['tile']&&REGISTRY['tile'][_activeVariant.tile];
+  if(vt&&vt.animateExpand){ vt.animateExpand(el, roster, online, sig, actions, isKnown); return; }
+  el.innerHTML=roster.map(function(aid){
+    var unk=!isKnown.has(aid)&&aid!=='user'?' ⚠':'';
+    return '<button style="font:inherit;font-size:12px;padding:4px 10px;border-radius:6px;cursor:pointer;border:1px solid var(--border);background:var(--panel);color:var(--text);white-space:nowrap" onclick="setTargetAndCloseAsh(\''+esc(aid)+'\')">'+
+      (online.has(aid)||aid==='user'?'\u25cf ':'\u25cb ')+esc(aid)+unk+'</button>';
+  }).join('');
+}
+REGISTRY['tile']['glass-card'].animateExpand=function(el,roster,online,sig,actions,isKnown){
+  el.innerHTML=roster.map(function(aid){
+    var g=sig[aid]||{}; var isOnline=online.has(aid)||aid==='user';
+    var nudged=g.nudged, steered=g.steer_pending;
+    var unk=!isKnown.has(aid)&&aid!=='user'?' ⚠':'';
+    var span='<span style="font-size:12px;font-weight:650;color:var(--text)">'+esc(aid)+unk+(isOnline?'':' \u{1f4a4}')+'</span>';
+    if(steered) span+='<span class="sig steer" style="font-size:9px">\u21dd'+steered+'</span>';
+    if(nudged) span+='<span class="sig nudge" style="font-size:9px">\u26a1</span>';
+    return '<button style="font:inherit;font-size:12px;padding:5px 10px;border-radius:8px;cursor:pointer;border:1px solid '+(isOnline?'rgba(95,211,155,.3)':'var(--border)')+';background:var(--panel);color:var(--text);display:flex;align-items:center;gap:6px"'+
+      ' onclick="setTargetAndCloseAsh(\''+esc(aid)+'\')">'+span+'</button>';
+  }).join('');
+};
+REGISTRY['tile']['iso-cube'].animateExpand=function(el,roster,online,sig,actions,isKnown){
+  el.style.cssText='display:flex;gap:10px;flex-wrap:wrap;padding:4px 0';
+  el.innerHTML=roster.map(function(aid){
+    var isOnline=online.has(aid)||aid==='user'; var ca=cls(aid);
+    var unk=!isKnown.has(aid)&&aid!=='user'?'<span style="position:absolute;bottom:0;right:2px;font-size:8px;color:var(--amber)">⚠</span>':'';
+    return '<div style="width:46px;height:46px;perspective:300px;cursor:pointer;flex:none;position:relative" onclick="setTargetAndCloseAsh(\''+esc(aid)+'\')">'+
+      '<div style="position:relative;width:100%;height:100%;transform:rotateX(-22deg)rotateY(-32deg);transform-style:preserve-3d">'+
+        '<div style="position:absolute;width:46px;height:46px;border:1.5px solid '+(isOnline?'rgba(95,211,155,.35)':'var(--border)')+';border-radius:7px;background:rgba(20,22,29,.78);transform:translateZ(23px);display:grid;place-items:center">'+
+          '<div class="iav '+ca+'" style="width:20px;height:20px;font-size:8px;border-radius:4px">'+initials(aid)+'</div></div>'+
+        '<div style="position:absolute;width:46px;height:46px;border:1.5px solid var(--border);border-radius:7px;background:rgba(20,22,29,.7);transform:rotateX(90deg)translateZ(23px)"></div>'+
+        '<div style="position:absolute;width:46px;height:46px;border:1.5px solid var(--border);border-radius:7px;background:rgba(16,18,24,.7);transform:rotateY(90deg)translateZ(23px)"></div>'+
+      '</div>'+unk+'</div>';
+  }).join('');
+};
+
+function toggleGCard(e,aid){
+  e.stopPropagation();
+  var card=e.currentTarget;
+  var was=card.classList.contains('expanded');
+  document.querySelectorAll('.gcard.expanded').forEach(function(c){c.classList.remove('expanded');});
+  if(!was){ card.classList.add('expanded'); setTarget(aid); }
+}
+document.addEventListener('click',function(){ document.querySelectorAll('.gcard.expanded').forEach(function(c){c.classList.remove('expanded');}); });
+
+// actions channel wiring
+function setTargetFidelity(aid,fidelity){
+  setTarget(aid);
+  var fsel=document.getElementById('fidelity');
+  if(fsel){ fsel.value=fidelity; fidChanged(); }
+}
+function glassSpawn(aid){
+  var row=(lnchrData||[]).find(function(a){return a.agent_id===aid||a.tag===aid;});
+  var tag=row?row.tag:aid;
+  launchAgent(tag);
+}
+function glassKill(aid){
+  var row=(lnchrData||[]).find(function(a){return a.agent_id===aid||a.tag===aid;});
+  var tag=row?row.tag:aid;
+  killAgent(tag);
+}
+
+// ---- wrap applyStatus to feed glass-card + iso-cube + selector frame data ----
+(function(){
+  var _orig=applyStatus;
+  applyStatus=function(s){
+    _orig(s);
+    var agents=(s.agents||[]).map(function(a){return a.agent;}).filter(Boolean);
+    var known=s.known||[];
+    _glassCardData={
+      agents:agents,
+      known:known,
+      roster:[...new Set([...known, ...agents, 'user'])],
+      isKnown:new Set(known),
+      signals:s.signals||{}
+    };
+    if(_activeVariant.tile==='glass-card') renderGlassCards();
+    if(_activeVariant.tile==='iso-cube') renderIsoCubes();
+    updateAshChroma();
+  };
+})();
+
+// ---- selector frame (Razer square) ----
+var _ashOpen=false, _ashTarget='';
+function toggleAsh(){
+  _ashOpen=!_ashOpen;
+  var f=document.getElementById('ash-frame'); var c=document.getElementById('ash-content');
+  var s=document.getElementById('ash-sep');
+  f.classList.toggle('open',_ashOpen);
+  c.classList.toggle('show',_ashOpen);
+  s.style.display=_ashOpen?'block':'none';
+  if(_ashOpen){
+    var agents=_glassCardData.agents||[];
+    animateExpandTiles(c, agents, {onSelect:setTargetAndCloseAsh});
+  }
+}
+function setTargetAndCloseAsh(aid){
+  _ashTarget=aid; setTarget(aid); updateAshChroma();
+  _ashOpen=false;
+  document.getElementById('ash-frame').classList.remove('open');
+  document.getElementById('ash-content').classList.remove('show');
+  document.getElementById('ash-sep').style.display='none';
+}
+function updateAshChroma(){
+  var f=document.getElementById('ash-frame');
+  var tsel=document.getElementById('target');
+  var aid=(tsel&&tsel.value!=='all')?tsel.value:'';
+  f.className=f.className.replace(/\s*chroma-\w+/g,'');
+  if(aid==='claude') f.classList.add('chroma-claude');
+  else if(aid==='deepseek') f.classList.add('chroma-deepseek');
+  else if(aid) f.classList.add('chroma-user');
+}
+
+// ---- settings panel ----
+var setpOpen=false;
+function toggleSettings(){
+  setpOpen=!setpOpen;
+  document.getElementById('setp').classList.toggle('show',setpOpen);
+  document.getElementById('gearBtn').classList.toggle('active',setpOpen);
+  if(setpOpen) refreshSettingsPanel();
+}
+function refreshSettingsPanel(){
+  var box=document.getElementById('setpRows');
+  if(!box) return;
+  box.innerHTML=SLOTS.map(function(slot){
+    var variants=REGISTRY[slot]||{};
+    var active=_activeVariant[slot]||DEFAULTS[slot];
+    var opts=Object.keys(variants).map(function(id){
+      return '<option value="'+esc(id)+'"'+(id===active?' selected':'')+'>'+esc(variants[id].label||id)+'</option>';
+    }).join('');
+    var desc=(variants[active]||{}).desc||'';
+    var cfgHtml='';
+    var v=variants[active];
+    if(v&&v.config&&v.config.length){
+      var curCfg=getVariantCfg(slot,active);
+      cfgHtml='<div class="setcfg">'+v.config.map(function(c){
+        if(c.type==='bool'){
+          var checked=curCfg[c.key]!==undefined?curCfg[c.key]:c.default;
+          return '<label><input type="checkbox" '+(checked?'checked':'')+
+            ' onchange="var o=getVariantCfg(\''+esc(slot)+'\',\''+esc(active)+'\');o[\''+esc(c.key)+'\']=this.checked;setVariantCfg(\''+esc(slot)+'\',\''+esc(active)+'\',o)">'+
+            esc(c.label||c.key)+'</label>';
+        }
+        return '';
+      }).join('')+'</div>';
+    }
+    return '<div class="setrow"><label>'+esc(slot)+'</label>'+
+      '<select onchange="setPref(\''+esc(slot)+'\',this.value)">'+opts+'</select>'+
+      '<span class="setdesc">'+esc(desc)+'</span></div>'+cfgHtml;
+  }).join('');
+}
+
+function noop(){}
+
+// ---- init: apply stored preferences ----
+mountAll();
 </script>
 </body>
 </html>
