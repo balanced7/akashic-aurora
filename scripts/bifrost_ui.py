@@ -123,6 +123,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(get_launcher().registry())
         if path == "/aurora-shader.js":
             return self._static("scripts/aurora-shader.js", "application/javascript")
+        if path == "/bifrost_viz.js":
+            return self._static("scripts/bifrost_viz.js", "application/javascript")
+        if path == "/theme-void.js":
+            return self._static("scripts/theme-void.js", "application/javascript")
         self.send_error(404)
 
     def _html(self):
@@ -423,6 +427,19 @@ PAGE = r"""<!doctype html>
      falls back to the CSS gradient when not. z-index:-2 so the body::after
      noise texture (z-index:-1) sits ON TOP of the aurora for grain. */
   #aurora-canvas{position:fixed; inset:0; z-index:-2; pointer-events:none}
+  /* Viz canvas — slide-deck cards between aurora and cockpit. Hidden by default;
+     shown when the viz engine is active (toggle via 'v' key or header button). */
+  #viz-canvas{position:fixed; inset:0; z-index:-1; pointer-events:none; display:none}
+  #viz-canvas.show{display:block}
+  /* Viz control bar — overlays the top-right of the cockpit when viz is active */
+  #viz-ctl{display:none; position:fixed; top:70px; right:20px; z-index:10; gap:6px}
+  #viz-ctl.show{display:flex}
+  #viz-ctl button{font:inherit; font-size:11px; font-weight:600; padding:5px 10px;
+    border-radius:7px; cursor:pointer; border:1px solid var(--border);
+    background:rgba(20,22,29,.85); color:var(--text); backdrop-filter:blur(8px);
+    -webkit-backdrop-filter:blur(8px); transition:.15s}
+  #viz-ctl button:hover{border-color:#39405a; background:rgba(23,26,34,.9)}
+  #viz-ctl button.on{color:var(--accent); border-color:rgba(122,162,247,.35)}
   /* STATIC atmosphere: an animated blur(70px) repainted the whole viewport every frame -> typing/scroll jank.
      This is the CSS fallback; hidden when the WebGL canvas is active. */
   body::before{content:""; position:fixed; inset:-25%; z-index:-1; pointer-events:none; opacity:.6;
@@ -799,6 +816,7 @@ PAGE = r"""<!doctype html>
 </head>
 <body>
 <canvas id="aurora-canvas"></canvas>
+<canvas id="viz-canvas"></canvas>
 <div class="app">
   <header>
     <div class="brand"><div class="logo"></div> Bifrost <small>live agent console</small></div>
@@ -852,6 +870,18 @@ PAGE = r"""<!doctype html>
         <button id="hudToggle" class="lctl" onclick="toggleHUDFlag()">Disable</button>
         <span style="font-size:11px;color:var(--faint);margin-left:8px" id="hudStatus">on — pure DOM, no perf cost</span>
       </div>
+      <div class="setrow" id="auroraSpeedRow" style="display:none">
+        <label>Drift Speed</label>
+        <input type="range" id="auroraSpeedSlider" min="0.25" max="2" step="0.05" value="1" style="flex:1;margin:0 8px"
+          oninput="setAuroraSpeed(parseFloat(this.value))">
+        <span class="setdesc" id="auroraSpeedLabel">1×</span>
+      </div>
+      <div class="setrow" id="auroraIntensityRow" style="display:none">
+        <label>Intensity</label>
+        <input type="range" id="auroraIntensitySlider" min="0.2" max="1" step="0.05" value="0.85" style="flex:1;margin:0 8px"
+          oninput="setAuroraIntensity(parseFloat(this.value))">
+        <span class="setdesc" id="auroraIntensityLabel">0.85</span>
+      </div>
     </div>
   </div>
   <div id="log"></div>
@@ -878,8 +908,16 @@ PAGE = r"""<!doctype html>
 </div>
 <div id="drop"><div class="dz"><div class="big">Drop files to share</div><div class="sub">saved into the project · agents can read them with their tools</div></div></div>
 <div id="toast"></div>
+<div id="viz-ctl">
+  <button onclick="vizPrev()" title="previous card (←)">◀</button>
+  <button id="vizGridBtn" onclick="vizGrid()" title="grid view (g)">⊞ grid</button>
+  <button onclick="vizNext()" title="next card (→)">▶</button>
+  <span style="font-size:10px;color:var(--faint);padding:5px 4px" id="vizLabel">—</span>
+  <button onclick="vizToggle()" title="hide viz (v)">✕</button>
+</div>
 
 <script src="/aurora-shader.js"></script>
+<script src="/bifrost_viz.js"></script>
 <script>
 const log = document.getElementById('log');
 const seen = new Set();
@@ -1933,6 +1971,61 @@ function refreshHUDButtons(){
 }
 (function(){ refreshHUDButtons(); })();
 
+// Shaderpark controls: aurora speed + intensity sliders (live-tune uniforms, localStorage persistence)
+function auroraSpeedKey(){ return 'bifrost_aurora_speed'; }
+function auroraIntensityKey(){ return 'bifrost_aurora_intensity'; }
+function setAuroraSpeed(v){
+  if (_auroraShader) _auroraShader.setSpeed(v);
+  localStorage.setItem(auroraSpeedKey(), v);
+  var lbl = document.getElementById('auroraSpeedLabel');
+  if (lbl) lbl.textContent = v.toFixed(2) + '×';
+}
+function setAuroraIntensity(v){
+  if (_auroraShader) _auroraShader.setIntensity(v);
+  localStorage.setItem(auroraIntensityKey(), v);
+  var lbl = document.getElementById('auroraIntensityLabel');
+  if (lbl) lbl.textContent = v.toFixed(2);
+}
+function refreshAuroraParams(){
+  var speedSlider = document.getElementById('auroraSpeedSlider');
+  var intSlider = document.getElementById('auroraIntensitySlider');
+  var speedRow = document.getElementById('auroraSpeedRow');
+  var intRow = document.getElementById('auroraIntensityRow');
+  if (!speedSlider || !intSlider) return;
+  // Show sliders only when aurora is enabled
+  var on = _auroraEnabled;
+  if (speedRow) speedRow.style.display = on ? '' : 'none';
+  if (intRow) intRow.style.display = on ? '' : 'none';
+  if (!on) return;
+  // Restore persisted values
+  var sp = parseFloat(localStorage.getItem(auroraSpeedKey())) || 1;
+  var it = parseFloat(localStorage.getItem(auroraIntensityKey())) || 0.85;
+  speedSlider.value = sp; setAuroraSpeed(sp);
+  intSlider.value = it; setAuroraIntensity(it);
+}
+// Wire into toggleAuroraFlag + initAurora so sliders appear/disappear
+(function(){
+  var _origToggle = toggleAuroraFlag;
+  toggleAuroraFlag = function(){
+    _origToggle();
+    refreshAuroraParams();
+  };
+  var _origInit = initAurora;
+  initAurora = function(){
+    var ok = _origInit();
+    if (ok) {
+      // Apply persisted speed/intensity to the new shader
+      var sp = parseFloat(localStorage.getItem(auroraSpeedKey())) || 1;
+      var it = parseFloat(localStorage.getItem(auroraIntensityKey())) || 0.85;
+      if (_auroraShader) { _auroraShader.setSpeed(sp); _auroraShader.setIntensity(it); }
+    }
+    refreshAuroraParams();
+    return ok;
+  };
+  // Initial state
+  refreshAuroraParams();
+})();
+
 // Wire setState into the status loop. Called at the end of applyStatus.
 function syncAuroraState(paused, haltedCount) {
   if (!_auroraShader) return;
@@ -1940,7 +2033,63 @@ function syncAuroraState(paused, haltedCount) {
   else if (paused)     _auroraShader.setState(1);           // global pause -> amber tint
   else                 _auroraShader.setState(0);           // normal
 }
+
+// ---- Viz-canvas engine: slide-deck cards between aurora and cockpit ----
+var _vizEngine = null, _vizVisible = false;
+function initViz(){
+  if (!window.BifrostViz) return false;
+  if (_vizEngine) return true;
+  try {
+    var canvas = document.getElementById('viz-canvas');
+    if (!canvas) return false;
+    _vizEngine = new window.BifrostViz.VizEngine(canvas);
+    _vizEngine.start();
+    return true;
+  } catch(e) { return false; }
+}
+function vizToggle(){
+  if (!_vizEngine && !initViz()) return;
+  _vizVisible = !_vizVisible;
+  document.getElementById('viz-canvas').classList.toggle('show', _vizVisible);
+  document.getElementById('viz-ctl').classList.toggle('show', _vizVisible);
+  if (_vizVisible) updateVizLabel();
+}
+function vizNext(){ if(_vizEngine){ _vizEngine.nextCard(); updateVizLabel(); } }
+function vizPrev(){ if(_vizEngine){ _vizEngine.prevCard(); updateVizLabel(); } }
+function vizGrid(){ if(_vizEngine){ _vizEngine.showGrid(); updateVizLabel();
+  document.getElementById('vizGridBtn').classList.toggle('on', _vizEngine.gridMode); } }
+function updateVizLabel(){
+  var el = document.getElementById('vizLabel');
+  if (el && _vizEngine && _vizEngine.cards.length) {
+    el.textContent = _vizEngine.gridMode ? 'grid' : (_vizEngine.cardIdx + 1) + '/' + _vizEngine.cards.length;
+  }
+}
+// Feed traces from addMsg to the viz engine
+(function(){
+  var _origAddMsg = addMsg;
+  addMsg = function(m){
+    _origAddMsg(m);
+    if (_vizEngine && _vizVisible && m.kind === 'trace') _vizEngine.feedTrace(m);
+    // Also feed edges from chat messages
+    if (_vizEngine && _vizVisible && m.kind === 'chat' && m.from && m.to && m.to !== 'all' && m.to !== '*') {
+      _vizEngine.feedEdge(m.from, m.to);
+    }
+  };
+})();
+// Keyboard shortcuts: v=toggle, arrows=navigate, g=grid
+document.addEventListener('keydown', function(e){
+  if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return; // don't steal
+  if (e.key === 'v' && !e.ctrlKey && !e.metaKey) vizToggle();
+  if (_vizVisible && _vizEngine) {
+    if (e.key === 'ArrowRight') { e.preventDefault(); vizNext(); }
+    if (e.key === 'ArrowLeft')  { e.preventDefault(); vizPrev(); }
+    if (e.key === 'g' && !e.ctrlKey) { e.preventDefault(); vizGrid(); }
+  }
+});
+// Init viz at startup (always, but hidden until toggled)
+initViz();
 </script>
+<script src="/theme-void.js"></script>
 </body>
 </html>
 """
