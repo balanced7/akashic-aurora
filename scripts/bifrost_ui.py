@@ -378,19 +378,18 @@ PAGE = r"""<!doctype html>
     color:var(--text); font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,system-ui,sans-serif;
     -webkit-font-smoothing:antialiased;
   }
-  body::before{content:""; position:fixed; inset:-25%; z-index:-1; pointer-events:none; opacity:.7;
+  /* STATIC atmosphere: an animated blur(70px) repainted the whole viewport every frame -> typing/scroll jank */
+  body::before{content:""; position:fixed; inset:-25%; z-index:-1; pointer-events:none; opacity:.6;
     background:conic-gradient(from 200deg at 42% 40%, var(--glow2),var(--glow3),var(--glow1),var(--glow4),var(--glow2));
-    filter:blur(70px); animation:auroraDrift 40s linear infinite}
-  body::after{content:""; position:fixed; inset:0; z-index:-1; pointer-events:none; opacity:.5; mix-blend-mode:overlay;
+    filter:blur(60px)}
+  body::after{content:""; position:fixed; inset:0; z-index:-1; pointer-events:none; opacity:.3;
     background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/></svg>")}
-  @keyframes auroraDrift{to{transform:rotate(1turn)}}
-  @media (prefers-reduced-motion:reduce){body::before{animation:none}}
   .app{display:flex; flex-direction:column; height:100vh; max-width:1020px; margin:0 auto; position:relative; z-index:1}
   /* header */
   header{
     display:flex; align-items:center; gap:14px; padding:14px 20px;
     border-bottom:1px solid var(--glass-line); background:var(--glass);
-    backdrop-filter:blur(24px) saturate(1.3); -webkit-backdrop-filter:blur(24px) saturate(1.3);
+    backdrop-filter:blur(12px) saturate(1.2); -webkit-backdrop-filter:blur(12px) saturate(1.2);
     box-shadow:0 1px 0 var(--glass-hi) inset; position:sticky; top:0; z-index:5;
   }
   .brand{display:flex; align-items:center; gap:11px; font-weight:650; letter-spacing:.2px}
@@ -490,7 +489,7 @@ PAGE = r"""<!doctype html>
   .tdot:nth-child(2){animation-delay:.2s} .tdot:nth-child(3){animation-delay:.4s}
   @keyframes blink{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-3px)}}
   /* composer */
-  .composer{padding:12px 16px 18px; border-top:1px solid var(--glass-line); background:var(--glass); backdrop-filter:blur(24px) saturate(1.3); -webkit-backdrop-filter:blur(24px) saturate(1.3); position:relative}
+  .composer{padding:12px 16px 18px; border-top:1px solid var(--glass-line); background:rgba(14,16,22,.9); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); position:relative}
   .cwrap{display:flex; gap:10px; align-items:flex-end; background:var(--panel); border:1px solid var(--border);
     border-radius:14px; padding:8px 8px 8px 14px; transition:.15s}
   .cwrap:focus-within{border-color:#3b425e; box-shadow:0 0 0 3px rgba(122,162,247,.12)}
