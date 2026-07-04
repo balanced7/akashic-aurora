@@ -56,6 +56,21 @@ the CSS background) + a **HUD glanceability strip** (who's-doing-what at a glanc
 
 ---
 
+### D. Daniel's inspiration injection — Shader Park + awwwards GLSL (2026-07-04)
+Daniel pointed both agents at [shaderpark.com](https://shaderpark.com/) and
+[awwwards.com/websites/glsl](https://www.awwwards.com/websites/glsl/). Both are JS apps/galleries
+(no technique detail via fetch), so this is their recognized signature language, applied to my lane:
+8. **Shader Park** — live-coded SDF/procedural shaders whose whole ethos is **interactive, tunable
+   params** and **standalone remixability**. *Stole:* exposed `setSpeed()` / `setIntensity()` on
+   `AuroraShader` (uniforms `u_speed`/`u_intensity`) so the future settings-panel sliders just call
+   them; the module is already standalone/droppable (its own file + preview harness). *Implemented.*
+9. **Awwwards GLSL hero shaders** — award-winning full-screen WebGL backgrounds. Their repeated
+   polish moves: **radial vignette** (darken corners → center content pops), **film grain** (a tiny
+   per-pixel dither that kills visible banding on dark gradients), and **strict palette discipline**
+   (every output colour a blend of the named brand colours, no ad-hoc values). *Stole:* added the
+   vignette + grain passes to `aurora-shader.js`; the palette-discipline rule becomes a code-review
+   check on the LUT (DeepSeek's suggestion too). *Implemented (vignette+grain); rule logged.*
+
 ## Palette (near-black bed, neon light-leaks)
 | Role | Value | Use |
 |------|-------|-----|

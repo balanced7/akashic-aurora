@@ -39,6 +39,8 @@
   uniform float u_time;
   uniform int   u_state;            // 0 normal, 1 paused, 2 halted
   uniform float u_state_intensity;  // 0..1 lerp on state change
+  uniform float u_speed;            // motion multiplier (Shader Park: live-tunable param)
+  uniform float u_intensity;        // brightness multiplier (live-tunable param)
 
   // --- gradient (Perlin-style) value-of-gradients noise: smoother than hash value-noise,
   //     textureless, GPU-stable. This is claude's swap-in candidate vs DeepSeek's hash noise. ---
@@ -86,11 +88,12 @@
     vec2 suv = vec2(uv.x * (u_resolution.x / u_resolution.y), uv.y);
 
     // --- domain warp (INVARIANT): fbm(uv + fbm(uv + time)) — the folded-curtain look ---
+    float T = u_time * u_speed;   // u_speed = the live-tunable motion param
     vec2 q = vec2(
-      fbm(suv * 2.0 + vec2(0.0, u_time * 0.03)),
-      fbm(suv * 2.0 + vec2(5.2, 1.3) + u_time * 0.04)
+      fbm(suv * 2.0 + vec2(0.0, T * 0.03)),
+      fbm(suv * 2.0 + vec2(5.2, 1.3) + T * 0.04)
     );
-    float aurora = fbm(suv * 2.0 + 1.2 * q + vec2(0.0, u_time * 0.02));
+    float aurora = fbm(suv * 2.0 + 1.2 * q + vec2(0.0, T * 0.02));
 
     // --- center-dark envelope (claude): two faint bands high in the frame; hard-clamp so nothing
     //     reaches the vertical center where body text lives. uv.y: 0 bottom, 1 top. ---
@@ -100,7 +103,7 @@
     curtain *= smoothstep(0.50, 0.62, uv.y);          // keep the lower/center dark for legibility
 
     float t = clamp(curtain, 0.0, 1.0);
-    vec3 col = auroraColor(t) * t * 1.6;              // energy toward the bright ribs
+    vec3 col = auroraColor(t) * t * 1.6 * u_intensity;  // energy toward the bright ribs; intensity = live param
 
     // --- state tint (synthesis §2a) ---
     // paused -> shift toward amber; halted -> desaturate + darken. Lerped by u_state_intensity.
@@ -110,6 +113,15 @@
     } else if (u_state == 2) {
       col = mix(col, vec3(dot(col, vec3(0.299, 0.587, 0.114))) * 0.3, u_state_intensity * 0.7);
     }
+
+    // --- radial vignette (awwwards hero-shader staple): darken toward the corners so the centered
+    //     glass panels pop and body text stays legible. One length + smoothstep. ---
+    float vig = smoothstep(1.15, 0.35, length(uv - 0.5));
+    col *= mix(0.72, 1.0, vig);
+
+    // --- film grain (awwwards: kills visible banding on dark gradients). Tiny per-pixel dither. ---
+    float grain = fract(sin(dot(gl_FragCoord.xy + u_time, vec2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.015;
 
     outColor = vec4(col, 1.0);   // opaque; the canvas is the backmost layer
   }`;
@@ -138,6 +150,8 @@
       if (!this.gl) throw new Error('webgl2 unavailable');
       this.state = 0;
       this.stateLerp = 1.0;                // 1 = fully at target
+      this.speed = 1.0;                    // live-tunable params (Shader Park ethos); UI sliders call the setters
+      this.intensity = 1.0;
       this.startTime = (global.performance ? performance.now() : 0) / 1000;
       this.animating = false;
       this._frames = 0;                    // for the fps watchdog
@@ -151,6 +165,10 @@
       state = state | 0;
       if (state !== this.state) { this.state = state; this.stateLerp = 0.0; }
     }
+
+    // Live-tunable params (Shader Park inspiration) — the future settings-panel sliders call these.
+    setSpeed(v) { this.speed = Math.max(0, +v || 0); }
+    setIntensity(v) { this.intensity = Math.max(0, +v || 0); }
 
     _compile() {
       const gl = this.gl;
@@ -176,6 +194,8 @@
       this.u_time = gl.getUniformLocation(prog, 'u_time');
       this.u_state = gl.getUniformLocation(prog, 'u_state');
       this.u_state_intensity = gl.getUniformLocation(prog, 'u_state_intensity');
+      this.u_speed = gl.getUniformLocation(prog, 'u_speed');
+      this.u_intensity = gl.getUniformLocation(prog, 'u_intensity');
     }
 
     _resize() {
@@ -204,6 +224,8 @@
       gl.uniform1f(this.u_time, time);
       gl.uniform1i(this.u_state, this.state);
       gl.uniform1f(this.u_state_intensity, this.stateLerp);
+      gl.uniform1f(this.u_speed, this.speed);
+      gl.uniform1f(this.u_intensity, this.intensity);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       this._frames++;
     }
