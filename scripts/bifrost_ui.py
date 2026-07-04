@@ -131,7 +131,7 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             agents = []
         return {"paused": control.is_paused(), "pause": control.pause_status(),
-                "agents": agents, "max_hops": control.MAX_HOPS}
+                "agents": agents, "activities": control.get_activities(), "max_hops": control.MAX_HOPS}
 
     def _json(self, obj, code=200):
         body = json.dumps(obj, default=str).encode("utf-8")
@@ -343,10 +343,16 @@ PAGE = r"""<!doctype html>
     border-radius:999px; padding:5px 13px}
   .sys.guard span{color:var(--amber); border-color:rgba(240,178,70,.3); background:rgba(240,178,70,.08)}
   /* typing */
-  .typing{display:none; gap:12px; margin-bottom:18px; align-items:center}
-  .typing.show{display:flex}
-  .typing .bubble{padding:12px 16px}
-  .tdot{width:6px;height:6px;border-radius:50%;background:var(--deepseek);display:inline-block;margin:0 2px;
+  .activity{display:flex; flex-direction:column; gap:8px; padding:2px 16px 8px}
+  .activity:empty{display:none}
+  .actrow{display:flex; gap:12px; align-items:center; animation:fade .25s ease}
+  .actbubble{display:flex; align-items:center; gap:7px; background:var(--panel); border:1px solid var(--border);
+    border-radius:12px; padding:8px 13px; font-size:13.5px; color:var(--muted)}
+  .actbubble b{color:var(--deepseek); font-weight:650}
+  .acticon{font-size:16px; filter:drop-shadow(0 0 7px rgba(122,162,247,.55))}
+  .actdetail{color:var(--faint); font-family:"SF Mono",Consolas,monospace; font-size:12px;
+    max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .tdot{width:6px;height:6px;border-radius:50%;background:var(--deepseek);display:inline-block;margin:0 1px;
     animation:blink 1.2s infinite both}
   .tdot:nth-child(2){animation-delay:.2s} .tdot:nth-child(3){animation-delay:.4s}
   @keyframes blink{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-3px)}}
@@ -386,10 +392,7 @@ PAGE = r"""<!doctype html>
   </header>
   <div class="banner" id="banner">⏸ Paused — the agents are frozen. Type below to interject, then Resume.</div>
   <div id="log"></div>
-  <div class="typing" id="typing" style="padding:0 16px">
-    <div class="av deepseek">DS</div>
-    <div class="bubble"><span class="tdot"></span><span class="tdot"></span><span class="tdot"></span></div>
-  </div>
+  <div class="activity" id="activity"></div>
   <div class="composer">
     <div class="cwrap">
       <textarea id="input" rows="1" placeholder="Message the agents… (Enter to send, Shift+Enter for newline)"></textarea>
@@ -429,7 +432,6 @@ function addMsg(m){
     const d=document.createElement('div'); d.className='sys'+(isGuard?' guard':'');
     d.innerHTML='<span>'+esc(m.content||'')+'</span>'; log.appendChild(d); autoscroll(); return;
   }
-  hideTyping();
   const me = from==='user';
   const c = cls(from);
   const wrap=document.createElement('div'); wrap.className='msg'+(me?' me':'');
@@ -441,12 +443,23 @@ function addMsg(m){
     '<span class="time">'+now(m.ts)+'</span>'+intent+hop+'</div>'+
     '<div class="content">'+fmt(m.content)+'</div></div>';
   log.appendChild(wrap); autoscroll();
-  // a user message to deepseek -> show the peer is likely about to work
-  if(me) showTyping();
 }
 function autoscroll(){ if(nearBottom) log.scrollTop = log.scrollHeight; }
-function showTyping(){ const t=document.getElementById('typing'); t.classList.add('show'); if(nearBottom) log.scrollTop=log.scrollHeight; }
-function hideTyping(){ document.getElementById('typing').classList.remove('show'); }
+// real rich presence: what each agent is actually doing, from /status (not a client-side guess)
+const ICON = {thinking:'💭', reading:'📖', searching:'🔍', inspecting:'🔎', recalling:'🧠', running:'⚙️', writing:'✍️', working:'⚡'};
+const VERB = {thinking:'thinking', reading:'reading', searching:'searching', inspecting:'inspecting git', recalling:'searching memory', running:'running a command', writing:'writing', working:'working'};
+function renderActivity(acts){
+  const box=document.getElementById('activity');
+  const rows=Object.keys(acts).filter(a=>acts[a]&&acts[a].state).map(a=>{
+    const st=acts[a].state, dt=acts[a].detail||'', ic=ICON[st]||'⚡', vb=VERB[st]||st;
+    return '<div class="actrow"><div class="av '+cls(a)+'">'+initials(a)+'</div>'+
+      '<div class="actbubble"><span class="acticon">'+ic+'</span><b>'+esc(a)+'</b> '+esc(vb)+
+      (dt?' <span class="actdetail">'+esc(dt)+'</span>':'')+
+      ' <span class="tdot"></span><span class="tdot"></span><span class="tdot"></span></div></div>';
+  });
+  box.innerHTML=rows.join('');
+  if(rows.length && nearBottom) log.scrollTop=log.scrollHeight;
+}
 
 // --- SSE ---
 function connect(){
@@ -490,9 +503,10 @@ function applyStatus(s){
   const pills=document.getElementById('pills');
   const want=['claude','deepseek','user'];
   pills.innerHTML = want.map(a=>'<div class="pill'+(online.has(a)?' on':'')+'"><span class="dot"></span>'+a+'</div>').join('');
+  renderActivity(s.activities||{});
 }
 async function poll(){ try{ applyStatus(await (await fetch('/status')).json()); }catch(e){} }
-poll(); setInterval(poll, 3500);
+poll(); setInterval(poll, 1200);
 
 // --- drag & drop ---
 const drop=document.getElementById('drop'); let dragc=0;

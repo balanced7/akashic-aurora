@@ -136,3 +136,58 @@ class RateLimiter:
             return False
         self.events.append(now)
         return True
+
+
+# ------------------------------------------------------------------ rich presence (real activity)
+# What an agent is ACTUALLY doing right now -- driven by the runner, not guessed by the UI. Stored per
+# agent with a short TTL so a crashed runner's activity auto-clears (no stuck "typing"). The UI reads
+# get_activities() and maps state -> an icon. States: thinking | reading | searching | inspecting |
+# recalling | running | writing | working (idle = no key).
+ACTIVITY_PREFIX = f"{NS}:activity:"
+ACTIVITY_TTL = 25
+
+
+def set_activity(agent: str, state: str, detail: str = "") -> bool:
+    """Mark what `agent` is doing now (auto-expires after ACTIVITY_TTL). Fail-open."""
+    c = _client()
+    if c is None:
+        return False
+    try:
+        c.set(ACTIVITY_PREFIX + str(agent),
+              json.dumps({"state": str(state), "detail": str(detail)[:120], "ts": _now()}),
+              ex=ACTIVITY_TTL)
+        return True
+    except Exception:
+        return False
+
+
+def clear_activity(agent: str) -> bool:
+    """The agent went idle -- drop its activity so the UI stops showing it working."""
+    c = _client()
+    if c is None:
+        return False
+    try:
+        c.delete(ACTIVITY_PREFIX + str(agent))
+        return True
+    except Exception:
+        return False
+
+
+def get_activities() -> Dict[str, Any]:
+    """{agent: {state, detail, ts}} for every agent currently doing something (non-expired)."""
+    c = _client()
+    if c is None:
+        return {}
+    out: Dict[str, Any] = {}
+    try:
+        for k in (c.keys(ACTIVITY_PREFIX + "*") or []):
+            agent = str(k).rsplit(":", 1)[-1]
+            raw = c.get(k)
+            if raw:
+                try:
+                    out[agent] = json.loads(raw)
+                except Exception:
+                    pass
+    except Exception:
+        pass
+    return out

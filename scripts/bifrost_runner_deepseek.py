@@ -77,7 +77,7 @@ def make_replier(model: str, system: str, think: bool):
     return respond
 
 
-def make_agentic_replier(model: str, system: str, think: bool, root: Path):
+def make_agentic_replier(model: str, system: str, think: bool, root: Path, agent_id: str):
     """Tool-using bridge: DeepSeek can read files, search, inspect git, and query the Akashic knowledge
     base WHILE composing its reply, then posts the final answer to the bus. Reuses the guarded
     Agent+ToolBox from deepseek_chat.py (read-only, secret-blocked, path-scoped). Keeps a per-peer
@@ -87,14 +87,16 @@ def make_agentic_replier(model: str, system: str, think: bool, root: Path):
     client = OpenAI(api_key=load_key(), base_url=BASE_URL)
     toolbox = dc.ToolBox(root, allow_exec=False, trust=False, allow_secrets=False,
                          confirm=lambda _p: False)
+    on_activity = lambda state, detail: control.set_activity(agent_id, state, detail)
     convos: dict = {}
 
     def respond(frm: str, prompt: str) -> str:
         ag = convos.get(frm)
         if ag is None:
             # interrupt=control.is_paused -> a HALT interjection stops work mid-tool-loop (DeepSeek's insight)
-            ag = dc.Agent(client, toolbox, model=model, system=system, think=think,
-                          tools_enabled=True, interrupt=control.is_paused)
+            # on_activity -> rich presence: reports thinking/reading/searching/... to the console live
+            ag = dc.Agent(client, toolbox, model=model, system=system, think=think, tools_enabled=True,
+                          interrupt=control.is_paused, on_activity=on_activity)
             convos[frm] = ag
         try:
             answer = ag.send(prompt)                 # streams to the runner window; returns final text
@@ -141,7 +143,7 @@ def main() -> int:
         if system == DEFAULT_SYSTEM:                 # give the tool-aware prompt unless overridden
             system = dc.default_system(root) + (" You are reached over a shared message bus; each "
                      "reply posts back to the sender, so make it self-contained.")
-        responder = make_agentic_replier(args.model, system, args.think, root)
+        responder = make_agentic_replier(args.model, system, args.think, root, args.agent)
         mode = f"agentic tools @ {root}"
     else:
         responder = make_replier(args.model, args.system, args.think)
@@ -177,10 +179,14 @@ def main() -> int:
                     continue
                 prompt = m.content if isinstance(m.content, str) else str(m.content)
                 print(f"[deepseek-runner] <- {m.frm} [{m.kind}] (hop {hops}): {prompt[:80]}")
-                out = responder(m.frm, prompt) if args.agentic else responder(prompt)
-                bus.send(m.frm, "reply", out,
-                         meta={"via": f"{args.agent}-runner", "model": args.model, "hops": hops})
-                print(f"[deepseek-runner] -> {m.frm}: {out[:80]}")
+                control.set_activity(args.agent, "thinking")
+                try:
+                    out = responder(m.frm, prompt) if args.agentic else responder(prompt)
+                    bus.send(m.frm, "reply", out,
+                             meta={"via": f"{args.agent}-runner", "model": args.model, "hops": hops})
+                    print(f"[deepseek-runner] -> {m.frm}: {out[:80]}")
+                finally:
+                    control.clear_activity(args.agent)   # back to idle -> UI stops showing it working
             if args.once:
                 break
     except (KeyboardInterrupt, EOFError):

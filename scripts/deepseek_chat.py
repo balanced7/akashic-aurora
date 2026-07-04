@@ -381,19 +381,44 @@ def default_system(root: Path) -> str:
     )
 
 
+_TOOL_STATE = {
+    "read_file": "reading", "list_directory": "reading", "find_files": "searching",
+    "search_files": "searching", "git_log": "inspecting", "git_diff": "inspecting",
+    "git_show": "inspecting", "git_status": "inspecting", "knowledge_recall": "recalling",
+    "knowledge_boot": "recalling", "run_command": "running", "web_search": "searching",
+}
+
+
+def _tool_activity(name, args):
+    """(state, short-detail) for the rich-presence indicator, from a tool call."""
+    state = _TOOL_STATE.get(name, "working")
+    d = (args.get("path") or args.get("pattern") or args.get("query")
+         or args.get("command") or args.get("task") or args.get("directory") or "")
+    return state, str(d)[:80]
+
+
 class Agent:
-    def __init__(self, client, toolbox: ToolBox, *, model, system, think, tools_enabled, interrupt=None):
+    def __init__(self, client, toolbox: ToolBox, *, model, system, think, tools_enabled,
+                 interrupt=None, on_activity=None):
         self.client = client
         self.toolbox = toolbox
         self.model = model
         self.think = think
         self.tools_enabled = tools_enabled
-        self.interrupt = interrupt   # optional () -> bool; checked between tool rounds for true barge-in
+        self.interrupt = interrupt         # optional () -> bool; checked between rounds for true barge-in
+        self.on_activity = on_activity     # optional (state, detail) -> None; reports activity (rich presence)
         self.temperature = None
         self.max_tokens = None
         self.json_mode = False
         self.messages = [{"role": "system", "content": system}]
         self.prompt_tokens = self.completion_tokens = 0
+
+    def _activity(self, state, detail=""):
+        if self.on_activity:
+            try:
+                self.on_activity(state, detail)
+            except Exception:
+                pass
 
     def reset(self):
         self.messages = self.messages[:1] if self.messages[:1] and self.messages[0]["role"] == "system" else []
@@ -465,6 +490,7 @@ class Agent:
             if self.interrupt and self.interrupt():   # DeepSeek's fix: true barge-in mid-tool-loop
                 print(f"{C.yellow}[interrupted by your interjection -- pausing mid-task]{C.reset}")
                 return "[paused mid-task by your interjection -- resume to continue]"
+            self._activity("thinking")
             try:
                 content, tool_calls = self._stream_turn()
             except Exception as e:
@@ -483,6 +509,7 @@ class Agent:
                         args = {}
                     shown = ", ".join(f"{k}={v!r}" for k, v in args.items())
                     print(f"{C.yellow}🔧 {s['name']}({shown[:160]}){C.reset}")
+                    self._activity(*_tool_activity(s["name"], args))
                     result = self.toolbox.execute(s["name"], args)
                     first = result.splitlines()[0] if result else ""
                     print(f"{C.dim}   → {len(result)} chars | {first[:120]}{C.reset}")
