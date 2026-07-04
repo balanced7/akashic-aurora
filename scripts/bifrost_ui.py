@@ -196,23 +196,28 @@ class Handler(BaseHTTPRequestHandler):
 
     def _send(self, data):
         text = (data.get("text") or "").strip()
-        to = (data.get("to") or "deepseek").strip()
+        to = (data.get("to") or "all").strip().lower()       # default: reach BOTH agents
         if not text:
             return self._json({"ok": False, "error": "empty"}, 400)
         verdict = interject.classify_intent(text)            # adaptive: resume | halt | steer | ask
         intent = verdict["intent"]
+        broadcast = to in ("all", "both", "*", "")
+        meta = {"hops": 0, "via": "console", "intent": intent, "why": verdict["why"]}
+
+        def deliver(kind):
+            # broadcast reaches BOTH Claude and DeepSeek; a specific agent id targets just that one
+            return BUS.broadcast(kind, text, meta=meta) if broadcast else BUS.send(to, kind, text, meta=meta)
+
         if interject.should_resume(intent):                  # a bare "resume"/"continue" unfreezes the work
             control.resume()
-            BUS.send(to, "note", text, meta={"hops": 0, "via": "console", "intent": intent})
+            deliver("note")
             return self._json({"ok": True, "resumed": True, "intent": intent, "why": verdict["why"]})
         paused = interject.should_pause(intent)
         if paused:                                           # a course-correction freezes the work
             control.pause(reason=f"interjection ({verdict['why']}): {text[:40]}", by="user")
-        # A human message resets the hop budget (hops=0) -- it's a fresh, sanctioned turn.
-        mid = BUS.send(to, "chat", text,
-                       meta={"hops": 0, "via": "console", "intent": intent, "why": verdict["why"]})
+        mid = deliver("chat")                                # hops=0: a human message is a fresh, sanctioned turn
         return self._json({"ok": bool(mid), "id": mid, "intent": intent,
-                           "why": verdict["why"], "paused": paused})
+                           "to": to, "why": verdict["why"], "paused": paused})
 
     def _upload(self, data):
         name = os.path.basename((data.get("name") or "").strip()) or "dropped.bin"
@@ -368,6 +373,9 @@ PAGE = r"""<!doctype html>
   textarea{flex:1; background:none; border:none; outline:none; resize:none; color:var(--text);
     font:inherit; font-size:15px; max-height:160px; padding:6px 0}
   textarea::placeholder{color:var(--faint)}
+  .target{align-self:center; background:var(--bg2); border:1px solid var(--border); color:var(--muted);
+    border-radius:9px; padding:7px 8px; font:inherit; font-size:12.5px; outline:none; cursor:pointer}
+  .target:hover{border-color:#39405a}
   .send{flex:none; width:38px;height:38px;border-radius:10px; border:none; cursor:pointer;
     background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; font-size:17px;
     display:grid;place-items:center; transition:.15s} .send:hover{filter:brightness(1.1)} .send:disabled{opacity:.4;cursor:default}
@@ -399,10 +407,15 @@ PAGE = r"""<!doctype html>
   <div class="activity" id="activity"></div>
   <div class="composer">
     <div class="cwrap">
+      <select id="target" class="target" title="who receives your message">
+        <option value="all">Both</option>
+        <option value="claude">Claude</option>
+        <option value="deepseek">DeepSeek</option>
+      </select>
       <textarea id="input" rows="1" placeholder="Message the agents… (Enter to send, Shift+Enter for newline)"></textarea>
       <button class="send" id="sendBtn" onclick="send()">➤</button>
     </div>
-    <div class="hint">↳ your message wakes the agents · drag &amp; drop files anywhere to share them · Pause to interject safely</div>
+    <div class="hint">↳ “Both” reaches Claude &amp; DeepSeek · drag &amp; drop files anywhere to share them · Pause to interject safely</div>
   </div>
 </div>
 <div id="drop"><div class="dz"><div class="big">Drop files to share</div><div class="sub">saved into the project · agents can read them with their tools</div></div></div>
@@ -483,9 +496,10 @@ input.addEventListener('input', ()=>{ input.style.height='auto'; input.style.hei
 input.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); } });
 async function send(){
   const text = input.value.trim(); if(!text) return;
+  const to = (document.getElementById('target')||{}).value || 'all';
   input.value=''; input.style.height='auto';
   try{
-    const r = await fetch('/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
+    const r = await fetch('/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text, to})});
     const j = await r.json();
     if(j && j.resumed){ paused=false;
       const b=document.getElementById('pauseBtn'); b.textContent='⏸ Pause'; b.classList.remove('paused');
