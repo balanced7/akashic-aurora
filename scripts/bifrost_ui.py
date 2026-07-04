@@ -121,6 +121,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._events()
         if path == "/launcher/status":
             return self._json(get_launcher().registry())
+        if path == "/aurora-shader.js":
+            return self._static("scripts/aurora-shader.js", "application/javascript")
         self.send_error(404)
 
     def _html(self):
@@ -130,6 +132,20 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def _static(self, relpath, mime):
+        """Serve a static file from the repo root. Caches nothing (dev cockpit)."""
+        fpath = os.path.join(REPO, relpath.replace("/", os.sep))
+        try:
+            with open(fpath, "rb") as fh:
+                data = fh.read()
+            self.send_response(200)
+            self.send_header("Content-Type", mime)
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+        except (FileNotFoundError, PermissionError):
+            self.send_error(404)
 
     def _status(self):
         try:
@@ -402,7 +418,13 @@ PAGE = r"""<!doctype html>
     color:var(--text); font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,system-ui,sans-serif;
     -webkit-font-smoothing:antialiased;
   }
-  /* STATIC atmosphere: an animated blur(70px) repainted the whole viewport every frame -> typing/scroll jank */
+  /* Aurora Glass canvas — the animated light bed behind everything.
+     Replaces the body::before blur pseudo-element when WebGL2 is available;
+     falls back to the CSS gradient when not. z-index:-2 so the body::after
+     noise texture (z-index:-1) sits ON TOP of the aurora for grain. */
+  #aurora-canvas{position:fixed; inset:0; z-index:-2; pointer-events:none}
+  /* STATIC atmosphere: an animated blur(70px) repainted the whole viewport every frame -> typing/scroll jank.
+     This is the CSS fallback; hidden when the WebGL canvas is active. */
   body::before{content:""; position:fixed; inset:-25%; z-index:-1; pointer-events:none; opacity:.6;
     background:conic-gradient(from 200deg at 42% 40%, var(--glow2),var(--glow3),var(--glow1),var(--glow4),var(--glow2));
     filter:blur(60px)}
@@ -512,6 +534,69 @@ PAGE = r"""<!doctype html>
     animation:blink 1.2s infinite both}
   .tdot:nth-child(2){animation-delay:.2s} .tdot:nth-child(3){animation-delay:.4s}
   @keyframes blink{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-3px)}}
+  /* === HUD glanceability strip (who's-doing-what, always visible) === */
+  #hud{display:none; flex-direction:column; margin:0 16px; padding:6px 0; max-height:148px; overflow-y:auto;
+    border-bottom:1px solid var(--glass-line);
+    background:linear-gradient(to bottom,var(--glass),transparent 60%);
+    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+    transition:max-height .3s ease}
+  #hud.show{display:flex}
+  #hud.collapsed{max-height:38px}
+  .hrow{display:flex; align-items:center; gap:9px; padding:5px 11px; min-height:30px; font-size:12.5px;
+    animation:hudIn .26s cubic-bezier(.2,.9,.3,1.1); transition:background .18s,opacity .22s;
+    border-radius:8px; cursor:pointer}
+  .hrow:hover{background:var(--glass-hi)}
+  .hrow.stale{opacity:.48}
+  .hrow.expanded{background:var(--panel); border:1px solid var(--border); margin:1px 0}
+  .hicon{flex:none; font-size:14px; width:20px; text-align:center}
+  .hagent{font-weight:650; min-width:62px; white-space:nowrap}
+  .hagent.claude{color:var(--claude)} .hagent.deepseek{color:var(--deepseek)}
+  .hverb{color:var(--muted); min-width:52px; white-space:nowrap}
+  .hdetail{flex:1; color:var(--faint); font-family:"SF Mono",SFMono-Regular,Consolas,monospace; font-size:11.5px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0}
+  .hrow:hover .hdetail{overflow:visible; white-space:normal; word-break:break-all}
+  .helapsed{flex:none; color:var(--faint); font-size:11px; min-width:36px; text-align:right}
+  /* new-activity glow pulse on the icon */
+  .hrow.just-started .hicon{animation:hudPulse .55s ease-out}
+  /* scan-line: a 1px sweep down the strip, the sci-fi HUD signature */
+  #hud::after{content:""; position:absolute; left:0;right:0; height:1px; pointer-events:none;
+    background:var(--hud-scanline, rgba(255,255,255,.025));
+    animation:hudScan 3.8s linear infinite}
+  @keyframes hudIn{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
+  @keyframes hudPulse{0%{filter:drop-shadow(0 0 3px var(--aurora-neon, #48e6bf))}100%{filter:drop-shadow(0 0 0px transparent)}}
+  @keyframes hudScan{from{top:0}to{top:100%}}
+  #hud-toggle{align-self:flex-end; font-size:11px; color:var(--faint); cursor:pointer; padding:0 6px 2px;
+    user-select:none; display:none}
+  #hud-toggle.show{display:block}
+  /* === slide deck cards (mini teaching slides when a HUD row is clicked) === */
+  #deck{display:none; margin:0 16px 8px; position:relative; overflow:hidden}
+  #deck.show{display:block}
+  .deck-cards{display:flex; gap:0; width:100%; transition:transform .35s cubic-bezier(.2,.9,.3,1.05); will-change:transform}
+  .slide-card{flex:none; width:100%; background:var(--panel); border:1px solid var(--border); border-radius:14px;
+    padding:16px 18px; box-shadow:var(--shadow); position:relative;
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+  .slide-card .sc-head{display:flex; align-items:center; gap:10px; margin-bottom:8px}
+  .slide-card .sc-icon{font-size:20px; width:28px; text-align:center}
+  .slide-card .sc-title{font-weight:700; font-size:14px; color:var(--text)}
+  .slide-card .sc-body{font-size:13px; color:var(--muted); line-height:1.5}
+  .slide-card .sc-body code{font-family:"SF Mono",SFMono-Regular,Consolas,monospace; font-size:12px;
+    background:var(--bg2); border:1px solid var(--border); border-radius:5px; padding:1px 6px; color:var(--text)}
+  .slide-card .sc-result{font-size:13px; margin-top:8px; padding:8px 0 0; border-top:1px solid var(--border)}
+  .slide-card .sc-result.good{color:var(--user)} .slide-card .sc-result.warn{color:var(--amber)} .slide-card .sc-result.bad{color:var(--danger)}
+  .slide-dots{display:flex; justify-content:center; gap:8px; margin-top:10px}
+  .slide-dot{width:7px; height:7px; border-radius:50%; background:var(--border); transition:all .3s}
+  .slide-dot.active{background:var(--aurora-neon, #48e6bf); box-shadow:0 0 6px var(--aurora-neon, #48e6bf);
+    transform:scale(1.3)}
+  .deck-controls{display:flex; justify-content:center; align-items:center; gap:10px; margin-top:6px}
+  .deck-ctrl{font-size:12px; color:var(--faint); cursor:pointer; user-select:none; padding:4px 10px;
+    border-radius:8px; border:1px solid var(--border); background:var(--panel); transition:.15s}
+  .deck-ctrl:hover{color:var(--text); border-color:var(--aurora-neon)}
+  .deck-ctrl.paused{color:var(--amber); border-color:var(--amber)}
+  /* card entry animation */
+  @keyframes slideCardIn{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
+  .slide-card{animation:slideCardIn .35s cubic-bezier(.2,.9,.3,1.05) both}
+  .slide-card:nth-child(2){animation-delay:.05s}
+  .slide-card:nth-child(3){animation-delay:.1s}
   /* composer */
   .composer{padding:12px 16px 18px; border-top:1px solid var(--glass-line); background:rgba(14,16,22,.9); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); position:relative}
   .cwrap{display:flex; gap:10px; align-items:flex-end; background:var(--panel); border:1px solid var(--border);
@@ -713,6 +798,7 @@ PAGE = r"""<!doctype html>
 </style>
 </head>
 <body>
+<canvas id="aurora-canvas"></canvas>
 <div class="app">
   <header>
     <div class="brand"><div class="logo"></div> Bifrost <small>live agent console</small></div>
@@ -725,6 +811,8 @@ PAGE = r"""<!doctype html>
     <button class="ctl pause" id="pauseBtn" onclick="togglePause()">⏸ Pause</button>
   </header>
   <div class="banner" id="banner">⏸ Paused — the agents are frozen. Type below to interject, then Resume.</div>
+  <div id="hud"><div id="hud-toggle" class="show" onclick="toggleHUD()" title="collapse HUD">⌃ collapse</div></div>
+  <div id="deck"><div class="deck-cards" id="deckCards"></div><div class="slide-dots" id="deckDots"></div><div class="deck-controls"><span class="deck-ctrl" id="deckPrev" onclick="deckPrev()">◀ prev</span><span class="deck-ctrl" id="deckPause" onclick="deckTogglePause()">⏸ pause</span><span class="deck-ctrl" id="deckNext" onclick="deckNext()">next ▶</span></div></div>
   <div id="ash">
     <div id="ash-frame" onclick="toggleAsh()" title="agent selector">⏣</div>
     <div id="ash-sep"></div>
@@ -743,6 +831,28 @@ PAGE = r"""<!doctype html>
       <span style="color:var(--faint);font-size:11.5px">— pick variants per slot; swaps live</span>
     </div>
     <div id="setpRows"></div>
+    <div style="border-top:1px solid var(--border);margin:10px 0 6px;padding-top:10px">
+      <span style="font-weight:650;font-size:13px">🌌 Aurora Glass</span>
+      <span style="color:var(--faint);font-size:11.5px"> — progressive enhancement; toggle live</span>
+    </div>
+    <div id="setpAurora">
+      <div class="setrow">
+        <label>WebGL Aurora</label>
+        <span class="setdesc">animated aurora background (needs WebGL2 + bench PASS)</span>
+      </div>
+      <div class="setrow" style="justify-content:flex-end">
+        <button id="auroraToggle" class="lctl" onclick="toggleAuroraFlag()">Enable</button>
+        <span style="font-size:11px;color:var(--faint);margin-left:8px" id="auroraStatus">off — run bench-aurora.html first</span>
+      </div>
+      <div class="setrow">
+        <label>HUD Strip</label>
+        <span class="setdesc">who's-doing-what glanceability strip</span>
+      </div>
+      <div class="setrow" style="justify-content:flex-end">
+        <button id="hudToggle" class="lctl" onclick="toggleHUDFlag()">Disable</button>
+        <span style="font-size:11px;color:var(--faint);margin-left:8px" id="hudStatus">on — pure DOM, no perf cost</span>
+      </div>
+    </div>
   </div>
   <div id="log"></div>
   <div class="activity" id="activity"></div>
@@ -769,6 +879,7 @@ PAGE = r"""<!doctype html>
 <div id="drop"><div class="dz"><div class="big">Drop files to share</div><div class="sub">saved into the project · agents can read them with their tools</div></div></div>
 <div id="toast"></div>
 
+<script src="/aurora-shader.js"></script>
 <script>
 const log = document.getElementById('log');
 const seen = new Set();
@@ -874,6 +985,198 @@ function renderActivity(acts){
   });
   box.innerHTML=rows.join('');   // rebuilt only on a real state change, so the fade plays once, not every poll
 }
+
+// === HUD glanceability strip (who's-doing-what, always visible) ===
+var _lastHudSig = null, _hudCollapsed = false;
+function elapsedHUD(ts){
+  if(!ts) return '';
+  try{ var s=Math.floor((Date.now()-new Date(ts).getTime())/1000); }
+  catch(e){ return ''; }
+  if(s<10) return 'just now'; if(s<60) return s+'s'; if(s<3600) return (s/60).toFixed(1)+'m'; return (s/3600).toFixed(1)+'h';
+}
+function hudPriority(st){   // active verbs first, then idle — so the HUD sorts "doing stuff" to the top
+  var o={thinking:0,reading:0,writing:0,searching:0,running:0,recalling:0,inspecting:0,working:0,idle:1};
+  return o[st]!==undefined ? o[st] : 2;
+}
+function renderHUD(acts){
+  // Feature flag: hide entirely when disabled (default ON)
+  if (localStorage.getItem(hudFlagKey()) === '0') {
+    var s = document.getElementById('hud');
+    if (s) s.classList.remove('show');
+    return;
+  }
+  var strip=document.getElementById('hud'), toggle=document.getElementById('hud-toggle');
+  if(!strip) return;
+  acts=acts||{};
+  // fingerprint: only rebuild DOM when activity state actually changed
+  var sig=JSON.stringify(acts);
+  if(sig===_lastHudSig) return;
+  _lastHudSig=sig;
+  var entries=Object.keys(acts).filter(function(a){return acts[a]&&acts[a].state;}).map(function(a){
+    var st=acts[a].state||'working', dt=acts[a].detail||'', ts=acts[a].ts||'';
+    return {agent:a, state:st, detail:dt, since:ts, elapsed:elapsedHUD(ts), stale:ts&&(Date.now()-new Date(ts).getTime())>300000};
+  });
+  entries.sort(function(x,y){ return hudPriority(x.state)-hudPriority(y.state) || x.agent.localeCompare(y.agent); });
+  if(!entries.length){ strip.classList.remove('show'); toggle.classList.remove('show'); strip.innerHTML=''; return; }
+  strip.classList.add('show'); toggle.classList.add('show');
+  // diff against current DOM to minimize rebuilds — same pattern as the roster
+  var curIds=new Set(entries.map(function(e){return e.agent;}));
+  [].slice.call(strip.children).forEach(function(el){
+    if(el.dataset.agent && !curIds.has(el.dataset.agent)){ el.style.opacity='0'; el.style.transform='translateX(-10px)'; setTimeout(function(){el.remove();},220); }
+  });
+  entries.forEach(function(e,i){
+    var el=strip.querySelector('[data-agent="'+esc(e.agent)+'"]');
+    if(!el){ el=document.createElement('div'); el.className='hrow'; el.dataset.agent=e.agent; el.title=e.agent+' — click to expand'; strip.appendChild(el); }
+    el.className='hrow'+(e.stale?' stale':'');
+    el.innerHTML='<span class="hicon">'+(ICON[e.state]||'⚡')+'</span>'+
+      '<span class="hagent '+cls(e.agent)+'">'+esc(e.agent)+'</span>'+
+      '<span class="hverb">'+(VERB[e.state]||e.state)+'</span>'+
+      '<span class="hdetail">'+esc(e.detail)+'</span>'+
+      '<span class="helapsed">'+e.elapsed+'</span>';
+    // click: expand slide deck cards (mini teaching slides)
+    el.onclick=function(ev){ ev.stopPropagation();
+      var was=el.classList.contains('expanded');
+      [].forEach.call(strip.querySelectorAll('.hrow.expanded'),function(r){r.classList.remove('expanded');});
+      if(!was){ showDeck(e.agent); setTarget(e.agent); }
+      else { hideDeck(); }
+    };
+  });
+  // reorder children to match sorted entries
+  entries.forEach(function(e,i){ var el=strip.querySelector('[data-agent="'+esc(e.agent)+'"]'); if(el) strip.appendChild(el); });
+  toggle.textContent=_hudCollapsed?'⌄ expand':'⌃ collapse';
+}
+function toggleHUD(){ _hudCollapsed=!_hudCollapsed; document.getElementById('hud').classList.toggle('collapsed',_hudCollapsed);
+  document.getElementById('hud-toggle').textContent=_hudCollapsed?'⌄ expand':'⌃ collapse'; }
+// click-away closes expanded hud rows + deck
+document.addEventListener('click',function(e){
+  var deck=document.getElementById('deck');
+  document.querySelectorAll('.hrow.expanded').forEach(function(r){r.classList.remove('expanded');});
+  if(deck && deck.classList.contains('show') && !deck.contains(e.target) && !e.target.closest('.hrow')){
+    hideDeck();
+  }
+});
+
+// === slide deck cards (mini teaching slides — click a HUD row to expand) ===
+var _traceBuffer = {};   // {agent: [{kind, text, ts}]} — last 20 traces per agent
+var _deckAgent = null, _deckPage = 0, _deckPaused = false, _deckTimer = null;
+function bufferTrace(from, kind, text){
+  if(!from) return;
+  var buf = _traceBuffer[from] = _traceBuffer[from] || [];
+  buf.push({kind:kind, text:text, ts:new Date().toISOString()});
+  if(buf.length > 20) buf.shift();   // keep last 20 traces
+}
+function buildDeckCards(agent){
+  var buf = _traceBuffer[agent] || [];
+  var act = null;   // current activity from the last /status poll
+  try { act = JSON.parse(JSON.stringify((_lastHudSig ? JSON.parse(_lastHudSig) : {})[agent] || null)); } catch(e){}
+  var cards = [];
+  // Card 1: WHAT — current activity
+  if(act && act.state){
+    var st = act.state, dt = act.detail || '', ic = ICON[st] || '⚡', vb = VERB[st] || st;
+    var elapsed = act.ts ? elapsedHUD(act.ts) : '';
+    cards.push({
+      icon: ic, title: vb.charAt(0).toUpperCase() + vb.slice(1),
+      body: '<b>'+esc(agent)+'</b> is <b>'+esc(vb)+'</b>'+
+        (dt?' <code>'+esc(dt)+'</code>':'')+
+        (elapsed?'<br><span style="color:var(--faint);font-size:11px">'+elapsed+' elapsed</span>':''),
+      result: null
+    });
+  }
+  // Card 2: WHY — most recent thinking traces
+  var thoughts = buf.filter(function(t){ return t.kind === 'thinking' || t.text.indexOf('💭')>=0; }).slice(-3);
+  if(thoughts.length){
+    var thoughtText = thoughts.map(function(t){ return t.text.replace(/^💭\s*/,''); }).join('<br><br>');
+    cards.push({
+      icon: '💭', title: 'Reasoning',
+      body: '<span style="font-style:italic;color:var(--muted)">'+esc(thoughtText.slice(0,300))+'</span>',
+      result: null
+    });
+  }
+  // Card 3: RESULT — most recent tool traces
+  var tools = buf.filter(function(t){ return t.kind === 'tool' || (t.text.indexOf('🔧')>=0 || t.text.indexOf('📖')>=0 || t.text.indexOf('✍️')>=0 || t.text.indexOf('⚙️')>=0); }).slice(-5);
+  if(tools.length){
+    var toolList = tools.map(function(t){ return '<span style="color:var(--faint);font-size:12px">'+esc(t.text.slice(0,120))+'</span>'; }).join('<br>');
+    var resultClass = 'good';   // infer result: if last tool looks successful, mark good
+    cards.push({
+      icon: '✅', title: 'Recent Actions',
+      body: toolList,
+      result: {text: tools.length+' action'+(tools.length>1?'s':'')+' in the last few minutes', cls: resultClass}
+    });
+  }
+  // Fallback: always at least one card
+  if(!cards.length){
+    cards.push({icon:'💤', title:'Idle', body:'<b>'+esc(agent)+'</b> is currently idle — no recent activity.', result:null});
+  }
+  return cards;
+}
+function showDeck(agent){
+  _deckAgent = agent; _deckPage = 0; _deckPaused = false;
+  renderDeck();
+  document.getElementById('deck').classList.add('show');
+  _startDeckTimer();
+  // Highlight the HUD row
+  document.querySelectorAll('.hrow.expanded').forEach(function(r){r.classList.remove('expanded');});
+  var row = document.querySelector('.hrow[data-agent="'+esc(agent)+'"]');
+  if(row) row.classList.add('expanded');
+}
+function hideDeck(){
+  document.getElementById('deck').classList.remove('show');
+  _deckAgent = null; _deckPage = 0;
+  if(_deckTimer){ clearTimeout(_deckTimer); _deckTimer = null; }
+}
+function renderDeck(){
+  var cards = _deckAgent ? buildDeckCards(_deckAgent) : [];
+  var container = document.getElementById('deckCards');
+  var dots = document.getElementById('deckDots');
+  if(!container) return;
+  container.innerHTML = cards.map(function(c,i){
+    var resultHtml = c.result ? '<div class="sc-result '+c.result.cls+'">'+c.result.text+'</div>' : '';
+    return '<div class="slide-card"><div class="sc-head"><span class="sc-icon">'+c.icon+'</span><span class="sc-title">'+esc(c.title)+'</span></div><div class="sc-body">'+c.body+'</div>'+resultHtml+'</div>';
+  }).join('');
+  // dots
+  dots.innerHTML = cards.map(function(_,i){
+    return '<span class="slide-dot'+(i===_deckPage?' active':'')+'" onclick="deckGo('+i+')"></span>';
+  }).join('');
+  // position cards
+  container.style.transform = 'translateX(-' + (_deckPage * 100) + '%)';
+  // prev/next state
+  var prevBtn = document.getElementById('deckPrev'), nextBtn = document.getElementById('deckNext');
+  if(prevBtn) prevBtn.style.opacity = _deckPage === 0 ? '0.3' : '1';
+  if(nextBtn) nextBtn.style.opacity = _deckPage >= cards.length-1 ? '0.3' : '1';
+}
+function deckGo(n){
+  var cards = _deckAgent ? buildDeckCards(_deckAgent) : [];
+  if(n < 0 || n >= cards.length) return;
+  _deckPage = n; renderDeck(); _startDeckTimer();
+}
+function deckNext(){ deckGo(_deckPage + 1); }
+function deckPrev(){ deckGo(_deckPage - 1); }
+function deckTogglePause(){
+  _deckPaused = !_deckPaused;
+  var btn = document.getElementById('deckPause');
+  if(btn){ btn.textContent = _deckPaused ? '▶ play' : '⏸ pause'; btn.classList.toggle('paused', _deckPaused); }
+  if(!_deckPaused) _startDeckTimer(); else if(_deckTimer){ clearTimeout(_deckTimer); _deckTimer = null; }
+}
+function _startDeckTimer(){
+  if(_deckTimer){ clearTimeout(_deckTimer); _deckTimer = null; }
+  if(_deckPaused) return;
+  var cards = _deckAgent ? buildDeckCards(_deckAgent) : [];
+  if(_deckPage < cards.length-1){
+    _deckTimer = setTimeout(function(){ deckNext(); }, 4500);
+  }
+}
+// Intercept trace messages to build the buffer — called from addMsg
+function _captureTrace(msg){
+  var from = msg.from || '';
+  if(!from || from==='system' || from==='user') return;
+  bufferTrace(from, msg.kind||'trace', msg.content||'');
+}
+// Hook into addMsg to capture traces
+var _origAddMsg = addMsg;
+addMsg = function(m){
+  if((m.kind||'chat')==='trace') _captureTrace(m);
+  return _origAddMsg(m);
+};
 
 // --- SSE ---
 function connect(){
@@ -1089,6 +1392,8 @@ function applyStatus(s){
     }
   }
   renderActivity(s.activities||{});
+  renderHUD(s.activities||{});
+  syncAuroraState(paused, Object.keys(s.halted||{}).length);
   // renderRecipient() removed from poll loop — the recipient chip only changes on explicit user action
   // (roster click / setTarget). Calling it every 1.2s was doing getBoundingClientRect() layout thrash.
 }
@@ -1554,6 +1859,87 @@ function noop(){}
 
 // ---- init: apply stored preferences ----
 mountAll();
+
+// ---- Aurora Glass shader integration (progressive enhancement, feature-flagged) ----
+var _auroraShader = null;
+var _auroraEnabled = false;
+function auroraFlagKey(){ return 'bifrost_aurora_shader'; }
+function hudFlagKey(){ return 'bifrost_hud_strip'; }
+function initAurora(){
+  if (!window.AuroraGlass || !window.AuroraGlass.isSupported()) return false;
+  if (_auroraShader) return true;   // already running
+  try {
+    var canvas = document.getElementById('aurora-canvas');
+    if (!canvas) return false;
+    _auroraShader = new window.AuroraGlass.AuroraShader(canvas);
+    _auroraShader.start();
+    // Kill the CSS fallback (body::before conic blur) — the shader is the light bed now
+    var ss = document.createElement('style');
+    ss.id = 'aurora-fallback-hide';
+    ss.textContent = 'body::before{display:none}';
+    document.head.appendChild(ss);
+    _auroraEnabled = true;
+    localStorage.setItem(auroraFlagKey(), '1');
+    return true;
+  } catch(e) { return false; }
+}
+function stopAurora(){
+  if (!_auroraShader) return;
+  _auroraShader.destroy();
+  _auroraShader = null;
+  _auroraEnabled = false;
+  localStorage.setItem(auroraFlagKey(), '0');
+  // Restore the CSS fallback
+  var ss = document.getElementById('aurora-fallback-hide');
+  if (ss) ss.remove();
+}
+function toggleAuroraFlag(){
+  if (_auroraEnabled) stopAurora();
+  else { if (!initAurora()) { toast('aurora shader unavailable — WebGL2 or benchmark required'); return; } }
+  refreshAuroraButtons();
+}
+function refreshAuroraButtons(){
+  var btn = document.getElementById('auroraToggle');
+  var st = document.getElementById('auroraStatus');
+  if (!btn) return;
+  btn.textContent = _auroraEnabled ? 'Disable' : 'Enable';
+  if (st) st.textContent = _auroraEnabled ? 'on — animated aurora active' : 'off — run bench-aurora.html first';
+}
+// Auto-start if previously enabled (user opted in and benchmark passed)
+(function(){
+  var stored = localStorage.getItem(auroraFlagKey());
+  if (stored === '1') { initAurora(); }
+  refreshAuroraButtons();
+})();
+
+// HUD strip feature flag (default ON — pure DOM, no perf risk)
+function toggleHUDFlag(){
+  var hud = document.getElementById('hud');
+  var cur = localStorage.getItem(hudFlagKey()) !== '0';   // default '1' if unset
+  var next = !cur;
+  localStorage.setItem(hudFlagKey(), next ? '1' : '0');
+  if (!next && hud) { hud.classList.remove('show'); }
+  refreshHUDButtons();
+  // Force a re-render on the next poll so the HUD reappears
+  _lastHudSig = null;
+}
+function refreshHUDButtons(){
+  var btn = document.getElementById('hudToggle');
+  var st = document.getElementById('hudStatus');
+  if (!btn) return;
+  var on = localStorage.getItem(hudFlagKey()) !== '0';
+  btn.textContent = on ? 'Disable' : 'Enable';
+  if (st) st.textContent = on ? 'on — pure DOM, no perf cost' : 'off — hidden';
+}
+(function(){ refreshHUDButtons(); })();
+
+// Wire setState into the status loop. Called at the end of applyStatus.
+function syncAuroraState(paused, haltedCount) {
+  if (!_auroraShader) return;
+  if (haltedCount > 0) _auroraShader.setState(2);           // any agent halted -> desaturate
+  else if (paused)     _auroraShader.setState(1);           // global pause -> amber tint
+  else                 _auroraShader.setState(0);           // normal
+}
 </script>
 </body>
 </html>

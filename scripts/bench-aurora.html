@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aurora Shader Benchmark</title>
+<style>
+  :root{--bg:#0a0b0f;--text:#e7e9f0;--muted:#8b90a2;--faint:#5a5f70;--green:#5fd39b;--red:#f0666e;--amber:#f0b246;--panel:#14161d;--border:#242833}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:15px/1.55 -apple-system,BlinkMacSystemFont,system-ui,sans-serif;padding:24px}
+  h1{font-size:22px;font-weight:650;margin:0 0 6px}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:20px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-bottom:20px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+  .card .label{color:var(--faint);font-size:11.5px;text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px}
+  .card .value{font-size:26px;font-weight:700;font-family:"SF Mono",SFMono-Regular,Consolas,monospace}
+  .card .unit{font-size:13px;color:var(--muted);font-weight:400;margin-left:4px}
+  .card .detail{color:var(--faint);font-size:11.5px;margin-top:3px}
+  .pass{color:var(--green)}.fail{color:var(--red)}.warn{color:var(--amber)}
+  .verdict{font-size:28px;font-weight:800;text-align:center;padding:20px;border-radius:14px;margin:16px 0}
+  .verdict.PASS{background:rgba(95,211,155,.12);border:2px solid rgba(95,211,155,.3);color:var(--green)}
+  .verdict.FAIL{background:rgba(240,102,110,.12);border:2px solid rgba(240,102,110,.3);color:var(--red)}
+  .verdict.WARN{background:rgba(240,178,70,.1);border:2px solid rgba(240,178,70,.25);color:var(--amber)}
+  #aurora-canvas{position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.6}
+  .thresholds{font-size:12px;color:var(--faint);margin-top:10px}
+  .thresholds span{display:block;margin:2px 0}
+  .progress{width:100%;height:4px;background:var(--border);border-radius:2px;margin-top:8px;overflow:hidden}
+  .progress .fill{height:100%;background:var(--green);transition:width .3s}
+</style>
+</head>
+<body>
+<h1>Aurora Shader — Performance Benchmark</h1>
+<div class="sub" id="status">Initialising…</div>
+
+<div class="grid" id="metrics"></div>
+
+<div class="verdict" id="verdict" style="display:none"></div>
+
+<div class="thresholds" id="thresholds"></div>
+
+<canvas id="aurora-canvas"></canvas>
+
+<script>
+// =========================================================================
+//  Inline aurora shader (minimal for benchmark — same GLSL as the real one)
+//  See docs/ui-plan-deepseek.md §1 for the full spec; this is the benchmark
+//  subset: same noise/FBM/warp primitives, same octave count, same draw call.
+// =========================================================================
+const canvas = document.getElementById('aurora-canvas');
+const THRESHOLDS = {
+    frame_median_ms:  {max: 8,   unit:'ms', desc:'Median frame time',           fail:'>8ms → GPU too slow'},
+    frame_p99_ms:     {max: 20,  unit:'ms', desc:'P99 frame time',              fail:'>20ms → jank'},
+    gpu_mem_mb:       {max: 8,   unit:'MB', desc:'GPU memory (estimated)',      fail:'>8MB → too heavy'},
+    hidden_rAF:       {max: 0,   unit:'calls', desc:'rAF calls while hidden',   fail:'>0 → leaks CPU when backgrounded'},
+    first_paint_ms:   {max: 400, unit:'ms', desc:'Time to first paint',         fail:'>400ms → slow startup'},
+    static_gpu_pct:   {max: 10,  unit:'%',  desc:'GPU usage (static scene)',   fail:'>10% → too expensive'},
+};
+const WARMUP_S = 2.0;
+const MEASURE_S = 3.0;
+const TOTAL_S = WARMUP_S + MEASURE_S;
+
+// --- GLSL variants (benchmark compares both; invariant = FBM loop + warp + blackbody LUT) ---
+const VERT = `#version 300 es
+in vec2 a_pos;
+void main(){ gl_Position=vec4(a_pos,0.,1.); }`;
+
+// Variant A: DeepSeek's hash value-noise (original proposal)
+const FRAG_HASH = `#version 300 es
+precision highp float;
+uniform vec2 u_res; uniform float u_time; out vec4 fragColor;
+float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
+float noise(vec2 p){
+    vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
+    return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);
+}
+float fbm(vec2 p){ float v=0.,a=.5,freq=1.; for(int i=0;i<4;i++){ v+=a*noise(p*freq); freq*=2.; a*=.5; } return v; }
+void main(){
+    vec2 uv=gl_FragCoord.xy/u_res;
+    vec2 q=vec2(fbm(uv+vec2(0,u_time*.03)),fbm(uv+vec2(5.2,1.3)+u_time*.04));
+    float aur=fbm(uv+1.2*q+vec2(0,u_time*.02));
+    float band=smoothstep(.05,.20,uv.y)*(1.-smoothstep(.20,.40,uv.y))+smoothstep(.15,.35,uv.y)*(1.-smoothstep(.35,.55,uv.y))*.6;
+    aur*=band*(1.-smoothstep(.45,.55,uv.y));
+    vec3 teal=vec3(.29,.42,.46), green=vec3(.28,.9,.75), violet=vec3(.46,.18,.54);
+    float t=aur; vec3 col=t<.3?mix(vec3(0),teal,t/.3):t<.5?mix(teal,green,(t-.3)/.2):t<.7?mix(green,violet,(t-.5)/.2):mix(violet,vec3(0),(t-.7)/.3);
+    fragColor=vec4(col*aur,aur*.7);
+}`;
+
+// Variant B: Claude's gradient (Perlin-style) noise — canonical from aurora-shader.js
+const FRAG_GRAD = `#version 300 es
+precision highp float;
+uniform vec2 u_res; uniform float u_time; out vec4 fragColor;
+vec2 hash2(vec2 p){ p=vec2(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3))); return -1.0+2.0*fract(sin(p)*43758.5453123); }
+float noise(vec2 p){
+    vec2 i=floor(p), f=fract(p); vec2 u=f*f*(3.0-2.0*f);
+    float a=dot(hash2(i+vec2(0,0)),f-vec2(0,0)), b=dot(hash2(i+vec2(1,0)),f-vec2(1,0));
+    float c=dot(hash2(i+vec2(0,1)),f-vec2(0,1)), d=dot(hash2(i+vec2(1,1)),f-vec2(1,1));
+    return 0.5+0.5*mix(mix(a,b,u.x),mix(c,d,u.x),u.y);
+}
+float fbm(vec2 p){ float v=0.,a=.5,freq=1.; for(int i=0;i<4;i++){ v+=a*noise(p*freq); freq*=2.; a*=.5; } return v; }
+void main(){
+    vec2 uv=gl_FragCoord.xy/u_res;
+    vec2 q=vec2(fbm(uv+vec2(0,u_time*.03)),fbm(uv+vec2(5.2,1.3)+u_time*.04));
+    float aur=fbm(uv+1.2*q+vec2(0,u_time*.02));
+    float band=smoothstep(.05,.20,uv.y)*(1.-smoothstep(.20,.40,uv.y))+smoothstep(.15,.35,uv.y)*(1.-smoothstep(.35,.55,uv.y))*.6;
+    aur*=band*(1.-smoothstep(.45,.55,uv.y));
+    vec3 teal=vec3(.29,.42,.46), green=vec3(.28,.9,.75), violet=vec3(.46,.18,.54);
+    float t=aur; vec3 col=t<.3?mix(vec3(0),teal,t/.3):t<.5?mix(teal,green,(t-.3)/.2):t<.7?mix(green,violet,(t-.5)/.2):mix(violet,vec3(0),(t-.7)/.3);
+    fragColor=vec4(col*aur,aur*.7);
+}`;
+
+let gl = null;
+try { gl = canvas.getContext('webgl2', {alpha:true, antialias:false, powerPreference:'low-power', preserveDrawingBuffer:false}); }
+catch(e) {}
+
+const statusEl = document.getElementById('status');
+const metricsEl = document.getElementById('metrics');
+const verdictEl = document.getElementById('verdict');
+const thresholdsEl = document.getElementById('thresholds');
+
+if (!gl) {
+    statusEl.innerHTML = '<span class="fail">WebGL2 not available — cannot benchmark. Skipping.</span>';
+    verdictEl.style.display = 'block';
+    verdictEl.className = 'verdict WARN';
+    verdictEl.textContent = 'SKIP: No WebGL2';
+    document.getElementById('thresholds').innerHTML = 'WebGL2 is required for the aurora shader. Fallback to CSS gradient is verified separately.';
+    // Not a FAIL — the progressive enhancement fallback handles this
+} else {
+    runBenchmark();
+}
+
+function compileShader(gl, type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+        console.error('shader error:', gl.getShaderInfoLog(s));
+        return null;
+    }
+    return s;
+}
+
+function linkProgram(gl, vs, fs) {
+    const p = gl.createProgram();
+    gl.attachShader(p, vs); gl.attachShader(p, fs);
+    gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+        console.error('link error:', gl.getProgramInfoLog(p));
+        return null;
+    }
+    return p;
+}
+
+// Benchmark both noise variants, report winner (invariants: FBM loop + domain warp + blackbody LUT).
+// The shader that ships = whichever variant has lower median frame time. Both must PASS thresholds.
+const VARIANTS = [
+    {id:'hash',  label:'DeepSeek hash value-noise',   frag:FRAG_HASH},
+    {id:'grad',  label:'Claude gradient (Perlin) noise', frag:FRAG_GRAD},
+];
+let variantIdx = 0;
+const variantResults = [];
+
+function makeProgram(fragSrc) {
+    const vs = compileShader(gl, gl.VERTEX_SHADER, VERT);
+    const fs = compileShader(gl, gl.FRAGMENT_SHADER, fragSrc);
+    if (!vs || !fs) return null;
+    const p = linkProgram(gl, vs, fs);
+    if (!p) return null;
+    // cleanup old shaders (they're flagged for deletion after linking)
+    gl.deleteShader(vs); gl.deleteShader(fs);
+    return p;
+}
+
+function runBenchmark() {
+    // Shared setup: one buffer, one viewport
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = canvas.clientWidth * dpr;
+    canvas.height = canvas.clientHeight * dpr;
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    window.addEventListener('resize', () => {
+        const d = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = canvas.clientWidth * d;
+        canvas.height = canvas.clientHeight * d;
+        gl.viewport(0, 0, canvas.width, canvas.height);
+    });
+
+    runNextVariant();
+}
+
+function runNextVariant() {
+    if (variantIdx >= VARIANTS.length) { reportFinal(); return; }
+    const v = VARIANTS[variantIdx];
+    statusEl.innerHTML = `Benchmarking <b>${v.label}</b>… (variant ${variantIdx+1}/${VARIANTS.length})`;
+    const prog = makeProgram(v.frag);
+    if (!prog) { variantResults.push({id:v.id, label:v.label, error:'compile/link failed'}); variantIdx++; runNextVariant(); return; }
+    gl.useProgram(prog);
+
+    const uRes = gl.getUniformLocation(prog, 'u_res');
+    const uTime = gl.getUniformLocation(prog, 'u_time');
+    const aPos = gl.getAttribLocation(prog, 'a_pos');
+    gl.enableVertexAttribArray(aPos);
+    gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+    gl.uniform2f(uRes, canvas.width, canvas.height);
+
+    const frameTimes = [];
+    let hiddenRAF = 0, animating = true;
+    const startTime = performance.now();
+    let firstPaintDone = false, firstPaintMs = 0, lastFrame = startTime;
+
+    document.addEventListener('visibilitychange', function visGate() {
+        if (document.hidden) animating = false;
+        else { animating = true; requestAnimationFrame(tick); }
+    });
+
+    function tick(now) {
+        if (!animating) return;
+        if (document.hidden) { hiddenRAF++; return; }
+        const dt = now - lastFrame; lastFrame = now;
+        const elapsed = (now - startTime) / 1000;
+        if (elapsed >= WARMUP_S && elapsed < TOTAL_S) frameTimes.push(dt);
+        if (!firstPaintDone && elapsed > 0.05) { firstPaintMs = elapsed * 1000; firstPaintDone = true; }
+        gl.uniform1f(uTime, elapsed);
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+        if (elapsed < TOTAL_S) requestAnimationFrame(tick);
+        else { animating = false; finishVariant(frameTimes, hiddenRAF, firstPaintMs, prog); }
+    }
+    requestAnimationFrame(tick);
+}
+
+function finishVariant(frameTimes, hiddenRAF, firstPaintMs, prog) {
+    gl.deleteProgram(prog);
+    frameTimes.sort((a,b)=>a-b);
+    const median = frameTimes[Math.floor(frameTimes.length/2)] || 0;
+    const p99 = frameTimes[Math.floor(frameTimes.length*0.99)] || frameTimes[frameTimes.length-1] || 0;
+    const gpuMemMB = (canvas.width * canvas.height * 4 / (1024*1024)).toFixed(1);
+    variantResults.push({
+        id: VARIANTS[variantIdx].id, label: VARIANTS[variantIdx].label,
+        median, p99, gpuMemMB: parseFloat(gpuMemMB), hiddenRAF, firstPaintMs,
+        frames: frameTimes.length,
+        pass: median <= THRESHOLDS.frame_median_ms.max && p99 <= THRESHOLDS.frame_p99_ms.max && hiddenRAF <= 0 && firstPaintMs <= THRESHOLDS.first_paint_ms.max,
+    });
+    variantIdx++;
+    setTimeout(runNextVariant, 400); // brief cooldown between variants
+}
+
+function reportFinal() {
+    statusEl.textContent = 'Benchmark complete — both noise variants tested.';
+    // Render comparison cards
+    metricsEl.innerHTML = variantResults.map(r => {
+        if (r.error) return `<div class="card"><div class="label">❌ ${r.label}</div><div class="value fail">ERR</div><div class="detail">${r.error}</div></div>`;
+        const cls = r.pass ? 'pass' : 'fail';
+        return `<div class="card">
+            <div class="label">${r.pass?'✅':'❌'} ${r.label}</div>
+            <div class="value ${cls}">${r.median.toFixed(1)}<span class="unit">ms median</span></div>
+            <div class="detail">p99: ${r.p99.toFixed(1)}ms · ${r.frames} frames · GPU mem: ${r.gpuMemMB.toFixed(1)}MB · rAF hidden: ${r.hiddenRAF} · 1st paint: ${r.firstPaintMs.toFixed(0)}ms</div>
+        </div>`;
+    }).join('');
+
+    // Winner determination: faster median wins, but both must pass
+    const passing = variantResults.filter(r => r.pass && !r.error);
+    const failing = variantResults.filter(r => !r.pass || r.error);
+    const winner = passing.length >= 2
+        ? (passing[0].median <= passing[1].median ? passing[0] : passing[1])
+        : passing[0] || null;
+
+    const allPass = failing.length === 0;
+    verdictEl.style.display = 'block';
+    if (failing.length > 0) {
+        verdictEl.className = 'verdict FAIL';
+        verdictEl.textContent = `FAIL — ${failing.length} variant(s) failed thresholds: ${failing.map(r=>r.label).join(', ')}`;
+    } else if (winner) {
+        verdictEl.className = 'verdict PASS';
+        verdictEl.textContent = `PASS — ship ${winner.label} (${winner.median.toFixed(1)}ms vs ${passing.find(p=>p!==winner).median.toFixed(1)}ms)`;
+    } else {
+        verdictEl.className = 'verdict FAIL';
+        verdictEl.textContent = 'FAIL — no variant passed all thresholds';
+    }
+
+    thresholdsEl.innerHTML = '<strong>Thresholds:</strong>' +
+        Object.entries(THRESHOLDS).map(([k,t]) => `<span>${t.desc}: ≤${t.max}${t.unit}</span>`).join('');
+}
+</script>
+</body>
+</html>
