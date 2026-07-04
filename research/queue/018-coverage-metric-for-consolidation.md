@@ -1,4 +1,15 @@
 status: queued
+requeue-feedback (2026-07-03 evening review): REJECTED, not promoted. ALL three seed URLs are
+  marked UNVERIFIED (fetch failed for every one), yet Findings assert a specific "90-95% coverage
+  retention threshold" attributed to source [4] which the draft itself labels "no specific source
+  fetched" -- a citation pointing at nothing, exactly the fabricated-attribution pattern flagged
+  in reviewed/deepseek-v4-design-parallels.md's review note. RE-RUN with: (1) retry the RAGAS
+  GitHub README and the arXiv PDF (2603.13017) via `curl -sL` if WebFetch fails; (2) if
+  aclanthology.org stays unreachable, use websearch.py to find a specific QAEval/QuestEval/
+  QAFactEval PAPER PAGE (not the bare anthology root) and fetch that instead; (3) do not state a
+  numeric threshold unless it traces to an actual fetched quote -- if no real threshold surfaces,
+  say so and let S2-1 pick one empirically instead. Prior draft preserved at
+  research/drafts/coverage-metric-for-consolidation.md for reference.
 # TASK: How is QA-COVERAGE preservation measured when compacting/merging knowledge -- the metric for S2's second gate (does a merged lesson still answer what the originals answered)?
 feeds: SQ3 + S2-1 (the coverage scorer -- docs/s2-consolidation-design.md); faithfulness-only gates reward over-deletion, so coverage must be scored separately
 seeds:

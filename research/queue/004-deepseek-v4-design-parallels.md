@@ -1,4 +1,6 @@
-status: queued
+status: complete
+# reviewed: research/reviewed/deepseek-v4-design-parallels.md (2026-07-03) -- accepted, confidence
+#   claim corrected (see the review note in the reviewed file: an unfetched source was cited)
 # TASK: How is DeepSeek V4 designed and built, and which of its design choices parallel Akashic Aurora's architecture?
 feeds: SQ3+SQ5 (architecture adoption candidates from DeepSeek V4)
 seeds:

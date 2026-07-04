@@ -1,4 +1,8 @@
 status: queued
+# infra-note (2026-07-03 evening review): TIMEOUT with a completely EMPTY session log (0 bytes
+#   stdout+stderr for the full 35m) -- the headless process produced no output at all, an infra
+#   hang not a content problem. See runlog-2026-07-03.md; 6 of 12 shift tasks hit this pattern.
+#   Requeued as-is. Next shift: OLLAMA_KEEP_ALIVE set longer before relaunch (see where-we-are).
 # TASK: How do you get RELIABLE structured output (valid JSON / schema adherence) from SMALL local models, and which technique fits our Ollama fleet + the fleet caller's fmt=json?
 feeds: SQ5 (fleet power) + hardens core/fleet.call(fmt=...) -- R013 finding 7: small models emit 0% USABLE json under naive prompting
 seeds:

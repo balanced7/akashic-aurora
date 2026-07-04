@@ -1,4 +1,4 @@
-status: queued
+status: done
 # TASK: What exactly does MemoryArena (arXiv 2602.16313) replay, with which metrics, and where are the gaps our Ledger Replay Bench can differentiate on?
 seeds:
 - https://arxiv.org/abs/2602.16313
@@ -13,3 +13,8 @@ escalation (2026-07-03 review): 2x timeout -- arxiv paper reading exceeds local 
   budget. ESCALATED TO FRONTIER: fold into the Wave B design session together with the
   CMI methodology (already frontier-fetched, see reviewed/cmi-counterfactual-method.md).
   Not requeued to the fleet.
+correction (2026-07-03 evening review): this got re-queued to the fleet by mistake
+  (bulk re-queue of a stale "failed" status, without reading the escalation above first).
+  Today's fleet re-run reproduced only the same abstract-level gap already known -- adds
+  nothing new. Disposition UNCHANGED: still escalated to frontier / Wave B docket; do NOT
+  requeue to the fleet again.

@@ -1,4 +1,8 @@
 status: queued
+# infra-note (2026-07-03 evening review): TIMEOUT with a completely EMPTY session log (0 bytes
+#   stdout+stderr for the full 35m) -- the headless process produced no output at all, an infra
+#   hang not a content problem. See runlog-2026-07-03.md; 6 of 12 shift tasks hit this pattern.
+#   Requeued as-is. Next shift: OLLAMA_KEEP_ALIVE set longer before relaunch (see where-we-are).
 # TASK: Can MoE expert-placement tuning (experts in RAM, attention on GPU) speed up 19-21GB MoE models on a 16GB-VRAM / 64GB-RAM box, and does Ollama expose it?
 feeds: SQ5 (fleet throughput -- the CPU/GPU split is the current bottleneck for the 30B-MoE class)
 seeds:

@@ -1,4 +1,7 @@
 status: queued
+# infra-note (2026-07-03 evening review): FAILED (thin/missing draft), partial 36-byte session
+#   log -- started, then stalled with no draft written. Same family as the 6 empty-log timeouts
+#   this shift (see runlog-2026-07-03.md). Requeued as-is; not a content problem.
 # TASK: What UNCONVENTIONAL / clever compact models (specialists, not generalist chat minis) make a local fleet more powerful per GB -- and what is the subtask -> model CAPABILITY MAP for composing them?
 feeds: SQ5 (fleet power-per-GB) + the fleet-dispatch layer (this is the router's evidence base) -- complements R013 (mainstream generalist survey) with the SPECIALIST long tail
 seeds:

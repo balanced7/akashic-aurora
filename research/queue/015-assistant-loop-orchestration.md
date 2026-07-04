@@ -1,4 +1,8 @@
 status: queued
+# infra-note (2026-07-03 evening review): TIMEOUT with a completely EMPTY session log (0 bytes
+#   stdout+stderr for the full 35m) -- the headless process produced no output at all, an infra
+#   hang not a content problem. See runlog-2026-07-03.md; 6 of 12 shift tasks hit this pattern.
+#   Requeued as-is. Next shift: OLLAMA_KEEP_ALIVE set longer before relaunch (see where-we-are).
 # TASK: How should the thinnest talkable ASSISTANT LOOP be orchestrated -- hotkey/wake -> local STT -> route(local vs frontier) with akashic-memory injection -> stream -> TTS -- and how do open local assistants structure turn-taking, barge-in, and local/frontier routing?
 feeds: A-series A0 (the talkable loop assembly -- 011 covers STT/TTS COMPONENTS, this covers the LOOP + routing) + consumes R013's small-model findings for the router/local leg
 seeds:

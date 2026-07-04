@@ -1,4 +1,5 @@
-status: queued
+status: done
+# reviewed: research/reviewed/screenspace-tool-stack.md (2026-07-03) -- accepted as-is, strongest draft of the shift
 # TASK: What is the proven open-source stack for Windows screenspace tools (see screen, read it, act on it) callable from a Python agent?
 feeds: A-series (assistant layer -- screenspace capability; user end-goal revealed 2026-07-03)
 seeds:

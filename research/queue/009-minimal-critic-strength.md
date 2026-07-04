@@ -1,4 +1,8 @@
 status: queued
+# infra-note (2026-07-03 evening review): TIMEOUT with a completely EMPTY session log (0 bytes
+#   stdout+stderr for the full 35m) -- the headless process produced no output at all, an infra
+#   hang not a content problem. See runlog-2026-07-03.md; 6 of 12 shift tasks hit this pattern.
+#   Requeued as-is. Next shift: OLLAMA_KEEP_ALIVE set longer before relaunch (see where-we-are).
 # TASK: What evidence exists on the minimal model strength at which a critic still adds value against a stronger generator?
 feeds: SQ2+SQ5 (can a 7B local critic usefully check a frontier generator?)
 seeds:

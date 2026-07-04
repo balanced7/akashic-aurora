@@ -44,6 +44,10 @@ if ($LASTEXITCODE -ne 0) { Write-Error "day pre-flight failed -- fix the local s
 
 # --- env for the headless workers (children inherit; mirrors launch_local_agent.ps1) ----
 $env:OLLAMA_HOST = "127.0.0.1:$Port"
+$env:OLLAMA_KEEP_ALIVE = "30m"    # default keep_alive is 5m; an idle gap between back-to-back
+                                  # research tasks must never force a mid-shift model reload
+                                  # (2026-07-03: 6 of 12 shift tasks hit an empty-log hang -- this
+                                  # doesn't prove the cause, but it's a cheap, safe mitigation)
 Remove-Item Env:ANTHROPIC_API_KEY -ErrorAction SilentlyContinue
 $env:ANTHROPIC_BASE_URL = "http://127.0.0.1:$Port"
 $env:ANTHROPIC_AUTH_TOKEN = "ollama"

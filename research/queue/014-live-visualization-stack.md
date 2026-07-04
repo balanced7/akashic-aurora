@@ -1,4 +1,8 @@
 status: queued
+# infra-note (2026-07-03 evening review): TIMEOUT with a completely EMPTY session log (0 bytes
+#   stdout+stderr for the full 35m) -- the headless process produced no output at all, an infra
+#   hang not a content problem. See runlog-2026-07-03.md; 6 of 12 shift tasks hit this pattern.
+#   Requeued as-is. Next shift: OLLAMA_KEEP_ALIVE set longer before relaunch (see where-we-are).
 # TASK: What is the best local, always-on stack to VISUALIZE the live knowledge state (narrative spine, recall funnel, codex projections) in real time -- the uniquely-ours A1 slice?
 feeds: A-series A1 (live visualization -- nobody else can visualize outcome-credited memory; portfolio gold + the assistant's "mind on screen")
 seeds:

@@ -1,4 +1,8 @@
 status: queued
+# infra-note (2026-07-03 evening review): TIMEOUT with a completely EMPTY session log (0 bytes
+#   stdout+stderr for the full 35m) -- the headless process produced no output at all, an infra
+#   hang not a content problem. See runlog-2026-07-03.md; 6 of 12 shift tasks hit this pattern.
+#   Requeued as-is. Next shift: OLLAMA_KEEP_ALIVE set longer before relaunch (see where-we-are).
 # TASK: What is the best local voice I/O stack (STT + TTS) for a Windows assistant on our hardware, and what latency is realistic?
 feeds: A-series (assistant layer -- voice loop feasibility; user end-goal revealed 2026-07-03)
 seeds:
