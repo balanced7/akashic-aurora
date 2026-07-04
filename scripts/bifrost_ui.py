@@ -685,9 +685,30 @@ PAGE = r"""<!doctype html>
     background:rgba(8,9,13,.82); backdrop-filter:blur(4px)}
   #drop.show{display:grid; animation:fade .15s ease}
   .dz{border:2.5px dashed var(--accent); border-radius:18px; padding:52px 74px; text-align:center;
-    background:rgba(122,162,247,.06)}
+    background:rgba(122,162,247,.06); transition:border-color .2s,background .2s}
+  .dz.over{border-color:var(--aurora-neon, #48e6bf); background:rgba(72,230,191,.08);
+    box-shadow:0 0 40px rgba(72,230,191,.1)}
   .dz .big{font-size:20px; font-weight:650; margin-bottom:5px}
   .dz .sub{color:var(--muted); font-size:13px}
+  .dz .preview{display:none; margin-top:16px; max-width:320px; max-height:180px; border-radius:10px;
+    border:1px solid var(--border); object-fit:contain}
+  .dz .preview.show{display:block; margin-left:auto; margin-right:auto}
+  .dz .filenames{display:none; margin-top:10px; font-size:12px; color:var(--faint);
+    font-family:"SF Mono",SFMono-Regular,Consolas,monospace}
+  .dz .filenames.show{display:block}
+  /* inline file card in the message log */
+  .filecard{display:flex; align-items:center; gap:10px; margin:6px 0; padding:10px 14px;
+    background:var(--panel); border:1px solid var(--border); border-radius:12px;
+    transition:.15s; cursor:pointer; max-width:420px}
+  .filecard:hover{background:var(--glass-hi); border-color:var(--accent)}
+  .filecard .fc-icon{font-size:22px; flex:none}
+  .filecard .fc-info{flex:1; min-width:0}
+  .filecard .fc-name{font-weight:600; font-size:13px; color:var(--text);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .filecard .fc-meta{font-size:11px; color:var(--faint); margin-top:1px}
+  .filecard .fc-thumb{flex:none; width:48px; height:48px; border-radius:8px;
+    object-fit:cover; border:1px solid var(--border)}
+  .filecard .fc-thumb.hidden{display:none}
   /* toast */
   #toast{position:fixed; bottom:92px; left:50%; transform:translateX(-50%); z-index:30; display:flex; flex-direction:column; gap:8px}
   .toast{background:var(--panel2); border:1px solid var(--border); color:var(--text); padding:9px 15px;
@@ -932,7 +953,7 @@ PAGE = r"""<!doctype html>
     <div class="hint" id="fidhint">↳ Inform = adopt next turn · Steer = fold into current task (no stop) · Interrupt = drop &amp; switch · ⏸ Pause = freeze everyone</div>
   </div>
 </div>
-<div id="drop"><div class="dz"><div class="big">Drop files to share</div><div class="sub">saved into the project · agents can read them with their tools</div></div></div>
+<div id="drop"><div class="dz" id="dropZone"><div class="big">Drop files to share</div><div class="sub">saved into the project · agents can read them with their tools<br><span style="color:var(--faint);font-size:11px;margin-top:4px;display:inline-block">also: Ctrl+V to paste images from clipboard</span></div><img class="preview" id="dropPreview"><div class="filenames" id="dropFilenames"></div></div></div>
 <div id="toast"></div>
 <div id="viz-ctl">
   <button onclick="vizPrev()" title="previous card (←)">◀</button>
@@ -1466,35 +1487,119 @@ function applyStatus(s){
 async function poll(){ try{ applyStatus(await (await fetch('/status')).json()); }catch(e){} }
 poll(); setInterval(poll, 1200);
 
-// --- drag & drop ---
-const drop=document.getElementById('drop'); let dragc=0;
-window.addEventListener('dragenter', e=>{ e.preventDefault(); dragc++; drop.classList.add('show'); });
-window.addEventListener('dragover', e=>{ e.preventDefault(); });
-window.addEventListener('dragleave', e=>{ dragc=Math.max(0,dragc-1); if(!dragc) drop.classList.remove('show'); });
-window.addEventListener('drop', async e=>{
-  e.preventDefault(); dragc=0; drop.classList.remove('show');
-  const files=[...(e.dataTransfer.files||[])];
-  for(const f of files){ await upload(f); }
+// --- drag & drop + clipboard paste ---
+const drop=document.getElementById('drop'); const dropZone=document.getElementById('dropZone');
+const dropPreview=document.getElementById('dropPreview'); const dropFilenames=document.getElementById('dropFilenames');
+let dragc=0, _dragFiles=[];
+function showDropZone(files){
+  dragc++; drop.classList.add('show');
+  _dragFiles = files||[];
+  // Show preview for images
+  if(_dragFiles.length===1 && _dragFiles[0].type.startsWith('image/')){
+    var r=new FileReader();
+    r.onload=function(){ dropPreview.src=r.result; dropPreview.classList.add('show'); dropFilenames.textContent=_dragFiles[0].name; dropFilenames.classList.add('show'); };
+    r.readAsDataURL(_dragFiles[0]);
+  } else if(_dragFiles.length>0){
+    dropPreview.classList.remove('show');
+    dropFilenames.textContent=_dragFiles.map(function(f){return f.name;}).join(', ');
+    dropFilenames.classList.add('show');
+  }
+  if(dropZone) dropZone.classList.add('over');
+}
+function hideDropZone(){
+  dragc=Math.max(0,dragc-1);
+  if(!dragc){
+    drop.classList.remove('show'); dropPreview.classList.remove('show');
+    dropFilenames.classList.remove('show'); _dragFiles=[];
+    if(dropZone) dropZone.classList.remove('over');
+  }
+}
+window.addEventListener('dragenter', function(e){ e.preventDefault(); showDropZone([...(e.dataTransfer.files||[])]); });
+window.addEventListener('dragover', function(e){ e.preventDefault(); });
+window.addEventListener('dragleave', function(e){ hideDropZone(); });
+window.addEventListener('drop', async function(e){
+  e.preventDefault(); var files=[...(e.dataTransfer.files||[])]; hideDropZone();
+  for(var i=0;i<files.length;i++){ await upload(files[i]); }
+});
+// Clipboard paste: Ctrl+V / Cmd+V anywhere on the page (not inside textarea/input)
+window.addEventListener('paste', function(e){
+  if(e.target.tagName==='TEXTAREA' || e.target.tagName==='INPUT') return; // don't steal from composer
+  var items = (e.clipboardData||{}).items;
+  if(!items) return;
+  var handled=false;
+  for(var i=0;i<items.length;i++){
+    var item=items[i];
+    if(item.kind==='file'){
+      var f=item.getAsFile();
+      if(f){ handled=true; upload(f); }   // fire-and-forget
+    }
+  }
+  if(handled) e.preventDefault();  // prevent browser from doing default paste (e.g. navigating to file URL)
 });
 function upload(file){
-  return new Promise(res=>{
-    const r=new FileReader();
-    r.onload=async()=>{
+  return new Promise(function(res){
+    var r=new FileReader();
+    r.onload=async function(){
       try{
-        const resp=await fetch('/upload',{method:'POST',headers:{'Content-Type':'application/json'},
+        var resp=await fetch('/upload',{method:'POST',headers:{'Content-Type':'application/json'},
           body:JSON.stringify({name:file.name, content_b64:r.result})});
-        const j=await resp.json();
-        toast(j.ok? ('shared '+file.name+' → '+j.path) : ('upload failed: '+(j.error||'?')));
+        var j=await resp.json();
+        if(j.ok){
+          // Render an inline file card in the message log
+          renderFileCard({
+            name: file.name,
+            path: j.path,
+            bytes: j.bytes,
+            type: file.type,
+            thumb: file.type.startsWith('image/') ? r.result : null
+          });
+          toast('📎 shared '+file.name+' → dropbox/');
+        } else {
+          toast('upload failed: '+(j.error||'?'));
+        }
       }catch(e){ toast('upload failed'); }
       res();
     };
     r.readAsDataURL(file);
   });
 }
+// Render an inline file card in the message log (like a chat bubble for files)
+function renderFileCard(info){
+  var icon=fileIcon(info.type||'', info.name||'');
+  var size=formatBytes(info.bytes||0);
+  var card=document.createElement('div'); card.className='filecard';
+  var thumbHtml=info.thumb?'<img class="fc-thumb" src="'+esc(info.thumb)+'" loading="lazy">':'<div class="fc-thumb hidden"></div>';
+  card.innerHTML=thumbHtml+
+    '<div class="fc-icon">'+icon+'</div>'+
+    '<div class="fc-info"><div class="fc-name">'+esc(info.name||'file')+'</div><div class="fc-meta">'+size+' · dropbox/</div></div>';
+  // Click: open the file path (show toast with full path)
+  card.title='dropbox/'+(info.name||'file')+' — ' + size;
+  card.onclick=function(){ toast('📂 dropbox/'+(info.name||'file')); };
+  log.appendChild(card);
+  autoscroll();
+  // Also send as a regular user message so it appears like a chat bubble
+  // (the file card IS the visual — the backend broadcast already happened in _upload)
+  allMsgs.push({kind:'chat',from:'user',content:'📎 shared **'+esc(info.name||'file')+'** ('+size+') → `dropbox/`',ts:new Date().toISOString()});
+}
+function fileIcon(type, name){
+  if(type.startsWith('image/')) return '🖼️';
+  if(type.startsWith('video/')) return '🎬';
+  if(type.startsWith('audio/')) return '🎵';
+  if(type.includes('pdf')) return '📄';
+  if(type.includes('zip')||type.includes('tar')||type.includes('gzip')) return '📦';
+  var ext=(name||'').split('.').pop().toLowerCase();
+  var map={py:'🐍', js:'📜', ts:'📘', json:'📋', md:'📝', html:'🌐', css:'🎨', sql:'🗄️', sh:'⚡', yaml:'⚙️', yml:'⚙️', toml:'⚙️', txt:'📃', csv:'📊', log:'📋', key:'🔑', pem:'🔐', png:'🖼️', jpg:'🖼️', jpeg:'🖼️', gif:'🖼️', svg:'🖼️', webp:'🖼️', mp4:'🎬', mov:'🎬', mp3:'🎵', wav:'🎵', pdf:'📄', zip:'📦', gz:'📦', tar:'📦'};
+  return map[ext]||'📎';
+}
+function formatBytes(b){
+  if(b<1024) return b+' B';
+  if(b<1048576) return (b/1024).toFixed(1)+' KB';
+  return (b/1048576).toFixed(1)+' MB';
+}
 function toast(msg){
-  const t=document.createElement('div'); t.className='toast'; t.textContent=msg;
+  var t=document.createElement('div'); t.className='toast'; t.textContent=msg;
   document.getElementById('toast').appendChild(t);
-  setTimeout(()=>{ t.style.opacity='0'; setTimeout(()=>t.remove(),300); }, 3200);
+  setTimeout(function(){ t.style.opacity='0'; setTimeout(function(){t.remove();},300); }, 3200);
 }
 
 // --- launcher panel ---
