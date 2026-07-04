@@ -3,6 +3,10 @@ status: queued
 #   stdout+stderr for the full 35m) -- the headless process produced no output at all, an infra
 #   hang not a content problem. See runlog-2026-07-03.md; 6 of 12 shift tasks hit this pattern.
 #   Requeued as-is. Next shift: OLLAMA_KEEP_ALIVE set longer before relaunch (see where-we-are).
+# stopped mid-run (2026-07-03 23:1x, user request): the evening shift was cancelled by the user
+#   before this task finished -- another Claude session is actively wiring in DeepSeek work, and
+#   blindly re-running the same 6-timeout batch wasn't a smart use of the box. Left status=queued
+#   (was killed mid-flight while status=running); no draft was produced this attempt.
 # TASK: What evidence exists on the minimal model strength at which a critic still adds value against a stronger generator?
 feeds: SQ2+SQ5 (can a 7B local critic usefully check a frontier generator?)
 seeds:
