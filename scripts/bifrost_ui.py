@@ -916,13 +916,16 @@ async function send(){
     }
     toast(ok ? (FIDLABEL[fidelity]||'sent')+' → '+(isAll?'all':ids.join(', ')) : 'send failed — bus offline?');
   }catch(e){ toast('send failed — bus offline?'); }
-  // Fire a negotiation round so agents can declare plans before starting work
-  if(fidelity === 'inform' || fidelity === 'chat'){
+  // Smart negotiation: coordinate only when a collision is actually possible, speak only
+  // when it finds one. A round fires only if >=2 agents are online (one agent can't collide),
+  // and the verdict is surfaced only when it's amber/red (a real scope conflict). Green rounds
+  // close silently -- coordination is a background safety net, not a per-message nag.
+  // (inform/chat only; steer/interrupt/halt are already explicit, targeted acts.)
+  if((fidelity === 'inform' || fidelity === 'chat') && _onlineAgents.length >= 2){
     fetch('/negotiate',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({text})}).then(r => r.json()).then(v => {
-      if(v && v.verdict){
-        const colors = {green:'#5fd39b', amber:'#f0b246', red:'#f0666e'};
-        const emoji = {green:'✅', amber:'⚠️', red:'🛑'};
+      if(v && v.verdict && v.verdict !== 'green'){
+        const emoji = {amber:'⚠️', red:'🛑'};
         toast((emoji[v.verdict]||'') + ' Round: ' + v.verdict + ' — ' + (v.reason||''));
       }
     }).catch(()=>{});
@@ -931,6 +934,7 @@ async function send(){
 
 // --- Slice 2: animated recipient selector (state = who you're messaging; last-messaged persists) ---
 var _recips = ['all'];                          // ['all'] (broadcast) or a list of agent ids
+var _onlineAgents = [];                         // bus agents currently online (excludes 'user'); gates the smart negotiation round
 function _aiRoster(){                            // AI agents in the hidden target select (excludes 'all')
   var t=document.getElementById('target'); if(!t) return [];
   return [].map.call(t.options,function(o){return o.value;}).filter(function(v){return v!=='all';});
@@ -1039,6 +1043,7 @@ function applyStatus(s){
     : '⏸ Paused — the agents are frozen. Type below to interject, then Resume.';
   // dynamic roster: UNION of ACL-registered + currently-online agents.
   const agents=(s.agents||[]).map(a=>a.agent).filter(Boolean);
+  _onlineAgents = agents.slice();               // stash for send()'s smart-negotiation gate
   const known=s.known||[];
   const roster=[...new Set([...known, ...agents, 'user'])];
   const sig=s.signals||{};
