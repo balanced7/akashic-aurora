@@ -1,0 +1,656 @@
+"""
+deepseek_chat -- an interactive, TOOL-USING conversation with DeepSeek, in its own window.
+
+This is not a chat wrapper: DeepSeek gets a real agentic loop. It can read your files, list and
+search the tree, inspect git history, and query Akashic Aurora's own knowledge base -- then chain
+those calls (read -> search -> read -> synthesize) with no paste-back, exactly like a code agent.
+It holds the full conversation, so you can follow up and it remembers the thread.
+
+  py scripts/deepseek_chat.py                        # agentic, deepseek-v4-pro, thinking on
+  py scripts/deepseek_chat.py --allow-exec           # also let DeepSeek run shell cmds (per-call y/N)
+  py scripts/deepseek_chat.py --trust                # full autonomy: shell/exec auto-approved
+  py scripts/deepseek_chat.py --root E:\\AI-Setup --no-think
+
+Key: env DEEPSEEK_API_KEY, else the gitignored .secrets/deepseek.key. OpenAI-compatible API, so this
+uses the `openai` client pointed at api.deepseek.com. deepseek-v4-pro = smartest (1M context).
+
+TOOLS exposed to DeepSeek (read-only ones run automatically; the loop chains them):
+  read_file · list_directory · find_files · search_files · git_log · git_diff · git_show ·
+  git_status · knowledge_recall · knowledge_boot · run_command(gated) · web_search(best-effort)
+
+SAFETY (a remote model is driving your machine -- guards live in this harness, not in the prompt):
+  * File access is scoped to --root (default: this repo). Paths outside it are refused.
+  * Secrets are ALWAYS blocked: .secrets/, *.key/*.pem/*.crt, .env, id_rsa, credentials
+    (override only with --allow-secrets, which you should almost never do).
+  * run_command is OFF unless --allow-exec; then each command needs your [y/N] -- unless --trust.
+  * Everything is capped (file bytes, match counts, tool rounds) to bound tokens/cost.
+
+In-chat commands:
+  /exit /quit        end          /reset            clear thread (keep system prompt)
+  /system <text>     set system   /think [on|off]   toggle reasoning display
+  /model <name>      v4-pro|v4-flash                /tools [on|off]   toggle tool use
+  /trust [on|off]    auto-approve shell/exec        /exec [on|off]    enable/disable run_command
+  /root [<path>]     show/set file-access root      /temp <float>     sampling temperature
+  /max <int>         max output tokens              /json [on|off]    JSON response mode (tools off)
+  /paste             multi-line input (end: /end)   /save|/load <p>   persist the conversation
+  /tokens            usage this session             /help             this list
+
+NOTE: everything (files, command output, KB results) is sent to DeepSeek's API. Don't widen --root or
+--allow-secrets over anything you would not share with DeepSeek.
+"""
+from __future__ import annotations
+
+import argparse
+import fnmatch
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+KEY_FILE = Path(__file__).resolve().parent.parent / ".secrets" / "deepseek.key"
+REPO_ROOT = Path(__file__).resolve().parent.parent
+BASE_URL = "https://api.deepseek.com"
+PRO, FLASH = "deepseek-v4-pro", "deepseek-v4-flash"
+
+# Dirs never worth walking (vendored / caches / heavy data) -- keeps search fast and tokens bounded.
+EXCLUDE_DIRS = {
+    ".git", "__pycache__", ".venv", "venv", "node_modules", "backups", "ComfyUI-Zluda", "assets",
+    "model_cache", "ollama_data", "rocm-lib", ".pytest_cache", ".mypy_cache", "blobs", "dist", "build",
+    "models", "dockerized-ai", "_archive",
+}
+BINARY_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".pdf", ".zip", ".gz", ".exe", ".dll", ".so",
+                   ".bin", ".pyc", ".ico", ".woff", ".woff2", ".ttf", ".mp4", ".wav", ".npy", ".pkl"}
+MAX_FILE_BYTES = 120_000
+MAX_MATCHES = 120
+MAX_LIST = 400
+MAX_CMD_OUT = 16_000
+MAX_TOOL_ROUNDS = 30
+
+
+# ---- terminal helpers -------------------------------------------------------
+
+def _enable_utf8_and_ansi() -> bool:
+    for stream in (sys.stdout, sys.stdin, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
+        except Exception:
+            pass
+    try:
+        color = sys.stdout.isatty()
+    except Exception:
+        color = False
+    if color and os.name == "nt":
+        try:
+            import ctypes
+            k = ctypes.windll.kernel32
+            k.SetConsoleMode(k.GetStdHandle(-11), 7)  # ENABLE_VIRTUAL_TERMINAL_PROCESSING
+        except Exception:
+            color = False
+    return color
+
+
+class C:
+    dim = grey = cyan = green = yellow = red = bold = reset = ""
+
+    @classmethod
+    def enable(cls):
+        cls.dim = "\033[2m"; cls.grey = "\033[90m"; cls.cyan = "\033[36m"; cls.green = "\033[32m"
+        cls.yellow = "\033[33m"; cls.red = "\033[31m"; cls.bold = "\033[1m"; cls.reset = "\033[0m"
+
+
+def load_key() -> str | None:
+    v = os.getenv("DEEPSEEK_API_KEY")
+    if v and v.strip():
+        return v.strip()
+    if KEY_FILE.exists():
+        t = KEY_FILE.read_text(encoding="utf-8").strip()
+        if t:
+            return t
+    return None
+
+
+# ---- tool schemas (what DeepSeek sees) --------------------------------------
+
+def _fn(name, description, properties, required=()):
+    return {"type": "function", "function": {
+        "name": name, "description": description,
+        "parameters": {"type": "object", "properties": properties, "required": list(required)}}}
+
+
+TOOLS = [
+    _fn("read_file", "Read a text file from the project. Prefer start_line/end_line for big files to save tokens.",
+        {"path": {"type": "string", "description": "Path relative to the project root, e.g. 'bootstrap.md'"},
+         "start_line": {"type": "integer", "description": "1-indexed first line (optional)"},
+         "end_line": {"type": "integer", "description": "1-indexed last line (optional)"}}, ["path"]),
+    _fn("list_directory", "List files and subdirectories of a directory in the project.",
+        {"path": {"type": "string", "description": "Directory path relative to root (default '.')"},
+         "pattern": {"type": "string", "description": "Optional glob like '*.py'"},
+         "recursive": {"type": "boolean", "description": "Recurse into subdirectories (default false)"}}),
+    _fn("find_files", "Find files by glob-like pattern under the project root. '*' spans directories. Vendored/cache dirs excluded.",
+        {"pattern": {"type": "string", "description": "e.g. '*.py', 'core/*roster*', 'docs/*.md'"}}, ["pattern"]),
+    _fn("search_files", "Search file contents for a regular expression (grep). Returns path:line: text, capped.",
+        {"pattern": {"type": "string", "description": "Python regex"},
+         "directory": {"type": "string", "description": "Subdir to search under (default project root)"},
+         "file_types": {"type": "string", "description": "Comma-separated extensions to include, e.g. 'py,md'"}}, ["pattern"]),
+    _fn("git_log", "Recent git commit history (read-only).",
+        {"max_count": {"type": "integer", "description": "How many commits (default 15)"},
+         "file_path": {"type": "string", "description": "Limit history to this path (optional)"}}),
+    _fn("git_diff", "Show a git diff (read-only).",
+        {"commit": {"type": "string", "description": "A ref/commit, or 'A..B' range (optional; default working tree)"},
+         "staged": {"type": "boolean", "description": "Show staged changes (default false)"}}),
+    _fn("git_show", "Show a commit's message and diff (read-only).",
+        {"ref": {"type": "string", "description": "Commit ref (default HEAD)"}}),
+    _fn("git_status", "Short git status of the working tree (read-only).", {}),
+    _fn("knowledge_recall", "Search Akashic Aurora's learned-knowledge base (lessons/decisions) via the project's own recall door.",
+        {"query": {"type": "string", "description": "Keywords, e.g. 'faithfulness critic'"}}, ["query"]),
+    _fn("knowledge_boot", "Assemble the project's startup context for a task (recent notes + top lessons), the same briefing an agent gets.",
+        {"task": {"type": "string", "description": "Short task description to rank context against"}}, ["task"]),
+    _fn("run_command", "Run a shell command (tests, linters, builds, etc.). GATED: may require the user's approval and can be denied.",
+        {"command": {"type": "string", "description": "The shell command"},
+         "working_dir": {"type": "string", "description": "Optional cwd relative to root"},
+         "timeout": {"type": "integer", "description": "Seconds (default 60)"}}, ["command"]),
+    _fn("web_search", "Search the web (best-effort, via the project's local search if configured).",
+        {"query": {"type": "string"}, "max_results": {"type": "integer", "description": "default 5"}}, ["query"]),
+]
+
+
+# ---- the tool executor (all guards live here) -------------------------------
+
+class ToolBox:
+    def __init__(self, root: Path, *, allow_exec: bool, trust: bool, allow_secrets: bool, confirm):
+        self.root = root.resolve()
+        self.allow_exec = allow_exec
+        self.trust = trust
+        self.allow_secrets = allow_secrets
+        self._confirm = confirm  # callable(prompt) -> bool
+
+    # -- path safety --
+    def _resolve(self, path: str, *, allow_dir: bool) -> Path:
+        p = Path(path)
+        if not p.is_absolute():
+            p = self.root / p
+        p = p.resolve()
+        try:
+            inside = os.path.commonpath([str(self.root), str(p)]) == str(self.root)
+        except ValueError:
+            inside = False  # different drive
+        if not inside:
+            raise ValueError(f"path is outside the allowed root ({self.root})")
+        if not self.allow_secrets and self._is_secret(p):
+            raise ValueError("refusing to access a secret/credential path (override: --allow-secrets)")
+        return p
+
+    @staticmethod
+    def _is_secret(p: Path) -> bool:
+        parts = [x.lower() for x in p.parts]
+        if ".secrets" in parts:
+            return True
+        name = p.name.lower()
+        if name == ".env" or name.startswith(".env.") or name in {"id_rsa", "id_dsa", "credentials", "credentials.json"}:
+            return True
+        return p.suffix.lower() in {".key", ".pem", ".crt", ".pfx", ".p12", ".der"}
+
+    def _walk(self, base: Path):
+        for dirpath, dirnames, filenames in os.walk(base):
+            dirnames[:] = [d for d in dirnames if d not in EXCLUDE_DIRS and not d.startswith(".git")]
+            for f in filenames:
+                yield Path(dirpath) / f
+
+    # -- read-only tools --
+    def read_file(self, path, start_line=None, end_line=None):
+        p = self._resolve(path, allow_dir=False)
+        if not p.exists():
+            return f"ERROR: no such file: {path}"
+        if p.is_dir():
+            return f"ERROR: {path} is a directory (use list_directory)"
+        raw = p.read_bytes()
+        truncated = len(raw) > MAX_FILE_BYTES
+        text = raw[:MAX_FILE_BYTES].decode("utf-8", errors="replace")
+        if start_line or end_line:
+            lines = text.splitlines()
+            s = (start_line - 1) if start_line else 0
+            e = end_line if end_line else len(lines)
+            text = "\n".join(lines[max(0, s):e])
+        if truncated:
+            text += f"\n... [truncated at {MAX_FILE_BYTES} bytes]"
+        return text or "(empty file)"
+
+    def list_directory(self, path=".", pattern=None, recursive=False):
+        p = self._resolve(path, allow_dir=True)
+        if not p.exists():
+            return f"ERROR: no such directory: {path}"
+        out = []
+        if recursive:
+            for f in self._walk(p):
+                rel = f.relative_to(p).as_posix()
+                if pattern and not fnmatch.fnmatch(rel, pattern) and not fnmatch.fnmatch(f.name, pattern):
+                    continue
+                out.append(rel)
+                if len(out) >= MAX_LIST:
+                    out.append("... [capped]"); break
+        else:
+            for c in sorted(p.iterdir()):
+                if c.name in EXCLUDE_DIRS:
+                    continue
+                if pattern and not fnmatch.fnmatch(c.name, pattern):
+                    continue
+                out.append(f"{c.name}/" if c.is_dir() else f"{c.name}  ({c.stat().st_size}b)")
+        return "\n".join(out) or "(nothing matched)"
+
+    def find_files(self, pattern):
+        has_sep = "/" in pattern or "\\" in pattern
+        out = []
+        for f in self._walk(self.root):
+            rel = f.relative_to(self.root).as_posix()
+            target = rel if has_sep else f.name
+            if fnmatch.fnmatch(target, pattern):
+                out.append(rel)
+                if len(out) >= MAX_LIST:
+                    out.append("... [capped]"); break
+        return "\n".join(out) or "(no matches)"
+
+    def search_files(self, pattern, directory=None, file_types=None):
+        import re
+        try:
+            rx = re.compile(pattern)
+        except re.error as e:
+            return f"ERROR: bad regex: {e}"
+        base = self._resolve(directory, allow_dir=True) if directory else self.root
+        exts = None
+        if file_types:
+            exts = {("." + t.strip().lstrip(".")).lower() for t in file_types.split(",") if t.strip()}
+        out = []
+        for f in self._walk(base):
+            if f.suffix.lower() in BINARY_SUFFIXES:
+                continue
+            if exts and f.suffix.lower() not in exts:
+                continue
+            if not self.allow_secrets and self._is_secret(f):
+                continue
+            try:
+                for i, line in enumerate(f.read_text(encoding="utf-8", errors="ignore").splitlines(), 1):
+                    if rx.search(line):
+                        out.append(f"{f.relative_to(self.root).as_posix()}:{i}: {line.strip()[:200]}")
+                        if len(out) >= MAX_MATCHES:
+                            return "\n".join(out) + "\n... [capped]"
+            except Exception:
+                continue
+        return "\n".join(out) or "(no matches)"
+
+    # -- git (read-only subcommands only) --
+    def _git(self, args, timeout=30):
+        try:
+            p = subprocess.run(["git", "-C", str(self.root), *args], capture_output=True,
+                               text=True, encoding="utf-8", errors="replace", timeout=timeout)
+            return (p.stdout or p.stderr or "(no output)")[:MAX_CMD_OUT]
+        except Exception as e:
+            return f"ERROR: git failed: {e}"
+
+    def git_log(self, max_count=15, file_path=None):
+        args = ["log", f"-{int(max_count)}", "--pretty=format:%h %ad %s", "--date=short"]
+        if file_path:
+            args += ["--", file_path]
+        return self._git(args)
+
+    def git_diff(self, commit=None, staged=False):
+        args = ["diff"]
+        if staged:
+            args.append("--cached")
+        if commit:
+            args.append(commit)
+        return self._git(args, timeout=45)
+
+    def git_show(self, ref="HEAD"):
+        return self._git(["show", "--stat", ref], timeout=45)
+
+    def git_status(self):
+        return self._git(["status", "--short", "--branch"])
+
+    # -- project knowledge doors --
+    def _agent_cli(self, args, timeout=90):
+        try:
+            p = subprocess.run([sys.executable, "agent_cli.py", *args], cwd=str(self.root),
+                               capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout)
+            return (p.stdout or p.stderr or "(no output)")[:MAX_CMD_OUT]
+        except Exception as e:
+            return f"ERROR: agent_cli failed: {e}"
+
+    def knowledge_recall(self, query):
+        return self._agent_cli(["recall", query, "--json"])
+
+    def knowledge_boot(self, task):
+        return self._agent_cli(["boot", "deepseek", "--task", task])
+
+    # -- gated shell --
+    def run_command(self, command, working_dir=None, timeout=60):
+        if not self.allow_exec:
+            return "run_command is DISABLED. Restart with --allow-exec (or the user runs /exec on) to permit shell commands."
+        if not self.trust:
+            if not self._confirm(f"DeepSeek wants to run:  {command}"):
+                return "DENIED by the user. Do not retry this command; work with read-only tools or ask the user."
+        cwd = str(self._resolve(working_dir, allow_dir=True)) if working_dir else str(self.root)
+        try:
+            p = subprocess.run(command, shell=True, cwd=cwd, capture_output=True, text=True,
+                               encoding="utf-8", errors="replace", timeout=int(timeout))
+            body = (p.stdout or "") + (("\n[stderr]\n" + p.stderr) if p.stderr else "")
+            return (body or "(no output)")[:MAX_CMD_OUT] + (f"\n[exit {p.returncode}]" if p.returncode else "")
+        except subprocess.TimeoutExpired:
+            return f"ERROR: command timed out after {timeout}s"
+        except Exception as e:
+            return f"ERROR: {e}"
+
+    def web_search(self, query, max_results=5):
+        script = self.root / "scripts" / "local" / "websearch.py"
+        if not script.exists():
+            return "web_search is not configured on this machine (scripts/local/websearch.py missing)."
+        try:
+            p = subprocess.run([sys.executable, str(script), query], cwd=str(self.root),
+                               capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=45)
+            return (p.stdout or p.stderr or "(no results)")[:MAX_CMD_OUT]
+        except Exception as e:
+            return f"ERROR: web_search failed: {e}"
+
+    # -- dispatch --
+    def execute(self, name, args: dict) -> str:
+        fn = getattr(self, name, None)
+        if not callable(fn) or name.startswith("_"):
+            return f"ERROR: unknown tool {name}"
+        try:
+            return str(fn(**args))
+        except TypeError as e:
+            return f"ERROR: bad arguments for {name}: {e}"
+        except ValueError as e:
+            return f"ERROR: {e}"
+        except Exception as e:
+            return f"ERROR: {type(e).__name__}: {e}"
+
+
+# ---- the agent (conversation + tool loop) -----------------------------------
+
+def default_system(root: Path) -> str:
+    return (
+        "You are DeepSeek, operating as an agentic technical partner with LIVE access to a software "
+        f"project via tools. Project root: {root}. Investigate proactively -- call read_file, "
+        "list_directory, find_files, search_files, git_* and knowledge_recall/knowledge_boot yourself; "
+        "never ask the user to paste a file you can read. knowledge_recall/knowledge_boot query the "
+        "project's own Akashic Aurora knowledge base (lessons, notes, assembled context). run_command "
+        "is gated -- it may need the user's approval and can be denied, so prefer read-only tools and "
+        "propose shell only when needed. Secrets/credentials are blocked by design; don't try to read "
+        "them. Chain tools until you can answer, then be specific and cite exact files and line numbers."
+    )
+
+
+class Agent:
+    def __init__(self, client, toolbox: ToolBox, *, model, system, think, tools_enabled):
+        self.client = client
+        self.toolbox = toolbox
+        self.model = model
+        self.think = think
+        self.tools_enabled = tools_enabled
+        self.temperature = None
+        self.max_tokens = None
+        self.json_mode = False
+        self.messages = [{"role": "system", "content": system}]
+        self.prompt_tokens = self.completion_tokens = 0
+
+    def reset(self):
+        self.messages = self.messages[:1] if self.messages[:1] and self.messages[0]["role"] == "system" else []
+
+    def set_system(self, text):
+        self.messages = [{"role": "system", "content": text}]
+
+    def _kwargs(self):
+        k = {"model": self.model, "messages": self.messages,
+             "stream": True, "stream_options": {"include_usage": True}}
+        if self.tools_enabled:
+            k["tools"] = TOOLS
+            k["tool_choice"] = "auto"
+        k["extra_body"] = {"thinking": {"type": "enabled" if self.think else "disabled"}}
+        if self.think:
+            k["reasoning_effort"] = "high"
+        if self.temperature is not None:
+            k["temperature"] = self.temperature
+        if self.max_tokens:
+            k["max_tokens"] = self.max_tokens
+        if self.json_mode and not self.tools_enabled:
+            k["response_format"] = {"type": "json_object"}
+        return k
+
+    def _stream_turn(self):
+        """One model turn, streamed. Prints reasoning (dim) + answer (green); accumulates tool calls.
+        Returns (content_text, tool_calls) where tool_calls is a list of {id,name,arguments}."""
+        stream = self.client.chat.completions.create(**self._kwargs())
+        content, slots = [], {}
+        in_reasoning = header = False
+        try:
+            for chunk in stream:
+                if getattr(chunk, "usage", None):
+                    self.prompt_tokens += chunk.usage.prompt_tokens or 0
+                    self.completion_tokens += chunk.usage.completion_tokens or 0
+                if not chunk.choices:
+                    continue
+                d = chunk.choices[0].delta
+                r = getattr(d, "reasoning_content", None)
+                if r is None and getattr(d, "model_extra", None):
+                    r = d.model_extra.get("reasoning_content")
+                if r and self.think:
+                    if not in_reasoning:
+                        print(f"{C.grey}💭 ", end="", flush=True); in_reasoning = True
+                    print(f"{C.grey}{r}", end="", flush=True)
+                if d.content:
+                    if in_reasoning:
+                        print(C.reset); in_reasoning = False
+                    if not header:
+                        print(f"{C.green}{C.bold}DeepSeek:{C.reset} ", end="", flush=True); header = True
+                    print(d.content, end="", flush=True); content.append(d.content)
+                if d.tool_calls:
+                    for tc in d.tool_calls:
+                        s = slots.setdefault(tc.index, {"id": None, "name": "", "arguments": ""})
+                        if tc.id:
+                            s["id"] = tc.id
+                        if tc.function and tc.function.name:
+                            s["name"] += tc.function.name
+                        if tc.function and tc.function.arguments:
+                            s["arguments"] += tc.function.arguments
+        finally:
+            if in_reasoning or header:
+                print(C.reset)
+        return "".join(content), [slots[i] for i in sorted(slots)]
+
+    def send(self, user_text):
+        self.messages.append({"role": "user", "content": user_text})
+        for _ in range(MAX_TOOL_ROUNDS):
+            try:
+                content, tool_calls = self._stream_turn()
+            except Exception as e:
+                print(f"{C.red}DEEPSEEK_ERROR ({self.model}): {type(e).__name__}: {e}{C.reset}")
+                if self.messages and self.messages[-1]["role"] == "user":
+                    self.messages.pop()
+                return
+            if tool_calls:
+                self.messages.append({"role": "assistant", "content": content or None, "tool_calls": [
+                    {"id": s["id"], "type": "function",
+                     "function": {"name": s["name"], "arguments": s["arguments"] or "{}"}} for s in tool_calls]})
+                for s in tool_calls:
+                    try:
+                        args = json.loads(s["arguments"] or "{}")
+                    except Exception:
+                        args = {}
+                    shown = ", ".join(f"{k}={v!r}" for k, v in args.items())
+                    print(f"{C.yellow}🔧 {s['name']}({shown[:160]}){C.reset}")
+                    result = self.toolbox.execute(s["name"], args)
+                    first = result.splitlines()[0] if result else ""
+                    print(f"{C.dim}   → {len(result)} chars | {first[:120]}{C.reset}")
+                    self.messages.append({"role": "tool", "tool_call_id": s["id"], "content": result})
+                continue
+            if content:
+                self.messages.append({"role": "assistant", "content": content})
+            return
+        print(f"{C.red}[stopped: hit {MAX_TOOL_ROUNDS} tool rounds]{C.reset}")
+
+    def save(self, path):
+        Path(path).write_text(json.dumps({"model": self.model, "think": self.think,
+            "tools_enabled": self.tools_enabled, "messages": self.messages}, indent=2, ensure_ascii=False),
+            encoding="utf-8")
+
+    def load(self, path):
+        doc = json.loads(Path(path).read_text(encoding="utf-8"))
+        self.messages = doc.get("messages", self.messages)
+        self.model = doc.get("model", self.model)
+        self.think = doc.get("think", self.think)
+        self.tools_enabled = doc.get("tools_enabled", self.tools_enabled)
+
+
+# ---- commands + REPL --------------------------------------------------------
+
+HELP = __doc__.split("In-chat commands:", 1)[1].split("NOTE:", 1)[0].rstrip()
+
+
+def read_paste():
+    print(f"{C.dim}(multi-line -- type /end on its own line to send){C.reset}")
+    lines = []
+    while True:
+        try:
+            ln = input()
+        except EOFError:
+            break
+        if ln.strip() == "/end":
+            break
+        lines.append(ln)
+    return "\n".join(lines)
+
+
+def handle_command(ag: Agent, raw) -> bool:
+    parts = raw.strip().split(maxsplit=1)
+    cmd = parts[0].lower()
+    arg = parts[1].strip() if len(parts) > 1 else ""
+    tb = ag.toolbox
+    if cmd in ("/exit", "/quit"):
+        return False
+    if cmd == "/help":
+        print(f"{C.cyan}Commands:{C.reset}\n{HELP}")
+    elif cmd == "/reset":
+        ag.reset(); print(f"{C.dim}thread cleared{C.reset}")
+    elif cmd == "/system":
+        (ag.set_system(arg), print(f"{C.dim}system set; thread reset{C.reset}")) if arg else print(f"{C.yellow}usage: /system <text>{C.reset}")
+    elif cmd == "/think":
+        ag.think = {"on": True, "off": False}.get(arg.lower(), not ag.think); print(f"{C.dim}thinking: {'on' if ag.think else 'off'}{C.reset}")
+    elif cmd == "/tools":
+        ag.tools_enabled = {"on": True, "off": False}.get(arg.lower(), not ag.tools_enabled); print(f"{C.dim}tools: {'on' if ag.tools_enabled else 'off'}{C.reset}")
+    elif cmd == "/trust":
+        tb.trust = {"on": True, "off": False}.get(arg.lower(), not tb.trust)
+        if tb.trust:
+            tb.allow_exec = True
+        print(f"{C.yellow}trust: {'ON -- shell/exec auto-approved' if tb.trust else 'off'}{C.reset}")
+    elif cmd == "/exec":
+        tb.allow_exec = {"on": True, "off": False}.get(arg.lower(), not tb.allow_exec); print(f"{C.dim}run_command: {'enabled' if tb.allow_exec else 'disabled'}{C.reset}")
+    elif cmd == "/root":
+        if arg:
+            tb.root = Path(arg).resolve(); print(f"{C.dim}root -> {tb.root}{C.reset}")
+        else:
+            print(f"{C.dim}root = {tb.root}{C.reset}")
+    elif cmd == "/model":
+        (setattr(ag, "model", arg), print(f"{C.dim}model -> {arg}{C.reset}")) if arg in (PRO, FLASH) else print(f"{C.yellow}usage: /model {PRO}|{FLASH}{C.reset}")
+    elif cmd == "/temp":
+        try:
+            ag.temperature = float(arg); print(f"{C.dim}temperature -> {ag.temperature}{C.reset}")
+        except ValueError:
+            print(f"{C.yellow}usage: /temp <float>{C.reset}")
+    elif cmd == "/max":
+        try:
+            ag.max_tokens = int(arg); print(f"{C.dim}max_tokens -> {ag.max_tokens}{C.reset}")
+        except ValueError:
+            print(f"{C.yellow}usage: /max <int>{C.reset}")
+    elif cmd == "/json":
+        ag.json_mode = {"on": True, "off": False}.get(arg.lower(), not ag.json_mode); print(f"{C.dim}json mode: {'on (tools off)' if ag.json_mode else 'off'}{C.reset}")
+    elif cmd == "/tokens":
+        print(f"{C.dim}prompt {ag.prompt_tokens} + completion {ag.completion_tokens} = {ag.prompt_tokens + ag.completion_tokens}{C.reset}")
+    elif cmd == "/save":
+        try:
+            ag.save(arg); print(f"{C.dim}saved -> {arg}{C.reset}")
+        except Exception as e:
+            print(f"{C.yellow}save failed: {e}{C.reset}")
+    elif cmd == "/load":
+        try:
+            ag.load(arg); print(f"{C.dim}loaded {len(ag.messages)} msgs{C.reset}")
+        except Exception as e:
+            print(f"{C.yellow}load failed: {e}{C.reset}")
+    elif cmd == "/paste":
+        text = read_paste()
+        if text.strip():
+            ag.send(text)
+    else:
+        print(f"{C.yellow}unknown {cmd} -- /help{C.reset}")
+    return True
+
+
+def main() -> int:
+    if _enable_utf8_and_ansi():
+        C.enable()
+    ap = argparse.ArgumentParser(description="Interactive tool-using DeepSeek chat.")
+    ap.add_argument("--model", default=PRO)
+    ap.add_argument("--system", default=None)
+    ap.add_argument("--root", default=str(REPO_ROOT), help="file-access root (default: this repo)")
+    ap.add_argument("--no-think", action="store_true")
+    ap.add_argument("--no-tools", action="store_true", help="start as a plain chat (no tool use)")
+    ap.add_argument("--allow-exec", action="store_true", help="permit run_command (still per-call y/N unless --trust)")
+    ap.add_argument("--trust", action="store_true", help="auto-approve shell/exec (full autonomy)")
+    ap.add_argument("--allow-secrets", action="store_true", help="DANGER: allow reading .secrets/*.key/.env")
+    ap.add_argument("--load")
+    args = ap.parse_args()
+
+    key = load_key()
+    if not key:
+        print("NO_KEY: set DEEPSEEK_API_KEY or put it in .secrets/deepseek.key", file=sys.stderr); return 2
+    try:
+        from openai import OpenAI
+    except Exception:
+        print("MISSING_DEP: py -m pip install openai", file=sys.stderr); return 2
+
+    root = Path(args.root).resolve()
+
+    def confirm(prompt):
+        try:
+            return input(f"{C.yellow}{prompt}\n  approve? [y/N] {C.reset}").strip().lower() in ("y", "yes")
+        except EOFError:
+            return False
+
+    toolbox = ToolBox(root, allow_exec=(args.allow_exec or args.trust), trust=args.trust,
+                      allow_secrets=args.allow_secrets, confirm=confirm)
+    client = OpenAI(api_key=key, base_url=BASE_URL)
+    agent = Agent(client, toolbox, model=args.model, system=(args.system or default_system(root)),
+                  think=not args.no_think, tools_enabled=not args.no_tools)
+    if args.load:
+        try:
+            agent.load(args.load)
+        except Exception as e:
+            print(f"{C.yellow}load failed: {e}{C.reset}")
+
+    print(f"{C.cyan}{C.bold}DeepSeek agent{C.reset}  {C.dim}model={agent.model} · tools={'on' if agent.tools_enabled else 'off'} · "
+          f"think={'on' if agent.think else 'off'} · root={root}{C.reset}")
+    print(f"{C.dim}exec={'on' if toolbox.allow_exec else 'off'}"
+          f"{' · TRUST(auto-approve)' if toolbox.trust else ''} · /help for commands, /exit to quit{C.reset}")
+
+    while True:
+        try:
+            line = input(f"{C.cyan}you>{C.reset} ")
+        except (EOFError, KeyboardInterrupt):
+            print(); break
+        if not line.strip():
+            continue
+        if line.lstrip().startswith("/"):
+            if not handle_command(agent, line):
+                break
+            continue
+        try:
+            agent.send(line)
+        except KeyboardInterrupt:
+            print(f"\n{C.yellow}[turn interrupted]{C.reset}")
+
+    print(f"{C.dim}bye -- {agent.prompt_tokens + agent.completion_tokens} tokens this session{C.reset}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

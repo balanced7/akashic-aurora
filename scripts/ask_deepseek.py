@@ -23,7 +23,8 @@ from pathlib import Path
 
 KEY_FILE = Path(__file__).resolve().parent.parent / ".secrets" / "deepseek.key"
 BASE_URL = "https://api.deepseek.com"
-DEFAULT_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")   # deepseek-reasoner = R1-style CoT
+DEFAULT_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-v4-pro")   # smartest (1M ctx); v4-flash = cheaper/faster
+# NB: deepseek-chat / deepseek-reasoner are deprecated 2026-07-24 -- v4-pro / v4-flash are the live models.
 
 
 def load_key():
@@ -38,11 +39,14 @@ def load_key():
 
 
 def main():
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # Windows console defaults to cp1252
     ap = argparse.ArgumentParser(description="Ask DeepSeek from the CLI.")
     ap.add_argument("prompt", nargs="*")
     ap.add_argument("--file")
     ap.add_argument("--model", default=DEFAULT_MODEL)
     ap.add_argument("--system", default="")
+    ap.add_argument("--max-tokens", type=int, default=None)
     args = ap.parse_args()
 
     key = load_key()
@@ -67,7 +71,10 @@ def main():
         messages.append({"role": "system", "content": args.system})
     messages.append({"role": "user", "content": prompt})
     try:
-        resp = client.chat.completions.create(model=args.model, messages=messages)
+        kwargs = {"model": args.model, "messages": messages}
+        if args.max_tokens:
+            kwargs["max_tokens"] = args.max_tokens
+        resp = client.chat.completions.create(**kwargs)
         print(resp.choices[0].message.content)
         return 0
     except Exception as e:
