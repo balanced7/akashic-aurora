@@ -1970,7 +1970,7 @@ function refreshAuroraButtons(){
 // Auto-start if previously enabled (user opted in and benchmark passed)
 (function(){
   var stored = localStorage.getItem(auroraFlagKey());
-  if (stored === '1') { initAurora(); }
+  if (stored !== '0') { initAurora(); }   // default ON — the shock factor shouldn't be hidden; isSupported() + fps fallback guard it
   refreshAuroraButtons();
 })();
 
