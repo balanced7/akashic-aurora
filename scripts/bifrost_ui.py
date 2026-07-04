@@ -186,7 +186,8 @@ class Handler(BaseHTTPRequestHandler):
         return {"paused": control.is_paused(), "pause": control.pause_status(),
                 "agents": agents, "known": known, "activities": control.get_activities(),
                 "signals": signals, "max_hops": control.MAX_HOPS,
-                "halted": control.halted_agents()}   # per-agent halt: {agent: {by, reason, ts}} for the UI indicator
+                "halted": control.halted_agents(),
+                "narration": control.get_narration_level()}   # claude reasoning visibility: off|key|full
 
     def _json(self, obj, code=200):
         body = json.dumps(obj, default=str).encode("utf-8")
@@ -265,7 +266,17 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/negotiate":
             return self._negotiate(data)
+        if path == "/narration":
+            return self._narration(data)
         self.send_error(404)
+
+    def _narration(self, data):
+        """Set claude's reasoning-visibility level (off|key|full)."""
+        level = str(data.get("level", "")).strip().lower()
+        if level not in ("off", "key", "full"):
+            return self._json({"ok": False, "error": "level must be off|key|full"}, 400)
+        control.set_narration_level(level, by="user")
+        return self._json({"ok": True, "level": level})
 
     def _send(self, data):
         """Deliver an operator message at an EXPLICIT fidelity (chosen in the UI, not guessed from
@@ -826,6 +837,7 @@ PAGE = r"""<!doctype html>
     <button class="ctl" id="reloadBtn" onclick="reloadUI()" title="reload the UI server (after an agent edits it)">↻</button>
     <button class="lctl" id="gearBtn" onclick="toggleSettings()" title="presentation settings">⚙</button>
     <button class="lctl" id="lnchrBtn" onclick="toggleLauncher()" title="launch &amp; manage agents">🚀 Agents</button>
+    <button class="lctl" id="vizBtn" onclick="vizToggle()" title="toggle viz slide deck (v)">📊 Deck</button>
     <button class="ctl pause" id="pauseBtn" onclick="togglePause()">⏸ Pause</button>
   </header>
   <div class="banner" id="banner">⏸ Paused — the agents are frozen. Type below to interject, then Resume.</div>
@@ -870,6 +882,16 @@ PAGE = r"""<!doctype html>
         <button id="hudToggle" class="lctl" onclick="toggleHUDFlag()">Disable</button>
         <span style="font-size:11px;color:var(--faint);margin-left:8px" id="hudStatus">on — pure DOM, no perf cost</span>
       </div>
+      <div class="setrow">
+        <label>Narration</label>
+        <span class="setdesc">claude's reasoning visibility — off | key | full</span>
+      </div>
+      <div class="setrow" style="justify-content:flex-end;gap:6px">
+        <button class="lctl narr-btn" data-lvl="off" onclick="setNarration('off')">off</button>
+        <button class="lctl narr-btn active" data-lvl="key" onclick="setNarration('key')">key</button>
+        <button class="lctl narr-btn" data-lvl="full" onclick="setNarration('full')">full</button>
+        <span style="font-size:11px;color:var(--faint);margin-left:8px" id="narrStatus">key — decision points only</span>
+      </div>
       <div class="setrow" id="auroraSpeedRow" style="display:none">
         <label>Drift Speed</label>
         <input type="range" id="auroraSpeedSlider" min="0.25" max="2" step="0.05" value="1" style="flex:1;margin:0 8px"
@@ -913,6 +935,7 @@ PAGE = r"""<!doctype html>
   <button id="vizGridBtn" onclick="vizGrid()" title="grid view (g)">⊞ grid</button>
   <button onclick="vizNext()" title="next card (→)">▶</button>
   <span style="font-size:10px;color:var(--faint);padding:5px 4px" id="vizLabel">—</span>
+  <button id="vizDeckBtn" onclick="vizDeckMode()" title="full-view deck mode (d) — shrinks message log">⛶ deck</button>
   <button onclick="vizToggle()" title="hide viz (v)">✕</button>
 </div>
 
@@ -1432,6 +1455,7 @@ function applyStatus(s){
   renderActivity(s.activities||{});
   renderHUD(s.activities||{});
   syncAuroraState(paused, Object.keys(s.halted||{}).length);
+  refreshNarrButtons(s.narration || 'key');
   // renderRecipient() removed from poll loop — the recipient chip only changes on explicit user action
   // (roster click / setTarget). Calling it every 1.2s was doing getBoundingClientRect() layout thrash.
 }
@@ -2034,8 +2058,29 @@ function syncAuroraState(paused, haltedCount) {
   else                 _auroraShader.setState(0);           // normal
 }
 
+// ---- Narration toggle (claude reasoning visibility: off|key|full) ----
+var NARR_LABELS = {off:'off — silent', key:'key — decision points only', full:'full — stream all reasoning'};
+async function setNarration(level){
+  try {
+    var r = await fetch('/narration', {method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({level:level})});
+    var j = await r.json();
+    if (j && j.ok) {
+      refreshNarrButtons(level);
+      toast('\u{1f4ad} narration: ' + level);
+    }
+  } catch(e) { toast('narration toggle failed — bus offline?'); }
+}
+function refreshNarrButtons(level){
+  [].forEach.call(document.querySelectorAll('.narr-btn'), function(b){
+    b.classList.toggle('active', b.dataset.lvl === level);
+  });
+  var st = document.getElementById('narrStatus');
+  if (st) st.textContent = NARR_LABELS[level] || level;
+}
+
 // ---- Viz-canvas engine: slide-deck cards between aurora and cockpit ----
-var _vizEngine = null, _vizVisible = false;
+var _vizEngine = null, _vizVisible = false, _vizDeckMode = false;
 function initViz(){
   if (!window.BifrostViz) return false;
   if (_vizEngine) return true;
@@ -2043,6 +2088,16 @@ function initViz(){
     var canvas = document.getElementById('viz-canvas');
     if (!canvas) return false;
     _vizEngine = new window.BifrostViz.VizEngine(canvas);
+    _vizEngine.onChange(function(info){
+      updateVizLabel();
+      if (info) {
+        var lbl = document.getElementById('vizLabel');
+        if (lbl) lbl.textContent = info.gridMode ? 'grid' : (info.idx + 1) + '/' + info.total + ' ' + (info.label || '');
+        document.getElementById('vizGridBtn').classList.toggle('on', info.gridMode);
+        document.getElementById('vizDeckBtn').classList.toggle('on', info.deckMode);
+        document.getElementById('vizBtn').classList.toggle('active', _vizVisible);
+      }
+    });
     _vizEngine.start();
     return true;
   } catch(e) { return false; }
@@ -2052,41 +2107,80 @@ function vizToggle(){
   _vizVisible = !_vizVisible;
   document.getElementById('viz-canvas').classList.toggle('show', _vizVisible);
   document.getElementById('viz-ctl').classList.toggle('show', _vizVisible);
+  document.getElementById('vizBtn').classList.toggle('active', _vizVisible);
+  if (!_vizVisible) setVizDeckMode(false); // exit deck mode when hiding
   if (_vizVisible) updateVizLabel();
 }
-function vizNext(){ if(_vizEngine){ _vizEngine.nextCard(); updateVizLabel(); } }
-function vizPrev(){ if(_vizEngine){ _vizEngine.prevCard(); updateVizLabel(); } }
-function vizGrid(){ if(_vizEngine){ _vizEngine.showGrid(); updateVizLabel();
-  document.getElementById('vizGridBtn').classList.toggle('on', _vizEngine.gridMode); } }
-function updateVizLabel(){
-  var el = document.getElementById('vizLabel');
-  if (el && _vizEngine && _vizEngine.cards.length) {
-    el.textContent = _vizEngine.gridMode ? 'grid' : (_vizEngine.cardIdx + 1) + '/' + _vizEngine.cards.length;
+function vizNext(){ if(_vizEngine){ _vizEngine.nextCard(); } }
+function vizPrev(){ if(_vizEngine){ _vizEngine.prevCard(); } }
+function vizGrid(){ if(_vizEngine){ _vizEngine.showGrid(); } }
+function vizDeckMode(){
+  if (!_vizEngine) return;
+  setVizDeckMode(!_vizDeckMode);
+}
+function setVizDeckMode(on){
+  _vizDeckMode = !!on;
+  if (_vizEngine) _vizEngine.setDeckMode(_vizDeckMode);
+  document.getElementById('vizDeckBtn').classList.toggle('on', _vizDeckMode);
+  // Deck mode: shrink log + activity, expand viz canvas to fill the cockpit area
+  var log = document.getElementById('log');
+  var act = document.getElementById('activity');
+  var viz = document.getElementById('viz-canvas');
+  if (_vizDeckMode) {
+    if (log) log.style.maxHeight = '140px';
+    if (act) act.style.display = 'none';
+    if (viz) viz.style.inset = '56px 0 120px 0';  // under header, above composer
+  } else {
+    if (log) log.style.maxHeight = '';
+    if (act) act.style.display = '';
+    if (viz) viz.style.inset = '0';
   }
 }
-// Feed traces from addMsg to the viz engine
+function updateVizLabel(){
+  if (!_vizEngine) return;
+  var info = _vizEngine.cardInfo();
+  var lbl = document.getElementById('vizLabel');
+  if (lbl && info) lbl.textContent = info.gridMode ? 'grid' : (info.idx + 1) + '/' + info.total + ' ' + (info.label || '');
+  // Also update the header button
+  var hbtn = document.getElementById('vizBtn');
+  if (hbtn && info && _vizVisible) hbtn.textContent = '\u{1f4ca} ' + (info.label || 'Deck');
+  else if (hbtn) hbtn.textContent = '\u{1f4ca} Deck';
+}
+// Feed traces + edges to viz engine — ALWAYS collect data, even when hidden
 (function(){
   var _origAddMsg = addMsg;
   addMsg = function(m){
     _origAddMsg(m);
-    if (_vizEngine && _vizVisible && m.kind === 'trace') _vizEngine.feedTrace(m);
-    // Also feed edges from chat messages
-    if (_vizEngine && _vizVisible && m.kind === 'chat' && m.from && m.to && m.to !== 'all' && m.to !== '*') {
-      _vizEngine.feedEdge(m.from, m.to);
+    if (_vizEngine) {
+      if (m.kind === 'trace') _vizEngine.feedTrace(m);
+      if (m.kind === 'chat' && m.from && m.to && m.to !== 'all' && m.to !== '*') {
+        _vizEngine.feedEdge(m.from, m.to);
+      }
     }
   };
+  // Also feed edges from the send() function (user -> agent messages)
+  var _origSend = send;
+  send = function(){
+    var text = (document.getElementById('input')||{}).value || '';
+    var target = (document.getElementById('target')||{}).value || 'all';
+    if (_vizEngine && text.trim() && target !== 'all') {
+      _vizEngine.feedEdge('user', target);
+    }
+    return _origSend();
+  };
 })();
-// Keyboard shortcuts: v=toggle, arrows=navigate, g=grid
+// Keyboard: v=toggle, arrows=navigate, g=grid, d=deck-mode, Escape=hide
 document.addEventListener('keydown', function(e){
-  if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return; // don't steal
-  if (e.key === 'v' && !e.ctrlKey && !e.metaKey) vizToggle();
+  if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+  if (e.key === 'v' && !e.ctrlKey && !e.metaKey) { e.preventDefault(); vizToggle(); }
+  if (e.key === 'Escape' && _vizVisible) { e.preventDefault(); vizToggle(); }
   if (_vizVisible && _vizEngine) {
     if (e.key === 'ArrowRight') { e.preventDefault(); vizNext(); }
     if (e.key === 'ArrowLeft')  { e.preventDefault(); vizPrev(); }
     if (e.key === 'g' && !e.ctrlKey) { e.preventDefault(); vizGrid(); }
+    if (e.key === 'd' && !e.ctrlKey) { e.preventDefault(); vizDeckMode(); }
   }
 });
-// Init viz at startup (always, but hidden until toggled)
 initViz();
 </script>
 <script src="/theme-void.js"></script>

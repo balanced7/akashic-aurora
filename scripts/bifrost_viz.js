@@ -118,13 +118,25 @@
       this.cards = Object.values(CARD_REGISTRY);
       this.cardIdx = 0;
       this.gridMode = false;
+      this.deckMode = false;     // full-view slide deck (shrinks message log)
       this.animating = false;
       this._raf = null;
       this.width = 0;
       this.height = 0;
+      this._onChange = null;     // optional callback (cardIdx, gridMode) -> fired on navigate
       this._resize();
       this._bind();
     }
+
+    get currentCard() { return this.cards[this.cardIdx % this.cards.length] || null; }
+    get cardCount() { return this.cards.length; }
+    cardInfo() {
+      const c = this.currentCard;
+      return c ? {id: c.id, label: c.label, idx: this.cardIdx, total: this.cards.length,
+                   gridMode: this.gridMode, deckMode: this.deckMode} : null;
+    }
+
+    onChange(fn) { this._onChange = fn; }   // cockpit can subscribe to navigation events
 
     _resize() {
       const dpr = Math.min(global.devicePixelRatio || 1, 2);
@@ -146,18 +158,22 @@
 
     nextCard() {
       if (this.gridMode) return;
-      this.cardIdx = (this.cardIdx + 1) % this.cards.length;
+      this.cardIdx = (this.cardIdx + 1) % Math.max(1, this.cards.length);
+      if (this._onChange) this._onChange(this.cardInfo());
     }
 
     prevCard() {
       if (this.gridMode) return;
-      this.cardIdx = (this.cardIdx - 1 + this.cards.length) % this.cards.length;
+      this.cardIdx = (this.cardIdx - 1 + Math.max(1, this.cards.length)) % Math.max(1, this.cards.length);
+      if (this._onChange) this._onChange(this.cardInfo());
     }
 
-    showGrid() { this.gridMode = !this.gridMode; }
+    showGrid() { this.gridMode = !this.gridMode; if (this._onChange) this._onChange(this.cardInfo()); }
+    setDeckMode(on) { this.deckMode = !!on; if (this._onChange) this._onChange(this.cardInfo()); }
+
     jumpTo(cardId) {
       const idx = this.cards.findIndex(c => c.id === cardId);
-      if (idx >= 0) { this.cardIdx = idx; this.gridMode = false; }
+      if (idx >= 0) { this.cardIdx = idx; this.gridMode = false; if (this._onChange) this._onChange(this.cardInfo()); }
     }
 
     _tick() {
