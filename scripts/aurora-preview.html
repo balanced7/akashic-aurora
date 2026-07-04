@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aurora Glass — shader preview</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #06070d; color: #cdd3e6;
+    font: 13px/1.5 ui-sans-serif, system-ui, sans-serif; overflow: hidden; }
+  #aurora-canvas { position: fixed; inset: 0; z-index: -2; display: block; width: 100vw; height: 100vh; }
+  /* a glass panel over the center to eyeball legibility against the live shader */
+  .glass { position: fixed; left: 50%; top: 50%; transform: translate(-50%,-50%);
+    width: min(560px, 86vw); padding: 22px 26px; border-radius: 16px;
+    background: rgba(20,24,38,.42); backdrop-filter: blur(12px) saturate(1.2);
+    -webkit-backdrop-filter: blur(12px) saturate(1.2);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 20px 60px rgba(0,0,0,.5); }
+  h1 { font-size: 16px; margin: 0 0 6px; color: #e8ecf7; }
+  p { margin: 0 0 14px; color: #9aa3bd; }
+  .row { display: flex; gap: 8px; }
+  button { flex: 1; padding: 9px 12px; border-radius: 10px; cursor: pointer;
+    border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.05); color: #cdd3e6; }
+  button:hover { background: rgba(255,255,255,.10); }
+  #status { position: fixed; left: 12px; bottom: 10px; color: #6b7391; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+  <canvas id="aurora-canvas"></canvas>
+  <div class="glass">
+    <h1>Aurora Glass — shader preview</h1>
+    <p>Body text sits over a frosted-glass panel, over the live WebGL aurora. The curtain lives in
+       the top bands; the center stays dark so this text reads. Try the state switches — the aurora
+       tints amber on <b>pause</b> and desaturates on <b>halt</b> (the <code>setState()</code> contract).</p>
+    <div class="row">
+      <button data-s="0">normal</button>
+      <button data-s="1">pause (amber)</button>
+      <button data-s="2">halt (desat)</button>
+    </div>
+  </div>
+  <div id="status">initializing…</div>
+
+  <script src="aurora-shader.js"></script>
+  <script>
+    (function () {
+      var status = document.getElementById('status');
+      var canvas = document.getElementById('aurora-canvas');
+      if (!window.AuroraGlass || !window.AuroraGlass.isSupported()) {
+        status.textContent = 'WebGL2 unavailable or reduced-motion — CSS gradient fallback would apply.';
+        document.body.style.background =
+          'radial-gradient(120% 80% at 50% 0%, #12331f 0%, #0a1524 40%, #06070d 100%)';
+        return;
+      }
+      var aurora;
+      try { aurora = new AuroraGlass.AuroraShader(canvas); aurora.start(); }
+      catch (e) { status.textContent = 'shader error: ' + e.message; return; }
+
+      // buttons drive the interface contract
+      document.querySelectorAll('button[data-s]').forEach(function (b) {
+        b.addEventListener('click', function () { aurora.setState(+b.dataset.s); });
+      });
+
+      // simple fps meter so the perf gate is observable
+      var last = performance.now(), frames = 0;
+      (function meter() {
+        requestAnimationFrame(meter);
+        frames++;
+        var now = performance.now();
+        if (now - last >= 500) {
+          var fps = Math.round(frames * 1000 / (now - last));
+          status.textContent = 'state ' + aurora.state + ' · ~' + fps + ' fps · ' +
+            canvas.width + '×' + canvas.height;
+          frames = 0; last = now;
+        }
+      })();
+    })();
+  </script>
+</body>
+</html>
