@@ -108,10 +108,10 @@ def make_agentic_replier(model: str, system: str, think: bool, root: Path, agent
         except Exception:
             pass
 
-    # Barge-in: a GLOBAL pause OR a nudge TARGETED at me both stop work mid-tool-loop (DeepSeek's insight,
-    # now extended to per-agent nudges). The nudge flag is cleared by the runner loop before it hands me
-    # the nudge message, so answering the nudge itself is never self-interrupted.
-    interrupt = lambda: control.is_paused() or nudge.is_nudged(agent_id)
+    # Barge-in: a HALT aimed at me (global pause OR my per-agent halt flag) OR a nudge TARGETED at me both
+    # stop work mid-tool-loop (DeepSeek's insight, now extended to per-agent halt/nudge). The nudge flag is
+    # cleared by the runner loop before it hands me the nudge message, so answering it is never self-interrupted.
+    interrupt = lambda: control.is_halted(agent_id) or nudge.is_nudged(agent_id)
     # STEER: between rounds, fold any queued facts into the LIVE task without restarting (soft fidelity).
     inject = lambda: nudge.steer_drain(agent_id)
     convos: dict = {}
@@ -240,7 +240,7 @@ def main() -> int:
                 print(f"[deepseek-runner] lost the singleton lock for '{args.agent}' -- another runner is "
                       "live. Standing down to avoid a cursor race.")
                 break
-            if control.is_paused():                          # human barge-in: freeze, keep mail queued
+            if control.is_halted(args.agent):                # global pause OR a halt targeted at me: freeze
                 bus.register(card=CARD)                       # stay "online-but-frozen" on the roster, not vanish
                 time.sleep(0.4)
                 continue

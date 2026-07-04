@@ -32,6 +32,7 @@ from typing import Any, Dict, Optional
 
 NS = "bifrost"
 PAUSE_KEY = f"{NS}:control:paused"
+HALT_PREFIX = f"{NS}:control:halt:"   # per-agent targeted halt (A1); union'd with PAUSE_KEY by is_halted
 MAX_HOPS = int(os.getenv("BIFROST_MAX_HOPS", "6"))
 MAX_REPLIES_PER_MIN = int(os.getenv("BIFROST_MAX_REPLIES_PER_MIN", "12"))
 
@@ -63,13 +64,22 @@ def pause(reason: str = "", by: str = "user") -> bool:
         return False
 
 
-def resume() -> bool:
-    """Un-freeze. Idempotent."""
+def resume(targets=None) -> bool:
+    """Un-freeze. targets=None/[] -> resume ALL: clear the global pause AND every per-agent halt.
+    targets=[ids] -> clear only those per-agent halts (leaves a global pause, if any, in place).
+    Idempotent. Backward-compatible: existing no-arg resume() callers still clear the global pause."""
     c = _client()
     if c is None:
         return False
+    ts = _norm_targets(targets)
     try:
-        c.delete(PAUSE_KEY)
+        if not ts:
+            c.delete(PAUSE_KEY)
+            keys = c.keys(HALT_PREFIX + "*") or []
+            if keys:
+                c.delete(*keys)
+            return True
+        c.delete(*[HALT_PREFIX + a for a in ts])
         return True
     except Exception:
         return False
@@ -100,6 +110,74 @@ def pause_status() -> Dict[str, Any]:
         return d
     except Exception:
         return {"paused": False, "online": True}
+
+
+# ------------------------------------------------------------------ targeted halt (A1)
+# Per-agent halt EXTENDS the global pause. halt(targets=None) reuses the global PAUSE flag (halt-all,
+# backward-compatible -- a runner that only checks is_paused() still freezes), while halt(targets=[ids])
+# sets a per-agent flag so ONE agent can be frozen while the others keep working. is_halted(agent) is
+# the union of the two. (Refinement from DeepSeek: reuse the global flag for the all-agents case -- one
+# fewer key write, and any legacy is_paused()-only runner stays correct.)
+def _norm_targets(targets) -> list:
+    """None/'' -> [] (means 'all'); a bare str -> [str]; else the non-empty string ids of an iterable."""
+    if targets is None:
+        return []
+    if isinstance(targets, str):
+        targets = [targets]
+    return [str(t) for t in targets if str(t).strip()]
+
+
+def halt(targets=None, reason: str = "", by: str = "user") -> bool:
+    """Freeze agents. targets=None/[] -> halt ALL (reuses the global pause flag). targets=[ids] ->
+    freeze only those agents via per-agent flags; the rest keep running. Idempotent. False if offline."""
+    ts = _norm_targets(targets)
+    if not ts:
+        return pause(reason=reason, by=by)          # halt-all == the global pause (backward compat)
+    c = _client()
+    if c is None:
+        return False
+    try:
+        payload = json.dumps({"reason": reason, "by": by, "ts": _now()})
+        for a in ts:
+            c.set(HALT_PREFIX + a, payload)
+        return True
+    except Exception:
+        return False
+
+
+def is_halted(agent: str) -> bool:
+    """True iff `agent` is frozen -- by the global pause (halt-all) OR its own per-agent halt flag. This
+    is the check a runner uses in place of is_paused(). Fail-open: any error -> not halted."""
+    c = _client()
+    if c is None:
+        return False
+    try:
+        if c.exists(PAUSE_KEY):
+            return True
+        return bool(c.exists(HALT_PREFIX + str(agent)))
+    except Exception:
+        return False
+
+
+def halted_agents() -> Dict[str, Any]:
+    """{agent: {reason, by, ts}} for each agent under a TARGETED halt (a global pause is separate, via
+    pause_status()). The UI unions the two to show who is frozen and why."""
+    c = _client()
+    if c is None:
+        return {}
+    out: Dict[str, Any] = {}
+    try:
+        for k in (c.keys(HALT_PREFIX + "*") or []):
+            agent = str(k).rsplit(":", 1)[-1]
+            raw = c.get(k)
+            if raw:
+                try:
+                    out[agent] = json.loads(raw)
+                except Exception:
+                    out[agent] = {}
+    except Exception:
+        pass
+    return out
 
 
 # ------------------------------------------------------------------ loop guard
