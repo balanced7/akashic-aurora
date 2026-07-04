@@ -161,7 +161,8 @@ class Handler(BaseHTTPRequestHandler):
             pass
         return {"paused": control.is_paused(), "pause": control.pause_status(),
                 "agents": agents, "known": known, "activities": control.get_activities(),
-                "signals": signals, "max_hops": control.MAX_HOPS}
+                "signals": signals, "max_hops": control.MAX_HOPS,
+                "halted": control.halted_agents()}   # per-agent halt: {agent: {by, reason, ts}} for the UI indicator
 
     def _json(self, obj, code=200):
         body = json.dumps(obj, default=str).encode("utf-8")
@@ -238,6 +239,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"ok": True, "reloading": True})
             threading.Thread(target=lambda: (time.sleep(0.3), _reexec()), daemon=True).start()
             return
+        if path == "/negotiate":
+            return self._negotiate(data)
         self.send_error(404)
 
     def _send(self, data):
@@ -269,6 +272,23 @@ class Handler(BaseHTTPRequestHandler):
         kind = "inform" if fidelity == "inform" else "chat"
         mid = BUS.broadcast(kind, text, meta=meta) if broadcast else BUS.send(to, kind, text, meta=meta)
         return self._json({"ok": bool(mid), "id": mid, "intent": fidelity, "to": to, "paused": False})
+
+    def _negotiate(self, data):
+        """Open a negotiation round after user input. Agents have 8s to declare their plan
+        (what + scope + estimate). Returns the verdict: green/amber/red + conflict details."""
+        context = (data.get("text") or "").strip()
+        if not context:
+            return self._json({"ok": False, "error": "empty context"}, 400)
+        try:
+            from bifrost.api import round_result
+            result = round_result(triggered_by="user", context=context)
+            return self._json({"ok": True, "verdict": result.get("verdict"),
+                               "reason": result.get("reason"),
+                               "proposals": result.get("proposals", []),
+                               "conflicts": result.get("conflicts", []),
+                               "round": result.get("round_id", "")})
+        except Exception as e:
+            return self._json({"ok": False, "error": str(e)}, 500)
 
     def _upload(self, data):
         name = os.path.basename((data.get("name") or "").strip()) or "dropped.bin"
@@ -797,6 +817,16 @@ function renderMsg(m){                        // build a message's DOM node (no 
 function addMsg(m){
   if(m.id && m.id!=='0'){ if(seen.has(m.id)) return; seen.add(m.id); }
   if((m.kind||'chat')==='_ready') return;
+  // negotiation verdict: display prominently
+  const kind = m.kind||'chat';
+  if(kind === 'verdict' || (kind === 'halt' && (m.meta||{}).intent === 'verdict')){
+    const v = (m.meta||{}).verdict || 'amber';
+    const emoji = {green:'✅', amber:'⚠️', red:'🛑'};
+    const d = document.createElement('div');
+    d.className = 'sys guard';
+    d.innerHTML = '<span>'+(emoji[v]||'')+' Round '+v+': '+esc(m.content||'')+'</span>';
+    _msgPlacer(d, m); autoscroll(); return;
+  }
   const idx = allMsgs.push(m) - 1;           // buffer it (data), then render at the live tail
   const node = renderMsg(m); if(!node) return;
   node.dataset.mi = idx;
@@ -882,6 +912,17 @@ async function send(){
     }
     toast(ok ? (FIDLABEL[fidelity]||'sent')+' → '+(isAll?'all':ids.join(', ')) : 'send failed — bus offline?');
   }catch(e){ toast('send failed — bus offline?'); }
+  // Fire a negotiation round so agents can declare plans before starting work
+  if(fidelity === 'inform' || fidelity === 'chat'){
+    fetch('/negotiate',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({text})}).then(r => r.json()).then(v => {
+      if(v && v.verdict){
+        const colors = {green:'#5fd39b', amber:'#f0b246', red:'#f0666e'};
+        const emoji = {green:'✅', amber:'⚠️', red:'🛑'};
+        toast((emoji[v.verdict]||'') + ' Round: ' + v.verdict + ' — ' + (v.reason||''));
+      }
+    }).catch(()=>{});
+  }
 }
 
 // --- Slice 2: animated recipient selector (state = who you're messaging; last-messaged persists) ---
@@ -979,6 +1020,8 @@ async function togglePause(){
   try{ const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}); applyStatus(await r.json()); }
   catch(e){ toast('control failed — bus offline?'); }
 }
+var _lastRosterSig = '';   // fingerprint cache: only rebuild DOM when agent state actually changed
+
 function applyStatus(s){
   paused = !!s.paused;
   const b=document.getElementById('pauseBtn'), banner=document.getElementById('banner');
@@ -986,23 +1029,36 @@ function applyStatus(s){
   b.classList.toggle('paused', paused);
   banner.classList.toggle('show', paused);
   // dynamic roster: UNION of ACL-registered + currently-online agents.
-  // An online-but-unknown agent gets a '⚠ unknown' marker (security onboarding cue).
   const agents=(s.agents||[]).map(a=>a.agent).filter(Boolean);
-  const online=new Set(agents);
   const known=s.known||[];
   const roster=[...new Set([...known, ...agents, 'user'])];
-  const isKnown=new Set(known);
   const sig=s.signals||{};
-  const pills=document.getElementById('pills');
-  pills.innerHTML = roster.map(a=>{
-    const g=sig[a]||{};
-    const isOnline=online.has(a)||a==='user';
-    const unknown=!isKnown.has(a) && a!=='user';
-    const marks=(g.steer_pending?'<span class="sig steer" title="steer facts queued">↝'+g.steer_pending+'</span>':'')
-              +(g.nudged?'<span class="sig nudge" title="interrupt pending">⚡</span>':'')
-              +(unknown?' <span title="online but not ACL-registered — security onboarding cue" style="color:var(--amber);font-size:11px">⚠ unknown</span>':'');
-    return '<div class="pill'+(isOnline?' on':' off')+'" onclick="setTarget(\''+esc(a)+'\')" title="click to message '+esc(a)+(unknown?' (unregistered)':'')+'"><span class="dot"></span>'+esc(a)+(isOnline?'':' 💤')+marks+'</div>';
-  }).join('');
+  const onlineSet=new Set(agents);
+  const isKnown=new Set(known);
+
+  // Build fingerprint: roster order + each agent's online/steer/nudge state.
+  // Only rebuild DOM when this actually changed (was doing innerHTML on every 1.2s poll).
+  var newSig = roster.join(',') + '|' + roster.map(function(a){
+    var g=sig[a]||{};
+    return a+':'+(onlineSet.has(a)||a==='user'?'1':'0')+':'+(g.steer_pending||0)+':'+(g.nudged?'1':'0');
+  }).join(';');
+
+  if(newSig !== _lastRosterSig){
+    _lastRosterSig = newSig;
+    const pills=document.getElementById('pills');
+    pills.innerHTML = roster.map(a=>{
+      const g=sig[a]||{};
+      const isOnline=onlineSet.has(a)||a==='user';
+      const unknown=!isKnown.has(a) && a!=='user';
+      const hd=(s.halted||{})[a];   // {by, reason, ts} when this agent is under a targeted halt
+      const halt = hd?'<span title="'+esc(hd.reason||'no reason given')+(hd.ts?'  ('+esc(hd.ts)+')':'')+'" style="color:var(--danger);font-size:10.5px;font-weight:600;margin-left:5px">⏸ halted by '+esc(hd.by||'?')+'</span>':'';
+      const marks=halt
+                +(g.steer_pending?'<span class="sig steer" title="steer facts queued">↝'+g.steer_pending+'</span>':'')
+                +(g.nudged?'<span class="sig nudge" title="interrupt pending">⚡</span>':'')
+                +(unknown?' <span title="online but not ACL-registered — security onboarding cue" style="color:var(--amber);font-size:11px">⚠ unknown</span>':'');
+      return '<div class="pill'+(isOnline?' on':' off')+'" onclick="setTarget(\''+esc(a)+'\')" title="click to message '+esc(a)+(unknown?' (unregistered)':'')+'"><span class="dot"></span>'+esc(a)+(isOnline?'':' 💤')+marks+'</div>';
+    }).join('');
+  }
   // keep the recipient dropdown in sync with union of ACL-registered + online agents
   const tsel=document.getElementById('target');
   if(tsel){
@@ -1019,7 +1075,8 @@ function applyStatus(s){
     }
   }
   renderActivity(s.activities||{});
-  renderRecipient();                             // keep the animated recipient chip in sync with the roster
+  // renderRecipient() removed from poll loop — the recipient chip only changes on explicit user action
+  // (roster click / setTarget). Calling it every 1.2s was doing getBoundingClientRect() layout thrash.
 }
 async function poll(){ try{ applyStatus(await (await fetch('/status')).json()); }catch(e){} }
 poll(); setInterval(poll, 1200);
