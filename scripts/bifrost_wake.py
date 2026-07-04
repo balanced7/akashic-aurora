@@ -1,45 +1,81 @@
-"""
-bifrost_wake -- event-driven wake for a turn-based agent.
+"""bifrost.wake -- the canonical wake listener for a Bifrost agent (the receive/wake arm of bifrost.api).
 
-Run this in the BACKGROUND. It does a blocking read on the agent's Bifrost inbox + broadcast and
-costs ~nothing while waiting; the instant a message arrives it prints it and EXITS. A harness that
-re-invokes an agent when its background task finishes (e.g. Claude Code) thus wakes the agent
-exactly when there's mail -- no polling, no OS notification, no API key. The agent then reads its
-inbox normally and re-arms a fresh watcher.
+Run in the BACKGROUND. It blocks on the agent's inbox + broadcast at ~zero cost and EXITS only when a
+real message arrives -- which, in a harness that re-invokes an agent when its background task finishes
+(e.g. Claude Code), wakes the otherwise-idle, turn-based agent exactly when there's mail. No polling, no
+OS notification, no API key. It keeps waiting through pure trace/noise instead of exiting on it, and
+writes a PID heartbeat while alive so a Stop hook can tell the agent is still wakeable.
 
-It DETECTS without consuming (advance=False), so the message is still there for the agent's inbox().
+REUSABLE ONBOARDING: any turn-based agent becomes bus-wakeable by arming its wake listener.
 
-  py scripts/bifrost_wake.py --agent claude                 # block until a message (forever)
-  py scripts/bifrost_wake.py --agent claude --timeout 1800000   # 30-min safety re-arm
+  py scripts/bifrost_wake.py --agent claude        # watch for claude
+  py scripts/bifrost_wake.py --agent deepseek      # the template for any agent
 """
 import argparse
+import json
 import os
 import sys
+import tempfile
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm.bus import Bus
+from core.comm.bifrost_api import BifrostAPI
+
+SKIP_KINDS = {"trace", "reply", "steer"}   # noise / non-reply kinds -> keep waiting
+
+
+def _hb_path(agent):
+    return os.path.join(tempfile.gettempdir(), f"bifrost_wake_{agent}.pid")
+
+
+def watch(agent: str, total_deadline_s: int, inner_block_ms: int) -> int:
+    api = BifrostAPI(agent)
+    if not api.online_now:
+        print("BIFROST_WAKE: bus OFFLINE (Redis unreachable)")
+        return 2
+    api.online()
+    out, seen = [], []
+    deadline = time.time() + total_deadline_s
+    while time.time() < deadline and not out:
+        try:
+            msgs = api.wake_block(timeout_ms=inner_block_ms)
+        except Exception as e:
+            print("WAKE_ERROR: " + str(e)); return 1
+        for m in msgs:
+            frm = str(getattr(m, "frm", "?"))
+            kind = str(getattr(m, "kind", "?"))
+            seen.append(f"{frm}:{kind}")
+            if frm == agent or kind in SKIP_KINDS:
+                continue
+            out.append({"frm": frm, "kind": kind, "text": str(getattr(m, "content", "") or "")[:2000]})
+    if out:
+        print(f"BIFROST WAKE -- messages for {agent}:")
+        print(json.dumps(out, indent=1))          # ensure_ascii=True -> cp1252-safe stdout on Windows
+    else:
+        print(f"BIFROST_WAKE: quiet for {agent} (saw: " + ", ".join(seen[-12:]) + ")")
+    return 0
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Block until a Bifrost message wakes this agent.")
     ap.add_argument("--agent", default="claude", help="the agent whose inbox to watch")
-    ap.add_argument("--timeout", type=int, default=0, help="ms to block; 0 = block forever")
+    ap.add_argument("--deadline", type=int, default=1800, help="seconds before an idle re-arm (default 30 min)")
+    ap.add_argument("--block", type=int, default=120_000, help="ms per inner blocking read")
     a = ap.parse_args()
-
-    bus = Bus(a.agent)
-    if not bus.online:
-        print("BIFROST_WAKE: bus OFFLINE (Redis unreachable)")
-        return 2
-    bus.register()
-    msgs = bus.wait(a.timeout, advance=False)        # detect-only; the agent consumes via inbox()
-    if not msgs:
-        print(f"BIFROST_WAKE: timed out, no new messages for {a.agent}")
-        return 0
-    print(f"BIFROST_WAKE: {len(msgs)} new message(s) for {a.agent} -- read your inbox + respond:")
-    for m in msgs:
-        print(f"  <- {m.frm} [{m.kind}]: {str(m.content)[:160]}")
-    return 0
+    hb = _hb_path(a.agent)
+    try:
+        with open(hb, "w") as f:
+            f.write(str(os.getpid()))
+    except Exception:
+        pass
+    try:
+        return watch(a.agent, a.deadline, a.block)
+    finally:
+        try:
+            os.remove(hb)
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
