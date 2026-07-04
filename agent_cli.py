@@ -1585,6 +1585,25 @@ def cmd_bifrost_send(args):
     return 0 if mid else 1
 
 
+def cmd_bifrost_pause(args):
+    """Freeze the bus auto-responders (human barge-in). They hold until `bifrost-resume`."""
+    from core.comm import control
+    ok = control.pause(reason=args.reason or "", by=args.by or "user")
+    if args.json:
+        print(json.dumps(control.pause_status(), default=str)); return 0 if ok else 1
+    print("[bifrost] PAUSED -- runners frozen; resume with `bifrost-resume`" if ok
+          else "[bifrost] pause failed (bus offline)")
+    return 0 if ok else 1
+
+
+def cmd_bifrost_resume(args):
+    """Un-freeze the bus auto-responders."""
+    from core.comm import control
+    ok = control.resume()
+    print("[bifrost] RESUMED" if ok else "[bifrost] resume failed (bus offline)")
+    return 0 if ok else 1
+
+
 # -------------------------------------------------------------------------- locks
 def cmd_lock(args):
     """Claim an advisory path-lock so the peer sees you're editing it (C2). Re-claiming
@@ -1880,6 +1899,14 @@ def build_parser():
     snd.add_argument("--broadcast", action="store_true", help="send to ALL agents instead of one --to")
     snd.add_argument("--json", action="store_true")
     snd.set_defaults(fn=cmd_bifrost_send)
+
+    pz = sub.add_parser("bifrost-pause", help="freeze bus auto-responders (human barge-in)")
+    pz.add_argument("--reason", default=""); pz.add_argument("--by", default="user")
+    pz.add_argument("--json", action="store_true")
+    pz.set_defaults(fn=cmd_bifrost_pause)
+
+    rz = sub.add_parser("bifrost-resume", help="un-freeze bus auto-responders")
+    rz.set_defaults(fn=cmd_bifrost_resume)
 
     lk = sub.add_parser("lock", help="claim an advisory path-lock (C2)")
     lk.add_argument("agent_id"); lk.add_argument("path")

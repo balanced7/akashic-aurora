@@ -24,6 +24,7 @@ Key: env DEEPSEEK_API_KEY else .secrets/deepseek.key (reused from ask_deepseek.p
 import argparse
 import os
 import sys
+import time
 from pathlib import Path
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -31,6 +32,7 @@ sys.path.insert(0, os.path.dirname(HERE))
 sys.path.insert(0, HERE)
 
 from core.comm.bus import Bus
+from core.comm import control
 from ask_deepseek import load_key, BASE_URL, DEFAULT_MODEL
 
 CARD = {
@@ -144,19 +146,38 @@ def main() -> int:
         mode = "one-shot bridge"
 
     bus.register(card=CARD)
+    rate = control.RateLimiter()
     print(f"[deepseek-runner] {args.agent} online (model={args.model}, think={'on' if args.think else 'off'}, "
-          f"{mode}). Waiting for messages... (Ctrl-C to stop)")
+          f"{mode}, max_hops={control.MAX_HOPS}). Waiting for messages... (Ctrl-C to stop)")
     try:
         while True:
-            msgs = bus.wait(timeout_ms=0, advance=True)  # block until a message, then CONSUME it
-            bus.register(card=CARD)                       # refresh presence
+            if control.is_paused():                          # human barge-in: freeze, keep mail queued
+                time.sleep(0.4)
+                continue
+            msgs = bus.wait(timeout_ms=1500, advance=True)   # short block so pause/stop stay responsive
+            bus.register(card=CARD)                           # refresh presence
             for m in msgs:
                 if not should_answer(m.kind, m.frm, args.agent):
                     continue
+                hops = control.next_hops(m.meta)
+                if control.hops_exceeded(m.meta):             # loop-guard: bounce the thread to a human
+                    bus.send(m.frm, "note",
+                             f"[loop-guard] max hops ({control.MAX_HOPS}) reached -- returning to a human.",
+                             meta={"via": f"{args.agent}-runner", "hops": hops})
+                    print(f"[deepseek-runner] loop-guard: hops>={control.MAX_HOPS}; not answering {m.frm}")
+                    continue
+                if not rate.allow():                          # backstop: too many replies too fast
+                    control.pause(reason=f"{args.agent} hit reply rate limit", by=args.agent)
+                    bus.send(m.frm, "note",
+                             "[loop-guard] reply rate limit hit -- auto-paused. Resume when ready.",
+                             meta={"via": f"{args.agent}-runner", "hops": hops})
+                    print("[deepseek-runner] rate limit -> auto-paused")
+                    continue
                 prompt = m.content if isinstance(m.content, str) else str(m.content)
-                print(f"[deepseek-runner] <- {m.frm} [{m.kind}]: {prompt[:80]}")
+                print(f"[deepseek-runner] <- {m.frm} [{m.kind}] (hop {hops}): {prompt[:80]}")
                 out = responder(m.frm, prompt) if args.agentic else responder(prompt)
-                bus.send(m.frm, "reply", out, meta={"via": f"{args.agent}-runner", "model": args.model})
+                bus.send(m.frm, "reply", out,
+                         meta={"via": f"{args.agent}-runner", "model": args.model, "hops": hops})
                 print(f"[deepseek-runner] -> {m.frm}: {out[:80]}")
             if args.once:
                 break
