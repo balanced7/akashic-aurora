@@ -33,6 +33,8 @@ from typing import Any, Dict, Optional
 NS = "bifrost"
 PAUSE_KEY = f"{NS}:control:paused"
 HALT_PREFIX = f"{NS}:control:halt:"   # per-agent targeted halt (A1); union'd with PAUSE_KEY by is_halted
+NARRATION_KEY = f"{NS}:control:narration"   # off | key | full -- how much of claude's reasoning streams to the bus
+_NARRATION_LEVELS = ("off", "key", "full")
 MAX_HOPS = int(os.getenv("BIFROST_MAX_HOPS", "6"))
 MAX_REPLIES_PER_MIN = int(os.getenv("BIFROST_MAX_REPLIES_PER_MIN", "12"))
 
@@ -110,6 +112,39 @@ def pause_status() -> Dict[str, Any]:
         return d
     except Exception:
         return {"paused": False, "online": True}
+
+
+# ------------------------------------------------------------------ narration (claude reasoning visibility)
+# Claude Code redacts extended-thinking at rest, so claude can't auto-stream raw reasoning the way a
+# runner does. Instead it DELIBERATELY narrates key reasoning to the bus via agent.harness.trace.narrate,
+# which gates on this shared level -- so the human can dial claude's reasoning-visibility from the UI
+# (a toggle) without touching claude's config. off=silent, key=narrate at decision points (default),
+# full=narrate freely. Shared (Redis) like pause; fail-open to "key".
+def get_narration_level() -> str:
+    """Current narration verbosity: off|key|full. Fail-open to 'key' (the agreed default)."""
+    c = _client()
+    if c is None:
+        return "key"
+    try:
+        v = c.get(NARRATION_KEY)
+        v = v.decode() if isinstance(v, (bytes, bytearray)) else v
+        return v if v in _NARRATION_LEVELS else "key"
+    except Exception:
+        return "key"
+
+
+def set_narration_level(level: str, by: str = "user") -> bool:
+    """Set narration verbosity (off|key|full). Idempotent. False if bad level or bus offline."""
+    if level not in _NARRATION_LEVELS:
+        return False
+    c = _client()
+    if c is None:
+        return False
+    try:
+        c.set(NARRATION_KEY, level)
+        return True
+    except Exception:
+        return False
 
 
 # ------------------------------------------------------------------ targeted halt (A1)

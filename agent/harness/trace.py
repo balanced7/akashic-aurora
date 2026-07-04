@@ -37,6 +37,30 @@ def emit(kind: str, text: str, *, agent_id: str = None) -> bool:
         return False
 
 
+_ORDER = {"off": 0, "key": 1, "full": 2}
+
+
+def narrate(text: str, *, level: str = "key", agent_id: str = None) -> bool:
+    """Deliberately stream a line of REASONING (💭) to the bus, GATED by the shared narration level
+    (control.get_narration_level, toggled from the UI). `level` is the minimum verbosity at which this
+    line shows: level="key" shows at key|full; level="full" shows only at full. The human dials the
+    global level; the agent tags each line's importance. Silent at "off". Never raises.
+
+    This exists because Claude Code redacts extended-thinking at rest -- raw reasoning can't be
+    passively captured, so claude narrates the parts that matter on purpose, and the human controls
+    how much of it reaches the console without the agent changing behaviour."""
+    if os.getenv("AKASHIC_TRACE", "1") == "0":
+        return False
+    try:
+        from core.comm.control import get_narration_level
+        cur = get_narration_level()
+    except Exception:
+        cur = "key"
+    if cur == "off" or _ORDER.get(cur, 1) < _ORDER.get(level, 1):
+        return False
+    return emit("think", text, agent_id=agent_id)
+
+
 def summarize(tool: str, tool_input: dict) -> str:
     """A compact one-line summary of a tool call for the trace feed -- '<Tool> · <what>'.
     Mirrors how a person would narrate the action; never includes file bodies or large payloads."""
