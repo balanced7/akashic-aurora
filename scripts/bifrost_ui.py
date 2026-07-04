@@ -448,7 +448,12 @@ function autoscroll(){ if(nearBottom) log.scrollTop = log.scrollHeight; }
 // real rich presence: what each agent is actually doing, from /status (not a client-side guess)
 const ICON = {thinking:'💭', reading:'📖', searching:'🔍', inspecting:'🔎', recalling:'🧠', running:'⚙️', writing:'✍️', working:'⚡'};
 const VERB = {thinking:'thinking', reading:'reading', searching:'searching', inspecting:'inspecting git', recalling:'searching memory', running:'running a command', writing:'writing', working:'working'};
+let lastActSig = null;
 function renderActivity(acts){
+  acts = acts||{};
+  const sig = JSON.stringify(acts);
+  if(sig === lastActSig) return;   // unchanged -> DON'T rebuild (this was replaying the fade every poll)
+  lastActSig = sig;
   const box=document.getElementById('activity');
   const rows=Object.keys(acts).filter(a=>acts[a]&&acts[a].state).map(a=>{
     const st=acts[a].state, dt=acts[a].detail||'', ic=ICON[st]||'⚡', vb=VERB[st]||st;
@@ -457,8 +462,7 @@ function renderActivity(acts){
       (dt?' <span class="actdetail">'+esc(dt)+'</span>':'')+
       ' <span class="tdot"></span><span class="tdot"></span><span class="tdot"></span></div></div>';
   });
-  box.innerHTML=rows.join('');
-  if(rows.length && nearBottom) log.scrollTop=log.scrollHeight;
+  box.innerHTML=rows.join('');   // rebuilt only on a real state change, so the fade plays once, not every poll
 }
 
 // --- SSE ---
