@@ -3,22 +3,28 @@ bifrost_runner_deepseek -- make DeepSeek (a stateless API model) a FIRST-CLASS B
 
 Mirrors scripts/bifrost_runner.py (the Gemini runner). DeepSeek has no process and no inbox of its
 own, so this runner is its body: it registers @deepseek presence (an Agent Card), blocks on
-DeepSeek's Bifrost inbox, and for each incoming ask calls the DeepSeek API and posts the reply back
-on the bus. So `py agent_cli.py bifrost-send <you> --to deepseek "..."` -- or any agent messaging
-'deepseek' -- gets a real reply on the bus, and the sender wakes (bifrost_wake) when it lands.
-That is the real-time Claude <-> DeepSeek loop.
+DeepSeek's Bifrost inbox, and for each incoming ask posts a reply back on the bus. So
+`py agent_cli.py bifrost-send <you> --to deepseek "..."` -- or any agent messaging 'deepseek' --
+gets a real reply, and the sender wakes (bifrost_wake) when it lands = real-time Claude <-> DeepSeek.
 
-  py scripts/bifrost_runner_deepseek.py                     # v4-pro, thinking off (snappy)
-  py scripts/bifrost_runner_deepseek.py --think             # v4-pro with reasoning (deeper, slower)
+Two modes:
+  * one-shot bridge (default) -- each message -> one DeepSeek completion -> reply. Fast, stateless.
+  * --agentic -- DeepSeek gets TOOLS (read files, search, git, query the Akashic knowledge base) and
+    can chain them WHILE composing the reply, with a per-peer conversation for continuity. Reuses the
+    guarded Agent+ToolBox from deepseek_chat.py (read-only, secret-blocked, path-scoped). This is how
+    DeepSeek actually investigates the codebase and helps build, not just chat.
+
+  py scripts/bifrost_runner_deepseek.py                     # one-shot, v4-pro, thinking off
+  py scripts/bifrost_runner_deepseek.py --agentic           # tool-using peer (reads code/KB live)
+  py scripts/bifrost_runner_deepseek.py --agentic --think   # + deep reasoning
   py scripts/bifrost_runner_deepseek.py --model deepseek-v4-flash --once   # cheap; one msg then exit
 
 Key: env DEEPSEEK_API_KEY else .secrets/deepseek.key (reused from ask_deepseek.py). OpenAI-compatible.
-This is the stateless one-shot bridge (Slice 1). A stateful, tool-using runner (DeepSeek reads
-files/KB WHILE collaborating) is the follow-on slice built on scripts/deepseek_chat.py.
 """
 import argparse
 import os
 import sys
+from pathlib import Path
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
@@ -42,17 +48,18 @@ DEFAULT_SYSTEM = (
 
 
 def should_answer(kind, frm, self_id) -> bool:
-    """Answer direct asks from others; ignore our own echoes and non-question kinds (e.g. 'reply')."""
+    """Answer direct asks from others; ignore our own echoes and non-question kinds (e.g. 'reply').
+    Keeping 'reply' out of ANSWERABLE is also the echo-loop guard: a reply never triggers a reply."""
     return frm != self_id and str(kind) in ANSWERABLE
 
 
 def make_replier(model: str, system: str, think: bool):
-    """Build a one-shot prompt->reply bridge over the DeepSeek API. Never raises: any failure comes
-    back as a string so the runner loop stays alive and the sender always gets *something*."""
+    """One-shot prompt->reply bridge over the DeepSeek API. Never raises: any failure comes back as a
+    string so the runner loop stays alive and the sender always gets *something*."""
     from openai import OpenAI
     client = OpenAI(api_key=load_key(), base_url=BASE_URL)
 
-    def reply(prompt: str) -> str:
+    def respond(prompt: str) -> str:
         try:
             kwargs = {"model": model, "messages": [
                 {"role": "system", "content": system},
@@ -65,14 +72,50 @@ def make_replier(model: str, system: str, think: bool):
         except Exception as e:
             return f"(deepseek runner error: {type(e).__name__}: {e})"
 
-    return reply
+    return respond
+
+
+def make_agentic_replier(model: str, system: str, think: bool, root: Path):
+    """Tool-using bridge: DeepSeek can read files, search, inspect git, and query the Akashic knowledge
+    base WHILE composing its reply, then posts the final answer to the bus. Reuses the guarded
+    Agent+ToolBox from deepseek_chat.py (read-only, secret-blocked, path-scoped). Keeps a per-peer
+    conversation for continuity. Unattended, so gated actions (run_command) auto-deny."""
+    import deepseek_chat as dc
+    from openai import OpenAI
+    client = OpenAI(api_key=load_key(), base_url=BASE_URL)
+    toolbox = dc.ToolBox(root, allow_exec=False, trust=False, allow_secrets=False,
+                         confirm=lambda _p: False)
+    convos: dict = {}
+
+    def respond(frm: str, prompt: str) -> str:
+        ag = convos.get(frm)
+        if ag is None:
+            ag = dc.Agent(client, toolbox, model=model, system=system, think=think, tools_enabled=True)
+            convos[frm] = ag
+        try:
+            answer = ag.send(prompt)                 # streams to the runner window; returns final text
+        except Exception as e:
+            return f"(deepseek agentic runner error: {type(e).__name__}: {e})"
+        return answer or "(deepseek produced no final answer)"
+
+    return respond
 
 
 def main() -> int:
+    try:                                             # DeepSeek replies can carry unicode; the runner
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")   # window must not die on cp1252
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
     ap = argparse.ArgumentParser(description="Run DeepSeek as a Bifrost citizen.")
     ap.add_argument("--agent", default="deepseek")
     ap.add_argument("--model", default=DEFAULT_MODEL)
     ap.add_argument("--system", default=DEFAULT_SYSTEM)
+    ap.add_argument("--agentic", action="store_true",
+                    help="give DeepSeek tools (read files/search/git/knowledge base) while it replies")
+    ap.add_argument("--root", default=os.path.dirname(HERE),
+                    help="file-access root for --agentic (default: the repo)")
     ap.add_argument("--think", action="store_true", help="enable DeepSeek thinking mode (deeper, slower)")
     ap.add_argument("--once", action="store_true", help="process one wake then exit (for testing)")
     args = ap.parse_args()
@@ -84,10 +127,25 @@ def main() -> int:
     if not bus.online:
         print("bifrost_runner_deepseek: bus OFFLINE (Redis unreachable)")
         return 2
+
+    if args.agentic:
+        import deepseek_chat as dc
+        if dc._enable_utf8_and_ansi():
+            dc.C.enable()
+        root = Path(args.root).resolve()
+        system = args.system
+        if system == DEFAULT_SYSTEM:                 # give the tool-aware prompt unless overridden
+            system = dc.default_system(root) + (" You are reached over a shared message bus; each "
+                     "reply posts back to the sender, so make it self-contained.")
+        responder = make_agentic_replier(args.model, system, args.think, root)
+        mode = f"agentic tools @ {root}"
+    else:
+        responder = make_replier(args.model, args.system, args.think)
+        mode = "one-shot bridge"
+
     bus.register(card=CARD)
-    reply = make_replier(args.model, args.system, args.think)
-    print(f"[deepseek-runner] {args.agent} online (model={args.model}, think={'on' if args.think else 'off'}). "
-          f"Waiting for messages... (Ctrl-C to stop)")
+    print(f"[deepseek-runner] {args.agent} online (model={args.model}, think={'on' if args.think else 'off'}, "
+          f"{mode}). Waiting for messages... (Ctrl-C to stop)")
     try:
         while True:
             msgs = bus.wait(timeout_ms=0, advance=True)  # block until a message, then CONSUME it
@@ -97,7 +155,7 @@ def main() -> int:
                     continue
                 prompt = m.content if isinstance(m.content, str) else str(m.content)
                 print(f"[deepseek-runner] <- {m.frm} [{m.kind}]: {prompt[:80]}")
-                out = reply(prompt)
+                out = responder(m.frm, prompt) if args.agentic else responder(prompt)
                 bus.send(m.frm, "reply", out, meta={"via": f"{args.agent}-runner", "model": args.model})
                 print(f"[deepseek-runner] -> {m.frm}: {out[:80]}")
             if args.once:

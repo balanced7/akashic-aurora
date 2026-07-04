@@ -467,7 +467,7 @@ class Agent:
                 print(f"{C.red}DEEPSEEK_ERROR ({self.model}): {type(e).__name__}: {e}{C.reset}")
                 if self.messages and self.messages[-1]["role"] == "user":
                     self.messages.pop()
-                return
+                return ""
             if tool_calls:
                 self.messages.append({"role": "assistant", "content": content or None, "tool_calls": [
                     {"id": s["id"], "type": "function",
@@ -486,8 +486,9 @@ class Agent:
                 continue
             if content:
                 self.messages.append({"role": "assistant", "content": content})
-            return
+            return content
         print(f"{C.red}[stopped: hit {MAX_TOOL_ROUNDS} tool rounds]{C.reset}")
+        return ""
 
     def save(self, path):
         Path(path).write_text(json.dumps({"model": self.model, "think": self.think,
