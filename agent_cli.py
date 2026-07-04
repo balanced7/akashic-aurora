@@ -1560,6 +1560,31 @@ def cmd_bifrost_sync(args):
     return 0
 
 
+def cmd_bifrost_send(args):
+    """Send a message to another agent on the Bifrost bus (or --broadcast to all). The sender is
+    args.agent_id; the recipient is --to. Rings the doorbell so a runner/waiter wakes."""
+    from core.comm.bus import Bus
+    bus = Bus(args.agent_id)
+    if not bus.online:
+        print("[bifrost-send] bus OFFLINE (Redis down) -- not sent."); return 1
+    bus.register()
+    text = " ".join(args.text) if isinstance(args.text, list) else str(args.text)
+    if args.broadcast:
+        mid = bus.broadcast(args.kind, text)
+        dest = "*"
+    else:
+        if not args.to:
+            print('ERROR: bifrost-send needs --to <agent> (or --broadcast). '
+                  'e.g. bifrost-send claude --to deepseek "hi"'); return 2
+        mid = bus.send(args.to, args.kind, text)
+        dest = args.to
+    if args.json:
+        print(json.dumps({"sent": bool(mid), "id": mid, "to": dest, "kind": args.kind}, default=str))
+        return 0 if mid else 1
+    print(f"[bifrost-send] -> {dest} [{args.kind}] (id {mid})" if mid else "[bifrost-send] send failed")
+    return 0 if mid else 1
+
+
 # -------------------------------------------------------------------------- locks
 def cmd_lock(args):
     """Claim an advisory path-lock so the peer sees you're editing it (C2). Re-claiming
@@ -1846,6 +1871,15 @@ def build_parser():
     bs.add_argument("--digest", action="store_true", help="cheap one-line-per-unread headlines (no bodies)")
     bs.add_argument("--json", action="store_true")
     bs.set_defaults(fn=cmd_bifrost_sync)
+
+    snd = sub.add_parser("bifrost-send", help="send a message to another agent on the bus")
+    snd.add_argument("agent_id", help="your stable agent id (the SENDER, e.g. claude)")
+    snd.add_argument("text", nargs="+", help="the message text")
+    snd.add_argument("--to", default="", help="recipient agent id (e.g. deepseek); omit with --broadcast")
+    snd.add_argument("--kind", default="chat", help="chat|request|question|handoff|... (default chat)")
+    snd.add_argument("--broadcast", action="store_true", help="send to ALL agents instead of one --to")
+    snd.add_argument("--json", action="store_true")
+    snd.set_defaults(fn=cmd_bifrost_send)
 
     lk = sub.add_parser("lock", help="claim an advisory path-lock (C2)")
     lk.add_argument("agent_id"); lk.add_argument("path")
