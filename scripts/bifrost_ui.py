@@ -150,13 +150,17 @@ class Handler(BaseHTTPRequestHandler):
                                 "runner": bool(runner_lock.holder(aid))}
         except Exception:
             signals = {}
-        # Known: ALL registered agents (always visible, even offline) for the wake-from-UI fix.
+        # Known: ALL registered agents (always visible, even offline) + any agent currently online.
+        # The roster shows every agent the user might want to message, not just ACL-registered ones.
         known = []
         try:
             known = sorted([g.agent_id for g in registry.grants()])
-            if "claude" not in known:
-                known.append("claude")
-                known.sort()
+            # Always include agents that have ever appeared on the bus (even if not ACL'd)
+            for a in agents:
+                aid = a.get("agent")
+                if aid and aid not in known:
+                    known.append(aid)
+            known.sort()
         except Exception:
             pass
         return {"paused": control.is_paused(), "pause": control.pause_status(),
@@ -1028,6 +1032,11 @@ function applyStatus(s){
   b.textContent = paused ? '▶ Resume' : '⏸ Pause';
   b.classList.toggle('paused', paused);
   banner.classList.toggle('show', paused);
+  // show WHO paused and WHY (the pause_status carries {by, reason, ts})
+  var ps = s.pause || {};
+  banner.innerHTML = paused
+    ? '⏸ Paused' + (ps.by ? ' by <b>'+esc(ps.by)+'</b>' : '') + (ps.reason ? ' — '+esc(ps.reason) : '') + ' · the agents are frozen. Type below to interject, then Resume.'
+    : '⏸ Paused — the agents are frozen. Type below to interject, then Resume.';
   // dynamic roster: UNION of ACL-registered + currently-online agents.
   const agents=(s.agents||[]).map(a=>a.agent).filter(Boolean);
   const known=s.known||[];
