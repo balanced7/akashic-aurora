@@ -127,6 +127,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._static("scripts/bifrost_viz.js", "application/javascript")
         if path == "/theme-void.js":
             return self._static("scripts/theme-void.js", "application/javascript")
+        if path == "/presence-rail.js":
+            return self._static("scripts/presence-rail.js", "application/javascript")
         self.send_error(404)
 
     def _html(self):
@@ -1844,6 +1846,8 @@ function glassKill(aid){
     };
     if(_activeVariant.tile==='glass-card') renderGlassCards();
     if(_activeVariant.tile==='iso-cube') renderIsoCubes();
+    window._glassCardData=_glassCardData; window._lastActs=s.activities||{};   // cache for standalone tile variants
+    if(_activeVariant.tile==='presence' && window.renderPresence) window.renderPresence(_glassCardData, window._lastActs);
     updateAshChroma();
   };
 })();
@@ -2184,6 +2188,7 @@ document.addEventListener('keydown', function(e){
 initViz();
 </script>
 <script src="/theme-void.js"></script>
+<script src="/presence-rail.js"></script>
 </body>
 </html>
 """
