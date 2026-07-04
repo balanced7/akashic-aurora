@@ -31,8 +31,8 @@
       'pointer-events:auto;animation:cloudbob 4.5s ease-in-out infinite}' +
     '#pcloud .cloud .verb{font-size:10px;letter-spacing:.09em;text-transform:uppercase;font-weight:700;margin-bottom:3px;display:flex;align-items:center;gap:6px}' +
     '#pcloud .cloud .verb .z{width:6px;height:6px;border-radius:50%;animation:zpulse 1.3s ease-in-out infinite}' +
-    '#pcloud .cloud .detail{color:var(--muted,#9297ab);font-family:var(--mono,ui-monospace,monospace);font-size:11px;' +
-      'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:234px}' +
+    '#pcloud .cloud .detail{color:var(--muted,#9297ab);font-family:var(--mono,ui-monospace,monospace);font-size:11px;line-height:1.45;' +
+      'display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;max-width:240px}' +
     /* the trailing thought bubbles from avatar up to the cloud */
     '#pcloud .trail{position:absolute;left:30px;bottom:44px;width:14px;height:14px;pointer-events:none}' +
     '#pcloud .trail i{position:absolute;border-radius:50%;background:var(--glass,rgba(18,20,28,.62));' +
@@ -64,25 +64,40 @@
     return wrap;
   }
 
-  // pick the agent to feature: the one actively working (most recent), else a runner, else nothing.
+  // latest 💭 reasoning line for an agent, from the shared trace buffer (filled by the UI's addMsg)
+  function latestThought(aid){
+    try {
+      var buf=(global._traceBuffer||{})[aid]||[];
+      for(var k=buf.length-1;k>=0;k--){
+        var t=(buf[k]&&buf[k].text)||'';
+        if(t.indexOf('💭')===0) return { text:t.replace(/^💭\s*/,''), ts:Date.parse(buf[k].ts)||0 };
+      }
+    } catch(e){}
+    return null;
+  }
+
+  // Feature the agent that's most recently ALIVE — by activity OR by a 💭 thought (within ~25s).
+  // Falls back through runner → any online → any known so the avatar is always a fixture.
   function pick(d, acts){
-    var online=new Set(d.agents||[]);
-    var best=null, bestTs=-1;
-    Object.keys(acts||{}).forEach(function(aid){
-      var a=acts[aid]; if(!a||!ACTIVE[a.state]) return;
-      var ts=a.ts?Date.parse(a.ts)||0:0;
-      if(ts>=bestTs){ bestTs=ts; best={aid:aid, act:a}; }
+    var roster=d.roster||[].concat(d.known||[], d.agents||[], ['user']);
+    var best=null, bestTs=-1, seen={}, now=Date.now();
+    roster.forEach(function(aid){
+      if(!aid||aid==='user'||seen[aid]) return; seen[aid]=1;
+      var a=acts[aid]||null;
+      var aTs=(a&&ACTIVE[a.state]&&a.ts)?(Date.parse(a.ts)||0):-1;
+      var th=latestThought(aid);
+      var tTs=th?th.ts:-1;
+      var ts=Math.max(aTs,tTs);
+      if(ts>bestTs && ts>0 && (now-ts)<25000){ bestTs=ts; best={aid:aid, act:a||{state:'thinking'}, thought:th?th.text:''}; }
     });
     if(best) return best;
-    // nobody actively thinking → feature a runner (idle presence) if any online
     var sig=d.signals||{};
     var runner=(d.agents||[]).find(function(a){ return (sig[a]||{}).runner; });
-    if(runner) return {aid:runner, act:{state:'idle'}};
-    // ALWAYS show some agent so the bottom-left avatar is a persistent fixture (Daniel's ask)
+    if(runner) return {aid:runner, act:{state:'idle'}, thought:''};
     var online=(d.agents||[]).filter(function(a){ return a!=='user'; });
-    if(online.length) return {aid:online[0], act:{state:'idle'}};
+    if(online.length) return {aid:online[0], act:{state:'idle'}, thought:''};
     var known=(d.known||[]).filter(function(a){ return a!=='user'; });
-    if(known.length) return {aid:known[0], act:{state:'idle'}};
+    if(known.length) return {aid:known[0], act:{state:'idle'}, thought:''};
     return null;
   }
 
@@ -98,13 +113,14 @@
     av.style.background=grad;
     av.querySelector('.rglow').style.background=grad;
     av.querySelector('.lt').textContent=info.l;
-    var thinking=!!ACTIVE[act.state];
+    var thought=sel.thought||'';
+    var thinking=!!ACTIVE[act.state] || !!thought;
     var cloud=wrap.querySelector('.cloud');
-    wrap.querySelector('.vt').textContent=aid+' · '+(VERB[act.state]||act.state||'idle');
+    wrap.querySelector('.vt').textContent=aid+' · '+(VERB[act.state]||(thought?'thinking':(act.state||'idle')));
     wrap.querySelector('.verb .z').style.background=thinking?info.a:'var(--faint,#5c6178)';
     wrap.querySelector('.verb').style.color=info.a;
-    wrap.querySelector('.detail').textContent=act.detail||'';
-    // show the cloud only when there's live thinking; keep the avatar visible either way
+    wrap.querySelector('.detail').textContent = thought || act.detail || '';   // live 💭 reasoning, else activity
+    // cloud shows when the agent is actively thinking or has a fresh thought; avatar stays either way
     cloud.style.display = thinking ? '' : 'none';
     wrap.querySelector('.trail').style.display = thinking ? '' : 'none';
     wrap.className='show';
