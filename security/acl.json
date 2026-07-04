@@ -1,0 +1,31 @@
+{
+  "_comment": "Agent grant registry -- the SOURCE OF TRUTH for who can do what. Edit here (git-tracked, code-reviewable); Redis is only a cache. See docs/security-schema-proposal.md. Unknown/unlisted agents are QUARANTINED (read-only) by default -- fail-closed.",
+  "schema_version": 1,
+  "grants": [
+    {
+      "agent_id": "claude",
+      "role": "super_admin",
+      "caps": ["read", "write", "exec", "bus.send", "bus.nudge", "bus.steer",
+               "admin.grant", "admin.approve", "kb.recall", "kb.learn", "net",
+               "git.read", "bifrost.inbox"],
+      "path_scope": ["*"],
+      "bus_send_kinds": null,
+      "granted_by": "root",
+      "granted_at": "2026-07-04T00:00:00Z",
+      "expires_at": null,
+      "reason": "Bootstrap: human-driven frontier model, full trust (super-admin)"
+    },
+    {
+      "agent_id": "deepseek",
+      "role": "admin",
+      "caps": ["read", "write", "bus.send", "bus.nudge", "bus.steer",
+               "kb.recall", "kb.learn", "net", "git.read", "bifrost.inbox"],
+      "path_scope": ["*"],
+      "bus_send_kinds": ["chat", "note", "request", "reply", "nudge", "steer", "inform"],
+      "granted_by": "root",
+      "granted_at": "2026-07-04T00:00:00Z",
+      "expires_at": null,
+      "reason": "Bootstrap: stateless API peer, trust-but-verify (admin; no exec, no admin.grant)"
+    }
+  ]
+}

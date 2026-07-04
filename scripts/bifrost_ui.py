@@ -17,6 +17,8 @@ import base64
 import json
 import os
 import sys
+import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -26,6 +28,9 @@ sys.path.insert(0, REPO)
 from core.comm.bus import Bus
 from core.comm import control
 from core.comm import interject
+from core.comm import promoter
+from core.comm.launcher import get_launcher
+from core.trust import registry
 
 DROPBOX = os.path.join(REPO, "dropbox")
 BUS = Bus("user")   # the console posts to the bus as 'user'; also registers 'user' presence
@@ -115,6 +120,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(self._status())
         if path == "/events":
             return self._events()
+        if path == "/launcher/status":
+            return self._json(get_launcher().registry())
         self.send_error(404)
 
     def _html(self):
@@ -130,8 +137,32 @@ class Handler(BaseHTTPRequestHandler):
             agents = BUS.presence()
         except Exception:
             agents = []
+        # Per-agent awareness: pending nudge (hard) + queued steer (soft) + whether a runner holds the
+        # singleton lock. Lets the roster show, at a glance, who's being signalled and who's actually live.
+        signals = {}
+        try:
+            from core.comm import nudge, runner_lock
+            for a in agents:
+                aid = a.get("agent")
+                if not aid:
+                    continue
+                signals[aid] = {"nudged": nudge.is_nudged(aid),
+                                "steer_pending": nudge.steer_pending(aid),
+                                "runner": bool(runner_lock.holder(aid))}
+        except Exception:
+            signals = {}
+        # Known: ALL registered agents (always visible, even offline) for the wake-from-UI fix.
+        known = []
+        try:
+            known = sorted([g.agent_id for g in registry.grants()])
+            if "claude" not in known:
+                known.append("claude")
+                known.sort()
+        except Exception:
+            pass
         return {"paused": control.is_paused(), "pause": control.pause_status(),
-                "agents": agents, "activities": control.get_activities(), "max_hops": control.MAX_HOPS}
+                "agents": agents, "known": known, "activities": control.get_activities(),
+                "signals": signals, "max_hops": control.MAX_HOPS}
 
     def _json(self, obj, code=200):
         body = json.dumps(obj, default=str).encode("utf-8")
@@ -185,39 +216,60 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/send":
             return self._send(data)
         if path == "/pause":
-            control.pause(reason=data.get("reason", "console"), by="user")
+            reason = data.get("reason", "console")
+            control.pause(reason=reason, by="user")
+            promoter.promote_control("pause", reason=reason, by="user")
             return self._json(self._status())
         if path == "/resume":
             control.resume()
+            promoter.promote_control("resume", by="user")
             return self._json(self._status())
         if path == "/upload":
             return self._upload(data)
+        if path == "/launcher/launch":
+            tag = data.get("agent_id") or data.get("tag") or ""
+            prompt = data.get("prompt") or ""
+            result = get_launcher().launch(tag, prompt=prompt)
+            return self._json(result)
+        if path == "/launcher/kill":
+            tag = data.get("agent_id") or data.get("tag") or ""
+            result = get_launcher().kill(tag)
+            return self._json(result)
+        if path == "/reload":
+            self._json({"ok": True, "reloading": True})
+            threading.Thread(target=lambda: (time.sleep(0.3), _reexec()), daemon=True).start()
+            return
         self.send_error(404)
 
     def _send(self, data):
+        """Deliver an operator message at an EXPLICIT fidelity (chosen in the UI, not guessed from
+        keywords -- that keyword-guessing false-tripped 'halt' on ordinary prose). Fidelities:
+          chat/inform : plain delivery; the agent adopts it at its next turn. Never pauses.
+          steer       : queue a fact the target folds into its CURRENT task (soft). Targeted only.
+          interrupt   : hard barge-in -- set the target's nudge flag + kind=nudge. Targeted only.
+        Global HALT is a separate, explicit control (the Pause button / /pause)."""
         text = (data.get("text") or "").strip()
-        to = (data.get("to") or "all").strip().lower()       # default: reach BOTH agents
+        to = (data.get("to") or "all").strip().lower()       # default: reach every agent
+        fidelity = (data.get("fidelity") or "chat").strip().lower()
         if not text:
             return self._json({"ok": False, "error": "empty"}, 400)
-        verdict = interject.classify_intent(text)            # adaptive: resume | halt | steer | ask
-        intent = verdict["intent"]
         broadcast = to in ("all", "both", "*", "")
-        meta = {"hops": 0, "via": "console", "intent": intent, "why": verdict["why"]}
+        meta = {"hops": 0, "via": "console", "intent": fidelity}
+        from core.comm import nudge
 
-        def deliver(kind):
-            # broadcast reaches BOTH Claude and DeepSeek; a specific agent id targets just that one
-            return BUS.broadcast(kind, text, meta=meta) if broadcast else BUS.send(to, kind, text, meta=meta)
+        # Targeted fidelity signals need one recipient; if broadcast, they degrade to plain delivery.
+        if fidelity in ("interrupt", "steer") and not broadcast:
+            if fidelity == "interrupt":
+                nudge.nudge(to, by="user", reason=text[:80])
+                mid = BUS.send(to, "nudge", text, meta=meta)
+            else:
+                nudge.steer_push(to, "user", text)
+                mid = BUS.send(to, "steer", text, meta={**meta, "display_only": True})
+            return self._json({"ok": bool(mid), "id": mid, "intent": fidelity, "to": to, "paused": False})
 
-        if interject.should_resume(intent):                  # a bare "resume"/"continue" unfreezes the work
-            control.resume()
-            deliver("note")
-            return self._json({"ok": True, "resumed": True, "intent": intent, "why": verdict["why"]})
-        paused = interject.should_pause(intent)
-        if paused:                                           # a course-correction freezes the work
-            control.pause(reason=f"interjection ({verdict['why']}): {text[:40]}", by="user")
-        mid = deliver("chat")                                # hops=0: a human message is a fresh, sanctioned turn
-        return self._json({"ok": bool(mid), "id": mid, "intent": intent,
-                           "to": to, "why": verdict["why"], "paused": paused})
+        kind = "inform" if fidelity == "inform" else "chat"
+        mid = BUS.broadcast(kind, text, meta=meta) if broadcast else BUS.send(to, kind, text, meta=meta)
+        return self._json({"ok": bool(mid), "id": mid, "intent": fidelity, "to": to, "paused": False})
 
     def _upload(self, data):
         name = os.path.basename((data.get("name") or "").strip()) or "dropped.bin"
@@ -238,21 +290,57 @@ class Handler(BaseHTTPRequestHandler):
                  f"[shared file] The user dropped a file into the project at `{rel}` "
                  f"({len(blob)} bytes). Read it with read_file if it's relevant.",
                  meta={"hops": 0, "via": "console", "file": rel})
+        promoter.promote_drop(rel, len(blob), by="user")     # durable provenance: what the human shared
         return self._json({"ok": True, "path": rel, "bytes": len(blob)})
+
+
+def _reexec():
+    """Replace this process with a fresh one (same args/port) so edited source is served. SSE clients
+    auto-reconnect; the browser just needs a refresh (the Reload button does it)."""
+    try:
+        sys.stdout.flush(); sys.stderr.flush()
+    except Exception:
+        pass
+    os.execv(sys.executable, [sys.executable] + sys.argv)
+
+
+def _reload_watcher():
+    """Self-reload: when this UI's own source changes on disk (an agent edited the console), re-exec so
+    the new code is served -- no human in the restart loop. Debounced so we never reload mid-write."""
+    try:
+        last = os.path.getmtime(__file__)
+    except Exception:
+        return
+    while True:
+        time.sleep(2)
+        try:
+            m = os.path.getmtime(__file__)
+        except Exception:
+            continue
+        if m != last:
+            time.sleep(1.0)                 # debounce: let the writer finish flushing
+            print("[bifrost-ui] source changed on disk -> reloading")
+            _reexec()
 
 
 def main():
     ap = argparse.ArgumentParser(description="Realtime Bifrost web console.")
     ap.add_argument("--port", type=int, default=8787)
     ap.add_argument("--host", default="127.0.0.1")
+    ap.add_argument("--auto-reload", action="store_true",
+                    help="re-exec the server when its source changes on disk (dev only; OFF by default so a "
+                         "write-enabled agent editing the UI can't silently restart it under you). Use the "
+                         "header ↻ Reload button for an explicit, safe reload instead.")
     args = ap.parse_args()
     if not BUS.online:
         print("bifrost_ui: WARNING -- bus offline (Redis unreachable). UI will serve but show no messages.")
     os.makedirs(DROPBOX, exist_ok=True)
     srv = ThreadingHTTPServer((args.host, args.port), Handler)
     srv.daemon_threads = True
+    if args.auto_reload:                                             # opt-in: surprise-restart safe by default
+        threading.Thread(target=_reload_watcher, daemon=True).start()
     url = f"http://{args.host}:{args.port}"
-    print(f"[bifrost-ui] live at {url}   (Ctrl-C to stop)")
+    print(f"[bifrost-ui] live at {url}   ({'auto-reload ON' if args.auto_reload else 'manual reload button'} - Ctrl-C to stop)")
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
@@ -296,10 +384,11 @@ PAGE = r"""<!doctype html>
   .spacer{flex:1}
   .pills{display:flex; gap:7px; align-items:center}
   .pill{display:flex; align-items:center; gap:6px; padding:5px 10px; border:1px solid var(--border);
-    border-radius:999px; background:var(--panel); font-size:12.5px; color:var(--muted)}
+    border-radius:999px; background:var(--panel); font-size:12.5px; color:var(--muted); cursor:pointer}
   .dot{width:7px;height:7px;border-radius:50%;background:var(--faint); box-shadow:0 0 0 0 rgba(0,0,0,0)}
   .pill.on .dot{background:var(--user); box-shadow:0 0 8px var(--user)}
   .pill.on{color:var(--text)}
+  .pill.off{opacity:.55}
   button.ctl{
     font:inherit; font-size:13px; font-weight:600; color:var(--text); cursor:pointer;
     border:1px solid var(--border); background:var(--panel); padding:8px 14px; border-radius:10px;
@@ -335,7 +424,18 @@ PAGE = r"""<!doctype html>
   .ib{font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; padding:1px 6px; border-radius:5px; border:1px solid var(--border)}
   .ib-halt{color:var(--amber); border-color:rgba(240,178,70,.45); background:rgba(240,178,70,.12)}
   .ib-steer{color:var(--deepseek); border-color:rgba(122,162,247,.4); background:rgba(122,162,247,.1)}
+  .ib-interrupt{color:var(--danger); border-color:rgba(240,102,110,.5); background:rgba(240,102,110,.12)}
+  .ib-inform{color:var(--user); border-color:rgba(95,211,155,.4); background:rgba(95,211,155,.1)}
   .ib-ask{color:var(--muted)}
+  /* steer-pending / nudged markers on roster pills */
+  .pill .sig{font-size:10px; font-weight:700; padding:0 5px; border-radius:6px; margin-left:3px}
+  .pill .sig.steer{color:var(--deepseek); background:rgba(122,162,247,.16)}
+  .pill .sig.nudge{color:var(--danger); background:rgba(240,102,110,.16)}
+  .fidsel{align-self:center; background:var(--bg2); border:1px solid var(--border); color:var(--muted);
+    border-radius:9px; padding:7px 8px; font:inherit; font-size:12.5px; outline:none; cursor:pointer}
+  .fidsel:hover{border-color:#39405a}
+  .fidsel.interrupt{color:var(--danger); border-color:rgba(240,102,110,.4)}
+  .fidsel.steer{color:var(--deepseek); border-color:rgba(122,162,247,.4)}
   .content{white-space:pre-wrap; word-wrap:break-word; font-size:14.5px; color:#dce0ea}
   .content code{background:#0c0e14; border:1px solid var(--border); border-radius:5px; padding:1px 5px;
     font:12.5px/1.5 "SF Mono",SFMono-Regular,Consolas,monospace}
@@ -351,6 +451,13 @@ PAGE = r"""<!doctype html>
   .sys span{font-size:12px; color:var(--muted); background:var(--panel); border:1px solid var(--border);
     border-radius:999px; padding:5px 13px}
   .sys.guard span{color:var(--amber); border-color:rgba(240,178,70,.3); background:rgba(240,178,70,.08)}
+  /* live trace: DeepSeek's tool calls + thinking, streamed as compact dim lines */
+  .traceline{display:flex; gap:8px; align-items:baseline; margin:1px 0 1px 46px; font-size:12px;
+    font-family:"SF Mono",SFMono-Regular,Consolas,monospace; animation:fade .18s ease}
+  .traceline .trav{font-weight:600; opacity:.75; flex:none}
+  .traceline .trav.deepseek{color:var(--deepseek)} .traceline .trav.claude{color:var(--claude)}
+  .traceline .trav.system{color:var(--system)}
+  .traceline .trat{color:var(--faint); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
   /* typing */
   .activity{display:flex; flex-direction:column; gap:8px; padding:2px 16px 8px}
   .activity:empty{display:none}
@@ -392,6 +499,44 @@ PAGE = r"""<!doctype html>
   #toast{position:fixed; bottom:92px; left:50%; transform:translateX(-50%); z-index:30; display:flex; flex-direction:column; gap:8px}
   .toast{background:var(--panel2); border:1px solid var(--border); color:var(--text); padding:9px 15px;
     border-radius:10px; font-size:13px; box-shadow:var(--shadow); animation:fade .2s ease}
+  /* launcher panel */
+  #lnchr{display:none; margin:0 16px 10px; background:var(--panel); border:1px solid var(--border);
+    border-radius:14px; padding:14px 16px; box-shadow:var(--shadow); animation:drop .25s ease}
+  #lnchr.show{display:block}
+  .lrow{display:flex; align-items:center; gap:10px; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.04)}
+  .lrow:last-child{border-bottom:none}
+  .ltag{font-weight:650; font-size:13px; color:var(--text); min-width:120px}
+  .ldesc{flex:1; font-size:12.5px; color:var(--muted)}
+  .lst{font-size:11.5px; font-weight:600; padding:2px 8px; border-radius:6px; white-space:nowrap}
+  .lst.running{color:#5fd39b; background:rgba(95,211,155,.14)}
+  .lst.exited{color:var(--muted); background:rgba(139,144,162,.1)}
+  .lst.crashed,.lst.error{color:var(--danger); background:rgba(240,102,110,.12)}
+  .lst.killed{color:var(--amber); background:rgba(240,178,70,.12)}
+  .lst.token_exhausted{color:var(--amber); background:rgba(240,178,70,.14)}
+  .lst.never_launched{color:var(--faint); background:rgba(90,95,112,.08)}
+  .lact{display:flex; gap:6px}
+  .lact button{font:inherit; font-size:11.5px; font-weight:600; padding:5px 11px; border-radius:7px;
+    cursor:pointer; border:1px solid var(--border); background:var(--panel2); color:var(--text); transition:.15s}
+  .lact button:hover{border-color:#39405a; background:#1c1f2a}
+  .lact .lgo{background:linear-gradient(135deg,var(--accent),var(--accent2)); border-color:transparent; color:#fff}
+  .lact .lgo:hover{filter:brightness(1.1)}
+  .lact .lgo:disabled{opacity:.4; cursor:default; filter:none}
+  .lact .lkill{border-color:rgba(240,102,110,.35); color:var(--danger)}
+  .lact .lkill:hover{background:rgba(240,102,110,.12)}
+  .lact .lkill:disabled{opacity:.3; cursor:default}
+  .lreason{font-size:11px; color:var(--faint); margin-left:6px}
+  button.lctl{
+    font:inherit; font-size:12.5px; font-weight:600; color:var(--muted); cursor:pointer;
+    border:1px solid var(--border); background:var(--panel); padding:6px 11px; border-radius:9px;
+    transition:.15s; display:flex; align-items:center; gap:6px;
+  }
+  button.lctl:hover{border-color:#39405a; color:var(--text)}
+  button.lctl.active{color:var(--accent); border-color:rgba(122,162,247,.35)}
+  /* launch loading spinner */
+  @keyframes lspin{to{transform:rotate(360deg)}}
+  .lspinner{width:12px;height:12px;border:2px solid var(--border);border-top-color:var(--accent);
+    border-radius:50%;animation:lspin .7s linear infinite;display:none}
+  .lspinner.show{display:inline-block}
 </style>
 </head>
 <body>
@@ -400,22 +545,33 @@ PAGE = r"""<!doctype html>
     <div class="brand"><div class="logo"></div> Bifrost <small>live agent console</small></div>
     <div class="spacer"></div>
     <div class="pills" id="pills"></div>
+    <button class="ctl" id="reloadBtn" onclick="reloadUI()" title="reload the UI server (after an agent edits it)">↻</button>
+    <button class="lctl" id="lnchrBtn" onclick="toggleLauncher()" title="launch &amp; manage agents">🚀 Agents</button>
     <button class="ctl pause" id="pauseBtn" onclick="togglePause()">⏸ Pause</button>
   </header>
   <div class="banner" id="banner">⏸ Paused — the agents are frozen. Type below to interject, then Resume.</div>
+  <div id="lnchr">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <span style="font-weight:650;font-size:13px">Agent Launcher</span>
+      <span style="color:var(--faint);font-size:11.5px">— one-click start/stop, primed with context</span>
+    </div>
+    <div id="lnchrRows"></div>
+  </div>
   <div id="log"></div>
   <div class="activity" id="activity"></div>
   <div class="composer">
     <div class="cwrap">
-      <select id="target" class="target" title="who receives your message">
-        <option value="all">Both</option>
-        <option value="claude">Claude</option>
-        <option value="deepseek">DeepSeek</option>
+      <select id="target" class="target" title="who receives your message"></select>
+      <select id="fidelity" class="fidsel" title="how the signal lands" onchange="fidChanged()">
+        <option value="chat">💬 Chat</option>
+        <option value="inform">🟢 Inform</option>
+        <option value="steer">🔵 Steer</option>
+        <option value="interrupt">🔴 Interrupt</option>
       </select>
       <textarea id="input" rows="1" placeholder="Message the agents… (Enter to send, Shift+Enter for newline)"></textarea>
       <button class="send" id="sendBtn" onclick="send()">➤</button>
     </div>
-    <div class="hint">↳ “Both” reaches Claude &amp; DeepSeek · drag &amp; drop files anywhere to share them · Pause to interject safely</div>
+    <div class="hint" id="fidhint">↳ Chat/Inform = adopt at next turn · Steer = fold into current task (no stop) · Interrupt = drop &amp; switch · ⏸ Pause = freeze everyone</div>
   </div>
 </div>
 <div id="drop"><div class="dz"><div class="big">Drop files to share</div><div class="sub">saved into the project · agents can read them with their tools</div></div></div>
@@ -444,6 +600,11 @@ function addMsg(m){
   const from = m.from || 'system';
   const kind = m.kind || 'chat';
   const isGuard = /loop-guard/i.test(m.content||'');
+  if(kind==='trace'){   // live tool-call / thinking line, streamed under the agent
+    const d=document.createElement('div'); d.className='traceline';
+    d.innerHTML='<span class="trav '+cls(from)+'">'+esc(from)+'</span><span class="trat">'+esc(m.content||'')+'</span>';
+    log.appendChild(d); autoscroll(); return;
+  }
   if(from==='system' || kind==='note' || kind==='_ready'){
     if(kind==='_ready') return;
     const d=document.createElement('div'); d.className='sys'+(isGuard?' guard':'');
@@ -494,24 +655,45 @@ connect();
 const input = document.getElementById('input');
 input.addEventListener('input', ()=>{ input.style.height='auto'; input.style.height=Math.min(input.scrollHeight,160)+'px'; });
 input.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); } });
+const FIDLABEL = {chat:'💬 sent', inform:'🟢 informed', steer:'🔵 steered (folds into current task)', interrupt:'🔴 interrupted (drop & switch)'};
+function fidChanged(){
+  const f = document.getElementById('fidelity');
+  f.className = 'fidsel' + ((f.value==='interrupt'||f.value==='steer') ? ' '+f.value : '');
+}
 async function send(){
   const text = input.value.trim(); if(!text) return;
   const to = (document.getElementById('target')||{}).value || 'all';
+  const fidelity = (document.getElementById('fidelity')||{}).value || 'chat';
+  if((fidelity==='steer'||fidelity==='interrupt') && (to==='all'||to==='')){
+    toast('pick ONE agent for '+fidelity+' (it targets a single peer)'); return;
+  }
   input.value=''; input.style.height='auto';
   try{
-    const r = await fetch('/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text, to})});
+    const r = await fetch('/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text, to, fidelity})});
     const j = await r.json();
-    if(j && j.resumed){ paused=false;
-      const b=document.getElementById('pauseBtn'); b.textContent='⏸ Pause'; b.classList.remove('paused');
-      document.getElementById('banner').classList.remove('show');
-      toast('▶ resumed'); }
-    else if(j && j.paused){ paused=true;
-      const b=document.getElementById('pauseBtn'); b.textContent='▶ Resume'; b.classList.add('paused');
-      document.getElementById('banner').classList.add('show');
-      toast('⏸ "'+(j.intent||'halt')+'" detected — work paused ('+(j.why||'')+')'); }
+    if(j && j.ok){ toast((FIDLABEL[fidelity]||'sent')+' → '+(to==='all'?'all':to)); }
+    else { toast('send failed — bus offline?'); }
   }catch(e){ toast('send failed — bus offline?'); }
 }
 
+// --- pill click -> set composer target ---
+function setTarget(aid){
+  const tsel=document.getElementById('target');
+  if(tsel){
+    for(const o of tsel.options){ if(o.value===aid){ tsel.value=aid; return; } }
+    // if not yet in dropdown (race), add it
+    const opt=document.createElement('option'); opt.value=aid; opt.textContent=aid;
+    tsel.appendChild(opt);
+    tsel.value=aid;
+  }
+}
+
+// --- reload (after an agent edits the UI source) ---
+async function reloadUI(){
+  try{ await fetch('/reload',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    toast('↻ reloading UI server…'); setTimeout(()=>location.reload(), 1600);
+  }catch(e){ toast('reload failed'); }
+}
 // --- pause ---
 async function togglePause(){
   const url = paused ? '/resume' : '/pause';
@@ -524,11 +706,33 @@ function applyStatus(s){
   b.textContent = paused ? '▶ Resume' : '⏸ Pause';
   b.classList.toggle('paused', paused);
   banner.classList.toggle('show', paused);
-  // agent pills
-  const online = new Set((s.agents||[]).map(a=>a.agent));
+  // dynamic roster: ALL known agents (from registry), online or asleep. Click a pill to set the
+  // composer target — even an offline agent can be messaged (queues to its inbox, wakes on next poll).
+  const agents=(s.agents||[]).map(a=>a.agent).filter(Boolean);
+  const online=new Set(agents);
+  const known=s.known||[];
+  const sig=s.signals||{};
   const pills=document.getElementById('pills');
-  const want=['claude','deepseek','user'];
-  pills.innerHTML = want.map(a=>'<div class="pill'+(online.has(a)?' on':'')+'"><span class="dot"></span>'+a+'</div>').join('');
+  const roster=[...new Set([...known,'user'])];
+  pills.innerHTML = roster.map(a=>{
+    const g=sig[a]||{};
+    const isOnline=online.has(a)||a==='user';
+    const marks=(g.steer_pending?'<span class="sig steer" title="steer facts queued">↝'+g.steer_pending+'</span>':'')
+              +(g.nudged?'<span class="sig nudge" title="interrupt pending">⚡</span>':'');
+    return '<div class="pill'+(isOnline?' on':' off')+'" onclick="setTarget(\''+esc(a)+'\')" title="click to message '+esc(a)+'"><span class="dot"></span>'+esc(a)+(isOnline?'':' 💤')+marks+'</div>';
+  }).join('');
+  // keep the recipient dropdown in sync with ALL known agents (online + asleep), not just online
+  const tsel=document.getElementById('target');
+  if(tsel){
+    const targets=known.filter(a=>a!=='user');
+    const sigStr='all|'+targets.join('|');
+    if(tsel.dataset.sig!==sigStr){
+      const cur=tsel.value||'all';
+      tsel.innerHTML='<option value="all">All</option>'+targets.map(a=>'<option value="'+esc(a)+'">'+esc(a)+'</option>').join('');
+      tsel.value=[...tsel.options].some(o=>o.value===cur)?cur:'all';
+      tsel.dataset.sig=sigStr;
+    }
+  }
   renderActivity(s.activities||{});
 }
 async function poll(){ try{ applyStatus(await (await fetch('/status')).json()); }catch(e){} }
@@ -564,6 +768,72 @@ function toast(msg){
   document.getElementById('toast').appendChild(t);
   setTimeout(()=>{ t.style.opacity='0'; setTimeout(()=>t.remove(),300); }, 3200);
 }
+
+// --- launcher panel ---
+let lnchrOpen=false, lnchrData=[];
+function toggleLauncher(){
+  lnchrOpen=!lnchrOpen;
+  document.getElementById('lnchr').classList.toggle('show', lnchrOpen);
+  document.getElementById('lnchrBtn').classList.toggle('active', lnchrOpen);
+  if(lnchrOpen) refreshLauncher();
+}
+function exitClass(r){ return r||'never_launched'; }
+function exitLabel(r){
+  const map={clean:'clean exit',token_exhausted:'⚠ token exhausted',error:'✗ error',killed:'killed',
+    auth_error:'🔑 auth error', never_launched:'not launched', running:'running', exited:'exited'};
+  return map[r]||r||'unknown';
+}
+async function refreshLauncher(){
+  try{
+    const r=await (await fetch('/launcher/status')).json();
+    lnchrData=r||[];
+    const box=document.getElementById('lnchrRows');
+    box.innerHTML=lnchrData.map(a=>{
+      const cls=exitClass(a.status==='running'?'running':a.exit_reason);
+      const lbl=exitLabel(a.status==='running'?'running':a.exit_reason);
+      const reason=a.exit_reason&&a.status!=='running'?
+        '<span class="lreason">'+lbl+(a.exit_code!=null?' (code '+a.exit_code+')':'')+'</span>':'';
+      const running=a.status==='running';
+      const pidInfo=running?' <span style="color:var(--faint);font-size:11px">pid '+a.pid+'</span>':'';
+      return '<div class="lrow">'+
+        '<span class="ltag">'+esc(a.tag)+pidInfo+'</span>'+
+        '<span class="ldesc">'+esc(a.description||'')+'</span>'+
+        '<span class="lst '+cls+'">'+lbl+'</span>'+reason+
+        '<span class="lact">'+
+          '<button class="lgo" onclick="launchAgent(\''+esc(a.tag)+'\')" '+(running||!a.enabled?'disabled':'')+'>'+
+            (running?'running':'▶ Launch')+'</button>'+
+          '<button class="lkill" onclick="killAgent(\''+esc(a.tag)+'\')" '+(!running?'disabled':'')+'>'+
+            '✕ Kill</button>'+
+        '</span></div>';
+    }).join('')||'<div style="color:var(--faint);text-align:center;padding:12px">no agents registered — add entries to security/launcher.json</div>';
+  }catch(e){}
+}
+async function launchAgent(tag){
+  const row=lnchrData.find(a=>a.tag===tag);
+  if(!row) return;
+  toast('🚀 launching '+tag+'…');
+  try{
+    const r=await fetch('/launcher/launch',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({agent_id:tag})});
+    const j=await r.json();
+    if(j&&j.ok) toast('✅ '+tag+' started (pid '+j.pid+')');
+    else toast('❌ '+(j?j.error:'failed to launch '+tag));
+    refreshLauncher();
+  }catch(e){ toast('launch failed — server offline?'); }
+}
+async function killAgent(tag){
+  toast('⏹ killing '+tag+'…');
+  try{
+    const r=await fetch('/launcher/kill',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({agent_id:tag})});
+    const j=await r.json();
+    if(j&&j.ok) toast('⏹ '+tag+' terminated');
+    else toast('❌ '+(j?j.error:'failed to kill '+tag));
+    refreshLauncher();
+  }catch(e){ toast('kill failed'); }
+}
+// poll launcher status when open
+const LPOLL=setInterval(()=>{ if(lnchrOpen) refreshLauncher(); }, 5000);
 </script>
 </body>
 </html>

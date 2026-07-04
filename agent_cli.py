@@ -1523,6 +1523,15 @@ def cmd_promoted(args):
     return 0
 
 
+def cmd_console_log(args):
+    """Query durable console control-plane events (interjection/bus_control/file_drop -> Ledger)."""
+    from core.comm.promoter import console_events
+    from agent.bifrost_pull import format_console_events
+    evs = console_events(limit=args.limit or 20, since=args.since, until=args.until)
+    print(format_console_events(evs, json_out=bool(args.json)))
+    return 0
+
+
 def cmd_bifrost_sync(args):
     """Presence heartbeat + unread inbox peek (pull floor). --consume advances the cursor."""
     from agent.bifrost_pull import (collect_boot_bifrost, consume_inbox, format_inbox_line,
@@ -1602,6 +1611,42 @@ def cmd_bifrost_resume(args):
     ok = control.resume()
     print("[bifrost] RESUMED" if ok else "[bifrost] resume failed (bus offline)")
     return 0 if ok else 1
+
+
+def cmd_bifrost_nudge(args):
+    """Send a TARGETED, fidelity-graded signal to ONE peer (unlike pause, which freezes the whole bus):
+      --mode interrupt (default): HARD barge-in -- set the nudge flag + kind=nudge; the peer drops its
+                                   current work at the next round boundary and switches.
+      --mode steer:               SOFT -- queue a fact (kind=steer) its runner folds into its CURRENT
+                                   task between rounds; it keeps going, adjusted.
+      --mode inform:              AMBIENT -- kind=inform; the peer adopts it at its next turn, no disruption."""
+    from core.comm.bus import Bus
+    from core.comm import nudge
+    if not args.to:
+        print('ERROR: bifrost-nudge needs --to <agent>. e.g. bifrost-nudge claude --to deepseek "look at X"')
+        return 2
+    mode = (getattr(args, "mode", None) or "interrupt").lower()
+    if mode not in ("interrupt", "steer", "inform"):
+        print(f"ERROR: --mode must be interrupt|steer|inform (got {mode!r})"); return 2
+    bus = Bus(args.agent_id)
+    if not bus.online:
+        print("[bifrost-nudge] bus OFFLINE (Redis down) -- not sent."); return 1
+    bus.register()
+    text = " ".join(args.text) if isinstance(args.text, list) else str(args.text)
+    meta = {"via": f"{args.agent_id}-cli", "hops": 0}
+    if mode == "interrupt":
+        nudge.nudge(args.to, by=args.agent_id, reason=text[:80])
+        mid = bus.send(args.to, "nudge", text, meta=meta)
+    elif mode == "steer":
+        nudge.steer_push(args.to, args.agent_id, text)
+        mid = bus.send(args.to, "steer", text, meta={**meta, "display_only": True})
+    else:  # inform
+        mid = bus.send(args.to, "inform", text, meta=meta)
+    if args.json:
+        print(json.dumps({"sent": bool(mid), "id": mid, "to": args.to, "mode": mode}, default=str))
+        return 0 if mid else 1
+    print(f"[bifrost-nudge:{mode}] -> {args.to} (id {mid})" if mid else f"[bifrost-nudge:{mode}] send failed")
+    return 0 if mid else 1
 
 
 # -------------------------------------------------------------------------- locks
@@ -1883,6 +1928,13 @@ def build_parser():
     pr.add_argument("--json", action="store_true")
     pr.set_defaults(fn=cmd_promoted)
 
+    cl = sub.add_parser("console-log", help="durable console events (interjection/bus_control/file_drop)")
+    cl.add_argument("--limit", type=int, default=None)
+    cl.add_argument("--since", default=None, help="ISO lower time bound")
+    cl.add_argument("--until", default=None, help="ISO upper time bound")
+    cl.add_argument("--json", action="store_true")
+    cl.set_defaults(fn=cmd_console_log)
+
     bs = sub.add_parser("bifrost-sync", help="Bifrost pull floor: presence + unread inbox peek")
     bs.add_argument("agent_id", help="your stable agent id (e.g. cursor)")
     bs.add_argument("--limit", type=int, default=None)
@@ -1907,6 +1959,15 @@ def build_parser():
 
     rz = sub.add_parser("bifrost-resume", help="un-freeze bus auto-responders")
     rz.set_defaults(fn=cmd_bifrost_resume)
+
+    ndg = sub.add_parser("bifrost-nudge", help="targeted fidelity signal to ONE peer (interrupt|steer|inform)")
+    ndg.add_argument("agent_id", help="your stable agent id (the sender, e.g. claude)")
+    ndg.add_argument("text", nargs="+", help="what you need the peer to look at / adopt")
+    ndg.add_argument("--to", default="", help="the ONE peer to signal (e.g. deepseek)")
+    ndg.add_argument("--mode", default="interrupt",
+                     help="interrupt (hard, default) | steer (soft, fold into current task) | inform (ambient)")
+    ndg.add_argument("--json", action="store_true")
+    ndg.set_defaults(fn=cmd_bifrost_nudge)
 
     lk = sub.add_parser("lock", help="claim an advisory path-lock (C2)")
     lk.add_argument("agent_id"); lk.add_argument("path")

@@ -167,3 +167,35 @@ def format_promoted_events(events: List[Dict[str, Any]], *, json_out: bool = Fal
             lines.append(f"    ref: {ref}")
     lines.append("\nDrill: py agent_cli.py events --get <ref>")
     return "\n".join(lines)
+
+
+def format_console_events(events: List[Dict[str, Any]], *, json_out: bool = False) -> str:
+    """Render durable console control-plane events (interjection/bus_control/file_drop) for the CLI."""
+    if json_out:
+        return json.dumps(events, indent=2, default=str)
+    if not events:
+        return "# 0 durable console event(s) (interjection / bus_control / file_drop)"
+    lines = [f"# {len(events)} durable console event(s) (live cockpit -> Ledger)"]
+    for ev in events:
+        d = ev.get("detail") or {}
+        kind = ev.get("kind", "?")
+        at = (ev.get("at") or "")[:19]
+        ref = ev.get("_ref") or ev.get("id") or ""
+        if kind == "interjection":
+            head = f"  [interjection:{d.get('intent','?')}] user -> {d.get('to','?')}  {at}"
+            body = _clip(_content_str(d.get("text")), 200)
+        elif kind == "bus_control":
+            head = f"  [control] {d.get('by','user')} {d.get('action','?')}  {at}"
+            body = _clip(_content_str(d.get("reason", "")), 200) or "(no reason)"
+        elif kind == "file_drop":
+            head = f"  [file_drop] {d.get('by','user')} shared  {at}"
+            body = f"{d.get('path','?')} ({d.get('bytes','?')} bytes)"
+        else:
+            head = f"  [{kind}]  {at}"
+            body = _clip(_content_str(ev.get("summary", "")), 200)
+        lines.append(head)
+        lines.append(f"    {body}")
+        if ref:
+            lines.append(f"    ref: {ref}")
+    lines.append("\nDrill: py agent_cli.py events --get <ref>")
+    return "\n".join(lines)

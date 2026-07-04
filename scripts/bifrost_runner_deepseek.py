@@ -24,6 +24,7 @@ Key: env DEEPSEEK_API_KEY else .secrets/deepseek.key (reused from ask_deepseek.p
 import argparse
 import os
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -33,6 +34,8 @@ sys.path.insert(0, HERE)
 
 from core.comm.bus import Bus
 from core.comm import control
+from core.comm import nudge
+from core.comm import runner_lock
 from ask_deepseek import load_key, BASE_URL, DEFAULT_MODEL
 
 CARD = {
@@ -41,7 +44,9 @@ CARD = {
     "door": "runner",
     "caps": ["review", "critique", "answer", "audit", "code"],
 }
-ANSWERABLE = frozenset({"chat", "request", "question", "handoff"})
+# 'steer' is deliberately NOT answerable: it never triggers a standalone reply -- it is folded into the
+# agent's CURRENT task via the inject() hook. 'inform'/'nudge' do get a turn (acknowledge/adopt/switch).
+ANSWERABLE = frozenset({"chat", "request", "question", "handoff", "nudge", "inform"})
 DEFAULT_SYSTEM = (
     "You are DeepSeek, collaborating in real time with Claude (and the user) over a shared message "
     "bus. Each reply posts straight back to the sender, so be direct and self-contained. Keep it "
@@ -77,7 +82,8 @@ def make_replier(model: str, system: str, think: bool):
     return respond
 
 
-def make_agentic_replier(model: str, system: str, think: bool, root: Path, agent_id: str):
+def make_agentic_replier(model: str, system: str, think: bool, root: Path, agent_id: str,
+                         allow_write: bool = False):
     """Tool-using bridge: DeepSeek can read files, search, inspect git, and query the Akashic knowledge
     base WHILE composing its reply, then posts the final answer to the bus. Reuses the guarded
     Agent+ToolBox from deepseek_chat.py (read-only, secret-blocked, path-scoped). Keeps a per-peer
@@ -85,18 +91,37 @@ def make_agentic_replier(model: str, system: str, think: bool, root: Path, agent
     import deepseek_chat as dc
     from openai import OpenAI
     client = OpenAI(api_key=load_key(), base_url=BASE_URL)
+    # agent_id -> the ToolBox's bifrost_* doors go live, so DeepSeek can INITIATE bus messages (not just reply).
+    # allow_write -> the guarded write_file/edit_file doors go live (path-scoped, secret-blocked, git-tracked).
     toolbox = dc.ToolBox(root, allow_exec=False, trust=False, allow_secrets=False,
-                         confirm=lambda _p: False)
+                         confirm=lambda _p: False, agent_id=agent_id, allow_write=allow_write)
     on_activity = lambda state, detail: control.set_activity(agent_id, state, detail)
+    # Live trace: stream each tool call + chunk of thinking onto the bus (kind=trace, display-only, not
+    # promoted/answerable) so the console shows what DeepSeek is DOING, not just its final answer.
+    trace_bus = Bus(agent_id)
+
+    def on_trace(kind, text):
+        prefix = "🔧" if kind == "tool" else "💭"
+        try:
+            trace_bus.broadcast("trace", f"{prefix} {text}",
+                                meta={"via": f"{agent_id}-runner", "hops": 0, "trace": kind, "display_only": True})
+        except Exception:
+            pass
+
+    # Barge-in: a GLOBAL pause OR a nudge TARGETED at me both stop work mid-tool-loop (DeepSeek's insight,
+    # now extended to per-agent nudges). The nudge flag is cleared by the runner loop before it hands me
+    # the nudge message, so answering the nudge itself is never self-interrupted.
+    interrupt = lambda: control.is_paused() or nudge.is_nudged(agent_id)
+    # STEER: between rounds, fold any queued facts into the LIVE task without restarting (soft fidelity).
+    inject = lambda: nudge.steer_drain(agent_id)
     convos: dict = {}
 
     def respond(frm: str, prompt: str) -> str:
         ag = convos.get(frm)
         if ag is None:
-            # interrupt=control.is_paused -> a HALT interjection stops work mid-tool-loop (DeepSeek's insight)
             # on_activity -> rich presence: reports thinking/reading/searching/... to the console live
             ag = dc.Agent(client, toolbox, model=model, system=system, think=think, tools_enabled=True,
-                          interrupt=control.is_paused, on_activity=on_activity)
+                          interrupt=interrupt, on_activity=on_activity, inject=inject, on_trace=on_trace)
             convos[frm] = ag
         try:
             answer = ag.send(prompt)                 # streams to the runner window; returns final text
@@ -105,6 +130,27 @@ def make_agentic_replier(model: str, system: str, think: bool, root: Path, agent
         return answer or "(deepseek produced no final answer)"
 
     return respond
+
+
+def onboarding_context(root: Path, agent_id: str, task: str, budget_chars: int = 6000) -> str:
+    """Onboard the runner as a first-class citizen: pull the project's startup briefing ONCE at boot
+    (the same `agent_cli.py boot` door a human agent runs) and return a TRIMMED digest to fold into
+    the system prompt. Trimmed on purpose -- a stateless API peer has no prompt caching, so whatever we
+    inject rides EVERY call; we keep the highest-ranked head (contract pointer + current focus + top
+    lessons) and drop the tail. Never raises: any failure returns '' and the runner still starts."""
+    import subprocess
+    try:
+        p = subprocess.run([sys.executable, "agent_cli.py", "boot", agent_id, "--task", task],
+                           cwd=str(root), capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=90)
+        digest = (p.stdout or "").strip()
+    except Exception:
+        return ""
+    if not digest:
+        return ""
+    if len(digest) > budget_chars:
+        digest = digest[:budget_chars].rstrip() + "\n... [onboarding trimmed to keep bus replies lean]"
+    return digest
 
 
 def main() -> int:
@@ -123,6 +169,8 @@ def main() -> int:
     ap.add_argument("--root", default=os.path.dirname(HERE),
                     help="file-access root for --agentic (default: the repo)")
     ap.add_argument("--think", action="store_true", help="enable DeepSeek thinking mode (deeper, slower)")
+    ap.add_argument("--allow-write", action="store_true",
+                    help="let DeepSeek write/edit files (guarded: path-scoped, secret-blocked, git-tracked)")
     ap.add_argument("--once", action="store_true", help="process one wake then exit (for testing)")
     args = ap.parse_args()
 
@@ -134,6 +182,15 @@ def main() -> int:
         print("bifrost_runner_deepseek: bus OFFLINE (Redis unreachable)")
         return 2
 
+    # Singleton guard: at most ONE runner per agent id. Two runners share one read-cursor and race --
+    # one advances past a message the other should answer, so mail gets consumed with no reply.
+    lock_token = runner_lock.instance_token(args.agent)
+    if not runner_lock.acquire(args.agent, lock_token):
+        h = runner_lock.holder(args.agent) or {}
+        print(f"bifrost_runner_deepseek: another '{args.agent}' runner is already live (pid {h.get('pid')}). "
+              f"Refusing to start -- one runner per agent avoids cursor races.")
+        return 3
+
     if args.agentic:
         import deepseek_chat as dc
         if dc._enable_utf8_and_ansi():
@@ -143,19 +200,48 @@ def main() -> int:
         if system == DEFAULT_SYSTEM:                 # give the tool-aware prompt unless overridden
             system = dc.default_system(root) + (" You are reached over a shared message bus; each "
                      "reply posts back to the sender, so make it self-contained.")
-        responder = make_agentic_replier(args.model, system, args.think, root, args.agent)
-        mode = f"agentic tools @ {root}"
+        # Onboarding-on-init: boot ONCE and fold the project briefing into the system prompt, so every
+        # reply is grounded in the contract + current focus + top lessons (not answering blind).
+        onboard = onboarding_context(root, args.agent,
+                    "Live Bifrost session: collaborating with Claude and the user on Akashic Aurora over the shared bus.")
+        if onboard:
+            system += ("\n\n=== PROJECT ONBOARDING (you are a booted Akashic Aurora citizen; honor the "
+                       "AGENTS.md contract) ===\n" + onboard)
+            print(f"[deepseek-runner] onboarded via boot ({len(onboard)} chars folded into system prompt)")
+        else:
+            print("[deepseek-runner] onboarding skipped (boot returned nothing; check agent_cli.py boot)")
+        responder = make_agentic_replier(args.model, system, args.think, root, args.agent,
+                                         allow_write=args.allow_write)
+        mode = f"agentic tools @ {root}{' +write' if args.allow_write else ''}"
     else:
         responder = make_replier(args.model, args.system, args.think)
         mode = "one-shot bridge"
 
     bus.register(card=CARD)
     rate = control.RateLimiter()
+    # Background heartbeat: refresh presence + the singleton lock every few seconds INDEPENDENT of the
+    # work loop. Without this, a long reply (the loop is blocked inside responder()) would let presence
+    # expire -- the agent vanishes from the roster though it's alive -- and even let the lock TTL lapse.
+    stop_hb = threading.Event()
+
+    def _heartbeat():
+        while not stop_hb.wait(5):
+            try:
+                runner_lock.heartbeat(args.agent, lock_token)
+                bus.register(card=CARD)
+            except Exception:
+                pass
+    threading.Thread(target=_heartbeat, daemon=True).start()
     print(f"[deepseek-runner] {args.agent} online (model={args.model}, think={'on' if args.think else 'off'}, "
           f"{mode}, max_hops={control.MAX_HOPS}). Waiting for messages... (Ctrl-C to stop)")
     try:
         while True:
+            if not runner_lock.heartbeat(args.agent, lock_token):  # another runner took over -> stand down
+                print(f"[deepseek-runner] lost the singleton lock for '{args.agent}' -- another runner is "
+                      "live. Standing down to avoid a cursor race.")
+                break
             if control.is_paused():                          # human barge-in: freeze, keep mail queued
+                bus.register(card=CARD)                       # stay "online-but-frozen" on the roster, not vanish
                 time.sleep(0.4)
                 continue
             msgs = bus.wait(timeout_ms=1500, advance=True)   # short block so pause/stop stay responsive
@@ -179,6 +265,11 @@ def main() -> int:
                     continue
                 prompt = m.content if isinstance(m.content, str) else str(m.content)
                 print(f"[deepseek-runner] <- {m.frm} [{m.kind}] (hop {hops}): {prompt[:80]}")
+                if str(m.kind) == "nudge" or nudge.is_nudged(args.agent):
+                    nudge.clear(args.agent)               # consume so answering the nudge isn't self-interrupted
+                    bus.send(m.frm, "note", "[nudge ack] interrupting current work to look at this now.",
+                             meta={"via": f"{args.agent}-runner", "hops": hops})
+                    print(f"[deepseek-runner] nudge from {m.frm} -> acked + cleared")
                 control.set_activity(args.agent, "thinking")
                 try:
                     out = responder(m.frm, prompt) if args.agentic else responder(prompt)
@@ -198,6 +289,9 @@ def main() -> int:
                 break
     except (KeyboardInterrupt, EOFError):
         pass
+    finally:
+        stop_hb.set()                                 # stop the heartbeat thread
+        runner_lock.release(args.agent, lock_token)   # free the singleton lock for a clean successor
     print("[deepseek-runner] stopped.")
     return 0
 

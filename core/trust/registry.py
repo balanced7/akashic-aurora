@@ -1,0 +1,160 @@
+"""
+Grant registry -- the reader over security/acl.json (source of truth), mirroring core/fleet/roster.py.
+
+The one function the doors call is `resolve(agent_id, verified=...)`: it returns the EFFECTIVE Grant an
+agent acts under, fail-closed to QUARANTINED for anything unknown, unverified, or expired. Enforcement
+(ToolBox/Bus) reads caps off the returned Grant; it never trusts a raw role string.
+
+Storage is a git-tracked JSON file. A small in-process mtime cache avoids re-reading on every check; a
+Redis cache layer is a later optimization (the file is always the fallback truth).
+"""
+from __future__ import annotations
+
+import json
+import os
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Optional
+
+from core.trust.capabilities import Cap, ROLE_TEMPLATES, DEFAULT_ROLE, caps_from
+
+ACL_PATH = Path(__file__).resolve().parent.parent.parent / "security" / "acl.json"
+
+# Code-level bootstrap: the trusted CORE agents keep these roles even if security/acl.json is missing or
+# corrupt. This is the availability guarantee -- DeepSeek's admin does NOT depend on the file surviving,
+# on Claude being online, or on anyone re-granting it. A VALID acl.json is still the source of truth (the
+# human can demote/change these there); this floor only applies when the file cannot be read at all.
+BOOTSTRAP_ROLES = {
+    "claude": "super_admin",
+    "deepseek": "admin",
+}
+
+
+@dataclass
+class Grant:
+    """One agent's effective permissions. Source of truth is security/acl.json."""
+    agent_id: str
+    role: str
+    caps: set = field(default_factory=set)          # set[Cap]
+    path_scope: list = field(default_factory=list)  # glob prefixes for WRITE ([]=none, ["*"]=full)
+    bus_send_kinds: Optional[set] = None            # None = all kinds; a set = allowlist
+    granted_by: str = "root"
+    granted_at: str = ""
+    expires_at: Optional[str] = None                # ISO ts; None = permanent
+    reason: str = ""
+    request_ref: Optional[str] = None
+
+    def has(self, c: Cap) -> bool:
+        return c in self.caps
+
+    def can_write(self, rel_path: str) -> bool:
+        """True iff WRITE is held AND rel_path (posix, repo-relative) is inside the path scope."""
+        if Cap.WRITE not in self.caps or not self.path_scope:
+            return False
+        if "*" in self.path_scope:
+            return True
+        import fnmatch
+        return any(fnmatch.fnmatch(rel_path, s) for s in self.path_scope)
+
+    def can_send_kind(self, kind: str) -> bool:
+        if Cap.BUS_SEND not in self.caps:
+            return False
+        return self.bus_send_kinds is None or str(kind) in self.bus_send_kinds
+
+
+def _template_grant(agent_id: str, role: str) -> Grant:
+    t = ROLE_TEMPLATES.get(role, ROLE_TEMPLATES[DEFAULT_ROLE])
+    return Grant(agent_id=agent_id, role=role, caps=set(t["caps"]),
+                 path_scope=list(t["path_scope"]), bus_send_kinds=(set(t["bus_send_kinds"])
+                 if t["bus_send_kinds"] is not None else None),
+                 granted_by="template", reason=f"role template: {role}")
+
+
+def role_template(role: str) -> Grant:
+    """The factory-default Grant for a role label (unknown role -> quarantined)."""
+    return _template_grant(f"<{role}>", role if role in ROLE_TEMPLATES else DEFAULT_ROLE)
+
+
+_CACHE: dict = {"mtime": None, "grants": {}}
+
+
+def _load():
+    """Parse security/acl.json into {agent_id: Grant}. Returns None when the file is MISSING or CORRUPT
+    (a total failure -> callers fall back to BOOTSTRAP_ROLES for core agents, quarantine for the rest).
+    Returns a dict (possibly empty) when the file was read successfully. In-process mtime cache."""
+    try:
+        mtime = os.path.getmtime(ACL_PATH)
+    except OSError:
+        return None                                   # file missing -> signal total failure
+    if _CACHE["mtime"] == mtime:
+        return _CACHE["grants"]
+    out: dict = {}
+    try:
+        doc = json.loads(ACL_PATH.read_text(encoding="utf-8"))
+        for rec in doc.get("grants", []):
+            aid = rec.get("agent_id")
+            if not aid:
+                continue
+            bsk = rec.get("bus_send_kinds", None)
+            out[aid] = Grant(
+                agent_id=aid, role=rec.get("role", DEFAULT_ROLE),
+                caps=caps_from(rec.get("caps", [])),
+                path_scope=list(rec.get("path_scope", [])),
+                bus_send_kinds=(set(bsk) if bsk is not None else None),
+                granted_by=rec.get("granted_by", "root"), granted_at=rec.get("granted_at", ""),
+                expires_at=rec.get("expires_at"), reason=rec.get("reason", ""),
+                request_ref=rec.get("request_ref"))
+    except Exception:
+        return None                                   # malformed file -> signal total failure
+    _CACHE["mtime"], _CACHE["grants"] = mtime, out
+    return out
+
+
+def _bootstrap_or_quarantine(agent_id: str) -> Grant:
+    """Fallback when the ACL file can't be read: trusted core agents keep their bootstrap role; everyone
+    else is quarantined (fail-closed). This is what keeps DeepSeek admin through a lost/corrupt file."""
+    role = BOOTSTRAP_ROLES.get(agent_id, DEFAULT_ROLE)
+    return _template_grant(agent_id, role)
+
+
+def _expired(expires_at: Optional[str]) -> bool:
+    if not expires_at:
+        return False
+    try:
+        exp = datetime.fromisoformat(str(expires_at).replace("Z", "+00:00"))
+        if exp.tzinfo is None:
+            exp = exp.replace(tzinfo=timezone.utc)
+        return datetime.now(timezone.utc) >= exp
+    except Exception:
+        return True                                   # unparseable expiry -> treat as expired (fail closed)
+
+
+def grants() -> list:
+    """All grant records from a readable ACL file, or [] when the file is missing/corrupt."""
+    loaded = _load()
+    return list(loaded.values()) if loaded else []
+
+
+def get(agent_id: str) -> Optional[Grant]:
+    """One agent's STORED grant from the file, or None if unregistered / file unreadable."""
+    loaded = _load()
+    return loaded.get(agent_id) if loaded else None
+
+
+def resolve(agent_id: str, *, verified: bool = True) -> Grant:
+    """The EFFECTIVE grant `agent_id` acts under -- the single door-check entry. Fail-closed:
+      - unverified identity or empty id  -> quarantined (identity-first);
+      - ACL file missing/corrupt         -> BOOTSTRAP_ROLES for core agents, quarantined for the rest
+                                            (availability floor: DeepSeek stays admin through file loss);
+      - agent absent from a VALID file   -> quarantined (a deliberate removal is honored);
+      - grant present but expired         -> quarantined (temporary escalations lapse to the role floor)."""
+    if not verified or not agent_id:
+        return _template_grant(agent_id or "<unknown>", DEFAULT_ROLE)
+    loaded = _load()
+    if loaded is None:                                # file unreadable -> code-level bootstrap floor
+        return _bootstrap_or_quarantine(agent_id)
+    g = loaded.get(agent_id)
+    if g is None or _expired(g.expires_at):
+        return _template_grant(agent_id, DEFAULT_ROLE)
+    return g

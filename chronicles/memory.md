@@ -1,9 +1,10 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 24 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 25 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
+- research: shift 2026-07-03 evening review: SHIFT RESULT: 12 tasks attempted, 5 clean DONE (001,004,008,012,018 by runner's format-only bar), but 'done' means...  (source: mem:decision:ADR_0703231229_7143)
 - where-we-are 2026-07-03: Shipped:
   - ROADMAP: status banner -- the Waves 0-5 synthesis is foundation-era/historical; living START HERE is now the boot notes + the...  (source: mem:decision:ADR_0703123020_5091)
 - next-focus: PRIORITY RE-CUT 2026-07-03 (Opus continuation after Fable hit its limit mid-session). SHIPPED THIS RUN: (1) counter-hygiene S2a 2nd-form -- ghost counters +...  (source: mem:decision:ADR_0703123007_9545)

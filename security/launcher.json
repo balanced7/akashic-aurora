@@ -1,0 +1,36 @@
+{
+  "_comment": "Bifrost agent launcher registry — defines launchable agents for the Bifrost UI. Edit to add/remove agents. The built-in defaults (deepseek, gemini) are always available; entries here AUGMENT or OVERRIDE them by agent_id. schema_version: 1.",
+  "schema_version": 1,
+  "agents": [
+    {
+      "agent_id": "glm_local",
+      "runtime": "powershell",
+      "description": "GLM-4.7-Flash (local) — Claude Code on Ollama, bounded tasks",
+      "command": ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/local/launch_local_agent.ps1", "-Model", "glm-4.7-flash", "-AgentId", "glm_local"],
+      "env": {},
+      "cwd": "",
+      "auto_restart": false,
+      "enabled": true
+    },
+    {
+      "agent_id": "qwen_local",
+      "runtime": "powershell",
+      "description": "Qwen3.5-9B (local) — Claude Code on Ollama",
+      "command": ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/local/launch_local_agent.ps1", "-Model", "qwen3.5:9b", "-AgentId", "qwen_local"],
+      "env": {},
+      "cwd": "",
+      "auto_restart": false,
+      "enabled": false
+    },
+    {
+      "agent_id": "claude_headless",
+      "runtime": "shell",
+      "description": "Claude Code headless one-shot — claude --bare -p (requires Claude CLI on PATH)",
+      "command": ["claude", "--bare", "-p"],
+      "env": {},
+      "cwd": "",
+      "auto_restart": false,
+      "enabled": false
+    }
+  ]
+}

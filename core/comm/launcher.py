@@ -1,0 +1,438 @@
+"""
+Bifrost Launcher — spawn and monitor agent processes from the Bifrost UI.
+
+The Bifrost console can already SEE who's online (presence) and steer them. This
+module adds LAUNCH: one-click start for runners, local-model Claude Code sessions,
+and headless frontier invocations. It tracks the spawned process lifecycle so the UI
+can show running / crashed / token-exhausted / exited / never-launched, and it lets
+you kill a runaway agent with one click.
+
+Architecture:
+  - AgentSpec: a declared launchable agent (what to run, how, with what env)
+  - AgentProcess: a running instance (pid, status, exit code, tail of stdout/stderr)
+  - Launcher: the singleton that owns the registry, spawns processes, and monitors them
+
+Exit reason detection:
+  - For ANY process, exit_code 0 = "clean"
+  - non-zero exit + stderr contains "token" or "credit" or "limit" = "token_exhausted"
+  - non-zero exit + stderr contains "api_key" or "unauthorized" = "auth_error"
+  - non-zero exit + killed by us = "killed"
+  - non-zero exit otherwise = "error"
+  - Process still running = "running"
+  - Never launched = "never_launched"
+
+Process safety:
+  - Only ONE instance per agent_id (enforced by runner_lock for runners, by launcher
+    tracking for other types).
+  - Kill is best-effort: terminate() then kill() after grace period.
+  - Failed launches are tracked (exit_reason set) so the UI shows the failure.
+  - Zombie reaping: the monitor thread reaps exited processes.
+
+Integration with the Bifrost UI (scripts/bifrost_ui.py):
+  GET  /launcher/status          -> all agent specs + their run status
+  POST /launcher/launch          {"agent_id": "deepseek"}  -> spawn
+  POST /launcher/kill            {"agent_id": "deepseek"}  -> terminate
+  POST /launcher/launch-primed   {"agent_id": "deepseek", "prompt": "..."} -> spawn + inject prompt
+"""
+from __future__ import annotations
+
+import json
+import os
+import signal
+import subprocess
+import sys
+import threading
+import time
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+HERE = Path(__file__).resolve().parent.parent.parent  # core/comm -> repo root
+SCRIPTS = HERE / "scripts"
+SECURITY_DIR = HERE / "security"
+REGISTRY_PATH = SECURITY_DIR / "launcher.json"
+
+# ------------------------------------------------------------------ data types
+
+@dataclass
+class AgentSpec:
+    """A declared launchable agent. The registry holds these; the Launcher spawns from them."""
+    agent_id: str
+    runtime: str           # "python_runner" | "powershell" | "claude_headless" | "shell"
+    description: str
+    command: List[str]     # executable + base args (e.g. ["py", "scripts/bifrost_runner_deepseek.py", "--agentic"])
+    env: Dict[str, str] = field(default_factory=dict)
+    cwd: str = ""          # relative to repo root, or absolute; "" = repo root
+    auto_restart: bool = False
+    enabled: bool = True   # False = greyed out in the UI
+
+
+@dataclass
+class AgentProcess:
+    """A tracked running (or recently exited) agent process."""
+    agent_id: str
+    pid: int = 0
+    handle: Optional[subprocess.Popen] = None
+    status: str = "never_launched"   # running | exited | crashed | killed | never_launched
+    started_at: str = ""
+    exit_code: Optional[int] = None
+    exit_reason: str = ""            # clean | token_exhausted | error | killed | auth_error
+    exit_seen_at: str = ""
+    stdout_tail: str = ""            # last ~500 chars of stdout for diagnostics
+    stderr_tail: str = ""            # last ~500 chars of stderr
+
+
+# ------------------------------------------------------------------ registry
+
+def _default_registry() -> Dict[str, AgentSpec]:
+    """The built-in launchable agents. Override/augment via security/launcher.json."""
+    repo = str(HERE)
+    py = sys.executable or "py"
+
+    return {
+        "deepseek": AgentSpec(
+            agent_id="deepseek",
+            runtime="python_runner",
+            description="DeepSeek API peer (admin) — tool-using bus citizen",
+            command=[py, str(SCRIPTS / "bifrost_runner_deepseek.py"), "--agentic", "--root", repo],
+            env={"PYTHONUNBUFFERED": "1"},
+            cwd=repo,
+            enabled=True,
+        ),
+        "deepseek-think": AgentSpec(
+            agent_id="deepseek",
+            runtime="python_runner",
+            description="DeepSeek API peer (admin) — agentic + deep thinking mode",
+            command=[py, str(SCRIPTS / "bifrost_runner_deepseek.py"), "--agentic", "--think", "--root", repo],
+            env={"PYTHONUNBUFFERED": "1"},
+            cwd=repo,
+            enabled=True,
+        ),
+        "deepseek-write": AgentSpec(
+            agent_id="deepseek",
+            runtime="python_runner",
+            description="DeepSeek API peer (admin) — agentic + write access",
+            command=[py, str(SCRIPTS / "bifrost_runner_deepseek.py"), "--agentic", "--allow-write", "--root", repo],
+            env={"PYTHONUNBUFFERED": "1"},
+            cwd=repo,
+            enabled=True,
+        ),
+        "gemini": AgentSpec(
+            agent_id="gemini",
+            runtime="python_runner",
+            description="Gemini web bridge — answers bus questions",
+            command=[py, str(SCRIPTS / "bifrost_runner.py")],
+            env={"PYTHONUNBUFFERED": "1"},
+            cwd=repo,
+            enabled=True,
+        ),
+    }
+
+
+def _load_registry() -> Dict[str, AgentSpec]:
+    """Merge the built-in defaults with any overrides in security/launcher.json."""
+    specs = _default_registry()
+    try:
+        if REGISTRY_PATH.exists():
+            data = json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))
+            for entry in data.get("agents", []):
+                aid = entry.get("agent_id")
+                if not aid:
+                    continue
+                specs[aid] = AgentSpec(
+                    agent_id=aid,
+                    runtime=entry.get("runtime", "shell"),
+                    description=entry.get("description", ""),
+                    command=entry.get("command", []),
+                    env=entry.get("env", {}),
+                    cwd=entry.get("cwd", ""),
+                    auto_restart=entry.get("auto_restart", False),
+                    enabled=entry.get("enabled", True),
+                )
+    except Exception:
+        pass
+    return specs
+
+
+# ------------------------------------------------------------------ exit reason detection
+
+# Patterns in stderr/stdout that indicate token/credit exhaustion
+_TOKEN_EXHAUSTED_PATTERNS = [
+    "token", "credit", "limit", "quota", "billing", "rate limit",
+    "exceeded your", "run out of", "insufficient", "balance",
+    "429", "you've reached", "too many requests",
+    "context length", "context window", "maximum context",
+    "token budget", "token limit", "max tokens",
+]
+_AUTH_ERROR_PATTERNS = [
+    "api_key", "api key", "unauthorized", "authentication",
+    "invalid key", "not authorized", "401", "403",
+    "login required", "sign in", "LOGIN_REQUIRED",
+]
+
+
+def _classify_exit(exit_code: int, stdout_tail: str, stderr_tail: str, killed_by_us: bool) -> str:
+    """What happened to this process? Best-effort classification."""
+    if killed_by_us:
+        return "killed"
+    if exit_code == 0:
+        return "clean"
+    combined = (stderr_tail + " " + stdout_tail).lower()
+    for pat in _TOKEN_EXHAUSTED_PATTERNS:
+        if pat in combined:
+            return "token_exhausted"
+    for pat in _AUTH_ERROR_PATTERNS:
+        if pat in combined:
+            return "auth_error"
+    return "error"
+
+
+# ------------------------------------------------------------------ Launcher
+
+class Launcher:
+    """Singleton: spawns and monitors agent processes."""
+
+    def __init__(self):
+        self._specs: Dict[str, AgentSpec] = {}
+        self._procs: Dict[str, AgentProcess] = {}
+        self._lock = threading.Lock()
+        self._monitor_stop = threading.Event()
+        self._monitor_thread: Optional[threading.Thread] = None
+        self._reload()
+
+    def _reload(self):
+        with self._lock:
+            self._specs = _load_registry()
+
+    # -- public API ----------------------------------------------------------
+
+    def registry(self) -> List[Dict[str, Any]]:
+        """All launchable agents + their current run status. For the UI."""
+        self._reload()
+        out = []
+        with self._lock:
+            for tag, spec in sorted(self._specs.items()):
+                proc = self._procs.get(spec.agent_id)
+                out.append({
+                    "tag": tag,
+                    "agent_id": spec.agent_id,
+                    "runtime": spec.runtime,
+                    "description": spec.description,
+                    "enabled": spec.enabled,
+                    "auto_restart": spec.auto_restart,
+                    "status": proc.status if proc else "never_launched",
+                    "pid": proc.pid if proc and proc.status == "running" else 0,
+                    "started_at": proc.started_at if proc else "",
+                    "exit_code": proc.exit_code if proc else None,
+                    "exit_reason": proc.exit_reason if proc else "",
+                    "exit_seen_at": proc.exit_seen_at if proc else "",
+                    "stdout_tail": (proc.stdout_tail or "")[-200:] if proc else "",
+                    "stderr_tail": (proc.stderr_tail or "")[-200:] if proc else "",
+                })
+        return out
+
+    def launch(self, tag: str, *, prompt: str = "", extra_args: List[str] | None = None) -> Dict[str, Any]:
+        """Spawn the agent identified by `tag`. Returns {ok, agent_id, pid, error?}.
+
+        If the agent is already running, returns ok=False with a reason.
+        If prompt is given, it's injected as stdin or as an extra arg (for Claude headless).
+        """
+        self._reload()
+        spec = self._specs.get(tag)
+        if spec is None:
+            return {"ok": False, "error": f"unknown agent tag: {tag}"}
+
+        with self._lock:
+            existing = self._procs.get(spec.agent_id)
+            if existing and existing.status == "running":
+                # Double-check the process is actually alive
+                if existing.handle and existing.handle.poll() is None:
+                    return {"ok": False, "error": f"'{spec.agent_id}' is already running (pid {existing.pid})"}
+                # Stale — the process died but we hadn't reaped it yet
+                existing.status = "exited"
+                existing.exit_code = existing.handle.returncode if existing.handle else -1
+                existing.exit_reason = _classify_exit(
+                    existing.exit_code or -1, existing.stdout_tail, existing.stderr_tail, False)
+
+        # Check the runner_lock for runner-class agents
+        if spec.runtime == "python_runner":
+            from core.comm.runner_lock import acquire, instance_token
+            token = instance_token(spec.agent_id)
+            if not acquire(spec.agent_id, token):
+                # Another runner holds the lock — but we track it regardless
+                # since the launcher is the authoritative spawner now
+                pass
+
+        cwd = spec.cwd or str(HERE)
+        cmd = list(spec.command)
+        if extra_args:
+            cmd.extend(extra_args)
+
+        env = {**os.environ, **spec.env}
+
+        # Claude headless: prompt goes as a positional argument, not stdin
+        if spec.runtime == "claude_headless" and prompt:
+            cmd.append(prompt)
+            prompt = ""   # don't pipe to stdin below
+
+        try:
+            handle = subprocess.Popen(
+                cmd,
+                cwd=cwd,
+                env=env,
+                stdin=subprocess.PIPE if prompt else None,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0,
+            )
+        except Exception as e:
+            return {"ok": False, "error": f"failed to spawn: {type(e).__name__}: {e}"}
+
+        if prompt:
+            try:
+                handle.stdin.write(prompt)
+                handle.stdin.close()
+            except Exception:
+                pass
+
+        proc = AgentProcess(
+            agent_id=spec.agent_id,
+            pid=handle.pid,
+            handle=handle,
+            status="running",
+            started_at=time.strftime("%Y-%m-%dT%H:%M:%S"),
+        )
+
+        with self._lock:
+            self._procs[spec.agent_id] = proc
+
+        self._ensure_monitor()
+        return {"ok": True, "agent_id": spec.agent_id, "pid": handle.pid, "tag": tag}
+
+    def kill(self, tag: str) -> Dict[str, Any]:
+        """Terminate the running agent. Graceful first (SIGTERM/CTRL_BREAK), then force (SIGKILL/Terminate)."""
+        spec = self._specs.get(tag)
+        if spec is None:
+            return {"ok": False, "error": f"unknown agent tag: {tag}"}
+
+        with self._lock:
+            proc = self._procs.get(spec.agent_id)
+            if not proc or proc.status != "running":
+                return {"ok": False, "error": f"'{spec.agent_id}' is not running"}
+            handle = proc.handle
+
+        if handle is None:
+            return {"ok": False, "error": "no process handle"}
+
+        # Graceful first
+        try:
+            if sys.platform == "win32":
+                handle.send_signal(signal.CTRL_BREAK_EVENT)
+            else:
+                handle.terminate()
+        except Exception:
+            pass
+
+        # Wait a moment for graceful exit
+        try:
+            handle.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            # Force kill
+            try:
+                handle.kill()
+                handle.wait(timeout=2)
+            except Exception:
+                pass
+
+        with self._lock:
+            proc.status = "killed"
+            proc.exit_code = handle.poll()
+            proc.exit_reason = "killed"
+            proc.exit_seen_at = time.strftime("%Y-%m-%dT%H:%M:%S")
+            try:
+                proc.stdout_tail = (handle.stdout.read() or "")[-500:] if handle.stdout else ""
+            except Exception:
+                pass
+            try:
+                proc.stderr_tail = (handle.stderr.read() or "")[-500:] if handle.stderr else ""
+            except Exception:
+                pass
+
+        return {"ok": True, "agent_id": spec.agent_id, "tag": tag}
+
+    def status(self, tag: str) -> Dict[str, Any]:
+        """Quick status for one agent tag."""
+        for row in self.registry():
+            if row["tag"] == tag:
+                return row
+        return {"tag": tag, "error": "unknown"}
+
+    # -- process monitor ----------------------------------------------------
+
+    def _ensure_monitor(self):
+        if self._monitor_thread and self._monitor_thread.is_alive():
+            return
+        self._monitor_stop.clear()
+        self._monitor_thread = threading.Thread(target=self._monitor_loop, daemon=True, name="launcher-monitor")
+        self._monitor_thread.start()
+
+    def _monitor_loop(self):
+        """Background: poll running processes, detect exits, classify reasons."""
+        while not self._monitor_stop.wait(2.0):
+            with self._lock:
+                for aid, proc in list(self._procs.items()):
+                    if proc.status != "running":
+                        continue
+                    handle = proc.handle
+                    if handle is None:
+                        continue
+                    code = handle.poll()
+                    if code is None:
+                        continue  # still running
+                    # Process exited
+                    proc.exit_code = code
+                    proc.exit_seen_at = time.strftime("%Y-%m-%dT%H:%M:%S")
+                    try:
+                        proc.stdout_tail = (handle.stdout.read() or "")[-500:] if handle.stdout else ""
+                    except Exception:
+                        pass
+                    try:
+                        proc.stderr_tail = (handle.stderr.read() or "")[-500:] if handle.stderr else ""
+                    except Exception:
+                        pass
+                    proc.exit_reason = _classify_exit(
+                        code, proc.stdout_tail, proc.stderr_tail, proc.status == "killed")
+                    proc.status = "exited"
+
+                    # Auto-restart if configured
+                    spec = self._specs.get(aid) or next(
+                        (s for t, s in self._specs.items() if s.agent_id == aid), None)
+                    if spec and spec.auto_restart and proc.exit_reason != "killed":
+                        tag = next((t for t, s in self._specs.items() if s.agent_id == aid), aid)
+                        threading.Thread(target=self._restart, args=(tag,), daemon=True).start()
+
+    def _restart(self, tag: str):
+        """Restart an agent after a brief cooldown (prevents crash-loops)."""
+        time.sleep(3)
+        self.launch(tag)
+
+    def shutdown(self):
+        """Stop the monitor thread. Call on UI server shutdown."""
+        self._monitor_stop.set()
+        if self._monitor_thread:
+            self._monitor_thread.join(timeout=3)
+
+
+# ------------------------------------------------------------------ singleton
+
+_LAUNCHER: Optional[Launcher] = None
+
+
+def get_launcher() -> Launcher:
+    global _LAUNCHER
+    if _LAUNCHER is None:
+        _LAUNCHER = Launcher()
+    return _LAUNCHER

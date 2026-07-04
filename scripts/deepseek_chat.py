@@ -146,6 +146,24 @@ TOOLS = [
         {"query": {"type": "string", "description": "Keywords, e.g. 'faithfulness critic'"}}, ["query"]),
     _fn("knowledge_boot", "Assemble the project's startup context for a task (recent notes + top lessons), the same briefing an agent gets.",
         {"task": {"type": "string", "description": "Short task description to rank context against"}}, ["task"]),
+    _fn("bifrost_send", "Send a message to a peer agent on the shared Bifrost bus (e.g. to='claude'), or broadcast (to='*'). This is how you INITIATE contact, not just reply. Only works when you are running on the bus.",
+        {"to": {"type": "string", "description": "recipient agent id, e.g. 'claude', or '*' to broadcast"},
+         "text": {"type": "string", "description": "the message"},
+         "kind": {"type": "string", "description": "chat|note|request|handoff (default chat)"}}, ["to", "text"]),
+    _fn("bifrost_inbox", "Peek your own unread bus messages (does not consume them). Use to check whether a peer replied.", {}),
+    _fn("bifrost_nudge", "HARD interrupt a specific peer (e.g. 'claude'): make it drop its current work and look at this now (sets its barge-in flag AND sends a nudge). Use sparingly, for genuine 'stop and switch' moments.",
+        {"to": {"type": "string", "description": "the ONE peer to nudge, e.g. 'claude'"},
+         "text": {"type": "string", "description": "what you need it to look at"}}, ["to", "text"]),
+    _fn("bifrost_steer", "SOFT steer a specific peer WITHOUT interrupting it: queue a fact it folds into its CURRENT task between rounds. Use when a peer is working and should adjust course, not stop.",
+        {"to": {"type": "string", "description": "the ONE peer to steer, e.g. 'claude'"},
+         "text": {"type": "string", "description": "the fact/adjustment to fold into its current work"}}, ["to", "text"]),
+    _fn("edit_file", "Make a TARGETED change: replace one exact, unique string in a file with new text. GUARDED (only when the runner allows writes; path-scoped; secrets blocked; git-tracked/reversible). Prefer this over write_file for small edits. old_string must match exactly (incl. whitespace) and be unique.",
+        {"path": {"type": "string", "description": "path relative to the project root"},
+         "old_string": {"type": "string", "description": "exact text to replace (unique in the file)"},
+         "new_string": {"type": "string", "description": "replacement text"}}, ["path", "old_string", "new_string"]),
+    _fn("write_file", "Create or OVERWRITE a whole file with new content. GUARDED (only when the runner allows writes; path-scoped; secrets blocked; git-tracked/reversible). Use edit_file for small changes; use this for new files or full rewrites.",
+        {"path": {"type": "string", "description": "path relative to the project root"},
+         "content": {"type": "string", "description": "the full new file content"}}, ["path", "content"]),
     _fn("run_command", "Run a shell command (tests, linters, builds, etc.). GATED: may require the user's approval and can be denied.",
         {"command": {"type": "string", "description": "The shell command"},
          "working_dir": {"type": "string", "description": "Optional cwd relative to root"},
@@ -158,12 +176,16 @@ TOOLS = [
 # ---- the tool executor (all guards live here) -------------------------------
 
 class ToolBox:
-    def __init__(self, root: Path, *, allow_exec: bool, trust: bool, allow_secrets: bool, confirm):
+    def __init__(self, root: Path, *, allow_exec: bool, trust: bool, allow_secrets: bool, confirm,
+                 agent_id: str | None = None, allow_write: bool = False):
         self.root = root.resolve()
         self.allow_exec = allow_exec
         self.trust = trust
         self.allow_secrets = allow_secrets
+        self.allow_write = allow_write  # write_file/edit_file are live only when this is True (--allow-write)
         self._confirm = confirm  # callable(prompt) -> bool
+        self.agent_id = agent_id  # bus identity; when set, the bifrost_* doors are live (runner mode)
+        self._bus_conn = None
 
     # -- path safety --
     def _resolve(self, path: str, *, allow_dir: bool) -> Path:
@@ -322,6 +344,157 @@ class ToolBox:
     def knowledge_boot(self, task):
         return self._agent_cli(["boot", "deepseek", "--task", task])
 
+    # -- Bifrost bus doors (live only when this ToolBox has an agent identity, i.e. inside a runner) --
+    def _bus(self):
+        """This agent's Bus handle, or None when we have no bus identity / Redis is offline. Lazy so the
+        interactive chat (no agent_id) never touches Redis and these tools cleanly no-op there."""
+        if not self.agent_id:
+            return None
+        if self._bus_conn is None:
+            try:
+                from core.comm.bus import Bus
+                self._bus_conn = Bus(self.agent_id)
+            except Exception:
+                self._bus_conn = None
+        b = self._bus_conn
+        return b if (b is not None and getattr(b, "online", False)) else None
+
+    def bifrost_send(self, to, text, kind="chat"):
+        """Send a message to a peer (e.g. 'claude') or broadcast ('*'/'all'). This is how I *initiate*
+        contact on the bus, not just reply."""
+        b = self._bus()
+        if b is None:
+            return "ERROR: not on a Bifrost bus in this mode (no agent identity, or Redis offline)."
+        to = str(to).strip().lower()
+        text = str(text)[:4000]
+        kind = kind if kind in ("chat", "note", "request", "handoff", "nudge") else "chat"
+        meta = {"via": f"{self.agent_id}-tool", "hops": 0}
+        try:
+            if to in ("*", "all", "both", ""):
+                mid = b.broadcast(kind, text, meta=meta)
+                dest = "*(broadcast)"
+            else:
+                mid = b.send(to, kind, text, meta=meta)
+                dest = to
+            return f"sent [{kind}] to {dest} (id {mid})" if mid else "ERROR: send failed (bus offline?)"
+        except Exception as e:
+            return f"ERROR: bifrost_send failed: {type(e).__name__}: {e}"
+
+    def bifrost_inbox(self):
+        """Peek my unread bus messages (does NOT consume them, so the runner still processes them
+        normally). Use to check whether a peer has replied."""
+        b = self._bus()
+        if b is None:
+            return "ERROR: not on a Bifrost bus in this mode (no agent identity, or Redis offline)."
+        try:
+            msgs = b.inbox(limit=20, advance=False)
+            if not msgs:
+                return "(inbox empty -- no unread messages)"
+            lines = [f"[{m.kind}] from {m.frm}: {str(m.content)[:300]}" for m in msgs]
+            return "\n".join(lines)
+        except Exception as e:
+            return f"ERROR: bifrost_inbox failed: {type(e).__name__}: {e}"
+
+    def bifrost_nudge(self, to, text):
+        """Nudge a specific peer: set its per-agent barge-in flag AND send a kind=nudge message, so it
+        interrupts its current work at the next round boundary and looks at this now."""
+        b = self._bus()
+        if b is None:
+            return "ERROR: not on a Bifrost bus in this mode (no agent identity, or Redis offline)."
+        to = str(to).strip().lower()
+        if to in ("*", "all", "both", ""):
+            return "ERROR: a nudge must target one agent (e.g. 'claude'), not a broadcast."
+        text = str(text)[:4000]
+        try:
+            from core.comm import nudge as _nudge
+            _nudge.nudge(to, by=self.agent_id, reason=text[:80])
+            mid = b.send(to, "nudge", text, meta={"via": f"{self.agent_id}-tool", "hops": 0})
+            return f"nudged {to} (id {mid})" if mid else "ERROR: nudge send failed (bus offline?)"
+        except Exception as e:
+            return f"ERROR: bifrost_nudge failed: {type(e).__name__}: {e}"
+
+    def bifrost_steer(self, to, text):
+        """Steer a specific peer WITHOUT interrupting it: queue a fact its runner folds into its CURRENT
+        task between tool rounds. Use when a peer is working and should adjust course, not stop."""
+        b = self._bus()
+        if b is None:
+            return "ERROR: not on a Bifrost bus in this mode (no agent identity, or Redis offline)."
+        to = str(to).strip().lower()
+        if to in ("*", "all", "both", ""):
+            return "ERROR: a steer must target one agent (e.g. 'claude'), not a broadcast."
+        text = str(text)[:4000]
+        try:
+            from core.comm import nudge as _nudge
+            _nudge.steer_push(to, self.agent_id, text)
+            mid = b.send(to, "steer", text, meta={"via": f"{self.agent_id}-tool", "hops": 0, "display_only": True})
+            return f"steered {to} (folds into its current task; id {mid})" if mid else "ERROR: steer failed"
+        except Exception as e:
+            return f"ERROR: bifrost_steer failed: {type(e).__name__}: {e}"
+
+    # -- guarded write (live only when the runner is started with --allow-write) --
+    def _prewrite(self, path):
+        """Shared guards for write/edit: capability ON, path IN-ROOT and NON-secret, and no ADVISORY
+        lock held by ANOTHER agent (C2 coordination). Returns (resolved_path, error) -- error is None
+        when it is safe to write."""
+        if not self.allow_write:
+            return None, "write is DISABLED. The runner must be started with --allow-write to permit file changes."
+        try:
+            p = self._resolve(path, allow_dir=False)      # in-root + secret-blocked (raises ValueError otherwise)
+        except ValueError as e:
+            return None, f"ERROR: {e}"
+        # Protected surface: an agent must not rewrite its OWN trust/launch/contract config -- that would be
+        # self-escalation (grant itself caps in acl.json, add an arbitrary command to launcher.json, or edit
+        # AGENTS.md). Reads are still allowed; only WRITES to these are blocked, even under --allow-write.
+        rel = p.relative_to(self.root).as_posix().lower()
+        if rel.startswith("security/") or rel == "agents.md" or rel.endswith("/agents.md"):
+            return None, (f"ERROR: '{rel}' is a protected trust/contract path -- writes are blocked even under "
+                          "--allow-write (an agent cannot escalate its own ACL/launch surface). Ask a super-admin.")
+        try:                                              # advisory lock: don't clobber a file another agent holds
+            from core.comm.locks import LockManager
+            res = LockManager(self.agent_id or "deepseek").acquire(str(p), ttl=900)
+            if res.get("online") and not res.get("ok"):
+                return None, (f"ERROR: {path} is held (advisory lock) by {res.get('held_by')}. "
+                              "Coordinate via the bus before editing it.")
+        except Exception:
+            pass                                          # locks are advisory; never block a write on lock errors
+        return p, None
+
+    def write_file(self, path, content):
+        """Create or OVERWRITE a file. Guarded: --allow-write, path-scoped, secret-blocked, git-tracked."""
+        p, err = self._prewrite(path)
+        if err:
+            return err
+        data = str(content)
+        if len(data.encode("utf-8", "ignore")) > 800_000:
+            return "ERROR: refusing to write more than 800KB in one call."
+        try:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(data, encoding="utf-8")
+            return (f"wrote {path} ({len(data)} chars). It is git-tracked, so reversible. "
+                    "If it's a running service (e.g. the UI), it must be restarted to load the change.")
+        except Exception as e:
+            return f"ERROR: write failed: {type(e).__name__}: {e}"
+
+    def edit_file(self, path, old_string, new_string):
+        """Replace ONE exact, unique occurrence of old_string with new_string. Safer than write_file for
+        targeted changes. Guarded identically. old_string must match exactly (incl. whitespace) and be unique."""
+        p, err = self._prewrite(path)
+        if err:
+            return err
+        try:
+            if not p.exists():
+                return f"ERROR: no such file: {path} (use write_file to create it)"
+            text = p.read_text(encoding="utf-8", errors="replace")
+            n = text.count(old_string)
+            if n == 0:
+                return "ERROR: old_string not found (it must match exactly, including whitespace/indentation)."
+            if n > 1:
+                return f"ERROR: old_string matches {n} places; add surrounding context to make it unique."
+            p.write_text(text.replace(old_string, new_string, 1), encoding="utf-8")
+            return f"edited {path} (1 replacement). git-tracked, reversible. Restart the service if it's running."
+        except Exception as e:
+            return f"ERROR: edit failed: {type(e).__name__}: {e}"
+
     # -- gated shell --
     def run_command(self, command, working_dir=None, timeout=60):
         if not self.allow_exec:
@@ -399,7 +572,7 @@ def _tool_activity(name, args):
 
 class Agent:
     def __init__(self, client, toolbox: ToolBox, *, model, system, think, tools_enabled,
-                 interrupt=None, on_activity=None):
+                 interrupt=None, on_activity=None, inject=None, on_trace=None):
         self.client = client
         self.toolbox = toolbox
         self.model = model
@@ -407,6 +580,8 @@ class Agent:
         self.tools_enabled = tools_enabled
         self.interrupt = interrupt         # optional () -> bool; checked between rounds for true barge-in
         self.on_activity = on_activity     # optional (state, detail) -> None; reports activity (rich presence)
+        self.inject = inject               # optional () -> list[str]; steering facts to fold in mid-task
+        self.on_trace = on_trace           # optional (kind, text) -> None; streams tool calls + thinking out
         self.temperature = None
         self.max_tokens = None
         self.json_mode = False
@@ -417,6 +592,15 @@ class Agent:
         if self.on_activity:
             try:
                 self.on_activity(state, detail)
+            except Exception:
+                pass
+
+    def _trace(self, kind, text):
+        """Stream a step (a tool call, or a chunk of thinking) OUT of the loop -- the runner posts these
+        to the bus so the console shows DeepSeek's live reasoning + tool use, not just the final answer."""
+        if self.on_trace and text:
+            try:
+                self.on_trace(kind, str(text))
             except Exception:
                 pass
 
@@ -448,6 +632,7 @@ class Agent:
         Returns (content_text, tool_calls) where tool_calls is a list of {id,name,arguments}."""
         stream = self.client.chat.completions.create(**self._kwargs())
         content, slots = [], {}
+        reasoning_buf = []
         in_reasoning = header = False
         try:
             for chunk in stream:
@@ -464,6 +649,7 @@ class Agent:
                     if not in_reasoning:
                         print(f"{C.grey}💭 ", end="", flush=True); in_reasoning = True
                     print(f"{C.grey}{r}", end="", flush=True)
+                    reasoning_buf.append(r)
                 if d.content:
                     if in_reasoning:
                         print(C.reset); in_reasoning = False
@@ -482,6 +668,8 @@ class Agent:
         finally:
             if in_reasoning or header:
                 print(C.reset)
+        if reasoning_buf:                                  # surface a compact 'thinking' trace to the console
+            self._trace("thinking", "".join(reasoning_buf)[:500])
         return "".join(content), [slots[i] for i in sorted(slots)]
 
     def send(self, user_text):
@@ -490,6 +678,11 @@ class Agent:
             if self.interrupt and self.interrupt():   # DeepSeek's fix: true barge-in mid-tool-loop
                 print(f"{C.yellow}[interrupted by your interjection -- pausing mid-task]{C.reset}")
                 return "[paused mid-task by your interjection -- resume to continue]"
+            if self.inject:                           # STEER: fold new facts into the LIVE task, no restart
+                for fact in (self.inject() or []):
+                    self.messages.append({"role": "user",
+                        "content": f"[STEER -- new fact to adopt into your current task, keep going]: {fact}"})
+                    print(f"{C.cyan}[steered mid-task] {fact[:120]}{C.reset}")
             self._activity("thinking")
             try:
                 content, tool_calls = self._stream_turn()
@@ -509,6 +702,7 @@ class Agent:
                         args = {}
                     shown = ", ".join(f"{k}={v!r}" for k, v in args.items())
                     print(f"{C.yellow}🔧 {s['name']}({shown[:160]}){C.reset}")
+                    self._trace("tool", f"{s['name']}({shown[:140]})")
                     self._activity(*_tool_activity(s["name"], args))
                     result = self.toolbox.execute(s["name"], args)
                     first = result.splitlines()[0] if result else ""
