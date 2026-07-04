@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "bifrost-ui",
+      "runtimeExecutable": "py",
+      "runtimeArgs": ["scripts/bifrost_ui.py", "--port", "8788"],
+      "port": 8788
+    }
+  ]
+}

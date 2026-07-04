@@ -382,12 +382,13 @@ def default_system(root: Path) -> str:
 
 
 class Agent:
-    def __init__(self, client, toolbox: ToolBox, *, model, system, think, tools_enabled):
+    def __init__(self, client, toolbox: ToolBox, *, model, system, think, tools_enabled, interrupt=None):
         self.client = client
         self.toolbox = toolbox
         self.model = model
         self.think = think
         self.tools_enabled = tools_enabled
+        self.interrupt = interrupt   # optional () -> bool; checked between tool rounds for true barge-in
         self.temperature = None
         self.max_tokens = None
         self.json_mode = False
@@ -461,6 +462,9 @@ class Agent:
     def send(self, user_text):
         self.messages.append({"role": "user", "content": user_text})
         for _ in range(MAX_TOOL_ROUNDS):
+            if self.interrupt and self.interrupt():   # DeepSeek's fix: true barge-in mid-tool-loop
+                print(f"{C.yellow}[interrupted by your interjection -- pausing mid-task]{C.reset}")
+                return "[paused mid-task by your interjection -- resume to continue]"
             try:
                 content, tool_calls = self._stream_turn()
             except Exception as e:

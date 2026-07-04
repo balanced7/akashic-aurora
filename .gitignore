@@ -73,6 +73,9 @@ Thumbs.db
 # Bifrost media blobs (content-addressed, not source)
 blobs/
 
+# Console file drops (runtime; shared into a session, not source)
+dropbox/
+
 # research-day runner: per-session stdout logs are scratch, not knowledge
 research/drafts/*.session.log
 research/drafts/*.session.log.err

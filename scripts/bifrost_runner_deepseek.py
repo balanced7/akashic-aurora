@@ -92,7 +92,9 @@ def make_agentic_replier(model: str, system: str, think: bool, root: Path):
     def respond(frm: str, prompt: str) -> str:
         ag = convos.get(frm)
         if ag is None:
-            ag = dc.Agent(client, toolbox, model=model, system=system, think=think, tools_enabled=True)
+            # interrupt=control.is_paused -> a HALT interjection stops work mid-tool-loop (DeepSeek's insight)
+            ag = dc.Agent(client, toolbox, model=model, system=system, think=think,
+                          tools_enabled=True, interrupt=control.is_paused)
             convos[frm] = ag
         try:
             answer = ag.send(prompt)                 # streams to the runner window; returns final text
