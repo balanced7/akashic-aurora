@@ -81,11 +81,43 @@ class BifrostAPI:
         """SOFT steer a peer: queue a fact it folds into its CURRENT task between rounds (no stop)."""
         return nudge.steer_push(str(to), self.agent, text)
 
-    # ---- coordination (Policy 0) ----
+    # ---- coordination: planning round (a brief council before work) ----
+    def plan(self, what: str, scope=None, estimate: str = "", intent: str = "") -> Dict[str, Any]:
+        """Propose a plan in the current round (what / scope / estimate / intent tag). Returns the round
+        state with the green/amber/red conflict verdict. Delegates to core.coord.intent.propose."""
+        from core.coord import intent as _intent
+        return _intent.propose(self.agent, {"what": what, "scope": scope, "estimate": estimate, "intent": intent})
+
+    def round_state(self) -> Dict[str, Any]:
+        """The current planning round: every proposal + the green/amber/red verdict."""
+        from core.coord import intent as _intent
+        return _intent.round_state()
+
+    def council(self, context: str = "") -> Dict[str, Any]:
+        """Run a full planning round (open -> wait -> verdict). Call after user input, before work."""
+        from core.coord import negotiation
+        return negotiation.auto_close(triggered_by=self.agent, context=context)
+
+    # ---- coordination: active intent (Policy 0) ----
     def declare(self, intent: str, scope=None) -> Dict[str, Any]:
         """Declare an intent before acting: admitted unless a peer holds the same intent (then yield)."""
         from core.coord import intent as _intent
         return _intent.declare(self.agent, intent, scope)
+
+    def intents(self, *, mine_only: bool = False) -> List[Dict[str, Any]]:
+        """The intent influence map -- who's working on what (all agents, or just mine)."""
+        from core.coord import intent as _intent
+        return _intent.active(agent=self.agent if mine_only else None)
+
+    def covers(self, path: str) -> bool:
+        """True iff I hold an active intent whose scope covers `path` (the enforcement backstop)."""
+        from core.coord import intent as _intent
+        return _intent.covers(self.agent, path)
+
+    def release_intent(self, intent: str) -> bool:
+        """Withdraw one of my active intents (work done or abandoned)."""
+        from core.coord import intent as _intent
+        return _intent.release(self.agent, intent)
 
     # ---- control ----
     def halted(self) -> bool:

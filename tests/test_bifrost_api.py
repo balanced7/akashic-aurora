@@ -62,6 +62,29 @@ def test_wake_cmd_is_the_arm_string():
     assert api.wake_cmd == "py scripts/bifrost_wake.py --agent claude"
 
 
+def test_coordination_intent_lifecycle():
+    """The coordination methods delegate to core.coord.intent: declare -> influence map -> covers -> release."""
+    a = f"api-c-{uuid.uuid4().hex[:6]}"
+    api = BifrostAPI(a)
+    _online_or_skip(api)
+    try:
+        assert api.declare("build-feature-x", scope=["pkg/foo.py"])["ok"] is True
+        assert any(i.get("agent") == a for i in api.intents(mine_only=True))
+        assert api.covers("pkg/foo.py") is True
+        assert api.covers("other/bar.py") is False
+    finally:
+        assert api.release_intent("build-feature-x") is True
+
+
+def test_coordination_plan_gives_verdict():
+    a = f"api-p-{uuid.uuid4().hex[:6]}"
+    api = BifrostAPI(a)
+    _online_or_skip(api)
+    r = api.plan("do a thing", scope=["pkg/baz.py"], intent="do-a-thing")
+    assert isinstance(r, dict)
+    assert api.round_state().get("verdict") in ("green", "amber", "red")
+
+
 def test_fail_open_offline(monkeypatch):
     api = BifrostAPI("x")
     monkeypatch.setattr(api.bus, "_client", None)         # force offline
