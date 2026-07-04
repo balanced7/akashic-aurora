@@ -750,7 +750,10 @@ const log = document.getElementById('log');
 const seen = new Set();
 let paused = false, nearBottom = true, lastFrom = null;
 
-log.addEventListener('scroll', ()=>{ nearBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 120; });
+log.addEventListener('scroll', ()=>{
+  nearBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 120;
+  if(log.scrollTop < 60) prependOlder();     // reached the top -> re-hydrate older history from the buffer
+});
 
 function esc(s){ return (s==null?'':String(s)).replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 function fmt(s){
@@ -763,23 +766,23 @@ function initials(a){ return (a||'?').slice(0,2).toUpperCase(); }
 function cls(a){ return (a==='claude'||a==='deepseek'||a==='user') ? a : 'system'; }
 function now(ts){ try{ return new Date(ts.replace(' ','T')).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});}catch(e){return '';} }
 
-function addMsg(m){
-  if(m.id && m.id!=='0'){ if(seen.has(m.id)) return; seen.add(m.id); }
+const allMsgs = [];                          // full-session data buffer (cheap); the DOM stays a window over it
+const HISTORY_BATCH = 100;                    // messages re-hydrated per scroll-to-top
+
+function renderMsg(m){                        // build a message's DOM node (no placement) -- reused for live + history
   const from = m.from || 'system';
   const kind = m.kind || 'chat';
   const isGuard = /loop-guard/i.test(m.content||'');
-  if(kind==='trace'){   // live tool-call / thinking line, streamed under the agent
+  if(kind==='trace'){
     const d=document.createElement('div'); d.className='traceline';
     d.innerHTML='<span class="trav '+cls(from)+'">'+esc(from)+'</span><span class="trat">'+esc(m.content||'')+'</span>';
-    _msgPlacer(d, m); autoscroll(); return;
+    return d;
   }
-  if(from==='system' || kind==='note' || kind==='_ready'){
-    if(kind==='_ready') return;
+  if(from==='system' || kind==='note'){
     const d=document.createElement('div'); d.className='sys'+(isGuard?' guard':'');
-    d.innerHTML='<span>'+esc(m.content||'')+'</span>'; _msgPlacer(d, m); autoscroll(); return;
+    d.innerHTML='<span>'+esc(m.content||'')+'</span>'; return d;
   }
-  const me = from==='user';
-  const c = cls(from);
+  const me = from==='user'; const c = cls(from);
   const wrap=document.createElement('div'); wrap.className='msg'+(me?' me':'');
   const hop = (m.meta && m.meta.hops)? '<span class="hop">hop '+m.meta.hops+'</span>':'';
   const intent = (m.meta && m.meta.intent)? '<span class="ib ib-'+m.meta.intent+'" title="'+esc(m.meta.why||'')+'">'+m.meta.intent+'</span>':'';
@@ -788,13 +791,33 @@ function addMsg(m){
     '<div class="bubble"><div class="row"><span class="who '+c+'">'+esc(from)+'</span>'+
     '<span class="time">'+now(m.ts)+'</span>'+intent+hop+'</div>'+
     '<div class="content">'+_msgRenderer(m)+'</div></div>';
-  _msgPlacer(wrap, m); autoscroll();
+  return wrap;
+}
+
+function addMsg(m){
+  if(m.id && m.id!=='0'){ if(seen.has(m.id)) return; seen.add(m.id); }
+  if((m.kind||'chat')==='_ready') return;
+  const idx = allMsgs.push(m) - 1;           // buffer it (data), then render at the live tail
+  const node = renderMsg(m); if(!node) return;
+  node.dataset.mi = idx;
+  _msgPlacer(node, m); autoscroll();
+}
+
+function prependOlder(){                       // scroll-to-top: re-hydrate older messages from the buffer
+  const first = log.firstElementChild; if(!first || first.dataset.mi===undefined) return;
+  const oldest = parseInt(first.dataset.mi);
+  if(oldest<=0) return;                        // already at the start of the session
+  const start = Math.max(0, oldest-HISTORY_BATCH);
+  const h0 = log.scrollHeight, frag=document.createDocumentFragment();
+  for(let i=start;i<oldest;i++){ const n=renderMsg(allMsgs[i]); if(n){ n.dataset.mi=i; frag.appendChild(n); } }
+  log.insertBefore(frag, log.firstElementChild);
+  log.scrollTop += (log.scrollHeight - h0);    // anchor the reader's view (prepended content pushes down, view stays put)
 }
 const MAX_LOG_NODES = 250;                  // bounded render window (Doom 'culling'): cap DOM so a long/bursty log never grows into lag
 function trimLog(){
-  // hard ceiling: the DOM can NEVER grow without bound, even while the user is scrolled up
-  while(log.childElementCount > MAX_LOG_NODES*2) log.removeChild(log.firstElementChild);
-  // soft window: trim to MAX only at the live tail, so reading scrollback is never yanked
+  // absolute ceiling (rare): never grow truly without bound even during a scrolled-up flood
+  while(log.childElementCount > 2000) log.removeChild(log.firstElementChild);
+  // tail window: at the live tail keep it lean (250); scrollback stays for reading history + re-hydration
   if(nearBottom) while(log.childElementCount > MAX_LOG_NODES) log.removeChild(log.firstElementChild);
 }
 function autoscroll(){ trimLog(); if(nearBottom) log.scrollTop = log.scrollHeight; }
