@@ -790,7 +790,14 @@ function addMsg(m){
     '<div class="content">'+_msgRenderer(m)+'</div></div>';
   _msgPlacer(wrap, m); autoscroll();
 }
-function autoscroll(){ if(nearBottom) log.scrollTop = log.scrollHeight; }
+const MAX_LOG_NODES = 250;                  // bounded render window (Doom 'culling'): cap DOM so a long/bursty log never grows into lag
+function trimLog(){
+  // hard ceiling: the DOM can NEVER grow without bound, even while the user is scrolled up
+  while(log.childElementCount > MAX_LOG_NODES*2) log.removeChild(log.firstElementChild);
+  // soft window: trim to MAX only at the live tail, so reading scrollback is never yanked
+  if(nearBottom) while(log.childElementCount > MAX_LOG_NODES) log.removeChild(log.firstElementChild);
+}
+function autoscroll(){ trimLog(); if(nearBottom) log.scrollTop = log.scrollHeight; }
 // real rich presence: what each agent is actually doing, from /status (not a client-side guess)
 const ICON = {thinking:'💭', reading:'📖', searching:'🔍', inspecting:'🔎', recalling:'🧠', running:'⚙️', writing:'✍️', working:'⚡'};
 const VERB = {thinking:'thinking', reading:'reading', searching:'searching', inspecting:'inspecting git', recalling:'searching memory', running:'running a command', writing:'writing', working:'working'};
