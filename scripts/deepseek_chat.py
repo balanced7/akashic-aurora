@@ -146,6 +146,16 @@ TOOLS = [
         {"query": {"type": "string", "description": "Keywords, e.g. 'faithfulness critic'"}}, ["query"]),
     _fn("knowledge_boot", "Assemble the project's startup context for a task (recent notes + top lessons), the same briefing an agent gets.",
         {"task": {"type": "string", "description": "Short task description to rank context against"}}, ["task"]),
+    _fn("knowledge_learn", "CONTRIBUTE a lesson to the knowledge base -- a durable 'use when X, do Y' article future agents recall. Requires the kb.learn capability. Write one whenever you discover something reusable (a fix, a gotcha, a pattern) so it outlives this chat.",
+        {"experiment": {"type": "string", "description": "short snake/kebab name, e.g. 'bifrost_hint_render'"},
+         "tried": {"type": "string", "description": "what you did / the situation"},
+         "result": {"type": "string", "description": "what happened / what worked"},
+         "recommend": {"type": "string", "description": "reusable advice: 'Use when <symptom>, before <action>: <advice>'"}},
+        ["experiment", "tried", "result", "recommend"]),
+    _fn("knowledge_note", "Write a durable NOTE/article to the knowledge base (write-once; re-noting the same title supersedes it). Requires kb.learn. Use for a decision record, where-we-are state, or a knowledge article that should survive the session.",
+        {"title": {"type": "string", "description": "short stable title (re-noting it supersedes the prior)"},
+         "note": {"type": "string", "description": "the article / decision / state body"}},
+        ["title", "note"]),
     _fn("bifrost_send", "Send a message to a peer agent on the shared Bifrost bus (e.g. to='claude'), or broadcast (to='*'). This is how you INITIATE contact, not just reply. Only works when you are running on the bus.",
         {"to": {"type": "string", "description": "recipient agent id, e.g. 'claude', or '*' to broadcast"},
          "text": {"type": "string", "description": "the message"},
@@ -342,6 +352,34 @@ class ToolBox:
 
     def knowledge_recall(self, query):
         return self._agent_cli(["recall", query, "--json"])
+
+    def _kb_write_ok(self):
+        """Gate KB writes on the kb.learn capability (recall/boot stay open to all). Read-only members
+        (e.g. deepseek-ui) are denied with a teaching message. Fail-open only on a registry error --
+        never silently escalate a denied write into an allow."""
+        try:
+            from core.trust import registry
+            from core.trust.capabilities import Cap
+            g = registry.resolve(self.agent_id or "deepseek")
+            if not g.has(Cap.KB_LEARN):
+                return (f"ERROR: '{self.agent_id}' lacks the kb.learn capability (role={g.role}). KB WRITES "
+                        "(learn/note) need kb.learn; recall/boot stay open to everyone. Ask a super-admin to grant it.")
+        except Exception:
+            pass
+        return None
+
+    def knowledge_learn(self, experiment, tried, result, recommend):
+        err = self._kb_write_ok()
+        if err:
+            return err
+        return self._agent_cli(["learn", self.agent_id or "deepseek", "--experiment", str(experiment),
+                                "--tried", str(tried), "--result", str(result), "--recommend", str(recommend)])
+
+    def knowledge_note(self, title, note):
+        err = self._kb_write_ok()
+        if err:
+            return err
+        return self._agent_cli(["note", self.agent_id or "deepseek", "--title", str(title), "--note", str(note)])
 
     def knowledge_boot(self, task):
         return self._agent_cli(["boot", "deepseek", "--task", task])
