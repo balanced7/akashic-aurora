@@ -411,7 +411,7 @@ PAGE = r"""<!doctype html>
 <style>
   :root{
     --bg:#0a0b0f; --bg2:#0e1015; --panel:#14161d; --panel2:#171a22; --border:#242833;
-    --text:#e7e9f0; --muted:#8b90a2; --faint:#5a5f70;
+    --text:#e7e9f0; --muted:#8b90a2; --faint:#727890;
     --claude:#e0915c; --deepseek:#7aa2f7; --user:#5fd39b; --system:#7c8296;
     --accent:#7aa2f7; --accent2:#9d7cf7; --amber:#f0b246; --danger:#f0666e;
     --fleet:#f472b6;
