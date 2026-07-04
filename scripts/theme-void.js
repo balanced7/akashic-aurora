@@ -26,7 +26,7 @@
     '--border:#1b1b28;' +       // dim chrome — seen, not glowing
     '--text:#eaf0ff;' +         // cool bright white
     '--muted:#8090b4;' +
-    '--faint:#4a5270;' +
+    '--faint:#7581a3;' +       // WCAG: 5.1:1 over glass-on-black (was #4a5270 = 2.6:1, failed)
     '--claude:#ff9d5c;' +       // neon amber (boosted sat vs default)
     '--deepseek:#7ab8ff;' +     // neon blue
     '--user:#48e6bf;' +         // signature aurora-neon aqua
