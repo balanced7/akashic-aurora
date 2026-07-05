@@ -13,7 +13,9 @@
   'use strict';
 
   var CSS =
-    '#pcloud{position:fixed;left:18px;bottom:104px;z-index:40;display:flex;align-items:flex-end;gap:0;' +
+    // dock to the centered app column's left edge (app is max-width:1180px; margin:0 auto) so the
+    // avatar sits by the composer, not stranded at the viewport edge on wide screens.
+    '#pcloud{position:fixed;left:max(16px,calc((100vw - 1180px)/2));bottom:88px;z-index:40;display:flex;align-items:flex-end;gap:0;' +
       'pointer-events:none;font-family:var(--sans,-apple-system,system-ui,sans-serif)}' +
     '#pcloud.hide{opacity:0;transform:translateY(8px);transition:opacity .4s,transform .4s}' +
     '#pcloud.show{opacity:1;transform:none;transition:opacity .4s,transform .4s}' +
