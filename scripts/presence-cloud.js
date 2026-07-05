@@ -18,13 +18,13 @@
     '#pcloud.hide{opacity:0;transform:translateY(8px);transition:opacity .4s,transform .4s}' +
     '#pcloud.show{opacity:1;transform:none;transition:opacity .4s,transform .4s}' +
     /* avatar */
-    '#pcloud .pcav{width:46px;height:46px;border-radius:15px;flex:none;display:grid;place-items:center;' +
-      'font-size:16px;font-weight:700;color:#0a0b0f;letter-spacing:.02em;position:relative;' +
+    '#pcloud .pcav{width:38px;height:38px;border-radius:13px;flex:none;display:grid;place-items:center;' +
+      'font-size:14px;font-weight:700;color:#0a0b0f;letter-spacing:.02em;position:relative;' +
       'box-shadow:0 6px 20px -6px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.08) inset}' +
     '#pcloud .pcav .rglow{position:absolute;inset:-3px;border-radius:18px;opacity:.55;filter:blur(7px);z-index:-1}' +
     /* the thought cloud, floating up-right of the avatar */
-    '#pcloud .cloud{position:absolute;left:34px;bottom:52px;max-width:260px;min-width:96px;' +
-      'padding:10px 13px;border-radius:16px 16px 16px 5px;color:var(--text,#eef0f7);font-size:12.5px;line-height:1.4;' +
+    '#pcloud .cloud{position:absolute;left:28px;bottom:44px;max-width:224px;min-width:84px;' +
+      'padding:8px 11px;border-radius:14px 14px 14px 5px;color:var(--text,#eef0f7);font-size:12px;line-height:1.4;' +
       'background:var(--glass,rgba(18,20,28,.62));backdrop-filter:blur(20px) saturate(1.3);-webkit-backdrop-filter:blur(20px) saturate(1.3);' +
       'border:1px solid var(--glass-line,rgba(255,255,255,.12));' +
       'box-shadow:0 1px 0 rgba(255,255,255,.05) inset,0 18px 40px -20px rgba(0,0,0,.85);' +
