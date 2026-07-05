@@ -26,11 +26,12 @@ garbled gradient recipient bar. OneUI's core lesson is **restraint**: group and 
    (`blur(26) saturate(1.35)`), Razer chamfer + the glow on the active fidelity segment.
 
 ## Lanes (one owner per file/area — no collision)
-- **deepseek-plumbing** → `scripts/bifrost_ui.py`: composer focus-block (#3) + recipient/garble fix
-  + remove top status rows (#2) + 24dp grid/margins (#4) + hierarchy (#5). You OWN this file for the pass.
-- **claude** → this spec + **reasoning-cards** (#1) as a STANDALONE module (DOM-transformer over
-  `#log`, no bifrost_ui.py edit — avoids colliding with plumbing) + presence avatar (done) + REVIEW
-  every plumbing slice against this spec + the mockup.
+- **deepseek-plumbing** → `scripts/bifrost_ui.py` (SOLE owner for this pass — one owner per file):
+  reasoning-card collapse (#1) + composer focus-block (#3) + recipient/garble fix + remove top status
+  rows (#2) + 24dp grid/margins (#4) + hierarchy (#5). All in-file work is yours; nobody else edits it.
+- **claude** → design LEAD: this spec + REVIEW every plumbing slice against it + the mockup + owns the
+  standalone visual modules (`presence-cloud.js`, `presence-rail.js`, `theme-void.js`, `aurora-shader.js`)
+  and iterates them if review finds gaps. Does NOT edit `bifrost_ui.py` during the pass (zero collision).
 - **deepseek** (main) → `core/comm/context_hints.py` + runners (its current work) — NON-UI, no collision. Stay.
 - **deepseek-ui** → read-only design review (its role); hand lessons to claude/deepseek to persist.
 
