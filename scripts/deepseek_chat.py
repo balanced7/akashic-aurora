@@ -167,6 +167,11 @@ TOOLS = [
     _fn("bifrost_steer", "SOFT steer a specific peer WITHOUT interrupting it: queue a fact it folds into its CURRENT task between rounds. Use when a peer is working and should adjust course, not stop.",
         {"to": {"type": "string", "description": "the ONE peer to steer, e.g. 'claude'"},
          "text": {"type": "string", "description": "the fact/adjustment to fold into its current work"}}, ["to", "text"]),
+    _fn("bifrost_hint", "Send a compact context hint to a peer -- a key:value pair they fold into their next turn as display-only context. Ephemeral (TTL 5 min), never a command. Use for short factual updates ('file X is at line Y', 'PR #Z just landed') instead of long prose.",
+        {"to": {"type": "string", "description": "recipient agent id"},
+         "key": {"type": "string", "description": "short label, e.g. 'file', 'blocker', 'state', 'pr'"},
+         "value": {"type": "string", "description": "the fact, e.g. 'aurora-shader.js:42 needs init() call'"}},
+        ["to", "key", "value"]),
     _fn("reload_ui", "Reload the running Bifrost UI so your edits to scripts/bifrost_ui.py take effect (no shell needed -- POSTs the UI's own /reload endpoint). Call AFTER you finish editing the UI, then tell the user to refresh their browser. This is how you SOLO-DRIVE UI work end to end.",
         {"port": {"type": "integer", "description": "UI port (default 8788; falls back to 8787)"}}),
     _fn("edit_file", "Make a TARGETED change: replace one exact, unique string in a file with new text. GUARDED (only when the runner allows writes; path-scoped; secrets blocked; git-tracked/reversible). Prefer this over write_file for small edits. old_string must match exactly (incl. whitespace) and be unique.",
@@ -407,7 +412,7 @@ class ToolBox:
             return "ERROR: not on a Bifrost bus in this mode (no agent identity, or Redis offline)."
         to = str(to).strip().lower()
         text = str(text)[:4000]
-        kind = kind if kind in ("chat", "note", "request", "handoff", "nudge") else "chat"
+        kind = kind if kind in ("chat", "note", "request", "handoff", "nudge", "hint") else "chat"
         meta = {"via": f"{self.agent_id}-tool", "hops": 0}
         try:
             if to in ("*", "all", "both", ""):
@@ -470,6 +475,24 @@ class ToolBox:
             return f"steered {to} (folds into its current task; id {mid})" if mid else "ERROR: steer failed"
         except Exception as e:
             return f"ERROR: bifrost_steer failed: {type(e).__name__}: {e}"
+
+    def bifrost_hint(self, to, key, value):
+        """Send a compact context hint to a peer -- a key:value pair they fold into their next turn."""
+        b = self._bus()
+        if b is None:
+            return "ERROR: not on a Bifrost bus in this mode (no agent identity, or Redis offline)."
+        to = str(to).strip().lower()
+        if to in ("*", "all", "both", ""):
+            return "ERROR: a hint must target one agent (e.g. 'claude'), not a broadcast."
+        key = str(key).strip()[:80]
+        value = str(value).strip()[:500]
+        try:
+            mid = b.send(to, "hint", f"[{key}] {value}",
+                         meta={"via": f"{self.agent_id}-tool", "hops": 0,
+                               "hint": {"key": key, "value": value}})
+            return f"hint sent to {to}: {key}={value[:60]}" if mid else "ERROR: hint send failed (bus offline?)"
+        except Exception as e:
+            return f"ERROR: bifrost_hint failed: {type(e).__name__}: {e}"
 
     def reload_ui(self, port=8788):
         """DISABLED for this agent. The Bifrost UI and its port (8788) are claude/harness-managed:
@@ -632,7 +655,7 @@ def _tool_activity(name, args):
 
 class Agent:
     def __init__(self, client, toolbox: ToolBox, *, model, system, think, tools_enabled,
-                 interrupt=None, on_activity=None, inject=None, on_trace=None):
+                 interrupt=None, on_activity=None, inject=None, on_trace=None, agent_id=None):
         self.client = client
         self.toolbox = toolbox
         self.model = model
@@ -642,6 +665,7 @@ class Agent:
         self.on_activity = on_activity     # optional (state, detail) -> None; reports activity (rich presence)
         self.inject = inject               # optional () -> list[str]; steering facts to fold in mid-task
         self.on_trace = on_trace           # optional (kind, text) -> None; streams tool calls + thinking out
+        self.agent_id = agent_id           # optional str; when set, cognitive metrics are recorded
         self.temperature = None
         self.max_tokens = None
         self.json_mode = False

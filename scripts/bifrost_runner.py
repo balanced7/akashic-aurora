@@ -22,6 +22,7 @@ sys.path.insert(0, os.path.dirname(HERE))
 sys.path.insert(0, HERE)
 
 from core.comm.bus import Bus
+from core.comm import context_hints
 
 CARD_API = {
     "runtime_class": "api",
@@ -135,6 +136,8 @@ def main() -> int:
         help="web surface when provider is web or auto",
     )
     ap.add_argument("--system", default="You are Gemini, collaborating with Claude and Cursor over a shared bus. Be concise and direct.")
+    ap.add_argument("--accept-hints", action="store_true",
+                    help="accept context hints from peer agents (pre-digested summaries folded into system prompt)")
     ap.add_argument("--once", action="store_true", help="process one wake then exit (for testing)")
     args = ap.parse_args()
 
@@ -153,14 +156,33 @@ def main() -> int:
             msgs = bus.wait(timeout_ms=0, advance=True)   # block until a message, then CONSUME it
             bus.register(card=card)                       # refresh presence
             for m in msgs:
+                # HINT interception: context hints are NOT answered -- stored for next turn.
+                if str(m.kind) == "hint":
+                    meta = m.meta or {}
+                    hint_data = meta.get("hint") or {}
+                    ok = context_hints.push(args.agent,
+                                           hint_data.get("key", "?"),
+                                           hint_data.get("value", "?"),
+                                           from_agent=m.frm)
+                    if ok:
+                        print(f"[runner] hint accepted ({hint_data.get('key','?')}) "
+                              f"from {m.frm}: {hint_data.get('value','?')[:100]}")
+                    continue
                 if not should_answer(m.kind, m.frm, args.agent):
                     continue
                 prompt = m.content if isinstance(m.content, str) else str(m.content)
+                # Inject active hints into the system prompt for this turn
+                hints = context_hints.drain(args.agent)
+                if hints:
+                    hint_block = context_hints.format_for_prompt(hints)
+                    augmented_system = args.system + "\n\n" + hint_block
+                else:
+                    augmented_system = args.system
                 print(f"[runner] <- {m.frm} [{m.kind}]: {prompt[:80]}")
                 reply = provider_reply(
                     prompt,
                     args.model,
-                    args.system,
+                    augmented_system,
                     provider=args.provider,
                     web_mode=args.web_mode,
                 )

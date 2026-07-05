@@ -36,6 +36,8 @@ from core.comm.bus import Bus
 from core.comm import control
 from core.comm import nudge
 from core.comm import runner_lock
+from core.comm import context_hints
+from core.coord import cognitive_metrics as cog
 from ask_deepseek import load_key, BASE_URL, DEFAULT_MODEL
 
 CARD = {
@@ -123,6 +125,14 @@ def make_agentic_replier(model: str, system: str, think: bool, root: Path, agent
             ag = dc.Agent(client, toolbox, model=model, system=system, think=think, tools_enabled=True,
                           interrupt=interrupt, on_activity=on_activity, inject=inject, on_trace=on_trace)
             convos[frm] = ag
+        # Fold any queued context hints from peers into this turn's prompt
+        try:
+            hints = context_hints.drain(agent_id)
+            if hints:
+                hint_block = context_hints.format_for_prompt(hints)
+                prompt = hint_block + "\n" + prompt
+        except Exception:
+            pass
         try:
             answer = ag.send(prompt)                 # streams to the runner window; returns final text
         except Exception as e:
@@ -218,6 +228,11 @@ def main() -> int:
         mode = "one-shot bridge"
 
     bus.register(card=CARD)
+
+    # Initialize cognitive efficiency metrics for this agent
+    cog.init(args.agent)
+    if args.accept_hints:
+        print(f"[deepseek-runner] cognitive metrics enabled for {args.agent}")
     rate = control.RateLimiter()
     # Background heartbeat: refresh presence + the singleton lock every few seconds INDEPENDENT of the
     # work loop. Without this, a long reply (the loop is blocked inside responder()) would let presence
@@ -247,6 +262,21 @@ def main() -> int:
             msgs = bus.wait(timeout_ms=1500, advance=True)   # short block so pause/stop stay responsive
             bus.register(card=CARD)                           # refresh presence
             for m in msgs:
+                # HINT interception: context hints are NOT answered -- they're stored in a ring buffer
+                # and injected on the NEXT model call. The "push" half; "drain" half is in respond().
+                if str(m.kind) == "hint":
+                    meta = m.meta or {}
+                    hint_data = meta.get("hint") or {}
+                    ok = context_hints.push(args.agent,
+                                           hint_data.get("key", "?"),
+                                           hint_data.get("value", "?"),
+                                           from_agent=m.frm)
+                    if ok:
+                        # Cognitive metrics: a hint can save a file read
+                        cog.record_file_read(args.agent, hint_data.get("key", "?"), from_hint=True)
+                        print(f"[deepseek-runner] hint accepted ({hint_data.get('key','?')}) "
+                              f"from {m.frm}: {hint_data.get('value','?')[:100]}")
+                    continue
                 if not should_answer(m.kind, m.frm, args.agent):
                     continue
                 hops = control.next_hops(m.meta)
@@ -269,7 +299,12 @@ def main() -> int:
                     nudge.clear(args.agent)               # consume so answering the nudge isn't self-interrupted
                     bus.send(m.frm, "note", "[nudge ack] interrupting current work to look at this now.",
                              meta={"via": f"{args.agent}-runner", "hops": hops})
+                    # Cognitive metrics: this nudge/halt may cause abandoned reasoning
+                    cog.record_human_interjection(args.agent)
                     print(f"[deepseek-runner] nudge from {m.frm} -> acked + cleared")
+                # If globally halted, record the interjection too
+                if control.is_halted(args.agent) and str(m.kind) != "nudge":
+                    cog.record_human_interjection(args.agent)
                 control.set_activity(args.agent, "thinking")
                 try:
                     out = responder(m.frm, prompt) if args.agentic else responder(prompt)
@@ -282,6 +317,8 @@ def main() -> int:
                     else:
                         bus.send(m.frm, "reply", out, meta=reply_meta)
                         dest = m.frm
+                    # Cognitive metrics: turn complete
+                    cog.record_turn_complete(args.agent)
                     print(f"[deepseek-runner] -> {dest}: {out[:80]}")
                 finally:
                     control.clear_activity(args.agent)   # back to idle -> UI stops showing it working
