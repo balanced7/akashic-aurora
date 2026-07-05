@@ -73,6 +73,9 @@ Thumbs.db
 # Bifrost media blobs (content-addressed, not source)
 blobs/
 
+# Bifrost session snapshots (runtime state; not source)
+session_snapshots/
+
 # Console file drops (runtime; shared into a session, not source)
 dropbox/
 
@@ -83,3 +86,10 @@ research/drafts/*.session.log.err
 # research/bakeoff outputs are bench artifacts until graded; only the report + promoted drafts ship
 research/bakeoff/*/
 !research/bakeoff/tasks/
+
+# claude-fleet runtime scratch + session state (not source)
+scratch/
+state/
+research/runlog-*.md
+research/shift-console-*.log
+research/shift-console-*.log.err
