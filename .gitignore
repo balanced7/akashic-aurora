@@ -89,11 +89,12 @@ research/bakeoff/*/
 
 # claude-fleet runtime scratch + session state (not source)
 scratch/
-state/
+state/*
 research/runlog-*.md
 research/shift-console-*.log
 research/shift-console-*.log.err
 
-# EXCEPTION: the coordination task-ledger is durable source-of-truth, not runtime scratch
+# EXCEPTION: the coordination task-ledger is durable source-of-truth, not runtime scratch.
+# state/* (not state/) excludes the CONTENTS so these re-includes can take effect.
 !state/coord/
-!state/coord/tasks.json
+!state/coord/**
