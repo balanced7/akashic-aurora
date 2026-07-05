@@ -20,8 +20,9 @@ def test_scope_drift_when_action_routes_elsewhere():
 
 
 def test_rework_on_near_duplicate_beat():
+    # Jaccard word-overlap is the (tunable) rework signal; this pair is a clear near-dup (>0.6).
     past = [_Cand("collapse agent reasoning and tool traces into cards")]
-    v = drift_check("collapse agent traces into collapsible cards", paths=UI,
+    v = drift_check("collapse agent reasoning and tool traces into collapsible cards", paths=UI,
                     active="ai-setup", recent_beats=past)
     assert not v.coherent and v.kind == "rework"
 
