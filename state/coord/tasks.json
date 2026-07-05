@@ -1,0 +1,195 @@
+{
+  "seq": 7,
+  "tasks": [
+    {
+      "id": "T001",
+      "title": "Governed coordination substrate: task-ledger + conductor (Slices A-D)",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "16 tests green; boot/wake read-state-first live",
+      "status": "done",
+      "commit": "b852847",
+      "verified_by": "pytest: 16 tests",
+      "created": "2026-07-05T14:18:11+00:00",
+      "updated": "2026-07-05T14:18:11+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-05T14:18:11+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-05T14:18:11+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-05T14:18:11+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-07-05T14:18:11+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-07-05T14:18:11+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-05T14:18:11+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T002",
+      "title": "UI: collapse agent reasoning + tool traces into ONE collapsible card per agent",
+      "desc": "",
+      "owner": "deepseek-plumbing",
+      "deps": [],
+      "files": [
+        "scripts/bifrost_ui.py"
+      ],
+      "acceptance": "log not a wall; traces collapsed by default, expand on click",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-05T14:18:11+00:00",
+      "updated": "2026-07-05T14:18:11+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-05T14:18:11+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T003",
+      "title": "UI: one presence surface -- remove duplicate top status rows + floating bubbles",
+      "desc": "",
+      "owner": "deepseek-plumbing",
+      "deps": [
+        "T002"
+      ],
+      "files": [
+        "scripts/bifrost_ui.py"
+      ],
+      "acceptance": "who's-doing-what shown in ONE place",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-05T14:18:11+00:00",
+      "updated": "2026-07-05T14:18:11+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-05T14:18:11+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T004",
+      "title": "UI: composer as one glass focus-block + fix the garbled recipient bar",
+      "desc": "",
+      "owner": "deepseek-plumbing",
+      "deps": [
+        "T003"
+      ],
+      "files": [
+        "scripts/bifrost_ui.py"
+      ],
+      "acceptance": "ladder+recipient+input+send one container; no gradient glitch",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-05T14:18:11+00:00",
+      "updated": "2026-07-05T14:18:11+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-05T14:18:11+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T005",
+      "title": "UI: 24dp margins + 8/16/24 grid + one title hierarchy",
+      "desc": "",
+      "owner": "deepseek-plumbing",
+      "deps": [
+        "T004"
+      ],
+      "files": [
+        "scripts/bifrost_ui.py"
+      ],
+      "acceptance": "aligned to grid; calm; matches mockup",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-05T14:18:11+00:00",
+      "updated": "2026-07-05T14:18:11+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-05T14:18:11+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T006",
+      "title": "Backend: finish cognitive_metrics evidence engine",
+      "desc": "",
+      "owner": "deepseek",
+      "deps": [],
+      "files": [
+        "core/coord/cognitive_metrics.py"
+      ],
+      "acceptance": "measured facts wired; tests green",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-05T14:18:11+00:00",
+      "updated": "2026-07-05T14:18:11+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-05T14:18:11+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T007",
+      "title": "Verify Void theme + aurora perf bench -> confirm defaults",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "scripts/bench-aurora.html"
+      ],
+      "acceptance": "bench PASS recorded; aurora default confirmed",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-05T14:18:11+00:00",
+      "updated": "2026-07-05T14:18:11+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-05T14:18:11+00:00"
+        }
+      ]
+    }
+  ]
+}
