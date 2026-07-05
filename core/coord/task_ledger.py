@@ -29,6 +29,25 @@ from typing import Any, Dict, List, Optional
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 LEDGER_PATH = os.path.join(_ROOT, "state", "coord", "tasks.json")
 
+# --- Redis mirror (Slice B) --------------------------------------------------------------------
+# The git file above is ALWAYS the source of truth. Redis is a fast, FAIL-OPEN read cache: every
+# write goes through to it, but any Redis error is a no-op and readers fall back to the git file.
+REDIS_LEDGER_KEY = "bifrost:coord:ledger"
+REDIS_VER_KEY = "bifrost:coord:ledger:v"
+
+
+def _bus_client():
+    """The shared bus Redis client, or None if unreachable. Same connector control.py uses."""
+    try:
+        from core.comm.bus import get_bus
+        return get_bus("coord")._client
+    except Exception:
+        return None
+
+
+def _decode(v):
+    return v.decode() if isinstance(v, (bytes, bytearray)) else v
+
 # --- lifecycle ---------------------------------------------------------------------------------
 PROPOSED, APPROVED, CLAIMED, IN_PROGRESS, VERIFYING, DONE, BLOCKED, ABANDONED = (
     "proposed", "approved", "claimed", "in_progress", "verifying", "done", "blocked", "abandoned")
@@ -54,11 +73,30 @@ class LedgerError(Exception):
 
 
 class TaskLedger:
-    def __init__(self, path: str = LEDGER_PATH):
+    def __init__(self, path: str = LEDGER_PATH, client: Any = "auto"):
         self.path = path
+        # client: "auto" resolves the bus Redis client lazily; None disables the mirror (git-only,
+        # used by tests); or pass an object with get/set for an injected/fake client.
+        self._client = client
         self.tasks: Dict[str, Dict[str, Any]] = {}
         self._seq = 0
         self.load()
+
+    def _mirror_client(self):
+        if self._client == "auto":
+            self._client = _bus_client()   # resolve once
+        return self._client
+
+    def _mirror(self) -> None:
+        """Write-through the whole ledger to Redis (fast reads). Best-effort; git file is the truth."""
+        c = self._mirror_client()
+        if c is None:
+            return
+        try:
+            c.set(REDIS_LEDGER_KEY, json.dumps({"seq": self._seq, "tasks": list(self.tasks.values())}))
+            c.set(REDIS_VER_KEY, str(self._seq))
+        except Exception:
+            pass   # fail-open
 
     # --- persistence (git-durable source of truth) ---------------------------------------------
     def load(self) -> None:
@@ -79,6 +117,7 @@ class TaskLedger:
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(payload, fh, indent=2)
         os.replace(tmp, self.path)   # atomic write — never a half-written ledger
+        self._mirror()               # write-through to the Redis read cache (best-effort)
 
     # --- reads (what agents obey instead of the backlog) ---------------------------------------
     def get(self, tid: str) -> Optional[Dict[str, Any]]:
@@ -189,3 +228,62 @@ def start(ledger, tid, **kw):    return _t(ledger, tid, IN_PROGRESS, **kw)
 def verifying(ledger, tid, **kw):return _t(ledger, tid, VERIFYING, **kw)
 def done(ledger, tid, commit, verified_by, **kw): return _t(ledger, tid, DONE, commit=commit, verified_by=verified_by, **kw)
 def block(ledger, tid, reason, **kw): return _t(ledger, tid, BLOCKED, reason=reason, **kw)
+
+
+# --- fast reads (Slice B): what agents obey instead of the message backlog ---------------------
+def read_ledger(path: str = LEDGER_PATH, client: Any = "auto") -> Dict[str, Any]:
+    """Read the current ledger FAST. Prefers the Redis mirror (one GET); falls back to the git file
+    (the source of truth) if Redis is empty or unreachable. Returns {"seq", "tasks": [...]}"."""
+    c = _bus_client() if client == "auto" else client
+    if c is not None:
+        try:
+            raw = c.get(REDIS_LEDGER_KEY)
+            if raw:
+                return json.loads(_decode(raw))
+        except Exception:
+            pass
+    if os.path.exists(path):
+        try:
+            with open(path, encoding="utf-8") as fh:
+                return json.load(fh)
+        except Exception:
+            pass
+    return {"seq": 0, "tasks": []}
+
+
+def state_view(path: str = LEDGER_PATH, client: Any = "auto") -> Dict[str, Any]:
+    """The read-state-first view (used by boot/wake in Slice C). 'next' = APPROVED tasks whose deps
+    are all DONE (claimable now). This is the curated current truth agents read, not the backlog."""
+    led = read_ledger(path, client)
+    tasks = led.get("tasks", [])
+    done_ids = {t["id"] for t in tasks if t["status"] == DONE}
+
+    def summ(t):
+        return {"id": t["id"], "title": t["title"], "owner": t.get("owner", ""),
+                "status": t["status"], "commit": t.get("commit"), "files": t.get("files", [])}
+
+    return {
+        "done": [summ(t) for t in tasks if t["status"] == DONE],
+        "in_progress": [summ(t) for t in tasks if t["status"] in ACTIVE],
+        "next": [summ(t) for t in tasks if t["status"] == APPROVED
+                 and all(d in done_ids for d in t.get("deps", []))],
+        "proposed": [summ(t) for t in tasks if t["status"] == PROPOSED],
+        "blocked": [summ(t) for t in tasks if t["status"] == BLOCKED],
+        "counts": {s: sum(1 for t in tasks if t["status"] == s) for s in STATUSES},
+    }
+
+
+def sync_redis_from_git(path: str = LEDGER_PATH, client: Any = "auto") -> bool:
+    """Rehydrate the Redis mirror from the git file (the truth). Call on boot / after a Redis flush,
+    so the fast cache can never be authoritatively wrong. Returns True iff it wrote."""
+    c = _bus_client() if client == "auto" else client
+    if c is None or not os.path.exists(path):
+        return False
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = fh.read()
+        c.set(REDIS_LEDGER_KEY, data)
+        c.set(REDIS_VER_KEY, str(json.loads(data).get("seq", 0)))
+        return True
+    except Exception:
+        return False
