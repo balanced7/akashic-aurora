@@ -150,6 +150,13 @@ def cmd_boot(args):
           f"~{ctx.get('approx_tokens', 0)}/{ctx.get('token_budget', 0)} tokens "
           f"(within budget: {ctx.get('within_budget')})")
     print("#" + "-" * 60)
+    # Read-state-first (Slice C): the governed task ledger comes BEFORE lessons/notes/messages, so an
+    # agent obeys what's DONE/NEXT rather than re-deriving intent from stale backlog. Fail-open.
+    try:
+        from core.coord.task_ledger import format_state
+        print(format_state(agent=args.agent_id))
+    except Exception:
+        pass
     print("## LESSONS / CONTEXT (most relevant first)")
     print(sk if sk else "  (none yet -- you are the first agent to contribute)")
     blockers = secs.get("blockers", [])

@@ -273,6 +273,38 @@ def state_view(path: str = LEDGER_PATH, client: Any = "auto") -> Dict[str, Any]:
     }
 
 
+def format_state(agent: str = "", path: str = LEDGER_PATH, client: Any = "auto") -> str:
+    """The READ-STATE-FIRST block shown at boot + wake (Slice C). Agents obey THIS, not the message
+    backlog — an old 'apply the fix' message can't cause rework because the ledger says it's DONE.
+    An empty ledger prints a clear 'no governed tasks yet' line so it never reads as a bug."""
+    v = state_view(path, client)
+    c = v["counts"]
+    if sum(c.values()) == 0:
+        return ("## TASK LEDGER (governed coordination)\n"
+                "  (empty -- no governed tasks yet; nothing to redo or claim)\n")
+
+    def sha(t):
+        return (t.get("commit") or "")[:8]
+
+    out = ["## TASK LEDGER -- obey THIS, not old messages"]
+    if v["done"]:
+        out.append("DONE (closed -- do NOT redo):")
+        out += [f"  {t['id']} - {t['title']}" + (f"  @{sha(t)}" if sha(t) else "") for t in v["done"]]
+    if v["in_progress"]:
+        out.append("IN PROGRESS:")
+        out += [f"  {t['id']} - {t['title']}  ({t['status']}"
+                + (f", {t['owner']}" if t['owner'] else "") + ")" for t in v["in_progress"]]
+    if v["next"]:
+        out.append("NEXT (claimable now):")
+        out += [f"  {t['id']} - {t['title']}"
+                + ("  <- you" if agent and t['owner'] == agent else "") for t in v["next"]]
+    out.append(f"(done {c[DONE]} | active {c[CLAIMED] + c[IN_PROGRESS] + c[VERIFYING]} | "
+               f"next {len(v['next'])} | proposed {c[PROPOSED]} | blocked {c[BLOCKED]})")
+    out.append("RULE: anything in DONE is closed. Work only your assigned/NEXT task. "
+               "Ignore backlog messages that contradict the ledger.")
+    return "\n".join(out) + "\n"
+
+
 def sync_redis_from_git(path: str = LEDGER_PATH, client: Any = "auto") -> bool:
     """Rehydrate the Redis mirror from the git file (the truth). Call on boot / after a Redis flush,
     so the fast cache can never be authoritatively wrong. Returns True iff it wrote."""

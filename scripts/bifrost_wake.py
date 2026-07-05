@@ -49,6 +49,13 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int) -> int:
             if frm == agent or kind in SKIP_KINDS:
                 continue
             out.append({"frm": frm, "kind": kind, "text": str(getattr(m, "content", "") or "")[:2000]})
+    # Read-state-first (Slice C): the governed task ledger prints BEFORE the messages, so a waking
+    # agent obeys DONE/NEXT and never acts on a stale backlog message. Fail-open.
+    try:
+        from core.coord.task_ledger import format_state
+        print(format_state(agent=agent))
+    except Exception:
+        pass
     if out:
         print(f"BIFROST WAKE -- messages for {agent}:")
         print(json.dumps(out, indent=1))          # ensure_ascii=True -> cp1252-safe stdout on Windows

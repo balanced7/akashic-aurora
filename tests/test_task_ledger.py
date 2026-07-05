@@ -148,3 +148,23 @@ def test_sync_redis_from_git(tmp_path):
     fake = FakeRedis()
     assert TL.sync_redis_from_git(p, client=fake) is True
     assert TL.json.loads(fake.kv[TL.REDIS_LEDGER_KEY])["tasks"][0]["title"] == "git-truth"
+
+
+# --- Slice C: read-state-first formatter -------------------------------------------------------
+def test_format_state_empty(tmp_path):
+    s = TL.format_state(path=os.path.join(str(tmp_path), "none.json"), client=None)
+    assert "empty" in s and "no governed tasks" in s
+
+
+def test_format_state_shows_done_next_and_rule(tmp_path):
+    p = os.path.join(str(tmp_path), "tasks.json")
+    L = TL.TaskLedger(p, client=None)
+    a = L.propose("done one", at="t0"); b = L.propose("next one", deps=[a["id"]], owner="claude", at="t0")
+    for t in (a, b):
+        TL.approve(L, t["id"], at="t1")
+    TL.claim(L, a["id"], "claude", at="t2"); TL.start(L, a["id"], at="t3")
+    TL.verifying(L, a["id"], at="t4"); TL.done(L, a["id"], commit="deadbeef", verified_by="v", at="t5")
+    s = TL.format_state(agent="claude", path=p, client=None)
+    assert "DONE" in s and "deadbeef" in s          # closed task shown with its commit
+    assert "NEXT" in s and "next one" in s and "<- you" in s   # b claimable, tagged for its owner
+    assert "obey THIS, not old messages" in s and "in DONE is closed" in s
