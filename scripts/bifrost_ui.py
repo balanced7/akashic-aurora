@@ -288,7 +288,12 @@ class Handler(BaseHTTPRequestHandler):
           chat/inform : plain delivery; the agent adopts it at its next turn. Never pauses.
           steer       : queue a fact the target folds into its CURRENT task (soft). Targeted only.
           interrupt   : hard barge-in -- set the target's nudge flag + kind=nudge. Targeted only.
-        Global HALT is a separate, explicit control (the Pause button / /pause)."""
+        Global HALT is a separate, explicit control (the Pause button / /pause).
+
+        AUTO-LAUNCH (elegance): if the target agent is offline (not on the bus), the launcher
+        auto-spawns it before delivering the message. The user never clicks 'Launch' — they just
+        talk, and the system ensures the recipient exists. Steer messages also get a brief
+        ack echoed to the sender so the user KNOWS it was received, even though steer is silent."""
         text = (data.get("text") or "").strip()
         to = (data.get("to") or "all").strip().lower()       # default: reach every agent
         fidelity = (data.get("fidelity") or "chat").strip().lower()
@@ -298,6 +303,22 @@ class Handler(BaseHTTPRequestHandler):
         meta = {"hops": 0, "via": "console", "intent": fidelity}
         from core.comm import nudge
 
+        # Auto-launch: if target is a known agent and not online, spawn it now.
+        # The user just talks — the system ensures the recipient exists.
+        launched = []
+        if not broadcast and to != "user":
+            try:
+                online_agents = [a.get("agent") for a in BUS.presence()]
+            except Exception:
+                online_agents = []
+            if to not in online_agents:
+                try:
+                    lresult = get_launcher().launch(to)
+                    if lresult.get("ok"):
+                        launched.append(to)
+                except Exception:
+                    pass  # launch failed — message still delivered (agent may come online later)
+
         # Targeted fidelity signals need one recipient; if broadcast, they degrade to plain delivery.
         if fidelity in ("interrupt", "steer") and not broadcast:
             if fidelity == "interrupt":
@@ -306,11 +327,21 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 nudge.steer_push(to, "user", text)
                 mid = BUS.send(to, "steer", text, meta={**meta, "display_only": True})
-            return self._json({"ok": bool(mid), "id": mid, "intent": fidelity, "to": to, "paused": False})
+            result = {"ok": bool(mid), "id": mid, "intent": fidelity, "to": to, "paused": False}
+            if launched:
+                result["launched"] = launched
+                result["msg"] = f"auto-launched {to} — steer queued, it'll fold this in when it starts"
+            else:
+                # Steer is silent by design, but echo a brief ack so the user KNOWS it landed
+                result["msg"] = f"steered {to} — folded into its current task"
+            return self._json(result)
 
         kind = "inform" if fidelity == "inform" else "chat"
         mid = BUS.broadcast(kind, text, meta=meta) if broadcast else BUS.send(to, kind, text, meta=meta)
-        return self._json({"ok": bool(mid), "id": mid, "intent": fidelity, "to": to, "paused": False})
+        result = {"ok": bool(mid), "id": mid, "intent": fidelity, "to": to, "paused": False}
+        if launched:
+            result["launched"] = launched
+        return self._json(result)
 
     def _negotiate(self, data):
         """Open a negotiation round after user input. Agents have 8s to declare their plan
@@ -1298,12 +1329,19 @@ async function send(){
   input.value=''; input.style.height='auto';
   var targets = isAll ? ['all'] : ids;
   try{
-    var ok=true;
-    for(const to of targets){
-      const r = await fetch('/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text, to, fidelity})});
-      const j = await r.json(); if(!(j&&j.ok)) ok=false;
+    var ok=true, launched=[], msg='';
+    for(var i=0;i<targets.length;i++){
+      var to=targets[i];
+      var r = await fetch('/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:text, to:to, fidelity:fidelity})});
+      var j = await r.json();
+      if(!(j&&j.ok)) ok=false;
+      if(j.launched) launched=launched.concat(j.launched);
+      if(j.msg) msg=j.msg;  // server-side feedback (e.g. "auto-launched deepseek")
     }
-    toast(ok ? (FIDLABEL[fidelity]||'sent')+' → '+(isAll?'all':ids.join(', ')) : 'send failed — bus offline?');
+    var label = FIDLABEL[fidelity]||'sent';
+    if(launched.length) label += ' 🚀 auto-launched '+launched.join(', ');
+    if(msg && fidelity==='steer') label += ' — '+msg;
+    toast((ok?label:'send failed — bus offline?')+' → '+(isAll?'all':ids.join(', ')));
   }catch(e){ toast('send failed — bus offline?'); }
   // Smart negotiation: coordinate only when a collision is actually possible, speak only
   // when it finds one. A round fires only if >=2 agents are online (one agent can't collide),
