@@ -93,3 +93,7 @@ state/
 research/runlog-*.md
 research/shift-console-*.log
 research/shift-console-*.log.err
+
+# EXCEPTION: the coordination task-ledger is durable source-of-truth, not runtime scratch
+!state/coord/
+!state/coord/tasks.json
