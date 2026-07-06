@@ -186,6 +186,8 @@ def main() -> int:
     ap.add_argument("--allow-exec", action="store_true",
                     help="let DeepSeek run shell commands (tests/builds/git). Unattended: auto-approved (trust). "
                          "Time-boxed grant while claude is unavailable -- see security/acl.json")
+    ap.add_argument("--accept-hints", action="store_true",
+                    help="log cognitive-efficiency metrics for this agent")
     ap.add_argument("--once", action="store_true", help="process one wake then exit (for testing)")
     args = ap.parse_args()
 
