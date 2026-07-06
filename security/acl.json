@@ -18,14 +18,14 @@
     {
       "agent_id": "deepseek",
       "role": "admin",
-      "caps": ["read", "write", "bus.send", "bus.nudge", "bus.steer",
+      "caps": ["read", "write", "exec", "bus.send", "bus.nudge", "bus.steer",
                "kb.recall", "kb.learn", "net", "git.read", "bifrost.inbox"],
       "path_scope": ["*"],
       "bus_send_kinds": ["chat", "note", "request", "reply", "nudge", "steer", "inform"],
-      "granted_by": "root",
-      "granted_at": "2026-07-04T00:00:00Z",
-      "expires_at": null,
-      "reason": "Bootstrap: stateless API peer, trust-but-verify (admin; no exec, no admin.grant)"
+      "granted_by": "claude",
+      "granted_at": "2026-07-06T00:15:00Z",
+      "expires_at": "2026-07-09T00:00:00Z",
+      "reason": "Time-boxed exec grant (Daniel-requested 2026-07-05): DeepSeek continues the build via shell while claude is at weekly limit. Reverts to no-exec after expiry unless renewed. admin.grant still withheld."
     },
     {
       "agent_id": "deepseek-ui",

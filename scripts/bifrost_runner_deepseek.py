@@ -85,7 +85,7 @@ def make_replier(model: str, system: str, think: bool):
 
 
 def make_agentic_replier(model: str, system: str, think: bool, root: Path, agent_id: str,
-                         allow_write: bool = False):
+                         allow_write: bool = False, allow_exec: bool = False):
     """Tool-using bridge: DeepSeek can read files, search, inspect git, and query the Akashic knowledge
     base WHILE composing its reply, then posts the final answer to the bus. Reuses the guarded
     Agent+ToolBox from deepseek_chat.py (read-only, secret-blocked, path-scoped). Keeps a per-peer
@@ -95,7 +95,9 @@ def make_agentic_replier(model: str, system: str, think: bool, root: Path, agent
     client = OpenAI(api_key=load_key(), base_url=BASE_URL)
     # agent_id -> the ToolBox's bifrost_* doors go live, so DeepSeek can INITIATE bus messages (not just reply).
     # allow_write -> the guarded write_file/edit_file doors go live (path-scoped, secret-blocked, git-tracked).
-    toolbox = dc.ToolBox(root, allow_exec=False, trust=False, allow_secrets=False,
+    # allow_exec -> run_command door goes live. Unattended (confirm auto-denies), so pair with trust=True
+    # or every command self-denies. Time-boxed while claude is at weekly limit; see security/acl.json.
+    toolbox = dc.ToolBox(root, allow_exec=allow_exec, trust=allow_exec, allow_secrets=False,
                          confirm=lambda _p: False, agent_id=agent_id, allow_write=allow_write)
     on_activity = lambda state, detail: control.set_activity(agent_id, state, detail)
     # Live trace: stream each tool call + chunk of thinking onto the bus (kind=trace, display-only, not
@@ -181,6 +183,9 @@ def main() -> int:
     ap.add_argument("--think", action="store_true", help="enable DeepSeek thinking mode (deeper, slower)")
     ap.add_argument("--allow-write", action="store_true",
                     help="let DeepSeek write/edit files (guarded: path-scoped, secret-blocked, git-tracked)")
+    ap.add_argument("--allow-exec", action="store_true",
+                    help="let DeepSeek run shell commands (tests/builds/git). Unattended: auto-approved (trust). "
+                         "Time-boxed grant while claude is unavailable -- see security/acl.json")
     ap.add_argument("--once", action="store_true", help="process one wake then exit (for testing)")
     args = ap.parse_args()
 
@@ -221,8 +226,8 @@ def main() -> int:
         else:
             print("[deepseek-runner] onboarding skipped (boot returned nothing; check agent_cli.py boot)")
         responder = make_agentic_replier(args.model, system, args.think, root, args.agent,
-                                         allow_write=args.allow_write)
-        mode = f"agentic tools @ {root}{' +write' if args.allow_write else ''}"
+                                         allow_write=args.allow_write, allow_exec=args.allow_exec)
+        mode = f"agentic tools @ {root}{' +write' if args.allow_write else ''}{' +exec' if args.allow_exec else ''}"
     else:
         responder = make_replier(args.model, args.system, args.think)
         mode = "one-shot bridge"

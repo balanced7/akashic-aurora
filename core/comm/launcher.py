@@ -51,6 +51,7 @@ HERE = Path(__file__).resolve().parent.parent.parent  # core/comm -> repo root
 SCRIPTS = HERE / "scripts"
 SECURITY_DIR = HERE / "security"
 REGISTRY_PATH = SECURITY_DIR / "launcher.json"
+SESSION_FILE = HERE / "state" / "bifrost-session.json"   # durable across Redis + OS restarts
 
 # ------------------------------------------------------------------ data types
 
@@ -113,6 +114,15 @@ def _default_registry() -> Dict[str, AgentSpec]:
             runtime="python_runner",
             description="DeepSeek API peer (admin) — agentic + write access",
             command=[py, str(SCRIPTS / "bifrost_runner_deepseek.py"), "--agentic", "--allow-write", "--root", repo],
+            env={"PYTHONUNBUFFERED": "1"},
+            cwd=repo,
+            enabled=True,
+        ),
+        "deepseek-build": AgentSpec(
+            agent_id="deepseek",
+            runtime="python_runner",
+            description="DeepSeek API peer (admin) — agentic + write + shell (build while claude is down)",
+            command=[py, str(SCRIPTS / "bifrost_runner_deepseek.py"), "--agentic", "--allow-write", "--allow-exec", "--root", repo],
             env={"PYTHONUNBUFFERED": "1"},
             cwd=repo,
             enabled=True,
@@ -313,6 +323,7 @@ class Launcher:
             self._procs[spec.agent_id] = proc
 
         self._ensure_monitor()
+        self._save_session_to_disk()     # persist: tomorrow's 1-click restore
         return {"ok": True, "agent_id": spec.agent_id, "pid": handle.pid, "tag": tag}
 
     def kill(self, tag: str) -> Dict[str, Any]:
@@ -362,6 +373,7 @@ class Launcher:
             except Exception:
                 pass
 
+        self._save_session_to_disk()     # persist the change
         return {"ok": True, "agent_id": spec.agent_id, "tag": tag}
 
     def status(self, tag: str) -> Dict[str, Any]:
@@ -370,6 +382,86 @@ class Launcher:
             if row["tag"] == tag:
                 return row
         return {"tag": tag, "error": "unknown"}
+
+    # -- session save / restore (durable across restarts) -------------------
+
+    def _save_session_to_disk(self) -> bool:
+        """Snapshot currently-running agent tags to state/bifrost-session.json so a
+        single 'Restore Session' click tomorrow spins up the same fleet. Best-effort."""
+        try:
+            with self._lock:
+                running_tags = [
+                    tag for tag, spec in self._specs.items()
+                    if self._procs.get(spec.agent_id) and self._procs[spec.agent_id].status == "running"
+                ]
+            os.makedirs(SESSION_FILE.parent, exist_ok=True)
+            payload = {"tags": sorted(running_tags), "saved_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                       "saved_by": "launcher"}
+            SESSION_FILE.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+            return True
+        except Exception:
+            return False
+
+    def session_snapshot(self) -> Dict[str, Any]:
+        """What a restore would do — for the UI 'Restore' button to preview."""
+        try:
+            if not SESSION_FILE.exists():
+                return {"ok": True, "tags": [], "message": "no saved session yet"}
+            data = json.loads(SESSION_FILE.read_text(encoding="utf-8"))
+            tags = data.get("tags", [])
+            # Enrich with known spec descriptions
+            enriched = []
+            for tag in tags:
+                spec = self._specs.get(tag)
+                enriched.append({
+                    "tag": tag,
+                    "description": spec.description if spec else "?",
+                    "already_running": (self._procs.get(spec.agent_id) and
+                                        self._procs[spec.agent_id].status == "running") if spec else False,
+                })
+            return {"ok": True, "tags": enriched, "saved_at": data.get("saved_at", ""),
+                    "count": len(tags),
+                    "already_running": sum(1 for e in enriched if e["already_running"])}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def restore_session(self) -> Dict[str, Any]:
+        """Re-launch every agent tag saved from the last session. Skips agents already running.
+        Returns {ok, results: [{tag, launched, error?}], total, launched_count}."""
+        snapshot = self.session_snapshot()
+        if not snapshot["ok"]:
+            return {"ok": False, "error": snapshot.get("error", "could not read session file")}
+
+        tags = [t["tag"] for t in snapshot.get("tags", [])]
+        if not tags:
+            return {"ok": True, "results": [], "total": 0, "launched_count": 0,
+                    "message": "no agents in saved session"}
+
+        results = []
+        launched_count = 0
+        for tag in tags:
+            # Check if already running
+            spec = self._specs.get(tag)
+            if spec:
+                with self._lock:
+                    proc = self._procs.get(spec.agent_id)
+                if proc and proc.status == "running":
+                    results.append({"tag": tag, "launched": False,
+                                    "reason": "already running", "pid": proc.pid})
+                    continue
+            # Launch it
+            r = self.launch(tag)
+            if r.get("ok"):
+                results.append({"tag": tag, "launched": True, "pid": r.get("pid")})
+                launched_count += 1
+            else:
+                results.append({"tag": tag, "launched": False,
+                                "reason": r.get("error", "launch failed")})
+
+        self._save_session_to_disk()
+        return {"ok": True, "results": results, "total": len(tags),
+                "launched_count": launched_count,
+                "message": f"{launched_count}/{len(tags)} agents launched"}
 
     # -- process monitor ----------------------------------------------------
 
