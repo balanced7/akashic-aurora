@@ -155,10 +155,16 @@ one-click revivable.** Ship in strict sub-order; each piece is independently tes
 >   `launcher.registry()` → `/launcher/status`. Backend only, no auto-action. Verified
 >   (`tests/manual/l3a_liveness_view_probe.py`). UI badge = a paste-ready snippet handed to
 >   DeepSeek/Daniel (bifrost_ui.py boundary).
-> - **L3b (next)** — `POST /launcher/revive {tag}` (kill-if-wedged → relaunch, must clear/await
->   the runner_lock per L5's note) + a Revive button + render the L3a badge in the roster.
-> - **L3c** — startup smoke-test (D2) + restart-storm backoff. **L3d** — convos preservation on
->   watchdog-kill. **L3e** — auto-kill (opt-in, only after a soak with observe-only logging).
+> - **L3b ✅ SHIPPED 2026-07-06** — manual revive. `Launcher.revive()` (kill → free the singleton
+>   lock via new `runner_lock.clear_if_pid` → relaunch), `POST /launcher/revive`, UI Revive button +
+>   live wedge badge in the roster. Folded in **L3c's restart backoff** (`_restart` now has
+>   exponential backoff + hard cap + reset window — the old flat sleep(3) would also have hit L5's
+>   refusal). `arm_revive()` + `_auto_revive` set are plumbed but the monitor does NOT consume them
+>   yet (no inert toggle shipped). Backend unit-proven; UI verified live.
+> - **L3b-auto (next)** — monitor consumes `_auto_revive`: on an armed agent flagged `wedged`,
+>   auto-revive (with its OWN storm guard, separate from manual) + the arm toggle in the UI. Opt-in,
+>   default off — the observe-only default the mandate wants.
+> - **L3c-remainder** — startup smoke-test (D2). **L3d** — convos preservation on watchdog-kill.
 - **Build:** This is the **real** G4 fix for mid-round wedges L2 can't reach.
   - Extend `launcher._monitor_loop` (line 485) to read each agent's worklive freshness +
     runner_lock heartbeat: lock held + presence fresh + worklive phase not advanced past
