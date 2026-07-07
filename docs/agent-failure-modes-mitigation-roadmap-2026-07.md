@@ -192,7 +192,14 @@ one-click revivable.** Ship in strict sub-order; each piece is independently tes
 - **Closes:** D1. **Files:** new `scripts/bifrost_supervisor.py` + a scheduled-task
   install note. **Effort:** M.
 
-### L5 — D3 duplicate-runner: honor the lock in launch()
+### L5 — D3 duplicate-runner: honor the lock in launch() — ✅ **SHIPPED 2026-07-06**
+> Done: `launch()` now `runner_lock.holder()`-checks and refuses a duplicate (returns
+> `{ok:False, pid}`) instead of `acquire()`-ing. **Found + fixed a latent bug in passing:** the
+> old code minted a launcher-pid token and acquired the lock but never heartbeat/released it, so
+> the spawned child (different token) failed its own `acquire()` ~1.5s later and died on startup —
+> i.e. *every launcher-spawned python_runner was broken*. Verified (`tests/manual/l5_launch_singleton_probe.py`):
+> refusal path + regression guard that the starving `acquire` is gone. **Note for L3:** its
+> auto-restart must clear/await the lock (kill → ≤LOCK_TTL) before respawn. **Next: L3/L4.**
 - **Verified:** `runner_lock.py` already does atomic nx+TTL reclaim correctly; the only
   gap is `launcher.launch()` (line 274) **ignores** a failed `acquire()` and spawns
   anyway.
