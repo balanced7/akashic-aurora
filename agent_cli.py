@@ -178,13 +178,23 @@ def cmd_boot(args):
         print("\n## ACTIVE BLOCKERS")
         for b in blockers[:5]:
             print(f"  [{b.get('severity', '?')}] {_clip(b.get('description', ''), 120)}")
-    try:   # durable project notes (write-once) -- surface WHERE-WE-ARE at session start
+    try:   # durable project notes (write-once) -- the resume ANCHOR (where-we-are / open-docket /
+        # handoff). RENEW Strand E (2026-07-07): a flat 110-char clip made the boot payload
+        # INSUFFICIENT to resume -- dense multi-item notes (open-docket) collapsed to one line,
+        # forcing a second `notes --json` fetch to recover the actual state. Fidelity is now TIERED
+        # by recency (freshest note ~full, older ones taper) so the resume anchor survives in the
+        # payload itself; worst case ~640 tokens, well within the boot budget. Full bodies one hop
+        # away via the pointer below. See research/reviewed/renew-strande-cold-resume-2026-07-07.md.
         from core.learning.agent_memory import get_agent_memory
         notes = get_agent_memory().get_decisions(days=60)
         if notes:
             print("\n## RECENT NOTES (durable project memory)")
-            for d in notes[:6]:
-                print(f"  [{d.created_at[:10]}] {d.title}: {_clip(d.decision, 110)}")
+            _budgets = [900, 500, 500, 220, 220, 220]   # by recency: resume-anchor first, then taper
+            shown = notes[:len(_budgets)]
+            for d, budget in zip(shown, _budgets):
+                print(f"  [{d.created_at[:10]}] {d.title}: {_clip(d.decision, budget)}")
+            if len(notes) > len(shown) or any(len(d.decision or "") > b for d, b in zip(shown, _budgets)):
+                print("  (clipped; full note bodies: py agent_cli.py notes --json)")
     except Exception:
         pass
     try:   # T3: one-line funnel pulse -- watch the loop's trend without a separate command
