@@ -1,9 +1,43 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 38 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 55 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
+- where-we-are 2026-07-07: Shipped:
+  - SAVE: fix case -- rename docs/architecture.md -> docs/ARCHITECTURE.md (matches the UPPERCASE living-docs convention + all...  (source: mem:decision:ADR_0707015000_6525)
+- where-we-are: 2026-07-07 night wrap. ARC: designed + researched two convergent features; built research tooling; did NOT build either feature yet. (1) RENEW = membrane's...  (source: mem:decision:ADR_0707014952_1424)
+- session-chaptering-bookends-idea: FEATURE (Daniel + GPT, 2026-07-07 v3): manual+auto 'bookends' segmenting a session into confined, titled EPISODES (WHAT + WHY). One...  (source: mem:decision:ADR_0707013232_4724)
+- open-docket: RENEW research scope (before building the membrane's Renew job; see renew-membrane-temporal-job + docs/agent-membrane-design-2026-07.md): A[EMPIRICAL,FIRST]...  (source: mem:decision:ADR_0707010253_4195)
+- renew-membrane-temporal-job: RENEW = the membrane's 5th job, operating ACROSS the session boundary (the other 4 are within-session). It is Capture->Surface fired as a...  (source: mem:decision:ADR_0707010239_6323)
+- SESSION HANDOFF 2026-07-07 -> membrane 1+2 done, legacy retired; 2 open flags: RESUME: py agent_cli.py boot claude --task '<slice>'. Design...  (source: mem:decision:ADR_0707005504_8468)
+- gemini-vision-bifrost-screenshot-output: placeholder  (source: mem:decision:ADR_0706005420_5841)
+- vision-models-local-screen-understanding-2026-07: # Vision Models for Local Screen Understanding — Research (2026-07-06)
+
+DeepSeek's analysis, prompted by Daniel's idea...  (source: mem:decision:ADR_0705210901_8008)
+- where-we-are 2026-07-05 -> governed coordination system + UI composition pending: BIG THING BUILT THIS SESSION: a GOVERNED COORDINATION SYSTEM to end the multi-agent...  (source: mem:decision:ADR_0705133406_9182)
+- sprint-retrospective-patterns-that-worked-2026-07-05: # Sprint Retrospective: Patterns That Made This Productive (2026-07-04/05)
+
+## Pattern 1: Parallel Tracks With a...  (source: mem:decision:ADR_0705090551_1403)
+- evidence-driven-architecture-research-pivot-2026-07-05: # Evidence-Driven Architecture — The Research Pivot (2026-07-05)
+
+GPT's analysis: "The next unit of work isn't...  (source: mem:decision:ADR_0705090059_6831)
+- stage-3-evidence-gap-analysis-2026-07-05: # Stage-3 Evidence — Current State & Gap Analysis (2026-07-05)
+
+## BUILT + TESTED
+- `core/coord/experiment.py` — A/B/C(+W)...  (source: mem:decision:ADR_0705085814_4822)
+- experiment-pivot-gpt-analysis-2026-07-04: # Experiment Pivot — GPT's Full Analysis (2026-07-04)
+
+## Verdict
+The next unit of work isn't another primitive — it's...  (source: mem:decision:ADR_0705085726_6313)
+- where-we-are 2026-07-04 EOD -> NEXT: resurface UI DESIGN: UI DESIGN session (2026-07-04 late, continued). SHIPPED+pushed this arc: (1) smart negotiation gate...  (source: mem:decision:ADR_0704182419_3437)
+- aurora-glass-synthesis-decision-2026-07-04: # Aurora Glass — Synthesis Decision (2026-07-04)
+
+**Context**: Daniel initiated a parallel UI-design task: both DeepSeek and...  (source: mem:decision:ADR_0704175535_5868)
+- where-we-are 2026-07-04 EOD -> NEXT: resurface UI DESIGN: UI DESIGN session (continued 2026-07-04 evening). RESOLVED open-loop #1: the boot note claimed an UNCOMMITTED...  (source: mem:decision:ADR_0704172521_8664)
+- where-we-are 2026-07-04 deepseek continued: SHIPPED 2026-07-04 (DeepSeek session, continued): UI freeze fix (applyStatus fingerprint cache + renderRecipient removed from...  (source: mem:decision:ADR_0704162654_8226)
+- end-of-session-2026-07-04-deepseek: 2026-07-04 end-of-session: negotiation UI patch applied to scripts/bifrost_ui.py (uncommitted WIP). Three server-side changes + one...  (source: mem:decision:ADR_0704153121_8413)
+- where-we-are 2026-07-04 (coordination layer + UI cockpit session): MASSIVE session. SHIPPED to master (all tested+pushed): A1 targeted-halt -> A0.1 guard_write...  (source: mem:decision:ADR_0704152856_9355)
 - competitive positioning: policy-swappable coordination control plane: Web-model landscape analysis relayed 2026-07-04 (updates competitive-landscape-2026-07). VERDICT...  (source: mem:decision:ADR_0704152438_8163)
 - checkpoint-2026-07-04-deepseek-slice: DeepSeek's working set at checkpoint (2026-07-04 evening):
 
@@ -29,7 +63,6 @@ GPT identified the missing layer between...  (source: mem:decision:ADR_070414351
 - Stage-2 verdict + Stage-3 evidence mandate (multi-model review): 2026-07-04 multi-model design review (Gemini+GPT+DeepSeek web, Daniel-curated) -> full record...  (source: mem:decision:ADR_0704134029_8082)
 - coordination reframe: social -> environmental (game-AI lens): DeepSeek's game-AI analysis (2026-07-04, user-shared screenshot; claims VERIFIED against code) reframes the...  (source: mem:decision:ADR_0704132351_4717)
 - directive: token frugality (claude+deepseek): STANDING RULE (Daniel, 2026-07-04): both claude and deepseek default to the cheapest path that fully does the job. (1) min...  (source: mem:decision:ADR_0704121954_8946)
-- where-we-are: 2026-07-04 (big night). SHIPPED: multi-agent Bifrost fleet (4 agents: claude super_admin, deepseek admin/UI-writer, deepseek-ui member/design-consultant...  (source: mem:decision:ADR_0704062131_6748)
 - research: shift 2026-07-03 evening review: SHIFT RESULT: 12 tasks attempted, 5 clean DONE (001,004,008,012,018 by runner's format-only bar), but 'done' means...  (source: mem:decision:ADR_0703231229_7143)
 - where-we-are 2026-07-03: Shipped:
   - ROADMAP: status banner -- the Waves 0-5 synthesis is foundation-era/historical; living START HERE is now the boot notes + the...  (source: mem:decision:ADR_0703123020_5091)
@@ -54,6 +87,5 @@ GPT identified the missing layer between...  (source: mem:decision:ADR_070414351
   - ship + wrap: one-command gated ship + ambient session capture  (git:28c3afd)
   - Write-once memory: a 'note' verb (record once ->...  (source: mem:decision:ADR_0629230032_9951)
 - cursor-status: Cursor's gemini-web slice was taken over + committed by claude (gemini_web.py, bifrost_runner --provider web, ai_setup_mcp _run_gemini_web...  (source: mem:decision:ADR_0629214304_3549)
-- open-docket: Explored-not-built: mutual agent invocation (claude -p / cursor-agent headless + generalized bifrost_runner + optional ask_agent RPC; blocked on CLIs not...  (source: mem:decision:ADR_0629214303_8701)
 - remaining-review-items: From the 2026-06-28 architecture review: RC-02 route contended writes through Store.update_atomic (CAS has no domain callers); store-hardening...  (source: mem:decision:ADR_0629214302_4317)
 - where-we-are 2026-06-29: Akashic Aurora status: recall-at-action COMPLETE end-to-end (engine, CLI recall-at, PreToolUse hook additionalContext, bootstrap contract...  (source: mem:decision:ADR_0629214301_5916)

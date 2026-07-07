@@ -115,3 +115,88 @@ ago; this is adoption of a validated paradigm, not a pivot.
 
 Sources: arxiv 2510.14312 (Terrarium), 2507.01701 (LbMAS blackboard), 2510.01285, 2606.24535
 (Governed Shared Memory).
+
+---
+
+## Renew — the membrane's temporal job (proposed 2026-07-07, from GPT dialogue)
+
+The four jobs above all operate *within* a live session. There is a fifth that operates *across the
+session boundary* — the compress-and-reload seam GPT named "context lifecycle management." It is **not a
+new mechanism**: it is **Capture → Surface fired as a loop**.
+
+> **Renew** — keep working context healthy over long-running work: detect cognitive debt → extract
+> durable knowledge (*Capture*) → reload a curated working set (*Surface*).
+
+This is the membrane closing its own loop. It does not reorder the sequence — it gives the two deferred
+steps a shared telos (#3 Surface→orientation and #4 Capture-at-salience are the two halves Renew
+stitches together) and adds one step (#6) + one new primitive.
+
+### Already ~60% built (same story as the membrane itself)
+| GPT's piece | Exists today as |
+|---|---|
+| "Save = extract durable knowledge, not a transcript" | `scripts/snapshot.py` + `wrap --commit` + `core/learning/consolidation.py` + narrative `beat_log→chronicler` + last-session-draft |
+| "Relaunch with a curated working set" (Mission/Objective/Arch-slice/Modules/Lessons/Branch/TODOs/Decisions) | `agent_cli boot` (Context pillar) via `primitives/ranker.py` + `distiller.py` — the boot payload already *is* this, **minus the arch slice (= deferred step #3)** |
+| Refresh triggers (task-transition / branch-switch / arch-change / policy-change) | Already substrate *events*: `coord/task_ledger.py` (task close) · git (branch) · `primitives/supersession.py` (arch change) · `security/acl.json` (policy) |
+| "Forced save + relaunch" enforcement | `comm/launcher.py` + `runner_lock.py` + `liveness.py` — supervision can already stop/revive; today fires only on crash/wedge, not on cognitive debt |
+
+GPT's **four context tiers already physically exist as our layer stack**: Working = live hook context ·
+Session = notes/last-session-draft/narrative session · Project = ARCHITECTURE/LEXICON/lessons/ACL ·
+Historical = Ledger/chronicles/benchmarks. The gap is not the tiers — it is *promotion/demotion rules
+between them* (the distiller/supersession pipeline pointed at the refresh boundary).
+
+### The three genuinely-new pieces
+1. **A context-health estimator** — the one real new primitive. The funnel scores whether *surfaced
+   corpus* helps; `cognitive_metrics.py` scores whether *coordination* helps; nothing scores a single
+   agent's *live working-context quality*.
+2. **A refresh policy** fusing health + the lifecycle events above into a recommend/enforce decision.
+3. **Enforcement matched to agent type** (see fidelity, below).
+
+### Two framings adopted
+- **Cognitive debt = self-inflicted availability degradation → a *safety* property, not just
+  productivity.** This is the agent-side analog of Verified-prior-art point #2 ("context saturation is a
+  100%-success availability attack; bounding the medium is non-negotiable"). Renew inherits that already-
+  grounded justification.
+- **Refresh fidelity = reuse the Bifrost fidelity ladder.** Interactive Claude Code is never force-
+  relaunched (human-in-loop) — it gets an INFORM/STEER *recommendation* through the membrane. Stateless
+  runner agents (deepseek runner owns its loop) *are* enforced — a HALT + respawn. The ladder already
+  exists; Renew rides it.
+
+### Design discipline (anti-patterns, baked in)
+- **Never raw token count as the trigger** (GPT's own warning). Health ≠ usage — a 48%-full context
+  thick with superseded plans is unhealthier than a 72%-full coherent one.
+- **No LLM judge for health** — violates the NO-LLM faithfulness principle *and* token-frugality. Start
+  deterministic.
+- **Evidence-gate it** — no policy ships without a benchmark that it improves outcomes (Principle: each
+  slice gated by a benchmark). Otherwise it is ceremony.
+- **Metric before dashboard** — GPT's cognition dashboard is the payoff, but observing a metric that
+  does not yet exist is theater.
+
+### Research scope before building (tagged by kind) → tracked in `open-docket`
+- **A. [EMPIRICAL — core] Cheap deterministic health signals that predict degraded output.** Candidate
+  proxies, mostly already logged: **file-reread rate** (GPT's "they start rereading files" tell — *in the
+  PostToolUse stream, free*), tool-call repetition/backtrack rate, turns-since-boot, task-ledger churn,
+  superseded-record density (diff live context vs `supersession.py` edges), stale-lock count. Method:
+  instrument + correlate against an outcome signal we already have (FAIL→SUCCESS flips, funnel helped-
+  rate, task completion). **This slice comes first.**
+- **B. [PRIOR-ART] ✅ GROUNDED 2026-07-07 → `research/reviewed/renew-priorart-2026-07-07.md`.** Anchor
+  confirmed: **MemGPT** (arXiv **2310.08560**, Packer et al.) / **Letta** virtual context management —
+  OS-paging over Main(in-context)/External(recall+archival) tiers = GPT's four tiers = our layer stack;
+  the gap is the **paging function** (adopt that as the LEXICON term for Renew). Trigger-on-quality is
+  empirically forced by **Chroma "context rot"** (18 models: size≠quality; 30%+ lost-in-the-middle) →
+  item A is necessary, not optional. Save-at-boundary = **sleep-time compute** (~2.5–5× compute cut,
+  echoes token-frugality). **Differentiator sharpened & load-bearing:** Anthropic's own guidance states
+  harnesses already run **LLM compaction at a token threshold**; Renew's delta on four axes — trigger
+  (deterministic health/lifecycle vs tokens), extraction (NO-LLM distiller over **event-based** records
+  vs lossy summary — and *our Ledger already IS the event log Anthropic recommends over summary blobs*),
+  scope (durable/cross-session vs ephemeral), warrant (benchmark-gated vs assumed). Excluded future-dated
+  2026 arXiv hits for provenance, per the "Synthetic Membrane" discipline.
+- **C. [DESIGN] Refresh-decision policy** — map actions onto the fidelity ladder (recommend-for-
+  interactive / enforce-for-runner per hat); triggers as substrate events; human-in-loop boundaries.
+- **D. [EMPIRICAL — the gate] Does refresh actually help?** A/B via `coord/experiment.py` +
+  `cognitive_metrics.py`: refresh-on-debt vs run-long; metric = rework rate / output quality / tokens.
+- **E. [EMPIRICAL] Cold-resume fidelity** — is the existing curated save (boot payload) *sufficient* to
+  resume as well as full context? Test directly. If yes, Renew is mostly wiring; if no, the distiller
+  needs work before any of this matters.
+
+Net: like the membrane, not a new subsystem — a **control loop over snapshot + boot + funnel + launcher +
+supersession**, plus one new primitive (health estimator) and one benchmark to earn it.
