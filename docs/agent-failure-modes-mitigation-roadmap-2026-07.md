@@ -161,10 +161,14 @@ one-click revivable.** Ship in strict sub-order; each piece is independently tes
 >   exponential backoff + hard cap + reset window — the old flat sleep(3) would also have hit L5's
 >   refusal). `arm_revive()` + `_auto_revive` set are plumbed but the monitor does NOT consume them
 >   yet (no inert toggle shipped). Backend unit-proven; UI verified live.
-> - **L3b-auto (next)** — monitor consumes `_auto_revive`: on an armed agent flagged `wedged`,
->   auto-revive (with its OWN storm guard, separate from manual) + the arm toggle in the UI. Opt-in,
->   default off — the observe-only default the mandate wants.
-> - **L3c-remainder** — startup smoke-test (D2). **L3d** — convos preservation on watchdog-kill.
+> - **L3b-auto ✅ SHIPPED 2026-07-06** — opt-in auto-revive. Monitor `_check_auto_revive()` auto-revives
+>   an ARMED + `wedged` agent, with its OWN storm counter (disarms + escalates after the cap, separate
+>   from manual revive which resets) + an in-flight `_reviving` guard. `POST /launcher/arm-revive` + a
+>   `⟳ auto` toggle in the roster (off→faint, on→green). Default OFF, so the observe-only default holds.
+>   Backend unit-proven (observe-when-healthy / fire-when-wedged / disarm-at-cap); UI verified live.
+> - **L3c-remainder (next)** — startup smoke-test (D2): after Popen, wait ≤8s for the first `online`
+>   worklive beat; if it never beats, mark `crashed` with stderr_tail. **L3d** — supervised state
+>   rollback + convos preservation on watchdog-kill (see the actor/OTP research: recover process AND state).
 - **Build:** This is the **real** G4 fix for mid-round wedges L2 can't reach.
   - Extend `launcher._monitor_loop` (line 485) to read each agent's worklive freshness +
     runner_lock heartbeat: lock held + presence fresh + worklive phase not advanced past
