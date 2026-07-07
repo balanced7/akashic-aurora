@@ -221,6 +221,9 @@ class Launcher:
         self._restart_attempts: Dict[str, int] = {}    # agent_id -> consecutive restart count (L3c backoff)
         self._restart_last: Dict[str, float] = {}       # agent_id -> ts of last restart (for the reset window)
         self._auto_revive: set = set()                  # agent_ids armed for auto-revive-on-wedge (L3b, opt-in, default off)
+        self._auto_attempts: Dict[str, int] = {}        # L3b-auto: auto-revive storm counter (separate from manual)
+        self._auto_last: Dict[str, float] = {}          # L3b-auto: ts of last auto-revive
+        self._reviving: set = set()                     # L3b-auto: agents with an auto-revive in flight (double-trigger guard)
         self._reload()
 
     def _reload(self):
@@ -253,6 +256,7 @@ class Launcher:
                     "stdout_tail": (proc.stdout_tail or "")[-200:] if proc else "",
                     "stderr_tail": (proc.stderr_tail or "")[-200:] if proc else "",
                     "liveness": liveness.wedge_view(spec.agent_id),   # L3a: observe-only phase + stuck-time + wedged flag
+                    "auto_revive": spec.agent_id in self._auto_revive,  # L3b-auto: armed for auto-revive-on-wedge
                 })
         return out
 
@@ -392,6 +396,14 @@ class Launcher:
 
         self._save_session_to_disk()     # persist the change
         return {"ok": True, "agent_id": spec.agent_id, "tag": tag}
+
+    def _bus_note(self, text: str) -> None:
+        """Post a supervisor note to the bus (escalation to the human). Best-effort."""
+        try:
+            from core.comm.bus import get_bus
+            get_bus("launcher").broadcast("note", text, meta={"via": "launcher-supervisor"})
+        except Exception:
+            pass
 
     def _free_lock_for_relaunch(self, aid: str, dead_pid) -> None:
         """Before a relaunch, make sure the singleton lock is free -- since L5, launch() refuses while
@@ -566,6 +578,60 @@ class Launcher:
                     if spec and spec.auto_restart and proc.exit_reason != "killed":
                         tag = next((t for t, s in self._specs.items() if s.agent_id == aid), aid)
                         threading.Thread(target=self._restart, args=(tag,), daemon=True).start()
+            self._check_auto_revive()      # L3b-auto: opt-in auto-revive of ARMED wedged agents (no-op if none armed)
+
+    def _check_auto_revive(self):
+        """For each ARMED agent that is running + flagged wedged, spin an auto-revive. Opt-in: with
+        nobody armed this is a no-op, so the observe-only default holds. Runs OUTSIDE the exit-loop
+        lock; revive itself (kill+launch) is spawned in a thread so the monitor never blocks."""
+        with self._lock:
+            armed = set(self._auto_revive)
+            reviving = set(self._reviving)
+        if not armed:
+            return
+        from core.comm import liveness
+        for aid in armed:
+            if aid in reviving:
+                continue                         # a revive is already in flight for this agent
+            with self._lock:
+                proc = self._procs.get(aid)
+                running = bool(proc and proc.status == "running")
+            if not running:
+                continue
+            view = liveness.wedge_view(aid)
+            if not (view and view.get("wedged")):
+                continue                          # observe-only unless genuinely wedged past the threshold
+            tag = next((t for t, s in self._specs.items() if s.agent_id == aid), None)
+            if not tag:
+                continue
+            with self._lock:
+                self._reviving.add(aid)
+            threading.Thread(target=self._auto_revive_run, args=(tag, aid, view), daemon=True).start()
+
+    def _auto_revive_run(self, tag: str, aid: str, view: dict):
+        """One auto-revive with its OWN storm guard (separate from manual revive, which resets the
+        counter). If an agent keeps wedging past the cap, DISARM it and escalate to a human -- an
+        auto-loop that can't fix itself must stop, not thrash."""
+        try:
+            now = time.time()
+            if now - self._auto_last.get(aid, 0) > RESTART_RESET_S:
+                self._auto_attempts[aid] = 0     # healthy for a while -> fresh count
+            attempts = self._auto_attempts.get(aid, 0) + 1
+            self._auto_attempts[aid] = attempts
+            self._auto_last[aid] = now
+            if attempts > RESTART_MAX_ATTEMPTS:
+                with self._lock:
+                    self._auto_revive.discard(aid)   # disarm to break the loop
+                self._bus_note(f"[supervisor] '{aid}' auto-revived {attempts - 1}x and still wedging "
+                               f"-- DISARMED auto-revive. Needs a human.")
+                return
+            self._bus_note(f"[supervisor] auto-reviving '{aid}': wedged in '{view.get('phase')}' for "
+                           f"{view.get('stuck_seconds')}s (attempt {attempts}/{RESTART_MAX_ATTEMPTS}).")
+            self.revive(tag, reason="auto-wedge")
+        finally:
+            time.sleep(RESTART_BACKOFF_BASE)         # let the fresh runner emit worklive before re-eligible
+            with self._lock:
+                self._reviving.discard(aid)
 
     def _restart(self, tag: str, reason: str = "crash"):
         """Restart a crashed agent with exponential backoff + a hard cap (L3c anti crash-storm), freeing
@@ -580,13 +646,8 @@ class Launcher:
         self._restart_attempts[aid] = attempts
         self._restart_last[aid] = now
         if attempts > RESTART_MAX_ATTEMPTS:
-            try:
-                from core.comm.bus import get_bus
-                get_bus("launcher").broadcast("note",
-                    f"[supervisor] '{aid}' failed {RESTART_MAX_ATTEMPTS}x ({reason}); auto-restart stopped "
-                    f"-- needs a human (check stderr_tail / Revive).", meta={"via": "launcher-supervisor"})
-            except Exception:
-                pass
+            self._bus_note(f"[supervisor] '{aid}' failed {RESTART_MAX_ATTEMPTS}x ({reason}); auto-restart "
+                           f"stopped -- needs a human (check stderr_tail / Revive).")
             return
         backoff = min(RESTART_BACKOFF_BASE * (2 ** (attempts - 1)), RESTART_BACKOFF_MAX)
         time.sleep(backoff)

@@ -268,6 +268,10 @@ class Handler(BaseHTTPRequestHandler):
             tag = data.get("agent_id") or data.get("tag") or ""
             result = get_launcher().revive(tag, reason="manual")
             return self._json(result)
+        if path == "/launcher/arm-revive":
+            tag = data.get("agent_id") or data.get("tag") or ""
+            result = get_launcher().arm_revive(tag, bool(data.get("on")))
+            return self._json(result)
         if path == "/launcher/snapshot":
             from core.comm import session_state
             result = session_state.save(label=data.get("label") or "")
@@ -826,6 +830,9 @@ PAGE = r"""<!doctype html>
   .lact .lrevive{border-color:rgba(122,162,247,.4); color:var(--accent)}
   .lact .lrevive:hover{background:rgba(122,162,247,.12)}
   .lact .lrevive:disabled{opacity:.3; cursor:default}
+  .lact .lauto{border-color:var(--border); color:var(--faint); font-size:10.5px}
+  .lact .lauto:hover{background:#1c1f2a}
+  .lact .lauto.on{border-color:rgba(158,206,106,.55); color:#9ece6a; background:rgba(158,206,106,.1)}
   .lv{font-size:11px; padding:2px 7px; border-radius:6px; margin-left:2px; white-space:nowrap}
   .lv.lv-idle{opacity:.5}
   .lv.lv-busy{background:rgba(122,162,247,.16); color:var(--accent)}
@@ -1807,6 +1814,8 @@ async function refreshLauncher(){
           '<button class="lrevive" onclick="reviveAgent(\''+esc(a.tag)+'\')" '+(!running?'disabled':'')+' title="kill + relaunch — recovers a wedged runner">↻ Revive</button>'+
           '<button class="lkill" onclick="killAgent(\''+esc(a.tag)+'\')" '+(!running?'disabled':'')+'>'+
             '✕ Kill</button>'+
+          '<button class="lauto'+(a.auto_revive?' on':'')+'" onclick="armRevive(\''+esc(a.tag)+'\','+(!a.auto_revive)+')" '+
+            'title="auto-revive this agent if it wedges (opt-in, off by default)">⟳ auto</button>'+
         '</span></div>';
     }).join('')||'<div style="color:var(--faint);text-align:center;padding:12px">no agents registered — add entries to security/launcher.json</div>';
   }catch(e){}
@@ -1845,6 +1854,17 @@ function lvBadge(a){
   const cls=L.wedged?'lv-wedged':(idle?'lv-idle':'lv-busy');
   return '<span class="lv '+cls+'" title="turn '+(L.turn||0)+' · '+esc(L.phase)+' for '+s+'s'+
     (L.wedged?' — SUSPECTED WEDGE':'')+'">'+txt+'</span>';
+}
+// L3b-auto: arm/disarm opt-in auto-revive-on-wedge for this agent (default off).
+async function armRevive(tag, on){
+  try{
+    const r=await fetch('/launcher/arm-revive',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({agent_id:tag, on:on})});
+    const j=await r.json();
+    if(j&&j.ok) toast(on?('🛡 auto-revive armed — '+tag):('auto-revive off — '+tag));
+    else toast('❌ '+(j?j.error:'failed'));
+    refreshLauncher();
+  }catch(e){ toast('arm toggle failed'); }
 }
 // L3b: kill + relaunch a wedged/dead runner (frees the singleton lock first, server-side).
 async function reviveAgent(tag){
