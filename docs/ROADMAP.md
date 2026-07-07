@@ -7,6 +7,16 @@
 > then `notes --json`; that is the living "START HERE". Recent design docs: `docs/fleet-dispatch-design.md`
 > (calling local models), `docs/s2-consolidation-design.md` (corpus sharpening). The waves below still
 > hold as the bedrock they built.
+>
+> **ACTIVE TRACKS (2026-07, current work — plans live in their design docs):**
+> - **Reliability / supervision (L0–L4)** — keep the agent fleet alive & recoverable.
+>   Plan: `docs/agent-failure-modes-mitigation-roadmap-2026-07.md`. Shipped: L0/L1/L5/L3a/L3b/L3b-auto.
+> - **The Mediation Membrane (System 5 / agent experience)** — the substrate between agents and Akashic
+>   that cuts the cognitive load of using it (Surface / Capture / Enforce / **Unify the door**). This is
+>   the fuller framing of the old *Wave 4 (Unify the ACI)* below — the membrane already exists as the
+>   half-built **hook layer**. Plan: `docs/agent-membrane-design-2026-07.md`. **Status: designed, in
+>   research before the first slice (door-parity).**
+> - **Comprehension layer** — ARCHITECTURE/LEXICON/PRINCIPLES/INDEX now guarded by `check_comprehensibility.py`.
 
 Date: 2026-06-19. This ties together everything in `docs/` and memory into one
 plan, grouped so each piece of work serves multiple goals and no research is
