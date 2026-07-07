@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import json
 import os
+import random
 import signal
 import subprocess
 import sys
@@ -53,6 +54,22 @@ RESTART_BACKOFF_BASE = float(os.getenv("LAUNCHER_RESTART_BACKOFF", "3"))   # sec
 RESTART_BACKOFF_MAX = float(os.getenv("LAUNCHER_RESTART_BACKOFF_MAX", "60"))
 RESTART_MAX_ATTEMPTS = int(os.getenv("LAUNCHER_RESTART_MAX", "5"))          # then escalate + stop
 RESTART_RESET_S = float(os.getenv("LAUNCHER_RESTART_RESET", "300"))         # healthy-for-this-long -> reset the counter
+
+# Auto-revive arming is PERSISTED in Redis (not just in-process) so it survives a UI/supervisor
+# restart, is shared across processes (CLI can arm/disarm), and stays consistent everywhere.
+AUTO_REVIVE_KEY = "bifrost:auto_revive"
+# Jitter before an auto-revive so a simultaneous multi-agent wedge doesn't thunder-herd
+# (N kills + N onboarding boots all at once hammering Redis/CPU).
+AUTO_REVIVE_JITTER = float(os.getenv("LAUNCHER_AUTO_REVIVE_JITTER", "4"))
+
+
+def _bus_redis():
+    """Shared bus Redis client (same connector as the rest of core/comm). None -> fail open."""
+    try:
+        from core.comm.bus import get_bus
+        return get_bus("launcher")._client
+    except Exception:
+        return None
 
 HERE = Path(__file__).resolve().parent.parent.parent  # core/comm -> repo root
 SCRIPTS = HERE / "scripts"
@@ -236,6 +253,7 @@ class Launcher:
         """All launchable agents + their current run status. For the UI."""
         from core.comm import liveness   # L3a: observe-only wedge view (fail-open; None when no record)
         self._reload()
+        armed = self._armed_set()          # L3b-auto: persisted arm state (shared UI/CLI/supervisor)
         out = []
         with self._lock:
             for tag, spec in sorted(self._specs.items()):
@@ -256,7 +274,7 @@ class Launcher:
                     "stdout_tail": (proc.stdout_tail or "")[-200:] if proc else "",
                     "stderr_tail": (proc.stderr_tail or "")[-200:] if proc else "",
                     "liveness": liveness.wedge_view(spec.agent_id),   # L3a: observe-only phase + stuck-time + wedged flag
-                    "auto_revive": spec.agent_id in self._auto_revive,  # L3b-auto: armed for auto-revive-on-wedge
+                    "auto_revive": spec.agent_id in armed,  # L3b-auto: armed for auto-revive-on-wedge (persisted)
                 })
         return out
 
@@ -436,19 +454,40 @@ class Launcher:
         res.update({"revived": True, "revive_reason": reason, "killed_pid": dead_pid})
         return res
 
+    def _armed_set(self) -> set:
+        """The authoritative set of armed agent_ids -- read-through from Redis (so the UI, CLI, and
+        supervisor all agree), falling back to the in-memory cache if the bus is unreachable."""
+        r = _bus_redis()
+        if r is not None:
+            try:
+                return set(r.smembers(AUTO_REVIVE_KEY))
+            except Exception:
+                pass
+        return set(self._auto_revive)
+
+    def _set_armed(self, aid: str, on: bool) -> None:
+        """Arm/disarm one agent, write-through to Redis so it survives a restart and is shared."""
+        with self._lock:
+            (self._auto_revive.add if on else self._auto_revive.discard)(aid)
+        r = _bus_redis()
+        if r is not None:
+            try:
+                (r.sadd if on else r.srem)(AUTO_REVIVE_KEY, aid)
+            except Exception:
+                pass
+
     def arm_revive(self, tag: str, on: bool = True) -> Dict[str, Any]:
         """Opt in/out of automatic revive-on-wedge for this agent (default OFF -> observe-only).
-        When armed, the monitor auto-revives if the agent is flagged 'wedged' past the threshold."""
+        PERSISTED in Redis, so it survives a UI/supervisor restart and can be toggled from the UI OR
+        the CLI. CONTRACT: this governs recovery from a WEDGE (agent alive but stuck past the
+        threshold). Recovery from a CRASH (process exit) is a SEPARATE opt-in -- ``spec.auto_restart``
+        -- because a deterministic boot-crash-loop must NOT be silently masked the way a recoverable
+        wedge can be. Arming wedge-recovery does not imply crash-restart, or vice versa."""
         spec = self._specs.get(tag)
         if spec is None:
             return {"ok": False, "error": f"unknown agent tag: {tag}"}
-        with self._lock:
-            if on:
-                self._auto_revive.add(spec.agent_id)
-            else:
-                self._auto_revive.discard(spec.agent_id)
-            armed = spec.agent_id in self._auto_revive
-        return {"ok": True, "tag": tag, "agent_id": spec.agent_id, "auto_revive": armed}
+        self._set_armed(spec.agent_id, on)
+        return {"ok": True, "tag": tag, "agent_id": spec.agent_id, "auto_revive": on}
 
     def status(self, tag: str) -> Dict[str, Any]:
         """Quick status for one agent tag."""
@@ -584,8 +623,8 @@ class Launcher:
         """For each ARMED agent that is running + flagged wedged, spin an auto-revive. Opt-in: with
         nobody armed this is a no-op, so the observe-only default holds. Runs OUTSIDE the exit-loop
         lock; revive itself (kill+launch) is spawned in a thread so the monitor never blocks."""
+        armed = self._armed_set()          # read-through from Redis (shared, survives restart)
         with self._lock:
-            armed = set(self._auto_revive)
             reviving = set(self._reviving)
         if not armed:
             return
@@ -620,11 +659,12 @@ class Launcher:
             self._auto_attempts[aid] = attempts
             self._auto_last[aid] = now
             if attempts > RESTART_MAX_ATTEMPTS:
-                with self._lock:
-                    self._auto_revive.discard(aid)   # disarm to break the loop
+                self._set_armed(aid, False)          # disarm (persisted) to break the loop
                 self._bus_note(f"[supervisor] '{aid}' auto-revived {attempts - 1}x and still wedging "
                                f"-- DISARMED auto-revive. Needs a human.")
                 return
+            if AUTO_REVIVE_JITTER > 0:
+                time.sleep(random.uniform(0, AUTO_REVIVE_JITTER))   # stagger simultaneous multi-wedge revives (no thundering herd)
             self._bus_note(f"[supervisor] auto-reviving '{aid}': wedged in '{view.get('phase')}' for "
                            f"{view.get('stuck_seconds')}s (attempt {attempts}/{RESTART_MAX_ATTEMPTS}).")
             self.revive(tag, reason="auto-wedge")
