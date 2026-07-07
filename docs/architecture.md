@@ -1,84 +1,140 @@
-# E:\AI-Setup — System Architecture
+# Akashic Aurora — System Architecture (the living skeleton)
 
-> Diagram: [architecture.svg](architecture.svg)
+The map of the whole system at **subsystem altitude** — what each part is *for*, and how the
+layers stack. Deliberately coarse so it changes rarely; the churny per-module detail lives in the
+**auto-generated** [MODULE_INDEX.md](MODULE_INDEX.md) (run `py scripts/gen_arch_index.py`), which
+cannot rot. See "How this map stays alive" at the bottom.
 
-The system lets multiple agents work together and keep what they learn, so no
-agent redoes work or re-makes a decision another already figured out. It is
-organized in four layers; **each layer is built on the one below it.**
+> One sentence: *a message bus lets multiple agents work together, a knowledge stack keeps what they
+> learn, a coordination layer stops them colliding, and a supervision layer keeps them alive — all on
+> two storage primitives.*
+
+---
+
+## The layer stack (each layer builds only on the ones below it)
 
 ```
-how agents use it
-  SignalEmitter ............ agents announce what they do
-  CoordinatorService ....... reacts: caches decisions, builds briefings
+INTERFACE (System 5) — the doors agents/humans come through
+  agent_cli.py · ai_setup_mcp.py · scripts/bifrost_ui.py · bifrost_runner_deepseek.py · bifrost_wake.py
         |
-        v  (uses)
-domain — built on the foundation
-  AgentSignalLedger ........ the signal firehose (built on Ledger)
-  LearningStore ............ experiment learnings (built on Store)
-  StoreReconciler .......... heals Redis vs File drift (operates on Store)
+        v
+NARRATIVE (System 4)          KNOWLEDGE & MEMORY               COORDINATION
+  core/narrative/               core/learning + recall +          core/coord/
+  the self-writing story        primitives (the "codex")          who does what, without racing
+        |                              |                               |
+        +---------------+--------------+---------------+---------------+
+                        v
+BIFROST — the agent nervous system            TRUST (cross-cutting)     FLEET (cross-cutting)
+  core/comm/  bus · control · launcher ·         core/trust/ + security/   core/fleet/
+  liveness · promoter · locks                    who MAY do what           who EXISTS
         |
-        v  (built on)
-foundation · Pillar 0 — two primitives
-  Ledger ................... "what HAPPENED, in order"  (append + replay by cursor)
-  Store .................... "what IS true, by key"     (state you read back)
+        v
+SUBSTRATE — durable records
+  core/events/ (raw event firehose)   ·   core/signals/ (agent signal ledger + coordinator)
         |
-        v  (each runs on)
-storage backends — shared, dual-write, fail-fast
-  Redis (fast)  ·  File (always on disk)  ·  Hybrid (both — the default)
+        v
+FOUNDATION · Pillar 0 — two primitives
+  Store ("what IS true, by key")   ·   Ledger ("what HAPPENED, in order")
+        |
+        v
+STORAGE BACKENDS — Redis (fast) · File (always) · Hybrid (both, the default; fail-fast)
 ```
 
-## The two primitives (Pillar 0)
+**The dependency rule:** a layer imports only *downward*. This is enforced by
+`scripts/check_boundaries.py` — run it before shipping; a violation means the architecture is drifting.
 
-Everything narrows to two ideas, named for the question each answers. This is
-the classic **store + ledger** pairing from systems engineering.
+---
 
-| Primitive | Answers | Shape | Examples |
-|-----------|---------|-------|----------|
-| `Store`  | "what IS the value of X?" | state read back by key | decisions, learnings, project state |
-| `Ledger` | "what HAPPENED, in order?" | events appended and replayed by cursor | the signals agents emit |
+## Foundation · Pillar 0 (`core/foundation/`)
+Everything narrows to two primitives, named for the question each answers (classic store+ledger):
 
-Both share one shape: an abstract base + three backends (`Redis*`, `File*`,
-`Hybrid*`) + a `create_*` factory + a fail-fast Redis connect. `Hybrid*` writes
-File-always and Redis-best-effort, and degrades gracefully (no 48s hang when
-Redis is down). Swapping a backend changes nothing in the layers above.
+| Primitive | Answers | Shape |
+|-----------|---------|-------|
+| `Store`  | "what IS the value of X?" | state read back by key |
+| `Ledger` | "what HAPPENED, in order?" | events appended, replayed by cursor |
 
-- `core/foundation/store.py` — `Store` / `RedisStore` / `FileStore` / `HybridStore` / `create_store`
-- `core/foundation/ledger.py` — `Ledger` / `RedisLedger` / `FileLedger` / `HybridLedger` / `create_ledger`
+Each has an abstract base + three backends (`Redis*` / `File*` / `Hybrid*`) + a `create_*` factory.
+`Hybrid*` writes File-always + Redis-best-effort and degrades gracefully (no hang when Redis is down).
+Swapping a backend changes nothing above. Also here: `redis_connection.py` (fail-fast connect),
+`timeutil.py` (one timezone-safe epoch), `relationship_types.py` (graph edge vocabulary).
 
-## The domain layer (built on the foundation)
+## Substrate — durable records
+- **`core/events/`** — the raw cross-agent event firehose: `EventLog` (append) → `EventIndex`
+  (time index) → `EventQuery` (search/window). "Everything that happened," queryable.
+- **`core/signals/`** — the older domain layer: `AgentSignalLedger` (the canonical signal firehose)
+  + `SignalEmitter` (agents announce work). Its reactive coordinator was retired 2026-07-07 —
+  reaction/coordination now lives in Bifrost (bus + promoter + handoff).
 
-- `core/signals/agent_signal_ledger.py` — `AgentSignalLedger`: THE specific
-  ledger this system runs on. Owns the signal layout (a canonical `agent:events`
-  firehose + per-agent streams + retention). `append_signal()` / `replay_signals()`.
-- `core/learning/learning_store.py` — `LearningStore`: experiment-outcome
-  learnings, indexed on a `Store`.
-- `core/state/sync_reconciler.py` — `StoreReconciler`: detects and heals
-  Redis-vs-File divergence on a `HybridStore` (`sync_state_reconciling_divergence()`).
+## Bifrost — the agent nervous system (`core/comm/`)
+How live agents talk, are steered, and are kept alive.
+- **`bus.py`** — the ephemeral message transport (Redis Streams); one inbox + cursor per agent.
+- **`bifrost_api.py`** — *the one door* an agent uses to join and work the bus.
+- **`control.py` / `nudge.py` / `interject.py` / `dispatcher.py`** — the control plane: global PAUSE +
+  runaway guard, targeted barge-in, human-interjection routing, doorbell→wake.
+- **`launcher.py`** — spawns + monitors agent processes; the **supervision layer** (revive, backoff,
+  opt-in auto-revive, singleton-lock gate).
+- **`liveness.py`** — per-agent `worklive` heartbeat (phase + stuck-time) for wedge detection.
+- **`runner_lock.py`** — one live runner per agent (singleton, TTL+token). **`promoter.py`** — promote
+  salient bus messages into the durable Ledger. **`locks.py`** — advisory path-locks. **`blobs.py` /
+  `context_hints.py`** — media payloads / per-agent context forwarding.
 
-## How it's used
+## Coordination (`core/coord/`)
+Stops agents colliding and plays them to their strengths.
+- **`task_ledger.py`** — the deterministic coordination substrate (who owns what task, no model in loop).
+- **`conductor.py`** — the orchestration shell over the pure ledger.
+- **`negotiation.py` / `intent.py`** — plan-declaration windows. **`cognitive_metrics.py` /
+  `experiment.py` / `metrics.py`** — the Stage-3 evidence engine (measure whether coordination helps).
 
-- `SignalEmitter` (in `core/signals/coordinator_api.py`) — the friendly API
-  agents call to announce work (`emit_decision...`, `emit_blocker...`). Writes to
-  the `AgentSignalLedger`.
-- `CoordinatorService` (in `core/signals/coordinator_service.py`) — replays the
-  firehose and reacts: caches decisions for reuse (`DecisionCache`), generates
-  handoff briefings, escalates blockers, routes `learning` signals to
-  `LearningStore`. Reads the `AgentSignalLedger` and the `Store`.
+## Knowledge & memory (the "codex")
+Give the right agent the right context at the moment of action.
+- **`core/learning/`** — `learning_store.py` (experiment lessons), `agent_memory.py` (`mem:` per-agent),
+  `consolidation.py` (distill raw memory → chronicle).
+- **`core/recall/`** — `at_action.py` (recall AT the moment of a tool call), `funnel.py` (is surfaced
+  knowledge actually helping? the value metric + triage buckets), `dissent.py` (surface the counter-case).
+- **`core/primitives/`** — the reusable engines: `ranker.py` (deterministic relevance×importance×recency),
+  `distiller.py` (compact to a token budget + source pointers), `faithfulness.py` (NO-LLM grounding gate —
+  silence beats fabrication), `embedder.py`, `clusterer.py`, `consolidator.py`, `supersession.py`
+  (newer record retires older).
 
-`core/state/redis_sync_coordinator.py` is a deprecated thin facade kept for
-back-compat; it delegates to the primitives above.
+## Narrative spine (`core/narrative/`) — System 4
+The project's self-writing story: **Atlas → Track → Chapter → Beat**. `schema.py` (shapes),
+`beat_log.py` (append salient beats), `session.py` (the spine fills itself per session), `chronicler.py`
+(beats → chapters), `event_bridge.py`/`event_promoter.py` (join to the raw firehose), `tagging.py`/
+`tag_governance.py`/`tag_audit.py` (governed tags), `drift.py`/`health.py` (self-checks).
 
-## Naming principles (so a name tells you the thing's purpose and scope)
+## Cross-cutting
+- **Trust/Security** — `core/trust/` (`capabilities.py` roles, `registry.py` reader over
+  `security/acl.json` = the source of truth for who-may-do-what). See [security-schema](../MEMORY-links).
+- **Fleet** — `core/fleet/` (the roster: who exists). **State** — `core/state/` (reconcilers).
+- **Projections (swappable, over the substrate)** — `core/perspectives/` (interpretation lenses over
+  the narrative graph — Map × Lens), `core/codex/` (knowledge-compiler / regenerable-projection work).
 
-1. **State vs. events** — recording a fact you'll look up → `Store`. Announcing
-   something that happened → `Ledger`.
-2. **Genus, not species** — name a container after the *genus* of what it holds,
-   never one *species*. The six signal types (action / decision / blocker /
-   handoff / completion / learning) are species; `signal` is the genus → so
-   `AgentSignalLedger`, never `decision_log`.
-3. **Generic primitive, specific use** — the reusable primitive is generic
-   (`Ledger`); its specific use names the variable (`signal_ledger`). We can have
-   other ledgers.
-4. **"Chronicle" is reserved** for a future *curated* highlights layer
-   (`chronicles/`: decisions, failures, milestones) *derived from* the raw
-   ledger. Raw ledger → distilled chronicle.
+## Interface (System 5) — the doors
+- **`agent_cli.py`** — THE single CLI door (`boot`, `learn`, `recall`, `note`, `bifrost-*`, …).
+- **`ai_setup_mcp.py`** — the MCP-transport door. **`bootstrap.py`** — system entry + honest status.
+- **`scripts/bifrost_ui.py`** — the realtime web console. **`bifrost_runner_deepseek.py` /
+  `bifrost_runner.py`** — make stateless API models first-class bus citizens.
+  **`bifrost_wake.py`** — the idle wake listener (an agent can't wake itself; this does).
+- **`scripts/mirror.py`** (commit+push) · **`ship.py`** (gated slice-ship) · **`check_boundaries.py`** /
+  **`check_doc_freshness.py`** (drift guardrails) · **`snapshot.py`** (session save).
+
+---
+
+## Where to start reading
+1. This file (the map). 2. `AGENTS.md` (the contract for agents). 3. `py agent_cli.py boot claude`
+(live state). 4. `docs/ROADMAP.md` (the plan). 5. For any subsystem: its module's one-line docstring
+(see `MODULE_INDEX.md`) — every module states its single responsibility in line 1.
+
+## How this map stays alive (the anti-rot contract)
+A doc survives only if it is **stable-altitude**, **auto-generated**, or **guardrail-enforced**. This
+map uses all three:
+1. **Stable altitude** — this file describes *subsystems*, which change rarely. Update it only when a
+   new `core/` subpackage is born or a layer's *responsibility* changes — not when a file is added.
+2. **Auto-generated detail** — `MODULE_INDEX.md` is regenerated from module docstrings by
+   `py scripts/gen_arch_index.py`; the per-module truth never goes stale by hand.
+3. **Guardrail-enforced** — `check_boundaries.py` catches layer violations; `check_doc_freshness.py`
+   keeps the root clean. (Proposed: extend the freshness check to flag a new `core/` subpackage that
+   has no line in this map — see `docs/memory-recall-multiagent-design-2026-07.md` era backlog.)
+
+**The rule of thumb:** if you add a *file*, do nothing here (the index regenerates). If you add a
+*subpackage* or change what a layer is *for*, add/edit one line above.
