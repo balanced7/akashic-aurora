@@ -84,7 +84,12 @@ child of a nonexistent root.
 **Goal: the fleet survives unattended and every wedge is either self-healed or
 one-click revivable.** Ship in strict sub-order; each piece is independently testable.
 
-### L0 — Hard timeouts (the cheapest real G4 fix) — **do this first**
+### L0 — Hard timeouts (the cheapest real G4 fix) — ✅ **SHIPPED 2026-07-06**
+> Done: `make_client()` factory in `deepseek_chat.py` (per-read `httpx.Timeout` + explicit
+> `max_retries`, env-tunable), wired into runner (make_replier / make_agentic_replier), REPL,
+> and `ask_deepseek`; `run_command` timeout capped at `MAX_CMD_TIMEOUT`. Verified end-to-end
+> (`tests/manual/l0_timeout_probe.py`): hung stream aborts in ~timeout, happy path unaffected.
+> **Next: L1 (worklive heartbeat).**
 - **Build:** Pass **both** `timeout=` **and an explicit `max_retries=`** to the
   `OpenAI(...)` constructor (runner lines 69, 95) — the SDK default `max_retries=2` retries
   `APITimeoutError`, so timeout alone means a hung call surfaces after ≈`timeout × 3`. Also
