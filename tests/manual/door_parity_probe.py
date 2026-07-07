@@ -7,8 +7,8 @@ import check_door_parity as c
 
 fails, gaps, cli, mcp = c.check()
 assert not fails, ("must PASS on current reality", fails)
-assert len(gaps) >= 1, "should be tracking known CLI<->MCP gaps as debt"
-print(f"[PASS] passes on reality; tracking {len(gaps)} known gaps as debt")
+assert isinstance(gaps, list)  # the gap-tracking mechanism works; 0 gaps == debt paid down (the goal)
+print(f"[PASS] passes on reality; {len(gaps)} CLI<->MCP gap(s) tracked (0 == fully paid down)")
 
 orig = c.cli_verbs
 c.cli_verbs = lambda: sorted(set(orig()) | {"zznewverb"})

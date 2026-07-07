@@ -69,6 +69,7 @@ _ARG_DEFAULTS = dict(
     enforced_by=None, undo=False,
     # note / notes / locks (membrane slice 1b: MCP twins for shell-less agents)
     title=None, context="", supersedes=None, session="", project=False, path=None, ttl=None,
+    name="", reason="",
 )
 
 
@@ -244,6 +245,13 @@ def locks(agent: str = "") -> str:
 
 
 @mcp.tool()
+def tag_anti_pattern(experiment: str, name: str, reason: str = "") -> str:
+    """Tag an EXISTING lesson as a reusable known-bad so recall WARNS on it (without clobbering its
+    other fields). Grows the disconfirmers recall needs. Record the lesson first with learn()."""
+    return _run(agent_cli.cmd_tag_anti_pattern, experiment=experiment, name=name, reason=reason)
+
+
+@mcp.tool()
 def status() -> str:
     """Honest system status: backend, lesson count, agent-memory count, spine health."""
     return _run(agent_cli.cmd_status)
@@ -354,6 +362,28 @@ def bifrost_send(from_agent: str, to: str, kind: str = "chat", text: str = "") -
     from core.comm.bus import Bus
     mid = Bus(from_agent).send(to, kind, text)
     return f"sent {mid} -> {to}" if mid else "BUS OFFLINE (Redis unreachable)"
+
+
+@mcp.tool()
+def bifrost_nudge(from_agent: str, to: str, text: str = "", mode: str = "interrupt") -> str:
+    """Send a TARGETED, fidelity-graded signal to ONE peer: mode=interrupt (HARD barge-in, default —
+    the peer drops its current work at the next round boundary), steer (SOFT — fold a fact into its
+    CURRENT task, no restart), or inform (AMBIENT — adopted next turn). Unlike pause, it targets one peer."""
+    from core.comm.bus import Bus
+    from core.comm import nudge as _nudge
+    m = (mode or "interrupt").lower()
+    if m not in ("interrupt", "steer", "inform"):
+        return f"ERROR: mode must be interrupt|steer|inform (got {mode!r})"
+    bus = Bus(from_agent)
+    meta = {"via": f"{from_agent}-mcp", "hops": 0}
+    if m == "interrupt":
+        _nudge.nudge(to, by=from_agent, reason=text[:80]); mid = bus.send(to, "nudge", text, meta=meta)
+    elif m == "steer":
+        _nudge.steer_push(to, from_agent, text)
+        mid = bus.send(to, "steer", text, meta={**meta, "display_only": True})
+    else:
+        mid = bus.send(to, "inform", text, meta=meta)
+    return f"nudge:{m} {mid} -> {to}" if mid else "BUS OFFLINE (Redis unreachable)"
 
 
 @mcp.tool()
