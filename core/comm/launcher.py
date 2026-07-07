@@ -267,14 +267,19 @@ class Launcher:
                 existing.exit_reason = _classify_exit(
                     existing.exit_code or -1, existing.stdout_tail, existing.stderr_tail, False)
 
-        # Check the runner_lock for runner-class agents
+        # Singleton gate (D3): refuse to spawn a duplicate when a live runner already holds the lock.
+        # The child runner acquires + heartbeats + releases its OWN lock, so the launcher must only
+        # CHECK, never HOLD it -- a stray acquire here would keep the child from acquiring the lock it
+        # needs to start (the launcher's token != the child's), starving its own spawn. A crashed
+        # holder's key clears via runner_lock.LOCK_TTL, after which a relaunch succeeds.
         if spec.runtime == "python_runner":
-            from core.comm.runner_lock import acquire, instance_token
-            token = instance_token(spec.agent_id)
-            if not acquire(spec.agent_id, token):
-                # Another runner holds the lock — but we track it regardless
-                # since the launcher is the authoritative spawner now
-                pass
+            from core.comm import runner_lock
+            h = runner_lock.holder(spec.agent_id)
+            if h:
+                return {"ok": False, "agent_id": spec.agent_id, "pid": h.get("pid"),
+                        "error": f"'{spec.agent_id}' already has a live runner (pid {h.get('pid')}); "
+                                 f"refusing to spawn a duplicate. If it crashed, retry in "
+                                 f"~{runner_lock.LOCK_TTL}s once its lock expires (or kill it first)."}
 
         cwd = spec.cwd or str(HERE)
         cmd = list(spec.command)
