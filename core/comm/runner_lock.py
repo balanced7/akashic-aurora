@@ -112,6 +112,29 @@ def release(agent: str, token: str) -> bool:
         return True
 
 
+def clear_if_pid(agent: str, pid) -> bool:
+    """Force-free the lock ONLY if its current holder is `pid` -- e.g. a runner we just hard-killed
+    whose `finally` release never ran. Safe: never evicts a DIFFERENT live holder (a successor that
+    already took over). Returns True if the lock is now free (cleared, or already gone). Used by the
+    launcher's revive/restart so a relaunch isn't blocked by its own dead predecessor's lingering key."""
+    c = _client()
+    if c is None:
+        return True
+    try:
+        raw = c.get(_key(agent))
+        if not raw:
+            return True  # already free
+        try:
+            if json.loads(raw).get("pid") == pid:
+                c.delete(_key(agent))
+                return True
+        except Exception:
+            return False
+        return False  # a different holder now -> leave it be
+    except Exception:
+        return True
+
+
 def holder(agent: str) -> Optional[dict]:
     """{token, pid, ts} of the current runner for `agent`, or None. For diagnostics / the UI roster."""
     c = _client()

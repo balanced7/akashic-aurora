@@ -47,6 +47,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+# Restart-storm guard (L3c): exponential backoff, a hard cap, and a reset window so a runner that
+# ran healthily for a while starts fresh. A deterministic boot-crash must not crash-loop forever.
+RESTART_BACKOFF_BASE = float(os.getenv("LAUNCHER_RESTART_BACKOFF", "3"))   # seconds, first retry
+RESTART_BACKOFF_MAX = float(os.getenv("LAUNCHER_RESTART_BACKOFF_MAX", "60"))
+RESTART_MAX_ATTEMPTS = int(os.getenv("LAUNCHER_RESTART_MAX", "5"))          # then escalate + stop
+RESTART_RESET_S = float(os.getenv("LAUNCHER_RESTART_RESET", "300"))         # healthy-for-this-long -> reset the counter
+
 HERE = Path(__file__).resolve().parent.parent.parent  # core/comm -> repo root
 SCRIPTS = HERE / "scripts"
 SECURITY_DIR = HERE / "security"
@@ -211,6 +218,9 @@ class Launcher:
         self._lock = threading.Lock()
         self._monitor_stop = threading.Event()
         self._monitor_thread: Optional[threading.Thread] = None
+        self._restart_attempts: Dict[str, int] = {}    # agent_id -> consecutive restart count (L3c backoff)
+        self._restart_last: Dict[str, float] = {}       # agent_id -> ts of last restart (for the reset window)
+        self._auto_revive: set = set()                  # agent_ids armed for auto-revive-on-wedge (L3b, opt-in, default off)
         self._reload()
 
     def _reload(self):
@@ -383,6 +393,51 @@ class Launcher:
         self._save_session_to_disk()     # persist the change
         return {"ok": True, "agent_id": spec.agent_id, "tag": tag}
 
+    def _free_lock_for_relaunch(self, aid: str, dead_pid) -> None:
+        """Before a relaunch, make sure the singleton lock is free -- since L5, launch() refuses while
+        a holder is present, so a killed runner whose `finally` didn't release would block its own
+        relaunch until the TTL. Wait briefly for a graceful release, then force-free ONLY the dead pid."""
+        from core.comm import runner_lock
+        deadline = time.time() + 4
+        while runner_lock.holder(aid) and time.time() < deadline:
+            time.sleep(0.25)
+        if dead_pid is not None:
+            runner_lock.clear_if_pid(aid, dead_pid)
+
+    def revive(self, tag: str, reason: str = "manual") -> Dict[str, Any]:
+        """Recover a wedged or dead runner: kill it (if up), free its singleton lock, relaunch.
+        This is the primitive behind the UI 'Revive' button and (when armed) the auto-revive monitor."""
+        spec = self._specs.get(tag)
+        if spec is None:
+            return {"ok": False, "error": f"unknown agent tag: {tag}"}
+        aid = spec.agent_id
+        with self._lock:
+            proc = self._procs.get(aid)
+            dead_pid = proc.pid if (proc and proc.status == "running") else None
+        if dead_pid is not None:
+            self.kill(tag)                       # graceful -> force; the runner's finally usually frees the lock
+        self._free_lock_for_relaunch(aid, dead_pid)
+        # a human/explicit revive is a fresh start -> clear the crash-backoff counter
+        self._restart_attempts.pop(aid, None)
+        self._restart_last.pop(aid, None)
+        res = self.launch(tag)
+        res.update({"revived": True, "revive_reason": reason, "killed_pid": dead_pid})
+        return res
+
+    def arm_revive(self, tag: str, on: bool = True) -> Dict[str, Any]:
+        """Opt in/out of automatic revive-on-wedge for this agent (default OFF -> observe-only).
+        When armed, the monitor auto-revives if the agent is flagged 'wedged' past the threshold."""
+        spec = self._specs.get(tag)
+        if spec is None:
+            return {"ok": False, "error": f"unknown agent tag: {tag}"}
+        with self._lock:
+            if on:
+                self._auto_revive.add(spec.agent_id)
+            else:
+                self._auto_revive.discard(spec.agent_id)
+            armed = spec.agent_id in self._auto_revive
+        return {"ok": True, "tag": tag, "agent_id": spec.agent_id, "auto_revive": armed}
+
     def status(self, tag: str) -> Dict[str, Any]:
         """Quick status for one agent tag."""
         for row in self.registry():
@@ -512,9 +567,33 @@ class Launcher:
                         tag = next((t for t, s in self._specs.items() if s.agent_id == aid), aid)
                         threading.Thread(target=self._restart, args=(tag,), daemon=True).start()
 
-    def _restart(self, tag: str):
-        """Restart an agent after a brief cooldown (prevents crash-loops)."""
-        time.sleep(3)
+    def _restart(self, tag: str, reason: str = "crash"):
+        """Restart a crashed agent with exponential backoff + a hard cap (L3c anti crash-storm), freeing
+        the singleton lock first -- post-L5, launch() refuses while a stale holder lingers within its TTL,
+        so the old flat sleep(3) would silently fail to relaunch a hard-killed runner."""
+        spec = self._specs.get(tag)
+        aid = spec.agent_id if spec else tag
+        now = time.time()
+        if now - self._restart_last.get(aid, 0) > RESTART_RESET_S:
+            self._restart_attempts[aid] = 0            # ran healthy long enough -> fresh count
+        attempts = self._restart_attempts.get(aid, 0) + 1
+        self._restart_attempts[aid] = attempts
+        self._restart_last[aid] = now
+        if attempts > RESTART_MAX_ATTEMPTS:
+            try:
+                from core.comm.bus import get_bus
+                get_bus("launcher").broadcast("note",
+                    f"[supervisor] '{aid}' failed {RESTART_MAX_ATTEMPTS}x ({reason}); auto-restart stopped "
+                    f"-- needs a human (check stderr_tail / Revive).", meta={"via": "launcher-supervisor"})
+            except Exception:
+                pass
+            return
+        backoff = min(RESTART_BACKOFF_BASE * (2 ** (attempts - 1)), RESTART_BACKOFF_MAX)
+        time.sleep(backoff)
+        with self._lock:
+            proc = self._procs.get(aid)
+            dead_pid = proc.pid if proc else None
+        self._free_lock_for_relaunch(aid, dead_pid)    # clear the dead predecessor's lock so L5 doesn't block us
         self.launch(tag)
 
     def shutdown(self):

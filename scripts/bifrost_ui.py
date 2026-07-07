@@ -264,6 +264,21 @@ class Handler(BaseHTTPRequestHandler):
             tag = data.get("agent_id") or data.get("tag") or ""
             result = get_launcher().kill(tag)
             return self._json(result)
+        if path == "/launcher/revive":
+            tag = data.get("agent_id") or data.get("tag") or ""
+            result = get_launcher().revive(tag, reason="manual")
+            return self._json(result)
+        if path == "/launcher/snapshot":
+            from core.comm import session_state
+            result = session_state.save(label=data.get("label") or "")
+            return self._json(result)
+        if path == "/launcher/restore":
+            from core.comm import session_state
+            result = session_state.resume(label=data.get("label") or "launcher-restore")
+            return self._json(result)
+        if path == "/launcher/session-status":
+            result = get_launcher().session_snapshot()
+            return self._json(result)
         if path == "/reload":
             self._json({"ok": True, "reloading": True})
             threading.Thread(target=lambda: (time.sleep(0.3), _reexec()), daemon=True).start()
@@ -514,6 +529,20 @@ PAGE = r"""<!doctype html>
   .pill.on .dot{background:var(--user); box-shadow:0 0 8px var(--user)}
   .pill.on{color:var(--text)}
   .pill.off{opacity:.55}
+  /* Fleet Pulse — single at-a-glance system-health ring in the header */
+  .fpulse{width:12px;height:12px;border-radius:50%;flex:none;cursor:default;position:relative;
+    transition:background .4s,box-shadow .4s}
+  .fpulse::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:2px solid transparent;
+    transition:border-color .4s}
+  .fpulse.green{background:#5fd39b; box-shadow:0 0 10px rgba(95,211,155,.5)}
+  .fpulse.green::after{border-color:rgba(95,211,155,.35)}
+  .fpulse.amber{background:var(--amber); box-shadow:0 0 10px rgba(240,178,70,.5)}
+  .fpulse.amber::after{border-color:rgba(240,178,70,.35)}
+  .fpulse.red{background:var(--danger); box-shadow:0 0 10px rgba(240,102,110,.5); animation:fpulseRed 1.2s ease-in-out infinite}
+  .fpulse.red::after{border-color:rgba(240,102,110,.35); animation:fpulseRing 1.2s ease-in-out infinite}
+  @keyframes fpulseRed{0%,100%{box-shadow:0 0 6px rgba(240,102,110,.4)}50%{box-shadow:0 0 18px rgba(240,102,110,.7)}}
+  @keyframes fpulseRing{0%,100%{border-color:rgba(240,102,110,.25)}50%{border-color:rgba(240,102,110,.55);inset:-6px}}
+  @media (prefers-reduced-motion:reduce){.fpulse.red,.fpulse.red::after{animation:none}}
   button.ctl{
     font:inherit; font-size:13px; font-weight:600; color:var(--text); cursor:pointer;
     border:1px solid var(--border); background:var(--panel); padding:8px 14px; border-radius:10px;
@@ -530,7 +559,7 @@ PAGE = r"""<!doctype html>
   .banner.show{display:flex; animation:drop .25s ease}
   @keyframes drop{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
   /* messages */
-  #log{flex:1; overflow-y:auto; padding:20px 16px 8px; scroll-behavior:smooth}
+  #log{flex:1; overflow-y:auto; padding:20px 24px 8px; scroll-behavior:smooth}
   #log::-webkit-scrollbar{width:10px} #log::-webkit-scrollbar-thumb{background:#20232e;border-radius:6px;border:2px solid var(--bg)}
   .msg{display:flex; gap:12px; margin-bottom:18px; animation:fade .28s ease}
   @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
@@ -561,7 +590,7 @@ PAGE = r"""<!doctype html>
   .fidsel:hover{border-color:#39405a}
   .fidsel.interrupt{color:var(--danger); border-color:rgba(240,102,110,.4)}
   .fidsel.steer{color:var(--deepseek); border-color:rgba(122,162,247,.4)}
-  .content{white-space:pre-wrap; word-wrap:break-word; font-size:14.5px; color:#dce0ea}
+  .content{white-space:pre-wrap; word-wrap:break-word; font-size:14.5px; color:#dce0ea; line-height:1.55}
   .content code{background:#0c0e14; border:1px solid var(--border); border-radius:5px; padding:1px 5px;
     font:12.5px/1.5 "SF Mono",SFMono-Regular,Consolas,monospace}
   .content pre{background:#0b0d13; border:1px solid var(--border); border-radius:9px; padding:11px 13px;
@@ -579,7 +608,7 @@ PAGE = r"""<!doctype html>
   /* live trace: DeepSeek's tool calls + thinking, streamed as compact dim lines */
   .traceline{display:flex; gap:8px; align-items:baseline; margin:1px 0 1px 46px; font-size:12px;
     font-family:"SF Mono",SFMono-Regular,Consolas,monospace; animation:fade .18s ease}
-  .traceline .trav{font-weight:600; opacity:.75; flex:none}
+  .traceline .trav{font-weight:600; opacity:.85; flex:none; min-width:56px}
   .traceline .trav.deepseek{color:var(--deepseek)} .traceline .trav.claude{color:var(--claude)}
   .traceline .trav.system{color:var(--system)}
   .traceline .trat{color:var(--faint); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
@@ -675,52 +704,71 @@ PAGE = r"""<!doctype html>
     background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; font-size:17px;
     display:grid;place-items:center; transition:.15s} .send:hover{filter:brightness(1.1)} .send:disabled{opacity:.4;cursor:default}
   .hint{color:var(--faint); font-size:11.5px; margin:7px 4px 0; display:flex; gap:5px; align-items:center}
-  /* --- Slice 2: centered fidelity ladder + animated recipient selector --- */
+  /* --- recipient chip inside composer --- */
+  .recipient{display:flex; align-items:center; gap:6px; cursor:pointer; padding:4px 8px 4px 2px;
+    border-radius:10px; border:1px solid var(--border); background:var(--bg2); transition:.15s; min-width:0}
+  .recipient:hover{border-color:#39405a; background:var(--panel2)}
+  .rstack{display:flex; gap:2px; flex:none}
+  .rlabel{display:flex; align-items:center; gap:4px; font-size:12px; color:var(--muted);
+    overflow:hidden; white-space:nowrap; text-overflow:ellipsis}
+  .rlabel b{color:var(--text)}
+  .rlabel .cue{color:var(--faint); font-size:11px}
+  .cav{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;
+    font-weight:700; font-size:10px; color:#0a0b0f; flex:none}
+  /* --- roster popover (agent selector dropdown) --- */
+  .roster-pop{display:none; position:absolute; bottom:calc(100% + 4px); left:16px; z-index:15;
+    background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:6px;
+    box-shadow:var(--shadow); min-width:180px; animation:drop .18s ease}
+  .roster-pop.show{display:block}
+  .roster-pop .ri{display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:9px;
+    cursor:pointer; transition:.12s; font-size:13px; color:var(--text); margin-bottom:2px}
+  .roster-pop .ri:last-child{margin-bottom:0}
+  .roster-pop .ri:hover{background:var(--glass-hi)}
+  .roster-pop .ri.sel{background:rgba(122,162,247,.12)}
+  .roster-pop .ri .cav{width:24px;height:24px;border-radius:7px; flex:none}
+  .roster-pop .ri .chk{flex:1; text-align:right; font-size:12px; color:var(--accent); opacity:0}
+  .roster-pop .ri.sel .chk{opacity:1}
+  /* --- fidelity icons + agent selector (icon buttons with labels underneath) --- */
+  @keyframes rpulse{0%{box-shadow:0 0 0 0 rgba(122,162,247,.4)}100%{box-shadow:0 0 0 10px rgba(122,162,247,0)}}
   @property --spin{syntax:'<angle>'; inherits:false; initial-value:0deg}
   @keyframes ladderSweep{to{--spin:360deg}}
-  @keyframes rpulse{0%{box-shadow:0 0 0 0 rgba(122,162,247,.4)}100%{box-shadow:0 0 0 10px rgba(122,162,247,0)}}
-  .ladder{display:flex; justify-content:center; margin:0 0 10px}
-  .ladder .seg{font:inherit; font-size:12.5px; color:var(--muted); background:var(--bg2); border:1px solid var(--border);
-    border-right:none; padding:6px 16px; cursor:pointer; transition:.15s}
-  .ladder .seg:first-child{border-radius:10px 0 0 10px}
-  .ladder .seg:last-child{border-radius:0 10px 10px 0; border-right:1px solid var(--border)}
-  .ladder .seg:hover{color:var(--text)}
-  .ladder .seg.on{color:var(--text); background:var(--panel2); position:relative; z-index:1; box-shadow:0 0 22px -6px var(--accent)}
-  .ladder .seg.on::after{content:""; position:absolute; inset:-1px; border-radius:inherit; padding:1px; pointer-events:none;
+  .fibar{display:flex; gap:4px; align-items:center; justify-content:center; margin:0 0 8px}
+  .fibtn{display:flex; flex-direction:column; align-items:center; gap:2px; cursor:pointer; padding:7px 12px 5px;
+    border-radius:10px; border:1px solid var(--border); background:var(--bg2); color:var(--muted);
+    font:inherit; font-size:11px; transition:.18s; min-width:58px; text-align:center}
+  .fibtn .fi{font-size:18px; line-height:1; margin-bottom:1px}
+  .fibtn .fl{font-size:9.5px; font-weight:600; text-transform:uppercase; letter-spacing:.3px; color:var(--faint)}
+  .fibtn:hover{color:var(--text); border-color:#39405a; background:var(--panel2)}
+  .fibtn.on{color:var(--text); background:var(--panel2); border-color:var(--accent); position:relative; z-index:1; box-shadow:0 0 14px -4px var(--accent)}
+  .fibtn.on::after{content:""; position:absolute; inset:-1px; border-radius:inherit; padding:1px; pointer-events:none;
     background:conic-gradient(from var(--spin), var(--accent),var(--user),var(--claude),var(--accent2),var(--accent));
     -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0); -webkit-mask-composite:xor;
     mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0); mask-composite:exclude; animation:ladderSweep 4s linear infinite}
-  @media (prefers-reduced-motion:reduce){.ladder .seg.on::after{animation:none}}
-  .recipient{align-self:center; flex:none; display:flex; align-items:center; gap:9px; height:40px; padding:0 11px 0 7px;
-    border:1px solid var(--border); border-radius:11px; background:var(--bg2); cursor:pointer; transition:border-color .15s,background .15s}
-  .recipient:hover{border-color:var(--accent); background:rgba(122,162,247,.06)}
-  .recipient.pulse{animation:rpulse .5s cubic-bezier(.2,.9,.3,1.2)}
-  .rstack{display:flex; align-items:center; height:28px}
-  .rstack .cav{width:28px;height:28px;border-radius:8px; margin-left:-11px; box-shadow:0 0 0 2px var(--panel);
-    display:grid;place-items:center; font-size:11px;font-weight:700; color:#0a0b0f; will-change:transform,opacity}
-  .rstack .cav:first-child{margin-left:0}
-  .rlabel{display:flex; flex-direction:column; line-height:1.2; min-width:46px}
-  .rlabel b{font-size:12px; color:var(--text); font-weight:600; white-space:nowrap}
-  .rlabel .cue{font-size:9.5px; color:var(--faint); white-space:nowrap}
-  .roster-pop{display:none; position:absolute; bottom:66px; left:16px; z-index:20; background:var(--panel);
-    border:1px solid var(--border); border-radius:12px; padding:7px; box-shadow:var(--shadow); min-width:186px}
-  .roster-pop.show{display:block; animation:drop .16s ease}
-  .roster-pop .ri{display:flex; align-items:center; gap:9px; padding:7px 9px; border-radius:8px; cursor:pointer; font-size:13px; color:var(--text)}
-  .roster-pop .ri:hover{background:var(--panel2)}
-  .roster-pop .ri.sel{background:rgba(122,162,247,.12)}
-  .roster-pop .ri .cav{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;font-size:10px;font-weight:700;color:#0a0b0f}
-  .roster-pop .chk{margin-left:auto; color:var(--accent); font-size:13px; opacity:0}
-  .roster-pop .ri.sel .chk{opacity:1}
-  /* dropzone */
+  @media (prefers-reduced-motion:reduce){.fibtn.on::after{animation:none}}
+  .fibtn.chat .fi{color:var(--user)} .fibtn.steer .fi{color:var(--deepseek)} .fibtn.interrupt .fi{color:var(--danger)}
+  .fibtn.inform .fi{color:var(--user)}
+  /* agent selector row — icon buttons next to the ⏣ frame, inside composer */
+  .aselrow{display:flex; gap:0; align-items:center; margin:0 0 10px; justify-content:center}
+  .aselrow .asbtn{display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer;
+    padding:6px 10px 4px; border-radius:10px; border:1px solid transparent; background:transparent;
+    font:inherit; font-size:11px; color:var(--muted); transition:.18s; min-width:50px; text-align:center}
+  .aselrow .asbtn:hover{color:var(--text); background:var(--glass-hi); border-color:var(--border)}
+  .aselrow .asbtn.on{color:var(--text); border-color:var(--accent); background:rgba(122,162,247,.08)}
+  .aselrow .asbtn .ai{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;
+    font-weight:700; font-size:12px; color:#0a0b0f; flex:none}
+  .aselrow .asbtn .an{font-size:10px; font-weight:600; line-height:1; max-width:56px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .aselrow .asbtn .adot{width:5px;height:5px;border-radius:50%;background:var(--faint); margin-top:1px}
+  /* dropzone — softer overlay, smaller target */
   #drop{position:fixed; inset:0; z-index:20; display:none; place-items:center;
-    background:rgba(8,9,13,.82); backdrop-filter:blur(4px)}
-  #drop.show{display:grid; animation:fade .15s ease}
-  .dz{border:2.5px dashed var(--accent); border-radius:18px; padding:52px 74px; text-align:center;
-    background:rgba(122,162,247,.06); transition:border-color .2s,background .2s}
-  .dz.over{border-color:var(--aurora-neon, #48e6bf); background:rgba(72,230,191,.08);
-    box-shadow:0 0 40px rgba(72,230,191,.1)}
-  .dz .big{font-size:20px; font-weight:650; margin-bottom:5px}
-  .dz .sub{color:var(--muted); font-size:13px}
+    background:rgba(8,9,13,.65); backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px)}
+  #drop.show{display:grid; animation:fade .12s ease}
+  .dz{border:2px dashed var(--accent); border-radius:16px; padding:40px 56px; text-align:center;
+    background:rgba(122,162,247,.04); transition:border-color .2s,background .2s,box-shadow .2s}
+  .dz.over{border-color:var(--aurora-neon, #48e6bf); background:rgba(72,230,191,.06);
+    box-shadow:0 0 32px rgba(72,230,191,.08)}
+  .dz .big{font-size:18px; font-weight:650; margin-bottom:4px}
+  .dz .sub{color:var(--muted); font-size:12.5px; line-height:1.5}
   .dz .preview{display:none; margin-top:16px; max-width:320px; max-height:180px; border-radius:10px;
     border:1px solid var(--border); object-fit:contain}
   .dz .preview.show{display:block; margin-left:auto; margin-right:auto}
@@ -740,6 +788,12 @@ PAGE = r"""<!doctype html>
   .filecard .fc-thumb{flex:none; width:48px; height:48px; border-radius:8px;
     object-fit:cover; border:1px solid var(--border)}
   .filecard .fc-thumb.hidden{display:none}
+  /* image file card — larger, screenshot-friendly */
+  .filecard-img{flex-direction:column; align-items:stretch; max-width:480px; padding:0; overflow:hidden}
+  .filecard-img .fc-img{width:100%; max-height:360px; object-fit:contain; cursor:zoom-in;
+    border-radius:11px 11px 0 0; background:var(--bg); transition:max-height .3s}
+  .filecard-img .fc-img.expanded{max-height:none; border-radius:11px; cursor:zoom-out}
+  .filecard-img .fc-cap{display:flex; align-items:center; gap:10px; padding:10px 14px}
   /* toast */
   #toast{position:fixed; bottom:92px; left:50%; transform:translateX(-50%); z-index:30; display:flex; flex-direction:column; gap:8px}
   .toast{background:var(--panel2); border:1px solid var(--border); color:var(--text); padding:9px 15px;
@@ -769,6 +823,13 @@ PAGE = r"""<!doctype html>
   .lact .lkill{border-color:rgba(240,102,110,.35); color:var(--danger)}
   .lact .lkill:hover{background:rgba(240,102,110,.12)}
   .lact .lkill:disabled{opacity:.3; cursor:default}
+  .lact .lrevive{border-color:rgba(122,162,247,.4); color:var(--accent)}
+  .lact .lrevive:hover{background:rgba(122,162,247,.12)}
+  .lact .lrevive:disabled{opacity:.3; cursor:default}
+  .lv{font-size:11px; padding:2px 7px; border-radius:6px; margin-left:2px; white-space:nowrap}
+  .lv.lv-idle{opacity:.5}
+  .lv.lv-busy{background:rgba(122,162,247,.16); color:var(--accent)}
+  .lv.lv-wedged{background:rgba(240,102,110,.22); color:var(--danger); font-weight:600}
   .lreason{font-size:11px; color:var(--faint); margin-left:6px}
   button.lctl{
     font:inherit; font-size:12.5px; font-weight:600; color:var(--muted); cursor:pointer;
@@ -887,6 +948,7 @@ PAGE = r"""<!doctype html>
 <div class="app">
   <header>
     <div class="brand"><div class="logo"></div> Bifrost <small>live agent console</small></div>
+    <div class="fpulse green" id="fpulse" title="fleet: all clear"></div>
     <div class="spacer"></div>
     <div class="pills" id="pills"></div>
     <div id="tiles"></div>
@@ -981,7 +1043,7 @@ PAGE = r"""<!doctype html>
       <button class="send" id="sendBtn" onclick="send()">➤</button>
     </div>
     <div class="roster-pop" id="rosterPop"></div>
-    <div class="hint" id="fidhint">↳ Inform = adopt next turn · Steer = fold into current task (no stop) · Interrupt = drop &amp; switch · ⏸ Pause = freeze everyone</div>
+    <div class="hint" id="fidhint">↳ Inform = adopt next turn · Steer = fold into current task (no stop) · Interrupt = drop &amp; switch · ⏸ Pause = freeze everyone · 📎 Ctrl+V paste images or drag &amp; drop files</div>
   </div>
 </div>
 <div id="drop"><div class="dz" id="dropZone"><div class="big">Drop files to share</div><div class="sub">saved into the project · agents can read them with their tools<br><span style="color:var(--faint);font-size:11px;margin-top:4px;display:inline-block">also: Ctrl+V to paste images from clipboard</span></div><img class="preview" id="dropPreview"><div class="filenames" id="dropFilenames"></div></div></div>
@@ -1407,9 +1469,9 @@ function renderRecipient(){
   var isAll=_recips.length===1 && _recips[0]==='all';
   var ids=_recipIds(); if(!ids.length) ids=_aiRoster();
   animateGroup(stack, ids.slice(0,4), _cav);
-  label.innerHTML = isAll ? '<b>Broadcast</b><span class="cue">'+ids.length+' agent'+(ids.length===1?'':'s')+'</span>'
-                  : ids.length===1 ? '<b>'+esc(ids[0])+'</b><span class="cue">last messaged</span>'
-                  : '<b>'+ids.length+' agents</b><span class="cue">multi-cast</span>';
+  label.innerHTML = isAll ? '<b>Broadcast</b><span class="cue"> · '+ids.length+' agent'+(ids.length===1?'':'s')+'</span>'
+                  : ids.length===1 ? '<b>'+esc(ids[0])+'</b><span class="cue"> · last messaged</span>'
+                  : '<b>'+ids.length+' agents</b><span class="cue"> · multi-cast</span>';
   if(box){ box.classList.remove('pulse'); void box.offsetWidth; box.classList.add('pulse'); }
   var t=document.getElementById('target'); if(t){ t.value = isAll ? 'all' : (_recips.length===1 ? _recips[0] : 'all'); }
   renderRosterPop();
@@ -1519,11 +1581,60 @@ function applyStatus(s){
   renderHUD(s.activities||{});
   syncAuroraState(paused, Object.keys(s.halted||{}).length);
   refreshNarrButtons(s.narration || 'key');
+  updateFleetPulse(s);
   // renderRecipient() removed from poll loop — the recipient chip only changes on explicit user action
   // (roster click / setTarget). Calling it every 1.2s was doing getBoundingClientRect() layout thrash.
 }
 async function poll(){ try{ applyStatus(await (await fetch('/status')).json()); }catch(e){} }
-poll(); setInterval(poll, 1200);
+// Defer poll to requestAnimationFrame so the browser can interleave input events
+// during typing — this prevents the 1.2s poll cycle from blocking the main thread.
+function pollDeferred(){
+  requestAnimationFrame(function(){
+    poll().then(function(){
+      scheduleNextPoll();
+    });
+  });
+}
+function scheduleNextPoll(){ setTimeout(pollDeferred, 1200); }
+poll(); scheduleNextPoll();
+
+// --- Fleet Pulse: at-a-glance system-health ring in the header ---
+// green = all agents online + no halts + no lock contention
+// amber = one or more agents offline, halted, or have pending steers/nudges — but system is running
+// red   = system is paused, or an agent is in error/crash state
+function updateFleetPulse(s){
+  var fp=document.getElementById('fpulse'); if(!fp) return;
+  var halted=Object.keys(s.halted||{}).length;
+  var paused=!!s.paused;
+  var signals=s.signals||{};
+  var hasSteerOrNudge=false, hasError=false, hasOffline=false;
+  var agents=(s.agents||[]).map(function(a){return a.agent;}).filter(Boolean);
+  var known=s.known||[];
+  var onlineSet=new Set(agents);
+  // Check for offline known agents
+  known.forEach(function(a){
+    if(a!=='user' && !onlineSet.has(a)) hasOffline=true;
+  });
+  // Check signals for steer/nudge/error states
+  Object.keys(signals).forEach(function(a){
+    var g=signals[a]||{};
+    if(g.steer_pending||g.nudged) hasSteerOrNudge=true;
+    if(g.error||g.crashed||g.token_exhausted) hasError=true;
+  });
+  var cls, title;
+  if(paused||hasError){
+    cls='red'; title='fleet: '+(paused?'paused':'agent error')+' — attention needed';
+  } else if(halted>0||hasOffline||hasSteerOrNudge){
+    cls='amber'; title='fleet: '+
+      (halted>0?halted+' halted ':'')+
+      (hasOffline?'agent(s) offline ':'')+
+      (hasSteerOrNudge?'pending signals':'')+
+      ' — check';
+  } else {
+    cls='green'; title='fleet: all clear';
+  }
+  if(fp.className!==('fpulse '+cls)){ fp.className='fpulse '+cls; fp.title=title; }
+}
 
 // --- drag & drop + clipboard paste ---
 const drop=document.getElementById('drop'); const dropZone=document.getElementById('dropZone');
@@ -1559,20 +1670,28 @@ window.addEventListener('drop', async function(e){
   e.preventDefault(); var files=[...(e.dataTransfer.files||[])]; hideDropZone();
   for(var i=0;i<files.length;i++){ await upload(files[i]); }
 });
-// Clipboard paste: Ctrl+V / Cmd+V anywhere on the page (not inside textarea/input)
+// Clipboard paste: Ctrl+V / Cmd+V anywhere on the page.
+// In the composer: if the clipboard has an image, upload it. If text-only, let the textarea handle it.
+// Outside the composer: always try to upload any file.
 window.addEventListener('paste', function(e){
-  if(e.target.tagName==='TEXTAREA' || e.target.tagName==='INPUT') return; // don't steal from composer
   var items = (e.clipboardData||{}).items;
   if(!items) return;
-  var handled=false;
+  var inComposer = e.target.tagName==='TEXTAREA' || e.target.tagName==='INPUT';
+  // Check if clipboard has any files (images, etc.)
+  var hasFile=false;
+  for(var i=0;i<items.length;i++){
+    if(items[i].kind==='file'){ hasFile=true; break; }
+  }
+  if(!hasFile) return;   // text-only paste — let the textarea/input handle it normally
+  // File paste: upload all files, suppress default (prevents image navigating the page)
+  e.preventDefault();
   for(var i=0;i<items.length;i++){
     var item=items[i];
     if(item.kind==='file'){
       var f=item.getAsFile();
-      if(f){ handled=true; upload(f); }   // fire-and-forget
+      if(f) upload(f);
     }
   }
-  if(handled) e.preventDefault();  // prevent browser from doing default paste (e.g. navigating to file URL)
 });
 function upload(file){
   return new Promise(function(res){
@@ -1603,20 +1722,32 @@ function upload(file){
 }
 // Render an inline file card in the message log (like a chat bubble for files)
 function renderFileCard(info){
+  var isImage = (info.type||'').startsWith('image/');
   var icon=fileIcon(info.type||'', info.name||'');
   var size=formatBytes(info.bytes||0);
-  var card=document.createElement('div'); card.className='filecard';
-  var thumbHtml=info.thumb?'<img class="fc-thumb" src="'+esc(info.thumb)+'" loading="lazy">':'<div class="fc-thumb hidden"></div>';
-  card.innerHTML=thumbHtml+
-    '<div class="fc-icon">'+icon+'</div>'+
-    '<div class="fc-info"><div class="fc-name">'+esc(info.name||'file')+'</div><div class="fc-meta">'+size+' · dropbox/</div></div>';
-  // Click: open the file path (show toast with full path)
+  var card=document.createElement('div');
+  card.className='filecard'+(isImage?' filecard-img':'');
+  if(isImage && info.thumb){
+    // Image card: show the image as a large thumbnail with a small caption bar
+    card.innerHTML=
+      '<img class="fc-img" src="'+esc(info.thumb)+'" loading="lazy" onclick="this.classList.toggle(\'expanded\')" title="click to expand/collapse">'+
+      '<div class="fc-cap"><div class="fc-icon">'+icon+'</div>'+
+      '<div class="fc-info"><div class="fc-name">'+esc(info.name||'screenshot')+'</div>'+
+      '<div class="fc-meta">'+size+' · dropbox/</div></div></div>';
+  } else {
+    var thumbHtml=info.thumb?'<img class="fc-thumb" src="'+esc(info.thumb)+'" loading="lazy">':'<div class="fc-thumb hidden"></div>';
+    card.innerHTML=thumbHtml+
+      '<div class="fc-icon">'+icon+'</div>'+
+      '<div class="fc-info"><div class="fc-name">'+esc(info.name||'file')+'</div><div class="fc-meta">'+size+' · dropbox/</div></div>';
+  }
   card.title='dropbox/'+(info.name||'file')+' — ' + size;
-  card.onclick=function(){ toast('📂 dropbox/'+(info.name||'file')); };
+  card.onclick=function(e){
+    if(e.target.tagName==='IMG' && e.target.classList.contains('fc-img')) return; // let the click toggle expand
+    toast('📂 dropbox/'+(info.name||'file'));
+  };
   log.appendChild(card);
   autoscroll();
   // Also send as a regular user message so it appears like a chat bubble
-  // (the file card IS the visual — the backend broadcast already happened in _upload)
   allMsgs.push({kind:'chat',from:'user',content:'📎 shared **'+esc(info.name||'file')+'** ('+size+') → `dropbox/`',ts:new Date().toISOString()});
 }
 function fileIcon(type, name){
@@ -1669,10 +1800,11 @@ async function refreshLauncher(){
       return '<div class="lrow">'+
         '<span class="ltag">'+esc(a.tag)+pidInfo+'</span>'+
         '<span class="ldesc">'+esc(a.description||'')+'</span>'+
-        '<span class="lst '+cls+'">'+lbl+'</span>'+reason+
+        '<span class="lst '+cls+'">'+lbl+'</span>'+reason+lvBadge(a)+
         '<span class="lact">'+
           '<button class="lgo" onclick="launchAgent(\''+esc(a.tag)+'\')" '+(running||!a.enabled?'disabled':'')+'>'+
             (running?'running':'▶ Launch')+'</button>'+
+          '<button class="lrevive" onclick="reviveAgent(\''+esc(a.tag)+'\')" '+(!running?'disabled':'')+' title="kill + relaunch — recovers a wedged runner">↻ Revive</button>'+
           '<button class="lkill" onclick="killAgent(\''+esc(a.tag)+'\')" '+(!running?'disabled':'')+'>'+
             '✕ Kill</button>'+
         '</span></div>';
@@ -1702,6 +1834,29 @@ async function killAgent(tag){
     else toast('❌ '+(j?j.error:'failed to kill '+tag));
     refreshLauncher();
   }catch(e){ toast('kill failed'); }
+}
+// L3a badge: show an agent's live phase + time-in-phase; highlight a suspected wedge.
+function lvBadge(a){
+  const L=a.liveness;
+  if(!L||a.status!=='running') return '';
+  const s=Math.round(L.stuck_seconds||0);
+  const idle=(L.phase==='idle'||L.phase==='online');
+  const txt=idle?'idle':(esc(L.phase)+(L.detail?(' · '+esc(String(L.detail))):'')+' · '+s+'s');
+  const cls=L.wedged?'lv-wedged':(idle?'lv-idle':'lv-busy');
+  return '<span class="lv '+cls+'" title="turn '+(L.turn||0)+' · '+esc(L.phase)+' for '+s+'s'+
+    (L.wedged?' — SUSPECTED WEDGE':'')+'">'+txt+'</span>';
+}
+// L3b: kill + relaunch a wedged/dead runner (frees the singleton lock first, server-side).
+async function reviveAgent(tag){
+  toast('↻ reviving '+tag+'…');
+  try{
+    const r=await fetch('/launcher/revive',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({agent_id:tag})});
+    const j=await r.json();
+    if(j&&j.ok) toast('✅ '+tag+' revived (pid '+j.pid+')');
+    else toast('❌ '+(j?j.error:'failed to revive '+tag));
+    refreshLauncher();
+  }catch(e){ toast('revive failed'); }
 }
 // poll launcher status when open
 const LPOLL=setInterval(()=>{ if(lnchrOpen) refreshLauncher(); }, 5000);
