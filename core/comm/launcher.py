@@ -221,6 +221,7 @@ class Launcher:
 
     def registry(self) -> List[Dict[str, Any]]:
         """All launchable agents + their current run status. For the UI."""
+        from core.comm import liveness   # L3a: observe-only wedge view (fail-open; None when no record)
         self._reload()
         out = []
         with self._lock:
@@ -241,6 +242,7 @@ class Launcher:
                     "exit_seen_at": proc.exit_seen_at if proc else "",
                     "stdout_tail": (proc.stdout_tail or "")[-200:] if proc else "",
                     "stderr_tail": (proc.stderr_tail or "")[-200:] if proc else "",
+                    "liveness": liveness.wedge_view(spec.agent_id),   # L3a: observe-only phase + stuck-time + wedged flag
                 })
         return out
 

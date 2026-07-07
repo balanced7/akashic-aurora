@@ -20,12 +20,19 @@ Two independent staleness signals a reader can derive:
   * ``now - beat_ts``  large                      -> the heartbeat thread itself stopped
 """
 import json
+import os
 import threading
 import time
 
 NS = "bifrost"
 WORKLIVE_PREFIX = f"{NS}:worklive:"
 WORKLIVE_TTL = 45          # > the ~5s heartbeat refresh, so a live record never flaps; a wedge keeps it alive
+
+# Phases that mean "not doing work" -- never counted as a wedge no matter how long they last.
+IDLE_PHASES = {"idle", "online", "replied"}
+# Time in a NON-idle phase beyond which we FLAG (not kill) a suspected wedge. Deliberately past L0's
+# worst-case self-heal (read-timeout x retries ~= a few minutes) so "wedged" means "L0 didn't fix it".
+DEFAULT_WEDGE_S = float(os.getenv("BIFROST_WEDGE_SECONDS", "300"))
 
 
 def _client():
@@ -122,3 +129,34 @@ def stuck_seconds(agent: str):
         return max(0.0, time.time() - float(rec["since_ts"]))
     except Exception:
         return None
+
+
+def wedge_view(agent: str, wedge_s: float = None):
+    """A reader's summary for the roster / watchdog (L3/L2): current phase, time-in-phase,
+    beat age, and a heuristic ``wedged`` flag (in a non-idle phase past the threshold).
+    Observe-only -- callers DISPLAY this; acting on it (kill/revive) is a later, gated layer.
+    Returns None when there is no record (agent down / bus unreachable). Never raises.
+
+    Caveat (honest): a genuinely long single phase (e.g. a 5-min generation or a long test run)
+    also reads as high ``stuck_seconds``; distinguishing legit-long from truly-hung needs a
+    per-token/per-tool progress signal (L2's job). Treat ``wedged`` as a hint, not proof."""
+    rec = read(agent)
+    if not rec:
+        return None
+    now = time.time()
+    try:
+        stuck = max(0.0, now - float(rec.get("since_ts", now)))
+        beat_age = max(0.0, now - float(rec.get("beat_ts", now)))
+    except Exception:
+        stuck, beat_age = 0.0, 0.0
+    phase = rec.get("phase", "?")
+    thr = DEFAULT_WEDGE_S if wedge_s is None else float(wedge_s)
+    return {
+        "phase": phase,
+        "detail": rec.get("detail", ""),
+        "turn": rec.get("turn", 0),
+        "stuck_seconds": round(stuck, 1),
+        "beat_age": round(beat_age, 1),
+        "wedged": (phase not in IDLE_PHASES) and stuck >= thr,
+        "wedge_threshold": thr,
+    }
