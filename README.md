@@ -5,7 +5,7 @@
 [![CI](https://github.com/balanced7/akashic-aurora/actions/workflows/ci.yml/badge.svg)](https://github.com/balanced7/akashic-aurora/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](#quickstart)
-[![Tests](https://img.shields.io/badge/tests-601%20green-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-733%20green-brightgreen.svg)](tests/)
 
 Most agent memory answers *"what did we store?"* and is graded on retrieval quality. Whether a remembered lesson actually **changed what the agent did — and whether that helped** — usually goes unmeasured, because measuring it takes three things at once: injection at the moment of action, an outcome record, and a credit loop connecting them.
 
@@ -114,15 +114,15 @@ Design rules that hold it together (the full set, each with the episode that ear
 
 ## What's proven, tested, and not yet
 
-Built in small **test-gated slices** — no capability lands without the test that proves it. **601 tests** run on every push (full suite + boundary checker + doc-freshness guard, against a live Redis service).
+Built in small **test-gated slices** — no capability lands without the test that proves it. **733 tests** run on every push (full suite + boundary checker + door-parity and built-≠-wired reachability gates + doc-freshness guard, against a live Redis service).
 
 **Proven live (not just unit-tested)**
 - The full recall loop, end to end: surface → impression → transcript-synthesized failure → outcome credit. First credited flip landed 2026-07-01, in-session, and the payload contract is pinned to live-captured fixtures.
 - A **free local model as a first-class agent**: glm-4.7-flash behind the same Claude Code harness ran real repo commands with every hook firing and its lessons attributed — then worked a 7-task research shift overnight, unattended (5 articles accepted at review; the 3 failures were all the same diagnosable cause, now encoded back into the task format).
-- **The system measures its own memory**: `py agent_cli.py triage` reports, from live counters, that 8 lessons currently hold all earned credit while 94 have surfaced five-plus times with zero return. Internal numbers, small corpus — but they exist, and they steer what we curate next.
+- **The system measures its own memory**: from live counters, a 47-lesson corpus has drawn 26 outcome credits across ~2,700 surfaced impressions (a 1.1% value rate), while `py agent_cli.py triage` flags dozens of lessons that surface five-plus times yet never pay off. Internal numbers, small corpus — but they exist, and they steer what we curate next.
 
 **Solidly tested**
-- Foundation (all three backends, CAS/atomic update, time unification, supersession) · shared primitives (Ranker, Distiller, Consolidator, faithfulness critic) · narrative spine (~100 tests incl. a fuzzed CRDT) · events · Bifrost bus + locks + git-guard · recall ranking, anti-repeat, warm cache, usefulness factor · the CLI/MCP door ("no silent verb" is itself a test).
+- Foundation (all three backends, CAS/atomic update, time unification, supersession) · shared primitives (Ranker, Distiller, Consolidator, faithfulness critic) · narrative spine (~100 tests incl. a fuzzed CRDT) · events · Bifrost bus + locks + git-guard · the governed coordination substrate (task-ledger state machine + conductor) · recall ranking, anti-repeat, warm cache, usefulness factor · the CLI/MCP door ("no silent verb" is itself a test).
 
 **Tested with honest caveats**
 - The faithfulness critic is characterized for zero false-positives on today's extractive output; discrimination on abstractive (LLM-written) text is unproven until an LLM writer exists.
@@ -165,8 +165,8 @@ records — every finding with its citation — are in [`research/reviewed/`](re
    harness reported tool failures; live payload capture proved it doesn't (failures emit
    no event at all), so we pivoted to synthesizing the failure half from session
    transcripts — that pivot is why the credit loop works. So far, internally: the loop
-   runs live, and credit concentrates in a small core (8 of 127 tracked lessons hold all
-   of it). Next: a replay benchmark over the append-only ledger, adopting the
+   runs live, and credit still concentrates in a small core of the corpus. Next: a replay
+   benchmark over the append-only ledger, adopting the
    perturbation-stability check we liked in [CMI (2605.17641)](https://arxiv.org/abs/2605.17641)
    and adding the error-trace confound control we didn't find there
    ([`docs/leapfrog-plan.md`](docs/leapfrog-plan.md)).
