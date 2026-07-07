@@ -71,6 +71,30 @@ explicitly declined ([JOURNEY: July 3](JOURNEY.md#the-system-measured-itself-and
 *Would revise it:* a replay benchmark strong enough to serve as a closed-loop oracle —
 and even then, with the substrate as the safety net.
 
+## 8. Coordinate through the environment, not by conversation
+
+Agents coordinate by reading shared *markers* — advisory leases, the ledger, promoted context —
+not by broadcasting at each other. Direct chatter is precisely where a fast, context-fragile model
+gets derailed (the July retrospective's ambient-context failure), and the same instinct kept
+recurring: two agents on one ledger, path-locks others read and route *around*, pull-on-boot over
+push-notify. The name (stigmergy) and the conviction were earned by studying actor/OTP, ROS, and
+game-engine crowd AI ([architecture-research-actor-ros-stigmergy-2026-07.md](architecture-research-actor-ros-stigmergy-2026-07.md))
+and again when designing multi-agent recall ([memory-recall-multiagent-design-2026-07.md](memory-recall-multiagent-design-2026-07.md)):
+prefer a readable environment over a noisy channel.
+*Would revise it:* a case where proactive push measurably beats pull without the pollution cost —
+the sync-barrier's "everyone checkpoint now" is the one warranted push, and even it is deterministic,
+not conversational.
+
+## 9. Observability must never break what it observes
+
+Counters, heartbeats, telemetry *fail open* — on error they return, they never raise into the path
+they measure. The whole control/liveness layer is built this way: a down bus means no signal, never a
+wedged agent. The moment instrumentation can crash the thing it watches, you stop trusting it and stop
+looking — and a system you've stopped looking at is one you've stopped understanding.
+*Would revise it:* a case where a silent observability failure hid a problem worse than a crash would
+have — the answer is a *separate* health check that notices the silence (the narrative health counters
+do exactly this), not making the counter itself fatal.
+
 ---
 
 ## The question underneath (speculative, and worth stating)

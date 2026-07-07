@@ -1,98 +1,62 @@
-# AI Control Center - File Structure
+# Docs map — what to read, and what's living vs. history
 
-## Quick Start (For AI Models)
+The one-screen guide to the documentation. Two kinds of docs live here, and telling them apart is
+the whole point (an old design note read as current truth is how a project stops being understandable):
 
-**FIRST - Run bootstrap initialization:**
-```bash
-python E:\AI-Setup\init_ai.py
-```
+- **LIVING docs** (`UPPERCASE.md`) — kept current; the map you trust *now*. Listed below.
+- **Design & history** (`lowercase-*.md`, often dated) — point-in-time plans/research/decisions.
+  Valuable for the *why*, NOT maintained as current. Read them as artifacts, findable by filename.
 
-This will auto-activate logging and show system status.
-
----
-
-## Directory Structure
-
-```
-E:\AI-Setup\
-├── init_ai.py                    # [MUST RUN] Context loader for AI models
-├── bootstrap.md                  # [MUST READ] Quick start for AI models
-├── knowledge_base.py            # Redis KB library (import this)
-├── SETUP_STATUS.md              # Main documentation (historical)
-│
-├── docs\                        # [CENTRALIZED DOCS]
-│   ├── INDEX.md                 # This file - quick reference
-│   ├── README.md                # KB system overview
-│   ├── GPU.md                   # GPU setup & issues
-│   ├── SERVICES.md              # Service configurations
-│   ├── TROUBLESHOOTING.md       # Common issues & fixes
-│   └── MODELS.md                # AI models info
-│
-├── launch_dashboard.py          # Dashboard launcher script
-├── system_diagnostic.py          # Window/service diagnostic
-├── check_kb.py                  # Check KB contents
-│
-├── save_*.py                    # Various save scripts
-│   ├── save_diagnostic.py
-│   ├── save_gpu_fix.py
-│   ├── save_gpu_status.py
-│
-├── dockerized-ai\              # Docker services
-│   ├── docker-compose.yml
-│   ├── services\
-│   │   ├── dashboard\          # [DEPRECATED] Streamlit dashboard
-│   │   ├── dashboard-react\    # [CURRENT] React + Vite + FastAPI
-│   │   ├── yolo\              # YOLO vision service
-│   │   ├── whisper\            # Speech-to-text
-│   │   └── ... (other services)
-│   └── ollama\
-│       └── docker-compose.wsl2.yml  # Working Ollama config
-│
-└── dist\                        # Built executables
-    └── AI Dashboard.exe
-```
+> **Convention:** if a doc must stay true, name it `UPPERCASE.md` and keep it in the living set. If it
+> captures a moment (a plan, a research pass, a decision), give it a lowercase, ideally dated name and
+> let it fossilize honestly. `check_comprehensibility.py` guards the living set.
 
 ---
 
-## Key Files for AI Models
+## Start here (read order)
+1. **[ARCHITECTURE.md](ARCHITECTURE.md)** — the whole system at subsystem altitude (the map).
+2. **[LEXICON.md](LEXICON.md)** — the ubiquitous language (one term, one meaning).
+3. **[PRINCIPLES.md](PRINCIPLES.md)** — *why* the software is shaped this way.
+4. `py agent_cli.py boot claude` — the live "where are we right now" state.
+5. **[ROADMAP.md](ROADMAP.md)** — the sequenced plan and what's next.
 
-| Priority | File | Purpose |
-|----------|------|---------|
-| 1 | `init_ai.py` | Initialize & load all context |
-| 2 | `knowledge_base.py` | Read/write Redis learnings |
-| 3 | `docs\INDEX.md` | Quick reference |
-| 4 | `docs\GPU.md` | GPU troubleshooting |
-| 5 | `docs\TROUBLESHOOTING.md` | Common issues |
+## The living docs (kept current)
+
+**Comprehension — the mental model**
+| Doc | What it is | Rot-guard |
+|-----|-----------|-----------|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | the layer map, subsystem altitude | stable altitude + `check_comprehensibility.py` |
+| [MODULE_INDEX.md](MODULE_INDEX.md) | every module's one-line job | auto-generated (`gen_arch_index.py`) |
+| [LEXICON.md](LEXICON.md) | the ubiquitous language | stable altitude |
+| [PRINCIPLES.md](PRINCIPLES.md) | the earned working principles | stable; each names what would revise it |
+| [JOURNEY.md](JOURNEY.md) | the story of how we got here | append-only narrative |
+| [FOSSILS.md](FOSSILS.md) | abandoned decisions + what they taught | append-only |
+
+**Plan & voice**
+- [ROADMAP.md](ROADMAP.md) — the layered plan + sequenced next steps.
+- [VOICE.md](VOICE.md) — the rules for anything the project says publicly.
+- [FSQ.md](FSQ.md) — frequently anticipated skeptical questions (honest answers).
+
+**Operations (how to run/fix it)**
+- [DEPLOY.md](DEPLOY.md) · [SERVICES.md](SERVICES.md) · [GPU.md](GPU.md) ·
+  [TROUBLESHOOTING.md](TROUBLESHOOTING.md) · [BACKUP_AND_RECOVERY.md](BACKUP_AND_RECOVERY.md)
+
+**The contract (repo root)**
+- [../README.md](../README.md) — what this is. [../AGENTS.md](../AGENTS.md) — the contract every agent honors.
+- [../CONTRIBUTING.md](../CONTRIBUTING.md) — how to change it. [../bootstrap.md](../bootstrap.md) — agent quick-start.
+
+## Design & history (point-in-time, NOT maintained)
+~55 lowercase docs capture plans, research, and decisions at a moment. They explain *why*, not *now*.
+Notable recent ones (2026-07):
+- [agent-failure-modes-retrospective-2026-07.md](agent-failure-modes-retrospective-2026-07.md) +
+  [-mitigation-roadmap-2026-07.md](agent-failure-modes-mitigation-roadmap-2026-07.md) — the reliability arc (L0–L4).
+- [architecture-research-actor-ros-stigmergy-2026-07.md](architecture-research-actor-ros-stigmergy-2026-07.md) — the supervisor-tree / stigmergy research.
+- [memory-recall-multiagent-design-2026-07.md](memory-recall-multiagent-design-2026-07.md) — the multi-agent recall assessment.
+
+The rest (`*-plan.md`, `*-research.md`, `*-design.md`, `codex-*`, `bifrost-*`, `narrative-*`, …) are
+historical design records — grep `docs/` by topic. If one becomes load-bearing-current, promote it to
+an `UPPERCASE.md` living doc; otherwise let it stand as the dated artifact it is.
 
 ---
-
-## Usage
-
-### For AI Models - Get Context
-```python
-from init_ai import initialize
-context = initialize()
-# Returns dict with KB status, system state, learnings, docs
-```
-
-### For Humans - Launch Dashboard
-```
-Double-click: C:\Users\L5\Desktop\AI_Dashboard.exe
-```
-
-### Manual Dashboard (CURRENT - React)
-```bash
-cd E:\AI-Setup\dockerized-ai\services\dashboard-react
-npm run dev
-# Opens at http://localhost:3001
-```
-
-**[DEPRECATED] Streamlit Dashboard** (port 8501)
-```bash
-streamlit run E:\AI-Setup\dockerized-ai\services\dashboard\app.py
-```
-Use `dashboard-react` instead.
-
----
-
-## Updated: 2026-04-13
+*Keep this list to the LIVING set (it changes rarely). Don't index every dated design doc here — that
+would make this rot too. Last structural review: 2026-07-06 (replaced a 2026-04 fossil).*

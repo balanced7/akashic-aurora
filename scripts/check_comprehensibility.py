@@ -65,10 +65,20 @@ def main():
 
     # D. comprehension-doc age vs the newest core change
     nc = _newest_core_mtime()
-    for doc in ("docs/ARCHITECTURE.md", "docs/LEXICON.md"):
+    for doc in ("docs/ARCHITECTURE.md", "docs/LEXICON.md", "docs/INDEX.md"):
         p = os.path.join(ROOT, doc)
         if os.path.exists(p) and os.path.getmtime(p) < nc - STALE_DAYS * 86400:
             warns.append(f"{doc} is >{STALE_DAYS}d older than the newest core/ change -> review for drift")
+
+    # E. every LIVING doc (UPPERCASE docs/*.md) is in the docs map (INDEX.md), so none rots unseen
+    index = _read("docs/INDEX.md")
+    living = [f for f in os.listdir(os.path.join(ROOT, "docs"))
+              if f.endswith(".md") and f == f.upper().replace(".MD", ".md") and f[0].isupper()
+              and f not in ("INDEX.md",)]
+    unlisted = [f for f in sorted(living) if f not in index]
+    if unlisted:
+        warns.append(f"living doc(s) not in the docs map (INDEX.md): {', '.join(unlisted)} "
+                     f"-> add them, or rename to lowercase if they're just history")
 
     for w in warns:
         print("WARN:", w)
