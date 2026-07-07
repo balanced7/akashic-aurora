@@ -45,6 +45,14 @@ Two prior decisions snap in: **hats** = the ultimate load-reducer (see only your
 ## Proposed sequence (finish the membrane, heaviest-load first)
 1. **Unify the door** — the biggest load. A single verb registry both CLI and MCP project from + a
    `test_door_parity.py` gate so they can't drift. (Bus verbs surfaced too, or explicitly scoped.)
+   - **1a ✅ SHIPPED 2026-07-06 — door-parity guard.** `scripts/check_door_parity.py` makes the surface
+     EXPLICIT (CLI 33 / MCP 22 / bus 18) and RATCHETS it: every verb classified (16 shared / 17 cli-only /
+     6 mcp-only), fails on a new unclassified verb or a shared regression; wired into `ship.py`. Bus is a
+     separate programmatic door (reported, not parity-enforced in v1). Stops new drift; freezes today's debt.
+   - **1b (next) — pay down the 12 tracked CLI↔MCP gaps:** `note, notes, list, tag_anti_pattern, lock,
+     unlock, locks, fleet, bifrost_nudge, bifrost_broadcast, bifrost_inbox, bifrost_presence`. Add MCP
+     twins (esp. `note`/`notes`/`lock*` — a shell-less agent can't record a decision or claim a lock today).
+     Endgame: one registry both doors project from, so parity is structural, not a test after the fact.
 2. **Built≠Wired gate** (`check_wiring.py`) — the maintainability guard: fail if a capability exists +
    passes tests but isn't on a production call path. Directly serves the adherence↔maintainability balance.
 3. **Surface → orientation** — inject the relevant ARCHITECTURE/LEXICON slice at the tool boundary, so an
