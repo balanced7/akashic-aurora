@@ -47,11 +47,8 @@ EXCEPTIONS = {
     "core/narrative/tag_governance.py": "built-ahead: governed re-tag write path",
     "core/perspectives/reinforce.py": "built-ahead: perspectives ReinforcedGraph",
     "core/perspectives/schema.py": "built-ahead: perspectives Map/Lens schema",
-    # legacy / deprecated -- superseded; deletion candidates (a later boy-scout slice)
-    "core/signals/coordinator_service.py": "legacy: pre-Bifrost coordinator; superseded",
-    "core/state/redis_sync_coordinator.py": "legacy: deprecated facade (see ARCHITECTURE.md)",
-    "core/state/sync_reconciler.py": "legacy: state reconciler; superseded by Store CAS",
-    "core/state/session_recovery.py": "legacy: pre-Bifrost session recovery",
+    # unwired diagnostic -- kept, not on a runtime path (name-collision cleanup pending)
+    "core/state/session_recovery.py": "session-HISTORY diagnostic (distinct from session_state's crash-resume); unwired -- rename+wire or retire later",
 }
 
 

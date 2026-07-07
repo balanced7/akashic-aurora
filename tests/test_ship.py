@@ -31,9 +31,11 @@ def _labels(plan):
 def test_full_plan_order():
     plan = ship.build_plan(_args())
     labels = _labels(plan)
-    # gate BEFORE commit, then snapshot
-    assert labels == ["guard: boundaries", "guard: doc-freshness", "tests (full suite)",
-                      "commit + push", "snapshot"], labels
+    # gate BEFORE commit, then snapshot. Guards grew with the membrane work (comprehensibility /
+    # door-parity / wiring) -- assert the fixed anchors + that every guard runs before the tests+commit.
+    assert labels[0] == "guard: boundaries" and labels[1] == "guard: doc-freshness", labels
+    assert labels[-3:] == ["tests (full suite)", "commit + push", "snapshot"], labels
+    assert all("guard" in l for l in labels[:labels.index("tests (full suite)")]), labels
     commit = dict(plan)["commit + push"]
     assert "scripts/mirror.py" in commit and "a.py" in commit and "b.py" in commit, commit
     assert "msg" in commit, "commit message is passed to mirror"

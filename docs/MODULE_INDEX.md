@@ -17,10 +17,9 @@
 - `event_log.py` — EventLog (Slice 1) -- capture raw cross-agent events on an append-only Ledger.
 - `event_query.py` — EventQuery (Slice 3) -- search and time-window the raw event firehose.
 
-## core/signals/  (3 modules)
+## core/signals/  (2 modules)
 - `agent_signal_ledger.py` — Agent Signal Ledger: the ordered record of every signal agents emit
 - `coordinator_api.py` — Coordinator API: Minimal signal-based logging for agents
-- `coordinator_service.py` — Coordinator Service: Background monitoring and decision synthesis
 
 ## core/comm/  (14 modules)
 - `bifrost_api.py` — bifrost.api -- the one door an agent uses to join and work the Bifrost bus.
@@ -91,11 +90,9 @@
 - `caller.py` — The direct caller -- one-shot invocation of a local model for a BOUNDED subtask.
 - `roster.py` — The fleet roster -- the single source of truth for local models (docs/fleet-dispatch-design.md).
 
-## core/state/  (4 modules)
-- `redis_sync_coordinator.py` — Redis Sync Coordinator: DEPRECATED facade over the Pillar 0 primitives
+## core/state/  (2 modules)
 - `session_recovery.py` — Session Recovery: Recover from checkpoint and fallback infrastructure
 - `session_state.py` — Session State: Checkpoint & recovery system
-- `sync_reconciler.py` — Sync Reconciler: Detect and heal Redis<->File divergence
 
 ## core/codex/  (2 modules)
 - `lifecycle.py` — Node lifecycle (Slice C2, delta E3) -- bi-temporal stamping + supersession as TYPE-AGNOSTIC

@@ -46,9 +46,9 @@ no translation layer. When you reach for a name, reach for one of these.
 - **fail-fast connector** — `connect_to_redis_with_fail_fast`: the ONLY sanctioned
   way to reach Redis. Probes reachability first so a down Redis fails in ~seconds,
   not ~48s. (Enforced by `scripts/check_boundaries.py`.)
-- **StoreReconciler** — heals divergence between a HybridStore's Redis and File
-  backends (backfills Redis from the durable File on cold-start).
-  `sync_state_reconciling_divergence()`.
+- **Redis↔File reconcile** — `HybridStore.check_drift()` / `reconcile()` heal divergence by
+  backfilling Redis from the durable File (the source of truth) after Redis was down. Wired into
+  cold-start boot (`agent_cli cmd_boot`). (The old `StoreReconciler` wrapper was retired 2026-07-07.)
 
 ## Domain (Systems 1–3, `core/`)
 
@@ -60,8 +60,6 @@ no translation layer. When you reach for a name, reach for one of these.
 - **SignalEmitter** — the agent-facing API for emitting signals
   (`emit_decision_referenced_by_agents`, etc.). Single source of truth for
   `SignalType`.
-- **CoordinatorService** — replays the firehose and reacts: caches decisions,
-  builds briefings, escalates blockers, routes learnings.
 - **LearningStore** — experiment-outcome learnings (the `learn:` namespace).
   Success vocabulary is canonical `{yes, partial, no}`; keyed by `experiment_name`.
 - **AgentMemory** — the richer multi-type memory (the `mem:` namespace): decisions
