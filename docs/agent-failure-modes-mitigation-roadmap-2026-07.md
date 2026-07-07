@@ -85,17 +85,21 @@ child of a nonexistent root.
 one-click revivable.** Ship in strict sub-order; each piece is independently testable.
 
 ### L0 — Hard timeouts (the cheapest real G4 fix) — **do this first**
-- **Build:** Pass an explicit `timeout=` to the `OpenAI(...)` constructor (runner lines
-  69, 95) **and** a streaming read-timeout on the `for chunk in stream` loop. Wrap each
-  `toolbox.execute()` / tool call in a hard per-call wall-clock (the tools already take
-  `timeout=`; enforce a ceiling and ensure `run_command`'s subprocess timeout can't be
+- **Build:** Pass **both** `timeout=` **and an explicit `max_retries=`** to the
+  `OpenAI(...)` constructor (runner lines 69, 95) — the SDK default `max_retries=2` retries
+  `APITimeoutError`, so timeout alone means a hung call surfaces after ≈`timeout × 3`. Also
+  wrap each `toolbox.execute()` / tool call in a hard per-call wall-clock (tools already
+  take `timeout=`; enforce a ceiling and ensure `run_command`'s subprocess timeout can't be
   overridden past the cap).
-- **Why first:** the dominant wedge (hung model/tool call) becomes a caught exception
-  that `deepseek_chat.py`'s existing `try/except` around `_stream_turn` already turns
-  into a returned error string, reviving the loop with **zero new infrastructure**.
+- **Why first / VERIFIED:** empirically confirmed (see open-question #1) — a `timeout=`
+  aborts both pre-data and mid-stream stalls within ~timeout, raising `ReadTimeout`, which
+  `deepseek_chat.py`'s existing `try/except` at `send()` (lines 771-777) already catches →
+  returns "", loop continues. So the dominant wedge is revived with **near-zero new
+  infrastructure**. Recovery is *abandon-turn* (the triggering message is popped), not
+  resume — good enough to unwedge; graceful resume is a later layer.
 - **Closes:** most of G4. **Files:** `bifrost_runner_deepseek.py`, `scripts/deepseek_chat.py`.
-- **Effort:** S. **Risk:** verify the streaming socket read is actually cancellable by
-  the SDK timeout (some blocking C-extension reads are not — that residual is L3's job).
+- **Effort:** S. **Residual:** a slow-dribble stream (bytes below the per-read timeout,
+  forever) won't trip the read timeout — that's L3's total-generation wall-clock, not L0's.
 
 ### L1 — Work-progress heartbeat (pure observability, zero behavior change)
 - **Build:** `core/comm/liveness.py` (~80 lines). Redis key `bifrost:worklive:<agent>` =
@@ -475,10 +479,22 @@ not days, and each removes a live hazard.
 
 ## Sharpest open questions
 
-1. **Is the OpenAI SDK streaming read actually cancellable by `timeout=`?** L0's entire
-   value rests on it. If a blocking C-extension socket read ignores the timeout, only
-   L3/L4 external kill recovers a hung model call — verify empirically before rating G4
-   "closed."
+1. **[RESOLVED 2026-07-06 — empirically confirmed]** *Is the OpenAI SDK streaming read
+   cancellable by `timeout=`?* **YES.** Test (openai 2.24.0 / httpx 0.28.1) against a
+   server that sends 200+SSE headers then stalls: `timeout=3` aborted a **pre-data** stall
+   in 3.37s and a **mid-stream** stall in 3.01s, both raising `ReadTimeout`; with **no**
+   timeout (current runner) the same stall **hung indefinitely** (>12s cap) — reproduces
+   G4. The httpx read timeout fires **per chunk read**, so mid-generation hangs are caught.
+   `send()` already wraps `_stream_turn()` in `try/except Exception` (deepseek_chat.py
+   771-777), so the `ReadTimeout` is already handled → returns "", loop continues. **L0 is
+   confirmed as the primary in-process G4 fix.** Caveats folded into L0 below:
+   (a) **`max_retries`** — the SDK default is 2 and it retries `APITimeoutError`, so a hung
+   call surfaces after ≈`timeout × 3`; L0 must set `max_retries` explicitly.
+   (b) **recovery = abandon-turn, not resume** — on timeout `send()` returns "" and pops the
+   triggering user message, so the agent is unwedged but the in-flight request is dropped
+   (acceptable for L0; graceful retry/resume is a later layer).
+   (c) **residual** — a slow-*dribble* server (bytes below the per-read timeout, forever)
+   would not trip it; that residual is L3's total-generation wall-clock, already planned.
 2. **What exactly re-invokes the wake listener (the Stop-hook contract)?** D4's zero-cost
    in-process re-arm is unverified against its own trigger; it was not in the reviewed
    files. If the hook re-arms on a timer/turn-boundary rather than process-exit, the
