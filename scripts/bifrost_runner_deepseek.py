@@ -34,6 +34,7 @@ sys.path.insert(0, HERE)
 
 from core.comm.bus import Bus
 from core.comm import control
+from core.comm import liveness
 from core.comm import nudge
 from core.comm import runner_lock
 from core.comm import context_hints
@@ -98,7 +99,10 @@ def make_agentic_replier(model: str, system: str, think: bool, root: Path, agent
     # or every command self-denies. Time-boxed while claude is at weekly limit; see security/acl.json.
     toolbox = dc.ToolBox(root, allow_exec=allow_exec, trust=allow_exec, allow_secrets=False,
                          confirm=lambda _p: False, agent_id=agent_id, allow_write=allow_write)
-    on_activity = lambda state, detail: control.set_activity(agent_id, state, detail)
+    _wl = liveness.worklive(agent_id)
+    def on_activity(state, detail):
+        control.set_activity(agent_id, state, detail)   # existing UI presence
+        _wl.set(state, detail)                          # L1: same edges -> worklive phase (thinking/reading/...)
     # Live trace: stream each tool call + chunk of thinking onto the bus (kind=trace, display-only, not
     # promoted/answerable) so the console shows what DeepSeek is DOING, not just its final answer.
     trace_bus = Bus(agent_id)
@@ -250,6 +254,7 @@ def main() -> int:
             try:
                 runner_lock.heartbeat(args.agent, lock_token)
                 bus.register(card=CARD)
+                liveness.worklive(args.agent).refresh()   # L1: keep worklive fresh (+ ageing) even mid-wedge
             except Exception:
                 pass
     threading.Thread(target=_heartbeat, daemon=True).start()
@@ -312,6 +317,7 @@ def main() -> int:
                 if control.is_halted(args.agent) and str(m.kind) != "nudge":
                     cog.record_human_interjection(args.agent)
                 control.set_activity(args.agent, "thinking")
+                liveness.worklive(args.agent).set("handling", detail=f"{m.frm}:{m.kind}", new_turn=True)  # L1
                 try:
                     out = responder(m.frm, prompt) if args.agentic else responder(prompt)
                     reply_meta = {"via": f"{args.agent}-runner", "model": args.model, "hops": hops}
@@ -328,6 +334,7 @@ def main() -> int:
                     print(f"[deepseek-runner] -> {dest}: {out[:80]}")
                 finally:
                     control.clear_activity(args.agent)   # back to idle -> UI stops showing it working
+                    liveness.worklive(args.agent).set("idle")   # L1: turn done (ok or errored) -> idle; heartbeat keeps it fresh
             if args.once:
                 break
     except (KeyboardInterrupt, EOFError):
