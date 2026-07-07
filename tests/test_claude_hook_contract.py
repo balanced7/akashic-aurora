@@ -156,6 +156,55 @@ def test_main_posttoolusefailure_records_fail_and_watermarks(tmp_path, monkeypat
     assert calls2 == [("contract-e2e", tgt, True)]
 
 
+# --- 4b. RENEW Strand A' -- the FAIL half is now a DURABLE label (research/reviewed/
+# renew-stranda-health-signals-2026-07-07.md). Every failure the hook records must also emit one
+# `fail` event, exactly once per failure (same watermark guarantee as the resolve), for the
+# context-health correlation study. -----------------------------------------------------------------
+
+def _spy_fail(monkeypatch):
+    """Capture every capture_event(...) the hook fires, so we can assert the durable `fail` label."""
+    import core.events.event_log as el
+    events = []
+    monkeypatch.setattr(el, "capture_event",
+                        lambda kind, summary, **kw: events.append((kind, summary, kw)) or None)
+    return events
+
+
+def test_posttoolusefailure_captures_fail_label_once(tmp_path, monkeypatch):
+    cmd = "cd E:/AI-Setup && py probe_thing.py --flag"
+    tgt = normalize_target(None, cmd)
+    data = _bash_success_payload_for(cmd)
+    data["hook_event_name"] = "PostToolUseFailure"
+    data["tool_use_id"] = "toolu_fail_bash_2"
+    fails = _spy_fail(monkeypatch)
+    _run_main(monkeypatch, data, [], tmp_path)
+    labels = [e for e in fails if e[0] == "fail"]
+    assert len(labels) == 1, "a direct failure must emit exactly one durable `fail` label"
+    assert labels[0][2]["detail"]["target"] == tgt and labels[0][2]["detail"]["tool"] == "Bash"
+    # same failure id again -> watermark suppresses a second label (never double-count rework)
+    _run_main(monkeypatch, data, [], tmp_path)
+    assert len([e for e in fails if e[0] == "fail"]) == 1
+
+
+def test_transcript_backfill_captures_fail_label_once(tmp_path, monkeypatch):
+    cmd = "cd E:/AI-Setup && py probe_thing.py --flag"   # failed-then-retried in the fixture transcript
+    tgt = normalize_target(None, cmd)
+    fails = _spy_fail(monkeypatch)
+    _run_main(monkeypatch, _bash_success_payload_for(cmd), [], tmp_path)
+    labels = [e for e in fails if e[0] == "fail"]
+    assert len(labels) == 1 and labels[0][2]["detail"]["target"] == tgt
+    # the same success again: the failure is watermarked -> no second label
+    _run_main(monkeypatch, _bash_success_payload_for(cmd), [], tmp_path)
+    assert len([e for e in fails if e[0] == "fail"]) == 1
+
+
+def test_first_try_success_emits_no_fail_label(tmp_path, monkeypatch):
+    cmd = "cd E:/AI-Setup && echo fine"                  # succeeded in the transcript, never failed
+    fails = _spy_fail(monkeypatch)
+    _run_main(monkeypatch, _bash_success_payload_for(cmd), [], tmp_path)
+    assert [e for e in fails if e[0] == "fail"] == [], "a clean first-try success is not a rework event"
+
+
 def test_main_out_of_scope_is_silent(tmp_path, monkeypatch):
     data = _load("posttooluse_bash_success.json")
     data["tool_input"]["command"] = "echo unrelated"

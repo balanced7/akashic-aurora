@@ -183,6 +183,23 @@ def _emit_context(text: str) -> None:
     }}))
 
 
+# --- RENEW Strand A' (label capture): a tool action that FAILED (and is being retried) is a REWORK
+# event -- the durable degraded-output GROUND TRUTH a context-health estimator must correlate against.
+# The FAIL->SUCCESS flip was already durable, but it measures RECALL utility and clusters in the most
+# productive sessions (Strand A finding, 2026-07-07); the FAIL half -- the actual degraded-output
+# signal -- was computed here then discarded. Emitted exactly once per failure (gated by the same
+# tool_use_id watermark as the resolve). Best-effort + fail-soft: a label capture must never affect
+# the action. See research/reviewed/renew-stranda-health-signals-2026-07-07.md.
+def _capture_fail(target: str, tool: str) -> None:
+    try:
+        from core.events.event_log import capture_event
+        capture_event("fail", f"FAIL: {target}",
+                      agent_id=os.getenv("AKASHIC_AGENT_ID") or "unknown",
+                      detail={"target": target, "tool": tool})
+    except Exception:
+        pass
+
+
 def _txw_path(session_id: str) -> str:
     return os.path.join(_TXW_DIR, _safe(session_id) + ".json")
 
@@ -245,8 +262,11 @@ def main() -> int:
             # Direct failure signal (fast path; Bash/Write only per #24908). Record the FAIL now and
             # watermark its tool_use_id so the transcript scan never double-processes this failure.
             if target:
-                resolve_action_outcome(sid, target, False)
                 fid = data.get("tool_use_id")
+                fresh = not (fid and _failure_processed(sid, target, fid))
+                resolve_action_outcome(sid, target, False)
+                if fresh:
+                    _capture_fail(target, tool)   # durable degraded-output label (RENEW A'), exactly-once
                 if fid:
                     _mark_failure_processed(sid, target, fid)
             return 0
@@ -257,6 +277,7 @@ def main() -> int:
             fid = _latest_failure_id(data.get("transcript_path") or "", target)
             if fid and not _failure_processed(sid, target, fid):
                 resolve_action_outcome(sid, target, False)
+                _capture_fail(target, tool)       # durable degraded-output label (RENEW A'), exactly-once
                 _mark_failure_processed(sid, target, fid)
         rep = resolve_action_outcome(sid, target, ok)
         if rep.get("flipped"):
