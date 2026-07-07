@@ -106,7 +106,15 @@ one-click revivable.** Ship in strict sub-order; each piece is independently tes
 - **Effort:** S. **Residual:** a slow-dribble stream (bytes below the per-read timeout,
   forever) won't trip the read timeout — that's L3's total-generation wall-clock, not L0's.
 
-### L1 — Work-progress heartbeat (pure observability, zero behavior change)
+### L1 — Work-progress heartbeat (pure observability, zero behavior change) — ✅ **SHIPPED 2026-07-06**
+> Done: `core/comm/liveness.py` — per-agent `bifrost:worklive:<agent>` = `{phase, since_ts,
+> beat_ts, turn, detail, seq}`, fail-open (mirrors control.py). Wired into the runner at the
+> single seams: `on_activity` (thinking/reading/searching/tool phases), `_heartbeat` thread
+> (`refresh()` keeps it alive + ageing mid-wedge), and loop edges (`handling`+turn-count / `idle`).
+> `read()` + `stuck_seconds()` for readers. Verified (`tests/manual/l1_worklive_probe.py`):
+> since_ts moves only on phase change, stuck-timer both rises across a refresh AND resets on a
+> phase change (not pinnable), live end-to-end turn capture. **Next: L5 (lock-in-launch, XS) then
+> L3/L4 (the readers that ACT on worklive).**
 - **Build:** `core/comm/liveness.py` (~80 lines). Redis key `bifrost:worklive:<agent>` =
   `{phase, since_ts, turn_id, tool}`. Stamp at every progress edge already instrumented
   (message received, model-call start, each tool-call start/return, reply sent, idle) by
