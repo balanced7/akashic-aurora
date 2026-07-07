@@ -1,0 +1,130 @@
+"""check_door_parity -- guard the agent-facing DOOR surface against silent fragmentation.
+
+The agent surface is spread over three doors: the CLI (agent_cli.py, 33 verbs), the MCP server
+(ai_setup_mcp.py, 22 tools), and the low-level bus API (core/comm/bifrost_api.py, 18 methods). They
+drift silently -- a verb added to one, forgotten on the others -- and that is the single biggest
+source of agent cognitive load (you must know WHICH door holds each capability). First membrane slice:
+make the surface EXPLICIT and RATCHET it.
+
+This does NOT unify everything now. It:
+  * classifies EVERY CLI/MCP verb in the MANIFEST below (shared / cli_only / mcp_only / gap),
+  * FAILS on a NEW unclassified verb (stops new drift) or a `shared` verb missing from a door (regression),
+  * reports `gap`s = the known CLI<->MCP debt to pay down in later slices (does NOT fail on those).
+
+The bus API is a separate programmatic door (a different abstraction level, not a CLI/MCP verb); it is
+REPORTED for visibility but not parity-enforced in v1.
+
+Run:  py scripts/check_door_parity.py            # gate (exit 1 on unclassified/regressed verb)
+      py scripts/check_door_parity.py --report   # just print the three surfaces + the manifest
+"""
+import ast
+import os
+import re
+import sys
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _norm(n):
+    return n.replace("-", "_")
+
+
+def cli_verbs():
+    src = open(os.path.join(ROOT, "agent_cli.py"), encoding="utf-8").read()
+    return sorted(set(_norm(m) for m in re.findall(r'add_parser\(\s*["\']([a-zA-Z0-9_-]+)["\']', src)))
+
+
+def mcp_tools():
+    tree = ast.parse(open(os.path.join(ROOT, "ai_setup_mcp.py"), encoding="utf-8").read())
+    out = []
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            if any("mcp.tool" in ast.unparse(d) for d in node.decorator_list):
+                out.append(_norm(node.name))
+    return sorted(set(out))
+
+
+def bus_methods():
+    tree = ast.parse(open(os.path.join(ROOT, "core/comm/bifrost_api.py"), encoding="utf-8").read())
+    out = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and "BifrostAPI" in node.name:
+            out += [m.name for m in node.body
+                    if isinstance(m, ast.FunctionDef) and not m.name.startswith("_")]
+    return sorted(set(out))
+
+
+# The declared intended surface. Every CLI/MCP verb MUST appear here (the ratchet).
+#   shared   -> must be on BOTH cli and mcp
+#   cli_only -> intentionally CLI-only (local/diagnostic/operator/needs-shell)
+#   mcp_only -> intentionally MCP-only
+#   gap      -> KNOWN DEBT: a core verb reachable on one door but not the other; pay down later.
+MANIFEST = {
+    # --- shared (16): the core verb surface, on both doors ---
+    "boot": "shared", "learn": "shared", "recall": "shared", "recall_at": "shared",
+    "recall_feedback": "shared", "stats": "shared", "status": "shared", "story": "shared",
+    "events": "shared", "log": "shared", "promoted": "shared", "graduate": "shared",
+    "injections": "shared", "handoff": "shared", "bifrost_send": "shared", "bifrost_sync": "shared",
+    # --- cli_only (8): local diagnostics / operator controls / needs shell+git ---
+    "discover": "cli_only", "console_log": "cli_only", "harnesses": "cli_only",
+    "recall_counters": "cli_only", "triage": "cli_only", "wrap": "cli_only",
+    "bifrost_pause": "cli_only", "bifrost_resume": "cli_only",
+    # --- mcp_only (3): Gemini web consumers (the CLI path is the ask_*.py scripts) ---
+    "ask_gemini_web": "mcp_only", "ask_gemini_panel": "mcp_only", "gemini_web_login": "mcp_only",
+    # --- gap: KNOWN CLI<->MCP DEBT (backlog for later membrane slices; not a failure) ---
+    "note": "gap", "notes": "gap", "list": "gap", "tag_anti_pattern": "gap", "lock": "gap",
+    "unlock": "gap", "locks": "gap", "fleet": "gap", "bifrost_nudge": "gap",
+    "bifrost_broadcast": "gap", "bifrost_inbox": "gap", "bifrost_presence": "gap",
+}
+
+
+def check():
+    cli, mcp = set(cli_verbs()), set(mcp_tools())
+    fails, gaps = [], []
+    # 1. every real verb must be classified (the ratchet: no new unclassified drift)
+    for v in sorted((cli | mcp)):
+        if v not in MANIFEST:
+            door = "CLI" if v in cli else "MCP"
+            fails.append(f"unclassified verb '{v}' (on {door}) -> add it to MANIFEST in check_door_parity.py "
+                         f"(shared / cli_only / mcp_only / gap)")
+    # 2. manifest expectations vs reality
+    for v, cat in sorted(MANIFEST.items()):
+        on_cli, on_mcp = v in cli, v in mcp
+        if cat == "shared" and not (on_cli and on_mcp):
+            missing = "MCP" if on_cli else "CLI"
+            fails.append(f"'{v}' is declared shared but is MISSING from {missing} (regression)")
+        elif cat == "cli_only" and on_mcp:
+            fails.append(f"'{v}' is declared cli_only but appears on MCP -> reclassify")
+        elif cat == "mcp_only" and on_cli:
+            fails.append(f"'{v}' is declared mcp_only but appears on CLI -> reclassify")
+        elif cat == "gap":
+            gaps.append(v)
+        # a verb in the manifest that no longer exists on any door -> stale manifest entry
+        if cat in ("shared", "cli_only", "gap") and not on_cli and not on_mcp:
+            fails.append(f"'{v}' is in the MANIFEST but exists on NO door -> remove the stale entry")
+    return fails, gaps, cli, mcp
+
+
+def main():
+    fails, gaps, cli, mcp = check()
+    bus = bus_methods()
+    report = "--report" in sys.argv
+    if report:
+        print(f"CLI ({len(cli)}): {', '.join(sorted(cli))}\n")
+        print(f"MCP ({len(mcp)}): {', '.join(sorted(mcp))}\n")
+        print(f"BUS ({len(bus)}, separate programmatic door — not parity-enforced): {', '.join(bus)}\n")
+        print(f"shared: {len(cli & mcp)}  |  cli-only: {len(cli - mcp)}  |  mcp-only: {len(mcp - cli)}")
+    if gaps:
+        print(f"\nKNOWN GAPS (CLI<->MCP debt, {len(gaps)}): {', '.join(sorted(gaps))}")
+        print("  ^ backlog for later membrane slices; not a failure.")
+    for f in fails:
+        print("FAIL:", f)
+    if fails:
+        print(f"\n{len(fails)} FAIL — the door surface drifted. Classify/fix before shipping.")
+        return 1
+    print(f"\nPASS: door surface matches the manifest ({len(gaps)} known gap(s) tracked).")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

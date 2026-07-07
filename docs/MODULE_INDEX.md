@@ -125,6 +125,7 @@
 - `check_boundaries.py` — Boundary guardrails for the clean core/ layer.
 - `check_comprehensibility.py` — check_comprehensibility -- one guard that keeps the comprehension layer honest.
 - `check_doc_freshness.py` — Doc-freshness guardrail -- the repo ROOT holds only living, intentionally-maintained docs.
+- `check_door_parity.py` — check_door_parity -- guard the agent-facing DOOR surface against silent fragmentation.
 - `deepseek_chat.py` — deepseek_chat -- an interactive, TOOL-USING conversation with DeepSeek, in its own window.
 - `gemini_web.py` — gemini_web -- ask Gemini through the FREE web surfaces (not API quota).
 - `gen_arch_index.py` — gen_arch_index -- regenerate docs/MODULE_INDEX.md from every module's one-line docstring.
