@@ -57,8 +57,12 @@ Two prior decisions snap in: **hats** = the ultimate load-reducer (see only your
      Every verb is now shared or intentionally single-door **with a documented reason**; guard verifies 0 gaps.
    - **1c (optional endgame) — one registry both doors project from,** so twins auto-generate and parity is
      structural, not a hand-written pair + a test. Bigger lift; deferrable — the ratchet already holds the line.
-2. **Built≠Wired gate** (`check_wiring.py`) — the maintainability guard: fail if a capability exists +
-   passes tests but isn't on a production call path. Directly serves the adherence↔maintainability balance.
+2. **Built≠Wired gate** (`check_wiring.py`) — ✅ **SHIPPED 2026-07-07.** Import-graph reachability from the
+   production entry points (doors/runners/hooks/boot); flags `core/` modules that exist but run nowhere.
+   Wired into `ship.py`; ratchets (fails on a NEW unwired module). **Surfaced 18 latent modules** frozen as
+   a documented backlog: 14 **built-ahead** (codex, perspectives, the **conductor**+coord layer, narrative
+   slices, fast_cache — wire when their consumer lands) + 4 **legacy** (`coordinator_service`,
+   `redis_sync_coordinator`, `sync_reconciler`, `session_recovery` — deletion candidates for a boy-scout slice).
 3. **Surface → orientation** — inject the relevant ARCHITECTURE/LEXICON slice at the tool boundary, so an
    agent touching `core/comm` gets the Bifrost map, not just lessons. (Instant skeleton retrieval.)
 4. **Capture at salience** — auto-draft a lesson/note candidate from a FAIL→SUCCESS flip, weight-gated,
