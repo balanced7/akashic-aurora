@@ -67,6 +67,8 @@ _ARG_DEFAULTS = dict(
     hours=None, days=None,
     # graduate
     enforced_by=None, undo=False,
+    # note / notes / locks (membrane slice 1b: MCP twins for shell-less agents)
+    title=None, context="", supersedes=None, session="", project=False, path=None, ttl=None,
 )
 
 
@@ -204,6 +206,41 @@ def recall_feedback(source: str, useful: bool = True, noise: bool = False) -> st
     (off-target). `source` is the lesson's pointer (e.g. learn:experiment:NAME); useful votes boost it
     in future recall, and lessons surfaced often but never useful decay on their own."""
     return _run(agent_cli.cmd_recall_feedback, source=source, useful=useful, noise=noise)
+
+
+@mcp.tool()
+def note(agent: str, title: str, note: str, context: str = "", category: str = "",
+         supersedes: str = "") -> str:
+    """Record a durable, write-once project note -- a decision or WHERE-WE-ARE -- into the substrate,
+    not by editing a file. Re-noting the same `title` RETIRES the prior (correct by superseding). It
+    surfaces at boot + notes(). Use for project state/decisions; use learn() for reusable how-to lessons."""
+    return _run(agent_cli.cmd_note, agent_id=agent, title=title, note=note, context=context,
+                category=category, supersedes=supersedes or None)
+
+
+@mcp.tool()
+def notes(days: int = 0, limit: int = 25) -> str:
+    """List active (non-superseded) project notes, newest first -- the write-once read side of note()."""
+    return _run(agent_cli.cmd_notes, days=days or None, limit=limit)
+
+
+@mcp.tool()
+def lock(agent: str, path: str, ttl: int = 900) -> str:
+    """Claim an advisory path-lock so peers see you're editing PATH (coordination, not OS-enforced).
+    Re-claiming your own refreshes the TTL. Now reachable without a shell (membrane door-parity)."""
+    return _run(agent_cli.cmd_lock, agent_id=agent, path=path, ttl=ttl)
+
+
+@mcp.tool()
+def unlock(agent: str, path: str) -> str:
+    """Release an advisory path-lock you hold on PATH."""
+    return _run(agent_cli.cmd_unlock, agent_id=agent, path=path)
+
+
+@mcp.tool()
+def locks(agent: str = "") -> str:
+    """Awareness: which advisory path-locks are held right now, and by whom (across all agents)."""
+    return _run(agent_cli.cmd_locks, agent_id=agent)
 
 
 @mcp.tool()

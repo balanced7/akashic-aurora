@@ -65,6 +65,8 @@ MANIFEST = {
     "recall_feedback": "shared", "stats": "shared", "status": "shared", "story": "shared",
     "events": "shared", "log": "shared", "promoted": "shared", "graduate": "shared",
     "injections": "shared", "handoff": "shared", "bifrost_send": "shared", "bifrost_sync": "shared",
+    # slice 1b: note/notes + lock/unlock/locks now have MCP twins (shell-less agents can record & lock)
+    "note": "shared", "notes": "shared", "lock": "shared", "unlock": "shared", "locks": "shared",
     # --- cli_only (8): local diagnostics / operator controls / needs shell+git ---
     "discover": "cli_only", "console_log": "cli_only", "harnesses": "cli_only",
     "recall_counters": "cli_only", "triage": "cli_only", "wrap": "cli_only",
@@ -72,8 +74,7 @@ MANIFEST = {
     # --- mcp_only (3): Gemini web consumers (the CLI path is the ask_*.py scripts) ---
     "ask_gemini_web": "mcp_only", "ask_gemini_panel": "mcp_only", "gemini_web_login": "mcp_only",
     # --- gap: KNOWN CLI<->MCP DEBT (backlog for later membrane slices; not a failure) ---
-    "note": "gap", "notes": "gap", "list": "gap", "tag_anti_pattern": "gap", "lock": "gap",
-    "unlock": "gap", "locks": "gap", "fleet": "gap", "bifrost_nudge": "gap",
+    "list": "gap", "tag_anti_pattern": "gap", "fleet": "gap", "bifrost_nudge": "gap",
     "bifrost_broadcast": "gap", "bifrost_inbox": "gap", "bifrost_presence": "gap",
 }
 
