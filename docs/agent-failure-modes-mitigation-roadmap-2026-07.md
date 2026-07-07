@@ -166,9 +166,18 @@ one-click revivable.** Ship in strict sub-order; each piece is independently tes
 >   from manual revive which resets) + an in-flight `_reviving` guard. `POST /launcher/arm-revive` + a
 >   `⟳ auto` toggle in the roster (off→faint, on→green). Default OFF, so the observe-only default holds.
 >   Backend unit-proven (observe-when-healthy / fire-when-wedged / disarm-at-cap); UI verified live.
+> - **L3b-auto hardening ✅ SHIPPED 2026-07-06** (from DeepSeek's review): armed set is now **persisted
+>   in Redis** (`bifrost:auto_revive`) — survives a UI/supervisor restart, shared across processes,
+>   CLI-reachable; `arm_revive`/`registry`/monitor read-through. Revive **jitter** (no thundering herd on
+>   simultaneous multi-wedge). Explicit **crash (`auto_restart`) vs wedge (auto-revive) contract** — two
+>   independent opt-ins, so a boot-crash-loop isn't masked. Verified.
 > - **L3c-remainder (next)** — startup smoke-test (D2): after Popen, wait ≤8s for the first `online`
 >   worklive beat; if it never beats, mark `crashed` with stderr_tail. **L3d** — supervised state
 >   rollback + convos preservation on watchdog-kill (see the actor/OTP research: recover process AND state).
+>
+> **Deferred ideas from the DeepSeek review** (good, wrong-time): CLI `arm/disarm --auto-revive` (now
+> trivial — the state is shared Redis); wedge-pattern **fingerprinting** from stderr for Aurora to learn
+> from; **Aurora lesson-injection** on revive (couples to Wave-3 onboarding/hats — speculative value, defer).
 - **Build:** This is the **real** G4 fix for mid-round wedges L2 can't reach.
   - Extend `launcher._monitor_loop` (line 485) to read each agent's worklive freshness +
     runner_lock heartbeat: lock held + presence fresh + worklive phase not advanced past
