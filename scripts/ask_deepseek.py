@@ -64,8 +64,8 @@ def main():
         print("NO_PROMPT: pass text, --file, or pipe via stdin", file=sys.stderr)
         return 2
 
-    from openai import OpenAI
-    client = OpenAI(api_key=key, base_url=BASE_URL)
+    from deepseek_chat import make_client
+    client = make_client(key)   # L0: timeout + explicit retries (shared hardened factory)
     messages = []
     if args.system:
         messages.append({"role": "system", "content": args.system})

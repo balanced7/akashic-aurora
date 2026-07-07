@@ -65,8 +65,8 @@ def should_answer(kind, frm, self_id) -> bool:
 def make_replier(model: str, system: str, think: bool):
     """One-shot prompt->reply bridge over the DeepSeek API. Never raises: any failure comes back as a
     string so the runner loop stays alive and the sender always gets *something*."""
-    from openai import OpenAI
-    client = OpenAI(api_key=load_key(), base_url=BASE_URL)
+    import deepseek_chat as dc
+    client = dc.make_client(load_key())   # L0: timeout + explicit retries so a hung call can't wedge the runner
 
     def respond(prompt: str) -> str:
         try:
@@ -91,8 +91,7 @@ def make_agentic_replier(model: str, system: str, think: bool, root: Path, agent
     Agent+ToolBox from deepseek_chat.py (read-only, secret-blocked, path-scoped). Keeps a per-peer
     conversation for continuity. Unattended, so gated actions (run_command) auto-deny."""
     import deepseek_chat as dc
-    from openai import OpenAI
-    client = OpenAI(api_key=load_key(), base_url=BASE_URL)
+    client = dc.make_client(load_key())   # L0: timeout + explicit retries so a hung stream can't wedge the runner (G4)
     # agent_id -> the ToolBox's bifrost_* doors go live, so DeepSeek can INITIATE bus messages (not just reply).
     # allow_write -> the guarded write_file/edit_file doors go live (path-scoped, secret-blocked, git-tracked).
     # allow_exec -> run_command door goes live. Unattended (confirm auto-denies), so pair with trust=True

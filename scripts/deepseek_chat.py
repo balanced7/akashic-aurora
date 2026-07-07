@@ -53,6 +53,25 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 BASE_URL = "https://api.deepseek.com"
 PRO, FLASH = "deepseek-v4-pro", "deepseek-v4-flash"
 
+# --- G4 hardening (L0): a hung streaming read must become a caught timeout, not an infinite wedge.
+# A per-read timeout aborts pre-data AND mid-stream stalls (verified: tests/manual/l0_timeout_probe.py);
+# the Agent.send() try/except then revives the loop. Tunable via env.
+MODEL_CONNECT_TIMEOUT = float(os.getenv("DEEPSEEK_CONNECT_TIMEOUT", "15"))
+MODEL_READ_TIMEOUT    = float(os.getenv("DEEPSEEK_READ_TIMEOUT", "120"))   # per-chunk read gap; healthy streams beat it, a stall trips it
+MODEL_MAX_RETRIES     = int(os.getenv("DEEPSEEK_MAX_RETRIES", "1"))        # explicit: the SDK default (2) would ~3x the wall-clock before a wedge surfaces
+MAX_CMD_TIMEOUT       = int(os.getenv("DEEPSEEK_MAX_CMD_TIMEOUT", "300"))  # ceiling a single run_command can't exceed, even if the model asks for more
+
+
+def make_client(api_key=None, base_url=BASE_URL):
+    """OpenAI-compatible client hardened against G4 wedges. A per-read streaming timeout turns a hung
+    model call into a caught httpx.ReadTimeout (Agent.send()'s try/except then revives the loop); an
+    explicit max_retries stops the SDK default (2) from tripling the wall-clock before recovery."""
+    from openai import OpenAI
+    import httpx
+    return OpenAI(api_key=api_key or load_key(), base_url=base_url,
+                  timeout=httpx.Timeout(MODEL_READ_TIMEOUT, connect=MODEL_CONNECT_TIMEOUT),
+                  max_retries=MODEL_MAX_RETRIES)
+
 # Dirs never worth walking (vendored / caches / heavy data) -- keeps search fast and tokens bounded.
 EXCLUDE_DIRS = {
     ".git", "__pycache__", ".venv", "venv", "node_modules", "backups", "ComfyUI-Zluda", "assets",
@@ -587,12 +606,13 @@ class ToolBox:
                 return "DENIED by the user. Do not retry this command; work with read-only tools or ask the user."
         cwd = str(self._resolve(working_dir, allow_dir=True)) if working_dir else str(self.root)
         try:
+            capped = min(int(timeout), MAX_CMD_TIMEOUT)   # L0: a tool call can't wedge the runner past the ceiling
             p = subprocess.run(command, shell=True, cwd=cwd, capture_output=True, text=True,
-                               encoding="utf-8", errors="replace", timeout=int(timeout))
+                               encoding="utf-8", errors="replace", timeout=capped)
             body = (p.stdout or "") + (("\n[stderr]\n" + p.stderr) if p.stderr else "")
             return (body or "(no output)")[:MAX_CMD_OUT] + (f"\n[exit {p.returncode}]" if p.returncode else "")
         except subprocess.TimeoutExpired:
-            return f"ERROR: command timed out after {timeout}s"
+            return f"ERROR: command timed out after {capped}s"
         except Exception as e:
             return f"ERROR: {e}"
 
@@ -928,7 +948,7 @@ def main() -> int:
 
     toolbox = ToolBox(root, allow_exec=(args.allow_exec or args.trust), trust=args.trust,
                       allow_secrets=args.allow_secrets, confirm=confirm)
-    client = OpenAI(api_key=key, base_url=BASE_URL)
+    client = make_client(key)   # L0: hardened against hung-stream wedges (timeout + explicit retries)
     agent = Agent(client, toolbox, model=args.model, system=(args.system or default_system(root)),
                   think=not args.no_think, tools_enabled=not args.no_tools)
     if args.load:
