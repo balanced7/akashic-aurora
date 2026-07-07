@@ -149,6 +149,16 @@ one-click revivable.** Ship in strict sub-order; each piece is independently tes
   `bifrost_runner_deepseek.py`. **Effort:** M.
 
 ### L3 — External supervisor + UI revive/kill (the primary G4 backstop)
+> **Sub-sliced (methodical) — "observe-only first" per the mandate below:**
+> - **L3a ✅ SHIPPED 2026-07-06** — observe-only wedge visibility. `liveness.wedge_view()`
+>   ({phase, stuck_seconds, beat_age, wedged}, honest heuristic) exposed per-agent in
+>   `launcher.registry()` → `/launcher/status`. Backend only, no auto-action. Verified
+>   (`tests/manual/l3a_liveness_view_probe.py`). UI badge = a paste-ready snippet handed to
+>   DeepSeek/Daniel (bifrost_ui.py boundary).
+> - **L3b (next)** — `POST /launcher/revive {tag}` (kill-if-wedged → relaunch, must clear/await
+>   the runner_lock per L5's note) + a Revive button + render the L3a badge in the roster.
+> - **L3c** — startup smoke-test (D2) + restart-storm backoff. **L3d** — convos preservation on
+>   watchdog-kill. **L3e** — auto-kill (opt-in, only after a soak with observe-only logging).
 - **Build:** This is the **real** G4 fix for mid-round wedges L2 can't reach.
   - Extend `launcher._monitor_loop` (line 485) to read each agent's worklive freshness +
     runner_lock heartbeat: lock held + presence fresh + worklive phase not advanced past
