@@ -68,6 +68,42 @@ no translation layer. When you reach for a name, reach for one of these.
   (semantic), experiences (episodic), reflections (Reflexion), approaches
   (procedural). Persists through a Store. Distinct from `LearningStore`.
 
+## Bifrost — live agents, control & supervision (`core/comm/`, `core/coord/`)
+
+The runtime nervous system for agents that are actually *running*. (This layer has grown the most
+since the June foundation docs; keep it current.)
+
+- **Bifrost** — the whole live-agent comms + control + supervision layer (`core/comm/`).
+- **Bus** — the ephemeral real-time message transport (Redis Streams); one **inbox** + read **cursor**
+  per agent. Distinct from the Ledger: the bus is disposable and pushed, the Ledger is durable and
+  pulled. `core/comm/bus.py`. The one door onto it: **bifrost.api** (`core/comm/bifrost_api.py`).
+- **Runner** — the process that makes a stateless API model (DeepSeek/Gemini) a first-class bus
+  citizen (wake → answer → post). `scripts/bifrost_runner_*.py`.
+- **Runner-lock / singleton** — one live runner per agent id (TTL + per-instance token); a second
+  refuses to start. `core/comm/runner_lock.py`.
+- **Presence** — the "online" heartbeat per agent. **Worklive** — the richer *"what phase am I in,
+  and since when?"* heartbeat used to detect wedges. `core/comm/liveness.py`.
+- **Wedge** — an agent that is *alive but STUCK* (a hung call, a frozen phase) — distinct from a
+  **crash** (process exit). **Revive** — kill a wedged/dead runner, free its lock, relaunch it.
+  `launcher.revive()`.
+- **Launcher / supervisor** — spawns + monitors agent processes; owns revive, restart backoff+cap,
+  and opt-in **auto-revive** (armed per agent, default off — observe-only by default). `core/comm/launcher.py`.
+- **Control plane** — human-in-the-loop steering: **Pause/Halt** (freeze), **Nudge** (targeted
+  barge-in), **Steer** (fold a fact into live work, no restart), **Interject** (route a typed human
+  message). `core/comm/control.py`, `nudge.py`, `interject.py`.
+- **Wake / doorbell** — an idle agent can't wake *itself*; a wake listener blocks on the bus and the
+  harness re-invokes the agent when mail lands. `scripts/bifrost_wake.py`, `core/comm/dispatcher.py`.
+- **Promoter / promoted** — salient bus messages (handoff/decision/completion/blocker) copied into
+  the durable Ledger so they survive Redis restarts. `core/comm/promoter.py`.
+
+### Coordination (`core/coord/`)
+- **Task ledger** — the deterministic who-owns-which-task substrate (no model in the loop). `core/coord/task_ledger.py`.
+- **Conductor** — the impure orchestration shell over the pure task ledger. `core/coord/conductor.py`.
+- **Negotiation round** — a brief window after human input where agents declare plans before acting. `core/coord/negotiation.py`.
+- **Barrier** — a stop-and-synchronize checkpoint so agents converge instead of racing. *(planned — Wave 3.)*
+- **Hat** — an opt-in role layer scoping an agent's context AND permissions (a "reviewer" vs "builder"
+  lens). Note: a hat is where *role-based context* lives — not per-lesson tags. *(planned — Wave 3.)*
+
 ## Context & interface (Systems 4–5)
 
 - **Context pillar (System 4)** — assembles 8–10k tokens of ranked, relevant
@@ -81,11 +117,11 @@ no translation layer. When you reach for a name, reach for one of these.
 - **chronicle** — RESERVED for the *curated highlights* layer (`chronicles/`:
   decisions, failures, milestones) *derived from* the raw ledger. Do NOT name the
   raw event log "chronicle". Raw ledger → distilled chronicle.
-- **Ranker** (planned shared primitive) — scores items by relevance × importance ×
-  recency, plus relationship-type weighting. Used by both the Context pillar and
-  AgentMemory.
-- **Distiller** (planned shared primitive) — writer→critic summarization to a token
-  budget. Used by both the Context summarizer and the consolidation→chronicle loop.
+- **Ranker** (`core/primitives/ranker.py`) — deterministic scoring of items by relevance ×
+  importance × recency, plus relationship-type weighting. Used across recall and context.
+- **Distiller** (`core/primitives/distiller.py`) — compact many items to a token budget, keeping a
+  lossless `source` pointer per line; optional writer→critic seam. Gated by the **Faithfulness**
+  critic (`core/primitives/faithfulness.py`) — a NO-LLM grounding check; silence beats fabrication.
 - **relationship type** — one of 66 standardized relations (Dublin Core / OBO /
   RDF) in `core/foundation/relationship_types.py`; the vocabulary semantic method
   names are built from. Real short-names include `part_of`, `causes`, `prevents`,

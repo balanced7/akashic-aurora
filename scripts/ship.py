@@ -29,6 +29,7 @@ def build_plan(args):
     if not args.no_test:
         steps.append(("guard: boundaries", [PY, "scripts/check_boundaries.py"]))
         steps.append(("guard: doc-freshness", [PY, "scripts/check_doc_freshness.py"]))
+        steps.append(("guard: comprehensibility (map matches code)", [PY, "scripts/check_comprehensibility.py"]))
         steps.append(("tests (full suite)", [PY, "-m", "pytest", "-q"]))
     steps.append(("commit + push", [PY, "scripts/mirror.py", args.message, *args.paths]))
     if args.learn_exp:

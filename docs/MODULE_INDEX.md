@@ -123,6 +123,7 @@
 - `bifrost_ui.py` — bifrost_ui -- a realtime web console for watching (and steering) live agent collaboration on Bifrost.
 - `bifrost_wake.py` — bifrost.wake -- the canonical wake listener for a Bifrost agent (the receive/wake arm of bifrost.api).
 - `check_boundaries.py` — Boundary guardrails for the clean core/ layer.
+- `check_comprehensibility.py` — check_comprehensibility -- one guard that keeps the comprehension layer honest.
 - `check_doc_freshness.py` — Doc-freshness guardrail -- the repo ROOT holds only living, intentionally-maintained docs.
 - `deepseek_chat.py` — deepseek_chat -- an interactive, TOOL-USING conversation with DeepSeek, in its own window.
 - `gemini_web.py` — gemini_web -- ask Gemini through the FREE web surfaces (not API quota).
