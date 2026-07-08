@@ -1,9 +1,19 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 55 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 64 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
+- frontier-research-status: Frontier fold-in research COMPLETE 2026-07-08 (recovered from interface crash; continuation workflow wf_e63ba506-2ec salvaged 57/75 votes from...  (source: mem:decision:ADR_0708092001_3639)
+- where-we-are 2026-07-08 membrane+recall night: Shipped:
+  - Method doc: pillar-analysis method (triangulate ground truth -> diagnose at loop altitude -> fix with...  (source: mem:decision:ADR_0708020240_4854)
+- recall-vnext-status: RECALL vNEXT SHIPPED 2026-07-08 @aceb2da (T011, Daniel full-send). Design+evidence: docs/recall-vnext-2026-07.md. WAS: 2850 impressions/7d -> 26...  (source: mem:decision:ADR_0708015237_3780)
+- session-bookends-status: Session bookends COMPLETE S1+S3+S4 (design docs/session-bookends-design-2026-07.md, statuses inline sec.7). S1 (07-07): episode IS a Chapter...  (source: mem:decision:ADR_0708011150_2456)
+- renew-signal-persistence-status: RENEW slice A'' (signal persistence) SHIPPED 2026-07-08 @7223308 via ship.py (T008 in ledger; 5 guards + 812 tests green + live smoke)...  (source: mem:decision:ADR_0708002952_1434)
+- comprehensibility-immune-system: PILLAR SHIPPED 2026-07-07 (codesigned w/ DeepSeek). The comprehensibility immune system: guards that keep the architecture...  (source: mem:decision:ADR_0707235722_5056)
+- arch-triage-2026-07-07: Architecture triage arc P0->P1->P2 COMPLETE 2026-07-07 (DeepSeek triage + claude code-vetting) ->...  (source: mem:decision:ADR_0707232450_9376)
+- renew-strande-status: Strand E (cold-resume fidelity) COMPLETE 2026-07-07 -- BOTH gaps closed & shipped. Docs: research/reviewed/renew-strande-cold-resume-2026-07-07.md...  (source: mem:decision:ADR_0707092933_5440)
+- renew-stranda-status: Strand A DONE (research/reviewed/renew-stranda-health-signals-2026-07-07.md) + slice A' SHIPPED 2026-07-07 (commit via ship.py, full suite+5 guards...  (source: mem:decision:ADR_0707091638_4889)
 - where-we-are 2026-07-07: Shipped:
   - SAVE: fix case -- rename docs/architecture.md -> docs/ARCHITECTURE.md (matches the UPPERCASE living-docs convention + all...  (source: mem:decision:ADR_0707015000_6525)
 - where-we-are: 2026-07-07 night wrap. ARC: designed + researched two convergent features; built research tooling; did NOT build either feature yet. (1) RENEW = membrane's...  (source: mem:decision:ADR_0707014952_1424)
