@@ -184,7 +184,7 @@ class RelationshipType(Enum):
     DERIVES_FROM = RelationshipTypeDefinition(
         formal_name="RO:0001000 (OBO)",
         short_name="derives_from",
-        inverse="derives_to",
+        inverse="derives_into",
         description="Subject is derived from or originates from object (transformation/evolution)",
         domain="causal",
         examples=["Butter derives_from Milk", "Adult derives_from Child", "Code derives_from Specification"]
