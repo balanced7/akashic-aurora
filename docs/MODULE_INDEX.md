@@ -67,12 +67,13 @@
 ## core/renew/  (1 modules)
 - `session_signals.py` — Session signals (RENEW slice A'') -- fold one session's tool calls into deterministic context-health signal ag
 
-## core/narrative/  (16 modules)
+## core/narrative/  (17 modules)
 - `beat_log.py` — BeatLog (Slice 1) -- append salient narrative Beats to the Store + read them by time.
 - `chapter_lifecycle.py` — Chapter lifecycle helpers (Slice 7) — bi-temporal stamping, in-place regeneration,
 - `chronicler.py` — Chronicler (Slice 3) — distill narrative Beats into Chapters + Storyline + Atlas.
 - `drift.py` — drift_check -- lightweight SEMANTIC drift detector over the narrative spine (prototype).
 - `episode.py` — Session bookends -- the live EPISODE layer over the narrative Chapter (Slice S1).
+- `episode_suggester.py` — Episode auto-suggester (bookends Slice S3) -- ADVISORY phase-boundary suggestions, never a forced close.
 - `event_bridge.py` — EventBridge (Slice 4) -- join the narrative timeline to the raw event firehose.
 - `event_promoter.py` — EventPromoter (Slice 5) -- promote salient raw events into narrative Beats.
 - `health.py` — Narrative health counters (Slice W-c) -- give the silent best-effort paths a voice.

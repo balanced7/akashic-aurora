@@ -143,6 +143,11 @@ One-shot (agent/AI bypasses the edit dialog): `episode close --accept-title "...
   `{title,description,why}` over the closed span (LLM `writer` seam + deterministic fallback, `why`
   from the prior decision/mark beat); **session-end force-close+draft** (no leaked chapters); tests +
   live render. Emits nothing to `bifrost_ui.py` — DeepSeek renders against §6.
-- **S3 (next):** `episode_suggester.py` over the 4 existing triggers + an episode-level ~15-min idle
-  poll; advisory suggestions (confidence+reason) on the **shared event bus** (RENEW-dedup). 
+- **S3 — ✅ SHIPPED 2026-07-08 (T009):** `core/narrative/episode_suggester.py` over the 4 existing
+  triggers + the episode-level ~15-min idle; advisory suggestions (confidence+reason) on the **shared
+  event bus** (`episode_suggestion` raw events — RENEW-dedup per Q5d). Composed at the door:
+  `episode current --json` now fills the contract's `suggestion` field. Two findings hardened it:
+  subsystem-switch reads the last ≥2 ROUTED beats (the live router key drifts on every emit), and the
+  close-boundary `mark` beat is filtered from the next span's content (`episode.content_beats`) — it
+  was becoming the next episode's drafted `why` and a phantom trigger input.
 - **S4 (DeepSeek):** current-chapter panel + close button + per-field accept/edit, against §6.

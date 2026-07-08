@@ -114,6 +114,10 @@ The project's self-writing story: **Atlas → Track → Chapter → Beat**. `sch
   given an explicit `why` (intent), closed manually (a user bookend) or by auto-suggestion, with a
   `{title, description, why}` draft over the closed span. Surfaced via `agent_cli task`'s sibling
   `episode` verb. (Design: `docs/session-bookends-design-2026-07.md`.)
+- **Episode auto-suggester** (`episode_suggester.py`) — ADVISORY close suggestions, poll-evaluated at
+  the door: impl-complete / subsystem-switch (routed beats, not the live router key) / new-objective /
+  15-min idle, noise-gated + fingerprint-once. Each new suggestion is one durable `episode_suggestion`
+  event — the same stream Renew's refresh policy will read (one phase-boundary detector, no double-nudge).
 
 ## Cross-cutting
 - **Trust/Security** — `core/trust/` (`capabilities.py` roles, `registry.py` reader over

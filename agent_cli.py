@@ -1375,6 +1375,12 @@ def cmd_episode(args):
     act = args.action
     if act == "current":
         out = ep.current_episode()
+        try:   # S3: the door composes the advisory suggestion (episode.py stays one-way, fail-soft)
+            from core.narrative.episode_suggester import suggest
+            if out.get("current_chapter"):
+                out["current_chapter"]["suggestion"] = suggest()
+        except Exception:
+            pass
     elif act == "close":
         # one-shot finalize when any --accept-* is supplied (the agent/AI path that skips the edit dialog)
         acc = any(x is not None for x in (args.accept_title, args.accept_desc, args.accept_why))

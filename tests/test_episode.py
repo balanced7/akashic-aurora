@@ -69,6 +69,21 @@ def test_close_drafts_fields_opens_next_and_stamps_span_end():
     assert res["new_current_chapter"]["duration_seconds"] == 0
 
 
+def test_close_boundary_mark_does_not_pollute_next_episode():
+    """The close-mark lands ON the next span's start timestamp. It must not become the next
+    episode's drafted why ("Episode closed: ...") nor count as its content (S3 noise finding)."""
+    s = _store()
+    ep.open_episode(s, now="2026-07-07T10:00:00")
+    _emit(s, "note", "first stretch work", "2026-07-07T10:01:00")
+    ep.close_episode(s, now="2026-07-07T10:05:00")               # emits the boundary mark at 10:05
+    cur = ep.current_episode(s, now="2026-07-07T10:05:30")["current_chapter"]
+    assert cur["beats_count"] == 0                               # the mark is not content
+    _emit(s, "note", "second stretch work", "2026-07-07T10:06:00")
+    draft = ep.close_episode(s, now="2026-07-07T10:10:00")["draft"]
+    assert "episode closed" not in draft["why"].lower()
+    assert "episode closed" not in draft["title"].lower()
+
+
 def test_why_uses_latest_decision_or_mark_beat():
     s = _store()
     ep.open_episode(s, now="2026-07-07T10:00:00")

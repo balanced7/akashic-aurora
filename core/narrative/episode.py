@@ -75,13 +75,15 @@ def _current_chapter(store: Store, *, now: str, auto_open: bool) -> Optional[Cha
 def current_episode(store: Optional[Store] = None, *, now: Optional[str] = None,
                     auto_open: bool = True) -> Dict[str, Any]:
     """The live current episode as the UI contract (`episode current --json`). Auto-opens one if none
-    exists (so the panel always has a current). `suggestion` is None until the S3 auto-suggester."""
+    exists (so the panel always has a current). `suggestion` stays None HERE: the door (agent_cli
+    `episode current`) composes it from episode_suggester.suggest() -- suggester imports this module
+    for draft_fields, so the dependency must stay one-way."""
     store = store if store is not None else create_store()
     now_iso = _now(now)
     ch = _current_chapter(store, now=now_iso, auto_open=auto_open)
     if ch is None:
         return {"current_chapter": None}
-    beats = BeatLog(store).in_window(ch.span_start, now_iso)
+    beats = content_beats(BeatLog(store).in_window(ch.span_start, now_iso))
     return {"current_chapter": {
         "id": ch.id, "title": ch.title, "description": ch.summary, "why": ch.why,
         "started": ch.span_start, "duration_seconds": _dur(ch.span_start, now_iso),
@@ -120,6 +122,26 @@ def _draft_why(beats: List[Any], *, writer: Optional[Callable] = None) -> str:
     return basis[:300]
 
 
+_BOUNDARY_SOURCE_PREFIX = "episode:close:"
+
+
+def content_beats(beats: List[Any]) -> List[Any]:
+    """Drop episode-BOUNDARY marker beats (the `mark` each close emits). The close-mark lands on the
+    exact timestamp the next episode opens, so it falls inside the NEXT span's window -- and being
+    kind=mark it would otherwise become that episode's drafted `why` ("Episode closed: ...") and a
+    phantom input to the S3 triggers. Boundary beats stay in Chapter.beats (provenance); they are
+    just not CONTENT. Found by the S3 noise tests, 2026-07-08."""
+    return [b for b in beats if not str(getattr(b, "source", "")).startswith(_BOUNDARY_SOURCE_PREFIX)]
+
+
+def draft_fields(beats: List[Any], *, writer: Optional[Callable] = None) -> Dict[str, str]:
+    """The {title, description, why} draft over a span's CONTENT beats -- the ONE drafting source,
+    used by close_episode and by the S3 suggester (contract #6: a suggestion matches the draft)."""
+    beats = content_beats(beats)
+    return {"title": _draft_title(beats), "description": _draft_description(beats),
+            "why": _draft_why(beats, writer=writer)}
+
+
 def close_episode(store: Optional[Store] = None, *, now: Optional[str] = None,
                   title: Optional[str] = None, description: Optional[str] = None,
                   why: Optional[str] = None, finalize: bool = False,
@@ -136,9 +158,10 @@ def close_episode(store: Optional[Store] = None, *, now: Optional[str] = None,
         if ch is None:
             return {"draft": None, "new_current_chapter": None}
         beats = BeatLog(store).in_window(ch.span_start, now_iso)
-        ch.title = title if title is not None else _draft_title(beats)
-        ch.summary = description if description is not None else _draft_description(beats)
-        ch.why = why if why is not None else _draft_why(beats, writer=writer)
+        drafted = draft_fields(beats, writer=writer)
+        ch.title = title if title is not None else drafted["title"]
+        ch.summary = description if description is not None else drafted["description"]
+        ch.why = why if why is not None else drafted["why"]
         ch.span_end = now_iso
         ch.beats = [b.id for b in beats]
         ch.final = bool(finalize)
