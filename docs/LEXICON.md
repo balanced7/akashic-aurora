@@ -105,8 +105,8 @@ since the June foundation docs; keep it current.)
 ## Context & interface (Systems 4–5)
 
 - **Context pillar (System 4)** — assembles 8–10k tokens of ranked, relevant
-  context so an agent starts informed ("what the agent KNOWS"). Lives in
-  `context/` (planned; consolidates `project_context.py`).
+  context so an agent starts informed ("what the agent KNOWS"). Built in `context/`
+  (`aggregator.py` + per-source loaders + `arch_loader.py`, the boot code-orientation slice).
 - **Agent Interface / ACI (System 5)** — the small, coherent verb surface agents
   use to act ("what the agent DOES"). Tool descriptions are prompts; errors teach.
 
@@ -125,13 +125,28 @@ since the June foundation docs; keep it current.)
   names are built from. Real short-names include `part_of`, `causes`, `prevents`,
   `precedes`, `influences`, `is_version_of`, `replaces`, `member_of`, `instance_of`,
   `related_to` (NOT `derived_from`/`supersedes`/`led_to` — those are not in the set;
-  validate with `get_relationship_by_name`).
+  validate with `get_relationship_by_name`). Inverses are bidirectional + unique-short-named,
+  guarded by `tests/test_relationship_types.py`.
+- **Agent membrane / RENEW** — the control loop that keeps working context healthy **across** sessions:
+  detect cognitive debt → *Capture* durable knowledge → *Surface* a curated reload (the MemGPT-style
+  **paging function**). A loop over snapshot + boot + funnel + launcher + supersession — NOT a new
+  subsystem. Design + status: `docs/agent-membrane-design-2026-07.md`.
+- **session_checkpoint / session_snapshot / session_recovery** (three "session state" things — do NOT
+  confuse; the shared name was a real bug): `core/state/session_checkpoint.py` = crash-resume
+  CHECKPOINTS (+ `CheckpointRecovery` = derive a resume-plan from one); `core/comm/session_state.py` =
+  live-Bifrost-session SNAPSHOT (save the fleet to resume later); `core/state/session_recovery.py` =
+  SESSION-HISTORY recovery from local files (its `SessionRecovery` is a *different* class than
+  `CheckpointRecovery`).
 
 ## Narrative spine (System 4 — `core/narrative/`, see docs/narrative-spine-plan.md)
 
 - **Beat** — one salient, time-anchored narrative event; points to its raw atom
   (a learning / commit / ledger event) via a followable `source`.
 - **Chapter** — a bounded coherent stretch of Beats within one Track (the mid view).
+- **Episode / Bookend** — an **Episode** IS a Chapter given an explicit `why` (intent), segmenting a
+  *session* into confined titled spans. A **Bookend** is the boundary that closes one episode + opens
+  the next — manual (a user button) or auto (a suggestion from the same signals that trigger RENEW);
+  the close drafts `{title, description, why}` over the span. `core/narrative/episode.py`, `agent_cli episode`.
 - **Track** — a long-running per-domain/project thread (`ai-setup`, `stemroller`,
   `vision`, `research`, …); has its own Chapters + arc.
 - **Theme** — a cross-cutting idea-group weaving across Tracks (orthogonal to Tracks).
