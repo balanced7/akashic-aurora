@@ -37,12 +37,15 @@ _CREDIT_FIELDS = ("helped", "useful", "engaged")
 
 def _age_days(rec: Dict[str, Any], now: float) -> Optional[float]:
     """Record age in days, or None when the timestamp is missing/unparseable (-> not benchable:
-    we only bench what is PROVABLY old)."""
+    we only bench what is PROVABLY old). timeutil.to_epoch (naive==UTC) matches how records are
+    stamped -- raw .timestamp() would read them as local (the self-echo flight-test bug)."""
     ts = str(rec.get("timestamp") or "").strip()
     if not ts:
         return None
     try:
-        return max(0.0, (now - datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp()) / 86400.0)
+        from core.foundation.timeutil import to_epoch
+        ep = to_epoch(ts)
+        return max(0.0, (now - ep) / 86400.0) if ep else None
     except Exception:
         return None
 

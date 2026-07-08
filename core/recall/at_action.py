@@ -813,10 +813,11 @@ def _self_echo(item: Dict[str, Any], agent_id: Optional[str], now: Optional[floa
         hours = float(os.getenv("AKASHIC_RECALL_SELF_ECHO_H", "2"))
         if hours <= 0:
             return False
-        ts = str(item.get("timestamp") or "")
-        import datetime as _dt
-        age_s = (now if now is not None else time.time()) - \
-            _dt.datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp()
+        # timeutil.to_epoch, NOT fromisoformat().timestamp(): records carry utcnow()-naive stamps,
+        # which .timestamp() reads as LOCAL -- fresh lessons then sit "in the future" and the
+        # window never matches (caught live by the vNext flight test, 2026-07-08).
+        from core.foundation.timeutil import to_epoch
+        age_s = (now if now is not None else time.time()) - to_epoch(item.get("timestamp") or "")
         return 0 <= age_s < hours * 3600.0
     except Exception:
         return False

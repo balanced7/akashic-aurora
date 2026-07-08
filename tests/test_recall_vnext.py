@@ -205,9 +205,12 @@ def test_floor_default_is_on_and_env_tunable(monkeypatch):
 
 
 def test_self_echo_suppressed_for_author_only_then_expires():
-    fresh = {"agent_id": "claude", "timestamp": datetime.now().isoformat()}
+    # PRODUCTION-SHAPED timestamps: records stamp utcnow()-naive (naive==UTC per timeutil).
+    # A local-now() fixture masked the tz bug the live flight test caught -- never again.
+    from datetime import datetime as dt
+    fresh = {"agent_id": "claude", "timestamp": dt.utcnow().isoformat()}
     old = {"agent_id": "claude",
-           "timestamp": (datetime.now() - timedelta(hours=3)).isoformat()}
+           "timestamp": (dt.utcnow() - timedelta(hours=3)).isoformat()}
     now = time.time()
     assert aa._self_echo(fresh, "claude", now) is True
     assert aa._self_echo(fresh, "deepseek", now) is False   # other agents still see it
