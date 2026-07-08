@@ -17,7 +17,7 @@ facade were retired 2026-07-07.
 Purpose: Agent state survives crashes through persistent checkpoints.
 """
 
-from .session_state import SessionState
+from .session_checkpoint import SessionState
 from .session_recovery import SessionRecovery
 
 __all__ = [

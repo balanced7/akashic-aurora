@@ -92,8 +92,8 @@
 - `roster.py` — The fleet roster -- the single source of truth for local models (docs/fleet-dispatch-design.md).
 
 ## core/state/  (2 modules)
+- `session_checkpoint.py` — Session Checkpoint: crash-recovery checkpoint system (renamed from session_state.py 2026-07-07 to
 - `session_recovery.py` — Session Recovery: Recover from checkpoint and fallback infrastructure
-- `session_state.py` — Session State: Checkpoint & recovery system
 
 ## core/codex/  (2 modules)
 - `lifecycle.py` — Node lifecycle (Slice C2, delta E3) -- bi-temporal stamping + supersession as TYPE-AGNOSTIC

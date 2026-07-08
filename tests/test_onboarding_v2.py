@@ -186,7 +186,7 @@ def test_new_approach():
     start = time.time()
     try:
         from coordinator_api import initialize
-        from session_state import SessionState
+        from session_checkpoint import SessionState
         from startup_diagnostics import create_startup_diagnostics
 
         # Track startup with diagnostics

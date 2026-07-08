@@ -17,6 +17,10 @@ Rules (scoped to core/):
 3. no-syspath-insert        : library modules must not hack sys.path.
 4. no-duplicate-class-names : one class name = one definition (ubiquitous language;
    catches accidental concept duplication).
+5. no-duplicate-module-basename : one module basename across core/ (catches the
+   import-shadowing hazard `from core import X` picks arbitrarily -- e.g. the
+   session_state.py collision resolved 2026-07-07). Intentional per-package
+   conventions (schema.py) are allowlisted.
 
 Known pre-existing debt is listed in ALLOWLIST with a reason, so it is visible and
 tracked rather than silently passing. New violations fail the check.
@@ -42,7 +46,10 @@ ALLOWLIST = {
     ("no-bare-except", "core/foundation/fast_cache.py"):
         "11 pre-existing bare excepts; clean when fast_cache is refactored (audit R3)",
     ("no-duplicate-class-names", "SessionRecovery"):
-        "pre-existing dup: session_recovery.py vs session_state.py:350 -- resolve carefully (audit)",
+        "pre-existing dup: session_recovery.py vs session_checkpoint.py:350 -- resolve carefully (audit)",
+    ("no-duplicate-module-basename", "schema.py"):
+        "intentional per-package convention: core/{codex,narrative,perspectives}/schema.py are always "
+        "imported via the full package path (never `from core import schema`), so no shadowing hazard",
 }
 
 REDIS_CONNECTOR = "core/foundation/redis_connection.py"
@@ -63,6 +70,7 @@ def check() -> int:
     violations = []          # (rule, location, detail)
     allowed_hits = []        # (rule, location) that matched the allowlist
     class_defs = defaultdict(list)  # class name -> [files]
+    module_basenames = defaultdict(set)  # basename -> {dirs} (import-shadowing hazard)
 
     bare_except = re.compile(r"^\s*except\s*:")
     import_redis = re.compile(r"^\s*import\s+redis(\s|$|\.)|^\s*from\s+redis\s+import")
@@ -78,6 +86,8 @@ def check() -> int:
 
     for p in _py_files():
         rel = _rel(p)
+        if p.name != "__init__.py":
+            module_basenames[p.name].add(p.parent.as_posix())
         text = p.read_text(encoding="utf-8", errors="replace")
         for i, line in enumerate(text.splitlines(), 1):
             if bare_except.search(line):
@@ -94,6 +104,11 @@ def check() -> int:
         if len(set(files)) > 1:
             record("no-duplicate-class-names", name,
                    f"class {name} defined in: {', '.join(sorted(set(files)))}")
+
+    for base, dirs in module_basenames.items():
+        if len(dirs) > 1:
+            record("no-duplicate-module-basename", base,
+                   f"module '{base}' in {len(dirs)} packages: {', '.join(sorted(dirs))}")
 
     # ---- report ----
     print("=" * 60)

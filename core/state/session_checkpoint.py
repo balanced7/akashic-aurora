@@ -1,5 +1,7 @@
 """
-Session State: Checkpoint & recovery system
+Session Checkpoint: crash-recovery checkpoint system (renamed from session_state.py 2026-07-07 to
+end the module-basename collision with core/comm/session_state.py -- the live-Bifrost-session snapshot,
+a different concern; the shared name was a latent import-shadowing hazard, arch-triage-2026-07-07).
 
 Semantic Relationship: Checkpoint version tracking for agent recovery
 
@@ -13,7 +15,7 @@ Checkpoint Versioning:
 - Checkpoints mark progress and decisions made
 
 Usage:
-    from core.state.session_state import SessionState, SessionRecovery
+    from core.state.session_checkpoint import SessionState, SessionRecovery
 
     # Create and save checkpoint
     state = SessionState("agent_id")
