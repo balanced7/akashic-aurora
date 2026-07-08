@@ -142,9 +142,13 @@ map uses all three:
    new `core/` subpackage is born or a layer's *responsibility* changes — not when a file is added.
 2. **Auto-generated detail** — `MODULE_INDEX.md` is regenerated from module docstrings by
    `py scripts/gen_arch_index.py`; the per-module truth never goes stale by hand.
-3. **Guardrail-enforced** — `check_boundaries.py` catches layer violations; `check_doc_freshness.py`
-   keeps the root clean. (Proposed: extend the freshness check to flag a new `core/` subpackage that
-   has no line in this map — see `docs/memory-recall-multiagent-design-2026-07.md` era backlog.)
+3. **Guardrail-enforced** — `check_comprehensibility.py` is the *immune system*: it FAILs when a `core/`
+   subpackage is missing from this map, `MODULE_INDEX.md` is stale, a living doc (or a core docstring)
+   cites a repo path that's gone (stale reference), or a filename's case drifts. It runs at three
+   unbypassable chokepoints — every commit (pre-commit hook, fast checks), every push (CI), and every
+   slice (`ship.py`, full) — and a crashing check FAILs loud rather than passing green. `check_boundaries.py`
+   catches layer violations; `check_doc_freshness.py` keeps the root clean; `check_wiring.py` catches
+   built-but-unwired modules. Design: `docs/comprehensibility-immune-system-2026-07.md`.
 
 **The rule of thumb:** if you add a *file*, do nothing here (the index regenerates). If you add a
 *subpackage* or change what a layer is *for*, add/edit one line above.
