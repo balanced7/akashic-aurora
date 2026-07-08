@@ -35,9 +35,10 @@ EXCEPTIONS = {
     # built-ahead -- capability built before its production consumer; wire it when that lands
     "core/codex/lifecycle.py": "built-ahead: codex knowledge layer (Wave-2)",
     "core/codex/schema.py": "built-ahead: codex knowledge layer (Wave-2)",
-    "core/comm/dispatcher.py": "built-ahead: bus doorbell->wake; not wired into the runners yet",
+    "core/comm/dispatcher.py": "built-ahead: mesh doorbell->wake. BLOCKED on the W3 wake-adapter "
+        "'invoker' registry (does not exist yet; Dispatcher.run() has no production caller) AND an "
+        "architecture choice vs the live bifrost_wake mechanism -- wire when W3 lands (arch-triage 2026-07-07)",
     "core/comm/interject.py": "built-ahead: human-interjection router; not wired yet",
-    "core/coord/conductor.py": "built-ahead: orchestration shell (Slice D) -- wire in the membrane's coordination work",
     "core/coord/experiment.py": "built-ahead: Stage-3 coordination evidence engine",
     "core/coord/metrics.py": "built-ahead: coordination metrics watchdog",
     "core/foundation/fast_cache.py": "built-ahead: L1/L2 cache; consumer not wired",

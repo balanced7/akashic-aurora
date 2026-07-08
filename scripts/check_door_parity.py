@@ -76,6 +76,9 @@ MANIFEST = {
     "fleet": "cli_only",  # local-model dispatch/roster — operator-oriented, not an agent verb
     "episode": "cli_only",  # session bookends: consumed by the Bifrost UI via CLI --json (S1). An MCP
                             # twin is deferred to the S3 agent-close/auto-suggest path (design doc §7).
+    "task": "cli_only",     # the coordination door over the ledger (conductor). CLI+operator-oriented
+                            # (propose/approve are human-gated); MCP twin when an MCP agent needs to
+                            # drive task transitions programmatically (arch-triage P1 2026-07-07).
     # --- mcp_only: Gemini web consumers + bus conveniences the CLI already covers ---
     "ask_gemini_web": "mcp_only", "ask_gemini_panel": "mcp_only", "gemini_web_login": "mcp_only",
     "bifrost_broadcast": "mcp_only",  # CLI path: bifrost-send --broadcast

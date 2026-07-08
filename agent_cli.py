@@ -1418,6 +1418,17 @@ def cmd_episode(args):
     return 0
 
 
+# ------------------------------------------------------------------------ task (coordination door)
+def cmd_task(args):
+    """The task-lifecycle door over the governed ledger -- surfaces core/coord/conductor.py through the
+    ONE door so agents manage tasks (propose/approve/claim/start/verify/done/block/list/next) via
+    agent_cli instead of a hidden standalone script (the one-door / interface-is-the-product principle;
+    the read path was already on the door via boot, this closes the write path). Delegates verbatim to
+    conductor's own CLI parser -- zero duplication, single source of truth for the task verbs."""
+    from core.coord import conductor
+    return conductor.main(list(args.rest or []))
+
+
 # ------------------------------------------------------------------------ handoff
 def _incoming_handoffs(target_agent, scan=10000):
     """Every handoff signal addressed to `target_agent`, oldest-first."""
@@ -1987,6 +1998,13 @@ def build_parser():
                      help="(close, one-shot) finalize immediately with this why")
     epi.add_argument("--json", action="store_true")
     epi.set_defaults(fn=cmd_episode)
+
+    tk = sub.add_parser("task", help="task lifecycle over the governed ledger: propose/approve/claim/"
+                                     "start/verify/done/block/list/next (the coordination door)")
+    tk.add_argument("rest", nargs=argparse.REMAINDER,
+                    help='conductor subcommand + args, e.g.  task list  /  task propose "title"  /  '
+                         'task done T001 --commit abc123 --verified-by pytest')
+    tk.set_defaults(fn=cmd_task)
 
     st = sub.add_parser("story", help="print narrative story views")
     st.add_argument("--chronicle", action="store_true", help="run chronicle_all first")
