@@ -141,6 +141,11 @@ def emit_session_signals(data) -> None:
         from core.renew.session_signals import fold_signals
         signals = fold_signals(calls)
         signals["window_truncated"] = truncated
+        try:   # recall economy for the same session (vNext loop 3): one dataset serves both pillars
+            from core.recall.at_action import session_recall_summary
+            signals["recall"] = session_recall_summary(sid)
+        except Exception:
+            pass
         from core.events.event_log import capture_event
         capture_event(
             "session_signals",
@@ -165,13 +170,15 @@ def main() -> int:
         lessons = agent_cli._recent_lessons(8)
         notes = get_agent_memory().get_decisions(days=1)
         try:   # FAIL->SUCCESS flips -> pre-filled candidate lessons in the draft (friction audit D5)
-            from core.recall.at_action import recent_flips
+            from core.recall.at_action import recent_flips, recent_injections
             flips = recent_flips(24)
+            injections = recent_injections(24)   # -> RECALL REVIEW + corpus gaps (vNext loop 3/4)
         except Exception:
-            flips = []
+            flips, injections = [], []
         agent_cli.write_last_session_draft(
             agent_cli.last_session_draft_path(), commits, lessons, notes,
-            trigger=str(data.get("hook_event_name") or "session end"), flips=flips)
+            trigger=str(data.get("hook_event_name") or "session end"), flips=flips,
+            injections=injections)
     except Exception:
         pass   # auto-capture is best-effort; never block the end
     emit_session_signals(data)

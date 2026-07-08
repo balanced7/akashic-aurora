@@ -90,8 +90,10 @@ Stops agents colliding and plays them to their strengths.
 Give the right agent the right context at the moment of action.
 - **`core/learning/`** — `learning_store.py` (experiment lessons), `agent_memory.py` (`mem:` per-agent),
   `consolidation.py` (distill raw memory → chronicle).
-- **`core/recall/`** — `at_action.py` (recall AT the moment of a tool call), `funnel.py` (is surfaced
-  knowledge actually helping? the value metric + triage buckets), `dissent.py` (surface the counter-case).
+- **`core/recall/`** — `at_action.py` (recall AT the moment of a tool call: trigger-aware IDF matching,
+  calibrated show-nothing floor, self-echo suppression), `funnel.py` (is surfaced knowledge actually
+  helping? the value metric + triage buckets), `curator.py` (triage made an ACTOR: bench/unbench by
+  earned track record, ghost pruning — vNext loop 1), `dissent.py` (surface the counter-case).
 - **`core/primitives/`** — the reusable engines: `ranker.py` (deterministic relevance×importance×recency),
   `distiller.py` (compact to a token budget + source pointers), `faithfulness.py` (NO-LLM grounding gate —
   silence beats fabrication), `embedder.py`, `clusterer.py`, `consolidator.py`, `supersession.py`

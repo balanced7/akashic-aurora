@@ -376,9 +376,11 @@ def cmd_recall(args):
     print(f"# {len(hits)} {label}")
     for h in hits[:25]:
         rec = h.get("recommendation") or h.get("actual") or h.get("what_tried", "")
-        # [graduated] = rule now enforced by automation (see `graduate`); kept for history,
-        # excluded from recall surfacing -- the tag says WHY it never shows up at action time.
-        flag = " [graduated]" if str(h.get("graduated") or "").strip() else ""
+        # [graduated] = rule now enforced by automation (see `graduate`); [benched] = curator
+        # retired it for surfaced-never-credited (reversible; see `recall-curate`). Both keep
+        # history, both are excluded from recall surfacing -- the tag says WHY.
+        flag = " [graduated]" if str(h.get("graduated") or "").strip() else \
+               (" [benched]" if str(h.get("benched") or "").strip() else "")
         print(f"  - [{h.get('category', '?')}] {h.get('experiment_name', '?')}{flag}: {_clip(rec, 160)}")
     return 0
 
@@ -682,6 +684,35 @@ def cmd_recall_feedback(args):
     return 0 if ok else 1
 
 
+def cmd_recall_curate(args):
+    """The funnel's triage made an actor (recall vNext loop 1): BENCH lessons that surfaced 10+
+    times without ever earning credit (reversible flag; auto-UNBENCH on any new credit) and prune
+    zero-credit ghost counters. Report by default; --apply stamps it."""
+    import json as _json
+    from core.recall.curator import curation_report, apply_curation
+    rep = curation_report()
+    if getattr(args, "json", False):
+        print(_json.dumps(rep if not args.apply else {"report": rep, "applied": apply_curation(rep)},
+                          indent=2, default=str))
+        return 0
+    print(f"[recall-curate] corpus {rep['corpus']} | on-surface {rep['surface_active']} | "
+          f"bench-candidates {len(rep['bench'])} | unbench {len(rep['unbench'])} | "
+          f"ghost counters to prune {rep['ghost_prune_count']} "
+          f"(+{len(rep['credited_ghosts'])} credited ghosts kept for adjudication)")
+    for row in rep["bench"][:20]:
+        print(f"  bench: {row['name']}  (surfaced {row['surfaced']}x, 0 credit, {row['age_days']}d old)")
+    for row in rep["unbench"]:
+        print(f"  UNBENCH (earned credit): {row['name']}")
+    if not args.apply:
+        if rep["bench"] or rep["unbench"] or rep["ghost_prune_count"]:
+            print("  (report only -- apply with: py agent_cli.py recall-curate --apply)")
+        return 0
+    out = apply_curation(rep)
+    print(f"[recall-curate] APPLIED: benched {len(out['benched'])}, unbenched {len(out['unbenched'])}, "
+          f"ghost counters pruned {out['ghosts_pruned']}")
+    return 0
+
+
 # ------------------------------------------------------------------------ discover
 def list_verbs(query=""):
     """Introspect the live argparse subparsers -> [(verb, purpose)]. ONE source of truth (the parser
@@ -819,12 +850,14 @@ def _human_flip_target(target):
     return s
 
 
-def build_session_draft(commits, lessons, notes, max_per=8, flips=None):
+def build_session_draft(commits, lessons, notes, max_per=8, flips=None, injections=None):
     """Distill a session's own activity into a DRAFT where-we-are -- PURE (testable). Each line keeps a
     lossless source pointer (git:<sha> / learn:experiment:<name> / mem:decision:<id>). `flips` are the
     session's FAIL->SUCCESS moments (core.recall.at_action.recent_flips) -- each is a lesson that was
     just EARNED, so the draft turns them into pre-filled candidate `learn` commands (friction audit D5:
-    capture as a byproduct of the work, edit-a-draft instead of author-from-scratch)."""
+    capture as a byproduct of the work, edit-a-draft instead of author-from-scratch). `injections`
+    (recent_injections) power the RECALL REVIEW: voting moved to the reflective moment -- the explicit
+    channel sat at 4 useful / 0 noise forever because nobody votes mid-work (recall vNext loop 3)."""
     lines = []
     if commits:
         lines.append("Shipped:")
@@ -850,6 +883,28 @@ def build_session_draft(commits, lessons, notes, max_per=8, flips=None):
         for t, fl in list(by_target.items())[:max_per]:
             lines.append(f"  - {_clip(_human_flip_target(t), 100)} (credited: {fl.get('credited', 0)})")
             lines.append(f"    {learn_command_for(t)}")
+        # CORPUS GAPS (vNext loop 4): an UNCREDITED flip is a place recall had nothing to offer --
+        # name them so acquisition is directed, not ad-hoc. (Credited flips already paid off above.)
+        gaps = [t for t, fl in by_target.items() if not int(fl.get("credited", 0) or 0)]
+        if gaps:
+            lines.append(f"Corpus gaps ({len(gaps)} uncredited flip target(s) -- no stored lesson helped):")
+            for t in gaps[:max_per]:
+                lines.append(f"  - {_clip(_human_flip_target(t), 100)}")
+    if injections:
+        # RECALL REVIEW: what recall pushed this session, vote-ready. One keystroke at the natural
+        # reflective moment beats a mid-work vote nobody casts.
+        counts = {}
+        for inj in injections:
+            for s in inj.get("s", []):
+                counts[s] = counts.get(s, 0) + 1
+        if counts:
+            top = sorted(counts.items(), key=lambda kv: kv[1], reverse=True)[:max_per]
+            lines.append(f"Recall review ({len(counts)} lesson(s) surfaced this session -- vote the hits/misses):")
+            for src, n in top:
+                slug = str(src).replace("learn:experiment:", "")
+                lines.append(f"  - {n}x {slug}")
+                lines.append(f"    useful: py agent_cli.py recall-feedback --source {src}"
+                             f"   |   noise: py agent_cli.py recall-feedback --source {src} --noise")
     return "\n".join(lines) if lines else "(no session activity captured)"
 
 
@@ -888,16 +943,25 @@ def cmd_wrap(args):
     lessons = _recent_lessons(8)
     notes = get_agent_memory().get_decisions(days=1)
     try:
-        from core.recall.at_action import recent_flips
+        from core.recall.at_action import recent_flips, recent_injections
         flips = recent_flips(args.hours or 12)
+        injections = recent_injections(args.hours or 12)
     except Exception:
-        flips = []
-    draft = build_session_draft(commits, lessons, notes, flips=flips)
+        flips, injections = [], []
+    draft = build_session_draft(commits, lessons, notes, flips=flips, injections=injections)
     if not args.commit:
         print("# DRAFT where-we-are (review it; record with: "
               'py agent_cli.py wrap --commit --title "where-we-are ...")\n')
         print(draft)
         print(f"\n# from {len(commits)} commit(s), {len(lessons)} lesson(s), {len(notes)} note(s) this session")
+        try:   # curator nudge (vNext loop 1): surface the bench bucket at the reflective moment
+            from core.recall.curator import curation_report
+            rep = curation_report()
+            if rep.get("bench") or rep.get("unbench"):
+                print(f"\n# [recall-curate] {len(rep['bench'])} lesson(s) are pure surface cost, "
+                      f"{len(rep['unbench'])} earned their way back -> py agent_cli.py recall-curate --apply")
+        except Exception:
+            pass
         return 0
     title = args.title or f"where-we-are {datetime.now().date().isoformat()}"
     mem = get_agent_memory()
@@ -972,12 +1036,12 @@ def last_session_draft_path():
     return str(Path(os.getenv("AI_SETUP", "E:\\AI-Setup")) / "chronicles" / LAST_SESSION_DRAFT)
 
 
-def write_last_session_draft(path, commits, lessons, notes, trigger="", flips=None):
+def write_last_session_draft(path, commits, lessons, notes, trigger="", flips=None, injections=None):
     """Write a session draft to a FILE (not a note) -- the auto-capture target for the SessionEnd/
     PreCompact hook, so an abrupt end still leaves a trail. boot surfaces a pointer; you promote it
     with `wrap --commit` only if it's worth keeping. Returns the path, or None if there was no activity."""
     from datetime import datetime
-    draft = build_session_draft(commits, lessons, notes, flips=flips)
+    draft = build_session_draft(commits, lessons, notes, flips=flips, injections=injections)
     if not draft or draft == "(no session activity captured)":
         return None
     when = datetime.now().isoformat(timespec="seconds")
@@ -1892,6 +1956,12 @@ def build_parser():
     rf.add_argument("--useful", action="store_true", help="it changed what you did (default)")
     rf.add_argument("--noise", action="store_true", help="it was off-target")
     rf.set_defaults(fn=cmd_recall_feedback)
+
+    rc = sub.add_parser("recall-curate",
+                        help="bench surfaced-never-credited lessons + prune ghost counters (report; --apply stamps)")
+    rc.add_argument("--apply", action="store_true", help="apply the report (default: report only)")
+    rc.add_argument("--json", action="store_true")
+    rc.set_defaults(fn=cmd_recall_curate)
 
     ij = sub.add_parser("injections", help="the injection ledger: what recall pushed into contexts + cost")
     ij.add_argument("--hours", type=float, default=24, help="window (default 24)")

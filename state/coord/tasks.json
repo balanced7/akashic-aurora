@@ -1,5 +1,5 @@
 {
-  "seq": 10,
+  "seq": 11,
   "tasks": [
     {
       "id": "T001",
@@ -291,11 +291,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "in_progress",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "ff069ab",
+      "verified_by": "full suite + guards green; live preview on :8792 -- clicked End episode, edited draft per-field, accepted; real chapter ch_1783468860_8520 finalized + fresh episode opened + suggestion state reset",
       "created": "2026-07-08T05:02:19+00:00",
-      "updated": "2026-07-08T05:02:21+00:00",
+      "updated": "2026-07-08T05:11:08+00:00",
       "history": [
         {
           "to": "proposed",
@@ -316,6 +316,52 @@
           "to": "in_progress",
           "by": "",
           "at": "2026-07-08T05:02:21+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-07-08T05:11:08+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-08T05:11:08+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T011",
+      "title": "Recall vNext: close the four loops -- V1 curator (bench/unbench + triage-as-actor), V2 precision (trigger-clause-aware relevance + calibrated floor + self-echo suppression + mined trigger terms), V3 credit (wrap-time review, engaged counter, session_signals recall join). Daniel-directed full-send 2026-07-08",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "in_progress",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-08T05:27:29+00:00",
+      "updated": "2026-07-08T05:27:30+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-08T05:27:29+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-08T05:27:29+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-08T05:27:29+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-07-08T05:27:30+00:00"
         }
       ]
     }

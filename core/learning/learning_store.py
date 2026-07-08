@@ -255,6 +255,30 @@ class LearningStore:
             self.logger.error(f"mark_graduated failed for {experiment_id}: {e}")
             return False
 
+    def mark_benched(self, experiment_id: str, reason: str = "", *, undo: bool = False) -> bool:
+        """BENCH a lesson: it has surfaced repeatedly without ever earning credit, so it stops
+        competing for recall surface slots (cache/boot) while keeping full history + full-corpus
+        visibility -- graduation's exact mechanics with the opposite cause (graduated = the rule
+        WON and became automation; benched = the lesson never demonstrated value at the surface).
+        Reversible by design: the curator UNBENCHES on any new credit (helped/useful/engaged), so
+        a quiet guardian that finally fires earns its slot back. Same partial-hset rationale as
+        mark_graduated. See core/recall/curator.py for the rules that drive this.
+
+        Semantic Relationship: Lesson benched_by Curator (cost_no_return)
+        """
+        key = f"learn:experiment:{experiment_id}"
+        try:
+            if not self.store.exists(key):
+                return False
+            self.store.hset(key, mapping={
+                "benched": "" if undo else datetime.utcnow().isoformat(),
+                "bench_reason": "" if undo else str(reason or ""),
+            })
+            return True
+        except Exception as e:
+            self.logger.error(f"mark_benched failed for {experiment_id}: {e}")
+            return False
+
     def _index_learning(self, learning_signal: Dict[str, Any]) -> None:
         """
         Index a learning signal into all Store structures (single code path).
@@ -666,6 +690,13 @@ def is_graduated(rec: Dict[str, Any]) -> bool:
     full-corpus queries (list / recall / --full) wearing a [graduated] tag -- history preserved,
     hot path decluttered."""
     return bool(str((rec or {}).get("graduated") or "").strip())
+
+
+def is_benched(rec: Dict[str, Any]) -> bool:
+    """True when the curator has benched this lesson (surfaced-often-never-credited; see
+    mark_benched). Same surface contract as graduation: out of recall surfaces, in full-corpus
+    queries with a [benched] tag. Reversed automatically on new credit."""
+    return bool(str((rec or {}).get("benched") or "").strip())
 
 
 # Global instance
