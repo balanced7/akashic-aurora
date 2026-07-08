@@ -33,15 +33,22 @@ if os.path.isdir(_HOOKS):
 # the gate; it must be wired, deleted, or added here with a reason.
 EXCEPTIONS = {
     # built-ahead -- capability built before its production consumer; wire it when that lands
-    "core/codex/lifecycle.py": "built-ahead: codex knowledge layer (Wave-2)",
-    "core/codex/schema.py": "built-ahead: codex knowledge layer (Wave-2)",
+    # P2 investigate-before-delete verdicts (arch-triage 2026-07-07): DeepSeek's blind triage said
+    # DELETE codex/*+fast_cache+session_recovery; code investigation KEEPS codex (paused tested
+    # roadmap), CONSOLIDATES session_recovery (dup-class, not dead), and confirms only fast_cache dead.
+    "core/codex/lifecycle.py": "KEEP built-ahead: Codex Wave-2 (docs/codex-plan.md) C2 DONE, C3+ paused; "
+        "TESTED by tests/test_codex_resource.py -- NOT superseded, do not delete (verified P2 2026-07-07)",
+    "core/codex/schema.py": "KEEP built-ahead: Codex Wave-2 (docs/codex-plan.md) C2 DONE, C3+ paused; "
+        "TESTED by tests/test_codex_resource.py -- NOT superseded, do not delete (verified P2 2026-07-07)",
     "core/comm/dispatcher.py": "built-ahead: mesh doorbell->wake. BLOCKED on the W3 wake-adapter "
         "'invoker' registry (does not exist yet; Dispatcher.run() has no production caller) AND an "
         "architecture choice vs the live bifrost_wake mechanism -- wire when W3 lands (arch-triage 2026-07-07)",
     "core/comm/interject.py": "built-ahead: human-interjection router; not wired yet",
     "core/coord/experiment.py": "built-ahead: Stage-3 coordination evidence engine",
     "core/coord/metrics.py": "built-ahead: coordination metrics watchdog",
-    "core/foundation/fast_cache.py": "built-ahead: L1/L2 cache; consumer not wired",
+    "core/foundation/fast_cache.py": "DELETE-CANDIDATE (P2 2026-07-07): RAM-disk(X:)+Redis cache, 623 LOC, "
+        "ZERO live consumers (only _archive/ + docstring mentions); niche served by recall's TTL disk-cache "
+        "+ HybridStore. Carries allowlisted bare-except/sys.path debt. Delete pending Daniel's OK (git keeps it)",
     "core/learning/consolidation.py": "built-ahead: memory->chronicle consolidation",
     "core/narrative/drift.py": "built-ahead: narrative drift detector (prototype)",
     "core/narrative/tag_audit.py": "built-ahead: tag mis-tag detector",
@@ -49,7 +56,10 @@ EXCEPTIONS = {
     "core/perspectives/reinforce.py": "built-ahead: perspectives ReinforcedGraph",
     "core/perspectives/schema.py": "built-ahead: perspectives Map/Lens schema",
     # unwired diagnostic -- kept, not on a runtime path (name-collision cleanup pending)
-    "core/state/session_recovery.py": "session-HISTORY diagnostic (distinct from session_state's crash-resume); unwired -- rename+wire or retire later",
+    "core/state/session_recovery.py": "CONSOLIDATE, not delete (P2 2026-07-07): session-HISTORY recovery, "
+        "distinct from session_checkpoint's crash-resume. NOT dead -- exported by core/state/__init__.py AND "
+        "has a duplicate SessionRecovery class (also defined in session_checkpoint.py:352, the boundaries "
+        "allowlist dup). Needs a mini-refactor (pick the canonical SessionRecovery + fix __init__), not rm",
 }
 
 
