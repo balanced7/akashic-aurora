@@ -101,16 +101,26 @@ The project's self-writing story: **Atlas → Track → Chapter → Beat**. `sch
 `beat_log.py` (append salient beats), `session.py` (the spine fills itself per session), `chronicler.py`
 (beats → chapters), `event_bridge.py`/`event_promoter.py` (join to the raw firehose), `tagging.py`/
 `tag_governance.py`/`tag_audit.py` (governed tags), `drift.py`/`health.py` (self-checks).
+- **Episodes / bookends** (`episode.py`) — segment a live session into titled EPISODES: a Chapter
+  given an explicit `why` (intent), closed manually (a user bookend) or by auto-suggestion, with a
+  `{title, description, why}` draft over the closed span. Surfaced via `agent_cli task`'s sibling
+  `episode` verb. (Design: `docs/session-bookends-design-2026-07.md`.)
 
 ## Cross-cutting
 - **Trust/Security** — `core/trust/` (`capabilities.py` roles, `registry.py` reader over
   `security/acl.json` = the source of truth for who-may-do-what). See [security-schema](../MEMORY-links).
-- **Fleet** — `core/fleet/` (the roster: who exists). **State** — `core/state/` (reconcilers).
+- **Fleet** — `core/fleet/` (the roster: who exists). **State** — `core/state/`
+  (`session_checkpoint.py` = crash-resume checkpoints; `session_recovery.py` = session-history recovery).
 - **Projections (swappable, over the substrate)** — `core/perspectives/` (interpretation lenses over
   the narrative graph — Map × Lens), `core/codex/` (knowledge-compiler / regenerable-projection work).
+- **Agent membrane / RENEW** — a *control loop* (not a subpackage) over snapshot + boot + funnel +
+  launcher + supersession that keeps an agent's working context healthy **across** the session boundary:
+  detect cognitive debt → capture durable knowledge → reload a curated set. Design + status:
+  `docs/agent-membrane-design-2026-07.md`.
 
 ## Interface (System 5) — the doors
-- **`agent_cli.py`** — THE single CLI door (`boot`, `learn`, `recall`, `note`, `bifrost-*`, …).
+- **`agent_cli.py`** — THE single CLI door (`boot`, `learn`, `recall`, `note`, `task` (coordination
+  ledger), `episode` (session bookends), `bifrost-*`, …).
 - **`ai_setup_mcp.py`** — the MCP-transport door. **`bootstrap.py`** — system entry + honest status.
 - **`scripts/bifrost_ui.py`** — the realtime web console. **`bifrost_runner_deepseek.py` /
   `bifrost_runner.py`** — make stateless API models first-class bus citizens.
