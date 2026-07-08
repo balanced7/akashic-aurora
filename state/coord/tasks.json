@@ -199,11 +199,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "in_progress",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "7223308",
+      "verified_by": "pytest 812 passed + live smoke (real transcript -> session_signals event) + 5 ship guards",
       "created": "2026-07-08T04:11:50+00:00",
-      "updated": "2026-07-08T04:12:04+00:00",
+      "updated": "2026-07-08T04:29:04+00:00",
       "history": [
         {
           "to": "proposed",
@@ -224,6 +224,16 @@
           "to": "in_progress",
           "by": "",
           "at": "2026-07-08T04:12:04+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-07-08T04:29:04+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-08T04:29:04+00:00"
         }
       ]
     }
