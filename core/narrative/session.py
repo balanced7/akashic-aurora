@@ -80,6 +80,17 @@ def start_session(store: Optional[Store] = None, *, now: Optional[str] = None,
         _capture_session("Session started", "session:start", at=now_iso)
         store.set(SESSION_OPEN_KEY, now_iso)
         report["start"] = now_iso
+        # Session bookends: force-close any episode the prior session left open (drafts it + would
+        # leak otherwise -- DeepSeek review Q5), which opens a fresh episode for THIS session; else
+        # open one. Best-effort -- a bookend hiccup never blocks boot.
+        try:
+            from core.narrative.episode import close_episode, open_episode, _load_open
+            if _load_open(store):
+                close_episode(store, now=now_iso)      # drafts prior span + opens the next episode
+            else:
+                open_episode(store, now=now_iso)
+        except Exception:
+            pass
     except Exception:
         pass
     return report
@@ -101,6 +112,14 @@ def end_session(store: Optional[Store] = None, *, now: Optional[str] = None,
         now_iso = now or datetime.utcnow().isoformat()
 
         if store.get(SESSION_OPEN_KEY):
+            # Session bookends: force-close the open episode (draft it) BEFORE the session ends, with
+            # no fresh episode after -- a session that ends mid-episode must not leak it (review Q5).
+            try:
+                from core.narrative.episode import close_episode, _load_open
+                if _load_open(store):
+                    close_episode(store, now=now_iso, open_next=False)
+            except Exception:
+                pass
             bl.emit("session", "Session ended", "session:end", at=now_iso,
                     hint=RouteHint(category="meta", task="session"))
             _capture_session("Session ended", "session:end", at=now_iso)

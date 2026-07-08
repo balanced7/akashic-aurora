@@ -1361,6 +1361,63 @@ def cmd_log(args):
     return 0 if ok else 1
 
 
+# ------------------------------------------------------------------------ episode (session bookends)
+def cmd_episode(args):
+    """Session bookends: the live current episode, close+draft, and accept.
+
+    An episode IS a narrative Chapter with an open span + `why` (intent). Emits the JSON contract the
+    Bifrost UI renders against (docs/session-bookends-design-2026-07.md §6). Usage:
+      py agent_cli.py episode current --json
+      py agent_cli.py episode close [--accept-title T --accept-desc D --accept-why W] --json
+      py agent_cli.py episode accept <chapter_id> [--title T --desc D --why W] --json
+    """
+    from core.narrative import episode as ep
+    act = args.action
+    if act == "current":
+        out = ep.current_episode()
+    elif act == "close":
+        # one-shot finalize when any --accept-* is supplied (the agent/AI path that skips the edit dialog)
+        acc = any(x is not None for x in (args.accept_title, args.accept_desc, args.accept_why))
+        out = ep.close_episode(title=args.accept_title, description=args.accept_desc,
+                               why=args.accept_why, finalize=acc)
+    elif act == "accept":
+        if not args.chapter_id:
+            out = {"error": "accept needs a <chapter_id>"}
+        else:
+            out = ep.accept_episode(None, args.chapter_id, title=args.title,
+                                    description=args.desc, why=args.why)
+    else:
+        out = {"error": "unknown_action", "action": act}
+    if getattr(args, "json", False):
+        print(json.dumps(out, indent=2, default=str))
+        return 0 if "error" not in out else 1
+    # compact human view
+    if "error" in out:
+        print(f"[episode] {out['error']}")
+        return 1
+    if act == "current":
+        c = out.get("current_chapter")
+        if not c:
+            print("[episode] no current episode")
+        else:
+            print(f"[episode] current: {c['title'] or '(untitled, open)'} "
+                  f"({c['duration_seconds']}s, {c['beats_count']} beats)")
+            if c.get("why"):
+                print(f"  why: {c['why']}")
+    elif act == "close":
+        d = out.get("draft") or {}
+        print(f"[episode] closed {d.get('chapter_id')}")
+        print(f"  title: {d.get('title')}")
+        print(f"  desc : {d.get('description')}")
+        print(f"  why  : {d.get('why')}")
+        print("  (edit + finalize: py agent_cli.py episode accept "
+              f"{d.get('chapter_id')} --title ... --why ...)")
+    elif act == "accept":
+        c = out.get("chapter") or {}
+        print(f"[episode] finalized {c.get('id')}: {c.get('title')}")
+    return 0
+
+
 # ------------------------------------------------------------------------ handoff
 def _incoming_handoffs(target_agent, scan=10000):
     """Every handoff signal addressed to `target_agent`, oldest-first."""
@@ -1915,6 +1972,21 @@ def build_parser():
     lg.add_argument("--task", default="", help="route hint task")
     lg.add_argument("--json", action="store_true", help="JSON output")
     lg.set_defaults(fn=cmd_log)
+
+    epi = sub.add_parser("episode", help="session bookends: current episode, close+draft, accept")
+    epi.add_argument("action", choices=["current", "close", "accept"], help="what to do")
+    epi.add_argument("chapter_id", nargs="?", default=None, help="(accept) the closed chapter to finalize")
+    epi.add_argument("--title", default=None, help="(accept) set the title")
+    epi.add_argument("--desc", default=None, help="(accept) set the description")
+    epi.add_argument("--why", default=None, help="(accept) set the why/intent")
+    epi.add_argument("--accept-title", dest="accept_title", default=None,
+                     help="(close, one-shot) finalize immediately with this title")
+    epi.add_argument("--accept-desc", dest="accept_desc", default=None,
+                     help="(close, one-shot) finalize immediately with this description")
+    epi.add_argument("--accept-why", dest="accept_why", default=None,
+                     help="(close, one-shot) finalize immediately with this why")
+    epi.add_argument("--json", action="store_true")
+    epi.set_defaults(fn=cmd_episode)
 
     st = sub.add_parser("story", help="print narrative story views")
     st.add_argument("--chronicle", action="store_true", help="run chronicle_all first")

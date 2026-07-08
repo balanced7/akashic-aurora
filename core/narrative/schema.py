@@ -125,6 +125,11 @@ class Chapter:
     span_start: str
     span_end: Optional[str] = None
     summary: str = ""
+    # Session-bookends: an episode IS a Chapter (DeepSeek review 2026-07-07). `why` = the episode's
+    # INTENT (distinct from `summary` = what happened); `final` marks a draft accepted+immutable
+    # (mutable pre-final phase until the user/agent accepts). Both default-safe for old chapters.
+    why: str = ""
+    final: bool = False
     beats: List[str] = field(default_factory=list)
     learnings: List[str] = field(default_factory=list)
     commits: List[str] = field(default_factory=list)

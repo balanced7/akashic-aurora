@@ -74,6 +74,8 @@ MANIFEST = {
     "bifrost_pause": "cli_only", "bifrost_resume": "cli_only",
     "list": "cli_only",   # CLI alias for `recall ""`; MCP's recall(query="") already lists all
     "fleet": "cli_only",  # local-model dispatch/roster — operator-oriented, not an agent verb
+    "episode": "cli_only",  # session bookends: consumed by the Bifrost UI via CLI --json (S1). An MCP
+                            # twin is deferred to the S3 agent-close/auto-suggest path (design doc §7).
     # --- mcp_only: Gemini web consumers + bus conveniences the CLI already covers ---
     "ask_gemini_web": "mcp_only", "ask_gemini_panel": "mcp_only", "gemini_web_login": "mcp_only",
     "bifrost_broadcast": "mcp_only",  # CLI path: bifrost-send --broadcast
