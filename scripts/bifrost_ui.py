@@ -121,6 +121,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._events()
         if path == "/launcher/status":
             return self._json(get_launcher().registry())
+        if path == "/episode/current":
+            return self._json(self._episode_current())
         if path == "/aurora-shader.js":
             return self._static("scripts/aurora-shader.js", "application/javascript")
         if path == "/bifrost_viz.js":
@@ -291,7 +293,51 @@ class Handler(BaseHTTPRequestHandler):
             return self._negotiate(data)
         if path == "/narration":
             return self._narration(data)
+        if path == "/episode/close":
+            return self._episode_close(data)
+        if path == "/episode/accept":
+            return self._episode_accept(data)
         self.send_error(404)
+
+    # --- session bookends (S4): the episode panel's backend --------------------------------------
+    # Thin adapters over core/narrative/episode(_suggester) emitting the locked contract
+    # (docs/session-bookends-design-2026-07.md sec.6), composed exactly like the CLI door
+    # (agent_cli `episode current` also injects the S3 suggestion). Lazy imports + fail-soft:
+    # the console must keep serving even if the narrative layer hiccups.
+    def _episode_current(self):
+        try:
+            from core.narrative.episode import current_episode
+            out = current_episode()
+            try:
+                from core.narrative.episode_suggester import suggest
+                if out.get("current_chapter"):
+                    out["current_chapter"]["suggestion"] = suggest()
+            except Exception:
+                pass
+            return out
+        except Exception as e:
+            return {"current_chapter": None, "error": f"episode layer unavailable: {type(e).__name__}"}
+
+    def _episode_close(self, data):
+        try:
+            from core.narrative.episode import close_episode
+            return self._json(close_episode(
+                title=data.get("title"), description=data.get("description"),
+                why=data.get("why"), finalize=bool(data.get("finalize"))))
+        except Exception as e:
+            return self._json({"draft": None, "error": f"close failed: {type(e).__name__}"}, 500)
+
+    def _episode_accept(self, data):
+        try:
+            from core.narrative.episode import accept_episode
+            cid = str(data.get("chapter_id") or "")
+            if not cid:
+                return self._json({"error": "chapter_id required"}, 400)
+            return self._json(accept_episode(None, cid, title=data.get("title"),
+                                             description=data.get("description"),
+                                             why=data.get("why")))
+        except Exception as e:
+            return self._json({"error": f"accept failed: {type(e).__name__}"}, 500)
 
     def _narration(self, data):
         """Set claude's reasoning-visibility level (off|key|full)."""
@@ -947,6 +993,27 @@ PAGE = r"""<!doctype html>
   .setcfg{margin-top:3px; display:flex; flex-wrap:wrap; gap:8px; padding-left:82px}
   .setcfg label{font-size:11.5px; color:var(--muted); display:flex; align-items:center; gap:5px; cursor:pointer}
   .setcfg input[type=checkbox]{accent-color:var(--accent); width:14px; height:14px; cursor:pointer}
+
+  /* === session bookends (S4): episode chip + panel + suggestion banner === */
+  #epiChip{max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  #epiChip .epidur{color:var(--faint); margin-left:5px; font-size:11px}
+  #epiBanner{display:none; align-items:center; gap:10px; margin:10px 16px 0; padding:9px 14px;
+    border:1px solid rgba(72,230,191,.35); border-radius:10px; background:var(--glass);
+    box-shadow:0 0 14px rgba(72,230,191,.12); font-size:12.5px}
+  #epiBanner.show{display:flex; animation:drop .25s ease}
+  #epiBanner .epireason{color:var(--faint); font-size:11.5px; flex:none}
+  #epiBanner .epititle{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text)}
+  #epiBanner .lctl{flex:none}
+  #epi{display:none; margin:0 16px 10px; background:var(--panel); border:1px solid var(--border);
+    border-radius:12px; padding:12px 14px; font-size:12.5px}
+  #epi.show{display:block}
+  .epirow{display:flex; align-items:center; gap:8px; margin:4px 0}
+  .epirow label{flex:none; width:78px; color:var(--faint); font-size:11.5px}
+  .epirow input,.epirow textarea{flex:1; background:rgba(255,255,255,.04); color:var(--text);
+    border:1px solid var(--border); border-radius:8px; padding:6px 9px; font-size:12.5px; font-family:inherit}
+  .epirow textarea{resize:vertical; min-height:38px}
+  .epirow input:focus,.epirow textarea:focus{outline:none; border-color:var(--aurora-neon,#48e6bf)}
+  #epiMeta{color:var(--faint); font-size:11.5px; margin:2px 0 8px}
 </style>
 </head>
 <body>
@@ -959,6 +1026,7 @@ PAGE = r"""<!doctype html>
     <div class="spacer"></div>
     <div class="pills" id="pills"></div>
     <div id="tiles"></div>
+    <button class="lctl" id="epiChip" onclick="toggleEpisode()" title="current episode (session bookends)">📖 episode</button>
     <button class="ctl" id="reloadBtn" onclick="reloadUI()" title="reload the UI server (after an agent edits it)">↻</button>
     <button class="lctl" id="gearBtn" onclick="toggleSettings()" title="presentation settings">⚙</button>
     <button class="lctl" id="lnchrBtn" onclick="toggleLauncher()" title="launch &amp; manage agents">🚀 Agents</button>
@@ -966,6 +1034,15 @@ PAGE = r"""<!doctype html>
     <button class="ctl pause" id="pauseBtn" onclick="togglePause()">⏸ Pause</button>
   </header>
   <div class="banner" id="banner">⏸ Paused — the agents are frozen. Type below to interject, then Resume.</div>
+  <div id="epiBanner">
+    <span style="flex:none">📖</span>
+    <span class="epititle" id="epiSugTitle"></span>
+    <span class="epireason" id="epiSugReason"></span>
+    <span style="flex:1"></span>
+    <button class="lctl" onclick="epiSuggestAccept()">Accept</button>
+    <button class="lctl" onclick="epiSuggestIgnore()">Ignore</button>
+    <button class="lctl" onclick="epiSuggestContinue()">Continue</button>
+  </div>
   <div id="hud"><div id="hud-toggle" class="show" onclick="toggleHUD()" title="collapse HUD">⌃ collapse</div></div>
   <div id="deck"><div class="deck-cards" id="deckCards"></div><div class="slide-dots" id="deckDots"></div><div class="deck-controls"><span class="deck-ctrl" id="deckPrev" onclick="deckPrev()">◀ prev</span><span class="deck-ctrl" id="deckPause" onclick="deckTogglePause()">⏸ pause</span><span class="deck-ctrl" id="deckNext" onclick="deckNext()">next ▶</span></div></div>
   <div id="ash">
@@ -979,6 +1056,25 @@ PAGE = r"""<!doctype html>
       <span style="color:var(--faint);font-size:11.5px">— one-click start/stop, primed with context</span>
     </div>
     <div id="lnchrRows"></div>
+  </div>
+  <div id="epi">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
+      <span style="font-weight:650;font-size:13px">📖 Current episode</span>
+      <span style="color:var(--faint);font-size:11.5px">— a titled, confined stretch of this session (WHAT + WHY)</span>
+      <span style="flex:1"></span>
+      <button class="lctl" id="epiCloseBtn" onclick="epiClose()">⏹ End episode</button>
+    </div>
+    <div id="epiMeta"></div>
+    <div id="epiDraft" style="display:none">
+      <div class="epirow"><label>Title</label><input id="epiTitle" placeholder="what this stretch was"></div>
+      <div class="epirow"><label>Description</label><textarea id="epiDesc" placeholder="what happened"></textarea></div>
+      <div class="epirow"><label>Why</label><textarea id="epiWhy" placeholder="the intent behind it"></textarea></div>
+      <div class="epirow" style="justify-content:flex-end">
+        <span style="color:var(--faint);font-size:11px;margin-right:auto" id="epiDraftHint">review the draft, edit any field, then accept</span>
+        <button class="lctl" onclick="epiDraftCancel()">Later</button>
+        <button class="lctl" style="border-color:rgba(95,211,155,.5)" onclick="epiDraftAccept()">✓ Accept</button>
+      </div>
+    </div>
   </div>
   <div id="setp">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
@@ -2402,6 +2498,125 @@ function refreshNarrButtons(level){
   var st = document.getElementById('narrStatus');
   if (st) st.textContent = NARR_LABELS[level] || level;
 }
+
+// ---- Session bookends (S4): episode chip + panel + advisory suggestion banner ----
+// Renders the locked contract (design sec.6) served by /episode/*; the suggestion is ADVISORY --
+// only Accept closes anything. Poll is slow (15s): episode state moves at human pace.
+var _epi = null;            // last /episode/current payload
+var _epiDraft = null;       // pending close draft {chapter_id,...} while the edit card is open
+function epiIgnoreKey(s){ return (_epi&&_epi.id||'') + '|' + (s.reason||'') + '|' + (s.title||''); }
+function epiIgnored(s){
+  try{
+    var m = JSON.parse(localStorage.getItem('bifrost_epi_ignore')||'{}');
+    var until = m[epiIgnoreKey(s)];
+    return until && Date.now() < until;
+  }catch(e){ return false; }
+}
+function epiSuppress(s, ms){
+  try{
+    var m = JSON.parse(localStorage.getItem('bifrost_epi_ignore')||'{}');
+    m[epiIgnoreKey(s)] = Date.now() + ms;
+    localStorage.setItem('bifrost_epi_ignore', JSON.stringify(m));
+  }catch(e){}
+}
+function epiFmtDur(sec){
+  sec = Math.max(0, sec|0);
+  if (sec < 3600) return Math.round(sec/60) + 'm';
+  return Math.floor(sec/3600) + 'h' + Math.round((sec%3600)/60) + 'm';
+}
+function epiRender(){
+  var chip = document.getElementById('epiChip');
+  var banner = document.getElementById('epiBanner');
+  var meta = document.getElementById('epiMeta');
+  if (!chip) return;
+  var c = _epi;
+  if (!c){
+    chip.innerHTML = '📖 episode';
+    if (banner) banner.classList.remove('show');
+    return;
+  }
+  var t = c.title || 'untitled episode';
+  chip.innerHTML = '📖 ' + t.slice(0, 26).replace(/</g,'&lt;') +
+                   '<span class="epidur">' + epiFmtDur(c.duration_seconds) + '</span>';
+  if (meta) meta.textContent = 'started ' + (c.started||'').replace('T',' ').slice(0,16) + ' · ' +
+      epiFmtDur(c.duration_seconds) + ' · ' + (c.beats_count|0) + ' beats' +
+      (c.suggestion ? ' · suggestion: ' + c.suggestion.reason + ' (' + Math.round((c.suggestion.confidence||0)*100) + '%)' : '');
+  var s = c.suggestion;
+  if (banner){
+    if (s && !epiIgnored(s) && !_epiDraft){
+      document.getElementById('epiSugTitle').textContent = 'AI suggests ending this episode: ' + (s.title || 'untitled');
+      document.getElementById('epiSugReason').textContent = '— ' + s.reason + ' · ' + Math.round((s.confidence||0)*100) + '%';
+      banner.classList.add('show');
+    } else {
+      banner.classList.remove('show');
+    }
+  }
+}
+async function epiPoll(){
+  try{
+    var r = await (await fetch('/episode/current')).json();
+    _epi = r.current_chapter || null;
+  }catch(e){ _epi = null; }
+  epiRender();
+}
+function toggleEpisode(){
+  var p = document.getElementById('epi');
+  p.classList.toggle('show');
+  if (p.classList.contains('show')) epiPoll();
+}
+function epiShowDraft(draft){
+  _epiDraft = draft;
+  document.getElementById('epi').classList.add('show');
+  document.getElementById('epiDraft').style.display = 'block';
+  document.getElementById('epiTitle').value = draft.title || '';
+  document.getElementById('epiDesc').value = draft.description || '';
+  document.getElementById('epiWhy').value = draft.why || '';
+  epiRender();
+}
+async function epiClose(){
+  try{
+    var r = await (await fetch('/episode/close',{method:'POST',
+      headers:{'Content-Type':'application/json'}, body:'{}'})).json();
+    if (r.draft) epiShowDraft(r.draft);
+    epiPoll();
+  }catch(e){}
+}
+async function epiDraftAccept(){
+  if (!_epiDraft) return;
+  try{
+    await fetch('/episode/accept',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({chapter_id:_epiDraft.chapter_id,
+        title:document.getElementById('epiTitle').value,
+        description:document.getElementById('epiDesc').value,
+        why:document.getElementById('epiWhy').value})});
+  }catch(e){}
+  epiDraftCancel();
+  epiPoll();
+}
+function epiDraftCancel(){
+  _epiDraft = null;
+  document.getElementById('epiDraft').style.display = 'none';
+  epiRender();
+}
+async function epiSuggestAccept(){
+  var s = _epi && _epi.suggestion; if (!s) return;
+  try{   // one-shot: close with the suggested fields and finalize (contract's agent path)
+    await fetch('/episode/close',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({title:s.title, description:s.description, why:s.why, finalize:true})});
+  }catch(e){}
+  epiPoll();
+}
+function epiSuggestIgnore(){    // suppress THIS suggestion for this chapter (until it changes)
+  var s = _epi && _epi.suggestion; if (!s) return;
+  epiSuppress(s, 24*3600*1000);
+  epiRender();
+}
+function epiSuggestContinue(){  // keep working; the banner may return in ~10 min
+  var s = _epi && _epi.suggestion; if (!s) return;
+  epiSuppress(s, 10*60*1000);
+  epiRender();
+}
+epiPoll(); setInterval(epiPoll, 15000);
 
 // ---- Viz-canvas engine: slide-deck cards between aurora and cockpit ----
 var _vizEngine = null, _vizVisible = false, _vizDeckMode = false;

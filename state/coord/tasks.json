@@ -1,5 +1,5 @@
 {
-  "seq": 9,
+  "seq": 10,
   "tasks": [
     {
       "id": "T001",
@@ -280,6 +280,42 @@
           "to": "done",
           "by": "",
           "at": "2026-07-08T04:54:10+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T010",
+      "title": "S4 episode panel in bifrost_ui.py: current-chapter panel + close/bookend button + per-field accept dialog + suggestion banner, rendered against contract sec.6. Daniel-directed 2026-07-08 (DeepSeek-lane default overridden; fleet paused; advisory lock taken)",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "in_progress",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-08T05:02:19+00:00",
+      "updated": "2026-07-08T05:02:21+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-08T05:02:19+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-08T05:02:20+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-08T05:02:20+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-07-08T05:02:21+00:00"
         }
       ]
     }

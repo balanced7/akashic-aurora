@@ -150,4 +150,8 @@ One-shot (agent/AI bypasses the edit dialog): `episode close --accept-title "...
   subsystem-switch reads the last ≥2 ROUTED beats (the live router key drifts on every emit), and the
   close-boundary `mark` beat is filtered from the next span's content (`episode.content_beats`) — it
   was becoming the next episode's drafted `why` and a phantom trigger input.
-- **S4 (DeepSeek):** current-chapter panel + close button + per-field accept/edit, against §6.
+- **S4 — ✅ SHIPPED 2026-07-08 (T010):** current-chapter panel (header chip + docked panel) + End-episode
+  button + per-field draft editor + advisory suggestion banner ([Accept][Ignore][Continue], localStorage
+  suppression), against §6 via `/episode/current|close|accept` — thin adapters over the tested core.
+  *Lane note:* built by claude on Daniel's direction (fleet paused) under the advisory lock, per the
+  any-agent/any-task model; DeepSeek notified on the bus and owns follow-up styling in its lane.
