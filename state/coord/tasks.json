@@ -337,11 +337,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "in_progress",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "aceb2da",
+      "verified_by": "844 tests + 5 guards green; live: benched 4 dead-arc lessons + pruned 122 ghosts on the real corpus; probe battery = 3 generic prompts silent, 6 trigger queries rank their lesson FIRST; floor calibrated by replay (0.20 = 91% injection cut, credited pair kept 3.2x)",
       "created": "2026-07-08T05:27:29+00:00",
-      "updated": "2026-07-08T05:27:30+00:00",
+      "updated": "2026-07-08T05:52:36+00:00",
       "history": [
         {
           "to": "proposed",
@@ -362,6 +362,16 @@
           "to": "in_progress",
           "by": "",
           "at": "2026-07-08T05:27:30+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-07-08T05:52:36+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-08T05:52:36+00:00"
         }
       ]
     }
