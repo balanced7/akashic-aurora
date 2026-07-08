@@ -13,7 +13,8 @@ import os
 import subprocess
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, ROOT)
 
 
 def _staged_files():
@@ -50,10 +51,30 @@ def check_staged(files, agent, client=None):
                    "\nCommit only files you hold, or coordinate via the bus (see docs/concurrency-design.md C2/C4).")
 
 
+def _comprehensibility_fast():
+    """The drift immune system's FAST checks (stale-ref + filename-case) as a commit-time backstop --
+    so drift can't reach the shared repo via `mirror`/`git commit`, not just `ship.py` (property
+    UNBYPASSABLE). Fail-OPEN on a guard CRASH (a broken guard must never brick every commit; CI + ship
+    run the full guard anyway); real drift fails CLOSED. Emergency bypass: `git commit --no-verify`."""
+    try:
+        r = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "scripts", "check_comprehensibility.py"), "--fast"],
+            capture_output=True, text=True, timeout=60)
+        return r.returncode, (r.stdout or "") + (r.stderr or "")
+    except Exception:
+        return 0, ""   # guard unavailable/slow -> fail open
+
+
 def main():
     ok, reason = check_staged(_staged_files(), os.getenv("AKASHIC_AGENT_ID"))
     if not ok:
         sys.stderr.write(reason + "\n")
+        return 1
+    rc, out = _comprehensibility_fast()
+    if rc == 1:
+        sys.stderr.write("pre-commit BLOCKED: comprehensibility drift (a stale repo reference or a "
+                         "filename case-mismatch):\n" + out +
+                         "\nFix it, or `git commit --no-verify` to bypass in a genuine emergency.\n")
         return 1
     return 0
 

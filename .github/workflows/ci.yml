@@ -28,9 +28,18 @@ jobs:
           python-version: "3.11"
       - name: Install dependencies
         run: python -m pip install -r requirements.txt numpy  # numpy = optional embedding subsystems; exercised in CI
+      # The comprehensibility immune system -- the unbypassable REMOTE gate: every push/PR is checked,
+      # so drift can't reach the shared repo via any local path (mirror/git commit that skipped hooks).
+      # See docs/comprehensibility-immune-system-2026-07.md.
       - name: Architecture boundary guardrail
         run: python scripts/check_boundaries.py
       - name: Doc-freshness guardrail
         run: python scripts/check_doc_freshness.py
+      - name: Comprehensibility guardrail (docs match code; no stale refs / case drift)
+        run: python scripts/check_comprehensibility.py
+      - name: Wiring guardrail (no built-but-unwired core module)
+        run: python scripts/check_wiring.py
+      - name: Door-parity guardrail (CLI<->MCP verb surface)
+        run: python scripts/check_door_parity.py
       - name: Test suite
         run: python -m pytest -q

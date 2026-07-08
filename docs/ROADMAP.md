@@ -144,7 +144,7 @@ most and prevent wasted work:
    analysis that answers "is the system actually succeeding for agents?": can a
    fresh agent accomplish a representative task using only the interface + context,
    no docs? Borrow ACI metrics — task success, tool-selection accuracy, tokens per
-   task, error/retry rate. Build on `tests/test_bootstrap_api_no_docs.py`. Run it
+   task, error/retry rate. Build a `test_bootstrap_api_no_docs`-style baseline test. Run it
    as a baseline now, then after each wave to see if we're improving the thing that
    matters.
 
