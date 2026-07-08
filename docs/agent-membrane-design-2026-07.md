@@ -63,8 +63,10 @@ Two prior decisions snap in: **hats** = the ultimate load-reducer (see only your
    a documented backlog: 14 **built-ahead** (codex, perspectives, the **conductor**+coord layer, narrative
    slices, fast_cache — wire when their consumer lands) + 4 **legacy** (`coordinator_service`,
    `redis_sync_coordinator`, `sync_reconciler`, `session_recovery` — deletion candidates for a boy-scout slice).
-3. **Surface → orientation** — inject the relevant ARCHITECTURE/LEXICON slice at the tool boundary, so an
-   agent touching `core/comm` gets the Bifrost map, not just lessons. (Instant skeleton retrieval.)
+3. **Surface → orientation** — ✅ **SHIPPED 2026-07-07 (via Renew Strand E gap #2):** boot now carries an
+   ARCH SLICE section (`context/arch_loader.py`, deterministic show-nothing-floored projection over
+   ARCHITECTURE.md), inherited by both CLI+MCP doors. The original tool-boundary variant stays a
+   possible refinement.
 4. **Capture at salience** — auto-draft a lesson/note candidate from a FAIL→SUCCESS flip, weight-gated,
    human/agent confirms. Closes the manual-capture gap without corpus bloat.
 5. **Hats** (Wave 3) — per-role context+permission scoping; the deepest load reducer.
@@ -178,6 +180,13 @@ between them* (the distiller/supersession pipeline pointed at the refresh bounda
   superseded-record density (diff live context vs `supersession.py` edges), stale-lock count. Method:
   instrument + correlate against an outcome signal we already have (FAIL→SUCCESS flips, funnel helped-
   rate, task completion). **This slice comes first.**
+  ✅ RESEARCHED 2026-07-07 (`research/reviewed/renew-stranda-health-signals-2026-07-07.md`) — verdict
+  inverted the method: label first (flips measure recall-utility, not health; raw reread rate demoted).
+  **A′ SHIPPED 2026-07-07:** durable `fail` label events. **A″ SHIPPED 2026-07-08:** durable
+  `session_signals` events — the SessionEnd hook folds the session transcript through
+  `core/renew/session_signals.py` (churn-over-progress family), so the signal×label correlation
+  dataset now accrues passively (the manual bus recorder had silently stopped 2026-07-07).
+  Remaining: the correlation itself, data-gated on ~10–20 labeled sessions.
 - **B. [PRIOR-ART] ✅ GROUNDED 2026-07-07 → `research/reviewed/renew-priorart-2026-07-07.md`.** Anchor
   confirmed: **MemGPT** (arXiv **2310.08560**, Packer et al.) / **Letta** virtual context management —
   OS-paging over Main(in-context)/External(recall+archival) tiers = GPT's four tiers = our layer stack;

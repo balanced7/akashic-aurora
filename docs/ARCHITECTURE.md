@@ -20,7 +20,8 @@ INTERFACE (System 5) — the doors agents/humans come through
         v
 NARRATIVE (System 4)          KNOWLEDGE & MEMORY               COORDINATION
   core/narrative/               core/learning + recall +          core/coord/
-  the self-writing story        primitives (the "codex")          who does what, without racing
+  the self-writing story        primitives + renew                who does what, without racing
+                                (the "codex")
         |                              |                               |
         +---------------+--------------+---------------+---------------+
                         v
@@ -95,6 +96,14 @@ Give the right agent the right context at the moment of action.
   `distiller.py` (compact to a token budget + source pointers), `faithfulness.py` (NO-LLM grounding gate —
   silence beats fabrication), `embedder.py`, `clusterer.py`, `consolidator.py`, `supersession.py`
   (newer record retires older).
+
+## Renew (`core/renew/`)
+The membrane's temporal (5th) job: keep working context healthy ACROSS sessions
+(docs/agent-membrane-design-2026-07.md §Renew). Deterministic organs only — the health *estimator*
+is data-gated on the Strand-A correlation and does not exist yet.
+- **`session_signals.py`** — fold one session's tool calls into the signal aggregates
+  (churn-over-progress family; reread recorded-but-demoted). Fed by the Claude SessionEnd hook →
+  one durable `session_signals` event per session: the passive signal×label correlation dataset.
 
 ## Narrative spine (`core/narrative/`) — System 4
 The project's self-writing story: **Atlas → Track → Chapter → Beat**. `schema.py` (shapes),

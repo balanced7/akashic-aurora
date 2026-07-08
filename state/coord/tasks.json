@@ -1,5 +1,5 @@
 {
-  "seq": 7,
+  "seq": 8,
   "tasks": [
     {
       "id": "T001",
@@ -188,6 +188,42 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-05T14:18:11+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T008",
+      "title": "RENEW signal-persistence: fold per-session health signals from the session transcript at SessionEnd into a durable session_signals event (labels already durable via A'; this closes the signal side)",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "in_progress",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-08T04:11:50+00:00",
+      "updated": "2026-07-08T04:12:04+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-08T04:11:50+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-08T04:11:57+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-08T04:12:03+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-07-08T04:12:04+00:00"
         }
       ]
     }

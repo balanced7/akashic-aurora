@@ -64,6 +64,9 @@
 - `ranker.py` — Ranker: order items by relevance x importance x recency (+ relationship type)
 - `supersession.py` — Supersession: a newer record retires an older one (temporal correctness).
 
+## core/renew/  (1 modules)
+- `session_signals.py` — Session signals (RENEW slice A'') -- fold one session's tool calls into deterministic context-health signal ag
+
 ## core/narrative/  (16 modules)
 - `beat_log.py` — BeatLog (Slice 1) -- append salient narrative Beats to the Store + read them by time.
 - `chapter_lifecycle.py` — Chapter lifecycle helpers (Slice 7) — bi-temporal stamping, in-place regeneration,

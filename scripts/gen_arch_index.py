@@ -18,7 +18,7 @@ OUT = os.path.join(ROOT, "docs", "MODULE_INDEX.md")
 # Areas surveyed, in reading order. Kept in sync with the layers in ARCHITECTURE.md.
 CORE_ORDER = [
     "foundation", "events", "signals", "comm", "coord",
-    "learning", "recall", "primitives", "narrative",
+    "learning", "recall", "primitives", "renew", "narrative",
     "trust", "fleet", "state", "codex", "perspectives",
 ]
 
