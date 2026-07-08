@@ -7,7 +7,6 @@ Includes:
 - relationship_types.py: 66 standardized relationship types (Dublin Core, OBO, RDF)
 - store.py:  persistence as state-by-key (key/value, hash, list, set, zset, TTL)
 - ledger.py: persistence as events-in-sequence (append-and-replay streams)
-- fast_cache.py: High-performance multi-layer caching (RAM disk, Redis, Python dict)
 
 These are the fundamental building blocks. All other systems reference these.
 

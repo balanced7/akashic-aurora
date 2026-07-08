@@ -15,7 +15,7 @@ Checkpoint Versioning:
 - Checkpoints mark progress and decisions made
 
 Usage:
-    from core.state.session_checkpoint import SessionState, SessionRecovery
+    from core.state.session_checkpoint import SessionState, CheckpointRecovery
 
     # Create and save checkpoint
     state = SessionState("agent_id")
@@ -26,7 +26,7 @@ Usage:
     )
 
     # Recover from checkpoint
-    recovery = SessionRecovery.derive_recovery_plan_from_checkpoint("agent_id")
+    recovery = CheckpointRecovery.derive_recovery_plan_from_checkpoint("agent_id")
     if recovery:
         print(f"Resume from {recovery['resume_from_progress']}%")
 """
@@ -349,9 +349,11 @@ class SessionState:
         return self._load_state_from_checkpoint_file()
 
 
-class SessionRecovery:
+class CheckpointRecovery:
     """
-    Helper class for recovering from crashes.
+    Helper: derive a resume-PLAN from a crash CHECKPOINT (renamed from SessionRecovery 2026-07-07 to
+    end the class-name collision with core/state/session_recovery.py's SessionRecovery, a DIFFERENT
+    concern -- session-history recovery from local files; arch-triage P2). This one is checkpoint-scoped.
 
     Semantic Relationship: Recovery derived_from Checkpoint
 
@@ -394,7 +396,7 @@ class SessionRecovery:
     @staticmethod
     def get_recovery_plan(agent_id: str) -> Optional[Dict[str, Any]]:
         """Deprecated: Use derive_recovery_plan_from_checkpoint() instead"""
-        return SessionRecovery.derive_recovery_plan_from_checkpoint(agent_id)
+        return CheckpointRecovery.derive_recovery_plan_from_checkpoint(agent_id)
 
     @staticmethod
     def print_recovery_summary_for_agent(agent_id: str) -> None:
@@ -405,7 +407,7 @@ class SessionRecovery:
 
         Displays formatted recovery information including task, progress, blockers, and next steps.
         """
-        recovery_plan = SessionRecovery.derive_recovery_plan_from_checkpoint(agent_id)
+        recovery_plan = CheckpointRecovery.derive_recovery_plan_from_checkpoint(agent_id)
 
         if not recovery_plan:
             print(f"No recovery needed for {agent_id}")
@@ -432,4 +434,4 @@ class SessionRecovery:
     @staticmethod
     def print_recovery_summary(agent_id: str) -> None:
         """Deprecated: Use print_recovery_summary_for_agent() instead"""
-        return SessionRecovery.print_recovery_summary_for_agent(agent_id)
+        return CheckpointRecovery.print_recovery_summary_for_agent(agent_id)

@@ -39,14 +39,8 @@ PROTECTED = ["core"]  # dirs whose boundaries we enforce (add context/ etc. late
 
 # Pre-existing debt: (rule, relative_path) -> reason. Visible, tracked, not silent.
 ALLOWLIST = {
-    ("redis-only-via-connector", "core/foundation/fast_cache.py"):
-        "pre-existing caching layer; migrate onto Store/connector (audit R3)",
-    ("no-syspath-insert", "core/foundation/fast_cache.py"):
-        "pre-existing; remove when fast_cache is refactored (audit R3)",
-    ("no-bare-except", "core/foundation/fast_cache.py"):
-        "11 pre-existing bare excepts; clean when fast_cache is refactored (audit R3)",
-    ("no-duplicate-class-names", "SessionRecovery"):
-        "pre-existing dup: session_recovery.py vs session_checkpoint.py:350 -- resolve carefully (audit)",
+    # fast_cache.py DELETED 2026-07-07 (arch-triage P2: dead, zero live consumers) -> its 3 debt
+    # entries + the SessionRecovery dup (resolved: checkpoint's class renamed CheckpointRecovery) are gone.
     ("no-duplicate-module-basename", "schema.py"):
         "intentional per-package convention: core/{codex,narrative,perspectives}/schema.py are always "
         "imported via the full package path (never `from core import schema`), so no shadowing hazard",
