@@ -1,5 +1,5 @@
 {
-  "seq": 16,
+  "seq": 18,
   "tasks": [
     {
       "id": "T001",
@@ -597,6 +597,73 @@
           "to": "verifying",
           "by": "",
           "at": "2026-07-09T13:19:35+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T017",
+      "title": "P0 wake listener detect-dont-consume: local-cursor detection (shared cursor untouched), skip-kinds without busy-spin, wake-worthy exit without consuming, watcher lifecycle discipline (singleton + stale-watcher teardown at session start), regression pins + live drill (T016 Exhibit A fix)",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "in_progress",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-09T23:12:12+00:00",
+      "updated": "2026-07-09T23:12:13+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-09T23:12:12+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-09T23:12:12+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-09T23:12:12+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-07-09T23:12:13+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T018",
+      "title": "T018 runner robustness: promise-shaped final replies bounce once (deliver-now reprompt, claude_stop.promise_shaped reused) + explicit max_tokens headroom on the agentic runner per reasoning_model_token_headroom; unit pins with a fake agent",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "claimed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-09T23:51:31+00:00",
+      "updated": "2026-07-09T23:51:32+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-09T23:51:31+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-09T23:51:32+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-09T23:51:32+00:00"
         }
       ]
     }

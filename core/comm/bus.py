@@ -260,13 +260,23 @@ class Bus:
         own broadcasts are not delivered back to it. Returns [] (never raises) when offline."""
         return self._drain(block=None, limit=limit, advance=advance)
 
-    def wait(self, timeout_ms: int = 0, *, limit: int = 50, advance: bool = False) -> List[Message]:
+    def wait(self, timeout_ms: int = 0, *, limit: int = 50, advance: bool = False,
+             since: Optional[Dict[str, str]] = None,
+             since_out: Optional[Dict[str, str]] = None) -> List[Message]:
         """BLOCK until a new message arrives (or `timeout_ms` elapses; 0 = forever), then return it.
 
         The event-driven wake primitive: an idle agent (or a backgrounded watcher) blocks here at ~0
         cost and returns the instant a message lands. Defaults to advance=False -- it *detects* without
-        consuming, so the agent can then `inbox()` the message normally. Returns [] on timeout/offline."""
-        return self._drain(block=int(timeout_ms), limit=limit, advance=advance)
+        consuming, so the agent can then `inbox()` the message normally. Returns [] on timeout/offline.
+
+        `since={"inbox": id, "bc": id}` reads from a CALLER-OWNED position instead of the shared
+        cursor, and the shared cursor is NEVER written (advance is ignored) -- the local-cursor mode a
+        wake watcher uses so skip-kinds don't busy-spin it while the real consumer still gets every
+        message (P0 / T017; the T016 Exhibit A fix). Pass `since_out={}` to receive the caller's next
+        safe position under the same T014 rules the shared cursor uses (this is how a filtered own-
+        broadcast -- read but never returned -- still moves the local cursor: filtered != truncated)."""
+        return self._drain(block=int(timeout_ms), limit=limit,
+                           advance=(advance and since is None), since=since, since_out=since_out)
 
     def _blocking_client(self, block_ms):
         """A client whose socket timeout EXCEEDS the block: the fail-fast client's short socket_timeout
@@ -283,11 +293,14 @@ class Bus:
         except Exception:
             return None
 
-    def _drain(self, *, block, limit: int, advance: bool) -> List[Message]:
+    def _drain(self, *, block, limit: int, advance: bool,
+               since: Optional[Dict[str, str]] = None,
+               since_out: Optional[Dict[str, str]] = None) -> List[Message]:
         if not self.online:
             return []
         self._touch()
-        cur = self._read_cursor()
+        cur = ({"inbox": str(since.get("inbox", "0")), "bc": str(since.get("bc", "0"))}
+               if since is not None else self._read_cursor())
         client, temp = self._client, None
         if block is not None:                      # a blocking wait() needs a long-socket-timeout client
             temp = self._blocking_client(block)
@@ -330,28 +343,29 @@ class Bus:
         out = [p[0] for p in pairs]
         out_streams = [p[1] for p in pairs]
         returned = out[:limit]
-        if advance:
-            if len(out) <= limit:
-                # No truncation happened: everything deliverable was returned, so advancing
-                # to the last READ id is provably safe -- and it correctly skips FILTERED
-                # entries (own broadcasts), which would otherwise be re-scanned on every
-                # drain forever (claude review of T014: filtered != truncated; the fix must
-                # not conflate them).
-                if new_inbox != cur["inbox"] or new_bc != cur["bc"]:
-                    self._write_cursor(new_inbox, new_bc)
-            else:
-                # Truncation DID happen: advance only to the LAST message ACTUALLY RETURNED
-                # from each stream (not the last read -- the T014 cursor-skip gap). The
-                # global id-sort preserves per-stream order, so the returned set holds a
-                # prefix of each stream; everything unreturned stays ahead of its cursor.
-                last_inbox, last_bc = cur["inbox"], cur["bc"]
-                for m, stream_tag in zip(returned, out_streams[:limit]):
-                    if stream_tag == "inbox":
-                        last_inbox = m.id
-                    else:
-                        last_bc = m.id
-                if last_inbox != cur["inbox"] or last_bc != cur["bc"]:
-                    self._write_cursor(last_inbox, last_bc)
+        # The safe next-position, one rule for BOTH cursor kinds (shared and caller-owned):
+        # - No truncation: everything deliverable was returned, so the last READ id is provably
+        #   safe -- and it correctly skips FILTERED entries (own broadcasts), which would
+        #   otherwise be re-scanned on every drain forever (claude review of T014:
+        #   filtered != truncated; the fix must not conflate them).
+        # - Truncation: advance only to the LAST message ACTUALLY RETURNED from each stream
+        #   (not the last read -- the T014 cursor-skip gap). The global id-sort preserves
+        #   per-stream order, so the returned set holds a prefix of each stream; everything
+        #   unreturned stays ahead of its cursor.
+        if len(out) <= limit:
+            next_inbox, next_bc = new_inbox, new_bc
+        else:
+            next_inbox, next_bc = cur["inbox"], cur["bc"]
+            for m, stream_tag in zip(returned, out_streams[:limit]):
+                if stream_tag == "inbox":
+                    next_inbox = m.id
+                else:
+                    next_bc = m.id
+        if since is not None:
+            if since_out is not None:      # hand the caller its next local position (P0)
+                since_out["inbox"], since_out["bc"] = next_inbox, next_bc
+        elif advance and (next_inbox != cur["inbox"] or next_bc != cur["bc"]):
+            self._write_cursor(next_inbox, next_bc)
         return returned
 
     def pending(self) -> int:
@@ -360,6 +374,25 @@ class Bus:
         return len(msgs)
 
     # ------------------------------------------------------------------ cursor
+    def tail(self) -> Dict[str, str]:
+        """The CONCRETE last-entry id of this agent's inbox + the broadcast stream ("0" when
+        empty/unreadable). The safe 'start from NOW' frontier for a local since-cursor: unlike
+        the "$" sentinel (which skips anything landing between two blocking reads), a
+        materialized id makes every later arrival detectable (P0 review fold-in)."""
+        out: Dict[str, str] = {}
+        for stream, key in (("inbox", self._inbox_key(self.agent_id)), ("bc", self._bc_key)):
+            try:
+                last = self._client.xrevrange(key, count=1)
+                out[stream] = str(last[0][0]) if last else "0"
+            except Exception:
+                out[stream] = "0"
+        return out
+
+    def cursor(self) -> Dict[str, str]:
+        """A read-only snapshot of this agent's shared read-cursor ({"inbox": id, "bc": id}).
+        Does not create or touch the key -- the seed for a watcher's local `since` position."""
+        return self._read_cursor()
+
     def _read_cursor(self) -> Dict[str, str]:
         try:
             h = self._client.hgetall(self._cursor_key()) or {}

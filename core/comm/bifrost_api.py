@@ -23,12 +23,29 @@ from core.comm.bus import Bus
 from core.comm import control, nudge
 
 
+def _id_key(sid: str):
+    """Sort key for Redis stream ids. "$" (tail) sorts above everything; "0" (virgin cursor)
+    and malformed ids sort BELOW every real id -- "0" must lose to "0-0" (seat-2 review
+    finding 1: the parse branch made them tie). Plain string compare is WRONG for ids
+    ("...-10" < "...-9" lexicographically)."""
+    if sid == "$":
+        return (float("inf"), float("inf"))
+    if sid == "0":
+        return (-1, -1)
+    try:
+        ms, _, seq = str(sid).partition("-")
+        return (int(ms), int(seq or 0))
+    except (ValueError, TypeError):
+        return (-1, -1)
+
+
 class BifrostAPI:
     """One agent's handle on Bifrost. Wraps the bus + control/nudge/wake so an agent needs one import."""
 
     def __init__(self, agent: str):
         self.agent = str(agent)
         self.bus = Bus(self.agent)
+        self._wake_since: Optional[Dict[str, str]] = None   # the wake watcher's LOCAL cursor (P0)
 
     @property
     def online_now(self) -> bool:
@@ -52,9 +69,40 @@ class BifrostAPI:
         return self.bus.inbox(advance=consume)
 
     def wake_block(self, timeout_ms: int = 120_000) -> List[Any]:
-        """Block until a message lands (or timeout), then return it. The single primitive the wake
-        listener loops on. Returns [] on timeout/offline."""
-        return self.bus.wait(timeout_ms=timeout_ms, advance=True)
+        """Block until a message lands (or timeout), then return it -- WITHOUT consuming. The single
+        primitive the wake listener loops on. Returns [] on timeout/offline.
+
+        Detect-only (P0/T017, the T016 Exhibit A fix): the SHARED cursor is never moved, so every
+        message the watcher sees remains unread for the real consumer (inbox()/bifrost-sync). Position
+        is tracked on a LOCAL in-memory cursor -- skip-kind messages therefore return once (no
+        busy-spin) and are never lost. The old advance=True here is what silently ate a directed
+        reply on 2026-07-09.
+
+        Local-cursor rules (deepseek red-team F1/F2/F10, research/reviewed/deepseek-p0-design-review):
+        - SEED: the shared cursor when the agent has one (pending unconsumed mail must wake the
+          watcher armed after it arrived); the CONCRETE stream tail when the shared cursor is
+          virgin OR Redis was unreachable at read -- a "0" seed would replay the whole stream as
+          "new" (false-wake storm), and the "$" sentinel would skip mail landing BETWEEN two
+          blocking reads (a missed-wake hole the T017 pins caught live).
+        - FAST-FORWARD: every call lifts the local cursor to at least the shared cursor, so mail a
+          concurrent live session already consumed never wakes the watcher; a trimmed-away local
+          position degrades to bounded paging from the stream head, not an error loop."""
+        if self._wake_since is None:
+            seed = dict(self.bus.cursor())
+            if seed.get("inbox", "0") == "0" and seed.get("bc", "0") == "0":
+                seed = self.bus.tail()             # virgin/offline cursor: only NEW mail wakes
+            self._wake_since = seed
+        else:
+            shared = self.bus.cursor()
+            for stream in ("inbox", "bc"):
+                candidate = shared.get(stream, self._wake_since.get(stream, "0"))
+                if _id_key(candidate) > _id_key(self._wake_since.get(stream, "0")):
+                    self._wake_since[stream] = candidate
+        nxt: Dict[str, str] = {}
+        msgs = self.bus.wait(timeout_ms=timeout_ms, since=self._wake_since, since_out=nxt)
+        if nxt:
+            self._wake_since.update(nxt)
+        return msgs
 
     @property
     def wake_cmd(self) -> str:
