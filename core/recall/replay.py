@@ -56,7 +56,10 @@ def flip_events(*, events: Optional[List[Dict[str, Any]]] = None) -> List[Dict[s
             credited = 0
         out.append({"target": tgt, "credited": credited,
                     "sources": [str(s) for s in (d.get("sources") or []) if s],
-                    "at": str(ev.get("at") or ""), "agent_id": str(ev.get("agent_id") or "")})
+                    "at": str(ev.get("at") or ""), "agent_id": str(ev.get("agent_id") or ""),
+                    # F0b enrichment (empty for pre-F0b events): the retrieval context as
+                    # captured at credit time -- survives future normalize/query changes.
+                    "query": str(d.get("query") or ""), "alt": str(d.get("alt") or "")})
     return out
 
 
@@ -73,14 +76,39 @@ def credited_contexts(*, events: Optional[List[Dict[str, Any]]] = None) -> Dict[
     return out
 
 
+def durable_surface_entries() -> List[Dict[str, Any]]:
+    """The F0b durable surface stream (recall:surface), oldest-first; [] before F0b shipped
+    or when the store is down. Same entry shape as the temp ledger ({at, alt, t, s, chars})."""
+    out: List[Dict[str, Any]] = []
+    try:
+        from core.events.event_log import get_event_log
+        from core.recall.at_action import SURFACE_STREAM
+        ledger = get_event_log().ledger
+        after = "0"
+        while True:
+            batch = ledger.consume(SURFACE_STREAM, after_id=after, count=500)
+            if not batch:
+                break
+            for eid, ev in batch:
+                if isinstance(ev, dict):
+                    out.append(ev)
+                after = str(eid)
+            if len(batch) < 500:
+                break
+    except Exception:
+        return out
+    return out
+
+
 def surfaced_contexts(hours: float = 24.0 * 14,
                       *, injections: Optional[List[Dict[str, Any]]] = None) -> Dict[str, List[str]]:
-    """source -> [target, ...] from the injection ledger (axis-2 raw material). The ledger
-    is WINDOWED temp state (prune_state) -- thinness here is exactly what criterion 4 probes."""
+    """source -> [target, ...] for axis-2: the UNION of the durable surface stream (F0b,
+    grows from 2026-07-09 on) and the 7-day temp injection ledger (pre-F0b coverage +
+    belt-and-suspenders). Injected `injections` (tests) bypass both live reads."""
     if injections is None:
         try:
             from core.recall.at_action import recent_injections
-            injections = recent_injections(hours)
+            injections = list(durable_surface_entries()) + list(recent_injections(hours) or [])
         except Exception:
             return {}
     out: Dict[str, List[str]] = {}
@@ -260,8 +288,14 @@ def audit(*, events: Optional[List[Dict[str, Any]]] = None,
             and (retention_days is None or retention_days < FALLBACK_MIN_RETENTION_DAYS))
         else "not needed")
 
+    # F0b accrual visibility: enriched flips (carry their query) + durable surface entries.
+    # The re-audit gate (T013/F0b): merges unblock at >= 15 enriched credits.
+    enriched_flips = sum(1 for f in flip_events(events=events) if f.get("query"))
+    durable_surface = 0 if injections is not None else len(durable_surface_entries())
+
     return {
         "flips": rep_share["flips"], "flip_targets_replayable_share": rep_share["share"],
+        "enriched_flips_since_f0b": enriched_flips, "durable_surface_entries": durable_surface,
         "credited_lessons": cred_lessons,
         "credited_context_histogram": {
             ">=1": cred_lessons,

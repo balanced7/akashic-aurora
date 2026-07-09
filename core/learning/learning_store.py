@@ -306,6 +306,70 @@ class LearningStore:
             self.logger.error(f"mark_related failed for {experiment_id}: {e}")
             return False
 
+    def mark_forge_rejected(self, experiment_id: str, draft: str, reasons: List[str]) -> bool:
+        """Append a rejected Forge edit to the record's durable negative-feedback buffer
+        (design decision 6, locked KEEP as a plain field). The optimizer prompt includes
+        this buffer so a failed edit is never re-proposed; capped to the last 8 rejections
+        (enough to steer, bounded on the record). Same partial-hset idiom as the mark_* family."""
+        key = f"learn:experiment:{experiment_id}"
+        try:
+            rec = self._load_experiment(experiment_id)
+            if not rec:
+                return False
+            try:
+                buf = json.loads(str(rec.get("forge_rejected") or "[]"))
+            except Exception:
+                buf = []
+            buf.append({"at": datetime.utcnow().isoformat(),
+                        "draft": str(draft or "")[:400],
+                        "reasons": [str(r)[:200] for r in (reasons or [])][:5]})
+            self.store.hset(key, mapping={"forge_rejected": json.dumps(buf[-8:])})
+            return True
+        except Exception as e:
+            self.logger.error(f"mark_forge_rejected failed for {experiment_id}: {e}")
+            return False
+
+    def apply_forge_edit(self, experiment_id: str, new_recommendation: str,
+                         gate_summary: Dict[str, Any]) -> bool:
+        """Apply a gate-PASSED, human-approved Forge edit: swap the recommendation text,
+        retaining the incumbent for rollback (reversible by construction -- the same bet
+        bench/unbench makes) and stamping provenance + the provisional watch marker the
+        curator's Tier-1 pass (F4) will read. Counters are untouched: an edit is a new
+        coat, not a new identity."""
+        key = f"learn:experiment:{experiment_id}"
+        try:
+            rec = self._load_experiment(experiment_id)
+            if not rec or not str(new_recommendation or "").strip():
+                return False
+            self.store.hset(key, mapping={
+                "recommendation": str(new_recommendation),
+                "forge_previous_text": str(rec.get("recommendation") or ""),
+                "forged_at": datetime.utcnow().isoformat(),
+                "forge_provisional": datetime.utcnow().isoformat(),
+                "forge_gate": json.dumps(gate_summary or {}, default=str),
+            })
+            return True
+        except Exception as e:
+            self.logger.error(f"apply_forge_edit failed for {experiment_id}: {e}")
+            return False
+
+    def rollback_forge_edit(self, experiment_id: str) -> bool:
+        """Restore the pre-Forge text (Tier-1 rollback path; also the operator's undo).
+        Clears the provisional marker; the rejected buffer keeps the failed variant."""
+        key = f"learn:experiment:{experiment_id}"
+        try:
+            rec = self._load_experiment(experiment_id)
+            prev = str((rec or {}).get("forge_previous_text") or "")
+            if not rec or not prev:
+                return False
+            self.store.hset(key, mapping={"recommendation": prev, "forge_previous_text": "",
+                                          "forge_provisional": "", "forge_rolled_back":
+                                          datetime.utcnow().isoformat()})
+            return True
+        except Exception as e:
+            self.logger.error(f"rollback_forge_edit failed for {experiment_id}: {e}")
+            return False
+
     def _index_learning(self, learning_signal: Dict[str, Any]) -> None:
         """
         Index a learning signal into all Store structures (single code path).

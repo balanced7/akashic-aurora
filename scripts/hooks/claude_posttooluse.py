@@ -283,10 +283,23 @@ def main() -> int:
         if rep.get("flipped"):
             try:   # durable funnel signal (flips observed vs lessons recorded) -- best-effort
                 from core.events.event_log import capture_event
+                # F0b: carry the full retrieval context with the credit (this event is the
+                # Forge gate's axis-A validation set; at ~5/week the enrichment is free).
+                # alt is "action" by construction: plan-time impressions open no action
+                # target, so only action-altitude surfacings can ever credit.
+                q = ""
+                try:
+                    from core.recall.at_action import _query_from
+                    from core.recall.replay import parse_target
+                    p, c = parse_target(target)
+                    q = _query_from(p, c) if (p or c) else ""
+                except Exception:
+                    q = ""
                 capture_event("flip", f"FAIL->SUCCESS: {target}",
                               agent_id=os.getenv("AKASHIC_AGENT_ID") or "unknown",
                               detail={"target": target, "credited": rep.get("credited", 0),
-                                      "sources": rep.get("sources", [])})
+                                      "sources": rep.get("sources", []),
+                                      "alt": "action", "query": q})
             except Exception:
                 pass
             # JIT learn nudge at the moment of insight (friction audit D5) -- rate-limited.

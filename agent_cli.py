@@ -699,6 +699,50 @@ def cmd_recall_curate(args):
     times without ever earning credit (reversible flag; auto-UNBENCH on any new credit) and prune
     zero-credit ghost counters. Report by default; --apply stamps it."""
     import json as _json
+    if getattr(args, "forge_check", None):
+        # Forge F1 (design sec.9): adjudicate ONE bounded edit against the lesson's own
+        # durable history. Human-gated apply (trust ladder, decision 5) -- the operator
+        # sees the verdict before --apply does anything, and apply is reversible.
+        exp = args.forge_check
+        if not getattr(args, "draft", None):
+            print("ERROR: --forge-check needs --draft FILE (the proposed recommendation text).")
+            print(f'Example: py agent_cli.py recall-curate --forge-check {exp} --draft new_text.md')
+            return 2
+        try:
+            with open(args.draft, encoding="utf-8") as fh:
+                draft = fh.read().strip()
+        except Exception as e:
+            print(f"ERROR reading draft file: {type(e).__name__}: {e}")
+            return 2
+        from core.recall.forge import gate_edit, apply_edit
+        rep = gate_edit(exp, draft)
+        if getattr(args, "json", False):
+            print(_json.dumps(rep, indent=2, default=str))
+        else:
+            print(f"[forge-check] {exp}: {rep['verdict']}")
+            for k, chk in rep.get("checks", {}).items():
+                print(f"  floor {k}: {'ok' if chk.get('ok') else 'FAIL'}  {chk}")
+            a1, a2 = rep.get("axis1", {}), rep.get("axis2", {})
+            print(f"  axis1 must-still-match: {a1.get('kept', 0)}/{a1.get('credited_contexts', 0)} kept"
+                  + (" (vacuous - never-credited lesson)" if a1.get("vacuous") else "")
+                  + (f", LOST {len(a1.get('lost', []))}" if a1.get("lost") else ""))
+            print(f"  axis2 noise hits: incumbent {a2.get('incumbent_hits')} -> variant {a2.get('variant_hits')}"
+                  f" over {a2.get('noise_contexts')} context(s)"
+                  + (" [improved]" if a2.get("improved") else " [regressed]" if a2.get("regressed") else ""))
+            for r in rep.get("reasons", []):
+                print(f"  - {r}")
+        if rep["verdict"] == "PASS" and getattr(args, "apply", False):
+            ok = apply_edit(exp, draft, rep)
+            if ok:
+                print("[forge-apply] APPLIED (provisional -- the curator's Tier-1 watch reads the stamp).")
+                print(f"  rollback any time: py -c \"from core.learning.learning_store import "
+                      f"get_learning_store; print(get_learning_store().rollback_forge_edit('{exp}'))\"")
+            else:
+                print("[forge-apply] FAILED -- record not updated (store down or record missing).")
+        elif rep["verdict"] == "PASS":
+            print(f"  (gate PASS -- apply with: py agent_cli.py recall-curate --forge-check {exp} "
+                  f"--draft {args.draft} --apply)")
+        return 0 if rep["verdict"] == "PASS" else 1
     if getattr(args, "forge_audit", False):
         # Forge F0 (design doc sec.9): data-sufficiency audit vs the PRE-REGISTERED
         # criteria. Read-only -- composes with curation because the curator's economics
@@ -1996,6 +2040,9 @@ def build_parser():
     rc.add_argument("--apply", action="store_true", help="apply the report (default: report only)")
     rc.add_argument("--forge-audit", action="store_true",
                     help="Forge F0 data-sufficiency audit vs the pre-registered criteria (read-only)")
+    rc.add_argument("--forge-check", metavar="EXPERIMENT",
+                    help="Forge F1: gate a proposed edit to EXPERIMENT's recommendation (needs --draft)")
+    rc.add_argument("--draft", metavar="FILE", help="file holding the proposed recommendation text")
     rc.add_argument("--json", action="store_true")
     rc.set_defaults(fn=cmd_recall_curate)
 

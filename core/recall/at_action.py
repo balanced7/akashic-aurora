@@ -69,6 +69,13 @@ _CACHE_TTL = float(os.getenv("AKASHIC_RECALL_CACHE_TTL", "120"))
 # 0 disables the cue entirely.
 _STALE_CUE_DAYS = float(os.getenv("AKASHIC_STALE_CUE_DAYS", "30"))
 
+# F0b (Forge): durable mirror of the injection ledger. The tempdir ledger above is 7-day
+# observability; the Forge gate's axis-B validation set needs RETENTION (dual blind audit
+# 2026-07-09: retention, not resolvability, was the gap). Own bounded stream so the raw
+# event firehose stays clean (~44 entries/day -> maxlen 6000 = ~4.5 months).
+SURFACE_STREAM = "recall:surface"
+SURFACE_MAXLEN = 6000
+
 
 def _parse_trigger(text: str) -> str:
     """The lesson convention encodes its own firing condition: 'Use when <symptom>, before
@@ -666,6 +673,14 @@ def log_injection(session_id: str, altitude: str, target: str, sources, chars: i
         with open(os.path.join(_INJ_DIR, _safe_id(session_id) + ".jsonl"), "a", encoding="utf-8") as f:
             f.write(json.dumps({"at": time.time(), "alt": str(altitude or "action"),
                                 "t": str(target or ""), "s": srcs, "chars": int(chars or 0)}) + "\n")
+    except Exception:
+        pass
+    try:   # F0b durable mirror (same capture chokepoint -- renew_signal_label_symmetry);
+        # rides the event-log singleton's Ledger, own stream, fail-soft, ~1 write.
+        from core.events.event_log import get_event_log
+        get_event_log().ledger.emit(SURFACE_STREAM, {
+            "at": time.time(), "sid": _safe_id(session_id), "alt": str(altitude or "action"),
+            "t": str(target or ""), "s": srcs, "chars": int(chars or 0)}, maxlen=SURFACE_MAXLEN)
     except Exception:
         pass
 
