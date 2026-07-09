@@ -608,11 +608,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "in_progress",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "d925d6b",
+      "verified_by": "15 pins + full suite + 5 guards via ship.py; dual deepseek adversarial rounds (design red-team + diff review: zero crit/high); live drill: directed reply -> detect-only wake -> readable, nothing consumed",
       "created": "2026-07-09T23:12:12+00:00",
-      "updated": "2026-07-09T23:12:13+00:00",
+      "updated": "2026-07-09T23:55:33+00:00",
       "history": [
         {
           "to": "proposed",
@@ -633,6 +633,16 @@
           "to": "in_progress",
           "by": "",
           "at": "2026-07-09T23:12:13+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-07-09T23:55:32+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-09T23:55:33+00:00"
         }
       ]
     },
@@ -644,11 +654,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "claimed",
+      "status": "in_progress",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-09T23:51:31+00:00",
-      "updated": "2026-07-09T23:51:32+00:00",
+      "updated": "2026-07-09T23:55:33+00:00",
       "history": [
         {
           "to": "proposed",
@@ -664,6 +674,11 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-07-09T23:51:32+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-07-09T23:55:33+00:00"
         }
       ]
     }

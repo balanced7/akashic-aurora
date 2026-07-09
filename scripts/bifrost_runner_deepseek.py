@@ -54,6 +54,55 @@ ANSWERABLE = frozenset({"chat", "request", "question", "handoff", "nudge", "info
 # The API client already has a socket timeout (L0), but we add a wall-clock deadline
 # via threading so even a stuck stream can't block the main loop beyond this window.
 REPLY_TIMEOUT_SEC = 600   # 10 min; generous for a long agentic tool chain, but never unbounded
+# T018: explicit completion headroom. v4-pro is a REASONING model -- with no explicit cap the
+# provider default gets eaten by internal reasoning, and a long tool turn wraps up in a short
+# promise instead of the deliverable (reasoning_model_token_headroom; seen live 2026-07-09).
+MAX_TOKENS = int(os.environ.get("DEEPSEEK_RUNNER_MAX_TOKENS", "8000"))
+
+
+def bounce_promise(answer, resend):
+    """One deliver-now bounce for a promise-shaped final reply (T018).
+
+    A runner reply is the agent's LAST word on a message -- there is no later turn, so a
+    final paragraph like "Let me fold this into my review closure" strands the deliverable
+    (the runner-side twin of the claude stop-hook promise check, which caught this class for
+    Claude in T012; seen live on the T017 seat-2 review, 2026-07-09). When `answer` ends
+    promise-shaped, call `resend(reprompt)` ONCE and return its result; otherwise (or on any
+    error) return `answer` unchanged. Never loops: a second promise ships as-is -- one bounce
+    is a nudge, two is a wedge (the stop-hook's own latch rule).
+
+    Wider net than the claude stop hook ON PURPOSE: the hook keeps a high-precision opener
+    list because its false positives are user-visible blocks; here a false bounce costs one
+    extra completion and usually improves the reply. The live T017 miss ("Let me fold this
+    into my review closure") starts with bare "let me", which the hook's list requires
+    "let me now" for -- the runner adds that opener locally, with the same question /
+    user-conditional carve-outs."""
+    try:
+        import re
+        from hooks.claude_stop import USER_CONDITIONAL, final_paragraph, promise_shaped
+        para = final_paragraph(answer or "")
+        excerpt = promise_shaped(para)
+        if not excerpt:
+            p = (para or "").strip()
+            low = p.lower()
+            norm = re.sub(r"^[\s>*\-\d.]+", "", low)
+            if (p and not p.endswith("?")
+                    and not any(k in low for k in USER_CONDITIONAL)
+                    and re.match(r"^let me (?!know\b)", norm)):
+                excerpt = p[:120]
+    except Exception:
+        return answer
+    if not excerpt:
+        return answer
+    try:
+        bounced = resend(
+            'Your reply ended on a promise of future work ("' + excerpt[:80] + '..."). '
+            "This reply is your LAST word on this message -- there is no later turn. "
+            "Deliver the promised work NOW, in full, in this reply. "
+            "No acknowledgment, no preamble, no further promises.")
+        return bounced or answer
+    except Exception:
+        return answer
 DEFAULT_SYSTEM = (
     "You are DeepSeek, collaborating in real time with Claude (and the user) over a shared message "
     "bus. Each reply posts straight back to the sender, so be direct and self-contained. Keep it "
@@ -75,7 +124,7 @@ def make_replier(model: str, system: str, think: bool):
 
     def respond(prompt: str) -> str:
         try:
-            kwargs = {"model": model, "messages": [
+            kwargs = {"model": model, "max_tokens": MAX_TOKENS, "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": prompt}]}
             if think:
@@ -133,6 +182,7 @@ def make_agentic_replier(model: str, system: str, think: bool, root: Path, agent
             # on_activity -> rich presence: reports thinking/reading/searching/... to the console live
             ag = dc.Agent(client, toolbox, model=model, system=system, think=think, tools_enabled=True,
                           interrupt=interrupt, on_activity=on_activity, inject=inject, on_trace=on_trace)
+            ag.max_tokens = MAX_TOKENS               # T018: reasoning headroom, never provider-default
             convos[frm] = ag
         # Fold any queued context hints from peers into this turn's prompt
         try:
@@ -146,6 +196,7 @@ def make_agentic_replier(model: str, system: str, think: bool, root: Path, agent
             answer = ag.send(prompt)                 # streams to the runner window; returns final text
         except Exception as e:
             return f"(deepseek agentic runner error: {type(e).__name__}: {e})"
+        answer = bounce_promise(answer, ag.send)     # T018: a promise is not a deliverable
         return answer or "(deepseek produced no final answer)"
 
     return respond
