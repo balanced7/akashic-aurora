@@ -134,6 +134,21 @@ re-explain work already captured in `learn:` or `handoff:`.
 **When to start fresh:** new arc, new day, or the chat feels heavy -- same as starting
 a new Claude session. Continuity lives in the stack, not in the chat window.
 
+## Reporting your work (communication contract)
+
+- **Lead with the outcome.** The first sentence of your final message answers "what happened /
+  what did you find" -- supporting detail after, for readers who want it.
+- **The final message carries everything.** Mid-turn text may never be seen; findings, conclusions
+  and deliverables must appear in the LAST message. Don't end on a promise ("I'll ...") -- do the
+  work, or state plainly that you're stopping and why (task complete / blocked on the human). The
+  Claude stop hook bounces promise-shaped endings once per session.
+- **Readable beats terse.** Shorten by dropping what doesn't change the reader's next action --
+  never by compressing into fragments or arrow chains. Spell terms out; no invented codenames.
+- **Assessment carve-out.** When the human describes a problem or thinks aloud, the deliverable is
+  your assessment -- report findings and stop; don't apply fixes unasked.
+- **Look before you destroy.** Before deleting or overwriting anything, inspect it; if what you
+  find contradicts how it was described, surface that instead of proceeding.
+
 That's the whole contract. Boot to load context, learn to give back. ---
 
 ## Trial mode (sandbox -- recommended for your first run)

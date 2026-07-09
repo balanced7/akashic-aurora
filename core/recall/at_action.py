@@ -64,6 +64,11 @@ _CACHE_DIR = os.getenv("AKASHIC_RECALL_STATE_DIR") or os.path.join(tempfile.gett
 _CACHE_FILE = os.path.join(_CACHE_DIR, "lesson_items.json")
 _CACHE_TTL = float(os.getenv("AKASHIC_RECALL_CACHE_TTL", "120"))
 
+# Age past which a surfaced lesson earns the one-line staleness cue in render() (first-party
+# fold-in 2026-07-08: recalled memories "reflect what was true when written"). Env-tunable;
+# 0 disables the cue entirely.
+_STALE_CUE_DAYS = float(os.getenv("AKASHIC_STALE_CUE_DAYS", "30"))
+
 
 def _parse_trigger(text: str) -> str:
     """The lesson convention encodes its own firing condition: 'Use when <symptom>, before
@@ -1006,6 +1011,20 @@ def render(result: Dict[str, Any], *, max_chars: int = 110,
     if total > shown:
         lines.append(f"... {shown} of {total} relevant lesson(s) shown — `recall-at --limit {total}` for the rest, "
                       f"or `recall --full <source>` for any one's whole record")
+    # Staleness cue (first-party fold-in 2026-07-08): a lesson describes the repo AS OF WRITING —
+    # the older it is, the likelier its named files/flags/verbs have moved. One line, and only
+    # when an old lesson is actually on this surface (silent otherwise — surface discipline).
+    try:
+        if _STALE_CUE_DAYS > 0 and result.get("lessons"):
+            from core.foundation.timeutil import to_epoch
+            ages = [(time.time() - to_epoch(l.get("timestamp"))) / 86400.0
+                    for l in result["lessons"] if to_epoch(l.get("timestamp") or 0) > 0]
+            oldest = max(ages) if ages else 0.0
+            if oldest >= _STALE_CUE_DAYS:
+                lines.append(f"[age] oldest lesson shown is ~{int(oldest)}d old — it reflects the repo as of "
+                             "writing; verify named files/flags still exist before leaning on it")
+    except Exception:
+        pass   # the cue is a bonus; its failure must never cost the surface
     # Factual framing (not imperative — imperative trips prompt-injection defenses). Hard total cap
     # well under Claude Code's 10k-char additionalContext limit.
     body = header + "\n" + "\n".join(lines)

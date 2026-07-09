@@ -297,6 +297,11 @@ def cmd_learn(args):
                                   "category": signal.get("category"), "success": signal.get("success")})
         except Exception:
             pass
+    if ok and related:
+        try:   # durable edge for the consolidation/merge pass -- the advisory print alone evaporated
+            get_learning_store().mark_related(signal["experiment_name"], related)
+        except Exception:
+            pass
     if args.json:
         print(json.dumps({"recorded": bool(ok), "experiment": signal["experiment_name"]}))
     else:
@@ -323,10 +328,10 @@ def cmd_learn(args):
             print(f"[i] near-duplicate: overlaps '{top['experiment_name']}' on {top['dims']}/5 dimensions"
                   f" ({', '.join(top['matched'])}).")
             print(f"    Next time update it instead: re-record with --experiment {top['experiment_name']}"
-                  " (same name = update, no dupes).")
+                  " (same name = update, no dupes). Edge stamped on this record (related_to).")
         else:
             print(f"[i] related lesson: '{top['experiment_name']}' ({top['dims']}/5 dims)"
-                  " -- candidates for a future consolidation pass.")
+                  " -- edge stamped on this record (related_to) for the consolidation pass.")
     return 0 if ok else 1
 
 

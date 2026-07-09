@@ -279,6 +279,30 @@ class LearningStore:
             self.logger.error(f"mark_benched failed for {experiment_id}: {e}")
             return False
 
+    def mark_related(self, experiment_id: str, related: List[Dict[str, Any]]) -> bool:
+        """Persist the near-duplicate edges `find_related` computed at capture time. The write door
+        has ALWAYS warned on overlap (advisory print) -- but the edge itself evaporated with the
+        console line, so the consolidation/merge pass it points at had nothing durable to act on.
+        Stored one-directional on the NEW record as JSON [{'experiment_name','dims','matched'}...];
+        a merge pass can invert. Same partial-hset rationale as mark_benched/mark_graduated.
+
+        Semantic Relationship: Lesson related_to Lesson (near_duplicate_edge)
+        """
+        key = f"learn:experiment:{experiment_id}"
+        try:
+            if not related or not self.store.exists(key):
+                return False
+            self.store.hset(key, mapping={
+                "related_to": json.dumps([{"experiment_name": r.get("experiment_name"),
+                                           "dims": r.get("dims"),
+                                           "matched": r.get("matched")} for r in related[:5]]),
+                "related_stamped": datetime.utcnow().isoformat(),
+            })
+            return True
+        except Exception as e:
+            self.logger.error(f"mark_related failed for {experiment_id}: {e}")
+            return False
+
     def _index_learning(self, learning_signal: Dict[str, Any]) -> None:
         """
         Index a learning signal into all Store structures (single code path).

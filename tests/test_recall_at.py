@@ -313,6 +313,25 @@ def test_render_header_is_parameterizable():
     assert "Recall-at-action" not in out
 
 
+def test_render_staleness_cue_only_when_old():
+    """First-party fold-in 2026-07-08: an OLD lesson on the surface earns one [age] line; fresh
+    or unstamped lessons stay silent (the cue must earn its tokens -- surface discipline).
+    Timestamps are production-shaped (naive utcnow, the renew flight-test rule)."""
+    from datetime import datetime, timedelta
+    old_ts = (datetime.utcnow() - timedelta(days=45)).isoformat()
+    out = render({"lessons": [{"text": "t", "source": "learn:experiment:x", "timestamp": old_ts}],
+                  "locks": []})
+    assert "[age]" in out and ("~45d" in out or "~44d" in out), out
+    assert "verify named files/flags still exist" in out
+    fresh_ts = datetime.utcnow().isoformat()
+    assert "[age]" not in render({"lessons": [{"text": "t", "source": "learn:experiment:x",
+                                               "timestamp": fresh_ts}], "locks": []}), \
+        "a fresh lesson must not carry the staleness cue"
+    assert "[age]" not in render({"lessons": [{"text": "t", "source": "learn:experiment:x"}],
+                                  "locks": []}), "no timestamp -> no cue (fail silent, not loud)"
+    print("--- staleness cue ---\n  45d-old lesson -> [age] line; fresh/unstamped -> silent OK")
+
+
 def test_fail_soft_on_empty_and_bad_input():
     assert recall_at()["shown"] == 0                       # no path/command
     assert recall_at(command="", path="")["shown"] == 0
