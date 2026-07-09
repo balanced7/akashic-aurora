@@ -1,5 +1,5 @@
 {
-  "seq": 11,
+  "seq": 16,
   "tasks": [
     {
       "id": "T001",
@@ -372,6 +372,231 @@
           "to": "done",
           "by": "",
           "at": "2026-07-08T05:52:36+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T012",
+      "title": "Slice 1 frontier fold-ins: staleness cue in render, durable near-dup edges (mark_related), stop-hook promise check, AGENTS.md communication contract",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "0b3dfca",
+      "verified_by": "5 guards + full pytest suite + live stop-hook smoke (block then latch)",
+      "created": "2026-07-09T03:06:38+00:00",
+      "updated": "2026-07-09T03:07:34+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-09T03:06:38+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-09T03:07:06+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-09T03:07:20+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-07-09T03:07:25+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-07-09T03:07:34+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-09T03:07:34+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T013",
+      "title": "Lesson Forge: SkillOpt-style content optimization for lessons - design doc + dual DeepSeek review (fenced cross-check + slice-1 review), then build slices F0..F4",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "963ba89",
+      "verified_by": "31 forge tests + full suite x4 ships + live optimizer pass (UNMEASURABLE queued, regression FAILed+buffered) + dual adversarial DeepSeek rounds; F3/rematch re-enter via the audit accrual gate (>=15 enriched credits)",
+      "created": "2026-07-09T03:17:47+00:00",
+      "updated": "2026-07-09T12:15:42+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-09T03:17:47+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-09T03:17:47+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-09T03:17:47+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-07-09T03:17:48+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-07-09T12:15:41+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-09T12:15:42+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T014",
+      "title": "bifrost_runner_deepseek: drain the FULL backlog batch on wake (cursor-skip bug found live 2026-07-08) + regression test with 2+ pre-queued messages",
+      "desc": "",
+      "owner": "deepseek",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "a106af8",
+      "verified_by": "27 tests (builder 14 + reviewer 2 pins + existing suites) + LIVE drill: 3 mixed-kind messages pre-queued into dead air, all processed in order on relaunch, all replies verified in claude's inbox (peek + consume)",
+      "created": "2026-07-09T03:29:25+00:00",
+      "updated": "2026-07-09T12:56:53+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-09T03:29:25+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-09T12:15:54+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "deepseek",
+          "at": "2026-07-09T12:15:55+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-07-09T12:15:55+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-07-09T12:56:53+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-09T12:56:53+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T015",
+      "title": "F0b: capture-side durable context accrual - add altitude+query to the durable flip event at credit time; durable bounded surface-context stream (~44/day) alongside the 7d temp ledger; re-audit gate at >=15 new persisted-credit events (unblocks the merge axis)",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "c3e9536",
+      "verified_by": "shipped as F0b within T013: flip enrichment + recall:surface durable stream + replay union + accrual counters",
+      "created": "2026-07-09T04:11:43+00:00",
+      "updated": "2026-07-09T12:15:42+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-09T04:11:43+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-09T04:19:43+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-09T04:19:43+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-07-09T12:15:42+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-07-09T12:15:42+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-09T12:15:42+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T016",
+      "title": "Comms/messaging pillar analysis (Daniel-directed): new-agent current-vs-stale ambiguity, information navigation, intelligent lookback with drill-down, unambiguous current state -- fenced dual investigation (claude + deepseek), reconcile, then slice plan",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "verifying",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-09T13:05:16+00:00",
+      "updated": "2026-07-09T13:19:35+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-09T13:05:16+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-09T13:05:58+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-09T13:06:04+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-07-09T13:06:04+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-07-09T13:19:35+00:00"
         }
       ]
     }
