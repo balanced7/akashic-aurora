@@ -264,6 +264,11 @@ machinery because the funnel + gate ARE the trust machinery.
    edits (never merges) to auto-provisional with the rollback watch. Autonomy is earned
    through demonstrated gate-judgment alignment, same shape as the security schema's
    quarantine -> escalation path.
+   **Amendment (2026-07-09, from the optimizer red-team, exploit 3 "UNMEASURABLE
+   laundering"):** only PASS-verdict cycles count toward ladder alignment. UNMEASURABLE
+   applies are pure human judgment on evidence-free lessons — an optimizer could farm
+   them for fake "aligned" history; excluding them closes that path, and the CLI marks
+   every UNMEASURABLE proposal accordingly.
 6. **Rejected-edit buffer:** claude keeps it (durable negative feedback, prevents
    re-proposal loops once F2 automation exists; advisory_prints_evaporate); DeepSeek
    drops it ("overkill at our scale — discard failed edits"). Propose: keep, but as a

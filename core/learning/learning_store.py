@@ -329,8 +329,39 @@ class LearningStore:
             self.logger.error(f"mark_forge_rejected failed for {experiment_id}: {e}")
             return False
 
+    def stamp_forge_proposal(self, experiment_id: str, draft: str, verdict: str, *,
+                             by: str = "", rationale: str = "") -> bool:
+        """Queue an optimizer proposal for HUMAN review (F2): one pending proposal per
+        lesson, overwritten by a newer one, swept by the curator after PROPOSAL_TTL_DAYS.
+        Holds the draft + the gate's verdict (PASS or UNMEASURABLE) -- FAILs never queue."""
+        key = f"learn:experiment:{experiment_id}"
+        try:
+            if not self.store.exists(key) or not str(draft or "").strip():
+                return False
+            self.store.hset(key, mapping={"forge_proposal": json.dumps({
+                "draft": str(draft), "verdict": str(verdict or ""),
+                "at": datetime.utcnow().isoformat(), "by": str(by or ""),
+                "rationale": str(rationale or "")[:200]})})
+            return True
+        except Exception as e:
+            self.logger.error(f"stamp_forge_proposal failed for {experiment_id}: {e}")
+            return False
+
+    def clear_forge_proposal(self, experiment_id: str) -> bool:
+        """Remove a pending proposal (applied, declined, or curator-expired)."""
+        key = f"learn:experiment:{experiment_id}"
+        try:
+            if not self.store.exists(key):
+                return False
+            self.store.hset(key, mapping={"forge_proposal": ""})
+            return True
+        except Exception as e:
+            self.logger.error(f"clear_forge_proposal failed for {experiment_id}: {e}")
+            return False
+
     def apply_forge_edit(self, experiment_id: str, new_recommendation: str,
-                         gate_summary: Dict[str, Any]) -> bool:
+                         gate_summary: Dict[str, Any],
+                         baseline: Optional[Dict[str, Any]] = None) -> bool:
         """Apply a gate-PASSED, human-approved Forge edit: swap the recommendation text,
         retaining the incumbent for rollback (reversible by construction -- the same bet
         bench/unbench makes) and stamping provenance + the provisional watch marker the
@@ -347,6 +378,10 @@ class LearningStore:
                 "forged_at": datetime.utcnow().isoformat(),
                 "forge_provisional": datetime.utcnow().isoformat(),
                 "forge_gate": json.dumps(gate_summary or {}, default=str),
+                # counters snapshot at apply time -- the Tier-1 watch (F4) computes its
+                # rollback/confirm deltas against exactly this
+                "forge_baseline": json.dumps(baseline or {}, default=str),
+                "forge_proposal": "",   # an applied proposal is no longer pending
             })
             return True
         except Exception as e:

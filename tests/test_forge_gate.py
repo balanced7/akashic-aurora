@@ -103,17 +103,20 @@ def test_floor_checks_budget_and_trigger():
 
 
 def test_rehab_class_vacuous_axis1_axis2_carries():
-    # noisy_lesson: never credited (no flip events), fires on an unrelated target it never helped
-    inj = [{"at": 3.0, "t": "c:py run pipeline task quickly", "s": ["learn:experiment:noisy_lesson"]}]
-    # genuinely tightened: the promiscuous terms (pipeline/task/quickly) are GONE -- that
-    # removal is the whole point of forging a noisy lesson
-    tightened = ("Use when configuring cron schedules, before starting: check the "
+    # noisy_lesson: never credited; fires on TWO current contexts -- its plausible real
+    # home (schedule config) and a promiscuous stray (pipeline task). A genuine tightening
+    # keeps the home anchor (grounding) and sheds the stray (axis-2 improvement).
+    inj = [{"at": 3.0, "t": "c:py run pipeline task quickly", "s": ["learn:experiment:noisy_lesson"]},
+           {"at": 4.0, "t": "c:py check schedule configuration now", "s": ["learn:experiment:noisy_lesson"]}]
+    tightened = ("Use when configuring the schedule, before starting: check the "
                  "schedule configuration first. Don't when offline.")
     rep = gate_edit("noisy_lesson", tightened, learning_store=_corpus(),
                     events=[], injections=inj, min_relevance=FLOOR)
     assert rep["axis1"]["vacuous"] is True and rep["axis1"]["credited_contexts"] == 0
+    assert rep["checks"]["grounding"]["ok"] and "schedule" in rep["checks"]["grounding"]["shared"], \
+        rep["checks"]["grounding"]
     assert rep["verdict"] == "PASS" and rep["axis2"]["improved"], rep
-    print("--- rehab class ---\n  vacuous axis 1; axis-2 improvement carries the PASS OK")
+    print("--- rehab class ---\n  vacuous axis 1; grounded tightening sheds the stray -> PASS OK")
 
 
 def test_unmeasurable_abstains_without_poisoning_the_buffer():
@@ -147,6 +150,44 @@ def test_variant_adding_noise_hits_still_fails_regressed():
     rep = _gate("seam_guard", grabby, events=[], injections=stale_inj)
     assert rep["verdict"] == "FAIL" and rep["axis2"]["regressed"], rep
     print("--- regression guard ---\n  variant grabbing new noise contexts -> FAIL OK")
+
+
+def test_grounding_floor_kills_dead_letter_narrowing():
+    """Red-team exploit 1 (2026-07-09): for a vacuous-axis-1 lesson, gibberish narrowing
+    guarantees axis-2 'improvement' while making the lesson a dead letter. The grounding
+    floor requires the new trigger to share a discriminative token with the lesson's own
+    historical surface targets."""
+    dead_letter = ("Use when the exact phrase xyzzy plugh 9472 appears verbatim, before "
+                   "compiling: route every source through the one consolidator seam. "
+                   "Don't when prototyping.")
+    rep = _gate("seam_guard", dead_letter)
+    assert rep["verdict"] == "FAIL", rep
+    assert not rep["checks"]["grounding"]["ok"], rep["checks"]["grounding"]
+    assert any("dead letter" in r for r in rep["reasons"]), rep["reasons"]
+    # sanity: a grounded edit shares tokens and the floor stays green
+    assert _gate("seam_guard", GOOD_EDIT)["checks"]["grounding"]["ok"]
+    print("--- grounding floor ---\n  gibberish narrowing -> FAIL; grounded edit unaffected OK")
+
+
+def test_body_hollowing_rejected():
+    """Red-team exploit 2: intact trigger + gutted advice passes every other floor while
+    destroying the lesson's value. The body floor counts the advice, not the trigger."""
+    hollow = ("Use when editing the consolidator seam pipeline, before refactoring: ok. "
+              "Don't when prototyping.")
+    rep = _gate("seam_guard", hollow)
+    assert rep["verdict"] == "FAIL" and not rep["checks"]["body"]["ok"], rep["checks"]
+    assert any("hollowed" in r for r in rep["reasons"]), rep["reasons"]
+    print("--- body floor ---\n  gutted advice behind an intact trigger -> FAIL OK")
+
+
+def test_contraindication_must_survive():
+    """A lesson's 'Don't when' is a load-bearing disconfirmer -- dropping it is a floor FAIL."""
+    no_contra = ("Use when editing the consolidator seam pipeline, before refactoring: "
+                 "route every source through the one consolidator seam and check twice.")
+    rep = _gate("seam_guard", no_contra)
+    assert rep["verdict"] == "FAIL", rep
+    assert not rep["checks"]["body"]["contraindication_kept"], rep["checks"]["body"]
+    print("--- contraindication ---\n  dropped 'Don't when' -> FAIL OK")
 
 
 def test_unknown_lesson_fails_closed():

@@ -130,6 +130,28 @@ def gate_edit(experiment_name: str, new_recommendation: str, *,
         if not faith_ok:
             report["reasons"].append("FAITH gate: the draft carries an unresolvable/fabricated pointer")
 
+        # BODY floor (red-team exploit 2, "body hollowing"): the advice after the trigger
+        # colon must survive -- a gutted body with an intact trigger passes every other
+        # floor while destroying the lesson's value. Coarse and mechanical on purpose.
+        def _body_of(text: str) -> str:
+            _, _, rest = str(text or "").partition(":")
+            return rest or str(text or "")
+        inc_body_n = len(_tokens(_body_of(incumbent.get("text"))))
+        var_body_n = len(_tokens(_body_of(new_recommendation)))
+        body_ok = var_body_n >= max(4, int(0.5 * inc_body_n))
+        had_contra = "don't when" in str(incumbent.get("text") or "").lower()
+        contra_ok = (not had_contra) or ("don't when" in str(new_recommendation).lower())
+        report["checks"]["body"] = {"incumbent_body_tokens": inc_body_n,
+                                    "variant_body_tokens": var_body_n,
+                                    "contraindication_kept": contra_ok, "ok": body_ok and contra_ok}
+        if not body_ok:
+            report["reasons"].append("body floor: the advice after the trigger was hollowed "
+                                     f"({var_body_n} tokens vs incumbent {inc_body_n}) -- a lesson "
+                                     "is its advice, not its trigger")
+        if not contra_ok:
+            report["reasons"].append("body floor: the incumbent's \"Don't when\" contraindication "
+                                     "was dropped -- disconfirmers are load-bearing")
+
         # ---- replay both texts over the lesson's own history --------------------
         variant = _variant_item(incumbent, new_recommendation)
         items_var = [variant if it.get("source") == source else it for it in items]
@@ -158,14 +180,44 @@ def gate_edit(experiment_name: str, new_recommendation: str, *,
                                      "-- it breaks what demonstrably worked")
 
         inc_hits = var_hits = 0
+        inc_hit_targets: List[str] = []
         for tgt in noise:
             q = _context_query(tgt)
             if not q:
                 continue
             if _would_surface(rel_inc(inc_text, q), floor):
                 inc_hits += 1
+                inc_hit_targets.append(tgt)
             if _would_surface(rel_var(var_text, q), floor):
                 var_hits += 1
+
+        # GROUNDING floor (red-team exploit 1, "over-narrow to dead-letter"): for a
+        # vacuous-axis-1 lesson, axis 2 rewards ANY narrowing -- including gibberish that
+        # matches nothing, ever. The variant's trigger must share a discriminative token
+        # with the lesson's REAL CURRENT HOME: credited targets (always) plus the noise
+        # targets the incumbent actually clears the floor on TODAY. Pre-regime misfire
+        # contexts deliberately don't count (grounding to noise would force re-anchoring
+        # toward it); when the home set is empty the floor is vacuous -- that class is
+        # UNMEASURABLE's territory. Coarser than the axes on purpose: "related to
+        # anything real at all", not "still matches what earned credit".
+        home_tokens: set = set()
+        try:
+            from core.recall.at_action import _STOP
+            for t in list(cred) + inc_hit_targets:
+                home_tokens.update(w for w in _tokens(t) if len(w) > 3 and w not in _STOP)
+        except Exception:
+            home_tokens = set()
+        trig_tokens = {w for w in _tokens(trigger) if len(w) > 3}
+        grounding_vacuous = not home_tokens
+        grounding_ok = grounding_vacuous or bool(trig_tokens & home_tokens)
+        report["checks"]["grounding"] = {"shared": sorted(trig_tokens & home_tokens)[:6],
+                                         "vacuous": grounding_vacuous, "ok": grounding_ok}
+        if not grounding_ok:
+            report["reasons"].append("grounding floor: the new trigger shares NO discriminative "
+                                     "token with any context this lesson actually lives in "
+                                     "(credited targets + currently-matching surfacings) -- a "
+                                     "trigger that matches nothing real is a dead letter, not "
+                                     "precision")
         axis2_improved = var_hits < inc_hits
         axis2_regressed = var_hits > inc_hits
         report["axis2"] = {"noise_contexts": len(noise), "incumbent_hits": inc_hits,
@@ -176,7 +228,8 @@ def gate_edit(experiment_name: str, new_recommendation: str, *,
                                      "than the incumbent (precision regression)")
 
         # ---- verdict -------------------------------------------------------------
-        floors_ok = budget_ok and trigger_ok and faith_ok
+        floors_ok = (budget_ok and trigger_ok and faith_ok and grounding_ok
+                     and body_ok and contra_ok)
         # strict improvement must come from SOMEWHERE measurable, and axis 2 is the only
         # improvable axis at Tier 0 (axis 1 is a keep-everything constraint; for the rehab
         # class it is vacuous). Credited class: keep ALL of axis 1 AND improve axis 2.
@@ -229,13 +282,20 @@ def apply_edit(experiment_name: str, new_recommendation: str, gate_report: Dict[
         return False
     from core.learning.learning_store import get_learning_store
     ls = learning_store or get_learning_store()
+    baseline: Dict[str, Any] = {}
+    try:    # counters snapshot for the F4 watch -- best-effort (an empty baseline just
+        # means the watch falls back to its noise/age triggers)
+        from core.recall.at_action import _load_use, _store
+        baseline = dict(_load_use(_store(), f"learn:experiment:{experiment_name}") or {})
+    except Exception:
+        baseline = {}
     ok = ls.apply_forge_edit(experiment_name, new_recommendation, {
         "axis1": gate_report.get("axis1", {}).get("kept"),
         "axis1_vacuous": gate_report.get("axis1", {}).get("vacuous"),
         "axis2": [gate_report.get("axis2", {}).get("incumbent_hits"),
                   gate_report.get("axis2", {}).get("variant_hits")],
         "floor": gate_report.get("floor"),
-    })
+    }, baseline=baseline)
     if ok:
         try:    # a text change alters what may surface -- expire the warm cache (curator
             # idiom), then re-warm so the next hook call reads ~1ms file, not the store

@@ -747,6 +747,63 @@ def cmd_recall_curate(args):
                   "human path is an ordinary re-record: py agent_cli.py learn <you> --experiment "
                   f"{exp} ... which bypasses the Forge and is visible in history.)")
         return 0 if rep["verdict"] == "PASS" else 1
+    if getattr(args, "forge_propose", False):
+        # Forge F2: one optimizer pass -- deepseek proposes (blinded payload), the Tier-0
+        # gate adjudicates, PASS/UNMEASURABLE queue for the HUMAN (trust ladder). The
+        # model call is bridged HERE (root layer); core stays network-free.
+        def _deepseek_propose(prompt):
+            import sys as _sys, os as _os
+            _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "scripts"))
+            from ask_deepseek import load_key, DEFAULT_MODEL
+            from deepseek_chat import make_client
+            if not load_key():
+                raise RuntimeError("no DeepSeek API key (scripts/ask_deepseek.load_key)")
+            client = make_client(load_key())
+            # v4-pro is a REASONING model: its thinking spends from the same max_tokens
+            # budget as the answer, and a tight cap yields finish_reason=length with EMPTY
+            # content (live-diagnosed 2026-07-09). Give thinking + answer real room.
+            resp = client.chat.completions.create(
+                model=DEFAULT_MODEL, max_tokens=4000,
+                messages=[{"role": "user", "content": prompt}])
+            return resp.choices[0].message.content or ""
+        from core.recall.forge_optimizer import run_pass
+        rows = run_pass(_deepseek_propose, limit=int(getattr(args, "limit", None) or 2))
+        if getattr(args, "json", False):
+            print(_json.dumps(rows, indent=2, default=str))
+            return 0
+        if not rows:
+            print("[forge-propose] no eligible targets (rehab class empty, or all "
+                  "provisional/pending)")
+            return 0
+        for r in rows:
+            print(f"[forge-propose] {r['experiment']} (surfaced {r.get('surfaced')}x): "
+                  f"{r.get('verdict', '-')} -> {r['outcome']}")
+            if r.get("rationale"):
+                print(f"    optimizer rationale: {r['rationale']}")
+            for reason in r.get("reasons", []):
+                print(f"    - {reason}")
+        print("  review queue: py agent_cli.py recall-curate --forge-proposals")
+        return 0
+    if getattr(args, "forge_proposals", False):
+        from core.recall.forge_optimizer import pending_proposals
+        props = pending_proposals()
+        if getattr(args, "json", False):
+            print(_json.dumps(props, indent=2, default=str))
+            return 0
+        if not props:
+            print("[forge-proposals] none pending")
+            return 0
+        for p in props:
+            print(f"[forge-proposals] {p['experiment']}  verdict={p['verdict']}  by={p['by']}  at={p['at']}")
+            if p["verdict"] == "UNMEASURABLE":
+                print("    !! gate ABSTAINED (no current-regime evidence) -- applying is pure human "
+                      "judgment and does NOT count toward trust-ladder alignment")
+            if p.get("rationale"):
+                print(f"    rationale: {p['rationale']}")
+            print(f"    draft: {p['draft'][:220]}")
+            print(f"    apply: write draft to a file, then py agent_cli.py recall-curate "
+                  f"--forge-check {p['experiment']} --draft FILE --apply")
+        return 0
     if getattr(args, "forge_audit", False):
         # Forge F0 (design doc sec.9): data-sufficiency audit vs the PRE-REGISTERED
         # criteria. Read-only -- composes with curation because the curator's economics
@@ -785,8 +842,16 @@ def cmd_recall_curate(args):
         print(f"  bench: {row['name']}  (surfaced {row['surfaced']}x, 0 credit, {row['age_days']}d old)")
     for row in rep["unbench"]:
         print(f"  UNBENCH (earned credit): {row['name']}")
+    for row in rep.get("forge_rollback", []):
+        print(f"  FORGE ROLLBACK: {row['name']}  ({row['why']})")
+    for row in rep.get("forge_confirm", []):
+        print(f"  forge confirm: {row['name']}  ({row['fresh_impressions']} fresh impressions, "
+              f"{row['age_days']}d provisional, no regression)")
+    for row in rep.get("forge_expire", []):
+        print(f"  forge proposal expired unreviewed: {row['name']}")
     if not args.apply:
-        if rep["bench"] or rep["unbench"] or rep["ghost_prune_count"]:
+        if rep["bench"] or rep["unbench"] or rep["ghost_prune_count"] \
+                or rep.get("forge_rollback") or rep.get("forge_confirm") or rep.get("forge_expire"):
             print("  (report only -- apply with: py agent_cli.py recall-curate --apply)")
         return 0
     out = apply_curation(rep)
@@ -1042,6 +1107,18 @@ def cmd_wrap(args):
             if rep.get("bench") or rep.get("unbench"):
                 print(f"\n# [recall-curate] {len(rep['bench'])} lesson(s) are pure surface cost, "
                       f"{len(rep['unbench'])} earned their way back -> py agent_cli.py recall-curate --apply")
+            if rep.get("forge_rollback") or rep.get("forge_confirm") or rep.get("forge_expire"):
+                print(f"# [forge-watch] rollback {len(rep['forge_rollback'])} / confirm "
+                      f"{len(rep['forge_confirm'])} / expire {len(rep['forge_expire'])} "
+                      f"-> py agent_cli.py recall-curate --apply")
+        except Exception:
+            pass
+        try:   # Forge F2 nudge: pending optimizer proposals want the human's eyes
+            from core.recall.forge_optimizer import pending_proposals
+            props = pending_proposals()
+            if props:
+                print(f"# [forge] {len(props)} optimizer proposal(s) pending review "
+                      f"-> py agent_cli.py recall-curate --forge-proposals")
         except Exception:
             pass
         return 0
@@ -2047,6 +2124,10 @@ def build_parser():
     rc.add_argument("--forge-check", metavar="EXPERIMENT",
                     help="Forge F1: gate a proposed edit to EXPERIMENT's recommendation (needs --draft)")
     rc.add_argument("--draft", metavar="FILE", help="file holding the proposed recommendation text")
+    rc.add_argument("--forge-propose", action="store_true",
+                    help="Forge F2: optimizer pass (deepseek proposes, gate adjudicates, human applies)")
+    rc.add_argument("--forge-proposals", action="store_true", help="list pending optimizer proposals")
+    rc.add_argument("--limit", type=int, help="max targets for --forge-propose (default 2)")
     rc.add_argument("--json", action="store_true")
     rc.set_defaults(fn=cmd_recall_curate)
 
