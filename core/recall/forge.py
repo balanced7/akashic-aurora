@@ -62,6 +62,11 @@ def _relevance_fn(items: List[Dict[str, Any]]):
 
 
 def _context_query(target: str) -> str:
+    """Re-derive the query from the target with TODAY'S query builder -- a deliberate
+    choice (DeepSeek review 2026-07-09, argued to ground): the gate asks 'would the
+    CURRENT matcher surface this text for that context', not 'what did the historical
+    matcher see'. The F0b-captured query on enriched flip events exists for forensic
+    comparison, not for gating."""
     from core.recall.at_action import _query_from
     from core.recall.replay import parse_target
     path, command = parse_target(target)
@@ -176,7 +181,21 @@ def gate_edit(experiment_name: str, new_recommendation: str, *,
         # improvable axis at Tier 0 (axis 1 is a keep-everything constraint; for the rehab
         # class it is vacuous). Credited class: keep ALL of axis 1 AND improve axis 2.
         improvement = axis2_improved
-        if floors_ok and axis1_ok and not axis2_regressed and improvement:
+        # UNMEASURABLE (found by DeepSeek's red-team drill 2026-07-09): a never-credited
+        # lesson whose historical surfacings all pre-date the current matcher regime has
+        # inc_hits == 0 -- there is nothing to improve AND nothing broken. That is not
+        # churn; it is the gate having no evidence to judge with. Abstain distinctly (the
+        # human decides unaided, or the F0b stream accrues fresh contexts first) and do
+        # NOT stamp the rejected buffer -- the draft was never refuted.
+        unmeasurable = (floors_ok and axis1_vacuous and inc_hits == 0 and var_hits == 0)
+        if unmeasurable:
+            report["verdict"] = "UNMEASURABLE"
+            report["reasons"].append(
+                "no current-regime evidence to adjudicate with: never credited, and the "
+                "incumbent clears the floor on none of its recorded contexts today (they "
+                "pre-date the calibrated matcher). Options: wait for the durable surface "
+                "stream to accrue fresh contexts, or apply on human judgment alone.")
+        elif floors_ok and axis1_ok and not axis2_regressed and improvement:
             report["verdict"] = "PASS"
         elif floors_ok and axis1_ok and not axis2_regressed and not improvement:
             report["reasons"].append("no measurable improvement on either axis -- an equal-value "
@@ -184,8 +203,9 @@ def gate_edit(experiment_name: str, new_recommendation: str, *,
     except Exception as e:
         report["reasons"].append(f"gate error ({type(e).__name__}: {e}) -- fail closed")
 
-    if report["verdict"] != "PASS":
-        try:    # durable negative feedback: never re-propose a rejected edit
+    if report["verdict"] == "FAIL":
+        try:    # durable negative feedback: never re-propose a REFUTED edit. UNMEASURABLE
+            # is not a refutation -- stamping it would poison a possibly-good draft.
             _stamp_rejected(experiment_name, new_recommendation, report["reasons"],
                             learning_store=learning_store)
             report["rejected_stamped"] = True
@@ -217,9 +237,13 @@ def apply_edit(experiment_name: str, new_recommendation: str, gate_report: Dict[
         "floor": gate_report.get("floor"),
     })
     if ok:
-        try:    # a text change alters what may surface -- expire the warm cache (curator idiom)
+        try:    # a text change alters what may surface -- expire the warm cache (curator
+            # idiom), then re-warm so the next hook call reads ~1ms file, not the store
+            # (DeepSeek review F2 polish)
             from core.recall.curator import _invalidate_surface_cache
+            from core.recall.at_action import warm_cache
             _invalidate_surface_cache()
+            warm_cache()
         except Exception:
             pass
     return ok

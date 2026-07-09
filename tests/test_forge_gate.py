@@ -116,6 +116,39 @@ def test_rehab_class_vacuous_axis1_axis2_carries():
     print("--- rehab class ---\n  vacuous axis 1; axis-2 improvement carries the PASS OK")
 
 
+def test_unmeasurable_abstains_without_poisoning_the_buffer():
+    """Red-team drill finding (2026-07-09): a never-credited lesson whose recorded contexts
+    all pre-date the current matcher regime gives the gate NOTHING to judge with (incumbent
+    0 hits). That is an abstention, not a refutation -- verdict UNMEASURABLE, no reject stamp."""
+    from core.learning.learning_store import LearningStore
+    from core.foundation.store import FileStore
+    ls = LearningStore(store=FileStore(os.path.join(tempfile.mkdtemp(), "learn.json")))
+    ls.persist_learning_derived_from_experiment({
+        "experiment_name": "seam_guard", "what_tried": "x", "actual_outcome": "y",
+        "success": "yes", "recommendation": INCUMBENT, "agent_id": "t"})
+    # contexts that match NOTHING in the incumbent under the floor -> inc 0, var 0
+    stale_inj = [{"at": 1.0, "t": "c:npm publish widget bundle tonight",
+                  "s": ["learn:experiment:seam_guard"]}]
+    rep = gate_edit("seam_guard", GOOD_EDIT, learning_store=ls,
+                    events=[], injections=stale_inj, min_relevance=FLOOR)
+    assert rep["verdict"] == "UNMEASURABLE", rep
+    assert "rejected_stamped" not in rep, "abstention must not stamp the reject buffer"
+    assert not json.loads(ls._load_experiment("seam_guard").get("forge_rejected") or "[]")
+    print("--- unmeasurable ---\n  zero current-regime evidence -> abstain, buffer untouched OK")
+
+
+def test_variant_adding_noise_hits_still_fails_regressed():
+    """The abstention must not open a hole: a variant that MATCHES a context the incumbent
+    did not is measurable badness -> FAIL (regressed), even for a never-credited lesson."""
+    stale_inj = [{"at": 1.0, "t": "c:npm publish widget bundle tonight",
+                  "s": ["learn:experiment:seam_guard"]}]
+    grabby = ("Use when you publish any widget bundle tonight, before starting: route "
+              "every source through the one seam. Don't when prototyping.")
+    rep = _gate("seam_guard", grabby, events=[], injections=stale_inj)
+    assert rep["verdict"] == "FAIL" and rep["axis2"]["regressed"], rep
+    print("--- regression guard ---\n  variant grabbing new noise contexts -> FAIL OK")
+
+
 def test_unknown_lesson_fails_closed():
     rep = _gate("ghost_lesson", GOOD_EDIT)
     assert rep["verdict"] == "FAIL" and any("no active lesson" in r for r in rep["reasons"])
@@ -164,6 +197,8 @@ if __name__ == "__main__":
     test_equal_rewrite_is_churn_not_progress()
     test_floor_checks_budget_and_trigger()
     test_rehab_class_vacuous_axis1_axis2_carries()
+    test_unmeasurable_abstains_without_poisoning_the_buffer()
+    test_variant_adding_noise_hits_still_fails_regressed()
     test_unknown_lesson_fails_closed()
     test_reject_stamp_and_apply_rollback_roundtrip()
     test_apply_refuses_without_pass()

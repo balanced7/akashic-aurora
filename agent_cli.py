@@ -742,6 +742,10 @@ def cmd_recall_curate(args):
         elif rep["verdict"] == "PASS":
             print(f"  (gate PASS -- apply with: py agent_cli.py recall-curate --forge-check {exp} "
                   f"--draft {args.draft} --apply)")
+        elif rep["verdict"] == "UNMEASURABLE" and getattr(args, "apply", False):
+            print("  (the gate ABSTAINS -- it will not apply what it cannot adjudicate. The unaided "
+                  "human path is an ordinary re-record: py agent_cli.py learn <you> --experiment "
+                  f"{exp} ... which bypasses the Forge and is visible in history.)")
         return 0 if rep["verdict"] == "PASS" else 1
     if getattr(args, "forge_audit", False):
         # Forge F0 (design doc sec.9): data-sufficiency audit vs the PRE-REGISTERED
