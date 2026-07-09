@@ -309,6 +309,10 @@ class Bus:
             return []
         new_inbox, new_bc = cur["inbox"], cur["bc"]
         out: List[Message] = []
+        # Track which stream each message came from so we can fix the cursor AFTER truncation.
+        # (The old code used the last-read id -- even for entries skipped by out[:limit] -- causing
+        # a cursor-skip when the stream had more entries than limit. T014 Defect 1.)
+        out_streams: List[str] = []                # "inbox" | "bc" (parallel to out)
         for stream, entries in res or []:
             is_bc = (stream == self._bc_key)
             for sid, fields in entries:
@@ -320,10 +324,35 @@ class Bus:
                 if is_bc and m.frm == self.agent_id:
                     continue                       # don't deliver an agent its own broadcast
                 out.append(m)
-        out.sort(key=lambda m: m.id)               # ms-based stream ids -> ~time order across streams
-        if advance and (new_inbox != cur["inbox"] or new_bc != cur["bc"]):
-            self._write_cursor(new_inbox, new_bc)
-        return out[:limit]
+                out_streams.append("bc" if is_bc else "inbox")
+        # Sort messages (and their stream-tags) by id so newest-last
+        pairs = sorted(zip(out, out_streams), key=lambda p: p[0].id)
+        out = [p[0] for p in pairs]
+        out_streams = [p[1] for p in pairs]
+        returned = out[:limit]
+        if advance:
+            if len(out) <= limit:
+                # No truncation happened: everything deliverable was returned, so advancing
+                # to the last READ id is provably safe -- and it correctly skips FILTERED
+                # entries (own broadcasts), which would otherwise be re-scanned on every
+                # drain forever (claude review of T014: filtered != truncated; the fix must
+                # not conflate them).
+                if new_inbox != cur["inbox"] or new_bc != cur["bc"]:
+                    self._write_cursor(new_inbox, new_bc)
+            else:
+                # Truncation DID happen: advance only to the LAST message ACTUALLY RETURNED
+                # from each stream (not the last read -- the T014 cursor-skip gap). The
+                # global id-sort preserves per-stream order, so the returned set holds a
+                # prefix of each stream; everything unreturned stays ahead of its cursor.
+                last_inbox, last_bc = cur["inbox"], cur["bc"]
+                for m, stream_tag in zip(returned, out_streams[:limit]):
+                    if stream_tag == "inbox":
+                        last_inbox = m.id
+                    else:
+                        last_bc = m.id
+                if last_inbox != cur["inbox"] or last_bc != cur["bc"]:
+                    self._write_cursor(last_inbox, last_bc)
+        return returned
 
     def pending(self) -> int:
         """How many unread messages are waiting (direct + broadcast), without advancing the cursor."""

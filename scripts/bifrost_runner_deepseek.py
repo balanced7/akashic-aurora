@@ -50,6 +50,10 @@ CARD = {
 # 'steer' is deliberately NOT answerable: it never triggers a standalone reply -- it is folded into the
 # agent's CURRENT task via the inject() hook. 'inform'/'nudge' do get a turn (acknowledge/adopt/switch).
 ANSWERABLE = frozenset({"chat", "request", "question", "handoff", "nudge", "inform"})
+# T014: reply timeout guard -- a hung API call must not wedge the runner forever.
+# The API client already has a socket timeout (L0), but we add a wall-clock deadline
+# via threading so even a stuck stream can't block the main loop beyond this window.
+REPLY_TIMEOUT_SEC = 600   # 10 min; generous for a long agentic tool chain, but never unbounded
 DEFAULT_SYSTEM = (
     "You are DeepSeek, collaborating in real time with Claude (and the user) over a shared message "
     "bus. Each reply posts straight back to the sender, so be direct and self-contained. Keep it "
@@ -168,6 +172,105 @@ def onboarding_context(root: Path, agent_id: str, task: str, budget_chars: int =
     return digest
 
 
+def _process_one(m, bus, args, responder, rate) -> None:
+    """Process a SINGLE incoming message: filter, answer, reply. (T014: extracted from the
+    main loop so per-message exceptions never skip the rest of the batch.)"""
+    # HINT interception: context hints are NOT answered -- they're stored in a ring buffer
+    # and injected on the NEXT model call. The "push" half; "drain" half is in respond().
+    if str(m.kind) == "hint":
+        meta = m.meta or {}
+        hint_data = meta.get("hint") or {}
+        ok = context_hints.push(args.agent,
+                               hint_data.get("key", "?"),
+                               hint_data.get("value", "?"),
+                               from_agent=m.frm)
+        if ok:
+            cog.record_file_read(args.agent, hint_data.get("key", "?"), from_hint=True)
+            print(f"[deepseek-runner] hint accepted ({hint_data.get('key','?')}) "
+                  f"from {m.frm}: {hint_data.get('value','?')[:100]}")
+        return
+    if not should_answer(m.kind, m.frm, args.agent):
+        return
+    hops = control.next_hops(m.meta)
+    if control.hops_exceeded(m.meta):             # loop-guard: bounce the thread to a human
+        bus.send(m.frm, "note",
+                 f"[loop-guard] max hops ({control.MAX_HOPS}) reached -- returning to a human.",
+                 meta={"via": f"{args.agent}-runner", "hops": hops})
+        print(f"[deepseek-runner] loop-guard: hops>={control.MAX_HOPS}; not answering {m.frm}")
+        return
+    if not rate.allow():                          # backstop: too many replies too fast
+        control.pause(reason=f"{args.agent} hit reply rate limit", by=args.agent)
+        bus.send(m.frm, "note",
+                 "[loop-guard] reply rate limit hit -- auto-paused. Resume when ready.",
+                 meta={"via": f"{args.agent}-runner", "hops": hops})
+        print("[deepseek-runner] rate limit -> auto-paused")
+        return
+    prompt = m.content if isinstance(m.content, str) else str(m.content)
+    print(f"[deepseek-runner] <- {m.frm} [{m.kind}] (hop {hops}): {prompt[:80]}")
+    if str(m.kind) == "nudge" or nudge.is_nudged(args.agent):
+        nudge.clear(args.agent)               # consume so answering the nudge isn't self-interrupted
+        bus.send(m.frm, "note", "[nudge ack] interrupting current work to look at this now.",
+                 meta={"via": f"{args.agent}-runner", "hops": hops})
+        cog.record_human_interjection(args.agent)
+        print(f"[deepseek-runner] nudge from {m.frm} -> acked + cleared")
+    # If globally halted, record the interjection too
+    if control.is_halted(args.agent) and str(m.kind) != "nudge":
+        cog.record_human_interjection(args.agent)
+    control.set_activity(args.agent, "thinking")
+    liveness.worklive(args.agent).set("handling", detail=f"{m.frm}:{m.kind}", new_turn=True)  # L1
+    try:
+        # T014: wall-clock timeout guard -- a hung API call (or stuck stream) must not
+        # wedge the runner forever. The API client's own socket timeout is the first line
+        # of defense; this is the second. A timeout returns an error string instead of raising.
+        result_holder: list = []
+        worker_done = threading.Event()
+
+        def _call():
+            try:
+                if args.agentic:
+                    result_holder.append(responder(m.frm, prompt))
+                else:
+                    result_holder.append(responder(prompt))
+            except Exception as ex:
+                result_holder.append(ex)
+            finally:
+                worker_done.set()
+
+        t = threading.Thread(target=_call, daemon=True)
+        t.start()
+        finished = worker_done.wait(timeout=REPLY_TIMEOUT_SEC)
+        if not finished:
+            out = (f"(deepseek runner timed out after {REPLY_TIMEOUT_SEC}s -- "
+                   f"the API call was abandoned to keep the runner alive)")
+            print(f"[deepseek-runner] !! TIMEOUT for {m.frm} after {REPLY_TIMEOUT_SEC}s")
+        else:
+            result = result_holder[0] if result_holder else "(deepseek runner: no result)"
+            if isinstance(result, Exception):
+                out = f"(deepseek runner error: {type(result).__name__}: {result})"
+                print(f"[deepseek-runner] !! error from responder: {type(result).__name__}: {result}")
+            else:
+                out = str(result)
+        reply_meta = {"via": f"{args.agent}-runner", "model": args.model, "hops": hops}
+        # Channel mirror: a message that arrived by BROADCAST is replied by broadcast, so the
+        # whole group (Claude + the console) sees it -- not just the sender. Direct stays direct.
+        if str(m.to) == "*":
+            bus.broadcast("reply", out, meta=reply_meta)
+            dest = "*(broadcast -> all)"
+        else:
+            # T014: directed reply lands in the requester's inbox. We use kind="reply"
+            # (deliberately not in ANSWERABLE) so no runner<->runner echo loop is possible.
+            # The recipient can still SEE it via peek/consume -- the filter is on ANSWERING,
+            # not visibility. The defect was the recipient's runner consuming it silently
+            # (wait(advance=True) + should_answer filter = consume-without-display).
+            bus.send(m.frm, "reply", out, meta=reply_meta)
+            dest = m.frm
+        cog.record_turn_complete(args.agent)
+        print(f"[deepseek-runner] -> {dest}: {out[:80]}")
+    finally:
+        control.clear_activity(args.agent)   # back to idle -> UI stops showing it working
+        liveness.worklive(args.agent).set("idle")   # L1: turn done (ok or errored) -> idle; heartbeat keeps it fresh
+
+
 def main() -> int:
     try:                                             # DeepSeek replies can carry unicode; the runner
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")   # window must not die on cp1252
@@ -273,68 +376,17 @@ def main() -> int:
             msgs = bus.wait(timeout_ms=1500, advance=True)   # short block so pause/stop stay responsive
             bus.register(card=CARD)                           # refresh presence
             for m in msgs:
-                # HINT interception: context hints are NOT answered -- they're stored in a ring buffer
-                # and injected on the NEXT model call. The "push" half; "drain" half is in respond().
-                if str(m.kind) == "hint":
-                    meta = m.meta or {}
-                    hint_data = meta.get("hint") or {}
-                    ok = context_hints.push(args.agent,
-                                           hint_data.get("key", "?"),
-                                           hint_data.get("value", "?"),
-                                           from_agent=m.frm)
-                    if ok:
-                        # Cognitive metrics: a hint can save a file read
-                        cog.record_file_read(args.agent, hint_data.get("key", "?"), from_hint=True)
-                        print(f"[deepseek-runner] hint accepted ({hint_data.get('key','?')}) "
-                              f"from {m.frm}: {hint_data.get('value','?')[:100]}")
-                    continue
-                if not should_answer(m.kind, m.frm, args.agent):
-                    continue
-                hops = control.next_hops(m.meta)
-                if control.hops_exceeded(m.meta):             # loop-guard: bounce the thread to a human
-                    bus.send(m.frm, "note",
-                             f"[loop-guard] max hops ({control.MAX_HOPS}) reached -- returning to a human.",
-                             meta={"via": f"{args.agent}-runner", "hops": hops})
-                    print(f"[deepseek-runner] loop-guard: hops>={control.MAX_HOPS}; not answering {m.frm}")
-                    continue
-                if not rate.allow():                          # backstop: too many replies too fast
-                    control.pause(reason=f"{args.agent} hit reply rate limit", by=args.agent)
-                    bus.send(m.frm, "note",
-                             "[loop-guard] reply rate limit hit -- auto-paused. Resume when ready.",
-                             meta={"via": f"{args.agent}-runner", "hops": hops})
-                    print("[deepseek-runner] rate limit -> auto-paused")
-                    continue
-                prompt = m.content if isinstance(m.content, str) else str(m.content)
-                print(f"[deepseek-runner] <- {m.frm} [{m.kind}] (hop {hops}): {prompt[:80]}")
-                if str(m.kind) == "nudge" or nudge.is_nudged(args.agent):
-                    nudge.clear(args.agent)               # consume so answering the nudge isn't self-interrupted
-                    bus.send(m.frm, "note", "[nudge ack] interrupting current work to look at this now.",
-                             meta={"via": f"{args.agent}-runner", "hops": hops})
-                    # Cognitive metrics: this nudge/halt may cause abandoned reasoning
-                    cog.record_human_interjection(args.agent)
-                    print(f"[deepseek-runner] nudge from {m.frm} -> acked + cleared")
-                # If globally halted, record the interjection too
-                if control.is_halted(args.agent) and str(m.kind) != "nudge":
-                    cog.record_human_interjection(args.agent)
-                control.set_activity(args.agent, "thinking")
-                liveness.worklive(args.agent).set("handling", detail=f"{m.frm}:{m.kind}", new_turn=True)  # L1
-                try:
-                    out = responder(m.frm, prompt) if args.agentic else responder(prompt)
-                    reply_meta = {"via": f"{args.agent}-runner", "model": args.model, "hops": hops}
-                    # Channel mirror: a message that arrived by BROADCAST is replied by broadcast, so the
-                    # whole group (Claude + the console) sees it -- not just the sender. Direct stays direct.
-                    if str(m.to) == "*":
-                        bus.broadcast("reply", out, meta=reply_meta)
-                        dest = "*(broadcast -> all)"
-                    else:
-                        bus.send(m.frm, "reply", out, meta=reply_meta)
-                        dest = m.frm
-                    # Cognitive metrics: turn complete
-                    cog.record_turn_complete(args.agent)
-                    print(f"[deepseek-runner] -> {dest}: {out[:80]}")
-                finally:
-                    control.clear_activity(args.agent)   # back to idle -> UI stops showing it working
-                    liveness.worklive(args.agent).set("idle")   # L1: turn done (ok or errored) -> idle; heartbeat keeps it fresh
+                try:   # T014: per-message isolation -- one failure must NOT skip the rest of the batch
+                    _process_one(m, bus, args, responder, rate)
+                except Exception as e:
+                    print(f"[deepseek-runner] !! unhandled error processing message from {m.frm}: "
+                          f"{type(e).__name__}: {e}")
+                    try:
+                        bus.send(m.frm, "note",
+                                 f"[error] deepseek runner hit an unhandled error: {type(e).__name__}: {e}",
+                                 meta={"via": f"{args.agent}-runner"})
+                    except Exception:
+                        pass
             if args.once:
                 break
     except (KeyboardInterrupt, EOFError):
