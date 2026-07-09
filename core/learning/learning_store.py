@@ -285,6 +285,9 @@ class LearningStore:
         console line, so the consolidation/merge pass it points at had nothing durable to act on.
         Stored one-directional on the NEW record as JSON [{'experiment_name','dims','matched'}...];
         a merge pass can invert. Same partial-hset rationale as mark_benched/mark_graduated.
+        Capped at 5 edges by design: >5 near-duplicates of one lesson is itself the signal
+        (a consolidation emergency), and the strongest 5 (find_related sorts by dims) are
+        plenty to route the merge pass there.
 
         Semantic Relationship: Lesson related_to Lesson (near_duplicate_edge)
         """

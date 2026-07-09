@@ -297,11 +297,12 @@ def cmd_learn(args):
                                   "category": signal.get("category"), "success": signal.get("success")})
         except Exception:
             pass
+    edge_stamped = False
     if ok and related:
         try:   # durable edge for the consolidation/merge pass -- the advisory print alone evaporated
-            get_learning_store().mark_related(signal["experiment_name"], related)
+            edge_stamped = get_learning_store().mark_related(signal["experiment_name"], related)
         except Exception:
-            pass
+            edge_stamped = False
     if args.json:
         print(json.dumps({"recorded": bool(ok), "experiment": signal["experiment_name"]}))
     else:
@@ -324,14 +325,18 @@ def cmd_learn(args):
     # 2-3 dims -> related, worth merging in a consolidation pass. Never blocks (append-only).
     if ok and not args.json and related:
         top = related[0]
+        # honest suffix: only claim the stamp when mark_related actually returned True
+        # (DeepSeek review finding 3 -- a silent store failure must not present as success)
+        edge_note = " Edge stamped on this record (related_to)." if edge_stamped \
+            else " (edge NOT stamped -- store write failed; the console line is the only record)."
         if top["dims"] >= 4:
             print(f"[i] near-duplicate: overlaps '{top['experiment_name']}' on {top['dims']}/5 dimensions"
                   f" ({', '.join(top['matched'])}).")
             print(f"    Next time update it instead: re-record with --experiment {top['experiment_name']}"
-                  " (same name = update, no dupes). Edge stamped on this record (related_to).")
+                  f" (same name = update, no dupes).{edge_note}")
         else:
             print(f"[i] related lesson: '{top['experiment_name']}' ({top['dims']}/5 dims)"
-                  " -- edge stamped on this record (related_to) for the consolidation pass.")
+                  f" -- consolidation-pass candidate.{edge_note}")
     return 0 if ok else 1
 
 

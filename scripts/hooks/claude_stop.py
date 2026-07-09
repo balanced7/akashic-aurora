@@ -12,9 +12,16 @@ Fires when the turn ends. Two independent, independently-latched checks:
    of future work ("I'll ...", "Next I'll ...") rather than an outcome, bounce ONCE per session
    with a teaching reason -- the last-paragraph check from the frontier harness, ported to the
    stop boundary we already own. High-precision patterns only; paragraphs that ask the user a
-   question or condition on the user ("once you...", "say the word") are legitimate endings and
-   never bounced. Scoped to Akashic sessions (agent.harness.scope), kill switch
-   AKASHIC_STOP_PROMISE=0.
+   question, condition on the user ("once you...", "say the word"), or announce a STOP in
+   future-tense grammar ("I'll wait for your review") are legitimate endings and never bounced.
+   Scoped to Akashic sessions (agent.harness.scope), kill switch AKASHIC_STOP_PROMISE=0.
+
+Ordering + precision contract (made explicit after DeepSeek's 2026-07-08 review): at most ONE
+block per stop attempt -- wake precedes promise, so an unarmed session hears about the promise
+only on its NEXT stop (self-correcting across turns, never a wedge). And grammar-level matching
+has a precision ceiling: past the opener/carve-out lists, false positives and negatives differ
+only in INTENT, which a regex cannot see -- the chosen mitigation is the once-per-session latch
+bounding any misfire to a single nudge, NOT an ever-growing stopword list.
 
 Both checks fail OPEN (never wedge the session).
 """
@@ -32,6 +39,12 @@ PROMISE_OPENERS = re.compile(
 # A final paragraph that hands the turn to the USER is a legitimate ending, never a promise.
 USER_CONDITIONAL = ("if you", "when you", "once you", "whenever you", "say the word",
                     "let me know", "your call", "want me to", "shall i", "should i")
+# "I'll <stop-verb>" is an outcome statement in future-tense clothing ("I'll wait for your
+# review"), not a promise of work (DeepSeek review finding 1). Tight list on purpose --
+# ambiguous verbs (keep/stay/watch) stay OUT so "I'll keep working" still bounces.
+STOP_VERBS = {"wait", "pause", "stop", "hold", "defer", "stand", "leave", "yield", "idle"}
+_OPENER_VERB = re.compile(
+    r"^(?:i'll|i will|now i'll|next,? i'll|let me now|i'm going to|i am going to)\s+([a-z']+)", re.I)
 
 
 def final_paragraph(text: str) -> str:
@@ -55,6 +68,9 @@ def promise_shaped(paragraph: str):
         return None            # user-conditional ending ("once you approve, I'll...") -- legitimate
     norm = re.sub(r"^[\s>*\-\d.]+", "", low)   # strip list bullets / numbering / emphasis prefixes
     if PROMISE_OPENERS.match(norm):
+        m = _OPENER_VERB.match(norm)
+        if m and m.group(1) in STOP_VERBS:
+            return None        # "I'll wait/pause/stop..." announces an ending, not future work
         return p[:120]
     return None
 

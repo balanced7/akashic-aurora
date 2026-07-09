@@ -40,6 +40,22 @@ def test_promise_negative_cases():
     print("--- promise negatives ---\n  questions/user-conditional/outcomes never bounce OK")
 
 
+def test_stop_verbs_are_endings_not_promises():
+    """DeepSeek review finding 1: 'I'll <stop-verb>' is an outcome in future-tense clothing."""
+    for p in ("I'll wait for your review.",
+              "I'll pause here.",
+              "I'll stop for now.",
+              "I'll hold off until the numbers land.",
+              "I'll defer to the design doc on this one.",
+              "I'll leave it there."):
+        assert not promise_shaped(p), f"stop-verb ending must NOT bounce: {p!r}"
+    # the carve-out must not create false NEGATIVES: ambiguous verbs stay bounceable
+    for p in ("I'll keep working on the parser.",
+              "I'll write the fix and run the tests next."):
+        assert promise_shaped(p), f"real future work must still bounce: {p!r}"
+    print("--- stop verbs ---\n  wait/pause/stop/hold/defer endings pass; 'keep working' still bounces OK")
+
+
 def test_final_paragraph_extraction():
     assert final_paragraph("one\n\ntwo lines here") == "two lines here"
     assert final_paragraph("The fix:\n\n```python\nprint('x')\n```") == "The fix:", \
@@ -76,6 +92,7 @@ if __name__ == "__main__":
     print("=" * 60)
     test_promise_positive_cases()
     test_promise_negative_cases()
+    test_stop_verbs_are_endings_not_promises()
     test_final_paragraph_extraction()
     test_last_assistant_text_reads_tail()
     test_promise_block_fails_open()
