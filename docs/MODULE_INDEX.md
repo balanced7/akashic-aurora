@@ -50,11 +50,12 @@
 - `consolidation.py` — Consolidation: distill raw episodic memory + experiment lessons into a curated chronicle.
 - `learning_store.py` — Learning Store: Persists and retrieves experiment outcomes via the Store.
 
-## core/recall/  (4 modules)
+## core/recall/  (5 modules)
 - `at_action.py` — Recall-at-action (`core/recall`) — read the right knowledge AT THE MOMENT of action.
 - `curator.py` — Recall curator (vNext loop 1) -- the funnel's triage made an ACTOR, not a report.
 - `dissent.py` — Dissent-finder (`core/recall`) — surface the strongest genuine COUNTER to a recalled lesson.
 - `funnel.py` — Recall-value funnel (leapfrog T3): is surfaced knowledge actually HELPING, and are
+- `replay.py` — Forge F0 -- replay harness + data-sufficiency audit (docs/lesson-forge-design-2026-07.md sec.9).
 
 ## core/primitives/  (7 modules)
 - `clusterer.py` — Clusterer (Slice C1) -- group atoms by MEANING and flag where the knowledge structure should

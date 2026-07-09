@@ -699,6 +699,30 @@ def cmd_recall_curate(args):
     times without ever earning credit (reversible flag; auto-UNBENCH on any new credit) and prune
     zero-credit ghost counters. Report by default; --apply stamps it."""
     import json as _json
+    if getattr(args, "forge_audit", False):
+        # Forge F0 (design doc sec.9): data-sufficiency audit vs the PRE-REGISTERED
+        # criteria. Read-only -- composes with curation because the curator's economics
+        # name the Forge's candidates.
+        from core.recall.replay import audit
+        rep = audit()
+        if getattr(args, "json", False):
+            print(_json.dumps(rep, indent=2, default=str))
+            return 0
+        def _pct(x):
+            return "n/a" if x is None else f"{100.0 * x:.0f}%"
+        print(f"[forge-audit] flips {rep['flips']} | targets replayable "
+              f"{_pct(rep['flip_targets_replayable_share'])} | credited lessons {rep['credited_lessons']} "
+              f"(>=2 ctx: {rep['credited_context_histogram']['>=2']}) | rehab candidates "
+              f"{rep['rehab_candidates']} (coverage {_pct(rep['rehab_coverage_share'])}) | "
+              f"ledger retention {rep['ledger_retention_days'] and round(rep['ledger_retention_days'], 1)}d")
+        f = rep["fidelity"]
+        print(f"  fidelity: {f['agreed']}/{f['checked']} ledgered sources re-surface on replay "
+              f"({_pct(f['rate'])})")
+        for m in f.get("mismatches", []):
+            print(f"    mismatch: {m['source']}  @  {m['target']}")
+        for k, v in rep["verdicts"].items():
+            print(f"  {k}: {v}")
+        return 0
     from core.recall.curator import curation_report, apply_curation
     rep = curation_report()
     if getattr(args, "json", False):
@@ -1970,6 +1994,8 @@ def build_parser():
     rc = sub.add_parser("recall-curate",
                         help="bench surfaced-never-credited lessons + prune ghost counters (report; --apply stamps)")
     rc.add_argument("--apply", action="store_true", help="apply the report (default: report only)")
+    rc.add_argument("--forge-audit", action="store_true",
+                    help="Forge F0 data-sufficiency audit vs the pre-registered criteria (read-only)")
     rc.add_argument("--json", action="store_true")
     rc.set_defaults(fn=cmd_recall_curate)
 
