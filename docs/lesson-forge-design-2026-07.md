@@ -1,11 +1,14 @@
 # Lesson Forge — evidence-gated content optimization for the lesson corpus
 
-**Status: DRAFT 2026-07-08 (pre-review).** Claude-authored. A FENCED independent design
-from DeepSeek is pending (raw problem + codebase only, no access to this doc until its
-answer lands — blind-crosscheck discipline); reconcile in sec.12 before locking decisions.
-Ledger: T013. Sources: research/reviewed/frontier-autoresearch-skillopt-skills-web-2026-07-08.md
-(SkillOpt findings, all 3-vote verified), docs/recall-vnext-2026-07.md (the funnel this
-composes with).
+**Status: DRAFT v2 2026-07-08 (cross-checked; awaiting Daniel's sec.10 locks).**
+Claude-authored; reconciled same-day against DeepSeek's FENCED independent design
+(research/reviewed/deepseek-forge-blind-crosscheck-2026-07-08.md — raw problem + codebase
+only, no access to this doc until it answered). Headline: both designs independently
+derived replay-against-credit-history as the validation gate — sec.12 for the full
+convergence/divergence map. Ledger: T013. Sources:
+research/reviewed/frontier-autoresearch-skillopt-skills-web-2026-07-08.md (SkillOpt
+findings, all 3-vote verified), docs/recall-vnext-2026-07.md (the funnel this composes
+with).
 
 ## 1. The problem, at loop altitude
 
@@ -89,10 +92,17 @@ Score = (credited-recall preserved, noise-match reduction, token delta). Accept 
 least one axis, regression on none. This is SkillOpt's selection split, translated:
 **the flip log is the validation set.**
 
+**Blinding rule (grafted from DeepSeek FM1):** the optimizer NEVER sees the raw credit
+events the gate replays — it gets lesson text + aggregate counters + related_to edges
+only. The gate runs blind, after generation, as coarse pass/fail — never as a score the
+optimizer can hill-climb. With a 26-event validation set, an optimizer that can see the
+targets would overfit them by lunch.
+
 Honest limits: Tier 0 validates RETRIEVAL behavior (does the right moment still find
 the lesson; do wrong moments find it less), not in-context persuasiveness (does the
-text change the agent's action once shown). Persuasiveness only shows up in live
-credit — Tier 1.
+text change the agent's action once shown) — and not factual accuracy, which is why the
+edit operations themselves forbid new claims (sec.5). Persuasiveness only shows up in
+live credit — Tier 1.
 
 ### Tier 1 — in-vivo champion/challenger (only where traffic supports it)
 
@@ -115,16 +125,25 @@ bench/unbench).
 - **Candidate selection (who gets forged):** the curator's economics already name them —
   bench candidates (surfaced >= 10, credit 0) are rewrite candidates BEFORE they are
   bench candidates (forge is rehab; bench is retirement). Also: lessons with helped > 0
-  but poor precision (high surfaced:helped ratio), and corpus-gap flips that match no
-  lesson (candidates for NEW drafts, not edits). Cap: <= 2 forge targets per wrap.
+  but poor precision (high surfaced:helped ratio); corpus-gap flips that match no lesson
+  (candidates for NEW drafts, not edits); and — grafted from DeepSeek FM2 — **credit
+  regression**: a lesson that earned credit before but has been silent for its last 15+
+  surfacings, the signature of trigger terms drifting from the repo's current state
+  (renamed files, changed verbs; the slice-1a [age] cue is this same failure seen from
+  the reader's side). Cap: <= 2 forge targets per wrap; unreviewed proposals EXPIRE
+  after one cycle (DeepSeek FM4 — the textual learning rate applied at process level).
 - **Reflect (evidence assembly, no LLM):** per target — credited contexts, noise/ignored
   contexts, mined credited-flip vocabulary (V2 already mines this), related_to edges
   (slice 1b), the rejected-edit buffer, full record.
 - **Update (the optimizer, LLM lane):** one bounded edit proposal per target: rewrite
   the Use-when trigger clause OR the recommendation body (one field per step), within
-  the token budget. Lane: deepseek --think offline (cheap, and the optimizer/consumer
-  split keeps the target model frozen); claude may also propose during wrap. The
-  optimizer prompt includes the rejected-edit buffer as negative feedback.
+  the token budget. Permitted ops only (DeepSeek FM5): rephrase trigger clause; fold a
+  near-dup's distinct details; TRIM (delete-only); refresh stale file/path references.
+  **No new factual claims, ever** — the gate tests retrieval, not truth, so truth must
+  be conserved by construction. Output is a diff against the incumbent, never a full
+  rewrite. Lane: deepseek --think offline (cheap, and the optimizer/consumer split
+  keeps the target model frozen); claude may also propose during wrap. The optimizer
+  prompt includes the rejected-edit buffer as negative feedback.
 - **Gate:** Tier 0 replay; on pass -> provisional promotion + Tier 1 watch; on fail ->
   rejected-edit buffer with the failing axis.
 - **Bookkeeping:** every accepted edit stamps forge_history (JSON: ts, field, delta,
@@ -134,11 +153,15 @@ bench/unbench).
 ## 6. Merge verb (the related_to harvest)
 
 Input: durable near-dup edges from slice 1b (related_to, dims >= 4) + find_related
-sweeps by the curator. Mechanics:
-1. Draft merged lesson M from incumbents A+B (optimizer lane; the draft must preserve
-   both trigger clauses' intent — union of Use-when, reconciled advice; if the two
-   ADVISE DIFFERENTLY, that is not a merge candidate, it is a dissent pair — route to
-   the dissent mechanism, never blend contradictions).
+sweeps by the curator. Exclusion (DeepSeek): anti-pattern-tagged lessons are NEVER merge
+candidates — they are disconfirmers, and blending dilutes the warning. Mechanics:
+1. Draft merged lesson M from incumbents A+B (optimizer lane). Drafting rule (DeepSeek):
+   the higher-value-rate incumbent's text is the BASE; fold only the other's DISTINCT
+   details in, preserving its distinct trigger terms as an explicit "also applies when"
+   clause — distinctness is often WHY the weaker twin earned its credits. The draft must
+   preserve both trigger clauses' intent; if the two ADVISE DIFFERENTLY, that is not a
+   merge candidate, it is a dissent pair — route to the dissent mechanism, never blend
+   contradictions.
 2. Gate: Tier 0 replay against the UNION of A's and B's credited contexts (M must match
    everything either incumbent earned), noise set = union likewise.
 3. On pass: M gets a new experiment_name, inherits summed counters (helped/useful/
@@ -205,9 +228,20 @@ machinery because the funnel + gate ARE the trust machinery.
    continuity over clean-slate).
 4. **Optimizer lane:** propose deepseek --think offline as default (frugality + the
    frozen-target split), claude allowed at wrap.
-5. **Auto-promotion authority:** may the Forge promote provisionally WITHOUT
-   human sign-off? Propose yes for edits (reversible, gated, rollback-armed), no for
-   merges until F3's drill passes twice.
+5. **Auto-promotion authority — THE central divergence with DeepSeek's design.**
+   DeepSeek: human gate ALWAYS (forge-apply/forge-reject verbs; "the synthetic replay is
+   the evidence floor; the human is the gate" — realistic for a 64-lesson corpus, and
+   Daniel stays in the loop at 2-3 proposals/cycle). Claude: auto-provisional with
+   rollback (reversible, faster compounding, the self-improving-store headline).
+   **Proposed synthesis — a trust ladder:** F1-F2 run DeepSeek's human gate; after ~10
+   consecutive cycles where the human verdict agrees with the gate's verdict, F4 flips
+   edits (never merges) to auto-provisional with the rollback watch. Autonomy is earned
+   through demonstrated gate-judgment alignment, same shape as the security schema's
+   quarantine -> escalation path.
+6. **Rejected-edit buffer:** claude keeps it (durable negative feedback, prevents
+   re-proposal loops once F2 automation exists; advisory_prints_evaporate); DeepSeek
+   drops it ("overkill at our scale — discard failed edits"). Propose: keep, but as a
+   plain field on the lesson record (zero new machinery), revisit if it never fires.
 
 ## 11. Failure modes (adversarial pass on own design)
 
@@ -231,12 +265,38 @@ machinery because the funnel + gate ARE the trust machinery.
   lane / CI) writes accepted variants. Matches security schema (quarantine-by-default,
   scoped grants).
 
-## 12. Review protocol (pending)
+## 12. Review protocol — COMPLETE (2026-07-08, same session)
 
-- DeepSeek FENCED cross-check: sent 2026-07-08 (bifrost id 1783567042746-0) — raw
-  problem + code pointers only. Reconcile its (1)-(4) answers against sec.4/6/7/11
-  here; graft disagreements into sec.10 as open decisions.
-- DeepSeek slice-1 review: sent 2026-07-08 (bifrost id 1783567034872-0) — independent
-  findings on @0b3dfca may adjust slice 1b/1c mechanics this design leans on
-  (related_to shape, stop-hook latch semantics).
-- Daniel: locks sec.10, then F0 starts.
+Both reviews delivered and reconciled (full texts:
+research/reviewed/deepseek-forge-blind-crosscheck-2026-07-08.md,
+research/reviewed/deepseek-slice1-review-2026-07-08.md).
+
+**Converged independently (locked — two fenced designers, same mechanism):**
+- Replay-against-historical-credit-events as the validation gate ("the flip log is the
+  validation set" / "the historical credit events ARE the held-out set" — derived
+  separately, near-verbatim agreement).
+- Must-still-match credited targets; must-not-increase noise matching; merges gate on
+  the UNION of both incumbents' credited targets.
+- Bounded ops + ~40% textual learning rate; diff-not-rewrite.
+- Merge via supersession edges (redirect, not delete) + summed counters; distinct
+  details preserved, contradictions never blended.
+- Taxonomy emergent from trigger-clause clustering; no external import; recomputed when
+  an edit changes the clause.
+- Offline-only (zero hot-path cost), <= 2-3 candidates/cycle, fail-soft throughout.
+
+**Grafted from DeepSeek (gaps in the claude draft):** optimizer blinding from the replay
+set (FM1 — sec.4); credit-regression candidate trigger (FM2 — sec.5); proposal expiry
+(FM4 — sec.5); no-new-factual-claims edit ops (FM5 — sec.5); base-text merge rule +
+anti-pattern merge exclusion (sec.6).
+
+**Divergences -> sec.10 decisions 5-6:** human-gate-always (deepseek) vs
+auto-provisional-with-rollback (claude) — synthesis proposed as a trust ladder; and
+rejected-edit buffer keep (claude) vs drop (deepseek).
+
+**Slice-1 review consequences for this design:** findings applied same-day (stop-verb
+carve-out, honest edge-stamp print, contract docstring). The grammar-ceiling insight
+(finding: past ~85% precision only INTENT separates cases, so bound damage with latches
+instead of growing stopword lists) is adopted here as a Forge principle too: the gate is
+coarse pass/fail with reversibility, never a precision-chasing score.
+
+- Daniel: locks sec.10 (esp. decisions 5-6), then F0 starts.
