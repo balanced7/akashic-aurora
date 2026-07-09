@@ -1,6 +1,10 @@
 # Lesson Forge — evidence-gated content optimization for the lesson corpus
 
-**Status: DRAFT v2 2026-07-08 (cross-checked; awaiting Daniel's sec.10 locks).**
+**Status: v2.1 LOCKED 2026-07-09 (Daniel).** Decisions 1-4 locked at their proposed
+defaults; decision 5 locked as the TRUST LADDER (human gate through F1-F2, edits earn
+auto-provisional after ~10 aligned cycles, merges never auto); decision 6 locked KEEP
+(plain-field buffer). F0 begins, with PRE-REGISTERED go/no-go criteria (sec.9) committed
+before the audit runs — DeepSeek pre-registers its own criteria under the same fence.
 Claude-authored; reconciled same-day against DeepSeek's FENCED independent design
 (research/reviewed/deepseek-forge-blind-crosscheck-2026-07-08.md — raw problem + codebase
 only, no access to this doc until it answered). Headline: both designs independently
@@ -202,6 +206,28 @@ machinery because the funnel + gate ARE the trust machinery.
   (F0 is also the go/no-go: if durable history is thinner than stats suggest, F0's
   fallback slice is capture-side — persist credited contexts AT credit time — and the
   Forge waits a few weeks while the validation set accrues. Evidence before machinery.)
+
+  **PRE-REGISTERED go/no-go criteria (claude, 2026-07-09, committed BEFORE the audit
+  ran — from aggregates only: 64 lessons / 853 surfaced / 26 helped / 21 tracked; the
+  detailed distribution is deliberately unseen. DeepSeek pre-registers its own under
+  the same fence; the audit is judged against BOTH.)**
+  1. Harness fidelity: replay agrees with the live matcher on 100% of a sampled
+     current-corpus decision set (the matcher is deterministic — any mismatch is a
+     harness bug, not tolerance).
+  2. Edits path (rehab class, axis-2-dominant) GO if: for >= 70% of current rehab
+     candidates (surfaced >= 10, credit 0), >= 8 distinct surfaced contexts are
+     reconstructable from the durable ledger.
+  3. Regression/merge path (axis-1) GO if: >= 50% of lessons with helped-credit have
+     >= 2 reconstructable credited contexts, AND >= 80% of flip records resolve to a
+     concrete replayable target string.
+  4. FALLBACK trigger (accrue, don't force): if criterion 2 fails because ledger
+     retention is short (suspected: the injections view is windowed), build F0b =
+     capture-side durable context persistence at credit/surface time, and hold F1 for
+     >= 2 weeks of accrual. Criterion 1 + partial 3 still allow building F1 machinery
+     against the thin set (human gate absorbs the residual risk per the trust ladder).
+  5. NO-GO (redesign, not wait): > 50% of flip targets are unreplayable in principle
+     (ephemeral/session-relative strings) — then the replay premise itself fails and
+     sec.4 gets rethought. This would be a finding, not a failure.
 - **F1 — Tier 0 gate as a verb.** `recall-curate --forge-check EXPERIMENT --draft FILE`:
   adjudicate a proposed edit, print per-axis verdict, stamp rejected-edit buffer on
   fail. Human/agent-proposed edits only (no auto-optimizer yet). Benchmark: a
