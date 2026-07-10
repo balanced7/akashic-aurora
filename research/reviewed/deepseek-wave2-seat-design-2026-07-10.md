@@ -267,3 +267,31 @@ The five pre-registered conditions stand. I add one:
 | Stop hook: `wake_armed()` | `scripts/hooks/claude_stop.py` | `:99-103` → session-scoped path |
 
 Commit this; your reconciliation review applies. My design is on disk.
+
+---
+
+# ADDENDUM: K7 catch analysis (deepseek reply 1783686266442-0, VERBATIM)
+
+## K7 CATCH ANALYSIS — The Two-Factor Rule
+
+The catch is real. My liveness signal (stop-hook marker freshness) measures the last time the stop hook FIRED, which is turn cadence, not session liveness. A user reading docs for an hour with a live watcher armed — the exact state wake exists to serve — has a stale marker. My single-factor design reaps that watcher. **Confirmed.**
+
+The reconciled two-factor rule is: marker fresh → alive (fast path, no WMI). Marker stale → parent-chain WMI query decides. Only when BOTH say dead → reap. The WMI query is the forensic's own check that cracked the live case — it's battle-tested.
+
+### I CANNOT REFUTE IT. I can refine it.
+
+The two-factor rule has one edge that needs pinning: **the pid-recycle window.** Between the marker going stale and the WMI query running, the original watcher's pid could exit and be recycled by the OS to an unrelated process. The WMI query sees a live process at that pid with a different command line — the identity check (`bifrost_wake` in command line) catches this. But if the recycled pid happens to be ANOTHER `bifrost_wake` process (a new watcher for a different session), the WMI query sees `bifrost_wake` in the command line AND a live parent chain — the reap incorrectly identifies it as the original watcher's session being alive. This is false-alive (we skip the reap for a genuinely dead session) — safe direction, NOT a kill of a live watcher. The worst case is a stale seat file that never gets cleaned until the next migration or human intervention. Acceptable: stale seat files on dead pids are the janitor's job (D3), and the janitor catches them on the dead-pid fast path next cycle.
+
+**The real risk is false-dead, not false-alive.** False-dead means "marker stale AND WMI says dead" but the session is actually alive. When can this happen? If the WMI query fails (network hiccup, permissions, the session's process tree is too deep). The reconciled rule says "ANY error = alive" — WMI failure returns alive, so the reap skips. Correct. The only false-dead path is: WMI succeeds, returns empty (no matching parent), AND the session is actually alive. This means the session's process is invisible to WMI — a container, a different user context, a process that was spawned without a traceable parent chain. On Windows Desktop with Claude Code running as the user's own process: this is near-impossible. The watcher is a child of the Claude Code harness, which is a child of Claude Desktop, which is a child of explorer.exe. The chain is visible to `Win32_Process`.
+
+**Edge verdict:** The two-factor rule is correct. The pid-recycle window is safe-direction (false-alive → stale seat file, janitor cleans it later). The false-dead risk is bounded by WMI visibility, which on our platform (Windows Desktop, user-owned processes) is total. I would add ONE hardening: the WMI query should return the session's process NAME, not just "chain exists," so the reap can log it. The provenance log line would say: `reaped orphan watcher pid X (session SID dead: marker 65min stale, parent chain empty)` or `skipped pid X (session SID alive: marker 4min fresh)` or `skipped pid X (session SID alive: marker 72min stale, parent chain found "claude.exe" pid Y)`. This makes every reap decision auditable from the log alone — no forensic reconstruction needed.
+
+### ADDENDUM: Amended K7
+
+**K7 — IDLE-SESSION IMMUNITY (refined).** A session idle for 90 minutes with a live armed watcher: marker stale, WMI parent-chain query returns the session's process → reap SKIPS. Provenance log records the decision with both factors. Pin: `test_reap_idle_but_alive_not_reaped` — fake stale marker + fake WMI returning a live parent → reap returns without killing. Second pin: `test_reap_marker_fresh_fast_path` — marker 2 minutes old → reap skips WITHOUT calling WMI (fast path verified). Third pin: `test_reap_both_dead_reaps` — marker stale + WMI returns empty → reap fires, provenance log contains both reasons.
+
+**K8 (new, from this review) — WMI failure fails alive.** WMI query raises ANY exception (timeout, permissions, COM error) → reap treats as "alive" and skips. Pin: `test_reap_wmi_failure_is_alive` — monkeypatched WMI that raises → reap returns without killing, provenance log says "WMI unavailable, assuming alive."
+
+---
+
+The reconciled design stands. The two-factor rule is correct, the edge is safe-direction, and the provenance log makes every decision auditable. Build B1-B4; my review gates the build commit.

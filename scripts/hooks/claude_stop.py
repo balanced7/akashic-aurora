@@ -28,9 +28,39 @@ Both checks fail OPEN (never wedge the session).
 import json, os, re, subprocess, sys, tempfile, time
 
 AGENT = os.environ.get("AKASHIC_AGENT_ID", "claude")
-HEARTBEAT = os.path.join(tempfile.gettempdir(), f"bifrost_wake_{AGENT}.pid")
+HEARTBEAT = os.path.join(tempfile.gettempdir(), f"bifrost_wake_{AGENT}.pid")   # legacy (no session id)
 MARKER = os.path.join(tempfile.gettempdir(), f"bifrost_wake_{AGENT}_stophook.ts")
 PROMISE_LATCH = os.path.join(tempfile.gettempdir(), f"claude_stop_promise_{AGENT}.sid")
+
+
+def _seat_path(session_id: str) -> str:
+    """Per-SESSION wake seat (T029 Wave 2): concurrent sessions of one agent id each arm
+    their own watcher; nobody satisfies this check with another session's seat. Falls back
+    to the legacy per-agent path when the payload carries no session id."""
+    if session_id:
+        return os.path.join(tempfile.gettempdir(), f"bifrost_wake_{AGENT}_{session_id}.pid")
+    return HEARTBEAT
+
+
+def _loop_guard_path(session_id: str) -> str:
+    """The 25s block-throttle latch -- session-scoped so twin sessions don't eat each
+    other's block window (pre-Wave-2 they shared one file)."""
+    if session_id:
+        return os.path.join(tempfile.gettempdir(), f"bifrost_wake_{AGENT}_{session_id}_stophook.ts")
+    return MARKER
+
+
+def _touch_activity(session_id: str) -> None:
+    """Every stop-hook firing stamps the session ALIVE -- the janitor's cheap liveness fast
+    path (K7). Turn cadence alone never proves death; this marker only ever proves LIFE."""
+    if not session_id:
+        return
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        from core.comm import wake_seat
+        wake_seat.touch_activity(AGENT, session_id)
+    except Exception:
+        pass
 
 # High-precision promise openers only -- a false bounce teaches the model to distrust the hook.
 # Matched at the start of the (bullet/emphasis-stripped, lowercased) final paragraph.
@@ -113,9 +143,9 @@ def _pid_alive(pid):
         return True  # fail-open: on detection error, assume alive (don't wedge the session)
 
 
-def wake_armed():
+def wake_armed(session_id: str = ""):
     try:
-        pid = int(open(HEARTBEAT).read().strip())
+        pid = int(open(_seat_path(session_id)).read().strip())
     except Exception:
         return False
     return _pid_alive(pid)
@@ -161,21 +191,26 @@ def main():
         # fail-open for the agent, never silent for the operator (the 2026-07-02 lesson)
         print(f"[stop-hook] stdin unparseable: {type(e).__name__}: {e}", file=sys.stderr)
         payload = {}
-    if not wake_armed():
+    session_id = str(payload.get("session_id") or "")
+    _touch_activity(session_id)          # stamp ALIVE on every firing -- K7 fast path
+    if not wake_armed(session_id):
+        guard = _loop_guard_path(session_id)
         now = time.time()
         try:
-            last = float(open(MARKER).read().strip())
+            last = float(open(guard).read().strip())
         except Exception:
             last = 0.0
         if now - last >= 25:   # loop guard: never block twice within 25s
             try:
-                open(MARKER, "w").write(str(now))
+                open(guard, "w").write(str(now))
             except Exception:
                 pass
+            arm_cmd = f"py scripts/bifrost_wake.py --agent {AGENT}" + (
+                f" --session {session_id}" if session_id else "")
             print(json.dumps({"decision": "block", "reason": (
                 f"No bifrost.wake listener is armed for '{AGENT}' -- this session is not wakeable from idle "
                 f"(DeepSeek/Daniel can't reach you). Re-arm it before stopping: launch "
-                f"`py scripts/bifrost_wake.py --agent {AGENT}` as a run_in_background task (so it's harness-"
+                f"`{arm_cmd}` as a run_in_background task (so it's harness-"
                 "tracked and its completion re-invokes you). Then stop.")}))
             return
     try:

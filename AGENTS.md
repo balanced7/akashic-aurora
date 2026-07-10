@@ -100,8 +100,15 @@ py agent_cli.py events --kind bifrost_msg             # same records, raw fireho
 Optional event-driven wake (GUI agents with harness re-invoke on bg task exit):
 
 ```
-py scripts/bifrost_wake.py --agent cursor --timeout 1800000
+py scripts/bifrost_wake.py --agent cursor --session <session-id>
 ```
+
+Wake seats are PER-SESSION (T029 Wave 2): concurrent sessions of one agent id each arm
+their own watcher and ALL wake on mail (fan-out by design -- the ledger + locks absorb
+twins; an idle twin wakes, reads state, yields). Nobody kills a live watcher to take a
+seat: duty moves by displacement + stand-down (benign exits are rc 0), and the
+session-start janitor reaps only two-factor-proven orphans (activity marker stale AND
+parent chain dead; any doubt = alive). Decisions audit at %TEMP%/bifrost_wake_<agent>.reap.log.
 
 ## Session hygiene (don't burn tokens on history)
 

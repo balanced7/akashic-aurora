@@ -308,7 +308,8 @@ def test_watch_stands_down_when_heartbeat_stolen(tmp_path):
         import scripts.bifrost_wake as bw
         t0 = time.time()
         rc = bw.watch("bob", 30, 400, api=api, hb_path=str(hb), my_pid=999999)
-        assert rc == 4, "stolen heartbeat -> stand down with the distinct exit code"
+        assert rc == 0, ("stolen seat -> stand down BENIGN, exit 0 (Wave 2: a nonzero exit "
+                         "badges a FAILED task into a live session; provenance is the printed line)")
         assert time.time() - t0 < 5, "stand-down must be prompt, not deadline-length"
     finally:
         _cleanup(c, ns)

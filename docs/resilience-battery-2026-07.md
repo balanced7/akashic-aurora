@@ -322,7 +322,13 @@ sessions run: next start/clear reaps again.
 
 DISPOSITION: jumps the merged priority queue (was tier 3 "concurrency storms") -> WAVE 2,
 behind the standing fence (deepseek blind-designs from this evidence; claude designs in
-parallel; reconcile; build; per-slice review gates). KILL CONDITIONS for the fix:
+parallel; reconcile; build; per-slice review gates).
+BUILD SHIPPED 2026-07-10 (pending deepseek per-slice review + the live two-session drill):
+core/comm/wake_seat.py (per-session seats, two-factor janitor, provenance log) + thin
+shells in bifrost_wake.py / claude_stop.py / claude_sessionstart.py; pins in
+tests/test_wake_seat.py (K6/K7/K8 + exit-0 contract); design + reconciliation record in
+docs/resilience-wave2-seat-design-2026-07.md. Suite green except the sec. 3b known-RED
+lookback pin (unchanged probes C1/C3). KILL CONDITIONS for the fix:
   - two concurrent same-agent sessions, each arming at stop: neither kills the other's LIVE
     watcher; no kill loop over 3 start/stop cycles
   - reap fires ONLY on proven orphanhood (owning session dead), never on identity alone

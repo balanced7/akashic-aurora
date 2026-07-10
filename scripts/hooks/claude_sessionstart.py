@@ -20,37 +20,21 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 
-def _reap_stale_watcher() -> None:
-    """P0/T017 (D4): a bifrost_wake watcher outliving its session is an orphan -- its completion
-    re-invokes a DEAD session, and its live heartbeat satisfies the stop hook's wake_armed(), so
-    the NEW session never arms its own listener (the T016 double-failure: unwakeable AND, before
-    the detect-only fix, mail-eating). At session start the seat belongs to THIS session: kill a
-    verified orphan (command line must contain bifrost_wake -- never kill a recycled pid) and
-    clear the heartbeat so the first stop re-arms fresh. Every path is self-healing: a wrongly
-    cleared heartbeat just makes the stop hook arm a new watcher, and the newest-wins singleton
-    stands any survivor down. Best-effort, bounded, never blocks the session."""
-    import subprocess
-    import tempfile
+def _reap_stale_watcher(my_session: str = "") -> None:
+    """T029 Wave 2 (supersedes the T017 D4 identity-only reap -- battery sec. 6): the janitor.
+    Walks every seat for this agent and acts per the reconciled protocol: dead-pid seats are
+    cleaned (no kill), the one legacy name-keyed ghost is migrated (K6), and a LIVE watcher is
+    reaped ONLY on two-factor-proven orphanhood -- activity marker stale AND parent chain dead
+    (K7: an idle-but-alive session is immune; turn cadence is not liveness). Any verification
+    error means alive (K8). Concurrent same-id sessions therefore never kill each other's
+    watchers -- duty moves by displacement + stand-down, and every decision lands as one line
+    in bifrost_wake_<agent>.reap.log. Best-effort, bounded, never blocks the session."""
     agent = os.getenv("AKASHIC_AGENT_ID") or "claude"
-    hb = os.path.join(tempfile.gettempdir(), f"bifrost_wake_{agent}.pid")
     try:
-        pid = int(open(hb).read().strip())
+        from core.comm import wake_seat
+        wake_seat.janitor(agent, my_session=my_session or None)
     except Exception:
-        return                       # no heartbeat -> nothing to reap
-    try:
-        out = subprocess.run(
-            ["powershell", "-NoProfile", "-Command",
-             f"(Get-CimInstance Win32_Process -Filter 'ProcessId={pid}').CommandLine"],
-            capture_output=True, text=True, timeout=5).stdout or ""
-        if "bifrost_wake" in out:    # verified: it really is a prior session's watcher
-            subprocess.run(["taskkill", "/PID", str(pid), "/F"],
-                           capture_output=True, timeout=5)
-    except Exception:
-        pass                         # verification failed -> still clear the stale heartbeat
-    try:
-        os.remove(hb)
-    except Exception:
-        pass
+        pass                         # fail-open: the janitor is a bonus, never a gate
 
 
 def main() -> int:
@@ -65,11 +49,21 @@ def main() -> int:
     except Exception:
         pass   # warm-up is best-effort; never block session start
     try:
-        # P0: the wake seat belongs to the NEW session -- but only a NEW lane reaps.
-        # On resume/compact the SAME lane continues and its own armed watcher still
-        # serves it; killing it would be self-harm (stop hook would re-arm, with a gap).
+        # Stamp THIS session alive the moment it exists -- the janitor's K7 fast path
+        # (and the twin-session proof-of-life) starts at first breath, not first stop.
+        sid = str(data.get("session_id") or "")
+        if sid:
+            from core.comm import wake_seat
+            wake_seat.touch_activity(os.getenv("AKASHIC_AGENT_ID") or "claude", sid)
+    except Exception:
+        pass
+    try:
+        # Wave 2: the janitor runs on every NEW lane; resume/compact continue the SAME
+        # lane whose own armed watcher still serves it. (Live watchers are safe from the
+        # janitor regardless -- two-factor orphanhood -- so this exemption is now about
+        # skipping pointless work, not about safety.)
         if str(data.get("source") or "startup") not in ("resume", "compact"):
-            _reap_stale_watcher()
+            _reap_stale_watcher(my_session=str(data.get("session_id") or ""))
     except Exception:
         pass
     try:
