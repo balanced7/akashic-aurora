@@ -1,14 +1,17 @@
-# Hell Battery -- DeepSeek (verbatim, FENCED)
+# Resilience Battery -- DeepSeek (verbatim, FENCED)
 
 Designed blind (claude battery committed at brdtatui3-fence before this was read).
+Provenance: substance preserved verbatim; only the label was relabeled at Daniel's request
+for tone (original umbrella term -> "Resilience Battery"; test-ID prefix -> R). No test,
+setup, kill-condition, or finding was altered.
 
 ---
 
-Good, I have the full picture. Now the hell battery:
+Good, I have the full picture. Now the resilience battery:
 
 ---
 
-## Hell Battery — DeepSeek Pre-Registered (Fenced, Blind)
+## Resilience Battery — DeepSeek Pre-Registered (Fenced, Blind)
 
 ### SUSPICIONS UP FRONT (the honest core)
 
@@ -26,7 +29,7 @@ Good, I have the full picture. Now the hell battery:
 
 ### PER-SLICE TESTS
 
-#### H1 — P0: Zombie Session Cursor Race
+#### R1 — P0: Zombie Session Cursor Race
 
 **SETUP:** Start two `bifrost_wake` watchers for the same agent_id from different terminals within 2 seconds of each other. Deliver a directed handoff to that agent_id. Both watchers share one cursor.
 
@@ -36,7 +39,7 @@ Good, I have the full picture. Now the hell battery:
 
 ---
 
-#### H2 — P0: Watcher Death During 8-Hour Window
+#### R2 — P0: Watcher Death During 8-Hour Window
 
 **SETUP:** Arm a watcher with an 8-hour deadline (the default). Kill -9 its process at hour 3. Wait until hour 9. The orphan heartbeat from the dead watcher should have TTL-expired by now. Start a new watcher.
 
@@ -46,7 +49,7 @@ Good, I have the full picture. Now the hell battery:
 
 ---
 
-#### H3 — T018: Promise-Bounce on Empty Content
+#### R3 — T018: Promise-Bounce on Empty Content
 
 **SETUP:** Craft a model response that ends with "Let me know if you need anything else!" but has ZERO actionable content in the preceding 2000 tokens (a polite non-answer). The `promise_shaped` detector fires, the bounce reprompt fires — but the model's *second* reply is ALSO a promise with no content.
 
@@ -56,7 +59,7 @@ Good, I have the full picture. Now the hell battery:
 
 ---
 
-#### H4 — T019: Drainer Thread Death Mid-Child
+#### R4 — T019: Drainer Thread Death Mid-Child
 
 **SETUP:** Start a chatty child that prints 100KB/s continuously. After 5 seconds, kill -9 the drainer thread itself (simulate a thread crash — Python daemon threads can die silently on unhandled exceptions). The child is still writing.
 
@@ -66,7 +69,7 @@ Good, I have the full picture. Now the hell battery:
 
 ---
 
-#### H5 — P1: Note Supersession Chain Length
+#### R5 — P1: Note Supersession Chain Length
 
 **SETUP:** Write `where-we-are` note. Re-note it 50 times (simulating a long-running project with daily wrap). Read the active note. The supersession chain is 50 deep in the Store.
 
@@ -76,7 +79,7 @@ Good, I have the full picture. Now the hell battery:
 
 ---
 
-#### H6 — P2: Governing Arc Ambiguity Under Identical Recency
+#### R6 — P2: Governing Arc Ambiguity Under Identical Recency
 
 **SETUP:** Create two `*-status` notes with identical timestamps (same second), both referencing different `docs/` paths as their governing arc. Cold-boot an agent.
 
@@ -86,7 +89,7 @@ Good, I have the full picture. Now the hell battery:
 
 ---
 
-#### H7 — P2: Where-We-Are Note Deleted (Zero Notes)
+#### R7 — P2: Where-We-Are Note Deleted (Zero Notes)
 
 **SETUP:** Retire the last `where-we-are` note. Run `notes --all` — zero notes exist with that title. Cold-boot an agent.
 
@@ -96,7 +99,7 @@ Good, I have the full picture. Now the hell battery:
 
 ---
 
-#### H8 — P3: Ledger Update Storm (10 Transitions in 1 Second)
+#### R8 — P3: Ledger Update Storm (10 Transitions in 1 Second)
 
 **SETUP:** A conductor script moves 10 tasks through different transitions in rapid succession (simulating a batch operation). Each transition emits `kind=ledger_update`. All 10 hit the bus before the runner's next drain.
 
@@ -106,7 +109,7 @@ Good, I have the full picture. Now the hell battery:
 
 ---
 
-#### H9 — P3/P6: Ack + Ledger Update Race (Cross-Slice Seam)
+#### R9 — P3/P6: Ack + Ledger Update Race (Cross-Slice Seam)
 
 **SETUP:** A task moves to DONE (emits `ledger_update`) simultaneously with a handoff about that same task being acked. The runner drains both in the same turn. The fold deduplicates by task ID — but the ack is a message-level event, not a task-level one.
 
@@ -116,7 +119,7 @@ Good, I have the full picture. Now the hell battery:
 
 ---
 
-#### H10 — P4: Superseded-By Target Renamed
+#### R10 — P4: Superseded-By Target Renamed
 
 **SETUP:** Doc A is stamped `Status: superseded-by docs/new-plan.md`. Doc B (`docs/new-plan.md`) is later renamed by git mv to `docs/better-plan.md`. The currency guard runs.
 
@@ -126,7 +129,7 @@ Good, I have the full picture. Now the hell battery:
 
 ---
 
-#### H11 — P5: Staleness Clock vs. Approved-But-Not-Started
+#### R11 — P5: Staleness Clock vs. Approved-But-Not-Started
 
 **SETUP:** A task is PROPOSED, immediately APPROVED (by Daniel), then sits for 8 days — no one has claimed it. The staleness clock ticks from `created`, not from `updated`. The task renders "(stale)" despite being explicitly approved.
 
@@ -136,7 +139,7 @@ Good, I have the full picture. Now the hell battery:
 
 ---
 
-#### H12 — P6: Self-Ack via Malformed Reply
+#### R12 — P6: Self-Ack via Malformed Reply
 
 **SETUP:** Agent A sends a handoff to agent B. Agent B's runner produces a reply that our `promise_shaped` detector + `respond()` wrapper classify as "not a real answer" (error string). The runner correctly does NOT auto-ack. But agent B then manually runs `bifrost-ack` on the message anyway — a human forcing the ack.
 
@@ -146,7 +149,7 @@ Good, I have the full picture. Now the hell battery:
 
 ---
 
-#### H13 — P7: Lookback on a Fresh Clone (Zero Corpora)
+#### R13 — P7: Lookback on a Fresh Clone (Zero Corpora)
 
 **SETUP:** Clone the repo fresh. No chronicles generated, no promoted messages (Redis empty), no notes (AgentMemory cold), research/reviewed/ exists but has no events in the firehose. Run `lookback "why is the bus ephemeral"`.
 
@@ -156,9 +159,9 @@ Good, I have the full picture. Now the hell battery:
 
 ---
 
-### CROSS-SLICE / SYSTEMIC HELLS
+### CROSS-SLICE / SYSTEMIC STRESS SCENARIOS
 
-#### H14 — THE LONG NIGHT: System Left Running for 72 Hours
+#### R14 — THE LONG NIGHT: System Left Running for 72 Hours
 
 **SETUP:** Start the full system (UI + launcher + watcher + two runners). Deliver 1 message every 30 minutes for 72 hours. No human touches it. The watcher's 8-hour deadline fires and renews 9 times.
 
@@ -168,7 +171,7 @@ Good, I have the full picture. Now the hell battery:
 
 ---
 
-#### H15 — ADVERSARIAL AGENT: Malformed Ledger Update Injection
+#### R15 — ADVERSARIAL AGENT: Malformed Ledger Update Injection
 
 **SETUP:** An agent inside the fleet (possessing a valid `agent_id` on the bus) publishes a `kind=ledger_update` message with a fabricated transition: `T999 (no such task): proposed -> done`. The runner's fold logic receives this.
 
@@ -178,9 +181,9 @@ Good, I have the full picture. Now the hell battery:
 
 ---
 
-#### H16 — CHAOS: Dual Watcher + Dual Runner + Kill Storm
+#### R16 — CHAOS: Dual Watcher + Dual Runner + Kill Storm
 
-**SETUP:** Two watchers for the same agent_id (race H1), two runners for different agent_ids. Send 50 messages in 5 seconds (10/second burst). Mid-burst, kill -9 one runner. Deliver 20 more messages.
+**SETUP:** Two watchers for the same agent_id (race R1), two runners for different agent_ids. Send 50 messages in 5 seconds (10/second burst). Mid-burst, kill -9 one runner. Deliver 20 more messages.
 
 **KILL CONDITION (pentest):** Any message lost without an ack, any watcher waking on a phantom, the killed runner's cursor frozen while messages accumulate (the live runner can't advance past the dead runner's position on the shared stream), or the bus connector's `$` sentinel desynchronizing under burst + kill.
 
@@ -188,7 +191,7 @@ Good, I have the full picture. Now the hell battery:
 
 ---
 
-#### H17 — TRUST BOUNDARY: Lookback Searches Promoted Messages With Stale Ack State
+#### R17 — TRUST BOUNDARY: Lookback Searches Promoted Messages With Stale Ack State
 
 **SETUP:** A handoff is promoted at T=0. Agent acks it at T=1. The ack event is captured. Then the EventIndex is rebuilt (or the ack event falls outside the scan window due to EVENT_SCAN_LIMIT). Lookback searches for "what decisions were made about the bus" at T=2.
 
@@ -198,7 +201,7 @@ Good, I have the full picture. Now the hell battery:
 
 ---
 
-#### H18 — METHOD ROT: The Dual-Battery Gate Fires Once Then Atrophies
+#### R18 — METHOD ROT: The Dual-Battery Gate Fires Once Then Atrophies
 
 **SETUP:** P7 ships with both pre-registered batteries passing. Three sprints later, a new slice adds a seventh corpus to lookback. Nobody updates the battery. The battery test still passes (12/12) but the NEW corpus is untested.
 
@@ -210,13 +213,13 @@ Good, I have the full picture. Now the hell battery:
 
 ### PRIORITY ORDER
 
-1. **H9** (P3/P6 cross-slice ack-loss) — seam between two SHIPPED slices, silent data loss, zero existing test coverage
-2. **H15** (adversarial ledger_update injection) — trust boundary, no sender validation, exploits the doorbell pattern itself
-3. **H8** (P3 ring-buffer overflow) — data loss under normal operation (batch transitions), the transport is provably lossy
-4. **H4** (drainer thread death) — T019's fix assumes daemon threads are immortal; one exception and we're back at Exhibit A
-5. **H14** (72-hour soak) — masks resource leaks + connection atrophy invisible in our 2-4 hour active windows
-6. **H1** (P0 zombie-session cursor race) — the one-cursor-per-agent architecture's unfixed half
-7. **H13** (P7 cold-clone blindness) — lookback ships non-functional on a fresh checkout
-8. **H12** (P6 self-ack scope) — the guard blocks legitimate acks, undermines the ack lifecycle
-9. **H17** (scan-boundary coherence) — two views of the same data silently disagree
-10. **H18** (method rot) — the battery we just designed has a built-in expiry date
+1. **R9** (P3/P6 cross-slice ack-loss) — seam between two SHIPPED slices, silent data loss, zero existing test coverage
+2. **R15** (adversarial ledger_update injection) — trust boundary, no sender validation, exploits the doorbell pattern itself
+3. **R8** (P3 ring-buffer overflow) — data loss under normal operation (batch transitions), the transport is provably lossy
+4. **R4** (drainer thread death) — T019's fix assumes daemon threads are immortal; one exception and we're back at Exhibit A
+5. **R14** (72-hour soak) — masks resource leaks + connection atrophy invisible in our 2-4 hour active windows
+6. **R1** (P0 zombie-session cursor race) — the one-cursor-per-agent architecture's unfixed half
+7. **R13** (P7 cold-clone blindness) — lookback ships non-functional on a fresh checkout
+8. **R12** (P6 self-ack scope) — the guard blocks legitimate acks, undermines the ack lifecycle
+9. **R17** (scan-boundary coherence) — two views of the same data silently disagree
+10. **R18** (method rot) — the battery we just designed has a built-in expiry date

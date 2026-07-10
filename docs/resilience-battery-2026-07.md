@@ -1,11 +1,11 @@
-# The Hell Battery -- stress tests + validations for the comms arc (claude, FENCED)
+# The Resilience Battery -- stress tests + validations for the comms arc (claude, FENCED)
 
 Status: current  (2026-07-10, P4: fenced first-party battery; deepseek's arrives blind, reconciliation appends)
-Daniel's directive: "the most hellish stress tests and feature validations... to test every
+Daniel's directive: "the most demanding stress tests and feature validations... to test every
 nook and cranny of this system and evolve and improve it further." Committed before reading
 deepseek's parallel battery (the standing fence).
 
-DESIGN PRINCIPLE: a hell battery is honest only if it aims at SUSPECTED weaknesses, not at
+DESIGN PRINCIPLE: a resilience battery is honest only if it aims at SUSPECTED weaknesses, not at
 what we know passes. Section 0 names, in the open, the five places I suspect my own designs
 from this arc are weakest. Every test names its KILL CONDITION (what breaking looks like).
 
@@ -27,7 +27,7 @@ S5. P7 relevance is a fraction of query terms matched (caps at 1.0): a keyword-s
     ties the honest artifact on relevance and wins on importance/recency -- corpus
     poisoning by enthusiasm (or malice) dominates every query.
 
-## 1. Per-slice hells
+## 1. Per-slice stress tests
 
 ### P0 wake listeners (T017)
 - CURSOR STORM: arm 5 watchers for one agent by racing the heartbeat write, while a live
@@ -150,7 +150,7 @@ S5. P7 relevance is a fraction of query terms matched (caps at 1.0): a keyword-s
 - SCALE CLIFF: 10x the git depth (2500 commits), 2k promoted events.
   KILL: latency >5s or memory >500MB (the verb must stay a reflex, not a report).
 
-## 2. Cross-slice systemic hells
+## 2. Cross-slice systemic stress scenarios
 
 - THE CHAOS HOUR: 60 minutes, live fleet, scripted: Redis killed twice, runner killed
   mid-compose, UI killed, 2 zombie lanes armed, transition storm, 3 fenced asks in flight.
@@ -184,52 +184,52 @@ S5. P7 relevance is a fraction of query terms matched (caps at 1.0): a keyword-s
 ## 4. RECONCILIATION with DeepSeek's fenced battery (2026-07-10)
 
 Both designed blind (fence commits: claude before reading, deepseek reply verbatim at
-research/reviewed/deepseek-hell-battery-2026-07-10.md). The divergence is the value.
+research/reviewed/deepseek-resilience-battery-2026-07-10.md). The divergence is the value.
 
 ### Independent CONVERGENCE (highest confidence -- two blind passes hit the same wound)
-- **Drainer death resurrects the wedge** -- my S1 == deepseek H4, verbatim same mechanism
+- **Drainer death resurrects the wedge** -- my S1 == deepseek R4, verbatim same mechanism
   (daemon drainers assumed immortal; one unhandled exception = Exhibit A returns with a
   healthy heartbeat masking it). Both ranked it top-5. This is the arc's realest survivability
   gap. EVOLVE: drainer liveness poll in the launcher monitor, not just at exit.
 - **The one-cursor-per-agent-id architecture's unfixed half** -- my P0 zombie-generations/
-  cursor-storm == deepseek H1/H2 (zombie SESSION cursor race; TTL-death without a
+  cursor-storm == deepseek R1/R2 (zombie SESSION cursor race; TTL-death without a
   SessionStart trigger). P0 fixed watcher->watcher; session->session is open.
 
 ### COMPLEMENTS (each caught what the other missed)
-- deepseek-only, and SHARPER than anything I had: **H9** (P3 closed-task suppression x P6
-  ack compose), **H15** (adversarial ledger_update injection -- ANY bus agent forges
-  control-plane messages), **H12** (self-ack scope), **H17** (promoted() vs lookback scan
-  windows disagree on ack state), **H18** (the dual-battery method has a built-in expiry --
+- deepseek-only, and SHARPER than anything I had: **R9** (P3 closed-task suppression x P6
+  ack compose), **R15** (adversarial ledger_update injection -- ANY bus agent forges
+  control-plane messages), **R12** (self-ack scope), **R17** (promoted() vs lookback scan
+  windows disagree on ack state), **R18** (the dual-battery method has a built-in expiry --
   the meta-level restatement of this whole arc's thesis: nothing retires without recurring
-  enforcement), **H6** (identical-timestamp governs tiebreaker is a coin flip), **H10**
-  (superseded-by breaks under git mv), **H13** (lookback blind on a cold clone).
+  enforcement), **R6** (identical-timestamp governs tiebreaker is a coin flip), **R10**
+  (superseded-by breaks under git mv), **R13** (lookback blind on a cold clone).
 - claude-only: **S2/P6 ack-volume lie** (500-scan ceiling re-flags settled msgs -- same root
-  as deepseek H17), **S4/P1 cycle+fork detection**, **S5/P7 corpus poisoning**, **P4 stamp
+  as deepseek R17), **S4/P1 cycle+fork detection**, **S5/P7 corpus poisoning**, **P4 stamp
   evasion (homoglyphs/fences)**, **the Newborn Gauntlet** (deepseek PLAYS a quarantined
   newborn), **P2 governs-collision census**, **the 30-Day Entropy Sim**.
 
 ### LIVE VERIFICATION of deepseek's three concrete shipped-code claims (run 2026-07-10)
-- **H15 CONFIRMED REAL**: fold_ledger_update accepts a forged `kind=ledger_update` from
+- **R15 CONFIRMED REAL**: fold_ledger_update accepts a forged `kind=ledger_update` from
   `frm=malicious-agent` -- no sender check. Low-severity in a trusted 2-agent fleet, but a
   real trust-boundary hole. FIX (small): fold only when `frm`/`meta.via` == "conductor",
   or namespace control-plane kinds behind a capability. Becomes the battery's slice 1.
-- **H12 ALREADY CORRECT** (validation, not a bug): cmd_bifrost_ack keys the refusal on
+- **R12 ALREADY CORRECT** (validation, not a bug): cmd_bifrost_ack keys the refusal on
   sender==acker, so an addressee acking a message sent TO them is allowed -- exactly
   deepseek's recommended rule. Pin it so it stays correct.
-- **H9 DOWNGRADED**: ack() writes independently of promoted()'s display-only suppression --
-  no durable ack is lost. The concern is a promoted-vs-lookback COHERENCE pin (== H17), not
+- **R9 DOWNGRADED**: ack() writes independently of promoted()'s display-only suppression --
+  no durable ack is lost. The concern is a promoted-vs-lookback COHERENCE pin (== R17), not
   data loss. Keep as a coherence test, not an emergency.
 
 ### Merged priority (next-sprint T028 acceptance gates)
-1. H15 forged-ledger-update injection (real, proven, small fix) + H4/S1 drainer watchdog
+1. R15 forged-ledger-update injection (real, proven, small fix) + R4/S1 drainer watchdog
    (real, converged) -- the two verified survivability/trust gaps, fix + regression pin.
-2. Cross-slice seams: H9/H17 scan-coherence, H8 ring-overflow loss, my P3 transition storm.
-3. Concurrency storms: H16/H1 dual-watcher kill-storm, my cursor storm, the Chaos Hour.
-4. Adversarial-insider: H15 generalized + my spoofed-actor ack + the Newborn Gauntlet
+2. Cross-slice seams: R9/R17 scan-coherence, R8 ring-overflow loss, my P3 transition storm.
+3. Concurrency storms: R16/R1 dual-watcher kill-storm, my cursor storm, the Chaos Hour.
+4. Adversarial-insider: R15 generalized + my spoofed-actor ack + the Newborn Gauntlet
    (deepseek plays the quarantined newborn -- the strongest single validation).
-5. Long-horizon: H14 72h soak + my 30-Day Entropy Sim + H18 method-rot (battery self-audit).
-6. Correctness edges: my S4 fork/cycle, H6 tiebreaker determinism, S5/H13 P7 poisoning+cold,
-   H10/H11 P4-P5 pointer/clock anchors, my P4 stamp evasion.
+5. Long-horizon: R14 72h soak + my 30-Day Entropy Sim + R18 method-rot (battery self-audit).
+6. Correctness edges: my S4 fork/cycle, R6 tiebreaker determinism, S5/R13 P7 poisoning+cold,
+   R10/R11 P4-P5 pointer/clock anchors, my P4 stamp evasion.
 
 Standing method: each kill -> a ledger task whose acceptance IS the failing test; graded
 batteries (T018 endings, P7 show-nothing, the Newborn rubric) pre-registered behind the fence.

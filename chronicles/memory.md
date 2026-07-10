@@ -4,9 +4,9 @@ _Distilled from 11 active note(s) · regenerate via `py agent_cli.py note` / `no
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
-- comms-pillar-status: GOVERNING ARC DOC: docs/comms-pillar-synthesis-2026-07.md (P0-P8 plan). P0 SHIPPED @d925d6b (T017 wake detect-dont-consume; companions T018...  (source: mem:decision:ADR_0709212724_9132)
+- comms-pillar-status: GOVERNING ARC DOC: docs/comms-pillar-synthesis-2026-07.md -- ARC COMPLETE 2026-07-10. ALL SLICES SHIPPED: P0 wake detect-dont-consume (+T018...  (source: mem:decision:ADR_0710004517_2741)
 - where-we-are: Shipped:
-  - Method doc: pillar-analysis method (triangulate ground truth -> diagnose at loop altitude -> fix with evidence discipline) -- distilled from...  (source: mem:decision:ADR_0709205028_5716)
+  - T027/P7 -- the pillar's final slice: LOOKBACK, one question over the rationale corpus. lookback verb fans a why-question across six corpora...  (source: mem:decision:ADR_0710002347_5234)
 - visualgen-status: Visual-gen integration research COMPLETE 2026-07-09: fenced dual pass (web agent verified all 10 candidate repos -- 2 unlicensed, 1 paper stub, 3...  (source: mem:decision:ADR_0709204054_7589)
 - forge-design-status: Forge status 2026-07-09 ~01:00: F2+F4 SHIPPED under T013 (@HEAD, 897 tests green). THE LOOP IS LIVE: recall-curate --forge-propose ran against real...  (source: mem:decision:ADR_0709005840_8516)
 - comprehensibility-immune-system: PILLAR SHIPPED 2026-07-07 (codesigned w/ DeepSeek). The comprehensibility immune system: guards that keep the architecture...  (source: mem:decision:ADR_0707235722_5056)
