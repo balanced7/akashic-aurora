@@ -98,6 +98,7 @@ class AgentProcess:
     agent_id: str
     pid: int = 0
     handle: Optional[subprocess.Popen] = None
+    drainers: Optional[list] = None  # pipe-drainer threads (T019); joined at exit for final flush
     status: str = "never_launched"   # running | exited | crashed | killed | never_launched
     started_at: str = ""
     exit_code: Optional[int] = None
@@ -189,6 +190,36 @@ def _load_registry() -> Dict[str, AgentSpec]:
 
 
 # ------------------------------------------------------------------ exit reason detection
+
+def _drain_pipe(pipe, proc, attr):
+    """Continuously read a child's pipe so the OS buffer can never fill and FREEZE the child
+    mid-print (T019: an undrained stdout PIPE wedged the deepseek runner mid-reply on
+    2026-07-09 -- ~12 minutes of streamed thinking filled the buffer, and even the runner's
+    own timeout guard blocked because it prints before it sends). Keeps a bounded live tail
+    on `proc.<attr>` for diagnostics; the thread ends itself at EOF when the child exits."""
+    try:
+        for line in pipe:
+            setattr(proc, attr, (getattr(proc, attr, "") + line)[-500:])
+    except Exception:
+        pass
+    finally:
+        try:
+            pipe.close()
+        except Exception:
+            pass
+
+
+def _start_drainers(handle, proc) -> list:
+    """Arm one daemon drainer per captured pipe. Returns the threads (joined at exit)."""
+    drainers = []
+    for pipe, attr in ((handle.stdout, "stdout_tail"), (handle.stderr, "stderr_tail")):
+        if pipe is not None:
+            t = threading.Thread(target=_drain_pipe, args=(pipe, proc, attr),
+                                 daemon=True, name=f"drain-{proc.agent_id}-{attr[:6]}")
+            t.start()
+            drainers.append(t)
+    return drainers
+
 
 # Patterns in stderr/stdout that indicate token/credit exhaustion
 _TOKEN_EXHAUSTED_PATTERNS = [
@@ -357,6 +388,7 @@ class Launcher:
             status="running",
             started_at=time.strftime("%Y-%m-%dT%H:%M:%S"),
         )
+        proc.drainers = _start_drainers(handle, proc)   # T019: never let a pipe wedge the child
 
         with self._lock:
             self._procs[spec.agent_id] = proc
@@ -405,12 +437,13 @@ class Launcher:
             proc.exit_code = handle.poll()
             proc.exit_reason = "killed"
             proc.exit_seen_at = time.strftime("%Y-%m-%dT%H:%M:%S")
-            try:
-                out, err = handle.communicate(timeout=5)
-                proc.stdout_tail = (out or "")[-500:]
-                proc.stderr_tail = (err or "")[-500:]
-            except Exception:
-                pass
+            # Tails accrue LIVE via the drainer threads (T019) -- communicate() here would
+            # fight them for the pipes; a short join gives the final flush instead.
+            for t in (proc.drainers or []):
+                try:
+                    t.join(timeout=2)
+                except Exception:
+                    pass
 
         self._save_session_to_disk()     # persist the change
         return {"ok": True, "agent_id": spec.agent_id, "tag": tag}
@@ -601,12 +634,12 @@ class Launcher:
                     # Process exited
                     proc.exit_code = code
                     proc.exit_seen_at = time.strftime("%Y-%m-%dT%H:%M:%S")
-                    try:
-                        out, err = handle.communicate(timeout=5)
-                        proc.stdout_tail = (out or "")[-500:]
-                        proc.stderr_tail = (err or "")[-500:]
-                    except Exception:
-                        pass
+                    # Tails accrue live via drainers (T019); join for the final flush.
+                    for t in (proc.drainers or []):
+                        try:
+                            t.join(timeout=2)
+                        except Exception:
+                            pass
                     proc.exit_reason = _classify_exit(
                         code, proc.stdout_tail, proc.stderr_tail, proc.status == "killed")
                     proc.status = "exited"

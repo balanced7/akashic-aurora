@@ -290,15 +290,20 @@ def _process_one(m, bus, args, responder, rate) -> None:
         t = threading.Thread(target=_call, daemon=True)
         t.start()
         finished = worker_done.wait(timeout=REPLY_TIMEOUT_SEC)
+        # T019: on the critical path, SEND BEFORE PRINT. A blocked stdout (undrained pipe,
+        # console select-mode) froze this exact guard on 2026-07-09 -- the timeout fired but
+        # its print wedged before the note ever reached the bus. Log lines are deferred
+        # until after the reply is on the wire.
+        log_note = ""
         if not finished:
             out = (f"(deepseek runner timed out after {REPLY_TIMEOUT_SEC}s -- "
                    f"the API call was abandoned to keep the runner alive)")
-            print(f"[deepseek-runner] !! TIMEOUT for {m.frm} after {REPLY_TIMEOUT_SEC}s")
+            log_note = f"[deepseek-runner] !! TIMEOUT for {m.frm} after {REPLY_TIMEOUT_SEC}s"
         else:
             result = result_holder[0] if result_holder else "(deepseek runner: no result)"
             if isinstance(result, Exception):
                 out = f"(deepseek runner error: {type(result).__name__}: {result})"
-                print(f"[deepseek-runner] !! error from responder: {type(result).__name__}: {result}")
+                log_note = f"[deepseek-runner] !! error from responder: {type(result).__name__}: {result}"
             else:
                 out = str(result)
         reply_meta = {"via": f"{args.agent}-runner", "model": args.model, "hops": hops}
@@ -316,6 +321,8 @@ def _process_one(m, bus, args, responder, rate) -> None:
             bus.send(m.frm, "reply", out, meta=reply_meta)
             dest = m.frm
         cog.record_turn_complete(args.agent)
+        if log_note:
+            print(log_note)
         print(f"[deepseek-runner] -> {dest}: {out[:80]}")
     finally:
         control.clear_activity(args.agent)   # back to idle -> UI stops showing it working

@@ -1,5 +1,5 @@
 {
-  "seq": 18,
+  "seq": 19,
   "tasks": [
     {
       "id": "T001",
@@ -654,11 +654,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "in_progress",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "bd6a3ea",
+      "verified_by": "8 bounce pins + runner suite + wake pins green; post-hoc full suite + boundary/wiring guards green; live unstick precedent (manual deliver-now reprompt extracted the seat-2 review)",
       "created": "2026-07-09T23:51:31+00:00",
-      "updated": "2026-07-09T23:55:33+00:00",
+      "updated": "2026-07-09T23:59:41+00:00",
       "history": [
         {
           "to": "proposed",
@@ -679,6 +679,52 @@
           "to": "in_progress",
           "by": "",
           "at": "2026-07-09T23:55:33+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-07-09T23:59:40+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-09T23:59:41+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T019",
+      "title": "T019 launcher pipe-wedge: undrained stdout/stderr PIPEs freeze any chatty python_runner child (deepseek wedged live 20:12 mid-seams-compose; even the runner timeout guard prints before sending). Fix: per-pipe daemon drainer threads with bounded live tails + runner critical path sends before prints + regression pin with a spam child",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "in_progress",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-10T00:31:02+00:00",
+      "updated": "2026-07-10T00:31:03+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-10T00:31:02+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-10T00:31:03+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-10T00:31:03+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-07-10T00:31:03+00:00"
         }
       ]
     }
