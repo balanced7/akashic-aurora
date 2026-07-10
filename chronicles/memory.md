@@ -1,9 +1,10 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 11 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 12 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
+- T029-wave1-review-status: T029 Wave 1 built+committed OVERNIGHT by DeepSeek (3 commits unpushed: d6cbf75 slices doc, 0f9172b fenced-correction, 3941789 Wave-1 code)...  (source: mem:decision:ADR_0710080005_3595)
 - comms-pillar-status: GOVERNING ARC DOC: docs/comms-pillar-synthesis-2026-07.md -- ARC COMPLETE 2026-07-10. ALL SLICES SHIPPED: P0 wake detect-dont-consume (+T018...  (source: mem:decision:ADR_0710004517_2741)
 - where-we-are: Shipped:
   - T027/P7 -- the pillar's final slice: LOOKBACK, one question over the rationale corpus. lookback verb fans a why-question across six corpora...  (source: mem:decision:ADR_0710002347_5234)

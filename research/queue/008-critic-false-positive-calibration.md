@@ -1,4 +1,4 @@
-status: queued
+status: done
 requeue-feedback (2026-07-03 evening review): REJECTED, not promoted. The draft's Findings
   attach suspiciously precise numbers (e.g. "2-3x", "30-50% fewer false positives", "abstention
   reduces FPs by ~35% with only 15% drop", "42% reduction, 18% precision loss") to sources it

@@ -13,6 +13,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from core.comm.bus import Bus
 from core.comm.bifrost_api import BifrostAPI
 
 
@@ -21,40 +22,65 @@ def _online_or_skip(api):
         pytest.skip("redis not available")
 
 
+def _ns():
+    return f"bifrost_test_{uuid.uuid4().hex[:8]}"
+
+
+def _cleanup(c, ns):
+    keys = c.keys(f"{ns}:*")
+    if keys:
+        c.delete(*keys)
+
+
+def _api(agent, ns):
+    """A BifrostAPI whose bus lives in a throwaway namespace: these tests exercise the real
+    delegation path but must never write the production streams -- leftover kind=inform pings
+    on bifrost:broadcast woke the claude wake watcher during T017."""
+    api = BifrostAPI(agent)
+    _online_or_skip(api)
+    api.bus = Bus(api.agent, api.bus._client, namespace=ns)
+    return api
+
+
 def test_send_lands_in_peer_inbox_stream():
     a = f"api-a-{uuid.uuid4().hex[:6]}"
     b = f"api-b-{uuid.uuid4().hex[:6]}"
-    api_a = BifrostAPI(a)
-    _online_or_skip(api_a)
-    mid = api_a.send(b, "hello from a", kind="chat")
-    assert mid                                            # got a message id (delegation happened)
+    ns = _ns()
+    api_a = _api(a, ns)
     c = api_a.bus._client
-    entries = c.xrevrange(f"bifrost:inbox:{b}", "+", "-", count=5) or []
     try:
+        mid = api_a.send(b, "hello from a", kind="chat")
+        assert mid                                        # got a message id (delegation happened)
+        entries = c.xrevrange(f"{ns}:inbox:{b}", "+", "-", count=5) or []
         assert any(f.get("frm") == a and "hello from a" in str(f.get("content", "")) for _, f in entries)
     finally:
-        for k in (c.keys(f"bifrost:inbox:{b}") or []):
-            c.delete(k)
+        _cleanup(c, ns)
 
 
 def test_broadcast_lands_on_broadcast_stream():
     a = f"api-bc-{uuid.uuid4().hex[:6]}"
-    api_a = BifrostAPI(a)
-    _online_or_skip(api_a)
-    marker = f"ping-{uuid.uuid4().hex[:8]}"
-    mid = api_a.broadcast(marker)
-    assert mid
+    ns = _ns()
+    api_a = _api(a, ns)
     c = api_a.bus._client
-    entries = c.xrevrange("bifrost:broadcast", "+", "-", count=5) or []
-    assert any(marker in str(f.get("content", "")) for _, f in entries)
+    try:
+        marker = f"ping-{uuid.uuid4().hex[:8]}"
+        mid = api_a.broadcast(marker)
+        assert mid
+        entries = c.xrevrange(f"{ns}:broadcast", "+", "-", count=5) or []
+        assert any(marker in str(f.get("content", "")) for _, f in entries)
+    finally:
+        _cleanup(c, ns)
 
 
 def test_presence_and_who():
     a = f"api-p-{uuid.uuid4().hex[:6]}"
-    api = BifrostAPI(a)
-    _online_or_skip(api)
-    assert api.online() is True
-    assert any(p.get("agent") == a for p in api.who())
+    ns = _ns()
+    api = _api(a, ns)                            # presence keys honor bus.ns, so isolate them too
+    try:
+        assert api.online() is True
+        assert any(p.get("agent") == a for p in api.who())
+    finally:
+        _cleanup(api.bus._client, ns)
 
 
 def test_wake_cmd_is_the_arm_string():
