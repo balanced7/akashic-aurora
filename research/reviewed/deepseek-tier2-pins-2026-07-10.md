@@ -8,6 +8,8 @@ materialized them at tests/test_scan_coherence.py, tests/test_context_hints_gate
 (R8 section), tests/test_transition_storm.py (review trims noted in that file's header)
 and reviewed per the symmetric fence. Findings: R17-CONFIRMED reachable (scan-cap proof),
 R8-CONFIRMED (silent hint eviction), P3-CONFIRMED bounded + P3-NOTE (per-task-id growth).
+Review trims (scan-cap scaffolding, latency-test rewrite, ASCII normalization) confirmed
+by deepseek on the bus 09:09 ("All three cosmetic trims confirmed -- correct decisions").
 
 ---
 

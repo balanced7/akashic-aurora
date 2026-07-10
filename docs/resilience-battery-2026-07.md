@@ -341,3 +341,22 @@ lookback pin (unchanged probes C1/C3). KILL CONDITIONS for the fix:
   - a reap is operator-distinguishable from a crash (folds in the sec. 1 REAP COSMETICS
     evolve: clean exit + one-line provenance)
   - ZOMBIE GENERATIONS (sec. 1/P0) still passes: true orphans ARE reaped
+
+LIVE DRILL RUN 2026-07-10 09:00-09:10 (real WMI, real processes, evidence =
+%TEMP%/bifrost_wake_claude.reap.log 08:59:17-09:10:03) -- ALL KILL CONDITIONS PASS:
+  - fresh-marker fast path: 4 skips, zero WMI cost ("marker Nm fresh (< 30m)")
+  - K7 idle-immunity on the REAL chain: 3 independent firings ("marker 90/91m stale,
+    parent chain found claude.exe pid 49324") -- incl. one UNPLANNED adversarial probe:
+    the drill script tried to force a terminal reap while the drone's parent shell still
+    lived; the janitor correctly REFUSED (the drill design was wrong, the code was right)
+  - true-orphan reap, both factors logged: 2 firings ("marker missing + chain broken at
+    pid 66700 (dead)"; "marker 90m stale + chain broken at pid 58268 (dead)")
+  - selective lethality in ONE pass (09:00:18): skip the live watcher + kill the orphan
+  - 3 consecutive session-starts against a live fresh-marker watcher: zero kills
+  - exit-code contract: every watcher exit today post-fix = 0/"completed" (four wake or
+    overlap exits, zero FAILED badges; contrast the morning's two FAILED phantom kills)
+  - displacement: wake-preempted live (two watchers briefly shared the seat when mail
+    landed mid-displacement; both exited 0 benignly, overlap converged) -- the stand-down
+    path itself is hermetically pinned (test_watch_stolen_seat_exits_zero)
+DISPOSITION: Wave 2 CLOSED (gate green + live drill green). Residual: the twin-window
+cycle drills implicitly as Daniel's second window restarts under new-code hooks.
