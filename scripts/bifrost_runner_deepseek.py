@@ -60,6 +60,37 @@ REPLY_TIMEOUT_SEC = 600   # 10 min; generous for a long agentic tool chain, but 
 MAX_TOKENS = int(os.environ.get("DEEPSEEK_RUNNER_MAX_TOKENS", "8000"))
 
 
+# P3 (T023): ledger transitions fold into the NEXT turn, latest-per-task. Deliberately a
+# separate one-slot-per-task dict rather than the context_hints ring: the fold spec's own
+# caveat was a lifecycle burst (propose->approve->claim->start) evicting unrelated hints
+# from the 8-slot ring -- here a burst coalesces to one line per task and evicts nothing.
+# Drained (and cleared) once per model turn; the ledger file remains the only truth.
+LEDGER_FOLDS: dict = {}
+
+
+def fold_ledger_update(msg) -> bool:
+    """Store a ledger_update/resolved marker for the next turn (latest-per-task). Never
+    answered, never a wake -- pre-digested context, not a prompt (fold spec, echo rule)."""
+    try:
+        meta = getattr(msg, "meta", None) or {}
+        tid = str(meta.get("task") or str(getattr(msg, "content", ""))[:24])
+        LEDGER_FOLDS[tid] = str(getattr(msg, "content", ""))[:200]
+        return True
+    except Exception:
+        return False
+
+
+def drain_ledger_folds() -> str:
+    """The LEDGER UPDATES block for this turn's prompt ('' when none). Clears the dict --
+    each transition is steering context exactly once; the boot snapshot is the backstop."""
+    if not LEDGER_FOLDS:
+        return ""
+    lines = ["## LEDGER UPDATES (since your onboarding -- the ledger file is the truth)"]
+    lines += ["- " + v for v in LEDGER_FOLDS.values()]
+    LEDGER_FOLDS.clear()
+    return "\n".join(lines)
+
+
 def bounce_promise(answer, resend):
     """One deliver-now bounce for a promise-shaped final reply (T018).
 
@@ -193,6 +224,12 @@ def make_agentic_replier(model: str, system: str, think: bool, root: Path, agent
         except Exception:
             pass
         try:
+            ledger_block = drain_ledger_folds()   # P3: latest-per-task transitions, once
+            if ledger_block:
+                prompt = ledger_block + "\n" + prompt
+        except Exception:
+            pass
+        try:
             answer = ag.send(prompt)                 # streams to the runner window; returns final text
         except Exception as e:
             return f"(deepseek agentic runner error: {type(e).__name__}: {e})"
@@ -239,6 +276,11 @@ def _process_one(m, bus, args, responder, rate) -> None:
             cog.record_file_read(args.agent, hint_data.get("key", "?"), from_hint=True)
             print(f"[deepseek-runner] hint accepted ({hint_data.get('key','?')}) "
                   f"from {m.frm}: {hint_data.get('value','?')[:100]}")
+        return
+    if str(m.kind) in ("ledger_update", "resolved"):
+        # P3 (T023): fold, never answer -- the ledger view stops being frozen at onboarding.
+        if fold_ledger_update(m):
+            print(f"[deepseek-runner] ledger fold: {str(m.content)[:80]}")
         return
     if not should_answer(m.kind, m.frm, args.agent):
         return

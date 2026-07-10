@@ -40,14 +40,41 @@ def _ledger(client="auto", path=None) -> TL.TaskLedger:
     return TL.TaskLedger(path or TL.LEDGER_PATH, client=client)
 
 
+def _broadcast(kind: str, text: str, meta: dict) -> None:
+    """One patchable bus-exit for conductor announcements. Best-effort; the ledger is the
+    real authority, so a bus failure never blocks a transition (tests monkeypatch THIS)."""
+    from core.comm.bus import Bus
+    Bus("conductor").broadcast(kind, text, meta=meta)
+
+
 def _emit_resolved(tid: str, title: str, commit: str) -> None:
     """Announce a closure on the bus so waking agents see it in-stream too. Best-effort; the ledger
     is the real authority, so a bus failure never blocks the close."""
     try:
-        from core.comm.bus import Bus
-        Bus("conductor").broadcast(
+        _broadcast(
             "resolved", f"RESOLVED {tid}: {title} @ {commit} -- CLOSED, do not redo.",
             meta={"via": "conductor", "hops": 0, "task": tid, "commit": commit, "display_only": True})
+    except Exception:
+        pass
+
+
+def _emit_ledger_update(task: dict, to_status: str, by: str = "") -> None:
+    """P3 (T023): EVERY transition rings the doorbell -- kind=ledger_update, folded hint-style
+    by runners (never answered, never a wake) so a live agent's ledger view stops being frozen
+    at its onboarding. The bus stays ephemeral; the ledger file remains the only truth. The
+    conductor's own resolved marker stays for done (existing consumers), this adds the rest.
+    Hint shape per the fold spec (deepseek-p3-fold-spec): TASK from->to: title (owner) -- the
+    from-state is load-bearing (a claim, a gate pass and a completion demand different
+    reactions); it comes free from the transition history the ledger already stamped."""
+    try:
+        tid, title = task["id"], task.get("title", "")
+        hist = task.get("history") or []
+        frm = hist[-2]["to"] if len(hist) >= 2 else "new"
+        _broadcast(
+            "ledger_update",
+            f"LEDGER {tid} {frm}->{to_status}: {title[:120]}" + (f"  ({by})" if by else ""),
+            meta={"via": "conductor", "hops": 0, "task": tid, "frm_status": frm,
+                  "to": to_status, "display_only": True})
     except Exception:
         pass
 
@@ -55,34 +82,47 @@ def _emit_resolved(tid: str, title: str, commit: str) -> None:
 # --- the propose/approve/claim/... verbs (each stamps time; done emits the marker) -------------
 # path/client default to production (the real git ledger + live Redis); tests pass a tmp path + None.
 def propose(title, *, owner="", deps=None, files=None, acceptance="", by="claude", client="auto", path=None):
-    return _ledger(client, path).propose(title, owner=owner, deps=deps, files=files,
-                                         acceptance=acceptance, by=by, at=_now())
+    t = _ledger(client, path).propose(title, owner=owner, deps=deps, files=files,
+                                      acceptance=acceptance, by=by, at=_now())
+    _emit_ledger_update(t, "proposed", by)
+    return t
 
 
 def approve(tid, *, by="user", client="auto", path=None):
-    return TL.approve(_ledger(client, path), tid, by=by, at=_now())
+    t = TL.approve(_ledger(client, path), tid, by=by, at=_now())
+    _emit_ledger_update(t, "approved", by)
+    return t
 
 
 def claim(tid, by, *, client="auto", path=None):
-    return TL.claim(_ledger(client, path), tid, by, by=by, at=_now())
+    t = TL.claim(_ledger(client, path), tid, by, by=by, at=_now())
+    _emit_ledger_update(t, "claimed", by)
+    return t
 
 
 def start(tid, *, by="", client="auto", path=None):
-    return TL.start(_ledger(client, path), tid, by=by, at=_now())
+    t = TL.start(_ledger(client, path), tid, by=by, at=_now())
+    _emit_ledger_update(t, "in_progress", by)
+    return t
 
 
 def verify(tid, *, by="", client="auto", path=None):
-    return TL.verifying(_ledger(client, path), tid, by=by, at=_now())
+    t = TL.verifying(_ledger(client, path), tid, by=by, at=_now())
+    _emit_ledger_update(t, "verifying", by)
+    return t
 
 
 def done(tid, commit, verified_by, *, by="", client="auto", path=None):
     t = TL.done(_ledger(client, path), tid, commit=commit, verified_by=verified_by, by=by, at=_now())
     _emit_resolved(tid, t["title"], commit)
+    _emit_ledger_update(t, "done", by)
     return t
 
 
 def block(tid, reason, *, by="", client="auto", path=None):
-    return TL.block(_ledger(client, path), tid, reason, by=by, at=_now())
+    t = TL.block(_ledger(client, path), tid, reason, by=by, at=_now())
+    _emit_ledger_update(t, "blocked", by)
+    return t
 
 
 def next_task(client="auto", path=None):

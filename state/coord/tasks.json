@@ -1,5 +1,5 @@
 {
-  "seq": 22,
+  "seq": 23,
   "tasks": [
     {
       "id": "T001",
@@ -567,11 +567,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "verifying",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "865be59",
+      "verified_by": "dual-fenced investigation delivered (synthesis docs/comms-pillar-synthesis-2026-07.md); plan validated by execution: P0-P3 built from it, Daniel-directed",
       "created": "2026-07-09T13:05:16+00:00",
-      "updated": "2026-07-09T13:19:35+00:00",
+      "updated": "2026-07-10T03:14:27+00:00",
       "history": [
         {
           "to": "proposed",
@@ -597,6 +597,11 @@
           "to": "verifying",
           "by": "",
           "at": "2026-07-09T13:19:35+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-10T03:14:27+00:00"
         }
       ]
     },
@@ -813,11 +818,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "in_progress",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "bd03ac1",
+      "verified_by": "7 pins (hermetic seeded cold-start drill asserting the exact governing arc) + full suite + 5 guards via ship.py; LIVE GATE: deepseek restarted, quoted its own folded onboarding head, ALL 7 of its spec checks PASS; its diff review folded (1 documented bound, 1 gap fixed, 2 pins hardened)",
       "created": "2026-07-10T00:53:04+00:00",
-      "updated": "2026-07-10T00:53:05+00:00",
+      "updated": "2026-07-10T01:37:21+00:00",
       "history": [
         {
           "to": "proposed",
@@ -838,6 +843,52 @@
           "to": "in_progress",
           "by": "",
           "at": "2026-07-10T00:53:05+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-07-10T01:37:21+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-10T01:37:21+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T023",
+      "title": "P3 ledger_update push (comms pillar, deepseek C1): task transitions broadcast kind=ledger_update (all transitions, not just the existing resolved-on-done); runners fold it HINT-STYLE into the next turn (existing context_hints path, never answered, never a wake); bifrost_wake skips ledger control-plane kinds (tonight's insta-wake incidents); bus stays ephemeral -- doorbell not second source. Gate: peer transitions a task; deepseek's next reply reflects the new state without restart; a resolved marker no longer wakes an armed watcher",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "in_progress",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-10T03:06:04+00:00",
+      "updated": "2026-07-10T03:06:04+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-10T03:06:04+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-10T03:06:04+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-10T03:06:04+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-07-10T03:06:04+00:00"
         }
       ]
     }

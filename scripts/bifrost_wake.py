@@ -22,12 +22,16 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.comm.bifrost_api import BifrostAPI
 
-# Kinds that keep the watcher waiting: display-only firehose (trace) and fold-into-current-task
-# facts (steer -- when idle there is no current task; it surfaces at the next natural turn).
+# Kinds that keep the watcher waiting: display-only firehose (trace), fold-into-current-task
+# facts (steer -- when idle there is no current task; it surfaces at the next natural turn),
+# and ledger control-plane markers (resolved / ledger_update, P3/T023: the wake report prints
+# the full read-state-first ledger anyway, so a transition marker adds NOTHING wake-worthy --
+# it insta-woke armed watchers three times on 2026-07-09 before this line existed; runners
+# fold these hint-style instead).
 # P0 (T017): 'reply' is deliberately WAKE-WORTHY -- a directed reply arriving while the agent
 # idles is usually the answer to something it asked (T016: the eaten reply was a requested
 # fenced report). The watcher only DETECTS; nothing here is consumed (see wake_block).
-SKIP_KINDS = {"trace", "steer"}
+SKIP_KINDS = {"trace", "steer", "resolved", "ledger_update"}
 
 STAND_DOWN_RC = 4   # a newer watcher owns the heartbeat -> this one exits without reporting
 
