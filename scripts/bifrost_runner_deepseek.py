@@ -363,6 +363,22 @@ def _process_one(m, bus, args, responder, rate) -> None:
             bus.send(m.frm, "reply", out, meta=reply_meta)
             dest = m.frm
         cog.record_turn_complete(args.agent)
+        # P6 (T026): a REAL answer to a handoff IS handling it -- auto-ack durably. Timeout
+        # and error replies deliberately do NOT ack: the sender must still see UNHANDLED in
+        # promoted() and re-drive (read != handled was the four-incident disease).
+        # Red-team boundary: refusals ARE handling; error-STRING replies are not -- respond()
+        # catches exceptions internally and returns "(deepseek ... error:" strings, which the
+        # Exception check alone would have acked as handled.
+        answered_ok = (finished and result_holder
+                       and not isinstance(result_holder[0], Exception)
+                       and not out.startswith("(deepseek"))
+        if str(m.kind) == "handoff" and answered_ok:
+            try:
+                from core.comm.promoter import ack as _ack
+                _ack(args.agent, m.id, note="answered on the bus")
+                print(f"[deepseek-runner] acked handoff {m.id}")
+            except Exception:
+                pass
         if log_note:
             print(log_note)
         print(f"[deepseek-runner] -> {dest}: {out[:80]}")

@@ -79,6 +79,9 @@ MANIFEST = {
     "task": "cli_only",     # the coordination door over the ledger (conductor). CLI+operator-oriented
                             # (propose/approve are human-gated); MCP twin when an MCP agent needs to
                             # drive task transitions programmatically (arch-triage P1 2026-07-07).
+    "bifrost_ack": "cli_only",  # P6 (T026): deliberate handled-it record. Runners auto-ack in-process
+                                # (promoter.ack direct); an MCP twin lands with the P7 lookback set if
+                                # MCP agents start handling salient asks themselves.
     "recall_curate": "cli_only",  # corpus curation (bench/unbench/ghost-prune) -- operator action at
                                   # the wrap boundary (recall vNext loop 1, 2026-07-08); the wrap nudge
                                   # prints the exact command. MCP twin if an agent ever self-curates.

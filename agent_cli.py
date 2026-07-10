@@ -1970,12 +1970,57 @@ def cmd_events(args):
 
 # ---------------------------------------------------------------------- promoted (B2 read side)
 def cmd_promoted(args):
-    """Query durable salient Bifrost messages (kind=bifrost_msg in the event firehose)."""
-    from core.comm.promoter import promoted
+    """Query durable salient Bifrost messages (kind=bifrost_msg in the event firehose).
+    P6 (T026): each message shows who HANDLED it; salient-and-unacked past the threshold
+    renders an UNHANDLED flag -- promoted-and-forgotten was the disease."""
+    import time as _time
+    from core.comm.promoter import UNHANDLED_HOURS, promoted
     from agent.bifrost_pull import format_promoted_events
-    evs = promoted(limit=args.limit or 20, since=args.since, until=args.until)
-    print(format_promoted_events(evs, json_out=bool(args.json)))
+    try:
+        hours = int(os.environ.get("AKASHIC_ACK_UNHANDLED_HOURS", UNHANDLED_HOURS))
+    except (ValueError, TypeError):
+        hours = UNHANDLED_HOURS
+    evs = promoted(limit=args.limit or 20, since=args.since, until=args.until,
+                   with_acks=True, now=_time.time(), unhandled_hours=hours)
+    if args.json:
+        print(json.dumps(evs, indent=2, default=str)); return 0
+    print(format_promoted_events(evs, json_out=False))
+    flagged = [e for e in evs if e.get("unhandled")]
+    acked = [e for e in evs if e.get("acks")]
+    for e in acked:
+        ref = str(e.get("refs", [""])[0])
+        who = ", ".join(f"{a['by']} @ {str(a['at'])[:16]}" for a in e["acks"])
+        print(f"  [acked] {ref}: {who}")
+    if flagged:
+        print(f"\n  !! {len(flagged)} UNHANDLED salient message(s) older than {hours}h "
+              "(no msg_ack -- handle it, then: py agent_cli.py bifrost-ack <msg_id>):")
+        for e in flagged:
+            print(f"     {str(e.get('refs', [''])[0])}  ({e.get('age_hours', 0):.0f}h)  "
+                  f"{_clip(str(e.get('summary', '')), 90)}")
     return 0
+
+
+def cmd_bifrost_ack(args):
+    """P6 (T026): durably record that YOU handled a salient bus message. Read != handled --
+    consuming advances a cursor; this records an actor and a moment. Self-ack is refused
+    (acking your own message is meaningless -- red-team rule)."""
+    from core.comm.promoter import ack, promoted
+    try:
+        ref = f"bifrost:{str(args.msg_id).strip()}"
+        mine = next((e for e in promoted(limit=200)
+                     if ref in (e.get("refs") or []) and
+                     (e.get("detail") or {}).get("frm") == args.agent_id), None)
+        if mine is not None:
+            print(f"ERROR: {args.agent_id} sent {ref} -- you cannot ack your own message.")
+            return 1
+    except Exception:
+        pass
+    ok = ack(args.agent_id, args.msg_id, note=args.note or "")
+    if args.json:
+        print(json.dumps({"acked": ok, "msg_id": args.msg_id, "by": args.agent_id})); return 0 if ok else 1
+    print(f"[OK] {args.agent_id} acked bifrost:{args.msg_id}" if ok
+          else "ERROR recording ack (event log unavailable?)")
+    return 0 if ok else 1
 
 
 def cmd_console_log(args):
@@ -2423,6 +2468,13 @@ def build_parser():
     pr.add_argument("--until", default=None, help="ISO upper time bound")
     pr.add_argument("--json", action="store_true")
     pr.set_defaults(fn=cmd_promoted)
+
+    ak = sub.add_parser("bifrost-ack", help="durably record you HANDLED a salient bus message (P6)")
+    ak.add_argument("agent_id", help="your stable agent id (the actor)")
+    ak.add_argument("msg_id", help="the bus message id (from promoted/bifrost-sync output)")
+    ak.add_argument("--note", default=None, help="optional one-line what-was-done")
+    ak.add_argument("--json", action="store_true")
+    ak.set_defaults(fn=cmd_bifrost_ack)
 
     cl = sub.add_parser("console-log", help="durable console events (interjection/bus_control/file_drop)")
     cl.add_argument("--limit", type=int, default=None)

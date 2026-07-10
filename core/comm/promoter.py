@@ -14,6 +14,7 @@ Interop contract with the read side (agent_cli/MCP, owned by Cursor): a promoted
 with kind=`bifrost_msg`, ref `bifrost:<msg_id>`, and detail {frm,to,kind,content,ts}. Query via
 `promoted(...)` (or event_query for kind==bifrost_msg).
 """
+import re
 from typing import Any, Dict, List, Optional
 
 SALIENT_KINDS = frozenset({"handoff", "decision", "completion", "blocker"})
@@ -52,16 +53,106 @@ def promote(frm: str, to: str, kind: str, content: Any, msg_id: str, ts: str,
         return False
 
 
-def promoted(limit: int = 20, *, event_query=None, since: Optional[str] = None,
-             until: Optional[str] = None) -> List[Dict[str, Any]]:
-    """Durable salient bus messages (the read side). Time-queryable + survives a Redis restart via
-    the File ledger. Returns the raw promoted events (each carries its `detail`). Never raises."""
+ACK_KIND = "msg_ack"            # P6 (T026): "I HANDLED this" -- read != handled != acknowledged
+UNHANDLED_HOURS = 6             # broadcast threshold (ambiguous ownership gets more slack)
+DIRECTED_UNHANDLED_HOURS = 2    # directed handoffs have a clear addressee; fleet cadence is minutes
+FLAGGABLE_KINDS = {"handoff", "blocker"}   # asks get flagged; decision/completion are fire-and-forget
+
+
+def ack(by: str, msg_id: str, note: str = "", *, event_log=None, event_query=None) -> bool:
+    """Durably record that `by` HANDLED bus message `msg_id` (P6/T026). The four 2026-07-09
+    incidents (two eaten replies, a drain-swallowed spec, a re-wake loop) all shared one
+    shape: nothing distinguished a message that was READ from one that was ACTED ON. Acks
+    close that loop on the salient tier. Multiple ACTORS per message are legal (forensics);
+    the same actor twice is a NO-OP (red-team: the re-wake loop could double-answer).
+    Never raises, never blocks a send path."""
+    try:
+        clean_id = str(msg_id).strip()
+        existing = acks_for([clean_id], event_query=event_query).get(clean_id, [])
+        if any(a.get("by") == str(by) for a in existing):
+            return True                       # idempotent: already on record for this actor
+        from core.events.event_log import get_event_log
+        el = event_log if event_log is not None else get_event_log()
+        el.capture(ACK_KIND, f"{by} handled bifrost:{clean_id}" + (f" -- {note[:100]}" if note else ""),
+                   agent_id=str(by), refs=[f"bifrost:{clean_id}"],
+                   detail={"by": by, "msg_id": clean_id, "note": note})
+        return True
+    except Exception:
+        return False
+
+
+def acks_for(msg_ids, *, event_query=None) -> Dict[str, List[Dict[str, Any]]]:
+    """msg_id -> [ {by, at, note}, ... ] for every ack referencing those bus ids. Never raises."""
+    wanted = {str(m) for m in msg_ids}
+    out: Dict[str, List[Dict[str, Any]]] = {m: [] for m in wanted}
     try:
         from core.events.event_query import get_event_query
         eq = event_query if event_query is not None else get_event_query()
-        return eq.search("", kind=PROMOTED_KIND, since=since, until=until, top_k=limit)
+        for e in eq.search("", kind=ACK_KIND, top_k=500):
+            d = e.get("detail") or {}
+            mid = str(d.get("msg_id", ""))
+            if mid in wanted:
+                out[mid].append({"by": d.get("by", "?"), "at": e.get("at", ""),
+                                 "note": d.get("note", "")})
+    except Exception:
+        pass
+    return out
+
+
+def promoted(limit: int = 20, *, event_query=None, since: Optional[str] = None,
+             until: Optional[str] = None, with_acks: bool = False,
+             now: Any = None, unhandled_hours: int = UNHANDLED_HOURS) -> List[Dict[str, Any]]:
+    """Durable salient bus messages (the read side). Time-queryable + survives a Redis restart via
+    the File ledger. Returns the raw promoted events (each carries its `detail`). Never raises.
+
+    P6: `with_acks=True` annotates each event with `acks` (who handled it) and, when `now`
+    (epoch seconds) is given, `unhandled=True` for ASK-shaped kinds (handoff/blocker) past
+    their threshold with no ack -- promoted-and-forgotten is the flag's whole point.
+    Red-team-shaped rules: directed asks flag at DIRECTED_UNHANDLED_HOURS (clear addressee,
+    minutes-cadence fleet), broadcasts at `unhandled_hours`; decision/completion never flag;
+    and an ask whose referenced ledger task is since DONE/ABANDONED is implicitly handled
+    (the work completed through another channel) -- suppressed, marked `handled_via`."""
+    try:
+        from core.events.event_query import get_event_query
+        eq = event_query if event_query is not None else get_event_query()
+        events = eq.search("", kind=PROMOTED_KIND, since=since, until=until, top_k=limit)
+        if not with_acks:
+            return events
+        ids = [str(e.get("refs", ["bifrost:"])[0]).split("bifrost:", 1)[-1] for e in events]
+        amap = acks_for(ids, event_query=eq)
+        closed_tasks = _closed_task_ids()
+        from datetime import datetime
+        for e, mid in zip(events, ids):
+            e["acks"] = amap.get(mid, [])
+            d = e.get("detail") or {}
+            if now is None or e["acks"] or d.get("kind") not in FLAGGABLE_KINDS:
+                continue
+            referenced = set(re.findall(r"\bT\d{3}\b", str(d.get("content", ""))))
+            if referenced & closed_tasks:
+                e["handled_via"] = f"ledger: {sorted(referenced & closed_tasks)} closed"
+                continue
+            threshold = (DIRECTED_UNHANDLED_HOURS if str(d.get("to", "*")) != "*"
+                         else unhandled_hours)
+            try:
+                age_h = (float(now) - datetime.fromisoformat(str(e.get("at", ""))).timestamp()) / 3600
+                e["unhandled"] = bool(threshold and age_h > threshold)
+                e["age_hours"] = age_h
+            except (ValueError, TypeError):
+                e["unhandled"] = False
+        return events
     except Exception:
         return []
+
+
+def _closed_task_ids() -> set:
+    """Ledger tasks in a terminal state -- an unacked ask about a closed task is implicitly
+    handled (red-team finding 3b). Fail-open to empty."""
+    try:
+        from core.coord.task_ledger import read_ledger
+        return {t["id"] for t in read_ledger().get("tasks", [])
+                if t.get("status") in ("done", "abandoned")}
+    except Exception:
+        return set()
 
 
 # ---------------------------------------------------------------------- console control plane

@@ -1,5 +1,5 @@
 {
-  "seq": 25,
+  "seq": 26,
   "tasks": [
     {
       "id": "T001",
@@ -57,16 +57,21 @@
         "scripts/bifrost_ui.py"
       ],
       "acceptance": "log not a wall; traces collapsed by default, expand on click",
-      "status": "proposed",
+      "status": "approved",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-05T14:18:11+00:00",
-      "updated": "2026-07-05T14:18:11+00:00",
+      "updated": "2026-07-10T03:52:08+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-05T14:18:11+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-10T03:52:08+00:00"
         }
       ]
     },
@@ -82,16 +87,21 @@
         "scripts/bifrost_ui.py"
       ],
       "acceptance": "who's-doing-what shown in ONE place",
-      "status": "proposed",
+      "status": "approved",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-05T14:18:11+00:00",
-      "updated": "2026-07-05T14:18:11+00:00",
+      "updated": "2026-07-10T03:52:08+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-05T14:18:11+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-10T03:52:08+00:00"
         }
       ]
     },
@@ -138,16 +148,21 @@
         "scripts/bifrost_ui.py"
       ],
       "acceptance": "aligned to grid; calm; matches mockup",
-      "status": "proposed",
+      "status": "approved",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-05T14:18:11+00:00",
-      "updated": "2026-07-05T14:18:11+00:00",
+      "updated": "2026-07-10T03:52:08+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-05T14:18:11+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-10T03:52:08+00:00"
         }
       ]
     },
@@ -190,16 +205,21 @@
         "scripts/bench-aurora.html"
       ],
       "acceptance": "bench PASS recorded; aurora default confirmed",
-      "status": "proposed",
+      "status": "approved",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-05T14:18:11+00:00",
-      "updated": "2026-07-05T14:18:11+00:00",
+      "updated": "2026-07-10T03:52:09+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-05T14:18:11+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-10T03:52:09+00:00"
         }
       ]
     },
@@ -968,11 +988,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "in_progress",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "e292f99",
+      "verified_by": "3 pins + full suite + 6 guards; live smoke: 4 tasks flagged stale at 5d, fresh T020 unflagged; migration complete -- all six T002-T007 explicitly ruled: T004+T006 abandoned satisfied-by-code (deepseek audit evidence), T002/T003/T005/T007 Daniel-approved into the live queue",
       "created": "2026-07-10T03:46:09+00:00",
-      "updated": "2026-07-10T03:46:10+00:00",
+      "updated": "2026-07-10T03:52:09+00:00",
       "history": [
         {
           "to": "proposed",
@@ -993,6 +1013,52 @@
           "to": "in_progress",
           "by": "",
           "at": "2026-07-10T03:46:10+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-07-10T03:52:09+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-10T03:52:09+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T026",
+      "title": "P6 message ack lifecycle (comms pillar, deepseek C4): durable msg_ack events (core/comm/promoter.py ack/acks_for over the event firehose); bifrost-ack CLI verb; promoted() renders ack status + UNHANDLED flag for salient messages unacked past AKASHIC_ACK_UNHANDLED_HOURS (default 6); deepseek runner auto-acks handoffs it actually answers (reply sent = handled; runner-error/timeout replies do NOT ack). Gate: answered handoff shows acked-by in promoted(); an old unacked 07-05 handoff renders UNHANDLED; ack complements P0 -- consumption stopped being silent, handling stops being unknowable",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "in_progress",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-10T03:54:46+00:00",
+      "updated": "2026-07-10T03:54:47+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-10T03:54:46+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-10T03:54:46+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-10T03:54:46+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-07-10T03:54:47+00:00"
         }
       ]
     }
