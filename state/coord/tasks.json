@@ -1,5 +1,5 @@
 {
-  "seq": 19,
+  "seq": 20,
   "tasks": [
     {
       "id": "T001",
@@ -700,11 +700,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "in_progress",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "2623908",
+      "verified_by": "drain pin (600KB child: deadlock-by-construction on old pattern, exits <15s fixed) + full suite + 5 guards via ship.py; live: UI restarted on fixed launcher, runner relaunched pid 40880 with drained pipes",
       "created": "2026-07-10T00:31:02+00:00",
-      "updated": "2026-07-10T00:31:03+00:00",
+      "updated": "2026-07-10T00:35:50+00:00",
       "history": [
         {
           "to": "proposed",
@@ -725,6 +725,37 @@
           "to": "in_progress",
           "by": "",
           "at": "2026-07-10T00:31:03+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-07-10T00:35:50+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-10T00:35:50+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T020",
+      "title": "Visual layer wave 1 (from reconciled plan docs/visual-gen-integration-2026-07.md): V1 stdlib architecture-SVG from import graph, V2 chronicle->single-file HTML deck, V3 SSE fragment-patch protocol in bifrost_ui, V4 drawio MCP evaluation -- each slice Daniel-gated; C/E/WebSockets/unlicensed-code explicitly NOT built",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-10T00:40:53+00:00",
+      "updated": "2026-07-10T00:40:53+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-10T00:40:53+00:00"
         }
       ]
     }
