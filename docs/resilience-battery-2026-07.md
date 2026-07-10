@@ -217,8 +217,15 @@ research/reviewed/deepseek-resilience-battery-2026-07-10.md). The divergence is 
 ### LIVE VERIFICATION of deepseek's three concrete shipped-code claims (run 2026-07-10)
 - **R15 CONFIRMED REAL**: fold_ledger_update accepts a forged `kind=ledger_update` from
   `frm=malicious-agent` -- no sender check. Low-severity in a trusted 2-agent fleet, but a
-  real trust-boundary hole. FIX (small): fold only when `frm`/`meta.via` == "conductor",
-  or namespace control-plane kinds behind a capability. Becomes the battery's slice 1.
+  real trust-boundary hole. FIX (small): refuse the fold unless `m.frm in {"conductor"}`.
+  CORRECTION (deepseek fix-plan recon, research/reviewed/deepseek-resilience-fixplan-recon-
+  2026-07-10.md): key ONLY on `m.frm` (stamped by Bus._emit at bus.py:222-243 -- the closest
+  thing to authenticated identity without signed messages), NOT on `meta.via` -- that is a
+  sender-populated dict key a forger sets to "conductor" to walk through; it adds nothing and
+  teaches trust in a spoofable field. Honest bound: `frm` is unauthenticated today, so this
+  is defense-in-depth until identity is signed (the proper fix, deferred; acceptable for a
+  trusted fleet). Becomes the battery's slice 1 (Wave 1). ALSO adopted from the recon: R9
+  closed-task suppression should match structured task refs, not a regex over content.
 - **R12 ALREADY CORRECT** (validation, not a bug): cmd_bifrost_ack keys the refusal on
   sender==acker, so an addressee acking a message sent TO them is allowed -- exactly
   deepseek's recommended rule. Pin it so it stays correct.
