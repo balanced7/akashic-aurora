@@ -187,6 +187,29 @@ S5. P7 relevance is a fraction of query terms matched (caps at 1.0): a keyword-s
 
 ---
 
+## 3b. LIVE VALIDATION -- S5 + R18 fired for real during the Wave-1 build (2026-07-10)
+
+Not a drill: overnight, the Wave-1 build committed two new keyword-dense process-meta docs
+(resilience-battery-slices, resilience-battery-fix-plan). Within hours the P7 lookback
+battery pin went RED on probes C1 ("why is the bus ephemeral") and C3 ("why are notes
+write-once"): the new docs -- which CATALOG every slice's vocabulary -- scored 0.75-0.875
+relevance on those queries and displaced the PRIMARY rationale (comms-pillar-synthesis, the
+d6153c2 commit) out of the returned set entirely. This is:
+  - S5 (corpus poisoning by enthusiasm) CONFIRMED: fraction-of-query-terms relevance lets a
+    broad doc that mentions everything outrank the specific answer. Not malice -- a test
+    plan legitimately names all the terms; the ranking can't tell "about X" from "mentions X".
+  - R18/H18 (method rot) CONFIRMED, and BETTER than predicted: H18 said the frozen battery
+    would NOT catch new-corpus drift. It DID -- because the new docs happened to hit the
+    existing probes' queries. The pin caught a real quality regression the instant the
+    corpus shifted. The gate worked exactly as "trust the gates, not the author" intends.
+DISPOSITION: this is a TRUE POSITIVE. The fix is NOT to exclude the docs (real content) or
+re-register the battery's answers (buries the regression) -- it is the S5 remedy proper:
+specificity/term-frequency dampening so a doc matching MANY unrelated probes is down-weighted
+as broad, not up-ranked. That is Wave 5 (lookback quality). Until it lands, the battery pin
+stays RED as an honest confession -- a known-failing regression, not a hidden one. Escalated
+to Daniel for the fix-now-vs-defer-to-Wave-5 call; the red suite correctly blocks closing
+Wave 1 clean in the meantime.
+
 ## 4. RECONCILIATION with DeepSeek's fenced battery (2026-07-10)
 
 Both designed blind (fence commits: claude before reading, deepseek reply verbatim at
