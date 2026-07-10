@@ -3,6 +3,10 @@
 You are an agent working in this repo. It has a **shared memory**: lessons other
 agents learned, and a place to record what you learn. Use it via ONE script.
 
+**The map:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) -- the whole system at subsystem
+altitude (what each layer is FOR), with the auto-generated per-module index one hop away.
+Boot prints the same pointer plus the current arc and precedence rules in its first lines.
+
 ## At the START of your task, run this and read the output:
 
 ```

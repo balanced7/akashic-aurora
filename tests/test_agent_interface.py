@@ -56,7 +56,11 @@ def test_boot_output_front_loaded_and_ascii():
     assert rc == 0, f"boot should succeed, rc={rc}"
     assert out.isascii(), "boot output must be ASCII (cp1252-safe)"
     head = "\n".join(out.splitlines()[:8])
-    assert "CONTEXT for agent_x" in head and "tokens" in head, "key info must be in first 8 lines"
+    # P2/T022: the head contract is the ORIENTATION HEADER (map/arc/precedence), not the
+    # old token-budget meta line -- the stateless peer's trimmed onboarding folds only the
+    # head, so orientation beats accounting there (deepseek consumer spec, waste item 2).
+    assert "CONTEXT for agent_x" in head, "identity line must be in first 8 lines"
+    assert "# Map: docs/ARCHITECTURE.md" in head, "orientation map must be in first 8 lines"
     ok("boot output is front-loaded + ASCII-safe")
 
 

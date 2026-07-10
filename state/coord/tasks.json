@@ -1,5 +1,5 @@
 {
-  "seq": 21,
+  "seq": 22,
   "tasks": [
     {
       "id": "T001",
@@ -767,11 +767,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "in_progress",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "d6153c2",
+      "verified_by": "5 pins + full suite + 5 guards via ship.py; live gate: 67 active notes -> 11 (<=15), exactly ONE where-we-are, boot RECENT NOTES renders current-only; deepseek disposition table claude-verified, consumer hunt found 1 cosmetic break (fixed)",
       "created": "2026-07-10T00:44:00+00:00",
-      "updated": "2026-07-10T00:44:01+00:00",
+      "updated": "2026-07-10T00:52:25+00:00",
       "history": [
         {
           "to": "proposed",
@@ -792,6 +792,52 @@
           "to": "in_progress",
           "by": "",
           "at": "2026-07-10T00:44:01+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-07-10T00:52:25+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-10T00:52:25+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T022",
+      "title": "P2 boot orientation header + precedence doctrine (comms pillar): boot's first lines = map pointers (ARCHITECTURE.md + AGENTS.md) + THE current where-we-are one-liner + governing arc doc + explicit precedence rule (ledger > current notes > promoted > live bus; stale is labeled); DONE tasks compress to one line; AGENTS.md gains the map pointer; derived from live state per renew_arch_slice_orientation (never hand-written prose). Gate: cold-start drill -- fresh agent answers what-is-current/where-is-map/which-plan-governs/what-not-to-redo from boot alone; deepseek quotes its own folded onboarding head containing the block",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "in_progress",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-10T00:53:04+00:00",
+      "updated": "2026-07-10T00:53:05+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-10T00:53:04+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-10T00:53:04+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-10T00:53:04+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-07-10T00:53:05+00:00"
         }
       ]
     }

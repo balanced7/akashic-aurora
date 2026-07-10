@@ -29,6 +29,7 @@ Design notes:
 import argparse
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -159,18 +160,14 @@ def cmd_boot(args):
     sk = (ctx.get("skeleton") or "").strip()
     secs = ctx.get("sections") or {}
     print(f"# CONTEXT for {args.agent_id}" + (f" -- task: {args.task}" if args.task else ""))
-    print(f"# {len(secs.get('learnings', []))} lesson(s), "
-          f"{len(secs.get('blockers', []))} blocker(s), "
-          f"~{ctx.get('approx_tokens', 0)}/{ctx.get('token_budget', 0)} tokens "
-          f"(within budget: {ctx.get('within_budget')})")
+    print(f"# {len(secs.get('learnings', []))} lesson(s), {len(secs.get('blockers', []))} blocker(s)")
+    # P2/T022 ORIENTATION HEADER (deepseek consumer spec, research/reviewed/deepseek-p2-spec-
+    # 2026-07-09.md): the first ~15 lines carry the map, the governing arc, THE current
+    # where-we-are, the precedence doctrine, and a COMPACT ledger bar -- every line DERIVED
+    # from live state (renew_arch_slice_orientation: projections, never prose that rots).
+    # The stateless peer folds only boot's head into its system prompt; this head is for it.
+    print(_orientation_header(args.agent_id))
     print("#" + "-" * 60)
-    # Read-state-first (Slice C): the governed task ledger comes BEFORE lessons/notes/messages, so an
-    # agent obeys what's DONE/NEXT rather than re-deriving intent from stale backlog. Fail-open.
-    try:
-        from core.coord.task_ledger import format_state
-        print(format_state(agent=args.agent_id))
-    except Exception:
-        pass
     print("## LESSONS / CONTEXT (most relevant first)")
     print(sk if sk else "  (none yet -- you are the first agent to contribute)")
     try:   # ARCH SLICE (RENEW Strand E gap #2 / deferred step #3): orient the agent to the code
@@ -909,6 +906,86 @@ def project_notes(memory=None, chronicle_dir=None):
     body = dist.skeleton if dist.skeleton else "_(no notes yet)_"
     path.write_text(header + body + "\n", encoding="utf-8")
     return str(path)
+
+
+# P2/T022: the four-tier conflict rule, printed verbatim in every boot head. A static
+# constant IS the single source of truth here (deepseek spec sec.2 verbatim, incl. its
+# ambiguity table rationale) -- it names semantics, not state, so it cannot rot with state.
+PRECEDENCE_DOCTRINE = (
+    "# Precedence when sources conflict: TASK LEDGER (git-durable, gated transitions) beats durable\n"
+    "# NOTES (write-once, superseded-by-title) beats PROMOTED bus messages (salient, immutable) beats\n"
+    "# LIVE BUS (ephemeral).  [STALE] = a newer source supersedes this; absent = retired.")
+
+
+def _orientation_header(agent_id: str) -> str:
+    """The boot head a COLD agent (or a stateless peer's trimmed onboarding) needs first:
+    map -> governing arc -> where-we-are -> precedence -> compact ledger. Every line derived
+    from live state; every section fail-open (a broken source drops its line, never boot)."""
+    lines = []
+    root = Path(__file__).resolve().parent
+    if (root / "docs" / "ARCHITECTURE.md").is_file():
+        lines.append("# Map: docs/ARCHITECTURE.md (the living skeleton) + AGENTS.md (the door contract)")
+    try:
+        from core.learning.agent_memory import get_agent_memory
+        notes = get_agent_memory().get_decisions(days=90)
+        # Governing arc = the <slug>-status note tied to what is ACTIVE, not merely newest:
+        # a research note for a parked future arc can be newer than the live arc's status
+        # (caught by the T022 smoke: visualgen-status outranked comms-pillar-status). A note
+        # GOVERNS when its slug tokens appear in an active ledger task's title; newest such
+        # wins, newest-with-doc is the fallback when nothing active matches.
+        active_text = ""
+        try:
+            from core.coord.task_ledger import state_view
+            active_text = " ".join(t["title"].lower()
+                                   for t in (state_view().get("in_progress") or []))
+        except Exception:
+            pass
+        candidates = []
+        for d in notes:                                   # newest first; convention: <slug>-status
+            if d.title.endswith("-status"):
+                m = re.search(r"docs/[\w\-.]+\.md", d.decision or "")
+                if m:
+                    slug_tokens = [w for w in d.title[:-len("-status")].split("-") if len(w) > 2]
+                    governs = bool(slug_tokens) and all(w in active_text for w in slug_tokens)
+                    candidates.append((governs, d.title, m.group(0)))
+        # Known bound (deepseek gate review, attack 1): a MIXED-TOPIC active task title that
+        # names two arcs' slugs makes both govern; newest wins and may be the wrong one. The
+        # match is keyword-projective, NOT zero-false-positive (the spec overclaimed). Kept
+        # because the header CITES its source note, so a wrong pick is visible and fixed by
+        # re-noting -- and one-task-one-arc titles are the ledger convention anyway.
+        arc = next((c for c in candidates if c[0]), candidates[0] if candidates else None)
+        lines.append(f"# Governing arc: {arc[2]}  (from note '{arc[1]}')" if arc
+                     else "# Governing arc: (none declared -- check notes/ledger)")
+        wwa = next((d for d in notes if d.title == "where-we-are"), None)
+        if wwa:
+            one_line = " ".join((wwa.decision or "").split())
+            lines.append(f"# where-we-are: {_clip(one_line, 120)}")
+    except Exception:
+        # Store down -> a structurally-valid but semantically-empty head is WORSE than an
+        # honest gap line (deepseek gate review, attack 3): say what is missing and where
+        # to look instead of silently printing map+doctrine alone.
+        lines.append("# (notes store unreachable -- governing arc + where-we-are unavailable; "
+                     "start from docs/ARCHITECTURE.md and `task list`)")
+    lines.append(PRECEDENCE_DOCTRINE)
+    try:
+        from core.coord.task_ledger import state_view
+        v = state_view()
+        active, nxt, blocked = v.get("in_progress") or [], v.get("next") or [], v.get("blocked") or []
+        done = v.get("done") or []
+        latest = next((f"@{(t.get('commit') or '')[:8]}" for t in reversed(done) if t.get("commit")), "")
+        lines.append(f"# Ledger: {len(done)} done {latest} | {len(active)} active | {len(nxt)} next | "
+                     f"{len(blocked)} blocked | {len(v.get('proposed') or [])} proposed -- "
+                     "RULE: DONE is closed, the ledger beats old messages (details: task list)")
+        for t in active[:3]:
+            lines.append(f"#   {t['id']} - {_clip(t['title'], 90)}  ({t['status']}"
+                         + (f", {t['owner']}" if t.get("owner") else "") + ")")
+        for t in nxt[:2]:
+            lines.append(f"#   next: {t['id']} - {_clip(t['title'], 90)}")
+        for t in blocked[:3]:
+            lines.append(f"#   BLOCKED: {t['id']} - {_clip(t['title'], 70)}")
+    except Exception:
+        pass
+    return "\n".join(lines)
 
 
 def cmd_note(args):
