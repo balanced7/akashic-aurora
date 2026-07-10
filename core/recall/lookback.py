@@ -34,16 +34,82 @@ REFERENCE_DOCS = {"MODULE_INDEX.md", "LEXICON.md", "INDEX.md"}
                              # outrank rationale on every terminology question (probe C1)
 
 
+TF_LEN_UNIT = 4000   # chars of text per EXPECTED occurrence of a matched stem: a 12KB doc
+                     # must use a term ~3x to fully own it; texts under one unit (commits,
+                     # notes, message excerpts) keep full weight on a single mention -- the
+                     # about-vs-mentions split only exists where there is room to catalog
+
+
 def _stem_relevance(text: str, query: str) -> float:
     """Morphology-tolerant keyword relevance via the Ranker's designed relevance_fn seam:
     'superseding' must find 'supersession' -- a cold agent asks in their own words. Both
-    sides reduce to 6-char prefix stems before set overlap; crude, deterministic, and the
-    relevance floor still gates (probe C3 root cause: exact-token matching)."""
-    qwords = {w[:6] for w in re.findall(r"[a-z0-9]+", query.lower()) if len(w) > 3}
+    sides reduce to 6-char prefix stems; crude, deterministic, and the relevance floor
+    still gates (probe C3 root cause: exact-token matching).
+
+    S5 fix (battery sec. 3b, live-fired 2026-07-10): coverage alone cannot tell "about X"
+    from "mentions X" -- a keyword-dense catalog doc matches every stem of every comms
+    question once and displaces the PRIMARY rationale. Each matched stem now contributes
+    its CONCENTRATION, min(1, occurrences / (len(text)/TF_LEN_UNIT)), instead of a flat 1:
+    long docs must REPEAT a term to own it; short texts keep the pre-S5 behavior exactly
+    (their expected-occurrence floor is 1). Deterministic, zero new storage."""
+    qwords = _stems(query)
     if not qwords:
         return 0.0
-    twords = {w[:6] for w in re.findall(r"[a-z0-9]+", text.lower()) if len(w) > 3}
-    return len(qwords & twords) / len(qwords)
+    counts = _matched_counts(text, qwords)
+    if not counts:
+        return 0.0
+    expected = max(1.0, len(text) / TF_LEN_UNIT)
+    return sum(min(1.0, c / expected) for c in counts.values()) / len(qwords)
+
+
+def _stems(s: str) -> set:
+    return {w[:6] for w in re.findall(r"[a-z0-9]+", s.lower()) if len(w) > 3}
+
+
+def _matched_counts(text: str, qwords: set) -> Dict[str, int]:
+    counts: Dict[str, int] = {}
+    for w in re.findall(r"[a-z0-9]+", text.lower()):
+        if len(w) > 3:
+            t = w[:6]
+            if t in qwords:
+                counts[t] = counts.get(t, 0) + 1
+    return counts
+
+
+def _build_idf_relevance(texts: List[str]):
+    """S5 fix, second mechanism (probe C3 root cause): process-meta docs match a question's
+    FUNCTION stems ('project', 'instead', 'corrected', 'editing') which appear corpus-wide,
+    and out-cover the true rationale doc that matches only the topic stems. Weight each
+    stem by its rarity across THIS call's collected corpus (per-call IDF: the fan-out
+    already holds every item in memory, so document frequency is free, deterministic, and
+    always current -- no storage, no embeddings, still the Ranker's relevance_fn seam).
+    Concentration (TF_LEN_UNIT) composes: rare stems used REPEATEDLY carry the score."""
+    import math
+    n = len(texts) or 1
+    df: Dict[str, int] = {}
+    for t in texts:
+        for s in _stems(t):
+            df[s] = df.get(s, 0) + 1
+    norm = math.log(n + 1)
+
+    def _idf(stem: str) -> float:
+        return math.log((n + 1) / (df.get(stem, 0) + 1)) / norm
+
+    def rel(text: str, query: str) -> float:
+        qwords = _stems(query)
+        if not qwords:
+            return 0.0
+        weights = {s: _idf(s) for s in qwords}
+        denom = sum(weights.values())
+        if denom <= 0:
+            return 0.0
+        counts = _matched_counts(text, qwords)
+        if not counts:
+            return 0.0
+        expected = max(1.0, len(text) / TF_LEN_UNIT)
+        return sum(weights[s] * min(1.0, c / expected) for s, c in counts.items()) / denom
+
+    return rel
 
 
 # ---------------------------------------------------------------- corpus adapters
@@ -201,14 +267,26 @@ def lookback(question: str, *, per_layer: int = PER_LAYER,
     if not q:
         return []
     from core.primitives.ranker import Ranker
-    ranker = Ranker(relevance_fn=_stem_relevance)
     wanted = set(layers) if layers else None
-    hits: List[Dict[str, Any]] = []
+    loaded: List[Any] = []
     for name, loader in LAYERS:
         if wanted and name not in wanted:
             continue
         try:
-            items = loader()
+            loaded.append((name, loader()))
+        except Exception:
+            continue
+    # Per-call IDF over everything this sweep collected (S5): ubiquitous stems stop
+    # counting, so breadth stops beating rationale. Fail-soft to plain stem relevance.
+    try:
+        rel_fn = _build_idf_relevance([str(i.get("text", "")) for _, items in loaded
+                                       for i in items])
+    except Exception:
+        rel_fn = _stem_relevance
+    ranker = Ranker(relevance_fn=rel_fn)
+    hits: List[Dict[str, Any]] = []
+    for name, items in loaded:
+        try:
             if not items:
                 continue
             kept = 0

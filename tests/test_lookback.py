@@ -74,6 +74,29 @@ def test_stem_relevance_tolerates_morphology():
     assert _stem_relevance("anything", "a an of") == 0.0, "no meaningful terms -> 0"
 
 
+def test_stem_relevance_about_beats_mentions():
+    """S5 pin (battery sec. 3b): a LONG doc that mentions each query term once (a
+    vocabulary catalog) must score BELOW a long doc that discusses them repeatedly.
+    Coverage alone tied them; concentration separates about-X from mentions-X."""
+    q = "why is the bifrost bus ephemeral"
+    filler = "lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod " * 60
+    catalog = f"bifrost ephemeral {filler}"                       # one mention each, ~4.3KB
+    discussion = ("the bifrost bus stays ephemeral because durable state belongs to the "
+                  "ledger; bifrost transports, the store remembers. ephemeral streams trim; "
+                  "the bus is a doorbell. bifrost ephemeral bus, not a database. ") * 12 + filler
+    assert _stem_relevance(discussion, q) > _stem_relevance(catalog, q), \
+        "repeated on-topic use must outrank one-mention cataloging in long texts"
+
+
+def test_stem_relevance_short_text_single_mention_keeps_full_weight():
+    """S5 must NOT tax short corpora (commits, notes, promoted excerpts): under one
+    TF_LEN_UNIT a single mention is a full-weight match -- pre-S5 behavior exactly."""
+    assert _stem_relevance("notes supersession wired", "why superseding notes") == \
+        _stem_relevance("notes supersession wired supersession supersession",
+                        "why superseding notes"), \
+        "short texts: concentration is saturated at one occurrence"
+
+
 def test_reference_docs_never_appear():
     hits = lookback("what does the bus transport layer terminology mean")
     sources = {h["source"] for h in hits}

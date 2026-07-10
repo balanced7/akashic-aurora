@@ -210,6 +210,24 @@ stays RED as an honest confession -- a known-failing regression, not a hidden on
 to Daniel for the fix-now-vs-defer-to-Wave-5 call; the red suite correctly blocks closing
 Wave 1 clean in the meantime.
 
+S5 REMEDY SHIPPED 2026-07-10 (Daniel ruled fix-now): two mechanisms at the Ranker's
+relevance_fn seam, both deterministic, zero new storage (core/recall/lookback.py):
+  1. CONCENTRATION (about-X vs mentions-X): each matched stem contributes
+     min(1, occurrences / (len/4000)) instead of flat coverage -- long docs must repeat a
+     term to own it; short corpora (commits, notes) keep pre-S5 behavior exactly.
+  2. PER-CALL IDF (function-stem displacement): stems weighted by rarity across the
+     sweep's own collected corpus -- ubiquitous stems ('project', 'instead') stop counting.
+RESULT: C1 RECOVERED (11/12 green). C3 RESIDUAL is a DIFFERENT disease, measured at the
+stem level: the synthesis doc is deep on the topic core (notes x10, supersession x12,
+saturated) but the QUESTION'S OWN PHRASING tokens (corrected/instead/editing) live only in
+test-plan prose -> battery-slices covers 7/8 stems vs synthesis 5/8; no monotone per-stem
+lexical scheme flips that (breadth-of-weak beats depth-of-strong at equal doc length).
+Separating them requires (a) semantic relevance -- embeddings, explicitly deferred v1 -- or
+(b) doc-CLASS metadata: extend the P4 Status header with class: rationale|plan|test|
+reference and weight WHY-queries toward rationale (clean candidate slice, fence it).
+C3 stays RED-LABELED (not re-registered, not xfailed silently) pending Daniel's pick of
+(a)/(b); deepseek review of both mechanisms + this ceiling analysis requested.
+
 ## 4. RECONCILIATION with DeepSeek's fenced battery (2026-07-10)
 
 Both designed blind (fence commits: claude before reading, deepseek reply verbatim at
