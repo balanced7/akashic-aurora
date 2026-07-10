@@ -77,8 +77,10 @@ it entirely. Every fold-into-state consumer then trusts the bus namespace. R15 i
 a class: three control-plane kinds fold with zero sender check.
 **Fix (two altitudes):**
 - *Quick, at the fold seam:* sender allowlist at `bifrost_runner_deepseek.py:280` and
-  `context_hints.push` -- fold only when `frm=="conductor"` (and/or `meta.via=="conductor"`). Gate
-  `bifrost-ack` on addressee + non-quarantine, not just `sender!=acker`.
+  `context_hints.push` -- fold only when `frm=="conductor"` (key on `frm` ONLY; `meta.via` struck
+  per DeepSeek's fenced review -- `meta` is sender-populated, so a forger sets
+  `meta.via="conductor"` and walks through). Gate `bifrost-ack` on addressee + non-quarantine, not
+  just `sender!=acker`.
 - *Proper, at the choke point:* register `conductor` in `security/acl.json` with a control-plane
   cap, and centralize `can_send_kind` in `Bus._emit` so forged control kinds are refused where
   every message is stamped -- closing the class, not the instance. (Caveat: `frm` is unauthenticated

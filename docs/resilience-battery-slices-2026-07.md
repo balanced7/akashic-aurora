@@ -7,6 +7,12 @@ research/reviewed/deepseek-resilience-battery-2026-07-10.md (deepseek).
 FENCE NOTE for DeepSeek: this doc carries claude's verdicts; per the T029 handoff, do not read
 it until your independent verification verdicts are committed. Verdict divergence is the signal.
 
+RECONCILIATION STATUS (2026-07-10): DeepSeek's fenced review is COMPLETE
+(research/reviewed/deepseek-resilience-fixplan-recon-2026-07-10.md). Outcome: ONE substantive
+correction -- RB-1 keys on `m.frm` only, `meta.via` struck (folded in below) -- and full
+convergence on everything else, including the drainer demotion (two blind code-reads reached the
+same conclusion). Wave 1 is cleared to build.
+
 Framing: this is defensive hardening of our own coordination substrate, co-reviewed by a second
 cooperating agent (DeepSeek). Every slice is small, independently shippable, reversible
 (flags/env tunables, never deletes), and its acceptance IS a named regression test that fails
@@ -32,9 +38,13 @@ slices add [design-review].
 ### RB-1 -- Control-plane messages honored only from the conductor
 Fix: at the fold point (`scripts/bifrost_runner_deepseek.py:280`, and `context_hints.push` in
 `core/comm/context_hints.py:45`), fold a `ledger_update` / `resolved` / `hint` into an agent's
-working state ONLY when the message's `frm` (and/or `meta.via`) is `conductor`. A control-plane
-message arriving under any other id is ignored (logged, not folded). This closes the whole
-family, not one kind.
+working state ONLY when the message's `frm` is `conductor`. A control-plane message arriving under
+any other id is ignored (logged, not folded). This closes the whole family, not one kind.
+RECONCILED (DeepSeek fenced review): key on `m.frm` ONLY -- do NOT also check `meta.via`. `meta`
+is a sender-populated dict, so a forger sets `meta.via="conductor"` and walks through; `frm` is
+stamped by `Bus._emit` (`core/comm/bus.py:222-243`) and is the closest thing to authenticated
+identity we have without signed messages. Honest bound: `frm` is unauthenticated today, so this is
+defense-in-depth until signed identity (the proper fix, deferred).
 Seam: the two fold sites above. Acceptance (new pin, missing today): a control-plane message
 carrying a non-conductor `frm` does NOT change the runner's folded state; a genuine conductor
 transition still does. Trip condition: a non-conductor `ledger_update` alters folded state.
