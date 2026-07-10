@@ -1,6 +1,7 @@
 # Lesson Forge — evidence-gated content optimization for the lesson corpus
 
 Status: current  (2026-07-09, P4: Active; v2.1 locked, F3 pending accrual)
+Class: rationale
 
 **Status: v2.1 LOCKED 2026-07-09 (Daniel).** Decisions 1-4 locked at their proposed
 defaults; decision 5 locked as the TRUST LADDER (human gate through F1-F2, edits earn

@@ -2,6 +2,7 @@
 
 Status: current  (2026-07-10; committed BEFORE reading deepseek's parallel design -- the
 standing fence. Targets docs/resilience-battery-2026-07.md section 6 kill conditions.)
+Class: rationale
 
 ## Core insight
 

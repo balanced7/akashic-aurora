@@ -88,6 +88,32 @@ def test_stem_relevance_about_beats_mentions():
         "repeated on-topic use must outrank one-mention cataloging in long texts"
 
 
+def test_doc_class_parses_tolerantly():
+    """S5 residual fix, mechanism 3: the optional Class header (rationale|plan|test|
+    reference), tolerant like the Status parse; anything else = unclassed = neutral."""
+    from core.recall.lookback import _doc_class
+    assert _doc_class("# Title\nStatus: current\nClass: rationale\n") == "rationale"
+    assert _doc_class("**Class:** plan\n") == "plan"
+    assert _doc_class("class: TEST extras ignored\n") == "test"
+    assert _doc_class("# Title\nStatus: current\n") == ""
+    assert _doc_class("Class: essay\n") == "", "unknown vocabulary -> unclassed"
+
+
+def test_match_excerpt_shows_the_matching_passage():
+    """S5 residual fix, mechanism 4: the excerpt is the densest match window, not the
+    doc's title block -- a top-3 hit must SHOW why it hit (C3's last displacement was
+    the right doc excerpting its headline)."""
+    from core.recall.lookback import _match_excerpt
+    filler = "unrelated filler words all through this document body here " * 40
+    text = f"# Grand Title Of The Document\n{filler}\nthe notes supersession rationale: write-once beats editing\n{filler}"
+    out = _match_excerpt(text, "why are notes write-once and superseding instead of editing")
+    assert "supersession" in out and out.startswith("..."), \
+        "excerpt centers the deep matching passage, flagged as mid-doc"
+    assert "Grand Title" not in out
+    assert _match_excerpt("no relevant terms here at all", "zebra query") \
+        .startswith("no relevant terms"), "no match -> head fallback"
+
+
 def test_stem_relevance_short_text_single_mention_keeps_full_weight():
     """S5 must NOT tax short corpora (commits, notes, promoted excerpts): under one
     TF_LEN_UNIT a single mention is a full-weight match -- pre-S5 behavior exactly."""

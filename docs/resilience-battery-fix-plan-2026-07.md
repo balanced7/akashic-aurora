@@ -1,6 +1,7 @@
 # Resilience Battery -- Fix Plan (verification-first reframe)
 
 Status: current  (2026-07-10)
+Class: plan
 Governs: T029 execution. Companion to docs/resilience-battery-2026-07.md (claude battery),
 research/reviewed/deepseek-resilience-battery-2026-07-10.md (deepseek battery, verbatim).
 Method: docs/pillar-analysis-method.md -- Phase 1 triangulation, applied to the battery's own

@@ -1,6 +1,7 @@
 # P0 -- Wake Listener: Detect, Don't Consume (T017 design)
 
 Status: current (under adversarial review by deepseek before build)
+Class: rationale
 Date: 2026-07-09
 Fixes: T016 Exhibit A (docs/comms-pillar-synthesis-2026-07.md sec.1) -- a stale
 bifrost_wake watcher consumed + discarded a directed kind=reply, silently.

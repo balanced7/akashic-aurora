@@ -1,6 +1,7 @@
 # Comms/Messaging Pillar -- Dual-Fenced Analysis + Reconciled Plan (T016)
 
 Status: current (plan awaiting Daniel's approval)
+Class: rationale
 Date: 2026-07-09
 Method: docs/pillar-analysis-method.md, dual-blind: claude and deepseek investigated
 independently behind a fence (neither saw the other's findings until both reports were on

@@ -25,6 +25,15 @@ MIN_RELEVANCE = 0.2          # the arch-slice floor: must match THIS question, n
 PER_LAYER = 3                # hits per corpus layer (the battery gate is top-3 by design)
 
 _STATUS_RE = re.compile(r"^\**\s*status\s*:?\**\s*:?\s*(.+?)\s*$", re.IGNORECASE)
+_CLASS_RE = re.compile(r"^\**\s*class\s*:?\**\s*:?\s*(rationale|plan|test|reference)\b",
+                       re.IGNORECASE)
+# Doc-class prior (S5 residual, C3 root cause -- reconciled w/ deepseek 2026-07-10): a WHY
+# verb should prefer docs that EXPLAIN choices over docs that catalog mechanisms. Docs
+# self-declare via an optional `Class: rationale|plan|test|reference` header line (inert to
+# check_doc_currency; unstamped = neutral -- incremental adoption). The prior lands on the
+# Ranker's IMPORTANCE component -- a document-level signal orthogonal to stems -- never on
+# relevance (the floor's semantics stay honest: relevance means "matches THIS question").
+_CLASS_IMPORTANCE_DELTA = {"rationale": 1, "plan": -1, "test": -1}
 BODY_CHARS = 12000           # rationale often sits DEEP: a synthesis doc's convergence and
                              # NOT-build verdicts land 6-10KB in; a 60-line head starved the
                              # battery (AGENTS.md's ownership rule lives at line ~64)
@@ -64,6 +73,29 @@ def _stem_relevance(text: str, query: str) -> float:
 
 def _stems(s: str) -> set:
     return {w[:6] for w in re.findall(r"[a-z0-9]+", s.lower()) if len(w) > 3}
+
+
+def _match_excerpt(text: str, query: str, width: int = 180) -> str:
+    """The ~width-char window around the densest cluster of the query's stems -- a hit
+    shows the passage that MADE it hit. The old head-of-doc excerpt rendered every deep
+    match as its title block: useless for drilling, and it hid the answer the ranker had
+    actually found (C3: the right doc ranked top-3 while its excerpt showed a headline)."""
+    flat = " ".join(text.split())
+    qwords = _stems(query)
+    if not qwords:
+        return flat[:width]
+    matches = [(m.start(), m.group()[:6]) for m in re.finditer(r"[a-z0-9]+", flat.lower())
+               if len(m.group()) > 3 and m.group()[:6] in qwords]
+    if not matches:
+        return flat[:width]
+    best_start, best_n = matches[0][0], 0
+    for i, (p, _) in enumerate(matches):
+        seen = {s for x, s in matches[i:] if x < p + width}
+        if len(seen) > best_n:
+            best_start, best_n = p, len(seen)
+    start = max(0, best_start - 20)
+    prefix = "..." if start > 0 else ""
+    return prefix + flat[start:start + width]
 
 
 def _matched_counts(text: str, qwords: set) -> Dict[str, int]:
@@ -135,6 +167,14 @@ def _doc_status(head: str) -> str:
     return "unstamped"
 
 
+def _doc_class(head: str) -> str:
+    for line in head.splitlines()[:12]:
+        m = _CLASS_RE.match(line.strip())
+        if m:
+            return m.group(1).lower()
+    return ""
+
+
 def _docs_items() -> List[Dict[str, Any]]:
     out = []
     docs = os.path.join(ROOT, "docs")
@@ -144,13 +184,20 @@ def _docs_items() -> List[Dict[str, Any]]:
     for p in paths:
         try:
             head = _read_head(p)
-            status = _doc_status(head) if "AGENTS.md" not in p else "current"
+            is_agents = "AGENTS.md" in p
+            status = _doc_status(head) if not is_agents else "current"
+            dclass = _doc_class(head) if not is_agents else "rationale"
+            if dclass == "reference":
+                continue        # self-declared reference class joins REFERENCE_DOCS: WHAT/WHERE, never WHY
             rel = os.path.relpath(p, ROOT).replace(os.sep, "/")
+            # current docs outrank equally-relevant dead law, but historical stays
+            # REACHABLE (a why-question's answer is often in its moment); the class
+            # prior then nudges rationale above plans/tests at equal relevance.
+            importance = {"current": 3, "unstamped": 2}.get(status, 1)
+            importance = max(1, min(5, importance + _CLASS_IMPORTANCE_DELTA.get(dclass, 0)))
             out.append({"text": head, "source": rel, "timestamp": os.path.getmtime(p),
-                        # current docs outrank equally-relevant dead law, but historical
-                        # stays REACHABLE (a why-question's answer is often in its moment)
-                        "importance": {"current": 3, "unstamped": 2}.get(status, 1),
-                        "layer": "docs", "status": status, "drill": rel})
+                        "importance": importance, "layer": "docs", "status": status,
+                        "class": dclass or "unclassed", "drill": rel})
         except OSError:
             continue
     return out
@@ -298,7 +345,7 @@ def lookback(question: str, *, per_layer: int = PER_LAYER,
                 hits.append({"layer": name, "source": it.get("source", ""),
                              "status": it.get("status", ""),
                              "score": round(sc.components.get("relevance", 0.0), 3),
-                             "excerpt": " ".join(text.split())[:180],
+                             "excerpt": _match_excerpt(text, q),
                              "drill": it.get("drill", it.get("source", ""))})
                 kept += 1
                 if kept >= per_layer:

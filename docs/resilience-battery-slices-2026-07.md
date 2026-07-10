@@ -1,6 +1,7 @@
 # Resilience Battery -- Sliced Execution Plan
 
 Status: current  (2026-07-10)
+Class: plan
 Governs: T029 build. Diagnosis + verdicts: docs/resilience-battery-fix-plan-2026-07.md.
 Source findings: docs/resilience-battery-2026-07.md (claude) +
 research/reviewed/deepseek-resilience-battery-2026-07-10.md (deepseek).

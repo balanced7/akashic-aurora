@@ -1,6 +1,7 @@
 # Multi-Agent Coordination Layer — Synthesis Plan
 
 Status: current  (2026-07-09, P4: Active coordination design)
+Class: rationale
 
 **Status:** execution plan (merges Claude's Tier-0–5 draft + deepseek-plumbing's grounded plan + the deep-research prior-art survey)
 **Date:** 2026-07-04

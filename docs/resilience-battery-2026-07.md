@@ -1,6 +1,7 @@
 # The Resilience Battery -- stress tests + validations for the comms arc (claude, FENCED)
 
 Status: current  (2026-07-10, P4: fenced first-party battery; deepseek's arrives blind, reconciliation appends)
+Class: test
 Daniel's directive: "the most demanding stress tests and feature validations... to test every
 nook and cranny of this system and evolve and improve it further." Committed before reading
 deepseek's parallel battery (the standing fence).
@@ -227,6 +228,22 @@ Separating them requires (a) semantic relevance -- embeddings, explicitly deferr
 reference and weight WHY-queries toward rationale (clean candidate slice, fence it).
 C3 stays RED-LABELED (not re-registered, not xfailed silently) pending Daniel's pick of
 (a)/(b); deepseek review of both mechanisms + this ceiling analysis requested.
+
+C3 RECOVERED 2026-07-10 (BATTERY 12/12 GREEN, full suite green): deepseek review CONFIRMED
+mechanisms 1+2 and the ceiling (seven refutation attempts, all failed -- verbatim at
+research/reviewed/deepseek-s5-review-2026-07-10.md); his disposition "do both, sequenced"
+matched claude's lean and Daniel pre-read the direction before delegating continuation.
+Shipped as the sequenced fix:
+  3. DOC-CLASS PRIOR: optional `Class: rationale|plan|test|reference` header (inert to
+     check_doc_currency; unstamped = neutral); lands on the Ranker's IMPORTANCE component
+     (+1 rationale, -1 plan/test, reference joins the excluded class) -- a document-level
+     prior orthogonal to stems, never touching relevance-floor semantics. Stamping pass:
+     3 collider docs (plan/test) + 5 rationale answers.
+  4. MATCH-WINDOW EXCERPTS: a hit excerpts the densest cluster of the query's stems, not
+     the doc's title block -- the final C3 displacement was the RIGHT doc ranked top-3
+     while its head-of-doc excerpt hid the answer it had found.
+Not re-registered: the probes and expected artifacts are untouched; the system now finds
+them. Embeddings (option a) remain the v1 destination at the same relevance_fn seam.
 
 ## 4. RECONCILIATION with DeepSeek's fenced battery (2026-07-10)
 
