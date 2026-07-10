@@ -172,6 +172,8 @@ alone, refused correctly by every gated door. It validates Class 1 end-to-end on
 ---
 
 ## 5. Sequencing -- each wave gated by the failing test it names
+(Full slice-by-slice execution plan -- every finding placed, DeepSeek review mode per slice:
+docs/resilience-battery-slices-2026-07.md. Summary of the wave shape below.)
 - **Wave 1 (verified, small, high-value):** Class 1 quick fix (fold allowlist + ack addressee gate)
   + the forged-sender regression pin, co-hardened by DeepSeek's live injection. The drainer
   liveness flag rides along (5 lines). These are the two proven trust/robustness gaps.
