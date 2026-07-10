@@ -269,3 +269,65 @@ research/reviewed/deepseek-resilience-battery-2026-07-10.md). The divergence is 
 
 Standing method: each kill -> a ledger task whose acceptance IS the failing test; graded
 batteries (T018 endings, P7 show-nothing, the Newborn rubric) pre-registered behind the fence.
+
+---
+
+## 5. WAVE 1 GATE VERDICT (2026-07-10 morning)
+
+DeepSeek's per-slice review (RB-1 forged fold, RB-2 ack_verdict x4 decisions, RB-3 drainer
+demotion, ACL renewal sanity) returned CONFIRMED on all four items, ZERO divergences: "Wave 1
+is gate-ready." Verbatim at research/reviewed/deepseek-rb1-wave1-review-2026-07-10.md. His
+live drill validated defense layer 1 for real: his own ToolBox door REFUSED to emit raw
+kind=ledger_update (bus_send_kinds allowlist held); layer 2 (runner fold sender check) is
+pinned by tests incl. the meta.via forgery vector he demanded in the recon. Wave 1 gate is
+CLOSED-GREEN with one standing exception: the P7 lookback pin stays RED per section 3b (S5
+live-fired; fix-now-vs-Wave-5 is Daniel's open call).
+
+## 6. LIVE WOUND -- session->session watcher kill loop (fired 2026-07-10 07:52-08:01)
+
+Not a drill. The R1/R16 "one-cursor-per-agent-id, session->session unfixed half" convergence
+(sec. 4) fired live, and it upgrades REAP COSMETICS (sec. 1/P0) from low-severity to an
+availability hole:
+
+TIMELINE (forensics from the claude lane, session 8a2c5dab):
+  07:52  session A arms bifrost_wake watcher #1 (stop-hook contract)
+  ~07:53 session B (same agent id "claude", Claude Desktop, same project) STARTS; its
+         SessionStart reap (_reap_stale_watcher, scripts/hooks/claude_sessionstart.py) reads
+         the name-keyed heartbeat, verifies only WHAT the pid is (cmdline contains
+         bifrost_wake), taskkill /F -> watcher #1 dies: exit 1, ZERO output (hard kill, lost
+         buffers, no finally), heartbeat deleted BY THE REAPER
+  07:53  session A re-arms watcher #2 (pid 46492) -- killed the same way minutes later
+  08:00  session B's stop arms ITS watcher (pid 65880, --deadline 14400); seat file later
+         cleared by A's diagnostic runs -> live watcher with EMPTY seat (holder=None is
+         fail-open in the singleton poll: a seatless watcher keeps watching, invisible)
+
+MECHANISM (three interacting flaws):
+  a) The wake seat (heartbeat) is keyed by AGENT NAME; the wake contract is per SESSION.
+     Two live sessions of one agent murder each other's watchers in a loop: B's start reaps
+     A's live watcher; A's stop re-arms; next start/clear reaps again.
+  b) The reap's orphan check verifies process identity, NOT session liveness. The docstring
+     assumes "a watcher outliving its session" -- under concurrency the watcher's session is
+     alive. Proven fix-shape exists: walking the watcher's parent chain found a LIVE
+     claude.exe ancestor in one WMI query (the check that cracked the case).
+  c) Seatless-watcher fail-open: bifrost_wake's singleton poll treats holder=None as "keep
+     watching", so a deleted/stolen heartbeat leaves invisible extra watchers -> double
+     wakes later.
+COLLATERAL: each kill fires a "task FAILED" notification into the victim session (phantom
+wake); the victim is deaf between kill and its next stop; forensic misdirection (a removed
+heartbeat fakes a graceful exit -- the KILLER removed it, not the victim's finally).
+
+INTERIM MITIGATION (2026-07-10): seat restored to the live watcher (65880); lesson
+wake_seat_name_keyed_concurrent_sessions recorded. The loop remains ARMED while two same-id
+sessions run: next start/clear reaps again.
+
+DISPOSITION: jumps the merged priority queue (was tier 3 "concurrency storms") -> WAVE 2,
+behind the standing fence (deepseek blind-designs from this evidence; claude designs in
+parallel; reconcile; build; per-slice review gates). KILL CONDITIONS for the fix:
+  - two concurrent same-agent sessions, each arming at stop: neither kills the other's LIVE
+    watcher; no kill loop over 3 start/stop cycles
+  - reap fires ONLY on proven orphanhood (owning session dead), never on identity alone
+  - a live watcher with an empty/foreign seat cannot persist silently (self-heal or stand
+    down loudly)
+  - a reap is operator-distinguishable from a crash (folds in the sec. 1 REAP COSMETICS
+    evolve: clean exit + one-line provenance)
+  - ZOMBIE GENERATIONS (sec. 1/P0) still passes: true orphans ARE reaped
