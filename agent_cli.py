@@ -206,6 +206,23 @@ def cmd_boot(args):
                 print("  (clipped; full note bodies: py agent_cli.py notes --json)")
     except Exception:
         pass
+    try:   # P7 (T027, deepseek C3): the durable decision trail, compact, each with a drill
+        # pointer + ack state -- promoted-and-forgotten stops being invisible at boot.
+        import time as _t2
+        from core.comm.promoter import promoted
+        evs = promoted(limit=5, with_acks=True, now=_t2.time())
+        if evs:
+            print("\n## RECENT DECISIONS (durable salient bus -- drill: events --get <ref>)")
+            for e in evs:
+                d = e.get("detail") or {}
+                mark = ("UNHANDLED" if e.get("unhandled")
+                        else ("acked:" + ",".join(a["by"] for a in e.get("acks", []))
+                              if e.get("acks") else ""))
+                print(f"  [{d.get('kind','?')}{' ' + mark if mark else ''}] "
+                      f"{d.get('frm','?')} -> {d.get('to','?')}: "
+                      f"{_clip(str(d.get('content','')), 110)}")
+    except Exception:
+        pass
     try:   # T3: one-line funnel pulse -- watch the loop's trend without a separate command
         from core.recall.funnel import snapshot, summary_line
         print("\n## FUNNEL (recall value -- full: py agent_cli.py stats --days 7)")
@@ -2000,6 +2017,33 @@ def cmd_promoted(args):
     return 0
 
 
+def cmd_lookback(args):
+    """P7 (T027): one question over the rationale corpus -- the strategic WHY, layered and
+    drillable. Temporal drill (story/events) answers what happened; this answers why it is
+    the way it is: docs (currency-labeled) -> research/reviewed -> notes (incl. retired) ->
+    promoted bus -> chapters -> git bodies, each hit with its drill pointer."""
+    from core.recall.lookback import lookback
+    question = " ".join(args.question or [])
+    layers = [s.strip() for s in (args.layers or "").split(",") if s.strip()] or None
+    hits = lookback(question, per_layer=args.per_layer or 3, layers=layers)
+    if args.json:
+        print(json.dumps(hits, indent=2, default=str)); return 0
+    if not hits:
+        print(f"# lookback: nothing above the relevance floor for: {question!r}\n"
+              "  (try different terms; layers: docs,research,notes,promoted,chapters,git)")
+        return 0
+    print(f"# lookback: {question}")
+    current_layer = None
+    for h in hits:
+        if h["layer"] != current_layer:
+            current_layer = h["layer"]
+            print(f"\n## {current_layer}")
+        print(f"  [{h['status']}] {h['source']}  (rel {h['score']})")
+        print(f"      {h['excerpt']}")
+        print(f"      drill: {h['drill']}")
+    return 0
+
+
 def cmd_bifrost_ack(args):
     """P6 (T026): durably record that YOU handled a salient bus message. Read != handled --
     consuming advances a cursor; this records an actor and a moment. Self-ack is refused
@@ -2468,6 +2512,13 @@ def build_parser():
     pr.add_argument("--until", default=None, help="ISO upper time bound")
     pr.add_argument("--json", action="store_true")
     pr.set_defaults(fn=cmd_promoted)
+
+    lb = sub.add_parser("lookback", help="one question over the rationale corpus: the strategic WHY, layered + drillable (P7)")
+    lb.add_argument("question", nargs="+", help="the why/what question, plain words")
+    lb.add_argument("--per-layer", type=int, default=None, help="hits per corpus layer (default 3)")
+    lb.add_argument("--layers", default=None, help="narrow: docs,research,notes,promoted,chapters,git")
+    lb.add_argument("--json", action="store_true")
+    lb.set_defaults(fn=cmd_lookback)
 
     ak = sub.add_parser("bifrost-ack", help="durably record you HANDLED a salient bus message (P6)")
     ak.add_argument("agent_id", help="your stable agent id (the actor)")

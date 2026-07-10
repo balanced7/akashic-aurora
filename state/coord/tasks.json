@@ -1,5 +1,5 @@
 {
-  "seq": 26,
+  "seq": 27,
   "tasks": [
     {
       "id": "T001",
@@ -1034,11 +1034,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "in_progress",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "eb9cc14",
+      "verified_by": "7 pins + full suite + 7 guards (door-parity caught + classified the new verb); LIVE GATE: drill handoff answered + runner-auto-acked in 2min rendering [acked]; 12 real 07-05 courier handoffs flag UNHANDLED at 52-125h; closed-task suppression verified on the T016-era asks",
       "created": "2026-07-10T03:54:46+00:00",
-      "updated": "2026-07-10T03:54:47+00:00",
+      "updated": "2026-07-10T04:04:19+00:00",
       "history": [
         {
           "to": "proposed",
@@ -1059,6 +1059,52 @@
           "to": "in_progress",
           "by": "",
           "at": "2026-07-10T03:54:47+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-07-10T04:04:18+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-10T04:04:19+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T027",
+      "title": "P7 lookback (comms pillar, FINAL SLICE -- merges claude S4 + deepseek C3): one query over the rationale corpus. lookback verb searching layered corpora (docs current-first -> research/reviewed -> note bodies -> promoted -> chapter summaries -> git log), every hit with a drill pointer + status label; zero new storage, no embeddings v1; hit counter seeds the next audit funnel. Boot gains RECENT DECISIONS digest from promoted() with ack state (deepseek C3). Gate: DUAL PRE-REGISTERED probe batteries (claude + deepseek, committed BEFORE implementation, blind) -- each question returns its governing artifact in top-3",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "in_progress",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-10T04:10:09+00:00",
+      "updated": "2026-07-10T04:10:10+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-10T04:10:09+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-10T04:10:10+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-10T04:10:10+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-07-10T04:10:10+00:00"
         }
       ]
     }

@@ -82,6 +82,8 @@ MANIFEST = {
     "bifrost_ack": "cli_only",  # P6 (T026): deliberate handled-it record. Runners auto-ack in-process
                                 # (promoter.ack direct); an MCP twin lands with the P7 lookback set if
                                 # MCP agents start handling salient asks themselves.
+    "lookback": "cli_only",     # P7 (T027): rationale-corpus query. MCP twin deferred until an MCP
+                                # agent needs WHY-lookback programmatically (same trigger as bifrost_ack).
     "recall_curate": "cli_only",  # corpus curation (bench/unbench/ghost-prune) -- operator action at
                                   # the wrap boundary (recall vNext loop 1, 2026-07-08); the wrap nudge
                                   # prints the exact command. MCP twin if an agent ever self-curates.
