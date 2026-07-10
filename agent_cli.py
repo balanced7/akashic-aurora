@@ -968,13 +968,17 @@ def _orientation_header(agent_id: str) -> str:
                      "start from docs/ARCHITECTURE.md and `task list`)")
     lines.append(PRECEDENCE_DOCTRINE)
     try:
+        import time as _time
         from core.coord.task_ledger import state_view
-        v = state_view()
+        v = state_view(now=_time.time())
         active, nxt, blocked = v.get("in_progress") or [], v.get("next") or [], v.get("blocked") or []
         done = v.get("done") or []
+        proposed = v.get("proposed") or []
+        n_stale = sum(1 for t in proposed if t.get("stale"))
         latest = next((f"@{(t.get('commit') or '')[:8]}" for t in reversed(done) if t.get("commit")), "")
+        prop = f"{len(proposed)} proposed" + (f" ({n_stale} STALE -- re-approve or abandon)" if n_stale else "")
         lines.append(f"# Ledger: {len(done)} done {latest} | {len(active)} active | {len(nxt)} next | "
-                     f"{len(blocked)} blocked | {len(v.get('proposed') or [])} proposed -- "
+                     f"{len(blocked)} blocked | {prop} -- "
                      "RULE: DONE is closed, the ledger beats old messages (details: task list)")
         for t in active[:3]:
             lines.append(f"#   {t['id']} - {_clip(t['title'], 90)}  ({t['status']}"

@@ -125,6 +125,14 @@ def block(tid, reason, *, by="", client="auto", path=None):
     return t
 
 
+def abandon(tid, reason, *, by="", client="auto", path=None):
+    """P5 (T025): the explicit verdict for parked intent -- terminal, with a recorded reason
+    (a proposal that decays without one is exactly the ambiguity the decay flag exists to end)."""
+    t = TL.abandon(_ledger(client, path), tid, reason, by=by, at=_now())
+    _emit_ledger_update(t, "abandoned", by)
+    return t
+
+
 def next_task(client="auto", path=None):
     """The single task that may start now: none if something is already IN_PROGRESS (Phase 1's
     one-at-a-time gate), else the first APPROVED task whose deps are all DONE. Returns a dict or None."""
@@ -152,6 +160,7 @@ def main(argv=None) -> int:
     q = sub.add_parser("done"); q.add_argument("tid"); q.add_argument("--commit", required=True)
     q.add_argument("--verified-by", required=True, dest="verified_by"); q.add_argument("--by", default="")
     q = sub.add_parser("block"); q.add_argument("tid"); q.add_argument("--reason", required=True); q.add_argument("--by", default="")
+    q = sub.add_parser("abandon"); q.add_argument("tid"); q.add_argument("--reason", required=True); q.add_argument("--by", default="")
     sub.add_parser("list"); sub.add_parser("next")
     a = ap.parse_args(argv)
 
@@ -173,8 +182,11 @@ def main(argv=None) -> int:
             print(f"DONE {t['id']} @ {a.commit} -- RESOLVED marker emitted")
         elif a.cmd == "block":
             print(f"blocked {block(a.tid, a.reason, by=a.by)['id']}: {a.reason}")
+        elif a.cmd == "abandon":
+            print(f"ABANDONED {abandon(a.tid, a.reason, by=a.by)['id']}: {a.reason}")
         elif a.cmd == "list":
-            print(TL.format_state())
+            import time
+            print(TL.format_state(now=time.time()))
         elif a.cmd == "next":
             n = next_task()
             print(f"NEXT: {n['id']} - {n['title']}" if n else

@@ -228,6 +228,7 @@ def start(ledger, tid, **kw):    return _t(ledger, tid, IN_PROGRESS, **kw)
 def verifying(ledger, tid, **kw):return _t(ledger, tid, VERIFYING, **kw)
 def done(ledger, tid, commit, verified_by, **kw): return _t(ledger, tid, DONE, commit=commit, verified_by=verified_by, **kw)
 def block(ledger, tid, reason, **kw): return _t(ledger, tid, BLOCKED, reason=reason, **kw)
+def abandon(ledger, tid, reason, **kw): return _t(ledger, tid, ABANDONED, reason=reason, **kw)   # P5: terminal, reasoned
 
 
 # --- fast reads (Slice B): what agents obey instead of the message backlog ---------------------
@@ -251,16 +252,39 @@ def read_ledger(path: str = LEDGER_PATH, client: Any = "auto") -> Dict[str, Any]
     return {"seq": 0, "tasks": []}
 
 
-def state_view(path: str = LEDGER_PATH, client: Any = "auto") -> Dict[str, Any]:
+STALE_PROPOSED_DAYS = 7   # default; render callers may override via env AKASHIC_PROPOSED_STALE_DAYS
+
+
+def _age_days(t: Dict[str, Any], now_ts: float) -> Any:
+    """Days since the task was last TOUCHED (updated stamp; created as fallback). None if unparseable."""
+    from datetime import datetime
+    raw = t.get("updated") or t.get("created") or ""
+    try:
+        return max(0.0, (now_ts - datetime.fromisoformat(raw).timestamp()) / 86400)
+    except (ValueError, TypeError):
+        return None
+
+
+def state_view(path: str = LEDGER_PATH, client: Any = "auto", *,
+               now: Any = None, stale_days: int = STALE_PROPOSED_DAYS) -> Dict[str, Any]:
     """The read-state-first view (used by boot/wake in Slice C). 'next' = APPROVED tasks whose deps
-    are all DONE (claimable now). This is the curated current truth agents read, not the backlog."""
+    are all DONE (claimable now). This is the curated current truth agents read, not the backlog.
+
+    P5 (T025): pass `now` (epoch seconds -- the CALLER owns the clock; this module stays pure)
+    and proposed entries gain stale/age_days: a proposal untouched past `stale_days` is parked
+    intent that must be re-approved or abandoned, not silently counted as live."""
     led = read_ledger(path, client)
     tasks = led.get("tasks", [])
     done_ids = {t["id"] for t in tasks if t["status"] == DONE}
 
     def summ(t):
-        return {"id": t["id"], "title": t["title"], "owner": t.get("owner", ""),
-                "status": t["status"], "commit": t.get("commit"), "files": t.get("files", [])}
+        s = {"id": t["id"], "title": t["title"], "owner": t.get("owner", ""),
+             "status": t["status"], "commit": t.get("commit"), "files": t.get("files", [])}
+        if now is not None and t["status"] == PROPOSED:
+            age = _age_days(t, float(now))
+            s["age_days"] = age
+            s["stale"] = bool(age is not None and stale_days and age > stale_days)
+        return s
 
     return {
         "done": [summ(t) for t in tasks if t["status"] == DONE],
@@ -273,11 +297,19 @@ def state_view(path: str = LEDGER_PATH, client: Any = "auto") -> Dict[str, Any]:
     }
 
 
-def format_state(agent: str = "", path: str = LEDGER_PATH, client: Any = "auto") -> str:
+def format_state(agent: str = "", path: str = LEDGER_PATH, client: Any = "auto",
+                 now: Any = None) -> str:
     """The READ-STATE-FIRST block shown at boot + wake (Slice C). Agents obey THIS, not the message
     backlog — an old 'apply the fix' message can't cause rework because the ledger says it's DONE.
-    An empty ledger prints a clear 'no governed tasks yet' line so it never reads as a bug."""
-    v = state_view(path, client)
+    An empty ledger prints a clear 'no governed tasks yet' line so it never reads as a bug.
+    With `now` (P5), stale proposals are counted and listed for a verdict instead of passing
+    as live intent."""
+    stale_days = STALE_PROPOSED_DAYS
+    try:
+        stale_days = int(os.environ.get("AKASHIC_PROPOSED_STALE_DAYS", stale_days))
+    except (ValueError, TypeError):
+        pass
+    v = state_view(path, client, now=now, stale_days=stale_days)
     c = v["counts"]
     if sum(c.values()) == 0:
         return ("## TASK LEDGER (governed coordination)\n"
@@ -298,8 +330,14 @@ def format_state(agent: str = "", path: str = LEDGER_PATH, client: Any = "auto")
         out.append("NEXT (claimable now):")
         out += [f"  {t['id']} - {t['title']}"
                 + ("  <- you" if agent and t['owner'] == agent else "") for t in v["next"]]
+    stale = [t for t in v["proposed"] if t.get("stale")]
+    if stale:
+        out.append("PROPOSED BUT STALE (parked intent -- re-approve or abandon, do not treat as live):")
+        out += [f"  {t['id']} - {t['title'][:90]}  (untouched {t.get('age_days', 0):.0f}d)"
+                for t in stale]
+    prop = f"proposed {c[PROPOSED]}" + (f" ({len(stale)} stale)" if stale else "")
     out.append(f"(done {c[DONE]} | active {c[CLAIMED] + c[IN_PROGRESS] + c[VERIFYING]} | "
-               f"next {len(v['next'])} | proposed {c[PROPOSED]} | blocked {c[BLOCKED]})")
+               f"next {len(v['next'])} | {prop} | blocked {c[BLOCKED]})")
     out.append("RULE: anything in DONE is closed. Work only your assigned/NEXT task. "
                "Ignore backlog messages that contradict the ledger.")
     return "\n".join(out) + "\n"

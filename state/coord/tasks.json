@@ -1,5 +1,5 @@
 {
-  "seq": 24,
+  "seq": 25,
   "tasks": [
     {
       "id": "T001",
@@ -107,16 +107,22 @@
         "scripts/bifrost_ui.py"
       ],
       "acceptance": "ladder+recipient+input+send one container; no gradient glitch",
-      "status": "proposed",
+      "status": "abandoned",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-05T14:18:11+00:00",
-      "updated": "2026-07-05T14:18:11+00:00",
+      "updated": "2026-07-10T03:49:41+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-05T14:18:11+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "user",
+          "at": "2026-07-10T03:49:41+00:00",
+          "reason": "satisfied by current code: composer already one glass focus-block, recipient chip compact, gradient bar gone (deepseek audit 2026-07-09, bifrost_ui.py:743-785)"
         }
       ]
     },
@@ -155,16 +161,22 @@
         "core/coord/cognitive_metrics.py"
       ],
       "acceptance": "measured facts wired; tests green",
-      "status": "proposed",
+      "status": "abandoned",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-05T14:18:11+00:00",
-      "updated": "2026-07-05T14:18:11+00:00",
+      "updated": "2026-07-10T03:49:42+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-05T14:18:11+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "user",
+          "at": "2026-07-10T03:49:42+00:00",
+          "reason": "satisfied by current code: cognitive_metrics wired into deepseek runner (init/record/turn-complete), tests green, wiring gate confirms reachable (deepseek audit 2026-07-09)"
         }
       ]
     },
@@ -910,11 +922,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "in_progress",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "f8b594d",
+      "verified_by": "5 parser pins + full suite + 6 guards (the new doc-currency guard gated its own introducing commit); baseline run flagged 78 violations incl. all known offenders; post-stamp run PASS with 0 unstamped, 0 untracked, 3 honest stale-current warnings; deepseek disposition table (79 docs) claude-verified",
       "created": "2026-07-10T03:24:15+00:00",
-      "updated": "2026-07-10T03:24:16+00:00",
+      "updated": "2026-07-10T03:30:13+00:00",
       "history": [
         {
           "to": "proposed",
@@ -935,6 +947,52 @@
           "to": "in_progress",
           "by": "",
           "at": "2026-07-10T03:24:16+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-07-10T03:30:12+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-10T03:30:13+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T025",
+      "title": "P5 proposed-task decay (comms pillar): ABANDONED status + conductor abandon verb (--reason, emits ledger_update); staleness computed at RENDER (ledger stays clock-free): proposed untouched > AKASHIC_PROPOSED_STALE_DAYS (default 7) renders (stale -- re-approve or abandon) in format_state + boot bar counts; migration: T002-T007 each explicitly approved/abandoned/reaffirmed with Daniel's verdicts informed by deepseek's code-reality audit. Gate: boot proposed count reflects live intent only; six explicit verdicts recorded",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "in_progress",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-10T03:46:09+00:00",
+      "updated": "2026-07-10T03:46:10+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-10T03:46:09+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-10T03:46:09+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-10T03:46:09+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-07-10T03:46:10+00:00"
         }
       ]
     }

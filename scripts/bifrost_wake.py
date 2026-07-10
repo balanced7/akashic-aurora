@@ -89,7 +89,7 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
     # agent obeys DONE/NEXT and never acts on a stale backlog message. Fail-open.
     try:
         from core.coord.task_ledger import format_state
-        print(format_state(agent=agent))
+        print(format_state(agent=agent, now=time.time()))   # P5: stale proposals labeled at wake
     except Exception:
         pass
     if out:
