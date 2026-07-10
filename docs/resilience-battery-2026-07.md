@@ -30,6 +30,12 @@ S5. P7 relevance is a fraction of query terms matched (caps at 1.0): a keyword-s
 ## 1. Per-slice stress tests
 
 ### P0 wake listeners (T017)
+- REAP COSMETICS (observed live 2026-07-10): the SessionStart reap kills a watcher with
+  taskkill /F -> exit 1 + empty (buffered) output -> a "task FAILED" notification for a
+  BENIGN, designed action (the reap-then-arm gap). KILL: an operator can't tell a real
+  watcher crash from a routine reap. EVOLVE: reap via CTRL_BREAK for a clean exit 0, or have
+  the watcher trap termination and exit 0 with a one-line "reaped at session boundary". Fits
+  R2 (watcher lifecycle). Low severity, high signal-to-noise value.
 - CURSOR STORM: arm 5 watchers for one agent by racing the heartbeat write, while a live
   session consumes and a producer floods 1k traces + 10 wake-worthy directs.
   KILL: any direct message unreadable afterward; >1 wake per wake-worthy message after the
