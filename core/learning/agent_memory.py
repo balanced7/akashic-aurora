@@ -156,8 +156,24 @@ class AgentMemory:
             logger.error(f"Failed to record decision: {e}")
             return ""
 
-    def get_decisions(self, days: int = 30) -> List[Decision]:
-        """Get active (not superseded) decisions from the last `days`, newest first."""
+    def retire_decision(self, dec_id: str) -> bool:
+        """Retire a decision with NO successor (supersede-into-nothing) -- the tombstone for
+        one-shot notes (consumed handoffs, placeholders, done-arc status notes). Reversible at
+        the store level (the record keeps its body; only the superseded flag flips). Returns
+        True iff the record existed and is now retired (P1 / T021)."""
+        try:
+            if not self.store.hget(self.KEY_DECISIONS, dec_id):
+                return False
+            self._retire_record(self.KEY_DECISIONS, dec_id)
+            data = self.store.hget(self.KEY_DECISIONS, dec_id)
+            return bool(data and json.loads(data).get("superseded"))
+        except Exception as e:
+            logger.error(f"Failed to retire decision {dec_id}: {e}")
+            return False
+
+    def get_decisions(self, days: int = 30, include_superseded: bool = False) -> List[Decision]:
+        """Get decisions from the last `days`, newest first. Active (not superseded) only by
+        default; `include_superseded=True` is the archaeology path (notes --all)."""
         decisions = []
         cutoff = (datetime.now() - timedelta(days=days)).timestamp()
         try:
@@ -165,7 +181,7 @@ class AgentMemory:
                 data = self.store.hget(self.KEY_DECISIONS, dec_id)
                 if data:
                     d = json.loads(data)
-                    if d.get("superseded"):
+                    if d.get("superseded") and not include_superseded:
                         continue  # retired by a newer decision
                     decisions.append(Decision(**d))
             decisions.sort(key=lambda x: x.created_at, reverse=True)

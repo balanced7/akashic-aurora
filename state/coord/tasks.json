@@ -1,5 +1,5 @@
 {
-  "seq": 20,
+  "seq": 21,
   "tasks": [
     {
       "id": "T001",
@@ -756,6 +756,42 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-10T00:40:53+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T021",
+      "title": "P1 notes supersession (comms pillar, docs/comms-pillar-synthesis-2026-07.md): wrap default title -> bare where-we-are (date in body), note --retire verb for one-shots, notes default listing = current only (--all for archaeology), boot renders current only; migration pass over the 65 active notes (collapse where-we-are* via --supersedes, retire done-arc status notes + consumed handoffs, delete placeholder). Gate: default notes <= ~15 with exactly ONE where-we-are; boot shows zero superseded entries",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "in_progress",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-10T00:44:00+00:00",
+      "updated": "2026-07-10T00:44:01+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-10T00:44:00+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-10T00:44:00+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-10T00:44:01+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-07-10T00:44:01+00:00"
         }
       ]
     }

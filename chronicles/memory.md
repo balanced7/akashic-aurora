@@ -1,10 +1,13 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 64 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 67 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
-- frontier-research-status: Frontier fold-in research COMPLETE 2026-07-08 (recovered from interface crash; continuation workflow wf_e63ba506-2ec salvaged 57/75 votes from...  (source: mem:decision:ADR_0708092001_3639)
+- visualgen-status: Visual-gen integration research COMPLETE 2026-07-09: fenced dual pass (web agent verified all 10 candidate repos -- 2 unlicensed, 1 paper stub, 3...  (source: mem:decision:ADR_0709204054_7589)
+- comms-pillar-status: T016 investigation DONE (synthesis docs/comms-pillar-synthesis-2026-07.md, plan P0-P8) -> P0 SHIPPED 2026-07-09 @d925d6b (T017): wake listeners now...  (source: mem:decision:ADR_0709200148_2474)
+- forge-design-status: Forge status 2026-07-09 ~01:00: F2+F4 SHIPPED under T013 (@HEAD, 897 tests green). THE LOOP IS LIVE: recall-curate --forge-propose ran against real...  (source: mem:decision:ADR_0709005840_8516)
+- frontier-research-status: Frontier fold-in arc: research COMPLETE + SLICE 1 SHIPPED 2026-07-08 @0b3dfca (T012). Shipped fold-ins: (1a) age-conditional staleness cue in...  (source: mem:decision:ADR_0708230654_2776)
 - where-we-are 2026-07-08 membrane+recall night: Shipped:
   - Method doc: pillar-analysis method (triangulate ground truth -> diagnose at loop altitude -> fix with...  (source: mem:decision:ADR_0708020240_4854)
 - recall-vnext-status: RECALL vNEXT SHIPPED 2026-07-08 @aceb2da (T011, Daniel full-send). Design+evidence: docs/recall-vnext-2026-07.md. WAS: 2850 impressions/7d -> 26...  (source: mem:decision:ADR_0708015237_3780)

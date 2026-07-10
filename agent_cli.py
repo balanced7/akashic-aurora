@@ -916,11 +916,37 @@ def cmd_note(args):
     not by hand-editing files. Re-noting the same --title (or --supersedes ID) RETIRES the prior note
     (correct by superseding, never edit). Surfaces at `boot` + `notes`; reprojects chronicles/memory.md."""
     from core.learning.agent_memory import get_agent_memory
+    mem = get_agent_memory()
+    if args.retire:
+        # Retire mode (P1/T021): tombstone a one-shot note WITHOUT a successor -- consumed
+        # handoffs, placeholders, done-arc status notes. Accepts an id or a title.
+        target = str(args.retire)
+        dec = next((d for d in mem.get_decisions(days=3650)
+                    if d.id == target or d.title == target), None)
+        if dec is None:
+            print(f"ERROR: no active note with id or title '{target}' (see: notes --all)")
+            return 1
+        if not mem.retire_decision(dec.id):
+            print(f"ERROR retiring {dec.id} (store unavailable?)"); return 1
+        try:
+            from core.events.event_log import capture_event
+            capture_event("decision", f"note retired: {dec.title}", agent_id=args.agent_id,
+                          refs=[f"mem:decision:{dec.id}"], detail={"retired": True})
+        except Exception:
+            pass
+        try:
+            project_notes()
+        except Exception:
+            pass
+        if args.json:
+            print(json.dumps({"retired": True, "id": dec.id, "title": dec.title})); return 0
+        print(f"[OK] retired '{dec.title}' (id {dec.id}) -- recoverable via the store; "
+              "gone from boot/notes defaults")
+        return 0
     if not args.title or not args.note:
-        print("ERROR: need --title and --note.")
+        print("ERROR: need --title and --note (or --retire <id|title>).")
         print('Example: py agent_cli.py note me --title "checkpoint: recall done" --note "next: write-once"')
         return 2
-    mem = get_agent_memory()
     title = _clip(args.title, 200)
     supersedes = args.supersedes
     if not supersedes:   # re-noting the same title updates-in-place (write-once correction)
@@ -968,13 +994,17 @@ def cmd_notes(args):
             print(f"[OK] regenerated {project_notes()}"); return 0
         except Exception as e:
             print(f"ERROR projecting notes: {type(e).__name__}: {e}"); return 1
-    decs = get_agent_memory().get_decisions(days=args.days or 3650)
+    decs = get_agent_memory().get_decisions(days=args.days or 3650,
+                                            include_superseded=bool(args.all))
     if args.json:
-        print(json.dumps([{"id": d.id, "title": d.title, "note": d.decision, "at": d.created_at}
+        print(json.dumps([{"id": d.id, "title": d.title, "note": d.decision, "at": d.created_at,
+                           "superseded": bool(d.superseded)}
                           for d in decs], indent=2, default=str)); return 0
-    print(f"# {len(decs)} active note(s)")
+    label = "note(s) incl. superseded" if args.all else "active note(s)"
+    print(f"# {len(decs)} {label}")
     for d in decs[:(args.limit or 25)]:
-        print(f"  [{d.created_at[:10]}] {d.title}: {_clip(d.decision, 140)}   (id {d.id})")
+        tag = " [superseded]" if d.superseded else ""
+        print(f"  [{d.created_at[:10]}]{tag} {d.title}: {_clip(d.decision, 140)}   (id {d.id})")
     return 0
 
 
@@ -1097,8 +1127,8 @@ def cmd_wrap(args):
         flips, injections = [], []
     draft = build_session_draft(commits, lessons, notes, flips=flips, injections=injections)
     if not args.commit:
-        print("# DRAFT where-we-are (review it; record with: "
-              'py agent_cli.py wrap --commit --title "where-we-are ...")\n')
+        print("# DRAFT where-we-are (review it; record with: py agent_cli.py wrap --commit "
+              "-- the default title supersedes the prior where-we-are)\n")
         print(draft)
         print(f"\n# from {len(commits)} commit(s), {len(lessons)} lesson(s), {len(notes)} note(s) this session")
         try:   # curator nudge (vNext loop 1): surface the bench bucket at the reflective moment
@@ -1122,7 +1152,11 @@ def cmd_wrap(args):
         except Exception:
             pass
         return 0
-    title = args.title or f"where-we-are {datetime.now().date().isoformat()}"
+    # P1/T021: the default title is BARE on purpose -- a dated title defeats the
+    # update-by-title supersession that wrap itself wires two lines below, which is
+    # exactly how 4 co-active where-we-are notes accumulated (T016 F1a). The date
+    # lives in the note's timestamp and the draft body, not the title.
+    title = args.title or "where-we-are"
     mem = get_agent_memory()
     supersedes = next((d.id for d in mem.get_decisions(days=3650) if d.title == title), None)
     dec_id = mem.decide(title=title, decision=draft, supersedes=supersedes or None)
@@ -2191,6 +2225,8 @@ def build_parser():
     nt.add_argument("--context", default="", help="optional supporting context")
     nt.add_argument("--category", default="", help="route-hint category")
     nt.add_argument("--supersedes", default=None, help="explicit prior note id to retire")
+    nt.add_argument("--retire", default=None, metavar="ID_OR_TITLE",
+                    help="tombstone a one-shot note (no successor); reversible in the store")
     nt.add_argument("--session", default="", help="session id")
     nt.add_argument("--json", action="store_true")
     nt.set_defaults(fn=cmd_note)
@@ -2199,6 +2235,8 @@ def build_parser():
     nts.add_argument("--limit", type=int, default=25)
     nts.add_argument("--days", type=int, default=None)
     nts.add_argument("--project", action="store_true", help="regenerate the chronicles/memory.md digest")
+    nts.add_argument("--all", action="store_true",
+                     help="archaeology: include superseded/retired notes (tagged)")
     nts.add_argument("--json", action="store_true")
     nts.set_defaults(fn=cmd_notes)
 
