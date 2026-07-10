@@ -244,6 +244,11 @@ Shipped as the sequenced fix:
      while its head-of-doc excerpt hid the answer it had found.
 Not re-registered: the probes and expected artifacts are untouched; the system now finds
 them. Embeddings (option a) remain the v1 destination at the same relevance_fn seam.
+DEEPSEEK FINAL VERDICT (research/reviewed/deepseek-s5-final-verdict-2026-07-10.md): all
+four mechanisms correct, stamping map zero misclassifications, excerpt window red-teamed --
+cross-doc attack impossible (per-hit scope); DOCUMENTED BOUND: within one doc, a dense
+stem cluster in a glossary-style section can center the excerpt away from the deeper
+rationale passage (drill pointer still lands on the right doc). S5 CLOSED.
 
 ## 4. RECONCILIATION with DeepSeek's fenced battery (2026-07-10)
 
