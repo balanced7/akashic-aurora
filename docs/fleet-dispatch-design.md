@@ -1,5 +1,7 @@
 # Fleet dispatch — an intelligent, easy structure for calling local models
 
+Status: current  (2026-07-09, P4: Active local-model fleet design)
+
 Written 2026-07-03 (user ask: "make the local agent pool more powerful in a compact way … an
 intelligent and easy to use structure for using and calling said llms"). Grounded in the actual
 invocation surface (see the local-model infra map) and the R013 small-models evidence base

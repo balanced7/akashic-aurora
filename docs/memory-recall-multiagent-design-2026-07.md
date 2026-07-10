@@ -1,5 +1,7 @@
 # Multi-agent memory/recall: design assessment (2026-07-06)
 
+Status: historical  (2026-07-09, P4: Assessment artifact; recall vNext supersedes)
+
 Prompted by Daniel's question ("how do we give the right AI the right context at the right
 time?") + DeepSeek's 5-point proposal. Assessed against the GROUND TRUTH of the current code
 (mapped 2026-07-06), not the guessed structure DeepSeek designed for.

@@ -1,5 +1,7 @@
 # Tag Governance — safe, self-improving tagging (plan + test plan)
 
+Status: historical  (2026-07-09, P4: Plan artifact; not yet built)
+
 > Status: PLAN (plan-first, build-in-slices, each gated by acceptance bars AND safety
 > invariants). Companion to `docs/narrative-spine-plan.md` + `docs/perspectives-maps-plan.md`.
 > Best built after / alongside Slice 6 embeddings (the label model's strongest signal).

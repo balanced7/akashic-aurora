@@ -1,5 +1,7 @@
 # The Comprehensibility Immune System — design (for peer review before build)
 
+Status: current  (2026-07-09, P4: Shipped pillar; design locked)
+
 **Status:** REVIEWED by DeepSeek 2026-07-07, design locked — building · **Author:** claude
 **Review:** `research/reviewed/deepseek-immune-review-2026-07-07.md` (full).
 

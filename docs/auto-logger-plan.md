@@ -1,5 +1,7 @@
 # Cross-Agent Auto-Logger — design + slice plan
 
+Status: historical  (2026-07-09, P4: Sliced plan; narrative spine built)
+
 > Companion to `docs/narrative-spine-plan.md` / `-test-plan.md`. Same discipline:
 > **a slice ships only when its acceptance bar is met on a fixture AND its robustness
 > battery is green.** Below bar → iterate the slice, don't advance.

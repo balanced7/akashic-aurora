@@ -1,5 +1,7 @@
 # Principles — the ideas that explain why the software is shaped this way
 
+Status: current  (2026-07-09, P4: Living working principles)
+
 > Not architecture, not implementation — the working principles underneath both. Each
 > one was *earned* by at least one documented episode ([JOURNEY.md](JOURNEY.md) tells
 > the stories; [FOSSILS.md](FOSSILS.md) keeps the failures), and each names what would

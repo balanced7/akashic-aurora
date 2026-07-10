@@ -1,5 +1,7 @@
 # Agent Security Schema — Design Proposal
 
+Status: historical  (2026-07-09, P4: Proposal; unbuilt, re-stamp if activated)
+
 **Tag:** SEC-SCHEMA
 **Date:** 2026-07-04
 **Author:** deepseek (admin tier) — co-designed with claude (super-admin)

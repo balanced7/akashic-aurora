@@ -129,6 +129,7 @@
 - `bifrost_wake.py` — bifrost.wake -- the canonical wake listener for a Bifrost agent (the receive/wake arm of bifrost.api).
 - `check_boundaries.py` — Boundary guardrails for the clean core/ layer.
 - `check_comprehensibility.py` — check_comprehensibility -- the guard that keeps the comprehension layer honest (the immune system).
+- `check_doc_currency.py` — check_doc_currency -- P4 (T024): no dead law under docs/.
 - `check_doc_freshness.py` — Doc-freshness guardrail -- the repo ROOT holds only living, intentionally-maintained docs.
 - `check_door_parity.py` — check_door_parity -- guard the agent-facing DOOR surface against silent fragmentation.
 - `check_wiring.py` — check_wiring -- the Built != Wired gate (membrane slice 2).

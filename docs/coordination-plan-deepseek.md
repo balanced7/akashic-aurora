@@ -1,5 +1,7 @@
 # Multi-Agent Coordination Layer — Research & Design
 
+Status: historical  (2026-07-09, P4: Parallel proposal; synthesis supersedes)
+
 **Author:** deepseek-plumbing (COORD-RESEARCH tag)
 **Date:** 2026-07-04
 **Status:** design proposal — parallel plan (synthesize with Claude's)

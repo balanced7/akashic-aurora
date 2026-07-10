@@ -1,5 +1,7 @@
 # The fossil record — decisions we abandoned, preserved for what they taught
 
+Status: current  (2026-07-09, P4: Living append-only record)
+
 > An **architectural fossil** is a decision that was reasonable, tried, and abandoned —
 > kept on display because the lesson is reusable. This is curated negative knowledge:
 > future contributors (human or agent) can learn from these experiments without

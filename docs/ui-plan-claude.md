@@ -1,5 +1,7 @@
 # Aurora Glass — Build Plan (claude track)
 
+Status: historical  (2026-07-09, P4: Parallel plan; synthesis supersedes)
+
 _Parallel UI-design task, 2026-07-04. Grounded in [ui-moodboard-claude.md](ui-moodboard-claude.md).
 To be synchronized with docs/ui-plan-deepseek.md → docs/ui-plan-synthesis.md._
 

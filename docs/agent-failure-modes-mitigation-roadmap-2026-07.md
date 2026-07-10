@@ -1,5 +1,7 @@
 # Agent Failure-Mode Mitigation Roadmap — Phase 2 (2026-07-06)
 
+Status: current  (2026-07-09, P4: Active reliability arc build plan)
+
 Companion to `docs/agent-failure-modes-retrospective-2026-07.md` (the taxonomy).
 This is the **prioritized, sequenced build plan**. It folds the adversarial-verdict
 refinements into each track and orders them so Daniel can start building Monday.

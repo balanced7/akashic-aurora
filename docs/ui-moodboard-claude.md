@@ -1,5 +1,7 @@
 # Aurora Glass — Supporting Art & References (claude track)
 
+Status: historical  (2026-07-09, P4: Parallel task artifact; synthesis supersedes)
+
 _Gathered 2026-07-04 for the parallel UI-design task. Companion: [ui-plan-claude.md](ui-plan-claude.md).
 DeepSeek's independent set: ui-moodboard-deepseek.md. Synthesis: ui-plan-synthesis.md._
 

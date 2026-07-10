@@ -1,5 +1,7 @@
 # Integration plan: a unified agent-memory layer
 
+Status: historical  (2026-07-09, P4: Proposed; never fully built)
+
 How to fold the richer learning model (`learning/store.py`) into our system in
 the best way, refined by the literature and practitioner failure modes in the
 [analysis](learning-memory-analysis.md). Status: PROPOSED — not yet started.

@@ -1,5 +1,7 @@
 # Narrative spine — test & verification plan (build the right thing, slice by slice)
 
+Status: historical  (2026-07-09, P4: Test companion; spine built)
+
 > Companion to `docs/narrative-spine-plan.md`. The rule: **a slice ships only when its
 > acceptance bar is met on the fixture AND its robustness battery is green.** If a metric
 > is below bar, we *iterate the slice* before advancing — marathon, not sprint. This is

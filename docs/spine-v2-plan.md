@@ -1,5 +1,7 @@
 # Narrative Spine — v2 Re-evaluation & Upgrade Plan
 
+Status: historical  (2026-07-09, P4: Upgrade pass; spine v2 built)
+
 **Date:** 2026-06-28
 **Method:** Full re-read of every slice (schema → BeatLog → TrackRouter → Chronicler →
 chapter-lifecycle → session → ThemeAssigner → EventLog/Query → EventBridge → EventPromoter →

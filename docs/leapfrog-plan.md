@@ -1,5 +1,7 @@
 # Leapfrog Plan — Outcome-Grounded Memory
 
+Status: historical  (2026-07-09, P4: Outcome-grounded plan; built in code)
+
 > Status: PLAN (build-in-slices, every slice gated by a test or benchmark).
 > Written 2026-07-01. Inputs: full-repo audit, docs deep-read, competitive web survey
 > (note `competitive-landscape-2026-07`), and the DS4/DeepSeek-V4-Flash case study.

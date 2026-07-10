@@ -1,5 +1,7 @@
 # Keeping recall honest — critic vs. dialectical retrieval (the decision)
 
+Status: historical  (2026-07-09, P4: Fork decision; Path 2 chosen and built)
+
 > **The fork, decided.** Should we defend recall against confirmation bias with (1) a second,
 > independently-*trained* adversarial critic, or (2) an elegant modification of the existing
 > pipeline? This doc settles it against the 2023–2026 literature, our own code, and an independent

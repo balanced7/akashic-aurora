@@ -1,5 +1,7 @@
 # Master Roadmap — synthesis & sequenced next steps
 
+Status: historical  (2026-07-09, P4: Self-declares historical; notes are living)
+
 > **STATUS 2026-07-03 — this doc is the FOUNDATION-era synthesis (Waves 0–5, through 2026-06-20)
 > and is now historical.** Those waves shipped; the work since (intelligence spine, recall-at-action
 > + the outcome-credited funnel, the leapfrog plan, the local-model fleet, corpus sharpening S1/S2,

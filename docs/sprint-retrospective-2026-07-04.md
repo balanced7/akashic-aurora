@@ -1,5 +1,7 @@
 # Sprint Retrospective: Bifrost Fleet (2026-07-03 to 2026-07-04)
 
+Status: historical  (2026-07-09, P4: Dated retro artifact)
+
 ## What shipped (20+ commits, ~48 hours)
 
 A live multi-agent coordination substrate: bus, control plane, nudge/steer, advisory locks,

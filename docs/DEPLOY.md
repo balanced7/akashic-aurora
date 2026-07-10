@@ -1,5 +1,7 @@
 # Deploying Akashic Aurora
 
+Status: current  (2026-07-09, P4: Living ops doc)
+
 How to stand up Akashic Aurora on your own machine. It's deliberately easy: the **core runs on the
 Python standard library alone** and degrades gracefully when optional infrastructure (Redis) is absent.
 

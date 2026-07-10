@@ -1,5 +1,7 @@
 # Aurora Glass — Synthesis Plan (claude ⋈ deepseek)
 
+Status: current  (2026-07-09, P4: Settled spec; agents build to it)
+
 _Merge of two independently-developed plans, 2026-07-04. Inputs:
 [ui-plan-claude.md](ui-plan-claude.md) + [ui-moodboard-claude.md](ui-moodboard-claude.md);
 [ui-plan-deepseek.md](ui-plan-deepseek.md) + [ui-moodboard-deepseek.md](ui-moodboard-deepseek.md).

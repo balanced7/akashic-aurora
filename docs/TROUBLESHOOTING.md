@@ -1,5 +1,7 @@
 # Troubleshooting Guide
 
+Status: current  (2026-07-09, P4: Living ops)
+
 ## Quick Diagnostics
 
 Run this first:

@@ -1,5 +1,7 @@
 # Multi-Agent Coordination Layer — Synthesis Plan
 
+Status: current  (2026-07-09, P4: Active coordination design)
+
 **Status:** execution plan (merges Claude's Tier-0–5 draft + deepseek-plumbing's grounded plan + the deep-research prior-art survey)
 **Date:** 2026-07-04
 **Ground truth:** `core/comm/*.py`, `core/foundation/store.py`, `core/foundation/ledger.py`, `core/events/*.py`, `security/acl.json`

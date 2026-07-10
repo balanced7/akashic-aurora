@@ -1,5 +1,7 @@
 # Knowledge-Store Harmonization Plan (2026-06-20)
 
+Status: historical  (2026-07-09, P4: Executed 2026-06-20; done)
+
 > **STATUS: EXECUTED ✅ 2026-06-20.** All phases done. Canonical = Redis **16379 db0**
 > + `session_logs/store_state.json`, holding exactly the **6 real lessons** (rich:
 > summary + `source` pointer + full `detail_json`), backends byte-consistent. Test

@@ -1,5 +1,7 @@
 # The Pillar Analysis Method — how to take a subsystem to its next level
 
+Status: current  (2026-07-09, P4: Standing method; stable altitude)
+
 **Origin:** distilled 2026-07-08 from the recall vNext arc (docs/recall-vnext-2026-07.md), which
 followed it end-to-end; the membrane/Renew and bookends arcs used the same shape. Written at
 stable altitude (process, not code specifics) so it doesn't rot. Apply it to any pillar:

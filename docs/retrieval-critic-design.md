@@ -1,5 +1,7 @@
 # An Automatic Critic for Context Retrieval — grounding the echo chamber
 
+Status: historical  (2026-07-09, P4: Design research; decision doc supersedes)
+
 > Design research for a retrieval critic that surfaces *grounded* context instead of self-confirming
 > "nearest" lessons — so the architecture actively promotes critical thinking and re-evaluation.
 > Grounded in our real recall pipeline (FAITH-1, provenance tags, the Ranker) + the RAG-critique,

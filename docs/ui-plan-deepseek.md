@@ -1,5 +1,7 @@
 # Aurora Glass UI Build Plan — DeepSeek's Slice
 
+Status: historical  (2026-07-09, P4: Parallel plan; synthesis supersedes)
+
 > **My lane** (per negotiation round): HUD glanceability strip + benchmark/feature-flag infra + `since` backend + shader parameter controls.
 > **Claude's lane**: Aurora shader (building on my GLSL draft) + glass material + legibility/accessibility gate + Razer conic accent.
 > **Merge target**: `docs/ui-plan-synthesis.md` — AGREED spec; both agents build from it.

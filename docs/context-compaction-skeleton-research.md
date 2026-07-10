@@ -1,5 +1,7 @@
 # Research: context handling, compaction, and the "skeleton of an idea"
 
+Status: historical  (2026-07-09, P4: Research snapshot; context pillar supersedes)
+
 Date: 2026-06-20. Research to de-risk the Context pillar (Wave 2) + Distiller
 (Wave 3). Honesty note: the *internal* mechanisms of specific models (Fable, Opus)
 are not public — this synthesizes Anthropic's **published** agentic-context guidance

@@ -1,5 +1,7 @@
 # The Codex — a self-curating knowledge layer
 
+Status: historical  (2026-07-09, P4: Wave-2 design; not yet built)
+
 **Date:** 2026-06-28
 **Status:** plan / design (no code yet) — the Wave-2 direction, reframed around documentation self-management.
 **Pressure-tested by:** `docs/codex-inventory.md` (2026-06-28) — inventory + slice placement + 8 simplifications.

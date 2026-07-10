@@ -1,5 +1,7 @@
 # GPU Setup & Issues
 
+Status: current  (2026-07-09, P4: Living ops; hardware status)
+
 ## Current Status (2026-04-13)
 
 ### GPU: AMD RX 9070 XT (16GB VRAM)

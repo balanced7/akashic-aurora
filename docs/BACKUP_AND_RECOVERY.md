@@ -1,5 +1,7 @@
 # Backup & Recovery
 
+Status: current  (2026-07-09, P4: Living ops doc)
+
 Two independent layers protect the system, because code and data fail differently.
 
 | Layer | Protects | Tool | Recover with |

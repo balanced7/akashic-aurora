@@ -1,5 +1,7 @@
 # Recall vNext — closing the four loops (2026-07-08)
 
+Status: current  (2026-07-09, P4: T011 shipped; honest bounds still guide)
+
 **Status:** Daniel-directed full build 2026-07-08 (T011); DeepSeek review invited post-hoc for the v2+
 items. **Author:** claude. **Evidence base:** 7d funnel (2,850 impressions -> 26 helped = 1.05%;
 triage: 1 protect / 34 cost_no_return / 141 ghosts / 0 noise votes ever), 24h injection ledger

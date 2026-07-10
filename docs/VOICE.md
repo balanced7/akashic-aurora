@@ -1,5 +1,7 @@
 # Voice — the rules for anything public this project says
 
+Status: current  (2026-07-09, P4: Governs public communications)
+
 > How we write READMEs, discussions, journey entries, and anything else an outside
 > reader sees. Distilled 2026-07-03 from a correction ("I don't want any claim making
 > them doubt the rest of the project") and two multi-model review loops that followed.

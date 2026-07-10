@@ -1,5 +1,7 @@
 # Akashic Aurora — Architecture & Documentation Review
 
+Status: historical  (2026-07-09, P4: Dated review snapshot; ARCHITECTURE.md lives)
+
 **Date:** 2026-06-28
 **Method:** multi-agent review (29 agents): 8 subsystem maps → 7 review dimensions, each adversarially
 verified against the actual code → themed feature ideation + judge → synthesis + completeness critic.

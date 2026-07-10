@@ -1,5 +1,7 @@
 # Concurrent Agents — reinforcing two peers who share a substrate
 
+Status: historical  (2026-07-09, P4: Design artifact; worktree approach built)
+
 **Date:** 2026-06-28
 **Status:** plan / design. Decision taken: **worktree-per-agent** (Layer 1). Build order: this doc first, then sliced.
 **Companions:** `docs/bifrost-plan.md` (the comms layer), `docs/ROADMAP.md`, `core/comm/bus.py`, `agent_cli.py`, `scripts/mirror.py`.

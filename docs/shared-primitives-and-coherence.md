@@ -1,5 +1,7 @@
 # Shared primitives + coherence/lexicon analysis
 
+Status: historical  (2026-07-09, P4: Audit artifact; primitives built)
+
 Date: 2026-06-19. Read-only. Two passes over the active code: (A) what shared
 primitives should exist — both duplication we've *already* built and the pieces
 the next features will need; (B) coherence + adherence to `docs/LEXICON.md`.

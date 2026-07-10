@@ -1,5 +1,7 @@
 # Research detour: Actor/OTP · ROS · Stigmergy — does it steer the plan?
 
+Status: historical  (2026-07-09, P4: Research detour; findings folded in)
+
 Prompted by Gemini's suggestion (2026-07-06) to study Erlang/OTP, ROS, and game-engine
 stigmergy as the real teachers for an "Agent OS." Assessed against what we've actually
 built (L0–L3b) and the mitigation roadmap. Verdict + concrete steers below.

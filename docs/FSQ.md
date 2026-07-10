@@ -1,5 +1,7 @@
 # Frequently anticipated skeptical questions
 
+Status: current  (2026-07-09, P4: Living skeptical questions)
+
 > The questions a skeptical engineer should ask about this project, answered before
 > they're asked. Where an answer leans on a survey or an internal number, it links the
 > record. If your skeptical question isn't here, we'd like it — open a Discussion.

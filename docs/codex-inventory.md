@@ -1,5 +1,7 @@
 # Codex pressure-test — inventory, placement, and simplification
 
+Status: historical  (2026-07-09, P4: Pressure-test companion; codex plan supersedes)
+
 **Date:** 2026-06-28
 **Purpose:** before building Wave 2, take honest inventory of what already exists, decide *where each Codex
 slice lands* (component + layer), and find where we can **simplify routing and connections** instead of adding

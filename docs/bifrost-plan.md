@@ -1,5 +1,7 @@
 # Bifrost — the agent communication & handoff layer
 
+Status: historical  (2026-07-09, P4: Original plan; mesh and synthesis supersede)
+
 **Date:** 2026-06-28
 **Status:** plan / design (no code yet). The agent-to-agent comms layer of Akashic Aurora — the
 bridge between agent realms (Claude Code ↔ Cursor ↔ OpenCode).

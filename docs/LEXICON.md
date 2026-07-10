@@ -1,5 +1,7 @@
 # LEXICON — the ubiquitous language of Akashic Aurora
 
+Status: current  (2026-07-09, P4: Living ubiquitous language)
+
 > **Akashic Aurora** is the name of this system. **Akasha** = the immutable, append-only substrate (the
 > Ledger of every atom — the record that is never rewritten). **Aurora** = the self-organizing knowledge
 > that emerges *over* the record (the narrative spine, the Codex, recall). Order, lit up over the total record.

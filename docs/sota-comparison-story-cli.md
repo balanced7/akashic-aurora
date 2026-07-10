@@ -1,5 +1,7 @@
 # SOTA Comparison: `story` CLI (Slice 4)
 
+Status: historical  (2026-07-09, P4: Research snapshot; story CLI built)
+
 ## Comparable Tools
 
 | Tool | What it does | Overlap with `story` | Gaps vs `story` |

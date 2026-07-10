@@ -1,5 +1,7 @@
 # The journey so far
 
+Status: current  (2026-07-09, P4: Living append-only narrative)
+
 > **Akashic Aurora** is an open-source memory layer for AI agents: lessons injected at
 > the moment of action, credited by whether they changed the outcome, kept on an
 > append-only substrate. This document is the human-readable history of its direction,

@@ -1,5 +1,7 @@
 # Faithfulness critic — SOTA synthesis & design rationale (FAITH-1)
 
+Status: historical  (2026-07-09, P4: Research; FAITH-1 shipped in code)
+
 **Date:** 2026-06-29 · **Method:** 5 parallel research tracks (LLM-judge failures, deterministic
 signals, NLI/SummaC lineage, RAG citation grounding, shadow-mode gates) → synthesis → applied.
 Implementation: `core/primitives/faithfulness.py`; tests: `tests/test_faithfulness.py`.

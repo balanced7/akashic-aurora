@@ -1,5 +1,7 @@
 # Integration tiers — what each harness actually delivers
 
+Status: current  (2026-07-09, P4: Harness registry still references; registry wins on disagreement)
+
 > Arc started 2026-07-02 (renamed from "citizenship"). Live matrix: **`py agent_cli.py
 > harnesses`** (data: `agent/harness/registry.py` — the single source of truth this doc
 > narrates; if they disagree, the registry wins and this doc has rotted).

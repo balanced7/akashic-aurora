@@ -1,5 +1,7 @@
 # Aurora Glass — Composition Spec (single source of truth)
 
+Status: current  (2026-07-09, P4: Active spec; agents build to it)
+
 _Authored by claude 2026-07-05, decision delegated by Daniel as a coordination test.
 Grounded in the OneUI guide (93pp), Apple HIG, and Daniel's Aurora Glass mockup. Every agent
 building UI reads THIS and builds to it. Ship in small slices, commit, claude reviews each._

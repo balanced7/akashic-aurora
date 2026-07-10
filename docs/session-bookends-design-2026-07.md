@@ -1,5 +1,7 @@
 # Session Bookends — design (for peer review before build)
 
+Status: current  (2026-07-09, P4: Shipped design still describes what is built)
+
 **Status:** REVIEWED by DeepSeek 2026-07-07, decisions locked — building S1 · **Author:** claude
 **Feature owner:** Daniel (+ GPT), spec v3 (note `session-chaptering-bookends-idea`)
 **Review:** `research/reviewed/deepseek-bookends-review-2026-07-07.md` (full).

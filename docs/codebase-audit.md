@@ -1,5 +1,7 @@
 # Codebase Audit — readability, robustness, simplicity, coherence
 
+Status: historical  (2026-07-09, P4: One-shot audit artifact 2026-06)
+
 Date: 2026-06-19. Read-only audit of the **active coordination system** (core/,
 agent/, infrastructure/, services/, stack_manager/, root modules). Vendored and
 archived trees (`_archive/`, `temp/`, `backup_wsl_migration/`, `dockerized-ai/`,

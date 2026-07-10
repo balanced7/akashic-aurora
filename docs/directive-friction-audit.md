@@ -1,5 +1,7 @@
 # Directive Friction Audit — making the right thing the easy thing
 
+Status: historical  (2026-07-09, P4: Audit artifact; membrane design supersedes)
+
 > A friction analysis of the agent directives in this system, and the optimizations that make
 > them get done *right, every time*. Grounded in the real hook/door wiring + the behavioral-design
 > and LLM-agent-reliability literature. Written 2026-06-30.

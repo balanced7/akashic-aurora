@@ -1,5 +1,7 @@
 # Aurora Glass Moodboard — DeepSeek's Curation
 
+Status: historical  (2026-07-09, P4: Parallel task artifact; synthesis supersedes)
+
 > **Role for this parallel task**: Engine/motion primitives + HUD information design.
 > My curated references lean into the tech stack (WebGL shader architecture, performance benchmarks, GLSL noise primitives), the hardware-anchor design language (Razer's conic-accent geometry + Chroma RGB), and HUD glanceability patterns from sci-fi game UI / mission-control dashboards. Claude is covering the softer Apple/glass side.
 

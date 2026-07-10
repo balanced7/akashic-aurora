@@ -1,5 +1,7 @@
 # The Agent Interface (System 5 / ACI) — thoughts + research
 
+Status: historical  (2026-07-09, P4: Early ACI framing; membrane supersedes)
+
 Date: 2026-06-19. The question: agents must be able to *use* this system fully,
 without being overwhelmed. This is now a named discipline — the **Agent-Computer
 Interface (ACI)** — the agent-equivalent of HCI. For an agent-facing system, the

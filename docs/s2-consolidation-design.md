@@ -1,5 +1,7 @@
 # S2 — the consolidation pass that sharpens the corpus (scoping + design)
 
+Status: historical  (2026-07-09, P4: Scoping artifact; not yet built)
+
 Written 2026-07-03 (Opus). SCOPING artifact, not a built slice: it decomposes S2 into gated slices and
 surfaces the design questions for adjudication. Grounded in the machinery that already exists
 (Consolidator, Distiller, FAITH-1, Clusterer) and in the field research (ADR_0702233250: deletion

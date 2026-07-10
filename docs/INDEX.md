@@ -1,5 +1,7 @@
 # Docs map — what to read, and what's living vs. history
 
+Status: current  (2026-07-09, P4: Living docs map)
+
 The one-screen guide to the documentation. Two kinds of docs live here, and telling them apart is
 the whole point (an old design note read as current truth is how a project stops being understandable):
 

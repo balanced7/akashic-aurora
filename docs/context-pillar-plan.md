@@ -1,5 +1,7 @@
 # Context Pillar (SYSTEM 4) — design & consolidation plan
 
+Status: historical  (2026-07-09, P4: Proposed plan; never fully built)
+
 Status: PROPOSED (2026-06-19). The goal you set: **load 8–10k tokens of rich,
 immediately-usable context so an agent starts informed without burning the
 model's own context window.** This plan reuses what already exists rather than

@@ -29,6 +29,7 @@ def build_plan(args):
     if not args.no_test:
         steps.append(("guard: boundaries", [PY, "scripts/check_boundaries.py"]))
         steps.append(("guard: doc-freshness", [PY, "scripts/check_doc_freshness.py"]))
+        steps.append(("guard: doc-currency (no dead law in docs/)", [PY, "scripts/check_doc_currency.py"]))
         steps.append(("guard: comprehensibility (map matches code)", [PY, "scripts/check_comprehensibility.py"]))
         steps.append(("guard: door parity (no new verb-surface drift)", [PY, "scripts/check_door_parity.py"]))
         steps.append(("guard: wiring (no new built-but-unwired module)", [PY, "scripts/check_wiring.py"]))

@@ -1,5 +1,7 @@
 # Session Handoff — 2026-06-27
 
+Status: historical  (2026-07-09, P4: What-was-built snapshot; bookends supersede)
+
 ## What was built
 
 ### Session logging wiring (3 integration points)

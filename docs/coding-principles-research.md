@@ -1,5 +1,7 @@
 # Coding principles research: naming/clarity + cleanup-at-scale
 
+Status: historical  (2026-07-09, P4: Research snapshot; PRINCIPLES.md lives)
+
 Date: 2026-06-19. Two questions: (1) what did our naming/clarity approach get
 right, and how do we make it more potent? (2) how do experts clean up massive
 complex projects? Short answer to both: **we've been intuitively practicing the

@@ -1,5 +1,7 @@
 # Akashic Aurora — System Architecture (the living skeleton)
 
+Status: current  (2026-07-09, P4: Living skeleton, actively maintained)
+
 The map of the whole system at **subsystem altitude** — what each part is *for*, and how the
 layers stack. Deliberately coarse so it changes rarely; the churny per-module detail lives in the
 **auto-generated** [MODULE_INDEX.md](MODULE_INDEX.md) (run `py scripts/gen_arch_index.py`), which

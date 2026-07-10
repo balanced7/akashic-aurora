@@ -1,5 +1,7 @@
 # Agent-Experience Plan — Akashic Aurora
 
+Status: historical  (2026-07-09, P4: Early synthesis; Recall vNext supersedes)
+
 > An elegant synthesis: one acceleration structure, traversed cheaply at the point of action,
 > tiered like a cache, disclosed skeleton-first, trust-weighted by FAITH-1, portable across agents and time.
 > Addresses the four agent-experience pain points (One Door, Write-Once Memory, Recall-at-Point-of-Action,

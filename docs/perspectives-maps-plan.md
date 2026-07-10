@@ -1,5 +1,7 @@
 # Perspectives & Maps — build plan (the interpretation layer over the narrative graph)
 
+Status: historical  (2026-07-09, P4: Plan artifact; never built)
+
 > Status: PLAN (plan-first, build-in-slices, each gated by an acceptance bar — same
 > discipline as `docs/narrative-spine-plan.md` + `docs/narrative-test-plan.md`).
 > Builds on the idea captured in `docs/perspectives-maps-design-note.md`. Now buildable

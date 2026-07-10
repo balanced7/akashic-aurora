@@ -1,5 +1,7 @@
 # The Mediation Membrane — founding design note (2026-07-06)
 
+Status: current  (2026-07-09, P4: Active Renew/hook-layer design)
+
 Daniel's intuition: *"Akashic is only useful if it's used by the right things at the right time. There
 needs to be a substrate that mediates between the agents and Akashic to reduce the cognitive load of
 being in this space — and we must balance adherence + auto-logging against maintainability and instant

@@ -1,5 +1,7 @@
 # Perspectives & Maps over a stable substrate — design note (idea, not yet built)
 
+Status: historical  (2026-07-09, P4: Future idea; not yet built)
+
 > Status: IDEA / future capability. Captured 2026-06-27. Build only when there's a real
 > need AND the narrative graph has accreted real edges (rule of three). This is the
 > *telos* of the knowledge architecture, not a current slice.

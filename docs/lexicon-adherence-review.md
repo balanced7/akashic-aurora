@@ -1,5 +1,7 @@
 # Lexicon & naming-schema adherence review (COMPLETE)
 
+Status: historical  (2026-07-09, P4: One-shot review 2026-06)
+
 Date: 2026-06-20. Exhaustive pass — **every active module** (56 modules + 12 test
 files) checked against all `docs/LEXICON.md` rules: State-vs-Events,
 genus-not-species, names-must-not-lie, intention-revealing (precision over

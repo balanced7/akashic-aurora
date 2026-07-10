@@ -1,5 +1,7 @@
 # Agent Failure-Mode & Pain-Point Retrospective — July 2026
 
+Status: historical  (2026-07-09, P4: Taxonomy artifact; roadmap supersedes action)
+
 Scope: failures and pain points observed while running the DeepSeek/Claude agent fleet in Akashic Aurora over 2026-07-03 → 07-06, including the sandbox-clone experiment. Grounded in first-hand incidents (evidence cited), not general theory. This is **Phase 1: identify + categorize**. Phase 2 (research-backed mitigations) attaches to each category once this taxonomy is agreed.
 
 Severity key: 🔴 house-breaking / data-loss risk · 🟠 blocks work · 🟡 friction/waste.

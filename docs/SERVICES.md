@@ -1,5 +1,7 @@
 # Service Configurations
 
+Status: current  (2026-07-09, P4: Living ops; port table)
+
 ## Active Services
 
 ### Service Ports

@@ -1,5 +1,7 @@
 # Bifrost Mesh — agent-agnostic comm + coordination
 
+Status: historical  (2026-07-09, P4: Design accepted and built; synthesis supersedes)
+
 **Date:** 2026-06-29
 **Method:** 11-agent design workflow (map current Bifrost → research transports/wake/protocols → 3 competing
 designs → judge → plan → adversarial critic). Winner: "Bifrost Mesh."

@@ -1,5 +1,7 @@
 # Narrative Spine — design plan (System 4 capstone)
 
+Status: historical  (2026-07-09, P4: Design plan; spine built in code)
+
 > **Status:** DESIGN (plan-first, build-in-slices). 2026-06-27.
 > Plan before code, like `docs/knowledge-harmonization-plan.md` and
 > `docs/context-pillar-plan.md`. This doc defines the model, schema, the Chronicler,

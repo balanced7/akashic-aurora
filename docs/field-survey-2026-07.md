@@ -1,5 +1,7 @@
 # Field survey: what the best practitioners can teach this system (2026-07-02)
 
+Status: historical  (2026-07-09, P4: Survey snapshot; findings adopted)
+
 > Three parallel research passes over (1) the Claude Code skills ecosystem, (2) prominent
 > individual practitioners, (3) the agent-memory / context-engineering canon. All sources
 > fetched and verified 2026-07-02. Companion to `docs/leapfrog-plan.md` and the Greptile

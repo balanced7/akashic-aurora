@@ -1,5 +1,7 @@
 # Agent Memory: analysis of `learning/store.py` + prior-art research
 
+Status: historical  (2026-07-09, P4: Research; integration plan supersedes)
+
 Research date: 2026-06-19. Purpose: evaluate the richer learning model
 (`learning/store.py`) against the literature and real-world practitioner
 experience, to refine how we integrate it. See the companion

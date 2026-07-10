@@ -1,5 +1,5 @@
 {
-  "seq": 23,
+  "seq": 24,
   "tasks": [
     {
       "id": "T001",
@@ -864,11 +864,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "in_progress",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "4adf1ce",
+      "verified_by": "9 pins + full suite + 5 guards via ship.py; LIVE DRILL: armed watcher slept through T016 closure markers (previously 3 insta-wakes); restarted deepseek answered T016 IS DONE from the folded verifying->done line against its own frozen verifying snapshot, citing the precedence doctrine -- its C1 evidence gate verbatim",
       "created": "2026-07-10T03:06:04+00:00",
-      "updated": "2026-07-10T03:06:04+00:00",
+      "updated": "2026-07-10T03:16:57+00:00",
       "history": [
         {
           "to": "proposed",
@@ -889,6 +889,52 @@
           "to": "in_progress",
           "by": "",
           "at": "2026-07-10T03:06:04+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-07-10T03:16:57+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-10T03:16:57+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T024",
+      "title": "P4 doc currency contract + guard (comms pillar): Status header convention for docs/*.md (current | superseded-by <path> | historical, + date, tolerant parse); stamping pass over all live docs per deepseek disposition table (claude-verified); scripts/check_doc_currency.py guard wired into ship gates -- FAILS on unstamped or UNTRACKED docs/ files (invisible-to-peers is a defect), WARNS on current-stamped docs untouched >45d. Gate: first guard run flags exactly the known offenders (master-directive-list, bifrost-sync-plan, the-environment-decides untracked); zero unstamped after the pass; guard green in ship",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "in_progress",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-10T03:24:15+00:00",
+      "updated": "2026-07-10T03:24:16+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-10T03:24:15+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-10T03:24:16+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-10T03:24:16+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-07-10T03:24:16+00:00"
         }
       ]
     }

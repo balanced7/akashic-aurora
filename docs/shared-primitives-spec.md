@@ -1,5 +1,7 @@
 # Shared primitives — interface spec
 
+Status: historical  (2026-07-09, P4: Interface spec; built in code)
+
 Date: 2026-06-19. The three cross-cutting primitives that both the Context pillar
 (System 4) and AgentMemory (Systems 1–3) need. Specified once here so they are
 built once. These are **interfaces** (contracts); implementation happens during

@@ -1,5 +1,7 @@
 # Akashic Aurora — Intelligence Roadmap (force-multiplier synthesis)
 
+Status: historical  (2026-07-09, P4: Synthesis artifact; leapfrog supersedes)
+
 **Date:** 2026-06-29
 **Method:** 6-agent research workflow (knowledge-curation / faithfulness / ACI / substrate SOTA) →
 synthesis → adversarial critic. Grounded in `docs/architecture-review-2026-06-28.md` + 2024–26 agent-memory SOTA.

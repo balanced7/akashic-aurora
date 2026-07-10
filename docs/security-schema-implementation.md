@@ -1,5 +1,7 @@
 # Security Schema — Implementation Guide
 
+Status: historical  (2026-07-09, P4: Implementation guide; proposal-era artifact)
+
 **Tag:** SEC-SCHEMA-IMPL
 **Date:** 2026-07-04
 **Author:** deepseek (admin) — implementation guidelines for the security schema
