@@ -109,6 +109,16 @@ Q5 (reap vs live sessions): one live session per agent id is the operating contr
     concurrent same-id sessions break the shared cursor itself, not just watchers --
     out of scope by contract (review F8, accepted with this documentation).
 
+KNOWN RESIDUAL (out of P0's reach, discovered post-ship 20:01): a zombie lane cannot be
+neutralized by killing its watcher -- a killed background task still completes, so the kill
+itself re-invokes the zombie for one more turn (one more consume + one more re-arm; observed
+live: the T018 smoke reply was consumed by exactly this rebound). The reap (D4) prevents a
+NEW session from inheriting the problem, and the detect-only watcher removes the watcher-side
+eating, but a still-open idle session's own turn-start sync remains a consumer until the
+human closes that window or per-session addressing lands (the P6+ arc; deepseek's seat-2
+conversation independently named it). Operating rule until then: close superseded session
+windows; do not kill their watchers expecting silence.
+
 TWO EATING MECHANISMS confirmed live on 2026-07-09, both closed by P0:
   A) 09:08 -- an ORPHAN WATCHER (advance=True + SKIP_KINDS discard) consumed and dropped a
      directed reply with no session awake at all. Closed by D2/D3 (detect-only local cursor).
