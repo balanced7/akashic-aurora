@@ -86,3 +86,64 @@ Live drill (graded, runbook + evidence):
   last stopper, one directed message = exactly ONE wake
 - zombie generation: kill a session, confirm its watcher stands down on displacement and the
   janitor clears its seat if the process is gone
+
+---
+
+# RECONCILIATION (claude x deepseek, 2026-07-10 -- both designs committed blind first)
+
+DeepSeek's blind design: research/reviewed/deepseek-wave2-seat-design-2026-07-10.md.
+
+## Convergences (both blind passes agree -- highest confidence)
+- Never kill a live session's watcher; the reap's identity-only check is the root defect.
+- Close the holder=None fail-open with a LOUD exit, not silent watching.
+- No Windows graceful-kill gymnastics; no heartbeat TTL; no new registration protocol;
+  session id trust bound = the session arms its own watcher.
+
+## Divergences -> resolutions
+1. SEAT ARCHITECTURE -- his per-session seats (every live session wakeable, fan-out) vs my
+   single per-agent seat (one wake, newest-stopper holds duty). ADOPT HIS. The morning
+   incident itself refutes my heuristic: Daniel was driving the OLDER session while the
+   newest stopper held the seat -- single-seat wakes the wrong window. Fan-out is
+   self-selecting (the driven session is mid-turn and just works; an idle twin wakes, reads
+   the ledger/locks, yields). Cost: one extra re-invoke per message per extra live session;
+   N is small. Semantics documented in AGENTS.md.
+2. LIVENESS SIGNAL -- his stop-hook marker freshness vs my parent-chain walk. THE CATCH
+   (recon finding, must be pinned): marker freshness measures TURN CADENCE, not session
+   life. An idle-but-alive session (user reading; no turns for an hour; watcher armed --
+   the exact state wake exists to serve) has a stale marker -> his reap kills its LIVE
+   watcher -> the kill loop returns THROUGH the fix. RESOLUTION: two-factor liveness --
+   marker fresh (AKASHIC_WAKE_MARKER_FRESH_MIN, default 30) = alive, fast path, no WMI;
+   marker stale -> parent-chain decides (WMI; ANY error = alive; pid-recycle guard: an
+   "ancestor" younger than the watcher is a recycled pid = dead). Reap ONLY when marker
+   stale AND chain dead.
+3. EXIT CODES -- his design leaves STAND_DOWN_RC=4, so benign displacement/seat-loss still
+   badges a LIVE session's task as FAILED (same-session newest-wins fires rc=4 into the
+   session that just re-armed). ADOPT MINE (D5): stand-down, seat-lost, quiet-deadline all
+   exit 0 with a one-line provenance; nonzero = real faults only (WAKE_ERROR=1, OFFLINE=2).
+4. OWNERSHIP ENCODING -- my JSON-in-file vs his session-in-FILENAME. ADOPT HIS: filename
+   encoding is glob-enumerable for the janitor and keeps the pid-only file parse untouched.
+5. MIGRATION -- ADOPT HIS K6 self-heal (the old name-keyed watcher is invisible to the new
+   glob and has no seatless branch in old code): at first new-code session start, kill the
+   old name-keyed watcher if alive, remove the old seat file. The one remaining legitimate
+   live-process kill, bounded to the migration moment, provenance-logged.
+6. His flaw-B+C double-seat-loss race: dissolves under per-session files (no shared file).
+
+## Amended kill conditions
+K6 (deepseek): migration self-heal -- after one full fleet cycle, zero name-keyed seats.
+K7 (recon): IDLE-SESSION IMMUNITY -- stale stop marker + live process chain is NEVER
+reaped; pinned by test_reap_idle_but_alive_not_reaped.
+
+## Build plan (the reconciled slices)
+B1 bifrost_wake.py: --session arg; session-scoped seat path; seatless -> stand down; all
+   benign exits 0 w/ provenance line.
+B2 claude_stop.py: session_id from hook stdin; session-scoped HEARTBEAT + MARKER; arm
+   instruction carries --session; legacy fallback when session_id absent.
+B3 claude_sessionstart.py: reap -> enumerate bifrost_wake_<agent>_*.pid + legacy file;
+   dead pid = clean file only; alive pid = identity check, then two-factor liveness;
+   reap/janitor actions append one-line provenance to bifrost_wake_<agent>.reap.log;
+   K6 migration branch.
+B4 pins: deepseek tests 1-6 + exit-code pins + K7 idle-immunity pin + janitor
+   provenance pin; live drills 7-8 + fan-out observation (record wake count per message
+   with 2 live sessions; expected = one per live idle session, BY DESIGN).
+B5 docs: AGENTS.md wake-contract line (per-session seats, fan-out semantics);
+   battery sec. 6 disposition update after the build ships.
