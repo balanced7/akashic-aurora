@@ -87,6 +87,9 @@ summarizer machinery.
 ## 5. The reconciled slice plan (each gated; smallest diffs first)
 
 P0. WAKE LISTENER: DETECT, DON'T CONSUME (bug fix -- first)
+    [SHIPPED 2026-07-09 @d925d6b as T017; design + review outcomes:
+    docs/p0-wake-detect-design-2026-07.md. Companion fix the drill surfaced: T018 @bd6a3ea,
+    runner promise-bounce + reasoning-model token headroom.]
     bifrost_api.wake_block -> advance=False (bus.wait's own safe default); bifrost_wake exits
     on a wake-worthy message WITHOUT advancing (the woken session consumes normally); skipped
     kinds are never advanced past. Add a consumer-discipline guard: the wake listener refuses
