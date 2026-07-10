@@ -178,3 +178,58 @@ S5. P7 relevance is a fraction of query terms matched (caps at 1.0): a keyword-s
 - Pre-registration fence applies to the graded batteries (T018 endings corpus, P7
   show-nothing set) -- sealed before the detectors see them.
 - EVOLVE items found by kills become ledger tasks with the test as their acceptance gate.
+
+---
+
+## 4. RECONCILIATION with DeepSeek's fenced battery (2026-07-10)
+
+Both designed blind (fence commits: claude before reading, deepseek reply verbatim at
+research/reviewed/deepseek-hell-battery-2026-07-10.md). The divergence is the value.
+
+### Independent CONVERGENCE (highest confidence -- two blind passes hit the same wound)
+- **Drainer death resurrects the wedge** -- my S1 == deepseek H4, verbatim same mechanism
+  (daemon drainers assumed immortal; one unhandled exception = Exhibit A returns with a
+  healthy heartbeat masking it). Both ranked it top-5. This is the arc's realest survivability
+  gap. EVOLVE: drainer liveness poll in the launcher monitor, not just at exit.
+- **The one-cursor-per-agent-id architecture's unfixed half** -- my P0 zombie-generations/
+  cursor-storm == deepseek H1/H2 (zombie SESSION cursor race; TTL-death without a
+  SessionStart trigger). P0 fixed watcher->watcher; session->session is open.
+
+### COMPLEMENTS (each caught what the other missed)
+- deepseek-only, and SHARPER than anything I had: **H9** (P3 closed-task suppression x P6
+  ack compose), **H15** (adversarial ledger_update injection -- ANY bus agent forges
+  control-plane messages), **H12** (self-ack scope), **H17** (promoted() vs lookback scan
+  windows disagree on ack state), **H18** (the dual-battery method has a built-in expiry --
+  the meta-level restatement of this whole arc's thesis: nothing retires without recurring
+  enforcement), **H6** (identical-timestamp governs tiebreaker is a coin flip), **H10**
+  (superseded-by breaks under git mv), **H13** (lookback blind on a cold clone).
+- claude-only: **S2/P6 ack-volume lie** (500-scan ceiling re-flags settled msgs -- same root
+  as deepseek H17), **S4/P1 cycle+fork detection**, **S5/P7 corpus poisoning**, **P4 stamp
+  evasion (homoglyphs/fences)**, **the Newborn Gauntlet** (deepseek PLAYS a quarantined
+  newborn), **P2 governs-collision census**, **the 30-Day Entropy Sim**.
+
+### LIVE VERIFICATION of deepseek's three concrete shipped-code claims (run 2026-07-10)
+- **H15 CONFIRMED REAL**: fold_ledger_update accepts a forged `kind=ledger_update` from
+  `frm=malicious-agent` -- no sender check. Low-severity in a trusted 2-agent fleet, but a
+  real trust-boundary hole. FIX (small): fold only when `frm`/`meta.via` == "conductor",
+  or namespace control-plane kinds behind a capability. Becomes the battery's slice 1.
+- **H12 ALREADY CORRECT** (validation, not a bug): cmd_bifrost_ack keys the refusal on
+  sender==acker, so an addressee acking a message sent TO them is allowed -- exactly
+  deepseek's recommended rule. Pin it so it stays correct.
+- **H9 DOWNGRADED**: ack() writes independently of promoted()'s display-only suppression --
+  no durable ack is lost. The concern is a promoted-vs-lookback COHERENCE pin (== H17), not
+  data loss. Keep as a coherence test, not an emergency.
+
+### Merged priority (next-sprint T028 acceptance gates)
+1. H15 forged-ledger-update injection (real, proven, small fix) + H4/S1 drainer watchdog
+   (real, converged) -- the two verified survivability/trust gaps, fix + regression pin.
+2. Cross-slice seams: H9/H17 scan-coherence, H8 ring-overflow loss, my P3 transition storm.
+3. Concurrency storms: H16/H1 dual-watcher kill-storm, my cursor storm, the Chaos Hour.
+4. Adversarial-insider: H15 generalized + my spoofed-actor ack + the Newborn Gauntlet
+   (deepseek plays the quarantined newborn -- the strongest single validation).
+5. Long-horizon: H14 72h soak + my 30-Day Entropy Sim + H18 method-rot (battery self-audit).
+6. Correctness edges: my S4 fork/cycle, H6 tiebreaker determinism, S5/H13 P7 poisoning+cold,
+   H10/H11 P4-P5 pointer/clock anchors, my P4 stamp evasion.
+
+Standing method: each kill -> a ledger task whose acceptance IS the failing test; graded
+batteries (T018 endings, P7 show-nothing, the Newborn rubric) pre-registered behind the fence.
