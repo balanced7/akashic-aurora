@@ -59,15 +59,65 @@ DIRECTED_UNHANDLED_HOURS = 2    # directed handoffs have a clear addressee; flee
 FLAGGABLE_KINDS = {"handoff", "blocker"}   # asks get flagged; decision/completion are fire-and-forget
 
 
+def _promoted_record(msg_id: str, *, event_query=None) -> Optional[Dict[str, Any]]:
+    """The bifrost_msg event carrying ref bifrost:<msg_id>, or None. Scans the promoted tier
+    (small by design -- salient kinds only); RB-4 replaces this with an exact by-ref index
+    lookup. Never raises."""
+    try:
+        from core.events.event_query import get_event_query
+        eq = event_query if event_query is not None else get_event_query()
+        ref = f"bifrost:{str(msg_id).strip()}"
+        for e in eq.search("", kind=PROMOTED_KIND, top_k=100000):
+            if ref in (e.get("refs") or []):
+                return e
+    except Exception:
+        return None
+    return None
+
+
+def ack_verdict(by: str, msg_id: str, *, event_query=None) -> tuple:
+    """(allowed, reason) -- the ONE ack-acceptance rule, guarding every caller (RB-2/T029).
+    An ack is accepted only from the message's ADDRESSEE: the sender cannot settle its own
+    ask (self-ack), a third id cannot settle someone else's (spoofed actor), a broadcast
+    (to='*') accepts any non-sender handler, quarantined/unknown ids are refused, and a
+    message with no promoted record is refused -- an ack exists to annotate the salient
+    tier, so there is nothing for it to settle. Ids are unauthenticated until identity is
+    signed (same honest bound as RB-1); the trust check fails OPEN on a broken door (the
+    addressee rule still holds; a refused legit auto-ack would re-flag handled work)."""
+    b = str(by)
+    try:
+        from core.trust.registry import resolve
+        if resolve(b).role == "quarantined":
+            return False, (f"{b!r} resolves to quarantined -- unknown/expired ids cannot "
+                           "settle asks (fix the grant in security/acl.json)")
+    except Exception:
+        pass
+    rec = _promoted_record(msg_id, event_query=event_query)
+    if rec is None:
+        return False, (f"bifrost:{msg_id} has no promoted record -- only salient messages "
+                       "(handoff/decision/completion/blocker) carry acks")
+    d = rec.get("detail") or {}
+    frm, to = str(d.get("frm", "")), str(d.get("to", "*"))
+    if b == frm:
+        return False, f"{b} sent this message -- the sender cannot ack its own ask"
+    if to != "*" and b != to:
+        return False, f"directed to {to!r} -- only the addressee can ack it"
+    return True, "ok"
+
+
 def ack(by: str, msg_id: str, note: str = "", *, event_log=None, event_query=None) -> bool:
     """Durably record that `by` HANDLED bus message `msg_id` (P6/T026). The four 2026-07-09
     incidents (two eaten replies, a drain-swallowed spec, a re-wake loop) all shared one
     shape: nothing distinguished a message that was READ from one that was ACTED ON. Acks
-    close that loop on the salient tier. Multiple ACTORS per message are legal (forensics);
-    the same actor twice is a NO-OP (red-team: the re-wake loop could double-answer).
-    Never raises, never blocks a send path."""
+    close that loop on the salient tier. Multiple ACTORS per message are legal (forensics;
+    broadcasts only since RB-2 -- directed asks accept only their addressee, via
+    ack_verdict); the same actor twice is a NO-OP (red-team: the re-wake loop could
+    double-answer). Never raises, never blocks a send path."""
     try:
         clean_id = str(msg_id).strip()
+        allowed, _why = ack_verdict(by, clean_id, event_query=event_query)
+        if not allowed:
+            return False
         existing = acks_for([clean_id], event_query=event_query).get(clean_id, [])
         if any(a.get("by") == str(by) for a in existing):
             return True                       # idempotent: already on record for this actor

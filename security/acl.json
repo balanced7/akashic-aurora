@@ -18,14 +18,15 @@
     {
       "agent_id": "deepseek",
       "role": "admin",
-      "caps": ["read", "write", "exec", "bus.send", "bus.nudge", "bus.steer",
+      "caps": ["read", "write", "bus.send", "bus.nudge", "bus.steer",
                "kb.recall", "kb.learn", "net", "git.read", "bifrost.inbox"],
       "path_scope": ["*"],
-      "bus_send_kinds": ["chat", "note", "request", "reply", "nudge", "steer", "inform"],
+      "bus_send_kinds": ["chat", "note", "request", "reply", "nudge", "steer", "inform",
+                          "hint", "handoff", "completion", "decision", "blocker"],
       "granted_by": "claude",
-      "granted_at": "2026-07-06T00:15:00Z",
-      "expires_at": "2026-07-09T00:00:00Z",
-      "reason": "Time-boxed exec grant (Daniel-requested 2026-07-05): DeepSeek continues the build via shell while claude is at weekly limit. Reverts to no-exec after expiry unless renewed. admin.grant still withheld."
+      "granted_at": "2026-07-10T00:00:00Z",
+      "expires_at": null,
+      "reason": "Renewal 2026-07-10 (T029/RB-1): the 07-05 record time-boxed the WHOLE grant for an exec escalation, so its 07-09 expiry silently quarantined the entire admin role (found while wiring trust into the fold doors). Re-issued durable, WITHOUT exec -- the time-box's actual intent. bus_send_kinds now names the shipped peer vocabulary (salient kinds + hint); control-plane kinds (ledger_update/resolved) stay conductor-only at the receiving folds regardless (RB-1). admin.grant still withheld."
     },
     {
       "agent_id": "deepseek-ui",

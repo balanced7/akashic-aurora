@@ -106,6 +106,8 @@ class AgentProcess:
     exit_seen_at: str = ""
     stdout_tail: str = ""            # last ~500 chars of stdout for diagnostics
     stderr_tail: str = ""            # last ~500 chars of stderr
+    drainer_dead: bool = False       # RB-3 (T029): a drainer died while the child still ran (live tail frozen)
+    drain_flush_timeout: bool = False  # RB-3: exit flush outlived its join window (tail may be partial)
 
 
 # ------------------------------------------------------------------ registry
@@ -209,6 +211,10 @@ def _drain_pipe(pipe, proc, attr):
             pass
 
 
+# RB-3 (T029): how long the exit flush waits per drainer before recording a timed-out flush.
+DRAIN_FLUSH_JOIN_SEC = 2
+
+
 def _start_drainers(handle, proc) -> list:
     """Arm one daemon drainer per captured pipe. Returns the threads (joined at exit)."""
     drainers = []
@@ -304,6 +310,8 @@ class Launcher:
                     "exit_seen_at": proc.exit_seen_at if proc else "",
                     "stdout_tail": (proc.stdout_tail or "")[-200:] if proc else "",
                     "stderr_tail": (proc.stderr_tail or "")[-200:] if proc else "",
+                    "drainer_dead": proc.drainer_dead if proc else False,          # RB-3
+                    "drain_flush_timeout": proc.drain_flush_timeout if proc else False,  # RB-3
                     "liveness": liveness.wedge_view(spec.agent_id),   # L3a: observe-only phase + stuck-time + wedged flag
                     "auto_revive": spec.agent_id in armed,  # L3b-auto: armed for auto-revive-on-wedge (persisted)
                 })
@@ -439,11 +447,7 @@ class Launcher:
             proc.exit_seen_at = time.strftime("%Y-%m-%dT%H:%M:%S")
             # Tails accrue LIVE via the drainer threads (T019) -- communicate() here would
             # fight them for the pipes; a short join gives the final flush instead.
-            for t in (proc.drainers or []):
-                try:
-                    t.join(timeout=2)
-                except Exception:
-                    pass
+            self._flush_drainers(proc)
 
         self._save_session_to_disk()     # persist the change
         return {"ok": True, "agent_id": spec.agent_id, "tag": tag}
@@ -621,6 +625,7 @@ class Launcher:
     def _monitor_loop(self):
         """Background: poll running processes, detect exits, classify reasons."""
         while not self._monitor_stop.wait(2.0):
+            still_running = []
             with self._lock:
                 for aid, proc in list(self._procs.items()):
                     if proc.status != "running":
@@ -630,16 +635,13 @@ class Launcher:
                         continue
                     code = handle.poll()
                     if code is None:
-                        continue  # still running
+                        still_running.append(proc)   # RB-3: liveness-checked after the lock drops
+                        continue
                     # Process exited
                     proc.exit_code = code
                     proc.exit_seen_at = time.strftime("%Y-%m-%dT%H:%M:%S")
                     # Tails accrue live via drainers (T019); join for the final flush.
-                    for t in (proc.drainers or []):
-                        try:
-                            t.join(timeout=2)
-                        except Exception:
-                            pass
+                    self._flush_drainers(proc)
                     proc.exit_reason = _classify_exit(
                         code, proc.stdout_tail, proc.stderr_tail, proc.status == "killed")
                     proc.status = "exited"
@@ -650,7 +652,41 @@ class Launcher:
                     if spec and spec.auto_restart and proc.exit_reason != "killed":
                         tag = next((t for t, s in self._specs.items() if s.agent_id == aid), aid)
                         threading.Thread(target=self._restart, args=(tag,), daemon=True).start()
+            for proc in still_running:
+                self._flag_dead_drainers(proc)   # RB-3: flag + one note; bus I/O stays off the lock
             self._check_auto_revive()      # L3b-auto: opt-in auto-revive of ARMED wedged agents (no-op if none armed)
+
+    def _flag_dead_drainers(self, proc):
+        """RB-3 (T029, observe-only): a drainer that died while its child still runs is the risk
+        state both fenced batteries feared. Verification demoted the catastrophe -- the drain
+        loop's blanket except + errors='replace' + finally: pipe.close() mean the child gets a
+        broken pipe, never an infinite block -- so this deliberately builds NO watchdog or
+        re-drainer. It makes the residual harm visible instead of silent: the live tail froze,
+        diagnostics degraded. Flags once + one supervisor note; clears at exit flush."""
+        if proc.drainer_dead or not proc.drainers:
+            return
+        dead = [t.name for t in proc.drainers if not t.is_alive()]
+        if not dead:
+            return
+        proc.drainer_dead = True
+        self._bus_note(f"[launcher] drainer(s) {', '.join(dead)} died while {proc.agent_id} "
+                       f"(pid {proc.pid}) is still running -- live tail frozen, diagnostics "
+                       f"degraded (RB-3 flag; clears at exit)")
+
+    def _flush_drainers(self, proc):
+        """Final flush at exit: join each drainer briefly so the tails catch the last output.
+        RB-3 (T029): a flush that outlives its join window is RECORDED -- a leaked grandchild
+        can hold a pipe open past the child's exit, so _classify_exit may be reading a partial
+        tail, and the record keeps that honest. The live-risk flag clears here: it means
+        dead-drainer-on-LIVE-child, and at exit drainers end by design."""
+        for t in (proc.drainers or []):
+            try:
+                t.join(timeout=DRAIN_FLUSH_JOIN_SEC)
+            except Exception:
+                pass
+        if any(t.is_alive() for t in (proc.drainers or [])):
+            proc.drain_flush_timeout = True
+        proc.drainer_dead = False
 
     def _check_auto_revive(self):
         """For each ARMED agent that is running + flagged wedged, spin an auto-revive. Opt-in: with

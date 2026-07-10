@@ -1149,20 +1149,35 @@
       "id": "T029",
       "title": "Resilience Battery execution (next sprint, from docs/resilience-battery-2026-07.md -- dual fenced design claude+deepseek): 6 priority tiers, each kill-condition test lands as a pytest or a graded live drill whose acceptance IS the failing test. Tier 1 pre-verified REAL: R15 forged-ledger_update injection (no sender check -- confirmed live) + R4/S1 drainer-death watchdog (converged both passes). Newborn Gauntlet = deepseek plays a quarantined new agent. Graded batteries pre-registered behind the fence.",
       "desc": "",
-      "owner": "",
+      "owner": "claude",
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
+      "status": "in_progress",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-10T04:44:04+00:00",
-      "updated": "2026-07-10T04:44:04+00:00",
+      "updated": "2026-07-10T05:19:30+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-10T04:44:04+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-10T05:19:29+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-10T05:19:30+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-07-10T05:19:30+00:00"
         }
       ]
     }

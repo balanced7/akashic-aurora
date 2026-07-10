@@ -68,10 +68,24 @@ MAX_TOKENS = int(os.environ.get("DEEPSEEK_RUNNER_MAX_TOKENS", "8000"))
 LEDGER_FOLDS: dict = {}
 
 
+# RB-1 (T029): the ledger's control plane has exactly ONE legitimate emitter. Folds key on
+# the `frm` stamped by Bus._emit -- the closest thing to identity without signed messages --
+# and NEVER on meta (sender-populated: a forger sets meta.via="conductor" and walks through;
+# deepseek fenced recon 2026-07-10). Honest bound: frm is unauthenticated today, so this is
+# defense-in-depth for a trusted fleet until identity is signed.
+CONTROL_PLANE_SENDERS = {"conductor"}
+
+
 def fold_ledger_update(msg) -> bool:
     """Store a ledger_update/resolved marker for the next turn (latest-per-task). Never
-    answered, never a wake -- pre-digested context, not a prompt (fold spec, echo rule)."""
+    answered, never a wake -- pre-digested context, not a prompt (fold spec, echo rule).
+    RB-1: folded ONLY from the conductor; any other sender is logged and ignored."""
     try:
+        frm = str(getattr(msg, "frm", "") or "")
+        if frm not in CONTROL_PLANE_SENDERS:
+            print(f"[deepseek-runner] DROP control-plane {getattr(msg, 'kind', '?')} "
+                  f"from {frm!r} -- only the conductor moves the ledger (RB-1)")
+            return False
         meta = getattr(msg, "meta", None) or {}
         tid = str(meta.get("task") or str(getattr(msg, "content", ""))[:24])
         LEDGER_FOLDS[tid] = str(getattr(msg, "content", ""))[:200]

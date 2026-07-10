@@ -2046,19 +2046,16 @@ def cmd_lookback(args):
 
 def cmd_bifrost_ack(args):
     """P6 (T026): durably record that YOU handled a salient bus message. Read != handled --
-    consuming advances a cursor; this records an actor and a moment. Self-ack is refused
-    (acking your own message is meaningless -- red-team rule)."""
-    from core.comm.promoter import ack, promoted
-    try:
-        ref = f"bifrost:{str(args.msg_id).strip()}"
-        mine = next((e for e in promoted(limit=200)
-                     if ref in (e.get("refs") or []) and
-                     (e.get("detail") or {}).get("frm") == args.agent_id), None)
-        if mine is not None:
-            print(f"ERROR: {args.agent_id} sent {ref} -- you cannot ack your own message.")
-            return 1
-    except Exception:
-        pass
+    consuming advances a cursor; this records an actor and a moment. RB-2 (T029): only the
+    ADDRESSEE settles an ask -- self-ack, third-party spoof, quarantined ids, and unpromoted
+    messages are all refused at promoter.ack_verdict, the single rule guarding every caller
+    (the old guard here scanned a 200-message page under try/except and could be
+    volume-defeated)."""
+    from core.comm.promoter import ack, ack_verdict
+    allowed, why = ack_verdict(args.agent_id, args.msg_id)
+    if not allowed:
+        print(f"ERROR: ack refused -- {why}")
+        return 1
     ok = ack(args.agent_id, args.msg_id, note=args.note or "")
     if args.json:
         print(json.dumps({"acked": ok, "msg_id": args.msg_id, "by": args.agent_id})); return 0 if ok else 1

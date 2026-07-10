@@ -36,9 +36,17 @@ class FakeQuery:
         return [e for e in self.events if e.get("kind") == kind][:top_k]
 
 
+def _promoted_rec(mid, frm="alice", to="claude", kind="handoff"):
+    """The bifrost_msg record RB-2's addressee rule resolves against."""
+    return {"kind": "bifrost_msg", "at": "t0", "refs": [f"bifrost:{mid}"],
+            "detail": {"frm": frm, "to": to, "kind": kind, "content": "please do X", "ts": "t0"}}
+
+
 def test_ack_writes_durable_ref():
     log = FakeLog()
-    assert promoter.ack("claude", "1783600000000-0", note="reviewed + merged", event_log=log)
+    q = FakeQuery([_promoted_rec("1783600000000-0", to="claude")])
+    assert promoter.ack("claude", "1783600000000-0", note="reviewed + merged",
+                        event_log=log, event_query=q)
     e = log.captured[0]
     assert e["kind"] == "msg_ack"
     assert e["refs"] == ["bifrost:1783600000000-0"]
@@ -110,11 +118,69 @@ def test_closed_ledger_task_suppresses_the_flag(monkeypatch):
 
 def test_ack_is_idempotent_per_actor():
     log = FakeLog()
-    existing = [{"kind": "msg_ack", "at": "t", "detail": {"by": "deepseek", "msg_id": "111-0", "note": ""}}]
+    # broadcast ask: multi-actor forensics stay legal (directed asks are addressee-only, RB-2)
+    existing = [_promoted_rec("111-0", frm="alice", to="*"),
+                {"kind": "msg_ack", "at": "t", "detail": {"by": "deepseek", "msg_id": "111-0", "note": ""}}]
     assert promoter.ack("deepseek", "111-0", event_log=log, event_query=FakeQuery(existing))
     assert log.captured == [], "same actor twice = no-op (re-wake double-answer guard)"
     assert promoter.ack("claude", "111-0", event_log=log, event_query=FakeQuery(existing))
     assert len(log.captured) == 1, "a DIFFERENT actor still records (forensics)"
+
+
+# ---- RB-2 (T029): an acknowledgement is accepted only from the message's addressee ------
+# The old door blocked only self-ack, via a 200-message page under try/except: pass. The
+# rule is now positive and lives in promoter.ack_verdict, guarding EVERY caller: sender
+# refused (self-ack), non-addressee refused (spoofed actor), broadcast accepts any
+# non-sender, quarantined/unknown ids refused, and a message with no promoted record is
+# refused (there is nothing for the ack to annotate). Ids are unauthenticated until signed
+# identity -- defense-in-depth, same honest bound as RB-1.
+
+def test_ack_refused_from_non_addressee():
+    log = FakeLog()
+    q = FakeQuery([_promoted_rec("m1", frm="alice", to="claude")])
+    assert not promoter.ack("deepseek", "m1", event_log=log, event_query=q)
+    assert log.captured == [], "a third id cannot settle someone else's ask"
+
+
+def test_ack_accepted_from_addressee():
+    log = FakeLog()
+    q = FakeQuery([_promoted_rec("m1", frm="alice", to="claude")])
+    assert promoter.ack("claude", "m1", event_log=log, event_query=q)
+    assert log.captured and log.captured[0]["detail"]["by"] == "claude"
+
+
+def test_sender_self_ack_refused_beyond_old_page_bound():
+    # 250 promoted records, target FIRST (oldest): the retired guard scanned promoted(200)
+    # and missed it; the verdict scan must still find it and refuse the sender.
+    recs = [_promoted_rec(f"pad-{i}", to="deepseek") for i in range(249)]
+    recs.append(_promoted_rec("old-1", frm="claude", to="deepseek"))
+    log = FakeLog()
+    assert not promoter.ack("claude", "old-1", event_log=log, event_query=FakeQuery(recs))
+    assert log.captured == [], "self-ack refusal must not be volume-defeatable"
+
+
+def test_broadcast_ack_accepts_any_non_sender():
+    q = FakeQuery([_promoted_rec("b1", frm="claude", to="*")])
+    assert promoter.ack("deepseek", "b1", event_log=FakeLog(), event_query=q)
+    assert not promoter.ack("claude", "b1", event_log=FakeLog(), event_query=q), \
+        "the sender still cannot settle its own broadcast ask"
+
+
+def test_ack_refused_for_quarantined_unknown_id():
+    q = FakeQuery([_promoted_rec("b2", frm="claude", to="*")])
+    assert not promoter.ack("rogue-agent", "b2", event_log=FakeLog(), event_query=q)
+
+
+def test_ack_refused_when_message_not_promoted():
+    assert not promoter.ack("claude", "ghost-1", event_log=FakeLog(), event_query=FakeQuery([]))
+
+
+def test_ack_verdict_reasons_teach():
+    q = FakeQuery([_promoted_rec("m1", frm="alice", to="claude")])
+    ok, why = promoter.ack_verdict("deepseek", "m1", event_query=q)
+    assert not ok and "claude" in why, "the refusal names the addressee"
+    ok, why = promoter.ack_verdict("claude", "m1", event_query=q)
+    assert ok
 
 
 def test_runner_auto_acks_answered_handoff_only(monkeypatch):

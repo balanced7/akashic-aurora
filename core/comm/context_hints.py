@@ -56,6 +56,18 @@ def push(agent: str, key: str, value: str, *, from_agent: str = "?") -> bool:
     if not key or not value:
         return False
 
+    # RB-1 (T029): hints render under a "treat as authoritative" header, so the fold door
+    # accepts them only from a sender whose trust grant can send kind="hint" (unknown /
+    # quarantined / expired ids fail closed via resolve()). `from_agent` mirrors the
+    # bus-stamped frm; meta contents are never consulted. A broken trust door also drops:
+    # losing an advisory hint is cheap, folding forged authoritative context is not.
+    try:
+        from core.trust.registry import resolve
+        if not resolve(str(from_agent)).can_send_kind("hint"):
+            return False
+    except Exception:
+        return False
+
     buf = _hints.setdefault(str(agent), deque(maxlen=HINT_MAX_PER_AGENT))
     buf.append((key, value, str(from_agent), time.time()))
     return True
