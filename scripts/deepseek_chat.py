@@ -459,7 +459,9 @@ class ToolBox:
         if b is None:
             return "ERROR: not on a Bifrost bus in this mode (no agent identity, or Redis offline)."
         to = str(to).strip().lower()
-        text = str(text)[:4000]
+        text = str(text)
+        if len(text) > 4000:   # RB-5 class: a bound must CONFESS, never clip silently
+            text = text[:3900] + "\n[clipped at 4000 chars -- full content did NOT send; resend in chunks]"
         meta = {"via": f"{self.agent_id}-tool", "hops": 0}
         try:
             if to in ("*", "all", "both", ""):
@@ -499,7 +501,9 @@ class ToolBox:
         to = str(to).strip().lower()
         if to in ("*", "all", "both", ""):
             return "ERROR: a nudge must target one agent (e.g. 'claude'), not a broadcast."
-        text = str(text)[:4000]
+        text = str(text)
+        if len(text) > 4000:   # RB-5 class: a bound must CONFESS, never clip silently
+            text = text[:3900] + "\n[clipped at 4000 chars -- full content did NOT send; resend in chunks]"
         try:
             from core.comm import nudge as _nudge
             _nudge.nudge(to, by=self.agent_id, reason=text[:80])
@@ -520,7 +524,9 @@ class ToolBox:
         to = str(to).strip().lower()
         if to in ("*", "all", "both", ""):
             return "ERROR: a steer must target one agent (e.g. 'claude'), not a broadcast."
-        text = str(text)[:4000]
+        text = str(text)
+        if len(text) > 4000:   # RB-5 class: a bound must CONFESS, never clip silently
+            text = text[:3900] + "\n[clipped at 4000 chars -- full content did NOT send; resend in chunks]"
         try:
             from core.comm import nudge as _nudge
             _nudge.steer_push(to, self.agent_id, text)
