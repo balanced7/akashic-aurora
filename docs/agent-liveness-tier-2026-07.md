@@ -209,3 +209,33 @@ convergence + explicit deepseek reviewer-mode spec.
 6. Methodology upgrade (Regehr, both halves): dual passes vary the METHOD, not just the
    analyst -- one static (code-read) one dynamic (drill/trace), or top-down vs
    bottom-up; fencing alone leaves shared-method blind spots.
+
+## L2 BUILD SPEC (reconciled from the dual targeted read, 2026-07-11 -- SRE alerting +
+## sd_notify sources; halves: claude-l2-reading-2026-07-11.md + deepseek's bus verdict)
+This round the fence EARNED its keep: three divergences, deepseek's side adopted on two.
+
+1. RB-27a pulse: worker thread writes bifrost:progress:<agent> every ~2s, TTL 5s
+   (sd_notify half-TTL convention). The pulse VALUE carries the tenure's LOCK GENERATION
+   (deepseek: reuses the L1b fence as the writer gate -- a stale tenure's pulse is
+   self-identifying; no new access mechanism). Caught-fatal writes an explicit
+   "trigger:<reason>" value (WATCHDOG=trigger equivalent: self-confessed failure renders
+   differently from silent hang). Worklive phase vocabulary EXTENDS (deepseek, adopted
+   over claude's reject) with starting / draining / error:<reason> -- boot-time wedge,
+   hung shutdown, and mid-run wedge are different responses on the same key shape.
+2. RB-27b doctor -- the paging table (SRE five-questions litmus, reconciled):
+     PAGE-GRADE (bus note, the ONLY two):
+       HARD WEDGE: phase=handling AND pulse dead -> worker died inside a turn; not
+         self-healing; actionable (revive).
+       STALLED CONSUMER: idle/online AND unread backlog older than N doctor ticks
+         (claude's hysteresis as the mechanism, deepseek's aged-backlog as the trigger).
+     BOOT-LINE/BANNER: fleet frozen (leftover pause + provenance -- deliberate config
+       state, not an emergency; deepseek adopted over claude's page-grade).
+     DASHBOARD ONLY: wedged-with-live-pulse (long legit work, F2), SUSPECTED MAIL LOSS
+       (deepseek, adopted: RB-26 auto-heals it on the next tenure -- paging would
+       duplicate the automation; SRE: automate rote responses, don't page them),
+       UNHANDLED (hours-scale, already surfaced).
+   Doctor output: one line when healthy; every state line carries its drill-down
+   command; fixed named thresholds (no auto-threshold magic); bus notes ONLY for the
+   two page-grade states.
+3. Deferred, named: per-phase grace map for F2 (before phi-accrual); EXTEND_TIMEOUT
+   rejected outright (the watched thing must not move its own goalposts).

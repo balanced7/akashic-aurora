@@ -22,10 +22,13 @@ import time
 import uuid
 from typing import Optional
 
+from core.comm.timescale import scaled
+
 NS = "bifrost"
 LOCK_PREFIX = f"{NS}:runner:"
 GEN_PREFIX = f"{NS}:generation:"   # L1b: monotone fencing-token source, INCR per acquisition
-LOCK_TTL = 20            # seconds; the heartbeat must refresh well within this
+LOCK_TTL = scaled(20)    # seconds; the heartbeat must refresh well within this
+                         # (drill-shrinkable via AKASHIC_TIMEOUT_MULTIPLIER)
 
 # L1b (T030, Kleppmann): each acquisition mints a GENERATION -- the fencing token the
 # guarded cursor write validates AT THE RESOURCE. This process's tenure generations,

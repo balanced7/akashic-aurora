@@ -53,7 +53,8 @@ ANSWERABLE = frozenset({"chat", "request", "question", "handoff", "nudge", "info
 # T014: reply timeout guard -- a hung API call must not wedge the runner forever.
 # The API client already has a socket timeout (L0), but we add a wall-clock deadline
 # via threading so even a stuck stream can't block the main loop beyond this window.
-REPLY_TIMEOUT_SEC = 600   # 10 min; generous for a long agentic tool chain, but never unbounded
+from core.comm.timescale import scaled as _scaled
+REPLY_TIMEOUT_SEC = _scaled(600)   # 10 min; drill-shrinkable (AKASHIC_TIMEOUT_MULTIPLIER)
 # T018: explicit completion headroom. v4-pro is a REASONING model -- with no explicit cap the
 # provider default gets eaten by internal reasoning, and a long tool turn wraps up in a short
 # promise instead of the deliverable (reasoning_model_token_headroom; seen live 2026-07-09).

@@ -24,15 +24,18 @@ import os
 import threading
 import time
 
+from core.comm.timescale import scaled as _scaled
+
 NS = "bifrost"
 WORKLIVE_PREFIX = f"{NS}:worklive:"
-WORKLIVE_TTL = 45          # > the ~5s heartbeat refresh, so a live record never flaps; a wedge keeps it alive
+WORKLIVE_TTL = _scaled(45)  # > the ~5s heartbeat refresh, so a live record never flaps; a wedge
+                            # keeps it alive (drill-shrinkable via AKASHIC_TIMEOUT_MULTIPLIER)
 
 # Phases that mean "not doing work" -- never counted as a wedge no matter how long they last.
 IDLE_PHASES = {"idle", "online", "replied"}
 # Time in a NON-idle phase beyond which we FLAG (not kill) a suspected wedge. Deliberately past L0's
 # worst-case self-heal (read-timeout x retries ~= a few minutes) so "wedged" means "L0 didn't fix it".
-DEFAULT_WEDGE_S = float(os.getenv("BIFROST_WEDGE_SECONDS", "300"))
+DEFAULT_WEDGE_S = _scaled(float(os.getenv("BIFROST_WEDGE_SECONDS", "300")), floor=1)
 
 
 def _client():
