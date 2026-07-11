@@ -528,33 +528,41 @@ def _process_one(m, bus, args, responder, rate) -> None:
         # its print wedged before the note ever reached the bus. Log lines are deferred
         # until after the reply is on the wire.
         log_note = ""
-        if not finished:
-            out = (f"(deepseek runner timed out after {REPLY_TIMEOUT_SEC}s -- "
-                   f"the API call was abandoned to keep the runner alive)")
+        nonanswer = False           # RB-29 live finding 2026-07-11: a timeout/error reply
+        if not finished:            # CLEARED the sender's expectation (FIFO) and, with
+            nonanswer = True        # answers-meta, would clear EXACTLY -- a non-answer
+            out = (f"(deepseek runner timed out after {REPLY_TIMEOUT_SEC}s -- "     # must
+                   f"the API call was abandoned to keep the runner alive)")         # not
             log_note = f"[deepseek-runner] !! TIMEOUT for {m.frm} after {REPLY_TIMEOUT_SEC}s"
         else:
             result = result_holder[0] if result_holder else "(deepseek runner: no result)"
             if isinstance(result, Exception):
+                nonanswer = True
                 out = f"(deepseek runner error: {type(result).__name__}: {result})"
                 log_note = f"[deepseek-runner] !! error from responder: {type(result).__name__}: {result}"
             else:
                 out = str(result)
         # RB-29: "answers" links this reply to the message it answers -- the sender's
         # expectation sweep clears EXACTLY (FIFO fallback covers agents without it).
-        reply_meta = {"via": f"{args.agent}-runner", "model": args.model, "hops": hops,
-                      "answers": m.id}
+        # Timeout/error outcomes go out as kind="note" WITHOUT the answers link: the sweep
+        # only clears on kind="reply", so the expectation stays armed and the redrive
+        # fires -- same doctrine as T026 (a timeout reply never acks a handoff).
+        reply_kind = "note" if nonanswer else "reply"
+        reply_meta = {"via": f"{args.agent}-runner", "model": args.model, "hops": hops}
+        if not nonanswer:
+            reply_meta["answers"] = m.id
         # Channel mirror: a message that arrived by BROADCAST is replied by broadcast, so the
         # whole group (Claude + the console) sees it -- not just the sender. Direct stays direct.
         if str(m.to) == "*":
-            bus.broadcast("reply", out, meta=reply_meta)
+            bus.broadcast(reply_kind, out, meta=reply_meta)
             dest = "*(broadcast -> all)"
         else:
-            # T014: directed reply lands in the requester's inbox. We use kind="reply"
-            # (deliberately not in ANSWERABLE) so no runner<->runner echo loop is possible.
-            # The recipient can still SEE it via peek/consume -- the filter is on ANSWERING,
-            # not visibility. The defect was the recipient's runner consuming it silently
-            # (wait(advance=True) + should_answer filter = consume-without-display).
-            bus.send(m.frm, "reply", out, meta=reply_meta)
+            # T014: directed reply lands in the requester's inbox. kind="reply" (or "note"
+            # for non-answers, RB-29) -- neither is in ANSWERABLE, so no runner<->runner
+            # echo loop is possible. The recipient can still SEE it via peek/consume --
+            # the filter is on ANSWERING, not visibility. The defect was the recipient's
+            # runner consuming it silently (wait(advance=True) + should_answer filter).
+            bus.send(m.frm, reply_kind, out, meta=reply_meta)
             dest = m.frm
         killpoint("post-send-pre-sentinel")
         _mark_reply_sent(bus, m.id)   # RB-26: dedup sentinel BEFORE the cursor commits

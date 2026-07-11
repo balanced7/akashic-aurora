@@ -149,6 +149,28 @@ def test_linked_reply_clears_exactly_and_survives_consumption(pair):
     assert res2["cleared"] == [first], "unlinked reply clears the OLDEST (FIFO fallback)"
 
 
+# --- P7 (post-incident registration, 2026-07-11: the T030 gate ask's own 600s runner
+#     TIMEOUT reply cleared the expectation guarding it -- a non-answer masquerading as
+#     the answer; that live incident is this pin's RED): non-answers never clear ---
+
+def test_nonanswer_note_does_not_clear(pair):
+    s, r = pair
+    t0 = time.time()
+    orig = _arm(s, r, within=60)
+    Bus(r).send(s, "note", "(runner timed out -- api call abandoned)")
+    res = expectations.sweep(s, now=t0 + 10)
+    assert res["cleared"] == [], \
+        "kind=note is a NON-answer: the expectation stays armed and the redrive will fire"
+
+
+def test_runner_sends_nonanswers_as_notes():
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    src = open(os.path.join(root, "scripts", "bifrost_runner_deepseek.py"),
+               encoding="utf-8").read()
+    assert 'reply_kind = "note" if nonanswer else "reply"' in src, \
+        "timeout/error outcomes ship as kind=note without the answers link (T026 doctrine)"
+
+
 # --- P6: the doors are wired (built != wired) ---
 
 def test_doors_wired():
