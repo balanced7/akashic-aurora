@@ -5,7 +5,7 @@
 [![CI](https://github.com/balanced7/akashic-aurora/actions/workflows/ci.yml/badge.svg)](https://github.com/balanced7/akashic-aurora/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](#quickstart)
-[![Tests](https://img.shields.io/badge/tests-733%20green-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-1196%20green-brightgreen.svg)](tests/)
 
 Most agent memory answers *"what did we store?"* and is graded on retrieval quality. Whether a remembered lesson actually **changed what the agent did — and whether that helped** — usually goes unmeasured, because measuring it takes three things at once: injection at the moment of action, an outcome record, and a credit loop connecting them.
 
@@ -96,7 +96,8 @@ Each layer builds strictly on the one below; a CI boundary checker fails the bui
 
 ```
 S5  INTERFACE     agent_cli.py (one self-describing CLI) · the same verbs as MCP tools ·
-                  recall-at-action hooks · Bifrost cross-agent bus · advisory locks
+                  recall-at-action hooks · Bifrost cross-agent bus · advisory locks ·
+                  per-session wake seats · fenced single-consumer cursors
 S4  PROJECTIONS   narrative spine (Beat→Chapter→Track→Atlas: the time-axis view —
                   session events distilled into a regenerable story) · tag CRDT ·
                   shared primitives: Ranker · Distiller · Consolidator · Faithfulness critic
@@ -108,32 +109,44 @@ S0  FOUNDATION    Store ("what IS true")  +  Ledger ("what HAPPENED, in order")
 Design rules that hold it together (the full set, each with the episode that earned it, is [`docs/PRINCIPLES.md`](docs/PRINCIPLES.md)):
 
 - **One immutable substrate, many projections.** Raw records are append-only and never rewritten; everything readable (tags, chapters, digests) is regenerable *from* them. Corrections supersede; they never delete.
-- **Multi-agent by default.** Claude and Cursor share the same lessons, message bus, and advisory locks on one repo — any agent, any task, no permanent ownership. What each runtime's hooks can actually deliver is documented honestly, tier by tier, in [`docs/integration-tiers.md`](docs/integration-tiers.md) (`py agent_cli.py harnesses` prints the live matrix).
+- **Multi-agent by default.** Claude, a DeepSeek runner, and Cursor share the same lessons, message bus, task ledger, and advisory locks on one repo — any agent, any task, no permanent ownership, and load-bearing changes gated by a *different* model's review. What each runtime's hooks can actually deliver is documented honestly, tier by tier, in [`docs/integration-tiers.md`](docs/integration-tiers.md) (`py agent_cli.py harnesses` prints the live matrix).
 - **Fail soft, everywhere.** Redis down, embeddings absent, bus unreachable — every path degrades instead of breaking the agent, and a hook must never brick the action it decorates.
 - **Names must not lie.** The vocabulary is written down ([`docs/LEXICON.md`](docs/LEXICON.md)) and enforced by guardrail scripts in CI.
 
 ## What's proven, tested, and not yet
 
-Built in small **test-gated slices** — no capability lands without the test that proves it. **733 tests** run on every push (full suite + boundary checker + door-parity and built-≠-wired reachability gates + doc-freshness guard, against a live Redis service).
+Built in small **test-gated slices** — no capability lands without the test that proves it. **1,196 tests** run on every push (full suite + boundary checker + door-parity and built-≠-wired reachability gates + doc-currency guard, against a live Redis service). The ship pipeline now also enforces the *method* itself: acceptance tests must be committed **before** the code they gate, and any commit that claims a review verdict must cite the preserved verbatim record it rests on. Trust the gates, not the author.
 
 **Proven live (not just unit-tested)**
 - The full recall loop, end to end: surface → impression → transcript-synthesized failure → outcome credit. First credited flip landed 2026-07-01, in-session, and the payload contract is pinned to live-captured fixtures.
 - A **free local model as a first-class agent**: glm-4.7-flash behind the same Claude Code harness ran real repo commands with every hook firing and its lessons attributed — then worked a 7-task research shift overnight, unattended (5 articles accepted at review; the 3 failures were all the same diagnosable cause, now encoded back into the task format).
-- **The system measures its own memory**: from live counters, a 47-lesson corpus has drawn 26 outcome credits across ~2,700 surfaced impressions (a 1.1% value rate), while `py agent_cli.py triage` flags dozens of lessons that surface five-plus times yet never pay off. Internal numbers, small corpus — but they exist, and they steer what we curate next.
+- **The system measures its own memory**: from live counters, a 92-lesson corpus has drawn 34 outcome credits (plus 9 explicit useful-votes) across ~1,050 tracked surfaced impressions — a 4.1% value rate — while `py agent_cli.py triage` flags lessons that surface five-plus times yet never pay off. Internal numbers, small corpus — but they exist, and they steer what we curate next.
+- **The coordination substrate survives its own kill drills.** Two agents (Claude + a DeepSeek runner) share one repo, one message bus, and one task ledger. That layer is now drill-proven, not just tested: a second session for one agent id *stands down* instead of silently eating the first one's mail (live contention drill — built after a real incident where a twin session ate six deliveries overnight); a runner killed mid-batch redelivers exactly once (fencing generations, validated at the resource); a killed Redis degrades with capped backoff and a clean stand-down instead of an invisible spin (kill-Redis drill, transcript preserved). Every slice of that layer was design-reviewed and verify-gated by the *other* model before it shipped — the verdicts are in [`research/reviewed/`](research/reviewed/), verbatim.
 
 **Solidly tested**
-- Foundation (all three backends, CAS/atomic update, time unification, supersession) · shared primitives (Ranker, Distiller, Consolidator, faithfulness critic) · narrative spine (~100 tests incl. a fuzzed CRDT) · events · Bifrost bus + locks + git-guard · the governed coordination substrate (task-ledger state machine + conductor) · recall ranking, anti-repeat, warm cache, usefulness factor · the CLI/MCP door ("no silent verb" is itself a test).
+- Foundation (all three backends, CAS/atomic update, time unification, supersession — including a cross-backend differential harness that caught a real ordering divergence on its first run) · shared primitives (Ranker, Distiller, Consolidator, faithfulness critic) · narrative spine (~100 tests incl. a fuzzed CRDT) · events · Bifrost bus + locks + git-guard · the governed coordination substrate (task-ledger state machine + conductor, per-session wake seats, single-consumer cursor discipline, reply deadlines with automatic redrive) · recall ranking, anti-repeat, warm cache, usefulness factor · the CLI/MCP door ("no silent verb" is itself a test).
 
 **Tested with honest caveats**
 - The faithfulness critic is characterized for zero false-positives on today's extractive output; discrimination on abstractive (LLM-written) text is unproven until an LLM writer exists.
 - Embeddings pass unit + ablation gates but are **off by default**; the always-on path is deterministic.
-- Concurrency mechanisms are unit-tested; a sustained two-process race at scale is not continuously exercised.
+- Concurrency is drill-proven at incident scale (contention, mid-batch kill, bus loss), not yet at *duration* — the ~72-hour idle soak is a named, queued exam, not a done one.
 
 **Not yet**
 - The Codex curator loop (topic-axis self-curation) — parts built and tested, the loop that ties them is queued.
 - Whether surfaced lessons improve outcomes *at scale* — the credit mechanism is live; the numbers now need field time. The measurement plan (a replay benchmark over the append-only ledger) is [`docs/leapfrog-plan.md`](docs/leapfrog-plan.md).
 
 Skeptical by now? Good — the hard questions (*isn't this just RAG? where are the benchmarks? what's actually novel?*) are answered head-on in [`docs/FSQ.md`](docs/FSQ.md), and [Discussion #2](https://github.com/balanced7/akashic-aurora/discussions/2) is open for the ones we missed.
+
+## Roadmap
+
+The rule this repo works by: engine first, interface after — nothing user-facing gets built on a substrate that hasn't been made to fail on purpose. In order:
+
+1. **The engine exam** (next). Four systemic drills against the live fleet, run as one graded battery with pre-registered evidence bars: a *newborn agent* must reach one correct contribution using nothing but boot output and the agent contract, and be refused correctly by every gated door it touches; a *concurrency storm* (dual watchers, dual runners, one killed mid-burst) must lose nothing unacknowledged; a *store-divergence heal* must pick the right side and say why; and the **~72h idle soak** covers the duration leg the caveat above names.
+2. **Interface re-grounding.** The multi-agent mission-control view (live traces, reasoning cards, fidelity-graded signalling between agents) gets re-derived from cached design sources and an honest audit of what's actually built — then rebuilt in gated slices. The engine exam is deliberately its gate.
+3. **Runtime registry.** Today's tuning knobs live in three uncoordinated places (env vars, module constants, control keys). They consolidate into one audited `settings:` namespace on the existing store — every flip a ledger event, flip authority ACL-gated, with a guard against bare-constant creep. Designed as zero new primitives; build also gated behind the exam.
+4. **Further out, each behind its own gate:** the Codex curator loop (topic-axis self-curation — parts built, the tying loop queued); narrative spine wave 2; structure-based lesson retrieval (ships nothing if it can't beat our own baseline on held-out lessons); and the replay benchmark over the append-only ledger ([`docs/leapfrog-plan.md`](docs/leapfrog-plan.md)) — the at-scale answer to whether any of this actually helps.
+
+The living, machine-readable version of this list is the task ledger itself (`py agent_cli.py task list`) — the ledger, not this README, is what the agents obey.
 
 ## The fleet
 
