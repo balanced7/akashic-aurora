@@ -475,11 +475,14 @@ def _process_one(m, bus, args, responder, rate) -> None:
         print(f"[deepseek-runner] loop-guard: hops>={control.MAX_HOPS}; not answering {m.frm}")
         return
     if not rate.allow():                          # backstop: too many replies too fast
-        control.pause(reason=f"{args.agent} hit reply rate limit", by=args.agent)
+        # RB-30: the AUTO-pause carries a ttl -- a forgotten backstop self-heals instead
+        # of freezing the fleet forever (human pauses stay ttl-less by design).
+        control.pause(reason=f"{args.agent} hit reply rate limit", by=args.agent,
+                      ttl=int(_scaled(3600)))
         bus.send(m.frm, "note",
-                 "[loop-guard] reply rate limit hit -- auto-paused. Resume when ready.",
+                 "[loop-guard] reply rate limit hit -- auto-paused (self-heals in <=1h). Resume when ready.",
                  meta={"via": f"{args.agent}-runner", "hops": hops})
-        print("[deepseek-runner] rate limit -> auto-paused")
+        print("[deepseek-runner] rate limit -> auto-paused (ttl 1h)")
         return
     prompt = m.content if isinstance(m.content, str) else str(m.content)
     print(f"[deepseek-runner] <- {m.frm} [{m.kind}] (hop {hops}): {prompt[:80]}")
@@ -703,8 +706,19 @@ def main() -> int:
     lock_gen = runner_lock.generation_of(lock_token)   # L1b: this tenure's fencing token
     PULSE_GEN[0] = lock_gen                            # RB-27a: the pulse carries it too
     liveness.worklive(args.agent).set("idle")          # loop entered: startup survived
+    bus_guard = liveness.BusLossGuard(max_dead=10)     # RB-30 B2: no invisible bus-less spin
     try:
         while True:
+            verdict = bus_guard.beat(bus.probe())   # probe(), NOT online -- online never flips mid-run
+            if verdict == "stand_down":
+                print(f"[deepseek-runner] bus LOST for {bus_guard.max_dead} consecutive beats -- "
+                      f"standing down cleanly (relaunch when Redis returns).")
+                return 4
+            if verdict == "degraded":
+                print(f"[deepseek-runner] bus unreachable (dead beat {bus_guard.dead_beats}/"
+                      f"{bus_guard.max_dead}) -- backing off {bus_guard.backoff_s}s.")
+                time.sleep(bus_guard.backoff_s)
+                continue
             if not runner_lock.heartbeat(args.agent, lock_token):  # another runner took over -> stand down
                 print(f"[deepseek-runner] lost the singleton lock for '{args.agent}' -- another runner is "
                       "live. Standing down to avoid a cursor race.")

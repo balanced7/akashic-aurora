@@ -141,9 +141,16 @@ def peek_locks(agent_id: str) -> List[Dict[str, Any]]:
 
 
 def collect_boot_bifrost(agent_id: str, limit: int = 8) -> Dict[str, Any]:
-    """Presence + unread peek + held locks for boot() / bifrost-sync."""
+    """Presence + unread peek + held locks for boot() / bifrost-sync.
+    RB-30: a leftover pause is surfaced LOUDLY here (the pull floor every turn touches)."""
     pres = register_presence(agent_id)
     msgs = peek_inbox(agent_id, limit=limit)
+    pause_line = ""
+    try:
+        from core.comm.control import format_pause_line, pause_status
+        pause_line = format_pause_line(pause_status())
+    except Exception:
+        pass
     return {
         "bus_online": pres["online"],
         "presence_registered": pres["registered"],
@@ -151,6 +158,7 @@ def collect_boot_bifrost(agent_id: str, limit: int = 8) -> Dict[str, Any]:
         "pending": len(msgs),
         "messages": msgs,
         "locks": peek_locks(agent_id),
+        "pause_line": pause_line,
     }
 
 
@@ -173,6 +181,8 @@ def format_digest_line(msg: Dict[str, Any]) -> str:
 
 def print_boot_bifrost_section(block: Dict[str, Any]) -> None:
     print("\n## UNREAD BIFROST (live bus)")
+    if block.get("pause_line"):
+        print(f"  {block['pause_line']}")   # RB-30: a frozen fleet announces itself first
     if not block.get("bus_online"):
         print("  (bus OFFLINE -- Redis unreachable; durable mail still in promoted() / events)")
         return

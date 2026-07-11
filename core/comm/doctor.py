@@ -225,6 +225,13 @@ def examine_fleet(agents: Optional[List[str]] = None, *,
                    f"{sum(1 for f in findings if f['grade'] == 'banner')} banner, "
                    f"{sum(1 for f in findings if f['grade'] == 'dashboard')} dashboard "
                    f"across {len(agents)} agent(s)")
+    try:
+        from core.comm.control import format_pause_line, pause_status
+        pause_line = format_pause_line(pause_status())
+        if pause_line:
+            summary = f"{pause_line}\n{summary}"   # RB-30: a frozen fleet outranks health counts
+    except Exception:
+        pass
     if page_notes and pages:
         _emit_pages(pages)
     return {"agents": agents, "findings": findings, "pages": pages, "summary": summary}

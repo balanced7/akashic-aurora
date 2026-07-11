@@ -54,16 +54,38 @@ def _client():
 
 
 # ------------------------------------------------------------------ pause
-def pause(reason: str = "", by: str = "user") -> bool:
-    """Freeze the auto-responders. Idempotent. Returns False if the bus is offline."""
+def pause(reason: str = "", by: str = "user", ttl: Optional[int] = None) -> bool:
+    """Freeze the auto-responders. Idempotent. Returns False if the bus is offline.
+    RB-30 (T030 L5): `ttl` seconds makes the pause SELF-HEAL -- automated backstops
+    (rate-limit guards) must never freeze the fleet forever if everyone forgets them.
+    None = persistent until an explicit resume (human intent stays human)."""
     c = _client()
     if c is None:
         return False
     try:
-        c.set(PAUSE_KEY, json.dumps({"reason": reason, "by": by, "ts": _now()}))
+        c.set(PAUSE_KEY, json.dumps({"reason": reason, "by": by, "ts": _now()}),
+              ex=int(ttl) if ttl else None)
         return True
     except Exception:
         return False
+
+
+def format_pause_line(status: Dict[str, Any], now: Optional[float] = None) -> str:
+    """PURE render of pause_status() (RB-30 H5): a leftover freeze must be LOUD at every
+    surface that renders fleet state (boot, bifrost-sync, fleet doctor). Age is computed
+    AT RENDER from the stored ts -- the store stays clock-free (T025 doctrine). Returns
+    "" when not paused so callers can `if line: print(line)`."""
+    if not status.get("paused"):
+        return ""
+    age = "?"
+    try:
+        then = time.mktime(time.strptime(str(status.get("ts", "")), "%Y-%m-%dT%H:%M:%S"))
+        mins = max(0, int(((now if now is not None else time.time()) - then) / 60))
+        age = f"{mins // 60}h{mins % 60:02d}m" if mins >= 60 else f"{mins}m"
+    except Exception:
+        pass
+    return (f"!! PAUSED (by {status.get('by', '?')}: {status.get('reason') or 'no reason given'}, "
+            f"{age} old) -- auto-responders frozen; resume: py agent_cli.py bifrost-resume")
 
 
 def resume(targets=None) -> bool:

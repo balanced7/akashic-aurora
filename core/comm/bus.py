@@ -146,8 +146,21 @@ class Bus:
     # ------------------------------------------------------------------ identity / health
     @property
     def online(self) -> bool:
-        """True iff the live bus (Redis) is reachable. When False, sends are no-ops returning None."""
+        """True iff the live bus (Redis) is reachable. When False, sends are no-ops returning None.
+        NOTE: a construction-time fact -- the client object outlives a dead server. For
+        'is Redis there NOW' use probe() (RB-30: wiring a loop guard to `online` was the
+        invisible-spin bug's shape -- it can never flip mid-run)."""
         return self._client is not None
+
+    def probe(self) -> bool:
+        """LIVE reachability: one PING, False on any failure. The RB-30 BusLossGuard's
+        ground truth -- cheap enough for once per runner loop beat."""
+        if self._client is None:
+            return False
+        try:
+            return bool(self._client.ping())
+        except Exception:
+            return False
 
     def status(self) -> Dict[str, Any]:
         return {"online": self.online, "agent_id": self.agent_id, "pending": self.pending()}

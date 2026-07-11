@@ -47,6 +47,30 @@ def _client():
         return None
 
 
+class BusLossGuard:
+    """RB-30 B2 (T030 L5): a runner that loses Redis must DEGRADE VISIBLY and stand down
+    after `max_dead` consecutive dead beats -- never spin invisible (the heartbeat's
+    fail-open made a bus-less runner look alive forever: presence expired, worklive
+    expired, loop still burning CPU). Pure decision core: the caller sleeps `backoff_s`
+    between dead beats and exits cleanly on 'stand_down'. One live beat resets fully."""
+
+    def __init__(self, max_dead: int = 10):
+        self.max_dead = int(max_dead)
+        self.dead_beats = 0
+        self.backoff_s = 0
+
+    def beat(self, online: bool) -> str:
+        if online:
+            self.dead_beats = 0
+            self.backoff_s = 0
+            return "ok"
+        self.dead_beats += 1
+        if self.dead_beats >= self.max_dead:
+            return "stand_down"
+        self.backoff_s = min(30, 2 ** (self.dead_beats - 1))   # 1,2,4,8,16,30,30,... capped
+        return "degraded"
+
+
 class WorkLive:
     """Per-agent phase tracker. ``set()`` is called from the work path on a phase change;
     ``refresh()`` is called from the heartbeat thread to keep the record alive and ageing."""
