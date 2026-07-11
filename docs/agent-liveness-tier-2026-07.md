@@ -186,13 +186,18 @@ convergence + explicit deepseek reviewer-mode spec.
    Honest remaining window: post-advance-to-pre-next-heartbeat (~5s), 4x smaller than
    the unfenced E1 window; named, not hidden.
 3. Dedup (all answerable kinds, not just handoffs): reply_sent:<msg_id> sentinel (TTL
-   REPLY_TIMEOUT_SEC+60) set AFTER bus.send succeeds, BEFORE cursor advance; redelivery
-   checks sentinel then the P6 ack tier (handoffs). Crash windows analyzed: send->
-   sentinel = duplicate reply accepted (chat only); sentinel->advance = redelivered,
-   sentinel fires, skip. Effectively-once for asks, at-least-once everywhere.
+   REPLY_TIMEOUT_SEC+60) set AFTER bus.send succeeds, BEFORE cursor advance. The
+   sentinel is THE dedup gate (verify-corrected wording: it is set for handoffs too);
+   the P6 ack tier is the DURABILITY record, not a second dedup check -- past the
+   sentinel's TTL the sender has long moved on. Crash windows analyzed: send->sentinel
+   = duplicate reply accepted (chat-grade, pinned as W3 tolerance); sentinel->advance =
+   redelivered, sentinel fires, loud skip. Effectively-once for asks, at-least-once
+   everywhere.
 4. Drill harness (acceptance): five killpoint(name) sites (os._exit(137) when
-   AKASHIC_KILLPOINT matches): post-consume-pre-process / post-phase-flip-pre-send /
-   between-batch-messages / post-reply-pre-advance / post-advance-pre-ack. Harness
+   AKASHIC_KILLPOINT matches), AS-BUILT names (verify-corrected: the sentinel split is
+   more granular than the draft's post-reply/post-advance pair, and the ack lands inside
+   _process_one BEFORE the advance): post-consume-pre-process / post-phase-flip-pre-send
+   / post-send-pre-sentinel / post-sentinel-pre-advance / between-batch-messages. Harness
    phases SETUP->EXECUTION->CHECK->METRICS; CHECK = invariants + ReferenceBus
    comparison (pure-dict mirror of send/deliver/reply/ack/cursor -- catches off-by-one
    the invariants miss); AKASHIC_TIMEOUT_MULTIPLIER shrinks timeouts BUGGIFY-style;
