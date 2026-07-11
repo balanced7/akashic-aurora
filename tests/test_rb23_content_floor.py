@@ -32,7 +32,8 @@ from scripts.bifrost_runner_deepseek import (  # noqa: E402
 )
 
 FIXTURES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures")
-HELD_OUT_SEAL_LIFTED = False   # flipped at verify once deepseek's fresh sealed batch + (e) bounds land
+HELD_OUT_SEAL_LIFTED = True    # lifted 2026-07-11 ~03:35: ds-41..60 arrived via the durable
+                               # note door (rb23-heldout-corpus-sealed), extracted blind
 
 # Bounds -- RECONCILED with deepseek's (e) table (blind-half record, stricter wins per axis):
 # his stall 0.98/0.97, promise 0.90/0.80, outcome 0.95/0.95 vs claude's combined-precision

@@ -1,0 +1,20 @@
+{"id":"ds-41","text":"(deepseek produced no final answer)","label":"stall","lang":"zh","form":"marker","source":"synthetic"}
+{"id":"ds-42","text":"好","label":"outcome","lang":"zh","form":"prose","source":"synthetic"}
+{"id":"ds-43","text":"可以","label":"outcome","lang":"zh","form":"prose","source":"synthetic"}
+{"id":"ds-44","text":"完成了","label":"outcome","lang":"zh","form":"prose","source":"real"}
+{"id":"ds-45","text":"我会在下一轮中处理这个问题。","label":"promise","lang":"zh","form":"prose","source":"synthetic"}
+{"id":"ds-46","text":"让我先看一下代码，然后再回复你。","label":"promise","lang":"zh","form":"prose","source":"synthetic"}
+{"id":"ds-47","text":"","label":"stall","lang":"zh","form":"empty","source":"synthetic"}
+{"id":"ds-48","text":"   \n  \n   ","label":"stall","lang":"zh","form":"empty","source":"synthetic"}
+{"id":"ds-49","text":"三个测试全部通过，没有回归。","label":"outcome","lang":"zh","form":"prose","source":"real"}
+{"id":"ds-50","text":"修复已提交。如果还需要调整，请告诉我。","label":"outcome","lang":"zh","form":"prose","source":"synthetic"}
+{"id":"ds-51","text":"对","label":"outcome","lang":"zh","form":"prose","source":"synthetic"}
+{"id":"ds-52","text":"没错","label":"outcome","lang":"zh","form":"prose","source":"synthetic"}
+{"id":"ds-53","text":"嗯","label":"outcome","lang":"zh","form":"prose","source":"synthetic"}
+{"id":"ds-54","text":"接下来我会检查并发模型并给出修复方案。","label":"promise","lang":"zh","form":"prose","source":"synthetic"}
+{"id":"ds-55","text":"我先搜索相关代码，然后再汇总结果。","label":"promise","lang":"zh","form":"prose","source":"synthetic"}
+{"id":"ds-56","text":"(deepseek runner error: ReadTimeout)","label":"stall","lang":"zh","form":"marker","source":"synthetic"}
+{"id":"ds-57","text":"分析完成：锁竞争在路径A是瓶颈；路径B已经优化。建议将路径A的超时从30s降到5s。","label":"outcome","lang":"zh","form":"prose","source":"synthetic"}
+{"id":"ds-58","text":"• 问题一已修复\n• 问题二需要更多上下文\n• 问题三不在本次范围内","label":"outcome","lang":"zh","form":"bullet","source":"synthetic"}
+{"id":"ds-59","text":"I'll analyze and respond in the next turn.","label":"promise","lang":"en","form":"prose","source":"synthetic"}
+{"id":"ds-60","text":"Let me now finish the review and send the full report.","label":"promise","lang":"en","form":"prose","source":"synthetic"}
