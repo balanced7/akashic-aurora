@@ -376,6 +376,10 @@ def _process_one(m, bus, args, responder, rate) -> None:
     control.set_activity(args.agent, "thinking")
     liveness.worklive(args.agent).set("handling", detail=f"{m.frm}:{m.kind}", new_turn=True)  # L1
     killpoint("post-phase-flip-pre-send")
+    turn_t0 = time.time()                       # progress bars: the turn clock starts here
+    from core.comm import turn_metrics as _tm
+    _tm.take_pulse_count(args.agent)            # fresh turn -> fresh point counter
+    finished, result_holder, out = False, [], ""
     try:
         # T014: wall-clock timeout guard -- a hung API call (or stuck stream) must not
         # wedge the runner forever. The API client's own socket timeout is the first line
@@ -452,6 +456,17 @@ def _process_one(m, bus, args, responder, rate) -> None:
     finally:
         control.clear_activity(args.agent)   # back to idle -> UI stops showing it working
         liveness.worklive(args.agent).set("idle")   # L1: turn done (ok or errored) -> idle; heartbeat keeps it fresh
+        try:   # progress bars: record the turn's facts (fail-open; never touches the turn)
+            outcome = ("abandoned" if control.is_halted(args.agent)
+                       else "timeout" if not finished
+                       else "error" if (result_holder and isinstance(result_holder[0], Exception))
+                                        or str(out).startswith("(deepseek")
+                       else "ok")
+            _tm.record(args.agent, str(m.kind), duration_s=time.time() - turn_t0,
+                       progress_points=_tm.take_pulse_count(args.agent),
+                       outcome=outcome, prompt_len=len(str(m.content)))
+        except Exception:
+            pass
 
 
 def main() -> int:

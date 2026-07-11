@@ -149,6 +149,11 @@ PROGRESS_TTL = _scaled(5)
 
 def pulse(agent: str, detail: str = "", *, generation: int = 0) -> bool:
     """Touch the progress key at a REAL progress point. Fail-open, never raises."""
+    try:   # progress-bars data half: every pulse is a countable progress point
+        from core.comm import turn_metrics
+        turn_metrics.count_pulse(agent)
+    except Exception:
+        pass
     c = _client()
     if c is None:
         return False

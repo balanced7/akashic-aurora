@@ -2045,9 +2045,24 @@ def cmd_doctor(args):
     """L2 (T030): the fleet doctor -- reads worklive + the progress pulse + backlogs and
     grades findings per the reconciled paging table (page: hard_wedge, aged stall;
     banner: frozen; dashboard: the rest). Healthy fleet = one line."""
-    from core.comm.doctor import examine_fleet
+    from core.comm.doctor import examine_fleet, known_agents
     agents = [a.strip() for a in (args.agents or "").split(",") if a.strip()] or None
     rep = examine_fleet(agents, page_notes=bool(args.page))
+    if getattr(args, "progress", False):
+        from core.comm.turn_metrics import progress_view
+        for a in (agents or rep["agents"] or known_agents()):
+            v = progress_view(a)
+            if not v:
+                print(f"{a}: idle")
+                continue
+            eta = v.get("eta") or {}
+            eta_txt = (f"{v['elapsed_s']}s/{eta['median_s']}s" if eta
+                       else f"{v['elapsed_s']}s/...")
+            pct = v.get("pct_estimate")
+            conf = f" ({v['ask_kind']}, {eta.get('confidence', 'no history')})" if eta \
+                else f" ({v['ask_kind']}, n<3: elapsed only)"
+            print(f"{a}: {eta_txt}  {str(pct) + '%' if pct is not None else '--%'}  "
+                  f"pts={v['points_seen']}{conf}")
     if args.json:
         print(json.dumps(rep, indent=2, default=str)); return 0
     print(rep["summary"])
@@ -2547,6 +2562,8 @@ def build_parser():
     dr.add_argument("--agents", default=None, help="comma-separated ids (default: discovered)")
     dr.add_argument("--page", action="store_true",
                     help="emit bus notes for page-grade findings (deduped 1/(agent,state)/hour)")
+    dr.add_argument("--progress", action="store_true",
+                    help="one elapsed/ETA/%% line per busy agent (the poor-man's bars)")
     dr.add_argument("--json", action="store_true")
     dr.set_defaults(fn=cmd_doctor)
 
