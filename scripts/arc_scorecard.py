@@ -26,9 +26,17 @@ def _git(*argv) -> str:
     return r.stdout or ""
 
 
+def _since_iso(days: float) -> str:
+    """A CONCRETE timestamp for --since: git's approxidate silently ignores fractional
+    'N days ago' (0.25 days ago -> full history -- the scorecard's own first live run
+    read 411 commits as one arc). Never hand git a phrase when a date will do."""
+    from datetime import datetime, timedelta
+    return (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S")
+
+
 def _commits(days: float):
     """[(sha, subject+body)] newest-first in the window."""
-    raw = _git("log", f"--since={days} days ago", "--format=%x01%h%x09%s%n%b")
+    raw = _git("log", f"--since={_since_iso(days)}", "--format=%x01%h%x09%s%n%b")
     out = []
     for block in raw.split("\x01"):
         if block.strip():
@@ -38,7 +46,7 @@ def _commits(days: float):
 
 
 def _added_files(days: float, prefix: str) -> list:
-    raw = _git("log", f"--since={days} days ago", "--diff-filter=A", "--name-only", "--format=")
+    raw = _git("log", f"--since={_since_iso(days)}", "--diff-filter=A", "--name-only", "--format=")
     return sorted({l.strip() for l in raw.splitlines()
                    if l.strip().replace("\\", "/").startswith(prefix)})
 
