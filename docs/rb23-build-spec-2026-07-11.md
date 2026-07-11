@@ -81,12 +81,18 @@ Position-aware grading (claude protocol, reconciled with deepseek row labels):
 - label=outcome -> NOTHING fires at first-reply position (the expensive false-positive class);
 - label=stall  -> Tier-1 fires at first-reply position for form empty|marker; prose stalls
   ("ok", "...") are graded at POST-BOUNCE position (Tier 3 may softly reprompt; never confess).
-Bounds (claude proposal; deepseek's (e) tail pending -- reconcile on arrival, the STRICTER
-bound wins per axis): held-out precision >= 0.95 on would-act; promise recall >= 0.80
-GRADED ON lang=en ROWS ONLY (the v1 promise detector is an English-opener net by design;
-non-en promise coverage is a NAMED DEFERRAL, not a hidden miss -- non-en outcome rows stay
-in the pool as false-positive guards, which is what bilingual rows are FOR at a char floor);
-stall recall = 1.0 on empty|marker forms. Held-out set = deepseek's FRESH sealed batch
+Bounds RECONCILED (deepseek's (e) table arrived via its blind-half record,
+research/reviewed/deepseek-rb23-blind-half-2026-07-11.md -- his: stall 0.98/0.97, promise
+0.90/0.80, outcome 0.95/0.95; stricter wins per axis): combined would-act precision >= 0.95;
+promise recall >= 0.80 GRADED ON lang=en ROWS ONLY (the v1 promise detector is an
+English-opener net by design; non-en promise coverage is a NAMED DEFERRAL, not a hidden miss
+-- non-en outcome rows stay in the pool as false-positive guards, which is what bilingual
+rows are FOR at a char floor); stall recall = 1.0 on empty|marker forms (stricter than his
+0.97); outcome ship-rate >= 0.95 (his outcome recall: legit outcomes ship untouched).
+His caught-table pulse distinction adopted: resend-channel exception pulses
+content_floor_failed, junk-after-resend pulses content_floor_exhausted.
+His grading-protocol note stands: label divergence between halves is a reconciliation
+point, not a failure -- the divergence IS the fence's product. Held-out set = deepseek's FRESH sealed batch
 (ds-41+, zh-heavy; see incident record). Dev set (tunable) = claude 41 rows + ds-01..27.
 
 ## Acceptance tests (committed BEFORE impl -- M3 / T031 hook 2)

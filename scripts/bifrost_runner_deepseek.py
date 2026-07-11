@@ -263,12 +263,12 @@ def content_floor_check(answer, resend, agent_id="deepseek", promise_bounce_fire
         good = second if (second and stall_reason(second) is None) else None
         return good or answer
 
-    second, resent = None, False
+    second, resent, resend_raised = None, False, False
     try:
         second = resend(_FLOOR_REPROMPTS[reason])
         resent = True
     except Exception:
-        second = None
+        second, resend_raised = None, True
     if second:
         still_bad = (stall_reason(second) is not None
                      or (reason == "promise-again" and promise_shaped_runner(second)))
@@ -280,7 +280,11 @@ def content_floor_check(answer, resend, agent_id="deepseek", promise_bounce_fire
                   "see streamed trace / runner logs for any partial work)"
                   % (agent_id, attempts, reason, (" [last: %s]" % last) if last else ""))
     try:
-        pulse(agent_id, "content_floor_exhausted:%s" % reason)
+        # deepseek's caught-table distinguishes the broken-resend path from a resend that
+        # returned junk: 'failed' = the retry channel itself is down, 'exhausted' = the
+        # model had its chances. Different doctor signals.
+        kind = "content_floor_failed" if resend_raised else "content_floor_exhausted"
+        pulse(agent_id, "%s:%s" % (kind, reason))
     except Exception:
         pass
     return confession

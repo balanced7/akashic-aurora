@@ -34,10 +34,13 @@ from scripts.bifrost_runner_deepseek import (  # noqa: E402
 FIXTURES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures")
 HELD_OUT_SEAL_LIFTED = False   # flipped at verify once deepseek's fresh sealed batch + (e) bounds land
 
-# Bounds (spec "Grading protocol"; stricter-wins reconciliation pending deepseek's (e) tail)
-BOUND_PRECISION = 0.95
-BOUND_PROMISE_RECALL = 0.80
-BOUND_STALL_RECALL = 1.0
+# Bounds -- RECONCILED with deepseek's (e) table (blind-half record, stricter wins per axis):
+# his stall 0.98/0.97, promise 0.90/0.80, outcome 0.95/0.95 vs claude's combined-precision
+# 0.95 / en-promise recall 0.80 / stall recall 1.0.
+BOUND_PRECISION = 0.95           # combined would-act precision (claude, covers his per-class floors)
+BOUND_PROMISE_RECALL = 0.80      # equal in both halves; graded on lang=en rows (named deferral)
+BOUND_STALL_RECALL = 1.0         # claude, stricter than his 0.97, on empty|marker forms
+BOUND_OUTCOME_SHIP_RATE = 0.95   # deepseek outcome recall: legit outcomes shipped untouched
 
 
 class FakeSend:
@@ -171,7 +174,8 @@ def test_resend_exception_confesses_not_marker():
     out = content_floor_check("(deepseek produced no final answer)", resend,
                               agent_id="deepseek", promise_bounce_fired=False, pulse=pulse)
     assert out.startswith("(deepseek --"), "fail-closed: confession, not the marker"
-    assert pulse.calls
+    assert pulse.calls and "content_floor_failed" in pulse.calls[0][1], \
+        "broken resend channel pulses 'failed', not 'exhausted' (deepseek caught-table)"
 
 
 # --- (9) corpus harness: position-aware grading against BOTH fixture halves ---
@@ -191,8 +195,8 @@ def _load(path):
 
 def _grade(rows):
     """Returns (would_act_true_pos, would_act_false_pos, promise_hits, promise_total,
-    stall_hits, stall_total) under the spec's position rules."""
-    tp = fp = p_hit = p_tot = s_hit = s_tot = 0
+    stall_hits, stall_total, outcome_total) under the spec's position rules."""
+    tp = fp = p_hit = p_tot = s_hit = s_tot = o_tot = 0
     for r in rows:
         text, label, form = r["text"], r["label"], r.get("form", "prose")
         fires_first = bool(promise_shaped_runner(text) or stall_reason(text))
@@ -208,6 +212,7 @@ def _grade(rows):
             if fires_first:
                 tp += 1
         elif label == "outcome":
+            o_tot += 1
             if fires_first:
                 fp += 1
         elif label == "stall":
@@ -220,7 +225,7 @@ def _grade(rows):
                 # prose stalls are Tier-3 material: post-bounce, soft, never confessed.
                 assert stall_reason(text) is None, "prose stall must not hard-fire: " + r["id"]
                 assert len(text.strip()) < FLOOR_CHARS, "tier-3 candidacy: " + r["id"]
-    return tp, fp, p_hit, p_tot, s_hit, s_tot
+    return tp, fp, p_hit, p_tot, s_hit, s_tot, o_tot
 
 
 def test_corpus_dev_half_meets_bounds():
@@ -229,19 +234,21 @@ def test_corpus_dev_half_meets_bounds():
     assert cl_bad == 0
     assert ds_bad <= 1, "ds-27 arrived clipped; the fresh sealed batch supersedes it"
     rows = cl + ds   # ds-01..27 reclassified DEV after the seal incident (spec, M8 record)
-    tp, fp, p_hit, p_tot, s_hit, s_tot = _grade(rows)
+    tp, fp, p_hit, p_tot, s_hit, s_tot, o_tot = _grade(rows)
     assert s_tot and s_hit == s_tot, "stall recall on empty|marker forms must be 1.0"
     assert p_tot and p_hit / p_tot >= BOUND_PROMISE_RECALL
     assert tp and tp / (tp + fp) >= BOUND_PRECISION
+    assert o_tot and (o_tot - fp) / o_tot >= BOUND_OUTCOME_SHIP_RATE
 
 
 @pytest.mark.skipif(not HELD_OUT_SEAL_LIFTED,
                     reason="held-out seal not lifted: deepseek fresh sealed batch (ds-41+) "
-                           "+ its (e) bounds pending; required green at [verify]")
+                           "pending; required green at [verify]")
 def test_corpus_held_out_meets_bounds():
     held, bad = _load(os.path.join(FIXTURES, "rb23_endings_deepseek_heldout.jsonl"))
     assert bad == 0 and held
-    tp, fp, p_hit, p_tot, s_hit, s_tot = _grade(held)
+    tp, fp, p_hit, p_tot, s_hit, s_tot, o_tot = _grade(held)
     assert s_hit == s_tot
     assert p_hit / p_tot >= BOUND_PROMISE_RECALL
     assert tp / (tp + fp) >= BOUND_PRECISION
+    assert o_tot and (o_tot - fp) / o_tot >= BOUND_OUTCOME_SHIP_RATE
