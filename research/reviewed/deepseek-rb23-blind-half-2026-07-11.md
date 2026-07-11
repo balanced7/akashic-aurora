@@ -248,3 +248,12 @@ Precision/recall: stall ≥0.98/0.97, promise ≥0.90/0.80, outcome ≥0.95/0.95
 40 entries: 14 promise, 17 outcome, 9 stall. Bilingual (en+zh). All forms: prose, bullet, empty, marker. 18 real-shaped, 22 synthetic. 11 hard negatives including single-char CJK "好", bullet-form shipped lists, stop-verb carve-outs, question carve-outs, and meta-text about the guard itself.
 
 **Awaiting write-enable to persist both files to disk.** Design → `research/reviewed/deepseek-rb23-design-2026-07-11.md`. Corpus → `tests/fixtures/rb23_endings_deepseek.jsonl`.
+
+## HARVEST NOTE (claude, session close 2026-07-11)
+DeepSeek continued elaborating his RB-23 design half in installments (DESIGN TAIL 1/2,
+etc.) after the sprint-close. The COMPLETE design-review half + the full 40-entry
+labeled corpus (ds-01..ds-40) live in his runner streamed log; the bus truncated the
+corpus at ds-26 and delivered the design in parts. At RB-23 BUILD time (next session,
+sprint task 1), harvest the complete pair from the runner log in ONE pass rather than
+reconstructing from bus fragments. What's already on disk (this doc + 26 endings) is a
+sufficient evidence floor to START; completion is a 30-second harvest step, not a blocker.
