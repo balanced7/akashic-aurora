@@ -1,0 +1,41 @@
+{"id": "cl-01", "text": "I'll wire the content floor into the bounce path and report back.", "label": "promise", "lang": "en", "form": "prose", "source": "synthetic"}
+{"id": "cl-02", "text": "Now I'll run the full suite and confirm nothing regressed.", "label": "promise", "lang": "en", "form": "prose", "source": "synthetic"}
+{"id": "cl-03", "text": "Next, I'll draft the reconciliation record for both halves.", "label": "promise", "lang": "en", "form": "prose", "source": "synthetic"}
+{"id": "cl-04", "text": "Let me fold this into my review closure.", "label": "promise", "lang": "en", "form": "prose", "source": "real"}
+{"id": "cl-05", "text": "Let me now rebuild the index and verify the pins.", "label": "promise", "lang": "en", "form": "prose", "source": "synthetic"}
+{"id": "cl-06", "text": "I'm going to tighten the marker regex before shipping.", "label": "promise", "lang": "en", "form": "prose", "source": "synthetic"}
+{"id": "cl-07", "text": "I will follow up with the precision numbers once the corpus lands.", "label": "promise", "lang": "en", "form": "prose", "source": "synthetic"}
+{"id": "cl-08", "text": "Let me check the runner logs and get back to you with specifics.", "label": "promise", "lang": "en", "form": "prose", "source": "real"}
+{"id": "cl-09", "text": "- I'll add the floor check\n- I'll re-run the battery\n- Then report", "label": "promise", "lang": "en", "form": "bullet", "source": "synthetic"}
+{"id": "cl-10", "text": "Plan:\n- wire detector\n- commit tests first\n- ship after verify", "label": "promise", "lang": "en", "form": "bullet", "source": "synthetic"}
+{"id": "cl-11", "text": "* Next I'll benchmark the floor against the corpus and post numbers.", "label": "promise", "lang": "en", "form": "bullet", "source": "synthetic"}
+{"id": "cl-12", "text": "接下来我会把内容下限接入退回路径，然后汇报结果。", "label": "promise", "lang": "zh", "form": "prose", "source": "synthetic"}
+{"id": "cl-13", "text": "让我先运行完整测试，再回来更新进度。", "label": "promise", "lang": "zh", "form": "prose", "source": "synthetic"}
+{"id": "cl-14", "text": "我马上整理证据并在总线上回复。", "label": "promise", "lang": "zh", "form": "prose", "source": "synthetic"}
+{"id": "cl-15", "text": "Дальше я подключу проверку порога и вернусь с результатами.", "label": "promise", "lang": "ru", "form": "prose", "source": "synthetic"}
+{"id": "cl-16", "text": "Сейчас я прогоню тесты и отчитаюсь.", "label": "promise", "lang": "ru", "form": "prose", "source": "synthetic"}
+{"id": "cl-17", "text": "Done. All 36 pins green; the floor catches both marker classes.", "label": "outcome", "lang": "en", "form": "prose", "source": "synthetic"}
+{"id": "cl-18", "text": "Shipped at a1b2c3d -- suite green, verify gate cited in the commit.", "label": "outcome", "lang": "en", "form": "prose", "source": "synthetic"}
+{"id": "cl-19", "text": "done, 3 tests green", "label": "outcome", "lang": "en", "form": "prose", "source": "real"}
+{"id": "cl-20", "text": "I'll wait for your review.", "label": "outcome", "lang": "en", "form": "prose", "source": "real"}
+{"id": "cl-21", "text": "I'll hold here until Daniel rules on the ceiling.", "label": "outcome", "lang": "en", "form": "prose", "source": "synthetic"}
+{"id": "cl-22", "text": "The detector is live; two successive empties now raise a stall envelope instead of the marker.", "label": "outcome", "lang": "en", "form": "prose", "source": "synthetic"}
+{"id": "cl-23", "text": "No regression found -- the one-bounce latch behaves exactly as pinned.", "label": "outcome", "lang": "en", "form": "prose", "source": "synthetic"}
+{"id": "cl-24", "text": "Verified: RB-23 acceptance passes on the held-out half at 0.97 precision.", "label": "outcome", "lang": "en", "form": "prose", "source": "synthetic"}
+{"id": "cl-25", "text": "Want me to pull Wave 5 forward instead?", "label": "outcome", "lang": "en", "form": "prose", "source": "synthetic"}
+{"id": "cl-26", "text": "Should I treat bare 'ok' as below-floor, or leave it to reconciliation?", "label": "outcome", "lang": "en", "form": "prose", "source": "synthetic"}
+{"id": "cl-27", "text": "Once you approve the spec, I'll start the build.", "label": "outcome", "lang": "en", "form": "prose", "source": "synthetic"}
+{"id": "cl-28", "text": "Say the word and I'll ship it.", "label": "outcome", "lang": "en", "form": "prose", "source": "synthetic"}
+{"id": "cl-29", "text": "- floor: shipped\n- tests: 12 green\n- verify: gate cited", "label": "outcome", "lang": "en", "form": "bullet", "source": "synthetic"}
+{"id": "cl-30", "text": "Results:\n- precision 0.96\n- recall 0.85\n- zero false bounces on outcomes", "label": "outcome", "lang": "en", "form": "bullet", "source": "synthetic"}
+{"id": "cl-31", "text": "* Committed the fixture\n* Registered the probe set\n* Suite green", "label": "outcome", "lang": "en", "form": "bullet", "source": "synthetic"}
+{"id": "cl-32", "text": "完成：三个测试全部通过，检测器已上线。", "label": "outcome", "lang": "zh", "form": "prose", "source": "synthetic"}
+{"id": "cl-33", "text": "已提交，等待你的验证。", "label": "outcome", "lang": "zh", "form": "prose", "source": "synthetic"}
+{"id": "cl-34", "text": "Готово: все проверки зелёные, порог работает.", "label": "outcome", "lang": "ru", "form": "prose", "source": "synthetic"}
+{"id": "cl-35", "text": "Готово.", "label": "outcome", "lang": "ru", "form": "prose", "source": "synthetic"}
+{"id": "cl-36", "text": "", "label": "stall", "lang": "en", "form": "empty", "source": "real"}
+{"id": "cl-37", "text": "   \n\n  ", "label": "stall", "lang": "en", "form": "empty", "source": "synthetic"}
+{"id": "cl-38", "text": "(deepseek produced no final answer)", "label": "stall", "lang": "en", "form": "marker", "source": "real"}
+{"id": "cl-39", "text": "(claude produced no final answer)", "label": "stall", "lang": "en", "form": "marker", "source": "synthetic"}
+{"id": "cl-40", "text": "...", "label": "stall", "lang": "en", "form": "prose", "source": "synthetic"}
+{"id": "cl-41", "text": "ok", "label": "stall", "lang": "en", "form": "prose", "source": "synthetic"}
