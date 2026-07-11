@@ -20,13 +20,14 @@
 - `agent_signal_ledger.py` — Agent Signal Ledger: the ordered record of every signal agents emit
 - `coordinator_api.py` — Coordinator API: Minimal signal-based logging for agents
 
-## core/comm/  (16 modules)
+## core/comm/  (17 modules)
 - `bifrost_api.py` — bifrost.api -- the one door an agent uses to join and work the Bifrost bus.
 - `blobs.py` — BlobStore (Slice B1) -- a content-addressed blob store for Bifrost media/large payloads.
 - `bus.py` — Bifrost Bus (Slice B0) -- one ephemeral message transport for local agents, on Redis Streams.
 - `context_hints.py` — Context Hints -- compact, ephemeral, per-agent context forwarding between peers.
 - `control.py` — Bifrost control plane -- human-in-the-loop PAUSE + runaway-loop guard for live agent collaboration.
 - `dispatcher.py` — Dispatcher (Bifrost Mesh W2): one resident process that turns doorbell notices into wakes.
+- `doctor.py` — Fleet doctor (L2 / RB-27b) -- the missing READER of the liveness signals: progress,
 - `interject.py` — Adaptive interjection router -- when a human types into a live agent session, decide whether the
 - `launcher.py` — Bifrost Launcher — spawn and monitor agent processes from the Bifrost UI.
 - `liveness.py` — Work-progress heartbeat (L1) -- pure observability for wedge detection.

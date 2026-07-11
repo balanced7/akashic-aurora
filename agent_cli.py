@@ -234,6 +234,19 @@ def cmd_boot(args):
         print("  " + summary_line(snapshot(hours=7 * 24)))
     except Exception:
         pass
+    try:   # L2 (T030): the doctor's one-liner -- progress, not presence; findings drill
+        # via `py agent_cli.py doctor`. Fail-open like every boot section.
+        from core.comm.doctor import examine_fleet
+        rep = examine_fleet()
+        line = rep["summary"]
+        pages = rep.get("pages") or []
+        banners = [f for f in rep["findings"] if f["grade"] == "banner"]
+        print("\n## DOCTOR (fleet liveness -- full: py agent_cli.py doctor)")
+        print("  " + line)
+        for f in (pages + banners)[:4]:
+            print(f"  !! {f['line']}")
+    except Exception:
+        pass
     try:   # auto-captured last-session draft (SessionEnd/PreCompact) -- a trail if the last end was abrupt
         import time as _t
         dp = last_session_draft_path()
@@ -2028,6 +2041,22 @@ def cmd_promoted(args):
     return 0
 
 
+def cmd_doctor(args):
+    """L2 (T030): the fleet doctor -- reads worklive + the progress pulse + backlogs and
+    grades findings per the reconciled paging table (page: hard_wedge, aged stall;
+    banner: frozen; dashboard: the rest). Healthy fleet = one line."""
+    from core.comm.doctor import examine_fleet
+    agents = [a.strip() for a in (args.agents or "").split(",") if a.strip()] or None
+    rep = examine_fleet(agents, page_notes=bool(args.page))
+    if args.json:
+        print(json.dumps(rep, indent=2, default=str)); return 0
+    print(rep["summary"])
+    for f in rep["findings"]:
+        print(f"  [{f['grade']:^9}] {f['line']}")
+        print(f"              drill: {f['drill']}")
+    return 0
+
+
 def cmd_lookback(args):
     """P7 (T027): one question over the rationale corpus -- the strategic WHY, layered and
     drillable. Temporal drill (story/events) answers what happened; this answers why it is
@@ -2513,6 +2542,13 @@ def build_parser():
     ev.add_argument("--limit", type=int, default=None, help="max results")
     ev.add_argument("--json", action="store_true", help="JSON output")
     ev.set_defaults(fn=cmd_events)
+
+    dr = sub.add_parser("doctor", help="fleet liveness doctor (L2): progress, not presence")
+    dr.add_argument("--agents", default=None, help="comma-separated ids (default: discovered)")
+    dr.add_argument("--page", action="store_true",
+                    help="emit bus notes for page-grade findings (deduped 1/(agent,state)/hour)")
+    dr.add_argument("--json", action="store_true")
+    dr.set_defaults(fn=cmd_doctor)
 
     pr = sub.add_parser("promoted", help="query durable salient Bifrost msgs (kind=bifrost_msg / B2)")
     pr.add_argument("--limit", type=int, default=None)

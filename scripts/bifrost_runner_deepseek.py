@@ -80,6 +80,10 @@ def killpoint(name: str) -> None:
 # AFTER the reply sends, BEFORE the cursor commits; checked before answering a redelivery.
 REPLY_SENT_PREFIX = "bifrost:reply_sent:"
 
+# RB-27a: the tenure's fencing generation rides every pulse (one-slot mutable so the
+# closures in make_agentic_replier see the value main() sets after lock acquisition).
+PULSE_GEN = [0]
+
 
 def _reply_already_sent(bus, mid) -> bool:
     try:
@@ -236,12 +240,16 @@ def make_agentic_replier(model: str, system: str, think: bool, root: Path, agent
     def on_activity(state, detail):
         control.set_activity(agent_id, state, detail)   # existing UI presence
         _wl.set(state, detail)                          # L1: same edges -> worklive phase (thinking/reading/...)
+        liveness.pulse(agent_id, f"{state}:{str(detail)[:60]}", generation=PULSE_GEN[0])
     # Live trace: stream each tool call + chunk of thinking onto the bus (kind=trace, display-only, not
     # promoted/answerable) so the console shows what DeepSeek is DOING, not just its final answer.
     trace_bus = Bus(agent_id)
 
     def on_trace(kind, text):
         prefix = "🔧" if kind == "tool" else "💭"
+        # RB-27a: every tool call / thinking chunk IS a progress point -- the pulse that
+        # lets the doctor tell long-legit-work from a worker dead inside the turn.
+        liveness.pulse(agent_id, f"{kind}:{str(text)[:60]}", generation=PULSE_GEN[0])
         try:
             trace_bus.broadcast("trace", f"{prefix} {text}",
                                 meta={"via": f"{agent_id}-runner", "hops": 0, "trace": kind, "display_only": True})
@@ -488,6 +496,11 @@ def main() -> int:
         print(f"bifrost_runner_deepseek: another '{args.agent}' runner is already live (pid {h.get('pid')}). "
               f"Refusing to start -- one runner per agent avoids cursor races.")
         return 3
+    # RB-27a: 'starting' phase spans onboarding/responder construction -- a boot-time
+    # wedge (hung onboarding subprocess, dead API) is distinguishable from a mid-run one.
+    PULSE_GEN[0] = runner_lock.generation_of(lock_token)
+    liveness.worklive(args.agent).set("starting", detail="onboarding")
+    liveness.pulse(args.agent, "starting", generation=PULSE_GEN[0])
 
     if args.agentic:
         import deepseek_chat as dc
@@ -546,6 +559,8 @@ def main() -> int:
     print(f"[deepseek-runner] {args.agent} online (model={args.model}, think={'on' if args.think else 'off'}, "
           f"{mode}, max_hops={control.MAX_HOPS}). Waiting for messages... (Ctrl-C to stop)")
     lock_gen = runner_lock.generation_of(lock_token)   # L1b: this tenure's fencing token
+    PULSE_GEN[0] = lock_gen                            # RB-27a: the pulse carries it too
+    liveness.worklive(args.agent).set("idle")          # loop entered: startup survived
     try:
         while True:
             if not runner_lock.heartbeat(args.agent, lock_token):  # another runner took over -> stand down
@@ -574,6 +589,10 @@ def main() -> int:
                 except Exception as e:
                     print(f"[deepseek-runner] !! unhandled error processing message from {m.frm}: "
                           f"{type(e).__name__}: {e}")
+                    # RB-27a: self-confess (WATCHDOG=trigger equivalent) -- the doctor
+                    # renders the reason instead of inferring a silent wedge.
+                    liveness.pulse_error(args.agent, f"{type(e).__name__}: {e}",
+                                         generation=lock_gen)
                     try:
                         bus.send(m.frm, "note",
                                  f"[error] deepseek runner hit an unhandled error: {type(e).__name__}: {e}",

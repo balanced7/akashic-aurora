@@ -134,6 +134,68 @@ def stuck_seconds(agent: str):
         return None
 
 
+# ---------------------------------------------------------------- progress pulse (L2 / RB-27a)
+# The signal wedge_view's caveat asked for: worklive says WHAT PHASE; the pulse says the
+# worker is REACHING PROGRESS POINTS inside it (each tool call / thinking chunk / turn
+# edge). Dead pulse + non-idle phase = the worker died inside a turn (HARD WEDGE, the
+# doctor's page state); fresh pulse + aged phase = genuinely long work (F2, never paged).
+# sd_notify heritage: keepalive at ~half the TTL; "trigger:<reason>" = WATCHDOG=trigger
+# (self-confessed failure, rendered above inference). The value carries the tenure's
+# LOCK GENERATION (deepseek: the L1b fence doubles as the writer gate -- a stale
+# tenure's pulse is self-identifying).
+PROGRESS_PREFIX = f"{NS}:progress:"
+PROGRESS_TTL = _scaled(5)
+
+
+def pulse(agent: str, detail: str = "", *, generation: int = 0) -> bool:
+    """Touch the progress key at a REAL progress point. Fail-open, never raises."""
+    c = _client()
+    if c is None:
+        return False
+    try:
+        c.set(PROGRESS_PREFIX + str(agent),
+              json.dumps({"ts": time.time(), "generation": int(generation),
+                          "detail": str(detail)[:120]}),
+              ex=PROGRESS_TTL)
+        return True
+    except Exception:
+        return False
+
+
+def pulse_error(agent: str, reason: str, *, generation: int = 0) -> bool:
+    """Self-confessed failure (WATCHDOG=trigger equivalent): distinguishable from a
+    silent hang, rendered with its reason by the doctor. Longer TTL so the confession
+    outlives the crash that follows it."""
+    c = _client()
+    if c is None:
+        return False
+    try:
+        c.set(PROGRESS_PREFIX + str(agent),
+              json.dumps({"ts": time.time(), "generation": int(generation),
+                          "detail": f"trigger:{str(reason)[:100]}"}),
+              ex=PROGRESS_TTL * 12)
+        return True
+    except Exception:
+        return False
+
+
+def progress_read(agent: str):
+    """{age_s, generation, detail} of the last pulse, or None (no pulse / bus down)."""
+    c = _client()
+    if c is None:
+        return None
+    try:
+        raw = c.get(PROGRESS_PREFIX + str(agent))
+        if not raw:
+            return None
+        rec = json.loads(raw)
+        return {"age_s": round(max(0.0, time.time() - float(rec.get("ts", 0))), 1),
+                "generation": int(rec.get("generation", 0)),
+                "detail": rec.get("detail", "")}
+    except Exception:
+        return None
+
+
 def wedge_view(agent: str, wedge_s: float = None):
     """A reader's summary for the roster / watchdog (L3/L2): current phase, time-in-phase,
     beat age, and a heuristic ``wedged`` flag (in a non-idle phase past the threshold).
