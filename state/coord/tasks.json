@@ -1,5 +1,5 @@
 {
-  "seq": 29,
+  "seq": 30,
   "tasks": [
     {
       "id": "T001",
@@ -1178,6 +1178,32 @@
           "to": "in_progress",
           "by": "",
           "at": "2026-07-10T05:19:30+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T030",
+      "title": "Agent liveness tier: stuck/lost-agent failure modes -> fixes (RB-26 at-least-once inbox, RB-27 L2 progress reader, RB-28 launcher-owned lifecycle, RB-29 unbuffered logs, RB-30 pause hygiene). Design: docs/agent-liveness-tier-2026-07.md; evidence: research/reviewed/runner-mail-loss-forensics-2026-07-10.md",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "each slice ships with its pre-registered kill drill (D1-D5) as a pinned regression; deepseek fenced design-review gates RB-26; fenced dual investigation reconciled before build",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-11T01:05:29+00:00",
+      "updated": "2026-07-11T01:05:29+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-11T01:05:29+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-11T01:05:29+00:00"
         }
       ]
     }
