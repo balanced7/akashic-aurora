@@ -1,5 +1,5 @@
 {
-  "seq": 31,
+  "seq": 32,
   "tasks": [
     {
       "id": "T001",
@@ -1230,6 +1230,27 @@
           "to": "approved",
           "by": "user",
           "at": "2026-07-11T04:41:35+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T032",
+      "title": "Retrieval v2 -- context-obligation arc (GPT vision doc, Daniel-relayed 2026-07-11): intent classifier -> context obligation generator -> cache-hierarchy selector (formalize L0-L3) -> outcome-weighted ranking (extend the funnel) -> evidence-backed injection (decision lineage w/ confidence + rejected alternatives). M0 taxonomy + honest already-built inventory FIRST (funnel credit loop, anti-patterns, recall-at-action, notes-as-decisions largely exist); then fenced dual design per M1",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "M0 classification + built-vs-new inventory precedes any design; dual fenced design gates slices; each slice pre-registers its probe battery per M3",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-11T05:13:37+00:00",
+      "updated": "2026-07-11T05:13:37+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-11T05:13:37+00:00"
         }
       ]
     }

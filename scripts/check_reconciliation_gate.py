@@ -18,10 +18,12 @@ import re
 import sys
 
 # Where wrongness is expensive (P0 revert-cost anchor): identity/grants, the bus and its
-# consumers, the ledger/conductor, the event substrate. Render surfaces and tests are
-# deliberately NOT here -- the gate must stay proportionate or it becomes ceremony.
+# consumers, the ledger/conductor, the event substrate -- and the runner scripts, which
+# ARE the consume->outcome pipeline (deepseek verify catch: they fell outside core/*).
+# Render surfaces and tests are deliberately NOT here -- proportionality over ceremony.
 PROTECTED_PREFIXES = (
     "core/trust/", "core/comm/", "core/coord/", "core/events/", "security/",
+    "scripts/bifrost_runner",
 )
 
 CITATION_RE = re.compile(r"(?:docs|research/reviewed)/[A-Za-z0-9_\-./]*?\.md")
@@ -45,13 +47,37 @@ def main() -> int:
     hatch = HATCH_RE.search(args.message)
     if hatch:
         reason = hatch.group(1).strip()
-        if reason:
-            print(f"PASS: UNGATED substrate ship (reason: {reason}) -- audit line for the "
-                  f"wrap scorecard; paths: {', '.join(protected)}")
-            return 0
-        print("FAIL: [ungated: ] carries no reason -- the hatch is skipped-WITH-REASON, "
-              "never a blank pass.")
-        return 1
+        if not reason:
+            print("FAIL: [ungated: ] carries no reason -- the hatch is skipped-WITH-REASON, "
+                  "never a blank pass.")
+            return 1
+        # Rate ceiling (deepseek verify): ONE ungated substrate ship per arc window; a
+        # second within the window holds until a wrap ruling. Counted on the event
+        # firehose (durable, zero new bookkeeping). AKASHIC_GATE_NO_CEILING is the
+        # hermetic-test kill-switch ONLY -- it keeps subprocess pins off the production
+        # firehose; ship never sets it.
+        if not os.environ.get("AKASHIC_GATE_NO_CEILING"):
+            try:
+                from core.events.event_query import get_event_query
+                from datetime import datetime, timedelta
+                since = (datetime.utcnow() - timedelta(hours=24)).isoformat()
+                prior = get_event_query().search("", kind="ungated_ship", since=since, top_k=5)
+            except Exception:
+                prior = []
+            if prior:
+                print(f"FAIL: UNGATED ceiling reached ({len(prior)} in the last 24h; ceiling "
+                      "1 per arc). A second exception needs a wrap ruling, not a hatch -- "
+                      "reconcile the spec or wait for the arc to close.")
+                return 1
+            try:
+                from core.events.event_log import capture_event
+                capture_event("ungated_ship", f"UNGATED substrate ship: {reason}",
+                              agent_id="ship-gate", detail={"reason": reason, "paths": protected})
+            except Exception:
+                pass
+        print(f"PASS: UNGATED substrate ship (reason: {reason}) -- audit line for the "
+              f"wrap scorecard; ceiling 1/arc now consumed; paths: {', '.join(protected)}")
+        return 0
 
     cited = CITATION_RE.findall(args.message)
     satisfied, problems = [], []

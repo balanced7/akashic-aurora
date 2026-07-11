@@ -23,9 +23,11 @@ CHECKER = os.path.join(REPO, "scripts", "check_reconciliation_gate.py")
 
 
 def _run(message, paths, root):
-    return subprocess.run(
+    env = dict(os.environ, AKASHIC_GATE_NO_CEILING="1")   # hermetic: keep subprocess pins
+    return subprocess.run(                                # off the production firehose
         [sys.executable, CHECKER, "--root", str(root), message, *paths],
-        capture_output=True, text=True, timeout=60, encoding="utf-8", errors="replace")
+        capture_output=True, text=True, timeout=60, encoding="utf-8", errors="replace",
+        env=env)
 
 
 def _spec_root(tmp_path, marker="GATE GREEN by convergence"):
@@ -72,6 +74,45 @@ def test_ungated_escape_hatch_is_loud_not_silent(tmp_path):
     # an empty reason is not a reason
     p2 = _run("hotfix [ungated: ]", ["core/comm/bus.py"], _spec_root(tmp_path))
     assert p2.returncode == 1, "the hatch requires an actual reason"
+
+
+def test_runner_scripts_are_substrate(tmp_path):
+    """Deepseek verify catch: the runner IS the consume->outcome pipeline; it cannot
+    fall outside the prefix net just because it lives under scripts/."""
+    p = _run("tweak the fold logic", ["scripts/bifrost_runner_deepseek.py"],
+             _spec_root(tmp_path))
+    assert p.returncode == 1, "runner scripts are substrate"
+    p2 = _run("per docs/some-tier.md (GATE GREEN)",
+              ["scripts/bifrost_runner_deepseek.py"], _spec_root(tmp_path))
+    assert p2.returncode == 0
+
+
+def test_ungated_ceiling_holds_the_second_exception(tmp_path, monkeypatch):
+    """Deepseek verify: the hatch gets a rate ceiling -- ONE per arc window; the second
+    holds until a wrap ruling. In-process with a fake event layer (hermetic)."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("recon_gate", CHECKER)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    _spec_root(tmp_path)
+    events = []
+
+    class FakeEQ:
+        def search(self, q, kind=None, since=None, top_k=5):
+            return list(events)
+
+    import core.events.event_query as eq_mod
+    import core.events.event_log as el_mod
+    monkeypatch.setattr(eq_mod, "get_event_query", lambda: FakeEQ())
+    monkeypatch.setattr(el_mod, "capture_event",
+                        lambda *a, **k: events.append(k) or None)
+    monkeypatch.delenv("AKASHIC_GATE_NO_CEILING", raising=False)
+    argv = ["prog", "--root", str(tmp_path), "fix [ungated: first exception]",
+            "core/comm/bus.py"]
+    monkeypatch.setattr(sys, "argv", argv)
+    assert mod.main() == 0, "first hatch use passes and consumes the ceiling"
+    assert len(events) == 1, "the use is captured durably for the wrap scorecard"
+    assert mod.main() == 1, "the second within the window HOLDS -- wrap must rule"
 
 
 def test_ship_plan_wires_the_gate_before_tests():
