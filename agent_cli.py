@@ -981,10 +981,19 @@ def _orientation_header(agent_id: str) -> str:
                                    for t in (state_view().get("in_progress") or []))
         except Exception:
             pass
+        # A DONE arc must NEVER present as governing (2026-07-11 incident: boot pointed a
+        # fresh session at comms-pillar-synthesis -- "ARC COMPLETE, ALL SLICES SHIPPED" --
+        # which sent it to build paused UI). Skip any <slug>-status note whose body
+        # declares completion; a done arc as "governing" is strictly worse than no arc.
+        _DONE = ("arc complete", "all slices shipped", "status: superseded",
+                 "status: historical")
         candidates = []
         for d in notes:                                   # newest first; convention: <slug>-status
             if d.title.endswith("-status"):
-                m = re.search(r"docs/[\w\-.]+\.md", d.decision or "")
+                body = (d.decision or "")
+                if any(mark in body.lower() for mark in _DONE):
+                    continue                              # completed arc -> never governs
+                m = re.search(r"docs/[\w\-.]+\.md", body)
                 if m:
                     slug_tokens = [w for w in d.title[:-len("-status")].split("-") if len(w) > 2]
                     governs = bool(slug_tokens) and all(w in active_text for w in slug_tokens)
@@ -994,13 +1003,33 @@ def _orientation_header(agent_id: str) -> str:
         # match is keyword-projective, NOT zero-false-positive (the spec overclaimed). Kept
         # because the header CITES its source note, so a wrong pick is visible and fixed by
         # re-noting -- and one-task-one-arc titles are the ledger convention anyway.
-        arc = next((c for c in candidates if c[0]), candidates[0] if candidates else None)
-        lines.append(f"# Governing arc: {arc[2]}  (from note '{arc[1]}')" if arc
-                     else "# Governing arc: (none declared -- check notes/ledger)")
+        # A real match (slug tokens in an active task title) is AUTHORITATIVE. A fallback
+        # (newest non-done note, nothing actually governs the active work) is labelled as
+        # WEAK, not asserted as governing -- the 2026-07-11 incident's second lesson: a
+        # confidently-wrong "Governing arc:" line is worse than an honest "no arc governs".
+        match = next((c for c in candidates if c[0]), None)
+        if match:
+            lines.append(f"# Governing arc: {match[2]}  (from note '{match[1]}')")
+        elif candidates:
+            lines.append(f"# Governing arc: (none matches the active task -- newest is "
+                         f"{candidates[0][2]}, note '{candidates[0][1]}'; trust the "
+                         f"DIRECTIVE + ledger)")
+        else:
+            lines.append("# Governing arc: (none active -- check notes/ledger)")
         wwa = next((d for d in notes if d.title == "where-we-are"), None)
         if wwa:
             one_line = " ".join((wwa.decision or "").split())
             lines.append(f"# where-we-are: {_clip(one_line, 120)}")
+        # F1 (2026-07-11 incident): the CURRENT DIRECTIVE -- what to do FIRST and what NOT
+        # to do yet -- rendered with authority ABOVE the raw NEXT list. next-focus already
+        # IS the priority note-kind (deepseek: no new primitive); the gap was that boot
+        # never surfaced it, so a fresh session read top-of-NEXT (an oldest-first artifact)
+        # as priority. This line is the fix's whole point: intent beats list order.
+        nf = next((d for d in notes if d.title == "next-focus"), None)
+        if nf:
+            focus = " ".join((nf.decision or "").split())
+            lines.append(f"# >> CURRENT DIRECTIVE (do this FIRST; beats the NEXT list order): "
+                         f"{_clip(focus, 160)}")
     except Exception:
         # Store down -> a structurally-valid but semantically-empty head is WORSE than an
         # honest gap line (deepseek gate review, attack 3): say what is missing and where
@@ -1248,6 +1277,20 @@ def cmd_wrap(args):
     except Exception:
         flips, injections = [], []
     draft = build_session_draft(commits, lessons, notes, flips=flips, injections=injections)
+    # F4: --focus sets the CURRENT DIRECTIVE independently of the draft commit -- the whole
+    # point is to capture priority intent THE MOMENT it is decided, even on a bare wrap.
+    if getattr(args, "focus", None):
+        mem = get_agent_memory()
+        f_sup = next((d.id for d in mem.get_decisions(days=3650) if d.title == "next-focus"), None)
+        f_id = mem.decide(title="next-focus", decision=_clip(args.focus, 1000),
+                          supersedes=f_sup or None)
+        try:
+            project_notes()
+        except Exception:
+            pass
+        print(f"[OK] current directive set -> note 'next-focus' (id {f_id}); "
+              "boot renders it ABOVE the NEXT list."
+              if f_id else "WARN: --focus note not recorded (store unavailable?)")
     if not args.commit:
         print("# DRAFT where-we-are (review it; record with: py agent_cli.py wrap --commit "
               "-- the default title supersedes the prior where-we-are)\n")
@@ -2466,6 +2509,10 @@ def build_parser():
     wr.add_argument("--hours", type=int, default=12, help="look-back window for commits (default 12)")
     wr.add_argument("--commit", action="store_true", help="record the draft as a note (default: just preview)")
     wr.add_argument("--title", default=None, help="note title (default: where-we-are <date>)")
+    wr.add_argument("--focus", default=None,
+                    help="set the CURRENT DIRECTIVE (next-focus note) at decision time -- "
+                         "what the next session does FIRST / must NOT do yet; boot renders it "
+                         "above the NEXT list")
     wr.set_defaults(fn=cmd_wrap)
 
     s = sub.add_parser("status", help="honest system status")
