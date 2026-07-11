@@ -7,9 +7,57 @@ ruling 2026-07-11: high-value events stop being one-time highlights -- they beco
 repeatable, EMPIRICAL baseline to match or exceed. A practice without a measurable
 signal is an aspiration, not a baseline; every entry below carries its metric.
 Method: fenced dual codification (this doc = claude half + deepseek's blind bus half,
-reconciled -- the doc was built by the practice it codifies).
+reconciled -- the doc was built by the practice it codifies), then a third-reviewer
+pass (GPT critique via Daniel, 2026-07-11, persisted verbatim) triaged per M1 and
+folded: M0, the principles layer, outcome-metric bias, and the phase map came from it.
+
+## Principles (what the practices serve)
+
+P0. PROPORTIONALITY -- the cost of the methodology scales with the cost of being
+    wrong. A typo needs no fence, no SOTA read, no drills; a coordination primitive
+    needs all of it. The anchor is REVERT COST, not self-assessment (deepseek's
+    sharpening: "what breaks if we revert this?" is objective; "this feels cheap" is
+    the loophole) -- state corruption, trust-boundary exposure, or cross-agent
+    contracts mean expensive; a cleanly revertible diff means cheap. Every practice
+    below binds through its TRIGGER, and triggers answer that question first. This is
+    the governor that keeps the method powerful instead of burdensome -- the standing
+    frugality directive generalized. The wrap scorecard's skipped-with-reason line is
+    the audit.
+P1. TRUTH FROM EVIDENCE -- claims carry dated receipts; forensics precede diagnosis;
+    the live system outranks the model of it.  (M5, M6, M7, receipts everywhere)
+P2. WRONGNESS CAUGHT BY INDEPENDENCE -- separate contexts, different methods,
+    refute-first; agreement gates, divergence teaches.  (M1, the ReferenceState idea)
+P3. FAILURE IS EXERCISED, NOT HOPED AWAY -- name the kill condition before building;
+    murder the pipeline on purpose; pin the tolerances you choose.  (M0, M3, M4, M8)
+P4. KNOWLEDGE OUTLIVES THE SESSION -- verbatim records, lessons at flips, guards for
+    every law; chat is disposable, the record is not.  (M6, M10, the funnel)
+
+## Lifecycle map (where each practice fires)
+
+  Discovery      M0 taxonomy-first, M2 SOTA grounding, M7 forensics
+  Design         M1 fenced dual pass, M8 honest bounds
+  Build          M3 pre-registration, M11 slice discipline
+  Verification   M4 drills, M5 live-exercise
+  Preservation   M6 verbatim records, M10 guards
+  (M9 peer protocol spans all phases. The map is iterative, not linear -- any practice
+  fires whenever its trigger trips; a verification find reopens discovery.)
 
 ## The practices
+
+### M0. Problem taxonomy first
+TRIGGER: beginning a new subsystem, failure domain, or any slice whose problem KIND is
+not already classified in a governing doc.
+PROTOCOL: classify the problem formally (what IS this: delivery semantics? failure
+detection? canonicalization?) -> name the owning field -> define SUCCESS and FAILURE
+(the kill condition) -> only THEN design. The classification is written where the
+build will cite it.
+RECEIPTS: the robustness SOTA map (13 problem types -> fields -> verdicts, 07-10) and
+the liveness taxonomy A-F -- the third reviewer's judgment, concurred: this practice
+changed the project's direction more than any individual robustness feature.
+METRIC: outcome-flavored -- design changes attributable to the classification (the
+fencing token, the sentinel, and the 5-window scope-down all trace to a taxonomy
+entry); proxy -- slices whose governing doc names their problem type.
+BAR: no new subsystem designs ahead of its taxonomy.
 
 ### M1. Fenced dual pass, method-diverse
 TRIGGER: any design, diagnosis, review, or research question where a wrong answer is
@@ -74,8 +122,10 @@ knobs (AKASHIC_TIMEOUT_MULTIPLIER) so timeout paths actually exercise; seed-stam
 RECEIPTS: W1-W5 drills 07-11 -- W1 IS the 2026-07-10 incident window, now a permanent
 regression; the drills tripped the crash-only lease discipline live (lingering lock)
 and proved the reap path.
-METRIC: window coverage = drilled windows / named windows (L1: 5/5). New pipeline stage
-=> new named window BEFORE it ships.
+METRIC: outcome first -- failures caught pre-ship by drills (W-drills proved the L1
+semantics before any production crash could) and incident classes converted to
+permanent drills (mail-loss: same day). Coverage (drilled/named windows, L1: 5/5) is
+the proxy while catches are scarce.
 BAR: the incident class of any live failure becomes a drill within one arc of its
 forensics (mail-loss: same day).
 
@@ -175,6 +225,10 @@ names.
   decision).
 
 ## The empirical loop (how the baseline stays a baseline)
+- Metrics prefer OUTCOMES over activity (third-reviewer point, adopted): catches,
+  adopted imports, reverts avoided, incidents-to-drills -- not passes run or drills
+  counted. An activity metric is only a proxy while its outcome is scarce, and the
+  quarterly review asks whether each proxy has earned its outcome yet.
 - Each practice's metric is reviewable from durable records (git history, promoted
   tier, research/reviewed, the funnel) -- no new bookkeeping demanded of anyone.
 - Wrap-time: the session draft already lists shipped slices; the arc retrospective
