@@ -1,12 +1,14 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 13 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 15 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
-- next-focus: ENGINE FIRST, UI AFTER (Daniel-ruled 2026-07-11): do NOT build UI until the engine exam passes. Order: RB-23 no-answer floor -> Battery Wave 3 (RB-8..12 +...  (source: mem:decision:ADR_0711021921_1389)
 - where-we-are: Shipped:
-  - T033 evidence: deepseek built-vs-spec inventory persisted verbatim (1 NOT-BUILT / 2 DRIFTED / 2 PARTIAL vs the six composition-spec items...  (source: mem:decision:ADR_0711021552_8559)
+  - Boot-intent gap FIXED (2026-07-11 incident: a fresh session told 'pick up where we left off' built paused UI because boot actively pointed at...  (source: mem:decision:ADR_0711023354_8701)
+- next-focus: ENGINE FIRST, UI AFTER (Daniel-ruled 2026-07-11): do NOT build UI until the engine exam passes. Order: RB-23 -> Battery Wave 3 (RB-8..12 + DictStore...  (source: mem:decision:ADR_0711023121_9223)
+- drilldone85014a-status: GOVERNING ARC DOC: docs/drilldone85014a-plan.md -- ARC COMPLETE 2026-07-11. ALL SLICES SHIPPED.  (source: mem:decision:ADR_0711023113_4674)
+- drilldone71d993-status: GOVERNING ARC DOC: docs/drilldone71d993-plan.md -- ARC COMPLETE 2026-07-11. ALL SLICES SHIPPED.  (source: mem:decision:ADR_0711022957_8292)
 - T029-wave1-review-status: T029 Wave 1 built+committed OVERNIGHT by DeepSeek (3 commits unpushed: d6cbf75 slices doc, 0f9172b fenced-correction, 3941789 Wave-1 code)...  (source: mem:decision:ADR_0710080005_3595)
 - comms-pillar-status: GOVERNING ARC DOC: docs/comms-pillar-synthesis-2026-07.md -- ARC COMPLETE 2026-07-10. ALL SLICES SHIPPED: P0 wake detect-dont-consume (+T018...  (source: mem:decision:ADR_0710004517_2741)
 - visualgen-status: Visual-gen integration research COMPLETE 2026-07-09: fenced dual pass (web agent verified all 10 candidate repos -- 2 unlicensed, 1 paper stub, 3...  (source: mem:decision:ADR_0709204054_7589)
