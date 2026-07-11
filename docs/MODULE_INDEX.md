@@ -4,11 +4,12 @@
 > The big picture lives in [ARCHITECTURE.md](ARCHITECTURE.md); this is the per-module detail,
 > each module's line-1 docstring = its single responsibility.
 
-## core/foundation/  (5 modules)
+## core/foundation/  (6 modules)
 - `ledger.py` — Ledger: Swappable event-record interface (append-and-replay)
 - `redis_connection.py` — Redis Connection: Fail-fast connectivity primitive
 - `relationship_types.py` — Comprehensive Relationship Type Framework for Knowledge Graphs
 - `store.py` — Store: Swappable persistence interface (full Redis-mirror)
+- `streams.py` — streams -- process plumbing for long-lived agent processes (T030 L3 / RB-28).
 - `timeutil.py` — timeutil -- one deterministic, timezone-safe way to turn an ISO timestamp into a
 
 ## core/events/  (3 modules)

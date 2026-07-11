@@ -115,6 +115,13 @@ seat: duty moves by displacement + stand-down (benign exits are rc 0), and the
 session-start janitor reaps only two-factor-proven orphans (activity marker stale AND
 parent chain dead; any doubt = alive). Decisions audit at %TEMP%/bifrost_wake_<agent>.reap.log.
 
+Launching a live runner (RB-28): NEVER through a truncating pipe (`| head`,
+`| Select-Object -First N` -- a hung-up reader used to kill the process mid-run; now it
+just goes quiet: stdout is best-effort display, the bus + ledger carry the real work).
+Run it in the background and tail its output FILE instead. Runners self-bless
+(utf-8 + line-buffered + pipe-immune via core/foundation/streams.py), so launcher env
+like PYTHONUNBUFFERED is belt and braces, not a precondition.
+
 ## Session hygiene (don't burn tokens on history)
 
 Chat transcripts grow without bound. A wake loop (Claude Code re-invoke) or a long

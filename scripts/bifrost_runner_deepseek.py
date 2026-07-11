@@ -589,10 +589,10 @@ def _process_one(m, bus, args, responder, rate) -> None:
 
 
 def main() -> int:
-    try:                                             # DeepSeek replies can carry unicode; the runner
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")   # window must not die on cp1252
-        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
+    try:                                             # RB-28 (T030 L3): utf-8 (unicode replies must not
+        from core.foundation.streams import self_bless_stdout   # die on cp1252) + line-buffered (real-
+        self_bless_stdout()                          # time when piped) + pipe-immune (a truncating
+    except Exception:                                # reader must not kill a live runner)
         pass
 
     ap = argparse.ArgumentParser(description="Run DeepSeek as a Bifrost citizen.")
