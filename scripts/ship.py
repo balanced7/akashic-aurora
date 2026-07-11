@@ -33,6 +33,8 @@ def build_plan(args):
         steps.append(("guard: comprehensibility (map matches code)", [PY, "scripts/check_comprehensibility.py"]))
         steps.append(("guard: door parity (no new verb-surface drift)", [PY, "scripts/check_door_parity.py"]))
         steps.append(("guard: wiring (no new built-but-unwired module)", [PY, "scripts/check_wiring.py"]))
+        steps.append(("guard: reconciliation gate (substrate ships cite their spec, M1)",
+                      [PY, "scripts/check_reconciliation_gate.py", args.message, *args.paths]))
         steps.append(("tests (full suite)", [PY, "-m", "pytest", "-q"]))
     steps.append(("commit + push", [PY, "scripts/mirror.py", args.message, *args.paths]))
     if args.learn_exp:
