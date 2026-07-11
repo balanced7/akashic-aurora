@@ -59,16 +59,25 @@ DIRECTED_UNHANDLED_HOURS = 2    # directed handoffs have a clear addressee; flee
 FLAGGABLE_KINDS = {"handoff", "blocker"}   # asks get flagged; decision/completion are fire-and-forget
 
 
+def _events_for_ref(eq, ref: str, *, fallback_kind: str, fallback_top_k: int):
+    """RB-4 seam: the exact by-ref lookup when the query offers it, else each caller's
+    legacy newest-N scan shape (old fakes, injected test queries). One door for both
+    promoter readers; the exact path may return mixed kinds, so callers still filter."""
+    fn = getattr(eq, "events_for_ref", None)
+    if callable(fn):
+        return fn(ref)
+    return eq.search("", kind=fallback_kind, top_k=fallback_top_k)
+
+
 def _promoted_record(msg_id: str, *, event_query=None) -> Optional[Dict[str, Any]]:
-    """The bifrost_msg event carrying ref bifrost:<msg_id>, or None. Scans the promoted tier
-    (small by design -- salient kinds only); RB-4 replaces this with an exact by-ref index
-    lookup. Never raises."""
+    """The bifrost_msg event carrying ref bifrost:<msg_id>, or None. RB-4: exact by-ref
+    index lookup (was a top_k=100000 linear scan). Never raises."""
     try:
         from core.events.event_query import get_event_query
         eq = event_query if event_query is not None else get_event_query()
         ref = f"bifrost:{str(msg_id).strip()}"
-        for e in eq.search("", kind=PROMOTED_KIND, top_k=100000):
-            if ref in (e.get("refs") or []):
+        for e in _events_for_ref(eq, ref, fallback_kind=PROMOTED_KIND, fallback_top_k=100000):
+            if e.get("kind") == PROMOTED_KIND and ref in (e.get("refs") or []):
                 return e
     except Exception:
         return None
@@ -153,18 +162,22 @@ def promoted_page(limit: int = 20, **kw):
 
 
 def acks_for(msg_ids, *, event_query=None) -> Dict[str, List[Dict[str, Any]]]:
-    """msg_id -> [ {by, at, note}, ... ] for every ack referencing those bus ids. Never raises."""
+    """msg_id -> [ {by, at, note}, ... ] for every ack referencing those bus ids.
+    RB-4: EXACT per-message by-ref lookup, unbounded per message -- the newest-500 scan
+    is gone, so a message acked before 500 newer acks existed still reads as handled
+    (S2/R17 root fix; acceptance pinned in test_window_confession). Never raises."""
     wanted = {str(m) for m in msg_ids}
     out: Dict[str, List[Dict[str, Any]]] = {m: [] for m in wanted}
     try:
         from core.events.event_query import get_event_query
         eq = event_query if event_query is not None else get_event_query()
-        for e in eq.search("", kind=ACK_KIND, top_k=500):
-            d = e.get("detail") or {}
-            mid = str(d.get("msg_id", ""))
-            if mid in wanted:
-                out[mid].append({"by": d.get("by", "?"), "at": e.get("at", ""),
-                                 "note": d.get("note", "")})
+        for mid in wanted:
+            for e in _events_for_ref(eq, f"bifrost:{mid}",
+                                     fallback_kind=ACK_KIND, fallback_top_k=500):
+                d = e.get("detail") or {}
+                if e.get("kind") == ACK_KIND and str(d.get("msg_id", "")) == mid:
+                    out[mid].append({"by": d.get("by", "?"), "at": e.get("at", ""),
+                                     "note": d.get("note", "")})
     except Exception:
         pass
     return out

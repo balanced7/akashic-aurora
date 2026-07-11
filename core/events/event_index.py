@@ -14,9 +14,16 @@ and latency is flat as the firehose grows.
 
   events:raw:tindex        zset  {event_id: at_epoch}     -- the queryable index
   events:raw:byid:<id>     str   event JSON               -- O(1) payload resolution
+  events:raw:byref:<ref>   set   {event_id, ...}          -- exact per-ref lookup (RB-4)
 
 The Ledger stays the durable system of record AND the rebuild source: `rebuild()` replays it back
 into the index, so a lost/cold index (or pre-existing events captured before V1) self-heals.
+
+RB-4 (T029, deepseek design-review GATE GREEN with mandate): the byref projection makes
+"every event carrying ref R" an exact O(refs) lookup instead of a newest-N scan -- the ack
+tier's false-UNHANDLED re-flag (S2/R17) dies at the root. The mandate: byref must SHRINK in
+lockstep with eviction (srem on trim, empty keys deleted, full clearance on rebuild), or it
+leaks members forever.
 
 Bounded in lockstep with the firehose (CANONICAL_MAXLEN): each add evicts the oldest entries by
 score so the index can't outgrow the stream it indexes. Best-effort throughout -- an index hiccup
@@ -32,6 +39,7 @@ logger = logging.getLogger("event_index")
 
 TINDEX = "events:raw:tindex"
 BYID_PREFIX = "events:raw:byid:"
+BYREF_PREFIX = "events:raw:byref:"
 DEFAULT_MAXLEN = 100_000          # match the firehose (event_log.CANONICAL_MAXLEN)
 
 
@@ -40,6 +48,10 @@ from core.foundation.timeutil import to_epoch as _epoch   # unified tz-safe epoc
 
 def byid_key(event_id: str) -> str:
     return f"{BYID_PREFIX}{event_id}"
+
+
+def byref_key(ref: str) -> str:
+    return f"{BYREF_PREFIX}{ref}"
 
 
 class EventIndex:
@@ -60,6 +72,9 @@ class EventIndex:
             score = _epoch(event.get("at", ""))
             self.store.set(byid_key(eid), json.dumps(event))
             self.store.zadd(TINDEX, {eid: score})
+            for ref in (event.get("refs") or []):          # RB-4: exact per-ref lookup
+                if ref:
+                    self.store.sadd(byref_key(str(ref)), eid)
             self._trim()
             return True
         except Exception as e:
@@ -68,7 +83,11 @@ class EventIndex:
 
     def _trim(self) -> None:
         """Keep the index bounded to `maxlen`, evicting the oldest (lowest score) ids and
-        their payload keys in lockstep -- so byid never leaks past the index."""
+        their payload keys in lockstep -- so byid never leaks past the index. RB-4
+        (deepseek mandate): byref shrinks in the SAME lockstep -- each evicted event's
+        refs are srem'd (payload read BEFORE the byid delete; it holds the ref list) and
+        an emptied byref key is deleted, so the projection is bounded by the same
+        CANONICAL_MAXLEN as everything it mirrors."""
         try:
             n = self.store.zcard(TINDEX)
             overflow = n - self.maxlen
@@ -77,6 +96,13 @@ class EventIndex:
             evict = self.store.zrange(TINDEX, 0, overflow - 1)   # oldest by score
             if not evict:
                 return
+            for eid in evict:
+                ev = self.get(eid)
+                for ref in ((ev or {}).get("refs") or []):
+                    k = byref_key(str(ref))
+                    self.store.srem(k, eid)
+                    if not self.store.smembers(k):
+                        self.store.delete(k)
             self.store.delete(*[byid_key(e) for e in evict])
             self.store.zrem(TINDEX, *evict)
         except Exception:
@@ -116,6 +142,21 @@ class EventIndex:
         except (ValueError, TypeError):
             return None
 
+    def events_for_ref(self, ref: str) -> List[Dict[str, Any]]:
+        """Every indexed event carrying `ref`, oldest-first -- exact and unbounded per
+        ref (RB-4). Dangling members (payload evicted between srem passes) are filtered
+        through get(), the same honesty pattern window() uses. [] on any hiccup."""
+        try:
+            out = []
+            for eid in self.store.smembers(byref_key(str(ref))):
+                ev = self.get(eid)
+                if ev is not None:
+                    out.append(ev)
+            out.sort(key=lambda e: _epoch(e.get("at", "")))
+            return out
+        except Exception:
+            return []
+
     def count(self) -> int:
         try:
             return self.store.zcard(TINDEX)
@@ -126,7 +167,15 @@ class EventIndex:
     def rebuild(self, events: Iterable[Dict[str, Any]]) -> int:
         """(Re)build the index from a full event replay -- backfills events captured before
         the index existed, or repopulates a cold/lost index. Idempotent: re-adding an event
-        overwrites its entry, never duplicates (zset member = id). Returns count indexed."""
+        overwrites its entry, never duplicates (zset member = id; byref member = id). RB-4
+        (deepseek mandate): stale byref keys are cleared FIRST, so a rebuild never inherits
+        members whose events fell out of the replay. Returns count indexed."""
+        try:
+            stale = self.store.keys(f"{BYREF_PREFIX}*")
+            if stale:
+                self.store.delete(*stale)
+        except Exception:
+            pass
         n = 0
         for ev in events:
             if self.add(ev):

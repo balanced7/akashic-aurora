@@ -154,11 +154,85 @@ def test_flat_latency_at_scale():
     assert dt < 1.0, f"range-scan must stay fast at 100k (took {dt:.3f}s)"
 
 
+# ---- RB-4 (T029 Wave 2): byref projection -- exact per-ref lookup, bounded in lockstep.
+# Deepseek design-review GATE GREEN with mandate: byref must SHRINK with eviction (srem on
+# trim + empty-key delete + full clearance on rebuild) or it leaks members forever.
+
+def test_byref_exact_lookup_oldest_first():
+    el = _indexed_log()
+    el.capture("msg_ack", "ack one", refs=["bifrost:m1"], at="2026-01-01T01:00:00")
+    el.capture("note", "unrelated", refs=["file:x"], at="2026-01-01T02:00:00")
+    el.capture("msg_ack", "ack two", refs=["bifrost:m1", "bifrost:m2"],
+               at="2026-01-01T03:00:00")
+    eq = EventQuery(event_log=el)
+    got = eq.events_for_ref("bifrost:m1")
+    assert [e["summary"] for e in got] == ["ack one", "ack two"], \
+        "exactly the carriers of the ref, oldest-first"
+    assert [e["summary"] for e in eq.events_for_ref("bifrost:m2")] == ["ack two"]
+    assert eq.events_for_ref("bifrost:never") == []
+
+
+def test_byref_shrinks_in_lockstep_with_eviction():
+    """The deepseek mandate: an evicted event's ids leave every byref set it was in,
+    and a fully-emptied byref key is deleted -- no leak across trim cycles."""
+    from core.events.event_index import byref_key
+    store = _store()
+    idx = EventIndex(store, maxlen=3)
+    for i in range(6):
+        idx.add({"id": str(i + 1), "at": f"2026-01-01T0{i}:00:00",
+                 "refs": [f"ref:only{i}", "ref:shared"]})
+    survivors = {e["id"] for e in idx.events_for_ref("ref:shared")}
+    assert survivors == {"4", "5", "6"}, \
+        f"shared ref keeps exactly the surviving ids, got {survivors}"
+    for i in range(3):
+        assert store.smembers(byref_key(f"ref:only{i}")) == set(), \
+            "an evicted event's solo ref set is emptied"
+        assert idx.events_for_ref(f"ref:only{i}") == []
+    assert store.smembers(byref_key("ref:only5")), "surviving solo refs intact"
+
+
+def test_rebuild_clears_stale_byref():
+    store = _store()
+    idx = EventIndex(store, maxlen=100)
+    idx.add({"id": "old1", "at": "2026-01-01T01:00:00", "refs": ["ref:gone"]})
+    n = idx.rebuild([{"id": "new1", "at": "2026-01-02T01:00:00", "refs": ["ref:kept"]}])
+    assert n == 1
+    assert idx.events_for_ref("ref:gone") == [], \
+        "a rebuild never inherits members absent from the replay"
+    assert [e["id"] for e in idx.events_for_ref("ref:kept")] == ["new1"]
+
+
+def test_events_for_ref_fallback_without_index():
+    """Ledger-only EventLog (no Store): the query falls back to a full replay filter --
+    linear but total, never silently windowed."""
+    el = EventLog(_ledger())
+    el.capture("msg_ack", "ack", refs=["bifrost:m9"])
+    el.capture("note", "noise", refs=[])
+    got = EventQuery(event_log=el).events_for_ref("bifrost:m9")
+    assert len(got) == 1 and got[0]["summary"] == "ack"
+
+
+def test_filestore_srem_contract():
+    """The new Store verb RB-4 rides on: srem removes, reports the count, and an
+    emptied set key vanishes (Redis semantics)."""
+    s = _store()
+    s.sadd("k", "a", "b", "c")
+    assert s.srem("k", "a", "zz") == 1, "only present members count"
+    assert s.smembers("k") == {"b", "c"}
+    assert s.srem("k", "b", "c") == 2
+    assert s.smembers("k") == set(), "empty set reads as absent"
+
+
 if __name__ == "__main__":
     for fn in [test_recall_beyond_scan_horizon, test_empty_and_degenerate_windows,
                test_inclusive_boundaries, test_filters_in_window,
                test_bounded_growth_evicts_oldest_in_lockstep,
                test_rebuild_backfills_preexisting_events,
-               test_graceful_fallback_without_store, test_flat_latency_at_scale]:
+               test_graceful_fallback_without_store, test_flat_latency_at_scale,
+               test_byref_exact_lookup_oldest_first,
+               test_byref_shrinks_in_lockstep_with_eviction,
+               test_rebuild_clears_stale_byref,
+               test_events_for_ref_fallback_without_index,
+               test_filestore_srem_contract]:
         fn()
     print("ALL V1 TIME-INDEX TESTS PASSED")

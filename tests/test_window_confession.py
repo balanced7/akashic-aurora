@@ -120,14 +120,11 @@ def test_clear_all_resets_the_drop_ledger():
 
 # ------------------------------------------------------------- RB-4 (pending) exact ack lookup
 
-@pytest.mark.xfail(strict=True,
-                   reason="RB-4 by-ref exact ack lookup -- build gated on deepseek "
-                          "design-review (T029 Wave 2); flips green when acks_for "
-                          "switches to events_for_ref")
 def test_ack_beyond_the_500_window_still_reads_handled():
-    """S2/R17 root: acks_for pulls the newest-500 msg_ack records then filters, so once
-    >500 acks exist the FIRST-acked message reads as never-handled (false UNHANDLED
-    re-flag). RB-4's acceptance: it still reads handled."""
+    """S2/R17 root: acks_for pulled the newest-500 msg_ack records then filtered, so once
+    >500 acks existed the FIRST-acked message read as never-handled (false UNHANDLED
+    re-flag). RB-4's acceptance (pre-registered 068f65e as strict xfail; built after
+    deepseek's GATE GREEN + srem mandate): it still reads handled -- exact by-ref lookup."""
     first_ack = {"kind": "msg_ack", "at": "t0", "refs": ["bifrost:m0"],
                  "detail": {"by": "claude", "msg_id": "m0", "note": "handled long ago"}}
     newer = [{"kind": "msg_ack", "at": f"t{i+1}", "refs": [f"bifrost:m{i+1}"],

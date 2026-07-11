@@ -117,6 +117,21 @@ class EventQuery:
         so drill surfaces never render an evicted pointer as blank truth."""
         return self.log.resolve(ref)
 
+    def events_for_ref(self, ref: str) -> List[Dict[str, Any]]:
+        """Every event carrying `ref`, oldest-first -- EXACT, not a newest-N scan
+        (RB-4: the ack tier's false-UNHANDLED re-flag dies here). Index-backed O(refs)
+        when the time index is live; on a ledger-only log it falls back to a full
+        replay filter -- linear but total within the stream bound, never silently
+        windowed. [] on any hiccup."""
+        try:
+            index = getattr(self.log, "index", None)
+            if index is not None:
+                return index.events_for_ref(ref)
+            r = str(ref)
+            return [e for e in self.log.scan() if r in (e.get("refs") or [])]
+        except Exception:
+            return []
+
     # --------------------------------------------------------------- internals
     @staticmethod
     def _match(e: Dict[str, Any], *, kind: Optional[str], track: Optional[str]) -> bool:

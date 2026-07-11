@@ -132,6 +132,13 @@ class Store(ABC):
     @abstractmethod
     def sismember(self, key: str, member: str) -> bool: ...
 
+    @abstractmethod
+    def srem(self, key: str, *members: str) -> int:
+        """Remove the given members from the set. Returns how many were removed.
+        (RB-4, deepseek-mandated: without it a set projection can never shrink --
+        the byref index would leak members across every trim cycle.)"""
+        ...
+
     # ----- sorted set -----
     @abstractmethod
     def zadd(self, key: str, mapping: Dict[str, float]) -> int: ...
@@ -275,6 +282,8 @@ class RedisStore(Store):
     def sadd(self, key, *members): return int(self._client.sadd(key, *members))
     def smembers(self, key): return set(self._client.smembers(key))
     def sismember(self, key, member): return bool(self._client.sismember(key, member))
+    def srem(self, key, *members):
+        return int(self._client.srem(key, *members)) if members else 0
 
     # sorted set
     def zadd(self, key, mapping): return int(self._client.zadd(key, mapping))
@@ -534,6 +543,18 @@ class FileStore(Store):
             self._evict_if_expired(key)
             return str(member) in set(self._data["set"].get(key, []))
 
+    def srem(self, key, *members):
+        with self._lock:
+            s = set(self._data["set"].get(key, []))
+            before = len(s)
+            s.difference_update(str(m) for m in members)
+            if s:
+                self._data["set"][key] = list(s)
+            else:
+                self._data["set"].pop(key, None)   # empty set = absent, like Redis
+            self._flush()
+            return before - len(s)
+
     # ---- sorted set ----
     def zadd(self, key, mapping):
         with self._lock:
@@ -742,6 +763,7 @@ class HybridStore(Store):
     def sadd(self, key, *members): return self._write("sadd", key, *members)
     def smembers(self, key): return self._read().smembers(key)
     def sismember(self, key, member): return self._read().sismember(key, member)
+    def srem(self, key, *members): return self._write("srem", key, *members)
 
     # sorted set
     def zadd(self, key, mapping): return self._write("zadd", key, mapping)
