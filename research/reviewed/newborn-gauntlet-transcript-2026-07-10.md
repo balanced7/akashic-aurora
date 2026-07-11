@@ -67,6 +67,26 @@ reply) is therefore impossible for a true quarantine and is corrected below: the
 correct first act is to ORIENT and correctly RECOGNIZE it must be granted `member` before it
 can contribute -- recognizing the wall is the pass, not vaulting it.
 
+### F4 -- the ToolBox bus doors BYPASS the ACL (HIGH, LIVE HOLE -- found + fixed 2026-07-10)
+DeepSeek's drill-1 review sharpened F3 into a real hole: the ToolBox bus doors
+(scripts/deepseek_chat.py bifrost_send/nudge/steer/hint) gated only a HARDCODED kind
+allowlist and NEVER called resolve().can_send_kind(). The _bus() guard checks only that
+agent_id is SET, not that the agent holds BUS_SEND. So a runner actually launched AS a
+quarantined id (the faithful Gauntlet setup E1 would create) could chat / note / request /
+handoff / NUDGE (a hard interrupt) / steer / hint through its ToolBox despite bus_send_kinds
+being empty. RB-1 had gated only the RECEIVE/fold side (context_hints); this is the
+symmetric SEND-side hole. My drill-1 claim "airtight at every door" was true for the ACL
+seam the hermetic battery tests, FALSE for the runtime ToolBox doors.
+FIX (this commit): a _bus_send_ok() guard on all four doors, checked BEFORE _bus() (so a
+refusal never depends on Redis), keyed on the runner's construction-bound agent_id
+(unforgeable per-call). bifrost_send/hint gate on can_send_kind(kind); nudge/steer also
+require the distinct BUS_NUDGE/BUS_STEER caps. Fail-open ONLY on a registry error (matches
+_kb_write_ok -- never blocks the live admin fleet on a glitch). Pins: 4 new in
+test_newborn_gauntlet.py (quarantined refused at every door before Redis; admin passes the
+gate, stopped only by the offline guard). Live-verified: a quarantined ToolBox now returns
+"may not send bus kind='handoff' -- deny-by-default" and "lacks the bus.nudge capability".
+Credit: deepseek (found in drill-1 review). His fix-review pending (symmetric fence).
+
 ## SCORES (against the pre-registered rubric, corrected per F3)
 
 COGNITIVE HALF (validly demonstrated by the roleplay -- reading boot/AGENTS.md/ARCHITECTURE

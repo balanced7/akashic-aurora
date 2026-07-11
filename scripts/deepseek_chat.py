@@ -409,6 +409,31 @@ class ToolBox:
         return self._agent_cli(["boot", "deepseek", "--task", task])
 
     # -- Bifrost bus doors (live only when this ToolBox has an agent identity, i.e. inside a runner) --
+    def _bus_send_ok(self, *, kind=None, need_cap=None):
+        """Gate a ToolBox bus door on the SENDER's ACL -- the send-side complement to RB-1's
+        receive-side fold gate (context_hints). The runner binds agent_id at construction, so
+        this id is unforgeable per-call; deny-by-default is enforced at the door a real runner
+        actually uses (the Newborn Gauntlet found this door bypassed the ACL: a quarantined id
+        could chat/nudge/steer/hint through the hardcoded kind allowlist, which is NOT the ACL).
+        Checked BEFORE _bus() so a refusal never depends on Redis being up. Fail-open ONLY on a
+        registry error -- never silently escalate a denied send into an allow (matches
+        _kb_write_ok). Returns an ERROR string to short-circuit the door, or None to proceed."""
+        try:
+            from core.trust import registry
+            from core.trust.capabilities import Cap
+            g = registry.resolve(self.agent_id or "deepseek")
+            if need_cap is not None:
+                c = getattr(Cap, need_cap, None)
+                if c is not None and not g.has(c):
+                    return (f"ERROR: '{self.agent_id}' lacks the {c.value} capability (role={g.role}) -- "
+                            "this bus action is refused (deny-by-default). Ask a super-admin to grant it.")
+            if kind is not None and not g.can_send_kind(kind):
+                return (f"ERROR: '{self.agent_id}' (role={g.role}) may not send bus kind={kind!r} -- "
+                        "deny-by-default. Ask a super-admin to widen bus_send_kinds.")
+        except Exception:
+            pass   # registry glitch -> fall through to prior behavior; never block the live fleet
+        return None
+
     def _bus(self):
         """This agent's Bus handle, or None when we have no bus identity / Redis is offline. Lazy so the
         interactive chat (no agent_id) never touches Redis and these tools cleanly no-op there."""
@@ -426,12 +451,15 @@ class ToolBox:
     def bifrost_send(self, to, text, kind="chat"):
         """Send a message to a peer (e.g. 'claude') or broadcast ('*'/'all'). This is how I *initiate*
         contact on the bus, not just reply."""
+        kind = kind if kind in ("chat", "note", "request", "handoff", "nudge", "hint") else "chat"
+        err = self._bus_send_ok(kind=kind)
+        if err:
+            return err
         b = self._bus()
         if b is None:
             return "ERROR: not on a Bifrost bus in this mode (no agent identity, or Redis offline)."
         to = str(to).strip().lower()
         text = str(text)[:4000]
-        kind = kind if kind in ("chat", "note", "request", "handoff", "nudge", "hint") else "chat"
         meta = {"via": f"{self.agent_id}-tool", "hops": 0}
         try:
             if to in ("*", "all", "both", ""):
@@ -462,6 +490,9 @@ class ToolBox:
     def bifrost_nudge(self, to, text):
         """Nudge a specific peer: set its per-agent barge-in flag AND send a kind=nudge message, so it
         interrupts its current work at the next round boundary and looks at this now."""
+        err = self._bus_send_ok(kind="nudge", need_cap="BUS_NUDGE")
+        if err:
+            return err
         b = self._bus()
         if b is None:
             return "ERROR: not on a Bifrost bus in this mode (no agent identity, or Redis offline)."
@@ -480,6 +511,9 @@ class ToolBox:
     def bifrost_steer(self, to, text):
         """Steer a specific peer WITHOUT interrupting it: queue a fact its runner folds into its CURRENT
         task between tool rounds. Use when a peer is working and should adjust course, not stop."""
+        err = self._bus_send_ok(kind="steer", need_cap="BUS_STEER")
+        if err:
+            return err
         b = self._bus()
         if b is None:
             return "ERROR: not on a Bifrost bus in this mode (no agent identity, or Redis offline)."
@@ -497,6 +531,9 @@ class ToolBox:
 
     def bifrost_hint(self, to, key, value):
         """Send a compact context hint to a peer -- a key:value pair they fold into their next turn."""
+        err = self._bus_send_ok(kind="hint")
+        if err:
+            return err
         b = self._bus()
         if b is None:
             return "ERROR: not on a Bifrost bus in this mode (no agent identity, or Redis offline)."

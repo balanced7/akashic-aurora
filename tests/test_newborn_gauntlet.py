@@ -98,3 +98,63 @@ def test_bootstrap_floor_still_quarantines_the_stranger():
     from core.trust.registry import _bootstrap_or_quarantine
     assert _bootstrap_or_quarantine(NEWBORN).role == "quarantined", \
         "a lost ACL file grants the stranger nothing (only core agents have a bootstrap floor)"
+
+
+# ---- F4 (drill-1 review finding, deepseek): the ToolBox bus doors themselves enforce the
+# ACL, not just a hardcoded kind allowlist. Before this fix a runner launched AS a quarantined
+# id could chat/nudge/steer/hint through the ToolBox -- the send-side hole RB-1 left open
+# (RB-1 gated only the receive/fold side). These pins build a real ToolBox bound to the
+# stranger id and assert every bus door refuses BEFORE touching Redis. -------------------
+
+def _newborn_toolbox():
+    import os as _os
+    from pathlib import Path
+    sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "scripts"))
+    from deepseek_chat import ToolBox
+    return ToolBox(Path("."), allow_exec=False, trust=False, allow_secrets=False,
+                   confirm=lambda _p: False, agent_id=NEWBORN, allow_write=False)
+
+
+def test_toolbox_send_refuses_quarantined_before_redis():
+    tb = _newborn_toolbox()
+    for kind in ("chat", "note", "request", "handoff"):
+        out = tb.bifrost_send("claude", "let me in", kind)
+        assert out.startswith("ERROR:") and "deny-by-default" in out, \
+            f"ToolBox bifrost_send({kind}) from a quarantined id must be refused, got: {out!r}"
+
+
+def test_toolbox_nudge_and_steer_refuse_quarantined():
+    tb = _newborn_toolbox()
+    for door, txt in ((tb.bifrost_nudge, "wake up"), (tb.bifrost_steer, "change course")):
+        out = door("claude", txt)
+        assert out.startswith("ERROR:") and ("capability" in out or "deny-by-default" in out), \
+            f"quarantined {door.__name__} must be refused at the door, got: {out!r}"
+
+
+def test_toolbox_hint_send_refuses_quarantined():
+    """Defense-in-depth: RB-1 already drops the hint at the FOLD door; now the SEND door
+    refuses it too, so a quarantined id cannot even emit it."""
+    out = _newborn_toolbox().bifrost_hint("claude", "k", "authoritative")
+    assert out.startswith("ERROR:") and "deny-by-default" in out, \
+        f"quarantined bifrost_hint must be refused at the send door, got: {out!r}"
+
+
+def test_toolbox_admin_still_allowed_through_acl_gate():
+    """The gate must NOT break the live fleet: deepseek (admin) passes the ACL check and is
+    stopped only by the Redis/offline guard, never by deny-by-default. _bus is stubbed to None
+    so the test asserts the GATE verdict without emitting a real message on the shared bus."""
+    import os as _os
+    from pathlib import Path
+    sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "scripts"))
+    from deepseek_chat import ToolBox
+    tb = ToolBox(Path("."), allow_exec=False, trust=False, allow_secrets=False,
+                 confirm=lambda _p: False, agent_id="deepseek", allow_write=False)
+    tb._bus = lambda: None    # never touch the real bus -- we test the ACL verdict only
+    for door in (lambda: tb.bifrost_send("claude", "x", "chat"),
+                 lambda: tb.bifrost_nudge("claude", "x"),
+                 lambda: tb.bifrost_steer("claude", "x"),
+                 lambda: tb.bifrost_hint("claude", "k", "v")):
+        out = door()
+        assert "deny-by-default" not in out and "capability" not in out, \
+            f"admin must pass the ACL gate (only the offline guard may stop it): {out!r}"
+        assert "not on a Bifrost bus" in out, "admin reached _bus() past the gate (stubbed offline here)"
