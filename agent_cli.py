@@ -1379,8 +1379,13 @@ def cmd_wrap(args):
         project_notes()
     except Exception:
         pass
+    try:   # the helper owns the pointer; read back which prior this superseded
+        raw = mem.store.hget(mem.KEY_DECISIONS, dec_id)
+        superseded_prior = (json.loads(raw) or {}).get("supersedes") if raw else None
+    except Exception:
+        superseded_prior = None
     print(f"[OK] wrapped this session -> note '{title}' (id {dec_id})"
-          + (f" - superseded prior {supersedes}" if supersedes else "")
+          + (f" - superseded prior {superseded_prior}" if superseded_prior else "")
           + "\n     surfaces at your next `boot`; edit by re-noting the same title.")
     return 0
 

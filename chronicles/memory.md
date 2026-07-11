@@ -4,6 +4,9 @@ _Distilled from 23 active note(s) · regenerate via `py agent_cli.py note` / `no
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
+- where-we-are: Shipped:
+  - Wave 3 registration pair 2: RB-9..12 pre-registered pins (skip-guarded until impl; contracts frozen: find_normalization_collisions...  (source: mem:decision:ADR_0711055822_8102c0bf)
+- next-focus: OVERNIGHT LANE RUNNING (deepseek builds RB-9..12 against frozen pins; claude wake-verifies + commits per slice; stop rule: 2 consecutive REDs on one slice =...  (source: mem:decision:ADR_0711055741_732ef5e0)
 - t034-registry-design-deepseek-part7: # T034 remainder — part7 (2 Goodharts + cut list + reconciliation) FINAL
 
 ### 2 GOODHARTS
@@ -34,9 +37,6 @@ Continuation from...  (source: mem:decision:ADR_0711045445_6705)
 
 Status: blind-design (2026-07-11, fenced — written BEFORE reading...  (source: mem:decision:ADR_0711034629_3586)
 - rb23-heldout-corpus-sealed: {"id":"ds-41","text":"(deepseek produced no final...  (source: mem:decision:ADR_0711033057_6379)
-- next-focus: ENGINE FIRST, UI AFTER (Daniel-ruled 2026-07-11). RB-23 content-floor DONE + deepseek VERIFY GATE GREEN (19 pass/1 seal-skip...  (source: mem:decision:ADR_0711032635_6506)
-- where-we-are: Shipped:
-  - Boot-intent gap FIXED (2026-07-11 incident: a fresh session told 'pick up where we left off' built paused UI because boot actively pointed at...  (source: mem:decision:ADR_0711023354_8701)
 - drilldone85014a-status: GOVERNING ARC DOC: docs/drilldone85014a-plan.md -- ARC COMPLETE 2026-07-11. ALL SLICES SHIPPED.  (source: mem:decision:ADR_0711023113_4674)
 - drilldone71d993-status: GOVERNING ARC DOC: docs/drilldone71d993-plan.md -- ARC COMPLETE 2026-07-11. ALL SLICES SHIPPED.  (source: mem:decision:ADR_0711022957_8292)
 - T029-wave1-review-status: T029 Wave 1 built+committed OVERNIGHT by DeepSeek (3 commits unpushed: d6cbf75 slices doc, 0f9172b fenced-correction, 3941789 Wave-1 code)...  (source: mem:decision:ADR_0710080005_3595)
