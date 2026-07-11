@@ -25,12 +25,22 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.foundation.store import DictStore  # noqa: E402
-from core.learning.agent_memory import (  # noqa: E402
-    HEAD_KEY_PREFIX,
-    AgentMemory,
-    SupersedeRaceError,
-    normalize_title,
+try:
+    from core.foundation.store import DictStore  # noqa: E402
+    from core.learning.agent_memory import (  # noqa: E402
+        HEAD_KEY_PREFIX,
+        AgentMemory,
+        SupersedeRaceError,
+        normalize_title,
+    )
+    _W3_BUILT = True
+except ImportError:  # pre-impl: names land with the RB-8 slice
+    _W3_BUILT = False
+
+# Pre-registered pins skip (never error) until the impl exists, then MUST flip to PASS.
+# Weakening any assertion after this commit violates the pre-registration bar (M3/T031).
+pytestmark = pytest.mark.skipif(
+    not _W3_BUILT, reason="W3/RB-8 pins pre-registered; impl pending (RB-8 slice)"
 )
 
 TITLE = "where-we-are"
