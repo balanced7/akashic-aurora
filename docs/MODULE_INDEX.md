@@ -124,6 +124,7 @@
 - `config.py` — Centralized Configuration - Akashic Aurora
 
 ## scripts/
+- `arc_scorecard.py` — arc_scorecard.py -- T031 hook 3: the wrap-time M-practice scorecard.
 - `ask_deepseek.py` — ask_deepseek -- a thin bridge so an agent (or you) can get DeepSeek's take from the CLI.
 - `ask_gemini.py` — ask_gemini -- a thin bridge so an agent (or you) can get Gemini's take from the CLI.
 - `ask_gemini_vision.py` — ask_gemini_vision -- send an image file to Gemini for description/analysis.
@@ -139,7 +140,9 @@
 - `check_doc_currency.py` — check_doc_currency -- P4 (T024): no dead law under docs/.
 - `check_doc_freshness.py` — Doc-freshness guardrail -- the repo ROOT holds only living, intentionally-maintained docs.
 - `check_door_parity.py` — check_door_parity -- guard the agent-facing DOOR surface against silent fragmentation.
+- `check_preregistration.py` — check_preregistration.py -- T031 hook 2: M3's forcing function at ship time.
 - `check_reconciliation_gate.py` — check_reconciliation_gate.py -- T031 hook 1: the method baseline's lead forcing function.
+- `check_verbatim_citation.py` — check_verbatim_citation.py -- T031 hook 4: M6's forcing function at ship time.
 - `check_wiring.py` — check_wiring -- the Built != Wired gate (membrane slice 2).
 - `deepseek_chat.py` — deepseek_chat -- an interactive, TOOL-USING conversation with DeepSeek, in its own window.
 - `gemini_web.py` — gemini_web -- ask Gemini through the FREE web surfaces (not API quota).
