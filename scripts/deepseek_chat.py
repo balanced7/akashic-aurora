@@ -562,7 +562,13 @@ class ToolBox:
     # -- guarded write (live only when the runner is started with --allow-write) --
     def _yield_notice(self, path, held_by):
         """A0.1: make a write-yield VISIBLE on the bus (environmental signal, not a silent error).
-        Best-effort -- never let a notice failure block the guarded write path."""
+        Best-effort -- never let a notice failure block the guarded write path.
+
+        ACL: this raw Bus.broadcast bypasses _bus_send_ok deliberately, and is safe -- it is
+        reachable ONLY through _prewrite (the WRITE-cap + path-scope gate), so a non-writer
+        (e.g. a quarantined newborn) never gets here; and kind='inform' is an internal
+        coordination signal not exposed by any ToolBox send door. The last raw-Bus call in
+        the ToolBox (deepseek F4 drill-1 review, 2026-07-10)."""
         try:
             from core.comm.bus import Bus
             Bus(self.agent_id or "deepseek").broadcast(

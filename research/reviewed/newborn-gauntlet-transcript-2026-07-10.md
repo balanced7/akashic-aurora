@@ -85,7 +85,12 @@ _kb_write_ok -- never blocks the live admin fleet on a glitch). Pins: 4 new in
 test_newborn_gauntlet.py (quarantined refused at every door before Redis; admin passes the
 gate, stopped only by the offline guard). Live-verified: a quarantined ToolBox now returns
 "may not send bus kind='handoff' -- deny-by-default" and "lacks the bus.nudge capability".
-Credit: deepseek (found in drill-1 review). His fix-review pending (symmetric fence).
+Credit: deepseek (found in drill-1 review). His fix-review: GATE GREEN (2026-07-10) --
+verified all four gates placed before _bus(), BUS_NUDGE/BUS_STEER distinct caps correct,
+fail-open-on-registry correct, 13 pins correct. He red-teamed for raw-Bus escapes and found
+ONE (_yield_notice :568, kind=inform) -- proved NOT a hole (reachable only through _prewrite's
+WRITE gate; inform not exposed by any ToolBox door). Applied his one non-blocking ask: a
+comment at :568 documenting why that raw-Bus call is safe. F4 CLOSED.
 
 ## SCORES (against the pre-registered rubric, corrected per F3)
 
