@@ -125,6 +125,9 @@ def test_cold_start_drill_answers_the_four_questions(tmp_path):
     p = cli("boot", f"drill-{uuid.uuid4().hex[:8]}", "--task", "cold start")
     head = "\n".join((p.stdout or "").splitlines()[:16])
     assert "# Map: docs/ARCHITECTURE.md" in head, "where is the map"
+    assert "# Method: docs/method-baseline-2026-07.md" in head, \
+        "HOW we work here answerable from boot alone (Daniel 2026-07-11: best from fresh " \
+        "bootup -- the method rides beside the map in the cold-start head)"
     assert seeded_arc in head, "the SEEDED arc governs (newest-with-doc fallback tier)"
     assert "# where-we-are: drill state: seeded corpus" in head, "what is current"
     assert "Precedence when sources conflict" in head, "who wins on conflict"

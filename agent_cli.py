@@ -947,6 +947,12 @@ def _orientation_header(agent_id: str) -> str:
     root = Path(__file__).resolve().parent
     if (root / "docs" / "ARCHITECTURE.md").is_file():
         lines.append("# Map: docs/ARCHITECTURE.md (the living skeleton) + AGENTS.md (the door contract)")
+    if (root / "docs" / "method-baseline-2026-07.md").is_file():
+        # The METHOD is boot-surfaced beside the map (Daniel 2026-07-11: best-from-fresh-boot):
+        # awareness at boot -> recall at action -> gates at ship (T031) -> scorecard at wrap.
+        lines.append("# Method: docs/method-baseline-2026-07.md (the HOW contract -- fenced dual "
+                     "passes on load-bearing work, pre-registered acceptance, kill drills; gated "
+                     "slices cite their reconciled build spec)")
     try:
         from core.learning.agent_memory import get_agent_memory
         notes = get_agent_memory().get_decisions(days=90)
