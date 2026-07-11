@@ -11,6 +11,10 @@ standing fence, do NOT read it until your own independent investigation verdict
 (research/reviewed/deepseek-liveness-invest-2026-07-10.md) is committed. You get the
 forensics record + the raw question; divergence between our conclusions is the signal.
 
+FENCE LIFTED 2026-07-10 ~21:3x: both halves committed (deepseek's blind verdict at
+research/reviewed/deepseek-liveness-invest-2026-07-10.md). Reconciliation below
+(sec. "Reconciliation"); the FINAL SLICE LIST supersedes the draft slices in this doc.
+
 ## The question (Daniel, 2026-07-10 evening)
 "Can we analyze ALL the failure modes that cause deepseek -- or any agent -- to hang,
 and design comprehensive fixes?"
@@ -103,8 +107,65 @@ leftover freeze is loud. Build only what the audit shows missing. DeepSeek: [ver
 - H6 door unification (one handoff verb, two lanes behind it) -- candidate slice, keep
   as doc+lesson until it bites again; a second incident promotes it.
 
-## Sequencing
+## Sequencing (draft -- superseded by the reconciled list below)
 RB-29 (one line) -> RB-27 (read-model; makes everything after observable) -> RB-26
 (the root fix, after deepseek's design gate) -> RB-28 (lifecycle) -> RB-30 (audit).
-Every slice lands with its drill as a pinned regression; drills D1-D5 are named above
-before any build starts, per the battery discipline.
+
+## Reconciliation (2026-07-10, fence lifted -- two blind halves compared)
+
+CONVERGED (identical conclusions, independently):
+- Root cause, verbatim from both: cursor advances BEFORE processing; every loss mode
+  (kill, wedge, lock-theft, pipe-kill) shares that one shape, and no redelivery path
+  exists. Both proposed the SAME fix at the SAME seam (wait(advance=False) + explicit
+  per-message advance after the reply sends). Two identical blind designs = the
+  strongest design gate this fleet can produce; RB-26 is cleared to build.
+- Both independently REJECTED Redis consumer groups (overkill for one-runner-per-agent)
+  and refused to couple redelivery to signed identity.
+- Both flagged the launcher gap (ad-hoc shells are unmonitored) and the hours-scale
+  latency of the only existing detector (P6 ack tier).
+
+COMPLEMENTARY (different angles, both adopted):
+- deepseek's intra-phase PROGRESS PULSE (worker thread touches bifrost:progress:<agent>
+  ~1s, TTL 5s) gives the wedge detector ground truth and kills the F2 false-wedge
+  (long legit work vs dead worker) -- claude's fleet-doctor READER surfaces it plus the
+  states a pulse cannot see (STALLED CONSUMER, SUSPECTED MAIL LOSS). Writer + reader
+  are two halves of one slice pair.
+- deepseek's SENDER-SIDE deadline/redrive (bifrost-send --expect-reply-within, 3
+  redrives then alert; zero runner changes) covers the modes receiver-side redelivery
+  cannot reach (C2/C3 runner absent, D1 stream eviction while offline). Adopted.
+- deepseek's pipe-kill IMMUNITY (BrokenPipeError -> devnull degrade wrapper) is deeper
+  than claude's launcher-only discipline; both land (immunity in the runner, blessed
+  path in the launcher).
+- Duplicate-reply discipline on redelivery: runner-side ack-check for handoffs (the P6
+  tier is already the idempotency registry) + duplicates tolerated for chat kinds.
+  (claude's runner-side check preferred over sender-side dedup -- fewer moving parts.)
+
+DEEPSEEK-ONLY FINDS (folded in):
+- B2: Redis lost mid-session -> heartbeat fail-open spins the loop forever, agent
+  invisible-but-running (presence expired, worklive expired, loop alive). Gets its own
+  slice (reconnect/backoff + stand-down after N dead beats).
+- A3 mid-batch loss named explicitly; E1 lock-TTL overlap window; D1 offline eviction.
+
+CLAUDE-ONLY FINDS (kept):
+- H5/RB-30 pause hygiene (leftover control.pause freeze is loud at boot).
+- The mail-gap check (idle + unread backlog older than N) in the doctor.
+- H6 two-lane handoff verb (stays doc+lesson; second bite promotes it).
+
+## FINAL SLICE LIST (T030 build order)
+  L1. RB-26 at-least-once inbox -- advance-after-handle + ack-idempotent redelivery.
+      Drill: kill between consume and reply -> successor answers exactly one copy.
+      (Design converged blind; deepseek [verify] after build.)
+  L2. RB-27a progress pulse (deepseek design) + RB-27b fleet-doctor reader (claude
+      design): WEDGED / STALLED CONSUMER / SUSPECTED MAIL LOSS / paused-by-whom.
+      Drills: hung worker flags in 5s; long legit call does NOT; planted backlog on an
+      idle agent flags.
+  L3. RB-28 pipe immunity + line-buffered stdout in the runner; blessed launcher path
+      (PYTHONUNBUFFERED, no truncating pipes) + AGENTS.md rule.
+      Drill: the -First N pipe cannot kill it; first lines visible within 1s.
+  L4. RB-29 sender-side deadline + redrive (bifrost-send --expect-reply-within).
+      Drill: kill recipient before reply -> auto-redrive -> relaunched runner answers.
+  L5. RB-30 B2 bus-loss stand-down (reconnect/backoff; dead-beat exit) + pause hygiene.
+      Drill: kill Redis under a live runner -> visible degraded state, clean stand-down,
+      no spin; leftover pause renders loud at boot.
+Every slice lands with its drill as a pinned regression, deepseek [verify] after each,
+per the battery discipline.
