@@ -7,6 +7,11 @@ agents learned, and a place to record what you learn. Use it via ONE script.
 altitude (what each layer is FOR), with the auto-generated per-module index one hop away.
 Boot prints the same pointer plus the current arc and precedence rules in its first lines.
 
+**The method:** [docs/method-baseline-2026-07.md](docs/method-baseline-2026-07.md) -- HOW
+work is done here (fenced dual passes, SOTA grounding, pre-registered acceptance, kill
+drills, verbatim records -- each with its trigger, metric, and receipts). It is a contract,
+not advice: gated slices cite their reconciled build spec; the bar is match-or-exceed.
+
 ## At the START of your task, run this and read the output:
 
 ```

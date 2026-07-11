@@ -1,5 +1,5 @@
 {
-  "seq": 30,
+  "seq": 31,
   "tasks": [
     {
       "id": "T001",
@@ -1204,6 +1204,32 @@
           "to": "approved",
           "by": "user",
           "at": "2026-07-11T01:05:29+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T031",
+      "title": "Method-baseline enforcement (forcing functions for docs/method-baseline-2026-07.md): (1) reconciliation-gate ship check -- gated slices cite a dated dual-half build-spec artifact (deepseek hook, first); (2) pre-registration checker (acceptance commit <= impl commit); (3) wrap-time arc scorecard (which M practices fired / skipped-with-reason / metric reads); (4) verbatim-record linter (GATE strings cite research/reviewed/)",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "each hook lands as a ship-gate or wrap step with a pin proving it FAILS on its defect class; deepseek fenced review per M1",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-11T04:41:35+00:00",
+      "updated": "2026-07-11T04:41:35+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-11T04:41:35+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-11T04:41:35+00:00"
         }
       ]
     }
