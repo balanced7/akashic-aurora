@@ -1,0 +1,26 @@
+{"id":"ds-01","text":"I'll analyze the architecture and report back with findings.","label":"promise","lang":"en","form":"prose","source":"synthetic"}
+{"id":"ds-02","text":"Let me now fold this into the review and deliver the full assessment.","label":"promise","lang":"en","form":"prose","source":"real"}
+{"id":"ds-03","text":"Next, I'll examine the concurrency model and propose fixes.","label":"promise","lang":"en","form":"prose","source":"synthetic"}
+{"id":"ds-04","text":"I'm going to search for prior art on this pattern and return with a comparison.","label":"promise","lang":"en","form":"prose","source":"synthetic"}
+{"id":"ds-05","text":"Let me check the test suite first — then I'll have a concrete answer.","label":"promise","lang":"en","form":"prose","source":"real"}
+{"id":"ds-06","text":"(deepseek produced no final answer)","label":"stall","lang":"en","form":"marker","source":"real"}
+{"id":"ds-07","text":"(deepseek returned an empty reply)","label":"stall","lang":"en","form":"marker","source":"real"}
+{"id":"ds-08","text":"(deepseek runner error: ConnectionError: timeout after 30s)","label":"stall","lang":"en","form":"marker","source":"real"}
+{"id":"ds-09","text":"(deepseek agentic runner error: ToolExecutionError: permission denied)","label":"stall","lang":"en","form":"marker","source":"synthetic"}
+{"id":"ds-10","text":"","label":"stall","lang":"en","form":"empty","source":"real"}
+{"id":"ds-11","text":"   \n  \n   ","label":"stall","lang":"en","form":"empty","source":"synthetic"}
+{"id":"ds-12","text":"(deepseek produced no final answer)","label":"stall","lang":"en","form":"marker","source":"real"}
+{"id":"ds-13","text":"Done","label":"outcome","lang":"en","form":"prose","source":"real"}
+{"id":"ds-14","text":"3 tests green, 0 red — the fix is verified.","label":"outcome","lang":"en","form":"prose","source":"real"}
+{"id":"ds-15","text":"OK","label":"outcome","lang":"en","form":"prose","source":"real"}
+{"id":"ds-16","text":"✓","label":"outcome","lang":"en","form":"prose","source":"real"}
+{"id":"ds-17","text":"The answer is in the trace above — I streamed it during reasoning. See the thinking block for the full analysis.","label":"outcome","lang":"en","form":"prose","source":"synthetic"}
+{"id":"ds-18","text":"I'll wait for your review before proceeding.","label":"outcome","lang":"en","form":"prose","source":"synthetic"}
+{"id":"ds-19","text":"I'll pause here — the next step depends on which direction you choose.","label":"outcome","lang":"en","form":"prose","source":"synthetic"}
+{"id":"ds-20","text":"Shall I continue with the refactoring, or do you want to review this slice first?","label":"outcome","lang":"en","form":"prose","source":"real"}
+{"id":"ds-21","text":"Fixed: the race condition in the drainer path. The monitor tick now correctly detects a stopped drainer on a live child and sets the registry flag within one tick. 4 new tests green.","label":"outcome","lang":"en","form":"prose","source":"real"}
+{"id":"ds-22","text":"- P0 wake detect-dont-consume: shipped\n- P1 notes supersession: shipped\n- P2 boot orientation header: shipped\nAll three acceptance tests green. Arc closed.","label":"outcome","lang":"en","form":"bullet","source":"real"}
+{"id":"ds-23","text":"I'll analyze this and come back with a detailed response.","label":"promise","lang":"en","form":"prose","source":"synthetic"}
+{"id":"ds-24","text":"Now I'll search the codebase for all call sites of this function.","label":"promise","lang":"en","form":"prose","source":"synthetic"}
+{"id":"ds-25","text":"Let me read the relevant files first, then I'll build the fix.","label":"promise","lang":"en","form":"prose","source":"synthetic"}
+{"id":"ds-26","text":"I will now refactor the module to use the new interface. One moment.","label":"promise","lang":"en","form":"prose","source":"synthetic"}
