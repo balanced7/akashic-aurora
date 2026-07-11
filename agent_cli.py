@@ -1392,6 +1392,15 @@ def cmd_wrap(args):
               "-- the default title supersedes the prior where-we-are)\n")
         print(draft)
         print(f"\n# from {len(commits)} commit(s), {len(lessons)} lesson(s), {len(notes)} note(s) this session")
+        try:   # T031 hook 3: the wrap-time M-practice scorecard (a reader, fail-open)
+            import subprocess as _sp
+            print()
+            print(_sp.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                                        "scripts", "arc_scorecard.py"),
+                           "--days", str(max(1, (args.hours or 12)) / 24.0)],
+                          capture_output=True, text=True, timeout=60).stdout.rstrip())
+        except Exception:
+            pass
         try:   # curator nudge (vNext loop 1): surface the bench bucket at the reflective moment
             from core.recall.curator import curation_report
             rep = curation_report()

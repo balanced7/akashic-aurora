@@ -35,6 +35,10 @@ def build_plan(args):
         steps.append(("guard: wiring (no new built-but-unwired module)", [PY, "scripts/check_wiring.py"]))
         steps.append(("guard: reconciliation gate (substrate ships cite their spec, M1)",
                       [PY, "scripts/check_reconciliation_gate.py", args.message, *args.paths]))
+        steps.append(("guard: pre-registration (pins never born with impl, M3)",
+                      [PY, "scripts/check_preregistration.py", args.message, *args.paths]))
+        steps.append(("guard: verbatim citation (GATE decisions cite their record, M6)",
+                      [PY, "scripts/check_verbatim_citation.py", args.message]))
         steps.append(("tests (full suite)", [PY, "-m", "pytest", "-q"]))
     steps.append(("commit + push", [PY, "scripts/mirror.py", args.message, *args.paths]))
     if args.learn_exp:
