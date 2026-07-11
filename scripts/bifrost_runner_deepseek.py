@@ -23,6 +23,7 @@ Key: env DEEPSEEK_API_KEY else .secrets/deepseek.key (reused from ask_deepseek.p
 """
 import argparse
 import os
+import re
 import sys
 import threading
 import time
@@ -161,21 +162,7 @@ def bounce_promise(answer, resend):
     into my review closure") starts with bare "let me", which the hook's list requires
     "let me now" for -- the runner adds that opener locally, with the same question /
     user-conditional carve-outs."""
-    try:
-        import re
-        from hooks.claude_stop import USER_CONDITIONAL, final_paragraph, promise_shaped
-        para = final_paragraph(answer or "")
-        excerpt = promise_shaped(para)
-        if not excerpt:
-            p = (para or "").strip()
-            low = p.lower()
-            norm = re.sub(r"^[\s>*\-\d.]+", "", low)
-            if (p and not p.endswith("?")
-                    and not any(k in low for k in USER_CONDITIONAL)
-                    and re.match(r"^let me (?!know\b)", norm)):
-                excerpt = p[:120]
-    except Exception:
-        return answer
+    excerpt = promise_shaped_runner(answer)
     if not excerpt:
         return answer
     try:
@@ -187,6 +174,118 @@ def bounce_promise(answer, resend):
         return bounced or answer
     except Exception:
         return answer
+
+
+def promise_shaped_runner(text):
+    """The runner's promise detector, exposed PURE for the RB-23 gate + corpus grading:
+    the stop-hook's promise_shaped plus the wider bare-"let me" net (see bounce_promise
+    docstring for why the net is wider here). Returns the matched excerpt, else None."""
+    try:
+        from hooks.claude_stop import USER_CONDITIONAL, final_paragraph, promise_shaped
+        para = final_paragraph(text or "")
+        excerpt = promise_shaped(para)
+        if not excerpt:
+            p = (para or "").strip()
+            low = p.lower()
+            norm = re.sub(r"^[\s>*\-\d.]+", "", low)
+            if (p and not p.endswith("?")
+                    and not any(k in low for k in USER_CONDITIONAL)
+                    and re.match(r"^let me (?!know\b)", norm)):
+                excerpt = p[:120]
+        return excerpt or None
+    except Exception:
+        return None
+
+
+# ---- RB-23: the content floor (spec: docs/rb23-build-spec-2026-07-11.md) -----------------
+# A persistent no-content stall must be CAUGHT, not shipped as done: empty/marker finals were
+# never bounced (the bare marker shipped as the agent's last word -- two live bites
+# 2026-07-10/11, lesson runner_reasoning_eats_final_answer), and a second successive promise
+# always shipped. content_floor_check is the LAST gate before a reply ships.
+MARKER_PATTERN = re.compile(
+    r"^\((?:[a-z0-9_-]+)\s+(?:produced no final answer|returned an empty reply|"
+    r"runner error|agentic runner error|runner timed out|runner: no result)\b")
+FLOOR_CHARS = 15
+
+_FLOOR_REPROMPTS = {
+    "empty": ("Your previous reply contained no substantive content. Deliver the answer NOW, "
+              "in full. No acknowledgment, no preamble."),
+    "marker": ("Your previous reply contained no substantive content. Deliver the answer NOW, "
+               "in full. No acknowledgment, no preamble."),
+    "promise-again": ("Your last reply was another promise, not a deliverable. This is your "
+                      "final word -- deliver the work NOW."),
+}
+
+
+def stall_reason(text):
+    """First-position hard-floor classifier: 'empty' | 'marker' | None. PURE."""
+    t = (text or "").strip()
+    if not t:
+        return "empty"
+    if MARKER_PATTERN.match(t):
+        return "marker"
+    return None
+
+
+def content_floor_check(answer, resend, agent_id="deepseek", promise_bounce_fired=False,
+                        pulse=None):
+    """RB-23: the last gate before a reply ships.
+
+    Tier 1 (hard): empty/marker -> one deliver-now resend; still empty/marker -> CONFESS.
+    Tier 2 (hard): promise AFTER bounce_promise fired -> one final-word resend; still a
+        promise -> CONFESS (a promise is definitionally not a deliverable).
+    Tier 3 (soft): post-ANY-bounce short reply (< FLOOR_CHARS) -> one is-there-more resend;
+        the result ships regardless -- short text NEVER confesses ("ok" can be a legitimate
+        answer; precision first, char logic script-agnostic on purpose).
+
+    One paid resend total for this gate; with bounce_promise's own single bounce the turn's
+    hard ceiling is 2 resends (T018 bounce-cost-ceiling). Hard reasons fail CLOSED to a
+    confession string starting "(<agent> --", which the EXISTING handle_message rules already
+    treat right: turn_metrics records outcome=error, and the P6 auto-ack is refused -- a
+    stalled handoff stays visibly UNHANDLED so the sender can redrive. Never raises."""
+    if pulse is None:
+        def pulse(agent, reason, **kw):
+            liveness.pulse_error(agent, reason, generation=PULSE_GEN[0])
+    reason = stall_reason(answer)
+    if reason is None and promise_bounce_fired and promise_shaped_runner(answer):
+        reason = "promise-again"
+    soft = (reason is None and promise_bounce_fired
+            and len((answer or "").strip()) < FLOOR_CHARS)
+    if reason is None and not soft:
+        return answer
+
+    if soft:
+        try:
+            second = resend("Your reply was extremely brief. If there is more to deliver, "
+                            "deliver it now in full; otherwise restate your final answer.")
+        except Exception:
+            second = None
+        good = second if (second and stall_reason(second) is None) else None
+        return good or answer
+
+    second, resent = None, False
+    try:
+        second = resend(_FLOOR_REPROMPTS[reason])
+        resent = True
+    except Exception:
+        second = None
+    if second:
+        still_bad = (stall_reason(second) is not None
+                     or (reason == "promise-again" and promise_shaped_runner(second)))
+        if not still_bad:
+            return second
+    attempts = 1 + (1 if promise_bounce_fired else 0) + (1 if resent else 0)
+    last = " ".join(((second if second else answer) or "").strip().split())[:80]
+    confession = ("(%s -- no substantive reply after %d attempts; reason: %s%s; "
+                  "see streamed trace / runner logs for any partial work)"
+                  % (agent_id, attempts, reason, (" [last: %s]" % last) if last else ""))
+    try:
+        pulse(agent_id, "content_floor_exhausted:%s" % reason)
+    except Exception:
+        pass
+    return confession
+
+
 DEFAULT_SYSTEM = (
     "You are DeepSeek, collaborating in real time with Claude (and the user) over a shared message "
     "bus. Each reply posts straight back to the sender, so be direct and self-contained. Keep it "
@@ -200,17 +299,17 @@ def should_answer(kind, frm, self_id) -> bool:
     return frm != self_id and str(kind) in ANSWERABLE
 
 
-def make_replier(model: str, system: str, think: bool):
+def make_replier(model: str, system: str, think: bool, agent_id: str = "deepseek"):
     """One-shot prompt->reply bridge over the DeepSeek API. Never raises: any failure comes back as a
     string so the runner loop stays alive and the sender always gets *something*."""
     import deepseek_chat as dc
     client = dc.make_client(load_key())   # L0: timeout + explicit retries so a hung call can't wedge the runner
 
-    def respond(prompt: str) -> str:
+    def _complete(p: str) -> str:
         try:
             kwargs = {"model": model, "max_tokens": MAX_TOKENS, "messages": [
                 {"role": "system", "content": system},
-                {"role": "user", "content": prompt}]}
+                {"role": "user", "content": p}]}
             if think:
                 kwargs["reasoning_effort"] = "high"
                 kwargs["extra_body"] = {"thinking": {"type": "enabled"}}
@@ -218,6 +317,17 @@ def make_replier(model: str, system: str, think: bool):
             return resp.choices[0].message.content or "(deepseek returned an empty reply)"
         except Exception as e:
             return f"(deepseek runner error: {type(e).__name__}: {e})"
+
+    def respond(prompt: str) -> str:
+        answer = _complete(prompt)
+        # RB-23: the stateless path's resend must re-embed the original ask, or the reprompt
+        # arrives context-free and the retry cannot possibly deliver.
+        resend = lambda reprompt: _complete(prompt + "\n\n[system bounce] " + reprompt)
+        pre = answer
+        answer = bounce_promise(answer, resend)      # T018: a promise is not a deliverable
+        answer = content_floor_check(answer, resend, agent_id=agent_id,
+                                     promise_bounce_fired=(answer is not pre))   # RB-23
+        return answer
 
     return respond
 
@@ -291,8 +401,13 @@ def make_agentic_replier(model: str, system: str, think: bool, root: Path, agent
         try:
             answer = ag.send(prompt)                 # streams to the runner window; returns final text
         except Exception as e:
-            return f"(deepseek agentic runner error: {type(e).__name__}: {e})"
+            # RB-23: fold the error into the pipeline (no early return) -- the floor gate
+            # gives a transient failure exactly one retry before it confesses.
+            answer = f"(deepseek agentic runner error: {type(e).__name__}: {e})"
+        pre = answer
         answer = bounce_promise(answer, ag.send)     # T018: a promise is not a deliverable
+        answer = content_floor_check(answer, ag.send, agent_id=agent_id,
+                                     promise_bounce_fired=(answer is not pre))   # RB-23
         return answer or "(deepseek produced no final answer)"
 
     return respond
@@ -540,7 +655,7 @@ def main() -> int:
                                          allow_write=args.allow_write, allow_exec=args.allow_exec)
         mode = f"agentic tools @ {root}{' +write' if args.allow_write else ''}{' +exec' if args.allow_exec else ''}"
     else:
-        responder = make_replier(args.model, args.system, args.think)
+        responder = make_replier(args.model, args.system, args.think, agent_id=args.agent)
         mode = "one-shot bridge"
 
     if os.environ.get("AKASHIC_DRILL_ECHO"):

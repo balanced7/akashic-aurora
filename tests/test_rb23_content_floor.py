@@ -197,11 +197,15 @@ def _grade(rows):
         text, label, form = r["text"], r["label"], r.get("form", "prose")
         fires_first = bool(promise_shaped_runner(text) or stall_reason(text))
         if label == "promise":
-            p_tot += 1
-            if promise_shaped_runner(text):
-                p_hit += 1
-                tp += 1
-            elif fires_first:
+            # Promise RECALL is graded on lang=en rows only: the v1 detector is an
+            # English-opener net BY DESIGN (spec: non-en promise coverage is a named
+            # deferral). Non-en promise rows still count toward precision if they fire,
+            # and non-en OUTCOME rows stay in the pool as false-positive guards.
+            if r.get("lang", "en") == "en":
+                p_tot += 1
+                if promise_shaped_runner(text):
+                    p_hit += 1
+            if fires_first:
                 tp += 1
         elif label == "outcome":
             if fires_first:

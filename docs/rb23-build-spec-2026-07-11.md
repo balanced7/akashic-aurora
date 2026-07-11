@@ -82,7 +82,10 @@ Position-aware grading (claude protocol, reconciled with deepseek row labels):
 - label=stall  -> Tier-1 fires at first-reply position for form empty|marker; prose stalls
   ("ok", "...") are graded at POST-BOUNCE position (Tier 3 may softly reprompt; never confess).
 Bounds (claude proposal; deepseek's (e) tail pending -- reconcile on arrival, the STRICTER
-bound wins per axis): held-out precision >= 0.95 on would-act; promise recall >= 0.80;
+bound wins per axis): held-out precision >= 0.95 on would-act; promise recall >= 0.80
+GRADED ON lang=en ROWS ONLY (the v1 promise detector is an English-opener net by design;
+non-en promise coverage is a NAMED DEFERRAL, not a hidden miss -- non-en outcome rows stay
+in the pool as false-positive guards, which is what bilingual rows are FOR at a char floor);
 stall recall = 1.0 on empty|marker forms. Held-out set = deepseek's FRESH sealed batch
 (ds-41+, zh-heavy; see incident record). Dev set (tunable) = claude 41 rows + ds-01..27.
 
