@@ -88,3 +88,100 @@ Add srem to the Store interface (abstract + 3 backends + test mock; ~12 lines ea
 Alternative: store byref as JSON lists in regular keys, updated via Store.update_atomic()
 (already exists at store.py:184), avoiding the need for srem entirely at the cost of
 read-modify-write on every add().
+
+## Verify pass (bus msg 1783732888893-0, verbatim) -- GATE GREEN
+
+## RB-4 Verification: **GATE GREEN** ✅
+
+Every condition from my design-review mandate is in the code, at the right seams, with the right safety nets. The trace:
+
+---
+
+### 1. `srem` on the Store — all four surfaces ✓
+
+| Surface | Location | Notes |
+|---------|----------|-------|
+| Abstract | `store.py:136-139` | Signature + docstring cites "deepseek-mandated" |
+| RedisStore | `store.py:285-286` | Thin pass-through, `int(self._client.srem(...))` |
+| FileStore | `store.py:546-556` | `difference_update` + **emptied key deleted** (`_data["set"].pop(key, None)`) — Redis semantics honored |
+| HybridStore | `store.py:766` | Delegates via `_write("srem", ...)` to both |
+
+The FileStore detail matters: an emptied set key is deleted, not left as `[]`. This is what makes `if not self.store.smembers(k): self.store.delete(k)` at `event_index.py:105` correct — it detects the set-is-gone state in both backends.
+
+---
+
+### 2. `_trim()` lockstep — payload read BEFORE byid delete ✓
+
+`event_index.py:87-105`:
+
+```python
+evict = self.store.zrange(TINDEX, 0, overflow - 1)   # oldest first
+for eid in evict:
+    ev = self.get(eid)                    # ← payload read FIRST (holds refs list)
+    for ref in ((ev or {}).get("refs") or []):
+        k = byref_key(str(ref))
+        self.store.srem(k, eid)           # ← remove from byref
+        if not self.store.smembers(k):
+            self.store.delete(k)          # ← empty → delete key
+self.store.delete(*[byid_key(e) for e in evict])  # ← byid deleted LAST
+self.store.zrem(TINDEX, *evict)
+```
+
+The ordering is correct: read payload → srem from all byref sets → delete byid → remove from tindex. If the read fails (`ev is None`), the byref srem still runs (empty loop on `(ev or {}).get(...)` → no crash), and the byid key is deleted anyway. Dangling byref members are then caught by `events_for_ref`'s `get()` filter.
+
+---
+
+### 3. `rebuild()` clears stale byref first ✓
+
+`event_index.py:166-176`:
+
+```python
+stale = self.store.keys(f"{BYREF_PREFIX}*")
+if stale:
+    self.store.delete(*stale)
+```
+
+Before the replay. A rebuild from a different firehose window (or after a full stream cycle) won't inherit old byref entries.
+
+---
+
+### 4. `events_for_ref` — exact, dangling-filtered, fallback-safe ✓
+
+- **EventIndex** (`event_index.py:145-157`): `smembers` → `get()` filter → sort by epoch. Dangling members silently filtered.  
+- **EventQuery** (`event_query.py:120-133`): delegates to index when live; full `log.scan()` filter for ledger-only logs. Linear but **total**, never silently windowed (not `top_k=500`).  
+- **Promoter seam** (`promoter.py:62-69`): `_events_for_ref()` uses `getattr(eq, "events_for_ref", None)` — exact when available, legacy `search()` fallback for old test fakes. Graceful.
+
+---
+
+### 5. Both promoter readers switched ✓
+
+- **`acks_for`** (`promoter.py:163-181`): `for mid in wanted: for e in _events_for_ref(eq, f"bifrost:{mid}", ...)` — per-message exact. The `top_k=500` scan is gone. S2/R17 root dead.  
+- **`_promoted_record`** (`promoter.py:72-83`): same `_events_for_ref` seam. Was `top_k=100000` scan. **In-same-pass suggestion taken.** ✓
+
+---
+
+### 6. Xfail lifted ✓
+
+`tests/test_window_confession.py:123`: `test_ack_beyond_the_500_window_still_reads_handled` has no `@pytest.mark.xfail` decorator. The comment still references the pre-registration history but the test is a regular assertion now. The `FakeQuery.events_for_ref` stub it exercises (`test_window_confession.py:36`) directly feeds the exact-ref path through `_events_for_ref`'s `getattr` check.
+
+---
+
+### 7. Five new pins ✓
+
+| Pin | What it proves |
+|-----|----------------|
+| `test_byref_exact_lookup_oldest_first` | Exact per-ref, oldest-first ordering, empty case |
+| `test_byref_shrinks_in_lockstep_with_eviction` | Maxlen=3, 6 events, shared+solo refs — survivors correct, evicted refs empty, keys deleted |
+| `test_rebuild_clears_stale_byref` | Rebuild from a different event set: old byref key gone, new one exists |
+| `test_events_for_ref_fallback_without_index` | Ledger-only EventLog: full scan filter works |
+| `test_filestore_srem_contract` | Remove, count, emptied → absent |
+
+---
+
+### 8. Live migration path ✓
+
+Pre-RB-4 events had no byref entries. `rebuild_index()` clears `events:raw:byref:*` first, then replays the full firehose through `add()` — which now calls `sadd` for every ref. Cold clones heal the same way. The commit message confirms this was exercised live (1019 events).
+
+---
+
+**No blockers. No regressions. Every mandate check passes.** The design-review condition was honored exactly — the leak I predicted is prevented at every path: trim, rebuild, read. The in-same-pass `_promoted_record` suggestion was taken. The xfail flipped green as pre-registered. Ship it.
