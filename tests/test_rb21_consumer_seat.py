@@ -159,6 +159,27 @@ def test_door_degrade_shape_under_foreign_holder(agent):
     assert dict(bus.cursor()) == before, "degraded read moved nothing"
 
 
+# --- P10 (post-review registration, deepseek N1, added pre-impl at gate GREEN):
+#     same-session re-claim is a refresh, never a refusal ---
+
+def test_same_session_reclaim_refreshes_not_refuses(agent):
+    ok1, g1, _ = runner_lock.claim_consumer(agent, "session:pin-a")
+    ok2, g2, _ = runner_lock.claim_consumer(agent, "session:pin-a")
+    assert ok1 and ok2 and g2 == g1, \
+        "re-entrant for the own token: refresh TTL, keep the tenure generation"
+
+
+# --- P11 (post-review registration, deepseek Q3/Option A, added pre-impl at gate GREEN):
+#     the door's happy path is the SAME dict shape ---
+
+def test_door_happy_path_dict_shape(agent):
+    from agent.bifrost_pull import consume_inbox
+    _seed(agent, 1)
+    res = consume_inbox(agent, limit=10)
+    assert isinstance(res, dict) and res.get("seat_held") is False
+    assert len(res.get("consumed") or []) == 1, "one consistent type for JSON callers"
+
+
 # --- P9: the MCP door defaults to PEEK (silent consume-by-default retired) ---
 
 def test_mcp_door_peek_default():
