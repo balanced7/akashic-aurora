@@ -226,6 +226,10 @@ def cmd_boot(args):
                 print(f"  [{d.created_at[:10]}] {d.title}: {_clip(d.decision, budget)}")
             if len(notes) > len(shown) or any(len(d.decision or "") > b for d, b in zip(shown, _budgets)):
                 print("  (clipped; full note bodies: py agent_cli.py notes --json)")
+        else:
+            # RB-12 [GAP]: zero notes, empty store -- no crash, no wrong line
+            print("\n## RECENT NOTES (durable project memory)")
+            print("  [GAP] (no durable notes yet)")
     except Exception:
         pass
     try:   # P7 (T027, deepseek C3): the durable decision trail, compact, each with a drill
@@ -1033,6 +1037,11 @@ def _orientation_header(agent_id: str) -> str:
         # (newest non-done note, nothing actually governs the active work) is labelled as
         # WEAK, not asserted as governing -- the 2026-07-11 incident's second lesson: a
         # confidently-wrong "Governing arc:" line is worse than an honest "no arc governs".
+        # RB-12 (W3): candidate order is deterministic WITHOUT a local sort -- it inherits
+        # get_decisions()'s (created_at, title, id) total order, which preserves the
+        # newest-wins doctrine above. An alpha pre-sort here (the review's draft remedy,
+        # written against the old single-key sort) would silently replace newest-wins
+        # with alphabetical-wins and make the fallback's "newest is" line lie.
         match = next((c for c in candidates if c[0]), None)
         if match:
             lines.append(f"# Governing arc: {match[2]}  (from note '{match[1]}')")
@@ -1041,11 +1050,13 @@ def _orientation_header(agent_id: str) -> str:
                          f"{candidates[0][2]}, note '{candidates[0][1]}'; trust the "
                          f"DIRECTIVE + ledger)")
         else:
-            lines.append("# Governing arc: (none active -- check notes/ledger)")
+            lines.append("# [GAP] Governing arc: (none active -- check notes/ledger)")
         wwa = next((d for d in notes if d.title == "where-we-are"), None)
         if wwa:
             one_line = " ".join((wwa.decision or "").split())
             lines.append(f"# where-we-are: {_clip(one_line, 120)}")
+        else:
+            lines.append("# [GAP] where-we-are: (no note yet -- record one with `agent_cli note`)")
         # F1 (2026-07-11 incident): the CURRENT DIRECTIVE -- what to do FIRST and what NOT
         # to do yet -- rendered with authority ABOVE the raw NEXT list. next-focus already
         # IS the priority note-kind (deepseek: no new primitive); the gap was that boot
@@ -1056,6 +1067,8 @@ def _orientation_header(agent_id: str) -> str:
             focus = " ".join((nf.decision or "").split())
             lines.append(f"# >> CURRENT DIRECTIVE (do this FIRST; beats the NEXT list order): "
                          f"{_clip(focus, 160)}")
+        else:
+            lines.append("# [GAP] CURRENT DIRECTIVE: (none set -- use `wrap --focus` to set priority)")
     except Exception:
         # Store down -> a structurally-valid but semantically-empty head is WORSE than an
         # honest gap line (deepseek gate review, attack 3): say what is missing and where
@@ -1092,14 +1105,14 @@ def cmd_note(args):
     """Write-once durable project note: record WHERE-WE-ARE / a decision in ONE place (the substrate),
     not by hand-editing files. Re-noting the same --title (or --supersedes ID) RETIRES the prior note
     (correct by superseding, never edit). Surfaces at `boot` + `notes`; reprojects chronicles/memory.md."""
-    from core.learning.agent_memory import get_agent_memory
+    from core.learning.agent_memory import get_agent_memory, normalize_title
     mem = get_agent_memory()
     if args.retire:
         # Retire mode (P1/T021): tombstone a one-shot note WITHOUT a successor -- consumed
         # handoffs, placeholders, done-arc status notes. Accepts an id or a title.
         target = str(args.retire)
         dec = next((d for d in mem.get_decisions(days=3650)
-                    if d.id == target or d.title == target), None)
+                    if d.id == target or normalize_title(d.title) == normalize_title(target)), None)
         if dec is None:
             print(f"ERROR: no active note with id or title '{target}' (see: notes --all)")
             return 1
@@ -1129,12 +1142,24 @@ def cmd_note(args):
     if len(str(args.title or "")) > 200:
         clipped.append(f"[CLIPPED] title: {len(str(args.title))} chars exceeds the 200-char cap -- "
                        f"stored (and supersede-matched) as {title!r}")
-    from core.learning.agent_memory import SupersedeRaceError
+    from core.learning.agent_memory import SupersedeRaceError, normalize_title, HEAD_KEY_PREFIX
     body = _intake(args.note, _MAX_NOTE, "note body", clipped)
     ctx = _intake(args.context or "", 1000, "context", clipped)
     supersedes = args.supersedes
     try:
         if supersedes:
+            # RB-10: pre-read the head sentinel for a stale-explicit-target teaching
+            # error BEFORE the write+claim+cleanup cycle (verify review finding #2).
+            # A lost race here is NOT a race -- the caller named a specific prior
+            # and retrying would supersede the wrong record.
+            head = mem.store.get(HEAD_KEY_PREFIX + normalize_title(title))
+            if head and head != supersedes and mem._is_active(head):
+                print(f"ERROR: explicit target '{supersedes}' is not the current head "
+                      f"(head is '{head}'). Drop --supersedes to auto-resolve, "
+                      f"or use --supersedes {head}."); return 1
+            if not head:
+                print(f"ERROR: no existing note for this title; "
+                      f"drop --supersedes for a fresh first note."); return 1
             # Explicit target (migration verbs): single attempt; a lost race is a
             # teaching error, not a retry -- the caller named a specific prior.
             dec_id = mem.decide(title=title, decision=body, context=ctx,
@@ -1151,6 +1176,8 @@ def cmd_note(args):
             except Exception:
                 supersedes = None
     except SupersedeRaceError as e:
+        # SupersedeTargetError is-a SupersedeRaceError (pre-write refusal of the same
+        # race), so this one clause catches both teaching errors.
         print(f"ERROR: {e}"); return 1
     if not dec_id:
         print("ERROR recording note (store unavailable?)"); return 1
@@ -1200,6 +1227,29 @@ def cmd_notes(args):
     for d in decs[:(args.limit or 25)]:
         tag = " [superseded]" if d.superseded else ""
         print(f"  [{d.created_at[:10]}]{tag} {d.title}: {_clip(d.decision, 140)}   (id {d.id})")
+    # RB-10: vanished title groups (all records retired)
+    try:
+        mem = get_agent_memory()
+        gone = mem.get_retired_titles()
+        if gone:
+            print(f"\n# {len(gone)} retired title group(s) -- every record for these titles is retired:")
+            for g in gone[:10]:
+                print(f"  [{g['last_retired_at'][:10]}] {g['title']} "
+                      f"({g['retired_count']} record(s), last id {g['last_active_id']})")
+    except Exception:
+        pass
+    # RB-11: chain-length warning
+    try:
+        from core.learning.agent_memory import CHAIN_WARN_THRESHOLD
+        mem = get_agent_memory()
+        long = mem.get_long_chains()
+        if long:
+            print(f"\n# {len(long)} title(s) with long superseded chains "
+                  f"(> {CHAIN_WARN_THRESHOLD} records):")
+            for c in long[:5]:
+                print(f"  {c['title']}: {c['count']} records (oldest {c['oldest_id']}, newest {c['newest_id']})")
+    except Exception:
+        pass
     return 0
 
 

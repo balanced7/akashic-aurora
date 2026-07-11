@@ -55,6 +55,22 @@ class SupersedeRaceError(RuntimeError):
     caller can re-read and retry against it -- decide_with_retry() does exactly that."""
 
 
+class SupersedeTargetError(SupersedeRaceError, ValueError):
+    """RB-10: supersede target refused BEFORE any write. The message names the current
+    head (for stale/superseded targets) or states the target doesn't exist. Raised
+    pre-hset so the caller sees a teaching error with zero state mutation.
+
+    is-a SupersedeRaceError: a stale target is the SAME race the CAS claim would lose
+    post-write, detected early (so the RB-8 race contract holds and decide_with_retry
+    auto-resolves it without the write+claim+cleanup cycle). is-a ValueError per the
+    RB-10 frozen contract (tests/test_w3_rb9_rb10.py)."""
+
+
+# RB-11 (Wave 3): the render-side chain-length warning threshold. Future T034 dial;
+# until then a named constant the manifest will claim.
+CHAIN_WARN_THRESHOLD = 50
+
+
 def normalize_title(title: str) -> str:
     """RB-9: NFC + strip ONLY -- no case folding, no whitespace collapse. Case and
     spacing can carry meaning; precision first (reconciled Wave 3 spec; case-folding is
@@ -164,6 +180,12 @@ class AgentMemory:
         the winner -- doors go through decide_with_retry(), which re-reads and retries.
         RB-9: the stored title is normalize_title()'d (NFC + strip)."""
         title = normalize_title(title)
+        # RB-10: validate the supersede target BEFORE any write (existence, active, non-dangling).
+        # A teaching error here saves the write+claim+cleanup cycle for invalid targets.
+        if supersedes:
+            err = self._validate_supersede_target(supersedes)
+            if err:
+                raise SupersedeTargetError(err)
         dec_id = self._gen_id("ADR")
         created = datetime.now().isoformat()
         dec = Decision(
@@ -247,6 +269,50 @@ class AgentMemory:
                 last = e
         raise last
 
+    # ----- RB-9: normalization collision scan -----
+    def find_normalization_collisions(self) -> List[Dict]:
+        """Scan active decisions for title pairs that normalize-equal but STORED different.
+        RB-9 (W3): flags pre-existing near-duplicates for manual ruling; never auto-merges.
+        FULL-corpus scan: legacy twins are old by nature (pre-RB-9 writes), so a lookback
+        window would hide exactly the records this exists to find (pinned in
+        tests/test_w3_rb9_rb10.py with 2026-01 forgeries). Doctor/boot frequency, never
+        the default read path. Returns {title, stored_variants, ids, count} per collision."""
+        decisions = self.get_decisions(days=3650)
+        by_norm: Dict[str, List[Decision]] = {}
+        for d in decisions:
+            n = normalize_title(d.title)
+            by_norm.setdefault(n, []).append(d)
+        hits = []
+        for norm, group in by_norm.items():
+            distinct = sorted(set(d.title for d in group))
+            if len(distinct) > 1:
+                hits.append({"title": norm, "stored_variants": distinct,
+                              "ids": [d.id for d in group], "count": len(group)})
+        hits.sort(key=lambda h: h["title"])
+        return hits
+
+    # ----- RB-10: supersede-target validation -----
+    def _validate_supersede_target(self, supersedes: str) -> str | None:
+        """RB-10 pre-write validation. Returns a teaching-error string if the target is
+        invalid, or None if it clears. Checks: existence, non-self (trivially: decide()
+        hasn't minted the new id yet, so no self-check needed here), and ACTIVE status.
+        An already-superseded target names the current head in the error."""
+        data = self.store.hget(self.KEY_DECISIONS, supersedes)
+        if not data:
+            return f"supersede target '{supersedes}' does not exist; drop --supersedes for a fresh first note"
+        rec = json.loads(data)
+        if rec.get("superseded"):
+            title_n = normalize_title(rec.get("title", ""))
+            head = self.store.get(HEAD_KEY_PREFIX + title_n)
+            if head and self._is_active(head):
+                return (f"supersede target '{supersedes}' is already superseded "
+                        f"(current head is '{head}'); drop --supersedes to auto-resolve, "
+                        f"or name the current head explicitly")
+            return (f"supersede target '{supersedes}' is already superseded "
+                    f"and the sentinel for its title is missing/dangling; "
+                    f"drop --supersedes to auto-resolve")
+        return None
+
     def retire_decision(self, dec_id: str) -> bool:
         """Retire a decision with NO successor (supersede-into-nothing) -- the tombstone for
         one-shot notes (consumed handoffs, placeholders, done-arc status notes). Reversible at
@@ -262,6 +328,68 @@ class AgentMemory:
             logger.error(f"Failed to retire decision {dec_id}: {e}")
             return False
 
+    # ----- RB-10: all-retired-title detector -----
+    def get_retired_titles(self) -> List[Dict]:
+        """Return titles whose every record is retired (vanished groups). Additive surface:
+        default get_decisions() unchanged. Time-bounded to 90 days per the FM2 mitigation;
+        older vanished groups surface only via --all. Each entry: {title, last_active_id,
+        retired_count, last_retired_at}."""
+        decisions = self.get_decisions(days=90, include_superseded=True)
+        by_title: Dict[str, List[Decision]] = {}
+        for d in decisions:
+            n = normalize_title(d.title)
+            by_title.setdefault(n, []).append(d)
+        gone = []
+        for title_n, group in by_title.items():
+            if all(d.superseded for d in group):
+                newest = max(group, key=lambda d: d.created_at)
+                gone.append({"title": title_n, "last_active_id": newest.id,
+                             "retired_count": len(group),
+                             "last_retired_at": newest.created_at})
+        gone.sort(key=lambda g: g["title"])
+        return gone
+
+    # ----- RB-11: migration idempotency -----
+    def run_migration_once(self, name: str, fn) -> bool:
+        """Run `fn()` exactly once, guarded by a per-name cas pin key `mem:migration:{name}`.
+        Returns True if the migration ran; False if the pin was already present (no-op).
+        The migration body must ALSO be inherently idempotent -- the pin is an optimization,
+        not the sole safety mechanism (RB-11 FM1)."""
+        key = f"mem:migration:{name}"
+        claimed = self.store.cas(key, None, "done")
+        if not claimed:
+            return False
+        try:
+            fn()
+        except Exception:
+            self.store.delete(key)   # roll back the pin so a retry can re-attempt
+            raise
+        return True
+
+    # ----- RB-11: chain-length warning -----
+    def get_long_chains(self, threshold: int | None = None) -> List[Dict]:
+        """Return titles whose superseded chain length exceeds the threshold (default
+        CHAIN_WARN_THRESHOLD=50). Render-side only -- never on the default read path.
+        FULL-corpus count: a chain that took months to grow is precisely the pathology
+        this warns about, and a 90d window would undercount it (the pre-registered pin
+        forges 2026-01 records; pin beats the spec's 90d line -- reconciled at wake-verify
+        2026-07-11). Each entry: {title, count, oldest_id, newest_id}."""
+        t = threshold if threshold is not None else CHAIN_WARN_THRESHOLD
+        decisions = self.get_decisions(days=3650, include_superseded=True)
+        by_title: Dict[str, List[Decision]] = {}
+        for d in decisions:
+            n = normalize_title(d.title)
+            by_title.setdefault(n, []).append(d)
+        long = []
+        for title_n, group in by_title.items():
+            if len(group) > t:
+                newest = max(group, key=lambda d: d.created_at)
+                oldest = min(group, key=lambda d: d.created_at)
+                long.append({"title": title_n, "count": len(group),
+                             "oldest_id": oldest.id, "newest_id": newest.id})
+        long.sort(key=lambda c: -c["count"])
+        return long
+
     def get_decisions(self, days: int = 30, include_superseded: bool = False) -> List[Decision]:
         """Get decisions from the last `days`, newest first. Active (not superseded) only by
         default; `include_superseded=True` is the archaeology path (notes --all)."""
@@ -275,7 +403,10 @@ class AgentMemory:
                     if d.get("superseded") and not include_superseded:
                         continue  # retired by a newer decision
                     decisions.append(Decision(**d))
-            decisions.sort(key=lambda x: x.created_at, reverse=True)
+            # RB-12 (W3): (created_at, title, id) descending -- title as secondary tiebreak
+            # before the opaque id. Deterministic across calls AND backends (zset ordering fixed
+            # at the store level per the differential harness finding).
+            decisions.sort(key=lambda x: (x.created_at, x.title, x.id), reverse=True)
         except Exception as e:
             logger.error(f"Failed to get decisions: {e}")
         return decisions
