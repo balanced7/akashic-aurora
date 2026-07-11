@@ -5,7 +5,7 @@ _Distilled from 12 active note(s) · regenerate via `py agent_cli.py note` / `no
 Record durable project state once with `note`; correct it by re-noting the same title.
 
 - where-we-are: Shipped:
-  - T030 L1 follow-up COMPLETE + L2 reconciled spec (dual targeted read). Follow-up: W2 (die pre-send -> answers once on redelivery) + W5...  (source: mem:decision:ADR_0711001534_9233)
+  - METHOD BASELINE codified (Daniel-directed: excellence repeatable + empirical, the new match-or-exceed bar) -- built BY the method it codifies...  (source: mem:decision:ADR_0711004425_8800)
 - T029-wave1-review-status: T029 Wave 1 built+committed OVERNIGHT by DeepSeek (3 commits unpushed: d6cbf75 slices doc, 0f9172b fenced-correction, 3941789 Wave-1 code)...  (source: mem:decision:ADR_0710080005_3595)
 - comms-pillar-status: GOVERNING ARC DOC: docs/comms-pillar-synthesis-2026-07.md -- ARC COMPLETE 2026-07-10. ALL SLICES SHIPPED: P0 wake detect-dont-consume (+T018...  (source: mem:decision:ADR_0710004517_2741)
 - visualgen-status: Visual-gen integration research COMPLETE 2026-07-09: fenced dual pass (web agent verified all 10 candidate repos -- 2 unlicensed, 1 paper stub, 3...  (source: mem:decision:ADR_0709204054_7589)
