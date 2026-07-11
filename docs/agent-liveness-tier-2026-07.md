@@ -249,3 +249,32 @@ dashboard line unwired (RB-26 auto-heals; low-risk render add); (b) 'draining' p
 unset (crash-only shutdown makes a hung drain structurally near-impossible); (c)
 pulse_fresh ignores the pulse's generation (a dead tenure's pulse could mask a wedge
 for <=10s -- evaporates 30x below the 300s threshold).
+
+## L4 BUILD SPEC (RB-29 sender-side deadline + redrive -- claude concretization of the
+## adopted deepseek half, 2026-07-11; deepseek design-review gates impl)
+
+Reconciled constraints honored: sender-side only, 3 redrives then alert, receiver
+redelivery (RB-26) dedupes the consumer side, duplicates tolerated for chat kinds.
+
+1. EXPECTATION RECORD (Redis, ephemeral coordination state -- NOT durable knowledge;
+   a Redis loss is the bigger RB-30/B2 event and voids the expectations with it):
+   hash `bifrost:expect:{sender}`, field = original msg id, value json
+   {to, kind, content, deadline_ts, redrives_left: 3, attempt: 0, created}.
+   Content is stored verbatim so a redrive re-sends WITHOUT the original stream entry
+   (covers D1 offline eviction).
+2. ARM: `bifrost-send ... --expect-reply-within SECONDS` (clamp >= 30) records the
+   expectation after a successful send. CLI + MCP door parity.
+3. SWEEP AT RENDER (T025 doctrine: staleness computed at render, no daemon, no clock in
+   the store): bifrost-sync (all modes) + boot's bifrost section call
+   sweep_expectations(agent): expired + redrives_left > 0 -> re-send a copy with meta
+   {redrive_of: orig_id, attempt: n} + decrement + fresh deadline; expired + 0 left ->
+   durable event kind=expectation_dead + LOUD render line + record deleted. The sweep is
+   the sender's own pull floor -- a turn-based sender checks exactly when it can act.
+4. CLEAR ON REPLY: the sweep also clears expectations answered since last look --
+   EXACT match when the reply meta carries answers:<orig_id>; FIFO-per-recipient
+   fallback for replies without linkage. One-line runner enhancement (flagged deviation
+   from zero-runner-changes, deepseek rules at review): reply_meta gains
+   "answers": m.id -- the redrive path itself never depends on it.
+5. Drill (pinned): expectation on a dead recipient -> sweep after expiry re-sends with
+   redrive_of meta; exhaustion emits expectation_dead + loud line; a linked reply clears
+   exactly its own expectation.
