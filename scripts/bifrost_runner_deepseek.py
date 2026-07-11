@@ -59,6 +59,40 @@ REPLY_TIMEOUT_SEC = 600   # 10 min; generous for a long agentic tool chain, but 
 # promise instead of the deliverable (reasoning_model_token_headroom; seen live 2026-07-09).
 MAX_TOKENS = int(os.environ.get("DEEPSEEK_RUNNER_MAX_TOKENS", "8000"))
 
+# RB-26/L1 (T030): the five kill windows of the consume->outcome pipeline. When
+# AKASHIC_KILLPOINT names one, the runner dies HARD there (os._exit skips finally/atexit --
+# a true crash, per the crash-only drill discipline). The drill harness arms one window,
+# proves death, relaunches, and asserts at-least-once redelivery with effectively-once
+# replies. Never armed in production.
+KILLPOINT = os.environ.get("AKASHIC_KILLPOINT", "")
+
+
+def killpoint(name: str) -> None:
+    if KILLPOINT and KILLPOINT == name:
+        print(f"[deepseek-runner] KILLPOINT {name} -- dying (drill)", flush=True)
+        os._exit(137)
+
+
+# RB-26 (T030): reply dedup sentinel -- effectively-once for EVERY answerable kind, not
+# just handoffs (deepseek deep-read: a cursor-write failure after processing redelivers
+# the whole batch; without this, chat/request/nudge senders get duplicate replies). Set
+# AFTER the reply sends, BEFORE the cursor commits; checked before answering a redelivery.
+REPLY_SENT_PREFIX = "bifrost:reply_sent:"
+
+
+def _reply_already_sent(bus, mid) -> bool:
+    try:
+        return bool(bus._client.exists(REPLY_SENT_PREFIX + str(mid)))
+    except Exception:
+        return False   # fail-open: a duplicate reply is cheaper than a dropped one
+
+
+def _mark_reply_sent(bus, mid) -> None:
+    try:
+        bus._client.set(REPLY_SENT_PREFIX + str(mid), "1", ex=REPLY_TIMEOUT_SEC + 60, nx=True)
+    except Exception:
+        pass
+
 
 # P3 (T023): ledger transitions fold into the NEXT turn, latest-per-task. Deliberately a
 # separate one-slot-per-task dict rather than the context_hints ring: the fold spec's own
@@ -300,6 +334,11 @@ def _process_one(m, bus, args, responder, rate) -> None:
         return
     if not should_answer(m.kind, m.frm, args.agent):
         return
+    if _reply_already_sent(bus, m.id):
+        # RB-26: a redelivered message we already answered in a prior tenure -- the
+        # at-least-once duplicate, settled by the sentinel. Skip silently-but-loggably.
+        print(f"[deepseek-runner] skip {m.id} from {m.frm} -- reply already sent (redelivery)")
+        return
     hops = control.next_hops(m.meta)
     if control.hops_exceeded(m.meta):             # loop-guard: bounce the thread to a human
         bus.send(m.frm, "note",
@@ -327,6 +366,7 @@ def _process_one(m, bus, args, responder, rate) -> None:
         cog.record_human_interjection(args.agent)
     control.set_activity(args.agent, "thinking")
     liveness.worklive(args.agent).set("handling", detail=f"{m.frm}:{m.kind}", new_turn=True)  # L1
+    killpoint("post-phase-flip-pre-send")
     try:
         # T014: wall-clock timeout guard -- a hung API call (or stuck stream) must not
         # wedge the runner forever. The API client's own socket timeout is the first line
@@ -378,6 +418,8 @@ def _process_one(m, bus, args, responder, rate) -> None:
             # (wait(advance=True) + should_answer filter = consume-without-display).
             bus.send(m.frm, "reply", out, meta=reply_meta)
             dest = m.frm
+        killpoint("post-send-pre-sentinel")
+        _mark_reply_sent(bus, m.id)   # RB-26: dedup sentinel BEFORE the cursor commits
         cog.record_turn_complete(args.agent)
         # P6 (T026): a REAL answer to a handoff IS handling it -- auto-ack durably. Timeout
         # and error replies deliberately do NOT ack: the sender must still see UNHANDLED in
@@ -472,6 +514,13 @@ def main() -> int:
         responder = make_replier(args.model, args.system, args.think)
         mode = "one-shot bridge"
 
+    if os.environ.get("AKASHIC_DRILL_ECHO"):
+        # L1 kill-window drills: a deterministic offline responder -- the drill proves the
+        # CONSUME->COMMIT pipeline, not the model. Never set in production.
+        args.agentic = False
+        responder = lambda prompt: f"[drill-echo] {str(prompt)[:120]}"
+        mode = "drill-echo (offline)"
+
     bus.register(card=CARD)
 
     # Initialize cognitive efficiency metrics for this agent
@@ -495,6 +544,7 @@ def main() -> int:
     threading.Thread(target=_heartbeat, daemon=True).start()
     print(f"[deepseek-runner] {args.agent} online (model={args.model}, think={'on' if args.think else 'off'}, "
           f"{mode}, max_hops={control.MAX_HOPS}). Waiting for messages... (Ctrl-C to stop)")
+    lock_gen = runner_lock.generation_of(lock_token)   # L1b: this tenure's fencing token
     try:
         while True:
             if not runner_lock.heartbeat(args.agent, lock_token):  # another runner took over -> stand down
@@ -505,9 +555,19 @@ def main() -> int:
                 bus.register(card=CARD)                       # stay "online-but-frozen" on the roster, not vanish
                 time.sleep(0.4)
                 continue
-            msgs = bus.wait(timeout_ms=1500, advance=True)   # short block so pause/stop stay responsive
+            # RB-26 (T030): detect WITHOUT consuming, then commit the cursor per message
+            # AFTER it is handled (commit-after-processing). A crash mid-batch redelivers
+            # the unhandled tail to the successor -- at-least-once; the reply_sent sentinel
+            # + ack tier make replies effectively-once. batch_next captures the fully-read
+            # safe position so the post-batch sweep steps past FILTERED entries (own
+            # broadcasts) exactly once -- filtered != truncated (T014) still holds.
+            cur0 = bus.cursor()
+            batch_next: dict = {}
+            msgs = bus.wait(timeout_ms=1500, advance=False, since_out=batch_next)
             bus.register(card=CARD)                           # refresh presence
+            fenced_out = False
             for m in msgs:
+                killpoint("post-consume-pre-process")
                 try:   # T014: per-message isolation -- one failure must NOT skip the rest of the batch
                     _process_one(m, bus, args, responder, rate)
                 except Exception as e:
@@ -519,6 +579,24 @@ def main() -> int:
                                  meta={"via": f"{args.agent}-runner"})
                     except Exception:
                         pass
+                killpoint("post-sentinel-pre-advance")
+                field = "bc" if str(m.to) == "*" else "inbox"
+                status = bus.advance_to(**{field: m.id}, generation=lock_gen)
+                if status == "STALE_GENERATION":
+                    print("[deepseek-runner] cursor commit REFUSED (stale generation) -- a "
+                          "successor owns the cursor; standing down (L1b fence).")
+                    fenced_out = True
+                    break
+                killpoint("between-batch-messages")
+            if fenced_out:
+                break
+            if batch_next and (batch_next.get("inbox") != cur0.get("inbox")
+                               or batch_next.get("bc") != cur0.get("bc")):
+                status = bus.advance_to(inbox=batch_next.get("inbox"),
+                                        bc=batch_next.get("bc"), generation=lock_gen)
+                if status == "STALE_GENERATION":
+                    print("[deepseek-runner] batch-sweep REFUSED (stale generation) -- standing down.")
+                    break
             if args.once:
                 break
     except (KeyboardInterrupt, EOFError):

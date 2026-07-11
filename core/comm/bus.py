@@ -361,10 +361,12 @@ class Bus:
                     next_inbox = m.id
                 else:
                     next_bc = m.id
-        if since is not None:
-            if since_out is not None:      # hand the caller its next local position (P0)
-                since_out["inbox"], since_out["bc"] = next_inbox, next_bc
-        elif advance and (next_inbox != cur["inbox"] or next_bc != cur["bc"]):
+        if since_out is not None:      # hand the caller its next safe position -- works for
+            # the caller-owned mode (P0) AND for advance=False shared-cursor reads (RB-26:
+            # the runner advances per-message, then sweeps to THIS position after the batch
+            # so filtered own-broadcasts don't busy-rescan; filtered != truncated, T014).
+            since_out["inbox"], since_out["bc"] = next_inbox, next_bc
+        if since is None and advance and (next_inbox != cur["inbox"] or next_bc != cur["bc"]):
             self._write_cursor(next_inbox, next_bc)
         return returned
 
@@ -405,6 +407,58 @@ class Bus:
             self._client.hset(self._cursor_key(), mapping={"inbox": inbox, "bc": bc})
         except Exception:
             pass
+
+    # RB-26 + L1b (T030): the GUARDED cursor commit -- one atomic Lua script, validated
+    # AT THE RESOURCE (Kleppmann): refuse a stale fencing generation, refuse a backwards
+    # id. Per-field so the consumer commits per message ('inbox' or 'bc') and sweeps the
+    # batch tail. Ids compare as (ms, seq) stream ids with plain-int fallback.
+    _ADVANCE_LUA = """
+        local cur = KEYS[1]
+        local gen = tonumber(ARGV[1])
+        local field = ARGV[2]
+        local newid = ARGV[3]
+        local stored = tonumber(redis.call('HGET', cur, 'gen') or '0')
+        if gen < stored then return 'STALE_GENERATION' end
+        local function parse(id)
+            local a, b = string.match(id, '^(%d+)%-(%d+)$')
+            if a then return tonumber(a), tonumber(b) end
+            return tonumber(id) or 0, 0
+        end
+        local curid = redis.call('HGET', cur, field) or '0'
+        local nm, nsq = parse(newid)
+        local cm, csq = parse(curid)
+        if nm < cm or (nm == cm and nsq < csq) then return 'BACKWARDS' end
+        if nm == cm and nsq == csq then
+            redis.call('HSET', cur, 'gen', gen)
+            return 'OK_NOOP'
+        end
+        redis.call('HSET', cur, field, newid, 'gen', gen)
+        return 'OK'
+    """
+
+    def advance_to(self, *, inbox: Optional[str] = None, bc: Optional[str] = None,
+                   generation: int = 0) -> str:
+        """Commit the shared read-cursor PAST handled work (RB-26: commit-after-processing;
+        the at-least-once half of the idempotent-consumer pattern). Guarded by the fencing
+        `generation` (L1b): a fenced-out predecessor gets 'STALE_GENERATION' and MUST stand
+        down -- the successor owns the cursor now. Returns the strictest status seen:
+        'STALE_GENERATION' > 'BACKWARDS' > 'ERROR' > 'OK'/'OK_NOOP'. 'OFFLINE' when no bus.
+        A crash before this call leaves the message unconsumed -- redelivery, not loss."""
+        if not self.online:
+            return "OFFLINE"
+        worst = "OK_NOOP"
+        rank = {"OK_NOOP": 0, "OK": 1, "ERROR": 2, "BACKWARDS": 3, "STALE_GENERATION": 4}
+        for field, val in (("inbox", inbox), ("bc", bc)):
+            if val is None:
+                continue
+            try:
+                res = str(self._client.eval(self._ADVANCE_LUA, 1, self._cursor_key(),
+                                            int(generation), field, str(val)))
+            except Exception:
+                res = "ERROR"
+            if rank.get(res, 1) > rank.get(worst, 0):
+                worst = res
+        return worst
 
     def _to_msg(self, sid: str, fields: Dict[str, Any]) -> Message:
         parts = [Part.from_dict(d) for d in (_loads(fields.get("parts")) or []) if isinstance(d, dict)]

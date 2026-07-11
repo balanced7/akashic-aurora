@@ -24,7 +24,19 @@ from typing import Optional
 
 NS = "bifrost"
 LOCK_PREFIX = f"{NS}:runner:"
+GEN_PREFIX = f"{NS}:generation:"   # L1b: monotone fencing-token source, INCR per acquisition
 LOCK_TTL = 20            # seconds; the heartbeat must refresh well within this
+
+# L1b (T030, Kleppmann): each acquisition mints a GENERATION -- the fencing token the
+# guarded cursor write validates AT THE RESOURCE. This process's tenure generations,
+# keyed by instance token (one runner process holds at most one lock).
+_TENURE_GEN: dict = {}
+
+
+def generation_of(token: str) -> int:
+    """The fencing generation minted when THIS process acquired with `token` (0 = none).
+    Carried on every guarded cursor write; a successor's higher generation fences us out."""
+    return int(_TENURE_GEN.get(token, 0))
 
 
 def _now() -> str:
@@ -53,19 +65,32 @@ def instance_token(agent: str) -> str:
 def acquire(agent: str, token: str) -> bool:
     """Try to become THE runner for `agent`. Returns True if we now hold the lock (either it was free,
     or a prior holder's key had expired). False means another live runner holds it -- do not start.
-    Fail-open: if the bus is offline we return True (nothing to race with)."""
+    Fail-open: if the bus is offline we return True (nothing to race with).
+
+    L1b: a successful acquisition MINTS a fencing generation (atomic INCR) recorded in the
+    lock value and in this process's tenure map -- the guarded cursor write refuses any
+    lower generation, so an expired-but-still-running predecessor cannot corrupt the
+    cursor (Kleppmann: the token is validated at the RESOURCE, not at the lock)."""
     c = _client()
     if c is None:
         return True
     try:
-        if c.set(_key(agent), json.dumps({"token": token, "pid": os.getpid(), "ts": _now()}),
+        # Minted per ATTEMPT (the value must exist before the nx SET stores it); a losing
+        # contender leaves a gap in the sequence, which is harmless -- monotonicity is the
+        # only property the fence needs, and nobody ever WRITES with an unwon generation.
+        gen = int(c.incr(GEN_PREFIX + str(agent)))
+        if c.set(_key(agent), json.dumps({"token": token, "pid": os.getpid(), "ts": _now(),
+                                          "gen": gen}),
                  nx=True, ex=LOCK_TTL):
+            _TENURE_GEN[token] = gen
             return True
         # Held. Re-entrant only for our OWN token (e.g. a heartbeat gap that let it expire+repopulate).
         raw = c.get(_key(agent))
         if raw:
             try:
-                if json.loads(raw).get("token") == token:
+                rec = json.loads(raw)
+                if rec.get("token") == token:
+                    _TENURE_GEN.setdefault(token, int(rec.get("gen", 0)))
                     return True
             except Exception:
                 pass
@@ -81,18 +106,24 @@ def heartbeat(agent: str, token: str) -> bool:
     if c is None:
         return True
     try:
+        gen = generation_of(token)   # L1b: the tenure's generation rides every refresh
         raw = c.get(_key(agent))
         if not raw:
             # lock vanished (expired) -- reclaim ATOMICALLY (nx) so we never clobber a racing successor that
             # acquired between our GET and this SET. If nx fails, someone else owns it now -> we stand down.
-            return bool(c.set(_key(agent), json.dumps({"token": token, "pid": os.getpid(), "ts": _now()}),
+            # The tenure KEEPS its original generation: nx proves the slot was empty, so no successor
+            # observed the gap; if one acquired-and-died inside it (minting a higher gen), the guarded
+            # cursor write is the arbiter -- our next advance gets STALE_GENERATION and we stand down.
+            return bool(c.set(_key(agent), json.dumps({"token": token, "pid": os.getpid(), "ts": _now(),
+                                                       "gen": gen}),
                               nx=True, ex=LOCK_TTL))
         try:
             if json.loads(raw).get("token") != token:
                 return False        # someone else owns it now; we should stand down
         except Exception:
             return False
-        c.set(_key(agent), json.dumps({"token": token, "pid": os.getpid(), "ts": _now()}), ex=LOCK_TTL)
+        c.set(_key(agent), json.dumps({"token": token, "pid": os.getpid(), "ts": _now(), "gen": gen}),
+              ex=LOCK_TTL)
         return True
     except Exception:
         return True
