@@ -571,7 +571,10 @@ class FileStore(Store):
         with self._lock:
             self._evict_if_expired(key)
             z = self._data["zset"].get(key, {})
-            ordered = sorted(z.items(), key=lambda kv: kv[1], reverse=desc)
+            # W3 differential finding: Redis orders same-score members lexicographically
+            # by member; score-only sort leaked dict insertion order and made renders
+            # differ by backend (the RB-12 instability, caught by test_store_differential).
+            ordered = sorted(z.items(), key=lambda kv: (kv[1], kv[0]), reverse=desc)
             sliced = ordered[start:] if end == -1 else ordered[start:end + 1]
             if withscores:
                 return [(m, s) for m, s in sliced]
@@ -604,7 +607,8 @@ class FileStore(Store):
             z = self._data["zset"].get(key, {})
             lo = self._score_bound(min_score, float("-inf"))
             hi = self._score_bound(max_score, float("inf"))
-            ordered = sorted(z.items(), key=lambda kv: kv[1])
+            # (score, member): Redis tie order -- see zrange (W3 differential finding).
+            ordered = sorted(z.items(), key=lambda kv: (kv[1], kv[0]))
             return [m for m, s in ordered if lo <= s <= hi]
 
     def zcard(self, key):
@@ -850,6 +854,42 @@ class HybridStore(Store):
     def close(self):
         if self._redis is not None:
             self._redis.close()
+
+
+# =====================================================================
+# DictStore (Wave 3 -- the differential reference backend)
+# =====================================================================
+class DictStore(FileStore):
+    """Pure in-memory Store: FileStore's structure semantics with NO disk and NO TTL.
+
+    Semantic Relationship: DictStore emulates RedisStore
+
+    Built for the Wave 3 differential harness (docs/w3-build-spec-2026-07-11.md): the
+    same op sequence runs against DictStore and RedisStore, and any divergence -- in
+    return values or final state -- IS the finding. Also the zero-I/O backend unit
+    tests want. TTL ops refuse loudly rather than lie (Wave 3 cut list: a backend that
+    cannot expire must say so): setex/expire/ttl raise NotImplementedError."""
+
+    def __init__(self):
+        self._path = None
+        self._lock = threading.RLock()
+        self._data = {b: {} for b in self.DATA_BUCKETS}
+        self._expiry = {}
+
+    def _load(self):
+        pass
+
+    def _flush(self):
+        pass
+
+    def setex(self, key, seconds, value):
+        raise NotImplementedError("DictStore has no TTL by design (W3 cut list)")
+
+    def expire(self, key, seconds):
+        raise NotImplementedError("DictStore has no TTL by design (W3 cut list)")
+
+    def ttl(self, key):
+        raise NotImplementedError("DictStore has no TTL by design (W3 cut list)")
 
 
 # =====================================================================

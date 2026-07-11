@@ -34,15 +34,32 @@ Usage:
 """
 
 import json
-import random
 import logging
+import unicodedata
+import uuid
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Any
 from dataclasses import dataclass, asdict
 
-from core.foundation.store import Store, create_store
+from core.foundation.store import CASConflict, Store, create_store
 
 logger = logging.getLogger("agent_memory")
+
+# RB-8 (Wave 3, docs/w3-build-spec-2026-07-11.md): the per-title head sentinel keyspace.
+# Decisions-scoped on purpose -- experiences/reflections can grow their own heads later.
+HEAD_KEY_PREFIX = "mem:decisions:head:"
+
+
+class SupersedeRaceError(RuntimeError):
+    """Lost the per-title head race (RB-8). The message names the winning head id so the
+    caller can re-read and retry against it -- decide_with_retry() does exactly that."""
+
+
+def normalize_title(title: str) -> str:
+    """RB-9: NFC + strip ONLY -- no case folding, no whitespace collapse. Case and
+    spacing can carry meaning; precision first (reconciled Wave 3 spec; case-folding is
+    the named escalation path if a real collision ever bites)."""
+    return unicodedata.normalize("NFC", str(title or "")).strip()
 
 
 @dataclass
@@ -120,7 +137,10 @@ class AgentMemory:
         return bool(getattr(self.store, "redis_available", False))
 
     def _gen_id(self, prefix: str) -> str:
-        return f"{prefix}_{datetime.now().strftime('%m%d%H%M%S')}_{random.randint(1000, 9999)}"
+        # RB-8 R-c: second-resolution timestamp + 4 random digits collided at ~1e-4 per
+        # same-second pair, and hset silently overwrote the loser. uuid4 hex keeps ids
+        # prefix-sortable and drops collision odds ~5 orders.
+        return f"{prefix}_{datetime.now().strftime('%m%d%H%M%S')}_{uuid.uuid4().hex[:8]}"
 
     # ----- decisions (semantic) -----
     def _retire_record(self, hash_key: str, record_id: str) -> None:
@@ -135,8 +155,15 @@ class AgentMemory:
                rationale: List[str] = None, alternatives: List[Dict] = None,
                consequences: Dict[str, List[str]] = None, session_id: str = "",
                supersedes: Optional[str] = None) -> str:
-        """Record an architectural decision. If `supersedes` is given, the named
-        prior decision is retired (Supersession), so reads/ranking surface only this."""
+        """Record an architectural decision. If `supersedes` is given, the named prior
+        decision is retired (Supersession), so reads/ranking surface only this.
+
+        RB-8 (Wave 3): SINGLE-ATTEMPT under the per-title head sentinel. The write order
+        is record -> claim head via CAS -> retire old; only the claim WINNER retires.
+        A lost race retires this call's own record and raises SupersedeRaceError naming
+        the winner -- doors go through decide_with_retry(), which re-reads and retries.
+        RB-9: the stored title is normalize_title()'d (NFC + strip)."""
+        title = normalize_title(title)
         dec_id = self._gen_id("ADR")
         created = datetime.now().isoformat()
         dec = Decision(
@@ -148,13 +175,77 @@ class AgentMemory:
         try:
             self.store.hset(self.KEY_DECISIONS, field=dec_id, value=json.dumps(asdict(dec)))
             self.store.zadd(self.KEY_DECISION_INDEX, {dec_id: datetime.fromisoformat(created).timestamp()})
-            if supersedes:
-                self._retire_record(self.KEY_DECISIONS, supersedes)
-            logger.info(f"Decision {dec_id}: {title}")
-            return dec_id
         except Exception as e:
             logger.error(f"Failed to record decision: {e}")
             return ""
+        # Claim the title head. Claimable = fresh title, the id we expected to replace,
+        # or a current head that no longer names an ACTIVE record (dangling after manual
+        # deletion, or retired-in-place by retire_decision -- which never touches the
+        # sentinel by design; reconciled Q4).
+        head_key = HEAD_KEY_PREFIX + title
+
+        def _claim(current: Optional[str]) -> Optional[str]:
+            if current is None or current == supersedes or not self._is_active(current):
+                return dec_id
+            return None   # a foreign ACTIVE head owns this title -- lose cleanly
+
+        try:
+            result = self.store.update_atomic(head_key, _claim, retries=1)
+        except CASConflict:
+            result = self.store.get(head_key)   # the cycle itself raced; whoever's there won
+        except Exception as e:
+            logger.error(f"Head claim failed for '{title}': {e}")
+            result = None
+        if result != dec_id:
+            # Lost: never leave our record active-but-unheaded (that IS the fork).
+            self._retire_record(self.KEY_DECISIONS, dec_id)
+            raise SupersedeRaceError(
+                f"lost the title race for '{title}': current head is {result}; "
+                f"re-read and retry against it (decide_with_retry does this)")
+        if supersedes:
+            self._retire_record(self.KEY_DECISIONS, supersedes)
+        logger.info(f"Decision {dec_id}: {title}")
+        return dec_id
+
+    def _is_active(self, dec_id: str) -> bool:
+        """Whether a decision id names an existing, non-superseded record. PURE read."""
+        try:
+            data = self.store.hget(self.KEY_DECISIONS, dec_id)
+            return bool(data) and not json.loads(data).get("superseded")
+        except Exception:
+            return False
+
+    def _resolve_head(self, title_n: str) -> Optional[str]:
+        """Current ACTIVE head id for a normalized title. Reads the sentinel; when it is
+        missing, dangling, or names a retired record, falls back to the newest ACTIVE
+        record by scan (the RB-8 lazy bootstrap for pre-head corpora). None = fresh."""
+        cur = self.store.get(HEAD_KEY_PREFIX + title_n)
+        if cur and self._is_active(cur):
+            return cur
+        cands = [d for d in self.get_decisions(days=3650)
+                 if normalize_title(d.title) == title_n]
+        if not cands:
+            return None
+        cands.sort(key=lambda d: (d.created_at, d.id), reverse=True)
+        return cands[0].id
+
+    def decide_with_retry(self, title: str, decision: str, retries: int = 3, **kwargs) -> str:
+        """The DOOR-level RB-8 helper: resolve the current head for `title`, decide once,
+        and on a lost race re-read the head and retry with the corrected supersedes.
+        Owns the supersedes pointer entirely (callers with an EXPLICIT target use
+        decide() and handle SupersedeRaceError themselves). Cap `retries` attempts, then
+        the last SupersedeRaceError propagates -- loud, never a silent fork. Retry lives
+        HERE and not in decide() so a conflict never re-generates ids or rewrites bodies
+        wastefully (reconciled Wave 3 spec)."""
+        title_n = normalize_title(title)
+        last: Optional[SupersedeRaceError] = None
+        for _ in range(max(1, retries)):
+            head = self._resolve_head(title_n)
+            try:
+                return self.decide(title_n, decision, supersedes=head, **kwargs)
+            except SupersedeRaceError as e:
+                last = e
+        raise last
 
     def retire_decision(self, dec_id: str) -> bool:
         """Retire a decision with NO successor (supersede-into-nothing) -- the tombstone for

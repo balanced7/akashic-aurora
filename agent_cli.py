@@ -1129,18 +1129,29 @@ def cmd_note(args):
     if len(str(args.title or "")) > 200:
         clipped.append(f"[CLIPPED] title: {len(str(args.title))} chars exceeds the 200-char cap -- "
                        f"stored (and supersede-matched) as {title!r}")
+    from core.learning.agent_memory import SupersedeRaceError
+    body = _intake(args.note, _MAX_NOTE, "note body", clipped)
+    ctx = _intake(args.context or "", 1000, "context", clipped)
     supersedes = args.supersedes
-    if not supersedes:   # re-noting the same title updates-in-place (write-once correction)
-        try:
-            for d in mem.get_decisions(days=3650):
-                if d.title == title:
-                    supersedes = d.id
-                    break
-        except Exception:
-            pass
-    dec_id = mem.decide(title=title, decision=_intake(args.note, _MAX_NOTE, "note body", clipped),
-                        context=_intake(args.context or "", 1000, "context", clipped),
-                        supersedes=supersedes or None, session_id=args.session or "")
+    try:
+        if supersedes:
+            # Explicit target (migration verbs): single attempt; a lost race is a
+            # teaching error, not a retry -- the caller named a specific prior.
+            dec_id = mem.decide(title=title, decision=body, context=ctx,
+                                supersedes=supersedes, session_id=args.session or "")
+        else:
+            # Re-noting the same title updates-in-place. RB-8: the old read-title-then-
+            # write here was the race that forked where-we-are chains (W3 spec, R-e);
+            # decide_with_retry resolves the head and claims it under CAS.
+            dec_id = mem.decide_with_retry(title, body, context=ctx,
+                                           session_id=args.session or "")
+            try:   # report which prior this superseded (the helper owns the pointer)
+                raw = mem.store.hget(mem.KEY_DECISIONS, dec_id)
+                supersedes = (json.loads(raw) or {}).get("supersedes") if raw else None
+            except Exception:
+                supersedes = None
+    except SupersedeRaceError as e:
+        print(f"ERROR: {e}"); return 1
     if not dec_id:
         print("ERROR recording note (store unavailable?)"); return 1
     try:   # narrative + firehose fanout (best-effort), mirroring cmd_learn
@@ -1314,9 +1325,11 @@ def cmd_wrap(args):
     # point is to capture priority intent THE MOMENT it is decided, even on a bare wrap.
     if getattr(args, "focus", None):
         mem = get_agent_memory()
-        f_sup = next((d.id for d in mem.get_decisions(days=3650) if d.title == "next-focus"), None)
-        f_id = mem.decide(title="next-focus", decision=_clip(args.focus, 1000),
-                          supersedes=f_sup or None)
+        try:   # RB-8: race-safe resolve+claim (the twin proved wrap is not single-writer)
+            f_id = mem.decide_with_retry("next-focus", _clip(args.focus, 1000))
+        except Exception as e:
+            print(f"WARN: --focus note lost a title race and gave up: {e}")
+            f_id = ""
         try:
             project_notes()
         except Exception:
@@ -1356,8 +1369,10 @@ def cmd_wrap(args):
     # lives in the note's timestamp and the draft body, not the title.
     title = args.title or "where-we-are"
     mem = get_agent_memory()
-    supersedes = next((d.id for d in mem.get_decisions(days=3650) if d.title == title), None)
-    dec_id = mem.decide(title=title, decision=draft, supersedes=supersedes or None)
+    try:   # RB-8: race-safe resolve+claim replaces the read-title-then-write race
+        dec_id = mem.decide_with_retry(title, draft)
+    except Exception as e:
+        print(f"ERROR recording the wrapped note (title race): {e}"); return 1
     if not dec_id:
         print("ERROR recording the wrapped note"); return 1
     try:
