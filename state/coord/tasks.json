@@ -1,5 +1,5 @@
 {
-  "seq": 33,
+  "seq": 34,
   "tasks": [
     {
       "id": "T001",
@@ -1277,6 +1277,32 @@
           "to": "approved",
           "by": "user",
           "at": "2026-07-11T06:00:34+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T034",
+      "title": "Runtime registry + dial consolidation (the kernel question, Daniel 2026-07-11): unify the three uncoordinated dial surfaces (env vars AKASHIC_*/DEEPSEEK_* across 8 files, module constants like FLOOR_CHARS/REPLY_TIMEOUT_SEC, Redis control keys pause/halt/narration) into a settings: namespace on the EXISTING Store -- audited flips as ledger events, acl-gated flip authority (a flag flip is a control-plane act, R15 lineage), strangler-fig read path (settings.get falls back env -> constant), comprehensibility guard against bare-constant creep, boot/status render. Daniel vision brief verbatim: keep things elegant with sensible connections and endpoints; the coding equivalent of cleaning up a messy server rack; consolidate similar features into components that would be better artifacts for those systems/pipings to live in. DESIGN NOW (fenced dual pass), BUILD AFTER the engine exam per the engine-first directive; RB-8 CAS (Wave 3, next) is this arc's write-integrity foundation. Zero new primitives: registry = Store namespace + Ledger events + existing acl, NOT a new kernel layer.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-11T07:43:08+00:00",
+      "updated": "2026-07-11T07:43:31+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-11T07:43:08+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniel",
+          "at": "2026-07-11T07:43:31+00:00"
         }
       ]
     }
