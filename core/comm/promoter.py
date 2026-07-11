@@ -131,6 +131,27 @@ def ack(by: str, msg_id: str, note: str = "", *, event_log=None, event_query=Non
         return False
 
 
+def unhandled_threshold_hours() -> int:
+    """The ONE seam every surface reads the unhandled threshold through (RB-5/T029: the
+    CLI read AKASHIC_ACK_UNHANDLED_HOURS while boot silently used the default -- two
+    renderers, two truths). Falls back to UNHANDLED_HOURS on a missing/garbled value."""
+    import os
+    try:
+        return int(os.environ.get("AKASHIC_ACK_UNHANDLED_HOURS", UNHANDLED_HOURS))
+    except (ValueError, TypeError):
+        return UNHANDLED_HOURS
+
+
+def promoted_page(limit: int = 20, **kw):
+    """promoted() plus the confession bit: (events, more) -- `more` is True when older
+    salient records exist beyond this page (RB-5/T029, the funnel `events_capped`
+    precedent). Fetches limit+1 so a full page SAYS the window truncated instead of
+    under-reporting silently; renderers append their "(+ older ...)" line on `more`."""
+    n = max(1, int(limit))
+    evs = promoted(limit=n + 1, **kw)
+    return evs[:n], len(evs) > n
+
+
 def acks_for(msg_ids, *, event_query=None) -> Dict[str, List[Dict[str, Any]]]:
     """msg_id -> [ {by, at, note}, ... ] for every ack referencing those bus ids. Never raises."""
     wanted = {str(m) for m in msg_ids}

@@ -5,7 +5,17 @@ next_task() sequencing (deps + one-at-a-time) and that done() emits the RESOLVED
 """
 import os
 
+import pytest
+
 from core.coord import conductor as C
+
+
+@pytest.fixture(autouse=True)
+def _no_live_bus(monkeypatch):
+    """Every conductor verb rings the bus (P3 _emit_ledger_update); tests must never
+    write the LIVE production bus (the T017 stream-pollution disease). `_broadcast` is
+    the one patchable exit -- a test that needs different behavior re-patches it."""
+    monkeypatch.setattr(C, "_broadcast", lambda *a, **k: None)
 
 
 def _kw(tmp_path):
@@ -40,3 +50,22 @@ def test_done_emits_resolved_marker(tmp_path, monkeypatch):
     C.verify(a["id"], **k)
     C.done(a["id"], "sha9", "v", **k)
     assert seen == {"tid": a["id"], "commit": "sha9"}
+
+
+def test_offline_conductor_loses_no_transition(tmp_path, monkeypatch):
+    """RB-6 offline-conductor case (T029 Wave 2). test_ledger_push pins that two
+    transitions RETURN under a dead bus; this pin closes the acceptance as written --
+    the FULL lifecycle lands in the ledger FILE (re-read from disk), nothing lost."""
+    def _down(*a, **kw):
+        raise ConnectionError("redis down")
+    monkeypatch.setattr(C, "_broadcast", _down)
+    k = _kw(tmp_path)
+    a = C.propose("offline drill", **k)
+    C.approve(a["id"], **k)
+    C.claim(a["id"], "claude", **k)
+    C.start(a["id"], **k)
+    C.verify(a["id"], **k)
+    C.done(a["id"], "cafe12", "pytest", **k)
+    t = C._ledger(None, k["path"]).get(a["id"])
+    assert t["status"] == "done", "file truth carries every transition despite a dead bus"
+    assert [h["to"] for h in t["history"]][-1] == "done"

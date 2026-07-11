@@ -229,11 +229,13 @@ def make_agentic_replier(model: str, system: str, think: bool, root: Path, agent
                           interrupt=interrupt, on_activity=on_activity, inject=inject, on_trace=on_trace)
             ag.max_tokens = MAX_TOKENS               # T018: reasoning headroom, never provider-default
             convos[frm] = ag
-        # Fold any queued context hints from peers into this turn's prompt
+        # Fold any queued context hints from peers into this turn's prompt. RB-5/RB-6:
+        # ring overflow is CONFESSED in the block, never a silent narrowing.
         try:
             hints = context_hints.drain(agent_id)
-            if hints:
-                hint_block = context_hints.format_for_prompt(hints)
+            dropped = context_hints.take_dropped(agent_id)
+            if hints or dropped:
+                hint_block = context_hints.format_for_prompt(hints, dropped=dropped)
                 prompt = hint_block + "\n" + prompt
         except Exception:
             pass

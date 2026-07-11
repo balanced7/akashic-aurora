@@ -111,6 +111,12 @@ class EventQuery:
         """Resolve a followable event:<stream>:<id> pointer to its raw event."""
         return self.log.get(ref)
 
+    def resolve(self, ref: str):
+        """Honest resolution (RB-7): (event, None) | (None, why-the-miss) -- `why`
+        distinguishes "payload aged out of the bounded firehose" from never-existed,
+        so drill surfaces never render an evicted pointer as blank truth."""
+        return self.log.resolve(ref)
+
     # --------------------------------------------------------------- internals
     @staticmethod
     def _match(e: Dict[str, Any], *, kind: Optional[str], track: Optional[str]) -> bool:

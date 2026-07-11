@@ -208,9 +208,12 @@ def cmd_boot(args):
         pass
     try:   # P7 (T027, deepseek C3): the durable decision trail, compact, each with a drill
         # pointer + ack state -- promoted-and-forgotten stops being invisible at boot.
+        # RB-5: pages + thresholds through the same seams as the promoted CLI verb, so
+        # boot and CLI can never disagree; a full page confesses the older records.
         import time as _t2
-        from core.comm.promoter import promoted
-        evs = promoted(limit=5, with_acks=True, now=_t2.time())
+        from core.comm.promoter import promoted_page, unhandled_threshold_hours
+        evs, more = promoted_page(limit=5, with_acks=True, now=_t2.time(),
+                                  unhandled_hours=unhandled_threshold_hours())
         if evs:
             print("\n## RECENT DECISIONS (durable salient bus -- drill: events --get <ref>)")
             for e in evs:
@@ -221,6 +224,8 @@ def cmd_boot(args):
                 print(f"  [{d.get('kind','?')}{' ' + mark if mark else ''}] "
                       f"{d.get('frm','?')} -> {d.get('to','?')}: "
                       f"{_clip(str(d.get('content','')), 110)}")
+            if more:
+                print("  (+ older salient records beyond this page -- py agent_cli.py promoted)")
     except Exception:
         pass
     try:   # T3: one-line funnel pulse -- watch the loop's trend without a separate command
@@ -1949,11 +1954,12 @@ def cmd_events(args):
                   f"{rep['skipped_beat']} already-beat)")
         return 0
 
-    # --get: resolve one followable pointer
+    # --get: resolve one followable pointer (RB-7: a miss says WHETHER the payload aged
+    # out of the bounded firehose -- an evicted drill target must never read as blank truth)
     if args.get:
-        ev = eq.get(args.get)
+        ev, why = eq.resolve(args.get)
         if not ev:
-            print(f"ERROR: no event for '{args.get}'.")
+            print(f"ERROR: {why}")
             return 2
         print(json.dumps(ev, indent=2, default=str) if args.json
               else f"[{ev.get('kind')}] {ev.get('at')}\n  {ev.get('summary')}\n  detail: {ev.get('detail')}")
@@ -1991,17 +1997,16 @@ def cmd_promoted(args):
     P6 (T026): each message shows who HANDLED it; salient-and-unacked past the threshold
     renders an UNHANDLED flag -- promoted-and-forgotten was the disease."""
     import time as _time
-    from core.comm.promoter import UNHANDLED_HOURS, promoted
+    from core.comm.promoter import promoted_page, unhandled_threshold_hours
     from agent.bifrost_pull import format_promoted_events
-    try:
-        hours = int(os.environ.get("AKASHIC_ACK_UNHANDLED_HOURS", UNHANDLED_HOURS))
-    except (ValueError, TypeError):
-        hours = UNHANDLED_HOURS
-    evs = promoted(limit=args.limit or 20, since=args.since, until=args.until,
-                   with_acks=True, now=_time.time(), unhandled_hours=hours)
+    hours = unhandled_threshold_hours()   # RB-5: the ONE seam; boot reads the same one
+    evs, more = promoted_page(limit=args.limit or 20, since=args.since, until=args.until,
+                              with_acks=True, now=_time.time(), unhandled_hours=hours)
     if args.json:
         print(json.dumps(evs, indent=2, default=str)); return 0
     print(format_promoted_events(evs, json_out=False))
+    if more:   # RB-5: a full page confesses the window instead of under-reporting
+        print(f"  (+ older salient records beyond this page -- raise --limit)")
     flagged = [e for e in evs if e.get("unhandled")]
     acked = [e for e in evs if e.get("acks")]
     for e in acked:

@@ -63,6 +63,25 @@ def event_ref(stream: str, event_id: str) -> str:
     return f"event:{stream}:{event_id}"
 
 
+def _id_precedes(a: str, b: str) -> bool:
+    """True when id `a` is strictly older than id `b` on the same stream (RB-7). Handles
+    both backends' shapes -- FileLedger monotonic ints and Redis '<ms>-<seq>'. An
+    unparseable id returns False: aging is only ever CLAIMED when it can be shown."""
+    def parse(s):
+        s = str(s)
+        try:
+            return (int(s), 0)
+        except ValueError:
+            pass
+        head, _, tail = s.partition("-")
+        try:
+            return (int(head), int(tail or 0))
+        except ValueError:
+            return None
+    pa, pb = parse(a), parse(b)
+    return pa is not None and pb is not None and pa < pb
+
+
 class EventLog:
     """Capture-and-read raw events on an append-only Ledger firehose.
 
@@ -163,13 +182,29 @@ class EventLog:
 
     def get(self, ref: str) -> Optional[Dict[str, Any]]:
         """Resolve a followable `event:<stream>:<id>` pointer to its stored raw event."""
+        return self.resolve(ref)[0]
+
+    def resolve(self, ref: str):
+        """Honest pointer resolution (RB-7/T029): (event, None) on a hit; (None, why) on
+        a miss, where `why` says whether the payload AGED OUT of the bounded stream. The
+        firehose is capped (CANONICAL_MAXLEN), so a durable pointer -- a promoted digest
+        line, a Beat.source, a boot drill -- can outlive its payload; that miss must
+        render as eviction, never as blank never-existed truth (R14). Ids order within a
+        stream by design (FileLedger: monotonic ints comparable across trims; Redis:
+        <ms>-<seq>), so "older than every survivor" is decidable; an unorderable id is
+        never claimed as aged."""
         stream, eid = self._parse_ref(ref)
         if not stream:
-            return None
-        for ev in self._read_all(stream):
+            return None, f"not a followable pointer (want event:<stream>:<id>): {str(ref)[:120]!r}"
+        events = self._read_all(stream)
+        for ev in events:
             if ev.get("id") == eid:
-                return ev
-        return None
+                return ev, None
+        oldest = events[0].get("id") if events else None
+        if oldest is not None and _id_precedes(eid, oldest):
+            return None, (f"payload aged out -- {stream} is bounded and now starts at id "
+                          f"{oldest}; id {eid} was evicted with everything older")
+        return None, f"no event {eid} on {stream} (never existed, or the stream was reset)"
 
     # --------------------------------------------------------------- internals
     def _read_all(self, stream: str) -> List[Dict[str, Any]]:
