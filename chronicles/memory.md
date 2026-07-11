@@ -1,9 +1,10 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 12 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 13 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
+- next-focus: ENGINE FIRST, UI AFTER (Daniel-ruled 2026-07-11): do NOT build UI until the engine exam passes. Order: RB-23 no-answer floor -> Battery Wave 3 (RB-8..12 +...  (source: mem:decision:ADR_0711021921_1389)
 - where-we-are: Shipped:
   - T033 evidence: deepseek built-vs-spec inventory persisted verbatim (1 NOT-BUILT / 2 DRIFTED / 2 PARTIAL vs the six composition-spec items...  (source: mem:decision:ADR_0711021552_8559)
 - T029-wave1-review-status: T029 Wave 1 built+committed OVERNIGHT by DeepSeek (3 commits unpushed: d6cbf75 slices doc, 0f9172b fenced-correction, 3941789 Wave-1 code)...  (source: mem:decision:ADR_0710080005_3595)
