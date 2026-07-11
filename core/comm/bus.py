@@ -253,12 +253,21 @@ class Bus:
             pass
 
     # ------------------------------------------------------------------ receive
-    def inbox(self, limit: int = 50, *, advance: bool = True) -> List[Message]:
+    def inbox(self, limit: int = 50, *, advance: bool = True, generation: int = 0,
+              commit_status_out: Optional[Dict[str, str]] = None) -> List[Message]:
         """New messages for this agent (direct + broadcast), oldest-first, from the per-agent cursor.
 
         `advance=True` moves the cursor past what's returned (so the next call won't re-read). An agent's
-        own broadcasts are not delivered back to it. Returns [] (never raises) when offline."""
-        return self._drain(block=None, limit=limit, advance=advance)
+        own broadcasts are not delivered back to it. Returns [] (never raises) when offline.
+
+        RB-21: every shared-cursor advance is FENCED -- it commits through the guarded Lua
+        carrying `generation` (a consumer-seat tenure from runner_lock.claim_consumer;
+        0 keeps working only while the agent has never been fenced). Pass
+        `commit_status_out={}` to receive {"status": OK|OK_NOOP|STALE_GENERATION|
+        BACKWARDS|ERROR}; a door seeing STALE_GENERATION must treat its read as a PEEK
+        (a successor owns the cursor now; redelivery is the successor's, at-least-once)."""
+        return self._drain(block=None, limit=limit, advance=advance,
+                           generation=generation, commit_status_out=commit_status_out)
 
     def wait(self, timeout_ms: int = 0, *, limit: int = 50, advance: bool = False,
              since: Optional[Dict[str, str]] = None,
@@ -295,7 +304,9 @@ class Bus:
 
     def _drain(self, *, block, limit: int, advance: bool,
                since: Optional[Dict[str, str]] = None,
-               since_out: Optional[Dict[str, str]] = None) -> List[Message]:
+               since_out: Optional[Dict[str, str]] = None,
+               generation: int = 0,
+               commit_status_out: Optional[Dict[str, str]] = None) -> List[Message]:
         if not self.online:
             return []
         self._touch()
@@ -367,7 +378,15 @@ class Bus:
             # so filtered own-broadcasts don't busy-rescan; filtered != truncated, T014).
             since_out["inbox"], since_out["bc"] = next_inbox, next_bc
         if since is None and advance and (next_inbox != cur["inbox"] or next_bc != cur["bc"]):
-            self._write_cursor(next_inbox, next_bc)
+            # RB-21: the raw unguarded write is RETIRED -- every shared-cursor commit goes
+            # through the L1b guarded Lua (refuses STALE_GENERATION + BACKWARDS), so a
+            # fenced-out twin can neither eat mail silently nor drag the cursor backwards.
+            status = self.advance_to(
+                inbox=(next_inbox if next_inbox != cur["inbox"] else None),
+                bc=(next_bc if next_bc != cur["bc"] else None),
+                generation=generation)
+            if commit_status_out is not None:
+                commit_status_out["status"] = status
         return returned
 
     def pending(self) -> int:
@@ -402,11 +421,8 @@ class Bus:
             h = {}
         return {"inbox": h.get("inbox", "0"), "bc": h.get("bc", "0")}
 
-    def _write_cursor(self, inbox: str, bc: str) -> None:
-        try:
-            self._client.hset(self._cursor_key(), mapping={"inbox": inbox, "bc": bc})
-        except Exception:
-            pass
+    # (RB-21: _write_cursor -- the raw unguarded HSET -- is GONE. The guarded Lua below is
+    # the ONLY cursor writer; its absence is pinned in tests/test_rb21_consumer_seat.py P5.)
 
     # RB-26 + L1b (T030): the GUARDED cursor commit -- one atomic Lua script, validated
     # AT THE RESOURCE (Kleppmann): refuse a stale fencing generation, refuse a backwards

@@ -66,7 +66,7 @@ def test_wait_hands_out_batch_next_without_consuming(bus):
         pytest.skip("redis not available")
     # A fresh agent's bc cursor of "0" would drain the whole SHARED broadcast backlog;
     # park it at the live tail so the pin sees only its own direct traffic.
-    bus._write_cursor("0", bus.tail()["bc"])
+    bus.advance_to(bc=bus.tail()["bc"], generation=0)   # RB-21: guarded harness park
     m1 = sender.send(bus.agent_id, "chat", "one")
     m2 = sender.send(bus.agent_id, "chat", "two")
     assert m1 and m2

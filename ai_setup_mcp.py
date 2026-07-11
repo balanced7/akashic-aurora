@@ -395,10 +395,24 @@ def bifrost_broadcast(from_agent: str, kind: str = "announce", text: str = "") -
 
 
 @mcp.tool()
-def bifrost_inbox(agent: str, limit: int = 20) -> str:
-    """Read NEW Bifrost messages addressed to you (direct + broadcast). Advances your read cursor."""
+def bifrost_inbox(agent: str, limit: int = 20, consume: bool = False) -> str:
+    """Read NEW Bifrost messages addressed to you (direct + broadcast). PEEKS by default
+    (cursor unmoved -- the same mail shows again next call). Pass consume=true to advance
+    your cursor through the RB-21 consumer seat: if another live session/runner holds the
+    seat, the read degrades to peek with a teaching line -- mail is shown, never eaten."""
+    if consume:
+        from agent.bifrost_pull import consume_inbox
+        res = consume_inbox(agent, limit=limit)
+        msgs_d = (res.get("peeked") if res.get("seat_held") else res.get("consumed")) or []
+        lines = [res["teach"]] if res.get("seat_held") and res.get("teach") else []
+        if not msgs_d and not lines:
+            return "(no new messages)"
+        lines += [f"[{m.get('kind')}] from {m.get('frm')}: {str(m.get('content'))[:300]}"
+                  + (f"  [+{len(m.get('parts') or [])} part(s)]" if m.get("parts") else "")
+                  for m in msgs_d]
+        return "\n".join(lines)
     from core.comm.bus import Bus
-    msgs = Bus(agent).inbox(limit=limit)
+    msgs = Bus(agent).inbox(limit=limit, advance=False)
     if not msgs:
         return "(no new messages)"
     out = []

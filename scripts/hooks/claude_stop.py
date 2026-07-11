@@ -193,6 +193,13 @@ def main():
         payload = {}
     session_id = str(payload.get("session_id") or "")
     _touch_activity(session_id)          # stamp ALIVE on every firing -- K7 fast path
+    if session_id:
+        try:                             # RB-21: keep the consumer seat alive while the
+            sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+            from core.comm import runner_lock   # session is (heartbeat refuses foreign
+            runner_lock.refresh_consumer(AGENT, f"session:{session_id}")   # tokens -> safe no-op)
+        except Exception:
+            pass
     if not wake_armed(session_id):
         guard = _loop_guard_path(session_id)
         now = time.time()

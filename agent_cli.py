@@ -2285,10 +2285,17 @@ def cmd_bifrost_sync(args):
                                      format_digest_line, print_boot_bifrost_section,
                                      print_boot_locks_section)
     if args.consume:
-        msgs = consume_inbox(args.agent_id, limit=args.limit or 20)
+        res = consume_inbox(args.agent_id, limit=args.limit or 20)
         if args.json:
-            print(json.dumps({"consumed": msgs}, indent=2, default=str))
-            return 0
+            print(json.dumps(res, indent=2, default=str))
+            return 1 if res.get("seat_held") else 0
+        if res.get("seat_held"):
+            # RB-21: another live session/runner owns the cursor -- taught, not silent.
+            print(f"ERROR: {res.get('teach') or 'consumer seat held -- read degraded to peek.'}")
+            for m in res.get("peeked") or []:
+                print(f"  (peek) {format_inbox_line(m)}")
+            return 1
+        msgs = res.get("consumed") or []
         if not msgs:
             print("(no messages consumed)")
             return 0

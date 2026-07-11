@@ -46,6 +46,7 @@ class BifrostAPI:
         self.agent = str(agent)
         self.bus = Bus(self.agent)
         self._wake_since: Optional[Dict[str, str]] = None   # the wake watcher's LOCAL cursor (P0)
+        self.last_seat: Optional[Dict[str, Any]] = None     # RB-21: holder info when a consume degraded
 
     @property
     def online_now(self) -> bool:
@@ -65,8 +66,27 @@ class BifrostAPI:
 
     # ---- receive / wake ----
     def inbox(self, *, consume: bool = False) -> List[Any]:
-        """Unread messages. consume=False peeks; consume=True advances the cursor."""
-        return self.bus.inbox(advance=consume)
+        """Unread messages. consume=False peeks; consume=True advances the cursor THROUGH
+        the RB-21 consumer seat: the claim rides this API instance's stable holder token,
+        and a refused claim (live foreign holder) or a fenced commit degrades the read to
+        a PEEK -- mail is returned either way, never eaten. After a consume attempt,
+        `self.last_seat` is None (we consumed) or the holder's info dict (we degraded) --
+        embedders render the teaching from it."""
+        if not consume:
+            return self.bus.inbox(advance=False)
+        from core.comm import runner_lock
+        import os
+        sid = os.getenv("CLAUDE_CODE_SESSION_ID") or os.getenv("CLAUDE_SESSION_ID") or ""
+        token = f"session:{sid}" if sid else f"session:api:{os.getpid()}"
+        ok, gen, info = runner_lock.claim_consumer(self.agent, token)
+        if not ok:
+            self.last_seat = info
+            return self.bus.inbox(advance=False)
+        status: Dict[str, str] = {}
+        msgs = self.bus.inbox(advance=True, generation=gen, commit_status_out=status)
+        self.last_seat = (runner_lock.holder(self.agent) or {}) \
+            if status.get("status") == "STALE_GENERATION" else None
+        return msgs
 
     def wake_block(self, timeout_ms: int = 120_000) -> List[Any]:
         """Block until a message lands (or timeout), then return it -- WITHOUT consuming. The single

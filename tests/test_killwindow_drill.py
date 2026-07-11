@@ -37,7 +37,7 @@ def _fresh(prefix):
     # Park the bc cursor at the live tail: a fresh id would otherwise drain the whole
     # SHARED broadcast backlog -- the drill runner would echo-answer days-old broadcast
     # chatter at real agents. Drills speak over DIRECT messages only.
-    b._write_cursor("0", b.tail()["bc"])
+    b.advance_to(bc=b.tail()["bc"], generation=0)   # RB-21: guarded harness park
     return b
 
 

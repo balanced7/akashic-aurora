@@ -68,17 +68,69 @@ def peek_inbox(agent_id: str, limit: int = 10) -> List[Dict[str, Any]]:
         return []
 
 
-def consume_inbox(agent_id: str, limit: int = 20) -> List[Dict[str, Any]]:
-    """Read and advance the per-agent cursor (ack)."""
+def _session_holder_token() -> str:
+    """RB-21: the sticky consumer identity for THIS session -- stable across every CLI
+    invocation the session makes (the harness exports its session id to subprocesses).
+    Anonymous callers (no session env) share one per-agent-user bucket: two anonymous
+    twins collapse to a single holder -- pre-acknowledged v1 bound; every Claude Code
+    session carries the env var, so the twin incident class is covered."""
+    import os
+    sid = os.getenv("CLAUDE_CODE_SESSION_ID") or os.getenv("CLAUDE_SESSION_ID") or ""
+    return f"session:{sid}" if sid else "session:anon-cli"
+
+
+def _seat_teach(agent_id: str, info: Dict[str, Any], ttl: int, *, fenced: bool = False) -> str:
+    mode = ("fenced MID-DRAIN (a successor claimed the seat during this read)"
+            if fenced else "held")
+    age = ""
+    try:
+        import time as _t
+        then = _t.mktime(_t.strptime(str(info.get("ts", "")), "%Y-%m-%dT%H:%M:%S"))
+        age = f"claimed {int(_t.time() - then)}s ago, "
+    except Exception:
+        pass
+    return (f"CONSUMER SEAT {mode.upper()} for '{agent_id}': holder {info.get('token', '?')} "
+            f"({age}ttl {ttl}s) -- read degraded to PEEK (cursor unmoved, nothing consumed). "
+            f"One session consumes per agent id; a dead holder frees by TTL alone (<= {ttl}s). "
+            f"If this is a live twin, wind it down; durable doors (task ledger, notes, "
+            f"promoted) are never blocked.")
+
+
+def consume_inbox(agent_id: str, limit: int = 20) -> Dict[str, Any]:
+    """Read and advance the per-agent cursor -- through the RB-21 consumer seat.
+
+    ONE return shape for every caller (deepseek review Q3, Option A):
+      {"seat_held": False, "consumed": [msg, ...]}                       -- we consumed
+      {"seat_held": True, "holder": ..., "since": ..., "ttl": ...,
+       "peeked": [msg, ...], "teach": "..."}                             -- degraded to peek
+    Mail is ALWAYS visible; it is never eaten by a session that lost the seat."""
     try:
         from core.comm.bus import Bus
+        from core.comm import runner_lock
         b = Bus(str(agent_id or "unknown"))
         if not b.online:
-            return []
-        msgs = b.inbox(limit=max(1, limit), advance=True)
-        return [m.to_dict() if hasattr(m, "to_dict") else {} for m in msgs]
+            return {"seat_held": False, "consumed": []}
+        ttl = int(runner_lock.SESSION_CONSUMER_TTL)
+        ok, gen, info = runner_lock.claim_consumer(str(agent_id), _session_holder_token())
+        if not ok:
+            peek = b.inbox(limit=max(1, limit), advance=False)
+            return {"seat_held": True, "holder": info.get("token"), "since": info.get("ts"),
+                    "ttl": ttl, "teach": _seat_teach(str(agent_id), info, ttl),
+                    "peeked": [m.to_dict() if hasattr(m, "to_dict") else {} for m in peek]}
+        status: Dict[str, str] = {}
+        msgs = b.inbox(limit=max(1, limit), advance=True, generation=gen,
+                       commit_status_out=status)
+        if status.get("status") == "STALE_GENERATION":
+            # A successor fenced us between claim and commit: the cursor did NOT move for
+            # us -- show what we read as a PEEK; the successor redelivers (at-least-once).
+            info2 = runner_lock.holder(str(agent_id)) or {}
+            return {"seat_held": True, "holder": info2.get("token"), "since": info2.get("ts"),
+                    "ttl": ttl, "teach": _seat_teach(str(agent_id), info2, ttl, fenced=True),
+                    "peeked": [m.to_dict() if hasattr(m, "to_dict") else {} for m in msgs]}
+        return {"seat_held": False,
+                "consumed": [m.to_dict() if hasattr(m, "to_dict") else {} for m in msgs]}
     except Exception:
-        return []
+        return {"seat_held": False, "consumed": []}
 
 
 def peek_locks(agent_id: str) -> List[Dict[str, Any]]:

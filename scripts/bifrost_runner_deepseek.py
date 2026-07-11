@@ -627,8 +627,16 @@ def main() -> int:
     lock_token = runner_lock.instance_token(args.agent)
     if not runner_lock.acquire(args.agent, lock_token):
         h = runner_lock.holder(args.agent) or {}
-        print(f"bifrost_runner_deepseek: another '{args.agent}' runner is already live (pid {h.get('pid')}). "
-              f"Refusing to start -- one runner per agent avoids cursor races.")
+        tok = str(h.get("token", ""))
+        if tok.startswith("session:"):
+            # RB-21 (review Q5): the seat can be held by a SESSION now -- "another runner"
+            # would send the operator hunting a rogue process that does not exist.
+            print(f"bifrost_runner_deepseek: a session '{tok}' holds the consumer seat for "
+                  f"'{args.agent}' (since {h.get('ts')}). Refusing to start -- wind the session "
+                  f"down or wait <= {runner_lock.SESSION_CONSUMER_TTL}s for TTL expiry.")
+        else:
+            print(f"bifrost_runner_deepseek: another '{args.agent}' runner is already live (pid {h.get('pid')}). "
+                  f"Refusing to start -- one runner per agent avoids cursor races.")
         return 3
     # RB-27a: 'starting' phase spans onboarding/responder construction -- a boot-time
     # wedge (hung onboarding subprocess, dead API) is distinguishable from a mid-run one.

@@ -29,6 +29,10 @@ LOCK_PREFIX = f"{NS}:runner:"
 GEN_PREFIX = f"{NS}:generation:"   # L1b: monotone fencing-token source, INCR per acquisition
 LOCK_TTL = scaled(20)    # seconds; the heartbeat must refresh well within this
                          # (drill-shrinkable via AKASHIC_TIMEOUT_MULTIPLIER)
+# RB-21: a turn-based SESSION cannot heartbeat in runner seconds -- its claim on the very
+# same lock carries this TTL instead, refreshed at every consume and every stop-hook
+# firing. Future T034 dial. (docs/rb21-build-spec-2026-07-11.md)
+SESSION_CONSUMER_TTL = scaled(1800)
 
 # L1b (T030, Kleppmann): each acquisition mints a GENERATION -- the fencing token the
 # guarded cursor write validates AT THE RESOURCE. This process's tenure generations,
@@ -65,10 +69,11 @@ def instance_token(agent: str) -> str:
     return f"{agent}:{os.getpid()}:{uuid.uuid4().hex[:12]}"
 
 
-def acquire(agent: str, token: str) -> bool:
+def acquire(agent: str, token: str, ttl: Optional[int] = None) -> bool:
     """Try to become THE runner for `agent`. Returns True if we now hold the lock (either it was free,
     or a prior holder's key had expired). False means another live runner holds it -- do not start.
     Fail-open: if the bus is offline we return True (nothing to race with).
+    `ttl` overrides LOCK_TTL in raw seconds (RB-21: session claims pass SESSION_CONSUMER_TTL).
 
     L1b: a successful acquisition MINTS a fencing generation (atomic INCR) recorded in the
     lock value and in this process's tenure map -- the guarded cursor write refuses any
@@ -84,7 +89,7 @@ def acquire(agent: str, token: str) -> bool:
         gen = int(c.incr(GEN_PREFIX + str(agent)))
         if c.set(_key(agent), json.dumps({"token": token, "pid": os.getpid(), "ts": _now(),
                                           "gen": gen}),
-                 nx=True, ex=LOCK_TTL):
+                 nx=True, ex=int(ttl or LOCK_TTL)):
             _TENURE_GEN[token] = gen
             return True
         # Held. Re-entrant only for our OWN token (e.g. a heartbeat gap that let it expire+repopulate).
@@ -102,9 +107,10 @@ def acquire(agent: str, token: str) -> bool:
         return True
 
 
-def heartbeat(agent: str, token: str) -> bool:
+def heartbeat(agent: str, token: str, ttl: Optional[int] = None) -> bool:
     """Refresh our hold (extend the TTL) -- call once per loop iteration. Only refreshes if WE still hold
-    it (guards against clobbering a successor that took over after a stall). Returns True if refreshed."""
+    it (guards against clobbering a successor that took over after a stall). Returns True if refreshed.
+    `ttl` overrides LOCK_TTL in raw seconds (RB-21: session refreshes pass SESSION_CONSUMER_TTL)."""
     c = _client()
     if c is None:
         return True
@@ -119,14 +125,14 @@ def heartbeat(agent: str, token: str) -> bool:
             # cursor write is the arbiter -- our next advance gets STALE_GENERATION and we stand down.
             return bool(c.set(_key(agent), json.dumps({"token": token, "pid": os.getpid(), "ts": _now(),
                                                        "gen": gen}),
-                              nx=True, ex=LOCK_TTL))
+                              nx=True, ex=int(ttl or LOCK_TTL)))
         try:
             if json.loads(raw).get("token") != token:
                 return False        # someone else owns it now; we should stand down
         except Exception:
             return False
         c.set(_key(agent), json.dumps({"token": token, "pid": os.getpid(), "ts": _now(), "gen": gen}),
-              ex=LOCK_TTL)
+              ex=int(ttl or LOCK_TTL))
         return True
     except Exception:
         return True
@@ -144,6 +150,36 @@ def release(agent: str, token: str) -> bool:
         return True
     except Exception:
         return True
+
+
+# ---------------------------------------------------------------- RB-21: session consumers
+# A session consuming mail IS a cursor-advancer, so it claims THE SAME lock a runner
+# claims -- one invariant, zero new primitives (docs/rb21-build-spec-2026-07-11.md).
+# Holder tokens are "session:<id>"-prefixed so refusal messages can teach legibly.
+
+def claim_consumer(agent: str, holder_token: str, ttl: Optional[int] = None):
+    """Claim (or refresh) the single-consumer seat for `agent` as a SESSION.
+    Returns (ok, generation, holder_info): ok=True with OUR tenure generation, or
+    ok=False with the live holder's record for the teaching error.
+    Re-entrant for the own token -- a re-claim refreshes the TTL and KEEPS the tenure
+    generation (the acquire() own-token precedent; pinned as RB-21 P10). `ttl` in raw
+    seconds; None -> SESSION_CONSUMER_TTL."""
+    t = int(ttl or SESSION_CONSUMER_TTL)
+    if acquire(agent, holder_token, ttl=t):
+        heartbeat(agent, holder_token, ttl=t)   # refresh on re-entrant claims; fresh = harmless
+        return True, generation_of(holder_token), holder(agent) or {"token": holder_token}
+    return False, 0, holder(agent) or {}
+
+
+def refresh_consumer(agent: str, holder_token: str, ttl: Optional[int] = None) -> bool:
+    """Best-effort seat refresh (stop-hook firing / any activity moment). No-ops safely
+    when we do not hold the seat -- heartbeat() refuses a foreign token."""
+    return heartbeat(agent, holder_token, ttl=int(ttl or SESSION_CONSUMER_TTL))
+
+
+def release_consumer(agent: str, holder_token: str) -> bool:
+    """Give the seat up early (clean session end). Only frees our own hold."""
+    return release(agent, holder_token)
 
 
 def clear_if_pid(agent: str, pid) -> bool:

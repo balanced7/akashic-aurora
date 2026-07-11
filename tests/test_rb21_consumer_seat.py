@@ -72,6 +72,17 @@ def _seed(agent, n=1):
         assert snd.send(agent, "chat", f"pin-mail-{i}")
 
 
+def _quiesce(agent):
+    """Start the fresh test agent AT the live broadcast tail: a live runner's trace
+    backlog (broadcast stream, read by EVERY agent from its own cursor) must not leak
+    into pin counts. gen-0 commit is valid here -- the agent is never-fenced yet.
+    Harness-only; every frozen assertion is untouched (M3)."""
+    b = Bus(agent)
+    t = b.tail()
+    b.advance_to(inbox=t.get("inbox"), bc=t.get("bc"), generation=0)
+    return b
+
+
 # --- P1: a session claim mints a usable fencing generation ---
 
 def test_session_claim_mints_generation(agent):
@@ -125,8 +136,8 @@ def test_raw_write_cursor_retired():
 # --- P6: never-fenced agents keep working at generation 0 (strangler back-compat) ---
 
 def test_unfenced_backcompat_gen0_consume(agent):
+    bus = _quiesce(agent)
     _seed(agent, 2)
-    bus = Bus(agent)
     got = bus.inbox(limit=10, advance=True)              # no claim anywhere, gen 0
     assert len(got) == 2
     assert bus.inbox(limit=10, advance=True) == [], "cursor advanced normally"
@@ -135,6 +146,7 @@ def test_unfenced_backcompat_gen0_consume(agent):
 # --- P7: peeking touches neither lock nor generation ---
 
 def test_peek_stays_seatless(agent):
+    _quiesce(agent)
     _seed(agent, 1)
     got = Bus(agent).inbox(limit=10, advance=False)
     assert len(got) == 1
@@ -147,6 +159,7 @@ def test_peek_stays_seatless(agent):
 
 def test_door_degrade_shape_under_foreign_holder(agent):
     from agent.bifrost_pull import consume_inbox
+    _quiesce(agent)
     _seed(agent, 2)
     ok, _, _ = runner_lock.claim_consumer(agent, "session:pin-holder")
     assert ok
@@ -174,6 +187,7 @@ def test_same_session_reclaim_refreshes_not_refuses(agent):
 
 def test_door_happy_path_dict_shape(agent):
     from agent.bifrost_pull import consume_inbox
+    _quiesce(agent)
     _seed(agent, 1)
     res = consume_inbox(agent, limit=10)
     assert isinstance(res, dict) and res.get("seat_held") is False
