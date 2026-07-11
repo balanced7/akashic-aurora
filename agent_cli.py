@@ -55,6 +55,28 @@ def _clip(s, n=_MAX):
     return (cut or s[:n]) + " ...[truncated]"
 
 
+_MAX_NOTE = 100_000   # durable note bodies: a ceiling against runaway pastes, not a working size
+
+
+def _intake(s, n, field, confessions):
+    """Bound a value about to be STORED -- and CONFESS when the bound bites.
+
+    RB-5 class (docs/rb23-build-spec-2026-07-11.md, incident record): a silent clip at a
+    storage door corrupts durable knowledge while the caller is told [OK] -- deepseek's
+    knowledge_note tool-arg lost the tail of a design twice on 2026-07-11 exactly this way
+    (stored ~4013 chars, tool result confessed nothing). Over-cap input is hard-sliced with
+    an IN-BAND marker in the stored text AND a confession line the door must print in its
+    RESULT, so the calling agent SEES the clip and can chunk/resend. `_clip` stays for
+    display projections; storage intake of content fields uses THIS. Identity-scale fields
+    (titles, ids, categories) keep `_clip` -- they self-match on the clipped form."""
+    s = "" if s is None else str(s)
+    if len(s) <= n:
+        return s
+    confessions.append(f"[CLIPPED] {field}: {len(s)} chars exceeds the {n}-char cap -- "
+                       f"stored the first {n} plus an in-band marker; resend the remainder in chunks")
+    return s[:n] + f"\n...[clipped at {n} of {len(s)} chars -- remainder NOT stored]"
+
+
 def _working_tree_status():
     """Best-effort git cleanliness for the repo this file lives in.
 
@@ -279,13 +301,14 @@ def cmd_learn(args):
         print('Example: py agent_cli.py learn me --experiment cache_fix '
               '--tried "memoize" --result "+50%" --recommend "use it"')
         return 2
+    clipped = []
     signal = {
         "experiment_name": _clip(args.experiment, 200),
         "agent_id": _clip(args.agent_id, 200),
-        "what_tried": _clip(args.tried),
-        "actual_outcome": _clip(args.result),
-        "expected_outcome": _clip(args.expected),
-        "recommendation": _clip(args.recommend),
+        "what_tried": _intake(args.tried, _MAX, "what_tried", clipped),
+        "actual_outcome": _intake(args.result, _MAX, "actual_outcome", clipped),
+        "expected_outcome": _intake(args.expected, _MAX, "expected_outcome", clipped),
+        "recommendation": _intake(args.recommend, _MAX, "recommendation", clipped),
         "category": _clip(args.category, 80) or "uncategorized",
         "success": args.success or "yes",
         "confidence": args.confidence or "medium",
@@ -336,10 +359,13 @@ def cmd_learn(args):
         except Exception:
             edge_stamped = False
     if args.json:
-        print(json.dumps({"recorded": bool(ok), "experiment": signal["experiment_name"]}))
+        print(json.dumps({"recorded": bool(ok), "experiment": signal["experiment_name"],
+                          "clipped": clipped or None}))
     else:
         print(f"[{'OK' if ok else 'FAIL'}] recorded lesson '{signal['experiment_name']}' "
               f"(category: {signal['category']}, success: {signal['success']})")
+        for c in clipped:   # RB-5: the door's RESULT carries the clip, never silent
+            print(c)
     # Slice 2 capture nudge: a failure with no anti_pattern is where a reusable known-bad hides, and
     # this instant (just recorded, context fresh) is the moment to name it. Auto-draft a candidate NAME
     # (removing the naming cost) and hand back the exact one-line tag command. Silent for successes or
@@ -1098,7 +1124,11 @@ def cmd_note(args):
         print("ERROR: need --title and --note (or --retire <id|title>).")
         print('Example: py agent_cli.py note me --title "checkpoint: recall done" --note "next: write-once"')
         return 2
+    clipped = []
     title = _clip(args.title, 200)
+    if len(str(args.title or "")) > 200:
+        clipped.append(f"[CLIPPED] title: {len(str(args.title))} chars exceeds the 200-char cap -- "
+                       f"stored (and supersede-matched) as {title!r}")
     supersedes = args.supersedes
     if not supersedes:   # re-noting the same title updates-in-place (write-once correction)
         try:
@@ -1108,7 +1138,8 @@ def cmd_note(args):
                     break
         except Exception:
             pass
-    dec_id = mem.decide(title=title, decision=_clip(args.note), context=_clip(args.context or "", 1000),
+    dec_id = mem.decide(title=title, decision=_intake(args.note, _MAX_NOTE, "note body", clipped),
+                        context=_intake(args.context or "", 1000, "context", clipped),
                         supersedes=supersedes or None, session_id=args.session or "")
     if not dec_id:
         print("ERROR recording note (store unavailable?)"); return 1
@@ -1132,8 +1163,10 @@ def cmd_note(args):
         pass
     if args.json:
         print(json.dumps({"recorded": True, "id": dec_id, "title": title,
-                          "superseded": supersedes or None})); return 0
+                          "superseded": supersedes or None, "clipped": clipped or None})); return 0
     print(f"[OK] noted '{title}' (id {dec_id})" + (f" - superseded prior {supersedes}" if supersedes else ""))
+    for c in clipped:   # RB-5: the door's RESULT carries the clip, never silent
+        print(c)
     return 0
 
 
@@ -1903,13 +1936,15 @@ def cmd_handoff(args):
         return 2
 
     from core.signals.coordinator_api import SignalEmitter
+    clipped = []
     ctx = {}
     if (args.note or "").strip():
-        ctx["note"] = _clip(args.note, 1000)
+        ctx["note"] = _intake(args.note, 1000, "note", clipped)
     blockers = [b.strip() for b in (args.blocker or "").split("||") if b.strip()]
     try:
         em = SignalEmitter(_clip(args.agent_id, 200))
-        em.emit_handoff_to_target_agent(to_agent, _clip(task, 500), context=ctx, blockers=blockers)
+        em.emit_handoff_to_target_agent(to_agent, _intake(task, 500, "task", clipped),
+                                        context=ctx, blockers=blockers)
         ok = True
     except Exception as e:
         print(f"ERROR recording handoff: {type(e).__name__}: {e}")
@@ -1936,10 +1971,13 @@ def cmd_handoff(args):
         pass
 
     if args.json:
-        print(json.dumps({"recorded": ok, "from": args.agent_id, "to": to_agent, "task": task}))
+        print(json.dumps({"recorded": ok, "from": args.agent_id, "to": to_agent, "task": task,
+                          "clipped": clipped or None}))
     else:
         print(f"[{'OK' if ok else 'FAIL'}] handoff {args.agent_id} -> {to_agent}: {_clip(task, 80)}")
         print(f"  (the target's next `boot` will surface this as its briefing)")
+        for c in clipped:   # RB-5: the door's RESULT carries the clip, never silent
+            print(c)
         _warn_unmirrored()   # session-end: don't hand off on top of unmirrored work
     return 0 if ok else 1
 

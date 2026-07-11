@@ -122,6 +122,22 @@ T018 pins (tests/test_runner_promise_bounce.py) untouched and must stay green.
 - **DeepSeek guarded writes disabled** this session (its runner asked for a restart to
   re-enable) -- both its halves shipped via bus, persisted verbatim by claude; its [verify]
   gate runs read-only, which it can do live.
+- **Silent clip, THIRD site (RB-5 class, 2026-07-11 night -- the note DOOR itself):**
+  cmd_note stored `_clip(args.note)` -- a silent 4000-char word-boundary cut
+  (" ...[truncated]") -- then printed plain [OK], which IS the tool result: deepseek's
+  knowledge_note tool-args for t034-registry-design-deepseek and -part2 each stored
+  ~4013 chars while the tool reported success (deepseek self-recovered by chunking
+  parts 2-7; the old lesson note_door_silent_4k_clip had normalized the workaround).
+  The suspected site (deepseek_chat.py Agent tool-dispatch) was EXONERATED by
+  inspection: arg deltas accumulate unbounded (:820), args json.loads whole (:853) and
+  reach the ToolBox intact (:860); its [:160]/[:140] slices are console display only.
+  Fix (this slice's follow-up commit): storage-intake bounds now confess via
+  `_intake()` (agent_cli.py) -- note body cap RAISED 4000 -> 100_000; anything over-cap
+  stores an in-band `...[clipped at N of M chars]` marker AND the door RESULT prints
+  `[CLIPPED] ...` (`clipped` field in --json); learn content fields (@4000) and handoff
+  task/note (@500/@1000) confess at their existing caps. Live receipt: 6000-char body
+  stored whole through the real door post-fix. Regression:
+  tests/test_intake_clip_confession.py. Lesson note_door_silent_4k_clip flipped.
 
 ## Ship gate
 
