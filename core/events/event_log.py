@@ -202,8 +202,12 @@ class EventLog:
                 return ev, None
         oldest = events[0].get("id") if events else None
         if oldest is not None and _id_precedes(eid, oldest):
-            return None, (f"payload aged out -- {stream} is bounded and now starts at id "
-                          f"{oldest}; id {eid} was evicted with everything older")
+            # Honesty has a bound of its own: FileLedger ids are dense (1..n), so
+            # below-oldest = certainly evicted; Redis ids are sparse ms-seq, where a
+            # below-oldest id may also simply never have been minted. Say both.
+            return None, (f"payload aged out -- {stream} is bounded and keeps nothing "
+                          f"older than id {oldest}; id {eid} predates every survivor "
+                          f"(evicted if it ever existed)")
         return None, f"no event {eid} on {stream} (never existed, or the stream was reset)"
 
     # --------------------------------------------------------------- internals

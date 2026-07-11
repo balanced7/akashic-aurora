@@ -35,6 +35,11 @@ def test_evicted_pointer_confesses_aging(tmp_path, monkeypatch):
     ev, why = log.resolve(refs[0])          # ids 1..3 evicted by the bound of 5
     assert ev is None
     assert "aged out" in why, f"an evicted payload must say so, got: {why!r}"
+    assert "if it ever existed" in why, \
+        "the claim stays within its evidence: sparse (Redis) ids below the oldest " \
+        "survivor may never have been minted -- eviction is asserted conditionally " \
+        "(live find 2026-07-10: a nonsense id far below the ms-epoch range was " \
+        "rendered as unconditionally evicted)"
 
 
 def test_present_pointer_resolves_clean(tmp_path, monkeypatch):
