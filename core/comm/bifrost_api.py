@@ -76,8 +76,7 @@ class BifrostAPI:
             return self.bus.inbox(advance=False)
         from core.comm import runner_lock
         import os
-        sid = os.getenv("CLAUDE_CODE_SESSION_ID") or os.getenv("CLAUDE_SESSION_ID") or ""
-        token = f"session:{sid}" if sid else f"session:api:{os.getpid()}"
+        token = runner_lock.session_holder_token() or f"session:api:{os.getpid()}"
         ok, gen, info = runner_lock.claim_consumer(self.agent, token)
         if not ok:
             self.last_seat = info

@@ -69,14 +69,12 @@ def peek_inbox(agent_id: str, limit: int = 10) -> List[Dict[str, Any]]:
 
 
 def _session_holder_token() -> str:
-    """RB-21: the sticky consumer identity for THIS session -- stable across every CLI
-    invocation the session makes (the harness exports its session id to subprocesses).
-    Anonymous callers (no session env) share one per-agent-user bucket: two anonymous
-    twins collapse to a single holder -- pre-acknowledged v1 bound; every Claude Code
-    session carries the env var, so the twin incident class is covered."""
-    import os
-    sid = os.getenv("CLAUDE_CODE_SESSION_ID") or os.getenv("CLAUDE_SESSION_ID") or ""
-    return f"session:{sid}" if sid else "session:anon-cli"
+    """RB-21: the sticky consumer identity for THIS session (single definition lives in
+    runner_lock; this door's fallback = one shared anonymous bucket -- two anonymous
+    twins collapse to a single holder, a pre-acknowledged v1 bound; every Claude Code
+    session carries the env var, so the twin incident class is covered)."""
+    from core.comm import runner_lock
+    return runner_lock.session_holder_token() or "session:anon-cli"
 
 
 def _seat_teach(agent_id: str, info: Dict[str, Any], ttl: int, *, fenced: bool = False) -> str:

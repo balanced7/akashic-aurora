@@ -194,6 +194,24 @@ def test_door_happy_path_dict_shape(agent):
     assert len(res.get("consumed") or []) == 1, "one consistent type for JSON callers"
 
 
+# --- P12 (post-verify registration, claude live incident 2026-07-11, added at RED):
+#     a cross-process refresher (the stop hook) must never clobber the tenure generation.
+#     Live shape: hook fires refresh_consumer in a fresh process (_TENURE_GEN empty) ->
+#     heartbeat re-wrote the lock value with gen=0 -> the next re-entrant claim recovered
+#     0 -> advance_to == STALE_GENERATION against our own cursor. Self-fencing. ---
+
+def test_cross_process_refresh_preserves_generation(agent):
+    ok, g1, _ = runner_lock.claim_consumer(agent, "session:pin-a")
+    assert ok and g1 > 0
+    assert Bus(agent).advance_to(inbox="1-1", generation=g1) == "OK"   # cursor gen = g1
+    runner_lock._TENURE_GEN.clear()          # simulate a FRESH process (the stop hook)
+    assert runner_lock.refresh_consumer(agent, "session:pin-a")
+    ok2, g2, _ = runner_lock.claim_consumer(agent, "session:pin-a")    # next consume
+    assert ok2 and g2 == g1, "the refresher preserved the tenure generation"
+    assert Bus(agent).advance_to(inbox="2-1", generation=g2) == "OK", \
+        "a session must never fence ITSELF via its own hook refresh"
+
+
 # --- P9: the MCP door defaults to PEEK (silent consume-by-default retired) ---
 
 def test_mcp_door_peek_default():

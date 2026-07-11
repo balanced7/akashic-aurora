@@ -123,14 +123,26 @@ def heartbeat(agent: str, token: str, ttl: Optional[int] = None) -> bool:
             # The tenure KEEPS its original generation: nx proves the slot was empty, so no successor
             # observed the gap; if one acquired-and-died inside it (minting a higher gen), the guarded
             # cursor write is the arbiter -- our next advance gets STALE_GENERATION and we stand down.
+            if not gen:
+                # RB-21 P12: a refresher that does not KNOW its tenure generation (a fresh
+                # process, e.g. the stop hook) must never reclaim with 0 -- the poisoned
+                # value would fence the session against its own cursor. Stand down; the
+                # next claim_consumer() acquires fresh with a properly minted generation.
+                return False
             return bool(c.set(_key(agent), json.dumps({"token": token, "pid": os.getpid(), "ts": _now(),
                                                        "gen": gen}),
                               nx=True, ex=int(ttl or LOCK_TTL)))
         try:
-            if json.loads(raw).get("token") != token:
+            rec = json.loads(raw)
+            if rec.get("token") != token:
                 return False        # someone else owns it now; we should stand down
         except Exception:
             return False
+        if not gen:
+            # RB-21 P12 (live incident 2026-07-11): a cross-process refresher inherits the
+            # tenure generation from the LOCK VALUE instead of clobbering it with 0 --
+            # gen recovery on the next re-entrant claim depends on this field.
+            gen = int(rec.get("gen", 0))
         c.set(_key(agent), json.dumps({"token": token, "pid": os.getpid(), "ts": _now(), "gen": gen}),
               ex=int(ttl or LOCK_TTL))
         return True
@@ -156,6 +168,15 @@ def release(agent: str, token: str) -> bool:
 # A session consuming mail IS a cursor-advancer, so it claims THE SAME lock a runner
 # claims -- one invariant, zero new primitives (docs/rb21-build-spec-2026-07-11.md).
 # Holder tokens are "session:<id>"-prefixed so refusal messages can teach legibly.
+
+def session_holder_token() -> Optional[str]:
+    """The stable session identity for consumer claims: the harness exports its session
+    id to every subprocess, so one session's claims cohere across CLI invocations.
+    None when no session env exists -- each door chooses its own fallback bucket
+    (single definition per deepseek verify observation; doors delegate here)."""
+    sid = os.getenv("CLAUDE_CODE_SESSION_ID") or os.getenv("CLAUDE_SESSION_ID") or ""
+    return f"session:{sid}" if sid else None
+
 
 def claim_consumer(agent: str, holder_token: str, ttl: Optional[int] = None):
     """Claim (or refresh) the single-consumer seat for `agent` as a SESSION.
