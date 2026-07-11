@@ -239,3 +239,13 @@ This round the fence EARNED its keep: three divergences, deepseek's side adopted
    two page-grade states.
 3. Deferred, named: per-phase grace map for F2 (before phi-accrual); EXTEND_TIMEOUT
    rejected outright (the watched thing must not move its own goalposts).
+
+L2 SHIPPED 2026-07-11 (~01:30), deepseek verify GATE GREEN (verbatim:
+research/reviewed/deepseek-l2-verify-2026-07-11.md). His proof obligations held:
+dead-pulse-during-legit-work requires 300s of zero progress (which IS a wedge); zero
+false-page paths under any probe failure (traced per-probe). Drifts NAMED per M8, all
+minor, queued as L2 follow-ups, none touching the page states: (a) suspected-mail-loss
+dashboard line unwired (RB-26 auto-heals; low-risk render add); (b) 'draining' phase
+unset (crash-only shutdown makes a hung drain structurally near-impossible); (c)
+pulse_fresh ignores the pulse's generation (a dead tenure's pulse could mask a wedge
+for <=10s -- evaporates 30x below the 300s threshold).
