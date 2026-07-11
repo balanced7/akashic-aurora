@@ -1,5 +1,5 @@
 {
-  "seq": 32,
+  "seq": 33,
   "tasks": [
     {
       "id": "T001",
@@ -1251,6 +1251,32 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-11T05:13:37+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T033",
+      "title": "UI design-language re-grounding (Daniel-directed 2026-07-11): M0/M2 the UI properly -- fresh OneUI+HIG cached sources w/ fenced dual read; three-way audit (Daniel vision brief vs SETTLED Aurora Glass/composition specs vs shipped bifrost_ui) incl. spec-to-vision check against his mockup; reconcile into a revised design-language spec w/ receipts; then build slices (deepseek UI lane) incl. the parked T002/T007 and the bars card. Evidence: screenshot 02:25 confirms composition-spec diagnosis unbuilt; port drift 8792/8788/8787",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "dual gap analyses reconciled; revised spec cites its sources per M2; every UI build slice thereafter cites the spec (reconciliation gate); Daniel rules on spec-vs-vision deltas",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-11T06:00:34+00:00",
+      "updated": "2026-07-11T06:00:34+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-11T06:00:34+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-11T06:00:34+00:00"
         }
       ]
     }

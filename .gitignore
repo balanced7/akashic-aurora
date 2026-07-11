@@ -98,3 +98,4 @@ research/shift-console-*.log.err
 # state/* (not state/) excludes the CONTENTS so these re-includes can take effect.
 !state/coord/
 !state/coord/**
+research/sources-cache/
