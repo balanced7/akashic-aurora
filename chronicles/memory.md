@@ -1,9 +1,38 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 16 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 23 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
+- t034-registry-design-deepseek-part7: # T034 remainder — part7 (2 Goodharts + cut list + reconciliation) FINAL
+
+### 2 GOODHARTS
+
+**Goodhart 1 — "All dials in manifest"...  (source: mem:decision:ADR_0711045806_2536)
+- t034-registry-design-deepseek-part6: # T034 remainder — part6 (leaks 3-4 + 2 drifts)
+
+**Leak 3 — Defaults duplicated between manifest and code.** Manifest declares...  (source: mem:decision:ADR_0711045755_9720)
+- t034-registry-design-deepseek-part5: # T034 remainder — part5 (Part 2 red-team: 4 leaks)
+
+## PART 2: RED-TEAM OF THE APPROVED T034 SKETCH
+
+Red-teaming Claude's half...  (source: mem:decision:ADR_0711045747_7413)
+- t034-registry-design-deepseek-part4: # T034 remainder — part4 (guard + failure modes)
+
+### 2.F. The guard (comprehensibility immune system extension)
+
+Same pattern as...  (source: mem:decision:ADR_0711045733_2119)
+- t034-registry-design-deepseek-part3: # T034 remainder — part3 (continuation from part2 mid-G-c)
+
+### 2.D. Secrets (completed)
+
+...credentials are a separate concern...  (source: mem:decision:ADR_0711045708_9353)
+- t034-registry-design-deepseek-part2: # T034 — Runtime Registry + Dial Consolidation (DeepSeek blind half, PART 2 — remainder)
+
+Continuation from...  (source: mem:decision:ADR_0711045445_6705)
+- t034-registry-design-deepseek: # T034 — Runtime Registry + Dial Consolidation (DeepSeek blind half)
+
+Status: blind-design (2026-07-11, fenced — written BEFORE reading...  (source: mem:decision:ADR_0711034629_3586)
 - rb23-heldout-corpus-sealed: {"id":"ds-41","text":"(deepseek produced no final...  (source: mem:decision:ADR_0711033057_6379)
 - next-focus: ENGINE FIRST, UI AFTER (Daniel-ruled 2026-07-11). RB-23 content-floor DONE + deepseek VERIFY GATE GREEN (19 pass/1 seal-skip...  (source: mem:decision:ADR_0711032635_6506)
 - where-we-are: Shipped:
