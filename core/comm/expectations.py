@@ -1,0 +1,177 @@
+"""expectations -- sender-side reply deadlines + redrive (T030 L4 / RB-29).
+
+The sender arms an expectation when it NEEDS an answer; the pull floor (boot /
+bifrost-sync) sweeps at render -- no daemon, a turn-based sender checks exactly when it
+can act (T025 doctrine). Expired -> redrive a copy (meta {redrive_of, attempt}) up to
+REDRIVES times with a fresh deadline each attempt; exhausted -> durable
+`expectation_dead` event + a loud render line. RB-26's consumer-side ack registry
+dedupes redelivered handoffs; duplicates are tolerated for chat kinds (reconciled).
+
+Reply detection is CONSUMPTION-IMMUNE: arm() captures the sender-inbox stream tail as
+an ANCHOR and the sweep reads the stream from there -- entries outlive cursors, so a
+reply the sender already read still clears its expectation. Exact match when the reply
+meta carries answers:<orig_id>; an unlinked reply from the recipient clears the OLDEST
+expectation to that recipient armed BEFORE the reply (FIFO fallback; expectations armed
+after a reply are immune to it).
+
+Records are Redis-ephemeral coordination state, not durable knowledge -- losing Redis
+is the bigger RB-30 event and voids the expectations with it (design-review AFFIRMED).
+
+Spec: docs/agent-liveness-tier-2026-07.md L4 BUILD SPEC.
+Review: research/reviewed/deepseek-t030-l4-review-2026-07-11.md (AFFIRM x5).
+"""
+from __future__ import annotations
+
+import json
+import time
+from typing import Any, Dict, List, Optional, Tuple
+
+NS = "bifrost"
+EXPECT_PREFIX = f"{NS}:expect:"
+REDRIVES = 3
+MIN_WITHIN_S = 30      # clamp floor: sub-30s reply deadlines on a turn-based bus are noise
+
+
+def _client():
+    try:
+        from core.comm.bus import get_bus
+        return get_bus("expect")._client
+    except Exception:
+        return None
+
+
+def _key(sender: str) -> str:
+    return EXPECT_PREFIX + str(sender)
+
+
+def _id_tuple(sid: str) -> Tuple[int, int]:
+    """Stream ids compare as (ms, seq) -- string compare lies across digit widths."""
+    try:
+        ms, _, seq = str(sid).partition("-")
+        return int(ms), int(seq or 0)
+    except Exception:
+        return (0, 0)
+
+
+def arm(sender: str, orig_id: str, to: str, kind: str, content: Any, within_s: int) -> bool:
+    """Record a reply expectation for an already-sent message. Clamps within_s to
+    >= MIN_WITHIN_S. The anchor is the sender-inbox tail AT ARM TIME (the sender's own
+    send never lands in its own inbox, so the anchor cleanly precedes any reply)."""
+    c = _client()
+    if c is None:
+        return False
+    try:
+        from core.comm.bus import Bus
+        anchor = Bus(str(sender)).tail().get("inbox", "0")
+        within = max(MIN_WITHIN_S, int(within_s))
+        rec = {"to": str(to), "kind": str(kind), "content": content,
+               "within_s": within, "deadline_ts": time.time() + within,
+               "redrives_left": REDRIVES, "attempt": 0,
+               "anchor": anchor, "created": time.time()}
+        c.hset(_key(str(sender)), str(orig_id), json.dumps(rec, default=str))
+        return True
+    except Exception:
+        return False
+
+
+def _emit_dead(sender: str, orig_id: str, rec: Dict[str, Any]) -> None:
+    """Durable exhaustion record; the sweep's caller prints the loud line."""
+    try:
+        from core.events.event_log import capture_event
+        capture_event("expectation_dead",
+                      f"{rec.get('to')} never answered {orig_id} after {REDRIVES} redrives",
+                      agent_id=str(sender), refs=[str(orig_id)],
+                      detail={"to": rec.get("to"), "kind": rec.get("kind"),
+                              "attempts": rec.get("attempt")})
+    except Exception:
+        pass
+
+
+def _replies_since(sender: str, anchor: str) -> List[Any]:
+    """Directed replies in the sender's inbox stream AFTER `anchor` -- read from the
+    stream position, not the cursor, so consumption cannot hide them. The bc lane is
+    pinned at its current tail (broadcast replies are room chatter, never answers)."""
+    try:
+        from core.comm.bus import Bus
+        b = Bus(str(sender))
+        bc_now = b.tail().get("bc", "0")
+        msgs = b.wait(timeout_ms=1, limit=200, since={"inbox": anchor, "bc": bc_now})
+        return [m for m in msgs if getattr(m, "kind", "") == "reply"]
+    except Exception:
+        return []
+
+
+def sweep(sender: str, now: Optional[float] = None) -> Dict[str, List[str]]:
+    """One render-time pass: clear answered, redrive expired, kill exhausted.
+    Returns {"redriven": [ids], "dead": [ids], "cleared": [ids]}; `now` injectable so
+    pins never sleep. Never raises."""
+    out: Dict[str, List[str]] = {"redriven": [], "dead": [], "cleared": []}
+    c = _client()
+    if c is None:
+        return out
+    try:
+        key = _key(str(sender))
+        raw = c.hgetall(key) or {}
+        if not raw:
+            return out
+        now = time.time() if now is None else float(now)
+        recs: Dict[str, Dict[str, Any]] = {}
+        for oid, v in raw.items():
+            try:
+                recs[str(oid)] = json.loads(v)
+            except Exception:
+                c.hdel(key, oid)               # unparseable record: drop, never wedge
+        if not recs:
+            return out
+        oldest = min((r.get("anchor", "0") for r in recs.values()), key=_id_tuple)
+        replies = _replies_since(sender, oldest)
+        for r in replies:                      # 1) exact linkage clears first
+            a = (getattr(r, "meta", None) or {}).get("answers")
+            if a and a in recs:
+                c.hdel(key, a)
+                del recs[a]
+                out["cleared"].append(a)
+        for r in replies:                      # 2) FIFO fallback: one clear per reply
+            if (getattr(r, "meta", None) or {}).get("answers"):
+                continue
+            cands = sorted(
+                ((oid, rec) for oid, rec in recs.items()
+                 if rec.get("to") == getattr(r, "frm", None)
+                 and _id_tuple(rec.get("anchor", "0")) < _id_tuple(getattr(r, "id", "0"))),
+                key=lambda kv: float(kv[1].get("created", 0)))
+            if cands:
+                oid = cands[0][0]
+                c.hdel(key, oid)
+                del recs[oid]
+                out["cleared"].append(oid)
+        for oid, rec in list(recs.items()):    # 3) deadlines
+            if now < float(rec.get("deadline_ts", 0)):
+                continue
+            if int(rec.get("redrives_left", 0)) > 0:
+                from core.comm.bus import Bus
+                attempt = int(rec.get("attempt", 0)) + 1
+                Bus(str(sender)).send(rec["to"], rec.get("kind", "request"), rec.get("content"),
+                                      meta={"redrive_of": oid, "attempt": attempt})
+                rec.update(attempt=attempt,
+                           redrives_left=int(rec.get("redrives_left", 0)) - 1,
+                           deadline_ts=now + int(rec.get("within_s", MIN_WITHIN_S)))
+                c.hset(key, oid, json.dumps(rec, default=str))
+                out["redriven"].append(oid)
+            else:
+                _emit_dead(sender, oid, rec)
+                c.hdel(key, oid)
+                out["dead"].append(oid)
+        return out
+    except Exception:
+        return out
+
+
+def format_sweep_lines(res: Dict[str, List[str]]) -> List[str]:
+    """Render-side: loud lines for what the sweep did (empty list = quiet)."""
+    lines = []
+    for oid in res.get("redriven", []):
+        lines.append(f"~ redrove {oid} (no reply by deadline -- copy sent, meta redrive_of)")
+    for oid in res.get("dead", []):
+        lines.append(f"!! EXPECTATION DEAD: {oid} unanswered after {REDRIVES} redrives "
+                     f"-- durable event recorded; chase it or let it go")
+    return lines

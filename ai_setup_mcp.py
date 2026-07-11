@@ -357,10 +357,17 @@ def bifrost_sync(agent: str, limit: int = 10, consume: bool = False) -> str:
 # short stable id ('cursor', 'claude'). The bus is ephemeral; durable handoffs still use handoff().
 
 @mcp.tool()
-def bifrost_send(from_agent: str, to: str, kind: str = "chat", text: str = "") -> str:
-    """Send a direct real-time message to another agent's Bifrost inbox (live, low-latency)."""
+def bifrost_send(from_agent: str, to: str, kind: str = "chat", text: str = "",
+                 expect_reply_within: int = 0) -> str:
+    """Send a direct real-time message to another agent's Bifrost inbox (live, low-latency).
+    expect_reply_within=SECONDS (RB-29, clamped >=30) arms a sender-side reply deadline:
+    3 redrives then a loud expectation_dead, swept at boot/bifrost-sync."""
     from core.comm.bus import Bus
     mid = Bus(from_agent).send(to, kind, text)
+    if mid and expect_reply_within:
+        from core.comm.expectations import arm
+        arm(from_agent, mid, to, kind, text, int(expect_reply_within))
+        return f"sent {mid} -> {to} (reply expected; redrives armed)"
     return f"sent {mid} -> {to}" if mid else "BUS OFFLINE (Redis unreachable)"
 
 

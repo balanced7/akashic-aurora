@@ -151,6 +151,14 @@ def collect_boot_bifrost(agent_id: str, limit: int = 8) -> Dict[str, Any]:
         pause_line = format_pause_line(pause_status())
     except Exception:
         pass
+    expect_lines: List[str] = []
+    try:
+        # RB-29 (T030 L4): the render-time expectation sweep -- redrive overdue asks,
+        # declare the exhausted ones DEAD loudly. No daemon; this pull floor IS the clock.
+        from core.comm.expectations import format_sweep_lines, sweep
+        expect_lines = format_sweep_lines(sweep(agent_id))
+    except Exception:
+        pass
     return {
         "bus_online": pres["online"],
         "presence_registered": pres["registered"],
@@ -159,6 +167,7 @@ def collect_boot_bifrost(agent_id: str, limit: int = 8) -> Dict[str, Any]:
         "messages": msgs,
         "locks": peek_locks(agent_id),
         "pause_line": pause_line,
+        "expect_lines": expect_lines,
     }
 
 
@@ -183,6 +192,8 @@ def print_boot_bifrost_section(block: Dict[str, Any]) -> None:
     print("\n## UNREAD BIFROST (live bus)")
     if block.get("pause_line"):
         print(f"  {block['pause_line']}")   # RB-30: a frozen fleet announces itself first
+    for ln in block.get("expect_lines") or []:
+        print(f"  {ln}")                     # RB-29: redrives + dead expectations, loud
     if not block.get("bus_online"):
         print("  (bus OFFLINE -- Redis unreachable; durable mail still in promoted() / events)")
         return

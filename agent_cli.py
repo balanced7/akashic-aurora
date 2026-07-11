@@ -2332,7 +2332,11 @@ def cmd_bifrost_send(args):
         print("[bifrost-send] bus OFFLINE (Redis down) -- not sent."); return 1
     bus.register()
     text = " ".join(args.text) if isinstance(args.text, list) else str(args.text)
+    expect = int(getattr(args, "expect_reply_within", 0) or 0)
     if args.broadcast:
+        if expect:
+            print("ERROR: --expect-reply-within needs a DIRECTED send (--to); a broadcast "
+                  "has no single answerer to redrive."); return 2
         mid = bus.broadcast(args.kind, text)
         dest = "*"
     else:
@@ -2341,8 +2345,15 @@ def cmd_bifrost_send(args):
                   'e.g. bifrost-send claude --to deepseek "hi"'); return 2
         mid = bus.send(args.to, args.kind, text)
         dest = args.to
+        if mid and expect:
+            # RB-29 (T030 L4): arm the sender-side deadline; the pull floor sweeps it.
+            from core.comm.expectations import MIN_WITHIN_S, arm
+            if arm(args.agent_id, mid, args.to, args.kind, text, expect):
+                print(f"[bifrost-send] expecting a reply within {max(MIN_WITHIN_S, expect)}s "
+                      f"(3 redrives then a loud expectation_dead; swept at boot/bifrost-sync)")
     if args.json:
-        print(json.dumps({"sent": bool(mid), "id": mid, "to": dest, "kind": args.kind}, default=str))
+        print(json.dumps({"sent": bool(mid), "id": mid, "to": dest, "kind": args.kind,
+                          "expect_reply_within": expect or None}, default=str))
         return 0 if mid else 1
     print(f"[bifrost-send] -> {dest} [{args.kind}] (id {mid})" if mid else "[bifrost-send] send failed")
     return 0 if mid else 1
@@ -2771,6 +2782,9 @@ def build_parser():
     snd.add_argument("--to", default="", help="recipient agent id (e.g. deepseek); omit with --broadcast")
     snd.add_argument("--kind", default="chat", help="chat|request|question|handoff|... (default chat)")
     snd.add_argument("--broadcast", action="store_true", help="send to ALL agents instead of one --to")
+    snd.add_argument("--expect-reply-within", type=int, default=0, metavar="SECONDS",
+                     help="RB-29: arm a sender-side reply deadline (clamped >=30s; 3 redrives "
+                          "then a loud expectation_dead; swept at boot/bifrost-sync)")
     snd.add_argument("--json", action="store_true")
     snd.set_defaults(fn=cmd_bifrost_send)
 

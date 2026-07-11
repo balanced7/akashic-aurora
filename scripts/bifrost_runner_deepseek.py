@@ -539,7 +539,10 @@ def _process_one(m, bus, args, responder, rate) -> None:
                 log_note = f"[deepseek-runner] !! error from responder: {type(result).__name__}: {result}"
             else:
                 out = str(result)
-        reply_meta = {"via": f"{args.agent}-runner", "model": args.model, "hops": hops}
+        # RB-29: "answers" links this reply to the message it answers -- the sender's
+        # expectation sweep clears EXACTLY (FIFO fallback covers agents without it).
+        reply_meta = {"via": f"{args.agent}-runner", "model": args.model, "hops": hops,
+                      "answers": m.id}
         # Channel mirror: a message that arrived by BROADCAST is replied by broadcast, so the
         # whole group (Claude + the console) sees it -- not just the sender. Direct stays direct.
         if str(m.to) == "*":

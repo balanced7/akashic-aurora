@@ -51,9 +51,14 @@ pytestmark = [
 
 @pytest.fixture()
 def pair():
-    """(sender, recipient) with teardown of every touched key."""
+    """(sender, recipient) with teardown of every touched key. Both cursors park at the
+    live broadcast tail (harness-only, the RB-21 _quiesce lesson: a live runner's trace
+    backlog must not leak into pin reads; gen-0 commit valid on never-fenced agents)."""
     s = f"rb29snd-{uuid.uuid4().hex[:8]}"
     r = f"rb29rcv-{uuid.uuid4().hex[:8]}"
+    for aid in (s, r):
+        b = Bus(aid)
+        b.advance_to(bc=b.tail().get("bc"), generation=0)
     yield s, r
     try:
         c = Bus(s)._client
