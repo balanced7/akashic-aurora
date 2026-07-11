@@ -41,8 +41,14 @@ store.py:194-206; claude's key namespace + retry cap + id fix folded in):
 - Retry policy lives at the DOOR, not in decide() (deepseek: in-decide retry re-gens ids
   and rewrites bodies wastefully): a small `decide_with_retry` helper in agent_memory owns
   re-read-head -> corrected supersedes -> retry, CAP 3 (claude: an uncapped door loop can
-  livelock), then fail loud. ALL doors use the helper -- cmd_note, the MCP note tool, wrap
-  (door parity is a check, not a hope: scripts/check_door_parity.py covers it).
+  livelock), then fail loud. AUTO-RESOLVE doors use the helper -- cmd_note re-note, wrap
+  --focus, wrap where-we-are. An EXPLICIT `--supersedes <id>` BYPASSES it: single-attempt
+  decide(), loser fails loud naming the current head -- silently re-pointing a target the
+  caller named by id would supersede a record they never chose. [SETTLED 2026-07-11,
+  supersedes this paragraph's earlier all-doors wording: claude reconciliation flag ->
+  deepseek design-review AFFIRMED ("retrying an explicit target would silently supersede
+  the WRONG record") -> impl @b044d6b -> verify GATE GREEN. Door parity remains a check,
+  not a hope: scripts/check_door_parity.py covers all four doors.]
 - Only the CAS winner retires the old id (closes R-a lost-retire fork; makes the
   _retire_record read-modify-write single-writer in practice, closing R-b).
 - Id generation hardened (claude R-c, deepseek missed): ADR_<ts>_<uuid4.hex[:8]> --
@@ -88,8 +94,17 @@ but the teaching error beats a generic one).
 render in notes --all footer, boot one-liner when non-empty, doctor; default get_decisions
 unchanged. Scan time-bounded to the 90d window; older vanished groups only via --all
 (deepseek FM2).
+Review fold-in (deepseek design-review 2026-07-11, MUST for this slice's builder): the
+stale-explicit-target refusal is a PRE-READ of the head sentinel in the door's explicit
+branch BEFORE decide() -- saves the write+claim+cleanup cycle -- and its teaching error
+must NOT advise retrying (that advice is correct only on the decide_with_retry path).
+Shapes: stale target -> "refused: explicit target <id> is not the current head (head is
+<id2>). Drop --supersedes to auto-resolve, or name the current head." Missing head ->
+"no existing note for this title; drop --supersedes for a fresh first note."
+
 Pins: ghost target refused pre-write; self refused; superseded target refused w/ head
-named; all-retired title listed; one-active title not listed.
+named; all-retired title listed; one-active title not listed; stale explicit target
+refused pre-write with the no-retry teaching error (review fold-in above).
 
 ## RB-11 -- migration idempotency + chain-length warning
 
@@ -140,3 +155,20 @@ the Store contract. No global write lock. No CRDTs.
 Supersede write: +1 get +1 cas (~2 round-trips, human-paced path). Boot: unchanged default
 reads; detector/warning scans are 90d-bounded and boot-frequency. Uncontended latency
 pinned in RB-8 pin 6.
+
+## Verify record -- pair 1: RB-8 + differential (2026-07-11)
+
+GATE GREEN (deepseek [verify], bus delivery; verbatim file persistence requested, part 1
+captured by the listener seat): 9/9 spec-fidelity checkpoints; 10/10 pre-registered pins
+flipped skip->PASS with zero assertion weakening; four production doors race-safe
+(cmd_note explicit = single-attempt decide, cmd_note re-note + wrap --focus + wrap
+where-we-are = decide_with_retry); no mem.decide() caller exists outside tests.
+3 non-blocking findings, all pre-acknowledged by this spec: (1) orphaned-sentinel doctor
+scan deferred (cut list, FM); (2) claim->retire crash window = dual visibility,
+self-heals on next re-note, non-forking; (3) threaded smoke runs on DictStore
+(RLock-serialized) -- real-Redis interleaving untested, no latency-injector harness
+exists (candidate for a later resilience tier). Differential harness LIVE FINDING
+verified safe: FileStore/DictStore zset tie-order moved insertion-order -> (score,
+member) lexicographic, aligning with Redis's documented contract -- insertion order was
+an implementation accident, never a contract; existing consumers already lived with
+Redis ordering. Impl @b044d6b.
