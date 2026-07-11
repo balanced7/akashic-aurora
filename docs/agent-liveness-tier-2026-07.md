@@ -169,3 +169,38 @@ CLAUDE-ONLY FINDS (kept):
       no spin; leftover pause renders loud at boot.
 Every slice lands with its drill as a pinned regression, deepseek [verify] after each,
 per the battery discipline.
+
+## L1 + L1b BUILD SPEC (reconciled from the dual SOTA deep-read, 2026-07-10 -- this is
+## the design-review record; both fenced halves converged on every mechanism)
+Halves: research/reviewed/claude-sota-reading-2026-07-10.md +
+research/reviewed/deepseek-sota-deepread-2026-07-10.md (verbatim). GATE: GREEN by
+convergence + explicit deepseek reviewer-mode spec.
+
+1. Loop: bus.wait(advance=False); per message _process_one then advance -- fold/filtered
+   kinds advance immediately after handling; reply-owed kinds advance AFTER the reply
+   sends. Batch semantics: cursor reflects 1..K on a crash at K+1; K+1..N redeliver.
+2. Fencing (L1b, MANDATORY per Kleppmann): runner_lock.acquire INCRs
+   bifrost:generation:<agent> (atomic monotone token). Cursor advance = ONE Lua script,
+   conditional: refuse if new_gen < stored gen (STALE_GENERATION); store generation in
+   the cursor hash. On refusal the runner LOGS LOUDLY AND STANDS DOWN -- no retry.
+   Honest remaining window: post-advance-to-pre-next-heartbeat (~5s), 4x smaller than
+   the unfenced E1 window; named, not hidden.
+3. Dedup (all answerable kinds, not just handoffs): reply_sent:<msg_id> sentinel (TTL
+   REPLY_TIMEOUT_SEC+60) set AFTER bus.send succeeds, BEFORE cursor advance; redelivery
+   checks sentinel then the P6 ack tier (handoffs). Crash windows analyzed: send->
+   sentinel = duplicate reply accepted (chat only); sentinel->advance = redelivered,
+   sentinel fires, skip. Effectively-once for asks, at-least-once everywhere.
+4. Drill harness (acceptance): five killpoint(name) sites (os._exit(137) when
+   AKASHIC_KILLPOINT matches): post-consume-pre-process / post-phase-flip-pre-send /
+   between-batch-messages / post-reply-pre-advance / post-advance-pre-ack. Harness
+   phases SETUP->EXECUTION->CHECK->METRICS; CHECK = invariants + ReferenceBus
+   comparison (pure-dict mirror of send/deliver/reply/ack/cursor -- catches off-by-one
+   the invariants miss); AKASHIC_TIMEOUT_MULTIPLIER shrinks timeouts BUGGIFY-style;
+   every run seed-stamped.
+5. Launcher deltas (L3, pulled forward where they touch L1's drill): kill = single
+   SIGKILL (no graceful window -- crash-only; the finally block IS the recovery path);
+   restart always when auto_restart, exit classification demoted to diagnostic;
+   clear_if_pid checks the OS (pid liveness) before force-clearing, else trust TTL.
+6. Methodology upgrade (Regehr, both halves): dual passes vary the METHOD, not just the
+   analyst -- one static (code-read) one dynamic (drill/trace), or top-down vs
+   bottom-up; fencing alone leaves shared-method blind spots.
