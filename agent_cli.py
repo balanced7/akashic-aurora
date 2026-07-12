@@ -163,15 +163,14 @@ def cmd_boot(args):
     # Cold-start safety net (ported from the retired StoreReconciler): if Redis was down during past
     # writes, the durable File is ahead -- backfill Redis so recall/state read consistent values. Best-
     # effort; only reconciles when drift is actually found (a no-op fast path when the backends are in sync).
+    # RB-25 Drill 2 (H2b): heal_report() surfaces BOTH the File->Redis backfill AND any Redis-only
+    # orphan gap the unidirectional reconciler leaves behind -- boot was silent about the latter.
     try:
         from core.foundation.store import create_store, HybridStore
         _st = create_store(prefer_redis=True)
         if isinstance(_st, HybridStore) and _st.redis_available:
-            if _st.check_drift().get("missing_in_redis"):
-                _rep = _st.reconcile()
-                _n = sum((_rep.get("written") or {}).values())
-                print(f"[boot] healed Redis divergence: backfilled {_n} key-structures from File "
-                      f"(Redis was behind)", file=sys.stderr)
+            for _line in _st.heal_report():
+                print(f"[boot] {_line}", file=sys.stderr)
     except Exception:
         pass
     if args.json:

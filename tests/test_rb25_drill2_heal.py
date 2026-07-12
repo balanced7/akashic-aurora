@@ -42,12 +42,17 @@ _HAS_REPORT = hasattr(HybridStore, "heal_report")
 
 @pytest.fixture()
 def store():
+    # check_drift/heal_report scan the FULL keyspace ("*"), so a shared db15 lets other
+    # tests' residue leak into this drill's drift (exact-match assertions failed in the
+    # full suite though they passed isolated). db15 is the DISPOSABLE test db -- clear it
+    # whole at setup so the drill sees only its own injected divergence. The File side is
+    # already isolated (a fresh temp file per test).
     d = tempfile.mkdtemp()
     s = HybridStore.create(file_path=os.path.join(d, "drill2.json"), db=15)
-    for k in s._redis.keys("rb25d2:*"):
+    for k in s._redis.keys("*"):
         s._redis.delete(k)
     yield s
-    for k in s._redis.keys("rb25d2:*"):
+    for k in s._redis.keys("*"):
         s._redis.delete(k)
 
 

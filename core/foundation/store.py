@@ -851,6 +851,35 @@ class HybridStore(Store):
             logger.error(f"HybridStore reconcile failed: {e}")
             return {"status": "error", "error": str(e), "written": written}
 
+    def heal_report(self) -> List[str]:
+        """RB-25 Drill 2 (H2/H2b): the OPERATOR-FACING cold-start heal. check_drift ->
+        reconcile the File-ahead side (Redis was behind) -> return render lines that say
+        BOTH what was healed AND what was NOT. The reconciler is unidirectional (File is
+        source of truth), so a Redis-only key is an orphan the heal cannot and must not
+        backfill into File -- but silence about it is the H2b gap: an operator never learns
+        the divergence exists. Returns [] when the backends are in sync (no noise).
+        Never raises -- a heal that bricks boot is worse than a skipped heal."""
+        lines: List[str] = []
+        try:
+            if not self.redis_available:
+                return lines
+            drift = self.check_drift()
+            if drift.get("missing_in_redis"):
+                rep = self.reconcile()
+                n = sum((rep.get("written") or {}).values())
+                lines.append(f"[heal] Redis was behind -- backfilled {n} key-structure(s) "
+                             f"from the durable File (File is source of truth).")
+            orphans = self.check_drift().get("missing_in_file") or []
+            if orphans:
+                shown = ", ".join(orphans[:5]) + (" ..." if len(orphans) > 5 else "")
+                lines.append(f"[heal] {len(orphans)} Redis-only key(s) have NO File record "
+                             f"and are NOT backfilled (File is truth): {shown}. "
+                             f"Investigate -- an orphan is a write that never reached the durable side.")
+        except Exception as e:
+            lines.append(f"[heal] divergence check failed ({type(e).__name__}) -- skipped, "
+                         f"start from the durable File.")
+        return lines
+
     def close(self):
         if self._redis is not None:
             self._redis.close()
