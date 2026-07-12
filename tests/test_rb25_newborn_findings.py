@@ -75,13 +75,28 @@ def test_runner_startup_wired_to_the_check():
 
 # ---------------- F2: virgin cursor seeds at the live tail ----------------
 
+# Isolated namespace: these pins broadcast, and the live 'bifrost' stream is read by real
+# wake listeners -- a test broadcast there spuriously wakes the running fleet (observed live
+# 2026-07-12: the newborn-drill verify run woke claude's listener repeatedly). Route every
+# Bus here to a disposable namespace; harness-only, no assertion changed (M3-safe).
+_NS = "test-rb25f"
+
+
+def _cleanup_ns(client):
+    try:
+        for k in client.keys(f"{_NS}:*") or []:
+            client.delete(k)
+    except Exception:
+        pass
+
+
 @pytest.mark.skipif(not (_F2 and _ONLINE), reason="F2 pre-registered / bus offline")
 def test_virgin_cursor_seeds_at_tail_and_skips_backlog():
-    backlog_sender = Bus(f"rb25f-old-{uuid.uuid4().hex[:6]}")
+    backlog_sender = Bus(f"rb25f-old-{uuid.uuid4().hex[:6]}", namespace=_NS)
     aid = f"rb25f-newborn-{uuid.uuid4().hex[:6]}"
     # stale backlog exists BEFORE the newborn onboards
     backlog_sender.broadcast("chat", "months-old directive nobody should act on")
-    newborn = Bus(aid)
+    newborn = Bus(aid, namespace=_NS)
     try:
         newborn.seed_cursor_at_tail()                 # onboarding step
         fresh = newborn.inbox(limit=50, advance=False)
@@ -91,19 +106,14 @@ def test_virgin_cursor_seeds_at_tail_and_skips_backlog():
         assert any("NEW message" in str(m.content) for m in after), \
             "new mail after seeding still arrives -- seed skips backlog, not the future"
     finally:
-        c = newborn._client
-        for k in (f"bifrost:cursor:{aid}", f"bifrost:presence:{aid}"):
-            try:
-                c.delete(k)
-            except Exception:
-                pass
+        _cleanup_ns(newborn._client)
 
 
 @pytest.mark.skipif(not (_F2 and _ONLINE), reason="F2 pre-registered / bus offline")
 def test_seed_is_idempotent_and_spares_a_returning_agent():
-    backlog = Bus(f"rb25f-b-{uuid.uuid4().hex[:6]}")
+    backlog = Bus(f"rb25f-b-{uuid.uuid4().hex[:6]}", namespace=_NS)
     aid = f"rb25f-return-{uuid.uuid4().hex[:6]}"
-    a = Bus(aid)
+    a = Bus(aid, namespace=_NS)
     try:
         backlog.broadcast("chat", "m1")
         a.seed_cursor_at_tail()
@@ -113,9 +123,4 @@ def test_seed_is_idempotent_and_spares_a_returning_agent():
         a.seed_cursor_at_tail()                        # a second call must NOT rewind
         assert dict(a.cursor()) == before, "seed only acts on a virgin cursor, never rewinds progress"
     finally:
-        c = a._client
-        for k in (f"bifrost:cursor:{aid}", f"bifrost:presence:{aid}"):
-            try:
-                c.delete(k)
-            except Exception:
-                pass
+        _cleanup_ns(a._client)
