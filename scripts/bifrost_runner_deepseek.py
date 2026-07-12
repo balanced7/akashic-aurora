@@ -636,6 +636,24 @@ def main() -> int:
         print("bifrost_runner_deepseek: bus OFFLINE (Redis unreachable)")
         return 2
 
+    # RB-25 F1: a quarantined id gets NO runner. The reply/trace lanes reach the bus as
+    # infrastructure (not through the ACL-gated send tool), so running a quarantined id
+    # still narrates + replies -- found live in the newborn gauntlet. Refuse at startup.
+    # ESCAPE: AKASHIC_DRILL_ECHO (the offline-pipeline-drill signal, never set in
+    # production) uses throwaway uuid ids by design that resolve quarantined -- and its
+    # only reply is a canned [drill-echo] string, not a model channel. The env gate is
+    # itself outside the bus threat model (it needs local process control).
+    if not os.environ.get("AKASHIC_DRILL_ECHO"):
+        try:
+            from core.trust.registry import may_run_runner
+            if not may_run_runner(args.agent):
+                print(f"bifrost_runner_deepseek: '{args.agent}' is quarantined (deny-by-default) -- "
+                      f"refusing to start a runner. Its reply/trace lanes would otherwise reach the "
+                      f"bus. A super-admin must grant it a role in security/acl.json first.")
+                return 3
+        except Exception:
+            pass                                      # broken door -> conscious sends still gated
+
     # Singleton guard: at most ONE runner per agent id. Two runners share one read-cursor and race --
     # one advances past a message the other should answer, so mail gets consumed with no reply.
     lock_token = runner_lock.instance_token(args.agent)
@@ -692,6 +710,17 @@ def main() -> int:
         mode = "drill-echo (offline)"
 
     bus.register(card=CARD)
+    # RB-25 F2: a brand-NEW agent seeds its cursor at the live tail so it never acts on
+    # the stale broadcast backlog as if current (the newborn gauntlet drained months-old
+    # history and treated it as a directive). Virgin-guarded: an ESTABLISHED runner keeps
+    # draining its real backlog (mail queued while down -- the T014 discipline); only a
+    # never-read "0"/"0" cursor is fast-forwarded. No-op for deepseek et al.
+    # Same AKASHIC_DRILL_ECHO escape as F1: the kill-window drills PLANT direct mail then
+    # start the runner expecting it consumed -- seeding past the plant would eat exactly
+    # what the drill tests. The offline-drill signal is never set in production.
+    if not os.environ.get("AKASHIC_DRILL_ECHO") and bus.seed_cursor_at_tail():
+        print(f"[deepseek-runner] {args.agent} is new -- cursor seeded at the live tail "
+              f"(stale broadcast backlog skipped; only new mail wakes it)")
 
     # Initialize cognitive efficiency metrics for this agent
     cog.init(args.agent)

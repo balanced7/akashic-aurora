@@ -402,6 +402,27 @@ class Bus:
                 commit_status_out["status"] = status
         return returned
 
+    def seed_cursor_at_tail(self) -> bool:
+        """RB-25 F2: onboard a NEW agent by moving its shared cursor to the live tail, so
+        only mail arriving AFTER onboarding wakes it -- never the stale broadcast backlog.
+        A virgin cursor ("0"/"0") drains the whole broadcast history on first read; the
+        newborn gauntlet caught a fresh agent acting on a months-old directive as current.
+        Same discipline the wake watcher already uses (tail(), not the "$" sentinel).
+        ONLY seeds a virgin cursor -- a returning agent with real read progress is never
+        rewound (idempotent, safe to call at every onboarding). Returns True if it seeded.
+        Uses generation 0: a never-read agent has never been fenced, so the guarded commit
+        accepts it; a fenced agent already has progress and is skipped by the virgin check."""
+        if not self.online:
+            return False
+        cur = self._read_cursor()
+        if cur.get("inbox", "0") != "0" or cur.get("bc", "0") != "0":
+            return False                              # not virgin -> real progress, never rewind
+        t = self.tail()
+        if t.get("inbox", "0") == "0" and t.get("bc", "0") == "0":
+            return False                              # nothing to skip -- leave virgin
+        self.advance_to(inbox=t.get("inbox"), bc=t.get("bc"), generation=0)
+        return True
+
     def pending(self) -> int:
         """How many unread messages are waiting (direct + broadcast), without advancing the cursor."""
         msgs = self.inbox(limit=1000, advance=False)

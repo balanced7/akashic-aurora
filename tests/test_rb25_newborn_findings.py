@@ -67,6 +67,10 @@ def test_runner_startup_wired_to_the_check():
     src = open(os.path.join(root, "scripts", "bifrost_runner_deepseek.py"),
                encoding="utf-8").read()
     assert "may_run_runner" in src, "the runner self-refuses at startup (built != wired)"
+    # The offline-drill escape exists and is gated on the never-in-production signal, so
+    # throwaway-id kill-window drills still run while production stays airtight.
+    assert "AKASHIC_DRILL_ECHO" in src.split("may_run_runner")[0].rsplit("RB-25 F1", 1)[-1], \
+        "the quarantine refusal is bypassed ONLY under the offline-drill signal"
 
 
 # ---------------- F2: virgin cursor seeds at the live tail ----------------

@@ -142,6 +142,20 @@ def get(agent_id: str) -> Optional[Grant]:
     return loaded.get(agent_id) if loaded else None
 
 
+def may_run_runner(agent_id: str) -> bool:
+    """RB-25 F1: may `agent_id` legitimately run a bus RUNNER? A runner's reply + trace
+    lanes reach the bus as infrastructure, NOT through the ACL-gated send tool -- so a
+    quarantined id running a runner still narrates and replies (found live in the newborn
+    gauntlet: 3 reply + 47 trace broadcasts from a quarantined id landed on the bus while
+    every conscious door refused). The threat-model-correct cut: a quarantined id gets no
+    runner at all. Fail-open on a broken door (a resolve() exception must not brick a
+    legitimate runner start -- the conscious doors still gate every send)."""
+    try:
+        return resolve(agent_id).role != "quarantined"
+    except Exception:
+        return True
+
+
 def resolve(agent_id: str, *, verified: bool = True) -> Grant:
     """The EFFECTIVE grant `agent_id` acts under -- the single door-check entry. Fail-closed:
       - unverified identity or empty id  -> quarantined (identity-first);
