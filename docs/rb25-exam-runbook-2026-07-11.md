@@ -7,9 +7,17 @@ runs. Scoring is pass/fail per bar against captured evidence; verdicts append he
 every transcript persists verbatim to research/reviewed/ (M6). Per-drill GATE lines
 must cite their record (hook 4 enforces this mechanically now).
 
-Roles: claude conducts + scores; deepseek co-runs (plays the newborn, starts twin
-sessions, drives the storm) -- the examiner never grades its own performance alone,
-and the fence reviews this runbook before drill one.
+Roles: claude conducts + scores; deepseek co-runs -- the examiner never grades its own
+performance alone, and the fence reviews this runbook before drill one. Execution split
+(review clarification): claude LAUNCHES the newborn process (deepseek operates it via
+bus only -- a genuine separate process, never an in-conversation roleplay); deepseek
+AUTHORS the storm burst script, claude executes it.
+
+AMENDED 2026-07-11 pre-drill per the fence review (GATE AMBER -> amendments -> drills):
+research/reviewed/deepseek-rb25-runbook-review-2026-07-11.md. Load-bearing catch: the
+original H3 demanded bidirectional heal resolution; the reconciler is UNIDIRECTIONAL by
+design (File is source of truth, store.py reconcile() -- the Redis-ephemeral ruling
+T030 affirmed). A drill bar must test the contract the code makes, not one it refuses.
 
 Run order (isolation-driven): NEWBORN (needs pristine acl state) -> HEAL (isolated
 stores) -> STORM (fleet chaos, recoverable) -> SOAK (72h tail, starts last and runs
@@ -37,37 +45,45 @@ steer interleaved), one runner TASKKILL'd mid-burst (no clean shutdown, no relea
 Bars (pass/fail each):
 - S1 NO UNACKED LOSS: every directed request sent in the burst is accounted for --
   answered by a live runner, redelivered to the successor (RB-26 at-least-once), or
-  visible-unconsumed at storm end. Accounting = sent-id ledger vs consumed/replied ids.
-  Zero silently-vanished messages.
-- S2 NO PHANTOM WAKE: the watchers wake ONLY on wake-worthy kinds during the burst --
-  the trace/steer flood alone never wakes an idle session (P0 SKIP_KINDS discipline
-  under load, not just unit).
+  visible-unconsumed at storm end. Accounting = a send-time ledger PRE-SEEDED by the
+  burst script itself (each id recorded at send, never reconstructed post-hoc). Zero
+  silently-vanished messages.
+- S2 NO PHANTOM WAKE: "wake" operationally = a watcher process EXIT with detected
+  messages printed (exit 0 + the DETECTED block); a watcher that keeps blocking has not
+  woken. The trace/steer flood alone never produces such an exit on an idle session
+  (P0 SKIP_KINDS discipline under load, not just unit).
 - S3 CURSOR PASSES THE CORPSE: after the mid-burst kill, the successor claims (TTL or
   fresh gen), its commits succeed, and the corpse's stale generation is REFUSED at the
   resource if its zombie writes race (L1b under real chaos).
 - S4 SINGLE CONSUMER HOLDS: concurrent consume attempts from the twin sessions during
   the burst -- exactly one advances the shared cursor per agent id; every loser gets the
   RB-21 teaching shape (degraded peek, holder named), never silent loss.
-- S5 DUPLICATE DISCIPLINE: redelivered handoffs are answered at most once (reply-sent
-  sentinel + ack tier); duplicate chat replies are tolerated and COUNTED, not hidden.
+- S5 DUPLICATE DISCIPLINE: redelivered handoffs are answered at most once within the
+  reply-sent sentinel's TTL window (the sentinel is TTL-bounded -- a redelivery arriving
+  AFTER sentinel expiry may legitimately re-answer; that window is the pre-acknowledged
+  honest bound, M8, and the drill records it rather than pretending exactly-once is
+  unconditional); duplicate chat replies are tolerated and COUNTED, not hidden.
 
 Evidence: the burst script + sent-id ledger, both session transcripts, runner stdout
 tails, generation counter reads before/after the kill -- all to research/reviewed/.
 
 ## Drill 3 -- STORE-DIVERGENCE HEAL
 
-Setup: force Redis/file divergence twice -- (a) a decision record (notes) differing
-between backends, (b) task-ledger state differing. Then boot.
+Setup: force Redis/file divergence twice -- (a) a record missing/differing in REDIS
+(File ahead), (b) a record present ONLY in Redis (missing_in_file -- the gap the
+contract deliberately does not backfill). Then boot.
 
-Bars:
-- H1 THE HEAL CHOOSES: boot completes (no crash, no wedge) and the reconciler picks a
-  side for each divergence.
-- H2 THE CHOICE IS SAID OUT LOUD: which side won and WHY is logged/rendered -- a silent
-  heal fails this bar even if the choice was right.
-- H3 THE CHOICE IS CORRECT per the documented dual-write precedence (the contract
-  tests/test_sync_reconciler.py pins); the drill uses one case where Redis is right and
-  one where the file side is right -- both must resolve correctly, so "always trust one
-  side" cannot pass by accident.
+Bars (amended per the fence review -- the original H3 demanded bidirectional resolution
+the reconciler refuses BY DESIGN; a bar must test the contract the code makes):
+- H1 THE HEAL CHOOSES PER CONTRACT: boot completes (no crash, no wedge) and reconcile()
+  backfills Redis FROM the File snapshot -- File wins case (a), exactly as
+  store.py's documented "Redis reconciled_from File" contract says.
+- H2 THE CHOICE IS SAID OUT LOUD: what was backfilled (and counts) is logged/rendered --
+  a silent heal fails this bar even if the choice was right.
+- H2b THE GAP IS SURFACED HONESTLY: case (b)'s missing_in_file records are REPORTED by
+  check_drift() and visibly rendered -- never silently dropped AND never silently
+  backfilled into File (the contract refuses Redis->File; the drill proves the refusal
+  is loud, not lossy-quiet).
 - H4 DURABLE TRACE: the heal leaves a durable record (event/log) an operator can find
   after the fact.
 
@@ -92,7 +108,10 @@ Bars:
   breaks on eviction.
 - K5 TRAFFIC ANSWERED THROUGHOUT: every scheduled ping is answered inside its
   expectation window across all 72h -- zero expectation_dead events from idle drift
-  (the RB-29 sweep proves itself over duration).
+  (the RB-29 sweep proves itself over duration). The soak harness INVOKES
+  sweep_expectations explicitly on each ping cycle (fence catch: the sweep runs only at
+  render -- a 72h harness that never renders would never redrive, and K5 would measure
+  nothing).
 
 Evidence: checkpoint table (RSS, seat list, gen counters, funnel reads) appended to the
 soak record at each checkpoint; the induced-restart transcript.
