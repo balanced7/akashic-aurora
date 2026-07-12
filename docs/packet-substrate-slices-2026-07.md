@@ -45,10 +45,10 @@ beside it, and the system's usable surface area shrinks toward one door.
 The single most load-bearing artifact: the orchestration contract, the UI contract, AND
 the monitoring contract. Both halves blind from a shared brief; reconciled spec lands as
 docs/packet-spec-v1-2026-07.md and every later ship cites it.
-Scope: envelope header (v, flow, lane, class, ttl, deadline_ts, latch[], frag{seq,of,
+Scope: envelope header (v, flow, seq, lane, family, ttl, deadline_ts, latch[], frag{seq,of,
 whole_id}, len, sha, idempotency_key); kind/family roster + cap + deletion ritual;
 per-lane delivery contract in MQTT QoS + DiffServ vocabulary (trace=QoS0/BE, work=QoS1/AF,
-sig=EF); per-family ACL classes (context = trusted-only; sig rungs authority-gated);
+sig=EF); per-family ACL (context = trusted-only; sig rungs authority-gated by kind, R1);
 OTel/W3C-shaped ids (flow=trace_id, packet=span, ref-latch=link) so the causal record is
 exportable to standard viewers; per-FLOW sequence numbers (FM-P1); the v1->v2 dual-version
 migration rule (no flag days).
