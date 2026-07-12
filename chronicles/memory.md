@@ -1,12 +1,20 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 23 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 27 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
-- next-focus: RB-25 engine exam IN PROGRESS. Drill 1 (NEWBORN GAUNTLET) complete @67adeb0 with 2 findings: F1 (HIGH) runner reply/trace lanes not ACL-gated — quarantined...  (source: mem:decision:ADR_0712002725_9d2123a0)
-- where-we-are: Shipped:
-  - arc_scorecard window fix (caught by its OWN first live render in wrap: git approxidate silently ignores fractional 'N days ago' -> 0.25d read...  (source: mem:decision:ADR_0711150748_c6f5e269)
+- concurrency-trial-2026-07-12: TWO LIVE CLAUDE SEATS (Daniel-directed trial, started 2026-07-12): session e59d8882 (Opus twin, HOLDS the claude consumer seat) + session...  (source: mem:decision:ADR_0712022301_3bccf294)
+- t035-same-token-twin-design-input: T035 DESIGN INPUT (from the live twin incident 2026-07-12, lessons same_token_twin_reentrant_consumer_seat +...  (source: mem:decision:ADR_0712022147_afe0d4ae)
+- rb25-f1f2-fence-review-green: # RB-25 F1+F2 fence review — GATE GREEN (2026-07-12)
+
+DeepSeek independent fence review of commit d926bb8 (+ amendment db1044f) per charter...  (source: mem:decision:ADR_0712021134_c2bfbaec)
+- next-focus: RB-25 EXAM IN PROGRESS (2026-07-12). Drill 1 (newborn gauntlet) CLOSED GATE GREEN -- deny-by-default airtight for conscious action + F1 (runner self-refuses...  (source: mem:decision:ADR_0712020505_25c2e41e)
+- where-we-are: RB-25 drill 1 (NEWBORN GAUNTLET) complete @7097b5e with F1+F2 FIXED. deepseek verify record pending land...  (source: mem:decision:ADR_0712015011_3f5b3782)
+- rb25-drill1-verify-green: # RB-25 Drill 1 verify — GATE GREEN (2026-07-12)
+
+DeepSeek verify of the newborn gauntlet (drill 1 of the RB-25 engine exam) is complete
+and...  (source: mem:decision:ADR_0712014603_09f2024d)
 - t034-registry-design-deepseek-part7: # T034 remainder — part7 (2 Goodharts + cut list + reconciliation) FINAL
 
 ### 2 GOODHARTS

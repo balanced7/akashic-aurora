@@ -1,5 +1,5 @@
 {
-  "seq": 34,
+  "seq": 36,
   "tasks": [
     {
       "id": "T001",
@@ -1308,6 +1308,54 @@
           "to": "approved",
           "by": "daniel",
           "at": "2026-07-11T07:43:31+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T035",
+      "title": "Orphaned-harness MCP sidecar squats the consumer seat: ai_setup_mcp.py (background claim path via bifrost_api.claim -> runner_lock.claim_consumer w/ env session token) keeps re-claiming claude's seat for a DEAD conversation (live incident 2026-07-12: session e59d8882 window left open; sidecar respawned post-kill @01:58 and re-claimed; new sessions degraded to PEEK indefinitely, wake listeners insta-fire ceremony-loop). Fix direction: sidecar consults wake_seat.activity_marker age (hooks fire = session alive) before ANY consumer claim; stale marker -> no claim + loud line. Soak bar K2 (seat hygiene) is the exam hook. Fence-gated slice (trust/coordination core).",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "abandoned",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-12T06:08:07+00:00",
+      "updated": "2026-07-12T06:22:41+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-12T06:08:07+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-07-12T06:22:41+00:00",
+          "reason": "diagnosis superseded twice: the seat holder was the LIVE twin claude session (legitimate single-consumer protocol), not an orphaned sidecar; the real defects are re-proposed as T036 (session-env scrub for non-session children + per-session seat visibility at boot)"
+        }
+      ]
+    },
+    {
+      "id": "T036",
+      "title": "Session-identity hygiene for non-session processes (concurrency-trial finding, supersedes first T035 diagnosis): (a) runners/daemons spawned near a session boundary inherit CLAUDE_CODE_SESSION_ID and then act AS that session at every seat/lock door (live 2026-07-12: deepseek runner carried the twin claude session id; its subprocess claims were indistinguishable from the twin) -- launchers must scrub session env for non-session children (env -u at spawn, or runner self-scrubs at startup); (b) same-id concurrent sessions are mutually INVISIBLE at boot ('online: claude' names the agent, not the seats) -- boot + doctor should render per-session seats (holder session id + age) so a booting twin SEES the live one. Pins: spawn-path scrub test + boot render test. Fence-gated (coordination core).",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-12T06:22:21+00:00",
+      "updated": "2026-07-12T06:22:21+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-12T06:22:21+00:00"
         }
       ]
     }
