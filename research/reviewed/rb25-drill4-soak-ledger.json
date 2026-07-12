@@ -1,0 +1,54 @@
+{
+  "drill": "rb25-drill4-soak",
+  "started_utc": "2026-07-12T21:57:32Z",
+  "t0_ts": 1783893452.4919562,
+  "namespace": "bifrost (live)",
+  "subject": {
+    "runner_id": "rb25-soak-runner",
+    "watcher_id": "rb25-soak-watcher",
+    "driver_id": "rb25-soak-driver",
+    "runner_pid": 23936,
+    "watcher_pid": 31392,
+    "armed": true
+  },
+  "checkpoints": [
+    {
+      "label": "T0",
+      "ts": 1783893452.4919562,
+      "runner_alive": true,
+      "watcher_alive": true,
+      "runner_rss": 74825728,
+      "watcher_rss": 37015552,
+      "seat_present": true,
+      "seat_orphans": 0,
+      "firehose": {
+        "bc_len": 10001,
+        "maxlen": 10000,
+        "ns": "bifrost"
+      }
+    }
+  ],
+  "samples": [
+    {
+      "ts": 1783893452.695072,
+      "mid": "1783893452696-0",
+      "armed": true,
+      "answered": true,
+      "dead": [],
+      "redriven": [
+        "1783892964944-0"
+      ],
+      "runner_alive": true
+    },
+    {
+      "ts": 1783893453.6114602,
+      "mid": "1783893453613-0",
+      "armed": true,
+      "answered": true,
+      "dead": [],
+      "redriven": [],
+      "runner_alive": true
+    }
+  ],
+  "monitor_pid": 47976
+}
