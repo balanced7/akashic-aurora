@@ -49,6 +49,7 @@ sys.path.insert(0, str(REPO))
 
 from core.comm.bus import Bus                # noqa: E402
 from core.comm import runner_lock            # noqa: E402
+from core.comm import control                # noqa: E402  (pause-guard, 2026-07-12 finding)
 
 PY = sys.executable
 TAG_RE = re.compile(r"(storm-[0-9a-f]+-(?:request|handoff|steer|trace|chat)-\d{3})")
@@ -117,6 +118,13 @@ def main():
         print(f"[orch {storm}] {msg}", flush=True)
 
     try:
+        # Pause-guard (2026-07-12 finding): a global pause freezes every runner at the top of its
+        # loop (is_halted). The storm's burst can TRIP it (reply RateLimiter -> runaway guard), which
+        # silently invalidated S3/S5 on the first run. Start clean; detect a mid-run trip below.
+        if control.is_paused():
+            note("bus was PAUSED at drill start -- clearing a stale/leaked pause so the drill runs clean")
+            control.resume()
+
         # -- 1. runners + twin watchers -------------------------------------------------
         note(f"launching runners a={ids['a']} b={ids['b']} + twin watchers w={ids['w']}")
         rA = spawn(["scripts/bifrost_runner_deepseek.py", "--agent", ids["a"]], logdir / "runnerA.log")
@@ -253,6 +261,14 @@ def main():
         (logdir / "burst.log").write_text("\n".join(burst_lines), encoding="utf-8")
         note(f"burst finished, {len(burst_lines)} total stdout lines")
 
+        # Did the burst TRIP a pause (reply RateLimiter -> global runaway guard)? If so, every
+        # runner froze mid-storm and the S3/S5 reads are INVALID -- flag loudly, do not pretend.
+        ev["paused_during_burst"] = control.is_paused()
+        if ev["paused_during_burst"]:
+            note("!! bus got PAUSED during the burst (reply RateLimiter runaway guard) -- S3/S5 "
+                 "reads are INVALID. See research/claude-s3-diagnosis-2026-07-12.md. Clearing to recover.")
+            control.resume()
+
         # -- 6. start the successor (same id as the corpse) ----------------------------
         note("starting successor runner for id b")
         rB2 = spawn(["scripts/bifrost_runner_deepseek.py", "--agent", ids["b"]], logdir / "runnerB_successor.log")
@@ -355,6 +371,10 @@ def main():
             p = ev.get(bar, {}).get("pass")
             print(f"  {bar.upper()}: {'PASS' if p else 'CHECK'}  {json.dumps({k:v for k,v in ev[bar].items() if k not in ('watcher1_out','watcher2_out','dupe_out','out')})[:180]}")
         print(f"  S5: {'PASS' if ev['s5']['pass'] else 'CHECK'}  {ev['s5']['handoff_reply_counts']}")
+        if ev.get("paused_during_burst"):
+            print("  !! INVALID RUN: bus was PAUSED mid-burst (reply RateLimiter runaway guard) -- "
+                  "S3/S5 are UNTESTABLE this run. Fix A+B (research/claude-s3-diagnosis-2026-07-12.md) "
+                  "must land before a valid re-run.")
         print(f"\nevidence -> {evidence_path}")
         print(f"ledger   -> {ledger_path}")
         print(f"logs     -> {logdir}")

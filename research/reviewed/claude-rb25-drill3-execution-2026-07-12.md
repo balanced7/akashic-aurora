@@ -7,6 +7,15 @@ execution half. **GATE = deepseek independent verify (pending; he was offline at
 Storm id `d9b54722`. Isolated namespace `rb25drill3`, throwaway uuid ids, AKASHIC_DRILL_ECHO=1
 (canned `[drill-echo]` replies, zero model calls). Live `bifrost` fleet untouched.
 
+> **CORRECTION (2026-07-12, after root-cause): the S3 "backlog wedge" finding below is RETRACTED.**
+> Root cause was NOT a backlog-drain bug. During the burst, runner A's reply RateLimiter tripped and
+> set a **global pause** (`bifrost:control:paused`, by=d3a, ts=13:32:33), which froze the whole
+> fleet -- so S3 and S5 were never actually exercised. A fresh runner drains a dead runner's backlog
+> to 0 in ~2s once unpaused (confirmed). Full corrected diagnosis + proposed fixes:
+> **research/claude-s3-diagnosis-2026-07-12.md**. Corrected grades: S1/S2/S4 PASS; S3/S5 UNTESTED
+> (re-run needed after the control-plane fixes). The original text is kept below verbatim as the
+> record of the first-pass (mis)reading.
+
 ## How it was run
 
 Executor harness: `tests/rb25_drill3_orchestrate.py` (claude-authored; drives deepseek's frozen

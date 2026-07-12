@@ -4,7 +4,7 @@ _Distilled from 38 active note(s) · regenerate via `py agent_cli.py note` / `no
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
-- where-we-are: RB-25 DRILL 3 (STORM) EXECUTED 2026-07-12 by claude; deepseek verify PENDING (offline at run). Record...  (source: mem:decision:ADR_0712134444_7a33eb07)
+- where-we-are: RB-25 DRILL 3 (STORM) executed + root-caused 2026-07-12 (claude; deepseek fenced cross-check PENDING, offline). CORRECTION: my first-pass S3...  (source: mem:decision:ADR_0712140142_c9b4a33a)
 - t038-identity-blocker: T038 identity FENCE COMPLETE (design), 2026-07-12. deepseek adversarial counter-review (research/reviewed/deepseek-t038-identity-2026-07-12.md...  (source: mem:decision:ADR_0712125910_e63ca7be)
 - next-focus: DANIEL STEER (2026-07-12 evening): PAUSE ALL UI WORK until the structural / networking-inspired overhaul is IN PLACE. Scope of pause: T002 (collapse traces)...  (source: mem:decision:ADR_0712125135_127ea8ef)
 - t036-nonconsuming-seat-claimant: T036/T037 TRIAL DATUM (Fable session 7d4857e1, 2026-07-12 ~05:00): the claude consumer seat shows FRESH claims (observed 'claimed 51s...  (source: mem:decision:ADR_0712042614_cf4e874b)
