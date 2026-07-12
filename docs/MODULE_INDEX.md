@@ -150,6 +150,7 @@
 - `harmonize_knowledge.py` — harmonize_knowledge.py — one-time knowledge-store harmonization (2026-06-20)
 - `migrate_time_scores.py` — One-time migration (S5): re-score the persisted time-zsets with the unified `to_epoch`.
 - `mirror.py` — mirror.py -- commit local changes and push to GitHub in one step.
+- `rb25_storm_burst.py` — (no docstring)
 - `seed_narrative.py` — seed_narrative.py -- dogfood the spine: ingest real git history as Beats, then chronicle.
 - `ship.py` — ship.py -- one disciplined command to ship a slice: GATE -> commit+push -> (lesson) -> snapshot.
 - `snapshot.py` — Snapshot the current Bifrost session for later resume. Run before shutting down.

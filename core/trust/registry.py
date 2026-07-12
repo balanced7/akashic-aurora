@@ -148,12 +148,24 @@ def may_run_runner(agent_id: str) -> bool:
     quarantined id running a runner still narrates and replies (found live in the newborn
     gauntlet: 3 reply + 47 trace broadcasts from a quarantined id landed on the bus while
     every conscious door refused). The threat-model-correct cut: a quarantined id gets no
-    runner at all. Fail-open on a broken door (a resolve() exception must not brick a
-    legitimate runner start -- the conscious doors still gate every send)."""
+    runner at all. A broken door (resolve() raising unexpectedly) mirrors resolve()'s
+    OWN fallback -- the bootstrap floor: core fleet keeps availability, everyone else
+    refuses, and the decision is LOUD on stderr (A2-1 per
+    research/reviewed/deepseek-rb25-amendment2-rulings-2026-07-12.md: the reply/trace
+    lanes are exactly the ones the conscious doors do NOT gate, so blanket fail-open
+    reopened the F1 hole under error conditions)."""
     try:
         return resolve(agent_id).role != "quarantined"
-    except Exception:
-        return True
+    except Exception as e:
+        import sys
+        # What resolve() would have returned had it caught this itself (its corrupt-file
+        # path already lapses here); never blanket-allow on the ungated infrastructure lane.
+        grant = _bootstrap_or_quarantine(agent_id)
+        allowed = grant.role != "quarantined"
+        print(f"[trust] may_run_runner: resolve() threw {type(e).__name__} for '{agent_id}' "
+              f"-- bootstrap floor {'allowed' if allowed else 'REFUSED'} (role={grant.role})",
+              file=sys.stderr)
+        return allowed
 
 
 def resolve(agent_id: str, *, verified: bool = True) -> Grant:

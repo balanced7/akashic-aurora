@@ -651,8 +651,12 @@ def main() -> int:
                       f"refusing to start a runner. Its reply/trace lanes would otherwise reach the "
                       f"bus. A super-admin must grant it a role in security/acl.json first.")
                 return 3
-        except Exception:
-            pass                                      # broken door -> conscious sends still gated
+        except Exception as e:
+            # A2-2: a broken guard (ImportError, unexpected raise) must be LOUD -- silence
+            # here silently disables F1 forever. The runner still starts (the door itself
+            # applies the bootstrap floor per A2-1); the operator just gets the truth.
+            print(f"[bifrost_runner_deepseek] may_run_runner check skipped ({type(e).__name__}) -- "
+                  f"guard NOT active for '{args.agent}'", file=sys.stderr)
 
     # Singleton guard: at most ONE runner per agent id. Two runners share one read-cursor and race --
     # one advances past a message the other should answer, so mail gets consumed with no reply.

@@ -157,8 +157,10 @@ def main() -> int:
                       f"to start. Its reply/trace lanes would otherwise reach the bus. A super-admin "
                       f"must grant it a role in security/acl.json first.")
                 return 3
-        except Exception:
-            pass
+        except Exception as e:
+            # A2-2: a broken guard must be LOUD -- silence here silently disables F1.
+            print(f"[bifrost_runner] may_run_runner check skipped ({type(e).__name__}) -- "
+                  f"guard NOT active for '{args.agent}'", file=sys.stderr)
     bus.register(card=card)
     # RB-25 F2: a brand-NEW agent seeds its cursor at the live tail so it never acts on the
     # stale broadcast backlog as current. Virgin-guarded (established runners keep draining
