@@ -4,9 +4,9 @@ _Distilled from 23 active note(s) · regenerate via `py agent_cli.py note` / `no
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
+- next-focus: RB-25 engine exam IN PROGRESS. Drill 1 (NEWBORN GAUNTLET) complete @67adeb0 with 2 findings: F1 (HIGH) runner reply/trace lanes not ACL-gated — quarantined...  (source: mem:decision:ADR_0712002725_9d2123a0)
 - where-we-are: Shipped:
-  - Wave 3 registration pair 2: RB-9..12 pre-registered pins (skip-guarded until impl; contracts frozen: find_normalization_collisions...  (source: mem:decision:ADR_0711055822_8102c0bf)
-- next-focus: OVERNIGHT LANE RUNNING (deepseek builds RB-9..12 against frozen pins; claude wake-verifies + commits per slice; stop rule: 2 consecutive REDs on one slice =...  (source: mem:decision:ADR_0711055741_732ef5e0)
+  - arc_scorecard window fix (caught by its OWN first live render in wrap: git approxidate silently ignores fractional 'N days ago' -> 0.25d read...  (source: mem:decision:ADR_0711150748_c6f5e269)
 - t034-registry-design-deepseek-part7: # T034 remainder — part7 (2 Goodharts + cut list + reconciliation) FINAL
 
 ### 2 GOODHARTS
