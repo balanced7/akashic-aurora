@@ -146,7 +146,26 @@ def main() -> int:
     if not bus.online:
         print("bifrost_runner: bus OFFLINE (Redis unreachable)")
         return 2
+    # RB-25 F1 (deepseek fence review 2026-07-12: this runner was the coverage gap): a
+    # quarantined id gets NO runner. Its reply/trace lanes reach the bus as infrastructure,
+    # not through the ACL-gated send tool -- identical hole to the deepseek runner's.
+    if not os.environ.get("AKASHIC_DRILL_ECHO"):
+        try:
+            from core.trust.registry import may_run_runner
+            if not may_run_runner(args.agent):
+                print(f"bifrost_runner: '{args.agent}' is quarantined (deny-by-default) -- refusing "
+                      f"to start. Its reply/trace lanes would otherwise reach the bus. A super-admin "
+                      f"must grant it a role in security/acl.json first.")
+                return 3
+        except Exception:
+            pass
     bus.register(card=card)
+    # RB-25 F2: a brand-NEW agent seeds its cursor at the live tail so it never acts on the
+    # stale broadcast backlog as current. Virgin-guarded (established runners keep draining
+    # their real backlog); same AKASHIC_DRILL_ECHO escape as F1.
+    if not os.environ.get("AKASHIC_DRILL_ECHO") and bus.seed_cursor_at_tail():
+        print(f"[runner] {args.agent} is new -- cursor seeded at the live tail "
+              f"(stale broadcast backlog skipped)")
     print(
         f"[runner] {args.agent} online as {card['runtime_class']}/{card['wake_mode']} "
         f"(provider={args.provider}, model={args.model}). Waiting for messages... (Ctrl-C to stop)"

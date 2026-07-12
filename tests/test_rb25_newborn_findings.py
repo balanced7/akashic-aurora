@@ -63,14 +63,16 @@ def test_known_privileged_id_may_run():
 
 @pytest.mark.skipif(not _F1, reason="F1 pre-registered; may_run_runner pending")
 def test_runner_startup_wired_to_the_check():
+    # BOTH runner scripts must self-refuse -- the generic bifrost_runner.py was the
+    # coverage gap deepseek's F1/F2 fence review caught (same reply/trace lanes, no guard).
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    src = open(os.path.join(root, "scripts", "bifrost_runner_deepseek.py"),
-               encoding="utf-8").read()
-    assert "may_run_runner" in src, "the runner self-refuses at startup (built != wired)"
-    # The offline-drill escape exists and is gated on the never-in-production signal, so
-    # throwaway-id kill-window drills still run while production stays airtight.
-    assert "AKASHIC_DRILL_ECHO" in src.split("may_run_runner")[0].rsplit("RB-25 F1", 1)[-1], \
-        "the quarantine refusal is bypassed ONLY under the offline-drill signal"
+    for runner in ("bifrost_runner_deepseek.py", "bifrost_runner.py"):
+        src = open(os.path.join(root, "scripts", runner), encoding="utf-8").read()
+        assert "may_run_runner" in src, f"{runner} self-refuses at startup (built != wired)"
+        # The offline-drill escape exists and is gated on the never-in-production signal, so
+        # throwaway-id kill-window drills still run while production stays airtight.
+        assert "AKASHIC_DRILL_ECHO" in src.split("may_run_runner")[0].rsplit("RB-25 F1", 1)[-1], \
+            f"{runner}'s quarantine refusal is bypassed ONLY under the offline-drill signal"
 
 
 # ---------------- F2: virgin cursor seeds at the live tail ----------------
