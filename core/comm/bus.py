@@ -133,9 +133,9 @@ class Bus:
     """An agent's handle on the Bifrost transport. One per agent identity."""
 
     def __init__(self, agent_id: str, client: Optional[Any] = None, *,
-                 namespace: str = NS, maxlen: int = DEFAULT_MAXLEN, promote: Optional[bool] = None):
+                 namespace: Optional[str] = None, maxlen: int = DEFAULT_MAXLEN, promote: Optional[bool] = None):
         self.agent_id = str(agent_id or "unknown")
-        self.ns = namespace
+        self.ns = namespace or os.environ.get("BIFROST_NAMESPACE", NS)
         self.maxlen = maxlen
         self._client = client if client is not None else _connect()
         # B2: durably project salient kinds by default -- but NOT under pytest, so transport tests

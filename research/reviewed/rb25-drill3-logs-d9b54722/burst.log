@@ -1,0 +1,68 @@
+STORM 96f4b3b4c389: 51 messages in namespace 'rb25drill3' (runner=d3a-d9b54722, target=d3b-d9b54722, watcher=d3w-d9b54722)
+  WILL PAUSE after message 20 for TASKKILL
+  ledger: E:\AI-Setup\research\reviewed\rb25-drill3-ledger-d9b54722.json
+---
+  [000/50] request  -> d3a-d9b54722               ✓  1783877549645-0
+  [001/50] request  -> d3a-d9b54722               ✓  1783877549699-0
+  [002/50] request  -> d3a-d9b54722               ✓  1783877549752-0
+  [003/50] request  -> d3a-d9b54722               ✓  1783877549804-0
+  [004/50] request  -> d3a-d9b54722               ✓  1783877549857-0
+  [005/50] request  -> d3a-d9b54722               ✓  1783877549909-0
+  [006/50] request  -> d3a-d9b54722               ✓  1783877549962-0
+  [007/50] request  -> d3a-d9b54722               ✓  1783877550014-0
+  [008/50] request  -> d3a-d9b54722               ✓  1783877550067-0
+  [009/50] request  -> d3a-d9b54722               ✓  1783877550119-0
+  [010/50] request  -> d3a-d9b54722               ✓  1783877550171-0
+  [011/50] request  -> d3a-d9b54722               ✓  1783877550224-0
+  [012/50] request  -> d3b-d9b54722               ✓  1783877550277-0
+  [013/50] request  -> d3b-d9b54722               ✓  1783877550329-0
+  [014/50] request  -> d3b-d9b54722               ✓  1783877550381-0
+  [015/50] request  -> d3b-d9b54722               ✓  1783877550434-0
+  [016/50] request  -> d3b-d9b54722               ✓  1783877550486-0
+  [017/50] request  -> d3b-d9b54722               ✓  1783877550538-0
+  [018/50] request  -> d3b-d9b54722               ✓  1783877550590-0
+  [019/50] request  -> d3b-d9b54722               ✓  1783877550643-0
+===
+PAUSE: 20/51 messages sent.
+OPERATOR: TASKKILL the runner (d3b-d9b54722) NOW, then press Enter to resume.
+===
+RESUMING burst...
+  [020/50] trace    -> *                          ✓  1783877552225-0
+  [021/50] trace    -> *                          ✓  1783877552278-0
+  [022/50] trace    -> *                          ✓  1783877552330-0
+  [023/50] trace    -> *                          ✓  1783877552383-0
+  [024/50] trace    -> *                          ✓  1783877552436-0
+  [025/50] trace    -> *                          ✓  1783877552489-0
+  [026/50] trace    -> *                          ✓  1783877552542-0
+  [027/50] trace    -> *                          ✓  1783877552596-0
+  [028/50] steer    -> d3a-d9b54722               ✓  1783877552648-0
+  [029/50] steer    -> d3a-d9b54722               ✓  1783877552701-0
+  [030/50] steer    -> d3a-d9b54722               ✓  1783877552754-0
+  [031/50] steer    -> d3a-d9b54722               ✓  1783877552807-0
+  [032/50] steer    -> d3a-d9b54722               ✓  1783877552860-0
+  [033/50] trace    -> *                          ✓  1783877552914-0
+  [034/50] trace    -> *                          ✓  1783877552967-0
+  [035/50] trace    -> *                          ✓  1783877553020-0
+  [036/50] handoff  -> d3a-d9b54722               ✓  1783877553074-0
+  [037/50] handoff  -> d3a-d9b54722               ✓  1783877553238-0
+  [038/50] request  -> d3a-d9b54722               ✓  1783877553346-0
+  [039/50] request  -> d3a-d9b54722               ✓  1783877553399-0
+  [040/50] request  -> d3a-d9b54722               ✓  1783877553452-0
+  [041/50] request  -> d3a-d9b54722               ✓  1783877553505-0
+  [042/50] request  -> d3b-d9b54722               ✓  1783877553557-0
+  [043/50] request  -> d3b-d9b54722               ✓  1783877553610-0
+  [044/50] request  -> d3b-d9b54722               ✓  1783877553662-0
+  [045/50] chat     -> d3a-d9b54722               ✓  1783877553715-0
+  [046/50] chat     -> d3a-d9b54722               ✓  1783877553768-0
+  [047/50] chat     -> d3b-d9b54722               ✓  1783877553821-0
+  [048/50] steer    -> d3a-d9b54722               ✓  1783877553874-0
+  [049/50] request  -> d3a-d9b54722               ✓  1783877553926-0
+  [050/50] request  -> d3b-d9b54722               ✓  1783877553979-0
+---
+STORM COMPLETE: 51 sent, 0 lost, ledger -> E:\AI-Setup\research\reviewed\rb25-drill3-ledger-d9b54722.json
+Post-storm verification (operator):
+  S1: check every request mid in the ledger has a reply or is unconsumed
+  S2: check watcher stdout -- trace/steer flood must NOT produce DETECTED exit
+  S3: check successor cursor > corpse's last committed cursor
+  S4: check twin watcher transcripts for RB-21 teaching shape on loser
+  S5: check no duplicate replies for handoff mids within sentinel TTL

@@ -1,0 +1,263 @@
+{
+  "storm": "d9b54722",
+  "ns": "rb25drill3",
+  "ids": {
+    "a": "d3a-d9b54722",
+    "b": "d3b-d9b54722",
+    "w": "d3w-d9b54722"
+  },
+  "started_utc": "2026-07-12T17:32:24Z",
+  "boot": {
+    "runnerA_alive": true,
+    "runnerB_alive": true,
+    "watcher1_alive": true,
+    "watcher2_alive": true,
+    "presence": [
+      {
+        "agent": "d3a-d9b54722",
+        "last_seen": "2026-07-12T17:32:28.572356+00:00",
+        "runtime_class": "api",
+        "wake_mode": "runner",
+        "door": "runner",
+        "caps": [
+          "review",
+          "critique",
+          "answer",
+          "audit",
+          "code"
+        ]
+      },
+      {
+        "agent": "d3b-d9b54722",
+        "last_seen": "2026-07-12T17:32:28.572356+00:00",
+        "runtime_class": "api",
+        "wake_mode": "runner",
+        "door": "runner",
+        "caps": [
+          "review",
+          "critique",
+          "answer",
+          "audit",
+          "code"
+        ]
+      },
+      {
+        "agent": "d3w-d9b54722",
+        "last_seen": "2026-07-12T17:32:24.358657+00:00"
+      }
+    ]
+  },
+  "pre_kill": {
+    "runnerB_pid": 42380,
+    "lock_holder_b": {
+      "token": "d3b-d9b54722:42380:4abd84e60bef",
+      "pid": 42380,
+      "ts": "2026-07-12T13:32:28",
+      "gen": 1
+    },
+    "gen_b": 0,
+    "cursor_b": {
+      "inbox": "0",
+      "bc": "0"
+    }
+  },
+  "burst_paused": true,
+  "s4": {
+    "dupe_exit": 3,
+    "refused": true,
+    "dupe_out": "bifrost_runner_deepseek: another 'd3a-d9b54722' runner is already live (pid 8972). Refusing to start -- one runner per agent avoids cursor races.\n"
+  },
+  "kill": {
+    "corpse_pid": 42380,
+    "corpse_cursor": {
+      "inbox": "1783877550643-0",
+      "bc": "0"
+    },
+    "taskkill_done": true,
+    "lock_cleared_by_pid": true
+  },
+  "successor": {
+    "pid": 45692,
+    "alive": true,
+    "online": true,
+    "refused": false,
+    "lock_holder": {
+      "token": "d3b-d9b54722:45692:b09cca623070",
+      "pid": 45692,
+      "ts": "2026-07-12T13:32:37",
+      "gen": 2
+    },
+    "gen_b_after": 0,
+    "out": "[deepseek-runner] d3b-d9b54722 online (model=deepseek-v4-pro, think=off, drill-echo (offline), max_hops=6). Waiting for messages... (Ctrl-C to stop)\n"
+  },
+  "s1": {
+    "requests_sent": 29,
+    "send_side_lost": 0,
+    "answered": 20,
+    "unconsumed_at_end": 9,
+    "unaccounted": [],
+    "pass": true
+  },
+  "s2": {
+    "watcher1_alive": true,
+    "watcher2_alive": true,
+    "watcher1_detected": false,
+    "watcher2_detected": false,
+    "pass": true,
+    "watcher1_out": "",
+    "watcher2_out": ""
+  },
+  "s3": {
+    "corpse_cursor": {
+      "inbox": "1783877550643-0",
+      "bc": "0"
+    },
+    "successor_cursor": {
+      "inbox": "1783877550643-0",
+      "bc": "0"
+    },
+    "lock_cleared": true,
+    "successor_online": true,
+    "successor_pid_differs": true,
+    "b_pending_final": 16,
+    "pass": false
+  },
+  "s5": {
+    "handoff_reply_counts": {
+      "storm-96f4b3b4c389-handoff-036": 0,
+      "storm-96f4b3b4c389-handoff-037": 0
+    },
+    "pass": true
+  },
+  "reply_tags_total": 21,
+  "unconsumed_a": [
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "handoff",
+      "tag": "storm-96f4b3b4c389-handoff-037"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "request",
+      "tag": "storm-96f4b3b4c389-request-038"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "request",
+      "tag": "storm-96f4b3b4c389-request-039"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "request",
+      "tag": "storm-96f4b3b4c389-request-040"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "request",
+      "tag": "storm-96f4b3b4c389-request-041"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "chat",
+      "tag": "storm-96f4b3b4c389-chat-045"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "chat",
+      "tag": "storm-96f4b3b4c389-chat-046"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "steer",
+      "tag": "storm-96f4b3b4c389-steer-048"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "request",
+      "tag": "storm-96f4b3b4c389-request-049"
+    }
+  ],
+  "unconsumed_b": [
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "trace",
+      "tag": "storm-96f4b3b4c389-trace-020"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "trace",
+      "tag": "storm-96f4b3b4c389-trace-021"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "trace",
+      "tag": "storm-96f4b3b4c389-trace-022"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "trace",
+      "tag": "storm-96f4b3b4c389-trace-023"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "trace",
+      "tag": "storm-96f4b3b4c389-trace-024"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "trace",
+      "tag": "storm-96f4b3b4c389-trace-025"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "trace",
+      "tag": "storm-96f4b3b4c389-trace-026"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "trace",
+      "tag": "storm-96f4b3b4c389-trace-027"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "trace",
+      "tag": "storm-96f4b3b4c389-trace-033"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "trace",
+      "tag": "storm-96f4b3b4c389-trace-034"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "trace",
+      "tag": "storm-96f4b3b4c389-trace-035"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "request",
+      "tag": "storm-96f4b3b4c389-request-042"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "request",
+      "tag": "storm-96f4b3b4c389-request-043"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "request",
+      "tag": "storm-96f4b3b4c389-request-044"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "chat",
+      "tag": "storm-96f4b3b4c389-chat-047"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "request",
+      "tag": "storm-96f4b3b4c389-request-050"
+    }
+  ],
+  "finished_utc": "2026-07-12T17:33:06Z"
+}

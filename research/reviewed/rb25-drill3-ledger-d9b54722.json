@@ -1,0 +1,477 @@
+{
+  "storm_id": "96f4b3b4c389",
+  "namespace": "rb25drill3",
+  "driver_id": "rb25-storm-driver-96f4b3b4c389",
+  "started_utc": "2026-07-12T17:32:29Z",
+  "targets": {
+    "runner_deepseek": "d3a-d9b54722",
+    "runner_second": "d3b-d9b54722",
+    "watcher": "d3w-d9b54722"
+  },
+  "pause_at": 20,
+  "planned_count": 51,
+  "messages": [
+    {
+      "seq": 0,
+      "mid": "1783877549645-0",
+      "kind": "request",
+      "to": "d3a-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-request-000",
+      "sent_utc": "2026-07-12T17:32:29Z",
+      "ack": true
+    },
+    {
+      "seq": 1,
+      "mid": "1783877549699-0",
+      "kind": "request",
+      "to": "d3a-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-request-001",
+      "sent_utc": "2026-07-12T17:32:29Z",
+      "ack": true
+    },
+    {
+      "seq": 2,
+      "mid": "1783877549752-0",
+      "kind": "request",
+      "to": "d3a-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-request-002",
+      "sent_utc": "2026-07-12T17:32:29Z",
+      "ack": true
+    },
+    {
+      "seq": 3,
+      "mid": "1783877549804-0",
+      "kind": "request",
+      "to": "d3a-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-request-003",
+      "sent_utc": "2026-07-12T17:32:29Z",
+      "ack": true
+    },
+    {
+      "seq": 4,
+      "mid": "1783877549857-0",
+      "kind": "request",
+      "to": "d3a-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-request-004",
+      "sent_utc": "2026-07-12T17:32:29Z",
+      "ack": true
+    },
+    {
+      "seq": 5,
+      "mid": "1783877549909-0",
+      "kind": "request",
+      "to": "d3a-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-request-005",
+      "sent_utc": "2026-07-12T17:32:29Z",
+      "ack": true
+    },
+    {
+      "seq": 6,
+      "mid": "1783877549962-0",
+      "kind": "request",
+      "to": "d3a-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-request-006",
+      "sent_utc": "2026-07-12T17:32:29Z",
+      "ack": true
+    },
+    {
+      "seq": 7,
+      "mid": "1783877550014-0",
+      "kind": "request",
+      "to": "d3a-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-request-007",
+      "sent_utc": "2026-07-12T17:32:30Z",
+      "ack": true
+    },
+    {
+      "seq": 8,
+      "mid": "1783877550067-0",
+      "kind": "request",
+      "to": "d3a-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-request-008",
+      "sent_utc": "2026-07-12T17:32:30Z",
+      "ack": true
+    },
+    {
+      "seq": 9,
+      "mid": "1783877550119-0",
+      "kind": "request",
+      "to": "d3a-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-request-009",
+      "sent_utc": "2026-07-12T17:32:30Z",
+      "ack": true
+    },
+    {
+      "seq": 10,
+      "mid": "1783877550171-0",
+      "kind": "request",
+      "to": "d3a-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-request-010",
+      "sent_utc": "2026-07-12T17:32:30Z",
+      "ack": true
+    },
+    {
+      "seq": 11,
+      "mid": "1783877550224-0",
+      "kind": "request",
+      "to": "d3a-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-request-011",
+      "sent_utc": "2026-07-12T17:32:30Z",
+      "ack": true
+    },
+    {
+      "seq": 12,
+      "mid": "1783877550277-0",
+      "kind": "request",
+      "to": "d3b-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-request-012",
+      "sent_utc": "2026-07-12T17:32:30Z",
+      "ack": true
+    },
+    {
+      "seq": 13,
+      "mid": "1783877550329-0",
+      "kind": "request",
+      "to": "d3b-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-request-013",
+      "sent_utc": "2026-07-12T17:32:30Z",
+      "ack": true
+    },
+    {
+      "seq": 14,
+      "mid": "1783877550381-0",
+      "kind": "request",
+      "to": "d3b-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-request-014",
+      "sent_utc": "2026-07-12T17:32:30Z",
+      "ack": true
+    },
+    {
+      "seq": 15,
+      "mid": "1783877550434-0",
+      "kind": "request",
+      "to": "d3b-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-request-015",
+      "sent_utc": "2026-07-12T17:32:30Z",
+      "ack": true
+    },
+    {
+      "seq": 16,
+      "mid": "1783877550486-0",
+      "kind": "request",
+      "to": "d3b-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-request-016",
+      "sent_utc": "2026-07-12T17:32:30Z",
+      "ack": true
+    },
+    {
+      "seq": 17,
+      "mid": "1783877550538-0",
+      "kind": "request",
+      "to": "d3b-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-request-017",
+      "sent_utc": "2026-07-12T17:32:30Z",
+      "ack": true
+    },
+    {
+      "seq": 18,
+      "mid": "1783877550590-0",
+      "kind": "request",
+      "to": "d3b-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-request-018",
+      "sent_utc": "2026-07-12T17:32:30Z",
+      "ack": true
+    },
+    {
+      "seq": 19,
+      "mid": "1783877550643-0",
+      "kind": "request",
+      "to": "d3b-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-request-019",
+      "sent_utc": "2026-07-12T17:32:30Z",
+      "ack": true
+    },
+    {
+      "seq": 20,
+      "mid": "1783877552225-0",
+      "kind": "trace",
+      "to": "*",
+      "content_tag": "storm-96f4b3b4c389-trace-020",
+      "sent_utc": "2026-07-12T17:32:32Z",
+      "ack": true
+    },
+    {
+      "seq": 21,
+      "mid": "1783877552278-0",
+      "kind": "trace",
+      "to": "*",
+      "content_tag": "storm-96f4b3b4c389-trace-021",
+      "sent_utc": "2026-07-12T17:32:32Z",
+      "ack": true
+    },
+    {
+      "seq": 22,
+      "mid": "1783877552330-0",
+      "kind": "trace",
+      "to": "*",
+      "content_tag": "storm-96f4b3b4c389-trace-022",
+      "sent_utc": "2026-07-12T17:32:32Z",
+      "ack": true
+    },
+    {
+      "seq": 23,
+      "mid": "1783877552383-0",
+      "kind": "trace",
+      "to": "*",
+      "content_tag": "storm-96f4b3b4c389-trace-023",
+      "sent_utc": "2026-07-12T17:32:32Z",
+      "ack": true
+    },
+    {
+      "seq": 24,
+      "mid": "1783877552436-0",
+      "kind": "trace",
+      "to": "*",
+      "content_tag": "storm-96f4b3b4c389-trace-024",
+      "sent_utc": "2026-07-12T17:32:32Z",
+      "ack": true
+    },
+    {
+      "seq": 25,
+      "mid": "1783877552489-0",
+      "kind": "trace",
+      "to": "*",
+      "content_tag": "storm-96f4b3b4c389-trace-025",
+      "sent_utc": "2026-07-12T17:32:32Z",
+      "ack": true
+    },
+    {
+      "seq": 26,
+      "mid": "1783877552542-0",
+      "kind": "trace",
+      "to": "*",
+      "content_tag": "storm-96f4b3b4c389-trace-026",
+      "sent_utc": "2026-07-12T17:32:32Z",
+      "ack": true
+    },
+    {
+      "seq": 27,
+      "mid": "1783877552596-0",
+      "kind": "trace",
+      "to": "*",
+      "content_tag": "storm-96f4b3b4c389-trace-027",
+      "sent_utc": "2026-07-12T17:32:32Z",
+      "ack": true
+    },
+    {
+      "seq": 28,
+      "mid": "1783877552648-0",
+      "kind": "steer",
+      "to": "d3a-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-steer-028",
+      "sent_utc": "2026-07-12T17:32:32Z",
+      "ack": true
+    },
+    {
+      "seq": 29,
+      "mid": "1783877552701-0",
+      "kind": "steer",
+      "to": "d3a-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-steer-029",
+      "sent_utc": "2026-07-12T17:32:32Z",
+      "ack": true
+    },
+    {
+      "seq": 30,
+      "mid": "1783877552754-0",
+      "kind": "steer",
+      "to": "d3a-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-steer-030",
+      "sent_utc": "2026-07-12T17:32:32Z",
+      "ack": true
+    },
+    {
+      "seq": 31,
+      "mid": "1783877552807-0",
+      "kind": "steer",
+      "to": "d3a-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-steer-031",
+      "sent_utc": "2026-07-12T17:32:32Z",
+      "ack": true
+    },
+    {
+      "seq": 32,
+      "mid": "1783877552860-0",
+      "kind": "steer",
+      "to": "d3a-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-steer-032",
+      "sent_utc": "2026-07-12T17:32:32Z",
+      "ack": true
+    },
+    {
+      "seq": 33,
+      "mid": "1783877552914-0",
+      "kind": "trace",
+      "to": "*",
+      "content_tag": "storm-96f4b3b4c389-trace-033",
+      "sent_utc": "2026-07-12T17:32:32Z",
+      "ack": true
+    },
+    {
+      "seq": 34,
+      "mid": "1783877552967-0",
+      "kind": "trace",
+      "to": "*",
+      "content_tag": "storm-96f4b3b4c389-trace-034",
+      "sent_utc": "2026-07-12T17:32:32Z",
+      "ack": true
+    },
+    {
+      "seq": 35,
+      "mid": "1783877553020-0",
+      "kind": "trace",
+      "to": "*",
+      "content_tag": "storm-96f4b3b4c389-trace-035",
+      "sent_utc": "2026-07-12T17:32:33Z",
+      "ack": true
+    },
+    {
+      "seq": 36,
+      "mid": "1783877553074-0",
+      "kind": "handoff",
+      "to": "d3a-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-handoff-036",
+      "sent_utc": "2026-07-12T17:32:33Z",
+      "ack": true
+    },
+    {
+      "seq": 37,
+      "mid": "1783877553238-0",
+      "kind": "handoff",
+      "to": "d3a-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-handoff-037",
+      "sent_utc": "2026-07-12T17:32:33Z",
+      "ack": true
+    },
+    {
+      "seq": 38,
+      "mid": "1783877553346-0",
+      "kind": "request",
+      "to": "d3a-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-request-038",
+      "sent_utc": "2026-07-12T17:32:33Z",
+      "ack": true
+    },
+    {
+      "seq": 39,
+      "mid": "1783877553399-0",
+      "kind": "request",
+      "to": "d3a-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-request-039",
+      "sent_utc": "2026-07-12T17:32:33Z",
+      "ack": true
+    },
+    {
+      "seq": 40,
+      "mid": "1783877553452-0",
+      "kind": "request",
+      "to": "d3a-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-request-040",
+      "sent_utc": "2026-07-12T17:32:33Z",
+      "ack": true
+    },
+    {
+      "seq": 41,
+      "mid": "1783877553505-0",
+      "kind": "request",
+      "to": "d3a-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-request-041",
+      "sent_utc": "2026-07-12T17:32:33Z",
+      "ack": true
+    },
+    {
+      "seq": 42,
+      "mid": "1783877553557-0",
+      "kind": "request",
+      "to": "d3b-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-request-042",
+      "sent_utc": "2026-07-12T17:32:33Z",
+      "ack": true
+    },
+    {
+      "seq": 43,
+      "mid": "1783877553610-0",
+      "kind": "request",
+      "to": "d3b-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-request-043",
+      "sent_utc": "2026-07-12T17:32:33Z",
+      "ack": true
+    },
+    {
+      "seq": 44,
+      "mid": "1783877553662-0",
+      "kind": "request",
+      "to": "d3b-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-request-044",
+      "sent_utc": "2026-07-12T17:32:33Z",
+      "ack": true
+    },
+    {
+      "seq": 45,
+      "mid": "1783877553715-0",
+      "kind": "chat",
+      "to": "d3a-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-chat-045",
+      "sent_utc": "2026-07-12T17:32:33Z",
+      "ack": true
+    },
+    {
+      "seq": 46,
+      "mid": "1783877553768-0",
+      "kind": "chat",
+      "to": "d3a-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-chat-046",
+      "sent_utc": "2026-07-12T17:32:33Z",
+      "ack": true
+    },
+    {
+      "seq": 47,
+      "mid": "1783877553821-0",
+      "kind": "chat",
+      "to": "d3b-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-chat-047",
+      "sent_utc": "2026-07-12T17:32:33Z",
+      "ack": true
+    },
+    {
+      "seq": 48,
+      "mid": "1783877553874-0",
+      "kind": "steer",
+      "to": "d3a-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-steer-048",
+      "sent_utc": "2026-07-12T17:32:33Z",
+      "ack": true
+    },
+    {
+      "seq": 49,
+      "mid": "1783877553926-0",
+      "kind": "request",
+      "to": "d3a-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-request-049",
+      "sent_utc": "2026-07-12T17:32:33Z",
+      "ack": true
+    },
+    {
+      "seq": 50,
+      "mid": "1783877553979-0",
+      "kind": "request",
+      "to": "d3b-d9b54722",
+      "content_tag": "storm-96f4b3b4c389-request-050",
+      "sent_utc": "2026-07-12T17:32:33Z",
+      "ack": true
+    }
+  ],
+  "finished_utc": "2026-07-12T17:32:34Z",
+  "sent_count": 51,
+  "lost_count": 0
+}
