@@ -88,12 +88,22 @@ call decides whether Fix B is "exempt the drill" or "narrow the guard's blast ra
 
 ## Impact on drill 3 grades
 
-- S1 no-unacked-loss: **PASS** -- 0 silently lost; the "unconsumed" tail was the pause and is fully
-  retrievable (I drained all 16 with one `wait()`), which is the bar's "visible-unconsumed" branch.
-- S2 no-phantom-wake: **PASS** -- watchers never woke on the trace/steer flood.
-- S4 single-consumer: **PASS** -- dup-id runner refused at the lock (independent of the pause).
-- S3 cursor-passes-the-corpse: **UNTESTED** -- fleet was paused; needs a re-run under Fix A+B.
-- S5 duplicate-discipline: **UNTESTED** -- same; the handoffs were frozen in the tail.
+**VALID RE-RUN (storm 4ddf0a71, 2026-07-12): ALL FIVE BARS PASS.** With the drill-local rate-limit
+raise (the Fix B form, in the orchestrator's child env so the deterministic echo burst no longer
+trips the runaway guard) and Fix A ensuring the drill touches only its own control plane, the storm
+finally exercised recovery end-to-end. Evidence: research/reviewed/rb25-drill3-evidence-4ddf0a71.json
+(`paused_during_burst=False` -> the read is valid, not a frozen fleet).
 
-Drill 3 is NOT closed: re-run required after Fix A+B land (fenced). Engine-first still holds -- T029
-gates the packet-substrate BUILD.
+- S1 no-unacked-loss: **PASS** -- 29 requests, 0 lost, **29 answered, 0 unconsumed, 0 unaccounted**.
+- S2 no-phantom-wake: **PASS** -- both twin watchers stayed blocked through the trace/steer flood.
+- S3 cursor-passes-the-corpse: **PASS** -- successor acquired a fresh seat (pid differs, lock cleared)
+  and its cursor ADVANCED past the corpse's (inbox ...028362 -> ...031679): it drained the dead
+  runner's backlog. Direct refutation of my retracted "wedge" claim.
+- S4 single-consumer: **PASS** -- dup-id runner refused at the lock.
+- S5 duplicate-discipline: **PASS** -- both redelivered handoffs answered EXACTLY once.
+
+Live `bifrost:control:paused` stayed `None` throughout (Fix A holding). Drill 3 execution is COMPLETE
+and clean; **deepseek's independent verify is the remaining gate** (fence). F3 (production
+runaway-guard redesign: quarantine vs global pause) stays open as its OWN item -- it is NOT a drill
+blocker. Engine-first still holds: T029 also needs **drill 4 (72h soak)**, which needs Daniel's
+soak-gating ruling, before it certifies and the packet-substrate BUILD opens.

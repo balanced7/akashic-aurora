@@ -1,0 +1,11 @@
+[deepseek-runner] d3b-4ddf0a71 online (model=deepseek-v4-pro, think=off, drill-echo (offline), max_hops=6). Waiting for messages... (Ctrl-C to stop)
+[deepseek-runner] <- rb25-storm-driver-47ecc3f46b58 [request] (hop 1): [drill-3 request] storm-47ecc3f46b58-request-042: more directed requests to seco
+[deepseek-runner] -> rb25-storm-driver-47ecc3f46b58: [drill-echo] [drill-3 request] storm-47ecc3f46b58-request-042: more directed req
+[deepseek-runner] <- rb25-storm-driver-47ecc3f46b58 [request] (hop 1): [drill-3 request] storm-47ecc3f46b58-request-043: more directed requests to seco
+[deepseek-runner] -> rb25-storm-driver-47ecc3f46b58: [drill-echo] [drill-3 request] storm-47ecc3f46b58-request-043: more directed req
+[deepseek-runner] <- rb25-storm-driver-47ecc3f46b58 [request] (hop 1): [drill-3 request] storm-47ecc3f46b58-request-044: more directed requests to seco
+[deepseek-runner] -> rb25-storm-driver-47ecc3f46b58: [drill-echo] [drill-3 request] storm-47ecc3f46b58-request-044: more directed req
+[deepseek-runner] <- rb25-storm-driver-47ecc3f46b58 [chat] (hop 1): [drill-3 chat] storm-47ecc3f46b58-chat-047: hello from the storm
+[deepseek-runner] -> rb25-storm-driver-47ecc3f46b58: [drill-echo] [drill-3 chat] storm-47ecc3f46b58-chat-047: hello from the storm
+[deepseek-runner] <- rb25-storm-driver-47ecc3f46b58 [request] (hop 1): [drill-3 request] storm-47ecc3f46b58-request-050: final request to second runner
+[deepseek-runner] -> rb25-storm-driver-47ecc3f46b58: [drill-echo] [drill-3 request] storm-47ecc3f46b58-request-050: final request to 

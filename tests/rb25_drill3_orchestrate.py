@@ -64,6 +64,12 @@ def child_env():
     # the burst script itself is never edited.
     e["PYTHONIOENCODING"] = "utf-8"
     e["PYTHONUTF8"] = "1"
+    # Drill-local form of Fix B (RB-25 drill 3 finding F1): the storm's own burst (~20 replies/s of
+    # deterministic echoes) trips the reply RateLimiter, whose runaway guard then pauses the fleet and
+    # made S3/S5 untestable. Raise the limit for the (isolated, echo-only) drill so the storm can
+    # actually exercise recovery. The PRODUCTION guard redesign (F3: quarantine-vs-global-pause) stays
+    # deepseek's fenced item -- this env raise does NOT touch it.
+    e["BIFROST_MAX_REPLIES_PER_MIN"] = "100000"
     return e
 
 

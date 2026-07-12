@@ -1,0 +1,69 @@
+STORM 47ecc3f46b58: 51 messages in namespace 'rb25drill3' (runner=d3a-4ddf0a71, target=d3b-4ddf0a71, watcher=d3w-4ddf0a71)
+  WILL PAUSE after message 20 for TASKKILL
+  ledger: E:\AI-Setup\research\reviewed\rb25-drill3-ledger-4ddf0a71.json
+---
+  [000/50] request  -> d3a-4ddf0a71               ✓  1783891027361-0
+  [001/50] request  -> d3a-4ddf0a71               ✓  1783891027414-0
+  [002/50] request  -> d3a-4ddf0a71               ✓  1783891027467-0
+  [003/50] request  -> d3a-4ddf0a71               ✓  1783891027519-0
+  [004/50] request  -> d3a-4ddf0a71               ✓  1783891027572-0
+  [005/50] request  -> d3a-4ddf0a71               ✓  1783891027624-0
+  [006/50] request  -> d3a-4ddf0a71               ✓  1783891027676-0
+  [007/50] request  -> d3a-4ddf0a71               ✓  1783891027729-0
+  [008/50] request  -> d3a-4ddf0a71               ✓  1783891027782-0
+  [009/50] request  -> d3a-4ddf0a71               ✓  1783891027835-0
+  [010/50] request  -> d3a-4ddf0a71               ✓  1783891027888-0
+  [011/50] request  -> d3a-4ddf0a71               ✓  1783891027940-0
+  [012/50] request  -> d3b-4ddf0a71               ✓  1783891027993-0
+  [013/50] request  -> d3b-4ddf0a71               ✓  1783891028046-0
+  [014/50] request  -> d3b-4ddf0a71               ✓  1783891028099-0
+  [015/50] request  -> d3b-4ddf0a71               ✓  1783891028151-0
+  [016/50] request  -> d3b-4ddf0a71               ✓  1783891028204-0
+  [017/50] request  -> d3b-4ddf0a71               ✓  1783891028256-0
+  [018/50] request  -> d3b-4ddf0a71               ✓  1783891028310-0
+  [019/50] request  -> d3b-4ddf0a71               ✓  1783891028362-0
+===
+PAUSE: 20/51 messages sent.
+OPERATOR: TASKKILL the runner (d3b-4ddf0a71) NOW, then press Enter to resume.
+===
+FileLedger could not persist E:\AI-Setup\session_logs\ledger\events_raw.jsonl: [WinError 32] The process cannot access the file because it is being used by another process: 'E:\\AI-Setup\\session_logs\\ledger\\events_raw.jsonl.tmp' -> 'E:\\AI-Setup\\session_logs\\ledger\\events_raw.jsonl'
+RESUMING burst...
+  [020/50] trace    -> *                          ✓  1783891029929-0
+  [021/50] trace    -> *                          ✓  1783891029981-0
+  [022/50] trace    -> *                          ✓  1783891030034-0
+  [023/50] trace    -> *                          ✓  1783891030087-0
+  [024/50] trace    -> *                          ✓  1783891030140-0
+  [025/50] trace    -> *                          ✓  1783891030193-0
+  [026/50] trace    -> *                          ✓  1783891030248-0
+  [027/50] trace    -> *                          ✓  1783891030300-0
+  [028/50] steer    -> d3a-4ddf0a71               ✓  1783891030353-0
+  [029/50] steer    -> d3a-4ddf0a71               ✓  1783891030406-0
+  [030/50] steer    -> d3a-4ddf0a71               ✓  1783891030459-0
+  [031/50] steer    -> d3a-4ddf0a71               ✓  1783891030513-0
+  [032/50] steer    -> d3a-4ddf0a71               ✓  1783891030565-0
+  [033/50] trace    -> *                          ✓  1783891030619-0
+  [034/50] trace    -> *                          ✓  1783891030672-0
+  [035/50] trace    -> *                          ✓  1783891030726-0
+  [036/50] handoff  -> d3a-4ddf0a71               ✓  1783891030780-0
+  [037/50] handoff  -> d3a-4ddf0a71               ✓  1783891030936-0
+  [038/50] request  -> d3a-4ddf0a71               ✓  1783891031046-0
+  [039/50] request  -> d3a-4ddf0a71               ✓  1783891031099-0
+  [040/50] request  -> d3a-4ddf0a71               ✓  1783891031151-0
+  [041/50] request  -> d3a-4ddf0a71               ✓  1783891031203-0
+  [042/50] request  -> d3b-4ddf0a71               ✓  1783891031256-0
+  [043/50] request  -> d3b-4ddf0a71               ✓  1783891031309-0
+  [044/50] request  -> d3b-4ddf0a71               ✓  1783891031361-0
+  [045/50] chat     -> d3a-4ddf0a71               ✓  1783891031414-0
+  [046/50] chat     -> d3a-4ddf0a71               ✓  1783891031468-0
+  [047/50] chat     -> d3b-4ddf0a71               ✓  1783891031520-0
+  [048/50] steer    -> d3a-4ddf0a71               ✓  1783891031573-0
+  [049/50] request  -> d3a-4ddf0a71               ✓  1783891031626-0
+  [050/50] request  -> d3b-4ddf0a71               ✓  1783891031679-0
+---
+STORM COMPLETE: 51 sent, 0 lost, ledger -> E:\AI-Setup\research\reviewed\rb25-drill3-ledger-4ddf0a71.json
+Post-storm verification (operator):
+  S1: check every request mid in the ledger has a reply or is unconsumed
+  S2: check watcher stdout -- trace/steer flood must NOT produce DETECTED exit
+  S3: check successor cursor > corpse's last committed cursor
+  S4: check twin watcher transcripts for RB-21 teaching shape on loser
+  S5: check no duplicate replies for handoff mids within sentinel TTL

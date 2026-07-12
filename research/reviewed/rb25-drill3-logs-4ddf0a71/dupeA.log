@@ -1,0 +1,1 @@
+bifrost_runner_deepseek: another 'd3a-4ddf0a71' runner is already live (pid 15424). Refusing to start -- one runner per agent avoids cursor races.

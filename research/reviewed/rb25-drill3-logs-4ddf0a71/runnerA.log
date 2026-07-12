@@ -1,0 +1,48 @@
+[deepseek-runner] d3a-4ddf0a71 online (model=deepseek-v4-pro, think=off, drill-echo (offline), max_hops=6). Waiting for messages... (Ctrl-C to stop)
+[deepseek-runner] <- rb25-storm-driver-47ecc3f46b58 [request] (hop 1): [drill-3 request] storm-47ecc3f46b58-request-000: directed request to deepseek r
+[deepseek-runner] -> rb25-storm-driver-47ecc3f46b58: [drill-echo] [drill-3 request] storm-47ecc3f46b58-request-000: directed request 
+[deepseek-runner] <- rb25-storm-driver-47ecc3f46b58 [request] (hop 1): [drill-3 request] storm-47ecc3f46b58-request-001: directed request to deepseek r
+[deepseek-runner] -> rb25-storm-driver-47ecc3f46b58: [drill-echo] [drill-3 request] storm-47ecc3f46b58-request-001: directed request 
+[deepseek-runner] <- rb25-storm-driver-47ecc3f46b58 [request] (hop 1): [drill-3 request] storm-47ecc3f46b58-request-002: directed request to deepseek r
+[deepseek-runner] -> rb25-storm-driver-47ecc3f46b58: [drill-echo] [drill-3 request] storm-47ecc3f46b58-request-002: directed request 
+[deepseek-runner] <- rb25-storm-driver-47ecc3f46b58 [request] (hop 1): [drill-3 request] storm-47ecc3f46b58-request-003: directed request to deepseek r
+[deepseek-runner] -> rb25-storm-driver-47ecc3f46b58: [drill-echo] [drill-3 request] storm-47ecc3f46b58-request-003: directed request 
+[deepseek-runner] <- rb25-storm-driver-47ecc3f46b58 [request] (hop 1): [drill-3 request] storm-47ecc3f46b58-request-004: directed request to deepseek r
+[deepseek-runner] -> rb25-storm-driver-47ecc3f46b58: [drill-echo] [drill-3 request] storm-47ecc3f46b58-request-004: directed request 
+[deepseek-runner] <- rb25-storm-driver-47ecc3f46b58 [request] (hop 1): [drill-3 request] storm-47ecc3f46b58-request-005: directed request to deepseek r
+[deepseek-runner] -> rb25-storm-driver-47ecc3f46b58: [drill-echo] [drill-3 request] storm-47ecc3f46b58-request-005: directed request 
+[deepseek-runner] <- rb25-storm-driver-47ecc3f46b58 [request] (hop 1): [drill-3 request] storm-47ecc3f46b58-request-006: directed request to deepseek r
+[deepseek-runner] -> rb25-storm-driver-47ecc3f46b58: [drill-echo] [drill-3 request] storm-47ecc3f46b58-request-006: directed request 
+[deepseek-runner] <- rb25-storm-driver-47ecc3f46b58 [request] (hop 1): [drill-3 request] storm-47ecc3f46b58-request-007: directed request to deepseek r
+[deepseek-runner] -> rb25-storm-driver-47ecc3f46b58: [drill-echo] [drill-3 request] storm-47ecc3f46b58-request-007: directed request 
+[deepseek-runner] <- rb25-storm-driver-47ecc3f46b58 [request] (hop 1): [drill-3 request] storm-47ecc3f46b58-request-008: directed request to deepseek r
+[deepseek-runner] -> rb25-storm-driver-47ecc3f46b58: [drill-echo] [drill-3 request] storm-47ecc3f46b58-request-008: directed request 
+[deepseek-runner] <- rb25-storm-driver-47ecc3f46b58 [request] (hop 1): [drill-3 request] storm-47ecc3f46b58-request-009: directed request to deepseek r
+[deepseek-runner] -> rb25-storm-driver-47ecc3f46b58: [drill-echo] [drill-3 request] storm-47ecc3f46b58-request-009: directed request 
+[deepseek-runner] <- rb25-storm-driver-47ecc3f46b58 [request] (hop 1): [drill-3 request] storm-47ecc3f46b58-request-010: directed request to deepseek r
+[deepseek-runner] -> rb25-storm-driver-47ecc3f46b58: [drill-echo] [drill-3 request] storm-47ecc3f46b58-request-010: directed request 
+FileLedger could not persist E:\AI-Setup\session_logs\ledger\events_raw.jsonl: [WinError 5] Access is denied: 'E:\\AI-Setup\\session_logs\\ledger\\events_raw.jsonl.tmp' -> 'E:\\AI-Setup\\session_logs\\ledger\\events_raw.jsonl'
+[deepseek-runner] <- rb25-storm-driver-47ecc3f46b58 [request] (hop 1): [drill-3 request] storm-47ecc3f46b58-request-011: directed request to deepseek r
+[deepseek-runner] -> rb25-storm-driver-47ecc3f46b58: [drill-echo] [drill-3 request] storm-47ecc3f46b58-request-011: directed request 
+[deepseek-runner] <- rb25-storm-driver-47ecc3f46b58 [handoff] (hop 1): [drill-3 handoff] storm-47ecc3f46b58-handoff-036: handoff to deepseek runner
+[deepseek-runner] acked handoff 1783891030780-0
+[deepseek-runner] -> rb25-storm-driver-47ecc3f46b58: [drill-echo] [drill-3 handoff] storm-47ecc3f46b58-handoff-036: handoff to deepse
+[deepseek-runner] <- rb25-storm-driver-47ecc3f46b58 [handoff] (hop 1): [drill-3 handoff] storm-47ecc3f46b58-handoff-037: handoff to deepseek runner
+[deepseek-runner] acked handoff 1783891030936-0
+[deepseek-runner] -> rb25-storm-driver-47ecc3f46b58: [drill-echo] [drill-3 handoff] storm-47ecc3f46b58-handoff-037: handoff to deepse
+FileStore could not persist E:\AI-Setup\session_logs\store_state.json: [WinError 32] The process cannot access the file because it is being used by another process: 'E:\\AI-Setup\\session_logs\\store_state.json.tmp' -> 'E:\\AI-Setup\\session_logs\\store_state.json'
+FileStore could not persist E:\AI-Setup\session_logs\store_state.json: [WinError 32] The process cannot access the file because it is being used by another process: 'E:\\AI-Setup\\session_logs\\store_state.json.tmp' -> 'E:\\AI-Setup\\session_logs\\store_state.json'
+[deepseek-runner] <- rb25-storm-driver-47ecc3f46b58 [request] (hop 1): [drill-3 request] storm-47ecc3f46b58-request-038: more directed requests to deep
+[deepseek-runner] -> rb25-storm-driver-47ecc3f46b58: [drill-echo] [drill-3 request] storm-47ecc3f46b58-request-038: more directed req
+[deepseek-runner] <- rb25-storm-driver-47ecc3f46b58 [request] (hop 1): [drill-3 request] storm-47ecc3f46b58-request-039: more directed requests to deep
+[deepseek-runner] -> rb25-storm-driver-47ecc3f46b58: [drill-echo] [drill-3 request] storm-47ecc3f46b58-request-039: more directed req
+[deepseek-runner] <- rb25-storm-driver-47ecc3f46b58 [request] (hop 1): [drill-3 request] storm-47ecc3f46b58-request-040: more directed requests to deep
+[deepseek-runner] -> rb25-storm-driver-47ecc3f46b58: [drill-echo] [drill-3 request] storm-47ecc3f46b58-request-040: more directed req
+[deepseek-runner] <- rb25-storm-driver-47ecc3f46b58 [request] (hop 1): [drill-3 request] storm-47ecc3f46b58-request-041: more directed requests to deep
+[deepseek-runner] -> rb25-storm-driver-47ecc3f46b58: [drill-echo] [drill-3 request] storm-47ecc3f46b58-request-041: more directed req
+[deepseek-runner] <- rb25-storm-driver-47ecc3f46b58 [chat] (hop 1): [drill-3 chat] storm-47ecc3f46b58-chat-045: hello from the storm
+[deepseek-runner] -> rb25-storm-driver-47ecc3f46b58: [drill-echo] [drill-3 chat] storm-47ecc3f46b58-chat-045: hello from the storm
+[deepseek-runner] <- rb25-storm-driver-47ecc3f46b58 [chat] (hop 1): [drill-3 chat] storm-47ecc3f46b58-chat-046: hello from the storm
+[deepseek-runner] -> rb25-storm-driver-47ecc3f46b58: [drill-echo] [drill-3 chat] storm-47ecc3f46b58-chat-046: hello from the storm
+[deepseek-runner] <- rb25-storm-driver-47ecc3f46b58 [request] (hop 1): [drill-3 request] storm-47ecc3f46b58-request-049: final request to deepseek runn
+[deepseek-runner] -> rb25-storm-driver-47ecc3f46b58: [drill-echo] [drill-3 request] storm-47ecc3f46b58-request-049: final request to 

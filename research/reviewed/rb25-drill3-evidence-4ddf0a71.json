@@ -1,0 +1,140 @@
+{
+  "storm": "4ddf0a71",
+  "ns": "rb25drill3",
+  "ids": {
+    "a": "d3a-4ddf0a71",
+    "b": "d3b-4ddf0a71",
+    "w": "d3w-4ddf0a71"
+  },
+  "started_utc": "2026-07-12T21:17:01Z",
+  "boot": {
+    "runnerA_alive": true,
+    "runnerB_alive": true,
+    "watcher1_alive": true,
+    "watcher2_alive": true,
+    "presence": [
+      {
+        "agent": "d3a-4ddf0a71",
+        "last_seen": "2026-07-12T21:17:06.333441+00:00",
+        "runtime_class": "api",
+        "wake_mode": "runner",
+        "door": "runner",
+        "caps": [
+          "review",
+          "critique",
+          "answer",
+          "audit",
+          "code"
+        ]
+      },
+      {
+        "agent": "d3b-4ddf0a71",
+        "last_seen": "2026-07-12T21:17:06.333441+00:00",
+        "runtime_class": "api",
+        "wake_mode": "runner",
+        "door": "runner",
+        "caps": [
+          "review",
+          "critique",
+          "answer",
+          "audit",
+          "code"
+        ]
+      },
+      {
+        "agent": "d3w-4ddf0a71",
+        "last_seen": "2026-07-12T21:17:02.362546+00:00"
+      }
+    ]
+  },
+  "pre_kill": {
+    "runnerB_pid": 45656,
+    "lock_holder_b": {
+      "token": "d3b-4ddf0a71:45656:55083cfcc489",
+      "pid": 45656,
+      "ts": "2026-07-12T17:17:06",
+      "gen": 1
+    },
+    "gen_b": 0,
+    "cursor_b": {
+      "inbox": "0",
+      "bc": "1783880506145-0"
+    }
+  },
+  "burst_paused": true,
+  "s4": {
+    "dupe_exit": 3,
+    "refused": true,
+    "pass": true,
+    "dupe_out": "bifrost_runner_deepseek: another 'd3a-4ddf0a71' runner is already live (pid 15424). Refusing to start -- one runner per agent avoids cursor races.\n"
+  },
+  "kill": {
+    "corpse_pid": 45656,
+    "corpse_cursor": {
+      "inbox": "1783891028362-0",
+      "bc": "1783880506145-0"
+    },
+    "taskkill_done": true,
+    "lock_cleared_by_pid": true
+  },
+  "paused_during_burst": false,
+  "successor": {
+    "pid": 46496,
+    "alive": true,
+    "online": true,
+    "refused": false,
+    "lock_holder": {
+      "token": "d3b-4ddf0a71:46496:f3b7761760fe",
+      "pid": 46496,
+      "ts": "2026-07-12T17:17:14",
+      "gen": 2
+    },
+    "gen_b_after": 0,
+    "out": "storm-47ecc3f46b58-request-044: more directed req\n[deepseek-runner] <- rb25-storm-driver-47ecc3f46b58 [chat] (hop 1): [drill-3 chat] storm-47ecc3f46b58-chat-047: hello from the storm\n[deepseek-runner] -> rb25-storm-driver-47ecc3f46b58: [drill-echo] [drill-3 chat] storm-47ecc3f46b58-chat-047: hello from the storm\n[deepseek-runner] <- rb25-storm-driver-47ecc3f46b58 [request] (hop 1): [drill-3 request] storm-47ecc3f46b58-request-050: final request to second runner\n[deepseek-runner] -> rb25-storm-driver-47ecc3f46b58: [drill-echo] [drill-3 request] storm-47ecc3f46b58-request-050: final request to \n"
+  },
+  "s1": {
+    "requests_sent": 29,
+    "send_side_lost": 0,
+    "answered": 29,
+    "unconsumed_at_end": 0,
+    "unaccounted": [],
+    "pass": true
+  },
+  "s2": {
+    "watcher1_alive": true,
+    "watcher2_alive": true,
+    "watcher1_detected": false,
+    "watcher2_detected": false,
+    "pass": true,
+    "watcher1_out": "",
+    "watcher2_out": ""
+  },
+  "s3": {
+    "corpse_cursor": {
+      "inbox": "1783891028362-0",
+      "bc": "1783880506145-0"
+    },
+    "successor_cursor": {
+      "inbox": "1783891031679-0",
+      "bc": "1783891030726-0"
+    },
+    "lock_cleared": true,
+    "successor_online": true,
+    "successor_pid_differs": true,
+    "seat_handoff_ok": true,
+    "backlog_drained": true,
+    "b_pending_final": 0,
+    "pass": true
+  },
+  "s5": {
+    "handoff_reply_counts": {
+      "storm-47ecc3f46b58-handoff-036": 1,
+      "storm-47ecc3f46b58-handoff-037": 1
+    },
+    "pass": true
+  },
+  "reply_tags_total": 56,
+  "unconsumed_a": [],
+  "unconsumed_b": [],
+  "finished_utc": "2026-07-12T21:17:17Z"
+}
