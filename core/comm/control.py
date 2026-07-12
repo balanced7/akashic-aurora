@@ -30,10 +30,36 @@ import time
 from collections import deque
 from typing import Any, Dict, Optional
 
-NS = "bifrost"
-PAUSE_KEY = f"{NS}:control:paused"
-HALT_PREFIX = f"{NS}:control:halt:"   # per-agent targeted halt (A1); union'd with PAUSE_KEY by is_halted
-NARRATION_KEY = f"{NS}:control:narration"   # off | key | full -- how much of claude's reasoning streams to the bus
+# --- namespace-scoped control plane (2026-07-12 isolation fix; claude fenced half, deepseek review
+# pending) -----------------------------------------------------------------------------------------
+# The pause/halt/narration/activity keys FOLLOW BIFROST_NAMESPACE (exactly like Bus.ns) instead of
+# being hardcoded to 'bifrost'. Before this, a runner in an isolated STREAM namespace still shared the
+# ONE 'bifrost:control:paused' key -- so a drill that tripped the rate-limit guard PAUSED THE LIVE
+# FLEET (found in RB-25 drill 3). Read PER-CALL (not an import-time constant) so a process that sets
+# BIFROST_NAMESPACE at runtime, or after importing this module, is still routed to the right keys.
+DEFAULT_NS = "bifrost"
+
+
+def _ns() -> str:
+    return os.environ.get("BIFROST_NAMESPACE", DEFAULT_NS)
+
+
+def _pause_key() -> str:
+    return f"{_ns()}:control:paused"
+
+
+def _halt_prefix() -> str:                 # per-agent targeted halt (A1); union'd with the pause by is_halted
+    return f"{_ns()}:control:halt:"
+
+
+def _narration_key() -> str:               # off|key|full -- how much of claude's reasoning streams to the bus
+    return f"{_ns()}:control:narration"
+
+
+def _activity_prefix() -> str:             # rich-presence activity keys (same class, also ns-scoped)
+    return f"{_ns()}:activity:"
+
+
 _NARRATION_LEVELS = ("off", "key", "full")
 MAX_HOPS = int(os.getenv("BIFROST_MAX_HOPS", "6"))
 MAX_REPLIES_PER_MIN = int(os.getenv("BIFROST_MAX_REPLIES_PER_MIN", "12"))
@@ -63,7 +89,7 @@ def pause(reason: str = "", by: str = "user", ttl: Optional[int] = None) -> bool
     if c is None:
         return False
     try:
-        c.set(PAUSE_KEY, json.dumps({"reason": reason, "by": by, "ts": _now()}),
+        c.set(_pause_key(), json.dumps({"reason": reason, "by": by, "ts": _now()}),
               ex=int(ttl) if ttl else None)
         return True
     except Exception:
@@ -98,12 +124,12 @@ def resume(targets=None) -> bool:
     ts = _norm_targets(targets)
     try:
         if not ts:
-            c.delete(PAUSE_KEY)
-            keys = c.keys(HALT_PREFIX + "*") or []
+            c.delete(_pause_key())
+            keys = c.keys(_halt_prefix() + "*") or []
             if keys:
                 c.delete(*keys)
             return True
-        c.delete(*[HALT_PREFIX + a for a in ts])
+        c.delete(*[_halt_prefix() + a for a in ts])
         return True
     except Exception:
         return False
@@ -115,7 +141,7 @@ def is_paused() -> bool:
     if c is None:
         return False
     try:
-        return bool(c.exists(PAUSE_KEY))
+        return bool(c.exists(_pause_key()))
     except Exception:
         return False
 
@@ -126,7 +152,7 @@ def pause_status() -> Dict[str, Any]:
     if c is None:
         return {"paused": False, "online": False}
     try:
-        raw = c.get(PAUSE_KEY)
+        raw = c.get(_pause_key())
         if not raw:
             return {"paused": False, "online": True}
         d = json.loads(raw)
@@ -148,7 +174,7 @@ def get_narration_level() -> str:
     if c is None:
         return "key"
     try:
-        v = c.get(NARRATION_KEY)
+        v = c.get(_narration_key())
         v = v.decode() if isinstance(v, (bytes, bytearray)) else v
         return v if v in _NARRATION_LEVELS else "key"
     except Exception:
@@ -163,7 +189,7 @@ def set_narration_level(level: str, by: str = "user") -> bool:
     if c is None:
         return False
     try:
-        c.set(NARRATION_KEY, level)
+        c.set(_narration_key(), level)
         return True
     except Exception:
         return False
@@ -196,7 +222,7 @@ def halt(targets=None, reason: str = "", by: str = "user") -> bool:
     try:
         payload = json.dumps({"reason": reason, "by": by, "ts": _now()})
         for a in ts:
-            c.set(HALT_PREFIX + a, payload)
+            c.set(_halt_prefix() + a, payload)
         return True
     except Exception:
         return False
@@ -209,9 +235,9 @@ def is_halted(agent: str) -> bool:
     if c is None:
         return False
     try:
-        if c.exists(PAUSE_KEY):
+        if c.exists(_pause_key()):
             return True
-        return bool(c.exists(HALT_PREFIX + str(agent)))
+        return bool(c.exists(_halt_prefix() + str(agent)))
     except Exception:
         return False
 
@@ -224,7 +250,7 @@ def halted_agents() -> Dict[str, Any]:
         return {}
     out: Dict[str, Any] = {}
     try:
-        for k in (c.keys(HALT_PREFIX + "*") or []):
+        for k in (c.keys(_halt_prefix() + "*") or []):
             agent = str(k).rsplit(":", 1)[-1]
             raw = c.get(k)
             if raw:
@@ -278,7 +304,6 @@ class RateLimiter:
 # agent with a short TTL so a crashed runner's activity auto-clears (no stuck "typing"). The UI reads
 # get_activities() and maps state -> an icon. States: thinking | reading | searching | inspecting |
 # recalling | running | writing | working (idle = no key).
-ACTIVITY_PREFIX = f"{NS}:activity:"
 ACTIVITY_TTL = 25
 
 
@@ -288,7 +313,7 @@ def set_activity(agent: str, state: str, detail: str = "") -> bool:
     if c is None:
         return False
     try:
-        c.set(ACTIVITY_PREFIX + str(agent),
+        c.set(_activity_prefix() + str(agent),
               json.dumps({"state": str(state), "detail": str(detail)[:120], "ts": _now()}),
               ex=ACTIVITY_TTL)
         return True
@@ -302,7 +327,7 @@ def clear_activity(agent: str) -> bool:
     if c is None:
         return False
     try:
-        c.delete(ACTIVITY_PREFIX + str(agent))
+        c.delete(_activity_prefix() + str(agent))
         return True
     except Exception:
         return False
@@ -315,7 +340,7 @@ def get_activities() -> Dict[str, Any]:
         return {}
     out: Dict[str, Any] = {}
     try:
-        for k in (c.keys(ACTIVITY_PREFIX + "*") or []):
+        for k in (c.keys(_activity_prefix() + "*") or []):
             agent = str(k).rsplit(":", 1)[-1]
             raw = c.get(k)
             if raw:

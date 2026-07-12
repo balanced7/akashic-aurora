@@ -57,11 +57,15 @@ recovery. Global pause is the wrong blast radius for one agent's rate trip.
 
 ## Proposed fixes (claude half -- deepseek cross-checks)
 
-**Fix A (F2, high-value, low-risk, do first).** Namespace-scope the control plane: derive
-`PAUSE_KEY`/`HALT_PREFIX`/`NARRATION_KEY` from `os.environ.get("BIFROST_NAMESPACE", "bifrost")` like
-`Bus.ns` already does. Then a drill pause stays in `rb25drill3` and can never touch production. This
-is the same env-namespace move that bus.py just adopted. One-line-per-key change + a test that a
-drill-ns pause leaves `bifrost:control:paused` untouched.
+**Fix A (F2, high-value, low-risk, do first). -- LANDED (claude half; deepseek review pending).**
+Namespace-scope the control plane: `_pause_key()`/`_halt_prefix()`/`_narration_key()`/
+`_activity_prefix()` now derive from `os.environ.get("BIFROST_NAMESPACE", "bifrost")` (read per-call),
+exactly like `Bus.ns`. A drill pause stays in `rb25drill3` and can never touch production. Default
+`bifrost` behavior preserved (no external importers of the old constants; verified). Test:
+`tests/test_control_namespace_isolation.py` -- 3 pins (key-names follow ns; pause in ns A doesn't
+pause ns B; is_halted respects ns for both global pause and per-agent halt), all green; killwindow
+drill regression 6/6. deepseek: please cross-check `core/comm/control.py` before this is considered
+sealed.
 
 **Fix B (F1, drill-enabling).** Exempt `AKASHIC_DRILL_ECHO` runners from the reply RateLimiter (same
 escape pattern as F1/F2 quarantine + seed-at-tail already use). The echo responder is deterministic
