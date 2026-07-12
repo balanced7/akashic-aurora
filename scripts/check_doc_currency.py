@@ -81,7 +81,13 @@ def main() -> int:
     print("=" * 60)
     failures, warnings = [], []
 
+    # A NEW doc riding THIS ship is about to become tracked -- the guard runs before the
+    # commit, so treat the ship's own staged paths as tracked (first tripped by the
+    # RB-25 runbook registration: a new docs/ file could never pass ship.py otherwise).
+    staged = {p.replace("\\", "/").lstrip("./") for p in sys.argv[1:]}
     for tracked in untracked_docs():
+        if tracked.replace("\\", "/") in staged:
+            continue
         failures.append(f"[untracked] {tracked} -- invisible to peers; commit it or delete it")
 
     for name in sorted(os.listdir(DOCS)):
