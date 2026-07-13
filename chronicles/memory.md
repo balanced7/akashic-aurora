@@ -1,12 +1,16 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 38 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 39 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
-- where-we-are: RB-25 DRILL 3 (STORM) executed + root-caused 2026-07-12 (claude; deepseek fenced cross-check PENDING, offline). CORRECTION: my first-pass S3...  (source: mem:decision:ADR_0712140142_c9b4a33a)
+- where-we-are: Shipped:
+  - T040 packet spec FINALIZED -> LAW (amendments A-F applied per Daniel keep-working delegation; the T040 gate is crossed). A add pri...  (source: mem:decision:ADR_0713005906_2bc94c4a)
+- next-focus: T029 CERTIFIED; FIRST BUILD SHIPPED (ns-isolation conversion), 2026-07-12. Packet-substrate build phase OPEN + underway. DONE this build: 6 core/comm...  (source: mem:decision:ADR_0712235247_7579f5f0)
+- rb25-drill3-deepseek-verify-2026-07-12: # RB-25 Drill 3 — DeepSeek Independent VERIFY (2026-07-12)
+
+## Verdict: GREEN. All five bars pass on the valid re-run (storm...  (source: mem:decision:ADR_0712230923_7d7055ec)
 - t038-identity-blocker: T038 identity FENCE COMPLETE (design), 2026-07-12. deepseek adversarial counter-review (research/reviewed/deepseek-t038-identity-2026-07-12.md...  (source: mem:decision:ADR_0712125910_e63ca7be)
-- next-focus: DANIEL STEER (2026-07-12 evening): PAUSE ALL UI WORK until the structural / networking-inspired overhaul is IN PLACE. Scope of pause: T002 (collapse traces)...  (source: mem:decision:ADR_0712125135_127ea8ef)
 - t036-nonconsuming-seat-claimant: T036/T037 TRIAL DATUM (Fable session 7d4857e1, 2026-07-12 ~05:00): the claude consumer seat shows FRESH claims (observed 'claimed 51s...  (source: mem:decision:ADR_0712042614_cf4e874b)
 - recall-networking-research: RECALL-AS-NETWORK LANE: FENCE CLOSED, RECONCILED (2026-07-12 ~04:4x). RECORD...  (source: mem:decision:ADR_0712042219_3b6bd706)
 - t042-scope-extension: T042 SCOPE EXTENSION (deepseek self-report 2026-07-12 ~04:40, on the record in his bus reply): BOTH agent_cli.py verbs 'handoff --list' AND 'locks'...  (source: mem:decision:ADR_0712042105_5e54594f)

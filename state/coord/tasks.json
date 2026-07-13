@@ -1,5 +1,5 @@
 {
-  "seq": 41,
+  "seq": 42,
   "tasks": [
     {
       "id": "T001",
@@ -1153,11 +1153,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "in_progress",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "5bf6013",
+      "verified_by": "deepseek-drill3-GREEN(all-5-bars)+soak-armed;certify-at-soak-start-per-Daniel;72h-soak-observing-reopens-on-K1-K5-fail",
       "created": "2026-07-10T04:44:04+00:00",
-      "updated": "2026-07-10T05:19:30+00:00",
+      "updated": "2026-07-13T03:16:48+00:00",
       "history": [
         {
           "to": "proposed",
@@ -1178,6 +1178,16 @@
           "to": "in_progress",
           "by": "",
           "at": "2026-07-10T05:19:30+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-07-13T03:16:17+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-13T03:16:48+00:00"
         }
       ]
     },
@@ -1481,6 +1491,27 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-12T07:45:13+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T042",
+      "title": "deepseek-side agent_cli.py locks/unlock crash 0xC0000005 (access violation) -- live 2026-07-12: his locks verb CRASHED then reported clean while Redis held bifrost:lock:*t040* with live TTLs (474s/800s observed); he asserted 'all locks released, confirmed clean' in a durable record based on the broken read -- a tool that lies under failure (RB-5 class). Repro: his runner env invoking locks verbs. Fix direction: (a) find the crash (likely his python/redis client build -- 0xC0000005 is native), (b) until fixed, locks verbs on HIS side must fail LOUD ('could not verify') never fail-clean, per guard_fail_direction_vs_protected_lane. Receipt: research/reviewed/deepseek-t040-counterreview-2026-07-12.md section RELEASE vs Redis TTL observation same minute",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-12T07:59:26+00:00",
+      "updated": "2026-07-12T07:59:26+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-12T07:59:26+00:00"
         }
       ]
     }
