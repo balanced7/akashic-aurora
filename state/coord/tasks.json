@@ -1420,15 +1420,15 @@
       "id": "T039",
       "title": "Purpose-keyed bus lanes (Daniel seed 2026-07-12, DESIGN ONLY behind fenced dual design): partition the single bifrost stream into a fixed lane roster -- work (directed mail/handoffs/replies; the ONLY lane with consumer-seat + cursor discipline; the ONLY lane wake listeners watch), trace (narration/tool calls, seatless, ring-buffer XTRIM retention), sig (nudge/steer/halt/pause -- fidelity-ladder traffic never queues behind trace spam), test-* (already proven by 7097b5e namespace isolation; formalize drills-always-namespaced). Mechanism EXISTS: Bus(namespace=...) shipped and drill-tested; presence/events/promoted/context_hints stay as-is (the system already converged toward lanes organically -- this finishes the thought). Migration = strangler fig: dual-write briefly, cut consumers over lane-by-lane, retire; RB-25 storm bars S1-S5 rerun as the migration acceptance. Guards: lane roster is CAPPED (adding a lane requires a why-not-an-existing-lane answer + deletion ritual -- T034 Goodhart 1 applies to lanes exactly as to dials); per-lane retention bounds feed soak bar K4. Direct payoff: T037 mostly evaporates (wake watches work only), seat contention shrinks to work mail, every consumer drops its filter code. Sequencing: lanes BEFORE T038 tokens (token offer/accept traffic rides sig; allocated work rides work).",
       "desc": "",
-      "owner": "",
+      "owner": "claude",
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "approved",
+      "status": "in_progress",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-12T06:28:18+00:00",
-      "updated": "2026-07-12T07:45:13+00:00",
+      "updated": "2026-07-13T13:02:55+00:00",
       "history": [
         {
           "to": "proposed",
@@ -1439,6 +1439,16 @@
           "to": "approved",
           "by": "Daniel directive 2026-07-12: lets get to work then and make slices",
           "at": "2026-07-12T07:45:13+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-13T13:02:54+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-07-13T13:02:55+00:00"
         }
       ]
     },
