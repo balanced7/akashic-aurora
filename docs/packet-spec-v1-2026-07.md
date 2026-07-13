@@ -1,8 +1,13 @@
 # Packet Spec v1 -- reconciled build spec (dual-half, dated)
 
-Status: current  (2026-07-12; AWAITING DANIEL APPROVAL before any build sub-slice registers
--- the T040 gate. This document becomes LAW on approval; until then it is the reconciled
-draft both halves converge to.)
+Status: LAW  (v1 reconciled + AMENDED A-F on 2026-07-13. Amendments from the fenced spec review --
+deepseek Q1 (research/reviewed/deepseek-t040-review-2026-07-12.md) + claude cross-check
+(research/reviewed/claude-t040-spec-crosscheck-2026-07-12.md): A add `pri`, B per-lane `overflow`,
+C add `ecn`, D CUT `ttl` (refined: fold into deadline_ts + conditional DEADLINE_EXCEEDED reply),
+E trace len+sha spot-check, F seq gap-window rebound off ttl. APPROVED by Daniel delegation 2026-07-13
+("leave the order up to you, keep working"); amend D is the one reversible judgment call (refined cut
+vs the mutual-exclusivity fallback -- flip on request). The riding build sub-slice may now register +
+cite this spec. Net envelope: +1 field, ZERO new families.)
 Class: build-spec (T031 hook 1 artifact -- every packet-substrate ship cites this)
 Governs: T040 (and the envelope contract T038/T039/T041 build against)
 Halves: research/reviewed/deepseek-t040-packet-spec-2026-07-12.md (blind)
@@ -40,7 +45,11 @@ R1. FIELD NAME COLLISIONS (two designs under one name -- both resolved):
   - `ttl`: deepseek's ttl = seconds-of-useful-life (drop-expired at consume, loud event);
     claude's ttl = redrive/hop count. RULED: `ttl` = SECONDS (deepseek's), because the
     loop/retry bound ALREADY lives in L4's attempt counter -- duplicating it in the
-    envelope was claude's error. Documented: loop-bounding is L4's job.
+    envelope was claude's error. Documented: loop-bounding is L4's job. [SUPERSEDED by amend D
+    (2026-07-13): the ttl FIELD is now CUT -- on one machine (one clock) it is a strictly-less-precise
+    deadline_ts; deadline_ts absorbs it, the door offers a `ts + within_s` convenience, and
+    fire-and-forget content-freshness is preserved via the conditional DEADLINE_EXCEEDED reply. The
+    loop-bound stays L4's job regardless.]
 R2. FAMILIES SHIPPING IN v1. deepseek shipped 8; his OWN governance rule says no family
   without a live consumer -- and test-attach/directive-attach consume via token machinery
   that does not exist until T038. RULED by his own rule: v1 SHIPS families whose consumers
@@ -65,7 +74,10 @@ R5. INTEGRITY COST HONESTY. deepseek required len+sha on ALL v2; claude exempted
   (PACKET_INTEGRITY_TRACE, default off) -- deepseek's own QoS0 doctrine ('no decision may
   depend on a trace delivery') means trace integrity is telemetry hygiene, not a safety
   property. latch[]/frag serialize as ABSENT when unused (no bytes, no ceremony --
-  smallest legal v2 chat gains only v+len+sha).
+  smallest legal v2 chat gains only v+len+sha). [amend E (2026-07-13): when PACKET_INTEGRITY_TRACE is
+  OFF, the send door STILL stamps len+sha on every 1000th trace packet (dial) as a spot-check; the
+  consume door logs a mismatch at WARNING (never DROP), so the implicit-ECN / telemetry-join wire can
+  detect a corrupt trace stream at ~0.1% cost.]
 R6. ROSTER HOME. deepseek: T034 manifest entries; claude: packet_spec.py. RULED middle
   path consistent with deepseek's OWN T034 cut #3 (don't absorb non-dials): schemas live
   in core/comm/packet_spec.py (code is the source of truth; families are contracts, not
@@ -87,11 +99,12 @@ Field           | Type/format                  | Req | Writer      | Validated a
 v               | int >=1                      | v2  | send door   | consume      | downgrade+warn; fail CLOSED only if a stripped field is enforcement-required (R1/D1)
 frm,to,kind,content,ts,meta,parts | (v1 fields, unchanged) | yes | sender/door | both | as today
 flow            | 32 lowercase hex (OTel)      | opt | sender mints; DOORS propagate on reply/redrive/ack | send | bad format: REFUSED at send; bogus at consume: strip+warn+treat-as-root
-seq             | int, per-flow monotonic      | when flow (enforced at first multi-lane consumer, R3) | sender (door helper next_seq) | consume | gap: hold N+1 bounded by ttl, then LOUD gap event + proceed
+seq             | int, per-flow monotonic      | when flow (enforced at first multi-lane consumer, R3) | sender (door helper next_seq) | consume | gap: hold N+1 bounded by min(remaining-to-deadline_ts, GAP_WINDOW 30s dial), then LOUD gap event + proceed [amend F; was bounded-by-ttl, rebound after the ttl cut]
 lane            | work|sig|trace|test-*        | v2  | DOOR (kind->lane router) | send | unknown kind: REFUSED; lane/stream mismatch at consume: LOUD diagnostic
 family          | roster name                  | opt (inferred from kind when absent) | sender | send | unknown: REFUSED; kind/family mismatch: LOUD flag
-ttl             | int seconds 1..86400         | opt | sender (door clamps loud) | consume | expired: DROP + ttl_expired event (intended behavior)
-deadline_ts     | float unix, absolute         | opt | sender (L4 arm sets both) | send + consume | past at send: REFUSED; past at consume: skip + DEADLINE_EXCEEDED reply (never clears expectations)
+pri             | int 0-3 (default 2)          | opt | sender | consume (load-shed only) | drop-precedence WITHIN the work lane (0=latch/expectation lifecycle -> lose last; 3=best-effort -> dropped first). SPEC-NOW; enforcement activates at the first load-shedding consumer (like seq). [amend A]
+deadline_ts     | float unix, absolute (absorbs the cut ttl) | opt | sender (L4 arm sets both; door offers a deadline_ts = ts + within_s convenience for the old relative form) | send + consume | past at send: REFUSED; past at consume: skip + stale_deadline event, AND a DEADLINE_EXCEEDED reply ONLY when an expectation is armed (fire-and-forget content just drops -- the old ttl behavior preserved); never clears expectations [amend D]
+ecn             | bool (absent = 0, no bytes)  | opt | a CONGESTED consumer sets it on its REPLY | consume -> sender's rate controller | advisory congestion feedback: the sender's backpressure controller multiplicative-decreases the (agent,family) send rate. One bit, not a window/ACK scheme. [amend C]
 latch[]         | [{id,type:causal|ref,gate,ttl_s,fail:enforce|depend,from_lane,from_id}] | opt | sender; latch layer stores | create + consume | cycle: REFUSED naming path; expiry: per `fail` (D1)
 frag            | {seq,of,whole_id} or absent  | opt | send door (allow_frag=True opt-in) | send + consume | oversize w/o allow_frag: REFUSED loud; missing frag at FRAG_REASSEMBLY_TTL (300s dial): LOUD timeout, whole dropped; orphan: LOUD drop
 len             | int bytes                    | v2 on work/sig/test-*; trace dial-optional (R5) | send door | consume | mismatch: DROP + integrity event, never delivered
@@ -103,11 +116,11 @@ False degrades to v1 integrity, LOUD, never silent.
 
 ## PER-LANE CONTRACT (folded)
 
-lane   | QoS/DSCP  | seat                          | retention       | wake | write ACL
-work   | QoS1 / AF | RB-21 fenced single consumer  | maxlen 10000    | YES (the only lane) | BUS_SEND non-quarantined
-sig    | QoS1 / EF | directed per-agent, seatless  | maxlen 5000     | no (runner checks between rounds + doorbell) | rung-gated by kind (halt/interrupt=admin+)
-trace  | QoS0 / BE | none (firehose)               | XTRIM ring 5000 | no   | may_run-gated (quarantined refused, F1)
-test-* | QoS1      | as work, per namespace        | maxlen 10000, namespace TTL | in-namespace only | drill harness only
+lane   | QoS/DSCP  | seat                          | retention       | overflow (amend B)                              | wake | write ACL
+work   | QoS1 / AF | RB-21 fenced single consumer  | maxlen 10000    | REFUSE-WRITE loud + door sets ecn (QoS1: NEVER silent-trim work) | YES (the only lane) | BUS_SEND non-quarantined
+sig    | QoS1 / EF | directed per-agent, seatless  | maxlen 5000     | REFUSE-WRITE loud (carries halt/interrupt; MUST deliver) | no (runner checks between rounds + doorbell) | rung-gated by kind (halt/interrupt=admin+)
+trace  | QoS0 / BE | none (firehose)               | XTRIM ring 5000 | XTRIM oldest (QoS0 firehose; today's Redis behavior, now explicit) | no   | may_run-gated (quarantined refused, F1)
+test-* | QoS1      | as work, per namespace        | maxlen 10000, namespace TTL | REFUSE-WRITE (drill integrity) | in-namespace only | drill harness only
 V1 HONESTY (claude half, folded): sig COMPLEMENTS the Redis control keys -- the hard HALT
 path for an IDLE agent remains control-key + doorbell until a receipted decision unifies
 them. sig is the signal RECORD lane; unification is not assumed.
