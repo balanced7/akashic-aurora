@@ -32,6 +32,10 @@ LEDGER_PATH = os.path.join(_ROOT, "state", "coord", "tasks.json")
 # --- Redis mirror (Slice B) --------------------------------------------------------------------
 # The git file above is ALWAYS the source of truth. Redis is a fast, FAIL-OPEN read cache: every
 # write goes through to it, but any Redis error is a no-op and readers fall back to the git file.
+# ns-isolation GLOBAL (2026-07-12, deliberate -- deepseek-reviewed): the task ledger is PROJECT
+# INFRASTRUCTURE -- one git-durable source of truth for the governed task roster across ALL
+# namespaces. Scoping would fork the ledger per-namespace. In the GLOBAL_MODULES allowlist
+# (see tests/test_coordination_namespace_isolation.py).
 REDIS_LEDGER_KEY = "bifrost:coord:ledger"
 REDIS_VER_KEY = "bifrost:coord:ledger:v"
 

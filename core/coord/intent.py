@@ -20,12 +20,20 @@ intent auto-expires, exactly like presence and locks.
 from __future__ import annotations
 
 import json
+import os
 import re
 import time
 from typing import Any, Dict, List, Optional
 
-NS = "bifrost"
-INTENT_PREFIX = f"{NS}:intent:"
+
+def _ns() -> str:
+    # ns-isolation (2026-07-12 core/coord follow-up, deepseek-reviewed): intent coordination is
+    # per-namespace (a drill agent's intents must not collide with live). Default "bifrost"; per-call.
+    return os.environ.get("BIFROST_NAMESPACE", "bifrost")
+
+
+def _intent_prefix() -> str:
+    return f"{_ns()}:intent:"
 DEFAULT_TTL = 900          # 15 min -- long enough for a slice, self-heals a crash (mirrors locks)
 
 
@@ -48,7 +56,7 @@ def slug(intent: str) -> str:
 
 
 def _key(agent: str, intent: str) -> str:
-    return f"{INTENT_PREFIX}{agent}:{slug(intent)}"
+    return f"{_intent_prefix()}{agent}:{slug(intent)}"
 
 
 def _norm_scope(scope) -> List[str]:
@@ -67,7 +75,7 @@ def active(agent: Optional[str] = None, client: Any = None) -> List[Dict[str, An
         return []
     out: List[Dict[str, Any]] = []
     try:
-        pattern = f"{INTENT_PREFIX}{agent}:*" if agent else f"{INTENT_PREFIX}*"
+        pattern = f"{_intent_prefix()}{agent}:*" if agent else f"{_intent_prefix()}*"
         for k in (c.keys(pattern) or []):
             raw = c.get(k)
             if raw:
@@ -125,7 +133,8 @@ def release(agent: str, intent: str, client: Any = None) -> bool:
 # --- negotiation round: brief window after user input where agents declare plans ---
 
 PROPOSAL_TIMEOUT = 8.0          # seconds agents have to respond before the round auto-closes
-PROPOSAL_NS = f"{NS}:proposal"
+def _proposal_ns() -> str:
+    return f"{_ns()}:proposal"
 PROPOSAL_TTL = 60               # proposal records auto-expire after a minute
 
 
@@ -139,7 +148,7 @@ def propose(agent: str, plan: Dict[str, Any], client: Any = None) -> Dict[str, A
     c = client or _client()
     if c is None:
         return {"ok": True, "offline": True, "round": {}}
-    key = f"{PROPOSAL_NS}:{_round_id()}:{agent}"
+    key = f"{_proposal_ns()}:{_round_id()}:{agent}"
     payload = {
         "agent": agent, "what": str(plan.get("what", "")), "intent": slug(plan.get("intent") or plan.get("what", "")),
         "scope": _norm_scope(plan.get("scope")),
@@ -168,7 +177,7 @@ def _round_state(c) -> Dict[str, Any]:
     rid = _round_id()
     proposals: List[Dict[str, Any]] = []
     try:
-        for k in (c.keys(f"{PROPOSAL_NS}:{rid}:*") or []):
+        for k in (c.keys(f"{_proposal_ns()}:{rid}:*") or []):
             raw = c.get(k)
             if raw:
                 try:
@@ -231,7 +240,7 @@ def clear_round(client: Any = None) -> int:
     rid = _round_id()
     count = 0
     try:
-        for k in (c.keys(f"{PROPOSAL_NS}:{rid}:*") or []):
+        for k in (c.keys(f"{_proposal_ns()}:{rid}:*") or []):
             c.delete(k)
             count += 1
     except Exception:
