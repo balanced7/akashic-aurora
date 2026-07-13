@@ -57,6 +57,9 @@ RESTART_RESET_S = float(os.getenv("LAUNCHER_RESTART_RESET", "300"))         # he
 
 # Auto-revive arming is PERSISTED in Redis (not just in-process) so it survives a UI/supervisor
 # restart, is shared across processes (CLI can arm/disarm), and stays consistent everywhere.
+# ns-isolation GLOBAL (2026-07-12, deliberate): the launcher spawns + revives agents for ALL
+# namespaces -- one armed set, one launcher. Scoping would fragment the cross-namespace revive
+# control. In the GLOBAL_MODULES allowlist (see tests/test_coordination_namespace_isolation.py).
 AUTO_REVIVE_KEY = "bifrost:auto_revive"
 # Jitter before an auto-revive so a simultaneous multi-agent wedge doesn't thunder-herd
 # (N kills + N onboarding boots all at once hammering Redis/CPU).

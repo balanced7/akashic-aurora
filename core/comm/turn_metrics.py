@@ -27,6 +27,7 @@ Everything fail-open: a metrics hiccup must never touch the turn it measures.
 from __future__ import annotations
 
 import json
+import os
 import statistics
 import time
 from typing import Any, Dict, Optional
@@ -35,7 +36,14 @@ HISTORY_CAP = 200
 MIN_N = 3
 LOW_CONFIDENCE_N = 8
 EST_CACHE_TTL = 30.0
-KEY_PREFIX = "bifrost:turn_metrics:"
+def _ns() -> str:
+    # ns-isolation (2026-07-12): per-agent turn stats are per-namespace; a drill agent's metrics must
+    # not pollute a live agent's history. Default "bifrost" preserved; per-call.
+    return os.environ.get("BIFROST_NAMESPACE", "bifrost")
+
+
+def _key_prefix() -> str:
+    return f"{_ns()}:turn_metrics:"
 
 _est_cache: Dict[str, Any] = {}
 _pulse_counts: Dict[str, int] = {}
@@ -63,7 +71,7 @@ def peek_pulse_count(agent: str) -> int:
 
 
 def _key(agent: str, kind: str) -> str:
-    return f"{KEY_PREFIX}{agent}:{kind}"
+    return f"{_key_prefix()}{agent}:{kind}"
 
 
 def _client():

@@ -75,6 +75,8 @@ def _promoted_record(msg_id: str, *, event_query=None) -> Optional[Dict[str, Any
     try:
         from core.events.event_query import get_event_query
         eq = event_query if event_query is not None else get_event_query()
+        # ns-isolation GLOBAL (2026-07-12): 'bifrost:<msg_id>' is an EVENT-LOG ref CONVENTION (one
+        # durable cross-namespace ledger), not a Redis key prefix -- deliberately NOT namespace-scoped.
         ref = f"bifrost:{str(msg_id).strip()}"
         for e in _events_for_ref(eq, ref, fallback_kind=PROMOTED_KIND, fallback_top_k=100000):
             if e.get("kind") == PROMOTED_KIND and ref in (e.get("refs") or []):

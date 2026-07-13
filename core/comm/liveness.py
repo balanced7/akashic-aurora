@@ -26,8 +26,14 @@ import time
 
 from core.comm.timescale import scaled as _scaled
 
-NS = "bifrost"
-WORKLIVE_PREFIX = f"{NS}:worklive:"
+def _ns() -> str:
+    # ns-isolation (2026-07-12): per-agent liveness is per-namespace observability; a drill agent's
+    # worklive/progress must not surface on the live doctor. Default "bifrost" preserved; per-call.
+    return os.environ.get("BIFROST_NAMESPACE", "bifrost")
+
+
+def _worklive_prefix() -> str:
+    return f"{_ns()}:worklive:"
 WORKLIVE_TTL = _scaled(45)  # > the ~5s heartbeat refresh, so a live record never flaps; a wedge
                             # keeps it alive (drill-shrinkable via AKASHIC_TIMEOUT_MULTIPLIER)
 
@@ -115,7 +121,7 @@ class WorkLive:
                     "detail": self._detail,
                     "seq": self._seq,
                 }
-            c.set(WORKLIVE_PREFIX + self.agent, json.dumps(rec), ex=WORKLIVE_TTL)
+            c.set(_worklive_prefix() + self.agent, json.dumps(rec), ex=WORKLIVE_TTL)
         except Exception:
             pass  # fail-open: observability must never wedge the path it observes
 
@@ -141,7 +147,7 @@ def read(agent: str):
     if c is None:
         return None
     try:
-        raw = c.get(WORKLIVE_PREFIX + str(agent))
+        raw = c.get(_worklive_prefix() + str(agent))
         return json.loads(raw) if raw else None
     except Exception:
         return None
@@ -167,7 +173,8 @@ def stuck_seconds(agent: str):
 # (self-confessed failure, rendered above inference). The value carries the tenure's
 # LOCK GENERATION (deepseek: the L1b fence doubles as the writer gate -- a stale
 # tenure's pulse is self-identifying).
-PROGRESS_PREFIX = f"{NS}:progress:"
+def _progress_prefix() -> str:
+    return f"{_ns()}:progress:"
 PROGRESS_TTL = _scaled(5)
 
 
@@ -182,7 +189,7 @@ def pulse(agent: str, detail: str = "", *, generation: int = 0) -> bool:
     if c is None:
         return False
     try:
-        c.set(PROGRESS_PREFIX + str(agent),
+        c.set(_progress_prefix() + str(agent),
               json.dumps({"ts": time.time(), "generation": int(generation),
                           "detail": str(detail)[:120]}),
               ex=PROGRESS_TTL)
@@ -199,7 +206,7 @@ def pulse_error(agent: str, reason: str, *, generation: int = 0) -> bool:
     if c is None:
         return False
     try:
-        c.set(PROGRESS_PREFIX + str(agent),
+        c.set(_progress_prefix() + str(agent),
               json.dumps({"ts": time.time(), "generation": int(generation),
                           "detail": f"trigger:{str(reason)[:100]}"}),
               ex=PROGRESS_TTL * 12)
@@ -214,7 +221,7 @@ def progress_read(agent: str):
     if c is None:
         return None
     try:
-        raw = c.get(PROGRESS_PREFIX + str(agent))
+        raw = c.get(_progress_prefix() + str(agent))
         if not raw:
             return None
         rec = json.loads(raw)

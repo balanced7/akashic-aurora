@@ -23,11 +23,19 @@ Review: research/reviewed/deepseek-t030-l4-review-2026-07-11.md (AFFIRM x5).
 from __future__ import annotations
 
 import json
+import os
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
-NS = "bifrost"
-EXPECT_PREFIX = f"{NS}:expect:"
+
+def _ns() -> str:
+    # ns-isolation (2026-07-12, Fix A generalized): coordination keys follow BIFROST_NAMESPACE so a
+    # drill namespace can never collide with (or freeze) live. Default "bifrost" preserved; per-call.
+    return os.environ.get("BIFROST_NAMESPACE", "bifrost")
+
+
+def _expect_prefix() -> str:
+    return f"{_ns()}:expect:"
 REDRIVES = 3
 MIN_WITHIN_S = 30      # clamp floor: sub-30s reply deadlines on a turn-based bus are noise
 
@@ -41,7 +49,7 @@ def _client():
 
 
 def _key(sender: str) -> str:
-    return EXPECT_PREFIX + str(sender)
+    return _expect_prefix() + str(sender)
 
 
 def _id_tuple(sid: str) -> Tuple[int, int]:

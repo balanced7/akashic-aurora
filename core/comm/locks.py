@@ -25,6 +25,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+# ns-isolation GLOBAL (2026-07-12, deliberate -- do NOT scope to BIFROST_NAMESPACE): advisory PATH
+# LOCKS protect the SHARED FILESYSTEM, which is one resource across ALL namespaces. Scoping would let
+# a drill agent and a live agent edit the SAME file each believing it holds the lock -- reintroducing
+# exactly the edit race these locks exist to prevent. In the GLOBAL_MODULES allowlist (see
+# tests/test_coordination_namespace_isolation.py).
 NS = "bifrost"
 SEQ_KEY = f"{NS}:lock:_seq"
 DEFAULT_TTL = 900   # 15 min -- long enough for a slice, short enough to self-heal a crash

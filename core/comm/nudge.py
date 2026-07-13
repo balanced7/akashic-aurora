@@ -19,13 +19,26 @@ Fail-open on any Redis error (never wedge a runner) and ADVISORY (honored by coo
 from __future__ import annotations
 
 import json
+import os
 import time
 from typing import Any, Dict, Optional
 
-NS = "bifrost"
-NUDGE_PREFIX = f"{NS}:control:nudge:"
+
+def _ns() -> str:
+    # ns-isolation (2026-07-12): nudge/steer are directed control signals; a drill nudge to agent X
+    # must not wake the LIVE X runner. Default "bifrost" preserved; per-call.
+    return os.environ.get("BIFROST_NAMESPACE", "bifrost")
+
+
+def _nudge_prefix() -> str:
+    return f"{_ns()}:control:nudge:"
+
+
+def _steer_prefix() -> str:               # per-agent queue of facts to FOLD INTO current work
+    return f"{_ns()}:steer:"
+
+
 NUDGE_TTL = 120          # a nudge auto-expires so a missed pick-up never sticks
-STEER_PREFIX = f"{NS}:steer:"    # a per-agent queue of facts to FOLD INTO current work (soft fidelity)
 STEER_TTL = 900          # a queued steer that's never picked up self-expires after 15 min
 
 
@@ -44,7 +57,7 @@ def _client():
 
 
 def _key(agent: str) -> str:
-    return NUDGE_PREFIX + str(agent)
+    return _nudge_prefix() + str(agent)
 
 
 def nudge(agent: str, by: str = "user", reason: str = "") -> bool:
@@ -102,7 +115,7 @@ def nudge_status(agent: str) -> Optional[Dict[str, Any]]:
 # BETWEEN tool rounds and splices into the live conversation, so the agent adopts it without losing its
 # place or its accumulated context. This is "be made aware of a new fact to adopt into your current task."
 def _steer_key(agent: str) -> str:
-    return STEER_PREFIX + str(agent)
+    return _steer_prefix() + str(agent)
 
 
 def steer_push(agent: str, frm: str, text: str) -> bool:

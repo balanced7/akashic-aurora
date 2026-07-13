@@ -36,11 +36,23 @@ from typing import Any, Callable, Dict, List, Optional
 from core.comm import liveness
 from core.comm.timescale import scaled as _scaled
 
-NS = "bifrost"
+def _ns() -> str:
+    # ns-isolation (2026-07-12): the doctor diagnoses agents WITHIN a namespace; its stall/page keys
+    # (and its known_agents enumeration) must stay coherent with its scoped inputs (liveness,
+    # runner_lock). Default "bifrost" preserved; per-call, not import-time.
+    return os.environ.get("BIFROST_NAMESPACE", "bifrost")
+
+
 STALL_HYSTERESIS_S = _scaled(int(os.getenv("AKASHIC_STALL_HYSTERESIS_S", "180")), floor=1)
 PAGE_DEDUP_TTL = _scaled(3600)          # one bus note per (agent, state) per hour
-STALLED_SINCE_PREFIX = f"{NS}:stalled_since:"
-PAGED_PREFIX = f"{NS}:doctor_paged:"
+
+
+def _stalled_since_prefix() -> str:
+    return f"{_ns()}:stalled_since:"
+
+
+def _paged_prefix() -> str:
+    return f"{_ns()}:doctor_paged:"
 # Recency window for surfacing an inbox-bearing agent whose runner has DIED (lost its runner-lock +
 # presence TTLs) but whose DURABLE inbox still holds undelivered work -- without resurrecting
 # long-retired agents' stale inboxes. The 2026-07-12 gap: deepseek's runner died, its lock+presence
@@ -86,7 +98,7 @@ def _probe_stalled_since(agent: str, present: bool) -> Optional[float]:
     c = _client()
     if c is None:
         return time.time() if present else None
-    key = STALLED_SINCE_PREFIX + str(agent)
+    key = _stalled_since_prefix() + str(agent)
     try:
         if not present:
             c.delete(key)
@@ -206,15 +218,15 @@ def known_agents() -> List[str]:
     ids = set()
     if c is not None:
         try:
-            for pat, pre in ((f"{NS}:worklive:*", f"{NS}:worklive:"),
-                             (f"{NS}:runner:*", f"{NS}:runner:"),
-                             (f"{NS}:presence:*", f"{NS}:presence:")):
+            for pat, pre in ((f"{_ns()}:worklive:*", f"{_ns()}:worklive:"),
+                             (f"{_ns()}:runner:*", f"{_ns()}:runner:"),
+                             (f"{_ns()}:presence:*", f"{_ns()}:presence:")):
                 for k in (c.keys(pat) or []):
                     ids.add(str(k)[len(pre):])
             # durable-inbox agents whose NEWEST message is recent (survives runner death/presence TTL)
-            ipre = f"{NS}:inbox:"
+            ipre = f"{_ns()}:inbox:"
             cutoff_ms = (time.time() - RECENT_INBOX_S) * 1000
-            for k in (c.keys(f"{NS}:inbox:*") or []):
+            for k in (c.keys(f"{_ns()}:inbox:*") or []):
                 try:
                     last = c.xrevrange(str(k), count=1)      # newest entry, O(1)
                     if last and int(str(last[0][0]).split("-")[0]) >= cutoff_ms:
@@ -266,7 +278,7 @@ def _emit_pages(pages: List[Dict[str, Any]]) -> None:
         return
     for f in pages:
         try:
-            key = f"{PAGED_PREFIX}{f['agent']}:{f['state']}"
+            key = f"{_paged_prefix()}{f['agent']}:{f['state']}"
             if c is not None and not c.set(key, "1", nx=True, ex=PAGE_DEDUP_TTL):
                 continue                    # already paged this hour
             bus.broadcast("note", f"[doctor] {f['line']}  drill: {f['drill']}",

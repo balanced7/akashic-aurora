@@ -24,9 +24,18 @@ from typing import Optional
 
 from core.comm.timescale import scaled
 
-NS = "bifrost"
-LOCK_PREFIX = f"{NS}:runner:"
-GEN_PREFIX = f"{NS}:generation:"   # L1b: monotone fencing-token source, INCR per acquisition
+def _ns() -> str:
+    # ns-isolation (2026-07-12): the consumer SEAT + fencing generation are per-namespace by design
+    # (RB-21 single-consumer is WITHIN a namespace); a drill seat must never block the live seat.
+    return os.environ.get("BIFROST_NAMESPACE", "bifrost")
+
+
+def _lock_prefix() -> str:
+    return f"{_ns()}:runner:"
+
+
+def _gen_prefix() -> str:                # L1b: monotone fencing-token source, INCR per acquisition
+    return f"{_ns()}:generation:"
 LOCK_TTL = scaled(20)    # seconds; the heartbeat must refresh well within this
                          # (drill-shrinkable via AKASHIC_TIMEOUT_MULTIPLIER)
 # RB-21: a turn-based SESSION cannot heartbeat in runner seconds -- its claim on the very
@@ -59,7 +68,7 @@ def _client():
 
 
 def _key(agent: str) -> str:
-    return LOCK_PREFIX + str(agent)
+    return _lock_prefix() + str(agent)
 
 
 def instance_token(agent: str) -> str:
@@ -86,7 +95,7 @@ def acquire(agent: str, token: str, ttl: Optional[int] = None) -> bool:
         # Minted per ATTEMPT (the value must exist before the nx SET stores it); a losing
         # contender leaves a gap in the sequence, which is harmless -- monotonicity is the
         # only property the fence needs, and nobody ever WRITES with an unwon generation.
-        gen = int(c.incr(GEN_PREFIX + str(agent)))
+        gen = int(c.incr(_gen_prefix() + str(agent)))
         if c.set(_key(agent), json.dumps({"token": token, "pid": os.getpid(), "ts": _now(),
                                           "gen": gen}),
                  nx=True, ex=int(ttl or LOCK_TTL)):
