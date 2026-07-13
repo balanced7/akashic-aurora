@@ -1,5 +1,5 @@
 {
-  "seq": 42,
+  "seq": 43,
   "tasks": [
     {
       "id": "T001",
@@ -1450,11 +1450,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "claimed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "757a624",
+      "verified_by": "fenced dual reconciliation (deepseek-t040-review + claude-t040-spec-crosscheck); spec Status:LAW; Daniel delegation approval 2026-07-13; riding build registered T043",
       "created": "2026-07-12T07:45:13+00:00",
-      "updated": "2026-07-12T07:46:00+00:00",
+      "updated": "2026-07-13T06:16:28+00:00",
       "history": [
         {
           "to": "proposed",
@@ -1470,6 +1470,21 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-07-12T07:46:00+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-07-13T06:16:12+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-07-13T06:16:27+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-07-13T06:16:28+00:00"
         }
       ]
     },
@@ -1512,6 +1527,49 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-12T07:59:26+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T043",
+      "title": "Packet send-door hardening (T040 riding build): MTU refuse-loud (BUS_MAX_MESSAGE_BYTES, never truncate) + len/sha integrity validated at consume (DROP+event, expectations stay armed) + frag {seq,of,whole_id} (missing fragment detectable) + PACKET_INTEGRITY kill-switch + runner tool-bridge routed through the MTU check + v1 forward-compat (unknown keys preserved)",
+      "desc": "",
+      "owner": "claude",
+      "deps": [
+        "T040"
+      ],
+      "files": [
+        "core/comm/packet_spec.py",
+        "core/comm/bus.py",
+        "scripts/deepseek_chat.py",
+        "tests/test_packet_send_door.py"
+      ],
+      "acceptance": "docs/packet-spec-v1-2026-07.md RIDING BUILD pins 1-10 + 3-receipt replay drill (2a-2c append, knowledge_note body, oversized handoff) all green; DeepSeek verify GATE GREEN (verbatim record research/reviewed/); review-gated commit",
+      "status": "in_progress",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-13T06:15:14+00:00",
+      "updated": "2026-07-13T06:16:29+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-13T06:15:14+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-13T06:15:21+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-13T06:16:28+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-07-13T06:16:29+00:00"
         }
       ]
     }

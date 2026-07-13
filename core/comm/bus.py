@@ -22,10 +22,13 @@ catches up on exactly what it missed and never re-reads (offset semantics withou
 """
 import json
 import os
+import sys
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
+from core.comm import packet_spec
 from core.comm.blobs import get_blob_store
 
 NS = "bifrost"
@@ -44,6 +47,15 @@ def bell_channel(to: str) -> str:
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _loud(msg: str) -> None:
+    """A packet-integrity refusal/drop must be VISIBLE, never silent (the whole point of T043).
+    Best-effort stderr; never raises (the transport must survive a logging failure)."""
+    try:
+        print(msg, file=sys.stderr, flush=True)
+    except Exception:
+        pass
 
 
 def _loads(s: Any) -> Any:
@@ -142,6 +154,11 @@ class Bus:
         # never leak into the canonical firehose. Pass promote=True/False to force the behavior.
         self._promote = (os.getenv("PYTEST_CURRENT_TEST") is None) if promote is None else bool(promote)
         self._card: Dict[str, Any] = {}        # the agent's A2A-style card (runtime_class/wake_mode/door/caps)
+        self._last_degraded_warn = 0.0         # T043: rate-limit the integrity-disabled LOUD warning
+        # T043: consumer-side fragment reassembly, DURABLY backed (survives restart -> the LOUD
+        # timeout still fires; see packet_spec.Reassembler). Rehydrate any in-flight partial now.
+        self._reasm = packet_spec.Reassembler(persist=self._reasm_persist)
+        self._rehydrate_reasm()
 
     # ------------------------------------------------------------------ identity / health
     @property
@@ -220,20 +237,23 @@ class Bus:
 
     # ------------------------------------------------------------------ send
     def send(self, to: str, kind: str, content: Any = None, *, parts: Optional[List[Part]] = None,
-             meta: Optional[Dict[str, Any]] = None) -> Optional[str]:
+             meta: Optional[Dict[str, Any]] = None, allow_frag: bool = False) -> Optional[str]:
         """Direct message to one agent's inbox (optionally with `parts` -- inline or media-by-ref).
-        Returns the message id, or None if the bus is offline."""
+        Returns the message id, or None if the bus is offline OR the packet exceeds the MTU and
+        `allow_frag` is False (a REFUSE-LOUD, never a silent truncation -- T043). Pass
+        allow_frag=True to fragment an oversize payload, or carry large media as a blob-ref Part."""
         return self._emit(self._inbox_key(str(to)), to=str(to), kind=kind, content=content,
-                          parts=parts, meta=meta)
+                          parts=parts, meta=meta, allow_frag=allow_frag)
 
     def broadcast(self, kind: str, content: Any = None, *, parts: Optional[List[Part]] = None,
-                  meta: Optional[Dict[str, Any]] = None) -> Optional[str]:
-        """Fan-out to every agent (each reads it from its own cursor). Returns the message id or None."""
+                  meta: Optional[Dict[str, Any]] = None, allow_frag: bool = False) -> Optional[str]:
+        """Fan-out to every agent (each reads it from its own cursor). Returns the message id or None
+        (None also on an oversize refuse-loud when allow_frag is False -- T043)."""
         return self._emit(self._bc_key, to=BROADCAST_TO, kind=kind, content=content,
-                          parts=parts, meta=meta)
+                          parts=parts, meta=meta, allow_frag=allow_frag)
 
     def _emit(self, stream: str, *, to: str, kind: str, content: Any,
-              parts: Optional[List[Part]] = None, meta=None) -> Optional[str]:
+              parts: Optional[List[Part]] = None, meta=None, allow_frag: bool = False) -> Optional[str]:
         if not self.online:
             return None
         part_dicts = [(p.to_dict() if isinstance(p, Part) else p) for p in (parts or [])]
@@ -241,6 +261,15 @@ class Bus:
                "content": json.dumps(content, default=str), "ts": _now(),
                "meta": json.dumps(meta or {}, default=str),
                "parts": json.dumps(part_dicts, default=str)}
+        # T043 SEND DOOR: enforce the MTU (refuse loud, or fragment on opt-in) then stamp v/len/sha.
+        # The size bounded is the canonical len -- the same honest number the consume door verifies.
+        length, sha = packet_spec.compute_len_sha(env)
+        if not packet_spec.within_mtu(length):
+            if not allow_frag:
+                _loud(packet_spec.mtu_refusal_text(length))     # NEVER truncate (pin 1)
+                return None
+            return self._emit_fragments(stream, env, to=to, kind=str(kind))
+        packet_spec.stamp(env, length=length, sha=sha)         # adds v, len, sha (pin 2/3/4); reuse the hash
         try:
             mid = str(self._client.xadd(stream, env, maxlen=self.maxlen, approximate=True))
             self._touch()
@@ -254,6 +283,24 @@ class Bus:
             return mid
         except Exception:
             return None
+
+    def _emit_fragments(self, stream: str, env: Dict[str, Any], *, to: str, kind: str) -> Optional[str]:
+        """Split an oversize payload into MTU-safe fragment packets and xadd each (T043 pin 5).
+        Every fragment is len+sha-stamped and carries frag={seq,of,whole_id,whole_len,whole_sha}
+        so the consumer can reassemble and detect a missing piece (pin 6). Rings the bell ONCE
+        for the whole; returns the id of the first fragment (or None on any write failure)."""
+        first_mid: Optional[str] = None
+        for fenv in packet_spec.fragment(env):
+            try:
+                mid = str(self._client.xadd(stream, fenv, maxlen=self.maxlen, approximate=True))
+            except Exception:
+                return None
+            if first_mid is None:
+                first_mid = mid
+        if first_mid is not None:
+            self._touch()
+            self._ring_bell(to, first_mid, str(kind))
+        return first_mid
 
     def _ring_bell(self, to: str, mid: str, kind: str) -> None:
         """Doorbell (Bifrost Mesh W1): a payload-free pub/sub notice so a Dispatcher wakes in ~ms.
@@ -342,8 +389,13 @@ class Bus:
                     temp.close()
                 except Exception:
                     pass
-        if not res:
+        now = time.time()
+        if not res:                                # idle read: still time out any stalled partial
+            for wid, missing in self._reasm.sweep_expired(now):   # (pin 6: a quiet stream must
+                self._fragment_timeout(wid, missing)              # still fire fragment_timeout)
             return []
+        if not packet_spec.integrity_enabled():    # kill-switch off: delivering UNVERIFIED -> LOUD (pin 4)
+            self._integrity_degraded_warn()
         new_inbox, new_bc = cur["inbox"], cur["bc"]
         out: List[Message] = []
         # Track which stream each message came from so we can fix the cursor AFTER truncation.
@@ -357,11 +409,30 @@ class Bus:
                     new_bc = sid
                 else:
                     new_inbox = sid
-                m = self._to_msg(sid, fields)
+                # T043 CONSUME DOOR. A dropped/incomplete packet is FILTERED (not added to out)
+                # while its sid still advances the cursor -- 'filtered != truncated' (T014), the
+                # same discipline that skips an own-broadcast: a corrupt packet can never wedge
+                # the stream by being re-read forever.
+                ok, why = packet_spec.verify_integrity(fields)
+                if not ok:
+                    self._integrity_drop(sid, fields, why)     # DROP + loud event (pin 2/3)
+                    continue
+                if packet_spec.parse_frag(fields) is not None:
+                    whole, prob = self._reasm.add(fields, now=now)   # buffer/reassemble (pin 5)
+                    if prob is not None:
+                        self._frag_problem(sid, prob)          # loud orphan/stale/whole-corrupt
+                        continue
+                    if whole is None:
+                        continue                               # buffered; set incomplete
+                    m = self._to_msg(sid, whole)               # deliver the reassembled whole
+                else:
+                    m = self._to_msg(sid, fields)
                 if is_bc and m.frm == self.agent_id:
                     continue                       # don't deliver an agent its own broadcast
                 out.append(m)
                 out_streams.append("bc" if is_bc else "inbox")
+        for wid, missing in self._reasm.sweep_expired(now):    # pin 6/7: LOUD timeout, seq named
+            self._fragment_timeout(wid, missing)
         # Sort messages (and their stream-tags) by id so newest-last
         pairs = sorted(zip(out, out_streams), key=lambda p: p[0].id)
         out = [p[0] for p in pairs]
@@ -515,6 +586,102 @@ class Bus:
         return Message(id=str(sid), frm=fields.get("frm", ""), to=fields.get("to", ""),
                        kind=fields.get("kind", ""), content=_loads(fields.get("content")),
                        ts=fields.get("ts", ""), meta=_loads(fields.get("meta")) or {}, parts=parts)
+
+    # ------------------------------------------------ T043 consume-door loud events
+    def _integrity_drop(self, sid: str, fields: Dict[str, Any], why: str) -> None:
+        """A packet failed the consume-door len/sha check: DROP it (never deliver) and record a
+        LOUD durable event + stderr line. The cursor still advances past it. RB-29 EXTENSION
+        (pin 9): because a corrupt reply is dropped HERE, and expectations.sweep reads replies
+        THROUGH this same consume door (Bus.wait -> _drain), a corrupt reply is invisible to the
+        sweep and clears no armed expectation -- integrity failure never counts as an answer."""
+        try:
+            from core.events.event_log import capture_event
+            capture_event("packet_integrity_drop",
+                          f"dropped corrupt packet from {fields.get('frm', '?')} "
+                          f"kind={fields.get('kind', '?')}: {why}",
+                          agent_id=self.agent_id, refs=[str(sid)],
+                          detail={"frm": fields.get("frm"), "kind": fields.get("kind"), "why": why})
+        except Exception:
+            pass
+        _loud(f"[packet-integrity] DROP {sid} from {fields.get('frm', '?')} ({why})")
+
+    def _frag_problem(self, sid: str, prob) -> None:
+        """A fragment was an orphan / arrived after its whole went stale / failed whole-verify."""
+        kind, detail = prob
+        try:
+            from core.events.event_log import capture_event
+            capture_event("packet_frag_problem", f"fragment {kind}: {detail}",
+                          agent_id=self.agent_id, refs=[str(sid)],
+                          detail={"problem": kind, "detail": detail})
+        except Exception:
+            pass
+        _loud(f"[packet-frag] {kind} {sid}: {detail}")
+
+    def _fragment_timeout(self, whole_id: str, missing) -> None:
+        """A whole never completed within FRAG_REASSEMBLY_TTL -- drop it LOUD, NAME the missing
+        seq(s) (pin 6): a missing fragment is detectable, never a silent partial message."""
+        try:
+            from core.events.event_log import capture_event
+            capture_event("fragment_timeout",
+                          f"whole {whole_id} incomplete: missing seq {missing}",
+                          agent_id=self.agent_id, refs=[str(whole_id)],
+                          detail={"whole_id": whole_id, "missing": missing})
+        except Exception:
+            pass
+        _loud(f"[packet-frag] fragment_timeout whole={whole_id} missing seq {missing}")
+
+    def _integrity_degraded_warn(self) -> None:
+        """The integrity kill-switch is OFF: packets are delivered WITHOUT len/sha verification.
+        That degraded mode must be LOUD, never silent (pin 4 / spec kill-switch clause). Rate-
+        limited to once/60s per consumer so it stays visible without flooding a busy drain loop."""
+        nowt = time.time()
+        if nowt - self._last_degraded_warn < 60.0:
+            return
+        self._last_degraded_warn = nowt
+        try:
+            from core.events.event_log import capture_event
+            capture_event("packet_integrity_degraded",
+                          "PACKET_INTEGRITY_ENABLED is False -- delivering packets WITHOUT len/sha "
+                          "verification (degraded to v1 integrity)", agent_id=self.agent_id)
+        except Exception:
+            pass
+        _loud("[packet-integrity] DEGRADED: PACKET_INTEGRITY_ENABLED=False -- delivering UNVERIFIED "
+              "packets (v1 integrity). Corruption will NOT be caught until you flip it back on.")
+
+    # ------------------------------------------------ T043 durable reassembly (crash recovery)
+    def _reasm_key(self) -> str:
+        return f"{self.ns}:reasm:{self.agent_id}"
+
+    def _reasm_persist(self, whole_id: str, slot: Optional[Dict[str, Any]]) -> None:
+        """Mirror one in-flight reassembly slot to a Redis hash (slot=None deletes it on
+        completion/timeout), so a consumer restart still fires the LOUD timeout for a partial
+        (deepseek GATE RED fix: no silent loss on restart). Best-effort; never fails a drain."""
+        if not self.online:
+            return
+        try:
+            if slot is None:
+                self._client.hdel(self._reasm_key(), whole_id)
+            else:
+                self._client.hset(self._reasm_key(), whole_id, json.dumps(slot, default=str))
+        except Exception:
+            pass
+
+    def _rehydrate_reasm(self) -> None:
+        """Reload any persisted in-flight partials at construction (crash recovery)."""
+        if not self.online:
+            return
+        try:
+            raw = self._client.hgetall(self._reasm_key()) or {}
+            slots = {}
+            for wid, val in raw.items():
+                try:
+                    slots[wid] = json.loads(val)
+                except (ValueError, TypeError):
+                    continue
+            if slots:
+                self._reasm.rehydrate(slots)
+        except Exception:
+            pass
 
 
 _INSTANCES: Dict[str, Bus] = {}

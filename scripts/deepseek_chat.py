@@ -857,7 +857,13 @@ class Agent:
                     print(f"{C.yellow}🔧 {s['name']}({shown[:160]}){C.reset}")
                     self._trace("tool", f"{s['name']}({shown[:140]})")
                     self._activity(*_tool_activity(s["name"], args))
-                    result = self.toolbox.execute(s["name"], args)
+                    from core.comm import packet_spec as _ps    # T043 pin 8: MTU gate at the bite site
+                    _ok, _refusal = _ps.tool_args_within_mtu(s["name"], args)
+                    if not _ok:
+                        print(f"{C.red}   ⛔ {_refusal}{C.reset}")
+                        result = _refusal    # the tool result the model sees -- refuse loud, never a silent clip
+                    else:
+                        result = self.toolbox.execute(s["name"], args)
                     first = result.splitlines()[0] if result else ""
                     print(f"{C.dim}   → {len(result)} chars | {first[:120]}{C.reset}")
                     self.messages.append({"role": "tool", "tool_call_id": s["id"], "content": result})
