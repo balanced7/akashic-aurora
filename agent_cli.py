@@ -2340,9 +2340,15 @@ def cmd_bifrost_send(args):
         print("[bifrost-send] bus OFFLINE (Redis down) -- not sent."); return 1
     bus.register()
     text = " ".join(args.text) if isinstance(args.text, list) else str(args.text)
-    expect = int(getattr(args, "expect_reply_within", 0) or 0)
+    expect_arg = int(getattr(args, "expect_reply_within", -1))   # -1 = UNSET (arg default)
+    # Directed ASKS (request/handoff/question) DEFAULT to a reply-deadline so a dropped ask surfaces
+    # itself -- the 2026-07-12 silent-handoff incident: fenced asks fire-and-forgotten to a dead peer
+    # went unflagged for hours. UNSET + ask-kind -> AUTO window; explicit 0 opts out; explicit >0 wins.
+    ASK_KINDS = {"request", "handoff", "question"}
+    ASK_EXPECT_DEFAULT_S = int(os.getenv("AKASHIC_ASK_EXPECT_S", "1800"))
+    expect = 0
     if args.broadcast:
-        if expect:
+        if expect_arg > 0:
             print("ERROR: --expect-reply-within needs a DIRECTED send (--to); a broadcast "
                   "has no single answerer to redrive."); return 2
         mid = bus.broadcast(args.kind, text)
@@ -2353,11 +2359,14 @@ def cmd_bifrost_send(args):
                   'e.g. bifrost-send claude --to deepseek "hi"'); return 2
         mid = bus.send(args.to, args.kind, text)
         dest = args.to
-        if mid and expect:
+        auto = expect_arg < 0 and args.kind in ASK_KINDS
+        expect = ASK_EXPECT_DEFAULT_S if auto else max(0, expect_arg)
+        if mid and expect > 0:
             # RB-29 (T030 L4): arm the sender-side deadline; the pull floor sweeps it.
             from core.comm.expectations import MIN_WITHIN_S, arm
             if arm(args.agent_id, mid, args.to, args.kind, text, expect):
-                print(f"[bifrost-send] expecting a reply within {max(MIN_WITHIN_S, expect)}s "
+                tag = " [auto: directed ask -- add --expect-reply-within 0 to opt out]" if auto else ""
+                print(f"[bifrost-send] expecting a reply within {max(MIN_WITHIN_S, expect)}s{tag} "
                       f"(3 redrives then a loud expectation_dead; swept at boot/bifrost-sync)")
     if args.json:
         print(json.dumps({"sent": bool(mid), "id": mid, "to": dest, "kind": args.kind,
@@ -2790,9 +2799,10 @@ def build_parser():
     snd.add_argument("--to", default="", help="recipient agent id (e.g. deepseek); omit with --broadcast")
     snd.add_argument("--kind", default="chat", help="chat|request|question|handoff|... (default chat)")
     snd.add_argument("--broadcast", action="store_true", help="send to ALL agents instead of one --to")
-    snd.add_argument("--expect-reply-within", type=int, default=0, metavar="SECONDS",
-                     help="RB-29: arm a sender-side reply deadline (clamped >=30s; 3 redrives "
-                          "then a loud expectation_dead; swept at boot/bifrost-sync)")
+    snd.add_argument("--expect-reply-within", type=int, default=-1, metavar="SECONDS",
+                     help="RB-29: arm a sender-side reply deadline (clamped >=30s; 3 redrives then a "
+                          "loud expectation_dead; swept at boot/bifrost-sync). DIRECTED asks "
+                          "(request/handoff/question) AUTO-arm a default window if unset; pass 0 to opt out.")
     snd.add_argument("--json", action="store_true")
     snd.set_defaults(fn=cmd_bifrost_send)
 
