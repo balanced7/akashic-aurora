@@ -41,6 +41,11 @@ STALL_HYSTERESIS_S = _scaled(int(os.getenv("AKASHIC_STALL_HYSTERESIS_S", "180"))
 PAGE_DEDUP_TTL = _scaled(3600)          # one bus note per (agent, state) per hour
 STALLED_SINCE_PREFIX = f"{NS}:stalled_since:"
 PAGED_PREFIX = f"{NS}:doctor_paged:"
+# Recency window for surfacing an inbox-bearing agent whose runner has DIED (lost its runner-lock +
+# presence TTLs) but whose DURABLE inbox still holds undelivered work -- without resurrecting
+# long-retired agents' stale inboxes. The 2026-07-12 gap: deepseek's runner died, its lock+presence
+# TTL'd away, and it vanished from known_agents() while 7 unread asks sat in its inbox unwatched.
+RECENT_INBOX_S = _scaled(int(os.getenv("AKASHIC_RECENT_INBOX_S", str(12 * 3600))), floor=1)
 
 
 def _client():
@@ -191,7 +196,12 @@ def _f(agent, state, grade, line, drill):
 
 
 def known_agents() -> List[str]:
-    """Union of ids with a worklive record, a runner lock, or presence."""
+    """Union of ids with a worklive record, a runner lock, presence, OR a durable inbox holding
+    RECENT unconsumed mail. That last source is the fix for the 2026-07-12 gap: worklive/runner/
+    presence are ALL TTL'd, so a dead-runner agent decays out of view within a minute even though its
+    inbox (durable) still holds undelivered work -- and the stalled_consumer check never gets to
+    examine it. Enumerating recent-inbox agents keeps a stuck/absent consumer visible; recency-gated
+    (RECENT_INBOX_S) so long-retired agents' stale inboxes don't resurrect as findings."""
     c = _client()
     ids = set()
     if c is not None:
@@ -201,6 +211,16 @@ def known_agents() -> List[str]:
                              (f"{NS}:presence:*", f"{NS}:presence:")):
                 for k in (c.keys(pat) or []):
                     ids.add(str(k)[len(pre):])
+            # durable-inbox agents whose NEWEST message is recent (survives runner death/presence TTL)
+            ipre = f"{NS}:inbox:"
+            cutoff_ms = (time.time() - RECENT_INBOX_S) * 1000
+            for k in (c.keys(f"{NS}:inbox:*") or []):
+                try:
+                    last = c.xrevrange(str(k), count=1)      # newest entry, O(1)
+                    if last and int(str(last[0][0]).split("-")[0]) >= cutoff_ms:
+                        ids.add(str(k)[len(ipre):])
+                except Exception:
+                    pass
         except Exception:
             pass
     ids.discard("")
