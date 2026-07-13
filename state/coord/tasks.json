@@ -1545,11 +1545,11 @@
         "tests/test_packet_send_door.py"
       ],
       "acceptance": "docs/packet-spec-v1-2026-07.md RIDING BUILD pins 1-10 + 3-receipt replay drill (2a-2c append, knowledge_note body, oversized handoff) all green; DeepSeek verify GATE GREEN (verbatim record research/reviewed/); review-gated commit",
-      "status": "in_progress",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "c9d511b",
+      "verified_by": "13/13 pins+drill (tests/test_packet_send_door.py) + 70/70 regression; deepseek adversarial GATE GREEN r3 (research/reviewed/deepseek-t043-verify-gate-2026-07-13.md); fenced dual build reconciled",
       "created": "2026-07-13T06:15:14+00:00",
-      "updated": "2026-07-13T06:16:29+00:00",
+      "updated": "2026-07-13T07:03:49+00:00",
       "history": [
         {
           "to": "proposed",
@@ -1570,6 +1570,16 @@
           "to": "in_progress",
           "by": "claude",
           "at": "2026-07-13T06:16:29+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-07-13T07:03:49+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-07-13T07:03:49+00:00"
         }
       ]
     }

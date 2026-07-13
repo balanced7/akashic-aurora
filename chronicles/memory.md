@@ -1,15 +1,16 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 39 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 48 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
-- where-we-are: Shipped:
-  - T040 packet spec FINALIZED -> LAW (amendments A-F applied per Daniel keep-working delegation; the T040 gate is crossed). A add pri...  (source: mem:decision:ADR_0713005906_2bc94c4a)
+- where-we-are: Shipped this session:
+- T043 send-door hardening DONE @ c9d511b (T040 riding build; the packet-substrate arc's first BUILD). MTU refuse-loud...  (source: mem:decision:ADR_0713030525_c4b10699)
 - next-focus: T029 CERTIFIED; FIRST BUILD SHIPPED (ns-isolation conversion), 2026-07-12. Packet-substrate build phase OPEN + underway. DONE this build: 6 core/comm...  (source: mem:decision:ADR_0712235247_7579f5f0)
 - rb25-drill3-deepseek-verify-2026-07-12: # RB-25 Drill 3 — DeepSeek Independent VERIFY (2026-07-12)
 
 ## Verdict: GREEN. All five bars pass on the valid re-run (storm...  (source: mem:decision:ADR_0712230923_7d7055ec)
+- where-we-are: RB-25 DRILL 3 (STORM): VALID RE-RUN PASSES ALL 5 BARS, 2026-07-12 (storm 4ddf0a71; deepseek verify = remaining fence gate). S1 29/29 answered 0 lost; S2 no...  (source: mem:decision:ADR_0712171924_6bc02840)
 - t038-identity-blocker: T038 identity FENCE COMPLETE (design), 2026-07-12. deepseek adversarial counter-review (research/reviewed/deepseek-t038-identity-2026-07-12.md...  (source: mem:decision:ADR_0712125910_e63ca7be)
 - t036-nonconsuming-seat-claimant: T036/T037 TRIAL DATUM (Fable session 7d4857e1, 2026-07-12 ~05:00): the claude consumer seat shows FRESH claims (observed 'claimed 51s...  (source: mem:decision:ADR_0712042614_cf4e874b)
 - recall-networking-research: RECALL-AS-NETWORK LANE: FENCE CLOSED, RECONCILED (2026-07-12 ~04:4x). RECORD...  (source: mem:decision:ADR_0712042219_3b6bd706)
@@ -30,6 +31,10 @@ DeepSeek independent fence review of commit d926bb8 (+ amendment db1044f) per ch
 
 DeepSeek verify of the newborn gauntlet (drill 1 of the RB-25 engine exam) is complete
 and...  (source: mem:decision:ADR_0712014603_09f2024d)
+- where-we-are: Shipped:
+  - arc_scorecard window fix (caught by its OWN first live render in wrap: git approxidate silently ignores fractional 'N days ago' -> 0.25d read...  (source: mem:decision:ADR_0711150748_c6f5e269)
+- next-focus: T030 CLOSED 2026-07-11 (deepseek GATE GREEN l4l5-verify + kill-Redis drill ALL PASSED, transcript preserved; RB-29 non-answer discipline hardened...  (source: mem:decision:ADR_0711143306_ee961ed6)
+- next-focus: W3 RB-9..12 LANDED 2026-07-11 (deepseek overnight build, claude wake-verify: 3 REDs found+fixed+1 unpinned regression caught; record...  (source: mem:decision:ADR_0711124358_cf964a30)
 - t034-registry-design-deepseek-part7: # T034 remainder — part7 (2 Goodharts + cut list + reconciliation) FINAL
 
 ### 2 GOODHARTS
@@ -62,8 +67,17 @@ Status: blind-design (2026-07-11, fenced — written BEFORE reading...  (source:
 - rb23-heldout-corpus-sealed: {"id":"ds-41","text":"(deepseek produced no final...  (source: mem:decision:ADR_0711033057_6379)
 - drilldone85014a-status: GOVERNING ARC DOC: docs/drilldone85014a-plan.md -- ARC COMPLETE 2026-07-11. ALL SLICES SHIPPED.  (source: mem:decision:ADR_0711023113_4674)
 - drilldone71d993-status: GOVERNING ARC DOC: docs/drilldone71d993-plan.md -- ARC COMPLETE 2026-07-11. ALL SLICES SHIPPED.  (source: mem:decision:ADR_0711022957_8292)
+- where-we-are: Shipped:
+  - Progress bars, data half (Daniel-directed; co-designed, reconciliation record research/reviewed/deepseek-progress-bars-codesign-2026-07-11.md...  (source: mem:decision:ADR_0711015109_3699)
+- where-we-are: Shipped:
+  - T030 L1+L1b (claude lane, deepseek-codesigned): at-least-once inbox + fencing token -- the mail-loss incident class is dead. RB-26: runner...  (source: mem:decision:ADR_0710235441_1090)
+- where-we-are: Shipped:
+  - F4 CLOSED (deepseek review GATE GREEN): document the _yield_notice raw-Bus call as gated-upstream-by-write-cap + unreachable-by-non-writer...  (source: mem:decision:ADR_0710202354_3459)
 - T029-wave1-review-status: T029 Wave 1 built+committed OVERNIGHT by DeepSeek (3 commits unpushed: d6cbf75 slices doc, 0f9172b fenced-correction, 3941789 Wave-1 code)...  (source: mem:decision:ADR_0710080005_3595)
 - comms-pillar-status: GOVERNING ARC DOC: docs/comms-pillar-synthesis-2026-07.md -- ARC COMPLETE 2026-07-10. ALL SLICES SHIPPED: P0 wake detect-dont-consume (+T018...  (source: mem:decision:ADR_0710004517_2741)
+- comms-pillar-status: GOVERNING ARC DOC: docs/comms-pillar-synthesis-2026-07.md (P0-P8 plan). SHIPPED: P0 @d925d6b (+T018/T019), P1 @d6153c2 (notes 67->11), P2 @bd03ac1...  (source: mem:decision:ADR_0709235210_7260)
+- where-we-are: Shipped:
+  - T022/P2: boot orientation header + precedence doctrine. First lines of every boot (both doors) now carry: map pointer, governing arc...  (source: mem:decision:ADR_0709223928_8266)
 - visualgen-status: Visual-gen integration research COMPLETE 2026-07-09: fenced dual pass (web agent verified all 10 candidate repos -- 2 unlicensed, 1 paper stub, 3...  (source: mem:decision:ADR_0709204054_7589)
 - forge-design-status: Forge status 2026-07-09 ~01:00: F2+F4 SHIPPED under T013 (@HEAD, 897 tests green). THE LOOP IS LIVE: recall-curate --forge-propose ran against real...  (source: mem:decision:ADR_0709005840_8516)
 - comprehensibility-immune-system: PILLAR SHIPPED 2026-07-07 (codesigned w/ DeepSeek). The comprehensibility immune system: guards that keep the architecture...  (source: mem:decision:ADR_0707235722_5056)
