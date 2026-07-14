@@ -611,28 +611,118 @@ class Bus:
     """
 
     def advance_to(self, *, inbox: Optional[str] = None, bc: Optional[str] = None,
-                   generation: int = 0) -> str:
+                   generation: int = 0, cursor_key: Optional[str] = None) -> str:
         """Commit the shared read-cursor PAST handled work (RB-26: commit-after-processing;
         the at-least-once half of the idempotent-consumer pattern). Guarded by the fencing
         `generation` (L1b): a fenced-out predecessor gets 'STALE_GENERATION' and MUST stand
         down -- the successor owns the cursor now. Returns the strictest status seen:
         'STALE_GENERATION' > 'BACKWARDS' > 'ERROR' > 'OK'/'OK_NOOP'. 'OFFLINE' when no bus.
-        A crash before this call leaves the message unconsumed -- redelivery, not loss."""
+        A crash before this call leaves the message unconsumed -- redelivery, not loss.
+
+        `cursor_key` (T045 stage 2, fence Q1 refinement) overrides WHICH cursor hash the
+        guarded Lua writes -- default None = the shared legacy cursor (zero change for
+        existing callers); lane-mode consumers pass lane_cursor_key() so a lane advance can
+        never touch the shared cursor (pin R8). Same Lua either way: stale-generation and
+        backwards ids are refused at the resource on ANY cursor hash."""
         if not self.online:
             return "OFFLINE"
         worst = "OK_NOOP"
         rank = {"OK_NOOP": 0, "OK": 1, "ERROR": 2, "BACKWARDS": 3, "STALE_GENERATION": 4}
+        key = cursor_key or self._cursor_key()
         for field, val in (("inbox", inbox), ("bc", bc)):
             if val is None:
                 continue
             try:
-                res = str(self._client.eval(self._ADVANCE_LUA, 1, self._cursor_key(),
+                res = str(self._client.eval(self._ADVANCE_LUA, 1, key,
                                             int(generation), field, str(val)))
             except Exception:
                 res = "ERROR"
             if rank.get(res, 1) > rank.get(worst, 0):
                 worst = res
         return worst
+
+    def advance_cursor_fields(self, cursor_key: str, fields: Dict[str, str],
+                              generation: int = 0) -> str:
+        """Per-field guarded advance on an arbitrary cursor hash -- the sig/shadow sibling
+        of advance_to(cursor_key=): same Lua (stale generation + backwards refused at the
+        resource), arbitrary field names (sig_inbox/sig_bc/shadow_inbox/shadow_bc). WORK
+        positions go through advance_to so the pin-R surface stays one door."""
+        if not self.online:
+            return "OFFLINE"
+        worst = "OK_NOOP"
+        rank = {"OK_NOOP": 0, "OK": 1, "ERROR": 2, "BACKWARDS": 3, "STALE_GENERATION": 4}
+        for field, val in (fields or {}).items():
+            if val is None:
+                continue
+            try:
+                res = str(self._client.eval(self._ADVANCE_LUA, 1, cursor_key,
+                                            int(generation), str(field), str(val)))
+            except Exception:
+                res = "ERROR"
+            if rank.get(res, 1) > rank.get(worst, 0):
+                worst = res
+        return worst
+
+    # ------------------------------------------------ T045 stage 2: LANE consumer cursor
+    def lane_cursor_key(self, agent: Optional[str] = None) -> str:
+        """'{ns}:cursor:lane:{agent}' -- the lane consumer's DURABLE cursor hash (fence Q1,
+        deepseek proposal adopted 2026-07-14). Fields mirror the shared cursor: inbox/bc =
+        WORK-lane positions (the at-least-once surface, advanced via advance_to(cursor_key=)
+        after processing); sig_inbox/sig_bc = sig-lane positions (P3 interleave, consumed on
+        return); shadow_inbox/shadow_bc = LEGACY positions for the dual-write straggler peek
+        (vestigial once T047 retires the legacy stream)."""
+        return f"{self.ns}:cursor:lane:{agent or self.agent_id}"
+
+    _LANE_CURSOR_FIELDS = ("inbox", "bc", "sig_inbox", "sig_bc", "shadow_inbox", "shadow_bc")
+
+    def read_lane_cursor(self) -> Dict[str, str]:
+        """All lane-cursor fields with '0' defaults (virgin = drain-from-start semantics --
+        a truly-new post-strangler agent's lane holds only real mail, pin R7; MIGRATING
+        agents run lane_cursor_flip_init() at the flip instead)."""
+        try:
+            h = self._client.hgetall(self.lane_cursor_key()) or {}
+        except Exception:
+            h = {}
+        return {f: str(h.get(f, "0")) for f in self._LANE_CURSOR_FIELDS}
+
+    def _lane_keys(self, lane: str) -> Dict[str, str]:
+        """Logical inbox/bc pair -> this agent's stream keys on `lane`."""
+        from core.comm import packet_spec
+        return {"inbox": packet_spec.lane_stream_key(self.ns, lane, to=self.agent_id),
+                "bc": packet_spec.lane_stream_key(self.ns, lane)}
+
+    def lane_cursor_flip_init(self) -> bool:
+        """A4 tail-at-flip as an explicit RITUAL (seed_cursor_at_tail's lane twin) -- run
+        ONCE when a MIGRATING agent (dual-write soak in its lane streams) flips its consumer
+        to lane mode. Virgin-only + idempotent: an existing lane cursor is real progress and
+        is never rewound. WORK and SIG seed at their CONCRETE lane tails (dual-write history
+        is soak, never mail); the legacy SHADOW seeds at the agent's SHARED cursor -- the
+        pre-flip consumer's own progress -- so the straggler peek CONTINUES that story
+        without ever writing it (pin R8). A truly-new post-strangler agent skips the ritual
+        entirely: virgin reads from '0' and its lane holds only real mail (pin R7 -- lazy
+        tail-seeding here would eat pre-arm mail, which is why the flip is an explicit act).
+        Returns True only when it seeded."""
+        if not self.online:
+            return False
+        cur = self.read_lane_cursor()
+        if any(v != "0" for v in cur.values()):
+            return False                          # not virgin -> real progress, never rewind
+        fields: Dict[str, str] = {}
+        for lane, (fi, fb) in (("work", ("inbox", "bc")), ("sig", ("sig_inbox", "sig_bc"))):
+            keys = self._lane_keys(lane)
+            for logical, field in (("inbox", fi), ("bc", fb)):
+                try:
+                    last = self._client.xrevrange(keys[logical], count=1)
+                    fields[field] = str(last[0][0]) if last else "0"
+                except Exception:
+                    fields[field] = "0"
+        shared = self._read_cursor()
+        fields["shadow_inbox"] = shared.get("inbox", "0")
+        fields["shadow_bc"] = shared.get("bc", "0")
+        if all(v == "0" for v in fields.values()):
+            return False                          # nothing to skip -- stay virgin
+        self.advance_cursor_fields(self.lane_cursor_key(), fields)
+        return True
 
     def _to_msg(self, sid: str, fields: Dict[str, Any]) -> Message:
         parts = [Part.from_dict(d) for d in (_loads(fields.get("parts")) or []) if isinstance(d, dict)]

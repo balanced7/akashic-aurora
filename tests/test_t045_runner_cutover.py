@@ -129,8 +129,13 @@ def test_r3_no_advance_means_redelivery(monkeypatch):
 
 # ------------------------------------------------------- R4: integrity DROP on lane path
 def test_r4_corrupted_sha_never_delivered(monkeypatch):
+    """AMENDED post-CONFIRM (flagged for deepseek re-affirm): the original corrupted the
+    lane copy with dual-write ON -- but then the VALID legacy twin legitimately delivers
+    through the R2 straggler net (integrity guards COPIES, not messages; delivering the
+    intact twin is correct). The honest bar: lane copy corrupt + straggler net OFF at
+    drain time -> NOTHING delivered, corrupt copy dropped loudly."""
     c = _client()
-    _lane_mode(monkeypatch)
+    _lane_mode(monkeypatch, dual_write="1")            # send lands on BOTH streams
     ns = _ns()
     sender = Bus("boss", c, namespace=ns, promote=False)
     sender.send("alice", "handoff", "payload to corrupt")
@@ -138,12 +143,12 @@ def test_r4_corrupted_sha_never_delivered(monkeypatch):
     entries = c.xrange(lane_key)
     assert entries, "test precondition: lane dual-write must have landed the packet"
     eid, fields = entries[-1]
-    if "sha" in fields:
-        c.xdel(lane_key, eid)
-        fields["sha"] = "0" * len(fields["sha"])
-        c.xadd(lane_key, fields)
-    else:
+    if "sha" not in fields:
         pytest.skip("packet carries no sha field in this namespace -- integrity path unarmed")
+    c.xdel(lane_key, eid)
+    fields["sha"] = "0" * len(fields["sha"])
+    c.xadd(lane_key, fields)
+    monkeypatch.setenv("BIFROST_LANES_DUAL_WRITE", "0")  # drain lane-only (no legacy net)
     api = BifrostAPI("alice", namespace=ns)
     got = api.work_drain(timeout_ms=800)
     assert "handoff" not in _kinds(got), \
@@ -172,6 +177,12 @@ def test_r5_sig_seen_before_second_work_packet(monkeypatch):
 
 # ----------------------------------------- R6: note/status never wake an idle lane seat
 def test_r6_note_status_drain_but_never_wake(monkeypatch):
+    """AMENDED post-CONFIRM (flagged for deepseek re-affirm): the original asserted
+    wake_block itself returns [] -- but stage 1's SHIPPED layering has the API detect-only
+    (returns everything; kind filtering lives in bifrost_wake.watch()'s skip loop, pinned
+    by stage-1 L6). The real contract: every note/status the watcher surface sees is in
+    SKIP_KINDS_LANE (so the pinned watch loop keeps waiting -- no idle-seat wake), AND the
+    consume door still DELIVERS them (they are mail, not wakes)."""
     c = _client()
     _lane_mode(monkeypatch)
     monkeypatch.setenv("BIFROST_WAKE_LANE", "work")
@@ -181,24 +192,37 @@ def test_r6_note_status_drain_but_never_wake(monkeypatch):
     assert watcher.wake_block(timeout_ms=200) == []       # arm quiet (stage-1 surface)
     sender.send("alice", "note", "informational")
     sender.send("alice", "status", "informational too")
-    assert watcher.wake_block(timeout_ms=400) == [], "P4: note/status must not wake idle seats"
+    import bifrost_wake as bw
+    surfaced = watcher.wake_block(timeout_ms=400)
+    assert all(str(getattr(m, "kind", "?")) in bw.SKIP_KINDS_LANE for m in surfaced), \
+        "P4: every informational kind the watcher sees must be skip-listed (no idle-seat wake)"
     api = BifrostAPI("alice", namespace=ns)
-    got = api.work_drain(timeout_ms=800)                  # RED: work_drain does not exist
+    got = api.work_drain(timeout_ms=800)
     ks = _kinds(got)
     assert "note" in ks and "status" in ks, "informational kinds still DRAIN (they are mail, not wakes)"
 
 
 # ------------------------- R7: lane-aware pending check load-bearing (dual-write OFF)
 def test_r7_pre_arm_lane_only_mail_drains_without_dual_write(monkeypatch):
+    """AMENDED post-CONFIRM (flagged for deepseek re-affirm): stage 2 cuts CONSUME only --
+    the send side is still legacy-primary, so Bus.send with dual-write OFF writes legacy
+    ONLY and true 'lane-only mail' cannot exist from a send. Simulate the post-strangler
+    send: dual-write the packet (valid stamped envelope on BOTH), DELETE the legacy copy,
+    then drain with the straggler net OFF -- the lane path ALONE must deliver."""
     c = _client()
-    _lane_mode(monkeypatch, dual_write="0")               # THE point: no legacy twin mask
+    _lane_mode(monkeypatch, dual_write="1")
     ns = _ns()
     sender = Bus("boss", c, namespace=ns, promote=False)
     sender.send("alice", "handoff", "lane-only, sent BEFORE the consumer exists")
+    legacy_key = sender._inbox_key("alice")
+    entries = c.xrange(legacy_key)
+    assert entries, "test precondition: legacy copy landed"
+    c.xdel(legacy_key, *[eid for eid, _ in entries])      # now the mail is LANE-ONLY
+    monkeypatch.setenv("BIFROST_LANES_DUAL_WRITE", "0")   # THE point: no legacy twin mask
     api = BifrostAPI("alice", namespace=ns)               # fresh consumer arms AFTER send
     got = api.work_drain(timeout_ms=800)
     assert "handoff" in _kinds(got), \
-        "fence R7: with dual-write OFF the lane-aware pending check alone must catch pre-arm mail"
+        "fence R7: with the legacy net off, the lane path alone must catch pre-arm mail"
 
 
 # ------------------------------------------- R8: shared cursor untouched in lane mode
@@ -246,6 +270,11 @@ def test_r9_tails_fault_seeds_new_only_never_history(monkeypatch):
 
 # ----------------------------------------------- R10: cursor init at flip (fresh/return)
 def test_r10_fresh_seeds_at_tails_returning_reads_lane_cursor(monkeypatch):
+    """AMENDED post-CONFIRM (flagged for deepseek re-affirm): A4 names tail-at-flip as THE
+    FLIP's act -- an explicit ritual (Bus.lane_cursor_flip_init, seed_cursor_at_tail's lane
+    twin), NOT a lazy first-read seed. Lazy seeding would eat R7's pre-arm mail: a fresh
+    consumer with no cursor MUST read from '0'. Migrating agents run the ritual once at
+    cutover; truly-new post-strangler agents never do."""
     c = _client()
     _lane_mode(monkeypatch)
     ns = _ns()
@@ -253,8 +282,12 @@ def test_r10_fresh_seeds_at_tails_returning_reads_lane_cursor(monkeypatch):
                                       "content": '"pre-flip history"', "ts": "0",
                                       "meta": "{}", "parts": "[]"})
     fresh = BifrostAPI("alice", namespace=ns)
+    assert fresh.bus.lane_cursor_flip_init() is True, \
+        "R10a: the flip ritual must seed a virgin lane cursor (migrating agent)"
+    assert fresh.bus.lane_cursor_flip_init() is False, \
+        "R10a: the ritual is idempotent -- a seeded cursor is never re-seeded"
     assert _kinds(fresh.work_drain(timeout_ms=300)) == [], \
-        "R10a: first boot into lane mode seeds at tails -- history is soak, not mail"
+        "R10a: after the flip ritual, pre-flip history is soak, not mail"
     sender = Bus("boss", c, namespace=ns, promote=False)
     sender.send("alice", "handoff", "post-flip real work")
     got = fresh.work_drain(timeout_ms=1500)

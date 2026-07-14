@@ -143,14 +143,19 @@ class BifrostAPI:
 
     def _lane_tails(self) -> Dict[str, str]:
         """Concrete last-ids of the lane pair -- the A4 tail-at-flip seed (dual-write history
-        is a soak, never mail; '$' would skip mail landing between reads, T017)."""
+        is a soak, never mail; '$' would skip mail landing between reads, T017).
+
+        FAULT PATH (stage-1 F2 fix, pin R9): a Redis blip during the tails read must yield
+        '$' (new-entries-only), NEVER '0' -- a '0' seed replays the whole lane history as
+        mail (false-wake storm). '$' degrades to a bounded one-message-class loss (mail
+        landing between two reads), which beats the storm; deepseek fence verdict adopted."""
         out: Dict[str, str] = {}
         for logical, key in self._lane_streams().items():
             try:
                 last = self.bus._client.xrevrange(key, count=1)
                 out[logical] = str(last[0][0]) if last else "0"
             except Exception:
-                out[logical] = "0"
+                out[logical] = "$"
         return out
 
     def _wake_block_lane(self, timeout_ms: int) -> List[Any]:
@@ -184,6 +189,107 @@ class BifrostAPI:
         if nxt:
             self._lane_since.update(nxt)
         return msgs
+
+    # ---- T045 stage 2: the lane-mode CONSUME door ----
+    @staticmethod
+    def consume_lane_enabled() -> bool:
+        """The stage-2 strangler gate: BIFROST_CONSUME_LANE=work flips a consumer's reads
+        onto the lanes; unset = legacy path byte-identical (flip is per-process)."""
+        return os.environ.get("BIFROST_CONSUME_LANE") == "work"
+
+    def _sig_streams(self) -> Dict[str, str]:
+        """The sig-lane pair (fidelity-ladder traffic: nudge/steer/halt/pause)."""
+        from core.comm import packet_spec
+        ns = self.bus.ns
+        return {"inbox": packet_spec.lane_stream_key(ns, "sig", to=self.agent),
+                "bc": packet_spec.lane_stream_key(ns, "sig")}
+
+    @staticmethod
+    def _dedup_key(m) -> tuple:
+        """Logical identity of a packet ACROSS its dual-write twins (lane copy and legacy
+        copy carry identical env fields but different stream auto-ids)."""
+        return (str(getattr(m, "frm", "")), str(getattr(m, "ts", "")),
+                str(getattr(m, "kind", "")))
+
+    def work_drain(self, timeout_ms: int = 1500, *, limit: int = 50,
+                   since_out: Optional[Dict[str, str]] = None) -> List[Any]:
+        """T045 stage 2 (T039b): the lane-mode consume door -- runner and session door both
+        cut onto THIS seam. Gated by BIFROST_CONSUME_LANE=work (unset = legacy wait(),
+        byte-identical, strangler discipline). In lane mode, per fence-reconciled scope
+        (research/claude-t045-stage2-scope-2026-07-14.md):
+
+        (1) SIG FIRST (P3/R5): the sig lane drains before work every call -- fidelity-ladder
+            traffic never queues behind work. Sig positions auto-advance on return (signals
+            fold into the CURRENT turn; redelivering a stale nudge has negative value).
+        (2) WORK PRIMARY (R1/R3): blocks the caller's budget on the work lane from the
+            DURABLE lane cursor. Work positions are NOT auto-advanced -- the consumer
+            advances via advance_to(cursor_key=lane_cursor_key()) AFTER processing
+            (RB-26 commit-after-processing; crash before advance = redelivery, pin R3).
+        (3) LEGACY STRAGGLER NET while dual-write is ON (R2): a packet whose lane write
+            failed exists only on legacy. The shadow cursor seeds from the SHARED cursor
+            (the pre-flip consumer's own progress -- continued, never written, pin R8) and
+            auto-advances. Stragglers are a DEFECT SIGNAL: loud on stderr. Known dual-write-
+            window bounds (retire with T047): a shadow-before-lane read-order race can
+            double-deliver (at-least-once; RB-26 consumers are idempotent), and a straggler
+            returned-then-crashed is at-most-once for that copy.
+
+        `since_out` receives the WORK next-positions (the runner's batch-sweep pattern)."""
+        if not self.consume_lane_enabled():
+            return self.bus.wait(timeout_ms=timeout_ms, limit=limit, since_out=since_out)
+        from core.comm import packet_spec
+        cur = self.bus.read_lane_cursor()
+        lane_key = self.bus.lane_cursor_key()
+        out: List[Any] = []
+        seen: set = set()
+        # (1) sig first -- 1ms peek (block=0 would wait forever; the L2/L5 lesson)
+        snxt: Dict[str, str] = {}
+        sig = self.bus.wait(timeout_ms=1, limit=limit,
+                            since={"inbox": cur["sig_inbox"], "bc": cur["sig_bc"]},
+                            since_out=snxt, streams=self._sig_streams())
+        for m in sig:
+            seen.add(self._dedup_key(m))
+        out += sig
+        sig_fields = {f: snxt[k] for f, k in (("sig_inbox", "inbox"), ("sig_bc", "bc"))
+                      if snxt.get(k) and snxt[k] != cur[f]}
+        if sig_fields:
+            self.bus.advance_cursor_fields(lane_key, sig_fields)
+        # (2) work primary -- caller's blocking budget; NO auto-advance (pin R3)
+        wnxt: Dict[str, str] = {}
+        work = self.bus.wait(timeout_ms=timeout_ms, limit=limit,
+                             since={"inbox": cur["inbox"], "bc": cur["bc"]},
+                             since_out=wnxt, streams=self._lane_streams())
+        for m in work:
+            seen.add(self._dedup_key(m))
+        out += work
+        if since_out is not None:
+            since_out.update(wnxt)
+        # (3) legacy straggler net -- dual-write window only
+        if packet_spec.dual_write_enabled():
+            sh_in, sh_bc = cur["shadow_inbox"], cur["shadow_bc"]
+            seeded_now = False
+            if sh_in == "0" and sh_bc == "0":
+                shared = self.bus.cursor()        # READ-only: R8 stays intact
+                sh_in = shared.get("inbox", "0")
+                sh_bc = shared.get("bc", "0")
+                seeded_now = sh_in != "0" or sh_bc != "0"
+            shnxt: Dict[str, str] = {}
+            legacy = self.bus.wait(timeout_ms=1, limit=limit,
+                                   since={"inbox": sh_in, "bc": sh_bc}, since_out=shnxt)
+            stragglers = [m for m in legacy if self._dedup_key(m) not in seen]
+            if stragglers:
+                import sys
+                print(f"[work-drain] {len(stragglers)} LEGACY STRAGGLER(S) for "
+                      f"{self.agent} -- lane write failed upstream; dual-write net caught "
+                      f"them (defect signal, investigate the sender side)", file=sys.stderr)
+            out += stragglers
+            sh_fields = {f: shnxt[k] for f, k in (("shadow_inbox", "inbox"), ("shadow_bc", "bc"))
+                         if shnxt.get(k) and shnxt[k] != cur[f]}
+            if not sh_fields and seeded_now:
+                # persist the one-time shared-cursor seed even on a quiet peek
+                sh_fields = {"shadow_inbox": sh_in, "shadow_bc": sh_bc}
+            if sh_fields:
+                self.bus.advance_cursor_fields(lane_key, sh_fields)
+        return out
 
     @property
     def wake_cmd(self) -> str:
