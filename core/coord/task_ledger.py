@@ -206,6 +206,11 @@ class TaskLedger:
                 raise LedgerError("done blocked: needs a commit SHA AND a verification record "
                                   "(no proof, no close)")
             t["commit"], t["verified_by"] = c, v
+            try:                              # T056: finalize the cost accumulator (fail-open;
+                from core.coord.task_costs import finalize   # absent accumulator stamps nothing)
+                finalize(tid, t)
+            except Exception:
+                pass
 
         # apply
         if owner:
@@ -284,6 +289,9 @@ def state_view(path: str = LEDGER_PATH, client: Any = "auto", *,
     def summ(t):
         s = {"id": t["id"], "title": t["title"], "owner": t.get("owner", ""),
              "status": t["status"], "commit": t.get("commit"), "files": t.get("files", [])}
+        for ck in ("cost_turns", "cost_duration_s", "cost_tool_calls", "cost_tokens"):
+            if ck in t:                       # T056: cost stamps ride the summary (done-only render)
+                s[ck] = t[ck]
         if now is not None and t["status"] == PROPOSED:
             age = _age_days(t, float(now))
             s["age_days"] = age
@@ -325,7 +333,15 @@ def format_state(agent: str = "", path: str = LEDGER_PATH, client: Any = "auto",
     out = ["## TASK LEDGER -- obey THIS, not old messages"]
     if v["done"]:
         out.append("DONE (closed -- do NOT redo):")
-        out += [f"  {t['id']} - {t['title']}" + (f"  @{sha(t)}" if sha(t) else "") for t in v["done"]]
+        def _cost(t):
+            try:                              # T056: retro-only cost line (fail-soft)
+                from core.coord.task_costs import cost_line
+                cl = cost_line(t)
+                return f"  [{cl}]" if cl else ""
+            except Exception:
+                return ""
+        out += [f"  {t['id']} - {t['title']}" + (f"  @{sha(t)}" if sha(t) else "") + _cost(t)
+                for t in v["done"]]
     if v["in_progress"]:
         out.append("IN PROGRESS:")
         out += [f"  {t['id']} - {t['title']}  ({t['status']}"

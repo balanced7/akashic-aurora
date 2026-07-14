@@ -132,6 +132,14 @@ def record(agent: str, ask_kind: str, *, duration_s: float, progress_points: int
                           agent_id=str(agent), detail=row)
         except Exception:
             pass
+        try:
+            # T056 (R5): attribute this turn to the agent's one active task -- owner-
+            # matched, fail-open, <=4 Redis ops (reconciliation K1/K2; the hot path
+            # stays untouched on any error by attribute_turn's own contract).
+            from core.coord.task_costs import attribute_turn
+            attribute_turn(agent, row)
+        except Exception:
+            pass
     except Exception:
         pass
 
