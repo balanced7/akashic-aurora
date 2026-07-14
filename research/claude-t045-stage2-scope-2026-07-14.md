@@ -57,9 +57,10 @@ seeding (bifrost_api).
   process -> advance LANE cursor (NEW per-agent lane cursor key; the legacy shared cursor is
   NEVER written in lane mode).
 - LANE CURSOR KEY (fence Q1, deepseek proposal ADOPTED): `{ns}:cursor:lane:{agent}`, same
-  inbox/bc per-field structure as the legacy cursor. Write path: bus.advance_to() currently
-  hardcodes self._cursor_key() -- lane mode gets an explicit cursor-key target (parameter or
-  lane variant), so per-message and batch advances write ONLY the lane key. This unblocks
+  inbox/bc per-field structure as the legacy cursor. Write path (deepseek refinement,
+  follow-up msg 2026-07-14): bus.advance_to() gains an optional cursor_key= parameter
+  DEFAULTING to the shared cursor (zero change for legacy callers); lane-mode callers pass
+  the lane key, so per-message and batch advances write ONLY the lane key. This unblocks
   R3 and R8 (they were unfalsifiable without a specified key design).
 - A4 cursor init at flip: tail-at-flip (concrete ids, proven > `$` in stage 1 pin 4).
 - P3: drain sig lane BETWEEN work packets (EF-beats-AF at the consumer).
