@@ -1,5 +1,5 @@
 {
-  "seq": 43,
+  "seq": 47,
   "tasks": [
     {
       "id": "T001",
@@ -1424,11 +1424,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "in_progress",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "e15911a",
+      "verified_by": "fenced dual design + claude review + deepseek r3 counter-check VALID + Daniel gate 2026-07-13; governing doc docs/t039-lanes-latches-design-2026-07.md",
       "created": "2026-07-12T06:28:18+00:00",
-      "updated": "2026-07-13T13:02:55+00:00",
+      "updated": "2026-07-14T03:26:47+00:00",
       "history": [
         {
           "to": "proposed",
@@ -1449,6 +1449,16 @@
           "to": "in_progress",
           "by": "claude",
           "at": "2026-07-13T13:02:55+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-07-14T03:26:47+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-14T03:26:47+00:00"
         }
       ]
     },
@@ -1590,6 +1600,120 @@
           "to": "done",
           "by": "claude",
           "at": "2026-07-13T07:03:49+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T044",
+      "title": "T039a Lane router + per-lane keys + dual-write at the send door + trace integrity exemption (folds T043 R5 debt) + reader census bar. Consumers UNTOUCHED. Bars: per-kind router pins (control->sig NEVER trace), exemption spot-check, dual-write leaves legacy byte-identical, census committed, full regression green. Cites docs/t039-lanes-latches-design-2026-07.md (Daniel gate 2026-07-13)",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "in_progress",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-14T03:25:54+00:00",
+      "updated": "2026-07-14T03:26:47+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-14T03:25:54+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-14T03:26:04+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-14T03:26:15+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-07-14T03:26:47+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T045",
+      "title": "T039b Consumer cutover (strangler; wake-listener first, then runner) + A4 cursor-init-at-flip + P3 sig-interleave + P4 bell kind-filter + M2 dual-write retention guard. Bars: RB-25 S1-S5 per cutover + S2-NEW + S6. Cites docs/t039-lanes-latches-design-2026-07.md",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-14T03:25:54+00:00",
+      "updated": "2026-07-14T03:26:04+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-14T03:25:54+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-14T03:26:04+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T046",
+      "title": "T039c Latch v1 (within-flow causal + cross-flow reference) + A1' flow-FIFO queue by seq + A2 flow-threading w/ review-gates-ship demo + P1 per-latch key + P2/M1 latch-id-carrying work bell. Bars: L1-L3 + S7 incl A1' sub-bar; R8 binds enforcement families behind full-path v2. Cites docs/t039-lanes-latches-design-2026-07.md",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-14T03:25:55+00:00",
+      "updated": "2026-07-14T03:26:05+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-14T03:25:55+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-14T03:26:05+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T047",
+      "title": "T039d Retire legacy stream + lane roster registry + deletion ritual (ledger event). Cites docs/t039-lanes-latches-design-2026-07.md",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-14T03:25:55+00:00",
+      "updated": "2026-07-14T03:26:05+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-14T03:25:55+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-14T03:26:05+00:00"
         }
       ]
     }
