@@ -676,19 +676,41 @@ class ToolBox:
         except Exception as e:
             return f"ERROR: web_search failed: {e}"
 
+    def _recall_at(self, name, args) -> str:
+        """Push-side recall (env DEEPSEEK_RECALL_AT): fold lessons relevant to the action just taken
+        into the tool result, giving this loop the recall-at-action claude gets from its hooks.
+        knowledge_* tools are exempt (they ARE the pull side); failures stay silent -- recall is
+        advisory, never load-bearing."""
+        if not os.environ.get("DEEPSEEK_RECALL_AT") or name.startswith("knowledge_"):
+            return ""
+        call = ["recall-at", "--limit", "3",
+                "--agent-id", self.agent_id or os.environ.get("AKASHIC_AGENT_ID", "deepseek")]
+        path = args.get("path") or args.get("file_path") or args.get("directory")
+        if path:
+            call += ["--path", str(path)]
+        probe = args.get("command") or args.get("pattern") or args.get("query")
+        if probe or not path:
+            call += ["--command", f"{name} {probe or ''}".strip()[:200]]
+        out = (self._agent_cli(call, timeout=30) or "").strip()
+        if (len(out) < 20 or out.startswith("ERROR") or "0 item" in out[:60]
+                or "nothing relevant" in out[:80]):
+            return ""
+        return "\n\n[recall-at (Akashic) -- lessons relevant to this action]\n" + out[:1200]
+
     # -- dispatch --
     def execute(self, name, args: dict) -> str:
         fn = getattr(self, name, None)
         if not callable(fn) or name.startswith("_"):
             return f"ERROR: unknown tool {name}"
         try:
-            return str(fn(**args))
+            out = str(fn(**args))
         except TypeError as e:
             return f"ERROR: bad arguments for {name}: {e}"
         except ValueError as e:
             return f"ERROR: {e}"
         except Exception as e:
             return f"ERROR: {type(e).__name__}: {e}"
+        return out + self._recall_at(name, args)
 
 
 # ---- the agent (conversation + tool loop) -----------------------------------

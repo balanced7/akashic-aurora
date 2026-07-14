@@ -80,6 +80,27 @@ S1's per-cutover rerun (0 lost, answered exactly once) is the catching bar.
 2. Daniel design gate (reconciliation items 1–4) + whether A1/A2 fold in pre-registration
    (recommended: yes — both are registration-time text, no rework of the converged architecture).
 
+## ROUND-3 ADDENDUM (2026-07-13) — FENCE VALID; REVIEW NOW PROPERLY FENCED
+Daniel-directed rerun on the FULL-CAPABILITY lane (agentic tools + think + guarded write +
+DEEPSEEK_RECALL_AT push-recall + 32k token headroom). Result: research/reviewed/
+deepseek-t039-review-countercheck-2026-07-13.md — ALL of A1′–A4 and P1–P4 AFFIRMED, F1–F3
+CONFIRMED, harness wire GREEN. claude spot-verified citations: agent_cli.py:2547 EXACT; packet-spec
+quotes verbatim (±2 line drift); agent/bifrost_pull.py + consume_inbox + cmd_bifrost_sync all real.
+ACCEPTED from his round (fold at registration):
+- **M1 → folds into P2:** the unlatch bell CARRIES the satisfied latch id(s); the consumer's
+  blocked-set is indexed by gating latch id (composes with P1 per-latch key) — else every unlatch
+  is an O(N) re-check.
+- **M2 → new A5 (migration retention guard):** during dual-write, lane maxlen (work 10000/sig 5000)
+  may trim messages a late-cutover consumer never read from the lane stream. Guard: cutover order
+  bounded by lane-retention windows, or dual-write retention = MAX(legacy, lane) for the window.
+  Add a T039b bar.
+- **M3 accepted:** A3's "boot/bifrost-sync" reads: agent_cli.py `cmd_bifrost_sync` (~:2290) →
+  agent/bifrost_pull.py `consume_inbox`.
+- **M4 acknowledged:** amendments fold at REGISTRATION, which opens only on Daniel's gate.
+Post-GREEN tuning note (not applied; funnel-gated follow-up): key the recall-at probe on tool name
++ basename too (write_file on research paths currently keys path-only and floor-holds; a
+command-keyed probe surfaces the fence lessons at exactly the report-writing moment).
+
 ## ROUND-2 ADDENDUM (2026-07-13) — FENCE CLOSED, CHECK INVALID ×2
 r2 was worse: tool-call-as-text (write_file emitted as prose, never executed), cut mid-report
 again, and a CONFABULATED corpus (nonexistent filenames, invented spec section/field width, a
