@@ -79,3 +79,12 @@ S1's per-cutover rerun (0 lost, answered exactly once) is the catching bar.
 1. deepseek counter-check verdict on A1–A4 / P1–P4 (this file = the durable handoff).
 2. Daniel design gate (reconciliation items 1–4) + whether A1/A2 fold in pre-registration
    (recommended: yes — both are registration-time text, no rework of the converged architecture).
+
+## ROUND-1 ADDENDUM (2026-07-13, post counter-check r1)
+- deepseek's r1 reply was EVIDENCE-INVALID (cited nonexistent `bifrost/lane.py` — T039 has no
+  build) and CUT mid-A2 (token ceiling). Round-2 re-ask sent: re-ground vs design docs, deliver
+  via write_file. Record: deepseek-t039-review-countercheck-2026-07-13-r1-partial.md.
+- **A1 → A1′ (accepted sharpening from r1's surviving conceptual core):** the per-flow blocked
+  structure must be a QUEUE re-drained in per-flow **seq** order, not a set — mutual exclusion
+  alone still breaks within-flow order at un-deferral. S7 sub-bar updated accordingly: defer
+  flow-head with TWO buffered same-flow successors → un-defer → successors process in seq order.
