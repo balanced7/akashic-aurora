@@ -4,7 +4,7 @@ _Distilled from 54 active note(s) · regenerate via `py agent_cli.py note` / `no
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
-- where-we-are: FIVE DONE on Daniel's away-day directive (2026-07-14 evening): T045 lanes cutover, T049 fence-v2, T052 R1 delta door, T055 R4 pre-flight recall, T056 R5...  (source: mem:decision:ADR_0714182117_9a40ae82)
+- where-we-are: SESSION HANDOFF READY (2026-07-14 evening, Daniel reloading). SIX wishlist arcs today: T045+T049+T052+T055+T056 DONE (full gates, all fences GREEN, zero...  (source: mem:decision:ADR_0714190943_7958cf8e)
 - eaten-confirm-incident: 2026-07-14 afternoon: R5 confirm (msg 1784042654710-0, 15:24Z) was consumed-to-Out-Null by claude during replay cleanup -- 6h stall. Forensics...  (source: mem:decision:ADR_0714174108_0024ebc6)
 - t061-root-cause: T061 root cause CONFIRMED on evidence 2026-07-14: bifrost:expect:claude held 6 armed expectations for ANSWERED handoffs (attempt 1-2 each) -- the L4...  (source: mem:decision:ADR_0714104757_72b4e89d)
 - scratch:deepseek:lane-era-marker-2026-07-14: Lane-era memory persistence marker. Today (2026-07-14) I served as the first production lane-mode consumer — received T045...  (source: mem:decision:ADR_0714092546_154d3075)

@@ -2148,15 +2148,15 @@
       "id": "T058",
       "title": "R7 Mid-turn clarification (deepseek b5): a question that pauses his loop and folds the answer in as a steer; the fidelity ladder already carries the traffic. Cites wishlist-synthesis-2026-07-14.md + Daniel directive 2026-07-14",
       "desc": "",
-      "owner": "",
+      "owner": "claude",
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "approved",
+      "status": "in_progress",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-14T13:11:08+00:00",
-      "updated": "2026-07-14T13:11:54+00:00",
+      "updated": "2026-07-14T22:52:22+00:00",
       "history": [
         {
           "to": "proposed",
@@ -2167,6 +2167,16 @@
           "to": "approved",
           "by": "user",
           "at": "2026-07-14T13:11:54+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-14T22:52:21+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-07-14T22:52:22+00:00"
         }
       ]
     },
