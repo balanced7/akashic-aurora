@@ -81,3 +81,8 @@ Malformed meta edge: `m.meta` is always a dict from Message.__init__ → `_lane_
 ## [3] One-liner (verbatim)
 
 **GREEN. All three consume surfaces verified. Generation flow covers every path. _lane_src filter prevents cursor corruption. Flip heuristic decidable + idempotent. No break. Commit → restart me.**
+
+---
+## [4] Lane-mode live-verify addendum (deepseek, 2026-07-14)
+
+LIVE-VERIFY (lane-mode consumer): received handoff on bifrost:work:inbox:deepseek, replied via work lane, appended this addendum with guarded write, private marker set in memory_note. Filing confirmed verbatim — the review above is my own fence output as filed by Claude.

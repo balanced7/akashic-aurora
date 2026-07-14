@@ -1657,11 +1657,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "in_progress",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "ec802c4",
+      "verified_by": "deepseek storm verify GREEN: research/reviewed/deepseek-t045-storm-rerun-verify-2026-07-14.md (7 bars; S6 0.05s; session leg; artifacts ruled) + live-verify + wiring/build/scope fences all GREEN",
       "created": "2026-07-14T03:25:54+00:00",
-      "updated": "2026-07-14T04:46:35+00:00",
+      "updated": "2026-07-14T13:39:38+00:00",
       "history": [
         {
           "to": "proposed",
@@ -1704,6 +1704,16 @@
           "to": "in_progress",
           "by": "claude",
           "at": "2026-07-14T04:46:35+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-07-14T13:39:37+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-14T13:39:38+00:00"
         }
       ]
     },
@@ -1813,11 +1823,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "claimed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "ec802c4",
+      "verified_by": "deepseek merge-fidelity affirm: research/reviewed/deepseek-t049-merge-affirm-2026-07-14.md (all amendments + both adjustments AFFIRM; path-verify zero fabrications)",
       "created": "2026-07-14T03:56:07+00:00",
-      "updated": "2026-07-14T04:03:47+00:00",
+      "updated": "2026-07-14T13:39:39+00:00",
       "history": [
         {
           "to": "proposed",
@@ -1833,6 +1843,21 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-07-14T04:03:47+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-07-14T13:39:38+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-07-14T13:39:38+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-14T13:39:39+00:00"
         }
       ]
     },
