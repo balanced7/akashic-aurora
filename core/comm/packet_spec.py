@@ -178,6 +178,75 @@ def tool_args_within_mtu(name: str, args: Any) -> Tuple[bool, str]:
                    f"{name} calls, or write a blob and reference it.")
 
 
+# ------------------------------------------------------------------ lanes (T039a)
+# Kind -> lane router. R6 rules this file the roster home (families/kinds are contracts,
+# not tunables); the lane CONTRACT (QoS/seat/wake/retention) lives in the LAW spec and the
+# governing design doc (docs/t039-lanes-latches-design-2026-07.md, Daniel gate 2026-07-13).
+# Senders cannot choose lanes; the door derives lane from kind.
+LANES = ("work", "sig", "trace")            # + test-* per drill namespace (T039b formalizes)
+
+KIND_LANE = {
+    # work -- directed mail + coordination answers (QoS1/AF, RB-21 seat, THE wake lane)
+    "handoff": "work", "reply": "work", "request": "work", "question": "work",
+    "chat": "work", "inform": "work", "note": "work", "answer": "work", "query": "work",
+    "dispatch": "work", "status": "work",
+    # sig -- fidelity-ladder control (QoS1/EF, seatless, never queues behind trace)
+    "halt": "sig", "interrupt": "sig", "pause": "sig", "resume": "sig",
+    "nudge": "sig", "steer": "sig",
+    # trace -- telemetry + re-derivable hints (QoS0/BE ring; the durable ledger is truth
+    # for ledger_update/resolved/hint, so lossy retention is correct for them)
+    "trace": "trace", "thinking": "trace", "tool": "trace", "narration": "trace",
+    "ledger_update": "trace", "resolved": "trace", "hint": "trace",
+}
+
+# P0 retention (dual-write soak): approximate-trim everywhere; the per-lane REFUSE-WRITE
+# overflow contract activates at the T039b cutover when a lane becomes load-bearing.
+LANE_MAXLEN = {"work": 10000, "sig": 5000, "trace": 5000}
+
+DEFAULT_TRACE_SPOT_INTERVAL = 1000
+
+
+def lane_for(kind: Any) -> Optional[str]:
+    """The pure router: lane for a kind, or None when unmapped. STRANGLER PHASE: None means
+    legacy-only + loud (a sender must never break on a census miss); the spec's unknown-kind
+    REFUSAL is the end state and activates at the T039b/d cutover."""
+    return KIND_LANE.get(str(kind))
+
+
+def lane_maxlen(lane: str) -> int:
+    return LANE_MAXLEN.get(lane, 10000)
+
+
+def dual_write_enabled() -> bool:
+    """T039a P0 kill-switch. Default ON: the dual-write IS the slice (a live soak of the
+    lane write path; consumers untouched, lane cursors init tail-at-flip per A4)."""
+    return _bool_env("BIFROST_LANES_DUAL_WRITE", True)
+
+
+def trace_spot_interval() -> int:
+    return _int_env("PACKET_TRACE_SPOT_INTERVAL", DEFAULT_TRACE_SPOT_INTERVAL)
+
+
+def lane_wants_integrity(lane: str, tick: int = 0) -> bool:
+    """R5 + amend E: len+sha REQUIRED on work/sig/test-*; on trace DIAL-OPTIONAL
+    (PACKET_INTEGRITY_TRACE, default off) with an every-Nth spot-check stamped via the
+    global tick so a corrupt trace stream stays detectable at ~1/N cost."""
+    if lane != "trace":
+        return True
+    if _bool_env("PACKET_INTEGRITY_TRACE", False):
+        return True
+    n = trace_spot_interval()
+    return n > 0 and tick > 0 and tick % n == 0
+
+
+def lane_stream_key(ns: str, lane: str, to: Optional[str] = None) -> str:
+    """Per-lane key: the lane dimension inserted before the topology suffix (design B5).
+    trace is ONE shared ring (no per-agent inbox, no bell, no cursor)."""
+    if lane == "trace":
+        return f"{ns}:trace"
+    return f"{ns}:{lane}:inbox:{to}" if to else f"{ns}:{lane}:broadcast"
+
+
 # --------------------------------------------------------------------- fragmentation
 def parse_frag(fields: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """The frag header {seq,of,whole_id,whole_len,whole_sha} from an envelope, or None if the

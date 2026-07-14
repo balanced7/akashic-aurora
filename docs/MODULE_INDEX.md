@@ -21,7 +21,7 @@
 - `agent_signal_ledger.py` — Agent Signal Ledger: the ordered record of every signal agents emit
 - `coordinator_api.py` — Coordinator API: Minimal signal-based logging for agents
 
-## core/comm/  (19 modules)
+## core/comm/  (20 modules)
 - `bifrost_api.py` — bifrost.api -- the one door an agent uses to join and work the Bifrost bus.
 - `blobs.py` — BlobStore (Slice B1) -- a content-addressed blob store for Bifrost media/large payloads.
 - `bus.py` — Bifrost Bus (Slice B0) -- one ephemeral message transport for local agents, on Redis Streams.
@@ -35,6 +35,7 @@
 - `liveness.py` — Work-progress heartbeat (L1) -- pure observability for wedge detection.
 - `locks.py` — Advisory path-locks (Concurrency design C2).
 - `nudge.py` — Bifrost nudge -- targeted, per-agent barge-in (companion to control.py's global PAUSE).
+- `packet_spec.py` — Packet Spec v1 -- envelope integrity + MTU library (T040 LAW; built in T043).
 - `promoter.py` — Bifrost B2 -- the durable projection. Promote SALIENT bus messages into the append-only Ledger.
 - `runner_lock.py` — Bifrost runner singleton-lock -- at most ONE live runner per agent id.
 - `session_state.py` — Session State — snapshot the live Bifrost session so it can be resumed later.

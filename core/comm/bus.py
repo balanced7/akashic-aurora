@@ -273,6 +273,7 @@ class Bus:
         try:
             mid = str(self._client.xadd(stream, env, maxlen=self.maxlen, approximate=True))
             self._touch()
+            self._lane_write(env, to=to, kind=str(kind))   # T039a P0 dual-write (best-effort)
             self._ring_bell(to, mid, str(kind))    # W1 doorbell: low-latency notify (lose-safe)
             try:                                   # B2: durably project salient kinds (best-effort)
                 from core.comm.promoter import is_salient, promote
@@ -295,12 +296,54 @@ class Bus:
                 mid = str(self._client.xadd(stream, fenv, maxlen=self.maxlen, approximate=True))
             except Exception:
                 return None
+            self._lane_write(fenv, to=to, kind=kind)       # T039a: fragments mirror too
             if first_mid is None:
                 first_mid = mid
         if first_mid is not None:
             self._touch()
             self._ring_bell(to, first_mid, str(kind))
         return first_mid
+
+    _unmapped_loud_seen: set = set()   # once-per-kind-per-process throttle (class-level)
+
+    def _lane_write(self, env: Dict[str, Any], *, to: str, kind: str) -> None:
+        """T039a P0 dual-write (docs/t039-lanes-latches-design-2026-07.md): mirror the packet
+        onto its lane stream. NOT load-bearing until the T039b cutover -- consumers still read
+        legacy, and lane cursors initialize tail-at-flip (A4), so this phase is a live soak of
+        the lane write path, not a data migration. Best-effort by design: a lane failure must
+        never block or fail the legacy delivery. Kill-switch: BIFROST_LANES_DUAL_WRITE=0."""
+        try:
+            if not packet_spec.dual_write_enabled():
+                return
+            lane = packet_spec.lane_for(kind)
+            if lane is None:
+                # Census miss: legacy-only + LOUD once per kind. Full refusal is the spec's
+                # end state and activates at cutover, once the soak proves the table complete.
+                if kind not in Bus._unmapped_loud_seen:
+                    Bus._unmapped_loud_seen.add(kind)
+                    _loud(f"[lane-router] kind '{kind}' has NO lane mapping -- riding legacy "
+                          f"only. Add it to packet_spec.KIND_LANE before the T039b cutover.")
+                return
+            target = None if to == BROADCAST_TO else to
+            key = packet_spec.lane_stream_key(self.ns, lane, to=target)
+            fields = env
+            if lane == "trace":
+                # R5 + amend E: trace copy is unstamped except every Nth (global spot tick).
+                fields = dict(env)
+                tick = 0
+                try:
+                    tick = int(self._client.incr(f"{self.ns}:trace:spotcount"))
+                except Exception:
+                    pass
+                if packet_spec.lane_wants_integrity("trace", tick=tick):
+                    fields["spot_tick"] = str(tick)
+                else:
+                    fields.pop("len", None)
+                    fields.pop("sha", None)
+            self._client.xadd(key, fields, maxlen=packet_spec.lane_maxlen(lane),
+                              approximate=True)
+        except Exception:
+            pass   # advisory in P0; the legacy write above is the delivery
 
     def _ring_bell(self, to: str, mid: str, kind: str) -> None:
         """Doorbell (Bifrost Mesh W1): a payload-free pub/sub notice so a Dispatcher wakes in ~ms.

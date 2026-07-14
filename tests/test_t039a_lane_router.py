@@ -49,8 +49,8 @@ def _ns():
 
 # --------------------------------------------------------------- B1: router table pins
 CONTROL_KINDS = ["halt", "interrupt", "pause", "nudge", "steer"]
-WORK_KINDS = ["handoff", "reply", "request", "question", "chat", "note", "answer",
-              "dispatch", "status"]
+WORK_KINDS = ["handoff", "reply", "request", "question", "chat", "inform", "note",
+              "answer", "dispatch", "status"]
 TRACE_KINDS = ["trace", "thinking", "tool", "narration", "ledger_update", "resolved", "hint"]
 
 
@@ -82,8 +82,8 @@ def test_dual_write_work_lane_and_legacy_identical(monkeypatch):
     c = _client()
     monkeypatch.setenv("BIFROST_LANES_DUAL_WRITE", "1")
     ns = _ns()
-    bus = Bus(namespace=ns)
-    bus.send("agent-b", "handoff", "dual-write probe", frm="agent-a")
+    bus = Bus("agent-a", c, namespace=ns, promote=False)
+    bus.send("agent-b", "handoff", "dual-write probe")
     legacy = c.xrevrange(f"{ns}:inbox:agent-b", count=1)
     lane = c.xrevrange(f"{ns}:work:inbox:agent-b", count=1)
     assert legacy and lane, "both streams must receive the packet"
@@ -97,19 +97,19 @@ def test_dual_write_killswitch_off_leaves_lanes_untouched(monkeypatch):
     c = _client()
     monkeypatch.setenv("BIFROST_LANES_DUAL_WRITE", "0")
     ns = _ns()
-    bus = Bus(namespace=ns)
-    bus.send("agent-c", "handoff", "killswitch probe", frm="agent-a")
+    bus = Bus("agent-a", c, namespace=ns, promote=False)
+    bus.send("agent-c", "handoff", "killswitch probe")
     assert c.xrevrange(f"{ns}:inbox:agent-c", count=1), "legacy must flow"
     assert not c.exists(f"{ns}:work:inbox:agent-c"), "lane must be untouched"
 
 
 def test_dual_write_rings_bell_once(monkeypatch):
-    _client()
+    c = _client()
     monkeypatch.setenv("BIFROST_LANES_DUAL_WRITE", "1")
-    bus = Bus(namespace=_ns())
+    bus = Bus("agent-a", c, namespace=_ns(), promote=False)
     rings = []
     monkeypatch.setattr(bus, "_ring_bell", lambda *a, **k: rings.append(a))
-    bus.send("agent-d", "handoff", "bell probe", frm="agent-a")
+    bus.send("agent-d", "handoff", "bell probe")
     assert len(rings) == 1, "T039a must not double-ring (lane bells activate at T039b)"
 
 
@@ -127,8 +127,8 @@ def test_trace_lane_unstamped_but_legacy_stamped(monkeypatch):
     c = _client()
     monkeypatch.setenv("BIFROST_LANES_DUAL_WRITE", "1")
     ns = _ns()
-    bus = Bus(namespace=ns)
-    bus.broadcast("narration", "trace probe", frm="agent-a")
+    bus = Bus("agent-a", c, namespace=ns, promote=False)
+    bus.broadcast("narration", "trace probe")
     legacy = dict(c.xrevrange(f"{ns}:broadcast", count=1)[0][1])
     ring = dict(c.xrevrange(f"{ns}:trace", count=1)[0][1])
     assert "sha" in legacy, "legacy copy stays stamped (byte-identical bar)"
