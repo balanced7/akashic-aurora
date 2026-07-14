@@ -171,6 +171,11 @@ TOOLS = [
          "command": {"type": "string", "description": "command/tool probe the action targets (optional)"}}),
     _fn("knowledge_full", "Pull the FULL body of ONE recalled lesson by its source pointer (e.g. 'learn:experiment:NAME') -- the one-hop escape from a truncated recall surface to the raw evidence, all fields verbatim.",
         {"source": {"type": "string", "description": "lesson source pointer, e.g. 'learn:experiment:bifrost_hint_render'"}}, ["source"]),
+    _fn("memory_note", "PRIVATE note-to-self (your scratchpad, NOT shared project knowledge): a durable working note injected into YOUR future boots. Re-noting the same title supersedes the old note. Use for how-YOU-work notes, e.g. 'when reviewing T039, start at packet_spec.py'.",
+        {"title": {"type": "string", "description": "short stable title (re-noting it supersedes the prior note)"},
+         "note": {"type": "string", "description": "the note to your future self"}}, ["title", "note"]),
+    _fn("memory_recall", "Read YOUR private scratchpad (notes-to-self from prior invocations; also auto-injected into your boot). Yours alone -- peers have their own.",
+        {}),
     _fn("knowledge_boot", "Assemble the project's startup context for a task (recent notes + top lessons), the same briefing an agent gets.",
         {"task": {"type": "string", "description": "Short task description to rank context against"}}, ["task"]),
     _fn("knowledge_learn", "CONTRIBUTE a lesson to the knowledge base -- a durable 'use when X, do Y' article future agents recall. Requires the kb.learn capability. Write one whenever you discover something reusable (a fix, a gotcha, a pattern) so it outlives this chat.",
@@ -424,6 +429,34 @@ class ToolBox:
         """T048 item 2: the full faithful record behind one lesson's source pointer."""
         return self._agent_cli(["recall", "--full", str(source), "--json"])
 
+    def memory_note(self, title, note):
+        """T050 Q1 (deepseek wishlist b1 -- 'colleague who remembers', not 'consultant who
+        shows up cold'): private scratchpad on AgentMemory's mem: namespace; per-agent via
+        title prefix; re-noting a title supersedes it. Injected into future boots."""
+        from core.learning.agent_memory import get_agent_memory
+        aid = self.agent_id or "deepseek"
+        try:
+            mid = get_agent_memory().decide_with_retry(
+                f"scratch:{aid}:{str(title)[:60]}", str(note),
+                context=f"private note-to-self by {aid}")
+            return f"noted '{title}' (supersedes any prior note with this title; id {mid})"
+        except Exception as e:
+            return f"ERROR: memory_note failed: {type(e).__name__}: {e}"
+
+    def memory_recall(self):
+        """T050 Q1: list this agent's private notes-to-self (current heads only)."""
+        from core.learning.agent_memory import get_agent_memory
+        aid = self.agent_id or "deepseek"
+        pref = f"scratch:{aid}:"
+        try:
+            notes = [d for d in get_agent_memory().get_decisions(days=365)
+                     if str(d.title).startswith(pref) and not d.superseded]
+        except Exception as e:
+            return f"ERROR: memory_recall failed: {type(e).__name__}: {e}"
+        if not notes:
+            return "(no private notes yet -- memory_note leaves one for your future self)"
+        return "\n".join(f"- {d.title[len(pref):]}: {d.decision}" for d in notes[:20])
+
     def _kb_write_ok(self):
         """Gate KB writes on the kb.learn capability (recall/boot stay open to all). Read-only members
         (e.g. deepseek-ui) are denied with a teaching message. Fail-open only on a registry error --
@@ -649,7 +682,8 @@ class ToolBox:
                           "--allow-write (an agent cannot escalate its own ACL/launch surface). Ask a super-admin.")
         try:                                              # A0.1 environmental write-gate: claim, or YIELD visibly
             from core.comm.locks import guard_write
-            g = guard_write(str(p), self.agent_id or "deepseek")
+            g = guard_write(str(p), self.agent_id or "deepseek",
+                            note=f"guarded write of {p.name} (self-releases at reply)")
             if not g.get("ok"):
                 self._yield_notice(path, g.get("held_by"))   # surface the yield on the bus, not a silent error
                 return None, f"YIELDED: {g.get('reason')}"
@@ -793,6 +827,7 @@ _TOOL_STATE = {
     "search_files": "searching", "git_log": "inspecting", "git_diff": "inspecting",
     "git_show": "inspecting", "git_status": "inspecting", "knowledge_recall": "recalling",
     "knowledge_boot": "recalling", "recall_at": "recalling", "knowledge_full": "recalling",
+    "memory_note": "recalling", "memory_recall": "recalling",
     "run_command": "running", "web_search": "searching",
 }
 
@@ -910,7 +945,7 @@ class Agent:
 
     def send(self, user_text):
         self.messages.append({"role": "user", "content": user_text})
-        for _ in range(MAX_TOOL_ROUNDS):
+        for _round in range(MAX_TOOL_ROUNDS):
             if self.interrupt and self.interrupt():   # DeepSeek's fix: true barge-in mid-tool-loop
                 print(f"{C.yellow}[interrupted by your interjection -- pausing mid-task]{C.reset}")
                 return "[paused mid-task by your interjection -- resume to continue]"
@@ -949,6 +984,11 @@ class Agent:
                         result = self.toolbox.execute(s["name"], args)
                     first = result.splitlines()[0] if result else ""
                     print(f"{C.dim}   → {len(result)} chars | {first[:120]}{C.reset}")
+                    # T050 Q4 (deepseek a2 -- 'blind agents are conservative agents'): every
+                    # tool result carries the running hop count + the round budget, so the
+                    # agent paces with open eyes instead of hoarding hops on anxiety.
+                    self._hops = getattr(self, "_hops", 0) + 1
+                    result = f"{result}\n[hop {self._hops} | tool-round {_round + 1}/{MAX_TOOL_ROUNDS}]"
                     self.messages.append({"role": "tool", "tool_call_id": s["id"], "content": result})
                 continue
             if content:

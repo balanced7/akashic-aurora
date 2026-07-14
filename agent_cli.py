@@ -2465,7 +2465,16 @@ def cmd_locks(args):
     print(f"# {len(locks)} advisory path-lock(s) held")
     for lk in locks:
         mine = " (you)" if lk.get("agent") == args.agent_id else ""
-        print(f"  {lk.get('path')}  <- {lk.get('agent')}{mine}  token {lk.get('token')}")
+        why = f"  why: {lk.get('note')}" if lk.get("note") else ""
+        age = ""
+        try:
+            from core.foundation.timeutil import to_epoch
+            secs = max(0, int(time.time() - to_epoch(lk.get("ts"))))
+            ttl = int(lk.get("ttl") or 0)
+            age = f"  [{secs}s old, ttl {ttl}s]"
+        except Exception:
+            pass
+        print(f"  {lk.get('path')}  <- {lk.get('agent')}{mine}  token {lk.get('token')}{age}{why}")
     return 0
 
 

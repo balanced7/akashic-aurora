@@ -28,8 +28,10 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm.bifrost_api import BifrostAPI
-from core.comm import wake_seat
+# T050 Q6: core.comm imports are LAZY (inside functions) so main() can write the wake seat
+# within ~200ms of process start -- the heavy import chain was the arm-vs-stop-hook race
+# window (five false blocks 2026-07-13/14). The seat path is constructed inline below with
+# the exact convention claude_stop.py checks.
 
 # Kinds that keep the watcher waiting: display-only firehose (trace), fold-into-current-task
 # facts (steer -- when idle there is no current task; it surfaces at the next natural turn),
@@ -44,7 +46,15 @@ SKIP_KINDS = {"trace", "steer", "resolved", "ledger_update"}
 
 
 def _hb_path(agent, session_id=None):
+    from core.comm import wake_seat
     return wake_seat.seat_path(agent, session_id)
+
+
+def _hb_path_fast(agent, session_id=None):
+    """Seat path WITHOUT the core.comm import chain (T050 Q6) -- must mirror
+    wake_seat.seat_path / claude_stop._seat_path exactly."""
+    name = f"bifrost_wake_{agent}_{session_id}.pid" if session_id else f"bifrost_wake_{agent}.pid"
+    return os.path.join(tempfile.gettempdir(), name)
 
 
 def _hb_holder(path):
@@ -56,8 +66,9 @@ def _hb_holder(path):
 
 
 def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
-          api: BifrostAPI = None, hb_path: str = None, my_pid: int = None,
+          api=None, hb_path: str = None, my_pid: int = None,
           session_id: str = "") -> int:
+    from core.comm.bifrost_api import BifrostAPI
     api = api if api is not None else BifrostAPI(agent)
     if not api.online_now:
         print("BIFROST_WAKE: bus OFFLINE (Redis unreachable)")
@@ -131,6 +142,7 @@ def _migrate_legacy_ghost(agent: str) -> None:
     until its deadline. At the first session-scoped arm, retire it: verify identity via one
     process snapshot, kill only a verified watcher, remove the legacy seat, log provenance.
     The single remaining live-process kill in the protocol, bounded to the migration moment."""
+    from core.comm import wake_seat
     legacy = wake_seat.seat_path(agent, None)
     if not os.path.exists(legacy):
         return
@@ -159,15 +171,17 @@ def main() -> int:
     ap.add_argument("--deadline", type=int, default=1800, help="seconds before an idle re-arm (default 30 min)")
     ap.add_argument("--block", type=int, default=120_000, help="ms per inner blocking read")
     a = ap.parse_args()
-    if a.session:
-        _migrate_legacy_ghost(a.agent)
-    hb = _hb_path(a.agent, a.session or None)
+    # T050 Q6: SEAT FIRST -- write it before any heavy import/work so the stop hook's check
+    # sees an armed listener within ~200ms of launch (the race was the import chain).
+    hb = _hb_path_fast(a.agent, a.session or None)
     me = os.getpid()
     try:
         with open(hb, "w") as f:
             f.write(str(me))
     except Exception:
         pass
+    if a.session:
+        _migrate_legacy_ghost(a.agent)
     try:
         return watch(a.agent, a.deadline, a.block, hb_path=hb, my_pid=me, session_id=a.session)
     finally:

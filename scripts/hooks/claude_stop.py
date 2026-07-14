@@ -201,6 +201,11 @@ def main():
         except Exception:
             pass
     if not wake_armed(session_id):
+        # T050 Q6 (the arm-vs-hook race): a JUST-launched watcher needs ~1-2s of python+import
+        # startup before its seat exists -- five false blocks on 2026-07-13/14 were this race,
+        # each spawning a redundant watcher into newest-wins churn. One grace recheck.
+        time.sleep(1.5)
+    if not wake_armed(session_id):
         guard = _loop_guard_path(session_id)
         now = time.time()
         try:

@@ -348,6 +348,13 @@ def make_agentic_replier(model: str, system: str, think: bool, root: Path, agent
     # allow_write -> the guarded write_file/edit_file doors go live (path-scoped, secret-blocked, git-tracked).
     # allow_exec -> run_command door goes live. Unattended (confirm auto-denies), so pair with trust=True
     # or every command self-denies. Time-boxed while claude is at weekly limit; see security/acl.json.
+    # T050 Q3+Q4 (deepseek a4/a2): capabilities declared UP FRONT -- write mode, tool budget,
+    # recall wiring -- so no hop is ever wasted discovering what a session can do.
+    system = (f"[session capabilities] write_mode: "
+              f"{'ENABLED (guarded write_file/edit_file live; locks self-release at reply)' if allow_write else 'READ-ONLY -- write_file/edit_file will refuse; investigate and report'}"
+              f" | tool budget: {dc.MAX_TOOL_ROUNDS} rounds per task, running counter [hop N] rides every result"
+              f" | recall-at: {'on' if os.environ.get('DEEPSEEK_RECALL_AT') else 'off'}\n"
+              + system)
     toolbox = dc.ToolBox(root, allow_exec=allow_exec, trust=allow_exec, allow_secrets=False,
                          confirm=lambda _p: False, agent_id=agent_id, allow_write=allow_write,
                          boot_text=system)   # T048 item 3: the onboarding IS the boot-source truth
@@ -439,9 +446,38 @@ def onboarding_context(root: Path, agent_id: str, task: str, budget_chars: int =
         return ""
     if not digest:
         return ""
-    if len(digest) > budget_chars:
-        digest = digest[:budget_chars].rstrip() + "\n... [onboarding trimmed to keep bus replies lean]"
+    digest = _trim_onboarding(digest, budget_chars)
+    try:
+        # T050 Q1: the agent's PRIVATE notes-to-self ride every boot (appended AFTER the trim
+        # -- small, high-value, never silently cut).
+        from core.learning.agent_memory import get_agent_memory
+        pref = f"scratch:{agent_id}:"
+        notes = [d for d in get_agent_memory().get_decisions(days=365)
+                 if str(d.title).startswith(pref) and not d.superseded][:8]
+        if notes:
+            digest += ("\n\n## YOUR PRIVATE NOTES (yours alone; memory_note updates, "
+                       "memory_recall lists)\n")
+            digest += "\n".join(f"- {d.title[len(pref):]}: {str(d.decision)[:160]}" for d in notes)
+    except Exception:
+        pass
     return digest
+
+
+def _trim_onboarding(digest: str, budget_chars: int) -> str:
+    """T050 Q2 (deepseek wishlist a1): NEVER silently truncate the boot -- T043's packet law
+    (refuse-loud, never truncate) applied to context. Cut at the budget, then NAME every
+    dropped section with a pull pointer, so the agent knows exactly what it is missing and
+    how to fetch it instead of guessing."""
+    if len(digest) <= budget_chars:
+        return digest
+    head, tail = digest[:budget_chars], digest[budget_chars:]
+    dropped = [ln.strip().lstrip("#").strip() for ln in tail.splitlines()
+               if ln.strip().startswith("##")]
+    what = "; ".join(dropped[:8]) if dropped else "tail content (cut mid-section)"
+    return (head.rstrip()
+            + f"\n... [onboarding TRIMMED at its {budget_chars}-char budget. DROPPED: {what}. "
+              f"Pull any of it: knowledge_boot(task=...) re-assembles the full briefing; "
+              f"knowledge_recall(query=...) fetches specifics. Never guess at what was cut.]")
 
 
 def _process_one(m, bus, args, responder, rate) -> None:
