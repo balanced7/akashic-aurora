@@ -724,6 +724,22 @@ class Bus:
         self.advance_cursor_fields(self.lane_cursor_key(), fields)
         return True
 
+    def lane_flip_if_migrating(self) -> bool:
+        """The decidable flip heuristic for CALLERS entering lane mode: a MIGRATING agent
+        (virgin lane cursor + real progress on the SHARED cursor) runs the A4 ritual once;
+        a truly-new agent (both virgin) skips it and reads the lane from '0' (pin R7).
+        The flip gap is covered by design: unconsumed legacy backlog behind the shared
+        cursor at flip time is delivered by work_drain's straggler net (shadow seeds AT the
+        shared cursor), so tail-seeding the work lane loses nothing."""
+        if not self.online:
+            return False
+        if any(v != "0" for v in self.read_lane_cursor().values()):
+            return False                          # already flipped -- real progress
+        shared = self._read_cursor()
+        if shared.get("inbox", "0") == "0" and shared.get("bc", "0") == "0":
+            return False                          # truly new -- no ritual (pin R7 semantics)
+        return self.lane_cursor_flip_init()
+
     def _to_msg(self, sid: str, fields: Dict[str, Any]) -> Message:
         parts = [Part.from_dict(d) for d in (_loads(fields.get("parts")) or []) if isinstance(d, dict)]
         return Message(id=str(sid), frm=fields.get("frm", ""), to=fields.get("to", ""),

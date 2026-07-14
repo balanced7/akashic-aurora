@@ -168,13 +168,31 @@ def main() -> int:
     if not os.environ.get("AKASHIC_DRILL_ECHO") and bus.seed_cursor_at_tail():
         print(f"[runner] {args.agent} is new -- cursor seeded at the live tail "
               f"(stale broadcast backlog skipped)")
+    # T045 stage 2: work-lane consume behind the strangler env gate.
+    from core.comm.bifrost_api import BifrostAPI
+    lane_mode = BifrostAPI.consume_lane_enabled()
+    api = BifrostAPI(args.agent) if lane_mode else None
+    if lane_mode:
+        if bus.lane_flip_if_migrating():
+            print(f"[runner] lane flip: cursor seeded at lane tails (A4 ritual)")
+        print(f"[runner] CONSUME LANE: work (T045 stage 2 cutover live)")
     print(
         f"[runner] {args.agent} online as {card['runtime_class']}/{card['wake_mode']} "
         f"(provider={args.provider}, model={args.model}). Waiting for messages... (Ctrl-C to stop)"
     )
     try:
         while True:
-            msgs = bus.wait(timeout_ms=0, advance=True)   # block until a message, then CONSUME it
+            if lane_mode:
+                # Bounded block (not forever) so the sig peek + straggler net inside
+                # work_drain get a cycle regularly; advance-on-read preserves this
+                # runner's existing at-most-once consume semantic.
+                batch_next: dict = {}
+                msgs = api.work_drain(timeout_ms=30_000, since_out=batch_next)
+                if batch_next.get("inbox") or batch_next.get("bc"):
+                    bus.advance_to(inbox=batch_next.get("inbox"), bc=batch_next.get("bc"),
+                                   cursor_key=bus.lane_cursor_key())
+            else:
+                msgs = bus.wait(timeout_ms=0, advance=True)   # block until a message, then CONSUME it
             bus.register(card=card)                       # refresh presence
             for m in msgs:
                 # HINT interception: context hints are NOT answered -- stored for next turn.

@@ -787,6 +787,17 @@ def main() -> int:
             except Exception:
                 pass
     threading.Thread(target=_heartbeat, daemon=True).start()
+    # T045 stage 2: the consume side rides the WORK LANE when flipped (per-process strangler
+    # env gate BIFROST_CONSUME_LANE=work; unset = legacy path byte-identical).
+    from core.comm.bifrost_api import BifrostAPI
+    lane_mode = BifrostAPI.consume_lane_enabled()
+    lane_key = bus.lane_cursor_key() if lane_mode else None
+    api = BifrostAPI(args.agent) if lane_mode else None
+    if lane_mode:
+        if bus.lane_flip_if_migrating():
+            print(f"[deepseek-runner] lane flip: cursor seeded at lane tails (A4 ritual); "
+                  f"unconsumed legacy backlog rides the straggler net")
+        print(f"[deepseek-runner] CONSUME LANE: work (T045 stage 2 cutover live)")
     print(f"[deepseek-runner] {args.agent} online (model={args.model}, think={'on' if args.think else 'off'}, "
           f"{mode}, max_hops={control.MAX_HOPS}). Waiting for messages... (Ctrl-C to stop)")
     lock_gen = runner_lock.generation_of(lock_token)   # L1b: this tenure's fencing token
@@ -819,9 +830,15 @@ def main() -> int:
             # + ack tier make replies effectively-once. batch_next captures the fully-read
             # safe position so the post-batch sweep steps past FILTERED entries (own
             # broadcasts) exactly once -- filtered != truncated (T014) still holds.
-            cur0 = bus.cursor()
+            cur0 = bus.read_lane_cursor() if lane_mode else bus.cursor()
             batch_next: dict = {}
-            msgs = bus.wait(timeout_ms=1500, advance=False, since_out=batch_next)
+            if lane_mode:
+                # generation rides into work_drain so its internal sig/shadow advances
+                # aren't refused as stale once this tenure stamps the lane hash
+                msgs = api.work_drain(timeout_ms=1500, since_out=batch_next,
+                                      generation=lock_gen)
+            else:
+                msgs = bus.wait(timeout_ms=1500, advance=False, since_out=batch_next)
             bus.register(card=CARD)                           # refresh presence
             fenced_out = False
             for m in msgs:
@@ -842,8 +859,12 @@ def main() -> int:
                     except Exception:
                         pass
                 killpoint("post-sentinel-pre-advance")
+                if lane_mode and (m.meta or {}).get("_lane_src") != "work":
+                    continue   # sig/legacy stream ids must NEVER advance the work fields;
+                               # their cursors advanced inside work_drain (T045 stage 2)
                 field = "bc" if str(m.to) == "*" else "inbox"
-                status = bus.advance_to(**{field: m.id}, generation=lock_gen)
+                status = bus.advance_to(**{field: m.id}, generation=lock_gen,
+                                        cursor_key=lane_key)
                 if status == "STALE_GENERATION":
                     print("[deepseek-runner] cursor commit REFUSED (stale generation) -- a "
                           "successor owns the cursor; standing down (L1b fence).")
@@ -855,7 +876,8 @@ def main() -> int:
             if batch_next and (batch_next.get("inbox") != cur0.get("inbox")
                                or batch_next.get("bc") != cur0.get("bc")):
                 status = bus.advance_to(inbox=batch_next.get("inbox"),
-                                        bc=batch_next.get("bc"), generation=lock_gen)
+                                        bc=batch_next.get("bc"), generation=lock_gen,
+                                        cursor_key=lane_key)
                 if status == "STALE_GENERATION":
                     print("[deepseek-runner] batch-sweep REFUSED (stale generation) -- standing down.")
                     break

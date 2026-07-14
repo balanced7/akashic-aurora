@@ -116,8 +116,22 @@ def consume_inbox(agent_id: str, limit: int = 20) -> Dict[str, Any]:
                     "ttl": ttl, "teach": _seat_teach(str(agent_id), info, ttl),
                     "peeked": [m.to_dict() if hasattr(m, "to_dict") else {} for m in peek]}
         status: Dict[str, str] = {}
-        msgs = b.inbox(limit=max(1, limit), advance=True, generation=gen,
-                       commit_status_out=status)
+        from core.comm.bifrost_api import BifrostAPI
+        if BifrostAPI.consume_lane_enabled():
+            # T045 stage 2 session-door cutover (fence Q3: same-slice): same RB-21 seat,
+            # same generation fence, but reads ride work_drain and advances hit the LANE hash.
+            api = BifrostAPI(str(agent_id))
+            api.bus.lane_flip_if_migrating()
+            nxt: Dict[str, str] = {}
+            msgs = api.work_drain(timeout_ms=1, limit=max(1, limit), since_out=nxt,
+                                  generation=gen)
+            if nxt.get("inbox") or nxt.get("bc"):
+                status["status"] = api.bus.advance_to(
+                    inbox=nxt.get("inbox"), bc=nxt.get("bc"), generation=gen,
+                    cursor_key=api.bus.lane_cursor_key())
+        else:
+            msgs = b.inbox(limit=max(1, limit), advance=True, generation=gen,
+                           commit_status_out=status)
         if status.get("status") == "STALE_GENERATION":
             # A successor fenced us between claim and commit: the cursor did NOT move for
             # us -- show what we read as a PEEK; the successor redelivers (at-least-once).

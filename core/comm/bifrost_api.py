@@ -82,6 +82,10 @@ class BifrostAPI:
         `self.last_seat` is None (we consumed) or the holder's info dict (we degraded) --
         embedders render the teaching from it."""
         if not consume:
+            # PEEK stays legacy during dual-write: every packet is dual-written, so the
+            # legacy peek sees everything without touching any cursor (work_drain's
+            # sig/shadow auto-advance makes it consume-shaped -- wrong tool for a peek).
+            # Revisit at T047 when legacy retires.
             return self.bus.inbox(advance=False)
         from core.comm import runner_lock
         import os
@@ -91,7 +95,19 @@ class BifrostAPI:
             self.last_seat = info
             return self.bus.inbox(advance=False)
         status: Dict[str, str] = {}
-        msgs = self.bus.inbox(advance=True, generation=gen, commit_status_out=status)
+        if self.consume_lane_enabled():
+            # T045 stage 2 session-door cutover (fence Q3: same-slice). The RB-21 seat +
+            # generation fence apply to the LANE hash exactly as to the shared cursor.
+            self.bus.lane_flip_if_migrating()
+            nxt: Dict[str, str] = {}
+            msgs = self.work_drain(timeout_ms=1, since_out=nxt, generation=gen)
+            fields = {k: v for k, v in nxt.items() if v}
+            if fields:
+                status["status"] = self.bus.advance_to(
+                    inbox=nxt.get("inbox"), bc=nxt.get("bc"),
+                    generation=gen, cursor_key=self.bus.lane_cursor_key())
+        else:
+            msgs = self.bus.inbox(advance=True, generation=gen, commit_status_out=status)
         self.last_seat = (runner_lock.holder(self.agent) or {}) \
             if status.get("status") == "STALE_GENERATION" else None
         return msgs
@@ -212,7 +228,8 @@ class BifrostAPI:
                 str(getattr(m, "kind", "")))
 
     def work_drain(self, timeout_ms: int = 1500, *, limit: int = 50,
-                   since_out: Optional[Dict[str, str]] = None) -> List[Any]:
+                   since_out: Optional[Dict[str, str]] = None,
+                   generation: int = 0) -> List[Any]:
         """T045 stage 2 (T039b): the lane-mode consume door -- runner and session door both
         cut onto THIS seam. Gated by BIFROST_CONSUME_LANE=work (unset = legacy wait(),
         byte-identical, strangler discipline). In lane mode, per fence-reconciled scope
@@ -248,11 +265,17 @@ class BifrostAPI:
                             since_out=snxt, streams=self._sig_streams())
         for m in sig:
             seen.add(self._dedup_key(m))
+            try:
+                m.meta["_lane_src"] = "sig"     # consumers must NOT advance work fields for these
+            except Exception:
+                pass
         out += sig
         sig_fields = {f: snxt[k] for f, k in (("sig_inbox", "inbox"), ("sig_bc", "bc"))
                       if snxt.get(k) and snxt[k] != cur[f]}
         if sig_fields:
-            self.bus.advance_cursor_fields(lane_key, sig_fields)
+            # generation rides through: once a fenced consumer stamps the hash, a gen-0
+            # internal advance would be refused as stale and sig would replay forever
+            self.bus.advance_cursor_fields(lane_key, sig_fields, generation=generation)
         # (2) work primary -- caller's blocking budget; NO auto-advance (pin R3)
         wnxt: Dict[str, str] = {}
         work = self.bus.wait(timeout_ms=timeout_ms, limit=limit,
@@ -260,6 +283,10 @@ class BifrostAPI:
                              since_out=wnxt, streams=self._lane_streams())
         for m in work:
             seen.add(self._dedup_key(m))
+            try:
+                m.meta["_lane_src"] = "work"    # the ONLY source whose ids advance inbox/bc
+            except Exception:
+                pass
         out += work
         if since_out is not None:
             since_out.update(wnxt)
@@ -281,6 +308,11 @@ class BifrostAPI:
                 print(f"[work-drain] {len(stragglers)} LEGACY STRAGGLER(S) for "
                       f"{self.agent} -- lane write failed upstream; dual-write net caught "
                       f"them (defect signal, investigate the sender side)", file=sys.stderr)
+            for m in stragglers:
+                try:
+                    m.meta["_lane_src"] = "legacy"   # consumed via shadow; never advances work fields
+                except Exception:
+                    pass
             out += stragglers
             sh_fields = {f: shnxt[k] for f, k in (("shadow_inbox", "inbox"), ("shadow_bc", "bc"))
                          if shnxt.get(k) and shnxt[k] != cur[f]}
@@ -288,7 +320,7 @@ class BifrostAPI:
                 # persist the one-time shared-cursor seed even on a quiet peek
                 sh_fields = {"shadow_inbox": sh_in, "shadow_bc": sh_bc}
             if sh_fields:
-                self.bus.advance_cursor_fields(lane_key, sh_fields)
+                self.bus.advance_cursor_fields(lane_key, sh_fields, generation=generation)
         return out
 
     @property
