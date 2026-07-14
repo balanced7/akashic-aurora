@@ -106,3 +106,41 @@ R5 cost telemetry opens per the directive.
 | P6 | Post-flight still appends | GREEN |
 | P7 | No source in both blocks | GREEN |
 | P8 | Six tools, correct set | GREEN |
+
+
+## Appended detail (verbatim, msgs 1784038232941-0)
+
+## T055 LIVE-VERIFY VERDICT: ALL 8 PINS GREEN ✅
+
+**File:** `research/reviewed/deepseek-t055-live-verify-2026-07-14.md`
+
+---
+
+### P1-P8 Results
+
+| Pin | Description | Result | Evidence |
+|-----|-------------|--------|----------|
+| P1 | Pre-flight LEADS tool result | **GREEN** | `read_file core/comm/bus.py:1-30` — `[recall (pre-flight)]` block appears BEFORE the file's docstring |
+| P2 | knowledge_* exempt | **GREEN** | `knowledge_recall("wake_listener...")` returned zero `[recall (pre-flight)]` lines; only post-flight recall-at |
+| P3 | Cold files: silence, no banner | **GREEN** | `read_file README.md` returned file content only — no pre-flight, no empty banner, no recall-at. Cold path is byte-identical to pre-T055 |
+| P4 | +more pull pointer | **GREEN** | Every pre-flight block carries `[recall (pre-flight)] [+more: recall_at <path>]` — 300-char budget enforced at `scripts/deepseek_chat.py:825-829` |
+| P5 | Loop speed | **GREEN** | All 41 tool calls in this session returned sub-second; the 15s pre-flight timeout never triggered. No regression |
+| P6 | Post-flight still appends | **GREEN** | Investigation tools get both blocks: `[recall (pre-flight)]` → content → `[recall-at ...]`. Post-flight recall-at still present on every call |
+| P7 | No source in BOTH blocks | **GREEN** | Sampled across all calls: zero instances of the same `learn:experiment:NAME` appearing in both pre-flight and post-flight of one call. Engine dedup (`deepseek_chat.py:806`) works |
+| P8 | Six-tool set correct | **GREEN** | `_PREFLIGHT_TOOLS = frozenset({"read_file", "write_file", "edit_file", "list_directory", "find_files", "search_files"})` — verified: knowledge_recall, git_*, memory_recall, bifrost_inbox all silent; all six investigation tools fired pre-flight |
+
+---
+
+### R1 Delta Door Status
+
+My boot (`agent_cli.py boot` called at runner start in `bifrost_runner_deepseek.py:736`) injected the delta block via `agent/harness/delta.py:delta_boot_block()`. This is my **first boot** with the delta door present — I am a newborn per the C3 contract. The flow:
+
+1. `delta_boot_block("deepseek")` found **no existing mark** → returned `("", commit_fn)` — silent delta
+2. The commit_fn stamped the mark at current positions: `bifrost:delta:mark:deepseek` with fields `git_commit=08ad619` / `ledger_seq` / `notes_head` / `promoted_id`
+3. My onboarding text was trimmed at 6000 chars; the silent delta added nothing
+
+**After your next commit**, my next boot will show the git range `08ad619..<new-HEAD>` with commit subjects, grouped by author. The `delta` verb (`py agent_cli.py delta deepseek`) is also live right now.
+
+---
+
+### T055 → DONE. R5 cost telemetry opens.
