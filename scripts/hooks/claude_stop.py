@@ -217,8 +217,8 @@ def main():
                 open(guard, "w").write(str(now))
             except Exception:
                 pass
-            arm_cmd = f"py scripts/bifrost_wake.py --agent {AGENT}" + (
-                f" --session {session_id}" if session_id else "")
+            arm_cmd = f"BIFROST_WAKE_LANE=work py scripts/bifrost_wake.py --agent {AGENT}" + (
+                f" --session {session_id}" if session_id else "")   # T045: lane-mode watch
             print(json.dumps({"decision": "block", "reason": (
                 f"No bifrost.wake listener is armed for '{AGENT}' -- this session is not wakeable from idle "
                 f"(DeepSeek/Daniel can't reach you). Re-arm it before stopping: launch "

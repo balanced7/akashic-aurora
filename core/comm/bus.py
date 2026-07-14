@@ -374,7 +374,8 @@ class Bus:
 
     def wait(self, timeout_ms: int = 0, *, limit: int = 50, advance: bool = False,
              since: Optional[Dict[str, str]] = None,
-             since_out: Optional[Dict[str, str]] = None) -> List[Message]:
+             since_out: Optional[Dict[str, str]] = None,
+             streams: Optional[Dict[str, str]] = None) -> List[Message]:
         """BLOCK until a new message arrives (or `timeout_ms` elapses; 0 = forever), then return it.
 
         The event-driven wake primitive: an idle agent (or a backgrounded watcher) blocks here at ~0
@@ -387,8 +388,12 @@ class Bus:
         message (P0 / T017; the T016 Exhibit A fix). Pass `since_out={}` to receive the caller's next
         safe position under the same T014 rules the shared cursor uses (this is how a filtered own-
         broadcast -- read but never returned -- still moves the local cursor: filtered != truncated)."""
+        # T045: `streams` overrides WHICH keys the logical inbox/bc pair reads (e.g. the work
+        # lane) -- caller-owned cursors only (no shared cursor exists for lane keys yet), so
+        # advance is forced off; every T043 consume-door protection still applies.
         return self._drain(block=int(timeout_ms), limit=limit,
-                           advance=(advance and since is None), since=since, since_out=since_out)
+                           advance=(advance and since is None and streams is None),
+                           since=since, since_out=since_out, streams=streams)
 
     def _blocking_client(self, block_ms):
         """A client whose socket timeout EXCEEDS the block: the fail-fast client's short socket_timeout
@@ -409,12 +414,17 @@ class Bus:
                since: Optional[Dict[str, str]] = None,
                since_out: Optional[Dict[str, str]] = None,
                generation: int = 0,
-               commit_status_out: Optional[Dict[str, str]] = None) -> List[Message]:
+               commit_status_out: Optional[Dict[str, str]] = None,
+               streams: Optional[Dict[str, str]] = None) -> List[Message]:
         if not self.online:
             return []
         self._touch()
         cur = ({"inbox": str(since.get("inbox", "0")), "bc": str(since.get("bc", "0"))}
                if since is not None else self._read_cursor())
+        # T045: the logical inbox/bc pair reads legacy keys by default; `streams` retargets it
+        # (work lane) without touching any downstream logic -- cursor rules, integrity, frag
+        # reassembly and own-broadcast filtering are key-agnostic.
+        keys = streams or {"inbox": self._inbox_key(self.agent_id), "bc": self._bc_key}
         client, temp = self._client, None
         if block is not None:                      # a blocking wait() needs a long-socket-timeout client
             temp = self._blocking_client(block)
@@ -422,7 +432,7 @@ class Bus:
                 client = temp
         try:
             res = client.xread(
-                {self._inbox_key(self.agent_id): cur["inbox"], self._bc_key: cur["bc"]},
+                {keys["inbox"]: cur["inbox"], keys["bc"]: cur["bc"]},
                 count=max(1, limit), block=block)
         except Exception:
             res = None
@@ -446,7 +456,7 @@ class Bus:
         # a cursor-skip when the stream had more entries than limit. T014 Defect 1.)
         out_streams: List[str] = []                # "inbox" | "bc" (parallel to out)
         for stream, entries in res or []:
-            is_bc = (stream == self._bc_key)
+            is_bc = (stream == keys["bc"])
             for sid, fields in entries:
                 if is_bc:
                     new_bc = sid

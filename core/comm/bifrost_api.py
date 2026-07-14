@@ -17,6 +17,7 @@ a bus outage degrades to no-ops / empty, never an exception into the agent's loo
 """
 from __future__ import annotations
 
+import os
 from typing import Any, Dict, List, Optional
 
 from core.comm.bus import Bus
@@ -42,10 +43,11 @@ def _id_key(sid: str):
 class BifrostAPI:
     """One agent's handle on Bifrost. Wraps the bus + control/nudge/wake so an agent needs one import."""
 
-    def __init__(self, agent: str):
+    def __init__(self, agent: str, namespace: Optional[str] = None):
         self.agent = str(agent)
-        self.bus = Bus(self.agent)
+        self.bus = Bus(self.agent, namespace=namespace) if namespace else Bus(self.agent)
         self._wake_since: Optional[Dict[str, str]] = None   # the wake watcher's LOCAL cursor (P0)
+        self._lane_since: Optional[Dict[str, str]] = None   # T045: the lane watcher's LOCAL cursor
         self.last_seat: Optional[Dict[str, Any]] = None     # RB-21: holder info when a consume degraded
 
     @property
@@ -106,6 +108,8 @@ class BifrostAPI:
         - FAST-FORWARD: every call lifts the local cursor to at least the shared cursor, so mail a
           concurrent live session already consumed never wakes the watcher; a trimmed-away local
           position degrades to bounded paging from the stream head, not an error loop."""
+        if os.environ.get("BIFROST_WAKE_LANE") == "work":
+            return self._wake_block_lane(timeout_ms)   # T045 stage 1: watch the WORK LANE only
         if self._wake_since is None:
             seed = dict(self.bus.cursor())
             if seed.get("inbox", "0") == "0" and seed.get("bc", "0") == "0":
@@ -121,6 +125,50 @@ class BifrostAPI:
         msgs = self.bus.wait(timeout_ms=timeout_ms, since=self._wake_since, since_out=nxt)
         if nxt:
             self._wake_since.update(nxt)
+        return msgs
+
+    def _lane_streams(self) -> Dict[str, str]:
+        """The work-lane pair the T045 watcher reads (logical inbox/bc -> lane keys)."""
+        from core.comm import packet_spec
+        ns = self.bus.ns
+        return {"inbox": packet_spec.lane_stream_key(ns, "work", to=self.agent),
+                "bc": packet_spec.lane_stream_key(ns, "work")}
+
+    def _lane_tails(self) -> Dict[str, str]:
+        """Concrete last-ids of the lane pair -- the A4 tail-at-flip seed (dual-write history
+        is a soak, never mail; '$' would skip mail landing between reads, T017)."""
+        out: Dict[str, str] = {}
+        for logical, key in self._lane_streams().items():
+            try:
+                last = self.bus._client.xrevrange(key, count=1)
+                out[logical] = str(last[0][0]) if last else "0"
+            except Exception:
+                out[logical] = "0"
+        return out
+
+    def _wake_block_lane(self, timeout_ms: int) -> List[Any]:
+        """T045 stage 1 (T039b, wake-listener-first): watch the WORK LANE only. Trace/sig
+        floods and stranded broadcasts are STRUCTURALLY invisible -- the 2026-07-14 infinite
+        wake loop (1280 legacy traces hiding one handoff) cannot be represented here.
+
+        Legacy remains the CONSUME substrate during dual-write, so two rules keep the T017
+        missed-wake hole closed:
+        (1) ARM-TIME PENDING CHECK -- unconsumed legacy mail wakes immediately (a fresh
+            watcher must never sleep past mail that arrived before it armed);
+        (2) the lane cursor is caller-owned and seeded at the lane TAILS (A4 tail-at-flip).
+        Detect-only, same as the legacy path: nothing here consumes."""
+        if self._lane_since is None:
+            # 1ms peek, NOT 0 -- in xread semantics block=0 means WAIT FOREVER (caught live:
+            # the L2/L5 pins hung the suite on exactly this in the first run).
+            pending = self.bus.wait(timeout_ms=1, limit=10)   # shared-cursor peek, no advance
+            if pending:
+                return pending
+            self._lane_since = self._lane_tails()
+        nxt: Dict[str, str] = {}
+        msgs = self.bus.wait(timeout_ms=timeout_ms, since=self._lane_since, since_out=nxt,
+                             streams=self._lane_streams())
+        if nxt:
+            self._lane_since.update(nxt)
         return msgs
 
     @property

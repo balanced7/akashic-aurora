@@ -44,6 +44,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # fenced report). The watcher only DETECTS; nothing here is consumed (see wake_block).
 SKIP_KINDS = {"trace", "steer", "resolved", "ledger_update"}
 
+# T045 lane mode (P4): in the work lane the firehose kinds can no longer appear, but the
+# informational WORK kinds (note/status) must still not wake an idle seat -- an agent's
+# plan-wall budget is spent per wake. The legacy set stays unchanged (strangler discipline).
+SKIP_KINDS_LANE = SKIP_KINDS | {"note", "status"}
+
 
 def _hb_path(agent, session_id=None):
     from core.comm import wake_seat
@@ -81,6 +86,7 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
     # given. Seat-loss is a TRANSITION (held it, lost it) -- an embedder calling watch()
     # without ever seating keeps the old contract and never has files written for it.
     had_seat = _hb_holder(hb) == me
+    skip = SKIP_KINDS_LANE if os.environ.get("BIFROST_WAKE_LANE") == "work" else SKIP_KINDS
     out, seen = [], []
     steers = 0            # skipped steers are counted so the quiet exit says "check at next boot"
     deadline = time.time() + total_deadline_s
@@ -113,7 +119,7 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
             seen.append(f"{frm}:{kind}")
             if kind == "steer":
                 steers += 1
-            if frm == agent or kind in SKIP_KINDS:
+            if frm == agent or kind in skip:
                 continue
             if kind == "reply" and to == "*":
                 continue   # a BROADCAST reply is room chatter, not "someone answered you"
