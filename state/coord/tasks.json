@@ -1,5 +1,5 @@
 {
-  "seq": 50,
+  "seq": 51,
   "tasks": [
     {
       "id": "T001",
@@ -1657,11 +1657,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "blocked",
+      "status": "in_progress",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-14T03:25:54+00:00",
-      "updated": "2026-07-14T04:37:13+00:00",
+      "updated": "2026-07-14T04:46:35+00:00",
       "history": [
         {
           "to": "proposed",
@@ -1699,6 +1699,11 @@
           "by": "",
           "at": "2026-07-14T04:37:13+00:00",
           "reason": "parked on Daniel priority directive 2026-07-14 (ergonomics first): T050 quick-wins bundle builds now; T045 resumes immediately after -- tonight's wake-loop receipt raised its urgency"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-07-14T04:46:35+00:00"
         }
       ]
     },
@@ -1839,11 +1844,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "in_progress",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "9f7a72d",
+      "verified_by": "deepseek live-verify ALL FIVE GREEN (deepseek-t050-verify-2026-07-14.md) + pins 17/17 + Q5/Q6 live receipts (why-note rendered in locks; fast-seat arm)",
       "created": "2026-07-14T04:29:58+00:00",
-      "updated": "2026-07-14T04:37:13+00:00",
+      "updated": "2026-07-14T04:46:35+00:00",
       "history": [
         {
           "to": "proposed",
@@ -1864,6 +1869,37 @@
           "to": "in_progress",
           "by": "claude",
           "at": "2026-07-14T04:37:13+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-07-14T04:46:34+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-14T04:46:35+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T051",
+      "title": "Idea door (Daniel standing invitation 2026-07-14: 'if you come up with ways to make it better as we build, share -- the best ideas come while using the tool'): zero-friction mid-task capture -- py agent_cli.py idea 'text' (+ ToolBox share_idea for deepseek) writes a durable type=idea record (one line, no ceremony, never blocks flow); boot + UI render an IDEAS AWAITING DANIEL section; weekly consolidation folds accepted ones into the ledger, stale ones expire. The wishlist arc proved the harvest value; this makes it continuous instead of interview-driven",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-14T04:50:51+00:00",
+      "updated": "2026-07-14T04:50:51+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-14T04:50:51+00:00"
         }
       ]
     }
