@@ -132,5 +132,31 @@ def test_lane_skip_set_adds_note_status():
     assert "note" not in bw.SKIP_KINDS, "legacy skip set unchanged (strangler discipline)"
 
 
+# ------------------------------------------- L7: pending check ignores skip-kind junk
+def test_pending_check_not_trapped_by_legacy_junk(monkeypatch):
+    """First live soak: unconsumed legacy TRACES made pending non-empty forever -- the lane
+    cursor never seeded and the watcher busy-peeked legacy for its whole deadline."""
+    c = _client()
+    monkeypatch.setenv("BIFROST_LANES_DUAL_WRITE", "1")
+    monkeypatch.setenv("BIFROST_WAKE_LANE", "work")
+    ns = _ns()
+    noisy = Bus("noisy", c, namespace=ns, promote=False)
+    for _ in range(5):
+        noisy.broadcast("trace", "junk that nothing will ever consume")
+    watcher = BifrostAPI("alice", namespace=ns)
+    assert watcher.wake_block(timeout_ms=200) == [], "junk-only pending must seed lanes, not trap"
+    assert watcher._lane_since is not None, "lane cursor must have seeded despite pending junk"
+    noisy.send("alice", "handoff", "real work after the junk")
+    got = watcher.wake_block(timeout_ms=2000)
+    assert got and str(got[0].kind) == "handoff", "lane watching must be LIVE after junk-seed"
+
+
+def test_pending_skip_parity_with_lane_skip_set():
+    from core.comm import bifrost_api
+    import bifrost_wake as bw
+    assert bifrost_api.PENDING_SKIP_KINDS == bw.SKIP_KINDS_LANE, \
+        "drift here either traps the pending check on junk or wakes idle seats on noise"
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))

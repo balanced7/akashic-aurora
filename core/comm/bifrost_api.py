@@ -40,6 +40,13 @@ def _id_key(sid: str):
         return (-1, -1)
 
 
+# T045: kinds the lane watcher's arm-time pending check ignores -- display/control-plane
+# junk that legitimately sits unconsumed in legacy broadcast. MUST equal
+# scripts/bifrost_wake.SKIP_KINDS_LANE (guarded by pin L7; drift would either trap the
+# pending check on junk or wake idle seats on noise).
+PENDING_SKIP_KINDS = {"trace", "steer", "resolved", "ledger_update", "note", "status"}
+
+
 class BifrostAPI:
     """One agent's handle on Bifrost. Wraps the bus + control/nudge/wake so an agent needs one import."""
 
@@ -161,8 +168,15 @@ class BifrostAPI:
             # 1ms peek, NOT 0 -- in xread semantics block=0 means WAIT FOREVER (caught live:
             # the L2/L5 pins hung the suite on exactly this in the first run).
             pending = self.bus.wait(timeout_ms=1, limit=10)   # shared-cursor peek, no advance
-            if pending:
-                return pending
+            # Only WAKE-WORTHY pending mail counts (caught live, first lane soak 2026-07-14):
+            # nothing consumes legacy broadcast junk, so skip-kind traces pending there would
+            # otherwise trap this check forever -- lane_since never seeds and the watcher
+            # busy-peeks legacy for its whole deadline instead of watching the lane.
+            # Keep PENDING_SKIP_KINDS == bifrost_wake.SKIP_KINDS_LANE (parity pin L7).
+            live = [m for m in pending
+                    if str(getattr(m, "kind", "")) not in PENDING_SKIP_KINDS]
+            if live:
+                return live
             self._lane_since = self._lane_tails()
         nxt: Dict[str, str] = {}
         msgs = self.bus.wait(timeout_ms=timeout_ms, since=self._lane_since, since_out=nxt,
