@@ -67,3 +67,15 @@
 [deepseek-runner] -> rb25-soak-driver: [drill-echo] [soak-ping] 1783911458.8613555
 [deepseek-runner] <- rb25-soak-driver [request] (hop 1): [soak-ping] 1783913259.5731704
 [deepseek-runner] -> rb25-soak-driver: [drill-echo] [soak-ping] 1783913259.5731704
+[deepseek-runner] <- rb25-soak-driver [request] (hop 1): [soak-ping]
+[deepseek-runner] -> rb25-soak-driver: [drill-echo] [soak-ping]
+[deepseek-runner] <- rb25-soak-driver [request] (hop 1): [soak-ping] 1783915059.7929866
+[deepseek-runner] -> rb25-soak-driver: [drill-echo] [soak-ping] 1783915059.7929866
+[deepseek-runner] <- rb25-soak-driver [request] (hop 1): [soak-ping]
+[deepseek-runner] -> rb25-soak-driver: [drill-echo] [soak-ping]
+[deepseek-runner] <- rb25-soak-driver [request] (hop 1): [soak-ping] 1783916860.4629388
+[deepseek-runner] -> rb25-soak-driver: [drill-echo] [soak-ping] 1783916860.4629388
+[deepseek-runner] <- rb25-soak-driver [request] (hop 1): [soak-ping]
+[deepseek-runner] -> rb25-soak-driver: [drill-echo] [soak-ping]
+[deepseek-runner] <- rb25-soak-driver [request] (hop 1): [soak-ping] 1783918661.113433
+[deepseek-runner] -> rb25-soak-driver: [drill-echo] [soak-ping] 1783918661.113433

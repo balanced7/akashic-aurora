@@ -1,10 +1,12 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 48 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 49 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
-- where-we-are: TABLED 2026-07-13 (Daniel: waiting for Fable access to refresh tonight, then resumes). All work committed + PUSHED to public balanced7/akashic-aurora. Wake...  (source: mem:decision:ADR_0713091751_562cb422)
+- where-we-are: Shipped:
+  - T045 stage-1 post-GREEN soak fix: the arm-time pending check now counts only WAKE-WORTHY mail -- unconsumed legacy skip-junk (traces) was...  (source: mem:decision:ADR_0714082628_c5f18d92)
+- scratch:deepseek:first note: T050 verify ran -- my private memory works; next session me: say hi to Daniel  (source: mem:decision:ADR_0714004416_07da05a2)
 - next-focus: T029 CERTIFIED; FIRST BUILD SHIPPED (ns-isolation conversion), 2026-07-12. Packet-substrate build phase OPEN + underway. DONE this build: 6 core/comm...  (source: mem:decision:ADR_0712235247_7579f5f0)
 - rb25-drill3-deepseek-verify-2026-07-12: # RB-25 Drill 3 — DeepSeek Independent VERIFY (2026-07-12)
 

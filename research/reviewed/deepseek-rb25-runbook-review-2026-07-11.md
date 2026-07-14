@@ -7,8 +7,9 @@ Contract: M3 pre-registration fence -- amendments before drill one ARE the fence
 
 ## Verdict summary (bus line)
 
-GATE: AMBER -- PASS AFTER 4 AMENDMENTS (zero bar removals; 1 new bar, 2 clarifications,
-1 tolerance tightened). The runbook is honest, falsifiable, and correctly structured.
+GATE: AMBER -- PASS AFTER 6 AMENDMENTS (zero bar removals; 1 new bar H2b, 2 clarifications
+A1+A2, 1 tolerance tightened A3, 1 full rewrite A4, 1 clarification A6). The runbook is
+honest, falsifiable, and correctly structured.
 The findings below are the fence at work; none should delay the drill.
 
 ---
