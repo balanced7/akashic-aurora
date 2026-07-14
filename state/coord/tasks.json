@@ -2080,11 +2080,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "in_progress",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "HEAD",
+      "verified_by": "deepseek adversarial build review GREEN zero findings: research/reviewed/deepseek-t056-build-review-2026-07-14.md + pins K1-K7 + recovered reconciliation confirm",
       "created": "2026-07-14T13:11:04+00:00",
-      "updated": "2026-07-14T14:10:51+00:00",
+      "updated": "2026-07-14T22:21:16+00:00",
       "history": [
         {
           "to": "proposed",
@@ -2105,6 +2105,16 @@
           "to": "in_progress",
           "by": "",
           "at": "2026-07-14T14:10:51+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-07-14T22:21:16+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-14T22:21:16+00:00"
         }
       ]
     },
