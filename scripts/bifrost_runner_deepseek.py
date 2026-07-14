@@ -349,7 +349,9 @@ def make_agentic_replier(model: str, system: str, think: bool, root: Path, agent
     # allow_exec -> run_command door goes live. Unattended (confirm auto-denies), so pair with trust=True
     # or every command self-denies. Time-boxed while claude is at weekly limit; see security/acl.json.
     toolbox = dc.ToolBox(root, allow_exec=allow_exec, trust=allow_exec, allow_secrets=False,
-                         confirm=lambda _p: False, agent_id=agent_id, allow_write=allow_write)
+                         confirm=lambda _p: False, agent_id=agent_id, allow_write=allow_write,
+                         boot_text=system)   # T048 item 3: the onboarding IS the boot-source truth
+
     _wl = liveness.worklive(agent_id)
     def on_activity(state, detail):
         control.set_activity(agent_id, state, detail)   # existing UI presence
@@ -412,6 +414,10 @@ def make_agentic_replier(model: str, system: str, think: bool, root: Path, agent
         answer = bounce_promise(answer, ag.send)     # T018: a promise is not a deliverable
         answer = content_floor_check(answer, ag.send, agent_id=agent_id,
                                      promise_bounce_fired=(answer is not pre))   # RB-23
+        try:
+            toolbox.release_written_locks()   # T048: task end = lock end (3 leak receipts 2026-07-14)
+        except Exception:
+            pass
         return answer or "(deepseek produced no final answer)"
 
     return respond

@@ -991,7 +991,8 @@ def _provenance_tag(item: Dict[str, Any]) -> str:
 
 
 def render(result: Dict[str, Any], *, max_chars: int = 110,
-           header: str = "Recall-at-action (Akashic) - facts relevant to what you're about to do:") -> str:
+           header: str = "Recall-at-action (Akashic) - facts relevant to what you're about to do:",
+           hint_style: str = "cli") -> str:
     """Compact, agent-readable rendering for the hook's additionalContext. Each lesson is prefixed
     with a provenance tag (verification-status + author + claim-kind) so the agent reads it with the
     right epistemic weight rather than as a settled fact. Empty result -> ''.
@@ -1024,8 +1025,15 @@ def render(result: Dict[str, Any], *, max_chars: int = 110,
         return ""
     shown, total = len(result.get("lessons", [])), result.get("total", 0)
     if total > shown:
-        lines.append(f"... {shown} of {total} relevant lesson(s) shown — `recall-at --limit {total}` for the rest, "
-                      f"or `recall --full <source>` for any one's whole record")
+        # T048 item 1 (deepseek interview): the escape hint must name a surface the READER can
+        # actually use -- a tool-loop agent cannot run CLI verbs, so hint_style="tool" names its
+        # registered tools instead (the CLI-shaped hint was a dead end in its tool surface).
+        if hint_style == "tool":
+            lines.append(f"... {shown} of {total} relevant lesson(s) shown — call recall_at(limit={total}) "
+                          f"for the rest, or knowledge_full(source=\"<source>\") for any one's whole record")
+        else:
+            lines.append(f"... {shown} of {total} relevant lesson(s) shown — `recall-at --limit {total}` for the rest, "
+                          f"or `recall --full <source>` for any one's whole record")
     # Staleness cue (first-party fold-in 2026-07-08): a lesson describes the repo AS OF WRITING —
     # the older it is, the likelier its named files/flags/verbs have moved. One line, and only
     # when an old lesson is actually on this surface (silent otherwise — surface discipline).
@@ -1040,6 +1048,19 @@ def render(result: Dict[str, Any], *, max_chars: int = 110,
                              "writing; verify named files/flags still exist before leaning on it")
     except Exception:
         pass   # the cue is a bonus; its failure must never cost the surface
+    # Legend (T048 item 4, deepseek design): define the provenance terms IN BAND, but only when a
+    # surfaced lesson actually carries credibility markers. Reference material -> renders LAST, so
+    # it is the first thing the 900-char cap truncates.
+    try:
+        def _has_marker(l):
+            use = l.get("_use") or {}
+            return (use.get("helped") or use.get("useful")
+                    or str(l.get("success", "yes")).lower() not in ("", "yes", "true"))
+        if any(_has_marker(l) for l in result.get("lessons", [])):
+            lines.append("[legend] worked=self-reported | helped=auto credit | useful=vote | "
+                         "unverified=unconfirmed | anti-pattern=known-bad | advice=forward-looking")
+    except Exception:
+        pass
     # Factual framing (not imperative — imperative trips prompt-injection defenses). Hard total cap
     # well under Claude Code's 10k-char additionalContext limit.
     body = header + "\n" + "\n".join(lines)

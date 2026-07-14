@@ -474,7 +474,7 @@ def cmd_recall_at(args):
                     limit=args.limit or 3)
     if args.json:
         print(json.dumps(res, default=str)); return 0
-    out = render(res)
+    out = render(res, hint_style=getattr(args, "hint_style", "cli") or "cli")
     print(out if out else "# recall-at-action: nothing relevant (silence beats a weak hint)")
     return 0
 
@@ -2549,6 +2549,8 @@ def build_parser():
     ra.add_argument("--command", default=None, help="the shell command about to run")
     ra.add_argument("--agent-id", dest="agent_id", default=None, help="who is asking (defaults to $AKASHIC_AGENT_ID)")
     ra.add_argument("--limit", type=int, default=3, help="max items to surface (default 3)")
+    ra.add_argument("--hint-style", dest="hint_style", choices=["cli", "tool"], default="cli",
+                    help="escape-hint vocabulary: cli verbs (default) or tool-loop tool names (T048)")
     ra.add_argument("--json", action="store_true")
     ra.set_defaults(fn=cmd_recall_at)
 

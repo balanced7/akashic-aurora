@@ -44,6 +44,7 @@ import argparse
 import fnmatch
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -162,7 +163,14 @@ TOOLS = [
         {"ref": {"type": "string", "description": "Commit ref (default HEAD)"}}),
     _fn("git_status", "Short git status of the working tree (read-only).", {}),
     _fn("knowledge_recall", "Search Akashic Aurora's learned-knowledge base (lessons/decisions) via the project's own recall door.",
-        {"query": {"type": "string", "description": "Keywords, e.g. 'faithfulness critic'"}}, ["query"]),
+        {"query": {"type": "string", "description": "Keywords, e.g. 'faithfulness critic'"},
+         "novelty": {"type": "boolean", "description": "If true, tag each result [boot]/[new] -- whether the lesson was already in your boot onboarding (skip [boot] ones you have absorbed)"}}, ["query"]),
+    _fn("recall_at", "Re-run recall-at-action with a higher limit to see MORE lessons that cleared the relevance floor. The one-hop pull when a tool result's recall block says 'N of M shown'. Same engine as the automatic injection, more entries.",
+        {"limit": {"type": "integer", "description": "how many lessons to surface (use the M from the hint)"},
+         "path": {"type": "string", "description": "file path the action targets (optional)"},
+         "command": {"type": "string", "description": "command/tool probe the action targets (optional)"}}),
+    _fn("knowledge_full", "Pull the FULL body of ONE recalled lesson by its source pointer (e.g. 'learn:experiment:NAME') -- the one-hop escape from a truncated recall surface to the raw evidence, all fields verbatim.",
+        {"source": {"type": "string", "description": "lesson source pointer, e.g. 'learn:experiment:bifrost_hint_render'"}}, ["source"]),
     _fn("knowledge_boot", "Assemble the project's startup context for a task (recent notes + top lessons), the same briefing an agent gets.",
         {"task": {"type": "string", "description": "Short task description to rank context against"}}, ["task"]),
     _fn("knowledge_learn", "CONTRIBUTE a lesson to the knowledge base -- a durable 'use when X, do Y' article future agents recall. Requires the kb.learn capability. Write one whenever you discover something reusable (a fix, a gotcha, a pattern) so it outlives this chat.",
@@ -213,7 +221,7 @@ TOOLS = [
 
 class ToolBox:
     def __init__(self, root: Path, *, allow_exec: bool, trust: bool, allow_secrets: bool, confirm,
-                 agent_id: str | None = None, allow_write: bool = False):
+                 agent_id: str | None = None, allow_write: bool = False, boot_text: str = ""):
         self.root = root.resolve()
         self.allow_exec = allow_exec
         self.trust = trust
@@ -222,6 +230,13 @@ class ToolBox:
         self._confirm = confirm  # callable(prompt) -> bool
         self.agent_id = agent_id  # bus identity; when set, the bifrost_* doors are live (runner mode)
         self._bus_conn = None
+        # T048 item 3: the lesson sources folded into THIS agent's boot onboarding. Neither the
+        # injection ledger nor the seen-set records boot (verified 2026-07-14) -- the runner itself
+        # is the only holder of that text, so it hands it in and we extract the pointers.
+        self._boot_sources = set(re.findall(r"learn:experiment:[A-Za-z0-9_\-]+", boot_text or ""))
+        # T048 lock-release: paths guard_write locked this task; the runner releases them at reply
+        # time (3 leaked-lock receipts 2026-07-14 -- a completed task must not hold its locks).
+        self._written_lock_paths: list = []
 
     # -- path safety --
     def _resolve(self, path: str, *, allow_dir: bool) -> Path:
@@ -374,8 +389,34 @@ class ToolBox:
         except Exception as e:
             return f"ERROR: agent_cli failed: {e}"
 
-    def knowledge_recall(self, query):
-        return self._agent_cli(["recall", query, "--json"])
+    def knowledge_recall(self, query, novelty=False):
+        result = self._agent_cli(["recall", query, "--json"])
+        if not novelty:
+            return result
+        # T048 item 3: tag each result [boot]/[new] against the sources folded into this agent's
+        # boot onboarding. Fail-open -- untagged results beat an error.
+        try:
+            data = json.loads(result)
+            for entry in (data if isinstance(data, list) else data.get("lessons", [])):
+                if isinstance(entry, dict):
+                    entry["_novelty"] = "[boot]" if entry.get("source") in self._boot_sources else "[new]"
+            return json.dumps(data, default=str)
+        except Exception:
+            return result
+
+    def recall_at(self, limit=3, path=None, command=None):
+        """T048 item 1: the one-hop pull from a truncated recall surface -- same engine, more entries."""
+        args = ["recall-at", "--limit", str(limit), "--hint-style", "tool", "--agent-id",
+                self.agent_id or os.environ.get("AKASHIC_AGENT_ID", "deepseek")]
+        if path:
+            args += ["--path", str(path)]
+        if command:
+            args += ["--command", str(command)]
+        return self._agent_cli(args)
+
+    def knowledge_full(self, source):
+        """T048 item 2: the full faithful record behind one lesson's source pointer."""
+        return self._agent_cli(["recall", "--full", str(source), "--json"])
 
     def _kb_write_ok(self):
         """Gate KB writes on the kb.learn capability (recall/boot stay open to all). Read-only members
@@ -606,9 +647,22 @@ class ToolBox:
             if not g.get("ok"):
                 self._yield_notice(path, g.get("held_by"))   # surface the yield on the bus, not a silent error
                 return None, f"YIELDED: {g.get('reason')}"
+            self._written_lock_paths.append(str(p))       # T048: released at reply time (task end)
         except Exception:
             pass                                          # locks are advisory; never block a write on lock errors
         return p, None
+
+    def release_written_locks(self) -> int:
+        """T048: release every advisory lock this task's guarded writes took. Called by the runner
+        AFTER the reply is sent -- task end is lock end (T026 ack semantics). Reuses the unlock door
+        (the exact path used for tonight's three manual releases); best-effort, returns count tried."""
+        paths, self._written_lock_paths = self._written_lock_paths, []
+        for p in paths:
+            try:
+                self._agent_cli(["unlock", self.agent_id or "deepseek", p], timeout=15)
+            except Exception:
+                pass
+        return len(paths)
 
     def write_file(self, path, content):
         """Create or OVERWRITE a file. Guarded: --allow-write, path-scoped, secret-blocked, git-tracked."""
@@ -683,7 +737,7 @@ class ToolBox:
         advisory, never load-bearing."""
         if not os.environ.get("DEEPSEEK_RECALL_AT") or name.startswith("knowledge_"):
             return ""
-        call = ["recall-at", "--limit", "3",
+        call = ["recall-at", "--limit", "3", "--hint-style", "tool",
                 "--agent-id", self.agent_id or os.environ.get("AKASHIC_AGENT_ID", "deepseek")]
         path = args.get("path") or args.get("file_path") or args.get("directory")
         if path:
@@ -732,7 +786,8 @@ _TOOL_STATE = {
     "read_file": "reading", "list_directory": "reading", "find_files": "searching",
     "search_files": "searching", "git_log": "inspecting", "git_diff": "inspecting",
     "git_show": "inspecting", "git_status": "inspecting", "knowledge_recall": "recalling",
-    "knowledge_boot": "recalling", "run_command": "running", "web_search": "searching",
+    "knowledge_boot": "recalling", "recall_at": "recalling", "knowledge_full": "recalling",
+    "run_command": "running", "web_search": "searching",
 }
 
 
