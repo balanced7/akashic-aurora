@@ -47,6 +47,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 KEY_FILE = Path(__file__).resolve().parent.parent / ".secrets" / "deepseek.key"
@@ -219,7 +220,20 @@ TOOLS = [
          "timeout": {"type": "integer", "description": "Seconds (default 60)"}}, ["command"]),
     _fn("web_search", "Search the web (best-effort, via the project's local search if configured).",
         {"query": {"type": "string"}, "max_results": {"type": "integer", "description": "default 5"}}, ["query"]),
+    _fn("ask_clarification",
+        "Ask the human operator a clarifying question mid-task, then PAUSE until they answer "
+        "(or the timeout). Use sparingly -- only when genuinely stuck between two defensible "
+        "choices that materially change the work; if you can state your assumption and proceed "
+        "safely, do that instead. Budget: 3 per task. The answer folds into your next tool "
+        "round as a STEER.",
+        {"question": {"type": "string", "description": "the specific question, one sentence"},
+         "context": {"type": "string", "description": "what you're doing + which decision hangs on it (optional)"}},
+        ["question"]),
 ]
+
+# R7 (T058, deepseek design): mid-turn clarification dials.
+CLARIFY_MAX_PER_TASK = 3
+CLARIFY_TIMEOUT_S = 300
 
 
 # ---- the tool executor (all guards live here) -------------------------------
@@ -770,6 +784,35 @@ class ToolBox:
         except Exception as e:
             return f"ERROR: web_search failed: {e}"
 
+    def ask_clarification(self, question, context=""):
+        """R7 (T058, deepseek's own design): a mid-task question to the HUMAN, directed to
+        'user' only (never broadcast -- his 2b intent; a broadcast would wake peer
+        listeners with it). Budget-capped per task (the runner resets the counter each
+        task); the Agent loop's wait-poll holds the turn until the answer steers in or
+        the timeout injects a LOUD proceed-with-assumption."""
+        if not self.agent_id:
+            return "ERROR: not on the bus (no agent identity)"
+        self._clarify_count = getattr(self, "_clarify_count", 0) + 1
+        if self._clarify_count > CLARIFY_MAX_PER_TASK:
+            return (f"REFUSED: clarification budget exhausted "
+                    f"({CLARIFY_MAX_PER_TASK}/{CLARIFY_MAX_PER_TASK} used this task). "
+                    f"Proceed with your best judgment and note the assumption.")
+        b = self._bus()
+        if b is None:
+            return "ERROR: bus offline -- proceed with your best judgment and note the assumption"
+        cid = f"c_{int(time.time() * 1000)}"
+        text = f"CLARIFICATION: {question}"
+        if context:
+            text += f"\n\nContext: {context}"
+        b.send("user", "request", text,
+               meta={"via": f"{self.agent_id}-tool", "kind": "clarify",
+                     "clarify_id": cid, "hops": 0})
+        self._clarify_waiting = cid
+        self._clarify_deadline = time.time() + CLARIFY_TIMEOUT_S
+        return (f"Question sent to Daniel (id {cid}). Waiting for the answer "
+                f"(timeout {CLARIFY_TIMEOUT_S}s)... Budget: "
+                f"{self._clarify_count}/{CLARIFY_MAX_PER_TASK} used this task.")
+
     def _recall_at(self, name, args) -> str:
         """Push-side recall (env DEEPSEEK_RECALL_AT): fold lessons relevant to the action just taken
         into the tool result, giving this loop the recall-at-action claude gets from its hooks.
@@ -979,6 +1022,8 @@ class Agent:
 
     def send(self, user_text):
         self.messages.append({"role": "user", "content": user_text})
+        if getattr(self, "toolbox", None) is not None:
+            self.toolbox._clarify_count = 0   # R7 P2: the budget is per-task (per ask)
         for _round in range(MAX_TOOL_ROUNDS):
             if self.interrupt and self.interrupt():   # DeepSeek's fix: true barge-in mid-tool-loop
                 print(f"{C.yellow}[interrupted by your interjection -- pausing mid-task]{C.reset}")
@@ -988,6 +1033,30 @@ class Agent:
                     self.messages.append({"role": "user",
                         "content": f"[STEER -- new fact to adopt into your current task, keep going]: {fact}"})
                     print(f"{C.cyan}[steered mid-task] {fact[:120]}{C.reset}")
+            # R7 (T058): a pending clarification HOLDS this turn -- poll the steer queue
+            # (the runner routes the user's answer onto it) until it folds or the deadline
+            # injects a LOUD proceed-with-assumption. Context stays intact (his P7).
+            tb = getattr(self, "toolbox", None)
+            if tb is not None and getattr(tb, "_clarify_waiting", None):
+                cid = tb._clarify_waiting
+                while time.time() < getattr(tb, "_clarify_deadline", 0):
+                    got = (self.inject() or []) if self.inject else []
+                    if got:
+                        for fact in got:
+                            self.messages.append({"role": "user",
+                                "content": f"[STEER -- answer to your clarification ({cid})]: {fact}"})
+                            print(f"{C.cyan}[clarify-answer folded] {str(fact)[:120]}{C.reset}")
+                        tb._clarify_waiting = None
+                        break
+                    self._activity("awaiting-clarification")
+                    time.sleep(2)
+                if getattr(tb, "_clarify_waiting", None):
+                    tb._clarify_waiting = None
+                    self.messages.append({"role": "user", "content":
+                        f"[CLARIFICATION TIMEOUT ({cid}) -- no answer within {CLARIFY_TIMEOUT_S}s. "
+                        "Proceed with your best judgment and state your assumption LOUDLY: "
+                        "'I'm assuming X; if that's wrong, steer me.']"})
+                    print(f"{C.yellow}[clarify timeout {cid} -- proceeding with assumption]{C.reset}")
             self._activity("thinking")
             try:
                 content, tool_calls = self._stream_turn()

@@ -483,6 +483,14 @@ def _trim_onboarding(digest: str, budget_chars: int) -> str:
 def _process_one(m, bus, args, responder, rate) -> None:
     """Process a SINGLE incoming message: filter, answer, reply. (T014: extracted from the
     main loop so per-message exceptions never skip the rest of the batch.)"""
+    # R7 (T058): a reply to one of our clarification questions routes to the STEER queue,
+    # never a new turn -- the Agent is mid-turn, holding context, polling for exactly this.
+    if str(m.kind) == "reply" and str(m.frm) == "user":
+        cid = (m.meta or {}).get("clarify_id")
+        if cid:
+            nudge.steer_push(args.agent, m.frm, str(m.content))
+            print(f"[deepseek-runner] clarify-answer {cid} routed to the steer queue")
+            return
     # HINT interception: context hints are NOT answered -- they're stored in a ring buffer
     # and injected on the NEXT model call. The "push" half; "drain" half is in respond().
     if str(m.kind) == "hint":
