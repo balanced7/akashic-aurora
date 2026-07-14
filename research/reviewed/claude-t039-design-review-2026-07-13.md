@@ -80,6 +80,16 @@ S1's per-cutover rerun (0 lost, answered exactly once) is the catching bar.
 2. Daniel design gate (reconciliation items 1–4) + whether A1/A2 fold in pre-registration
    (recommended: yes — both are registration-time text, no rework of the converged architecture).
 
+## ROUND-2 ADDENDUM (2026-07-13) — FENCE CLOSED, CHECK INVALID ×2
+r2 was worse: tool-call-as-text (write_file emitted as prose, never executed), cut mid-report
+again, and a CONFABULATED corpus (nonexistent filenames, invented spec section/field width, a
+strawman A2, network-on-chip vocabulary describing no part of this system). Bounded rounds
+exhausted; NO round 3. **This review stands as a claude-only half (unfenced)** pending Daniel:
+rerun the check through a FULL deepseek session lane, or accept claude-only at the gate. Root
+cause + receipts: deepseek-t039-review-countercheck-2026-07-13-r2-invalid.md. Two live receipts
+now support folding "runner replies ride the packet integrity door" into T039a scope. Lessons:
+fence_report_citation_path_gate, fence_heavy_asks_need_full_session_lane.
+
 ## ROUND-1 ADDENDUM (2026-07-13, post counter-check r1)
 - deepseek's r1 reply was EVIDENCE-INVALID (cited nonexistent `bifrost/lane.py` — T039 has no
   build) and CUT mid-A2 (token ceiling). Round-2 re-ask sent: re-ground vs design docs, deliver
