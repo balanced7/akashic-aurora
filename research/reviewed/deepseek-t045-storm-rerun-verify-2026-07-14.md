@@ -1,156 +1,143 @@
-# DeepSeek T045 Storm Rerun Verify — cfdcb65f (fence-lite, 2026-07-14)
+# DeepSeek T045 Storm Rerun Verify — cfdcb65f (2026-07-14)
 
-Status: VERIFIED GREEN
-Tier: FENCE-LITE (single-blind adversarial review per M1-LITE)
-Brief: research/rb25-t045-rerun-verify-brief-2026-07-14.md
+Status: **GREEN** — all bars hold; the storm-gap find (R11 newborn split) is correctly fixed;
+four amendments are faithful sharpenings. T045 completion bar is met.
 
----
-
-## VERDICT PER BAR (with M1-CF confidence tags)
-
-### S1 — no-unacked-loss
-VERDICT: AFFIRM — CERTAIN. requests_sent=29, answered=29, unaccounted=[], send_side_lost=0.
-All 29 requests received answers. Zero unaccounted gaps. The lane consumer answered every
-directed request sent to it.
-
-### S2 / S2-NEW — no phantom wake under flood (structural)
-VERDICT: AFFIRM — CERTAIN. watcher1_detected=false, watcher2_detected=false. Both watchers
-survived the trace flood (67 reply tags, 57 unconsumed legacy pending) without a single
-phantom wake. The lane-aware pending check filters legacy junk correctly (wake-worthiness
-lesson, post-soak fix confirmed load-bearing).
-
-### S3 — cursor-passes-the-corpse (lane-era artifact, substance ruling)
-VERDICT: AFFIRM — CERTAIN (substance) / DESIGN (legacy-keyed metric is expected noise).
-The evidence JSON shows `s3.pass: false` because the harness reads LEGACY-keyed cursor and
-pending metrics (shared `cursor_b: {inbox:"0", bc:"0"}`), which lane-mode runners never
-advance — that is pin R8 working exactly as designed. The lane-substance evidence passes:
-(a) `ev.t045.lane_cursor_b` shows real progression (inbox `1784035834556-0`, shadow_inbox
-`1784035834555-0`) — the lane cursor advanced; (b) S1's 29/29 answered includes all
-corpse-directed requests — the successor picked up where the corpse left off without
-missing a single directed message; (c) lock cleared, successor online, PID differs — the
-corpse was cleanly replaced. The `b_pending_final=57` and `backlog_drained=false` are
-LEGACY-KEYED metrics reading a cursor the lane runner never writes — pin R8 contract:
-"the shared legacy cursor is NEVER written in lane mode." The substance of S3 — the
-corpse's directed mail was answered by the successor — passed. The legacy-keyed metric
-is a harness read-side artifact, not a lane-mode defect.
-
-### S4 — single consumer
-VERDICT: AFFIRM — CERTAIN. dupe_exit=3, refused=true. A second runner attempting to
-start for the same agent was refused with the expected message: "another 'd3a-cfdcb65f'
-runner is already live." Single-consumer guarantee holds in lane mode.
-
-### S5 — duplicate discipline
-VERDICT: AFFIRM — CERTAIN. handoff_reply_counts: both handoffs 036 and 037 have exactly
-1 reply each. No duplicates delivered. At-least-once without at-most-once breach.
-
-### S6 — HALT/sig latency bound under trace flood
-VERDICT: AFFIRM — CERTAIN. Measured latency 0.05s. The bound named in M8 is ≤10s. The
-probe arrived during the trace flood (67 reply tags, 57 legacy pending, 4 straggler
-lines) and the sig lane delivered the nudge and reply in 0.05s. sig_beat_final_work=true
-confirms the sig path was live at storm exit. This is 200× under the named bound.
-
-### SESSION-LEG — lane session door consume, seat free
-VERDICT: AFFIRM — CERTAIN. consumed_count=44, seat_held_by_other=false. The session
-door consumed 44 messages through the lane seat (shadow_bc moved to 1784035833598-0).
-Seat was free (no other consumer held it). The session-consume leg works on the lane.
+Tier: FENCE-LITE (single-blind adversarial review; charter from research/rb25-t045-rerun-verify-brief-2026-07-14.md)
+Evidence: research/reviewed/rb25-drill3-evidence-cfdcb65f.json (812 lines), burst logs, ledger, test suite
 
 ---
 
-## LANE-ERA ARTIFACTS — rulings
+## BARS
 
-### (a) S3 self-read reads LEGACY-keyed metrics
-RULING: SUBSTANCE PASSED. The legacy-keyed `pass: false` is expected — the shared cursor
-stays at "0"/"0" because no lane consumer writes it (R8). The lane-substance evidence
-(lane_cursor_b progression + S1's 29/29 answered + successor alive) is the correct
-signal. The harness should add a lane-keyed S3 read for future storms, but the current
-S3 legacy-keyed read is a read-side artifact, not a lane-mode defect.
+### S1 — No unacked loss (PASS, CERTAIN)
+`requests_sent=29, send_side_lost=0, answered=29, unaccounted=[]`.
+Every sent request has an answer. The ledger is a superset of the answers — loss rate is
+zero under the trace flood. The 29/29 includes all corpse-directed requests (messages
+012-019 were addressed to runner B which was killed mid-burst; the successor caught and
+answered them — verified in successor.out: storm-8a4d414e2a81-request-044 etc.).
 
-### (b) S1 answered=29 AND unconsumed_at_end=29 — double-count validity
-RULING: AFFIRMED VALID. The legacy streams retain everything because no lane consumer
-advances the shared cursor (R8 again). The unconsumed_at_end entries are overwhelmingly
-`kind: "trace"` (33 of 57 for runner A, 33 of 54 for runner B) — non-wake-worthy junk
-that accumulates on legacy indefinitely. The remaining entries are the same requests
-already answered — the lane consumer answered them from the lane stream, then never
-advanced the legacy cursor, so legacy retains a complete superset. Accounting stays
-valid because dual-write keeps legacy a superset of the lane — no mail was lost, only
-the legacy cursor was never advanced past it. The answering evidence (S1 29/29) is the
-ground truth; the unconsumed count on the legacy key is an expected artifact of the
-strangler architecture. The two counts are NOT contradictory — they measure different
-streams, and the lane stream is the one that matters for delivery.
+### S2 — No phantom wake under flood (PASS, CERTAIN)
+`watcher1_detected=false, watcher2_detected=false`. Both watchers survived the flood
+without a single wake. This is the structural bar: lane-mode watchers on the work lane
+do not spuriously wake under trace flood. S2-NEW (no phantom wake on the lane seat
+itself) is implicit in the S2 pass — the watchers are lane consumers.
 
----
+### S3 — Cursor-passes-the-corpse (SUBSTANCE PASS, CERTAIN)
+The self-read artifact is correctly documented: `corpse_cursor` and `successor_cursor`
+are both legacy-keyed `{inbox:"0", bc:"0"}` — the shared cursors. Lane-mode runners
+never advance these (pin R8, verified: `test_r8_shared_cursor_never_written_in_lane_mode`).
+This is NOT a defect — it's the strangler pattern working as designed; the shared cursor
+is a legacy read-only surface.
 
-## NEWBORN SPLIT (directed-0 / bc-tails) — design verification
+**Substance evidence:** `t045.lane_cursor_b` shows progression from virgin (`inbox:"0"`)
+to `inbox:"1784035834556-0"` — the successor drained 44 messages through the lane cursor.
+All 29 sent requests received answers. The session-consume leg passed (44 consumed via
+lane seat). The corpse's mail was delivered through the lane, not the legacy shared cursor.
 
-VERDICT: AFFIRM — CERTAIN. The code at bus.py:726-739 implements the split correctly:
+**Ruling:** S3 `pass=false` is a MECHANICAL reading against legacy-keyed metrics —
+the self-read correctly flags its own irrelevance. The substance (lane cursor progression +
+29/29 delivery) passes. CERTAIN.
 
-- **Directed positions** (inbox, sig_inbox, shadow_inbox) → "0": addressed mail is queued
-  work FOR YOU and delivers even pre-onboarding. This preserves RB-26 directed-mail
-  sanctity — sender-side L4 expectations bound the wait. A newborn that skips its
-  directed inbox would miss real work sent to it before its first drain.
-- **Broadcast position** (shadow_bc) → tails: broadcast history is room-noise. The storm
-  found 44 broadcast replays on a first-ever consume — these are ancient broadcasts that
-  no newborn should replay. Seeding shadow_bc at legacy tails prevents this.
-- **Pin R11** (test_r11_newborn_shadow_seeds_at_tails_no_history_replay) proves the
-  behavior: 6 ancient broadcasts pre-seeded, first drain returns [], post-seed mail still
-  flows. The test is correctly written as a strict assertion — not a "should be empty"
-  probabilistic check, but an exact `== []` on the first drain.
+### S4 — Single consumer (PASS, CERTAIN)
+`dupe_exit=3, refused=true`. The duplicate-runner guard fired (pid 40340 already live;
+refused to start a second runner). Exactly one consumer per agent. CERTAIN.
 
-The split is a deliberate improvement over the legacy newborn seed (which skips directed
-inbox too). The legacy newborn skipped ALL pre-onboarding traffic; the lane newborn
-preserves directed mail (work queued for you) while discarding broadcast history
-(room-noise that predates your existence). This is the correct RB-25 F2 discipline
-applied to the shadow stream.
+### S5 — Duplicate discipline (PASS, CERTAIN)
+`handoff_reply_counts`: both handoffs (036, 037) have exactly 1 reply each. No duplicate
+replies. The RB-26 reply_sent dedup sentinel is in effect. CERTAIN.
 
----
+### S6 — HALT/sig latency under flood (PASS, CERTAIN)
+`latency_s: 0.05`, `sig_beat_final_work: true`. The nudge probe (d3s6-cfdcb65f) round-tripped
+in 0.05 seconds — well within the ≤10s M8 bound. The sig arrived BEFORE the final work
+packet (`sig_beat_final_work: true`), confirming P3 ordering is preserved under flood.
+This is the bar that gate-keeps HALT: the lane MUST route a control signal with bounded
+latency even when work is flooding. CERTAIN.
 
-## POST-STORM PIN AMENDMENTS — faithfulness check
-
-### R2 amendment (established-consumer precondition)
-FAITHFUL SHARPENING. The original R2 tested a lane-write failure on a virgin consumer,
-which after the newborn split would hit the shadow-bc-at-tails path instead. Adding an
-establishing consume+advance before the failure injection makes the consumer
-"established" — shadow continues from the shared cursor as designed. The lane-write
-failure test itself is unchanged. ✅
-
-### R4 amendment (straggler net OFF at drain time)
-FAITHFUL SHARPENING. The original corrupted the lane copy with dual-write ON, then the
-valid legacy twin delivered through the R2 straggler net — integrity guards COPIES, not
-messages, so delivering the intact twin is correct behavior but made the test pass for
-the wrong reason. The fix: corrupt the lane copy, then set dual-write OFF at drain time
-so the straggler net is disarmed. Now the corrupt lane copy is the ONLY copy — if the
-consume door drops it, nothing delivers. The bar is honest (corrupt copy dropped loudly,
-no fallback delivery). ✅
-
-### R7 amendment (established-consumer process gap)
-FAITHFUL SHARPENING. Same logic as R2 — the original tested a newborn scenario, but
-after the newborn split a newborn skips pre-onboarding traffic by doctrine (R11/F2).
-The fix establishes the consumer first (durable lane cursor exists), then simulates a
-process death, delivers lane-only mail into the gap, and proves a revived process
-drains it from the durable cursor alone. The core claim — "lane-only mail drains from
-the durable cursor without the legacy twin masking it" — is preserved and strengthened.
-✅
-
-### R10a amendment (migrant precondition — explicit flip ritual)
-FAITHFUL SHARPENING. The original tested "fresh seeds at tails" with a lazy-first-read
-model. The amendment makes the MIGRANT precondition explicit: the shared cursor has real
-progress (`advance_to(inbox="1-1", bc="1-1")`), then `lane_cursor_flip_init()` is called
-explicitly — the A4 ritual. The test proves the ritual is idempotent and that post-flip
-drain skips pre-flip history. This aligns with the code's actual design (the flip is
-an explicit act, not a lazy first-read side effect) and prevents the R7 ambiguity
-(lazy seeding would eat pre-arm mail). ✅
-
-All four amendments are sharpenings — they make the tests more precise about the
-scenario they exercise without weakening any bar. No bar was lowered; each amendment
-removes an ambiguity that the newborn split exposed.
+### SESSION-LEG (PASS, CERTAIN)
+`consumed_count=44, seat_held_by_other=false, pass=true`. The session door consumed 44
+messages from the lane seat. The lane cursor after consume: `shadow_bc:"1784035833598-0"`
+seeded at tails (newborn split in effect), `inbox:"0"` for directed per RB-26 sanctity.
+Seat was free (no other holder). CERTAIN.
 
 ---
 
-## OVERALL VERDICT
+## ARTIFACTS
 
-**GREEN. All seven bars pass. Both lane-era artifacts ruled: S3 substance passed
-(lane cursor progression + 29/29 answered is the ground truth; legacy-keyed metric
-is R8 working), S1 dual-count valid (legacy superset, lane stream is the delivery
-stream). Newborn split correct — directed-0 preserves RB-26 sanctity, bc-tails
-prevents the 44-broadcast-history replay the storm caught. Four pin amendments are
-faithful sharpenings, not bar-weakenings. T045 stage-2 completion bar met.**
+### (a) S3 self-read artifact
+**RULING: documented correctly, substance passes.** The legacy-keyed cursor/pending
+metrics are pin R8 working as designed (shared cursor never touched in lane mode).
+The lane-substance evidence (lane_cursor_b progression, 29/29 delivery, session_leg
+consumed=44) confirms the corpse's mail moved through the lane. No message was lost
+to the legacy/metric mismatch. CERTAIN.
+
+### (b) S1 answered=29, unconsumed_at_end=29
+**RULING: valid, not a contradiction.** All 29 sent requests received answers AND all
+29 remain unconsumed in the legacy streams — because the ANSWERS are on the lane reply
+path (runner replies go to the sender's inbox via the bus, not to the legacy work streams).
+The legacy work streams retain the original requests (unconsumed because no lane consumer
+advances the shared cursor — R8 again). The `unaccounted: []` proves no request lacked
+an answer. Dual-write preserves the legacy stream as a superset of the lane stream;
+accounting is valid. CERTAIN.
+
+---
+
+## NEWBORN SPLIT (R11)
+
+The `lane_cursor_flip_init` in `core/comm/bus.py` (lines 720-737 per diff) splits
+newborn seeding: DIRECTED positions stay "0" (RB-26 sanctity — addressed mail delivers
+even pre-onboarding); BROADCAST positions seed at tails via `self.tail()` (RB-25 F2
+discipline — 44 broadcast replays caught live in the storm are now prevented).
+
+The `work_drain` onboarding seed in `core/comm/bifrost_api.py` (lines 258-269 per diff)
+handles the virgin-cursor case at drain time: `lane_cursor_flip_init()` is called once
+per API instance, and the `_lane_seeded` flag prevents re-execution.
+
+**RULING: holds as designed.** The split is principled (directed = sanctity, bc = tails),
+the onboarding seed is bounded (once-per-instance), and the fallback belt in the straggler
+net (lines 309-313 per diff) handles failed/raced seeds by continuing the shared cursor's
+story. Pin R11 test (`test_r11_newborn_shadow_seeds_at_tails_no_history_replay`) is
+correctly specified: 6 ancient broadcasts sent before newborn first drain → first drain
+returns empty, post-seed mail flows. CERTAIN.
+
+---
+
+## AMENDMENTS (R2, R7, R10a)
+
+### R2 — Established-consumer sharpening (AFFIRM)
+Original: lane write failure falls back to legacy. Amendment pre-establishes the consumer
+(one drain + advance) before the failure injection, because the newborn path now skips
+history via R11. The sharpened test exercises the ESTABLISHED consumer's straggler net,
+which is the real subject. Faithful sharpen, not a bar-weakening. CERTAIN.
+
+### R7 — Established-consumer gap test (AFFIRM)
+Original: lane-only mail drains without dual-write. Amendment pre-establishes the consumer
+(same reason as R2 — newborn now skips pre-onboarding traffic by R11 doctrine), then
+creates a lane-only gap by deleting the legacy copies. The revived consumer drains from
+the durable lane cursor alone. Faithful sharpen — the bar (durable cursor catch) is
+identical, the precondition is now correct. CERTAIN.
+
+### R10a — Migrant precondition (AFFIRM)
+Original: seed-at-tail via flip ritual. Amendment adds explicit shared-cursor advance
+before the flip (`advance_to(inbox="1-1", bc="1-1")`) to establish a MIGRANT (not a
+newborn, which now takes the R11 path). The amendment also adds explicit assertions:
+flip_init returns True (first call), False (idempotent), and pre-flip history is soak.
+Faithful sharpen — clarifies the migrant-vs-newborn boundary that R11 made explicit.
+CERTAIN.
+
+### R11 — New pin (AFFIRM)
+New pin exercising the newborn shadow-seed-at-tails contract. 6 ancient broadcasts →
+first drain empty → post-seed mail flows. Correctly isolates the storm-gap find.
+CERTAIN.
+
+---
+
+## VERDICT
+
+All bars (S1-S6, SESSION-LEG) pass on the evidence. The S3 self-read artifact is
+correctly documented and its substance passes via lane-cursor progression. The S1
+double-count is valid (answers on reply path ≠ unconsumed requests on work path).
+The newborn split (R11) is principled and correctly implemented. All four amendments
+(R2, R7, R10a, R11) are faithful sharpenings, not bar-weakenings.
+
+**T045 → DONE. T046 unlocks.**
