@@ -4,8 +4,9 @@ A1 -- targeted halt on the Bifrost control plane (core/comm/control.py).
 Bar: halt() can freeze ONE agent while the others keep running, resume is selective, and the
 all-agents case still rides the existing global pause flag (backward-compatible per DeepSeek's note).
 
-Redis-backed: uses the real Redis but ISOLATES itself by monkeypatching the control key constants to
-a throwaway namespace -- so the test never touches the live bus's control keys (which would otherwise
+Redis-backed: uses the real Redis but ISOLATES itself by pointing BIFROST_NAMESPACE at a throwaway
+namespace -- control resolves its keys PER-CALL from that env var (like Bus.ns, since the 2026-07-12
+namespace-scope fix), so the test never touches the live bus's control keys (which would otherwise
 freeze a running runner). Skips if Redis is down. Run: py -m pytest tests/test_bifrost_control_halt.py -q
 """
 import os
@@ -21,13 +22,12 @@ from core.comm import control
 
 @pytest.fixture
 def ns(monkeypatch):
-    """Point control's key constants at a throwaway namespace + clean it up. Skips if Redis is down."""
+    """Route control's per-call key resolution to a throwaway namespace + clean it up. Skips if Redis is down."""
     c = control._client()
     if c is None:
         pytest.skip("redis not available")
     n = f"bifrost_test_{uuid.uuid4().hex[:8]}"
-    monkeypatch.setattr(control, "PAUSE_KEY", f"{n}:control:paused")
-    monkeypatch.setattr(control, "HALT_PREFIX", f"{n}:control:halt:")
+    monkeypatch.setenv("BIFROST_NAMESPACE", n)
     yield n
     keys = c.keys(f"{n}:*")
     if keys:
