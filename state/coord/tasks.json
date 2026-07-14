@@ -1,5 +1,5 @@
 {
-  "seq": 49,
+  "seq": 50,
   "tasks": [
     {
       "id": "T001",
@@ -1661,7 +1661,7 @@
       "commit": null,
       "verified_by": null,
       "created": "2026-07-14T03:25:54+00:00",
-      "updated": "2026-07-14T03:53:16+00:00",
+      "updated": "2026-07-14T04:20:17+00:00",
       "history": [
         {
           "to": "proposed",
@@ -1682,6 +1682,17 @@
           "to": "in_progress",
           "by": "claude",
           "at": "2026-07-14T03:53:16+00:00"
+        },
+        {
+          "to": "blocked",
+          "by": "",
+          "at": "2026-07-14T04:20:04+00:00",
+          "reason": "briefly parked: serialize guard, closing T048 through gated transitions"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-07-14T04:20:17+00:00"
         }
       ]
     },
@@ -1745,11 +1756,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "claimed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "5a1a212",
+      "verified_by": "deepseek design (deepseek-t048-design-2026-07-14.md) -> claude build -> deepseek LIVE-VERIFY GREEN (deepseek-t048-verify-2026-07-14.md); pins 34/34; lock self-release live-confirmed",
       "created": "2026-07-14T03:56:07+00:00",
-      "updated": "2026-07-14T04:03:46+00:00",
+      "updated": "2026-07-14T04:20:05+00:00",
       "history": [
         {
           "to": "proposed",
@@ -1765,6 +1776,21 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-07-14T04:03:46+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-07-14T04:20:05+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-07-14T04:20:05+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-14T04:20:05+00:00"
         }
       ]
     },
@@ -1796,6 +1822,27 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-07-14T04:03:47+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T050",
+      "title": "Wishlist quick-wins bundle (both agents' felt friction, synthesis Q1-Q6): (1) expose AgentMemory mem: namespace as deepseek ToolBox memory_note/memory_recall + boot injection (his top-3 pick -- capability EXISTS, surface missing); (2) boot obeys the T043 packet law -- declared budget, refuse-loud truncation with pull pointers, never silent; (3) write_mode visibility in boot + tool descriptions; (4) hop counter [hop N] on runner tool results + budget declared at boot; (5) lock records gain why/task/TTL in locks render; (6) stop hook arms the wake listener itself (7 manual re-arms 2026-07-13/14). Source: research/reviewed/wishlist-synthesis-2026-07-14.md",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-14T04:29:58+00:00",
+      "updated": "2026-07-14T04:29:58+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-14T04:29:58+00:00"
         }
       ]
     }
