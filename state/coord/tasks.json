@@ -1,5 +1,5 @@
 {
-  "seq": 60,
+  "seq": 61,
   "tasks": [
     {
       "id": "T001",
@@ -2209,6 +2209,27 @@
           "to": "approved",
           "by": "user",
           "at": "2026-07-14T13:11:55+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T061",
+      "title": "L4 settle-linkage fix: an ANSWERED directed ask must never redrive -- expectations settle on any directed reply from the target (multi-part/summary replies included), not just meta.answers-linked ones. Evidence: two redrive duplicates on 2026-07-14 (live-verify handoff + storm verdict), both deduped by deepseek from ledger state (lesson l4_redrive_settle_linkage). Small slice: core/comm/expectations.py settle predicate + pin",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-14T14:12:55+00:00",
+      "updated": "2026-07-14T14:12:55+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-14T14:12:55+00:00"
         }
       ]
     }
