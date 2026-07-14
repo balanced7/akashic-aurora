@@ -1,5 +1,5 @@
 {
-  "seq": 51,
+  "seq": 60,
   "tasks": [
     {
       "id": "T001",
@@ -1900,6 +1900,240 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-14T04:50:51+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T052",
+      "title": "R1 Delta door (wishlist S1, both seats' top convergence): per-agent high-water mark (last-seen commit + ledger revision + bus cursor + note versions) + delta <agent> verb rendering what moved + boot/wake integration (the boot shrinks, the wake sharpens). Cites research/reviewed/wishlist-synthesis-2026-07-14.md. Daniel directive 2026-07-14 verbatim: keep working on every suggestion you and deepseek had... I really love what you guys came up with and want every feature added",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-14T13:11:03+00:00",
+      "updated": "2026-07-14T13:11:52+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-14T13:11:03+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-14T13:11:52+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T053",
+      "title": "R2 Fence workspace v1 (wishlist S2): structured slots (brief / halves / reconciliation / per-verdict confidence), mechanical M1-PV over them; T049-shaped; the r2 confabulated-filename failure becomes unrepresentable. Cites wishlist-synthesis-2026-07-14.md + Daniel directive 2026-07-14",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-14T13:11:03+00:00",
+      "updated": "2026-07-14T13:11:53+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-14T13:11:03+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-14T13:11:53+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T054",
+      "title": "R3 Flow tracer (claude B1): OTel-waterfall render over lanes + flow ids -- the packet substrate's face. Needs T045 done. Cites wishlist-synthesis-2026-07-14.md + Daniel directive 2026-07-14",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-14T13:11:03+00:00",
+      "updated": "2026-07-14T13:11:53+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-14T13:11:03+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-14T13:11:53+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T055",
+      "title": "R4 Pre-flight recall (deepseek b2): move his runner recall injection BEFORE the act (claude's hook is already pre-tool; his wire is post-tool by construction). Cites wishlist-synthesis-2026-07-14.md + Daniel directive 2026-07-14",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-14T13:11:04+00:00",
+      "updated": "2026-07-14T13:11:53+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-14T13:11:04+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-14T13:11:53+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T056",
+      "title": "R5 Cost telemetry per slice (wishlist S4): turn_metrics join into the ledger render -- per-arc ROI for Daniel, the frugality directive made measurable. Cites wishlist-synthesis-2026-07-14.md + Daniel directive 2026-07-14",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-14T13:11:04+00:00",
+      "updated": "2026-07-14T13:11:53+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-14T13:11:04+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-14T13:11:53+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T057",
+      "title": "R6 Drill-up (claude B2): scenario.yaml -> namespace + scripted fleet + bars; T045's storm pattern generalized. Cites wishlist-synthesis-2026-07-14.md + Daniel directive 2026-07-14",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-14T13:11:08+00:00",
+      "updated": "2026-07-14T13:11:54+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-14T13:11:08+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-14T13:11:54+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T058",
+      "title": "R7 Mid-turn clarification (deepseek b5): a question that pauses his loop and folds the answer in as a steer; the fidelity ladder already carries the traffic. Cites wishlist-synthesis-2026-07-14.md + Daniel directive 2026-07-14",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-14T13:11:08+00:00",
+      "updated": "2026-07-14T13:11:54+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-14T13:11:08+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-14T13:11:54+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T059",
+      "title": "R8 knowledge_map (claude B5): render the lesson/note/doc neighborhood -- Aurora gets a face. Cites wishlist-synthesis-2026-07-14.md + Daniel directive 2026-07-14",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-14T13:11:09+00:00",
+      "updated": "2026-07-14T13:11:54+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-14T13:11:09+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-14T13:11:54+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T060",
+      "title": "Moonshot design wave (M1-M7): fenced dual DESIGN docs only, gated slices register per design. Order: M1 continuous presence (the runner+listener architecture formalized as daemon peers) then M7 glass-cockpit UI (aligns T033); M2-M6 follow. Cites wishlist-synthesis-2026-07-14.md + Daniel 2026-07-13: even the moonshot capabilities did not seem unreasonable + directive 2026-07-14",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-14T13:11:09+00:00",
+      "updated": "2026-07-14T13:11:55+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-14T13:11:09+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-14T13:11:55+00:00"
         }
       ]
     }

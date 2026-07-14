@@ -1,9 +1,11 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 49 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 51 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
+- day-plan: AUTONOMOUS DAY RUN 2026-07-14 (Daniel at work; his directive verbatim: 'keep working on every suggestion you and deepseek had... I really love what you guys...  (source: mem:decision:ADR_0714091155_f2215ef6)
+- scratch:deepseek:runner-health-2026-07-14-session-a155387a: FULL runner health confirmed: (1) tools present — read_file, write_file, edit_file, list_directory...  (source: mem:decision:ADR_0714082923_134f2a7f)
 - where-we-are: Shipped:
   - T045 stage-1 post-GREEN soak fix: the arm-time pending check now counts only WAKE-WORTHY mail -- unconsumed legacy skip-junk (traces) was...  (source: mem:decision:ADR_0714082628_c5f18d92)
 - scratch:deepseek:first note: T050 verify ran -- my private memory works; next session me: say hi to Daniel  (source: mem:decision:ADR_0714004416_07da05a2)
