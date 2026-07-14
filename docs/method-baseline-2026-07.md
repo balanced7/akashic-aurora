@@ -1,7 +1,12 @@
 # Method Baseline -- the codified practices, with receipts, metrics, and bars
 
-Status: current  (2026-07-11)
+Status: current  (2026-07-14)
 Class: contract
+Amended 2026-07-14 (T049 fence-protocol v2): M1-PV, M1-CF, M1-BRIEF, M1-CC inserted into
+M1; M1-LITE added as the proportional tier; enforcement lane extended. Provenance:
+deepseek draft (research/reviewed/deepseek-t049-fence-v2-draft-2026-07-14.md) + claude
+cross-check (research/reviewed/claude-t049-crosscheck-2026-07-14.md, two A3 adjustments
+folded) + Daniel ratification via directive 2026-07-14. All additions; nothing removed.
 Governs: HOW all system work is done (the companion to AGENTS.md's WHAT). Daniel's
 ruling 2026-07-11: high-value events stop being one-time highlights -- they become the
 repeatable, EMPIRICAL baseline to match or exceed. A practice without a measurable
@@ -71,6 +76,46 @@ COMPLEMENTARY -> adopt both, DIVERGENT -> rule and record. The reconciled BUILD 
 the gate artifact -- the design-review record the build cites. Divergence is the
 signal, agreement is only a gate (Knight-Leveson: correlated blind spots are real;
 convergence is evidence, never proof; the drill outranks any agreement).
+M1-PV. PRE-RECONCILIATION VERIFICATION PASS (mandatory step 1). Before any
+reconciliation triage (converged/complementary/divergent), the reconciler GLOBS every
+file:line citation in BOTH fence halves against the live repo. A citation that resolves
+to a non-existent file, a path with no matching glob, or a line number beyond the file's
+actual length INVALIDATES the section containing it. INVALIDATION is section-scoped: one
+fabricated citation retires its enclosing claim-block, not the whole report; invalidated
+sections are recorded with their offending citations in the reconciliation header. A
+citation to a DESIGN-ONLY artifact is valid if the cited design document exists AND the
+claim is explicitly marked design-level; a citation that fabricates implementation
+detail against a DESIGN-ONLY seam is an automatic invalidation (grounding pressure at a
+no-code seam induced it -- the T039 r1/r2 receipts). Renamed files RECLASSIFY (fuzzy
+filename match), never invalidate. This pass completes BEFORE the reconciler reads
+either half's conclusions: verify the evidence, then read the arguments.
+M1-CF. CONFIDENCE FIELD PER VERDICT. Every verdict item in a fence half carries exactly
+one tag -- CERTAIN (citation-grounded to an existing file:line or design-doc section),
+DESIGN (about a not-yet-built artifact, grounded in the governing spec; no fabricated
+code paths), INFERRED (grounded in behavior/patterns, not a direct citation; weighted
+accordingly), or UNCERTAIN (the author cannot resolve it from the inputs -- a structured
+"I don't know" that prevents silent omission, not a failure). Hedging prose never
+substitutes for the tag; an untagged verdict is an incomplete deliverable and returns to
+its author. (Fence-lite reviews: recommended, not mandatory.)
+M1-BRIEF. BRIEF FORMAT CONTRACT. Every fence brief is one file with exactly FIVE
+sections in order: (1) CHARTER -- one sentence, fence kind + the question at stake;
+(2) INPUTS -- itemized paths that EXIST at brief-write time; DESIGN-ONLY fences state
+"DESIGN ONLY -- no implementation exists; cite only the design docs listed" (the
+grounding-pressure relief valve, T039 r1 receipt); (3) RULES OF ENGAGEMENT -- this
+fence's protocol, blindness, phases, deliverable path; (4) THE QUESTION -- verbatim or
+verbatim-close, no analysis; (5) OUTPUT CONTRACT -- exact deliverable path(s), format
+(verdict-per-item with M1-CF tags), bus-reply contract (pointer-only vs full). Missing
+any section returns the brief; extra sections go AFTER the five. The ASKER writes the
+brief; a peer who believes the question is ill-posed records that as a D-item, never by
+rewriting the brief. (Fence-lite: sections 1, 2, 4, 5. Counter-checks inherit the parent
+brief plus a one-line scope addendum.)
+M1-CC. COUNTER-CHECK ECONOMY. A counter-check (third look, after reconciliation) is NOT
+a re-run: its scope is (a) what the reviewer missed, (b) what the reviewer got wrong,
+(c) what BOTH halves missed. AFFIRMED verdicts get ONE LINE with a one-sentence reason
+(a bare AFFIRM is insufficient -- the reason proves the look); REFUTED verdicts and
+MISSING items get full evidence, same standard as an original half. A counter-check that
+only affirms is a ONE-PAGE report and a SUCCESS -- the fence held; length is the signal
+(the R3 receipt: ~80% re-proof of settled findings was ceremony, not substance).
 RECEIPTS: meta.via forgery hole (RB-1 recon, 07-10); Store.srem leak (RB-4 review,
 07-10); mail-loss-paging ruling stale against hour-old RB-26 code (L2 read, 07-11);
 single-sample stall trigger would false on Redis blips (L2 recon, 07-11).
@@ -81,6 +126,38 @@ on design reviews (RB-4: 1 mandatory change). A long run of zero-divergence pass
 means the fence has decayed into ceremony -- vary the method harder.
 BAR: every load-bearing decision shows a reconciliation record; zero solo-shipped
 trust-boundary changes.
+
+### M1-LITE. Fence-lite: single-blind + review (the proportional tier)
+TRIGGER: assessed at slice REGISTRATION time by the claiming agent, recorded in the
+slice's ledger entry, and CONFIRMED by the reviewer before beginning (mis-rated slices
+escalate lite->full or are challenged full->lite with a one-line reason). The gate is
+OBJECTIVE -- file paths and revert cost, never "this feels simple":
+  1. FULL FENCE (M1) -- ANY of: (a) blast radius >= 3 files AND any file in core/comm/,
+     core/trust/, core/foundation/ (the whole pillar: Store AND Ledger are both
+     poison-on-revert surfaces -- claude cross-check adjustment 1; list is extend-only),
+     or a coordination primitive; (b) revert cost = DATA LOSS, STATE CORRUPTION, or
+     CROSS-AGENT CONTRACT BREAK (a bad ledger event survives the revert); (c) the change
+     touches a Trust Boundary (auth, capabilities, ACL, secrets, agent identity, bus
+     addressing); (d) the change modifies THIS document or AGENTS.md.
+  2. FENCE-LITE -- ALL of: (a) blast radius >= 3 files, none in the full-fence paths;
+     (b) revert cost = WORK LOST only (clean revert, nothing poisons state); (c) the
+     change is a capability, design decision, or cross-module refactor where review
+     adds value beyond a linter. One agent authors, a DIFFERENT agent reviews
+     adversarially (break it, not bless it); no blind half, no reconciliation.
+  3. NO FENCE -- ALL of: (a) blast radius <= 2 files, none in the full-fence paths;
+     (b) trivial revert; (c) mechanical nature (typo, rename, comment, bugfix with a
+     pre-registered pin).
+  DEFAULT CLAUSE (claude cross-check adjustment 2): a change that fits neither tier 2
+  nor tier 3 takes FENCE-LITE -- under-fencing is never the fall-through.
+  Daniel's word overrides any tier in either direction.
+RECEIPTS: every fence to date ran full-M1 regardless of blast radius -- T039 and the
+recall-networking fence were DESIGN/research-stage (no revert cost beyond a doc) yet
+took blind halves + reconciliation + counter-check, violating P0 proportionality;
+T043 (core/comm packet law) earned every full-fence step and the gate confirms it.
+METRIC: tier distribution per arc + escalation/challenge rate at reviewer confirmation;
+M1's own ceremony-decay metric (zero-divergence streaks) read alongside it.
+BAR: zero full-fence-path changes shipped below full fence; every registered slice
+carries its recorded tier.
 
 ### M2. SOTA grounding before building
 TRIGGER: a slice whose problem type has an owning field (delivery semantics, failure
@@ -250,3 +327,7 @@ names.
 (3) Wrap-time arc scorecard: which M# fired, which skipped WITH REASON, metric reads.
 (4) Verbatim-record linter: GATE strings in ship messages cite a research/reviewed/
     path (M6).
+(5) M1-LITE tier recorded in the slice's ledger entry (checkable from the ledger).
+(6) M1-PV: reconciliation records open with the verification-pass header (checkable
+    from research/reviewed/).
+(7) M1-BRIEF: fence briefs carry the five mandatory sections (mechanically checkable).
