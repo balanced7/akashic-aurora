@@ -340,5 +340,36 @@ def test_r10_fresh_seeds_at_tails_returning_reads_lane_cursor(monkeypatch):
         "R10b: a RETURNING consumer resumes from its lane cursor -- no re-delivery of consumed work"
 
 
+# ------------------------- R12: the straggler net only nets WORK-lane-eligible kinds
+def test_r12_trace_kind_legacy_mail_is_never_a_straggler(monkeypatch):
+    """Post-ship soak find (2026-07-14 afternoon): claude's trace broadcasts ride the
+    TRACE lane by design, so their legacy copies are invisible to the work-lane `seen`
+    set -- the straggler net flagged every fresh trace as a 'lane write failure',
+    one per drain cycle, forever. A legacy message whose kind routes to a NON-work
+    lane was never a lane-write failure; the net must filter on lane-eligibility."""
+    c = _client()
+    _lane_mode(monkeypatch, dual_write="1")
+    ns = _ns()
+    sender = Bus("boss", c, namespace=ns, promote=False)
+    api = BifrostAPI("alice", namespace=ns)
+    sender.send("alice", "handoff", "establish the consumer")
+    first = api.work_drain(timeout_ms=1500)
+    assert "handoff" in _kinds(first)
+    wid = str(getattr(first[0] if isinstance(first, list) else first["work"][0], "id", ""))
+    api.bus.advance_to(inbox=wid, cursor_key=api.bus.lane_cursor_key())
+    noisy = Bus("noisy", c, namespace=ns, promote=False)
+    for _ in range(4):
+        noisy.broadcast("trace", "narration that rides the trace lane, not work")
+    got = api.work_drain(timeout_ms=400)
+    assert "trace" not in _kinds(got), \
+        "R12: trace-kind legacy mail must never surface as a work straggler"
+    monkeypatch.setattr(noisy, "_lane_write",
+                        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("lane down")),
+                        raising=True)
+    noisy.send("alice", "handoff", "true lane-write failure -- MUST still net")
+    got2 = api.work_drain(timeout_ms=1500)
+    assert "handoff" in _kinds(got2), "R12: real work-kind stragglers still caught"
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))

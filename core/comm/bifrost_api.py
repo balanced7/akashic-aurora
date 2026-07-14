@@ -316,7 +316,13 @@ class BifrostAPI:
             shnxt: Dict[str, str] = {}
             legacy = self.bus.wait(timeout_ms=1, limit=limit,
                                    since={"inbox": sh_in, "bc": sh_bc}, since_out=shnxt)
-            stragglers = [m for m in legacy if self._dedup_key(m) not in seen]
+            # R12 (post-ship soak find): only WORK-lane-eligible kinds can be stragglers.
+            # A legacy message whose kind routes to trace/sig was never a lane-write
+            # failure -- its absence from the work lane is the ROUTER working. Unmapped
+            # kinds (lane_for None) stay netted: legacy-only by census gap = deliver.
+            stragglers = [m for m in legacy
+                          if self._dedup_key(m) not in seen
+                          and packet_spec.lane_for(str(getattr(m, "kind", ""))) in ("work", None)]
             if stragglers:
                 import sys
                 print(f"[work-drain] {len(stragglers)} LEGACY STRAGGLER(S) for "
