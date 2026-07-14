@@ -97,18 +97,49 @@ def test_r1_lane_handoff_drains_and_advances(monkeypatch):
 
 # ---------------------------------------- R2: lane write fails, legacy still delivers
 def test_r2_lane_write_failure_falls_back_to_legacy(monkeypatch):
+    """AMENDED post-storm-cfdcb65f (flagged for deepseek re-affirm): the straggler net's
+    real subject is an ESTABLISHED consumer (shadow continues the shared cursor). The
+    newborn case now seeds the shadow at legacy tails (R11 -- the storm caught 44 history
+    broadcasts replaying on a first-ever consume), so this pin establishes the consumer
+    FIRST (one consumed message), then exercises the lane-write failure."""
     c = _client()
     _lane_mode(monkeypatch, dual_write="1")
     ns = _ns()
     sender = Bus("boss", c, namespace=ns, promote=False)
+    api = BifrostAPI("alice", namespace=ns)
+    sender.send("alice", "handoff", "establish the consumer")
+    first = api.work_drain(timeout_ms=1500)
+    assert "handoff" in _kinds(first)
+    wid = str(getattr(first[0] if isinstance(first, list) else first["work"][0], "id", ""))
+    api.bus.advance_to(inbox=wid, cursor_key=api.bus.lane_cursor_key())
     monkeypatch.setattr(sender, "_lane_write",
                         lambda *a, **k: (_ for _ in ()).throw(RuntimeError("lane down")),
                         raising=True)
     sender.send("alice", "handoff", "legacy-only by lane-write failure")
-    api = BifrostAPI("alice", namespace=ns)
     got = api.work_drain(timeout_ms=1500)
     assert "handoff" in _kinds(got), \
         "dual-write ON + lane write failed + legacy delivered -> the strangler net must catch it"
+
+
+# ------------------------------- R11: newborn session never replays legacy history
+def test_r11_newborn_shadow_seeds_at_tails_no_history_replay(monkeypatch):
+    """Post-storm pin (cfdcb65f find): a consumer with NO lane cursor AND NO shared-cursor
+    progress is a NEWBORN -- its shadow seeds at the legacy TAILS, so stale broadcast
+    history is never delivered as stragglers (RB-25 F2 newborn discipline, shadow edition).
+    Mail arriving AFTER the first drain still flows."""
+    c = _client()
+    _lane_mode(monkeypatch, dual_write="1")
+    ns = _ns()
+    noisy = Bus("noisy", c, namespace=ns, promote=False)
+    for _ in range(6):
+        noisy.broadcast("inform", "ancient broadcast history")
+    api = BifrostAPI("alice", namespace=ns)                # newborn: no cursors anywhere
+    first = api.work_drain(timeout_ms=400)
+    assert _kinds(first) == [], \
+        "R11: a newborn's first drain must not replay legacy broadcast history as stragglers"
+    noisy.send("alice", "handoff", "real mail after the newborn seed")
+    got = api.work_drain(timeout_ms=1500)
+    assert "handoff" in _kinds(got), "post-seed mail must still flow"
 
 
 # ------------------------------------------------- R3: at-least-once cursor semantics
@@ -204,25 +235,32 @@ def test_r6_note_status_drain_but_never_wake(monkeypatch):
 
 # ------------------------- R7: lane-aware pending check load-bearing (dual-write OFF)
 def test_r7_pre_arm_lane_only_mail_drains_without_dual_write(monkeypatch):
-    """AMENDED post-CONFIRM (flagged for deepseek re-affirm): stage 2 cuts CONSUME only --
-    the send side is still legacy-primary, so Bus.send with dual-write OFF writes legacy
-    ONLY and true 'lane-only mail' cannot exist from a send. Simulate the post-strangler
-    send: dual-write the packet (valid stamped envelope on BOTH), DELETE the legacy copy,
-    then drain with the straggler net OFF -- the lane path ALONE must deliver."""
+    """AMENDED post-CONFIRM and post-storm-cfdcb65f (flagged for deepseek re-affirm):
+    Scenario B's actual subject is an ESTABLISHED consumer's between-process gap -- a
+    NEWBORN skips pre-onboarding traffic by doctrine (RB-25 F2; R11). So: establish the
+    consumer (durable lane cursor exists), let its process die, deliver lane-only mail
+    into the gap (dual-write the packet, DELETE the legacy copy), then a NEW process
+    with the straggler net OFF must drain it from the durable cursor alone."""
     c = _client()
     _lane_mode(monkeypatch, dual_write="1")
     ns = _ns()
     sender = Bus("boss", c, namespace=ns, promote=False)
-    sender.send("alice", "handoff", "lane-only, sent BEFORE the consumer exists")
+    api = BifrostAPI("alice", namespace=ns)
+    sender.send("alice", "handoff", "establish the consumer")
+    first = api.work_drain(timeout_ms=1500)
+    assert "handoff" in _kinds(first)
+    wid = str(getattr(first[0] if isinstance(first, list) else first["work"][0], "id", ""))
+    api.bus.advance_to(inbox=wid, cursor_key=api.bus.lane_cursor_key())
+    sender.send("alice", "handoff", "lane-only mail into the process gap")
     legacy_key = sender._inbox_key("alice")
     entries = c.xrange(legacy_key)
-    assert entries, "test precondition: legacy copy landed"
-    c.xdel(legacy_key, *[eid for eid, _ in entries])      # now the mail is LANE-ONLY
+    assert entries, "test precondition: legacy copies landed"
+    c.xdel(legacy_key, *[eid for eid, _ in entries])      # now the gap mail is LANE-ONLY
     monkeypatch.setenv("BIFROST_LANES_DUAL_WRITE", "0")   # THE point: no legacy twin mask
-    api = BifrostAPI("alice", namespace=ns)               # fresh consumer arms AFTER send
-    got = api.work_drain(timeout_ms=800)
+    revived = BifrostAPI("alice", namespace=ns)           # new process, durable cursor
+    got = revived.work_drain(timeout_ms=800)
     assert "handoff" in _kinds(got), \
-        "fence R7: with the legacy net off, the lane path alone must catch pre-arm mail"
+        "fence R7: the durable lane cursor alone must catch mail from the process gap"
 
 
 # ------------------------------------------- R8: shared cursor untouched in lane mode
@@ -282,6 +320,9 @@ def test_r10_fresh_seeds_at_tails_returning_reads_lane_cursor(monkeypatch):
                                       "content": '"pre-flip history"', "ts": "0",
                                       "meta": "{}", "parts": "[]"})
     fresh = BifrostAPI("alice", namespace=ns)
+    # MIGRANT precondition: real pre-flip consumption progress on the shared cursor
+    # (an all-virgin agent is a NEWBORN and takes the R11 path instead).
+    fresh.bus.advance_to(inbox="1-1", bc="1-1")
     assert fresh.bus.lane_cursor_flip_init() is True, \
         "R10a: the flip ritual must seed a virgin lane cursor (migrating agent)"
     assert fresh.bus.lane_cursor_flip_init() is False, \

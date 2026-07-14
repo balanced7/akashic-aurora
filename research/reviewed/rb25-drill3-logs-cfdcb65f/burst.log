@@ -1,0 +1,68 @@
+STORM 8a4d414e2a81: 51 messages in namespace 'rb25drill3' (runner=d3a-cfdcb65f, target=d3b-cfdcb65f, watcher=d3w-cfdcb65f)
+  WILL PAUSE after message 20 for TASKKILL
+  ledger: E:\AI-Setup\research\reviewed\rb25-drill3-ledger-cfdcb65f.json
+---
+  [000/50] request  -> d3a-cfdcb65f               ✓  1784035830210-0
+  [001/50] request  -> d3a-cfdcb65f               ✓  1784035830264-0
+  [002/50] request  -> d3a-cfdcb65f               ✓  1784035830317-0
+  [003/50] request  -> d3a-cfdcb65f               ✓  1784035830370-0
+  [004/50] request  -> d3a-cfdcb65f               ✓  1784035830424-0
+  [005/50] request  -> d3a-cfdcb65f               ✓  1784035830478-0
+  [006/50] request  -> d3a-cfdcb65f               ✓  1784035830532-0
+  [007/50] request  -> d3a-cfdcb65f               ✓  1784035830586-0
+  [008/50] request  -> d3a-cfdcb65f               ✓  1784035830639-0
+  [009/50] request  -> d3a-cfdcb65f               ✓  1784035830692-0
+  [010/50] request  -> d3a-cfdcb65f               ✓  1784035830745-0
+  [011/50] request  -> d3a-cfdcb65f               ✓  1784035830799-0
+  [012/50] request  -> d3b-cfdcb65f               ✓  1784035830853-0
+  [013/50] request  -> d3b-cfdcb65f               ✓  1784035830906-0
+  [014/50] request  -> d3b-cfdcb65f               ✓  1784035830960-0
+  [015/50] request  -> d3b-cfdcb65f               ✓  1784035831014-0
+  [016/50] request  -> d3b-cfdcb65f               ✓  1784035831066-0
+  [017/50] request  -> d3b-cfdcb65f               ✓  1784035831119-0
+  [018/50] request  -> d3b-cfdcb65f               ✓  1784035831172-0
+  [019/50] request  -> d3b-cfdcb65f               ✓  1784035831226-0
+===
+PAUSE: 20/51 messages sent.
+OPERATOR: TASKKILL the runner (d3b-cfdcb65f) NOW, then press Enter to resume.
+===
+RESUMING burst...
+  [020/50] trace    -> *                          ✓  1784035832792-0
+  [021/50] trace    -> *                          ✓  1784035832845-0
+  [022/50] trace    -> *                          ✓  1784035832900-0
+  [023/50] trace    -> *                          ✓  1784035832953-0
+  [024/50] trace    -> *                          ✓  1784035833007-0
+  [025/50] trace    -> *                          ✓  1784035833061-0
+  [026/50] trace    -> *                          ✓  1784035833115-0
+  [027/50] trace    -> *                          ✓  1784035833170-0
+  [028/50] steer    -> d3a-cfdcb65f               ✓  1784035833223-0
+  [029/50] steer    -> d3a-cfdcb65f               ✓  1784035833277-0
+  [030/50] steer    -> d3a-cfdcb65f               ✓  1784035833331-0
+  [031/50] steer    -> d3a-cfdcb65f               ✓  1784035833383-0
+  [032/50] steer    -> d3a-cfdcb65f               ✓  1784035833436-0
+  [033/50] trace    -> *                          ✓  1784035833490-0
+  [034/50] trace    -> *                          ✓  1784035833544-0
+  [035/50] trace    -> *                          ✓  1784035833598-0
+  [036/50] handoff  -> d3a-cfdcb65f               ✓  1784035833652-0
+  [037/50] handoff  -> d3a-cfdcb65f               ✓  1784035833809-0
+  [038/50] request  -> d3a-cfdcb65f               ✓  1784035833911-0
+  [039/50] request  -> d3a-cfdcb65f               ✓  1784035833965-0
+  [040/50] request  -> d3a-cfdcb65f               ✓  1784035834018-0
+  [041/50] request  -> d3a-cfdcb65f               ✓  1784035834071-0
+  [042/50] request  -> d3b-cfdcb65f               ✓  1784035834125-0
+  [043/50] request  -> d3b-cfdcb65f               ✓  1784035834179-0
+  [044/50] request  -> d3b-cfdcb65f               ✓  1784035834233-0
+  [045/50] chat     -> d3a-cfdcb65f               ✓  1784035834287-0
+  [046/50] chat     -> d3a-cfdcb65f               ✓  1784035834340-0
+  [047/50] chat     -> d3b-cfdcb65f               ✓  1784035834395-0
+  [048/50] steer    -> d3a-cfdcb65f               ✓  1784035834448-0
+  [049/50] request  -> d3a-cfdcb65f               ✓  1784035834502-0
+  [050/50] request  -> d3b-cfdcb65f               ✓  1784035834555-0
+---
+STORM COMPLETE: 51 sent, 0 lost, ledger -> E:\AI-Setup\research\reviewed\rb25-drill3-ledger-cfdcb65f.json
+Post-storm verification (operator):
+  S1: check every request mid in the ledger has a reply or is unconsumed
+  S2: check watcher stdout -- trace/steer flood must NOT produce DETECTED exit
+  S3: check successor cursor > corpse's last committed cursor
+  S4: check twin watcher transcripts for RB-21 teaching shape on loser
+  S5: check no duplicate replies for handoff mids within sentinel TTL

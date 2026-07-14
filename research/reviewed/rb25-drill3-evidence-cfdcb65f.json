@@ -1,0 +1,812 @@
+{
+  "storm": "cfdcb65f",
+  "ns": "rb25drill3",
+  "ids": {
+    "a": "d3a-cfdcb65f",
+    "b": "d3b-cfdcb65f",
+    "w": "d3w-cfdcb65f"
+  },
+  "started_utc": "2026-07-14T13:30:24Z",
+  "boot": {
+    "runnerA_alive": true,
+    "runnerB_alive": true,
+    "watcher1_alive": true,
+    "watcher2_alive": true,
+    "presence": [
+      {
+        "agent": "d3a-cfdcb65f",
+        "last_seen": "2026-07-14T13:30:29.439860+00:00"
+      },
+      {
+        "agent": "d3b-cfdcb65f",
+        "last_seen": "2026-07-14T13:30:29.439860+00:00"
+      },
+      {
+        "agent": "d3w-cfdcb65f",
+        "last_seen": "2026-07-14T13:30:25.246699+00:00"
+      }
+    ]
+  },
+  "pre_kill": {
+    "runnerB_pid": 612,
+    "lock_holder_b": {
+      "token": "d3b-cfdcb65f:612:7a09835bfeab",
+      "pid": 612,
+      "ts": "2026-07-14T09:30:29",
+      "gen": 1
+    },
+    "gen_b": 0,
+    "cursor_b": {
+      "inbox": "0",
+      "bc": "0"
+    }
+  },
+  "burst_paused": true,
+  "s4": {
+    "dupe_exit": 3,
+    "refused": true,
+    "pass": true,
+    "dupe_out": "bifrost_runner_deepseek: another 'd3a-cfdcb65f' runner is already live (pid 40340). Refusing to start -- one runner per agent avoids cursor races.\n"
+  },
+  "kill": {
+    "corpse_pid": 612,
+    "corpse_cursor": {
+      "inbox": "0",
+      "bc": "0"
+    },
+    "taskkill_done": true,
+    "lock_cleared_by_pid": true
+  },
+  "paused_during_burst": false,
+  "successor": {
+    "pid": 49116,
+    "alive": true,
+    "online": true,
+    "refused": false,
+    "lock_holder": {
+      "token": "d3b-cfdcb65f:49116:e1995390c1e6",
+      "pid": 49116,
+      "ts": "2026-07-14T09:30:37",
+      "gen": 2
+    },
+    "gen_b_after": 0,
+    "out": "storm-8a4d414e2a81-request-044: more directed req\n[deepseek-runner] <- rb25-storm-driver-8a4d414e2a81 [chat] (hop 1): [drill-3 chat] storm-8a4d414e2a81-chat-047: hello from the storm\n[deepseek-runner] -> rb25-storm-driver-8a4d414e2a81: [drill-echo] [drill-3 chat] storm-8a4d414e2a81-chat-047: hello from the storm\n[deepseek-runner] <- rb25-storm-driver-8a4d414e2a81 [request] (hop 1): [drill-3 request] storm-8a4d414e2a81-request-050: final request to second runner\n[deepseek-runner] -> rb25-storm-driver-8a4d414e2a81: [drill-echo] [drill-3 request] storm-8a4d414e2a81-request-050: final request to \n"
+  },
+  "session_leg": {
+    "seat_held_by_other": false,
+    "consumed_count": 44,
+    "lane_cursor_w": {
+      "inbox": "0",
+      "bc": "0",
+      "sig_inbox": "0",
+      "sig_bc": "0",
+      "shadow_inbox": "0",
+      "shadow_bc": "1784035833598-0"
+    },
+    "pass": true
+  },
+  "s1": {
+    "requests_sent": 29,
+    "send_side_lost": 0,
+    "answered": 29,
+    "unconsumed_at_end": 29,
+    "unaccounted": [],
+    "pass": true
+  },
+  "s2": {
+    "watcher1_alive": true,
+    "watcher2_alive": true,
+    "watcher1_detected": false,
+    "watcher2_detected": false,
+    "pass": true,
+    "watcher1_out": "",
+    "watcher2_out": ""
+  },
+  "s3": {
+    "corpse_cursor": {
+      "inbox": "0",
+      "bc": "0"
+    },
+    "successor_cursor": {
+      "inbox": "0",
+      "bc": "0"
+    },
+    "lock_cleared": true,
+    "successor_online": true,
+    "successor_pid_differs": true,
+    "seat_handoff_ok": true,
+    "backlog_drained": false,
+    "b_pending_final": 57,
+    "pass": false
+  },
+  "s5": {
+    "handoff_reply_counts": {
+      "storm-8a4d414e2a81-handoff-036": 1,
+      "storm-8a4d414e2a81-handoff-037": 1
+    },
+    "pass": true
+  },
+  "s6": {
+    "probe_id": "d3s6-cfdcb65f",
+    "nudge_reply_ts": "2026-07-14T13:30:32.788360+00:00",
+    "latency_s": 0.05,
+    "last_work_reply_ts": "2026-07-14T13:30:35.924614+00:00",
+    "sig_beat_final_work": true,
+    "pass": true
+  },
+  "t045": {
+    "mode": "consume-lane rerun (T045 stage 2)",
+    "lane_cursor_a": {
+      "inbox": "1784035834503-0",
+      "bc": "0",
+      "sig_inbox": "1784035834450-0",
+      "sig_bc": "0",
+      "shadow_inbox": "1784035834502-0",
+      "shadow_bc": "1784035833598-0"
+    },
+    "lane_cursor_b": {
+      "inbox": "1784035834556-0",
+      "bc": "0",
+      "sig_inbox": "0",
+      "sig_bc": "0",
+      "shadow_inbox": "1784035834555-0",
+      "shadow_bc": "1784035833598-0"
+    },
+    "straggler_lines": {
+      "runnerA.log": 3,
+      "runnerB.log": 1,
+      "runnerB_successor.log": 1
+    }
+  },
+  "reply_tags_total": 67,
+  "unconsumed_a": [
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "trace",
+      "tag": "storm-96f4b3b4c389-trace-020"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "trace",
+      "tag": "storm-96f4b3b4c389-trace-021"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "trace",
+      "tag": "storm-96f4b3b4c389-trace-022"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "trace",
+      "tag": "storm-96f4b3b4c389-trace-023"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "trace",
+      "tag": "storm-96f4b3b4c389-trace-024"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "trace",
+      "tag": "storm-96f4b3b4c389-trace-025"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "trace",
+      "tag": "storm-96f4b3b4c389-trace-026"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "trace",
+      "tag": "storm-96f4b3b4c389-trace-027"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "trace",
+      "tag": "storm-96f4b3b4c389-trace-033"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "trace",
+      "tag": "storm-96f4b3b4c389-trace-034"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "trace",
+      "tag": "storm-96f4b3b4c389-trace-035"
+    },
+    {
+      "frm": "rb25-storm-driver-2b04a8d97d9a",
+      "kind": "trace",
+      "tag": "storm-2b04a8d97d9a-trace-020"
+    },
+    {
+      "frm": "rb25-storm-driver-2b04a8d97d9a",
+      "kind": "trace",
+      "tag": "storm-2b04a8d97d9a-trace-021"
+    },
+    {
+      "frm": "rb25-storm-driver-2b04a8d97d9a",
+      "kind": "trace",
+      "tag": "storm-2b04a8d97d9a-trace-022"
+    },
+    {
+      "frm": "rb25-storm-driver-2b04a8d97d9a",
+      "kind": "trace",
+      "tag": "storm-2b04a8d97d9a-trace-023"
+    },
+    {
+      "frm": "rb25-storm-driver-2b04a8d97d9a",
+      "kind": "trace",
+      "tag": "storm-2b04a8d97d9a-trace-024"
+    },
+    {
+      "frm": "rb25-storm-driver-2b04a8d97d9a",
+      "kind": "trace",
+      "tag": "storm-2b04a8d97d9a-trace-025"
+    },
+    {
+      "frm": "rb25-storm-driver-2b04a8d97d9a",
+      "kind": "trace",
+      "tag": "storm-2b04a8d97d9a-trace-026"
+    },
+    {
+      "frm": "rb25-storm-driver-2b04a8d97d9a",
+      "kind": "trace",
+      "tag": "storm-2b04a8d97d9a-trace-027"
+    },
+    {
+      "frm": "rb25-storm-driver-2b04a8d97d9a",
+      "kind": "trace",
+      "tag": "storm-2b04a8d97d9a-trace-033"
+    },
+    {
+      "frm": "rb25-storm-driver-2b04a8d97d9a",
+      "kind": "trace",
+      "tag": "storm-2b04a8d97d9a-trace-034"
+    },
+    {
+      "frm": "rb25-storm-driver-2b04a8d97d9a",
+      "kind": "trace",
+      "tag": "storm-2b04a8d97d9a-trace-035"
+    },
+    {
+      "frm": "rb25-storm-driver-47ecc3f46b58",
+      "kind": "trace",
+      "tag": "storm-47ecc3f46b58-trace-020"
+    },
+    {
+      "frm": "rb25-storm-driver-47ecc3f46b58",
+      "kind": "trace",
+      "tag": "storm-47ecc3f46b58-trace-021"
+    },
+    {
+      "frm": "rb25-storm-driver-47ecc3f46b58",
+      "kind": "trace",
+      "tag": "storm-47ecc3f46b58-trace-022"
+    },
+    {
+      "frm": "rb25-storm-driver-47ecc3f46b58",
+      "kind": "trace",
+      "tag": "storm-47ecc3f46b58-trace-023"
+    },
+    {
+      "frm": "rb25-storm-driver-47ecc3f46b58",
+      "kind": "trace",
+      "tag": "storm-47ecc3f46b58-trace-024"
+    },
+    {
+      "frm": "rb25-storm-driver-47ecc3f46b58",
+      "kind": "trace",
+      "tag": "storm-47ecc3f46b58-trace-025"
+    },
+    {
+      "frm": "rb25-storm-driver-47ecc3f46b58",
+      "kind": "trace",
+      "tag": "storm-47ecc3f46b58-trace-026"
+    },
+    {
+      "frm": "rb25-storm-driver-47ecc3f46b58",
+      "kind": "trace",
+      "tag": "storm-47ecc3f46b58-trace-027"
+    },
+    {
+      "frm": "rb25-storm-driver-47ecc3f46b58",
+      "kind": "trace",
+      "tag": "storm-47ecc3f46b58-trace-033"
+    },
+    {
+      "frm": "rb25-storm-driver-47ecc3f46b58",
+      "kind": "trace",
+      "tag": "storm-47ecc3f46b58-trace-034"
+    },
+    {
+      "frm": "rb25-storm-driver-47ecc3f46b58",
+      "kind": "trace",
+      "tag": "storm-47ecc3f46b58-trace-035"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "request",
+      "tag": "storm-8a4d414e2a81-request-000"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "request",
+      "tag": "storm-8a4d414e2a81-request-001"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "request",
+      "tag": "storm-8a4d414e2a81-request-002"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "request",
+      "tag": "storm-8a4d414e2a81-request-003"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "request",
+      "tag": "storm-8a4d414e2a81-request-004"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "request",
+      "tag": "storm-8a4d414e2a81-request-005"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "request",
+      "tag": "storm-8a4d414e2a81-request-006"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "request",
+      "tag": "storm-8a4d414e2a81-request-007"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "request",
+      "tag": "storm-8a4d414e2a81-request-008"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "request",
+      "tag": "storm-8a4d414e2a81-request-009"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "request",
+      "tag": "storm-8a4d414e2a81-request-010"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "request",
+      "tag": "storm-8a4d414e2a81-request-011"
+    },
+    {
+      "frm": "d3s6-cfdcb65f",
+      "kind": "nudge",
+      "tag": null
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "trace",
+      "tag": "storm-8a4d414e2a81-trace-020"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "trace",
+      "tag": "storm-8a4d414e2a81-trace-021"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "trace",
+      "tag": "storm-8a4d414e2a81-trace-022"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "trace",
+      "tag": "storm-8a4d414e2a81-trace-023"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "trace",
+      "tag": "storm-8a4d414e2a81-trace-024"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "trace",
+      "tag": "storm-8a4d414e2a81-trace-025"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "trace",
+      "tag": "storm-8a4d414e2a81-trace-026"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "trace",
+      "tag": "storm-8a4d414e2a81-trace-027"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "steer",
+      "tag": "storm-8a4d414e2a81-steer-028"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "steer",
+      "tag": "storm-8a4d414e2a81-steer-029"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "steer",
+      "tag": "storm-8a4d414e2a81-steer-030"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "steer",
+      "tag": "storm-8a4d414e2a81-steer-031"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "steer",
+      "tag": "storm-8a4d414e2a81-steer-032"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "trace",
+      "tag": "storm-8a4d414e2a81-trace-033"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "trace",
+      "tag": "storm-8a4d414e2a81-trace-034"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "trace",
+      "tag": "storm-8a4d414e2a81-trace-035"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "handoff",
+      "tag": "storm-8a4d414e2a81-handoff-036"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "handoff",
+      "tag": "storm-8a4d414e2a81-handoff-037"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "request",
+      "tag": "storm-8a4d414e2a81-request-038"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "request",
+      "tag": "storm-8a4d414e2a81-request-039"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "request",
+      "tag": "storm-8a4d414e2a81-request-040"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "request",
+      "tag": "storm-8a4d414e2a81-request-041"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "chat",
+      "tag": "storm-8a4d414e2a81-chat-045"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "chat",
+      "tag": "storm-8a4d414e2a81-chat-046"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "steer",
+      "tag": "storm-8a4d414e2a81-steer-048"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "request",
+      "tag": "storm-8a4d414e2a81-request-049"
+    }
+  ],
+  "unconsumed_b": [
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "trace",
+      "tag": "storm-96f4b3b4c389-trace-020"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "trace",
+      "tag": "storm-96f4b3b4c389-trace-021"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "trace",
+      "tag": "storm-96f4b3b4c389-trace-022"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "trace",
+      "tag": "storm-96f4b3b4c389-trace-023"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "trace",
+      "tag": "storm-96f4b3b4c389-trace-024"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "trace",
+      "tag": "storm-96f4b3b4c389-trace-025"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "trace",
+      "tag": "storm-96f4b3b4c389-trace-026"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "trace",
+      "tag": "storm-96f4b3b4c389-trace-027"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "trace",
+      "tag": "storm-96f4b3b4c389-trace-033"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "trace",
+      "tag": "storm-96f4b3b4c389-trace-034"
+    },
+    {
+      "frm": "rb25-storm-driver-96f4b3b4c389",
+      "kind": "trace",
+      "tag": "storm-96f4b3b4c389-trace-035"
+    },
+    {
+      "frm": "rb25-storm-driver-2b04a8d97d9a",
+      "kind": "trace",
+      "tag": "storm-2b04a8d97d9a-trace-020"
+    },
+    {
+      "frm": "rb25-storm-driver-2b04a8d97d9a",
+      "kind": "trace",
+      "tag": "storm-2b04a8d97d9a-trace-021"
+    },
+    {
+      "frm": "rb25-storm-driver-2b04a8d97d9a",
+      "kind": "trace",
+      "tag": "storm-2b04a8d97d9a-trace-022"
+    },
+    {
+      "frm": "rb25-storm-driver-2b04a8d97d9a",
+      "kind": "trace",
+      "tag": "storm-2b04a8d97d9a-trace-023"
+    },
+    {
+      "frm": "rb25-storm-driver-2b04a8d97d9a",
+      "kind": "trace",
+      "tag": "storm-2b04a8d97d9a-trace-024"
+    },
+    {
+      "frm": "rb25-storm-driver-2b04a8d97d9a",
+      "kind": "trace",
+      "tag": "storm-2b04a8d97d9a-trace-025"
+    },
+    {
+      "frm": "rb25-storm-driver-2b04a8d97d9a",
+      "kind": "trace",
+      "tag": "storm-2b04a8d97d9a-trace-026"
+    },
+    {
+      "frm": "rb25-storm-driver-2b04a8d97d9a",
+      "kind": "trace",
+      "tag": "storm-2b04a8d97d9a-trace-027"
+    },
+    {
+      "frm": "rb25-storm-driver-2b04a8d97d9a",
+      "kind": "trace",
+      "tag": "storm-2b04a8d97d9a-trace-033"
+    },
+    {
+      "frm": "rb25-storm-driver-2b04a8d97d9a",
+      "kind": "trace",
+      "tag": "storm-2b04a8d97d9a-trace-034"
+    },
+    {
+      "frm": "rb25-storm-driver-2b04a8d97d9a",
+      "kind": "trace",
+      "tag": "storm-2b04a8d97d9a-trace-035"
+    },
+    {
+      "frm": "rb25-storm-driver-47ecc3f46b58",
+      "kind": "trace",
+      "tag": "storm-47ecc3f46b58-trace-020"
+    },
+    {
+      "frm": "rb25-storm-driver-47ecc3f46b58",
+      "kind": "trace",
+      "tag": "storm-47ecc3f46b58-trace-021"
+    },
+    {
+      "frm": "rb25-storm-driver-47ecc3f46b58",
+      "kind": "trace",
+      "tag": "storm-47ecc3f46b58-trace-022"
+    },
+    {
+      "frm": "rb25-storm-driver-47ecc3f46b58",
+      "kind": "trace",
+      "tag": "storm-47ecc3f46b58-trace-023"
+    },
+    {
+      "frm": "rb25-storm-driver-47ecc3f46b58",
+      "kind": "trace",
+      "tag": "storm-47ecc3f46b58-trace-024"
+    },
+    {
+      "frm": "rb25-storm-driver-47ecc3f46b58",
+      "kind": "trace",
+      "tag": "storm-47ecc3f46b58-trace-025"
+    },
+    {
+      "frm": "rb25-storm-driver-47ecc3f46b58",
+      "kind": "trace",
+      "tag": "storm-47ecc3f46b58-trace-026"
+    },
+    {
+      "frm": "rb25-storm-driver-47ecc3f46b58",
+      "kind": "trace",
+      "tag": "storm-47ecc3f46b58-trace-027"
+    },
+    {
+      "frm": "rb25-storm-driver-47ecc3f46b58",
+      "kind": "trace",
+      "tag": "storm-47ecc3f46b58-trace-033"
+    },
+    {
+      "frm": "rb25-storm-driver-47ecc3f46b58",
+      "kind": "trace",
+      "tag": "storm-47ecc3f46b58-trace-034"
+    },
+    {
+      "frm": "rb25-storm-driver-47ecc3f46b58",
+      "kind": "trace",
+      "tag": "storm-47ecc3f46b58-trace-035"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "request",
+      "tag": "storm-8a4d414e2a81-request-012"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "request",
+      "tag": "storm-8a4d414e2a81-request-013"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "request",
+      "tag": "storm-8a4d414e2a81-request-014"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "request",
+      "tag": "storm-8a4d414e2a81-request-015"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "request",
+      "tag": "storm-8a4d414e2a81-request-016"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "request",
+      "tag": "storm-8a4d414e2a81-request-017"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "request",
+      "tag": "storm-8a4d414e2a81-request-018"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "request",
+      "tag": "storm-8a4d414e2a81-request-019"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "trace",
+      "tag": "storm-8a4d414e2a81-trace-020"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "trace",
+      "tag": "storm-8a4d414e2a81-trace-021"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "trace",
+      "tag": "storm-8a4d414e2a81-trace-022"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "trace",
+      "tag": "storm-8a4d414e2a81-trace-023"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "trace",
+      "tag": "storm-8a4d414e2a81-trace-024"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "trace",
+      "tag": "storm-8a4d414e2a81-trace-025"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "trace",
+      "tag": "storm-8a4d414e2a81-trace-026"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "trace",
+      "tag": "storm-8a4d414e2a81-trace-027"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "trace",
+      "tag": "storm-8a4d414e2a81-trace-033"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "trace",
+      "tag": "storm-8a4d414e2a81-trace-034"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "trace",
+      "tag": "storm-8a4d414e2a81-trace-035"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "request",
+      "tag": "storm-8a4d414e2a81-request-042"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "request",
+      "tag": "storm-8a4d414e2a81-request-043"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "request",
+      "tag": "storm-8a4d414e2a81-request-044"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "chat",
+      "tag": "storm-8a4d414e2a81-chat-047"
+    },
+    {
+      "frm": "rb25-storm-driver-8a4d414e2a81",
+      "kind": "request",
+      "tag": "storm-8a4d414e2a81-request-050"
+    }
+  ],
+  "finished_utc": "2026-07-14T13:31:07Z"
+}

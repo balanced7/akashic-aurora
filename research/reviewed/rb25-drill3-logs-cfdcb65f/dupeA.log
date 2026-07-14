@@ -1,0 +1,1 @@
+bifrost_runner_deepseek: another 'd3a-cfdcb65f' runner is already live (pid 40340). Refusing to start -- one runner per agent avoids cursor races.

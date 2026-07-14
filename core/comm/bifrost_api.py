@@ -255,6 +255,17 @@ class BifrostAPI:
             return self.bus.wait(timeout_ms=timeout_ms, limit=limit, since_out=since_out)
         from core.comm import packet_spec
         cur = self.bus.read_lane_cursor()
+        # ONBOARDING SEED (once per api instance; storm-cfdcb65f find): a VIRGIN lane
+        # cursor -- newborn or migrant -- seeds at tails before the first read: history
+        # (lane soak, legacy broadcasts) is never mail, matching seed_cursor_at_tail's
+        # RB-25 F2 newborn discipline. Established consumers (non-virgin) skip in one
+        # hgetall. Named residual (M8): pre-onboarding directed mail is skipped WITH the
+        # history -- identical to the legacy newborn contract.
+        if not getattr(self, "_lane_seeded", False):
+            if all(v == "0" for v in cur.values()):
+                self.bus.lane_cursor_flip_init()
+                cur = self.bus.read_lane_cursor()
+            self._lane_seeded = True
         lane_key = self.bus.lane_cursor_key()
         out: List[Any] = []
         seen: set = set()
@@ -295,7 +306,10 @@ class BifrostAPI:
             sh_in, sh_bc = cur["shadow_inbox"], cur["shadow_bc"]
             seeded_now = False
             if sh_in == "0" and sh_bc == "0":
-                shared = self.bus.cursor()        # READ-only: R8 stays intact
+                # Belt for a failed/raced seed: continue the shared cursor's story
+                # (READ-only: R8 stays intact). The normal path never gets here -- the
+                # virgin-cursor seed below handles newborns AND migrants up front.
+                shared = self.bus.cursor()
                 sh_in = shared.get("inbox", "0")
                 sh_bc = shared.get("bc", "0")
                 seeded_now = sh_in != "0" or sh_bc != "0"

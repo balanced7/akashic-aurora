@@ -55,10 +55,20 @@ PY = sys.executable
 TAG_RE = re.compile(r"(storm-[0-9a-f]+-(?:request|handoff|steer|trace|chat)-\d{3})")
 
 
+T045_MODE = False   # set by --t045: the consumer-cutover storm rerun (lanes live)
+
+
 def child_env():
     e = dict(os.environ)
     e["AKASHIC_DRILL_ECHO"] = "1"
     e["BIFROST_NAMESPACE"] = NS
+    if T045_MODE:
+        # T045 stage-2 rerun: every child consumes on the WORK LANE (runners via
+        # work_drain, watchers via the stage-1 lane watcher). The orchestrator's own
+        # reads + the frozen burst stay legacy-side -- dual-write keeps legacy a
+        # superset, so S1 ledger accounting remains valid unchanged.
+        e["BIFROST_CONSUME_LANE"] = "work"
+        e["BIFROST_WAKE_LANE"] = "work"
     # Force UTF-8 on every child: the frozen burst prints a check-mark status char, which a
     # piped child otherwise encodes as cp1252 on Windows and dies on. Environmental fix only --
     # the burst script itself is never edited.
@@ -107,7 +117,13 @@ def main():
     ap = argparse.ArgumentParser(description="RB-25 drill 3 storm orchestrator")
     ap.add_argument("--pause-at", type=int, default=20, help="messages before the mid-burst kill")
     ap.add_argument("--drain-timeout", type=int, default=25, help="seconds to wait for the successor to drain")
+    ap.add_argument("--t045", action="store_true",
+                    help="T045 stage-2 rerun: children consume on the work lane; adds the "
+                         "S6 sig-latency probe + the session-consume leg (fence Q3) to the "
+                         "evidence bundle")
     args = ap.parse_args()
+    global T045_MODE
+    T045_MODE = bool(args.t045)
 
     storm = uuid.uuid4().hex[:8]
     ids = {"a": f"d3a-{storm}", "b": f"d3b-{storm}", "w": f"d3w-{storm}"}
@@ -249,6 +265,16 @@ def main():
             burst.stdin.flush()
         except Exception as e:
             note(f"resume write failed: {e}")
+        # -- T045 S6 probe: sig latency under the post-resume trace flood ---------------
+        # A nudge rides the SIG lane; the lane consumer drains sig BEFORE work every
+        # cycle, so the reply must beat runner A's queued work backlog (EF beats AF at
+        # the consumer). Sent the moment the flood resumes; evaluated after the burst.
+        s6_probe_id, s6_sent_at = None, None
+        if T045_MODE:
+            s6_probe_id = f"d3s6-{storm}"
+            s6_sent_at = time.time()
+            Bus(s6_probe_id).send(ids["a"], "nudge", f"s6-{storm} sig-latency probe")
+            note(f"S6 probe: nudge -> {ids['a']} at resume (probe id {s6_probe_id})")
         # drain the rest of the burst stdout
         while True:
             try:
@@ -302,6 +328,29 @@ def main():
                 break
             time.sleep(2)
         time.sleep(2)
+
+        # -- T045 session-consume leg (fence Q3: S1 gains a session leg) ---------------
+        # The watcher id doubles as a session consumer: one consume_inbox() through the
+        # lane-mode session door (RB-21 seat + generation fence on the LANE hash). Safe
+        # for S1 accounting: the bar's subject is directed REQUESTS to runners; the
+        # watcher consumes only broadcast traffic.
+        if T045_MODE:
+            os.environ["BIFROST_CONSUME_LANE"] = "work"
+            try:
+                from agent.bifrost_pull import consume_inbox
+                leg = consume_inbox(ids["w"], limit=50)
+                ev["session_leg"] = {
+                    "seat_held_by_other": bool(leg.get("seat_held")),
+                    "consumed_count": len(leg.get("consumed", [])),
+                    "lane_cursor_w": Bus(ids["w"]).read_lane_cursor(),
+                    "pass": not leg.get("seat_held"),
+                }
+                note(f"session leg: consumed={ev['session_leg']['consumed_count']} "
+                     f"seat_free={ev['session_leg']['pass']}")
+            except Exception as e:
+                ev["session_leg"] = {"error": f"{type(e).__name__}: {e}", "pass": False}
+            finally:
+                os.environ.pop("BIFROST_CONSUME_LANE", None)
 
         ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
         driver_id = ledger["driver_id"]
@@ -363,6 +412,40 @@ def main():
             "pass": all(reply_tags.get(t, 0) <= 1 for t in handoff_tags),
         }
 
+        # -- T045 S6 evaluation + lane-cursor evidence ----------------------------------
+        if T045_MODE:
+            s6_reply_ts, s6_latency = None, None
+            try:
+                for m in Bus(s6_probe_id).inbox(limit=100, advance=False):
+                    if f"s6-{storm}" in str(m.content):
+                        s6_reply_ts = str(m.ts)
+                        import datetime as _dt
+                        rt = _dt.datetime.fromisoformat(s6_reply_ts).timestamp()
+                        s6_latency = round(rt - s6_sent_at, 2)
+                        break
+            except Exception:
+                pass
+            last_work_reply_ts = max((str(m.ts) for m in replies if tag_of(m.content)),
+                                     default="")
+            ev["s6"] = {
+                "probe_id": s6_probe_id,
+                "nudge_reply_ts": s6_reply_ts,
+                "latency_s": s6_latency,
+                "last_work_reply_ts": last_work_reply_ts,
+                "sig_beat_final_work": bool(s6_reply_ts and last_work_reply_ts
+                                            and s6_reply_ts < last_work_reply_ts),
+                # bound named per M8: answered, and within 10s despite the flood
+                "pass": bool(s6_latency is not None and s6_latency <= 10.0),
+            }
+            ev["t045"] = {
+                "mode": "consume-lane rerun (T045 stage 2)",
+                "lane_cursor_a": Bus(ids["a"]).read_lane_cursor(),
+                "lane_cursor_b": Bus(ids["b"]).read_lane_cursor(),
+                "straggler_lines": {
+                    n: len(re.findall(r"LEGACY STRAGGLER", log_tail(logdir / n, 100000)))
+                    for n in ("runnerA.log", "runnerB.log", "runnerB_successor.log")},
+            }
+
         ev["reply_tags_total"] = sum(reply_tags.values())
         ev["unconsumed_a"], ev["unconsumed_b"] = unc_a, unc_b
         ev["finished_utc"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -377,6 +460,12 @@ def main():
             p = ev.get(bar, {}).get("pass")
             print(f"  {bar.upper()}: {'PASS' if p else 'CHECK'}  {json.dumps({k:v for k,v in ev[bar].items() if k not in ('watcher1_out','watcher2_out','dupe_out','out')})[:180]}")
         print(f"  S5: {'PASS' if ev['s5']['pass'] else 'CHECK'}  {ev['s5']['handoff_reply_counts']}")
+        if T045_MODE:
+            print(f"  S6: {'PASS' if ev.get('s6', {}).get('pass') else 'CHECK'}  "
+                  f"latency={ev.get('s6', {}).get('latency_s')}s "
+                  f"sig_beat_final_work={ev.get('s6', {}).get('sig_beat_final_work')}")
+            print(f"  SESSION-LEG: {'PASS' if ev.get('session_leg', {}).get('pass') else 'CHECK'}  "
+                  f"consumed={ev.get('session_leg', {}).get('consumed_count')}")
         if ev.get("paused_during_burst"):
             print("  !! INVALID RUN: bus was PAUSED mid-burst (reply RateLimiter runaway guard) -- "
                   "S3/S5 are UNTESTABLE this run. Fix A+B (research/claude-s3-diagnosis-2026-07-12.md) "

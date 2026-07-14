@@ -1,0 +1,19 @@
+[deepseek-runner] CONSUME LANE: work (T045 stage 2 cutover live)
+[deepseek-runner] d3b-cfdcb65f online (model=deepseek-v4-pro, think=off, drill-echo (offline), max_hops=6). Waiting for messages... (Ctrl-C to stop)
+[work-drain] 33 LEGACY STRAGGLER(S) for d3b-cfdcb65f -- lane write failed upstream; dual-write net caught them (defect signal, investigate the sender side)
+[deepseek-runner] <- rb25-storm-driver-8a4d414e2a81 [request] (hop 1): [drill-3 request] storm-8a4d414e2a81-request-012: directed request to second run
+[deepseek-runner] -> rb25-storm-driver-8a4d414e2a81: [drill-echo] [drill-3 request] storm-8a4d414e2a81-request-012: directed request 
+[deepseek-runner] <- rb25-storm-driver-8a4d414e2a81 [request] (hop 1): [drill-3 request] storm-8a4d414e2a81-request-013: directed request to second run
+[deepseek-runner] -> rb25-storm-driver-8a4d414e2a81: [drill-echo] [drill-3 request] storm-8a4d414e2a81-request-013: directed request 
+[deepseek-runner] <- rb25-storm-driver-8a4d414e2a81 [request] (hop 1): [drill-3 request] storm-8a4d414e2a81-request-014: directed request to second run
+[deepseek-runner] -> rb25-storm-driver-8a4d414e2a81: [drill-echo] [drill-3 request] storm-8a4d414e2a81-request-014: directed request 
+[deepseek-runner] <- rb25-storm-driver-8a4d414e2a81 [request] (hop 1): [drill-3 request] storm-8a4d414e2a81-request-015: directed request to second run
+[deepseek-runner] -> rb25-storm-driver-8a4d414e2a81: [drill-echo] [drill-3 request] storm-8a4d414e2a81-request-015: directed request 
+[deepseek-runner] <- rb25-storm-driver-8a4d414e2a81 [request] (hop 1): [drill-3 request] storm-8a4d414e2a81-request-016: directed request to second run
+[deepseek-runner] -> rb25-storm-driver-8a4d414e2a81: [drill-echo] [drill-3 request] storm-8a4d414e2a81-request-016: directed request 
+[deepseek-runner] <- rb25-storm-driver-8a4d414e2a81 [request] (hop 1): [drill-3 request] storm-8a4d414e2a81-request-017: directed request to second run
+[deepseek-runner] -> rb25-storm-driver-8a4d414e2a81: [drill-echo] [drill-3 request] storm-8a4d414e2a81-request-017: directed request 
+[deepseek-runner] <- rb25-storm-driver-8a4d414e2a81 [request] (hop 1): [drill-3 request] storm-8a4d414e2a81-request-018: directed request to second run
+[deepseek-runner] -> rb25-storm-driver-8a4d414e2a81: [drill-echo] [drill-3 request] storm-8a4d414e2a81-request-018: directed request 
+[deepseek-runner] <- rb25-storm-driver-8a4d414e2a81 [request] (hop 1): [drill-3 request] storm-8a4d414e2a81-request-019: directed request to second run
+[deepseek-runner] -> rb25-storm-driver-8a4d414e2a81: [drill-echo] [drill-3 request] storm-8a4d414e2a81-request-019: directed request 

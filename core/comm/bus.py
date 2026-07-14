@@ -717,8 +717,23 @@ class Bus:
                 except Exception:
                     fields[field] = "0"
         shared = self._read_cursor()
-        fields["shadow_inbox"] = shared.get("inbox", "0")
-        fields["shadow_bc"] = shared.get("bc", "0")
+        if shared.get("inbox", "0") != "0" or shared.get("bc", "0") != "0":
+            # MIGRANT: the shadow CONTINUES the pre-flip consumer's own progress --
+            # unconsumed legacy backlog rides the straggler net (no loss at the flip).
+            fields["shadow_inbox"] = shared.get("inbox", "0")
+            fields["shadow_bc"] = shared.get("bc", "0")
+        else:
+            # NEWBORN (cfdcb65f storm find): BROADCAST history is room-noise -- bc
+            # positions seed at tails (RB-25 F2 discipline; 44 replays caught live).
+            # DIRECTED positions stay "0": addressed mail is queued work FOR YOU and
+            # delivers even pre-onboarding (RB-26 directed-mail sanctity; sender-side
+            # L4 expectations bound the wait). Deliberate improvement over the legacy
+            # newborn seed, which skips the directed inbox too.
+            fields["inbox"] = "0"
+            fields["sig_inbox"] = "0"
+            fields["shadow_inbox"] = "0"
+            t = self.tail()
+            fields["shadow_bc"] = t.get("bc", "0")
         if all(v == "0" for v in fields.values()):
             return False                          # nothing to skip -- stay virgin
         self.advance_cursor_fields(self.lane_cursor_key(), fields)

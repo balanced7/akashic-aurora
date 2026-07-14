@@ -1,0 +1,58 @@
+[deepseek-runner] CONSUME LANE: work (T045 stage 2 cutover live)
+[deepseek-runner] d3a-cfdcb65f online (model=deepseek-v4-pro, think=off, drill-echo (offline), max_hops=6). Waiting for messages... (Ctrl-C to stop)
+[work-drain] 33 LEGACY STRAGGLER(S) for d3a-cfdcb65f -- lane write failed upstream; dual-write net caught them (defect signal, investigate the sender side)
+[deepseek-runner] <- rb25-storm-driver-8a4d414e2a81 [request] (hop 1): [drill-3 request] storm-8a4d414e2a81-request-000: directed request to deepseek r
+[deepseek-runner] -> rb25-storm-driver-8a4d414e2a81: [drill-echo] [drill-3 request] storm-8a4d414e2a81-request-000: directed request 
+[deepseek-runner] <- rb25-storm-driver-8a4d414e2a81 [request] (hop 1): [drill-3 request] storm-8a4d414e2a81-request-001: directed request to deepseek r
+[deepseek-runner] -> rb25-storm-driver-8a4d414e2a81: [drill-echo] [drill-3 request] storm-8a4d414e2a81-request-001: directed request 
+[deepseek-runner] <- rb25-storm-driver-8a4d414e2a81 [request] (hop 1): [drill-3 request] storm-8a4d414e2a81-request-002: directed request to deepseek r
+[deepseek-runner] -> rb25-storm-driver-8a4d414e2a81: [drill-echo] [drill-3 request] storm-8a4d414e2a81-request-002: directed request 
+[deepseek-runner] <- rb25-storm-driver-8a4d414e2a81 [request] (hop 1): [drill-3 request] storm-8a4d414e2a81-request-003: directed request to deepseek r
+[deepseek-runner] -> rb25-storm-driver-8a4d414e2a81: [drill-echo] [drill-3 request] storm-8a4d414e2a81-request-003: directed request 
+[deepseek-runner] <- rb25-storm-driver-8a4d414e2a81 [request] (hop 1): [drill-3 request] storm-8a4d414e2a81-request-004: directed request to deepseek r
+[deepseek-runner] -> rb25-storm-driver-8a4d414e2a81: [drill-echo] [drill-3 request] storm-8a4d414e2a81-request-004: directed request 
+[deepseek-runner] <- rb25-storm-driver-8a4d414e2a81 [request] (hop 1): [drill-3 request] storm-8a4d414e2a81-request-005: directed request to deepseek r
+[deepseek-runner] -> rb25-storm-driver-8a4d414e2a81: [drill-echo] [drill-3 request] storm-8a4d414e2a81-request-005: directed request 
+[deepseek-runner] <- rb25-storm-driver-8a4d414e2a81 [request] (hop 1): [drill-3 request] storm-8a4d414e2a81-request-006: directed request to deepseek r
+[deepseek-runner] -> rb25-storm-driver-8a4d414e2a81: [drill-echo] [drill-3 request] storm-8a4d414e2a81-request-006: directed request 
+[deepseek-runner] <- rb25-storm-driver-8a4d414e2a81 [request] (hop 1): [drill-3 request] storm-8a4d414e2a81-request-007: directed request to deepseek r
+[deepseek-runner] -> rb25-storm-driver-8a4d414e2a81: [drill-echo] [drill-3 request] storm-8a4d414e2a81-request-007: directed request 
+[deepseek-runner] <- rb25-storm-driver-8a4d414e2a81 [request] (hop 1): [drill-3 request] storm-8a4d414e2a81-request-008: directed request to deepseek r
+[deepseek-runner] -> rb25-storm-driver-8a4d414e2a81: [drill-echo] [drill-3 request] storm-8a4d414e2a81-request-008: directed request 
+[deepseek-runner] <- rb25-storm-driver-8a4d414e2a81 [request] (hop 1): [drill-3 request] storm-8a4d414e2a81-request-009: directed request to deepseek r
+[deepseek-runner] -> rb25-storm-driver-8a4d414e2a81: [drill-echo] [drill-3 request] storm-8a4d414e2a81-request-009: directed request 
+FileLedger could not persist E:\AI-Setup\session_logs\ledger\events_raw.jsonl: [WinError 5] Access is denied: 'E:\\AI-Setup\\session_logs\\ledger\\events_raw.jsonl.tmp' -> 'E:\\AI-Setup\\session_logs\\ledger\\events_raw.jsonl'
+[deepseek-runner] <- rb25-storm-driver-8a4d414e2a81 [request] (hop 1): [drill-3 request] storm-8a4d414e2a81-request-010: directed request to deepseek r
+[deepseek-runner] -> rb25-storm-driver-8a4d414e2a81: [drill-echo] [drill-3 request] storm-8a4d414e2a81-request-010: directed request 
+[deepseek-runner] <- rb25-storm-driver-8a4d414e2a81 [request] (hop 1): [drill-3 request] storm-8a4d414e2a81-request-011: directed request to deepseek r
+[deepseek-runner] -> rb25-storm-driver-8a4d414e2a81: [drill-echo] [drill-3 request] storm-8a4d414e2a81-request-011: directed request 
+FileLedger could not persist E:\AI-Setup\session_logs\ledger\events_raw.jsonl: [WinError 5] Access is denied: 'E:\\AI-Setup\\session_logs\\ledger\\events_raw.jsonl.tmp' -> 'E:\\AI-Setup\\session_logs\\ledger\\events_raw.jsonl'
+[work-drain] 1 LEGACY STRAGGLER(S) for d3a-cfdcb65f -- lane write failed upstream; dual-write net caught them (defect signal, investigate the sender side)
+[deepseek-runner] <- d3s6-cfdcb65f [nudge] (hop 1): s6-cfdcb65f sig-latency probe
+[deepseek-runner] nudge from d3s6-cfdcb65f -> acked + cleared
+[deepseek-runner] -> d3s6-cfdcb65f: [drill-echo] s6-cfdcb65f sig-latency probe
+[work-drain] 16 LEGACY STRAGGLER(S) for d3a-cfdcb65f -- lane write failed upstream; dual-write net caught them (defect signal, investigate the sender side)
+[deepseek-runner] <- d3s6-cfdcb65f [nudge] (hop 1): s6-cfdcb65f sig-latency probe
+[deepseek-runner] nudge from d3s6-cfdcb65f -> acked + cleared
+[deepseek-runner] -> d3s6-cfdcb65f: [drill-echo] s6-cfdcb65f sig-latency probe
+FileLedger could not persist E:\AI-Setup\session_logs\ledger\events_raw.jsonl: [WinError 5] Access is denied: 'E:\\AI-Setup\\session_logs\\ledger\\events_raw.jsonl.tmp' -> 'E:\\AI-Setup\\session_logs\\ledger\\events_raw.jsonl'
+[deepseek-runner] <- rb25-storm-driver-8a4d414e2a81 [handoff] (hop 1): [drill-3 handoff] storm-8a4d414e2a81-handoff-036: handoff to deepseek runner
+[deepseek-runner] acked handoff 1784035833654-0
+[deepseek-runner] -> rb25-storm-driver-8a4d414e2a81: [drill-echo] [drill-3 handoff] storm-8a4d414e2a81-handoff-036: handoff to deepse
+[deepseek-runner] <- rb25-storm-driver-8a4d414e2a81 [handoff] (hop 1): [drill-3 handoff] storm-8a4d414e2a81-handoff-037: handoff to deepseek runner
+[deepseek-runner] acked handoff 1784035833810-0
+[deepseek-runner] -> rb25-storm-driver-8a4d414e2a81: [drill-echo] [drill-3 handoff] storm-8a4d414e2a81-handoff-037: handoff to deepse
+[deepseek-runner] <- rb25-storm-driver-8a4d414e2a81 [request] (hop 1): [drill-3 request] storm-8a4d414e2a81-request-038: more directed requests to deep
+[deepseek-runner] -> rb25-storm-driver-8a4d414e2a81: [drill-echo] [drill-3 request] storm-8a4d414e2a81-request-038: more directed req
+[deepseek-runner] <- rb25-storm-driver-8a4d414e2a81 [request] (hop 1): [drill-3 request] storm-8a4d414e2a81-request-039: more directed requests to deep
+[deepseek-runner] -> rb25-storm-driver-8a4d414e2a81: [drill-echo] [drill-3 request] storm-8a4d414e2a81-request-039: more directed req
+[deepseek-runner] <- rb25-storm-driver-8a4d414e2a81 [request] (hop 1): [drill-3 request] storm-8a4d414e2a81-request-040: more directed requests to deep
+[deepseek-runner] -> rb25-storm-driver-8a4d414e2a81: [drill-echo] [drill-3 request] storm-8a4d414e2a81-request-040: more directed req
+[deepseek-runner] <- rb25-storm-driver-8a4d414e2a81 [request] (hop 1): [drill-3 request] storm-8a4d414e2a81-request-041: more directed requests to deep
+[deepseek-runner] -> rb25-storm-driver-8a4d414e2a81: [drill-echo] [drill-3 request] storm-8a4d414e2a81-request-041: more directed req
+[deepseek-runner] <- rb25-storm-driver-8a4d414e2a81 [chat] (hop 1): [drill-3 chat] storm-8a4d414e2a81-chat-045: hello from the storm
+[deepseek-runner] -> rb25-storm-driver-8a4d414e2a81: [drill-echo] [drill-3 chat] storm-8a4d414e2a81-chat-045: hello from the storm
+[deepseek-runner] <- rb25-storm-driver-8a4d414e2a81 [chat] (hop 1): [drill-3 chat] storm-8a4d414e2a81-chat-046: hello from the storm
+[deepseek-runner] -> rb25-storm-driver-8a4d414e2a81: [drill-echo] [drill-3 chat] storm-8a4d414e2a81-chat-046: hello from the storm
+[deepseek-runner] <- rb25-storm-driver-8a4d414e2a81 [request] (hop 1): [drill-3 request] storm-8a4d414e2a81-request-049: final request to deepseek runn
+[deepseek-runner] -> rb25-storm-driver-8a4d414e2a81: [drill-echo] [drill-3 request] storm-8a4d414e2a81-request-049: final request to 
