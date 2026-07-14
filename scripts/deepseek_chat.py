@@ -791,6 +791,40 @@ class ToolBox:
             return ""
         return "\n\n[recall-at (Akashic) -- lessons relevant to this action]\n" + out[:1200]
 
+    # T055/R4 (deepseek design, research/reviewed/deepseek-r4-preflight-design-2026-07-14.md):
+    # the six investigation tools that deserve context BEFORE the read; everything else
+    # is pre-flight silent by his skip table.
+    _PREFLIGHT_TOOLS = frozenset({"read_file", "write_file", "edit_file",
+                                  "list_directory", "find_files", "search_files"})
+
+    def _preflight_recall(self, name, args) -> str:
+        """R4 pre-flight: recall-at facts injected BEFORE the tool executes -- 'read the
+        file WITH context, not discovering context after the fact' (his wishlist b2).
+        Investigation tools only; 2 lessons; 300-char budget with a pull pointer; empty
+        recall = SILENCE (the byte-identical path); advisory, never load-bearing; same
+        DEEPSEEK_RECALL_AT gate as the post-flight. Double-injection (his P7) is handled
+        at the recall ENGINE: surfaced sources are marked seen, so the post-flight's own
+        query naturally excludes them."""
+        if not os.environ.get("DEEPSEEK_RECALL_AT") or name not in self._PREFLIGHT_TOOLS:
+            return ""
+        call = ["recall-at", "--limit", "2", "--hint-style", "tool",
+                "--agent-id", self.agent_id or os.environ.get("AKASHIC_AGENT_ID", "deepseek")]
+        path = args.get("path") or args.get("file_path") or args.get("directory")
+        if path:
+            call += ["--path", str(path)]
+        probe = args.get("pattern") or args.get("query") or ""
+        call += ["--command", f"{name} {probe or path or ''}".strip()[:200]]
+        out = (self._agent_cli(call, timeout=15) or "").strip()
+        if (len(out) < 20 or out.startswith("ERROR") or "0 item" in out[:60]
+                or "nothing relevant" in out[:80]):
+            return ""
+        block = "[recall (pre-flight)] " + out.replace("\n", "\n[recall (pre-flight)] ")
+        if len(block) > 300:
+            kept = block[:255].rsplit("\n", 1)[0]
+            more = f"\n[recall (pre-flight)] [+more: recall_at {str(path or probe)[:40]}]"
+            block = (kept + more)[:300]
+        return block + "\n"
+
     # -- dispatch --
     def execute(self, name, args: dict) -> str:
         fn = getattr(self, name, None)
@@ -981,7 +1015,15 @@ class Agent:
                         print(f"{C.red}   ⛔ {_refusal}{C.reset}")
                         result = _refusal    # the tool result the model sees -- refuse loud, never a silent clip
                     else:
+                        # T055/R4: pre-flight recall rides the FRONT of the tool result
+                        # (his P1 -- the model reads the file WITH context). Fail-silent.
+                        try:
+                            _pre = self.toolbox._preflight_recall(s["name"], args)
+                        except Exception:
+                            _pre = ""
                         result = self.toolbox.execute(s["name"], args)
+                        if _pre:
+                            result = _pre + result
                     first = result.splitlines()[0] if result else ""
                     print(f"{C.dim}   → {len(result)} chars | {first[:120]}{C.reset}")
                     # T050 Q4 (deepseek a2 -- 'blind agents are conservative agents'): every
