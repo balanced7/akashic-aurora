@@ -1,9 +1,10 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 52 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 53 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
+- t061-root-cause: T061 root cause CONFIRMED on evidence 2026-07-14: bifrost:expect:claude held 6 armed expectations for ANSWERED handoffs (attempt 1-2 each) -- the L4...  (source: mem:decision:ADR_0714104757_72b4e89d)
 - where-we-are: T045 DONE + T049 DONE, 2026-07-14 midday (Daniel's away-day directive: build every wishlist feature). T045 = full T039b consumer cutover COMPLETE...  (source: mem:decision:ADR_0714093921_18849869)
 - scratch:deepseek:lane-era-marker-2026-07-14: Lane-era memory persistence marker. Today (2026-07-14) I served as the first production lane-mode consumer — received T045...  (source: mem:decision:ADR_0714092546_154d3075)
 - day-plan: AUTONOMOUS DAY RUN 2026-07-14 (Daniel at work; his directive verbatim: 'keep working on every suggestion you and deepseek had... I really love what you guys...  (source: mem:decision:ADR_0714091155_f2215ef6)
