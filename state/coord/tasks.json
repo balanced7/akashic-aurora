@@ -1,5 +1,5 @@
 {
-  "seq": 47,
+  "seq": 49,
   "tasks": [
     {
       "id": "T001",
@@ -1611,11 +1611,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "in_progress",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "e36f33a",
+      "verified_by": "pre-registered pins B1-B6 (RED @793d70e -> GREEN 43/43 incl T043 suite) + live smoke + deepseek adversarial build fence (research/reviewed/deepseek-t044-build-review-2026-07-13.md, AMBER->GREEN)",
       "created": "2026-07-14T03:25:54+00:00",
-      "updated": "2026-07-14T03:26:47+00:00",
+      "updated": "2026-07-14T03:45:42+00:00",
       "history": [
         {
           "to": "proposed",
@@ -1636,6 +1636,16 @@
           "to": "in_progress",
           "by": "claude",
           "at": "2026-07-14T03:26:47+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-07-14T03:45:41+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-14T03:45:42+00:00"
         }
       ]
     },
@@ -1643,15 +1653,15 @@
       "id": "T045",
       "title": "T039b Consumer cutover (strangler; wake-listener first, then runner) + A4 cursor-init-at-flip + P3 sig-interleave + P4 bell kind-filter + M2 dual-write retention guard. Bars: RB-25 S1-S5 per cutover + S2-NEW + S6. Cites docs/t039-lanes-latches-design-2026-07.md",
       "desc": "",
-      "owner": "",
+      "owner": "claude",
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "approved",
+      "status": "in_progress",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-14T03:25:54+00:00",
-      "updated": "2026-07-14T03:26:04+00:00",
+      "updated": "2026-07-14T03:53:16+00:00",
       "history": [
         {
           "to": "proposed",
@@ -1662,6 +1672,16 @@
           "to": "approved",
           "by": "user",
           "at": "2026-07-14T03:26:04+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-14T03:53:16+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-07-14T03:53:16+00:00"
         }
       ]
     },
@@ -1714,6 +1734,68 @@
           "to": "approved",
           "by": "user",
           "at": "2026-07-14T03:26:05+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T048",
+      "title": "Recall surface polish for agent tool-loops (deepseek interview 2026-07-14): (1) recall-at truncation hint currently names a CLI the agent cannot call -- either register a real recall_at tool in deepseek_chat ToolBox or render the hint tool-surface-aware; (2) one-call full-lesson drill (recall --full SOURCE) exposed as a tool; (3) novelty-vs-boot dedup indicator on knowledge_recall results; (4) confidence/usage metadata in lesson render (what does [worked claude] mean -- tried once vs helped 4x). Source: research/reviewed/deepseek-experience-recall-at-2026-07-14.md sec b/c",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "claimed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-14T03:56:07+00:00",
+      "updated": "2026-07-14T04:03:46+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-14T03:56:07+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-14T04:03:46+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-14T04:03:46+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T049",
+      "title": "Fence protocol v2 (deepseek interview 2026-07-14): (1) MANDATORY citation path-verify pass in every reconciliation (institutionalizes fence_report_citation_path_gate, T031 item 4 sibling); (2) structured uncertainty field per verdict (confidence / grounding_quality) so reconcilers know what to re-check; (3) fence-lite tier for small changes (single-blind + adversarial review) gated by change size -- not every slice needs the full dual; (4) brief format contract: question + inputs + output shape + rules ONLY, protocol by reference; (5) counter-checks affirm in one line, re-prove only on disagreement. Source: research/reviewed/deepseek-experience-recall-at-2026-07-14.md sec d",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "claimed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-14T03:56:07+00:00",
+      "updated": "2026-07-14T04:03:47+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-14T03:56:07+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-14T04:03:46+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-14T04:03:47+00:00"
         }
       ]
     }
