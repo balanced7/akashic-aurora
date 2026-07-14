@@ -262,7 +262,9 @@ def render_full(agent: str) -> str:
             pass
     mark = DeltaMark(agent).read()
     if mark is None:
-        text = (f"[delta {agent}] no mark yet (newborn) -- the mark writes at your next "
+        # Reviewer nit (t052 build review): do NOT cache the newborn message -- the first
+        # boot stamps a mark within the TTL and a cached "no mark yet" would mask it.
+        return (f"[delta {agent}] no mark yet (newborn) -- the mark writes at your next "
                 f"boot; until then the full boot is the orientation")
     else:
         cur = current_positions(agent)
