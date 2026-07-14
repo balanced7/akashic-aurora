@@ -288,12 +288,37 @@ def cmd_boot(args):
     print("\n## BIFROST (live + durable)")
     print("  py agent_cli.py bifrost-sync <agent>     # peek unread (same as boot section)")
     print("  py agent_cli.py promoted [--limit N]       # durable salient msgs (kind=bifrost_msg)")
+    # T052 delta door: render what moved since this agent's last boot, then stamp the
+    # seen mark AFTER the full context above was delivered (mark-lag contract, D1 ruling
+    # -- a crash before this line leaves the old mark and the whole gap redelivers).
+    try:
+        from agent.harness.delta import delta_boot_block
+        _dtext, _dcommit = delta_boot_block(args.agent_id)
+        if _dtext:
+            print("\n## DELTA (what moved since your last boot -- T052)")
+            print(_dtext)
+        _dcommit()
+    except Exception:
+        pass
     _warn_unmirrored(soft=True)   # heads-up if you're resuming on top of unmirrored work
     if not os.getenv("AKASHIC_AGENT_ID"):
         print("\n[i] AKASHIC_AGENT_ID not set -- peer-lock enforcement (C2/C4) is degraded: "
               "edits/commits to a peer-locked path fail CLOSED until it's set. Set it per agent "
               "(e.g. .claude/settings.json env).")
     return 0 if res.get("status") == "success" else 1
+
+
+# -------------------------------------------------------------------------- delta (T052)
+def cmd_delta(args):
+    """The delta door (T052/R1): what moved since this agent's last boot. --ack advances
+    the seen mark to current positions (the explicit commit surface; boot auto-commits)."""
+    from agent.harness.delta import render_full, delta_boot_block
+    print(render_full(args.agent_id))
+    if getattr(args, "ack", False):
+        _t, commit = delta_boot_block(args.agent_id)
+        print("[delta] mark advanced to current positions" if commit()
+              else "[delta] mark write failed (redis unreachable?)")
+    return 0
 
 
 # -------------------------------------------------------------------------- learn
@@ -2521,6 +2546,12 @@ def build_parser():
     b = sub.add_parser("boot", help="print an agent's startup context")
     b.add_argument("agent_id"); b.add_argument("--task", default=None); b.add_argument("--json", action="store_true")
     b.set_defaults(fn=cmd_boot)
+
+    dl = sub.add_parser("delta", help="what changed since this agent's last boot (T052 delta door)")
+    dl.add_argument("agent_id")
+    dl.add_argument("--ack", action="store_true",
+                    help="advance the seen mark to current positions after reading")
+    dl.set_defaults(fn=cmd_delta)
 
     dsc = sub.add_parser("discover", help="list every verb + its purpose (the self-describing door)")
     dsc.add_argument("query", nargs="?", default="", help="optional substring to filter verbs by name/purpose")

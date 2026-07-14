@@ -90,6 +90,19 @@ def build_autoboot_context(cwd: str, agent_id: str) -> str:
     if fresh_draft:
         lines.append("  draft: chronicles/last-session-draft.md -> review; promote with "
                      "`py agent_cli.py wrap --commit`")
+    # T052 delta door: one COUNT line + pull pointer (pull-not-push; the whisper NEVER
+    # commits the mark -- only delivered full boots do, per the mark-lag contract).
+    try:
+        from agent.harness.delta import DeltaMark, current_positions, _moved, FIELDS
+        _mk = DeltaMark(agent_id).read()
+        if _mk:
+            _cur = current_positions(agent_id)
+            _n = sum(1 for f in FIELDS if _moved(_mk[f], _cur[f]))
+            if _n:
+                lines.append(f"  delta: {_n} source(s) moved since your last boot -> "
+                             f"py agent_cli.py delta {agent_id}")
+    except Exception:
+        pass
     if len(lines) == 1:
         return ""   # nothing behind the header -> stay silent rather than print a banner
     return "\n".join(lines)
