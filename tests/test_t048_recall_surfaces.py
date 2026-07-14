@@ -94,6 +94,14 @@ def test_boot_sources_extracted():
     assert tb._boot_sources == {"learn:experiment:foo_bar", "learn:experiment:baz-qux"}
 
 
+def test_boot_sources_match_bare_onboarding_names():
+    """deepseek live-verify item 3: the onboarding renders some lessons as bare names
+    ('...(source: NAME)') -- these must normalize to qualified pointers or every boot
+    lesson tags [new] and the novelty feature is inert."""
+    tb = _toolbox(boot_text="- Use when X... (source: fence_report_citation_path_gate)")
+    assert "learn:experiment:fence_report_citation_path_gate" in tb._boot_sources
+
+
 def test_novelty_tags_boot_vs_new(monkeypatch):
     tb = _toolbox(boot_text="learn:experiment:seen_one")
     payload = json.dumps([{"source": "learn:experiment:seen_one"}, {"source": "learn:experiment:fresh"}])

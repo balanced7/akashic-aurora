@@ -232,8 +232,14 @@ class ToolBox:
         self._bus_conn = None
         # T048 item 3: the lesson sources folded into THIS agent's boot onboarding. Neither the
         # injection ledger nor the seen-set records boot (verified 2026-07-14) -- the runner itself
-        # is the only holder of that text, so it hands it in and we extract the pointers.
-        self._boot_sources = set(re.findall(r"learn:experiment:[A-Za-z0-9_\-]+", boot_text or ""))
+        # is the only holder of that text, so it hands it in and we extract the pointers. The
+        # onboarding renders lessons BOTH fully-qualified (learn:experiment:NAME) and bare
+        # (source: NAME) -- match both, normalize to qualified (deepseek live-verify item 3).
+        bt = boot_text or ""
+        self._boot_sources = set(re.findall(r"learn:experiment:[A-Za-z0-9_\-]+", bt))
+        self._boot_sources |= {f"learn:experiment:{m}" for m in
+                               re.findall(r"source:\s*([A-Za-z0-9_\-]+)\)", bt)
+                               if not m.startswith("learn")}
         # T048 lock-release: paths guard_write locked this task; the runner releases them at reply
         # time (3 leaked-lock receipts 2026-07-14 -- a completed task must not hold its locks).
         self._written_lock_paths: list = []
