@@ -1932,15 +1932,15 @@
       "id": "T052",
       "title": "R1 Delta door (wishlist S1, both seats' top convergence): per-agent high-water mark (last-seen commit + ledger revision + bus cursor + note versions) + delta <agent> verb rendering what moved + boot/wake integration (the boot shrinks, the wake sharpens). Cites research/reviewed/wishlist-synthesis-2026-07-14.md. Daniel directive 2026-07-14 verbatim: keep working on every suggestion you and deepseek had... I really love what you guys came up with and want every feature added",
       "desc": "",
-      "owner": "",
+      "owner": "claude",
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "approved",
+      "status": "in_progress",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-14T13:11:03+00:00",
-      "updated": "2026-07-14T13:11:52+00:00",
+      "updated": "2026-07-14T13:49:18+00:00",
       "history": [
         {
           "to": "proposed",
@@ -1951,6 +1951,16 @@
           "to": "approved",
           "by": "user",
           "at": "2026-07-14T13:11:52+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-14T13:49:18+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-07-14T13:49:18+00:00"
         }
       ]
     },
