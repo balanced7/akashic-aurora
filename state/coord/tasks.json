@@ -2034,11 +2034,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "in_progress",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "HEAD",
+      "verified_by": "deepseek live-verify ALL 8 PINS GREEN in his own loop: research/reviewed/deepseek-t055-live-verify-2026-07-14.md + B1-B5 unit pins",
       "created": "2026-07-14T13:11:04+00:00",
-      "updated": "2026-07-14T14:01:44+00:00",
+      "updated": "2026-07-14T14:10:50+00:00",
       "history": [
         {
           "to": "proposed",
@@ -2059,6 +2059,16 @@
           "to": "in_progress",
           "by": "",
           "at": "2026-07-14T14:01:44+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-07-14T14:10:50+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-14T14:10:50+00:00"
         }
       ]
     },
@@ -2066,15 +2076,15 @@
       "id": "T056",
       "title": "R5 Cost telemetry per slice (wishlist S4): turn_metrics join into the ledger render -- per-arc ROI for Daniel, the frugality directive made measurable. Cites wishlist-synthesis-2026-07-14.md + Daniel directive 2026-07-14",
       "desc": "",
-      "owner": "",
+      "owner": "claude",
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "approved",
+      "status": "in_progress",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-14T13:11:04+00:00",
-      "updated": "2026-07-14T13:11:53+00:00",
+      "updated": "2026-07-14T14:10:51+00:00",
       "history": [
         {
           "to": "proposed",
@@ -2085,6 +2095,16 @@
           "to": "approved",
           "by": "user",
           "at": "2026-07-14T13:11:53+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-14T14:10:50+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-07-14T14:10:51+00:00"
         }
       ]
     },
