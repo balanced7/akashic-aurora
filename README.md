@@ -5,7 +5,7 @@
 [![CI](https://github.com/balanced7/akashic-aurora/actions/workflows/ci.yml/badge.svg)](https://github.com/balanced7/akashic-aurora/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](#quickstart)
-[![Tests](https://img.shields.io/badge/tests-1196%20green-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-1538%20green-brightgreen.svg)](tests/)
 
 Most agent memory answers *"what did we store?"* and is graded on retrieval quality. Whether a remembered lesson actually **changed what the agent did — and whether that helped** — usually goes unmeasured, because measuring it takes three things at once: injection at the moment of action, an outcome record, and a credit loop connecting them.
 
@@ -50,6 +50,30 @@ recall:use:learn:experiment:faith1_faithfulness_critic  =>  {"surfaced": 5, "hel
 ```
 
 That `helped` counter feeds back into ranking: lessons with a track record rise; lessons surfaced often but never useful decay. The agents building this repo use it while they build it — the examples above are from that work, unedited.
+
+## Built by the method it ships
+
+This repo is built by **two AI agents holding each other to a written contract** — a Claude session and a DeepSeek runner sharing one task ledger, one message bus, and one rule: load-bearing work is designed *blind* by both, reconciled where they disagree, built by one, and verify-gated by the other before anything reaches `main`. The verdicts are preserved verbatim in [`research/reviewed/`](research/reviewed/) — 220+ records; you can read every disagreement and who turned out to be right.
+
+Receipts from one recent working day (2026-07-15), all in the git history:
+
+- **Blind convergence as evidence.** Both agents designed a "capability audit" with zero shared context; DeepSeek's ten outside-in guesses about the Claude-side platform were confirmed **10 for 10** by the Claude half written in parallel. Independently converging designs are the strongest signal the method produces — and the divergences, where they happened, were where the real defects lived.
+- **The fence runs both directions.** DeepSeek built a process-supervision slice; Claude's adversarial verify found **4 real defects** (an unread-pipe wedge, a backoff that starved its own lock, a dead-letter alert, a lock that couldn't survive an outage) — each fixed at source within minutes, each now a pinned regression test. Earlier the same day, the roles were reversed and DeepSeek's verify gated three Claude-built slices the same way.
+- **Directive to adopted infrastructure in one afternoon.** The operator asked for the daily process-babysitting chores to disappear; by evening a supervision daemon designed blind by both agents was live — after *two safe refusals* in live drills (it declined to steal a running session's seat, twice, legibly) that each became a same-hour fix.
+
+The discipline is written down and enforced, not aspirational: acceptance tests commit **before** the code they gate ([`docs/method-baseline-2026-07.md`](docs/method-baseline-2026-07.md)), and CI rejects commits that claim review verdicts without citing the preserved record.
+
+### Milestones, condensed
+
+The governed task ledger (`py agent_cli.py task list` — 41 shipped of 78 registered, every transition gated and attributed) is the machine-readable history. A few that shaped the system, with where they live:
+
+| | What it proved | Record |
+|---|---|---|
+| **T017** | A wake listener can *detect without consuming* — the pattern that ended silent message loss | ledger + [`scripts/bifrost_wake.py`](scripts/bifrost_wake.py) |
+| **T039–T045** | One message stream can be partitioned into purpose-keyed lanes with zero downtime (strangler migration, storm-drilled) | [`docs/t039-lanes-latches-design-2026-07.md`](docs/t039-lanes-latches-design-2026-07.md) |
+| **T060/T075** | Continuous presence: agents as supervised daemons that survive their sessions | [`research/reviewed/t060-m1-reconciliation-2026-07-15.md`](research/reviewed/t060-m1-reconciliation-2026-07-15.md) |
+| **T071** | The rigor-vs-creativity tradeoff is false — noise limits creativity, and a fixed relevance budget kills noise | [`research/reviewed/creative-robustness-reconciliation-2026-07-15.md`](research/reviewed/creative-robustness-reconciliation-2026-07-15.md) |
+| **T078** | Both platforms' full feature surfaces, audited blind and reconciled into a build wave | [`research/reviewed/t078-capability-surface-reconciliation-2026-07-15.md`](research/reviewed/t078-capability-surface-reconciliation-2026-07-15.md) |
 
 ## Quickstart
 
@@ -120,7 +144,8 @@ Built in small **test-gated slices** — no capability lands without the test th
 **Proven live (not just unit-tested)**
 - The full recall loop, end to end: surface → impression → transcript-synthesized failure → outcome credit. First credited flip landed 2026-07-01, in-session, and the payload contract is pinned to live-captured fixtures.
 - A **free local model as a first-class agent**: glm-4.7-flash behind the same Claude Code harness ran real repo commands with every hook firing and its lessons attributed — then worked a 7-task research shift overnight, unattended (5 articles accepted at review; the 3 failures were all the same diagnosable cause, now encoded back into the task format).
-- **The system measures its own memory**: from live counters, a 92-lesson corpus has drawn 34 outcome credits (plus 9 explicit useful-votes) across ~1,050 tracked surfaced impressions — a 4.1% value rate — while `py agent_cli.py triage` flags lessons that surface five-plus times yet never pay off. Internal numbers, small corpus — but they exist, and they steer what we curate next.
+- **The system measures its own memory**: from live counters, a 90-lesson corpus has drawn 34 outcome credits (plus 21 explicit useful-votes) across ~1,290 tracked surfaced impressions — a 4.3% value rate — while `py agent_cli.py triage` flags lessons that surface five-plus times yet never pay off. Internal numbers, small corpus — but they exist, and they steer what we curate next. As of 2026-07-15 the boot surface itself is governed by a **fixed relevance budget** (task-id > constraint > file-path > category, funnel credit as a multiplier): as the corpus grows, competition for the surface gets tougher instead of the surface getting noisier.
+- **A presence autopilot supervises the fleet.** Each agent can run as a daemon that owns its wake listener and runner as supervised children (crash backoff, circuit breaker, summary-injection conversation survival), holds presence through Redis outages, refuses — never steals — contested seats, and pages a human when something needs one. Designed blind by both agents, reconciled, built split, cross-verified, and adopted the same day it was asked for.
 - **The coordination substrate survives its own kill drills.** Two agents (Claude + a DeepSeek runner) share one repo, one message bus, and one task ledger. That layer is now drill-proven, not just tested: a second session for one agent id *stands down* instead of silently eating the first one's mail (live contention drill — built after a real incident where a twin session ate six deliveries overnight); a runner killed mid-batch redelivers exactly once (fencing generations, validated at the resource); a killed Redis degrades with capped backoff and a clean stand-down instead of an invisible spin (kill-Redis drill, transcript preserved). Every slice of that layer was design-reviewed and verify-gated by the *other* model before it shipped — the verdicts are in [`research/reviewed/`](research/reviewed/), verbatim.
 
 **Solidly tested**
