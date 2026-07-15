@@ -18,7 +18,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 from core.primitives.distiller import Distiller
-from context.learning_loader import load_learnings_ranked_by_relevance
+from context.learning_loader import load_learnings_for_boot
 from context.decision_loader import load_decisions_applicable_to_task
 from context.blocker_loader import load_blockers_preventing_progress
 from context.briefing_loader import load_briefing_from_previous_handoff
@@ -99,8 +99,10 @@ def assemble_context(
 
     sections["decisions"] = load_decisions_applicable_to_task(
         task, top_k=8, agent_memory=agent_memory, now=now)
-    sections["learnings"] = load_learnings_ranked_by_relevance(
-        task, top_k=8, learning_store=learning_store, now=now)
+    # T071-R1: MOST-RELEVANT under the fixed relevance budget (was: top-8 by
+    # generic rank). Same entry shape; kill switch AKASHIC_RELEVANCE_BUDGET=0.
+    sections["learnings"] = load_learnings_for_boot(
+        task, learning_store=learning_store, now=now)
     sections["blockers"] = load_blockers_preventing_progress(
         task, top_k=8, context_manager=context_manager, now=now)
 

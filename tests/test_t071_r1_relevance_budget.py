@@ -157,6 +157,20 @@ def test_p7_top_hit_always_included_and_clip_is_said():
         "P7: an over-budget top entry is clipped WITH an explicit marker (packet law)"
 
 
+# --------------------------------------------------------------- R1-P8 zero-relevance floor
+def test_p8_irrelevant_lessons_never_ride_when_a_relevant_one_exists():
+    _built()
+    junk = [_lesson(f"junk{i}", f"attempt {i}", category="general", ts=NOW - i)
+            for i in range(8)]
+    hit = _lesson("filehit", "When editing scripts/bifrost_wake.py mind the chunk loop.",
+                  category="general", ts=NOW - 86400 * 20)
+    picked = _select(junk + [hit])
+    assert [p["source"] for p in picked] == ["filehit"], \
+        "P8: zero-base lessons must not take boot space while a relevant one exists"
+    floor = _select(junk)   # fully irrelevant corpus -> small floor, never the flood
+    assert 0 < len(floor) <= 3, "P8: irrelevant-corpus floor is at most 3 entries"
+
+
 # --------------------------------------------------------------- R1-d kill switch honored by the loader
 def test_kill_switch_falls_back_to_legacy(monkeypatch):
     _built()

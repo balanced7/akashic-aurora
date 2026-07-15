@@ -19,10 +19,29 @@ Mapping (LearningStore record -> Ranker signal):
 See docs/context-pillar-plan.md and docs/shared-primitives-spec.md.
 """
 
+import os
 from typing import Any, Dict, List, Optional
 
 from core.primitives.ranker import Ranker
 from core.learning.learning_store import LearningStore, get_learning_store_instance, is_graduated
+
+
+def load_learnings_for_boot(task: str, *, learning_store: Optional[LearningStore] = None,
+                            now: Optional[float] = None,
+                            cap_chars: Optional[int] = None) -> List[Dict[str, Any]]:
+    """T071-R1 boot door: MOST-RELEVANT lessons under the fixed relevance budget
+    (context/relevance_budget.py; deepseek Part 5 governs). Kill switch R1-d:
+    AKASHIC_RELEVANCE_BUDGET=0 serves the legacy recency/Ranker selection, same
+    entry shape. Fail-open: any budget-path error falls back to legacy too."""
+    if os.getenv("AKASHIC_RELEVANCE_BUDGET", "1") != "0":
+        try:
+            from context import relevance_budget as rb
+            store = learning_store or get_learning_store_instance()
+            return rb.select_within_budget(store, task, cap_chars=cap_chars, now=now)
+        except Exception:
+            pass
+    return load_learnings_ranked_by_relevance(
+        task, top_k=8, learning_store=learning_store, now=now)
 
 # confidence -> base importance (1..5)
 _CONFIDENCE_IMPORTANCE = {"high": 5, "medium": 3, "low": 2}
