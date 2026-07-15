@@ -2351,16 +2351,21 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
+      "status": "approved",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-15T02:06:05+00:00",
-      "updated": "2026-07-15T02:06:05+00:00",
+      "updated": "2026-07-15T04:42:49+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-15T02:06:05+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-15T04:42:49+00:00"
         }
       ]
     },
@@ -2418,16 +2423,21 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
+      "status": "approved",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-15T02:06:06+00:00",
-      "updated": "2026-07-15T02:06:06+00:00",
+      "updated": "2026-07-15T04:42:50+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-15T02:06:06+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-15T04:42:50+00:00"
         }
       ]
     },
@@ -2439,16 +2449,21 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
+      "status": "approved",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-15T02:13:49+00:00",
-      "updated": "2026-07-15T02:13:49+00:00",
+      "updated": "2026-07-15T04:42:50+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-15T02:13:49+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-15T04:42:50+00:00"
         }
       ]
     },
@@ -2536,7 +2551,7 @@
       "commit": null,
       "verified_by": null,
       "created": "2026-07-15T03:47:34+00:00",
-      "updated": "2026-07-15T04:05:06+00:00",
+      "updated": "2026-07-15T04:51:42+00:00",
       "history": [
         {
           "to": "proposed",
@@ -2562,6 +2577,16 @@
           "to": "verifying",
           "by": "claude",
           "at": "2026-07-15T04:05:06+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-07-15T04:44:57+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-07-15T04:51:42+00:00"
         }
       ]
     },
@@ -2619,16 +2644,21 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
+      "status": "approved",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-15T04:21:54+00:00",
-      "updated": "2026-07-15T04:21:54+00:00",
+      "updated": "2026-07-15T04:42:49+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-15T04:21:54+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-15T04:42:49+00:00"
         }
       ]
     },
@@ -2640,16 +2670,21 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
+      "status": "approved",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-15T04:31:17+00:00",
-      "updated": "2026-07-15T04:31:17+00:00",
+      "updated": "2026-07-15T04:42:49+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-15T04:31:17+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-15T04:42:49+00:00"
         }
       ]
     }

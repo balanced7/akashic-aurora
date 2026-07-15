@@ -480,6 +480,37 @@ def _trim_onboarding(digest: str, budget_chars: int) -> str:
               f"knowledge_recall(query=...) fetches specifics. Never guess at what was cut.]")
 
 
+def _preflight_gate(out: str, responder, args) -> str:
+    """T068-R3 (deepseek design, claude build): verify a directed answer's factual claims
+    before the send. HOLD-level findings (A1 fabricated file:line, A2 fabricated event)
+    get ONE fix round through the responder; a second failure sends anyway LOUDLY --
+    losing a reply is the worse bug. A3 closure-without-evidence prints a note, never
+    holds. Kill switch BIFROST_PREFLIGHT_ASSERT=0 (read at call time in run_preflight)."""
+    try:
+        from core.comm.assertions import run_preflight
+    except Exception:
+        return out                             # gate unavailable -> fail-open
+    held, feedback, warnings = run_preflight(out)
+    if warnings:
+        print(f"[deepseek-runner] PRE-FLIGHT NOTE: {warnings}", file=sys.stderr)
+    if not held:
+        return out
+    fix_prompt = (f"Your reply failed pre-flight verification BEFORE sending:\n{feedback}\n\n"
+                  f"Your original reply:\n{out}\n\n"
+                  f"Return the corrected reply text ONLY (fix or remove the unverifiable "
+                  f"claims; everything else stays).")
+    try:
+        fixed = str(responder(fix_prompt))
+    except Exception:
+        fixed = out
+    held2, feedback2, _ = run_preflight(fixed)
+    if held2:
+        print(f"[deepseek-runner] !! PRE-FLIGHT ASSERTIONS FAILED after 2 attempts -- "
+              f"sending anyway (the recipient should verify the flagged claims):\n"
+              f"{feedback2}", file=sys.stderr)
+    return fixed
+
+
 def _process_one(m, bus, args, responder, rate) -> None:
     """Process a SINGLE incoming message: filter, answer, reply. (T014: extracted from the
     main loop so per-message exceptions never skip the rest of the batch.)"""
@@ -616,6 +647,10 @@ def _process_one(m, bus, args, responder, rate) -> None:
             # lane-mode consumer; the advisory dual-write stranded replies on legacy).
             # Non-answer notes keep the plain send -- the P0 soak path, by design.
             if reply_kind == "reply":
+                # T068-R3: the pre-flight assertion gate -- a directed answer's factual
+                # claims verify BEFORE the send (fabricated cites HOLD for one fix round,
+                # then fail-open LOUD). Notes and broadcasts never enter this gate.
+                out = _preflight_gate(out, responder, args)
                 bus.send_reply(m.frm, out, meta=reply_meta)
             else:
                 bus.send(m.frm, reply_kind, out, meta=reply_meta)
