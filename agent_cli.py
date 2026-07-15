@@ -72,6 +72,28 @@ def _intake(s, n, field, confessions):
     s = "" if s is None else str(s)
     if len(s) <= n:
         return s
+    # T064: the remainder is never destroyed -- the FULL original spills to a file
+    # that BOTH sides can follow (the confession points the writer, the in-band
+    # marker points the reader). Spill failure degrades to the old honest
+    # confession: the door must never die because a disk write failed.
+    spill_name = None
+    try:
+        import hashlib
+        import time as _time
+        spill_dir = os.getenv("AKASHIC_SPILL_DIR") or os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "state", "spill")
+        os.makedirs(spill_dir, exist_ok=True)
+        spill_name = (f"{field}-{_time.strftime('%Y%m%d-%H%M%S')}-"
+                      f"{hashlib.sha256(s.encode('utf-8', 'replace')).hexdigest()[:8]}.txt")
+        with open(os.path.join(spill_dir, spill_name), "w", encoding="utf-8") as f:
+            f.write(s)
+    except Exception:
+        spill_name = None
+    if spill_name:
+        confessions.append(
+            f"[CLIPPED] {field}: {len(s)} chars exceeds the {n}-char cap -- stored the "
+            f"first {n}; FULL original spilled to state/spill/{spill_name}")
+        return s[:n] + f"\n...[clipped at {n} of {len(s)} chars -- full text: state/spill/{spill_name}]"
     confessions.append(f"[CLIPPED] {field}: {len(s)} chars exceeds the {n}-char cap -- "
                        f"stored the first {n} plus an in-band marker; resend the remainder in chunks")
     return s[:n] + f"\n...[clipped at {n} of {len(s)} chars -- remainder NOT stored]"

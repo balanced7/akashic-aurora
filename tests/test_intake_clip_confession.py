@@ -100,20 +100,28 @@ def test_5k_note_arg_stores_whole():
     print("  5k note body stores WHOLE (no clip, no false confession) OK")
 
 
-def test_over_cap_note_confesses_in_result_and_in_band():
+def test_over_cap_note_confesses_in_result_and_in_band(monkeypatch, tmp_path):
     """Above the (raised) cap the bound may bite -- but it must CONFESS in the door's
-    printed RESULT and leave an in-band marker in the stored text."""
+    printed RESULT and leave an in-band marker in the stored text. T064 upgraded the
+    contract: the confession now POINTS (spill file with the full original) when it
+    can, and falls back to resend guidance when the spill write fails."""
+    monkeypatch.setenv("AKASHIC_SPILL_DIR", str(tmp_path))
     cap = agent_cli._MAX_NOTE
     body = "x" * (cap + 5000)
     with _quiet_fanout() as f:
         rc, out = _run_note(_note_args(title="clip-probe-overcap", note=body))
         stored = _stored(f.mem, "clip-probe-overcap")
     assert rc == 0 and "[OK] noted" in out
-    assert "[CLIPPED]" in out and "note body" in out and "resend" in out.lower(), \
+    assert "[CLIPPED]" in out and "note body" in out and \
+           ("spilled to" in out or "resend" in out.lower()), \
         f"over-cap store did not confess in the result: {out!r}"
     assert stored.startswith("x" * 100) and "...[clipped at" in stored, \
         "stored text lacks the in-band clip marker"
-    print("  over-cap note CONFESSES in the result + in-band marker OK")
+    spills = os.listdir(str(tmp_path))
+    assert spills, "T064: the full original must spill to a file"
+    with open(os.path.join(str(tmp_path), spills[0]), encoding="utf-8") as fh:
+        assert fh.read() == body, "T064: spill holds the FULL original"
+    print("  over-cap note CONFESSES + spills the full original OK")
 
 
 def test_json_mode_carries_confession():
