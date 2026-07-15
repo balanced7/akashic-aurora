@@ -2824,16 +2824,31 @@
       "deps": [],
       "files": [],
       "acceptance": "each slice fenced + pinned per the reconciliation's pin table; M1-P1..P12 from deepseek's half govern",
-      "status": "proposed",
+      "status": "in_progress",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-15T07:20:55+00:00",
-      "updated": "2026-07-15T07:20:55+00:00",
+      "updated": "2026-07-15T13:27:02+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-15T07:20:55+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-15T13:27:01+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-15T13:27:01+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-07-15T13:27:02+00:00"
         }
       ]
     }

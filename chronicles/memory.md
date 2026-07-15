@@ -4,6 +4,7 @@ _Distilled from 73 active note(s) · regenerate via `py agent_cli.py note` / `no
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
+- next-focus: MORNING GATE (Daniel): approve/amend T075 M1 build wave + review deepseek's exec grant (security/acl.json) + T070/T071/T072 verdicts. Then T071-R1 or...  (source: mem:decision:ADR_0715034007_232ef3da)
 - where-we-are: OVERNIGHT SESSION CLOSES (2026-07-15 ~04:00; Daniel asleep since ~02:15, directive: highest-value slices WITH deepseek, full rigor, moonshots, capitalize...  (source: mem:decision:ADR_0715033902_789853ba)
 - session-log-2026-07-15-overnight: Shipped:
   - T067-2 BUILT: guarded exec GREEN (G1-G5, 10/10) -- unattended runner exec is FAMILIES-ONLY (pytest w/ forced test...  (source: mem:decision:ADR_0715033844_425effde)
@@ -12,7 +13,6 @@ Record durable project state once with `note`; correct it by re-noting the same 
 - clip-probe-json...  (source: mem:decision:ADR_0715025401_964c6703)
 - clip-probe-overcap...  (source: mem:decision:ADR_0715025401_55e34504)
 - clip-probe-5k: the quick brown clip probe sentence 0007. the quick brown clip probe sentence 0007. the quick brown clip probe sentence 0007. the quick brown clip probe...  (source: mem:decision:ADR_0715025401_b6a46618)
-- next-focus: FOCUSNOW-2ea418: engine before UI  (source: mem:decision:ADR_0715025212_2207150b)
 - drilldone38e8b5-status: GOVERNING ARC DOC: docs/drilldone38e8b5-plan.md -- ARC COMPLETE 2026-07-11. ALL SLICES SHIPPED.  (source: mem:decision:ADR_0715025210_9329761e)
 - t060-m1-fence-integrity: FENCE DISCLOSURE (t060-m1-design, 2026-07-15 ~02:50): claude's blindness is COMPROMISED. While diagnosing deepseek's runner failure (write_file...  (source: mem:decision:ADR_0715024755_ffca07f4)
 - next-focus: FOCUSNOW-1dc53c: engine before UI  (source: mem:decision:ADR_0715023839_3c2462dd)
