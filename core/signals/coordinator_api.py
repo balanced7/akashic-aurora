@@ -858,8 +858,15 @@ def initialize(agent_id: str, redis_host: str = DEFAULT_REDIS_HOST, redis_port: 
     Returns:
         Initialized SignalEmitter instance with loaded context
     """
+    import os as _os
     global _global_api
-    _global_api = CoordinatorAPI(agent_id, redis_host, redis_port)
+    api = CoordinatorAPI(agent_id, redis_host, redis_port)
+    # T069 (reconciled spec): under _AISETUP_TEST_ISOLATED the fresh emitter is returned
+    # WITHOUT writing the module global -- an isolated test's initialize() must never
+    # become another test's get_api(). get_api()'s raise is then the correct isolation
+    # semantics: no canonical emitter exists unless canonical code initialized one.
+    if not _os.environ.get("_AISETUP_TEST_ISOLATED"):
+        _global_api = api
 
     # Context loading moved to the Context pillar (System 4). coordinator_api is
     # System 1-3 and must NOT depend upward on System 4, so it no longer loads
@@ -867,11 +874,11 @@ def initialize(agent_id: str, redis_host: str = DEFAULT_REDIS_HOST, redis_port: 
     # deprecated no-op: agents get context via context.aggregator.assemble_context
     # (wired through agent.initializer).
     if load_context:
-        _global_api.logger.debug(
+        api.logger.debug(
             "initialize(load_context=True) is deprecated and a no-op; context now "
             "comes from the Context pillar (context.aggregator.assemble_context).")
 
-    return _global_api
+    return api
 
 
 def get_api() -> SignalEmitter:

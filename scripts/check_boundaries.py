@@ -21,6 +21,12 @@ Rules (scoped to core/):
    import-shadowing hazard `from core import X` picks arbitrarily -- e.g. the
    session_state.py collision resolved 2026-07-07). Intentional per-package
    conventions (schema.py) are allowlisted.
+6. singleton-honors-isolation  : a module-level singleton cache (`_INSTANCE(S)` or a
+   private Optional-annotated None default) must honor _AISETUP_TEST_ISOLATED in the
+   same file -- else the first door-touch under live env pins live-bound instances for
+   every later isolated consumer (T069, reconciled spec:
+   research/reviewed/t069-singleton-reconciliation-2026-07-15.md). Factories whose
+   explicit-injection path IS the isolation are allowlisted (deepseek census, Part c).
 
 Known pre-existing debt is listed in ALLOWLIST with a reason, so it is visible and
 tracked rather than silently passing. New violations fail the check.
@@ -44,6 +50,26 @@ ALLOWLIST = {
     ("no-duplicate-module-basename", "schema.py"):
         "intentional per-package convention: core/{codex,narrative,perspectives}/schema.py are always "
         "imported via the full package path (never `from core import schema`), so no shadowing hazard",
+    # T069 census (deepseek Part c): injection-path isolation -- get_x(store=...) IS the
+    # isolated path; the canonical singleton is a lazy stateless wrapper. Tracked, not silent.
+    ("singleton-honors-isolation", "core/comm/blobs.py"):
+        "BlobStore binds the AI_SETUP dir (already temp under isolation); injection path exists",
+    ("singleton-honors-isolation", "core/primitives/embedder.py"):
+        "store= injection path is the isolation (deepseek T069 census)",
+    ("singleton-honors-isolation", "core/primitives/clusterer.py"):
+        "store= injection path is the isolation (deepseek T069 census)",
+    ("singleton-honors-isolation", "core/primitives/consolidator.py"):
+        "store= injection path is the isolation (deepseek T069 census)",
+    ("singleton-honors-isolation", "core/narrative/tag_audit.py"):
+        "store= injection path is the isolation (deepseek T069 census)",
+    ("singleton-honors-isolation", "core/narrative/tag_governance.py"):
+        "store= injection path is the isolation (deepseek T069 census)",
+    ("singleton-honors-isolation", "core/narrative/theme_assigner.py"):
+        "store= injection path is the isolation (deepseek T069 census)",
+    ("singleton-honors-isolation", "core/narrative/theme_discovery.py"):
+        "store= injection path is the isolation (deepseek T069 census)",
+    ("singleton-honors-isolation", "core/narrative/track_router.py"):
+        "store= injection path is the isolation (deepseek T069 census)",
 }
 
 REDIS_CONNECTOR = "core/foundation/redis_connection.py"
@@ -71,6 +97,8 @@ def check() -> int:
     use_redis = re.compile(r"\bredis\.(Redis|StrictRedis|ConnectionPool)\(")
     syspath = re.compile(r"\bsys\.path\.insert\b")
     classdef = re.compile(r"^class\s+([A-Za-z_]\w*)")
+    singleton_decl = re.compile(
+        r"^_INSTANCES?\s*[:=]|^_[a-z_]+\s*:\s*Optional\[[A-Za-z_.\[\]]+\]\s*=\s*None")
 
     def record(rule, location, detail):
         if (rule, location) in ALLOWLIST:
@@ -83,6 +111,12 @@ def check() -> int:
         if p.name != "__init__.py":
             module_basenames[p.name].add(p.parent.as_posix())
         text = p.read_text(encoding="utf-8", errors="replace")
+        singleton_line = next((i for i, ln in enumerate(text.splitlines(), 1)
+                               if singleton_decl.match(ln)), None)
+        if singleton_line and "_AISETUP_TEST_ISOLATED" not in text:
+            record("singleton-honors-isolation", rel,
+                   f"{rel}:{singleton_line} module-level singleton cache without an "
+                   f"_AISETUP_TEST_ISOLATED branch (T069)")
         for i, line in enumerate(text.splitlines(), 1):
             if bare_except.search(line):
                 record("no-bare-except", rel, f"{rel}:{i} bare except")

@@ -187,7 +187,10 @@ def test_runner_auto_acks_answered_handoff_only(monkeypatch):
     import scripts.bifrost_runner_deepseek as runner
     acked = []
     monkeypatch.setattr(promoter, "ack", lambda by, mid, note="", **kw: acked.append((by, mid)) or True)
-    bus = SimpleNamespace(send=lambda *a, **k: None, broadcast=lambda *a, **k: None)
+    # send_reply: T066 -- the runner routes REAL answers through the lane-first reply
+    # door; the fake needs the same surface (notes/errors still go through send).
+    bus = SimpleNamespace(send=lambda *a, **k: None, broadcast=lambda *a, **k: None,
+                          send_reply=lambda *a, **k: None)
     args = SimpleNamespace(agent="deepseek", agentic=False, model="m")
     rate = SimpleNamespace(allow=lambda: True)
     msg = SimpleNamespace(kind="handoff", frm="claude", to="deepseek", id="777-0",

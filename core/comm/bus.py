@@ -923,12 +923,26 @@ class Bus:
             pass
 
 
-_INSTANCES: Dict[str, Bus] = {}
+_INSTANCES: Dict[Any, Bus] = {}
 
 
 def get_bus(agent_id: Optional[str] = None) -> Bus:
-    """Module cache, one Bus per agent identity. agent_id defaults to $AGENT_ID or 'unknown'."""
+    """Module cache, one Bus per (namespace, agent identity) -- T069 reconciled spec
+    (research/reviewed/t069-singleton-reconciliation-2026-07-15.md).
+
+    Bus is NOT a stateless wrapper (cursors, reassembler buffers, the Redis client are
+    instance state), so the canonical path caches -- keyed by the RESOLVED namespace so
+    a BIFROST_NAMESPACE flip (drills) can never serve a stale-ns bus (the expectations
+    Fix A class). Key space is bounded (few agents x few namespaces); no eviction.
+
+    Under _AISETUP_TEST_ISOLATED: fresh Bus per call, cache untouched. Contract: the
+    isolated branch serves ACCESSOR callers (a client handle, e.g. expectations._client);
+    a test that needs cursor-consistent reads constructs `Bus(agent, namespace=...)`
+    itself and shares the object -- the repo-wide existing pattern."""
     aid = str(agent_id or os.getenv("AGENT_ID", "unknown"))
-    if aid not in _INSTANCES:
-        _INSTANCES[aid] = Bus(aid)
-    return _INSTANCES[aid]
+    if os.environ.get("_AISETUP_TEST_ISOLATED"):
+        return Bus(aid)
+    key = (os.environ.get("BIFROST_NAMESPACE", NS), aid)
+    if key not in _INSTANCES:
+        _INSTANCES[key] = Bus(aid)
+    return _INSTANCES[key]

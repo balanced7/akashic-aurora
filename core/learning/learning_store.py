@@ -834,11 +834,20 @@ def get_learning_store_instance(redis_client: Optional[Any] = None,
     """
     Get or create the global learning store instance.
 
+    T069 (reconciled spec: research/reviewed/t069-singleton-reconciliation-2026-07-15.md):
+    explicit injection -> fresh; _AISETUP_TEST_ISOLATED -> fresh per call, cache
+    untouched (stateless wrapper over the Store); canonical -> lazy singleton.
+
     Semantic Relationship: LearningStoreInstance references_to GlobalInstance
     """
+    import os
     global _learning_store
+    if store is not None or redis_client is not None:
+        return LearningStore(store=store, redis_client=redis_client)
+    if os.environ.get("_AISETUP_TEST_ISOLATED"):
+        return LearningStore()
     if _learning_store is None:
-        _learning_store = LearningStore(store=store, redis_client=redis_client)
+        _learning_store = LearningStore()
     return _learning_store
 
 

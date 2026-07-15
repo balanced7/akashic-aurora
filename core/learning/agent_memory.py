@@ -645,11 +645,22 @@ def get_agent_memory(store: Optional[Store] = None) -> AgentMemory:
     """
     Get or create the global AgentMemory instance.
 
+    T069 (reconciled spec: research/reviewed/t069-singleton-reconciliation-2026-07-15.md):
+    the event_log three-branch shape. Explicit injection -> fresh; isolated mode
+    (_AISETUP_TEST_ISOLATED) -> fresh per call, cache untouched (AgentMemory is a
+    stateless wrapper over the Store, so fresh wrappers over the same isolated paths
+    share state); canonical -> lazy singleton, unchanged.
+
     Semantic Relationship: AgentMemoryInstance references_to GlobalInstance
     """
+    import os
     global _agent_memory
+    if store is not None:
+        return AgentMemory(store=store)
+    if os.environ.get("_AISETUP_TEST_ISOLATED"):
+        return AgentMemory()
     if _agent_memory is None:
-        _agent_memory = AgentMemory(store=store)
+        _agent_memory = AgentMemory()
     return _agent_memory
 
 

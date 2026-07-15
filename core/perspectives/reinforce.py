@@ -102,9 +102,14 @@ _INSTANCE: Optional[ReinforcedGraph] = None
 
 
 def get_reinforced_graph(store: Optional[Store] = None) -> ReinforcedGraph:
+    # T069 reconciled spec: injection -> fresh; _AISETUP_TEST_ISOLATED -> fresh per
+    # call, cache untouched (stateless wrapper); canonical -> lazy singleton.
+    import os
     global _INSTANCE
     if store is not None:
         return ReinforcedGraph(store)
+    if os.environ.get("_AISETUP_TEST_ISOLATED"):
+        return ReinforcedGraph()
     if _INSTANCE is None:
         _INSTANCE = ReinforcedGraph()
     return _INSTANCE

@@ -7,10 +7,8 @@ when forgotten, made explicit instead of experience-acquired. Bullets capped at 
 T063: the unhandled-warning prints ids as 'bifrost:<id>'; the ack door must accept that
 exact printed form AND the raw id identically (its own command must round-trip).
 
-ORDER NOTE: calling _orientation_header binds live-store singletons at import-init time;
-the interface/orientation suites expect to initialize their ISOLATED stores first. In
-alphabetical (natural) suite order this file runs after them and all is green -- do not
-hand-order this file first (pre-existing singleton convention, repo-wide).
+(An ORDER NOTE once lived here -- T069 fixed the singleton isolation root cause and this
+file now runs green in ANY order. tests/test_t069_singleton_isolation.py pins it.)
 """
 import os
 import sys

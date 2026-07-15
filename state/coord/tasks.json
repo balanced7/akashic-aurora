@@ -1,5 +1,5 @@
 {
-  "seq": 68,
+  "seq": 70,
   "tasks": [
     {
       "id": "T001",
@@ -2368,15 +2368,15 @@
       "id": "T063",
       "title": "bifrost-ack must round-trip the id form its own unhandled-warning prints -- 'bifrost:<id>' currently double-prefixes and refuses; normalize both forms",
       "desc": "",
-      "owner": "",
+      "owner": "claude",
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "approved",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "HEAD",
+      "verified_by": "wave-a pins (both id forms identical)",
       "created": "2026-07-15T02:06:06+00:00",
-      "updated": "2026-07-15T03:52:03+00:00",
+      "updated": "2026-07-15T04:25:56+00:00",
       "history": [
         {
           "to": "proposed",
@@ -2387,6 +2387,26 @@
           "to": "approved",
           "by": "user",
           "at": "2026-07-15T03:52:03+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-15T04:01:05+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-07-15T04:25:56+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-07-15T04:25:56+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-15T04:25:56+00:00"
         }
       ]
     },
@@ -2512,11 +2532,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "in_progress",
+      "status": "verifying",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-15T03:47:34+00:00",
-      "updated": "2026-07-15T04:00:51+00:00",
+      "updated": "2026-07-15T04:05:06+00:00",
       "history": [
         {
           "to": "proposed",
@@ -2537,6 +2557,78 @@
           "to": "in_progress",
           "by": "claude",
           "at": "2026-07-15T04:00:51+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-07-15T04:05:06+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T069",
+      "title": "Config-keyed / isolation-honoring singletons (Daniel-directed root-cause fix 2026-07-15 verbatim: 'lean into the engineering challenges if they are worthy and fix them so we aren't creating technical debt'): get_agent_memory, get_learning_store_instance, get_bus, reinforce.get ignore _AISETUP_TEST_ISOLATED (unlike event_log/event_query which established the pattern) -- first door-touch under live env pins live-bound singletons for every later isolated consumer (test-order coupling found by T068 wave-A suite ordering); get_bus additionally caches namespace at construction (stale-ns class, expectations Fix A precedent). Fix: isolation branch in all four factories + namespace-keyed bus cache; pins + the original failing order as regression",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "HEAD",
+      "verified_by": "deepseek-adversarial GREEN (5 surfaces, zero blockers)",
+      "created": "2026-07-15T04:05:06+00:00",
+      "updated": "2026-07-15T04:25:55+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-15T04:05:06+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-15T04:05:06+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-15T04:05:07+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-07-15T04:05:07+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-07-15T04:21:53+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-15T04:25:55+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T070",
+      "title": "T070: In-process isolation completeness (T069 residual, baseline-proven pre-existing): _AISETUP_TEST_ISOLATED now yields FRESH instances everywhere (T069) but fresh instances still bind LIVE backends unless env ALSO redirects (isolate_canonical.py is subprocess-only) -- evidence: test_agent_interface full_loop/rerecord fail in the t068-first order at BASELINE (pre-T069 stash run 2026-07-15), and in-order boots under the flag read live data ('8 lesson(s)', live notes leaking non-ASCII into the ascii pin = flaky). Design question for a fenced pass: should the flag IMPLY backend redirection (temp file store / db 15) inside create_store, or should in-process tests get a fixture-level env redirect? Cites t069-singleton-reconciliation-2026-07-15.md",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-15T04:21:54+00:00",
+      "updated": "2026-07-15T04:21:54+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-15T04:21:54+00:00"
         }
       ]
     }
