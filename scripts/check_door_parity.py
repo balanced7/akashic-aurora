@@ -95,6 +95,8 @@ MANIFEST = {
     "fence": "cli_only",  # R2 (T053): fence workspace door. Fence participants today drive it via
                           # CLI (claude) or the runner ToolBox (deepseek); an MCP twin lands when an
                           # MCP-hosted agent takes a fence seat (same trigger family as lookback).
+    "flow": "cli_only",   # R3 (T054): flow-trace waterfall -- operator/agent diagnostic; MCP twin
+                          # rides the T067 ToolBox-parity wave with delta (same trigger family).
     # --- mcp_only: Gemini web consumers + bus conveniences the CLI already covers ---
     "ask_gemini_web": "mcp_only", "ask_gemini_panel": "mcp_only", "gemini_web_login": "mcp_only",
     "bifrost_broadcast": "mcp_only",  # CLI path: bifrost-send --broadcast
