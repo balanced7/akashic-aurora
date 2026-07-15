@@ -187,7 +187,12 @@ def cmd_boot(args):
     # where-we-are, the precedence doctrine, and a COMPACT ledger bar -- every line DERIVED
     # from live state (renew_arch_slice_orientation: projections, never prose that rots).
     # The stateless peer folds only boot's head into its system prompt; this head is for it.
-    print(_orientation_header(args.agent_id))
+    _pa = _primer_aware()
+    if _pa:
+        # W13: the dedup is SAID, never silent (the packet law) -- and reversible.
+        print("# (primer-aware boot: funnel/draft/mail/delta ride the SessionStart whisper "
+              "-- W13; AKASHIC_BOOT_FULL=1 for the legacy full boot)")
+    print(_orientation_header(args.agent_id, primer_aware=_pa))
     print("#" + "-" * 60)
     print("## LESSONS / CONTEXT (most relevant first)")
     print(sk if sk else "  (none yet -- you are the first agent to contribute)")
@@ -217,6 +222,10 @@ def cmd_boot(args):
         # away via the pointer below. See research/reviewed/renew-strande-cold-resume-2026-07-07.md.
         from core.learning.agent_memory import get_agent_memory
         notes = get_agent_memory().get_decisions(days=60)
+        if _pa:
+            # R16: the primer-aware head already carries the FULL where-we-are body --
+            # in-boot duplication is the same disease as whisper/boot duplication.
+            notes = [d for d in notes if d.title != "where-we-are"]
         if notes:
             print("\n## RECENT NOTES (durable project memory)")
             _budgets = [900, 500, 500, 220, 220, 220]   # by recency: resume-anchor first, then taper
@@ -253,12 +262,13 @@ def cmd_boot(args):
                 print("  (+ older salient records beyond this page -- py agent_cli.py promoted)")
     except Exception:
         pass
-    try:   # T3: one-line funnel pulse -- watch the loop's trend without a separate command
-        from core.recall.funnel import snapshot, summary_line
-        print("\n## FUNNEL (recall value -- full: py agent_cli.py stats --days 7)")
-        print("  " + summary_line(snapshot(hours=7 * 24)))
-    except Exception:
-        pass
+    if not _pa:   # W13: the whisper carries the funnel pulse for harness sessions
+        try:   # T3: one-line funnel pulse -- watch the loop's trend without a separate command
+            from core.recall.funnel import snapshot, summary_line
+            print("\n## FUNNEL (recall value -- full: py agent_cli.py stats --days 7)")
+            print("  " + summary_line(snapshot(hours=7 * 24)))
+        except Exception:
+            pass
     try:   # L2 (T030): the doctor's one-liner -- progress, not presence; findings drill
         # via `py agent_cli.py doctor`. Fail-open like every boot section.
         from core.comm.doctor import examine_fleet
@@ -272,15 +282,17 @@ def cmd_boot(args):
             print(f"  !! {f['line']}")
     except Exception:
         pass
-    try:   # auto-captured last-session draft (SessionEnd/PreCompact) -- a trail if the last end was abrupt
-        import time as _t
-        dp = last_session_draft_path()
-        if os.path.isfile(dp) and (_t.time() - os.path.getmtime(dp)) < 2 * 86400:
-            print(f"\n## LAST-SESSION DRAFT (auto-captured) -> {dp}")
-            print("   review it; promote with: py agent_cli.py wrap --commit")
-    except Exception:
-        pass
-    print_boot_bifrost_section(bifrost)
+    if not _pa:   # W13: the whisper carries the draft pointer for harness sessions
+        try:   # auto-captured last-session draft (SessionEnd/PreCompact) -- a trail if the last end was abrupt
+            import time as _t
+            dp = last_session_draft_path()
+            if os.path.isfile(dp) and (_t.time() - os.path.getmtime(dp)) < 2 * 86400:
+                print(f"\n## LAST-SESSION DRAFT (auto-captured) -> {dp}")
+                print("   review it; promote with: py agent_cli.py wrap --commit")
+        except Exception:
+            pass
+    if not _pa:   # R14: the unread peek rides the whisper's mail count; locks stay below
+        print_boot_bifrost_section(bifrost)
     print_boot_locks_section(bifrost, args.agent_id)
     print("\n## TO CONTRIBUTE A LESSON, run:")
     print(f'  py agent_cli.py learn {args.agent_id} --experiment NAME '
@@ -291,15 +303,19 @@ def cmd_boot(args):
     # T052 delta door: render what moved since this agent's last boot, then stamp the
     # seen mark AFTER the full context above was delivered (mark-lag contract, D1 ruling
     # -- a crash before this line leaves the old mark and the whole gap redelivers).
-    try:
-        from agent.harness.delta import delta_boot_block
-        _dtext, _dcommit = delta_boot_block(args.agent_id)
-        if _dtext:
-            print("\n## DELTA (what moved since your last boot -- T052)")
-            print(_dtext)
-        _dcommit()
-    except Exception:
-        pass
+    # W13/R15: a primer-aware boot renders NO delta, so it advances NO mark (a mark
+    # moves only when content was delivered) -- `delta <agent>` stays addressable
+    # after boot, which also closes T062's self-defeating pointer on this path.
+    if not _pa:
+        try:
+            from agent.harness.delta import delta_boot_block
+            _dtext, _dcommit = delta_boot_block(args.agent_id)
+            if _dtext:
+                print("\n## DELTA (what moved since your last boot -- T052)")
+                print(_dtext)
+            _dcommit()
+        except Exception:
+            pass
     _warn_unmirrored(soft=True)   # heads-up if you're resuming on top of unmirrored work
     if not os.getenv("AKASHIC_AGENT_ID"):
         print("\n[i] AKASHIC_AGENT_ID not set -- peer-lock enforcement (C2/C4) is degraded: "
@@ -1006,10 +1022,50 @@ PRECEDENCE_DOCTRINE = (
     "# LIVE BUS (ephemeral).  [STALE] = a newer source supersedes this; absent = retired.")
 
 
-def _orientation_header(agent_id: str) -> str:
+def _primer_aware() -> bool:
+    """T074 W13 (R13): did THIS caller already get the SessionStart whisper? A harness
+    session exports its session id (runner_lock.session_holder_token is the one
+    definition); a bare terminal or a runner did not, and keeps the legacy full boot.
+    AKASHIC_BOOT_FULL=1 is the debugging hatch back to legacy from inside a session."""
+    if os.getenv("AKASHIC_BOOT_FULL", "0") == "1":
+        return False
+    try:
+        from core.comm.runner_lock import session_holder_token
+        return bool(session_holder_token())
+    except Exception:
+        return False
+
+
+def _boot_siblings_line(agent_id: str) -> str:
+    """Sibling details for the primer-aware head ('' when solo/unreadable): the whisper
+    carries the count; the boot head carries the CLAIMS -- what each incarnation holds.
+    The CALLER's own incarnation is excluded (a session is not its own sibling)."""
+    try:
+        from core.comm.incarnation import live_incarnations
+        from core.comm.runner_lock import session_holder_token
+        tok = session_holder_token() or ""
+        my_sid = tok.split(":", 1)[1] if ":" in tok else ""
+        sibs = live_incarnations(agent_id, my_session=my_sid or None)
+        if not sibs:
+            return ""
+        bits = []
+        for s in sibs[:3]:
+            sid8 = str(s.get("session_id", ""))[:8]
+            age = s.get("age_min")
+            idle = f"idle {age:.0f}m" if isinstance(age, (int, float)) else "age unknown"
+            claims = ",".join(s.get("claims") or []) or "no claims"
+            bits.append(f"{agent_id}#{sid8} ({idle}, {claims})")
+        return "# siblings: " + "; ".join(bits) + "  (address one: bifrost-send --to-incarnation <sid8>)"
+    except Exception:
+        return ""
+
+
+def _orientation_header(agent_id: str, primer_aware: bool = False) -> str:
     """The boot head a COLD agent (or a stateless peer's trimmed onboarding) needs first:
     map -> governing arc -> where-we-are -> precedence -> compact ledger. Every line derived
-    from live state; every section fail-open (a broken source drops its line, never boot)."""
+    from live state; every section fail-open (a broken source drops its line, never boot).
+    T074 W13: under a primer-aware boot the head carries the FULL where-we-are body (the
+    whisper already carried the clip; the boot is the resume anchor) + sibling details."""
     lines = []
     root = Path(__file__).resolve().parent
     if (root / "docs" / "ARCHITECTURE.md").is_file():
@@ -1078,9 +1134,18 @@ def _orientation_header(agent_id: str) -> str:
         wwa = next((d for d in notes if d.title == "where-we-are"), None)
         if wwa:
             one_line = " ".join((wwa.decision or "").split())
-            lines.append(f"# where-we-are: {_clip(one_line, 120)}")
+            if primer_aware:
+                # W13: the whisper carried the clip; the boot head IS the resume anchor
+                # now -- full body (the NOTES section below skips its duplicate, R16).
+                lines.append(f"# where-we-are (full): {_clip(one_line, 900)}")
+            else:
+                lines.append(f"# where-we-are: {_clip(one_line, 120)}")
         else:
             lines.append("# [GAP] where-we-are: (no note yet -- record one with `agent_cli note`)")
+        if primer_aware:
+            sib = _boot_siblings_line(agent_id)
+            if sib:
+                lines.append(sib)
         # F1 (2026-07-11 incident): the CURRENT DIRECTIVE -- what to do FIRST and what NOT
         # to do yet -- rendered with authority ABOVE the raw NEXT list. next-focus already
         # IS the priority note-kind (deepseek: no new primitive); the gap was that boot

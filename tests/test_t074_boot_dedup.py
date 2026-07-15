@@ -68,6 +68,23 @@ def test_w13_primer_aware_head_names_siblings(monkeypatch):
     assert "siblings:" in head, "W13: sibling details join the primer-aware head"
 
 
+def test_w13_own_session_is_not_its_own_sibling(monkeypatch):
+    """Live-drill defect 2026-07-15: the first W13 boot rendered the CALLER's session as
+    its own sibling. _boot_siblings_line must pass the caller's sid as my_session."""
+    seen = {}
+
+    def fake_live(agent_id, my_session=None):
+        seen["my_session"] = my_session
+        return []
+
+    import core.comm.incarnation as inc
+    monkeypatch.setattr(inc, "live_incarnations", fake_live)
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "self-sid-1234")
+    agent_cli._boot_siblings_line("claude")
+    assert seen.get("my_session") == "self-sid-1234", \
+        "the caller's own incarnation must be excluded from its sibling line"
+
+
 # ---------------------------------------------------------------- W13 section skips (integration)
 def _boot(env_extra):
     env = dict(os.environ)
@@ -88,12 +105,20 @@ def test_w13_session_boot_skips_whisper_sections():
     assert "primer-aware" in out, "the dedup must be SAID, not silent (packet law)"
 
 
+_WHISPER_COVERED = ("## FUNNEL", "## LAST-SESSION DRAFT", "## DELTA", "## UNREAD BIFROST")
+
+
 def test_w13_bare_terminal_keeps_full_boot():
     out = _boot({})
-    assert "## FUNNEL" in out, "R13: no session -> no whisper existed -> full boot"
-    assert "primer-aware" not in out
+    assert "primer-aware" not in out, "R13: no session -> no whisper existed -> full boot"
+    # each section is individually fail-open (its data source may be down in the
+    # isolated env -- a T070-class flake caught 2026-07-15); ANY of them rendering
+    # proves the guards did not fire
+    assert any(s in out for s in _WHISPER_COVERED), \
+        f"legacy boot rendered NONE of the whisper-covered sections: {out[:400]}"
 
 
 def test_w13_boot_full_hatch_forces_legacy():
     out = _boot({"CLAUDE_CODE_SESSION_ID": "w13-test-session", "AKASHIC_BOOT_FULL": "1"})
-    assert "## FUNNEL" in out, "R13: the debugging hatch restores the legacy full boot"
+    assert "primer-aware" not in out, "R13: the hatch restores the legacy full boot"
+    assert any(s in out for s in _WHISPER_COVERED)
