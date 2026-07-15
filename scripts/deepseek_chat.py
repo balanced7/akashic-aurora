@@ -796,17 +796,87 @@ class ToolBox:
             return f"ERROR: edit failed: {type(e).__name__}: {e}"
 
     # -- gated shell --
+    # T067-2 guarded exec: the unattended families. READ verbs only for agent_cli --
+    # the door teaches; a mutating verb has its own ACL'd surface (bus/notes/ledger).
+    _AGENT_CLI_READ_VERBS = frozenset({
+        "boot", "delta", "discover", "recall", "recall-at", "list", "notes", "status",
+        "stats", "injections", "harnesses", "triage", "recall-counters", "task",
+        "story", "events", "doctor", "promoted", "lookback", "knowledge-map", "fence",
+        "flow", "bifrost-sync", "locks"})
+    _AGENT_CLI_MUTATING_FLAGS = frozenset({
+        "--commit", "--consume", "--apply", "--fold", "--capture", "--promote"})
+    _SHELL_META = frozenset(";|&><`$()\n\r")
+
+    def _exec_family(self, command: str):
+        """(argv, env_extra, why_refused): the T067-2 allowlist. argv=None => refuse.
+        Families: pytest runs (isolated env forced, G3) + agent_cli READ verbs (G4).
+        Metacharacters refuse outright (G2) -- allowlisted commands run shell=False."""
+        import shlex
+        cmd = str(command or "").strip()
+        if any(ch in cmd for ch in self._SHELL_META):
+            return None, None, ("shell metacharacters are REFUSED under unattended exec "
+                                "(no pipes/redirects/substitution; one plain command)")
+        try:
+            argv = shlex.split(cmd)
+        except ValueError as e:
+            return None, None, f"unparseable command ({e})"
+        if not argv:
+            return None, None, "empty command"
+        # family: pytest -- `pytest ...` | `py -m pytest ...` | `python -m pytest ...`
+        is_pytest = (argv[0] == "pytest"
+                     or (argv[0] in ("py", "python", "python3") and argv[1:3] == ["-m", "pytest"]))
+        if is_pytest:
+            return argv, {"_AISETUP_TEST_ISOLATED": "1"}, None
+        # family: agent_cli READ verbs -- `py agent_cli.py <verb> ...`
+        if (len(argv) >= 3 and argv[0] in ("py", "python", "python3")
+                and os.path.basename(argv[1]) == "agent_cli.py"):
+            verb = argv[2]
+            if verb not in self._AGENT_CLI_READ_VERBS:
+                return None, None, (f"agent_cli verb {verb!r} is not in the unattended READ "
+                                    f"allowlist -- mutations (note/learn/wrap/bifrost-send/"
+                                    f"lock/...) go through your dedicated ACL'd tools")
+            bad = [a for a in argv[3:] if a in self._AGENT_CLI_MUTATING_FLAGS]
+            if bad:
+                return None, None, (f"flag(s) {bad} mutate state -- the unattended READ "
+                                    "family refuses them (run the read form instead)")
+            return argv, {}, None
+        return None, None, ("only these families run unattended: `pytest ...` / `py -m "
+                            "pytest ...` (isolated) and `py agent_cli.py <read-verb> ...`")
+
     def run_command(self, command, working_dir=None, timeout=60):
         if not self.allow_exec:
             return "run_command is DISABLED. Restart with --allow-exec (or the user runs /exec on) to permit shell commands."
-        if not self.trust:
-            if not self._confirm(f"DeepSeek wants to run:  {command}"):
-                return "DENIED by the user. Do not retry this command; work with read-only tools or ask the user."
+        # T067-2 G5: in runner mode (an agent identity is present) the ACL is the
+        # authority -- the flag alone stops sufficing. Fail-closed on trust errors.
+        if self.agent_id:
+            try:
+                from core.trust.capabilities import Cap
+                from core.trust.registry import resolve
+                if not resolve(self.agent_id).has(Cap.EXEC):
+                    return (f"REFUSED: '{self.agent_id}' does not hold the exec capability "
+                            "(see security/acl.json) -- a super-admin grants it; the "
+                            "unattended door is families-only even then.")
+            except Exception:
+                return "REFUSED: exec capability could not be verified (trust layer error, fail-closed)."
+        argv, env_extra, why = (None, None, None)
+        if self.trust:
+            # T067-2 G1/G2: UNATTENDED exec is families-only, shell=False.
+            argv, env_extra, why = self._exec_family(command)
+            if argv is None:
+                return f"REFUSED (unattended exec is allowlisted by family): {why}"
+        elif not self._confirm(f"DeepSeek wants to run:  {command}"):
+            return "DENIED by the user. Do not retry this command; work with read-only tools or ask the user."
         cwd = str(self._resolve(working_dir, allow_dir=True)) if working_dir else str(self.root)
         try:
             capped = min(int(timeout), MAX_CMD_TIMEOUT)   # L0: a tool call can't wedge the runner past the ceiling
-            p = subprocess.run(command, shell=True, cwd=cwd, capture_output=True, text=True,
-                               encoding="utf-8", errors="replace", timeout=capped)
+            if argv is not None:                          # allowlisted: shell=False + forced env (G2/G3)
+                env = dict(os.environ)
+                env.update(env_extra or {})
+                p = subprocess.run(argv, cwd=cwd, capture_output=True, text=True,
+                                   encoding="utf-8", errors="replace", timeout=capped, env=env)
+            else:                                         # interactive human-confirmed generic (unchanged)
+                p = subprocess.run(command, shell=True, cwd=cwd, capture_output=True, text=True,
+                                   encoding="utf-8", errors="replace", timeout=capped)
             body = (p.stdout or "") + (("\n[stderr]\n" + p.stderr) if p.stderr else "")
             return (body or "(no output)")[:MAX_CMD_OUT] + (f"\n[exit {p.returncode}]" if p.returncode else "")
         except subprocess.TimeoutExpired:
