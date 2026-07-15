@@ -1,5 +1,5 @@
 {
-  "seq": 73,
+  "seq": 74,
   "tasks": [
     {
       "id": "T001",
@@ -2732,11 +2732,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "in_progress",
+      "status": "verifying",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-15T05:39:38+00:00",
-      "updated": "2026-07-15T05:39:39+00:00",
+      "updated": "2026-07-15T06:04:03+00:00",
       "history": [
         {
           "to": "proposed",
@@ -2757,6 +2757,47 @@
           "to": "in_progress",
           "by": "claude",
           "at": "2026-07-15T05:39:39+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-07-15T06:04:03+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T074",
+      "title": "T074: Seamless session continuity (Daniel verbatim: 'no manual pasting for me but just seamless continuity from session to session'): the SessionStart whisper BECOMES the primer -- fixed-budget sections (state w/ age stamps, themes, next-build, sibling incarnations, JOURNEY story pointer) assembled by build_autoboot_context for every seat; wrap-side freshness ritual (incl. the wrap-clobbers-curated-note fix seen live tonight); runner boot-fold equivalent. Fenced dual design in flight; build follows the reconciled spec",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "in_progress",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-15T06:04:04+00:00",
+      "updated": "2026-07-15T06:04:05+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-15T06:04:04+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-15T06:04:04+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-15T06:04:04+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-07-15T06:04:05+00:00"
         }
       ]
     }
