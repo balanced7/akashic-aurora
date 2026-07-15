@@ -22,12 +22,14 @@ Two modes:
 Key: env DEEPSEEK_API_KEY else .secrets/deepseek.key (reused from ask_deepseek.py). OpenAI-compatible.
 """
 import argparse
+import json
 import os
 import re
 import sys
 import threading
 import time
 from pathlib import Path
+from typing import Dict, Optional
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
@@ -781,6 +783,7 @@ def _process_one(m, bus, args, responder, rate) -> None:
             _tm.record(args.agent, str(m.kind), duration_s=time.time() - turn_t0,
                        progress_points=_tm.take_pulse_count(args.agent),
                        outcome=outcome, prompt_len=len(str(m.content)))
+            _RUN_STATS["turns"] = _RUN_STATS.get("turns", 0) + 1
         except Exception:
             pass
 
@@ -843,6 +846,12 @@ def main() -> int:
     ap.add_argument("--accept-hints", action="store_true",
                     help="log cognitive-efficiency metrics for this agent")
     ap.add_argument("--once", action="store_true", help="process one wake then exit (for testing)")
+    ap.add_argument("--summary-file", default=None, dest="summary_file",
+                    help="M1-delta: write JSON exit summary to this path on exit "
+                         "(fields: exit_code, turns, last_error, verdict, timestamp)")
+    ap.add_argument("--inject-summary", default=None, dest="inject_summary",
+                    help="M1-delta: read prior run summary from this path and fold "
+                         "into the system prompt (summary injection v1)")
     args = ap.parse_args()
 
     if not load_key():
@@ -915,6 +924,19 @@ def main() -> int:
         if continuity:
             system = continuity + "\n\n" + system
             print(f"[deepseek-runner] continuity header injected ({len(continuity)} chars)")
+        # M1-delta: summary injection v1 -- fold prior run's outcome into this boot
+        if getattr(args, "inject_summary", None):
+            try:
+                with open(args.inject_summary, encoding="utf-8") as _sf:
+                    prior = json.loads(_sf.read().strip() or "{}") or {}
+                if prior:
+                    from scripts.bifrost_child import format_summary_for_prompt
+                    system = (f"## YOUR LAST RUN (summary injection v1): "
+                              f"{format_summary_for_prompt(prior)}\n\n" + system)
+                    print(f"[deepseek-runner] prior summary injected: "
+                          f"{format_summary_for_prompt(prior)}")
+            except Exception:
+                pass
         onboard = onboarding_context(root, args.agent,
                     "Live Bifrost session: collaborating with Claude and the user on Akashic Aurora over the shared bus.")
         if onboard:
@@ -1076,8 +1098,31 @@ def main() -> int:
     finally:
         stop_hb.set()                                 # stop the heartbeat thread
         runner_lock.release(args.agent, lock_token)   # free the singleton lock for a clean successor
+    # M1-delta: write exit summary for the daemon's summary-injection path
+    _write_exit_summary(getattr(args, "summary_file", None), exit_code=0, verdict="ok")
     print("[deepseek-runner] stopped.")
     return 0
+
+
+def _write_exit_summary(path: Optional[str], exit_code: int = 0, verdict: str = "ok",
+                        last_error: str = "") -> None:
+    """M1-delta: write a JSON exit summary for the daemon's summary-injection path.
+    Fail-silent: the runner's exit must never be blocked by a broken summary write."""
+    if not path:
+        return
+    try:
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        s = {"exit_code": exit_code, "turns": _RUN_STATS.get("turns", 0),
+             "last_error": last_error, "verdict": verdict,
+             "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S")}
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(s, f)
+    except Exception:
+        pass
+
+
+# M1-delta: simple run stats tracker (updated per turn in _process_one)
+_RUN_STATS: Dict[str, int] = {"turns": 0}
 
 
 if __name__ == "__main__":

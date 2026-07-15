@@ -1,48 +1,26 @@
-"""bifrost.daemon -- the agent's continuous-presence body (T075 M1-alpha skeleton).
+"""bifrost.daemon -- the agent's continuous-presence body (T075 M1-alpha + M1-delta).
 
 Spec: research/reviewed/t060-m1-reconciliation-2026-07-15.md (fence t060-m1-design
-CLOSED; deepseek's blind half governs the pins: M1-P1/P2/P11/P12). This slice is
-lock + presence + heartbeat + bus-loss guard + stable identity + clean exits, and
-NOTHING else:
+CLOSED; deepseek's blind half governs the pins). M1-alpha: lock + presence +
+heartbeat + bus-loss guard + stable identity + clean exits. M1-delta: runner as
+managed child + circuit breaker + summary-injection convo survival (v1).
+
+TWO LOCK TIERS (delta split, no conflict):
+  bifrost:daemon:<agent>  -- the daemon's own singleton lock (DaemonLock in
+                             bifrost_child.py). Prevents twin daemons only.
+  bifrost:runner:<agent>  -- the runner child's lock (existing runner_lock).
+                             Guards the consume path; byte-identical to today.
+The daemon checks runner_lock.holder() before spawning -- a bare runner already
+live = refuse (coexistence, M1-P11).
 
 - NO consume-path moves (ruling 1: the cursor stays where it is; daemon-as-consumer
-  is PARKED behind T047 + its own fence). The daemon never touches ns:cursor:*.
-- NO child runtimes (wake listener / runner stay standalone; managed children are
-  M1-gamma/delta).
+  is PARKED behind T047 + its own fence).
+- Managed children via bifrost_child.ManagedChild: backoff restart, circuit breaker
+  (3 crashes/5min -> blocker).
 
-Pure COMPOSITION of existing primitives -- bus.py and runner_lock.py are untouched:
-
-- runner_lock.acquire/heartbeat/release: the SAME singleton lock a runner or a
-  consuming session holds. A pre-existing holder means REFUSE AND EXIT (M1-P11
-  coexistence -- the operator chooses who runs; no steal, no wait-loop).
-- Bus.register(card=...): presence under the agent's id with a card marked
-  runtime_class=daemon, refreshed every heartbeat.
-- Stable identity (M1-P12, reconciliation ruling 7): the token lives in
-  ~/.akashic/daemon_<agent>.id and is REUSED across restarts -- the fencing
-  generation (minted per acquisition, L1b) is what distinguishes tenures, not the
-  token. This deliberately inverts runner_lock's pid:random convention; the twin
-  hazard that inversion creates is handled below (R-a1).
-
-R-a1 SAME-TOKEN TWIN REFUSAL: with a stable token, a double-launch on one host
-presents as the lock's OWN token under a foreign pid, and runner_lock's re-entrant
-path would welcome it. The daemon pre-checks holder(): same token + different pid =
-live twin = refuse, exit 0. No pid liveness probe -- os.kill(pid, 0) on Windows
-TERMINATES the target -- so a crashed predecessor's record simply expires within
-one lock TTL and the next launch succeeds (host-supervisor retries absorb the gap).
-
-BUS-LOSS GUARD (RB-30 discipline): liveness is bus.probe() per beat -- NEVER
-`online`, which is a construction-time fact and can never flip mid-run. While dark
-the daemon probes at guard cadence and does nothing else; the lock may lapse, and
-recovery rides heartbeat()'s own vanished-lock nx-reclaim (tenure generation kept;
-a usurper that acquired during the outage wins by TTL truth and we stand down).
-
-Exit codes (wake-listener discipline -- operator-facing): 0 = every benign ending
-(clean stop, refusal, stand-down); 2 = bus offline at launch (the host supervisor
-owns backoff/retry); 1 = real fault.
-
-  py scripts/bifrost_daemon.py --agent claude
-  py scripts/bifrost_daemon.py --agent deepseek --ttl 60 --hb 8
-  py scripts/bifrost_daemon.py --agent t075drill --max-runtime 5   # drill hatch
+  py scripts/bifrost_daemon.py --agent deepseek --spawn-runner
+  py scripts/bifrost_daemon.py --agent claude                        # M1-alpha mode
+  py scripts/bifrost_daemon.py --agent t075drill --max-runtime 5     # drill hatch
 """
 from __future__ import annotations
 
@@ -110,8 +88,8 @@ def _env_int(name: str, fallback: int) -> int:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(
-        description="Continuous-presence daemon skeleton (M1-alpha): lock + presence "
-                    "+ heartbeat + bus-loss guard. No consume moves, no children.")
+        description="Continuous-presence daemon (M1-alpha + M1-delta): lock + presence "
+                    "+ heartbeat + bus-loss guard + managed-runner child.")
     ap.add_argument("--agent", required=True, help="agent id whose presence this daemon holds")
     ap.add_argument("--ttl", type=int, default=None,
                     help="lock TTL seconds (default: env AKASHIC_DAEMON_LOCK_TTL_S raw, else scaled 60)")
@@ -119,17 +97,24 @@ def main(argv=None) -> int:
                     help="heartbeat seconds (default: env AKASHIC_DAEMON_HB_S raw, else scaled 8; clamped < ttl)")
     ap.add_argument("--max-runtime", type=float, default=0.0, dest="max_runtime",
                     help="exit cleanly after N RAW seconds (drill hatch; 0 = run forever)")
+    ap.add_argument("--spawn-runner", action="store_true", dest="spawn_runner",
+                    help="M1-delta: spawn bifrost_runner_deepseek.py as a managed child "
+                         "(circuit breaker + summary injection)")
+    ap.add_argument("--summary-file", default=None, dest="summary_file",
+                    help="path to runner's exit summary (default: state/runner_<agent>_last.json)")
     args = ap.parse_args(argv)
 
+    from typing import Optional as _Opt
     from core.comm import runner_lock
     from core.comm.bus import Bus
     from core.comm.timescale import scaled
+    from scripts.bifrost_child import DaemonLock, ManagedChild, read_summary, format_summary_for_prompt
 
     agent = str(args.agent)
     ttl = int(args.ttl) if args.ttl else _env_int("AKASHIC_DAEMON_LOCK_TTL_S", scaled(60))
     hb = int(args.hb) if args.hb else _env_int("AKASHIC_DAEMON_HB_S", scaled(8))
-    hb = max(1, min(hb, max(1, ttl // 2)))   # a heartbeat slower than the TTL is a self-eviction
-    guard_every = scaled(30)                  # dark-probe cadence (M1-P10 lineage)
+    hb = max(1, min(hb, max(1, ttl // 2)))
+    guard_every = scaled(30)
     token = _stable_token(agent)
 
     bus = Bus(agent, promote=False)
@@ -138,29 +123,130 @@ def main(argv=None) -> int:
              f"(the host supervisor owns backoff; a presence daemon with no bus has nothing to hold)")
         return 2
 
-    # R-a1: a live twin wears OUR token with a foreign pid -- refuse before acquire()
-    # would re-entrantly welcome it. (A crashed twin's record expires within `ttl`.)
-    h = runner_lock.holder(agent)
-    if h and h.get("token") == token and int(h.get("pid") or -1) != os.getpid():
-        _say(f"[daemon] refused agent={agent}: live twin pid={h.get('pid')} holds MY token "
-             f"(delete ~/.akashic/daemon_{agent}.id to fork identity; a crashed twin expires "
-             f"within ttl={ttl}s) -- exiting 0")
-        return 0
+    c = bus._client
+    spawn_runner = bool(args.spawn_runner)
 
-    if not runner_lock.acquire(agent, token, ttl=ttl):
-        h = runner_lock.holder(agent) or {}
-        _say(f"[daemon] refused agent={agent}: held by pid={h.get('pid', '?')} "
-             f"token8={str(h.get('token', ''))[-8:]} (M1-P11 coexistence -- no steal; "
-             f"stop the holder or wait out its TTL) -- exiting 0")
-        return 0
+    # ---- delta path: daemon lock (bifrost:daemon:<agent>) + runner child ----------
+    child: _Opt[ManagedChild] = None
+    dlock = None
+    summary_file = args.summary_file or os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "state", f"runner_{agent}_last.json")
+    last_summary_text = ""
 
-    gen = runner_lock.generation_of(token)
+    if spawn_runner:
+        dlock = DaemonLock(c, bus.ns, agent, ttl=ttl)
+        # R-a1 twin-refusal adapted for the daemon lock
+        existing = c.get(f"{bus.ns}:daemon:{agent}")
+        if existing:
+            try:
+                rec = json.loads(existing)
+                if rec.get("token") != dlock.token:
+                    _say(f"[daemon] refused agent={agent}: another daemon pid={rec.get('pid')} "
+                         f"holds the daemon lock -- exiting 0")
+                    return 0
+            except Exception:
+                pass
+        if not dlock.acquire():
+            _say(f"[daemon] refused agent={agent}: daemon lock held by another process "
+                 f"-- exiting 0")
+            return 0
+        # Coexistence: refuse if a bare runner already holds the runner lock
+        rh = runner_lock.holder(agent)
+        if rh and not str(rh.get("token", "")).startswith("daemon:"):
+            _say(f"[daemon] refused agent={agent}: a bare runner pid={rh.get('pid')} holds "
+                 f"the runner lock -- stop it first, or let the daemon own it (M1-P11 "
+                 f"coexistence) -- exiting 0")
+            dlock.release()
+            return 0
+
+        # ---- blocker callback (M1-P9 circuit breaker) ------------------------------
+        def _send_blocker():
+            try:
+                # F3: real kind "blocker" (wake-worthy, allowlisted) via broadcast --
+                # lands on the operator surface where humans and listening agents see
+                # it. Also tee to the agent's own inbox so the daemon's presence card
+                # reader can see the blocker state.
+                bus.broadcast("blocker",
+                              f"[blocker] runner child for '{agent}' unstable: "
+                              f"{child._breaker_max} crashes in "
+                              f"{int(child._breaker_window_s)}s -- restarting stopped. "
+                              f"Daemon presence still held. Restart the daemon to reset.",
+                              meta={"via": f"{agent}-daemon", "kind": "blocker"})
+                _say(f"[daemon] BLOCKER broadcast agent={agent}: circuit breaker tripped "
+                     f"({child._breaker_max} crashes in {int(child._breaker_window_s)}s)")
+            except Exception:
+                pass
+
+        # ---- child management ------------------------------------------------------
+        runner_args = [sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                                    "bifrost_runner_deepseek.py"),
+                       "--agent", agent, "--agentic",
+                       "--summary-file", summary_file]
+        # Inject prior summary on restart (M1-P7)
+        prev = read_summary(summary_file)
+        if prev:
+            last_summary_text = format_summary_for_prompt(prev)
+            runner_args.extend(["--inject-summary", summary_file])
+        child = ManagedChild(
+            runner_args,
+            env=dict(os.environ),
+            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            on_blocker=_send_blocker,
+            breaker_window_s=float(os.environ.get("AKASHIC_CB_WINDOW_S", "300")),
+            breaker_max=int(os.environ.get("AKASHIC_CB_MAX", "3")),
+        )
+
+        def _on_runner_exit(code: int, tail: str):
+            s = read_summary(summary_file)
+            if s:
+                child.last_summary = s
+                nonlocal last_summary_text
+                last_summary_text = format_summary_for_prompt(s)
+                _say(f"[daemon] runner exited code={code} summary={last_summary_text}")
+            else:
+                _say(f"[daemon] runner exited code={code} (no summary file)")
+            if tail:
+                short = " ".join(str(tail).split())[:200]
+                if short:
+                    _say(f"[daemon] runner tail: {short}")
+
+        child.on_exit = _on_runner_exit
+        if not child.spawn():
+            _say(f"[daemon] runner spawn blocked agent={agent} (circuit breaker pre-tripped?) "
+                 f"-- daemon still alive, restart to reset")
+        else:
+            _say(f"[daemon] runner spawned agent={agent} pid={child.pid}")
+        _say(f"[daemon] up agent={agent} ns={bus.ns} daemon-token={dlock.token[:20]}... "
+             f"ttl={ttl}s hb={hb}s pid={os.getpid()} mode=runner-manager")
+    else:
+        # ---- alpha path: daemon holds the runner lock directly ---------------------
+        h = runner_lock.holder(agent)
+        if h and h.get("token") == token and int(h.get("pid") or -1) != os.getpid():
+            _say(f"[daemon] refused agent={agent}: live twin pid={h.get('pid')} holds MY token "
+                 f"(delete ~/.akashic/daemon_{agent}.id to fork identity; a crashed twin expires "
+                 f"within ttl={ttl}s) -- exiting 0")
+            return 0
+        if not runner_lock.acquire(agent, token, ttl=ttl):
+            h = runner_lock.holder(agent) or {}
+            _say(f"[daemon] refused agent={agent}: held by pid={h.get('pid', '?')} "
+                 f"token8={str(h.get('token', ''))[-8:]} (M1-P11 coexistence -- no steal; "
+                 f"stop the holder or wait out its TTL) -- exiting 0")
+            return 0
+        gen = runner_lock.generation_of(token)
+        _say(f"[daemon] up agent={agent} ns={bus.ns} token={token} gen={gen} "
+             f"ttl={ttl}s hb={hb}s pid={os.getpid()} mode=alpha")
+
+    # ---- shared: presence card + heartbeat loop -----------------------------------
     card = {"runtime_class": "daemon", "wake_mode": "supervisor",
-            "door": "scripts/bifrost_daemon.py", "slice": "M1-alpha",
-            "pid": os.getpid(), "token8": token[-8:], "gen": gen}
+            "door": "scripts/bifrost_daemon.py",
+            "slice": "M1-alpha" if not spawn_runner else "M1-delta",
+            "pid": os.getpid(),
+            "token8": (dlock.token[-8:] if spawn_runner else token[-8:]),
+            "gen": 0 if spawn_runner else runner_lock.generation_of(token)}
+    if spawn_runner and last_summary_text:
+        card["summary"] = last_summary_text
     bus.register(card=card)
-    _say(f"[daemon] up agent={agent} ns={bus.ns} token={token} gen={gen} "
-         f"ttl={ttl}s hb={hb}s pid={os.getpid()}")
 
     _install_signals()
     started = time.time()
@@ -176,8 +262,17 @@ def main(argv=None) -> int:
             if args.max_runtime and (time.time() - started) >= args.max_runtime:
                 reason = "max-runtime"
                 break
-            time.sleep(0.2)   # tick: signal-responsive, raw-seconds max-runtime precision
+            time.sleep(0.2)
             now = time.time()
+
+            # ---- child poll -------------------------------------------------------
+            if child is not None:
+                child.poll()
+                if child.last_summary:
+                    latest = format_summary_for_prompt(child.last_summary)
+                    if latest != card.get("summary"):
+                        card["summary"] = latest
+
             if now < next_beat:
                 continue
             next_beat = now + hb
@@ -187,27 +282,48 @@ def main(argv=None) -> int:
                 if dark_since is None:
                     dark_since = now
                     _say(f"[daemon] bus lost agent={agent} -- guard engaged "
-                         f"(probe every {guard_every}s; tenure survives: heartbeat's "
-                         f"nx-reclaim keeps gen, a usurper wins by TTL truth)")
+                         f"(probe every {guard_every}s; tenure survives)")
                 next_dark_probe = now + guard_every
                 continue
             if dark_since is not None:
                 _say(f"[daemon] bus back agent={agent} after {int(now - dark_since)}s "
                      f"-- presence re-registered")
                 dark_since = None
-            if not runner_lock.heartbeat(agent, token, ttl=ttl):
-                _say(f"[daemon] stand-down agent={agent}: lock lost to a successor -- exiting 0")
-                return 0
+
+            # ---- lock heartbeat ---------------------------------------------------
+            if spawn_runner:
+                if not dlock.heartbeat():
+                    _say(f"[daemon] stand-down agent={agent}: daemon lock lost -- exiting 0")
+                    return 0
+            else:
+                if not runner_lock.heartbeat(agent, token, ttl=ttl):
+                    _say(f"[daemon] stand-down agent={agent}: lock lost to a successor -- exiting 0")
+                    return 0
+
             bus.register(card=card)
-        runner_lock.release(agent, token)
+
+        # ---- clean exit -----------------------------------------------------------
+        if spawn_runner:
+            if child is not None:
+                child.terminate()
+            if dlock is not None:
+                dlock.release()
+        else:
+            runner_lock.release(agent, token)
         _say(f"[daemon] clean exit agent={agent} reason={reason} (lock released)")
         return 0
-    except Exception as e:  # noqa: BLE001 -- the exit code IS the error contract
+    except Exception as e:
         _say(f"[daemon] FAULT agent={agent}: {type(e).__name__}: {e} -- exiting 1")
         return 1
     finally:
         try:
-            runner_lock.release(agent, token)   # idempotent: only ever frees our own hold
+            if spawn_runner:
+                if child is not None:
+                    child.terminate()
+                if dlock is not None:
+                    dlock.release()
+            else:
+                runner_lock.release(agent, token)
         except Exception:
             pass
 

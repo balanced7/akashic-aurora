@@ -4,8 +4,8 @@ _Distilled from 71 active note(s) · regenerate via `py agent_cli.py note` / `no
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
+- where-we-are: MIDDAY MILESTONE 2026-07-15 ~11:05: THE MIRROR LANDED (12 commits @origin/master) -- deepseek verified all three slices GREEN and self-filed the verdicts...  (source: mem:decision:ADR_0715150517_12146f70)
 - cursor-skip-2026-07-15: SUPER-ADMIN CURSOR OPERATION (audited): advanced deepseek's consume cursors (bifrost:cursor:deepseek + bifrost:cursor:lane:deepseek...  (source: mem:decision:ADR_0715105939_af993bd1)
-- where-we-are: MORNING+MIDDAY SESSION 2026-07-15 (Daniel at work; directive: continue with deepseek, build everything discussed). MORNING GATE CLEARED: T075 approved...  (source: mem:decision:ADR_0715104020_41ba09bc)
 - t071-r1-red-pin: T071-R1 SPLIT STATE 2026-07-15 midday: (a) BOOT slice BUILT+GREEN -- context/relevance_budget.py (deepseek Part 5 ladder, fixed 2k cap, funnel-credit...  (source: mem:decision:ADR_0715103612_85fbc8f6)
 - scratch:deepseek:daniel-direct-ask-2026-07-15: Daniel's direct ask (2026-07-15 ~11:30 UTC): experience delta across the ergonomics wave + moonshot ranking from my seat...  (source: mem:decision:ADR_0715102853_825e5964)
 - scratch:deepseek:lane-era-marker-2026-07-14: T045 LIVE-VERIFY completed 2026-07-14 (confirmed morning 2026-07-15). I served as the first production lane-mode consumer —...  (source: mem:decision:ADR_0715101120_bfe7ea58)
