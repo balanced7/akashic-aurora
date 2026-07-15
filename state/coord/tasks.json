@@ -1,5 +1,5 @@
 {
-  "seq": 71,
+  "seq": 72,
   "tasks": [
     {
       "id": "T001",
@@ -2521,11 +2521,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "claimed",
+      "status": "verifying",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-15T03:05:12+00:00",
-      "updated": "2026-07-15T05:04:39+00:00",
+      "updated": "2026-07-15T05:22:33+00:00",
       "history": [
         {
           "to": "proposed",
@@ -2541,6 +2541,16 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-07-15T05:04:39+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "deepseek",
+          "at": "2026-07-15T05:22:32+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "deepseek",
+          "at": "2026-07-15T05:22:33+00:00"
         }
       ]
     },
@@ -2690,6 +2700,27 @@
           "to": "approved",
           "by": "user",
           "at": "2026-07-15T04:42:49+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T072",
+      "title": "T072: Same-agent twin-session discipline (live receipts 2026-07-15: two claude sessions, commit 7d853aa + T067 claim race absorbed by ledger; runner kill-thrash + shared consume cursors NOT absorbed): (1) per-SESSION presence cards + a boot line 'N live sessions of your agent-id -- coordinate via ledger claims + path locks' (T036 scope); (2) consume-seat ownership -- ONE session holds the consume seat per agent-id (RB-21 generations exist; apply to the interactive sync/consume path), non-holders peek only (T037 scope); (3) fleet-lifecycle lease -- runner start/stop through a holder lease so two sessions cannot kill-thrash (RB-28 lineage; tonight: exit-127 wrapper death orphaning a healthy child, then double-relaunch collisions); (4) runner_lock steals a lock whose pid is DEAD (the runner_lock_stale_after_kill lesson's own better-fix); (5) ledger actor gains a session suffix when >1 session is live (claude@f9207c90) so attribution survives twins -- tonight T067's transitions were mis-attributed. Supersedes/absorbs proposed T036+T037; cites lesson twin_session_diagnosis_first",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-15T05:26:44+00:00",
+      "updated": "2026-07-15T05:26:44+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-15T05:26:44+00:00"
         }
       ]
     }

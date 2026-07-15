@@ -179,6 +179,11 @@ TOOLS = [
         {}),
     _fn("knowledge_boot", "Assemble the project's startup context for a task (recent notes + top lessons), the same briefing an agent gets.",
         {"task": {"type": "string", "description": "Short task description to rank context against"}}, ["task"]),
+    _fn("knowledge_map", "Walk the knowledge graph OUTWARD from a topic -- connected lessons, notes, and docs. knowledge_recall SEARCHES ('everything about X'); this BROWSES ('what is X connected to?'), surfacing lessons you didn't know to search for.",
+        {"topic": {"type": "string", "description": "starting topic, plain words, e.g. 'lanes' or 'settle linkage'"},
+         "per_layer": {"type": "integer", "description": "max nodes per graph layer (default 6)"}}, ["topic"]),
+    _fn("delta", "What moved since your last boot mark: commits, task-ledger transitions, and bus flow -- the full 'what changed' report your truncated boot block points at. Read-only (never advances the mark).",
+        {"agent": {"type": "string", "description": "agent id (default: you)"}}),
     _fn("knowledge_learn", "CONTRIBUTE a lesson to the knowledge base -- a durable 'use when X, do Y' article future agents recall. Requires the kb.learn capability. Write one whenever you discover something reusable (a fix, a gotcha, a pattern) so it outlives this chat.",
         {"experiment": {"type": "string", "description": "short snake/kebab name, e.g. 'bifrost_hint_render'"},
          "tried": {"type": "string", "description": "what you did / the situation"},
@@ -194,6 +199,8 @@ TOOLS = [
          "text": {"type": "string", "description": "the message"},
          "kind": {"type": "string", "description": "chat|note|request|handoff (default chat)"}}, ["to", "text"]),
     _fn("bifrost_inbox", "Peek your own unread bus messages (does not consume them). Use to check whether a peer replied.", {}),
+    _fn("bifrost_ack", "Mark a bus message as HANDLED (durable ack) so your inbox stops showing it as needing action. Use for messages you handled silently (read-and-filed); handoffs you ANSWER are auto-acked. Only the addressee's ack is accepted.",
+        {"message_id": {"type": "string", "description": "the bus message id, e.g. '1784082287759-0'"}}, ["message_id"]),
     _fn("bifrost_nudge", "HARD interrupt a specific peer (e.g. 'claude'): make it drop its current work and look at this now (sets its barge-in flag AND sends a nudge). Use sparingly, for genuine 'stop and switch' moments.",
         {"to": {"type": "string", "description": "the ONE peer to nudge, e.g. 'claude'"},
          "text": {"type": "string", "description": "what you need it to look at"}}, ["to", "text"]),
@@ -502,6 +509,22 @@ class ToolBox:
     def knowledge_boot(self, task):
         return self._agent_cli(["boot", "deepseek", "--task", task])
 
+    def knowledge_map(self, topic, per_layer=6):
+        """T067-1 B1: walk the knowledge graph from a topic -- connected lessons, notes and
+        documents (B5's whole point: an agent or a human WALKS the knowledge). knowledge_recall
+        is a search; this is a browse -- it surfaces lessons you didn't know to ask for. Rides
+        the real CLI parser (positional query + --per-layer; the design sketch's --topic/
+        --max-nodes flags never existed on the verb)."""
+        return self._agent_cli(["knowledge-map", str(topic), "--per-layer", str(int(per_layer)), "--json"])
+
+    def delta(self, agent=None):
+        """T067-1 B3: what moved since I was last here? Commits, task transitions and bus flow
+        since this agent's last boot mark -- the R1 delta door (T052); replaces archaeology
+        with a query. Read-only: never passes --ack (the mark stays boot-owned), so repeated
+        calls show the same window, never a silently shrinking one."""
+        target = agent or self.agent_id or "deepseek"
+        return self._agent_cli(["delta", str(target)])
+
     # -- Bifrost bus doors (live only when this ToolBox has an agent identity, i.e. inside a runner) --
     def _bus_send_ok(self, *, kind=None, need_cap=None):
         """Gate a ToolBox bus door on the SENDER's ACL -- the send-side complement to RB-1's
@@ -582,6 +605,24 @@ class ToolBox:
             return "\n".join(lines)
         except Exception as e:
             return f"ERROR: bifrost_inbox failed: {type(e).__name__}: {e}"
+
+    def bifrost_ack(self, message_id):
+        """T067-1 B2: ack a bus message I HANDLED silently (read-and-filed) so my inbox stops
+        showing it as needing action -- the P6 (T026) lifecycle: read -> handle -> ack ->
+        forget. Handoffs I answer auto-ack; this door is for the rest (e.g. pre-lane mail
+        indistinguishable from live asks). The addressee rule (RB-2) still gates inside
+        promoter.ack -- a False verdict is REPORTED, never claimed as done."""
+        try:
+            from core.comm import promoter
+            ok = promoter.ack(self.agent_id or "deepseek", str(message_id),
+                              note="acked via ToolBox (handled silently)")
+            if ok:
+                return f"acked {message_id}"
+            return (f"REFUSED: ack for {message_id} not accepted -- only the message's ADDRESSEE "
+                    "may ack, and only promoted (salient) messages have an ack surface. Plain "
+                    "live-bus mail needs no ack; it leaves the unread window once consumed.")
+        except Exception as e:
+            return f"ERROR: bifrost_ack failed: {type(e).__name__}: {e}"
 
     def bifrost_nudge(self, to, text):
         """Nudge a specific peer: set its per-agent barge-in flag AND send a kind=nudge message, so it
@@ -905,6 +946,7 @@ _TOOL_STATE = {
     "git_show": "inspecting", "git_status": "inspecting", "knowledge_recall": "recalling",
     "knowledge_boot": "recalling", "recall_at": "recalling", "knowledge_full": "recalling",
     "memory_note": "recalling", "memory_recall": "recalling",
+    "knowledge_map": "recalling", "delta": "recalling",
     "run_command": "running", "web_search": "searching",
 }
 

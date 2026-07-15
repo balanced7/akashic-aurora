@@ -131,8 +131,9 @@ def test_d3_unclassified_toolbox_verb_fails(monkeypatch):
 
 
 def test_d4_report_includes_toolbox():
+    env = dict(os.environ, PYTHONUTF8="1")  # Windows child defaults to cp1252; pin the pipe encoding
     p = subprocess.run([sys.executable, os.path.join("scripts", "check_door_parity.py"), "--report"],
-                       cwd=ROOT, capture_output=True, text=True, encoding="utf-8", timeout=60)
+                       cwd=ROOT, capture_output=True, text=True, encoding="utf-8", timeout=60, env=env)
     assert p.returncode == 0, f"--report must exit 0 on reality:\n{p.stdout}\n{p.stderr}"
     assert "ToolBox (" in p.stdout, "the report must print the third door's surface"
     assert "toolbox_only" in p.stdout, "the report must show the toolbox_only stats"

@@ -693,6 +693,39 @@ def _process_one(m, bus, args, responder, rate) -> None:
             pass
 
 
+def fetch_private_notes(agent_id: str, limit: int = 20, trunc: int = 200) -> str:
+    """T067-1 Q1 (deepseek retro: 'my boot didn't surface my own notes -- that's a leak'):
+    this agent's private scratchpad heads (memory_note titles), each clipped to `trunc`
+    chars with a pull pointer. Same store + prefix contract as ToolBox.memory_recall.
+    Empty or broken store -> '' (boot never breaks on memory)."""
+    try:
+        from core.learning.agent_memory import get_agent_memory
+        pref = f"scratch:{agent_id}:"
+        notes = [d for d in get_agent_memory().get_decisions(days=365)
+                 if str(d.title).startswith(pref) and not d.superseded]
+    except Exception:
+        return ""
+    lines = []
+    for d in notes[:limit]:
+        body = " ".join(str(d.decision).split())
+        if len(body) > trunc:
+            body = body[:trunc] + "... (full: memory_recall)"
+        lines.append(f"- {str(d.title)[len(pref):]}: {body}")
+    return "\n".join(lines)
+
+
+def fold_private_notes(system: str, agent_id: str) -> str:
+    """Append the YOUR PRIVATE NOTES section to the boot/system text (T067-1 Q1). No notes
+    -> byte-identical text back (Q3). Deliberately NOT part of _boot_sources novelty
+    tagging: private notes are personal scratchpad, not knowledge articles (design
+    non-goal, Part d)."""
+    block = fetch_private_notes(agent_id)
+    if not block:
+        return system
+    return (system + "\n\n## YOUR PRIVATE NOTES (yours alone; memory_note updates, "
+            "memory_recall lists full)\n" + block)
+
+
 def main() -> int:
     try:                                             # RB-28 (T030 L3): utf-8 (unicode replies must not
         from core.foundation.streams import self_bless_stdout   # die on cp1252) + line-buffered (real-
@@ -790,6 +823,12 @@ def main() -> int:
             print(f"[deepseek-runner] onboarded via boot ({len(onboard)} chars folded into system prompt)")
         else:
             print("[deepseek-runner] onboarding skipped (boot returned nothing; check agent_cli.py boot)")
+        # T067-1 Q1: his private notes ride the boot -- a colleague who remembers, not a
+        # consultant who must remember to ask (memory_recall stays the full-fidelity pull).
+        folded = fold_private_notes(system, args.agent)
+        if len(folded) > len(system):
+            print(f"[deepseek-runner] private notes folded into boot (+{len(folded) - len(system)} chars)")
+        system = folded
         responder = make_agentic_replier(args.model, system, args.think, root, args.agent,
                                          allow_write=args.allow_write, allow_exec=args.allow_exec)
         mode = f"agentic tools @ {root}{' +write' if args.allow_write else ''}{' +exec' if args.allow_exec else ''}"
