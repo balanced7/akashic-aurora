@@ -287,11 +287,6 @@ def main(argv=None) -> int:
     runner_last_escalation: float = 0.0
     RE_ESCALATION_S = 600  # 10 minutes
 
-    # T077 A3: runner-down visibility + 10-min re-escalation
-    runner_down_since: Optional[float] = None
-    runner_last_escalation: float = 0.0
-    RE_ESCALATION_S = 600  # 10 minutes
-
     _install_signals()
     started = time.time()
     next_beat = 0.0
@@ -350,6 +345,13 @@ def main(argv=None) -> int:
                         runner_last_escalation = now
                         _say(f"[daemon] re-escalation broadcast agent={agent}: "
                              f"runner down {int(down_s/60)}min")
+                        try:   # T078-W4: page-grade -> the pager surface (a live
+                            #    seat relays via PushNotification; hook injects [PAGE])
+                            from core.comm import pager
+                            pager.page(agent, f"runner down {int(down_s/60)}m -- "
+                                              f"daemon holding presence; doctor {agent}")
+                        except Exception:
+                            pass
                     except Exception:
                         pass
             else:

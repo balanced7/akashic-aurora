@@ -69,6 +69,17 @@ def build_bus_line(agent_id: str) -> str:
     return f"[akashic] mail: {n} unread bus msg(s) -> py agent_cli.py bifrost-sync {agent_id}"
 
 
+def build_page_lines() -> list:
+    """T078-W4: page-grade findings reach the live seat every turn. The seat's
+    doctrine (rendered in each line) is to relay via PushNotification when
+    Daniel may be away, then ack. Silent when no pages. Fail-soft."""
+    try:
+        from core.comm import pager
+        return pager.hook_lines()
+    except Exception:
+        return []
+
+
 def main() -> int:
     try:
         data = json.load(sys.stdin)
@@ -85,7 +96,7 @@ def main() -> int:
         agent_id = os.getenv("AKASHIC_AGENT_ID") or "claude"
         pieces = [build_plan_recall(data.get("prompt") or "",
                                     data.get("session_id") or "", agent_id),
-                  build_bus_line(agent_id)]
+                  build_bus_line(agent_id)] + build_page_lines()
         ctx = "\n".join(p for p in pieces if p)
         if ctx:
             print(json.dumps({"hookSpecificOutput": {
