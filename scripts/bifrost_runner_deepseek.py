@@ -118,6 +118,14 @@ LEDGER_FOLDS: dict = {}
 CONTROL_PLANE_SENDERS = {"conductor"}
 
 
+"""T078 W1: token tracking -- shared between responder closure and turn-close path.
+The agentic responder populates this per-peer; _process_one drains it after each turn."""
+_token_deltas: Dict[str, tuple] = {}           # peer -> (prompt, completion) since last poll
+_token_journal = None                          # TokenJournal, created at runner start
+# M1-delta: simple run stats tracker (updated per turn in _process_one)
+_RUN_STATS: Dict[str, int] = {"turns": 0}
+
+
 def fold_ledger_update(msg) -> bool:
     """Store a ledger_update/resolved marker for the next turn (latest-per-task). Never
     answered, never a wake -- pre-digested context, not a prompt (fold spec, echo rule).
@@ -414,7 +422,12 @@ def make_agentic_replier(model: str, system: str, think: bool, root: Path, agent
         except Exception:
             pass
         try:
+            prompt_before = ag.prompt_tokens
+            comp_before = ag.completion_tokens
             answer = ag.send(prompt)                 # streams to the runner window; returns final text
+            prompt_after = ag.prompt_tokens
+            comp_after = ag.completion_tokens
+            _token_deltas[frm] = (prompt_after - prompt_before, comp_after - comp_before)
         except Exception as e:
             # RB-23: fold the error into the pipeline (no early return) -- the floor gate
             # gives a transient failure exactly one retry before it confesses.
@@ -780,10 +793,16 @@ def _process_one(m, bus, args, responder, rate) -> None:
                        else "error" if (result_holder and isinstance(result_holder[0], Exception))
                                         or str(out).startswith("(deepseek")
                        else "ok")
+            delta = _token_deltas.pop(str(m.frm), None)
             _tm.record(args.agent, str(m.kind), duration_s=time.time() - turn_t0,
                        progress_points=_tm.take_pulse_count(args.agent),
-                       outcome=outcome, prompt_len=len(str(m.content)))
+                       outcome=outcome, prompt_len=len(str(m.content)),
+                       tokens={"prompt": delta[0], "completion": delta[1]} if delta else None)
             _RUN_STATS["turns"] = _RUN_STATS.get("turns", 0) + 1
+            # T078 W1: update daily token journal
+            if _token_journal is not None and delta:
+                _token_journal.add_turn(prompt=delta[0], completion=delta[1],
+                                        model=getattr(args, "model", ""))
         except Exception:
             pass
 
@@ -905,6 +924,15 @@ def main() -> int:
     PULSE_GEN[0] = runner_lock.generation_of(lock_token)
     liveness.worklive(args.agent).set("starting", detail="onboarding")
     liveness.pulse(args.agent, "starting", generation=PULSE_GEN[0])
+
+    # T078 W1: daily token journal (the meter -- every W2+ slice gets a before/after receipt)
+    try:
+        from scripts.runner_token_journal import TokenJournal
+        _token_journal = TokenJournal(args.agent)
+        print(f"[deepseek-runner] token journal: {_token_journal.turns} turns, "
+              f"{_token_journal.prompt_tokens + _token_journal.completion_tokens} tokens today")
+    except Exception:
+        pass
 
     if args.agentic:
         import deepseek_chat as dc
@@ -1121,7 +1149,10 @@ def _write_exit_summary(path: Optional[str], exit_code: int = 0, verdict: str = 
         pass
 
 
-# M1-delta: simple run stats tracker (updated per turn in _process_one)
+"""T078 W1: token tracking -- shared between responder closure and turn-close path.
+The agentic responder populates this per-peer; _process_one drains it after each turn."""
+_token_deltas: Dict[str, tuple] = {}           # peer -> (prompt, completion) since last poll
+_token_journal = None                          # TokenJournal, created at runner start
 _RUN_STATS: Dict[str, int] = {"turns": 0}
 
 

@@ -220,11 +220,59 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
             pass
     except Exception:
         pass
+
+    # T078 W1: token cost line from daily journal (meters before levers, R1)
+    try:
+        cl = _token_cost_line(agent)
+        if cl is not None:
+            out.append(cl)
+    except Exception:
+        pass
+
     return out
 
 
 def _f(agent, state, grade, line, drill):
     return {"agent": agent, "state": state, "grade": grade, "line": line, "drill": drill}
+
+
+def _token_cost_line(agent: str, journal_dir: str = "") -> Optional[Dict[str, Any]]:
+    """Read today's token journal and render a dashboard-grade cost line. None when
+    absent or zero-turn. T078 W1: the meter that every lever slice gets a receipt from."""
+    import os as _os
+    import json as _json
+    import time as _time
+    today = _time.strftime("%Y-%m-%d")
+    base = journal_dir or _os.path.join(
+        _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))),
+        "state")
+    path = _os.path.join(base, f"runner_{agent}_{today}.json")
+    try:
+        if not _os.path.exists(path):
+            return None
+        with open(path, encoding="utf-8") as f:
+            data = _json.loads(f.read().strip() or "{}") or {}
+        turns = int(data.get("turns", 0) or 0)
+        if turns <= 0:
+            return None
+        prompt_t = int(data.get("prompt_tokens", 0) or 0)
+        comp_t = int(data.get("completion_tokens", 0) or 0)
+        total = prompt_t + comp_t
+        cost = float(data.get("cost_est", 0) or 0)
+        line = (f"{agent}: {turns} turn(s) · {_fmt_toks(total)} tokens "
+                f"today · ~${cost:.2f} est")
+        return _f(agent, "token_cost", "dashboard", line,
+                  f"py agent_cli.py doctor --token {agent}")
+    except Exception:
+        return None
+
+
+def _fmt_toks(n: int) -> str:
+    if n >= 1_000_000:
+        return f"{n/1_000_000:.1f}M"
+    if n >= 1_000:
+        return f"{round(n/1000)}k"
+    return str(n)
 
 
 def known_agents() -> List[str]:
