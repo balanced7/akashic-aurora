@@ -1,9 +1,10 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 73 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 74 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
+- t079-engine-room-directive: DANIEL DIRECTIVE 2026-07-15 night (paraphrase-faithful): he watches claudes expanded thinking window while working to learn how we operate...  (source: mem:decision:ADR_0715171720_0deb79f0)
 - where-we-are: T078 WAVE MID-FLIGHT 2026-07-15 evening (Daniel gate verbatim in t078-wave-gate): W1 SHIPPED (deepseek token meter, claude GREEN 8/8, mirrored) | W3...  (source: mem:decision:ADR_0715162935_2ab2b53f)
 - t078-wave-gate: DANIEL GATE 2026-07-15 evening verbatim: 'Lets get to building the highest roi items!' -- T078 first wave W1-W6 APPROVED TO BUILD per...  (source: mem:decision:ADR_0715161629_a6685df0)
 - presence-autopilot-directive: DANIEL DIRECTIVE 2026-07-15 afternoon verbatim: 'Is there some kind of subsystem we can implement to make all the arming claiming standing...  (source: mem:decision:ADR_0715154055_1783673d)

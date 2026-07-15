@@ -1,5 +1,5 @@
 {
-  "seq": 78,
+  "seq": 79,
   "tasks": [
     {
       "id": "T001",
@@ -2942,6 +2942,32 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-07-15T20:16:28+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T079",
+      "title": "T079: Engine-room observability (Daniel directive 2026-07-15 night: fold his watching-to-learn practice into the system -- live queue state, progress, and BOTH agents thinking/reasoning visible; refine+expand the see-the-systems-in-action / feel-the-engine-running dashboard concept as the UI-upgrades centerpiece). Fenced dual design with deepseek; aligns T033 (UI re-grounding) + T060-M7 (glass cockpit); the narration/trace primitives EXIST (full thinking already rides the bus + :8788 UI) -- this wave makes them a legible engine room: dual reasoning windows, fence state, verdicts landing, daemon heartbeats, token meter, pages.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-15T21:17:19+00:00",
+      "updated": "2026-07-15T21:17:19+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-15T21:17:19+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-15T21:17:19+00:00"
         }
       ]
     }
