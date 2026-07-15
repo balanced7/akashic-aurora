@@ -1419,7 +1419,9 @@ def cmd_wrap(args):
     if getattr(args, "focus", None):
         mem = get_agent_memory()
         try:   # RB-8: race-safe resolve+claim (the twin proved wrap is not single-writer)
-            f_id = mem.decide_with_retry("next-focus", _clip(args.focus, 1000))
+            # T074 R8: setting the directive is a DELIBERATE act (feeds the whisper's
+            # DIRECTIVE line) -- curated, unlike the mechanical draft below.
+            f_id = mem.decide_with_retry("next-focus", _clip(args.focus, 1000), curated=True)
         except Exception as e:
             print(f"WARN: --focus note lost a title race and gave up: {e}")
             f_id = ""
@@ -1471,6 +1473,20 @@ def cmd_wrap(args):
     # lives in the note's timestamp and the draft body, not the title.
     title = args.title or "where-we-are"
     mem = get_agent_memory()
+    # T074 W7 wrap guard: a mechanical distillation must never SILENTLY supersede a
+    # hand-curated head (the 2026-07-15 clobber incident). curated=True protects;
+    # curated=None (legacy) does not -- the flag beats inference, both ways (R7).
+    if not getattr(args, "force", False):
+        cur = next((d for d in mem.get_decisions(days=365) if d.title == title), None)
+        if cur is not None and getattr(cur, "curated", None) is True:
+            from datetime import date as _date
+            print(f"WARNING: the current '{title}' note is CURATED (hand-written). "
+                  "This wrap draft is MECHANICAL and would overwrite it.\n"
+                  "  To supersede deliberately: re-run with --force (review the draft first).\n"
+                  f"  To record alongside:      py agent_cli.py wrap --commit --title "
+                  f"\"{title}-{_date.today().isoformat()}\"\n"
+                  "(nothing written)")
+            return 1
     try:   # RB-8: race-safe resolve+claim replaces the read-title-then-write race
         # T074 W2: wrap output is a MECHANICAL distillation -- flag it so the whisper
         # renders (auto, Nh ago) and the Phase-2 guard can protect curated handoffs.
@@ -2916,6 +2932,8 @@ def build_parser():
     wr.add_argument("--hours", type=int, default=12, help="look-back window for commits (default 12)")
     wr.add_argument("--commit", action="store_true", help="record the draft as a note (default: just preview)")
     wr.add_argument("--title", default=None, help="note title (default: where-we-are <date>)")
+    wr.add_argument("--force", action="store_true",
+                    help="T074 W8: supersede even a CURATED head (the guard refuses by default)")
     wr.add_argument("--focus", default=None,
                     help="set the CURRENT DIRECTIVE (next-focus note) at decision time -- "
                          "what the next session does FIRST / must NOT do yet; boot renders it "
