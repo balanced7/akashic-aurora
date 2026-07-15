@@ -252,6 +252,71 @@ class Bus:
         return self._emit(self._bc_key, to=BROADCAST_TO, kind=kind, content=content,
                           parts=parts, meta=meta, allow_frag=allow_frag)
 
+    def send_reply(self, to: str, content: Any = None, *,
+                   meta: Optional[Dict[str, Any]] = None) -> Optional[str]:
+        """T066 S1-S3: the reply-path send -- lane-FIRST, legacy fallback. Replies are the
+        one kind whose consumers are ALREADY lane-mode (T045 stage 2), so the advisory
+        dual-write of `_emit` is not enough: a silently failed lane mirror strands the reply
+        on legacy until the straggler net's next cycle (the 2026-07-14 wake-loop class).
+        Here the work-lane write happens first and is VERIFIED (one retry on a transient
+        blip; a second failure goes LOUD and falls back to legacy-only). The legacy copy is
+        always attempted for pre-lane consumers (P6). Every reply is stamped with
+        meta.reply_id -- the receiver-side dedup key (work_drain skips cross-path twins).
+        Oversize replies delegate to send(allow_frag=True): fragments ride the existing
+        legacy-first machinery (documented residual). Lanes off -> plain send()."""
+        if not self.online:
+            return None
+        from uuid import uuid4
+        meta = dict(meta or {})
+        meta.setdefault("reply_id", uuid4().hex)
+        if not packet_spec.dual_write_enabled():
+            return self.send(to, "reply", content, meta=meta)
+        env = {"frm": self.agent_id, "to": str(to), "kind": "reply",
+               "content": json.dumps(content, default=str), "ts": _now(),
+               "meta": json.dumps(meta, default=str), "parts": "[]"}
+        length, sha = packet_spec.compute_len_sha(env)
+        if not packet_spec.within_mtu(length):
+            return self.send(to, "reply", content, meta=meta, allow_frag=True)
+        packet_spec.stamp(env, length=length, sha=sha)
+        lane_key = packet_spec.lane_stream_key(self.ns, "work", to=str(to))
+        lane_mid: Optional[str] = None
+        for attempt in (1, 2):                          # S2: exactly one retry
+            try:
+                lane_mid = str(self._client.xadd(lane_key, env,
+                                                 maxlen=packet_spec.lane_maxlen("work"),
+                                                 approximate=True))
+                break
+            except Exception as e:
+                if attempt == 2:
+                    _loud(f"[send-reply] lane write FAILED twice for {lane_key} ({e}) -- "
+                          f"falling back to legacy-only; lane consumers will get this reply "
+                          f"via the straggler net, delayed")
+        legacy_mid: Optional[str] = None
+        try:
+            legacy_mid = str(self._client.xadd(self._inbox_key(str(to)), env,
+                                               maxlen=self.maxlen, approximate=True))
+        except Exception:
+            pass
+        if lane_mid is None and legacy_mid is None:
+            return None                                  # both writes failed: the send failed
+        self._touch()
+        self._ring_bell(str(to), lane_mid or legacy_mid, "reply")
+        return lane_mid or legacy_mid
+
+    def is_duplicate_reply(self, reply_id: str, *, ttl_s: Optional[int] = None) -> bool:
+        """T066 S4: receiver-side reply dedup. First sight MARKS the id (SET NX + TTL) and
+        reports False; a repeat within the TTL reports True. Fail-open: offline or a Redis
+        error reports False -- deliver rather than drop (losing a reply is the worse bug).
+        TTL default 1200s (~2x the runner reply window); dial: BIFROST_REPLY_DEDUP_TTL_S."""
+        if not reply_id or not self.online:
+            return False
+        ttl = ttl_s if ttl_s is not None else int(os.environ.get("BIFROST_REPLY_DEDUP_TTL_S", "1200") or 1200)
+        try:
+            fresh = self._client.set(f"{self.ns}:reply_seen:{reply_id}", "1", nx=True, ex=ttl)
+            return not bool(fresh)
+        except Exception:
+            return False
+
     def _emit(self, stream: str, *, to: str, kind: str, content: Any,
               parts: Optional[List[Part]] = None, meta=None, allow_frag: bool = False) -> Optional[str]:
         if not self.online:

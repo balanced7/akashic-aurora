@@ -612,7 +612,13 @@ def _process_one(m, bus, args, responder, rate) -> None:
             # echo loop is possible. The recipient can still SEE it via peek/consume --
             # the filter is on ANSWERING, not visibility. The defect was the recipient's
             # runner consuming it silently (wait(advance=True) + should_answer filter).
-            bus.send(m.frm, reply_kind, out, meta=reply_meta)
+            # T066: a real ANSWER goes lane-first with a reply_id (the recipient is a
+            # lane-mode consumer; the advisory dual-write stranded replies on legacy).
+            # Non-answer notes keep the plain send -- the P0 soak path, by design.
+            if reply_kind == "reply":
+                bus.send_reply(m.frm, out, meta=reply_meta)
+            else:
+                bus.send(m.frm, reply_kind, out, meta=reply_meta)
             dest = m.frm
         killpoint("post-send-pre-sentinel")
         _mark_reply_sent(bus, m.id)   # RB-26: dedup sentinel BEFORE the cursor commits

@@ -341,7 +341,30 @@ class BifrostAPI:
                 sh_fields = {"shadow_inbox": sh_in, "shadow_bc": sh_bc}
             if sh_fields:
                 self.bus.advance_cursor_fields(lane_key, sh_fields, generation=generation)
-        return out
+        # T066 S4: receiver-side reply dedup over meta.reply_id. Delivery MARKS the id for
+        # every reply; only a LEGACY-path copy of an already-seen id is DROPPED -- work-lane
+        # copies always deliver, so RB-26 crash-redelivery (work cursor advances only after
+        # processing) stays intact. The dual-write twin / straggler re-race is the one shape
+        # this kills (the 2026-07-14 wake-loop class).
+        deduped: List[Any] = []
+        dropped = 0
+        for m in out:
+            if str(getattr(m, "kind", "")) == "reply":
+                try:
+                    mmeta = getattr(m, "meta", {}) or {}
+                    rid = str(mmeta.get("reply_id") or "")
+                    src = str(mmeta.get("_lane_src") or "")
+                except Exception:
+                    rid, src = "", ""
+                if rid and self.bus.is_duplicate_reply(rid) and src == "legacy":
+                    dropped += 1
+                    continue
+            deduped.append(m)
+        if dropped:
+            import sys
+            print(f"[work-drain] {dropped} duplicate reply(ies) skipped for {self.agent} "
+                  f"(reply_id dedup, T066)", file=sys.stderr)
+        return deduped
 
     @property
     def wake_cmd(self) -> str:

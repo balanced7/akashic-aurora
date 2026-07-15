@@ -2411,15 +2411,15 @@
       "id": "T066",
       "title": "Runner reply lane straggler (T045 seam, live receipt 2026-07-14): deepseek runner replies land LEGACY-ONLY -- work-lane write fails upstream on the sender side; caught by the M2 dual-write net at claude's work-drain ('1 LEGACY STRAGGLER... defect signal, investigate the sender side'). Symptom chain: work-lane wake seat insta-wakes on the reply, bifrost-sync default consume drains legacy so the lane stays unread -> wake loop (3 cycles tonight). Fix the runner reply send path through the lane router + a pin that a runner reply lands on the work lane",
       "desc": "",
-      "owner": "",
+      "owner": "claude",
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "approved",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "HEAD",
+      "verified_by": "deepseek-code-pass-P1-P7 + L1-live (lane-first 43ms, single wake, twin killed observed)",
       "created": "2026-07-15T02:20:35+00:00",
-      "updated": "2026-07-15T03:03:38+00:00",
+      "updated": "2026-07-15T03:32:35+00:00",
       "history": [
         {
           "to": "proposed",
@@ -2430,6 +2430,26 @@
           "to": "approved",
           "by": "user",
           "at": "2026-07-15T03:03:38+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-15T03:23:06+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-07-15T03:23:06+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-07-15T03:32:35+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-15T03:32:35+00:00"
         }
       ]
     },

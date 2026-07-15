@@ -136,11 +136,15 @@ def test_p4_receiver_drops_legacy_duplicate_keeps_work_copy(monkeypatch):
     assert api.bus._client is not None or pytest.skip("redis not available")
 
     sender.send_reply("claude", "the verdict", meta={"answers": "9-0"})
-    first = api.work_drain(timeout_ms=1)
+    nxt = {}
+    first = api.work_drain(timeout_ms=1, since_out=nxt)
     replies = [m for m in first if str(getattr(m, "kind", "")) == "reply"]
     assert len(replies) == 1, f"first drain delivers the work copy, got {len(replies)}"
     rid = (getattr(replies[0], "meta", {}) or {}).get("reply_id")
     assert rid, "delivered reply carries its reply_id"
+    # the consumer contract (pin R3): commit the work cursor AFTER processing
+    api.bus.advance_to(inbox=nxt.get("inbox"), bc=nxt.get("bc"),
+                       cursor_key=api.bus.lane_cursor_key())
 
     # the legacy twin re-surfaces later (same envelope, same reply_id, fresh stream id)
     twin = dict(_entries(sender._client, f"{ns}:inbox:claude")[0])
