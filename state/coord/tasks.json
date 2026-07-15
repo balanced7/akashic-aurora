@@ -2517,15 +2517,15 @@
       "id": "T067",
       "title": "Ergonomics retro fold-ins (deepseek retro 2026-07-14, research/reviewed/deepseek-ergonomics-retro-2026-07-14.md): (1) ToolBox third-door parity -- knowledge_map/bifrost_ack/delta absent from his LIVE tool list despite manifest 'shared' (manifest audits CLI<->MCP only; the runner ToolBox is a third door check_door_parity never sees); (2) guarded exec -- allowlisted command families (pytest, agent_cli read verbs) behind the guarded-write approval model, kills the ask-Daniel-to-run-a-test asymmetry; (3) boot-inject his private memory notes (T050 Q1 leftover, his flagged leak); (4) pre-lane inbox hygiene -- ack tool in ToolBox or one-time mark-pre-lane-read migration (9 stale handoffs indistinguishable from live mail); (5) function-target read_file (or search_files returning bodies) -- the 120k agent_cli.py truncation hit 3x in one session",
       "desc": "",
-      "owner": "",
+      "owner": "claude",
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "approved",
+      "status": "claimed",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-15T03:05:12+00:00",
-      "updated": "2026-07-15T03:52:03+00:00",
+      "updated": "2026-07-15T05:04:39+00:00",
       "history": [
         {
           "to": "proposed",
@@ -2536,6 +2536,11 @@
           "to": "approved",
           "by": "user",
           "at": "2026-07-15T03:52:03+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-15T05:04:39+00:00"
         }
       ]
     },

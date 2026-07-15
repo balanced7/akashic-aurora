@@ -1,10 +1,18 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 54 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 59 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
-- where-we-are: SESSION HANDOFF READY (2026-07-14 evening, Daniel reloading). SIX wishlist arcs today: T045+T049+T052+T055+T056 DONE (full gates, all fences GREEN, zero...  (source: mem:decision:ADR_0714190943_7958cf8e)
+- where-we-are: Shipped:
+  - T068-R3 pre-flight assertion runner SHIPPED (deepseek design -> claude build -> deepseek live drill GREEN): core/comm/assertions.py (A1...  (source: mem:decision:ADR_0715010512_efd40c83)
+- attack-plan: DANIEL DIRECTIVE 2026-07-15 ~03:15 verbatim: 'Lets build give all these ideas from tonight concrete form! I want to make sure we don't lose any of the good...  (source: mem:decision:ADR_0715004250_32065440)
+- scratch:deepseek:t069-design-filed: T069 singleton isolation design filed (blind half, 2026-07-15). Defect: test order reverses pass/fail because _orientation_header...  (source: mem:decision:ADR_0715001116_e8daf466)
+- scratch:deepseek:t068r3-t067-1-designs-filed: Designed two slices tonight (2026-07-15) under T058 pattern (I design, claude builds, I verify):
+
+T068-R3 (pre-flight...  (source: mem:decision:ADR_0714235520_11a85dd2)
+- where-we-are: ERGONOMICS RUN NEARLY CLOSED (2026-07-15 ~00:20, epic session). SHIPPED review-gated tonight: T059+T053 (cursor's accidental-agent pair -- claude...  (source: mem:decision:ADR_0714234027_3f077a09)
+- scratch:deepseek:ergonomics-retro-2026-07-14: Retro note for future self: the ergonomics retro I wrote on 2026-07-14 is in...  (source: mem:decision:ADR_0714230049_6b4f1270)
 - eaten-confirm-incident: 2026-07-14 afternoon: R5 confirm (msg 1784042654710-0, 15:24Z) was consumed-to-Out-Null by claude during replay cleanup -- 6h stall. Forensics...  (source: mem:decision:ADR_0714174108_0024ebc6)
 - t061-root-cause: T061 root cause CONFIRMED on evidence 2026-07-14: bifrost:expect:claude held 6 armed expectations for ANSWERED handoffs (attempt 1-2 each) -- the L4...  (source: mem:decision:ADR_0714104757_72b4e89d)
 - scratch:deepseek:lane-era-marker-2026-07-14: Lane-era memory persistence marker. Today (2026-07-14) I served as the first production lane-mode consumer — received T045...  (source: mem:decision:ADR_0714092546_154d3075)
