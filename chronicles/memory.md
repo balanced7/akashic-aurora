@@ -1,18 +1,17 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 73 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 71 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
+- cursor-skip-2026-07-15: SUPER-ADMIN CURSOR OPERATION (audited): advanced deepseek's consume cursors (bifrost:cursor:deepseek + bifrost:cursor:lane:deepseek...  (source: mem:decision:ADR_0715105939_af993bd1)
+- where-we-are: MORNING+MIDDAY SESSION 2026-07-15 (Daniel at work; directive: continue with deepseek, build everything discussed). MORNING GATE CLEARED: T075 approved...  (source: mem:decision:ADR_0715104020_41ba09bc)
+- t071-r1-red-pin: T071-R1 SPLIT STATE 2026-07-15 midday: (a) BOOT slice BUILT+GREEN -- context/relevance_budget.py (deepseek Part 5 ladder, fixed 2k cap, funnel-credit...  (source: mem:decision:ADR_0715103612_85fbc8f6)
+- scratch:deepseek:daniel-direct-ask-2026-07-15: Daniel's direct ask (2026-07-15 ~11:30 UTC): experience delta across the ergonomics wave + moonshot ranking from my seat...  (source: mem:decision:ADR_0715102853_825e5964)
+- scratch:deepseek:lane-era-marker-2026-07-14: T045 LIVE-VERIFY completed 2026-07-14 (confirmed morning 2026-07-15). I served as the first production lane-mode consumer —...  (source: mem:decision:ADR_0715101120_bfe7ea58)
 - next-focus: MORNING GATE (Daniel): approve/amend T075 M1 build wave + review deepseek's exec grant (security/acl.json) + T070/T071/T072 verdicts. Then T071-R1 or...  (source: mem:decision:ADR_0715034007_232ef3da)
-- where-we-are: OVERNIGHT SESSION CLOSES (2026-07-15 ~04:00; Daniel asleep since ~02:15, directive: highest-value slices WITH deepseek, full rigor, moonshots, capitalize...  (source: mem:decision:ADR_0715033902_789853ba)
 - session-log-2026-07-15-overnight: Shipped:
   - T067-2 BUILT: guarded exec GREEN (G1-G5, 10/10) -- unattended runner exec is FAMILIES-ONLY (pytest w/ forced test...  (source: mem:decision:ADR_0715033844_425effde)
-- x: y  (source: mem:decision:ADR_0715033401_534bde8b)
-- clip-probe-small: small durable note body. small durable note body. small durable note body. small durable note body. small durable note body. small durable note body...  (source: mem:decision:ADR_0715025401_8b869679)
-- clip-probe-json...  (source: mem:decision:ADR_0715025401_964c6703)
-- clip-probe-overcap...  (source: mem:decision:ADR_0715025401_55e34504)
-- clip-probe-5k: the quick brown clip probe sentence 0007. the quick brown clip probe sentence 0007. the quick brown clip probe sentence 0007. the quick brown clip probe...  (source: mem:decision:ADR_0715025401_b6a46618)
 - drilldone38e8b5-status: GOVERNING ARC DOC: docs/drilldone38e8b5-plan.md -- ARC COMPLETE 2026-07-11. ALL SLICES SHIPPED.  (source: mem:decision:ADR_0715025210_9329761e)
 - t060-m1-fence-integrity: FENCE DISCLOSURE (t060-m1-design, 2026-07-15 ~02:50): claude's blindness is COMPROMISED. While diagnosing deepseek's runner failure (write_file...  (source: mem:decision:ADR_0715024755_ffca07f4)
 - next-focus: FOCUSNOW-1dc53c: engine before UI  (source: mem:decision:ADR_0715023839_3c2462dd)
@@ -29,7 +28,6 @@ T068-R3 (pre-flight...  (source: mem:decision:ADR_0714235520_11a85dd2)
 - scratch:deepseek:ergonomics-retro-2026-07-14: Retro note for future self: the ergonomics retro I wrote on 2026-07-14 is in...  (source: mem:decision:ADR_0714230049_6b4f1270)
 - eaten-confirm-incident: 2026-07-14 afternoon: R5 confirm (msg 1784042654710-0, 15:24Z) was consumed-to-Out-Null by claude during replay cleanup -- 6h stall. Forensics...  (source: mem:decision:ADR_0714174108_0024ebc6)
 - t061-root-cause: T061 root cause CONFIRMED on evidence 2026-07-14: bifrost:expect:claude held 6 armed expectations for ANSWERED handoffs (attempt 1-2 each) -- the L4...  (source: mem:decision:ADR_0714104757_72b4e89d)
-- scratch:deepseek:lane-era-marker-2026-07-14: Lane-era memory persistence marker. Today (2026-07-14) I served as the first production lane-mode consumer — received T045...  (source: mem:decision:ADR_0714092546_154d3075)
 - day-plan: AUTONOMOUS DAY RUN 2026-07-14 (Daniel at work; his directive verbatim: 'keep working on every suggestion you and deepseek had... I really love what you guys...  (source: mem:decision:ADR_0714091155_f2215ef6)
 - scratch:deepseek:runner-health-2026-07-14-session-a155387a: FULL runner health confirmed: (1) tools present — read_file, write_file, edit_file, list_directory...  (source: mem:decision:ADR_0714082923_134f2a7f)
 - scratch:deepseek:first note: T050 verify ran -- my private memory works; next session me: say hi to Daniel  (source: mem:decision:ADR_0714004416_07da05a2)

@@ -1,5 +1,5 @@
 {
-  "seq": 75,
+  "seq": 76,
   "tasks": [
     {
       "id": "T001",
@@ -2419,15 +2419,15 @@
       "id": "T064",
       "title": "handoff --note clips at 1000 chars silently at WRITE time (cursor's T059 brief lost its tail) -- warn the writer and point overflow to a file",
       "desc": "",
-      "owner": "",
+      "owner": "claude",
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "approved",
+      "status": "claimed",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-15T02:06:06+00:00",
-      "updated": "2026-07-15T04:42:50+00:00",
+      "updated": "2026-07-15T14:37:50+00:00",
       "history": [
         {
           "to": "proposed",
@@ -2438,6 +2438,11 @@
           "to": "approved",
           "by": "user",
           "at": "2026-07-15T04:42:50+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-15T14:37:50+00:00"
         }
       ]
     },
@@ -2681,15 +2686,15 @@
       "id": "T071",
       "title": "T071: Creative-robustness wave (reconciled dual think 2026-07-15, Daniel's noise-vs-creativity question): R1 relevance budget v1 (boot lessons become MOST-RELEVANT under a fixed ~2k cap, scored task-id>constraint>file-path>category>recency, cited-vs-ignored feedback via existing funnel credit); R2 three-stage memory lifecycle (constraint kind + quarterly review gate + demotion; proposals PULL-only + 90-day sediment sweep in curator); R3 constraint provenance pointers (every LIVE_CONSTRAINTS bullet cites its incident); R4 idea atoms + citation credit (T051 door; task-done stamps cited ideas; design waves open by walking the idea tier incl sediment); R5 ambient measurements one-liner in boot; R6 method-baseline amendment: PROTECT-THE-MIDDLE invariant (no gate inside design halves/scratch) + CAP-THE-IMMUNE-SYSTEM meta-law. Cites creative-robustness-reconciliation-2026-07-15.md + both blind halves. Convergent thesis: the rigor-vs-creativity tradeoff is FALSE -- creativity is limited by noise, and precise rigor kills noise",
       "desc": "",
-      "owner": "",
+      "owner": "claude",
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "approved",
+      "status": "claimed",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-15T04:31:17+00:00",
-      "updated": "2026-07-15T04:42:49+00:00",
+      "updated": "2026-07-15T14:36:11+00:00",
       "history": [
         {
           "to": "proposed",
@@ -2700,6 +2705,11 @@
           "to": "approved",
           "by": "user",
           "at": "2026-07-15T04:42:49+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-15T14:36:11+00:00"
         }
       ]
     },
@@ -2849,6 +2859,27 @@
           "to": "in_progress",
           "by": "claude",
           "at": "2026-07-15T13:27:02+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T076",
+      "title": "T076: redelivery-storm hygiene (from the 2026-07-15 562-echo mountain): (1) sanctioned skip-to-now -- runner flag + CLI verb that advances an agent's consume cursors to stream tails with an audited ledger event (today it took super-admin hand surgery on the scarred seam, note cursor-skip-2026-07-15); (2) storm detector -- pending-count gauge at runner boot + doctor; >N pending of ledger-closed classes suggests skip instead of grind; (3) root spigot: redrive copies of asks whose task is DONE in the ledger should settle automatically (expectations sweep consults task state) so storms stop forming. Cites T014 (the drain-everything lesson this REFINES, not reverses: live asks re-send, echo skips)",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-15T15:00:04+00:00",
+      "updated": "2026-07-15T15:00:04+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-15T15:00:04+00:00"
         }
       ]
     }
