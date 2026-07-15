@@ -1,5 +1,5 @@
 {
-  "seq": 76,
+  "seq": 77,
   "tasks": [
     {
       "id": "T001",
@@ -2885,6 +2885,32 @@
           "to": "approved",
           "by": "user",
           "at": "2026-07-15T19:40:55+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T077",
+      "title": "T077: Presence-autopilot wave A3+A5 (per presence-autopilot-reconciliation-2026-07-15.md; Daniel directive verbatim in note presence-autopilot-directive): A3 runner-down visibility (doctor flag + whisper SIBLINGS render + 10min re-escalation; deepseek builds, claude verifies), A5 adopt-and-forget polish + runbook + epsilon handoff (joint). A1/A2 ride T075 gamma-scope; A4 rides T076 (approved).",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-15T19:46:20+00:00",
+      "updated": "2026-07-15T19:46:20+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-15T19:46:20+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-15T19:46:20+00:00"
         }
       ]
     }
