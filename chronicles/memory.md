@@ -4,8 +4,8 @@ _Distilled from 73 active note(s) · regenerate via `py agent_cli.py note` / `no
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
+- where-we-are: T078 WAVE MID-FLIGHT 2026-07-15 evening (Daniel gate verbatim in t078-wave-gate): W1 SHIPPED (deepseek token meter, claude GREEN 8/8, mirrored) | W3...  (source: mem:decision:ADR_0715162935_2ab2b53f)
 - t078-wave-gate: DANIEL GATE 2026-07-15 evening verbatim: 'Lets get to building the highest roi items!' -- T078 first wave W1-W6 APPROVED TO BUILD per...  (source: mem:decision:ADR_0715161629_a6685df0)
-- where-we-are: AUTOPILOT ADOPTED 2026-07-15 ~16:00: daemon:claude SEATED (--manage-listener, pid 2860) coexisting with the session consumer seat -- stop-hook fast path...  (source: mem:decision:ADR_0715155854_633be11b)
 - presence-autopilot-directive: DANIEL DIRECTIVE 2026-07-15 afternoon verbatim: 'Is there some kind of subsystem we can implement to make all the arming claiming standing...  (source: mem:decision:ADR_0715154055_1783673d)
 - cursor-skip-2026-07-15: SUPER-ADMIN CURSOR OPERATION (audited): advanced deepseek's consume cursors (bifrost:cursor:deepseek + bifrost:cursor:lane:deepseek...  (source: mem:decision:ADR_0715105939_af993bd1)
 - t071-r1-red-pin: T071-R1 SPLIT STATE 2026-07-15 midday: (a) BOOT slice BUILT+GREEN -- context/relevance_budget.py (deepseek Part 5 ladder, fixed 2k cap, funnel-credit...  (source: mem:decision:ADR_0715103612_85fbc8f6)
