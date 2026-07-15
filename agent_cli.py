@@ -1122,6 +1122,23 @@ def _orientation_header(agent_id: str) -> str:
             lines.append(f"#   BLOCKED: {t['id']} - {_clip(t['title'], 70)}")
     except Exception:
         pass
+    lc = root / "docs" / "LIVE_CONSTRAINTS.md"
+    if lc.is_file():
+        # T068-R1 (deepseek M9): the constraint pack -- the live-system rules that break a
+        # design when forgotten, rendered into EVERY seat's orientation header so
+        # constraint-awareness stops being experience-acquired. Placed AFTER the ledger
+        # block: the four cold-start questions own the head-16 (T022 contract); capped at
+        # 6 in-head, the doc carries the full list.
+        try:
+            bullets = [ln.strip()[2:] for ln in lc.read_text(encoding="utf-8").splitlines()
+                       if ln.strip().startswith("- ")]
+            if bullets:
+                extra = f" (+{len(bullets) - 6} more in the doc)" if len(bullets) > 6 else ""
+                lines.append(f"# LIVE CONSTRAINTS (docs/LIVE_CONSTRAINTS.md -- forget one and "
+                             f"it breaks you{extra}):")
+                lines.extend(f"#   {b}" for b in bullets[:6])
+        except Exception:
+            pass
     return "\n".join(lines)
 
 
@@ -2483,14 +2500,19 @@ def cmd_bifrost_ack(args):
     (the old guard here scanned a 200-message page under try/except and could be
     volume-defeated)."""
     from core.comm.promoter import ack, ack_verdict
-    allowed, why = ack_verdict(args.agent_id, args.msg_id)
+    # T063: the unhandled-warning prints ids as 'bifrost:<id>' -- the door accepts that
+    # exact form (and the raw id) so its own printed command round-trips.
+    mid = str(args.msg_id)
+    if mid.startswith("bifrost:"):
+        mid = mid[len("bifrost:"):]
+    allowed, why = ack_verdict(args.agent_id, mid)
     if not allowed:
         print(f"ERROR: ack refused -- {why}")
         return 1
-    ok = ack(args.agent_id, args.msg_id, note=args.note or "")
+    ok = ack(args.agent_id, mid, note=args.note or "")
     if args.json:
-        print(json.dumps({"acked": ok, "msg_id": args.msg_id, "by": args.agent_id})); return 0 if ok else 1
-    print(f"[OK] {args.agent_id} acked bifrost:{args.msg_id}" if ok
+        print(json.dumps({"acked": ok, "msg_id": mid, "by": args.agent_id})); return 0 if ok else 1
+    print(f"[OK] {args.agent_id} acked bifrost:{mid}" if ok
           else "ERROR recording ack (event log unavailable?)")
     return 0 if ok else 1
 

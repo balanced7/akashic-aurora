@@ -1,6 +1,6 @@
 # Packet Spec v1 -- reconciled build spec (dual-half, dated)
 
-Status: LAW  (v1 reconciled + AMENDED A-F on 2026-07-13. Amendments from the fenced spec review --
+Status: current  (LAW -- v1 reconciled + AMENDED A-F on 2026-07-13. Amendments from the fenced spec review --
 deepseek Q1 (research/reviewed/deepseek-t040-review-2026-07-12.md) + claude cross-check
 (research/reviewed/claude-t040-spec-crosscheck-2026-07-12.md): A add `pri`, B per-lane `overflow`,
 C add `ecn`, D CUT `ttl` (refined: fold into deadline_ts + conditional DEADLINE_EXCEEDED reply),
