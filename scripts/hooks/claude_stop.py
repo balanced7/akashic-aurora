@@ -217,6 +217,23 @@ def main():
             incarnation.refresh_card(AGENT, session_id)   # a lost card self-heals, R12)
         except Exception:
             pass
+    # AUTOPILOT A1 (presence-autopilot-reconciliation, kill switch AKASHIC_DAEMON_WAKE=0):
+    # a LIVE daemon owns wakeability -- this hook never blocks again while it runs; a
+    # missing listener seat becomes a .rearm trigger the daemon answers within a tick.
+    # Daemon down -> the ONCE-latched nag rides stderr and the legacy path decides.
+    if os.getenv("AKASHIC_DAEMON_WAKE", "1") != "0":
+        try:
+            sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+            from core.comm import daemon_state
+            _v = daemon_state.stop_hook_wake_verdict(AGENT, session_id)
+            if _v.get("pass"):
+                print(_v.get("line", ""), file=sys.stderr)
+                _finish_nonwake_checks(payload)
+                return
+            if _v.get("nag"):
+                print(_v.get("line", ""), file=sys.stderr)
+        except Exception:
+            pass   # fail-open to the legacy path -- the fast path is never a right
     if not wake_armed(session_id):
         # T050 Q6 (the arm-vs-hook race): a JUST-launched watcher needs ~1-2s of python+import
         # startup before its seat exists -- five false blocks on 2026-07-13/14 were this race,
@@ -247,6 +264,13 @@ def main():
                 "re-invokes you). It stays armed for HOURS -- this backstop should be rare. "
                 "Then stop.")}))
             return
+    _finish_nonwake_checks(payload)
+
+
+def _finish_nonwake_checks(payload):
+    """Everything the hook owes REGARDLESS of wakeability (the A1 fast path and
+    the legacy path both land here): the promise audit -- a content-quality
+    gate, never a liveness concern (reconciliation convergence 3)."""
     try:
         reason = _promise_block(payload)
     except Exception:
