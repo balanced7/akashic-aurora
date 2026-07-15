@@ -198,6 +198,26 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
                           f"{agent}: FROZEN -- {frozen.get('reason', 'paused')}"
                           + (f" ({int(age)}s)" if age else ""),
                           "py agent_cli.py bifrost-resume"))
+
+        # T077 A3: runner-down visibility from daemon presence card
+        try:
+            from core.comm.incarnation import daemon_runtimes
+            rt = daemon_runtimes(agent)
+            runner = rt.get("runner", "")
+            if runner == "blocked":
+                out.append(_f(agent, "runner_blocked", "page",
+                              f"{agent}: RUNNER BLOCKED (circuit breaker tripped) — "
+                              f"daemon holds presence, runner stopped. "
+                              f"Restart the daemon to reset.",
+                              f"py scripts/bifrost_daemon.py --agent {agent} --spawn-runner"))
+            elif runner == "down":
+                since = rt.get("since_s", "?")
+                out.append(_f(agent, "runner_down", "banner",
+                              f"{agent}: runner DOWN ({since}s) — daemon presence held, "
+                              f"restart the daemon to respawn.",
+                              f"py scripts/bifrost_daemon.py --agent {agent} --spawn-runner"))
+        except Exception:
+            pass
     except Exception:
         pass
     return out

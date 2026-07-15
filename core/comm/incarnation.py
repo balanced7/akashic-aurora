@@ -171,6 +171,23 @@ def read_cards(agent: str, c=None, allow_fallback: bool = True,
     return out
 
 
+def daemon_runtimes(agent: str, c=None, allow_fallback: bool = True) -> Dict[str, Any]:
+    """Read the agent's daemon presence card and return its 'runtimes' field, or {}.
+    T077 A3: the daemon's presence card carries live runner status; every consumer
+    (doctor, whisper) reads this one key instead of probing the runner directly."""
+    cli = _resolve_client(c, allow_fallback)
+    if cli is None:
+        return {}
+    try:
+        raw = cli.get(f"{_ns()}:presence:{agent}")
+        if not raw:
+            return {}
+        card = json.loads(raw) if raw else {}
+        return dict(card.get("runtimes") or {})
+    except Exception:
+        return {}
+
+
 def live_incarnations(agent: str, my_session: Optional[str] = None,
                       tmp: Optional[str] = None,
                       now: Optional[float] = None,

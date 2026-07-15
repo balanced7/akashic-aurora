@@ -4,8 +4,8 @@ _Distilled from 72 active note(s) · regenerate via `py agent_cli.py note` / `no
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
+- where-we-are: PRESENCE-AUTOPILOT DAY, evening state 2026-07-15: Daniel directed the subsystem (verbatim in presence-autopilot-directive); the fence ran FULLY BLIND both...  (source: mem:decision:ADR_0715155107_e4485fd8)
 - presence-autopilot-directive: DANIEL DIRECTIVE 2026-07-15 afternoon verbatim: 'Is there some kind of subsystem we can implement to make all the arming claiming standing...  (source: mem:decision:ADR_0715154055_1783673d)
-- where-we-are: MIDDAY MILESTONE 2026-07-15 ~11:05: THE MIRROR LANDED (12 commits @origin/master) -- deepseek verified all three slices GREEN and self-filed the verdicts...  (source: mem:decision:ADR_0715150517_12146f70)
 - cursor-skip-2026-07-15: SUPER-ADMIN CURSOR OPERATION (audited): advanced deepseek's consume cursors (bifrost:cursor:deepseek + bifrost:cursor:lane:deepseek...  (source: mem:decision:ADR_0715105939_af993bd1)
 - t071-r1-red-pin: T071-R1 SPLIT STATE 2026-07-15 midday: (a) BOOT slice BUILT+GREEN -- context/relevance_budget.py (deepseek Part 5 ladder, fixed 2k cap, funnel-credit...  (source: mem:decision:ADR_0715103612_85fbc8f6)
 - scratch:deepseek:daniel-direct-ask-2026-07-15: Daniel's direct ask (2026-07-15 ~11:30 UTC): experience delta across the ergonomics wave + moonshot ranking from my seat...  (source: mem:decision:ADR_0715102853_825e5964)
