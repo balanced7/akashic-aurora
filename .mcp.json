@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "akashic-aurora": {
+      "command": "py",
+      "args": ["ai_setup_mcp.py"],
+      "env": {}
+    }
+  }
+}

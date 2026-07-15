@@ -202,6 +202,17 @@ def recall_at(path: str = "", command: str = "", agent: str = "", limit: int = 3
 
 
 @mcp.tool()
+def task(args: str) -> str:
+    """The governed task ledger (T078-W3: the one verb the door lacked). Pass the
+    conductor subcommand as one string, e.g. 'list', 'next', 'propose "title" --by claude',
+    'claim T075 --by claude', 'done T075 --commit abc123 --verified-by deepseek'.
+    Transitions are GATED (approve is the human's); the ledger is git-durable and
+    beats old bus messages -- read it before acting on backlog mail."""
+    import shlex
+    return _run(agent_cli.cmd_task, rest=shlex.split(args or "list"))
+
+
+@mcp.tool()
 def recall_feedback(source: str, useful: bool = True, noise: bool = False) -> str:
     """Teach recall what's load-bearing: mark a recalled lesson 'useful' (default) or 'noise'
     (off-target). `source` is the lesson's pointer (e.g. learn:experiment:NAME); useful votes boost it
