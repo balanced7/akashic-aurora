@@ -143,3 +143,13 @@ ship first.)
 - Stop-hook downgrade consequences: MEDIUM / needs the T073 noise bars rerun.
 - OS anchoring specifics: MEDIUM / needs one boot drill on this machine.
 - Session auto-spawn: LOW / speculative, gated, costed.
+
+## Verdicts (fence M1-CF lines)
+
+V1. Tonight's lifecycle receipts (predecessor seat shadow, two runner deaths, the listener arm loop) happened as described and ground the table [CERTAIN]
+V2. Every presence contract is checkable from EXISTING signals (locks, seats, cards, doctor) -- M1 needs zero new liveness primitives [CERTAIN]
+V3. The supervisor must stay OUT of the message path in wave 1 -- the cursor is the system's most incident-scarred seam (T014/T045/T066) [DESIGN]
+V4. The SessionEnd release trio (seat + card + listener) turns the 30-minute clean-exit shadow into ~0s [DESIGN]
+V5. Downgrading the stop hook is safe ONLY once the T073 noise bars rerun green under supervisor arming [INFERRED]
+V6. Windows Task Scheduler can anchor the supervisor on this machine [INFERRED]
+V7. Headless session auto-spawn is speculative, costed, and stays Daniel-gated [UNCERTAIN]

@@ -1,5 +1,5 @@
 {
-  "seq": 74,
+  "seq": 75,
   "tasks": [
     {
       "id": "T001",
@@ -2773,11 +2773,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "in_progress",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "c39e207",
+      "verified_by": "deepseek",
       "created": "2026-07-15T06:04:04+00:00",
-      "updated": "2026-07-15T06:04:05+00:00",
+      "updated": "2026-07-15T07:20:55+00:00",
       "history": [
         {
           "to": "proposed",
@@ -2798,6 +2798,37 @@
           "to": "in_progress",
           "by": "claude",
           "at": "2026-07-15T06:04:05+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-07-15T07:20:35+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-07-15T07:20:55+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T075",
+      "title": "M1 continuous-presence build wave (slices alpha..epsilon per research/reviewed/t060-m1-reconciliation-2026-07-15.md; fence t060-m1-design CLOSED w/ sealed halves+PV): daemon-per-agent skeleton (lock+presence+stable-token, NO consume-path moves), SessionEnd clean-death trio (kills the 30min seat shadow), wake listener as managed child w/ kill-switched stop-hook downgrade, runner as managed child w/ circuit breaker + summary-injection convo survival (deepseek builds that slice), Windows Task Scheduler anchor + runbook. PARKED behind T047 + own fence: daemon-as-consumer fan-out",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "each slice fenced + pinned per the reconciliation's pin table; M1-P1..P12 from deepseek's half govern",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-15T07:20:55+00:00",
+      "updated": "2026-07-15T07:20:55+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-15T07:20:55+00:00"
         }
       ]
     }

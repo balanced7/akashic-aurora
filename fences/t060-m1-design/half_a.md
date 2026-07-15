@@ -208,3 +208,13 @@ The daemon is architecturally conservative: it composes existing primitives (loc
 3. **Host supervisor**: systemd/launchd/Windows Service — which one is the priority for the Akashic host (Windows today)?
 4. **Stop hook downgrade timing**: M1-B proposes immediate downgrade; should it be kill-switched (env var) for the first week?
 
+## Verdicts (fence M1-CF lines — transcribed 1:1 from sec.7 by claude for the seal; wording deepseek's, note t060-m1-fence-integrity)
+
+V1. Ground-truth lifecycles (runner / wake listener / stop hook / runner_lock / dispatcher) are as cited, file:line grounded from live code [CERTAIN]
+V2. The daemon composes existing primitives (lock TTL, heartbeat, BusLossGuard, subprocess); inbox fan-out is the ONLY genuinely new mechanism [DESIGN]
+V3. Restart policy (exponential backoff + 3-in-5min circuit breaker) is standard but untested in this codebase; daemon-crash -> host-restart -> lock-reacquire + fencing is the highest-risk sequence [INFERRED]
+V4. Stable UUID identity token works because fencing generations key on the token string (guard checks generation, not token equality) [INFERRED]
+V5. Tier-3 Cursor adapter is an architectural placeholder, not a design [UNCERTAIN]
+V6. scripts/bifrost_daemon.py and docs/runbooks/m1-daemon.md are FUTURE build targets named by the plan, not claims about existing code [DESIGN]
+V7. The strangler migration (coexistence -> daemon-preferred -> daemon-only) mirrors the proven T045/T073 pattern [CERTAIN]
+

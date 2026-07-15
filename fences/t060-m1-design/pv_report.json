@@ -1,0 +1,21 @@
+{
+  "ran_at": "2026-07-15T07:18:17.322445+00:00",
+  "verified": [
+    "half_a: core/comm/bus.py",
+    "half_a: core/comm/dispatcher.py",
+    "half_a: core/comm/runner_lock.py",
+    "half_a: scripts/bifrost_runner_deepseek.py",
+    "half_a: scripts/bifrost_wake.py",
+    "half_a: scripts/hooks/claude_stop.py",
+    "half_b: core/comm/incarnation.py",
+    "half_b: core/comm/runner_lock.py:39",
+    "half_b: core/comm/wake_seat.py:219",
+    "half_b: scripts/bifrost_runner_deepseek.py",
+    "half_b: scripts/bifrost_wake.py",
+    "half_b: scripts/hooks/claude_stop.py:220"
+  ],
+  "missing": [
+    "half_a: docs/runbooks/m1-daemon.md",
+    "half_a: scripts/bifrost_daemon.py"
+  ]
+}
