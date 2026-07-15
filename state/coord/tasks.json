@@ -1,5 +1,5 @@
 {
-  "seq": 72,
+  "seq": 73,
   "tasks": [
     {
       "id": "T001",
@@ -2721,6 +2721,42 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-15T05:26:44+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T073",
+      "title": "T073: Wake & Communicate robustness arc (Daniel verbatim 2026-07-15 ~05:00: 'It seems like it will be a chore trying to wake each other up lets fix this issue and then make our whole wake and communicate feature more robust and reliable so we stop getting bit by all these bugs that stall agents or render them unable to communicate... how do we avoid this handholding wake arm loop. how do we automate it so you don't have to worry about it. this is one of the things we are trying to solve'). Fenced dual design (claude+deepseek, twin sketch as public input): kill the manual wake-arm loop structurally (per-session seats fired ~15x tonight on noise + stop-hook demands manual Bash arming because hook-spawned processes are not harness-tracked); twin/incarnation wake (self-frm skip blocks same-agent mail); the delivery-channel inventory per harness tier; the resident dispatcher question (core/comm/dispatcher.py exists -- who watches the watcher); wake=work guarantee (noise floor to zero). Absorbs T072's transport items; T047 legacy retirement is a dependency-sibling. Build follows the reconciled spec only",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "in_progress",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-15T05:39:38+00:00",
+      "updated": "2026-07-15T05:39:39+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-15T05:39:38+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-15T05:39:39+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-15T05:39:39+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-07-15T05:39:39+00:00"
         }
       ]
     }
