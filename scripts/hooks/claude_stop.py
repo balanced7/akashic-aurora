@@ -200,6 +200,11 @@ def main():
             runner_lock.refresh_consumer(AGENT, f"session:{session_id}")   # tokens -> safe no-op)
         except Exception:
             pass
+        try:                             # T074 W11: every stop re-arms this session's
+            from core.comm import incarnation   # incarnation card (30m TTL = W12 expiry;
+            incarnation.refresh_card(AGENT, session_id)   # a lost card self-heals, R12)
+        except Exception:
+            pass
     if not wake_armed(session_id):
         # T050 Q6 (the arm-vs-hook race): a JUST-launched watcher needs ~1-2s of python+import
         # startup before its seat exists -- five false blocks on 2026-07-13/14 were this race,

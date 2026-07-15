@@ -58,6 +58,14 @@ def main() -> int:
     except Exception:
         pass
     try:
+        # T074 W11: publish this session's incarnation card at first breath -- siblings'
+        # whispers render it, --to-incarnation has an address, TTL reaps it if we die.
+        if sid:
+            from core.comm import incarnation
+            incarnation.publish_card(os.getenv("AKASHIC_AGENT_ID") or "claude", sid)
+    except Exception:
+        pass
+    try:
         # Wave 2: the janitor runs on every NEW lane; resume/compact continue the SAME
         # lane whose own armed watcher still serves it. (Live watchers are safe from the
         # janitor regardless -- two-factor orphanhood -- so this exemption is now about

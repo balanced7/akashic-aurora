@@ -227,7 +227,7 @@ def test_r4_fresh_marker_is_a_live_incarnation(tmp_path):
     from core.comm.incarnation import live_incarnations
     tmp = str(tmp_path)
     _touch_marker(tmp, "claude", "aaaabbbb-1111-2222-3333-444455556666", age_s=60)
-    out = live_incarnations("claude", tmp=tmp)
+    out = live_incarnations("claude", tmp=tmp, c=None, allow_fallback=False)
     assert len(out) == 1
     assert out[0]["session_id"].startswith("aaaabbbb")
     assert out[0]["age_min"] < 2.0
@@ -239,7 +239,8 @@ def test_r4_stale_marker_and_own_session_are_excluded(tmp_path):
     tmp = str(tmp_path)
     _touch_marker(tmp, "claude", "aaaabbbb-1111-2222-3333-444455556666", age_s=3 * 3600)
     _touch_marker(tmp, "claude", "09f7ad79-0000-0000-0000-000000000000", age_s=10)
-    out = live_incarnations("claude", my_session="09f7ad79-0000-0000-0000-000000000000", tmp=tmp)
+    out = live_incarnations("claude", my_session="09f7ad79-0000-0000-0000-000000000000",
+                            tmp=tmp, c=None, allow_fallback=False)
     assert out == [], "stale markers and the caller's own session never count as siblings"
 
 
@@ -250,7 +251,7 @@ def test_r4_seat_file_reported(tmp_path):
     _touch_marker(tmp, "claude", sid, age_s=30)
     with open(os.path.join(tmp, f"bifrost_wake_claude_{sid}.pid"), "w") as f:
         f.write("12345")
-    out = live_incarnations("claude", tmp=tmp)
+    out = live_incarnations("claude", tmp=tmp, c=None, allow_fallback=False)
     assert out and out[0]["has_seat"] is True
 
 
@@ -258,5 +259,5 @@ def test_r4_foreign_agent_markers_never_leak(tmp_path):
     from core.comm.incarnation import live_incarnations
     tmp = str(tmp_path)
     _touch_marker(tmp, "claude-2", "eeeeffff-1111-2222-3333-444455556666", age_s=30)
-    assert live_incarnations("claude", tmp=tmp) == [], \
+    assert live_incarnations("claude", tmp=tmp, c=None, allow_fallback=False) == [], \
         "prefix-exact: agent 'claude' never enumerates 'claude-2' incarnations (wake_seat precedent)"
