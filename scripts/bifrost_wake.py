@@ -104,6 +104,50 @@ def _hb_holder(path):
         return None
 
 
+# ---------------------------------------------------------------- T073 Phase 3: long-lived watcher
+def default_deadline_s() -> int:
+    """R17: 4 hours is the arm-once default (deepseek Design 3); BIFROST_WAKE_DEADLINE_S
+    dials it; BIFROST_WAKE_LONGLIVED=0 is the kill-switch back to the legacy 30 minutes."""
+    try:
+        env = os.getenv("BIFROST_WAKE_DEADLINE_S", "")
+        if env:
+            return max(60, int(env))
+    except Exception:
+        pass
+    if os.getenv("BIFROST_WAKE_LONGLIVED", "1") == "0":
+        return 1800
+    return 14400
+
+
+def rearm_trigger_path(agent: str, session_id: str = "", tmp: str = None) -> str:
+    """The deadline self-cycle's note to the waking session (P8). Mirrors seat naming."""
+    name = (f"bifrost_wake_{agent}_{session_id}.rearm" if session_id
+            else f"bifrost_wake_{agent}.rearm")
+    return os.path.join(tmp or tempfile.gettempdir(), name)
+
+
+def write_rearm_trigger(agent: str, session_id: str = "", tmp: str = None) -> None:
+    """R18: written ONLY on a deadline self-cycle -- never on mail exits (the session is
+    already waking for work) and never on stand-downs (the seat owner re-arms via the
+    stop-hook backstop; a trigger there would double-arm)."""
+    try:
+        with open(rearm_trigger_path(agent, session_id, tmp), "w", encoding="utf-8") as f:
+            f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] deadline self-cycle: re-arm the "
+                    f"watcher ONCE -- BIFROST_WAKE_LANE=work py scripts/bifrost_wake.py "
+                    f"--agent {agent}" + (f" --session {session_id}" if session_id else "") +
+                    " (run_in_background; it stays armed for hours)")
+    except Exception:
+        pass
+
+
+def clear_rearm_trigger(agent: str, session_id: str = "", tmp: str = None) -> None:
+    """R19: arming IS the requested re-arm -- the trigger clears at arm time."""
+    try:
+        os.remove(rearm_trigger_path(agent, session_id, tmp))
+    except Exception:
+        pass
+
+
 def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
           api=None, hb_path: str = None, my_pid: int = None,
           session_id: str = "") -> int:
@@ -125,7 +169,16 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
     out, seen = [], []
     steers = 0            # skipped steers are counted so the quiet exit says "check at next boot"
     deadline = time.time() + total_deadline_s
-    while time.time() < deadline and not out:
+    chunk_s = max(1.0, inner_block_ms / 1000.0)
+    cycled = False
+    while not out:
+        # T073 P8: near-deadline SELF-CYCLE -- exit before a block would overshoot the
+        # deadline, leaving a re-arm trigger. The exit re-invokes the owning session
+        # (harness-tracked task completion); its first cheap action is one re-arm.
+        if time.time() + chunk_s >= deadline:
+            write_rearm_trigger(agent, session_id)
+            cycled = True
+            break
         # Singleton per SEAT (newest-wins): a later same-session watcher overwrites the seat;
         # the older one must stand down instead of double-reading the bus. Detect-only makes a
         # brief overlap harmless, but two watchers on ONE seat = two wakes for one message.
@@ -169,6 +222,10 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
         print(f"BIFROST WAKE -- messages for {agent} (DETECTED, not consumed -- read them via "
               f"bifrost-sync/inbox):")
         print(json.dumps(out, indent=1))          # ensure_ascii=True -> cp1252-safe stdout on Windows
+    elif cycled:
+        print(f"BIFROST_WAKE: deadline self-cycle for {lane} after "
+              f"{total_deadline_s / 3600.0:.1f}h -- re-arm trigger written; relaunch ONCE "
+              f"(saw: " + ", ".join(seen[-8:]) + ")")
     else:
         queued = f"; {steers} steer(s) queued for next boot" if steers else ""
         print(f"BIFROST_WAKE: quiet for {agent} (saw: " + ", ".join(seen[-12:]) + queued + ")")
@@ -207,9 +264,14 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Block until a Bifrost message wakes this agent.")
     ap.add_argument("--agent", default="claude", help="the agent whose inbox to watch")
     ap.add_argument("--session", default="", help="owning session id -> per-session seat (Wave 2)")
-    ap.add_argument("--deadline", type=int, default=1800, help="seconds before an idle re-arm (default 30 min)")
+    ap.add_argument("--deadline", type=int, default=None,
+                    help="seconds before an idle self-cycle (default: 4h long-lived watcher, "
+                         "T073 P3; BIFROST_WAKE_DEADLINE_S dials, BIFROST_WAKE_LONGLIVED=0 "
+                         "reverts to the legacy 1800)")
     ap.add_argument("--block", type=int, default=120_000, help="ms per inner blocking read")
     a = ap.parse_args()
+    if a.deadline is None:
+        a.deadline = default_deadline_s()
     # T050 Q6: SEAT FIRST -- write it before any heavy import/work so the stop hook's check
     # sees an armed listener within ~200ms of launch (the race was the import chain).
     hb = _hb_path_fast(a.agent, a.session or None)
@@ -221,6 +283,7 @@ def main() -> int:
         pass
     if a.session:
         _migrate_legacy_ghost(a.agent)
+    clear_rearm_trigger(a.agent, a.session)   # R19: this arm IS the requested re-arm
     try:
         return watch(a.agent, a.deadline, a.block, hb_path=hb, my_pid=me, session_id=a.session)
     finally:

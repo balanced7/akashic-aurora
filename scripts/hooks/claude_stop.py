@@ -151,6 +151,18 @@ def wake_armed(session_id: str = ""):
     return _pid_alive(pid)
 
 
+def _rearm_trigger_fresh(session_id: str, max_age_s: float = 6 * 3600) -> bool:
+    """A fresh .rearm trigger = the watcher CYCLED (planned, T073 P8), not died --
+    the backstop message says so instead of crying wolf."""
+    name = (f"bifrost_wake_{AGENT}_{session_id}.rearm" if session_id
+            else f"bifrost_wake_{AGENT}.rearm")
+    p = os.path.join(tempfile.gettempdir(), name)
+    try:
+        return os.path.isfile(p) and (time.time() - os.path.getmtime(p)) < max_age_s
+    except Exception:
+        return False
+
+
 def _promise_block(payload: dict):
     """Blocking reason for a promise-shaped ending, or None. Once per session; fail-open."""
     if os.getenv("AKASHIC_STOP_PROMISE", "1") == "0":
@@ -224,11 +236,16 @@ def main():
                 pass
             arm_cmd = f"BIFROST_WAKE_LANE=work py scripts/bifrost_wake.py --agent {AGENT}" + (
                 f" --session {session_id}" if session_id else "")   # T045: lane-mode watch
+            # T073 P3: this block is the BACKSTOP, not a per-turn chore -- the watcher is
+            # long-lived (hours). Distinguish a planned deadline cycle from a death.
+            how = "cycled its deadline (planned)" if _rearm_trigger_fresh(session_id) \
+                else "died or was never armed"
             print(json.dumps({"decision": "block", "reason": (
-                f"No bifrost.wake listener is armed for '{AGENT}' -- this session is not wakeable from idle "
-                f"(DeepSeek/Daniel can't reach you). Re-arm it before stopping: launch "
-                f"`{arm_cmd}` as a run_in_background task (so it's harness-"
-                "tracked and its completion re-invokes you). Then stop.")}))
+                f"Your wake watcher {how} -- this session is not wakeable from idle "
+                f"(DeepSeek/Daniel can't reach you). Re-launch it ONCE: "
+                f"`{arm_cmd}` as a run_in_background task (harness-tracked; its completion "
+                "re-invokes you). It stays armed for HOURS -- this backstop should be rare. "
+                "Then stop.")}))
             return
     try:
         reason = _promise_block(payload)
