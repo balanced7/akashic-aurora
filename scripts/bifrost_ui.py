@@ -117,6 +117,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._html()
         if path == "/status":
             return self._json(self._status())
+        if path == "/vitals":
+            return self._json(self._vitals())
         if path == "/events":
             return self._events()
         if path == "/launcher/status":
@@ -194,6 +196,26 @@ class Handler(BaseHTTPRequestHandler):
                 "signals": signals, "max_hops": control.MAX_HOPS,
                 "halted": control.halted_agents(),
                 "narration": control.get_narration_level()}   # claude reasoning visibility: off|key|full
+
+    def _vitals(self):
+        """T079-E4: engine-room vitals for all known agents (heartbeat + runtimes +
+        tokens + pages + daemon_live). Polled at 2s. Never raises."""
+        try:
+            from core.comm.engine_vitals import gauge_snapshot
+            known = {"claude": None, "deepseek": None}  # default agents
+            try:
+                for g in registry.grants():
+                    known[g.agent_id] = None
+                agents = BUS.presence()
+                for a in agents:
+                    aid = a.get("agent")
+                    if aid and aid not in known:
+                        known[aid] = None
+            except Exception:
+                pass
+            return {a: gauge_snapshot(a) for a in known}
+        except Exception:
+            return {}
 
     def _json(self, obj, code=200):
         body = json.dumps(obj, default=str).encode("utf-8")
@@ -1014,6 +1036,39 @@ PAGE = r"""<!doctype html>
   .epirow textarea{resize:vertical; min-height:38px}
   .epirow input:focus,.epirow textarea:focus{outline:none; border-color:var(--aurora-neon,#48e6bf)}
   #epiMeta{color:var(--faint); font-size:11.5px; margin:2px 0 8px}
+
+  /* ===== T079-E4 ENGINE ROOM: gauge cluster (vitals strip above the feed) ===== */
+  #engine-room{display:flex; gap:0; margin:4px 16px 0; padding:10px 14px;
+    background:var(--glass); border:1px solid var(--glass-line); border-radius:14px;
+    backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+    min-height:48px; align-items:center; flex-wrap:wrap;
+    font-size:12px; transition:opacity .25s}
+  #engine-room.quiet{opacity:.55}
+  .er-gauge{display:flex; align-items:center; gap:6px; padding:0 12px;
+    border-right:1px solid var(--glass-line); white-space:nowrap}
+  .er-gauge:last-child{border-right:none}
+  .er-label{color:var(--faint); font-size:10px; text-transform:uppercase; letter-spacing:.4px}
+  .er-val{font-weight:650; font-size:13px}
+  .er-val.green{color:var(--user)} .er-val.amber{color:var(--amber)} .er-val.red{color:var(--danger)} .er-val.off{color:var(--muted)}
+  /* heartbeat ring — pulsing circle */
+  .er-hb{width:14px;height:14px;border-radius:50%;flex:none}
+  .er-hb.active{background:var(--user); box-shadow:0 0 8px var(--user); animation:hbPulse 1.5s infinite}
+  .er-hb.idle{background:var(--amber); box-shadow:0 0 4px var(--amber)}
+  .er-hb.offline{background:var(--muted); box-shadow:none}
+  .er-hb.down{background:var(--danger); box-shadow:0 0 6px var(--danger)}
+  @keyframes hbPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.35)}}
+  /* breaker light */
+  .er-blink{width:8px;height:8px;border-radius:50%;flex:none}
+  .er-blink.tripped{background:var(--danger); animation:blink .6s infinite}
+  .er-blink.good{background:var(--user)}
+  .er-blink.warn{background:var(--amber)}
+  /* token bar */
+  .er-tokbar{width:48px;height:6px;border-radius:3px;background:var(--bg2);overflow:hidden;flex:none}
+  .er-tokbar .fill{height:100%;border-radius:3px;transition:width .5s,background .5s}
+  .er-tokbar .fill.low{background:var(--user)} .er-tokbar .fill.mid{background:var(--amber)} .er-tokbar .fill.high{background:var(--danger)}
+  /* flow flag */
+  .er-flow{display:flex;gap:2px;align-items:flex-end}
+  .er-flow div{width:4px;border-radius:2px;transition:height .5s,background .5s}
 </style>
 </head>
 <body>
@@ -1044,6 +1099,7 @@ PAGE = r"""<!doctype html>
     <button class="lctl" onclick="epiSuggestContinue()">Continue</button>
   </div>
   <div id="hud"><div id="hud-toggle" class="show" onclick="toggleHUD()" title="collapse HUD">⌃ collapse</div></div>
+  <div id="engine-room"></div>
   <div id="deck"><div class="deck-cards" id="deckCards"></div><div class="slide-dots" id="deckDots"></div><div class="deck-controls"><span class="deck-ctrl" id="deckPrev" onclick="deckPrev()">◀ prev</span><span class="deck-ctrl" id="deckPause" onclick="deckTogglePause()">⏸ pause</span><span class="deck-ctrl" id="deckNext" onclick="deckNext()">next ▶</span></div></div>
   <div id="ash">
     <div id="ash-frame" onclick="toggleAsh()" title="agent selector">⏣</div>
@@ -1689,6 +1745,52 @@ function applyStatus(s){
   // (roster click / setTarget). Calling it every 1.2s was doing getBoundingClientRect() layout thrash.
 }
 async function poll(){ try{ applyStatus(await (await fetch('/status')).json()); }catch(e){} }
+
+// ===== T079-E4 ENGINE ROOM: gauge cluster via /vitals (2s poll) =====
+var _lastVitalsSig = '';
+function renderVitals(vitals){
+  vitals = vitals || {};
+  var sig = JSON.stringify(vitals);
+  if(sig === _lastVitalsSig) return;
+  _lastVitalsSig = sig;
+  var el = document.getElementById('engine-room');
+  if(!el) return;
+  var agents = Object.keys(vitals).sort();
+  if(!agents.length){ el.innerHTML = ''; return; }
+  var allQuiet = true;
+  var html = agents.map(function(a){
+    var v = vitals[a] || {};
+    var hb = v.heartbeat || 'offline';
+    var hbCls = {active:'active',idle:'idle',offline:'offline'}[hb] || 'offline';
+    if(hb!=='active') allQuiet = false;
+    // heartbeat ring
+    var hbHtml = '<div class="er-hb '+hbCls+'" title="'+esc(a)+' heartbeat: '+hb+'"></div>';
+    // breaker light (runner from runtimes)
+    var rt = v.runtimes || {};
+    var runner = rt.runner || '';
+    var blCls = runner==='blocked'||runner==='tripped' ? 'tripped' : (runner==='down'?'warn':'good');
+    if(runner==='blocked'||runner==='tripped') allQuiet = false;
+    var blHtml = '<div class="er-blink '+blCls+'" title="runner: '+(runner||'n/a')+'"></div>';
+    // token bar
+    var tok = v.tokens || {};
+    var tokTotal = (tok.prompt||0)+(tok.completion||0);
+    var tokPct = tokTotal>100000 ? 100 : Math.min(100,Math.round(tokTotal/1000)); // % of 100k
+    var tokCls = tokPct>80?'high':(tokPct>50?'mid':'low');
+    var tokHtml = '<div class="er-tokbar" title="'+tokTotal+' tokens today"><div class="fill '+tokCls+'" style="width:'+(Math.max(2,tokPct))+'%"></div></div>';
+    // pages indicator
+    var pages = v.pages||0;
+    if(pages>0) allQuiet = false;
+    var pageHtml = pages ? '<span style="color:var(--amber);font-weight:700" title="'+pages+' unread page(s)">⚡'+pages+'</span>' : '';
+    // daemon indicator
+    var dmon = v.daemon_live ? '🟢' : '';
+    return '<div class="er-gauge" title="'+esc(a)+' — click for status">'+
+      '<span class="er-label">'+esc(a)+'</span>'+hbHtml+blHtml+tokHtml+dmon+pageHtml+'</div>';
+  }).join('');
+  el.innerHTML = html;
+  el.classList.toggle('quiet', allQuiet);
+}
+async function pollVitals(){ try{ renderVitals(await (await fetch('/vitals')).json()); }catch(e){} }
+setInterval(pollVitals, 2000); pollVitals();
 // Defer poll to requestAnimationFrame so the browser can interleave input events
 // during typing — this prevents the 1.2s poll cycle from blocking the main thread.
 function pollDeferred(){
