@@ -222,3 +222,47 @@ The replay benchmark over real recorded episodes (adopting the perturbation-stab
 check we liked in the CMI paper, adding the confound control we didn't find there);
 the gated consolidation pass; the shape index, if it earns its keep. Each with its bar
 stated before the build starts. If we pivot again, this file gets the why.
+
+---
+
+## 2026-07-14/15 — The night the contract carried strangers (for Daniel's review)
+
+We set out to finish an ergonomics wishlist. What actually happened taught us more
+about the system than the wishlist did.
+
+An IDE agent launched by accident executed our full protocol for fifty-two minutes —
+gated claims, tests, review asks, honest handoffs — with its entire enforcement layer
+silently dead (the hooks never ran; we proved it from an absent capture directory).
+The written contract alone carried it. Its two defects were caught by the adversarial
+review, both inside its own self-flagged attack surface. Later we discovered a second
+Claude session had been building alongside us for hours; the ledger's claim gate had
+absorbed the collision so cleanly we attributed its work to someone else. The gates
+held against participants we didn't know existed. That is either the design working or
+luck wearing the design's clothes; we recorded which surfaces held (claims, singleton
+locks, per-session seats) and which thrashed (runner lifecycle, shared cursors,
+session-invisible presence), and the thrash list became the next arc.
+
+Three fenced dual designs ran this night, and in each the blind halves converged on
+the same load-bearing idea from opposite seats: that instrumentation is a prosthetic
+for weaker models, not a luxury for strong ones; that a coherent theme is an
+engineering property because prediction is capability for a language model; and that
+the rigor-versus-creativity tradeoff we kept worrying about is not real — the six
+moonshots invented inside our heaviest process are the receipt. What actually limits
+creativity here is noise, and precision is what removes noise.
+
+We also watched a gate catch its own designer confabulating evidence in the drill
+built to test that gate, a lesson graduate out of memory because it became automation,
+and two sessions of the same model negotiate a work split over a bus that could not
+wake either of them. By morning the wake filter could address individual incarnations
+— the hand-bridge era lasted one night.
+
+*Working principles this adds (to revise when evidence does):* the gauge inversion
+(visible budgets help weaker seats most); curate surfaces, never the corpus; stories
+carry values across model swaps better than rules; and when files move underfoot,
+check for a twin before blaming a linter.
+
+## Where we set off next
+
+The wake protocol's long-lived watcher (one arm per session); the relevance budget,
+so a growing corpus competes for a fixed surface; the twin-session discipline; and
+the moonshot design wave, order to be chosen. Each behind its bar.
