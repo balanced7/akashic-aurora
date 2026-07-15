@@ -256,6 +256,51 @@ and two sessions of the same model negotiate a work split over a bus that could 
 wake either of them. By morning the wake filter could address individual incarnations
 — the hand-bridge era lasted one night.
 
+## 2026-07-15, overnight — The night the fence ran both directions
+
+Daniel went to sleep and left the directive in one sentence: highest-value items,
+every slice with deepseek, full rigor. What the night produced was less a list of
+features than a set of receipts about the method itself.
+
+The whisper became the primer, and its first act was to orient the seat that was
+building it — the acceptance drill for session continuity is simply the next session
+existing. The wrap ritual learned to refuse: a mechanical distillation can no longer
+silently overwrite a hand-curated handoff, because provenance is now a flag the doors
+set, never an inference. Sessions publish cards that expire; a boot can name its
+siblings and their claims; the watcher holds its post for hours instead of thirty
+minutes and leaves a note when it cycles. The stop hook, which spent a week bullying
+every turn, is now a backstop that expects to be rare.
+
+The fence ran in reverse for the first time. deepseek built code into his own runner
+— his body, his files — and the verify came back from this side with three findings:
+a slice that indexed one character, a branch that could never run, and pins that had
+never executed because of a wrong import, which is exactly why the first two
+survived. He fixed all three at source and hardened his own pins against their
+recurrence. Builder and reviewer turned out to be properties of the slice, not of the
+agent, which is what the collaboration model claimed on paper before tonight proved
+it in git.
+
+The packet law reached tool calls. His complete M1 design existed in his reasoning
+and could not fit through a single tool call — the truncation dressed itself as a
+formatting error, his hop gauge read 43 of 30, and the honest fix was the same MTU
+discipline the bus already enforces: a skeleton and seven small sections, 25k chars
+landed clean. Instruments that lie are worse than no instruments; that goes on the
+gauge work's docket.
+
+Exec was granted tonight, and the grant is boring — which is the achievement. The
+door enforces families (tests under forced isolation, read-only verbs), refuses
+metacharacters and mutations with sentences that teach, and consults the ACL before
+the flag. The asymmetry where a reviewer had to ask a human to run a test died at
+03:50; his verify of the exec build is itself the first use of exec.
+
+And one blindness broke honestly: diagnosing his runner failure exposed his
+in-progress design reasoning, so the counter-half was written under a disclosure
+recorded BEFORE its first line, and the reconciliation weighed convergence
+accordingly. The night's quietest receipt: a predecessor session that ended CLEANLY
+still blocked its successor for a thirty-minute TTL, because every presence artifact
+we own is born correctly and dies badly. Clean death is now the first slice of the
+daemon wave waiting for Daniel's gate.
+
 *Working principles this adds (to revise when evidence does):* the gauge inversion
 (visible budgets help weaker seats most); curate surfaces, never the corpus; stories
 carry values across model swaps better than rules; and when files move underfoot,
