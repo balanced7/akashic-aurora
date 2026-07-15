@@ -1,5 +1,5 @@
 {
-  "seq": 67,
+  "seq": 68,
   "tasks": [
     {
       "id": "T001",
@@ -2491,6 +2491,27 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-15T03:05:12+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T068",
+      "title": "T068-shape: Harness-Tier wave (model-attribute transfer, reconciled dual design 2026-07-15): R1 constraint pack at boot (~300-char LIVE CONSTRAINTS block, deepseek M9); R2 three-strikes diagnosis hook (3rd identical action+failure blocked until root cause cited); R3 pre-flight assertion runner (reply/review sends held until file:line cites + evidence events + pins resolve -- graduates fence_report_citation_path_gate to automation); R4 attack-surface slot seal-checked + false-positive hunt prompt; R5 universal gauges (hop counters every seat + M8 context gauge slice 1 + 80pct auto-escalate); R6 send-enforced handoff/forensics templates; R7 3-pass design gate; R8 tier-aware recall + behavior-diff mining (fence findings + self-reported anti-patterns auto-draft Forge-gated lessons); R9 capability routing per slice stage via fleet select; R10 replay-the-bug step; R11 transcript mining ingestion (Sol/Fable). Cites research/reviewed/model-attribute-transfer-reconciliation-2026-07-15.md + both blind halves. Thesis: opus+harness >= fable alone; fable+harness >= fable+2",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-15T03:47:34+00:00",
+      "updated": "2026-07-15T03:47:34+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-15T03:47:34+00:00"
         }
       ]
     }
