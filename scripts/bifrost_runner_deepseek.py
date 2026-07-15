@@ -480,6 +480,98 @@ def _trim_onboarding(digest: str, budget_chars: int) -> str:
               f"knowledge_recall(query=...) fetches specifics. Never guess at what was cut.]")
 
 
+def _age_short(created_at: str) -> str:
+    """'3h ago' | '2d ago' | '' from an ISO timestamp (W14 P3: age stamps on note lines).
+    Never raises; an unparseable date just gets no stamp."""
+    from datetime import datetime as _dt
+    try:
+        secs = max(0.0, time.time() - _dt.fromisoformat(str(created_at)).timestamp())
+    except Exception:
+        return ""
+    mins = secs / 60.0
+    if mins < 60:
+        return f"{mins:.0f}m ago"
+    hours = mins / 60.0
+    if hours < 48:
+        return f"{hours:.0f}h ago"
+    return f"{secs / 86400.0:.0f}d ago"
+
+
+# ---------------------------------------------------------------- T074 W14: runner-boot fold
+# The runner's own continuity header -- DIRECTIVE + SIBLINGS + age-stamped private notes
+# -- injects BEFORE the project onboarding, answering "what am I doing, who else is here,
+# what did I remember" without reading 6000 chars of project context first.
+# (deepseek's design: research/reviewed/deepseek-t074-continuity-design-2026-07-15.md sec.3)
+
+
+def _directive_line(agent_id: str) -> str:
+    """DIRECTIVE: <next-focus body> (<age>) or 'DIRECTIVE: none active -- check the ledger'.
+    W14-P1: the first line of the runner's boot must answer 'what am I doing?'
+    Fail-soft: broken store → fallback line; the runner still starts."""
+    try:
+        from core.learning.agent_memory import get_agent_memory
+        notes = get_agent_memory().get_decisions(days=60)
+        directive = next((d for d in notes
+                          if getattr(d, "title", "") == "next-focus"
+                          and not getattr(d, "superseded", False)), None)
+        if directive is not None:
+            body = " ".join(str(getattr(directive, "decision", "") or "").split())[:130]
+            age = _age_short(getattr(directive, "created_at", ""))
+            suffix = f" ({age})" if age else ""
+            return f"DIRECTIVE: {body}{suffix}"
+    except Exception:
+        pass
+    return "DIRECTIVE: none active -- check the ledger: py agent_cli.py task list"
+
+
+def _siblings_for_runner(agent_id: str) -> str:
+    """SIBLINGS: solo | 'N live sibling(s) (...)'. W14-P2: the runner's continuity
+    header surfaces twin/peer presence. Uses core/comm/incarnation (LIVE as of T074 P3).
+    Fail-soft: dead bus → 'SIBLINGS: (unavailable)' so the runner knows it's blind."""
+    try:
+        from core.comm.incarnation import live_incarnations, siblings_line
+        siblings = live_incarnations(agent_id, c=None, allow_fallback=True)
+        return "SIBLINGS: " + siblings_line(agent_id, siblings)
+    except Exception:
+        return "SIBLINGS: (unavailable)"
+
+
+def _age_stamped_private_notes(agent_id: str, limit: int = 8, trunc: int = 160) -> str:
+    """W14-P3: same contract as fetch_private_notes but every line carries an age stamp
+    '(Nh ago)' | '(Nd ago)'. No notes → '' (the caller decides whether to render the
+    section header). Fail-soft: broken store → ''; the runner still starts."""
+    try:
+        from core.learning.agent_memory import get_agent_memory
+        pref = f"scratch:{agent_id}:"
+        notes = [d for d in get_agent_memory().get_decisions(days=365)
+                 if str(d.title).startswith(pref) and not d.superseded]
+    except Exception:
+        return ""
+    lines = []
+    for d in notes[:limit]:
+        body = " ".join(str(d.decision).split())
+        if len(body) > trunc:
+            body = body[:trunc] + "... (full: memory_recall)"
+        age = _age_short(getattr(d, "created_at", ""))
+        stamp = f" ({age})" if age else ""
+        lines.append(f"- {str(d.title)[len(pref):]}: {body}{stamp}")
+    return "\n".join(lines)
+
+
+def _runner_continuity_header(agent_id: str,
+                               directive_override: str = "",
+                               siblings_override: str = "") -> str:
+    """The runner's ~5-line continuity block: DIRECTIVE + SIBLINGS. Inject BEFORE the
+    project onboarding so "what am I doing, who else is here" is answered immediately.
+    Private notes stay owned by fold_private_notes() downstream (the proven placement --
+    no double-render). Overrides make the function testable without patching AgentMemory
+    or incarnation. W14-P4: DIRECTIVE must be the first line."""
+    directive = directive_override or _directive_line(agent_id)
+    siblings = siblings_override or _siblings_for_runner(agent_id)
+    return "\n".join(["## YOUR CONTINUITY (this runner's last known state)",
+                      directive, siblings])
+
+
 def _preflight_gate(out: str, responder, args) -> str:
     """T068-R3 (deepseek design, claude build): verify a directed answer's factual claims
     before the send. HOLD-level findings (A1 fabricated file:line, A2 fabricated event)
@@ -718,8 +810,9 @@ def fold_private_notes(system: str, agent_id: str) -> str:
     """Append the YOUR PRIVATE NOTES section to the boot/system text (T067-1 Q1). No notes
     -> byte-identical text back (Q3). Deliberately NOT part of _boot_sources novelty
     tagging: private notes are personal scratchpad, not knowledge articles (design
-    non-goal, Part d)."""
-    block = fetch_private_notes(agent_id)
+    non-goal, Part d). T074 W14: delegate to _age_stamped_private_notes so every
+    rendering path carries age stamps."""
+    block = _age_stamped_private_notes(agent_id)
     if not block:
         return system
     return (system + "\n\n## YOUR PRIVATE NOTES (yours alone; memory_note updates, "
@@ -815,6 +908,13 @@ def main() -> int:
                      "reply posts back to the sender, so make it self-contained.")
         # Onboarding-on-init: boot ONCE and fold the project briefing into the system prompt, so every
         # reply is grounded in the contract + current focus + top lessons (not answering blind).
+        # T074 W14: the runner's own continuity header (DIRECTIVE + SIBLINGS + age-stamped
+        # private notes) injects BEFORE the project onboarding -- "what am I doing, who else
+        # is here, what did I remember" answered without reading 6000 chars of context first.
+        continuity = _runner_continuity_header(args.agent)
+        if continuity:
+            system = continuity + "\n\n" + system
+            print(f"[deepseek-runner] continuity header injected ({len(continuity)} chars)")
         onboard = onboarding_context(root, args.agent,
                     "Live Bifrost session: collaborating with Claude and the user on Akashic Aurora over the shared bus.")
         if onboard:
