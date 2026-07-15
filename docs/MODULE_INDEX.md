@@ -21,15 +21,17 @@
 - `agent_signal_ledger.py` — Agent Signal Ledger: the ordered record of every signal agents emit
 - `coordinator_api.py` — Coordinator API: Minimal signal-based logging for agents
 
-## core/comm/  (24 modules)
+## core/comm/  (27 modules)
 - `assertions.py` — Pre-flight assertions (T068-R3 / deepseek M10) -- verify a directed answer's FACTUAL
 - `bifrost_api.py` — bifrost.api -- the one door an agent uses to join and work the Bifrost bus.
 - `blobs.py` — BlobStore (Slice B1) -- a content-addressed blob store for Bifrost media/large payloads.
 - `bus.py` — Bifrost Bus (Slice B0) -- one ephemeral message transport for local agents, on Redis Streams.
 - `context_hints.py` — Context Hints -- compact, ephemeral, per-agent context forwarding between peers.
 - `control.py` — Bifrost control plane -- human-in-the-loop PAUSE + runaway-loop guard for live agent collaboration.
+- `daemon_state.py` — daemon_state -- the autopilot's shared surface (slice A1, T075 gamma-scope).
 - `dispatcher.py` — Dispatcher (Bifrost Mesh W2): one resident process that turns doorbell notices into wakes.
 - `doctor.py` — Fleet doctor (L2 / RB-27b) -- the missing READER of the liveness signals: progress,
+- `engine_vitals.py` — engine_vitals -- gauge_snapshot(), the engine room's pulse (T079-E1).
 - `expectations.py` — expectations -- sender-side reply deadlines + redrive (T030 L4 / RB-29).
 - `flow_trace.py` — flow_trace (R3 / T054) -- the OTel-style waterfall over lanes: what HAPPENED, in causal
 - `incarnation.py` — incarnation -- who else is HERE right now, per agent id (T074 W3/R4).
@@ -39,6 +41,7 @@
 - `locks.py` — Advisory path-locks (Concurrency design C2).
 - `nudge.py` — Bifrost nudge -- targeted, per-agent barge-in (companion to control.py's global PAUSE).
 - `packet_spec.py` — Packet Spec v1 -- envelope integrity + MTU library (T040 LAW; built in T043).
+- `pager.py` — pager -- page-grade findings reach a HUMAN (T078-W4, the 6h-invisible killer).
 - `promoter.py` — Bifrost B2 -- the durable projection. Promote SALIENT bus messages into the append-only Ledger.
 - `runner_lock.py` — Bifrost runner singleton-lock -- at most ONE live runner per agent id.
 - `session_exit.py` — session_exit -- the clean-death trio (T075 M1-beta, reconciliation ruling 3).
@@ -138,8 +141,9 @@
 - `ask_gemini_vision.py` — ask_gemini_vision -- send an image file to Gemini for description/analysis.
 - `ask_gpt.py` — ask_gpt -- a thin bridge so an agent (or you) can get OpenAI/GPT's take from the CLI.
 - `ask_panel.py` — ask_panel -- fan ONE question out to the frontier-model panel (Gemini + GPT + DeepSeek) and print
+- `bifrost_child.py` — bifrost_child -- managed subprocess + daemon singleton lock (T075 M1-delta).
 - `bifrost_console.py` — Bifrost Console -- a live chat window onto the Bifrost bus.
-- `bifrost_daemon.py` — bifrost.daemon -- the agent's continuous-presence body (T075 M1-alpha skeleton).
+- `bifrost_daemon.py` — bifrost.daemon -- the agent's continuous-presence body (T075 M1-alpha + M1-delta).
 - `bifrost_runner.py` — bifrost_runner -- make a stateless model (Gemini) a FIRST-CLASS Bifrost citizen.
 - `bifrost_runner_deepseek.py` — bifrost_runner_deepseek -- make DeepSeek (a stateless API model) a FIRST-CLASS Bifrost citizen.
 - `bifrost_ui.py` — bifrost_ui -- a realtime web console for watching (and steering) live agent collaboration on Bifrost.
@@ -160,6 +164,7 @@
 - `migrate_time_scores.py` — One-time migration (S5): re-score the persisted time-zsets with the unified `to_epoch`.
 - `mirror.py` — mirror.py -- commit local changes and push to GitHub in one step.
 - `rb25_storm_burst.py` — (no docstring)
+- `runner_token_journal.py` — runner_token_journal -- daily token-count ledger (T078 W1: C6 meter).
 - `seed_narrative.py` — seed_narrative.py -- dogfood the spine: ingest real git history as Beats, then chronicle.
 - `ship.py` — ship.py -- one disciplined command to ship a slice: GATE -> commit+push -> (lesson) -> snapshot.
 - `snapshot.py` — Snapshot the current Bifrost session for later resume. Run before shutting down.
