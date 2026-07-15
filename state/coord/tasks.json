@@ -2301,15 +2301,15 @@
       "id": "T061",
       "title": "L4 settle-linkage fix: an ANSWERED directed ask must never redrive -- expectations settle on any directed reply from the target (multi-part/summary replies included), not just meta.answers-linked ones. Evidence: two redrive duplicates on 2026-07-14 (live-verify handoff + storm verdict), both deduped by deepseek from ledger state (lesson l4_redrive_settle_linkage). Small slice: core/comm/expectations.py settle predicate + pin",
       "desc": "",
-      "owner": "",
+      "owner": "claude",
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "approved",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "HEAD",
+      "verified_by": "deepseek-adversarial PASS (2 vectors found + self-documented in module)",
       "created": "2026-07-14T14:12:55+00:00",
-      "updated": "2026-07-15T03:03:38+00:00",
+      "updated": "2026-07-15T03:39:30+00:00",
       "history": [
         {
           "to": "proposed",
@@ -2320,6 +2320,26 @@
           "to": "approved",
           "by": "user",
           "at": "2026-07-15T03:03:38+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-15T03:36:25+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-07-15T03:36:25+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-07-15T03:37:14+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-15T03:39:30+00:00"
         }
       ]
     },

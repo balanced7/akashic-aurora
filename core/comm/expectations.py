@@ -9,10 +9,14 @@ dedupes redelivered handoffs; duplicates are tolerated for chat kinds (reconcile
 
 Reply detection is CONSUMPTION-IMMUNE: arm() captures the sender-inbox stream tail as
 an ANCHOR and the sweep reads the stream from there -- entries outlive cursors, so a
-reply the sender already read still clears its expectation. Exact match when the reply
-meta carries answers:<orig_id>; an unlinked reply from the recipient clears the OLDEST
-expectation to that recipient armed BEFORE the reply (FIFO fallback; expectations armed
-after a reply are immune to it).
+reply the sender already read still clears its expectation. An ANSWER is any directed
+message of an ANSWER_KIND (reply / handoff / completion -- T061: answers legitimately
+arrive as pointer+verdict handoffs per the packet law; six of them redrove ~4 times on
+2026-07-14 because only kind=reply settled). Exact match when the answer's meta carries
+answers:<orig_id>; an unlinked answer from the recipient clears the OLDEST expectation
+to that recipient armed BEFORE it (FIFO fallback; expectations armed after an answer are
+immune to it). "note" is deliberately NOT an answer kind: RB-29 timeout/error notes must
+keep the expectation armed so the redrive fires.
 
 Records are Redis-ephemeral coordination state, not durable knowledge -- losing Redis
 is the bigger RB-30 event and voids the expectations with it (design-review AFFIRMED).
@@ -95,16 +99,32 @@ def _emit_dead(sender: str, orig_id: str, rec: Dict[str, Any]) -> None:
         pass
 
 
-def _replies_since(sender: str, anchor: str) -> List[Any]:
-    """Directed replies in the sender's inbox stream AFTER `anchor` -- read from the
-    stream position, not the cursor, so consumption cannot hide them. The bc lane is
-    pinned at its current tail (broadcast replies are room chatter, never answers)."""
+# Kinds that can SETTLE an expectation (T061). "note" is deliberately absent -- RB-29
+# timeout/error notes must keep the expectation armed so the redrive fires.
+#
+# FIFO EDGE (T061 adversarial review, deepseek 2026-07-15): the unlinked-FIFO fallback
+# clears EXACTLY ONE expectation per answer message. If a sender has N expectations on
+# the same target and answers all N with one message, only the oldest clears; N-1 will
+# redrive (the limitation pre-existed T061; the widening just makes it reachable through
+# handoff/completion shapes too). Multiple armed asks to the same target need either
+# meta.answers-linked answers (one per ask) or multiple answers (one per expectation).
+# ALSO: an unlinked handoff/completion that is genuinely UNRELATED to the ask will still
+# FIFO-clear the oldest expectation (false-positive by census alone). Rare in practice
+# because most answers from a target while an expectation is armed ARE answers.
+ANSWER_KINDS = {"reply", "handoff", "completion"}
+
+
+def _answers_since(sender: str, anchor: str) -> List[Any]:
+    """Directed ANSWER-kind messages in the sender's inbox stream AFTER `anchor` -- read
+    from the stream position, not the cursor, so consumption cannot hide them. The bc
+    lane is pinned at its current tail (broadcast answers are room chatter, never
+    settle)."""
     try:
         from core.comm.bus import Bus
         b = Bus(str(sender))
         bc_now = b.tail().get("bc", "0")
         msgs = b.wait(timeout_ms=1, limit=200, since={"inbox": anchor, "bc": bc_now})
-        return [m for m in msgs if getattr(m, "kind", "") == "reply"]
+        return [m for m in msgs if getattr(m, "kind", "") in ANSWER_KINDS]
     except Exception:
         return []
 
@@ -132,7 +152,7 @@ def sweep(sender: str, now: Optional[float] = None) -> Dict[str, List[str]]:
         if not recs:
             return out
         oldest = min((r.get("anchor", "0") for r in recs.values()), key=_id_tuple)
-        replies = _replies_since(sender, oldest)
+        replies = _answers_since(sender, oldest)
         for r in replies:                      # 1) exact linkage clears first
             a = (getattr(r, "meta", None) or {}).get("answers")
             if a and a in recs:

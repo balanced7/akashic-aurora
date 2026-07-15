@@ -5,8 +5,8 @@ Cites docs/packet-spec-v1-2026-07.md (Status: LAW). This module is the SINGLE SO
 TRUTH for the parts of the packet contract that are pure computation -- the MTU bound, the
 len+sha integrity pair over a canonical serialization, and (below) fragmentation/reassembly
 of oversize payloads. It has NO Redis / IO dependency, so both doors compute identically:
-the SEND door (bus._emit) stamps, the CONSUME door (bus._drain) verifies, and the reply
-filter (expectations._replies_since) reuses the SAME verify so a corrupt reply is invisible
+the SEND door (bus._emit) stamps, the CONSUME door (bus._drain) verifies, and the answer
+filter (expectations._answers_since) reuses the SAME verify so a corrupt reply is invisible
 to every consume path (RB-29 extension, pin 9). Pure functions => the 10 acceptance pins
 test computation, not transport.
 
@@ -190,6 +190,8 @@ KIND_LANE = {
     "handoff": "work", "reply": "work", "request": "work", "question": "work",
     "chat": "work", "inform": "work", "note": "work", "answer": "work", "query": "work",
     "dispatch": "work", "status": "work",
+    "completion": "work",   # T061 census fix: a completion is an ANSWER kind (settles
+                            # expectations) -- it must ride the wake lane, never legacy-only
     # sig -- fidelity-ladder control (QoS1/EF, seatless, never queues behind trace)
     "halt": "sig", "interrupt": "sig", "pause": "sig", "resume": "sig",
     "nudge": "sig", "steer": "sig",

@@ -50,7 +50,7 @@ def _ns():
 # --------------------------------------------------------------- B1: router table pins
 CONTROL_KINDS = ["halt", "interrupt", "pause", "nudge", "steer"]
 WORK_KINDS = ["handoff", "reply", "request", "question", "chat", "inform", "note",
-              "answer", "dispatch", "status"]
+              "answer", "dispatch", "status", "completion"]
 TRACE_KINDS = ["trace", "thinking", "tool", "narration", "ledger_update", "resolved", "hint"]
 
 
