@@ -125,7 +125,12 @@ def test_content_and_meta_roundtrip():
         a.send("b", "handoff", {"task": [1, 2, 3], "n": 4.5}, meta={"prio": "high"})
         m = b.inbox()[0]
         assert m.content == {"task": [1, 2, 3], "n": 4.5}
-        assert m.meta == {"prio": "high"} and m.kind == "handoff"
+        # T073 Phase 1 (@9d04797): transport stamps frm_incarnation into meta,
+        # diagnostic-only. The contract is sender meta RIDES THROUGH UNCHANGED
+        # plus the stamp -- not exact equality (stale pre-T073 assert).
+        assert m.meta.get("prio") == "high" and m.kind == "handoff"
+        assert m.meta.get("frm_incarnation", "").startswith("a:"), \
+            "transport must stamp the sender's incarnation (T073 Phase 1)"
     finally:
         _cleanup(c, ns)
 

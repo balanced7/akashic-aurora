@@ -19,16 +19,22 @@ from core.coord import intent as I
 
 
 @pytest.fixture
-def agents():
-    """Two throwaway agent ids + cleanup of any intents they leave. Skips if Redis is down."""
+def agents(monkeypatch):
+    """Two throwaway agent ids in an ISOLATED drill namespace, + full ns cleanup.
+
+    Repaired 2026-07-15: the 07-12 ns-isolation refactor renamed INTENT_PREFIX ->
+    _intent_prefix() (per-call env read) and this fixture was missed -- teardown
+    AttributeError'd on every test, cleanup never ran, and leaked tA-*/tB-* intents
+    in the LIVE namespace poisoned the conflict asserts. Namespace isolation makes
+    that class structurally impossible here (T039 test-* discipline)."""
     if I._client() is None:
         pytest.skip("redis not available")
+    monkeypatch.setenv("BIFROST_NAMESPACE", f"t-intent-{uuid.uuid4().hex[:6]}")
     a, b = f"tA-{uuid.uuid4().hex[:6]}", f"tB-{uuid.uuid4().hex[:6]}"
     yield a, b
     c = I._client()
-    for who in (a, b):
-        for k in (c.keys(f"{I.INTENT_PREFIX}{who}:*") or []):
-            c.delete(k)
+    for k in (c.keys(f"{I._intent_prefix()}*") or []):
+        c.delete(k)
 
 
 def test_free_intent_is_admitted(agents):

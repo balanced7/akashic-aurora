@@ -41,6 +41,13 @@ class _quiet_fanout:
         import core.narrative.beat_log as bl
         import core.learning.agent_memory as am
         self._ev, self._bl, self._am = ev, bl, am
+        # T069 (repaired 2026-07-15): under _AISETUP_TEST_ISOLATED the doors
+        # construct FRESH instances and ignore the cache global this context
+        # injects -- in a full-suite run (where another module's import sets the
+        # flag for everyone) cmd_note wrote past f.mem and _stored found nothing.
+        # This context IS its own sandbox (temp FileStore + silenced fanouts), so
+        # the ambient flag is cleared for its scope and restored on exit.
+        self._iso = os.environ.pop("_AISETUP_TEST_ISOLATED", None)
         self._saved = (agent_cli.project_notes, ev.capture_event, bl.get_beat_log,
                        am._agent_memory)
         agent_cli.project_notes = lambda *a, **k: None
@@ -51,6 +58,8 @@ class _quiet_fanout:
         return self
 
     def __exit__(self, *exc):
+        if self._iso is not None:
+            os.environ["_AISETUP_TEST_ISOLATED"] = self._iso
         (agent_cli.project_notes, self._ev.capture_event, self._bl.get_beat_log,
          self._am._agent_memory) = self._saved
         return False

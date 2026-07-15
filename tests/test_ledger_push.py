@@ -108,8 +108,15 @@ def test_watch_stays_quiet_through_ledger_markers(capsys):
         a.broadcast("resolved", "RESOLVED T999: something -- CLOSED, do not redo.")
         a.broadcast("ledger_update", "LEDGER T999 -> done: something")
         rc = bw.watch("bob", 2, 400, api=api)
-        assert rc == 0 and "quiet" in capsys.readouterr().out.lower(), \
+        out = capsys.readouterr().out.lower()
+        # T073 Phase 3 renamed the benign deadline exit's provenance word:
+        # 'quiet' -> 'self-cycle' (near-deadline chunk exit + re-arm trigger).
+        # The semantic pinned HERE is unchanged and now asserted directly:
+        # the watcher SAW both markers and still ended benign, not woken.
+        assert rc == 0 and ("self-cycle" in out or "quiet" in out), \
             "ledger control-plane markers must never wake an armed watcher"
+        assert "alice:resolved" in out and "alice:ledger_update" in out, \
+            "the benign exit's provenance must show it sat THROUGH the markers"
     finally:
         keys = c.keys(f"{ns}:*")
         if keys:

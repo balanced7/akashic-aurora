@@ -53,7 +53,10 @@ def _online() -> bool:
 def test_ttl_pause_self_heals(monkeypatch):
     if not _online():
         pytest.skip("live-Redis pin; bus offline")
-    monkeypatch.setattr(control, "PAUSE_KEY", "bifrost:control:paused:rb30pin")
+    # Repaired 2026-07-15: PAUSE_KEY became per-call _pause_key() in the 07-12
+    # per-namespace refactor (a drill pause must never freeze the LIVE bus) and
+    # this monkeypatch was missed. Isolation now rides the sanctioned ns seam.
+    monkeypatch.setenv("BIFROST_NAMESPACE", "rb30pin")
     try:
         assert control.pause(reason="pin backstop", by="rb30pin", ttl=1)
         assert control.is_paused()
@@ -63,7 +66,7 @@ def test_ttl_pause_self_heals(monkeypatch):
         time.sleep(1.3)
         assert control.is_paused(), "ttl-less pause persists (human intent)"
     finally:
-        control._client().delete("bifrost:control:paused:rb30pin")
+        control._client().delete("rb30pin:control:paused")
 
 
 # --- P2: the pause render line is pure, loud, and teaching ---

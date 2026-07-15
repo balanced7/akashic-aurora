@@ -68,7 +68,13 @@ def test_peek_does_not_advance_cursor():
             c.delete(key)
 
 
-def test_boot_prints_bifrost_section():
+def test_boot_prints_bifrost_section(monkeypatch):
+    # T074-W13 (repaired 2026-07-15): primer-aware boot deliberately DROPS the
+    # whisper-carried sections (UNREAD BIFROST among them) whenever a harness
+    # session id is in env -- so running this suite inside a Claude session
+    # flipped the mode out from under the assert. This pin means the FULL boot
+    # contract; say so via the R13 hatch instead of inheriting ambient env.
+    monkeypatch.setenv("AKASHIC_BOOT_FULL", "1")
     c = _redis_client()
     agent = f"cursor_pull_{uuid.uuid4().hex[:6]}"
     try:
