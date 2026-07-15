@@ -21,8 +21,8 @@
 - `agent_signal_ledger.py` — Agent Signal Ledger: the ordered record of every signal agents emit
 - `coordinator_api.py` — Coordinator API: Minimal signal-based logging for agents
 
-## core/comm/  (22 modules)
-- `assertions.py` — Pre-flight assertions (T068-R3) -- verify a directed answer's factual claims before the send.
+## core/comm/  (23 modules)
+- `assertions.py` — Pre-flight assertions (T068-R3 / deepseek M10) -- verify a directed answer's FACTUAL
 - `bifrost_api.py` — bifrost.api -- the one door an agent uses to join and work the Bifrost bus.
 - `blobs.py` — BlobStore (Slice B1) -- a content-addressed blob store for Bifrost media/large payloads.
 - `bus.py` — Bifrost Bus (Slice B0) -- one ephemeral message transport for local agents, on Redis Streams.
@@ -31,7 +31,8 @@
 - `dispatcher.py` — Dispatcher (Bifrost Mesh W2): one resident process that turns doorbell notices into wakes.
 - `doctor.py` — Fleet doctor (L2 / RB-27b) -- the missing READER of the liveness signals: progress,
 - `expectations.py` — expectations -- sender-side reply deadlines + redrive (T030 L4 / RB-29).
-- `flow_trace.py` — flow_trace (R3 / T054) -- the OTel-style waterfall over lanes: the packet substrate's face.
+- `flow_trace.py` — flow_trace (R3 / T054) -- the OTel-style waterfall over lanes: what HAPPENED, in causal
+- `incarnation.py` — incarnation -- who else is HERE right now, per agent id (T074 W3/R4).
 - `interject.py` — Adaptive interjection router -- when a human types into a live agent session, decide whether the
 - `launcher.py` — Bifrost Launcher — spawn and monitor agent processes from the Bifrost UI.
 - `liveness.py` — Work-progress heartbeat (L1) -- pure observability for wedge detection.
@@ -137,6 +138,7 @@
 - `ask_gpt.py` — ask_gpt -- a thin bridge so an agent (or you) can get OpenAI/GPT's take from the CLI.
 - `ask_panel.py` — ask_panel -- fan ONE question out to the frontier-model panel (Gemini + GPT + DeepSeek) and print
 - `bifrost_console.py` — Bifrost Console -- a live chat window onto the Bifrost bus.
+- `bifrost_daemon.py` — bifrost.daemon -- the agent's continuous-presence body (T075 M1-alpha skeleton).
 - `bifrost_runner.py` — bifrost_runner -- make a stateless model (Gemini) a FIRST-CLASS Bifrost citizen.
 - `bifrost_runner_deepseek.py` — bifrost_runner_deepseek -- make DeepSeek (a stateless API model) a FIRST-CLASS Bifrost citizen.
 - `bifrost_ui.py` — bifrost_ui -- a realtime web console for watching (and steering) live agent collaboration on Bifrost.

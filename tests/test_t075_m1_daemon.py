@@ -1,4 +1,4 @@
-"""T075 M1-ALPHA PRE-REGISTERED ACCEPTANCE -- the daemon skeleton's governing pins.
+﻿"""T075 M1-ALPHA PRE-REGISTERED ACCEPTANCE -- the daemon skeleton's governing pins.
 
 Spec: research/reviewed/t060-m1-reconciliation-2026-07-15.md (slice M1-alpha:
 lock + presence + heartbeat + bus-loss guard + stable token + clean SIGINT;
@@ -101,15 +101,28 @@ def _spawn(agent, ns, home, mult, extra=()):
         env=env, cwd=ROOT)
 
 
-def _reap(proc, timeout=8):
-    """Collect (exit_code, stdout) -- terminates first if still alive."""
-    if proc.poll() is None:
-        proc.terminate()
+def _await_exit(proc, timeout=8):
+    """Wait for the daemon's NATURAL exit (refusal / max-runtime paths); only a
+    hang past `timeout` gets killed -- and the pin's assert then fails loudly.
+    (Harness-defect fix, disclosed: the first cut terminated before waiting,
+    which TerminateProcess'd refusal-path daemons mid-import into exit 1.)"""
     try:
         out, _ = proc.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
         proc.kill()
-        out, _ = proc.communicate(timeout=timeout)
+        out, _ = proc.communicate()
+    return proc.returncode, out or ""
+
+
+def _kill(proc):
+    """Cleanup for run-forever drills: terminate now, collect what it said."""
+    if proc.poll() is None:
+        proc.terminate()
+    try:
+        out, _ = proc.communicate(timeout=8)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        out, _ = proc.communicate()
     return proc.returncode, out or ""
 
 
@@ -161,7 +174,7 @@ def test_m1_p1_daemon_starts_holds_lock_registers_presence_and_survives(tmp_path
         assert not _C.exists(_cursor_key(ns, agent)), \
             "R-a2: the daemon must NEVER create its agent's cursor (no consume moves in wave 1)"
     finally:
-        code, out = _reap(proc)
+        code, out = _kill(proc)
         _cleanup_ns(ns)
 
 
@@ -189,7 +202,7 @@ def test_m1_p2_heartbeat_keeps_holder_fresh(tmp_path):
         ttl = _C.ttl(_lock_key(ns, agent))
         assert 0 < ttl <= 12, f"P2: lock TTL out of band ({ttl}s) -- refresh not re-arming expiry"
     finally:
-        _reap(proc)
+        _kill(proc)
         _cleanup_ns(ns)
 
 
@@ -204,7 +217,7 @@ def test_m1_p11_pre_existing_lock_refused_no_steal(tmp_path):
     _C.set(_lock_key(ns, agent), json.dumps(foreign), ex=60)
     proc = _spawn(agent, ns, home, "0.1")
     try:
-        code, out = _reap(proc, timeout=20)
+        code, out = _await_exit(proc, timeout=20)
         assert code == 0, f"P11: refusal must exit 0 (benign, operator-facing); got {code}\n{out}"
         assert "refused" in out.lower() and "no steal" in out.lower(), \
             f"P11: refusal provenance line missing from stdout:\n{out}"
@@ -226,7 +239,7 @@ def test_m1_p12_stable_token_reused_generation_increments(tmp_path):
 
     def run_once():
         proc = _spawn(agent, ns, home, "0.1", extra=("--max-runtime", "2"))
-        code, out = _reap(proc, timeout=25)
+        code, out = _await_exit(proc, timeout=25)
         m = up_re.search(out)
         assert m, f"P12: no '[daemon] up ... token= gen=' line in stdout:\n{out}"
         assert code == 0, f"P12: max-runtime exit must be benign 0; got {code}\n{out}"
@@ -263,12 +276,12 @@ def test_r_a1_same_token_twin_refused_first_daemon_unharmed(tmp_path):
         assert raw, "R-a1: first daemon never came up"
         pid1 = json.loads(raw).get("pid")
         second = _spawn(agent, ns, home, "0.05")
-        code, out = _reap(second, timeout=20)
+        code, out = _await_exit(second, timeout=20)
         assert code == 0, f"R-a1: twin refusal must exit 0; got {code}\n{out}"
         assert "twin" in out.lower(), f"R-a1: twin teaching text missing:\n{out}"
         assert first.poll() is None, "R-a1: the LIVE daemon died when its twin knocked"
         rec = json.loads(_C.get(_lock_key(ns, agent)))
         assert rec.get("pid") == pid1, "R-a1: twin displaced the live holder's record"
     finally:
-        _reap(first)
+        _kill(first)
         _cleanup_ns(ns)
