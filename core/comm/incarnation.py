@@ -105,6 +105,20 @@ def publish_card(agent: str, session_id: str, pid: Optional[int] = None,
         return False
 
 
+def delete_card(agent: str, session_id: str, c=None, allow_fallback: bool = True) -> bool:
+    """Clean-death leg (T075 M1-beta, ruling 3): a session ending CLEANLY removes its
+    own card immediately -- TTL expiry (W12) remains the crash net. Only ever deletes
+    the exact (agent, session_id) key; a sibling's card is unreachable from here."""
+    cli = _resolve_client(c, allow_fallback)
+    if cli is None or not session_id:
+        return False
+    try:
+        cli.delete(_card_key(agent, session_id))
+        return True
+    except Exception:
+        return False
+
+
 def refresh_card(agent: str, session_id: str, claims: Optional[List[str]] = None,
                  c=None, allow_fallback: bool = True) -> bool:
     """Every stop-hook firing re-arms the TTL. Keeps the birth stamp and claims (unless

@@ -182,6 +182,14 @@ def main() -> int:
     except Exception:
         pass   # auto-capture is best-effort; never block the end
     emit_session_signals(data)
+    try:   # T075 M1-beta clean-death trio (seat + card + listener); event guard +
+        #    kill switch live INSIDE clean_death -- PreCompact passes through as a no-op.
+        from core.comm.session_exit import clean_death
+        clean_death(os.getenv("AKASHIC_AGENT_ID") or "claude",
+                    str(data.get("session_id") or ""),
+                    event=str(data.get("hook_event_name") or ""))
+    except Exception:
+        pass   # the trio is best-effort; never block the end
     return 0
 
 
