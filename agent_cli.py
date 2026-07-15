@@ -2283,6 +2283,133 @@ def cmd_lookback(args):
     return 0
 
 
+def cmd_knowledge_map(args):
+    """R8 (T059): WALK the knowledge neighborhood of a topic instead of querying it blind.
+    lookback returns a flat ranked list; this returns a graph -- surface hits (L1), the
+    one-hop neighborhood reached by WALKING the related_to edges the system already grows
+    (L2, both directions), and the on-topic archive of retired/superseded records (L3).
+    Each node carries a drill pointer; neighborhood nodes name the edge that reached them."""
+    from core.recall.knowledge_map import knowledge_map
+    topic = " ".join(args.query or []) if isinstance(args.query, list) else (args.query or "")
+    topic = topic.strip()
+    m = knowledge_map(topic, per_layer=args.per_layer or 6)
+    if args.json:
+        print(json.dumps(m, indent=2, default=str)); return 0
+    if not topic:
+        print("# knowledge-map: give a topic to walk (e.g. 'lanes', 'wedge', 'supersession')")
+        return 0
+    c = m["counts"]
+    print(f"# KNOWLEDGE MAP: {topic}   "
+          f"({c['surface']} surface | {c['neighborhood']} neighborhood | {c['archive']} archive)")
+    if not (m["surface"] or m["neighborhood"] or m["archive"]):
+        print("  (nothing above the relevance floor -- try different terms)")
+        return 0
+
+    def _row(n, indent="  "):
+        edge = f" +{n['edge_count']} edges" if n.get("edge_count") else ""
+        rel = f" (rel {n['score']})" if n.get("score") is not None else ""
+        print(f"{indent}[{n['kind']}:{n['status']}] {n['title']}{rel}{edge}")
+        if n.get("via"):
+            v = n["via"]
+            arrow = "<--" if v["direction"] == "in" else "-->"
+            matched = f" [{','.join(v['matched'])}]" if v.get("matched") else ""
+            print(f"{indent}    via {v['from']} {arrow}{matched}")
+        print(f"{indent}    {n['excerpt']}")
+        print(f"{indent}    drill: {n['drill']}")
+
+    if m["surface"]:
+        print("\n## L1 surface -- direct topic hits")
+        for n in m["surface"]:
+            _row(n)
+    if m["neighborhood"]:
+        print("\n## L2 neighborhood -- one hop along the edges (relevance alone can't reach these)")
+        for n in m["neighborhood"]:
+            _row(n)
+    if m["archive"]:
+        print("\n## L3 archive -- on topic but retired/superseded (reachable, not live)")
+        for n in m["archive"]:
+            _row(n)
+    return 0
+
+
+def cmd_fence(args):
+    """R2 (T053): the fence as a first-class workspace, not a naming convention. Slots
+    (brief / half_a / half_b / reconciliation) with tool-derived paths -- a confabulated
+    filename is unrepresentable -- and the method contract's mechanical checks (M1-BRIEF
+    sections, M1-CF verdict tags, M1-PV citation verify, seal order, author independence)
+    run AT SEAL TIME. Actions: open / write / seal / pv / status / list."""
+    from core.coord import fence_workspace as fw
+    action = args.action
+
+    def _emit(obj):
+        print(json.dumps(obj, indent=2, default=str) if args.json else obj)
+
+    if action == "list":
+        rows = fw.list_fences()
+        if args.json:
+            print(json.dumps(rows, indent=2, default=str)); return 0
+        if not rows:
+            print("# no fences yet (fence open <id> --question ...)"); return 0
+        for st in rows:
+            sealed = [s for s, v in st["slots"].items() if v["sealed"]]
+            print(f"  [{'CLOSED' if st['closed'] else 'open'}] {st['id']} ({st['tier']}) "
+                  f"-- {st['question'][:60]}  sealed: {','.join(sealed) or '-'}")
+        return 0
+    if not args.fence_id:
+        print("ERROR: this action needs a fence id"); return 1
+    if action == "open":
+        st = fw.open_fence(args.fence_id, question=args.question or "",
+                           tier=args.tier or "full", by=args.by or "")
+        print(f"[OK] fence {st['id']} open ({st['tier']}) at "
+              f"{fw.slot_path(args.fence_id, 'brief')}")
+        return 0
+    if action == "write":
+        if not args.slot:
+            print("ERROR: write needs --slot"); return 1
+        text = args.text or ""
+        if args.file:
+            with open(args.file, encoding="utf-8") as f:
+                text = f.read()
+        if not text:
+            print("ERROR: write needs --text or --file"); return 1
+        p = fw.write_slot(args.fence_id, args.slot, text, by=args.by or "")
+        print(f"[OK] wrote {args.slot} -> {p}")
+        return 0
+    if action == "seal":
+        if not args.slot:
+            print("ERROR: seal needs --slot"); return 1
+        ok, problems = fw.seal(args.fence_id, args.slot, by=args.by or "")
+        if ok:
+            print(f"[OK] sealed {args.fence_id}/{args.slot}")
+            return 0
+        print(f"REFUSED: {args.fence_id}/{args.slot} cannot seal:")
+        for pr in problems:
+            print(f"  - {pr}")
+        return 1
+    if action == "pv":
+        report = fw.run_pv(args.fence_id)
+        print(f"# M1-PV over {args.fence_id}: {len(report['verified'])} verified, "
+              f"{len(report['missing'])} MISSING")
+        for c in report["missing"]:
+            print(f"  MISSING: {c}")
+        return 0 if not report["missing"] else 1
+    if action == "status":
+        st = fw.fence_status(args.fence_id)
+        if args.json:
+            print(json.dumps(st, indent=2, default=str)); return 0
+        print(f"# fence {st['id']} ({st['tier']}) -- {st['question']}")
+        for s, v in st["slots"].items():
+            mark = "SEALED" if v["sealed"] else ("written" if v["written"] else "empty")
+            by = f" by {v['author']}" if v["author"] else ""
+            print(f"  {s:16} {mark}{by}")
+        pv = st.get("pv")
+        pv_line = "not run" if not pv else f"{pv['missing_count']} missing @ {pv['ran_at']}"
+        print(f"  pv: {pv_line}")
+        print(f"  closed: {st['closed']}")
+        return 0
+    print(f"ERROR: unknown fence action {action!r}"); return 1
+
+
 def cmd_bifrost_ack(args):
     """P6 (T026): durably record that YOU handled a salient bus message. Read != handled --
     consuming advances a cursor; this records an actor and a moment. RB-2 (T029): only the
@@ -2812,6 +2939,25 @@ def build_parser():
     lb.add_argument("--layers", default=None, help="narrow: docs,research,notes,promoted,chapters,git")
     lb.add_argument("--json", action="store_true")
     lb.set_defaults(fn=cmd_lookback)
+
+    km = sub.add_parser("knowledge-map", help="WALK the lesson/note/doc neighborhood of a topic: surface + edge-walked neighborhood + archive (R8)")
+    km.add_argument("query", nargs="*", help="the topic to walk, plain words")
+    km.add_argument("--per-layer", type=int, default=None, help="max nodes per layer (default 6)")
+    km.add_argument("--json", action="store_true")
+    km.set_defaults(fn=cmd_knowledge_map)
+
+    fe = sub.add_parser("fence", help="fence workspace: slots + seal-time method checks; confabulated filenames unrepresentable (R2)")
+    fe.add_argument("action", choices=["open", "write", "seal", "pv", "status", "list"])
+    fe.add_argument("fence_id", nargs="?", default=None, help="fence id (e.g. t054-design)")
+    fe.add_argument("--question", default=None, help="open: the question at stake (M1-BRIEF charter seed)")
+    fe.add_argument("--tier", default=None, choices=["full", "lite"], help="open: fence tier (default full)")
+    fe.add_argument("--slot", default=None, choices=["brief", "half_a", "half_b", "reconciliation"],
+                    help="write/seal: which slot")
+    fe.add_argument("--text", default=None, help="write: inline content")
+    fe.add_argument("--file", default=None, help="write: read content from a file")
+    fe.add_argument("--by", default=None, help="who is acting (agent id -- authorship feeds the independence check)")
+    fe.add_argument("--json", action="store_true")
+    fe.set_defaults(fn=cmd_fence)
 
     ak = sub.add_parser("bifrost-ack", help="durably record you HANDLED a salient bus message (P6)")
     ak.add_argument("agent_id", help="your stable agent id (the actor)")

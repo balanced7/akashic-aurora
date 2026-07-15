@@ -68,6 +68,9 @@ MANIFEST = {
     # slice 1b: note/notes + lock/unlock/locks + tag_anti_pattern + bifrost_nudge now have MCP twins
     "note": "shared", "notes": "shared", "lock": "shared", "unlock": "shared", "locks": "shared",
     "tag_anti_pattern": "shared", "bifrost_nudge": "shared",
+    # R8 (T059): knowledge_map walks the lesson/note/doc graph -- an agent-facing read verb
+    # (B5's whole point: an agent OR Daniel walks the knowledge), so it ships on both doors.
+    "knowledge_map": "shared",
     # --- cli_only (8): local diagnostics / operator controls / needs shell+git ---
     "discover": "cli_only", "console_log": "cli_only", "harnesses": "cli_only",
     "recall_counters": "cli_only", "triage": "cli_only", "wrap": "cli_only",
@@ -89,12 +92,18 @@ MANIFEST = {
     "recall_curate": "cli_only",  # corpus curation (bench/unbench/ghost-prune) -- operator action at
                                   # the wrap boundary (recall vNext loop 1, 2026-07-08); the wrap nudge
                                   # prints the exact command. MCP twin if an agent ever self-curates.
+    "fence": "cli_only",  # R2 (T053): fence workspace door. Fence participants today drive it via
+                          # CLI (claude) or the runner ToolBox (deepseek); an MCP twin lands when an
+                          # MCP-hosted agent takes a fence seat (same trigger family as lookback).
     # --- mcp_only: Gemini web consumers + bus conveniences the CLI already covers ---
     "ask_gemini_web": "mcp_only", "ask_gemini_panel": "mcp_only", "gemini_web_login": "mcp_only",
     "bifrost_broadcast": "mcp_only",  # CLI path: bifrost-send --broadcast
     "bifrost_inbox": "mcp_only",      # CLI path: bifrost-sync --consume (same read)
     "bifrost_presence": "mcp_only",   # CLI path: bifrost-sync (refreshes + shows presence)
-    # --- gap: (none — CLI<->MCP debt fully paid down in slice 1b) ---
+    # --- gap: KNOWN CLI<->MCP debt to pay down ---
+    "delta": "gap",   # R1 delta door (T052): agent-facing "what moved since I was last here",
+                      # shipped CLI-only; an MCP twin is the natural next step (same trigger as
+                      # knowledge_map's agent-ergonomics intent). Flagged here, not silently dropped.
 }
 
 

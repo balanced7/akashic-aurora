@@ -226,6 +226,16 @@ def notes(days: int = 0, limit: int = 25) -> str:
 
 
 @mcp.tool()
+def knowledge_map(topic: str = "", per_layer: int = 6) -> str:
+    """WALK the knowledge neighborhood of a TOPIC instead of querying it blind. Returns a graph:
+    L1 surface (direct topic hits), L2 neighborhood (lessons reached by WALKING the related_to
+    edges the system already grows -- BOTH directions; relevance alone cannot reach these),
+    L3 archive (on-topic but retired/superseded -- reachable, not live). Each node carries a
+    drill pointer. Complements recall (flat keyword hits) and lookback (flat rationale hits)."""
+    return _run(agent_cli.cmd_knowledge_map, query=topic, per_layer=per_layer)
+
+
+@mcp.tool()
 def lock(agent: str, path: str, ttl: int = 900) -> str:
     """Claim an advisory path-lock so peers see you're editing PATH (coordination, not OS-enforced).
     Re-claiming your own refreshes the TTL. Now reachable without a shell (membrane door-parity)."""

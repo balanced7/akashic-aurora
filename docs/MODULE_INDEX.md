@@ -43,13 +43,15 @@
 - `turn_metrics.py` — Turn metrics (progress-bars data half; co-designed claude+deepseek 2026-07-11).
 - `wake_seat.py` — wake_seat -- the per-session wake-seat protocol (T029 Wave 2, the R1/R16 fix).
 
-## core/coord/  (7 modules)
+## core/coord/  (9 modules)
 - `cognitive_metrics.py` — Cognitive Efficiency Metrics — live instrumentation for the Stage-3 evidence engine.
 - `conductor.py` — Conductor — the impure orchestration shell over the pure task ledger (Slice D).
 - `experiment.py` — Coordination experiment harness -- the Stage-3 evidence engine.
+- `fence_workspace.py` — Fence workspace (R2 / T053) -- the fence as a first-class object, not a naming convention.
 - `intent.py` — Intent declaration -- Policy 0 of the coordination layer.
 - `metrics.py` — Solution-Space-Shrinkage Tracker — the Metric C cross-run watchdog.
 - `negotiation.py` — Negotiation round — brief window after user input where agents declare plans.
+- `task_costs.py` — Task cost telemetry (T056 / wishlist R5) -- per-slice ROI, honestly attributed.
 - `task_ledger.py` — Governed task ledger — the deterministic coordination substrate (Phase 1: sequential-correct).
 
 ## core/learning/  (3 modules)
@@ -57,13 +59,14 @@
 - `consolidation.py` — Consolidation: distill raw episodic memory + experiment lessons into a curated chronicle.
 - `learning_store.py` — Learning Store: Persists and retrieves experiment outcomes via the Store.
 
-## core/recall/  (8 modules)
+## core/recall/  (9 modules)
 - `at_action.py` — Recall-at-action (`core/recall`) — read the right knowledge AT THE MOMENT of action.
 - `curator.py` — Recall curator (vNext loop 1) -- the funnel's triage made an ACTOR, not a report.
 - `dissent.py` — Dissent-finder (`core/recall`) — surface the strongest genuine COUNTER to a recalled lesson.
 - `forge.py` — Forge F1 -- the Tier-0 edit gate (docs/lesson-forge-design-2026-07.md sec.4, sec.9 F1).
 - `forge_optimizer.py` — Forge F2 -- the optimizer pass (docs/lesson-forge-design-2026-07.md sec.5, sec.9 F2).
 - `funnel.py` — Recall-value funnel (leapfrog T3): is surfaced knowledge actually HELPING, and are
+- `knowledge_map.py` — knowledge_map (R8 / T059) -- WALK the knowledge, don't query it blind.
 - `lookback.py` — Lookback (P7 / T027) -- one question over the rationale corpus, layered, drillable.
 - `replay.py` — Forge F0 -- replay harness + data-sufficiency audit (docs/lesson-forge-design-2026-07.md sec.9).
 

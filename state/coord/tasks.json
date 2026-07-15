@@ -1,5 +1,5 @@
 {
-  "seq": 61,
+  "seq": 65,
   "tasks": [
     {
       "id": "T001",
@@ -1978,15 +1978,15 @@
       "id": "T053",
       "title": "R2 Fence workspace v1 (wishlist S2): structured slots (brief / halves / reconciliation / per-verdict confidence), mechanical M1-PV over them; T049-shaped; the r2 confabulated-filename failure becomes unrepresentable. Cites wishlist-synthesis-2026-07-14.md + Daniel directive 2026-07-14",
       "desc": "",
-      "owner": "",
+      "owner": "cursor",
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "approved",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "HEAD",
+      "verified_by": "deepseek-adversarial-review",
       "created": "2026-07-14T13:11:03+00:00",
-      "updated": "2026-07-14T13:11:53+00:00",
+      "updated": "2026-07-15T02:17:48+00:00",
       "history": [
         {
           "to": "proposed",
@@ -1997,6 +1997,26 @@
           "to": "approved",
           "by": "user",
           "at": "2026-07-14T13:11:53+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "cursor",
+          "at": "2026-07-15T00:18:13+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "cursor",
+          "at": "2026-07-15T00:18:13+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "cursor",
+          "at": "2026-07-15T00:25:38+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-15T02:17:48+00:00"
         }
       ]
     },
@@ -2189,15 +2209,15 @@
       "id": "T059",
       "title": "R8 knowledge_map (claude B5): render the lesson/note/doc neighborhood -- Aurora gets a face. Cites wishlist-synthesis-2026-07-14.md + Daniel directive 2026-07-14",
       "desc": "",
-      "owner": "",
+      "owner": "cursor",
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "approved",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "HEAD",
+      "verified_by": "claude-adversarial-review+deepseek-crosscheck",
       "created": "2026-07-14T13:11:09+00:00",
-      "updated": "2026-07-14T13:11:54+00:00",
+      "updated": "2026-07-15T02:17:48+00:00",
       "history": [
         {
           "to": "proposed",
@@ -2208,6 +2228,26 @@
           "to": "approved",
           "by": "user",
           "at": "2026-07-14T13:11:54+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "cursor",
+          "at": "2026-07-14T23:44:54+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "cursor",
+          "at": "2026-07-14T23:53:36+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "cursor",
+          "at": "2026-07-14T23:53:36+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-15T02:17:48+00:00"
         }
       ]
     },
@@ -2255,6 +2295,90 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-14T14:12:55+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T062",
+      "title": "R1 polish: boot's truncated-delta pointer self-defeats -- boot advances the mark, so the printed 'full: py agent_cli.py delta claude' renders empty; keep the pre-boot window addressable (delta --last or render full delta to a file)",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-15T02:06:05+00:00",
+      "updated": "2026-07-15T02:06:05+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-15T02:06:05+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T063",
+      "title": "bifrost-ack must round-trip the id form its own unhandled-warning prints -- 'bifrost:<id>' currently double-prefixes and refuses; normalize both forms",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-15T02:06:06+00:00",
+      "updated": "2026-07-15T02:06:06+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-15T02:06:06+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T064",
+      "title": "handoff --note clips at 1000 chars silently at WRITE time (cursor's T059 brief lost its tail) -- warn the writer and point overflow to a file",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-15T02:06:06+00:00",
+      "updated": "2026-07-15T02:06:06+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-15T02:06:06+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T065",
+      "title": "Cursor harness hook liveness: .cursor/hooks.json never executed during the 2026-07-14 cursor session (payloads_cursor dir absent = zero hook runs; zero injections ledgered; identity env never set -> agent ran as 'cursor' not 'composer'; failClosed git-guard never armed) -- diagnose why (Cursor hooks feature flag / version / path), add a measured liveness receipt to boot + harnesses matrix so fail-open can never again read as working, and pin the composer-vs-cursor identity to ONE id",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-15T02:13:49+00:00",
+      "updated": "2026-07-15T02:13:49+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-15T02:13:49+00:00"
         }
       ]
     }
