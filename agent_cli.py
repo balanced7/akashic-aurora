@@ -1204,13 +1204,15 @@ def cmd_note(args):
             # Explicit target (migration verbs): single attempt; a lost race is a
             # teaching error, not a retry -- the caller named a specific prior.
             dec_id = mem.decide(title=title, decision=body, context=ctx,
-                                supersedes=supersedes, session_id=args.session or "")
+                                supersedes=supersedes, session_id=args.session or "",
+                                curated=True)
         else:
             # Re-noting the same title updates-in-place. RB-8: the old read-title-then-
             # write here was the race that forked where-we-are chains (W3 spec, R-e);
             # decide_with_retry resolves the head and claims it under CAS.
             dec_id = mem.decide_with_retry(title, body, context=ctx,
-                                           session_id=args.session or "")
+                                           session_id=args.session or "",
+                                           curated=True)
             try:   # report which prior this superseded (the helper owns the pointer)
                 raw = mem.store.hget(mem.KEY_DECISIONS, dec_id)
                 supersedes = (json.loads(raw) or {}).get("supersedes") if raw else None
@@ -1470,7 +1472,9 @@ def cmd_wrap(args):
     title = args.title or "where-we-are"
     mem = get_agent_memory()
     try:   # RB-8: race-safe resolve+claim replaces the read-title-then-write race
-        dec_id = mem.decide_with_retry(title, draft)
+        # T074 W2: wrap output is a MECHANICAL distillation -- flag it so the whisper
+        # renders (auto, Nh ago) and the Phase-2 guard can protect curated handoffs.
+        dec_id = mem.decide_with_retry(title, draft, curated=False)
     except Exception as e:
         print(f"ERROR recording the wrapped note (title race): {e}"); return 1
     if not dec_id:

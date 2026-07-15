@@ -47,7 +47,9 @@ def main() -> int:
         from agent.harness.context import build_autoboot_context
         cwd = (data.get("cwd") or data.get("workspace_root")
                or os.getenv("CURSOR_PROJECT_DIR") or os.getcwd())
-        ctx = build_autoboot_context(cwd, agent_id)
+        ctx = build_autoboot_context(cwd, agent_id,
+                                     session_id=str(data.get("session_id")
+                                                    or data.get("conversation_id") or ""))
         if ctx:
             out["additional_context"] = ctx
     except Exception:

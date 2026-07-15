@@ -69,7 +69,8 @@ def main() -> int:
     try:
         from agent.harness.context import build_autoboot_context
         ctx = build_autoboot_context(data.get("cwd") or os.getcwd(),
-                                     os.getenv("AKASHIC_AGENT_ID") or "claude")
+                                     os.getenv("AKASHIC_AGENT_ID") or "claude",
+                                     session_id=str(data.get("session_id") or ""))
         if ctx:
             print(json.dumps({"hookSpecificOutput": {
                 "hookEventName": "SessionStart",

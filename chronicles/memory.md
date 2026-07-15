@@ -1,11 +1,20 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 59 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 69 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
-- where-we-are: Shipped:
-  - T068-R3 pre-flight assertion runner SHIPPED (deepseek design -> claude build -> deepseek live drill GREEN): core/comm/assertions.py (A1...  (source: mem:decision:ADR_0715010512_efd40c83)
+- t060-m1-fence-integrity: FENCE DISCLOSURE (t060-m1-design, 2026-07-15 ~02:50): claude's blindness is COMPROMISED. While diagnosing deepseek's runner failure (write_file...  (source: mem:decision:ADR_0715024755_ffca07f4)
+- clip-probe-small: small durable note body. small durable note body. small durable note body. small durable note body. small durable note body. small durable note body...  (source: mem:decision:ADR_0715023905_382dd84d)
+- clip-probe-json...  (source: mem:decision:ADR_0715023905_11f64f1e)
+- clip-probe-overcap...  (source: mem:decision:ADR_0715023905_5ef175e2)
+- clip-probe-5k: the quick brown clip probe sentence 0007. the quick brown clip probe sentence 0007. the quick brown clip probe sentence 0007. the quick brown clip probe...  (source: mem:decision:ADR_0715023905_4c854c34)
+- next-focus: FOCUSNOW-1dc53c: engine before UI  (source: mem:decision:ADR_0715023839_3c2462dd)
+- drilldoneac6486-status: GOVERNING ARC DOC: docs/drilldoneac6486-plan.md -- ARC COMPLETE 2026-07-11. ALL SLICES SHIPPED.  (source: mem:decision:ADR_0715023837_ce62ec1f)
+- tonight-plan: OVERNIGHT PLAN 2026-07-15 (Daniel asleep; directive verbatim: 'select the highest value items and lets begin working through them slice by slice WITH...  (source: mem:decision:ADR_0715022441_96673de1)
+- where-we-are: SESSION HANDOFF (2026-07-15 ~06:30, epic night closes). FRESH SEAT FIRST MOVES: (1) boot claude --task 'T074 Phase 1'; (2) read...  (source: mem:decision:ADR_0715020724_4b334325)
+- session-themes: THE HARD-TO-PIN THEMES of 2026-07-14/15 (prime any fresh seat with these): (1) THE GAUGE INVERSION -- visible budgets/gauges are prosthetics that help...  (source: mem:decision:ADR_0715020011_6d5e172e)
+- twin-split: OPERATING AGREEMENT claude#f9207c90 (seat holder) <-> claude#b0b7771d (build session), Daniel-bridged 2026-07-15 ~04:45. SEAT HOLDER (f9207c90): consumer...  (source: mem:decision:ADR_0715013415_174a2fcc)
 - attack-plan: DANIEL DIRECTIVE 2026-07-15 ~03:15 verbatim: 'Lets build give all these ideas from tonight concrete form! I want to make sure we don't lose any of the good...  (source: mem:decision:ADR_0715004250_32065440)
 - scratch:deepseek:t069-design-filed: T069 singleton isolation design filed (blind half, 2026-07-15). Defect: test order reverses pass/fail because _orientation_header...  (source: mem:decision:ADR_0715001116_e8daf466)
 - scratch:deepseek:t068r3-t067-1-designs-filed: Designed two slices tonight (2026-07-15) under T058 pattern (I design, claude builds, I verify):

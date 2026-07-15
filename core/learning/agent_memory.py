@@ -92,6 +92,10 @@ class Decision:
     session_id: str = ""
     supersedes: Optional[str] = None   # id of the decision this one replaces
     superseded: bool = False           # set True when a newer decision supersedes it
+    # T074 W2: provenance of the CONTENT -- True = hand-curated (an agent/human wrote it
+    # deliberately), False = mechanically distilled (wrap/hooks), None = legacy/unflagged.
+    # None renders age-only downstream: the flag beats inference, absence claims nothing.
+    curated: Optional[bool] = None
 
 
 @dataclass
@@ -170,7 +174,8 @@ class AgentMemory:
     def decide(self, title: str, decision: str, context: str = "",
                rationale: List[str] = None, alternatives: List[Dict] = None,
                consequences: Dict[str, List[str]] = None, session_id: str = "",
-               supersedes: Optional[str] = None) -> str:
+               supersedes: Optional[str] = None,
+               curated: Optional[bool] = None) -> str:
         """Record an architectural decision. If `supersedes` is given, the named prior
         decision is retired (Supersession), so reads/ranking surface only this.
 
@@ -193,6 +198,7 @@ class AgentMemory:
             decision=decision, rationale=rationale or [], alternatives=alternatives or [],
             consequences=consequences or {"positive": [], "negative": []},
             created_at=created, session_id=session_id, supersedes=supersedes,
+            curated=curated,
         )
         try:
             self.store.hset(self.KEY_DECISIONS, field=dec_id, value=json.dumps(asdict(dec)))

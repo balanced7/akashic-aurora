@@ -165,8 +165,11 @@ def test_w6_drop_order_protects_the_orienting_core(monkeypatch):
     joined = "\n".join(lines)
     for core in ("DIRECTIVE:", "WHERE:", "SIBLINGS:"):
         assert core in joined, f"drop order must protect {core}"
-    assert "funnel:" not in joined and "boot " not in joined.lower().replace("[akashic]", ""), \
-        "R6: BOOT and FUNNEL drop first under budget pressure"
+    # probe the SECTIONS, not raw substrings (the delta line legitimately says "last boot ->")
+    assert not any(l.strip().startswith("funnel:") for l in lines), \
+        "R6: FUNNEL drops before the orienting core"
+    assert not any(l.strip().startswith("boot:") for l in lines), \
+        "R6: BOOT drops first under budget pressure"
 
 
 # ---------------------------------------------------------------- R2 THEMES window

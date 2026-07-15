@@ -2,16 +2,23 @@
 where the session starts, silent-when-empty, killable, and never breaks session start.
 The whisper logic lives in agent/harness/context.py (shared by every harness adapter --
 Integration Tiers H0); the Claude adapter (scripts/hooks/claude_sessionstart.py) only
-translates stdin/stdout shapes, so main() is tested through the adapter."""
+translates stdin/stdout shapes, so main() is tested through the adapter.
+
+T074 Phase 1 (R5): the v1 SHAPE assertions (a `notes:` titles line, <=10 lines) were
+superseded by the whisper-v2 spec -- section shape pins live in test_t074_whisper_v2.py;
+THIS file keeps the tiering / silence / kill-switch / fail-soft contracts, which v2
+inherits unchanged."""
 import io
 import json
 import os
 import sys
+from datetime import datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from agent.harness import context as ctx
 from agent.harness.scope import repo_root
+from core.learning.agent_memory import Decision
 from scripts.hooks import claude_sessionstart as hook
 
 _REPO = repo_root()
@@ -19,26 +26,37 @@ _HOME = os.path.expanduser("~")
 _ELSEWHERE = "C:\\Somewhere\\Else" if os.name == "nt" else "/somewhere/else"
 
 
-def _quiet_sources(monkeypatch, notes="notes: t1 [07-01]; t2 [06-30]",
-                   funnel="funnel: 10 lessons | surfaced 5 | votes useful=1 noise=0 | helped 1 | last 7d: +2 lesson(s), 1 flip(s)",
-                   unread=0, draft=False):
-    monkeypatch.setattr(ctx, "_notes_line", lambda limit=3: notes)
+def _note(title, body, hours_ago=2.0):
+    created = (datetime.now() - timedelta(hours=hours_ago)).isoformat()
+    return Decision(id=f"ADR_test_{title}", title=title, status="accepted", context="",
+                    decision=body, rationale=[], alternatives=[],
+                    consequences={"positive": [], "negative": []}, created_at=created)
+
+
+def _quiet_sources(monkeypatch, notes=None, funnel="funnel: 10 lessons | helped 1",
+                   unread=0, draft=False, siblings=None, delta=0, journey=""):
+    if notes is None:
+        notes = [_note("next-focus", "t1"), _note("where-we-are", "t2")]
+    monkeypatch.setattr(ctx, "_fetch_notes", lambda: list(notes))
     monkeypatch.setattr(ctx, "_funnel_line", lambda: funnel)
     monkeypatch.setattr(ctx, "_unread_count", lambda agent_id: unread)
     monkeypatch.setattr(ctx, "_draft_fresh", lambda: draft)
+    monkeypatch.setattr(ctx, "_live_siblings", lambda agent_id, my_session="": list(siblings or []))
+    monkeypatch.setattr(ctx, "_delta_count", lambda agent_id: delta)
+    monkeypatch.setattr(ctx, "_journey_latest", lambda: journey)
 
 
 def test_repo_cwd_gets_the_compact_whisper(monkeypatch):
     _quiet_sources(monkeypatch)
     out = ctx.build_autoboot_context(_REPO, "claude")
-    assert "[akashic]" in out and "notes:" in out and "funnel:" in out
+    assert "[akashic]" in out and "DIRECTIVE:" in out and "funnel:" in out
     assert "boot claude" in out, "the one-hop full-boot command is always taught"
-    assert len(out.splitlines()) <= 10, "a whisper, not a wall (context rot)"
+    assert len(out.splitlines()) <= 12, "a whisper, not a wall (context rot; W6)"
 
 
 def test_home_cwd_counts_as_read_bootstrap_flow(monkeypatch):
     _quiet_sources(monkeypatch)
-    assert "notes:" in ctx.build_autoboot_context(_HOME, "claude")
+    assert "DIRECTIVE:" in ctx.build_autoboot_context(_HOME, "claude")
 
 
 def test_child_of_home_is_not_home(monkeypatch):
@@ -70,11 +88,11 @@ def test_broken_source_drops_out_not_blanks(monkeypatch):
     _quiet_sources(monkeypatch)
     monkeypatch.setattr(ctx, "_funnel_line", lambda: (_ for _ in ()).throw(RuntimeError("db down")))
     out = ctx.build_autoboot_context(_REPO, "claude")
-    assert "notes:" in out and "funnel:" not in out
+    assert "DIRECTIVE:" in out and "funnel:" not in out
 
 
 def test_all_sources_empty_stays_silent(monkeypatch):
-    _quiet_sources(monkeypatch, notes="", funnel="", unread=0, draft=False)
+    _quiet_sources(monkeypatch, notes=[], funnel="", unread=0, draft=False)
     assert ctx.build_autoboot_context(_REPO, "claude") == ""
 
 
@@ -89,7 +107,7 @@ def test_main_emits_valid_additional_context_json(monkeypatch, capsys):
 
 def test_main_survives_garbage_stdin(monkeypatch, capsys):
     """Unparseable stdin falls back to cwd; with every source empty the hook stays silent."""
-    _quiet_sources(monkeypatch, notes="", funnel="", unread=0, draft=False)
+    _quiet_sources(monkeypatch, notes=[], funnel="", unread=0, draft=False)
     monkeypatch.setattr(sys, "stdin", io.StringIO("not json"))
     assert hook.main() == 0
     assert capsys.readouterr().out.strip() == ""
