@@ -269,6 +269,8 @@ class Bus:
         from uuid import uuid4
         meta = dict(meta or {})
         meta.setdefault("reply_id", uuid4().hex)
+        meta.setdefault("frm_incarnation", os.environ.get("BIFROST_INCARNATION")
+                        or f"{self.agent_id}:pid:{os.getpid()}")
         if not packet_spec.dual_write_enabled():
             return self.send(to, "reply", content, meta=meta)
         env = {"frm": self.agent_id, "to": str(to), "kind": "reply",
@@ -321,6 +323,13 @@ class Bus:
               parts: Optional[List[Part]] = None, meta=None, allow_frag: bool = False) -> Optional[str]:
         if not self.online:
             return None
+        # T073: every send carries its sender's incarnation (BIFROST_INCARNATION when a
+        # runner/session exports it, else a pid-scoped default). STAMPED for diagnostics
+        # and Phase-4 filtering once T072 lands identity plumbing -- the wake filter does
+        # NOT trust it yet (a pid default would make a session's CLI sends wake itself).
+        meta = dict(meta or {})
+        meta.setdefault("frm_incarnation", os.environ.get("BIFROST_INCARNATION")
+                        or f"{self.agent_id}:pid:{os.getpid()}")
         part_dicts = [(p.to_dict() if isinstance(p, Part) else p) for p in (parts or [])]
         env = {"frm": self.agent_id, "to": to, "kind": str(kind),
                "content": json.dumps(content, default=str), "ts": _now(),

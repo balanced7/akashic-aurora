@@ -2596,8 +2596,12 @@ def cmd_bifrost_send(args):
         if not args.to:
             print('ERROR: bifrost-send needs --to <agent> (or --broadcast). '
                   'e.g. bifrost-send claude --to deepseek "hi"'); return 2
-        mid = bus.send(args.to, args.kind, text)
-        dest = args.to
+        # T073 Phase 1: explicit incarnation addressing -- names ONE session of the
+        # target agent (>=8-char session-id prefix); that seat wakes even on same-agent
+        # mail (the twin channel), and no other incarnation does.
+        meta = {"to_incarnation": args.to_incarnation} if getattr(args, "to_incarnation", None) else None
+        mid = bus.send(args.to, args.kind, text, meta=meta)
+        dest = args.to + (f"#{args.to_incarnation[:8]}" if getattr(args, "to_incarnation", None) else "")
         auto = expect_arg < 0 and args.kind in ASK_KINDS
         expect = ASK_EXPECT_DEFAULT_S if auto else max(0, expect_arg)
         if mid and expect > 0:
@@ -3085,6 +3089,9 @@ def build_parser():
                      help="RB-29: arm a sender-side reply deadline (clamped >=30s; 3 redrives then a "
                           "loud expectation_dead; swept at boot/bifrost-sync). DIRECTED asks "
                           "(request/handoff/question) AUTO-arm a default window if unset; pass 0 to opt out.")
+    snd.add_argument("--to-incarnation", default=None, metavar="SESSION8",
+                     help="T073: address ONE session of the target agent (>=8-char session-id "
+                          "prefix) -- that seat wakes even on same-agent mail (the twin channel)")
     snd.add_argument("--json", action="store_true")
     snd.set_defaults(fn=cmd_bifrost_send)
 

@@ -49,6 +49,40 @@ SKIP_KINDS = {"trace", "steer", "resolved", "ledger_update"}
 # plan-wall budget is spent per wake. The legacy set stays unchanged (strangler discipline).
 SKIP_KINDS_LANE = SKIP_KINDS | {"note", "status"}
 
+# T073 Phase 2 (reconciled spec research/reviewed/t073-wake-reconciliation-2026-07-15.md):
+# the ALLOWLIST ratchet inverts the skip sets for the wake decision -- a NEW kind is
+# silent-by-default until someone argues it onto this list (the check_door_parity
+# pattern applied to kinds). Deviation from the design's six, flagged for verify:
+# `nudge` is here because the fidelity ladder's barge-in MUST wake an idle seat.
+WAKE_WORTHY_KINDS = frozenset(
+    {"request", "handoff", "reply", "blocker", "question", "completion", "nudge"})
+
+
+def wake_worthy(m, *, agent: str, incarnation: str = "") -> bool:
+    """T073 Phase 1+2: ONE decision for 'does this message wake this seat'.
+
+    Order matters: (1) EXPLICIT incarnation addressing overrides everything --
+    meta.to_incarnation naming THIS session wakes it regardless of kind or frm (the
+    sender's explicit intent; twin-sync pings ride kind=chat), and naming another
+    incarnation never wakes this one. Targets are session-id prefixes (>=8 chars, the
+    twin-sync convention). (2) The kind allowlist (ratchet). (3) Unaddressed same-agent
+    mail stays skipped -- the safe echo default until T072's identity plumbing lets
+    frm_incarnation be trusted for filtering. (4) Broadcast replies are room chatter
+    (deepseek red-team F5)."""
+    meta = getattr(m, "meta", None) or {}
+    target = str(meta.get("to_incarnation") or "")
+    if target:
+        me = str(incarnation or "")
+        return len(target) >= 8 and bool(me) and (me == target or me.startswith(target))
+    kind = str(getattr(m, "kind", ""))
+    if kind not in WAKE_WORTHY_KINDS:
+        return False
+    if str(getattr(m, "frm", "")) == agent:
+        return False
+    if kind == "reply" and str(getattr(m, "to", "")) == "*":
+        return False
+    return True
+
 
 def _hb_path(agent, session_id=None):
     from core.comm import wake_seat
@@ -86,7 +120,8 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
     # given. Seat-loss is a TRANSITION (held it, lost it) -- an embedder calling watch()
     # without ever seating keeps the old contract and never has files written for it.
     had_seat = _hb_holder(hb) == me
-    skip = SKIP_KINDS_LANE if os.environ.get("BIFROST_WAKE_LANE") == "work" else SKIP_KINDS
+    # (T073: the skip-set assignment that lived here is gone -- wake_worthy() is the sole
+    # wake gate; SKIP_KINDS/SKIP_KINDS_LANE remain for the lane-mode arm-time pending check.)
     out, seen = [], []
     steers = 0            # skipped steers are counted so the quiet exit says "check at next boot"
     deadline = time.time() + total_deadline_s
@@ -115,15 +150,13 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
         for m in msgs:
             frm = str(getattr(m, "frm", "?"))
             kind = str(getattr(m, "kind", "?"))
-            to = str(getattr(m, "to", "?"))
             seen.append(f"{frm}:{kind}")
             if kind == "steer":
                 steers += 1
-            if frm == agent or kind in skip:
+            # T073: the whole wake decision lives in wake_worthy() -- allowlist ratchet,
+            # explicit incarnation addressing, echo + room-chatter skips (pins P1-P11).
+            if not wake_worthy(m, agent=agent, incarnation=str(session_id or "")):
                 continue
-            if kind == "reply" and to == "*":
-                continue   # a BROADCAST reply is room chatter, not "someone answered you"
-                           # (deepseek red-team F5: only DIRECTED replies wake an idle agent)
             out.append({"frm": frm, "kind": kind, "text": str(getattr(m, "content", "") or "")[:2000]})
     # Read-state-first (Slice C): the governed task ledger prints BEFORE the messages, so a waking
     # agent obeys DONE/NEXT and never acts on a stale backlog message. Fail-open.
