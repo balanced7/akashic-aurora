@@ -1,5 +1,5 @@
 {
-  "seq": 77,
+  "seq": 78,
   "tasks": [
     {
       "id": "T001",
@@ -2911,6 +2911,32 @@
           "to": "approved",
           "by": "user",
           "at": "2026-07-15T19:46:20+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T078",
+      "title": "T078: Capability-surface maximization (Daniel directive 2026-07-15 evening: are we fully maximizing claude+deepseek feature sets? understand the full surface area to design substrate+interface more intelligently). Fenced dual DESIGN think: each agent enumerates ITS OWN platform's full surface (harness features, API features, flags, modes, economics) + what Akashic Aurora underuses + concrete exploitation slices. Blind halves -> reconciliation -> capability-map doc + gated slices.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-15T20:06:29+00:00",
+      "updated": "2026-07-15T20:06:29+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-15T20:06:29+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-15T20:06:29+00:00"
         }
       ]
     }
