@@ -1,0 +1,12 @@
+{
+  "id": "t060-m1-design",
+  "question": "M1 Continuous Presence: formalize the runner+listener architecture as daemon peers -- what is the design for agents that are ALWAYS reachable and resumable, rather than session-bound?",
+  "tier": "full",
+  "opened_by": "claude",
+  "opened_at": "2026-07-15T06:24:43.153187+00:00",
+  "seals": {},
+  "pv": null,
+  "authors": {
+    "brief": "claude"
+  }
+}
