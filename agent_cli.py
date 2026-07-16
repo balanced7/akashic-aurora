@@ -2856,6 +2856,30 @@ def cmd_bifrost_resume(args):
     return 0 if ok else 1
 
 
+def cmd_bifrost_skip_to_now(args):
+    """T076a: the sanctioned echo-mountain escape -- advance an agent's consume cursors
+    (shared + lane hashes) to their stream tails. Audited (durable cursor_skip_to_now
+    event w/ before/after); requires the fleet PAUSED and a --reason. Replaces the
+    super-admin hand surgery of note cursor-skip-2026-07-15."""
+    from core.comm.cursor_admin import skip_to_now
+    res = skip_to_now(args.agent_id, by=args.by, reason=args.reason)
+    if args.json:
+        print(json.dumps(res, default=str))
+        return 0 if res.get("ok") else 2
+    if res.get("refused"):
+        print(f"[skip-to-now] REFUSED: {res['refused']}")
+        return 2
+    adv = (res.get("after") or {}).get("advance") or {}
+    print(f"[skip-to-now] {args.agent_id}: shared={adv.get('shared')} lane={adv.get('lane')} "
+          f"(audited event recorded; by {args.by}: {args.reason})")
+    for side in ("shared", "lane"):
+        b, a = (res.get("before") or {}).get(side) or {}, (res.get("after") or {}).get(side) or {}
+        moved = {f: f"{b.get(f)}->{a.get(f)}" for f in a if a.get(f) != b.get(f) and f != "advance"}
+        if moved:
+            print(f"  {side}: " + ", ".join(f"{k} {v}" for k, v in sorted(moved.items())))
+    return 0 if res.get("ok") else 2
+
+
 def cmd_bifrost_nudge(args):
     """Send a TARGETED, fidelity-graded signal to ONE peer (unlike pause, which freezes the whole bus):
       --mode interrupt (default): HARD barge-in -- set the nudge flag + kind=nudge; the peer drops its
@@ -3342,6 +3366,15 @@ def build_parser():
 
     rz = sub.add_parser("bifrost-resume", help="un-freeze bus auto-responders")
     rz.set_defaults(fn=cmd_bifrost_resume)
+
+    skp = sub.add_parser("bifrost-skip-to-now",
+                         help="T076a: advance an agent's consume cursors to stream tails "
+                              "(audited echo-mountain escape; requires pause + --reason)")
+    skp.add_argument("agent_id", help="whose cursors to skip")
+    skp.add_argument("--by", required=True, help="who authorizes (rides the audit event)")
+    skp.add_argument("--reason", required=True, help="why (refuse-loud without one)")
+    skp.add_argument("--json", action="store_true")
+    skp.set_defaults(fn=cmd_bifrost_skip_to_now)
 
     ndg = sub.add_parser("bifrost-nudge", help="targeted fidelity signal to ONE peer (interrupt|steer|inform)")
     ndg.add_argument("agent_id", help="your stable agent id (the sender, e.g. claude)")

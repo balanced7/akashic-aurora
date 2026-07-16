@@ -28,8 +28,33 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 from typing import Any, Dict, List, Optional, Tuple
+
+# T076c: task ids an ask's text references -- the settle probe's extraction surface.
+_TASK_IDS = re.compile(r"\bT\d{3}\b")
+
+
+def _terminal_task_settle(content: Any) -> Optional[str]:
+    """T076c root spigot: if the ask's text references task ids and ALL of them are
+    TERMINAL in the ledger (done/abandoned), the ask is an echo of finished work --
+    return the settle reason. No ids / any unknown id / any probe error -> None
+    (conservative: redrive exactly as before). Kill switch AKASHIC_EXPECT_TASK_SETTLE=0."""
+    if os.getenv("AKASHIC_EXPECT_TASK_SETTLE", "1") == "0":
+        return None
+    ids = sorted(set(_TASK_IDS.findall(str(content or ""))))
+    if not ids:
+        return None
+    try:
+        from core.coord.task_ledger import read_ledger
+        status = {str(t.get("id")): str(t.get("status") or "")
+                  for t in (read_ledger().get("tasks") or [])}
+        if all(status.get(i) in ("done", "abandoned") for i in ids):
+            return "referenced tasks terminal: " + ", ".join(f"{i}={status[i]}" for i in ids)
+    except Exception:
+        return None
+    return None
 
 
 def _ns() -> str:
@@ -133,7 +158,7 @@ def sweep(sender: str, now: Optional[float] = None) -> Dict[str, List[str]]:
     """One render-time pass: clear answered, redrive expired, kill exhausted.
     Returns {"redriven": [ids], "dead": [ids], "cleared": [ids]}; `now` injectable so
     pins never sleep. Never raises."""
-    out: Dict[str, List[str]] = {"redriven": [], "dead": [], "cleared": []}
+    out: Dict[str, List[str]] = {"redriven": [], "dead": [], "cleared": [], "settled": []}
     c = _client()
     if c is None:
         return out
@@ -175,6 +200,20 @@ def sweep(sender: str, now: Optional[float] = None) -> Dict[str, List[str]]:
         for oid, rec in list(recs.items()):    # 3) deadlines
             if now < float(rec.get("deadline_ts", 0)):
                 continue
+            settle = _terminal_task_settle(rec.get("content"))   # T076c: echoes of DONE
+            if settle is not None:                               # work settle, never redrive
+                try:
+                    from core.events.event_log import capture_event
+                    capture_event("expectation_settled_done_task",
+                                  f"ask {oid} to {rec.get('to')} auto-settled: {settle}",
+                                  agent_id=str(sender), refs=[str(oid)],
+                                  detail={"to": rec.get("to"), "settle": settle,
+                                          "attempt": rec.get("attempt")})
+                except Exception:
+                    pass
+                c.hdel(key, oid)
+                out["settled"].append(oid)
+                continue
             if int(rec.get("redrives_left", 0)) > 0:
                 from core.comm.bus import Bus
                 attempt = int(rec.get("attempt", 0)) + 1
@@ -197,6 +236,9 @@ def sweep(sender: str, now: Optional[float] = None) -> Dict[str, List[str]]:
 def format_sweep_lines(res: Dict[str, List[str]]) -> List[str]:
     """Render-side: loud lines for what the sweep did (empty list = quiet)."""
     lines = []
+    for oid in res.get("settled", []):
+        lines.append(f"= settled {oid} (T076c: its referenced tasks are DONE in the ledger -- "
+                     f"echo, not a live ask; durable event recorded)")
     for oid in res.get("redriven", []):
         lines.append(f"~ redrove {oid} (no reply by deadline -- copy sent, meta redrive_of)")
     for oid in res.get("dead", []):
