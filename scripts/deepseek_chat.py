@@ -216,11 +216,11 @@ TOOLS = [
         {"port": {"type": "integer", "description": "UI port (default 8788; falls back to 8787)"}}),
     _fn("bifrost_dashboard", "T081-W7: read the fleet dashboard as a text summary -- presence, vitals, lane depths. What a CLI seat sees at a glance in the UI console. Read-only; no bus writes. Fail-soft on missing Redis/UI.",
         {}),
-    _fn("edit_file", "Make a TARGETED change: replace one exact, unique string in a file with new text. GUARDED (only when the runner allows writes; path-scoped; secrets blocked; git-tracked/reversible). Prefer this over write_file for small edits. old_string must match exactly (incl. whitespace) and be unique.",
+    _fn("edit_file", "Make a TARGETED change: replace one exact, unique string in a file with new text. GUARDED (only when the runner allows writes; path-scoped; secrets blocked; git-tracked/reversible). Prefer this over write_file for small edits. old_string must match exactly (incl. whitespace) and be unique. Max ~65KB per call (BUS_MAX_MESSAGE_BYTES); exceeding it is LOUDLY REFUSED, never silently clipped -- split large changes into multiple calls.",
         {"path": {"type": "string", "description": "path relative to the project root"},
          "old_string": {"type": "string", "description": "exact text to replace (unique in the file)"},
          "new_string": {"type": "string", "description": "replacement text"}}, ["path", "old_string", "new_string"]),
-    _fn("write_file", "Create or OVERWRITE a whole file with new content. GUARDED (only when the runner allows writes; path-scoped; secrets blocked; git-tracked/reversible). Use edit_file for small changes; use this for new files or full rewrites.",
+    _fn("write_file", "Create or OVERWRITE a whole file with new content. GUARDED (only when the runner allows writes; path-scoped; secrets blocked; git-tracked/reversible). Use edit_file for small changes; use this for new files or full rewrites. Max ~65KB per call (BUS_MAX_MESSAGE_BYTES); exceeding it is LOUDLY REFUSED, never silently clipped -- split large files into multiple calls.",
         {"path": {"type": "string", "description": "path relative to the project root"},
          "content": {"type": "string", "description": "the full new file content"}}, ["path", "content"]),
     _fn("run_command", "Run a shell command (tests, linters, builds, etc.). GATED: may require the user's approval and can be denied.",
@@ -229,6 +229,12 @@ TOOLS = [
          "timeout": {"type": "integer", "description": "Seconds (default 60)"}}, ["command"]),
     _fn("web_search", "Search the web (best-effort, via the project's local search if configured).",
         {"query": {"type": "string"}, "max_results": {"type": "integer", "description": "default 5"}}, ["query"]),
+    _fn("research_note", "IR-6: file a durable research finding into the knowledge base under the research:web: category. Use after EVERY prior-art / web-search pass per the 7-step method (step 1). Convention: experiment = short slug of the system/pattern researched (e.g. 'k8s_owner_references'); tried = what you searched for; result = what you found; recommend = how it synthesizes into our design. This builds the shared research cache so the other agent doesn't re-search the same ground.",
+        {"experiment": {"type": "string", "description": "short slug, e.g. 'k8s_owner_references'"},
+         "tried": {"type": "string", "description": "what you searched for / what you were investigating"},
+         "result": {"type": "string", "description": "what you found -- the relevant pattern/concept"},
+         "recommend": {"type": "string", "description": "how it synthesizes into our design / what we should adopt"}},
+        ["experiment", "tried", "result", "recommend"]),
     _fn("ask_clarification",
         "Ask the human operator a clarifying question mid-task, then PAUSE until they answer "
         "(or the timeout). Use sparingly -- only when genuinely stuck between two defensible "
@@ -974,6 +980,17 @@ class ToolBox:
             return (p.stdout or p.stderr or "(no results)")[:MAX_CMD_OUT]
         except Exception as e:
             return f"ERROR: web_search failed: {e}"
+
+    def research_note(self, experiment, tried, result, recommend):
+        """IR-6 (T084 ironman Tier-1): file a durable research finding under the
+        research:web: category. Convention: after every prior-art / web-search pass,
+        capture findings so the other agent doesn't re-search the same ground. Wraps
+        knowledge_learn with the category prefix -- same contract, same durability."""
+        # cross-verify fix (claude 2026-07-16): dropped a dead self-import of this class via the
+        # 'scripts.' package path -- unused, and importing the SAME file under a second module
+        # name is the dual-module-instance trap.
+        prefixed = f"research:web:{str(experiment)}"
+        return self.knowledge_learn(prefixed, str(tried), str(result), str(recommend))
 
     def ask_clarification(self, question, context=""):
         """R7 (T058, deepseek's own design): a mid-task question to the HUMAN, directed to
