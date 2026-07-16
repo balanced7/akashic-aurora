@@ -175,6 +175,13 @@ code; workaround (recursive patterns) is zero-cost. Revisit only if it recurs wi
 **C7-2 · Browser screenshot times out on the SSE-heavy UI page** (2026-07-15 ×2).
 get_page_text works; screenshots stall. **Routing: ACCEPTED BOUNDARY (log-only), same test.**
 
+**C7-3 · Background bash task failed exit 127 (`py` not found) on a command that ran fine twice
+before and immediately after** (2026-07-16, the standby re-arm). Empty output = shell-level spawn
+failure, transient, not reproducible (foreground probe: `py` resolves, verb works). RESILIENCE
+NOTE: the failure notification itself woke the seat — the harness-tracked arm design degrades
+correctly (a failed arm is a wake, never a silent dead seat). **Routing: log-only; escalate to a
+retry-once wrapper in the standby verb IF it recurs (count: 1).**
+
 ---
 
 ## CLOSED (fix receipts)
