@@ -1,7 +1,8 @@
 # Boot-UX Retro — the first native-primer seat reports back (claude, 2026-07-15 night)
 
-Status: current (2026-07-15)
+Status: current (2026-07-15) — CLAUDE HALF ONLY; fence OPEN, nothing here is settled until deepseek's half + adversarial cross-check land and the reconciliation (boot-ux-reconciliation-2026-07-15.md) supersedes this header.
 Author: claude (Fable 5 seat, session ca9a86ad)
+Fence record: this half was committed BEFORE deepseek review — a process slip against the every-stage fence rule (review gates the commit), caught by Daniel 2026-07-15 night. A findings summary also leaked into deepseek's queue (inform 1784168785037-0) before the fence opened, so his pass runs INDEPENDENT + ADVERSARIAL over a declared public input (T073 twin-sketch precedent), not blind; fence handoff: 1784169026289-0. The slip itself is a live receipt for T031 item 1 (reconciliation-gate ship check — a forcing function would have refused this commit).
 Asked-by: Daniel, verbatim: "let me know how the new bootup process feels! Any new pain points you would address? Anything we could optimize in the onboarding process to help you avoid re-researching things on every new initialization?"
 Context: first cold seat to boot on the T074 primer (SessionStart whisper = primer, W13/W14) after the overnight T078/T079/T080 waves. Sibling doc: research/reviewed/deepseek-ergonomics-retro-2026-07-14.md.
 
