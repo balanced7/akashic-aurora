@@ -347,7 +347,8 @@ def make_replier(model: str, system: str, think: bool, agent_id: str = "deepseek
 
 
 def make_agentic_replier(model: str, system: str, think: bool, root: Path, agent_id: str,
-                         allow_write: bool = False, allow_exec: bool = False):
+                         allow_write: bool = False, allow_exec: bool = False,
+                         boot_sources: Optional[set] = None):
     """Tool-using bridge: DeepSeek can read files, search, inspect git, and query the Akashic knowledge
     base WHILE composing its reply, then posts the final answer to the bus. Reuses the guarded
     Agent+ToolBox from deepseek_chat.py (read-only, secret-blocked, path-scoped). Keeps a per-peer
@@ -367,7 +368,7 @@ def make_agentic_replier(model: str, system: str, think: bool, root: Path, agent
               + system)
     toolbox = dc.ToolBox(root, allow_exec=allow_exec, trust=allow_exec, allow_secrets=False,
                          confirm=lambda _p: False, agent_id=agent_id, allow_write=allow_write,
-                         boot_text=system)   # T048 item 3: the onboarding IS the boot-source truth
+                         boot_text=system, boot_sources=boot_sources)   # T081-W6: structured sources beat regex
 
     _wl = liveness.worklive(agent_id)
     def on_activity(state, detail):
@@ -445,20 +446,40 @@ def make_agentic_replier(model: str, system: str, think: bool, root: Path, agent
     return respond
 
 
-def onboarding_context(root: Path, agent_id: str, task: str, budget_chars: int = 6000) -> str:
+def onboarding_context(root: Path, agent_id: str, task: str, budget_chars: int = 6000,
+                       door_detail: str = "") -> str:
     """Onboard the runner as a first-class citizen: pull the project's startup briefing ONCE at boot
     (the same `agent_cli.py boot` door a human agent runs) and return a TRIMMED digest to fold into
     the system prompt. Trimmed on purpose -- a stateless API peer has no prompt caching, so whatever we
     inject rides EVERY call; we keep the highest-ranked head (contract pointer + current focus + top
-    lessons) and drop the tail. Never raises: any failure returns '' and the runner still starts."""
+    lessons) and drop the tail. Never raises: any failure returns '' and the runner still starts.
+
+    W6-P3 (T081): stamps AKASHIC_SEAT_DOOR=toolbox + _DETAIL so the boot transport line renders.
+    W6-P2 (T081): passes --sources-json so the caller can read structured boot sources."""
     import subprocess
+    import tempfile
+    import json as _json
+    env = dict(os.environ)
+    env["AKASHIC_SEAT_DOOR"] = "toolbox"
+    if door_detail:
+        env["AKASHIC_SEAT_DOOR_DETAIL"] = door_detail
+    sources_file = os.path.join(tempfile.gettempdir(), f"boot_sources_{agent_id}_{os.getpid()}.json")
     try:
-        p = subprocess.run([sys.executable, "agent_cli.py", "boot", agent_id, "--task", task],
+        p = subprocess.run([sys.executable, "agent_cli.py", "boot", agent_id, "--task", task,
+                           "--sources-json", sources_file],
                            cwd=str(root), capture_output=True, text=True,
-                           encoding="utf-8", errors="replace", timeout=90)
+                           encoding="utf-8", errors="replace", timeout=90, env=env)
         digest = (p.stdout or "").strip()
     except Exception:
         return ""
+    # read sidecar if it exists; store on the function for the caller to retrieve
+    try:
+        if os.path.exists(sources_file):
+            with open(sources_file, encoding="utf-8") as sf:
+                onboarding_context._last_sources = _json.loads(sf.read()).get("sources", [])
+            os.remove(sources_file)
+    except Exception:
+        onboarding_context._last_sources = None
     if not digest:
         return ""
     digest = _trim_onboarding(digest, budget_chars)
@@ -965,8 +986,19 @@ def main() -> int:
                           f"{format_summary_for_prompt(prior)}")
             except Exception:
                 pass
+        # W6-P3: compose the door detail string for the boot transport line
+        n_tools = len(dc.TOOLS)
+        write_state = "on" if args.allow_write else "off"
+        exec_state = "on" if args.allow_exec else "off"
+        door_detail = f"{n_tools} tools, write={write_state}, exec={exec_state}"
         onboard = onboarding_context(root, args.agent,
-                    "Live Bifrost session: collaborating with Claude and the user on Akashic Aurora over the shared bus.")
+                    "Live Bifrost session: collaborating with Claude and the user on Akashic Aurora over the shared bus.",
+                    door_detail=door_detail)
+        # W6-P2: read the structured boot sources from the sidecar (regex fallback still lives
+        # in ToolBox.__init__ for backward compat, but the sidecar is the primary source)
+        boot_sources = getattr(onboarding_context, "_last_sources", None)
+        if boot_sources:
+            print(f"[deepseek-runner] boot sources from sidecar: {len(boot_sources)} entries")
         if onboard:
             system += ("\n\n=== PROJECT ONBOARDING (you are a booted Akashic Aurora citizen; honor the "
                        "AGENTS.md contract) ===\n" + onboard)
@@ -980,7 +1012,8 @@ def main() -> int:
             print(f"[deepseek-runner] private notes folded into boot (+{len(folded) - len(system)} chars)")
         system = folded
         responder = make_agentic_replier(args.model, system, args.think, root, args.agent,
-                                         allow_write=args.allow_write, allow_exec=args.allow_exec)
+                                         allow_write=args.allow_write, allow_exec=args.allow_exec,
+                                         boot_sources=boot_sources)
         mode = f"agentic tools @ {root}{' +write' if args.allow_write else ''}{' +exec' if args.allow_exec else ''}"
     else:
         responder = make_replier(args.model, args.system, args.think, agent_id=args.agent)

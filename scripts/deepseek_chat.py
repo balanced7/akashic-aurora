@@ -214,6 +214,8 @@ TOOLS = [
         ["to", "key", "value"]),
     _fn("reload_ui", "Reload the running Bifrost UI so your edits to scripts/bifrost_ui.py take effect (no shell needed -- POSTs the UI's own /reload endpoint). Call AFTER you finish editing the UI, then tell the user to refresh their browser. This is how you SOLO-DRIVE UI work end to end.",
         {"port": {"type": "integer", "description": "UI port (default 8788; falls back to 8787)"}}),
+    _fn("bifrost_dashboard", "T081-W7: read the fleet dashboard as a text summary -- presence, vitals, lane depths. What a CLI seat sees at a glance in the UI console. Read-only; no bus writes. Fail-soft on missing Redis/UI.",
+        {}),
     _fn("edit_file", "Make a TARGETED change: replace one exact, unique string in a file with new text. GUARDED (only when the runner allows writes; path-scoped; secrets blocked; git-tracked/reversible). Prefer this over write_file for small edits. old_string must match exactly (incl. whitespace) and be unique.",
         {"path": {"type": "string", "description": "path relative to the project root"},
          "old_string": {"type": "string", "description": "exact text to replace (unique in the file)"},
@@ -247,7 +249,10 @@ CLARIFY_TIMEOUT_S = 300
 
 class ToolBox:
     def __init__(self, root: Path, *, allow_exec: bool, trust: bool, allow_secrets: bool, confirm,
-                 agent_id: str | None = None, allow_write: bool = False, boot_text: str = ""):
+                 agent_id: str | None = None, allow_write: bool = False, boot_text: str = "",
+                 boot_sources: Optional[set] = None):
+        """If boot_sources is provided (the W6 sidecar), use it directly instead
+        of regex-parsing boot_text (the R-P2 fix: structured sources beat regex)."""
         self.root = root.resolve()
         self.allow_exec = allow_exec
         self.trust = trust
@@ -261,11 +266,22 @@ class ToolBox:
         # is the only holder of that text, so it hands it in and we extract the pointers. The
         # onboarding renders lessons BOTH fully-qualified (learn:experiment:NAME) and bare
         # (source: NAME) -- match both, normalize to qualified (deepseek live-verify item 3).
-        bt = boot_text or ""
-        self._boot_sources = set(re.findall(r"learn:experiment:[A-Za-z0-9_\-]+", bt))
-        self._boot_sources |= {f"learn:experiment:{m}" for m in
-                               re.findall(r"source:\s*([A-Za-z0-9_\-]+)\)", bt)
-                               if not m.startswith("learn")}
+        # W6-P2 (T081): when boot_sources is provided (the structured sidecar from
+        # agent_cli.py boot --sources-json), use it directly -- no regex over rendered text.
+        # W6-P1 (T081): the sidecar normalizes mem:* to learn:experiment:mem_*, fixing the
+        # missing mem: arm in the old regex extraction.
+        if boot_sources is not None:
+            self._boot_sources = set(boot_sources)
+        else:
+            bt = boot_text or ""
+            self._boot_sources = set(re.findall(r"learn:experiment:[A-Za-z0-9_\-]+", bt))
+            self._boot_sources |= {f"learn:experiment:{m}" for m in
+                                   re.findall(r"source:\s*([A-Za-z0-9_\-]+)\)", bt)
+                                   if not m.startswith("learn")}
+            # W6-P1 (T081): mem: arm -- mem:namespace:key entries rendered in boot as
+            # (source: mem:decision:ADR_071503) were missed by both regex arms above.
+            self._boot_sources |= {f"learn:experiment:mem_{m.replace(':', '_')}" for m in
+                                   re.findall(r"source:\s*mem:([A-Za-z0-9_:]+)\)", bt)}
         # T048 lock-release: paths guard_write locked this task; the runner releases them at reply
         # time (3 leaked-lock receipts 2026-07-14 -- a completed task must not hold its locks).
         self._written_lock_paths: list = []
@@ -699,6 +715,66 @@ class ToolBox:
         return ("reload_ui is disabled for you -- the Bifrost UI + port 8788 are claude/harness-managed "
                 "(your reload re-execs the server and breaks the preview). Edit the UI only when claude "
                 "hands you the lock, and let claude/the harness reload it.")
+
+    def bifrost_dashboard(self) -> str:
+        """T081-W7: a text summary of the fleet dashboard -- presence, vitals, lane depths.
+        What a CLI seat sees at a glance in the UI. Reads Redis directly (no UI dependency);
+        fail-soft: any error returns a tagged fallback, never raises."""
+        lines = []
+        fallback_note = ""
+        try:
+            from core.comm.bus import Bus
+            probe = Bus("dashboard-probe", promote=False)
+            agents = probe.presence() if (probe.online and probe.probe()) else []
+        except Exception:
+            agents = []
+            fallback_note = "[bus unreachable; presence unavailable]"
+        if agents:
+            lines.append("## FLEET PRESENCE")
+            for a in agents:
+                aid = a.get("agent", "?")
+                cls = a.get("runtime_class", "?")
+                state = a.get("runtimes", {}).get("runner", "?")
+                active = " (idle)" if a.get("activity") else ""
+                lines.append(f"  {aid}: class={cls} runner={state}{active}")
+        else:
+            lines.append("## FLEET PRESENCE")
+            lines.append("  (no agents present" + ("; " + fallback_note + ")" if fallback_note else ")"))
+        # vitals per agent
+        try:
+            known = set()
+            for a in agents:
+                known.add(a.get("agent", ""))
+            known.discard("")
+            from core.comm.engine_vitals import gauge_snapshot
+            lines.append("## VITALS")
+            for a in sorted(known) if known else ["deepseek", "claude"]:
+                try:
+                    snap = gauge_snapshot(a)
+                    hb = snap.get("heartbeat", "?")
+                    toks = snap.get("tokens", {})
+                    daemon = "daemon" if snap.get("daemon_live") else "no-daemon"
+                    lines.append(f"  {a}: hb={hb} {daemon} "
+                                 f"tok={toks.get('prompt',0)}+{toks.get('completion',0)}")
+                except Exception:
+                    lines.append(f"  {a}: (vitals unavailable)")
+        except Exception:
+            pass
+        # lane depths
+        try:
+            from core.comm.lane_depths import lane_depths
+            lines.append("## LANE DEPTHS")
+            for a in sorted(known)[:6] if known else ["deepseek", "claude"]:
+                try:
+                    ld = lane_depths(a)
+                    lines.append(f"  {a}: work={ld.get('work',0)} trace={ld.get('trace',0)}")
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        if fallback_note and not agents:
+            lines.insert(0, f"# {fallback_note}")
+        return "\n".join(lines) if len(lines) > (2 if fallback_note else 1) else "(dashboard: no data)"
 
     # -- guarded write (live only when the runner is started with --allow-write) --
     def _yield_notice(self, path, held_by):
