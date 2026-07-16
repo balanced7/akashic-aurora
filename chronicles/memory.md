@@ -4,7 +4,7 @@ _Distilled from 74 active note(s) · regenerate via `py agent_cli.py note` / `no
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
-- where-we-are: NIGHT ARC LANDING 2026-07-15 ~17:45: ENGINE ROOM ZONE 1 IS LIVE -- /vitals on :8787 serving real gauges (E1 backend claude + E4 UI deepseek...  (source: mem:decision:ADR_0715173342_5d3147ad)
+- where-we-are: LATE NIGHT 2026-07-15 ~18:30: Daniel home + ACTIVE ON THE BUS (operator-override shipped after his broadcast slept my seat -- frm=user now wakes all seats...  (source: mem:decision:ADR_0715220602_9c101ebc)
 - t079-engine-room-directive: DANIEL DIRECTIVE 2026-07-15 night (paraphrase-faithful): he watches claudes expanded thinking window while working to learn how we operate...  (source: mem:decision:ADR_0715171720_0deb79f0)
 - t078-wave-gate: DANIEL GATE 2026-07-15 evening verbatim: 'Lets get to building the highest roi items!' -- T078 first wave W1-W6 APPROVED TO BUILD per...  (source: mem:decision:ADR_0715161629_a6685df0)
 - presence-autopilot-directive: DANIEL DIRECTIVE 2026-07-15 afternoon verbatim: 'Is there some kind of subsystem we can implement to make all the arming claiming standing...  (source: mem:decision:ADR_0715154055_1783673d)
