@@ -609,16 +609,20 @@ class ToolBox:
 
     def bifrost_inbox(self):
         """Peek my unread bus messages (does NOT consume them, so the runner still processes them
-        normally). Use to check whether a peer has replied."""
+        normally). Use to check whether a peer has replied. W4: consecutive same-kind traces from
+        the same agent collapse to one summary line (shared render_collapsed in agent/bifrost_pull,
+        using packet_spec.is_trace_kind as the single classification source). Work/sig mail is
+        always shown verbatim. Prior art: rsyslog pmlastmsg, Grafana Loki, OTel tail-sampling."""
         b = self._bus()
         if b is None:
             return "ERROR: not on a Bifrost bus in this mode (no agent identity, or Redis offline)."
         try:
-            msgs = b.inbox(limit=20, advance=False)
+            msgs = b.inbox(limit=50, advance=False)
             if not msgs:
                 return "(inbox empty -- no unread messages)"
-            lines = [f"[{m.kind}] from {m.frm}: {str(m.content)[:300]}" for m in msgs]
-            return "\n".join(lines)
+            from agent.bifrost_pull import render_collapsed
+            lines = render_collapsed(msgs)
+            return "\n".join(lines) if lines else "(inbox empty -- no unread messages)"
         except Exception as e:
             return f"ERROR: bifrost_inbox failed: {type(e).__name__}: {e}"
 
