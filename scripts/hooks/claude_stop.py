@@ -204,6 +204,18 @@ def main():
         print(f"[stop-hook] stdin unparseable: {type(e).__name__}: {e}", file=sys.stderr)
         payload = {}
     session_id = str(payload.get("session_id") or "")
+    if session_id:
+        try:   # T086 S1b: a resurrected turn of an ENDED session stands down QUIETLY --
+            #    no marker touch (that would fake renewal), no seat refresh, no wake-arm
+            #    demand. Breaks the C1-5 resurrection loop by record, not by judgment.
+            sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+            from core.comm import wake_seat as _ws
+            if _ws.is_tombstoned(session_id):
+                print("[stop-hook] session tombstoned (ended) -- standing down unarmed (T086 S1)",
+                      file=sys.stderr)
+                return
+        except Exception:
+            pass   # fail-open: tombstone probe errors never change stop-hook behavior
     _touch_activity(session_id)          # stamp ALIVE on every firing -- K7 fast path
     if session_id:
         try:                             # RB-21: keep the consumer seat alive while the

@@ -91,6 +91,68 @@ def activity_age_min(agent: str, session_id: str, now: Optional[float] = None,
         return None
 
 
+# ---------------------------------------------------------------- session tombstones (T086 S1)
+# The missing discriminator behind C1-5: marker freshness, listener pids, and parent chains
+# all prove a PROCESS or the shared HOST lives -- none of them can say "this SESSION ended".
+# The tombstone is that fact, written at SessionEnd (clean_death leg 0), consulted by the
+# free_if_dead ladder (skip grace), the janitor (override chain-immunity), and the stop hook
+# (a resurrected turn of an ended session stands down unarmed). Kill switch: AKASHIC_TOMBSTONE=0.
+# Reconciliation D2 (t086-seat-reconciliation-2026-07-16.md): durable state beats signal games.
+
+def tombstone_path(session_id: str, tmp: Optional[str] = None) -> str:
+    return os.path.join(tmp or tempfile.gettempdir(), f"akashic_session_ended_{session_id}.tomb")
+
+
+def write_tombstone(session_id: str, tmp: Optional[str] = None, c=None) -> bool:
+    """Record that `session_id` ENDED: local file (bus-independent) + Redis key (shared,
+    7d TTL). Best-effort both legs; True if either landed."""
+    if not session_id or os.getenv("AKASHIC_TOMBSTONE", "1") == "0":
+        return False
+    ok = False
+    try:
+        with open(tombstone_path(session_id, tmp), "w") as f:
+            f.write(str(time.time()))
+        ok = True
+    except Exception:
+        pass
+    try:
+        cli = c
+        if cli is None:
+            from core.comm.bus import get_bus
+            cli = get_bus("control")._client
+        if cli is not None:
+            ns = os.environ.get("BIFROST_NAMESPACE", "bifrost")
+            cli.set(f"{ns}:session:ended:{session_id}", str(time.time()), ex=7 * 24 * 3600)
+            ok = True
+    except Exception:
+        pass
+    return ok
+
+
+def is_tombstoned(session_id: str, tmp: Optional[str] = None, c=None) -> bool:
+    """Has this session ENDED? File first (cheap, offline-safe), Redis second.
+    FAIL TOWARD ALIVE: any probe error reads as not-tombstoned -- a tombstone may only
+    ACCELERATE a release, never cause one on a guess (S1c pin)."""
+    if not session_id or os.getenv("AKASHIC_TOMBSTONE", "1") == "0":
+        return False
+    try:
+        if os.path.exists(tombstone_path(session_id, tmp)):
+            return True
+    except Exception:
+        pass
+    try:
+        cli = c
+        if cli is None:
+            from core.comm.bus import get_bus
+            cli = get_bus("control")._client
+        if cli is not None:
+            ns = os.environ.get("BIFROST_NAMESPACE", "bifrost")
+            return bool(cli.exists(f"{ns}:session:ended:{session_id}"))
+    except Exception:
+        pass
+    return False
+
+
 # ---------------------------------------------------------------- provenance log
 def provenance_path(agent: str, tmp: Optional[str] = None) -> str:
     return os.path.join(tmp or tempfile.gettempdir(), f"bifrost_wake_{agent}.reap.log")
@@ -183,10 +245,12 @@ def taskkill(pid: int) -> bool:
 def reap_decision(session_id: Optional[str], pid: Optional[int], pid_alive: bool,
                   pid_is_watcher: bool, marker_age_min: Optional[float], fresh_min: float,
                   chain_fn: Callable[[], Tuple[bool, str]],
-                  my_session: Optional[str] = None) -> Tuple[str, str]:
+                  my_session: Optional[str] = None, tombstoned: bool = False) -> Tuple[str, str]:
     """(action, reason) for one seat: 'skip' | 'clean' (remove file, no kill) | 'kill'.
     Pure given its inputs; chain_fn is called ONLY on the stale-marker slow path (K7)
-    and any exception it raises means alive (K8)."""
+    and any exception it raises means alive (K8). `tombstoned` (T086 S1) outranks marker
+    freshness AND chain immunity: the session is ended BY RECORD -- K7's parent chain
+    proves the shared claude.exe host lives, not the session (ca9a86ad receipt 2026-07-16)."""
     if pid is None:
         return "clean", "unreadable seat file"
     if not pid_alive:
@@ -195,6 +259,8 @@ def reap_decision(session_id: Optional[str], pid: Optional[int], pid_alive: bool
         return "clean", f"stale seat: pid {pid} recycled to a non-watcher"
     if my_session and session_id == my_session:
         return "skip", "own session's seat"
+    if session_id and tombstoned:
+        return "kill", f"session-tombstoned: watcher pid {pid} outlived its ended session (T086 S1)"
     if session_id is None:
         return "kill", f"K6 migration: legacy name-keyed ghost watcher pid {pid}"
     if marker_age_min is not None and marker_age_min < fresh_min:
@@ -250,7 +316,8 @@ def janitor(agent: str, my_session: Optional[str] = None, tmp: Optional[str] = N
                 pid_alive = pid_is_watcher = True     # fresh-marker fast path: no WMI (K7 pin 2)
             action, reason = reap_decision(
                 sid, pid, pid_alive, pid_is_watcher, marker_age, fresh,
-                (lambda p=pid: chain_alive(p, snap or {})), my_session)
+                (lambda p=pid: chain_alive(p, snap or {})), my_session,
+                tombstoned=(is_tombstoned(sid, tmp) if sid else False))
             if action == "kill":
                 kill_fn(pid)
             if action in ("kill", "clean"):

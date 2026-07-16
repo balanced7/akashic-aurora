@@ -247,46 +247,64 @@ def free_if_dead(agent: str, *, grace_s: int = 300, stale_s: int = 900,
             return verdict
         t_now = float(now if now is not None else time.time())
         age = t_now - _ts_epoch(rec.get("ts"), default=t_now)
-        if age <= grace_s:
-            verdict["reason"] = f"grace ({int(age)}s <= {grace_s}s)"
-            return verdict
         sid = token[len("session:"):]
         from core.comm import wake_seat
+        # 0.5) T086 S1: a TOMBSTONED session is dead BY RECORD, not by inference -- no
+        #      grace (its claim can never become live again; RB-21 fencing guards the
+        #      rest). Probe errors read as not-tombstoned (fail toward alive, S1c).
+        tombstoned = False
+        try:
+            tombstoned = wake_seat.is_tombstoned(sid, tmp)
+        except Exception:
+            tombstoned = False
+        dead = "session-tombstoned (SessionEnd on record)" if tombstoned else None
+        if dead is None and age <= grace_s:
+            verdict["reason"] = f"grace ({int(age)}s <= {grace_s}s)"
+            return verdict
         alive_probe = pid_alive if pid_alive is not None else _pid_alive_default
-        # 1) activity marker -- the every-hook-firing fast path
         marker = wake_seat.activity_marker_path(agent, sid, tmp)
         marker_age = None
-        try:
-            if os.path.exists(marker):
-                marker_age = t_now - os.path.getmtime(marker)
-                if marker_age < grace_s:
-                    verdict["reason"] = f"marker-fresh ({int(marker_age)}s)"
-                    return verdict
-        except Exception:
-            verdict["reason"] = "marker-probe-error"
-            return verdict
-        # 2) armed listener pid
-        seat_file = wake_seat.seat_path(agent, sid, tmp)
-        dead = None
-        if os.path.exists(seat_file):
-            pid = wake_seat.read_pid(seat_file)
-            if pid is None:
-                verdict["reason"] = "seat-file-unreadable"
-                return verdict
-            alive = alive_probe(pid)
-            if alive:
-                verdict["reason"] = f"listener-alive (pid {pid})"
-                return verdict
-            dead = f"listener-pid-dead ({pid})"
-        # 3) no pid file -> no-evidence + staleness
         if dead is None:
-            if marker_age is None:
-                dead = "no-liveness-evidence (no seat file, no marker)"
-            elif marker_age >= stale_s:
-                dead = f"marker-stale ({int(marker_age)}s >= {stale_s}s)"
-            else:
-                verdict["reason"] = f"indeterminate (marker {int(marker_age)}s; TTL rules)"
+            # 1) activity marker -- the every-hook-firing renewal channel
+            try:
+                if os.path.exists(marker):
+                    marker_age = t_now - os.path.getmtime(marker)
+                    if marker_age < grace_s:
+                        verdict["reason"] = f"marker-fresh ({int(marker_age)}s)"
+                        return verdict
+            except Exception:
+                verdict["reason"] = "marker-probe-error"
                 return verdict
+            # 2) T086 S2a: renewal staleness OUTRANKS a live listener pid. The listener is
+            #    a PROCESS fact; the marker is the SESSION's renewal channel -- and C1-5's
+            #    receipt (2026-07-16: listener alive, marker 192m stale, 30 min unwakeable)
+            #    is exactly the conflation. A seat release is fenced + re-claimable: an
+            #    idle-but-live session that wakes later simply re-claims (k8s lease
+            #    eviction semantics). Destructive reaps keep K7/K8 conservatism; claim
+            #    releases follow the lease.
+            if marker_age is not None and marker_age >= stale_s:
+                dead = f"renewal-stale ({int(marker_age)}s >= {stale_s}s; listener pid not consulted)"
+        if dead is None:
+            # 3) armed listener pid -- only consulted in the mid-band (grace < marker < stale)
+            #    or when no marker exists (a session's first seconds; stay conservative)
+            seat_file = wake_seat.seat_path(agent, sid, tmp)
+            if os.path.exists(seat_file):
+                pid = wake_seat.read_pid(seat_file)
+                if pid is None:
+                    verdict["reason"] = "seat-file-unreadable"
+                    return verdict
+                alive = alive_probe(pid)
+                if alive:
+                    verdict["reason"] = f"listener-alive (pid {pid})"
+                    return verdict
+                dead = f"listener-pid-dead ({pid})"
+            # 4) no pid file -> no-evidence
+            if dead is None:
+                if marker_age is None:
+                    dead = "no-liveness-evidence (no seat file, no marker)"
+                else:
+                    verdict["reason"] = f"indeterminate (marker {int(marker_age)}s; TTL rules)"
+                    return verdict
         if release(agent, token):
             verdict.update({"freed": holder(agent) is None or holder(agent).get("token") != token,
                             "reason": dead})

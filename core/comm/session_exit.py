@@ -53,8 +53,17 @@ def clean_death(agent: str, session_id: str, tmp: Optional[str] = None,
     if not agent or not session_id:
         return {"disabled": True}
 
-    out = {"seat": False, "card": False, "listener": False, "marker": False}
+    out = {"tombstone": False, "seat": False, "card": False, "listener": False, "marker": False}
     token = f"session:{session_id}"
+
+    try:   # ---- leg 0 (T086 S1): tombstone FIRST -- the durable "this session ENDED" fact
+        #      every liveness surface consults (ladder skips grace, janitor overrides
+        #      chain-immunity, a resurrected turn stands down unarmed). Written before the
+        #      other legs so even a crash mid-trio leaves the discriminator behind.
+        from core.comm import wake_seat
+        out["tombstone"] = wake_seat.write_tombstone(session_id, tmp, c=c)
+    except Exception:
+        pass
 
     try:   # ---- leg 1: consumer seat (own hold only -- release() refuses foreign tokens)
         from core.comm import runner_lock
@@ -84,8 +93,9 @@ def clean_death(agent: str, session_id: str, tmp: Optional[str] = None,
                 pass
         wake_seat.append_provenance(
             agent,
-            f"clean-death sid={session_id[:8]}: seat={out['seat']} card={out['card']} "
-            f"listener={out['listener']} marker={out['marker']} (M1-beta trio; TTLs remain the crash net)",
+            f"clean-death sid={session_id[:8]}: tombstone={out['tombstone']} seat={out['seat']} "
+            f"card={out['card']} listener={out['listener']} marker={out['marker']} "
+            f"(M1-beta trio + T086 S1; TTLs remain the crash net)",
             tmp)
     except Exception:
         pass

@@ -116,7 +116,7 @@ def test_stale_marker_frees(agent, tmp_path):
     now = _aged(agent)
     os.utime(m, (now - STALE - 60, now - STALE - 60))
     v = runner_lock.free_if_dead(agent, now=now, tmp=str(tmp_path))
-    assert v["freed"] and "marker-stale" in v["reason"]
+    assert v["freed"] and "renewal-stale" in v["reason"]   # label renamed by T086 S2a (same semantics)
 
 
 def test_midband_marker_is_indeterminate_ttl_rules(agent, tmp_path):
