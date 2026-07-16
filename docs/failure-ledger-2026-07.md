@@ -48,7 +48,11 @@ boot render. Not a blocker (the information is still reachable; just takes one e
 ### C1 Seat & lease lifecycle
 
 **C1-5 · Ghost wake seat: an ENDED session's armed standby survives SessionEnd** (2026-07-16
-morning, live). Session ca9a86ad ended 08:47 (SessionEnd drafted the chronicle) but its
+morning, live) — **FIXED 2026-07-16 (T086-S1+S2a), awaiting deepseek cross-verify.** Session
+tombstone = the session-vs-process discriminator, consulted by ladder (no grace), janitor
+(outranks K7 chain-immunity), and stop hook (resurrected turns stand down unarmed); renewal
+staleness now outranks a live listener pid in the ladder. 8 pins + 48 regression GREEN;
+ca9a86ad tombstoned live. Original entry + amendment below retained as the incident record. Session ca9a86ad ended 08:47 (SessionEnd drafted the chronicle) but its
 `bifrost-standby` (pids 35536/49316) + `bifrost_wake` child (49252) stayed armed — the wake seat
 was held by a session no one can see. Consequence: peer mail would wake the dead session, not
 the live morning seat; and the C1-1 evidence ladder correctly reads listener-pid-alive → holder
