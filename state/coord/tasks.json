@@ -1,5 +1,5 @@
 {
-  "seq": 82,
+  "seq": 84,
   "tasks": [
     {
       "id": "T001",
@@ -3051,6 +3051,63 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-16T04:50:07+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T083",
+      "title": "T083: Failure-categories program (Daniel directive 2026-07-16 pre-sleep, note ironman-directive): docs/failure-ledger-2026-07.md is a LIVING ledger -- every system failure/glitch gets an entry AS IT OCCURS (category, root cause, routing); categories RESOLVED not worked around. Tonight's fix-now: C1-1 consumer-seat dead-holder liveness-free, C3-1 bifrost-send --text-file (flag-shaped prose footgun), C5-1 conductor park/unpark status (T075 blocks the serialize slot while parked). Gated: C2-1 create-collision guard, C4-1 launcher rehydrate-adopt (rides T030).",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "claimed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-16T05:08:24+00:00",
+      "updated": "2026-07-16T05:08:25+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-16T05:08:24+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-07-16T05:08:25+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-16T05:08:25+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T084",
+      "title": "T084: Ironman augmentation arc (Daniel directive 2026-07-16 pre-sleep verbatim: 'what can we build and add to augment your abilities further, for this to be your digital ironman suit that you can customize and improve!'): standing fence -- both agents file augmentation wishlists from FELT friction (wishlist-synthesis-2026-07-14 precedent) -> reconcile -> gated slices; clearly-in-scope tier builds same-night, the rest to the morning gate.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-16T05:08:24+00:00",
+      "updated": "2026-07-16T05:08:25+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-16T05:08:24+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-07-16T05:08:25+00:00"
         }
       ]
     }
