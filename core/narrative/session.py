@@ -112,12 +112,13 @@ def end_session(store: Optional[Store] = None, *, now: Optional[str] = None,
         now_iso = now or datetime.utcnow().isoformat()
 
         if store.get(SESSION_OPEN_KEY):
-            # Session bookends: force-close the open episode (draft it) BEFORE the session ends, with
-            # no fresh episode after -- a session that ends mid-episode must not leak it (review Q5).
+            # Session bookends: resolve the open episode BEFORE the session ends, with no fresh
+            # episode after -- a session that ends mid-episode must not leak it (review Q5). T081-W8:
+            # route through the empty-safe helper (shared with the SessionEnd hook) so an EMPTY span
+            # is cleared instead of drafted into a phantom 'Untitled' chapter (the 189h-episode bug).
             try:
-                from core.narrative.episode import close_episode, _load_open
-                if _load_open(store):
-                    close_episode(store, now=now_iso, open_next=False)
+                from core.narrative.episode import close_open_episode_for_session_end
+                close_open_episode_for_session_end(store, now=now_iso)
             except Exception:
                 pass
             bl.emit("session", "Session ended", "session:end", at=now_iso,
