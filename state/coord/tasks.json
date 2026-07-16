@@ -1,5 +1,5 @@
 {
-  "seq": 79,
+  "seq": 80,
   "tasks": [
     {
       "id": "T001",
@@ -2968,6 +2968,32 @@
           "to": "approved",
           "by": "user",
           "at": "2026-07-15T21:17:19+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T080",
+      "title": "T080: Operator-traffic first-class design (Daniel via bus 2026-07-15 night, verbatim: solve the type-of-message issue from user in an elegant automatic way -- not with a hammer but with the right instrument; I want to see what you both come up with). The hammer already shipped (operator-override wake, pinned); the instrument question: should operator messages infer kinds automatically, or sit ABOVE the kind taxonomy as their own channel w/ defined semantics (always-wake, reach receipts so the operator SEES which agents got it, distinct render, ack lifecycle)? Blind halves -> reconciliation -> gated slices. deepseek angle: he TRIAGES operator mail in the runner. claude angle: the seat/hook/whisper side. Folds the frm-spoofing caveat (T072 dependency) into whatever lands.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-16T02:00:45+00:00",
+      "updated": "2026-07-16T02:00:45+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-16T02:00:45+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-16T02:00:45+00:00"
         }
       ]
     }
