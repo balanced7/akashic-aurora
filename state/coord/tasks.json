@@ -1,5 +1,5 @@
 {
-  "seq": 80,
+  "seq": 81,
   "tasks": [
     {
       "id": "T001",
@@ -2994,6 +2994,27 @@
           "to": "approved",
           "by": "user",
           "at": "2026-07-16T02:00:45+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T081",
+      "title": "Boot-ergonomics wave (W1-W8, reconciled dual retro 2026-07-15, Daniel-directed collaborative process): the shared thesis = boot answers 'where am I' but not 'what can I do / what's running'. W1 boot transport line (door: MCP-native/CLI-shell/ToolBox-native); W2 user-scoped MCP absolute-path registration (kills the session-long shell-out tax + P6 cwd); W3 doctor fleet-liveness block (UI/engine/daemon/wake LIVE-DOWN + start commands); W4 sync+bifrost_inbox trace-collapse (P4/R-P4); W5 ephemeral-namespace roster in packet_spec -> honest heal (P5, rides T047); W6 structured boot_sources sidecar, mem: namespace fix (R-P2, rides T048); W7 bifrost_dashboard ToolBox method (R-P3, rides T079); W8 gauge-drift label + SessionEnd episode auto-close (P6). P3 arm-ritual stays TRACKED under T075-gamma+T077 (daemon owns it; live receipt tonight); R-P1 runner re-onboard caching DEFERRED. All slices lite-tier per T049(3). Cites research/reviewed/boot-ux-reconciliation-2026-07-15.md + both halves. Recommended first wave: W1-W3. NOTHING builds before Daniel's gate.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-16T02:50:13+00:00",
+      "updated": "2026-07-16T02:50:13+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-16T02:50:13+00:00"
         }
       ]
     }
