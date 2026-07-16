@@ -292,7 +292,15 @@ def print_boot_bifrost_section(block: Dict[str, Any], show_traces: bool = False)
     if pending == 0:
         print("  (no new messages -- peek only; cursor unchanged)")
         return
-    print(f"  {pending} unread (peek -- use bifrost_inbox or `py agent_cli.py bifrost-sync --consume` to ack):")
+    # W8 (T081): name the denominator (same scope check as the whisper) so 'N here vs M in the
+    # whisper' stops confusing -- the peek reads the legacy cursor (all lanes during dual-write).
+    try:
+        from core.comm.bifrost_api import BifrostAPI
+        scope = "work-lane" if BifrostAPI.consume_lane_enabled() else "all lanes"
+    except Exception:
+        scope = "legacy peek"
+    print(f"  {pending} unread ({scope}, peek -- use bifrost_inbox or "
+          f"`py agent_cli.py bifrost-sync --consume` to ack):")
     for ln in render_collapsed(block.get("messages") or [], show_traces=show_traces):
         print(f"  {ln}")   # W4: trace-class telemetry folded (--traces to expand)
 

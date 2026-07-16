@@ -51,17 +51,17 @@
       "id": "T002",
       "title": "UI: collapse agent reasoning + tool traces into ONE collapsible card per agent",
       "desc": "",
-      "owner": "deepseek-plumbing",
+      "owner": "deepseek",
       "deps": [],
       "files": [
         "scripts/bifrost_ui.py"
       ],
       "acceptance": "log not a wall; traces collapsed by default, expand on click",
-      "status": "approved",
+      "status": "claimed",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-05T14:18:11+00:00",
-      "updated": "2026-07-10T03:52:08+00:00",
+      "updated": "2026-07-16T04:54:53+00:00",
       "history": [
         {
           "to": "proposed",
@@ -72,6 +72,11 @@
           "to": "approved",
           "by": "user",
           "at": "2026-07-10T03:52:08+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "deepseek",
+          "at": "2026-07-16T04:54:53+00:00"
         }
       ]
     },

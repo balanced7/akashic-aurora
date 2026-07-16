@@ -244,7 +244,16 @@ def build_autoboot_context(cwd: str, agent_id: str, session_id: str = "") -> str
     if themes is not None:
         sections.append(("themes", [_note_line("THEMES", themes, body_clip=120)]))
     if unread:
-        sections.append(("mail", [f"mail: {unread} unread -> py agent_cli.py bifrost-sync {agent_id}"]))
+        # W8 (T081): Prometheus-style denominator label -- the whisper peek reads the LEGACY
+        # cursor (all lanes during dual-write, first 8). Name what's counted so the operator
+        # stops asking "why 8 here vs 10 in sync?" -- they measure different things.
+        try:
+            from core.comm.bifrost_api import BifrostAPI
+            scope = "work-lane" if BifrostAPI.consume_lane_enabled() else "all lanes"
+        except Exception:
+            scope = "legacy peek"
+        sections.append(("mail", [f"mail: {unread} unread ({scope}) -> "
+                                  f"py agent_cli.py bifrost-sync {agent_id}"]))
     if fresh_draft:
         sections.append(("draft", ["draft: chronicles/last-session-draft.md -> review; promote with "
                                    "`py agent_cli.py wrap --commit`"]))
