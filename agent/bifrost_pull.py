@@ -318,6 +318,54 @@ def print_boot_bifrost_section(block: Dict[str, Any], show_traces: bool = False)
         print(f"  {ln}")   # W4: trace-class telemetry folded (--traces to expand)
 
 
+def standby(agent_id: str, session_id: str = "", *, listen=None,
+            limit: int = 20) -> Dict[str, Any]:
+    """T084-CL-2: the turn-end ritual as ONE decision function -- drain (if the seat is ours to
+    take), report seat state, then hand off to the LISTENER (injected callable) only when it is
+    safe and non-redundant to listen. Encodes tonight's hard-won ordering laws:
+
+      - consume-THEN-arm (arming on an undrained inbox insta-wakes: failure ledger C1-2);
+      - a seat held by a provably-dead session gets rescued inside consume_inbox (C1-1);
+      - a seat held by a LIVE twin means the TWIN is the wakeable seat-holder -- listening here
+        would be a redundant watcher burning cycles (the plan-wall law): report, do NOT listen.
+
+    Returns {"drained": int, "listened": bool, "decision": str, "report": [lines]}. The CLI verb
+    wraps this and, when the decision is 'listen', BLOCKS as the wake listener's parent -- so one
+    harness-tracked `bifrost-standby` background task = drain + report + armed seat, and the
+    listener's exit re-invokes the harness. Never spawns detached (the T073 untracked-process
+    root cause)."""
+    out: Dict[str, Any] = {"drained": 0, "listened": False, "decision": "", "report": []}
+    rep = out["report"]
+    res = consume_inbox(agent_id, limit=limit)
+    if res.get("seat_held"):
+        teach = str(res.get("teach") or "consumer seat held")
+        rep.append(f"seat: HELD by {res.get('holder')} -- {teach}")
+        rep.append(f"standby: NOT listening (live twin is the wakeable seat-holder; "
+                   f"{len(res.get('peeked') or [])} msg(s) visible as peek)")
+        out["decision"] = "twin-holds-seat"
+        return out
+    msgs = res.get("consumed") or []
+    out["drained"] = len(msgs)
+    rep.append(f"drained: {len(msgs)} message(s)" if msgs else "drained: inbox already clean")
+    for ln in render_collapsed(msgs)[:12]:
+        rep.append(f"  {ln}")
+    try:   # expectations sweep state rides the report (RB-29 visibility)
+        blk = collect_boot_bifrost(agent_id, limit=1)
+        for ln in blk.get("expect_lines") or []:
+            rep.append(f"  {ln}")
+    except Exception:
+        pass
+    if listen is None:
+        rep.append("standby: report-only (no listener requested)")
+        out["decision"] = "report-only"
+        return out
+    rep.append("standby: inbox clean -- handing off to the wake listener (blocking)")
+    out["decision"] = "listen"
+    out["listened"] = True
+    out["listen_rc"] = listen(agent_id, session_id)
+    return out
+
+
 def print_boot_locks_section(block: Dict[str, Any], agent_id: str = "") -> None:
     """Awareness: who holds which advisory path-locks (only prints if any are held)."""
     locks = block.get("locks") or []

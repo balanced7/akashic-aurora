@@ -2742,6 +2742,34 @@ def cmd_bifrost_sync(args):
     return 0
 
 
+def cmd_bifrost_standby(args):
+    """T084-CL-2: the turn-end ritual as ONE verb -- drain -> seat report -> BLOCK as the wake
+    listener's parent. Run THIS as the harness background task; its exit (the listener detecting
+    wake-worthy mail) re-invokes the harness. --no-listen = drain + report only."""
+    from agent.bifrost_pull import standby
+
+    def _listen(agent_id, session_id):
+        # Blocking child, NOT detached: this CLI process is the harness-tracked parent (the T073
+        # law -- a detached listener notifies nobody). Env pins the work lane (T045 cutover).
+        import subprocess
+        env = {**os.environ, "BIFROST_WAKE_LANE": os.environ.get("BIFROST_WAKE_LANE", "work")}
+        cmd = [sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                            "scripts", "bifrost_wake.py"), "--agent", agent_id]
+        if session_id:
+            cmd += ["--session", session_id]
+        return subprocess.run(cmd, env=env).returncode
+
+    session = args.session or os.getenv("CLAUDE_CODE_SESSION_ID") or os.getenv("CLAUDE_SESSION_ID") or ""
+    res = standby(args.agent_id, session, listen=None if args.no_listen else _listen,
+                  limit=args.limit or 20)
+    for ln in res["report"]:
+        print(ln)
+    if res["decision"] == "listen":
+        print(f"[standby] listener exited rc={res.get('listen_rc')} -- wake-worthy mail or deadline;"
+              " re-run bifrost-standby after handling")
+    return 0 if res["decision"] != "twin-holds-seat" else 1
+
+
 def cmd_bifrost_send(args):
     """Send a message to another agent on the Bifrost bus (or --broadcast to all). The sender is
     args.agent_id; the recipient is --to. Rings the doorbell so a runner/waiter wakes."""
@@ -3273,6 +3301,16 @@ def build_parser():
                     help="W4: expand folded trace-class telemetry (default collapses it)")
     bs.add_argument("--json", action="store_true")
     bs.set_defaults(fn=cmd_bifrost_sync)
+
+    sby = sub.add_parser("bifrost-standby",
+                         help="T084-CL-2: turn-end ritual in ONE verb -- drain, seat report, then "
+                              "BLOCK as the wake listener's parent (run as a background task)")
+    sby.add_argument("agent_id", help="your stable agent id (e.g. claude)")
+    sby.add_argument("--session", default="", help="session id for the per-session wake seat "
+                                                   "(default: harness session env)")
+    sby.add_argument("--no-listen", action="store_true", help="drain + report only; do not block")
+    sby.add_argument("--limit", type=int, default=None)
+    sby.set_defaults(fn=cmd_bifrost_standby)
 
     snd = sub.add_parser("bifrost-send", help="send a message to another agent on the bus")
     snd.add_argument("agent_id", help="your stable agent id (the SENDER, e.g. claude)")
