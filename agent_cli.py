@@ -202,6 +202,12 @@ def cmd_boot(args):
 
     sk = (ctx.get("skeleton") or "").strip()
     secs = ctx.get("sections") or {}
+    if getattr(args, "sources_json", None):   # T081-W6: sidecar of normalized lesson sources (best-effort)
+        try:
+            with open(args.sources_json, "w", encoding="utf-8") as _sf:
+                json.dump({"sources": _boot_source_list(secs)}, _sf)
+        except Exception:
+            pass
     print(f"# CONTEXT for {args.agent_id}" + (f" -- task: {args.task}" if args.task else ""))
     print(f"# {len(secs.get('learnings', []))} lesson(s), {len(secs.get('blockers', []))} blocker(s)")
     print(_transport_line())   # T081-W1: what door this seat came through (can I use tools?)
@@ -1081,6 +1087,34 @@ def _boot_siblings_line(agent_id: str) -> str:
         return "# siblings: " + "; ".join(bits) + "  (address one: bifrost-send --to-incarnation <sid8>)"
     except Exception:
         return ""
+
+
+def _normalize_boot_source(src) -> str:
+    """T081-W6 (deepseek W6-P1 convention): normalize a lesson's source pointer to ONE canonical
+    form so a runner can match boot-known lessons without regex-parsing rendered text. A bare
+    experiment name -> learn:experiment:NAME; a mem: namespace source -> learn:experiment:mem_...
+    (colons become underscores so it matches but never collides with a real experiment); an
+    already-qualified pointer passes through."""
+    s = str(src or "").strip()
+    if not s:
+        return ""
+    if s.startswith("learn:experiment:"):
+        return s
+    if s.startswith("mem:"):
+        return "learn:experiment:mem_" + s[len("mem:"):].replace(":", "_")
+    return f"learn:experiment:{s}"
+
+
+def _boot_source_list(secs) -> list:
+    """The de-duplicated, normalized source pointers for every lesson rendered in this boot --
+    the authoritative list the W6 sidecar emits (replaces the runner's fragile regex over text)."""
+    out, seen = [], set()
+    for L in (secs.get("learnings") or []):
+        n = _normalize_boot_source(L.get("source") if isinstance(L, dict) else "")
+        if n and n not in seen:
+            seen.add(n)
+            out.append(n)
+    return out
 
 
 def _transport_line(door=None, detail=None) -> str:
@@ -2900,6 +2934,9 @@ def build_parser():
 
     b = sub.add_parser("boot", help="print an agent's startup context")
     b.add_argument("agent_id"); b.add_argument("--task", default=None); b.add_argument("--json", action="store_true")
+    b.add_argument("--sources-json", default=None, metavar="PATH",
+                   help="T081-W6: also write {'sources':[...]} (normalized lesson-source pointers) "
+                        "to PATH, so a runner can tag boot-known lessons without regex-parsing the text")
     b.set_defaults(fn=cmd_boot)
 
     dl = sub.add_parser("delta", help="what changed since this agent's last boot (T052 delta door)")
