@@ -199,9 +199,11 @@ class Handler(BaseHTTPRequestHandler):
 
     def _vitals(self):
         """T079-E4: engine-room vitals for all known agents (heartbeat + runtimes +
-        tokens + pages + daemon_live). Polled at 2s. Never raises."""
+        tokens + pages + daemon_live + lane depths + fence phase). Polled at 2s."""
         try:
             from core.comm.engine_vitals import gauge_snapshot
+            from core.comm.lane_depths import lane_depths
+            from core.comm.fence_phase import fence_phase
             known = {"claude": None, "deepseek": None}  # default agents
             try:
                 for g in registry.grants():
@@ -213,7 +215,22 @@ class Handler(BaseHTTPRequestHandler):
                         known[aid] = None
             except Exception:
                 pass
-            return {a: gauge_snapshot(a) for a in known}
+            result = {}
+            for a in known:
+                snap = gauge_snapshot(a)
+                try:
+                    snap["lanes"] = lane_depths(a)
+                except Exception:
+                    snap["lanes"] = {}
+                result[a] = snap
+            # fence phases for active arcs
+            try:
+                result["_fence"] = {"engine-room": fence_phase("engine-room"),
+                                    "capability-surface": fence_phase("capability-surface"),
+                                    "presence-autopilot": fence_phase("presence-autopilot")}
+            except Exception:
+                result["_fence"] = {}
+            return result
         except Exception:
             return {}
 
@@ -1069,6 +1086,7 @@ PAGE = r"""<!doctype html>
   /* flow flag */
   .er-flow{display:flex;gap:2px;align-items:flex-end}
   .er-flow div{width:4px;border-radius:2px;transition:height .5s,background .5s}
+  .er-flow div.low{background:var(--user)} .er-flow div.mid{background:var(--amber)} .er-flow div.high{background:var(--danger)}
 </style>
 </head>
 <body>
@@ -1750,12 +1768,13 @@ async function poll(){ try{ applyStatus(await (await fetch('/status')).json()); 
 var _lastVitalsSig = '';
 function renderVitals(vitals){
   vitals = vitals || {};
+  var fenceData = vitals['_fence'] || {};
   var sig = JSON.stringify(vitals);
   if(sig === _lastVitalsSig) return;
   _lastVitalsSig = sig;
   var el = document.getElementById('engine-room');
   if(!el) return;
-  var agents = Object.keys(vitals).sort();
+  var agents = Object.keys(vitals).filter(function(a){return a!=='_fence';}).sort();
   if(!agents.length){ el.innerHTML = ''; return; }
   var allQuiet = true;
   var html = agents.map(function(a){
@@ -1771,10 +1790,21 @@ function renderVitals(vitals){
     var blCls = runner==='blocked'||runner==='tripped' ? 'tripped' : (runner==='down'?'warn':'good');
     if(runner==='blocked'||runner==='tripped') allQuiet = false;
     var blHtml = '<div class="er-blink '+blCls+'" title="runner: '+(runner||'n/a')+'"></div>';
+    // flow schematic (lane depths as mini bars)
+    var lanes = v.lanes || {};
+    var workN = lanes.work||0, legacyN = lanes.legacy||0, traceN = lanes.trace||0;
+    var flowMax = Math.max(1, workN, legacyN, traceN);
+    var flowH = function(n){ return Math.max(2, Math.round((n/flowMax)*14)); };
+    var flowCls = function(n){ return n>100?'high':(n>10?'mid':'low'); };
+    if(workN>10||legacyN>10) allQuiet = false;
+    var flowHtml = '<div class="er-flow" title="lanes: work='+workN+' legacy='+legacyN+' trace='+traceN+'">'+
+      '<div class="'+flowCls(workN)+'" style="height:'+flowH(workN)+'px"></div>'+
+      '<div class="'+flowCls(legacyN)+'" style="height:'+flowH(legacyN)+'px"></div>'+
+      '<div class="'+flowCls(traceN)+'" style="height:'+flowH(traceN)+'px"></div></div>';
     // token bar
     var tok = v.tokens || {};
     var tokTotal = (tok.prompt||0)+(tok.completion||0);
-    var tokPct = tokTotal>100000 ? 100 : Math.min(100,Math.round(tokTotal/1000)); // % of 100k
+    var tokPct = tokTotal>100000 ? 100 : Math.min(100,Math.round(tokTotal/1000));
     var tokCls = tokPct>80?'high':(tokPct>50?'mid':'low');
     var tokHtml = '<div class="er-tokbar" title="'+tokTotal+' tokens today"><div class="fill '+tokCls+'" style="width:'+(Math.max(2,tokPct))+'%"></div></div>';
     // pages indicator
@@ -1783,9 +1813,21 @@ function renderVitals(vitals){
     var pageHtml = pages ? '<span style="color:var(--amber);font-weight:700" title="'+pages+' unread page(s)">⚡'+pages+'</span>' : '';
     // daemon indicator
     var dmon = v.daemon_live ? '🟢' : '';
-    return '<div class="er-gauge" title="'+esc(a)+' — click for status">'+
-      '<span class="er-label">'+esc(a)+'</span>'+hbHtml+blHtml+tokHtml+dmon+pageHtml+'</div>';
+    return '<div class="er-gauge" title="'+esc(a)+'">'+
+      '<span class="er-label">'+esc(a)+'</span>'+hbHtml+blHtml+flowHtml+tokHtml+dmon+pageHtml+'</div>';
   }).join('');
+  // fence-phase indicator (after the agent gauges)
+  var fenceKeys = Object.keys(fenceData).sort();
+  for(var fi=0; fi<fenceKeys.length; fi++){
+    var f = fenceData[fenceKeys[fi]] || {};
+    var phase = f.phase || 'idle';
+    if(phase!=='reconciled' && phase!=='idle') allQuiet = false;
+    var phaseCls = {reconciled:'green',reconciling:'amber',blind:'amber',idle:'off'}[phase]||'off';
+    var phaseEmoji = {reconciled:'✅',reconciling:'🤝',blind:'👁',idle:''}[phase]||'';
+    html += '<div class="er-gauge" title="fence: '+esc(fenceKeys[fi])+' — '+phase+'">'+
+      '<span class="er-label">'+esc(fenceKeys[fi])+'</span>'+
+      '<span class="er-val '+phaseCls+'">'+phaseEmoji+' '+phase+'</span></div>';
+  }
   el.innerHTML = html;
   el.classList.toggle('quiet', allQuiet);
 }
