@@ -20,7 +20,7 @@ import json
 import os
 import time
 import uuid
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from core.comm.timescale import scaled
 
@@ -210,6 +210,128 @@ def refresh_consumer(agent: str, holder_token: str, ttl: Optional[int] = None) -
 def release_consumer(agent: str, holder_token: str) -> bool:
     """Give the seat up early (clean session end). Only frees our own hold."""
     return release(agent, holder_token)
+
+
+def free_if_dead(agent: str, *, grace_s: int = 300, stale_s: int = 900,
+                 now: Optional[float] = None, tmp: Optional[str] = None,
+                 pid_alive=None) -> Dict[str, Any]:
+    """T083-C1-1: free a SESSION-held consumer seat whose holder is PROVABLY dead -- the crash
+    net's slow leg made fast. clean_death (T075 M1-beta) already frees the seat on a GRACEFUL
+    SessionEnd; a crash-killed session leaves its seat to TTL (up to 30 min of blocked consumes,
+    live receipt 2026-07-15: seat 29f15d47, ~17 min). Prior art: k8s node leases -- liveness is
+    RENEWAL, not lease existence; the controller frees a lease whose holder object is gone.
+
+    Evidence ladder (probes injectable for pins; every ambiguity resolves toward ALIVE -- a
+    false-free hands the seat over and the true owner's next consume degrades to a LOUD peek,
+    non-corrupting via generation fencing, but we still never free on a guess):
+      0. holder token must be 'session:'-prefixed (runners heartbeat properly; never touched)
+         AND claim age > grace_s (a fresh claim is never probed).
+      1. activity marker (touched at EVERY hook firing) fresh within grace_s  -> ALIVE.
+      2. armed wake-listener pid file: pid DEAD -> DEAD (listener dies with its session);
+         pid ALIVE -> ALIVE.
+      3. no pid file: marker absent or older than stale_s -> DEAD-enough (no liveness evidence
+         at all); otherwise indeterminate -> ALIVE (TTL rules).
+      (incarnation card deliberately unused: CARD_TTL == seat TTL, so it discriminates nothing.)
+
+    Returns {"freed": bool, "reason": str, "holder": token}. Frees via token-matched release
+    (never evicts a successor) + a durable audit event. Fail-open: any probe error -> not freed."""
+    verdict = {"freed": False, "reason": "no-holder", "holder": None}
+    try:
+        rec = holder(agent)
+        if not rec:
+            return verdict
+        token = str(rec.get("token") or "")
+        verdict["holder"] = token
+        if not token.startswith("session:"):
+            verdict["reason"] = "holder-is-runner"
+            return verdict
+        t_now = float(now if now is not None else time.time())
+        age = t_now - _ts_epoch(rec.get("ts"), default=t_now)
+        if age <= grace_s:
+            verdict["reason"] = f"grace ({int(age)}s <= {grace_s}s)"
+            return verdict
+        sid = token[len("session:"):]
+        from core.comm import wake_seat
+        alive_probe = pid_alive if pid_alive is not None else _pid_alive_default
+        # 1) activity marker -- the every-hook-firing fast path
+        marker = wake_seat.activity_marker_path(agent, sid, tmp)
+        marker_age = None
+        try:
+            if os.path.exists(marker):
+                marker_age = t_now - os.path.getmtime(marker)
+                if marker_age < grace_s:
+                    verdict["reason"] = f"marker-fresh ({int(marker_age)}s)"
+                    return verdict
+        except Exception:
+            verdict["reason"] = "marker-probe-error"
+            return verdict
+        # 2) armed listener pid
+        seat_file = wake_seat.seat_path(agent, sid, tmp)
+        dead = None
+        if os.path.exists(seat_file):
+            pid = wake_seat.read_pid(seat_file)
+            if pid is None:
+                verdict["reason"] = "seat-file-unreadable"
+                return verdict
+            alive = alive_probe(pid)
+            if alive:
+                verdict["reason"] = f"listener-alive (pid {pid})"
+                return verdict
+            dead = f"listener-pid-dead ({pid})"
+        # 3) no pid file -> no-evidence + staleness
+        if dead is None:
+            if marker_age is None:
+                dead = "no-liveness-evidence (no seat file, no marker)"
+            elif marker_age >= stale_s:
+                dead = f"marker-stale ({int(marker_age)}s >= {stale_s}s)"
+            else:
+                verdict["reason"] = f"indeterminate (marker {int(marker_age)}s; TTL rules)"
+                return verdict
+        if release(agent, token):
+            verdict.update({"freed": holder(agent) is None or holder(agent).get("token") != token,
+                            "reason": dead})
+            try:   # durable audit -- a freed seat must never look like a silent expiry
+                from core.events.event_log import capture_event
+                capture_event("seat_freed_dead_holder",
+                              f"consumer seat for '{agent}' freed: holder {token} {dead} "
+                              f"(claim age {int(age)}s)",
+                              agent_id=agent,
+                              detail={"holder": token, "evidence": dead, "claim_age_s": int(age)})
+            except Exception:
+                pass
+        return verdict
+    except Exception as e:
+        verdict["reason"] = f"probe-error ({type(e).__name__})"
+        return verdict
+
+
+def _ts_epoch(ts, default: float = 0.0) -> float:
+    """A holder record's ts -> epoch seconds. _now() writes LOCAL-time ISO ('%Y-%m-%dT%H:%M:%S');
+    mktime(strptime) is its exact inverse (one date source, the W1-flake lesson). Numeric strings
+    pass through for forward-compat. Unparseable -> default (callers pass t_now => age 0 => grace
+    protects; fail toward ALIVE)."""
+    if ts is None:
+        return default
+    try:
+        return float(ts)
+    except (TypeError, ValueError):
+        pass
+    try:
+        return time.mktime(time.strptime(str(ts)[:19], "%Y-%m-%dT%H:%M:%S"))
+    except Exception:
+        return default
+
+
+def _pid_alive_default(pid) -> bool:
+    """Is this pid running? tasklist probe (the claude_stop.py pattern -- proven on this host).
+    FAIL TOWARD ALIVE: a probe error must never justify freeing a seat."""
+    try:
+        import subprocess
+        out = subprocess.run(["tasklist", "/FI", f"PID eq {int(pid)}", "/NH"],
+                             capture_output=True, text=True, timeout=5)
+        return str(pid) in (out.stdout or "")
+    except Exception:
+        return True
 
 
 def clear_if_pid(agent: str, pid) -> bool:

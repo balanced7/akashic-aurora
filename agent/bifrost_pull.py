@@ -111,9 +111,22 @@ def consume_inbox(agent_id: str, limit: int = 20) -> Dict[str, Any]:
         ttl = int(runner_lock.SESSION_CONSUMER_TTL)
         ok, gen, info = runner_lock.claim_consumer(str(agent_id), _session_holder_token())
         if not ok:
+            # T083-C1-1: before degrading to peek, check whether the holder is PROVABLY dead
+            # (crash-killed session; clean_death only covers graceful ends). Freed -> claim once.
+            rescue = {}
+            try:
+                rescue = runner_lock.free_if_dead(str(agent_id))
+            except Exception:
+                rescue = {}
+            if rescue.get("freed"):
+                ok, gen, info = runner_lock.claim_consumer(str(agent_id), _session_holder_token())
+        if not ok:
             peek = b.inbox(limit=max(1, limit), advance=False)
+            teach = _seat_teach(str(agent_id), info, ttl)
+            if rescue.get("reason"):
+                teach += f" [holder liveness: {rescue['reason']}]"
             return {"seat_held": True, "holder": info.get("token"), "since": info.get("ts"),
-                    "ttl": ttl, "teach": _seat_teach(str(agent_id), info, ttl),
+                    "ttl": ttl, "teach": teach,
                     "peeked": [m.to_dict() if hasattr(m, "to_dict") else {} for m in peek]}
         status: Dict[str, str] = {}
         from core.comm.bifrost_api import BifrostAPI

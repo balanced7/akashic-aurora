@@ -31,22 +31,44 @@ fix receipt.
 
 ### C1 Seat & lease lifecycle
 
-**C1-1 · Consumer seat held by dead sibling for full TTL** (2026-07-15 night, claude seat)
-A prior session (29f15d47) died holding the `claude` consumer seat; the claim timestamp was
-static (no refresh) yet the seat blocked all consumes for the remaining ~17 min of its 1800s TTL.
-Cost: my wake-arm loop (C1-2) had no drain path; three stop-hook cycles.
-Root cause: seat freeing is TTL-only — a *dead* holder is indistinguishable from a *quiet* one.
-Prior art: k8s node leases (holder heartbeats; a controller frees leases whose holder object is
-gone), fencing tokens (Redlock discussions): liveness = lease renewal, not lease existence.
-**Routing: FIX NOW (tonight, C1 fix #1)** — the seat-held error path verifies holder liveness
-(session-pid probe) and frees a provably-dead holder's seat immediately, with an audited event.
-Never force-frees a live holder (fencing safety).
+**C1-1 · Consumer seat held by dead sibling for full TTL** — **FIXED 2026-07-16, awaiting
+deepseek cross-verify** (see CLOSED on sign-off). `runner_lock.free_if_dead` probes the evidence
+ladder (activity-marker freshness → armed-listener pid → no-evidence staleness) and frees only on
+POSITIVE death evidence, with an audited `seat_freed_dead_holder` event; wired into the
+consume_inbox refusal path (rescue once, then claim). Every ambiguity resolves toward ALIVE;
+graceful ends were already covered by clean_death — this closes the CRASH path. 10 pins +
+RB-21 regression GREEN. Root-cause history retained in git (this entry, prior revision).
 
 **C1-2 · Wake-arm insta-loop on undrained inbox** (2026-07-15 night ×3 stop-hook cycles)
 Arming the wake seat with wake-worthy stale mail present exits instantly; the stop hook demands
 a re-arm; loop. Root cause: arm-before-drain ordering + C1-1 blocking the drain.
 **Routing: TRACKED (T075-γ/T077 daemon owns arm/consume ordering) + tonight's C1-1 fix removes
 the blocked-drain leg. Operational rule until then: consume-then-arm (proven live tonight).**
+
+**C1-3 · Runner interrupted mid-task loses context (deepseek seat, 2026-07-15 ×2)** (NEW — deepseek)
+Paused-mid-task interjection echoes: a nudge/steer arrived while I was mid-build; I stopped,
+answered, and resumed — but my tool-loop state (which file I was editing, what I'd already read)
+was lost. The nudge handoff text became my new prompt, displacing the task I was in the middle of.
+Root cause: the runner's tool-loop has no "suspend current task → answer interrupt → resume"
+mechanism. A barge-in replaces the active conversation wholesale.
+Prior art: OS interrupt handling (save registers → service interrupt → restore registers);
+OTel span events (attach a note to an active span without ending it). The runner needs a
+"suspend-and-resume" primitive.
+**Routing: PROPOSE T083 — tool-loop suspend/resume: on nudge/steer, save current conversation
+state (tool history + task context), service the interrupt, restore. Until built: accept
+context-loss as a known C1 boundary.**
+
+**C1-4 · Redelivery storm after runner crash (deepseek seat, 2026-07-14/15)** (NEW — deepseek)
+A runner crash (or daemon restart) leaves un-acked messages on the work lane. On re-spawn, the
+new runner drains ALL of them in one turn — a "redelivery storm" that fills the context window
+with stale handoffs. I developed the `skip-to-now` ritual (pause, cursor-tails, resume) but it's
+manual and fragile.
+Root cause: the cursor is durable but the "I already answered this" dedup is in-memory only.
+Prior art: Kafka consumer groups (committed offsets survive restart); idempotency keys (Stripe
+pattern — re-processed events with same key are no-ops). Our `reply_sent` prefix
+(bifrost_runner_deepseek.py:84) is the right shape but not enforced at the consume door.
+**Routing: TRACKED (T066 legacy-lane straggler is one leg; broader idempotent-consume is T068-R3
+pre-flight assertions territory). Lesson `redelivery_storm_skip_to_now` captured.**
 
 ### C2 Concurrent-write collisions
 
@@ -58,6 +80,33 @@ per-lane naming convention. Lesson `w4_two_writer_test_clobber` captured.
 **Routing: convention SHIPPED (per-surface test names) + PROPOSE guard: guard_write /
 Write-hook warns when creating a file another agent referenced on the bus in the last hour
 ("name collision likely"). Gated small slice; needs deepseek's half (his ToolBox write door).**
+
+**C2-2 · Exec-family denial blocks git commit for the runner (deepseek seat, 2026-07-16)** (NEW — deepseek)
+My exec grant (`--allow-exec` + `deepseek-build` launcher spec) is gated to `pytest` and
+`py agent_cli.py <read-verb>` families only. `git add/commit` and `agent_cli.py mirror` are
+REFUSED — so I can build and test but cannot commit. Claude must mirror my files.
+Root cause: the guarded-exec families list (test_t067_guarded_exec.py:18) doesn't include
+`git` or `agent_cli.py mirror`. The `deepseek-build` launcher spec adds `--allow-exec` but
+the families gate is a separate layer — and the families list was designed for read-only
+verification, not full build.
+Prior art: sudoers (granular command allowlisting with args); CI/CD pipeline roles
+(build-vs-deploy permissions). The fix is either (a) add `git` + `agent_cli mirror` to the
+families list for `deepseek-build`, or (b) give me a `write_file`-based commit path.
+**Routing: TRACKED (Daniel's morning gate: "review deepseek's exec grant in security/acl.json"
+— the families list IS the gate to adjust). Until then: design + test + handoff to claude
+for mirroring. C2 boundary — not a defect, a deliberate gate awaiting Daniel's approval.**
+
+**C2-3 · Big-file write truncation at the ToolBox door (deepseek seat, recurrent)** (NEW — deepseek)
+My `write_file` and `edit_file` tools have no explicit size declaration in the system prompt.
+Large files (like this failure ledger entry) risk silent truncation at the API level — the
+model doesn't know the byte budget.
+Root cause: the hop counter tells me rounds remaining, but there's no write-size gauge.
+Prior art: T043 packet MTU (BUS_MAX_MESSAGE_BYTES, LOUD refusal rather than silent clip).
+The same MTU gate exists for write_file/edit_file at the runner level — but the model's
+awareness of it is implicit (tool description says "GUARDED" but doesn't state the limit).
+**Routing: PROPOSE — ToolBox write_file/edit_file descriptions declare the MTU boundary
+("max N bytes; exceeding it is REFUSED, never clipped — split into multiple calls").
+Small slice, rides my ToolBox door (deepseek_chat.py).**
 
 ### C3 CLI ergonomics footguns
 
@@ -103,6 +152,26 @@ parked citing its own PARKED note. Then T081 transitions cleanly.**
 
 **C6-1 · Unread-count drift across gauges** (whisper 8 vs sync 10 vs peek 19, all session)
 **CLOSED 2026-07-16 → see CLOSED section (W8A).**
+
+**C6-2 · Runner reply lands legacy-only — work-lane straggler (deepseek seat, 2026-07-14/15)** (NEW — deepseek)
+My runner's `bus.send_reply()` wrote to the legacy inbox only; the work-lane write failed upstream
+at the sender. Claude's work-lane consume saw "1 LEGACY STRAGGLER" — my reply was delivered
+(via legacy dual-write) but stayed unread on the work lane, causing wake loops (3 cycles).
+Root cause: the runner's reply path (bifrost_runner_deepseek.py) didn't route through the lane
+router (packet_spec.lane_for). It used a direct `bus.send()` with a legacy-stream key.
+Prior art: the lane router already exists for broadcasts — replies just didn't call it.
+**Routing: FIXED by T066 (reply path now routes through lane_for + dual-write). Receipt:
+test_t066_reply_path.py GREEN. Lesson `lane_era_marker` captured.**
+
+**C6-3 · Piped gate exits make && meaningless (deepseek seat, 2026-07-15)** (NEW — deepseek)
+`py -m pytest tests/... | tail -5` — the pipe swallows the exit code; `&&` chained after it
+always runs (even when tests FAILED). I claimed GREEN on a failing test because `| tail` made
+the pipeline exit 0. Root cause: shell piping through the runner's exec door; the door runs
+the full string, and `|` chaining hides the first command's exit code.
+Prior art: `set -o pipefail` in bash (any non-zero in the pipe → non-zero exit). Our fix is
+simpler: the runner should NEVER pipe the gate — run the command bare, format after.
+**Routing: CLOSED by lesson `gate_exit_codes_never_piped` (T031 enforcement) + exec-family
+metacharacter refusal (T067 G2: pipes REFUSED). This class cannot recur.**
 
 ### C7 Harness-level quirks (tracked, usually not ours to fix)
 
