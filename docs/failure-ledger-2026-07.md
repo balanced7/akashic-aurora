@@ -62,6 +62,16 @@ pin "deadline elapsed is measured from THIS watcher's start", and render the anc
 standby report. Also noted for S4: the standby report prints the FULL 78-line task ledger
 when a ledger_update echo is in the drain — the report needs a compact ledger-delta line
 instead (two receipts today).**
+INVESTIGATED 2026-07-16 ~10:15 (same morning): code path is clean — deadline anchored at
+process start (watch():186), defaults correct (14400s/120s), no file anchors, standby wrapper
+single-shot. Four repro probes all HEALTHY (standalone throwaway agent, standalone live claude
+lane, wrapper foreground on the real sid ×25s). Phantom did NOT reproduce; both occurrences
+were background-task runs; not root-caused yet. LANDED as diagnostics: (a) the cycle line now
+prints ELAPSED + configured + chunk (a phantom becomes self-evident from the print alone),
+(b) standby's teach line no longer reports a signal-killed listener (rc≠0) as "wake-worthy
+mail or deadline", (c) bonus — the deferred S1 watcher leg: a tombstoned session's watcher
+stands down at its next chunk boundary BEFORE any bus read (pin: wake_block unreachable).
+11/11 pins GREEN. Next occurrence carries its own numbers; category stays OPEN until then.
 morning, live) — **CLOSED 2026-07-16 (T086-S1+S2a, deepseek cross-verified 56/56, five
 adversarial targets signed off).** Session tombstone = the session-vs-process discriminator,
 consulted by ladder (no grace), janitor (outranks K7 chain-immunity), and stop hook

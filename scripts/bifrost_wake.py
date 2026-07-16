@@ -194,6 +194,18 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
             write_rearm_trigger(agent, session_id)
             cycled = True
             break
+        # T086 S1 (watcher leg): a TOMBSTONED session's watcher stands down instead of
+        # completing a task into a dead session (the C1-5 resurrection vector). Checked
+        # per chunk (cheap file-exists); probe errors read not-tombstoned (fail open).
+        if session_id:
+            try:
+                from core.comm import wake_seat as _ws
+                if _ws.is_tombstoned(session_id):
+                    print(f"BIFROST_WAKE: standing down for {lane} (session tombstoned -- "
+                          f"ended by record, T086 S1) -- benign")
+                    return 0
+            except Exception:
+                pass
         # Singleton per SEAT (newest-wins): a later same-session watcher overwrites the seat;
         # the older one must stand down instead of double-reading the bus. Detect-only makes a
         # brief overlap harmless, but two watchers on ONE seat = two wakes for one message.
@@ -238,9 +250,12 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
               f"bifrost-sync/inbox):")
         print(json.dumps(out, indent=1))          # ensure_ascii=True -> cp1252-safe stdout on Windows
     elif cycled:
-        print(f"BIFROST_WAKE: deadline self-cycle for {lane} after "
-              f"{total_deadline_s / 3600.0:.1f}h -- re-arm trigger written; relaunch ONCE "
-              f"(saw: " + ", ".join(seen[-8:]) + ")")
+        # C1-6 diagnostic: ELAPSED is the truth; the configured total alone masked a
+        # phantom early-cycle (2026-07-16: "after 4.0h" on a minutes-old watcher).
+        elapsed_s = time.time() - (deadline - total_deadline_s)
+        print(f"BIFROST_WAKE: deadline self-cycle for {lane} after {elapsed_s / 3600.0:.2f}h "
+              f"elapsed (configured {total_deadline_s / 3600.0:.1f}h, chunk {chunk_s:.0f}s) -- "
+              f"re-arm trigger written; relaunch ONCE (saw: " + ", ".join(seen[-8:]) + ")")
     else:
         queued = f"; {steers} steer(s) queued for next boot" if steers else ""
         print(f"BIFROST_WAKE: quiet for {agent} (saw: " + ", ".join(seen[-12:]) + queued + ")")

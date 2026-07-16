@@ -146,6 +146,48 @@ def test_midband_marker_live_listener_still_alive(agent, sid, tmp_path):
     assert not v["freed"] and v["reason"].startswith("listener-alive")
 
 
+# ---------------------------------------------------------------- S1 watcher leg
+class _StubApi:
+    online_now = True
+    def online(self):
+        pass
+    def wake_block(self, timeout_ms=0):
+        raise AssertionError("wake_block must never run for a tombstoned session")
+
+
+def test_watcher_stands_down_for_tombstoned_session(sid, tmp_path, capsys):
+    """The C1-5 resurrection vector closed at the watcher itself: a tombstoned session's
+    listener exits benign on its next chunk boundary, BEFORE any bus read."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "bifrost_wake", os.path.join(REPO, "scripts", "bifrost_wake.py"))
+    bw = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(bw)
+    assert wake_seat.write_tombstone(sid)          # default tempdir -- where watch() looks
+    hb = str(tmp_path / "seat.pid")
+    open(hb, "w").write(str(os.getpid()))
+    rc = bw.watch("t086probe", 3600, 1000, api=_StubApi(), hb_path=hb,
+                  my_pid=os.getpid(), session_id=sid)
+    assert rc == 0
+    assert "session tombstoned" in capsys.readouterr().out
+
+
+def test_cycle_line_reports_elapsed(sid, tmp_path, capsys):
+    """C1-6 diagnostic: the self-cycle line carries ELAPSED + configured + chunk, so a
+    phantom early-cycle is self-evident from the print alone."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "bifrost_wake2", os.path.join(REPO, "scripts", "bifrost_wake.py"))
+    bw = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(bw)
+    hb = str(tmp_path / "seat2.pid")
+    open(hb, "w").write(str(os.getpid()))
+    rc = bw.watch("t086probe2", 1, 2000, api=_StubApi(), hb_path=hb,
+                  my_pid=os.getpid(), session_id="")   # chunk 2s >= total 1s -> instant cycle
+    out = capsys.readouterr().out
+    assert rc == 0 and "elapsed (configured" in out and "0.00h" in out
+
+
 # ---------------------------------------------------------------- S1c: fail-open
 def test_tombstone_probe_error_fails_open(agent, sid, tmp_path, monkeypatch):
     """A raising tombstone probe changes NOTHING: fresh claim stays graced, no crash."""

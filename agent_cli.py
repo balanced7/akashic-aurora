@@ -2765,8 +2765,10 @@ def cmd_bifrost_standby(args):
     for ln in res["report"]:
         print(ln)
     if res["decision"] == "listen":
-        print(f"[standby] listener exited rc={res.get('listen_rc')} -- wake-worthy mail or deadline;"
-              " re-run bifrost-standby after handling")
+        rc = res.get("listen_rc")
+        how = ("wake-worthy mail or deadline" if rc == 0
+               else f"killed or crashed (rc={rc}) -- NOT a wake")   # C1-6: never report a signal death as mail
+        print(f"[standby] listener exited rc={rc} -- {how}; re-run bifrost-standby after handling")
     return 0 if res["decision"] != "twin-holds-seat" else 1
 
 
