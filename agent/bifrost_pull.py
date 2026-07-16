@@ -192,6 +192,80 @@ def format_inbox_line(msg: Dict[str, Any], max_len: int = 220) -> str:
     return f"[{kind}] from {frm}: {body}"
 
 
+def _mget(m, key, default=""):
+    """Access a field on a bus message that may be a dict (CLI render) OR a Message object
+    (the runner's ToolBox render). Lets ONE collapse helper serve both surfaces."""
+    return m.get(key, default) if isinstance(m, dict) else getattr(m, key, default)
+
+
+def _is_trace_class(msg) -> bool:
+    """W4 (T081): display-only telemetry vs work-mail. ONE definition, shared by every render:
+    the kind routes to the trace lane (packet_spec.is_trace_kind, the T039 single source) OR meta
+    marks it display_only. Fail-open: an unclassifiable message is treated as WORK -- we never
+    fold real mail out of sight."""
+    try:
+        from core.comm.packet_spec import is_trace_kind
+        if is_trace_kind(_mget(msg, "kind")):
+            return True
+    except Exception:
+        pass
+    meta = _mget(msg, "meta") or {}
+    if isinstance(meta, str):
+        try:
+            meta = json.loads(meta)
+        except Exception:
+            meta = {}
+    return bool(isinstance(meta, dict) and meta.get("display_only"))
+
+
+def render_collapsed(messages, *, show_traces: bool = False, max_len: int = 220):
+    """W4 (T081) -- THE shared trace-collapse render (bifrost-sync CLI + the runner's bifrost_inbox
+    both go through this, so the two surfaces can never diverge). Algorithm (deepseek's, reconciled
+    2026-07-16): work/sig mail shown FIRST and verbatim; trace-class messages grouped into runs of
+    consecutive same-(frm, kind), each run showing its first line + 'N more' fold. Prior art:
+    rsyslog pmlastmsg ('last message repeated N times' -- consecutive dedup, first always shown);
+    Grafana Loki (collapse at render, never at ingest); OTel tail-sampling (decide per snapshot,
+    carry no state across peeks). The journald failure mode (silent suppression) is designed out:
+    the fold is reversible (show_traces expands, in original order), lossless (nothing dropped),
+    and explicit (states the count). Accepts dict OR Message-object messages; returns a line list."""
+    msgs = list(messages or [])
+
+    def _line(m):
+        return (f"[{str(_mget(m, 'kind', '?'))}] from {str(_mget(m, 'frm', '?'))}: "
+                f"{_clip(_content_str(_mget(m, 'content')), max_len)}")
+
+    if show_traces:
+        return [_line(m) for m in msgs]     # full, original order -- the reversible expand
+
+    work_lines, trace_lines = [], []
+    i = 0
+    while i < len(msgs):
+        m = msgs[i]
+        if not _is_trace_class(m):
+            work_lines.append(_line(m))     # verbatim; breaks any trace run
+            i += 1
+            continue
+        kind = str(_mget(m, "kind", "?"))
+        frm = str(_mget(m, "frm", "?"))
+        run_start = i
+        while (i < len(msgs) and _is_trace_class(msgs[i])
+               and str(_mget(msgs[i], "kind", "?")) == kind
+               and str(_mget(msgs[i], "frm", "?")) == frm):
+            i += 1
+        run_count = i - run_start
+        trace_lines.append(_line(msgs[run_start]))
+        if run_count > 1:
+            trace_lines.append(f"  └─ {run_count - 1} more {kind}(s) from {frm} "
+                               f"-- --traces to expand")
+
+    out = list(work_lines)
+    if trace_lines:
+        if work_lines:
+            out.append("")                  # separator between mail and folded traces
+        out.extend(trace_lines)
+    return out
+
+
 def format_digest_line(msg: Dict[str, Any]) -> str:
     """Ultra-compact one-liner for a cheap scan: kind, sender, a 64-char teaser.
     The full body is one drill away (`bifrost-sync` without --digest, or --json)."""
@@ -202,7 +276,7 @@ def format_digest_line(msg: Dict[str, Any]) -> str:
     return f"  {ts} [{kind}] {frm}> {teaser}"
 
 
-def print_boot_bifrost_section(block: Dict[str, Any]) -> None:
+def print_boot_bifrost_section(block: Dict[str, Any], show_traces: bool = False) -> None:
     print("\n## UNREAD BIFROST (live bus)")
     if block.get("pause_line"):
         print(f"  {block['pause_line']}")   # RB-30: a frozen fleet announces itself first
@@ -219,8 +293,8 @@ def print_boot_bifrost_section(block: Dict[str, Any]) -> None:
         print("  (no new messages -- peek only; cursor unchanged)")
         return
     print(f"  {pending} unread (peek -- use bifrost_inbox or `py agent_cli.py bifrost-sync --consume` to ack):")
-    for msg in block.get("messages") or []:
-        print(f"  {format_inbox_line(msg)}")
+    for ln in render_collapsed(block.get("messages") or [], show_traces=show_traces):
+        print(f"  {ln}")   # W4: trace-class telemetry folded (--traces to expand)
 
 
 def print_boot_locks_section(block: Dict[str, Any], agent_id: str = "") -> None:

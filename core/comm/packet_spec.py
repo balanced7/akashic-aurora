@@ -215,6 +215,14 @@ def lane_for(kind: Any) -> Optional[str]:
     return KIND_LANE.get(str(kind))
 
 
+def is_trace_kind(kind: Any) -> bool:
+    """T081-W4: is this kind display-only telemetry (routes to the trace lane)? THE single
+    source of 'what is collapsible noise' -- every render (CLI bifrost-sync + the runner's
+    bifrost_inbox) shares this predicate so the two surfaces can never disagree. An unmapped
+    kind is NOT trace (fail toward showing it -- never fold unknown mail out of sight)."""
+    return lane_for(kind) == "trace"
+
+
 def lane_maxlen(lane: str) -> int:
     return LANE_MAXLEN.get(lane, 10000)
 

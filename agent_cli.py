@@ -2701,7 +2701,8 @@ def cmd_bifrost_sync(args):
     """Presence heartbeat + unread inbox peek (pull floor). --consume advances the cursor."""
     from agent.bifrost_pull import (collect_boot_bifrost, consume_inbox, format_inbox_line,
                                      format_digest_line, print_boot_bifrost_section,
-                                     print_boot_locks_section)
+                                     print_boot_locks_section, render_collapsed)
+    show_traces = bool(getattr(args, "traces", False))   # W4: --traces expands folded telemetry
     if args.consume:
         res = consume_inbox(args.agent_id, limit=args.limit or 20)
         if args.json:
@@ -2710,16 +2711,16 @@ def cmd_bifrost_sync(args):
         if res.get("seat_held"):
             # RB-21: another live session/runner owns the cursor -- taught, not silent.
             print(f"ERROR: {res.get('teach') or 'consumer seat held -- read degraded to peek.'}")
-            for m in res.get("peeked") or []:
-                print(f"  (peek) {format_inbox_line(m)}")
+            for ln in render_collapsed(res.get("peeked") or [], show_traces=show_traces):
+                print(f"  (peek) {ln}")
             return 1
         msgs = res.get("consumed") or []
         if not msgs:
             print("(no messages consumed)")
             return 0
         print(f"# consumed {len(msgs)} message(s) for {args.agent_id}")
-        for m in msgs:
-            print(f"  {format_inbox_line(m)}")
+        for ln in render_collapsed(msgs, show_traces=show_traces):
+            print(f"  {ln}")   # W4: trace-class telemetry folded (--traces to expand)
         return 0
     block = collect_boot_bifrost(args.agent_id, limit=args.limit or 10)
     if args.json:
@@ -2736,7 +2737,7 @@ def cmd_bifrost_sync(args):
         print_boot_locks_section(block, args.agent_id)
         return 0
     print(f"# bifrost-sync for {args.agent_id}")
-    print_boot_bifrost_section(block)
+    print_boot_bifrost_section(block, show_traces=show_traces)
     print_boot_locks_section(block, args.agent_id)
     return 0
 
@@ -3252,6 +3253,8 @@ def build_parser():
     bs.add_argument("--limit", type=int, default=None)
     bs.add_argument("--consume", action="store_true", help="read inbox and advance cursor (ack)")
     bs.add_argument("--digest", action="store_true", help="cheap one-line-per-unread headlines (no bodies)")
+    bs.add_argument("--traces", action="store_true",
+                    help="W4: expand folded trace-class telemetry (default collapses it)")
     bs.add_argument("--json", action="store_true")
     bs.set_defaults(fn=cmd_bifrost_sync)
 
