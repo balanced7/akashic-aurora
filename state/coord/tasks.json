@@ -1,5 +1,5 @@
 {
-  "seq": 81,
+  "seq": 82,
   "tasks": [
     {
       "id": "T001",
@@ -3025,6 +3025,27 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-07-16T02:57:36+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T082",
+      "title": "T082: audit durable-family Redis-ahead File drift (surfaced by T081-W5 honest heal 2026-07-16): 3490 Store-managed durable keys are Redis-ahead of File -- events:raw(+2391), narr:beat(+783), learn:experiment(+192), mem:decisions(+35). Determine per-family whether this is benign retention-lag (Redis holds more than the last File snapshot / append-heavy compaction) or a real File-persistence gap (writes not reaching the durable side). Also triage the 259 W5 UNKNOWN keys (codex:resource:*, context:*) -- classify each as ephemeral (roster addition) or a real orphan. Cites research/reviewed/w5-heal-reconciliation-2026-07-16.md",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-16T04:50:07+00:00",
+      "updated": "2026-07-16T04:50:07+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-16T04:50:07+00:00"
         }
       ]
     }
