@@ -48,11 +48,13 @@ boot render. Not a blocker (the information is still reachable; just takes one e
 ### C1 Seat & lease lifecycle
 
 **C1-5 · Ghost wake seat: an ENDED session's armed standby survives SessionEnd** (2026-07-16
-morning, live) — **FIXED 2026-07-16 (T086-S1+S2a), awaiting deepseek cross-verify.** Session
-tombstone = the session-vs-process discriminator, consulted by ladder (no grace), janitor
-(outranks K7 chain-immunity), and stop hook (resurrected turns stand down unarmed); renewal
-staleness now outranks a live listener pid in the ladder. 8 pins + 48 regression GREEN;
-ca9a86ad tombstoned live. Original entry + amendment below retained as the incident record. Session ca9a86ad ended 08:47 (SessionEnd drafted the chronicle) but its
+morning, live) — **CLOSED 2026-07-16 (T086-S1+S2a, deepseek cross-verified 56/56, five
+adversarial targets signed off).** Session tombstone = the session-vs-process discriminator,
+consulted by ladder (no grace), janitor (outranks K7 chain-immunity), and stop hook
+(resurrected turns stand down unarmed); renewal staleness now outranks a live listener pid.
+Verifier's verdict: "this morning's exact incident chain (end→ghost→resurrect→block 30min)
+is now structurally unrepresentable." Carried forward: write_tombstone caller-verification →
+T086-S7 charter (his T1 finding). Original entry + amendment retained as the incident record. Session ca9a86ad ended 08:47 (SessionEnd drafted the chronicle) but its
 `bifrost-standby` (pids 35536/49316) + `bifrost_wake` child (49252) stayed armed — the wake seat
 was held by a session no one can see. Consequence: peer mail would wake the dead session, not
 the live morning seat; and the C1-1 evidence ladder correctly reads listener-pid-alive → holder
@@ -235,6 +237,12 @@ retry-once wrapper in the standby verb IF it recurs (count: 1).**
 ---
 
 ## CLOSED (fix receipts)
+
+**C1-5 ghost wake seat** → CLOSED by T086-S1+S2a (2026-07-16, same day as filed): session
+tombstone + renewal-primacy ladder. 8 new pins incl. a live subprocess replay of the
+resurrection; 48 regression GREEN both seats; deepseek adversarial cross-verify 5/5 targets
+signed off. Prior art applied: ZK ephemerality + k8s lease semantics + systemd session scopes
+(see t086-seat-reconciliation-2026-07-16.md). The morning's incident chain is the regression drill.
 
 **C6-1 unread-count drift** → CLOSED by T081-W8A (2026-07-16): gauges now NAME their denominator
 (whisper `mail: N unread (work-lane|all lanes)`; sync `N unread (all lanes, peek)`) via one shared
