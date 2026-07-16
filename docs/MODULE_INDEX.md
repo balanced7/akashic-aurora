@@ -21,7 +21,7 @@
 - `agent_signal_ledger.py` — Agent Signal Ledger: the ordered record of every signal agents emit
 - `coordinator_api.py` — Coordinator API: Minimal signal-based logging for agents
 
-## core/comm/  (27 modules)
+## core/comm/  (29 modules)
 - `assertions.py` — Pre-flight assertions (T068-R3 / deepseek M10) -- verify a directed answer's FACTUAL
 - `bifrost_api.py` — bifrost.api -- the one door an agent uses to join and work the Bifrost bus.
 - `blobs.py` — BlobStore (Slice B1) -- a content-addressed blob store for Bifrost media/large payloads.
@@ -33,9 +33,11 @@
 - `doctor.py` — Fleet doctor (L2 / RB-27b) -- the missing READER of the liveness signals: progress,
 - `engine_vitals.py` — engine_vitals -- gauge_snapshot(), the engine room's pulse (T079-E1).
 - `expectations.py` — expectations -- sender-side reply deadlines + redrive (T030 L4 / RB-29).
+- `fence_phase.py` — fence_phase -- the method board's state source (T079-E2).
 - `flow_trace.py` — flow_trace (R3 / T054) -- the OTel-style waterfall over lanes: what HAPPENED, in causal
 - `incarnation.py` — incarnation -- who else is HERE right now, per agent id (T074 W3/R4).
 - `interject.py` — Adaptive interjection router -- when a human types into a live agent session, decide whether the
+- `lane_depths.py` — lane_depths -- the engine room's flow gauge source (T079-E2).
 - `launcher.py` — Bifrost Launcher — spawn and monitor agent processes from the Bifrost UI.
 - `liveness.py` — Work-progress heartbeat (L1) -- pure observability for wedge detection.
 - `locks.py` — Advisory path-locks (Concurrency design C2).
