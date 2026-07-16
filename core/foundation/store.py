@@ -869,16 +869,76 @@ class HybridStore(Store):
                 n = sum((rep.get("written") or {}).values())
                 lines.append(f"[heal] Redis was behind -- backfilled {n} key-structure(s) "
                              f"from the durable File (File is source of truth).")
-            orphans = self.check_drift().get("missing_in_file") or []
+            orphans = drift.get("missing_in_file") or []
             if orphans:
-                shown = ", ".join(orphans[:5]) + (" ..." if len(orphans) > 5 else "")
-                lines.append(f"[heal] {len(orphans)} Redis-only key(s) have NO File record "
-                             f"and are NOT backfilled (File is truth): {shown}. "
-                             f"Investigate -- an orphan is a write that never reached the durable side.")
+                lines.extend(self._classify_orphans(orphans))   # T081-W5: 3-way honest heal
         except Exception as e:
             lines.append(f"[heal] divergence check failed ({type(e).__name__}) -- skipped, "
                          f"start from the durable File.")
         return lines
+
+    @staticmethod
+    def _orphan_family(key) -> str:
+        """The family signature of a key (first two ':'-segments) -- the grouping unit for both
+        the durable-family check and the count breakdown. Matches how the census groups keys."""
+        p = str(key).split(":")
+        return ":".join(p[:2]) if len(p) >= 2 else str(key)
+
+    @classmethod
+    def _top_families(cls, keys, n: int = 4) -> str:
+        from collections import Counter
+        c = Counter(cls._orphan_family(k) for k in keys)
+        return ", ".join(f"{fam}({cnt})" for fam, cnt in c.most_common(n))
+
+    def _classify_orphans(self, orphans: List[str]) -> List[str]:
+        """T081-W5: read the Store-owned durable families (from File), then render the 3-way heal.
+        Fail-open: if the File read raises, file_fams=None -> the whole batch stays LOUD."""
+        try:
+            file_fams = {self._orphan_family(k) for k in self._file.keys("*")}
+        except Exception:
+            file_fams = None
+        return self._render_orphans(orphans, file_fams)
+
+    @classmethod
+    def _render_orphans(cls, orphans: List[str], file_fams) -> List[str]:
+        """T081-W5 (reconciled 2026-07-16, safety-critical) -- the honest heal, pure + testable.
+        A Redis-only key is one of THREE things, not one, so the 4867-key wall becomes a signal:
+          (2) DURABLE-family drift -- its family is Store-owned (in File); Redis just holds more
+              (append/TTL-trimmed). Calm + visible, NOT a data-loss alarm.
+          (1) EPHEMERAL-by-design -- transport/control/telemetry/drill (packet_spec roster). Quiet.
+          (3) UNKNOWN -- neither: the genuine 'a write never reached the durable side'. LOUD.
+        Order IS the safety guarantee: durable check FIRST (File is truth -- the roster can never
+        silence a Store-owned family), roster second, unknown last. file_fams=None -> fail-open:
+        the whole batch is LOUD. Counts are lossless: unknown + durable + ephemeral == len(orphans)."""
+        if file_fams is None:                             # classification unavailable -> all loud
+            shown = ", ".join(orphans[:5]) + (" ..." if len(orphans) > 5 else "")
+            return [f"[heal] {len(orphans)} Redis-only key(s) have NO File record "
+                    f"(classification unavailable -- ALL flagged): {shown}. "
+                    f"Investigate -- a write that never reached the durable side."]
+        from core.comm.packet_spec import is_ephemeral_key
+        durable, ephemeral, unknown = [], [], []
+        for k in orphans:
+            if cls._orphan_family(k) in file_fams:        # File is truth -- checked FIRST
+                durable.append(k)
+            elif is_ephemeral_key(k):
+                ephemeral.append(k)
+            else:
+                unknown.append(k)
+        out: List[str] = []
+        if unknown:                                       # most-severe first -- the real signal
+            shown = ", ".join(unknown[:5]) + (" ..." if len(unknown) > 5 else "")
+            out.append(f"[heal] {len(unknown)} UNKNOWN Redis-only key(s) -- no File record, not "
+                       f"ephemeral-by-design: {shown}. INVESTIGATE -- a write that never reached "
+                       f"the durable side.")
+        if durable:
+            out.append(f"[heal] {len(durable)} durable-family key(s) Redis-ahead of File "
+                       f"({cls._top_families(durable)}) -- expected for append/TTL-trimmed "
+                       f"families; investigate only if growing.")
+        if ephemeral:
+            out.append(f"[heal] {len(ephemeral)} expected Redis-only key(s) "
+                       f"({cls._top_families(ephemeral)}) -- transport/control/telemetry/drill, "
+                       f"no action.")
+        return out
 
     def close(self):
         if self._redis is not None:

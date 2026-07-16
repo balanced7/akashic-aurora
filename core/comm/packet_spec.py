@@ -223,6 +223,52 @@ def is_trace_kind(kind: Any) -> bool:
     return lane_for(kind) == "trace"
 
 
+# T081-W5: Redis key families EXPECTED to be Redis-only from the HybridStore's view -- transport /
+# control / telemetry (never durable anywhere) + durable-ELSEWHERE subsystems the Store does not own
+# (ledger, incarnation) + drill/test namespaces. This is an ALLOWLIST: a key matching NONE of these,
+# whose family the Store also does not own (checked FIRST, File-is-truth), is a genuine orphan and
+# stays LOUD. Empirically grounded in the 2026-07-16 keyspace census
+# (research/reviewed/w5-heal-reconciliation-2026-07-16.md). The roster can ONLY GROW -- removing a
+# pattern risks silencing a real orphan, so a deletion is a reviewed regression, never casual.
+EPHEMERAL_PREFIXES = (
+    # bus transport: lane streams, cursors, doorbell, fragment reassembly, fencing, reply-dedup
+    "*:work:*", "*:work", "*:sig:*", "*:sig", "*:trace", "*:trace:*",
+    "*:inbox:*", "*:inbox", "*:bell:*", "*:bell", "*:cursor:*", "*:cursor",
+    "*:reasm:*", "*:generation:*", "*:generation", "*:reply_sent:*",
+    # presence / liveness (TTL'd heartbeats)
+    "*:presence:*", "*:presence", "*:worklive:*", "*:progress:*", "*:stalled_since:*",
+    # control / coordination primitives (TTL'd flags + locks)
+    "*:control:*", "*:runner:*", "*:runner", "*:lock:*", "*:lock", "*:daemon:*",
+    "*:nudge:*", "*:intent:*", "*:expect:*", "*:paged:*", "*:doctor_paged:*",
+    # telemetry (regenerable / bounded)
+    "*:turn_metrics:*", "*:delta:*", "*:engine:*", "*:embed:*",
+    # ephemeral streams / channels (per-agent event fan-out + broadcast pub/sub); note the durable
+    # 'events:raw:*' family is caught by the file-family check FIRST, so it is never mis-swept here
+    "*:events", "*:events:*", "*:broadcast", "*:broadcast:*",
+    # durable-ELSEWHERE: persisted by the subsystem's OWN File, not the Store's (ledger, incarnation)
+    "*:coord:*", "*:incarnation:*",
+    # drill / test namespaces -- pollute the shared live keyspace; never production state. The real
+    # namespace is 'bifrost:' (colon); 'bifrost_<hash>' (underscore) is only ever a test namespace.
+    "rb25*", "bifrost_*", "*:test:*", "test:*", "test-*", "*drill*",
+)
+
+
+def is_ephemeral_key(key: Any) -> bool:
+    """T081-W5: does this Redis key belong to a family EXPECTED to be Redis-only (transport /
+    control / telemetry / durable-elsewhere / drill)? Matches EPHEMERAL_PREFIXES via fnmatch
+    (mid-string wildcards like 'agent:*:events' need globbing, not startswith). Never raises; an
+    UNMATCHED key is NOT ephemeral -- it stays a candidate orphan, so we never hide one."""
+    import fnmatch
+    k = str(key)
+    for pat in EPHEMERAL_PREFIXES:
+        try:
+            if fnmatch.fnmatch(k, pat):
+                return True
+        except Exception:
+            continue
+    return False
+
+
 def lane_maxlen(lane: str) -> int:
     return LANE_MAXLEN.get(lane, 10000)
 
