@@ -2877,15 +2877,15 @@
       "id": "T076",
       "title": "T076: redelivery-storm hygiene (from the 2026-07-15 562-echo mountain): (1) sanctioned skip-to-now -- runner flag + CLI verb that advances an agent's consume cursors to stream tails with an audited ledger event (today it took super-admin hand surgery on the scarred seam, note cursor-skip-2026-07-15); (2) storm detector -- pending-count gauge at runner boot + doctor; >N pending of ledger-closed classes suggests skip instead of grind; (3) root spigot: redrive copies of asks whose task is DONE in the ledger should settle automatically (expectations sweep consults task state) so storms stop forming. Cites T014 (the drain-everything lesson this REFINES, not reverses: live asks re-send, echo skips)",
       "desc": "",
-      "owner": "",
+      "owner": "claude",
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "approved",
+      "status": "verifying",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-15T15:00:04+00:00",
-      "updated": "2026-07-15T19:40:55+00:00",
+      "updated": "2026-07-16T23:51:24+00:00",
       "history": [
         {
           "to": "proposed",
@@ -2896,6 +2896,21 @@
           "to": "approved",
           "by": "user",
           "at": "2026-07-15T19:40:55+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-16T23:44:46+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-07-16T23:45:04+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-07-16T23:51:24+00:00"
         }
       ]
     },
@@ -3161,11 +3176,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "in_progress",
+      "status": "parked",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-16T13:25:41+00:00",
-      "updated": "2026-07-16T13:25:56+00:00",
+      "updated": "2026-07-16T23:45:04+00:00",
       "history": [
         {
           "to": "proposed",
@@ -3186,6 +3201,12 @@
           "to": "in_progress",
           "by": "claude",
           "at": "2026-07-16T13:25:56+00:00"
+        },
+        {
+          "to": "parked",
+          "by": "claude",
+          "at": "2026-07-16T23:45:04+00:00",
+          "reason": "Daniel-directed T076 echo-relief takes the slot; S5/S6 continue with deepseek; unpark for S3/S4/S7 after"
         }
       ]
     }
