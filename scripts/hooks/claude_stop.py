@@ -252,6 +252,35 @@ def main():
         # each spawning a redundant watcher into newest-wins churn. One grace recheck.
         time.sleep(1.5)
     if not wake_armed(session_id):
+        # T086-S3a: an ARMING ATTEMPT is in flight (standby touched its marker <90s ago) --
+        # nagging now spawns exactly the redundant-watcher churn the nag exists to prevent
+        # (live receipt 2026-07-16 ~09:16: the backstop fired mid-retry-loop).
+        try:
+            _arm_marker = os.path.join(tempfile.gettempdir(),
+                                       f"bifrost_wake_{AGENT}_{session_id}.arming" if session_id
+                                       else f"bifrost_wake_{AGENT}.arming")
+            if os.path.isfile(_arm_marker) and (time.time() - os.path.getmtime(_arm_marker)) < 90:
+                print("[stop-hook] arming attempt in flight -- standing by, no nag (T086 S3a)",
+                      file=sys.stderr)
+                return
+        except Exception:
+            pass
+        # T086-S3b: a LIVE TWIN session holds the consumer seat -- the twin is the wakeable
+        # seat-holder (plan-wall law); demanding a watcher HERE arms a redundant one. A
+        # TOMBSTONED holder falls through (dead by record -> this seat SHOULD arm).
+        try:
+            sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+            from core.comm import runner_lock as _rl, wake_seat as _ws3
+            _tok = str((_rl.holder(AGENT) or {}).get("token") or "")
+            if (_tok.startswith("session:") and session_id
+                    and _tok != f"session:{session_id}"
+                    and not _ws3.is_tombstoned(_tok[len("session:"):])):
+                print(f"[stop-hook] consumer seat held by live twin {_tok[len('session:'):][:8]} "
+                      f"-- the twin is the wakeable seat; no watcher here (T086 S3b)",
+                      file=sys.stderr)
+                return
+        except Exception:
+            pass
         guard = _loop_guard_path(session_id)
         now = time.time()
         try:

@@ -2760,6 +2760,18 @@ def cmd_bifrost_standby(args):
         return subprocess.run(cmd, env=env).returncode
 
     session = args.session or os.getenv("CLAUDE_CODE_SESSION_ID") or os.getenv("CLAUDE_SESSION_ID") or ""
+    try:   # T086-S3a: stamp the arming attempt BEFORE the drain -- the stop-hook backstop
+        #    suppresses its nag while this marker is fresh (<90s), so a standby mid-drain
+        #    (or a retry loop between refusals) is never nagged into double-arming.
+        import tempfile as _tf
+        import time as _time
+        _m = os.path.join(_tf.gettempdir(),
+                          f"bifrost_wake_{args.agent_id}_{session}.arming" if session
+                          else f"bifrost_wake_{args.agent_id}.arming")
+        with open(_m, "w") as _f:
+            _f.write(str(_time.time()))
+    except Exception:
+        pass
     res = standby(args.agent_id, session, listen=None if args.no_listen else _listen,
                   limit=args.limit or 20)
     for ln in res["report"]:
