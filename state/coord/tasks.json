@@ -1,5 +1,5 @@
 {
-  "seq": 85,
+  "seq": 86,
   "tasks": [
     {
       "id": "T001",
@@ -3150,6 +3150,42 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-16T05:26:28+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T086",
+      "title": "Seat/wake/hook lifecycle prior-art arc (Daniel directive 2026-07-16 verbatim in note seat-deepdive-directive): (1) define what the wake/seat/hook system must accomplish; (2) map current mechanism + gap inventory (C1-5 ghost seat = Exhibit A, liveness-tier H1-H6, T073 residue); (3) ground in production prior art -- which real system is ours most like, what makes it robust (leases/ephemeral sessions, supervision trees, consumer-group rebalance, fencing epochs); (4) systematic fix slices. Fenced dual halves (claude + deepseek) -> reconciliation is the build spec; extends T073/T030.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "in_progress",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-16T13:25:41+00:00",
+      "updated": "2026-07-16T13:25:56+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-16T13:25:41+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-16T13:25:50+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-16T13:25:56+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-07-16T13:25:56+00:00"
         }
       ]
     }

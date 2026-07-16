@@ -1,9 +1,10 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 75 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 76 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
+- seat-deepdive-directive: DANIEL DIRECTIVE 2026-07-16 ~09:30 verbatim: 'Our hooks and waits and seats system requires a full deepdive and grounding in prior art and...  (source: mem:decision:ADR_0716092530_e28bdd64)
 - where-we-are: OVERNIGHT RUN 2026-07-16 (Daniel asleep; claude Opus seat + deepseek-build FULL caps -- the two-frontier-model test): T081 boot-ergonomics DONE @72a4925...  (source: mem:decision:ADR_0716013622_2ec9747b)
 - ironman-directive: DANIEL DIRECTIVE 2026-07-16 pre-sleep verbatim: 'I want you and deepseek to keep analyzing friction points when using akashic aurora and ways to...  (source: mem:decision:ADR_0716010705_70e5ee3b)
 - t079-engine-room-directive: DANIEL DIRECTIVE 2026-07-15 night (paraphrase-faithful): he watches claudes expanded thinking window while working to learn how we operate...  (source: mem:decision:ADR_0715171720_0deb79f0)
