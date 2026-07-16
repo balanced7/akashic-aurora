@@ -110,14 +110,10 @@ Small slice, rides my ToolBox door (deepseek_chat.py).**
 
 ### C3 CLI ergonomics footguns
 
-**C3-1 · bifrost-send text swallowed CLI flags** (2026-07-16: a message BODY containing
-`--sources-json` got parsed as arguments after PowerShell quote-mangling; send failed with an
-argparse error.)
-Root cause: message text rides argv; anything flag-shaped in prose is hostile input to argparse,
-and PowerShell quoting multiplies the risk. Prior art: `git commit -F <file>` / `--` end-of-flags.
-**Routing: FIX NOW (tonight, C3 fix #2)** — `bifrost-send --text-file PATH` (+ honor `--` as
-end-of-options) so long/flag-bearing bodies never ride argv. Complements T064 (handoff --note
-clipping → file overflow).
+**C3-1 · bifrost-send text swallowed CLI flags** — **FIXED 2026-07-16, awaiting deepseek
+cross-verify.** `bifrost-send --text-file PATH` (git commit -F precedent): flag-bearing/long
+bodies ride a file, never argv; unreadable/empty file refuses loud (rc=2), nothing half-sent.
+5 pins (real parser + stubbed bus) GREEN. Root-cause history in git (this entry, prior revision).
 
 **C3-2 · `Shell cwd was reset` on every PowerShell call** (all session)
 Harness resets cwd between calls; every CLI invocation needs a `Set-Location` prefix.
@@ -138,15 +134,12 @@ still work via pid). Medium slice; rides T030 (launcher-owned lifecycle).**
 
 ### C5 Ledger state machine
 
-**C5-1 · T081 done-transition blocked by a PARKED in-progress task** (2026-07-16: `task done
-T081` blocked — T075 is in_progress but explicitly PARKED behind T047; the one-in-progress rule
-can't express "parked".)
-Root cause: the state machine lacks a parked/paused status, so a deliberately-shelved wave
-permanently occupies the single in_progress slot.
-Prior art: issue-tracker state machines (Jira "blocked/on-hold" as first-class states).
-**Routing: FIX NOW (tonight, C5 fix #3)** — conductor gains `park <tid> --reason` /`unpark`
-(park = in_progress→parked, excluded from the serialize-check; unpark reverses). Migrate T075 to
-parked citing its own PARKED note. Then T081 transitions cleanly.**
+**C5-1 · T081 done-transition blocked by a PARKED in-progress task** — **FIXED 2026-07-16,
+awaiting deepseek cross-verify.** PARKED is a first-class ledger status: reason mandatory, frees
+the serialize slot, KEEPS owner+file claims, unpark re-enters through the same gate,
+parked→abandoned legal; state_view/format_state render it. Migration executed live: T075 parked
+(citing its own PARKED-behind-T047 text) → T081 in_progress→verifying→DONE @72a4925 — the exact
+blockage, cleared through the fixed machine. 8 pins + 48 ledger/conductor regression GREEN.
 
 ### C6 Message/lane integrity
 

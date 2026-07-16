@@ -1,5 +1,5 @@
 {
-  "seq": 84,
+  "seq": 85,
   "tasks": [
     {
       "id": "T001",
@@ -3129,6 +3129,27 @@
           "to": "approved",
           "by": "claude",
           "at": "2026-07-16T05:08:25+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T085",
+      "title": "T085: Ironman Tier-2 (Daniel morning gate, per research/reviewed/ironman-plan-2026-07-16.md): IR-4 deepseek commit autonomy (recommend audited 'agent_cli mirror <named files>' family, NOT raw git -- cross-verify-before-commit stays the safety net); IR-2 runner suspend/resume (own fence, absorbs C1-3); IR-5 UI /api/render text-DOM (deepseek sees its own UI work); IR-7/CL-6 region-aware locks (C2-1 structural fix); CL-1 MCP door coverage (send/task/lock wrappers, gate with W2 apply); CL-4 fence-scaffold verb (rides T053); CL-7 launcher live-adoption (rides T030, C4-1); IR-1 runner prompt caching (design-only until API). Tier-1 (IR-3, IR-6/CL-5, CL-2) built tonight under T084.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-16T05:26:28+00:00",
+      "updated": "2026-07-16T05:26:28+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-16T05:26:28+00:00"
         }
       ]
     }
