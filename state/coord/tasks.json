@@ -2839,11 +2839,11 @@
       "deps": [],
       "files": [],
       "acceptance": "each slice fenced + pinned per the reconciliation's pin table; M1-P1..P12 from deepseek's half govern",
-      "status": "in_progress",
+      "status": "parked",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-15T07:20:55+00:00",
-      "updated": "2026-07-15T13:27:02+00:00",
+      "updated": "2026-07-16T05:22:43+00:00",
       "history": [
         {
           "to": "proposed",
@@ -2864,6 +2864,12 @@
           "to": "in_progress",
           "by": "claude",
           "at": "2026-07-15T13:27:02+00:00"
+        },
+        {
+          "to": "parked",
+          "by": "claude",
+          "at": "2026-07-16T05:22:43+00:00",
+          "reason": "PARKED behind T047 + own fence (daemon-as-consumer fan-out) per the task text itself -- alpha/beta shipped, gamma+ waits; slot freed by T083-C5-1"
         }
       ]
     },
@@ -3010,11 +3016,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "claimed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "72a4925",
+      "verified_by": "pytest: 60 T081 pins + regressions GREEN; cross-verified both lanes",
       "created": "2026-07-16T02:50:13+00:00",
-      "updated": "2026-07-16T02:57:36+00:00",
+      "updated": "2026-07-16T05:22:58+00:00",
       "history": [
         {
           "to": "proposed",
@@ -3030,6 +3036,21 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-07-16T02:57:36+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-07-16T05:22:43+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-07-16T05:22:58+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-07-16T05:22:58+00:00"
         }
       ]
     },

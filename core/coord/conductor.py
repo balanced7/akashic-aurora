@@ -133,6 +133,21 @@ def abandon(tid, reason, *, by="", client="auto", path=None):
     return t
 
 
+def park(tid, reason, *, by="", client="auto", path=None):
+    """T083-C5-1: shelve an IN_PROGRESS wave deliberately -- keeps owner + file claims, FREES the
+    Phase-1 sequential slot (a parked wave must not block unrelated work from finishing)."""
+    t = TL.park(_ledger(client, path), tid, reason, by=by, at=_now())
+    _emit_ledger_update(t, "parked", by)
+    return t
+
+
+def unpark(tid, *, by="", client="auto", path=None):
+    """T083-C5-1: resume a parked wave -- re-enters through the same one-in-progress gate."""
+    t = TL.unpark(_ledger(client, path), tid, by=by, at=_now())
+    _emit_ledger_update(t, "in_progress", by)
+    return t
+
+
 def next_task(client="auto", path=None):
     """The single task that may start now: none if something is already IN_PROGRESS (Phase 1's
     one-at-a-time gate), else the first APPROVED task whose deps are all DONE. Returns a dict or None."""
@@ -161,6 +176,8 @@ def main(argv=None) -> int:
     q.add_argument("--verified-by", required=True, dest="verified_by"); q.add_argument("--by", default="")
     q = sub.add_parser("block"); q.add_argument("tid"); q.add_argument("--reason", required=True); q.add_argument("--by", default="")
     q = sub.add_parser("abandon"); q.add_argument("tid"); q.add_argument("--reason", required=True); q.add_argument("--by", default="")
+    q = sub.add_parser("park"); q.add_argument("tid"); q.add_argument("--reason", required=True); q.add_argument("--by", default="")
+    q = sub.add_parser("unpark"); q.add_argument("tid"); q.add_argument("--by", default="")
     sub.add_parser("list"); sub.add_parser("next")
     a = ap.parse_args(argv)
 
@@ -184,6 +201,10 @@ def main(argv=None) -> int:
             print(f"blocked {block(a.tid, a.reason, by=a.by)['id']}: {a.reason}")
         elif a.cmd == "abandon":
             print(f"ABANDONED {abandon(a.tid, a.reason, by=a.by)['id']}: {a.reason}")
+        elif a.cmd == "park":
+            print(f"PARKED {park(a.tid, a.reason, by=a.by)['id']} (slot freed; unpark to resume): {a.reason}")
+        elif a.cmd == "unpark":
+            print(f"UNPARKED {unpark(a.tid, by=a.by)['id']} (now IN_PROGRESS)")
         elif a.cmd == "list":
             import time
             print(TL.format_state(now=time.time()))

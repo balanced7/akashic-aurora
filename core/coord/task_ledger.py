@@ -53,23 +53,32 @@ def _decode(v):
     return v.decode() if isinstance(v, (bytes, bytearray)) else v
 
 # --- lifecycle ---------------------------------------------------------------------------------
-PROPOSED, APPROVED, CLAIMED, IN_PROGRESS, VERIFYING, DONE, BLOCKED, ABANDONED = (
-    "proposed", "approved", "claimed", "in_progress", "verifying", "done", "blocked", "abandoned")
+PROPOSED, APPROVED, CLAIMED, IN_PROGRESS, VERIFYING, DONE, BLOCKED, ABANDONED, PARKED = (
+    "proposed", "approved", "claimed", "in_progress", "verifying", "done", "blocked", "abandoned",
+    "parked")
 
-STATUSES = (PROPOSED, APPROVED, CLAIMED, IN_PROGRESS, VERIFYING, DONE, BLOCKED, ABANDONED)
+STATUSES = (PROPOSED, APPROVED, CLAIMED, IN_PROGRESS, VERIFYING, DONE, BLOCKED, ABANDONED, PARKED)
 
 # who may move where. DONE/ABANDONED are terminal (empty set).
 TRANSITIONS: Dict[str, set] = {
     PROPOSED:    {APPROVED, ABANDONED},
     APPROVED:    {CLAIMED, ABANDONED},
     CLAIMED:     {IN_PROGRESS, APPROVED, ABANDONED},   # release back to APPROVED if you can't do it
-    IN_PROGRESS: {VERIFYING, BLOCKED, ABANDONED},
+    IN_PROGRESS: {VERIFYING, BLOCKED, ABANDONED, PARKED},
     VERIFYING:   {DONE, IN_PROGRESS, BLOCKED},         # verification can bounce it back
     BLOCKED:     {APPROVED, IN_PROGRESS, ABANDONED},
     DONE:        set(),
     ABANDONED:   set(),
+    # T083-C5-1: PARKED = deliberately shelved mid-flight (reason mandatory). Unlike BLOCKED
+    # (waiting on something external, still "the" current work), a parked wave FREES the Phase-1
+    # sequential slot (the gate checks status==IN_PROGRESS specifically) while KEEPING its owner +
+    # file claims -- resuming re-enters through the same one-in-progress gate. Live receipt
+    # 2026-07-16: T075 (explicitly 'PARKED behind T047' in its own text) held the slot for a day
+    # and blocked T081's done transition. Prior art: issue-tracker on-hold states.
+    PARKED:      {IN_PROGRESS, ABANDONED},
 }
-ACTIVE = {CLAIMED, IN_PROGRESS, VERIFYING}   # holds files / occupies the sequential slot
+ACTIVE = {CLAIMED, IN_PROGRESS, VERIFYING}   # occupies the sequential slot / working set
+FILE_HOLDING = ACTIVE | {PARKED}             # parked work still owns its files (no mid-park grabs)
 
 
 class LedgerError(Exception):
@@ -138,10 +147,11 @@ class TaskLedger:
         return bool(t) and t["status"] == DONE
 
     def files_held(self, exclude: Optional[str] = None) -> Dict[str, str]:
-        """path -> task_id for every file an ACTIVE task holds (exclude one task if given)."""
+        """path -> task_id for every file a FILE_HOLDING task holds (exclude one task if given).
+        T083-C5-1: parked tasks keep their claims -- shelved work must not lose its files."""
         held: Dict[str, str] = {}
         for t in self.tasks.values():
-            if t["id"] == exclude or t["status"] not in ACTIVE:
+            if t["id"] == exclude or t["status"] not in FILE_HOLDING:
                 continue
             for f in t.get("files", []):
                 held[f] = t["id"]
@@ -191,6 +201,11 @@ class TaskLedger:
             if clash:
                 raise LedgerError(f"claim blocked: files held by another active task {clash}")
 
+        # --- park gate (T083-C5-1): shelving without a why is exactly the ambiguity P5 ended ---
+        if to == PARKED and not reason:
+            raise LedgerError("park blocked: needs a --reason (why is this wave shelved, and "
+                              "what unparks it)")
+
         # --- one-in-progress gate (Phase 1: sequential-correct) ---
         if to == IN_PROGRESS:
             others = [o["id"] for o in self.in_progress() if o["id"] != tid and o["status"] == IN_PROGRESS]
@@ -238,6 +253,8 @@ def verifying(ledger, tid, **kw):return _t(ledger, tid, VERIFYING, **kw)
 def done(ledger, tid, commit, verified_by, **kw): return _t(ledger, tid, DONE, commit=commit, verified_by=verified_by, **kw)
 def block(ledger, tid, reason, **kw): return _t(ledger, tid, BLOCKED, reason=reason, **kw)
 def abandon(ledger, tid, reason, **kw): return _t(ledger, tid, ABANDONED, reason=reason, **kw)   # P5: terminal, reasoned
+def park(ledger, tid, reason, **kw): return _t(ledger, tid, PARKED, reason=reason, **kw)         # C5-1: shelved, reasoned, slot freed
+def unpark(ledger, tid, **kw): return _t(ledger, tid, IN_PROGRESS, **kw)                         # C5-1: resumes through the one-in-progress gate
 
 
 # --- fast reads (Slice B): what agents obey instead of the message backlog ---------------------
@@ -298,6 +315,12 @@ def state_view(path: str = LEDGER_PATH, client: Any = "auto", *,
             s["stale"] = bool(age is not None and stale_days and age > stale_days)
         return s
 
+    def _park_reason(t):
+        for h in reversed(t.get("history") or []):
+            if h.get("to") == PARKED:
+                return h.get("reason", "")
+        return ""
+
     return {
         "done": [summ(t) for t in tasks if t["status"] == DONE],
         "in_progress": [summ(t) for t in tasks if t["status"] in ACTIVE],
@@ -305,6 +328,8 @@ def state_view(path: str = LEDGER_PATH, client: Any = "auto", *,
                  and all(d in done_ids for d in t.get("deps", []))],
         "proposed": [summ(t) for t in tasks if t["status"] == PROPOSED],
         "blocked": [summ(t) for t in tasks if t["status"] == BLOCKED],
+        "parked": [{**summ(t), "reason": _park_reason(t)}
+                   for t in tasks if t["status"] == PARKED],   # C5-1: shelved, reasoned, visible
         "counts": {s: sum(1 for t in tasks if t["status"] == s) for s in STATUSES},
     }
 
@@ -346,6 +371,10 @@ def format_state(agent: str = "", path: str = LEDGER_PATH, client: Any = "auto",
         out.append("IN PROGRESS:")
         out += [f"  {t['id']} - {t['title']}  ({t['status']}"
                 + (f", {t['owner']}" if t['owner'] else "") + ")" for t in v["in_progress"]]
+    if v.get("parked"):
+        out.append("PARKED (shelved with a reason -- slot freed; unpark to resume):")
+        out += [f"  {t['id']} - {t['title'][:90]}  ({t.get('reason', '')[:80]})"
+                for t in v["parked"]]
     if v["next"]:
         out.append("NEXT (claimable now):")
         out += [f"  {t['id']} - {t['title']}"
@@ -356,8 +385,9 @@ def format_state(agent: str = "", path: str = LEDGER_PATH, client: Any = "auto",
         out += [f"  {t['id']} - {t['title'][:90]}  (untouched {t.get('age_days', 0):.0f}d)"
                 for t in stale]
     prop = f"proposed {c[PROPOSED]}" + (f" ({len(stale)} stale)" if stale else "")
+    parked_bar = f" | parked {c[PARKED]}" if c.get(PARKED) else ""
     out.append(f"(done {c[DONE]} | active {c[CLAIMED] + c[IN_PROGRESS] + c[VERIFYING]} | "
-               f"next {len(v['next'])} | {prop} | blocked {c[BLOCKED]})")
+               f"next {len(v['next'])} | {prop} | blocked {c[BLOCKED]}{parked_bar})")
     out.append("RULE: anything in DONE is closed. Work only your assigned/NEXT task. "
                "Ignore backlog messages that contradict the ledger.")
     return "\n".join(out) + "\n"
