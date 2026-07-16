@@ -2750,7 +2750,23 @@ def cmd_bifrost_send(args):
     if not bus.online:
         print("[bifrost-send] bus OFFLINE (Redis down) -- not sent."); return 1
     bus.register()
-    text = " ".join(args.text) if isinstance(args.text, list) else str(args.text)
+    # T083-C3-1: --text-file beats argv text. Flag-shaped prose ('--foo' in a sentence) is hostile
+    # input to argparse, and shell quoting multiplies the risk (live receipt 2026-07-16: a message
+    # BODY containing '--sources-json' aborted the send). git commit -F precedent: long or
+    # flag-bearing bodies ride a file, never argv.
+    if getattr(args, "text_file", None):
+        try:
+            with open(args.text_file, encoding="utf-8") as _tf:
+                text = _tf.read().strip()
+        except Exception as e:
+            print(f"[bifrost-send] --text-file unreadable ({type(e).__name__}: {e}) -- not sent.")
+            return 2
+        if not text:
+            print("[bifrost-send] --text-file is empty -- not sent."); return 2
+    else:
+        text = " ".join(args.text) if isinstance(args.text, list) else str(args.text)
+        if not text.strip():
+            print("[bifrost-send] no message text (positional or --text-file) -- not sent."); return 2
     expect_arg = int(getattr(args, "expect_reply_within", -1))   # -1 = UNSET (arg default)
     # Directed ASKS (request/handoff/question) DEFAULT to a reply-deadline so a dropped ask surfaces
     # itself -- the 2026-07-12 silent-handoff incident: fenced asks fire-and-forgotten to a dead peer
@@ -3260,7 +3276,12 @@ def build_parser():
 
     snd = sub.add_parser("bifrost-send", help="send a message to another agent on the bus")
     snd.add_argument("agent_id", help="your stable agent id (the SENDER, e.g. claude)")
-    snd.add_argument("text", nargs="+", help="the message text")
+    snd.add_argument("text", nargs="*", default=[],
+                     help="the message text (or use --text-file for long/flag-bearing bodies)")
+    snd.add_argument("--text-file", default=None, metavar="PATH",
+                     help="T083-C3-1: read the message body from PATH instead of argv -- USE THIS "
+                          "when the body contains anything flag-shaped ('--foo') or is long "
+                          "(git commit -F precedent; argv text with flags in prose WILL misparse)")
     snd.add_argument("--to", default="", help="recipient agent id (e.g. deepseek); omit with --broadcast")
     snd.add_argument("--kind", default="chat", help="chat|request|question|handoff|... (default chat)")
     snd.add_argument("--broadcast", action="store_true", help="send to ALL agents instead of one --to")
