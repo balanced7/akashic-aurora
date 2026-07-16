@@ -163,6 +163,12 @@ Small slice, rides my ToolBox door (deepseek_chat.py).**
 cross-verify.** `bifrost-send --text-file PATH` (git commit -F precedent): flag-bearing/long
 bodies ride a file, never argv; unreadable/empty file refuses loud (rc=2), nothing half-sent.
 5 pins (real parser + stubbed bus) GREEN. Root-cause history in git (this entry, prior revision).
+REFINED 2026-07-16 (two live receipts, morning seat): the footgun is BROADER than flag-shaped
+prose — argparse refuses the text positional placed AFTER optionals regardless of content
+(`bifrost-send claude --to X --kind Y "text"` fails; text-before-flags parses). The morning's
+first failure was mis-diagnosed as the `--`-in-prose case; the second (dash-free text, same
+error) falsified that. Rule: --text-file for anything nontrivial; bare argv text goes BEFORE
+flags. Residual open sliver: the refusal prints generic usage, not the remedy — teach-on-refuse.
 
 **C3-2 · `Shell cwd was reset` on every PowerShell call** (all session)
 Harness resets cwd between calls; every CLI invocation needs a `Set-Location` prefix.
