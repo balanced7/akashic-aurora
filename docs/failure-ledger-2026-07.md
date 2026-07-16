@@ -47,7 +47,21 @@ boot render. Not a blocker (the information is still reachable; just takes one e
 
 ### C1 Seat & lease lifecycle
 
-**C1-5 · Ghost wake seat: an ENDED session's armed standby survives SessionEnd** (2026-07-16
+**C1-6 · Listener deadline self-cycle fired at "4.0h" against a ~5-minute-old watcher**
+(2026-07-16 ~09:55, live). Standby armed ~09:50; listener exited ~09:55 with
+`BIFROST_WAKE: deadline self-cycle for claude/69d664e5 after 4.0h -- re-arm trigger written`.
+The Phase-3 deadline (T073: 4h internal loop, planned cycle) computed elapsed against
+something ~4h old — suspected stale/shared anchor (the tombstoned overnight session armed
+~05:35; +4h ≈ this firing). Consequence: spurious wake + re-arm churn on every arm while the
+stale anchor persists — benign per-cycle (stop-hook renders it "cycled (planned)"), wasteful
+in aggregate. Root-cause hypothesis: the deadline anchor is read from a per-AGENT (not
+per-session/per-process) artifact, or from a surviving `.rearm`/marker mtime rather than the
+watcher's own start time.
+**Routing: T086-S4 (observable seat state) — verify the anchor source in bifrost_wake.py,
+pin "deadline elapsed is measured from THIS watcher's start", and render the anchor in the
+standby report. Also noted for S4: the standby report prints the FULL 78-line task ledger
+when a ledger_update echo is in the drain — the report needs a compact ledger-delta line
+instead (two receipts today).**
 morning, live) — **CLOSED 2026-07-16 (T086-S1+S2a, deepseek cross-verified 56/56, five
 adversarial targets signed off).** Session tombstone = the session-vs-process discriminator,
 consulted by ladder (no grace), janitor (outranks K7 chain-immunity), and stop hook
