@@ -33,8 +33,7 @@ class TokenJournal:
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             "state")
         os.makedirs(base, exist_ok=True)
-        today = time.strftime("%Y-%m-%d")
-        self._path = os.path.join(base, f"runner_{self._agent}_{today}.json")
+        self._base = base
         self.turns: int = 0
         self.prompt_tokens: int = 0
         self.completion_tokens: int = 0
@@ -62,6 +61,15 @@ class TokenJournal:
 
     def today(self) -> str:
         return time.strftime("%Y-%m-%d")
+
+    @property
+    def _path(self) -> str:
+        """Derived PER CALL from today() (deepseek's date-crossing finding,
+        2026-07-15 night): a journal constructed before midnight must write
+        today's file after midnight -- one date source, path and stamp can
+        never split. A day boundary mid-process starts a fresh day file;
+        counters reset at the next _load() of the new path."""
+        return os.path.join(self._base, f"runner_{self._agent}_{self.today()}.json")
 
     def to_dict(self) -> Dict:
         return {
