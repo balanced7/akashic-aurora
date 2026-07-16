@@ -114,3 +114,25 @@ def test_to_incarnation_flag_reaches_meta():
 
 if __name__ == "__main__":
     print("Run via pytest: py -m pytest tests/test_t073_wake_phase12.py -q")
+
+
+# ---------------------------------------------------------------- operator override (2026-07-15)
+def test_operator_sender_wakes_regardless_of_kind(monkeypatch):
+    """THE OPERATOR OUTRANKS THE ALLOWLIST -- live incident 2026-07-15: Daniel's
+    broadcast (frm=user, kind=inform, the ladder's quiet tier) slept every idle
+    claude seat while the always-consuming runner answered. A sender dimension,
+    not a kind: the ratchet's silent-by-default law for agent kinds stands."""
+    import scripts.bifrost_wake as bw
+    from types import SimpleNamespace
+    m = SimpleNamespace(kind="inform", frm="user", to="*", meta={})
+    assert bw.wake_worthy(m, agent="claude", incarnation="sess0000"), \
+        "operator inform must wake"
+    m2 = SimpleNamespace(kind="chat", frm="daniel", to="claude", meta={})
+    assert bw.wake_worthy(m2, agent="claude", incarnation="sess0000"), \
+        "operator chat must wake"
+    m3 = SimpleNamespace(kind="inform", frm="deepseek", to="*", meta={})
+    assert not bw.wake_worthy(m3, agent="claude", incarnation="sess0000"), \
+        "agent inform stays quiet (the ratchet is untouched)"
+    monkeypatch.setenv("AKASHIC_OPERATOR_IDS", "")
+    assert not bw.wake_worthy(m, agent="claude", incarnation="sess0000"), \
+        "empty operator set disables the override (drill hatch)"

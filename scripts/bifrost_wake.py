@@ -58,6 +58,14 @@ WAKE_WORTHY_KINDS = frozenset(
     {"request", "handoff", "reply", "blocker", "question", "completion", "nudge"})
 
 
+def _operator_ids() -> frozenset:
+    """Senders whose mail wakes a seat REGARDLESS of kind (the operator override).
+    Default covers the UI composer's frm=user stamp and Daniel's name; read
+    per-call so drills can dial it (AKASHIC_OPERATOR_IDS, comma-sep, empty=off)."""
+    raw = os.environ.get("AKASHIC_OPERATOR_IDS", "user,daniel")
+    return frozenset(x.strip() for x in raw.split(",") if x.strip())
+
+
 def wake_worthy(m, *, agent: str, incarnation: str = "") -> bool:
     """T073 Phase 1+2: ONE decision for 'does this message wake this seat'.
 
@@ -74,6 +82,13 @@ def wake_worthy(m, *, agent: str, incarnation: str = "") -> bool:
     if target:
         me = str(incarnation or "")
         return len(target) >= 8 and bool(me) and (me == target or me.startswith(target))
+    # THE OPERATOR OUTRANKS THE ALLOWLIST (2026-07-15 live incident: Daniel's
+    # "I'm back!" broadcast rode frm=user kind=inform -- the ladder's quiet tier --
+    # and every idle claude seat slept through the human while the runner answered.
+    # A sender DIMENSION, not a kind, so the ratchet's silent-by-default law for
+    # new agent kinds stands untouched). Env-dialed; empty disables.
+    if str(getattr(m, "frm", "")) in _operator_ids():
+        return True
     kind = str(getattr(m, "kind", ""))
     if kind not in WAKE_WORTHY_KINDS:
         return False
