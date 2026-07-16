@@ -182,6 +182,13 @@ def main() -> int:
     except Exception:
         pass   # auto-capture is best-effort; never block the end
     emit_session_signals(data)
+    try:   # T081-W8: close the open episode at SESSION END so it never dangles across sessions
+        #    (the 189h 'Untitled episode'). SessionEnd only -- PreCompact is mid-session, still live.
+        if (data.get("hook_event_name") or "") == "SessionEnd":
+            from core.narrative.episode import close_open_episode_for_session_end
+            close_open_episode_for_session_end()
+    except Exception:
+        pass   # bookend close is best-effort; never block the end
     try:   # T075 M1-beta clean-death trio (seat + card + listener); event guard +
         #    kill switch live INSIDE clean_death -- PreCompact passes through as a no-op.
         from core.comm.session_exit import clean_death

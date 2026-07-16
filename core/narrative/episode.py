@@ -187,6 +187,48 @@ def close_episode(store: Optional[Store] = None, *, now: Optional[str] = None,
         return {"draft": None, "new_current_chapter": None}
 
 
+def close_open_episode_for_session_end(store: Optional[Store] = None, *, now: Optional[str] = None,
+                                       writer: Optional[Callable] = None) -> Dict[str, Any]:
+    """T081-W8: resolve the open episode at SESSION END so it never dangles across sessions -- the
+    '189h Untitled episode' bug, where sessions came and went while one episode stayed open. Prior
+    art: OpenTelemetry spans auto-close when their context exits; an episode's context IS the
+    session, so the session ending is its natural close.
+
+      - has CONTENT beats  -> close+draft (open_next=False: leave NO fresh open episode; the next
+        session's first current_episode() auto-opens one).
+      - EMPTY (no content)  -> just clear the open pointer, creating NO phantom 'Untitled' chapter
+        (closing an empty span with a draft is what MINTED the 189h Untitled episode).
+      - dangling pointer    -> clear it.
+
+    Returns a short status dict. Never raises -- a bookend hiccup must never block a session ending."""
+    try:
+        store = store if store is not None else create_store()
+        rec = _load_open(store)
+        if not rec:
+            return {"action": "none"}
+        now_iso = _now(now)
+        ch = load_chapter_from_store(store, rec.get("chapter_id"))
+        if ch is None:                                   # pointer dangles -> clear, nothing to draft
+            _clear_open(store)
+            return {"action": "cleared_dangling"}
+        beats = content_beats(BeatLog(store).in_window(ch.span_start, now_iso))
+        if not beats:                                    # empty -> clear, no phantom Untitled chapter
+            _clear_open(store)
+            return {"action": "cleared_empty", "chapter_id": ch.id}
+        res = close_episode(store, now=now_iso, finalize=False, open_next=False, writer=writer)
+        return {"action": "closed", "chapter_id": ch.id,
+                "title": (res.get("draft") or {}).get("title")}
+    except Exception:
+        return {"action": "error"}
+
+
+def _clear_open(store: Store) -> None:
+    try:
+        store.delete(EPISODE_OPEN_KEY)
+    except Exception:
+        pass
+
+
 def accept_episode(store: Optional[Store], chapter_id: str, *, title: Optional[str] = None,
                    description: Optional[str] = None, why: Optional[str] = None,
                    now: Optional[str] = None) -> Dict[str, Any]:
