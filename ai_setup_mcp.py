@@ -38,6 +38,10 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# T081-W1: this process IS the MCP door -- stamp it so any boot() routed through here
+# renders 'door: MCP-native'. setdefault so an outer launcher can still override.
+os.environ.setdefault("AKASHIC_SEAT_DOOR", "mcp")
+
 from mcp.server.fastmcp import FastMCP
 
 import agent_cli

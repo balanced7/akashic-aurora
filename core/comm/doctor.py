@@ -275,6 +275,69 @@ def _fmt_toks(n: int) -> str:
     return str(n)
 
 
+# ------------------------------------------------------------------ services (T081-W3)
+def _tcp_up(host: str, port: int, timeout: float = 0.4) -> bool:
+    """Is something accepting connections at host:port? A fast, dependency-free liveness probe."""
+    import socket
+    try:
+        with socket.create_connection((host, int(port)), timeout=timeout):
+            return True
+    except Exception:
+        return False
+
+
+def _svc_finding(name: str, up: bool, detail: str, remedy: str) -> Dict[str, Any]:
+    """A service finding in the shared finding shape: LIVE renders dashboard-grade w/ no drill;
+    DOWN renders banner-grade carrying the one-line start command (never a page -- a down
+    service is setup, not a work emergency)."""
+    line = f"service {name}: {'LIVE' if up else 'DOWN'}" + (f" -- {detail}" if detail else "")
+    return _f(name, f"service_{'live' if up else 'down'}",
+              "dashboard" if up else "banner", line, "" if up else remedy)
+
+
+def examine_services() -> List[Dict[str, Any]]:
+    """T081-W3: fleet-INFRASTRUCTURE liveness -- the processes a seat needs but agent diagnosis
+    (examine) never covers: the bus backend, the UI console, the presence daemon. Each LIVE/DOWN
+    with a one-line start command for anything DOWN -- the 'what's running?' answer boot couldn't
+    give (P2). Fail-open per probe: a probe that raises drops its own line, never the section."""
+    out: List[Dict[str, Any]] = []
+    try:   # 1) Redis -- the bus backend everything rides
+        c = _client()
+        up = False
+        if c is not None:
+            try:
+                up = bool(c.ping())
+            except Exception:
+                up = False
+        out.append(_svc_finding("redis", up, "bus backend",
+                                "start Redis (config.py canonical: localhost:16379)"))
+    except Exception:
+        pass
+    try:   # 2) UI console
+        port = int(os.environ.get("BIFROST_UI_PORT", "8787"))
+        out.append(_svc_finding(f"ui:{port}", _tcp_up("127.0.0.1", port), "bifrost console",
+                                "py scripts/bifrost_ui.py  (Bash run_in_background)"))
+    except Exception:
+        pass
+    try:   # 3) Presence daemon(s) -- the autopilot that owns wake/consume (T075/T077). DOWN means
+           # the seat self-manages its arm/consume ritual (P3), so this line is load-bearing for a CLI seat.
+        from core.comm.daemon_state import daemon_is_live
+        live = []
+        for a in known_agents():
+            try:
+                if daemon_is_live(a):
+                    live.append(a)
+            except Exception:
+                pass
+        out.append(_svc_finding("daemon", bool(live),
+                                ", ".join(sorted(live)) if live
+                                else "no live daemon -- seats self-manage wake/consume",
+                                "py scripts/bifrost_daemon.py --agent <a>  (autopilot: owns wake+consume)"))
+    except Exception:
+        pass
+    return out
+
+
 def known_agents() -> List[str]:
     """Union of ids with a worklive record, a runner lock, presence, OR a durable inbox holding
     RECENT unconsumed mail. That last source is the fix for the 2026-07-12 gap: worklive/runner/

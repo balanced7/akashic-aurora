@@ -204,6 +204,7 @@ def cmd_boot(args):
     secs = ctx.get("sections") or {}
     print(f"# CONTEXT for {args.agent_id}" + (f" -- task: {args.task}" if args.task else ""))
     print(f"# {len(secs.get('learnings', []))} lesson(s), {len(secs.get('blockers', []))} blocker(s)")
+    print(_transport_line())   # T081-W1: what door this seat came through (can I use tools?)
     # P2/T022 ORIENTATION HEADER (deepseek consumer spec, research/reviewed/deepseek-p2-spec-
     # 2026-07-09.md): the first ~15 lines carry the map, the governing arc, THE current
     # where-we-are, the precedence doctrine, and a COMPACT ledger bar -- every line DERIVED
@@ -1080,6 +1081,24 @@ def _boot_siblings_line(agent_id: str) -> str:
         return "# siblings: " + "; ".join(bits) + "  (address one: bifrost-send --to-incarnation <sid8>)"
     except Exception:
         return ""
+
+
+def _transport_line(door=None, detail=None) -> str:
+    """T081-W1: one boot line stating THIS seat's DOOR -- 'can I use tools?' answered
+    before any project context. The door is set by the invocation path: the MCP tool
+    server and the runner each stamp AKASHIC_SEAT_DOOR (+ optional _DETAIL); a bare CLI
+    boot leaves it unset -> cli-shell, which is exactly the P1 fragility case (native
+    akashic tools NOT attached), so the line names its OWN remedy (T081-W2). An unknown
+    signal degrades to cli-shell -- a wrong 'you have tools' is worse than a safe default."""
+    door = (door if door is not None else os.environ.get("AKASHIC_SEAT_DOOR", "")).strip().lower()
+    detail = (detail if detail is not None else os.environ.get("AKASHIC_SEAT_DOOR_DETAIL", "")).strip()
+    paren = f" ({detail})" if detail else ""
+    if door == "mcp":
+        return f"# door: MCP-native{paren or ' (akashic tools attached)'}"
+    if door == "toolbox":
+        return f"# door: ToolBox-native{paren}"
+    return ("# door: CLI-shell -- native akashic tools NOT attached" + paren
+            + "; remedy: user-scoped MCP w/ absolute paths [T081-W2] or cd E:\\AI-Setup && restart")
 
 
 def _orientation_header(agent_id: str, primer_aware: bool = False) -> str:
@@ -2353,9 +2372,13 @@ def cmd_doctor(args):
     """L2 (T030): the fleet doctor -- reads worklive + the progress pulse + backlogs and
     grades findings per the reconciled paging table (page: hard_wedge, aged stall;
     banner: frozen; dashboard: the rest). Healthy fleet = one line."""
-    from core.comm.doctor import examine_fleet, known_agents
+    from core.comm.doctor import examine_fleet, known_agents, examine_services
     agents = [a.strip() for a in (args.agents or "").split(",") if a.strip()] or None
     rep = examine_fleet(agents, page_notes=bool(args.page))
+    try:   # T081-W3: fleet-infrastructure services (what's running?), distinct from agent findings
+        rep["services"] = examine_services()
+    except Exception:
+        rep["services"] = []
     if getattr(args, "progress", False):
         from core.comm.turn_metrics import progress_view
         for a in (agents or rep["agents"] or known_agents()):
@@ -2377,6 +2400,13 @@ def cmd_doctor(args):
     for f in rep["findings"]:
         print(f"  [{f['grade']:^9}] {f['line']}")
         print(f"              drill: {f['drill']}")
+    svcs = rep.get("services") or []
+    if svcs:
+        print("## SERVICES (fleet infrastructure -- what's running)")
+        for f in svcs:
+            print(f"  [{f['grade']:^9}] {f['line']}")
+            if f.get("drill"):
+                print(f"              start: {f['drill']}")
     return 0
 
 
