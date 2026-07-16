@@ -49,7 +49,10 @@ def test_p1_token_journal_accumulates(tmp_path):
 
 
 def test_p1_token_journal_old_file_ignored(tmp_path):
-    yesterday = time.strftime("%Y-%m-%d", time.gmtime(time.time() - 86400))
+    # LOCAL time, matching the journal's own date convention (the 2026-07-15 flake:
+    # gmtime here vs local strftime in the journal made yesterday==today whenever
+    # UTC had crossed midnight and local had not -- the rename became a no-op)
+    yesterday = time.strftime("%Y-%m-%d", time.localtime(time.time() - 86400))
     j = TokenJournal("deepseek", journal_dir=str(tmp_path))
     j.add_turn(prompt=100, completion=50)
     j._save()
