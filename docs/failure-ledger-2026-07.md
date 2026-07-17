@@ -380,6 +380,19 @@ suspect (fresh pipes).
 root fix = don't inherit std handles (stdout/stderr=PIPE|DEVNULL + close_fds=True), plus a
 subprocess-door backstop for boot as defense-in-depth. Pins incl. the stdio-driver regression
 (single tools/call boot, no 2nd frame, <5s). Until fixed: boot via CLI, other MCP verbs fine.**
+BOOT PATH FIXED 2026-07-17 ~03:20 (commit 7f03d0a, codex_root slice / claude committer-verified,
+green: 3/3 test_t078_w3_mcp_door incl new P6 cold+warm single-frame pin, exit 0). **DIAGNOSIS
+REFINED — the mechanism is STDIN inheritance, not stdout, and the operative site was the `_git`
+helper this entry EXONERATED.** capture_output=True gives the child fresh stdout/stderr pipes but
+leaves STDIN (the MCP JSON-RPC transport handle) inherited; that inherited stdin is what parks the
+Windows Proactor writer. boot's real hang path is boot→cmd_boot→_working_tree_status→`_git`
+(agent_cli.py:119), not the :2760/:1583 re-exec sites. Fix: `_git` now runs with
+`stdin=subprocess.DEVNULL, close_fds=True`. **CLASS STILL OPEN — three sibling subprocess sites in
+agent_cli.py still inherit stdin and want an MCP-reachability audit + the same stdin sever:
+:1524 (`git log --since`), :1588 (`sys.executable` re-exec inside a print — the old :1583 suspect),
+:2761 (`subprocess.run(cmd)` re-exec — the old :2760 suspect). None is on the boot render path
+(boot is proven fixed by P6), so this is a named residual, not a boot regression. Peer-review
+confirm of the stdin-refinement flagged for Daniel's morning gate.**
 
 **C7-1 · Glob `scripts/*.py` returned nothing while `**/bifrost_ui.py` matched** (2026-07-15).
 Harness tool quirk; cost one extra probe. **Routing: ACCEPTED BOUNDARY (log-only) — not Aurora
