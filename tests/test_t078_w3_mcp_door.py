@@ -15,6 +15,8 @@ Pins speak real MCP over stdio (the exact transport the harness uses):
   P4  the `task` ledger verb EXISTS as a tool (the one verb the roster lacked)
   P5  .mcp.json registers akashic-aurora with a stdio command that matches the
       server file actually in tree
+  P6  cold + warm boot calls each return on their own inbound frame, and each
+      call records exactly one boot event
 
 Run: py -m pytest tests/test_t078_w3_mcp_door.py -q
 """
@@ -31,11 +33,13 @@ SERVER = os.path.join(ROOT, "ai_setup_mcp.py")
 MCPJSON = os.path.join(ROOT, ".mcp.json")
 
 
-async def _session():
+async def _session(extra_env=None):
     from mcp import ClientSession, StdioServerParameters
     from mcp.client.stdio import stdio_client
     params = StdioServerParameters(command=sys.executable, args=[SERVER],
-                                   cwd=ROOT, env={**os.environ, "_AISETUP_TEST_ISOLATED": "1"})
+                                   cwd=ROOT,
+                                   env={**os.environ, "_AISETUP_TEST_ISOLATED": "1",
+                                        **(extra_env or {})})
     return stdio_client(params)
 
 
@@ -62,6 +66,45 @@ def test_p1_to_p4_handshake_roster_roundtrip_task():
                 assert text.strip(), "P3: status round-trip returned nothing"  # P3
                 assert "task" in tools, \
                     "P4: the task ledger verb must be an MCP tool (the missing verb)"
+    _run(flow())
+
+
+# ------------------------------------------------------------- P6 C7-4 regression
+def test_p6_boot_returns_without_a_second_inbound_frame(tmp_path):
+    """Cold and warm MCP boots must answer without a later frame flushing them."""
+    async def flow():
+        import asyncio
+        import uuid
+        from mcp import ClientSession
+        agent = f"mcp-boot-regression-{uuid.uuid4().hex[:12]}"
+        client = await _session({
+            "AI_SETUP": str(tmp_path),
+            "REDIS_DB": "15",
+            "AKASHIC_RECALL_STATE_DIR": str(tmp_path / "recall"),
+        })
+        async with client as (read, write):
+            async with ClientSession(read, write) as s:
+                await s.initialize()
+                for state in ("cold", "warm"):
+                    out = await asyncio.wait_for(
+                        s.call_tool("boot", {
+                            "agent": agent,
+                            "task": f"C7-4 {state} single-frame response pin",
+                        }),
+                        timeout=5.0,
+                    )
+                    text = "".join(getattr(c, "text", "") for c in out.content)
+                    assert f"# CONTEXT for {agent}" in text
+                    assert "door: MCP-native" in text
+
+                audit = await s.call_tool("events", {
+                    "search": agent,
+                    "agent": agent,
+                    "kind": "boot",
+                    "limit": 10,
+                })
+                audit_text = "".join(getattr(c, "text", "") for c in audit.content)
+                assert "# 2 event(s) matching" in audit_text, audit_text
     _run(flow())
 
 

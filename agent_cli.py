@@ -112,7 +112,12 @@ def _working_tree_status():
     env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}   # never hang on a credential prompt
 
     def _git(*a):
-        return subprocess.run(["git", *a], cwd=root, env=env, capture_output=True, text=True)
+        # C7-4: an MCP stdio server owns stdin as its JSON-RPC transport.  A child that
+        # inherits that handle makes Windows' Proactor writer defer the pending tool
+        # response until another inbound frame arrives.  stdout/stderr already use fresh
+        # pipes via capture_output; sever stdin explicitly as well.
+        return subprocess.run(["git", *a], cwd=root, env=env, stdin=subprocess.DEVNULL,
+                              capture_output=True, text=True, close_fds=True)
 
     try:
         st = _git("status", "--porcelain")
