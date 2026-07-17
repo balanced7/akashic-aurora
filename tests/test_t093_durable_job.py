@@ -109,6 +109,19 @@ def _force_tree(pid: int) -> None:
             pass
 
 
+def _force_pid(pid: int) -> None:
+    if sys.platform == "win32":
+        subprocess.run(
+            ["taskkill", "/PID", str(pid), "/F"],
+            capture_output=True, text=True, timeout=5,
+        )
+    else:
+        try:
+            os.kill(pid, 9)
+        except ProcessLookupError:
+            pass
+
+
 def test_launch_is_immediate_and_fresh_status_recovers_result(tmp_path):
     job_id = _job_id("fresh")
     marker = tmp_path / "fresh.marker"
@@ -187,7 +200,7 @@ def test_independent_deadline_resolves_wedged_child(tmp_path):
             max_runtime=0.45, grace=0.15)
     final = _wait_terminal(tmp_path, job_id, timeout=5)
     assert final["state"] == "deadline_exceeded"
-    assert final["reported_by"] == "supervisor"
+    assert final["reported_by"] == "watchdog"
     assert final["forced"] is True
     assert final["deadline_enforced"] is True
     assert final["child_alive"] is False
@@ -259,16 +272,35 @@ def test_forced_child_death_is_inferred_by_supervisor(tmp_path):
     assert final["reported_by"] == "supervisor", "a killed child cannot self-report"
 
 
-def test_stale_supervisor_revokes_deadline_claim_loudly(tmp_path):
+def test_stale_supervisor_is_loud_but_watchdog_still_enforces_deadline(tmp_path):
     job_id = _job_id("supervisor-loss")
     _launch(tmp_path, job_id, [sys.executable, "-c", "import time; time.sleep(60)"],
-            max_runtime=10, heartbeat=0.03)
+            max_runtime=0.75, heartbeat=0.03)
     running = _wait_running(tmp_path, job_id)
-    _force_tree(int(running["supervisor_pid"]))
-    time.sleep(0.35)
-    observed = _status(tmp_path, job_id, stale_after=0.2)
-    assert observed["observed_state"] == "supervisor_lost"
-    assert observed["deadline_enforced"] is False
+    assert running.get("watchdog_pid"), running
+    _force_pid(int(running["supervisor_pid"]))
+    final = _wait_terminal(tmp_path, job_id, timeout=5)
+    assert final["state"] == "deadline_exceeded"
+    assert final["reported_by"] == "watchdog"
+    assert final["supervisor_lost"] is True
+    assert final["deadline_enforced"] is True
+    assert final["child_alive"] is False
+
+
+def test_duplicate_deterministic_launch_executes_worker_once(tmp_path):
+    job_id = _job_id("idempotent")
+    marker = tmp_path / "executions.txt"
+    code = (
+        "import pathlib,sys,time; p=pathlib.Path(sys.argv[1]); "
+        "p.open('a', encoding='utf-8').write('one\\n'); time.sleep(.35)"
+    )
+    first = _launch(tmp_path, job_id, [sys.executable, "-c", code, str(marker)])
+    second = _launch(tmp_path, job_id, [sys.executable, "-c", code, str(marker)])
+    assert second["reused"] is True
+    assert second["supervisor_pid"] == first["supervisor_pid"]
+    assert second["watchdog_pid"] == first["watchdog_pid"]
+    assert _wait_terminal(tmp_path, job_id)["state"] == "succeeded"
+    assert marker.read_text(encoding="utf-8").splitlines() == ["one"]
 
 
 def test_real_ship_dry_run_is_recoverable_from_fresh_process(tmp_path):

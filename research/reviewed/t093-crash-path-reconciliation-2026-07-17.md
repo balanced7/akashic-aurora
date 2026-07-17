@@ -151,27 +151,32 @@ Those are different guarantees. The receipt and UI must name them:
    under ignored `state/jobs/` before process creation. It contains job id, argv, cwd, deadline,
    log path, receipt path, controller pid, and a redacted/safe environment snapshot. The command
    returns a launch receipt immediately; it never waits for job completion.
-2. **Out-of-tree supervisor on this Windows host.** Strict/default launch asks WMI
-   `Win32_Process.Create` to start only `py -u scripts/run_job.py _supervise --job-id ...`.
-   The command itself is read from the already-durable spec, avoiding quoting and secret-bearing
-   scheduled-task artifacts. If WMI is unavailable, strict launch fails loudly. An explicitly
-   requested detached fallback may run, but stamps `direct-parent-only`.
-3. **No job pipes point at the controller.** The supervisor opens the durable UTF-8 log itself and
-   sends child stdout/stderr directly to that file. Atomic temp+`os.replace` receipt updates carry
-   supervisor/child PIDs, heartbeat, phase, log bytes, deadline, cancel state, exit code, verdict,
-   reporter, and whether force was required.
-4. **Independent deadline.** The out-of-tree supervisor owns a monotonic hard deadline. A wedged or
-   silent child cannot mask it. Deadline expiry first publishes a cooperative cancel marker, waits a
-   bounded grace, then kills the uniquely identified child tree and reports
-   `deadline_exceeded` itself.
+2. **Out-of-tree supervisor + watchdog siblings on this Windows host.** Strict/default launch asks
+   WMI `Win32_Process.Create` to start `py -u scripts/run_job.py _watchdog --job-id ...` and
+   `py -u scripts/run_job.py _supervise --job-id ...` as independent brokered siblings. The
+   watchdog is started first; worker launch is forbidden until its ready receipt exists. Commands
+   are read from the already-durable spec, avoiding quoting and secret-bearing scheduled-task
+   artifacts. If WMI is unavailable, strict launch fails loudly. An explicitly requested detached
+   fallback may run, but stamps `direct-parent-only`.
+3. **No job pipes point at the controller.** The supervisor opens durable UTF-8 log files itself and
+   sends child stdout/stderr directly to regular files. Atomic temp+fsync+`os.replace` applies to
+   latest-state JSON, not to the append-only logs. The state directory separates immutable
+   `spec.json`, broker-owned `launch.json`, supervisor-owned `status.json`, and watchdog-owned
+   `watchdog.json`, preventing competing writers from tearing or overwriting one another.
+4. **Independent deadline.** The watchdog owns the shared monotonic hard deadline and validates the
+   worker PID plus process-creation identity before any kill. A wedged child *or a dead supervisor*
+   cannot mask it. Deadline expiry first publishes the cooperative cancel marker, waits a bounded
+   grace, then kills the uniquely identified child tree and reports `deadline_exceeded` itself.
 5. **Quiesce-first cancel.** `cancel` atomically writes a request. Children receive
    `AKASHIC_JOB_CANCEL_FILE`; cooperating commands exit during grace. Force is a recorded fallback,
    never mislabeled graceful. `ship.py` checks the marker between gates so cancellation cannot drift
    from a completed test gate into commit/push.
 6. **Fresh-controller recovery.** `status`, `cancel`, and log inspection reconstruct solely from
-   disk. If a `running` receipt has a stale supervisor heartbeat, status says
-   `supervisor_lost` and `deadline_enforced=false`; it does not pretend the dead guard still protects
-   the child. SIGKILL/forced-exit verdicts are always supervisor/external inferences.
+   disk by joining the four records. If `status.json` has a stale supervisor heartbeat but the
+   watchdog remains fresh, status says `supervisor_lost` while keeping `deadline_enforced=true`;
+   the watchdog still resolves cancel/deadline. If both guards are stale, it reports
+   `supervision_lost`, `deadline_enforced=false`, and never invents an exact exit code.
+   SIGKILL/forced-exit verdicts are always supervisor/watchdog inferences.
 7. **`ship.py` pilot.** `--durable` delegates its own non-durable invocation to `run_job.py`, emits
    the immediate launch receipt, and exits. A hidden child marker prevents recursion. Zero-flag and
    ordinary `--dry-run` behavior stay compatible; `--durable --dry-run` exercises the real recovery
@@ -190,9 +195,9 @@ Those are different guarantees. The receipt and UI must name them:
   cancel a blocked worker thread; the process must remain the hard kill unit.
 
 Verdict: existing components are pattern donors, but none has the registered T093 combination of
-immediate durable launch, out-of-tree ownership, fresh-process status/cancel, and hard deadline.
-The one-shot supervisor is the smallest missing composition; it does not become a second fleet
-daemon or move any Bifrost consume path.
+immediate durable launch, out-of-tree ownership, fresh-process status/cancel, and a deadline that
+survives supervisor loss. The one-shot supervisor/watchdog pair is the smallest missing composition;
+neither respawns work or becomes a second fleet daemon, and no Bifrost consume path moves.
 
 ### E. Pre-registered RED/kill bars
 
@@ -200,13 +205,14 @@ daemon or move any Bifrost consume path.
 
 1. launch returns immediately and a fresh process can query the final receipt;
 2. recursive controller-tree kill does not kill the WMI-brokered supervisor/job;
-3. a wedged child is force-resolved within deadline + grace;
+3. a wedged child is force-resolved by the watchdog within deadline + grace;
 4. slow work below its hard deadline completes and is not killed;
 5. cooperative cancel quiesces before force and prevents later gates;
 6. repeated concurrent reads never see torn JSON;
 7. external child kill is classified by the supervisor, never self-reported;
-8. supervisor loss becomes a loud stale-heartbeat verdict with deadline enforcement revoked;
-9. real `ship.py --durable --dry-run` completes and is recoverable through a fresh status process.
+8. supervisor loss is loud while the independent watchdog still enforces the deadline;
+9. duplicate launch with one deterministic id executes the worker exactly once;
+10. real `ship.py --durable --dry-run` completes and is recoverable through a fresh status process.
 
 All waits in the battery are bounded short polls over durable state; no test's only timeout or
 completion receipt rides the child output channel.
@@ -214,10 +220,10 @@ completion receipt rides the child output channel.
 ### F. Honest residuals
 
 - A broad kill by image/name, WMI service failure, machine reboot, disk failure, or deliberate kill
-  of both controller and brokered supervisor defeats this local one-host design. The durable last
-  receipt/log still bounds uncertainty; restart-after-reboot is outside T093.
+  of controller plus both brokered guards defeats this local one-host design. The durable last
+  receipts/logs still bound uncertainty; restart-after-reboot is outside T093.
 - WMI is the verified Windows broker, not a cross-platform doctrine. POSIX must use an equivalent
   external service/session owner and pass its own controller-tree drill before claiming parity.
-- Heartbeat proves supervisor liveness, not semantic job progress. The hard deadline is explicit;
+- Heartbeats prove guard liveness, not semantic job progress. The hard deadline is explicit;
   callers must size it for the slowest legitimate gate. `log_bytes` is observability, never an
   automatic deadline reset.
