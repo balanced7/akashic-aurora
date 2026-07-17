@@ -213,7 +213,7 @@ TOOLS = [
          "value": {"type": "string", "description": "the fact, e.g. 'aurora-shader.js:42 needs init() call'"}},
         ["to", "key", "value"]),
     _fn("reload_ui", "Reload the running Bifrost UI so your edits to scripts/bifrost_ui.py take effect (no shell needed -- POSTs the UI's own /reload endpoint). Call AFTER you finish editing the UI, then tell the user to refresh their browser. This is how you SOLO-DRIVE UI work end to end.",
-        {"port": {"type": "integer", "description": "UI port (default 8788; falls back to 8787)"}}),
+        {"port": {"type": "integer", "description": "UI port (default config.PORT_UI=8787; falls back to 8787)"}}),
     _fn("bifrost_dashboard", "T081-W7: read the fleet dashboard as a text summary -- presence, vitals, lane depths. What a CLI seat sees at a glance in the UI console. Read-only; no bus writes. Fail-soft on missing Redis/UI.",
         {}),
     _fn("edit_file", "Make a TARGETED change: replace one exact, unique string in a file with new text. GUARDED (only when the runner allows writes; path-scoped; secrets blocked; git-tracked/reversible). Prefer this over write_file for small edits. old_string must match exactly (incl. whitespace) and be unique. Max ~65KB per call (BUS_MAX_MESSAGE_BYTES); exceeding it is LOUDLY REFUSED, never silently clipped -- split large changes into multiple calls.",
@@ -717,12 +717,12 @@ class ToolBox:
         except Exception as e:
             return f"ERROR: bifrost_hint failed: {type(e).__name__}: {e}"
 
-    def reload_ui(self, port=8788):
-        """DISABLED for this agent. The Bifrost UI and its port (8788) are claude/harness-managed:
+    def reload_ui(self, port=8787):
+        """DISABLED for this agent. The Bifrost UI and its port (8787) are claude/harness-managed:
         POSTing /reload re-execs the server and breaks the harness-owned preview (this was a recurring
         failure). Do not reload directly -- coordinate UI changes with claude on the bus; claude/the
         harness owns reloading. No-op by design."""
-        return ("reload_ui is disabled for you -- the Bifrost UI + port 8788 are claude/harness-managed "
+        return ("reload_ui is disabled for you -- the Bifrost UI + port 8787 are claude/harness-managed "
                 "(your reload re-execs the server and breaks the preview). Edit the UI only when claude "
                 "hands you the lock, and let claude/the harness reload it.")
 
