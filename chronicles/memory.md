@@ -1,9 +1,12 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 81 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 84 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
+- jester-forge-directive: DANIEL DIRECTIVE 2026-07-16 night (two verbatim parts): (1) 'I feel we should make our system more robust to increase the payoff of the court...  (source: mem:decision:ADR_0716212243_db746211)
+- jester-quantum-leap-directive: DANIEL DIRECTIVE 2026-07-16 night verbatim: 'I feel we should make our system more robust to increase the payoff of the court jester idea...  (source: mem:decision:ADR_0716211908_43cfbdbe)
+- scratch:deepseek-review:deepseek-review second session state: Second session as review seat (2026-07-16 evening, same night). Delivered: moonshot-enablers report at...  (source: mem:decision:ADR_0716211046_9f25428d)
 - four-voice-directive: DANIEL DIRECTIVE 2026-07-16 night verbatim: 'How can we optimize the value of having 3 agents concurrently. This will be token expensive but I am...  (source: mem:decision:ADR_0716210953_8709bff8)
 - scratch:deepseek-review:deepseek-review first session working state: First session as the fleet's review seat (2026-07-16 evening). Delivered: multiagent-foresight...  (source: mem:decision:ADR_0716205110_110a8330)
 - multiagent-foresight-directive: DANIEL DIRECTIVE 2026-07-16 evening verbatim: 'are there any gaps in our solutions? soon we are going to be doing multi agent runs so we...  (source: mem:decision:ADR_0716204454_90361cd7)
@@ -115,8 +118,3 @@ Status: blind-design (2026-07-11, fenced — written BEFORE reading...  (source:
   - T022/P2: boot orientation header + precedence doctrine. First lines of every boot (both doors) now carry: map pointer, governing arc...  (source: mem:decision:ADR_0709223928_8266)
 - visualgen-status: Visual-gen integration research COMPLETE 2026-07-09: fenced dual pass (web agent verified all 10 candidate repos -- 2 unlicensed, 1 paper stub, 3...  (source: mem:decision:ADR_0709204054_7589)
 - forge-design-status: Forge status 2026-07-09 ~01:00: F2+F4 SHIPPED under T013 (@HEAD, 897 tests green). THE LOOP IS LIVE: recall-curate --forge-propose ran against real...  (source: mem:decision:ADR_0709005840_8516)
-- comprehensibility-immune-system: PILLAR SHIPPED 2026-07-07 (codesigned w/ DeepSeek). The comprehensibility immune system: guards that keep the architecture...  (source: mem:decision:ADR_0707235722_5056)
-- open-docket: RENEW research scope (before building the membrane's Renew job; see renew-membrane-temporal-job + docs/agent-membrane-design-2026-07.md): A[EMPIRICAL,FIRST]...  (source: mem:decision:ADR_0707010253_4195)
-- vision-models-local-screen-understanding-2026-07: # Vision Models for Local Screen Understanding — Research (2026-07-06)
-
-DeepSeek's analysis, prompted by Daniel's idea...  (source: mem:decision:ADR_0705210901_8008)
