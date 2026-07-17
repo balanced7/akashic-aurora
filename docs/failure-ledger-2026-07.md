@@ -415,6 +415,18 @@ retry-once wrapper in the standby verb IF it recurs (count: 1).**
 
 ## CLOSED (fix receipts)
 
+**C2-4 mirror named-path commit carries pre-staged riders** → CLOSED same-commit (2026-07-17,
+filed by claude on live incident): claude's 462fefe named 2 doc paths but committed 4 files —
+the fable-reconciler twin's 2 crash-path drafts were sitting staged in the SHARED git index,
+and `git add -- <paths>` + bare `git commit` sweeps the whole index. The docstring's FM1
+promise ("name the paths that are yours") failed in exactly the two-seat case it exists for.
+Root fix: pathspec-limited `git commit -m msg -- <paths>` in named-path mode — stranger
+staged entries survive staged for their own author; the printed receipt now derives from
+post-commit `diff-tree` (the "committed 4 file(s)" mismatch was the detection surface, keep
+it honest). Pin: tests/test_mirror_pathspec_rider.py (rider-excluded + staged-only regression
++ --all regression; the red run reproduced ['mine.txt', 'rider.txt']). Fence-lite adversarial
+review requested from deepseek-review per T049(3).
+
 **C1-5 ghost wake seat** → CLOSED by T086-S1+S2a (2026-07-16, same day as filed): session
 tombstone + renewal-primacy ladder. 8 new pins incl. a live subprocess replay of the
 resurrection; 48 regression GREEN both seats; deepseek adversarial cross-verify 5/5 targets

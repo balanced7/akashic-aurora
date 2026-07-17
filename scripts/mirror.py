@@ -78,12 +78,23 @@ def main():
             git("add", "--", *paths)
         # else: stage nothing -- commit only what the agent already staged explicitly
 
-        staged = git("diff", "--cached", "--name-only").stdout.strip()
+        if paths and not add_all:
+            # C2-4: the index is SHARED between seats -- another agent's staged work may
+            # be sitting in it. Named-path mode must commit the named paths and nothing
+            # else, leaving stranger staged entries staged for their own author.
+            staged = git("diff", "--cached", "--name-only", "--", *paths).stdout.strip()
+        else:
+            staged = git("diff", "--cached", "--name-only").stdout.strip()
         if staged:
             msg = msg or f"Mirror progress {datetime.now():%Y-%m-%d %H:%M}"
-            git("commit", "-m", msg)
-            print(f"[mirror] committed {len(staged.splitlines())} file(s): {msg}")
-            _emit_commit_beat(msg, staged.splitlines())
+            if paths and not add_all:
+                git("commit", "-m", msg, "--", *paths)
+            else:
+                git("commit", "-m", msg)
+            committed = git("diff-tree", "--no-commit-id", "--name-only", "-r",
+                            "HEAD").stdout.strip() or staged
+            print(f"[mirror] committed {len(committed.splitlines())} file(s): {msg}")
+            _emit_commit_beat(msg, committed.splitlines())
         else:
             dirty = git("status", "--porcelain").stdout.strip()
             if dirty and not add_all and not paths:
