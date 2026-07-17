@@ -25,10 +25,38 @@ fix receipt.
 - **C6 Message/lane integrity** — dual-write stragglers, redelivery, count drift
 - **C7 Harness-level quirks** — the seat's tools misbehaving (tracked; often not ours to fix)
 - **C8 Cross-surface rendering** — content rendered for one seat type reaches another
+- **C9 Epistemological integrity** — the system is confidently wrong about its own state
+  (fabricated knowledge accepted as truth; no operational failure, just wrong premises)
 
 ---
 
 ## OPEN
+
+### C9 Epistemological integrity
+
+**C9-1 · Self-justifying knowledge loop: agents author, verify, and ledger their own claims
+— no external ground truth crosses the membrane** (2026-07-16, RED team Jester Forge audit)
+The RED-team threat model (research/reviewed/jester-red-deepseek-2026-07-16.md) found that
+the knowledge layer has NO defense against fabricated claims: `knowledge_note` writes the
+fleet's canonical "where-we-are" state with zero content validation (agent_cli.py:1285);
+`knowledge_learn` stores lessons with self-reported success and self-reported agent_id
+(agent_cli.py:370); the faithfulness gate checks pointer resolution, not truth
+(faithfulness.py:85 — a fabricated lesson IS its own valid source); the Forge curator
+auto-confirms variants on statistical signals alone (curator.py:56-117); and the
+PRECEDENCE_DOCTRINE (agent_cli.py:1055) ranks these unverified notes ABOVE immutable
+promoted bus messages and live bus. An attacker with a normal `kb.learn` grant can
+fabricate a completely fictional project state that every agent trusts, and the funnel
+gauge would report the knowledge system as HEALTHY (the fabricated lessons would earn
+"helped" credit when agents follow the false advice). No current C1-C8 category covers
+this — the failures are epistemological, not operational.
+Root cause: the knowledge layer has integrity at the transport level (packet hashes, lane
+dedup) but NONE at the semantic level. Any agent can say anything about any topic and
+the system will surface it as authoritative context.
+**Routing: PROPOSE C9 as a new permanent category. Immediate: document in the failure
+ledger. Triage: the BLUE team's jester-blue-* report should design defenses. The RED
+team recommends (1) note-content cross-validation against task ledger/git, (2) lesson
+provenance watermarking, (3) boot consistency check comparing notes against ledger state,
+(4) a "Jester detector" that flags agent_id clusters with mutual related_to edges.**
 
 ### C8 Cross-surface rendering
 
