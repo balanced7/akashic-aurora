@@ -111,3 +111,113 @@ acceptance) + one added regression (KD4).** Build spec = DeepSeek's ship.py dura
 + Fable's parent-OS out-of-band enforcer + the corrected D1'/KD4 drills, ship.py-first then extracted.
 No divergence requiring Daniel's tie-break. Ready to register as a T093 build slice citing this doc,
 at Daniel's gate. codex_root: this is analysis only; no code was edited.
+
+## 7. BUILD-GATE AMENDMENT -- controller loss is a second supervision boundary
+
+Status: **GOVERNING AMENDMENT** (codex_root, after M1-PV + adversarial Windows drills).
+This section narrows and supersedes section 4 wherever they conflict. The original reconciliation
+correctly joins durable outcome to an external deadline, but its proposed caller-side
+`subprocess.run(..., timeout=HARD)` does **not** satisfy T093's registered acceptance that a job
+survive app-server/controller loss.
+
+### A. One invalidated claim
+
+`subprocess.run(timeout=HARD)` is out-of-band relative to its *child's output stream*, but the
+wrapper is still a descendant of the controller that invoked it. It can enforce the deadline while
+that caller process remains alive; it cannot enforce anything after recursive controller-tree
+cleanup kills both wrapper and child. Waiting for that wrapper also leaves completion delivery on
+the original tool-call channel. Therefore it is a useful inner primitive, **not the durable launch
+boundary** and not the T093 fix by itself. Confidence: CERTAIN; grounding: live process-tree drills.
+
+### B. Windows receipts that separate the two bars
+
+The audit used unique job ids/PIDs and cleaned up every probe:
+
+1. `CREATE_NEW_PROCESS_GROUP | DETACHED_PROCESS` survived direct parent `TerminateProcess`.
+2. The same detached shape did **not** survive `taskkill /PID <controller> /T /F`.
+3. `Invoke-CimMethod Win32_Process.Create` launched marked Python pid `68444` under
+   `WmiPrvSE.exe` pid `65244`; recursive `taskkill /T /F` of controller pid `12476` did not kill
+   the marked child, and its completion marker was observed before cleanup. This host required no
+   elevation.
+
+Those are different guarantees. The receipt and UI must name them:
+
+- `recursive-controller-tree` -- supervisor was brokered out of the controller's process tree.
+- `direct-parent-only` -- detached fallback; loud degradation, never described as app-server-safe.
+
+### C. Revised minimal build contract
+
+1. **Immutable launch spec first.** `scripts/run_job.py launch` atomically writes a local spec/receipt
+   under ignored `state/jobs/` before process creation. It contains job id, argv, cwd, deadline,
+   log path, receipt path, controller pid, and a redacted/safe environment snapshot. The command
+   returns a launch receipt immediately; it never waits for job completion.
+2. **Out-of-tree supervisor on this Windows host.** Strict/default launch asks WMI
+   `Win32_Process.Create` to start only `py -u scripts/run_job.py _supervise --job-id ...`.
+   The command itself is read from the already-durable spec, avoiding quoting and secret-bearing
+   scheduled-task artifacts. If WMI is unavailable, strict launch fails loudly. An explicitly
+   requested detached fallback may run, but stamps `direct-parent-only`.
+3. **No job pipes point at the controller.** The supervisor opens the durable UTF-8 log itself and
+   sends child stdout/stderr directly to that file. Atomic temp+`os.replace` receipt updates carry
+   supervisor/child PIDs, heartbeat, phase, log bytes, deadline, cancel state, exit code, verdict,
+   reporter, and whether force was required.
+4. **Independent deadline.** The out-of-tree supervisor owns a monotonic hard deadline. A wedged or
+   silent child cannot mask it. Deadline expiry first publishes a cooperative cancel marker, waits a
+   bounded grace, then kills the uniquely identified child tree and reports
+   `deadline_exceeded` itself.
+5. **Quiesce-first cancel.** `cancel` atomically writes a request. Children receive
+   `AKASHIC_JOB_CANCEL_FILE`; cooperating commands exit during grace. Force is a recorded fallback,
+   never mislabeled graceful. `ship.py` checks the marker between gates so cancellation cannot drift
+   from a completed test gate into commit/push.
+6. **Fresh-controller recovery.** `status`, `cancel`, and log inspection reconstruct solely from
+   disk. If a `running` receipt has a stale supervisor heartbeat, status says
+   `supervisor_lost` and `deadline_enforced=false`; it does not pretend the dead guard still protects
+   the child. SIGKILL/forced-exit verdicts are always supervisor/external inferences.
+7. **`ship.py` pilot.** `--durable` delegates its own non-durable invocation to `run_job.py`, emits
+   the immediate launch receipt, and exits. A hidden child marker prevents recursion. Zero-flag and
+   ordinary `--dry-run` behavior stay compatible; `--durable --dry-run` exercises the real recovery
+   path without committing.
+
+### D. M1-PV -- borrowed facts resolved against the live tree
+
+- `scripts/ship.py:61-63` currently inherits stdout and blocks in raw `subprocess.run`; there is no
+  durable outcome or process owner.
+- `scripts/bifrost_child.py:178-195` owns child pipes and in-memory drain state;
+  `:224-237` terminates only its direct handle. It supplies patterns, not restart reconstruction.
+- `core/comm/launcher.py:373-409` similarly owns Popen handles/pipes in memory, and
+  `:620-660` monitors them in a daemon thread. Its saved session roster is not a per-job receipt.
+- `scripts/bifrost_daemon.py:45-62` supplies the atomic temp+replace pattern.
+- `scripts/bifrost_runner_deepseek.py:753-766` proves a thread deadline can report timeout but cannot
+  cancel a blocked worker thread; the process must remain the hard kill unit.
+
+Verdict: existing components are pattern donors, but none has the registered T093 combination of
+immediate durable launch, out-of-tree ownership, fresh-process status/cancel, and hard deadline.
+The one-shot supervisor is the smallest missing composition; it does not become a second fleet
+daemon or move any Bifrost consume path.
+
+### E. Pre-registered RED/kill bars
+
+`tests/test_t093_durable_job.py` must be committed while RED before implementation and pins:
+
+1. launch returns immediately and a fresh process can query the final receipt;
+2. recursive controller-tree kill does not kill the WMI-brokered supervisor/job;
+3. a wedged child is force-resolved within deadline + grace;
+4. slow work below its hard deadline completes and is not killed;
+5. cooperative cancel quiesces before force and prevents later gates;
+6. repeated concurrent reads never see torn JSON;
+7. external child kill is classified by the supervisor, never self-reported;
+8. supervisor loss becomes a loud stale-heartbeat verdict with deadline enforcement revoked;
+9. real `ship.py --durable --dry-run` completes and is recoverable through a fresh status process.
+
+All waits in the battery are bounded short polls over durable state; no test's only timeout or
+completion receipt rides the child output channel.
+
+### F. Honest residuals
+
+- A broad kill by image/name, WMI service failure, machine reboot, disk failure, or deliberate kill
+  of both controller and brokered supervisor defeats this local one-host design. The durable last
+  receipt/log still bounds uncertainty; restart-after-reboot is outside T093.
+- WMI is the verified Windows broker, not a cross-platform doctrine. POSIX must use an equivalent
+  external service/session owner and pass its own controller-tree drill before claiming parity.
+- Heartbeat proves supervisor liveness, not semantic job progress. The hard deadline is explicit;
+  callers must size it for the slowest legitimate gate. `log_bytes` is observability, never an
+  automatic deadline reset.
