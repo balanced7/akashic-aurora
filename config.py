@@ -29,6 +29,50 @@ REDIS_WSL_REPLICA_PORT = 6379
 REDIS_DOCKER_HOST = "localhost"
 REDIS_DOCKER_PORT = 16379
 
+# =============================================================================
+# PORT REGISTRY -- the single source of truth for what listens where.
+# =============================================================================
+# THE RULE (read the second digit-pair after 87 to know which world a port is):
+#   87 8x  = PRODUCTION bifrost   (the one live fleet; harness-managed; stable forever)
+#   87 9x  = SANDBOX              (the persistent E:\AI-Setup-Sandbox clone)
+#   89 xx  = TEST / EPHEMERAL UIs (throwaway; may run many at once; never touches prod)
+# Redis mirrors the same worlds: 16379 prod / 16380 sandbox / db 15 = test isolation.
+#
+# Born 2026-07-16 to end the 8787-vs-8788 churn: the console has ALWAYS bound 8787,
+# but deepseek_chat.py documented the UI as "8788 (falls back to 8787)", so half the
+# fleet looked in the wrong place. 8788 is now RESERVED prod-aux and MUST NOT be used
+# as "the UI port". Test UIs get their own 89xx band so a stray test can never collide
+# with the live console again.
+
+# --- PRODUCTION (878x) -- the one live fleet ---
+PORT_UI = 8787              # Bifrost live agent console (scripts/bifrost_ui.py). CANONICAL.
+PORT_UI_RESERVED = 8788     # RESERVED prod-aux. NOT the console. Do not bind for tests.
+PORT_MCP_HTTP = 18765       # ai_setup_mcp.py optional --http mode (MCP is stdio by default).
+
+# --- SANDBOX (879x) -- E:\AI-Setup-Sandbox persistent clone ---
+PORT_UI_SANDBOX = 8790      # sandbox console
+REDIS_PORT_SANDBOX = 16380  # sandbox Redis (isolated from prod 16379)
+
+# --- TEST / EPHEMERAL UIs (89xx) -- the dedicated throwaway band ---
+PORT_TEST_UI_BASE = 8900    # first test-UI port; allocate upward (8900, 8901, ...).
+PORT_TEST_UI_MAX = 8999     # last test-UI port. A test UI MUST live in [8900, 8999].
+
+
+def allocate_test_ui_port(offset: int = 0) -> int:
+    """Return a port in the reserved test-UI band [8900, 8999].
+
+    Test/throwaway UIs MUST use this instead of hardcoding a port, so an
+    ephemeral test can never collide with the live console (8787) or sandbox (8790).
+    """
+    port = PORT_TEST_UI_BASE + int(offset)
+    if not (PORT_TEST_UI_BASE <= port <= PORT_TEST_UI_MAX):
+        raise ValueError(
+            f"test UI port {port} is outside the reserved band "
+            f"[{PORT_TEST_UI_BASE}, {PORT_TEST_UI_MAX}] -- offset {offset} too large"
+        )
+    return port
+
+
 SESSION_LOG_DIR = DATA_DIR / "sessions"
 SESSION_LOG_DIR.mkdir(parents=True, exist_ok=True)
 
