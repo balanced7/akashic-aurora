@@ -100,3 +100,6 @@ research/shift-console-*.log.err
 !state/coord/**
 research/sources-cache/
 state/spill/
+
+# Claude Code local settings never ship (CLI probe round-2 finding 2026-07-16)
+.claude/settings.local.json

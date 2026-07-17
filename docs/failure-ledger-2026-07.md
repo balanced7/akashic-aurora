@@ -32,6 +32,21 @@ fix receipt.
 
 ### C8 Cross-surface rendering
 
+**C8-3 · PreToolUse hook double-fires: registered on TWO surfaces, and the funnel gauge
+counts the double-vision** (2026-07-16 evening, CLI probe round-2 live receipt: one Bash
+call → two identical recall-at-action injections). `claude_pretooluse.py` is registered
+BOTH project-level (.claude/settings.json, relative path) AND user-level (absolute path,
+per AGENTS.md). Both fire on every matched tool call. Consequence beyond noise:
+`log_injection()` runs twice per action → the funnel's `surfaced` denominator is ~2×
+inflated → the headline value metric (4.2%) is roughly HALF-reported. The anti-repeat
+logic cannot save it: both hooks load_seen before either mark_seen (race).
+Root cause: two registration surfaces, no single source of truth, no dedup at the hook.
+**Routing: FIX-NOW slice — pick ONE registration surface (user-level absolute-path is the
+resilient one; project-level entry becomes documentation or gains a same-payload dedup
+guard), then either recount or annotate the funnel series (a gauge correction event so
+the 4.2%-era numbers are marked pre-fix). The GAUGE INVERSION theme's own gauge was lying
+in exactly the direction the theme warns about.**
+
 **C8-1 · Boot trim block names CLI commands a runner cannot natively use** (2026-07-16 morning, deepseek onboarding audit)
 The 6000-char trim confession at the bottom of the runner boot names `py agent_cli.py doctor`,
 `py agent_cli.py events --get`, `py agent_cli.py boot` as drill-down commands. These are CLI
