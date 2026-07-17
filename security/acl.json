@@ -29,6 +29,18 @@
       "reason": "T067-2 exec grant 2026-07-15 (claude super-admin, overnight session; Daniel directive 'un-lobotomized deepseek', morning review requested): exec is now SAFE-BY-CONSTRUCTION for unattended runners -- the run_command door enforces FAMILIES-ONLY under trust (pytest w/ forced _AISETUP_TEST_ISOLATED=1 + agent_cli READ verbs; shell=False; metachars refuse; mutating verbs refuse; pins tests/test_t067_guarded_exec.py G1-G5). NOT time-boxed: the 07-05 whole-grant time-box silently quarantined the entire admin role at expiry -- revoke by editing this record, never by expiry. History: 07-10 renewal deliberately withheld exec pending exactly this door. admin.grant still withheld. IR-4 APPROVED 2026-07-16 (Daniel verbatim: 'lets try approved IR-4. it will be useful data, and like you said we can always revert'): the exec families gain the AUDITED MIRROR family -- `py scripts/mirror.py \"msg\" <explicit repo-relative paths>` (canonical script path only, repo root only, no flags/sweeps, security/ + .claude/ excluded) -- commit autonomy through OUR door, never raw git. Pins tests/test_ir4_mirror_family.py. REVERT = delete the mirror block in deepseek_chat._exec_family (one commit) + amend this record. Activates at his next runner restart (families are read at import)."
     },
     {
+      "agent_id": "deepseek-review",
+      "role": "member",
+      "caps": ["read", "write", "exec", "bus.send", "kb.recall", "kb.learn",
+               "git.read", "bifrost.inbox"],
+      "path_scope": ["research/*", "scratch/*", "docs/*"],
+      "bus_send_kinds": ["chat", "note", "request", "reply", "handoff", "completion", "inform"],
+      "granted_by": "claude",
+      "granted_at": "2026-07-16T20:45:00Z",
+      "expires_at": null,
+      "reason": "Daniel directive 2026-07-16 evening (verbatim in note multiagent-foresight-directive): second write-enabled deepseek as REVIEW seat while deepseek builds S5/S6 -- the first deliberate concurrent-fleet expansion. Review lane: reads everything, files halves/verdicts to research+scratch+docs (path_scope ADVISORY until S-2 enforcement), exec via the same families gate (pytest to verify pins, read verbs, IR-4 mirror family rides -- its commits are path-visible and one-command revertible). Distinct agent_id = own cursors/seat/memory (newborn lane semantics, pin R7 gets a live subject). Revoke by editing this record."
+    },
+    {
       "agent_id": "deepseek-ui",
       "role": "member",
       "caps": ["read", "bus.send", "kb.recall", "git.read", "bifrost.inbox"],

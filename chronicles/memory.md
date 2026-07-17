@@ -1,9 +1,10 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 78 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 79 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
+- multiagent-foresight-directive: DANIEL DIRECTIVE 2026-07-16 evening verbatim: 'are there any gaps in our solutions? soon we are going to be doing multi agent runs so we...  (source: mem:decision:ADR_0716204454_90361cd7)
 - agent-identity-directive: DANIEL DIRECTIVE 2026-07-16 evening verbatim: 'I am wondering if we have solved our agent naming issues to prevent two new agents that spawned...  (source: mem:decision:ADR_0716202852_b9b04cf6)
 - fleet-lattice-vision: DANIEL DIRECTIVE 2026-07-16 evening verbatim (write-set approval + fleet vision): 'I'd say yes, this way we get to capture more information and...  (source: mem:decision:ADR_0716202443_a2d0edf0)
 - seat-deepdive-directive: DANIEL DIRECTIVE 2026-07-16 ~09:30 verbatim: 'Our hooks and waits and seats system requires a full deepdive and grounding in prior art and...  (source: mem:decision:ADR_0716092530_e28bdd64)
@@ -121,7 +122,3 @@ DeepSeek's analysis, prompted by Daniel's idea...  (source: mem:decision:ADR_070
 - modern-doom-idtech-primitives-for-bifrost-ui: # Modern Doom Engine Primitives for Bifrost UI (id Tech 6/7, Doom 2016/Eternal)
 
 This supersedes the earlier "classic Doom"...  (source: mem:decision:ADR_0704145239_1170)
-- belief-architecture-three-layer-2026-07-04: # Three-Layer Belief Architecture (GPT + DeepSeek web, 2026-07-04)
-
-## The insight
-GPT identified the missing layer between...  (source: mem:decision:ADR_0704143513_4651)
