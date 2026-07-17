@@ -2,6 +2,44 @@
   "env": {
     "AKASHIC_AGENT_ID": "claude"
   },
+  "permissions": {
+    "allow": [
+      "Bash(py agent_cli.py boot*)",
+      "Bash(py agent_cli.py delta*)",
+      "Bash(py agent_cli.py discover*)",
+      "Bash(py agent_cli.py recall*)",
+      "Bash(py agent_cli.py notes*)",
+      "Bash(py agent_cli.py status*)",
+      "Bash(py agent_cli.py stats*)",
+      "Bash(py agent_cli.py injections*)",
+      "Bash(py agent_cli.py harnesses*)",
+      "Bash(py agent_cli.py triage*)",
+      "Bash(py agent_cli.py story*)",
+      "Bash(py agent_cli.py events*)",
+      "Bash(py agent_cli.py doctor*)",
+      "Bash(py agent_cli.py promoted*)",
+      "Bash(py agent_cli.py lookback*)",
+      "Bash(py agent_cli.py knowledge-map*)",
+      "Bash(py agent_cli.py flow*)",
+      "Bash(py agent_cli.py locks*)",
+      "Bash(py agent_cli.py task list*)",
+      "Bash(py agent_cli.py bifrost-sync*)",
+      "mcp__akashic-aurora__boot",
+      "mcp__akashic-aurora__recall",
+      "mcp__akashic-aurora__recall_at",
+      "mcp__akashic-aurora__recall_feedback",
+      "mcp__akashic-aurora__notes",
+      "mcp__akashic-aurora__promoted",
+      "mcp__akashic-aurora__locks",
+      "mcp__akashic-aurora__stats",
+      "mcp__akashic-aurora__events",
+      "mcp__akashic-aurora__knowledge_map",
+      "mcp__akashic-aurora__bifrost_sync",
+      "mcp__akashic-aurora__bifrost_presence",
+      "mcp__akashic-aurora__injections",
+      "Write(research/reviewed/**)"
+    ]
+  },
   "hooks": {
     "PreToolUse": [
       {

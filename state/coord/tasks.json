@@ -1,5 +1,5 @@
 {
-  "seq": 86,
+  "seq": 87,
   "tasks": [
     {
       "id": "T001",
@@ -3176,11 +3176,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "parked",
+      "status": "in_progress",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-16T13:25:41+00:00",
-      "updated": "2026-07-16T23:45:04+00:00",
+      "updated": "2026-07-16T23:54:15+00:00",
       "history": [
         {
           "to": "proposed",
@@ -3207,6 +3207,32 @@
           "by": "claude",
           "at": "2026-07-16T23:45:04+00:00",
           "reason": "Daniel-directed T076 echo-relief takes the slot; S5/S6 continue with deepseek; unpark for S3/S4/S7 after"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-07-16T23:54:15+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T087",
+      "title": "Whisper render bugs (CLI probe audit 2026-07-16, research/reviewed/claude-cli-seat-audit-2026-07-16.md): (1) THEMES line double-truncates -- chronicles/memory.md clips the note, the SessionStart whisper clips the clip; zero priming content reaches a fresh seat. Fix: whisper pulls FULL note bodies, one truncation with a drill pointer (T043 packet law). (2) WHERE line wraps mid-SHA (72a4925 split across lines -- unusable as written). (3) memory.md is 76 hook+ellipsis+pointer entries and every pointer needed a gated verb pre-fix -- render should carry one-hop pull commands that are ALLOWLISTED. Rides T086-S4 or standalone.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-17T00:20:36+00:00",
+      "updated": "2026-07-17T00:20:36+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-17T00:20:36+00:00"
         }
       ]
     }
