@@ -926,8 +926,44 @@ class ToolBox:
                 return None, None, (f"flag(s) {bad} mutate state -- the unattended READ "
                                     "family refuses them (run the read form instead)")
             return argv, {}, None
+        # family: audited MIRROR commits -- IR-4 (Daniel verdict 2026-07-16 verbatim in
+        # security/acl.json; T085 gate item). Commit autonomy through OUR door only:
+        # mirror.py = path-scoped stage + pre-commit guards + commit + push, no history
+        # surgery reachable. NOT raw git (git stays refused below). Containment is COMMIT
+        # hygiene, not sandboxing (the pytest family already runs repo code): canonical
+        # script path only, explicit repo-relative paths, no flags/sweeps, and the trust
+        # surfaces (security/, .claude/) stay super-admin-gated until T086-S7 lands
+        # caller verification. Revert = remove this family (acl.json reason documents it).
+        if (len(argv) >= 3 and argv[0] in ("py", "python", "python3")
+                and os.path.normpath(argv[1]).replace("\\", "/") == "scripts/mirror.py"):
+            flags = [a for a in argv[2:] if a.startswith("-")]
+            if flags:
+                return None, None, (f"mirror flag(s) {flags} refused -- IR-4 allows explicit "
+                                    "message + paths only (no --all sweeps, no options)")
+            paths = argv[3:]
+            if not paths:
+                return None, None, ('IR-4 mirror needs EXPLICIT paths: '
+                                    '`py scripts/mirror.py "msg" path1 [path2 ...]`')
+            # ':' catches drive-letter absolutes even after shlex eats backslashes
+            bad_shape = [p for p in paths if os.path.isabs(p) or ".." in p or ":" in p]
+            if bad_shape:
+                return None, None, (f"path(s) {bad_shape} refused -- repo-relative paths "
+                                    "only (no absolute, no '..', no drive letters)")
+
+            def _canon(p):
+                q = p.replace("\\", "/")
+                while q.startswith("./"):        # strip './' PREFIXES (lstrip eats chars, not prefixes)
+                    q = q[2:]
+                return q
+            banned = [p for p in paths
+                      if _canon(p).startswith(("security/", ".claude/"))]
+            if banned:
+                return None, None, (f"path(s) {banned} are outside your mirror scope -- "
+                                    "security/ and .claude/ stay super-admin-gated (IR-4)")
+            return argv, {}, None
         return None, None, ("only these families run unattended: `pytest ...` / `py -m "
-                            "pytest ...` (isolated) and `py agent_cli.py <read-verb> ...`")
+                            "pytest ...` (isolated), `py agent_cli.py <read-verb> ...`, "
+                            'and `py scripts/mirror.py "msg" <paths>` (IR-4 audited commits)')
 
     def run_command(self, command, working_dir=None, timeout=60):
         if not self.allow_exec:
@@ -950,6 +986,12 @@ class ToolBox:
             argv, env_extra, why = self._exec_family(command)
             if argv is None:
                 return f"REFUSED (unattended exec is allowlisted by family): {why}"
+            # IR-4: the mirror family runs from the repo root ONLY -- a working_dir
+            # override could resolve a different scripts/mirror.py (write-anywhere +
+            # exec = escalation through a shadow script).
+            if (working_dir and len(argv) >= 2
+                    and os.path.normpath(str(argv[1])).replace("\\", "/") == "scripts/mirror.py"):
+                return "REFUSED: the mirror family runs from the repo root only (no working_dir; IR-4)"
         elif not self._confirm(f"DeepSeek wants to run:  {command}"):
             return "DENIED by the user. Do not retry this command; work with read-only tools or ask the user."
         cwd = str(self._resolve(working_dir, allow_dir=True)) if working_dir else str(self.root)
