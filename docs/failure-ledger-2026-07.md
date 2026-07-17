@@ -244,6 +244,31 @@ shell-out dance disappears when the door attaches. Residual: acceptable harness 
 
 ### C4 Process/launcher state
 
+**C4-2 · Process cleanup DURING a live test killed load-bearing pids — flagship crash +
+in-flight twin synthesis lost** (2026-07-16 ~21:54, Jester Forge night; filed post-crash by
+the recovery seat). Sequence: T086-S5 daemon-supervisor pytest failing (3 consecutive FAILs
+21:53), MCP boot() wedged (→ C7-4), Jester twin synthesis pass B in flight headless — and a
+process cleanup ran against the wedge DURING all of it. The sweep took load-bearing pids with
+the strays: five session_signals inside 2s (21:54:16–18); the flagship session end-signalled
+TWICE (320 calls @21:54, 325 @22:09 — the C1-5 task-exit resurrection signature: it limped
+15 min and died); twin pass B died in-context with ZERO durable output (the only real work
+lost); the fleet went dark (UI, daemon, every runner/listener; deepseek + peer stranded as
+stalled consumers); deepseek#1's finished-but-unmirrored S5/S6 files left stranded in the
+working tree (the sole committer was dead).
+What HELD (receipts): everything committed+pushed pre-crash (de6904e — all four Jester
+reports) untouched; W8B SessionEnd draft chronicle captured 22:10:06; durable bus handoffs
+(RED top-3, BLUE design, probe3's C7-4 report) survived; T086-S1 tombstones wrote; Redis clean.
+Root cause: cleanup-by-name-pattern has no concept of owned vs load-bearing pids, and nothing
+quiesces in-flight passes or mirrors stranded sibling work first. The morning's C1-5 interim
+rule v2 ("don't kill tracked watchers; wind down at session level") did not generalize to
+fleet scale under a wedge.
+**Routing: PROTOCOL effective immediately + ROOT FIX tracked. Quiesce-before-clean: (1) land
+in-flight work first (mirror uncommitted sibling files, let live passes file their output),
+(2) end sessions at session level, (3) reap by CENSUS from an owned pid list — never by name
+pattern, never mid-test. Root fix: T086-S5 daemon supervisor owns the pid inventory so "clean
+up processes" becomes a supervisor verb with a safe kill-list — this crash is S5's charter
+receipt. Lesson `quiesce_before_process_cleanup` captured.**
+
 **C4-1 · UI launcher lost track of a live runner** (2026-07-16: launcher/status showed all
 deepseek rows `never_launched`/empty while runner_lock showed pid 5320 alive; the UI process had
 restarted and its in-memory `_procs` map was gone.)
@@ -289,6 +314,20 @@ simpler: the runner should NEVER pipe the gate — run the command bare, format 
 metacharacter refusal (T067 G2: pipes REFUSED). This class cannot recur.**
 
 ### C7 Harness-level quirks (tracked, usually not ours to fix)
+
+**C7-4 · MCP boot() hangs in the RESPONSE path — the work executes, the reply never returns**
+(2026-07-16: probe3 round-3 audit, reproducible 2/2 warm+cold, ~30min hang-then-abort while 9
+other MCP tools return instantly; live post-crash receipt 22:11 — the recovery seat's first
+MCP boot() call logged its boot event on the ledger at 22:11:40 yet the client saw nothing
+until user-interrupt; the CLI boot then returned in 345ms). The wedged-MCP state was the
+motivation for tonight's cleanup sweep (→ C4-2), so this quirk has now cost a session —
+upgraded from log-only.
+Root-cause hypothesis: response-path, not work-path — suspect the large boot payload vs MCP
+framing, or stray stdout from the boot handler corrupting the JSON-RPC stream mid-reply
+(ai_setup_mcp.py; boot is the verb that renders heal/context blocks).
+**Routing: FIX-NOW slice (it gates T081-W2, the MCP-native door awaiting Daniel's apply):
+reproduce with a capped payload; audit the boot handler for stdout leakage; add a
+response-size guard. Until fixed: boot via CLI, other MCP verbs fine.**
 
 **C7-1 · Glob `scripts/*.py` returned nothing while `**/bifrost_ui.py` matched** (2026-07-15).
 Harness tool quirk; cost one extra probe. **Routing: ACCEPTED BOUNDARY (log-only) — not Aurora
