@@ -1,9 +1,10 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 77 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 78 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
+- agent-identity-directive: DANIEL DIRECTIVE 2026-07-16 evening verbatim: 'I am wondering if we have solved our agent naming issues to prevent two new agents that spawned...  (source: mem:decision:ADR_0716202852_b9b04cf6)
 - fleet-lattice-vision: DANIEL DIRECTIVE 2026-07-16 evening verbatim (write-set approval + fleet vision): 'I'd say yes, this way we get to capture more information and...  (source: mem:decision:ADR_0716202443_a2d0edf0)
 - seat-deepdive-directive: DANIEL DIRECTIVE 2026-07-16 ~09:30 verbatim: 'Our hooks and waits and seats system requires a full deepdive and grounding in prior art and...  (source: mem:decision:ADR_0716092530_e28bdd64)
 - where-we-are: OVERNIGHT RUN 2026-07-16 (Daniel asleep; claude Opus seat + deepseek-build FULL caps -- the two-frontier-model test): T081 boot-ergonomics DONE @72a4925...  (source: mem:decision:ADR_0716013622_2ec9747b)
@@ -124,4 +125,3 @@ This supersedes the earlier "classic Doom"...  (source: mem:decision:ADR_0704145
 
 ## The insight
 GPT identified the missing layer between...  (source: mem:decision:ADR_0704143513_4651)
-- directive: token frugality (claude+deepseek): STANDING RULE (Daniel, 2026-07-04): both claude and deepseek default to the cheapest path that fully does the job. (1) min...  (source: mem:decision:ADR_0704121954_8946)

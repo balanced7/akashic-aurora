@@ -1,5 +1,5 @@
 {
-  "seq": 87,
+  "seq": 88,
   "tasks": [
     {
       "id": "T001",
@@ -3233,6 +3233,27 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-17T00:20:36+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T088",
+      "title": "Agent identity & naming arc (Daniel directive 2026-07-16 verbatim in note agent-identity-directive): (a) collision-safety audit -- can two NEW agents spawning simultaneously with one id break coordination? Map what holds (T073 incarnation protocol, RB-21 generation fencing, seat leases, acl quarantine-by-default) vs what conflates (memory attribution, funnel credit, presence, cursor sharing); design an identity REGISTRATION handshake (first-boot claims the id or gets a suffix). (b) Self-rename: DISPLAY-NAME layer split from stable agent_id (UI legibility for Daniel -- bifrost_ui renders display names + role blurbs; ids stay stable under coordination) + an audited id-migration ritual for true renames (alias record 'formerly X', cursor/claim/grant migration, ledger event). Absorbs T072 + T036 scope; folds T080 frm-spoofing caveat. Fenced dual halves (deepseek owns the UI render half); QUEUED behind T086-S5/S6",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-17T00:29:13+00:00",
+      "updated": "2026-07-17T00:29:13+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-17T00:29:13+00:00"
         }
       ]
     }
