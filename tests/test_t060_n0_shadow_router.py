@@ -222,6 +222,17 @@ def test_cli_and_mcp_route_json_are_identical():
     assert cli_value == mcp_value == _router().route("handoff").as_dict()
 
 
+def test_door_guard_understands_intentional_cli_mcp_route_aliases():
+    """The public names are deliberate: CLI packet-trace/stats, MCP packet_route(_stats)."""
+    import scripts.check_door_parity as parity
+
+    assert parity.CLI_MCP_ALIASES["packet_trace"] == "packet_route"
+    assert parity.CLI_MCP_ALIASES["packet_stats"] == "packet_route_stats"
+    failures, _gaps, _cli, _mcp = parity.check()
+    packet_failures = [failure for failure in failures if "packet_" in failure]
+    assert not packet_failures, packet_failures
+
+
 def test_shadow_metrics_failure_never_fails_send(monkeypatch):
     _router()
     monkeypatch.setenv("BIFROST_LANES_DUAL_WRITE", "1")
