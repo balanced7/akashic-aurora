@@ -51,7 +51,7 @@
       "mcp__akashic-aurora__lock",
       "mcp__akashic-aurora__log",
       "mcp__akashic-aurora__bifrost_send",
-      "Write(research/reviewed/**)"
+      "Edit(research/reviewed/**)"
     ]
   },
   "hooks": {
