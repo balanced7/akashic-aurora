@@ -20,6 +20,7 @@ import uuid
 import pytest
 
 from scripts import run_job
+from scripts import ship as ship_module
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -318,6 +319,118 @@ def test_exact_tree_kill_does_not_depend_on_taskkill_subprocess(monkeypatch):
         if proc.poll() is None:
             proc.kill()
             proc.wait(timeout=3)
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Win32 dead-root tree evidence")
+def test_dead_root_with_live_descendant_is_not_credited_as_killed(tmp_path):
+    child_pid_path = tmp_path / "descendant.pid"
+    child_code = "import time; time.sleep(60)"
+    root_code = (
+        "import pathlib,subprocess,sys; "
+        "p=subprocess.Popen([sys.executable,'-c',sys.argv[2]],"
+        "stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,"
+        "creationflags=subprocess.CREATE_NEW_PROCESS_GROUP); "
+        "pathlib.Path(sys.argv[1]).write_text(str(p.pid),encoding='utf-8')"
+    )
+    root = subprocess.Popen(
+        [sys.executable, "-c", root_code, str(child_pid_path), child_code],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
+    )
+    root_identity = run_job._process_info(root.pid)[1]
+    assert root_identity
+    deadline = time.monotonic() + 3
+    while not child_pid_path.exists() and time.monotonic() < deadline:
+        time.sleep(0.02)
+    assert child_pid_path.exists()
+    descendant_pid = int(child_pid_path.read_text(encoding="utf-8"))
+    descendant_identity = run_job._process_info(descendant_pid)[1]
+    assert descendant_identity
+    root.wait(timeout=3)
+    try:
+        receipt = run_job._kill_tree(root.pid, root_identity)
+        assert receipt["killed"] is False
+        assert receipt.get("force_applied") is False
+        assert descendant_pid in receipt.get("remaining_pids", [])
+    finally:
+        run_job._win_terminate_exact(descendant_pid, descendant_identity)
+
+
+def test_already_dead_force_race_never_becomes_cancelled(tmp_path, monkeypatch):
+    job_id = _job_id("already-dead-race")
+    paths = _seed_spec(
+        tmp_path, job_id, [sys.executable, "-c", "raise SystemExit(0)"],
+        grace=0.0, heartbeat=0.01,
+    )
+    child_identity = run_job._process_info(os.getpid())[1]
+    assert child_identity
+    run_job._atomic_json(paths["status"], {
+        "schema": 1,
+        "job_id": job_id,
+        "state": "running",
+        "supervisor_pid": 2_000_000_000,
+        "heartbeat_epoch": 0.0,
+        "child_pid": os.getpid(),
+        "child_identity": child_identity,
+        "deadline_monotonic": time.monotonic() + 60,
+    })
+    run_job._atomic_json(paths["cancel"], {
+        "schema": 1,
+        "job_id": job_id,
+        "reason": "already-dead-race",
+        "requested_monotonic": time.monotonic(),
+    })
+    monkeypatch.setattr(run_job, "_kill_tree", lambda *_: {
+        "killed": True,
+        "already_dead": True,
+        "identity_match": True,
+        "force_applied": False,
+    })
+    rc = run_job._watchdog(job_id, tmp_path)
+    receipt = run_job._read_json(paths["watchdog"])
+    assert rc != 0
+    assert receipt["state"] == "outcome_unknown"
+    assert receipt["forced"] is False
+    assert receipt["state"] not in {"cancelled", "deadline_exceeded"}
+
+
+def test_post_publish_optional_failure_preserves_primary_success(tmp_path, monkeypatch):
+    outcome = tmp_path / "outcome.json"
+    fence = tmp_path / "publish.fence"
+    monkeypatch.syspath_prepend(str(ROOT / "scripts"))
+    monkeypatch.setenv("AKASHIC_JOB_OUTCOME_FILE", str(outcome))
+    monkeypatch.setenv("AKASHIC_JOB_PUBLISH_FENCE", str(fence))
+    monkeypatch.delenv("AKASHIC_JOB_CANCEL_FILE", raising=False)
+    monkeypatch.setattr(
+        ship_module,
+        "build_plan",
+        lambda _args: [("commit + push", ["fake-publish"]), ("snapshot", ["fake-snapshot"])],
+    )
+    monkeypatch.setattr(ship_module, "_git_value", lambda *_: "receipt-value")
+    monkeypatch.setattr(ship_module, "_run", lambda label, _cmd: label == "commit + push")
+
+    rc = ship_module.main(["test publish", "scripts/ship.py", "--_durable-child"])
+    receipt = json.loads(outcome.read_text(encoding="utf-8"))
+    assert rc == 0
+    assert receipt["state"] == "succeeded"
+    assert receipt["primary_effect"] == "pushed"
+    assert receipt["post_publish_incomplete"] is True
+    assert receipt["post_publish_failure"] == "snapshot"
+
+
+def test_watchdog_startup_expiry_clears_deadline_enforcement(tmp_path):
+    job_id = _job_id("startup-expiry")
+    paths = _seed_spec(
+        tmp_path, job_id, [sys.executable, "-c", "raise SystemExit(0)"],
+        startup_expired=True,
+    )
+    rc = run_job._watchdog(job_id, tmp_path)
+    receipt = run_job._read_json(paths["watchdog"])
+    assert rc != 0
+    assert receipt["state"] == "launch_failed"
+    assert receipt["deadline_enforced"] is False
 
 
 def test_slow_work_below_hard_deadline_is_not_killed(tmp_path):

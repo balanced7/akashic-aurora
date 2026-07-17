@@ -325,6 +325,14 @@ The preregistration battery adds these before the corrective implementation:
 18. exact tree enforcement cannot depend on a `taskkill.exe` subprocess returning: an injected
     hung external enforcer must not mask cleanup or strand the worker. The Windows implementation
     uses direct process-snapshot/identity/termination primitives or reports an explicit refusal.
+19. a dead root with a still-live descendant is never credited as a killed tree; without a
+    pre-death ownership receipt, descendant membership is uncertain and cleanup must stay loud;
+20. a force call that discovers the root already dead is not `force_applied` and cannot turn a
+    natural/zero exit into `cancelled` or `deadline_exceeded`;
+21. once `primary_effect=pushed` is durable, a later optional lesson/snapshot failure remains
+    primary `succeeded` with `post_publish_incomplete` and the failed step named;
+22. watchdog startup expiry sets `launch_failed` and `deadline_enforced=false` in the same atomic
+    receipt -- historical initial readiness cannot leak a true enforcement claim.
 
 The ordinary wedged-child deadline, recursive-controller-kill, idempotence, atomicity, and zero-flag
 ship compatibility receipts remain mandatory; this amendment adds failure windows rather than
