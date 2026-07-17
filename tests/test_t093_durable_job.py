@@ -19,6 +19,8 @@ import uuid
 
 import pytest
 
+from scripts import run_job
+
 
 ROOT = Path(__file__).resolve().parents[1]
 RUN_JOB = ROOT / "scripts" / "run_job.py"
@@ -205,6 +207,52 @@ def test_independent_deadline_resolves_wedged_child(tmp_path):
     assert final["deadline_enforced"] is True
     assert final["child_alive"] is False
     assert "entered wedge" in Path(final["log_path"]).read_text(encoding="utf-8")
+
+
+def test_watchdog_never_claims_enforcement_when_exact_kill_fails(tmp_path, monkeypatch):
+    """An identity match is necessary but not sufficient: the tree must actually die."""
+    job_id = _job_id("kill-refused")
+    paths = run_job._paths(tmp_path, job_id)
+    paths["root"].mkdir(parents=True)
+    child_identity = run_job._process_info(os.getpid())[1]
+    assert child_identity, "the kill drill requires a reusable process-creation identity"
+    now = time.monotonic()
+    run_job._atomic_json(paths["spec"], {
+        "schema": 1,
+        "job_id": job_id,
+        "heartbeat_seconds": 0.01,
+        "grace_seconds": 0.0,
+        "startup_deadline_monotonic": now + 5,
+    })
+    run_job._atomic_json(paths["status"], {
+        "schema": 1,
+        "job_id": job_id,
+        "state": "running",
+        "supervisor_pid": 2_000_000_000,
+        "heartbeat_epoch": 0.0,
+        "child_pid": os.getpid(),
+        "child_identity": child_identity,
+        "deadline_monotonic": now + 60,
+    })
+    run_job._atomic_json(paths["cancel"], {
+        "schema": 1,
+        "job_id": job_id,
+        "reason": "kill-refusal-drill",
+        "requested_monotonic": now,
+    })
+    monkeypatch.setattr(run_job, "_kill_tree", lambda *_: {
+        "killed": False,
+        "identity_match": True,
+        "detail": "injected taskkill refusal",
+    })
+
+    rc = run_job._watchdog(job_id, tmp_path)
+    receipt = run_job._read_json(paths["watchdog"])
+    assert rc != 0
+    assert receipt["state"] == "supervision_lost"
+    assert receipt["deadline_enforced"] is False
+    assert receipt["child_alive"] is True
+    assert receipt["kill_receipt"]["killed"] is False
 
 
 def test_slow_work_below_hard_deadline_is_not_killed(tmp_path):
