@@ -289,6 +289,37 @@ def test_watchdog_never_claims_enforcement_when_exact_kill_fails(tmp_path, monke
     assert receipt["kill_receipt"]["killed"] is False
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Win32 direct-enforcer acceptance")
+def test_exact_tree_kill_does_not_depend_on_taskkill_subprocess(monkeypatch):
+    proc = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(60)"],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
+    )
+    identity = run_job._process_info(proc.pid)[1]
+    assert identity
+    real_run = run_job.subprocess.run
+
+    def hung_taskkill(args, *pargs, **kwargs):
+        if args and Path(str(args[0])).name.lower() == "taskkill":
+            raise subprocess.TimeoutExpired(args, kwargs.get("timeout", 0))
+        return real_run(args, *pargs, **kwargs)
+
+    monkeypatch.setattr(run_job.subprocess, "run", hung_taskkill)
+    try:
+        receipt = run_job._kill_tree(proc.pid, identity)
+        proc.wait(timeout=3)
+        assert receipt["killed"] is True
+        assert receipt["identity_match"] is True
+        assert proc.poll() is not None
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait(timeout=3)
+
+
 def test_slow_work_below_hard_deadline_is_not_killed(tmp_path):
     job_id = _job_id("slow")
     code = (

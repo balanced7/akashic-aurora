@@ -322,6 +322,9 @@ The preregistration battery adds these before the corrective implementation:
 16. an abandoned `publish_active` outcome is `outcome_unknown` with recovery metadata;
 17. running-with-two-dead-guards and expired-spec-with-no-guards both return a terminal primary
     state, never an eternal `running`/`launching` shell.
+18. exact tree enforcement cannot depend on a `taskkill.exe` subprocess returning: an injected
+    hung external enforcer must not mask cleanup or strand the worker. The Windows implementation
+    uses direct process-snapshot/identity/termination primitives or reports an explicit refusal.
 
 The ordinary wedged-child deadline, recursive-controller-kill, idempotence, atomicity, and zero-flag
 ship compatibility receipts remain mandatory; this amendment adds failure windows rather than
