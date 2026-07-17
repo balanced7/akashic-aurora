@@ -6,9 +6,14 @@ Single command to orient and verify the stack. Reports what's actually wired up,
 in the current vocabulary (see docs/LEXICON.md). Degrades gracefully: every check
 fails soft, so a down Redis never crashes the bootstrap.
 
+READ-ONLY by default (lesson bootstrap_status_is_stateful, 2026-07-17): a status
+check must not mutate shared state. Opening a narrative session — which CLOSES any
+still-open prior session fleet-wide and re-chronicles it — is behind --start-session.
+
 Usage:
-    python bootstrap.py            # full status
-    python bootstrap.py --brief    # status only, no extras
+    python bootstrap.py                  # full status (read-only)
+    python bootstrap.py --brief          # status only, no extras (read-only)
+    python bootstrap.py --start-session  # ALSO open a narrative session (mutates)
 """
 
 import sys
@@ -121,13 +126,23 @@ def report_memory_counts():
         return None
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Stack bootstrap & status check")
+def build_parser():
+    parser = argparse.ArgumentParser(description="Stack bootstrap & status check (read-only)")
     parser.add_argument('--brief', action='store_true', help='Status only, no extras')
     parser.add_argument('--agent-init', action='store_true',
                         help='Emit machine-readable agent orientation (JSON) and exit')
-    args = parser.parse_args()
+    parser.add_argument('--start-session', action='store_true', dest='start_session',
+                        help='ALSO open a narrative session (closes + chronicles any still-open '
+                             'prior session FLEET-WIDE). Was the implicit default; mutation is '
+                             'opt-in per lesson bootstrap_status_is_stateful')
+    return parser
 
+
+def main():
+    run(build_parser().parse_args())
+
+
+def run(args):
     if args.agent_init:
         emit_agent_init()
         return
@@ -163,28 +178,31 @@ def main():
     else:
         log("    [..] Redis down — counts unavailable (data is in session_logs/ files)", YELLOW)
 
-    # Session logging (Slice 1 auto-capture): open a new session, which first closes
-    # any still-open prior session and re-chronicles it. The spine fills itself --
-    # no agent has to remember to log. Best-effort: never crash boot.
-    try:
-        from core.narrative.session import start_session
-        rep = start_session()
-        if rep.get("closed_prior"):
-            log("[*] Prior session closed + chronicled; new session started", CYAN)
-        else:
-            log("[*] Session start recorded", CYAN)
-        # Auto-logger (Slice 5): a boot is a session boundary -- consolidate any salient raw
-        # events that didn't flow through a verb into Beats (reflection). Rate-limited +
-        # deduped, so this never floods the spine. Best-effort: never crash boot.
+    # Session logging (Slice 1 auto-capture) is OPT-IN: start_session() closes any
+    # still-open prior session FLEET-WIDE -- a mutation no status check may perform
+    # (lesson bootstrap_status_is_stateful; a stranger's first status run used to
+    # close the incumbents' narrative sessions).
+    if args.start_session:
         try:
-            from core.narrative.event_promoter import promote_salient
-            pr = promote_salient()
-            if pr.get("promoted"):
-                log(f"[*] Consolidated {pr['promoted']} salient raw event(s) into the story", CYAN)
-        except Exception:
-            pass
-    except Exception as e:
-        log(f"[!] Session logging unavailable ({type(e).__name__})", YELLOW)
+            from core.narrative.session import start_session
+            rep = start_session()
+            if rep.get("closed_prior"):
+                log("[*] Prior session closed + chronicled; new session started", CYAN)
+            else:
+                log("[*] Session start recorded", CYAN)
+            # Auto-logger (Slice 5): a boot is a session boundary -- consolidate salient raw
+            # events into Beats. Rate-limited + deduped. Best-effort: never crash boot.
+            try:
+                from core.narrative.event_promoter import promote_salient
+                pr = promote_salient()
+                if pr.get("promoted"):
+                    log(f"[*] Consolidated {pr['promoted']} salient raw event(s) into the story", CYAN)
+            except Exception:
+                pass
+        except Exception as e:
+            log(f"[!] Session logging unavailable ({type(e).__name__})", YELLOW)
+    else:
+        log("[read-only] narrative spine untouched (opt in with --start-session)", CYAN)
 
     # Orientation
     print()

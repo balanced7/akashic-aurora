@@ -415,6 +415,18 @@ retry-once wrapper in the standby verb IF it recurs (count: 1).**
 
 ## CLOSED (fix receipts)
 
+**C2-5 status check that writes: bootstrap.py opened a narrative session on every run** →
+CLOSED same-commit (2026-07-17; routed from the fable-1c7f3a2e handover; found by
+codex_frontier_019f6e7e on its FIRST boot — lesson bootstrap_status_is_stateful): the
+docstring promised an "honest status check" while every run called start_session() (closes
+any still-open narrative session FLEET-WIDE + re-chronicles it) then promote_salient(). A
+stranger's first status run mutated the incumbents' narrative state; incumbents were blind
+because they never run the newcomer door. Root fix: read-only by default, the mutation behind
+an explicit --start-session flag, and the read-only run SAYS what it did not touch. Pins:
+tests/test_bootstrap_readonly.py (mutation-free default + opt-in fires + agent-init pure).
+The newcomer found it, the newcomer's lesson is cited in the flag's help text — the
+stranger-contract loop closing as designed.
+
 **C2-4 mirror named-path commit carries pre-staged riders** → CLOSED same-commit (2026-07-17,
 filed by claude on live incident): claude's 462fefe named 2 doc paths but committed 4 files —
 the fable-reconciler twin's 2 crash-path drafts were sitting staged in the SHARED git index,
