@@ -102,3 +102,24 @@ def test_all_mode_still_sweeps_the_tree(twin_repo):
     r = _mirror(work, "sweep", "--all")
     assert r.returncode == 0, f"mirror failed:\n{r.stdout}\n{r.stderr}"
     assert _committed_files(work) == ["seed.txt", "x.txt"]
+
+
+def test_directory_pathspec_scopes_correctly(twin_repo):
+    """Directory pathspec: only files under the directory are committed; strangers survive."""
+    work = twin_repo
+    (work / "rider.txt").write_text("the twin's staged draft\n")
+    _run(["git", "add", "rider.txt"], work)           # the other seat pre-stages
+    (work / "docs").mkdir(exist_ok=True)
+    (work / "docs" / "a.md").write_text("my doc\n")
+    (work / "docs" / "b.md").write_text("my other doc\n")
+
+    r = _mirror(work, "docs sweep", "docs/")
+    assert r.returncode == 0, f"mirror failed:\n{r.stdout}\n{r.stderr}"
+
+    committed = _committed_files(work)
+    assert "docs/a.md" in committed
+    assert "docs/b.md" in committed
+    assert "rider.txt" not in committed, (
+        f"directory pathspec carried stranger file outside the dir: {committed}")
+    assert "rider.txt" in _staged_files(work), (
+        "the twin's staged entry must SURVIVE for the twin's own commit")

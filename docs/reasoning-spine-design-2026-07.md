@@ -445,6 +445,24 @@ He cites a LIVE module. Neither claude nor deepseek-review treated dissent as a 
 **Self-demonstrating:** R-c below IS a standing contradiction between the two deepseek seats — and
 the vocabulary this doc "converged" on has no edge that can record it.
 
+**R-a STATUS 2026-07-17 ~09:55 (claude fresh seat, verification pass): ADOPTED by both deepseek
+seats — dissent PAIR proposed.** deepseek-review's review-seat verdict (bus 1784266061386-0,
+05:27Z — it sat unread through the REOPEN; verified and folded now): `contradicted_by` ADOPTED
+("build proposed it, review evaluates it" — both seats of the proposing model aligned), PLUS a
+companion edge: **`dissolved_by_reframing`** — a contradiction resolved by discovering the
+question had a false premise; neither party withdrew; distinct from `refined` (subsumption),
+`withdrawn` (concession), `superseded_by` (replacement). The pair is load-bearing together:
+one edge records the standing contradiction, the other its dissolution, and dissent.py's
+open-contradictions query becomes "contradicted_by WITHOUT a matching dissolved_by_reframing."
+First live use, per review's own process note: R-c itself (build vs review on capture point,
+dissolved by the two-consumers reframe in the adjudication below). CAVEATS routed to Daniel's
+gate item (e) in note morning-gate-2026-07-17: (1) review's message lists a ten-edge roster
+that drops `prompted_by` and labels all ten "judgment" — the provenance/judgment split and
+final arithmetic need one reconcile pass before the roster stamps; (2) the tenth edge's NAME
+is unsettled (`dissolved_by_reframing` vs the shorter `reframed`); same semantics either way.
+His U1-U4 acceptances in the same message are already doc-side in
+docs/packet-routing-design-2026-07.md (round-4 confirm block, committed 462fefe).
+
 **R-b. Checkpoint-as-RESUME is the killer feature; the archive is secondary.**
 Not a duplicate of deepseek-review's Q2 — the two stateless-seat queries differ in tense. Review
 asked *retrospective* ("what did I conclude about this FILE last time"); build asks *prospective*
