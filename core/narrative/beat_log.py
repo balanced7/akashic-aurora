@@ -71,10 +71,21 @@ class BeatLog:
         """Infer cross-cutting Themes for a Beat (Slice 5). Best-effort -- a Beat with
         no themes is still valid, so a hiccup never blocks logging."""
         try:
-            # V6c: hybrid embedding themes when the model is already warm (long-lived agents),
-            # else the fast keyword baseline -- so a short-lived CLI write never pays a cold load.
-            from core.narrative.theme_discovery import select_theme_assigner
-            beat.themes = select_theme_assigner().assign(beat, hint)
+            # V6c: embedding themes are opt-in.  Choose the default keyword assigner
+            # without importing theme_discovery: that module eagerly imports NumPy,
+            # and FastMCP executes sync tools on its stdio event-loop thread.  A cold
+            # import there blocked a fresh `log` response past the client timeout.
+            # The explicit opt-in path is unchanged.
+            embed_on = os.getenv("AKASHIC_EMBED_THEMES", "").lower() in (
+                "1", "true", "yes", "on",
+            )
+            if embed_on:
+                from core.narrative.theme_discovery import select_theme_assigner
+                assigner = select_theme_assigner()
+            else:
+                from core.narrative.theme_assigner import get_theme_assigner
+                assigner = get_theme_assigner()
+            beat.themes = assigner.assign(beat, hint)
         except Exception:
             from core.narrative.health import bump
             bump(self.store, "theme:error")
