@@ -209,7 +209,8 @@ neither respawns work or becomes a second fleet daemon, and no Bifrost consume p
 4. slow work below its hard deadline completes and is not killed;
 5. cooperative cancel quiesces before force and prevents later gates;
 6. repeated concurrent reads never see torn JSON;
-7. external child kill is classified by the supervisor, never self-reported;
+7. external child kill is reported by the supervisor as an unattributed nonzero exit, never
+   self-reported or overclaimed as distinguishable from `sys.exit(1)`;
 8. supervisor loss is loud while the independent watchdog still enforces the deadline;
 9. duplicate launch with one deterministic id executes the worker exactly once;
 10. real `ship.py --durable --dry-run` completes and is recoverable through a fresh status process.
@@ -227,3 +228,6 @@ completion receipt rides the child output channel.
 - Heartbeats prove guard liveness, not semantic job progress. The hard deadline is explicit;
   callers must size it for the slowest legitimate gate. `log_bytes` is observability, never an
   automatic deadline reset.
+- Windows `taskkill /F` gives Python's parent the same return code (`1`) a program can choose with
+  `sys.exit(1)`. Without an audited kill request, the supervisor must say
+  `unattributed_nonzero_exit`; exact external-kill attribution would be invented evidence.

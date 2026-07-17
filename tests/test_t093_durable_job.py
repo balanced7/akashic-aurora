@@ -261,15 +261,17 @@ def test_atomic_receipt_never_tears_during_heartbeats(tmp_path):
     assert _wait_terminal(tmp_path, job_id)["state"] == "succeeded"
 
 
-def test_forced_child_death_is_inferred_by_supervisor(tmp_path):
+def test_forced_child_death_is_reported_without_inventing_attribution(tmp_path):
     job_id = _job_id("external-kill")
     _launch(tmp_path, job_id, [sys.executable, "-c", "import time; time.sleep(60)"],
             max_runtime=10)
     running = _wait_running(tmp_path, job_id)
     _force_tree(int(running["child_pid"]))
     final = _wait_terminal(tmp_path, job_id)
-    assert final["state"] == "child_killed"
+    assert final["state"] == "failed"
     assert final["reported_by"] == "supervisor", "a killed child cannot self-report"
+    assert final["termination_cause"] == "unattributed_nonzero_exit"
+    assert final["exit_code"] != 0
 
 
 def test_stale_supervisor_is_loud_but_watchdog_still_enforces_deadline(tmp_path):
