@@ -25,7 +25,10 @@ from scripts import run_job
 ROOT = Path(__file__).resolve().parents[1]
 RUN_JOB = ROOT / "scripts" / "run_job.py"
 SHIP = ROOT / "scripts" / "ship.py"
-TERMINAL = {"succeeded", "failed", "cancelled", "deadline_exceeded", "child_killed"}
+TERMINAL = {
+    "succeeded", "failed", "cancelled", "deadline_exceeded", "child_killed",
+    "launch_failed", "outcome_unknown", "supervision_lost",
+}
 
 
 def _job_id(prefix: str) -> str:
@@ -122,6 +125,37 @@ def _force_pid(pid: int) -> None:
             os.kill(pid, 9)
         except ProcessLookupError:
             pass
+
+
+def _seed_spec(state_dir: Path, job_id: str, command: list[str], *,
+               max_runtime: float = 3.0, grace: float = 0.2,
+               heartbeat: float = 0.05, broker: str = "detached",
+               startup_expired: bool = False) -> dict[str, Path]:
+    """Seed the immutable pre-broker receipt to reproduce a controller launch-gap death."""
+    paths = run_job._paths(state_dir, job_id)
+    paths["root"].mkdir(parents=True, exist_ok=True)
+    now_mono = time.monotonic()
+    now_epoch = time.time()
+    startup_delta = -1.0 if startup_expired else 5.0
+    run_job._atomic_json(paths["spec"], {
+        "schema": 1,
+        "job_id": job_id,
+        "command": [str(x) for x in command],
+        "cwd": str(ROOT.resolve()),
+        "max_runtime": float(max_runtime),
+        "grace_seconds": float(grace),
+        "heartbeat_seconds": float(heartbeat),
+        "broker_requested": broker,
+        "created_at": "preregistered-drill",
+        "created_epoch": now_epoch - 20,
+        "created_monotonic": now_mono - 20,
+        "startup_deadline_epoch": now_epoch + startup_delta,
+        "startup_deadline_monotonic": now_mono + startup_delta,
+        "environment": {},
+        "log_path": str(paths["log"]),
+        "cancel_path": str(paths["cancel"]),
+    })
+    return paths
 
 
 def test_launch_is_immediate_and_fresh_status_recovers_result(tmp_path):
@@ -278,6 +312,7 @@ marker = pathlib.Path(sys.argv[1])
 while not cancel.exists():
     time.sleep(.03)
 marker.write_text('quiesced', encoding='utf-8')
+raise SystemExit(130)
 """
     _launch(tmp_path, job_id, [sys.executable, "-u", "-c", code, str(marker)],
             max_runtime=5, grace=1.0)
@@ -374,3 +409,203 @@ def test_real_ship_dry_run_is_recoverable_from_fresh_process(tmp_path):
     assert final["state"] == "succeeded"
     log = Path(final["log_path"]).read_text(encoding="utf-8")
     assert "# ship plan (dry-run -- nothing executed)" in log
+
+
+def test_expired_spec_only_retry_fails_loudly_without_rebrokering(tmp_path, monkeypatch):
+    """A lost launch frame is recoverable, but v1 must not guess and execute twice."""
+    job_id = _job_id("spec-gap")
+    command = [sys.executable, "-c", "raise SystemExit('must not execute')"]
+    _seed_spec(tmp_path, job_id, command, startup_expired=True)
+    broker_calls: list[object] = []
+    monkeypatch.setattr(run_job, "_detached_create", lambda *_: broker_calls.append(1))
+    monkeypatch.setattr(run_job, "_wmi_create_pair", lambda *_: broker_calls.append(1))
+
+    receipt = run_job.launch_job(
+        command, job_id=job_id, state_dir=tmp_path, cwd=ROOT,
+        max_runtime=3.0, grace_seconds=0.2, heartbeat_seconds=0.05,
+        broker="detached",
+    )
+    assert broker_calls == []
+    assert receipt["state"] == "launch_failed"
+    assert receipt["deadline_enforced"] is False
+    assert receipt["retry_with_new_job_id"] is True
+    assert receipt["reused"] is True
+
+
+def test_terminal_sticky_watchdog_ready_cannot_authorize_worker_start(tmp_path):
+    job_id = _job_id("stale-ready")
+    paths = _seed_spec(
+        tmp_path, job_id, [sys.executable, "-c", "raise SystemExit(99)"],
+    )
+    identity = run_job._process_info(os.getpid())[1]
+    assert identity
+    run_job._atomic_json(paths["watchdog"], {
+        "schema": 1,
+        "job_id": job_id,
+        "state": "complete_observed",
+        "ready": True,
+        "watchdog_pid": os.getpid(),
+        "watchdog_identity": identity,
+        "heartbeat_epoch": time.time(),
+    })
+    ready = run_job._wait_watchdog_ready(paths, time.monotonic() + 0.06)
+    assert not ready, "historical ready=True is not a live deadline owner"
+
+
+def test_running_receipt_failure_cleans_up_prearmed_child(tmp_path, monkeypatch):
+    job_id = _job_id("arm-failure")
+    paths = _seed_spec(
+        tmp_path, job_id, [sys.executable, "-c", "import time; time.sleep(60)"],
+        max_runtime=5.0, heartbeat=0.02,
+    )
+    identity = run_job._process_info(os.getpid())[1]
+    assert identity
+    run_job._atomic_json(paths["watchdog"], {
+        "schema": 1,
+        "job_id": job_id,
+        "state": "watching",
+        "ready": True,
+        "watchdog_pid": os.getpid(),
+        "watchdog_identity": identity,
+        "heartbeat_epoch": time.time(),
+    })
+    real_atomic = run_job._atomic_json
+    failed_once = False
+
+    def fail_first_running(path, payload):
+        nonlocal failed_once
+        if path == paths["status"] and payload.get("state") == "running" and not failed_once:
+            failed_once = True
+            raise OSError("injected running-receipt failure")
+        return real_atomic(path, payload)
+
+    real_popen = run_job.subprocess.Popen
+    children = []
+
+    def capture_child(*args, **kwargs):
+        proc = real_popen(*args, **kwargs)
+        children.append(proc)
+        return proc
+
+    monkeypatch.setattr(run_job, "_atomic_json", fail_first_running)
+    monkeypatch.setattr(run_job.subprocess, "Popen", capture_child)
+    try:
+        run_job._supervise(job_id, tmp_path)
+        assert failed_once and children
+        deadline = time.monotonic() + 2
+        while children[0].poll() is None and time.monotonic() < deadline:
+            time.sleep(0.02)
+        assert children[0].poll() is not None, "unreceipted worker escaped supervision"
+    finally:
+        if children and children[0].poll() is None:
+            child_identity = run_job._process_info(children[0].pid)[1]
+            run_job._kill_tree(children[0].pid, child_identity)
+
+
+def test_exit_zero_after_deadline_intent_remains_success(tmp_path):
+    job_id = _job_id("zero-wins")
+    code = r"""
+import os, pathlib, time
+cancel = pathlib.Path(os.environ['AKASHIC_JOB_CANCEL_FILE'])
+while not cancel.exists():
+    time.sleep(.005)
+raise SystemExit(0)
+"""
+    _launch(
+        tmp_path, job_id, [sys.executable, "-u", "-c", code],
+        max_runtime=0.2, grace=0.5, heartbeat=0.02,
+    )
+    final = _wait_terminal(tmp_path, job_id, timeout=4)
+    assert final["state"] == "succeeded"
+    assert final["exit_code"] == 0
+    assert final["forced"] is False
+
+
+def test_publish_fence_defers_force_and_pushed_outcome_wins_late_cancel(tmp_path):
+    job_id = _job_id("publish-fence")
+    entered = tmp_path / "publish-entered.marker"
+    code = r"""
+import os, pathlib, time
+from scripts import run_job
+fence = pathlib.Path(os.environ['AKASHIC_JOB_PUBLISH_FENCE'])
+outcome = pathlib.Path(os.environ['AKASHIC_JOB_OUTCOME_FILE'])
+entered = pathlib.Path(os.environ['AKASHIC_T093_ENTERED_MARKER'])
+with run_job.publish_fence(fence, blocking=True):
+    run_job.write_child_outcome(outcome, {'state': 'publish_active', 'head_before': 'abc'})
+    entered.write_text('inside', encoding='utf-8')
+    time.sleep(.45)
+    run_job.write_child_outcome(outcome, {
+        'state': 'succeeded', 'primary_effect': 'pushed',
+        'commit_sha': 'def', 'branch': 'test',
+    })
+"""
+    old = os.environ.get("AKASHIC_T093_ENTERED_MARKER")
+    os.environ["AKASHIC_T093_ENTERED_MARKER"] = str(entered)
+    try:
+        _launch(
+            tmp_path, job_id, [sys.executable, "-u", "-c", code],
+            max_runtime=5, grace=0.05, heartbeat=0.02,
+        )
+        deadline = time.monotonic() + 3
+        while not entered.exists() and time.monotonic() < deadline:
+            time.sleep(0.02)
+        assert entered.exists(), "worker never entered the publish fence"
+        _cli("cancel", job_id, "--state-dir", str(tmp_path), "--reason", "late publish cancel")
+        final = _wait_terminal(tmp_path, job_id, timeout=4)
+    finally:
+        if old is None:
+            os.environ.pop("AKASHIC_T093_ENTERED_MARKER", None)
+        else:
+            os.environ["AKASHIC_T093_ENTERED_MARKER"] = old
+    assert final["state"] == "succeeded"
+    assert final["primary_effect"] == "pushed"
+    assert final["forced"] is False
+    assert final["cancel_disposition"] == "after_publish_commit_point"
+
+
+def test_abandoned_publish_active_is_outcome_unknown(tmp_path):
+    job_id = _job_id("publish-unknown")
+    code = r"""
+import os, pathlib
+from scripts import run_job
+fence = pathlib.Path(os.environ['AKASHIC_JOB_PUBLISH_FENCE'])
+outcome = pathlib.Path(os.environ['AKASHIC_JOB_OUTCOME_FILE'])
+with run_job.publish_fence(fence, blocking=True):
+    run_job.write_child_outcome(outcome, {
+        'state': 'publish_active', 'head_before': 'abc',
+        'publish_may_have_occurred': True,
+    })
+raise SystemExit(7)
+"""
+    _launch(tmp_path, job_id, [sys.executable, "-u", "-c", code], max_runtime=3)
+    final = _wait_terminal(tmp_path, job_id)
+    assert final["state"] == "outcome_unknown"
+    assert final["publish_may_have_occurred"] is True
+    assert final["primary_effect"] != "pushed"
+
+
+def test_dead_guards_promote_primary_state_to_supervision_lost(tmp_path):
+    job_id = _job_id("guards-gone")
+    paths = _seed_spec(
+        tmp_path, job_id, [sys.executable, "-c", "import time; time.sleep(60)"],
+    )
+    run_job._atomic_json(paths["launch"], {
+        "schema": 1,
+        "job_id": job_id,
+        "state": "launching",
+        "supervisor_pid": 2_000_000_000,
+        "watchdog_pid": 2_000_000_001,
+    })
+    run_job._atomic_json(paths["status"], {
+        "schema": 1,
+        "job_id": job_id,
+        "state": "running",
+        "supervisor_pid": 2_000_000_000,
+        "heartbeat_epoch": 0.0,
+        "child_pid": 2_000_000_002,
+        "child_identity": "definitely-not-live",
+    })
+    receipt = run_job.read_status(job_id, tmp_path, stale_after=0.01)
+    assert receipt["state"] == "supervision_lost"
+    assert receipt["last_reported_state"] == "running"
+    assert receipt["deadline_enforced"] is False

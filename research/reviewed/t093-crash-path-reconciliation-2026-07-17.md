@@ -231,3 +231,98 @@ completion receipt rides the child output channel.
 - Windows `taskkill /F` gives Python's parent the same return code (`1`) a program can choose with
   `sys.exit(1)`. Without an audited kill request, the supervisor must say
   `unattributed_nonzero_exit`; exact external-kill attribution would be invented evidence.
+
+## 8. ADVERSARIAL BUILD-GATE AMENDMENT -- launch gaps, outcome priority, publish fence
+
+Status: **GOVERNING AMENDMENT** (codex_root, after the first implementation passed 11 focused
+drills but failed an independent crash-window audit). This section narrows section 7. Fable and
+DeepSeek initially returned SHIP, then independently affirmed the six failures below after the
+Codex audit supplied exact windows; Fable withdrew its SHIP verdict. No implementation commit may
+land until the new RED receipts are committed first.
+
+### A. Spec-first does not mean retry-safe
+
+There is an unavoidable interval after `spec.json` becomes durable and before the WMI broker has
+durable guard self-receipts. A same-id retry must **not** silently launch a second guard generation:
+a delayed first WMI launch could then execute the worker twice. The v1 recovery contract is:
+
+1. before the spec's bounded startup deadline, an exact same-id retry reports `launching`;
+2. after that deadline, if no live/fresh guard self-receipt exists, primary state becomes terminal
+   `launch_failed`, `deadline_enforced=false`, with an explicit `retry_with_new_job_id` remedy;
+3. if guard self-receipts exist but `launch.json` was lost with the controller, fresh status joins
+   the guards' own PID/creation identities and continues observing the original job;
+4. the exact same id is never automatically re-brokered in v1. A later generation/lease protocol
+   may add safe takeover, but absence of such a protocol is not permission to guess.
+
+### B. A sticky ready bit is not a watchdog
+
+Supervisor worker launch requires a watchdog receipt whose state is exactly `watching`, whose
+heartbeat is fresh, and whose PID plus process-creation identity still match a live process. A
+terminal/stale `ready=true` record is historical evidence only. The supervisor retains the worker
+PID/identity immediately after `Popen`; every catchable exception before the running receipt is
+durable must exact-kill and wait for that tree. It may publish `launch_failed` only after confirmed
+cleanup; an unconfirmed cleanup is `supervision_lost`, with `child_alive` stated honestly.
+
+### C. Requests are intent; evidence decides the outcome
+
+The final-state precedence is deterministic:
+
+1. a child-owned, atomic publish outcome proving `primary_effect=pushed` wins as `succeeded`;
+2. a watchdog-authored, identity-matched and confirmed force-kill receipt wins as
+   `cancelled` or `deadline_exceeded` according to the request;
+3. reserved worker exit `130` plus a request is cooperative cancellation/deadline;
+4. exit zero is `succeeded`, even if a request raced after the work's commit point;
+5. any other exit without a confirmed force receipt is `failed` / `unattributed_nonzero_exit`;
+6. a vanished worker with no surviving attribution path is `outcome_unknown`.
+
+The watchdog must test worker liveness before publishing deadline intent. If a requested worker is
+already dead, it waits for the supervisor's exit attribution; it does not manufacture a
+cooperative-cancel verdict merely from the request file. Cooperating generic workers use exit 130;
+`ship.py` already uses that reserved code at safe pre-publish boundaries.
+
+### D. Commit/push is a point of no return protected by an OS-held fence
+
+`ship.py` receives a per-job `publish.fence` and atomic child-owned `outcome.json`. Immediately
+before the mirror commit+push step it acquires an exclusive OS byte lock, re-checks cancellation,
+and, if clear, writes `publish_active` with recovery metadata (branch, HEAD-before, message, named
+paths). It holds the lock through mirror completion and the terminal outcome write.
+
+Before any force-kill, the watchdog must acquire the same fence non-blocking and hold it across its
+decision. If the child owns the fence, force is deferred and status says
+`cancel_pending_critical`, `force_deferred_by=publish_fence`, and `deadline_enforced=false`. A
+successful mirror writes `primary_effect=pushed`, commit SHA, and branch before releasing; late
+cancel cannot relabel it. If the fence becomes free while the durable outcome remains
+`publish_active`, status is `outcome_unknown`, `publish_may_have_occurred=true`, never `cancelled`.
+
+This is an explicit safety tradeoff, not a hidden timeout extension: an exact hard deadline and a
+promise never to force-kill wedged Git cannot both hold. Deadline enforcement remains exact for
+ordinary work. During the narrow publish fence, data safety wins and the dashboard must show that
+force is deferred. An operator-approved recovery/override can be a later slice.
+
+### E. Primary state must terminate when supervision is gone
+
+When neither guard is live/fresh enough to advance a nonterminal job, fresh status promotes
+primary `state` to `supervision_lost`, preserves the old value as `last_reported_state`, and sets
+`deadline_enforced=false`. A spec-only startup expiry is the narrower `launch_failed` case from A.
+Consumers must never need to interpret `observed_state` to discover that terminal fact.
+
+### F. Additional pre-registered RED receipts
+
+The preregistration battery adds these before the corrective implementation:
+
+11. an exact retry of an expired spec-only launch makes zero broker calls and returns terminal
+    `launch_failed` with a new-id remedy;
+12. a stale/terminal watchdog receipt cannot authorize even one worker-start attempt;
+13. injected failure of the first running receipt exact-kills the already-created child before the
+    supervisor returns;
+14. a child that exits zero near a deadline/request is `succeeded`; the cooperative-cancel drill
+    uses reserved exit 130 and remains `cancelled`;
+15. cancel while the publish fence is held cannot invoke the kill path, and a pushed outcome wins
+    over that late request;
+16. an abandoned `publish_active` outcome is `outcome_unknown` with recovery metadata;
+17. running-with-two-dead-guards and expired-spec-with-no-guards both return a terminal primary
+    state, never an eternal `running`/`launching` shell.
+
+The ordinary wedged-child deadline, recursive-controller-kill, idempotence, atomicity, and zero-flag
+ship compatibility receipts remain mandatory; this amendment adds failure windows rather than
+replacing the original bars.
