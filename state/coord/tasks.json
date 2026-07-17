@@ -1,5 +1,5 @@
 {
-  "seq": 88,
+  "seq": 89,
   "tasks": [
     {
       "id": "T001",
@@ -3254,6 +3254,27 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-17T00:29:13+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T089",
+      "title": "Multi-agent readiness program (Daniel directive, note multiagent-foresight-directive; reconciled checklist = research/reviewed/multiagent-readiness-reconciliation-2026-07-16.md): N=3 SAFE NOW (live receipt tonight); N=5 gates = T047 legacy retirement + fleet-health verdict line + check_acl_schema.py CI gate; N=10 gates add claim backoff/standby-queue (T086-S8), per-agent trace lanes, T088 naming rules, T080 reach receipts, T056 cost gauges + empty-turn detector, T030/H1, C2-1 guard, S-2/S7 enforcement, seat_setup.py one-command provisioning. Expiry-vs-review-date divergence RULED: nag never auto-revoke (07-05 lesson)",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-17T00:55:21+00:00",
+      "updated": "2026-07-17T00:55:21+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-17T00:55:21+00:00"
         }
       ]
     }
