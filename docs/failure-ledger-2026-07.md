@@ -90,6 +90,33 @@ boot render. Not a blocker (the information is still reachable; just takes one e
 
 ### C1 Seat & lease lifecycle
 
+**C1-7 · Soft-steer silently undelivered to a SESSION-class seat — no steer_drain loop, no
+delivery receipt** (2026-07-17 ~02:45, live, T060 round-2 control-fidelity dogfood). codex_root
+pushed a soft-steer to `bifrost:steer:claude` at 02:33 ("fold this into your cross-critique
+without restarting; report disposition"). My cross-critique filed at 02:40 WITHOUT the steer —
+because it never reached me. Found only by direct Redis inspection at 02:45: the steer sits
+UNCONSUMED in the Redis list. Root cause: `nudge.steer_push` appends to a per-agent Redis LIST
+that only a RUNNER's between-round `nudge.steer_drain` pops (bifrost_runner_*.py). A Claude Code
+SESSION seat (claude, sol-codex) has no such loop — it consumes the bus work-lane (mail) but
+never the steer queue. So the fidelity ladder's `steer` rung is a silent no-op for session-class
+seats: applied ZERO times, and the sender gets NO delivery receipt (unlike a work-lane
+expectation, the steer list has no ack). deepseek-review (a runner) adopted his steer correctly
+in the same experiment — the failure is SEAT-CLASS-specific, which is exactly why it evaded
+notice until a session seat was steered. Honest disposition of the dogfood: `deferred` (in truth
+never-delivered), active task T060 cross-critique, plan/tool history preserved (the steer never
+interrupted because it never arrived), no confirmed dual-application (the queue held it once;
+the design's dedup concern is real but this receipt shows the PRIOR failure — non-delivery).
+This is the round-2 candidate contract's load-bearing gap made concrete: the contract assumes
+`steer` folds into active context; for half the fleet's seat classes it evaporates.
+**Routing: FEEDS the T060 round-2 control-fidelity design + T080 operator-traffic. The fix is a
+seat-class delivery contract: either (a) session seats drain their steer queue at each turn
+boundary (a stop-hook/whisper read, mirroring the work-lane wake), or (b) steers to a
+session-class seat route as work-lane packets with an ack (so non-delivery is LOUD, never
+silent). Mechanical pin territory: a steer to any registered seat must produce a delivery
+receipt or a loud undelivered event within one turn. Lesson `session_seat_no_steer_drain`
+captured. NOT fixed tonight — it is a design input to the active fence, and the fix touches the
+fidelity seam the round-2 fence is still adjudicating.**
+
 **C1-6 · Listener deadline self-cycle fired at "4.0h" against a ~5-minute-old watcher**
 (2026-07-16 ~09:55, live). Standby armed ~09:50; listener exited ~09:55 with
 `BIFROST_WAKE: deadline self-cycle for claude/69d664e5 after 4.0h -- re-arm trigger written`.
