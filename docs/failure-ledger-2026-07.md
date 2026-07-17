@@ -322,12 +322,22 @@ MCP boot() call logged its boot event on the ledger at 22:11:40 yet the client s
 until user-interrupt; the CLI boot then returned in 345ms). The wedged-MCP state was the
 motivation for tonight's cleanup sweep (→ C4-2), so this quirk has now cost a session —
 upgraded from log-only.
-Root-cause hypothesis: response-path, not work-path — suspect the large boot payload vs MCP
-framing, or stray stdout from the boot handler corrupting the JSON-RPC stream mid-reply
-(ai_setup_mcp.py; boot is the verb that renders heal/context blocks).
-**Routing: FIX-NOW slice (it gates T081-W2, the MCP-native door awaiting Daniel's apply):
-reproduce with a capped payload; audit the boot handler for stdout leakage; add a
-response-size guard. Until fixed: boot via CLI, other MCP verbs fine.**
+Root cause NAMED 2026-07-17 (triple-confirmed: claude empirical bisect + deepseek surface
+analysis + Gemini + code evidence; research/reviewed/hardening-reconciliation-2026-07-17.md
+S1): a **subprocess spawned inside `cmd_boot` inherits the server's stdout handle**; on Windows
+the asyncio **ProactorEventLoop defers the pending stdout WriteFile completion until the next
+inbound stdin frame** wakes the loop and sweeps its I/O queue. This is why `sleep(5)` and
+print-only tools don't wedge (no child) but boot does (it spawns one), and why any inbound
+frame — even a bare notification — flushes the stuck response in ≤0.07s. Exonerated by
+isolation tests: the MCP SDK, the `_run` redirect_stdout mechanics, and payload size (a 42KB
+tool result and `tools/list` at 21.9KB both flow instantly). Code evidence: `agent_cli.py:2760`
+is an UNCAPTURED `subprocess.run(cmd, env=env)` (inherits fd1/fd2); `:1583` re-execs
+`sys.executable` inside a print. The `_git` helper (:115, `capture_output=True`) is NOT a
+suspect (fresh pipes).
+**Routing: FIX-NOW slice (gates T081-W2). Bisect :2760/:1583 under the repro driver, then the
+root fix = don't inherit std handles (stdout/stderr=PIPE|DEVNULL + close_fds=True), plus a
+subprocess-door backstop for boot as defense-in-depth. Pins incl. the stdio-driver regression
+(single tools/call boot, no 2nd frame, <5s). Until fixed: boot via CLI, other MCP verbs fine.**
 
 **C7-1 · Glob `scripts/*.py` returned nothing while `**/bifrost_ui.py` matched** (2026-07-15).
 Harness tool quirk; cost one extra probe. **Routing: ACCEPTED BOUNDARY (log-only) — not Aurora
