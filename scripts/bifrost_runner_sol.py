@@ -18,12 +18,17 @@ the post-stabilization plan. NOTHING else deepseek-named rides sol's surface.
 DEFERRED HARDENING (named, not silent -- each is a follow-up slice):
   * T068-R3 preflight gate (verify claims pre-send): deepseek's implementation is itself still
     'verifying' in the ledger; sol ships without it.
-  * RB-23 bounce_promise/content_floor_check: quality-of-reply gates; the RB-29 nonanswer path
-    covers errors. Port after first live sessions show the failure shapes.
   * P3 fold_ledger_update body: ledger_update/resolved kinds are SWALLOWED correctly (never
     answered); prompt-folding of transitions lands with the hardening slice.
-  * Full continuity header (_runner_continuity_header): sol is a newborn -- boot already carries
-    DIRECTIVE + SIBLINGS; a first-class header matters from session 2 on.
+LANDED HARDENING (fence-order items 1-2, 2026-07-17 morning slice; pins in
+tests/test_t090_sol_runner.py):
+  * Continuity header (session 2+): automatic carryover through the CONVENTIONAL exit-summary
+    path (default_summary_path) -- writer and reader both default there, so continuity needs
+    zero launcher choreography. continuity_header() renders it; --inject-summary/--summary-file
+    stay as explicit overrides.
+  * RB-23 quality gates: T018 bounce_promise + content_floor_check REUSED genus-level from
+    bifrost_runner_deepseek via _rb23_gates (its MARKER_PATTERN already matches sol's marker
+    strings); core/comm/runner_lib.py extraction stays the post-stabilization plan.
 
 Run:  py scripts/bifrost_runner_sol.py --agentic --allow-write --allow-exec       # full seat
       py scripts/bifrost_runner_sol.py --agentic --once                           # smoke: one wake
@@ -189,6 +194,28 @@ def onboarding_context(root: Path, agent_id: str, task: str, budget_chars: int =
     return digest
 
 
+# ---- RB-23 quality gates (hardening slice 2; reused genus-level) -----------------------------
+
+def _rb23_gates(answer: str, resend, agent_id: str, pulse=None) -> str:
+    """T018 promise bounce + RB-23 content floor before any reply ships. Reused from
+    bifrost_runner_deepseek (the genus implementation: its MARKER_PATTERN matches sol's own
+    marker strings, its confession shape is what _process_one's answered_ok already refuses
+    to ack). Degrades OPEN with a loud print if the import ever breaks -- a missing quality
+    gate must never eat an answer."""
+    try:
+        from bifrost_runner_deepseek import bounce_promise, content_floor_check
+    except Exception as e:
+        print(f"[sol-runner] RB-23 gates unavailable ({type(e).__name__}: {e}) -- shipping ungated")
+        return answer
+    if pulse is None:
+        def pulse(agent, reason, **kw):
+            liveness.pulse_error(agent, reason, generation=PULSE_GEN[0])
+    pre = answer
+    answer = bounce_promise(answer, resend)
+    return content_floor_check(answer, resend, agent_id=agent_id,
+                               promise_bounce_fired=(answer is not pre), pulse=pulse)
+
+
 # ---- the sol responder (SolAgent + guarded ToolBox) ------------------------------------------
 
 def make_sol_replier(model: str, system: str, effort: str, verbosity: str, service_tier,
@@ -258,7 +285,10 @@ def make_sol_replier(model: str, system: str, effort: str, verbosity: str, servi
             answer = ag.send(prompt)
             _token_deltas[frm] = (ag.input_tokens - in0, ag.output_tokens - out0)
         except Exception as e:
+            # RB-23: fold the error into the pipeline (no early return) -- the floor gate
+            # gives a transient failure exactly one retry before it confesses.
             answer = f"(sol agentic runner error: {type(e).__name__}: {e})"
+        answer = _rb23_gates(answer, ag.send, agent_id)
         try:
             toolbox.release_written_locks()   # T048: task end = lock end
         except Exception:
@@ -268,18 +298,26 @@ def make_sol_replier(model: str, system: str, effort: str, verbosity: str, servi
     return respond
 
 
-def make_one_shot_replier(model: str, system: str, effort: str, verbosity: str, service_tier):
+def make_one_shot_replier(model: str, system: str, effort: str, verbosity: str, service_tier,
+                          agent_id: str = "sol"):
     """One-shot bridge: each message -> one Responses completion -> reply. Fast, toolless."""
     transport = SolTransport(model=model, effort=effort, verbosity=verbosity,
                              max_output_tokens=MAX_OUTPUT_TOKENS, service_tier=service_tier)
 
+    def _one(prompt: str) -> str:
+        text, _calls, _items = SolTransport.extract(
+            transport.respond(system, [{"role": "user", "content": prompt}]))
+        return text or "(sol produced no final answer)"
+
     def respond(prompt: str) -> str:
         try:
-            text, _calls, _items = SolTransport.extract(
-                transport.respond(system, [{"role": "user", "content": prompt}]))
-            return text or "(sol produced no final text)"
+            answer = _one(prompt)
         except Exception as e:
-            return f"(sol runner error: {type(e).__name__}: {e})"
+            answer = f"(sol runner error: {type(e).__name__}: {e})"
+        # RB-23 stateless path: the resend re-embeds the original ask (a context-free
+        # reprompt cannot possibly deliver -- deepseek runner precedent).
+        resend = lambda reprompt: _one(prompt + "\n\n[system bounce] " + reprompt)
+        return _rb23_gates(answer, resend, agent_id)
 
     return respond
 
@@ -449,16 +487,57 @@ def _process_one(m, bus, args, responder, rate) -> None:
     print(f"[sol-runner] -> {dest}: {out[:80]}")
 
 
-# ---- exit summary (M1-delta) ------------------------------------------------------------------
+# ---- exit summary + continuity (M1-delta; hardening slice 1) ----------------------------------
 
-def _write_exit_summary(path, exit_code):
+def default_summary_path(agent_id: str) -> str:
+    """The CONVENTIONAL per-agent exit-summary path. Writer (exit) and reader (next boot)
+    both default here, so session-2+ continuity needs zero launcher choreography."""
+    return os.path.join(os.path.dirname(HERE), "state", "runner",
+                        f"{agent_id}-exit-summary.json")
+
+
+def read_prior_summary(path: str) -> dict:
+    """The prior run's exit summary, or {} -- never raises, never blocks a launch."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.loads(f.read().strip() or "{}") or {}
+    except Exception:
+        return {}
+
+
+def continuity_header(prior: dict) -> str:
+    """Hardening slice 1: the session-2+ continuity header. '' for a newborn (session 1
+    already gets DIRECTIVE + SIBLINGS from boot; this carries what boot cannot know --
+    the runner's OWN last run)."""
+    if not prior:
+        return ""
+    n = int(prior.get("session", 1)) + 1
+    age = ""
+    try:
+        age_s = int(time.time() - float(prior.get("timestamp", 0)))
+        if 0 < age_s < 90 * 86400:
+            age = f", {age_s // 3600}h{(age_s % 3600) // 60:02d}m ago"
+    except Exception:
+        pass
+    err = prior.get("last_error")
+    return (f"## RUNNER CONTINUITY (session {n}; automatic)\n"
+            f"Your last run: exit={prior.get('exit_code')} turns={prior.get('turns')} "
+            f"verdict={prior.get('verdict', '?')}{age}."
+            + (f" Last error: {err}." if err else "")
+            + " If that exit was abnormal, re-verify anything it claimed before building on "
+              "it -- the ledger and notes beat your memory of the run.\n")
+
+
+def _write_exit_summary(path, exit_code, session=1):
     if not path:
         return
     try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
             json.dump({"exit_code": exit_code, "turns": _RUN_STATS["turns"],
                        "last_error": _RUN_STATS["last_error"] or None,
                        "verdict": "ok" if exit_code == 0 else "abnormal",
+                       "session": session,
                        "timestamp": time.time()}, f)
     except Exception:
         pass
@@ -466,13 +545,8 @@ def _write_exit_summary(path, exit_code):
 
 # ---- main ---------------------------------------------------------------------------------------
 
-def main() -> int:
-    try:
-        from core.foundation.streams import self_bless_stdout   # RB-28: utf-8 + line-buffered
-        self_bless_stdout()
-    except Exception:
-        pass
-
+def build_parser() -> argparse.ArgumentParser:
+    """Extracted from main() so offline pins can construct/parse args without launching."""
     ap = argparse.ArgumentParser(description="Run Sol (gpt-5.6-sol) as a Bifrost citizen.")
     ap.add_argument("--agent", default="sol")
     ap.add_argument("--model", default=DEFAULT_MODEL)
@@ -491,9 +565,26 @@ def main() -> int:
     ap.add_argument("--allow-exec", action="store_true",
                     help="run_command door (families-only under trust; see security/acl.json)")
     ap.add_argument("--once", action="store_true", help="process one wake then exit (smoke)")
-    ap.add_argument("--summary-file", default=None, dest="summary_file")
-    ap.add_argument("--inject-summary", default=None, dest="inject_summary")
-    args = ap.parse_args()
+    ap.add_argument("--summary-file", default=None, dest="summary_file",
+                    help="exit-summary json (default: state/runner/<agent>-exit-summary.json)")
+    ap.add_argument("--inject-summary", default=None, dest="inject_summary",
+                    help="prior-run summary to fold (default: the conventional path if present)")
+    return ap
+
+
+def main() -> int:
+    try:
+        from core.foundation.streams import self_bless_stdout   # RB-28: utf-8 + line-buffered
+        self_bless_stdout()
+    except Exception:
+        pass
+
+    args = build_parser().parse_args()
+    # Hardening slice 1: continuity is AUTOMATIC -- explicit flags stay as overrides.
+    if args.summary_file is None:
+        args.summary_file = default_summary_path(args.agent)
+    prior = read_prior_summary(args.inject_summary or default_summary_path(args.agent))
+    session_n = int(prior.get("session", 1)) + 1 if prior else 1
 
     if not load_key():
         print("bifrost_runner_sol: NO_KEY (set OPENAI_API_KEY or .secrets/openai.key)")
@@ -538,20 +629,16 @@ def main() -> int:
     except Exception:
         journal = None
 
+    # Hardening slice 1: session-2+ continuity header rides BOTH replier modes.
+    header = continuity_header(prior)
+    base_system = (header + "\n" + args.system) if header else args.system
+    if header:
+        print(f"[sol-runner] continuity: session {session_n} "
+              f"(prior exit={prior.get('exit_code')}, turns={prior.get('turns')})")
+
     if args.agentic:
         root = Path(args.root).resolve()
-        system = args.system
-        # M1-delta: prior run summary injection
-        if getattr(args, "inject_summary", None):
-            try:
-                with open(args.inject_summary, encoding="utf-8") as _sf:
-                    prior = json.loads(_sf.read().strip() or "{}") or {}
-                if prior:
-                    system = (f"## YOUR LAST RUN: exit={prior.get('exit_code')} "
-                              f"turns={prior.get('turns')} last_error={prior.get('last_error')}\n\n"
-                              + system)
-            except Exception:
-                pass
+        system = base_system
         import deepseek_chat as dc   # [shared-seam] tool count for the boot transport line only
         door_detail = (f"{len(dc.TOOLS)} tools, write={'on' if args.allow_write else 'off'}, "
                        f"exec={'on' if args.allow_exec else 'off'}")
@@ -575,8 +662,9 @@ def main() -> int:
         mode = (f"agentic tools @ {root}{' +write' if args.allow_write else ''}"
                 f"{' +exec' if args.allow_exec else ''}")
     else:
-        responder = make_one_shot_replier(args.model, args.system, args.effort,
-                                          args.verbosity, args.service_tier)
+        responder = make_one_shot_replier(args.model, base_system, args.effort,
+                                          args.verbosity, args.service_tier,
+                                          agent_id=args.agent)
         mode = "one-shot bridge"
 
     if os.environ.get("AKASHIC_DRILL_ECHO"):
@@ -698,7 +786,7 @@ def main() -> int:
     finally:
         stop_hb.set()
         runner_lock.release(args.agent, lock_token)
-        _write_exit_summary(args.summary_file, exit_code)
+        _write_exit_summary(args.summary_file, exit_code, session=session_n)
 
     print("[sol-runner] stopped.")
     return exit_code
