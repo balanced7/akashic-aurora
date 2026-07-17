@@ -1,9 +1,11 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 79 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 81 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
+- four-voice-directive: DANIEL DIRECTIVE 2026-07-16 night verbatim: 'How can we optimize the value of having 3 agents concurrently. This will be token expensive but I am...  (source: mem:decision:ADR_0716210953_8709bff8)
+- scratch:deepseek-review:deepseek-review first session working state: First session as the fleet's review seat (2026-07-16 evening). Delivered: multiagent-foresight...  (source: mem:decision:ADR_0716205110_110a8330)
 - multiagent-foresight-directive: DANIEL DIRECTIVE 2026-07-16 evening verbatim: 'are there any gaps in our solutions? soon we are going to be doing multi agent runs so we...  (source: mem:decision:ADR_0716204454_90361cd7)
 - agent-identity-directive: DANIEL DIRECTIVE 2026-07-16 evening verbatim: 'I am wondering if we have solved our agent naming issues to prevent two new agents that spawned...  (source: mem:decision:ADR_0716202852_b9b04cf6)
 - fleet-lattice-vision: DANIEL DIRECTIVE 2026-07-16 evening verbatim (write-set approval + fleet vision): 'I'd say yes, this way we get to capture more information and...  (source: mem:decision:ADR_0716202443_a2d0edf0)
@@ -118,7 +120,3 @@ Status: blind-design (2026-07-11, fenced — written BEFORE reading...  (source:
 - vision-models-local-screen-understanding-2026-07: # Vision Models for Local Screen Understanding — Research (2026-07-06)
 
 DeepSeek's analysis, prompted by Daniel's idea...  (source: mem:decision:ADR_0705210901_8008)
-- competitive positioning: policy-swappable coordination control plane: Web-model landscape analysis relayed 2026-07-04 (updates competitive-landscape-2026-07). VERDICT...  (source: mem:decision:ADR_0704152438_8163)
-- modern-doom-idtech-primitives-for-bifrost-ui: # Modern Doom Engine Primitives for Bifrost UI (id Tech 6/7, Doom 2016/Eternal)
-
-This supersedes the earlier "classic Doom"...  (source: mem:decision:ADR_0704145239_1170)
