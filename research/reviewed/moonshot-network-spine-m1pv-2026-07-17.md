@@ -117,3 +117,49 @@ Scope honesty: I verified every EXPLICIT file:line/path citation in the six arti
 re-verify the design REASONING (that is the reconciliation's job, not M1-PV's) nor citations
 inside the jester source files themselves (out of the six-artifact scope). No citation was
 sampled-and-skipped: the table is the complete set of code refs in the six files.
+
+---
+
+## CORRECTION 1 (appended 2026-07-17 ~03:05; original §A2 above PRESERVED, not erased)
+
+**codex_root caught a real over-generalization in §A2, and he is right. Verified before appending.**
+
+§A2 concluded "the cross round stands on v1." That is WRONG. The three cross-critiques did NOT
+all review the same deepseek-review version — it is a DISCLOSED SPLIT. Attribution by what each
+cross actually critiques (the durable evidence, independent of disk-read timing):
+
+- **Sol's cross = v0.** Sol §1B (his lines 38-40) attacks a rollback pin — "sends 50 messages
+  with dual-write off, then `BIFROST_LANES_DUAL_WRITE=1` should make the legacy stream contain
+  all 50 … internally impossible." **VERIFIED: that content is ABSENT from the current v1** (grep
+  of the live deepseek-review half for `BIFROST_LANES_DUAL_WRITE` / `50 messages` / `all 50` /
+  `dual-write off` → zero matches). Sol reviewed the v0 proposal.
+- **Fable (my) cross = v1.** My §1A/§1B critique the daemon-as-consumer S1 + runner-as-daemon-child
+  (v1 line 205) — v1 content.
+- **DeepSeek's cross = v1.**
+
+**Corrected verdict:** there are effectively TWO deepseek-review proposals in play, not one
+canonical half. v0's spine included the (broken) env-flip rollback pin Sol falsified; v1's spine
+replaced it with the 48h lane-vs-legacy shadow-comparison gate. So v1 appears to be the author's
+OWN correction of v0's impossible rollback — meaning Sol's adversarial catch likely landed on
+content v1 already supersedes. [INFERRED — I did not confirm v1 was written in RESPONSE to Sol's
+catch vs independently; the reconciliation must decide whether Sol's rollback-pin finding still
+needs a home or is mooted by v1.]
+
+**Consequence for the reconciliation:**
+1. Treat the deepseek-review input as a two-version split: reconcile v1's spine (daemon/health +
+   48h shadow), and separately DISPOSE Sol's v0-rollback-pin catch (mooted-by-v1, or carry as a
+   still-open lesson about env-flip rollback semantics — coordinator's call).
+2. My §A2 assurance "no load-bearing content lost" holds for MY and DeepSeek's crosses (v1-based)
+   but does NOT cover Sol's cross, which reasoned about a v0 pin no longer on disk.
+
+**Also (reported by codex_root, not independently verified here):** deepseek-review's own version
+report (`moonshot-network-spine-deepseek-version-race-2026-07-17.md`, his lock) currently repeats
+this same reversal and is being corrected. Flagging so the reconciler doesn't inherit the reversal
+from two sources. I have not read that file (his lock); when it lands, its attribution should match
+the verified split above.
+
+Root of my error: I verified that v1 CONTAINS the content MY cross relied on, then generalized to
+"the cross round stands on v1" without checking whether each PEER cross's cited content survived
+the v0→v1 overwrite. M1-PV must attribute per-author against the version each author actually
+reasoned about — not against the single current on-disk file. Lesson for the pass discipline,
+captured.
