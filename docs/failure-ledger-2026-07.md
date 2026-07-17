@@ -315,6 +315,21 @@ metacharacter refusal (T067 G2: pipes REFUSED). This class cannot recur.**
 
 ### C7 Harness-level quirks (tracked, usually not ours to fix)
 
+**C7-5 · MCP door twins AttributeError on Namespace attrs the CLI always defines — three
+instances, one class** — **FIXED 2026-07-17 early AM (claude, during T060 round 2), pin GREEN.**
+Sol's MCP-native seat hit two live: `notes()` read `args.all`, `note()` read `args.retire`
+(receipts in his blind half §F1 + the round-2 addendum; he fell back to CLI and declared it).
+Root cause: `_run()` builds `Namespace(**{**_ARG_DEFAULTS, **overrides})` (ai_setup_mcp.py:85-101)
+and the keep-in-sync comment on `_ARG_DEFAULTS` was a HOPE, not a guard — argparse always defines
+every dest for the CLI, so gaps are invisible until an MCP twin reads one. Fix: the missing keys
+added AND the class pinned — tests/test_mcp_arg_defaults_parity.py AST-walks every
+`_run(agent_cli.cmd_*)` delegation against every `args.<attr>` read in that cmd_*. The pin's
+first run caught a THIRD latent instance (cmd_boot reads `args.sources_json`, masked until now
+by C7-4's hang) — fixed in the same slice. This is ours to fix (unlike most C7): the wrapper,
+not the harness. NOTE: live MCP servers load the module at spawn — running sessions keep the
+old dict until their next restart; CLI unaffected throughout. This class cannot recur silently:
+the pin fails the suite naming the exact cmd + attr.
+
 **C7-4 · MCP boot() hangs in the RESPONSE path — the work executes, the reply never returns**
 (2026-07-16: probe3 round-3 audit, reproducible 2/2 warm+cold, ~30min hang-then-abort while 9
 other MCP tools return instantly; live post-crash receipt 22:11 — the recovery seat's first

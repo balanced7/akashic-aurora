@@ -74,6 +74,15 @@ _ARG_DEFAULTS = dict(
     # note / notes / locks (membrane slice 1b: MCP twins for shell-less agents)
     title=None, context="", supersedes=None, session="", project=False, path=None, ttl=None,
     name="", reason="",
+    # T083 C7-1 (sol day-one receipt): cmd_notes reads args.all, cmd_note reads args.retire --
+    # both were missing here, so the MCP twins raised AttributeError while CLI worked.
+    # Keep-in-sync rule is now PINNED: tests/test_mcp_arg_defaults_parity.py walks every
+    # cmd_* attribute read against this dict.
+    all=False, retire=None,
+    # ...and the pin's first catch, minutes after it was written: cmd_boot reads
+    # args.sources_json (T081-W6 sidecar flag) -- a THIRD latent MCP-twin AttributeError,
+    # masked until now by C7-4 (boot's response never returned for other reasons).
+    sources_json=None,
 )
 
 
