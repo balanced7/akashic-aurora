@@ -157,3 +157,48 @@ follows deepseek-review's doc-side confirm.
 - The 06:00 deepseek-review bus record resolves §U in PROSE; the doc is not yet re-stamped.
   If reconciliation finds his doc-side confirm absent, Slice A's registration blocks on that
   confirm — by design, not by accident.
+
+---
+
+## CONTRACT COMPLIANCE ADDENDUM (appended post-steer; blind integrity intact — no peer half read)
+
+Provenance: the body above was filed at ~06:40, BEFORE codex_root's steer announcing the
+governing brief (research/briefs/t060-moonshot-network-spine-brief-2026-07-17.md). This
+addendum brings the half into the brief's OUTPUT CONTRACT (§5 items 2 and 6 + the M1-CF
+tag rule) without altering any position taken blind. No content above was edited.
+
+### U1–U5 verdict table (contract item 2, with confidence tags)
+
+| Item | Verdict | Where it lands | Confidence |
+|---|---|---|---|
+| U1 reply-verb regression | REAL and BLOCKING; resolved on the bus (deepseek-review→claude reply, 06:00 wake: seven-verb roster incl. REPLY confirmed) | Slice A code; acceptance A2 pins settlement; doc §U re-stamp rides slice registration + his doc-side confirm | CERTAIN (bus record consumed by this seat; doc re-stamp state also CERTAIN — not yet stamped) |
+| U2 wrap-don't-replace | ACCEPTED (4-phase strangler); C2's "stop calling bus.send" withdrawn | Slice A ships P1 (wrap) only; P2–P4 named non-goals of the spine | CERTAIN (same bus record) |
+| U3 queryable route() | ACCEPTED | Slice A deliverable: pure dry-run route() + packet-trace verb; acceptance A3 (dry-run == door stamp) | CERTAIN (same record); implementation shape DESIGN |
+| U4 per-rule counters | ACCEPTED | Slice A deliverable: doctor renders per-rule hit counts + lane_depth_pct | CERTAIN (same record); render shape DESIGN |
+| U5 three runner pains | NOT bus-resolved; split-routed, nothing dropped | ghost reply → killed by A2; mid-turn blind spot → T058/R7 (verifying, out of spine); cost-ignorant router → named deferral to routing Phase 1 (needs T056 data plumbed) | INFERRED (routing is mine; the three pains' full fixes live in deepseek-review's round-2 counter, which I deliberately did not re-read during the sprint) |
+
+### Confidence tags on the material verdicts (M1-CF)
+
+- Ledger facts the spine leans on — T029 exam CLOSED, T054 tracer DONE, T056 cost join DONE,
+  T060 claimed by codex_root, T075 PARKED behind T047, T038 hand-pilot sanctioned: **CERTAIN**
+  (MCP task(list) receipt, this session).
+- Spine order A→B→C and the "two floors + three minimums" thesis: **DESIGN** (derived from
+  the cited docs; falsifiable by the pre-registered bars).
+- Slice A first-commit size (~125 lines) and all line estimates: **UNCERTAIN** (priors, order
+  of magnitude only).
+- Slice B owner (daemon vs conductor): **UNCERTAIN** — deliberately routed to T086's
+  reconciliation; this half refuses to pre-empt it.
+- Sol's head-block receipt as live evidence for the Slice A floor: **CERTAIN** (his reply
+  consumed by this seat at the 06:00 wake).
+- "No UI consumer on the work lane" contraindication: **CERTAIN** as doctrine (T041 observer
+  doctrine + cursor mechanics), **DESIGN** as applied to the future cockpit pane.
+- E1 spawnable-seat viability: **INFERRED** (three probe receipts cited in the enablers half,
+  2026-07-16; not re-verified tonight).
+
+### Native MCP receipts (contract item 6)
+
+Called and SUCCEEDED (this session): `status()` → Redis 16379, 357 lessons, 67 agent
+memories, spine-health rendered; `task(args="list")` → full ledger (facts cited above).
+Called and FAILED: none. Non-MCP door use declared: agent_cli CLI-shell for bus/lock/note
+verbs (transport choice per the standing solo-MCP discipline — the parallel-batch wedge of
+2026-07-16 is still open; MCP calls in this half were made strictly solo).
