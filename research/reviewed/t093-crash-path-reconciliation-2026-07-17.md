@@ -410,6 +410,13 @@ infrastructure safety, not an exemption from proving the daemon's signal cascade
 31. if both worker and supervisor disappear naturally before a long deadline, the watchdog's
     honest terminal uncertainty sets `deadline_enforced=false`; absence of a force call and kill
     receipt can never be reported as successful deadline enforcement.
+32. a root that exits while a long-lived retained descendant remains does not disable the hard
+    deadline. The watchdog derives liveness from complete Job Object membership, terminates that
+    owned set at the deadline, and proves `remaining_pids=[]` even though the original child PID is
+    already dead.
+33. a child-owned `primary_effect=pushed` receipt proves the irreversible effect, not whole-job
+    quiescence. Fresh public status remains nonterminal while that worker or any retained
+    descendant can still mutate; only quiescence promotes the pushed candidate to `succeeded`.
 
 All receipts 1-26 remain mandatory. A self-hosted full-suite run is not acceptable evidence until
 receipt 30 is green; the 2026-07-18 run stopped exactly as the unsafe T086 signal test began and

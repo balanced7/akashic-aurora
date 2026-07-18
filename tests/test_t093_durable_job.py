@@ -625,6 +625,45 @@ def test_deadline_kills_grandchild_after_intermediate_parent_exits(tmp_path):
             run_job._win_terminate_exact(grandchild_pid, grandchild_identity)
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Win32 retained workload deadline")
+def test_deadline_kills_retained_descendant_after_root_exits(tmp_path):
+    job_id = _job_id("dead-root-retained-workload")
+    grandchild_pid_path = tmp_path / "grandchild.pid"
+    grandchild_code = "import time; time.sleep(60)"
+    root_code = (
+        "import pathlib,subprocess,sys; "
+        "p=subprocess.Popen([sys.executable,'-c',sys.argv[2]],"
+        "stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); "
+        "pathlib.Path(sys.argv[1]).write_text(str(p.pid),encoding='utf-8')"
+    )
+    _launch(
+        tmp_path,
+        job_id,
+        [sys.executable, "-c", root_code, str(grandchild_pid_path), grandchild_code],
+        max_runtime=0.8,
+        grace=0.1,
+        heartbeat=0.03,
+    )
+
+    deadline = time.monotonic() + 3
+    while not grandchild_pid_path.exists() and time.monotonic() < deadline:
+        time.sleep(0.02)
+    assert grandchild_pid_path.exists()
+    grandchild_pid = int(grandchild_pid_path.read_text(encoding="utf-8"))
+    grandchild_identity = run_job._process_info(grandchild_pid)[1]
+    assert grandchild_identity
+
+    try:
+        final = _wait_terminal(tmp_path, job_id, timeout=4)
+        assert final["state"] == "deadline_exceeded"
+        assert final["deadline_enforced"] is True
+        assert final["kill_receipt"]["remaining_pids"] == []
+        assert not run_job._matches_identity(grandchild_pid, grandchild_identity)
+    finally:
+        if run_job._matches_identity(grandchild_pid, grandchild_identity):
+            run_job._win_terminate_exact(grandchild_pid, grandchild_identity)
+
+
 @pytest.mark.skipif(sys.platform != "win32", reason="Win32 independent Job Object ownership")
 def test_watchdog_death_does_not_collapse_healthy_owned_job(tmp_path):
     job_id = _job_id("watchdog-handle-loss")
@@ -1072,6 +1111,78 @@ with run_job.publish_fence(fence, blocking=True):
     assert final["primary_effect"] == "pushed"
     assert final["forced"] is False
     assert final["cancel_disposition"] == "after_publish_commit_point"
+
+
+def test_pushed_outcome_is_not_terminal_until_job_quiescent(tmp_path):
+    job_id = _job_id("pushed-candidate")
+    entered = tmp_path / "pushed.entered"
+    release = tmp_path / "pushed.release"
+    effect = tmp_path / "after-push.effect"
+    code = r"""
+import os, pathlib, time
+from scripts import run_job
+outcome = pathlib.Path(os.environ['AKASHIC_JOB_OUTCOME_FILE'])
+entered = pathlib.Path(os.environ['AKASHIC_T093_ENTERED_MARKER'])
+release = pathlib.Path(os.environ['AKASHIC_T093_RELEASE_MARKER'])
+effect = pathlib.Path(os.environ['AKASHIC_T093_EFFECT_MARKER'])
+run_job.write_child_outcome(outcome, {
+    'state': 'succeeded', 'primary_effect': 'pushed',
+    'commit_sha': 'candidate-only', 'branch': 'test',
+})
+entered.write_text('pushed', encoding='utf-8')
+deadline = time.monotonic() + 5
+while not release.exists() and time.monotonic() < deadline:
+    time.sleep(.01)
+effect.write_text('post-push-work', encoding='utf-8')
+"""
+    old_values = {
+        key: os.environ.get(key)
+        for key in (
+            "AKASHIC_T093_ENTERED_MARKER",
+            "AKASHIC_T093_RELEASE_MARKER",
+            "AKASHIC_T093_EFFECT_MARKER",
+        )
+    }
+    os.environ["AKASHIC_T093_ENTERED_MARKER"] = str(entered)
+    os.environ["AKASHIC_T093_RELEASE_MARKER"] = str(release)
+    os.environ["AKASHIC_T093_EFFECT_MARKER"] = str(effect)
+    final = {}
+    try:
+        _launch(
+            tmp_path,
+            job_id,
+            [sys.executable, "-u", "-c", code],
+            max_runtime=8,
+            heartbeat=0.03,
+        )
+        deadline = time.monotonic() + 3
+        while not entered.exists() and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert entered.exists()
+        observed = _status(tmp_path, job_id)
+        assert observed["child_alive"] is True
+        assert observed["state"] not in TERMINAL, (
+            "the pushed effect is authoritative, but live post-push work is not terminal"
+        )
+        assert observed["primary_effect"] == "pushed"
+        release.write_text("continue", encoding="utf-8")
+        final = _wait_terminal(tmp_path, job_id, timeout=4)
+    finally:
+        if entered.exists() and not release.exists():
+            release.write_text("cleanup", encoding="utf-8")
+        if entered.exists() and not final:
+            try:
+                final = _wait_terminal(tmp_path, job_id, timeout=6)
+            except AssertionError:
+                pass
+        for key, old in old_values.items():
+            if old is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = old
+    assert effect.read_text(encoding="utf-8") == "post-push-work"
+    assert final["state"] == "succeeded"
+    assert final["job_quiescent"] is True
 
 
 def test_abandoned_publish_active_is_outcome_unknown(tmp_path):
