@@ -1,9 +1,11 @@
 # Recall-heuristics reconciliation — heuristics that grow (2026-07-17)
 
-Status: **DRAFT-RECONCILED** — folded from all filed rounds; pending (1) codex_root +
-deepseek acks/objections to the three C-rulings (window open), (2) deepseek-review
-gate, (3) DANIEL APPROVAL. Nothing here builds until (3). T094 (proposed) is the
-ledger anchor; first build wave on approval = R0+R1 only.
+Status: **RECONCILED — REVIEW GATE PASSED (SHIP), PARKED AT DANIEL'S GATE.**
+deepseek acks R-1/R-2/R-3 in (no dissent); codex window closed with the seat (G6);
+deepseek-review verdict 2026-07-18: SOUND/SHIP with three blind spots, folded in
+sec 7 (research/reviewed/deepseek-review-recall-reconciliation-2026-07-17.md).
+Nothing here builds until Daniel rules on G1-G7. T094 (proposed) is the ledger
+anchor; first build wave on approval = R0+R1 only.
 
 Charter: research/recall-heuristics-fence-brief-2026-07-17.md (Daniel directive
 verbatim). Halves and rounds, in filing order:
@@ -228,6 +230,25 @@ completeness gate (adjudicated 2026-07-17).
   (deepseek-comms-mailbox-2026-07-17.md + claude's assessment to Daniel; candidate
   T095), which this record cites but does not rule.
 
+## 6a. REVIEW GATE RESULT (deepseek-review, 2026-07-18 — folded)
+
+Verdict: SOUND, SHIP. Faithfulness confirmed (no divergence laundered; C11 noted as
+codex-led-with-assent, covered by the epistemics header); every R-ruling judged
+reasoned with winner/loser/mechanism preserved; all acceptance pins falsifiable with
+ONE sharpening adopted (R1's "label_coverage visibly grows" becomes ">=5 percentage
+points in the first 4 weeks" when R1 registers its pins); epistemics header honest.
+
+Three blind spots found, each with its mitigation ROUTED (none blocks the gate):
+- **BS1 operator learning curve** → R1 acceptance surface: every floor/rule proposal
+  ships with a plain-English consequence summary (what it changes, at what cost, at
+  what confidence) beside the receipts.
+- **BS2 empty-corpus cold start** → R1 gains a one-time SEED-DATA task: mine the
+  existing fence corpus (~40 research/reviewed docs with explicit ADOPTED/WITHDRAWN/
+  CONCEDES outcome language, position-separated so NOT bundle-confounded) into
+  ~100-200 labeled decisions, cutting the adaptation freeze from ~12 weeks to ~4.
+- **BS3 single-operator bus factor** → NEW GATE ITEM G7 below (delegation is
+  Daniel's call, not a slice change).
+
 ## 6. OPEN FOR DANIEL (the approval gate)
 
 - **G1** Approve this reconciliation as T094's governing record; activate T094 with
@@ -242,6 +263,11 @@ completeness gate (adjudicated 2026-07-17).
 - **G4** Confirm the R-4 deprioritized/benched split semantics.
 - **G5** Note the frontier-doc amendment (five numeric claims demoted to unverified
   synthesis) — no gate rests on them.
+- **G7** (from review BS3) Operator-absence delegation: OPTIONALLY pre-authorize
+  auto-promotion of NON-safety rules while you're away when the replay receipt shows
+  zero golden-case regressions and the preregistered confidence bar — revocable,
+  time-boxed, itself a ledger event. Decline and promotions simply queue for your
+  return (the honest default).
 - **G6** Dissent rights: any seat may appeal any sec-2 ruling at this gate.
   Ack ledger: deepseek ACKED R-1/R-2/R-3 with no dissent (bus, 2026-07-17 ~23:20;
   his note on R-2: "my auto-apply was premature; codex's '<10% is not a safety
