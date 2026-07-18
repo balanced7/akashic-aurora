@@ -5,7 +5,7 @@ completion check comes from a fresh ``run_job.py status`` process reading an ato
 from the supervised child's stdout pipe.  Durations stay small; the production deadline is a dial.
 
 Governing build spec:
-research/reviewed/t093-crash-path-reconciliation-2026-07-17.md section 7.
+research/reviewed/t093-crash-path-reconciliation-2026-07-17.md sections 7-9.
 """
 from __future__ import annotations
 
@@ -348,6 +348,194 @@ def test_job_membership_reader_retries_successful_partial_buffer(monkeypatch):
     members = run_job._win_job_members(object())
     assert query.calls == 2, "successful-but-partial membership must grow and retry"
     assert members == list(range(10_000, 10_020))
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Win32 exact-handle assignment identity")
+def test_job_assignment_validates_identity_on_the_assigned_handle(monkeypatch):
+    class FakeCall:
+        def __init__(self, result):
+            self.result = result
+            self.calls = []
+            self.argtypes = None
+            self.restype = None
+
+        def __call__(self, *args):
+            self.calls.append(args)
+            return self.result
+
+    open_process = FakeCall(0xCAFE)
+    assign = FakeCall(1)
+    close = FakeCall(1)
+
+    class FakeKernel32:
+        OpenProcess = open_process
+        AssignProcessToJobObject = assign
+        CloseHandle = close
+
+    monkeypatch.setattr(run_job.ctypes, "WinDLL", lambda *_args, **_kwargs: FakeKernel32())
+    monkeypatch.setattr(run_job, "_matches_identity", lambda *_args: True)
+    monkeypatch.setattr(run_job, "_win_process_in_job", lambda *_args: False)
+    monkeypatch.setattr(
+        run_job,
+        "_win_process_info_from_handle",
+        lambda _handle: (True, "replacement-process"),
+        raising=False,
+    )
+
+    receipt = run_job._win_assign_exact_to_job(object(), 4242, "expected-process")
+
+    assert receipt["assigned"] is False
+    assert receipt["identity_match"] is False
+    assert receipt["reason"] == "pid_creation_identity_mismatch"
+    assert assign.calls == [], "a replacement process handle must never be assigned"
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Win32 exact-handle termination identity")
+def test_termination_validates_identity_on_the_terminated_handle(monkeypatch):
+    class FakeCall:
+        def __init__(self, result):
+            self.result = result
+            self.calls = []
+            self.argtypes = None
+            self.restype = None
+
+        def __call__(self, *args):
+            self.calls.append(args)
+            return self.result
+
+    open_process = FakeCall(0xBEEF)
+    terminate = FakeCall(1)
+    wait = FakeCall(0)
+    close = FakeCall(1)
+
+    class FakeKernel32:
+        OpenProcess = open_process
+        TerminateProcess = terminate
+        WaitForSingleObject = wait
+        CloseHandle = close
+
+    monkeypatch.setattr(run_job.ctypes, "WinDLL", lambda *_args, **_kwargs: FakeKernel32())
+    monkeypatch.setattr(run_job, "_win_process_info", lambda _pid: (True, "expected-process"))
+    monkeypatch.setattr(
+        run_job,
+        "_win_process_info_from_handle",
+        lambda _handle: (True, "replacement-process"),
+        raising=False,
+    )
+
+    receipt = run_job._win_terminate_exact(4242, "expected-process")
+
+    assert receipt["terminated"] is False
+    assert receipt["identity_match"] is False
+    assert receipt["reason"] == "pid_creation_identity_mismatch"
+    assert terminate.calls == [], "a replacement process handle must never be terminated"
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Win32 terminal Job Object quiescence")
+def test_terminal_receipt_waits_for_retained_workload_quiescence(tmp_path):
+    job_id = _job_id("terminal-quiescence")
+    root_ready = tmp_path / "root.ready"
+    release_root = tmp_path / "root.release"
+    grandchild_pid_path = tmp_path / "grandchild.pid"
+    terminal_seen = tmp_path / "terminal.seen"
+    effect = tmp_path / "post-terminal.effect"
+    grandchild_code = (
+        "import pathlib,sys,time; "
+        "terminal=pathlib.Path(sys.argv[1]); effect=pathlib.Path(sys.argv[2]); "
+        "deadline=time.monotonic()+2.5; "
+        "\nwhile not terminal.exists() and time.monotonic()<deadline: time.sleep(.005)"
+        "\nif terminal.exists(): effect.write_text('post-terminal',encoding='utf-8')"
+    )
+    root_code = (
+        "import pathlib,subprocess,sys,time; "
+        "p=subprocess.Popen([sys.executable,'-c',sys.argv[5],sys.argv[3],sys.argv[4]],"
+        "stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); "
+        "pathlib.Path(sys.argv[2]).write_text(str(p.pid),encoding='utf-8'); "
+        "pathlib.Path(sys.argv[1]).write_text('ready',encoding='utf-8'); "
+        "deadline=time.monotonic()+8; release=pathlib.Path(sys.argv[6]); "
+        "\nwhile not release.exists() and time.monotonic()<deadline: time.sleep(.005)"
+    )
+    _launch(
+        tmp_path,
+        job_id,
+        [
+            sys.executable, "-c", root_code, str(root_ready), str(grandchild_pid_path),
+            str(terminal_seen), str(effect), grandchild_code, str(release_root),
+        ],
+        max_runtime=8,
+        grace=0.1,
+        heartbeat=1.0,
+    )
+    _wait_running(tmp_path, job_id)
+    deadline = time.monotonic() + 4
+    while (
+        (not root_ready.exists() or not grandchild_pid_path.exists())
+        and time.monotonic() < deadline
+    ):
+        time.sleep(0.01)
+    assert root_ready.exists() and grandchild_pid_path.exists()
+    grandchild_pid = int(grandchild_pid_path.read_text(encoding="utf-8"))
+    grandchild_identity = run_job._process_info(grandchild_pid)[1]
+    assert grandchild_identity
+
+    try:
+        watchdog_path = run_job._paths(tmp_path, job_id)["watchdog"]
+        first_sequence = None
+        deadline = time.monotonic() + 4
+        while time.monotonic() < deadline:
+            watchdog = run_job._read_json(watchdog_path)
+            if watchdog.get("phase") == "watching_worker":
+                sequence = int(watchdog.get("sequence", 0))
+                if first_sequence is None:
+                    first_sequence = sequence
+                elif sequence > first_sequence:
+                    break
+            time.sleep(0.01)
+        else:
+            pytest.fail("watchdog never exposed a fresh watching_worker sleep boundary")
+
+        release_root.write_text("release", encoding="utf-8")
+        final = _wait_terminal(tmp_path, job_id, timeout=6)
+        alive_at_terminal = run_job._matches_identity(grandchild_pid, grandchild_identity)
+        terminal_seen.write_text("observed", encoding="utf-8")
+        effect_deadline = time.monotonic() + 0.5
+        while not effect.exists() and time.monotonic() < effect_deadline:
+            time.sleep(0.01)
+
+        assert alive_at_terminal is False, (
+            f"terminal {final.get('state')} was exposed with retained workload still alive"
+        )
+        assert effect.exists() is False, "a retained descendant mutated state after terminal"
+        assert final.get("job_quiescent") is True
+        assert final.get("workload_member_pids_remaining") == []
+    finally:
+        if run_job._matches_identity(grandchild_pid, grandchild_identity):
+            run_job._win_terminate_exact(grandchild_pid, grandchild_identity)
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Win32 honest deadline attribution")
+def test_natural_guard_loss_does_not_claim_deadline_enforcement(tmp_path):
+    job_id = _job_id("natural-guard-loss")
+    _launch(
+        tmp_path,
+        job_id,
+        [sys.executable, "-c", "import time; time.sleep(.35)"],
+        max_runtime=30,
+        grace=0.1,
+        heartbeat=0.05,
+    )
+    running = _wait_running(tmp_path, job_id)
+    supervisor_pid = int(running["supervisor_pid"])
+    supervisor_identity = str(running["supervisor_identity"])
+    killed = run_job._win_terminate_exact(supervisor_pid, supervisor_identity)
+    assert killed["terminated"] is True
+
+    final = _wait_terminal(tmp_path, job_id, timeout=4)
+    assert final["state"] == "outcome_unknown"
+    assert final["termination_cause"] == "worker_gone_after_supervisor_loss"
+    assert final.get("forced") in {None, False}
+    assert not final.get("kill_receipt")
+    assert final["deadline_enforced"] is False
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Win32 dead-root tree evidence")

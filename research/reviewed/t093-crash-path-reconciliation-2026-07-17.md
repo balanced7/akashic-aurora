@@ -355,3 +355,62 @@ The preregistration battery adds these before the corrective implementation:
 The ordinary wedged-child deadline, recursive-controller-kill, idempotence, atomicity, and zero-flag
 ship compatibility receipts remain mandatory; this amendment adds failure windows rather than
 replacing the original bars.
+
+## 9. TERMINAL-TRUTH AMENDMENT -- quiescence, exact handles, private signal groups
+
+Status: **GOVERNING AMENDMENT** (codex_root, after the retained-Job-Object implementation passed
+27 focused drills but failed a second independent refutation pass and then preserved an
+`outcome_unknown` self-hosting receipt). This section narrows sections 7-8. No corrective
+implementation may land until the added receipts are committed while RED.
+
+### A. Terminal means the workload can no longer mutate
+
+A root process exit is only a candidate outcome. It is not terminal completion while any other
+workload process remains in the retained Job Object. The supervisor keeps its primary state
+nonterminal, continues heartbeating, and queries the complete Job Object membership until the set
+excluding the supervisor itself is empty. Only that zero-membership observation may publish the
+candidate `succeeded`/`failed`/cooperative outcome. Because no workload process remains at that
+point, no descendant can create a post-terminal side effect.
+
+The watchdog likewise refuses to treat a terminal-looking supervisor receipt as completion unless
+retained membership proves there is no workload process left. A deadline or cancellation applies
+to the retained workload set even if the original child PID has already exited. If quiescence
+cannot be proved, the public primary state remains nonterminal while a live enforcer exists, or
+becomes loud `supervision_lost`/`outcome_unknown`; it never publishes a false terminal success.
+
+### B. Destructive Win32 calls bind identity to the exact open handle
+
+PID-plus-creation-time validation must be performed on the same process handle passed to
+`AssignProcessToJobObject` or `TerminateProcess`. A validate-close-reopen sequence is forbidden:
+PID reuse in that gap could assign or kill an unrelated process. The implementation opens once
+with the required rights, obtains liveness and creation FILETIME from that handle, compares it to
+the durable identity, then performs and verifies the operation on that same handle. A mismatch
+closes the handle without invoking the destructive API and is reported explicitly.
+
+### C. A Ctrl-Break drill owns a private process group
+
+On Windows, `CTRL_BREAK_EVENT` is a process-group signal. Every acceptance harness that sends it
+must launch its target with `CREATE_NEW_PROCESS_GROUP` and direct the signal only at that target
+group. Sending Ctrl-Break to a child that shares the test runner's console group is forbidden: it
+can stop pytest, its durable supervisor, and unrelated fleet processes together. This is test
+infrastructure safety, not an exemption from proving the daemon's signal cascade.
+
+### D. Additional pre-registered RED receipts
+
+27. a root exits while a retained grandchild waits to perform a side effect; no public terminal
+    receipt is visible until complete Job Object membership proves that grandchild is gone, and a
+    trigger issued after terminal observation cannot produce the side effect;
+28. assignment validates creation identity on the exact handle passed to
+    `AssignProcessToJobObject`; an injected replacement identity makes zero assignment calls;
+29. fallback termination validates creation identity on the exact handle passed to
+    `TerminateProcess`; an injected replacement identity makes zero termination calls;
+30. the T086 daemon signal drill refuses to launch on Windows unless its target carries
+    `CREATE_NEW_PROCESS_GROUP`, so running the full suite can never broadcast Ctrl-Break into the
+    shared pytest/supervisor group.
+31. if both worker and supervisor disappear naturally before a long deadline, the watchdog's
+    honest terminal uncertainty sets `deadline_enforced=false`; absence of a force call and kill
+    receipt can never be reported as successful deadline enforcement.
+
+All receipts 1-26 remain mandatory. A self-hosted full-suite run is not acceptable evidence until
+receipt 30 is green; the 2026-07-18 run stopped exactly as the unsafe T086 signal test began and
+durably ended `outcome_unknown` rather than fabricating a test result.
