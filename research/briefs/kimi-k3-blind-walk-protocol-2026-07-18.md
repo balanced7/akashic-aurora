@@ -24,6 +24,17 @@ key loaded from .secrets/kimi.key by the launcher, never printed, never persiste
     AKASHIC_AGENT_ID                = kimi      (hooks scope cleanly — verified claude_stop.py:30)
 
 Launch cwd: E:\AI-Setup — the authentic front door (SessionStart primer, AGENTS.md, doors).
+
+LAUNCH-DAY AMENDMENT (Daniel is terminal-less, in-app): the walk runs HEADLESS (`claude -p`
+with the brief), invoked by claude as a harness-tracked background task — the deepseek-runner
+invocation model. Supervision transfers from live-prompt-approval to: the full-reasoning
+narrator + trace stream (Daniel watches the UI), claude monitoring the task, and a killable
+process. Containment: the headless session carries a phase-1-mirror tool allowlist —
+Read/Glob/Grep, `Bash(py agent_cli.py *)` (the doors; kimi's ACL caps enforce server-side),
+Write/Edit scoped to research/** + scratch/** — everything else denied by default (denials
+are errors-that-teach, and themselves ergonomics data). The repo stop hook will address kimi
+at session end (arm-your-watcher ritual); how it handles that is walk data, and its loop
+guard prevents any wedge.
 Why this vehicle: no kimi runner exists yet (chicken-and-egg); the harness gives a full agentic
 toolset day one; and it makes kimi's walk maximally comparable to the claude seat's own daily
 experience — same harness, same hooks, same doors. Sol-codex precedent for a harness door;

@@ -1,5 +1,5 @@
 {
-  "seq": 89,
+  "seq": 95,
   "tasks": [
     {
       "id": "T001",
@@ -2280,7 +2280,7 @@
       "id": "T060",
       "title": "Moonshot design wave (M1-M7): fenced dual DESIGN docs only, gated slices register per design. Order: M1 continuous presence (the runner+listener architecture formalized as daemon peers) then M7 glass-cockpit UI (aligns T033); M2-M6 follow. Cites wishlist-synthesis-2026-07-14.md + Daniel 2026-07-13: even the moonshot capabilities did not seem unreasonable + directive 2026-07-14",
       "desc": "",
-      "owner": "",
+      "owner": "codex_root",
       "deps": [],
       "files": [],
       "acceptance": "",
@@ -2288,7 +2288,7 @@
       "commit": null,
       "verified_by": null,
       "created": "2026-07-14T13:11:09+00:00",
-      "updated": "2026-07-14T13:11:55+00:00",
+      "updated": "2026-07-18T14:29:45+00:00",
       "history": [
         {
           "to": "proposed",
@@ -2299,6 +2299,16 @@
           "to": "approved",
           "by": "user",
           "at": "2026-07-14T13:11:55+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "codex_root",
+          "at": "2026-07-17T06:17:36+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-07-18T14:29:45+00:00"
         }
       ]
     },
@@ -2975,7 +2985,7 @@
       "id": "T079",
       "title": "T079: Engine-room observability (Daniel directive 2026-07-15 night: fold his watching-to-learn practice into the system -- live queue state, progress, and BOTH agents thinking/reasoning visible; refine+expand the see-the-systems-in-action / feel-the-engine-running dashboard concept as the UI-upgrades centerpiece). Fenced dual design with deepseek; aligns T033 (UI re-grounding) + T060-M7 (glass cockpit); the narration/trace primitives EXIST (full thinking already rides the bus + :8788 UI) -- this wave makes them a legible engine room: dual reasoning windows, fence state, verdicts landing, daemon heartbeats, token meter, pages.",
       "desc": "",
-      "owner": "",
+      "owner": "sol",
       "deps": [],
       "files": [],
       "acceptance": "",
@@ -2983,7 +2993,7 @@
       "commit": null,
       "verified_by": null,
       "created": "2026-07-15T21:17:19+00:00",
-      "updated": "2026-07-15T21:17:19+00:00",
+      "updated": "2026-07-18T14:29:58+00:00",
       "history": [
         {
           "to": "proposed",
@@ -2994,6 +3004,16 @@
           "to": "approved",
           "by": "user",
           "at": "2026-07-15T21:17:19+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "sol",
+          "at": "2026-07-17T13:59:52+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-07-18T14:29:58+00:00"
         }
       ]
     },
@@ -3275,6 +3295,163 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-17T00:55:21+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T090",
+      "title": "Sol frontier seat: gpt-5.6-sol onboarding (sol-named seat, Responses transport, guarded caps) + bootstrap ergonomics capture (T081-format blind walk)",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-17T03:38:35+00:00",
+      "updated": "2026-07-17T03:38:35+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-17T03:38:35+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T091",
+      "title": "Packet routing wave + living system map: co-design CONVERGED (docs/packet-routing-design-2026-07.md, claude + deepseek-review, 4 rounds live) -- verb surface, router enrichment, ECN/AIMD closed loops, RoutingPolicy propose-only, T047-first sequencing, SYSTEMS.md sidecar census + gen_systems_map renew. Phase 0 (~75 lines additive) build-ready pending Daniel gate",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-17T04:50:19+00:00",
+      "updated": "2026-07-17T04:50:19+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-17T04:50:19+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T092",
+      "title": "Reasoning spine (Daniel directive 2026-07-17): durable full-fidelity reasoning capture w/ timestamps + design/research .mds as first-class timestamped nodes linked to the learning store + an interface for understanding reasoning and tying things back in time. Co-design claude+deepseek; unifies T068-R11 / T079 / T054 / T027. Opening: research/drafts/reasoning-spine-opening-claude-2026-07-17.md",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-17T04:57:57+00:00",
+      "updated": "2026-07-17T04:57:57+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-17T04:57:57+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T093",
+      "title": "Crash-path durable long-job supervision: eliminate yielded exec-cell as sole completion path using out-of-band deadline plus atomic log/receipt; full M1 Fable+DeepSeek reconciliation; kill drills replay lost-frame, stale-heartbeat, slow-alive, cancellation, and restart recovery",
+      "desc": "",
+      "owner": "codex_root",
+      "deps": [],
+      "files": [
+        "scripts/ship.py",
+        "scripts/run_job.py",
+        "core/comm/daemon_state.py",
+        "tests/test_t093_durable_job.py",
+        "research/reviewed/t093-crash-path-reconciliation-2026-07-17.md"
+      ],
+      "acceptance": "Pre-registered RED tests precede implementation; a detached/supervised job returns launch receipt immediately, persists atomic progress/result across app-server restart, an independent deadline resolves a wedged child, slow-progressing work is not killed, cancel is quiesce-first, and real ship dry-run is recoverable from a fresh process.",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-17T13:21:01+00:00",
+      "updated": "2026-07-18T14:29:45+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-17T13:21:01+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "codex_root",
+          "at": "2026-07-17T13:21:16+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "codex_root",
+          "at": "2026-07-17T13:21:39+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-07-18T14:29:45+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T094",
+      "title": "Recall heuristics evolution: adaptive rule lifecycle (AV+websearch absorb) - research fence claude+deepseek",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-18T01:31:59+00:00",
+      "updated": "2026-07-18T01:31:59+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-18T01:31:59+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T095",
+      "title": "T095 Comms mailbox-over-the-log: message-state index, claims, level-triggered wake (Daniel-approved 2026-07-18; deepseek build partner, slice-by-slice)",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "claimed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-18T03:51:43+00:00",
+      "updated": "2026-07-18T03:51:50+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-18T03:51:43+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-18T03:51:43+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-18T03:51:50+00:00"
         }
       ]
     }
