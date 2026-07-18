@@ -242,6 +242,8 @@ completeness gate (adjudicated 2026-07-17).
 - **G4** Confirm the R-4 deprioritized/benched split semantics.
 - **G5** Note the frontier-doc amendment (five numeric claims demoted to unverified
   synthesis) — no gate rests on them.
-- **G6** Dissent rights: any seat may appeal any sec-2 ruling at this gate; the
-  record marks R-4/R-5 pending codex ack and R-1/R-2/R-3 pending both seats' acks
-  at filing time (acks may have landed since — check the bus thread).
+- **G6** Dissent rights: any seat may appeal any sec-2 ruling at this gate.
+  Ack ledger: deepseek ACKED R-1/R-2/R-3 with no dissent (bus, 2026-07-17 ~23:20;
+  his note on R-2: "my auto-apply was premature; codex's '<10% is not a safety
+  argument' is correct"). Outstanding: codex acks on R-4/R-5 (window open; appeal
+  rights preserved here regardless).
