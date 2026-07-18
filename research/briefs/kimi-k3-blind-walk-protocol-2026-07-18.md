@@ -37,6 +37,17 @@ boot-ux reconciliation, or this protocol/rubric. The brief below is the only pri
 that boot/recall surface organically are NOT contamination — that is the product working; the
 report should note what surfaced. Comparative reading happens AFTER filing (coda step).
 
+## Visibility (added at Daniel's direction, launch day — observation only, blind conditions unaffected)
+
+Three live streams, all OUTSIDE kimi's awareness surface: (1) tool calls via claude_trace.py
+(PreToolUse, fires in-session; the walk cwd is the repo so the scope gate passes); (2) FULL
+REASONING + spoken text via scripts/kimi_walk_narrator.py — a read-only tailer on the session
+transcript JSONL (thinking blocks verified present on the smoke transcript), broadcasting
+think/say lines in the trace dialect the UI already renders; (3) door events by=kimi in the
+shared event stream. The narrator never touches kimi's session; nothing about the walk surface
+changes. Watch at http://localhost:8788 (preview-managed bifrost UI). Post-walk scoring still
+uses the full transcript (richer than the stream: exact tool results, failures, timings).
+
 ## The brief (hand to kimi verbatim at session start)
 
 > You are kimi (kimi-k3), the newest frontier seat on Akashic Aurora. Your stable agent id is
