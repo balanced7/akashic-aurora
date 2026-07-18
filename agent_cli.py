@@ -2996,6 +2996,56 @@ def cmd_packet_trace(args):
     return 0
 
 
+def cmd_mailbox(args):
+    """T095 M0 shadow mailbox: the free question 'what is addressed to X and in what
+    state?' -- evidence ladder acked > replied/auto_acked > consumed > unhandled,
+    derived read-only from the streams (docs/comms-mailbox-design-2026-07.md sec 2).
+    Observation only: touches no cursor, ack, wake, or delivery state."""
+    from core.comm.bus import Bus
+    from core.comm import mailbox
+    bus = Bus("mailbox-observer", promote=False)
+    if args.rebuild:
+        out = mailbox.rebuild(bus.ns, args.agent_id, client=bus._client)
+    elif args.explain:
+        out = mailbox.explain(bus.ns, args.agent_id, args.explain, client=bus._client)
+    else:
+        out = mailbox.query(bus.ns, args.agent_id, client=bus._client,
+                            min_evidence=args.min_evidence)
+    if args.json:
+        print(json.dumps(out, indent=2, default=str)); return 0
+    if not out.get("available"):
+        print(f"[mailbox] {out.get('reason', 'unavailable')}"); return 1
+    if args.rebuild:
+        print(f"[mailbox] rebuilt {out['entries']} entrie(s); divergence vs incremental: "
+              f"{out['divergence']}" + (" (DETERMINISM HOLDS)" if out["divergence"] == 0
+                                        else " (!! INVESTIGATE)"))
+        return 0 if out["divergence"] == 0 else 1
+    if args.explain:
+        if not out.get("found"):
+            print(f"[mailbox] no entry matches ref '{out.get('ref', args.explain)}'"); return 1
+        print(f"[mailbox-explain] {out['sha'][:12]} kind={out['kind']} frm={out['frm']} "
+              f"ts={out['ts']} -> TIER: {out['tier']}")
+        for c in out["cursor_comparisons"]:
+            print(f"  {c['source']}: id {c['stream_id']} vs cursor "
+                  f"{c['cursor'] or '(none)'} -> consumed={c['consumed']}")
+        for sid, acks in (out.get("acks") or {}).items():
+            if acks:
+                print(f"  ack on {sid}: {acks}")
+        for sid, ans in (out.get("answered_by") or {}).items():
+            print(f"  answered ({sid}): by {ans.get('by')} at {ans.get('ts')}")
+        return 0
+    counts = out["counts"]
+    tier_line = " | ".join(f"{t}={counts[t]}" for t in
+                           ("unhandled", "consumed", "auto_acked", "replied", "acked")
+                           if counts.get(t))
+    print(f"# mailbox {args.agent_id}: {tier_line or 'empty'} "
+          f"(index_lag {out['index_lag']}, evicted {out['evicted']})")
+    for e in out["entries"]:
+        if e["tier"] in ("unhandled", "consumed"):
+            print(f"  [{e['tier']}] {e['sha'][:10]} {e['kind']:<10} from {e['frm']:<14} ts {e['ts']}")
+    return 0
+
+
 def cmd_packet_stats(args):
     """T060 N0: read the bounded logical-route and physical-mirror counters."""
     from core.comm.bus import Bus
@@ -3369,6 +3419,15 @@ def build_parser():
     pst = sub.add_parser("packet-stats", help="N0 bounded shadow route/mirror counters")
     pst.add_argument("--json", action="store_true")
     pst.set_defaults(fn=cmd_packet_stats)
+
+    mbx = sub.add_parser("mailbox", help="T095 M0 shadow mailbox: per-message state for an agent (observation only)")
+    mbx.add_argument("agent_id", help="whose mailbox to inspect")
+    mbx.add_argument("--explain", metavar="REF", help="evidence chain for one message (sha prefix or stream id)")
+    mbx.add_argument("--rebuild", action="store_true", help="drop + rebuild the index from the log (determinism receipt)")
+    mbx.add_argument("--min-evidence", choices=["unhandled", "consumed", "replied", "acked"],
+                     default=None, help="show only entries at or below this evidence tier")
+    mbx.add_argument("--json", action="store_true")
+    mbx.set_defaults(fn=cmd_mailbox)
 
     ak = sub.add_parser("bifrost-ack", help="durably record you HANDLED a salient bus message (P6)")
     ak.add_argument("agent_id", help="your stable agent id (the actor)")

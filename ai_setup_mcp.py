@@ -304,6 +304,15 @@ def packet_route_stats() -> str:
 
 
 @mcp.tool()
+def mailbox(agent: str, explain: str = "", rebuild: bool = False) -> str:
+    """T095 M0 shadow mailbox: per-message state for an agent (unhandled/consumed/
+    replied/acked with evidence), derived read-only from the streams. Observation
+    only -- touches no cursor, ack, wake, or delivery state."""
+    return _run(agent_cli.cmd_mailbox, agent_id=agent, explain=(explain or None),
+                rebuild=bool(rebuild), min_evidence=None, json=True)
+
+
+@mcp.tool()
 def stats(hours: float = 24, days: int = 0) -> str:
     """The recall-value funnel: corpus size, surfaced impressions, votes, helped credits,
     and the recent window's flips vs lessons-recorded (capture-rate). The health check for
