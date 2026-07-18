@@ -338,6 +338,15 @@ The preregistration battery adds these before the corrective implementation:
     The grandchild must still be killed and the receipt must derive that fact from retained OS job
     membership, not a current parent-PID snapshot. A Toolhelp walk that can no longer connect the
     grandchild to the root is insufficient evidence for `killed=true` or `deadline_enforced=true`.
+24. the watchdog and supervisor retain independent handles to the same uniquely named Job Object.
+    Killing the watchdog after the worker is armed does not collapse a healthy below-deadline job;
+    the supervisor's independently opened and membership-verified handle keeps ownership live.
+    If both guards disappear outside a protected publish, `KILL_ON_JOB_CLOSE` fail-closes the job.
+25. OS fail-close cannot bypass the publish fence. A durable ship child opens and verifies a
+    temporary handle to its own Job Object before acquiring `publish.fence`, holds it through the
+    pushed outcome and fence release, then closes it. Killing both guards while the fence is held
+    must not interrupt publish; the pushed child outcome remains authoritative. The child handle
+    is narrowly scoped to this critical section so it cannot defeat ordinary deadline enforcement.
 
 The ordinary wedged-child deadline, recursive-controller-kill, idempotence, atomicity, and zero-flag
 ship compatibility receipts remain mandatory; this amendment adds failure windows rather than

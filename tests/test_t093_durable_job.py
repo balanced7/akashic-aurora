@@ -408,6 +408,106 @@ def test_deadline_kills_grandchild_after_intermediate_parent_exits(tmp_path):
             run_job._win_terminate_exact(grandchild_pid, grandchild_identity)
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Win32 independent Job Object ownership")
+def test_watchdog_death_does_not_collapse_healthy_owned_job(tmp_path):
+    job_id = _job_id("watchdog-handle-loss")
+    marker = tmp_path / "completed.marker"
+    code = (
+        "import pathlib,sys,time; time.sleep(.35); "
+        "pathlib.Path(sys.argv[1]).write_text('complete',encoding='utf-8')"
+    )
+    _launch(
+        tmp_path, job_id, [sys.executable, "-c", code, str(marker)],
+        max_runtime=4.0, grace=0.1, heartbeat=0.03,
+    )
+    running = _wait_running(tmp_path, job_id)
+    watchdog_pid = int(running["watchdog_pid"])
+    watchdog_identity = run_job._process_info(watchdog_pid)[1]
+    assert watchdog_identity
+    killed = run_job._win_terminate_exact(watchdog_pid, watchdog_identity)
+    assert killed["terminated"] is True
+
+    final = _wait_terminal(tmp_path, job_id, timeout=5)
+    assert final["state"] == "succeeded"
+    assert marker.read_text(encoding="utf-8") == "complete"
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Win32 publish fail-close exclusion")
+def test_both_guard_deaths_cannot_kill_protected_publish(tmp_path):
+    job_id = _job_id("publish-guard-loss")
+    entered = tmp_path / "publish-entered.marker"
+    completed = tmp_path / "publish-completed.marker"
+    code = r"""
+import os, pathlib, time
+from scripts import run_job
+fence = pathlib.Path(os.environ['AKASHIC_JOB_PUBLISH_FENCE'])
+outcome = pathlib.Path(os.environ['AKASHIC_JOB_OUTCOME_FILE'])
+entered = pathlib.Path(os.environ['AKASHIC_T093_ENTERED_MARKER'])
+completed = pathlib.Path(os.environ['AKASHIC_T093_COMPLETED_MARKER'])
+with run_job.protect_owned_job_during_publish():
+    with run_job.publish_fence(fence, blocking=True):
+        run_job.write_child_outcome(outcome, {
+            'state': 'publish_active', 'primary_effect': 'unknown',
+            'publish_may_have_occurred': True,
+        })
+        entered.write_text('inside', encoding='utf-8')
+        time.sleep(.45)
+        run_job.write_child_outcome(outcome, {
+            'state': 'succeeded', 'primary_effect': 'pushed',
+            'commit_sha': 'guard-loss-proof', 'branch': 'test',
+        })
+        completed.write_text('pushed', encoding='utf-8')
+"""
+    old_entered = os.environ.get("AKASHIC_T093_ENTERED_MARKER")
+    old_completed = os.environ.get("AKASHIC_T093_COMPLETED_MARKER")
+    os.environ["AKASHIC_T093_ENTERED_MARKER"] = str(entered)
+    os.environ["AKASHIC_T093_COMPLETED_MARKER"] = str(completed)
+    running = {}
+    identities: list[tuple[int, str]] = []
+    try:
+        _launch(
+            tmp_path, job_id, [sys.executable, "-u", "-c", code],
+            max_runtime=5.0, grace=0.1, heartbeat=0.03,
+        )
+        running = _wait_running(tmp_path, job_id)
+        deadline = time.monotonic() + 3
+        while not entered.exists() and time.monotonic() < deadline:
+            time.sleep(0.02)
+        assert entered.exists(), "worker never entered the protected publish fence"
+        for key in ("watchdog_pid", "supervisor_pid"):
+            pid = int(running[key])
+            identity = run_job._process_info(pid)[1]
+            assert identity
+            identities.append((pid, identity))
+        for pid, identity in identities:
+            result = run_job._win_terminate_exact(pid, identity)
+            assert result["terminated"] is True
+        deadline = time.monotonic() + 3
+        while not completed.exists() and time.monotonic() < deadline:
+            time.sleep(0.02)
+        assert completed.exists(), "OS fail-close interrupted the protected publish"
+        final = _wait_terminal(tmp_path, job_id, timeout=3)
+        assert final["state"] == "succeeded"
+        assert final["primary_effect"] == "pushed"
+        assert final["commit_sha"] == "guard-loss-proof"
+    finally:
+        if old_entered is None:
+            os.environ.pop("AKASHIC_T093_ENTERED_MARKER", None)
+        else:
+            os.environ["AKASHIC_T093_ENTERED_MARKER"] = old_entered
+        if old_completed is None:
+            os.environ.pop("AKASHIC_T093_COMPLETED_MARKER", None)
+        else:
+            os.environ["AKASHIC_T093_COMPLETED_MARKER"] = old_completed
+        for pid, identity in identities:
+            if run_job._matches_identity(pid, identity):
+                run_job._win_terminate_exact(pid, identity)
+        child_pid = running.get("child_pid")
+        child_identity = running.get("child_identity")
+        if child_pid and run_job._matches_identity(child_pid, child_identity):
+            run_job._win_terminate_exact(int(child_pid), str(child_identity))
+
+
 def test_already_dead_force_race_never_becomes_cancelled(tmp_path, monkeypatch):
     job_id = _job_id("already-dead-race")
     paths = _seed_spec(
