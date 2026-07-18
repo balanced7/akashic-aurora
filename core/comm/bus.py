@@ -29,6 +29,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from core.comm import packet_spec
+from core.comm import router as shadow_router
 from core.comm.blobs import get_blob_store
 
 NS = "bifrost"
@@ -273,6 +274,20 @@ class Bus:
                         or f"{self.agent_id}:pid:{os.getpid()}")
         if not packet_spec.dual_write_enabled():
             return self.send(to, "reply", content, meta=meta)
+        try:
+            reply_decision = shadow_router.route("reply")
+        except Exception:
+            reply_decision = None
+
+        def observe_reply(outcome: str) -> None:
+            if reply_decision is None:
+                return
+            try:
+                shadow_router.record_observation(
+                    self._client, self.ns, reply_decision, outcome, family="reply")
+            except Exception:
+                pass
+
         env = {"frm": self.agent_id, "to": str(to), "kind": "reply",
                "content": json.dumps(content, default=str), "ts": _now(),
                "meta": json.dumps(meta, default=str), "parts": "[]"}
@@ -300,7 +315,9 @@ class Bus:
         except Exception:
             pass
         if lane_mid is None and legacy_mid is None:
+            observe_reply("failure")
             return None                                  # both writes failed: the send failed
+        observe_reply("success" if lane_mid is not None else "fallback")
         self._touch()
         self._ring_bell(str(to), lane_mid or legacy_mid, "reply")
         return lane_mid or legacy_mid
@@ -385,12 +402,20 @@ class Bus:
         onto its lane stream. NOT load-bearing until the T039b cutover -- consumers still read
         legacy, and lane cursors initialize tail-at-flip (A4), so this phase is a live soak of
         the lane write path, not a data migration. Best-effort by design: a lane failure must
-        never block or fail the legacy delivery. Kill-switch: BIFROST_LANES_DUAL_WRITE=0."""
+        never block or fail the legacy delivery. Kill-switch: BIFROST_LANES_DUAL_WRITE=0.
+
+        T060 N0 observes the existing decision/outcome here. The transport STILL selects via
+        packet_spec.lane_for(); shadow_router.route() is explanation only."""
+        decision = None
+        outcome = "failure"
         try:
+            decision = shadow_router.route(kind)
             if not packet_spec.dual_write_enabled():
+                outcome = "disabled"
                 return
             lane = packet_spec.lane_for(kind)
             if lane is None:
+                outcome = "unmapped"
                 # Census miss: legacy-only + LOUD once per kind. Full refusal is the spec's
                 # end state and activates at cutover, once the soak proves the table complete.
                 if kind not in Bus._unmapped_loud_seen:
@@ -416,8 +441,16 @@ class Bus:
                     fields.pop("sha", None)
             self._client.xadd(key, fields, maxlen=packet_spec.lane_maxlen(lane),
                               approximate=True)
+            outcome = "success"
         except Exception:
             pass   # advisory in P0; the legacy write above is the delivery
+        finally:
+            if decision is not None:
+                try:
+                    shadow_router.record_observation(
+                        self._client, self.ns, decision, outcome, family="mirror")
+                except Exception:
+                    pass
 
     def _ring_bell(self, to: str, mid: str, kind: str) -> None:
         """Doorbell (Bifrost Mesh W1): a payload-free pub/sub notice so a Dispatcher wakes in ~ms.

@@ -2980,6 +2980,46 @@ def cmd_locks(args):
     return 0
 
 
+def cmd_packet_trace(args):
+    """T060 N0: explain the existing static kind-to-lane decision without sending."""
+    from core.comm.router import route
+    out = route(args.kind).as_dict()
+    if args.json:
+        print(json.dumps(out, sort_keys=True))
+        return 0
+    lane = out["lane"] if out["lane"] is not None else "(unmapped; legacy-only)"
+    print(f"# PACKET ROUTE -- {out['kind']}")
+    print(f"  lane: {lane}")
+    print(f"  rule: {out['rule_id']}")
+    print(f"  mode: {out['mode']} (observation only; no delivery behavior changes)")
+    print(f"  policy: {out['policy_version']}")
+    return 0
+
+
+def cmd_packet_stats(args):
+    """T060 N0: read the bounded logical-route and physical-mirror counters."""
+    from core.comm.bus import Bus
+    from core.comm.router import route_stats
+    bus = Bus("route-observer", promote=False)
+    out = route_stats(bus._client, bus.ns)
+    if args.json:
+        print(json.dumps(out, sort_keys=True))
+        return 0 if out["online"] else 1
+    state = "online" if out["online"] else "OFFLINE (counters unavailable)"
+    print(f"# PACKET ROUTE STATS -- {out['mode']} / {state}")
+    print(f"  policy: {out['policy_version']}")
+    if out["stored_policy_version"]:
+        match = "match" if out["policy_matches"] else "MISMATCH -- do not use for cutover"
+        print(f"  stored policy: {out['stored_policy_version']} ({match})")
+    print(f"  started: {out['started_at'] or '(no observations yet)'}")
+    print(f"  bounded fields: {len(out['counts'])}/{out['counter_field_limit']}")
+    if not out["counts"]:
+        print("  (no observations)")
+    for field, count in sorted(out["counts"].items()):
+        print(f"  {field:42} {count}")
+    return 0 if out["online"] else 1
+
+
 # ------------------------------------------------------------------------- status
 def cmd_status(args):
     from core.foundation.redis_connection import (
@@ -3320,6 +3360,15 @@ def build_parser():
     fw.add_argument("--limit", type=int, default=12, help="max flows rendered (default 12)")
     fw.add_argument("--json", action="store_true")
     fw.set_defaults(fn=cmd_flow)
+
+    ptr = sub.add_parser("packet-trace", help="N0 dry-run: explain the static route for one packet kind (no send)")
+    ptr.add_argument("kind", help="wire kind, e.g. handoff, reply, narration")
+    ptr.add_argument("--json", action="store_true")
+    ptr.set_defaults(fn=cmd_packet_trace)
+
+    pst = sub.add_parser("packet-stats", help="N0 bounded shadow route/mirror counters")
+    pst.add_argument("--json", action="store_true")
+    pst.set_defaults(fn=cmd_packet_stats)
 
     ak = sub.add_parser("bifrost-ack", help="durably record you HANDLED a salient bus message (P6)")
     ak.add_argument("agent_id", help="your stable agent id (the actor)")

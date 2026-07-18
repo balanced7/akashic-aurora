@@ -78,13 +78,23 @@ def toolbox_verbs():
     return sorted(set(_norm(n) for n in out))
 
 
-# The declared intended surface. Every CLI/MCP verb MUST appear here (the ratchet).
+# A few deliberate vocabulary pairs differ across CLI and MCP.  The canonical key is
+# the CLI spelling after '-' -> '_' normalization; the value is the actual MCP tool.
+# The guard treats the pair as one shared capability and verifies both endpoints.
+CLI_MCP_ALIASES = {
+    "packet_trace": "packet_route",
+    "packet_stats": "packet_route_stats",
+}
+
+
+# The declared intended surface. Every CLI/MCP capability MUST appear here (the ratchet),
+# either by its real name or through CLI_MCP_ALIASES.
 #   shared   -> must be on BOTH cli and mcp
 #   cli_only -> intentionally CLI-only (local/diagnostic/operator/needs-shell)
 #   mcp_only -> intentionally MCP-only
 #   gap      -> KNOWN DEBT: a core verb reachable on one door but not the other; pay down later.
 MANIFEST = {
-    # --- shared (16): the core verb surface, on both doors ---
+    # --- shared: the core verb surface, on both doors ---
     "boot": "shared", "learn": "shared", "recall": "shared", "recall_at": "shared",
     "recall_feedback": "shared", "stats": "shared", "status": "shared", "story": "shared",
     "events": "shared", "log": "shared", "promoted": "shared", "graduate": "shared",
@@ -94,20 +104,20 @@ MANIFEST = {
     "tag_anti_pattern": "shared", "bifrost_nudge": "shared",
     # R8 (T059): knowledge_map walks the lesson/note/doc graph -- an agent-facing read verb
     # (B5's whole point: an agent OR Daniel walks the knowledge), so it ships on both doors.
-    "knowledge_map": "shared",
-    # --- cli_only (8): local diagnostics / operator controls / needs shell+git ---
+    "knowledge_map": "shared", "task": "shared",
+    # T060 N0: dry-run explanation + bounded observation counters are read-only on both doors.
+    "packet_trace": "shared", "packet_stats": "shared",
+    # --- cli_only: local diagnostics / operator controls / needs shell+git ---
     "discover": "cli_only", "console_log": "cli_only", "harnesses": "cli_only",
     "recall_counters": "cli_only", "triage": "cli_only", "wrap": "cli_only",
     "bifrost_pause": "cli_only", "bifrost_resume": "cli_only",
+    "bifrost_skip_to_now": "cli_only", "bifrost_standby": "cli_only",
     "list": "cli_only",   # CLI alias for `recall ""`; MCP's recall(query="") already lists all
     "fleet": "cli_only",  # local-model dispatch/roster — operator-oriented, not an agent verb
     "doctor": "cli_only",  # L2 fleet-liveness doctor (T030): operator diagnostic; agents get its
                            # one-liner in every boot; an MCP twin lands with a real MCP-agent need
     "episode": "cli_only",  # session bookends: consumed by the Bifrost UI via CLI --json (S1). An MCP
                             # twin is deferred to the S3 agent-close/auto-suggest path (design doc §7).
-    "task": "cli_only",     # the coordination door over the ledger (conductor). CLI+operator-oriented
-                            # (propose/approve are human-gated); MCP twin when an MCP agent needs to
-                            # drive task transitions programmatically (arch-triage P1 2026-07-07).
     "bifrost_ack": "cli_only",  # P6 (T026): deliberate handled-it record. Runners auto-ack in-process
                                 # (promoter.ack direct); an MCP twin lands with the P7 lookback set if
                                 # MCP agents start handling salient asks themselves.
@@ -152,6 +162,8 @@ MANIFEST = {
     "reload_ui": "toolbox_only",         # exists-but-disabled for deepseek (UI is harness-owned)
     "bifrost_steer": "toolbox_only",     # soft steer; CLI covers the family via bifrost-nudge
     "bifrost_hint": "toolbox_only",      # compact context hint, ToolBox-only
+    "bifrost_dashboard": "toolbox_only", # T081-W7 text dashboard for the runner seat
+    "research_note": "toolbox_only",     # IR-6 category-specialized knowledge_learn wrapper
     "execute": "toolbox_only",           # the dispatch door itself (runner plumbing)
     "release_written_locks": "toolbox_only",  # runner lifecycle: locks released at reply (T048)
 }
@@ -185,19 +197,32 @@ TOOLBOX_EXEMPT = {
     "unlock": "released by the runner at reply time (release_written_locks)",
     "locks": "lock listing is operator/diagnostic",
     "tag_anti_pattern": "curation verb; operator/claude loop",
+    "packet_trace": "operator/MCP route explanation; transport continues to use packet_spec directly",
+    "packet_stats": "operator/MCP shadow-delivery telemetry; not an in-task mutation tool",
+    "task": "governed conductor surface; runner seats receive approved work over Bifrost",
 }
 
 
 def check():
     cli, mcp, tb = set(cli_verbs()), set(mcp_tools()), set(toolbox_verbs())
     fails, gaps = [], []
+    mcp_alias_targets = set(CLI_MCP_ALIASES.values())
     # 1. every real verb on an ENFORCED door must be classified (the ratchet: no new drift)
     for v in sorted((cli | mcp | tb)):
-        if v not in MANIFEST:
+        if v not in MANIFEST and v not in mcp_alias_targets:
             door = "CLI" if v in cli else ("MCP" if v in mcp else "ToolBox")
             fails.append(f"unclassified verb '{v}' (on {door}) -> add it to MANIFEST in check_door_parity.py "
                          f"(shared / cli_only / mcp_only / toolbox_only / gap)")
     # 1b. the alias/exempt maps must stay honest over time
+    for cli_name, mcp_name in sorted(CLI_MCP_ALIASES.items()):
+        if MANIFEST.get(cli_name) != "shared":
+            fails.append(f"CLI_MCP_ALIASES maps '{cli_name}' but it is not a shared verb -> prune the alias")
+        if cli_name not in cli:
+            fails.append(f"CLI_MCP_ALIASES points at CLI '{cli_name}' which is missing -> the alias covers nothing")
+        if mcp_name not in mcp:
+            fails.append(f"CLI_MCP_ALIASES points '{cli_name}' at MCP '{mcp_name}' which is missing -> the alias covers nothing")
+        if mcp_name in MANIFEST:
+            fails.append(f"MCP alias target '{mcp_name}' is also in MANIFEST -> classify the capability once via '{cli_name}'")
     for shared_v, tb_name in sorted(TOOLBOX_ALIASES.items()):
         if MANIFEST.get(shared_v) != "shared":
             fails.append(f"TOOLBOX_ALIASES maps '{shared_v}' but it is not a shared verb -> prune the alias")
@@ -209,7 +234,8 @@ def check():
             fails.append(f"TOOLBOX_EXEMPT lists '{shared_v}' but it is not a shared verb -> prune the exemption")
     # 2. manifest expectations vs reality
     for v, cat in sorted(MANIFEST.items()):
-        on_cli, on_mcp, on_tb = v in cli, v in mcp, v in tb
+        mcp_name = CLI_MCP_ALIASES.get(v, v)
+        on_cli, on_mcp, on_tb = v in cli, mcp_name in mcp, v in tb
         if cat == "shared":
             if not (on_cli and on_mcp):
                 missing = "MCP" if on_cli else "CLI"
@@ -249,7 +275,11 @@ def main():
                               if c in ("cli_only", "mcp_only") and v in tb)
         covered = sorted(v for v, c in MANIFEST.items()
                          if c == "shared" and (v in tb or TOOLBOX_ALIASES.get(v) in tb))
-        print(f"shared: {len(cli & mcp)}  |  cli-only: {len(cli - mcp)}  |  mcp-only: {len(mcp - cli)}")
+        shared_live = sum(1 for v, c in MANIFEST.items()
+                          if c == "shared" and v in cli and CLI_MCP_ALIASES.get(v, v) in mcp)
+        alias_cli, alias_mcp = set(CLI_MCP_ALIASES), set(CLI_MCP_ALIASES.values())
+        print(f"shared: {shared_live}  |  cli-only: {len(cli - mcp - alias_cli)}  |  "
+              f"mcp-only: {len(mcp - cli - alias_mcp)}")
         print(f"toolbox: {len(tb)} verbs | toolbox_only: {len(tb_only)} | shared covered on ToolBox "
               f"(name or alias): {len(covered)} | shared exempt: {len(TOOLBOX_EXEMPT)}")
         if self_service:

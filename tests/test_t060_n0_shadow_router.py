@@ -13,6 +13,7 @@ Run::
 """
 from __future__ import annotations
 
+import asyncio
 import importlib
 import json
 import os
@@ -160,6 +161,43 @@ def test_lane_failure_preserves_legacy_delivery_and_counts_failure(monkeypatch):
     assert stats["counts"]["mirror:handoff:failure"] == 1
 
 
+def test_k0_live_redis_recipient_gets_exactly_one_legacy_message(monkeypatch):
+    """Kill drill K0 on the real substrate: fail only the lane xadd, not Redis."""
+    router = _router()
+    client = _redis_client()
+    namespace = f"t060_n0_k0_{uuid.uuid4().hex[:10]}"
+    monkeypatch.setenv("BIFROST_LANES_DUAL_WRITE", "1")
+
+    class LaneFailureProxy:
+        def __init__(self, wrapped):
+            self.wrapped = wrapped
+
+        def xadd(self, key, fields, **kwargs):
+            key_text = str(key)
+            if any(marker in key_text for marker in (":work:", ":sig:", ":trace")):
+                raise RuntimeError("K0 injected lane-only xadd failure")
+            return self.wrapped.xadd(key, fields, **kwargs)
+
+        def __getattr__(self, name):
+            return getattr(self.wrapped, name)
+
+    try:
+        sender = Bus("sol-k0", LaneFailureProxy(client), namespace=namespace, promote=False)
+        recipient = Bus("fable-k0", client, namespace=namespace, promote=False)
+        mid = sender.send("fable-k0", "handoff", "live K0")
+        assert mid
+        received = recipient.inbox()
+        assert [message.content for message in received] == ["live K0"]
+        assert not client.exists(f"{namespace}:work:inbox:fable-k0")
+        stats = router.route_stats(client, namespace)
+        assert stats["counts"]["decision:handoff"] == 1
+        assert stats["counts"]["mirror:handoff:failure"] == 1
+    finally:
+        keys = client.keys(f"{namespace}:*")
+        if keys:
+            client.delete(*keys)
+
+
 def test_route_and_outcome_cardinality_is_static():
     router = _router()
     client = _FakeRedis()
@@ -220,6 +258,34 @@ def test_cli_and_mcp_route_json_are_identical():
 
     mcp_value = json.loads(ai_setup_mcp.packet_route("handoff"))
     assert cli_value == mcp_value == _router().route("handoff").as_dict()
+
+
+def test_fresh_stdio_mcp_registers_route_tools_and_returns_single_frame():
+    pytest.importorskip("mcp")
+    from mcp import ClientSession, StdioServerParameters
+    from mcp.client.stdio import stdio_client
+
+    async def flow():
+        params = StdioServerParameters(
+            command=sys.executable,
+            args=[str(ROOT / "ai_setup_mcp.py")],
+            cwd=str(ROOT),
+            env={**os.environ, "PYTHONUTF8": "1", "PYTHONUNBUFFERED": "1"},
+        )
+        async with stdio_client(params) as (read, write):
+            async with ClientSession(read, write) as session:
+                await session.initialize()
+                listed = await session.list_tools()
+                names = {tool.name for tool in listed.tools}
+                assert {"packet_route", "packet_route_stats"} <= names
+                result = await asyncio.wait_for(
+                    session.call_tool("packet_route", {"kind": "handoff"}),
+                    timeout=5.0,
+                )
+                text = "".join(getattr(item, "text", "") for item in result.content)
+                assert json.loads(text) == _router().route("handoff").as_dict()
+
+    asyncio.run(flow())
 
 
 def test_door_guard_understands_intentional_cli_mcp_route_aliases():

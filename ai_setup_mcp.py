@@ -292,6 +292,18 @@ def status() -> str:
 
 
 @mcp.tool()
+def packet_route(kind: str) -> str:
+    """N0 read-only route explanation for one packet kind. Does not send or enforce."""
+    return _run(agent_cli.cmd_packet_trace, kind=kind, json=True)
+
+
+@mcp.tool()
+def packet_route_stats() -> str:
+    """N0 bounded logical-route and physical-mirror counters for the live namespace."""
+    return _run(agent_cli.cmd_packet_stats, json=True)
+
+
+@mcp.tool()
 def stats(hours: float = 24, days: int = 0) -> str:
     """The recall-value funnel: corpus size, surfaced impressions, votes, helped credits,
     and the recent window's flips vs lessons-recorded (capture-rate). The health check for
