@@ -50,6 +50,26 @@ regardless — it is free to do and the docs promise 90% on hits.
 Trivial completions ran 4.5s and 18s (thinking-mode variance). Fence-voice turns will run tens
 of seconds to minutes — comfortably inside runner REPLY_TIMEOUT (600s scaled).
 
+## P7 addendum — Anthropic door probed (post-Daniel-go, same day)
+
+- `/anthropic/v1/messages` accepts BOTH `x-api-key` and `Bearer` (HTTP 200 each).
+- **USAGE FIELD NAMES REVEALED on this door**: `cache_read_input_tokens`,
+  `cache_creation_input_tokens`, `cached_tokens`, `output_tokens_details.thinking_tokens`,
+  plus OpenAI-style mirrors (`prompt_tokens`/`completion_tokens`/`total_tokens`). The spend
+  ledger has concrete fields for the anthropic door; the /v1 door's hit-field still rides P3-FULL.
+- **Cache hits ARE reported on this door** — both probe calls showed the full 90-token prompt
+  as `cache_read_input_tokens: 90` / `input_tokens: 0`. Honest caveat: the FIRST call already
+  reported the hit (possible priming by an earlier 401'd CLI preflight, or cross-request dedup
+  at tiny sizes) — P3-FULL (50k prefix, spaced, dashboard cross-check) disambiguates.
+- **LESSON (fence-call design)**: `max_tokens: 32` → thinking consumed the entire budget →
+  `content` came back EMPTY with `stop_reason: max_tokens`. Always leave thinking headroom;
+  schema/fence calls set generous max_completion_tokens.
+- **Harness smoke**: logged-in CLI 401'd (stored claude.ai OAuth outranks env auth and fails
+  against Moonshot — loud, not silent). FIX: `CLAUDE_CONFIG_DIR=E:\AI-Setup\.kimi-claude-home`
+  (fresh config home, no stored OAuth, env key becomes sole credential; project-level akashic
+  hooks still fire from .claude/ in the repo). Result: `claude -p` returned KIMI_ENDPOINT_OK
+  through the real harness. Launcher updated; .kimi-claude-home gitignored.
+
 ## First behavioral datapoint (for the walk rubric, R1 directive fidelity)
 
 Kimi's first two utterances on our substrate followed an exact-output instruction perfectly,

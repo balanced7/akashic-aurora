@@ -2,8 +2,12 @@
 # research/briefs/kimi-k3-blind-walk-protocol-2026-07-18.md). Session-scoped env only;
 # the key never leaves this shell, nothing is persisted to settings.
 $key = (Get-Content E:\AI-Setup\.secrets\kimi.key -Raw).Trim()
+$env:CLAUDE_CONFIG_DIR = "E:\AI-Setup\.kimi-claude-home"   # isolated config home: no stored OAuth
+                                        # (logged-in CLI 401s otherwise -- smoke-proven 2026-07-18);
+                                        # kimi's harness state stays out of the claude seat's ~/.claude
 $env:ANTHROPIC_BASE_URL = "https://api.moonshot.ai/anthropic"
 $env:ANTHROPIC_AUTH_TOKEN = $key
+$env:ANTHROPIC_API_KEY = $key
 $env:ANTHROPIC_MODEL = "kimi-k3"
 $env:ANTHROPIC_DEFAULT_OPUS_MODEL = "kimi-k3"
 $env:ANTHROPIC_DEFAULT_SONNET_MODEL = "kimi-k3"

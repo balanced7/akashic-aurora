@@ -103,3 +103,4 @@ state/spill/
 
 # Claude Code local settings never ship (CLI probe round-2 finding 2026-07-16)
 .claude/settings.local.json
+.kimi-claude-home/
