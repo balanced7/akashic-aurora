@@ -229,6 +229,17 @@ def main():
             incarnation.refresh_card(AGENT, session_id)   # a lost card self-heals, R12)
         except Exception:
             pass
+    # EPHEMERAL-SEAT EXEMPTION (2026-07-18, kimi headless walks; mirrors AKASHIC_STOP_PROMISE):
+    # a -p session's watcher would outlive the session and wake NOTHING -- for those seats the
+    # wake ritual is only a multi-minute exit tax (live receipts: four kimi sessions, each caught
+    # in deny/retry loops at exit; a phase-1 sandbox cannot even run the arm command). The
+    # LAUNCHER opts out explicitly (env AKASHIC_STOP_WAKE=0); interactive seats never set this.
+    # Unset keeps the full ritual -- the safe default stays fail-ARMED.
+    if os.getenv("AKASHIC_STOP_WAKE", "1") == "0":
+        print("[stop-hook] ephemeral seat (AKASHIC_STOP_WAKE=0) -- wake ritual waived by launcher",
+              file=sys.stderr)
+        _finish_nonwake_checks(payload)
+        return
     # AUTOPILOT A1 (presence-autopilot-reconciliation, kill switch AKASHIC_DAEMON_WAKE=0):
     # a LIVE daemon owns wakeability -- this hook never blocks again while it runs; a
     # missing listener seat becomes a .rearm trigger the daemon answers within a tick.

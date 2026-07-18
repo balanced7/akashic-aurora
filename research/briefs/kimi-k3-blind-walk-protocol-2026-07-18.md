@@ -25,6 +25,18 @@ key loaded from .secrets/kimi.key by the launcher, never printed, never persiste
 
 Launch cwd: E:\AI-Setup — the authentic front door (SessionStart primer, AGENTS.md, doors).
 
+HEADLESS LAUNCH DISCIPLINE (post-incident hardening, same day — receipts in the twin reports
++ probe session): (1) env `AKASHIC_STOP_WAKE=0` on every `-p` seat — waives the stop-hook wake
+ritual (pinned: tests/test_stop_wake_exempt.py); interactive seats never set it. (2) TWIN
+GUARD — before launching, check no kimi transcript under .kimi-claude-home/projects has
+mtime < 10 min (a live walker), and when the brief names a charter path, take the advisory
+lock on it first (the deliverable-race fix, walk2's proposal). (3) TREE-KILL RULE — TaskStop
+alone does NOT kill the process tree on Windows; capture the claude.exe pid at launch and
+`taskkill /PID <pid> /T /F` on abort, matching targets by LIVE command line only, never by
+stale listings (lesson destructive_filters_never_stale_pids). (4) Launcher env WINS over the
+repo settings env injection (runtime-proven: printenv → kimi) — always set AKASHIC_AGENT_ID
+explicitly per seat.
+
 LAUNCH-DAY AMENDMENT (Daniel is terminal-less, in-app): the walk runs HEADLESS (`claude -p`
 with the brief), invoked by claude as a harness-tracked background task — the deepseek-runner
 invocation model. Supervision transfers from live-prompt-approval to: the full-reasoning
