@@ -178,6 +178,40 @@ def test_launch_is_immediate_and_fresh_status_recovers_result(tmp_path):
     assert marker.read_text(encoding="utf-8") == "complete"
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Win32 invisible WMI broker")
+def test_wmi_broker_launches_guards_without_visible_consoles(monkeypatch):
+    captured = {}
+
+    class BrokerResult:
+        returncode = 0
+        stderr = ""
+        stdout = json.dumps([
+            {"ReturnValue": 0, "ProcessId": 101},
+            {"ReturnValue": 0, "ProcessId": 102},
+        ])
+
+    def fake_run(argv, **kwargs):
+        captured["argv"] = argv
+        captured["kwargs"] = kwargs
+        return BrokerResult()
+
+    monkeypatch.setattr(run_job.subprocess, "run", fake_run)
+    pids = run_job._wmi_create_pair([
+        [sys.executable, "-c", "raise SystemExit(0)"],
+        [sys.executable, "-c", "raise SystemExit(0)"],
+    ])
+
+    encoded = captured["argv"][captured["argv"].index("-EncodedCommand") + 1]
+    broker_script = __import__("base64").b64decode(encoded).decode("utf-16le")
+    compact = "".join(broker_script.split())
+    assert pids == [101, 102]
+    assert captured["kwargs"]["creationflags"] & subprocess.CREATE_NO_WINDOW
+    assert "New-CimInstance-ClassNameWin32_ProcessStartup-ClientOnly" in compact
+    assert "$startup.ShowWindow=0" in compact
+    assert "$startup.CreateFlags=8" in compact  # DETACHED_PROCESS
+    assert "ProcessStartupInformation=$startup" in compact
+
+
 @pytest.mark.skipif(sys.platform != "win32", reason="Win32 controller-tree acceptance")
 def test_wmi_broker_survives_recursive_controller_tree_kill(tmp_path):
     """The historical app-server restart bar: controller /T death must not own the supervisor."""

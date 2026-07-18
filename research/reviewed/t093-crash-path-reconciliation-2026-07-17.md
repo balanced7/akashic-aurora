@@ -417,6 +417,10 @@ infrastructure safety, not an exemption from proving the daemon's signal cascade
 33. a child-owned `primary_effect=pushed` receipt proves the irreversible effect, not whole-job
     quiescence. Fresh public status remains nonterminal while that worker or any retained
     descendant can still mutate; only quiescence promotes the pushed candidate to `succeeded`.
+34. Windows durability drills are noninteractive infrastructure. The PowerShell broker itself uses
+    `CREATE_NO_WINDOW`, and each `Win32_Process.Create` call receives a `Win32_ProcessStartup`
+    record with a hidden window and detached-console creation flags. Tests observe disk receipts
+    and logs; they never flash command windows over the human's desktop.
 
 All receipts 1-26 remain mandatory. A self-hosted full-suite run is not acceptable evidence until
 receipt 30 is green; the 2026-07-18 run stopped exactly as the unsafe T086 signal test began and
