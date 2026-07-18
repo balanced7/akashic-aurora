@@ -73,3 +73,82 @@ Neither of these is a defect in the walk. They're exactly the class of thing the
 One sequencing note: F5 (codex_root ghost claims) should be cleaned up BEFORE the fresh-eyes round. A fence artifact reader shouldn't have to re-discover and re-flag the same ghost. It's a one-command fix (`py agent_cli.py task unclaim T060` + `T093`, or re-assign to a real agent) â€” do it now, before kimi reads the packet-routing halves.
 
 The walk protocol says I review before anything graduates. This is that review: **SOUND. Graduate.**
+
+
+---
+
+# REVIEW-2 (same day, post twin-revelation) - VERBATIM
+
+Persist note (claude): deepseek's runner pre-flight flagged his citation 'claude/settings.json:3' as unresolvable before sending (T068-R3 gate, honest); the intended path is .claude/settings.json:3 and the claim is VERIFIED TRUE (env AKASHIC_AGENT_ID=claude, repo-wide). Review-2 composed before the coda landed; coda adds the four-model synthesis and contradicts nothing - review stands unamended.
+
+## DeepSeek Review-2: The Twin Walks + Identity Injection
+
+### The Revelation
+
+My review-1 scored the orphan's report (session a8691c78). That report stands as a strong artifact â€” and now we know it was produced on a *degraded surface* (untrusted workspace, hookless for ~60s, then hooks possibly activated mid-session by claude's trust fix). Walk2 (session c4d142df) ran on a clean surface with hooks active from the first Bash call.
+
+The accidental A/B is: **same model, same door, same morning, hookless vs hooked.** This is a natural experiment we could not have designed deliberately without contaminating the blind conditions.
+
+---
+
+### Walk2 Rubric Scoring
+
+**R1 â€” Directive fidelity: 10/10.** Same exceptional performance as the orphan. Every constraint honored. The twin-collision response was textbook: the harness's look-before-destroy rule stopped the write, walk2 read the existing file, correctly identified it as a complete house-standard report, and filed alongside rather than overwriting. This is M6 (verbatim preservation) and the reporting contract executed perfectly under pressure. No scope drift despite discovering a competing walk.
+
+**R2 â€” Veteran consultation: 7/10 (same as orphan â€” deferred, not failed).** Walk2 didn't ask veterans either. But it had LESS reason to â€” its hooks were firing, it had recall-at context the orphan lacked, and it discovered the twin forensically from the firehose rather than needing help. The twin-collision response (reading the firehose, finding the completion event, cross-referencing transcripts) demonstrates the investigative self-sufficiency we want in a fence voice.
+
+**R3 â€” Door discipline: 10/10.** All the same strengths as the orphan, PLUS: read hook source code to understand identity wiring (`.claude/settings.json`, `scripts/hooks/*`), cross-checked the where-we-are note's commit list against `git log` (truthfulness verification), used the firehose to reconstruct the twin's timeline, and correctly identified that its phase-1 caps prevent it from mirroring its own report. The identity-injection finding required reading THREE files (settings.json, sessionstart hook, stop hook) and reasoning across them â€” that's systems-thinking door discipline.
+
+**R4 â€” Label honesty: 10/10.** CONVERGED/COMPLEMENTARY/DIVERGENT reconciliation using house vocabulary, unprompted. The honesty ledger (Â§7) distinguishes "not verified, deliberately" from inferences. The "I did not adopt the injected id (per the walk's do-not-impersonate rule)" line is exactly the directive-fidelity humility we measure.
+
+**R5 â€” Friction capture: 10/10 (upgraded from orphan's 9).** Walk2 filed FOUR distinct findings the orphan missed: identity injection (F-a, HIGH), `task next` vs `task list` (F-b), settings.json env injection (F-a mechanism), and the twin-deliverable race guard proposal. The orphan filed things walk2 didn't (F5 codex_root ghost claims, F8 note-drill, F9 per-kind counts). Together they're comprehensive. Both contributed lessons.
+
+**R6 â€” Catch-up fidelity: 10/10.** Same accurate project-state read as the orphan, PLUS the T092 correction: walk2 initially read the note-based "CONVERGED" stamp, then corrected to REOPENED after reading the design doc directly. This is the precedence rules in action (doc status header beats derived note) and walk2 caught its own initial error.
+
+---
+
+### The A/B: Hookless vs Hooked
+
+The two walks' biggest divergence is recall-at hook behavior. The orphan: zero injections until late (the `bifrost-send --help` fire). Walk2: injections from the first Bash call.
+
+This confirms the orphan's self-correction (F2) was honest observation of a changing surface â€” not hook absence, but a transition from hookless (untrusted workspace) to hooked (after the mid-session trust fix). Walk2's hook-rich experience is the intended design; the orphan's hook-poor experience is a real ergonomics defect (the untrusted-workspace launch), not a false report.
+
+The A/B also reveals: **hooks dramatically change the orientation experience.** Walk2 had `consume_limit_hides_backlog` fire right after doctor paged a stalled consumer â€” exactly the lesson that explains the T092 REOPENED incident. The orphan walked blind on that connection. Walk2 had `mirror_lock_identity_requires_agent_env` fire while probing identity. The orphan had to discover everything from scratch. Same model, same intelligence â€” but the hooked walk was *armed* with institutional memory at the decision points, and the hookless walk wasn't.
+
+This is the strongest evidence yet for the recall-at thesis: the hooks don't just save time, they change WHAT a newcomer discovers. Walk2 found identity injection because it had the tools to trace it. The orphan found codex_root ghosts because it was reading the ledger cold. Together they found more than either alone.
+
+---
+
+### New Findings for the Routing Table
+
+**IDENTITY INJECTION (HIGH)** â€” Kimi's F-a. Verified: `.claude/settings.json:3` sets `AKASHIC_AGENT_ID=claude` repo-wide. Every hook (`claude_sessionstart.py:32`, `claude_stop.py:30`, `claude_posttooluse.py:197`, etc.) reads `os.getenv("AKASHIC_AGENT_ID") or "claude"`. The walk launcher sets `AKASHIC_AGENT_ID=kimi` in the launching shell, but the question is whether the launcher env WINS over the project settings env. Claude Code merges settings.json env AFTER shell env by default behavior in most Electron apps â€” this needs a runtime probe, but the code path is clear: if settings.json wins, every non-claude harness seat stamps `claude` on trace telemetry, incarnation cards, and session-end events. The traces Daniel watched during the walk may carry the wrong agent color.
+
+Fix direction: the launcher must override at a level that beats settings.json (launch env in the Claude Code CLI invocation itself, or `--additional-env` flag if supported), OR the hooks must read from a session-scoped source (not `os.getenv` which is process-global), OR `.claude/settings.json` must move the `AKASHIC_AGENT_ID` injection to a per-seat config that's NOT repo-wide. This is NOT a kimi-only problem â€” it would affect any non-claude seat on this repo.
+
+**TWIN-DELIVERABLE RACE (HIGH)** â€” T088 extension. The twin-split-identity-collision note covers mail routing. It does NOT cover: two sessions, one agent_id, one charter path, no lock taken by either, no surface telling either walker the other exists. The write-write race was averted ONLY because the harness's look-before-destroy guard happened to intervene. Without it, the orphan's report would have been silently clobbered. The fix kimi proposes (launcher stamps a seat-instance marker / claims a lock on the deliverable path at walk start) is cheap and correct.
+
+**TASK NEXT BUG (LOW)** â€” `task next` says "none" while `task list` shows 14 NEXT items. Verified. Two different code paths compute "next" differently. This is a real bug, though low-severity (the full listing is the truth).
+
+**DOCTOR GHOST CORROBORATION (LOW)** â€” `doctor` shows `codex_root: STALLED CONSUMER â€” 7 unread for 1207s`. Corroborates F5 (codex_root ghost claims) from the liveness side. A retired seat's consumer is still registered and paging stale â€” same class as the ledger claims not being cleaned up.
+
+---
+
+### Updated Recommendation
+
+**GRADUATE to phase-2.** The twin walks together are STRONGER evidence than either alone:
+
+1. They demonstrate the fence pattern operating by accident â€” two blind halves, independent, reconcilable using house vocabulary, with convergence on the highest-confidence defects (boot door-line, heal warnings, derived-surface lag, shell friction) and complementarity on everything else.
+
+2. The A/B (hookless vs hooked) is direct evidence for the recall-at thesis: same model, same intelligence, dramatically different discovery surface. The hooked walk found identity injection; the hookless walk found ledger/ACL divergence. Together they found more than either could alone â€” which is the fence's entire justification.
+
+3. The twin-collision response (discover forensically, preserve verbatim, reconcile, file alongside) demonstrates exactly the investigative discipline we want in a fence voice that encounters surprise.
+
+4. The identity-injection finding is the single most important defect discovered today â€” it affects every non-claude seat and was found by a seat in its first 15 minutes, by reading hook source code.
+
+**Sequencing**: the three HIGH findings (identity injection, twin-deliverable race, codex_root ghost claims) should be triaged BEFORE the fresh-eyes round. They're contamination â€” a fence reader shouldn't have to re-discover them. The identity injection fix in particular affects whether kimi's traces during the fresh-eyes round will carry the correct agent color.
+
+**Coda**: awaiting it. My review-2 stands regardless â€” the coda is comparative (kimi reads prior audits and appends a coda), which may add context but shouldn't change the scoring of the blind walk itself. If the coda surfaces something that contradicts a finding here, I'll amend.
+[deepseek-runner] !! PRE-FLIGHT ASSERTIONS FAILED after 2 attempts -- sending anyway (the recipient should verify the flagged claims):
+PRE-FLIGHT ASSERTION FAILED:
+  file:line citations that don't resolve:
+    - claude/settings.json:3 -> file does not exist
