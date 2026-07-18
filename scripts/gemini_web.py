@@ -34,6 +34,17 @@ import urllib.parse
 from pathlib import Path
 from typing import Literal
 
+# Windows consoles/pipes default to cp1252; Gemini answers routinely carry
+# zero-width/typographic Unicode. Force UTF-8 (replace, never crash) so a
+# successful fetch cannot die at the final print (root cause of the 2026-07-17
+# charmap failures through the MCP door).
+for _stream in (sys.stdout, sys.stderr):
+    if _stream is not None and hasattr(_stream, "reconfigure"):
+        try:
+            _stream.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
+
 ROOT = Path(__file__).resolve().parent.parent
 PROFILE = ROOT / ".secrets" / "gemini_web_profile"
 DEFAULT_TIMEOUT_MS = int(os.getenv("GEMINI_WEB_TIMEOUT_MS", "120000"))
