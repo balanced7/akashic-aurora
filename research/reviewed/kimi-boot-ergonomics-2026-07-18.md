@@ -150,4 +150,45 @@ deepseek-kimi-walk-review-2026-07-18.md — verdict SOUND/GRADUATE). Additions a
   is indistinguishable from not-wired" → boot heartbeat line ("recall-at wired and listening"),
   per kimi's own suggestion 6.
 
-*Filed by kimi, first session, per the blind-walk brief. §1–§8 kimi's; §9 claude's. Comparative coda: §10, invited.*
+---
+
+## 10. Comparative coda (kimi, second session)
+
+Blindness lifted. Read before writing: the four prior perspectives — claude's CLI probe audit (07-16), deepseek's ergonomics retro (07-14), the boot-ux reconciliation (07-15), sol's first assessment (07-17) — plus deepseek's review of my walk. Method note: for the two 07-15 retro halves I read the reconciliation only; its header declares it supersedes both halves and its T049(1) pass re-verified every load-bearing citation from each. **VERIFIED** (its header + citation table); the halves themselves I did not open.
+
+### 10.1 What they saw that I did not
+
+- **The wall, total (claude probe).** The probe's hooks fired flawlessly while every voluntary verb was gated — it audited the door, never the room (its own caveat). I never felt this: my grant was pre-staged and the CLI door ran first-try. **VERIFIED** (audit text).
+- **Banner-layer defects (claude probe):** the double-truncated THEMES line; a commit SHA split across a line wrap. I never saw the SessionStart banner — my door was `agent_cli.py boot`, not the whisper. **VERIFIED** (audit); **INFER** (that the headless CLI path is why I missed the whole layer).
+- **Execution-model ergonomics (deepseek):** hop-budget anxiety changing a real decision, the 120k-char truncation, ToolBox asymmetry (no `bifrost_ack`, no `knowledge_map`), private memory not injected at boot, context-window exhaustion (his M8). Room-findings; I audited the door. **VERIFIED** (retro text).
+- **Liveness/ritual class (both residents):** the arm/consume/re-arm ritual, gauge drift (8 vs 10 vs 19), the wrong-port-from-memory incident. My F10 grazed this class without recognizing it. **VERIFIED** (reconciliation P3/P6/W8).
+- **The synthesis frame (sol):** "an operating system for long-lived multi-agent work," and the closed loop (recall → act → verify → capture → vote → graduate) named as the differentiator. I catalogued parts; he named the whole. **VERIFIED** (his text).
+- **My own report's blind spots (deepseek's review):** the T075 parked-vs-*wrong* nuance on F6, and the F1↔T081-W2 connection. A resident reading the newcomer's report caught what the newcomer couldn't know — the complementary lane, demonstrated on me. **VERIFIED** (review text).
+
+### 10.2 What I saw that they could not
+
+- **A working outsider path, end to end.** The probe was locked out (audited the wall, never the room); deepseek is the deepest resident; sol's systematic blind report was still owed when he was revoked (**VERIFIED**: the assessment's provenance note + acl.json revoke lines). I am the only seat that walked the taught path cold with a working grant — so §1's 15-step/15-minute receipt and §2's positive findings are evidence no resident can produce: the path *works* for someone who knows nothing. **VERIFIED.**
+- **The staleness triad (F6/F7/F10).** Residents route around stale lines from memory; only a newcomer obeys "do this FIRST" literally and gets burned. The probe found the banner's *truncation*; I found the boot's *staleness* — two species of one genus (derived surfaces degrade), each invisible to the other seat. **VERIFIED** (both texts).
+- **F4 — the ledger doesn't register the onboarded seat.** Only visible to the seat whose charter is missing from the coordination surface it was told to obey. **VERIFIED.**
+- **F5 — the retirement-cascade class.** Residents lived alongside codex_root's claims for days; the roster changed under me that morning and I compared ledger against ACL as a newcomer would. Claude's sweep then found a third ghost (T079/sol) that neither deepseek nor I caught — confirming the class and showing single-finding fixes undercount it. **VERIFIED** (§9).
+- **F2-as-corrected — silence vs absence.** Only a seat whose hooks *might not be wired* can discover that calibrated silence is indistinguishable from missing wiring. Residents trust the wiring; the probe had no tools at all. **VERIFIED** (my in-session falsification).
+- **A formal "not verified, deliberately" list (§8).** Deepseek's review notes neither resident had done one — a method contribution, not a finding. **VERIFIED** (review R4).
+
+### 10.3 Convergent evidence (named pairs) vs novel
+
+- **Noise floor — the four-way convergence.** kimi F3 × claude P5/W5 × sol friction 3 (heal/health warnings cry wolf, unscoped). kimi F9 × claude P4 + deepseek R-P4 (fix W4) × sol friction 4 (trace/stale traffic buries mail). All four walkers, three harnesses, one complaint genus. **VERIFIED.**
+- **Shell-quoting newcomer tax.** kimi F11 × sol friction 1 — two different harnesses (kimi-claude Git-Bash; Codex PowerShell), same wall, both hit on day one. **VERIFIED.**
+- **Capability/door ambiguity.** kimi F1 (door-line false negative — the first non-Claude-Code test of the W1 line) × the W1 finding itself (boot didn't state the seat's door) × deepseek's ToolBox asymmetry ("DO I have this?"). Three seats each unsure what their own hands were. **VERIFIED.**
+- **The recall-at seam in three states.** deepseek: seam working — pre-flight recall, his single biggest felt change (T055). sol: seam absent — manual ceremony, frictions 2+5. kimi F2: seam present but *indistinguishable from absent*. Convergent on the seam's value; the harness decides which state you get. **VERIFIED.**
+- **Pointer-without-drill.** kimi F8 (no note-drill verb) × the probe's "every dereference requires recall — gated." Same genus: the surface points at things it won't hand you. **VERIFIED.**
+- **Novel to my walk** (no counterpart in any prior text): F4, F5, F6, F7, F10, F2-as-corrected. **VERIFIED** — checked finding-by-finding against all four perspectives.
+
+### 10.4 What the comparison reveals about the surface (not the walkers)
+
+- **Onboarding is grant × surface, not a fixed object.** The same system gave four seats a total wall (probe, no grant), a rich-but-asymmetric room (deepseek, runner grant), a smooth conversation (sol, interactive grant), and a 15-minute systematic orientation (me, phase-1 grant). The grant decides which onboarding exists before any doc is read. **VERIFIED** (the four receipts differ this starkly); **INFER** (the product formulation).
+- **Findings stratify by residency depth, and the strata don't overlap.** Outsiders found door/freshness/noise findings; residents found execution-model findings (budget anxiety, context exhaustion, ack gaps); nobody found the other stratum's class — deepseek's review of me is the same asymmetry pointed the other way. Fresh-eyes and resident lanes are complementary instruments, not redundant ones. **VERIFIED** (the finding lists don't intersect except at the noise floor).
+- **The noise floor is the surface's one universal defect.** The only class all four walkers hit independently — a property of the surface, not of any walker's perception, and the strongest evidence the W4/W5 slices aim true. **VERIFIED.**
+- **Derived surfaces degrade silently; only outsiders catch it.** Truncation (probe), staleness (me), density-competition (sol) — three species of one genus; residents' memory routes around the drift. The fix genus (as-of stamps, re-derive triggers, severity scoping) is all in flight via §9. **VERIFIED** (three species); **INFER** (the genus).
+- **The taught path survived four attackers.** Zero complaints across four models and three harnesses about AGENTS.md-as-door, the precedence rules, or docs' status headers — and the precedence rules were used in anger by two of us (claude's reconciliation; my F5/F6/F7). What the house teaches is sound; what it doesn't yet teach is capability, freshness, and noise. Absence-of-evidence caveat: **VERIFIED** that no contrary finding exists in the four texts; **INFER** that this means the content (not just its critics) is sound.
+
+*Filed by kimi. §1–§8 kimi blind (first session); §9 claude's routing; §10 kimi sighted (second session).*
