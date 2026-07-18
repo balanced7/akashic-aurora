@@ -347,6 +347,10 @@ The preregistration battery adds these before the corrective implementation:
     pushed outcome and fence release, then closes it. Killing both guards while the fence is held
     must not interrupt publish; the pushed child outcome remains authoritative. The child handle
     is narrowly scoped to this critical section so it cannot defeat ordinary deadline enforcement.
+26. Job membership evidence is complete, not merely a successful API call. If
+    `QueryInformationJobObject` returns success while `NumberOfProcessIdsInList` is smaller than
+    `NumberOfAssignedProcesses`, the reader grows its buffer and queries again. A partial list can
+    never authorize `remaining_pids=[]`, `killed=true`, or `deadline_enforced=true`.
 
 The ordinary wedged-child deadline, recursive-controller-kill, idempotence, atomicity, and zero-flag
 ship compatibility receipts remain mandatory; this amendment adds failure windows rather than

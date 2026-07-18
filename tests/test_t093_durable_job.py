@@ -321,6 +321,35 @@ def test_exact_tree_kill_does_not_depend_on_taskkill_subprocess(monkeypatch):
             proc.wait(timeout=3)
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Win32 complete Job Object membership receipt")
+def test_job_membership_reader_retries_successful_partial_buffer(monkeypatch):
+    class FakeQuery:
+        def __init__(self):
+            self.calls = 0
+            self.argtypes = None
+            self.restype = None
+
+        def __call__(self, _handle, _info_class, buffer, _size, _returned):
+            self.calls += 1
+            value = buffer._obj
+            value.NumberOfAssignedProcesses = 20
+            listed = 16 if self.calls == 1 else 20
+            value.NumberOfProcessIdsInList = listed
+            for index in range(listed):
+                value.ProcessIdList[index] = 10_000 + index
+            return 1
+
+    query = FakeQuery()
+
+    class FakeKernel32:
+        QueryInformationJobObject = query
+
+    monkeypatch.setattr(run_job.ctypes, "WinDLL", lambda *_args, **_kwargs: FakeKernel32())
+    members = run_job._win_job_members(object())
+    assert query.calls == 2, "successful-but-partial membership must grow and retry"
+    assert members == list(range(10_000, 10_020))
+
+
 @pytest.mark.skipif(sys.platform != "win32", reason="Win32 dead-root tree evidence")
 def test_dead_root_with_live_descendant_is_not_credited_as_killed(tmp_path):
     child_pid_path = tmp_path / "descendant.pid"
