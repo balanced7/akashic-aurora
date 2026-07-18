@@ -333,6 +333,11 @@ The preregistration battery adds these before the corrective implementation:
     primary `succeeded` with `post_publish_incomplete` and the failed step named;
 22. watchdog startup expiry sets `launch_failed` and `deadline_enforced=false` in the same atomic
     receipt -- historical initial readiness cannot leak a true enforcement claim.
+23. exact deadline enforcement survives a broken ancestry chain: while the supervised root stays
+    alive, an intermediate child spawns a long-lived grandchild and exits before the deadline.
+    The grandchild must still be killed and the receipt must derive that fact from retained OS job
+    membership, not a current parent-PID snapshot. A Toolhelp walk that can no longer connect the
+    grandchild to the root is insufficient evidence for `killed=true` or `deadline_enforced=true`.
 
 The ordinary wedged-child deadline, recursive-controller-kill, idempotence, atomicity, and zero-flag
 ship compatibility receipts remain mandatory; this amendment adds failure windows rather than

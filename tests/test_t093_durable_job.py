@@ -358,6 +358,56 @@ def test_dead_root_with_live_descendant_is_not_credited_as_killed(tmp_path):
         run_job._win_terminate_exact(descendant_pid, descendant_identity)
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Win32 retained-job-membership acceptance")
+def test_deadline_kills_grandchild_after_intermediate_parent_exits(tmp_path):
+    """Current PPID snapshots must not substitute for retained OS job membership."""
+    job_id = _job_id("broken-ancestry")
+    grandchild_pid_path = tmp_path / "grandchild.pid"
+    grandchild_code = "import time; time.sleep(60)"
+    intermediate_code = (
+        "import pathlib,subprocess,sys; "
+        "p=subprocess.Popen([sys.executable,'-c',sys.argv[2]],"
+        "stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,"
+        "creationflags=subprocess.CREATE_NEW_PROCESS_GROUP); "
+        "pathlib.Path(sys.argv[1]).write_text(str(p.pid),encoding='utf-8')"
+    )
+    root_code = (
+        "import subprocess,sys,time; "
+        "subprocess.run([sys.executable,'-c',sys.argv[2],sys.argv[1],sys.argv[3]],check=True); "
+        "time.sleep(60)"
+    )
+    _launch(
+        tmp_path,
+        job_id,
+        [
+            sys.executable, "-c", root_code, str(grandchild_pid_path),
+            intermediate_code, grandchild_code,
+        ],
+        max_runtime=1.0,
+        grace=0.1,
+        heartbeat=0.03,
+    )
+
+    deadline = time.monotonic() + 3
+    while not grandchild_pid_path.exists() and time.monotonic() < deadline:
+        time.sleep(0.02)
+    assert grandchild_pid_path.exists(), "intermediate never published the grandchild PID"
+    grandchild_pid = int(grandchild_pid_path.read_text(encoding="utf-8"))
+    grandchild_identity = run_job._process_info(grandchild_pid)[1]
+    assert grandchild_identity, "kill drill requires the grandchild's creation identity"
+
+    try:
+        final = _wait_terminal(tmp_path, job_id, timeout=6)
+        assert final["state"] == "deadline_exceeded"
+        assert final.get("deadline_enforced") is True
+        assert not run_job._matches_identity(grandchild_pid, grandchild_identity), (
+            "a disconnected grandchild survived an allegedly exact job deadline"
+        )
+    finally:
+        if run_job._matches_identity(grandchild_pid, grandchild_identity):
+            run_job._win_terminate_exact(grandchild_pid, grandchild_identity)
+
+
 def test_already_dead_force_race_never_becomes_cancelled(tmp_path, monkeypatch):
     job_id = _job_id("already-dead-race")
     paths = _seed_spec(
