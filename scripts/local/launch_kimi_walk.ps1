@@ -13,7 +13,10 @@ $env:CLAUDE_CODE_SUBAGENT_MODEL = "kimi-k3"
 $env:CLAUDE_CODE_AUTO_COMPACT_WINDOW = "1048576"
 $env:CLAUDE_CODE_EFFORT_LEVEL = "max"
 $env:ENABLE_TOOL_SEARCH = "false"
-$env:AKASHIC_AGENT_ID = "kimi"          # hooks + doors scope to the kimi seat (claude_stop.py:30)
+$env:AKASHIC_AGENT_ID = "kimi"          # FULL identity chain verified 2026-07-18 (deepseek fence flag):
+                                        # sessionstart card publish (claude_sessionstart.py:65), stop hook
+                                        # (claude_stop.py:30), pre/post tooluse locks, pre_commit ownership --
+                                        # ALL key on this env var. No sol-codex-style collision path.
 Set-Location E:\AI-Setup
 Write-Host "kimi-k3 walk session: endpoint + seat env armed. Verify with /status, then paste the brief from the protocol doc." -ForegroundColor Cyan
 claude
