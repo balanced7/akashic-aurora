@@ -63,7 +63,10 @@ of seconds to minutes — comfortably inside runner REPLY_TIMEOUT (600s scaled).
   at tiny sizes) — P3-FULL (50k prefix, spaced, dashboard cross-check) disambiguates.
 - **LESSON (fence-call design)**: `max_tokens: 32` → thinking consumed the entire budget →
   `content` came back EMPTY with `stop_reason: max_tokens`. Always leave thinking headroom;
-  schema/fence calls set generous max_completion_tokens.
+  schema/fence calls set generous max_completion_tokens. Floors per deepseek (post-launch
+  note, T018 precedent — "a reasoning model with a tight cap delivers a promise instead of an
+  answer"): >=8000 for fence turns, >=32000 for megareads. Spend-ledger schema strategy: expect
+  the anthropic-door field names, fall back to conservative billing when absent.
 - **Harness smoke**: logged-in CLI 401'd (stored claude.ai OAuth outranks env auth and fails
   against Moonshot — loud, not silent). FIX: `CLAUDE_CONFIG_DIR=E:\AI-Setup\.kimi-claude-home`
   (fresh config home, no stored OAuth, env key becomes sole credential; project-level akashic
