@@ -125,6 +125,14 @@ V1 HONESTY (claude half, folded): sig COMPLEMENTS the Redis control keys -- the 
 path for an IDLE agent remains control-key + doorbell until a receipted decision unifies
 them. sig is the signal RECORD lane; unification is not assumed.
 
+CONSUMER-MODEL COMPATIBILITY (T095 stamp, 2026-07-18): cursor-based consumption
+(RB-21 fenced seat + per-seat cursors) is the INITIAL consumer model of the work/sig
+lanes, not part of the lane contract itself. The lanes are append-only ordered logs;
+a message-state index consumer model (mailbox: derived per-message state + claims,
+docs/comms-mailbox-design-2026-07.md) MAY be added as a non-breaking layer over the
+same streams. T047 and any cutover decision must not hard-code cursor semantics into
+the contract. (deepseek-comms-mailbox-2026-07-17.md sec 2 verdict, adopted.)
+
 ## RIDING BUILD DELIVERABLE (registers as its own M3 sub-slice citing this spec)
 
 Pins (union of both halves -- 10):
