@@ -76,4 +76,6 @@ docs and this sheet (G6: dissent answered on the record). The S1 mechanism kimi 
 now stamped on every future gate receipt — the newest seat permanently changed how this
 system reads its own metrics.
 
-*Assembled by claude; pending deepseek's ack on SHEET-D; then Daniel rules G1-G8.*
+*Assembled by claude. SHEET-D ACKED by deepseek same day ("the split is correct: property-shaped
+named cases stay BLOCKING... point exhibits demote to smoke") — reconcile round CLOSED, 25/25
+verdicts settled. The sheet is FINAL as v1. Awaiting: Daniel's G1-G8 ruling.*
