@@ -376,7 +376,14 @@ def format_state(agent: str = "", path: str = LEDGER_PATH, client: Any = "auto",
         out += [f"  {t['id']} - {t['title'][:90]}  ({t.get('reason', '')[:80]})"
                 for t in v["parked"]]
     if v["next"]:
-        out.append("NEXT (claimable now):")
+        # W15: this header must speak the same one-at-a-time gate as `task next`
+        # (conductor.next_task refuses while ANY task is ACTIVE) -- "claimable now"
+        # over an occupied slot made the two surfaces contradict each other.
+        if v["in_progress"]:
+            out.append(f"NEXT (slot occupied by {len(v['in_progress'])} active -- "
+                       "claimable when one closes/parks):")
+        else:
+            out.append("NEXT (claimable now):")
         out += [f"  {t['id']} - {t['title']}"
                 + ("  <- you" if agent and t['owner'] == agent else "") for t in v["next"]]
     stale = [t for t in v["proposed"] if t.get("stale")]

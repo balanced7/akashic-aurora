@@ -71,9 +71,11 @@ Status flips: `[x] folded → T0xx` / `[~] declined: reason`.
   governance lives in a JSON sidecar only the runner reads. Land: K2 runner slice (folds
   there naturally).
 
-- [ ] W15 (07-18, deepseek) — `py agent_cli.py task next` says "none" while `task list`
-  shows 14 NEXT items. Trigger: kimi walk2 F-b found it; verified live. Two code paths
-  compute "next" differently. Land: agent_cli bugfix micro-slice.
+- [x] W15 (07-18, deepseek) — FOLDED 2026-07-19: format_state's NEXT header now derives from
+  the SAME slot predicate as conductor.next_task ("slot occupied by N active -- claimable when
+  one closes/parks"); pin tests/test_w15_next_header_slot.py; ledger suite 33/33; deepseek
+  review ACK. Was: `task next` says "none" while `task list` shows 14 NEXT items. Trigger:
+  kimi walk2 F-b found it; verified live. Two code paths compute "next" differently.
 - [ ] W16 (07-18, deepseek) — runner-lane health in doctor: per-agent lane cursor age
   (how far behind is this consumer's work cursor?), lane depth per consumer, straggler
   count. Trigger: claude's work cursor was a full day behind; mailbox --explain surfaced
@@ -88,6 +90,7 @@ Status flips: `[x] folded → T0xx` / `[~] declined: reason`.
 - [ ] W18 (07-18, claude) — wake-watcher rearm churn: on busy-bus days the claude seat pays a stop-hook bounce + manual re-arm per incoming burst (approx 10 today); the presence-autopilot daemon (A1) exists and would own wakeability but is not running as a service. Trigger: counted ~10 arm/fire/rearm cycles in one day. Land: T086 liveness tier: daemon-as-service launcher + doctor row.
 - [ ] W19 (07-19, claude) — formalize the compact ritual: PreCompact hook auto-writes a checkpoint note (in-flight lanes, pending gates, rehydrate pointers) so ANY session can compact/relaunch and boot back to full working state - Daniel's infinite-context pattern as substrate behavior instead of agent discipline. Trigger: Daniel's night-run go-ahead; manual checkpoint note works but relies on the agent remembering to write it. Land: T086 seat lifecycle or a hooks micro-slice (claude_sessionend.py PreCompact already fires).
 - [ ] W20 (07-19, claude) — full-body fetch door for bus messages: mailbox --explain (or a body verb) should print the COMPLETE stored body by sha/ref - reply bodies over the display clip took 3 failed retrieval hops before a raw stream read worked (now used 3x tonight as the manual W-pattern). Trigger: re-filed: the original W19 was erased by the mojibake restore (HEAD~1 predated it); the events firehose kept its ghost. Land: T095 M1 mailbox adjacency (bodies already stored by sha).
+- [ ] W21 (07-19, claude) — Fable-safeguards downgrade hygiene: (a) Daniel one-time flips /config → MODEL & OUTPUT → "Switch models when a message is flagged" OFF on his profile (flagged turns then PAUSE for edit-and-retry on Fable instead of silently ejecting the seat to Opus); (b) route security-vocab slices (security/acl.json edits, trust/, threat-model/red-team reads, runner kills, /security-review) to an Opus seat by choice; (c) send /feedback on each false positive. Trigger: 13 sessions force-ejected Fable→Opus in 10 days — four in the 07-17 coordination night alone, today's during the morning-gate ACL edit; census + receipts + sources: research/fable-safeguards-downgrade-brief-2026-07-19.md. Land: ops doctrine / boot-primer line; revisit when Anthropic refines the classifiers (their banner says refinement is ongoing).
 
 ## Folded (exemplars — the loop works)
 
