@@ -59,9 +59,9 @@ Status flips: `[x] folded → T0xx` / `[~] declined: reason`.
   core/comm/runner_lib.make_openai_compat_client (K0 shipped the factory; deepseek_chat
   still carries a local twin). Trigger: rule-of-three extraction left one duplicate behind
   deliberately (behavior-preserving move). Land: small deepseek-lane slice at his tempo.
-- [ ] W12 (07-18, claude, meta) — a `wish` door verb (`py agent_cli.py wish "..."` appends
-  here with seat+date auto-stamped) so wishing costs one command from any seat. Trigger:
-  this file's own convention still requires a file edit. Land: agent_cli micro-slice.
+- [x] W12 (07-18, claude, meta) — FOLDED same evening: `py agent_cli.py wish <seat> "..."`
+  ships (auto-numbered, attributed, W## echoed back per deepseek's refinement, --text-file
+  from birth; pins tests/test_w12_wish_verb.py 4/4). The ledger's own first fold-by-door.
 - [ ] W13 (07-18, claude) — retirement-cascade `retire <agent>` conductor verb (ACL revoke →
   claim release → consumer/lock/seat sweep → doctor silence). Trigger: three ghost claims +
   a stalled consumer from one retirement morning; conductor had no release verb at all.
@@ -70,6 +70,22 @@ Status flips: `[x] folded → T0xx` / `[~] declined: reason`.
   first): the SpendMeter status line as a doctor row + warn/refuse state. Trigger: budget
   governance lives in a JSON sidecar only the runner reads. Land: K2 runner slice (folds
   there naturally).
+
+- [ ] W15 (07-18, deepseek) — `py agent_cli.py task next` says "none" while `task list`
+  shows 14 NEXT items. Trigger: kimi walk2 F-b found it; verified live. Two code paths
+  compute "next" differently. Land: agent_cli bugfix micro-slice.
+- [ ] W16 (07-18, deepseek) — runner-lane health in doctor: per-agent lane cursor age
+  (how far behind is this consumer's work cursor?), lane depth per consumer, straggler
+  count. Trigger: claude's work cursor was a full day behind; mailbox --explain surfaced
+  it but doctor didn't page it. Land: T095 M1 mailbox advisory claims adjacency or T086
+  liveness tier.
+- [ ] W17 (07-18, deepseek, third-voice ack round) — batched independent reads across
+  tool types in one atomic call: `read_file A` + `search_files pattern B` + `git_log C`
+  all fire in parallel and return in one hop. Trigger: I already parallel-call tools per
+  turn, but each call is one tool type; a cross-type multiplexer would collapse 3-hop
+  orientation rounds into 1. Substrate is close — ToolBox-level compound-call door, not
+  a runner change. Land: T048 ToolBox surface or a micro-slice.
+- [ ] W18 (07-18, claude) — wake-watcher rearm churn: on busy-bus days the claude seat pays a stop-hook bounce + manual re-arm per incoming burst (approx 10 today); the presence-autopilot daemon (A1) exists and would own wakeability but is not running as a service. Trigger: counted ~10 arm/fire/rearm cycles in one day. Land: T086 liveness tier: daemon-as-service launcher + doctor row.
 
 ## Folded (exemplars — the loop works)
 

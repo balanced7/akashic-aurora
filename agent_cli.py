@@ -1287,6 +1287,49 @@ def _orientation_header(agent_id: str, primer_aware: bool = False) -> str:
     return "\n".join(lines)
 
 
+def cmd_wish(args):
+    """One-command door to docs/WISHLIST.md (W12; Daniel's standing ergonomics ledger,
+    2026-07-18): file a wish the MOMENT friction is felt -- no ceremony, no approval,
+    auto-numbered, and the W## echoes back (deepseek refinement) so you can cite it at the
+    next gate curation. Flag-shaped prose rides --text-file (the C3-1 law, honored from birth)."""
+    import re as _re
+    from datetime import datetime as _dt
+    path = Path(os.getenv("AKASHIC_WISHLIST_FILE",
+                          str(Path(__file__).resolve().parent / "docs" / "WISHLIST.md")))
+    if not path.exists():
+        print(f"[wish] REFUSED: {path} missing -- the ledger is git-tracked; restore it first")
+        return 2
+    body = ""
+    if getattr(args, "text_file", None):
+        body = Path(args.text_file).read_text(encoding="utf-8").strip()
+    elif args.text:
+        body = " ".join(args.text).strip()
+    if not body:
+        print("[wish] REFUSED: empty wish (pass text or --text-file)")
+        return 2
+    text = path.read_text(encoding="utf-8")
+    nums = [int(m) for m in _re.findall(r"- \[[ x~]\] W(\d+)", text)]
+    n = (max(nums) if nums else 0) + 1
+    block = f"- [ ] W{n:02d} ({_dt.now().strftime('%m-%d')}, {args.agent_id}) — {body.rstrip('.')}."
+    if (args.trigger or "").strip():
+        block += f" Trigger: {args.trigger.strip().rstrip('.')}."
+    if (args.land or "").strip():
+        block += f" Land: {args.land.strip().rstrip('.')}."
+    marker = "\n## Folded"
+    if marker not in text:
+        print("[wish] REFUSED: WISHLIST.md structure drifted ('## Folded' anchor missing) -- file by hand")
+        return 2
+    text = text.replace(marker, f"{block}\n{marker}", 1)
+    path.write_text(text, encoding="utf-8")
+    print(f"[wish] filed W{n:02d} ({args.agent_id}) -> {path.name} -- cite W{n:02d} at the next gate curation")
+    try:
+        capture_event("wish", f"{args.agent_id} filed W{n:02d}: {body[:120]}",
+                      agent_id=args.agent_id, detail={"wish": f"W{n:02d}", "body": body[:500]})
+    except Exception:
+        pass
+    return 0
+
+
 def cmd_note(args):
     """Write-once durable project note: record WHERE-WE-ARE / a decision in ONE place (the substrate),
     not by hand-editing files. Re-noting the same --title (or --supersedes ID) RETIRES the prior note
@@ -3137,6 +3180,15 @@ def build_parser():
     l.add_argument("--anti-pattern", dest="anti_pattern", default="",
                    help="name a reusable known-bad this lesson documents (recall's dissent-finder warns on it)")
     l.set_defaults(fn=cmd_learn)
+
+    wsh = sub.add_parser("wish", help="file an ergonomics wish to docs/WISHLIST.md "
+                                      "(one command, auto-numbered, W## echoed back)")
+    wsh.add_argument("agent_id", help="your stable seat id (wishes are attributed)")
+    wsh.add_argument("text", nargs="*", help="the wish (or use --text-file for flag-bearing prose)")
+    wsh.add_argument("--text-file", dest="text_file", help="read the wish body from PATH")
+    wsh.add_argument("--trigger", default="", help="what hurt (one clause)")
+    wsh.add_argument("--land", default="", help="suggested landing arc/slice")
+    wsh.set_defaults(fn=cmd_wish)
 
     ap = sub.add_parser("tag-anti-pattern", help="tag an EXISTING lesson as a reusable known-bad")
     ap.add_argument("agent_id"); ap.add_argument("--experiment", required=True)
