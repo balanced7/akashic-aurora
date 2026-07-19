@@ -139,25 +139,36 @@ sole-completion-path class, now with a clean live specimen.
 Root cause (class): liveness is measured at the wrong layer — the daemon proves the CHILD
 EXISTS, nothing proves the TURN PROGRESSES. No last-progress-timestamp the daemon (or
 doctor) could compare against a stall threshold, no auto-recycle on stall.
-**AMENDED same evening (claude, on reading the code before building the "missing" fix):
-the timeout stack EXISTS and layered — L0 httpx connect=15s / read=120s per chunk +
-max_retries=1 (deepseek_chat.make_client, G4) + REPLY_TIMEOUT_SEC=600s wall-clock
-(runner:756, T014) — and the eventual runner confession ("no substantive reply after 2
-attempts; reason: empty", ~40 min after stall onset) is most plausibly that machinery
-COMPLETING on a degraded API, not its absence. The first-draft root-cause line ("no
-per-request timeout") was WRONG — filed before reading the guard code; C9 discipline says
-say so. What the incident still proves: (a) RB-27 stands — for the full bounded-but-long
-window every gauge read healthy, nothing surfaced turn-age; (b) the runner's boot log froze
-MID-SENTENCE at stall onset (buffered writes, RB-29 class) — an observer sees a false total
-stall and reaches for a kill that isn't needed (this seat did exactly that, then withdrew
-it when CPU ticked); (c) open reconstruction question FOR DEEPSEEK'S OWN TELEMETRY: how
-does a turn hold 25-40 min under a 120s per-chunk read timeout — dripping keep-alive chunks
-resetting the per-read clock, serial hops each burning wall-clock, or attempt sequencing?
-Routing: operator kill WITHDRAWN (turn completed alone; daemon respawn machinery never
-needed). Class fix rides T030 (RB-27 progress reader: runner stamps `progress:<agent>` per
-hop, daemon compares age vs stall threshold + recycles loudly; doctor renders last-progress
-age) + RB-29 (flush runner logs per line) + the (c) reconstruction to deepseek when his
-seat is back.**
+**AMENDED ×2 same evening (claude; the correction chain stays visible — C9 discipline).
+Amendment 1 (correct, kept): the timeout stack EXISTS and is layered — L0 httpx
+connect=15s / read=120s per chunk + max_retries=1 (deepseek_chat.make_client, G4) +
+REPLY_TIMEOUT_SEC=600s wall-clock (runner:756, T014); the runner's eventual confession
+("no substantive reply after 2 attempts; reason: empty") is most plausibly that machinery
+COMPLETING against a degraded API. The first-draft "no per-request timeout" line was wrong,
+filed before reading the guard code.
+Amendment 2 (retracts amendment 1's item (b) AND this entry's original work narrative):
+the "boot log" this entry's evidence came from — state/runner_deepseek_boot.log, the
+T067-drill activity, the "froze mid-sentence at stall onset" claim — is a FOSSIL:
+mtime 2026-07-15 01:22, four days before this incident. Today's managed runner never
+wrote it. ManagedChild pipes the child's stdout+stderr into a bounded IN-MEMORY ring
+buffer (bifrost_child.py:178-187, F1) — a live managed runner writes NO log file at all.
+So the observer-facing failure is sharper than buffering: (a) there is NOTHING on disk to
+tail for a live managed turn, and (b) a stale, identically-named log from an earlier
+UNMANAGED run sits exactly where an operator looks, impersonating live telemetry — this
+seat read it as current TWICE, first manufacturing a hang narrative (and a kill request,
+since withdrawn), then a token-accurate-streaming theory, before Get-Item's mtime ended it.
+What is actually PROVEN about today: spawn 19:21:41, process alive throughout, CPU
+3.8→7.8s, steers landed 19:29-19:35, confession ~20:05. Whether a hang occurred at all is
+UNPROVEN — 2 serial attempts under the 600s wall-clock + retries plausibly fills the
+window without one.
+Routing: operator kill WITHDRAWN. Class fixes ride T030, sharpened: (1) RB-27 progress
+reader — runner stamps `progress:<agent>` per hop; daemon compares age vs stall threshold,
+recycles loudly; doctor renders last-progress age; (2) ring-buffer visibility — the F1
+ring should be inspectable while the child LIVES (doctor verb or dump-on-demand), not only
+at crash; (3) fossil guard — either the managed spawn TRUNCATES/renames stale same-named
+logs, or boot-log writers stamp a "this file ends at <ts>, run <id>" tail so a reader can
+see it is closed; (4) the turn-hold reconstruction goes to deepseek's own telemetry when
+his seat is back.**
 
 **C1-7 · Soft-steer silently undelivered to a SESSION-class seat — no steer_drain loop, no
 delivery receipt** (2026-07-17 ~02:45, live, T060 round-2 control-fidelity dogfood). codex_root
