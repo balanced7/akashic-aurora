@@ -1,0 +1,5 @@
+{"timestamp": "2026-04-15T05:23:13.969917", "type": "action", "content": "Testing smart log", "tags": ["test"], "sequence": 1}
+{"timestamp": "2026-04-15T05:23:13.970918", "type": "decision", "content": "Decision: Test decision - Because: For testing", "tags": ["learning"], "sequence": 2}
+{"timestamp": "2026-04-15T05:23:13.971918", "type": "action", "content": "Completed testing", "tags": ["test"], "sequence": 3}
+{"timestamp": "2026-04-15T05:23:13.972918", "type": "action", "content": "Completed testing again", "tags": ["test"], "sequence": 4}
+{"timestamp": "2026-04-15T05:23:13.973418", "type": "action", "content": "Completed testing final", "tags": ["test"], "sequence": 5}
