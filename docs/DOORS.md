@@ -1,0 +1,79 @@
+# DOORS -- agent-door I/O reference (auto-generated, v0)
+
+Status: current
+Class: reference
+
+> Do NOT edit by hand. Regenerate with `py scripts/gen_doors.py`.
+> What goes IN each door and what it is FOR, derived from the door's own declaration
+> (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by
+> check_comprehensibility so it cannot silently rot.
+
+## CLI door -- `py agent_cli.py <verb>` (49 verbs)
+
+The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.
+
+| Verb | What it does | Inputs |
+|---|---|---|
+| `bifrost-ack` | durably record you HANDLED a salient bus message (P6) | `<agent_id>*` `<msg_id>*` `--note` `--json` |
+| `bifrost-nudge` | targeted fidelity signal to ONE peer (interrupt/steer/inform) | `<agent_id>*` `<text>*` `--to` `--mode` `--json` |
+| `bifrost-pause` | freeze bus auto-responders (human barge-in) | `--reason` `--by` `--json` |
+| `bifrost-resume` | un-freeze bus auto-responders |  |
+| `bifrost-send` | send a message to another agent on the bus | `<agent_id>*` `<text>` `--text-file` `--to` `--kind` `--broadcast` `--expect-reply-within` `--to-incarnation` `--json` |
+| `bifrost-skip-to-now` | T076a: advance an agent's consume cursors to stream tails (audited echo-mountain escape; requires pause + --reason) | `<agent_id>*` `--by*` `--reason*` `--json` |
+| `bifrost-standby` | T084-CL-2: turn-end ritual in ONE verb -- drain, seat report, then BLOCK as the wake listener's parent (run as a background task) | `<agent_id>*` `--session` `--no-listen` `--limit` |
+| `bifrost-sync` | Bifrost pull floor: presence + unread inbox peek | `<agent_id>*` `--limit` `--consume` `--digest` `--traces` `--json` |
+| `boot` | print an agent's startup context | `<agent_id>*` `--task` `--json` `--sources-json` |
+| `console-log` | durable console events (interjection/bus_control/file_drop) | `--limit` `--since` `--until` `--json` |
+| `delta` | what changed since this agent's last boot (T052 delta door) | `<agent_id>*` `--ack` |
+| `discover` | list every verb + its purpose (the self-describing door) | `<query>` `--json` |
+| `doctor` | fleet liveness doctor (L2): progress, not presence | `--agents` `--page` `--progress` `--json` |
+| `episode` | session bookends: current episode, close+draft, accept | `<action>* {current,close,accept}` `<chapter_id>` `--title` `--desc` `--why` `--accept-title` `--accept-desc` `--accept-why` `--json` |
+| `events` | search / drill / capture the raw event firehose | `--search` `--around` `--window` `--get` `--capture` `--promote` `--threshold` `--kind` `--summary` `--detail-json` `--refs` `--agent` `--track` `--since` `--until` `--limit` `--json` |
+| `fence` | fence workspace: slots + seal-time method checks; confabulated filenames unrepresentable (R2) | `<action>* {open,write,seal,pv,status,list}` `<fence_id>` `--question` `--tier {full,lite}` `--slot {brief,half_a,half_b,reconciliation}` `--text` `--file` `--by` `--json` |
+| `fleet` | local-model dispatch: roster (list) + capability select + direct one-shot call | `<action> {list,select,call}` `--capability` `--status` `--probe` `--max-vram` `--min-context` `--model` `--prompt` `--system` `--max-tokens` `--temperature` `--json-out` `--json` |
+| `flow` | OTel-style waterfall of recent message flows across lanes: asks, answers, gaps, duplicate copies exposed (R3) | `<agent>` `--window` `--limit` `--json` |
+| `graduate` | retire a lesson from recall surfacing -- automation now enforces its rule | `<agent_id>*` `--experiment` `--enforced-by` `--undo` `--json` |
+| `handoff` | hand work to another agent (writes a briefing its next boot reads) | `<agent_id>*` `--to` `--task` `--note` `--blocker` `--list` `--json` |
+| `harnesses` | integration-tier matrix: what each harness (claude-code/cursor/bare-cli) actually delivers | `--json` |
+| `injections` | the injection ledger: what recall pushed into contexts + cost | `--hours` `--json` |
+| `knowledge-map` | WALK the lesson/note/doc neighborhood of a topic: surface + edge-walked neighborhood + archive (R8) | `<query>*` `--per-layer` `--json` |
+| `learn` | record a lesson | `<agent_id>*` `--experiment*` `--tried` `--result` `--expected` `--recommend` `--category` `--success` `--confidence` `--json` `--anti-pattern` |
+| `list` | list ALL lessons in memory | `--json` |
+| `lock` | claim an advisory path-lock (C2) | `<agent_id>*` `<path>*` `--ttl` `--json` |
+| `locks` | show who holds which advisory path-locks | `<agent_id>` `--json` |
+| `log` | record an arbitrary narrative Beat | `<kind>` `--summary` `--source` `--category` `--task` `--json` |
+| `lookback` | one question over the rationale corpus: the strategic WHY, layered + drillable (P7) | `<question>*` `--per-layer` `--layers` `--json` |
+| `mailbox` | T095 M0 shadow mailbox: per-message state for an agent (observation only) | `<agent_id>*` `--explain` `--rebuild` `--min-evidence {unhandled,consumed,replied,acked}` `--json` |
+| `note` | record a durable project note (write-once; re-note same title to update) | `<agent_id>*` `--title*` `--note` `--context` `--category` `--supersedes` `--retire` `--session` `--json` |
+| `notes` | list active project notes (--project regenerates chronicles/memory.md) | `--limit` `--days` `--project` `--all` `--json` |
+| `packet-stats` | N0 bounded shadow route/mirror counters | `--json` |
+| `packet-trace` | N0 dry-run: explain the static route for one packet kind (no send) | `<kind>*` `--json` |
+| `promoted` | query durable salient Bifrost msgs (kind=bifrost_msg / B2) | `--limit` `--since` `--until` `--json` |
+| `recall` | search past lessons (no query = list all) | `<query>` `--json` `--full` |
+| `recall-at` | recall-at-action: relevant lessons/locks for a path or command | `--path` `--command` `--agent-id` `--limit` `--hint-style {cli,tool}` `--json` |
+| `recall-counters` | sharpening S2a: fold bare-slug + ghost recall:use:* counters (report; --fold applies) | `--fold` `--agent-id` |
+| `recall-curate` | bench surfaced-never-credited lessons + prune ghost counters (report; --apply stamps) | `--apply` `--forge-audit` `--forge-check` `--draft` `--forge-propose` `--forge-proposals` `--limit` `--json` |
+| `recall-feedback` | mark a recalled lesson useful/noise (teaches recall what helps) | `--source*` `--useful` `--noise` |
+| `stats` | recall-value funnel: surfaced -> helped -> flips -> captured | `--hours` `--days` `--json` |
+| `status` | honest system status | `--json` |
+| `story` | print narrative story views | `--chronicle` `--mark` `--session-end` `--track` `--theme` `--themes` `--at` `--chapter` `--beat` `--raw` `--json` |
+| `tag-anti-pattern` | tag an EXISTING lesson as a reusable known-bad | `<agent_id>*` `--experiment*` `--name*` `--reason` `--json` |
+| `task` | task lifecycle over the governed ledger: propose/approve/claim/start/verify/done/block/list/next (the coordination door) | `<rest>*` |
+| `triage` | sharpening S1: lessons ranked by measured value (protect / cost-no-return / noise) for review | `--min-surfaced` `--json` |
+| `unlock` | release your advisory path-lock | `<agent_id>*` `<path>*` |
+| `wish` | file an ergonomics wish to docs/WISHLIST.md (one command, auto-numbered, W## echoed back) | `<agent_id>*` `<text>*` `--text-file` `--trigger` `--land` |
+| `wrap` | distill this session (commits+lessons+notes) into a DRAFT where-we-are note | `--hours` `--commit` `--title` `--force` `--focus` |
+
+## MCP door -- the native tool surface (KNOWN GAP, v0)
+
+`ai_setup_mcp.py` exposes the same verbs as MCP tools (bifrost_sync/send, handoff,
+note, learn, task, ...). v0 does not yet derive their schemas here; the master-map
+charter M2 fence (deepseek's question #3) settles whether the MCP + runner-ToolBox
+schemas introspect cleanly enough to project the same way this CLI table does.
+
+## Runner ToolBox door (KNOWN GAP, v0)
+
+`core/comm/toolbox.py` is the deepseek/sol/kimi runner tool surface (read_file,
+write_file, run_command, bifrost_send, ...). Its `_fn`-registered schemas are the
+third door check_door_parity does not yet see (T067-1) -- projecting it is M2's
+second slice.

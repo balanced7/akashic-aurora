@@ -12,7 +12,7 @@ Run before shipping (wired into ship.py, CI, and the pre-commit hook). Exit 1 on
 
   A. Every core/ subpackage is named in docs/ARCHITECTURE.md          FAIL
   B. docs/MODULE_INDEX.md is current (run gen_arch_index.py)          FAIL
-  B2. docs/PHYSICS.md + docs/MAP.md current (their generators)        FAIL  (a derived map that rots is worse than none)
+  B2. PHYSICS.md + MAP.md + DOORS.md current (their generators)       FAIL  (a derived map that rots is worse than none)
   F. No living doc / core docstring cites a repo path that's GONE     FAIL  (stale reference -- rename/delete rot)
   G. Every tracked file's on-disk case matches git (cross-OS safe)    FAIL  (the lexicon.md vs LEXICON.md class)
   C. Every module has a line-1 docstring                              WARN
@@ -215,6 +215,12 @@ def _derived_docs_current():
             out.append("docs/MAP.md is stale -> run `py scripts/gen_master_map.py`")
     except Exception as e:
         out.append(f"docs/MAP.md check could not run ({type(e).__name__}: {e})")
+    try:
+        import gen_doors
+        if _read("docs/DOORS.md") != gen_doors.render(gen_doors.cli_verbs()):
+            out.append("docs/DOORS.md is stale -> run `py scripts/gen_doors.py`")
+    except Exception as e:
+        out.append(f"docs/DOORS.md check could not run ({type(e).__name__}: {e})")
     return out
 
 

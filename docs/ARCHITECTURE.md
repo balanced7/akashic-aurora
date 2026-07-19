@@ -10,7 +10,8 @@ cannot rot. See "How this map stays alive" at the bottom.
 > **Derived companion maps** (all auto-generated, all guarded by `check_comprehensibility.py` so
 > they cannot silently rot): [MODULE_INDEX.md](MODULE_INDEX.md) — every module's one-line job ·
 > [MAP.md](MAP.md) — the master census matrix (module × pin/paper/flags with an honest GAP queue) ·
-> [PHYSICS.md](PHYSICS.md) — the machinery's static bounds, caps, timeouts, and config flags.
+> [PHYSICS.md](PHYSICS.md) — the machinery's static bounds, caps, timeouts, and config flags ·
+> [DOORS.md](DOORS.md) — the agent-door I/O reference (every CLI verb and its inputs).
 > Dynamic envelopes (throughput/latency) are measured, not derived — see the master-map charter.
 
 > One sentence: *a message bus lets multiple agents work together, a knowledge stack keeps what they
