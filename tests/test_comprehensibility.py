@@ -35,6 +35,28 @@ def test_stale_refs_and_case_are_clean_now():
     assert cm._filename_case() == []
 
 
+# --- B2: the derived maps (PHYSICS.md, MAP.md) join the immune system (drift-injected FAIL) ---------
+
+def test_derived_docs_current_is_green_now():
+    assert cm._derived_docs_current() == []          # both generators match their on-disk output
+
+
+def test_derived_docs_drift_is_flagged(monkeypatch):
+    # Inject staleness the way it really happens: the on-disk read returns yesterday's content
+    # while the generator renders today's. The guard must FAIL and name the regenerate command.
+    real = cm._read
+
+    def fake_read(rel):
+        if rel == "docs/PHYSICS.md":
+            return "# PHYSICS -- stale hand-edited copy\n(drifted)\n"
+        return real(rel)
+
+    monkeypatch.setattr(cm, "_read", fake_read)
+    out = cm._derived_docs_current()
+    assert any("PHYSICS.md is stale" in m for m in out)
+    assert all("MAP.md is stale" not in m for m in out)   # MAP untouched -> not falsely flagged
+
+
 # --- F: stale-ref scanner -- root-anchoring is the false-positive firewall --------------------------
 
 def test_scan_refs_extracts_root_anchored_paths():

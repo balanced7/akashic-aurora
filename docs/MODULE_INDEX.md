@@ -170,6 +170,7 @@
 - `deepseek_chat.py` — deepseek_chat -- an interactive, TOOL-USING conversation with DeepSeek, in its own window.
 - `gemini_web.py` — gemini_web -- ask Gemini through the FREE web surfaces (not API quota).
 - `gen_arch_index.py` — gen_arch_index -- regenerate docs/MODULE_INDEX.md from every module's one-line docstring.
+- `gen_master_map.py` — gen_master_map -- regenerate docs/MAP.md: the master map's census matrix (T096-M0, v0).
 - `gen_physics_sheet.py` — gen_physics_sheet -- regenerate docs/PHYSICS.md: the machinery's mechanical truths, derived.
 - `harmonize_knowledge.py` — harmonize_knowledge.py — one-time knowledge-store harmonization (2026-06-20)
 - `kimi_chat.py` — kimi_chat -- the Kimi seat's model transport: kimi-k3 (Moonshot) as a first-class Akashic citizen.

@@ -23,6 +23,9 @@ SKIP_DIRS = {
     ".git", ".claude", "__pycache__", ".venv", "venv", "node_modules", "backups", "assets",
     "model_cache", "ollama_data", "rocm-lib", ".pytest_cache", ".mypy_cache",
     "blobs", "dist", "build", "models", "dockerized-ai", "_archive", "ComfyUI-Zluda",
+    # tests/ hold FIXTURE constants (a drill's NOW=, GATE=), not machinery physics -- scanning
+    # them made the sheet churn on every new test. The sheet is the MACHINERY's constraints.
+    "tests",
 }
 
 # A numeric module constant counts as a BOUND when its name says so.

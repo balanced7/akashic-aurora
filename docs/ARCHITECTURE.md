@@ -7,6 +7,12 @@ layers stack. Deliberately coarse so it changes rarely; the churny per-module de
 **auto-generated** [MODULE_INDEX.md](MODULE_INDEX.md) (run `py scripts/gen_arch_index.py`), which
 cannot rot. See "How this map stays alive" at the bottom.
 
+> **Derived companion maps** (all auto-generated, all guarded by `check_comprehensibility.py` so
+> they cannot silently rot): [MODULE_INDEX.md](MODULE_INDEX.md) — every module's one-line job ·
+> [MAP.md](MAP.md) — the master census matrix (module × pin/paper/flags with an honest GAP queue) ·
+> [PHYSICS.md](PHYSICS.md) — the machinery's static bounds, caps, timeouts, and config flags.
+> Dynamic envelopes (throughput/latency) are measured, not derived — see the master-map charter.
+
 > One sentence: *a message bus lets multiple agents work together, a knowledge stack keeps what they
 > learn, a coordination layer stops them colliding, and a supervision layer keeps them alive — all on
 > two storage primitives.*

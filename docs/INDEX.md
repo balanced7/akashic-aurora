@@ -29,6 +29,8 @@ the whole point (an old design note read as current truth is how a project stops
 |-----|-----------|-----------|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | the layer map, subsystem altitude | stable altitude + `check_comprehensibility.py` |
 | [MODULE_INDEX.md](MODULE_INDEX.md) | every module's one-line job | auto-generated (`gen_arch_index.py`) |
+| [MAP.md](MAP.md) | the master census matrix (module x pin/paper/flags + GAP queue) | auto-generated (`gen_master_map.py`) |
+| [PHYSICS.md](PHYSICS.md) | the machinery's static bounds + config flags | auto-generated (`gen_physics_sheet.py`) |
 | [LEXICON.md](LEXICON.md) | the ubiquitous language | stable altitude |
 | [PRINCIPLES.md](PRINCIPLES.md) | the earned working principles | stable; each names what would revise it |
 | [JOURNEY.md](JOURNEY.md) | the story of how we got here | append-only narrative |

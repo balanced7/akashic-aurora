@@ -4,19 +4,19 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/gen_physics_sheet.py`.
-> Derived at 7acea9d. A bound you discover by collision is not awareness -- this sheet
+> Derived at 02d1a06. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (137 names)
+## Configuration flags (135 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
 | `AGENT_ID` | `"unknown"` | core/comm/bus.py:1010 |
-| `AI_SETUP` | `"E:\\AI-Setup"` | agent_cli.py:1039, agent_cli.py:1495, agent_cli.py:1568 +16 |
+| `AI_SETUP` | `"E:\\AI-Setup"` | agent_cli.py:1039, agent_cli.py:1495, agent_cli.py:1568 +15 |
 | `AKASHIC_ACK_UNHANDLED_HOURS` | `UNHANDLED_HOURS` | core/comm/promoter.py:151 |
-| `AKASHIC_AGENT_ID` | `"deepseek"` | agent_cli.py:354, agent_cli.py:548, agent_cli.py:648 +28 |
+| `AKASHIC_AGENT_ID` | `"deepseek"` | agent_cli.py:354, agent_cli.py:548, agent_cli.py:648 +26 |
 | `AKASHIC_ASK_EXPECT_S` | `"1800"` | agent_cli.py:2879 |
 | `AKASHIC_AUTOBOOT` | `"1"` | agent/harness/context.py:159 |
 | `AKASHIC_BOOT_FULL` | `"0"` | agent_cli.py:1064 |
@@ -52,7 +52,7 @@ Class: reference
 | `AKASHIC_RECALL_CACHE_TTL` | `"120"` | core/recall/at_action.py:65 |
 | `AKASHIC_RECALL_FLOOR` | `"0.20"` | core/recall/at_action.py:897 |
 | `AKASHIC_RECALL_SELF_ECHO_H` | `"2"` | core/recall/at_action.py:833 |
-| `AKASHIC_RECALL_STATE_DIR` | `""` | agent/harness/seen.py:14, core/recall/at_action.py:63, scripts/hooks/claude_posttooluse.py:61 +7 |
+| `AKASHIC_RECALL_STATE_DIR` | `` | agent/harness/seen.py:14, core/recall/at_action.py:63, scripts/hooks/claude_posttooluse.py:61 +6 |
 | `AKASHIC_RECENT_INBOX_S` | `str(12 * 3600` | core/comm/doctor.py:60 |
 | `AKASHIC_RELEVANCE_BUDGET` | `"1"` | context/learning_loader.py:36 |
 | `AKASHIC_RELEVANCE_BUDGET_CHARS` | `""` | context/relevance_budget.py:49 |
@@ -65,13 +65,11 @@ Class: reference
 | `AKASHIC_STALL_HYSTERESIS_S` | `"180"` | core/comm/doctor.py:46 |
 | `AKASHIC_STOP_PROMISE` | `"1"` | scripts/hooks/claude_stop.py:168 |
 | `AKASHIC_STOP_WAKE` | `"1"` | scripts/hooks/claude_stop.py:238 |
-| `AKASHIC_T093_COMPLETED_MARKER` | `` | tests/test_t093_durable_job.py:740 |
-| `AKASHIC_T093_ENTERED_MARKER` | `` | tests/test_t093_durable_job.py:739, tests/test_t093_durable_job.py:1117 |
 | `AKASHIC_TIMEOUT_MULTIPLIER` | `"1"` | core/comm/timescale.py:21 |
-| `AKASHIC_TOMBSTONE` | `"1"` | core/comm/wake_seat.py:109, core/comm/wake_seat.py:136 |
+| `AKASHIC_TOMBSTONE` | `"1"` | core/comm/wake_seat.py:109, core/comm/wake_seat.py:167 |
 | `AKASHIC_TRACE` | `"1"` | agent/harness/trace.py:24, agent/harness/trace.py:52, scripts/hooks/claude_trace.py:27 |
 | `AKASHIC_TRANSCRIPT_TAIL_BYTES` | `str(4 * 1024 * 1024` | scripts/hooks/claude_posttooluse.py:105 |
-| `AKASHIC_WAKE_MARKER_FRESH_MIN` | `""` | core/comm/wake_seat.py:280 |
+| `AKASHIC_WAKE_MARKER_FRESH_MIN` | `""` | core/comm/wake_seat.py:311 |
 | `AKASHIC_WHISPER_LINES` | `""` | agent/harness/context.py:109 |
 | `AKASHIC_WISHLIST_FILE` | `` | agent_cli.py:1297 |
 | `BIFROST_CONSUME_LANE` | `` | core/comm/bifrost_api.py:214 |
@@ -137,7 +135,7 @@ Class: reference
 | `PACKET_INTEGRITY_TRACE` | `False` | core/comm/packet_spec.py:292 |
 | `PACKET_TRACE_SPOT_INTERVAL` | `DEFAULT_TRACE_SPOT_INTERVAL` | core/comm/packet_spec.py:283 |
 | `PYTEST_CURRENT_TEST` | `` | core/comm/bus.py:156 |
-| `REDIS_DB` | `"15"` | core/foundation/redis_connection.py:86, tests/test_boot_orientation.py:108 |
+| `REDIS_DB` | `` | core/foundation/redis_connection.py:86 |
 | `REDIS_HOST` | `` | core/foundation/redis_connection.py:72 |
 | `REDIS_PORT` | `` | core/foundation/redis_connection.py:72 |
 | `ROCM_PATH` | `` | temp/florence2_test.py:15, temp/test_torch.py:11 |
@@ -215,7 +213,7 @@ Class: reference
 | `REHAB_MIN_SURFACED` | 10 | core/recall/forge_optimizer.py:26 | rehab class definition (mirrors the audit / curator) |
 | `RENDER_TTL_S` | 30 | agent/harness/delta.py:30 | X1: turn_metrics EST_CACHE_TTL pattern |
 | `SNIPPET_CHARS` | 72 | core/comm/flow_trace.py:31 |  |
-| `STALE_DAYS` | 14 | scripts/check_comprehensibility.py:34 |  |
+| `STALE_DAYS` | 14 | scripts/check_comprehensibility.py:35 |  |
 | `STALE_PROPOSED_DAYS` | 7 | core/coord/task_ledger.py:281 | default; render callers may override via env AKASHIC_PROPOSED_STALE_DAYS |
 | `STEER_TTL` | 900 | core/comm/nudge.py:42 | a queued steer that's never picked up self-expires after 15 min |
 | `SURFACE_MAXLEN` | 6,000 | core/recall/at_action.py:77 |  |

@@ -12,6 +12,7 @@ Run before shipping (wired into ship.py, CI, and the pre-commit hook). Exit 1 on
 
   A. Every core/ subpackage is named in docs/ARCHITECTURE.md          FAIL
   B. docs/MODULE_INDEX.md is current (run gen_arch_index.py)          FAIL
+  B2. docs/PHYSICS.md + docs/MAP.md current (their generators)        FAIL  (a derived map that rots is worse than none)
   F. No living doc / core docstring cites a repo path that's GONE     FAIL  (stale reference -- rename/delete rot)
   G. Every tracked file's on-disk case matches git (cross-OS safe)    FAIL  (the lexicon.md vs LEXICON.md class)
   C. Every module has a line-1 docstring                              WARN
@@ -195,6 +196,28 @@ def _index_current():
             else ["docs/MODULE_INDEX.md is stale -> run `py scripts/gen_arch_index.py`"])
 
 
+def _derived_docs_current():
+    """B2: the OTHER auto-generated maps (PHYSICS.md bounds/flags, MAP.md census) share
+    MODULE_INDEX's immune property -- a projection that silently rots is worse than none.
+    Reuse each generator's OWN render (single source of truth); strip PHYSICS's derived-at
+    sha line (a moved HEAD is not staleness -- the generator's --check strips it identically)."""
+    out = []
+    try:
+        import gen_physics_sheet as phys
+        strip = lambda t: "\n".join(l for l in t.splitlines() if not l.startswith("> Derived at "))
+        if strip(_read("docs/PHYSICS.md")) != strip(phys.render(*phys.scan(), sha="_")):
+            out.append("docs/PHYSICS.md is stale -> run `py scripts/gen_physics_sheet.py`")
+    except Exception as e:
+        out.append(f"docs/PHYSICS.md check could not run ({type(e).__name__}: {e})")
+    try:
+        import gen_master_map as mapgen
+        if _read("docs/MAP.md") != mapgen.render(mapgen.build()):
+            out.append("docs/MAP.md is stale -> run `py scripts/gen_master_map.py`")
+    except Exception as e:
+        out.append(f"docs/MAP.md check could not run ({type(e).__name__}: {e})")
+    return out
+
+
 def _docstring_coverage(subs):
     nodoc = [f"core/{s}/{m}" for s in subs for m in gen.modules(f"core/{s}")
              if gen.first_doc(os.path.join(ROOT, "core", s, m)) == "(no docstring)"]
@@ -241,7 +264,8 @@ def main():
     fail_checks = [("F stale-refs", _stale_refs), ("G filename-case", _filename_case)]
     if not fast:
         fail_checks = [("A subpackages", _subpackages_in_arch, arch, subs),
-                       ("B index-current", _index_current)] + fail_checks
+                       ("B index-current", _index_current),
+                       ("B2 derived-docs-current", _derived_docs_current)] + fail_checks
     for label, fn, *a in fail_checks:
         got, crash = _run(label, fn, *a)
         (broken.append(crash) if crash else fails.extend(got))
