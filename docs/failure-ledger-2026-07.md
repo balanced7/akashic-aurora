@@ -415,6 +415,21 @@ retry-once wrapper in the standby verb IF it recurs (count: 1).**
 
 ## CLOSED (fix receipts)
 
+**C1-6 false tombstone: harness restart cycles end-and-continue one session, its own
+tombstone then blocks every re-arm** → CLOSED same-day (2026-07-19; found live by Daniel —
+"I am not seeing the usual running process indicator"): desktop-app restart/compact cycles
+fire SessionEnd (tombstone written, T086-S1 leg 0) on a session id that keeps living and even
+receives fresh SessionStarts; the wake watcher then stands down forever ("session tombstoned
+-- ended by record") and the seat goes deaf between prompts — 14 messages piled up unread.
+S1's assumption ("a resurrected turn of an ended session" = zombie) was falsified by the
+harness's own lifecycle. Root fix, symmetric authority: SessionEnd writes the ended-fact,
+SessionStart CLEARS it (wake_seat.clear_tombstone, called first thing in
+claude_sessionstart.py) — a true zombie never sees a SessionStart, so S1/C1-5 protection
+stands untouched. Pins: tests/test_t086_s1b_resurrection.py (both legs clear + benign
+double-clear) with the S1 suite green beside it (13/13); live full-path receipt: this seat's
+tombstone cleared and its watcher re-armed the same hour. Residual routed: the arm/fire/rearm
+churn itself is W18/T077-A1 (daemon owns wakeability), unchanged by this fix.
+
 **C2-5 status check that writes: bootstrap.py opened a narrative session on every run** →
 CLOSED same-commit (2026-07-17; routed from the fable-1c7f3a2e handover; found by
 codex_frontier_019f6e7e on its FIRST boot — lesson bootstrap_status_is_stateful): the

@@ -54,6 +54,12 @@ def main() -> int:
         sid = str(data.get("session_id") or "")
         if sid:
             from core.comm import wake_seat
+            # T086 S1b resurrection: SessionEnd writes the tombstone, SessionStart clears it
+            # -- the harness owns both edges. Restart/compact cycles fire SessionEnd on a
+            # session that then breathes again (live receipt 2026-07-19: this seat's watcher
+            # stood down against its own cycle's tombstone); a true zombie never gets a
+            # SessionStart, so the S1/C1-5 protection stands.
+            wake_seat.clear_tombstone(sid)
             wake_seat.touch_activity(os.getenv("AKASHIC_AGENT_ID") or "claude", sid)
     except Exception:
         pass

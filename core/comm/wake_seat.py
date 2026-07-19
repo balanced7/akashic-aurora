@@ -129,6 +129,37 @@ def write_tombstone(session_id: str, tmp: Optional[str] = None, c=None) -> bool:
     return ok
 
 
+def clear_tombstone(session_id: str, tmp: Optional[str] = None, c=None) -> bool:
+    """T086 S1b: the resurrection edge. SessionEnd writes a tombstone; a later SessionStart
+    for the SAME session id clears it -- the harness owns BOTH edges, so restart/compact
+    cycles that end-and-continue one session heal themselves (live receipt 2026-07-19: a
+    live seat was blocked from re-arming by its own cycle's tombstone). A true zombie never
+    sees a SessionStart, so S1's dead-by-record protection stands. Both legs best-effort;
+    True if a record existed to clear."""
+    if not session_id:
+        return False
+    existed = False
+    try:
+        p = tombstone_path(session_id, tmp)
+        if os.path.exists(p):
+            os.remove(p)
+            existed = True
+    except Exception:
+        pass
+    try:
+        cli = c
+        if cli is None:
+            from core.comm.bus import get_bus
+            cli = get_bus("control")._client
+        if cli is not None:
+            ns = os.environ.get("BIFROST_NAMESPACE", "bifrost")
+            if cli.delete(f"{ns}:session:ended:{session_id}"):
+                existed = True
+    except Exception:
+        pass
+    return existed
+
+
 def is_tombstoned(session_id: str, tmp: Optional[str] = None, c=None) -> bool:
     """Has this session ENDED? File first (cheap, offline-safe), Redis second.
     FAIL TOWARD ALIVE: any probe error reads as not-tombstoned -- a tombstone may only
