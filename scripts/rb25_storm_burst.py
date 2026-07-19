@@ -1,7 +1,7 @@
-# SUPERSEDED — use tests/rb25_drill3_burst.py instead.
-# This copy is stale (pre-namespace-isolation). The canonical burst script
-# lives at tests/rb25_drill3_burst.py with BIFROST_NAMESPACE support and
-# the full Claude execution checklist in its docstring.
-#
-# Keeping this file so old bus references resolve, but do NOT execute it.
-# Run: py tests/rb25_drill3_burst.py --runner X --target Y --watcher Z --pause-at 20
+"""SUPERSEDED tombstone -- points old references to the canonical RB-25 storm-burst drill.
+
+Do NOT execute this file: it is a pre-namespace-isolation copy kept only so old bus/doc
+references resolve. The canonical drill (BIFROST_NAMESPACE support + the full Claude
+execution checklist) lives at tests/rb25_drill3_burst.py.
+Run: py tests/rb25_drill3_burst.py --runner X --target Y --watcher Z --pause-at 20
+"""
