@@ -2856,7 +2856,21 @@ def cmd_bifrost_send(args):
     else:
         text = " ".join(args.text) if isinstance(args.text, list) else str(args.text)
         if not text.strip():
-            print("[bifrost-send] no message text (positional or --text-file) -- not sent."); return 2
+            # W06 (folded 2026-07-19, five argv strikes in one day): empty argv falls through to
+            # STDIN -- `... | py agent_cli.py bifrost-send claude --to X --kind reply` just works,
+            # making the safe path the effortless one. A TTY with no pipe still refuses loudly.
+            piped = False
+            try:
+                piped = not sys.stdin.isatty()
+            except Exception:
+                pass
+            if piped:
+                text = sys.stdin.read().strip()
+                if text:
+                    print(f"[bifrost-send] body from stdin ({len(text)} chars) -- the W06 path")
+            if not text.strip():
+                print("[bifrost-send] no message text (positional, --text-file, or piped stdin) -- not sent.")
+                return 2
     expect_arg = int(getattr(args, "expect_reply_within", -1))   # -1 = UNSET (arg default)
     # Directed ASKS (request/handoff/question) DEFAULT to a reply-deadline so a dropped ask surfaces
     # itself -- the 2026-07-12 silent-handoff incident: fenced asks fire-and-forgotten to a dead peer
