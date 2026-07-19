@@ -41,6 +41,7 @@ from core.comm import liveness
 from core.comm import nudge
 from core.comm import runner_lock
 from core.comm import context_hints
+from core.comm import packet_spec
 from core.coord import cognitive_metrics as cog
 from ask_deepseek import load_key, BASE_URL, DEFAULT_MODEL
 
@@ -89,15 +90,36 @@ PULSE_GEN = [0]
 
 
 def _reply_already_sent(bus, mid) -> bool:
+    """T086-S6: durable reply dedup (Kafka consumer-offsets pattern). Check Redis FIRST
+    (fast, TTL'd), then the durable Store (survives Redis restart). Fail-open: a probe
+    error reads as NOT sent — a duplicate reply is cheaper than a dropped one."""
     try:
-        return bool(bus._client.exists(REPLY_SENT_PREFIX + str(mid)))
+        if bus._client.exists(REPLY_SENT_PREFIX + str(mid)):
+            return True
     except Exception:
-        return False   # fail-open: a duplicate reply is cheaper than a dropped one
+        pass
+    # S6: durable backstop — the Store survives Redis restart
+    try:
+        from core.foundation.store import create_store
+        store = create_store()
+        return bool(store.get(f"reply_sent:{mid}"))
+    except Exception:
+        return False
 
 
 def _mark_reply_sent(bus, mid) -> None:
+    """Write the dedup sentinel to Redis (fast path) AND the durable Store (backstop).
+    Both best-effort: a skip is cheaper than a double-reply."""
     try:
         bus._client.set(REPLY_SENT_PREFIX + str(mid), "1", ex=REPLY_TIMEOUT_SEC + 60, nx=True)
+    except Exception:
+        pass
+    # S6: durable backstop — survives Redis restart (with TTL for cleanup)
+    try:
+        from core.foundation.store import create_store
+        store = create_store()
+        store.set(f"reply_sent:{mid}", "1")
+        store.expire(f"reply_sent:{mid}", REPLY_TIMEOUT_SEC + 60)
     except Exception:
         pass
 
@@ -1111,6 +1133,19 @@ def main() -> int:
             else:
                 msgs = bus.wait(timeout_ms=1500, advance=False, since_out=batch_next)
             bus.register(card=CARD)                           # refresh presence
+            # D2 stale-mail gate (kimi design, deepseek fence 2026-07-19: partition HERE in
+            # the consume loop, helpers pure in packet_spec). Stale asks surface as ONE
+            # triage notice, never auto-acked (P4); stale informs/traces skip the responder
+            # and the batch_next sweep below commits cursors past them exactly like filtered
+            # own-broadcasts (P3: no redelivery loop). BIFROST_STALE_MS=0 disables (P2).
+            _now_ms = int(time.time() * 1000)
+            msgs, _stale_asks, _stale_skips = packet_spec.partition_stale(
+                msgs, now_ms=_now_ms, stale_ms=packet_spec.stale_gate_ms())
+            if _stale_skips:
+                print(f"[deepseek-runner] skipped {len(_stale_skips)} stale inform(s)/trace(s) "
+                      "(BIFROST_STALE_MS gate)")
+            if _stale_asks:
+                print(f"[deepseek-runner] {packet_spec.stale_notice(_stale_asks, now_ms=_now_ms)}")
             fenced_out = False
             for m in msgs:
                 killpoint("post-consume-pre-process")

@@ -19,3 +19,4 @@ adding one means a design shipped that forgot it (cite the incident).
 - Precedence: TASK LEDGER beats notes beats promoted messages beats live bus; anything DONE is closed -- ignore backlog messages that contradict the ledger.
 - Consumption is delivery: every --consume gets triaged; a discarded delivery is silent mail loss (the 6h eaten-confirm stall).
 - Namespaces isolate: drills run in test-* namespaces; coordination keys follow BIFROST_NAMESPACE -- a drill must never touch live keys.
+- W21 safeguards routing: Fable seats hard-eject to Opus on security-vocab turns (13 ejects 07-10..19: acl edits, threat-model reads, process kills) -- route acl/trust/threat/kill slices to Opus/deepseek lanes; land work to files BEFORE security-adjacent turns; flagged anyway = wrap, fresh seat, boot (research/fable-safeguards-downgrade-brief-2026-07-19.md).

@@ -27,6 +27,8 @@ import sys
 import time
 from pathlib import Path
 
+from core.comm import packet_spec
+
 MAX_CMD_TIMEOUT       = int(os.getenv("DEEPSEEK_MAX_CMD_TIMEOUT", "300"))  # ceiling a single run_command can't exceed, even if the model asks for more
 
 # Dirs never worth walking (vendored / caches / heavy data) -- keeps search fast and tokens bounded.
@@ -510,9 +512,7 @@ class ToolBox:
         if b is None:
             return "ERROR: not on a Bifrost bus in this mode (no agent identity, or Redis offline)."
         to = str(to).strip().lower()
-        text = str(text)
-        if len(text) > 4000:   # RB-5 class: a bound must CONFESS, never clip silently
-            text = text[:3900] + "\n[clipped at 4000 chars -- full content did NOT send; resend in chunks]"
+        text = packet_spec.bound_tool_text(text)   # D3: 8000 door (deepseek verdict 2026-07-19), RB-5 confession retained
         meta = {"via": f"{self.agent_id}-tool", "hops": 0}
         try:
             if to in ("*", "all", "both", ""):
@@ -574,9 +574,7 @@ class ToolBox:
         to = str(to).strip().lower()
         if to in ("*", "all", "both", ""):
             return "ERROR: a nudge must target one agent (e.g. 'claude'), not a broadcast."
-        text = str(text)
-        if len(text) > 4000:   # RB-5 class: a bound must CONFESS, never clip silently
-            text = text[:3900] + "\n[clipped at 4000 chars -- full content did NOT send; resend in chunks]"
+        text = packet_spec.bound_tool_text(text)   # D3: 8000 door (deepseek verdict 2026-07-19), RB-5 confession retained
         try:
             from core.comm import nudge as _nudge
             _nudge.nudge(to, by=self.agent_id, reason=text[:80])
@@ -597,9 +595,7 @@ class ToolBox:
         to = str(to).strip().lower()
         if to in ("*", "all", "both", ""):
             return "ERROR: a steer must target one agent (e.g. 'claude'), not a broadcast."
-        text = str(text)
-        if len(text) > 4000:   # RB-5 class: a bound must CONFESS, never clip silently
-            text = text[:3900] + "\n[clipped at 4000 chars -- full content did NOT send; resend in chunks]"
+        text = packet_spec.bound_tool_text(text)   # D3: 8000 door (deepseek verdict 2026-07-19), RB-5 confession retained
         try:
             from core.comm import nudge as _nudge
             _nudge.steer_push(to, self.agent_id, text)

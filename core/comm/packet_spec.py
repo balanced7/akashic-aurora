@@ -303,6 +303,79 @@ def lane_stream_key(ns: str, lane: str, to: Optional[str] = None) -> str:
     return f"{ns}:{lane}:inbox:{to}" if to else f"{ns}:{lane}:broadcast"
 
 
+# ------------------------------------------------- stale-mail gate (D2) + send bound (D3)
+STALE_ASK_KINDS = ("question", "request", "handoff", "ask")
+DEFAULT_STALE_MS = 6 * 3600 * 1000        # kimi D2: 6h default; 0 disables the gate (P2)
+
+TOOL_SEND_TEXT_MAX = 8000                 # D3 (deepseek verdict 2026-07-19): the 4000 door
+                                          # predates 1M-context seats; bounded, still confesses.
+
+
+def stale_gate_ms() -> int:
+    """The consumer-read threshold (deepseek constraint: env read at the consumer, helper pure)."""
+    return _int_env("BIFROST_STALE_MS", DEFAULT_STALE_MS)
+
+
+def msg_age_ms(msg_id: Any, now_ms: int) -> Optional[int]:
+    """Age from a stream id '{ms}-{seq}' -- every message carries its arrival time in its id
+    (kimi D2, verified against bus.tail). None when the id isn't stream-shaped: age unknowable
+    reads as FRESH downstream (fail toward showing, never toward hiding)."""
+    try:
+        return max(0, int(now_ms) - int(str(msg_id).split("-", 1)[0]))
+    except (ValueError, TypeError):
+        return None
+
+
+def is_ask_kind(kind: Any) -> bool:
+    return str(kind or "").strip().lower() in STALE_ASK_KINDS
+
+
+def partition_stale(messages, *, now_ms: int, stale_ms: int,
+                    id_of=None, kind_of=None) -> Tuple[list, list, list]:
+    """The D2 gate's pure half: (fresh, stale_asks, stale_skips). stale_ms<=0 disables (P2).
+    Stale ASKS are never dropped -- the caller surfaces them as ONE triage notice and never
+    auto-acks (P4); stale non-asks skip the responder, and the caller's existing cursor sweep
+    commits past them (P3). Fresh mail is untouched -- the gate relabels only the backlog
+    tail (kimi D2 sec.4). Direct and broadcast entries gate identically (P5)."""
+    id_of = id_of or (lambda m: getattr(m, "id", None))
+    kind_of = kind_of or (lambda m: getattr(m, "kind", None))
+    msgs = list(messages)
+    if stale_ms is None or stale_ms <= 0:
+        return msgs, [], []
+    fresh, asks, skips = [], [], []
+    for m in msgs:
+        age = msg_age_ms(id_of(m), now_ms)
+        if age is None or age < stale_ms:
+            fresh.append(m)
+        elif is_ask_kind(kind_of(m)):
+            asks.append(m)
+        else:
+            skips.append(m)
+    return fresh, asks, skips
+
+
+def stale_notice(stale_asks, *, now_ms: int, id_of=None) -> str:
+    """P4: the collapsed triage line -- count + oldest age + the triage instruction."""
+    if not stale_asks:
+        return ""
+    id_of = id_of or (lambda m: getattr(m, "id", None))
+    ages = [a for a in (msg_age_ms(id_of(m), now_ms) for m in stale_asks) if a is not None]
+    oldest_h = (max(ages) / 3600000.0) if ages else 0.0
+    return (f"{len(stale_asks)} stale ask(s) (oldest {oldest_h:.1f}h) -- triage with --traces "
+            "before consuming; nothing auto-acked (D2 stale-mail gate)")
+
+
+def bound_tool_text(text: Any, limit: int = TOOL_SEND_TEXT_MAX) -> str:
+    """D3: the ToolBox send-door bound. Clips WITH the confession (RB-5: a bound must confess,
+    never clip silently); the margin leaves room for the confession itself."""
+    text = "" if text is None else str(text)
+    if len(text) <= limit:
+        return text
+    keep = max(0, limit - 100)
+    return text[:keep] + (f"\n[clipped at {limit} chars -- full content did NOT send; "
+                          "resend in chunks]")
+
+
 # --------------------------------------------------------------------- fragmentation
 def parse_frag(fields: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """The frag header {seq,of,whole_id,whole_len,whole_sha} from an envelope, or None if the
