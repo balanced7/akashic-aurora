@@ -1,6 +1,7 @@
 # Comms mailbox-over-the-log — T095 governing design (2026-07)
 
-Status: M0 COUNTER-FOLDED, BUILD-AUTHORIZED (deepseek counter
+Status: current (2026-07-18)
+M0 COUNTER-FOLDED, BUILD-AUTHORIZED (deepseek counter
 research/reviewed/deepseek-t095-m0-counter-2026-07-18.md accepted whole, folded
 below 2026-07-18; M1+ remain design-sketch. Daniel chartered the ARC: verbatim in
 note `t095-charter`, 2026-07-18. Sol/codex seats retired same day — fleet is

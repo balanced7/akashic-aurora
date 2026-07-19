@@ -1,0 +1,101 @@
+# Gate Packets — 2026-07-18
+
+Status: historical (decision snapshot 2026-07-18; later rulings live in the task ledger + the night-run charter)
+
+**For Daniel.** One screen per open decision: the ask, a recommendation, the strongest dissent
+(from a different seat than the author), cost and reversibility, and what happens if you stay
+silent. **As-of: 2026-07-18 ~12:20 EDT** — every claim cites its source; staleness called out
+explicitly (the kimi-F6 lesson applied).
+**Packet state: ROUND 2 — deepseek's dissent column landed and is folded below (verbatim source:
+research/reviewed/deepseek-roster-playbook-counter-2026-07-18.md §4). Ready for your rulings.**
+
+---
+
+## A. T094 recall-heuristics gates G1–G7
+*Source: note recall-heuristics-arc-status (ADR_0718002218); review verdict SOUND/SHIP;
+five fence docs + verdict committed. Nothing builds until you rule.*
+
+| Gate | The ask | Recommendation (dissent folded) | Cost / reversibility | If silent |
+|---|---|---|---|---|
+| G1 | Approve + activate R0/R1 build wave | **APPROVE now, ACTIVATE after T095 M1 lands** — deepseek dissent adopted: R0/R1 and mailbox M1 touch adjacent event-firehose surfaces; sequencing them (~36h wait) beats racing them unintegrated | Build slices, gated + pinned; reversible per-slice | Stays parked; arc idles |
+| G2 | Rule-promotion autonomy (audited door + 24h veto; safety rules human-gated) | **APPROVE as designed** — the 24h veto keeps you in the loop without being the bottleneck | Flip-back-able; audited ledger events | Manual promotion only |
+| G3 | Wrap adjudication friction cap (≤3 votes/session) | **APPROVE** — pure friction reduction | Trivial; reversible | Current friction persists |
+| G4 | Deprioritized-vs-benched split | **APPROVE** — semantic honesty in the funnel | Trivial; reversible | Ambiguity persists |
+| G5 | Frontier numeric demotions | **NOTED-class** — acknowledge, no action needed | — | Nothing changes (fine) |
+| G6 | Dissent/ack ledger | **ALREADY CLOSED** — deepseek acked R1–R3; codex window closed with seat retirement | — | — |
+| G7 | Operator-absence delegation (optional, NEW) | **APPROVE scoped to DESIGN + ROUTING only** — deepseek dissent adopted: during your absence, design approvals and slice routing are delegated; **build slices still require a fence counter-voice** (whichever seat is not the author); if no counter-voice is live, build pauses (the T092 "nothing builds" rule) | Audited; revocable | Not enabled (safe default) |
+
+## B. Morning-gate accumulator — staleness audit
+*Source: notes next-focus (ADR_0715034007) + morning-gate-2026-07-17 (ADR_0717095803). Much of
+this aged out — the derived-surface-staleness genus the kimi walk named.*
+
+- **T075 M1 build-wave approval → MOOT.** Ledger shows T075 PARKED behind T047 + its own fence
+  (conductor C5-1). Unparking is a separate, later ask; nothing for you today.
+- **Deepseek exec-grant review → ALREADY DONE.** acl.json shows it approved 2026-07-16 with the
+  IR-4 mirror family (kimi's walk verified this independently).
+- **T070 verdict → fold into normal flow.** It sits in NEXT as a fenced design question
+  (isolation completeness); claims like any NEXT item. No gate needed unless you want one.
+- **T071 → MOOT as a gate.** Already claimed/active (claude).
+- **T072 → MOOT.** Absorbed into T073 per ledger text.
+- **07-17 items:** (a) T081 approve → DONE @72a4925. (d) packet-routing RECONCILED re-stamp +
+  Phase 0 → still pending; kimi's fresh-eyes round on the halves is RUNNING today and feeds it.
+  (e) reasoning-spine items → superseded by T092 REOPENED (active design, no gate).
+  (b) C1-7 steer non-delivery fix choice + (c) three peer-review confirms → status unverified
+  today; flagged for a follow-up sweep rather than guessed at here.
+  **(d) RESOLVED ~13:45 — three-voice fold complete.** kimi's fresh-eyes + deepseek's full
+  disposition are now folded into docs/packet-routing-design-2026-07.md as **ROUND 5**. The
+  headline: the TCP closed-loop (ECN/AIMD), a CONVERGED item both resident voices liked, is
+  **DEMOTED** — replaced by a centralized token-bucket per sender (right-sized for N<20; the
+  distributed loop's feedback was ~11,500× slower than the traffic it governed). Also folded:
+  rwnd-with-liveness (C1-1 ladder), the verb API's missing receive/await half, refuse-don't-
+  queue, acl-gated route_override, redrive backoff. **Your call, (d):** the RECONCILED re-stamp
+  now waits on deepseek + deepseek-review's one-line affirms of ROUND 5 (requested on the bus),
+  then your approval. Phase 0 (additive verb sugar) is unaffected and still teed. *This is the
+  clearest proof of the multi-perspective method: a clever design both resident voices had
+  converged on, corrected by the third voice before a line of it was built.*
+
+## C. Kimi seat arc
+*Sources: kimi walk report §9–§11, deepseek review-2 (GRADUATE affirmed), protocol phases,
+acl.json phase-1 record.*
+
+- **Phase-2 graduation.** **RECOMMEND: APPROVE after** the vision probe lands (last remaining
+  evaluation step, ~$1). The fresh-eyes round is **COMPLETE and material** (2026-07-18 ~12:52):
+  research/reviewed/kimi-fresh-eyes-packet-routing-2026-07-18.md — 5 shared assumptions
+  attacked incl. same-source-agreement risk on the TCP import, 8 unconsidered items, one of
+  deepseek's cited constants flagged as not matching code. Second live receipt for the
+  outsider lane in one day. Deepseek already recommends GRADUATE; spend governance
+  (warn-$80 / refuse-$95) rides the phase-2 record.
+  If silent: kimi stays phase-1 (instrument, not builder).
+- **Twin verdict.** Merge-by-doctrine vs distinct door ids for a future concurrent runner seat.
+  **RECOMMEND:** distinct door ids decided at runner-build time (T088 note's own lean); until
+  then single `kimi` id + the launcher twin guard already shipped. If silent: status quo w/ guard.
+
+## D. Stale proposals
+*Source: ledger PROPOSED-BUT-STALE. Shelf criteria (deepseek dissent, adopted): a proposal is
+SHELVED (not abandoned) when (a) it isn't wrong, (b) it depends on an arc that hasn't opened
+yet, and (c) re-proposing when the dependency opens is cheaper than rewriting. ABANDON when
+its premise is falsified by later work.*
+
+- **T020 visual layer wave 1** (untouched 9d) — **keep shelved**; dependency = T033 UI wave.
+- **T032 retrieval v2** (untouched 7d) — **keep shelved**; dependency = T094 R0/R1 (gate A).
+- **T085 ironman Tier-2** — your read needed; the wishlist detail lives in the T084/T085 arc
+  notes; not summarized here to avoid secondhand compression.
+
+## E. The 33 uncommitted pre-quit files — triage, then mirror
+*Deepseek dissent adopted: no blanket mirror. Buckets:*
+
+- **(a) SHIP now:** completed artifacts — kimi walk reports + coda, fence halves, protocol
+  docs, deepseek's runner diff (he confirms it's his T086-S6 dedup backstop: "ship it"),
+  committed-test files, PORTS.md.
+- **(b) SHELVE:** in-progress drafts not meant for mid-stream commit.
+- **(c) SWEEP:** retired-session artifacts (`.agents/`, `.codex/`) — archive or delete with
+  your word, never blind-commit.
+
+Your word activates: I propose the bucket assignment file-by-file, then mirror (a).
+
+## F. Also at your gate (from today's playbook fence, both reconciled with deepseek)
+
+- **Coherence-sweep ledger item:** standing kimi 1M-context sweep hunting the staleness genus
+  (stale directives, retracted-but-cited designs, ghost claims) per-arc or weekly, ~$3–8/run.
+- **T090 extraction during soak:** ToolBox → core/comm/toolbox.py (deepseek) + client factory →
+  core/comm/runner_lib.py (claude) — the prerequisite that unblocks a future kimi runner.

@@ -342,6 +342,18 @@ metacharacter refusal (T067 G2: pipes REFUSED). This class cannot recur.**
 
 ### C7 Harness-level quirks (tracked, usually not ours to fix)
 
+**C7-6 · Headless Chrome screenshot hangs on the default profile (GCM phone-home)** (2026-07-18;
+folded 2026-07-19 from the stray draft docs/failure-ledger-2026-07.md.C9-headless-chrome-note.md
+during M0 currency repair — the draft filed itself as C9 before C9 became epistemological
+integrity; it is harness/tooling, so C7). Symptom: `--headless --screenshot` produced no file,
+never exited (GCM `PHONE_REGISTRATION_ERROR`/`DEPRECATED_ENDPOINT` loop); the shared default
+user-data-dir blocks the pipeline on launch-time GCM/sync/background networking. PROVEN FIX
+(same session): isolated throwaway profile + phone-home suppression — `--user-data-dir=<scratch>
+--no-first-run --no-default-browser-check --disable-sync --disable-background-networking
+--disable-features=Translate,OptimizationHints` → 1.56 MB PNG in <40s, exit 0. Routing: the
+wrapper one-liner (scripts/local/shot.ps1) is filed as WISHLIST W22 so the next seat never
+rediscovers the flag set. Adjacent SSE-page screenshot timeout is C7-2 (separate, tracked).
+
 **C7-5 · MCP door twins AttributeError on Namespace attrs the CLI always defines — three
 instances, one class** — **FIXED 2026-07-17 early AM (claude, during T060 round 2), pin GREEN.**
 Sol's MCP-native seat hit two live: `notes()` read `args.all`, `note()` read `args.retire`
