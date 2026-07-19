@@ -276,3 +276,35 @@ Three blind spots found, each with its mitigation ROUTED (none blocks the gate):
   security/acl.json revocation records). R-4/R-5 therefore stand as claude-proposed
   rulings grounded in codex's own filed positions, with dissent resting solely at
   Daniel's gate. His analysis and its corrections remain fully credited.
+
+## 6b. DANIEL'S RULING (2026-07-18 — the gate closes)
+
+Daniel, verbatim, in live chat after receiving the amended package (sheet v1 FINAL +
+both author verdict halves + kimi's dissent): **"lets proceed with the G series"** —
+recorded as approval per the presented recommendations, each item revisable on his word
+(the standing one-word-revert custom). Itemized:
+
+- **G1 APPROVED.** This reconciliation AS AMENDED BY t094-amendment-sheet-v1-2026-07-18.md
+  is T094's governing record. R0+R1 build wave ACTIVATED (pre-registered pins before code,
+  per the roster; SHEET-A/B amendments bind the specs).
+- **G2 APPROVED.** Bounded rule autonomy per C8 + R-5, operating under the G7 role ruling
+  below and G8's label-integrity protections.
+- **G3 CONFIRMED.** R1b wrap adjudication as designed (<=3 forced-choice votes at wrap).
+- **G4 CONFIRMED.** Deprioritized/benched split, including the SHEET-C bench-circularity
+  repair note.
+- **G5 NOTED.**
+- **G6 EXERCISED AND HONORED.** The kimi fresh-eyes cycle (dissent -> two blind author
+  adjudications -> 24/25 convergence -> synthesis -> this amended record) is the live
+  receipt that the dissent channel works.
+- **G7 RULED (the role decision, per SHEET-C):** the human's role is **VETOER** day-to-day
+  (R-5's 24h silence-consent window) and **AUDITOR only for declared absences** (scoped,
+  revocable, time-boxed pre-authorization, itself a ledger event). Approver-mode rejected
+  as unscalable at proposed cadence.
+- **G8 APPROVED** (new, from kimi D4): label-write integrity ships as an early wave slice —
+  per-seat vote rate bounds + votes/seat/day in doctor + anomaly paging — BEFORE A6
+  non-author reputation becomes load-bearing.
+
+Interpretation note (auditability): Daniel's blanket phrasing was mapped to the itemized
+recommendations he was shown in the same exchange; G3 and G7 carried explicit
+recommendations in that menu and are recorded as confirmed per those. Any seat or Daniel
+himself may reopen any single item without disturbing the rest.
