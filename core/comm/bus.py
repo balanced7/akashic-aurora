@@ -633,26 +633,52 @@ class Bus:
                 commit_status_out["status"] = status
         return returned
 
+    def _seat_born_key(self) -> str:
+        return f"{self.ns}:seat:born:{self.agent_id}"
+
     def seed_cursor_at_tail(self) -> bool:
-        """RB-25 F2: onboard a NEW agent by moving its shared cursor to the live tail, so
-        only mail arriving AFTER onboarding wakes it -- never the stale broadcast backlog.
-        A virgin cursor ("0"/"0") drains the whole broadcast history on first read; the
-        newborn gauntlet caught a fresh agent acting on a months-old directive as current.
-        Same discipline the wake watcher already uses (tail(), not the "$" sentinel).
-        ONLY seeds a virgin cursor -- a returning agent with real read progress is never
-        rewound (idempotent, safe to call at every onboarding). Returns True if it seeded.
-        Uses generation 0: a never-read agent has never been fenced, so the guarded commit
-        accepts it; a fenced agent already has progress and is skipped by the virgin check."""
+        """RB-25 F2 + K2-tail citizen-seed (kimi design 2026-07-19, built by claude): onboard
+        a NEW CITIZEN by moving its shared cursor to the live tail, so only mail arriving
+        AFTER onboarding wakes it -- never the stale broadcast backlog.
+
+        HISTORY: the original gate keyed on cursor VIRGINITY ("0"/"0"). Kimi's first citizen
+        boot proved virginity is the wrong proxy -- 'virginity is a property of the CURSOR;
+        citizenship is a property of the SEAT' (kimi-k2tail-design-2026-07-19.md). A
+        pre-citizenship walk/drill/twin can consume mail on a seat's behalf, polluting
+        virginity without conferring citizenship; that seat then inherits a days-old backlog
+        it never lived (live receipt: kimi answering ancient informs, metered on its own
+        budget). The gate is now the `{ns}:seat:born:{agent}` marker -- FIRST CITIZEN BOOT
+        seeds (virgin or not) and writes the marker; a marked seat is never rewound.
+
+        Builder's liberty vs the design (kimi to verify): the citizenship gate lives INSIDE
+        this method rather than a wrapper verb, so all four runner call sites inherit the fix
+        with ZERO call-site edits. Pins P1-P5: tests/test_k2tail_citizen_seed.py.
+        Generation-0 semantics unchanged (P5): a never-CITIZEN seat has never been fenced."""
         if not self.online:
             return False
+        try:
+            born = self._client.hget(self._seat_born_key(), "ts")
+        except Exception:
+            born = None
         cur = self._read_cursor()
-        if cur.get("inbox", "0") != "0" or cur.get("bc", "0") != "0":
-            return False                              # not virgin -> real progress, never rewind
+        has_progress = cur.get("inbox", "0") != "0" or cur.get("bc", "0") != "0"
+        if born is not None:
+            return False                    # returning citizen -- never rewind (P2)
+        seeded = False
         t = self.tail()
-        if t.get("inbox", "0") == "0" and t.get("bc", "0") == "0":
-            return False                              # nothing to skip -- leave virgin
-        self.advance_to(inbox=t.get("inbox"), bc=t.get("bc"), generation=0)
-        return True
+        if not (t.get("inbox", "0") == "0" and t.get("bc", "0") == "0"):
+            # First citizen boot: seed at tail whether the cursor is virgin (P3, the
+            # original RB-25 case) or walk-polluted (P1, kimi's defect).
+            self.advance_to(inbox=t.get("inbox"), bc=t.get("bc"), generation=0)
+            seeded = True
+        try:                                # birth certificate: written once, first boot,
+            import time as _t               # even when there was nothing to skip
+            self._client.hset(self._seat_born_key(), mapping={
+                "ts": str(int(_t.time() * 1000)),
+                "had_prior_cursor": "1" if has_progress else "0"})
+        except Exception:
+            pass
+        return seeded
 
     def pending(self) -> int:
         """How many unread messages are waiting (direct + broadcast), without advancing the cursor."""
