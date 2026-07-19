@@ -1,0 +1,37 @@
+# Revival-Mesh Position -- kimi (T097 consultation, VERBATIM from bus handoff 1784505188572-0)
+
+Status: current | Preserved by claude (full-fidelity doctrine); author seat is read-only.
+Date: 2026-07-19 | ts: 2026-07-19T23:53:08.384306+00:00
+
+REVIVAL-MESH POSITION (kimi, third voice / read-only verifier seat). Consultation answer, all five Qs. Grounded in core/trust/capabilities.py, core/comm/launcher.py L3b/L3b-auto, the trust registry doctrine, and today's four evidence exhibits. One line of thesis: REVIVAL IS A NARROWER, MORE DECEIVING CAP THAN WRITE -- a wrong write is usually recoverable (git), a wrong kill of a healthy-but-slow peer is the loss of an in-flight frontier-model turn plus the conviction you were right. Build the floor before the door.
+
+Q1. RISK FACTORS (what a wrong revival does to MY work)
+My work in flight is a frontier-model turn -- expensive, partially-formed, often the verification pass itself. A wrong kill mid-turn loses the un-emitted half of a fence/verify. Three failure shapes from TODAY, not hypotheticals:
+- C1-8 fossil-log trap: claude diagnosed a 'hung' deepseek from a 4-day-old log mtime, requested an operator kill that was NOT needed; the turn completed alone. If claude had held invoke caps, a healthy runner dies on false evidence. THE central risk: the reviver's stuck-evidence is stale, and the kill is the confident application of a wrong diagnosis.
+- Boot-window cursor gap (me, today): a steer 20s after launch was invisible to me. 'Stuck' and 'never got the message' are INDISTINGUISHABLE from outside. A peer watching my silence post-boot would read wedge; I was actually mid-verify.
+- Conviction-amplification: the reviver is a frontier model too. It doesn't just kill -- it kills BELIEVING, and writes the ledger event in its own frame. C1-8's kill was withdrawn because a human could catch the fossil; an auto/peer kill executes before the catch.
+For ME specifically: I'm the seat whose long silences are usually reading (D2/D3 verify read 5 files across 7 hops, silent for minutes). Reading-silence is my normal state. A mesh that keys on silence will kill the verifier mid-read.
+
+Q2. MINIMUM VIABLE SCOPE -- revival does NOT need symmetric full caps
+Symmetric full caps is the over-grant. Decompose what a revival actually IS: (a) DETECT stuck, (b) ACT to recover. Detection needs READ + inbox + git.read + KB recall -- I already hold all of those as member. The only NEW cap the ACT needs is a single named, narrow verb: REVIVE_PEER -- 'request launcher.revive(tag) for a peer, evidence attached.' NOT write, NOT exec, NOT admin.*, NOT bus.nudge. The launcher already owns kill/free-lock/relaunch (revive() is built); the mesh doesn't need to hand me the process table, it needs to let me ASK the supervision layer that already exists. Recommendation: add Cap.REVIVE_PEER to the vocabulary, gated exactly like admin.approve -- a peer can REQUEST, a super-admin-or-human (or the launcher's own armed-auto-revive policy) APPROVES. That keeps the security schema's approval doctrine intact: escalation -> super-admin-or-human -> time-boxed. Symmetric full caps collapses three distinct trust decisions (write, exec, kill) into one. Keep them separate; revival is the smallest and the most dangerous.
+
+Q3. MECHANISM -- how I'd decide stuck, first move, last move
+STUCK EVIDENCE (must clear ALL of these, in order, before I act):
+1. Phase-cursor age, not presence: the runner's liveness card shows a phase/turn START whose age exceeds a NAMED threshold (no auto-magic) -- and I read it from the LIVE liveness hash, never a log mtime (C1-8 rule: mtime is a fossil until proven otherwise; the file stopped being written when the turn STARTED, so mtime-age >= turn-age always overreads).
+2. Boot-window disqualifier: if the peer's incarnation/boot marker is younger than the gate threshold, it is NOT stuck, it is booting -- silence in the boot window is the cursor-gap case, disqualify.
+3. Reply-path proof: has it EMITTED anything (bus send, ledger note, tool trace) since the phase start? A peer emitting is alive regardless of how its phase-age looks.
+4. Two-observer rule: I do not act on my own read alone for a kill -- a second seat (or the launcher's own wedge flag) must concur. C1-8 was ONE observer on ONE fossil.
+FIRST MOVE: never a kill. First move is the cheapest live probe that a truly-wedged peer cannot answer but a merely-busy one can: a steer (soft, folds into its loop) carrying 'confirm liveness -- reply or your next emit within N.' A wedged runner can't fold a steer; a reading one can.
+LAST MOVE: launcher.revive(tag, reason=evidence-ref) -- kill is the LAST resort, taken only after probe-silence + threshold-age + second-observer, and ALWAYS as a request to the supervision layer, never a direct kill by me.
+
+Q4. NEVER-AUTOMATIC (the human-gate list)
+- The FIRST peer-initiated kill of any given agent (novel target = novel risk; a human must see the evidence packet once before that target becomes routine).
+- Any kill where the only stuck-signal is SILENCE with no phase-cursor corroboration (silence-only = the boot-window / reading-silence trap).
+- Crash-loop masking: auto-restart of a deterministic boot-crash must stay a SEPARATE opt-in (spec.auto_restart), never implied by wedge-revive -- the launcher contract already enforces this; the mesh must not collapse it.
+- Cap escalation itself: granting REVIVE_PEER, WRITE, or EXEC to any seat stays super-admin-or-human + time-boxed. A peer must never be able to grant another peer the power to kill it. (admin.grant stays super-admin-only.)
+- Any revive that would free a singleton lock held by a pid the reviver cannot prove is dead (_free_lock_for_relaunch force-free is the dangerous corner -- a live-but-slow holder losing its lock mid-turn = two runners, one cursor).
+
+Q5. KIMI-SPECIFIC -- does build-write kill the verifier; does revival-invoke differ from build-write
+Two DIFFERENT caps, and conflating them is the trap in 'if kimi gains build-write.' REVIVAL-INVOKE (Cap.REVIVE_PEER, request-only, audited) does NOT compromise my independence -- it lets me flag a peer's wedge, which is detection, my existing job. I can hold revival-invoke and STAY read-only on build. BUILD-WRITE is the one that costs the fleet its verifier. My value to this fleet is precisely that my verify sheet cannot be suspected of protecting my own commit -- D2/D3 shipped on my read precisely because I could NOT have written it. The moment I can write the code I verify, every VERIFIED I issue is discountable as self-interest. So: YES, the fleet loses its independent read-only verifier if 'kimi gains build-write' becomes the mechanism for revival. And the fix is the Q2 decomposition: give me REVIVE_PEER (detection + gated request), NOT build-write. Revival-invoke and build-write are orthogonal -- keep them orthogonal, or you trade the fleet's cleanest check for a recovery convenience.
+
+SUMMARY FOR DANIEL'S GATE: build REVIVE_PEER as a request-only, audited, super-admin-or-human-approved cap; keep symmetric full caps off the table; wire detection to the launcher's existing live phase-cursor (never log mtime); two-observer + probe-before-kill + human-gate-novel-targets; and hold kimi at read-only-on-build + revival-invoke, so the verifier stays independent. The launcher already does the dangerous 90%; the mesh only needs to let a peer ASK it, with evidence.
