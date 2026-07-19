@@ -93,3 +93,32 @@ def test_thinking_stripped_and_traced(tmp_path):
     out = ag.send("hi")
     assert out == "ok", "reasoning_content must never leak into the answer"
     assert ("think", "thought") in traces, "thinking must stream to the trace seam"
+
+
+def test_reconcile_credit_never_unspends(tmp_path, monkeypatch):
+    """The 2026-07-18 incident pin (deepseek verdict): a provider credit pushing the balance
+    ABOVE the grant must RAISE the budget, never reduce spent_usd; and the raise persists."""
+    import kimi_chat
+    p = tmp_path / "s.json"
+    m = SpendMeter(path=p, budget=105.0)
+    monkeypatch.setattr(kimi_chat, "fetch_balance", lambda timeout=20: 91.29)
+    m.reconcile(force=True)                      # first contact: absolute seed
+    assert abs(m.spent() - 13.71) < 0.01
+    monkeypatch.setattr(kimi_chat, "fetch_balance", lambda timeout=20: 110.87)
+    m.reconcile(force=True)                      # the credit event
+    assert m.spent() >= 13.70, "reconcile must NEVER reduce spent_usd"
+    assert m.budget > 105.0 + 19.0, f"credit must raise the budget, got {m.budget}"
+    m2 = SpendMeter(path=p, budget=105.0)        # restart
+    assert m2.budget > 105.0 + 19.0, "raised budget must survive restarts"
+
+
+def test_reconcile_audit_corrects_upward_only(tmp_path, monkeypatch):
+    """Wallet losing more than the fine meter recorded corrects spend UP (conservative)."""
+    import kimi_chat
+    p = tmp_path / "s.json"
+    m = SpendMeter(path=p, budget=105.0)
+    monkeypatch.setattr(kimi_chat, "fetch_balance", lambda timeout=20: 100.0)
+    m.reconcile(force=True)                      # seed: spent 5.0
+    monkeypatch.setattr(kimi_chat, "fetch_balance", lambda timeout=20: 97.0)
+    m.reconcile(force=True)                      # wallet lost 3.0, fine meter recorded 0
+    assert abs(m.spent() - 8.0) < 0.01, f"audit must add the unmetered 3.0, got {m.spent()}"

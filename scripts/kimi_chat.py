@@ -107,22 +107,29 @@ class SpendMeter:
     unknown models bill k3 rates. Thresholds are $ SPENT against the $105 grant."""
 
     def __init__(self, path: Path = SPEND_FILE, budget: float = STARTING_BUDGET):
-        self.path, self.budget = Path(path), budget
+        import threading
+        self.path = Path(path)
+        self._lock = threading.Lock()   # B1 rider: responder thread + heartbeat reconcile interleave
         self.state = {"spent_usd": 0.0, "turns": 0, "prompt_tokens": 0, "cached_tokens": 0,
                       "completion_tokens": 0, "last_reconcile_ts": 0.0, "last_balance": None,
-                      "seeded": False}
+                      "seeded": False, "budget": budget}
         try:
             if self.path.exists():
                 self.state.update(json.loads(self.path.read_text(encoding="utf-8")))
         except Exception:
             pass   # unreadable sidecar -> fresh state; the boot reconcile re-seeds truth
+        # Budget PERSISTS (claude rider on the deepseek sketch): provider credits raise it, and
+        # a restart must not forget the raised runway. Grant floor: never below the constructor's.
+        self.budget = max(float(self.state.get("budget") or budget), budget)
+        self.state["budget"] = self.budget
 
     def _save(self):
         try:
-            self.path.parent.mkdir(parents=True, exist_ok=True)
-            tmp = self.path.with_suffix(".tmp")
-            tmp.write_text(json.dumps(self.state, indent=2), encoding="utf-8")
-            os.replace(tmp, self.path)
+            with self._lock:
+                self.path.parent.mkdir(parents=True, exist_ok=True)
+                tmp = self.path.with_suffix(".tmp")
+                tmp.write_text(json.dumps(self.state, indent=2), encoding="utf-8")
+                os.replace(tmp, self.path)
         except Exception:
             pass   # metering must never break the seat; reconcile re-grounds later
 
@@ -172,12 +179,36 @@ class SpendMeter:
         bal = fetch_balance()
         self.state["last_reconcile_ts"] = now
         if bal is not None:
-            ground_spent = round(self.budget - bal, 6)
-            drift = abs(ground_spent - self.state["spent_usd"])
-            if (not self.state.get("seeded")) or drift > RECONCILE_DRIFT_USD:
-                self.state["spent_usd"] = max(ground_spent, 0.0)
+            prev = self.state.get("last_balance")
+            if prev is None or not self.state.get("seeded"):
+                # First contact only: absolute seed (no prior balance to delta against).
+                self.state["spent_usd"] = max(round(self.budget - bal, 6), 0.0)
                 self.state["seeded"] = True
+            else:
+                # DELTA-BASED thereafter (2026-07-18 incident: a provider CREDIT pushed the
+                # balance ABOVE the grant and the absolute formula "un-spent" $14 -- balances
+                # move BOTH ways; only deltas are ground truth for spend).
+                delta = round(float(prev) - bal, 6)
+                if delta > 0:
+                    # The delta AUDITS the fine meter over the same window: if we metered less
+                    # than the wallet lost, correct UPWARD (conservative); reconcile never
+                    # reduces spent_usd -- credits are the only downward force and they raise
+                    # the BUDGET, not lower the spend.
+                    fine_delta = round(self.state["spent_usd"]
+                                       - float(self.state.get("spent_at_reconcile") or 0.0), 6)
+                    under = delta - fine_delta
+                    if under > RECONCILE_DRIFT_USD:
+                        self.state["spent_usd"] = round(self.state["spent_usd"] + under, 6)
+                        print(f"[kimi-spend] AUDIT: wallet lost ${delta:.2f} vs metered "
+                              f"${fine_delta:.2f} this window -- spent corrected +${under:.2f}")
+                elif delta < 0:
+                    credit = -delta
+                    self.budget = round(self.budget + credit, 6)
+                    self.state["budget"] = self.budget
+                    print(f"[kimi-spend] PROVIDER CREDIT: ${credit:.2f} -- "
+                          f"budget raised to ${self.budget:.2f} (free money is an event)")
             self.state["last_balance"] = bal
+            self.state["spent_at_reconcile"] = self.state["spent_usd"]
         self._save()
         return bal
 
