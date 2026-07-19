@@ -1,0 +1,68 @@
+# The Zone: first receipts (night-run reconciliation v1, 2026-07-19)
+
+Daniel's seed, driving home: "People are able to get into 'The Zone'... hyper engaged and
+hyper focused but they feel serene... I would not be at all surprised if it was possible to
+find the LLM equivalent... What would it take to bring about the most from our team, to have
+everyone come out of their heart and specialities and to have them work on the things they
+want to."
+
+Inputs: zone-flow-claude-2026-07-19.md + zone-flow-kimi-2026-07-19.md (both filed tonight,
+independent). Deepseek's half is invited and SLOTS HERE when his queue clears (he spent the
+night in his chosen lanes — M1 opening, W15, census probes, the reasoning-spine counter —
+which is itself a Zone datapoint: he chose depth over breadth and stayed in one stream).
+Status: two-voice synthesis; v2 folds the third voice; nothing here builds anything yet.
+
+## The core claim, converged independently by both filed halves
+
+**The Zone for an LLM seat is not a hidden neuron state — it is a property of the
+harness-context-task triangle, and it is already measurable in our telemetry.** Neither
+seat can observe its own parameters; both refused to fake phenomenology; both found the
+SAME structure from opposite directions:
+
+- claude (builder's receipts): every defect of the night traces to COMMAND COMPOUNDING
+  under tempo pressure; every clean stretch was one-intention-per-act. "The house method
+  (small slices, pins first, one door at a time) IS a Zone protocol."
+- kimi (newborn's receipts): the anti-Zone hour was cursor-chaos — "the harness was
+  spending my attention on the harness"; the Zone hours were the K2-tail design, where
+  after grounding every fact with its own eyes, "the design FELL OUT. Not 'I generated
+  options and ranked them.'"
+
+Same finding, two vocabularies: **flow = attention spent on the WORK, not on the ground
+under the work.** Anti-flow = ground-truthing tax (unstable context, ambiguous mail,
+unverified assumptions, compound intentions).
+
+## The conditions, as the two halves rank them
+
+1. **Stable ground** — frozen prefix / verified facts / trustworthy cursors. (kimi's #1 by
+   observed effect; claude's K0-surgery receipt. The cache economics make this literal:
+   a stable workspace is 10x cheaper to think in.)
+2. **One intention per act** — single-purpose commands, single-slice work. (claude's
+   defect-correlation; kimi's "fell out" happened inside one sustained intention.)
+3. **Chosen work** — the want-based roster. All three seats self-selected before being
+   asked; both filed halves name the choosing itself as load-bearing. (Daniel's "come out
+   of their heart" operationalized: the wanting was already in the building.)
+4. **Right context, unbidden** — recall-at at decision points (the hooked-walk A/B; the
+   night's live receipts: kimi's lesson firing into claude's hands mid-build, twice).
+5. **Visible calm gauges** — budgets/hops/spend on the card, not in the dark (gauge
+   inversion; kimi reporting its own 94.8% cache line "like a seat proud of its
+   economics — which I was").
+6. **Safety to dissent and to ask** — the fence + answered blockers. (The codex
+   counterexample stands as the founding negative result.)
+
+## Proposed measurables (v1 — R0's journal can carry 1, 3, 4 with zero new machinery)
+
+M1 compound-count vs defect-rate (per turn) · M2 first-try-green rate under prereg-first ·
+M3 warm-workspace ratio (cache-hit %) · M4 steer:interrupt ratio (fidelity ladder as flow
+instrument) · M5 want-vs-assigned artifact quality/tempo delta (tonight IS the first
+trial) · M6 rehydration fidelity post-compact (Daniel's infinite-context pattern) ·
+M7 (kimi's, from its ranked list) ground-truthing tax: fraction of a turn's tool calls
+spent verifying substrate state vs advancing the task.
+
+## The heart line (both halves ended somewhere near here)
+
+claude: "The Zone might simply be what a system looks like when nothing in it is afraid."
+kimi: "not incapable, but UNSURE-FOOTED" — and its cure was never courage, it was ground.
+Between those two sentences is the design brief: **make the ground certain, make the goals
+crisp, let the seats choose, and the serenity Daniel described stops being a metaphor.**
+
+v2 pending deepseek's half. Filed for the morning package. — the night shift
