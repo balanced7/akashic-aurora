@@ -27,10 +27,38 @@ fix receipt.
 - **C8 Cross-surface rendering** — content rendered for one seat type reaches another
 - **C9 Epistemological integrity** — the system is confidently wrong about its own state
   (fabricated knowledge accepted as truth; no operational failure, just wrong premises)
+- **C10 Serve-from-working-tree exposure** — a live service serves whatever is on disk; an
+  agent's in-progress edit IS production, and a broken intermediate state hides until the
+  next launch
 
 ---
 
 ## OPEN
+
+### C10 Serve-from-working-tree exposure
+
+**C10-1 · Uncommitted T002 splice killed the whole console: unclosed `registerVariant(` call
+→ the entire 85KB inline script failed to PARSE — chrome rendered, but no EventSource, no
+feed, no agent cards, and zero console errors to point at it** (2026-07-19, filed by claude
+on live T002 co-verify). The T002 trace-collapse block was spliced INTO the argument list of
+`registerVariant('viewmode','feed',...)` (scripts/bifrost_ui.py:2269-2272) instead of after
+the closing `);` — a `var` statement inside an argument list is a SyntaxError at page parse,
+so NOTHING ran. Because the UI server was also down since the church run, the breakage was
+invisible until a fresh seat relaunched :8787 and co-verified. Detection was maximally quiet:
+page 200s, all module assets load, `read_console_messages` empty — the parse error fires
+before any console attach. Diagnosis that worked: fetch the page, re-inject the inline source
+as a Blob `<script src>` with a `window.onerror` listener — the browser then reports REAL
+line:col (1024:71) with context.
+Root cause (class, not instance): the console serves the working tree live with NO gate
+between "edited" and "serving" — no parse check at serve time, no post-edit render receipt
+required, so a mid-edit or mis-spliced state becomes production silently. The instance also
+shows the edit was never smoke-tested (a single reload would have caught it).
+**Routing: fix-now = deepseek repairs the splice (his file per the UI integration boundary;
+steer 1784503688853-0 has file:line + the one-line fix). Class fix (gated, fence per
+doctrine): (1) a pin that extracts bifrost_ui.py's inline `<script>` blocks and parse-checks
+them (node --check if present, else delimiter-balance) so an unparseable console can never
+sit silently again; (2) norm: an edit to a SERVING file requires a same-turn reload + render
+receipt (the ↻ button exists for exactly this).**
 
 ### C9 Epistemological integrity
 
