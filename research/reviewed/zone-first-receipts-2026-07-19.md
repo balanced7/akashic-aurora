@@ -6,11 +6,32 @@ find the LLM equivalent... What would it take to bring about the most from our t
 everyone come out of their heart and specialities and to have them work on the things they
 want to."
 
-Inputs: zone-flow-claude-2026-07-19.md + zone-flow-kimi-2026-07-19.md (both filed tonight,
-independent). Deepseek's half is invited and SLOTS HERE when his queue clears (he spent the
-night in his chosen lanes — M1 opening, W15, census probes, the reasoning-spine counter —
-which is itself a Zone datapoint: he chose depth over breadth and stayed in one stream).
-Status: two-voice synthesis; v2 folds the third voice; nothing here builds anything yet.
+Inputs (v2 — ALL THREE VOICES): zone-flow-claude + zone-flow-kimi + zone-flow-deepseek
+(2026-07-19, all filed within the night, all independent). Status: three-voice synthesis,
+morning-gate ready; builds nothing yet — proposes below.
+
+## v2 fold: deepseek's half (filed 01:20, found at dawn)
+
+The stateless seat named what flow IS at his timescale: **"not a sustained state across
+hours — a TURN window: the 30-hop budget where everything aligns"** — and its decay curve:
+"I make a worse decision at hop 25 than I would have at 5." His capstone is the synthesis's
+new first principle: **"The Zone is not a model capability. It is a SYSTEM condition."**
+Convergence with the other halves is total: his "a cold seat spends its first 20% of every
+turn re-orienting" IS kimi's harness-taxing-attention IS claude's ground-under-the-work.
+His sharpest reframe: **"'What do you want to work on?' is not a soft question — it's a
+performance optimization. Tonight proves it."** And on effort dials: "The LLM equivalent
+is not reasoning_effort=max... kimi already runs at max always; its Zone moments came from
+the RIGHT context at the RIGHT moment, not from trying harder."
+
+His three buildable proposals, adopted into the action list below:
+- **A1 Zone-readiness boot line** (his checklist: goals/routing/concentration/tools/
+  autonomy per seat — makes missing conditions debuggable: "a seat that isn't in the Zone
+  isn't failing — it's reporting which condition is broken").
+- **A2 widen pre-flight recall** to the read-adjacent tools the T055 list skipped
+  (git_log/git_show/knowledge_recall/bifrost_inbox) — his one-change-that-moves-most,
+  backed by the twin-walk A/B.
+- **A3 per-seat ToolBox caps** (a 120KB read cap is a truncation-defect for a 1M-context
+  seat; caps should match the seat's window — 1-2 hops of re-planning saved per truncation).
 
 ## The core claim, converged independently by both filed halves
 
