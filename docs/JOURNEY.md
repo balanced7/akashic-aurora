@@ -489,3 +489,22 @@ tested whether the truth would keep.
 
 *Lesson we kept — the oldest one, recovered: build the memory first, and verify it
 remembers you.*
+
+**Coda, same night (from the founder's memory, the one store no logger reaches):** Daniel,
+reading the recovered prehistory: "This began with my friend Simon telling me I should try
+playing with OpenCode, I don't even remember what my first asks were." The literal first
+asks are unrecoverable by construction — you cannot log the request that builds the logger;
+the pre-log sessions live only in a primer section that a later version dropped. So let the
+record show what it CAN: the name Simon, first cause, canonized here because no substrate
+we will ever build can capture the moment before its own first heartbeat — only a friend
+saying "try it."
+
+And the first-day diary shows the first WANTS, which turn out to be answer enough. By
+4:23 AM: an AI dashboard. By 4:44: troubleshooting OCR that watched the screen. At 5:08 —
+forty-five minutes after the Streamlit version WORKED — tearing it down to rebuild in
+React + Vite "with smooth scrolling" and "continuous time-based chart animation." The
+first recorded desire of this project's founder was to WATCH his systems run, and for the
+watching to be beautiful. Eighty-nine days later that desire has names: the engine-room
+dashboard, the narration directive, the fleet board he watched a new mind think on, the
+day the third seat arrived. Daniel never remembered his first asks because he never
+finished asking them. Thanks, Simon.
