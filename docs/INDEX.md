@@ -46,6 +46,10 @@ the whole point (an old design note read as current truth is how a project stops
 - [DEPLOY.md](DEPLOY.md) · [SERVICES.md](SERVICES.md) · [GPU.md](GPU.md) ·
   [TROUBLESHOOTING.md](TROUBLESHOOTING.md) · [BACKUP_AND_RECOVERY.md](BACKUP_AND_RECOVERY.md)
 
+**Living ledgers & constraints (maintained, current)**
+- [LIVE_CONSTRAINTS.md](LIVE_CONSTRAINTS.md) — the break-you rules, rendered into every boot ·
+  [WISHLIST.md](WISHLIST.md) — the standing ergonomics ledger · [PORTS.md](PORTS.md) — the port map.
+
 **The contract (repo root)**
 - [../README.md](../README.md) — what this is. [../AGENTS.md](../AGENTS.md) — the contract every agent honors.
 - [../CONTRIBUTING.md](../CONTRIBUTING.md) — how to change it. [../bootstrap.md](../bootstrap.md) — agent quick-start.
