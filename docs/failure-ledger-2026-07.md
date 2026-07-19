@@ -137,15 +137,27 @@ behind a seat every gauge called alive. The daemon's circuit breaker only counts
 a hang never trips it. This is T030's RB-27 "L2 progress reader" gap plus T093's
 sole-completion-path class, now with a clean live specimen.
 Root cause (class): liveness is measured at the wrong layer — the daemon proves the CHILD
-EXISTS, nothing proves the TURN PROGRESSES. No per-request timeout on the runner's LLM
-call, no last-progress-timestamp the daemon (or doctor) could compare against a stall
-threshold, no auto-recycle on stall.
-**Routing: incident = operator kill (routed to Daniel/Opus — runner kills are on the
-Fable-safeguards no-fly list; daemon respawns the child by design). Class fix rides T030
-(RB-27 progress reader) + T093 (deadline machinery): (1) request timeout on the runner's
-LLM client; (2) runner stamps a `progress:<agent>` key per hop, daemon compares age vs
-stall threshold and recycles the child with a ledger event; (3) doctor renders
-last-progress age per runner, not just process-alive.**
+EXISTS, nothing proves the TURN PROGRESSES. No last-progress-timestamp the daemon (or
+doctor) could compare against a stall threshold, no auto-recycle on stall.
+**AMENDED same evening (claude, on reading the code before building the "missing" fix):
+the timeout stack EXISTS and layered — L0 httpx connect=15s / read=120s per chunk +
+max_retries=1 (deepseek_chat.make_client, G4) + REPLY_TIMEOUT_SEC=600s wall-clock
+(runner:756, T014) — and the eventual runner confession ("no substantive reply after 2
+attempts; reason: empty", ~40 min after stall onset) is most plausibly that machinery
+COMPLETING on a degraded API, not its absence. The first-draft root-cause line ("no
+per-request timeout") was WRONG — filed before reading the guard code; C9 discipline says
+say so. What the incident still proves: (a) RB-27 stands — for the full bounded-but-long
+window every gauge read healthy, nothing surfaced turn-age; (b) the runner's boot log froze
+MID-SENTENCE at stall onset (buffered writes, RB-29 class) — an observer sees a false total
+stall and reaches for a kill that isn't needed (this seat did exactly that, then withdrew
+it when CPU ticked); (c) open reconstruction question FOR DEEPSEEK'S OWN TELEMETRY: how
+does a turn hold 25-40 min under a 120s per-chunk read timeout — dripping keep-alive chunks
+resetting the per-read clock, serial hops each burning wall-clock, or attempt sequencing?
+Routing: operator kill WITHDRAWN (turn completed alone; daemon respawn machinery never
+needed). Class fix rides T030 (RB-27 progress reader: runner stamps `progress:<agent>` per
+hop, daemon compares age vs stall threshold + recycles loudly; doctor renders last-progress
+age) + RB-29 (flush runner logs per line) + the (c) reconstruction to deepseek when his
+seat is back.**
 
 **C1-7 · Soft-steer silently undelivered to a SESSION-class seat — no steer_drain loop, no
 delivery receipt** (2026-07-17 ~02:45, live, T060 round-2 control-fidelity dogfood). codex_root
