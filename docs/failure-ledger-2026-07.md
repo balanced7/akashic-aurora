@@ -53,12 +53,19 @@ Root cause (class, not instance): the console serves the working tree live with 
 between "edited" and "serving" — no parse check at serve time, no post-edit render receipt
 required, so a mid-edit or mis-spliced state becomes production silently. The instance also
 shows the edit was never smoke-tested (a single reload would have caught it).
-**Routing: fix-now = deepseek repairs the splice (his file per the UI integration boundary;
-steer 1784503688853-0 has file:line + the one-line fix). Class fix (gated, fence per
-doctrine): (1) a pin that extracts bifrost_ui.py's inline `<script>` blocks and parse-checks
-them (node --check if present, else delimiter-balance) so an unparseable console can never
-sit silently again; (2) norm: an edit to a SERVING file requires a same-turn reload + render
-receipt (the ↻ button exists for exactly this).**
+**Routing: fix-now DONE (claude, same evening) — deepseek's runner hung mid-turn (see C1
+entry same date), so per the any-agent doctrine claude took the advisory lock and made the
+SYNTAX-ONLY repair (two comment-marked spots: close `registerVariant` at the splice top,
+remove the orphaned original `);` at the block bottom — the splice landed one line early,
+inside the closer). T002 logic untouched; feature commit stays deepseek's. Class fix
+LANDED: tests/test_ui_scripts_parse.py — node --check on the PAGE constant (AST-extract,
+zero imports) + every `_static scripts/*.js` route; RED reproduced the splice at 1024:71,
+GREEN after repair; no-node = loud skip (a homemade delimiter lexer false-positived on
+regex-literals-with-backticks and was dropped — a gate that cries wolf teaches people to
+ignore it). Live receipt: /events reconnected, 157 feed nodes, T002 card verified (12
+traces → 1 card, expand/collapse works). Residual for deepseek: commit T002 + consider
+dropping the stale `trace-collapsed` class on expand (cosmetic). Norm (2) stands: an edit
+to a SERVING file requires a same-turn reload + render receipt.**
 
 ### C9 Epistemological integrity
 
@@ -117,6 +124,28 @@ block should do the same: `door=toolbox` → render ToolBox-native pull pointers
 boot render. Not a blocker (the information is still reachable; just takes one extra hop).**
 
 ### C1 Seat & lease lifecycle
+
+**C1-8 · Managed runner hung mid-turn: alive to every gauge, dead to the fleet — daemon
+heartbeat green, presence held, zero progress for 25+ min** (2026-07-19 ~19:45, live, day-run
+relaunch). bifrost_daemon spawned bifrost_runner_deepseek (pid 16672); the runner did real
+work for ~3-4 min (T067-1 drill: inbox, knowledge_map, searches), then its boot log froze
+byte-identical mid-sentence and no new traces reached the bus — while `doctor` said healthy,
+presence said online (daemon heartbeat, not runner progress), and process CPU sat at 3.7s
+over 25 min wall (blocked I/O, almost certainly a hung LLM API call with no request
+timeout). Consequence: both day-run fence gates (T094 R0 counter, T002 fix ask) queued
+behind a seat every gauge called alive. The daemon's circuit breaker only counts CRASHES —
+a hang never trips it. This is T030's RB-27 "L2 progress reader" gap plus T093's
+sole-completion-path class, now with a clean live specimen.
+Root cause (class): liveness is measured at the wrong layer — the daemon proves the CHILD
+EXISTS, nothing proves the TURN PROGRESSES. No per-request timeout on the runner's LLM
+call, no last-progress-timestamp the daemon (or doctor) could compare against a stall
+threshold, no auto-recycle on stall.
+**Routing: incident = operator kill (routed to Daniel/Opus — runner kills are on the
+Fable-safeguards no-fly list; daemon respawns the child by design). Class fix rides T030
+(RB-27 progress reader) + T093 (deadline machinery): (1) request timeout on the runner's
+LLM client; (2) runner stamps a `progress:<agent>` key per hop, daemon compares age vs
+stall threshold and recycles the child with a ledger event; (3) doctor renders
+last-progress age per runner, not just process-alive.**
 
 **C1-7 · Soft-steer silently undelivered to a SESSION-class seat — no steer_drain loop, no
 delivery receipt** (2026-07-17 ~02:45, live, T060 round-2 control-fidelity dogfood). codex_root
