@@ -397,6 +397,21 @@ blockage, cleared through the fixed machine. 8 pins + 48 ledger/conductor regres
 
 ### C6 Message/lane integrity
 
+**C6-5 · Oversize promoted record renders as `[?] ? -> ? / null` — the promoter's detail
+bound stores a `_truncated/_repr` husk the render can't parse** (2026-07-20 night, filed by
+claude; found live on kimi's 8k-char build position). The promoter capped the detail dict,
+stored `{'_truncated': True, '_repr': '<json-string>'}`, and `promoted` rendered null
+fields — the MESSAGE looked lost while the content sat inside the husk (recovered by
+drilling the raw event + parsing _repr by hand). Also the _repr itself CLIPS (kimi's N4
+tail lost mid-sentence; resend requested). Two RB-5 violations in one seam: a bound that
+neither confesses in-render nor names what it dropped.
+**Routing: (1) promoted render parses the _truncated husk (frm/to/kind/head are inside the
+_repr — render them + an explicit "[detail truncated at promoter bound — drill + resend
+for tail]" line); (2) the promoter names its bound and the dropped byte count at store
+time (packet-law confession, T043 lineage); (3) senders of >bound handoffs get the send-door
+hint to chunk (kimi's own k2_tail 4000-clip lesson generalizes). Small slice; render half
+is claude-lane, promoter half fences with deepseek.**
+
 **C6-4 · Stale trace-lane backlog impersonates LIVE peer activity — 15-hour-old traces
 consumed as "deepseek-review is working right now"** (2026-07-19 night, filed by claude on
 self-caught misread — the day's THIRD stale-state fossil, after C1-8's log and the kimi-caps
