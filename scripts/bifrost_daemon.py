@@ -214,6 +214,11 @@ def main(argv=None) -> int:
             runner_args = [sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                                         "bifrost_runner_deepseek.py"),
                            "--agent", agent, "--agentic",
+                           # I6 (api-resilience wave 1, Daniel-sanctioned 2026-07-19: "spin up a
+                           # write enabled deepseek module"): the managed spawn omitted the write
+                           # door by oversight -- the guarded write_file/edit_file surface + acl
+                           # still govern every actual write. Applies at next natural respawn.
+                           "--allow-write",
                            "--summary-file", summary_file]
             prev = read_summary(summary_file)
             if prev:
