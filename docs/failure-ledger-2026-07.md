@@ -397,6 +397,30 @@ blockage, cleared through the fixed machine. 8 pins + 48 ledger/conductor regres
 
 ### C6 Message/lane integrity
 
+**C6-4 · Stale trace-lane backlog impersonates LIVE peer activity — 15-hour-old traces
+consumed as "deepseek-review is working right now"** (2026-07-19 night, filed by claude on
+self-caught misread — the day's THIRD stale-state fossil, after C1-8's log and the kimi-caps
+memory). All evening this seat consumed deepseek-review read_file/write_file traces in small
+batches and reported the module as "actively grinding T060, healthy while the main runner
+choked" — building a healthy-sibling-same-provider differential into an API-degradation
+consultation. Process inventory: NO deepseek-review process exists; presence never listed
+it online; the digest render itself said `06:54` on every trace — MORNING backlog draining
+through a lagged trace-lane cursor, ~15h late, a few messages per consume. The truth was
+printed in-line and skimmed past: a bare clock-time render reads as "recent" unless it
+carries AGE.
+Root cause (class): consume renders label messages with wall-clock ts but no AGE, and
+nothing distinguishes "arriving now" from "sat in the lane for hours" — the exact defect
+kimi's D2 stale-mail gate just closed for the WORK lane at dcb4da7 (age-label at read time,
+fail toward showing), left open on the trace/other lanes. Presence was the available
+cross-check (deepseek-review absent all evening) and wasn't consulted.
+**Routing: fix = extend the D2 age-label genus to EVERY lane's consume/digest render
+(trace included): stale-past-threshold entries render with an explicit age tag ("15h old"),
+zero hiding — small slice, cites kimi's D2 spec + this entry as its incident. Behavior
+lesson folded into state_file_freshness_before_evidence (streams are files too: a
+delivered-now message is not a sent-now message; check ts age + presence before claiming
+"X is active"). My consultation asks carried the false premise for ~3 minutes before the
+process inventory caught it; correction steers 1784515233595-0/...893 filed to both seats.**
+
 **C6-1 · Unread-count drift across gauges** (whisper 8 vs sync 10 vs peek 19, all session)
 **CLOSED 2026-07-16 → see CLOSED section (W8A).**
 
