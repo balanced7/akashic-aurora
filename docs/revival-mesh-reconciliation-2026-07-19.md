@@ -86,10 +86,18 @@ delivery-contract fix is the proper home for that pain.
 ## For Daniel's gate (decisions only you can make)
 
 **G1.** Approve REVIVE_PEER as designed above (or amend).
-**G2.** The uncommitted security/acl.json diff you were already owed for review: deepseek's
-read reports kimi's RECORD carries `write ["*"]` + `exec` (full build caps) — the shut
-runner doors are today's only enforcement. Consultation recommendation: narrow the verifier
-seat's record to read + REVIVE_PEER. Your call; the edit is deepseek's hands either way.
+**G2.** [AMENDED same night — kimi's live read (msg 1784505623616-0) corrected the premise;
+the correction chain stays visible.] First framing said: kimi's record carries `write["*"]`
++ `exec` as reviewable drift; recommendation was "narrow to read + REVIVE_PEER." kimi read
+security/acl.json:32 LIVE: that record is a **Daniel-approved Phase-2 graduation**
+(`_approved: "Daniel 2026-07-19 morning... 'I like it all, lets build!'"`) — NOT pending
+drift. So "narrow it" = REVOKING an approved grant, a legitimately different decision that
+belongs to Daniel explicitly. The honest question for the gate: **reconcile approved-grant
+vs runner-enforced read-only** — today "kimi is read-only" is enforced only by his runner's
+launch flags, not by the ACL record (the C10-1 genus: the enforcement lives at a different
+layer than the record). Tension to rule on: your morning approval graduated his caps; his
+own evening position (Q5) argues the fleet's verifier is worth more than his build-write.
+Both are yours to weigh; whatever lands, the acl.json edit is deepseek's hands.
 **G3.** Slice order: S1 RB-27 progress stamps (+ doctor last-progress render) → S2 diagnose
 + probe rungs (zero new caps, pure messaging) → S3 REVIVE_PEER cap + restart rung + audit
 events (ACL records = deepseek lane) → S4 revival drills in the T057 scenario harness (kill
