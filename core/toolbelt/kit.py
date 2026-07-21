@@ -1,4 +1,4 @@
-# kit (T099 · KIT tier) — installable bundles of belt entries (kimi, PASS 2 build).
+"""kit (T099 · KIT tier) — installable bundles of belt entries (kimi, PASS 2 build).
 
 The concept model's top rung: verb (atom) → combo (fixed alias) → recipe ($1..$9) →
 tool (play script) → **KIT** (an installable bundle). This module is the KIT tier's v1:

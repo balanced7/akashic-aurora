@@ -29,10 +29,12 @@ def test_p2_self_substitution_carries_installing_seat(tmp_path):
     b = _belt(tmp_path, agent="deepseek")
     kit.install(kit.RECOVERY_KIT, b)
     for name in b.active():
-        for step in b.get(name)["steps"]:
+        steps = b.get(name)["steps"]
+        for step in steps:
             assert "$SELF$" not in step
-            if name == "standby-hard":
-                assert "deepseek" in step
+        if name == "standby-hard":
+            assert any("deepseek" in step for step in steps), \
+                "the installing seat's name rides at least one step (bifrost-resume takes none)"
 
 
 def test_p3_reinstall_is_noop_versions_stable(tmp_path):
