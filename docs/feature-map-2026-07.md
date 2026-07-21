@@ -85,3 +85,16 @@ skunkworks without governance) — named so we can refuse them by name.
 ## Peer rounds
 deepseek + kimi are researching the same four franchises independently (what resonates, what to
 veto, names for their own organs under Rules 1-5). Their rounds fold here; Daniel gates the map.
+
+## AMENDMENT 2026-07-21 — THE ALTITUDE LAW (Daniel steer: "thematically fit up and down the whole stack; cool but not confusing")
+
+Franchises own ALTITUDES, not aspects: Foundation=Halo/Forerunner (the ancient inherited layer) ·
+Beings=Mass Effect (where things live, trust, continue) · Growth=StarCraft (where things are born
+and morph) · Rules=MTG (altitude-free, appears only in action-context, never as organ names) ·
+Monuments=grandfathered singular names (Akasha, Aurora, Bifrost). Personnel clause: the castes are
+service machinery and serve every altitude, as Forerunner constructs tended every installation.
+
+PRUNED FOR CLARITY (One Soul Per Organ; cool lost to clear): the Khala (Bifrost already names the
+living link) · Mass Relays (lanes stay plainly "lanes") · Citadel names only the console-PLACE;
+flightdeck remains the feature's plain working name. New test alongside the Stranger Test: if a
+name makes you ask "which thing is that?", it has already failed.
