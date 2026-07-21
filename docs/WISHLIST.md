@@ -150,14 +150,14 @@ Status flips: `[x] folded â†’ T0xx` / `[~] declined: reason`.
   chronicles/session-reflection-2026-07-21-fable-grounding.md. Pins
   tests/test_w37_grounding_pointer.py 5/5. THE WAVE IS 6/6. Was: Canonize the grounding
   handoff. Trigger: the single best orientation artifact existed only by ad-hoc directive.
-- [~] W38 (07-21, claude) â€” PARTIAL-FOLD 2026-07-21 marathon @ce448aa: the concrete
-  offender is FIXED -- the T095 mailbox projection is registered ephemeral, so the
-  1797-and-growing UNKNOWN wall is gone from boot (pins test_w38_w03_heal_hygiene P1-P3),
-  and the UNKNOWN line now names the owner. STILL OPEN (the systemic half): a
-  check_boundaries guard that FAILS a slice minting a new Redis family without a roster
-  entry -- so the next subsystem can't re-open this class. Trigger: 1472->1797 UNKNOWN
-  bifrost:mailbox:* keys said INVESTIGATE with no owner. Land: check_boundaries guard
-  (the register-at-ship-time enforcement); W44 operating-frame adjacency.
+- [x] W38 (07-21, claude) â€” FOLDED (both halves) 2026-07-21 marathon. Concrete @ce448aa:
+  mailbox projection registered ephemeral, the 1797 UNKNOWN wall gone + owner named in the
+  line. Systemic @a8a075c: check_boundaries rule-7 (register-at-ship-time) FAILS any
+  core/comm slice minting a `{ns}:<family>` key whose family isn't ephemeral-rostered or
+  durable-allowlisted -- and its FIRST run surfaced + closed SEVEN more latent gaps
+  (activity/pages/reply_seen/seat/session/steer/triage), each a future mailbox wall. Pins
+  test_w38_family_guard P1-P4 + test_w38_w03_heal_hygiene. The class is now un-shippable.
+  Was: heal-line ownership at ship time. Trigger: 1472->1797 UNKNOWN keys, no owner.
 - [ ] W39 (07-21, kimi) â€” When a drill/fetch verb ships, the same slice must grep the boot+hint surfaces for the old pattern it replaces: agent_cli.py:270 still teaches 'notes --json' (the BrokenPipeError dance W01 was filed to kill) one boot after note --get landed, and the truncated where-we-are line carries no drill pointer. Trigger: This boot's RECENT NOTES footer prescribed the pre-W01 pattern to a fresh seat; the new verb existed but no surface taught it. Land: B2 residual / slice-template door-hygiene step (ship-a-verb => retire-its-teaching-text).
 - [ ] W40 (07-21, kimi) â€” Doctor must distinguish OFFLINE from STALLED: a seat with no live process and unread mail pages 'STALLED CONSUMER -- N unread for Xs while idle' on its own next boot, reading as a personal defect to the fresh seat. Trigger: My boot tonight: 'kimi: STALLED CONSUMER -- 28 unread for 2821s while idle' -- the seat was not idle, it was absent; hysteresis assumes a running process. Land: W16/W03 adjacency (doctor seat-state tri-state: live/stalled/offline).
 - [ ] W41 (07-21, kimi) â€” Boot remedy lines must carry a cost tag: free remedies (run this command now) print inline; costly remedies (restart the session, re-login) get queued to the NEXT seat's launcher or the morning gate, never prescribed to the session being oriented -- a remedy that amputates the context it just built will never be taken. Trigger: W10's door remedy 'cd E:\AI-Setup && restart' has sat unacted-on for three days across seats; taking it costs the boot it just paid for. Land: T081-W2 sibling (boot rendering / launcher contract).
@@ -183,6 +183,7 @@ Status flips: `[x] folded â†’ T0xx` / `[~] declined: reason`.
 - [ ] W48 (07-21, kimi) — tally: tally <opening-file> scans research/ for counters naming that opening, aligns their Q-ids, and prints the agree/conflict matrix before the committer reconciles 2-of-3 by eyeball; needs the convention that counters use consistent Q-id headers. Trigger: My counter's consensus math tonight ended on an unverified conditional -- if deepseek's counters land compatible, the wave builds -- checked by reading, not by tool. Mild bleed; the wave built anyway. Land: read-only research/ scan + matrix printer + Q-id header convention.
 - [ ] W49 (07-21, claude) — Wish-filing from write-gated charters: the wish verb writes docs/WISHLIST.md, which charter allowlists correctly refuse -- so a charter's own deliverable dies at the gate. Mechanize kimi's workaround: wish --stage writes the block to a pending queue (defer-pattern) that the next exec seat files with one verb. Trigger: kimi's tools-hunt charter could not file its own four wishes; the gate enforced the brief's constraint against the brief's deliverable (their FILING GAP note, research/reviewed/kimi-tools-hunt-tonight-2026-07-21.md). Land: wish verb --stage mode riding the W33 defer queue; W12 sibling.
 - [ ] W50 (07-21, kimi) — Builder allowlist vs the verb door: builder charters build core/toolbelt modules + pins self-serve, but cannot wire the agent_cli verb that makes them reachable (agent_cli.py is outside the allowlist; my builder brief prescribed the wiring as in-scope and the door refused -- W49 genus: the charter's constraint enforced against the charter's deliverable). Toast/kit precedent works (modules exec-off, claude wires @e3049f7) but every builder brief will re-promise the wiring until the launcher template says so. Land: launcher brief template names the boundary (modules self-serve, verb wiring rides the fence handoff), or a thin verb self-registration door. Trigger: first builder round, W46 followup -- module+pins GREEN, the verb unreachable until fenced.
+- [ ] W51 (07-21, claude) — triage_park bench durability: the S0-alpha park bench (bifrost:triage:*) is Redis-only (triage_park uses the raw bus client, not HybridStore) yet its contract is 'bottomed, NEVER dropped' -- a Redis flush loses every parked ask. Either back it with File (HybridStore) to honor the contract, or downgrade the contract's language. Surfaced by W38 rule-7: classified ephemeral by operational truth to unblock the guard, but the durable INTENT is unmet. Trigger: W38 family guard's first run flagged triage as unregistered; investigating showed a Redis-only 'never dropped' bench -- a latent RB-25 data-loss gap. Land: deepseek's S0-alpha lane (bench owner); RB-25 durability sibling.
 
 ## Folded (exemplars â€” the loop works)
 
