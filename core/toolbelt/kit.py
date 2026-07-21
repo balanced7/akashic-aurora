@@ -39,7 +39,10 @@ from typing import Any, Callable, Dict, List, Optional
 # Evidence labels are honest: only entries with a real kata pin claim VERIFIED.
 RECOVERY_KIT: Dict[str, Any] = {
     "name": "recovery-kit",
-    "version": 1,
+    "version": 2,   # v2 2026-07-21: pause steps carry --ttl 120 (RB-30 self-heal) -- the
+                    # first install-dogfood caught v1 SILENTLY STRIPPING the TTL graduation
+                    # from an installed belt (deepseek's C1-8-genus find rode the belts but
+                    # not the kit; a kit must never regress the ceremony it distributes).
     "why": ("the wake-loop/straggler/stall recovery floor, installable on any seat in "
             "one call. Harvested cross-seat 2026-07-21: claude's standby-hard (30+ live "
             "receipts), kimi's drain-decide (kata-VERIFIED), deepseek's vitals + "
@@ -47,23 +50,27 @@ RECOVERY_KIT: Dict[str, Any] = {
             "memory -- a seat that has it installed never hand-types the ceremony."),
     "entries": [
         {"name": "standby-hard",
-         "steps": [["bifrost-pause", "--reason", "kit-standby", "--by", "$SELF$"],
+         "steps": [["bifrost-pause", "--reason", "kit-standby", "--by", "$SELF$",
+                    "--ttl", "120"],
                    ["bifrost-skip-to-now", "$SELF$", "--by", "$SELF$",
                     "--reason", "kit-standby-ceremony"],
                    ["bifrost-resume"]],
          "evidence": "VERIFIED",
-         "tested_against": "test_t099_v0_toolbelt+live-run-2026-07-20",
-         "why": "claude's, 30+ live receipts: pause+skip+resume, the wake-loop breaker.",
+         "tested_against": "kata-20260721-020106",
+         "why": ("claude's, 30+ live receipts: pause+skip+resume, the wake-loop breaker. "
+                 "ttl 120 self-heals a mid-ceremony crash (deepseek find 2026-07-21)."),
          "family": "ENGINEERS"},
         {"name": "drain-decide",
          "steps": [["bifrost-sync", "$SELF$", "--consume"],
-                   ["bifrost-pause", "--reason", "drain-decide", "--by", "$SELF$"],
+                   ["bifrost-pause", "--reason", "drain-decide", "--by", "$SELF$",
+                    "--ttl", "120"],
                    ["bifrost-skip-to-now", "$SELF$", "--by", "$SELF$",
                     "--reason", "straggler-triage"],
                    ["bifrost-resume"]],
          "evidence": "VERIFIED",
-         "tested_against": "kata-20260720-232707",
-         "why": "kimi's, kata-VERIFIED: consume-then-skip, the straggler triage.",
+         "tested_against": "kata-20260721-020107",
+         "why": ("kimi's, kata-VERIFIED: consume-then-skip, the straggler triage. "
+                 "ttl 120 self-heals (same graduation as standby-hard)."),
          "family": "ENGINEERS"},
         {"name": "vitals",
          "steps": [["doctor"], ["bifrost-dashboard"]],

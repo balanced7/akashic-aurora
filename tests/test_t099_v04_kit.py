@@ -70,5 +70,7 @@ def test_p6_evidence_labels_ride_no_upgrade(tmp_path):
     b = _belt(tmp_path)
     kit.install(kit.RECOVERY_KIT, b)
     assert b.get("standby-hard")["evidence"] == "VERIFIED"
-    assert b.get("standby-hard")["tested_against"] == "test_t099_v0_toolbelt+live-run-2026-07-20"
+    # kit v2 (2026-07-21): the TTL'd ceremony's kata receipt rides; the LAW pinned here is
+    # unchanged -- the label and receipt arrive exactly as the kit spec earned them.
+    assert b.get("standby-hard")["tested_against"] == "kata-20260721-020106"
     assert b.get("vitals")["evidence"] == "GUESS"            # confesses, no inflation
