@@ -1171,7 +1171,10 @@ def main() -> int:
             # -> skip -> K1 park fresh asks -> K2 conditional resume -> receipt -> skip
             # batch. The conveyor's first full auto-transit: standby-hard graduates from
             # human ritual to auto-detected, WITH a receipt.
-            _wd = lane_depths.lane_depths(args.agent).get("work", 0)
+            # work_backlog, NOT lane_depths (live incident 2026-07-21 ~03:05: XLEN is
+            # stream LENGTH -- flat forever -- so the first post-wiring boot fired the
+            # ceremony on depth=289 of pure history and would re-fire every window).
+            _wd = lane_depths.work_backlog(args.agent)
             _storm_sig = _storm.feed(_wd, [getattr(m, "id", "") for m in msgs])
             if _storm_sig:
                 print(f"[deepseek-runner] STORM: {_storm_sig['kind']} ({_storm_sig}) "

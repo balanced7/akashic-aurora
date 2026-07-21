@@ -115,6 +115,32 @@ def test_reset_clears_windows():
     assert sig is not None, "sample 3: fresh window fires correctly after reset"
 
 
+def test_work_backlog_is_cursor_relative(monkeypatch):
+    """The live 2026-07-21 incident pin: the detector must be fed CONSUMER-RELATIVE
+    backlog, never XLEN (stream length is flat forever -- the first post-wiring boot
+    fired the ceremony on 289 entries of pure history). work_backlog falls to 0 as the
+    lane cursor advances; XLEN would not."""
+    import uuid as _uuid
+    ns = f"t-s0b-wb-{_uuid.uuid4().hex[:8]}"
+    monkeypatch.setenv("BIFROST_NAMESPACE", ns)
+    if not _online():
+        pytest.skip("redis not available")
+    from core.comm.bus import Bus
+    from core.comm import lane_depths
+    agent = f"t-wb-{_uuid.uuid4().hex[:6]}"
+    b = Bus(agent)
+    key = f"{ns}:work:inbox:{agent}"
+    for i in range(4):
+        b._client.xadd(key, {"kind": "inform", "frm": "x", "content": f"m{i}"})
+    assert lane_depths.work_backlog(agent) == 4, "virgin cursor: all entries pending"
+    tail = b._client.xrevrange(key, count=1)[0][0]
+    b._client.hset(b.lane_cursor_key(), "inbox", str(tail))
+    assert lane_depths.work_backlog(agent) == 0, \
+        "cursor at tail -> backlog 0 (XLEN would still read 4: the storm-refire class)"
+    assert lane_depths.lane_depths(agent)["work"] == 4, \
+        "XLEN stays 4 -- proving the two gauges measure different things"
+
+
 # --- L2: storm clear ceremony (needs Redis; test-namespaced control plane) --
 
 def test_storm_clear_pause_skip_resume_with_receipt(monkeypatch):

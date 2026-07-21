@@ -41,3 +41,34 @@ def lane_depths(agent: str, c=None, allow_fallback: bool = True) -> Dict[str, in
         except Exception:
             out[name] = 0
     return out
+
+
+def work_backlog(agent: str, c=None, allow_fallback: bool = True, cap: int = 500) -> int:
+    """The agent's TRUE pending depth on the work lane: entries beyond its LANE cursor.
+
+    XLEN (lane_depths above) is STREAM LENGTH -- it never falls on consume, only on
+    retention trim. Fed to a storm detector it is a permanently-flat supra-threshold
+    line: the auto-clear fired on deepseek's first post-wiring boot (depth=289 = the
+    stream's whole history) and would re-fire every window forever (live 2026-07-21).
+    A storm gauge needs the CONSUMER-RELATIVE count, which falls as the runner drains
+    -- exactly what K3's no-net-drain guard requires to mean anything.
+    Bounded walk (cap): a storm gauge needs 'a lot vs a little', never an exact census."""
+    cli = _client(c, allow_fallback)
+    if cli is None:
+        return 0
+    try:
+        from core.comm.bus import Bus
+        cur = Bus(agent).read_lane_cursor().get("inbox", "0")
+
+        def _p(s):
+            h, _, t = str(s).partition("-")
+            try:
+                return (int(h), int(t or 0))
+            except ValueError:
+                return (0, 0)
+
+        floor = _p(cur)
+        entries = cli.xrevrange(f"{_ns()}:work:inbox:{agent}", count=int(cap))
+        return sum(1 for sid, _ in entries if _p(sid) > floor)
+    except Exception:
+        return 0
