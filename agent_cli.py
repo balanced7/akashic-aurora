@@ -3998,6 +3998,13 @@ def build_parser():
     cbs.add_argument("--json", action="store_true")
     cbs.set_defaults(fn=cmd_clobber_scan)
 
+    pu = sub.add_parser("pulse", help="W25 (deepseek): LIFEWORKERS pressure-map -- where is "
+                                       "pressure building in the fleet? lane-depths to zones. "
+                                       "Companion to vitals. READ-only")
+    pu.add_argument("agent", nargs="?", help="optional: single agent to read (default: fleet)")
+    pu.add_argument("--json", action="store_true")
+    pu.set_defaults(fn=cmd_pulse)
+
     uw = sub.add_parser("unwedge", help="W31 (deepseek): one-verb wedge diagnosis -- why is "
                                          "this agent stuck? READ-only v1 (recommends, never acts)")
     uw.add_argument("agent", help="the agent to diagnose")
@@ -4365,6 +4372,17 @@ def cmd_clobber_scan(args):
         return 0
     print(clobber_scan.render(findings))
     return 1 if findings else 0
+
+
+def cmd_pulse(args):
+    """pulse [agent]: fleet pressure-map — where is pressure building? READ-only v1
+    (W25, deepseek design, LIFEWORKERS caste). Companion to vitals: vitals tells you
+    who is alive/dying; pulse tells you where pressure is building."""
+    from core.comm.doctor import pulse as pulse_fn, format_pulse
+    agents = [args.agent] if args.agent else None
+    p = pulse_fn(agents)
+    print(format_pulse(p, json_mode=getattr(args, "json", False)))
+    return 1 if p["zones"]["critical"] else 0
 
 
 def cmd_unwedge(args):

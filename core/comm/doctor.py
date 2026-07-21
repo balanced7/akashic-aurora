@@ -487,8 +487,89 @@ def format_unwedge(r: Dict[str, Any], json_mode: bool = False) -> str:
                      f"{', '.join(str(l) for l in ev['locks'][:5])}")
     lines.append(f"  runner: {ev.get('runner_status', 'unknown')}")
     return "\n".join(lines)
-    """Read today's token journal and render a dashboard-grade cost line. None when
-    absent or zero-turn. T078 W1: the meter that every lever slice gets a receipt from."""
+
+
+def pulse(agents: Optional[List[str]] = None) -> Dict[str, Any]:
+    """W25 pulse (deepseek, LIFEWORKERS, 2026-07-21): the pressure-map companion to
+    vitals. Reads work_backlog for every known agent (or the named list), classifies
+    each into a pressure zone, and returns a fleet-level summary. READ-only v1.
+    Zones: critical (>=50, storm territory) / elevated (>=10, building) / normal
+    (healthy flow) / absent (no lane cursor, legacy-only agent)."""
+    if agents is None:
+        try:
+            agents = known_agents()
+        except Exception:
+            agents = []
+    zones: Dict[str, List[str]] = {"critical": [], "elevated": [], "normal": [],
+                                     "absent": []}
+    readings: Dict[str, Dict[str, Any]] = {}
+    try:
+        from core.comm.lane_depths import work_backlog
+        from core.comm.bus import Bus
+        for a in agents:
+            try:
+                lane = Bus(a).read_lane_cursor()
+                has_lane = any(v != "0" for v in lane.values())
+                if not has_lane:
+                    zones["absent"].append(a)
+                    readings[a] = {"backlog": 0, "zone": "absent", "has_lane": False}
+                    continue
+                depth = work_backlog(a)
+                readings[a] = {"backlog": depth, "has_lane": True}
+                if depth >= 50:
+                    zones["critical"].append(a)
+                    readings[a]["zone"] = "critical"
+                elif depth >= 10:
+                    zones["elevated"].append(a)
+                    readings[a]["zone"] = "elevated"
+                else:
+                    zones["normal"].append(a)
+                    readings[a]["zone"] = "normal"
+            except Exception:
+                zones["absent"].append(a)
+                readings[a] = {"backlog": 0, "zone": "absent", "has_lane": False}
+    except Exception:
+        pass
+    critical_n = len(zones["critical"])
+    elevated_n = len(zones["elevated"])
+    normal_n = len(zones["normal"])
+    absent_n = len(zones["absent"])
+    if critical_n:
+        summary = (f"pulse: {critical_n} CRITICAL ({', '.join(zones['critical'])})"
+                   + (f", {elevated_n} elevated" if elevated_n else "")
+                   + f" — storm territory; pressure is building")
+    elif elevated_n:
+        summary = (f"pulse: {elevated_n} elevated ({', '.join(zones['elevated'])}), "
+                   f"{normal_n} normal — watch the elevated lanes")
+    elif absent_n == len(agents):
+        summary = f"pulse: no lane-mode agents ({len(agents)} agent(s), all legacy)"
+    else:
+        summary = f"pulse: fleet pressure normal ({normal_n} agent(s) healthy"
+        if absent_n:
+            summary += f", {absent_n} legacy"
+        summary += ")"
+    return {"agents": agents, "zones": zones, "readings": readings, "summary": summary}
+
+
+def format_pulse(p: Dict[str, Any], json_mode: bool = False) -> str:
+    """Render pulse result as a compact pressure map."""
+    if json_mode:
+        import json as _json
+        return _json.dumps({k: p[k] for k in ("agents", "zones", "readings", "summary")},
+                           indent=2, default=str)
+    lines = [p["summary"]]
+    for zone, ids in p["zones"].items():
+        if ids:
+            agent_lines = []
+            for a in ids:
+                r = p["readings"].get(a, {})
+                bl = r.get("backlog", "?")
+                agent_lines.append(f"{a} (backlog={bl})")
+            lines.append(f"  {zone}: {', '.join(agent_lines)}")
+    return "\n".join(lines)
+
+
+def _token_cost_line(agent: str, journal_dir: str = "") -> Optional[Dict[str, Any]]:
     import os as _os
     import json as _json
     import time as _time

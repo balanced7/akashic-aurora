@@ -796,7 +796,7 @@ class ToolBox:
         "boot", "delta", "discover", "recall", "recall-at", "list", "notes", "status",
         "stats", "injections", "harnesses", "triage", "recall-counters", "task",
         "story", "events", "doctor", "promoted", "lookback", "knowledge-map", "fence",
-        "flow", "bifrost-sync", "locks", "unwedge"})
+        "flow", "bifrost-sync", "locks", "unwedge", "pulse"})
     _AGENT_CLI_MUTATING_FLAGS = frozenset({
         "--commit", "--consume", "--apply", "--fold", "--capture", "--promote"})
     _SHELL_META = frozenset(";|&><`$()\n\r")
