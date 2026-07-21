@@ -42,9 +42,12 @@ def test_recent_inbox_agent_is_visible_stale_is_not():
 
 
 def test_visible_stalled_agent_pages():
-    """End-to-end: an inbox-only agent with recent backlog is not just visible but graded a finding
-    (dashboard before hysteresis, page after) -- proving the enumeration fix reconnects to the
-    existing stalled_consumer detector."""
+    """End-to-end: a LIVE-but-idle agent (worklive present, idle phase) with recent backlog
+    is graded stalled_consumer (dashboard before hysteresis, page after) -- the original
+    enumeration-fix coverage. W40 fence-fix (2026-07-21): the original synthetic here was
+    inbox-ONLY (no liveness), which W40 now correctly reads as offline_backlog, not stalled;
+    a genuine STALLED consumer is a LIVE seat that stopped consuming, so we give it an idle
+    worklive record -- the real scenario stalled_consumer exists to catch."""
     c = _client()
     agent = "zdoctest-stalled"
     key = f"bifrost:inbox:{agent}"
@@ -52,8 +55,11 @@ def test_visible_stalled_agent_pages():
     try:
         c.delete(key, scur)
         c.xadd(key, {"kind": "request", "frm": "tester", "content": "please answer"})
+        from core.comm import liveness
+        liveness.worklive(agent).set("idle", detail="between turns")   # LIVE + idle
         findings = doctor.examine(agent)
         states = {f["state"] for f in findings}
         assert "stalled_consumer" in states, f"expected a stalled_consumer finding, got {findings}"
+        assert "offline_backlog" not in states, "a LIVE idle seat is not GONE"
     finally:
         c.delete(key, scur)

@@ -168,6 +168,26 @@ def _probe_lane_health(agent: str) -> Optional[Dict[str, Any]]:
         return None
 
 
+def _present_no_worklive(agent: str) -> bool:
+    """W40 fence-fix: is the agent present by a signal OTHER than worklive? A runner lock
+    OR a wake-seat file (the interactive seat's liveness -- claude has no runner but an
+    armed watcher). Fail-SAFE toward present: a stale seat file (bounded by the W42 janitor)
+    only under-reports a GONE agent, never falsely declares a LIVE seat gone. Never raises."""
+    try:
+        from core.comm import runner_lock
+        if runner_lock.holder(str(agent)):
+            return True
+    except Exception:
+        pass
+    try:
+        from core.comm import wake_seat
+        for _path, _sid in wake_seat.iter_seats(str(agent)):
+            return True                       # any seat file present -> a live/recent seat
+    except Exception:
+        pass
+    return False
+
+
 def _probe_halted(agent: str) -> Optional[Dict[str, Any]]:
     try:
         from core.comm import control
@@ -245,19 +265,30 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
         idleish = (not wl) or phase in liveness.IDLE_PHASES
         if idleish and backlog > 0:
             if not wl:
-                # W40 (deepseek, 2026-07-21): the agent is ABSENT — worklive has TTL'd,
-                # no runner, no presence. The backlog is ghost mail from a retired/dead
-                # seat. DASHBOARD-visible (graveyard-is-a-resource: silence breeds rot)
-                # but NEVER a page — there is no consumer to stall. Live receipt: census
-                # (a retired one-off task-agent) paged as STALLED CONSUMER with leftover
-                # backlog; flightdeck correctly rendered it "absent" in the pulse column.
-                out.append(_f(agent, "offline_backlog", "dashboard",
-                              f"{agent}: OFFLINE — {backlog} unread but the agent is "
-                              f"GONE (no worklive, no runner, no presence). The backlog "
-                              f"is ghost mail from a retired seat — retire the inbox or "
-                              f"ignore.",
-                              f"py agent_cli.py retire {agent}  | or ignore: the mail "
-                              f"TTLs with the stream"))
+                # W40 (deepseek 2026-07-21) + claude fence-fix: 'no worklive' is a RUNNER
+                # signal only. Before declaring an agent GONE, check the OTHER presence
+                # signals -- a runner lock or a live wake seat. An interactive seat
+                # (claude) has NO worklive/runner yet IS alive via its armed watcher; the
+                # unfixed code marked it 'GONE' (false negative on the live operator seat).
+                if _present_no_worklive(agent):
+                    # present but not runner-active: an interactive/wake-armed seat with a
+                    # little mail -- benign, it consumes on its next turn/wake. Dashboard,
+                    # never a page, never 'GONE'.
+                    out.append(_f(agent, "idle_backlog", "dashboard",
+                                  f"{agent}: {backlog} unread -- live seat (wake-armed / "
+                                  f"lock-held), no runner phase; consumes on next turn/wake",
+                                  f"py agent_cli.py bifrost-sync {agent}"))
+                else:
+                    # ABSENT: no worklive, no runner, no wake seat. Ghost mail from a
+                    # retired/dead seat -- dashboard-visible (graveyard-is-a-resource) but
+                    # NEVER a page. Live receipt: census (a retired one-off task-agent).
+                    out.append(_f(agent, "offline_backlog", "dashboard",
+                                  f"{agent}: OFFLINE — {backlog} unread but the agent is "
+                                  f"GONE (no worklive, no runner, no wake seat). The backlog "
+                                  f"is ghost mail from a retired seat — retire the inbox or "
+                                  f"ignore.",
+                                  f"py agent_cli.py retire {agent}  | or ignore: the mail "
+                                  f"TTLs with the stream"))
                 p["stalled_since"](agent, False)
             else:
                 first = p["stalled_since"](agent, True)
