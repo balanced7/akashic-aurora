@@ -70,13 +70,15 @@ def _client():
 
 # ------------------------------------------------------------------ default probes
 def _probe_backlog(agent: str) -> int:
-    """Unread messages beyond the agent's shared cursor (inbox only -- direct asks)."""
+    """Unread messages beyond the agent's EFFECTIVE cursor (inbox only -- direct asks).
+    W43: effective = max(shared, lane shadow) -- a lane-mode consumer's drained mail no
+    longer pages as a stalled backlog (kimi's live receipt: doctor paged a drained seat)."""
     try:
         from core.comm.bus import Bus
         b = Bus(agent)
         if not b.online:
             return 0
-        cur = b.cursor()["inbox"]
+        cur = b.effective_cursor()["inbox"]
         entries = b._client.xrevrange(b._inbox_key(agent), count=50)
         def newer(sid):
             def parse(s):

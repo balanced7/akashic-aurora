@@ -681,9 +681,18 @@ class Bus:
         return seeded
 
     def pending(self) -> int:
-        """How many unread messages are waiting (direct + broadcast), without advancing the cursor."""
+        """How many unread messages wait beyond the EFFECTIVE frontier (direct + broadcast),
+        without advancing anything. W43: the legacy peek walks from the SHARED cursor; a
+        lane-mode consumer's drained mail must not count (the '8 unread' hook-line lie).
+        Per-stream floors: direct messages compare against effective inbox, broadcasts
+        (to='*') against effective bc -- ids from different streams never cross-compare."""
+        eff = self.effective_cursor()
+        floor = {k: self._sid_tuple(v) for k, v in eff.items()}
         msgs = self.inbox(limit=1000, advance=False)
-        return len(msgs)
+        def _beyond(m) -> bool:
+            src = "bc" if str(getattr(m, "to", "")) == "*" else "inbox"
+            return self._sid_tuple(getattr(m, "id", "0")) > floor.get(src, (0, 0))
+        return sum(1 for m in msgs if _beyond(m))
 
     # ------------------------------------------------------------------ cursor
     def tail(self) -> Dict[str, str]:
@@ -704,6 +713,35 @@ class Bus:
         """A read-only snapshot of this agent's shared read-cursor ({"inbox": id, "bc": id}).
         Does not create or touch the key -- the seed for a watcher's local `since` position."""
         return self._read_cursor()
+
+    @staticmethod
+    def _sid_tuple(s) -> tuple:
+        h, _, t = str(s).partition("-")
+        try:
+            return (int(h), int(t or 0))
+        except ValueError:
+            return (0, 0)
+
+    def effective_cursor(self) -> Dict[str, str]:
+        """W43 (kimi's cursor-divergence find, 2026-07-21): the agent's TRUE consumed
+        frontier on the LEGACY streams -- per-field max of the shared cursor and the lane
+        cursor's SHADOW fields (work_drain's legacy straggler-net position). A lane-mode
+        consumer advances the lane hash while the shared cursor freezes; any gauge
+        comparing the shared cursor alone reports fully-drained mail as unread (live
+        receipts: doctor paged kimi STALLED over answered mail; the session-hook line
+        said '8 unread' straight through consumes). Legacy-only consumers carry an
+        all-zero lane hash, so max == shared: byte-identical for them. READ-ONLY --
+        never a consume position; consumption still commits through its own doors."""
+        cur = self._read_cursor()
+        try:
+            lane = self.read_lane_cursor()
+        except Exception:
+            return cur
+        out: Dict[str, str] = {}
+        for field, shadow in (("inbox", "shadow_inbox"), ("bc", "shadow_bc")):
+            a, b = cur.get(field, "0"), lane.get(shadow, "0")
+            out[field] = a if self._sid_tuple(a) >= self._sid_tuple(b) else b
+        return out
 
     def _read_cursor(self) -> Dict[str, str]:
         try:
