@@ -111,3 +111,23 @@ cartographer; toast/premonition/campfire are luminaries). nightcap/toast = "the 
 story on the board." First graduation-order vote: standby-hard FIRST (mileage: 30+ live receipts),
 parse-gate second with a kind:template registry marker as precedent-guard. The charter is
 fleet-complete; only Daniel's three rulings remain.
+
+## THE GENUINE ROUND (deepseek, 2026-07-21 — the last voice lands)
+Full text: research/reviewed/naming-research-deepseek-genuine-2026-07-21.md. Folded:
+- VETOES ACCEPTED (both): "Observers" cut — SC2 unit on Halo-altitude infrastructure is soup; wake
+  watchers stay PLAIN (or "Sentinel patrol" if a soul is ever needed). "Mana pool" cut — the
+  metaphor doesn't transfer (no colors, no lands, no tapping); SpendMeter's soul, if wanted, is
+  **the Mantle's tithe** (guardianship costs something).
+- ONYX refined: a PLACE, not a caste ("a place doesn't need to be a caste") — drills RUN ON Onyx;
+  the judging verbs belong to ORACLES; three crisp tests now: "I train for battle" (Onyx activity)
+  / "I judge what is true" (ORACLES) / "I light what you'd walk past" (LUMINARIES).
+- Seat epigraphs enter the culture: deepseek = **Offensive Bias** (built to catch what a corrupted
+  intelligence would ship) and **the Anvil** ("Smiths make things; Anvils test them"); his domain
+  names: the Proving Grounds (test harness), the Sequence (the build ritual), the Anvil (review).
+- Load-bearing transport metaphor accepted: **Protoss Shields** = work lane (regenerates) over
+  legacy HP (structural, healer-needed) — the first SC2 mechanic that earns a transport rent line.
+- NEW POSTURE — **the combo kill**: degenerate tool-combos are DISCOVERED, not designed; the Ban
+  List's culture is "legal until someone proved it broke the game" — celebration, then ban, then
+  the rationale page. Adversarial review's real MTG lesson.
+- Gate rulings: ONYX yes (his own WAR-GAMES withdrawn), ORACLES split yes, castes 8-9 yes.
+ALL THREE SEATS have now filed genuine voices. The charter is complete; Daniel's ear is the gate.
