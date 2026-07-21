@@ -3639,6 +3639,23 @@ def build_parser():
     bn.add_argument("--by", default="", help="who authorizes (defaults to agent_id)")
     bn.set_defaults(fn=cmd_bench)
 
+    # --- tool <list|run> (T099 · play-tier sandbox) --------------------------------
+    tl = sub.add_parser("tool", help="play-tier sandbox: list/run draft tools (data/play/<agent>/)")
+    tl_subs = tl.add_subparsers(dest="tool_cmd")
+    tl_list = tl_subs.add_parser("list", help="list play tools for an agent or all seats")
+    tl_list.add_argument("agent", nargs="?", default="",
+                         help="agent id to list (default: all seats)")
+    tl_list.set_defaults(fn=cmd_tool_list)
+    tl_run = tl_subs.add_parser("run", help="run one play tool in the sandbox")
+    tl_run.add_argument("ref", help="tool reference: <agent>/<tool>, e.g. kimi/premonition")
+    tl_run.add_argument("args", nargs="*", default=[],
+                        help="arguments passed to the play tool")
+    tl_run.add_argument("--timeout", type=float, default=0,
+                        help="timeout seconds (default: AKASHIC_PLAY_TIMEOUT_S or 30)")
+    tl_run.add_argument("--no-sandbox", action="store_true",
+                        help="run unsandboxed (operator override for risky drafts)")
+    tl_run.set_defaults(fn=cmd_tool_run)
+
     kt = sub.add_parser("kata", help="grammar-prove a toolbelt alias against the door itself; "
                                      "GREEN levels GUESS/INFER up to VERIFIED (kimi's B4: "
                                      "'the tool that tells you when your tools are real')")
@@ -3851,6 +3868,39 @@ def _kata_apply(tb, name, results):
     return tb.mint(name, entry["steps"], kind=entry.get("kind", "alias"),
                    evidence="VERIFIED", tested_against=f"kata-{_t.strftime('%Y%m%d-%H%M%S')}",
                    why=entry.get("why", ""))
+
+
+def cmd_tool_list(args):
+    """Play-tier sandbox: list draft tools for one agent or all seats."""
+    from core.toolbelt.play_sandbox import render_list
+    print(render_list(args.agent if args.agent else None))
+
+
+def cmd_tool_run(args):
+    """Play-tier sandbox: run one draft tool with sandbox bounds + receipt."""
+    from core.toolbelt.play_sandbox import find_tool, sandboxed_run, DEFAULT_TIMEOUT_S
+    try:
+        agent, tool, path = find_tool(args.ref)
+    except (ValueError, FileNotFoundError) as e:
+        print(f"tool: {e}", file=sys.stderr)
+        return 1
+    timeout = args.timeout if args.timeout > 0 else DEFAULT_TIMEOUT_S
+    if args.no_sandbox:
+        print(f"[tool] running {args.ref} UNSANDBOXED (operator override -- caveat emptor)")
+        import subprocess as sp
+        r = sp.run([sys.executable, path] + (args.args or []), cwd=REPO)
+        print(f"[tool] exit {r.returncode} (unsandboxed — no receipt)")
+        return r.returncode
+    rec = sandboxed_run(agent, tool, path, args=args.args, timeout_s=timeout)
+    verdict = "PASS" if rec["rc"] == 0 else "FAIL"
+    if rec.get("crash"):
+        verdict = "CRASH"
+    print(f"[tool] {verdict}  rc={rec['rc']}  {rec['duration_s']}s  "
+          f"{rec['output_kb']}KB  [{rec['evidence']}]")
+    if rec.get("violations"):
+        for v in rec["violations"]:
+            print(f"  ⚡ violation: {v}")
+    return 1 if rec["rc"] != 0 else 0
 
 
 def cmd_kata(args):
