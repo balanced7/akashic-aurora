@@ -3663,6 +3663,27 @@ def build_parser():
     kt.add_argument("name", help="the alias to kata")
     kt.set_defaults(fn=cmd_kata)
 
+    ts = sub.add_parser("toast", help="gratitude-with-receipt (T099 BETA-2): toast a peer whose "
+                                      "lesson saved you hops; receipt verifies against the "
+                                      "learning store or the send REFUSES")
+    ts.add_argument("agent_id", help="you (the toaster)")
+    ts.add_argument("to", help="the peer being toasted")
+    ts.add_argument("receipt", help="their experiment name (the receipt)")
+    ts.add_argument("--credit", default="", help="what did their lesson save you? (required, short)")
+    ts.add_argument("--force", action="store_true",
+                    help="send an unverified receipt honestly labeled GUESS")
+    ts.add_argument("--json", action="store_true")
+    ts.set_defaults(fn=cmd_toast)
+
+    ki = sub.add_parser("kit", help="install a kit bundle on a seat's belt (T099 KIT tier); "
+                                    "first resident: recovery-kit (the wake-loop/stall floor)")
+    ki.add_argument("agent_id", help="the installing seat")
+    ki.add_argument("kit_name", nargs="?", default="recovery-kit",
+                    help="which kit (default recovery-kit)")
+    ki.add_argument("--show", action="store_true", help="print the kit JSON without installing")
+    ki.add_argument("--json", action="store_true")
+    ki.set_defaults(fn=cmd_kit)
+
     return p
 
 
@@ -3929,6 +3950,56 @@ def cmd_kata(args):
     print(f"[kata] {args.name} LEVELED UP: {before} -> {e['evidence']} v{e['version']} "
           f"(tested_against={e['tested_against']})")
     return 0
+
+
+def cmd_toast(args, *, bus_send=None, note_write=None, store=None):
+    """toast <me> <to> <receipt> --credit "...": gratitude-with-receipt (kimi's BETA-2 module,
+    T099). The CLI passes the REAL doors; tests pass recorders (the module's INJECTED law).
+    Refuses loudly on an unverifiable receipt unless --force (which confesses GUESS)."""
+    from core.toolbelt import toast
+    if bus_send is None:
+        def bus_send(to, kind, text):     # the proven send door (cmd_bifrost_send's path)
+            from core.comm.bus import Bus
+            b = Bus(args.agent_id)
+            if not b.online:
+                raise RuntimeError("bus OFFLINE (Redis down)")
+            b.register()
+            return b.send(to, kind, text)
+    try:
+        res = toast.send(args.agent_id, args.to, args.receipt,
+                         str(getattr(args, "credit", "") or ""),
+                         force=bool(getattr(args, "force", False)),
+                         bus_send=bus_send, note_write=note_write, store=store)
+    except ValueError as e:
+        print(f"[toast] {e}")
+        return 2
+    if getattr(args, "json", False):
+        print(json.dumps(res))
+        return 0
+    print(toast.render_result(res))
+    return 0
+
+
+def cmd_kit(args, *, belt=None):
+    """kit <me> [name] [--show]: install (or inspect) a kit bundle on a seat's belt
+    (kimi's KIT tier, T099). install() rides Toolbelt.mint per entry -- a kit can never
+    mint a capability mint can't; refusals land in the report, never silently skip."""
+    from core.toolbelt import kit as kitmod
+    kits = {"recovery-kit": kitmod.RECOVERY_KIT}
+    name = str(getattr(args, "kit_name", "") or "recovery-kit")
+    k = kits.get(name)
+    if k is None:
+        print(f"[kit] unknown kit {name!r} -- available: {', '.join(sorted(kits))}")
+        return 2
+    if getattr(args, "show", False):
+        print(json.dumps(k, indent=2))
+        return 0
+    if belt is None:
+        from core.toolbelt.registry import Toolbelt
+        belt = Toolbelt(args.agent_id)
+    rep = kitmod.install(k, belt, agent=args.agent_id)
+    print(kitmod.render_report(rep))
+    return 0 if rep.get("ok") else 1
 
 
 def main():
