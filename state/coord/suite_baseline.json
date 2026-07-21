@@ -1,0 +1,151 @@
+{
+ "v": 1,
+ "sha": "5f5738d",
+ "seat": "claude",
+ "at": "2026-07-21T08:27:29",
+ "failures": [
+  {
+   "node": "tests/test_agent_interface.py::test_messy_input_is_sanitized",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_comprehensibility.py::test_guard_is_green_on_the_real_repo",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_comprehensibility.py::test_derived_docs_current_is_green_now",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_comprehensibility.py::test_derived_docs_drift_is_flagged",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_freeplay_campfire.py::test_campfire_mint_and_kata",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_lookback.py::test_the_preregistered_battery_passes",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_rb25_amendment2.py::test_redis_death_mid_seed_degrades_to_false",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_t058_clarification.py::test_b1_fourth_call_refused",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_t067_1_toolbox_parity.py::test_d1_toolbox_enumerated_and_reality_passes",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_t067_1_toolbox_parity.py::test_d4_report_includes_toolbox",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_t068_r3_preflight.py::test_p9_double_fail_sends_anyway_loud",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_t068_r3_preflight.py::test_p6_broadcast_skips_assertions",
+   "lane": ""
+  }
+ ],
+ "claims_at_snapshot": {
+  "T001": "done",
+  "T008": "done",
+  "T009": "done",
+  "T010": "done",
+  "T011": "done",
+  "T012": "done",
+  "T013": "done",
+  "T014": "done",
+  "T015": "done",
+  "T016": "done",
+  "T017": "done",
+  "T018": "done",
+  "T019": "done",
+  "T021": "done",
+  "T022": "done",
+  "T023": "done",
+  "T024": "done",
+  "T025": "done",
+  "T026": "done",
+  "T027": "done",
+  "T029": "done",
+  "T039": "done",
+  "T040": "done",
+  "T043": "done",
+  "T044": "done",
+  "T045": "done",
+  "T048": "done",
+  "T049": "done",
+  "T050": "done",
+  "T052": "done",
+  "T053": "done",
+  "T054": "done",
+  "T055": "done",
+  "T056": "done",
+  "T059": "done",
+  "T061": "done",
+  "T062": "done",
+  "T063": "done",
+  "T064": "done",
+  "T066": "done",
+  "T069": "done",
+  "T073": "done",
+  "T074": "done",
+  "T081": "done",
+  "T002": "claimed",
+  "T031": "claimed",
+  "T058": "verifying",
+  "T067": "verifying",
+  "T068": "verifying",
+  "T071": "claimed",
+  "T076": "verifying",
+  "T078": "claimed",
+  "T083": "claimed",
+  "T086": "in_progress",
+  "T095": "claimed",
+  "T099": "claimed",
+  "T007": "approved",
+  "T030": "approved",
+  "T033": "approved",
+  "T034": "approved",
+  "T038": "approved",
+  "T046": "approved",
+  "T047": "approved",
+  "T057": "approved",
+  "T060": "approved",
+  "T065": "approved",
+  "T070": "approved",
+  "T077": "approved",
+  "T079": "approved",
+  "T080": "approved",
+  "T084": "approved",
+  "T093": "approved",
+  "T094": "approved",
+  "T097": "approved",
+  "T020": "proposed",
+  "T032": "proposed",
+  "T036": "proposed",
+  "T037": "proposed",
+  "T041": "proposed",
+  "T042": "proposed",
+  "T051": "proposed",
+  "T072": "proposed",
+  "T082": "proposed",
+  "T085": "proposed",
+  "T087": "proposed",
+  "T088": "proposed",
+  "T089": "proposed",
+  "T090": "proposed",
+  "T091": "proposed",
+  "T092": "proposed",
+  "T096": "proposed",
+  "T098": "proposed",
+  "T075": "parked"
+ }
+}

@@ -1290,6 +1290,13 @@ def _orientation_header(agent_id: str, primer_aware: bool = False) -> str:
                 lines.append(dq_section)
         except Exception:
             pass
+        try:   # W34/B4: the suite-baseline receipt line (age + decay advisory; "" when none)
+            from core.coord import suite_baseline as _sb
+            sb_line = _sb.render_boot_line()
+            if sb_line:
+                lines.append(sb_line)
+        except Exception:
+            pass
     except Exception:
         # Store down -> a structurally-valid but semantically-empty head is WORSE than an
         # honest gap line (deepseek gate review, attack 3): say what is missing and where
@@ -3027,6 +3034,49 @@ def cmd_bifrost_send(args):
     return 0 if mid else 1
 
 
+def cmd_suite_baseline(args):
+    """suite-baseline <me> --from-file <pytest-output> [--sha X] | --check --from-file |
+    --show: the test-suite receipt the next seat DIFFS instead of re-classifying (W34).
+    record = snapshot failures + auto-classified lanes + claims + provenance; check =
+    node-id delta (new/fixed/inherited -- churn visible even at identical counts)."""
+    from core.coord import suite_baseline as sb
+    if getattr(args, "show", False):
+        line = sb.render_boot_line()
+        print(line or "[suite-baseline] none recorded yet")
+        return 0
+    path = getattr(args, "from_file", None)
+    if not path:
+        print("[suite-baseline] need --from-file <pytest output> (or --show)")
+        return 2
+    try:
+        with open(path, encoding="utf-8") as f:
+            nodes = sb.ingest_pytest(f.read())
+    except Exception as e:
+        print(f"[suite-baseline] unreadable {path}: {type(e).__name__}: {e}")
+        return 2
+    if getattr(args, "check", False):
+        d = sb.delta(nodes)
+        print(f"[suite-baseline] vs baseline: {len(d['new'])} NEW, {len(d['fixed'])} fixed, "
+              f"{len(d['inherited'])} inherited")
+        for n in d["new"]:
+            print(f"  NEW: {n}")
+        return 1 if d["new"] else 0
+    sha = getattr(args, "sha", "") or ""
+    if not sha:
+        try:
+            import subprocess
+            sha = subprocess.run(["git", "rev-parse", "--short", "HEAD"],
+                                 capture_output=True, text=True, timeout=10,
+                                 cwd=os.path.dirname(os.path.abspath(__file__))).stdout.strip()
+        except Exception:
+            sha = ""
+    rec = sb.record(nodes, seat=args.agent_id, sha=sha)
+    lanes = sum(1 for f in rec["failures"] if f["lane"])
+    print(f"[suite-baseline] recorded {len(rec['failures'])} failure(s) @{rec['sha'][:7]} "
+          f"({lanes} lane-classified) -- the next seat diffs instead of re-deriving")
+    return 0
+
+
 def cmd_bifrost_drain(args):
     """Request a runner's graceful exit (finish current message -> release lock -> exit 0).
     TTL'd (control.DRAIN_TTL_S); the runner honors it at its next loop top. Relaunch after
@@ -3688,6 +3738,18 @@ def build_parser():
                           "prefix) -- that seat wakes even on same-agent mail (the twin channel)")
     snd.add_argument("--json", action="store_true")
     snd.set_defaults(fn=cmd_bifrost_send)
+
+    sbp = sub.add_parser("suite-baseline", help="the test-suite receipt (W34): record a "
+                                                "pytest run's failures + lanes; the next "
+                                                "seat diffs (new/fixed/inherited)")
+    sbp.add_argument("agent_id", help="the recording seat")
+    sbp.add_argument("--from-file", dest="from_file", default=None,
+                     help="pytest terminal output to ingest")
+    sbp.add_argument("--sha", default="", help="commit sha (default: git rev-parse HEAD)")
+    sbp.add_argument("--check", action="store_true",
+                     help="diff --from-file against the baseline instead of recording")
+    sbp.add_argument("--show", action="store_true", help="print the baseline boot line")
+    sbp.set_defaults(fn=cmd_suite_baseline)
 
     dr = sub.add_parser("bifrost-drain", help="request a runner's GRACEFUL exit: finish "
                                               "current message -> release lock -> exit 0 "
