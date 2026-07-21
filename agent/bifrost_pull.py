@@ -279,6 +279,39 @@ def _is_trace_class(msg) -> bool:
     return bool(isinstance(meta, dict) and meta.get("display_only"))
 
 
+_ASK_KINDS = frozenset({"request", "question", "handoff", "blocker"})
+_TRACE_KINDS = frozenset({"trace", "steer", "nudge", "ledger_update", "resolved"})
+
+
+def kind_summary(messages) -> Dict[str, int]:
+    """W02: bucket unread by what the seat must DO -- asks (need a reply), fyi (read
+    only), traces (telemetry/control). Unknown kinds -> fyi (fail toward showing)."""
+    out = {"asks": 0, "fyi": 0, "traces": 0}
+    for m in (messages or []):
+        k = str(_mget(m, "kind", "")).lower()
+        if k in _ASK_KINDS:
+            out["asks"] += 1
+        elif k in _TRACE_KINDS:
+            out["traces"] += 1
+        else:
+            out["fyi"] += 1
+    return out
+
+
+def render_kind_summary(messages) -> str:
+    """W02: 'N asks / M fyi / K traces' -- non-zero buckets only, asks first (the thing
+    that needs answering leads). '' when empty. Kills the second --traces call just to
+    learn whether an ask was buried under trace spam (kimi F9's trigger)."""
+    s = kind_summary(messages)
+    parts = []
+    for key, label in (("asks", "ask"), ("fyi", "fyi"), ("traces", "trace")):
+        n = s[key]
+        if n:
+            plural = label if label == "fyi" else f"{label}s"
+            parts.append(f"{n} {plural if n != 1 else label}")
+    return " / ".join(parts)
+
+
 def render_collapsed(messages, *, show_traces: bool = False, max_len: int = 220):
     """W4 (T081) -- THE shared trace-collapse render (bifrost-sync CLI + the runner's bifrost_inbox
     both go through this, so the two surfaces can never diverge). Algorithm (deepseek's, reconciled
@@ -360,8 +393,10 @@ def print_boot_bifrost_section(block: Dict[str, Any], show_traces: bool = False)
         scope = "work-lane" if BifrostAPI.consume_lane_enabled() else "all lanes"
     except Exception:
         scope = "legacy peek"
+    summary = render_kind_summary(block.get("messages") or [])
+    summary_tag = f" [{summary}]" if summary else ""
     print(f"  {pending} unread ({scope}, peek -- use bifrost_inbox or "
-          f"`py agent_cli.py bifrost-sync --consume` to ack):")
+          f"`py agent_cli.py bifrost-sync --consume` to ack):{summary_tag}")
     for ln in render_collapsed(block.get("messages") or [], show_traces=show_traces):
         print(f"  {ln}")   # W4: trace-class telemetry folded (--traces to expand)
 
