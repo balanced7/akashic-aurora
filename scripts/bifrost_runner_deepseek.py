@@ -41,7 +41,7 @@ from core.comm import liveness
 from core.comm import nudge
 from core.comm import runner_lock
 from core.comm import context_hints
-from core.comm import packet_spec
+from core.comm import packet_spec, triage_park
 from core.coord import cognitive_metrics as cog
 from ask_deepseek import load_key, BASE_URL, DEFAULT_MODEL
 
@@ -1146,6 +1146,21 @@ def main() -> int:
                       "(BIFROST_STALE_MS gate)")
             if _stale_asks:
                 print(f"[deepseek-runner] {packet_spec.stale_notice(_stale_asks, now_ms=_now_ms)}")
+                for stale in _stale_asks:               # S0-beta: auto-park to durable bench
+                    try:
+                        age_h = (packet_spec.msg_age_ms(
+                            getattr(stale, "id", ""), _now_ms) or 0) / 3600000.0
+                        triage_park.park(args.agent,
+                                         {"id": getattr(stale, "id", ""),
+                                          "frm": getattr(stale, "frm", ""),
+                                          "to": getattr(stale, "to", ""),
+                                          "kind": getattr(stale, "kind", ""),
+                                          "content": getattr(stale, "content", ""),
+                                          "ts": getattr(stale, "ts", "")},
+                                         reason=f"stale {age_h:.1f}h (D2 auto-triage)",
+                                         by=f"{args.agent}-runner")
+                    except Exception:
+                        pass  # park is best-effort; stale notice + cursor advance still fire
             fenced_out = False
             for m in msgs:
                 killpoint("post-consume-pre-process")
