@@ -244,19 +244,35 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
         backlog = int(p["backlog"](agent) or 0)
         idleish = (not wl) or phase in liveness.IDLE_PHASES
         if idleish and backlog > 0:
-            first = p["stalled_since"](agent, True)
-            age = max(0.0, now - first) if first else 0.0
-            if age >= STALL_HYSTERESIS_S:
-                out.append(_f(agent, "stalled_consumer", "page",
-                              f"{agent}: STALLED CONSUMER -- {backlog} unread for "
-                              f"{int(age)}s while idle (past hysteresis "
-                              f"{int(STALL_HYSTERESIS_S)}s)",
-                              f"py agent_cli.py bifrost-sync {agent}"))
+            if not wl:
+                # W40 (deepseek, 2026-07-21): the agent is ABSENT — worklive has TTL'd,
+                # no runner, no presence. The backlog is ghost mail from a retired/dead
+                # seat. DASHBOARD-visible (graveyard-is-a-resource: silence breeds rot)
+                # but NEVER a page — there is no consumer to stall. Live receipt: census
+                # (a retired one-off task-agent) paged as STALLED CONSUMER with leftover
+                # backlog; flightdeck correctly rendered it "absent" in the pulse column.
+                out.append(_f(agent, "offline_backlog", "dashboard",
+                              f"{agent}: OFFLINE — {backlog} unread but the agent is "
+                              f"GONE (no worklive, no runner, no presence). The backlog "
+                              f"is ghost mail from a retired seat — retire the inbox or "
+                              f"ignore.",
+                              f"py agent_cli.py retire {agent}  | or ignore: the mail "
+                              f"TTLs with the stream"))
+                p["stalled_since"](agent, False)
             else:
-                out.append(_f(agent, "stalled_consumer", "dashboard",
-                              f"{agent}: backlog {backlog} while idle -- observing "
-                              f"({int(age)}s / {int(STALL_HYSTERESIS_S)}s hysteresis)",
-                              f"py agent_cli.py bifrost-sync {agent}"))
+                first = p["stalled_since"](agent, True)
+                age = max(0.0, now - first) if first else 0.0
+                if age >= STALL_HYSTERESIS_S:
+                    out.append(_f(agent, "stalled_consumer", "page",
+                                  f"{agent}: STALLED CONSUMER -- {backlog} unread for "
+                                  f"{int(age)}s while idle (past hysteresis "
+                                  f"{int(STALL_HYSTERESIS_S)}s)",
+                                  f"py agent_cli.py bifrost-sync {agent}"))
+                else:
+                    out.append(_f(agent, "stalled_consumer", "dashboard",
+                                  f"{agent}: backlog {backlog} while idle -- observing "
+                                  f"({int(age)}s / {int(STALL_HYSTERESIS_S)}s hysteresis)",
+                                  f"py agent_cli.py bifrost-sync {agent}"))
         else:
             p["stalled_since"](agent, False)     # clear the hysteresis clock
 
