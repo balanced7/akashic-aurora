@@ -33,9 +33,11 @@ Status flips: `[x] folded â†’ T0xx` / `[~] declined: reason`.
 - [ ] W02 (07-18, kimi F9) â€” per-kind unread counts in bifrost-sync collapsed view
   ("0 asks / 1 inform / 9 traces"). Trigger: triage needed a second call with --traces to
   find whether any ask was buried. Land: T081-W4 trace-collapse adjacency.
-- [ ] W03 (07-18, kimi F3) â€” severity-scope boot heal lines (`[fleet-hygiene]` vs `[you]`).
-  Trigger: all-caps INVESTIGATE on a newcomer's first boot reads as their task. Land: T081
-  boot rendering. (Kimi's lesson boot_heal_lines_are_fleet_hygiene is the interim teacher.)
+- [x] W03 (07-18, kimi F3) â€” FOLDED 2026-07-21 marathon @ce448aa: every heal line now
+  carries a `[heal][fleet-hygiene]` scope tag + the UNKNOWN line names the owner ("whoever
+  mints this family, not the booting seat"); pins tests/test_w38_w03_heal_hygiene.py P4.
+  Was: severity-scope boot heal lines. Trigger: all-caps INVESTIGATE on a newcomer's first
+  boot reads as their task. (kimi's lesson boot_heal_lines_are_fleet_hygiene was the interim.)
 - [x] W04 (07-18, kimi F6) â€” FOLDED (stamp half) night-run 2026-07-21 @8cf9352: the
   directive line now renders `[as of <date>]` always, `[STALE? Nd old]` past 3d, and
   `[LEDGER DISAGREES: T0xx DONE -- trust the ledger]` on any named task the ledger closed
@@ -146,7 +148,14 @@ Status flips: `[x] folded â†’ T0xx` / `[~] declined: reason`.
   chronicles/session-reflection-2026-07-21-fable-grounding.md. Pins
   tests/test_w37_grounding_pointer.py 5/5. THE WAVE IS 6/6. Was: Canonize the grounding
   handoff. Trigger: the single best orientation artifact existed only by ad-hoc directive.
-- [ ] W38 (07-21, claude) â€” Heal-line ownership at ship time: a slice that mints a new Redis key family must register it in the heal-scan taxonomy (boundary-guard enforced), and UNKNOWN heal lines should name the suspected owning task/slice. Trigger: 1472 UNKNOWN bifrost:mailbox:* keys said INVESTIGATE with no owner; this seat deferred it and it will re-page every future boot identically. Land: W03 sibling; T095 M0 follow-up + check_boundaries guard.
+- [~] W38 (07-21, claude) â€” PARTIAL-FOLD 2026-07-21 marathon @ce448aa: the concrete
+  offender is FIXED -- the T095 mailbox projection is registered ephemeral, so the
+  1797-and-growing UNKNOWN wall is gone from boot (pins test_w38_w03_heal_hygiene P1-P3),
+  and the UNKNOWN line now names the owner. STILL OPEN (the systemic half): a
+  check_boundaries guard that FAILS a slice minting a new Redis family without a roster
+  entry -- so the next subsystem can't re-open this class. Trigger: 1472->1797 UNKNOWN
+  bifrost:mailbox:* keys said INVESTIGATE with no owner. Land: check_boundaries guard
+  (the register-at-ship-time enforcement); W44 operating-frame adjacency.
 - [ ] W39 (07-21, kimi) â€” When a drill/fetch verb ships, the same slice must grep the boot+hint surfaces for the old pattern it replaces: agent_cli.py:270 still teaches 'notes --json' (the BrokenPipeError dance W01 was filed to kill) one boot after note --get landed, and the truncated where-we-are line carries no drill pointer. Trigger: This boot's RECENT NOTES footer prescribed the pre-W01 pattern to a fresh seat; the new verb existed but no surface taught it. Land: B2 residual / slice-template door-hygiene step (ship-a-verb => retire-its-teaching-text).
 - [ ] W40 (07-21, kimi) â€” Doctor must distinguish OFFLINE from STALLED: a seat with no live process and unread mail pages 'STALLED CONSUMER -- N unread for Xs while idle' on its own next boot, reading as a personal defect to the fresh seat. Trigger: My boot tonight: 'kimi: STALLED CONSUMER -- 28 unread for 2821s while idle' -- the seat was not idle, it was absent; hysteresis assumes a running process. Land: W16/W03 adjacency (doctor seat-state tri-state: live/stalled/offline).
 - [ ] W41 (07-21, kimi) â€” Boot remedy lines must carry a cost tag: free remedies (run this command now) print inline; costly remedies (restart the session, re-login) get queued to the NEXT seat's launcher or the morning gate, never prescribed to the session being oriented -- a remedy that amputates the context it just built will never be taken. Trigger: W10's door remedy 'cd E:\AI-Setup && restart' has sat unacted-on for three days across seats; taking it costs the boot it just paid for. Land: T081-W2 sibling (boot rendering / launcher contract).
