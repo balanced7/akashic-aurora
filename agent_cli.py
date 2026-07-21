@@ -4014,6 +4014,13 @@ def build_parser():
     pu.add_argument("--json", action="store_true")
     pu.set_defaults(fn=cmd_pulse)
 
+    fd = sub.add_parser("flightdeck", help="W25 (deepseek): cockpit one-pager — fleet at "
+                                            "a glance. Composes doctor + pulse + lane-health "
+                                            "+ locks + commits. --agent drills one seat")
+    fd.add_argument("--agent", help="focus one agent (default: fleet-wide)")
+    fd.add_argument("--json", action="store_true")
+    fd.set_defaults(fn=cmd_flightdeck)
+
     uw = sub.add_parser("unwedge", help="W31 (deepseek): one-verb wedge diagnosis -- why is "
                                          "this agent stuck? READ-only v1 (recommends, never acts)")
     uw.add_argument("agent", help="the agent to diagnose")
@@ -4409,6 +4416,16 @@ def cmd_pulse(args):
     p = pulse_fn(agents)
     print(format_pulse(p, json_mode=getattr(args, "json", False)))
     return 1 if p["zones"]["critical"] else 0
+
+
+def cmd_flightdeck(args):
+    """flightdeck [--agent <a>]: the cockpit one-pager — fleet at a glance. READ-only
+    v1 (deepseek design, LIFEWORKERS caste). Composes doctor + pulse + lane-health +
+    locks + recent commits into one view. --agent drills one seat."""
+    from core.comm.doctor import flightdeck as flightdeck_fn, format_flightdeck
+    fd = flightdeck_fn(agent=getattr(args, "agent", None))
+    print(format_flightdeck(fd, json_mode=getattr(args, "json", False)))
+    return 0
 
 
 def cmd_unwedge(args):

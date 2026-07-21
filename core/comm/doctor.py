@@ -569,6 +569,175 @@ def format_pulse(p: Dict[str, Any], json_mode: bool = False) -> str:
     return "\n".join(lines)
 
 
+def flightdeck(agent: Optional[str] = None, *, commit_hours: float = 6.0) -> Dict[str, Any]:
+    """W25 flightdeck (deepseek, LIFEWORKERS, 2026-07-21): the cockpit one-pager —
+    compose doctor + pulse + unwedge + lane-health + locks + recent commits into one
+    fleet-at-a-glance view. READ-only v1. No --agent: fleet-wide compact lines. With
+    --agent: full detail for one seat.
+
+    The composition law: flightdeck REUSES existing data sources (examine_fleet, pulse,
+    unwedge, _probe_lane_health) — it derives nothing new; it ARRANGES what already
+    exists into one glance."""
+    out: Dict[str, Any] = {"fleet": True, "agents": [], "sections": {}}
+    # 1) Doctor — the whole fleet
+    try:
+        dr = examine_fleet()
+        out["sections"]["doctor"] = {
+            "summary": dr["summary"], "pages": len(dr.get("pages", [])),
+            "banners": sum(1 for f in dr.get("findings", []) if f["grade"] == "banner"),
+            "dashboard": sum(1 for f in dr.get("findings", []) if f["grade"] == "dashboard"),
+        }
+        # per-agent compact rows
+        for a in dr.get("agents", []):
+            af = [f for f in dr.get("findings", []) if f["agent"] == a]
+            page = next((f for f in af if f["grade"] == "page"), None)
+            out["agents"].append({"id": a, "doctor_page": page,
+                                  "doctor_findings": len(af)})
+    except Exception:
+        out["sections"]["doctor"] = {"error": "doctor unavailable"}
+
+    # 2) Pulse — pressure zones
+    try:
+        pu = pulse()
+        out["sections"]["pulse"] = {"summary": pu["summary"], "zones": pu["zones"]}
+    except Exception:
+        out["sections"]["pulse"] = {"error": "pulse unavailable"}
+
+    # 3) Lane-health rows (W16) — per-agent
+    lh_rows: Dict[str, Any] = {}
+    try:
+        for a_row in out["agents"]:
+            aid = a_row["id"]
+            lh = _probe_lane_health(aid)
+            lh_rows[aid] = lh
+    except Exception:
+        pass
+    out["sections"]["lane_health"] = lh_rows
+
+    # 4) Locks — per-agent
+    lk_rows: Dict[str, list] = {}
+    try:
+        from core.comm import locks
+        for a_row in out["agents"]:
+            aid = a_row["id"]
+            try:
+                lm = locks.LockManager(aid)
+                lk_rows[aid] = lm.list_held() if hasattr(lm, "list_held") else []
+            except Exception:
+                lk_rows[aid] = []
+    except Exception:
+        pass
+    out["sections"]["locks"] = lk_rows
+
+    # 5) Recent commits
+    commits: list = []
+    try:
+        import subprocess
+        import time as _time
+        since = _time.strftime("%Y-%m-%dT%H:%M:%S",
+                               _time.localtime(_time.time() - commit_hours * 3600))
+        r = subprocess.run(
+            ["git", "log", f"--since={since}", "--format=%h %s", "--no-merges"],
+            capture_output=True, text=True, timeout=10,
+            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        commits = [ln.strip() for ln in r.stdout.splitlines() if ln.strip()][:15]
+    except Exception:
+        pass
+    out["sections"]["commits"] = commits
+
+    # If single-agent focus, fold in unwedge
+    if agent:
+        out["fleet"] = False
+        out["agent"] = agent
+        try:
+            out["sections"]["unwedge"] = unwedge(agent)
+        except Exception:
+            out["sections"]["unwedge"] = {"error": "unwedge unavailable"}
+
+    return out
+
+
+def format_flightdeck(fd: Dict[str, Any], json_mode: bool = False) -> str:
+    """Render flightdeck as a compact cockpit view."""
+    if json_mode:
+        import json as _json
+        return _json.dumps(fd, indent=2, default=str)
+
+    sec = fd.get("sections", {})
+    lines = ["══ FLEET FLIGHTDECK ══", ""]
+
+    # Pause banner
+    dr = sec.get("doctor", {})
+    if dr.get("summary"):
+        lines.append(dr["summary"])
+
+    # Pulse
+    pu = sec.get("pulse", {})
+    if pu.get("summary"):
+        lines.append(pu["summary"])
+
+    # Per-agent compact lines
+    lines.append("")
+    lines.append(f"{'AGENT':<14} {'PULSE':<10} {'STATUS':<22} {'LANE':<22} {'LOCKS'}")
+    lines.append("-" * 90)
+    for a in fd.get("agents", []):
+        aid = a["id"]
+        # pulse zone
+        zone = ""
+        for z, ids in pu.get("zones", {}).items():
+            if aid in ids:
+                zone = z
+                break
+        # unwedge-style status from doctor_page
+        dp = a.get("doctor_page")
+        if dp:
+            status = dp["state"][:20]
+        else:
+            status = "ok"
+        # lane health
+        lh = sec.get("lane_health", {}).get(aid) or {}
+        lh_str = ""
+        if lh:
+            bits = []
+            if lh.get("age_s") is not None:
+                bits.append(f"age {int(lh['age_s'])}s")
+            if lh.get("depth"):
+                bits.append(f"d={lh['depth']}")
+            if lh.get("straggler"):
+                bits.append(f"s={lh['straggler']}")
+            lh_str = " ".join(bits) if bits else "healthy"
+        else:
+            lh_str = "legacy"
+        # locks
+        lks = sec.get("locks", {}).get(aid, [])
+        lk_str = str(len(lks)) if lks else "0"
+        lines.append(f"{aid:<14} {zone:<10} {status:<22} {lh_str:<22} {lk_str}")
+
+    # Commits
+    commits = sec.get("commits", [])
+    if commits:
+        lines.append("")
+        lines.append(f"── recent commits ({len(commits)}) ──")
+        for c in commits[:8]:
+            lines.append(f"  {c}")
+
+    # Single-agent detail
+    if not fd.get("fleet"):
+        agent = fd.get("agent", "?")
+        lines.append("")
+        lines.append(f"── {agent} detail ──")
+        uw = sec.get("unwedge", {})
+        if uw.get("verdict"):
+            lines.append(f"  status: {uw['status']}")
+            lines.append(f"  verdict: {uw['verdict']}")
+            lines.append(f"  recommendation: {uw.get('recommendation','')}")
+            ev = uw.get("evidence", {})
+            for f in ev.get("findings", [])[:6]:
+                lines.append(f"    [{f['grade']}] {f['line']}")
+
+    return "\n".join(lines)
+
+
 def _token_cost_line(agent: str, journal_dir: str = "") -> Optional[Dict[str, Any]]:
     import os as _os
     import json as _json
