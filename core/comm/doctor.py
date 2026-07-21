@@ -239,6 +239,17 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
     except Exception:
         pass
 
+    # S0-alpha: the triage bench (scry-to-bottom) -- parked asks are VISIBLE, never limbo.
+    try:
+        from core.comm import triage_park
+        n = triage_park.count(agent)
+        if n > 0:
+            out.append(_f(agent, "triage_bench", "dashboard",
+                          f"{agent}: {n} ask(s) on the triage bench (bottomed, not dropped)",
+                          f"py agent_cli.py bench {agent}"))
+    except Exception:
+        pass
+
     return out
 
 

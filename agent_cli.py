@@ -3628,6 +3628,16 @@ def build_parser():
     rn.add_argument("--dry", action="store_true", help="print the resolved steps, execute nothing")
     rn.set_defaults(fn=cmd_run)
 
+    bn = sub.add_parser("bench", help="S0 triage bench (scry-to-bottom): list/park/unpark stale "
+                                      "asks -- bottomed so fresh mail flows, NEVER dropped; "
+                                      "sender always notified (RB-29)")
+    bn.add_argument("agent_id", help="whose bench")
+    bn.add_argument("action", nargs="?", default="list", choices=["list", "park", "unpark"])
+    bn.add_argument("ref", nargs="?", default="", help="park: inbox stream id | unpark: parked_id")
+    bn.add_argument("--reason", default="stale", help="park: why (rides the receipt + sender note)")
+    bn.add_argument("--by", default="", help="who authorizes (defaults to agent_id)")
+    bn.set_defaults(fn=cmd_bench)
+
     kt = sub.add_parser("kata", help="grammar-prove a toolbelt alias against the door itself; "
                                      "GREEN levels GUESS/INFER up to VERIFIED (kimi's B4: "
                                      "'the tool that tells you when your tools are real')")
@@ -3764,6 +3774,51 @@ def cmd_run(args):
     rc = tb.resolve_and_run(args.name, runner=_invoke)
     print(f"[run:{args.name}] {'done' if rc == 0 else f'stopped rc={rc}'}")
     return rc
+
+
+# ---------------------------------------------------------------- S0-alpha: the triage bench
+def cmd_bench(args):
+    """Scry-to-bottom by hand (S0-alpha): the operator's park/unpark until S0-beta wires it
+    into the consume loop behind the Anvil's fence. Park pulls the message from the agent's
+    inbox stream BY ID (full fidelity), benches it durably, notifies the sender."""
+    from core.comm import triage_park
+    if args.action == "list":
+        print(triage_park.render(args.agent_id))
+        return 0
+    by = args.by or args.agent_id
+    if args.action == "park":
+        if not args.ref:
+            print("[bench] park needs an inbox stream id"); return 2
+        from core.comm.bus import Bus
+        c = Bus(args.agent_id)._client
+        if c is None:
+            print("[bench] bus offline"); return 2
+        ns = os.environ.get("BIFROST_NAMESPACE", "bifrost")
+        msg = None
+        for key in (f"{ns}:work:inbox:{args.agent_id}", f"{ns}:inbox:{args.agent_id}"):
+            got = c.xrange(key, min=args.ref, max=args.ref)
+            if got:
+                sid, f = got[0]
+                msg = {"id": str(sid), "frm": str(f.get("frm", "")), "to": args.agent_id,
+                       "kind": str(f.get("kind", "")),
+                       "content": _capture_decode(f.get("content") or f.get("text") or ""),
+                       "ts": str(f.get("ts", ""))}
+                break
+        if msg is None:
+            print(f"[bench] no message {args.ref} on {args.agent_id}'s inbox streams"); return 1
+        e = triage_park.park(args.agent_id, msg, reason=args.reason, by=by)
+        print(f"[bench] parked {args.ref} -> {e['parked_id']} ({args.reason}); sender "
+              f"{msg['frm'] or '?'} notified. Bottomed, not dropped.")
+        return 0
+    if args.action == "unpark":
+        e = triage_park.unpark(args.agent_id, args.ref)
+        if e is None:
+            print(f"[bench] no parked entry {args.ref}"); return 1
+        m = e["msg"]
+        print(f"[bench] returned {e['parked_id']}: [{m.get('kind')}] from {m.get('frm')} -- "
+              f"re-process it now:\n{str(m.get('content', ''))[:400]}")
+        return 0
+    return 2
 
 
 # ---------------------------------------------------------------- T099 V0.1: kata (kimi's hunt B4)
