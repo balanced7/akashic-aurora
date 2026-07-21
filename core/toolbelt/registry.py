@@ -81,18 +81,19 @@ class Toolbelt:
             if str(s[0]) not in known:
                 raise ValueError(f"unknown verb {s[0]!r} -- sugar-only: every step must be an "
                                  f"existing agent_cli verb (registry cannot mint capabilities)")
-            for tok in s:                            # recipe slots: $1..$9 (Make/justfile lineage)
+            for tok in s:                            # macro slots: $1..$9 (macro-expansion lineage)
                 m = _SLOT.fullmatch(str(tok))
                 if m:
                     params = max(params, int(m.group(1)))
         if params and kind == "alias":
-            kind = "recipe"                          # arity makes it a recipe, not a combo
+            kind = "macro"                           # arity makes it a MACRO (expansion), not a combo
         entries = self._doc["entries"]
         prior = entries.get(name)
         if (prior and prior.get("status", "active") == "active" and prior["steps"] == steps
                 and prior.get("evidence") == evidence
                 and prior.get("tested_against") == tested_against
-                and prior.get("family", "UNSORTED") == family):
+                and prior.get("family", "UNSORTED") == family
+                and prior.get("kind", "alias") == kind):
             return prior     # exact re-mint = no-op. Evidence IS content (dogfood catch
                              # 2026-07-20), and so is FAMILY (the Halo-caste taxonomy):
                              # a label change supersedes, never silently no-ops.
@@ -144,7 +145,7 @@ class Toolbelt:
         args = list(args or [])
         if need:
             if len(args) < need:
-                raise ValueError(f"recipe {name!r} expects {need} arg(s) "
+                raise ValueError(f"macro {name!r} expects {need} arg(s) "
                                  f"({'$' + ', $'.join(str(i) for i in range(1, need + 1))}); "
                                  f"got {len(args)}")
             def sub(tok):

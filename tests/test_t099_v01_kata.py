@@ -39,9 +39,9 @@ def test_kata_refuses_bad_grammar_and_names_the_step(tmp_path):
     assert tb.get("broken")["evidence"] == "GUESS", "no upgrade on a failed kata"
 
 
-def test_kata_handles_recipes_with_dummy_args(tmp_path):
-    """Pass-2 catch (live, minutes after recipes shipped): kata crashed on a recipe because
-    resolve() demands args. Law: kata grammar-checks recipes with dummy substitutions."""
+def test_kata_handles_macros_with_dummy_args(tmp_path):
+    """Pass-2 catch (live, minutes after macros shipped): kata crashed on a macro because
+    resolve() demands args. Law: kata grammar-checks macros with dummy substitutions."""
     import agent_cli
     from core.toolbelt.registry import Toolbelt
     tb = Toolbelt("t-kata", root=str(tmp_path))
@@ -50,4 +50,4 @@ def test_kata_handles_recipes_with_dummy_args(tmp_path):
     e = tb.get("ask")
     steps = tb.resolve("ask", args=["KATA"] * e["params"])
     ok, results = agent_cli._kata_check(steps)
-    assert ok, "a well-formed recipe passes kata under dummy args"
+    assert ok, "a well-formed macro passes kata under dummy args"

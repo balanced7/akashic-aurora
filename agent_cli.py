@@ -3625,7 +3625,7 @@ def build_parser():
                                     "(explicit door -- a real verb can never be shadowed)")
     rn.add_argument("agent_id", help="whose toolbelt")
     rn.add_argument("name", help="the alias to run")
-    rn.add_argument("args", nargs="*", default=[], help="recipe args ($1 $2 ... substitution)")
+    rn.add_argument("args", nargs="*", default=[], help="macro args ($1 $2 ... substitution)")
     rn.add_argument("--dry", action="store_true", help="print the resolved steps, execute nothing")
     rn.set_defaults(fn=cmd_run)
 
@@ -3862,7 +3862,7 @@ def cmd_kata(args):
         entry = tb.get(args.name)
         before = entry["evidence"]
         dummies = ["KATA"] * int(entry.get("params", 0) or 0)
-        steps = tb.resolve(args.name, args=dummies)     # recipes kata under dummy substitution
+        steps = tb.resolve(args.name, args=dummies)     # macros kata under dummy substitution
     except (KeyError, ValueError) as e:
         print(f"[kata] {e}"); return 1
     ok, results = _kata_check(steps)
