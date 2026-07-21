@@ -1,7 +1,6 @@
 # The Naming & Mechanics Charter — Akashic Aurora
 
-Status: current  (2026-07-21, synthesis of Daniel's four-shelf directive + three seats' counters;
-AWAITING DANIEL'S GATE on the open names)
+Status: superseded-by docs/naming-canon-2026-07.md  (2026-07-21 — this file is the PROCESS RECORD; the clean law + complete feedback ledger live in the canon)
 
 Sources: Daniel's theming directives (Halo-heavy + Skunkworks + SHIELD; MTG; SC2; Mass Effect),
 claude's shelf maps (chat 2026-07-20/21), deepseek R2 (3-level taxonomy + LIFEWORKERS + vitals),
