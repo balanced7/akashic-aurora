@@ -1330,12 +1330,42 @@ def cmd_wish(args):
     return 0
 
 
-def cmd_note(args):
+def cmd_note(args, *, mem=None):
     """Write-once durable project note: record WHERE-WE-ARE / a decision in ONE place (the substrate),
     not by hand-editing files. Re-noting the same --title (or --supersedes ID) RETIRES the prior note
-    (correct by superseding, never edit). Surfaces at `boot` + `notes`; reprojects chronicles/memory.md."""
+    (correct by superseding, never edit). Surfaces at `boot` + `notes`; reprojects chronicles/memory.md.
+    --get <id-or-title> reads ONE full body (W01: kills the notes --json pipe dance)."""
     from core.learning.agent_memory import get_agent_memory, normalize_title
-    mem = get_agent_memory()
+    if mem is None:
+        mem = get_agent_memory()
+    if getattr(args, "get", None):
+        # W01 drill (kimi F8, re-bitten 07-21): exact id first -- superseded ids are legal
+        # archaeology, rendered labeled; then normalized-title match resolves the ACTIVE head.
+        target = str(args.get)
+        pool = mem.get_decisions(days=3650, include_superseded=True)
+        dec = next((d for d in pool if d.id == target), None)
+        if dec is None:
+            live = [d for d in pool if not d.superseded
+                    and normalize_title(d.title) == normalize_title(target)]
+            dec = live[0] if live else None
+        if dec is None:
+            ghosts = [d for d in pool if normalize_title(d.title) == normalize_title(target)]
+            if ghosts:
+                print(f"ERROR: '{target}' matches only superseded note(s) -- newest is id "
+                      f"{ghosts[0].id}; drill that id explicitly, or browse notes --all")
+            else:
+                print(f"ERROR: no note with id or title '{target}' (see: notes)")
+            return 1
+        if getattr(args, "json", False):
+            import dataclasses
+            print(json.dumps(dataclasses.asdict(dec), default=str))
+            return 0
+        tag = "  [SUPERSEDED -- a newer note holds this title]" if dec.superseded else ""
+        print(f"# {dec.title}{tag}  (id {dec.id}, {dec.created_at})")
+        print(dec.decision)
+        if dec.context:
+            print(f"\n[context] {dec.context}")
+        return 0
     if args.retire:
         # Retire mode (P1/T021): tombstone a one-shot note WITHOUT a successor -- consumed
         # handoffs, placeholders, done-arc status notes. Accepts an id or a title.
@@ -3311,13 +3341,17 @@ def build_parser():
 
     nt = sub.add_parser("note", help="record a durable project note (write-once; re-note same title to update)")
     nt.add_argument("agent_id")
-    nt.add_argument("--title", required=True, help="short stable title (re-noting it supersedes the prior)")
+    nt.add_argument("--title", default="", help="short stable title (re-noting it supersedes the prior; "
+                                                "required for writes -- --get/--retire stand alone)")
     nt.add_argument("--note", default="", help="the note / decision body")
     nt.add_argument("--context", default="", help="optional supporting context")
     nt.add_argument("--category", default="", help="route-hint category")
     nt.add_argument("--supersedes", default=None, help="explicit prior note id to retire")
     nt.add_argument("--retire", default=None, metavar="ID_OR_TITLE",
                     help="tombstone a one-shot note (no successor); reversible in the store")
+    nt.add_argument("--get", default=None, metavar="ID_OR_TITLE",
+                    help="W01: print ONE full note body (title resolves the active head; "
+                         "an explicit id reads superseded history, labeled)")
     nt.add_argument("--session", default="", help="session id")
     nt.add_argument("--json", action="store_true")
     nt.set_defaults(fn=cmd_note)
