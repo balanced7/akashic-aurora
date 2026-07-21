@@ -1294,6 +1294,14 @@ def _orientation_header(agent_id: str, primer_aware: bool = False) -> str:
                          f"{_clip(focus, 160)}{tags}")
         else:
             lines.append("# [GAP] CURRENT DIRECTIVE: (none set -- use `wrap --focus` to set priority)")
+        try:   # W33/B3: the capability-gated standing queue (kimi (a): caps-aware render --
+            # a seat without the needed grant gets one dim line, never a shouted work list)
+            from core.coord import defer_queue as _dq
+            dq_section = _dq.render_boot_section(agent_caps=_agent_acl_caps(agent_id))
+            if dq_section:
+                lines.append(dq_section)
+        except Exception:
+            pass
     except Exception:
         # Store down -> a structurally-valid but semantically-empty head is WORSE than an
         # honest gap line (deepseek gate review, attack 3): say what is missing and where
@@ -3807,6 +3815,19 @@ def build_parser():
     ts.add_argument("--json", action="store_true")
     ts.set_defaults(fn=cmd_toast)
 
+    df = sub.add_parser("defer", help="the capability-gated standing queue (W33): file a "
+                                      "command awaiting an exec/write seat; boot surfaces "
+                                      "it; discharge with a receipt")
+    df.add_argument("agent_id", help="you (the filing or discharging seat)")
+    df.add_argument("cmd_text", nargs="*", default=[],
+                    help="the command to file (quote it; or use --list / --done)")
+    df.add_argument("--needs", default="exec", help="capability required (exec|write|net)")
+    df.add_argument("--why", default="", help="one line: what the discharge unblocks")
+    df.add_argument("--list", action="store_true", help="show pending items")
+    df.add_argument("--done", default=None, metavar="ID", help="discharge one item")
+    df.add_argument("--receipt", default="", help="REQUIRED with --done: what happened")
+    df.set_defaults(fn=cmd_defer)
+
     ki = sub.add_parser("kit", help="install a kit bundle on a seat's belt (T099 KIT tier); "
                                     "first resident: recovery-kit (the wake-loop/stall floor)")
     ki.add_argument("agent_id", help="the installing seat")
@@ -4109,6 +4130,60 @@ def cmd_toast(args, *, bus_send=None, note_write=None, store=None):
         print(json.dumps(res))
         return 0
     print(toast.render_result(res))
+    return 0
+
+
+def _agent_acl_caps(agent_id: str) -> set:
+    """The agent's granted caps from security/acl.json (fail-open -> empty set = the dim
+    render). The ACL is the render gate; session-level harness doors self-select live."""
+    try:
+        p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "security", "acl.json")
+        with open(p, encoding="utf-8") as f:
+            doc = json.load(f)
+        for g in doc.get("grants", []):
+            if str(g.get("agent_id")) == str(agent_id):
+                return set(g.get("caps") or [])
+    except Exception:
+        pass
+    return set()
+
+
+def cmd_defer(args):
+    """defer <me> ["cmd"] [--needs exec|write] | --list | --done <id> --receipt "...":
+    the capability-gated standing queue (W33, seat-zero wave B3). Commands that wait for
+    a seat with a capability you lack; boot surfaces them to capable seats; discharge
+    REQUIRES a receipt (the queue is also the discharge ledger)."""
+    from core.coord import defer_queue as dq
+    if getattr(args, "done", None):
+        try:
+            item = dq.mark_done(args.done, seat=args.agent_id,
+                                receipt=str(getattr(args, "receipt", "") or ""))
+        except (ValueError, KeyError) as e:
+            print(f"[defer] {e}")
+            return 2
+        print(f"[defer] discharged [{item['id']}] by {item['done_by']} -- {item['receipt']}")
+        return 0
+    if getattr(args, "list", False):
+        items = dq.pending()
+        if not items:
+            print("[defer] queue empty -- nothing awaits a capable seat")
+            return 0
+        for i in items:
+            why = f"  ({i['why']})" if i.get("why") else ""
+            print(f"  [{i['id']}] needs {i['needs']}: {i['cmd']}{why}  <- {i['by']}, "
+                  f"{i['filed_at'][:10]}")
+        print(f"[defer] discharge: py agent_cli.py defer {args.agent_id} --done <id> "
+              f"--receipt \"what happened\"")
+        return 0
+    text = " ".join(args.cmd_text) if isinstance(args.cmd_text, list) else str(args.cmd_text or "")
+    try:
+        item = dq.add(args.agent_id, text, needs=args.needs or "exec",
+                      why=str(getattr(args, "why", "") or ""))
+    except ValueError as e:
+        print(f"[defer] {e}")
+        return 2
+    print(f"[defer] filed [{item['id']}] awaiting a {item['needs']} seat -- boot surfaces "
+          f"it to capable seats; they discharge with a receipt")
     return 0
 
 

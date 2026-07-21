@@ -1,0 +1,16 @@
+{
+ "v": 1,
+ "items": [
+  {
+   "id": "1b12686e99",
+   "by": "claude",
+   "cmd": "py -m pytest tests/ -q --timeout=120  (the full-suite re-baseline once sibling lanes land)",
+   "needs": "exec",
+   "why": "B4 suite-baseline seed",
+   "filed_at": "2026-07-21T02:36:27",
+   "done_by": "",
+   "done_at": "",
+   "receipt": ""
+  }
+ ]
+}
