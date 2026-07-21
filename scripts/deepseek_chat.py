@@ -224,12 +224,20 @@ class Agent:
     def _stream_turn(self):
         """One model turn, streamed. Prints reasoning (dim) + answer (green); accumulates tool calls.
         Returns (content_text, tool_calls) where tool_calls is a list of {id,name,arguments}."""
+        # P-S1-5 (kimi O1b): the blocking model call is its OWN phase. A hang before the first
+        # token (C1-8: create() never returns, so no tool round fires to bump the pulse) surfaces
+        # as 'calling-model' aged -> legibly 'hung in the API call' (P-S1-0 renders it at 150s).
+        # Flip to 'thinking' the instant the stream yields, so a normal call never lingers here.
+        self._activity("calling-model", self.model)
         stream = self.client.chat.completions.create(**self._kwargs())
         content, slots = [], {}
         reasoning_buf = []
-        in_reasoning = header = False
+        in_reasoning = header = streaming = False
         try:
             for chunk in stream:
+                if not streaming:                 # first token/data -> the call is live; thinking now
+                    self._activity("thinking")
+                    streaming = True
                 if getattr(chunk, "usage", None):
                     self.prompt_tokens += chunk.usage.prompt_tokens or 0
                     self.completion_tokens += chunk.usage.completion_tokens or 0
@@ -303,7 +311,8 @@ class Agent:
                         "Proceed with your best judgment and state your assumption LOUDLY: "
                         "'I'm assuming X; if that's wrong, steer me.']"})
                     print(f"{C.yellow}[clarify timeout {cid} -- proceeding with assumption]{C.reset}")
-            self._activity("thinking")
+            # P-S1-5: the turn's phase is now owned by _stream_turn ('calling-model' before the
+            # blocking create(), then 'thinking' on the first token) -- so the API wait is legible.
             try:
                 content, tool_calls = self._stream_turn()
             except Exception as e:
