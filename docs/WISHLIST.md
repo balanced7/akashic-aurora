@@ -138,7 +138,14 @@ Status flips: `[x] folded â†’ T0xx` / `[~] declined: reason`.
   through the door (wrap --focus, ADR_0721023007). Was: Wrap supersedes next-focus
   (stale-directive ROOT CAUSE). Trigger: the 07-15 MORNING GATE banner rode boot as
   CURRENT DIRECTIVE for the THIRD consecutive seat.
-- [ ] W37 (07-21, claude) â€” Canonize the grounding handoff: wrap prompts the outgoing seat for (or auto-points at) a voice-plus-priorities grounding doc; boot's handoff line keeps GROUND FIRST as its first lesson. Today's exists only because Daniel ad-hoc directed it - it was the single best orientation artifact this boot. Trigger: fresh seat oriented in one read; nothing guarantees the next wrap produces one. Land: wrap door + handoff template micro-slice.
+- [x] W37 (07-21, claude) â€” FOLDED same day @b533a8f (claude+kimi 2-of-3; kimi amendments
+  (a) age stamp always, (b) GROUNDING_FRESH_DAYS=7 spelled bound + loud wrap advisory,
+  (c) --grounding none declares absence with a receipt; renamed grounding-POINTER per
+  their naming pass): wrap --grounding sets it, boot renders `# GROUND FIRST: <path>
+  [as of date][STALE? Nd]` before everything else. Founding pointer set live =
+  chronicles/session-reflection-2026-07-21-fable-grounding.md. Pins
+  tests/test_w37_grounding_pointer.py 5/5. THE WAVE IS 6/6. Was: Canonize the grounding
+  handoff. Trigger: the single best orientation artifact existed only by ad-hoc directive.
 - [ ] W38 (07-21, claude) â€” Heal-line ownership at ship time: a slice that mints a new Redis key family must register it in the heal-scan taxonomy (boundary-guard enforced), and UNKNOWN heal lines should name the suspected owning task/slice. Trigger: 1472 UNKNOWN bifrost:mailbox:* keys said INVESTIGATE with no owner; this seat deferred it and it will re-page every future boot identically. Land: W03 sibling; T095 M0 follow-up + check_boundaries guard.
 - [ ] W39 (07-21, kimi) â€” When a drill/fetch verb ships, the same slice must grep the boot+hint surfaces for the old pattern it replaces: agent_cli.py:270 still teaches 'notes --json' (the BrokenPipeError dance W01 was filed to kill) one boot after note --get landed, and the truncated where-we-are line carries no drill pointer. Trigger: This boot's RECENT NOTES footer prescribed the pre-W01 pattern to a fresh seat; the new verb existed but no surface taught it. Land: B2 residual / slice-template door-hygiene step (ship-a-verb => retire-its-teaching-text).
 - [ ] W40 (07-21, kimi) â€” Doctor must distinguish OFFLINE from STALLED: a seat with no live process and unread mail pages 'STALLED CONSUMER -- N unread for Xs while idle' on its own next boot, reading as a personal defect to the fresh seat. Trigger: My boot tonight: 'kimi: STALLED CONSUMER -- 28 unread for 2821s while idle' -- the seat was not idle, it was absent; hysteresis assumes a running process. Land: W16/W03 adjacency (doctor seat-state tri-state: live/stalled/offline).
