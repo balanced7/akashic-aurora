@@ -34,6 +34,45 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 _FILE_TOOLS = ("Edit", "Write", "NotebookEdit")
 _SHELL_TOOLS = ("Bash", "PowerShell")
 
+# --- K0 / C8-3: same-payload dedup guard -------------------------------------------------
+# The hook was registered on TWO surfaces (project-relative + user-absolute); both fired per
+# call and log_injection() counted twice -- the funnel's `surfaced` denominator ran ~2x hot.
+# Registration is now single-surface (user-level absolute; the ledger's routing), and THIS
+# guard is the belt-and-suspenders: an ATOMIC marker (O_CREAT|O_EXCL -- no load-then-mark
+# race) keyed by (session, tool, payload) makes any residual double-fire a silent no-op.
+_DEDUP_WINDOW_S = 3.0
+
+
+def _dedup_should_skip(data) -> bool:
+    """True when an identical hook payload fired within the window (second surface / retry).
+    Atomic via O_EXCL; fails OPEN (never skip on error -- a miscount beats a missed guard)."""
+    import hashlib
+    import tempfile
+    import time
+    try:
+        key = hashlib.sha1(json.dumps(
+            [data.get("session_id", ""), data.get("tool_name", ""),
+             data.get("tool_input", {})], sort_keys=True, default=str).encode()).hexdigest()[:24]
+        d = os.path.join(tempfile.gettempdir(), "akashic-hook-dedup")
+        os.makedirs(d, exist_ok=True)
+        now = time.time()
+        try:                                    # lazy sweep so the dir stays tiny
+            for f in os.listdir(d):
+                p = os.path.join(d, f)
+                if now - os.path.getmtime(p) > 60:
+                    os.remove(p)
+        except Exception:
+            pass
+        path = os.path.join(d, key)
+        try:
+            fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.close(fd)
+            return False                        # first fire -- we hold the marker
+        except FileExistsError:
+            return (now - os.path.getmtime(path)) < _DEDUP_WINDOW_S
+    except Exception:
+        return False
+
 
 def _in_scope(tool: str, data) -> bool:
     """Claude tool names -> the shared scope policy (agent/harness/scope.py): file tools scope
@@ -123,6 +162,8 @@ def main() -> int:
     tool = data.get("tool_name") or ""
     if tool not in _SHELL_TOOLS + _FILE_TOOLS:
         return 0
+    if _dedup_should_skip(data):
+        return 0   # K0/C8-3: identical payload already fired within the window -> silent no-op
     if not _in_scope(tool, data):
         return 0   # outside this repo -> silent no-op (safe for user-level / global registration)
     if tool in _SHELL_TOOLS:
