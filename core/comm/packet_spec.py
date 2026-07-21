@@ -247,6 +247,18 @@ EPHEMERAL_PREFIXES = (
     # Redis-only is BY DESIGN (W38: the family was unregistered and grew 1472->1797 as
     # UNKNOWN across one night before this line).
     "*:mailbox:*", "*:mailbox",
+    # W38 systemic sweep 2026-07-21: five more ephemeral-by-design families the new
+    # check_boundaries rule-7 guard surfaced as unregistered (each a latent mailbox-style
+    # UNKNOWN wall): activity (TTL'd typing marker, control.py), pages (doctor page log,
+    # engine_vitals), reply_seen (dedup sentinel twin of reply_sent, bus.py), seat (bus
+    # seat-born marker), session (TTL'd session-ended tombstone, wake_seat).
+    "*:activity:*", "*:activity", "*:pages:*", "*:pages", "*:reply_seen:*",
+    "*:seat:*", "*:seat", "*:session:*", "*:session",
+    # steer: fidelity-ladder control (same tier as the already-rostered nudge). triage:
+    # S0-alpha's park bench -- classified by OPERATIONAL TRUTH (it is Redis-only today);
+    # its "bottomed, never dropped" contract wants File-backing, flagged as a wish for
+    # its owner (a Redis-only 'never dropped' is a latent RB-25 gap, not this slice's fix).
+    "*:steer:*", "*:steer", "*:triage:*", "*:triage",
     # ephemeral streams / channels (per-agent event fan-out + broadcast pub/sub); note the durable
     # 'events:raw:*' family is caught by the file-family check FIRST, so it is never mis-swept here
     "*:events", "*:events:*", "*:broadcast", "*:broadcast:*",

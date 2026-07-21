@@ -70,9 +70,49 @@ ALLOWLIST = {
         "store= injection path is the isolation (deepseek T069 census)",
     ("singleton-honors-isolation", "core/narrative/track_router.py"):
         "store= injection path is the isolation (deepseek T069 census)",
+    # T099 V0 (2026-07-20) added core/toolbelt/registry.py; core/trust/registry.py predates
+    # it. Both are ALWAYS imported by full package path (core.toolbelt.registry /
+    # core.trust.registry), never `from core import registry` -- same no-shadowing-hazard
+    # rationale as the schema.py allowlist above.
+    ("no-duplicate-module-basename", "registry.py"):
+        "two registries by deliberate design (toolbelt verb-registry vs trust ACL-registry); "
+        "always imported by full package path, never `from core import registry`",
 }
 
 REDIS_CONNECTOR = "core/foundation/redis_connection.py"
+
+# W38 rule-7: durable Store families -- legitimately Redis-only-plus-File, classified by
+# the heal's File-family check at RUNTIME, never in EPHEMERAL_PREFIXES. A new durable
+# family goes HERE (a conscious "this persists" decision), an ephemeral one in the roster.
+DURABLE_FAMILIES = frozenset({
+    "events", "learn", "narr", "mem", "codex", "resource", "atom", "chronicle",
+    "coord", "reinforce", "skill", "settings",
+})
+# Families that appear in ns-key POSITION but are not live Redis families (probes/docs).
+_FAMILY_ALLOWLIST = frozenset({"NAMESPACE"})
+_NS_KEY_RE = re.compile(r"\{[\w.]*_?ns(?:\(\))?\}:([a-z_]+)")
+
+
+def _ns_families(text: str) -> set:
+    """Every `{ns}:<family>`, `{_ns()}:<family>`, `{self.ns}:<family>` family token in
+    the text -- the families a module constructs Redis keys for (W38)."""
+    return set(_NS_KEY_RE.findall(text or ""))
+
+
+def _unregistered_families(text: str) -> set:
+    """Families this text constructs that are NEITHER ephemeral-roster-matched NOR
+    durable-allowlisted -- the register-at-ship-time gap. Fail-open on import error."""
+    try:
+        from core.comm.packet_spec import is_ephemeral_key
+    except Exception:
+        return set()
+    out = set()
+    for fam in _ns_families(text):
+        if fam in DURABLE_FAMILIES or fam in _FAMILY_ALLOWLIST:
+            continue
+        if not is_ephemeral_key(f"bifrost:{fam}:probe"):
+            out.add(fam)
+    return out
 
 
 def _py_files():
@@ -117,6 +157,15 @@ def check() -> int:
             record("singleton-honors-isolation", rel,
                    f"{rel}:{singleton_line} module-level singleton cache without an "
                    f"_AISETUP_TEST_ISOLATED branch (T069)")
+        # W38 rule-7 (register-at-ship-time): a core/comm module minting a new Redis key
+        # family must classify it (ephemeral roster or DURABLE_FAMILIES) -- else it grows
+        # a mailbox-style UNKNOWN heal wall. Scoped to the transport keyspace.
+        if rel.startswith("core/comm/"):
+            for fam in sorted(_unregistered_families(text)):
+                record("redis-family-registered", f"{rel}:{fam}",
+                       f"{rel} constructs `{{ns}}:{fam}:...` but '{fam}' is not in "
+                       f"packet_spec.EPHEMERAL_PREFIXES nor DURABLE_FAMILIES -- register it "
+                       f"(ephemeral-by-design -> roster; persisted -> durable allowlist)")
         for i, line in enumerate(text.splitlines(), 1):
             if bare_except.search(line):
                 record("no-bare-except", rel, f"{rel}:{i} bare except")
