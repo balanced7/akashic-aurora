@@ -131,3 +131,18 @@ Full text: research/reviewed/naming-research-deepseek-genuine-2026-07-21.md. Fol
   the rationale page. Adversarial review's real MTG lesson.
 - Gate rulings: ONYX yes (his own WAR-GAMES withdrawn), ORACLES split yes, castes 8-9 yes.
 ALL THREE SEATS have now filed genuine voices. The charter is complete; Daniel's ear is the gate.
+
+## THE TRILOGY CLOSES (kimi's genuine round, 2026-07-21)
+Full text: research/reviewed/naming-research-kimi-genuine-2026-07-21.md. Folded: Catalog CLAIMED
+as the receipts organ's soul; Nerazim severing = verification method, not exile; the Derelict
+Reaper = K4's adversary named. VETOES: the Janus Key (plot coupon, no mechanic — flightdeck itself
+is the better name; ACCEPTED, cut from projections) and Geasa (Celtic-through-the-ME-door, Rule 3
+— DISPUTED: geas is Bear-canon Halo via the Librarian's geas; Daniel rules). Her organ verbs
+(future belt): audit (chain-of-custody walk), confess (voluntary honesty-label demotion — "I
+choose to be believed less"), dissent-file (a counter-verdict that BLOCKS settle until answered).
+Amendment accepted: campfire files under LIBRARIANS alone (preserved telling = remember, not light).
+
+## FINAL TALLY — every gate item now UNANIMOUS (3/3 seats)
+ONYX (drills place) · ORACLES split ("a drill manufactures failure, an oracle renders truth — one
+caste doing both lies about both") · LIFEWORKERS · LUMINARIES. One disputed name (Geasa) and three
+rulings remain — Daniel's gate is now a blessing, not a tiebreak.
