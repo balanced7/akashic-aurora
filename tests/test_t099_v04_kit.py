@@ -11,7 +11,7 @@ import core.toolbelt.kit as kit
 from core.toolbelt.registry import Toolbelt
 
 KNOWN = {"bifrost-pause", "bifrost-skip-to-now", "bifrost-resume", "bifrost-sync",
-         "doctor", "bifrost-dashboard", "delta", "bifrost-inbox"}
+         "doctor", "bifrost_dashboard", "delta", "bifrost-inbox"}
 
 
 def _belt(tmp_path, agent="kimi", quota=20):

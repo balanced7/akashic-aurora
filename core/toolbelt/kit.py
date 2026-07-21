@@ -73,7 +73,7 @@ RECOVERY_KIT: Dict[str, Any] = {
                  "ttl 120 self-heals (same graduation as standby-hard)."),
          "family": "ENGINEERS"},
         {"name": "vitals",
-         "steps": [["doctor"], ["bifrost-dashboard"]],
+         "steps": [["doctor"], ["bifrost_dashboard"]],
          "evidence": "GUESS",
          "why": "deepseek's: is anyone dying silently. The kit's eyes-before-hands law.",
          "family": "LIFEWORKERS"},
