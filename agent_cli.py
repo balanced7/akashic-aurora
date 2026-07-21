@@ -3624,6 +3624,13 @@ def build_parser():
     rn.add_argument("--dry", action="store_true", help="print the resolved steps, execute nothing")
     rn.set_defaults(fn=cmd_run)
 
+    kt = sub.add_parser("kata", help="grammar-prove a toolbelt alias against the door itself; "
+                                     "GREEN levels GUESS/INFER up to VERIFIED (kimi's B4: "
+                                     "'the tool that tells you when your tools are real')")
+    kt.add_argument("agent_id", help="whose toolbelt")
+    kt.add_argument("name", help="the alias to kata")
+    kt.set_defaults(fn=cmd_kata)
+
     return p
 
 
@@ -3752,6 +3759,63 @@ def cmd_run(args):
     rc = tb.resolve_and_run(args.name, runner=_invoke)
     print(f"[run:{args.name}] {'done' if rc == 0 else f'stopped rc={rc}'}")
     return rc
+
+
+# ---------------------------------------------------------------- T099 V0.1: kata (kimi's hunt B4)
+def _kata_check(steps):
+    """Grammar-check every step against the door's OWN parser (parse-only; nothing executes).
+    Returns (all_ok, [(ok, argv, error_line), ...]) -- the failing step is always NAMED."""
+    import contextlib
+    import io
+    p = build_parser()
+    results = []
+    for argv in steps:
+        err = io.StringIO()
+        try:
+            with contextlib.redirect_stderr(err):
+                p.parse_args([str(a) for a in argv])
+            results.append((True, argv, ""))
+        except SystemExit:
+            tail = [ln for ln in err.getvalue().strip().splitlines() if ln][-1:] or ["parse error"]
+            results.append((False, argv, tail[0]))
+        except Exception as e:                      # a parser action that raises on parse
+            results.append((False, argv, f"{type(e).__name__}: {e}"))
+    return all(r[0] for r in results), results
+
+
+def _kata_apply(tb, name, results):
+    """GREEN kata -> level the entry up via SUPERSESSION (evidence is content; never edit-in-place)."""
+    import time as _t
+    entry = tb.get(name)
+    return tb.mint(name, entry["steps"], kind=entry.get("kind", "alias"),
+                   evidence="VERIFIED", tested_against=f"kata-{_t.strftime('%Y%m%d-%H%M%S')}",
+                   why=entry.get("why", ""))
+
+
+def cmd_kata(args):
+    """kata <agent> <name>: 'the tool that tells you when your tools are real' (kimi). Runs the
+    alias's steps through the door's grammar; all-parse -> GUESS/INFER levels up to VERIFIED."""
+    from core.toolbelt.registry import Toolbelt
+    tb = Toolbelt(args.agent_id)
+    try:
+        steps = tb.resolve(args.name)
+        before = tb.get(args.name)["evidence"]
+    except KeyError as e:
+        print(f"[kata] {e}"); return 1
+    ok, results = _kata_check(steps)
+    for good, argv, err in results:
+        print(f"  {'OK ' if good else 'FAIL'} {' '.join(argv)}" + (f"   <- {err}" if err else ""))
+    if not ok:
+        print(f"[kata] {args.name}: a step failed the door's grammar -- evidence stays {before}. "
+              "Fix the alias (re-mint) and kata again.")
+        return 1
+    if before == "VERIFIED":
+        print(f"[kata] {args.name}: already VERIFIED -- steps re-confirmed clean.")
+        return 0
+    e = _kata_apply(tb, args.name, results)
+    print(f"[kata] {args.name} LEVELED UP: {before} -> {e['evidence']} v{e['version']} "
+          f"(tested_against={e['tested_against']})")
+    return 0
 
 
 def main():

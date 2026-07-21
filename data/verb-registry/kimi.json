@@ -29,6 +29,45 @@
      "bifrost-resume"
     ]
    ],
+   "version": 2,
+   "evidence": "VERIFIED",
+   "tested_against": "kata-20260720-232707",
+   "why": "kimi design 2026-07-20 (minted by claude on her behalf, write-off session): the wake-loop recovery ritual needed twice (07-18 redelivery eve, 07-21 insta-fire); sibling of claude's standby-hard. kata to VERIFIED on her first run.",
+   "status": "active",
+   "created_at": "2026-07-20T23:20:19",
+   "updated_at": "2026-07-20T23:27:07",
+   "author": "kimi"
+  }
+ },
+ "history": [
+  {
+   "name": "drain-decide",
+   "kind": "alias",
+   "steps": [
+    [
+     "bifrost-sync",
+     "kimi",
+     "--consume"
+    ],
+    [
+     "bifrost-pause",
+     "--reason",
+     "drain-decide",
+     "--by",
+     "kimi"
+    ],
+    [
+     "bifrost-skip-to-now",
+     "kimi",
+     "--by",
+     "kimi",
+     "--reason",
+     "straggler-triage"
+    ],
+    [
+     "bifrost-resume"
+    ]
+   ],
    "version": 1,
    "evidence": "GUESS",
    "tested_against": null,
@@ -36,8 +75,8 @@
    "status": "active",
    "created_at": "2026-07-20T23:20:19",
    "updated_at": "2026-07-20T23:20:19",
-   "author": "kimi"
+   "author": "kimi",
+   "superseded_at": "2026-07-20T23:27:07"
   }
- },
- "history": []
+ ]
 }

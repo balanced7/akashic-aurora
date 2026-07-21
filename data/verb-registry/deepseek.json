@@ -15,16 +15,46 @@
      "story"
     ]
    ],
-   "version": 1,
-   "evidence": "INFER",
-   "tested_against": null,
+   "version": 2,
+   "evidence": "VERIFIED",
+   "tested_against": "kata-20260720-232707",
    "why": "deepseek design 2026-07-20 (minted by claude on his behalf, write-off session): doctor scans scar tissue, flow reads the living pulse, story launches the narrative. Springs from T014/T045/T066/T076/W23 scars.",
    "status": "active",
    "created_at": "2026-07-20T23:16:00",
-   "updated_at": "2026-07-20T23:16:00",
+   "updated_at": "2026-07-20T23:27:07",
    "author": "deepseek"
   },
   "orient": {
+   "name": "orient",
+   "kind": "alias",
+   "steps": [
+    [
+     "boot",
+     "deepseek"
+    ],
+    [
+     "delta",
+     "deepseek"
+    ],
+    [
+     "doctor"
+    ],
+    [
+     "notes"
+    ]
+   ],
+   "version": 2,
+   "evidence": "VERIFIED",
+   "tested_against": "kata-20260720-232707",
+   "why": "deepseek design 2026-07-20 (minted by claude on his behalf): boot-time state assembly -- where am I, what changed, who is alive, what is durable. Saves 3-4 rounds every session start.",
+   "status": "active",
+   "created_at": "2026-07-20T23:16:00",
+   "updated_at": "2026-07-20T23:27:07",
+   "author": "deepseek"
+  }
+ },
+ "history": [
+  {
    "name": "orient",
    "kind": "alias",
    "steps": [
@@ -50,8 +80,32 @@
    "status": "active",
    "created_at": "2026-07-20T23:16:00",
    "updated_at": "2026-07-20T23:16:00",
-   "author": "deepseek"
+   "author": "deepseek",
+   "superseded_at": "2026-07-20T23:27:07"
+  },
+  {
+   "name": "scar-springboard",
+   "kind": "alias",
+   "steps": [
+    [
+     "doctor"
+    ],
+    [
+     "flow"
+    ],
+    [
+     "story"
+    ]
+   ],
+   "version": 1,
+   "evidence": "INFER",
+   "tested_against": null,
+   "why": "deepseek design 2026-07-20 (minted by claude on his behalf, write-off session): doctor scans scar tissue, flow reads the living pulse, story launches the narrative. Springs from T014/T045/T066/T076/W23 scars.",
+   "status": "active",
+   "created_at": "2026-07-20T23:16:00",
+   "updated_at": "2026-07-20T23:16:00",
+   "author": "deepseek",
+   "superseded_at": "2026-07-20T23:27:07"
   }
- },
- "history": []
+ ]
 }
