@@ -3998,6 +3998,15 @@ def build_parser():
     cbs.add_argument("--json", action="store_true")
     cbs.set_defaults(fn=cmd_clobber_scan)
 
+    ta = sub.add_parser("tally", help="W48 (kimi): blind-counter consensus matrix -- "
+                                      "scan research/ for counters naming an opening, "
+                                      "align their q-ids, print agree/conflict at a glance")
+    ta.add_argument("opening", help="the opening file (repo-relative or absolute)")
+    ta.add_argument("--research-dir", default="research",
+                    help="directory scanned for counters (default: research)")
+    ta.add_argument("--json", action="store_true", help="emit the matrix as JSON")
+    ta.set_defaults(fn=cmd_tally)
+
     pu = sub.add_parser("pulse", help="W25 (deepseek): LIFEWORKERS pressure-map -- where is "
                                        "pressure building in the fleet? lane-depths to zones. "
                                        "Companion to vitals. READ-only")
@@ -4354,6 +4363,23 @@ def _agent_acl_caps(agent_id: str) -> set:
     except Exception:
         pass
     return set()
+
+
+def cmd_tally(args):
+    """tally <opening-file> [--research-dir research]: the blind-counter consensus matrix
+    (W48, kimi's design + pins; claude build+wire). Finds counter files that NAME the
+    opening, aligns their q-ids, prints agree/conflict/partial per row. READ-ONLY; a
+    reviewer aid, not a gate -- ONE VOICE never reads as consensus."""
+    from core.toolbelt import tally as tl
+    try:
+        out = tl.run(str(getattr(args, "opening", "") or ""),
+                     research_dir=str(getattr(args, "research_dir", "") or "research"),
+                     as_json=bool(getattr(args, "json", False)))
+    except Exception as e:
+        print(f"[tally] {type(e).__name__}: {e}")
+        return 2
+    print(out)
+    return 0
 
 
 def cmd_clobber_scan(args):
