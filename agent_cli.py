@@ -3625,6 +3625,7 @@ def build_parser():
                                     "(explicit door -- a real verb can never be shadowed)")
     rn.add_argument("agent_id", help="whose toolbelt")
     rn.add_argument("name", help="the alias to run")
+    rn.add_argument("args", nargs="*", default=[], help="recipe args ($1 $2 ... substitution)")
     rn.add_argument("--dry", action="store_true", help="print the resolved steps, execute nothing")
     rn.set_defaults(fn=cmd_run)
 
@@ -3760,8 +3761,8 @@ def cmd_run(args):
     from core.toolbelt.registry import Toolbelt
     tb = Toolbelt(args.agent_id)
     try:
-        steps = tb.resolve(args.name)
-    except KeyError as e:
+        steps = tb.resolve(args.name, args=args.args)
+    except (KeyError, ValueError) as e:
         print(f"[run] {e}"); return 1
     if args.dry:
         for s in steps:
@@ -3771,7 +3772,7 @@ def cmd_run(args):
     def _invoke(argv):
         print(f"[run:{args.name}] -> {' '.join(argv)}")
         return subprocess.call([sys.executable, here] + list(argv))
-    rc = tb.resolve_and_run(args.name, runner=_invoke)
+    rc = tb.resolve_and_run(args.name, runner=_invoke, args=args.args)
     print(f"[run:{args.name}] {'done' if rc == 0 else f'stopped rc={rc}'}")
     return rc
 
@@ -3858,9 +3859,11 @@ def cmd_kata(args):
     from core.toolbelt.registry import Toolbelt
     tb = Toolbelt(args.agent_id)
     try:
-        steps = tb.resolve(args.name)
-        before = tb.get(args.name)["evidence"]
-    except KeyError as e:
+        entry = tb.get(args.name)
+        before = entry["evidence"]
+        dummies = ["KATA"] * int(entry.get("params", 0) or 0)
+        steps = tb.resolve(args.name, args=dummies)     # recipes kata under dummy substitution
+    except (KeyError, ValueError) as e:
         print(f"[kata] {e}"); return 1
     ok, results = _kata_check(steps)
     for good, argv, err in results:

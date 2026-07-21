@@ -33,6 +33,50 @@
    "created_at": "2026-07-20T23:01:21",
    "updated_at": "2026-07-20T23:48:10",
    "author": "claude"
+  },
+  "ask-peer": {
+   "name": "ask-peer",
+   "kind": "recipe",
+   "steps": [
+    [
+     "bifrost-send",
+     "claude",
+     "--to",
+     "$1",
+     "--kind",
+     "question",
+     "--text-file",
+     "$2"
+    ],
+    [
+     "bifrost-nudge",
+     "claude",
+     "--to",
+     "$1",
+     "--mode",
+     "inform",
+     "Ask",
+     "on",
+     "your",
+     "lane",
+     "--",
+     "see",
+     "the",
+     "question",
+     "just",
+     "sent"
+    ]
+   ],
+   "version": 2,
+   "params": 2,
+   "evidence": "VERIFIED",
+   "tested_against": "kata-20260721-005225",
+   "why": "the peer-dispatch ritual done 8x by hand across two nights (brief->send->nudge); runner-launch stays harness-side by law",
+   "family": "UNSORTED",
+   "status": "active",
+   "created_at": "2026-07-21T00:52:07",
+   "updated_at": "2026-07-21T00:52:25",
+   "author": "claude"
   }
  },
  "history": [
@@ -101,6 +145,51 @@
    "updated_at": "2026-07-20T23:02:07",
    "author": "claude",
    "superseded_at": "2026-07-20T23:48:10"
+  },
+  {
+   "name": "ask-peer",
+   "kind": "recipe",
+   "steps": [
+    [
+     "bifrost-send",
+     "claude",
+     "--to",
+     "$1",
+     "--kind",
+     "question",
+     "--text-file",
+     "$2"
+    ],
+    [
+     "bifrost-nudge",
+     "claude",
+     "--to",
+     "$1",
+     "--mode",
+     "inform",
+     "Ask",
+     "on",
+     "your",
+     "lane",
+     "--",
+     "see",
+     "the",
+     "question",
+     "just",
+     "sent"
+    ]
+   ],
+   "version": 1,
+   "params": 2,
+   "evidence": "GUESS",
+   "tested_against": null,
+   "why": "the peer-dispatch ritual done 8x by hand across two nights (brief->send->nudge); runner-launch stays harness-side by law",
+   "family": "RETRIEVERS",
+   "status": "active",
+   "created_at": "2026-07-21T00:52:07",
+   "updated_at": "2026-07-21T00:52:07",
+   "author": "claude",
+   "superseded_at": "2026-07-21T00:52:25"
   }
  ]
 }

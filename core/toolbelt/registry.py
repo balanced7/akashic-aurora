@@ -27,6 +27,8 @@ import time
 from typing import Any, Callable, Dict, List, Optional
 
 EVIDENCE_LEVELS = ("VERIFIED", "INFER", "GUESS")
+import re as _re
+_SLOT = _re.compile(r"\$([1-9])")
 DEFAULT_QUOTA = int(os.getenv("AKASHIC_TOOLBELT_QUOTA", "20"))
 
 
@@ -74,10 +76,17 @@ class Toolbelt:
         if not steps or not all(isinstance(s, list) and s for s in steps):
             raise ValueError("steps must be a non-empty list of argv lists")
         known = set(self._known_verbs())
+        params = 0
         for s in steps:
             if str(s[0]) not in known:
                 raise ValueError(f"unknown verb {s[0]!r} -- sugar-only: every step must be an "
                                  f"existing agent_cli verb (registry cannot mint capabilities)")
+            for tok in s:                            # recipe slots: $1..$9 (Make/justfile lineage)
+                m = _SLOT.fullmatch(str(tok))
+                if m:
+                    params = max(params, int(m.group(1)))
+        if params and kind == "alias":
+            kind = "recipe"                          # arity makes it a recipe, not a combo
         entries = self._doc["entries"]
         prior = entries.get(name)
         if (prior and prior.get("status", "active") == "active" and prior["steps"] == steps
@@ -95,6 +104,7 @@ class Toolbelt:
         if prior:                                            # supersession: prior rides history
             self._doc["history"].append(dict(prior, superseded_at=_now()))
         entry = {"name": name, "kind": kind, "steps": steps, "version": version,
+                 "params": params,
                  "evidence": evidence, "tested_against": tested_against, "why": why,
                  "family": family, "status": "active",
                  "created_at": prior["created_at"] if prior else _now(),
@@ -128,8 +138,20 @@ class Toolbelt:
     def history(self, name: str) -> List[Dict[str, Any]]:
         return [h for h in self._doc["history"] if h["name"] == str(name)]
 
-    def resolve(self, name: str) -> List[List[str]]:
-        return [list(s) for s in self._require(name)["steps"]]
+    def resolve(self, name: str, args: Optional[List[str]] = None) -> List[List[str]]:
+        e = self._require(name)
+        need = int(e.get("params", 0) or 0)
+        args = list(args or [])
+        if need:
+            if len(args) < need:
+                raise ValueError(f"recipe {name!r} expects {need} arg(s) "
+                                 f"({'$' + ', $'.join(str(i) for i in range(1, need + 1))}); "
+                                 f"got {len(args)}")
+            def sub(tok):
+                m = _SLOT.fullmatch(str(tok))
+                return args[int(m.group(1)) - 1] if m else tok
+            return [[sub(t) for t in s] for s in e["steps"]]
+        return [list(s) for s in e["steps"]]
 
     def render_list(self) -> str:
         rows = [f"# toolbelt: {self.agent} -- {len(self.active())} active "
@@ -148,10 +170,11 @@ class Toolbelt:
         return "\n".join(rows)
 
     # ---------------------------------------------------------------- execution
-    def resolve_and_run(self, name: str, *, runner: Callable[[List[str]], int]) -> int:
+    def resolve_and_run(self, name: str, *, runner: Callable[[List[str]], int],
+                        args: Optional[List[str]] = None) -> int:
         """Run each step through `runner(argv) -> rc`, stopping at the first non-zero rc.
         The runner is INJECTED (the CLI passes a subprocess invoker; pins pass a recorder)."""
-        for argv in self.resolve(name):
+        for argv in self.resolve(name, args=args):
             rc = int(runner(argv) or 0)
             if rc != 0:
                 return rc

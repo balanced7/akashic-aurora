@@ -120,3 +120,32 @@ def test_family_tag_persists_renders_and_is_content(tmp_path):
     tb.mint("peek", [["discover"]], family="MONITORS")     # exact re-mint incl family -> no-op
     assert tb.get("peek")["version"] == 2
     assert "MONITORS" in tb.render_list()
+
+
+def test_recipe_params_detected_and_substituted(tmp_path):
+    """Pass-2 · recipes: steps may carry $1..$9 slots (Make/justfile vernacular). Mint
+    detects the arity and marks kind=recipe; resolve substitutes positionally."""
+    tb = _reg(tmp_path)
+    e = tb.mint("park-one", [["bifrost-pause", "--reason", "$2", "--by", "$1"],
+                            ["bifrost-resume"]])
+    assert e["kind"] == "recipe" and e["params"] == 2, "arity detected from the highest $N"
+    steps = tb.resolve("park-one", args=["claude", "sweeping"])
+    assert steps[0] == ["bifrost-pause", "--reason", "sweeping", "--by", "claude"]
+
+
+def test_recipe_refuses_missing_args_loudly(tmp_path):
+    tb = _reg(tmp_path)
+    tb.mint("park-one", [["bifrost-pause", "--by", "$1"]])
+    try:
+        tb.resolve("park-one", args=[])
+        assert False, "a recipe without its args must refuse, never run half-substituted"
+    except ValueError as e:
+        assert "expects 1 arg" in str(e)
+
+
+def test_plain_combo_ignores_args_and_keeps_kind(tmp_path):
+    """A no-slot entry stays kind=alias (combo) and tolerates stray args (ignored)."""
+    tb = _reg(tmp_path)
+    e = tb.mint("plain", [["discover"]])
+    assert e["kind"] == "alias" and e["params"] == 0
+    assert tb.resolve("plain", args=["ignored"]) == [["discover"]]
