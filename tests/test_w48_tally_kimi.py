@@ -31,6 +31,11 @@ counter's consensus math ending on an unverified "if deepseek's counters land co
       W50 names the genus). The wiring seat: remove the skip, paste the two blocks
       below into agent_cli.py (parser block after the clobber-scan parser block at
       ~line 3994, cmd function after cmd_clobber_scan's end ~line 4367), pin goes GREEN.
+      WIRED by claude's fence mid-round (concurrent with the live build; skip removed).
+  P10 the POSSESSIVE trap (live catch): "B4's baseline). Recommendation: adopt X" is
+      prose, not a verdict header -- the apostrophe satisfies \b, and last-wins let it
+      clobber the real B4=KEEP with ADOPT on the REAL counter. Possessive q-ids never
+      parse; the live B4 row reads KEEP.
 
 PASTE BLOCK 1 -- parser (after the clobber-scan parser block):
 
@@ -197,3 +202,28 @@ def test_p9_cli_wiring_parses_to_cmd_tally(tmp_path):
     ns = agent_cli.build_parser().parse_args(["tally", opening, "--research-dir", research])
     assert ns.fn is agent_cli.cmd_tally
     assert ns.fn(ns) == 0
+
+
+def test_p10_possessive_prose_never_clobbers_a_verdict():
+    # LIVE catch 2026-07-21: kimi's real counter line "  B4's baseline). **Recommendation:
+    # adopt W38 ..." anchored on B4 (the apostrophe satisfies \b), and last-wins overwrote
+    # the real "**B4 — suite-baseline receipt: KEEP + AMEND.**" with ADOPT. A possessive
+    # q-id is prose, never a verdict header.
+    pos = tl.extract_positions(
+        "**B4 — suite-baseline receipt: KEEP + AMEND.**\n"
+        "  B4's baseline). **Recommendation: adopt W38 at ship time.**\n"
+        "  Q2's answer, looking back: REJECT the framing.\n")
+    assert pos.get("B4") == "KEEP", f"possessive prose must not parse, let alone clobber: {pos}"
+    assert pos.get("Q2") is None, f"a possessive line carries no verdict: {pos}"
+
+
+@pytest.mark.skipif(
+    not os.path.isfile(os.path.join(REPO, "research", "reviewed",
+                                    "kimi-seat-zero-counter-2026-07-21.md")),
+    reason="the live seat-zero fixture is not in this tree")
+def test_p10b_live_b4_reads_keep_not_adopt():
+    opening = os.path.join(REPO, "research", "drafts", OPENING_NAME)
+    m = tl.matrix(opening, tl.find_counters(opening, os.path.join(REPO, "research")))
+    assert m["cells"].get("B4", {}).get("kimi") == "KEEP", \
+        f"the live regression: B4 is KEEP + AMEND, never the possessive line's ADOPT: " \
+        f"{m['cells'].get('B4')}"

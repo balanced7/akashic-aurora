@@ -15,6 +15,23 @@ Laws (from kimi's pins):
     cannot be pronounced from one counter (the seat-zero lesson made a law).
   MENTIONS-ARE-NOT-COUNTERS -- a file that names the opening but carries no verdict lines
     (a brief) lands in `mentions`, never as a column.
+
+REFINEMENT (kimi, live builder round 2026-07-21 -- the pins landed after the build and
+the first live run on the REAL seat-zero fixture forced four amendments, all pinned):
+  VOCAB+ -- the spec vocab missed what kimi's real counter actually says: B2 is disposed
+    DONE, Q4 is answered YES (and Q1-Q3 AGREE). This delta adds YES/NO (DONE/VERIFIED and
+    the 'open' row-status landed in the fence's own concurrent pass, same fixture catch);
+    without them the tool under-reports its own founding round. Flagged for the fence
+    (the wish itself named the missing Q-id-header convention; the tool reads leniently,
+    convention tightens later).
+  OPEN != PARTIAL -- the spec's word is "partial (some silent)" -- SOME. A row with ZERO
+    voices (a counterless opening's questions) reads 'open', kept out of the
+    partial count: an empty research dir tallies 0/0/0, not a wall of false partials.
+  ONE-VOICE SHOUT -- one-voice rows already read partial; the footer now also REFUSES the
+    consensus claim outright when < 2 counters filed. The founding wound, printed.
+  AUTHOR MERGE -- positions[author] = pos REPLACED an author's whole column per file, so
+    a second kimi file (a correction round) would clobber the first's verdicts. Now
+    merges per q-id (later file wins per q-id -- a restatement updates, a sibling keeps).
 """
 from __future__ import annotations
 
@@ -25,10 +42,14 @@ from typing import Any, Dict, List, Optional
 
 # verdict vocabulary (case-insensitive); first match after the q-id anchor wins.
 _VERDICTS = ("KEEP", "AMEND", "KILL", "ADOPT", "GREEN", "REJECT", "DEFER", "AGREE",
-            "DISAGREE", "CONFIRM", "PARTIAL", "DONE", "VERIFIED")
+            "DISAGREE", "CONFIRM", "PARTIAL", "DONE", "VERIFIED", "YES", "NO")
 _VERDICT_RE = re.compile(r"\b(" + "|".join(_VERDICTS) + r")\b", re.I)
 # an anchored q-id at the START of a line's content (after markdown bullet/bold noise).
-_QID_ANCHOR = re.compile(r"^[\s\-*>#]*\**\s*([QB]\d+)\b")
+# the (?!') guard: a possessive ("B4's baseline). Recommendation: adopt W38") is PROSE,
+# not a verdict header -- without it the apostrophe satisfies \b and a late prose line
+# last-wins-clobbers the real verdict (caught LIVE on kimi's seat-zero counter: B4 read
+# ADOPT instead of KEEP; pinned as P10).
+_QID_ANCHOR = re.compile(r"^[\s\-*>#]*\**\s*([QB]\d+)\b(?!['’])")
 
 
 def _author(counter_path: str, opening_path: str) -> str:
@@ -45,10 +66,20 @@ def _slug(opening_path: str) -> str:
     return os.path.splitext(os.path.basename(str(opening_path)))[0].lower()
 
 
+_TRAILING_DATE = re.compile(r"-\d{4}-\d{2}(?:-\d{2})?$")
+
+
 def find_counters(opening_path: str, research_dir: str) -> List[str]:
-    """Files under research_dir whose TEXT names the opening (by basename) -- excluding the
-    opening itself and files that never mention it. Sorted for determinism."""
+    """Files under research_dir whose TEXT names the opening -- excluding the opening
+    itself and files that never mention it. Needles: the basename, its extensionless
+    stem, and the date-stripped slug (the brief's 'basename or its slug') -- all long
+    enough that a match means 'names this opening', never 'mentions the topic' (the
+    loose topic word 'seat-zero' hits 7 files for 2 real counters: rejected, cry-wolf
+    law). Sorted for determinism."""
     opening_base = os.path.basename(str(opening_path)).lower()
+    stem = os.path.splitext(opening_base)[0]
+    slug = _TRAILING_DATE.sub("", stem)
+    needles = [n for n in dict.fromkeys((opening_base, stem, slug)) if len(n) >= 8]
     opening_real = os.path.realpath(str(opening_path))
     out: List[str] = []
     for root, _dirs, files in os.walk(research_dir):
@@ -63,7 +94,7 @@ def find_counters(opening_path: str, research_dir: str) -> List[str]:
                     text = f.read().lower()
             except Exception:
                 continue
-            if opening_base in text:
+            if any(n in text for n in needles):
                 out.append(p)
     return sorted(out)
 
@@ -119,7 +150,9 @@ def matrix(opening_path: str, counter_paths: List[str]) -> Dict[str, Any]:
             continue
         author = _author(cp, opening_path)
         authors.append(author)
-        positions[author] = pos
+        # merge per q-id (later file wins per q-id): replacing the whole column would let
+        # an author's second file (a correction round) clobber their first's verdicts.
+        positions.setdefault(author, {}).update(pos)
     authors = sorted(set(authors))
     # rows = the OPENING's questions (seed) UNION every q-id any counter voted on. A
     # counterless opening still shows its rows (all partial); a counter raising a new q-id
@@ -165,7 +198,11 @@ def render(m: Dict[str, Any]) -> str:
     agree = sum(1 for s in m["status"].values() if s == "AGREE")
     conflict = sum(1 for s in m["status"].values() if s == "CONFLICT")
     partial = sum(1 for s in m["status"].values() if s == "partial")
-    lines.append(f"  -- {agree} agree / {conflict} conflict / {partial} partial")
+    open_ = sum(1 for s in m["status"].values() if s == "open")
+    lines.append(f"  -- {agree} agree / {conflict} conflict / {partial} partial"
+                 f" / {open_} open")
+    if 0 < len(authors) < 2:
+        lines.append("  -- ONE VOICE: no consensus claim (2-of-3 needs >= 2 counters)")
     if m["mentions"]:
         lines.append(f"  (mentions, not counters: "
                      f"{', '.join(os.path.basename(x) for x in m['mentions'])})")
