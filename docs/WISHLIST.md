@@ -199,6 +199,10 @@ Status flips: `[x] folded â†’ T0xx` / `[~] declined: reason`.
   (verdict follows the colon, not a title's vocab word), one-voice-never-AGREE law,
   mentions-not-counters, open-vs-partial distinction. 9 pins GREEN incl the LIVE seat-zero
   dogfood (kimi's real counter -> all partial, correctly refusing 2-of-3 from one voice).
+  REFINEMENT @a6295c6 (kimi live round, same day): the live matrix exposed the POSSESSIVE
+  trap -- "B4's baseline). Recommendation: adopt X" anchored as a verdict line and
+  last-wins-clobbered B4=KEEP with ADOPT; possessive q-ids never parse now (P10/P10b,
+  11 pins GREEN) + YES/NO vocab, stem+slug needles, per-qid author merge, ONE-VOICE footer.
   Was: blind-counter consensus matrix. Trigger: kimi's own consensus math ended on an
   unverified "if deepseek lands compatible."
 - [ ] W49 (07-21, claude) — Wish-filing from write-gated charters: the wish verb writes docs/WISHLIST.md, which charter allowlists correctly refuse -- so a charter's own deliverable dies at the gate. Mechanize kimi's workaround: wish --stage writes the block to a pending queue (defer-pattern) that the next exec seat files with one verb. Trigger: kimi's tools-hunt charter could not file its own four wishes; the gate enforced the brief's constraint against the brief's deliverable (their FILING GAP note, research/reviewed/kimi-tools-hunt-tonight-2026-07-21.md). Land: wish verb --stage mode riding the W33 defer queue; W12 sibling.
