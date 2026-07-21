@@ -105,3 +105,18 @@ def test_evidence_upgrade_is_not_swallowed_by_noop(tmp_path):
     tb.mint("peek", [["discover"]], evidence="VERIFIED", tested_against="pin-x")
     e = tb.get("peek")
     assert e["evidence"] == "VERIFIED" and e["tested_against"] == "pin-x" and e["version"] == 2
+
+
+def test_family_tag_persists_renders_and_is_content(tmp_path):
+    """Round-2 (Daniel theming): entries carry a FAMILY tag (Halo-caste taxonomy). Family
+    persists, renders grouped, defaults UNSORTED, and IS content — a family change must
+    supersede (version+1), never silently no-op (same law as evidence)."""
+    tb = _reg(tmp_path)
+    tb.mint("peek", [["discover"]])
+    assert tb.get("peek").get("family", "UNSORTED") == "UNSORTED"
+    tb.mint("peek", [["discover"]], family="MONITORS")
+    e = tb.get("peek")
+    assert e["family"] == "MONITORS" and e["version"] == 2, "family change supersedes"
+    tb.mint("peek", [["discover"]], family="MONITORS")     # exact re-mint incl family -> no-op
+    assert tb.get("peek")["version"] == 2
+    assert "MONITORS" in tb.render_list()

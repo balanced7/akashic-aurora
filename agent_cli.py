@@ -3613,6 +3613,10 @@ def build_parser():
                                                         "untested sugar confesses)")
     al.add_argument("--tested-against", default=None, help="pin id proving this alias (upgrades evidence)")
     al.add_argument("--why", default="", help="one line: the felt friction this kills")
+    al.add_argument("--family", default="UNSORTED",
+                    help="Halo-caste family (SENTINELS guards | MONITORS watchers | CONSTRUCTORS "
+                         "authoring | RETRIEVERS fetchers | ENGINEERS recovery | CARTOGRAPHERS "
+                         "mapping | LIBRARIANS memory | WAR-GAMES drills)")
     al.add_argument("--reason", default="", help="retire reason")
     al.add_argument("--json", action="store_true")
     al.set_defaults(fn=cmd_alias)
@@ -3721,9 +3725,10 @@ def cmd_alias(args):
                 print("[alias] mint needs a name + at least one --step"); return 2
             steps = [shlex.split(s) for s in args.step]
             e = tb.mint(args.name, steps, evidence=args.evidence,
-                        tested_against=args.tested_against, why=args.why)
+                        tested_against=args.tested_against, why=args.why, family=args.family)
             print(f"[alias] minted {e['name']} v{e['version']} [{e['evidence']}] "
-                  f"({len(e['steps'])} step(s)) -- run: py agent_cli.py run {args.agent_id} {e['name']}")
+                  f"({e.get('family', 'UNSORTED')}) ({len(e['steps'])} step(s)) -- "
+                  f"run: py agent_cli.py run {args.agent_id} {e['name']}")
         elif args.action == "list":
             print(tb.render_list())
         elif args.action == "retire":

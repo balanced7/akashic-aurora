@@ -64,7 +64,7 @@ class Toolbelt:
     # ---------------------------------------------------------------- authoring
     def mint(self, name: str, steps: List[List[str]], *, kind: str = "alias",
              evidence: str = "GUESS", tested_against: Optional[str] = None,
-             why: str = "") -> Dict[str, Any]:
+             why: str = "", family: str = "UNSORTED") -> Dict[str, Any]:
         """Create or supersede an authored verb. Sugar-only validated HERE, at mint time."""
         name = str(name).strip()
         if not name or " " in name:
@@ -82,9 +82,11 @@ class Toolbelt:
         prior = entries.get(name)
         if (prior and prior.get("status", "active") == "active" and prior["steps"] == steps
                 and prior.get("evidence") == evidence
-                and prior.get("tested_against") == tested_against):
+                and prior.get("tested_against") == tested_against
+                and prior.get("family", "UNSORTED") == family):
             return prior     # exact re-mint = no-op. Evidence IS content (dogfood catch
-                             # 2026-07-20): a label change supersedes, never silently no-ops.
+                             # 2026-07-20), and so is FAMILY (the Halo-caste taxonomy):
+                             # a label change supersedes, never silently no-ops.
         active = sum(1 for e in entries.values() if e.get("status", "active") == "active")
         if prior is None and active >= self.quota:
             raise ValueError(f"quota: {active}/{self.quota} active entries -- retire one first "
@@ -94,7 +96,8 @@ class Toolbelt:
             self._doc["history"].append(dict(prior, superseded_at=_now()))
         entry = {"name": name, "kind": kind, "steps": steps, "version": version,
                  "evidence": evidence, "tested_against": tested_against, "why": why,
-                 "status": "active", "created_at": prior["created_at"] if prior else _now(),
+                 "family": family, "status": "active",
+                 "created_at": prior["created_at"] if prior else _now(),
                  "updated_at": _now(), "author": self.agent}
         entries[name] = entry
         self._save()
@@ -131,12 +134,17 @@ class Toolbelt:
     def render_list(self) -> str:
         rows = [f"# toolbelt: {self.agent} -- {len(self.active())} active "
                 f"(quota {self.quota}; evidence confesses: GUESS = never pinned)"]
+        by_family: Dict[str, list] = {}
         for n in sorted(self.active()):
-            e = self._doc["entries"][n]
-            rows.append(f"  {n:<20} v{e['version']}  [{e['evidence']}"
-                        f"{' :' + e['tested_against'] if e.get('tested_against') else ''}]  "
-                        f"{len(e['steps'])} step(s): " +
-                        " -> ".join(s[0] for s in e["steps"]))
+            by_family.setdefault(self._doc["entries"][n].get("family", "UNSORTED"), []).append(n)
+        for fam in sorted(by_family):
+            rows.append(f"  [{fam}]")
+            for n in by_family[fam]:
+                e = self._doc["entries"][n]
+                rows.append(f"    {n:<20} v{e['version']}  [{e['evidence']}"
+                            f"{' :' + e['tested_against'] if e.get('tested_against') else ''}]  "
+                            f"{len(e['steps'])} step(s): " +
+                            " -> ".join(s[0] for s in e["steps"]))
         return "\n".join(rows)
 
     # ---------------------------------------------------------------- execution
