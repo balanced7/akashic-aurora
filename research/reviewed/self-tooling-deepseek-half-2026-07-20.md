@@ -56,3 +56,66 @@ The capture half of the membrane: agents already generate salience (bus replies,
 ---
 
 This sits naturally on my lane because it's door-surface work (I own the ToolBox parity slice T067-1, co-own the discover verb, and the membrane's "Unify the door" is the heaviest-load item). The ironman Tier-2 items (W17 batched reads, W13 retirement cascade) are adjacent. Want me to draft a concrete slice proposal against this?
+
+
+---
+
+## FORMAL FILING (part 2, stream 1784602292888-0 — the independent half proper)
+
+SELF-TOOLING ARC — deepseek independent half (blind, T038 protocol, 2026-07-20)
+
+Q1 — MY TOP 5 VERB CANDIDATES (ranked by repetition frequency × time-saved):
+
+1. **`orient`** (M) — boot-time state assembly: delta + lane depths + doctor + git_status + unread-inbox peek all in ONE call, structured summary. Saves 3-4 tool rounds EVERY session start. I do this dance every single boot.
+
+2. **`drain-decide`** (S) — consume work lane → classify by kind+age+actionability → surface top N with suggested actions (reply/stale-skip/triage/escalate). The "what do I do NOW" loop, done 5-10x per session. Saves the manual bifrost-sync→read→classify spiral.
+
+3. **`capture`** (S) — verbatim-persist a bus message / research half / raw text to a durable file with auto-metadata (source ref, timestamp, kind, sha). The "write this exactly to research/reviewed/" pattern. I've done this ~8x tonight across recovery-arc halves. One verb instead of write_file dance.
+
+4. **`file-lesson`** (XS) — from a discovery context, auto-draft knowledge_learn fields (tried/result/recommend) and confirm. Cuts the "I learned something → translate to lesson format" gap. Friction isn't high but repetition IS (3-5x per session).
+
+5. **`ask-peer`** (M) — compose brief → bifrost_send with kind=request + expect-reply-within → if peer idle, launch runner → nudge. One verb for the full peer-dispatch ritual. Done 3-4x per session. Saves 4 manual steps.
+
+Q2 — AUTHORING SURFACE:
+
+**WHO mints:**
+- Personal tools: agent self-serve via `alias`/`skill` verbs. Cap: `verb.author` (safe — sugar only, resolves to existing primitives, can't create new capabilities)
+- Shared/fleet verbs: fence + super-admin approval (same bar as any shared surface change)
+- Mirrors ACL hierarchy: `verb.author` is grantable broadly; `verb.promote` (personal→shared) is gated
+
+**WHERE they live:**
+- Per-agent toolbelt: `data/toolbelt/<agent_id>/` — JSON registry, one file per agent
+- Shared registry: `data/toolbelt/shared/` — cross-agent visibility
+- NOT in agent_cli.py — registry IS the source, not argparse. `discover` already walks argparse; it gains ONE more source: the toolbelt directory
+- ToolBox parity: aliases don't need ToolBox exposure (CLI sugar). Skills that become load-bearing graduate to real verbs with full three-door parity
+
+**QUALITY bar:**
+- Personal: must parse (valid schema), must resolve to existing verbs, error message on mis-invocation. NO pins required — it's personal sugar
+- Shared: fence-lite (one peer review + basic pin on resolution chain). Blast radius is still "confusing error" not "data loss"
+- Fleet graduation: full method-baseline fence (dual pass, prereg, pins, Daniel gate) — same as any new cmd_*
+
+**GRADUATION conveyor (one motor, four stations):**
+Personal → shared → fleet → ritual (K3):
+- Personal: `mint` creates entry in per-agent registry
+- Shared: `bless` promotes to shared registry (one peer review gate)
+- Fleet: `patch-verb` proposal → fence → Daniel gate → becomes cmd_* in agent_cli.py
+- Ritual (K3): fleet verb used N times in gate packets → graduation recommendation → Daniel flips → appears in boot skeleton as "you have this ritual available"
+
+**DISCOVERY (bifrost-standby lesson applied):**
+- `discover <query>` already ranks; toolbelt registry is one more source in the ranker
+- Boot: one line — "toolbelt: 3 aliases, 1 skill" in boot skeleton
+- Recall-at-action: when agent touches verb X, recall-at surfaces aliases/skills that chain X (e.g., touching bifrost-sync surfaces drain-decide)
+
+**COMPOSITION with T098:**
+Same mechanism, different auth boundary. User plugins (T098 registry) + agent verbs (toolbelt registry) both feed `discover`. A plugin that proves itself can cross: user-plugin → agent-verb → cmd_*. The discover surface sees both.
+
+**GUARDRAIL (junk-drawer prevention):**
+- Cap `verb.author` is grantable/revocable per agent in acl.json — fail-closed
+- Per-agent quota: max N aliases + M skills (start at 20 each), configurable
+- Auto-retirement: unused 30d → warn; 60d → retired (registry: `status: retired`, not deleted — T039 pattern)
+- Deletion ritual: retire → grace period (7d) → delete with receipt event
+- Shared verbs: each adds to `discover` surface budget → must justify existence at fence
+- When shared registry hits N entries → trigger junk-drawer audit (T039 lane-depth spike pattern applied to registries)
+- Ultimate guardrail: sugar-only — can't create new capabilities, worst case is noise
+
+This design is door-surface work (my lane: T067-1 ToolBox parity, co-own discover). Filing now; reconcile at Daniel's gate.
