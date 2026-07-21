@@ -130,3 +130,32 @@ En taro Aurora (ceremony) · gg (the honest wrap).
 ① Bless the unanimous four (ONYX, ORACLES, LIFEWORKERS, LUMINARIES). ② Rule the one dispute
 (Geasa: Bear-canon or plain "standing directives"). ③ Bless this canon as the naming law of the
 stack. Everything else is already law by fleet consensus and survives in this one document.
+
+## THE GROUNDING AMENDMENT (Daniel's intuition, 2026-07-21 — supersedes the lore-as-nomenclature reading of everything above)
+
+The principle, articulated: **a name is how logic stays attached to its foundations — a
+vernacular name is a CITATION into the literature; a borrowed name is a severance.**
+"Supervisor" carries Erlang/OTP + SRE with it into every 2am design decision; "the Mantle"
+carries a wiki. Our method rests on prior art at every layer; the names must keep the links live.
+
+- **G1 · Organs speak the engineering vernacular.** Code, APIs, schema, doc headings:
+  supervisor, ledger, registry, quarantine, bench, drain, park, checkpoint, replay.
+- **G2 · The charm-quark clause.** Playful-PLAIN English or programmer vernacular that
+  self-explains is welcome (campfire, toast, kata, premonition) — physicists named quarks
+  charm and strange, not Excalibur. Evocative ≠ borrowed.
+- **G3 · Lore is culture, not nomenclature.** The four-shelf world relocates to the culture
+  layer: ARC/RELEASE CALLSIGNS (NASA/Ubuntu practice — the recovery arc may fly as Operation
+  ONYX while its module is supervisor.py), drill scenarios, ceremonies, JOURNEY prose,
+  celebration text, easter eggs (the pylons line is culture; it stays). Never in code paths,
+  API names, or schema fields.
+- **G4 · The literature-pointer test** (primary, alongside the Stranger Test): can a newcomer
+  Google the name and land on the prior art it rests on?
+
+EMPIRICAL RECEIPT: every organ the three seats ACTUALLY minted tonight under felt friction is
+already plain or playful-plain English (capture, bench, standby-hard, drain-decide, parse-gate,
+orient, vitals, fence, campfire, toast, nightcap, premonition, muse, kata). No shipped organ
+carries a lore name — the lore appeared only in documents ABOUT naming. The fleet's hands voted
+for this amendment all night; adopting it costs zero refactors. The castes' one-sentence tests
+survive as FAMILY DESCRIPTIONS in plain form ("guards", "watchers", "fixers", "fetchers",
+"mappers", "memory", "menders", "illuminators", "verifiers"); the caste NAMES join the culture
+layer as the families' callsigns.
