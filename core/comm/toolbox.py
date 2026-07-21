@@ -834,6 +834,17 @@ class ToolBox:
                 return None, None, (f"flag(s) {bad} mutate state -- the unattended READ "
                                     "family refuses them (run the read form instead)")
             return argv, {}, None
+        # family: play-<agent> — sandboxed play-tool runs (T099 · tool tier).
+        # py core/toolbelt/play_sandbox.py <agent>/<tool> [args]
+        if (len(argv) >= 4 and argv[0] in ("py", "python", "python3")
+                and os.path.normpath(argv[1]).replace("\\", "/") == "core/toolbelt/play_sandbox.py"):
+            ref = argv[2]
+            if "/" not in ref or ".." in ref or "\\" in ref:
+                return None, None, (f"play ref {ref!r} invalid — use <agent>/<tool>")
+            agent, _tool = ref.split("/", 1)
+            if not agent or not _tool:
+                return None, None, f"play ref {ref!r} invalid"
+            return argv, {"_AISETUP_PLAY_SANDBOX": "1"}, None
         # family: audited MIRROR commits -- IR-4 (Daniel verdict 2026-07-16 verbatim in
         # security/acl.json; T085 gate item). Commit autonomy through OUR door only:
         # mirror.py = path-scoped stage + pre-commit guards + commit + push, no history
@@ -908,6 +919,13 @@ class ToolBox:
             if argv is not None:                          # allowlisted: shell=False + forced env (G2/G3)
                 env = dict(os.environ)
                 env.update(env_extra or {})
+                if self.agent_id:
+                    # Identity rides into allowlisted children, OVERRIDING any inherited
+                    # value (live incident 2026-07-21, deepseek's first self-serve commit:
+                    # the runner inherited the LAUNCHING session's AKASHIC_AGENT_ID=claude,
+                    # so mirror.py's lock hook refused the caller's OWN locks). The door
+                    # verified who is calling; the child must run as that identity.
+                    env["AKASHIC_AGENT_ID"] = str(self.agent_id)
                 p = subprocess.run(argv, cwd=cwd, capture_output=True, text=True,
                                    encoding="utf-8", errors="replace", timeout=capped, env=env)
             else:                                         # interactive human-confirmed generic (unchanged)
