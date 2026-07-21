@@ -1773,6 +1773,40 @@ def cmd_wrap(args):
         project_notes()
     except Exception:
         pass
+    # W36 (the stale-directive ROOT CAUSE; claude+kimi consensus 2026-07-21): a landed
+    # where-we-are RETIRES a next-focus OLDER than this wrap's own look-back window --
+    # presumptively consumed by the session just wrapped. One set WITHIN the window is
+    # fresh intent (possibly another seat's) and survives. kimi's blocking amendments:
+    # (a) ORDERING -- this block runs only here, AFTER dec_id landed above; a wrap that
+    # dies earlier never tombstones the only directive. (b) RECEIPT -- loud line below;
+    # silent retirement is how one banner bit three seats. Scope: ONLY next-focus.
+    # (--focus in this same call already superseded it with fresh intent up in F4.)
+    if not getattr(args, "focus", None):
+        try:
+            nf = next((d for d in mem.get_decisions(days=3650)
+                       if d.title == "next-focus" and not d.superseded), None)
+            if nf is not None:
+                cutoff = datetime.now() - __import__("datetime").timedelta(
+                    hours=max(1, args.hours or 12))
+                if datetime.fromisoformat(str(nf.created_at)) < cutoff:
+                    if mem.retire_decision(nf.id):
+                        try:
+                            from core.events.event_log import capture_event
+                            capture_event("decision",
+                                          f"stale next-focus retired by wrap (W36): "
+                                          f"superseded by where-we-are {dec_id}",
+                                          agent_id="wrap",
+                                          refs=[f"mem:decision:{nf.id}",
+                                                f"mem:decision:{dec_id}"],
+                                          detail={"retired": True, "successor": dec_id})
+                        except Exception:
+                            pass
+                        print(f"[wrap] retired stale next-focus (id {nf.id}, "
+                              f"{str(nf.created_at)[:10]}) -- consumed by this session; "
+                              f"directive slot now empty. Set fresh intent: "
+                              f"py agent_cli.py wrap --focus \"...\"")
+        except Exception:
+            pass   # the retire is a courtesy; the wrap itself already landed
     try:   # the helper owns the pointer; read back which prior this superseded
         raw = mem.store.hget(mem.KEY_DECISIONS, dec_id)
         superseded_prior = (json.loads(raw) or {}).get("supersedes") if raw else None
