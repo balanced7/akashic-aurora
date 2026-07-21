@@ -63,10 +63,11 @@ Status flips: `[x] folded â†’ T0xx` / `[~] declined: reason`.
   env, and tree-kill on abort â€” today it is manual discipline in the protocol doc. Trigger:
   the twin-walk incident + two TaskStop tree-survival surprises. Land: T086 seat lifecycle
   (deepseek's retire-verb design is the sibling).
-- [ ] W09 (07-18, kimi F2 suggestion) â€” one boot line when recall-at hooks are live
-  ("recall-at wired and listening") so calibrated silence is distinguishable from missing
-  wiring. Trigger: kimi mis-diagnosed hook absence during its walk; self-corrected. Land:
-  T081 boot line.
+- [x] W09 (07-18, kimi F2) â€” FOLDED 2026-07-21 marathon @HEAD: boot prints `# recall-at:
+  armed (N lessons warm) -- downstream silence is CALIBRATED, not a dead hook` (pins
+  tests/test_w09_recall_armed_line.py P1-P3). Was: one boot line when recall-at hooks are
+  live so calibrated silence is distinguishable from missing wiring. Trigger: kimi
+  mis-diagnosed hook absence during its walk; self-corrected.
 - [ ] W10 (07-18, kimi F1 + T081-W2) â€” MCP door registration for non-Claude-Code harnesses
   + fix the boot door-line false negative (detector keys on a harness marker kimi's config
   home lacks). Trigger: kimi's first minute contained "which of my two doors is real?".
