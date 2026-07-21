@@ -560,6 +560,21 @@ retry-once wrapper in the standby verb IF it recurs (count: 1).**
 
 ## CLOSED (fix receipts)
 
+**C9-3 storm gauge fed stream-LENGTH, fired the ceremony on pure history** → CLOSED
+same-hour (2026-07-21 ~03:05, found by the wiring's FIRST live boot): the storm detector
+was fed `lane_depths` (raw XLEN — never falls on consume, only on retention trim), so
+deepseek's post-wiring boot read depth=289 of drained history as a flat supra-threshold
+line; K3's no-net-drain guard was satisfied vacuously and the auto-clear fired
+(pause→skip→park→resume, receipts spamming every 3 loop iterations). Rails held exactly
+as designed: ttl=120 self-healed the pauses (C1-9), K1 parked the batch's fresh asks
+bottomed-not-dropped, armed RB-29 expectations redrive the skipped asks. Fix @604dfa2:
+`lane_depths.work_backlog()` — CURSOR-RELATIVE pending count — is the only legal
+detector feed; live receipt in the commit: `work_backlog: 0 | XLEN: 289` on the same
+agent at the same moment. Pin `test_work_backlog_is_cursor_relative` proves the two
+gauges diverge and locks the class. Genus note: this is W43's disease (gauge compares
+the wrong frontier) in its third organ in one night — directive banner (C9-2), unread
+counts (W43), storm depth (here). The frontier-honesty law now has three receipts.**
+
 **C9-2 CURRENT DIRECTIVE banner outlived its work for THREE consecutive seats** → CLOSED
 same-night (2026-07-21; kimi first flagged 07-18 as W04). The class dies at BOTH ends:
 (1) boot CONFESSES — `[as of <date>] [STALE? Nd old] [LEDGER DISAGREES: T075 PARKED]`
