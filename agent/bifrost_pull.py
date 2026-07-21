@@ -152,7 +152,55 @@ def consume_inbox(agent_id: str, limit: int = 20) -> Dict[str, Any]:
             return {"seat_held": True, "holder": info2.get("token"), "since": info2.get("ts"),
                     "ttl": ttl, "teach": _seat_teach(str(agent_id), info2, ttl, fenced=True),
                     "peeked": [m.to_dict() if hasattr(m, "to_dict") else {} for m in msgs]}
+        # S0-gamma-b: stale-gate + auto-park at the CLI consume path (deepseek's build,
+        # claude-fenced; mirror of bifrost_runner_deepseek.py's D2 block, S0-beta). The
+        # cursor already advanced at drain time, so park is the only backstop: stale asks
+        # are bottomed to the durable bench (RB-29-loud, never dropped), stale non-asks
+        # skip, fresh mail flows. Parking only on the SEAT-HELD consume -- a peek never
+        # parks. Imports are lazy (fence amendment A1: this file's house style; the outer
+        # except must never be reachable by an import failure at module load).
+        stale_notice_txt = ""
+        parked_n = 0
+        if msgs:
+            try:
+                import time as _time
+                from core.comm import packet_spec
+                now_ms = int(_time.time() * 1000)
+                fresh, stale_asks, stale_skips = packet_spec.partition_stale(
+                    msgs, now_ms=now_ms, stale_ms=packet_spec.stale_gate_ms())
+                if stale_skips:
+                    stale_notice_txt += (f"  skipped {len(stale_skips)} stale "
+                                         f"inform(s)/trace(s) (no bench pollution)\n")
+                if stale_asks:
+                    stale_notice_txt += packet_spec.stale_notice(
+                        stale_asks, now_ms=now_ms) + "\n"
+                    for stale in stale_asks:
+                        try:
+                            from core.comm import triage_park
+                            age_h = (packet_spec.msg_age_ms(
+                                getattr(stale, "id", ""), now_ms) or 0) / 3600000.0
+                            triage_park.park(
+                                str(agent_id),
+                                {"id": getattr(stale, "id", ""),
+                                 "frm": getattr(stale, "frm", ""),
+                                 "to": getattr(stale, "to", ""),
+                                 "kind": getattr(stale, "kind", ""),
+                                 "content": getattr(stale, "content", ""),
+                                 "ts": getattr(stale, "ts", "")},
+                                reason=f"stale {age_h:.1f}h (CLI consume auto-triage)",
+                                by=f"{agent_id}-cli")
+                            parked_n += 1
+                        except Exception:
+                            pass                     # park is best-effort (G3)
+                    stale_notice_txt += (f"  parked {parked_n} stale ask(s) to durable "
+                                         f"bench (bottomed, never dropped; "
+                                         f"py agent_cli.py bench {agent_id})\n")
+                msgs = fresh
+            except Exception:
+                pass                                 # gate is best-effort; fresh-path intact
         return {"seat_held": False,
+                "stale_notice": stale_notice_txt.strip() or None,
+                "stale_asks_parked": parked_n,
                 "consumed": [m.to_dict() if hasattr(m, "to_dict") else {} for m in msgs]}
     except Exception:
         return {"seat_held": False, "consumed": []}
