@@ -163,9 +163,58 @@ def clear_rearm_trigger(agent: str, session_id: str = "", tmp: str = None) -> No
         pass
 
 
+# ------------------------------------------------------------- S0-gamma: wake-detection dedup
+# Trigger (note s0-gamma-wake-dedup, 2026-07-21; recovery arc S0 floor): ~6 wake cycles burned
+# in one hour on LOGICAL duplicates -- dual-write twins (T039a/T044) and RB-26 redeliveries of
+# mail this session had already been woken for but not yet consumed. The watcher is detect-only,
+# so nothing ever advanced; every re-arm re-detected the same packet and spent another wake.
+# Cure: remember what THIS SESSION was woken for, keyed by the packet's logical identity
+# (frm, ts, kind) -- BifrostAPI._dedup_key's exact fields -- in a sidecar file that SURVIVES
+# watcher exits (the burn is across arms, not within one). Scope laws:
+#   PER-SESSION file (mirrors seat naming): another session still wakes on the same mail --
+#     fan-out by design; the ledger + locks absorb twins.
+#   DETECT-ONLY stays true: the consume path (bifrost-sync/work_drain) never reads this set;
+#     a deduped twin remains fully consumable (RB-26: never drop a work-lane copy).
+#   FAIL-OPEN: any sidecar error reads as never-seen -- a broken file can only cost an extra
+#     wake, never a missed one.
+
+SEEN_CAP = 1000   # newest-last trim on save; a session outliving 1000 wakes re-earns a twin wake
+
+
+def seen_path(agent: str, session_id: str = "", tmp: str = None) -> str:
+    """The dedup sidecar's path. Mirrors seat naming; removed on tombstone stand-down."""
+    name = (f"bifrost_wake_{agent}_{session_id}.seen" if session_id
+            else f"bifrost_wake_{agent}.seen")
+    return os.path.join(tmp or tempfile.gettempdir(), name)
+
+
+def logical_key(m) -> str:
+    """A packet's dual-write-stable identity, joined for JSON: mirrors BifrostAPI._dedup_key
+    (frm, ts, kind) -- twins carry identical env fields but different stream auto-ids."""
+    return "|".join((str(getattr(m, "frm", "")), str(getattr(m, "ts", "")),
+                     str(getattr(m, "kind", ""))))
+
+
+def load_seen(path: str) -> list:
+    try:
+        with open(path, encoding="utf-8") as f:
+            keys = json.load(f)
+        return [k for k in keys if isinstance(k, str)] if isinstance(keys, list) else []
+    except Exception:
+        return []
+
+
+def save_seen(path: str, keys: list) -> None:
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(keys[-SEEN_CAP:], f)
+    except Exception:
+        pass
+
+
 def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
           api=None, hb_path: str = None, my_pid: int = None,
-          session_id: str = "") -> int:
+          session_id: str = "", seen_file: str = None) -> int:
     from core.comm.bifrost_api import BifrostAPI
     api = api if api is not None else BifrostAPI(agent)
     if not api.online_now:
@@ -179,6 +228,12 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
     # given. Seat-loss is a TRANSITION (held it, lost it) -- an embedder calling watch()
     # without ever seating keeps the old contract and never has files written for it.
     had_seat = _hb_holder(hb) == me
+    # S0-gamma: the session's already-woken-for memory (helpers above). Loaded once per arm;
+    # persisted only when a wake delivers something NEW (twin-only and quiet exits change nothing).
+    sf = seen_file if seen_file is not None else seen_path(agent, session_id)
+    seen_keys = load_seen(sf)
+    seen_set = set(seen_keys)
+    twins = 0
     # (T073: the skip-set assignment that lived here is gone -- wake_worthy() is the sole
     # wake gate; SKIP_KINDS/SKIP_KINDS_LANE remain for the lane-mode arm-time pending check.)
     out, seen = [], []
@@ -201,6 +256,10 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
             try:
                 from core.comm import wake_seat as _ws
                 if _ws.is_tombstoned(session_id):
+                    try:
+                        os.remove(sf)   # S0-gamma P7: dead-by-record -> no orphan sidecar
+                    except OSError:
+                        pass
                     print(f"BIFROST_WAKE: standing down for {lane} (session tombstoned -- "
                           f"ended by record, T086 S1) -- benign")
                     return 0
@@ -237,7 +296,17 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
             # explicit incarnation addressing, echo + room-chatter skips (pins P1-P11).
             if not wake_worthy(m, agent=agent, incarnation=str(session_id or "")):
                 continue
+            # S0-gamma: a logical twin of mail this session was ALREADY woken for (dual-write
+            # copy or RB-26 redelivery of the still-unconsumed original) spends no wake.
+            k = logical_key(m)
+            if k in seen_set:
+                twins += 1
+                continue
+            seen_set.add(k)
+            seen_keys.append(k)
             out.append({"frm": frm, "kind": kind, "text": str(getattr(m, "content", "") or "")[:2000]})
+    if out:
+        save_seen(sf, seen_keys)   # S0-gamma: delivered -> remembered (before any print can throw)
     # Read-state-first (Slice C): the governed task ledger prints BEFORE the messages, so a waking
     # agent obeys DONE/NEXT and never acts on a stale backlog message. Fail-open.
     try:
@@ -245,8 +314,10 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
         print(format_state(agent=agent, now=time.time()))   # P5: stale proposals labeled at wake
     except Exception:
         pass
+    deduped = f"; {twins} twin(s) deduped" if twins else ""
+    twin_tag = f" ({twins} twin(s) deduped)" if twins else ""
     if out:
-        print(f"BIFROST WAKE -- messages for {agent} (DETECTED, not consumed -- read them via "
+        print(f"BIFROST WAKE -- messages for {agent}{twin_tag} (DETECTED, not consumed -- read them via "
               f"bifrost-sync/inbox):")
         print(json.dumps(out, indent=1))          # ensure_ascii=True -> cp1252-safe stdout on Windows
     elif cycled:
@@ -255,10 +326,10 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
         elapsed_s = time.time() - (deadline - total_deadline_s)
         print(f"BIFROST_WAKE: deadline self-cycle for {lane} after {elapsed_s / 3600.0:.2f}h "
               f"elapsed (configured {total_deadline_s / 3600.0:.1f}h, chunk {chunk_s:.0f}s) -- "
-              f"re-arm trigger written; relaunch ONCE (saw: " + ", ".join(seen[-8:]) + ")")
+              f"re-arm trigger written; relaunch ONCE (saw: " + ", ".join(seen[-8:]) + deduped + ")")
     else:
         queued = f"; {steers} steer(s) queued for next boot" if steers else ""
-        print(f"BIFROST_WAKE: quiet for {agent} (saw: " + ", ".join(seen[-12:]) + queued + ")")
+        print(f"BIFROST_WAKE: quiet for {agent} (saw: " + ", ".join(seen[-12:]) + queued + deduped + ")")
     return 0
 
 
