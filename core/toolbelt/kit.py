@@ -1,6 +1,6 @@
 """kit (T099 · KIT tier) — installable bundles of belt entries (kimi, PASS 2 build).
 
-The concept model's top rung: verb (atom) → combo (fixed alias) → recipe ($1..$9) →
+The concept model's top rung: verb (atom) → combo (fixed alias) → macro ($1..$9) →
 tool (play script) → **KIT** (an installable bundle). This module is the KIT tier's v1:
 define a bundle once, install it into any seat's belt in one call, with the registry's
 own laws doing the refusing.
@@ -82,7 +82,7 @@ RECOVERY_KIT: Dict[str, Any] = {
 def _self_substitute(steps: List[List[str]], agent: str) -> List[List[str]]:
     """$SELF$ is the kit's one macro: the installing seat's name. Kits install the SAME
     ritual on every belt; the only thing that changes is who it's for. ($1..$9 stay
-    reserved for RECIPES; a kit is not a recipe.)"""
+    reserved for MACROS; a kit is not a macro.)"""
     return [[agent if str(tok) == "$SELF$" else str(tok) for tok in s] for s in steps]
 
 
