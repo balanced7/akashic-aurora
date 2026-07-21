@@ -30,9 +30,11 @@ Status flips: `[x] folded â†’ T0xx` / `[~] declined: reason`.
   at note ids it cannot drill; `notes --json | head` dies on BrokenPipeError.
   RE-BITTEN 07-21 (fable seat, second seat): 3 fumbled calls (PS pipe BOM, field-shape
   discovery, superseded-filter) just to read where-we-are's full body at boot.
-- [ ] W02 (07-18, kimi F9) â€” per-kind unread counts in bifrost-sync collapsed view
-  ("0 asks / 1 inform / 9 traces"). Trigger: triage needed a second call with --traces to
-  find whether any ask was buried. Land: T081-W4 trace-collapse adjacency.
+- [x] W02 (07-18, kimi F9) â€” FOLDED 2026-07-21 marathon @589e81f: the unread header now
+  carries `[N asks / M fyi / K traces]` (asks-first, non-zero only) so a buried ask is
+  visible in ONE read -- no second --traces call. Pins tests/test_w02_kind_summary.py P1-P5.
+  Was: per-kind unread counts in collapsed view. Trigger: triage needed a second call with
+  --traces to find whether an ask was buried.
 - [x] W03 (07-18, kimi F3) â€” FOLDED 2026-07-21 marathon @ce448aa: every heal line now
   carries a `[heal][fleet-hygiene]` scope tag + the UNKNOWN line names the owner ("whoever
   mints this family, not the booting seat"); pins tests/test_w38_w03_heal_hygiene.py P4.
