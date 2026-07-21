@@ -994,6 +994,11 @@ def main() -> int:
     liveness.worklive(args.agent).set("starting", detail="onboarding")
     liveness.pulse(args.agent, "starting", generation=PULSE_GEN[0])
 
+    # A fresh tenure NEVER honors a pre-tenure drain (live race 2026-07-21: a drain
+    # aimed at the PREVIOUS runner survived its death and would have killed this one
+    # at loop-top -- a drain request addresses a tenure, not an agent).
+    control.clear_drain(args.agent)
+
     # S0 storm auto-clear: one detector per runner tenure (in-memory sliding window;
     # a crash resets it, which is safe -- fresh runner, clean windows).
     _storm = storm_detect.StormDetector()
