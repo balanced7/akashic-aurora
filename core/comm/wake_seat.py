@@ -356,6 +356,18 @@ def janitor(agent: str, my_session: Optional[str] = None, tmp: Optional[str] = N
                     os.remove(path)
                 except Exception:
                     pass
+                # W42: sweep the reaped session's SIDECARS too -- the gamma-a wake-dedup
+                # .seen (else it litters tempdir until reboot, the fence's "acceptable
+                # litter, file a WISH") and the .alive activity marker. Best-effort;
+                # session-scoped naming mirrors seat_path. A SKIP reaps nothing (fail-open).
+                if sid:
+                    for extra in (os.path.join(os.path.dirname(path),
+                                               f"bifrost_wake_{agent}_{sid}.seen"),
+                                  activity_marker_path(agent, sid, tmp)):
+                        try:
+                            os.remove(extra)
+                        except OSError:
+                            pass
             results.append((path, action, reason))
             append_provenance(agent, f"{action} seat {os.path.basename(path)}: {reason}", tmp)
         except Exception as e:
