@@ -242,6 +242,11 @@ EPHEMERAL_PREFIXES = (
     "*:nudge:*", "*:intent:*", "*:expect:*", "*:paged:*", "*:doctor_paged:*",
     # telemetry (regenerable / bounded)
     "*:turn_metrics:*", "*:delta:*", "*:engine:*", "*:embed:*",
+    # T095 mailbox: a SHADOW INDEX over the append-only lanes (mailbox.py: "OBSERVATIONAL
+    # ONLY ... writes nothing outside {ns}:mailbox:*") -- a regenerable projection, so
+    # Redis-only is BY DESIGN (W38: the family was unregistered and grew 1472->1797 as
+    # UNKNOWN across one night before this line).
+    "*:mailbox:*", "*:mailbox",
     # ephemeral streams / channels (per-agent event fan-out + broadcast pub/sub); note the durable
     # 'events:raw:*' family is caught by the file-family check FIRST, so it is never mis-swept here
     "*:events", "*:events:*", "*:broadcast", "*:broadcast:*",

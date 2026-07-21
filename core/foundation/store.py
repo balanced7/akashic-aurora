@@ -910,9 +910,13 @@ class HybridStore(Store):
         Order IS the safety guarantee: durable check FIRST (File is truth -- the roster can never
         silence a Store-owned family), roster second, unknown last. file_fams=None -> fail-open:
         the whole batch is LOUD. Counts are lossless: unknown + durable + ephemeral == len(orphans)."""
+        # W03 (kimi F3): heal lines are ABOUT the shared Redis/File keyspace, never the
+        # booting seat's task -- the [fleet-hygiene] tag says so, so an all-caps INVESTIGATE
+        # stops reading as a newcomer's first-minute assignment (their walk mis-diagnosed it).
+        TAG = "[heal][fleet-hygiene]"
         if file_fams is None:                             # classification unavailable -> all loud
             shown = ", ".join(orphans[:5]) + (" ..." if len(orphans) > 5 else "")
-            return [f"[heal] {len(orphans)} Redis-only key(s) have NO File record "
+            return [f"{TAG} {len(orphans)} Redis-only key(s) have NO File record "
                     f"(classification unavailable -- ALL flagged): {shown}. "
                     f"Investigate -- a write that never reached the durable side."]
         from core.comm.packet_spec import is_ephemeral_key
@@ -927,15 +931,16 @@ class HybridStore(Store):
         out: List[str] = []
         if unknown:                                       # most-severe first -- the real signal
             shown = ", ".join(unknown[:5]) + (" ..." if len(unknown) > 5 else "")
-            out.append(f"[heal] {len(unknown)} UNKNOWN Redis-only key(s) -- no File record, not "
-                       f"ephemeral-by-design: {shown}. INVESTIGATE -- a write that never reached "
-                       f"the durable side.")
+            out.append(f"{TAG} {len(unknown)} UNKNOWN Redis-only key(s) -- no File record, not "
+                       f"ephemeral-by-design: {shown}. INVESTIGATE (owner: whoever mints this "
+                       f"family, not the booting seat) -- a write that never reached the "
+                       f"durable side.")
         if durable:
-            out.append(f"[heal] {len(durable)} durable-family key(s) Redis-ahead of File "
+            out.append(f"{TAG} {len(durable)} durable-family key(s) Redis-ahead of File "
                        f"({cls._top_families(durable)}) -- expected for append/TTL-trimmed "
                        f"families; investigate only if growing.")
         if ephemeral:
-            out.append(f"[heal] {len(ephemeral)} expected Redis-only key(s) "
+            out.append(f"{TAG} {len(ephemeral)} expected Redis-only key(s) "
                        f"({cls._top_families(ephemeral)}) -- transport/control/telemetry/drill, "
                        f"no action.")
         return out
