@@ -23,18 +23,27 @@ Status flips: `[x] folded → T0xx` / `[~] declined: reason`.
 
 ## Open
 
-- [ ] W01 (07-18, kimi F8) — `note <id>` / `notes --id` drill verb: read ONE full note body
-  without JSON dumps. Trigger: boot points at note ids it cannot drill; `notes --json | head`
-  dies on BrokenPipeError. Land: T048 recall-surface polish or a T081 follow-up.
+- [x] W01 (07-18, kimi F8) — FOLDED night-run 2026-07-21 @abcb08b: `note <me> --get
+  <id-or-title>` prints ONE full body (title resolves the active head; explicit id reads
+  superseded history, labeled; pins tests/test_w01_note_get.py 6/6). Was: `note <id>` /
+  `notes --id` drill verb: read ONE full note body without JSON dumps. Trigger: boot points
+  at note ids it cannot drill; `notes --json | head` dies on BrokenPipeError.
+  RE-BITTEN 07-21 (fable seat, second seat): 3 fumbled calls (PS pipe BOM, field-shape
+  discovery, superseded-filter) just to read where-we-are's full body at boot.
 - [ ] W02 (07-18, kimi F9) — per-kind unread counts in bifrost-sync collapsed view
   ("0 asks / 1 inform / 9 traces"). Trigger: triage needed a second call with --traces to
   find whether any ask was buried. Land: T081-W4 trace-collapse adjacency.
 - [ ] W03 (07-18, kimi F3) — severity-scope boot heal lines (`[fleet-hygiene]` vs `[you]`).
   Trigger: all-caps INVESTIGATE on a newcomer's first boot reads as their task. Land: T081
   boot rendering. (Kimi's lesson boot_heal_lines_are_fleet_hygiene is the interim teacher.)
-- [ ] W04 (07-18, kimi F6) — `[as of <ts>]` stamps on boot CURRENT DIRECTIVE (and any
-  accumulator-derived line). Trigger: a stale morning-gate directive said "do this FIRST"
-  two days after half of it was done. Land: T081 staleness-stamp slice (sheet-adjacent).
+- [x] W04 (07-18, kimi F6) — FOLDED (stamp half) night-run 2026-07-21 @8cf9352: the
+  directive line now renders `[as of <date>]` always, `[STALE? Nd old]` past 3d, and
+  `[LEDGER DISAGREES: T0xx DONE -- trust the ledger]` on any named task the ledger closed
+  (pins tests/test_w04_directive_staleness.py 4/4; failure-ledger C9-2). Root-cause half
+  lives on as W36 (wrap supersedes next-focus), held for the wave counters. Was: `[as of
+  <ts>]` stamps on boot CURRENT DIRECTIVE. Trigger: a stale morning-gate directive said
+  "do this FIRST" two days after half of it was done. THIRD BITE 07-21 (fable seat):
+  three consecutive seats each re-diagnosed the same 07-15 banner by hand.
 - [ ] W05 (07-18, kimi F7) — re-derive triggers when source docs retract (atlas said
   CONVERGED after the doc said REOPENED). Trigger: derived surfaces lag their sources and
   only outsiders notice. Land: narrative-spine wave 2 (V6-V9) or its own slice.
@@ -105,6 +114,12 @@ Status flips: `[x] folded → T0xx` / `[~] declined: reason`.
 - [ ] W30 (07-20, deepseek) — triage verb: py agent_cli.py triage <agent> shows stale asks sorted by age+kind with answer-top-N / skip-rest / delegate-all-to-X options. NOT blind skip-to-now (destructive; operator doesn't know what was dropped). Trigger: skip-to-now drops invisibly. Land: recovery arc R3/BULKHEAD-0. [deepseek, recovery arc 2026-07-20].
 - [ ] W31 (07-20, deepseek) — why-am-i-wedged diagnostic: one line combining doctor + lane depths + process inventory with a recommendation. Trigger: every C1-8 diagnosis took 3+ tool calls. Land: recovery arc supervisor face. [deepseek].
 - [ ] W32 (07-20, deepseek) — recovery drill harness: py agent_cli.py drill recovery simulates each catalog failure mode and verifies the supervisor handles it within the expected window. Trigger: all recoveries tonight were exercised live on production; no way to verify without a real failure. Land: recovery arc acceptance. [deepseek].
+- [ ] W33 (07-21, claude) — Capability-gated standing queue: a first-class awaiting-a-seat-with-exec/write list. kimi's four GREEN one-liners rode handoff prose; boot should print 'N commands await an exec seat' and clear them on receipt. Trigger: GREEN queue buried in the HALF-2 handoff body; a less careful exec seat misses it entirely. Land: T099 belt adjacency or boot primer (K-arc).
+- [ ] W34 (07-21, claude) — Suite-baseline receipt at wrap: pytest summary plus per-failure lane classification (claimed-by, cause-class) written at seat wrap; the next seat diffs against baseline instead of re-classifying from scratch. Trigger: 12 inherited failures took 3 calls + ledger cross-ref to classify as sibling-lane/drift/leftover. Land: T031 method-baseline enforcement or K-arc gauge-truth.
+- [ ] W35 (07-21, claude) — Uncommitted-tree lane partition: the boot mirror heads-up groups the dirty tree by ledger claims + artifact class (sibling-lane mods / research-to-persist / scratch) so surgical-vs-mirror is instant. Trigger: 63 uncommitted files; boot hint said run mirror.py which would have swept the sibling's mid-flight T067/T068 edits. Land: conductor/doctor micro-slice; W31 adjacency.
+- [ ] W36 (07-21, claude) — Wrap supersedes next-focus (stale-directive ROOT CAUSE): the wrap step retires/supersedes the next-focus note, or boot cross-checks the directive against ledger state and stamps STALE-ledger-disagrees. This is W04's root-cause half: the stamp treats the symptom, supersession-at-wrap removes the disease. Trigger: the 07-15 MORNING GATE banner rode boot as CURRENT DIRECTIVE for the THIRD consecutive seat; each independently re-diagnosed it via ledger/grounding. Land: wrap door slice; pairs with W04.
+- [ ] W37 (07-21, claude) — Canonize the grounding handoff: wrap prompts the outgoing seat for (or auto-points at) a voice-plus-priorities grounding doc; boot's handoff line keeps GROUND FIRST as its first lesson. Today's exists only because Daniel ad-hoc directed it - it was the single best orientation artifact this boot. Trigger: fresh seat oriented in one read; nothing guarantees the next wrap produces one. Land: wrap door + handoff template micro-slice.
+- [ ] W38 (07-21, claude) — Heal-line ownership at ship time: a slice that mints a new Redis key family must register it in the heal-scan taxonomy (boundary-guard enforced), and UNKNOWN heal lines should name the suspected owning task/slice. Trigger: 1472 UNKNOWN bifrost:mailbox:* keys said INVESTIGATE with no owner; this seat deferred it and it will re-page every future boot identically. Land: W03 sibling; T095 M0 follow-up + check_boundaries guard.
 
 ## Folded (exemplars — the loop works)
 

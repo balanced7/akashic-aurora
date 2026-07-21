@@ -69,6 +69,18 @@ to a SERVING file requires a same-turn reload + render receipt.**
 
 ### C9 Epistemological integrity
 
+**C9-2 · CURRENT DIRECTIVE banner outlived its work for THREE consecutive seats** (2026-07-21,
+fresh fable seat; kimi first flagged 07-18 as W04)
+The 2026-07-15 morning-gate `next-focus` note rode boot as "do this FIRST" for kimi (07-18),
+the outgoing fable (07-19/20, called out in the grounding reflection), and the fresh fable
+seat (07-21) — each re-diagnosed it stale by hand via the ledger. Root cause: `next-focus`
+has no supersession tie to wrap (a where-we-are wrap leaves the old directive standing) and
+the render carried no age/status information. **Routing: stamp half FIXED @8cf9352 (the line
+now confesses `[as of <date>] [STALE? Nd old] [LEDGER DISAGREES: T0xx DONE]` — the SILENT
+variant can't recur; pins tests/test_w04_directive_staleness.py). Root-cause half = W36
+(wrap supersedes/retires next-focus), held for the seat-zero wave counters (night consensus
+protocol). Entry closes when W36 lands.**
+
 **C9-1 · Self-justifying knowledge loop: agents author, verify, and ledger their own claims
 — no external ground truth crosses the membrane** (2026-07-16, RED team Jester Forge audit)
 The RED-team threat model (research/reviewed/jester-red-deepseek-2026-07-16.md) found that
@@ -294,6 +306,18 @@ pattern — re-processed events with same key are no-ops). Our `reply_sent` pref
 pre-flight assertions territory). Lesson `redelivery_storm_skip_to_now` captured.**
 
 ### C2 Concurrent-write collisions
+
+**C2-6 · Kit install superseded a NEWER belt entry with older steps (TTL graduation
+stripped)** (2026-07-21 night run, caught by the kit door's first install-dogfood)
+recovery-kit v1's `standby-hard` spec was harvested BEFORE the same night's TTL graduation;
+`kit claude` then superseded belt v5 (TTL'd, kata-VERIFIED) with v6 carrying the OLD un-TTL'd
+steps — the registry's supersession is last-write-wins and install() has no belt-is-newer
+guard. The freeze-forever vector deepseek had just closed was silently reopened on the
+installing belt. Instance FIXED @b4eefc0 (kit v2 carries the TTL'd ceremony + fresh kata
+receipts). **CLASS still open: a kit is a snapshot; any harvest lag re-bites on the next
+install. Routing: gated small slice — install() compares the active entry's steps before
+superseding (skip-or-warn on regression, "a kit must never regress the ceremony it
+distributes"); kimi rules (their module) in the seat-zero counter round.**
 
 **C2-1 · Two agents clobbered the same new test file** (2026-07-16, W4: both wrote
 `tests/test_t081_w4_trace_collapse.py`; deepseek's write clobbered claude's — silent, caught by
@@ -545,6 +569,16 @@ retry-once wrapper in the standby verb IF it recurs (count: 1).**
 ---
 
 ## CLOSED (fix receipts)
+
+**C1-9 pause-without-TTL: a mid-ceremony crash freezes the fleet until human hands** →
+CLOSED same-night (2026-07-21, deepseek's find in the TOOLS PASS 2 review — "the C1-8 genus
+in a different skin"): `control.pause(ttl=)` had RB-30 self-heal since T030 L5 but the
+`bifrost-pause` CLI door never exposed it, so belt ceremonies (standby-hard, drain-decide)
+paused unbounded. Fix @cdf12b4: `--ttl` flag at the door (pins tests/test_pause_ttl_door.py
+3/3) + both recovery verbs re-minted with `--ttl 120` and kata re-VERIFIED (evidence dropped
+to INFER at re-mint, earned back — honesty law held) + recovery-kit v2 distributes the TTL'd
+ceremony @b4eefc0. Class closed: every shipped pause-bearing ceremony now self-heals; new
+ceremonies inherit via the kit.**
 
 **C1-6 false tombstone: harness restart cycles end-and-continue one session, its own
 tombstone then blocks every re-arm** → CLOSED same-day (2026-07-19; found live by Daniel —
