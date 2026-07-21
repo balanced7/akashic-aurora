@@ -154,11 +154,20 @@ def _now() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%S")
 
 
+_VERB_CACHE: set = set()
+
+
 def _agent_cli_verbs() -> set:
-    """The door's live verb roster, discovered from agent_cli's own parser (no hand list)."""
+    """The door's live verb roster, discovered from agent_cli's own parser (no hand list).
+    Module-cached (deepseek fence FLAG 2): build_parser() is a heavy import; the roster only
+    changes on a code change, which reloads the module anyway."""
+    global _VERB_CACHE
+    if _VERB_CACHE:
+        return _VERB_CACHE
     import agent_cli
     p = agent_cli.build_parser()
     for a in p._actions:                                     # the subparsers action holds choices
         if hasattr(a, "choices") and a.choices:
-            return set(a.choices.keys())
+            _VERB_CACHE = set(a.choices.keys())
+            return _VERB_CACHE
     return set()
