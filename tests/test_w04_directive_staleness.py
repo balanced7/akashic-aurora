@@ -69,7 +69,23 @@ def test_p3_ledger_done_task_disagrees(mem, monkeypatch):
     _forge_note(mem, "ADR_nf_done0000", "next-focus",
                 "approve/amend T075 M1 build wave", datetime.now().isoformat())
     head = agent_cli._orientation_header("claude")
-    assert "LEDGER DISAGREES" in head and "T075" in head and "trust the ledger" in head
+    assert "LEDGER DISAGREES" in head and "T075 DONE" in head and "trust the ledger" in head
+
+
+def test_p5_parked_task_also_disagrees(mem, monkeypatch):
+    # kimi B1(c) fence finding (live receipt: the 07-15 banner names PARKED T075 and the
+    # DONE-only check stayed silent): parked and abandoned CONTRADICT do-this-FIRST too.
+    monkeypatch.setattr(
+        "core.coord.task_ledger.state_view",
+        lambda *a, **k: {"parked": [{"id": "T075", "status": "parked"}],
+                         "active": [{"id": "T071", "status": "claimed"}]})
+    _forge_note(mem, "ADR_nf_park0000", "next-focus",
+                "approve/amend T075 M1 build wave + T071 verdicts",
+                datetime.now().isoformat())
+    head = agent_cli._orientation_header("claude")
+    assert "T075 PARKED" in head and "LEDGER DISAGREES" in head
+    assert "T071" not in head.split("LEDGER DISAGREES")[1].split("]")[0], \
+        "an ACTIVE named task never rides the disagreement tag"
 
 
 def test_p4_ledger_down_fails_open(mem, monkeypatch):

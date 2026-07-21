@@ -267,7 +267,9 @@ def cmd_boot(args):
             for d, budget in zip(shown, _budgets):
                 print(f"  [{d.created_at[:10]}] {d.title}: {_clip(d.decision, budget)}")
             if len(notes) > len(shown) or any(len(d.decision or "") > b for d, b in zip(shown, _budgets)):
-                print("  (clipped; full note bodies: py agent_cli.py notes --json)")
+                # M1 (kimi seat-zero counter): the verb shipped, the teaching text must
+                # retire the old dance in the same breath -- one hop, no JSON pipe.
+                print("  (clipped; ONE full body: py agent_cli.py note <you> --get <title>)")
         else:
             # RB-12 [GAP]: zero notes, empty store -- no crash, no wrong line
             print("\n## RECENT NOTES (durable project memory)")
@@ -1144,7 +1146,10 @@ DIRECTIVE_STALE_DAYS = 3   # W04: a directive older than this confesses its age 
 
 
 def _directive_done_tasks(focus_text: str) -> list:
-    """W04 ledger cross-check: T-numbers the directive names whose ledger status is DONE.
+    """W04 ledger cross-check: T-numbers the directive names whose ledger status
+    CONTRADICTS do-this-FIRST -- done, parked, or abandoned (kimi B1(c) fence finding:
+    the live three-bite banner commands action on PARKED T075 and the DONE-only check
+    stayed silent). Returns ['T075 PARKED', ...] so the tag confesses the actual state.
     Fail-open (ledger down -> []): the stamp informs, it must never block a boot."""
     import re
     ids = sorted(set(re.findall(r"\bT\d{3}\b", str(focus_text or ""))))
@@ -1158,7 +1163,9 @@ def _directive_done_tasks(focus_text: str) -> list:
                 for t in v:
                     if isinstance(t, dict) and t.get("id"):
                         status[str(t["id"])] = str(t.get("status", ""))
-        return [i for i in ids if status.get(i, "").lower() == "done"]
+        contra = {"done", "parked", "abandoned"}
+        return [f"{i} {status[i].upper()}" for i in ids
+                if status.get(i, "").lower() in contra]
     except Exception:
         return []
 
@@ -1237,12 +1244,19 @@ def _orientation_header(agent_id: str, primer_aware: bool = False) -> str:
         wwa = next((d for d in notes if d.title == "where-we-are"), None)
         if wwa:
             one_line = " ".join((wwa.decision or "").split())
+            # M4 (kimi seat-zero counter): the one line every seat reads to the END must
+            # carry its own fetch pointer when it clips -- never a dead-end ellipsis.
+            more = " (full: py agent_cli.py note <you> --get where-we-are)"
             if primer_aware:
                 # W13: the whisper carried the clip; the boot head IS the resume anchor
                 # now -- full body (the NOTES section below skips its duplicate, R16).
-                lines.append(f"# where-we-are (full): {_clip(one_line, 900)}")
+                clipped_l = _clip(one_line, 900)
+                lines.append(f"# where-we-are (full): {clipped_l}"
+                             + (more if len(one_line) > 900 else ""))
             else:
-                lines.append(f"# where-we-are: {_clip(one_line, 120)}")
+                clipped_s = _clip(one_line, 120)
+                lines.append(f"# where-we-are: {clipped_s}"
+                             + (more if len(one_line) > 120 else ""))
         else:
             lines.append("# [GAP] where-we-are: (no note yet -- record one with `agent_cli note`)")
         if primer_aware:
@@ -1272,9 +1286,9 @@ def _orientation_header(agent_id: str, primer_aware: bool = False) -> str:
                     tags += f" [STALE? {age_d}d old -- verify against the ledger]"
             except Exception:
                 pass
-            done_named = _directive_done_tasks(focus)
-            if done_named:
-                tags += (f" [LEDGER DISAGREES: {', '.join(done_named)} DONE -- "
+            contra_named = _directive_done_tasks(focus)
+            if contra_named:
+                tags += (f" [LEDGER DISAGREES: {', '.join(contra_named)} -- "
                          f"trust the ledger]")
             lines.append(f"# >> CURRENT DIRECTIVE (do this FIRST; beats the NEXT list order): "
                          f"{_clip(focus, 160)}{tags}")
