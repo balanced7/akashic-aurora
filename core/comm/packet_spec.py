@@ -192,6 +192,10 @@ KIND_LANE = {
     "dispatch": "work", "status": "work",
     "completion": "work",   # T061 census fix: a completion is an ANSWER kind (settles
                             # expectations) -- it must ride the wake lane, never legacy-only
+    # W07 census fix (2026-07-21): a decision (a fleet RULING, e.g. Daniel's T094 verdict)
+    # and a blocker (wake-worthy) are salient coordination -- both rode legacy-only + loud
+    # before this line; the test_w07 completeness pins keep the census from missing again.
+    "decision": "work", "blocker": "work",
     # sig -- fidelity-ladder control (QoS1/EF, seatless, never queues behind trace)
     "halt": "sig", "interrupt": "sig", "pause": "sig", "resume": "sig",
     "nudge": "sig", "steer": "sig",
