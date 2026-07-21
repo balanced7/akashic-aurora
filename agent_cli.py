@@ -3978,6 +3978,18 @@ def build_parser():
     ts.add_argument("--json", action="store_true")
     ts.set_defaults(fn=cmd_toast)
 
+    fu = sub.add_parser("followup", help="charter question-back (W46): append a q-id'd "
+                                         "question to a verdict's Open Questions block + "
+                                         "defer it to the responsible seat")
+    fu.add_argument("agent_id", help="you (the asker)")
+    fu.add_argument("--on", required=True, metavar="VERDICT-FILE",
+                    help="the verdict/report file to question (must exist; append-only)")
+    fu.add_argument("--to", required=True, help="the seat responsible for answering")
+    fu.add_argument("--ask", required=True, help="the question")
+    fu.add_argument("--needs", default="write", help="capability the answer needs (W33)")
+    fu.add_argument("--json", action="store_true")
+    fu.set_defaults(fn=cmd_followup)
+
     df = sub.add_parser("defer", help="the capability-gated standing queue (W33): file a "
                                       "command awaiting an exec/write seat; boot surfaces "
                                       "it; discharge with a receipt")
@@ -4309,6 +4321,29 @@ def _agent_acl_caps(agent_id: str) -> set:
     except Exception:
         pass
     return set()
+
+
+def cmd_followup(args):
+    """followup <me> --on <verdict-file> --to <seat> --ask "...": the charter question-back
+    channel (W46, kimi's build). Writes a q-id'd question into the verdict's Open Questions
+    block AND files a defer item the responsible seat's next boot surfaces. The module
+    (core/toolbelt/followup.py) carries every law; this is the door."""
+    from core.toolbelt import followup
+    try:
+        res = followup.file_followup(args.on, by=args.agent_id, to=args.to,
+                                     ask=str(getattr(args, "ask", "") or ""),
+                                     needs=str(getattr(args, "needs", "write") or "write"))
+    except (ValueError, FileNotFoundError) as e:
+        print(f"[followup] {e}")
+        return 2
+    if getattr(args, "json", False):
+        print(json.dumps(res))
+        return 0
+    tag = " (reused)" if res.get("reused_line") or res.get("reused_defer") else ""
+    print(f"[followup] {res['qid']} filed in {res['path']} + deferred to {args.to} "
+          f"(defer {res['defer_id']}){tag} -- their next boot surfaces it; the discharge "
+          f"receipt points at the answered block")
+    return 0
 
 
 def cmd_defer(args):
