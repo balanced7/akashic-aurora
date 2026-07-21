@@ -42,6 +42,11 @@ IDLE_PHASES = {"idle", "online", "replied"}
 # Time in a NON-idle phase beyond which we FLAG (not kill) a suspected wedge. Deliberately past L0's
 # worst-case self-heal (read-timeout x retries ~= a few minutes) so "wedged" means "L0 didn't fix it".
 DEFAULT_WEDGE_S = _scaled(float(os.getenv("BIFROST_WEDGE_SECONDS", "300")), floor=1)
+# Sub-threshold visibility floor (T097-S1 / P-S1-0): a non-idle phase with a DEAD pulse aged
+# into [APPROACHING_WEDGE_S, DEFAULT_WEDGE_S) is surfaced by the doctor as a DASHBOARD
+# "approaching wedge" -- the window where C1-8's stall lived invisibly (silent < 300s). Fixed,
+# named (no auto-threshold magic); below the page threshold so it OBSERVES, never revives.
+APPROACHING_WEDGE_S = _scaled(float(os.getenv("BIFROST_APPROACHING_WEDGE_SECONDS", "150")), floor=1)
 
 
 def _client():

@@ -171,6 +171,16 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
                               f"{agent}: HARD WEDGE -- '{phase}' for {int(stuck)}s with a "
                               "DEAD pulse (worker died inside the turn; not self-healing)",
                               f"py-spy dump --pid <runner-pid>  |  relaunch the runner"))
+        elif non_idle and stuck >= liveness.APPROACHING_WEDGE_S and not pulse_fresh:
+            # P-S1-0: the sub-threshold window C1-8 hid in. Non-idle + dead pulse but not yet
+            # past the page threshold -> DASHBOARD 'approaching wedge' (today: silence). Below
+            # the page line because L0 self-heal may still land; visible so a mission face can
+            # never render this window as "fleet healthy".
+            out.append(_f(agent, "approaching_wedge", "dashboard",
+                          f"{agent}: APPROACHING WEDGE -- '{phase}' for {int(stuck)}s with no "
+                          f"fresh pulse (sub-threshold; pages at {int(liveness.DEFAULT_WEDGE_S)}s "
+                          "if it doesn't self-heal)",
+                          f"py agent_cli.py doctor --json   # py-spy dump --pid <{agent}-runner-pid> if it climbs"))
 
         backlog = int(p["backlog"](agent) or 0)
         idleish = (not wl) or phase in liveness.IDLE_PHASES
