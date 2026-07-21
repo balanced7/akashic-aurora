@@ -55,9 +55,11 @@ Status flips: `[x] folded â†’ T0xx` / `[~] declined: reason`.
   when no positional text is given (make the text-file path the effortless default).
   Trigger: three argv-misparse strikes in one day despite C3-1 documenting it; lesson
   bifrost_send_always_text_file filed. Land: small door slice; deepseek counter invited.
-- [ ] W07 (07-18, lane-router self-report) â€” add `decision` (and audit other kinds) to
-  packet_spec.KIND_LANE before the T039b cutover. Trigger: fleet broadcast of Daniel's T094
-  ruling rode legacy-only with a loud warning. Land: T039 lanes arc, pre-T047.
+- [x] W07 (07-18, lane-router self-report) â€” FOLDED 2026-07-21 marathon @7e49bcc: decision
+  + blocker route to the work (wake) lane; plus completeness pins (test_w07_kind_lane_census
+  P3/P4) that FAIL if any wake-worthy or ACL-grantable kind is unmapped -- the census can't
+  silently miss again. Was: add `decision` (and audit other kinds) to KIND_LANE. Trigger:
+  Daniel's T094 ruling rode legacy-only with a loud warning.
 - [ ] W08 (07-18, claude) â€” headless-seat launcher helper: one script that does the twin
   guard (live-transcript check), charter-path advisory lock, pid capture, AKASHIC_STOP_WAKE=0
   env, and tree-kill on abort â€” today it is manual discipline in the protocol doc. Trigger:
