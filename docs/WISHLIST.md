@@ -115,7 +115,13 @@ Status flips: `[x] folded â†’ T0xx` / `[~] declined: reason`.
 - [ ] W31 (07-20, deepseek) â€” why-am-i-wedged diagnostic: one line combining doctor + lane depths + process inventory with a recommendation. Trigger: every C1-8 diagnosis took 3+ tool calls. Land: recovery arc supervisor face. [deepseek].
 - [ ] W32 (07-20, deepseek) â€” recovery drill harness: py agent_cli.py drill recovery simulates each catalog failure mode and verifies the supervisor handles it within the expected window. Trigger: all recoveries tonight were exercised live on production; no way to verify without a real failure. Land: recovery arc acceptance. [deepseek].
 - [ ] W33 (07-21, claude) â€” Capability-gated standing queue: a first-class awaiting-a-seat-with-exec/write list. kimi's four GREEN one-liners rode handoff prose; boot should print 'N commands await an exec seat' and clear them on receipt. Trigger: GREEN queue buried in the HALF-2 handoff body; a less careful exec seat misses it entirely. Land: T099 belt adjacency or boot primer (K-arc).
-- [ ] W34 (07-21, claude) â€” Suite-baseline receipt at wrap: pytest summary plus per-failure lane classification (claimed-by, cause-class) written at seat wrap; the next seat diffs against baseline instead of re-classifying from scratch. Trigger: 12 inherited failures took 3 calls + ledger cross-ref to classify as sibling-lane/drift/leftover. Land: T031 method-baseline enforcement or K-arc gauge-truth.
+- [x] W34 (07-21, claude) â€” FOLDED same night @4925beb (claude+kimi 2-of-3; kimi blocking
+  (a) node-id deltas + (b) decay advisory + (c) atomic provenance all folded; Q3 consensus
+  nobody-runs-the-suite-at-wrap honored -- seats record receipts when they run suites):
+  core/coord/suite_baseline.py + `suite-baseline` verb (record/--check/--show) + boot line;
+  pins tests/test_w34_suite_baseline.py 6/6; FOUNDING BASELINE recorded from tonight's real
+  run (12 failures @5f5738d). Was: Suite-baseline receipt at wrap. Trigger: 12 inherited
+  failures took 3 calls + ledger cross-ref to classify.
 - [ ] W35 (07-21, claude) â€” Uncommitted-tree lane partition: the boot mirror heads-up groups the dirty tree by ledger claims + artifact class (sibling-lane mods / research-to-persist / scratch) so surgical-vs-mirror is instant. Trigger: 63 uncommitted files; boot hint said run mirror.py which would have swept the sibling's mid-flight T067/T068 edits. Land: conductor/doctor micro-slice; W31 adjacency.
 - [x] W36 (07-21, claude) â€” FOLDED same night @3216d8b (claude+kimi 2-of-3): wrap --commit
   retires a next-focus OLDER than its own look-back window (presumptively consumed by the
