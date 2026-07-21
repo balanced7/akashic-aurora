@@ -207,11 +207,14 @@ def cmd_boot(args):
         pass
     # Pre-warm recall-at-action so the agent's FIRST edit this session gets instant recall (boot is
     # the universal session-start ritual -> covers the read-bootstrap flow). Prune stale state too.
+    # W09 (kimi F2): print the ARMED line so downstream silence reads as CALIBRATED (the surface
+    # is live, nothing was relevant), never as a suspected-dead hook (kimi mis-diagnosed absence).
     try:
         from core.recall.at_action import warm_cache, prune_state
-        warm_cache(); prune_state()
+        _warm_n = warm_cache(); prune_state()
+        print(_recall_armed_line(_warm_n))
     except Exception:
-        pass
+        print(_recall_armed_line(None))
     # Cold-start safety net (ported from the retired StoreReconciler): if Redis was down during past
     # writes, the durable File is ahead -- backfill Redis so recall/state read consistent values. Best-
     # effort; only reconciles when drift is actually found (a no-op fast path when the backends are in sync).
@@ -1183,6 +1186,16 @@ def _directive_done_tasks(focus_text: str) -> list:
         return settled
     except Exception:
         return []
+
+
+def _recall_armed_line(warm_n) -> str:
+    """W09: the one-line proof recall-at is live. warm_n = lesson count (None = warm
+    failed). A fresh seat reads this so LATER silence is calibrated, not suspect."""
+    if warm_n is None:
+        return ("# recall-at: could not warm the lesson cache (surface may be cold this "
+                "session -- hints may not fire; investigate core.recall.at_action)")
+    return (f"# recall-at: armed ({warm_n} lesson(s) warm) -- listening at every edit; "
+            f"downstream silence is CALIBRATED (nothing relevant), not a dead hook")
 
 
 def _orientation_header(agent_id: str, primer_aware: bool = False) -> str:
@@ -3978,6 +3991,13 @@ def build_parser():
     ts.add_argument("--json", action="store_true")
     ts.set_defaults(fn=cmd_toast)
 
+    cbs = sub.add_parser("clobber-scan", help="W47 (kimi's design): flag unconditional "
+                                              "writes to shared control keys in a file -- "
+                                              "the fence-review reviewer-prompt")
+    cbs.add_argument("path", help="the file to scan (a ceremony/diff under review)")
+    cbs.add_argument("--json", action="store_true")
+    cbs.set_defaults(fn=cmd_clobber_scan)
+
     fu = sub.add_parser("followup", help="charter question-back (W46): append a q-id'd "
                                          "question to a verdict's Open Questions block + "
                                          "defer it to the responsible seat")
@@ -4321,6 +4341,24 @@ def _agent_acl_caps(agent_id: str) -> set:
     except Exception:
         pass
     return set()
+
+
+def cmd_clobber_scan(args):
+    """clobber-scan <file>: flag unconditional writes to shared control-plane keys (W47,
+    kimi's design). A REVIEWER PROMPT for fence passes -- findings are candidates to
+    confirm (is this overwrite guarded / intended?), not a pass/fail gate."""
+    from core.toolbelt import clobber_scan
+    try:
+        with open(args.path, encoding="utf-8") as f:
+            findings = clobber_scan.scan(f.read())
+    except Exception as e:
+        print(f"[clobber-scan] cannot read {args.path}: {type(e).__name__}: {e}")
+        return 2
+    if getattr(args, "json", False):
+        print(json.dumps(findings))
+        return 0
+    print(clobber_scan.render(findings))
+    return 1 if findings else 0
 
 
 def cmd_followup(args):
