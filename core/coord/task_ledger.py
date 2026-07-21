@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 # repo root is two dirs up from core/coord/
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -289,6 +289,57 @@ def _age_days(t: Dict[str, Any], now_ts: float) -> Any:
         return max(0.0, (now_ts - datetime.fromisoformat(raw).timestamp()) / 86400)
     except (ValueError, TypeError):
         return None
+
+
+TASK_SETTLED_STATUSES = frozenset({"done", "parked", "abandoned"})
+
+
+def settled_tasks(text: str) -> Tuple[List[str], List[str]]:
+    """(settled, live): T-numbers named in `text` whose ledger status contradicts acting
+    on them (done/parked/abandoned, rendered 'T075 PARKED') vs those still open. Unknown
+    ids read LIVE (fail toward answering/acting). Fail-open ([], []) when the ledger is
+    unreachable. Shared by the boot directive cross-check (W04) and the runner's
+    premise-gate -- this module's own WHY paragraph, made a callable."""
+    import re
+    ids = sorted(set(re.findall(r"\bT\d{3}\b", str(text or ""))))
+    if not ids:
+        return [], []
+    try:
+        status: Dict[str, str] = {}
+        for v in state_view().values():
+            if isinstance(v, list):
+                for t in v:
+                    if isinstance(t, dict) and t.get("id"):
+                        status[str(t["id"])] = str(t.get("status", ""))
+        settled = [f"{i} {status[i].upper()}" for i in ids
+                   if status.get(i, "").lower() in TASK_SETTLED_STATUSES]
+        live = [i for i in ids if status.get(i, "").lower() not in TASK_SETTLED_STATUSES]
+        return settled, live
+    except Exception:
+        return [], []
+
+
+def premise_settled(kind: str, age_ms: Optional[int], text: str, *,
+                    min_age_ms: Optional[int] = None) -> List[str]:
+    """The premise-gate's pure verdict: the settled list when a short-circuit should
+    fire, else []. Fires ONLY when: the kind is an ask, the message is OLDER than the
+    age floor (a fresh ask about closed work is deliberate; an old one is a backlog
+    echo), it names >=1 T-number, and ALL named tasks are settled. Unknowable age reads
+    FRESH; min_age_ms<=0 disables (the P2-style kill switch); ledger errors fail open
+    to answering. Env dial: BIFROST_PREMISE_GATE_MIN_AGE_MS (default 2h)."""
+    from core.comm import packet_spec
+    if min_age_ms is None:
+        try:
+            min_age_ms = int(os.environ.get("BIFROST_PREMISE_GATE_MIN_AGE_MS",
+                                            2 * 3600 * 1000))
+        except (TypeError, ValueError):
+            min_age_ms = 2 * 3600 * 1000
+    if min_age_ms <= 0 or not packet_spec.is_ask_kind(kind):
+        return []
+    if age_ms is None or age_ms < min_age_ms:
+        return []
+    settled, live = settled_tasks(text)
+    return settled if settled and not live else []
 
 
 def state_view(path: str = LEDGER_PATH, client: Any = "auto", *,

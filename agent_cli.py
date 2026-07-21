@@ -1147,25 +1147,13 @@ DIRECTIVE_STALE_DAYS = 3   # W04: a directive older than this confesses its age 
 
 def _directive_done_tasks(focus_text: str) -> list:
     """W04 ledger cross-check: T-numbers the directive names whose ledger status
-    CONTRADICTS do-this-FIRST -- done, parked, or abandoned (kimi B1(c) fence finding:
-    the live three-bite banner commands action on PARKED T075 and the DONE-only check
-    stayed silent). Returns ['T075 PARKED', ...] so the tag confesses the actual state.
-    Fail-open (ledger down -> []): the stamp informs, it must never block a boot."""
-    import re
-    ids = sorted(set(re.findall(r"\bT\d{3}\b", str(focus_text or ""))))
-    if not ids:
-        return []
+    CONTRADICTS do-this-FIRST (kimi B1(c): parked/abandoned count, not just done).
+    Now rides task_ledger.settled_tasks -- the same helper the runner's premise-gate
+    uses (one frontier-honesty law, two organs). Fail-open: the stamp informs."""
     try:
-        from core.coord.task_ledger import state_view
-        status = {}
-        for v in state_view().values():
-            if isinstance(v, list):
-                for t in v:
-                    if isinstance(t, dict) and t.get("id"):
-                        status[str(t["id"])] = str(t.get("status", ""))
-        contra = {"done", "parked", "abandoned"}
-        return [f"{i} {status[i].upper()}" for i in ids
-                if status.get(i, "").lower() in contra]
+        from core.coord.task_ledger import settled_tasks
+        settled, _live = settled_tasks(focus_text)
+        return settled
     except Exception:
         return []
 

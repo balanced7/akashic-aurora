@@ -717,6 +717,31 @@ def _process_one(m, bus, args, responder, rate) -> None:
         print("[deepseek-runner] rate limit -> auto-paused (ttl 1h)")
         return
     prompt = m.content if isinstance(m.content, str) else str(m.content)
+    # PREMISE GATE (frugality made mechanical, 2026-07-21; T076 root-spigot's sibling at
+    # FIRST delivery; deepseek's premise-check belt instinct, wired): an ask past the age
+    # floor whose named T-numbers are ALL ledger-settled is a backlog echo -- it earns
+    # one settled-line WITH the answers-link (RB-29 settles, sentinel marked) instead of
+    # a full agentic answer. Fresh asks + asks naming live work always pass; ledger
+    # errors fail open to answering. Dial: BIFROST_PREMISE_GATE_MIN_AGE_MS (0 disables).
+    try:
+        from core.coord.task_ledger import premise_settled
+        _pg = premise_settled(str(m.kind),
+                              packet_spec.msg_age_ms(getattr(m, "id", ""),
+                                                     int(time.time() * 1000)),
+                              prompt)
+    except Exception:
+        _pg = []
+    if _pg:
+        _pg_out = (f"[premise-gate] The ledger already settled what this ask names: "
+                   f"{', '.join(_pg)}. Full answer skipped (backlog-age ask; the "
+                   "frugality gate). If something is STILL open, re-ask naming it.")
+        bus.send_reply(m.frm, _pg_out,
+                       meta={"via": f"{args.agent}-runner", "hops": hops,
+                             "answers": m.id, "premise_gate": True})
+        _mark_reply_sent(bus, m.id)
+        print(f"[deepseek-runner] premise-gate: {m.frm}'s ask names settled work "
+              f"({', '.join(_pg)}) -- one-liner sent, full answer skipped")
+        return
     print(f"[deepseek-runner] <- {m.frm} [{m.kind}] (hop {hops}): {prompt[:80]}")
     if str(m.kind) == "nudge" or nudge.is_nudged(args.agent):
         nudge.clear(args.agent)               # consume so answering the nudge isn't self-interrupted
