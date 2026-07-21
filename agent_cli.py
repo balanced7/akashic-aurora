@@ -3039,6 +3039,20 @@ def cmd_bifrost_send(args):
     return 0 if mid else 1
 
 
+def cmd_bifrost_drain(args):
+    """Request a runner's graceful exit (finish current message -> release lock -> exit 0).
+    TTL'd (control.DRAIN_TTL_S); the runner honors it at its next loop top. Relaunch after
+    it lands -- no TaskStop tree-kill ghosts, no thrown-away in-flight context."""
+    from core.comm import control
+    ok = control.drain(args.to, by=args.agent_id, reason=args.reason or "")
+    if ok:
+        print(f"[drain] requested for {args.to} (self-clears in {control.DRAIN_TTL_S}s if "
+              f"unhonored) -- the runner exits clean at its next loop top; relaunch when it lands")
+        return 0
+    print("[drain] bus OFFLINE -- not requested")
+    return 1
+
+
 def cmd_bifrost_pause(args):
     """Freeze the bus auto-responders (human barge-in). They hold until `bifrost-resume` --
     or self-heal after --ttl seconds (RB-30): ceremony/automation pauses should ALWAYS
@@ -3686,6 +3700,14 @@ def build_parser():
                           "prefix) -- that seat wakes even on same-agent mail (the twin channel)")
     snd.add_argument("--json", action="store_true")
     snd.set_defaults(fn=cmd_bifrost_send)
+
+    dr = sub.add_parser("bifrost-drain", help="request a runner's GRACEFUL exit: finish "
+                                              "current message -> release lock -> exit 0 "
+                                              "(the TaskStop restart-tax killer)")
+    dr.add_argument("agent_id", help="you (the requester)")
+    dr.add_argument("--to", required=True, help="the runner agent to drain (e.g. deepseek)")
+    dr.add_argument("--reason", default="", help="why (rides the runner's exit line)")
+    dr.set_defaults(fn=cmd_bifrost_drain)
 
     pz = sub.add_parser("bifrost-pause", help="freeze bus auto-responders (human barge-in)")
     pz.add_argument("--reason", default=""); pz.add_argument("--by", default="user")

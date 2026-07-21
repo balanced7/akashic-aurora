@@ -79,6 +79,53 @@ def _client():
         return None
 
 
+# ------------------------------------------------------------------ drain
+DRAIN_TTL_S = 300
+
+
+def _drain_key(agent: str) -> str:
+    return f"{_ns()}:control:drain:{agent}"
+
+
+def drain(agent: str, by: str = "user", reason: str = "") -> bool:
+    """Request a RUNNER's graceful exit: finish the current message, release the
+    singleton lock, exit 0 at the next loop top. TTL'd (DRAIN_TTL_S) so an unhonored
+    request self-clears -- the C1-9 law applied at birth. Kills the restart tax
+    (2026-07-21: TaskStop tree-kill ghosts + thrown-away in-flight context +
+    sleep-retry lock dances, three times in one night)."""
+    c = _client()
+    if c is None:
+        return False
+    try:
+        c.set(_drain_key(agent), json.dumps({"by": by, "reason": reason, "ts": _now()}),
+              ex=DRAIN_TTL_S)
+        return True
+    except Exception:
+        return False
+
+
+def drain_requested(agent: str) -> Optional[Dict[str, Any]]:
+    """The runner's loop-top probe. None when no live request (or bus offline)."""
+    c = _client()
+    if c is None:
+        return None
+    try:
+        raw = c.get(_drain_key(agent))
+        return json.loads(raw) if raw else None
+    except Exception:
+        return None
+
+
+def clear_drain(agent: str) -> None:
+    c = _client()
+    if c is None:
+        return
+    try:
+        c.delete(_drain_key(agent))
+    except Exception:
+        pass
+
+
 # ------------------------------------------------------------------ pause
 def pause(reason: str = "", by: str = "user", ttl: Optional[int] = None) -> bool:
     """Freeze the auto-responders. Idempotent. Returns False if the bus is offline.

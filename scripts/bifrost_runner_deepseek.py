@@ -1122,6 +1122,13 @@ def main() -> int:
                 bus.register(card=CARD)                       # stay "online-but-frozen" on the roster, not vanish
                 time.sleep(0.4)
                 continue
+            _drain_req = control.drain_requested(args.agent)  # graceful exit: loop-top only,
+            if _drain_req:                                    # so the current message finished
+                control.clear_drain(args.agent)
+                print(f"[deepseek-runner] DRAIN honored (by {_drain_req.get('by', '?')}: "
+                      f"{_drain_req.get('reason') or 'no reason given'}) -- exiting clean; "
+                      "the singleton lock releases; relaunch when ready.")
+                break
             # RB-26 (T030): detect WITHOUT consuming, then commit the cursor per message
             # AFTER it is handled (commit-after-processing). A crash mid-batch redelivers
             # the unhandled tail to the successor -- at-least-once; the reply_sent sentinel
