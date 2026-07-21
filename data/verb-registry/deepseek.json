@@ -194,6 +194,27 @@
    "created_at": "2026-07-21T04:35:00",
    "updated_at": "2026-07-21T04:35:00",
    "author": "deepseek"
+  },
+  "vitals": {
+   "name": "vitals",
+   "kind": "alias",
+   "steps": [
+    [
+     "doctor"
+    ],
+    [
+     "bifrost-dashboard"
+    ]
+   ],
+   "version": 1,
+   "evidence": "GUESS",
+   "tested_against": null,
+   "why": "deepseek R2 BUILD 2026-07-21: the first LIFEWORKERS verb. doctor (fleet liveness + services) → bifrost-dashboard (presence + lane depths + vitals). Tends the living: who is alive, who is backlogged, who holds locks, is anyone dying silently. The fleet's pulse in two calls. Fills the empty LIFEWORKERS caste — SENTINELS guard, ENGINEERS fix, MONITORS watch, but only LIFEWORKERS tend the living.",
+   "family": "LIFEWORKERS",
+   "status": "active",
+   "created_at": "2026-07-21T05:00:00",
+   "updated_at": "2026-07-21T05:00:00",
+   "author": "deepseek"
   }
  },
  "history": [
