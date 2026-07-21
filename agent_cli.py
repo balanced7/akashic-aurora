@@ -2912,12 +2912,17 @@ def cmd_bifrost_send(args):
 
 
 def cmd_bifrost_pause(args):
-    """Freeze the bus auto-responders (human barge-in). They hold until `bifrost-resume`."""
+    """Freeze the bus auto-responders (human barge-in). They hold until `bifrost-resume` --
+    or self-heal after --ttl seconds (RB-30): ceremony/automation pauses should ALWAYS
+    carry a ttl so a crash mid-ceremony can never freeze the fleet forever (deepseek's
+    C1-8-genus find, 2026-07-21)."""
     from core.comm import control
-    ok = control.pause(reason=args.reason or "", by=args.by or "user")
+    ttl = int(args.ttl) if getattr(args, "ttl", None) else None
+    ok = control.pause(reason=args.reason or "", by=args.by or "user", ttl=ttl)
     if args.json:
         print(json.dumps(control.pause_status(), default=str)); return 0 if ok else 1
-    print("[bifrost] PAUSED -- runners frozen; resume with `bifrost-resume`" if ok
+    tag = f" (self-heals in {ttl}s)" if ttl else ""
+    print(f"[bifrost] PAUSED{tag} -- runners frozen; resume with `bifrost-resume`" if ok
           else "[bifrost] pause failed (bus offline)")
     return 0 if ok else 1
 
@@ -3552,6 +3557,9 @@ def build_parser():
 
     pz = sub.add_parser("bifrost-pause", help="freeze bus auto-responders (human barge-in)")
     pz.add_argument("--reason", default=""); pz.add_argument("--by", default="user")
+    pz.add_argument("--ttl", type=int, default=None,
+                    help="self-heal seconds (RB-30) -- ceremony/automation pauses should "
+                         "ALWAYS set this so a mid-ceremony crash can't freeze the fleet")
     pz.add_argument("--json", action="store_true")
     pz.set_defaults(fn=cmd_bifrost_pause)
 
