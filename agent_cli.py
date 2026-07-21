@@ -1168,6 +1168,8 @@ def _transport_line(door=None, detail=None) -> str:
 
 
 DIRECTIVE_STALE_DAYS = 3   # W04: a directive older than this confesses its age at boot
+GROUNDING_FRESH_DAYS = 7   # W37 (kimi (b)): the kept-pointer bound, spelled -- a grounding
+                           # doc ages slower than a directive but never silently forever
 
 
 def _directive_done_tasks(focus_text: str) -> list:
@@ -1202,6 +1204,26 @@ def _orientation_header(agent_id: str, primer_aware: bool = False) -> str:
     try:
         from core.learning.agent_memory import get_agent_memory
         notes = get_agent_memory().get_decisions(days=90)
+        # W37/B6: the GROUND-FIRST pointer renders BEFORE everything else that follows --
+        # the voice precedes the state (tonight's two boots proved the order). Age-stamped
+        # per kimi (a): never grow W04's disease in a new organ.
+        try:
+            gp = next((d for d in get_agent_memory().get_decisions(days=3650)
+                       if d.title == "grounding-pointer" and not d.superseded), None)
+            if gp is not None:
+                g_tags = f" [as of {str(gp.created_at)[:10]}]"
+                try:
+                    from datetime import datetime as _dtg
+                    g_age = (_dtg.now() - _dtg.fromisoformat(str(gp.created_at))).days
+                    if g_age >= GROUNDING_FRESH_DAYS:
+                        g_tags += (f" [STALE? {g_age}d old -- the voice may have moved on; "
+                                   "re-point at wrap]")
+                except Exception:
+                    pass
+                lines.append(f"# GROUND FIRST: {_clip(' '.join(gp.decision.split()), 160)}"
+                             f"{g_tags}")
+        except Exception:
+            pass
         # Governing arc = the <slug>-status note tied to what is ACTIVE, not merely newest:
         # a research note for a parked future arc can be newer than the live arc's status
         # (caught by the T022 smoke: visualgen-status outranked comms-pillar-status). A note
@@ -1716,6 +1738,29 @@ def cmd_wrap(args):
     except Exception:
         flips, injections = [], []
     draft = build_session_draft(commits, lessons, notes, flips=flips, injections=injections)
+    # W37/B6: --grounding sets (or retires) the GROUND-FIRST pointer independently of the
+    # commit -- the voice document the next seat reads before anything else. Tonight's
+    # boots proved the pattern; this makes it substrate instead of an ad-hoc directive.
+    if getattr(args, "grounding", None):
+        mem_g = get_agent_memory()
+        if str(args.grounding).strip().lower() == "none":
+            # kimi (c): absence is DECLARED, never a silent forget.
+            gp = next((d for d in mem_g.get_decisions(days=3650)
+                       if d.title == "grounding-pointer" and not d.superseded), None)
+            if gp is not None and mem_g.retire_decision(gp.id):
+                print("[wrap] grounding pointer declared NONE this wrap -- retired "
+                      f"(was {gp.decision[:80]}); the next seat boots without one, by choice.")
+            else:
+                print("[wrap] grounding declared none (no pointer was set).")
+        else:
+            try:
+                g_id = mem_g.decide_with_retry("grounding-pointer",
+                                               _clip(str(args.grounding), 400),
+                                               curated=True)
+                print(f"[wrap] grounding pointer set -> {args.grounding} (id {g_id}); "
+                      "boot renders it GROUND FIRST with an age stamp.")
+            except Exception as e:
+                print(f"WARN: grounding pointer not recorded: {e}")
     # F4: --focus sets the CURRENT DIRECTIVE independently of the draft commit -- the whole
     # point is to capture priority intent THE MOMENT it is decided, even on a bare wrap.
     if getattr(args, "focus", None):
@@ -1835,6 +1880,24 @@ def cmd_wrap(args):
                               f"py agent_cli.py wrap --focus \"...\"")
         except Exception:
             pass   # the retire is a courtesy; the wrap itself already landed
+    # W37 (kimi (b)): the kept-pointer rule is SPELLED, never silent -- a fresh pointer
+    # (< GROUNDING_FRESH_DAYS) is kept with a receipt line; an old one keeps rendering
+    # but the wrap says so loudly (re-point or declare none).
+    if not getattr(args, "grounding", None):
+        try:
+            gp = next((d for d in mem.get_decisions(days=3650)
+                       if d.title == "grounding-pointer" and not d.superseded), None)
+            if gp is not None:
+                from datetime import datetime as _dtg
+                age_d = (_dtg.now() - _dtg.fromisoformat(str(gp.created_at))).days
+                if age_d < GROUNDING_FRESH_DAYS:
+                    print(f"[wrap] grounding pointer kept: {gp.decision[:80]} ({age_d}d old)")
+                else:
+                    print(f"[wrap] grounding pointer is {age_d}d old ({gp.decision[:60]}) -- "
+                          "re-point with wrap --grounding <path>, or declare none with "
+                          "--grounding none")
+        except Exception:
+            pass
     try:   # the helper owns the pointer; read back which prior this superseded
         raw = mem.store.hget(mem.KEY_DECISIONS, dec_id)
         superseded_prior = (json.loads(raw) or {}).get("supersedes") if raw else None
@@ -3542,6 +3605,9 @@ def build_parser():
 
     wr = sub.add_parser("wrap", help="distill this session (commits+lessons+notes) into a DRAFT where-we-are note")
     wr.add_argument("--hours", type=int, default=12, help="look-back window for commits (default 12)")
+    wr.add_argument("--grounding", default=None, metavar="PATH|none",
+                    help="W37: set the GROUND-FIRST pointer (the voice doc the next seat "
+                         "reads before anything else); 'none' declares absence explicitly")
     wr.add_argument("--commit", action="store_true", help="record the draft as a note (default: just preview)")
     wr.add_argument("--title", default=None, help="note title (default: where-we-are <date>)")
     wr.add_argument("--force", action="store_true",
