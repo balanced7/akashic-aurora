@@ -1,0 +1,72 @@
+{
+ "agent": "claude",
+ "entries": {
+  "standby-hard": {
+   "name": "standby-hard",
+   "kind": "alias",
+   "steps": [
+    [
+     "bifrost-pause",
+     "--reason",
+     "toolbelt-standby",
+     "--by",
+     "claude"
+    ],
+    [
+     "bifrost-skip-to-now",
+     "claude",
+     "--by",
+     "claude",
+     "--reason",
+     "toolbelt-standby-ceremony"
+    ],
+    [
+     "bifrost-resume"
+    ]
+   ],
+   "version": 2,
+   "evidence": "VERIFIED",
+   "tested_against": "test_t099_v0_toolbelt+live-run-2026-07-20",
+   "why": "the pause+skip+resume ceremony typed ~10x on 2026-07-20; arming stays harness-side (wake-listener law)",
+   "status": "active",
+   "created_at": "2026-07-20T23:01:21",
+   "updated_at": "2026-07-20T23:02:07",
+   "author": "claude"
+  }
+ },
+ "history": [
+  {
+   "name": "standby-hard",
+   "kind": "alias",
+   "steps": [
+    [
+     "bifrost-pause",
+     "--reason",
+     "toolbelt-standby",
+     "--by",
+     "claude"
+    ],
+    [
+     "bifrost-skip-to-now",
+     "claude",
+     "--by",
+     "claude",
+     "--reason",
+     "toolbelt-standby-ceremony"
+    ],
+    [
+     "bifrost-resume"
+    ]
+   ],
+   "version": 1,
+   "evidence": "GUESS",
+   "tested_against": null,
+   "why": "the pause+skip+resume ceremony typed ~10x on 2026-07-20; arming stays harness-side (wake-listener law)",
+   "status": "active",
+   "created_at": "2026-07-20T23:01:21",
+   "updated_at": "2026-07-20T23:01:21",
+   "author": "claude",
+   "superseded_at": "2026-07-20T23:02:07"
+  }
+ ]
+}

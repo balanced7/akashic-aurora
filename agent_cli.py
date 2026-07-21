@@ -3589,7 +3589,169 @@ def build_parser():
     lks.add_argument("agent_id", nargs="?", default=""); lks.add_argument("--json", action="store_true")
     lks.set_defaults(fn=cmd_locks)
 
+    # ---- T099 V0 self-tooling (docs/self-tooling-design-2026-07.md) ----
+    cap = sub.add_parser("capture", help="full-fidelity bus read: unwrap a message by stream id "
+                                         "(or last N from an agent) + optional verbatim-persist "
+                                         "(the 5x-hand-written extractor, now a verb)")
+    cap.add_argument("ref", nargs="?", default="", help="stream id (e.g. 1784600898568-0); omit with --from-agent")
+    cap.add_argument("--from-agent", default="", help="newest messages from this sender instead of an id")
+    cap.add_argument("--count", type=int, default=3, help="with --from-agent: how many (default 3)")
+    cap.add_argument("--persist", default="", metavar="PATH",
+                     help="write a verbatim capture file (Status header + body) to PATH")
+    cap.add_argument("--title", default="", help="capture doc title (with --persist)")
+    cap.add_argument("--json", action="store_true")
+    cap.set_defaults(fn=cmd_capture)
+
+    al = sub.add_parser("alias", help="toolbelt authoring: mint/list/retire agent-authored verb "
+                                      "compositions (sugar-only; honesty labels; quota)")
+    al.add_argument("agent_id", help="whose toolbelt (the author)")
+    al.add_argument("action", choices=["mint", "list", "retire", "history"])
+    al.add_argument("name", nargs="?", default="", help="alias name (mint/retire/history)")
+    al.add_argument("--step", action="append", default=[], metavar="'verb arg arg'",
+                    help="one step per flag, shell-style quoted; steps run in order (mint)")
+    al.add_argument("--evidence", default="GUESS", help="VERIFIED|INFER|GUESS (default GUESS -- "
+                                                        "untested sugar confesses)")
+    al.add_argument("--tested-against", default=None, help="pin id proving this alias (upgrades evidence)")
+    al.add_argument("--why", default="", help="one line: the felt friction this kills")
+    al.add_argument("--reason", default="", help="retire reason")
+    al.add_argument("--json", action="store_true")
+    al.set_defaults(fn=cmd_alias)
+
+    rn = sub.add_parser("run", help="execute a toolbelt alias: run <agent> <name> "
+                                    "(explicit door -- a real verb can never be shadowed)")
+    rn.add_argument("agent_id", help="whose toolbelt")
+    rn.add_argument("name", help="the alias to run")
+    rn.add_argument("--dry", action="store_true", help="print the resolved steps, execute nothing")
+    rn.set_defaults(fn=cmd_run)
+
     return p
+
+
+# ---------------------------------------------------------------- T099 V0 self-tooling cmds
+def _capture_decode(raw):
+    """Unwrap the (possibly double-)JSON-encoded content field to plain text."""
+    import json as _json
+    s = str(raw)
+    for _ in range(2):
+        try:
+            v = _json.loads(s)
+        except Exception:
+            break
+        if isinstance(v, str):
+            s = v
+        else:
+            break
+    return s
+
+
+def cmd_capture(args):
+    """Full-fidelity bus read (work + legacy inbox streams) + optional verbatim-persist.
+    The event mirror truncates large payloads (_truncated/_repr husks) -- the STREAMS hold
+    the whole message; this verb reads them directly (T099; born of 5 hand-written extractors)."""
+    import json as _json
+    from core.comm.bus import Bus
+    me = os.environ.get("AKASHIC_AGENT_ID", "claude")   # whose inbox streams to read
+    c = Bus(me)._client
+    if c is None:
+        print("[capture] bus offline"); return 2
+    keys = [f"bifrost:work:inbox:{me}", f"bifrost:inbox:{me}"]
+    hits = []
+    if args.ref:
+        for k in keys:
+            got = c.xrange(k, min=args.ref, max=args.ref)
+            if got:
+                sid, f = got[0]
+                hits.append((str(sid), str(f.get("frm", "?")), str(f.get("kind", "?")),
+                             _capture_decode(f.get("content") or f.get("text") or "")))
+                break
+    elif args.from_agent:
+        seen = set()
+        for k in keys:
+            for sid, f in c.xrevrange(k, count=120):
+                if str(f.get("frm")) != args.from_agent:
+                    continue
+                body = _capture_decode(f.get("content") or f.get("text") or "")
+                h = body[:100]
+                if h in seen:
+                    continue
+                seen.add(h)
+                hits.append((str(sid), args.from_agent, str(f.get("kind", "?")), body))
+                if len(hits) >= max(1, args.count):
+                    break
+            if len(hits) >= max(1, args.count):
+                break
+    else:
+        print("[capture] give a stream id or --from-agent"); return 2
+    if not hits:
+        print(f"[capture] no match for {args.ref or args.from_agent}"); return 1
+    if args.json:
+        print(_json.dumps([{"sid": s, "frm": fr, "kind": kd, "content": b}
+                           for s, fr, kd, b in hits], ensure_ascii=False, indent=1))
+    else:
+        for s, fr, kd, b in hits:
+            print(f"===== {s} | {fr} [{kd}] | {len(b)} chars =====")
+            print(b)
+    if args.persist:
+        import time as _t
+        title = args.title or f"Bus capture {hits[0][0]}"
+        with open(args.persist, "w", encoding="utf-8") as f:
+            f.write(f"# {title}\n\nStatus: current  ({_t.strftime('%Y-%m-%d')}, verbatim bus capture, "
+                    f"stream {hits[0][0]})\n\nCaptured verbatim from the live bus "
+                    f"(research-full-fidelity rule); no edits.\n\n---\n\n")
+            for s, fr, kd, b in hits:
+                f.write(b + "\n")
+        print(f"[capture] persisted {sum(len(b) for *_x, b in hits)} chars -> {args.persist}")
+    return 0
+
+
+def cmd_alias(args):
+    from core.toolbelt.registry import Toolbelt
+    import shlex
+    tb = Toolbelt(args.agent_id)
+    try:
+        if args.action == "mint":
+            if not args.name or not args.step:
+                print("[alias] mint needs a name + at least one --step"); return 2
+            steps = [shlex.split(s) for s in args.step]
+            e = tb.mint(args.name, steps, evidence=args.evidence,
+                        tested_against=args.tested_against, why=args.why)
+            print(f"[alias] minted {e['name']} v{e['version']} [{e['evidence']}] "
+                  f"({len(e['steps'])} step(s)) -- run: py agent_cli.py run {args.agent_id} {e['name']}")
+        elif args.action == "list":
+            print(tb.render_list())
+        elif args.action == "retire":
+            tb.retire(args.name, args.reason)
+            print(f"[alias] retired {args.name} ({args.reason or 'no reason given'})")
+        elif args.action == "history":
+            for h in tb.history(args.name):
+                print(f"  v{h['version']} superseded {h.get('superseded_at','?')}: "
+                      + " -> ".join(s[0] for s in h["steps"]))
+    except (ValueError, KeyError) as e:
+        print(f"[alias] REFUSED: {e}"); return 1
+    return 0
+
+
+def cmd_run(args):
+    """Execute an authored alias. Steps re-enter THIS door as subprocesses -- sugar-only by
+    construction; the alias can do nothing an agent couldn't type at the CLI itself."""
+    import subprocess
+    from core.toolbelt.registry import Toolbelt
+    tb = Toolbelt(args.agent_id)
+    try:
+        steps = tb.resolve(args.name)
+    except KeyError as e:
+        print(f"[run] {e}"); return 1
+    if args.dry:
+        for s in steps:
+            print("  " + " ".join(s))
+        return 0
+    here = os.path.abspath(__file__)
+    def _invoke(argv):
+        print(f"[run:{args.name}] -> {' '.join(argv)}")
+        return subprocess.call([sys.executable, here] + list(argv))
+    rc = tb.resolve_and_run(args.name, runner=_invoke)
+    print(f"[run:{args.name}] {'done' if rc == 0 else f'stopped rc={rc}'}")
+    return rc
 
 
 def main():
