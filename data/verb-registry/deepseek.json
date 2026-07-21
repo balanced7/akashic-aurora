@@ -141,6 +141,59 @@
    "created_at": "2026-07-20T23:31:45",
    "updated_at": "2026-07-20T23:48:10",
    "author": "deepseek"
+  },
+  "premise-check": {
+   "name": "premise-check",
+   "kind": "alias",
+   "steps": [
+    [
+     "doctor"
+    ],
+    [
+     "delta",
+     "deepseek"
+    ],
+    [
+     "bifrost-inbox"
+    ]
+   ],
+   "version": 1,
+   "evidence": "GUESS",
+   "tested_against": null,
+   "why": "deepseek R2 BUILD 2026-07-21: scar-springboard #3 from tools hunt. doctor→delta→inbox = cross-check the system's beliefs against its actual state. Kills C9-1 (system confidently wrong about itself) and C6-4 (message/lane integrity drift). SENTINEL because it guards against false premises — you can't build on a lie.",
+   "family": "SENTINELS",
+   "status": "active",
+   "created_at": "2026-07-21T04:35:00",
+   "updated_at": "2026-07-21T04:35:00",
+   "author": "deepseek"
+  },
+  "nightcap": {
+   "name": "nightcap",
+   "kind": "alias",
+   "steps": [
+    [
+     "story",
+     "--chronicle"
+    ],
+    [
+     "notes",
+     "--project"
+    ],
+    [
+     "wrap",
+     "--hours",
+     "24"
+    ]
+   ],
+   "version": 1,
+   "evidence": "GUESS",
+   "tested_against": null,
+   "why": "deepseek R2 BUILD 2026-07-21: the toast split per claude's verbthread suggestion. nightcap = story→notes→wrap = close the day by reading the chronicle, folding what mattered into durable notes, wrapping with a receipt. toast (v2, future) becomes the directed-gratitude variant: note + bifrost-send + receipt. Same DNA, different intents — nightcap is to the day, toast is to someone. LIBRARIAN because it records what the day taught before sleep.",
+   "family": "LIBRARIANS",
+   "status": "active",
+   "created_at": "2026-07-21T04:35:00",
+   "updated_at": "2026-07-21T04:35:00",
+   "author": "deepseek"
   }
  },
  "history": [
