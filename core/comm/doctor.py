@@ -112,6 +112,62 @@ def _probe_stalled_since(agent: str, present: bool) -> Optional[float]:
         return time.time()
 
 
+def _probe_lane_health(agent: str) -> Optional[Dict[str, Any]]:
+    """W16 (deepseek, 2026-07-21): per-agent lane cursor health -- age, depth, straggler
+    count. Uses W43 effective_cursor() as the building block. Returns None when the agent
+    has no lane cursor (legacy-only consumer) or Redis is down. The three gauges answer
+    'how far behind is this consumer's work cursor?' -- the question doctor couldn't ask
+    before (claude's work cursor was a full day behind; mailbox --explain surfaced it but
+    doctor didn't page it)."""
+    try:
+        from core.comm.bus import Bus
+        from core.comm.lane_depths import work_backlog
+        b = Bus(agent)
+        if not b.online:
+            return None
+        lane = b.read_lane_cursor()
+        inbox_pos = lane.get("inbox", "0")
+        shadow_pos = lane.get("shadow_inbox", "0")
+
+        def _ts(sid) -> float:
+            h, _, _ = str(sid).partition("-")
+            try:
+                return int(h) / 1000.0
+            except (ValueError, OverflowError):
+                return 0.0
+
+        inbox_ts = _ts(inbox_pos)
+        age_s = max(0.0, time.time() - inbox_ts) if inbox_ts > 0 else None
+
+        depth = work_backlog(agent, c=b._client)
+
+        # Straggler: legacy-stream messages between the shadow and the effective cursor
+        straggler = 0
+        try:
+            eff = b.effective_cursor()["inbox"]
+            shadow, _, _ = str(shadow_pos).partition("-")
+            eff_ms, _, _ = str(eff).partition("-")
+            if int(shadow or 0) < int(eff_ms or 0):
+                entries = b._client.xrevrange(b._inbox_key(agent), count=200)
+                def _p(s):
+                    h, _, t = str(s).partition("-")
+                    try:
+                        return (int(h), int(t or 0))
+                    except ValueError:
+                        return (0, 0)
+                sf, ef = _p(shadow_pos), _p(eff)
+                straggler = sum(1 for sid, _ in entries if sf < _p(sid) <= ef)
+        except Exception:
+            pass
+
+        is_lane = any(v != "0" for v in lane.values())
+        if not is_lane:
+            return None
+        return {"age_s": age_s, "depth": depth, "straggler": straggler}
+    except Exception:
+        return None
+
+
 def _probe_halted(agent: str) -> Optional[Dict[str, Any]]:
     try:
         from core.comm import control
@@ -130,6 +186,7 @@ def _default_probes() -> Dict[str, Any]:
         "backlog": _probe_backlog,
         "stalled_since": _probe_stalled_since,
         "halted": _probe_halted,
+        "lane_health": _probe_lane_health,
         "now": time.time(),
     }
 
@@ -238,6 +295,24 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
         cl = _token_cost_line(agent)
         if cl is not None:
             out.append(cl)
+    except Exception:
+        pass
+
+    # W16 (deepseek, 2026-07-21): lane-cursor health -- age, depth, straggler
+    try:
+        lh = p["lane_health"](agent)
+        if lh is not None:
+            parts = [f"{agent}: lane cursor"]
+            if lh["age_s"] is not None:
+                parts.append(f"age {int(lh['age_s'])}s")
+            if lh["depth"]:
+                parts.append(f"depth {lh['depth']}")
+            if lh["straggler"]:
+                parts.append(f"stragglers {lh['straggler']}")
+            lh_line = " -- ".join(parts)
+            out.append(_f(agent, "lane_health", "dashboard",
+                          lh_line if len(parts) > 1 else lh_line + " healthy",
+                          f"py agent_cli.py mailbox --explain {agent}"))
     except Exception:
         pass
 

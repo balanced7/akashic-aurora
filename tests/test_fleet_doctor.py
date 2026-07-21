@@ -34,6 +34,7 @@ def _probes(**over):
         backlog=lambda a: 0,                        # unread messages beyond the cursor
         stalled_since=lambda a, present: None,      # hysteresis first-seen (None = fresh)
         halted=lambda a: None,                      # None | {"reason":..., "age_s":...}
+        lane_health=lambda a: None,                 # W16: lane-mode health (None = legacy)
         now=time.time(),
     )
     base.update(over)
