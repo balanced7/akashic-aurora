@@ -122,7 +122,13 @@ Status flips: `[x] folded â†’ T0xx` / `[~] declined: reason`.
   pins tests/test_w34_suite_baseline.py 6/6; FOUNDING BASELINE recorded from tonight's real
   run (12 failures @5f5738d). Was: Suite-baseline receipt at wrap. Trigger: 12 inherited
   failures took 3 calls + ledger cross-ref to classify.
-- [ ] W35 (07-21, claude) â€” Uncommitted-tree lane partition: the boot mirror heads-up groups the dirty tree by ledger claims + artifact class (sibling-lane mods / research-to-persist / scratch) so surgical-vs-mirror is instant. Trigger: 63 uncommitted files; boot hint said run mirror.py which would have swept the sibling's mid-flight T067/T068 edits. Land: conductor/doctor micro-slice; W31 adjacency.
+- [x] W35 (07-21, claude) â€” FOLDED same night @180e8e2 (claude+kimi 2-of-3; kimi Q4
+  scope ruling honored: "the 80% is the VERB" -- v1 = bucketed counts (modified-tracked
+  vs untracked + top-dir histogram) + safe-default action line; the unqualified
+  `run mirror.py` sweep imperative is DEAD in both soft and loud renders; loud form
+  teaches explicit-paths mirror (IR-4). Claim-inference deferred to v2 as ruled. Pins
+  tests/test_w35_tree_partition.py 4/4. Was: Uncommitted-tree lane partition. Trigger:
+  63 uncommitted files; boot hint said run mirror.py over the sibling's mid-flight edits.
 - [x] W36 (07-21, claude) â€” FOLDED same night @3216d8b (claude+kimi 2-of-3): wrap --commit
   retires a next-focus OLDER than its own look-back window (presumptively consumed by the
   wrapped session), with kimi's blocking amendments folded â€” (a) ORDERING: the new
