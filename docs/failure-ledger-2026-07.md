@@ -69,17 +69,7 @@ to a SERVING file requires a same-turn reload + render receipt.**
 
 ### C9 Epistemological integrity
 
-**C9-2 · CURRENT DIRECTIVE banner outlived its work for THREE consecutive seats** (2026-07-21,
-fresh fable seat; kimi first flagged 07-18 as W04)
-The 2026-07-15 morning-gate `next-focus` note rode boot as "do this FIRST" for kimi (07-18),
-the outgoing fable (07-19/20, called out in the grounding reflection), and the fresh fable
-seat (07-21) — each re-diagnosed it stale by hand via the ledger. Root cause: `next-focus`
-has no supersession tie to wrap (a where-we-are wrap leaves the old directive standing) and
-the render carried no age/status information. **Routing: stamp half FIXED @8cf9352 (the line
-now confesses `[as of <date>] [STALE? Nd old] [LEDGER DISAGREES: T0xx DONE]` — the SILENT
-variant can't recur; pins tests/test_w04_directive_staleness.py). Root-cause half = W36
-(wrap supersedes/retires next-focus), held for the seat-zero wave counters (night consensus
-protocol). Entry closes when W36 lands.**
+*(C9-2 moved to CLOSED 2026-07-21 same-night — see CLOSED section.)*
 
 **C9-1 · Self-justifying knowledge loop: agents author, verify, and ledger their own claims
 — no external ground truth crosses the membrane** (2026-07-16, RED team Jester Forge audit)
@@ -569,6 +559,17 @@ retry-once wrapper in the standby verb IF it recurs (count: 1).**
 ---
 
 ## CLOSED (fix receipts)
+
+**C9-2 CURRENT DIRECTIVE banner outlived its work for THREE consecutive seats** → CLOSED
+same-night (2026-07-21; kimi first flagged 07-18 as W04). The class dies at BOTH ends:
+(1) boot CONFESSES — `[as of <date>] [STALE? Nd old] [LEDGER DISAGREES: T075 PARKED]`
+@8cf9352+@aeab4b9 (kimi's B1(c) extended the check to parked/abandoned after the DONE-only
+version stayed silent on the live banner; pins tests/test_w04_directive_staleness.py 5/5);
+(2) wrap RETIRES — a next-focus older than the wrap's look-back window tombstones with a
+loud receipt + successor ref, ordering-pinned so a mid-way death never gaps the slot
+@3216d8b (W36, claude+kimi 2-of-3; pins tests/test_w36_wrap_supersedes_focus.py 5/5).
+The offending 07-15 banner itself was refreshed through the door (ADR_0721023007). A
+fourth seat can be neither silently fooled nor left to re-diagnose by hand.**
 
 **C1-9 pause-without-TTL: a mid-ceremony crash freezes the fleet until human hands** →
 CLOSED same-night (2026-07-21, deepseek's find in the TOOLS PASS 2 review — "the C1-8 genus
