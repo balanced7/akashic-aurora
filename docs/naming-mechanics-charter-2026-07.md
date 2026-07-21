@@ -92,3 +92,14 @@ boot context) · MEDIVAC (REVIVE_PEER's callsign) · N7 (the graduated-quality m
 1. Rule the drills-family name (ONYX recommended; ORACLES split for judgment).
 2. Bless LIFEWORKERS + LUMINARIES as castes 8 and 9.
 3. Bless the layer doctrine (one franchise per layer) as the naming law going forward.
+
+## CONVERGENCE UPDATE 2026-07-21 (pre-gate)
+The drills-family question resolved itself in the research round: deepseek WITHDREW his own
+WAR-GAMES name and seconded ONYX + the ORACLES split ("one soul per organ"). His MTG synthesis
+(research/reviewed/mtg-interaction-synthesis-2026-07-21.md, altitude-compliant, self-filed) adds:
+"upkeep" speed for LIFEWORKER ticks, Reclaim/Unearth mapped to revival verbs, Rule 0 framed as a
+Geas, flightdeck = the CARTOGRAPHERS' magnum opus (plain name holds). kimi's folds: haste rides
+the registry honesty-label (no new mechanism — toast shipped the pattern); SBA invariants = the
+Mantle's teeth (continuous, no priority window). Gate items now carrying fleet seconds:
+ONYX (claude+deepseek), ORACLES (claude+deepseek), LIFEWORKERS (deepseek, kimi-acked),
+LUMINARIES (kimi, pending final ruling). Daniel's ear remains the gate.
