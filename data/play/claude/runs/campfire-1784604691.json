@@ -1,0 +1,13 @@
+{
+ "tool": "campfire",
+ "seat": "claude",
+ "rc": 0,
+ "duration_s": 0.02,
+ "bytes_out": 2821,
+ "inputs": {
+  "commits": 15,
+  "verbs": 4,
+  "wishes": 4
+ },
+ "ts": "2026-07-20T23:31:31"
+}
