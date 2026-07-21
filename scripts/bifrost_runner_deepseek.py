@@ -42,6 +42,7 @@ from core.comm import nudge
 from core.comm import runner_lock
 from core.comm import context_hints
 from core.comm import packet_spec, triage_park
+from core.comm import storm_detect, lane_depths, cursor_admin
 from core.coord import cognitive_metrics as cog
 from ask_deepseek import load_key, BASE_URL, DEFAULT_MODEL
 
@@ -968,6 +969,10 @@ def main() -> int:
     liveness.worklive(args.agent).set("starting", detail="onboarding")
     liveness.pulse(args.agent, "starting", generation=PULSE_GEN[0])
 
+    # S0 storm auto-clear: one detector per runner tenure (in-memory sliding window;
+    # a crash resets it, which is safe -- fresh runner, clean windows).
+    _storm = storm_detect.StormDetector()
+
     # T078 W1: daily token journal (the meter -- every W2+ slice gets a before/after receipt)
     try:
         from scripts.runner_token_journal import TokenJournal
@@ -1161,6 +1166,75 @@ def main() -> int:
                                          by=f"{args.agent}-runner")
                     except Exception:
                         pass  # park is best-effort; stale notice + cursor advance still fire
+            # S0 storm auto-clear (deepseek build, kimi second-observer K1-K3 folded,
+            # claude fence+wire; 2-of-3 night protocol 2026-07-21). Detect -> pause(ttl)
+            # -> skip -> K1 park fresh asks -> K2 conditional resume -> receipt -> skip
+            # batch. The conveyor's first full auto-transit: standby-hard graduates from
+            # human ritual to auto-detected, WITH a receipt.
+            _wd = lane_depths.lane_depths(args.agent).get("work", 0)
+            _storm_sig = _storm.feed(_wd, [getattr(m, "id", "") for m in msgs])
+            if _storm_sig:
+                print(f"[deepseek-runner] STORM: {_storm_sig['kind']} ({_storm_sig}) "
+                      f"-- auto-clearing (standby-hard graduate)")
+                _cleared = False
+                _parked_ids = []
+                # K2 (kimi; lesson control-pause-clobbers-preexisting-pause): never void
+                # a pre-existing pause -- a human's persistent freeze outranks the ceremony.
+                _was_paused = control.is_paused()
+                try:
+                    control.pause(reason=f"storm-auto-clear: {_storm_sig['kind']} "
+                                         f"(depth={_wd} thr={_storm.depth_threshold})",
+                                  by=f"{args.agent}-runner", ttl=120)
+                    time.sleep(0.3)          # let the pause propagate to other runners
+                    _res = cursor_admin.skip_to_now(
+                        args.agent, by=f"{args.agent}-runner",
+                        reason=f"storm-auto-clear: {_storm_sig['kind']}")
+                    if _res.get("ok"):
+                        _cleared = True
+                        # K1 (kimi + claude concur): fresh ask-kinds in the drained batch
+                        # park AFTER the skip commits -- bottomed-never-dropped beats
+                        # redrive-roulette; in-batch id-dedup bounds the bench noise.
+                        _seen_ids = set()
+                        for _m in msgs:
+                            _mid = getattr(_m, "id", "")
+                            if (_mid and _mid not in _seen_ids
+                                    and packet_spec.is_ask_kind(getattr(_m, "kind", ""))
+                                    and str(getattr(_m, "frm", "")) != args.agent):
+                                _seen_ids.add(_mid)
+                                try:
+                                    triage_park.park(
+                                        args.agent,
+                                        {"id": _mid, "frm": getattr(_m, "frm", ""),
+                                         "to": getattr(_m, "to", ""),
+                                         "kind": getattr(_m, "kind", ""),
+                                         "content": getattr(_m, "content", ""),
+                                         "ts": getattr(_m, "ts", "")},
+                                        reason=f"storm auto-clear: {_storm_sig['kind']}",
+                                        by=f"{args.agent}-runner")
+                                    _parked_ids.append(_mid)
+                                except Exception:
+                                    pass     # per-ask best-effort (the D2 loop's mirror)
+                    if not _was_paused:
+                        control.resume()     # our pause only; a human's stays standing
+                except Exception:
+                    pass   # fail-open: ttl=120 self-heals any orphaned pause (C1-9)
+                if _cleared:
+                    try:
+                        bus.broadcast(
+                            "note",
+                            f"[storm-clear] {args.agent}-runner auto-cleared "
+                            f"{_storm_sig['kind']}: pause->skip->resume"
+                            + (" (pre-existing pause left standing)" if _was_paused else "")
+                            + f". Parked {len(_parked_ids)} fresh ask(s)"
+                            + (f": {', '.join(_parked_ids)}" if _parked_ids else "")
+                            + ". Receipt: standby-hard graduates to auto-detected.",
+                            meta={"via": "storm-auto-clear", "display_only": True})
+                    except Exception:
+                        pass
+                    _storm.reset()
+                    continue                 # cursors already at tail via skip_to_now
+                # ceremony aborted (skip refused/raised): fall through -- process the
+                # batch normally; K2 guidance: never redeliver-and-refire the signature.
             fenced_out = False
             for m in msgs:
                 killpoint("post-consume-pre-process")

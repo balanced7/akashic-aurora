@@ -79,6 +79,21 @@ def test_below_threshold_silent():
     assert d.feed(30, []) is None, "all below 50 => no spike"
 
 
+def test_healthy_drain_stays_silent():
+    """K3 (kimi second-observer): a strictly-decreasing supra-threshold window is a
+    HEALTHY boot-drain under the batch cap, not a storm -- it must never fire.
+    (Without the guard, any >=150 backlog guaranteed a false ceremony: 300->250->200.)"""
+    from core.comm.storm_detect import StormDetector
+    d = StormDetector(depth_threshold=50, depth_window=3)
+    assert d.feed(300, []) is None
+    assert d.feed(250, []) is None
+    assert d.feed(200, []) is None, "draining despite depth => silent (progress guard)"
+    # flat/rising flood still fires -- refill >= consumption at depth IS the storm
+    d2 = StormDetector(depth_threshold=50, depth_window=3)
+    d2.feed(60, []); d2.feed(62, [])
+    assert d2.feed(61, []) is not None, "no net drain across the window => fires"
+
+
 def test_empty_batch_silent():
     """An empty message batch never fires repeat-delivery."""
     from core.comm.storm_detect import StormDetector

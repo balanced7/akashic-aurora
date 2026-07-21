@@ -63,9 +63,14 @@ class StormDetector:
         immediately — the detector does NOT auto-reset (a second call with the same
         spike returns the same signature; the caller's clear action stops the feed)."""
         self._depths.append(work_depth)
-        # LANE-DEPTH SPIKE: all window samples >= threshold
+        # LANE-DEPTH SPIKE: all window samples >= threshold AND no net drain progress
+        # across the window (K3, kimi second-observer 2026-07-21): a storm is depth that
+        # PERSISTS despite consumption; a healthy boot-drain (300->250->200 under the
+        # batch cap of 50) is depth that falls and must stay silent -- a guard that cries
+        # wolf on every busy boot trains operators to disable it.
         if (len(self._depths) == self.depth_window
-                and all(d >= self.depth_threshold for d in self._depths)):
+                and all(d >= self.depth_threshold for d in self._depths)
+                and self._depths[-1] >= self._depths[0]):
             return {"kind": "lane_depth_spike",
                     "depth": work_depth,
                     "threshold": self.depth_threshold,
