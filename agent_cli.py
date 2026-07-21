@@ -130,35 +130,60 @@ def _working_tree_status():
         if rc.returncode == 0 and rc.stdout.strip().isdigit():
             ahead = int(rc.stdout.strip())
         return {"ok": True, "dirty": len(dirty), "ahead": ahead, "branch": branch,
-                "summary": ", ".join(d[3:] for d in dirty[:6])}
+                "summary": ", ".join(d[3:] for d in dirty[:6]), "lines": dirty}
     except Exception:
         return {"ok": False, "dirty": 0, "ahead": 0, "branch": "", "summary": ""}
 
 
-def _warn_unmirrored(soft=False):
-    """Tell the agent if it has uncommitted/unpushed work -- a slice isn't done until
-    it's mirrored. `soft` is a one-line heads-up (boot); otherwise it's the loud
-    session-end nag (handoff). Returns True if it warned. Silent when git is
-    unavailable or the tree is clean.
-    """
-    s = _working_tree_status()
+def _bucket_tree(porcelain_lines: list) -> dict:
+    """W35/B5: partition `git status --porcelain` lines into what a seat can act on
+    SAFELY -- modified-tracked (possibly a sibling's mid-flight lane) vs untracked
+    (usually your own artifacts), plus a top-level-dir histogram (~free, kimi Q4)."""
+    modified = untracked = 0
+    dirs: dict = {}
+    for ln in porcelain_lines:
+        code, _, path = str(ln).partition(" ") if str(ln).startswith("??") \
+            else (str(ln)[:2], "", str(ln)[3:])
+        path = path.strip().strip('"')
+        if str(ln).startswith("??"):
+            untracked += 1
+        else:
+            modified += 1
+        top = path.replace("\\", "/").split("/", 1)[0] if path else "?"
+        dirs[top] = dirs.get(top, 0) + 1
+    return {"modified": modified, "untracked": untracked, "dirs": dirs}
+
+
+def _warn_unmirrored(soft=False, status=None):
+    """Tell the agent if it has uncommitted/unpushed work -- BUCKETED (W35/B5, kimi Q4:
+    the harm was the unqualified `run mirror.py` imperative printed over a SIBLING's
+    mid-flight edits; the sweep imperative is dead). `soft` = boot heads-up; loud =
+    session-end nag. Returns True if it warned; silent on clean/unavailable git.
+    `status` injectable for tests."""
+    s = status if status is not None else _working_tree_status()
     if not s.get("ok") or (s["dirty"] == 0 and s["ahead"] == 0):
         return False
+    b = _bucket_tree(s.get("lines") or [])
+    top = ", ".join(f"{d} {n}" for d, n in
+                    sorted(b["dirs"].items(), key=lambda kv: -kv[1])[:5])
     bits = []
     if s["dirty"]:
-        bits.append(f"{s['dirty']} uncommitted file(s)")
+        bits.append(f"{b['modified']} modified (tracked), {b['untracked']} untracked")
     if s["ahead"]:
         bits.append(f"{s['ahead']} unpushed commit(s)")
-    label = ", ".join(bits)
+    label = "; ".join(bits) + (f" | top dirs: {top}" if top else "")
     if soft:
-        print(f"\n[i] Heads-up: {label} not yet mirrored -- "
-              'run `py scripts/mirror.py "msg"` when this slice is done.')
+        print(f"\n[i] Unmirrored: {label}\n"
+              "    Safe default: commit YOUR OWN lane's files BY NAME; modified-tracked "
+              "files may be a sibling's mid-flight work (check `task list` claims). "
+              "research/** persists by doctrine.")
         return True
     print(f"\n[!] UNMIRRORED WORK: {label} -- a slice isn't done until it's mirrored.")
     if s.get("summary"):
         print(f"    changed: {s['summary']}" + (" ..." if s["dirty"] > 6 else ""))
-    print('    Run:  py scripts/mirror.py "<msg>"  (commit+push),'
-          ' then  py scripts/snapshot_knowledge.py snapshot')
+    print('    Run:  py scripts/mirror.py "<msg>" <explicit paths>  (commit+push, YOUR '
+          "files only -- never a sweep over a sibling's lane), then  "
+          "py scripts/snapshot_knowledge.py snapshot")
     return True
 
 
