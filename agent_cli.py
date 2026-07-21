@@ -1140,6 +1140,29 @@ def _transport_line(door=None, detail=None) -> str:
             + "; remedy: user-scoped MCP w/ absolute paths [T081-W2] or cd E:\\AI-Setup && restart")
 
 
+DIRECTIVE_STALE_DAYS = 3   # W04: a directive older than this confesses its age at boot
+
+
+def _directive_done_tasks(focus_text: str) -> list:
+    """W04 ledger cross-check: T-numbers the directive names whose ledger status is DONE.
+    Fail-open (ledger down -> []): the stamp informs, it must never block a boot."""
+    import re
+    ids = sorted(set(re.findall(r"\bT\d{3}\b", str(focus_text or ""))))
+    if not ids:
+        return []
+    try:
+        from core.coord.task_ledger import state_view
+        status = {}
+        for v in state_view().values():
+            if isinstance(v, list):
+                for t in v:
+                    if isinstance(t, dict) and t.get("id"):
+                        status[str(t["id"])] = str(t.get("status", ""))
+        return [i for i in ids if status.get(i, "").lower() == "done"]
+    except Exception:
+        return []
+
+
 def _orientation_header(agent_id: str, primer_aware: bool = False) -> str:
     """The boot head a COLD agent (or a stateless peer's trimmed onboarding) needs first:
     map -> governing arc -> where-we-are -> precedence -> compact ledger. Every line derived
@@ -1234,8 +1257,27 @@ def _orientation_header(agent_id: str, primer_aware: bool = False) -> str:
         nf = next((d for d in notes if d.title == "next-focus"), None)
         if nf:
             focus = " ".join((nf.decision or "").split())
+            # W04 (three-bite wish: three consecutive seats re-diagnosed one stale banner):
+            # a directive that outlives its work must CONFESS, not command -- date stamp
+            # always, age flag past DIRECTIVE_STALE_DAYS, and a ledger cross-check on any
+            # T-number it names (the precedence doctrine rendered inline). All fail-open.
+            tags = ""
+            created = str(nf.created_at or "")
+            if created[:10]:
+                tags += f" [as of {created[:10]}]"
+            try:
+                from datetime import datetime as _dt
+                age_d = int((_dt.now() - _dt.fromisoformat(created)).days)
+                if age_d >= DIRECTIVE_STALE_DAYS:
+                    tags += f" [STALE? {age_d}d old -- verify against the ledger]"
+            except Exception:
+                pass
+            done_named = _directive_done_tasks(focus)
+            if done_named:
+                tags += (f" [LEDGER DISAGREES: {', '.join(done_named)} DONE -- "
+                         f"trust the ledger]")
             lines.append(f"# >> CURRENT DIRECTIVE (do this FIRST; beats the NEXT list order): "
-                         f"{_clip(focus, 160)}")
+                         f"{_clip(focus, 160)}{tags}")
         else:
             lines.append("# [GAP] CURRENT DIRECTIVE: (none set -- use `wrap --focus` to set priority)")
     except Exception:
