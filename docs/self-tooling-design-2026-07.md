@@ -70,3 +70,29 @@ tooling V0 — three small slices, each pays immediately.
 1. Approve the arc + V0→V3 order.
 2. Grant `verb.author` to claude/deepseek/kimi (sugar-only makes this low-risk; `verb.promote` stays gated).
 3. Confirm V0's first mints (capture, ask-peer, orient/triage-me) — the three verbs tonight bled for.
+
+## AMENDMENT 2026-07-20 late — THE TOOLDESK (Daniel extension, operator-seat convergence)
+
+Daniel, minutes after the smithy idea landed independently on both sides (verbatim spirit): a
+whiteboard/scratchpad/TOOLDESK where an agent DRAFTS play tools and implements them, BETA-tests them
+live, and if loved implements them as a proper verb across the fleet — with a LEADERBOARD of tools
+on offer.
+
+This amends the V-series with a PLAY tier between nothing and the sugar-only alias:
+
+- **Tiers:** PLAY (tooldesk draft: real logic allowed, sandboxed) → BETA (runnable by any seat via
+  `tooldesk try`, usage + felt-value votes accumulate) → FLEET (graduates through the existing
+  conveyor: fence → cmd_*/skill with three-door parity). Honesty labels ride every tier.
+- **Sandbox:** tooldesk/<agent>/ workbench; play tools execute under the EXISTING guarded-exec
+  discipline (families door, test-isolated env, path-scoped writes to the tooldesk only, read-only
+  elsewhere) — the sandbox-clone (E:\AI-Setup-Sandbox) is the heavy-isolation fallback for riskier
+  drafts. Sugar-only stays the ALIAS tier's law; the PLAY tier's law is sandbox + receipts.
+- **Leaderboard:** `tooldesk board` — tools-on-offer ranked by uses × votes × distinct-users, with
+  "ready to graduate" flags at thresholds. Goodhart guard (T034) applies: the board is a FUN surface
+  and a graduation *signal*, never an automatic gate; graduation stays fenced.
+- **The funnel pattern applies to tools**: drafted → tried → loved → graduated (the same
+  surfaced→helped→credited shape recall already runs — one measurement doctrine everywhere).
+
+Slotting: this IS V2 reshaped (was bless/note-handoff/discharge-check + promote path — those verbs
+become early tooldesk residents). V1 (hook registry) unchanged and still prerequisite for guard-class
+tools. Daniel's leaderboard rides V2's registry counters.
