@@ -3998,6 +3998,12 @@ def build_parser():
     cbs.add_argument("--json", action="store_true")
     cbs.set_defaults(fn=cmd_clobber_scan)
 
+    uw = sub.add_parser("unwedge", help="W31 (deepseek): one-verb wedge diagnosis -- why is "
+                                         "this agent stuck? READ-only v1 (recommends, never acts)")
+    uw.add_argument("agent", help="the agent to diagnose")
+    uw.add_argument("--json", action="store_true")
+    uw.set_defaults(fn=cmd_unwedge)
+
     fu = sub.add_parser("followup", help="charter question-back (W46): append a q-id'd "
                                          "question to a verdict's Open Questions block + "
                                          "defer it to the responsible seat")
@@ -4359,6 +4365,16 @@ def cmd_clobber_scan(args):
         return 0
     print(clobber_scan.render(findings))
     return 1 if findings else 0
+
+
+def cmd_unwedge(args):
+    """unwedge <agent>: one-verb diagnosis -- why is this agent stuck. READ-only v1
+    (W31, deepseek design). Synthesizes doctor + lane health + depths + locks + runner
+    into one verdict and recommendation. Returns exit 0 healthy, 1 if page-grade.""" 
+    from core.comm.doctor import unwedge, format_unwedge
+    r = unwedge(args.agent)
+    print(format_unwedge(r, json_mode=getattr(args, "json", False)))
+    return 1 if r["status"] in ("wedged", "stalled", "frozen", "down") else 0
 
 
 def cmd_followup(args):

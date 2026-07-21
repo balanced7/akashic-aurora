@@ -334,7 +334,159 @@ def _f(agent, state, grade, line, drill):
     return {"agent": agent, "state": state, "grade": grade, "line": line, "drill": drill}
 
 
-def _token_cost_line(agent: str, journal_dir: str = "") -> Optional[Dict[str, Any]]:
+def unwedge(agent: str) -> Dict[str, Any]:
+    """W31 (deepseek, why-am-i-wedged, 2026-07-21): one-verb diagnostic — synthesize all
+    doctor findings + lane health + lane depths + runner presence into ONE verdict and
+    recommendation. READ-ONLY (v1 — acting is v2 behind a flag). The answer to 'why is
+    this agent stuck?' that replaces 3+ manual tool calls. Returns {'agent', 'status',
+    'verdict', 'recommendation', 'evidence'}."""
+    evidence: Dict[str, Any] = {"findings": [], "lane_health": None, "lane_depths": {},
+                                "runner_status": "unknown", "locks": []}
+    # 1) Doctor findings (the full examine)
+    try:
+        evidence["findings"] = examine(agent)
+    except Exception:
+        pass
+    # 2) Lane health (W16 — age, depth, straggler)
+    try:
+        evidence["lane_health"] = _probe_lane_health(agent)
+    except Exception:
+        pass
+    # 3) Lane depths (work, legacy, trace, sig XLEN + work backlog)
+    try:
+        from core.comm.lane_depths import lane_depths, work_backlog
+        evidence["lane_depths"] = {
+            **lane_depths(agent),
+            "work_backlog": work_backlog(agent),
+        }
+    except Exception:
+        pass
+    # 4) Runner status
+    try:
+        from core.comm.runner_lock import holder
+        from core.comm.incarnation import daemon_runtimes
+        h = holder(agent) or {}
+        rt = daemon_runtimes(agent)
+        runner = rt.get("runner", "")
+        if runner == "blocked":
+            evidence["runner_status"] = "blocked"
+        elif runner == "down":
+            evidence["runner_status"] = "down"
+        elif h.get("token"):
+            evidence["runner_status"] = "live"
+        else:
+            evidence["runner_status"] = "absent"
+    except Exception:
+        pass
+    # 5) Locks held
+    try:
+        from core.comm import locks
+        lm = locks.LockManager(agent)
+        held = lm.list_held() if hasattr(lm, "list_held") else []
+        evidence["locks"] = held[:20]
+    except Exception:
+        pass
+
+    # --- SYNTHESIZE ---
+    pages = [f for f in evidence["findings"] if f.get("grade") == "page"]
+    banners = [f for f in evidence["findings"] if f.get("grade") == "banner"]
+    lh = evidence["lane_health"] or {}
+    depths = evidence["lane_depths"]
+    runner = evidence["runner_status"]
+    frozen = any(f["state"] == "frozen" for f in evidence["findings"])
+    hard_wedge = any(f["state"] == "hard_wedge" for f in pages)
+    stalled = any(f["state"] == "stalled_consumer" for f in pages)
+
+    if frozen:
+        status, verdict, rec = "frozen", (
+            f"{agent}: FROZEN — deliberately paused/halted. No action required unless "
+            "this is stale."), "resume: py agent_cli.py bifrost-resume"
+    elif hard_wedge:
+        status, verdict, rec = "wedged", (
+            f"{agent}: HARD WEDGE — died inside a turn, not self-healing. Revive."), (
+            "relaunch the runner; check py-spy dump on the old pid for root cause")
+    elif stalled and lh.get("depth", 0) > 0:
+        age = int(lh.get("age_s", 0) or 0)
+        status, verdict, rec = "stalled", (
+            f"{agent}: STALLED — {lh['depth']} unprocessed on the work lane "
+            f"(lane cursor {age}s behind)" + (f", {len(evidence['locks'])} lock(s) held"
+            if evidence["locks"] else "")), (
+            f"triaged drain: py scripts/mirror.py skip-to-now {agent} "
+            f"| or drill down: py agent_cli.py mailbox --explain {agent}")
+    elif stalled:
+        status, verdict, rec = "stalled", (
+            f"{agent}: STALLED CONSUMER — backlog present but lane cursor current; "
+            "legacy mail may have accumulated"), (
+            f"sync: py agent_cli.py bifrost-sync {agent}")
+    elif runner == "down":
+        status, verdict, rec = "down", (
+            f"{agent}: runner DOWN — daemon holds presence but no live runner"), (
+            f"restart daemon: py scripts/bifrost_daemon.py --agent {agent} --spawn-runner")
+    elif runner == "blocked":
+        status, verdict, rec = "down", (
+            f"{agent}: RUNNER BLOCKED — circuit breaker tripped"), (
+            f"restart daemon to reset: py scripts/bifrost_daemon.py --agent {agent} --spawn-runner")
+    elif runner == "absent":
+        status, verdict, rec = "down", (
+            f"{agent}: no runner process found (no live lock, no presence)"), (
+            f"start: py scripts/bifrost_runner_deepseek.py --agent {agent} --agentic")
+    elif lh.get("depth", 0) > 10:
+        status, verdict, rec = "backlogged", (
+            f"{agent}: BUSY — {lh['depth']} on the work lane but pulse is fresh. "
+            "Working, not wedged."), "monitor: py agent_cli.py doctor"
+    elif lh.get("straggler", 0) > 0:
+        status, verdict, rec = "healthy", (
+            f"{agent}: HEALTHY — {lh.get('straggler', 0)} straggler(s) on legacy stream "
+            "(dual-write soak, self-clears)"), "monitor: py agent_cli.py doctor"
+    elif runner == "live":
+        status, verdict, rec = "healthy", (
+            f"{agent}: HEALTHY — runner live, lane current, no page-grade findings"), (
+            "no action needed: py agent_cli.py doctor")
+    else:
+        status, verdict, rec = "healthy", (
+            f"{agent}: HEALTHY — no runner, no backlog, no findings"), (
+            "no action needed")
+
+    return {"agent": agent, "status": status, "verdict": verdict,
+            "recommendation": rec, "evidence": evidence}
+
+
+def format_unwedge(r: Dict[str, Any], json_mode: bool = False) -> str:
+    """Render unwedge result as a compact text report with evidence drill-downs."""
+    if json_mode:
+        import json as _json
+        return _json.dumps({k: r[k] for k in ("agent", "status", "verdict",
+                              "recommendation", "evidence")}, indent=2, default=str)
+    lines = [f"{r['verdict']}", f"  recommendation: {r['recommendation']}"]
+    ev = r.get("evidence") or {}
+    pages = [f for f in ev.get("findings", []) if f.get("grade") == "page"]
+    if pages:
+        lines.append("  page-grade findings:")
+        for p in pages:
+            lines.append(f"    [{p['state']}] {p['line']}")
+            if p.get("drill"):
+                lines.append(f"      drill: {p['drill']}")
+    lh = ev.get("lane_health") or {}
+    if lh:
+        parts = []
+        if lh.get("age_s") is not None:
+            parts.append(f"age {int(lh['age_s'])}s")
+        if lh.get("depth"):
+            parts.append(f"depth {lh['depth']}")
+        if lh.get("straggler"):
+            parts.append(f"stragglers {lh['straggler']}")
+        if parts:
+            lines.append(f"  lane cursor: {', '.join(parts)}")
+    depths = ev.get("lane_depths") or {}
+    if depths:
+        dp = [f"{k}={v}" for k, v in sorted(depths.items()) if v]
+        if dp:
+            lines.append(f"  lane depths: {', '.join(dp)}")
+    if ev.get("locks"):
+        lines.append(f"  held locks ({len(ev['locks'])}): "
+                     f"{', '.join(str(l) for l in ev['locks'][:5])}")
+    lines.append(f"  runner: {ev.get('runner_status', 'unknown')}")
+    return "\n".join(lines)
     """Read today's token journal and render a dashboard-grade cost line. None when
     absent or zero-turn. T078 W1: the meter that every lever slice gets a receipt from."""
     import os as _os
