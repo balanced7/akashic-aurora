@@ -100,11 +100,17 @@ Decision: hold or extend.
 Recommendation: hold admin.grant; revisit after two more whole-arc cycles land clean.
 RULING CAPTURE → Verbatim: · Rationale: · Uncertainty: · Falsifiers: · Scope: G9/security.
 
-### G10 · Dirty trio + suite re-baseline
-Context: conductor/bifrost_ui/ship dirt pre-existing; suite baseline @5f5738d/12 stands; my
-full run read 16 (extras cluster in sibling in-flight lanes); deepseek's C6-7 run adds a fresh
-number (folded when it lands). Re-baseline wants a clean tree.
-Decision: sequence the cleanup + authorize the re-baseline commit.
+### G10 · Dirty trio + suite re-baseline — ⚠ OVERNIGHT UPDATE (a live red, honestly reported)
+Context: conductor/bifrost_ui/ship dirt pre-existing; baseline @5f5738d/12 stands; my pre-C6-7
+run read 16 (sibling-lane extras). POST-C6-7 the full suite reads **22**: 6 NEW + 1 shifted,
+ALL in bus consume/death-path seams the _emit rewrite touched (bus_advance_guarded,
+killwindow_drill ×5, wake_detect shifted). The deferred acceptance #5 caught what four green
+targeted suites could not — the immune system catching the fence itself. Red report with the
+exact diff is with the builder (its whole-arc fix; fix-forward default; runtime mitigation
+lever exists: BIFROST_LANES_DUAL_WRITE=0). The fence's ordering miss (committing on 4-of-6
+with #5 still running) is filed under claude: lesson `fence_commits_before_full_suite`.
+Decision: sequence the cleanup; authorize re-baseline only after the C6-7 regression resolves
+on a clean tree.
 RULING CAPTURE → Verbatim: · Rationale: · Uncertainty: · Falsifiers: · Scope: G10/floor.
 
 ### G11 · W53 date-canon + W58 counter placement (library census pair)
