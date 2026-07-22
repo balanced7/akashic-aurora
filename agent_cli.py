@@ -778,20 +778,36 @@ def cmd_harnesses(args):
 
 
 # --------------------------------------------------------------------- injections
+def _family_gauge_render(g):
+    """W54: one-line render of injections_by_family -- conductor first (the stance family is the
+    reason the gauge exists), then the busiest others. '1/35' = injections carrying that family
+    over all injections in the window."""
+    total = int(g.get("total", 0) or 0)
+    fams = dict(g.get("families") or {})
+    rest = sorted(((f, n) for f, n in fams.items() if f != "conductor"),
+                  key=lambda kv: (-kv[1], kv[0]))[:5]
+    parts = [f"conductor {int(fams.get('conductor', 0))}/{total}"]
+    parts += [f"{f} {n}/{total}" for f, n in rest]
+    return " · ".join(parts)
+
+
 def cmd_injections(args):
     """The injection ledger: everything recall PUSHED into agent contexts recently -- when,
     at which altitude (action/plan), for which target, which lessons, and what it cost.
     Injected context must never be hidden state; this is the inspection window."""
-    from core.recall.at_action import recent_injections
+    from core.recall.at_action import recent_injections, injections_by_family
     hours = float(args.hours or 24)
     inj = recent_injections(hours)
+    fam = injections_by_family(hours, injections=inj)
     if args.json:
         print(json.dumps({"window_hours": hours, "count": len(inj),
                           "tokens_approx": sum(int(i.get("chars", 0)) for i in inj) // 4,
+                          "by_family": fam["families"],
                           "injections": inj}, indent=2))
         return 0
     print(f"# INJECTION LEDGER  (last {hours:g}h: {len(inj)} injection(s), "
           f"~{sum(int(i.get('chars', 0)) for i in inj) // 4} tokens pushed)")
+    print(f"  by family (W54 activation gauge): {_family_gauge_render(fam)}")
     if not inj:
         print("  (none -- either quiet, or nothing cleared the relevance floor)")
         return 0
@@ -1693,6 +1709,15 @@ def build_session_draft(commits, lessons, notes, max_per=8, flips=None, injectio
             for t in gaps[:max_per]:
                 lines.append(f"  - {_clip(_human_flip_target(t), 100)}")
     if injections:
+        # W54 activation gauge (kimi F3): family-grouped firing rate at the reflective moment --
+        # a "proven" claim about an organ must quote this number, not an anecdote.
+        try:
+            from core.recall.at_action import injections_by_family
+            g = injections_by_family(injections=injections)
+            lines.append(f"Recall activation by family ({int(g.get('total', 0))} injection(s) this session): "
+                         + _family_gauge_render(g))
+        except Exception:
+            pass
         # RECALL REVIEW: what recall pushed this session, vote-ready. One keystroke at the natural
         # reflective moment beats a mid-work vote nobody casts.
         counts = {}
@@ -2713,6 +2738,12 @@ def cmd_doctor(args):
             print(f"  [{f['grade']:^9}] {f['line']}")
             if f.get("drill"):
                 print(f"              start: {f['drill']}")
+    try:   # W54 (kimi F3): the activation gauge -- organ claims read the instrument, not anecdotes
+        from core.recall.at_action import injections_by_family
+        print("## ACTIVATION (recall injections by lesson family, 24h)")
+        print(f"  {_family_gauge_render(injections_by_family(24.0))}")
+    except Exception:
+        pass
     return 0
 
 

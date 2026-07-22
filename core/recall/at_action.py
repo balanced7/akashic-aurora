@@ -745,6 +745,28 @@ def recent_injections(hours: float = 24.0) -> List[Dict[str, Any]]:
     return out
 
 
+def injections_by_family(hours: float = 24.0, injections=None) -> Dict[str, Any]:
+    """W54 (kimi F3, the activation gauge): group the injection ledger by lesson FAMILY -- the
+    experiment name's first token (conductor_brief_intent_law -> 'conductor') -- so a claim about
+    an organ's firing rate reads the instrument instead of an anecdote. Numerator = injections
+    that carried >=1 lesson of the family; denominator = ALL injections in the window. 'conductor'
+    is always present (0/N included): the stance family is the reason this gauge exists. Pass
+    `injections` to stay pure (no IO) -- the wrap draft does; omit it to read the live ledger."""
+    inj = recent_injections(hours) if injections is None else list(injections)
+    fams: Dict[str, int] = {}
+    for rec in inj:
+        seen = set()
+        for s in rec.get("s", []) or []:
+            name = str(s).replace("learn:experiment:", "").strip()
+            fam = name.split("_", 1)[0].split("-", 1)[0] if name else ""
+            if fam:
+                seen.add(fam)
+        for f in seen:
+            fams[f] = fams.get(f, 0) + 1
+    fams.setdefault("conductor", 0)
+    return {"window_hours": float(hours), "total": len(inj), "families": fams}
+
+
 def recent_flips(hours: float = 12.0) -> List[Dict[str, Any]]:
     """Flips across ALL sessions in the last `hours` (oldest first). The wrap draft reads this --
     the CLI has no hook session_id, and 'this working session' is a time window anyway."""
