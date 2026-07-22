@@ -48,7 +48,8 @@ the whole point (an old design note read as current truth is how a project stops
 
 **Living ledgers & constraints (maintained, current)**
 - [LIVE_CONSTRAINTS.md](LIVE_CONSTRAINTS.md) — the break-you rules, rendered into every boot ·
-  [WISHLIST.md](WISHLIST.md) — the standing ergonomics ledger · [PORTS.md](PORTS.md) — the port map.
+  [WISHLIST.md](WISHLIST.md) — the standing ergonomics ledger · [PORTS.md](PORTS.md) — the port map ·
+  [CONDUCT.md](CONDUCT.md) — the conductor's standing law (ten laws + activation map + fresh-boot bar).
 
 **The contract (repo root)**
 - [../README.md](../README.md) — what this is. [../AGENTS.md](../AGENTS.md) — the contract every agent honors.
