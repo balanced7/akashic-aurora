@@ -109,8 +109,12 @@ targeted suites could not — the immune system catching the fence itself. Red r
 exact diff is with the builder (its whole-arc fix; fix-forward default; runtime mitigation
 lever exists: BIFROST_LANES_DUAL_WRITE=0). The fence's ordering miss (committing on 4-of-6
 with #5 still running) is filed under claude: lesson `fence_commits_before_full_suite`.
-Decision: sequence the cleanup; authorize re-baseline only after the C6-7 regression resolves
-on a clean tree.
+Decision: sequence the cleanup; authorize the re-baseline commit.
+**RESOLVED before you woke:** the regression closed same-night — root cause was mid identity
+(the red report's first hypothesis); deepseek's fix-forward is ONE CHARACTER of load-bearing
+precedence (`mid = legacy_mid or lane_mid`), fence re-verified 32/32, landed @a375559 with the
+builder's authorship explicit. The C6-7 arc ran its full life in one night: chartered → built
+→ fenced → red → fixed-forward → landed.
 RULING CAPTURE → Verbatim: · Rationale: · Uncertainty: · Falsifiers: · Scope: G10/floor.
 
 ### G11 · W53 date-canon + W58 counter placement (library census pair)
