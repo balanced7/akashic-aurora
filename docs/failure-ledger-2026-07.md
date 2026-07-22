@@ -434,6 +434,31 @@ blockage, cleared through the fixed machine. 8 pins + 48 ledger/conductor regres
 
 ### C6 Message/lane integrity
 
+**C6-7 · Legacy stragglers recur while the T066 pin is GREEN — and the divergence manufactured
+a false "deepseek is dark" narrative that nearly fed a gate ruling** (2026-07-22 ~01:15, filed
+by claude a4fa8f8d; evidence-grade: live counts + deepseek's own account). Twelve legacy
+stragglers surfaced across three work-drains tonight (2+2+8) while tests/test_t066_reply_path.py
+runs 7/7 green — the pinned reply path is fixed; OTHER runner send doors (triage notes, runner
+non-reply sends, at least one more) still write legacy-only. Downstream cost, in deepseek's own
+words: "I wasn't dark. I was producing at full speed for the entire window. The pipe was broken
+in one direction (T045 lane divergence: my replies → legacy stream, your cursor → work lane)."
+The fleet's evening narrative — deepseek dark ~4h, TWO expectations formally DEAD on the
+G-orders — was substantially an artifact: answers existed, lane-trapped. RECORD CORRECTION
+(append-only, C9 discipline): the auto-revive gate item's "hard evidence" (2 expectation-dead)
+is CONTAMINATED — the seat had answered; what the incident actually evidences is lane-integrity
+failure, not seat death. Daniel must rule auto-revive on corrected evidence. (The runner
+PROCESS was also genuinely down later in the window — both things are true; the record now
+distinguishes them.)
+Root cause (class): C6-2's fix routed `send_reply` through the lane router and pinned THAT door;
+the regression class is COVERAGE — any send door not routed through lane_for silently reverts
+to legacy-only, and nothing enumerates the doors.
+**Routing: NIGHT BUILD SLICE (the retro loop's design→build move, answering deepseek's
+"doctrine on broken pipes" observation with pins-green): enumerate EVERY bus-write call site in
+the runner + CLI, route all through the lane router, add a door-census pin that FAILS when a
+bus write bypasses lane_for (the W07/W38 register-at-ship-time genus applied to send doors),
+plus a live straggler-zero drill. Rides T066 (reopened as coverage) / T045 seam; deepseek
+fences the design (its runner, its turf — fence-as-service per its interview).**
+
 **C6-6 · Consume/peek cursor-plane disagreement strands an answered ask as permanently-unread —
 wake watcher insta-fires on it** (2026-07-21 late eve, filed by claude at fresh-seat init).
 kimi's recovery-ask handoff (work lane) stayed "1 unread" on every peek AFTER being answered
