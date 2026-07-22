@@ -340,7 +340,18 @@ class BifrostAPI:
                 # persist the one-time shared-cursor seed even on a quiet peek
                 sh_fields = {"shadow_inbox": sh_in, "shadow_bc": sh_bc}
             if sh_fields:
-                self.bus.advance_cursor_fields(lane_key, sh_fields, generation=generation)
+                # C6-7 FIX (deepseek 2026-07-22): shadow advance was gated by the caller's
+                # generation fence (same guarded Lua as work/sig). Two callers (runner +
+                # session client) write to the lane cursor hash with DIFFERENT generations
+                # (runner_lock.generation_of vs claim_consumer gen), and the higher-gen write
+                # blocks the lower-gen shadow advance as STALE_GENERATION -- silently dropped.
+                # The shadow cursor is a best-effort peek cursor, not a consumption contract:
+                # plain HSET, no generation fence. Uses the Bus's _client directly (same
+                # pattern as lane_flip_init which also writes the lane cursor hash raw).
+                try:
+                    self.bus._client.hset(lane_key, mapping=sh_fields)
+                except Exception:
+                    pass
         # T066 S4: receiver-side reply dedup over meta.reply_id. Delivery MARKS the id for
         # every reply; only a LEGACY-path copy of an already-seen id is DROPPED -- work-lane
         # copies always deliver, so RB-26 crash-redelivery (work cursor advances only after
