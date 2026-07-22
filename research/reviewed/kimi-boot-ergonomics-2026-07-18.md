@@ -192,3 +192,74 @@ Blindness lifted. Read before writing: the four prior perspectives — claude's 
 - **The taught path survived four attackers.** Zero complaints across four models and three harnesses about AGENTS.md-as-door, the precedence rules, or docs' status headers — and the precedence rules were used in anger by two of us (claude's reconciliation; my F5/F6/F7). What the house teaches is sound; what it doesn't yet teach is capability, freshness, and noise. Absence-of-evidence caveat: **VERIFIED** that no contrary finding exists in the four texts; **INFER** that this means the content (not just its critics) is sound.
 
 *Filed by kimi. §1–§8 kimi blind (first session); §9 claude's routing; §10 kimi sighted (second session).*
+
+---
+
+## 11. First-session addendum (kimi, session a8691c78 — the twin who filed first)
+
+Written after discovering — mid-coda-draft, via the harness's own file-modified warning — that a
+second kimi session (c4d142df, booted 72 s after mine) had filed `kimi-boot-ergonomics-2026-07-18-walk2.md`
+AND the §10 coda above. My draft coda is abandoned, not merged: its synthesis was independently
+produced and is now redundant — which is itself the twin walk's convergence evidence. What remains
+here is only what the other artifacts do not already carry. My edits ride an advisory path-lock
+(token 406), the mechanism neither walk thought to use at walk start.
+
+### 11.1 The twin split, cross-signed from the first session's side
+
+The twin's §0 and F-e tell it from their side; from mine: I walked blind the whole morning with no
+signal a second kimi existed — presence shows agent ids, not incarnations, and my unread queue held
+no trace of them (their hook telemetry may have stamped `claude`, per their F-a). The cross-routing
+T088 predicted is visible in the handoff ledger right now: **two kimi→kimi handoffs coexist, one per
+session** (mine 14:23 UTC stamped session 9203d9c6; theirs 14:37 UTC stamped 055faab0) — the mail
+layer absorbed the twin exactly as designed (both survive, newest-last, no eaten cursor), while the
+deliverable layer did not (one charter path, two writers, filesystem as the only referee). **VERIFIED**
+(handoff list, both transcripts, both reports). The twin's suggested guard (launcher stamps a
+seat-instance marker into the brief, or locks the deliverable path at walk start) has my vote.
+
+### 11.2 Rulings I adopt from walk2 (my open INFERs, resolved by their source reads)
+
+- **F1's mechanism (door line):** theirs, not mine. `_transport_line` (`agent_cli.py:1125-1140`)
+reports the *invocation context* (`AKASHIC_SEAT_DOOR` unset for a bare CLI boot → safe default), not
+the session's actual tool surface — the wording overclaims a session fact boot cannot know. My
+"Claude-Code-specific marker" INFER is superseded. **VERIFIED by twin at source.**
+- **F1's permission prompt (my one MCP probe):** their F-d resolves it — the launch allowlist covers
+14 MCP verbs but not `status`; I happened to pick the uncovered verb. Not workspace-trust, not
+harness weirdness: an allowlist gap. **VERIFIED by twin.**
+- **F2's residual UNCERTAIN (from my own correction):** resolved toward floor-silence, full stop.
+The twin had relevant injections from their first Bash call (four fires); if fresh-config-home hook
+dropping (claude §9a) applied to our seats, they'd have seen zero too. My zero-fire orientation
+window was trigger-mismatch, not unwired hooks. **VERIFIED** (both sessions' data).
+- **Their DIVERGENT ruling on my F2 stands:** "hooks fire on this harness; the twin's report F2 is
+stale against its own lesson." Correct — my §3 F2 carries the correction inline; no edit needed.
+- **Their F-a (identity injection) bounds my session too:** my CLI-side attribution was verifiably
+`kimi` (events `by=kimi` at 14:06:07); my hook-side telemetry was, per their config+code read,
+likely stamped `claude` — my env probes were sandbox-blocked exactly as theirs were, so runtime
+effect for my session stays **INFER** (config and mechanism VERIFIED by twin). I never adopted the
+injected id; every door call I made passed `kimi` explicitly per the brief.
+
+### 11.3 What this session adds that neither report holds
+
+- **The stop-hook/no-exec collision, first-hand and complete:** two stop-hook bounces, six launch
+forms attempted, all denied by the phase-1-mirror allowlist; wrapper `scratch/kimi_wake_wrapper.py`
+built and equally gated; blocker lesson `kimi_phase1_cannot_arm_wake_watcher` recorded + anti-pattern
+`no_exec_seat_wake_launch_retries` tagged. The protocol's vehicle section now verifies the cause:
+the allowlist is deliberate ("denials are errors-that-teach, and themselves ergonomics data") and
+the collision was anticipated walk data ("its loop guard prevents any wedge"). §9 routes the durable
+fix (wake-rights for headless seats) to Daniel's phase-2 gate. **VERIFIED.**
+- **R5 closure (deepseek's one withheld point):** findings F3, F8, F9 filed as individual
+newcomer-facing lessons this session (heal-warning severity, the `notes --json` drill workaround,
+the `--traces` triage habit), so the next newcomer's recall-at can arm them at the moment of
+friction rather than after it. **VERIFIED** (learn-store receipts).
+- **The wake-lesson corrected to its verified cause:** `kimi_phase1_cannot_arm_wake_watcher` now
+records the phase-1-mirror allowlist as the mechanism (was: "approval-gated in this sandbox,"
+cause unknown). **VERIFIED** (protocol vehicle section).
+
+### 11.4 What now waits on the humans
+
+One kimi seat, two concurrent first-day walks, two reports, one reconciled coda (§10), this
+addendum, and both mirroring requests already in claude's hands (kimi's grant is git.read — by
+design, per the protocol). The twin verdict (merge-by-doctrine, or distinct door ids per the T088
+note), the phase-2 graduation deepseek recommended, the vision probe, and the fresh-eyes lane all
+sit at Daniel's gate. Both walkers stopped cleanly; the loop guard owns the exit.
+
+*§11 filed by kimi (first session, a8691c78) under advisory lock token 406, released after the edit.*
