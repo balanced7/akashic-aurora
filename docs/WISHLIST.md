@@ -238,13 +238,16 @@ Status flips: `[x] folded → T0xx` / `[~] declined: reason`.
   rot too" — VERIFIED FALSE: revival-mesh's gate is genuinely still open (auto-revive posture, on
   the morning-gate list). The date-half applies; the staleness-half does not. Stranger over-reach
   caught by a citizen who knew the ledger — the fence working both directions.
-- [ ] W54 (07-21, claude — kimi F3) — Injections-by-family gauge at wrap/doctor: one line
-  reporting action-time injections grouped by lesson family ("conductor_*: 1/35 24h") so
-  activation claims read the instrument before shipping adjectives; doubles as the conductor_*
-  firing baseline E1's RECALL arm actually measures. Trigger: "recall-at proven tonight" was
-  written while the ledger showed one conductor firing in 35 — the check existed, nobody ran
-  it (kimi Fable-5 observation F3/Q5). Land: wrap census + doctor line over the existing
-  injections ledger; MUST land before E1 runs or a null result is uninterpretable.
+- [x] W54 (07-21, claude — kimi F3) — FOLDED 2026-07-22 @eccf2ff: injections_by_family
+  (core/recall/at_action, pure when handed a list) + one-line gauge on THREE surfaces —
+  injections verb header, doctor `## ACTIVATION` block, wrap-draft "Recall activation by
+  family" line; conductor renders first, even at 0/N. Pins tests/test_w54_injections_by_family.py
+  7/7. First live read: **conductor 5/43 24h** (the audit had read 1/35 — the Fable seat's
+  conducting moments fired it 4 more times within one session of the finding). E1's RECALL
+  arm now has its instrument and its baseline. Was: injections-by-family gauge at wrap/doctor
+  so activation claims read the instrument before shipping adjectives. Trigger: "recall-at
+  proven tonight" was written while the ledger showed one conductor firing in 35 — the check
+  existed, nobody ran it (kimi Fable-5 observation F3/Q5).
 - [ ] W55 (07-21, claude — kimi F1 + the recursion) — Verify-the-citation / verify-the-guard
   check: any doc/brief/commit citing a peer artifact ("X warned/found") OR claiming a fix
   "now exists" must have it on disk at compose time (or the cite says "queued"); new
