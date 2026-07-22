@@ -29,7 +29,7 @@ if (-not $brief) { Write-Error "brief extraction empty -- refusing to launch"; e
 
 Write-Host "[launcher] kimi stance-round headless session starting (brief $($brief.Length) chars)"
 claude -p $brief `
-  --allowedTools "Read" "Glob" "Grep" "Bash(py agent_cli.py *)" "Write(research/**)" "Edit(research/**)" "Write(scratch/**)" "Edit(scratch/**)" `
+  --allowedTools "Read" "Glob" "Grep" "Bash(py agent_cli.py *)" "Edit(research/**)" "Edit(scratch/**)" `
   --max-turns 80
 $rc = $LASTEXITCODE
 Write-Host "[launcher] kimi stance-round session exited rc=$rc"
