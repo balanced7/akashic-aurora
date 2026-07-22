@@ -166,28 +166,39 @@ def test_p4_unit_is_duplicate_reply_marks_and_ttls():
     assert b.is_duplicate_reply("") is False, "empty id never dedupes"
 
 
-def test_p5_p6_non_reply_kinds_unchanged_and_legacy_compat():
+def test_p5_p6_non_reply_kinds_now_lane_first_and_legacy_compat():
+    """C6-7: ALL mapped kinds (not just reply) are lane-first. The old T039a P0
+    advisory-mirror path is retired; _emit() is the lane router now. Non-reply kinds
+    that rode legacy-first before are now lane-first with legacy fallback.
+
+    P6 (backward compat): legacy inbox still carries everything for pre-lane consumers."""
     ns = _ns()
     b = _bus("deepseek", ns)
     b.send("claude", "handoff", "take this")
     lane_first = [k for k in b._client.xadd_keys if ":work:inbox:claude" in k]
     legacy_first = [k for k in b._client.xadd_keys if k.endswith(":inbox:claude") and ":work:" not in k]
     assert legacy_first and lane_first, "handoff still dual-writes"
-    assert b._client.xadd_keys.index(legacy_first[0]) < b._client.xadd_keys.index(lane_first[0]), \
-        "non-reply kinds stay LEGACY-first (T039a P0 soak untouched)"
+    assert b._client.xadd_keys.index(lane_first[0]) < b._client.xadd_keys.index(legacy_first[0]), \
+        "C6-7: non-reply kinds are now LANE-first (was legacy-first in T039a P0)"
     # P6: a reply is visible to a pre-lane legacy consumer
     b.send_reply("claude", "the answer")
     legacy_kinds = [e.get("kind") for e in _entries(b._client, f"{ns}:inbox:claude")]
     assert "reply" in legacy_kinds, "legacy inbox must still carry the reply (backward compat)"
 
 
-def test_p7_lane_write_failure_stays_silent_for_non_replies(capsys):
+def test_p7_lane_write_failure_is_loud_for_all_kinds(capsys):
+    """C6-7: lane write failures are LOUD for ALL kinds (not just replies). The old
+    P7 contract (silent-advisory for non-replies) was the T039a P0 soak posture;
+    now that _emit() IS the primary lane path, a double-failure on the lane write
+    must be visible -- the operator needs to know a kind is falling back to legacy."""
     ns = _ns()
     b = _bus("deepseek", ns, fail={":work:inbox:claude": 5})
     mid = b.send("claude", "handoff", "take this")
     assert mid, "legacy delivery unaffected"
     err = capsys.readouterr().err
-    assert "lane write FAILED" not in err, "non-reply lane failures stay advisory-silent (P0 contract)"
+    assert "lane write FAILED" in err, (
+        "C6-7: lane write failures are LOUD for ALL kinds -- the lane is the primary "
+        "path now, not an advisory mirror. A kind riding legacy-only is a visible degradation.")
     assert len(_entries(b._client, f"{ns}:inbox:claude")) == 1
 
 

@@ -94,13 +94,15 @@ def test_dual_write_work_lane_and_legacy_identical(monkeypatch):
 
 
 def test_dual_write_killswitch_off_leaves_lanes_untouched(monkeypatch):
+    """C6-7: BIFROST_LANES_DUAL_WRITE=0 disables lane writes in _emit() -- the same
+    kill-switch semantics, now applied to the primary path instead of the advisory mirror."""
     c = _client()
     monkeypatch.setenv("BIFROST_LANES_DUAL_WRITE", "0")
     ns = _ns()
     bus = Bus("agent-a", c, namespace=ns, promote=False)
     bus.send("agent-c", "handoff", "killswitch probe")
     assert c.xrevrange(f"{ns}:inbox:agent-c", count=1), "legacy must flow"
-    assert not c.exists(f"{ns}:work:inbox:agent-c"), "lane must be untouched"
+    assert not c.exists(f"{ns}:work:inbox:agent-c"), "lane must be untouched when kill-switch is OFF"
 
 
 def test_dual_write_rings_bell_once(monkeypatch):

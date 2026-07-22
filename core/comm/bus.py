@@ -338,6 +338,12 @@ class Bus:
 
     def _emit(self, stream: str, *, to: str, kind: str, content: Any,
               parts: Optional[List[Part]] = None, meta=None, allow_frag: bool = False) -> Optional[str]:
+        """C6-7: lane-first send door (generalizes send_reply's pattern to ALL kinds).
+
+        For a mapped kind, the LANE write happens FIRST (with one retry on transient failure)
+        and the legacy stream is a fallback. For an unmapped kind, legacy-only + LOUD once
+        per process. The old advisory _lane_write mirror is retired -- _emit() IS the lane
+        write now, so the lane consumers (work_drain) see every mapped kind, not just reply."""
         if not self.online:
             return None
         # T073: every send carries its sender's incarnation (BIFROST_INCARNATION when a
@@ -353,43 +359,133 @@ class Bus:
                "meta": json.dumps(meta or {}, default=str),
                "parts": json.dumps(part_dicts, default=str)}
         # T043 SEND DOOR: enforce the MTU (refuse loud, or fragment on opt-in) then stamp v/len/sha.
-        # The size bounded is the canonical len -- the same honest number the consume door verifies.
         length, sha = packet_spec.compute_len_sha(env)
         if not packet_spec.within_mtu(length):
             if not allow_frag:
                 _loud(packet_spec.mtu_refusal_text(length))     # NEVER truncate (pin 1)
                 return None
             return self._emit_fragments(stream, env, to=to, kind=str(kind))
-        packet_spec.stamp(env, length=length, sha=sha)         # adds v, len, sha (pin 2/3/4); reuse the hash
+        packet_spec.stamp(env, length=length, sha=sha)
+
+        # --- C6-7 lane-first router ---
+        lane = packet_spec.lane_for(str(kind))
+        lane_mid: Optional[str] = None
+        lane_outcome: str = "unmapped"
+
+        # Shadow router: observe the decision (T060 N0 counters stay alive)
+        decision = None
         try:
-            mid = str(self._client.xadd(stream, env, maxlen=self.maxlen, approximate=True))
-            self._touch()
-            self._lane_write(env, to=to, kind=str(kind))   # T039a P0 dual-write (best-effort)
-            self._ring_bell(to, mid, str(kind))    # W1 doorbell: low-latency notify (lose-safe)
-            try:                                   # B2: durably project salient kinds (best-effort)
-                from core.comm.promoter import is_salient, promote
-                if self._promote and is_salient(kind):
-                    promote(self.agent_id, to, kind, content, mid, env["ts"])
+            decision = shadow_router.route(kind)
+        except Exception:
+            pass
+
+        # Kill-switch: BIFROST_LANES_DUAL_WRITE=0 -> legacy-only (same gate as the old
+        # advisory mirror; the T039a P0 soak became the C6-7 primary path, so the switch
+        # semantics carry forward: OFF = no lane writes at all)
+        if lane is not None and packet_spec.dual_write_enabled():
+            target = None if to == BROADCAST_TO else str(to)
+            lane_key = packet_spec.lane_stream_key(self.ns, lane, to=target)
+            lane_env = dict(env)
+            if lane == "trace":
+                # R5 + amend E: trace copy is unstamped except every Nth (global spot tick).
+                tick = 0
+                try:
+                    tick = int(self._client.incr(f"{self.ns}:trace:spotcount"))
+                except Exception:
+                    pass
+                if packet_spec.lane_wants_integrity("trace", tick=tick):
+                    lane_env["spot_tick"] = str(tick)
+                else:
+                    lane_env.pop("len", None)
+                    lane_env.pop("sha", None)
+            # Lane write with exactly one retry on transient blip (same as send_reply's S2)
+            for attempt in (1, 2):
+                try:
+                    lane_mid = str(self._client.xadd(lane_key, lane_env,
+                                                     maxlen=packet_spec.lane_maxlen(lane),
+                                                     approximate=True))
+                    lane_outcome = "success"
+                    break
+                except Exception:
+                    if attempt == 2:
+                        _loud(f"[lane-router] lane write FAILED twice for kind '{kind}' "
+                              f"({lane_key}) -- falling back to legacy-only")
+                        lane_outcome = "failure"
+        elif lane is not None and not packet_spec.dual_write_enabled():
+            lane_outcome = "disabled"
+        elif lane is None:
+            # Unmapped kind: legacy-only + LOUD once per kind per process
+            if str(kind) not in Bus._unmapped_loud_seen:
+                Bus._unmapped_loud_seen.add(str(kind))
+                _loud(f"[lane-router] kind '{kind}' has NO lane mapping -- riding legacy "
+                      f"only. Add it to packet_spec.KIND_LANE before the T039b cutover.")
+
+        # Shadow router: record the lane-write outcome (mirror-family counters retired;
+        # this is the PRIMARY-path outcome now, observed under the same family for
+        # backward compat with T060's live counters)
+        if decision is not None:
+            try:
+                shadow_router.record_observation(
+                    self._client, self.ns, decision, lane_outcome, family="mirror")
             except Exception:
                 pass
-            return mid
+
+        # Legacy write: always attempted (fallback for mapped kinds; primary for unmapped)
+        legacy_mid: Optional[str] = None
+        try:
+            legacy_mid = str(self._client.xadd(stream, env, maxlen=self.maxlen, approximate=True))
         except Exception:
-            return None
+            pass
+
+        if lane_mid is None and legacy_mid is None:
+            return None               # both writes failed: the send failed
+
+        mid = lane_mid or legacy_mid
+        self._touch()
+        self._ring_bell(to, mid, str(kind))
+        try:                           # B2: durably project salient kinds (best-effort)
+            from core.comm.promoter import is_salient, promote
+            if self._promote and is_salient(kind):
+                promote(self.agent_id, to, kind, content, mid, env["ts"])
+        except Exception:
+            pass
+        return mid
 
     def _emit_fragments(self, stream: str, env: Dict[str, Any], *, to: str, kind: str) -> Optional[str]:
         """Split an oversize payload into MTU-safe fragment packets and xadd each (T043 pin 5).
         Every fragment is len+sha-stamped and carries frag={seq,of,whole_id,whole_len,whole_sha}
         so the consumer can reassemble and detect a missing piece (pin 6). Rings the bell ONCE
-        for the whole; returns the id of the first fragment (or None on any write failure)."""
+        for the whole; returns the id of the first fragment (or None on any write failure).
+
+        C6-7: fragments ride the LANE (if mapped) first, with legacy fallback -- the old
+        advisory _lane_write mirror is retired."""
+        lane = packet_spec.lane_for(str(kind))
+        target = None if to == BROADCAST_TO else str(to)
+        lane_key = (packet_spec.lane_stream_key(self.ns, lane, to=target)
+                    if lane else None)
         first_mid: Optional[str] = None
         for fenv in packet_spec.fragment(env):
+            fragment_mid: Optional[str] = None
+            # Lane write (if mapped)
+            if lane_key is not None:
+                try:
+                    fragment_mid = str(self._client.xadd(lane_key, fenv,
+                                                         maxlen=packet_spec.lane_maxlen(lane),
+                                                         approximate=True))
+                except Exception:
+                    pass
+            # Legacy fallback
             try:
-                mid = str(self._client.xadd(stream, fenv, maxlen=self.maxlen, approximate=True))
+                legacy_id = str(self._client.xadd(stream, fenv,
+                                                  maxlen=self.maxlen, approximate=True))
+                if fragment_mid is None:
+                    fragment_mid = legacy_id
             except Exception:
-                return None
-            self._lane_write(fenv, to=to, kind=kind)       # T039a: fragments mirror too
+                pass
+            if fragment_mid is None:
+                return None           # a fragment failed both writes: the whole fails
             if first_mid is None:
-                first_mid = mid
+                first_mid = fragment_mid
         if first_mid is not None:
             self._touch()
             self._ring_bell(to, first_mid, str(kind))
@@ -398,59 +494,11 @@ class Bus:
     _unmapped_loud_seen: set = set()   # once-per-kind-per-process throttle (class-level)
 
     def _lane_write(self, env: Dict[str, Any], *, to: str, kind: str) -> None:
-        """T039a P0 dual-write (docs/t039-lanes-latches-design-2026-07.md): mirror the packet
-        onto its lane stream. NOT load-bearing until the T039b cutover -- consumers still read
-        legacy, and lane cursors initialize tail-at-flip (A4), so this phase is a live soak of
-        the lane write path, not a data migration. Best-effort by design: a lane failure must
-        never block or fail the legacy delivery. Kill-switch: BIFROST_LANES_DUAL_WRITE=0.
-
-        T060 N0 observes the existing decision/outcome here. The transport STILL selects via
-        packet_spec.lane_for(); shadow_router.route() is explanation only."""
-        decision = None
-        outcome = "failure"
-        try:
-            decision = shadow_router.route(kind)
-            if not packet_spec.dual_write_enabled():
-                outcome = "disabled"
-                return
-            lane = packet_spec.lane_for(kind)
-            if lane is None:
-                outcome = "unmapped"
-                # Census miss: legacy-only + LOUD once per kind. Full refusal is the spec's
-                # end state and activates at cutover, once the soak proves the table complete.
-                if kind not in Bus._unmapped_loud_seen:
-                    Bus._unmapped_loud_seen.add(kind)
-                    _loud(f"[lane-router] kind '{kind}' has NO lane mapping -- riding legacy "
-                          f"only. Add it to packet_spec.KIND_LANE before the T039b cutover.")
-                return
-            target = None if to == BROADCAST_TO else to
-            key = packet_spec.lane_stream_key(self.ns, lane, to=target)
-            fields = env
-            if lane == "trace":
-                # R5 + amend E: trace copy is unstamped except every Nth (global spot tick).
-                fields = dict(env)
-                tick = 0
-                try:
-                    tick = int(self._client.incr(f"{self.ns}:trace:spotcount"))
-                except Exception:
-                    pass
-                if packet_spec.lane_wants_integrity("trace", tick=tick):
-                    fields["spot_tick"] = str(tick)
-                else:
-                    fields.pop("len", None)
-                    fields.pop("sha", None)
-            self._client.xadd(key, fields, maxlen=packet_spec.lane_maxlen(lane),
-                              approximate=True)
-            outcome = "success"
-        except Exception:
-            pass   # advisory in P0; the legacy write above is the delivery
-        finally:
-            if decision is not None:
-                try:
-                    shadow_router.record_observation(
-                        self._client, self.ns, decision, outcome, family="mirror")
-                except Exception:
-                    pass
+        """DEPRECATED by C6-7: _emit() is now lane-first -- the lane write happens in _emit()
+        itself. This stub exists for backward compat; the T039a P0 advisory mirror is retired.
+        The shadow_router mirror-family counters that lived here are also retired -- lane delivery
+        is now the PRIMARY path, not an advisory shadow, so mirror-outcome counters are moot."""
+        pass
 
     def _ring_bell(self, to: str, mid: str, kind: str) -> None:
         """Doorbell (Bifrost Mesh W1): a payload-free pub/sub notice so a Dispatcher wakes in ~ms.
