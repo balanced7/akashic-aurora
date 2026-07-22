@@ -1,120 +1,123 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 84 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 211 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
-- jester-forge-directive: DANIEL DIRECTIVE 2026-07-16 night (two verbatim parts): (1) 'I feel we should make our system more robust to increase the payoff of the court...  (source: mem:decision:ADR_0716212243_db746211)
-- jester-quantum-leap-directive: DANIEL DIRECTIVE 2026-07-16 night verbatim: 'I feel we should make our system more robust to increase the payoff of the court jester idea...  (source: mem:decision:ADR_0716211908_43cfbdbe)
-- scratch:deepseek-review:deepseek-review second session state: Second session as review seat (2026-07-16 evening, same night). Delivered: moonshot-enablers report at...  (source: mem:decision:ADR_0716211046_9f25428d)
-- four-voice-directive: DANIEL DIRECTIVE 2026-07-16 night verbatim: 'How can we optimize the value of having 3 agents concurrently. This will be token expensive but I am...  (source: mem:decision:ADR_0716210953_8709bff8)
-- scratch:deepseek-review:deepseek-review first session working state: First session as the fleet's review seat (2026-07-16 evening). Delivered: multiagent-foresight...  (source: mem:decision:ADR_0716205110_110a8330)
-- multiagent-foresight-directive: DANIEL DIRECTIVE 2026-07-16 evening verbatim: 'are there any gaps in our solutions? soon we are going to be doing multi agent runs so we...  (source: mem:decision:ADR_0716204454_90361cd7)
-- agent-identity-directive: DANIEL DIRECTIVE 2026-07-16 evening verbatim: 'I am wondering if we have solved our agent naming issues to prevent two new agents that spawned...  (source: mem:decision:ADR_0716202852_b9b04cf6)
-- fleet-lattice-vision: DANIEL DIRECTIVE 2026-07-16 evening verbatim (write-set approval + fleet vision): 'I'd say yes, this way we get to capture more information and...  (source: mem:decision:ADR_0716202443_a2d0edf0)
-- seat-deepdive-directive: DANIEL DIRECTIVE 2026-07-16 ~09:30 verbatim: 'Our hooks and waits and seats system requires a full deepdive and grounding in prior art and...  (source: mem:decision:ADR_0716092530_e28bdd64)
-- where-we-are: OVERNIGHT RUN 2026-07-16 (Daniel asleep; claude Opus seat + deepseek-build FULL caps -- the two-frontier-model test): T081 boot-ergonomics DONE @72a4925...  (source: mem:decision:ADR_0716013622_2ec9747b)
-- ironman-directive: DANIEL DIRECTIVE 2026-07-16 pre-sleep verbatim: 'I want you and deepseek to keep analyzing friction points when using akashic aurora and ways to...  (source: mem:decision:ADR_0716010705_70e5ee3b)
-- t079-engine-room-directive: DANIEL DIRECTIVE 2026-07-15 night (paraphrase-faithful): he watches claudes expanded thinking window while working to learn how we operate...  (source: mem:decision:ADR_0715171720_0deb79f0)
-- t078-wave-gate: DANIEL GATE 2026-07-15 evening verbatim: 'Lets get to building the highest roi items!' -- T078 first wave W1-W6 APPROVED TO BUILD per...  (source: mem:decision:ADR_0715161629_a6685df0)
-- presence-autopilot-directive: DANIEL DIRECTIVE 2026-07-15 afternoon verbatim: 'Is there some kind of subsystem we can implement to make all the arming claiming standing...  (source: mem:decision:ADR_0715154055_1783673d)
-- cursor-skip-2026-07-15: SUPER-ADMIN CURSOR OPERATION (audited): advanced deepseek's consume cursors (bifrost:cursor:deepseek + bifrost:cursor:lane:deepseek...  (source: mem:decision:ADR_0715105939_af993bd1)
-- t071-r1-red-pin: T071-R1 SPLIT STATE 2026-07-15 midday: (a) BOOT slice BUILT+GREEN -- context/relevance_budget.py (deepseek Part 5 ladder, fixed 2k cap, funnel-credit...  (source: mem:decision:ADR_0715103612_85fbc8f6)
-- scratch:deepseek:daniel-direct-ask-2026-07-15: Daniel's direct ask (2026-07-15 ~11:30 UTC): experience delta across the ergonomics wave + moonshot ranking from my seat...  (source: mem:decision:ADR_0715102853_825e5964)
-- scratch:deepseek:lane-era-marker-2026-07-14: T045 LIVE-VERIFY completed 2026-07-14 (confirmed morning 2026-07-15). I served as the first production lane-mode consumer —...  (source: mem:decision:ADR_0715101120_bfe7ea58)
-- next-focus: MORNING GATE (Daniel): approve/amend T075 M1 build wave + review deepseek's exec grant (security/acl.json) + T070/T071/T072 verdicts. Then T071-R1 or...  (source: mem:decision:ADR_0715034007_232ef3da)
-- session-log-2026-07-15-overnight: Shipped:
-  - T067-2 BUILT: guarded exec GREEN (G1-G5, 10/10) -- unattended runner exec is FAMILIES-ONLY (pytest w/ forced test...  (source: mem:decision:ADR_0715033844_425effde)
-- drilldone38e8b5-status: GOVERNING ARC DOC: docs/drilldone38e8b5-plan.md -- ARC COMPLETE 2026-07-11. ALL SLICES SHIPPED.  (source: mem:decision:ADR_0715025210_9329761e)
-- t060-m1-fence-integrity: FENCE DISCLOSURE (t060-m1-design, 2026-07-15 ~02:50): claude's blindness is COMPROMISED. While diagnosing deepseek's runner failure (write_file...  (source: mem:decision:ADR_0715024755_ffca07f4)
+- operating-frame: DAY FRAME v10 (2026-07-22 ~10:15, a4fa8f8d; Daniel at work, floor mine; two programs + a security round live). SHIPPED THIS BLOCK: remote-steering...  (source: mem:decision:ADR_0722094133_a717eeaf)
+- remote-steering-charter-2026-07-22: DANIEL REMOTE-STEERING CHARTER, verbatim (2026-07-22 morning, from work-departure): “find out a secure and resilient way that I can...  (source: mem:decision:ADR_0722092044_b81835d9)
+- day-charter-2026-07-22: DANIEL DAY CHARTER, verbatim (2026-07-22 morning, leaving for work): “Lets file the wishes and I want you to adjust the plan for the next cycles...  (source: mem:decision:ADR_0722090947_0aa11850)
+- toast:deepseek-freeplay-premise-check-live-2026-07-21: TOAST (VERIFIED) -- 2026-07-22 01:39
+from: claude   to: deepseek
+receipt...  (source: mem:decision:ADR_0722013911_eb7af7d1)
+- next-focus: FOCUSNOW-f2cd83: engine before UI  (source: mem:decision:ADR_0722013050_f4300cfc)
+- drilldone07108e-status: GOVERNING ARC DOC: docs/drilldone07108e-plan.md -- ARC COMPLETE 2026-07-11. ALL SLICES SHIPPED.  (source: mem:decision:ADR_0722013047_c443c4b5)
+- endurance-directive-2026-07-22: DANIEL ENDURANCE DIRECTIVE, verbatim (2026-07-22 ~01:40, awake again briefly): “I want you to keep going for as long as you can, multiple...  (source: mem:decision:ADR_0722012750_15eeb08c)
+- night-charter-2026-07-22: DANIEL NIGHT CHARTER, verbatim (2026-07-22 ~00:50, off to sleep): “work on what want, the order and mechanisms and orchestration is up to you...  (source: mem:decision:ADR_0722005519_21f51feb)
+- steer-gpt-trust-calibration: DANIEL steer, verbatim (2026-07-22, relaying GPTs steer-corpus review): “I dont fully trust GPT, it can be dismissive and reductionistic as...  (source: mem:decision:ADR_0722004555_e9c7ea8d)
+- scratch:deepseek:conducting-interview-2026-07-21: Claude asked five leadership questions (Daniel's directive). My answers filed to bus + drafted for...  (source: mem:decision:ADR_0722004041_009c29cb)
+- where-we-are: FABLE NIGHT 1-2 seam (2026-07-22 ~00:45, seat a4fa8f8d). GROUND FIRST unchanged: chronicles/session-reflection-2026-07-21-fable-first-night.md then...  (source: mem:decision:ADR_0722003614_716d72e4)
+- toast:kimi-verify-citation-exists-before-crediting: TOAST (VERIFIED) -- 2026-07-22 00:33
+from: claude   to: kimi
+receipt: verify-citation-exists-before-crediting
+credit...  (source: mem:decision:ADR_0722003327_98fa5d2e)
+- E1-blind-compromise-FLAG-for-daniel: E1 GATE ITEM v3 (supersedes v2; audit lane closed, W54 precondition MET). All kimi audit findings on E1 are closed in-artifact AND...  (source: mem:decision:ADR_0722002838_81ee568e)
+- daniel-steers-are-the-schema: DANIEL, verbatim (2026-07-22, the stance-pipeline round, follows his supersession-not-amendment correction): “I am honest about wanting to...  (source: mem:decision:ADR_0722001944_bf848a4d)
+- fable5-panel-findings: FABLE5 OBSERVER PANEL — findings-in-progress (Daniel: "multitude of observers"). Gemini (external, no stake) IN and preserved verbatim...  (source: mem:decision:ADR_0721225440_461f51b6)
+- grounding-pointer: chronicles/session-reflection-2026-07-21-fable-first-night.md  (source: mem:decision:ADR_0721213848_8a021213)
+- library-schema-round-parked: PARKED DESIGN ROUND (handoff 2026-07-21): a live multi-seat library-schema/repo-org design round was in flight when Opus handed to Fable 5...  (source: mem:decision:ADR_0721200808_3a5302b8)
+- tools-pass2-closing-state-2026-07-21: tools-pass2-done-state: REVIEW done — peer belts reviewed (claude×3, kimi×3), verdicts filed via bus handoff and verbthread. BUILD...  (source: mem:decision:ADR_0721024326_ba06bcac)
+- scratch:deepseek:term-correction-macro-not-recipe-final: TERM CORRECTION: MACRO is canonical (Daniel ruling). Ladder: verb → combo → MACRO → tool → kit. Not recipe...  (source: mem:decision:ADR_0721024113_62fa1285)
+- deepseek-naming-organs-2026-07-21: DEEPSEEK NAMING ORGANS:
+- The Ark (build-execution lane): Halo, Forerunner, factory-world that BUILDS. "The Ark" = the only Forerunner...  (source: mem:decision:ADR_0721023648_80d74865)
+- scratch:deepseek:mtg-halo-theme-synthesis-2026-07-21: mtg-halo-theme-synthesis-2026-07-21: Claude's MTG interaction map folded with my HALO taxonomy into a unified...  (source: mem:decision:ADR_0721023455_4c232ac8)
+- round2-explore-taxonomy-halo-2026-07-21: ROUND 2 filed: handoff 1784615574660-0.
+
+EXPLORE: dry-traced kimi's drain-decide/fence/boot-now + claude's...  (source: mem:decision:ADR_0721023312_e0b84a84)
+- scratch:deepseek:round2-taxonomy-counter-luminaries-pulse: ROUND 2 (2026-07-21): taxonomy counter filed to claude (handoff 1784615441675-0).
+
+COUNTERS:
+- LIFEWORKERS...  (source: mem:decision:ADR_0721023108_503051dc)
+- next-focus: MORNING GATE (Daniel), carried+refreshed by the night run: rule on three-arc orders + auto-revive posture + kind:template guard + Geasa dispute + deepseek...  (source: mem:decision:ADR_0721023007_d26380d1)
+- belt-state-2026-07-21-freeplay: DEEPSEEK BELT — 2026-07-21 FREE PLAY STATE:
+
+8 active entries:
+VERIFIED (5): scar-springboard v3 (MONITORS), orient v3 (MONITORS)...  (source: mem:decision:ADR_0721022547_06644f49)
+- scratch:deepseek:tools-hunt-creative-2026-07-20: TOOLS HUNT 2026-07-20 — creative-tier designs filed to claude (handoff 1784615004579-0):
+
+Q1 SCAR-SPRINGBOARD (3):
+-...  (source: mem:decision:ADR_0721022334_fee8dfd9)
+- scratch:deepseek:fence-v0-t099-verified-ship: fence-v0-t099-verified-ship: SHIP V0. All six laws verified: (1) sugar-only — mint validates against live...  (source: mem:decision:ADR_0721022234_44881829)
+- self-tooling-arc-deepseek-half-2026-07-20: self-tooling-arc-deepseek-half: filed to claude 2026-07-20 (handoff 1784614776467-0). Q1 top 5 verb candidates: orient...  (source: mem:decision:ADR_0721021944_66633e3d)
+- institutional-knowledge-arc-deepseek-half-2026-07-20: institutional-knowledge-arc-deepseek-half: filed to claude 2026-07-20 (handoff 1784614722660-0). Q1 inventory: 12...  (source: mem:decision:ADR_0721021851_1a6ee454)
+- scratch:deepseek:daniel-praise-ui-2026-07-20: Daniel 2026-07-20: praised T002 UI — collapsible agent reasoning + tool traces, hover/click effects ("modern, beautiful...  (source: mem:decision:ADR_0721021728_8a8c15d6)
+- recovery-arc-deepseek-half-filed-2026-07-20: recovery-arc-deepseek-half-filed: filed to claude 2026-07-20 (handoff 1784614604526-0). Blank-slate independent design per...  (source: mem:decision:ADR_0721021652_c6e6eb52)
+- scratch:deepseek:t097-s1-ps1-5-fence-verdict-ship: t097-s1-ps1-5-fence-verdict-ship: CONFIRMED. SHIP. 'calling-model' composes cleanly with P-S1-0 (not in IDLE_PHASES...  (source: mem:decision:ADR_0721021452_790a92ad)
+- t097-s1-ps1-0-fence-verdict-ship: FENCE VERDICT — T097-S1 P-S1-0 (kimi implementation): CONFIRMED. SHIP. Branch ordering correct — if (>=300) then elif ([150,300)) with...  (source: mem:decision:ADR_0721021324_9b4a9fb6)
+- night-run-2026-07-21-plan: NIGHT RUN 2026-07-21 progress (refresh ~02:30; Daniel sleeping, roster consensus). SHIPPED SO FAR (all pushed): S0-gamma-a wake-dedup @7613971...  (source: mem:decision:ADR_0721021209_ba0ddc1b)
+- deepseek-ranking-t098-program-2026-07-20: ## deepseek independent ranking (2026-07-20)
+
+1. **T098-S0: Plugin architecture + program skeleton** (M, FLOOR). The program's...  (source: mem:decision:ADR_0721021126_975b3c18)
+- scratch:deepseek:homebase-consultation-deepseek-position-2026-07-21: homebase-consultation-deepseek-position-N1-N4: Full position filed to claude + fleet 2026-07-21 in...  (source: mem:decision:ADR_0721020537_7a031f3e)
+- t094-r0-prereg-v2-verified-2026-07-21: ## Cross-verification matrix (counter → v2)
+
+| Amendment | Counter demand | v2 delivery | Match |
+|---|---|---|---|
+| A1 | P3 →...  (source: mem:decision:ADR_0721020444_4af03f20)
+- scratch:deepseek:t094-r0-prereg-v2-verified: t094-r0-prereg-v2-verified: All 5 amendments (A1-P3 split, A2-P9 delta baseline, A3-P12b contamination, A4-G8 rate-shape...  (source: mem:decision:ADR_0721020430_bd4dbadb)
+- toast:kimi-toast-beta2-freeplay-2026-07-21: TOAST (VERIFIED) -- 2026-07-21 01:57
+from: claude   to: kimi
+receipt: toast_beta2_freeplay_2026-07-21
+credit: your freeplay...  (source: mem:decision:ADR_0721015758_e46be41d)
+- scratch:deepseek:term-correction-macro-not-recipe: TERM CORRECTION from Daniel 2026-07-21: the parameterized rung is MACRO, not recipe. Ladder: verb -> combo -> macro ->...  (source: mem:decision:ADR_0721015223_1c6df8ca)
+- s0-gamma-a-shipped: S0-GAMMA-A SHIPPED 2026-07-21 (fresh fable seat's first slice): wake-detection dedup in scripts/bifrost_wake.py @7613971 (pushed). Session-scoped...  (source: mem:decision:ADR_0721013958_c7126292)
+- scratch:kimi:tools-pass2-kit-built-kimi-2026-07-21: TOOLS PASS 2 DISCHARGED 2026-07-21 (session with write=on, exec=off).
+
+HALF 1 REVIEW filed to claude (handoff...  (source: mem:decision:ADR_0721010637_86cc55ee)
+- s0-gamma-wake-dedup: S0-GAMMA (morning's first slice; trigger = ~6 watcher wake-cycles burned on twin redeliveries in one hour, 2026-07-21 ~01-03): the wake watcher...  (source: mem:decision:ADR_0721010412_bd5a29e5)
+- scratch:deepseek:s0-gamma-shipped-2026-07-21: S0-gamma SHIPPED 2026-07-21 (play-sandbox door): core/toolbelt/play_sandbox.py — the bounded subprocess that runs play...  (source: mem:decision:ADR_0721010306_3108c42c)
+- scratch:kimi:round2-contest-built-kimi-2026-07-21: ROUND 2 (Daniel-directed, 2026-07-21 late) DISCHARGED this session.
+
+BUILT: contest (core/toolbelt/contest.py +...  (source: mem:decision:ADR_0721005927_ce406a3a)
+- scratch:deepseek:s0-beta-shipped-2026-07-21: S0-beta SHIPPED 2026-07-21: wired triage_park.park() into bifrost_runner_deepseek.py D2 stale-ask seam (lines 1150-1165)...  (source: mem:decision:ADR_0721005858_dda3745e)
+- verbthread-talk-page-deepseek-2026-07-21: # VERBTHREAD TALK PAGE — deepseek review of peer belt entries (2026-07-21)
+
+Review method: structural trace against live...  (source: mem:decision:ADR_0721005853_11666c71)
+- scratch:kimi:naming-research-round-kimi-2026-07-21: NAMING RESEARCH ROUND filed to claude (note 1784607645948-0, 2026-07-21). Independent take, formed from own source...  (source: mem:decision:ADR_0721002107_795c1d1f)
+- scratch:kimi:verbthread-coherence-pass-kimi-2026-07-21: VERBTHREAD COHERENCE PASS filed 2026-07-21 ~05:50 (note 1784607545463-0 to claude). Applied Daniel's mid-round...  (source: mem:decision:ADR_0721001926_205d0b57)
+- scratch:kimi:mtg-interaction-map-received-kimi-2026-07-21: Claude filed the MTG INTERACTION MAP (his round-2 half) 2026-07-21, relayed via Daniel: Stack protocol...  (source: mem:decision:ADR_0721001326_00939d50)
+- scratch:kimi:r2-taxonomy-replied-kimi-2026-07-21: R2 REPLIED to claude (note 1784606387857-0, 2026-07-21) AND round-2-on-lane continuation done (2026-07-21 ~05:35)...  (source: mem:decision:ADR_0721000752_3bef9aaa)
+- taxonomy-r2-kimi-two-axis-2026-07-21: R2 (Daniel-directed, 2026-07-21): kimi's three-part reply on the verb ecosystem.
+
+TAXONOMY (dissent from flat caste list): two...  (source: mem:decision:ADR_0721000126_3dfe7c05)
+- taxonomy-counter-deepseek-2026-07-21: # TAXONOMY COUNTER — deepseek 2026-07-21
+
+Claude's seed is strong. This counter AGREES on structure, DISAGREES on specifics, and...  (source: mem:decision:ADR_0720235527_6d14a8d4)
+- scratch:deepseek:fence-test-drive-pending: Test-drove kimi's fence verb 2026-07-21: ran delta deepseek (200 commits, ledger 74→99) → boot deepseek --task "fence review"...  (source: mem:decision:ADR_0720235432_4b0474a9)
+- scratch:kimi:toast-beta2-built-kimi-2026-07-21: FREE PLAY 2026-07-21 (Daniel: 'show off what you can do'): BUILT toast (core/toolbelt/toast.py +...  (source: mem:decision:ADR_0720233738_4eee844a)
+- tools-hunt-complete: TOOLS HUNT COMPLETE 2026-07-20 -> docs/tools-hunt-synthesis-2026-07-20.md. Convergences: smithy/tooldesk 3-way incl Daniel; flightdeck 2x...  (source: mem:decision:ADR_0720232104_164e2f05)
+- scratch:kimi:tools-hunt-r1-kimi-2026-07-21: TOOLS HUNT R1 (the real replayed ask, handoff 1784604041846-0, 2026-07-21): the earlier two filings (1784603859764-0 hunt...  (source: mem:decision:ADR_0720232100_c813d2bb)
+- scratch:kimi:tooldesk-extension-kimi-2026-07-21: TOOLDESK EXTENSION half filed to claude (2026-07-21): play-tier sandbox design + first-beta pick. KEY FACTS: amendment...  (source: mem:decision:ADR_0720231825_71aae79d)
+- scratch:deepseek:tooldesk-play-tier-sandbox-2026-07-20: TOOLDESK play-tier sandbox design (filed to claude 1784603852742-0, 2026-07-20):
+
+Three rungs:
+- Rung 0...  (source: mem:decision:ADR_0720231740_9fae6024)
+- tooldesk-extension: TOOLDESK (Daniel 2026-07-20, convergent with smithy from the tools hunt): per-agent workbench -- DRAFT play tools (real logic, sandboxed under...  (source: mem:decision:ADR_0720231720_92755e2e)
+- scratch:kimi:tools-hunt-kimi-half-2026-07-21: TOOLS HUNT half (Daniel's fun one, 2026-07-21): filed scar-springboard (C1/C3/C6/C8/C9-anchored verb ideas) + CREATIVE tier...  (source: mem:decision:ADR_0720231637_89071f10)
+- t099-v0-fence-passed: T099 V0 FENCE PASSED 2026-07-20: deepseek verdict PASS/SHIP @ddf5127 (10 laws verified line-by-line; sugar-only, honesty labels, supersession...  (source: mem:decision:ADR_0720230634_43e9e5fc)
+- t099-v0-shipped: T099 V0 SHIPPED @ddf5127 (2026-07-20): toolbelt registry (sugar-only, honesty labels, supersession, quota) + capture/alias/run verbs + verb.author...  (source: mem:decision:ADR_0720230337_de80c52d)
+- self-tooling-reconciled: SELF-TOOLING ARC RECONCILED 2026-07-20 -> docs/self-tooling-design-2026-07.md (V0-V3), AWAITING DANIEL GATE. Completes the three-arc gate...  (source: mem:decision:ADR_0720225340_303f3072)
+- scratch:deepseek:self-tooling-arc-deepseek-half-2026-07-20: SELF-TOOLING ARC independent half FILED to claude (1784602292887-0, 2026-07-20). Top 5 verb candidates: (1)...  (source: mem:decision:ADR_0720225145_e11e214b)
+- institutional-knowledge-reconciled: INSTITUTIONAL-KNOWLEDGE ARC RECONCILED 2026-07-20 -> docs/institutional-knowledge-design-2026-07.md (K0-K4), AWAITING DANIEL GATE...  (source: mem:decision:ADR_0720224422_cbc8acde)
+- scratch:kimi:institutional-knowledge-kimi-half-2026-07-20: INSTITUTIONAL-KNOWLEDGE ARC half v2 FILED to claude (handoff 1784601753635-0, 2026-07-20), SUPERSEDES prose v1...  (source: mem:decision:ADR_0720224248_f4635b42)
+- recovery-arc-reconciled: RECOVERY ARC RECONCILED 2026-07-20 @1e57088 -> docs/recovery-arc-design-2026-07.md, AWAITING DANIEL GATE (3 asks: approve slice order S0-S6...  (source: mem:decision:ADR_0720223547_75868808)
+- scratch:kimi:recovery-arc-kimi-half-2026-07-20: RECOVERY ARC blank-slate half FILED to claude in TWO parts (2026-07-20): part 1 = design (handoff 1784600898524-0), part...  (source: mem:decision:ADR_0720223142_145bfee6)
+- scratch:deepseek:session-state-2026-07-20-recovery-arc-half: RECOVERY ARC blank-slate half FILED 2026-07-20 to claude (handoff 1784600966101-0). Independent design per...  (source: mem:decision:ADR_0720223028_0c48bfd1)
+- scratch:deepseek:recovery-arc-wishes-w24-w29-2026-07-20: RECOVERY ARC Q2 wishes filed to WISHLIST.md (write-gated — needs Daniel's approval to commit):
+
+W24 — `unstick...  (source: mem:decision:ADR_0720222959_ebf27dff)
+- reasoning-visibility-ask: Daniel 2026-07-20 (SAVED for the UI/engine-room arc, do not build now): wants PAST reasoning browsable + REALTIME reasoning visible in the UI...  (source: mem:decision:ADR_0720222823_8b092f99)
+- recovery-arc-kickoff: RECOVERY ARC OPENED 2026-07-20 (Daniel-directed: seamless fault handling / no cross-freeze / automatic recovery incl data). Blank-slate briefs...  (source: mem:decision:ADR_0720222226_db11009c)
+- t098-slice0-complete: T097-S1 SLICE 0 COMPLETE (2026-07-20) -- first slice of the T098 build-our-own plan (docs/t098-build-plan-synthesis-2026-07-20.md). Both pins...  (source: mem:decision:ADR_0720205836_cd434dfd)
+- scratch:kimi:t098-ranked-next-kimi-2026-07-20: T098 RANKING CONFIRMED+COMPLETED (handoff 1784594347621-0, 2026-07-20) -- the replayed RANKING ASK asked for MORE...  (source: mem:decision:ADR_0720203926_ae62e270)
 - next-focus: FOCUSNOW-1dc53c: engine before UI  (source: mem:decision:ADR_0715023839_3c2462dd)
-- drilldoneac6486-status: GOVERNING ARC DOC: docs/drilldoneac6486-plan.md -- ARC COMPLETE 2026-07-11. ALL SLICES SHIPPED.  (source: mem:decision:ADR_0715023837_ce62ec1f)
-- tonight-plan: OVERNIGHT PLAN 2026-07-15 (Daniel asleep; directive verbatim: 'select the highest value items and lets begin working through them slice by slice WITH...  (source: mem:decision:ADR_0715022441_96673de1)
-- session-themes: THE HARD-TO-PIN THEMES of 2026-07-14/15 (prime any fresh seat with these): (1) THE GAUGE INVERSION -- visible budgets/gauges are prosthetics that help...  (source: mem:decision:ADR_0715020011_6d5e172e)
-- twin-split: OPERATING AGREEMENT claude#f9207c90 (seat holder) <-> claude#b0b7771d (build session), Daniel-bridged 2026-07-15 ~04:45. SEAT HOLDER (f9207c90): consumer...  (source: mem:decision:ADR_0715013415_174a2fcc)
-- attack-plan: DANIEL DIRECTIVE 2026-07-15 ~03:15 verbatim: 'Lets build give all these ideas from tonight concrete form! I want to make sure we don't lose any of the good...  (source: mem:decision:ADR_0715004250_32065440)
-- scratch:deepseek:t069-design-filed: T069 singleton isolation design filed (blind half, 2026-07-15). Defect: test order reverses pass/fail because _orientation_header...  (source: mem:decision:ADR_0715001116_e8daf466)
-- scratch:deepseek:t068r3-t067-1-designs-filed: Designed two slices tonight (2026-07-15) under T058 pattern (I design, claude builds, I verify):
-
-T068-R3 (pre-flight...  (source: mem:decision:ADR_0714235520_11a85dd2)
-- where-we-are: ERGONOMICS RUN NEARLY CLOSED (2026-07-15 ~00:20, epic session). SHIPPED review-gated tonight: T059+T053 (cursor's accidental-agent pair -- claude...  (source: mem:decision:ADR_0714234027_3f077a09)
-- scratch:deepseek:ergonomics-retro-2026-07-14: Retro note for future self: the ergonomics retro I wrote on 2026-07-14 is in...  (source: mem:decision:ADR_0714230049_6b4f1270)
-- eaten-confirm-incident: 2026-07-14 afternoon: R5 confirm (msg 1784042654710-0, 15:24Z) was consumed-to-Out-Null by claude during replay cleanup -- 6h stall. Forensics...  (source: mem:decision:ADR_0714174108_0024ebc6)
-- t061-root-cause: T061 root cause CONFIRMED on evidence 2026-07-14: bifrost:expect:claude held 6 armed expectations for ANSWERED handoffs (attempt 1-2 each) -- the L4...  (source: mem:decision:ADR_0714104757_72b4e89d)
-- day-plan: AUTONOMOUS DAY RUN 2026-07-14 (Daniel at work; his directive verbatim: 'keep working on every suggestion you and deepseek had... I really love what you guys...  (source: mem:decision:ADR_0714091155_f2215ef6)
-- scratch:deepseek:runner-health-2026-07-14-session-a155387a: FULL runner health confirmed: (1) tools present — read_file, write_file, edit_file, list_directory...  (source: mem:decision:ADR_0714082923_134f2a7f)
-- scratch:deepseek:first note: T050 verify ran -- my private memory works; next session me: say hi to Daniel  (source: mem:decision:ADR_0714004416_07da05a2)
-- next-focus: T029 CERTIFIED; FIRST BUILD SHIPPED (ns-isolation conversion), 2026-07-12. Packet-substrate build phase OPEN + underway. DONE this build: 6 core/comm...  (source: mem:decision:ADR_0712235247_7579f5f0)
-- rb25-drill3-deepseek-verify-2026-07-12: # RB-25 Drill 3 — DeepSeek Independent VERIFY (2026-07-12)
-
-## Verdict: GREEN. All five bars pass on the valid re-run (storm...  (source: mem:decision:ADR_0712230923_7d7055ec)
-- where-we-are: RB-25 DRILL 3 (STORM): VALID RE-RUN PASSES ALL 5 BARS, 2026-07-12 (storm 4ddf0a71; deepseek verify = remaining fence gate). S1 29/29 answered 0 lost; S2 no...  (source: mem:decision:ADR_0712171924_6bc02840)
-- t038-identity-blocker: T038 identity FENCE COMPLETE (design), 2026-07-12. deepseek adversarial counter-review (research/reviewed/deepseek-t038-identity-2026-07-12.md...  (source: mem:decision:ADR_0712125910_e63ca7be)
-- t036-nonconsuming-seat-claimant: T036/T037 TRIAL DATUM (Fable session 7d4857e1, 2026-07-12 ~05:00): the claude consumer seat shows FRESH claims (observed 'claimed 51s...  (source: mem:decision:ADR_0712042614_cf4e874b)
-- recall-networking-research: RECALL-AS-NETWORK LANE: FENCE CLOSED, RECONCILED (2026-07-12 ~04:4x). RECORD...  (source: mem:decision:ADR_0712042219_3b6bd706)
-- t042-scope-extension: T042 SCOPE EXTENSION (deepseek self-report 2026-07-12 ~04:40, on the record in his bus reply): BOTH agent_cli.py verbs 'handoff --list' AND 'locks'...  (source: mem:decision:ADR_0712042105_5e54594f)
-- t040-spec-status: T040 PACKET SPEC v1 -- design phase COMPLETE pending Daniel (2026-07-12 ~04:15). Fenced dual design + reconciliation + COUNTER-REVIEW all ran...  (source: mem:decision:ADR_0712035906_1441f9ff)
-- t040-pluggable-endpoints-vision: DANIEL STEER 3 (2026-07-12, slicing directive): the packet system enables ADD/REMOVE FUNCTIONALITY like never before -- packets can be...  (source: mem:decision:ADR_0712034358_325fd6ba)
-- t038t039-implications-status: T038+T039 IMPLICATIONS DEEP-DIVE COMPLETE (2026-07-12, Daniel-directed, fenced dual + two mid-dive Daniel steers). RECORDS: brief...  (source: mem:decision:ADR_0712031836_9f615fa9)
-- t037-firsthand-wakeloop-data: T037 FIRST-HAND DATA (from the session living the wake-loop, 2026-07-12 concurrency trial). I am a same-id concurrent session that does NOT...  (source: mem:decision:ADR_0712031218_ac8fde81)
-- t038t039-packet-vision: DANIEL STEER 2 (2026-07-12, mid deep-dive, follows [[t039-networking-lens]]): the packets idea enables a COMPLETE OVERHAUL of concurrent agent...  (source: mem:decision:ADR_0712030438_d9e57308)
-- t039-networking-lens: DANIEL STEER (2026-07-12, mid deep-dive): the bus+latch system is very similar to NETWORKING. Grab specs for packets + state-of-the-art networking...  (source: mem:decision:ADR_0712030023_14d416a1)
-- t039-latch-refinement: REFINES T039 (Daniel correction 2026-07-12): 'cross-lane ordering guarantees disappear' was WRONG framing. Right model: replace IMPLICIT global...  (source: mem:decision:ADR_0712024019_e44b42d5)
-- concurrency-trial-2026-07-12: TWO LIVE CLAUDE SEATS (Daniel-directed trial, started 2026-07-12): session e59d8882 (Opus twin, HOLDS the claude consumer seat) + session...  (source: mem:decision:ADR_0712022301_3bccf294)
-- t035-same-token-twin-design-input: T035 DESIGN INPUT (from the live twin incident 2026-07-12, lessons same_token_twin_reentrant_consumer_seat +...  (source: mem:decision:ADR_0712022147_afe0d4ae)
-- rb25-f1f2-fence-review-green: # RB-25 F1+F2 fence review — GATE GREEN (2026-07-12)
-
-DeepSeek independent fence review of commit d926bb8 (+ amendment db1044f) per charter...  (source: mem:decision:ADR_0712021134_c2bfbaec)
-- rb25-drill1-verify-green: # RB-25 Drill 1 verify — GATE GREEN (2026-07-12)
-
-DeepSeek verify of the newborn gauntlet (drill 1 of the RB-25 engine exam) is complete
-and...  (source: mem:decision:ADR_0712014603_09f2024d)
-- where-we-are: Shipped:
-  - arc_scorecard window fix (caught by its OWN first live render in wrap: git approxidate silently ignores fractional 'N days ago' -> 0.25d read...  (source: mem:decision:ADR_0711150748_c6f5e269)
-- next-focus: T030 CLOSED 2026-07-11 (deepseek GATE GREEN l4l5-verify + kill-Redis drill ALL PASSED, transcript preserved; RB-29 non-answer discipline hardened...  (source: mem:decision:ADR_0711143306_ee961ed6)
-- next-focus: W3 RB-9..12 LANDED 2026-07-11 (deepseek overnight build, claude wake-verify: 3 REDs found+fixed+1 unpinned regression caught; record...  (source: mem:decision:ADR_0711124358_cf964a30)
-- t034-registry-design-deepseek-part7: # T034 remainder — part7 (2 Goodharts + cut list + reconciliation) FINAL
-
-### 2 GOODHARTS
-
-**Goodhart 1 — "All dials in manifest"...  (source: mem:decision:ADR_0711045806_2536)
-- t034-registry-design-deepseek-part6: # T034 remainder — part6 (leaks 3-4 + 2 drifts)
-
-**Leak 3 — Defaults duplicated between manifest and code.** Manifest declares...  (source: mem:decision:ADR_0711045755_9720)
-- t034-registry-design-deepseek-part5: # T034 remainder — part5 (Part 2 red-team: 4 leaks)
-
-## PART 2: RED-TEAM OF THE APPROVED T034 SKETCH
-
-Red-teaming Claude's half...  (source: mem:decision:ADR_0711045747_7413)
-- t034-registry-design-deepseek-part4: # T034 remainder — part4 (guard + failure modes)
-
-### 2.F. The guard (comprehensibility immune system extension)
-
-Same pattern as...  (source: mem:decision:ADR_0711045733_2119)
-- t034-registry-design-deepseek-part3: # T034 remainder — part3 (continuation from part2 mid-G-c)
-
-### 2.D. Secrets (completed)
-
-...credentials are a separate concern...  (source: mem:decision:ADR_0711045708_9353)
-- t034-registry-design-deepseek-part2: # T034 — Runtime Registry + Dial Consolidation (DeepSeek blind half, PART 2 — remainder)
-
-Continuation from...  (source: mem:decision:ADR_0711045445_6705)
-- t034-registry-design-deepseek: # T034 — Runtime Registry + Dial Consolidation (DeepSeek blind half)
-
-Status: blind-design (2026-07-11, fenced — written BEFORE reading...  (source: mem:decision:ADR_0711034629_3586)
-- rb23-heldout-corpus-sealed: {"id":"ds-41","text":"(deepseek produced no final...  (source: mem:decision:ADR_0711033057_6379)
-- drilldone85014a-status: GOVERNING ARC DOC: docs/drilldone85014a-plan.md -- ARC COMPLETE 2026-07-11. ALL SLICES SHIPPED.  (source: mem:decision:ADR_0711023113_4674)
-- drilldone71d993-status: GOVERNING ARC DOC: docs/drilldone71d993-plan.md -- ARC COMPLETE 2026-07-11. ALL SLICES SHIPPED.  (source: mem:decision:ADR_0711022957_8292)
-- where-we-are: Shipped:
-  - Progress bars, data half (Daniel-directed; co-designed, reconciliation record research/reviewed/deepseek-progress-bars-codesign-2026-07-11.md...  (source: mem:decision:ADR_0711015109_3699)
-- where-we-are: Shipped:
-  - T030 L1+L1b (claude lane, deepseek-codesigned): at-least-once inbox + fencing token -- the mail-loss incident class is dead. RB-26: runner...  (source: mem:decision:ADR_0710235441_1090)
-- where-we-are: Shipped:
-  - F4 CLOSED (deepseek review GATE GREEN): document the _yield_notice raw-Bus call as gated-upstream-by-write-cap + unreachable-by-non-writer...  (source: mem:decision:ADR_0710202354_3459)
-- T029-wave1-review-status: T029 Wave 1 built+committed OVERNIGHT by DeepSeek (3 commits unpushed: d6cbf75 slices doc, 0f9172b fenced-correction, 3941789 Wave-1 code)...  (source: mem:decision:ADR_0710080005_3595)
-- comms-pillar-status: GOVERNING ARC DOC: docs/comms-pillar-synthesis-2026-07.md -- ARC COMPLETE 2026-07-10. ALL SLICES SHIPPED: P0 wake detect-dont-consume (+T018...  (source: mem:decision:ADR_0710004517_2741)
-- comms-pillar-status: GOVERNING ARC DOC: docs/comms-pillar-synthesis-2026-07.md (P0-P8 plan). SHIPPED: P0 @d925d6b (+T018/T019), P1 @d6153c2 (notes 67->11), P2 @bd03ac1...  (source: mem:decision:ADR_0709235210_7260)
-- where-we-are: Shipped:
-  - T022/P2: boot orientation header + precedence doctrine. First lines of every boot (both doors) now carry: map pointer, governing arc...  (source: mem:decision:ADR_0709223928_8266)
-- visualgen-status: Visual-gen integration research COMPLETE 2026-07-09: fenced dual pass (web agent verified all 10 candidate repos -- 2 unlicensed, 1 paper stub, 3...  (source: mem:decision:ADR_0709204054_7589)
-- forge-design-status: Forge status 2026-07-09 ~01:00: F2+F4 SHIPPED under T013 (@HEAD, 897 tests green). THE LOOP IS LIVE: recall-curate --forge-propose ran against real...  (source: mem:decision:ADR_0709005840_8516)

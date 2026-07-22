@@ -15,7 +15,9 @@
      "--reason",
      "drain-decide",
      "--by",
-     "kimi"
+     "kimi",
+     "--ttl",
+     "120"
     ],
     [
      "bifrost-skip-to-now",
@@ -29,14 +31,15 @@
      "bifrost-resume"
     ]
    ],
-   "version": 3,
+   "version": 5,
+   "params": 0,
    "evidence": "VERIFIED",
-   "tested_against": "kata-20260720-232707",
-   "why": "kimi design 2026-07-20 (minted by claude on her behalf, write-off session): the wake-loop recovery ritual needed twice (07-18 redelivery eve, 07-21 insta-fire); sibling of claude's standby-hard. kata to VERIFIED on her first run.",
-   "family": "ENGINEERS",
+   "tested_against": "kata-20260721-020107",
+   "why": "same TTL graduation as standby-hard (deepseek review find, claude fence, 2-of-3 consensus; kimi notified)",
+   "family": "UNSORTED",
    "status": "active",
    "created_at": "2026-07-20T23:20:19",
-   "updated_at": "2026-07-20T23:48:10",
+   "updated_at": "2026-07-21T02:01:07",
    "author": "kimi"
   },
   "fence": {
@@ -266,6 +269,87 @@
    "updated_at": "2026-07-20T23:38:36",
    "author": "kimi",
    "superseded_at": "2026-07-20T23:48:10"
+  },
+  {
+   "name": "drain-decide",
+   "kind": "alias",
+   "steps": [
+    [
+     "bifrost-sync",
+     "kimi",
+     "--consume"
+    ],
+    [
+     "bifrost-pause",
+     "--reason",
+     "drain-decide",
+     "--by",
+     "kimi"
+    ],
+    [
+     "bifrost-skip-to-now",
+     "kimi",
+     "--by",
+     "kimi",
+     "--reason",
+     "straggler-triage"
+    ],
+    [
+     "bifrost-resume"
+    ]
+   ],
+   "version": 3,
+   "evidence": "VERIFIED",
+   "tested_against": "kata-20260720-232707",
+   "why": "kimi design 2026-07-20 (minted by claude on her behalf, write-off session): the wake-loop recovery ritual needed twice (07-18 redelivery eve, 07-21 insta-fire); sibling of claude's standby-hard. kata to VERIFIED on her first run.",
+   "family": "ENGINEERS",
+   "status": "active",
+   "created_at": "2026-07-20T23:20:19",
+   "updated_at": "2026-07-20T23:48:10",
+   "author": "kimi",
+   "superseded_at": "2026-07-21T02:01:07"
+  },
+  {
+   "name": "drain-decide",
+   "kind": "alias",
+   "steps": [
+    [
+     "bifrost-sync",
+     "kimi",
+     "--consume"
+    ],
+    [
+     "bifrost-pause",
+     "--reason",
+     "drain-decide",
+     "--by",
+     "kimi",
+     "--ttl",
+     "120"
+    ],
+    [
+     "bifrost-skip-to-now",
+     "kimi",
+     "--by",
+     "kimi",
+     "--reason",
+     "straggler-triage"
+    ],
+    [
+     "bifrost-resume"
+    ]
+   ],
+   "version": 4,
+   "params": 0,
+   "evidence": "INFER",
+   "tested_against": null,
+   "why": "same TTL graduation as standby-hard (deepseek review find, claude fence, 2-of-3 consensus; kimi notified)",
+   "family": "ENGINEERS",
+   "status": "active",
+   "created_at": "2026-07-20T23:20:19",
+   "updated_at": "2026-07-21T02:01:07",
+   "author": "kimi",
+   "superseded_at": "2026-07-21T02:01:07"
   }
  ]
 }

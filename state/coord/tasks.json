@@ -1,5 +1,5 @@
 {
-  "seq": 95,
+  "seq": 99,
   "tasks": [
     {
       "id": "T001",
@@ -2362,15 +2362,15 @@
       "id": "T062",
       "title": "R1 polish: boot's truncated-delta pointer self-defeats -- boot advances the mark, so the printed 'full: py agent_cli.py delta claude' renders empty; keep the pre-boot window addressable (delta --last or render full delta to a file)",
       "desc": "",
-      "owner": "",
+      "owner": "claude",
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "approved",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "2dc4e8a",
+      "verified_by": "live probe: post-boot delta renders 194-commit window; W13/R15 mark-lag; deepseek ACK 2026-07-19",
       "created": "2026-07-15T02:06:05+00:00",
-      "updated": "2026-07-15T04:42:49+00:00",
+      "updated": "2026-07-19T14:04:38+00:00",
       "history": [
         {
           "to": "proposed",
@@ -2381,6 +2381,26 @@
           "to": "approved",
           "by": "user",
           "at": "2026-07-15T04:42:49+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-19T14:04:02+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-07-19T14:04:37+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-07-19T14:04:38+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-19T14:04:38+00:00"
         }
       ]
     },
@@ -2438,11 +2458,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "claimed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "2dc4e8a",
+      "verified_by": "pins test_t064_intake_spill+test_intake_clip_confession 8/8; deepseek ACK 2026-07-19",
       "created": "2026-07-15T02:06:06+00:00",
-      "updated": "2026-07-15T14:37:50+00:00",
+      "updated": "2026-07-19T14:04:37+00:00",
       "history": [
         {
           "to": "proposed",
@@ -2458,6 +2478,21 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-07-15T14:37:50+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-07-19T14:04:36+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-07-19T14:04:37+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-19T14:04:37+00:00"
         }
       ]
     },
@@ -3200,7 +3235,7 @@
       "commit": null,
       "verified_by": null,
       "created": "2026-07-16T13:25:41+00:00",
-      "updated": "2026-07-16T23:54:15+00:00",
+      "updated": "2026-07-19T14:04:38+00:00",
       "history": [
         {
           "to": "proposed",
@@ -3232,6 +3267,17 @@
           "to": "in_progress",
           "by": "claude",
           "at": "2026-07-16T23:54:15+00:00"
+        },
+        {
+          "to": "parked",
+          "by": "",
+          "at": "2026-07-19T14:04:36+00:00",
+          "reason": "momentary slot dance: closing verified T064/T062 (deepseek ACK @2dc4e8a); unpark follows immediately"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-07-19T14:04:38+00:00"
         }
       ]
     },
@@ -3457,6 +3503,105 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-07-18T03:51:50+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T096",
+      "title": "T-map: Master Map as projection (charter research/briefs/master-map-charter-2026-07-19.md, Daniel-directed 2x 2026-07-19): M0 census DONE-in-part (currency repair green @7bcf413, PHYSICS.md static half @062299d), remaining M0 MAP.md v0 w/ GAP column + M1 flags->T034 + M2 DOORS.md projection + M2b benchmark half + M3 paper backfill + M4 content-currency v2 (W04/W05 fold) + M5 face; fence rounds open (deepseek + kimi counters pending)",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-19T15:44:44+00:00",
+      "updated": "2026-07-19T15:44:44+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-19T15:44:44+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T097",
+      "title": "Mutual-revival mesh (Daniel directive 2026-07-19 verbatim: 'if you, deepseek and kimi all have write and invoke permissions then if anyone gets stuck the others can resuscitate them'): fleet consultation (claude+deepseek+kimi positions) -> reconciliation -> Daniel gates the grant design. Evidence base: C1-8 (false-positive kill request from fossil log), C1-1 evidence ladder, T086 supervision prior-art, T030 RB-27 progress reader (detection prerequisite), C10-1 (write-to-serving-file exposure). Security-schema amendment path applies (super-admin-or-human gates, time-boxed); ACL mechanics = deepseek lane",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-19T23:51:56+00:00",
+      "updated": "2026-07-20T02:36:45+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-19T23:51:56+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-20T02:36:45+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T098",
+      "title": "Home-base program (Daniel-decided 2026-07-20 verbatim: 'build our own... full visibility of what works... integrations won't break from someone else pushing an update... improve our engineering processes and chops'; home base = our own program, API models + CLI models first-class): landscape-learnings consultation (3 seats) -> reconciliation -> charter + name -> gated slices starting Mission View v0 + API door v0. Positions: research/drafts/homebase-build-claude-position-2026-07-20.md + deepseek/kimi pending; GPT advisory research/reference/gpt-ui-homebase-recommendation-2026-07-20.md; absorbs/aligns T033 UI re-grounding + T060-M7 glass cockpit + T079 engine room (their designs become this program's views)",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-20T02:56:40+00:00",
+      "updated": "2026-07-20T02:56:40+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-20T02:56:40+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T099",
+      "title": "V0 self-tooling: capture verb (bus full-fidelity read+persist) + verb-registry with alias engine (sugar-only, honesty labels, quota) + discover integration + first mint standby-hard. Cites docs/self-tooling-design-2026-07.md; Daniel gate 2026-07-20 verbatim: 'I leave the order up to you, lets get to building'. Order locked: V0 -> K0 -> S0 -> V1 -> S1 -> K1.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "claimed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-21T02:58:25+00:00",
+      "updated": "2026-07-21T03:03:46+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-21T02:58:25+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-07-21T03:03:45+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-21T03:03:46+00:00"
         }
       ]
     }
