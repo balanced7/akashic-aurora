@@ -79,6 +79,43 @@ focus is protected) → kimi fresh-eyes + stranger test at next seating (does th
 someone who wasn't in the room?) → reconcile (all three voices) → **Daniel ratifies**. Blind
 halves are wrong-shaped here; adversarial sharpening beats independent derivation for schema work.
 
+## Outside-review fold-in (2026-07-22, pre-counter — GPT via Daniel)
+
+Weighted per Daniel's own calibration, verbatim: *"I don't fully trust GPT, it can be dismissive
+and reductionistic as well as subversive and insistent on its own preconceptions but I still find
+it a useful voice to consider."* Full review preserved:
+research/reviewed/gpt-steer-corpus-review-2026-07-22.md. Six refinements adopted as round
+inputs (deepseek/kimi counter the ENRICHED opening); most are re-derivations of Aurora's own
+physics — convergence evidence, not new law:
+
+- **R1 (rider on law 5):** *"Zero threshold for preservation does not mean zero threshold for
+  activation."* Never-prune is a STORAGE rule; retrieval stays selective, purpose-keyed, and
+  floor-gated — the corpus inherits Aurora's existing recall physics (relevance floor, caps,
+  calibrated silence) unchanged.
+- **R2 (into S2):** `ruling_record_correction` — an append-only event for clerical fixes
+  (broken pointer, wrong date, omitted participant) carrying `governing_content_changed: false`.
+  Clerical corrections never masquerade as superseding rulings; judgment-history and
+  record-hygiene stay distinct.
+- **R3 (into S2/S3):** richer immutable supersession edges — `supersedes | narrows | extends |
+  creates_exception_to | reaffirms` — plus minimum ruling fields (scope, effective time, arcs
+  touched, relationship, pre-authorized pause rail) so the standing-rulings projection is
+  DETERMINISTIC, never semantic guesswork over prose.
+- **R4 (into S4):** attractor cards carry counterexamples/tensions, superseded steers, date
+  range, arcs, confidence, projection version, and last-challenged — not just ≥3 supporting
+  receipts. Ten supports + three honest tensions beats a clean slogan. Competing per-seat
+  projections are legitimate: the corpus is authoritative; every map is a regenerable
+  interpretation.
+- **R5 (into S1, harvest bar):** steer identity/provenance model — original utterance ≠ exact
+  reproduction ≠ quotation ≠ paraphrase ≠ later independent reaffirmation. Verbatim copies
+  point at the source atom (documentation density must never read as philosophical importance);
+  an independent restatement across time is NEW evidence of stability.
+- **R6 (clarifies guard 4):** Daniel's falsifiers are checked FIRST, but the challenge channel
+  stays open to failures he did not anticipate — novel evidence is always presentable, still
+  gate-addressed.
+- **S3 pilot observation sheet seeded** with GPT's open questions: partial rulings, scope
+  expression, per-sub-decision uncertainty, "not decided" vs "explicitly deferred", boot-time
+  resolution of the effective head. Answered from specimens, never imposed before them.
+
 ## Honest bounds (what this is NOT)
 
 Not a Daniel-model, persona, or auto-applied preference engine. The corpus INFORMS; only the
