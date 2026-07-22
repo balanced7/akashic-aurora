@@ -97,18 +97,19 @@ Procedure, launchers, and the blinded pack are staged and ready; the run waits o
   queued). The guard is this protocol's own. Generous-spirit crediting of queued work is a
   false citation; lesson `crown_doc_phantom_citation` filed under claude (law 8). Check class
   → W55 (verify-the-citation).
-- **F2 — blind hole (mitigated in the launcher; real blind is a registered follow-up):** the
-  arm→letter mapping sat in plaintext in `scripts/local/launch_fable_e1.ps1:12-14` under a
-  comment claiming it lived only in the blind keys file. The false comment is struck — the
-  launcher now states honestly that the mapping IS filesystem-readable and the blind rests on
-  **scorer hygiene: scorer seats must not read `scripts/local/` or `scratch/e1/`** (also the
-  Scorer-hygiene section above). kimi read the fixed mapping and is contaminated for scoring
-  THIS run and recuses; Daniel + a fresh uncontaminated seat score. Follow-up F2 (before any
-  next run): a runtime-random letter assignment persisted out-of-repo (e.g. generated at first
-  launch into gitignored `scratch/e1/_arm-map.json`) so nobody knows the pairing until
-  unblinding — that also un-burns contaminated scorers for future runs. (Two claude seats
-  answered this audit concurrently — C2 collision, coordinated after the fact; this bullet
-  records the version that landed.)
+- **F2 — blind hole (CLOSED end-to-end, three passes across seats):** the arm→letter mapping
+  sat in plaintext in `scripts/local/launch_fable_e1.ps1:12-14` under a comment claiming it
+  lived only in the blind keys file. Pass 1 struck the false comment and added the protocol
+  rule — **scorer seats must not read `scripts/local/` or `scratch/e1/`** (Scorer-hygiene
+  section above; kimi recused for the pre-audit fixed mapping). Pass 3 (@0d50767) made the
+  guard REAL: the launcher now GENERATES the mapping at first launch and persists it only to
+  gitignored `scratch/e1/_arm-map.json` (+ explicit UTF8 reads) — nobody knows the pairing
+  until unblinding; deleting the keys file re-randomizes. The pre-audit mapping is burned, so
+  at-launch randomization un-burns kimi for the actual run (the scorer roster stays Daniel's
+  call). Pass 2 — an intermediate version of THIS bullet — asserted the randomized launcher
+  before it existed on disk: the assert-guard-not-had genus recursing inside the audit's own
+  paper trail; caught by a sibling seat's fence-grep and made true; recorded in W55's
+  recursion clause. (C2 multi-seat collision throughout; reconciled.)
 - **F3 — precondition recommended to Daniel:** the injection ledger (24h: 35 injections,
   exactly ONE conductor_* firing) says the stance organ fires rarely at composition time.
   Before the run, land W54 (injections-by-family line at wrap/doctor) and record the

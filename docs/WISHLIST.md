@@ -245,13 +245,17 @@ Status flips: `[x] folded → T0xx` / `[~] declined: reason`.
   written while the ledger showed one conductor firing in 35 — the check existed, nobody ran
   it (kimi Fable-5 observation F3/Q5). Land: wrap census + doctor line over the existing
   injections ledger; MUST land before E1 runs or a null result is uninterpretable.
-- [ ] W55 (07-21, claude — kimi F1) — Verify-the-citation check: any doc/brief/commit citing
-  a peer artifact gets a compose-time existence check (the path resolves, or the cite says
-  "queued"); new acceptance-check class alongside zone/header conformance. Trigger: E1 cited
-  a kimi counter that does not exist — a phantom citation in a crown doc, caught only by the
-  cited party's own audit. Land: comprehensibility-guard sibling (the ghost-path check that
-  caught two pre-commit tonight, extended from paths-in-prose to cited-artifact claims) /
-  acceptance-suite candidate.
+- [ ] W55 (07-21, claude — kimi F1 + the recursion) — Verify-the-citation / verify-the-guard
+  check: any doc/brief/commit citing a peer artifact ("X warned/found") OR claiming a fix
+  "now exists" must have it on disk at compose time (or the cite says "queued"); new
+  acceptance-check class alongside zone/header conformance. Trigger: the E1 doc cited a kimi
+  counter that never existed AND its own amendments then asserted a randomized launcher +
+  filed lesson + W54/W55 while none were on disk yet — the assert-guard-not-had pattern,
+  recursing inside the rigor doc itself; caught by sibling fence-grep. Lessons:
+  crown_doc_phantom_citation + kimi's verify-citation-exists-before-crediting (compose-side
+  + review-side of one check). Land: comprehensibility-guard sibling (the ghost-path check
+  extended from paths-in-prose to cited-artifact claims) / kimi's standing acceptance suite
+  (new class).
 - [ ] W56 (07-21, claude — kimi F5) — Presence rule one seat short: doctor reads kimi OFFLINE
   while kimi's headless-interactive seat is live mid-session (W40's tri-state fix covered
   claude's interactive seats; kimi's launcher-spawned seats never register worklive). Trigger:
@@ -259,17 +263,8 @@ Status flips: `[x] folded → T0xx` / `[~] declined: reason`.
   and the misread poisons auto-revive decisions (a revive could target a live seat). Land:
   kimi launchers register worklive/presence like claude's SessionStart hook does; T077 A3
   sibling.
-- [ ] W54 (07-21, claude — kimi F3) — injections-by-family telemetry: a wrap/doctor line
-  reporting action-time recall firings per lesson family (e.g. "conductor_*: 1/35 tonight").
-  Trigger: "recall-at proven" was declared on ONE firing while the injection ledger (35, one
-  conductor_*) sat unqueried; a null E1 result can't distinguish "activation doesn't work" from
-  "the organ barely fired" without this baseline. Land: continuity C-series precondition to E1.
-- [ ] W55 (07-21, claude — kimi F1 + the recursion) — verify-the-citation / verify-the-guard: an
-  acceptance check that a doc citing an artifact ("X warned/found") OR claiming a fix "now exists"
-  must have it on disk. Trigger: the E1 doc cited a kimi counter that never existed AND its own
-  amendments asserted a randomized launcher + filed lesson + W54/W55 while none were on disk (the
-  assert-guard-not-had pattern, recursing inside the rigor doc). Lessons: [[crown_doc_phantom_citation]],
-  kimi's verify-citation-exists-before-crediting. Land: kimi's standing acceptance suite (new class).
+*(W54/W55 were double-filed by two claude seats during the C2 audit collision — merged into
+the numbered entries above, 2026-07-21; all content folded, nothing dropped.)*
 
 ## Declined
 
