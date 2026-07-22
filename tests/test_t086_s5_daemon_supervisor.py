@@ -21,8 +21,8 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def _daemon_creationflags() -> int:
-    """Pre-registered RED: Ctrl-Break targets must own a private Windows group."""
-    return 0
+    """Ctrl-Break targets own a private Windows process group."""
+    return subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0
 
 
 def test_s5_c1_sigterm_daemon_children_terminated_within_5s():

@@ -49,8 +49,13 @@ def _redis():
 # ---------------------------------------------------------------- position sources
 def _git(*args: str) -> Optional[str]:
     try:
-        r = subprocess.run(["git", "-C", REPO] + list(args), capture_output=True,
-                           text=True, timeout=10)
+        # The MCP server owns stdin as its JSON-RPC transport.  If Git inherits that
+        # handle on Windows, a completed boot response can remain pending until the
+        # client sends another frame (C7-4).  Delta runs during every full boot, so
+        # explicitly detach the child from the transport.
+        r = subprocess.run(["git", "-C", REPO] + list(args),
+                           stdin=subprocess.DEVNULL, capture_output=True,
+                           text=True, timeout=10, close_fds=True)
         return r.stdout.strip() if r.returncode == 0 else None
     except Exception:
         return None

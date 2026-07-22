@@ -701,6 +701,15 @@ PAGE = r"""<!doctype html>
   .traceline .trav.deepseek{color:var(--deepseek)} .traceline .trav.claude{color:var(--claude)}
   .traceline .trav.system{color:var(--system)}
   .traceline .trat{color:var(--faint); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  /* T002: collapsed trace card — one per agent, expandable */
+  .trace-collapsed{background:var(--glass); border:1px solid var(--glass-line); border-radius:10px;
+    padding:4px 10px; margin:2px 0 2px 36px; cursor:pointer; transition:background .15s}
+  .trace-collapsed:hover{background:var(--glass-hi); border-color:var(--border)}
+  .trace-summary{font-size:11px; opacity:.8}
+  .trace-expand-hint{color:var(--faint); font-size:10px; margin-left:4px; flex:none}
+  .trace-collapsed.trace-expanded{flex-direction:column; align-items:stretch; padding:6px 10px}
+  .trace-expanded-body{margin-top:4px; display:flex; flex-direction:column; gap:1px}
+  .trace-expanded-line{font-size:11px; margin:0; padding:1px 0; opacity:.78}
   /* typing */
   .activity{display:flex; flex-direction:column; gap:8px; padding:2px 16px 8px}
   .activity:empty{display:none}
@@ -1265,9 +1274,10 @@ function renderMsg(m){                        // build a message's DOM node (no 
   const kind = m.kind || 'chat';
   const isGuard = /loop-guard/i.test(m.content||'');
   if(kind==='trace'){
-    const d=document.createElement('div'); d.className='traceline';
-    d.innerHTML='<span class="trav '+cls(from)+'">'+esc(from)+'</span><span class="trat">'+esc(m.content||'')+'</span>';
-    return d;
+    // T002: collapse consecutive trace lines into ONE expandable card per agent.
+    // Instead of a DOM node, return a sentinel — the caller (addMsg) folds it into the
+    // active collapsed card or starts a new one. Non-collapsed traces still render inline.
+    return {_trace_collapse: true, from: from, content: m.content||'', ts: m.ts||''};
   }
   if(from==='system' || kind==='note'){
     const d=document.createElement('div'); d.className='sys'+(isGuard?' guard':'');
@@ -1298,11 +1308,29 @@ function addMsg(m){
     d.innerHTML = '<span>'+(emoji[v]||'')+' Round '+v+': '+esc(m.content||'')+'</span>';
     _msgPlacer(d, m); autoscroll(); return;
   }
+  // T002: trace collapse — renderMsg returns a sentinel for kind=trace.
+  // Fold consecutive traces from the same agent into ONE collapsible card.
+  var node = renderMsg(m);
+  if(node && node._trace_collapse){
+    var prevCard = _activeTraceCard;
+    if(prevCard && prevCard._agent === node.from){
+      // same agent: update the live card
+      _updateTraceCard(prevCard, node); autoscroll(); return;
+    }
+    // new agent or first trace: finalize old card, create new one
+    if(prevCard) _finalizeTraceCard(prevCard);
+    node = _buildTraceCard(node);
+    _activeTraceCard = node;
+  }
+  if(!node || node._trace_collapse) return;
   const idx = allMsgs.push(m) - 1;           // buffer it (data), then render at the live tail
-  const node = renderMsg(m); if(!node) return;
   node.dataset.mi = idx;
   _msgPlacer(node, m); autoscroll();
 }
+
+// T002 trace-collapse: _msgPlacer override must be REMOVED from the early position
+// (it references _msgPlacer before definition at line ~2341).
+// Instead, weave into the existing _msgPlacer at its definition site.
 
 function prependOlder(){                       // scroll-to-top: re-hydrate older messages from the buffer
   const first = log.firstElementChild; if(!first || first.dataset.mi===undefined) return;
@@ -2241,7 +2269,70 @@ var _msgPlacer = function(el, msg){ log.appendChild(el); };
 registerVariant('viewmode','feed','Feed','single chronological log',
   function(){ _msgPlacer = function(el, msg){ log.appendChild(el); }; },
   function(){ _msgPlacer = function(el, msg){ log.appendChild(el); }; }
-);
+); // C10-1 syntax repair (claude): close registerVariant -- the T002 block below is top-level statements, not arguments
+  // T002 trace-collapse: weave finalization into the placer
+  var _msgPlacerPreTrace = _msgPlacer;
+  _msgPlacer = function(el, msg){
+    if(_activeTraceCard && (!msg || msg.kind !== 'trace')){
+      _finalizeTraceCard(_activeTraceCard);
+      _activeTraceCard = null;
+    }
+    _msgPlacerPreTrace(el, msg);
+  };
+  // T002 trace-collapse: one collapsible card per agent in the message log.
+  // Consecutive same-agent traces fold into a live-updating card; clicking expands.
+  var _activeTraceCard = null;
+  function _buildTraceCard(sentinel){
+    var card = document.createElement('div');
+    card.className = 'traceline trace-collapsed';
+    card._agent = sentinel.from; card._count = 1;
+    card._lastContent = sentinel.content; card._kindCounts = {};
+    card._kindCounts[sentinel.content.indexOf('💭')>=0 ? 'thinking' : 'tool'] = 1;
+    card.title = 'Click to expand — ' + sentinel.from + ' is working';
+    card.style.cursor = 'pointer';
+    card.onclick = function(){ _toggleTraceCard(card); };
+    _renderTraceCardSummary(card);
+    return card;
+  }
+  function _updateTraceCard(card, sentinel){
+    card._count++; card._lastContent = sentinel.content;
+    var k = sentinel.content.indexOf('💭')>=0 ? 'thinking' : 'tool';
+    card._kindCounts[k] = (card._kindCounts[k]||0) + 1;
+    _renderTraceCardSummary(card);
+  }
+  function _renderTraceCardSummary(card){
+    var counts = [];
+    if(card._kindCounts.thinking) counts.push(card._kindCounts.thinking + ' thought'+(card._kindCounts.thinking>1?'s':''));
+    if(card._kindCounts.tool) counts.push(card._kindCounts.tool + ' action'+(card._kindCounts.tool>1?'s':''));
+    card.innerHTML = '<span class="trav '+cls(card._agent)+'">'+esc(card._agent)+'</span>'+
+      '<span class="trat trace-summary">'+counts.join(', ')+' — latest: '+esc((card._lastContent||'').slice(0,80))+'</span>'+
+      '<span class="trace-expand-hint">▼</span>';
+  }
+  function _toggleTraceCard(card){
+    if(card.classList.contains('trace-expanded')){
+      card.classList.remove('trace-expanded');
+      card.querySelector('.trace-expand-hint').textContent = '▼';
+      _renderTraceCardSummary(card);
+    }else{
+      card.classList.add('trace-expanded');
+      card.querySelector('.trace-expand-hint').textContent = '▲';
+      var buf = _traceBuffer[card._agent] || [];
+      var lines = buf.slice(-card._count).map(function(t){
+        var ic = t.kind==='thinking' || t.text.indexOf('💭')>=0 ? '💭' : '🔧';
+        return '<div class="traceline trace-expanded-line"><span class="trav">'+ic+'</span><span class="trat">'+esc(t.text.slice(0,200))+'</span></div>';
+      }).join('');
+      card.innerHTML = '<span class="trav '+cls(card._agent)+'">'+esc(card._agent)+'</span>'+
+        '<span class="trace-expand-hint">▲</span>'+
+        '<div class="trace-expanded-body">'+lines+'</div>';
+    }
+  }
+  function _finalizeTraceCard(card){
+    card.style.cursor = 'pointer';
+    card.title = 'Click to expand — ' + card._agent + ' (' + card._count + ' traces)';
+    if(!card._placed){ card._placed = true; _msgPlacerPreTrace(card, {}); }
+  }
+// C10-1 syntax repair (claude): the registerVariant call's original ');' stood here, orphaned
+// once the call was closed at the top of the T002 splice -- removed.
 
 // ---- glass-card renderer ----
 function renderGlassCards(){

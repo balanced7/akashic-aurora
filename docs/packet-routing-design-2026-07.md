@@ -407,6 +407,100 @@ build seat's counter (mid-turn blind spot, ghost reply, cost-ignorant router, an
 survivors) are acknowledged as design inputs for Phase 1. They are not Phase 0 blockers —
 Phase 0 is additive meta fields that don't touch the consume loop.
 
-**Doc status**: All §U items resolved. The doc is ready for Daniel's morning approval and
-RECONCILED re-stamp. Phase 0 (~75 lines: verb methods + meta.verb + meta.wake + doctor
-show-routes) is teed at his gate.
+**Doc status**: All §U items resolved. Phase 0 remains teed. **BUT before the RECONCILED
+re-stamp — see ROUND 5 below: a THIRD voice (kimi fresh-eyes, 2026-07-18) + the MAIN deepseek
+seat's disposition materially amend CONVERGED item #3. The RECONCILED stamp waits on that fold,
+not just Daniel's approval.**
+
+---
+
+## ROUND 5 — THREE-VOICE AMENDMENT (2026-07-18, claude synthesis; deepseek + deepseek-review affirm pending)
+
+**Why this round exists.** Rounds 1–4 were claude + deepseek-review (+ the main deepseek seat's
+§U counter). All of them liked CONVERGED #3, the closed-loop congestion import (ECN/AIMD, "six
+laws, law 5a"). On 2026-07-18 Daniel opened a fresh-eyes lane: kimi (kimi-k3), reading the two
+halves COLD, attacked the import; the MAIN deepseek seat then **adopted the attack**. This round
+folds that result. It is a material change to a CONVERGED item, so it re-opens the gate — loud,
+not silent, per the editing protocol.
+
+Provenance: research/reviewed/kimi-fresh-eyes-packet-routing-2026-07-18.md (third voice) +
+deepseek disposition bus reply 1784393799264-0 (verbatim archived alongside
+research/reviewed/deepseek-roster-playbook-counter-2026-07-18.md).
+
+**The finding the two-voice fence structurally could not produce:** claude and both deepseek
+seats imported the TCP model from ONE source (recall-networking-reconciliation-2026-07-12.md).
+The rounds-1–4 agreement on #3 was *same-source*, not independent confirmation. Only a voice
+that never read that source caught it.
+
+### A5-1. CONVERGED #3 (closed-loop by default) — DEMOTED. Replace with centralized token-bucket.
+
+- **Kill reason (kimi A1, deepseek confirmed):** the loop's feedback rides presence
+  (`PRESENCE_TTL=90s`, bus.py:38) while it governs a `send_roundtrip=7.7ms` system — ~11,500:1.
+  In control terms the plant is **uncontrollable**; no damping/jitter closes a four-orders-of-
+  magnitude cadence gap. And at N≈4 on one Redis, distributed congestion control is machinery
+  for a scale we don't have. (deepseek's corrected constants make his own staleness point
+  *stronger*, not weaker — the 90s TTL is the amplifier.)
+- **Replacement:** **centralized token-bucket per sender at the send door.** Working in-house
+  precedent: `control.pause` reply-rate-limit auto-pause (bifrost_runner_sol.py:378) — a one-
+  element congestion controller that already works. Simpler, testable without cross-agent
+  feedback, right-sized for N<20.
+- **ECN/AIMD (N0/N2): PARKED** to an explicit "reconsider at N>20" backlog item — sound at
+  scale, wrong for now. B7 (the ecn marking point was mechanically absent anyway) becomes moot.
+
+### A5-2. rwnd stays — as a LATCH WITH OWNER-LIVENESS from day one (kimi A2 + deepseek F3).
+
+A crashed consumer leaving rwnd=0 blocks every sender forever — the **exact C1-1 dead-holder
+class we already lived**. The rwnd latch ships WITH the C1-1 evidence ladder (tombstone +
+timeout + steward escalation) embedded, never bolted on after the first production dead-holder.
+
+### A5-3. The verb API gains its RECEIVE half (kimi B2 — a blind spot in ALL prior rounds).
+
+Every round designed send verbs only; Daniel's charge ("internal APIs to handle our routing")
+includes getting the answer back. `ask()` returns a **correlation handle (ticket)**, awaited via
+`await_reply(ticket, timeout)` over the existing wake_block/poll machinery. Without it every
+caller re-hand-rolls the send-then-block-for-reply loop the runner already does ad hoc.
+
+### A5-4. Busy → REFUSE, never silently queue (kimi A3; deepseek adopted).
+
+deepseek's original F1 ("queue the ask locally, retry when rwnd clears") is **DROPPED**: a
+locally-queued ask on a crashed sender vanishes while the sender believes it sent — silent loss,
+the legacy stream's original sin one layer up, outside RB-26. `ask()` on a busy gate-class target
+returns **BUSY** (MTU-refusal shape); the caller decides retry/escalate/reroute.
+
+### A5-5. route_override (F5) is acl-gated + provenance-stamped (kimi B3).
+
+An unauthenticated Redis override that reroutes any kind, on a bus LLM agents read, is prompt-
+injection's shortest path to traffic redirection. The override is a control-plane write: acl-
+gated, who/why/when stamped (R15 lineage, T034 doctrine), rendered OVERRIDE, last-writer-with-audit.
+
+### A5-6. Smaller folds.
+
+- **B1 — redrive backoff.** `expectations.py REDRIVES=3` fires at fixed cadence (40/80/120s) —
+  fixed-cadence retransmission into congestion is the classic collapse amplifier (C6-2 is ours).
+  Add **exponential backoff + jitter** to the redrive schedule. Small slice, rides step 1.
+- **A5 — load-bearing probes.** The P4 probe harness must **generate load** before any number is
+  stamped as throughput: idle 7.7ms is a latency floor, not capacity. Add drain-rate-at-N-msgs/s
+  and p95-under-redrive-storm modes.
+- **B4 — strangler kill-date.** Set a migration-completeness gate (all callers migrated) as
+  T047's explicit precondition; "temporary" coexistence taxes (T044→T047 history).
+- **B6 — timeout-constant invariants as pins:** deadline < reply_timeout; redrive window fits
+  inside deadline. So the next inconsistent pair can't become a wake-loop.
+- **B8 — rwnd vs XLEN:** XLEN is a cross-check inside the latch, not the primary metric (a
+  depth-0 consumer mid-10-min-task is still saturated — proof depth is the wrong currency).
+
+### Revised sequencing (supersedes the earlier T047→routing→T046 line for the loop parts)
+
+1. T046 latches + **rwnd-with-liveness** (C1-1 ladder in the same slice) + **B1 redrive backoff**.
+2. T047 legacy retirement (kills the straggler class — the same seam as today's stuck work-cursor).
+3. Router table + verb API (incl. **the receive/await half** + **refuse-don't-queue**) +
+   **acl-gated override**.
+4. **Token-bucket per sender at the send door** (replaces N0 ecn / N2 AIMD for N<20).
+5. Load-generating probe harness → SYSTEMS.md.
+- Parked to N>20: N0 ecn wire, N2 distributed AIMD.
+
+### Gate (re-opened by this round)
+
+The RECONCILED re-stamp now folds ROUND 5. Phase 0 (additive verb sugar + meta + doctor
+show-routes) is UNAFFECTED by the demotion and still teed. The **closed-loop was Phase 1** — Phase 1
+is now token-bucket + rwnd-with-liveness instead of ECN/AIMD. deepseek + deepseek-review: affirm
+this fold in one line each unless you contest (T049 counter-check); then Daniel's gate.

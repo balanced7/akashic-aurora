@@ -115,19 +115,6 @@ def _force_tree(pid: int) -> None:
             pass
 
 
-def _force_pid(pid: int) -> None:
-    if sys.platform == "win32":
-        subprocess.run(
-            ["taskkill", "/PID", str(pid), "/F"],
-            capture_output=True, text=True, timeout=5,
-        )
-    else:
-        try:
-            os.kill(pid, 9)
-        except ProcessLookupError:
-            pass
-
-
 def _seed_spec(state_dir: Path, job_id: str, command: list[str], *,
                max_runtime: float = 3.0, grace: float = 0.2,
                heartbeat: float = 0.05, broker: str = "detached",
@@ -206,9 +193,10 @@ def test_wmi_broker_launches_guards_without_visible_consoles(monkeypatch):
     compact = "".join(broker_script.split())
     assert pids == [101, 102]
     assert captured["kwargs"]["creationflags"] & subprocess.CREATE_NO_WINDOW
-    assert "New-CimInstance-ClassNameWin32_ProcessStartup-ClientOnly" in compact
-    assert "$startup.ShowWindow=0" in compact
-    assert "$startup.CreateFlags=8" in compact  # DETACHED_PROCESS
+    assert "New-CimInstance-ClassNameWin32_ProcessStartup" in compact
+    assert "-ClientOnly" in compact
+    assert "ShowWindow=[uint16]0" in compact
+    assert "CreateFlags=[uint32]8" in compact  # DETACHED_PROCESS
     assert "ProcessStartupInformation=$startup" in compact
 
 
@@ -947,7 +935,10 @@ def test_stale_supervisor_is_loud_but_watchdog_still_enforces_deadline(tmp_path)
             max_runtime=0.75, heartbeat=0.03)
     running = _wait_running(tmp_path, job_id)
     assert running.get("watchdog_pid"), running
-    _force_pid(int(running["supervisor_pid"]))
+    supervisor_pid = int(running["supervisor_pid"])
+    supervisor_identity = str(running["supervisor_identity"])
+    killed = run_job._win_terminate_exact(supervisor_pid, supervisor_identity)
+    assert killed["terminated"] is True
     final = _wait_terminal(tmp_path, job_id, timeout=5)
     assert final["state"] == "deadline_exceeded"
     assert final["reported_by"] == "watchdog"

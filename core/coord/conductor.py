@@ -150,9 +150,11 @@ def unpark(tid, *, by="", client="auto", path=None):
 
 def next_task(client="auto", path=None):
     """The single task that may start now: none if something is already IN_PROGRESS (Phase 1's
-    one-at-a-time gate), else the first APPROVED task whose deps are all DONE. Returns a dict or None."""
+    one-at-a-time gate), else the first APPROVED task whose deps are all DONE. Returns a dict or None.
+    The gate keys on ACTIVE (CLAIMED/IN_PROGRESS/VERIFYING), matching state_view's in_progress
+    definition — a claimed task occupies the sequential slot just as much as one mid-build."""
     v = TL.state_view(path or TL.LEDGER_PATH, client)
-    if any(t["status"] == TL.IN_PROGRESS for t in v["in_progress"]):
+    if v["in_progress"]:   # any ACTIVE status occupies the slot
         return None
     return v["next"][0] if v["next"] else None
 
@@ -210,8 +212,16 @@ def main(argv=None) -> int:
             print(TL.format_state(now=time.time()))
         elif a.cmd == "next":
             n = next_task()
-            print(f"NEXT: {n['id']} - {n['title']}" if n else
-                  "NEXT: none (a task is already in progress, or nothing is claimable)")
+            if n:
+                print(f"NEXT: {n['id']} - {n['title']}")
+            else:
+                v = TL.state_view(TL.LEDGER_PATH)
+                active = [f"{t['id']}({t['status']})" for t in v.get("in_progress", [])]
+                if active:
+                    print(f"NEXT: none ({len(active)} active: {', '.join(active[:5])}"
+                          f"{'...' if len(active) > 5 else ''} — claim nothing while the slot is occupied)")
+                else:
+                    print("NEXT: none (no claimable tasks — all APPROVED tasks have unsatisfied deps)")
     except TL.LedgerError as e:
         print(f"BLOCKED: {e}", file=sys.stderr)
         return 1
