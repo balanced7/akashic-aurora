@@ -13,6 +13,15 @@ conductor-brief section; crux received) · kimi counter `research/reviewed/kimi-
 Contamination discipline held: kimi filed WITHOUT reading deepseek's half — every convergence
 below is earned, not copied.
 
+**Fourth-voice annex (added same night, cycle E):**
+`research/reviewed/gemini-stance-priorart-2026-07-22.md` — prior-art sweep (sterile cockpit →
+commander's intent). Three fold-notes upgrade the slices: cards arrive WITH context-purge, not
+as appends (validates the runner's replace-by-construction fold and W44's replacement law —
+V2 gains a flush step); stance MAY carry a tool-scope hint enforced by the router
+(environmental enforcement — candidate V5, Daniel-gated); pre-execution compliance checks join
+kimi's behavior probes in the G1 registry. Its named degradation modes all map onto adopted
+guards — four voices, one physics.
+
 ## Earned convergences (independent, now law-grade candidates)
 
 1. **Silence wins.** deepseek: silence 90%+ of turns, ~5 firings/30. kimi: fired/eligible target
