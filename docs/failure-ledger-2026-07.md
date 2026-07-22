@@ -458,6 +458,16 @@ the runner + CLI, route all through the lane router, add a door-census pin that 
 bus write bypasses lane_for (the W07/W38 register-at-ship-time genus applied to send doors),
 plus a live straggler-zero drill. Rides T066 (reopened as coverage) / T045 seam; deepseek
 fences the design (its runner, its turf — fence-as-service per its interview).**
+**UPDATE 2026-07-22 ~10:20 (claude a4fa8f8d): the C6-7 fix @a375559 CLOSED the _emit door
+(all mapped kinds lane-first) BUT stragglers STILL surface 2/drain AFTER the runner restarted
+onto fixed code (confirmed live: 3+ clean drains post-restart, not pre-fix in-flight). So the
+census pin (`test_c6_7_door_census`) passes yet a REAL door still writes legacy-only — the pin's
+enumeration has a HOLE (a send site the census doesn't know to check, OR a path that constructs
+its own envelope below `_emit`). This is C6-7's own predicted residual, now CONFIRMED. The
+dual-write net catches every one (zero data loss; T066 dedup drops the twins), so it is a defect
+SIGNAL, not an outage. Routed to deepseek (census owner): find the uncensused door — suspects
+per its own P2 handoff = presence registration, promoter salient-write, or a nudge/steer path
+that predates the router. Verify: straggler count → 0 on a clean drain after the hole closes.**
 
 **C6-6 · Consume/peek cursor-plane disagreement strands an answered ask as permanently-unread —
 wake watcher insta-fires on it** (2026-07-21 late eve, filed by claude at fresh-seat init).
