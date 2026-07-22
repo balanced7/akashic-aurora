@@ -440,7 +440,11 @@ class Bus:
         if lane_mid is None and legacy_mid is None:
             return None               # both writes failed: the send failed
 
-        mid = lane_mid or legacy_mid
+        # Return the LEGACY mid: every consumer (inbox/cursor/wait/kill-window)
+        # reads legacy streams, so the return value of send()/broadcast() must be
+        # the id those consumers see.  The lane mid is internal -- lane consumers
+        # (work_drain) get their id from the stream read, not from this return.
+        mid = legacy_mid or lane_mid
         self._touch()
         self._ring_bell(to, mid, str(kind))
         try:                           # B2: durably project salient kinds (best-effort)
@@ -455,41 +459,37 @@ class Bus:
         """Split an oversize payload into MTU-safe fragment packets and xadd each (T043 pin 5).
         Every fragment is len+sha-stamped and carries frag={seq,of,whole_id,whole_len,whole_sha}
         so the consumer can reassemble and detect a missing piece (pin 6). Rings the bell ONCE
-        for the whole; returns the id of the first fragment (or None on any write failure).
+        for the whole; returns the LEGACY id of the first fragment (or None on any write failure).
 
-        C6-7: fragments ride the LANE (if mapped) first, with legacy fallback -- the old
-        advisory _lane_write mirror is retired."""
+        C6-7: fragments ride the LANE (if mapped) first as a best-effort mirror, but the
+        legacy stream is the PRIMARY path for fragment consumers. The returned id is always
+        a legacy stream id so consumers (which read legacy) can match it."""
         lane = packet_spec.lane_for(str(kind))
         target = None if to == BROADCAST_TO else str(to)
         lane_key = (packet_spec.lane_stream_key(self.ns, lane, to=target)
                     if lane else None)
-        first_mid: Optional[str] = None
+        first_legacy_mid: Optional[str] = None
         for fenv in packet_spec.fragment(env):
-            fragment_mid: Optional[str] = None
-            # Lane write (if mapped)
+            # Lane write (if mapped, best-effort -- the advisory mirror survives here)
             if lane_key is not None:
                 try:
-                    fragment_mid = str(self._client.xadd(lane_key, fenv,
-                                                         maxlen=packet_spec.lane_maxlen(lane),
-                                                         approximate=True))
+                    self._client.xadd(lane_key, fenv,
+                                      maxlen=packet_spec.lane_maxlen(lane),
+                                      approximate=True)
                 except Exception:
                     pass
-            # Legacy fallback
+            # Legacy write: the primary path for fragment consumers
             try:
                 legacy_id = str(self._client.xadd(stream, fenv,
                                                   maxlen=self.maxlen, approximate=True))
-                if fragment_mid is None:
-                    fragment_mid = legacy_id
             except Exception:
-                pass
-            if fragment_mid is None:
-                return None           # a fragment failed both writes: the whole fails
-            if first_mid is None:
-                first_mid = fragment_mid
-        if first_mid is not None:
+                return None           # a fragment failed legacy: the whole fails
+            if first_legacy_mid is None:
+                first_legacy_mid = legacy_id
+        if first_legacy_mid is not None:
             self._touch()
-            self._ring_bell(to, first_mid, str(kind))
-        return first_mid
+            self._ring_bell(to, first_legacy_mid, str(kind))
+        return first_legacy_mid
 
     _unmapped_loud_seen: set = set()   # once-per-kind-per-process throttle (class-level)
 
