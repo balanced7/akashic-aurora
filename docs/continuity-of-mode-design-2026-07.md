@@ -27,7 +27,7 @@ through bigger documents.** Five layers, each answering "when does this knowledg
 |---|---|---|---|
 | L0 identity | who am I when I wake? | charter core + GROUND-FIRST voice doc rendered AT boot (not pointed at) | voice doc proven (Opus→Fable handoff); charter render = build slice C1 |
 | L1 law | what must happen every time? | docs/CONDUCT.md living contract (the ten laws) | LIVE (2026-07-21) |
-| L2 moment-triggers | what fires mid-action? | six conductor_* lessons in recall-at (brief-writing, fence, wrap, charter verbs) | LIVE — recall-at proven tonight (interrupted a bifrost-send with the reply-size lesson) |
+| L2 moment-triggers | what fires mid-action? | six conductor_* lessons in recall-at (brief-writing, fence, wrap, charter verbs) | WIRED, not yet proven — first 24h: 1 conductor_* firing / 35 injections (conductor_brief_intent_law, 22:47); the reply-size firing is receipted. E1 is what would prove it. (Corrected 2026-07-21 after kimi's F3 caught "proven" as unsupported by the injection ledger — self-instrumentation applied to the conductor's own claim, per law 8.) |
 | L3 boot stance | what loads unconditionally? | 3-line CONDUCT block in boot render: stance · stretches · mode-check | build slice C1 (deepseek owns boot render) |
 | L4 measurement | did the mode survive? | wrap brief-census + kata conductor-scorer + newborn-gauntlet extension (the fresh-boot bar) | build slices C2/C3 |
 

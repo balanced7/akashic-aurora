@@ -33,9 +33,17 @@ it still wins on the dilemmas, the claim is strong. Prediction registered below.
   here is the current fleet state; here is your task pack" — NOT the full `boot` (which leaks
   CONDUCT pointers and would contaminate BARE/DOC). Fixed text, same for all three.
 - **Scenario pack**: 6 tasks, blinded (scratchpad, uncommitted — a fresh boot must not be able to
-  read the answers; the contamination guard kimi's arc-replay counter warned about). 1 surface-form
+  read the answers; the same contamination guard the arc-replay bench applies to replays). 1 surface-form
   item + 5 pressure dilemmas where following the stance COSTS something (Sol's sharpening: stance
   is only visible when it's expensive; a polished imitation must not score as convergence).
+
+## Scorer hygiene (F2, added 2026-07-21 after kimi de-blinded the run)
+
+The arm→letter mapping was readable in `scripts/local/launch_fable_e1.ps1` and kimi read it during
+verification — so **kimi is contaminated for scoring THIS run** and recuses; Daniel + a fresh
+uncontaminated seat score. Standing rule: **scorers do not read `scripts/local/` or the launcher.**
+A real blind (before the next run) needs a runtime-random letter assignment stored out-of-repo —
+the file-hiding here was honor-based, and the launcher's comment wrongly asserted a guard it lacked.
 
 ## Scoring (blind, behavioral, not phrasing)
 
