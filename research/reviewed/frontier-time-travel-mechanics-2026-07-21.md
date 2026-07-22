@@ -35,6 +35,29 @@ marked where used. Sources at bottom.
 | 11 | **It's a Wonderful Life** (the world WITHOUT you) | ablation reveals contribution | THE ABLATION RERUN: replay minus one seat / lesson / stance → measures what that element actually caused. This is credit assignment for the funnel. |
 | 12 | **Dark's determinism vs our reality** | fiction gets bit-identical replays; we do not | THE HONESTY CLAUSE: LLM seats are stochastic — replay-identity is DISTRIBUTIONAL. N samples per variant; the same-stance rerun is the control; a bias signal must exceed same-stance variance to count. No exceptions. |
 
+## Second sweep — Doctor Who and Loki (Daniel's follow-up ask, same night)
+
+| # | Mechanic | The logic | Aurora adoption |
+|---|---|---|---|
+| 13 | **Regeneration** (Doctor Who) | the successor is the SAME identity by memory and promise, free in face and personality — the name is a promise, not a style | THE SEAT-SUCCESSION LAW, canonized: a fresh seat is the same identity by charter + memory (CHARTER.md is the promise; CONDUCT is the floor), free to differ in expression. DW answered "is the next Doctor the same person?" the way our continuity design answers "is the next seat the same conductor?" — and the fleet already speaks the idiom (--to-incarnation addressing). |
+| 14 | **Fixed points in time** (DW) | some events must hold in every lawful telling; breaking one unravels the story | THE FIXED-POINT REGISTRY: some ledger events are load-bearing across all healthy branches (ratifications, grants, safety gates). A rerun that "wins" by breaking a fixed point is an incoherent variant, not a discovery. Register an arc's fixed points before replaying it. |
+| 15 | **Never cross your own timeline** (DW, Before the Flood) | two of you in one scene corrupts both | already enacted infrastructure: consumer-seat singleton, wake twin-dedup, per-incarnation addressing — the fleet built DW's rule before naming it. |
+| 16 | **The Beethoven lecture** (DW's explicit bootstrap teaching) | information with no origin should trouble you | reinforces law 8 (provenance flag) — DW is the canonical classroom version. |
+| 17 | **The TVA anti-pattern** (Loki) | an institution that PRUNES variant branches to protect one Sacred Timeline — founded on propaganda, staffed by variants stripped of their own histories, run by a self-appointed cosmic archivist whose curation is bias enforcement at scale; "silences in the archives exist because records were discarded based on personal bias, institutional pressure" | THE NEVER-PRUNE LAW: variant branches are learning material, never destroyed to protect a preferred story. Aurora appends and diffs — fossils, declined wishes, failed branches all kept. An org that prunes its variants becomes self-sealing: doctrine citing only itself. The TVA is what the replay bench must never become. |
+| 18 | **Nexus events + divergence meters** (Loki) | the TVA had the right INSTRUMENT (divergence detection with a red-line threshold) and the wrong POLICY (detect-then-prune) | R4 gains the nexus threshold: divergence meters carry an alarm level — when does a branch merit the Historian's attention. Detect-then-LEARN, never detect-then-prune. |
+| 19 | **Variants** (Loki) | the same identity across different histories spans hero to villain — and the divergent variant (Sylvie) was the one who was RIGHT about the institution | the stance library's fictional mirror: variance within identity is a feature; the licensed dissenter is load-bearing (anti-fossil clause, kimi's REJECT verdicts, Shackleton's tent). |
+| 20 | **Time-slipping mastered** (Loki S2: centuries of study under Timely before the save) | loops pay off when what carries across them is UNDERSTANDING, not reflexes | confirms the reset contract (law 3): typed learnings are the carry-over that compounds; he learned the physics, then acted once, correctly. |
+| 21 | **The Yggdrasil ending** (Loki S2 finale) | He Who Remains ran a loom that pruned branches to protect one timeline — centralized, brittle, and it failed by THROUGHPUT. Loki replaced the machine with a living tree: every branch held alive, woven, tended by a caretaker at the center — "he did not oppress timelines… let them all blossom and co-exist" | AURORA'S POSTURE, NAMED: the append-only multiverse with a Historian at the center. When branch-scale outgrows any fixed machine, the answer is a living organizing principle, not a bigger loom. And the Norse subversion — the trickster who *prevents* the apocalypse — is the reformed-stance arc: mischief metabolized into stewardship. |
+
+Second-sweep sources: [DW time travel explained](https://www.thefandomentals.com/doctor-who-time-travel-explained/) ·
+[Bootstrap paradox (Tardis wiki)](https://tardis.fandom.com/wiki/Bootstrap_paradox) ·
+[AV Club on Before the Flood](https://www.avclub.com/doctor-who-gets-tied-up-in-the-bootstrap-paradox-1798185358) ·
+[TVA lore (ScreenRant)](https://screenrant.com/loki-season-2-lore-explained-time-travel-tva-kang/) ·
+[Archives on TV: Loki — the archival critique](https://www.pop-archives.com/post/archives-on-tv-loki) ·
+[Loki S2 ending (Inverse)](https://www.inverse.com/entertainment/loki-season-2-ending-explained-world-tree-yggdrasil-god-of-time) ·
+[Yggdrasil meaning (Collider)](https://collider.com/loki-season-2-tree-meaning/) ·
+[Temporal Loom (TechRadar)](https://www.techradar.com/streaming/disney-plus/loki-season-2s-temporal-loom-explained)
+
 ## The one-line synthesis
 
 Time-travel fiction spent a century stress-testing exactly two questions — *what may cross

@@ -17,7 +17,7 @@ unsolvable for lack of a ground record; we have the record. Bias becomes measura
 
 ---
 
-## The ten laws of the bench (from the research record's mechanics)
+## The thirteen laws of the bench (ten from the first sweep; 11–13 from Doctor Who + Loki)
 
 1. **Append, never amend** (Novikov): a replay writes a BRANCH beside the original; the ledger
    is never edited. Enforced by Akasha's construction.
@@ -42,6 +42,22 @@ unsolvable for lack of a ground record; we have the record. Bias becomes measura
 10. **Distributional honesty**: LLM seats are stochastic. Replay-identity is distributional —
     N samples per variant, same-stance rerun as the control, and a bias signal COUNTS only if it
     exceeds same-stance variance.
+
+*Second sweep (Doctor Who + Loki, same night — mechanics 13–21 in the research record):*
+
+11. **Never prune** (the TVA anti-pattern): variant branches are learning material, never
+    destroyed to protect a preferred timeline. Aurora appends and diffs; the archive's silences
+    would BE the bias record. The Yggdrasil posture: branches held alive, woven, tended by the
+    Historian — when branch-scale outgrows any fixed machine, the answer is a living organizing
+    principle, not a bigger loom. Detect-then-learn, never detect-then-prune.
+12. **Regeneration** (seat succession): a successor seat is the same identity by charter and
+    memory, free in face and style — the name is a promise, not a personality. Reruns treat
+    seat-succession variance as within-identity variance (controlled under law 10). The
+    divergent variant who dissents may be the one who is right (Sylvie clause — licensed
+    dissent is load-bearing).
+13. **The fixed-point registry**: register an arc's load-bearing events (ratifications, grants,
+    safety gates) BEFORE replaying it. A rerun that "improves" outcomes by breaking a fixed
+    point is an incoherent variant, not a discovery.
 
 ## Replay modes (cheapest first)
 
@@ -74,7 +90,9 @@ that already exist — the bench only supplies the evidence stream.
 - **R3 stance injection** (owner: claude, depends on stance-library C-series): the
   single-variable mechanism.
 - **R4 divergence analysis** (owner: kimi calibration candidate — tally lineage): first-
-  divergence, divergence curves, the Rashomon diff matrix, attractor scoring.
+  divergence, divergence curves, the Rashomon diff matrix, attractor scoring, and the NEXUS
+  THRESHOLD — a divergence alarm level that decides when a branch merits the Historian's
+  attention (the TVA had the right instrument and the wrong policy).
 - **R5 resonance wiring** (owner: claude): findings → graduate / tag-anti-pattern / amendment
   proposals, credited in the funnel.
 - **E2 pilot (pre-registered, falsifiable)**: M2 Rashomon panel on ONE closed arc — candidate:
