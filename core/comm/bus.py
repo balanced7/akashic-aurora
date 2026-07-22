@@ -238,18 +238,20 @@ class Bus:
 
     # ------------------------------------------------------------------ send
     def send(self, to: str, kind: str, content: Any = None, *, parts: Optional[List[Part]] = None,
-             meta: Optional[Dict[str, Any]] = None, allow_frag: bool = False) -> Optional[str]:
+             meta: Optional[Dict[str, Any]] = None, allow_frag: bool = True) -> Optional[str]:
         """Direct message to one agent's inbox (optionally with `parts` -- inline or media-by-ref).
         Returns the message id, or None if the bus is offline OR the packet exceeds the MTU and
-        `allow_frag` is False (a REFUSE-LOUD, never a silent truncation -- T043). Pass
-        allow_frag=True to fragment an oversize payload, or carry large media as a blob-ref Part."""
+        `allow_frag` is False (a REFUSE-LOUD, never a silent truncation -- T043). By default
+        oversize payloads are auto-fragmented (P2 auto-chunk); pass allow_frag=False for the
+        legacy LOUD-refusal behavior."""
         return self._emit(self._inbox_key(str(to)), to=str(to), kind=kind, content=content,
                           parts=parts, meta=meta, allow_frag=allow_frag)
 
     def broadcast(self, kind: str, content: Any = None, *, parts: Optional[List[Part]] = None,
-                  meta: Optional[Dict[str, Any]] = None, allow_frag: bool = False) -> Optional[str]:
+                  meta: Optional[Dict[str, Any]] = None, allow_frag: bool = True) -> Optional[str]:
         """Fan-out to every agent (each reads it from its own cursor). Returns the message id or None
-        (None also on an oversize refuse-loud when allow_frag is False -- T043)."""
+        (None also on an oversize refuse-loud when allow_frag is False -- T043). By default
+        oversize payloads are auto-fragmented (P2 auto-chunk)."""
         return self._emit(self._bc_key, to=BROADCAST_TO, kind=kind, content=content,
                           parts=parts, meta=meta, allow_frag=allow_frag)
 
@@ -337,7 +339,7 @@ class Bus:
             return False
 
     def _emit(self, stream: str, *, to: str, kind: str, content: Any,
-              parts: Optional[List[Part]] = None, meta=None, allow_frag: bool = False) -> Optional[str]:
+              parts: Optional[List[Part]] = None, meta=None, allow_frag: bool = True) -> Optional[str]:
         """C6-7: lane-first send door (generalizes send_reply's pattern to ALL kinds).
 
         For a mapped kind, the LANE write happens FIRST (with one retry on transient failure)

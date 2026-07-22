@@ -67,7 +67,8 @@ def test_pin1_mtu_bounds_triple_and_refuse_loud():
     # teaching text is exact + loud
     text = ps.mtu_refusal_text(65537)
     assert "REFUSED" in text and "65537B" in text and "65536B" in text and "never truncated" in text
-    # the door refuses loud (None) and writes NOTHING (stream tail unchanged) -- never truncates
+    # the door refuses loud (None) and writes NOTHING (stream tail unchanged) -- never truncates,
+    # WHEN allow_frag is explicitly False. The DEFAULT (P2 auto-chunk) fragments oversize.
     c, ns = _client(), _ns()
     try:
         a = _bus("a", c, ns)
@@ -76,12 +77,17 @@ def test_pin1_mtu_bounds_triple_and_refuse_loud():
         tail_before = c.xlen(f"{ns}:inbox:b") if c.exists(f"{ns}:inbox:b") else 0
         buf = io.StringIO()
         with redirect_stderr(buf):
-            mid = a.send("b", "chat", oversize)              # no allow_frag
-        assert mid is None, "oversize send must REFUSE (None), not truncate"
+            mid = a.send("b", "chat", oversize, allow_frag=False)
+        assert mid is None, "oversize send with allow_frag=False must REFUSE (None), not truncate"
         tail_after = c.xlen(f"{ns}:inbox:b") if c.exists(f"{ns}:inbox:b") else 0
         assert tail_after == tail_before, "refused send must write nothing to the stream"
         assert "REFUSED" in buf.getvalue() and "never truncated" in buf.getvalue()
         assert b.inbox() == [], "nothing delivered"
+        # P2 auto-chunk: default (no explicit allow_frag) fragments oversize, reassembles whole
+        mid2 = a.send("b", "chat", oversize)
+        assert mid2, "P2 default auto-frag must send (not refuse)"
+        got = b.inbox()
+        assert got and got[0].content == oversize, "P2 auto-frag must round-trip byte-identical"
     finally:
         _cleanup(c, ns)
 
@@ -362,8 +368,8 @@ def test_pin10_unknown_envelope_keys_preserved():
 # ============================================================== DRILL: replay the 3 real clip receipts
 def test_drill_three_real_clip_payloads_zero_silent_loss():
     """The 2026-07-12 receipts: (a) a 2a-2c append, (b) a knowledge_note body, (c) an oversized
-    handoff -- each previously CLIPPED silently. Now each is either refused LOUD (None) or
-    fragments and reassembles clean. Zero silent losses."""
+    handoff -- each previously CLIPPED silently. P2 auto-chunk (default): all three fragment and
+    reassemble byte-identical. The explicit refusal path (allow_frag=False) stays alive."""
     _reset_dials()
     c, ns = _client(), _ns()
     try:
@@ -376,17 +382,17 @@ def test_drill_three_real_clip_payloads_zero_silent_loss():
         }
         for name, body in payloads.items():
             assert len(body.encode()) > ps.max_message_bytes(), f"{name} should exceed MTU"
-            # 1) default: REFUSE LOUD, nothing written, nothing delivered (no silent clip)
+            # 1) P2 default: auto-fragment, round-trip byte-identical, zero loss
+            mid = a.send("b", "handoff", body)
+            assert mid, f"{name} P2 auto-frag must send"
+            got = b.inbox()
+            assert len(got) == 1 and got[0].content == body, f"{name} lost/altered bytes on P2 auto-frag"
+            # 2) explicit refusal: allow_frag=False still REFUSES loud, nothing written
             buf = io.StringIO()
             with redirect_stderr(buf):
-                mid = a.send("b", "handoff", body)
-            assert mid is None and "REFUSED" in buf.getvalue(), f"{name} must refuse loud"
-            assert b.inbox() == [], f"{name}: nothing silently delivered"
-            # 2) opt-in fragmentation: reassembles byte-identical, zero loss
-            mid2 = a.send("b", "handoff", body, allow_frag=True)
-            assert mid2, f"{name} allow_frag should send"
-            got = b.inbox()
-            assert len(got) == 1 and got[0].content == body, f"{name} lost/altered bytes on reassembly"
+                mid2 = a.send("b", "handoff", body, allow_frag=False)
+            assert mid2 is None and "REFUSED" in buf.getvalue(), f"{name} must refuse on allow_frag=False"
+            assert b.inbox() == [], f"{name}: nothing silently delivered after refusal"
     finally:
         _cleanup(c, ns)
 

@@ -397,6 +397,18 @@ def bound_tool_text(text: Any, limit: int = TOOL_SEND_TEXT_MAX) -> str:
                           "resend in chunks]")
 
 
+def clip_stamp(text: Any, limit: int = TOOL_SEND_TEXT_MAX) -> Optional[Dict[str, Any]]:
+    """P2: durable CLIPPED stamp for envelope meta -- returns a dict with clip facts when
+    the text exceeds the bound, or None when it fits. Callers merge this into their
+    envelope meta so the clip fact survives transport (RB-5 durable, not just the text
+    confession). The stamp is idempotent: re-stamping a clipped envelope is harmless."""
+    text = "" if text is None else str(text)
+    if len(text) <= limit:
+        return None
+    return {"clipped": True, "clipped_at": limit, "clipped_len": len(text),
+            "clipped_kept": max(0, limit - 100)}
+
+
 # --------------------------------------------------------------------- fragmentation
 def parse_frag(fields: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """The frag header {seq,of,whole_id,whole_len,whole_sha} from an envelope, or None if the
