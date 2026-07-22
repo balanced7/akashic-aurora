@@ -1,7 +1,8 @@
 # CONDUCT — the conductor's standing law
 
-Status: current  (v1, 2026-07-21 — born from Daniel's leadership directive; research record:
-research/reviewed/frontier-leadership-mechanics-2026-07-21.md)
+Status: current  (v1.1, 2026-07-21 — laws unchanged; projection-drift discipline added.
+Lineage: Daniel's institutionalization directive → fleet design → outside-review sharpening;
+records in research/reviewed/ — frontier-leadership-mechanics-2026-07-21.md and the review files.)
 Type: contract · Arc: leadership-doctrine · Seats: fleet (claude conducts; every seat leads its lane)
 
 **Daniel's charter (verbatim):** "Good leaders understand their teammates and are able to draw out
@@ -37,6 +38,18 @@ every exchange, and interactions compound. The conductor is the exponent's custo
    sharp (friction → WISHLIST). Rituals (toast, campfire) are load-bearing.
 10. **Tempo through orientation.** Protect boot quality; strengthen implicit doctrine
     (LIBRARY/LEXICON/LIVE_CONSTRAINTS); decide once, then empower execution.
+
+## The law substrate (v1.1 — drift-proofing the doctrine's own projections)
+
+The laws above are the ONE canonical substrate (ids **L1–L10**, version **conduct-v1**). Every
+other surface — the six `conductor_*` recall lessons, the harness memory, the boot stance block,
+the wrap census, the kata rubric, the gauntlet cases — is a **projection**, never a peer: each
+stamps `law_id + conduct_version` at creation, and an amendment here bumps the version and
+triggers the staleness sweep (slice C6) that lists every lagging projection. Without this, the
+anti-fossil clause could amend this file while an older law kept silently governing seats through
+recall-at-action — seven independently drifting copies of the culture. Until C6 lands, the wrap
+census carries the check manually. (Aurora's own physics, applied to its own doctrine:
+authoritative substrate, regenerable projections.)
 
 ## The activation map (how this law fires, instead of being read)
 

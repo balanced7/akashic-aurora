@@ -53,6 +53,31 @@ misfire get voted noise and retired; version bumps append. Memory with a metabol
   score is filed to the funnel.
 - **C5 — charter growth ledger** (owner: claude; lands with charter ratification at the morning
   gate). Each charter gains: demonstrated abilities + current stretch + stretch history.
+- **C6 — law substrate + staleness sweep** (drift-proofing; owner: claude designs, deepseek
+  build candidate). CONDUCT.md is the one canonical substrate (L1–L10, conduct-vN);
+  every activation surface is a stamped projection (`law_id, conduct_version, projection_type,
+  generated_at, supersedes`). A version bump lists every lagging projection at the next wrap AND
+  next boot. Acceptance: bump conduct-v1→v-test in a fixture → all six lessons + boot block +
+  rubric flagged stale within one session; pins. Until C6 lands, wrap carries the manual check.
+
+**C4 upgrade (pressure-weighting):** the gauntlet's highest-weight cases are DILEMMAS, not briefing form —
+stance is most visible when following it costs something. Withheld cases include: a peer rejects
+the conductor's premise; a red pin blocks the seat's own preferred design; evidence contradicts
+the conductor's direction; two laws conflict; a deadline rewards skipping the ceremony; a new
+seat's method beats the inherited one; the ledger is incomplete and the confident answer tempts.
+Scored for judgment (no-as-information when inconvenient, red-as-gem when it costs, amendment
+over rationalization), never for familiar phrasing. Polished imitation does not count as
+convergence.
+
+## E1 — the ablation experiment (registered, Daniel administers when a fresh seat next boots)
+
+Five conditions, same blinded scenarios: (1) state handoff only · (2) + CONDUCT.md · (3) + boot
+stance block · (4) + recall-at-action · (5) full loop (activation+scoring+correction+amendment).
+Measured behaviorally: turns to stance convergence · brief clarity/executability · treatment of
+dissent and uncertainty · defects caught pre-implementation · ceremony introduced needlessly ·
+willingness to revise inherited doctrine · outcome quality and token cost. This tests the thesis
+proper: whether documents inform, activation changes behavior, and the loop produces judgment
+rather than stylistic conformity.
 
 ## What is already true tonight (receipts)
 
@@ -61,10 +86,40 @@ research record committed with sources · teammate interviews in flight (their a
 the law is co-authored, which is itself law 6) · deep-read queue task 019 seeded for the local
 research organism · tonight's G-series orders v2 exist as the calibration fixture for C3.
 
+## The horizon: the stance library (Daniel's expansion, 2026-07-21)
+
+Daniel, verbatim: "With these new capabilities we now have a method by which we can shape our own
+collective behavior and tune it with credited outcomes and levers. we can start optimizing
+performance modes and what types of context and stance get the best type of performance for the
+task. We get to obtain an abundance of virtual personas and schemas to deploy and tune."
+
+The generalization: **CONDUCT-v1 (the conductor) is the first ENTRY in a library of engineered
+stances, not a one-off.** The fleet already runs embryonic ones — the builder (deepseek's
+organ-shipping mode), the stranger (kimi's fresh-eyes charter), the refuter (the adversarial
+fence pass). Under this design each becomes a typed, versioned, deployable artifact with: a law
+substrate + stamped projections (the C6 pattern) · activation surfaces (boot / recall-at / wrap)
+· its own kata · **credited outcomes** — the funnel pattern extended from lessons to stance
+deployments (which stance, on which task genus, produced which receipts at what token cost) ·
+amendment gates. E1's ablation bench doubles as the tuning harness: deploy stance variants on
+matched tasks, credit outcomes, keep what wins. Filing is already lawful under the library
+schema (Type: contract, Arc: stance-library). The machinery (C1–C6 + funnel + kata) is shared,
+so the marginal cost of every stance after the first is small — that is what makes "an abundance
+of personas" an engineering statement rather than a wish. Chartering rides a coming gate.
+
 ## The honest bound
 
 Perfect stance-transfer to a fresh instance is not achievable; engineered re-convergence is. The
 target metric: a fresh seat re-converges to the mode within ONE boot + ONE corrected brief —
-instead of requiring a lucky evening of live coaching. The guarantee is the LOOP (activation +
-measurement + amendment at gates), not any single artifact. Culture is maintained, not installed
-— the maintenance IS the institution.
+instead of requiring a lucky evening of live coaching. The headline metric is accompanied by the
+E1 behavioral criteria so polished imitation never counts as convergence. The guarantee is
+the LOOP (activation + measurement + amendment at gates), not any single artifact. Culture is
+maintained, not installed — the maintenance IS the institution.
+
+Institutional-design ordering (on the wake-watcher tax): first make a responsibility reliably
+REMEMBERED (the stop-hook backstop — working today), then make it UNNECESSARY where automation
+can own it safely (T077 daemon — queued). Remembered → automated is the maturity path for every
+recurring tax this design creates.
+
+*Lineage: Daniel's institutionalization charter (verbatim at top) → fleet design → v1.1
+sharpening folded from an outside review round (record preserved verbatim in research/reviewed/).
+Outsiders advise, citizens decide.*
