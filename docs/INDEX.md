@@ -12,6 +12,9 @@ the whole point (an old design note read as current truth is how a project stops
 > **Convention:** if a doc must stay true, name it `UPPERCASE.md` and keep it in the living set. If it
 > captures a moment (a plan, a research pass, a decision), give it a lowercase, ideally dated name and
 > let it fossilize honestly. `check_comprehensibility.py` guards the living set.
+> **Amendment (library law, 2026-07-21): the header beats the filename.** A doc's `Status:` line
+> is the living-marker; UPPERCASE is the *recommended dress* for contracts, not the law (this is
+> what keeps `method-baseline-2026-07.md` lawful). Filing + finding: [LIBRARY.md](LIBRARY.md).
 
 ---
 
@@ -30,6 +33,7 @@ the whole point (an old design note read as current truth is how a project stops
 | [ARCHITECTURE.md](ARCHITECTURE.md) | the layer map, subsystem altitude | stable altitude + `check_comprehensibility.py` |
 | [MODULE_INDEX.md](MODULE_INDEX.md) | every module's one-line job | auto-generated (`gen_arch_index.py`) |
 | [MAP.md](MAP.md) | the master census matrix (module x pin/paper/flags + GAP queue) | auto-generated (`gen_master_map.py`) |
+| [LIBRARY.md](LIBRARY.md) | where things live and why — types, header contract, four doors | header contract + guards 8–12 |
 | [PHYSICS.md](PHYSICS.md) | the machinery's static bounds + config flags | auto-generated (`gen_physics_sheet.py`) |
 | [DOORS.md](DOORS.md) | the agent-door I/O reference (CLI verbs + inputs) | auto-generated (`gen_doors.py`) |
 | [LEXICON.md](LEXICON.md) | the ubiquitous language | stable altitude |
@@ -56,7 +60,9 @@ the whole point (an old design note read as current truth is how a project stops
 - [../CONTRIBUTING.md](../CONTRIBUTING.md) — how to change it. [../bootstrap.md](../bootstrap.md) — agent quick-start.
 
 ## Design & history (point-in-time, NOT maintained)
-~55 lowercase docs capture plans, research, and decisions at a moment. They explain *why*, not *now*.
+The dated docs capture plans, research, and decisions at a moment; they explain *why*, not *now*.
+(Census: generated into SHELVES.md once `gen_library` lands — the hand counts of 2026-07-21 ran
+~2× stale, so this file no longer counts by hand.)
 Notable recent ones (2026-07):
 - [agent-failure-modes-retrospective-2026-07.md](agent-failure-modes-retrospective-2026-07.md) +
   [-mitigation-roadmap-2026-07.md](agent-failure-modes-mitigation-roadmap-2026-07.md) — the reliability arc (L0–L4).

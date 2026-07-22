@@ -80,3 +80,17 @@ adoption TIMING). Weekly fleet sweeps ask for the DELTA since last-swept, from
 - The evening review REQUEUES weak drafts with feedback appended to the task file --
   iteration is cheap, it's local tokens.
 ```
+
+---
+
+## The second organism — fleet co-design rounds (declared 2026-07-21, library law R4)
+
+This directory serves TWO lifecycles, both lawful. The research-day loop above (queue → drafts →
+reviewed, with `runlog-*.md`, `watchlist.md`, `article-contract.md` at root by this README's
+contract) — and the **fleet round loop**: `briefs/` carry work orders to seats (see LEXICON:
+brief), round openings/counters land in `drafts/` (zone canon: `<seat>-<topic>-<kind>-<YYYY-MM-DD>.md`),
+verbatim evidence (fence reports, walk reports, frontier sweeps, outside reviews) lands in
+`reviewed/`, and reconciliations graduate OUT to `docs/`. `*.session.log*` pairs beside drafts
+are runtime receipts (gitignored), not knowledge. The full filing law: `docs/LIBRARY.md`. Both
+organisms share `drafts/` and `reviewed/` deliberately — the header's `Type:` line tells them
+apart; never sort by guessing.

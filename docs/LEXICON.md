@@ -114,6 +114,12 @@ since the June foundation docs; keep it current.)
 
 ## Cross-cutting concepts
 
+- **charter** — RESERVED for an agent's *standing contract* (`charters/<agent>/CHARTER.md`):
+  identity, responsibilities, current stretch. NOT a work order. (Ruling 2026-07-21: the word had
+  four live meanings; this ends it. Old filenames keep their names as fossils — the WORD is fixed
+  going forward.)
+- **brief** — a *work order to a seat* (`research/briefs/`): mission, constraints, deliverable,
+  write scope. What "charter" colloquially meant in run-orders before the ruling above.
 - **chronicle** — RESERVED for the *curated highlights* layer (`chronicles/`:
   decisions, failures, milestones) *derived from* the raw ledger. Do NOT name the
   raw event log "chronicle". Raw ledger → distilled chronicle.
