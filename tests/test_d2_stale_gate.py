@@ -87,3 +87,15 @@ def test_d3_bound_confesses_at_8000():
     assert "clipped at 8000 chars" in clipped               # confession names the NEW bound
     assert PS.bound_tool_text("short") == "short"
     assert PS.bound_tool_text(None) == ""
+
+
+def test_p2_clip_stamp_durable():
+    """P2: clip_stamp returns None for under-bound text, and a durable stamp dict for oversize."""
+    assert PS.clip_stamp("short") is None
+    assert PS.clip_stamp(None) is None
+    s = PS.clip_stamp("x" * 8100)
+    assert s is not None
+    assert s["clipped"] is True
+    assert s["clipped_at"] == 8000
+    assert s["clipped_len"] == 8100
+    assert s["clipped_kept"] == 7900   # 8000 - 100

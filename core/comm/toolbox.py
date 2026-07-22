@@ -512,8 +512,12 @@ class ToolBox:
         if b is None:
             return "ERROR: not on a Bifrost bus in this mode (no agent identity, or Redis offline)."
         to = str(to).strip().lower()
-        text = packet_spec.bound_tool_text(text)   # D3: 8000 door (deepseek verdict 2026-07-19), RB-5 confession retained
-        meta = {"via": f"{self.agent_id}-tool", "hops": 0}
+        raw_text = str(text or "")
+        text = packet_spec.bound_tool_text(raw_text)   # D3: 8000 door (deepseek verdict 2026-07-19), RB-5 confession retained
+        meta: Dict[str, Any] = {"via": f"{self.agent_id}-tool", "hops": 0}
+        clip = packet_spec.clip_stamp(raw_text)
+        if clip:
+            meta.update(clip)                          # P2: durable CLIPPED stamp rides on the envelope
         try:
             if to in ("*", "all", "both", ""):
                 mid = b.broadcast(kind, text, meta=meta)
@@ -574,11 +578,16 @@ class ToolBox:
         to = str(to).strip().lower()
         if to in ("*", "all", "both", ""):
             return "ERROR: a nudge must target one agent (e.g. 'claude'), not a broadcast."
-        text = packet_spec.bound_tool_text(text)   # D3: 8000 door (deepseek verdict 2026-07-19), RB-5 confession retained
+        raw_text = str(text or "")
+        text = packet_spec.bound_tool_text(raw_text)   # D3: 8000 door (deepseek verdict 2026-07-19), RB-5 confession retained
+        meta: Dict[str, Any] = {"via": f"{self.agent_id}-tool", "hops": 0}
+        clip = packet_spec.clip_stamp(raw_text)
+        if clip:
+            meta.update(clip)                          # P2: durable CLIPPED stamp
         try:
             from core.comm import nudge as _nudge
             _nudge.nudge(to, by=self.agent_id, reason=text[:80])
-            mid = b.send(to, "nudge", text, meta={"via": f"{self.agent_id}-tool", "hops": 0})
+            mid = b.send(to, "nudge", text, meta=meta)
             return f"nudged {to} (id {mid})" if mid else "ERROR: nudge send failed (bus offline?)"
         except Exception as e:
             return f"ERROR: bifrost_nudge failed: {type(e).__name__}: {e}"
@@ -595,11 +604,16 @@ class ToolBox:
         to = str(to).strip().lower()
         if to in ("*", "all", "both", ""):
             return "ERROR: a steer must target one agent (e.g. 'claude'), not a broadcast."
-        text = packet_spec.bound_tool_text(text)   # D3: 8000 door (deepseek verdict 2026-07-19), RB-5 confession retained
+        raw_text = str(text or "")
+        text = packet_spec.bound_tool_text(raw_text)   # D3: 8000 door (deepseek verdict 2026-07-19), RB-5 confession retained
+        meta: Dict[str, Any] = {"via": f"{self.agent_id}-tool", "hops": 0, "display_only": True}
+        clip = packet_spec.clip_stamp(raw_text)
+        if clip:
+            meta.update(clip)                          # P2: durable CLIPPED stamp
         try:
             from core.comm import nudge as _nudge
             _nudge.steer_push(to, self.agent_id, text)
-            mid = b.send(to, "steer", text, meta={"via": f"{self.agent_id}-tool", "hops": 0, "display_only": True})
+            mid = b.send(to, "steer", text, meta=meta)
             return f"steered {to} (folds into its current task; id {mid})" if mid else "ERROR: steer failed"
         except Exception as e:
             return f"ERROR: bifrost_steer failed: {type(e).__name__}: {e}"
