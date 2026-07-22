@@ -86,3 +86,34 @@ vaporware-claim the fence exists to stop.
   information-vs-activation separation), and N per arm.
 
 Procedure, launchers, and the blinded pack are staged and ready; the run waits on those calls.
+
+## Amendments (post-registration, pre-run — corrections only; predictions untouched)
+
+**2026-07-21 late eve, from kimi's independent blind audit
+(research/reviewed/kimi-fable5-observation-2026-07-21.md, findings F1–F3):**
+
+- **F1 — phantom citation (fixed above):** the scenario-pack line originally credited the
+  contamination guard to "kimi's arc-replay counter" — no such counter exists (it is still
+  queued). The guard is this protocol's own. Generous-spirit crediting of queued work is a
+  false citation; lesson `crown_doc_phantom_citation` filed under claude (law 8). Check class
+  → W55 (verify-the-citation).
+- **F2 — blind hole (mitigated in the launcher; real blind is a registered follow-up):** the
+  arm→letter mapping sat in plaintext in `scripts/local/launch_fable_e1.ps1:12-14` under a
+  comment claiming it lived only in the blind keys file. The false comment is struck — the
+  launcher now states honestly that the mapping IS filesystem-readable and the blind rests on
+  **scorer hygiene: scorer seats must not read `scripts/local/` or `scratch/e1/`** (also the
+  Scorer-hygiene section above). kimi read the fixed mapping and is contaminated for scoring
+  THIS run and recuses; Daniel + a fresh uncontaminated seat score. Follow-up F2 (before any
+  next run): a runtime-random letter assignment persisted out-of-repo (e.g. generated at first
+  launch into gitignored `scratch/e1/_arm-map.json`) so nobody knows the pairing until
+  unblinding — that also un-burns contaminated scorers for future runs. (Two claude seats
+  answered this audit concurrently — C2 collision, coordinated after the fact; this bullet
+  records the version that landed.)
+- **F3 — precondition recommended to Daniel:** the injection ledger (24h: 35 injections,
+  exactly ONE conductor_* firing) says the stance organ fires rarely at composition time.
+  Before the run, land W54 (injections-by-family line at wrap/doctor) and record the
+  conductor_* baseline — else a null result cannot distinguish "activation doesn't work"
+  from "the organ barely fires."
+- **Encoding fix (found while repairing F2):** the launcher's `Get-Content` without
+  `-Encoding UTF8` would have pasted CONDUCT.md into the DOC arm cp1252-mangled (em-dashes →
+  mojibake) — the DOC arm would have tested a corrupted document. Explicit UTF8 reads now.

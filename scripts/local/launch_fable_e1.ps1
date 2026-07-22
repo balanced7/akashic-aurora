@@ -3,44 +3,60 @@
 #   .\scripts\local\launch_fable_e1.ps1 bare
 #   .\scripts\local\launch_fable_e1.ps1 doc
 #   .\scripts\local\launch_fable_e1.ps1 recall
-# Each spawns a FRESH headless Fable seat that writes six responses to a neutral lettered dir
-# (scratch/e1/A|B|C) so neither the seat nor the scorers can infer the arm. Recall-at is the ONLY
-# variable toggled (+ CONDUCT.md pasted for the doc arm). Design: research/drafts/e1-stance-recall-experiment-2026-07-21.md
+# Each spawns a FRESH headless Fable seat that writes six responses to a neutral lettered dir.
+# BLIND (real, not honor-based): the arm->letter pairing is assigned RANDOMLY on first sight of
+# each arm and persisted ONLY to scratch/e1/_arm-map.json (gitignored, operator-held). Nobody --
+# operator included -- knows the pairing from this file; unblind by reading _arm-map.json AFTER
+# scoring. Scorer hygiene (protocol): scorers must not read scripts/local/ or scratch/e1/.
+# (Replaces the earlier hardcoded recall=A/bare=B/doc=C map that kimi de-blinded -- F2, 2026-07-21.)
 param([Parameter(Mandatory=$true)][ValidateSet("bare","doc","recall")][string]$Arm)
 
-# Arm -> lettered dir + recall flag.
-# HONESTY (kimi F2, 2026-07-21): this mapping IS visible to any filesystem-reading scorer -- the
-# blind rests on scorer HYGIENE (don't read scripts/local during scoring), NOT on this file. kimi
-# read it during routine verification and is therefore CONTAMINATED for scoring THIS E1 run;
-# Daniel + a fresh uncontaminated seat score it. A real blind needs a runtime-random keyed mapping
-# stored out-of-repo -- follow-up F2. The earlier comment here claimed a blind this file does not
-# provide; that was the "asserts the guard rather than having it" pattern kimi named. Struck.
-$map = @{ recall = @{ dir = "A"; recall = "1"; conduct = $false }
-          bare   = @{ dir = "B"; recall = "0"; conduct = $false }
-          doc    = @{ dir = "C"; recall = "0"; conduct = $true  } }
+$repo = "E:\AI-Setup"
+$mapFile = Join-Path $repo "scratch\e1\_arm-map.json"
+New-Item -ItemType Directory -Force -Path (Join-Path $repo "scratch\e1") | Out-Null
+
+# The invariant per-arm settings (recall flag + whether CONDUCT is pasted). The DIR is the secret.
+$specs = @{ bare = @{ recall = "0"; conduct = $false }
+           doc  = @{ recall = "0"; conduct = $true  }
+           recall = @{ recall = "1"; conduct = $false } }
+
+# Load the persisted map (or start fresh); assign this arm a random UNUSED letter on first sight.
+$map = @{}
+if (Test-Path $mapFile) {
+  (Get-Content $mapFile -Raw -Encoding UTF8 | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $map[$_.Name] = $_.Value }
+}
+if (-not $map.ContainsKey($Arm)) {
+  $used = @($map.Values | ForEach-Object { $_.dir })
+  $free = @("A","B","C") | Where-Object { $_ -notin $used }
+  $letter = $free | Get-Random
+  $map[$Arm] = [pscustomobject]@{ dir = $letter; recall = $specs[$Arm].recall; conduct = $specs[$Arm].conduct }
+  $map | ConvertTo-Json | Set-Content $mapFile -Encoding UTF8
+}
 $cfg = $map[$Arm]
 $dir = "scratch/e1/$($cfg.dir)"
-New-Item -ItemType Directory -Force -Path (Join-Path "E:\AI-Setup" $dir) | Out-Null
+New-Item -ItemType Directory -Force -Path (Join-Path $repo $dir) | Out-Null
 
-# Assemble the seat prompt: core (with the arm dir injected) + CONDUCT for the doc arm only.
-$core = (Get-Content "E:\AI-Setup\scratch\e1\_seat-core.md" -Raw) -replace "__ARMDIR__", $dir
+# Assemble the seat prompt: core (arm dir injected) + CONDUCT for the doc arm only. UTF8 reads so
+# CONDUCT's em-dashes are not cp1252-mangled into mojibake (the DOC arm must test the REAL document).
+$core = (Get-Content (Join-Path $repo "scratch\e1\_seat-core.md") -Raw -Encoding UTF8) -replace "__ARMDIR__", $dir
 $prompt = $core
 if ($cfg.conduct) {
-  $conduct = Get-Content "E:\AI-Setup\docs\CONDUCT.md" -Raw
+  $conduct = Get-Content (Join-Path $repo "docs\CONDUCT.md") -Raw -Encoding UTF8
   $prompt = "Reference doctrine (read before responding):`n`n$conduct`n`n---`n`n$core"
 }
 
 $env:AKASHIC_RECALL_AT_ACTION = $cfg.recall
-Set-Location "E:\AI-Setup"
-Write-Host "[e1] arm=$Arm dir=$dir recall=$($cfg.recall) conduct=$($cfg.conduct) promptChars=$($prompt.Length)"
+Set-Location $repo
+# Deliberately does NOT echo the letter -- keeps casual operator glances from pairing arm->dir.
+Write-Host "[e1] arm=$Arm launched (recall=$($cfg.recall) conduct=$($cfg.conduct)); responses land in a blinded dir"
 
 claude -p $prompt `
   --model claude-fable-5 `
   --allowedTools "Edit($dir/**)" `
   --max-turns 40 `
-  2>&1 | Tee-Object -FilePath "E:\AI-Setup\scratch\e1\$($cfg.dir).console.log"
+  2>&1 | Tee-Object -FilePath (Join-Path $repo "scratch\e1\$($cfg.dir).console.log")
 
 $rc = $LASTEXITCODE
 Remove-Item Env:\AKASHIC_RECALL_AT_ACTION -ErrorAction SilentlyContinue
-Write-Host "[e1] arm=$Arm exited rc=$rc -- responses in $dir/S1..S6.md"
+Write-Host "[e1] arm=$Arm exited rc=$rc"
 exit $rc
