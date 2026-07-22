@@ -1,0 +1,66 @@
+---
+name: akashic-memory
+description: Use whenever you work in the Akashic Aurora repo (E:\AI-Setup) — at session start, after ANY fix that first failed, whenever the user corrects you, and at session end. This is the shared-memory door; capture is the product, so use it even when the task feels too small to record. Also use when deciding whether knowledge belongs in a lesson, a note, a doc, or a hook.
+---
+
+# Akashic memory: the loop you are inside
+
+This repo has a shared memory. Other agents' lessons surface to you automatically
+(hooks inject the top few before risky actions); what YOU learn must flow back or the
+loop starves. The full contract is `AGENTS.md`; this skill is the reflex layer.
+
+## Session start
+```
+py agent_cli.py boot <your_agent_id> --task "<this slice only>"
+```
+Read the output. The RECENT NOTES section is where-we-are; `py agent_cli.py notes --json`
+for full bodies. Never re-read chat history to reconstruct state — the store is the
+continuity layer, the chat is disposable.
+
+## The capture reflexes (highest value, most forgettable)
+
+**FAIL→SUCCESS flip** — the moment something that failed now works, a lesson was just
+earned. The hook usually nudges you with a pre-filled command; run it. Write the
+recommendation TRIGGER-PHRASED:
+
+```
+py agent_cli.py learn <id> --experiment <slug> \
+    --tried "<what failed>" --result "<what fixed it>" \
+    --recommend "Use when <symptom>, before <action>: <advice>. Don't when <contraindication>."
+```
+
+Include what did NOT work (`--tried` is exactly that) — failed approaches save the next
+agent more time than successes do.
+
+**User correction** — every time the human corrects you, that is a lesson-earning moment
+(the creator of Codex runs this reflex manually on AGENTS.md; here it has a door).
+Record it immediately with `--category correction`. Do not just comply and move on.
+
+**Known-bad approach** — record with `--anti-pattern <slug>` so it surfaces as a warning,
+not advice.
+
+## Close the loop on what you were shown
+If a surfaced lesson changed what you did: `py agent_cli.py recall-feedback --source <src> --useful`.
+If it was off-target noise: `--noise`. Votes steer future ranking; silence teaches nothing.
+
+## Where knowledge belongs (the promotion ladder)
+Forcing function > just-in-time prompt > documentation > memory. If a lesson's rule is now
+ENFORCED by a hook/guardrail/CI check, graduate it so it stops spending recall slots:
+```
+py agent_cli.py graduate <id> --experiment <name> --enforced-by "<the automation>"
+```
+
+## Session end
+```
+py agent_cli.py wrap            # review the draft; then: wrap --commit
+py agent_cli.py handoff <id> --to <next> --task "..." --note "where we left off"
+```
+A slice is not done until it is mirrored (`py scripts/ship.py` for code, `py scripts/mirror.py`
+for docs) and the where-we-are note is current. When an ARC closes (not every slice),
+append its entry to `docs/JOURNEY.md` — what we set out to do, what actually happened,
+why we pivoted, what it yielded — in the humble register that file models. The human
+reviews it before it ships.
+
+## Mid-task pulls (don't wait to be shown)
+`py agent_cli.py recall "<keywords>"` searches the corpus; `recall --full <source>` pulls
+one lesson's whole record. Pulling beats guessing.

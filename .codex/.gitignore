@@ -1,0 +1,6 @@
+# R11 (library schema, ratified 2026-07-21): deny-by-default — only named, secrets-scanned
+# files ship from the codex seat config. Anything new here stays local until allowlisted.
+*
+!config.toml
+!hooks.json
+!.gitignore

@@ -104,3 +104,10 @@ state/spill/
 # Claude Code local settings never ship (CLI probe round-2 finding 2026-07-16)
 .claude/settings.local.json
 .kimi-claude-home/
+
+# --- Library schema R12 (ratified 2026-07-21): play receipts are runtime; out/ is curated at wrap ---
+data/play/*/runs/
+# play thread transcripts are committed source per R12 (exemption from the jsonl blanket)
+!data/play/**/threads/*.jsonl
+# parked prehistory receipts are archive, not volatile data (exemption from the jsonl blanket)
+!_archive/prehistory/*.jsonl

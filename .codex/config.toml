@@ -1,0 +1,10 @@
+sandbox_mode = "danger-full-access"
+[shell_environment_policy]
+inherit = "core"
+
+[shell_environment_policy.set]
+AKASHIC_AGENT_ID = "claude"
+
+[mcp_servers.akashic-aurora]
+command = "py"
+args = ["ai_setup_mcp.py"]
