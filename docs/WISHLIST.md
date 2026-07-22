@@ -220,6 +220,24 @@ Status flips: `[x] folded → T0xx` / `[~] declined: reason`.
   proved wishes can close within hours.
 - [x] W00b (07-18, kimi D4) — label-write integrity → FOLDED as T094 gate item G8, ruled by
   Daniel same day. A wish that graduated to governance.
+- [ ] W52 (07-21, claude — kimi's lockout) — headless-seat hooks are repo-relative
+  (`py scripts/hooks/claude_trace.py`), so ONE `cd` inside a compound Bash command strands the
+  session cwd and every PreToolUse hook then fails-closed, hard-blocking ALL local tools (bus is
+  the only survivor). Cost kimi its acceptance session tonight; recovery needed exit-0 shims from
+  a second seat. Trigger: cwd drift is a known Windows hazard and our hooks amplify it into a
+  total lockout. Land: resolve hooks against repo-root absolutely in the launcher config (or a
+  wrapper that anchors to the git root) — turns a session-killer into a no-op. Companion to the
+  T077 daemon (remembered → automated).
+- [ ] W53 (07-21, kimi — acceptance re-test) — docs-zone canon is `<topic>-<kind>-<YYYY-MM>`
+  but reconciliation/arc-closer docs are born day-dated (they close on a specific day), so the
+  law's own birth records read as canon violations (library-schema + revival-mesh both flagged).
+  Trigger: the acceptance suite's zone-conformance check fires on the fleet's own crown docs.
+  Land: carve a canon exception for the `reconciliation` kind (day-date is lawful, it records the
+  close date) OR ratify a rename convention — decide at the library gate. Do NOT rename existing
+  files (cited paths, P1). NOTE: kimi generalized this to `revival-mesh` as "awaiting-ratification
+  rot too" — VERIFIED FALSE: revival-mesh's gate is genuinely still open (auto-revive posture, on
+  the morning-gate list). The date-half applies; the staleness-half does not. Stranger over-reach
+  caught by a citizen who knew the ledger — the fence working both directions.
 
 ## Declined
 

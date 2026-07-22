@@ -1,6 +1,6 @@
 # Library Schema — reconciliation of three voices
 
-Status: current (awaiting Daniel's ratification gate)
+Status: current | RATIFIED 2026-07-21 (Daniel: "Lets go with the G series") — G-series executing; docs/LIBRARY.md is the landed living law. (Ancestor-stamp added 2026-07-21 closing the successor-written-ancestor-never-stamped rot that kimi's acceptance re-test caught — R7 orphan-rot, the standing suite's ancestor-stamp check exists to prevent recurrence.)
 Type: design (reconciliation) · Arc: library-schema · Seats: claude+deepseek+kimi · Date: 2026-07-21
 
 Reconciles: `research/drafts/repo-organization-opening-claude-2026-07-21.md` +
