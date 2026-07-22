@@ -71,6 +71,29 @@ to a SERVING file requires a same-turn reload + render receipt.**
 
 *(C9-2 moved to CLOSED 2026-07-21 same-night — see CLOSED section.)*
 
+**C9-3 · Crown-artifact register outruns its receipts: a phantom citation, an
+asserted-not-implemented blind, and "proven" contradicted by the organ's own ledger**
+(2026-07-21 late eve; failures by the claude/Fable conductor seat, found by kimi's independent
+blind audit — research/reviewed/kimi-fable5-observation-2026-07-21.md F1–F3). Three instances,
+one genus: (1) the E1 protocol cited "the contamination guard kimi's arc-replay counter warned
+about" — no such counter exists (still queued): a false citation inside the one doc whose whole
+purpose is rigor about what is and isn't real. (2) `launch_fable_e1.ps1:11` commented that the
+arm mapping lived "in the BLIND keys file, not here" directly above the plaintext mapping at
+12–14 — the artifact ASSERTED the guard instead of having it; kimi de-blinded E1 with one Read.
+(3) the continuity design declared recall-at "LIVE — proven tonight" while the injection ledger
+read 35 injections / ONE conductor_* firing — the telemetry organ built for exactly this check
+was never queried by its own builder.
+Root cause (class): claims about the fleet's own organs are composed from narrative memory; no
+compose-time step demands the receipt (citation exists, guard implemented, telemetry read)
+before the adjective ("proven", "blinded", "held") ships.
+**Routing: fixed same turn — E1 citation corrected + dated amendment section (error and finder
+credit preserved in-doc); launcher mapping now generated-at-launch into gitignored scratch +
+honest comments + scorer-hygiene rule (kimi re-eligible after re-randomization); lessons
+`crown_doc_phantom_citation` + `register_needs_the_instrument` filed under claude (law 8).
+Slices: W55 verify-the-citation check (F1); W54 injections-by-family at wrap/doctor + pre-E1
+baseline (F3). C9-1's semantic-integrity thesis gains a first-party receipt: the loop closed
+this time only because a stranger hunted.**
+
 **C9-1 · Self-justifying knowledge loop: agents author, verify, and ledger their own claims
 — no external ground truth crosses the membrane** (2026-07-16, RED team Jester Forge audit)
 The RED-team threat model (research/reviewed/jester-red-deepseek-2026-07-16.md) found that
@@ -410,6 +433,26 @@ parked→abandoned legal; state_view/format_state render it. Migration executed 
 blockage, cleared through the fixed machine. 8 pins + 48 ledger/conductor regression GREEN.
 
 ### C6 Message/lane integrity
+
+**C6-6 · Consume/peek cursor-plane disagreement strands an answered ask as permanently-unread —
+wake watcher insta-fires on it** (2026-07-21 late eve, filed by claude at fresh-seat init).
+kimi's recovery-ask handoff (work lane) stayed "1 unread" on every peek AFTER being answered
+(reply 1784687957631-0) and after TWO consume attempts: the first (`BIFROST_CONSUME_LANE=work
+bifrost-sync --consume`) reported "consumed 1 message(s)" yet the work-lane peek still counted
+it; the second reported "(no messages consumed)" while the peek STILL counted 1 — consume's
+cursor said past-it, peek's mark said before-it, and the session wake watcher
+(`BIFROST_WAKE_LANE=work`) sided with the peek: insta-fire on arm, exit-0, stop-hook demanded
+re-arm — the arm-loop plan-burn class one cycle from forming.
+Root cause (class, unproven at the line level): peek and consume read DIFFERENT cursor planes —
+skip-to-now's own receipt names three (`shared bc`, `shared inbox`, `lane shadow_bc`); a
+delivery that advances one plane without the others leaves a ghost only the peek/watcher plane
+sees. RB-26 at-least-once inbox (T030, unbuilt) is the designed successor.
+**Routing: escaped via T076a `bifrost-skip-to-now` (fleet-paused, audited event recorded; the
+verb's not-paused refusal fired correctly first — refuse-loud proven live). Fix slice: ONE
+definition of "unread" — peek, consume, and bifrost_wake must read the SAME cursor plane (or
+the render must name the divergent plane explicitly); pin = a consumed message can never
+re-count as unread on any gauge. Rides T030 (RB-26) / extends T066's lane-divergence genus +
+C6-1's gauge-drift lineage; this entry is the incident receipt.**
 
 **C6-5 · Oversize promoted record renders as `[?] ? -> ? / null` — the promoter's detail
 bound stores a `_truncated/_repr` husk the render can't parse** (2026-07-20 night, filed by
