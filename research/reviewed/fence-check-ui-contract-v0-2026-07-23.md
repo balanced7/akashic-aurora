@@ -61,3 +61,40 @@ greenlight). Blocking flip rides Daniel's CONTRACT v0 ratification as a one-line
 
 *Red is a gem: TP6/FP-warn-ink are exactly why the fence exists — the same loop that
 caught-and-fixed three sighted-fence findings in one cycle last night. — claude*
+
+---
+
+# RE-FENCE ADDENDUM (fix 789838b) — **PASS at advisory tier**
+
+**Pre-registered bar: 4/4 cleared.** TP6 flags ✅ (self-exemption dead — `tripped` out of
+the predicate set, relational `_pred` regex distinct from assignment) · FP `--warn-ink`
+passes ✅ (custom-property strip + word-boundary tokens) · TP5 still flags ✅ · `.tripped{`
+class-def still passes ✅. **The incumbent M-L3 zero MOVED: 0 → 2 findings — earned, not
+structural.** Both probe-proven REDs fixed clean in one cycle; the fix docstring credits
+the fence findings by name.
+
+**Three NEW findings from the re-run — all M-L3 precision-tier (law 3 is warn-tier by
+design; none block advisory use). Filed as the checker's v2 queue:**
+
+- **F1 — no Python comment/docstring skip.** Incumbent L440 flags "false-tripped" inside
+  a DOCSTRING (English verb, prose). Probe file's own `#` comment also flagged. Fix:
+  skip `#`-leading lines; docstring awareness or restrict M-L3 to embedded template
+  strings is the deeper v2 cut.
+- **F2 — numeric predicates are magic literals.** Incumbent L1889 `tokPct>80?'high':...`
+  false-flags although the gate is ON THE SAME LINE — `>80` is not in `(>0|>10|>100)`.
+  Fix: one general relational pattern `[><]=?\s*\d+` replaces the three literals.
+- **F3 — `\b` dead after `===`.** `_state`'s `\b(runner===|...)\b`: a trailing word
+  boundary cannot match between `=` and a quote, so `runner==='down'` NEVER satisfies —
+  receipt: FP-trap L18 flagged despite a prev-line `s.runner==='down'` predicate. Fix:
+  drop the trailing `\b` on non-word-ending alternatives (or end alternatives at the
+  identifier and match the operator separately).
+
+**Incumbent truth after re-fence:** M-L8 = 53 (true debt) · M-L1 = 1 (true per
+law-as-written; data-measure semantics question to the gate) · M-L3 = 2 (both FALSE
+positives per F1/F2 — the honest count of true incumbent M-L3 violations is currently 0,
+now for EARNED reasons: accents in the live console are gated).
+
+**Conductor ruling:** checker v0.2 ships tonight advisory with M-L8+M-L1 ship-grade and
+M-L3 educational; F1–F3 are the owner's call — polish tonight or queue v2. G2 morning
+recommendation unchanged: on ratification, activate blocking for M-L8+M-L1; M-L3 earns
+promotion by precision receipts. — claude

@@ -64,7 +64,17 @@ presence-with-T030-linkage); spend — your call entirely, the meter enforces wh
 set.
 RULING CAPTURE → Verbatim: · Rationale: · Uncertainty: · Falsifiers: · Scope: G3/audit.
 
-### G4 · [PENDING — deepseek M-L3 re-fence + SA-1 prereg stretch, if landed]
+### G4 · Checker fix loop — CLOSED same night (re-fence PASS)
+Context: the fence's two probe-proven M-L3 REDs (tripped self-exemption, --warn-ink
+substring) were fixed by deepseek in ONE cycle (789838b); re-fence cleared the full
+pre-registered bar 4/4, and the incumbent M-L3 zero moved from structural (check could
+not fire) to EARNED (accents in the live console are genuinely gated). Three new
+precision-tier findings (Python-comment skip, magic-literal predicates, a dead-\b regex
+subtlety) are filed as the checker's v2 queue in the fence report — none block advisory
+use; law 3 is warn-tier by design.
+Decision: none needed — receipts only (this is what the fence-as-service loop looks like
+when it works; second night running the catch-to-fixed cycle closed inside the hour).
+[PENDING: SA-1 prereg stretch, if deepseek takes it tonight]
 
 ### G5 · [PENDING — kimi stranger-test of CONTRACT v0 findings, folds into G1]
 
