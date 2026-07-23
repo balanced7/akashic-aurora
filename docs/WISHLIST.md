@@ -225,6 +225,7 @@ Status flips: `[x] folded → T0xx` / `[~] declined: reason`.
 - [ ] W67 (07-23, claude) — boot door line reads native tools NOT attached while the harness has them deferred - detector only sees the env the MCP process stamps. Trigger: false negative on fresh Fable seat boot 2026-07-23. Land: door detector checks harness attachment or says cannot-tell.
 - [ ] W68 (07-23, claude) — agent_cli should be fully absolute-path invocable from any cwd and the boot footer should say so. Trigger: harness resets cwd every shell call - 12+ Set-Location prefixes in one session. Land: cwd-independence pass + AGENTS.md line.
 - [ ] W69 (07-23, claude) — inbox peek buried the newest real message under stale legacy twins - deepseek counter handoff sat unseen 40 minutes while peek showed 10 old items. Trigger: bifrost-sync peek limit 10 all-lanes filled with 07-21 legacy copies; the 01:29 counter handoff was below the fold; doctor said 4 unread with no kinds. Land: peek renders work-lane-first newest-first; unread badge names kinds (W65 sibling).
+- [ ] W70 (07-23, claude) — triage and triage-receipt bookkeeping pairs render as first-class human-feed messages - one CLI consume produced about 14 lines burying the live work story. Trigger: Daniel screenshots 2026-07-23: seven parked-item pairs flooded the console below the round messages. Land: NOW-card charter noise-floor rule: bookkeeping collapses to one ambient expandable line or routes to a bookkeeping lane.
 
 ## Folded (exemplars — the loop works)
 

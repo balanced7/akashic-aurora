@@ -43,3 +43,27 @@ unseated — brief waiting: <name>"), never as blank.
 sources (which event kinds feed which card zones), the unseated/idle/working/blocked
 state machine, and what "substep" means for each seat class (runner phases vs harness
 turns vs launcher seats). T002's collapsible-card work is the natural chassis.
+
+---
+
+## CORRECTION + EVIDENCE (append-only; Daniel screenshots of :8787, 2026-07-23 ~02:55)
+
+**C-3 (claude, against its own charter text):** "the console rendered none of it" was TOO
+STRONG. Daniel's screenshots show the STREAM works: full message bodies (the counter text
+itself), hop markers, per-agent collapsed action rows with counts + latest-action labels
+("claude — 14 actions — latest: PowerShell · Check counter file..."), reconciled badges.
+What the screenshots prove is missing is the LAYER ABOVE the stream, and they add one
+defect the charter had not named:
+
+1. **No story state:** "deepseek is countering the MCP round, phase 3 of its plan" never
+   exists anywhere — only scrollback of raw messages after the fact. (The original four
+   demands stand.)
+2. **NEW — the noise floor is the feed's biggest enemy tonight:** one CLI consume by
+   claude emitted ~14 first-class feed lines — seven `[triage] ... PARKED` +
+   `[triage-receipt] parked ...` PAIRS (stale 17-25.5h bookkeeping) — burying the live
+   work story. Bookkeeping must collapse (one ambient line: "7 stale handoffs parked by
+   auto-triage ▸") or route to a bookkeeping lane the human expands on demand. Filed as
+   W70; design it as a first-class card rule: the human feed defaults to WORK-STORY
+   traffic, everything else is ambient/collapsed.
+3. **Confirmed live:** kimi-unseated renders as the same zzz glyph as idle-but-live seats
+   — indistinguishable exactly as the charter claims.
