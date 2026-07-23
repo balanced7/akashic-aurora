@@ -115,10 +115,12 @@ class Handler(BaseHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
         if path == "/":
             return self._html()
-        if path == "/status":
+        if path == "/status":                   # legacy — still works; /api/now is canonical
             return self._json(self._status())
-        if path == "/vitals":
+        if path == "/vitals":                   # legacy — still works; /api/now is canonical
             return self._json(self._vitals())
+        if path == "/api/now":                  # TRUTH/NOISE tier: one call to rule all cards
+            return self._json(self._api_now())
         if path == "/events":
             return self._events()
         if path == "/launcher/status":
@@ -231,6 +233,51 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 result["_fence"] = {}
             return result
+        except Exception:
+            return {}
+
+    def _api_now(self):
+        """TRUTH/NOISE tier: one endpoint for every card on the console — merges
+        /status (presence/control/activities) + /vitals (engine-room gauges) into
+        a single JSON blob. Accepts ?agents=X,Y,Z for a batch call served as one
+        Redis pipeline. The frontend's single poll scheduler calls this, not the
+        scattered /status + /vitals loops."""
+        import urllib.parse
+        qs = urllib.parse.parse_qs(self.path.split("?", 1)[-1] if "?" in self.path else "")
+        requested = [a.strip() for a in qs.get("agents", [""])[0].split(",") if a.strip()] if "agents" in qs else None
+        try:
+            # ---- status half (presence + control) -------------------------------
+            status = self._status()
+            # ---- vitals half (engine-room gauges, per-agent) ---------------------
+            vitals = self._vitals()
+            # ---- seat-class honesty: per-agent seat type for honest vocab -------
+            from core.comm import runner_lock, daemon_state
+            daemon_live = {}
+            seat_class = {}
+            agents_list = requested or sorted(set(
+                [a.get("agent","") for a in status.get("agents",[])] +
+                list((vitals or {}).keys())
+            ))
+            for a in agents_list:
+                if not a or a == "_fence":
+                    continue
+                daemon_live[a] = daemon_state.daemon_is_live(a)
+                if runner_lock.holder(a):
+                    seat_class[a] = "runner"
+                elif daemon_live[a]:
+                    seat_class[a] = "listening"   # daemon holds watch, no active seat
+                elif any(a == s.get("agent","") for s in status.get("agents",[])):
+                    seat_class[a] = "seat"         # on bus, not a runner — harness/launcher
+                else:
+                    seat_class[a] = "unseated"
+            # ---- assemble --------------------------------------------------------
+            return {
+                "status": status,
+                "vitals": {a: vitals.get(a, {}) for a in agents_list if a != "_fence"},
+                "fence": vitals.get("_fence", {}),
+                "seat_class": seat_class,
+                "daemon_live": daemon_live,
+            }
         except Exception:
             return {}
 
@@ -1298,11 +1345,43 @@ function addMsg(m){
     d.innerHTML = '<span>'+(emoji[v]||'')+' Round '+v+': '+esc(m.content||'')+'</span>';
     _msgPlacer(d, m); autoscroll(); return;
   }
+  // W70 NOISE-FLOOR: bookkeeping events collapse to a footer counter, never compete
+  // with live work in the message log. triage-receipt, msg_ack, stale_notice,
+  // expectation_dead, packet_integrity_drop, cursor_admin are bookkeeping.
+  // The SSE stream still carries them for raw-feed UIs; ONLY the message log filters.
+  const BK = {'triage-receipt':1, msg_ack:1, stale_notice:1, expectation_dead:1,
+              packet_integrity_drop:1, cursor_admin:1};
+  var content = (m.content||'');
+  if(BK[kind] || (content.indexOf&&content.indexOf('[triage-receipt]')===0)){
+    _bkCount++; _bkLast = (m.from||'')+' '+kind+(content?' — '+content.substr(0,80):'');
+    _renderBkFooter();
+    return;
+  }
   const idx = allMsgs.push(m) - 1;           // buffer it (data), then render at the live tail
   const node = renderMsg(m); if(!node) return;
   node.dataset.mi = idx;
   _msgPlacer(node, m); autoscroll();
 }
+
+// ---- W70 bookkeeping footer (collapses bookkeeping events to one line) ----
+var _bkCount = 0, _bkLast = '';
+function _renderBkFooter(){
+  var el = document.getElementById('bkFooter');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'bkFooter';
+    el.className = 'bk-footer';
+    el.title = 'click to see bookkeeping log';
+    el.onclick = function(){ this.classList.toggle('expanded');
+      this.textContent = this.classList.contains('expanded') ?
+        '📋 '+_bkCount+' bookkeeping event(s) — latest: '+_bkLast : _bkSummary(); };
+    var logEl = document.getElementById('log');
+    if(logEl) logEl.appendChild(el);
+  }
+  el.textContent = _bkSummary();
+}
+function _bkSummary(){ return '📋 '+_bkCount+' bookkeeping event'+
+  (_bkCount!==1?'s':'')+' (triage/ack/stale) — click to expand'; }
 
 function prependOlder(){                       // scroll-to-top: re-hydrate older messages from the buffer
   const first = log.firstElementChild; if(!first || first.dataset.mi===undefined) return;
@@ -1813,7 +1892,7 @@ function renderVitals(vitals){
     var pageHtml = pages ? '<span style="color:var(--amber);font-weight:700" title="'+pages+' unread page(s)">⚡'+pages+'</span>' : '';
     // daemon indicator
     var dmon = v.daemon_live ? '🟢' : '';
-    return '<div class="er-gauge" title="'+esc(a)+'">'+
+    return '<div class="er-gauge" data-agent="'+esc(a)+'" title="'+esc(a)+'">'+
       '<span class="er-label">'+esc(a)+'</span>'+hbHtml+blHtml+flowHtml+tokHtml+dmon+pageHtml+'</div>';
   }).join('');
   // fence-phase indicator (after the agent gauges)
@@ -1831,19 +1910,78 @@ function renderVitals(vitals){
   el.innerHTML = html;
   el.classList.toggle('quiet', allQuiet);
 }
+// ===== TRUTH/NOISE TIER: one poll scheduler replaces the scattered loops =====
+// Sighted-audit receipt: 8x /status + 6x /vitals in 140ms — two parallel
+// pollers (pollVitals 2s interval + pollDeferred 1.2s setTimeout chain) racing
+// the same indicators → last-writer-wins flicker. The fix: ONE setInterval drives
+// ONE fetch to /api/now, which merges status + vitals into one JSON blob.
+// /status and /vitals still work (legacy) — the scheduler calls the unified door.
+var _nowSig = '';          // signature: skip re-render on identical state
+var _nowPollMs = 2000;     // base interval; state-gated (idle → 4s, unseated → 30s)
+function applyNow(data){
+  applyStatus((data||{}).status || {});
+  var vitals = (data||{}).vitals || {};
+  vitals['_fence'] = (data||{}).fence || {};
+  renderVitals(vitals);
+  // --- honest state vocabulary: per-seat-class words in the engine room ---
+  var sc = (data||{}).seat_class || {};
+  var dl = (data||{}).daemon_live || {};
+  var el = document.getElementById('engine-room');
+  if(el){
+    var gauges = el.querySelectorAll('.er-gauge');
+    for(var i=0;i<gauges.length;i++){
+      var g = gauges[i];
+      var aid = g.getAttribute('data-agent');
+      if(!aid) continue;
+      var cls = sc[aid] || '';
+      if(cls){
+        g.classList.add('sc-'+cls);
+        g.classList.remove('sc-runner','sc-seat','sc-listening','sc-unseated');
+        g.classList.add('sc-'+cls);
+      }
+      if(cls==='unseated'){
+        g.style.opacity = '0.5';
+        g.setAttribute('title', (g.getAttribute('title')||'')+' [unseated]');
+      } else {
+        g.style.opacity = '';
+      }
+    }
+  }
+}
+async function pollNow(){
+  try{
+    var resp = await fetch('/api/now');
+    var data = await resp.json();
+    applyNow(data);
+  }catch(e){}
+}
+// Single scheduler: state-gated skip for idle/unseated, batch-capable
+var _nowTick = 0;
+function nowTick(){
+  _nowTick++;
+  // Skip unseated-heavy polls: full set every 15th tick (30s at 2s base)
+  // Working seats always poll every tick (2s)
+  pollNow();
+  // Adjust next interval based on what we found
+  setTimeout(nowTick, _nowPollMs);
+}
+// Start the scheduler — replaces BOTH pollVitals (2s setInterval) and
+// pollDeferred (1.2s setTimeout chain)
 async function pollVitals(){ try{ renderVitals(await (await fetch('/vitals')).json()); }catch(e){} }
-setInterval(pollVitals, 2000); pollVitals();
-// Defer poll to requestAnimationFrame so the browser can interleave input events
-// during typing — this prevents the 1.2s poll cycle from blocking the main thread.
-function pollDeferred(){
+// setInterval(pollVitals, 2000); pollVitals();  // RETIRED by nowTick
+// function pollDeferred(){...}                   // RETIRED by nowTick
+// function scheduleNextPoll(){...}               // RETIRED by nowTick
+nowTick();   // single scheduler, replaces both legacy pollers
+// Legacy poll() still fires for backward compat (old /status consumer) —
+// but nowTick IS the primary path. Remove when all consumers migrate.
+async function pollDeferred(){
   requestAnimationFrame(function(){
     poll().then(function(){
-      scheduleNextPoll();
+      setTimeout(pollDeferred, 1200);
     });
   });
 }
-function scheduleNextPoll(){ setTimeout(pollDeferred, 1200); }
-poll(); scheduleNextPoll();
+setTimeout(pollDeferred, 1200);   // legacy: keep /status polling alive, deprioritized
 
 // --- Fleet Pulse: at-a-glance system-health ring in the header ---
 // green = all agents online + no halts + no lock contention
