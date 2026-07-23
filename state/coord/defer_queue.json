@@ -30,9 +30,9 @@
    "needs": "write",
    "why": "followup for claude: flip Q6 OPEN -> ANSWERED in the file; the discharge receipt points at the answered block",
    "filed_at": "2026-07-22T01:11:54",
-   "done_by": "",
-   "done_at": "",
-   "receipt": ""
+   "done_by": "claude",
+   "done_at": "2026-07-23T00:54:07",
+   "receipt": "Q6 flipped OPEN to ANSWERED in research/reviewed/kimi-stance-round-counter-2026-07-22.md (Open Questions block). Ruling: counter-phase CLOSED at reconciliation filing (stance-at-thought-reconciliation-2026-07-22.md, three voices, T038-clean); kimi blind LIFTS, post-close reads encouraged for audit; kimi stays non-stranger for this round so any gate stranger-test of the reconciliation doc needs a fresh seat."
   }
  ]
 }

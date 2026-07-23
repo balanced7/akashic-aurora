@@ -569,6 +569,27 @@ def ask_gemini_panel(prompt: str, system: str = "", web_mode: str = "both") -> s
     return "\n".join(parts)
 
 
+# ---------------------------------------------------------------- diagnostics (test-only)
+# Registered ONLY under the test/diag env so the production roster is unchanged. Routes
+# through the SAME _run + redirect_stdout path as every CLI-delegating tool above, so the
+# concurrency fence (tests/test_mcp_concurrent_calls.py) measures the real dispatch physics:
+# whether a slow sync tool starves the loop, and whether interleaved calls corrupt capture.
+if os.environ.get("_AISETUP_TEST_ISOLATED") or os.environ.get("AKASHIC_MCP_DIAG"):
+
+    @mcp.tool()
+    def diag_echo_slow(tag: str, seconds: float = 2.0) -> str:
+        """DIAGNOSTIC (test-only): sleep `seconds` inside the standard capture path, then
+        echo the tag. Exists so the concurrency fence can time dispatch without touching
+        Redis or real verbs."""
+        import time as _time
+
+        def _body(_ns):
+            _time.sleep(float(seconds))
+            print(f"DIAG[{tag}] slept {seconds}s")
+
+        return _run(_body)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Akashic Aurora MCP (door over agent_cli/core)")
     parser.add_argument("--http", action="store_true", help="serve over streamable-HTTP instead of stdio")
