@@ -317,7 +317,15 @@ class VerbsDomain:
 # ---------------------------------------------------------------------------
 
 # Registered domains (append new domains here)
-DOMAINS: List[Domain] = [VerbsDomain()]
+def _default_domains() -> List[Domain]:
+    """Lazy: audit_spend reads kimi_chat.py by REGEX (never imports — the module
+    pulls an SDK client at import time). Import here so `import audit` stays light
+    and the SPEND domain rides the same row schema."""
+    from core.toolbelt.audit_spend import SpendDomain
+    return [VerbsDomain(), SpendDomain()]
+
+
+DOMAINS: List[Domain] = _default_domains()
 
 
 def run(domains: Optional[List[Domain]] = None,
