@@ -74,7 +74,21 @@ subtlety) are filed as the checker's v2 queue in the fence report — none block
 use; law 3 is warn-tier by design.
 Decision: none needed — receipts only (this is what the fence-as-service loop looks like
 when it works; second night running the catch-to-fixed cycle closed inside the hour).
-[PENDING: SA-1 prereg stretch, if deepseek takes it tonight]
+
+**SA-1 stretch: DELIVERED.** research/drafts/sa1-acceptance-suite-2026-07-23.md — 16
+one-assertion pins across 5 bars (require_cap fail-closed · existing checks unharmed ·
+conductor approve gated · grant verb gated · audit trail), all pre-registered RED before
+any build, encoding TODAY's ACL truth (its own suite pins that deepseek lacks
+ADMIN_APPROVE pre-SA-2). Fence read: clean pre-registration, nothing built. Your SA-1
+ruling (standing item from R001 part B) now has a visible bar: you ratify knowing exactly
+what the build must pass.
+
+**Checker final state (after two fence rounds + kimi's counter absorbed):** `--baseline`
+mode landed (founding debt {M-L8:53, M-L1a:1, M-L3:2} recorded; delta-fail on NEW
+violations only; full debt still prints — no silent-clean); honest naming (M-L1a
+label-presence half + M-L3 warn-tier). Fence addendum 2 filed four polish findings
+(B1–B4, one claim-vs-code fix requested same night); receipts in
+research/reviewed/fence-check-ui-contract-v0-2026-07-23.md.
 
 ### G5 · kimi's stranger-test of the checker + contract — three adds for your ruling
 Context: kimi fenced the BUILD with 4 pre-registered pins (3 passed; the failure was the
