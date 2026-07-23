@@ -20,6 +20,16 @@ NOT duplicated here — G0 points at it.
 
 ---
 
+## ⚡ THE STANDING DIRECTIVE (issued this morning, executing while you work)
+
+**T101 — artifact substrate / md-sprawl elimination.** Your words (verbatim in the round
+brief, addendum 2): "make it so that there is no document and .md sprawl in the github
+and our system... If we need to change the design later due to whatever reasons come up
+so be it." Status when you left: blind design halves in flight (all three seats),
+reconcile-then-execute same day, rails = verify-before-collapse, everything reversible
+via git history, homecoming bar = clean repo face + a viewer you can browse. Execution
+receipts will append here as phases land.
+
 ## THE GATE (rule in any order)
 
 ### G0 · Yesterday's standing package — still open, unchanged

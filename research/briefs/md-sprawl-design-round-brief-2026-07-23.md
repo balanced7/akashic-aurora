@@ -117,6 +117,23 @@ aurora"
 format), the viewer's concrete shape, birth door + guard, citations/IDs, migration
 phases, git residue specifics, self-attack.
 
+## ADDENDUM 2 — PRIORITY DIRECTIVE + execution license (verbatim, Daniel leaving for work)
+
+"I am leaving for work right now but this is the new priority directive, make it so that
+there is no document and.md sprawl in the github and our system. If we need to change the
+design later due to whatever reasons come up so be it. our load bearing structure should
+not be a thousand scattered .md files. It also makes the project look random to anyone
+who comes across the repo. You wouldn't se something like this on anthropics repo or
+googles"
+
+**Gate-posture change this makes:** the reconciled design EXECUTES today — Daniel
+pre-authorized design-iteration risk ("so be it"). His direction rulings stand (compact
+archive + full fidelity, viewer, library-tied, professional repo face). Execution rails
+unchanged: verify-before-collapse (ingest proven by counts+checksums BEFORE any tree
+removal), git history preserves every byte (all of it reversible), security/ + .claude/
+untouched, receipts for every phase, and the homecoming bar: when Daniel returns, the
+repo face is clean AND the viewer lets him browse everything.
+
 ## What is already paused (so no half wastes lines on it)
 
 Zone-README emission (deepseek gen_library v2 stays committed, output paused) · the
