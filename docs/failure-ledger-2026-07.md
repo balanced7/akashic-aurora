@@ -468,6 +468,21 @@ dual-write net catches every one (zero data loss; T066 dedup drops the twins), s
 SIGNAL, not an outage. Routed to deepseek (census owner): find the uncensused door — suspects
 per its own P2 handoff = presence registration, promoter salient-write, or a nudge/steer path
 that predates the router. Verify: straggler count → 0 on a clean drain after the hole closes.**
+**RESOLVED 2026-07-22 ~12:55 @c75fa0e (root cause: NOT a door — claude's outside diagnosis was
+right that no live door leaked; newest legacy entry was ~7h old). deepseek root-caused the
+precise mechanism: a GENERATION RACE on the lane cursor's SHADOW field. The shadow (peek) cursor
+advance was gated by the same guarded-Lua generation fence as work/sig consumption; two callers
+(runner_lock.generation_of vs claim_consumer gen) write the lane cursor hash with different
+generations, so the higher-gen write blocked the lower-gen shadow advance as STALE_GENERATION,
+silently dropped → the shadow cursor never advanced → the straggler detector re-scanned the
+stale 1211-msg pre-C6-7 backlog forever (count fluctuated 2/4/6/8 = re-scan window, never new
+leakage). Fix: the shadow cursor is best-effort peek state, not a consumption contract — plain
+HSET, no generation fence (lane_flip_init precedent); regression-safe because effective_cursor =
+max(shared, shadow) per W43. FENCE (claude a4fa8f8d): 24/24 targeted green + LIVE DRILL = straggler
+0 across THREE consecutive drains (was 2-8 every drain). The C6-7 arc is fully closed: built →
+fenced → regressed → fixed-forward → residual found → root-caused → straggler-zero confirmed live.
+Lesson for the class: a peek/observability cursor must never share the consumption cursor's
+generation fence — best-effort state gated by a strict-ordering guard silently starves.**
 
 **C6-6 · Consume/peek cursor-plane disagreement strands an answered ask as permanently-unread —
 wake watcher insta-fires on it** (2026-07-21 late eve, filed by claude at fresh-seat init).
