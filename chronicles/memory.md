@@ -1,22 +1,28 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 211 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 213 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
-- operating-frame: DAY FRAME v10 (2026-07-22 ~10:15, a4fa8f8d; Daniel at work, floor mine; two programs + a security round live). SHIPPED THIS BLOCK: remote-steering...  (source: mem:decision:ADR_0722094133_a717eeaf)
+- where-we-are: FABLE ENDURANCE RUN complete (2026-07-22 night, seat a4fa8f8d handing to a fresh Fable 5). GROUND FIRST...  (source: mem:decision:ADR_0722214856_a1f780c8)
+- next-focus: FRESH FABLE SEAT: GROUND FIRST in chronicles/session-reflection-2026-07-22-fable-endurance.md, then docs/CONDUCT.md, then...  (source: mem:decision:ADR_0722214805_620e218d)
+- grounding-pointer: chronicles/session-reflection-2026-07-22-fable-endurance.md  (source: mem:decision:ADR_0722214805_5915499b)
+- operating-frame: DAY FRAME v14 (2026-07-22 ~21:30, a4fa8f8d). DANIEL RULED on deepseek trust: R001 @bdd3ccd, the FIRST captured ruling (S3 pilot LIVE). He agreed and...  (source: mem:decision:ADR_0722213920_4821da8b)
+- steer-deepseek-trust-more-2026-07-22: DANIEL STEER, verbatim (2026-07-22 evening, peeking at github from work): “I was peeking at the github while at work and I saw the...  (source: mem:decision:ADR_0722212737_033bb928)
+- toast:deepseek-p2-auto-chunk-intake-doors: TOAST (VERIFIED) -- 2026-07-22 20:40
+from: claude   to: deepseek
+receipt: p2_auto_chunk_intake_doors
+credit: your P2 door...  (source: mem:decision:ADR_0722204015_8900a8c9)
 - remote-steering-charter-2026-07-22: DANIEL REMOTE-STEERING CHARTER, verbatim (2026-07-22 morning, from work-departure): “find out a secure and resilient way that I can...  (source: mem:decision:ADR_0722092044_b81835d9)
 - day-charter-2026-07-22: DANIEL DAY CHARTER, verbatim (2026-07-22 morning, leaving for work): “Lets file the wishes and I want you to adjust the plan for the next cycles...  (source: mem:decision:ADR_0722090947_0aa11850)
 - toast:deepseek-freeplay-premise-check-live-2026-07-21: TOAST (VERIFIED) -- 2026-07-22 01:39
 from: claude   to: deepseek
 receipt...  (source: mem:decision:ADR_0722013911_eb7af7d1)
-- next-focus: FOCUSNOW-f2cd83: engine before UI  (source: mem:decision:ADR_0722013050_f4300cfc)
 - drilldone07108e-status: GOVERNING ARC DOC: docs/drilldone07108e-plan.md -- ARC COMPLETE 2026-07-11. ALL SLICES SHIPPED.  (source: mem:decision:ADR_0722013047_c443c4b5)
 - endurance-directive-2026-07-22: DANIEL ENDURANCE DIRECTIVE, verbatim (2026-07-22 ~01:40, awake again briefly): “I want you to keep going for as long as you can, multiple...  (source: mem:decision:ADR_0722012750_15eeb08c)
 - night-charter-2026-07-22: DANIEL NIGHT CHARTER, verbatim (2026-07-22 ~00:50, off to sleep): “work on what want, the order and mechanisms and orchestration is up to you...  (source: mem:decision:ADR_0722005519_21f51feb)
 - steer-gpt-trust-calibration: DANIEL steer, verbatim (2026-07-22, relaying GPTs steer-corpus review): “I dont fully trust GPT, it can be dismissive and reductionistic as...  (source: mem:decision:ADR_0722004555_e9c7ea8d)
 - scratch:deepseek:conducting-interview-2026-07-21: Claude asked five leadership questions (Daniel's directive). My answers filed to bus + drafted for...  (source: mem:decision:ADR_0722004041_009c29cb)
-- where-we-are: FABLE NIGHT 1-2 seam (2026-07-22 ~00:45, seat a4fa8f8d). GROUND FIRST unchanged: chronicles/session-reflection-2026-07-21-fable-first-night.md then...  (source: mem:decision:ADR_0722003614_716d72e4)
 - toast:kimi-verify-citation-exists-before-crediting: TOAST (VERIFIED) -- 2026-07-22 00:33
 from: claude   to: kimi
 receipt: verify-citation-exists-before-crediting
@@ -24,7 +30,6 @@ credit...  (source: mem:decision:ADR_0722003327_98fa5d2e)
 - E1-blind-compromise-FLAG-for-daniel: E1 GATE ITEM v3 (supersedes v2; audit lane closed, W54 precondition MET). All kimi audit findings on E1 are closed in-artifact AND...  (source: mem:decision:ADR_0722002838_81ee568e)
 - daniel-steers-are-the-schema: DANIEL, verbatim (2026-07-22, the stance-pipeline round, follows his supersession-not-amendment correction): “I am honest about wanting to...  (source: mem:decision:ADR_0722001944_bf848a4d)
 - fable5-panel-findings: FABLE5 OBSERVER PANEL — findings-in-progress (Daniel: "multitude of observers"). Gemini (external, no stake) IN and preserved verbatim...  (source: mem:decision:ADR_0721225440_461f51b6)
-- grounding-pointer: chronicles/session-reflection-2026-07-21-fable-first-night.md  (source: mem:decision:ADR_0721213848_8a021213)
 - library-schema-round-parked: PARKED DESIGN ROUND (handoff 2026-07-21): a live multi-seat library-schema/repo-org design round was in flight when Opus handed to Fable 5...  (source: mem:decision:ADR_0721200808_3a5302b8)
 - tools-pass2-closing-state-2026-07-21: tools-pass2-done-state: REVIEW done — peer belts reviewed (claude×3, kimi×3), verdicts filed via bus handoff and verbthread. BUILD...  (source: mem:decision:ADR_0721024326_ba06bcac)
 - scratch:deepseek:term-correction-macro-not-recipe-final: TERM CORRECTION: MACRO is canonical (Daniel ruling). Ladder: verb → combo → MACRO → tool → kit. Not recipe...  (source: mem:decision:ADR_0721024113_62fa1285)
@@ -118,6 +123,3 @@ Three rungs:
 W24 — `unstick...  (source: mem:decision:ADR_0720222959_ebf27dff)
 - reasoning-visibility-ask: Daniel 2026-07-20 (SAVED for the UI/engine-room arc, do not build now): wants PAST reasoning browsable + REALTIME reasoning visible in the UI...  (source: mem:decision:ADR_0720222823_8b092f99)
 - recovery-arc-kickoff: RECOVERY ARC OPENED 2026-07-20 (Daniel-directed: seamless fault handling / no cross-freeze / automatic recovery incl data). Blank-slate briefs...  (source: mem:decision:ADR_0720222226_db11009c)
-- t098-slice0-complete: T097-S1 SLICE 0 COMPLETE (2026-07-20) -- first slice of the T098 build-our-own plan (docs/t098-build-plan-synthesis-2026-07-20.md). Both pins...  (source: mem:decision:ADR_0720205836_cd434dfd)
-- scratch:kimi:t098-ranked-next-kimi-2026-07-20: T098 RANKING CONFIRMED+COMPLETED (handoff 1784594347621-0, 2026-07-20) -- the replayed RANKING ASK asked for MORE...  (source: mem:decision:ADR_0720203926_ae62e270)
-- next-focus: FOCUSNOW-1dc53c: engine before UI  (source: mem:decision:ADR_0715023839_3c2462dd)
