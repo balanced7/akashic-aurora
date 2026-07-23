@@ -1465,6 +1465,93 @@ def cmd_wish(args):
     return 0
 
 
+def cmd_doc(args):
+    """D1 (deepseek, 2026-07-22): the seeding door. Stamps a new .md file with its
+    header contract (Status + Type + Arc + Seats + Date) and places it in the canon
+    home for its Type per docs/LIBRARY.md. The header is NEVER hand-typed; the verb
+    writes it. Direct editor writes ship without headers (runner exempt); the wrap
+    census + push-lint catch stragglers — never a write-time block.
+
+    Zone naming:
+      docs/     → <topic>-<kind>-<YYYY-MM>.md
+      research/ → <seats>-<topic>-<kind>-<YYYY-MM-DD>.md
+
+    Usage:
+      py agent_cli.py doc new --type design --title "my-arc" --arc "fleet" --seats "claude,deepseek"
+      py agent_cli.py doc new --type brief --title "ops-ask" --seats "claude"
+    """
+    from datetime import datetime as _dt
+    sub = getattr(args, "sub", "new")
+    if sub != "new":
+        print("[doc] only 'new' is implemented — pass 'doc new ...'")
+        return 2
+
+    typ = (getattr(args, "type", "") or "").strip().lower()
+    title = (getattr(args, "title", "") or "").strip()
+    arc = (getattr(args, "arc", "") or "").strip()
+    seats_raw = (getattr(args, "seats", "") or "").strip()
+    seats = seats_raw.replace(",", ", ").replace("  ", " ").strip()
+
+    if not typ or not title:
+        print("[doc] REFUSED: --type and --title are required")
+        print("  docs/ home map:")
+        print("    contract design brief report chronicle ledger map plan ruling")
+        print("  research/ sub-homes: drafts reviewed briefs")
+        print("  Examples:")
+        print("    py agent_cli.py doc new --type design --title my-arc --seats claude")
+        print("    py agent_cli.py doc new --type brief --title ops-ask --seats claude")
+        return 2
+
+    now = _dt.now()
+    date = now.strftime("%Y-%m-%d")
+
+    # Determine zone and filename per LIBRARY.md naming canon
+    research_types = {"brief", "report", "draft"}
+    is_research = typ in research_types or getattr(args, "zone", "") == "research"
+
+    if is_research:
+        zone_dir = Path(__file__).resolve().parent / "research"
+        sub_dir_map = {
+            "brief": "briefs", "report": "reviewed", "draft": "drafts",
+        }
+        subdir = sub_dir_map.get(typ, "drafts")
+        zone_dir = zone_dir / subdir
+        seats_part = seats.replace(", ", "-").replace(" ", "-").lower() if seats else "fleet"
+        fname = f"{seats_part}-{title}-{typ}-{date}.md"
+    else:
+        zone_dir = Path(__file__).resolve().parent / "docs"
+        fname = f"{title}-{typ}-{date}.md"
+
+    os.makedirs(str(zone_dir), exist_ok=True)
+    dest = zone_dir / fname
+    if dest.exists():
+        print(f"[doc] REFUSED: {dest} already exists — choose a different --title")
+        return 2
+
+    # Build the header contract
+    arc_line = f"Arc: {arc}" if arc else ""
+    seats_line = f"Seats: {seats}" if seats else ""
+    meta_parts = [arc_line, seats_line]
+    meta = " · ".join(p for p in meta_parts if p)
+
+    header = (
+        f"# {title.replace('-', ' ').title()}\n"
+        f"\n"
+        f"Status: current\n"
+        f"Type: {typ}"
+    )
+    if meta:
+        header += f" · {meta}"
+    header += f" · Date: {date}\n"
+    header += "\n"
+
+    dest.write_text(header, encoding="utf-8")
+    rel = str(dest.relative_to(Path(__file__).resolve().parent)).replace("\\", "/")
+    print(f"[doc] seeded {rel}")
+    print(f"  type: {typ}  arc: {arc or '(none)'}  seats: {seats or '(none)'}")
+    return 0
+
+
 def cmd_note(args, *, mem=None):
     """Write-once durable project note: record WHERE-WE-ARE / a decision in ONE place (the substrate),
     not by hand-editing files. Re-noting the same --title (or --supersedes ID) RETIRES the prior note
@@ -3520,6 +3607,17 @@ def build_parser():
     wsh.add_argument("--trigger", default="", help="what hurt (one clause)")
     wsh.add_argument("--land", default="", help="suggested landing arc/slice")
     wsh.set_defaults(fn=cmd_wish)
+
+    # D1: doc new — the library seeding door
+    dsp = sub.add_parser("doc", help="seed a new doc with its header contract (library door)")
+    dsps = dsp.add_subparsers(dest="sub")
+    dnew = dsps.add_parser("new", help="create a new doc with header + canon name + home")
+    dnew.add_argument("--type", required=True, help="Type per LIBRARY.md: contract|design|brief|report|chronicle|ledger|map|plan|ruling")
+    dnew.add_argument("--title", required=True, help="slug (lowercase, hyphens) — becomes the filename")
+    dnew.add_argument("--arc", default="", help="arc label or T-number")
+    dnew.add_argument("--seats", default="", help="authors (comma-sep)")
+    dnew.add_argument("--zone", default="", help="force zone: docs|research")
+    dnew.set_defaults(fn=cmd_doc)
 
     ap = sub.add_parser("tag-anti-pattern", help="tag an EXISTING lesson as a reusable known-bad")
     ap.add_argument("agent_id"); ap.add_argument("--experiment", required=True)

@@ -85,6 +85,23 @@ def main():
             staged = git("diff", "--cached", "--name-only", "--", *paths).stdout.strip()
         else:
             staged = git("diff", "--cached", "--name-only").stdout.strip()
+        # Rule-8 pre-commit mojibake guard (D3, deepseek): scan staged .md files for
+        # known byte-level corruption signatures before the commit. A hit REFUSES the
+        # commit — fix the source bytes, not the .md. Best-effort; never blocks a
+        # commit on hook failure (the guard is an optimization; check_boundaries is
+        # the permanent backstop).
+        if staged:
+            md_files = [f for f in staged.strip().split("\n") if f.endswith(".md")]
+            if md_files:
+                hook = os.path.join(ROOT, "scripts", "hooks", "mojibake_signatures.py")
+                r = subprocess.run(
+                    [sys.executable, hook, *md_files],
+                    cwd=ROOT, env=ENV, capture_output=True, text=True)
+                if r.returncode != 0:
+                    print(r.stdout.strip())
+                    print(r.stderr.strip() if r.stderr else "")
+                    print("[mirror] rule-8 mojibake guard REFUSED commit — fix and re-stage.")
+                    sys.exit(1)
         if staged:
             msg = msg or f"Mirror progress {datetime.now():%Y-%m-%d %H:%M}"
             if paths and not add_all:
