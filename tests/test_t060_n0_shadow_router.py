@@ -254,9 +254,14 @@ def test_cli_and_mcp_route_json_are_identical():
     assert cli.returncode == 0, cli.stderr or cli.stdout
     cli_value = json.loads(cli.stdout)
 
+    import asyncio
+
     import ai_setup_mcp
 
-    mcp_value = json.loads(ai_setup_mcp.packet_route("handoff"))
+    # O1 (2026-07-23): MCP tools are async (worker-thread dispatch); the framework
+    # awaits them. This direct in-process call must await too — the parity guarantee
+    # (CLI route JSON == MCP route JSON) is unchanged, only the call mechanics.
+    mcp_value = json.loads(asyncio.run(ai_setup_mcp.packet_route("handoff")))
     assert cli_value == mcp_value == _router().route("handoff").as_dict()
 
 

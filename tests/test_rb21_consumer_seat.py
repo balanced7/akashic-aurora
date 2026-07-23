@@ -217,8 +217,11 @@ def test_cross_process_refresh_preserves_generation(agent):
 def test_mcp_door_peek_default():
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     tree = ast.parse(open(os.path.join(root, "ai_setup_mcp.py"), encoding="utf-8").read())
+    # O1 (2026-07-23): MCP tools are async now -> AsyncFunctionDef, not FunctionDef.
+    # The peek-default guarantee this test pins is unchanged; accept both node types.
     fn = next(n for n in ast.walk(tree)
-              if isinstance(n, ast.FunctionDef) and n.name == "bifrost_inbox")
+              if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+              and n.name == "bifrost_inbox")
     args = fn.args
     named = {a.arg: d for a, d in
              zip(args.args[len(args.args) - len(args.defaults):], args.defaults)}
