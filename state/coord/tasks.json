@@ -1,5 +1,5 @@
 {
-  "seq": 99,
+  "seq": 100,
   "tasks": [
     {
       "id": "T001",
@@ -3602,6 +3602,27 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-07-21T03:03:46+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T100",
+      "title": "MCP door concurrency fix O1 (async+to_thread, thread-local capture, two-tier lock) + boot-ergonomics census landing - round 2026-07-23",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-23T05:26:40+00:00",
+      "updated": "2026-07-23T05:26:40+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-23T05:26:40+00:00"
         }
       ]
     }

@@ -75,15 +75,15 @@
      "placeholder"
     ]
    ],
-   "version": 17,
+   "version": 21,
    "params": 0,
    "evidence": "VERIFIED",
-   "tested_against": "kata-20260722-093925",
+   "tested_against": "kata-20260723-025751",
    "why": "deepseek FREE PLAY 2026-07-20: scar-springboard #1 from tools hunt. lock→fence→kata = the edit-verify cycle.",
    "family": "UNSORTED",
    "status": "active",
    "created_at": "2026-07-20T23:31:45",
-   "updated_at": "2026-07-22T09:39:25",
+   "updated_at": "2026-07-23T02:57:51",
    "author": "deepseek"
   },
   "toast": {
@@ -104,15 +104,15 @@
      "24"
     ]
    ],
-   "version": 17,
+   "version": 21,
    "params": 0,
    "evidence": "VERIFIED",
-   "tested_against": "kata-20260722-093925",
+   "tested_against": "kata-20260723-025751",
    "why": "deepseek FREE PLAY 2026-07-20: raise a glass. chronicle→project→wrap = end-of-session celebration.",
    "family": "UNSORTED",
    "status": "active",
    "created_at": "2026-07-20T23:31:45",
-   "updated_at": "2026-07-22T09:39:25",
+   "updated_at": "2026-07-23T02:57:51",
    "author": "deepseek"
   },
   "muse": {
@@ -134,15 +134,15 @@
      "muse-firehose"
     ]
    ],
-   "version": 17,
+   "version": 21,
    "params": 0,
    "evidence": "VERIFIED",
-   "tested_against": "kata-20260722-093925",
+   "tested_against": "kata-20260723-025751",
    "why": "deepseek FREE PLAY 2026-07-20: creative brainstorm. map→lookback→capture = the muse ritual.",
    "family": "UNSORTED",
    "status": "active",
    "created_at": "2026-07-20T23:31:45",
-   "updated_at": "2026-07-22T09:39:25",
+   "updated_at": "2026-07-23T02:57:51",
    "author": "deepseek"
   },
   "premise-check": {
@@ -1817,6 +1817,382 @@
    "updated_at": "2026-07-22T09:39:25",
    "author": "deepseek",
    "superseded_at": "2026-07-22T09:39:25"
+  },
+  {
+   "name": "parse-gate",
+   "kind": "alias",
+   "steps": [
+    [
+     "lock",
+     "deepseek",
+     "placeholder"
+    ],
+    [
+     "fence",
+     "open",
+     "--slot",
+     "brief"
+    ],
+    [
+     "kata",
+     "deepseek",
+     "placeholder"
+    ]
+   ],
+   "version": 17,
+   "params": 0,
+   "evidence": "VERIFIED",
+   "tested_against": "kata-20260722-093925",
+   "why": "deepseek FREE PLAY 2026-07-20: scar-springboard #1 from tools hunt. lock→fence→kata = the edit-verify cycle.",
+   "family": "UNSORTED",
+   "status": "active",
+   "created_at": "2026-07-20T23:31:45",
+   "updated_at": "2026-07-22T09:39:25",
+   "author": "deepseek",
+   "superseded_at": "2026-07-23T00:51:56"
+  },
+  {
+   "name": "toast",
+   "kind": "alias",
+   "steps": [
+    [
+     "story",
+     "--chronicle"
+    ],
+    [
+     "notes",
+     "--project"
+    ],
+    [
+     "wrap",
+     "--hours",
+     "24"
+    ]
+   ],
+   "version": 17,
+   "params": 0,
+   "evidence": "VERIFIED",
+   "tested_against": "kata-20260722-093925",
+   "why": "deepseek FREE PLAY 2026-07-20: raise a glass. chronicle→project→wrap = end-of-session celebration.",
+   "family": "UNSORTED",
+   "status": "active",
+   "created_at": "2026-07-20T23:31:45",
+   "updated_at": "2026-07-22T09:39:25",
+   "author": "deepseek",
+   "superseded_at": "2026-07-23T00:51:56"
+  },
+  {
+   "name": "muse",
+   "kind": "alias",
+   "steps": [
+    [
+     "knowledge-map",
+     "recovery"
+    ],
+    [
+     "lookback",
+     "what are our biggest architectural risks?"
+    ],
+    [
+     "events",
+     "--capture",
+     "--summary",
+     "muse-firehose"
+    ]
+   ],
+   "version": 17,
+   "params": 0,
+   "evidence": "VERIFIED",
+   "tested_against": "kata-20260722-093925",
+   "why": "deepseek FREE PLAY 2026-07-20: creative brainstorm. map→lookback→capture = the muse ritual.",
+   "family": "UNSORTED",
+   "status": "active",
+   "created_at": "2026-07-20T23:31:45",
+   "updated_at": "2026-07-22T09:39:25",
+   "author": "deepseek",
+   "superseded_at": "2026-07-23T00:51:56"
+  },
+  {
+   "name": "parse-gate",
+   "kind": "alias",
+   "steps": [
+    [
+     "lock",
+     "deepseek",
+     "placeholder"
+    ],
+    [
+     "fence",
+     "open",
+     "--slot",
+     "brief"
+    ],
+    [
+     "kata",
+     "deepseek",
+     "placeholder"
+    ]
+   ],
+   "version": 18,
+   "params": 0,
+   "evidence": "GUESS",
+   "tested_against": null,
+   "why": "deepseek FREE PLAY 2026-07-20: scar-springboard #1 from tools hunt. lock→fence→kata = the edit-verify cycle.",
+   "family": "UNSORTED",
+   "status": "active",
+   "created_at": "2026-07-20T23:31:45",
+   "updated_at": "2026-07-23T00:51:56",
+   "author": "deepseek",
+   "superseded_at": "2026-07-23T00:51:56"
+  },
+  {
+   "name": "toast",
+   "kind": "alias",
+   "steps": [
+    [
+     "story",
+     "--chronicle"
+    ],
+    [
+     "notes",
+     "--project"
+    ],
+    [
+     "wrap",
+     "--hours",
+     "24"
+    ]
+   ],
+   "version": 18,
+   "params": 0,
+   "evidence": "GUESS",
+   "tested_against": null,
+   "why": "deepseek FREE PLAY 2026-07-20: raise a glass. chronicle→project→wrap = end-of-session celebration.",
+   "family": "UNSORTED",
+   "status": "active",
+   "created_at": "2026-07-20T23:31:45",
+   "updated_at": "2026-07-23T00:51:56",
+   "author": "deepseek",
+   "superseded_at": "2026-07-23T00:51:56"
+  },
+  {
+   "name": "muse",
+   "kind": "alias",
+   "steps": [
+    [
+     "knowledge-map",
+     "recovery"
+    ],
+    [
+     "lookback",
+     "what are our biggest architectural risks?"
+    ],
+    [
+     "events",
+     "--capture",
+     "--summary",
+     "muse-firehose"
+    ]
+   ],
+   "version": 18,
+   "params": 0,
+   "evidence": "GUESS",
+   "tested_against": null,
+   "why": "deepseek FREE PLAY 2026-07-20: creative brainstorm. map→lookback→capture = the muse ritual.",
+   "family": "UNSORTED",
+   "status": "active",
+   "created_at": "2026-07-20T23:31:45",
+   "updated_at": "2026-07-23T00:51:56",
+   "author": "deepseek",
+   "superseded_at": "2026-07-23T00:51:56"
+  },
+  {
+   "name": "parse-gate",
+   "kind": "alias",
+   "steps": [
+    [
+     "lock",
+     "deepseek",
+     "placeholder"
+    ],
+    [
+     "fence",
+     "open",
+     "--slot",
+     "brief"
+    ],
+    [
+     "kata",
+     "deepseek",
+     "placeholder"
+    ]
+   ],
+   "version": 19,
+   "params": 0,
+   "evidence": "VERIFIED",
+   "tested_against": "kata-20260723-005156",
+   "why": "deepseek FREE PLAY 2026-07-20: scar-springboard #1 from tools hunt. lock→fence→kata = the edit-verify cycle.",
+   "family": "UNSORTED",
+   "status": "active",
+   "created_at": "2026-07-20T23:31:45",
+   "updated_at": "2026-07-23T00:51:56",
+   "author": "deepseek",
+   "superseded_at": "2026-07-23T02:57:51"
+  },
+  {
+   "name": "toast",
+   "kind": "alias",
+   "steps": [
+    [
+     "story",
+     "--chronicle"
+    ],
+    [
+     "notes",
+     "--project"
+    ],
+    [
+     "wrap",
+     "--hours",
+     "24"
+    ]
+   ],
+   "version": 19,
+   "params": 0,
+   "evidence": "VERIFIED",
+   "tested_against": "kata-20260723-005156",
+   "why": "deepseek FREE PLAY 2026-07-20: raise a glass. chronicle→project→wrap = end-of-session celebration.",
+   "family": "UNSORTED",
+   "status": "active",
+   "created_at": "2026-07-20T23:31:45",
+   "updated_at": "2026-07-23T00:51:56",
+   "author": "deepseek",
+   "superseded_at": "2026-07-23T02:57:51"
+  },
+  {
+   "name": "muse",
+   "kind": "alias",
+   "steps": [
+    [
+     "knowledge-map",
+     "recovery"
+    ],
+    [
+     "lookback",
+     "what are our biggest architectural risks?"
+    ],
+    [
+     "events",
+     "--capture",
+     "--summary",
+     "muse-firehose"
+    ]
+   ],
+   "version": 19,
+   "params": 0,
+   "evidence": "VERIFIED",
+   "tested_against": "kata-20260723-005156",
+   "why": "deepseek FREE PLAY 2026-07-20: creative brainstorm. map→lookback→capture = the muse ritual.",
+   "family": "UNSORTED",
+   "status": "active",
+   "created_at": "2026-07-20T23:31:45",
+   "updated_at": "2026-07-23T00:51:56",
+   "author": "deepseek",
+   "superseded_at": "2026-07-23T02:57:51"
+  },
+  {
+   "name": "parse-gate",
+   "kind": "alias",
+   "steps": [
+    [
+     "lock",
+     "deepseek",
+     "placeholder"
+    ],
+    [
+     "fence",
+     "open",
+     "--slot",
+     "brief"
+    ],
+    [
+     "kata",
+     "deepseek",
+     "placeholder"
+    ]
+   ],
+   "version": 20,
+   "params": 0,
+   "evidence": "GUESS",
+   "tested_against": null,
+   "why": "deepseek FREE PLAY 2026-07-20: scar-springboard #1 from tools hunt. lock→fence→kata = the edit-verify cycle.",
+   "family": "UNSORTED",
+   "status": "active",
+   "created_at": "2026-07-20T23:31:45",
+   "updated_at": "2026-07-23T02:57:51",
+   "author": "deepseek",
+   "superseded_at": "2026-07-23T02:57:51"
+  },
+  {
+   "name": "toast",
+   "kind": "alias",
+   "steps": [
+    [
+     "story",
+     "--chronicle"
+    ],
+    [
+     "notes",
+     "--project"
+    ],
+    [
+     "wrap",
+     "--hours",
+     "24"
+    ]
+   ],
+   "version": 20,
+   "params": 0,
+   "evidence": "GUESS",
+   "tested_against": null,
+   "why": "deepseek FREE PLAY 2026-07-20: raise a glass. chronicle→project→wrap = end-of-session celebration.",
+   "family": "UNSORTED",
+   "status": "active",
+   "created_at": "2026-07-20T23:31:45",
+   "updated_at": "2026-07-23T02:57:51",
+   "author": "deepseek",
+   "superseded_at": "2026-07-23T02:57:51"
+  },
+  {
+   "name": "muse",
+   "kind": "alias",
+   "steps": [
+    [
+     "knowledge-map",
+     "recovery"
+    ],
+    [
+     "lookback",
+     "what are our biggest architectural risks?"
+    ],
+    [
+     "events",
+     "--capture",
+     "--summary",
+     "muse-firehose"
+    ]
+   ],
+   "version": 20,
+   "params": 0,
+   "evidence": "GUESS",
+   "tested_against": null,
+   "why": "deepseek FREE PLAY 2026-07-20: creative brainstorm. map→lookback→capture = the muse ritual.",
+   "family": "UNSORTED",
+   "status": "active",
+   "created_at": "2026-07-20T23:31:45",
+   "updated_at": "2026-07-23T02:57:51",
+   "author": "deepseek",
+   "superseded_at": "2026-07-23T02:57:51"
   }
  ]
 }

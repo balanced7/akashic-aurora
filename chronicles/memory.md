@@ -1,12 +1,28 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 213 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 222 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
-- where-we-are: FABLE ENDURANCE RUN complete (2026-07-22 night, seat a4fa8f8d handing to a fresh Fable 5). GROUND FIRST...  (source: mem:decision:ADR_0722214856_a1f780c8)
-- next-focus: FRESH FABLE SEAT: GROUND FIRST in chronicles/session-reflection-2026-07-22-fable-endurance.md, then docs/CONDUCT.md, then...  (source: mem:decision:ADR_0722214805_620e218d)
-- grounding-pointer: chronicles/session-reflection-2026-07-22-fable-endurance.md  (source: mem:decision:ADR_0722214805_5915499b)
+- grounding-pointer: chronicles/session-reflection-2026-07-23-fable-conductor-night.md  (source: mem:decision:ADR_0723035301_42368107)
+- next-focus: FRESH FABLE SEAT: GROUND FIRST in chronicles/session-reflection-2026-07-23-fable-conductor-night.md, then docs/CONDUCT.md, then note night-state-2026-07-23...  (source: mem:decision:ADR_0723035300_7384c7a8)
+- where-we-are: FABLE CONDUCTOR NIGHT complete (2026-07-23, seat handing to a fresh Fable). GROUND FIRST...  (source: mem:decision:ADR_0723035242_608b6e4d)
+- night-state-2026-07-23: NIGHT RUN STATE (2026-07-23 ~03:30, claude conducting solo, Daniel asleep). SHIPPED: (1) O1 MCP concurrency - built+fenced 12/12+deepseek...  (source: mem:decision:ADR_0723032312_d602f0a0)
+- toast:deepseek-sighted-fence-triple-fix: TOAST (GUESS) -- 2026-07-23 03:19
+from: claude   to: deepseek
+receipt: sighted-fence-triple-fix
+credit: caught-to-fixed in ONE...  (source: mem:decision:ADR_0723031927_1cb04f0f)
+- night-charter-2026-07-23: DANIEL NIGHT CHARTER (2026-07-23 ~03:50, PARAPHRASE - verbatim with apostrophes preserved in chronicles/night-plan-2026-07-23.md per W63)...  (source: mem:decision:ADR_0723025155_499eb820)
+- ui-design-corpus-compiled-2026-07-23: UI DESIGN CORPUS COMPILED at Daniels order (his ask verbatim in the doc)...  (source: mem:decision:ADR_0723023652_f8bcb678)
+- steer-ui-gap-2026-07-23: DANIEL STEER (2026-07-23 ~03:05, PARAPHRASE - his exact words with apostrophes are verbatim inside...  (source: mem:decision:ADR_0723022819_87a112bd)
+- toast:deepseek-deepseek-mcp-concurrency-counter: TOAST (GUESS) -- 2026-07-23 02:19
+from: claude   to: deepseek
+receipt: deepseek-mcp-concurrency-counter
+credit: 162s...  (source: mem:decision:ADR_0723021959_faf705cf)
+- steer-ui-visibility-2026-07-23: DANIEL STEER, verbatim (2026-07-23 ~02:45, watching :8787): I dont see any visual evidence of kimi or deepseek doing anything on the 87...  (source: mem:decision:ADR_0723021924_ba625b3e)
+- steer-mcp-leverage-2026-07-23: DANIEL STEER, verbatim (2026-07-23 ~02:00, mid-round widening): how many of our concurrent agents and wake and all the rest can be solved...  (source: mem:decision:ADR_0723020732_e5f6fc29)
+- where-we-are-2026-07-23: Shipped:
+  - handoff prep for a fresh Fable seat: endurance-run reflection (GROUND FIRST, voice+stance+inherited state) + memory churn...  (source: mem:decision:ADR_0723005345_5476e406)
 - operating-frame: DAY FRAME v14 (2026-07-22 ~21:30, a4fa8f8d). DANIEL RULED on deepseek trust: R001 @bdd3ccd, the FIRST captured ruling (S3 pilot LIVE). He agreed and...  (source: mem:decision:ADR_0722213920_4821da8b)
 - steer-deepseek-trust-more-2026-07-22: DANIEL STEER, verbatim (2026-07-22 evening, peeking at github from work): “I was peeking at the github while at work and I saw the...  (source: mem:decision:ADR_0722212737_033bb928)
 - toast:deepseek-p2-auto-chunk-intake-doors: TOAST (VERIFIED) -- 2026-07-22 20:40
@@ -112,14 +128,4 @@ Three rungs:
 - t099-v0-fence-passed: T099 V0 FENCE PASSED 2026-07-20: deepseek verdict PASS/SHIP @ddf5127 (10 laws verified line-by-line; sugar-only, honesty labels, supersession...  (source: mem:decision:ADR_0720230634_43e9e5fc)
 - t099-v0-shipped: T099 V0 SHIPPED @ddf5127 (2026-07-20): toolbelt registry (sugar-only, honesty labels, supersession, quota) + capture/alias/run verbs + verb.author...  (source: mem:decision:ADR_0720230337_de80c52d)
 - self-tooling-reconciled: SELF-TOOLING ARC RECONCILED 2026-07-20 -> docs/self-tooling-design-2026-07.md (V0-V3), AWAITING DANIEL GATE. Completes the three-arc gate...  (source: mem:decision:ADR_0720225340_303f3072)
-- scratch:deepseek:self-tooling-arc-deepseek-half-2026-07-20: SELF-TOOLING ARC independent half FILED to claude (1784602292887-0, 2026-07-20). Top 5 verb candidates: (1)...  (source: mem:decision:ADR_0720225145_e11e214b)
-- institutional-knowledge-reconciled: INSTITUTIONAL-KNOWLEDGE ARC RECONCILED 2026-07-20 -> docs/institutional-knowledge-design-2026-07.md (K0-K4), AWAITING DANIEL GATE...  (source: mem:decision:ADR_0720224422_cbc8acde)
-- scratch:kimi:institutional-knowledge-kimi-half-2026-07-20: INSTITUTIONAL-KNOWLEDGE ARC half v2 FILED to claude (handoff 1784601753635-0, 2026-07-20), SUPERSEDES prose v1...  (source: mem:decision:ADR_0720224248_f4635b42)
-- recovery-arc-reconciled: RECOVERY ARC RECONCILED 2026-07-20 @1e57088 -> docs/recovery-arc-design-2026-07.md, AWAITING DANIEL GATE (3 asks: approve slice order S0-S6...  (source: mem:decision:ADR_0720223547_75868808)
-- scratch:kimi:recovery-arc-kimi-half-2026-07-20: RECOVERY ARC blank-slate half FILED to claude in TWO parts (2026-07-20): part 1 = design (handoff 1784600898524-0), part...  (source: mem:decision:ADR_0720223142_145bfee6)
-- scratch:deepseek:session-state-2026-07-20-recovery-arc-half: RECOVERY ARC blank-slate half FILED 2026-07-20 to claude (handoff 1784600966101-0). Independent design per...  (source: mem:decision:ADR_0720223028_0c48bfd1)
-- scratch:deepseek:recovery-arc-wishes-w24-w29-2026-07-20: RECOVERY ARC Q2 wishes filed to WISHLIST.md (write-gated — needs Daniel's approval to commit):
-
-W24 — `unstick...  (source: mem:decision:ADR_0720222959_ebf27dff)
-- reasoning-visibility-ask: Daniel 2026-07-20 (SAVED for the UI/engine-room arc, do not build now): wants PAST reasoning browsable + REALTIME reasoning visible in the UI...  (source: mem:decision:ADR_0720222823_8b092f99)
-- recovery-arc-kickoff: RECOVERY ARC OPENED 2026-07-20 (Daniel-directed: seamless fault handling / no cross-freeze / automatic recovery incl data). Blank-slate briefs...  (source: mem:decision:ADR_0720222226_db11009c)
+- next-focus: FOCUSNOW-1dc53c: engine before UI  (source: mem:decision:ADR_0715023839_3c2462dd)

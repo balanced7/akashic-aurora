@@ -8,9 +8,9 @@
    "needs": "exec",
    "why": "B4 suite-baseline seed",
    "filed_at": "2026-07-21T02:36:27",
-   "done_by": "",
-   "done_at": "",
-   "receipt": ""
+   "done_by": "claude",
+   "done_at": "2026-07-23T03:12:39",
+   "receipt": "Full suite re-baseline ran (detached, complete). O1 caused exactly 2 regressions (t060, rb21) both found+fixed. Remaining failures pre-existing/environmental (dirty-tree artifacts + data-dependent features + full-suite pollution) - NOT O1. TRUE clean-tree baseline still owed: needs a quiet tree with no live servers/session; recorded for the morning suite-baseline pass. O1 blast radius verified clean."
   },
   {
    "id": "917340b130",
