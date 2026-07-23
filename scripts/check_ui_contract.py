@@ -106,35 +106,47 @@ def _check_gauge_axes(lines: list[str]) -> list[str]:
 
 # ---------------------------------------------------------------- M-L3: earned-accent
 def _check_earned_accent(lines: list[str]) -> list[str]:
-    """Alarm colors only on alarm states. Proximity heuristic."""
+    """Alarm colors only on alarm states. Proximity heuristic.
+
+    FENCE-CORRECTED (2026-07-23, claude fence RED #1/#2):
+    - ALARM_CLASSES uses word-boundary regex so --warn-ink doesn't fire on "warn".
+    - STATE_PREDICATES omits 'tripped' — relational checks (=== 'tripped') are
+      distinct from class-assignment uses ('tripped') so a bare token can't self-
+      satisfy. Custom-property names (--[\w-]+) are stripped before matching.
+    """
     problems: list[str] = []
-    ALARM_CLASSES = {"tripped", "warn", "high"}
-    STATE_PREDICATES = {"runner===", "workN>", "legacyN>", "pages>",
-                        "allQuiet", "blocked", "tripped", "offline",
-                        "!== 'active'", ">0", ">10", ">100"}
+    _tok = re.compile(r"\b(tripped|warn|high)\b")
+    # Relational / comparison patterns — the word IS being checked, not assigned
+    _pred = re.compile(r"===\s*['\"]tripped|===\s*['\"]blocked|state\s*===\s*['\"]tripped",
+                       re.IGNORECASE)
+    _state = re.compile(r"\b(runner===|workN>|legacyN>|pages>|allQuiet|blocked|offline|"
+                        r"!==\s*'active'|>\s*0|>\s*10|>\s*100)\b")
 
     for i, line in enumerate(lines, 1):
-        # Check for alarm-class tokens in this line
-        matched = [c for c in ALARM_CLASSES if c in line]
-        if not matched:
+        # Strip CSS custom-property names before matching (--warn-ink -> removed)
+        cleaned = re.sub(r"--[\w-]+", "--var", line)
+        tokens = {m.group(1) for m in _tok.finditer(cleaned)}
+        if not tokens:
             continue
-        # Check this line AND the previous line for a state predicate
-        prev = lines[i - 2] if i >= 2 else ""
-        context = prev + " " + line
-        has_state_check = any(p in context for p in STATE_PREDICATES)
-        if has_state_check:
-            continue
-        # Allow: comments, string literals, CSS class definitions
+
         stripped = line.strip()
+        # Allow: CSS class definitions like .tripped { ... }
+        if any("." + t in stripped and "{" in stripped for t in tokens):
+            continue
+        # Allow: comments
         if stripped.startswith("//") or stripped.startswith("/*") or stripped.startswith("*"):
             continue
-        # CSS class definitions are fine: .tripped { ... }
-        if "." + matched[0] in stripped and "{" in stripped:
+
+        # Check this line AND the previous line for a state predicate
+        prev = lines[i - 2] if i >= 2 else ""
+        ctx = prev + " " + cleaned
+        if _pred.search(ctx) or _state.search(ctx):
             continue
+
         problems.append(
-            f"  L{i}: alarm-class token '{matched[0]}' without visible state-check "
-            f"predicate on this or previous line — verify it is alarm-gated "
-            f"(earned-accent law M-L3)")
+            f"  L{i}: alarm-class token(#{'|'.join(tokens)}) without visible "
+            f"state-check predicate on this or previous line — verify it is "
+            f"alarm-gated (earned-accent law M-L3)")
 
     return problems
 
