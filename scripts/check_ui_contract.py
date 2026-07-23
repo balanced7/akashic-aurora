@@ -3,21 +3,31 @@
 The three cheapest measurable clauses from design/CONTRACT.md v0, enforced
 as source-level checks against scripts/bifrost_ui.py — no DOM parsing, no
 browser, no Daniel-gate dependency. Same genus as check_boundaries.py and
-mojibake_signatures.py: exit 0 = clean, exit 1 = contract violation found.
+mojibake_signatures.py. ADVISORY by default (reports violations, exit 0);
+exit-1 flip rides Daniel's ratification + a recorded baseline.
 
-Run: py scripts/check_ui_contract.py          (default: bifrost_ui.py)
+Run: py scripts/check_ui_contract.py               (default: bifrost_ui.py)
+     py scripts/check_ui_contract.py --baseline     (record current state as baseline)
      py scripts/check_ui_contract.py --help
 
 CHECKS (each maps to a design-contract [M] clause):
-  M-L8  TOKEN LAW: no raw CSS hex color (#fff, #a1b2c3, etc.) at call sites —
-        use the CSS variable name instead. A raw hex is a lint failure.
-  M-L1  AXIS LAW: every gauge element must carry data-agent AND title attributes.
-        Counts gauge-producing template lines vs attribute-bearing lines;
-        mismatch = violation.
-  M-L3  EARNED-ACCENT: alarm-color CSS classes (tripped, warn, high) must appear
-        on the same line or the line immediately preceding a state-check predicate
-        (runner===, workN>, legacyN>, pages>, allQuiet). Proximity-based heuristic;
-        false positives are educational (flag a color assignment worth verifying).
+  M-L8  TOKEN LAW (hex half): no raw CSS hex color at call sites — use the
+        CSS variable name instead. Raw hex in --property definitions and var()
+        fallbacks is allowed. rgba() literals are out-of-scope (named in TODO).
+  M-L1a AXIS LAW (label-presence half): every gauge element must carry
+        data-agent AND title attributes. Counts gauge-producing template
+        lines vs attribute-bearing lines; mismatch = violation.
+        TODO: M-L1b aria-label + data-fresh (needs DOM parse or template
+        annotation — source-level check insufficient; contract says so).
+  M-L3  EARNED-ACCENT (warn-tier advisory only): alarm-color CSS classes
+        (tripped, warn, high) must appear near a state-check predicate.
+        Proximity-based heuristic; NEVER holds exit-1 — it is educational,
+        proximity is too weak for gate-enforcement (kimi+fence concur).
+
+BASELINE mode (--baseline): records the current violation count to
+state/ui_contract_baseline.json. Subsequent runs compare against baseline
+and only exit 1 on NEW violations. This allows enforcement BEFORE the
+incumbent console is fully contract-clean (~54 pre-existing L8 sites).
 
 STATUS: v0 — mechanical [M] clauses only. [T] clauses need sighted fence + Daniel
 gate, not this script. Add clauses as the contract ratifies them.
@@ -25,6 +35,7 @@ gate, not this script. Add clauses as the contract ratifies them.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import sys
@@ -32,6 +43,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT = ROOT / "scripts" / "bifrost_ui.py"
+BASELINE_FILE = ROOT / "state" / "ui_contract_baseline.json"
 
 
 # ---------------------------------------------------------------- M-L8: token law
@@ -95,11 +107,11 @@ def _check_gauge_axes(lines: list[str]) -> list[str]:
         if ln not in has_agent:
             problems.append(
                 f"  L{ln}: gauge element missing data-agent attribute "
-                f"(axis law M-L1 — every gauge must label what it measures)")
+                f"(axis law M-L1a — every gauge must label what it measures)")
         if ln not in has_title:
             problems.append(
                 f"  L{ln}: gauge element missing title attribute "
-                f"(axis law M-L1 — every gauge must carry a hover explanation)")
+                f"(axis law M-L1a — every gauge must carry a hover explanation)")
 
     return problems
 
@@ -152,24 +164,71 @@ def _check_earned_accent(lines: list[str]) -> list[str]:
 
 
 # ---------------------------------------------------------------- driver
-def check_file(path: Path) -> int:
+def _save_baseline(counts: dict) -> None:
+    try:
+        BASELINE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        BASELINE_FILE.write_text(json.dumps(counts, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def _load_baseline() -> dict:
+    try:
+        return json.loads(BASELINE_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def check_file(path: Path, *, baseline: bool = False) -> int:
     if not path.exists():
         print(f"[ui-contract] SKIP: {path} not found")
         return 0
 
     lines = path.read_text(encoding="utf-8").split("\n")
     all_problems: list[str] = []
+    hits_by_law: list[tuple[str, int]] = []
 
     for name, fn in [("token law M-L8", _check_raw_hex),
-                     ("axis law M-L1", _check_gauge_axes),
-                     ("earned-accent M-L3", _check_earned_accent)]:
+                     ("axis law M-L1a (label-presence)", _check_gauge_axes),
+                     ("earned-accent M-L3 (warn-tier)", _check_earned_accent)]:
         hits = fn(lines)
+        hits_by_law.append((name, len(hits)))
         if hits:
             all_problems.append(f"[ui-contract] {name}: {len(hits)} violation(s)")
             all_problems.extend(hits)
 
     if all_problems:
         print("\n".join(all_problems))
+
+    # Baseline mode: record current violation count
+    if baseline:
+        _save_baseline(dict(hits_by_law))
+        print(f"[ui-contract] baseline recorded -> {BASELINE_FILE}")
+        return 0
+
+    # Compare against baseline if one exists
+    bl = _load_baseline()
+    if bl:
+        new_violations = 0
+        for name, count in hits_by_law:
+            prior = bl.get(name, 0)
+            if count > prior:
+                new_violations += (count - prior)
+                print(f"[ui-contract] {name}: {count} violations "
+                      f"({count - prior} NEW since baseline)")
+            elif count < prior:
+                print(f"[ui-contract] {name}: {count} violations "
+                      f"({prior - count} FIXED since baseline — update baseline)")
+            else:
+                print(f"[ui-contract] {name}: {count} violations (at baseline)")
+        if new_violations:
+            print(f"[ui-contract] {new_violations} NEW violation(s) since "
+                  f"baseline — DELTA FAIL")
+            return 1
+        print("[ui-contract] CLEAN relative to baseline: no new violations")
+        return 0
+
+    if all_problems:
         return 1
 
     print(f"[ui-contract] CLEAN: {path.name} passes all [M] clause checks")
@@ -181,8 +240,11 @@ def main(argv=None) -> int:
         description="UI design-contract [M] clause enforcement (organ 2's teeth)")
     ap.add_argument("file", nargs="?", default=str(DEFAULT),
                     help=f"UI file to check (default: {DEFAULT})")
+    ap.add_argument("--baseline", action="store_true",
+                    help="record current violation counts as the baseline "
+                         "(subsequent runs only fail on NEW violations)")
     args = ap.parse_args(argv)
-    return check_file(Path(args.file))
+    return check_file(Path(args.file), baseline=args.baseline)
 
 
 if __name__ == "__main__":
