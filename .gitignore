@@ -43,6 +43,7 @@ session_logs/
 blackboard_data/
 coordinator_logs/
 .pytest_out.txt
+.pytest_err.txt
 test_memory.json
 test_data.json
 test_code.json
