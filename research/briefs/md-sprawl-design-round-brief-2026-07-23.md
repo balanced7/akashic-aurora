@@ -95,6 +95,28 @@ fleet face Daniel already watches) · scripts/snapshot_knowledge.py (proven rest
   stores, ADR practice, Obsidian/Dendron-class systems) ride as ADVISORY input at
   reconcile — outsiders advise, citizens decide.
 
+## ADDENDUM — Daniel's ruling on the fork (verbatim, mid-round; fold into your half)
+
+"I don't know what the best final shape is but definitely not a million markdown files.
+They could live in an archive that has a viewer that I can use to browse and explore the
+contents. It needs to be something that doesn't take up a lot of space but still has the
+full fidelity. The million markdown files are a technical debt we must overcome. I don't
+think every human readble file needs to be on github. I don't want there to be a million
+folders for documents, I would prefer it all to be tied to the library system of akashic
+aurora"
+
+**What this settles (stop spending lines on the eliminated branches):**
+- Q1/Q2: the file-per-doc model DIES; GitHub does NOT need every human-readable file.
+  Compact archive + full fidelity is the storage bar.
+- Q4: he wants a VIEWER — browse and explore, not GitHub file-view. Design it concretely.
+- Physical layout: NOT a million folders either — organization lives in metadata (the
+  library system), not directory trees.
+- The organizing spine is the EXISTING library system (LIBRARY.md types/arcs/headers/
+  shelves) — tie into it; do not invent a parallel taxonomy.
+**Still open for your half:** the substrate mechanics (store atoms vs db vs archive
+format), the viewer's concrete shape, birth door + guard, citations/IDs, migration
+phases, git residue specifics, self-attack.
+
 ## What is already paused (so no half wastes lines on it)
 
 Zone-README emission (deepseek gen_library v2 stays committed, output paused) · the
