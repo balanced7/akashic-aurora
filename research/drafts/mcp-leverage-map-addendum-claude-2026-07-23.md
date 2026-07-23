@@ -93,3 +93,19 @@ is not in our harness today; and none of this replaces the ledger/notes preceden
 - **Daniel:** no new decision tonight — this widens the SAME gate: when the counters land,
   you rule the option set AND the slice order (my rec stays O1 first; O1.5 and A1 are the
   two cheapest structural wins behind it).
+
+---
+
+## CORRECTIONS (append-only; filed by the author against own claims)
+
+- **C-1 (2026-07-23 ~02:15, source: gemini second capture, HIGH engagement):** L3's
+  "structurally impossible" was TOO STRONG — pure process-lifetime binding fails on
+  SIGKILL/Task-Manager kills (no EOF cleanup runs). Corrected design: stdin-EOF death
+  detection for the graceful path PLUS an ephemeral lease with ~2s heartbeat / ~5s TTL
+  for the violent path (fleet reclaims via XPENDING/XCLAIM). Net: the zombie window
+  shrinks 1800s → ~5s; it does not reach zero. O1.5's spec inherits this shape.
+- **C-2 (same source):** A1 must be WINDOWED long-poll, not an unbounded park — MCP
+  clients enforce per-tool timeouts (~30–120s) and an over-window block orphans the
+  server-side task; block ≤ ~5s per xread with cancellation propagated down. A1's spec
+  inherits this shape. Both corrections land in the reconcile; kimi's brief already
+  targets these two claims (ask 6).
