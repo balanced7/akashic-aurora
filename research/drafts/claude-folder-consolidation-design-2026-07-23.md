@@ -38,9 +38,13 @@ These need a live/superseded ruling before any move; each maps to a LIBRARY type
 | Dir | Tracked | What it is | Question for the gate |
 |---|---|---|---|
 | `_archive/` (root) | 154 | OLD archive, predates the declared L3 | R13 names `docs/_archive/` as THE L3 shelf. Two archives = drift. Merge root `_archive/` into `docs/_archive/`, or declare root `_archive/` the L3 and fix R13? |
-| `context/` | 10 | half-built Context pillar (per the codebase audit) | live code or fossil? If superseded by core/, map to machine:code or archive |
-| `fences/` | 6 | fence artifacts | receipts (→ gitignore) or reports (→ research/reviewed)? |
-| `infrastructure/` | 2 | infra config | machine:config (→ keep) or stray? |
+| `context/` | 10 | half-built Context pillar (per the codebase audit) | RESOLVED: **LIVE** — imported in 6 live sites outside itself. KEEP as machine:code (half-built ≠ dead). |
+| `fences/` | 6 | fence artifacts | RESOLVED: **CITED** — 7 doc/research citations. R13 forbids moving grep-cited files. KEEP in place. |
+| `infrastructure/` | 2 | infra package (health_check.py + __init__) | RESOLVED: **FOSSIL-LEANING** — 0 live imports, last touched 2026-06-27, a doc note reads "❌ Organized infrastructure/ package" (abandoned). Archive candidate → `docs/_archive/` or fold health_check into scripts/. Daniel gates. |
+
+**Investigation done (cited-path checks run 2026-07-23, read-only):** the three tracked
+legacy dirs are no longer "needs a peek" — verdicts above carry their evidence. Only
+`infrastructure/` is a real move candidate; `context/` and `fences/` stay put.
 
 ## Junk queue (G4 from the reconciliation — status tonight)
 - `data/play/test/` (42 files) — R12 says DELETE (play test data). QUEUED for Daniel.
@@ -59,8 +63,8 @@ These need a live/superseded ruling before any move; each maps to a LIBRARY type
 2. Rule the `dropbox/` → `design/refs/` MOVE (preserves the avatar-vision evidence in its
    proper home — this one is a keep-by-moving, not a delete).
 3. Rule the two-archive question (B/`_archive`) — the one real structural decision.
-4. Rule `context/`/`fences/`/`infrastructure/` live-vs-fossil (needs a peek; I can do the
-   cited-path check on each and bring verdicts to the next gate).
+4. Rule only `infrastructure/` (the one fossil-leaning tracked dir) — `context/` and
+   `fences/` are RESOLVED KEEP (verdicts above). One decision, not three.
 5. `data/play/test/` deletion (G4) + `charters/` commit-by-name (G5).
 
 Nothing here executes without your word; every Class-B move gets a grep-cited-path check
