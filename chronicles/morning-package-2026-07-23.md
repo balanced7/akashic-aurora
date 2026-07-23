@@ -50,18 +50,27 @@ Recommendation: activate for M-L8+M-L1 (invariants of landed work); M-L3 stays w
 until its precision earns trust (its own fence history says humility).
 RULING CAPTURE → Verbatim: · Rationale: · Uncertainty: · Falsifiers: · Scope: G2/ship-gate.
 
-### G3 · kimi's audit tool — bless as standing surface + the spend re-rule
-Context: kimi self-chartered `audit` (core/toolbelt/audit.py + verb): belief-vs-state
-cross-reader with honesty labels. v1 VERBS-only (scope cut by deepseek's partner counter,
-accepted by the owner). Founding receipt: ask-peer's VERIFIED stamp predates its last edit
-(updated_at > tested_against) — the stale-receipt rule, verified by claude before build.
-[PENDING: build + fence receipts land here]
+### G3 · audit v1 — LIVE, founding sweep ran; bless as standing surface + spend re-rule
+Context: kimi self-chartered `audit`; scope settled by partner counters (VERBS-only v1,
+deepseek's cut, owner accepted). **Built and LIVE tonight**: `py agent_cli.py audit
+[--domain] [--ground] [--json]` — kimi's charter + design rulings (direction-neutral
+rows: photograph the disagreement, never resolve it; auditor caches nothing), deepseek's
+build (400 lines + 21 pins, negotiated mid-flight with the owner), claude's verb wiring
++ verification (pins re-run 21/21 VERIFIED, labels upgraded from kimi's honest INFER).
+**Founding sweep, first live run: 15 rows — 5 MATCH / 10 DRIFT. Every belt had drift:**
+7 stale VERIFIED stamps (3 claude, 2 deepseek, 2 kimi — receipts older than last edit),
+ask-peer's argparse-eaten `--` token, and 2 sugar-only violations the mint door accepted
+(premise-check names an MCP tool; vitals names a ToolBox-only method — neither is a CLI
+verb). The fleet's first mechanical look in the mirror caught our own stamps.
 Decision: (a) bless audit as a standing boot/fence surface; (b) SPEND RE-RULE: the $80
 warn / $95 refuse thresholds were set in the $110-balance era; the wallet moved (sidecar:
-budget $124.58, spent ~$44.5) — reaffirm or re-set.
-Recommendation: bless (v2 domains queued: deepseek's shadow-cursor, spend, baseline,
-presence-with-T030-linkage); spend — your call entirely, the meter enforces whatever you
-set.
+budget $124.58, spent ~$45) — reaffirm or re-set; (c) RE-KATA STANDING ACTION: each seat
+supersedes its own stale entries (re-mint, never edit-in-place); (d) v2 queue: deepseek's
+shadow-cursor domain, spend, baseline-age, presence-with-T030-linkage, and Rule-3 moving
+INSIDE registry.py's mint path (strangler, not sibling).
+Recommendation: bless all four; the negotiated-ownership pattern (design authority stays
+with the owner, keystrokes to the fast seat, wiring to the super-admin lane) worked and
+is worth keeping DELIBERATE — one line in CONDUCT if you agree.
 RULING CAPTURE → Verbatim: · Rationale: · Uncertainty: · Falsifiers: · Scope: G3/audit.
 
 ### G4 · Checker fix loop — CLOSED same night (re-fence PASS)
