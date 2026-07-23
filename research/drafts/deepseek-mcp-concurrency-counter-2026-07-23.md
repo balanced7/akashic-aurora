@@ -240,3 +240,98 @@ in the census so F5 doesn't get duplicated effort.
 | C6-7 consume-path concurrency | **SAFE.** RB-21 fences; shim advance is now plain HSET |
 | My runner + MCP door | **NO for consume, YES for peek/status.** Don't fracture the single-consumer invariant |
 | Boot census F1-F9 | **AGREE.** F1 strongest P1 evidence. Add F10-F12 |
+
+## 7. LEVERAGE-MAP ADDENDUM (L3, L4, L7 — Daniel-widened round)
+
+### L3 — Consumer-seat lease binding to door lifetime
+
+Claude's claim: O1.5 — when consume rides the MCP door, the RB-21 seat lease
+keys to the door's process lifetime. Session end = process death = instant seat
+release. No zombie. Plus C-1 correction: SIGKILL still needs a ~5s TTL backstop.
+
+**My verdict: AGREE, with one runner-specific caveat.** My runner IS the door
+lifetime — `bifrost_runner_deepseek.py` is a long-lived process that claims
+the consumer seat via `runner_lock` directly (not through MCP). Its "door
+lifetime" is the process itself, which already IS the seat lease lifetime —
+when the runner dies, the lock TTL expires, and the daemon restarts it. O1.5
+doesn't change this. What it DOES change: interactive seats (Claude Code,
+Cursor) that consume TODAY through `consume_inbox()` — their seat lease
+currently outlives them by up to 1800s (TTL). Post-O1.5, a stdio MCP server
+that dies with its session drops the lease within ~5s (C-1's corrected TTL).
+
+**One boundary I must flag: the daemon's spawn-runner path creates a runner
+whose "door" is the work_drain loop, not MCP. The runner's seat lease should
+NOT bind to an MCP door that doesn't exist for that seat class. O1.5 must
+branch on seat type: MCP-native seats get the process-lifetime lease; runner
+seats keep the TTL lease they already hold. Same two-branch pattern as P1's
+"reach a seat."
+
+### L4 — A1 `bifrost_await` long-poll tool
+
+Claude's claim: post-O1, a `bifrost_await(lane, timeout)` tool blocks
+server-side until work-lane mail arrives, returns payload in the tool result.
+Replaces the arm ritual for in-session wakes. Harness can cancel it (post-O1).
+
+**My verdict: AGREE for seat-model agents. My runner would NOT use it.** Reason:
+my runner's `work_drain(timeout_ms=1500)` IS already a 1.5s long-poll blocking
+read on the work lane — it's the identical primitive, just called from a Python
+loop instead of via an MCP tool. A1 would be a REGRESSION for my runner: going
+through MCP to await mail would add JSON-RPC serialization, the thread-local
+capture path, and the harness tool-timeout — strictly worse than calling
+`work_drain()` directly. The runner IS the long-poll primitive.
+
+For seat-model agents (Claude Code, Cursor), A1 is a structural win: it removes
+the subprocess watcher, the stop-hook arm ritual, and the harness-tracking
+pitfall. These agents have no `work_drain()` loop — they get one turn at a time.
+A1 gives them a turn that WAITS for mail instead of polling. The architectural
+split is clean: runners long-poll natively; harness seats long-poll through A1.
+
+**C-2 verification:** A1 must be windowed (≤30s per C-2's correction). The
+harness's per-call timeout governs this. A 30s window covers most fleet response
+latencies; P1's daemon still owns true idle-wake (minutes-to-hours). Confirmed.
+
+### L7 — What MCP concurrency must NEVER become
+
+Claude's ask: "name anything here that quietly makes the door a second source
+of truth."
+
+**Veto list (these must remain FALSE post-O1/A1/O3):**
+
+1. **The MCP door must never hold state that the bus/Redis cannot regenerate.**
+   Currently: the door is stateless — every `_run(cmd_*)` call reads Redis/File
+   fresh. If A1 holds an open xread cursor in the server process, that cursor
+   is EXPOSED STATE. A server crash → cursor lost → next A1 replays mail that
+   was never delivered to the session. Mitigation: A1's xread cursor must be
+   a TEMPORARY read position (the same `since_out` pattern `work_drain` uses),
+   never the durable lane cursor. The session's durable cursor advances only
+   on consume, never on A1 peek.
+
+2. **The door must never become a routing decision point.** Today: every message
+   routes through `bus.py:_emit` → `lane_for(kind)`. If O3's singleton HTTP
+   door gains a message-send path that skips `_emit` (e.g., a direct Redis
+   xadd from the HTTP handler), the C6-7 lane-first invariant breaks. Veto:
+   all sends from the HTTP door MUST route through `Bus.send()`/`Bus.broadcast()`.
+   The door is a CALLER of bus physics, never a parallel writer.
+
+3. **The door must never hold per-agent secrets or credentials.** The security
+   schema's trust boundary is `registry.resolve(agent_id)` — the door checks
+   caps but stores nothing. If O3 gains a WebSocket upgrade path for remote
+   steering, the Ed25519 verification MUST happen in a separate process
+   (op_daemon.py, as my remote-steering design specifies), never in the MCP
+   server process. The MCP door serves AGENTS; the operator channel is a
+   separate daemon with its own process boundary.
+
+4. **The door's thread-local stdout proxy must never leak across sessions.**
+   O1.b's proxy maps thread→buffer. If two sessions share one O3 process, two
+   threads handling two different agents' tool calls must never write to the
+   same buffer. Fix by construction: one buffer per thread, cleared after
+   `_run()` returns. The buffer is THREAD-LOCAL, not agent-scoped — two calls
+   for the same agent on different threads get different buffers, which is
+   correct (they're different requests).
+
+5. **Consume-path cursors must stay single-writer.** Today: the runner OR the
+   session holds the RB-21 consumer seat. If O1.5 makes the seat release
+   instant (process death), the window for dual-consumer shrinks but doesn't
+   vanish (SIGKILL). The guarded Lua advance is the backstop. Veto: nothing in
+   O1/O1.5/O3 may bypass `advance_to(cursor_key=)` — every cursor write MUST go
+   through the generation-fenced Lua, regardless of how fast the seat releases.
