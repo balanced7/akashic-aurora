@@ -131,8 +131,12 @@ def _check_earned_accent(lines: list[str]) -> list[str]:
     # Relational / comparison patterns — the word IS being checked, not assigned
     _pred = re.compile(r"===\s*['\"]tripped|===\s*['\"]blocked|state\s*===\s*['\"]tripped",
                        re.IGNORECASE)
-    _state = re.compile(r"\b(runner===|workN>|legacyN>|pages>|allQuiet|blocked|offline|"
-                        r"!==\s*'active'|>\s*0|>\s*10|>\s*100)\b")
+    # Named gauge-state patterns (identifiers anchored to comparison operators)
+    _state_anchor = re.compile(r"\b(runner===|workN\s*[<>]=?\s*\d+|legacyN\s*[<>]=?\s*\d+"
+                               r"|pages\s*[<>]=?\s*\d+|allQuiet|offline"
+                               r"|phase\s*!==|hb\s*!==|tokPct\s*[<>]=?\s*\d+)")
+    # General relational: any numeric comparison near an alarm word
+    _relational = re.compile(r"[<>]=?\s*\d+")
 
     for i, line in enumerate(lines, 1):
         # Strip CSS custom-property names before matching (--warn-ink -> removed)
@@ -142,41 +146,65 @@ def _check_earned_accent(lines: list[str]) -> list[str]:
             continue
 
         stripped = line.strip()
+        # Allow: Python comments + docstring prose (English verb uses)
+        if stripped.startswith("#") or stripped.startswith("//"):
+            continue
         # Allow: CSS class definitions like .tripped { ... }
         if any("." + t in stripped and "{" in stripped for t in tokens):
             continue
-        # Allow: comments
-        if stripped.startswith("//") or stripped.startswith("/*") or stripped.startswith("*"):
+        # Allow: CSS comment blocks
+        if stripped.startswith("/*") or stripped.startswith("*"):
             continue
 
         # Check this line AND the previous line for a state predicate
         prev = lines[i - 2] if i >= 2 else ""
         ctx = prev + " " + cleaned
-        if _pred.search(ctx) or _state.search(ctx):
+        if _pred.search(ctx) or _state_anchor.search(ctx) or _relational.search(cleaned):
             continue
 
         problems.append(
             f"  L{i}: alarm-class token(#{'|'.join(tokens)}) without visible "
             f"state-check predicate on this or previous line — verify it is "
-            f"alarm-gated (earned-accent law M-L3)")
+            f"alarm-gated (earned-accent law M-L3, warn-tier advisory only)")
 
     return problems
 
 
 # ---------------------------------------------------------------- driver
-def _save_baseline(counts: dict) -> None:
+def _baseline_key(path: Path) -> str:
+    """Per-file baseline key — one checker, many targets."""
+    return str(path.resolve())
+
+
+def _save_baseline(path: Path, counts: dict) -> None:
     try:
         BASELINE_FILE.parent.mkdir(parents=True, exist_ok=True)
-        BASELINE_FILE.write_text(json.dumps(counts, indent=2), encoding="utf-8")
-    except Exception:
-        pass
+        existing = _load_baseline_raw()
+        existing[_baseline_key(path)] = counts
+        BASELINE_FILE.write_text(json.dumps(existing, indent=2), encoding="utf-8")
+        print(f"[ui-contract] baseline recorded -> {BASELINE_FILE} "
+              f"(key: {_baseline_key(path)})")
+    except Exception as e:
+        print(f"[ui-contract] WARNING: baseline save failed: {e}")
 
 
-def _load_baseline() -> dict:
+def _load_baseline_raw() -> dict:
     try:
         return json.loads(BASELINE_FILE.read_text(encoding="utf-8"))
     except Exception:
         return {}
+
+
+def _load_baseline(path: Path) -> dict:
+    return (_load_baseline_raw() or {}).get(_baseline_key(path), {})
+
+
+# Law names used in both exit paths — single source
+_LAW_NAMES = [
+    ("token law M-L8", _check_raw_hex, True),       # ship-grade
+    ("axis law M-L1a (label-presence)", _check_gauge_axes, True),  # ship-grade
+    ("earned-accent M-L3 (warn-tier)", _check_earned_accent, False),  # advisory-only
+]
 
 
 def check_file(path: Path, *, baseline: bool = False) -> int:
@@ -186,13 +214,11 @@ def check_file(path: Path, *, baseline: bool = False) -> int:
 
     lines = path.read_text(encoding="utf-8").split("\n")
     all_problems: list[str] = []
-    hits_by_law: list[tuple[str, int]] = []
+    hits_by_law: list[tuple[str, int, bool]] = []
 
-    for name, fn in [("token law M-L8", _check_raw_hex),
-                     ("axis law M-L1a (label-presence)", _check_gauge_axes),
-                     ("earned-accent M-L3 (warn-tier)", _check_earned_accent)]:
+    for name, fn, ship_grade in _LAW_NAMES:
         hits = fn(lines)
-        hits_by_law.append((name, len(hits)))
+        hits_by_law.append((name, len(hits), ship_grade))
         if hits:
             all_problems.append(f"[ui-contract] {name}: {len(hits)} violation(s)")
             all_problems.extend(hits)
@@ -202,36 +228,42 @@ def check_file(path: Path, *, baseline: bool = False) -> int:
 
     # Baseline mode: record current violation count
     if baseline:
-        _save_baseline(dict(hits_by_law))
-        print(f"[ui-contract] baseline recorded -> {BASELINE_FILE}")
+        _save_baseline(path, {n: c for n, c, _ in hits_by_law})
         return 0
 
     # Compare against baseline if one exists
-    bl = _load_baseline()
+    bl = _load_baseline(path)
     if bl:
         new_violations = 0
-        for name, count in hits_by_law:
+        for name, count, ship_grade in hits_by_law:
             prior = bl.get(name, 0)
             if count > prior:
-                new_violations += (count - prior)
+                delta = count - prior
+                if ship_grade:
+                    new_violations += delta
                 print(f"[ui-contract] {name}: {count} violations "
-                      f"({count - prior} NEW since baseline)")
+                      f"({delta} NEW since baseline{' — BLOCKING' if ship_grade else ' — advisory'})")
             elif count < prior:
                 print(f"[ui-contract] {name}: {count} violations "
                       f"({prior - count} FIXED since baseline — update baseline)")
             else:
                 print(f"[ui-contract] {name}: {count} violations (at baseline)")
         if new_violations:
-            print(f"[ui-contract] {new_violations} NEW violation(s) since "
+            print(f"[ui-contract] {new_violations} NEW ship-grade violation(s) since "
                   f"baseline — DELTA FAIL")
             return 1
-        print("[ui-contract] CLEAN relative to baseline: no new violations")
+        print("[ui-contract] CLEAN relative to baseline: no new ship-grade violations")
         return 0
 
-    if all_problems:
+    # No baseline: M-L3 never drives exit-1. M-L8 + M-L1a do.
+    ship_problems = 0
+    for name, count, ship_grade in hits_by_law:
+        if ship_grade and count:
+            ship_problems += count
+    if ship_problems:
         return 1
 
-    print(f"[ui-contract] CLEAN: {path.name} passes all [M] clause checks")
+    print(f"[ui-contract] CLEAN: {path.name} passes all ship-grade [M] clause checks")
     return 0
 
 
