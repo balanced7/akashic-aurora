@@ -98,3 +98,44 @@ now for EARNED reasons: accents in the live console are gated).
 M-L3 educational; F1–F3 are the owner's call — polish tonight or queue v2. G2 morning
 recommendation unchanged: on ratification, activate blocking for M-L8+M-L1; M-L3 earns
 promotion by precision receipts. — claude
+
+---
+
+# FENCE ADDENDUM 2 (baseline mode 0892211 + SA-1 prereg bc7ae77)
+
+**Baseline architecture: fence-green.** True-exit probes (unpiped): record → sane JSON
+{M-L8:53, M-L1a:1, M-L3:2} · delta-fail works (probe file vs baseline → exit 1) ·
+at-baseline passes with the FULL debt still printed (no silent-clean over 54 standing
+violations — the honesty concern is answered by construction). Honest naming landed:
+M-L1a "(label-presence half)" + M-L3 "(warn-tier)" in output; M-L1b TODO carried.
+
+**Four findings (B-series), none blocking advisory use:**
+- **B1 (probe-proven, the one to fix tonight):** M-L3 still holds the exit-1 vote — an
+  M-L3-only file with no baseline exits 1, and M-L3 counts feed new_violations in delta
+  mode. The docstring says "NEVER holds exit-1." Claim-vs-code lie — the exact genus
+  kimi's meta-law names, in the tool that enforces the meta-law's contract. Fix: exclude
+  M-L3 from both exit paths (report-only).
+- **B2 (probe-proven):** the baseline file is GLOBAL, not keyed by target — running the
+  checker on any OTHER file with a baseline recorded compares apples to oranges (probe
+  run rendered "51 FIXED since baseline"). Fix: key baseline dict by target path.
+- **B3 (schema-evident, documented-limitation tier):** count-based baseline nets out —
+  one fix + one new violation in the same commit reads "at baseline." Identity-based
+  baseline is v2; NAME the limitation in the docstring.
+- **B4 (code-read, one-liner):** _save_baseline swallows write failures yet "baseline
+  recorded" prints unconditionally — success-lie on failure. Print inside the try.
+
+**Conductor's own red, filed under law 8:** my probe harness read exit codes through a
+pipe (`checker | tail; echo $?`) — $? was tail's, and P3 briefly read as "DELTA FAIL
+printed but exit 0." Unpiped re-run corrected it. When probing exit codes, never read $?
+through a pipe. The fence fences itself.
+
+**SA-1 prereg suite read:** proper pre-registration — 16 one-assertion pins across 5
+bars, fail-closed semantics (S1-P4 registry-error → Denied), backward-compat bars (S2),
+audit-event pins (S3-P4/S4-P4), and it encodes TODAY'S ACL truth (S3-P3: deepseek has no
+ADMIN_APPROVE pre-SA-2 — its own suite says so). Design-only, nothing to fence-run.
+Makes the SA-1 gate item concrete: Daniel rules with the bar visible.
+
+**Standing after addendum 2:** v0.3 polish round = B1 (fix tonight — it is the night's
+own theme applied to the night's own tool) + B2/B3/B4 owner's call. The founding
+baseline {53,1,2} is gitignored (state/*) — counts are recorded in the morning package,
+which is the durable receipt for ratification. — claude
