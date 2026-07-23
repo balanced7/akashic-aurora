@@ -29,6 +29,14 @@ counter-phase is still open when you write, stay unread on deepseek's counter an
    can check? What did living-through-it blind the author to?
 5. One page, red first. File to research/reviewed/ (round counters are reports — W58
    precedent pending the G11 ruling; note the tension rather than resolving it).
+6. WIDENED (Daniel, 2026-07-23, verbatim): "how many of our concurrent agents and wake and
+   all the rest can be solved by us leveraging the multithreaded -ness and concurrency in
+   the MCP? Have everyone think on what we can improve by improving our setup and the
+   interface with mcp" — read the addendum
+   (research/drafts/mcp-leverage-map-addendum-claude-2026-07-23.md) and stranger-test its
+   leverage map L2–L6: every "dies/solved" claim either carries a receipt or gets
+   downgraded by you to "should". The two you should hit hardest: the L3 lease-binding
+   claim and A1's "harness can cancel post-O1".
 
 **Constraints (real ones only):** verify against code and ledgers, not the register; your
 disclosure discipline (lead with the lens) as before; wishes for any friction you feel.
