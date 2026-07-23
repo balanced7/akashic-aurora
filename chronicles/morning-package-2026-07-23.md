@@ -76,7 +76,26 @@ Decision: none needed — receipts only (this is what the fence-as-service loop 
 when it works; second night running the catch-to-fixed cycle closed inside the hour).
 [PENDING: SA-1 prereg stretch, if deepseek takes it tonight]
 
-### G5 · [PENDING — kimi stranger-test of CONTRACT v0 findings, folds into G1]
+### G5 · kimi's stranger-test of the checker + contract — three adds for your ruling
+Context: kimi fenced the BUILD with 4 pre-registered pins (3 passed; the failure was the
+finding) — research/drafts/kimi-r2-counter-ui-contract-2026-07-23.md. Independently
+converged with claude's fence on the M-L3 self-exemption (two fences, zero coordination,
+same defect — the organ works). Its unique finds:
+1. **F1 (VERIFIED, load-bearing):** the charter's "zero false positives, exits 0 tonight"
+   claim was FALSE because the checker was never RUN against the incumbent pre-ship —
+   the tool fires 53+1 on the live console. The claim, not the check, was the defect.
+   Had exit-1 wired as chartered, every ship fails from run one; the advisory rail was
+   load-bearing. Recommendation adopted: **baseline mode** (W34 genus) so standing debt
+   becomes the tool's first receipt, and only NEW violations page.
+2. **F3:** the checker enforces a WEAKER axis law than the contract states (data-agent+
+   title vs aria-label+data-fresh+unit+freshness) — half-law presented as whole law.
+   Either label M-L1 as partial enforcement or extend; half-laws must self-describe.
+3. **Meta-law proposed for CONTRACT v1.1:** any [M] receipt must cite the tool's ACTUAL
+   output, never the builder's expectation. (Tonight's "clean" was claimed, never run.)
+Decision: fold 1–3 into G1's ratification (meta-law + data-measure amendment + baseline
+mode as checker v2 requirement).
+Recommendation: adopt all three — each was probe-proven or receipt-proven tonight.
+RULING CAPTURE → Verbatim: · Rationale: · Uncertainty: · Falsifiers: · Scope: G5/contract.
 
 ---
 
