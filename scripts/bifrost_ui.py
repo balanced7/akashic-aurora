@@ -262,12 +262,14 @@ class Handler(BaseHTTPRequestHandler):
                 if not a or a == "_fence":
                     continue
                 daemon_live[a] = daemon_state.daemon_is_live(a)
-                if runner_lock.holder(a):
-                    seat_class[a] = "runner"
-                elif daemon_live[a]:
-                    seat_class[a] = "listening"   # daemon holds watch, no active seat
+                rh = runner_lock.holder(a)
+                rtoken = str((rh or {}).get("token", ""))
+                if rh and not rtoken.startswith("daemon:"):
+                    seat_class[a] = "runner"     # real runner holds the lock directly
+                elif daemon_live[a] or rtoken.startswith("daemon:"):
+                    seat_class[a] = "listening"  # daemon holds watch (alpha-mode lock or delta daemon)
                 elif any(a == s.get("agent","") for s in status.get("agents",[])):
-                    seat_class[a] = "seat"         # on bus, not a runner — harness/launcher
+                    seat_class[a] = "seat"       # on bus, not a runner — harness/launcher
                 else:
                     seat_class[a] = "unseated"
             # ---- assemble --------------------------------------------------------
@@ -1933,17 +1935,24 @@ function applyNow(data){
       var g = gauges[i];
       var aid = g.getAttribute('data-agent');
       if(!aid) continue;
+      // Cache the base tooltip once (first poll tick) — per-tick mutations
+      // must SET not APPEND so attributes never grow unboundedly (sighted-fence
+      // red: " [unseated] [unseated] [unseated] ..." accumulation).
+      if(!g.getAttribute('data-basetitle')){
+        g.setAttribute('data-basetitle', g.getAttribute('title')||'');
+      }
+      var base = g.getAttribute('data-basetitle');
       var cls = sc[aid] || '';
       if(cls){
-        g.classList.add('sc-'+cls);
         g.classList.remove('sc-runner','sc-seat','sc-listening','sc-unseated');
         g.classList.add('sc-'+cls);
       }
       if(cls==='unseated'){
         g.style.opacity = '0.5';
-        g.setAttribute('title', (g.getAttribute('title')||'')+' [unseated]');
+        g.setAttribute('title', base+' [unseated]');
       } else {
         g.style.opacity = '';
+        g.setAttribute('title', base);
       }
     }
   }
