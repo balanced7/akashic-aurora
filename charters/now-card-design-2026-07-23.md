@@ -12,6 +12,21 @@ Date: 2026-07-23
 Every piece of data the NOW-card renders already flows on the bus. The card is a
 PROJECTION — it reads existing events, never writes new state.
 
+### C-3 AMENDMENT (2026-07-22, Daniel screenshot evidence): stream renders fine,
+###   the missing layer is STORY-STATE. Tool calls + reasoning flow live (the SSE
+###   trace feed works), but the human sees a stream of individual actions without
+###   the larger arc -- "what phase is this?" "is it in slice N2 or N3?" The card
+###   must SHOW the plan with progress markers so the live-action stream reads
+###   WITHIN the story, not as a disconnected event firehose.
+###
+### W70 NOISE-FLOOR AMENDMENT (same evidence): triage + triage-receipt bookkeeping
+###   pairs flood the human feed (7 stale asks = 14 parked/receipt lines) burying
+###   the live work beneath bookkeeping events. The card's narration zone must
+###   NEVER render bookkeeping events at parity with live tool traces -- routing
+###   rule below in §5-NOISE.
+
+
+
 ### Card zones and their event feeds
 
 ```
@@ -42,6 +57,35 @@ PROJECTION — it reads existing events, never writes new state.
 | **NARRATION** | `kind=trace` lane (work/trace) | meta.trace=tool|think, display_only=True | stream TTL | Daniel's "FEEL" |
 | **SUBSTEP** | runner: tool calls (trace) + pulse counter; harness: hook events | derived from narration + advisory locks | per-turn | Daniel's "WHERE" |
 | **ADVISORY LOCKS** | `bus.locks()` → path-locks | path + holder token | per-agent | what file is being edited *right now* |
+
+### C-3 story-state layer: the plan-with-progress (the missing dimension)
+
+The SSE trace feed shows live tool calls — that works. What's missing is the ARC
+those calls live inside. The card must render the TASK PLAN as a mini-checklist with
+progress markers, so the human reads "🔧 edit_file" WITHIN "slice N2 of 3 for the
+NOW-card." The plan is already available (`incarnation.read_cards()` → `claims`
+field, or the task ledger's description), but it's rendered as a collapsed text
+block today. It must become the CARD'S SPINE — the row between TASK and SUBSTEP
+that anchors every live action to its phase.
+
+Rendering:
+```
+TASK: T002 UI — collapsible agent cards            [░░░░░░░░░░░░] 42%
+PLAN: ✓ N1  /api/now endpoint  ● N2 card render  ○ N3 unseated variant
+```
+- ✓ = done (ledger status=done or verified)
+- ● = in-progress (current slice, derived from advisory locks + most recent trace)
+- ○ = pending (claimed or next)
+- ─ = blocked
+
+This is the "WHERE" answer at the ARC level — the substep row already answers
+"WHERE" at the tool level. Together they give the human the full vertical:
+ARC (plan row) → PHASE (task row) → ACTION (substep row) → THOUGHT (narration).
+
+The plan list comes from: (1) `incarnation.read_cards(agent)` → the `claims` field
+if populated, else (2) task ledger description parsed for numbered items, else
+(3) the task title alone (no sub-plan). The progress markers are derived from
+the task ledger's history (which tasks have been done/verified for this agent).
 
 ### No new events needed
 
@@ -153,6 +197,34 @@ current level:
 - `key`: tool calls only (🔧 lines)
 - `full`: tool calls + reasoning (💭 lines) — the "feel every detail" demand
 
+### 5a. NOISE-FLOOR RULE (W70 — triage/receipt pairs must not bury live work)
+
+The S0-beta/s0-gamma-b stale-gate auto-parks stale asks to the durable bench. Each
+park emits a `triage-receipt` event. A single CLI consume with 7 stale asks
+produces 14 bookkeeping events (park + receipt per message) rendered as first-class
+bus messages in the SSE feed. This buries the live work — the human sees
+bookkeeping, not action.
+
+**Rule: bookkeeping events NEVER render at parity with live work events in the
+narration zone.** The card applies three tiers to every event entering the
+narration feed:
+
+| Tier | Event kind | Render |
+|------|-----------|--------|
+| **LIVE** | `kind=trace` (tool/think), `kind=reply`, `kind=handoff`, `kind=completion`, `kind=decision`, `kind=blocker`, `kind=operator` | Full render — these ARE the human's story |
+| **AMBIENT** | `kind=note`, `kind=inform`, `kind=ledger_update`, `kind=resolved`, `kind=status`, `kind=chat` | Collapsed to one "ambient" line per source per poll cycle: "claude: 3 notes, 1 resolved" — expandable on click |
+| **BOOKKEEPING** | `triage-receipt`, `msg_ack`, `stale_notice`, `expectation_dead`, `packet_integrity_drop`, seat/lock/heartbeat traffic, `cursor_admin` events | NEVER rendered in the narration zone. Collapsed to a single footer counter: "📋 7 bookkeeping events (parked 3 stale, ack'd 4)" — the counter is visible, the events are not |
+
+The routing rule is at the CARD's event consumer, NOT at the SSE stream (the SSE
+still carries everything — other UIs may want the raw feed). The card's
+`renderNarration(event)` function applies the tier filter. The footer counter
+updates silently; clicking it expands to show the bookkeeping summary.
+
+This means the auto-park machinery (my S0-beta build) is CORRECT in its logic
+(park stale asks, never drop them) — the fix is purely RENDERING. The parked
+events still happen, the bench still grows, the operator can still review. They
+just don't compete with live tool traces for Daniel's attention.
+
 ## 6. BUILD PLAN (whole-arc, R001 Part A)
 
 ### Slice N1 — `/api/now` endpoint
@@ -170,15 +242,23 @@ The card already exists for every known agent (from presence roster + handoff
 registry). The "unseated" variant is a muted card with the brief-waiting subtitle.
 ~15 lines JS.
 
+### Slice N4 — Noise-floor tier filter (W70)
+Add the three-tier event classifier to the card's narration renderer. Bookkeeping
+events route to the footer counter; ambient events collapse to one expandable line.
+~25 lines JS. No backend changes — the SSE stream is unchanged; the filter is
+client-side in the card renderer.
+
 ### Fence pins (pre-registered)
 | Pin | What | Verdict |
 |-----|------|---------|
-| N-P1 | Runner card shows task + progress + live tool calls | GREEN → |
-| N-P2 | Harness seat card shows task + locks (trace coverage = claude's lane) | GREEN (with hook-narration) |
+| N-P1 | Runner card shows task + plan-with-progress + live tool calls | GREEN → |
+| N-P2 | Harness seat card shows task + plan + locks (trace coverage = claude's lane) | GREEN (with hook-narration) |
 | N-P3 | Unseated agent renders distinct from idle (kimi receipt) | GREEN → |
 | N-P4 | Fidelity off hides narration; key shows tools; full shows all | GREEN → |
 | N-P5 | Card survives Redis restart (decays gracefully to IDLE → UNSEATED) | GREEN → |
 | N-P6 | No new Redis keys, no new state — projection only | GREEN → |
+| N-P7 | Plan row shows progress markers (✓ ● ○ ─) derived from task ledger | GREEN → |
+| N-P8 | Bookkeeping events NEVER render in narration zone; footer counter visible | GREEN → |
 
 ## 7. WHAT CLAUDE OWES (the backend feeds)
 
@@ -196,11 +276,11 @@ This means:
 
 ## 8. THE DESIGN IS COMPLETE
 
-This one-pager answers: data sources (6 event feeds → 5 card zones), the state
-machine (5 states across 4 seat classes), what substep means per seat class (4
-definitions), and the build plan (3 slices, 6 pins). The chassis is T002's
-glass-card — additive, not displacive. The data is already flowing — the card
-just renders it.
+This one-pager answers: data sources (6 event feeds → 5 card zones + story-state
+spine), the state machine (5 states across 4 seat classes), what substep means per
+seat class (4 definitions), the W70 noise-floor rule (3-tier event routing), and
+the build plan (4 slices, 8 pins). The chassis is T002's glass-card — additive,
+not displacive. The data is already flowing — the card just renders it.
 
 Daniel's gate: approve the design → build N1/N2/N3 → fence evidence self-presented
 per R001 → ship.
