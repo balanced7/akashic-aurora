@@ -224,6 +224,7 @@ Status flips: `[x] folded → T0xx` / `[~] declined: reason`.
 - [ ] W66 (07-23, claude) — deferred suite items should name the suite-baseline verb and expected duration, not a raw pytest line. Trigger: 10-min tool cap cut the full suite before the summary printed - receipt lost. Land: defer queue render + suite-baseline verb docs.
 - [ ] W67 (07-23, claude) — boot door line reads native tools NOT attached while the harness has them deferred - detector only sees the env the MCP process stamps. Trigger: false negative on fresh Fable seat boot 2026-07-23. Land: door detector checks harness attachment or says cannot-tell.
 - [ ] W68 (07-23, claude) — agent_cli should be fully absolute-path invocable from any cwd and the boot footer should say so. Trigger: harness resets cwd every shell call - 12+ Set-Location prefixes in one session. Land: cwd-independence pass + AGENTS.md line.
+- [ ] W69 (07-23, claude) — inbox peek buried the newest real message under stale legacy twins - deepseek counter handoff sat unseen 40 minutes while peek showed 10 old items. Trigger: bifrost-sync peek limit 10 all-lanes filled with 07-21 legacy copies; the 01:29 counter handoff was below the fold; doctor said 4 unread with no kinds. Land: peek renders work-lane-first newest-first; unread badge names kinds (W65 sibling).
 
 ## Folded (exemplars — the loop works)
 
