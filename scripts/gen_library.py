@@ -134,11 +134,10 @@ def build_census(entries):
     for p, h in entries:
         by_type.setdefault(h["type"].lower(), []).append((p, h))
     for t in by_type:
-        by_type[t].sort(key=lambda x: (
-            _STATUS_ORDER.get(x[1]["status"], 3),
-            -(x[1]["date"] or "0000-00-00"),
-            _relpath(x[0]),
-        ))
+        # stable-sort cascade: path asc, then date DESC, then status asc (primary last)
+        by_type[t].sort(key=lambda x: _relpath(x[0]))
+        by_type[t].sort(key=lambda x: (x[1]["date"] or "0000-00-00"), reverse=True)
+        by_type[t].sort(key=lambda x: _STATUS_ORDER.get(x[1]["status"], 3))
     return by_type
 
 
@@ -221,11 +220,10 @@ def _build_zone_census(entries):
         z = _zone_dir(p)
         by_zone.setdefault(z, []).append((p, h))
     for z in by_zone:
-        by_zone[z].sort(key=lambda x: (
-            _STATUS_ORDER.get(x[1]["status"], 3),
-            -(x[1]["date"] or "0000-00-00"),
-            _relpath(x[0]),
-        ))
+        # stable-sort cascade: path asc, then date DESC, then status asc (primary last)
+        by_zone[z].sort(key=lambda x: _relpath(x[0]))
+        by_zone[z].sort(key=lambda x: (x[1]["date"] or "0000-00-00"), reverse=True)
+        by_zone[z].sort(key=lambda x: _STATUS_ORDER.get(x[1]["status"], 3))
     return by_zone
 
 
@@ -308,11 +306,10 @@ def _build_arc_census(entries):
             a = "(no arc)"
         by_arc.setdefault(a.lower(), []).append((p, h))
     for a in by_arc:
-        by_arc[a].sort(key=lambda x: (
-            _STATUS_ORDER.get(x[1]["status"], 3),
-            -(x[1]["date"] or "0000-00-00"),
-            _relpath(x[0]),
-        ))
+        # stable-sort cascade: path asc, then date DESC, then status asc (primary last)
+        by_arc[a].sort(key=lambda x: _relpath(x[0]))
+        by_arc[a].sort(key=lambda x: (x[1]["date"] or "0000-00-00"), reverse=True)
+        by_arc[a].sort(key=lambda x: _STATUS_ORDER.get(x[1]["status"], 3))
     return by_arc
 
 
