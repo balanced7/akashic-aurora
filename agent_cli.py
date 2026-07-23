@@ -791,6 +791,29 @@ def _family_gauge_render(g):
     return " · ".join(parts)
 
 
+def cmd_audit(args):
+    """Belief-vs-state audit (kimi charter 2026-07-23, deepseek build, claude verb wiring):
+    cross-read durable beliefs against ground-truth projections, print labeled rows
+    (MATCH/DRIFT/UNKNOWN + which rule fired + drill detail). Read-only, computes live,
+    caches nothing -- the auditor never becomes a surface that itself drifts. v1 domain:
+    VERBS (registry <-> parser). Direction-neutral: --ground flips WORDING only, never
+    a verdict."""
+    from core.toolbelt import audit as _audit
+    domains = None
+    if getattr(args, "domain", None):
+        wanted = {d.strip().upper() for d in args.domain.split(",") if d.strip()}
+        domains = [d for d in _audit.DOMAINS if d.name.upper() in wanted]
+        if not domains:
+            known = ", ".join(d.name for d in _audit.DOMAINS)
+            print(f"[audit] unknown domain(s) {sorted(wanted)} -- available: {known}")
+            return
+    if args.json:
+        print(json.dumps(_audit.json_result(domains=domains,
+                                            ground_truth_source=args.ground), indent=2))
+    else:
+        print(_audit.render(domains=domains, ground_truth_source=args.ground))
+
+
 def cmd_injections(args):
     """The injection ledger: everything recall PUSHED into agent contexts recently -- when,
     at which altitude (action/plan), for which target, which lessons, and what it cost.
@@ -3665,6 +3688,14 @@ def build_parser():
     rc.add_argument("--limit", type=int, help="max targets for --forge-propose (default 2)")
     rc.add_argument("--json", action="store_true")
     rc.set_defaults(fn=cmd_recall_curate)
+
+    au = sub.add_parser("audit", help="belief-vs-state audit: labeled MATCH/DRIFT rows over "
+                        "durable beliefs vs ground truth (v1: VERBS registry<->parser)")
+    au.add_argument("--domain", help="comma-separated domain filter (default: all registered)")
+    au.add_argument("--ground", default="registry",
+                    help="which source renders as canonical -- wording only, never the verdict")
+    au.add_argument("--json", action="store_true")
+    au.set_defaults(fn=cmd_audit)
 
     ij = sub.add_parser("injections", help="the injection ledger: what recall pushed into contexts + cost")
     ij.add_argument("--hours", type=float, default=24, help="window (default 24)")
