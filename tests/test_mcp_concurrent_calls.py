@@ -101,10 +101,7 @@ def test_c1_concurrent_batch_returns_intact():
 
 
 # ------------------------------------------------------- C2: pre-registered acceptance
-@pytest.mark.xfail(reason="pre-fix: FastMCP runs sync tools inline on the loop; "
-                          "a batched fast call queues behind the slow one. Flips "
-                          "to PASS when non-starving dispatch lands.",
-                   strict=False)
+# (xfail marker REMOVED 2026-07-23 when O1 landed -- this is now a hard requirement)
 def test_c2_fast_call_not_starved_by_slow():
     async def flow():
         from mcp import ClientSession
@@ -123,8 +120,6 @@ def test_c2_fast_call_not_starved_by_slow():
         f"(loop-starving dispatch)")
 
 
-@pytest.mark.xfail(reason="pre-fix: ping starves while a sync tool blocks the loop.",
-                   strict=False)
 def test_c3_ping_answered_under_load():
     async def flow():
         from mcp import ClientSession
@@ -141,3 +136,26 @@ def test_c3_ping_answered_under_load():
                 return ping_dt
     ping_dt = _run(flow())
     assert ping_dt < 1.0, f"ping took {ping_dt:.2f}s under a running sync tool"
+
+
+# ------------------------------------------------ C4: N=20 mixed-batch integrity (O1 P-5)
+def test_c4_twenty_way_mixed_batch_intact():
+    N = 20
+    async def flow():
+        from mcp import ClientSession
+        client = await _open_session()
+        async with client as (read, write):
+            async with ClientSession(read, write) as s:
+                await asyncio.wait_for(s.initialize(), timeout=CALL_CAP)
+                jobs = [
+                    _call(s, f"T{i}", 1.0 if i % 5 == 0 else 0.05)
+                    for i in range(N)
+                ]
+                results = await asyncio.wait_for(asyncio.gather(*jobs), timeout=60)
+                for i, (text, _dt) in enumerate(results):
+                    assert f"DIAG[T{i}]" in text, f"call {i} lost its own payload"
+                    others = sum(1 for j in range(N) if j != i and f"DIAG[T{j}]" in text)
+                    assert others == 0, f"call {i} contains {others} sibling payload(s)"
+                after, _ = await _call(s, "FINAL", 0.05)
+                assert "DIAG[FINAL]" in after
+    _run(flow())

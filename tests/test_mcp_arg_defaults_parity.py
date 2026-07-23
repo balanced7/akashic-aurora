@@ -25,17 +25,28 @@ CLI_SRC = (ROOT / "agent_cli.py").read_text(encoding="utf-8")
 
 
 def _delegations(mcp_tree: ast.AST) -> dict:
-    """{cmd_name: set(override_keys)} for every _run(agent_cli.cmd_*, ...) call."""
+    """{cmd_name: set(override_keys)} for every cmd_* delegation.
+
+    Two shapes, both covered (O1 2026-07-23 moved dispatch to worker threads):
+      legacy:  _run(agent_cli.cmd_foo, k=...)
+      O1:      await _athread(_run, agent_cli.cmd_foo, lock=..., k=...)
+    `lock` is a dispatch kwarg consumed by _athread, never a cmd override.
+    """
     out = {}
     for node in ast.walk(mcp_tree):
         if not isinstance(node, ast.Call):
             continue
         fn = node.func
-        if not (isinstance(fn, ast.Name) and fn.id == "_run" and node.args):
+        if not isinstance(fn, ast.Name):
             continue
-        target = node.args[0]
+        target = None
+        if fn.id == "_run" and node.args:
+            target = node.args[0]
+        elif (fn.id == "_athread" and len(node.args) >= 2
+              and isinstance(node.args[0], ast.Name) and node.args[0].id == "_run"):
+            target = node.args[1]
         if isinstance(target, ast.Attribute) and target.attr.startswith("cmd_"):
-            keys = {kw.arg for kw in node.keywords if kw.arg}
+            keys = {kw.arg for kw in node.keywords if kw.arg and kw.arg != "lock"}
             out.setdefault(target.attr, set()).update(keys)
     return out
 
