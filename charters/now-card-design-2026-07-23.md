@@ -24,6 +24,17 @@ PROJECTION — it reads existing events, never writes new state.
 ###   the live work beneath bookkeeping events. The card's narration zone must
 ###   NEVER render bookkeeping events at parity with live tool traces -- routing
 ###   rule below in §5-NOISE.
+###
+### UI-GAP AMENDMENT (2026-07-23, claude sighted audit @ research/drafts/ui-gap-
+###   diagnosis-2026-07-23.md, receipts 4+5): two mechanical defects the NOW-card
+###   build must close — (a) racing pollers: 8x /status + 6x /vitals in 140ms,
+###   multiple redundant poll loops racing the same indicators → last-writer-wins
+###   flicker. The /api/now endpoint (§4) must REPLACE the separate pollers, not
+###   sit beside them — one JavaScript scheduler, one poll cycle per card rate.
+###   (b) Layout shatter at non-fullscreen: absolute-positioned islands with no
+###   grid → floating overlap, brand cut to "ifrost," main region empty black at
+###   some widths. The card deck must ride a responsive CSS Grid that reflows
+###   columns at standard breakpoints, never absolute-positioned islands.
 
 
 
@@ -162,20 +173,79 @@ that chassis:
   included.
 - **FOOTER ROW**: advisory locks held + sibling cards in deck-swipe order
 
-### Data polling
+### Responsive grid — no more absolute-positioned islands
+
+**Sighted-audit receipt (2026-07-23):** at mid-size viewports the layout shatters —
+floating overlap columns, brand cut to "ifrost," toolbar buttons hovering mid-feed,
+main region rendering empty black at some widths. Absolute-positioned islands, no
+CSS Grid.
+
+The card deck rides a responsive CSS Grid that replaces the current absolute-
+positioned islands:
+
+```css
+.deck-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 12px;
+  padding: 16px;
+}
+```
+
+Breakpoints:
+- **≥1200px** (full desktop): 3 cards per row, full-height narration zone
+- **768–1199px** (laptop/tablet): 2 cards per row, narration zone scrolls at 8 lines
+- **<768px** (narrow): 1 card per row, full-width, narration zone scrolls at 5 lines,
+  header row stacks (agent name above controls)
+
+Every card is self-contained at its min-width (360px). The grid auto-reflows;
+cards never overlap, never fall off-screen, never leave empty black regions.
+The brand header, toolbar, and feed area each occupy a named grid row in the
+page-level grid — no element is ever `position: absolute` or `left: Npx`.
+
+This is ~30 lines of CSS replacing the current absolute-position layout. Combined
+with the `/api/now` consolidation: one scheduler, one grid, zero flicker, zero
+shatter.
+
+### Data polling — ONE scheduler, not eight
 
 The card polls `/api/now?agent=X` every 2s (when WORKING) or 10s (when IDLE). The
 endpoint returns a single JSON blob with all five zones populated. The UI's SSE
 stream already delivers trace events live — the card subscribes to the agent's trace
 feed and appends in real time between polls.
 
+**Sighted-audit receipt (2026-07-23):** 8x `/status` + 6x `/vitals` fired inside
+140ms — multiple redundant poll loops racing the same indicators, producing last-
+writer-wins flicker that reads as "indicators don't respond half the time" even
+though all endpoints return 200/zero JS errors. The `/api/now` endpoint REPLACES
+the separate pollers for card-rendering purposes, not sits beside them.
+
+**One JavaScript scheduler governs all cards on the page:**
+- A single `setInterval` at 2s drives every card's poll cycle.
+- Each card's state (WORKING/IDLE/UNSEATED) determines its individual rate — the
+  scheduler skips IDLE cards on alternate ticks (effective 4s for idle) and skips
+  UNSEATED cards entirely except one refresh per 30s.
+- The scheduler fires ONE `/api/now?agents=deepseek,claude,kimi` batch request
+  (comma-separated) instead of N individual calls — one HTTP round-trip, one Redis
+  pipeline underneath.
+- The SSE trace feed is per-agent (filtered client-side) and is the ONLY live-update
+  path between poll ticks. Trace events received via SSE update the card's substep
+  and narration zones in-place without triggering a repaint of the full card.
+
+This is ~20 lines of JS replacing the current scatter of setTimeout/requestAnimationFrame
+callers.
+
 The `/api/now` endpoint (NEW, ~30 lines in bifrost_ui.py) aggregates:
-1. `presence` → bus.presence() filtered to agent
+1. `presence` → bus.presence() filtered to agent(s)
 2. `task` → conductor task list filtered by owner
 3. `progress` → turn_metrics.progress_view(agent)
-4. `locks` → bus.locks() filtered to agent
+4. `locks` → bus.locks() filtered to agent(s)
 5. `daemon` → daemon_state.daemon_is_live() + runtimes
 6. `card` → incarnation.read_cards(agent) — the plan (claims field)
+
+Accepts both `?agent=X` (single) and `?agents=X,Y,Z` (batch). The backend
+pipelines the six sources into one Redis pipeline per batch — N agents =
+1 HTTP round-trip + 1 Redis pipeline, not N×6 individual calls.
 
 ### The "NOT-SEATED" state (kimi's receipt)
 
@@ -227,15 +297,22 @@ just don't compete with live tool traces for Daniel's attention.
 
 ## 6. BUILD PLAN (whole-arc, R001 Part A)
 
-### Slice N1 — `/api/now` endpoint
+### Slice N1 — `/api/now` endpoint + poller consolidation
 `scripts/bifrost_ui.py`: new GET handler aggregating presence + task + progress +
-locks + daemon + card into one JSON per agent. Pure read, no Redis writes, ~30 lines.
+locks + daemon + card into one JSON blob per agent (or batch `?agents=X,Y,Z`).
+Pure read, no Redis writes, ~30 lines Python. Frontend: single JavaScript scheduler
+replaces all existing scattered poll loops (setTimeout/requestAnimationFrame
+callers) — one `setInterval` at 2s, state-gated skip for idle/unseated cards, one
+batch HTTP call instead of N individual ones. ~20 lines JS.
 
-### Slice N2 — NOW-card rendering
+### Slice N2 — NOW-card rendering + responsive grid
 `scripts/bifrost_ui.py`: extend the glass-card renderer to include task/progress/
-substep fields. Reuse the existing SSE trace-consumer for live narration. ~80 lines
-JS in the existing `<script>` block. CSS: ~20 lines (progress bar animation, state
-dot pulse, muted-unseated variant).
+substep/plan-with-progress fields. Reuse the existing SSE trace-consumer for live
+narration. ~80 lines JS in the existing `<script>` block. CSS: progress bar
+animation (~10 lines), state dot pulse (~10 lines), muted-unseated variant
+(~10 lines), responsive CSS Grid replacing absolute-positioned islands (~30
+lines — `grid-template-columns: repeat(auto-fill, minmax(360px, 1fr))` with
+3 breakpoints).
 
 ### Slice N3 — Unseated state
 The card already exists for every known agent (from presence roster + handoff
@@ -259,6 +336,8 @@ client-side in the card renderer.
 | N-P6 | No new Redis keys, no new state — projection only | GREEN → |
 | N-P7 | Plan row shows progress markers (✓ ● ○ ─) derived from task ledger | GREEN → |
 | N-P8 | Bookkeeping events NEVER render in narration zone; footer counter visible | GREEN → |
+| N-P9 | Single poll scheduler — ≤2 HTTP calls/sec total regardless of agent count | GREEN → |
+| N-P10 | Responsive grid — no overlap, no empty black regions, no cut-off text at any width ≥360px | GREEN → |
 
 ## 7. WHAT CLAUDE OWES (the backend feeds)
 
@@ -277,10 +356,11 @@ This means:
 ## 8. THE DESIGN IS COMPLETE
 
 This one-pager answers: data sources (6 event feeds → 5 card zones + story-state
-spine), the state machine (5 states across 4 seat classes), what substep means per
-seat class (4 definitions), the W70 noise-floor rule (3-tier event routing), and
-the build plan (4 slices, 8 pins). The chassis is T002's glass-card — additive,
-not displacive. The data is already flowing — the card just renders it.
+spine + responsive grid), the state machine (5 states across 4 seat classes), what
+substep means per seat class (4 definitions), the W70 noise-floor rule (3-tier event
+routing), the poller consolidation (one scheduler, one batch endpoint), and the
+build plan (4 slices, 10 pins). The chassis is T002's glass-card — additive, not
+displacive. The data is already flowing — the card just renders it.
 
 Daniel's gate: approve the design → build N1/N2/N3 → fence evidence self-presented
 per R001 → ship.
