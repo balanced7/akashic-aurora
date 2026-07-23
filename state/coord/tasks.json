@@ -1,5 +1,5 @@
 {
-  "seq": 100,
+  "seq": 101,
   "tasks": [
     {
       "id": "T001",
@@ -3623,6 +3623,37 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-23T05:26:40+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T101",
+      "title": "Artifact substrate: eliminate md/document sprawl (Daniel priority directive 2026-07-23 verbatim in md-sprawl-design-round-brief addendum 2): archive w/ full fidelity + viewer + library-tied + clean repo face; reconcile-then-execute same day; verify-before-collapse; all reversible via git history",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "claimed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-23T13:27:19+00:00",
+      "updated": "2026-07-23T13:27:42+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-23T13:27:19+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-23T13:27:27+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-23T13:27:42+00:00"
         }
       ]
     }
