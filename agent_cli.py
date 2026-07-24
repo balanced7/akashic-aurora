@@ -1488,22 +1488,33 @@ def cmd_wish(args):
     return 0
 
 
+def _ledger_claim_arc(seat: str):
+    """AUTO_ARC (taxonomy-ergonomics reconciliation §7): the seat's claimed ledger task
+    is the arc authority; no claim -> None (born without arc; library lint flags it
+    post-hoc, never a write-time block)."""
+    try:
+        tasks_path = Path(__file__).resolve().parent / "state" / "coord" / "tasks.json"
+        data = json.loads(tasks_path.read_text(encoding="utf-8"))
+        live = [t for t in data.get("tasks", []) if t.get("owner") == seat
+                and t.get("status") in ("claimed", "in_progress", "verifying")]
+        return live[-1]["id"] if live else None
+    except (OSError, ValueError, KeyError):
+        return None
+
+
 def cmd_doc(args):
-    """D1 (deepseek, 2026-07-22): the seeding door. Stamps a new .md file with its
-    header contract (Status + Type + Arc + Seats + Date) and places it in the canon
-    home for its Type per docs/LIBRARY.md. The header is NEVER hand-typed; the verb
-    writes it. Direct editor writes ship without headers (runner exempt); the wrap
-    census + push-lint catch stragglers — never a write-time block.
+    """A1 (2026-07-23, artifact-substrate build; supersedes D1's file-writer): the birth
+    door. Mints a typed ATOM in the store (append-only, supersession-aware; JSONL durable
+    record under store/docs/) and renders its ONE read-only projection file under
+    docs/library/<type>/. The file is the render; the atom is the truth.
+    Spec: docs/artifact-substrate-design-2026-07.md + docs/taxonomy-ergonomics-
+    reconciliation-2026-07.md (Daniel gate fired 2026-07-23).
 
-    Zone naming:
-      docs/     → <topic>-<kind>-<YYYY-MM>.md
-      research/ → <seats>-<topic>-<kind>-<YYYY-MM-DD>.md
-
-    Usage:
-      py agent_cli.py doc new --type design --title "my-arc" --arc "fleet" --seats "claude,deepseek"
-      py agent_cli.py doc new --type brief --title "ops-ask" --seats "claude"
+    Inference (never worse than typing flags; wrong stamps are post-hoc lint fixes):
+    ARC from the first seat's claimed ledger task when --arc absent · CATEGORIES from
+    the governed classifier merged with --category flags (cap 3, PRIMARY first) ·
+    --draft births status:draft (wrap sweep + library lint curate drafts).
     """
-    from datetime import datetime as _dt
     sub = getattr(args, "sub", "new")
     if sub != "new":
         print("[doc] only 'new' is implemented — pass 'doc new ...'")
@@ -1511,67 +1522,61 @@ def cmd_doc(args):
 
     typ = (getattr(args, "type", "") or "").strip().lower()
     title = (getattr(args, "title", "") or "").strip()
-    arc = (getattr(args, "arc", "") or "").strip()
-    seats_raw = (getattr(args, "seats", "") or "").strip()
-    seats = seats_raw.replace(",", ", ").replace("  ", " ").strip()
-
     if not typ or not title:
         print("[doc] REFUSED: --type and --title are required")
-        print("  docs/ home map:")
-        print("    contract design brief report chronicle ledger map plan ruling")
-        print("  research/ sub-homes: drafts reviewed briefs")
-        print("  Examples:")
-        print("    py agent_cli.py doc new --type design --title my-arc --seats claude")
-        print("    py agent_cli.py doc new --type brief --title ops-ask --seats claude")
+        print("  atom types: contract map design brief report chronicle ledger ruling")
+        print("  example: py agent_cli.py doc new --type report --title fence-x --seats claude --body-file x.md")
         return 2
 
-    now = _dt.now()
-    date = now.strftime("%Y-%m-%d")
+    body = getattr(args, "body", "") or ""
+    body_file = getattr(args, "body_file", "") or ""
+    if body_file:
+        try:
+            body = Path(body_file).read_text(encoding="utf-8")
+        except OSError as e:
+            print(f"[doc] REFUSED: cannot read --body-file: {e}")
+            return 2
 
-    # Determine zone and filename per LIBRARY.md naming canon
-    research_types = {"brief", "report", "draft"}
-    is_research = typ in research_types or getattr(args, "zone", "") == "research"
+    seats = [s.strip() for s in (getattr(args, "seats", "") or "").split(",") if s.strip()]
+    arc = (getattr(args, "arc", "") or "").strip() or None
+    arc_src = "--arc"
+    if not arc and seats:
+        arc = _ledger_claim_arc(seats[0])
+        arc_src = "ledger claim" if arc else "(none inferable)"
 
-    if is_research:
-        zone_dir = Path(__file__).resolve().parent / "research"
-        sub_dir_map = {
-            "brief": "briefs", "report": "reviewed", "draft": "drafts",
-        }
-        subdir = sub_dir_map.get(typ, "drafts")
-        zone_dir = zone_dir / subdir
-        seats_part = seats.replace(", ", "-").replace(" ", "-").lower() if seats else "fleet"
-        fname = f"{seats_part}-{title}-{typ}-{date}.md"
-    else:
-        zone_dir = Path(__file__).resolve().parent / "docs"
-        fname = f"{title}-{typ}-{date}.md"
+    from core.library import taxonomy as _tx
+    from core.library.atoms import AtomFamily, AtomError
+    from core.library.projection import render_atom
+    from core.foundation.store import create_store
 
-    os.makedirs(str(zone_dir), exist_ok=True)
-    dest = zone_dir / fname
-    if dest.exists():
-        print(f"[doc] REFUSED: {dest} already exists — choose a different --title")
+    flag_cats = [c.strip() for c in (getattr(args, "category", None) or []) if c.strip()]
+    auto_cats = _tx.classify(f"{title} {body[:500]}")
+    merged, cat_srcs = [], []
+    for c in flag_cats + auto_cats:
+        r = _tx.resolve(c)
+        if r and r not in merged:
+            merged.append(r)
+            cat_srcs.append("flag" if c in flag_cats else "auto")
+    merged = merged[:_tx.CATEGORY_CAP_PER_ATOM]
+    cat_srcs = cat_srcs[:len(merged)]
+
+    status = "draft" if getattr(args, "draft", False) else "current"
+    fam = AtomFamily(create_store(), repo_root=str(Path(__file__).resolve().parent))
+    try:
+        atom = fam.mint(typ, title, body, arc=arc, seats=seats, categories=merged,
+                        status=status, gist=(getattr(args, "gist", "") or None))
+    except AtomError as e:
+        print(f"[doc] REFUSED: {e}")
         return 2
 
-    # Build the header contract
-    arc_line = f"Arc: {arc}" if arc else ""
-    seats_line = f"Seats: {seats}" if seats else ""
-    meta_parts = [arc_line, seats_line]
-    meta = " · ".join(p for p in meta_parts if p)
-
-    header = (
-        f"# {title.replace('-', ' ').title()}\n"
-        f"\n"
-        f"Status: current\n"
-        f"Type: {typ}"
-    )
-    if meta:
-        header += f" · {meta}"
-    header += f" · Date: {date}\n"
-    header += "\n"
-
-    dest.write_text(header, encoding="utf-8")
-    rel = str(dest.relative_to(Path(__file__).resolve().parent)).replace("\\", "/")
-    print(f"[doc] seeded {rel}")
-    print(f"  type: {typ}  arc: {arc or '(none)'}  seats: {seats or '(none)'}")
+    path = render_atom(atom, repo_root=str(Path(__file__).resolve().parent))
+    rel = str(Path(path).relative_to(Path(__file__).resolve().parent)).replace("\\", "/")
+    print(f"[doc] atom {atom['id']}  ({typ}, status: {status})")
+    print(f"  arc: {arc or '(none)'}  [{arc_src}]")
+    cat_render = ", ".join(f"{c}[{s}]" for c, s in zip(merged, cat_srcs)) or "(none)"
+    print(f"  categories: {cat_render}")
+    print(f"  projection: {rel}  (read-only render; the atom is the truth)")
+    print("  wrong stamp? fix post-hoc at wrap/lint — never a write-time block")
     return 0
 
 
@@ -3637,9 +3642,14 @@ def build_parser():
     dnew = dsps.add_parser("new", help="create a new doc with header + canon name + home")
     dnew.add_argument("--type", required=True, help="Type per LIBRARY.md: contract|design|brief|report|chronicle|ledger|map|plan|ruling")
     dnew.add_argument("--title", required=True, help="slug (lowercase, hyphens) — becomes the filename")
-    dnew.add_argument("--arc", default="", help="arc label or T-number")
-    dnew.add_argument("--seats", default="", help="authors (comma-sep)")
-    dnew.add_argument("--zone", default="", help="force zone: docs|research")
+    dnew.add_argument("--arc", default="", help="arc label or T-number (absent = inferred from the seat's claimed ledger task)")
+    dnew.add_argument("--seats", default="", help="authors (comma-sep); first seat drives arc inference")
+    dnew.add_argument("--body", default="", help="atom body text (short); use --body-file for real bodies")
+    dnew.add_argument("--body-file", default="", dest="body_file", help="read the atom body from a file (W63 long-body transport)")
+    dnew.add_argument("--category", action="append", default=None, help="governed roster category (repeatable, max 3; merged with auto-classify)")
+    dnew.add_argument("--draft", action="store_true", help="born status:draft — dump-and-go; wrap sweep + lint curate")
+    dnew.add_argument("--gist", default="", help="one-line abstract (<=140 chars; auto-derived from body if absent)")
+    dnew.add_argument("--zone", default="", help="DEPRECATED (atoms have one home: docs/library/<type>/); ignored")
     dnew.set_defaults(fn=cmd_doc)
 
     ap = sub.add_parser("tag-anti-pattern", help="tag an EXISTING lesson as a reusable known-bad")
