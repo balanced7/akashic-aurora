@@ -1,7 +1,7 @@
 """The artifact-atom family (A1 core) -- atoms as truth, JSONL as the durable record.
 
-Spec: docs/artifact-substrate-design-2026-07.md sections 1-2 + docs/taxonomy-ergonomics-
-reconciliation-2026-07.md section 7 (constants) + docs/super-wiki-experience-design-2026-07.md
+Spec: docs/library/design/20260701_artifact-substrate-the-reconciled-design_8ea728.md sections 1-2 + docs/taxonomy-ergonomics-
+reconciliation-2026-07.md section 7 (constants) + docs/library/design/20260701_super-wiki-aurora-atlas-the-reconciled-e_13c268.md
 section 1 (typed edges). Ratified 2026-07-23 (Daniel G1-G6 + build license).
 
 Shape: every artifact is an append-only, supersession-aware atom.

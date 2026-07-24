@@ -1,8 +1,8 @@
 """
 RB-25 Amendment 2 -- pre-registered acceptance (committed BEFORE the impl, M3/T031).
-Rulings: research/reviewed/deepseek-rb25-amendment2-rulings-2026-07-12.md (all six
+Rulings: docs/library/report/20260712_rb-25-amendment-2-deepseek-rulings-fence_7f1c14.md (all six
 AFFIRMED; A2-1 reverses deepseek's original fail-open ruling on the merits).
-Reconciliation: research/reviewed/rb25-f1f2-reconciliation-2026-07-12.md.
+Reconciliation: docs/library/design/20260712_rb-25-f1-f2-fence-reconciliation-claude_436168.md.
 
 Contract frozen:
   A2-1  may_run_runner's except path mirrors resolve()'s OWN fallback

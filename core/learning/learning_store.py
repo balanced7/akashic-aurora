@@ -760,7 +760,7 @@ def _dim_tokens(s: Any) -> set:
 
 def _dims_of(rec: Dict[str, Any]) -> Dict[str, set]:
     """The five comparison dimensions for near-duplicate detection, adapted from Every's
-    ce-compound overlap rule (docs/field-survey-2026-07.md C5): problem / root cause /
+    ce-compound overlap rule (docs/library/design/20260701_field-survey-what-the-best-practitioners_3c9d20.md C5): problem / root cause /
     solution / referenced paths / kind. Purely lexical on purpose -- deterministic, no
     embeddings, no LLM judge."""
     problem = _dim_tokens(rec.get("what_tried")) | _dim_tokens(rec.get("expected"))
@@ -834,7 +834,7 @@ def get_learning_store_instance(redis_client: Optional[Any] = None,
     """
     Get or create the global learning store instance.
 
-    T069 (reconciled spec: research/reviewed/t069-singleton-reconciliation-2026-07-15.md):
+    T069 (reconciled spec: docs/library/report/20260715_t069-singleton-isolation-reconciliation_1a7cdb.md):
     explicit injection -> fresh; _AISETUP_TEST_ISOLATED -> fresh per call, cache
     untouched (stateless wrapper over the Store); canonical -> lazy singleton.
 

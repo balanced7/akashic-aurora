@@ -40,7 +40,7 @@ LOCK_TTL = scaled(20)    # seconds; the heartbeat must refresh well within this
                          # (drill-shrinkable via AKASHIC_TIMEOUT_MULTIPLIER)
 # RB-21: a turn-based SESSION cannot heartbeat in runner seconds -- its claim on the very
 # same lock carries this TTL instead, refreshed at every consume and every stop-hook
-# firing. Future T034 dial. (docs/rb21-build-spec-2026-07-11.md)
+# firing. Future T034 dial. (docs/library/design/20260711_rb-21-session-cursor-discipline-build-sp_9fbdcd.md)
 SESSION_CONSUMER_TTL = scaled(1800)
 
 # L1b (T030, Kleppmann): each acquisition mints a GENERATION -- the fencing token the
@@ -175,7 +175,7 @@ def release(agent: str, token: str) -> bool:
 
 # ---------------------------------------------------------------- RB-21: session consumers
 # A session consuming mail IS a cursor-advancer, so it claims THE SAME lock a runner
-# claims -- one invariant, zero new primitives (docs/rb21-build-spec-2026-07-11.md).
+# claims -- one invariant, zero new primitives (docs/library/design/20260711_rb-21-session-cursor-discipline-build-sp_9fbdcd.md).
 # Holder tokens are "session:<id>"-prefixed so refusal messages can teach legibly.
 
 def session_holder_token() -> Optional[str]:

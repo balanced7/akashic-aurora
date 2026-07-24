@@ -1,7 +1,7 @@
 """T045 (T039b stage 1) PRE-REGISTERED ACCEPTANCE -- wake listener cuts to the WORK LANE.
 
 Committed RED before implementation (method pre-registration). Cites
-docs/t039-lanes-latches-design-2026-07.md (Daniel gate) -- amendments A4 (tail-at-flip),
+docs/library/design/20260701_t039-purpose-keyed-lanes-latches-governi_7bc135.md (Daniel gate) -- amendments A4 (tail-at-flip),
 P4 (work-bell kind filter). Live receipt motivating this stage: the 2026-07-14 infinite
 wake loop (lesson wake_loop_from_unconsumed_broadcast) -- five watchers drowned in 1280
 legacy trace broadcasts hunting one stranded handoff. Work-lane-only watching makes that

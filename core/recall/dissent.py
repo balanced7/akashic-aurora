@@ -8,7 +8,7 @@ finds the one lesson that most credibly DISAGREES with the top recalled lesson, 
 position (thesis + its strongest live counter), not just a confirmation. Consumed by `recall_at`,
 which surfaces one `counter:` line when a real counter clears the bar, and stays SILENT otherwise.
 
-Design — deterministic, no-LLM, fail-soft, PRECISION-FIRST (evidence in docs/recall-critic-decision.md
+Design — deterministic, no-LLM, fail-soft, PRECISION-FIRST (evidence in docs/library/design/20260709_keeping-recall-honest-critic-vs-dialecti_1a5498.md
 + the Slice-0 eval tests/test_counter_eval.py). Two experiments on the real corpus set the shape:
 
   1. A naive "shared tokens + opposite outcome" finder FLOODS — it flagged 81/90 successes as having a

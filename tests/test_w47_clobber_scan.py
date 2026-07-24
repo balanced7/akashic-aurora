@@ -1,6 +1,6 @@
 """W47 pins — clobber-scan: unconditional shared-control-key writes, flagged statically.
 
-DESIGN: kimi (tools hunt #3, research/reviewed/kimi-tools-hunt-tonight-2026-07-21.md).
+DESIGN: kimi (tools hunt #3, docs/library/report/20260721_tools-hunt-tonight-s-edition-kimi-2026-0_974493.md).
 BUILD: claude (kimi's headless builder round stalled; built from their spec + credited,
 fence invited). Born from K2: kimi's own pause-clobber race
 (control.pause = unconditional c.set(_pause_key()) voiding a human pause) rested on one

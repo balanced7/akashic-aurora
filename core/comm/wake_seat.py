@@ -15,7 +15,7 @@ name-keyed ghost (K6), and reaps a LIVE watcher only on two-factor-proven orphan
 
 Every decision appends one line to the provenance log (bifrost_wake_<agent>.reap.log) so
 a reap is auditable from the log alone -- never again mistaken for a watcher crash.
-Fenced design + reconciliation: docs/resilience-wave2-seat-design-2026-07.md.
+Fenced design + reconciliation: docs/library/design/20260701_wave-2-design-claude-fenced-wake-seat-ow_7c4aaf.md.
 """
 from __future__ import annotations
 

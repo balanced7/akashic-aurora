@@ -1,6 +1,6 @@
 """
 S0-alpha · the triage PARK (scry-to-bottom substrate).
-Cites docs/recovery-arc-design-2026-07.md S0 (= deepseek BULKHEAD-0 ∪ kimi R4 ∪ claude B1)
+Cites docs/library/design/20260701_recovery-arc-reconciled-design-superviso_ce9a9e.md S0 (= deepseek BULKHEAD-0 ∪ kimi R4 ∪ claude B1)
 + the Canon: triage = scry-to-bottom — stale asks are BOTTOMED, never dropped.
 
 Laws pinned (RED before core/comm/triage_park.py exists):

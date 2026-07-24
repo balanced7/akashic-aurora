@@ -2,7 +2,7 @@
 
 Run: py tests/test_dissent_capture.py   (or via pytest)
 
-Companion: docs/recall-critic-decision.md. Slice 1 built a precise counter-finder that requires an
+Companion: docs/library/design/20260709_keeping-recall-honest-critic-vs-dialecti_1a5498.md. Slice 1 built a precise counter-finder that requires an
 explicit stance signal (an `anti_pattern`), and on the real corpus it fired 0 times because there
 were 0 anti-patterns -- the binding constraint is corpus content, not the reader. Slice 2 closes
 that: it makes recording a known-bad reachable and near-free, so the corpus grows the disconfirmers

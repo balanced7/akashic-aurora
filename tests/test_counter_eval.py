@@ -3,7 +3,7 @@
 Run:  py tests/test_counter_eval.py     (prints the metrics table + coverage report)
  or:  py -m pytest tests/test_counter_eval.py
 
-Companion doc: docs/recall-critic-decision.md. This is Slice 0 of that plan: build the
+Companion doc: docs/library/design/20260709_keeping-recall-honest-critic-vs-dialecti_1a5498.md. This is Slice 0 of that plan: build the
 MEASUREMENT before the fix, so we can tell whether surfacing dissent actually helps without
 Goodharting engagement.
 

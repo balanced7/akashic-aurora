@@ -1,6 +1,6 @@
 """RB-5 class regression -- storage-intake bounds must CONFESS, never clip silently.
 
-Incident (2026-07-11 night, docs/rb23-build-spec-2026-07-11.md incident record): deepseek's
+Incident (2026-07-11 night, docs/library/design/20260711_rb-23-content-floor-reconciled-build-spe_d47764.md incident record): deepseek's
 knowledge_note tool-args (notes t034-registry-design-deepseek, -part2) were silently
 word-clipped at ~4013 chars by the NOTE DOOR -- agent_cli cmd_note stored
 `_clip(args.note)` (4000-char cap, " ...[truncated]" marker) while printing plain

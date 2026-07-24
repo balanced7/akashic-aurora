@@ -1,7 +1,7 @@
 """
 harmonize_knowledge.py — one-time knowledge-store harmonization (2026-06-20)
 
-See docs/knowledge-harmonization-plan.md. Backup-first; nothing is deleted before a
+See docs/library/design/20260709_knowledge-store-harmonization-plan-2026_9e9656.md. Backup-first; nothing is deleted before a
 full snapshot exists. Operates DIRECTLY on both backends (the FileStore JSON and
 Redis 16379) so they end byte-for-byte consistent by construction.
 

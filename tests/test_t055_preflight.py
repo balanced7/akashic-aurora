@@ -1,6 +1,6 @@
 """T055 (R4 pre-flight recall) PRE-REGISTERED ACCEPTANCE -- committed RED before impl.
 
-Cites research/reviewed/deepseek-r4-preflight-design-2026-07-14.md (his design; tier
+Cites docs/library/report/20260714_deepseek-r4-pre-flight-recall-design-202_1250bf.md (his design; tier
 FENCE-LITE confirmed; claude builds, deepseek live-verifies). These pins cover the
 MECHANICAL bars (his P2/P3/P4/P8); P1/P5/P6/P7 are his live-verify lane by design
 (loop timing, before-result ordering, post-flight complement, engine-level dedup).

@@ -1,7 +1,7 @@
 """
 Auto-logger Slice 5 -- salience promotion (reflection / episodic->semantic consolidation).
 
-Acceptance bar (docs/auto-logger-plan.md):
+Acceptance bar (docs/library/design/20260714_cross-agent-auto-logger-design-slice-pla_6d21c5.md):
   - promotion is rate-limited (threshold + per-run cap + dedup) -> no Beat flood;
   - coverage of high-salience events >= 95%;
   - the narrative's faithfulness/coverage bars do not regress (full suite stays green);

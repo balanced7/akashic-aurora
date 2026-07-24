@@ -1,7 +1,7 @@
 """
 core.events -- the cross-agent auto-logger: raw, full-fidelity event capture (Domain).
 
-Slice 1: capture primitive (EventLog on the Ledger). See docs/auto-logger-plan.md.
+Slice 1: capture primitive (EventLog on the Ledger). See docs/library/design/20260714_cross-agent-auto-logger-design-slice-pla_6d21c5.md.
 
 The RAW firehose beneath the narrative spine: every agent's tool calls / file edits /
 commands / observations land here as append-only "raw events", which the salient

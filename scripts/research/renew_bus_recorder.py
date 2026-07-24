@@ -8,7 +8,7 @@ line under research/in-flight/, so the "agents in flight" telemetry is parseable
 
 That captured stream is also the substrate for RENEW research item A -- the deterministic context-health
 signals (file-reread rate, tool-call repetition, turns-since-boot, per-agent churn). See
-docs/agent-membrane-design-2026-07.md ("Renew") and the `renew-membrane-temporal-job` note.
+docs/library/design/20260701_the-mediation-membrane-founding-design-n_4f941f.md ("Renew") and the `renew-membrane-temporal-job` note.
 
 Standalone + reversible: touches no hook and no hot path. Registers as its own bus agent so it only
 READS; it never broadcasts (so it never pollutes the very stream it measures).

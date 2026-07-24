@@ -26,7 +26,7 @@ import time
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
-# The Wave-A gate from docs/leapfrog-plan.md: "corpus growth rate measurably up
+# The Wave-A gate from docs/library/design/20260709_leapfrog-plan-outcome-grounded-memory_18eeba.md: "corpus growth rate measurably up
 # (target 30+ lessons in 30 days)". One place, so every renderer quotes the same bar.
 TARGET_LESSONS_30D = 30
 

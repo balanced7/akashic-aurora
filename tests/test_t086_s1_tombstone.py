@@ -1,6 +1,6 @@
 """T086 S1/S2a pins: session tombstone + renewal-primacy in the seat-freeing ladder.
 
-Cites research/reviewed/t086-seat-reconciliation-2026-07-16.md (build spec). Exhibit A =
+Cites docs/library/report/20260716_t086-seat-wake-hook-lifecycle-reconcilia_c203c4.md (build spec). Exhibit A =
 C1-5 (2026-07-16 morning): an ended session's armed watchers held the wake seat; killing
 them RESURRECTED the session; then a dead holder's claim blocked the live seat ~30 min
 because a live listener pid outranked a 192-minute-stale renewal marker. These pins make

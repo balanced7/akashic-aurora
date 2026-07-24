@@ -93,7 +93,7 @@ def test_h4_gate_language_without_citation_fails():
 
 def test_h4_gate_language_with_citation_passes():
     rc, out = _run(_H4, "RB-99 landed: GATE GREEN per "
-                        "research/reviewed/deepseek-rb21-verify-2026-07-11.md")
+                        "docs/library/report/20260711_rb-21-verify-gate-live-drill-deepseek-ve_0df0e2.md")
     assert rc == 0
 
 

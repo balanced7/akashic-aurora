@@ -16,7 +16,7 @@ Safety:
     through unchanged (equal-gen accepted; we never mint -- a skip is not a claim).
   - Never touches fencing generations, seats, or locks.
 
-Cites: T076 task text + research/reviewed/t086-seat-reconciliation-2026-07-16.md
+Cites: T076 task text + docs/library/report/20260716_t086-seat-wake-hook-lifecycle-reconcilia_c203c4.md
 (lease/fencing doctrine); refines T014 (live asks re-send via L4 redrives; echo skips).
 """
 from __future__ import annotations

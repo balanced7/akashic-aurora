@@ -48,7 +48,7 @@ def check_staged(files, agent, client=None):
                        "verified and you staged file(s) a peer may hold a lock on:\n" + body +
                        "\nSet AKASHIC_AGENT_ID=<your agent id> (e.g. in .claude/settings.json env).")
     return False, ("pre-commit BLOCKED: you staged file(s) a peer holds an advisory lock on:\n" + body +
-                   "\nCommit only files you hold, or coordinate via the bus (see docs/concurrency-design.md C2/C4).")
+                   "\nCommit only files you hold, or coordinate via the bus (see docs/library/design/20260709_concurrent-agents-reinforcing-two-peers_5f6723.md C2/C4).")
 
 
 def _comprehensibility_fast():

@@ -1,6 +1,6 @@
 """T075 M1-BETA PRE-REGISTERED ACCEPTANCE -- the clean-death trio at SessionEnd.
 
-Spec: research/reviewed/t060-m1-reconciliation-2026-07-15.md ruling 3 + slice table
+Spec: docs/library/report/20260715_t060-m1-continuous-presence-reconciliati_32cac4.md ruling 3 + slice table
 M1-beta (claude builds, deepseek verifies): a session that ends CLEANLY releases,
 in the same breath, (1) its consumer SEAT, (2) its incarnation CARD, (3) its wake
 LISTENER's seat file + activity marker. TTL expiry stays the CRASH net -- the trio

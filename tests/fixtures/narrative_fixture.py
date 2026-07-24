@@ -72,7 +72,7 @@ _ROWS = [
     ("research", "note", [], "", "narrative spine", "is our narrative design truly novel vs Amory?", ("narrative",)),  # honest MISS (track): 'narrative' -> routes ai-setup
     ("ai-setup", "commit", ["agent_cli.py"], "", "", "agent_cli list command + recall", ("memory",)),
     ("ai-setup", "decision", [], "project_management", "narrative spine", "build each slice test-first against acceptance bars", ("evaluation", "narrative")),
-    ("ai-setup", "commit", ["docs/narrative-spine-plan.md"], "", "", "Mirror progress: narrative plan", ("logging", "narrative")),
+    ("ai-setup", "commit", ["docs/library/design/20260709_narrative-spine-design-plan-system-4-cap_2357df.md"], "", "", "Mirror progress: narrative plan", ("logging", "narrative")),
     ("ai-setup", "milestone", ["core/narrative/track_router.py"], "", "", "Slice 2 TrackRouter clears the bar", ("routing",)),
 ]
 

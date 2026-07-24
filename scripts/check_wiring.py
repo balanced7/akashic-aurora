@@ -36,9 +36,9 @@ EXCEPTIONS = {
     # P2 investigate-before-delete verdicts (arch-triage 2026-07-07): DeepSeek's blind triage said
     # DELETE codex/*+fast_cache+session_recovery; code investigation KEEPS codex (paused tested
     # roadmap), CONSOLIDATES session_recovery (dup-class, not dead), and confirms only fast_cache dead.
-    "core/codex/lifecycle.py": "KEEP built-ahead: Codex Wave-2 (docs/codex-plan.md) C2 DONE, C3+ paused; "
+    "core/codex/lifecycle.py": "KEEP built-ahead: Codex Wave-2 (docs/library/design/20260709_the-codex-a-self-curating-knowledge-laye_302fc9.md) C2 DONE, C3+ paused; "
         "TESTED by tests/test_codex_resource.py -- NOT superseded, do not delete (verified P2 2026-07-07)",
-    "core/codex/schema.py": "KEEP built-ahead: Codex Wave-2 (docs/codex-plan.md) C2 DONE, C3+ paused; "
+    "core/codex/schema.py": "KEEP built-ahead: Codex Wave-2 (docs/library/design/20260709_the-codex-a-self-curating-knowledge-laye_302fc9.md) C2 DONE, C3+ paused; "
         "TESTED by tests/test_codex_resource.py -- NOT superseded, do not delete (verified P2 2026-07-07)",
     "core/comm/dispatcher.py": "built-ahead: mesh doorbell->wake. BLOCKED on the W3 wake-adapter "
         "'invoker' registry (does not exist yet; Dispatcher.run() has no production caller) AND an "

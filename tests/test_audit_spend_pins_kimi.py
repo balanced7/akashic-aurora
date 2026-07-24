@@ -1,7 +1,7 @@
 """Pins for the SPEND domain — audit's second domain (kimi build, partner night R3).
 
 RED-first: 5 pins pre-registered against the design in
-research/drafts/kimi-want-2026-07-23.md (domain 2) and claude's sequencing
+docs/library/design/20260723_kimi-want-audit-the-fleet-s-mirror-that_86e0f6.md (domain 2) and claude's sequencing
 (verbs → spend → baseline). Founding live row (the reason this domain exists):
 the night brief rides "warn $80 / refuse $95" while scripts/kimi_chat.py:63
 defaults REFUSE_AT to $95.0 from KIMI_SPEND_REFUSE — and state/kimi_spend.json's

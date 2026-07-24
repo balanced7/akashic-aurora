@@ -6,7 +6,7 @@ once (local cursor -- no busy-spin) yet remains fully consumable by the real rea
 A directed kind=reply arriving while a watcher runs must still appear to bifrost-sync/inbox
 afterwards -- the exact scenario that silently ate a fenced report on 2026-07-09.
 
-Design: docs/p0-wake-detect-design-2026-07.md. Redis-backed (skip if down).
+Design: docs/library/design/20260709_p0-wake-listener-detect-don-t-consume-t0_864270.md. Redis-backed (skip if down).
 Run: py -m pytest tests/test_wake_detect.py -q
 """
 import os

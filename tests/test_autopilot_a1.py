@@ -1,6 +1,6 @@
 """AUTOPILOT A1 PRE-REGISTERED ACCEPTANCE -- the core that retires the arm chore.
 
-Spec: research/reviewed/presence-autopilot-reconciliation-2026-07-15.md slice A1
+Spec: docs/library/report/20260715_presence-autopilot-reconciliation-claude_b5cb93.md slice A1
 (claude builds, deepseek verifies; rides T075 gamma-scope). Daniel directive
 verbatim in note presence-autopilot-directive.
 

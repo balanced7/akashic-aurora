@@ -5,7 +5,7 @@
 The C1-8 incident in one line: a runner sat in a 25-40 minute silent window while every
 gauge (daemon heartbeat, presence, process-alive) read healthy, because liveness was
 measured at the process layer and nothing measured TURN progress. The fleet's unanimous
-revival-mesh law (docs/revival-mesh-reconciliation-2026-07-19.md C2): detection precedes
+revival-mesh law (docs/library/design/20260719_mutual-revival-mesh-reconciliation-t097_d1b0a7.md C2): detection precedes
 action, and detection means a per-hop progress stamp peers can read as an AGE.
 
 This module is the K0-genus shared seam: every runner (deepseek, kimi, sol) stamps through

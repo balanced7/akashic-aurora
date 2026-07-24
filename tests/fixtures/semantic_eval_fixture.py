@@ -1,6 +1,6 @@
 """Yardsticks for the future SEMANTIC gate (recall confirmation-bias program) -- measurement-first.
 
-Companion: docs/recall-critic-decision.md. Slice 3 proved deterministic lexical methods cannot judge
+Companion: docs/library/design/20260709_keeping-recall-honest-critic-vs-dialecti_1a5498.md. Slice 3 proved deterministic lexical methods cannot judge
 stance (topic-adjacency != contradiction), so genuine-counter detection is deferred to a semantic
 (LLM) gate. Per the plan -- and our own lesson "build the yardstick + a real-corpus probe before the
 mechanism" -- these are the labeled datasets that gate will be measured against, built BEFORE it

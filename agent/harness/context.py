@@ -1,7 +1,7 @@
 """The auto-boot whisper shared by every harness adapter (Integration Tiers H0).
 
 T074 Phase 1: the whisper IS the primer (reconciled build spec
-research/reviewed/t074-continuity-reconciliation-2026-07-15.md; deepseek's contract
+docs/library/report/20260715_t074-seamless-continuity-reconciliation_89103c.md; deepseek's contract
 governs). A fresh seat must orient from the whisper alone -- no manual pasting.
 
 Sections, in priority order (each independently fail-soft; drop order is bottom-up so

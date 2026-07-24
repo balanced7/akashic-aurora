@@ -1,6 +1,6 @@
 """T081-W5 pins (safety-critical) -- the honest heal's 3-way orphan classification.
 
-Reconciled 2026-07-16 (research/reviewed/w5-heal-reconciliation-2026-07-16.md) from deepseek's
+Reconciled 2026-07-16 (docs/library/report/20260716_w5-honest-heal-reconciliation-build-spec_c2d63e.md) from deepseek's
 roster half + claude's empirical keyspace census. The invariant under test: the roster can NEVER
 silence a real orphan -- durable-family check runs before the roster (File is truth), unknowns
 stay loud, and any failure fails OPEN (all loud).

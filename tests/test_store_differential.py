@@ -1,6 +1,6 @@
 """
 Wave 3 -- DictStore differential (Daniel's sprint-briefing item; spec:
-docs/w3-build-spec-2026-07-11.md "DictStore differential").
+docs/library/design/20260711_wave-3-reconciled-build-spec-rb-8-12-dic_4f427b.md "DictStore differential").
 
 The same operation sequence runs against the in-memory DictStore and a live RedisStore;
 after EVERY op the RETURN VALUES must match, and the final state dump must match.

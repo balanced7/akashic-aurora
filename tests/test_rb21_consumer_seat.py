@@ -1,6 +1,6 @@
 """
 RB-21 -- session-cursor discipline: pre-registered acceptance (committed BEFORE impl, M3/T031).
-Spec: docs/rb21-build-spec-2026-07-11.md.
+Spec: docs/library/design/20260711_rb-21-session-cursor-discipline-build-sp_9fbdcd.md.
 
 The invariant under pin: at most ONE cursor-advancer per agent id (runner or session,
 same lock). Sessions claim the runner lock sticky (session TTL), every advance rides a

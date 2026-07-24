@@ -1,6 +1,6 @@
 """
 K0 · true the denominator (C8-3) — the Crucible's first slice.
-Cites docs/institutional-knowledge-design-2026-07.md (K0) + failure-ledger C8-3.
+Cites docs/library/design/20260701_institutional-knowledge-arc-reconciled-d_27e77b.md (K0) + failure-ledger C8-3.
 
 The scar: claude_pretooluse.py was registered on TWO surfaces (project-relative +
 user-absolute); both fired per call, log_injection() counted twice, and the funnel's

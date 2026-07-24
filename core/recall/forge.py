@@ -1,8 +1,8 @@
-"""Forge F1 -- the Tier-0 edit gate (docs/lesson-forge-design-2026-07.md sec.4, sec.9 F1).
+"""Forge F1 -- the Tier-0 edit gate (docs/library/design/20260701_lesson-forge-evidence-gated-content-opti_fd3204.md sec.4, sec.9 F1).
 
 Adjudicates ONE bounded edit to ONE lesson's recommendation text, offline, deterministic,
 no LLM. The validation set is the lesson's own durable history (Forge premise, dual-derived
-and audited in research/reviewed/forge-f0-audit-2026-07-09.md):
+and audited in docs/library/report/20260709_forge-f0-data-sufficiency-audit-dual-pre_9749e0.md):
 
   floors  -- textual learning rate (<= 40% token delta), trigger clause still parseable,
              FAITH (no fabricated pointers), provenance untouched by construction (only

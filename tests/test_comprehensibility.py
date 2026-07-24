@@ -4,7 +4,7 @@ exists to prevent). These tests: (1) prove the guard is GREEN on the real repo f
 (2) INJECT each drift class and prove the guard FAILs, (3) prove the false-positive controls (root-
 anchoring, dated exemptions) hold, (4) prove a CRASHING check fails LOUD, never silent-passes.
 
-Design: docs/comprehensibility-immune-system-2026-07.md.
+Design: docs/library/design/20260701_the-comprehensibility-immune-system-desi_339b01.md.
 """
 import os
 import sys

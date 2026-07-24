@@ -4,7 +4,7 @@ The SIGNAL half of the Strand-A correlation dataset (the `fail` label half is sl
 
 Semantic Relationship: SessionSignals aggregates ToolCalls (per session, deterministic)
 
-WHY THIS EXISTS (research/reviewed/renew-stranda-health-signals-2026-07-07.md): Strand A found
+WHY THIS EXISTS (docs/library/report/20260707_renew-strand-a-cheap-deterministic-conte_6eba11.md): Strand A found
 the signals are cheap but were only being persisted while a manually-run bus recorder happened
 to be alive -- it died 2026-07-07 and the dataset silently stopped growing, while the durable
 `fail` LABELS (slice A') kept accruing. This module is the signal half made as durable as the

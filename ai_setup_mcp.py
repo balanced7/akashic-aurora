@@ -29,7 +29,7 @@ or handoff one agent records is surfaced by the NEXT agent's `boot` -- regardles
 which door (CLI or MCP) either agent used.
 
 CONCURRENCY (O1, 2026-07-23 -- reconciled spec:
-research/reviewed/mcp-concurrency-reconciliation-2026-07-23.md):
+docs/library/report/20260723_reconciliation-mcp-door-concurrency-leve_600574.md):
 The SDK session layer handles requests concurrently (task per message) but FastMCP
 runs sync tools INLINE on the event loop -- so every verb used to starve the loop
 (no pings, no cancellation, batches serialized behind their slowest member; the

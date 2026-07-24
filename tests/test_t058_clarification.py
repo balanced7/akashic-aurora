@@ -1,6 +1,6 @@
 """T058 (R7 mid-turn clarification) PRE-REGISTERED ACCEPTANCE -- committed RED.
 
-Cites research/reviewed/deepseek-r7-midturn-clarification-design-2026-07-14.md (his
+Cites docs/library/report/20260714_r7-mid-turn-clarification-deepseek-desig_bd991a.md (his
 design; fence-lite confirmed; claude builds, deepseek live-verifies P1/P3/P4/P7/P8).
 These pins cover the mechanical ToolBox bars (his P2/P6 + the directed-send shape).
 Build correction folded: the send is DIRECTED to 'user' (his 2b prose), never a

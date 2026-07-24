@@ -1,6 +1,6 @@
 """
 T030 L5 / RB-30 -- bus-loss stand-down + pause hygiene: pre-registered acceptance
-(committed BEFORE impl, M3/T031). Spec: docs/agent-liveness-tier-2026-07.md L5 +
+(committed BEFORE impl, M3/T031). Spec: docs/library/design/20260701_agent-liveness-tier-stuck-lost-agent-fai_8c0d79.md L5 +
 RB-30 section ("verify semantics first" -- audited 2026-07-11: provenance EXISTS in
 pause()/pause_status(); MISSING = TTL on auto-pauses + a loud render at boot/sync/
 doctor + the B2 dead-beat stand-down).

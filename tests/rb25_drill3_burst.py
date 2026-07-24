@@ -1,7 +1,7 @@
 """
 RB-25 Drill 3 -- CONCURRENCY STORM: burst script (authored by deepseek, executed by claude).
 
-Per the runbook execution split (docs/rb25-exam-runbook-2026-07-11.md drill 2 section):
+Per the runbook execution split (docs/library/design/20260711_rb-25-engine-exam-runbook-pre-registered_9356ea.md drill 2 section):
 deepseek AUTHORS the burst script, claude EXECUTES it against the live fleet.
 
 FROZEN BARS (pass/fail each, verifiable from the ledger + transcripts):

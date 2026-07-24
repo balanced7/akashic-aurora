@@ -39,7 +39,7 @@ default-ON.
 RULING CAPTURE → Verbatim: · Rationale: · Uncertainty: · Falsifiers: · Scope: G1/recovery-arc.
 
 ### G2 · Stance-at-thought reconciliation — ratify + ship-order
-Context: research/reviewed/stance-at-thought-reconciliation-2026-07-22.md. Three voices,
+Context: docs/library/report/20260722_stance-at-thought-reconciliation-three-v_88e80e.md. Three voices,
 T038-clean; five earned convergences (silence wins; per-seat rosters/costume law; 3-item
 interrupt list; cards carry falsifiers; signals-are-the-build). Kimi's reds adopted in full.
 Decision: (a) ratify the reconciliation + roster v1 (claude 6 / deepseek 5; frugal-exec waits
@@ -50,7 +50,7 @@ hand (the reconciler's middle path).
 RULING CAPTURE → Verbatim: · Rationale: · Uncertainty: · Falsifiers: · Scope: G2/stance-model.
 
 ### G3 · Steer-corpus reconciliation — ratify laws + schema + template
-Context: research/reviewed/steer-corpus-reconciliation-2026-07-22.md. Your laws affirmed by
+Context: docs/library/report/20260722_steer-corpus-ruling-capture-reconciliati_21dd6b.md. Your laws affirmed by
 all four voices; builder demands priced (kind taxonomy, 12-field atom, template ritual,
 divergence register); S0 probe ANNEXED: ~150–250 unique original steers (error bars straddle
 the 200 threshold) → HYBRID harvest (automated candidate-dump + manual curation).

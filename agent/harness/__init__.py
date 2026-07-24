@@ -1,4 +1,4 @@
-"""Harness adapter library (Integration Tiers, H0 -- see docs/integration-tiers.md).
+"""Harness adapter library (Integration Tiers, H0 -- see docs/library/design/20260709_integration-tiers-what-each-harness-actu_38278c.md).
 
 One rule protects every harness: **harness adapters translate JSON; core code decides
 policy**. Modules here hold the logic every adapter shares (scoping, the auto-boot

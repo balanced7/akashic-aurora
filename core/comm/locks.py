@@ -175,7 +175,7 @@ def path_conflict(path: str, agent: str, client: Optional[Any] = None) -> Dict[s
         return {"conflict": True, "held_by": who, "reason": (
             f"'{normalize_path(path)}' is locked by {who} (token {h.get('token')}). "
             f"Edit a file you hold, request a handoff via the bus, or wait for release "
-            f"(advisory lock, see docs/concurrency-design.md C2).")}
+            f"(advisory lock, see docs/library/design/20260709_concurrent-agents-reinforcing-two-peers_5f6723.md C2).")}
     return {"conflict": False, "held_by": None, "reason": ""}
 
 
@@ -201,5 +201,5 @@ def guard_write(path: str, agent: str, ttl: int = DEFAULT_TTL, client: Optional[
         who = h.get("agent") or res.get("held_by")
         return {"ok": False, "held_by": who, "claimed": False, "reason": (
             f"'{normalize_path(path)}' is being edited by {who} (advisory lock). Yielding -- "
-            f"coordinate on the bus or wait for release (C2, docs/concurrency-design.md).")}
+            f"coordinate on the bus or wait for release (C2, docs/library/design/20260709_concurrent-agents-reinforcing-two-peers_5f6723.md).")}
     return {"ok": True, "held_by": agent, "claimed": False, "reason": ""}   # offline -> fail-open

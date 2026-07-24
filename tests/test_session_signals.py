@@ -1,7 +1,7 @@
 """RENEW slice A'' -- session-signal persistence: fold math (core/renew/session_signals.py) and
 the SessionEnd hook's transcript fold -> durable `session_signals` event (claude_sessionend.py).
 
-Contract under test (see research/reviewed/renew-stranda-health-signals-2026-07-07.md):
+Contract under test (see docs/library/report/20260707_renew-strand-a-cheap-deterministic-conte_6eba11.md):
   1. The fold is deterministic + total: Strand A's revised signal catalog, churn-over-PROGRESS
      family included, reread recorded-but-demoted; bad input degrades, never raises.
   2. The hook parses the SAME live-captured transcript shape the PostToolUse hook pins

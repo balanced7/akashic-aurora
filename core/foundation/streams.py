@@ -9,7 +9,7 @@ tests/test_t030_l3_pipe_immunity.py:
   - a piped stdout must speak in REAL TIME (line-buffered), not at buffer-fill -- a
     live runner that looks dead for minutes is the RB-29-lineage complaint.
 
-Spec: docs/agent-liveness-tier-2026-07.md FINAL SLICE LIST L3.
+Spec: docs/library/design/20260701_agent-liveness-tier-stuck-lost-agent-fai_8c0d79.md FINAL SLICE LIST L3.
 """
 from __future__ import annotations
 

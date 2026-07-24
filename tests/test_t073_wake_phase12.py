@@ -1,6 +1,6 @@
 """T073 Phase 1+2 PRE-REGISTERED ACCEPTANCE -- incarnation addressing + wake allowlist.
 
-Reconciled spec: research/reviewed/t073-wake-reconciliation-2026-07-15.md (deepseek
+Reconciled spec: docs/library/report/20260715_t073-wake-communicate-reconciliation-cla_a6fc12.md (deepseek
 design half governs; ONE build refinement flagged for his verify): frm_incarnation-based
 FILTERING needs session-identity plumbing every CLI subprocess lacks (a pid-scoped
 default would make a session's own sends WAKE ITS OWN SEAT -- worse noise). So Phase 1

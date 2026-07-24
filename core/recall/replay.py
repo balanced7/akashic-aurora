@@ -1,4 +1,4 @@
-"""Forge F0 -- replay harness + data-sufficiency audit (docs/lesson-forge-design-2026-07.md sec.9).
+"""Forge F0 -- replay harness + data-sufficiency audit (docs/library/design/20260701_lesson-forge-evidence-gated-content-opti_fd3204.md sec.9).
 
 The Forge gate's premise (sec.4, independently derived by claude and DeepSeek under a
 fence): the matcher is deterministic and history is durable, so RETRIEVAL behavior is

@@ -1,6 +1,6 @@
 """A3 migration pipeline: the ~900-file corpus -> enriched atoms, verified, gated.
 
-Spec: docs/artifact-substrate-design-2026-07.md section 8 + docs/taxonomy-ergonomics-
+Spec: docs/library/design/20260701_artifact-substrate-the-reconciled-design_8ea728.md section 8 + docs/taxonomy-ergonomics-
 reconciliation-2026-07.md section 6 (enrich-before-delete; acceptance bars) + deepseek
 fence bites (idempotency skip-map, strip prose headers pre-gist, per-atom sha verify)
 + kimi bar (strong rels from supersession evidence; census lists = fixtures).

@@ -1,7 +1,7 @@
 """S0-gamma-a pins -- wake-detection dedup (scripts/bifrost_wake.py).
 
 Spec: note s0-gamma-wake-dedup (2026-07-21) under the recovery arc's S0 floor
-(docs/recovery-arc-design-2026-07.md). Trigger: ~6 watcher wake-cycles burned in one
+(docs/library/design/20260701_recovery-arc-reconciled-design-superviso_ce9a9e.md). Trigger: ~6 watcher wake-cycles burned in one
 hour on LOGICAL duplicates -- dual-write twins (T039a/T044) and RB-26 redeliveries of
 mail the session had been woken for but not yet consumed. Cure: a session-scoped
 sidecar of already-detected logical ids ((frm, ts, kind), BifrostAPI._dedup_key's

@@ -1,7 +1,7 @@
 """W48 pins — tally: the blind-counter consensus matrix (kimi builder round 2026-07-21).
 
-Design: kimi's tools-hunt #4 (research/reviewed/kimi-tools-hunt-tonight-2026-07-21.md);
-charter brief research/briefs/kimi-builder-tally-brief-2026-07-21.md. tally <opening-file>
+Design: kimi's tools-hunt #4 (docs/library/report/20260721_tools-hunt-tonight-s-edition-kimi-2026-0_974493.md);
+charter brief docs/library/brief/20260721_kimi-builder-brief-w48-tally-builder-rou_0cbf1e.md. tally <opening-file>
 scans research/ for counter files that NAME the opening, aligns their Q-ids
 (Q1/Q2/... / B1/B2/...), and prints the agree/conflict matrix so the committer sees
 consensus at a glance instead of eyeballing 2-3 blind counters. Born from the seat-zero
@@ -167,10 +167,10 @@ def test_p6_empty_research_dir_no_crash(tmp_path):
 
 
 def test_p7_author_derivation_both_filename_orders():
-    opening = "research/drafts/packet-routing-opening-claude-2026-07-17.md"
-    assert tl._author("research/reviewed/kimi-seat-zero-counter-2026-07-21.md",
+    opening = "docs/library/design/20260717_packet-routing-internal-apis-claude-open_595704.md"
+    assert tl._author("docs/library/report/20260721_seat-zero-wave-kimi-s-hard-counter-fresh_8d4726.md",
                       "research/drafts/" + OPENING_NAME) == "kimi"
-    assert tl._author("research/drafts/packet-routing-counter-deepseek-2026-07-17.md",
+    assert tl._author("docs/library/design/20260717_packet-routing-deepseek-counter-round-2_c66cdb.md",
                       opening) == "deepseek", "author-last order resolves too"
 
 

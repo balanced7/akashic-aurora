@@ -1,4 +1,4 @@
-"""Recall vNext (docs/recall-vnext-2026-07.md) -- the four closed loops.
+"""Recall vNext (docs/library/design/20260701_recall-vnext-closing-the-four-loops-2026_b93539.md) -- the four closed loops.
 
 Pins: (1) CURATION -- bench fires only on exposure+time+zero-credit, unbench restores on any credit,
 graduated lessons are out of scope, benched lessons leave the surface projection; (2) PRECISION --

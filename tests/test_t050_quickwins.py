@@ -1,6 +1,6 @@
 """T050 -- wishlist quick-wins bundle (both agents' felt friction; synthesis Q1-Q6).
 
-Design record: research/reviewed/wishlist-synthesis-2026-07-14.md (two blind halves converged).
+Design record: docs/library/report/20260714_wishlist-synthesis-both-seats-one-map-20_90759f.md (two blind halves converged).
 
 Pins:
   W1 _trim_onboarding: under-budget unchanged; over-budget NAMES dropped sections + pull

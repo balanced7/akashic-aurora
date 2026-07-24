@@ -1,7 +1,7 @@
 """Taxonomy constants + the birth-door classifier (A1, homes-and-order round).
 
-Spec: docs/taxonomy-ergonomics-reconciliation-2026-07.md (ratified 2026-07-23; Daniel's
-gate verbatim in research/briefs/taxonomy-ergonomics-think-pass-2026-07-23.md).
+Spec: docs/library/design/20260701_homes-and-order-reconciled-to-constants_beaca7.md (ratified 2026-07-23; Daniel's
+gate verbatim in docs/library/brief/20260723_the-homes-and-order-pass-last-think-befo_7917d3.md).
 
 Bootstrap posture: the roster lives here as code-loaded data until A3, when it migrates
 into a governed taxonomy atom (the reconciliation, section 7). Growing the roster goes

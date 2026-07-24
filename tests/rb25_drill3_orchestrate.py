@@ -1,7 +1,7 @@
 """
 RB-25 Drill 3 -- STORM orchestrator (execution harness; claude's executor for deepseek's frozen burst).
 
-Runbook split (docs/rb25-exam-runbook-2026-07-11.md): deepseek AUTHORS the burst
+Runbook split (docs/library/design/20260711_rb-25-engine-exam-runbook-pre-registered_9356ea.md): deepseek AUTHORS the burst
 (tests/rb25_drill3_burst.py, frozen), claude EXECUTES it against a live fleet. This harness
 runs the whole storm deterministically in ONE process so the interactive-by-design drill
 (mid-burst TASKKILL on operator signal) is reproducible and non-interactive:
@@ -298,7 +298,7 @@ def main():
         ev["paused_during_burst"] = control.is_paused()
         if ev["paused_during_burst"]:
             note("!! bus got PAUSED during the burst (reply RateLimiter runaway guard) -- S3/S5 "
-                 "reads are INVALID. See research/claude-s3-diagnosis-2026-07-12.md. Clearing to recover.")
+                 "reads are INVALID. See docs/library/design/20260712_rb-25-drill-3-s3-wedge-root-cause-diagno_d92cb6.md. Clearing to recover.")
             control.resume()
 
         # -- 6. start the successor (same id as the corpse) ----------------------------
@@ -468,7 +468,7 @@ def main():
                   f"consumed={ev.get('session_leg', {}).get('consumed_count')}")
         if ev.get("paused_during_burst"):
             print("  !! INVALID RUN: bus was PAUSED mid-burst (reply RateLimiter runaway guard) -- "
-                  "S3/S5 are UNTESTABLE this run. Fix A+B (research/claude-s3-diagnosis-2026-07-12.md) "
+                  "S3/S5 are UNTESTABLE this run. Fix A+B (docs/library/design/20260712_rb-25-drill-3-s3-wedge-root-cause-diagno_d92cb6.md) "
                   "must land before a valid re-run.")
         print(f"\nevidence -> {evidence_path}")
         print(f"ledger   -> {ledger_path}")

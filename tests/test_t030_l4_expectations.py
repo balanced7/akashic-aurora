@@ -1,6 +1,6 @@
 """
 T030 L4 / RB-29 -- sender-side deadline + redrive: pre-registered acceptance
-(committed BEFORE impl, M3/T031). Spec: docs/agent-liveness-tier-2026-07.md L4 BUILD
+(committed BEFORE impl, M3/T031). Spec: docs/library/design/20260701_agent-liveness-tier-stuck-lost-agent-fai_8c0d79.md L4 BUILD
 SPEC (claude concretization of the adopted deepseek half; deepseek design-review gates
 impl).
 

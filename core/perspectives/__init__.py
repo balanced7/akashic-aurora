@@ -5,7 +5,7 @@ The substrate (Ledger + beats + typed edges) stays sacred and immutable. This la
 swappable: Maps (structural projections) + Perspectives/Lenses (value-sets) + a
 reinforced association graph (edges that strengthen with co-use, decay without).
 
-See docs/perspectives-maps-plan.md.  Slice P0 = schema; P1 = reinforcement.
+See docs/library/design/20260709_perspectives-maps-build-plan-the-interpr_5a5e0a.md.  Slice P0 = schema; P1 = reinforcement.
 """
 from core.perspectives.schema import (
     Lens, Map, valid_relationship, VALID_DOMAINS,

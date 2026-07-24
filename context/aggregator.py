@@ -6,7 +6,7 @@ Semantic Relationship: AssembledContext aggregated_from AllLoaders (within budge
 The Context pillar's one public entrypoint. It calls each loader (briefing /
 decisions / learnings / blockers / project state), then fits the result to a hard
 token budget — because "context rot" means more tokens is *worse*, so the budget is
-a feature (see docs/context-compaction-skeleton-research.md).
+a feature (see docs/library/design/20260620_research-context-handling-compaction-and_e5960c.md).
 
 This is the *assembly* stage: rank (in the loaders) + budget-trim here. It does NOT
 yet LLM-summarize — that's the Distiller (Wave 3). Every entry keeps its `source`

@@ -1,8 +1,8 @@
 """T044 (T039a) PRE-REGISTERED ACCEPTANCE -- lane router + dual-write + trace exemption.
 
 Committed BEFORE implementation (method-baseline pre-registration; T031 rule practiced).
-Cites docs/t039-lanes-latches-design-2026-07.md (Daniel gate 2026-07-13) and the LAW packet
-spec (docs/packet-spec-v1-2026-07.md R5/R6 + amend E).
+Cites docs/library/design/20260701_t039-purpose-keyed-lanes-latches-governi_7bc135.md (Daniel gate 2026-07-13) and the LAW packet
+spec (docs/library/design/20260701_packet-spec-v1-reconciled-build-spec-dua_a50b94.md R5/R6 + amend E).
 
 Bars:
   B1 per-kind router pins: every control kind -> sig, NEVER trace; unknown kind -> NO lane

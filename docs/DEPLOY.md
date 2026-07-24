@@ -122,7 +122,7 @@ Mark which recalled lessons actually helped so ranking improves over time:
 
 Two agents (e.g. Claude + Cursor) can share one substrate. Give each a distinct `AKASHIC_AGENT_ID`, run a
 shared Redis (§5), and they coordinate via advisory path-locks and the message bus. See
-[`docs/concurrency-design.md`](concurrency-design.md).
+[`docs/library/design/20260709_concurrent-agents-reinforcing-two-peers_5f6723.md`](concurrency-design.md).
 
 ## 8. Troubleshooting
 

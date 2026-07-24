@@ -21,8 +21,8 @@ keep the expectation armed so the redrive fires.
 Records are Redis-ephemeral coordination state, not durable knowledge -- losing Redis
 is the bigger RB-30 event and voids the expectations with it (design-review AFFIRMED).
 
-Spec: docs/agent-liveness-tier-2026-07.md L4 BUILD SPEC.
-Review: research/reviewed/deepseek-t030-l4-review-2026-07-11.md (AFFIRM x5).
+Spec: docs/library/design/20260701_agent-liveness-tier-stuck-lost-agent-fai_8c0d79.md L4 BUILD SPEC.
+Review: docs/library/report/20260711_t030-l4-design-review-deepseek-fenced-ga_6a89fd.md (AFFIRM x5).
 """
 from __future__ import annotations
 

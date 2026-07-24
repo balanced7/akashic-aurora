@@ -1,9 +1,9 @@
 """
 Wave 3 / RB-8 -- CAS on the note-supersession write: the chain cannot fork under
 concurrency. Pre-registered acceptance, committed BEFORE the implementation (M3 /
-T031 hook 2). Spec: docs/w3-build-spec-2026-07-11.md (dual-half, reconciled).
+T031 hook 2). Spec: docs/library/design/20260711_wave-3-reconciled-build-spec-rb-8-12-dic_4f427b.md (dual-half, reconciled).
 
-Bar (slice text, docs/resilience-battery-slices-2026-07.md RB-8): two concurrent
+Bar (slice text, docs/library/design/20260701_resilience-battery-sliced-execution-plan_8d660c.md RB-8): two concurrent
 supersessions of one title leave exactly ONE active note; the loser errors loudly
 naming the winner; the chain stays linear.
 

@@ -3,7 +3,7 @@ Triage park (S0-alpha) -- the scry-to-bottom bench.
 
 Semantic Relationship: TriagePark bottoms StaleAsks (durable bench; never a drop)
 
-Recovery-arc S0's substrate (docs/recovery-arc-design-2026-07.md: deepseek BULKHEAD-0 ∪
+Recovery-arc S0's substrate (docs/library/design/20260701_recovery-arc-reconciled-design-superviso_ce9a9e.md: deepseek BULKHEAD-0 ∪
 kimi R4 ∪ claude B1). The Canon's law: triage = scry-to-bottom -- a stale ask is BOTTOMED
 to a durable per-agent bench so fresh mail flows, and it is NEVER dropped (the
 graveyard-is-a-resource law applies to the bench too). RB-29 rides every park: the SENDER

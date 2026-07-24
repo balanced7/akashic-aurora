@@ -74,7 +74,7 @@ to a SERVING file requires a same-turn reload + render receipt.**
 **C9-3 · Crown-artifact register outruns its receipts: a phantom citation, an
 asserted-not-implemented blind, and "proven" contradicted by the organ's own ledger**
 (2026-07-21 late eve; failures by the claude/Fable conductor seat, found by kimi's independent
-blind audit — research/reviewed/kimi-fable5-observation-2026-07-21.md F1–F3). Three instances,
+blind audit — docs/library/report/20260721_kimi-independent-observation-of-the-fabl_049623.md F1–F3). Three instances,
 one genus: (1) the E1 protocol cited "the contamination guard kimi's arc-replay counter warned
 about" — no such counter exists (still queued): a false citation inside the one doc whose whole
 purpose is rigor about what is and isn't real. (2) `launch_fable_e1.ps1:11` commented that the
@@ -96,7 +96,7 @@ this time only because a stranger hunted.**
 
 **C9-1 · Self-justifying knowledge loop: agents author, verify, and ledger their own claims
 — no external ground truth crosses the membrane** (2026-07-16, RED team Jester Forge audit)
-The RED-team threat model (research/reviewed/jester-red-deepseek-2026-07-16.md) found that
+The RED-team threat model (docs/library/report/20260716_jester-forge-red-team-threat-model_a844d5.md) found that
 the knowledge layer has NO defense against fabricated claims: `knowledge_note` writes the
 fleet's canonical "where-we-are" state with zero content validation (agent_cli.py:1285);
 `knowledge_learn` stores lessons with self-reported success and self-reported agent_id
@@ -603,7 +603,7 @@ until user-interrupt; the CLI boot then returned in 345ms). The wedged-MCP state
 motivation for tonight's cleanup sweep (→ C4-2), so this quirk has now cost a session —
 upgraded from log-only.
 Root cause NAMED 2026-07-17 (triple-confirmed: claude empirical bisect + deepseek surface
-analysis + Gemini + code evidence; research/reviewed/hardening-reconciliation-2026-07-17.md
+analysis + Gemini + code evidence; docs/library/report/20260717_crash-hardening-reconciliation-the-build_8b9062.md
 S1): a **subprocess spawned inside `cmd_boot` inherits the server's stdout handle**; on Windows
 the asyncio **ProactorEventLoop defers the pending stdout WriteFile completion until the next
 inbound stdin frame** wakes the loop and sweeps its I/O queue. This is why `sleep(5)` and

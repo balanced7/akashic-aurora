@@ -1,7 +1,7 @@
 """
 Auto-logger Slice 2 -- auto-hooks: capture happens BY ITSELF at the seams we control.
 
-Acceptance bar (docs/auto-logger-plan.md):
+Acceptance bar (docs/library/design/20260714_cross-agent-auto-logger-design-slice-pla_6d21c5.md):
   - a normal boot -> learn -> commit -> session-end flow yields raw events with ZERO
     manual capture calls;
   - each hook stays green if capture throws (fault injection: capture raises ->

@@ -19,7 +19,7 @@ Superseded items are excluded (Supersession-aware): an item is active unless it
 carries `superseded: True`. Until AgentMemory Phase B stamps that field, every
 item is active, so this is safe now and "just works" later.
 
-See docs/shared-primitives-spec.md and docs/context-compaction-skeleton-research.md.
+See docs/library/design/20260619_shared-primitives-interface-spec_03e098.md and docs/library/design/20260620_research-context-handling-compaction-and_e5960c.md.
 """
 
 import re

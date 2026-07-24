@@ -1,7 +1,7 @@
 """T029 Wave 2 pins -- the per-session wake-seat protocol (core/comm/wake_seat.py).
 
-Kill conditions from docs/resilience-battery-2026-07.md sec. 6 + the reconciled K6-K8
-(docs/resilience-wave2-seat-design-2026-07.md). Hermetic: fake seats in tmp_path, injected
+Kill conditions from docs/library/design/20260701_the-resilience-battery-stress-tests-vali_7b7b49.md sec. 6 + the reconciled K6-K8
+(docs/library/design/20260701_wave-2-design-claude-fenced-wake-seat-ow_7c4aaf.md). Hermetic: fake seats in tmp_path, injected
 snapshots, no Redis, no WMI, no processes killed. The one live-drill item (two real
 sessions, 3 start/stop cycles) is a runbook, not a pytest -- see the design doc B4.
 """

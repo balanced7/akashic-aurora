@@ -1,8 +1,8 @@
 """T074 Phase 1 pins -- whisper v2: the SessionStart whisper BECOMES the primer.
 
 PRE-REGISTERED acceptance for pins W1-W6 of the reconciled build spec
-(research/reviewed/t074-continuity-reconciliation-2026-07-15.md; deepseek's half
-research/reviewed/deepseek-t074-continuity-design-2026-07-15.md GOVERNS).
+(docs/library/report/20260715_t074-seamless-continuity-reconciliation_89103c.md; deepseek's half
+docs/library/report/20260715_t074-session-continuity-design-deepseek_234abf.md GOVERNS).
 
 Section order (recon contract): DIRECTIVE > WHERE (age+curated) > SIBLINGS > DELTA >
 THEMES > MAIL > DRAFT > FUNNEL > BOOT (+STORY in spill). Drop order bottom-up;

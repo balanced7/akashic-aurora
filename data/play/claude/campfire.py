@@ -5,7 +5,7 @@ kimi's B1 from the tools hunt, built by claude during Daniel's free-play session
 "the day's bus flow rendered as a small story... with the day's minted verbs as its artifacts.
 Not a report -- a NARRATIVE."
 
-PLAY-tier laws honored (docs/self-tooling-design-2026-07.md amendment + deepseek sandbox spec):
+PLAY-tier laws honored (docs/library/design/20260701_self-tooling-arc-reconciled-design-agent_29f578.md amendment + deepseek sandbox spec):
 read-only against the repo; writes ONLY to data/play/claude/out/ + a run receipt to
 data/play/claude/runs/. Evidence: GUESS by construction (a play draft confesses).
 

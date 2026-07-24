@@ -1,6 +1,6 @@
 """T068-R3 PRE-REGISTERED ACCEPTANCE -- the pre-flight assertion runner.
 
-Design half: research/reviewed/deepseek-t068r3-design-2026-07-15.md (deepseek M10 --
+Design half: docs/library/report/20260715_deepseek-t068-r3-design-pre-flight-asser_5eb933.md (deepseek M10 --
 "the seat this gate protects"). Claude builds; deepseek live-drills (fabricated cite ->
 HOLD fires). The gate verifies a directed answer's FACTUAL claims before it leaves the
 runner: A1 file:line cites resolve, A2 evidence events exist, A3 closure language names

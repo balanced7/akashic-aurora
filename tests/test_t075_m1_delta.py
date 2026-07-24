@@ -1,6 +1,6 @@
 """T075 M1-DELTA ACCEPTANCE -- runner as managed child + circuit breaker + summary injection.
 
-Spec: research/reviewed/t060-m1-reconciliation-2026-07-15.md slice M1-delta row 4.
+Spec: docs/library/report/20260715_t060-m1-continuous-presence-reconciliati_32cac4.md slice M1-delta row 4.
 deepseek builds, claude verifies.
 
 Unit tests for DaemonLock and ManagedChild (no live Redis needed).

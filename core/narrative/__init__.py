@@ -1,7 +1,7 @@
 """
 core.narrative — the multi-domain narrative spine (System 4).
 
-Slice 0: schema only. See docs/narrative-spine-plan.md.
+Slice 0: schema only. See docs/library/design/20260709_narrative-spine-design-plan-system-4-cap_2357df.md.
 """
 from core.narrative.schema import (
     Beat, Chapter, Track, Theme, Atlas, Edge,

@@ -16,7 +16,7 @@ that were working."
 
 ### Part 1: Sync & Plan Protocol (design only — not yet implemented)
 
-Full design in `docs/bifrost-sync-plan.md`. Five layers:
+Full design in `docs/library/design/20260709_bifrost-sync-plan-protocol_c70323.md`. Five layers:
 
 1. **Agent State Tracking** — per-agent Redis key (`bifrost:control:agent_state:<agent>`)
    with state machine: running → pausing → paused → acknowledged
@@ -55,7 +55,7 @@ Implementation order: P1 (state tracking + UI) → P2 (barrier) → P3 (planning
 
 - **Positive:** Tomorrow: one click restores today's fleet. Pause→plan→commit→go
   protocol designed and ready for implementation. Design doc lives at
-  `docs/bifrost-sync-plan.md`.
+  `docs/library/design/20260709_bifrost-sync-plan-protocol_c70323.md`.
 - **Negative:** Sync/plan protocol is design-only (4 phases, ~6h to implement).
   Session save/restore covers the immediate need ("spin up same agents tomorrow").
 - **Risk:** The `/session/*` stubs were already in the UI code referencing a

@@ -1,6 +1,6 @@
 """
 Perspectives P0 (Lens/Map schema) + P1 (reinforcement) tests, with the acceptance
-bars from docs/perspectives-maps-plan.md:
+bars from docs/library/design/20260709_perspectives-maps-build-plan-the-interpr_5a5e0a.md:
   P0: round-trip + validation against the real vocabulary; built-ins valid.
   P1: bounded (no runaway) + correct decay + deterministic + co-activation.
 

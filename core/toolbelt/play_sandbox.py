@@ -3,7 +3,7 @@ play_sandbox (T099 · play-tier sandbox) — the bounded subprocess that runs pl
 
 Semantic Relationship: PlaySandbox hosts one play-tool run under the families gate.
 
-The play tier's law (docs/self-tooling-design-2026-07.md + tooldesk-crosscheck-kimi-2026-07-20):
+The play tier's law (docs/library/design/20260701_self-tooling-arc-reconciled-design-agent_29f578.md + tooldesk-crosscheck-kimi-2026-07-20):
   SANDBOX     — play tools run in a bounded subprocess: path-jailed (writes only to
                 data/play/<agent>/out/), timeout-capped, output-capped, network-off by
                 default, one-level subprocess only (close_fds, stdin=DEVNULL per C7-4).

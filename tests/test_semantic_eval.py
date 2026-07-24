@@ -3,7 +3,7 @@
 Run: py tests/test_semantic_eval.py   (prints baselines + a best-effort LLM-judge probe)
  or: py -m pytest tests/test_semantic_eval.py
 
-Companion: docs/recall-critic-decision.md. Scores a binary JUDGE against the labeled datasets in
+Companion: docs/library/design/20260709_keeping-recall-honest-critic-vs-dialecti_1a5498.md. Scores a binary JUDGE against the labeled datasets in
 fixtures/semantic_eval_fixture. Ships a null baseline (characterizes class balance -- the number a
 real judge must beat) and, in __main__ only, a best-effort probe of an LLM judge (the future gate),
 so we get an early read on viability WITHOUT making the gate a dependency or the network a test req.

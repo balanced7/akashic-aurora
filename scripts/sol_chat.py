@@ -6,7 +6,7 @@ deepseek-named on this surface. Peer modules: ask_gpt.py (one-shot CLI opinions,
 bifrost_runner_sol.py (the seat's body -- lands after the T090 architecture verdict with
 deepseek-review).
 
-WHY THE RESPONSES API (receipts: research/drafts/sol-probe-receipts-2026-07-17.md):
+WHY THE RESPONSES API (receipts: docs/library/design/20260717_sol-gpt-5-6-live-api-probe-receipts-2026_ae0409.md):
   /v1/chat/completions REFUSES function tools while reasoning is on for this model
   ("Function tools with reasoning_effort are not supported ... use /v1/responses or set
   reasoning_effort to 'none'"). A frontier seat with reasoning off is lobotomized, so the

@@ -2,7 +2,7 @@
 
 Hermetic: the caller and the availability probe take an injectable `opener`, so no test touches the
 network. The roster reads the bundled models.json (local file), so it needs no injection. Design:
-docs/fleet-dispatch-design.md.
+docs/library/design/20260709_fleet-dispatch-an-intelligent-easy-struc_303d15.md.
 """
 import json
 import os

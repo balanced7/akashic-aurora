@@ -1,8 +1,8 @@
 """T045 stage 2 (T039b) PRE-REGISTERED ACCEPTANCE -- the CONSUME side cuts to the WORK LANE.
 
 Committed RED before implementation (method pre-registration; acceptance commit <= impl
-commit). Cites research/claude-t045-stage2-scope-2026-07-14.md (reconciled on deepseek's
-AMBER fence, fold CONFIRMed 2026-07-14) and docs/t039-lanes-latches-design-2026-07.md
+commit). Cites docs/library/design/20260714_t045-stage-2-runner-consume-cutover-scop_b9c06c.md (reconciled on deepseek's
+AMBER fence, fold CONFIRMed 2026-07-14) and docs/library/design/20260701_t039-purpose-keyed-lanes-latches-governi_7bc135.md
 (T039b bars A4/P3/P4/M2). Fence record: research/reviewed/
 deepseek-t045-stage2-scope-review-2026-07-14.md.
 

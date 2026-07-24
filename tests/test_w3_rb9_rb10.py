@@ -1,6 +1,6 @@
 """
 Wave 3 / RB-9 + RB-10 -- pre-registered acceptance (committed BEFORE impl, M3/T031).
-Spec: docs/w3-build-spec-2026-07-11.md sections RB-9, RB-10.
+Spec: docs/library/design/20260711_wave-3-reconciled-build-spec-rb-8-12-dic_4f427b.md sections RB-9, RB-10.
 
 RB-9  title normalization: NFC+strip at the door (landed with RB-8), read-side bridge for
       pre-RB-9 dirty titles, collision scan surface (flag, never auto-merge).

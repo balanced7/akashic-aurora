@@ -30,7 +30,7 @@ jobs:
         run: python -m pip install -r requirements.txt numpy  # numpy = optional embedding subsystems; exercised in CI
       # The comprehensibility immune system -- the unbypassable REMOTE gate: every push/PR is checked,
       # so drift can't reach the shared repo via any local path (mirror/git commit that skipped hooks).
-      # See docs/comprehensibility-immune-system-2026-07.md.
+      # See docs/library/design/20260701_the-comprehensibility-immune-system-desi_339b01.md.
       - name: Architecture boundary guardrail
         run: python scripts/check_boundaries.py
       - name: Doc-freshness guardrail

@@ -1,5 +1,5 @@
 """T073 Phase 3 pins -- the long-lived watcher (deepseek Design 3, adopted verbatim by
-research/reviewed/t073-wake-reconciliation-2026-07-15.md): P7 (survives past the old
+docs/library/report/20260715_t073-wake-communicate-reconciliation-cla_a6fc12.md): P7 (survives past the old
 30-min deadline without re-arm), P8 (near-deadline exit writes the re-arm trigger),
 P9 (stop hook stays the BACKSTOP -- dead watcher still blocks, message reworded to
 re-launch-ONCE semantics).

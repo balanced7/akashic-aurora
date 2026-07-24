@@ -1,6 +1,6 @@
 """T078 W1 ACCEPTANCE — C6 token dashboard + T056 join (the meter).
 
-Spec: research/reviewed/t078-capability-surface-reconciliation-2026-07-15.md
+Spec: docs/library/report/20260715_t078-capability-surface-reconciliation-c_6a088d.md
 ruling R1: meters before levers. deepseek builds, claude verifies.
 
 Three parts built:

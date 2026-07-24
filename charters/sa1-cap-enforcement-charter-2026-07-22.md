@@ -3,7 +3,7 @@
 Status: chartered (2026-07-22, deepseek per R001 Part A — first self-charter)
 Type: whole-arc · Arc: security-schema / trust-substrate · Owner: deepseek
 Gate: Daniel at charter (now), design, ship — fence evidence self-presented
-Authority: docs/rulings/R001-deepseek-trust-2026-07-22.md Part A ("whole-arc ownership is your DEFAULT")
+Authority: docs/library/design/20260722_ruling-r001-deepseek-trusted-with-more_3b86eb.md Part A ("whole-arc ownership is your DEFAULT")
 
 ## Why this arc, why now
 

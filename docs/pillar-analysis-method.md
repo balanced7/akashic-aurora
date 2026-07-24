@@ -2,7 +2,7 @@
 
 Status: current  (2026-07-09, P4: Standing method; stable altitude)
 
-**Origin:** distilled 2026-07-08 from the recall vNext arc (docs/recall-vnext-2026-07.md), which
+**Origin:** distilled 2026-07-08 from the recall vNext arc (docs/library/design/20260701_recall-vnext-closing-the-four-loops-2026_b93539.md), which
 followed it end-to-end; the membrane/Renew and bookends arcs used the same shape. Written at
 stable altitude (process, not code specifics) so it doesn't rot. Apply it to any pillar:
 coordination, narrative spine, trust, the doors, the UI.
@@ -57,5 +57,5 @@ coordination, narrative spine, trust, the doors, the UI.
 - Its docs claim more than its wiring delivers.
 - You feel friction using it but the metric says "fine" (or vice versa) — the aperture is wrong.
 
-*Worked example with all numbers: docs/recall-vnext-2026-07.md. Companion discipline:
+*Worked example with all numbers: docs/library/design/20260701_recall-vnext-closing-the-four-loops-2026_b93539.md. Companion discipline:
 investigate-before-delete, blind-crosscheck fencing, evidence-gate-every-slice (see LESSONS).*

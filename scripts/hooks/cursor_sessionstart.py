@@ -5,7 +5,7 @@ Pinned from the live Cursor hooks docs (cursor.com/docs/agent/hooks, fetched 202
 sessionStart may return {"env": {...}, "additional_context": "..."} and the env vars
 PROPAGATE to every later hook in the session -- so identity and the session cue ship in
 ONE hook. (beforeSubmitPrompt cannot inject, so Cursor has no plan-time altitude; see
-docs/integration-tiers.md.)
+docs/library/design/20260709_integration-tiers-what-each-harness-actu_38278c.md.)
 
 Identity: AKASHIC_AGENT_ID defaults to "composer" (the Cursor peer's id); an explicitly
 set env wins. The whisper is agent/harness/context.py -- the same text every harness

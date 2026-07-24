@@ -1,6 +1,6 @@
 """followup — the question-back channel for fire-and-forget charters (W46).
 
-Born from kimi's tools hunt (#2, research/reviewed/kimi-tools-hunt-tonight-2026-07-21.md):
+Born from kimi's tools hunt (#2, docs/library/report/20260721_tools-hunt-tonight-s-edition-kimi-2026-0_974493.md):
 a charter seat closes a verdict with an open ask and the only channel back was relaunching
 the whole round. One verb now writes BOTH halves at once:
 

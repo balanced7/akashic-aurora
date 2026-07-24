@@ -1,7 +1,7 @@
 """Pre-flight assertions (T068-R3 / deepseek M10) -- verify a directed answer's FACTUAL
 claims before it leaves the runner.
 
-Design: research/reviewed/deepseek-t068r3-design-2026-07-15.md ("the seat this gate
+Design: docs/library/report/20260715_deepseek-t068-r3-design-pre-flight-asser_5eb933.md ("the seat this gate
 protects -- I know exactly what claims I'm tempted to make"). NOT a fence review (that
 is post-send, different agent) and NOT a quality gate: a wrong design with verifiable
 citations passes; a correct design with a fabricated citation holds.

@@ -1,7 +1,7 @@
 """T066 PRE-REGISTERED ACCEPTANCE -- reply path goes lane-first + reply dedup.
 
 Committed RED before implementation (method-baseline pre-registration). Design half:
-research/reviewed/deepseek-t066-design-2026-07-15.md (deepseek traces his OWN reply path);
+docs/library/report/20260715_deepseek-t066-design-reply-path-lane-rou_391fe0.md (deepseek traces his OWN reply path);
 evidence: event:events:raw:1784082287759-0 + 1784003725351-0 (five wake-loop cycles on
 Daniel's seat, 2026-07-14/15).
 

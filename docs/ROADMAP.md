@@ -6,17 +6,17 @@ Status: historical  (2026-07-09, P4: Self-declares historical; notes are living)
 > and is now historical.** Those waves shipped; the work since (intelligence spine, recall-at-action
 > + the outcome-credited funnel, the leapfrog plan, the local-model fleet, corpus sharpening S1/S2,
 > and the revealed a-series assistant goal) lives in the durable **notes** — run `py agent_cli.py boot claude`
-> then `notes --json`; that is the living "START HERE". Recent design docs: `docs/fleet-dispatch-design.md`
-> (calling local models), `docs/s2-consolidation-design.md` (corpus sharpening). The waves below still
+> then `notes --json`; that is the living "START HERE". Recent design docs: `docs/library/design/20260709_fleet-dispatch-an-intelligent-easy-struc_303d15.md`
+> (calling local models), `docs/library/design/20260709_s2-the-consolidation-pass-that-sharpens_68d42c.md` (corpus sharpening). The waves below still
 > hold as the bedrock they built.
 >
 > **ACTIVE TRACKS (2026-07, current work — plans live in their design docs):**
 > - **Reliability / supervision (L0–L4)** — keep the agent fleet alive & recoverable.
->   Plan: `docs/agent-failure-modes-mitigation-roadmap-2026-07.md`. Shipped: L0/L1/L5/L3a/L3b/L3b-auto.
+>   Plan: `docs/library/design/20260701_agent-failure-mode-mitigation-roadmap-ph_7d1620.md`. Shipped: L0/L1/L5/L3a/L3b/L3b-auto.
 > - **The Mediation Membrane (System 5 / agent experience)** — the substrate between agents and Akashic
 >   that cuts the cognitive load of using it (Surface / Capture / Enforce / **Unify the door**). This is
 >   the fuller framing of the old *Wave 4 (Unify the ACI)* below — the membrane already exists as the
->   half-built **hook layer**. Plan: `docs/agent-membrane-design-2026-07.md`. **Status: designed, in
+>   half-built **hook layer**. Plan: `docs/library/design/20260701_the-mediation-membrane-founding-design-n_4f941f.md`. **Status: designed, in
 >   research before the first slice (door-parity).**
 > - **Comprehension layer** — ARCHITECTURE/LEXICON/PRINCIPLES/INDEX now guarded by `check_comprehensibility.py`.
 
@@ -29,8 +29,8 @@ wasted. Read this first; the linked docs are the depth.
 A layered stack — each layer built on the one below, agents touch only the top:
 
 ```
-System 5  Agent Interface (ACI)      how agents DO things        docs/agent-interface-aci.md
-System 4  Context pillar             what agents KNOW            docs/context-pillar-plan.md
+System 5  Agent Interface (ACI)      how agents DO things        docs/library/design/20260619_the-agent-interface-system-5-aci-thought_1b1edb.md
+System 4  Context pillar             what agents KNOW            docs/library/design/20260709_context-pillar-system-4-design-consolida_89733b.md
 System 1-3 Domain: memory, signals,  decisions/learnings/        docs/learning-memory-*.md
            coordination               coordination
 System 0  Foundation: Store + Ledger  persistence (state/events)  docs/architecture.md   [DONE]
@@ -51,11 +51,11 @@ a clean persistence foundation.
 
 | Doc / memory | What it gives the plan |
 |--------------|------------------------|
-| `docs/codebase-audit.md` | prioritized cleanup backlog; clean-core/stale-shell finding |
-| `docs/learning-memory-analysis.md` + `-integration-plan.md` | CoALA mapping; Reflexion guardrails; Phases B–E |
-| `docs/context-pillar-plan.md` | 5-phase Context design reusing project_context.py |
-| `docs/agent-interface-aci.md` | System 5: unify the door; errors teach; measure |
-| `docs/coding-principles-research.md` | DDD ubiquitous language; refactor patterns; **guardrails** |
+| `docs/library/design/20260619_codebase-audit-readability-robustness-si_8be0b1.md` | prioritized cleanup backlog; clean-core/stale-shell finding |
+| `docs/library/design/20260709_agent-memory-analysis-of-learning-store_5ec82f.md` + `-integration-plan.md` | CoALA mapping; Reflexion guardrails; Phases B–E |
+| `docs/library/design/20260709_context-pillar-system-4-design-consolida_89733b.md` | 5-phase Context design reusing project_context.py |
+| `docs/library/design/20260619_the-agent-interface-system-5-aci-thought_1b1edb.md` | System 5: unify the door; errors teach; measure |
+| `docs/library/design/20260619_coding-principles-research-naming-clarit_bd2faf.md` | DDD ubiquitous language; refactor patterns; **guardrails** |
 
 ## The key insight: build cross-cutting primitives ONCE
 
@@ -158,10 +158,10 @@ current behavior before Wave 2/3 to prove no regression.
 
 ## Progress
 - Wave 0 ✅ (LEXICON + guardrails). Bootstrap truth-fix ✅ (.py + .md).
-- Shared-primitives analysis ✅ (`docs/shared-primitives-and-coherence.md`) + interface
-  spec ✅ (`docs/shared-primitives-spec.md`): Supersession → Ranker → Distiller.
+- Shared-primitives analysis ✅ (`docs/library/design/20260619_shared-primitives-coherence-lexicon-anal_9f401a.md`) + interface
+  spec ✅ (`docs/library/design/20260619_shared-primitives-interface-spec_03e098.md`): Supersession → Ranker → Distiller.
 - B1 Redis port single-source-of-truth ✅ (foundation defers to config).
-- COMPLETE lexicon-adherence review ✅ (`docs/lexicon-adherence-review.md`, all 56 modules).
+- COMPLETE lexicon-adherence review ✅ (`docs/library/report/20260620_lexicon-naming-schema-adherence-review-c_bc1348.md`, all 56 modules).
 - Logging: `session_log.py` retired (3→2); `agent_logger` fate pending decision.
 - **Context pillar Phase 1 ✅ COMPLETE 2026-06-20:** `project_context` migrated off
   raw Redis onto a `Store` (Redis-down hard-fail fixed); relocated to

@@ -1,6 +1,6 @@
 """gen_master_map -- regenerate docs/MAP.md: the master map's census matrix (T096-M0, v0).
 
-The charter's law (research/briefs/master-map-charter-2026-07-19.md): the map is a PROJECTION,
+The charter's law (docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md): the map is a PROJECTION,
 not a document. This v0 joins what the code already knows about itself -- each module's line-1
 docstring (gen_arch_index's extractor), the env flags it reads (gen_physics_sheet's scanner),
 a name-matched pin file, and a name-matched design/reference doc -- into one matrix with an
@@ -94,7 +94,7 @@ def render(rows):
         "> does not certify coverage) | env flags read (physics scan). GAP = neither a",
         "> name-matched pin nor a paper: the honest backfill queue, worst first by area.",
         "> Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -",
-        "> PHYSICS.md (bounds+flags) - the charter research/briefs/master-map-charter-2026-07-19.md.",
+        "> PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.",
         "",
         f"## GAP queue ({len(gaps)} of {total} modules lack both pin and paper by name)",
         "",

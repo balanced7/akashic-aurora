@@ -1,6 +1,6 @@
 """daemon_state -- the autopilot's shared surface (slice A1, T075 gamma-scope).
 
-Spec: research/reviewed/presence-autopilot-reconciliation-2026-07-15.md.
+Spec: docs/library/report/20260715_presence-autopilot-reconciliation-claude_b5cb93.md.
 Daniel directive verbatim: note `presence-autopilot-directive`.
 
 Three consumers, one tiny module:

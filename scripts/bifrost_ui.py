@@ -389,7 +389,7 @@ class Handler(BaseHTTPRequestHandler):
 
     # --- session bookends (S4): the episode panel's backend --------------------------------------
     # Thin adapters over core/narrative/episode(_suggester) emitting the locked contract
-    # (docs/session-bookends-design-2026-07.md sec.6), composed exactly like the CLI door
+    # (docs/library/design/20260701_session-bookends-design-for-peer-review_c38e0c.md sec.6), composed exactly like the CLI door
     # (agent_cli `episode current` also injects the S3 suggestion). Lazy imports + fail-soft:
     # the console must keep serving even if the narrative layer hiccups.
     def _episode_current(self):

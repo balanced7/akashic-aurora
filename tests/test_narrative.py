@@ -2,7 +2,7 @@
 Slice 8 — the narrative evaluation harness (the keystone).
 
 Runs the WHOLE acceptance battery against the gold fixture, prints a metrics table,
-and asserts every per-slice bar from docs/narrative-test-plan.md. This is the gate the
+and asserts every per-slice bar from docs/library/design/20260709_narrative-spine-test-verification-plan-b_cc061e.md. This is the gate the
 test plan demands: "a slice ships only when its acceptance bar is met on the fixture."
 It is regression-guarded (pytest) and human-readable (`py tests/test_narrative.py`).
 
@@ -39,7 +39,7 @@ from narrative_metrics import (
 )
 from fixtures.narrative_fixture import gold_rows, gold_qa, GOLD_TRACKS, GOLD_THEME_VOCAB
 
-# ---- acceptance bars (docs/narrative-test-plan.md) ----
+# ---- acceptance bars (docs/library/design/20260709_narrative-spine-test-verification-plan-b_cc061e.md) ----
 ARI_BAR = 0.70
 WINDOWDIFF_BAR = 0.30
 BOUNDARY_F1_BAR = 0.60

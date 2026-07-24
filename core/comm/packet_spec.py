@@ -1,7 +1,7 @@
 """
 Packet Spec v1 -- envelope integrity + MTU library (T040 LAW; built in T043).
 
-Cites docs/packet-spec-v1-2026-07.md (Status: LAW). This module is the SINGLE SOURCE OF
+Cites docs/library/design/20260701_packet-spec-v1-reconciled-build-spec-dua_a50b94.md (Status: LAW). This module is the SINGLE SOURCE OF
 TRUTH for the parts of the packet contract that are pure computation -- the MTU bound, the
 len+sha integrity pair over a canonical serialization, and (below) fragmentation/reassembly
 of oversize payloads. It has NO Redis / IO dependency, so both doors compute identically:
@@ -181,7 +181,7 @@ def tool_args_within_mtu(name: str, args: Any) -> Tuple[bool, str]:
 # ------------------------------------------------------------------ lanes (T039a)
 # Kind -> lane router. R6 rules this file the roster home (families/kinds are contracts,
 # not tunables); the lane CONTRACT (QoS/seat/wake/retention) lives in the LAW spec and the
-# governing design doc (docs/t039-lanes-latches-design-2026-07.md, Daniel gate 2026-07-13).
+# governing design doc (docs/library/design/20260701_t039-purpose-keyed-lanes-latches-governi_7bc135.md, Daniel gate 2026-07-13).
 # Senders cannot choose lanes; the door derives lane from kind.
 LANES = ("work", "sig", "trace")            # + test-* per drill namespace (T039b formalizes)
 
@@ -232,7 +232,7 @@ def is_trace_kind(kind: Any) -> bool:
 # (ledger, incarnation) + drill/test namespaces. This is an ALLOWLIST: a key matching NONE of these,
 # whose family the Store also does not own (checked FIRST, File-is-truth), is a genuine orphan and
 # stays LOUD. Empirically grounded in the 2026-07-16 keyspace census
-# (research/reviewed/w5-heal-reconciliation-2026-07-16.md). The roster can ONLY GROW -- removing a
+# (docs/library/report/20260716_w5-honest-heal-reconciliation-build-spec_c2d63e.md). The roster can ONLY GROW -- removing a
 # pattern risks silencing a real orphan, so a deletion is a reviewed regression, never casual.
 EPHEMERAL_PREFIXES = (
     # bus transport: lane streams, cursors, doorbell, fragment reassembly, fencing, reply-dedup

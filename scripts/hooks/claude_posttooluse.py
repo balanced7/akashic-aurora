@@ -189,7 +189,7 @@ def _emit_context(text: str) -> None:
 # productive sessions (Strand A finding, 2026-07-07); the FAIL half -- the actual degraded-output
 # signal -- was computed here then discarded. Emitted exactly once per failure (gated by the same
 # tool_use_id watermark as the resolve). Best-effort + fail-soft: a label capture must never affect
-# the action. See research/reviewed/renew-stranda-health-signals-2026-07-07.md.
+# the action. See docs/library/report/20260707_renew-strand-a-cheap-deterministic-conte_6eba11.md.
 def _capture_fail(target: str, tool: str) -> None:
     try:
         from core.events.event_log import capture_event

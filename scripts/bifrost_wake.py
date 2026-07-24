@@ -12,7 +12,7 @@ and never fight over one file (the 2026-07-10 kill loop). Every live session wit
 mail (fan-out by design; the ledger + locks absorb twins). Exit codes are operator-facing: ALL
 benign endings (wake-worthy mail, quiet deadline, displaced seat, lost seat) exit 0 with a one-line
 provenance -- nonzero means a real fault (1 wake error, 2 bus offline). Protocol + fence record:
-docs/resilience-wave2-seat-design-2026-07.md.
+docs/library/design/20260701_wave-2-design-claude-fenced-wake-seat-ow_7c4aaf.md.
 
 REUSABLE ONBOARDING: any turn-based agent becomes bus-wakeable by arming its wake listener.
 
@@ -49,7 +49,7 @@ SKIP_KINDS = {"trace", "steer", "resolved", "ledger_update"}
 # plan-wall budget is spent per wake. The legacy set stays unchanged (strangler discipline).
 SKIP_KINDS_LANE = SKIP_KINDS | {"note", "status"}
 
-# T073 Phase 2 (reconciled spec research/reviewed/t073-wake-reconciliation-2026-07-15.md):
+# T073 Phase 2 (reconciled spec docs/library/report/20260715_t073-wake-communicate-reconciliation-cla_a6fc12.md):
 # the ALLOWLIST ratchet inverts the skip sets for the wake decision -- a NEW kind is
 # silent-by-default until someone argues it onto this list (the check_door_parity
 # pattern applied to kinds). Deviation from the design's six, flagged for verify:

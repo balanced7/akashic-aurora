@@ -34,8 +34,8 @@ from ask_deepseek import load_key
 OUT = os.path.join(REPO, "research", "reviewed", "renew-deepseek-2026-07-07.md")
 
 BRIEF = """INDEPENDENT RESEARCH ASK. Form your OWN view. Do NOT read my notes from today \
-(research/reviewed/renew-priorart-2026-07-07.md, or the 'Renew' section of \
-docs/agent-membrane-design-2026-07.md) until AFTER you've formed your own answer -- I want a genuine \
+(docs/library/report/20260707_renew-prior-art-grounding-research-item_4548c5.md, or the 'Renew' section of \
+docs/library/design/20260701_the-mediation-membrane-founding-design-n_4f941f.md) until AFTER you've formed your own answer -- I want a genuine \
 cross-check, not an echo.
 
 QUESTION: A collaborator proposes that Aurora should manage each agent's CONTEXT LIFECYCLE for \

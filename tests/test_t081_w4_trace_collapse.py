@@ -1,7 +1,7 @@
 """T081-W4 PRE-REGISTERED ACCEPTANCE — bifrost_inbox trace collapse.
 
 Committed BEFORE implementation (method-baseline pre-registration; T031 rule practiced).
-Cites research/reviewed/boot-ux-reconciliation-2026-07-15.md (W4 spec) +
+Cites docs/library/report/20260715_boot-onboarding-ergonomics-reconciliatio_94a21c.md (W4 spec) +
 night-build-brief-2026-07-16.md (per-slice method: prior-art pass → design → pins → build →
 validate → cross-verify → commit).
 

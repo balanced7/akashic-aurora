@@ -16,7 +16,7 @@ Public doors::
     py scripts/run_job.py status ID
     py scripts/run_job.py cancel ID --reason "operator request"
 
-Governing build spec: research/reviewed/t093-crash-path-reconciliation-2026-07-17.md
+Governing build spec: docs/library/report/20260717_t093-crash-path-reconciliation-fable-rec_c00255.md
 section 7.  No Redis dependency; state lives under ignored ``state/jobs`` by default.
 """
 from __future__ import annotations

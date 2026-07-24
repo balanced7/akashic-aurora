@@ -230,7 +230,7 @@ def promise_shaped_runner(text):
         return None
 
 
-# ---- RB-23: the content floor (spec: docs/rb23-build-spec-2026-07-11.md) -----------------
+# ---- RB-23: the content floor (spec: docs/library/design/20260711_rb-23-content-floor-reconciled-build-spe_d47764.md) -----------------
 # A persistent no-content stall must be CAUGHT, not shipped as done: empty/marker finals were
 # never bounced (the bare marker shipped as the agent's last word -- two live bites
 # 2026-07-10/11, lesson runner_reasoning_eats_final_answer), and a second successive promise
@@ -560,7 +560,7 @@ def _age_short(created_at: str) -> str:
 # The runner's own continuity header -- DIRECTIVE + SIBLINGS + age-stamped private notes
 # -- injects BEFORE the project onboarding, answering "what am I doing, who else is here,
 # what did I remember" without reading 6000 chars of project context first.
-# (deepseek's design: research/reviewed/deepseek-t074-continuity-design-2026-07-15.md sec.3)
+# (deepseek's design: docs/library/report/20260715_t074-session-continuity-design-deepseek_234abf.md sec.3)
 
 
 def _directive_line(agent_id: str) -> str:

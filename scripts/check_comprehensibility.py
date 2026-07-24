@@ -3,7 +3,7 @@
 PRINCIPLES.md #4 (Guards over discipline) applied to the DOCS themselves. The ARCHITECTURE map, the
 LEXICON, and the auto-index rotted once because nothing enforced their freshness -- which is exactly
 how a system stops being understandable, after which every downstream decision drifts. This is the
-enforcement. Four properties (design: docs/comprehensibility-immune-system-2026-07.md):
+enforcement. Four properties (design: docs/library/design/20260701_the-comprehensibility-immune-system-desi_339b01.md):
   COMPLETE (catches the drift that happens) · UNBYPASSABLE (CI + pre-commit hook + ship all run it) ·
   TRUSTWORTHY (tests/test_comprehensibility.py injects each drift class + proves the guard FAILs) ·
   NON-EVADABLE (exemptions are time-bound: an expired `rot-ok` is itself a failure).

@@ -2,7 +2,7 @@
 S0-beta · storm auto-clear (lane-depth spike + repeat-delivery detection →
 standby-hard ceremony WITH receipt).
 
-Cites docs/recovery-arc-design-2026-07.md S0 (= deepseek BULKHEAD-0 ∪ kimi R4)
+Cites docs/library/design/20260701_recovery-arc-reconciled-design-superviso_ce9a9e.md S0 (= deepseek BULKHEAD-0 ∪ kimi R4)
 + core/comm/storm_detect.py + core/comm/cursor_admin.py + core/comm/control.py.
 The conveyor's first full auto-transit: a human ritual (standby-hard) graduates
 to auto-detected. The detector is in-memory (no Redis); the clear action is pause

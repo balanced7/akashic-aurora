@@ -1,6 +1,6 @@
 """T048 -- recall surface polish (deepseek interview -> deepseek design -> claude build).
 
-Design: research/reviewed/deepseek-t048-design-2026-07-14.md (deepseek, accepted w/ two
+Design: docs/library/report/20260714_deepseek-t048-design-recall-surface-poli_4e1a94.md (deepseek, accepted w/ two
 grounding corrections: CLI needs --hint-style too because the ToolBox wire shells the CLI;
 boot-source truth = the runner's onboarding text, since neither ledger records boot).
 

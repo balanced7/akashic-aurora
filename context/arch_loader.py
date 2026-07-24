@@ -1,7 +1,7 @@
 """Arch-slice loader (Context pillar): boot-time ORIENTATION to the code region of the current task.
 
 RENEW Strand E gap #2 / the design doc's deferred step #3 ("Surface->orientation",
-docs/agent-membrane-design-2026-07.md). A cold-resuming agent already gets the task ledger, ranked
+docs/library/design/20260701_the-mediation-membrane-founding-design-n_4f941f.md). A cold-resuming agent already gets the task ledger, ranked
 lessons, durable notes and the funnel -- but nothing pointing it at WHICH subsystem the current task
 lives in, so it rediscovers the code layout by re-reading. This projects the STABLE architecture map
 (docs/ARCHITECTURE.md) down to the few subsystems most relevant to the task, each with its code path.
@@ -14,7 +14,7 @@ Design (same discipline as recall-at-action):
   score, so a merely-recent-or-important section never fires for an unrelated task.
 - **Fail-soft** -- any error (missing/renamed doc, parse issue) degrades to [] and never bricks boot.
 
-See research/reviewed/renew-strande-cold-resume-2026-07-07.md.
+See docs/library/report/20260707_renew-strand-e-cold-resume-fidelity-empi_890e10.md.
 """
 from __future__ import annotations
 

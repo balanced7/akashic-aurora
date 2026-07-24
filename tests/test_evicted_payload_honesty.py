@@ -1,7 +1,7 @@
 """
 RB-7 (T029 Wave 2) -- durable-pointer honesty when the firehose evicts a referenced payload.
 
-Bar (docs/resilience-battery-slices-2026-07.md): a promoted/drill pointer whose payload
+Bar (docs/library/design/20260701_resilience-battery-sliced-execution-plan_8d660c.md): a promoted/drill pointer whose payload
 has been evicted by the stream bound renders "payload aged out", never a blank or
 confidently-wrong "no event" (R14, payload-drop half). The check leans on a designed
 property: FileLedger ids are monotonic per-stream ints "so they stay comparable even

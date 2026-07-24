@@ -5,7 +5,7 @@ Bar: the first lines of boot answer a cold agent's four questions (where is the 
 what governs / what is current / what must I not redo) from LIVE state -- map pointer,
 governing-arc note matched against ACTIVE ledger tasks (not merely newest), one-line
 where-we-are, the 3-line precedence doctrine, a one-line ledger bar. Spec:
-research/reviewed/deepseek-p2-spec-2026-07-09.md (the stateless consumer wrote it).
+docs/library/report/20260709_p2-boot-orientation-header-deepseek-cons_62e1f0.md (the stateless consumer wrote it).
 
 Run: py -m pytest tests/test_boot_orientation.py -q
 """
@@ -42,7 +42,7 @@ def test_governing_arc_prefers_active_match_over_newest(monkeypatch):
     match must win (caught live: visualgen-status outranked comms-pillar-status)."""
     notes = [
         _fake_note("future-thing-status", "see docs/future-plan.md", "2026-07-09T23:00:00"),
-        _fake_note("comms-pillar-status", "GOVERNING: docs/comms-pillar-synthesis-2026-07.md"),
+        _fake_note("comms-pillar-status", "GOVERNING: docs/library/design/20260709_comms-messaging-pillar-dual-fenced-analy_051ff0.md"),
         _fake_note("where-we-are", "shipped a bunch; next P3"),
     ]
     import core.learning.agent_memory as am
@@ -54,7 +54,7 @@ def test_governing_arc_prefers_active_match_over_newest(monkeypatch):
                          "owner": "claude", "commit": None}],
         "next": [], "blocked": [], "done": [], "proposed": [], "counts": {}})
     head = agent_cli._orientation_header("claude")
-    assert "docs/comms-pillar-synthesis-2026-07.md" in head, "active-matched note governs"
+    assert "docs/library/design/20260709_comms-messaging-pillar-dual-fenced-analy_051ff0.md" in head, "active-matched note governs"
     assert "docs/future-plan.md" not in head
 
 

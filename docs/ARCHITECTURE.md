@@ -110,7 +110,7 @@ Give the right agent the right context at the moment of action.
 
 ## Renew (`core/renew/`)
 The membrane's temporal (5th) job: keep working context healthy ACROSS sessions
-(docs/agent-membrane-design-2026-07.md §Renew). Deterministic organs only — the health *estimator*
+(docs/library/design/20260701_the-mediation-membrane-founding-design-n_4f941f.md §Renew). Deterministic organs only — the health *estimator*
 is data-gated on the Strand-A correlation and does not exist yet.
 - **`session_signals.py`** — fold one session's tool calls into the signal aggregates
   (churn-over-progress family; reread recorded-but-demoted). Fed by the Claude SessionEnd hook →
@@ -124,7 +124,7 @@ The project's self-writing story: **Atlas → Track → Chapter → Beat**. `sch
 - **Episodes / bookends** (`episode.py`) — segment a live session into titled EPISODES: a Chapter
   given an explicit `why` (intent), closed manually (a user bookend) or by auto-suggestion, with a
   `{title, description, why}` draft over the closed span. Surfaced via `agent_cli task`'s sibling
-  `episode` verb. (Design: `docs/session-bookends-design-2026-07.md`.)
+  `episode` verb. (Design: `docs/library/design/20260701_session-bookends-design-for-peer-review_c38e0c.md`.)
 - **Episode auto-suggester** (`episode_suggester.py`) — ADVISORY close suggestions, poll-evaluated at
   the door: impl-complete / subsystem-switch (routed beats, not the live router key) / new-objective /
   15-min idle, noise-gated + fingerprint-once. Each new suggestion is one durable `episode_suggestion`
@@ -140,7 +140,7 @@ The project's self-writing story: **Atlas → Track → Chapter → Beat**. `sch
 - **Agent membrane / RENEW** — a *control loop* (not a subpackage) over snapshot + boot + funnel +
   launcher + supersession that keeps an agent's working context healthy **across** the session boundary:
   detect cognitive debt → capture durable knowledge → reload a curated set. Design + status:
-  `docs/agent-membrane-design-2026-07.md`.
+  `docs/library/design/20260701_the-mediation-membrane-founding-design-n_4f941f.md`.
 
 ## Interface (System 5) — the doors
 - **`agent_cli.py`** — THE single CLI door (`boot`, `learn`, `recall`, `note`, `task` (coordination
@@ -172,7 +172,7 @@ map uses all three:
    unbypassable chokepoints — every commit (pre-commit hook, fast checks), every push (CI), and every
    slice (`ship.py`, full) — and a crashing check FAILs loud rather than passing green. `check_boundaries.py`
    catches layer violations; `check_doc_freshness.py` keeps the root clean; `check_wiring.py` catches
-   built-but-unwired modules. Design: `docs/comprehensibility-immune-system-2026-07.md`.
+   built-but-unwired modules. Design: `docs/library/design/20260701_the-comprehensibility-immune-system-desi_339b01.md`.
 
 **The rule of thumb:** if you add a *file*, do nothing here (the index regenerates). If you add a
 *subpackage* or change what a layer is *for*, add/edit one line above.

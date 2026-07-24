@@ -151,7 +151,7 @@ def may_run_runner(agent_id: str) -> bool:
     runner at all. A broken door (resolve() raising unexpectedly) mirrors resolve()'s
     OWN fallback -- the bootstrap floor: core fleet keeps availability, everyone else
     refuses, and the decision is LOUD on stderr (A2-1 per
-    research/reviewed/deepseek-rb25-amendment2-rulings-2026-07-12.md: the reply/trace
+    docs/library/report/20260712_rb-25-amendment-2-deepseek-rulings-fence_7f1c14.md: the reply/trace
     lanes are exactly the ones the conscious doors do NOT gate, so blanket fail-open
     reopened the F1 hole under error conditions)."""
     try:

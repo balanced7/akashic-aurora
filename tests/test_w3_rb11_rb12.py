@@ -1,6 +1,6 @@
 """
 Wave 3 / RB-11 + RB-12 -- pre-registered acceptance (committed BEFORE impl, M3/T031).
-Spec: docs/w3-build-spec-2026-07-11.md sections RB-11, RB-12.
+Spec: docs/library/design/20260711_wave-3-reconciled-build-spec-rb-8-12-dic_4f427b.md sections RB-11, RB-12.
 
 RB-11 migration idempotency pin-key + chain-length warning (render-side, threshold 50).
 RB-12 deterministic ordering (created_at, title, id) + graceful empty state.

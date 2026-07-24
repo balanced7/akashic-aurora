@@ -1024,7 +1024,7 @@ class ToolBox:
             return ""
         return "\n\n[recall-at (Akashic) -- lessons relevant to this action]\n" + out[:1200]
 
-    # T055/R4 (deepseek design, research/reviewed/deepseek-r4-preflight-design-2026-07-14.md):
+    # T055/R4 (deepseek design, docs/library/report/20260714_deepseek-r4-pre-flight-recall-design-202_1250bf.md):
     # the six investigation tools that deserve context BEFORE the read; everything else
     # is pre-flight silent by his skip table.
     _PREFLIGHT_TOOLS = frozenset({"read_file", "write_file", "edit_file",

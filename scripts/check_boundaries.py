@@ -25,7 +25,7 @@ Rules (scoped to core/):
    private Optional-annotated None default) must honor _AISETUP_TEST_ISOLATED in the
    same file -- else the first door-touch under live env pins live-bound instances for
    every later isolated consumer (T069, reconciled spec:
-   research/reviewed/t069-singleton-reconciliation-2026-07-15.md). Factories whose
+   docs/library/report/20260715_t069-singleton-isolation-reconciliation_1a7cdb.md). Factories whose
    explicit-injection path IS the isolation are allowlisted (deepseek census, Part c).
 
 Known pre-existing debt is listed in ALLOWLIST with a reason, so it is visible and

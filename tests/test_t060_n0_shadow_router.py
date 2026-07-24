@@ -1,7 +1,7 @@
 """T060 N0 PRE-REGISTERED ACCEPTANCE -- shadow delivery truth + route explain.
 
 These pins cite the reconciled build spec at
-``research/reviewed/moonshot-network-spine-reconciliation-2026-07-17.md``.
+``docs/library/report/20260717_t060-moonshot-network-spine-three-fronti_aa0510.md``.
 They are committed RED before implementation.  N0 is observational only: the
 new router may explain and count the existing static route, but may not choose a
 different lane or change delivery, wake, priority, deadline, cursor, or reply

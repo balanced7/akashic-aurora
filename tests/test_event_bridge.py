@@ -1,7 +1,7 @@
 """
 Auto-logger Slice 4 -- timeline bridge + ACI verbs.
 
-Acceptance bar (docs/auto-logger-plan.md):
+Acceptance bar (docs/library/design/20260714_cross-agent-auto-logger-design-slice-pla_6d21c5.md):
   - from a Beat/Chapter, the raw events under it are reachable in <= 1 drill;
   - `events` verb: search / around / get / capture work and return within budget;
   - errors teach on empty / bad input; ASCII-safe output.

@@ -5,7 +5,7 @@ Kimi is its OWN seat (Daniel directive 2026-07-18: "give it all the things it ne
 first-class citizen on day one" + "lets build the runner, especially since we have caching").
 Kimi-named module, KIMI_* envs, nothing deepseek- or sol-named on this surface. Peer modules:
 ask_kimi.py (one-shot CLI opinions), bifrost_runner_kimi.py (the seat's body). Fence spec:
-research/reviewed/deepseek-kimi-onboarding-counter-2026-07-18.md sec 1 (six deltas, accepted)
+docs/library/report/20260718_deepseek-kimi-onboarding-counter-2026-07_bc4d88.md sec 1 (six deltas, accepted)
 + sec 3 (spend contract). Receipts: kimi-k3-platform-survey + kimi-k3-probe-receipts (same day).
 
 THE SIX DELTAS from the deepseek seat's Agent (fence-agreed, species-specific by ruling):

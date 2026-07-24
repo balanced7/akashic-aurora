@@ -233,7 +233,7 @@ class BifrostAPI:
         """T045 stage 2 (T039b): the lane-mode consume door -- runner and session door both
         cut onto THIS seam. Gated by BIFROST_CONSUME_LANE=work (unset = legacy wait(),
         byte-identical, strangler discipline). In lane mode, per fence-reconciled scope
-        (research/claude-t045-stage2-scope-2026-07-14.md):
+        (docs/library/design/20260714_t045-stage-2-runner-consume-cutover-scop_b9c06c.md):
 
         (1) SIG FIRST (P3/R5): the sig lane drains before work every call -- fidelity-ladder
             traffic never queues behind work. Sig positions auto-advance on return (signals

@@ -5,7 +5,7 @@ Semantic Relationship: FleetCaller invokes Model (Ollama /api/generate).
 The only way to run a local model used to be launching a full Claude Code session -- right for
 multi-step work, absurd for "summarize this" / "classify this" / "extract these fields". This is the
 missing primitive: call(tag, prompt) -> text. Composing a few of these is how the pool gets stronger
-per GB (draft-then-verify, classify->route->specialist; see docs/fleet-dispatch-design.md).
+per GB (draft-then-verify, classify->route->specialist; see docs/library/design/20260709_fleet-dispatch-an-intelligent-easy-struc_303d15.md).
 
 stdlib-only (urllib + json). Hermetic under test: `opener` is injectable, so no network is touched.
 Unlike the fail-soft READS in roster, a call RAISES on failure -- a subtask that asks for a result must

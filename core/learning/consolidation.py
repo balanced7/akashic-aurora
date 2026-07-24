@@ -13,7 +13,7 @@ clobbered each other -- and one bypassed the Consolidator entirely. Now there is
 writer; the per-source helpers are thin shims that delegate to it and write DISTINCT files, so
 nothing clobbers and both sources flow through the same critic seam.
 
-Key rules (docs/context-compaction-skeleton-research.md):
+Key rules (docs/library/design/20260620_research-context-handling-compaction-and_e5960c.md):
 - **Raw is sacred:** READ-only on the stores; the chronicle is a derived *view*, never deletes.
 - **Lossy summary + lossless pointer:** every lesson keeps a `source` pointer to the raw record.
 """

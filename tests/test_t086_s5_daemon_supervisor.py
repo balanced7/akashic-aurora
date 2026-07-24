@@ -1,5 +1,5 @@
 """T086-S5 PRE-REGISTERED ACCEPTANCE — daemon-supervised runner subtree.
-Cites research/reviewed/t086-seat-reconciliation-2026-07-16.md (Fix-Class C:
+Cites docs/library/report/20260716_t086-seat-wake-hook-lifecycle-reconcilia_c203c4.md (Fix-Class C:
 OTP supervisor trees — daemon owns the runner child; SIGTERM cascades).
 
 Pin:

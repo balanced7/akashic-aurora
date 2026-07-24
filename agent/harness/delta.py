@@ -2,7 +2,7 @@
 
 ONE mechanism serving every agent's continuity: a per-agent SEEN MARK (four positions:
 git_commit / ledger_seq / notes_head / promoted_id) + a budgeted render of what moved.
-Build spec: research/reviewed/r1-delta-door-reconciliation-2026-07-14.md (full-fence
+Build spec: docs/library/report/20260714_r1-delta-door-reconciliation-build-spec_13427c.md (full-fence
 reconciliation, deepseek-confirmed). Pins: tests/test_t052_delta_door.py (P1-P8).
 
 MARK-LAG CONTRACT (D1 ruling, deepseek's corrected form): building a delta block NEVER

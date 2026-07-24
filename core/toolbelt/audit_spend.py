@@ -1,6 +1,6 @@
 """audit_spend — the SPEND domain for core.toolbelt.audit (kimi build, partner night R3).
 
-Born from the founding live row in kimi's charter (research/drafts/kimi-want-2026-07-23.md,
+Born from the founding live row in kimi's charter (docs/library/design/20260723_kimi-want-audit-the-fleet-s-mirror-that_86e0f6.md,
 domain 2): the night brief rides "warn $80 / refuse $95" while scripts/kimi_chat.py:63
 defaults REFUSE_AT to $95.0 (env KIMI_SPEND_REFUSE) and state/kimi_spend.json's budget
 reads $124.58 — three budget beliefs, one seat. This domain photographs the front line

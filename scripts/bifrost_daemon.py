@@ -1,6 +1,6 @@
 """bifrost.daemon -- the agent's continuous-presence body (T075 M1-alpha + M1-delta).
 
-Spec: research/reviewed/t060-m1-reconciliation-2026-07-15.md (fence t060-m1-design
+Spec: docs/library/report/20260715_t060-m1-continuous-presence-reconciliati_32cac4.md (fence t060-m1-design
 CLOSED; deepseek's blind half governs the pins). M1-alpha: lock + presence +
 heartbeat + bus-loss guard + stable identity + clean exits. M1-delta: runner as
 managed child + circuit breaker + summary-injection convo survival (v1).

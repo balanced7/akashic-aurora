@@ -1,6 +1,6 @@
 ﻿"""T075 M1-ALPHA PRE-REGISTERED ACCEPTANCE -- the daemon skeleton's governing pins.
 
-Spec: research/reviewed/t060-m1-reconciliation-2026-07-15.md (slice M1-alpha:
+Spec: docs/library/report/20260715_t060-m1-continuous-presence-reconciliati_32cac4.md (slice M1-alpha:
 lock + presence + heartbeat + bus-loss guard + stable token + clean SIGINT;
 NO consume-path moves, NO child runtimes). deepseek's blind-half pin table governs
 (deepseek-t060-m1-design-2026-07-15.md sec.4): M1-P1, M1-P2, M1-P11, M1-P12.

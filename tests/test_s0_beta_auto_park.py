@@ -1,6 +1,6 @@
 """
 S0-beta · auto-park stale asks at the D2 seam (deepseek BULKHEAD-0 integration).
-Cites docs/recovery-arc-design-2026-07.md S0 + core/comm/triage_park.py (S0-alpha).
+Cites docs/library/design/20260701_recovery-arc-reconciled-design-superviso_ce9a9e.md S0 + core/comm/triage_park.py (S0-alpha).
 The manual `bench` verb graduates: stale asks are auto-parked, cursor advances past them,
 and RB-29 is satisfied (park() notifies the sender). Storm auto-clear deferred to beta+1.
 

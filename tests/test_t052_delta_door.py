@@ -1,7 +1,7 @@
 """T052 (R1 delta door) PRE-REGISTERED ACCEPTANCE -- committed RED before implementation.
 
-Cites research/reviewed/r1-delta-door-reconciliation-2026-07-14.md (the build spec;
-deepseek confirm: research/reviewed/deepseek-r1-reconciliation-confirm-2026-07-14.md).
+Cites docs/library/report/20260714_r1-delta-door-reconciliation-build-spec_13427c.md (the build spec;
+deepseek confirm: docs/library/report/20260714_deepseek-r1-reconciliation-confirm-tier_e51d4e.md).
 Tier: FENCE-LITE (recorded at registration; deepseek confirmed; he reviews the build).
 
 REGISTERED SEAM (agent/harness/delta.py):

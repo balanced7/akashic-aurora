@@ -1,5 +1,5 @@
 """T090 pins: sol_chat transport shape -- OFFLINE (no network, no key). Receipts these encode:
-research/drafts/sol-probe-receipts-2026-07-17.md (params) + the C3-1-style injection seams."""
+docs/library/design/20260717_sol-gpt-5-6-live-api-probe-receipts-2026_ae0409.md (params) + the C3-1-style injection seams."""
 import sys
 from pathlib import Path
 

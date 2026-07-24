@@ -8,7 +8,7 @@ Key resolution (first hit wins), so the secret never lands in the repo or the ch
 Prompt source: positional args, else --file <path>, else stdin.
 
   py scripts/ask_gemini.py "What do you think of the Consolidator extraction?"
-  py scripts/ask_gemini.py --file docs/codex-plan.md --system "Critique this plan; be blunt."
+  py scripts/ask_gemini.py --file docs/library/design/20260709_the-codex-a-self-curating-knowledge-laye_302fc9.md --system "Critique this plan; be blunt."
   echo "..." | py scripts/ask_gemini.py --model gemini-2.5-pro
 
 NOTE: the prompt is sent to Google's Gemini API. Don't pass anything you wouldn't share with Google.

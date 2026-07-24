@@ -1,6 +1,6 @@
 """
 RB-25 Drill 2 -- STORE-DIVERGENCE HEAL: pre-registered acceptance (committed BEFORE the
-H2b fix, M3/T031). Runbook bars: docs/rb25-exam-runbook-2026-07-11.md drill 3 section
+H2b fix, M3/T031). Runbook bars: docs/library/design/20260711_rb-25-engine-exam-runbook-pre-registered_9356ea.md drill 3 section
 (H1/H2/H2b/H4), amended pre-drill to the reconciler's UNIDIRECTIONAL contract (File is
 source of truth; deepseek fence review research/reviewed/deepseek-rb25-runbook-review-
 2026-07-11.md).

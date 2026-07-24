@@ -1,7 +1,7 @@
 """W46 pins — the followup verb (kimi's first self-serve build, builder round 2026-07-21).
 
-Design: kimi's own tools-hunt #2 (research/reviewed/kimi-tools-hunt-tonight-2026-07-21.md);
-charter brief research/briefs/kimi-builder-followup-brief-2026-07-21.md. Fire-and-forget
+Design: kimi's own tools-hunt #2 (docs/library/report/20260721_tools-hunt-tonight-s-edition-kimi-2026-0_974493.md);
+charter brief docs/library/brief/20260721_kimi-builder-brief-followup-verb-first-s_2d53b3.md. Fire-and-forget
 charter verdicts get a question-back channel: one verb writes BOTH halves — the verdict
 file's `## Open Questions` block (q-id'd question line) AND the W33 defer queue (the
 responsible seat's next boot surfaces it; the discharge receipt points at the answered

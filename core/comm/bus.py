@@ -1084,7 +1084,7 @@ _INSTANCES: Dict[Any, Bus] = {}
 
 def get_bus(agent_id: Optional[str] = None) -> Bus:
     """Module cache, one Bus per (namespace, agent identity) -- T069 reconciled spec
-    (research/reviewed/t069-singleton-reconciliation-2026-07-15.md).
+    (docs/library/report/20260715_t069-singleton-isolation-reconciliation_1a7cdb.md).
 
     Bus is NOT a stateless wrapper (cursors, reassembler buffers, the Redis client are
     instance state), so the canonical path caches -- keyed by the RESOLVED namespace so

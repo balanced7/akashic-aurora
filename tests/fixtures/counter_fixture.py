@@ -1,6 +1,6 @@
 """Gold fixture for the counter-retrieval eval (recall confirmation-bias, Slice 0).
 
-Companion doc: docs/recall-critic-decision.md (the decision + the slice plan).
+Companion doc: docs/library/design/20260709_keeping-recall-honest-critic-vs-dialecti_1a5498.md (the decision + the slice plan).
 
 WHAT THIS MEASURES
 ------------------

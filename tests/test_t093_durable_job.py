@@ -5,7 +5,7 @@ completion check comes from a fresh ``run_job.py status`` process reading an ato
 from the supervised child's stdout pipe.  Durations stay small; the production deadline is a dial.
 
 Governing build spec:
-research/reviewed/t093-crash-path-reconciliation-2026-07-17.md sections 7-9.
+docs/library/report/20260717_t093-crash-path-reconciliation-fable-rec_c00255.md sections 7-9.
 """
 from __future__ import annotations
 

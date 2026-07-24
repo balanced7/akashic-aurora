@@ -12,7 +12,7 @@ Detectors (cheap, available signals + a seam for the strong one):
     embedding/LLM scorer here in Slice 6. Without it, the two heuristics above still run.
 
 Confirmed tags are trusted -- never flagged. Read-only on the substrate AND on the tags.
-See docs/tag-governance-plan.md.
+See docs/library/design/20260709_tag-governance-safe-self-improving-taggi_1c9052.md.
 """
 import json
 from dataclasses import dataclass, field

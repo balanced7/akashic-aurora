@@ -1,9 +1,9 @@
 """
 RB-23 -- the content floor: a persistent no-content stall is CAUGHT (confessed), never
 shipped as done. Pre-registered acceptance, committed BEFORE the implementation (M3 /
-T031 hook 2). Spec: docs/rb23-build-spec-2026-07-11.md (dual-half, reconciled).
+T031 hook 2). Spec: docs/library/design/20260711_rb-23-content-floor-reconciled-build-spe_d47764.md (dual-half, reconciled).
 
-Bar (slice text, docs/resilience-battery-slices-2026-07.md RB-23): two successive empty
+Bar (slice text, docs/library/design/20260701_resilience-battery-sliced-execution-plan_8d660c.md RB-23): two successive empty
 promises are caught; the labeled endings corpus meets its precision/recall bound.
 
 Contract under test (spec section "Reconciled design"):

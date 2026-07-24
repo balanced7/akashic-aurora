@@ -41,7 +41,7 @@ Decision: rule it alongside tonight's items; nothing below pre-empts it.
 ### G1 · design/CONTRACT.md v0 ratification — now WITH enforcement receipts
 Context: the contract draft (25b8268, last night) + TONIGHT: deepseek self-built its
 enforcement teeth, scripts/check_ui_contract.py (c31da1c), claude-fenced CONDITIONAL PASS
-(research/reviewed/fence-check-ui-contract-v0-2026-07-23.md). Live receipts for your ruling:
+(docs/library/report/20260723_fence-check-ui-contract-py-v0-g6-split-d_42c09b.md). Live receipts for your ruling:
 **53 raw-hex callsites** in the incumbent console (M-L8 debt, checker-counted), **1 axis-law
 finding** (L1908 fence gauge lacks data-agent — surfacing a real semantics question: should
 the axis law generalize to data-measure for non-agent gauges?), M-L3 earned-accent fixed
@@ -94,7 +94,7 @@ use; law 3 is warn-tier by design.
 Decision: none needed — receipts only (this is what the fence-as-service loop looks like
 when it works; second night running the catch-to-fixed cycle closed inside the hour).
 
-**SA-1 stretch: DELIVERED.** research/drafts/sa1-acceptance-suite-2026-07-23.md — 16
+**SA-1 stretch: DELIVERED.** docs/library/design/20260723_sa-1-cap-enforcement-pre-registered-acce_1c0784.md — 16
 one-assertion pins across 5 bars (require_cap fail-closed · existing checks unharmed ·
 conductor approve gated · grant verb gated · audit trail), all pre-registered RED before
 any build, encoding TODAY's ACL truth (its own suite pins that deepseek lacks
@@ -107,11 +107,11 @@ mode landed (founding debt {M-L8:53, M-L1a:1, M-L3:2} recorded; delta-fail on NE
 violations only; full debt still prints — no silent-clean); honest naming (M-L1a
 label-presence half + M-L3 warn-tier). Fence addendum 2 filed four polish findings
 (B1–B4, one claim-vs-code fix requested same night); receipts in
-research/reviewed/fence-check-ui-contract-v0-2026-07-23.md.
+docs/library/report/20260723_fence-check-ui-contract-py-v0-g6-split-d_42c09b.md.
 
 ### G5 · kimi's stranger-test of the checker + contract — three adds for your ruling
 Context: kimi fenced the BUILD with 4 pre-registered pins (3 passed; the failure was the
-finding) — research/drafts/kimi-r2-counter-ui-contract-2026-07-23.md. Independently
+finding) — docs/library/design/20260723_kimi-r2-counter-deepseek-s-check-ui-cont_2e06ec.md. Independently
 converged with claude's fence on the M-L3 self-exemption (two fences, zero coordination,
 same defect — the organ works). Its unique finds:
 1. **F1 (VERIFIED, load-bearing):** the charter's "zero false positives, exits 0 tonight"
@@ -140,7 +140,7 @@ RULING CAPTURE → Verbatim: · Rationale: · Uncertainty: · Falsifiers: · Sco
 - R2 crossings: claude insight (ask-peer ruling + spend ruling + sharpenings), deepseek
   counter (VERBS-only cut), kimi absorption (accepted + shadow-cursor v2#1), greenlight
   w/ advisory rail, thats-right — all in research/briefs/ + research/reviewed/, committed
-- Fence: research/reviewed/fence-check-ui-contract-v0-2026-07-23.md (CONDITIONAL PASS,
+- Fence: docs/library/report/20260723_fence-check-ui-contract-py-v0-g6-split-d_42c09b.md (CONDITIONAL PASS,
   probe battery, pre-registered re-fence bar)
 - New lesson: lint_token_set_self_exemption (when a lint's token set and exemption set
   share a member, the check self-defeats — probe every alarm token with a bare TRUE

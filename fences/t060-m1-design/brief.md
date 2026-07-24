@@ -19,14 +19,14 @@ Design "continuous presence": formalize the runner + wake-listener architecture 
 - scripts/bifrost_wake.py + scripts/hooks/claude_stop.py (the session wake path)
 - core/comm/dispatcher.py (parked resident dispatcher; T073 ruled it out for that arc — its designated review point is M1)
 - core/comm/runner_lock.py (seats / tenure / generations)
-- research/reviewed/t073-wake-reconciliation-2026-07-15.md
-- research/reviewed/wishlist-synthesis-2026-07-14.md (the M1 seed line)
+- docs/library/report/20260715_t073-wake-communicate-reconciliation-cla_a6fc12.md
+- docs/library/report/20260714_wishlist-synthesis-both-seats-one-map-20_90759f.md (the M1 seed line)
 - docs/LIVE_CONSTRAINTS.md (RB rules that bound any design)
 - docs/ROADMAP.md System-0 framing, if useful
 
 ## Output shape (design DOC only — T060 is a design wave; NO code changes)
 
-Write `research/reviewed/deepseek-t060-m1-design-2026-07-15.md` containing:
+Write `docs/library/report/20260715_t060-m1-continuous-presence-design-blind_ebd800.md` containing:
 
 1. **Ground truth**: components that exist + their lifecycles (who spawns each, who watches it, who restarts it) — file:line grounded
 2. **The design**: daemon-peer architecture — lifecycles, supervision, restart policy, failure modes, identity/seat interaction, and how it varies per harness tier (claude-code session vs your runner vs cursor)

@@ -1,7 +1,7 @@
 """Harness registry (Integration Tiers H2): which runtimes plug into the stack, and what
 each can HONESTLY deliver, tier by tier.
 
-The integration tiers (docs/integration-tiers.md is the prose view; THIS is the data, so
+The integration tiers (docs/library/design/20260709_integration-tiers-what-each-harness-actu_38278c.md is the prose view; THIS is the data, so
 docs and tests can't drift from what the adapters implement):
 
   T0 door           agent_cli.py / MCP reachable from the runtime

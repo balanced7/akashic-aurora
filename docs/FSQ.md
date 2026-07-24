@@ -68,7 +68,7 @@ Internal and small, stated as such: 601 tests in CI, a live value funnel
 (8 of ~130 tracked lessons hold all earned outcome credit; ~74% have surfaced five-plus
 times with zero return), and honest ablation results where things lost. The real
 benchmark — replaying recorded episodes memory-off / memory-on / perturbed — is
-designed but not built ([`docs/leapfrog-plan.md`](leapfrog-plan.md)), and the prior art
+designed but not built ([`docs/library/design/20260709_leapfrog-plan-outcome-grounded-memory_18eeba.md`](leapfrog-plan.md)), and the prior art
 it builds on is cited rather than claimed as novel
 ([fossil F6](FOSSILS.md#f6--our-replay-benchmark-is-novel-july-2026)). Until it exists,
 we don't claim the memory helps at scale — the README's "not yet" section says exactly

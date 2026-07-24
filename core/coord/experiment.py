@@ -2,7 +2,7 @@
 Coordination experiment harness -- the Stage-3 evidence engine.
 
 Measures a coordination POLICY against the three-part evaluator from the 2026-07-04 multi-model review
-(research/reviewed/frontier-gpt-goodhart-intent-critique-2026-07-04.md), so a policy's value is
+(docs/library/report/20260704_gpt-critique-goodhart-exploration-preser_92a36f.md), so a policy's value is
 FALSIFIABLE rather than asserted:
 
   A. task score        -- fraction of intended, DISTINCT work delivered without being clobbered

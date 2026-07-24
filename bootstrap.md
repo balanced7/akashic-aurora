@@ -15,7 +15,7 @@
 > read-bootstrap flow, and stay silent outside the repo) AND for **Cursor** (project
 > `.cursor/hooks.json`; your agent id there is `composer`, set automatically at
 > sessionStart). What your runtime actually delivers, tier by tier:
-> **`py agent_cli.py harnesses`** (story: `docs/integration-tiers.md`). Only run
+> **`py agent_cli.py harnesses`** (story: `docs/library/design/20260709_integration-tiers-what-each-harness-actu_38278c.md`). Only run
 > `recall-at` by hand if your harness has **no hook wiring at all** (bare CLI follows
 > this contract manually).
 > The full contract is in **`AGENTS.md`** (read that, not the internals). Use `py`,
@@ -54,11 +54,11 @@ The vocabulary below is exact — see **`docs/LEXICON.md`** for every term.
 | See the plan & current wave | **`docs/ROADMAP.md`** ⭐ |
 | Know what each term means | **`docs/LEXICON.md`** |
 | Understand the architecture | **`docs/architecture.md`** |
-| Understand the memory design | `docs/learning-memory-analysis.md` + `-integration-plan.md` |
-| Understand the context goal | `docs/context-pillar-plan.md` |
-| Understand the agent interface | `docs/agent-interface-aci.md` |
-| See what YOUR harness delivers | **`docs/integration-tiers.md`** + `py agent_cli.py harnesses` |
-| See the cleanup backlog | `docs/codebase-audit.md` |
+| Understand the memory design | `docs/library/design/20260709_agent-memory-analysis-of-learning-store_5ec82f.md` + `-integration-plan.md` |
+| Understand the context goal | `docs/library/design/20260709_context-pillar-system-4-design-consolida_89733b.md` |
+| Understand the agent interface | `docs/library/design/20260619_the-agent-interface-system-5-aci-thought_1b1edb.md` |
+| See what YOUR harness delivers | **`docs/library/design/20260709_integration-tiers-what-each-harness-actu_38278c.md`** + `py agent_cli.py harnesses` |
+| See the cleanup backlog | `docs/library/design/20260619_codebase-audit-readability-robustness-si_8be0b1.md` |
 
 ## Quick checks
 
@@ -80,7 +80,7 @@ py agent_cli.py boot <your_agent_id> --task "<what you are doing>"
 - **All layers built & in use**: Store + Ledger (System 0), Memory · Signals ·
   Coordination (1–3), Context pillar (System 4), Agent Interface `agent_cli.py` (System 5),
   plus the harness adapter layer (`agent/harness/` + `scripts/hooks/` — Claude Code and
-  Cursor both wired; `docs/integration-tiers.md`).
+  Cursor both wired; `docs/library/design/20260709_integration-tiers-what-each-harness-actu_38278c.md`).
 - Knowledge store: live on Redis 16379 db0 + file mirror. **Counts rot in prose** — get
   them generated: `py agent_cli.py stats` (lessons + funnel value), `list`, `story`.
 - Guardrails (`scripts/check_boundaries.py`, `scripts/check_doc_freshness.py`):

@@ -16,7 +16,7 @@ Mapping (LearningStore record -> Ranker signal):
 - source       : the experiment_name -> a POINTER back to the full record in the
                  LearningStore (lossy view + lossless pointer; see the research doc)
 
-See docs/context-pillar-plan.md and docs/shared-primitives-spec.md.
+See docs/library/design/20260709_context-pillar-system-4-design-consolida_89733b.md and docs/library/design/20260619_shared-primitives-interface-spec_03e098.md.
 """
 
 import os

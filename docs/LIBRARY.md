@@ -1,8 +1,8 @@
 # LIBRARY — where things live, and why (the filing law)
 
 Status: current  (v1.1, amended 2026-07-23 — the CATEGORY plane, §below; v1 ratified 2026-07-21
-from the three-voice round; decision records: docs/library-schema-reconciliation-2026-07-21.md ·
-docs/taxonomy-ergonomics-reconciliation-2026-07.md. Charter: Daniel — "know where to find what we
+from the three-voice round; decision records: docs/library/design/20260721_library-schema-reconciliation-of-three-v_6136d4.md ·
+docs/library/design/20260701_homes-and-order-reconciled-to-constants_beaca7.md. Charter: Daniel — "know where to find what we
 are looking for instantly … know how to categorize and seed appropriately too. this too is a
 form of ergonomics." + 2026-07-23: "I want our artifacts to fit into categories and hierarchies.
 for things to have a home and an order to them.")
@@ -84,7 +84,7 @@ grep-uncited (including store-side citations) AND superseded.
 ## v1.1 amendment (2026-07-23) — the CATEGORY plane (the aboutness facet, now rostered)
 
 The one-facet law named "subsystem" as a header facet; it is now the governed CATEGORY plane
-(decision record: docs/taxonomy-ergonomics-reconciliation-2026-07.md — the homes-and-order round).
+(decision record: docs/library/design/20260701_homes-and-order-reconciled-to-constants_beaca7.md — the homes-and-order round).
 - Three planes, never blurred: TYPE = kind (this file's canon) · ARC = campaign · CATEGORY =
   aboutness. An artifact: exactly one type · >=1 arc · 1-3 categories (PRIMARY first; needing
   4+ means split the artifact). A category never names a type or an arc.

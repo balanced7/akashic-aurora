@@ -77,12 +77,12 @@
 - `at_action.py` — Recall-at-action (`core/recall`) — read the right knowledge AT THE MOMENT of action.
 - `curator.py` — Recall curator (vNext loop 1) -- the funnel's triage made an ACTOR, not a report.
 - `dissent.py` — Dissent-finder (`core/recall`) — surface the strongest genuine COUNTER to a recalled lesson.
-- `forge.py` — Forge F1 -- the Tier-0 edit gate (docs/lesson-forge-design-2026-07.md sec.4, sec.9 F1).
-- `forge_optimizer.py` — Forge F2 -- the optimizer pass (docs/lesson-forge-design-2026-07.md sec.5, sec.9 F2).
+- `forge.py` — Forge F1 -- the Tier-0 edit gate (docs/library/design/20260701_lesson-forge-evidence-gated-content-opti_fd3204.md sec.4, sec.9 F1).
+- `forge_optimizer.py` — Forge F2 -- the optimizer pass (docs/library/design/20260701_lesson-forge-evidence-gated-content-opti_fd3204.md sec.5, sec.9 F2).
 - `funnel.py` — Recall-value funnel (leapfrog T3): is surfaced knowledge actually HELPING, and are
 - `knowledge_map.py` — knowledge_map (R8 / T059) -- WALK the knowledge, don't query it blind.
 - `lookback.py` — Lookback (P7 / T027) -- one question over the rationale corpus, layered, drillable.
-- `replay.py` — Forge F0 -- replay harness + data-sufficiency audit (docs/lesson-forge-design-2026-07.md sec.9).
+- `replay.py` — Forge F0 -- replay harness + data-sufficiency audit (docs/library/design/20260701_lesson-forge-evidence-gated-content-opti_fd3204.md sec.9).
 
 ## core/primitives/  (7 modules)
 - `clusterer.py` — Clusterer (Slice C1) -- group atoms by MEANING and flag where the knowledge structure should
@@ -121,7 +121,7 @@
 
 ## core/fleet/  (2 modules)
 - `caller.py` — The direct caller -- one-shot invocation of a local model for a BOUNDED subtask.
-- `roster.py` — The fleet roster -- the single source of truth for local models (docs/fleet-dispatch-design.md).
+- `roster.py` — The fleet roster -- the single source of truth for local models (docs/library/design/20260709_fleet-dispatch-an-intelligent-easy-struc_303d15.md).
 
 ## core/state/  (2 modules)
 - `session_checkpoint.py` — Session Checkpoint: crash-recovery checkpoint system (renamed from session_state.py 2026-07-07 to

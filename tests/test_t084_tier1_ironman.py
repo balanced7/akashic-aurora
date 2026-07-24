@@ -1,7 +1,7 @@
 """T084 Tier-1 PRE-REGISTERED ACCEPTANCE — IR-3 write-size gauge + IR-6 research_note.
 
 Committed BEFORE implementation (method-baseline pre-registration; T031 rule practiced).
-Cites research/reviewed/ironman-plan-2026-07-16.md Tier 1.
+Cites docs/library/report/20260716_ironman-augmentation-plan-both-halves-re_4ea0e8.md Tier 1.
 
 Pins:
   IR3-P1  write_file description includes MTU (~65KB / BUS_MAX_MESSAGE_BYTES)

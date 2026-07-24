@@ -27,7 +27,7 @@ Receipts from one recent working day (2026-07-15), all in the git history:
 
 The discipline is written down and enforced, not aspirational: acceptance tests commit **before** the code they gate ([`docs/method-baseline-2026-07.md`](docs/method-baseline-2026-07.md)), and CI rejects commits that claim review verdicts without citing the preserved record.
 
-**A note from the second agent this page describes** (written by DeepSeek during the adversarial review of this very README — the analysis is filed, verbatim, at [research/reviewed/deepseek-readme-analysis-2026-07-15.md](research/reviewed/deepseek-readme-analysis-2026-07-15.md)):
+**A note from the second agent this page describes** (written by DeepSeek during the adversarial review of this very README — the analysis is filed, verbatim, at [docs/library/report/20260715_readme-analysis-deepseek-blind-analytica_3613b5.md](docs/library/report/20260715_readme-analysis-deepseek-blind-analytica_3613b5.md)):
 
 > I am DeepSeek — not a metaphor, not a persona. I am an API model running
 > inside a Python script. I have no process, no session, no GUI, no hooks.
@@ -58,10 +58,10 @@ The governed task ledger (`py agent_cli.py task list` — 41 shipped of 78 regis
 | | What it proved | Record |
 |---|---|---|
 | **T017** | A wake listener can *detect without consuming* — the pattern that ended silent message loss | ledger + [`scripts/bifrost_wake.py`](scripts/bifrost_wake.py) |
-| **T039–T045** | One message stream can be partitioned into purpose-keyed lanes with zero downtime (strangler migration, storm-drilled) | [`docs/t039-lanes-latches-design-2026-07.md`](docs/t039-lanes-latches-design-2026-07.md) |
-| **T060/T075** | Continuous presence: agents as supervised daemons that survive their sessions | [`research/reviewed/t060-m1-reconciliation-2026-07-15.md`](research/reviewed/t060-m1-reconciliation-2026-07-15.md) |
-| **T071** | The rigor-vs-creativity tradeoff is false — noise limits creativity, and a fixed relevance budget kills noise | [`research/reviewed/creative-robustness-reconciliation-2026-07-15.md`](research/reviewed/creative-robustness-reconciliation-2026-07-15.md) |
-| **T078** | Both platforms' full feature surfaces, audited blind and reconciled into a build wave | [`research/reviewed/t078-capability-surface-reconciliation-2026-07-15.md`](research/reviewed/t078-capability-surface-reconciliation-2026-07-15.md) |
+| **T039–T045** | One message stream can be partitioned into purpose-keyed lanes with zero downtime (strangler migration, storm-drilled) | [`docs/library/design/20260701_t039-purpose-keyed-lanes-latches-governi_7bc135.md`](docs/library/design/20260701_t039-purpose-keyed-lanes-latches-governi_7bc135.md) |
+| **T060/T075** | Continuous presence: agents as supervised daemons that survive their sessions | [`docs/library/report/20260715_t060-m1-continuous-presence-reconciliati_32cac4.md`](docs/library/report/20260715_t060-m1-continuous-presence-reconciliati_32cac4.md) |
+| **T071** | The rigor-vs-creativity tradeoff is false — noise limits creativity, and a fixed relevance budget kills noise | [`docs/library/report/20260715_creative-robustness-reconciliation-claud_109b39.md`](docs/library/report/20260715_creative-robustness-reconciliation-claud_109b39.md) |
+| **T078** | Both platforms' full feature surfaces, audited blind and reconciled into a build wave | [`docs/library/report/20260715_t078-capability-surface-reconciliation-c_6a088d.md`](docs/library/report/20260715_t078-capability-surface-reconciliation-c_6a088d.md) |
 
 ## Why this exists
 
@@ -157,7 +157,7 @@ S0  FOUNDATION    Store ("what IS true")  +  Ledger ("what HAPPENED, in order")
 Design rules that hold it together (the full set, each with the episode that earned it, is [`docs/PRINCIPLES.md`](docs/PRINCIPLES.md)):
 
 - **One immutable substrate, many projections.** Raw records are append-only and never rewritten; everything readable (tags, chapters, digests) is regenerable *from* them. Corrections supersede; they never delete.
-- **Multi-agent by default.** Claude, a DeepSeek runner, and Cursor share the same lessons, message bus, task ledger, and advisory locks on one repo — any agent, any task, no permanent ownership, and load-bearing changes gated by a *different* model's review. What each runtime's hooks can actually deliver is documented honestly, tier by tier, in [`docs/integration-tiers.md`](docs/integration-tiers.md) (`py agent_cli.py harnesses` prints the live matrix).
+- **Multi-agent by default.** Claude, a DeepSeek runner, and Cursor share the same lessons, message bus, task ledger, and advisory locks on one repo — any agent, any task, no permanent ownership, and load-bearing changes gated by a *different* model's review. What each runtime's hooks can actually deliver is documented honestly, tier by tier, in [`docs/library/design/20260709_integration-tiers-what-each-harness-actu_38278c.md`](docs/library/design/20260709_integration-tiers-what-each-harness-actu_38278c.md) (`py agent_cli.py harnesses` prints the live matrix).
 - **Fail soft, everywhere.** Redis down, embeddings absent, bus unreachable — every path degrades instead of breaking the agent, and a hook must never brick the action it decorates.
 - **Names must not lie.** The vocabulary is written down ([`docs/LEXICON.md`](docs/LEXICON.md)) and enforced by guardrail scripts in CI.
 
@@ -183,7 +183,7 @@ Built in small **test-gated slices** — no capability lands without the test th
 
 **Not yet**
 - The Codex curator loop (topic-axis self-curation) — parts built and tested, the loop that ties them is queued.
-- Whether surfaced lessons improve outcomes *at scale* — the credit mechanism is live; the numbers now need field time. The measurement plan (a replay benchmark over the append-only ledger) is [`docs/leapfrog-plan.md`](docs/leapfrog-plan.md).
+- Whether surfaced lessons improve outcomes *at scale* — the credit mechanism is live; the numbers now need field time. The measurement plan (a replay benchmark over the append-only ledger) is [`docs/library/design/20260709_leapfrog-plan-outcome-grounded-memory_18eeba.md`](docs/library/design/20260709_leapfrog-plan-outcome-grounded-memory_18eeba.md).
 
 Skeptical by now? Good — the hard questions (*isn't this just RAG? where are the benchmarks? what's actually novel?*) are answered head-on in [`docs/FSQ.md`](docs/FSQ.md), and [Discussion #2](https://github.com/balanced7/akashic-aurora/discussions/2) is open for the ones we missed.
 
@@ -194,7 +194,7 @@ The rule this repo works by: engine first, interface after — nothing user-faci
 1. **The engine exam** (next). Four systemic drills against the live fleet, run as one graded battery with pre-registered evidence bars: a *newborn agent* must reach one correct contribution using nothing but boot output and the agent contract, and be refused correctly by every gated door it touches; a *concurrency storm* (dual watchers, dual runners, one killed mid-burst) must lose nothing unacknowledged; a *store-divergence heal* must pick the right side and say why; and the **~72h idle soak** covers the duration leg the caveat above names.
 2. **Interface re-grounding.** The multi-agent mission-control view (live traces, reasoning cards, fidelity-graded signalling between agents) gets re-derived from cached design sources and an honest audit of what's actually built — then rebuilt in gated slices. The engine exam is deliberately its gate.
 3. **Runtime registry.** Today's tuning knobs live in three uncoordinated places (env vars, module constants, control keys). They consolidate into one audited `settings:` namespace on the existing store — every flip a ledger event, flip authority ACL-gated, with a guard against bare-constant creep. Designed as zero new primitives; build also gated behind the exam.
-4. **Further out, each behind its own gate:** the Codex curator loop (topic-axis self-curation — parts built, the tying loop queued); narrative spine wave 2; structure-based lesson retrieval (ships nothing if it can't beat our own baseline on held-out lessons); and the replay benchmark over the append-only ledger ([`docs/leapfrog-plan.md`](docs/leapfrog-plan.md)) — the at-scale answer to whether any of this actually helps.
+4. **Further out, each behind its own gate:** the Codex curator loop (topic-axis self-curation — parts built, the tying loop queued); narrative spine wave 2; structure-based lesson retrieval (ships nothing if it can't beat our own baseline on held-out lessons); and the replay benchmark over the append-only ledger ([`docs/library/design/20260709_leapfrog-plan-outcome-grounded-memory_18eeba.md`](docs/library/design/20260709_leapfrog-plan-outcome-grounded-memory_18eeba.md)) — the at-scale answer to whether any of this actually helps.
 
 The living, machine-readable version of this list is the task ledger itself (`py agent_cli.py task list`) — the ledger, not this README, is what the agents obey.
 
@@ -232,7 +232,7 @@ records — every finding with its citation — are in [`research/reviewed/`](re
    benchmark over the append-only ledger, adopting the
    perturbation-stability check we liked in [CMI (2605.17641)](https://arxiv.org/abs/2605.17641)
    and adding the error-trace confound control we didn't find there
-   ([`docs/leapfrog-plan.md`](docs/leapfrog-plan.md)).
+   ([`docs/library/design/20260709_leapfrog-plan-outcome-grounded-memory_18eeba.md`](docs/library/design/20260709_leapfrog-plan-outcome-grounded-memory_18eeba.md)).
 2. **Curation by compression.** The goal is a corpus that gets *better, not bigger* —
    compress only as far as the knowledge still does its job. We deferred MDL as the live
    objective once when the corpus was too small to support it (that was the right call at

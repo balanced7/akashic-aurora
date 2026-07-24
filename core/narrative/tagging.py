@@ -1,6 +1,6 @@
 """
 Tag governance (Slice G0) -- tag-history + confidence schema. Pure data + selection
-logic. NO behavior change to routing, NO I/O. See docs/tag-governance-plan.md.
+logic. NO behavior change to routing, NO I/O. See docs/library/design/20260709_tag-governance-safe-self-improving-taggi_1c9052.md.
 
 A tag is a re-derivable OPINION over an immutable FACT. So a Beat's `track` is not a
 single value but an APPEND-ONLY history of dated, confidence-scored opinions; the

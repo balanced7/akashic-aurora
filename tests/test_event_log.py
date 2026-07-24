@@ -1,7 +1,7 @@
 """
 Auto-logger Slice 1 -- EventLog capture primitive (raw cross-agent event firehose).
 
-Acceptance bar (docs/auto-logger-plan.md):
+Acceptance bar (docs/library/design/20260714_cross-agent-auto-logger-design-slice-pla_6d21c5.md):
   - every captured event round-trips File AND Redis identically;
   - survives Redis-down (File durable, no hang);
   - capture() NEVER raises on bad / huge / None input.

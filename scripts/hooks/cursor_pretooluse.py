@@ -5,7 +5,7 @@ Pinned constraint (cursor.com/docs/agent/hooks, 2026-07-02): preToolUse output i
 DENY-ONLY -- permission / agent_message / updated_input; it CANNOT attach context on an
 allow. So unlike the Claude adapter there is no recall injection here: action-time
 recall arrives one beat late via cursor_posttooluse.py (the T3 approximation,
-docs/integration-tiers.md). This hook only vetoes, with verdicts from the shared
+docs/library/design/20260709_integration-tiers-what-each-harness-actu_38278c.md). This hook only vetoes, with verdicts from the shared
 policy (agent/harness/guards.py):
   - a shell command that blanket-stages git (matcher: Shell)
   - editing a path a PEER holds an advisory lock on (matcher: Write)

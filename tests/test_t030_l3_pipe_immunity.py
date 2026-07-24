@@ -1,6 +1,6 @@
 """
 T030 L3 / RB-28 -- pipe immunity + real-time stdout: pre-registered acceptance
-(committed BEFORE impl, M3/T031). Spec: docs/agent-liveness-tier-2026-07.md FINAL SLICE
+(committed BEFORE impl, M3/T031). Spec: docs/library/design/20260701_agent-liveness-tier-stuck-lost-agent-fai_8c0d79.md FINAL SLICE
 LIST L3 (reconciled dual-half record, 2026-07-10).
 
 The failure modes under pin:

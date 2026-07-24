@@ -4,8 +4,8 @@ Status: current  (2026-07-14)
 Class: contract
 Amended 2026-07-14 (T049 fence-protocol v2): M1-PV, M1-CF, M1-BRIEF, M1-CC inserted into
 M1; M1-LITE added as the proportional tier; enforcement lane extended. Provenance:
-deepseek draft (research/reviewed/deepseek-t049-fence-v2-draft-2026-07-14.md) + claude
-cross-check (research/reviewed/claude-t049-crosscheck-2026-07-14.md, two A3 adjustments
+deepseek draft (docs/library/report/20260714_deepseek-t049-fence-protocol-v2-draft-20_ce18d3.md) + claude
+cross-check (docs/library/report/20260714_claude-cross-check-t049-fence-protocol-v_d91e76.md, two A3 adjustments
 folded) + Daniel ratification via directive 2026-07-14. All additions; nothing removed.
 Governs: HOW all system work is done (the companion to AGENTS.md's WHAT). Daniel's
 ruling 2026-07-11: high-value events stop being one-time highlights -- they become the

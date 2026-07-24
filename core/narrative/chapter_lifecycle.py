@@ -4,7 +4,7 @@ explicit supersession, and track-list hygiene.
 
 Semantic Relationship: Chapter regenerated_from Beats (stable id) ; CorrectedChapter supersedes OldChapter
 
-Design rules this enforces (docs/narrative-spine-plan.md §4–5, sota-comparison):
+Design rules this enforces (docs/library/design/20260709_narrative-spine-design-plan-system-4-cap_2357df.md §4–5, sota-comparison):
 - **Stable, deterministic ids.** A chapter regenerated from the same atoms keeps its
   id (idempotent re-runs → stable cross-references). Regenerating in place IS the
   anti-drift rule (regenerate-from-atoms), not an edit that must be preserved.

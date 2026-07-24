@@ -8,7 +8,7 @@ highest-signal ACTIVE items (relevant lessons + a lock/peer-activity warning) wi
 pointers. The one reusable engine consumed by BOTH the `recall-at` CLI verb AND the PreToolUse
 hook's `additionalContext` (so it is wired by construction, never built-but-not-wired).
 
-Design — deterministic, no-LLM, fail-soft (SOTA-informed; see docs/agent-experience-plan.md):
+Design — deterministic, no-LLM, fail-soft (SOTA-informed; see docs/library/design/20260709_agent-experience-plan-akashic-aurora_405872.md):
 - **keyword/path-first relevance** via the shared Ranker (no embedding on the hot path).
 - **SHOW NOTHING unless it clears a relevance floor** — a weak, off-topic hint at action-time is
   worse than silence (context-rot). We gate on the Ranker's RELEVANCE component specifically, not
@@ -81,7 +81,7 @@ def _parse_trigger(text: str) -> str:
     """The lesson convention encodes its own firing condition: 'Use when <symptom>, before
     <action>: <advice>'. Return that leading trigger clause ('' when absent) so matching can
     weight the DESIGNED trigger over incidental prose -- the vNext precision fix for lessons
-    firing on generic tokens like 'continue working' (docs/recall-vnext-2026-07.md loop 2)."""
+    firing on generic tokens like 'continue working' (docs/library/design/20260701_recall-vnext-closing-the-four-loops-2026_b93539.md loop 2)."""
     m = re.match(r"\s*use\s+when\s+(.{3,240}?)(?::|\.\s|$)", str(text or ""), re.IGNORECASE)
     return m.group(1).strip() if m else ""
 
@@ -911,7 +911,7 @@ def _locks(path: Optional[str], agent_id: Optional[str]) -> List[Dict[str, Any]]
 
 # SHOW-NOTHING floor default (vNext loop 2). Calibrated 2026-07-08 by replaying every historically
 # CREDITED (lesson,target) pair + the 24h injection ledger through the trigger-aware relevance fn
-# (scratchpad recall_floor_calibration.py; result recorded in docs/recall-vnext-2026-07.md): the
+# (scratchpad recall_floor_calibration.py; result recorded in docs/library/design/20260701_recall-vnext-closing-the-four-loops-2026_b93539.md): the
 # chosen default keeps >=95% of historical helps while cutting the never-credited tail. 0 restores
 # the old any-overlap behavior. Env-tunable without a deploy.
 def _floor_default() -> float:

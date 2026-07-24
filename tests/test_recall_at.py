@@ -2,7 +2,7 @@
 
 Run: py tests/test_recall_at.py   (or via pytest)
 
-The discipline this must prove (SOTA-informed, docs/agent-experience-plan.md + the research):
+The discipline this must prove (SOTA-informed, docs/library/design/20260709_agent-experience-plan-akashic-aurora_405872.md + the research):
   - a RELEVANT path/command surfaces the matching active lesson with a source pointer,
   - SHOW NOTHING when nothing clears the relevance floor (never pad to `limit`) — silence beats noise,
   - dedup by source (one line per experiment),

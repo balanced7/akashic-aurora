@@ -3,7 +3,7 @@
 THE RULE: never let an agent blanket-stage the working tree. In a two-agent shared
 tree, `git add -A` / `git add .` / `git commit -a` bundle the OTHER agent's
 unreviewed, in-progress changes into your commit and push them -- the FM1 failure
-observed 2026-06-28 (see docs/concurrency-design.md). Stage explicit pathspecs, or
+observed 2026-06-28 (see docs/library/design/20260709_concurrent-agents-reinforcing-two-peers_5f6723.md). Stage explicit pathspecs, or
 use `py scripts/mirror.py "msg" <paths...>`.
 
 This module is the single rulebook. Both hooks -- scripts/hooks/claude_pretooluse.py
@@ -27,7 +27,7 @@ _REASON = (
     "  git add <path...>   then commit\n"
     '  or  py scripts/mirror.py "msg" <path...>\n'
     "Need to sweep everything anyway? `py scripts/mirror.py \"msg\" --all` is the "
-    "explicit opt-in. See docs/concurrency-design.md (Layer 2 / C0)."
+    "explicit opt-in. See docs/library/design/20260709_concurrent-agents-reinforcing-two-peers_5f6723.md (Layer 2 / C0)."
 )
 
 

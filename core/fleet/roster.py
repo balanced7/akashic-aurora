@@ -1,4 +1,4 @@
-"""The fleet roster -- the single source of truth for local models (docs/fleet-dispatch-design.md).
+"""The fleet roster -- the single source of truth for local models (docs/library/design/20260709_fleet-dispatch-an-intelligent-easy-struc_303d15.md).
 
 Semantic Relationship: Roster projects_over models.json (read-only data).
 

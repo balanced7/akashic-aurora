@@ -1,5 +1,5 @@
 """T086-S6 PRE-REGISTERED ACCEPTANCE — durable reply dedup (Kafka consumer-offsets pattern).
-Cites research/reviewed/t086-seat-reconciliation-2026-07-16.md (Fix-Class D:
+Cites docs/library/report/20260716_t086-seat-wake-hook-lifecycle-reconcilia_c203c4.md (Fix-Class D:
 durable reply dedup — answered-set survives runner restart; redelivered handoff
 is skipped, not re-answered).
 

@@ -8,7 +8,7 @@ mirror.py -- commit local changes and push to GitHub in one step.
 
 Two agents share this working tree, so mirror does NOT blanket-stage by default --
 that bundles the other agent's unreviewed work into your commit (the FM1 failure,
-2026-06-28; see docs/concurrency-design.md). Name the paths that are yours, or stage
+2026-06-28; see docs/library/design/20260709_concurrent-agents-reinforcing-two-peers_5f6723.md). Name the paths that are yours, or stage
 them first with `git add <path>`. `--all` is the explicit opt-in to stage everything
 (it prints the full file list first).
 

@@ -1,6 +1,6 @@
 """Rule-13 birth guard (A1, T101) -- naked .md creation becomes unrepresentable at commit.
 
-Spec: docs/artifact-substrate-design-2026-07.md section 4 + docs/taxonomy-ergonomics-
+Spec: docs/library/design/20260701_artifact-substrate-the-reconciled-design_8ea728.md section 4 + docs/taxonomy-ergonomics-
 reconciliation-2026-07.md. Genus: rule-8 mojibake guard (mirror.py pre-commit REFUSE);
 the wrap census + audit library domain are the permanent backstops.
 

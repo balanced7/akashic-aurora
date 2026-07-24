@@ -2,7 +2,7 @@
 
 Semantic Relationship: Curator retires/restores Lessons by their earned track record
 
-WHY (docs/recall-vnext-2026-07.md, evidence 2026-07-08): 7 days of funnel data showed 34 of 60
+WHY (docs/library/design/20260701_recall-vnext-closing-the-four-loops-2026_b93539.md, evidence 2026-07-08): 7 days of funnel data showed 34 of 60
 lessons had 5+ surfacings and ZERO earned credit -- more than half the corpus was pure injection
 cost -- and the triage that names them had no hands. This module gives it hands, deterministically:
 

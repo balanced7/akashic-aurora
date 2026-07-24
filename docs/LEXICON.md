@@ -138,7 +138,7 @@ since the June foundation docs; keep it current.)
 - **Agent membrane / RENEW** — the control loop that keeps working context healthy **across** sessions:
   detect cognitive debt → *Capture* durable knowledge → *Surface* a curated reload (the MemGPT-style
   **paging function**). A loop over snapshot + boot + funnel + launcher + supersession — NOT a new
-  subsystem. Design + status: `docs/agent-membrane-design-2026-07.md`.
+  subsystem. Design + status: `docs/library/design/20260701_the-mediation-membrane-founding-design-n_4f941f.md`.
 - **session_checkpoint / session_snapshot / session_recovery** (three "session state" things — do NOT
   confuse; the shared name was a real bug): `core/state/session_checkpoint.py` = crash-resume
   CHECKPOINTS (+ `CheckpointRecovery` = derive a resume-plan from one); `core/comm/session_state.py` =
@@ -146,7 +146,7 @@ since the June foundation docs; keep it current.)
   SESSION-HISTORY recovery from local files (its `SessionRecovery` is a *different* class than
   `CheckpointRecovery`).
 
-## Narrative spine (System 4 — `core/narrative/`, see docs/narrative-spine-plan.md)
+## Narrative spine (System 4 — `core/narrative/`, see docs/library/design/20260709_narrative-spine-design-plan-system-4-cap_2357df.md)
 
 - **Beat** — one salient, time-anchored narrative event; points to its raw atom
   (a learning / commit / ledger event) via a followable `source`.
@@ -169,7 +169,7 @@ since the June foundation docs; keep it current.)
   edges are relationship-types. Beat `source` obeys the lossy-summary + lossless-pointer
   rule.
 
-## Perspectives layer (System 4 — `core/perspectives/`, see docs/perspectives-maps-plan.md)
+## Perspectives layer (System 4 — `core/perspectives/`, see docs/library/design/20260709_perspectives-maps-build-plan-the-interpr_5a5e0a.md)
 
 The interpretation layer over the narrative graph. **Substrate stays sacred; this is swappable.**
 
@@ -192,7 +192,7 @@ Lower layers never import higher ones. Agents touch only the top (System 5);
 
 ## Knowledge layers (one source of truth, three views)
 
-Harmonized 2026-06-20 (see `docs/knowledge-harmonization-plan.md`):
+Harmonized 2026-06-20 (see `docs/library/design/20260709_knowledge-store-harmonization-plan-2026_9e9656.md`):
 
 1. **Raw / archival** — `session_logs/learnings.jsonl` + Ledger streams. The deepest,
    richest record. Append-only; never mutated or deleted.
@@ -205,7 +205,7 @@ Harmonized 2026-06-20 (see `docs/knowledge-harmonization-plan.md`):
 Rule: raw is sacred; the Store summarizes-with-pointer; chronicles are regenerated from
 the Store. Never hand-edit a derived view as if it were a source.
 
-## Coordination patterns (two-agent concurrency — see `docs/concurrency-design.md`)
+## Coordination patterns (two-agent concurrency — see `docs/library/design/20260709_concurrent-agents-reinforcing-two-peers_5f6723.md`)
 
 Names for what the system already does, so we can reason about it precisely:
 

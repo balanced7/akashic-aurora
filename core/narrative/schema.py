@@ -7,7 +7,7 @@ PURE SCHEMA. No behavior: no Chronicler, no TrackRouter, no Store I/O, no render
 those are later slices. This module defines only the node/edge shapes, their
 (de)serialization, validation, and the `narr:` Store-key helpers.
 
-Model (docs/narrative-spine-plan.md §2 + §2b):
+Model (docs/library/design/20260709_narrative-spine-design-plan-system-4-cap_2357df.md §2 + §2b):
 
     Atlas  →  Track  →  Chapter  →  Beat  ── points to ──>  atom (learning / commit / event)
     Theme  ─ orthogonal ─ gathers Beats across Tracks

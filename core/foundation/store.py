@@ -958,7 +958,7 @@ class DictStore(FileStore):
 
     Semantic Relationship: DictStore emulates RedisStore
 
-    Built for the Wave 3 differential harness (docs/w3-build-spec-2026-07-11.md): the
+    Built for the Wave 3 differential harness (docs/library/design/20260711_wave-3-reconciled-build-spec-rb-8-12-dic_4f427b.md): the
     same op sequence runs against DictStore and RedisStore, and any divergence -- in
     return values or final state -- IS the finding. Also the zero-I/O backend unit
     tests want. TTL ops refuse loudly rather than lie (Wave 3 cut list: a backend that

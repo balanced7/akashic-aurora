@@ -10,7 +10,7 @@ Semantic Relationship: View derived_from (Map x Lens) over Substrate (read-only)
 
 Swap a Map (how the territory is wired) or a Lens (what matters on it) over the immutable
 substrate -> a different surfaced view. Everything validates against the REAL 66-type
-vocabulary (no invented relation names). See docs/perspectives-maps-plan.md.
+vocabulary (no invented relation names). See docs/library/design/20260709_perspectives-maps-build-plan-the-interpr_5a5e0a.md.
 """
 from dataclasses import dataclass, field, asdict
 from typing import Any, Dict, List, Optional

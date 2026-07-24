@@ -1,6 +1,6 @@
 """T056 (R5 cost telemetry) PRE-REGISTERED ACCEPTANCE -- committed RED before impl.
 
-Cites research/reviewed/r5-cost-telemetry-reconciliation-2026-07-14.md (the build spec;
+Cites docs/library/report/20260714_r5-cost-telemetry-reconciliation-build-s_d7f3a8.md (the build spec;
 deepseek confirm recovered + filed: deepseek-r5-reconciliation-confirm-2026-07-14.md).
 
 REGISTERED SEAM (core/coord/task_costs.py -- deepseek's adopted design):

@@ -6,7 +6,7 @@ T090 Option B fork per the reconciled verdict (research/reviewed/sol-api-surface
 clean fork now, extract core/comm/runner_lib.py after both runners stabilize.
 
 PROVENANCE (the tempo-asymmetry pipeline's first build): the bus-loop half is merged from
-deepseek-review's fast-lane deliverables -- research/drafts/sol-runner-loop-spec-2026-07-17.md
+deepseek-review's fast-lane deliverables -- docs/library/design/20260717_sol-runner-loop-implementation-spec-from_01c20e.md
 (the consume-to-commit contract + 35-item checklist) and scratch/sol_runner_fragments.py --
 while SolAgent (the Responses-native tool loop) was built in parallel in sol_chat.py.
 

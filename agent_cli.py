@@ -61,7 +61,7 @@ _MAX_NOTE = 100_000   # durable note bodies: a ceiling against runaway pastes, n
 def _intake(s, n, field, confessions):
     """Bound a value about to be STORED -- and CONFESS when the bound bites.
 
-    RB-5 class (docs/rb23-build-spec-2026-07-11.md, incident record): a silent clip at a
+    RB-5 class (docs/library/design/20260711_rb-23-content-floor-reconciled-build-spe_d47764.md, incident record): a silent clip at a
     storage door corrupts durable knowledge while the caller is told [OK] -- deepseek's
     knowledge_note tool-arg lost the tail of a design twice on 2026-07-11 exactly this way
     (stored ~4013 chars, tool result confessed nothing). Over-cap input is hard-sliced with
@@ -281,7 +281,7 @@ def cmd_boot(args):
         # forcing a second `notes --json` fetch to recover the actual state. Fidelity is now TIERED
         # by recency (freshest note ~full, older ones taper) so the resume anchor survives in the
         # payload itself; worst case ~640 tokens, well within the boot budget. Full bodies one hop
-        # away via the pointer below. See research/reviewed/renew-strande-cold-resume-2026-07-07.md.
+        # away via the pointer below. See docs/library/report/20260707_renew-strand-e-cold-resume-fidelity-empi_890e10.md.
         from core.learning.agent_memory import get_agent_memory
         notes = get_agent_memory().get_decisions(days=60)
         if _pa:
@@ -688,7 +688,7 @@ def cmd_recall_counters(args):
 # --------------------------------------------------------------------- fleet
 def cmd_fleet(args):
     """Fleet dispatch: the local-model roster + a direct one-shot caller -- the structure for calling
-    small models (docs/fleet-dispatch-design.md). Actions:
+    small models (docs/library/design/20260709_fleet-dispatch-an-intelligent-easy-struc_303d15.md). Actions:
       list   -- the roster (status / capabilities / disqualifier); --probe adds live Ollama availability
       select -- pick the best model for a capability + constraints (what to RUN right now)
       call   -- run a bounded subtask on one model and print its output (also the manual smoke test)
@@ -759,13 +759,13 @@ def cmd_fleet(args):
 def cmd_harnesses(args):
     """The integration-tier matrix: what each harness ACTUALLY delivers, T0 door .. T6 close.
     Data = agent/harness/registry.py (the adapters' single source of truth; the prose story is
-    docs/integration-tiers.md). An honest 'unavailable' beats a pretended capability -- plan
+    docs/library/design/20260709_integration-tiers-what-each-harness-actu_38278c.md). An honest 'unavailable' beats a pretended capability -- plan
     around what your runtime does, not what you wish it did."""
     from agent.harness.registry import HARNESSES, TIERS, supported
     if args.json:
         print(json.dumps({"tiers": list(TIERS), "harnesses": HARNESSES}, indent=2))
         return 0
-    print("# INTEGRATION TIERS  (T0 door .. T6 close; the story: docs/integration-tiers.md)")
+    print("# INTEGRATION TIERS  (T0 door .. T6 close; the story: docs/library/design/20260709_integration-tiers-what-each-harness-actu_38278c.md)")
     for name, spec in HARNESSES.items():
         auto = sum(1 for t in TIERS if supported(name, t))
         print(f"\n## {name}  (agent id: {spec.get('default_agent_id') or '<set AKASHIC_AGENT_ID>'}; "
@@ -1537,7 +1537,7 @@ def cmd_doc(args):
     --from-bus <stream-id>: file ONE bus message as a conversation-atom with provenance
     (origin/speakers/source_thread/settled) -- opt-in only; blanket auto-filing is the
     sprawl one transport layer over.
-    Spec: docs/artifact-substrate-design-2026-07.md + docs/taxonomy-ergonomics-
+    Spec: docs/library/design/20260701_artifact-substrate-the-reconciled-design_8ea728.md + docs/taxonomy-ergonomics-
     reconciliation-2026-07.md (Daniel gate fired 2026-07-23).
 
     Inference (never worse than typing flags; wrong stamps are post-hoc lint fixes):
@@ -2563,7 +2563,7 @@ def cmd_episode(args):
     """Session bookends: the live current episode, close+draft, and accept.
 
     An episode IS a narrative Chapter with an open span + `why` (intent). Emits the JSON contract the
-    Bifrost UI renders against (docs/session-bookends-design-2026-07.md §6). Usage:
+    Bifrost UI renders against (docs/library/design/20260701_session-bookends-design-for-peer-review_c38e0c.md §6). Usage:
       py agent_cli.py episode current --json
       py agent_cli.py episode close [--accept-title T --accept-desc D --accept-why W] --json
       py agent_cli.py episode accept <chapter_id> [--title T --desc D --why W] --json
@@ -2674,7 +2674,7 @@ def cmd_handoff(args):
     if not to_agent or not task:
         print("ERROR: need --to <agent> and --task \"...\" (or --list to read).")
         print('Example: py agent_cli.py handoff cursor --to claude '
-              '--task "finish C3 threshold tuning" --note "see docs/codex-plan.md"')
+              '--task "finish C3 threshold tuning" --note "see docs/library/design/20260709_the-codex-a-self-curating-knowledge-laye_302fc9.md"')
         return 2
 
     from core.signals.coordinator_api import SignalEmitter
@@ -3538,7 +3538,7 @@ def cmd_packet_trace(args):
 def cmd_mailbox(args):
     """T095 M0 shadow mailbox: the free question 'what is addressed to X and in what
     state?' -- evidence ladder acked > replied/auto_acked > consumed > unhandled,
-    derived read-only from the streams (docs/comms-mailbox-design-2026-07.md sec 2).
+    derived read-only from the streams (docs/library/design/20260701_comms-mailbox-over-the-log-t095-governin_06357f.md sec 2).
     Observation only: touches no cursor, ack, wake, or delivery state."""
     from core.comm.bus import Bus
     from core.comm import mailbox
@@ -4127,7 +4127,7 @@ def build_parser():
     lks.add_argument("agent_id", nargs="?", default=""); lks.add_argument("--json", action="store_true")
     lks.set_defaults(fn=cmd_locks)
 
-    # ---- T099 V0 self-tooling (docs/self-tooling-design-2026-07.md) ----
+    # ---- T099 V0 self-tooling (docs/library/design/20260701_self-tooling-arc-reconciled-design-agent_29f578.md) ----
     cap = sub.add_parser("capture", help="full-fidelity bus read: unwrap a message by stream id "
                                          "(or last N from an agent) + optional verbatim-persist "
                                          "(the 5x-hand-written extractor, now a verb)")

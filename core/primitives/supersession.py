@@ -15,7 +15,7 @@ Writing a superseding record stamps the new one and retires the old one; reads
 filter to active-only. Records that predate this convention simply lack the fields
 and are treated as active — so it's safe to adopt incrementally.
 
-See docs/shared-primitives-spec.md.
+See docs/library/design/20260619_shared-primitives-interface-spec_03e098.md.
 """
 
 from typing import Any, Dict, Iterable, List, Optional

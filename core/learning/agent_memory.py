@@ -19,7 +19,7 @@ This persists through a `Store` (core.foundation.store) -- Redis when up, File
 always -- so it survives Redis being down (the old learning/store.py was
 Redis-only and returned empty on an outage). Behavior and shape are otherwise
 unchanged from that original; richer retrieval, temporal supersession, and the
-consolidation->chronicle loop are later phases (see docs/learning-memory-integration-plan.md).
+consolidation->chronicle loop are later phases (see docs/library/design/20260709_integration-plan-a-unified-agent-memory_a58608.md).
 
 It uses the `mem:` namespace, distinct from the `learn:` namespace of the
 experiment-signal LearningStore, so the two never collide.
@@ -45,7 +45,7 @@ from core.foundation.store import CASConflict, Store, create_store
 
 logger = logging.getLogger("agent_memory")
 
-# RB-8 (Wave 3, docs/w3-build-spec-2026-07-11.md): the per-title head sentinel keyspace.
+# RB-8 (Wave 3, docs/library/design/20260711_wave-3-reconciled-build-spec-rb-8-12-dic_4f427b.md): the per-title head sentinel keyspace.
 # Decisions-scoped on purpose -- experiences/reflections can grow their own heads later.
 HEAD_KEY_PREFIX = "mem:decisions:head:"
 
@@ -651,7 +651,7 @@ def get_agent_memory(store: Optional[Store] = None) -> AgentMemory:
     """
     Get or create the global AgentMemory instance.
 
-    T069 (reconciled spec: research/reviewed/t069-singleton-reconciliation-2026-07-15.md):
+    T069 (reconciled spec: docs/library/report/20260715_t069-singleton-isolation-reconciliation_1a7cdb.md):
     the event_log three-branch shape. Explicit injection -> fresh; isolated mode
     (_AISETUP_TEST_ISOLATED) -> fresh per call, cache untouched (AgentMemory is a
     stateless wrapper over the Store, so fresh wrappers over the same isolated paths

@@ -3,7 +3,7 @@ RB-25 Drill 4 -- LONG IDLE SOAK (~72h). certify-at-soak-start (Daniel ruling 202
 T029 certifies when drill 3 is verified AND this soak is ARMED with a clean T0. The 72h run is
 PASSIVE background observation; ANY bar failure at a later checkpoint REOPENS T029.
 
-Bars (docs/rb25-exam-runbook-2026-07-11.md, Drill 4):
+Bars (docs/library/design/20260711_rb-25-engine-exam-runbook-pre-registered_9356ea.md, Drill 4):
   K1 MEMORY BOUNDED    runner+watcher RSS grows <= +15% of its T0 baseline (named tolerance, M8)
   K2 SEAT HYGIENE      the wake seat renews; no orphan seats accumulate; no kill-loop shape
   K3 RECONNECT         (manual, mid-window) one induced Redis restart -> degrade -> recover

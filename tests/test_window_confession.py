@@ -1,7 +1,7 @@
 """
 RB-5 (T029 Wave 2) -- "window truncated" confession everywhere a bound must remain.
 
-Bar (docs/resilience-battery-slices-2026-07.md): no surface shows "unhandled/none" when
+Bar (docs/library/design/20260701_resilience-battery-sliced-execution-plan_8d660c.md): no surface shows "unhandled/none" when
 the true state is "beyond the window"; boot and the CLI agree on the unhandled threshold;
 a bounded read says what it dropped (funnel `events_capped` precedent,
 core/recall/funnel.py:292). The ack lookup itself goes EXACT in RB-4 (by-ref index,

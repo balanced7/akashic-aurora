@@ -1,6 +1,6 @@
 """T095 M0 PRE-REGISTERED ACCEPTANCE -- shadow mailbox state index.
 
-These pins cite the reconciled build spec at ``docs/comms-mailbox-design-2026-07.md``
+These pins cite the reconciled build spec at ``docs/library/design/20260701_comms-mailbox-over-the-log-t095-governin_06357f.md``
 sec 2 (counter-folded 2026-07-18: evidence ladder acked > replied > auto_acked >
 consumed > unhandled; tiered retention; deepseek pin extensions 9-13).  Committed RED
 before implementation.  M0 is observational only: the index derives state from what

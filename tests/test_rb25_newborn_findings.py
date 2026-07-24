@@ -1,8 +1,8 @@
 """
 RB-25 exam findings F1 + F2 -- pre-registered acceptance (committed BEFORE the fixes,
 M3/T031). Both surfaced by the newborn-gauntlet re-run (drill 1 of the RB-25 exam,
-2026-07-12); rubric + verdict in docs/newborn-gauntlet-rubric-2026-07.md, transcript in
-research/reviewed/newborn-gauntlet-transcript-2026-07-12.md.
+2026-07-12); rubric + verdict in docs/library/design/20260701_newborn-gauntlet-pre-registered-rubric-t_16fdb3.md, transcript in
+docs/library/report/20260712_rb-25-drill-1-newborn-gauntlet-re-run-ve_419213.md.
 
 F1 -- a runner must self-refuse at startup when its OWN id is quarantined. The conscious
      tool doors are airtight (proven live), but the runner's reply/trace lanes are not

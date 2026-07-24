@@ -1,6 +1,6 @@
 """Projection renderer (A1) -- one atom -> one read-only markdown file.
 
-Spec: docs/artifact-substrate-design-2026-07.md section 2 + docs/super-wiki-experience-
+Spec: docs/library/design/20260701_artifact-substrate-the-reconciled-design_8ea728.md section 2 + docs/super-wiki-experience-
 design-2026-07.md section 4. The render is DISPOSABLE and REGENERABLE; the atom is the
 truth. YAML frontmatter carries the header fields (Obsidian Bases reads them natively)
 plus akashic_id + akashic_sha -- the projection self-verifies against the atom body, so

@@ -1,6 +1,6 @@
 """Task cost telemetry (T056 / wishlist R5) -- per-slice ROI, honestly attributed.
 
-Build spec: research/reviewed/r5-cost-telemetry-reconciliation-2026-07-14.md (full-fence
+Build spec: docs/library/report/20260714_r5-cost-telemetry-reconciliation-build-s_d7f3a8.md (full-fence
 reconciliation; deepseek's owner-attributed accumulator design ADOPTED -- his half won
 the central divergence on the verified one-in-progress gate). Pins: K1-K7 in
 tests/test_t056_cost_telemetry.py.

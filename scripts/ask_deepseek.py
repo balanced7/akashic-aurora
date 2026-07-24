@@ -9,7 +9,7 @@ Key resolution (first hit wins; the secret never lands in the repo or chat trans
 Prompt source: positional args, else --file <path>, else stdin.
 
   py scripts/ask_deepseek.py "Critique the Consolidator extraction."
-  py scripts/ask_deepseek.py --file docs/codex-plan.md --system "Be a blunt staff engineer."
+  py scripts/ask_deepseek.py --file docs/library/design/20260709_the-codex-a-self-curating-knowledge-laye_302fc9.md --system "Be a blunt staff engineer."
   py scripts/ask_deepseek.py --model deepseek-reasoner "Prove this is correct."
 
 NOTE: the prompt is sent to DeepSeek's API (pay-as-you-go -- real cost, usually cents). Don't pass

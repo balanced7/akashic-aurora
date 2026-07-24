@@ -1,6 +1,6 @@
 """check_doc_currency -- P4 (T024): no dead law under docs/.
 
-The disease this kills (T016 F1c): docs/master-directive-list-2026-07-05.md declared itself
+The disease this kills (T016 F1c): docs/library/design/20260705_master-directive-list-akashic-aurora-202_964020.md declared itself
 SINGLE SOURCE OF TRUTH for a lane model AGENTS.md had abolished, sat UNTRACKED, and a cold
 agent reading docs/ chronologically would adopt dead law. The cure is a currency stamp every
 doc must carry, near the top:

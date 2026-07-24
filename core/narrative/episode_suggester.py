@@ -2,7 +2,7 @@
 
 Semantic Relationship: a Suggestion PROPOSES closing the open Episode (human/agent accepts)
 
-Watches the four already-existing phase signals the design locked (docs/session-bookends-design-2026-07.md
+Watches the four already-existing phase signals the design locked (docs/library/design/20260701_session-bookends-design-for-peer-review_c38e0c.md
 D4/D5 + review Q5c) and, when one fires, emits ONE advisory suggestion whose shape matches the close
 draft (contract #6: {title, description, why} + {reason, confidence}) so the UI reuses one edit panel:
 

@@ -1,4 +1,4 @@
-"""Fleet dispatch -- the structure for calling local models (docs/fleet-dispatch-design.md).
+"""Fleet dispatch -- the structure for calling local models (docs/library/design/20260709_fleet-dispatch-an-intelligent-easy-struc_303d15.md).
 
 roster : the single source of truth (models(), get(tag), select(...), probe_availability()).
 caller : the direct one-shot caller (call(tag, prompt, ...) -> text; raises FleetCallError).

@@ -1,7 +1,7 @@
 """T043 -- packet send-door hardening. The 10 pre-registered acceptance pins + the
-3-receipt replay drill, from docs/packet-spec-v1-2026-07.md RIDING BUILD (LAW).
+3-receipt replay drill, from docs/library/design/20260701_packet-spec-v1-reconciled-build-spec-dua_a50b94.md RIDING BUILD (LAW).
 
-Reconciled build spec: research/reviewed/t043-build-plan-reconciliation-2026-07-13.md
+Reconciled build spec: docs/library/report/20260713_t043-send-door-hardening-build-plan-reco_7d8ee7.md
 (fenced dual: claude + deepseek, blind). The pins were committed IN the LAW spec BEFORE
 this implementation (M3 pre-registration).
 

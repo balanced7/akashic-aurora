@@ -26,7 +26,7 @@ The seat never dropped the discipline to buy endurance; it kept the discipline A
    The register discipline deepseek asked for held: adjectives ship with numbers beside them now.
 
 2. **The steer-corpus arc went from design to its first LIVE specimen.** R001
-   (docs/rulings/R001-deepseek-trust-2026-07-22.md) is the first captured ruling — Daniel's
+   (docs/library/design/20260722_ruling-r001-deepseek-trusted-with-more_3b86eb.md) is the first captured ruling — Daniel's
    "I agree completely" about trusting deepseek more, captured in the exact shape the ruling-capture
    pilot designed: verbatim + rationale + uncertainty + falsifiers + fleet-positions, immutable,
    supersession-not-amendment. The design became real the day after it was designed. When you

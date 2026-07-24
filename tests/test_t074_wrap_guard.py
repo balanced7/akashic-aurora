@@ -1,5 +1,5 @@
 """T074 Phase 2 pins -- the wrap curated-guard (W7-W9 of the reconciled build spec,
-research/reviewed/t074-continuity-reconciliation-2026-07-15.md; deepseek's Rule 1-2
+docs/library/report/20260715_t074-seamless-continuity-reconciliation_89103c.md; deepseek's Rule 1-2
 govern: the curated flag BEATS timestamp inference, and wrap must never let a
 mechanical distillation silently supersede a hand-curated handoff -- the live
 2026-07-15 clobber incident made unrepresentable).

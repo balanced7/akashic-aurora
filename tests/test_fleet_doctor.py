@@ -1,6 +1,6 @@
 """
 T030 L2 -- the progress pulse (RB-27a) + fleet doctor (RB-27b), per the reconciled
-L2 BUILD SPEC (docs/agent-liveness-tier-2026-07.md): the missing reader of the L1
+L2 BUILD SPEC (docs/library/design/20260701_agent-liveness-tier-stuck-lost-agent-fai_8c0d79.md): the missing reader of the L1
 worklive signals, with the three-reviewer paging table.
 
 The law under test:

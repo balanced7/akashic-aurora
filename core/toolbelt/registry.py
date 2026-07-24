@@ -3,7 +3,7 @@ Toolbelt registry (T099 · V0 self-tooling) -- agent-authored verb compositions.
 
 Semantic Relationship: Toolbelt projects AgentVerbRegistry (durable JSON is truth)
 
-The reconciled laws (docs/self-tooling-design-2026-07.md):
+The reconciled laws (docs/library/design/20260701_self-tooling-arc-reconciled-design-agent_29f578.md):
   SUGAR-ONLY   -- an alias is a SEQUENCE of existing agent_cli verbs (argv lists). Minting a
                   step whose verb the door doesn't know REFUSES loudly. Aliases execute only
                   via `run <agent> <name>`, so a real verb can never be shadowed.

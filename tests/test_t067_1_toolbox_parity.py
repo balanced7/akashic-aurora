@@ -1,6 +1,6 @@
 """T067-1 PRE-REGISTERED ACCEPTANCE -- ToolBox third-door parity.
 
-Design half: research/reviewed/deepseek-t067-1-design-2026-07-15.md (T058 pattern:
+Design half: docs/library/report/20260715_deepseek-t067-1-design-toolbox-third-doo_ae2b37.md (T058 pattern:
 deepseek designs, claude builds, deepseek live-verifies). Three ToolBox additions
 (knowledge_map / bifrost_ack / delta), check_door_parity gains the ToolBox as an
 ENFORCED third door (ratchet + shared-coverage + toolbox_only class), and the

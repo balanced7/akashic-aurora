@@ -1,6 +1,6 @@
 """
 T099 · V0 self-tooling — verb registry + alias engine + capture verb.
-Cites docs/self-tooling-design-2026-07.md (reconciled three-half design; Daniel gate 2026-07-20).
+Cites docs/library/design/20260701_self-tooling-arc-reconciled-design-agent_29f578.md (reconciled three-half design; Daniel gate 2026-07-20).
 
 Laws under test (pre-registered, RED before core/toolbelt/registry.py exists):
   - SUGAR-ONLY: an alias is a sequence of EXISTING agent_cli verbs; minting a step naming an

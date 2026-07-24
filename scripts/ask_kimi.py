@@ -9,7 +9,7 @@ Key resolution (the secret never lands in the repo or chat transcript):
 Prompt source: positional args, else --file <path>, else stdin.
 
   py scripts/ask_kimi.py "Critique this design."
-  py scripts/ask_kimi.py --file docs/codex-plan.md --system "Be a blunt staff engineer."
+  py scripts/ask_kimi.py --file docs/library/design/20260709_the-codex-a-self-curating-knowledge-laye_302fc9.md --system "Be a blunt staff engineer."
   py scripts/ask_kimi.py --model kimi-k2.6 --max-tokens 2000 "Quick take?"
 
 NOTE: pay-as-you-go against the seat's $105 grant; every call is METERED into the shared

@@ -1,7 +1,7 @@
 """
 Auto-logger Slice 3 -- query + search over the raw firehose.
 
-Acceptance bar (docs/auto-logger-plan.md):
+Acceptance bar (docs/library/design/20260714_cross-agent-auto-logger-design-slice-pla_6d21c5.md):
   - window recall = 100%  (every event in a span is returned);
   - search precision@5 >= 0.8 vs gold on the QA queries;
   - filters (kind / agent / track / since / until) are exact;

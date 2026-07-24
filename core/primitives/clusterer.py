@@ -15,7 +15,7 @@ Deterministic by construction (same atoms -> same clusters + ids), so re-runs do
      EJECTED to its own salient singleton, never force-absorbed into a generic bucket; and a
      high-importance loner bypasses the rule-of-three (size>=3) to stand as its own resource.
      (Anti-compression bias: the machine is a librarian, not an author -- it must not optimize
-     away the idiosyncratic 4-hour-debugging gem. See docs/codex-plan.md amendment D6.)
+     away the idiosyncratic 4-hour-debugging gem. See docs/library/design/20260709_the-codex-a-self-curating-knowledge-laye_302fc9.md amendment D6.)
 
 Proposals (the curator, C5, decides what to do with them):
   - merge: two clusters whose centroids are near-duplicate (same topic, redundant)

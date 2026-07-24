@@ -1,4 +1,4 @@
-"""Forge F2 -- the optimizer pass (docs/lesson-forge-design-2026-07.md sec.5, sec.9 F2).
+"""Forge F2 -- the optimizer pass (docs/library/design/20260701_lesson-forge-evidence-gated-content-opti_fd3204.md sec.5, sec.9 F2).
 
 Proposes ONE bounded rewrite per curator-named target, through an INJECTED model call --
 this module owns selection, the blinded payload, parsing, and proposal bookkeeping; it
