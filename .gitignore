@@ -50,6 +50,9 @@ test_code.json
 *.jsonl
 # test fixtures are CODE, not volatile data: exempt them from the jsonl blanket
 !tests/fixtures/**/*.jsonl
+# the artifact-substrate durable record IS git-tracked by design (A1, T101):
+# store/docs JSONL = the atoms' append-only ledger; git push = its off-machine backup
+!store/docs/*.jsonl
 # auto-captured per-session draft (SessionEnd/PreCompact); ephemeral, regenerated each session
 chronicles/last-session-draft.md
 
