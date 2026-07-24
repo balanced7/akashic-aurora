@@ -124,3 +124,6 @@ data/play/*/runs/
 # parked prehistory receipts are archive, not volatile data (exemption from the jsonl blanket)
 !_archive/prehistory/*.jsonl
 !store/docs/migration_map.json
+
+# design inspiration (Apple HIG / Samsung OneUI) — LOCAL reference only, never on GitHub (Daniel ruling 2026-07-23)
+refs/design-inspiration/
