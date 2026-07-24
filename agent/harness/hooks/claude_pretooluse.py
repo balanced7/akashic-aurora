@@ -29,7 +29,7 @@ import json
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 
 _FILE_TOOLS = ("Edit", "Write", "NotebookEdit")
 _SHELL_TOOLS = ("Bash", "PowerShell")

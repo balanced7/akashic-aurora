@@ -56,7 +56,7 @@ def _touch_activity(session_id: str) -> None:
     if not session_id:
         return
     try:
-        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
         from core.comm import wake_seat
         wake_seat.touch_activity(AGENT, session_id)
     except Exception:
@@ -172,7 +172,7 @@ def _promise_block(payload: dict):
     if not session_id or not transcript:
         return None
     try:   # scope to Akashic sessions -- an unrelated project never gets bounced
-        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
         from agent.harness.scope import session_in_scope
         if not session_in_scope(payload.get("cwd") or os.getcwd()):
             return None
@@ -208,7 +208,7 @@ def main():
         try:   # T086 S1b: a resurrected turn of an ENDED session stands down QUIETLY --
             #    no marker touch (that would fake renewal), no seat refresh, no wake-arm
             #    demand. Breaks the C1-5 resurrection loop by record, not by judgment.
-            sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+            sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
             from core.comm import wake_seat as _ws
             if _ws.is_tombstoned(session_id):
                 print("[stop-hook] session tombstoned (ended) -- standing down unarmed (T086 S1)",
@@ -219,7 +219,7 @@ def main():
     _touch_activity(session_id)          # stamp ALIVE on every firing -- K7 fast path
     if session_id:
         try:                             # RB-21: keep the consumer seat alive while the
-            sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+            sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
             from core.comm import runner_lock   # session is (heartbeat refuses foreign
             runner_lock.refresh_consumer(AGENT, f"session:{session_id}")   # tokens -> safe no-op)
         except Exception:
@@ -246,7 +246,7 @@ def main():
     # Daemon down -> the ONCE-latched nag rides stderr and the legacy path decides.
     if os.getenv("AKASHIC_DAEMON_WAKE", "1") != "0":
         try:
-            sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+            sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
             from core.comm import daemon_state
             _v = daemon_state.stop_hook_wake_verdict(AGENT, session_id)
             if _v.get("pass"):
@@ -280,7 +280,7 @@ def main():
         # seat-holder (plan-wall law); demanding a watcher HERE arms a redundant one. A
         # TOMBSTONED holder falls through (dead by record -> this seat SHOULD arm).
         try:
-            sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+            sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
             from core.comm import runner_lock as _rl, wake_seat as _ws3
             _tok = str((_rl.holder(AGENT) or {}).get("token") or "")
             if (_tok.startswith("session:") and session_id
