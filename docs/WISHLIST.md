@@ -304,6 +304,15 @@ Status flips: `[x] folded → T0xx` / `[~] declined: reason`.
   message-row flex alignment); pin a screenshot-diff or DOM-assert in check_ui_contract
   so it cannot regress silently a third time.
 
+- [ ] W60 (07-24, Daniel via claude — "I saw a few .md files being generated... reflexive
+  habit?") — Runner write-door library guard: the guarded write_file door accepted both
+  seats' SOTA halves as hand-made projection-lookalike .md files in docs/library/report/
+  (no atoms behind them; invented frontmatter + rel names). --verify's orphan rule caught
+  them post-hoc and they were re-homed, but the DOOR should refuse/warn on docs/library/**
+  + loose docs/*.md writes and teach `doc new` — deny-at-the-door, same posture as the
+  birth guard, one lane earlier. Land: deepseek ToolBox lane (it owns write_file); pin =
+  a runner write to docs/library/ is refused with the doc-new teaching message.
+
 *(W54/W55 were double-filed by two claude seats during the C2 audit collision — merged into
 the numbered entries above, 2026-07-21; all content folded, nothing dropped.)*
 
