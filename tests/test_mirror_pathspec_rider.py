@@ -109,16 +109,18 @@ def test_directory_pathspec_scopes_correctly(twin_repo):
     work = twin_repo
     (work / "rider.txt").write_text("the twin's staged draft\n")
     _run(["git", "add", "rider.txt"], work)           # the other seat pre-stages
-    (work / "docs").mkdir(exist_ok=True)
-    (work / "docs" / "a.md").write_text("my doc\n")
-    (work / "docs" / "b.md").write_text("my other doc\n")
+    # NOTE (T104 sweep): fixture moved off docs/*.md — rule-13 birth guard rightly
+    # refuses loose doc births even inside the twin; scoping semantics need no .md.
+    (work / "notes").mkdir(exist_ok=True)
+    (work / "notes" / "a.txt").write_text("my note\n")
+    (work / "notes" / "b.txt").write_text("my other note\n")
 
-    r = _mirror(work, "docs sweep", "docs/")
+    r = _mirror(work, "notes sweep", "notes/")
     assert r.returncode == 0, f"mirror failed:\n{r.stdout}\n{r.stderr}"
 
     committed = _committed_files(work)
-    assert "docs/a.md" in committed
-    assert "docs/b.md" in committed
+    assert "notes/a.txt" in committed
+    assert "notes/b.txt" in committed
     assert "rider.txt" not in committed, (
         f"directory pathspec carried stranger file outside the dir: {committed}")
     assert "rider.txt" in _staged_files(work), (

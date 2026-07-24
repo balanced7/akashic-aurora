@@ -149,7 +149,8 @@ def test_lane_key_shapes():
 
 # ------------------------------------------------------------- B6: reader census (A3)
 def test_reader_census_documented():
-    p = os.path.join(REPO, "docs", "t039-lanes-latches-design-2026-07.md")
+    p = os.path.join(REPO, "docs", "library", "design",
+                     "20260701_t039-purpose-keyed-lanes-latches-governi_7bc135.md")  # migrated at P3
     doc = open(p, encoding="utf-8").read()
     for reader in ("bifrost_api", "wake listener", "core/comm/doctor.py",
                    "scripts/bifrost_ui.py", "scripts/bifrost_console.py", "bifrost_pull"):

@@ -25,12 +25,15 @@ def _warn(monkeypatch, status, *, soft=False):
 
 
 def test_warns_loud_on_dirty_tree(monkeypatch):
+    # W35/B5 contract: bucketed label from porcelain lines (modified-tracked vs untracked),
+    # never the old flat "N uncommitted file(s)" sweep imperative.
     ret, out = _warn(monkeypatch,
                      {"ok": True, "dirty": 3, "ahead": 0, "branch": "master",
-                      "summary": "AGENTS.md, a.py, b.py"})
+                      "summary": "AGENTS.md, a.py, b.py",
+                      "lines": [" M AGENTS.md", "?? a.py", "?? b.py"]})
     assert ret is True
     assert "UNMIRRORED WORK" in out
-    assert "3 uncommitted file(s)" in out
+    assert "1 modified (tracked), 2 untracked" in out
     assert "mirror.py" in out          # tells the agent exactly what to run
 
 
@@ -41,14 +44,18 @@ def test_warns_on_unpushed_commits(monkeypatch):
     assert "2 unpushed commit(s)" in out
 
 
-def test_soft_is_one_line_heads_up(monkeypatch):
+def test_soft_is_gentle_heads_up(monkeypatch):
+    # W35/B5: soft renders the sibling-safe "[i] Unmirrored" block (BY-NAME guidance),
+    # never the loud UNMIRRORED WORK nag and never a sweep imperative.
     ret, out = _warn(monkeypatch,
-                     {"ok": True, "dirty": 1, "ahead": 0, "branch": "master", "summary": "x.py"},
+                     {"ok": True, "dirty": 1, "ahead": 0, "branch": "master",
+                      "summary": "x.py", "lines": ["?? x.py"]},
                      soft=True)
     assert ret is True
-    assert "Heads-up" in out
+    assert "[i] Unmirrored" in out
+    assert "1 untracked" in out
     assert "UNMIRRORED WORK" not in out          # soft != loud
-    assert len([ln for ln in out.splitlines() if ln.strip()]) == 1
+    assert "BY NAME" in out                      # the sibling-safe imperative
 
 
 def test_silent_when_clean(monkeypatch):
