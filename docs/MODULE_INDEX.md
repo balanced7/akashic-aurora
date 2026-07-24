@@ -21,7 +21,7 @@
 - `agent_signal_ledger.py` — Agent Signal Ledger: the ordered record of every signal agents emit
 - `coordinator_api.py` — Coordinator API: Minimal signal-based logging for agents
 
-## core/comm/  (34 modules)
+## core/comm/  (36 modules)
 - `assertions.py` — Pre-flight assertions (T068-R3 / deepseek M10) -- verify a directed answer's FACTUAL
 - `bifrost_api.py` — bifrost.api -- the one door an agent uses to join and work the Bifrost bus.
 - `blobs.py` — BlobStore (Slice B1) -- a content-addressed blob store for Bifrost media/large payloads.
@@ -52,19 +52,23 @@
 - `runner_lock.py` — Bifrost runner singleton-lock -- at most ONE live runner per agent id.
 - `session_exit.py` — session_exit -- the clean-death trio (T075 M1-beta, reconciliation ruling 3).
 - `session_state.py` — Session State — snapshot the live Bifrost session so it can be resumed later.
+- `storm_detect.py` — storm_detect — S0-beta storm signature detection (lane-depth spike + repeat-delivery).
 - `timescale.py` — Timescale (T030 L1 follow-up) -- ONE seam for BUGGIFY-style timeout shrinking.
 - `toolbox.py` — core.comm.toolbox -- the fleet's guarded tool surface (schemas + executor), shared seam.
+- `triage_park.py` — Triage park (S0-alpha) -- the scry-to-bottom bench.
 - `turn_metrics.py` — Turn metrics (progress-bars data half; co-designed claude+deepseek 2026-07-11).
 - `wake_seat.py` — wake_seat -- the per-session wake-seat protocol (T029 Wave 2, the R1/R16 fix).
 
-## core/coord/  (9 modules)
+## core/coord/  (11 modules)
 - `cognitive_metrics.py` — Cognitive Efficiency Metrics — live instrumentation for the Stage-3 evidence engine.
 - `conductor.py` — Conductor — the impure orchestration shell over the pure task ledger (Slice D).
+- `defer_queue.py` — defer_queue — the capability-gated standing queue (W33, seat-zero wave B3).
 - `experiment.py` — Coordination experiment harness -- the Stage-3 evidence engine.
 - `fence_workspace.py` — Fence workspace (R2 / T053) -- the fence as a first-class object, not a naming convention.
 - `intent.py` — Intent declaration -- Policy 0 of the coordination layer.
 - `metrics.py` — Solution-Space-Shrinkage Tracker — the Metric C cross-run watchdog.
 - `negotiation.py` — Negotiation round — brief window after user input where agents declare plans.
+- `suite_baseline.py` — suite_baseline — the test-suite receipt the next seat diffs instead of re-deriving (W34/B4).
 - `task_costs.py` — Task cost telemetry (T056 / wishlist R5) -- per-slice ROI, honestly attributed.
 - `task_ledger.py` — Governed task ledger — the deterministic coordination substrate (Phase 1: sequential-correct).
 
@@ -77,12 +81,12 @@
 - `at_action.py` — Recall-at-action (`core/recall`) — read the right knowledge AT THE MOMENT of action.
 - `curator.py` — Recall curator (vNext loop 1) -- the funnel's triage made an ACTOR, not a report.
 - `dissent.py` — Dissent-finder (`core/recall`) — surface the strongest genuine COUNTER to a recalled lesson.
-- `forge.py` — Forge F1 -- the Tier-0 edit gate (docs/library/design/20260701_lesson-forge-evidence-gated-content-opti_fd3204.md sec.4, sec.9 F1).
-- `forge_optimizer.py` — Forge F2 -- the optimizer pass (docs/library/design/20260701_lesson-forge-evidence-gated-content-opti_fd3204.md sec.5, sec.9 F2).
+- `forge.py` — Forge F1 -- the Tier-0 edit gate (docs/library/design/20260701_lesson-forge-evidence-gated-content-opti_fd3204
+- `forge_optimizer.py` — Forge F2 -- the optimizer pass (docs/library/design/20260701_lesson-forge-evidence-gated-content-opti_fd3204.m
 - `funnel.py` — Recall-value funnel (leapfrog T3): is surfaced knowledge actually HELPING, and are
 - `knowledge_map.py` — knowledge_map (R8 / T059) -- WALK the knowledge, don't query it blind.
 - `lookback.py` — Lookback (P7 / T027) -- one question over the rationale corpus, layered, drillable.
-- `replay.py` — Forge F0 -- replay harness + data-sufficiency audit (docs/library/design/20260701_lesson-forge-evidence-gated-content-opti_fd3204.md sec.9).
+- `replay.py` — Forge F0 -- replay harness + data-sufficiency audit (docs/library/design/20260701_lesson-forge-evidence-gated-
 
 ## core/primitives/  (7 modules)
 - `clusterer.py` — Clusterer (Slice C1) -- group atoms by MEANING and flag where the knowledge structure should
@@ -121,7 +125,7 @@
 
 ## core/fleet/  (2 modules)
 - `caller.py` — The direct caller -- one-shot invocation of a local model for a BOUNDED subtask.
-- `roster.py` — The fleet roster -- the single source of truth for local models (docs/library/design/20260709_fleet-dispatch-an-intelligent-easy-struc_303d15.md).
+- `roster.py` — The fleet roster -- the single source of truth for local models (docs/library/design/20260709_fleet-dispatch-a
 
 ## core/state/  (2 modules)
 - `session_checkpoint.py` — Session Checkpoint: crash-recovery checkpoint system (renamed from session_state.py 2026-07-07 to
@@ -135,6 +139,23 @@
 - `reinforce.py` — ReinforcedGraph (Slice P1) -- an association graph whose edges STRENGTHEN with co-use
 - `schema.py` — Perspectives schema (Slice P0) -- Lens + Map shapes. Pure data, no behavior.
 
+## core/library/  (3 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
+- `atoms.py` — The artifact-atom family (A1 core) -- atoms as truth, JSONL as the durable record.
+- `projection.py` — Projection renderer (A1) -- one atom -> one read-only markdown file.
+- `taxonomy.py` — Taxonomy constants + the birth-door classifier (A1, homes-and-order round).
+
+## core/toolbelt/  (10 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
+- `audit.py` — audit — the belief-vs-belief photographer (deepseek build, kimi's v2 domain #1).
+- `audit_spend.py` — audit_spend — the SPEND domain for core.toolbelt.audit (kimi build, partner night R3).
+- `clobber_scan.py` — clobber_scan — unconditional shared-control-key writes, flagged statically (W47).
+- `contest.py` — contest (T099 · play tier) -- second a toast with proof (kimi's R2 build).
+- `followup.py` — followup — the question-back channel for fire-and-forget charters (W46).
+- `kit.py` — kit (T099 · KIT tier) — installable bundles of belt entries (kimi, PASS 2 build).
+- `play_sandbox.py` — play_sandbox (T099 · play-tier sandbox) — the bounded subprocess that runs play tools.
+- `registry.py` — Toolbelt registry (T099 · V0 self-tooling) -- agent-authored verb compositions.
+- `tally.py` — tally — the blind-counter consensus matrix (W48).
+- `toast.py` — toast (T099 · tools-hunt BETA-2) -- gratitude with a receipt (kimi's hunt B3).
+
 ## entry points (repo root)
 - `agent_cli.py` — agent_cli.py -- THE single door an external agent (e.g. OpenCode) uses.
 - `ai_setup_mcp.py` — ai_setup_mcp.py -- the MCP-transport door into the Akashic Aurora (System 5).
@@ -143,6 +164,7 @@
 
 ## scripts/
 - `arc_scorecard.py` — arc_scorecard.py -- T031 hook 3: the wrap-time M-practice scorecard.
+- `arc_thread.py` — arc_thread.py -- door 2 of the library (LIBRARY.md): "trace our steps," materialized.
 - `ask_deepseek.py` — ask_deepseek -- a thin bridge so an agent (or you) can get DeepSeek's take from the CLI.
 - `ask_gemini.py` — ask_gemini -- a thin bridge so an agent (or you) can get Gemini's take from the CLI.
 - `ask_gemini_vision.py` — ask_gemini_vision -- send an image file to Gemini for description/analysis.
@@ -158,6 +180,7 @@
 - `bifrost_runner_sol.py` — bifrost_runner_sol -- make Sol (gpt-5.6-sol, OpenAI Responses API) a FIRST-CLASS Bifrost citizen.
 - `bifrost_ui.py` — bifrost_ui -- a realtime web console for watching (and steering) live agent collaboration on Bifrost.
 - `bifrost_wake.py` — bifrost.wake -- the canonical wake listener for a Bifrost agent (the receive/wake arm of bifrost.api).
+- `capture_apple_hig.py` — capture_apple_hig.py — harvest Apple HIG component sub-sections into design/refs.
 - `check_boundaries.py` — Boundary guardrails for the clean core/ layer.
 - `check_comprehensibility.py` — check_comprehensibility -- the guard that keeps the comprehension layer honest (the immune system).
 - `check_doc_currency.py` — check_doc_currency -- P4 (T024): no dead law under docs/.
@@ -165,12 +188,15 @@
 - `check_door_parity.py` — check_door_parity -- guard the agent-facing DOOR surface against silent fragmentation.
 - `check_preregistration.py` — check_preregistration.py -- T031 hook 2: M3's forcing function at ship time.
 - `check_reconciliation_gate.py` — check_reconciliation_gate.py -- T031 hook 1: the method baseline's lead forcing function.
+- `check_ui_contract.py` — check_ui_contract.py — the design CONTRACT's enforcement teeth (organ 2's [M] half).
 - `check_verbatim_citation.py` — check_verbatim_citation.py -- T031 hook 4: M6's forcing function at ship time.
 - `check_wiring.py` — check_wiring -- the Built != Wired gate (membrane slice 2).
 - `deepseek_chat.py` — deepseek_chat -- an interactive, TOOL-USING conversation with DeepSeek, in its own window.
+- `enrich_corpus.py` — A3 migration pipeline: the ~900-file corpus -> enriched atoms, verified, gated.
 - `gemini_web.py` — gemini_web -- ask Gemini through the FREE web surfaces (not API quota).
 - `gen_arch_index.py` — gen_arch_index -- regenerate docs/MODULE_INDEX.md from every module's one-line docstring.
 - `gen_doors.py` — gen_doors -- regenerate docs/DOORS.md: the agent-door I/O reference, derived (master-map M2, v0).
+- `gen_library.py` — gen_library.py — the library census generator (D2, deepseek 2026-07-22; v2 2026-07-23).
 - `gen_master_map.py` — gen_master_map -- regenerate docs/MAP.md: the master map's census matrix (T096-M0, v0).
 - `gen_physics_sheet.py` — gen_physics_sheet -- regenerate docs/PHYSICS.md: the machinery's mechanical truths, derived.
 - `harmonize_knowledge.py` — harmonize_knowledge.py — one-time knowledge-store harmonization (2026-06-20)

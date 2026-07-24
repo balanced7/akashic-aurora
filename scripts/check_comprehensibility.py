@@ -49,6 +49,12 @@ _REF_RE = re.compile(
 # silent dumping ground. Keep this SMALL -- root-anchoring already excludes most false positives.
 REF_ALLOWLIST = {
     # "some/path.py": {"expires": "2026-12-31", "reason": "why this ref is legitimately not on disk"},
+    "docs/security-amendment-deepseek-scoped-admin-2026-07-22.md": {
+        "expires": "2026-08-23",
+        "reason": "P3 migration 2026-07-23: the path survives as PROSE inside atom titles "
+                  "rendered into generated maps; resolves via store/docs/migration_map.json. "
+                  "Expires with the A2 library-lint reference pass.",
+    },
 }
 
 

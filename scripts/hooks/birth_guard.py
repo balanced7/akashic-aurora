@@ -42,8 +42,12 @@ def classify(relpath: str) -> str:
         return "allow"
     if p.startswith("docs/"):
         return "refuse"
-    if p.startswith("research/") or p.startswith("chronicles/") or p.startswith("charters/"):
-        return "warn"
+    if p.startswith("research/"):
+        # P3 FLIP (2026-07-23 night, Daniel's deletion gate fired): the research zone's
+        # corpus migrated to atoms; new loose research .md is refused like docs/.
+        return "refuse"
+    if p.startswith("chronicles/") or p.startswith("charters/"):
+        return "warn"  # held zones (P3b pending the machinery check)
     return "allow"
 
 

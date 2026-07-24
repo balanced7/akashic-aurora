@@ -1,118 +1,685 @@
 # SHELVES — per-type census (auto-generated)
 
 Status: current  
-Type: map (generated) · Arc: library-schema · Date: 2026-07-23
+Type: map (generated) · Arc: library-schema · Date: 2026-07-24
 
-**Generated:** 2026-07-23 06:00 UTC · **Source:** `scripts/gen_library.py` · **Never hand-edit.**
+**Generated:** 2026-07-24 02:05 UTC · **Source:** `scripts/gen_library.py` · **Never hand-edit.**
 
-This is door 1 of the library schema (docs/LIBRARY.md): every .md file in
-`docs/` / `research/` / `chronicles/` / `charters/`, grouped by its
-header-declared Type, with status markers. A file with no parseable header
-appears under **unclassified**.
+This is door 1 of the library schema (docs/LIBRARY.md).
 
 ---
 
-## agent-contract (1)
+## brief (40)
 
-- 🟢 `docs/ARCHITECTURE.md` — current · arc: architecture · 2026-07-21
-- 🟢 `docs/PRINCIPLES.md` — current · arc: doctrine · 2026-07
-- 🟢 `docs/LIBRARY.md` — current · arc: library-schema · 2026-07-21
-- 🟢 `docs/LEXICON.md` — current · arc: naming · 2026-07
-- 🟢 `docs/PHYSICS.md` — current · arc: physics · 2026-07
-- 🟢 `docs/VOICE.md` — current · arc: voice · 2026-07
+- 🟢 `docs/library/brief/20260723_brief-kimi-fresh-eyes-on-the-mcp-concurr_0f5617.md` — current · 2026-07-23
+- 🟢 `docs/library/brief/20260723_charter-per-zone-generated-readme-md-gen_474b95.md` — current · 2026-07-23
+- 🟢 `docs/library/brief/20260723_charter-the-now-card-live-per-agent-visi_a8f5de.md` — current · 2026-07-23
+- 🟢 `docs/library/brief/20260723_charter-the-supersession-sweep-megaread_76cc41.md` — current · 2026-07-23
+- 🟢 `docs/library/brief/20260723_r1-want-deepseek-self-charter-the-trust_c42382.md` — current · 2026-07-23
+- 🟢 `docs/library/brief/20260723_r1-want-kimi-self-charter-the-partner-ro_778c54.md` — current · 2026-07-23
+- 🟢 `docs/library/brief/20260723_r2-deepseek-s-charter-is-in-your-counter_cde94d.md` — current · 2026-07-23
+- 🟢 `docs/library/brief/20260723_r2-greenlit-with-one-rail-reflection-bel_a04a01.md` — current · 2026-07-23
+- 🟢 `docs/library/brief/20260723_r2-insight-your-four-asks-answered-with_3b16d7.md` — current · 2026-07-23
+- 🟢 `docs/library/brief/20260723_super-wiki-round-the-reading-exploration_c79f42.md` — current · 2026-07-23
+- 🟢 `docs/library/brief/20260723_the-artifact-substrate-round-end-the-end_566626.md` — current · 2026-07-23
+- 🟢 `docs/library/brief/20260723_the-homes-and-order-pass-last-think-befo_7917d3.md` — current · 2026-07-23
+- 🟢 `docs/library/brief/20260723_zone-paragraphs-the-one-paragraph-purpos_52c17b.md` — current · 2026-07-23
+- 🟢 `docs/library/brief/20260722_kimi-brief-stance-at-thought-round-fresh_19b4d8.md` — current · 2026-07-22
+- 🟢 `docs/library/brief/20260722_remote-steering-design-brief-blind-halve_ffc9cc.md` — current · 2026-07-22
+- 🟢 `docs/library/brief/20260721_kimi-acceptance-brief-the-library-law-st_3b02c3.md` — current · 2026-07-21
+- 🟢 `docs/library/brief/20260721_kimi-builder-brief-followup-verb-first-s_2d53b3.md` — current · 2026-07-21
+- 🟢 `docs/library/brief/20260721_kimi-builder-brief-w47-clobber-scan-seco_37aac4.md` — current · 2026-07-21
+- 🟢 `docs/library/brief/20260721_kimi-builder-brief-w48-tally-builder-rou_0cbf1e.md` — current · 2026-07-21
+- 🟢 `docs/library/brief/20260721_kimi-seat-zero-counter-brief-2026-07-21_13bda2.md` — current · 2026-07-21
+- 🟢 `docs/library/brief/20260721_kimi-second-observer-brief-storm-auto-cl_4b5413.md` — current · 2026-07-21
+- 🟢 `docs/library/brief/20260721_kimi-tools-hunt-brief-tonight-s-edition_164ad0.md` — current · 2026-07-21
+- 🟢 `docs/library/brief/20260721_observer-panel-independent-analysis-of-t_c55179.md` — current · 2026-07-21
+- ⚪ `docs/library/brief/20260723_ask-deepseek-counter-on-mcp-door-concurr_cdb389.md` — draft · 2026-07-23
+- ⚪ `docs/library/brief/20260723_claude-audit-live-announce-2026-07-23_db35c3.md` — draft · 2026-07-23
+- ⚪ `docs/library/brief/20260723_claude-route-deepseek-kimi-counter-2026_4aee2e.md` — draft · 2026-07-23
+- ⚪ `docs/library/brief/20260723_claude-thats-right-kimi-2026-07-23_14ec2a.md` — draft · 2026-07-23
+- ⚪ `docs/library/brief/20260723_claude-unblock-kimi-2026-07-23_01731e.md` — draft · 2026-07-23
+- ⚪ `docs/library/brief/20260723_night-brief-deepseek-daniel-sleeping-the_78edbc.md` — draft · 2026-07-23
+- ⚪ `docs/library/brief/20260721_kimi-fresh-eyes-brief-repo-filing-organi_11d418.md` — draft · 2026-07-21
+- ⚪ `docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md` — draft · 2026-07-19
+- ⚪ `docs/library/brief/20260719_the-presentation-layer-interpreters-form_82ab2d.md` — draft · 2026-07-19
+- ⚪ `docs/library/brief/20260719_w04-staleness-stamps-design-brief-for-ki_4aad76.md` — draft · 2026-07-19
+- ⚪ `docs/library/brief/20260718_kimi-fresh-eyes-round-packet-routing-hal_08f323.md` — draft · 2026-07-18
+- ⚪ `docs/library/brief/20260718_kimi-fresh-eyes-round-t094-recall-heuris_0c693d.md` — draft · 2026-07-18
+- ⚪ `docs/library/brief/20260718_kimi-k3-blind-boot-ergonomics-walk-proto_6b1c4b.md` — draft · 2026-07-18
+- ⚪ `docs/library/brief/20260718_kimi-vision-probe-bifrost-console-screen_9404f1.md` — draft · 2026-07-18
+- ⚪ `docs/library/brief/20260717_mcp-log-single-frame-repair-m1-lite-brie_56130c.md` — draft · 2026-07-17
+- ⚪ `docs/library/brief/20260717_t060-moonshot-networking-spine-three-fro_18a046.md` — draft · 2026-07-17
+- ⚪ `docs/library/brief/20260717_t060-round-2-addendum-cross-critique-cad_9f37e6.md` — draft · 2026-07-17
 
-## brief (17)
+## chronicle (15)
 
-- 🟢 `docs/library/brief/20260722_remote-steering-design-brief-blind-halve_ffc9cc.md` — current · arc: security/operator-traffic · 2026-07-22
-- 🟢 `docs/library/brief/20260717_t060-round-2-addendum-cross-critique-cad_9f37e6.md` — current · arc: fleet · 2026-07-17
-- 🟢 `docs/library/brief/20260723_charter-the-now-card-live-per-agent-visi_a8f5de.md` — current · arc: interface/optics · 2026-07-23
+- 🟢 `docs/library/chronicle/20260723_morning-package-2026-07-23-the-partner-n_aafe9d.md` — current · 2026-07-23
+- 🟢 `docs/library/chronicle/20260723_night-plan-2026-07-23-daniel-sleeping-cl_c94e0b.md` — current · 2026-07-23
+- 🟢 `docs/library/chronicle/20260723_night-plan-the-partner-night-deepseek-tr_fb0385.md` — current · 2026-07-23
+- 🟢 `docs/library/chronicle/20260723_session-reflection-fable-s-conductor-nig_415441.md` — current · 2026-07-23
+- 🟢 `docs/library/chronicle/20260723_session-reflection-the-partner-night-gro_c8ae58.md` — current · 2026-07-23
+- 🟢 `docs/library/chronicle/20260722_morning-package-2026-07-22-the-night-shi_d57a90.md` — current · 2026-07-22
+- 🟢 `docs/library/chronicle/20260722_session-reflection-fable-s-endurance-run_78b101.md` — current · 2026-07-22
+- 🟢 `docs/library/chronicle/20260721_session-reflection-fable-s-first-night-t_66d758.md` — current · 2026-07-21
+- 🟢 `docs/library/chronicle/20260721_session-reflection-the-grounding-point-f_aa816c.md` — current · 2026-07-21
+- 🟢 `docs/library/chronicle/20260721_session-reflection-the-grounding-point-f_cf3cf9.md` — current · 2026-07-21
+- ⚪ `docs/library/chronicle/20260723_last-session-draft-auto-captured-2026-07_1dd6ee.md` — draft · 2026-07-23
+- ⚪ `docs/library/chronicle/20260723_project-memory-auto-generated-from-notes_f7b52b.md` — draft · 2026-07-23
+- ⚪ `docs/library/chronicle/20260717_story-generated-2026-07-17t05-16-07-7889_6557c1.md` — draft · 2026-07-17
+- ⚪ `docs/library/chronicle/20260704_adr-bifrost-sync-plan-protocol-session-s_90c4bd.md` — draft · 2026-07-04
+- ⚪ `docs/library/chronicle/20260627_lessons-auto-generated-from-the-learning_6dd9bf.md` — draft · 2026-06-27
 
-## chronicle (4)
+## design (244)
 
-- 🟢 `chronicles/session-reflection-2026-07-21-fable-first-night.md` — current · 2026-07-21
-- 🟢 `chronicles/night-plan-2026-07-23.md` — current · 2026-07-23
-
-## contract (28)
-
-- 🟢 `AGENTS.md` — current · 2026-07
-- 🟢 `docs/CONDUCT.md` — current · 2026-07
-- 🟢 `docs/LIVE_CONSTRAINTS.md` — current · 2026-07
-- 🟢 `docs/method-baseline-2026-07.md` — current · 2026-07
-- 🟢 `docs/DOORS.md` — current · 2026-07
-- 🟢 `docs/library/design/20260701_night-friction-program-every-pain-point_70f449.md` — current · arc: fleet/ergonomics · 2026-07-22
-- 🟢 `docs/LIBRARY.md` — current · arc: library-schema · 2026-07-21
-- 🟢 `docs/LEXICON.md` — current · arc: naming · 2026-07
-- 🟢 `docs/PRINCIPLES.md` — current · arc: doctrine · 2026-07
-- 🟢 `docs/PHYSICS.md` — current · arc: physics · 2026-07
-- 🟢 `docs/VOICE.md` — current · arc: voice · 2026-07
-- 🟢 `docs/library/design/20260701_packet-spec-v1-reconciled-build-spec-dua_a50b94.md` — current · arc: bus/packets · 2026-07
-- 🟢 `docs/library/design/20260709_agent-security-schema-design-proposal_cdccf1.md` — current · arc: security · 2026-07
-- 🟢 `docs/library/design/20260709_security-schema-implementation-guide_337fee.md` — current · arc: security · 2026-07
-
-## design (41)
-
-- 🟢 `docs/library/design/20260701_agent-failure-mode-mitigation-roadmap-ph_7d1620.md` — current · 2026-07
-- 🟢 `docs/library/design/20260701_agent-liveness-tier-stuck-lost-agent-fai_8c0d79.md` — current · 2026-07
-- 🟢 `docs/library/design/20260709_the-codex-a-self-curating-knowledge-laye_302fc9.md` — current · 2026-07
-- 🟢 `docs/library/design/20260701_continuity-of-mode-institutionalizing-st_e1eb96.md` — current · 2026-07
-- 🟢 `docs/library/design/20260710_multi-agent-coordination-layer-synthesis_283c99.md` — current · 2026-07
-- 🟢 `docs/library/design/20260701_packet-routing-internal-api-design-co-au_57e4ba.md` — current · 2026-07
-- 🟢 `docs/library/design/20260701_the-reasoning-spine-co-authored-design-c_24d17f.md` — current · 2026-07
-- 🟢 `docs/library/design/20260701_recovery-arc-reconciled-design-superviso_ce9a9e.md` — current · 2026-07
-- 🟢 `docs/library/design/20260701_wave-2-design-claude-fenced-wake-seat-ow_7c4aaf.md` — current · 2026-07
-- 🟢 `docs/library/design/20260709_aurora-glass-ui-build-plan-deepseek-s-sl_a04753.md` — current · 2026-07
-- 🟢 `docs/library/design/20260709_aurora-glass-build-plan-claude-track_57688b.md` — current · 2026-07
-- 🟢 `docs/library/design/20260709_aurora-glass-synthesis-plan-claude-deeps_af1a8f.md` — current · 2026-07
-- 🟢 `docs/library/design/20260709_aurora-glass-composition-spec-single-sou_27005e.md` — current · 2026-07
-- 🟢 `docs/library/design/20260721_library-schema-reconciliation-of-three-v_6136d4.md` — current · 2026-07-21
-
-## fossil (1)
-
-- ⚫ `docs/FOSSILS.md` — current · 2026-07
-
-## ledger (2)
-
-- 🟢 `docs/failure-ledger-2026-07.md` — current · 2026-07
-- 🟢 `docs/WISHLIST.md` — current · 2026-07
-
-## map (6)
-
-- 🟢 `docs/INDEX.md` — current · 2026-07
-- 🟢 `docs/MAP.md` — current · 2026-07
-- 🟢 `docs/MODULE_INDEX.md` — current · 2026-07
-- 🟢 `docs/DOORS.md` — current · 2026-07
-- 🟢 `docs/SERVICES.md` — current · 2026-07
-
-## plan (4)
-
-- 🟢 `docs/library/design/20260701_night-friction-program-every-pain-point_70f449.md` — current · 2026-07-22
-- 🟢 `docs/library/design/20260709_bifrost-mesh-agent-agnostic-comm-coordin_c8b792.md` — current · 2026-07
-
-## report (32)
-
-- 🟢 `docs/library/report/20260715_operator-traffic-claude-blind-half-t080_4e2913.md` — current · 2026-07-15
-- 🟢 `docs/library/report/20260715_t080-operator-traffic-design-blind-half_9f35fc.md` — current · 2026-07-15
-- 🟢 `docs/library/report/20260715_t080-operator-traffic-reconciliation-cla_89d9c6.md` — current · 2026-07-15
-- 🟢 `docs/library/report/20260715_presence-autopilot-reconciliation-claude_b5cb93.md` — current · 2026-07-15
-- 🟢 `docs/library/report/20260715_t075-m1-delta-verdict-claude-verify-2026_248bbd.md` — current · 2026-07-15
-- 🟢 `docs/library/report/20260715_t075-m1-alpha-verdict-deepseek-verify-20_f4019c.md` — current · 2026-07-15
-- 🟢 `docs/library/report/20260715_t075-m1-beta-verdict-deepseek-verify-202_a12a32.md` — current · 2026-07-15
-- 🟢 `docs/library/report/20260715_presence-autopilot-claude-blind-half-202_949a93.md` — current · 2026-07-15
-- 🟢 `docs/library/report/20260715_presence-autopilot-design-blind-half-dee_478bff.md` — current · 2026-07-15
-- 🟢 `docs/library/report/20260713_claude-half-t043-packet-send-door-harden_2e6f9b.md` — current · 2026-07-13
-- 🟢 `docs/library/report/20260723_reconciliation-mcp-door-concurrency-leve_600574.md` — current · 2026-07-23
+- 🟢 `docs/library/design/20260723_claude-half-homes-and-order-extend-libra_486510.md` — current · 2026-07-23
+- 🟢 `docs/library/design/20260723_deepseek-substrate-counters-builder-lens_a81409.md` — current · arc: artifact-substrate · 2026-07-23
+- 🟢 `docs/library/design/20260723_deepseek-substrate-counters-tail-resend_26615b.md` — current · 2026-07-23
+- 🟢 `docs/library/design/20260723_deepseek-want-check-ui-contract-r1-self_585f94.md` — current · 2026-07-23
+- 🟢 `docs/library/design/20260723_design-contract-md-v0-draft-for-ratifica_05075e.md` — current · 2026-07-23
+- 🟢 `docs/library/design/20260723_folder-consolidation-top-level-directory_e18216.md` — current · 2026-07-23
+- 🟢 `docs/library/design/20260723_kimi-counters-advisory-scan-6-deltas-gam_1e8b77.md` — current · 2026-07-23
+- 🟢 `docs/library/design/20260723_kimi-half-the-artifact-substrate-artifac_f09a58.md` — current · 2026-07-23
+- 🟢 `docs/library/design/20260723_kimi-r2-counter-deepseek-s-check-ui-cont_2e06ec.md` — current · 2026-07-23
+- 🟢 `docs/library/design/20260723_kimi-super-wiki-brainstorm-2026-07-23-id_1f5693.md` — current · 2026-07-23
+- 🟢 `docs/library/design/20260723_kimi-taxonomy-ergonomics-2026-07-23-id-a_bdd16f.md` — current · 2026-07-23
+- 🟢 `docs/library/design/20260723_kimi-want-audit-the-fleet-s-mirror-that_86e0f6.md` — current · 2026-07-23
+- 🟢 `docs/library/design/20260722_deepseek-stance-at-thought-counter-verba_a7b9ee.md` — current · 2026-07-22
+- 🟢 `docs/library/design/20260722_deepseek-steer-corpus-counter-verbatim_f40cb2.md` — current · 2026-07-22
+- 🟢 `docs/library/design/20260722_p1-daemon-as-default-reconciliation_4f9b35.md` — current · 2026-07-22
+- 🟢 `docs/library/design/20260722_p3-prose-door-inventory-counter-target-f_28a325.md` — current · 2026-07-22
 - 🟢 `docs/library/design/20260722_remote-steering-security-design-reconcil_120f70.md` — current · 2026-07-22
+- 🟢 `docs/library/design/20260722_stance-recall-at-thought-round-opening-c_0da824.md` — current · 2026-07-22
+- 🟢 `docs/library/design/20260722_steer-corpus-ruling-capture-round-openin_14f2ff.md` — current · 2026-07-22
+- 🟢 `docs/library/design/20260721_deepseek-conducting-interview-tail-d-f-v_6d754f.md` — current · 2026-07-21
+- 🟢 `docs/library/design/20260721_deepseek-on-conducting-interview-half-ve_127743.md` — current · 2026-07-21
+- 🟢 `docs/library/design/20260721_e1-the-stance-recall-ablation-does-activ_1970e5.md` — current · 2026-07-21
+- 🟢 `docs/library/design/20260721_kimi-counter-library-schema-repo-organiz_81a2e9.md` — current · 2026-07-21
+- 🟢 `docs/library/design/20260721_library-schema-reconciliation-of-three-v_6136d4.md` — current · 2026-07-21
+- 🟢 `docs/library/design/20260721_the-arc-replay-bench-opening-position-cl_551e03.md` — current · 2026-07-21
+- 🟢 `docs/library/design/20260720_backlog-vs-program-sequencing-claude-s-h_f994e5.md` — current · 2026-07-20
+- 🟢 `docs/library/design/20260720_build-our-own-position-kimi-verbatim-rec_6d3345.md` — current · 2026-07-20
+- 🟢 `docs/library/design/20260720_home-base-build-claude-s-half-daniel-dec_134ecc.md` — current · 2026-07-20
+- 🟢 `docs/library/design/20260720_nasa-grade-stable-mission-critical-engin_6d776e.md` — current · 2026-07-20
+- 🟢 `docs/library/design/20260720_sequencing-position-kimi-verbatim-recove_7a8b69.md` — current · 2026-07-20
+- 🟢 `docs/library/design/20260720_t097-s1-fence-brief-rb-27-progress-detec_44e139.md` — current · 2026-07-20
+- 🟢 `docs/library/design/20260720_t097-s1-fence-verdict-kimi-verbatim-reco_2b9a3d.md` — current · 2026-07-20
+- 🟢 `docs/library/design/20260720_tools-hunt-claude-s-half-scar-springboar_5bafa1.md` — current · 2026-07-20
+- 🟢 `docs/library/design/20260720_tools-hunt-synthesis-the-fun-one_96e5c0.md` — current · 2026-07-20
+- 🟢 `docs/library/design/20260720_ui-home-base-position-kimi-verbatim-from_227312.md` — current · 2026-07-20
+- 🟢 `docs/library/design/20260719_api-resilience-claude-s-half-daniel-dire_b062e2.md` — current · 2026-07-19
+- 🟢 `docs/library/design/20260719_api-resilience-kimi-half-verbatim-from-b_8c8c75.md` — current · 2026-07-19
+- 🟢 `docs/library/design/20260719_mutual-revival-mesh-reconciliation-t097_d1b0a7.md` — current · 2026-07-19
+- 🟢 `docs/library/design/20260719_revival-mesh-position-deepseek-t097-cons_50fde7.md` — current · 2026-07-19
+- 🟢 `docs/library/design/20260718_driver-conductor-fable-seat-onboarding-r_5a7530.md` — current · 2026-07-18
+- 🟢 `docs/library/design/20260714_design-brief-r1-delta-door-t052-full-fen_a36fa9.md` — current · 2026-07-14
+- 🟢 `docs/library/design/20260714_design-brief-r5-cost-telemetry-per-slice_30947f.md` — current · 2026-07-14
+- 🟢 `docs/library/design/20260714_verify-brief-t045-storm-rerun-cfdcb65f-f_dc68fc.md` — current · 2026-07-14
+- 🟢 `docs/library/design/20260713_t039-purpose-keyed-lanes-latches-shared_9a3e76.md` — current · 2026-07-13
+- 🟢 `docs/library/design/20260712_rb-25-f1-f2-fence-reconciliation-claude_436168.md` — current · 2026-07-12
+- 🟢 `docs/library/design/20260711_rb-21-session-cursor-discipline-build-sp_9fbdcd.md` — current · 2026-07-11
+- 🟢 `docs/library/design/20260711_rb-23-content-floor-reconciled-build-spe_d47764.md` — current · 2026-07-11
+- 🟢 `docs/library/design/20260711_rb-25-engine-exam-runbook-pre-registered_9356ea.md` — current · 2026-07-11
+- 🟢 `docs/library/design/20260711_t034-registry-dial-consolidation-reconci_6c7925.md` — current · 2026-07-11
+- 🟢 `docs/library/design/20260711_wave-3-reconciled-build-spec-rb-8-12-dic_4f427b.md` — current · 2026-07-11
+- 🟢 `docs/library/design/20260710_multi-agent-coordination-layer-synthesis_283c99.md` — current · 2026-07-10
+- 🟢 `docs/library/design/20260709_aurora-glass-composition-spec-single-sou_27005e.md` — current · 2026-07-09
+- 🟢 `docs/library/design/20260709_aurora-glass-synthesis-plan-claude-deeps_af1a8f.md` — current · 2026-07-09
+- 🟢 `docs/library/design/20260709_comms-messaging-pillar-dual-fenced-analy_051ff0.md` — current · 2026-07-09
+- 🟢 `docs/library/design/20260709_fleet-dispatch-an-intelligent-easy-struc_303d15.md` — current · 2026-07-09
+- 🟢 `docs/library/design/20260709_integration-tiers-what-each-harness-actu_38278c.md` — current · 2026-07-09
+- 🟢 `docs/library/design/20260709_p0-wake-listener-detect-don-t-consume-t0_864270.md` — current · 2026-07-09
+- 🟢 `docs/library/design/20260709_the-environment-decides_b042f1.md` — current · 2026-07-09
+- 🟢 `docs/library/design/20260709_visual-generation-integration-reconciled_3150cc.md` — current · 2026-07-09
+- 🟢 `docs/library/design/20260701_agent-failure-mode-mitigation-roadmap-ph_7d1620.md` — current · 2026-07-01
+- 🟢 `docs/library/design/20260701_agent-liveness-tier-stuck-lost-agent-fai_8c0d79.md` — current · 2026-07-01
+- 🟢 `docs/library/design/20260701_artifact-substrate-the-reconciled-design_8ea728.md` — current · 2026-07-01
+- 🟢 `docs/library/design/20260701_comms-mailbox-over-the-log-t095-governin_06357f.md` — current · 2026-07-01
+- 🟢 `docs/library/design/20260701_continuity-of-mode-institutionalizing-st_e1eb96.md` — current · 2026-07-01
+- 🟢 `docs/library/design/20260701_homes-and-order-reconciled-to-constants_beaca7.md` — current · 2026-07-01
+- 🟢 `docs/library/design/20260701_institutional-knowledge-arc-reconciled-d_27e77b.md` — current · 2026-07-01
+- 🟢 `docs/library/design/20260701_lesson-forge-evidence-gated-content-opti_fd3204.md` — current · 2026-07-01
+- 🟢 `docs/library/design/20260701_lesson-note-identity-the-observation-pro_46835a.md` — current · 2026-07-01
+- 🟢 `docs/library/design/20260701_newborn-gauntlet-pre-registered-rubric-t_16fdb3.md` — current · 2026-07-01
+- 🟢 `docs/library/design/20260701_night-friction-program-every-pain-point_70f449.md` — current · 2026-07-01
+- 🟢 `docs/library/design/20260701_packet-routing-internal-api-design-co-au_57e4ba.md` — current · 2026-07-01
+- 🟢 `docs/library/design/20260701_packet-spec-v1-reconciled-build-spec-dua_a50b94.md` — current · 2026-07-01
+- 🟢 `docs/library/design/20260701_packet-substrate-slice-plan-lanes-latche_cc7456.md` — current · 2026-07-01
+- 🟢 `docs/library/design/20260701_recall-vnext-closing-the-four-loops-2026_b93539.md` — current · 2026-07-01
+- 🟢 `docs/library/design/20260701_recovery-arc-reconciled-design-superviso_ce9a9e.md` — current · 2026-07-01
+- 🟢 `docs/library/design/20260701_resilience-battery-fix-plan-verification_86dc58.md` — current · 2026-07-01
+- 🟢 `docs/library/design/20260701_resilience-battery-sliced-execution-plan_8d660c.md` — current · 2026-07-01
+- 🟢 `docs/library/design/20260701_robustness-sota-map-problem-types-owning_544d00.md` — current · 2026-07-01
+- 🟢 `docs/library/design/20260701_self-tooling-arc-reconciled-design-agent_29f578.md` — current · 2026-07-01
+- 🟢 `docs/library/design/20260701_session-bookends-design-for-peer-review_c38e0c.md` — current · 2026-07-01
+- 🟢 `docs/library/design/20260701_super-wiki-aurora-atlas-the-reconciled-e_13c268.md` — current · 2026-07-01
+- 🟢 `docs/library/design/20260701_t039-purpose-keyed-lanes-latches-governi_7bc135.md` — current · 2026-07-01
+- 🟢 `docs/library/design/20260701_the-comprehensibility-immune-system-desi_339b01.md` — current · 2026-07-01
+- 🟢 `docs/library/design/20260701_the-feature-map-plain-names-deep-souls_d00eca.md` — current · 2026-07-01
+- 🟢 `docs/library/design/20260701_the-liveness-work-in-plain-language_33466c.md` — current · 2026-07-01
+- 🟢 `docs/library/design/20260701_the-mediation-membrane-founding-design-n_4f941f.md` — current · 2026-07-01
+- 🟢 `docs/library/design/20260701_the-naming-canon-akashic-aurora_52c4db.md` — current · 2026-07-01
+- 🟢 `docs/library/design/20260701_the-reasoning-spine-co-authored-design-c_24d17f.md` — current · 2026-07-01
+- 🟢 `docs/library/design/20260701_the-resilience-battery-stress-tests-vali_7b7b49.md` — current · 2026-07-01
+- 🟢 `docs/library/design/20260701_wave-2-design-claude-fenced-wake-seat-ow_7c4aaf.md` — current · 2026-07-01
+- ⚪ `docs/library/design/20260723_artifact-substrate-design-deepseek-blind_2b49bd.md` — draft · 2026-07-23
+- ⚪ `docs/library/design/20260723_deepseek-a1-fence-verdicts_5f2e15.md` — draft · arc: T002 · 2026-07-23
+- ⚪ `docs/library/design/20260723_deepseek-super-wiki-brainstorm-2026-07-2_581d2d.md` — draft · 2026-07-23
+- ⚪ `docs/library/design/20260723_deepseek-taxonomy-ergonomics-2026-07-23_e6b68a.md` — draft · 2026-07-23
+- ⚪ `docs/library/design/20260723_mcp-door-concurrency-counter-deepseek-20_e29404.md` — draft · 2026-07-23
+- ⚪ `docs/library/design/20260723_sa-1-cap-enforcement-pre-registered-acce_1c0784.md` — draft · arc: SA-1 (docs/security-amendment-deepseek-scoped-admin-2026-07-22.md) · 2026-07-23
+- ⚪ `docs/library/design/20260722_audit-the-belief-vs-belief-photographer_59fafa.md` — draft · 2026-07-22
+- ⚪ `docs/library/design/20260722_p1-co-design-daemon-as-default-resident_32fda9.md` — draft · 2026-07-22
+- ⚪ `docs/library/design/20260722_p1-co-design-daemon-as-default-the-seat_13d655.md` — draft · 2026-07-22
+- ⚪ `docs/library/design/20260722_remote-steering-security-design-deepseek_e5cfd4.md` — draft · 2026-07-22
+- ⚪ `docs/library/design/20260722_remote-steering-security-design-kimi-hal_24694e.md` — draft · 2026-07-22
+- ⚪ `docs/library/design/20260722_ruling-r001-deepseek-trusted-with-more_3b86eb.md` — draft · 2026-07-22
+- ⚪ `docs/library/design/20260722_security-schema-amendment-scoped-admin-g_17c9ca.md` — draft · 2026-07-22
+- ⚪ `docs/library/design/20260721_question_5bba5f.md` — draft · arc: leadership-doctrine (frontier sweep: research/reviewed/frontier-leadership-mechanics-2026-07-21.md) · 2026-07-21
+- ⚪ `docs/library/design/20260721_repo-organization-hygiene-opening-positi_b06cf7.md` — draft · 2026-07-21
+- ⚪ `docs/library/design/20260721_repo-organization-library-schema-counter_7b7d06.md` — draft · 2026-07-21
+- ⚪ `docs/library/design/20260721_seat-zero-brief-the-onboarding-wave-open_c4e456.md` — draft · 2026-07-21
+- ⚪ `docs/library/design/20260721_the-library-schema-the-file-plane-is-a-s_b0ee40.md` — draft · 2026-07-21
+- ⚪ `docs/library/design/20260720_gpt-s-ui-home-base-recommendation-daniel_da2d6f.md` — draft · 2026-07-20
+- ⚪ `docs/library/design/20260720_recovery-arc-claude-s-half-withheld-from_1eb043.md` — draft · 2026-07-20
+- ⚪ `docs/library/design/20260720_t098-build-our-own-synthesized-sliced-pl_058a18.md` — draft · 2026-07-20
+- ⚪ `docs/library/design/20260719_fable-opus-safeguards-downgrade-research_570a26.md` — draft · 2026-07-19
+- ⚪ `docs/library/design/20260719_mutual-revival-mesh-claude-s-opening-pos_035c05.md` — draft · 2026-07-19
+- ⚪ `docs/library/design/20260719_the-zone-claude-half-2026-07-19-night-ru_ca4f00.md` — draft · 2026-07-19
+- ⚪ `docs/library/design/20260719_the-zone-deepseek-s-position-2026-07-19_423167.md` — draft · 2026-07-19
+- ⚪ `docs/library/design/20260719_the-zone-kimi-half-2026-07-19-night-run_cffffb.md` — draft · 2026-07-19
+- ⚪ `docs/library/design/20260718_charter-role-specialization-framework-cl_b93d30.md` — draft · 2026-07-18
+- ⚪ `docs/library/design/20260718_frontier-roster-playbook-opening-positio_fde0ed.md` — draft · 2026-07-18
+- ⚫ `docs/library/design/20260718_gate-packets-2026-07-18_e5c5e5.md` — fossil · 2026-07-18
+- ⚪ `docs/library/design/20260718_gemini-t086-seat-wake-hook-lifecycle-pri_dc70d6.md` — draft · 2026-07-18
+- ⚪ `docs/library/design/20260718_t095-m1-advisory-claims-opening-position_7d2336.md` — draft · 2026-07-18
+- ⚪ `docs/library/design/20260717_moonshot-network-spine-fable-half-archit_5dc9cf.md` — draft · 2026-07-17
+- ⚪ `docs/library/design/20260717_moonshot-networking-spine-sol-codex-blin_1a46b1.md` — draft · 2026-07-17
+- ⚪ `docs/library/design/20260717_packet-routing-deepseek-counter-round-2_c66cdb.md` — draft · 2026-07-17
+- ⚪ `docs/library/design/20260717_packet-routing-internal-apis-claude-open_595704.md` — draft · 2026-07-17
+- ⚪ `docs/library/design/20260717_reasoning-spine-packet-routing-deepseek_bf44cf.md` — draft · 2026-07-17
+- ⚪ `docs/library/design/20260717_recall-heuristics-fence-brief-the-releva_07823a.md` — draft · 2026-07-17
+- ⚪ `docs/library/design/20260717_sol-gpt-5-6-live-api-probe-receipts-2026_ae0409.md` — draft · 2026-07-17
+- ⚪ `docs/library/design/20260717_sol-runner-loop-implementation-spec-from_01c20e.md` — draft · 2026-07-17
+- ⚪ `docs/library/design/20260717_system-census-deepseek-census-taker-seat_50c503.md` — draft · 2026-07-17
+- ⚪ `docs/library/design/20260717_t091-crash-path-analysis-deepseek-indepe_47fcea.md` — draft · 2026-07-17
+- ⚪ `docs/library/design/20260717_t091-crash-path-fable-independent-design_377190.md` — draft · 2026-07-17
+- ⚪ `docs/library/design/20260717_t093-crash-path-analysis-deepseek-indepe_6e9d21.md` — draft · 2026-07-17
+- ⚪ `docs/library/design/20260717_the-reasoning-spine-claude-opening-posit_8a0821.md` — draft · 2026-07-17
+- ⚪ `docs/library/design/20260717_the-reasoning-spine-deepseek-counter-rou_4493a3.md` — draft · 2026-07-17
+- ⚫ `docs/library/design/20260714_cross-agent-auto-logger-design-slice-pla_6d21c5.md` — fossil · 2026-07-14
+- ⚪ `docs/library/design/20260714_t045-stage-2-runner-consume-cutover-scop_b9c06c.md` — draft · 2026-07-14
+- ⚪ `docs/library/design/20260712_control-plane-namespace-isolation-claude_fade67.md` — draft · 2026-07-12
+- ⚪ `docs/library/design/20260712_control-plane-namespace-isolation-fenced_24dc0b.md` — draft · 2026-07-12
+- ⚪ `docs/library/design/20260712_rb-25-drill-3-s3-wedge-root-cause-diagno_d92cb6.md` — draft · 2026-07-12
+- ⚪ `docs/library/design/20260712_recall-networking-fence-brief-deepseek-c_5139ce.md` — draft · 2026-07-12
+- ⚪ `docs/library/design/20260712_t038-identity-primitive-blind-fence-brie_275ec1.md` — draft · 2026-07-12
+- ⚪ `docs/library/design/20260712_t038-t039-implications-deep-dive-fenced_c9bea1.md` — draft · 2026-07-12
+- ⚪ `docs/library/design/20260712_t040-useful-endpoints-systems-claude-bli_a8dca5.md` — draft · 2026-07-12
+- ⚪ `docs/library/design/20260711_source-google-sre-book-ch-6-monitoring-d_6b0396.md` — draft · 2026-07-11
+- ⚪ `docs/library/design/20260711_source-sd-notify-3-man-page-systemd-noti_179395.md` — draft · 2026-07-11
+- ⚪ `docs/library/design/20260711_t034-registry-dial-consolidation-deepsee_a65322.md` — draft · 2026-07-11
+- ⚪ `docs/library/design/20260710_source-akka-documentation-phi-accrual-fa_49da94.md` — draft · 2026-07-10
+- ⚪ `docs/library/design/20260710_source-bornholt-et-al-using-lightweight_854aee.md` — draft · 2026-07-10
+- ⚪ `docs/library/design/20260710_source-candea-fox-crash-only-software-ho_b4e6fc.md` — draft · 2026-07-10
+- ⚪ `docs/library/design/20260710_source-confluent-message-delivery-guaran_fbf7b9.md` — draft · 2026-07-10
+- ⚪ `docs/library/design/20260710_source-hypothesis-documentation-stateful_ea9daa.md` — draft · 2026-07-10
+- ⚪ `docs/library/design/20260710_source-john-regehr-independence-in-n-ver_ed7891.md` — draft · 2026-07-10
+- ⚪ `docs/library/design/20260710_source-kleppmann-how-to-do-distributed-l_0637a8.md` — draft · 2026-07-10
+- ⚪ `docs/library/design/20260710_source-pierre-zemb-diving-into-foundatio_f16884.md` — draft · 2026-07-10
+- ⚪ `docs/library/design/20260710_task-what-methods-calibrate-an-llm-criti_191d5f.md` — draft · 2026-07-10
+- ⚫ `docs/library/design/20260709_agent-experience-plan-akashic-aurora_405872.md` — fossil · 2026-07-09
+- ⚫ `docs/library/design/20260709_agent-memory-analysis-of-learning-store_5ec82f.md` — fossil · 2026-07-09
+- ⚫ `docs/library/design/20260709_agent-security-schema-design-proposal_cdccf1.md` — fossil · 2026-07-09
+- ⚫ `docs/library/design/20260709_akashic-aurora-intelligence-roadmap-forc_b8e767.md` — fossil · 2026-07-09
+- ⚫ `docs/library/design/20260709_an-automatic-critic-for-context-retrieva_3f4622.md` — fossil · 2026-07-09
+- ⚫ `docs/library/design/20260709_aurora-glass-build-plan-claude-track_57688b.md` — fossil · 2026-07-09
+- ⚫ `docs/library/design/20260709_aurora-glass-moodboard-deepseek-s-curati_88dc4d.md` — fossil · 2026-07-09
+- ⚫ `docs/library/design/20260709_aurora-glass-supporting-art-references-c_f8309c.md` — fossil · 2026-07-09
+- ⚫ `docs/library/design/20260709_aurora-glass-ui-build-plan-deepseek-s-sl_a04753.md` — fossil · 2026-07-09
+- ⚫ `docs/library/design/20260709_bifrost-mesh-agent-agnostic-comm-coordin_c8b792.md` — fossil · 2026-07-09
+- 🟠 `docs/library/design/20260709_bifrost-sync-plan-protocol_c70323.md` — superseded · 2026-07-09
+- ⚫ `docs/library/design/20260709_bifrost-the-agent-communication-handoff_2bcfd5.md` — fossil · 2026-07-09
+- ⚫ `docs/library/design/20260709_codex-pressure-test-inventory-placement_364aad.md` — fossil · 2026-07-09
+- ⚫ `docs/library/design/20260709_concurrent-agents-reinforcing-two-peers_5f6723.md` — fossil · 2026-07-09
+- ⚫ `docs/library/design/20260709_context-pillar-system-4-design-consolida_89733b.md` — fossil · 2026-07-09
+- ⚫ `docs/library/design/20260709_directive-friction-audit-making-the-righ_93c3ee.md` — fossil · 2026-07-09
+- ⚫ `docs/library/design/20260709_faithfulness-critic-sota-synthesis-desig_eae48d.md` — fossil · 2026-07-09
+- ⚫ `docs/library/design/20260709_integration-plan-a-unified-agent-memory_a58608.md` — fossil · 2026-07-09
+- ⚫ `docs/library/design/20260709_keeping-recall-honest-critic-vs-dialecti_1a5498.md` — fossil · 2026-07-09
+- ⚫ `docs/library/design/20260709_knowledge-store-harmonization-plan-2026_9e9656.md` — fossil · 2026-07-09
+- ⚫ `docs/library/design/20260709_leapfrog-plan-outcome-grounded-memory_18eeba.md` — fossil · 2026-07-09
+- ⚫ `docs/library/design/20260709_multi-agent-coordination-layer-research_ce0d07.md` — fossil · 2026-07-09
+- ⚫ `docs/library/design/20260709_narrative-spine-design-plan-system-4-cap_2357df.md` — fossil · 2026-07-09
+- ⚫ `docs/library/design/20260709_narrative-spine-test-verification-plan-b_cc061e.md` — fossil · 2026-07-09
+- ⚫ `docs/library/design/20260709_narrative-spine-v2-re-evaluation-upgrade_c98a1b.md` — fossil · 2026-07-09
+- ⚫ `docs/library/design/20260709_perspectives-maps-build-plan-the-interpr_5a5e0a.md` — fossil · 2026-07-09
+- ⚫ `docs/library/design/20260709_perspectives-maps-over-a-stable-substrat_6876fa.md` — fossil · 2026-07-09
+- ⚫ `docs/library/design/20260709_s2-the-consolidation-pass-that-sharpens_68d42c.md` — fossil · 2026-07-09
+- ⚫ `docs/library/design/20260709_security-schema-implementation-guide_337fee.md` — fossil · 2026-07-09
+- ⚫ `docs/library/design/20260709_sota-comparison-story-cli-slice-4_89a59b.md` — fossil · 2026-07-09
+- ⚫ `docs/library/design/20260709_tag-governance-safe-self-improving-taggi_1c9052.md` — fossil · 2026-07-09
+- ⚫ `docs/library/design/20260709_the-codex-a-self-curating-knowledge-laye_302fc9.md` — fossil · 2026-07-09
+- ⚫ `docs/library/design/20260705_master-directive-list-akashic-aurora-202_964020.md` — fossil · 2026-07-05
+- ⚫ `docs/library/design/20260704_sprint-retrospective-bifrost-fleet-2026_0a445b.md` — fossil · 2026-07-04
+- ⚪ `docs/library/design/20260703_article-contract-every-provisional-draft_73d12a.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_deepseek-v4-design-parallels-with-akashi_07b33b.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_deepseek-v4-design-parallels-with-akashi_62accb.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_deepseek-v4-design-parallels-with-akashi_bf111c.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_how-is-deepseek-v4-designed-and-built-an_224551.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_how-is-deepseek-v4-designed-and-built-an_95eaa7.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_how-is-deepseek-v4-designed-and-built-an_c35d9d.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_how-is-qa-coverage-preservation-measured_5b0c1b.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_infra-note-2026-07-03-evening-review-fai_22cc95.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_infra-note-2026-07-03-evening-review-tim_54cef8.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_infra-note-2026-07-03-evening-review-tim_612f40.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_infra-note-2026-07-03-evening-review-tim_b7d540.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_infra-note-2026-07-03-evening-review-tim_bf46a9.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_infra-note-2026-07-03-evening-review-tim_eea078.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_infra-note-2026-07-03-evening-review-tim_fdae75.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_landscape-watchlist-what-we-watch-and-wh_d67c54.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_reviewed-research-reviewed-deepseek-v4-d_ef1973.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_reviewed-research-reviewed-frontier-smal_9ef29c.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_reviewed-research-reviewed-screenspace-t_4ae982.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_runlog-2026-07-03_f6b99e.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_runlog_53ed61.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_task-how-does-hermes-agent-s-mixture-of_eb8c12.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_task-how-does-the-cmi-paper-arxiv-2605-1_6ace61.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_task-how-is-deepseek-v4-designed-and-bui_a468c4.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_task-how-is-qa-coverage-preservation-mea_da473e.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_task-is-lora-qlora-fine-tuning-of-a-7-30_61253d.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_task-what-exactly-does-memoryarena-arxiv_be837d.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_task-what-methods-calibrate-an-llm-criti_254508.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_task-what-prior-art-exists-for-organizin_d00ed5.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_what-exactly-does-memoryarena-arxiv-2602_b5d24b.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_what-is-the-proven-open-source-stack-for_36f248.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_what-methods-calibrate-an-llm-critic-aga_0b87fc.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_what-methods-calibrate-an-llm-critic-aga_12f070.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_what-methods-calibrate-an-llm-critic-aga_47ea9f.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_what-methods-calibrate-an-llm-critic-aga_48905e.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_what-methods-calibrate-an-llm-critic-aga_dc4802.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260703_what-methods-calibrate-an-llm-critic-aga_eb6dc6.md` — draft · 2026-07-03
+- ⚪ `docs/library/design/20260702_runlog-2026-07-02_a7300e.md` — draft · 2026-07-02
+- ⚪ `docs/library/design/20260702_task-how-do-criticgpt-and-prover-verifie_922c34.md` — draft · 2026-07-02
+- ⚪ `docs/library/design/20260702_task-sweep-what-changed-at-sources-since_bccf04.md` — draft · 2026-07-02
+- ⚪ `docs/library/design/20260702_task-what-does-ollama-s-anthropic-compat_57a265.md` — draft · 2026-07-02
+- ⚫ `docs/library/design/20260701_agent-failure-mode-pain-point-retrospect_6663cf.md` — fossil · 2026-07-01
+- ⚫ `docs/library/design/20260701_field-survey-what-the-best-practitioners_3c9d20.md` — fossil · 2026-07-01
+- ⚫ `docs/library/design/20260701_multi-agent-memory-recall-design-assessm_7807ba.md` — fossil · 2026-07-01
+- ⚫ `docs/library/design/20260701_research-detour-actor-otp-ros-stigmergy_988017.md` — fossil · 2026-07-01
+- ⚪ `docs/library/design/20260701_t040-packet-spec-v1-fenced-dual-design-b_a9669a.md` — draft · 2026-07-01
+- 🟠 `docs/library/design/20260701_the-naming-mechanics-charter-akashic-aur_0ba076.md` — superseded · 2026-07-01
+- ⚫ `docs/library/design/20260627_session-handoff-2026-06-27_eec844.md` — fossil · 2026-06-27
+- ⚫ `docs/library/design/20260620_research-context-handling-compaction-and_e5960c.md` — fossil · 2026-06-20
+- ⚫ `docs/library/design/20260619_codebase-audit-readability-robustness-si_8be0b1.md` — fossil · 2026-06-19
+- ⚫ `docs/library/design/20260619_coding-principles-research-naming-clarit_bd2faf.md` — fossil · 2026-06-19
+- ⚫ `docs/library/design/20260619_shared-primitives-coherence-lexicon-anal_9f401a.md` — fossil · 2026-06-19
+- ⚫ `docs/library/design/20260619_shared-primitives-interface-spec_03e098.md` — fossil · 2026-06-19
+- ⚫ `docs/library/design/20260619_the-agent-interface-system-5-aci-thought_1b1edb.md` — fossil · 2026-06-19
+
+## report (361)
+
+- 🟢 `docs/library/report/20260723_a1-door-first-light_facad7.md` — current · arc: T103 · 2026-07-23
+- 🟢 `docs/library/report/20260723_addendum-the-mcp-leverage-map-what-fleet_efa37a.md` — current · 2026-07-23
+- 🟢 `docs/library/report/20260723_advisory-scan-outside-prior-art-for-the_2dcd2f.md` — current · 2026-07-23
+- 🟢 `docs/library/report/20260723_claude-half-super-wiki-over-atoms-typed_533a78.md` — current · 2026-07-23
+- 🟢 `docs/library/report/20260723_deepseek-partner-night-arc-wrap-baseline_95f6d5.md` — current · 2026-07-23
+- 🟢 `docs/library/report/20260723_deepseek-r1-ship-report-r2-kimi-counter_894957.md` — current · 2026-07-23
+- 🟢 `docs/library/report/20260723_fence-check-ui-contract-py-v0-g6-split-d_42c09b.md` — current · 2026-07-23
+- 🟢 `docs/library/report/20260723_frontier-report-gemini-web-on-mcp-door-c_b63649.md` — current · 2026-07-23
+- 🟢 `docs/library/report/20260723_kimi-audit-v1-build-state-note-captured_57ba32.md` — current · 2026-07-23
+- 🟢 `docs/library/report/20260723_kimi-r2-absorption-counters-accepted-sco_46443c.md` — current · 2026-07-23
+- 🟢 `docs/library/report/20260723_opening-mcp-door-concurrency-fresh-boot_e1a1b8.md` — current · 2026-07-23
+- 🟢 `docs/library/report/20260723_reconciliation-mcp-door-concurrency-leve_600574.md` — current · 2026-07-23
 - 🟢 `docs/library/report/20260723_the-ui-design-corpus-every-musing-influe_6b7286.md` — current · 2026-07-23
-
-## ruling (1)
-
-- 🟢 `docs/library/design/20260722_ruling-r001-deepseek-trusted-with-more_3b86eb.md` — current · 2026-07-22
-
-## charter (3)
-
-- 🟢 `charters/sa1-cap-enforcement-charter-2026-07-22.md` — current · arc: security-schema · 2026-07-22
-- 🟢 `charters/now-card-design-2026-07-23.md` — current · arc: interface/optics · 2026-07-23
+- 🟢 `docs/library/report/20260723_the-ui-gap-why-the-console-looks-like-th_32fec3.md` — current · 2026-07-23
+- 🟢 `docs/library/report/20260722_gemini-stance-activation-prior-art-sweep_173457.md` — current · 2026-07-22
+- 🟢 `docs/library/report/20260722_gpt-steer-corpus-ruling-capture-review-d_53c40c.md` — current · 2026-07-22
+- 🟢 `docs/library/report/20260722_kimi-counter-stance-at-thought-round-fre_9bb70e.md` — current · 2026-07-22
+- 🟢 `docs/library/report/20260722_stance-at-thought-reconciliation-three-v_88e80e.md` — current · 2026-07-22
+- 🟢 `docs/library/report/20260722_steer-corpus-ruling-capture-reconciliati_21dd6b.md` — current · 2026-07-22
+- 🟢 `docs/library/report/20260721_deepseek-fable-5-observation-verbatim-la_9390c7.md` — current · 2026-07-21
+- 🟢 `docs/library/report/20260721_fable-5-observer-panel-synthesis-night-o_ee66e0.md` — current · 2026-07-21
+- 🟢 `docs/library/report/20260721_gemini-independent-observation-of-the-fa_903816.md` — current · 2026-07-21
+- 🟢 `docs/library/report/20260721_gpt-read-cognitive-allocation-as-aurora_dff2ee.md` — current · 2026-07-21
+- 🟢 `docs/library/report/20260721_gpt-the-institutional-threshold-read-dan_d81506.md` — current · 2026-07-21
+- 🟢 `docs/library/report/20260721_kimi-independent-observation-of-the-fabl_049623.md` — current · 2026-07-21
+- 🟢 `docs/library/report/20260721_kimi-library-law-acceptance-re-test-verd_8f286a.md` — current · 2026-07-21
+- 🟢 `docs/library/report/20260721_leadership-mechanics-the-conductor-s-res_225120.md` — current · 2026-07-21
+- 🟢 `docs/library/report/20260721_mtg-interaction-synthesis-deepseek-s-hal_01baea.md` — current · 2026-07-21
+- 🟢 `docs/library/report/20260721_naming-research-deepseek-s-genuine-round_4f8d8a.md` — current · 2026-07-21
+- 🟢 `docs/library/report/20260721_naming-research-kimi-s-genuine-round-ver_890854.md` — current · 2026-07-21
+- 🟢 `docs/library/report/20260721_sol-review-of-the-continuity-of-mode-arc_261c2f.md` — current · 2026-07-21
+- 🟢 `docs/library/report/20260721_theme-r2-deepseek-verbatim-3-level-taxon_b35ebe.md` — current · 2026-07-21
+- 🟢 `docs/library/report/20260721_theme-r2-kimi-verbatim-two-axis-dissent_e13230.md` — current · 2026-07-21
+- 🟢 `docs/library/report/20260721_time-travel-narrative-mechanics-research_12aee3.md` — current · 2026-07-21
+- 🟢 `docs/library/report/20260720_competitive-landscape-pain-points-unmet_c85246.md` — current · 2026-07-20
+- 🟢 `docs/library/report/20260720_deepseek-contribution-census-verbatim_913b4f.md` — current · 2026-07-20
+- 🟢 `docs/library/report/20260720_institutional-knowledge-arc-deepseek-s-h_693e33.md` — current · 2026-07-20
+- 🟢 `docs/library/report/20260720_institutional-knowledge-arc-kimi-s-half_f02b72.md` — current · 2026-07-20
+- 🟢 `docs/library/report/20260720_recovery-arc-deepseek-s-blank-slate-half_c69bb3.md` — current · 2026-07-20
+- 🟢 `docs/library/report/20260720_recovery-arc-kimi-s-blank-slate-half-ver_35a556.md` — current · 2026-07-20
+- 🟢 `docs/library/report/20260720_self-tooling-arc-deepseek-s-half-verbati_c8af25.md` — current · 2026-07-20
+- 🟢 `docs/library/report/20260720_self-tooling-arc-kimi-s-half-verbatim_357e5e.md` — current · 2026-07-20
+- 🟢 `docs/library/report/20260720_tooldesk-cross-check-kimi-verbatim-hones_25e5e4.md` — current · 2026-07-20
+- 🟢 `docs/library/report/20260720_tooldesk-play-tier-sandbox-deepseek-verb_5badfa.md` — current · 2026-07-20
+- 🟢 `docs/library/report/20260720_tools-hunt-deepseek-s-half-verbatim_845fb8.md` — current · 2026-07-20
+- 🟢 `docs/library/report/20260720_tools-hunt-kimi-s-half-verbatim_6280cc.md` — current · 2026-07-20
+- 🟢 `docs/library/report/20260719_d2-d3-verify-sheet-vs-dcb4da7-kimi-verba_5989c1.md` — current · 2026-07-19
+- 🟢 `docs/library/report/20260719_revival-mesh-position-kimi-t097-consulta_697fdf.md` — current · 2026-07-19
+- 🟢 `docs/library/report/20260719_t094-r0-counter-deepseek-verbatim-from-k_d7b82a.md` — current · 2026-07-19
+- 🟢 `docs/library/report/20260718_deepseek-kimi-onboarding-counter-2026-07_bc4d88.md` — current · 2026-07-18
+- 🟢 `docs/library/report/20260718_deepseek-kimi-walk-review-2026-07-18_e8359a.md` — current · 2026-07-18
+- 🟢 `docs/library/report/20260717_crash-hardening-reconciliation-the-build_8b9062.md` — current · 2026-07-17
+- 🟢 `docs/library/report/20260717_sol-s-first-assessment-of-akashic-aurora_73baa0.md` — current · 2026-07-17
+- 🟢 `docs/library/report/20260716_ironman-augmentation-plan-both-halves-re_4ea0e8.md` — current · 2026-07-16
+- 🟢 `docs/library/report/20260716_night-build-brief-autonomous-overnight-r_80b678.md` — current · 2026-07-16
+- 🟢 `docs/library/report/20260716_w5-honest-heal-reconciliation-build-spec_c2d63e.md` — current · 2026-07-16
+- 🟢 `docs/library/report/20260715_boot-onboarding-ergonomics-reconciliatio_94a21c.md` — current · 2026-07-15
+- 🟢 `docs/library/report/20260715_boot-ux-retro-the-first-native-primer-se_5e132c.md` — current · 2026-07-15
+- 🟢 `docs/library/report/20260715_boot-ux-retro-the-runner-seat-reports-ba_4e9674.md` — current · 2026-07-15
+- 🟢 `docs/library/report/20260715_fence-brief-boot-onboarding-ergonomics-c_9439cf.md` — current · 2026-07-15
+- 🟢 `docs/library/report/20260715_t073-p3-t067-2-verify-verdicts-deepseek_1ee72e.md` — current · 2026-07-15
+- 🟢 `docs/library/report/20260715_t074-p1-p3-verify-verdicts-deepseek-verb_29cb71.md` — current · 2026-07-15
+- 🟢 `docs/library/report/20260714_claude-cross-check-t049-fence-protocol-v_d91e76.md` — current · 2026-07-14
+- 🟢 `docs/library/report/20260714_claude-wishlist-what-would-make-akashic_d87d17.md` — current · 2026-07-14
+- 🟢 `docs/library/report/20260714_deepseek-ergonomics-retrospective-2026-0_2e8a3d.md` — current · 2026-07-14
+- 🟢 `docs/library/report/20260714_deepseek-experience-interview-recall-at_db8dae.md` — current · 2026-07-14
+- 🟢 `docs/library/report/20260714_r1-delta-door-claude-design-half-blind-2_94984b.md` — current · 2026-07-14
+- 🟢 `docs/library/report/20260714_r1-delta-door-reconciliation-build-spec_13427c.md` — current · 2026-07-14
+- 🟢 `docs/library/report/20260714_r5-cost-telemetry-claude-design-half-bli_48d395.md` — current · 2026-07-14
+- 🟢 `docs/library/report/20260714_r5-cost-telemetry-reconciliation-build-s_d7f3a8.md` — current · 2026-07-14
+- 🟢 `docs/library/report/20260714_wishlist-synthesis-both-seats-one-map-20_90759f.md` — current · 2026-07-14
+- 🟢 `docs/library/report/20260713_claude-blind-half-t039-lanes-latches-des_d7a678.md` — current · 2026-07-13
+- 🟢 `docs/library/report/20260713_claude-half-t043-packet-send-door-harden_2e6f9b.md` — current · 2026-07-13
+- 🟢 `docs/library/report/20260713_deepseek-t039-lanes-latches-2026-07-13_8c485e.md` — current · 2026-07-13
+- 🟢 `docs/library/report/20260713_deepseek-t039-review-counter-check-round_91e1dd.md` — current · 2026-07-13
+- 🟢 `docs/library/report/20260713_deepseek-t039-review-counter-check-round_a235b8.md` — current · 2026-07-13
+- 🟢 `docs/library/report/20260713_deepseek-t039-review-counter-check-round_c5ff8f.md` — current · 2026-07-13
+- 🟢 `docs/library/report/20260713_deepseek-t043-verify-gate-2026-07-13_b7fe4c.md` — current · 2026-07-13
+- 🟢 `docs/library/report/20260713_deepseek-t044-t039a-build-review-adversa_622bea.md` — current · 2026-07-13
+- 🟢 `docs/library/report/20260713_emit-error-response-to-model_a2f358.md` — current · 2026-07-13
+- 🟢 `docs/library/report/20260713_t039-lanes-latches-claude-design-review_73318e.md` — current · 2026-07-13
+- 🟢 `docs/library/report/20260713_t039-purpose-keyed-lanes-latches-reconci_93da31.md` — current · 2026-07-13
+- 🟢 `docs/library/report/20260713_t043-send-door-hardening-build-plan-reco_7d8ee7.md` — current · 2026-07-13
+- 🟢 `docs/library/report/20260712_recall-networking-reconciliation-the-kno_6df124.md` — current · 2026-07-12
+- 🟢 `docs/library/report/20260712_t038-identity-primitive-closure-amend-ag_c5b02c.md` — current · 2026-07-12
+- 🟢 `docs/library/report/20260711_deepseek-rb-5-third-site-probe-verbatim_06a528.md` — current · arc: silent tool-arg truncation, THIRD site (the note door). Ships with the fix commit this file is part of. · 2026-07-11
+- 🟢 `docs/library/report/20260711_deepseek-rb-8-differential-verify-gate-g_8606f9.md` — current · 2026-07-11
+- 🟢 `docs/library/report/20260711_rb-25-engine-exam-runbook-review-deepsee_3bfc0b.md` — current · 2026-07-11
+- 🟢 `docs/library/report/20260711_rogue-ui-build-session-forensics-record_5ccde2.md` — current · 2026-07-11
+- 🟢 `docs/library/report/20260710_runner-mail-loss-incident-forensics-reco_b12e5a.md` — current · 2026-07-10
+- ⚪ `docs/library/report/20260723_kimi-build-pulse-on-the-a1-door_4a1fc2.md` — draft · 2026-07-23
+- ⚪ `docs/library/report/20260723_supersession-sweep-the-status-header-tru_5ca369.md` — draft · 2026-07-23
+- ⚪ `docs/library/report/20260721_kimi-tools-hunt-handoff-2026-07-21_2d4cd3.md` — draft · 2026-07-21
+- ⚪ `docs/library/report/20260721_seat-zero-wave-kimi-s-hard-counter-fresh_8d4726.md` — draft · 2026-07-21
+- ⚪ `docs/library/report/20260721_second-observer-verdict-s0-storm-auto-cl_3c4fbe.md` — draft · 2026-07-21
+- ⚪ `docs/library/report/20260721_tools-hunt-tonight-s-edition-kimi-2026-0_974493.md` — draft · 2026-07-21
+- ⚪ `docs/library/report/20260719_kimi-k2-tail-design-2026-07-19-night-run_3f4c11.md` — draft · 2026-07-19
+- ⚪ `docs/library/report/20260719_t094-r0-pre-registered-pins-claude-half_ef785f.md` — draft · 2026-07-19
+- ⚪ `docs/library/report/20260719_the-zone-first-receipts-night-run-reconc_93954c.md` — draft · 2026-07-19
+- ⚪ `docs/library/report/20260718_charter-framework-draft-deepseek-2026-07_7c6022.md` — draft · 2026-07-18
+- ⚪ `docs/library/report/20260718_charter-framework-unified-report-2026-07_c636f8.md` — draft · 2026-07-18
+- ⚪ `docs/library/report/20260718_deepseek-counter-frontier-roster-playboo_0c72bd.md` — draft · 2026-07-18
+- ⚪ `docs/library/report/20260718_kimi-fresh-eyes-dissent-round-t094-recal_71a6f9.md` — draft · 2026-07-18
+- ⚪ `docs/library/report/20260718_kimi-fresh-eyes-packet-routing-halves-20_2b0d4f.md` — draft · 2026-07-18
+- ⚪ `docs/library/report/20260718_kimi-journey-section-2026-07-18-verbatim_6cc669.md` — draft · 2026-07-18
+- ⚪ `docs/library/report/20260718_kimi-k3-blind-boot-ergonomics-walk-secon_b2ec56.md` — draft · 2026-07-18
+- ⚪ `docs/library/report/20260718_kimi-k3-blind-boot-ergonomics-walk_c50982.md` — draft · 2026-07-18
+- ⚪ `docs/library/report/20260718_kimi-k3-platform-survey-2026-07-18_c11268.md` — draft · 2026-07-18
+- ⚪ `docs/library/report/20260718_kimi-k3-probe-receipts-2026-07-18-key-ga_c08970.md` — draft · 2026-07-18
+- ⚪ `docs/library/report/20260718_kimi-vision-probe-bifrost-console-screen_782adf.md` — draft · 2026-07-18
+- ⚪ `docs/library/report/20260718_mcp-push-bridge-design-kimi-deepseek-202_dadf63.md` — draft · 2026-07-18
+- ⚪ `docs/library/report/20260718_t094-amendment-sheet-v1-the-fresh-eyes-f_0fca57.md` — draft · 2026-07-18
+- ⚪ `docs/library/report/20260718_t094-dissent-verdicts-claude-s-independe_cb6751.md` — draft · 2026-07-18
+- ⚪ `docs/library/report/20260718_t094-dissent-verdicts-deepseek-2026-07-1_3d7075.md` — draft · 2026-07-18
+- ⚪ `docs/library/report/20260718_t095-m0-counter-deepseek-build-seat-2026_b959c2.md` — draft · 2026-07-18
+- ⚪ `docs/library/report/20260718_unified-report-agent-role-specialization_3c28ce.md` — draft · 2026-07-18
+- ⚪ `docs/library/report/20260718_user-kind-derivation-design-kimi-deepsee_92aefd.md` — draft · 2026-07-18
+- ⚪ `docs/library/report/20260717_claude-opening-position-recall-heuristic_4540cb.md` — draft · 2026-07-17
+- ⚪ `docs/library/report/20260717_claude-round-1-cross-check-answers-to-co_64fe64.md` — draft · 2026-07-17
+- ⚪ `docs/library/report/20260717_codex-independent-position-evolving-reca_4f6e2e.md` — draft · 2026-07-17
+- ⚪ `docs/library/report/20260717_comms-architecture-deepseek-runner-seat_f3cb28.md` — draft · 2026-07-17
+- ⚪ `docs/library/report/20260717_frontier-evidence-antivirus-web-search-h_93be80.md` — draft · 2026-07-17
+- ⚪ `docs/library/report/20260717_gemini-adversarial-review-hardening-plan_0f608f.md` — draft · 2026-07-17
+- ⚪ `docs/library/report/20260717_mcp-log-single-frame-repair-deepseek-rev_cf6f9f.md` — draft · 2026-07-17
+- ⚪ `docs/library/report/20260717_moonshot-network-spine-deepseek-review-b_517ae2.md` — draft · 2026-07-17
+- ⚪ `docs/library/report/20260717_moonshot-network-spine-deepseek-review-m_2cd93c.md` — draft · 2026-07-17
+- ⚪ `docs/library/report/20260717_moonshot-network-spine-deepseek-review-v_ed3c56.md` — draft · 2026-07-17
+- ⚪ `docs/library/report/20260717_moonshot-network-spine-sol-codex-cross-c_1fe69d.md` — draft · 2026-07-17
+- ⚪ `docs/library/report/20260717_packet-routing-design-deepseek-review-bl_257862.md` — draft · 2026-07-17
+- ⚪ `docs/library/report/20260717_reasoning-spine-deepseek-review-counter_560730.md` — draft · 2026-07-17
+- ⚪ `docs/library/report/20260717_recall-heuristics-deepseek-counter-to-cl_d4926d.md` — draft · 2026-07-17
+- ⚪ `docs/library/report/20260717_recall-heuristics-deepseek-round-0-machi_81f582.md` — draft · 2026-07-17
+- ⚪ `docs/library/report/20260717_recall-heuristics-reconciliation-heurist_72ca2b.md` — draft · 2026-07-17
+- ⚪ `docs/library/report/20260717_sol-api-surface-seat-design-claude-half_8b7b89.md` — draft · 2026-07-17
+- ⚪ `docs/library/report/20260717_sol-api-surface-seat-design-deepseek-rev_ead677.md` — draft · 2026-07-17
+- ⚪ `docs/library/report/20260717_t060-m1-pv-citation-path-verification-pa_a64265.md` — draft · 2026-07-17
+- ⚪ `docs/library/report/20260717_t060-moonshot-network-spine-three-fronti_aa0510.md` — draft · 2026-07-17
+- ⚪ `docs/library/report/20260717_t060-n0-shadow-router-deepseek-review-pe_bf6b68.md` — draft · 2026-07-17
+- ⚪ `docs/library/report/20260717_t060-round-2-fable-claude-cross-critique_91d373.md` — draft · 2026-07-17
+- ⚪ `docs/library/report/20260717_t093-crash-path-reconciliation-fable-rec_c00255.md` — draft · 2026-07-17
+- ⚪ `docs/library/report/20260717_t094-recall-heuristics-reconciliation-de_97303d.md` — draft · 2026-07-17
+- ⚪ `docs/library/report/20260717_tempo-asymmetry-framework-design-deepsee_8323e1.md` — draft · 2026-07-17
+- ⚪ `docs/library/report/20260717_tempo-asymmetry-two-frontier-utility-max_e09a1e.md` — draft · 2026-07-17
+- ⚪ `docs/library/report/20260716_cli-probe-seat-audit-boot-ergonomics-202_778d02.md` — draft · 2026-07-16
+- ⚪ `docs/library/report/20260716_cli-probe-seat-audit-round-2-the-room-20_cd6ddb.md` — draft · 2026-07-16
+- ⚪ `docs/library/report/20260716_crash-hardening-slices-claude-blind-half_17aeb7.md` — draft · 2026-07-16
+- ⚪ `docs/library/report/20260716_deepseek-ironman-wishlist-2026-07-16_4106ac.md` — draft · 2026-07-16
+- ⚪ `docs/library/report/20260716_gemini-jester-red-2026-07-16_3d6e26.md` — draft · 2026-07-16
+- ⚪ `docs/library/report/20260716_gemini-moonshot-enablers-2026-07-16_5c7677.md` — draft · 2026-07-16
+- ⚪ `docs/library/report/20260716_hardening-slices-deepseek-blind-half-202_91d41c.md` — draft · 2026-07-16
+- ⚪ `docs/library/report/20260716_jester-forge-blue-team-defense-design-de_ece76e.md` — draft · 2026-07-16
+- ⚪ `docs/library/report/20260716_jester-forge-red-team-threat-model_a844d5.md` — draft · 2026-07-16
+- ⚪ `docs/library/report/20260716_jester-forge-synthesis-pass-a-claude-arc_49a170.md` — draft · 2026-07-16
+- ⚪ `docs/library/report/20260716_mcp-surface-empirical-half-claude-probe_4dbe95.md` — draft · 2026-07-16
+- ⚪ `docs/library/report/20260716_mcp-surface-reverse-engineering-deepseek_c79c35.md` — draft · 2026-07-16
+- ⚪ `docs/library/report/20260716_moonshot-enablers-claude-half-architect_f8dec9.md` — draft · 2026-07-16
+- ⚪ `docs/library/report/20260716_moonshot-enablers-deepseek-review-voice_2d5001.md` — draft · 2026-07-16
+- ⚪ `docs/library/report/20260716_multi-agent-failure-mode-foresight-claud_f4bbc8.md` — draft · 2026-07-16
+- ⚪ `docs/library/report/20260716_multi-agent-failure-mode-foresight-n-3-1_0b38cd.md` — draft · 2026-07-16
+- ⚪ `docs/library/report/20260716_multi-agent-readiness-reconciliation-cla_6a8984.md` — draft · 2026-07-16
+- ⚪ `docs/library/report/20260716_onboarding-audit-deepseek-runner-seat-20_f2f69d.md` — draft · 2026-07-16
+- ⚪ `docs/library/report/20260716_t002-ui-trace-collapse-design-pre-regist_fc22a6.md` — draft · 2026-07-16
+- ⚪ `docs/library/report/20260716_t086-seat-wake-hook-lifecycle-prior-art_75f68b.md` — draft · 2026-07-16
+- ⚪ `docs/library/report/20260716_t086-seat-wake-hook-lifecycle-reconcilia_c203c4.md` — draft · 2026-07-16
+- ⚪ `docs/library/report/20260716_t086-seat-wake-hook-prior-art-deep-dive_b0896c.md` — draft · 2026-07-16
+- ⚪ `docs/library/report/20260716_w5-honest-heal-deepseek-blind-design-hal_934cc4.md` — draft · 2026-07-16
+- ⚪ `docs/library/report/20260716_w8-gauge-honesty-episode-auto-close-prio_79e195.md` — draft · 2026-07-16
+- ⚪ `docs/library/report/20260715_capability-surface-claude-blind-half-t07_9b6216.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_creative-robustness-claude-half-blind-20_d58ddc.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_creative-robustness-reconciliation-claud_109b39.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_deepseek-creative-robustness-2026-07-15_62a0b1.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_deepseek-model-attribute-transfer-2026-0_4d7f47.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_deepseek-t054-adversarial-review-r3-flow_f4ad21.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_deepseek-t061-adversarial-review-settle_f56493.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_deepseek-t066-design-reply-path-lane-rou_391fe0.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_deepseek-t066-verify-code-pass-p1-p7-liv_03f8dd.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_deepseek-t067-1-design-toolbox-third-doo_ae2b37.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_deepseek-t067-1-live-drill-verdict-2026_dfe6a9.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_deepseek-t068-r3-design-pre-flight-asser_5eb933.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_deepseek-t068-r3-live-drill-verdict-2026_9caa72.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_deepseek-t069-design-singleton-isolation_0685c4.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_deepseek-t069-verdict-adversarial-pass-o_8dbc28.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_deepseek-t073-phase-1-2-verify-green-202_874cd4.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_engine-room-claude-blind-half-t079-2026_7a24f0.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_model-attribute-transfer-claude-half-bli_d04981.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_model-attribute-transfer-reconciliation_2ee60b.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_operator-traffic-claude-blind-half-t080_4e2913.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_presence-autopilot-claude-blind-half-202_949a93.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_presence-autopilot-design-blind-half-dee_478bff.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_presence-autopilot-reconciliation-claude_b5cb93.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_readme-analysis-deepseek-blind-analytica_3613b5.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_smart-message-routing-deepseek-blind-hal_19cd4e.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_smart-message-routing-reconciliation-202_fc272f.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_t060-m1-continuous-presence-claude-half_3a0589.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_t060-m1-continuous-presence-design-blind_ebd800.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_t060-m1-continuous-presence-reconciliati_32cac4.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_t069-singleton-isolation-claude-half-bli_f884b1.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_t069-singleton-isolation-reconciliation_1a7cdb.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_t071-r1-verdict-deepseek-verify-2026-07_6ab092.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_t073-wake-communicate-reconciliation-cla_a6fc12.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_t073-wake-communicate-robustness-claude_06c4c1.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_t073-wake-reliability-design-deepseek-bl_b10983.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_t074-seamless-continuity-claude-half-bli_4de76f.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_t074-seamless-continuity-reconciliation_89103c.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_t074-session-continuity-design-deepseek_234abf.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_t075-m1-alpha-verdict-deepseek-verify-20_f4019c.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_t075-m1-beta-verdict-deepseek-verify-202_a12a32.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_t075-m1-delta-verdict-claude-verify-2026_248bbd.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_t078-capability-surface-maximization-des_4083a4.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_t078-capability-surface-reconciliation-c_6a088d.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_t079-engine-room-observability-design-bl_7bc96b.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_t079-engine-room-reconciliation-claude-d_66eac3.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_t080-operator-traffic-design-blind-half_9f35fc.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_t080-operator-traffic-reconciliation-cla_89d9c6.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260715_ui-mcp-integration-deepseek-blind-half-2_318552.md` — draft · 2026-07-15
+- ⚪ `docs/library/report/20260714_claude-t059-review-r8-knowledge-map-2026_43eade.md` — draft · 2026-07-14
+- ⚪ `docs/library/report/20260714_deepseek-r1-delta-door-design-half-blind_540056.md` — draft · 2026-07-14
+- ⚪ `docs/library/report/20260714_deepseek-r1-reconciliation-confirm-tier_e51d4e.md` — draft · 2026-07-14
+- ⚪ `docs/library/report/20260714_deepseek-r4-pre-flight-recall-design-202_1250bf.md` — draft · 2026-07-14
+- ⚪ `docs/library/report/20260714_deepseek-r5-cost-telemetry-design-half-b_85a3eb.md` — draft · 2026-07-14
+- ⚪ `docs/library/report/20260714_deepseek-r5-reconciliation-confirm-2026_bb6725.md` — draft · 2026-07-14
+- ⚪ `docs/library/report/20260714_deepseek-t045-lane-mode-live-verify-2026_9c8f71.md` — draft · 2026-07-14
+- ⚪ `docs/library/report/20260714_deepseek-t045-stage-1-fence-review-2026_e9419d.md` — draft · 2026-07-14
+- ⚪ `docs/library/report/20260714_deepseek-t045-stage-2-build-fence-advers_024ea4.md` — draft · 2026-07-14
+- ⚪ `docs/library/report/20260714_deepseek-t045-stage-2-scope-pin-plan-adv_b813a1.md` — draft · 2026-07-14
+- ⚪ `docs/library/report/20260714_deepseek-t045-stage-2-wiring-fence-adver_e9089c.md` — draft · 2026-07-14
+- ⚪ `docs/library/report/20260714_deepseek-t045-storm-rerun-verify-cfdcb65_888077.md` — draft · 2026-07-14
+- ⚪ `docs/library/report/20260714_deepseek-t048-design-recall-surface-poli_4e1a94.md` — draft · 2026-07-14
+- ⚪ `docs/library/report/20260714_deepseek-t049-fence-protocol-v2-draft-20_ce18d3.md` — draft · 2026-07-14
+- ⚪ `docs/library/report/20260714_deepseek-t049-merge-fidelity-affirm-2026_22d11f.md` — draft · 2026-07-14
+- ⚪ `docs/library/report/20260714_deepseek-t050-verify-quick-wins-bundle-l_b69274.md` — draft · 2026-07-14
+- ⚪ `docs/library/report/20260714_deepseek-t052-build-review-fence-lite-ad_9d5270.md` — draft · 2026-07-14
+- ⚪ `docs/library/report/20260714_deepseek-t052-build-review-live-verify-2_da02ac.md` — draft · 2026-07-14
+- ⚪ `docs/library/report/20260714_deepseek-t053-adversarial-review-r2-fenc_4d7847.md` — draft · 2026-07-14
+- ⚪ `docs/library/report/20260714_deepseek-t055-live-verify-r4-pre-flight_5afada.md` — draft · 2026-07-14
+- ⚪ `docs/library/report/20260714_deepseek-t058-live-verify-r7-mid-turn-cl_2e4833.md` — draft · 2026-07-14
+- ⚪ `docs/library/report/20260714_deepseek-t059-fix-delta-cross-check-2026_e0a50f.md` — draft · 2026-07-14
+- ⚪ `docs/library/report/20260714_deepseek-wishlist-2026-07-14_5acf75.md` — draft · 2026-07-14
+- ⚪ `docs/library/report/20260714_r7-mid-turn-clarification-deepseek-desig_bd991a.md` — draft · 2026-07-14
+- ⚪ `docs/library/report/20260714_t048-live-verify-deepseek-2026-07-14_a21bd4.md` — draft · 2026-07-14
+- ⚪ `docs/library/report/20260714_t056-build-review-deepseek-adversarial-2_3dde46.md` — draft · 2026-07-14
+- ⚪ `docs/library/report/20260712_content-distribution-caching-and-name-re_5a8f9e.md` — draft · 2026-07-12
+- ⚪ `docs/library/report/20260712_control-plane-namespace-isolation-deepse_1505e1.md` — draft · 2026-07-12
+- ⚪ `docs/library/report/20260712_fenced-reconciliation-control-plane-ns-i_62fd36.md` — draft · 2026-07-12
+- ⚪ `docs/library/report/20260712_rb-25-amendment-2-deepseek-rulings-fence_7f1c14.md` — draft · 2026-07-12
+- ⚪ `docs/library/report/20260712_rb-25-drill-1-newborn-gauntlet-re-run-ve_419213.md` — draft · 2026-07-12
+- ⚪ `docs/library/report/20260712_rb-25-drill-1-newborn-gauntlet-verify-de_9e3166.md` — draft · 2026-07-12
+- ⚪ `docs/library/report/20260712_rb-25-drill-2-store-divergence-heal-live_b93ed8.md` — draft · 2026-07-12
+- ⚪ `docs/library/report/20260712_rb-25-drill-2-store-divergence-heal-veri_6e8dba.md` — draft · 2026-07-12
+- ⚪ `docs/library/report/20260712_rb-25-drill-3-concurrency-storm-claude-e_d3e126.md` — draft · 2026-07-12
+- ⚪ `docs/library/report/20260712_rb-25-f1-f2-fence-review-charter-claude_db1b6e.md` — draft · 2026-07-12
+- ⚪ `docs/library/report/20260712_rb-25-f1-f2-fence-review-deepseek-indepe_3b02b6.md` — draft · 2026-07-12
+- ⚪ `docs/library/report/20260712_rb-25-f1-f2-fix-review-claude-pass-1-uns_ff5b2f.md` — draft · 2026-07-12
+- ⚪ `docs/library/report/20260712_recall-as-a-network-the-knowledge-plane_163b1e.md` — draft · 2026-07-12
+- ⚪ `docs/library/report/20260712_recall-as-networking-deepseek-part-a-bli_c38b1b.md` — draft · 2026-07-12
+- ⚪ `docs/library/report/20260712_recall-as-networking-deepseek-review-par_e87a19.md` — draft · 2026-07-12
+- ⚪ `docs/library/report/20260712_t038-identity-deepseek-counter-review-re_930307.md` — draft · 2026-07-12
+- ⚪ `docs/library/report/20260712_t038-t039-implications-deep-dive-claude_359fe3.md` — draft · 2026-07-12
+- ⚪ `docs/library/report/20260712_t038-t039-implications-deepseek-blind-de_bf2553.md` — draft · 2026-07-12
+- ⚪ `docs/library/report/20260712_t038-t039-implications-reconciliation-re_4966b0.md` — draft · 2026-07-12
+- ⚪ `docs/library/report/20260712_t040-counter-review-deepseek-rulings-on_b165e8.md` — draft · 2026-07-12
+- ⚪ `docs/library/report/20260712_t040-endpoint-system-exploration-deepsee_7f533e.md` — draft · 2026-07-12
+- ⚪ `docs/library/report/20260712_t040-packet-spec-review-endpoint-ideatio_40168e.md` — draft · 2026-07-12
+- ⚪ `docs/library/report/20260712_t040-packet-spec-v1-claude-half_30a58a.md` — draft · 2026-07-12
+- ⚪ `docs/library/report/20260712_t040-packet-spec-v1-deepseek-blind-desig_cbdeba.md` — draft · 2026-07-12
+- ⚪ `docs/library/report/20260712_t040-spec-review-claude-cross-check-of-d_994a8e.md` — draft · 2026-07-12
+- ⚪ `docs/library/report/20260712_t040-spec-review-endpoint-system-ideatio_1984eb.md` — draft · 2026-07-12
+- ⚪ `docs/library/report/20260712_transport-congestion-control-and-qos-eng_b15c87.md` — draft · 2026-07-12
+- ⚪ `docs/library/report/20260712_ultracode-run-t036-t039-coordination-arc_83c608.md` — draft · 2026-07-12
+- ⚪ `docs/library/report/20260712_ultracode-v2-t036-t039-coordination-arc_50d062.md` — draft · 2026-07-12
+- ⚪ `docs/library/report/20260712_ultracode-v3-coordination-arc-3-4-fence_5e64b7.md` — draft · 2026-07-12
+- ⚪ `docs/library/report/20260712_what-internet-routing-teaches-a-knowledg_22553f.md` — draft · 2026-07-12
+- ⚪ `docs/library/report/20260711_claude-s-diagnosis-half-the-boot-intent_794515.md` — draft · 2026-07-11
+- ⚪ `docs/library/report/20260711_claude-s-l2-targeted-read-assessment-fle_66300d.md` — draft · 2026-07-11
+- ⚪ `docs/library/report/20260711_deepseek-bars-ui-build-plan-verbatim-que_7939a6.md` — draft · 2026-07-11
+- ⚪ `docs/library/report/20260711_deepseek-blind-method-codification-half_99262e.md` — draft · 2026-07-11
+- ⚪ `docs/library/report/20260711_deepseek-boot-intent-incident-diagnosis_59a7c5.md` — draft · 2026-07-11
+- ⚪ `docs/library/report/20260711_deepseek-l2-blind-verdict-noise-discipli_6c3427.md` — draft · 2026-07-11
+- ⚪ `docs/library/report/20260711_deepseek-l2-verify-gate-green-3-drifts-v_3395cc.md` — draft · 2026-07-11
+- ⚪ `docs/library/report/20260711_deepseek-progress-bars-co-design-verbati_947550.md` — draft · 2026-07-11
+- ⚪ `docs/library/report/20260711_deepseek-rb-23-blind-half-design-review_addbc5.md` — draft · 2026-07-11
+- ⚪ `docs/library/report/20260711_deepseek-rb-23-verify-gate-green-verbati_9fe375.md` — draft · 2026-07-11
+- ⚪ `docs/library/report/20260711_deepseek-t033-built-vs-spec-inventory-ve_b123a8.md` — draft · 2026-07-11
+- ⚪ `docs/library/report/20260711_deepseek-verify-reconciliation-gate-t031_c597af.md` — draft · 2026-07-11
+- ⚪ `docs/library/report/20260711_gpt-plain-language-explainer-of-the-t030_e6ab81.md` — draft · 2026-07-11
+- ⚪ `docs/library/report/20260711_gpt-retrieval-v2-vision-verbatim-via-dan_46a918.md` — draft · 2026-07-11
+- ⚪ `docs/library/report/20260711_gpt-third-reviewer-critique-of-the-metho_a22ae6.md` — draft · 2026-07-11
+- ⚪ `docs/library/report/20260711_rb-21-design-review-deepseek-fenced-gate_dddb7b.md` — draft · 2026-07-11
+- ⚪ `docs/library/report/20260711_rb-21-verify-gate-live-drill-deepseek-ve_0df0e2.md` — draft · 2026-07-11
+- ⚪ `docs/library/report/20260711_rb-23-content-floor-claude-design-half-f_403478.md` — draft · 2026-07-11
+- ⚪ `docs/library/report/20260711_rb-23-content-floor-deepseek-design-half_57108c.md` — draft · 2026-07-11
+- ⚪ `docs/library/report/20260711_t030-final-verify-l4-l5-gate-close-deeps_2eee1f.md` — draft · 2026-07-11
+- ⚪ `docs/library/report/20260711_t030-kill-redis-drill-transcript-verbati_345f03.md` — draft · 2026-07-11
+- ⚪ `docs/library/report/20260711_t030-l3-verify-deepseek-verify-gate-2026_cc5304.md` — draft · 2026-07-11
+- ⚪ `docs/library/report/20260711_t030-l4-design-review-deepseek-fenced-ga_6a89fd.md` — draft · 2026-07-11
+- ⚪ `docs/library/report/20260711_t034-registry-dial-consolidation-claude_34a872.md` — draft · 2026-07-11
+- ⚪ `docs/library/report/20260711_w3-oversleep-build-log-deepseek-lane-202_38d9c8.md` — draft · 2026-07-11
+- ⚪ `docs/library/report/20260711_w3-rb-8-dictstore-differential-deepseek_1d516f.md` — draft · 2026-07-11
+- ⚪ `docs/library/report/20260711_w3-rb-9-12-claude-wake-verify-record-202_a7b992.md` — draft · 2026-07-11
+- ⚪ `docs/library/report/20260711_wave-3-deepseek-blind-half-rb-8-12-dicts_dc03b7.md` — draft · 2026-07-11
+- ⚪ `docs/library/report/20260711_wave-3-rb-8-12-dictstore-differential-cl_c4f561.md` — draft · 2026-07-11
+- ⚪ `docs/library/report/20260710_claude-s-sota-deep-read-assessment-robus_204e8e.md` — draft · 2026-07-10
+- ⚪ `docs/library/report/20260710_deepseek-blind-liveness-investigation-t0_aec8a6.md` — draft · 2026-07-10
+- ⚪ `docs/library/report/20260710_deepseek-blind-sota-classification-t030_e92365.md` — draft · 2026-07-10
+- ⚪ `docs/library/report/20260710_deepseek-l1-l1b-verify-gate-green-verbat_fb2fe4.md` — draft · 2026-07-10
+- ⚪ `docs/library/report/20260710_deepseek-rb-4-design-review-verbatim-com_fc52df.md` — draft · 2026-07-10
+- ⚫ `docs/library/report/20260710_deepseek-s5-build-review-mechanisms-3-4_226f05.md` — fossil · 2026-07-10
+- ⚫ `docs/library/report/20260710_deepseek-s5-remedy-review-c3-ceiling-ref_dcf450.md` — fossil · 2026-07-10
+- ⚪ `docs/library/report/20260710_deepseek-sota-deep-read-assessment-from_68efb1.md` — draft · 2026-07-10
+- ⚫ `docs/library/report/20260710_deepseek-t029-tier-2-pins-delivery-r9-r1_235f10.md` — fossil · 2026-07-10
+- ⚫ `docs/library/report/20260710_deepseek-t029-wave-1-per-slice-review-rb_0e2a04.md` — fossil · 2026-07-10
+- ⚫ `docs/library/report/20260710_deepseek-t029-wave-2-build-review-the-ga_f51330.md` — fossil · 2026-07-10
+- ⚫ `docs/library/report/20260710_deepseek-t029-wave-2-fenced-design-sessi_9f1fb7.md` — fossil · 2026-07-10
+- ⚫ `docs/library/report/20260710_newborn-gauntlet-drill-record-verbatim-t_619c07.md` — fossil · 2026-07-10
+- ⚪ `docs/library/report/20260710_p7-lookback-corpus-inventory-deepseek-ve_f5fc91.md` — draft · 2026-07-10
+- ⚪ `docs/library/report/20260710_resilience-battery-deepseek-verbatim-fen_fca7cc.md` — draft · 2026-07-10
+- ⚪ `docs/library/report/20260710_resilience-battery-fix-plan-reconciliati_f53e97.md` — draft · 2026-07-10
+- ⚪ `docs/library/report/20260709_comms-messaging-pillar-analysis-claude-s_ead2e9.md` — draft · 2026-07-09
+- ⚪ `docs/library/report/20260709_comms-messaging-pillar-deepseek-fenced-i_815a36.md` — draft · 2026-07-09
+- ⚪ `docs/library/report/20260709_deepseek-round-on-f0b-f1-c3e9536-indepen_bc9f16.md` — draft · 2026-07-09
+- ⚪ `docs/library/report/20260709_deepseek-round-on-f2-f4-optimizer-red-te_f75921.md` — draft · 2026-07-09
+- ⚪ `docs/library/report/20260709_forge-f0-data-sufficiency-audit-dual-pre_9749e0.md` — draft · 2026-07-09
+- ⚪ `docs/library/report/20260709_p0-wake-detect-design-deepseek-adversari_1faa7d.md` — draft · 2026-07-09
+- ⚪ `docs/library/report/20260709_p1-notes-supersession-deepseek-dispositi_ff0fe4.md` — draft · 2026-07-09
+- ⚪ `docs/library/report/20260709_p2-boot-orientation-header-deepseek-cons_62e1f0.md` — draft · 2026-07-09
+- ⚪ `docs/library/report/20260709_p2-gate-diff-review-deepseek-verdicts-ve_a3e92c.md` — draft · 2026-07-09
+- ⚪ `docs/library/report/20260709_p3-ledger-fold-deepseek-runner-consumer_e6e7ac.md` — draft · 2026-07-09
+- ⚪ `docs/library/report/20260709_p4-doc-currency-dispositions-deepseek-ta_b00285.md` — draft · 2026-07-09
+- ⚪ `docs/library/report/20260709_p5-stale-task-code-reality-audit-deepsee_4df5d5.md` — draft · 2026-07-09
+- ⚪ `docs/library/report/20260709_p6-ack-semantics-deepseek-red-team-verba_d804fb.md` — draft · 2026-07-09
+- ⚪ `docs/library/report/20260709_t014-bifrost-runner-fixes-deepseek-build_451823.md` — draft · 2026-07-09
+- ⚪ `docs/library/report/20260709_visual-generation-integration-seams-deep_4ba92b.md` — draft · 2026-07-09
+- ⚪ `docs/library/report/20260709_visual-generation-repo-sweep-web-agent-v_78ec97.md` — draft · 2026-07-09
+- ⚪ `docs/library/report/20260708_deepseek-fenced-design-cross-check-lesso_5f216f.md` — draft · 2026-07-08
+- ⚪ `docs/library/report/20260708_deepseek-independent-review-slice-1-fron_a73bf5.md` — draft · 2026-07-08
+- ⚪ `docs/library/report/20260708_fable-5-operating-instruction-patterns-f_be78c6.md` — draft · 2026-07-08
+- ⚪ `docs/library/report/20260708_frontier-web-research-autoresearch-skill_80a199.md` — draft · 2026-07-08
+- ⚪ `docs/library/report/20260707_deepseek-arch-triage-2026-07-07_6d567c.md` — draft · 2026-07-07
+- ⚪ `docs/library/report/20260707_deepseek-bookends-review-2026-07-07_88b801.md` — draft · 2026-07-07
+- ⚪ `docs/library/report/20260707_deepseek-immune-review-2026-07-07_fabd3d.md` — draft · 2026-07-07
+- ⚪ `docs/library/report/20260707_renew-deepseek-independent-exploration-i_342ef5.md` — draft · 2026-07-07
+- ⚪ `docs/library/report/20260707_renew-prior-art-grounding-research-item_4548c5.md` — draft · 2026-07-07
+- ⚪ `docs/library/report/20260707_renew-strand-a-cheap-deterministic-conte_6eba11.md` — draft · 2026-07-07
+- ⚪ `docs/library/report/20260707_renew-strand-e-cold-resume-fidelity-empi_890e10.md` — draft · 2026-07-07
+- ⚪ `docs/library/report/20260707_renew-two-agent-research-comparison-clau_4dab44.md` — draft · 2026-07-07
+- ⚪ `docs/library/report/20260704_gpt-critique-goodhart-exploration-preser_92a36f.md` — draft · 2026-07-04
+- ⚪ `docs/library/report/20260704_multi-model-architecture-review-2026-07_89626e.md` — draft · 2026-07-04
+- ⚪ `docs/library/report/20260703_how-does-hermes-agent-s-mixture-of-agent_487079.md` — draft · 2026-07-03
+- ⚪ `docs/library/report/20260703_how-does-the-cmi-paper-run-per-memory-co_848259.md` — draft · 2026-07-03
+- ⚪ `docs/library/report/20260703_how-is-deepseek-v4-designed-and-built-an_1f2621.md` — draft · 2026-07-03
+- ⚪ `docs/library/report/20260703_is-lora-qlora-fine-tuning-of-a-7-30b-mod_607d44.md` — draft · 2026-07-03
+- ⚪ `docs/library/report/20260703_what-is-the-proven-open-source-stack-for_ce5d49.md` — draft · 2026-07-03
+- ⚪ `docs/library/report/20260702_how-do-criticgpt-and-prover-verifier-sty_c34291.md` — draft · 2026-07-02
+- ⚪ `docs/library/report/20260702_what-does-ollama-s-anthropic-compatible_5e0560.md` — draft · 2026-07-02
+- ⚪ `docs/library/report/20260701_knowledge-compaction-memory-consolidatio_f49716.md` — draft · 2026-07-01
+- ⚪ `docs/library/report/20260701_knowledge-primitives-shape-axis-full-fro_f4d180.md` — draft · 2026-07-01
+- ⚪ `docs/library/report/20260701_local-free-models-behind-claude-code-ful_cf175d.md` — draft · 2026-07-01
+- ⚪ `docs/library/report/20260701_model-bakeoff-fleet-selection-by-evidenc_eed548.md` — draft · 2026-07-01
+- ⚪ `docs/library/report/20260701_standout-small-models-for-the-local-flee_3c1c47.md` — draft · 2026-07-01
+- ⚫ `docs/library/report/20260628_akashic-aurora-architecture-documentatio_a9b61f.md` — fossil · 2026-06-28
+- ⚫ `docs/library/report/20260620_lexicon-naming-schema-adherence-review-c_bc1348.md` — fossil · 2026-06-20
 
 ---
-
-**17 type(s) · 140+ file(s)**
+**4 type(s) · 660 file(s)**

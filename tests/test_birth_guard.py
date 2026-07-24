@@ -24,8 +24,13 @@ def test_new_loose_docs_md_refused():
     assert bg.classify("docs/sub/thing.md") == "refuse"
 
 
-def test_research_chronicles_warn_during_migration_window():
-    assert bg.classify("research/drafts/seat-topic-2026-07-24.md") == "warn"
+def test_research_refused_after_p3_flip():
+    # P3 fired 2026-07-23 ("Delete the 643!"): research births go through the door now.
+    assert bg.classify("research/drafts/seat-topic-2026-07-24.md") == "refuse"
+    assert bg.classify("research/anything.md") == "refuse"
+
+
+def test_held_zones_still_warn():
     assert bg.classify("chronicles/night-plan.md") == "warn"
     assert bg.classify("charters/new-charter.md") == "warn"
 

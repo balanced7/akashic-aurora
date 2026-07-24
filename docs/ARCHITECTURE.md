@@ -31,6 +31,10 @@ NARRATIVE (System 4)          KNOWLEDGE & MEMORY               COORDINATION
   core/narrative/               core/learning + recall +          core/coord/
   the self-writing story        primitives + renew                who does what, without racing
                                 (the "codex")
+                                core/library/  atoms as truth,
+                                markdown as projection (T101)
+                                core/toolbelt/  self-minted verbs,
+                                audit, spend (T099)
         |                              |                               |
         +---------------+--------------+---------------+---------------+
                         v
