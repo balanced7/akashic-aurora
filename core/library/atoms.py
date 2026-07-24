@@ -129,7 +129,7 @@ class AtomFamily:
              source_thread: Optional[str] = None, settled: str = "settled",
              tenant: str = "solo", visibility: str = "fleet",
              supersedes: Optional[str] = None, date: Optional[str] = None,
-             now: Optional[float] = None) -> Dict[str, Any]:
+             gist: Optional[str] = None, now: Optional[float] = None) -> Dict[str, Any]:
         cats = self._validate(type_, title, categories or [], citations or [], origin, settled, status)
         ts = float(now if now is not None else time.time())
         day = date or time.strftime("%Y-%m-%d", time.localtime(ts))
@@ -141,6 +141,9 @@ class AtomFamily:
                 "status": status, "type": type_, "arc": arc, "seats": seats or [],
                 "date": day, "title": title.strip(), "category": cats,
                 "tenant": tenant, "visibility": visibility,
+                # kimi R3: recall surfaces are capped and silent-when-empty -- a doc
+                # that cannot render in one line gets dropped, so the gist is born-with.
+                "gist": (gist or re.sub(r"\s+", " ", (body or "")).strip()[:140]),
             },
             "body": body or "",
             "body_sha": _sha12(body or ""),

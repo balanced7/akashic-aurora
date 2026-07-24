@@ -142,6 +142,14 @@ def test_backlinks_are_derived_with_rel_and_status(fam):
     assert bl == [{"source": src["id"], "rel": "contradicts", "status": "current"}]
 
 
+def test_gist_born_with_and_capped(fam):
+    a = fam.mint("design", "x", "  lots   of\n\nwhitespace " + "y" * 300, now=1.0)
+    assert a["header"]["gist"].startswith("lots of whitespace")
+    assert len(a["header"]["gist"]) <= 140
+    b = fam.mint("design", "x2", "body", gist="hand-written gist", now=2.0)
+    assert b["header"]["gist"] == "hand-written gist"
+
+
 def test_conversation_provenance_fields(fam):
     a = fam.mint("chronicle", "thread capture", "deepseek: ...\nclaude: ...",
                  origin="conversation", speakers=["deepseek", "claude"],
