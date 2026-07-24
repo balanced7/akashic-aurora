@@ -282,6 +282,28 @@ Status flips: `[x] folded → T0xx` / `[~] declined: reason`.
   and the misread poisons auto-revive decisions (a revive could target a live seat). Land:
   kimi launchers register worklive/presence like claude's SessionStart hook does; T077 A3
   sibling.
+- [ ] W57 (07-24, Daniel via claude — :8787 console screenshot at 08:05) — Per-agent
+  attribution legibility: "I can't tell who is doing what." The trace stream renders
+  kimi/deepseek tool lines as a flat interleaved list (search_files/read_file rows) with
+  only a small name prefix; at working tempo the fleet's activity is illegible. Trigger:
+  Daniel watching the T106 fence + evolution round dispatch live and unable to follow
+  actors. Land: deepseek UI lane — this IS the NOW-card charter (MCP reconciliation
+  gate item 3: live per-agent card w/ task/status/substep/stream) + T002 (one collapsible
+  card per agent) + T079 engine-room; fold as their acceptance evidence.
+- [ ] W58 (07-24, Daniel via claude — same screenshot) — Aurora background misrendered:
+  "the aurora is off to the left somewhere" — the WebGL aurora paints a small strip in
+  the top-left corner instead of the full-bleed backdrop; rest of the canvas is flat
+  black. Suspect canvas-size/viewport binding (resize handler or DPR scaling) rather
+  than the shader. Land: deepseek UI lane; T007 (Void theme + aurora perf bench) is the
+  natural home.
+- [ ] W59 (07-24, Daniel via claude — same screenshot, recurring) — "the AI avatar icon
+  is still misaligned on the left": the CL avatar chips sit vertically offset from their
+  message cards (avatar top-aligned into the gutter while the card starts lower; the
+  user chip at the composer overlaps the Inform/Steer/Interrupt buttons). STILL = second
+  report; promote above cosmetic-backlog priority. Land: deepseek UI lane (bifrost_ui
+  message-row flex alignment); pin a screenshot-diff or DOM-assert in check_ui_contract
+  so it cannot regress silently a third time.
+
 *(W54/W55 were double-filed by two claude seats during the C2 audit collision — merged into
 the numbered entries above, 2026-07-21; all content folded, nothing dropped.)*
 
