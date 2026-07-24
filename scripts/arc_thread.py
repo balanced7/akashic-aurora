@@ -36,6 +36,12 @@ DOC_DIRS = ["docs", "research", "chronicles", "charters"]
 _ARC_RE = re.compile(r"^\s*(?:Type|Class)\s*:.*?\bArc\s*:\s*([^·|\n]+)", re.I | re.M)
 _STATUS_RE = re.compile(r"^\s*Status\s*:\s*([^\n]+)", re.I | re.M)
 _DATE_RE = re.compile(r"\bDate\s*:\s*(\d{4}-\d{2}-\d{2})", re.I)
+# T104 sweep: atom projections (docs/library/**) speak YAML frontmatter, not the prose
+# header contract -- the walker reads both dialects or the arc thread goes blind to
+# every migrated document (caught by test_arc_thread post-P3).
+_FM_ARC_RE = re.compile(r"^arc:\s*\"?([^\"\n]+?)\"?\s*$", re.M)
+_FM_STATUS_RE = re.compile(r"^status:\s*\"?([^\"\n]+?)\"?\s*$", re.M)
+_FM_DATE_RE = re.compile(r"^date:\s*\"?(\d{4}-\d{2}-\d{2})\"?\s*$", re.M)
 
 
 def _norm(arc: str) -> str:
@@ -57,14 +63,21 @@ def _read_header(path: str) -> tuple[str, str, str] | None:
     except OSError:
         return None
     m = _ARC_RE.search(head)
-    if not m:
-        return None
-    sm = _STATUS_RE.search(head)
-    # first status token only (before a '(' or '—' aside) -- keeps the thread scannable
-    status = re.split(r"\s*[(—]", sm.group(1).strip())[0].strip()[:32] if sm else ""
-    date_m = _DATE_RE.search(head)
-    date = date_m.group(1) if date_m else ""
-    return m.group(1).strip(), status, date
+    if m:
+        sm = _STATUS_RE.search(head)
+        # first status token only (before a '(' or '—' aside) -- keeps the thread scannable
+        status = re.split(r"\s*[(—]", sm.group(1).strip())[0].strip()[:32] if sm else ""
+        date_m = _DATE_RE.search(head)
+        return m.group(1).strip(), status, (date_m.group(1) if date_m else "")
+    if head.startswith("---"):  # projection frontmatter dialect
+        fm = head.split("---", 2)[1] if head.count("---") >= 2 else head
+        am = _FM_ARC_RE.search(fm)
+        if am and am.group(1).strip().lower() not in ("null", ""):
+            sm = _FM_STATUS_RE.search(fm)
+            dm = _FM_DATE_RE.search(fm)
+            return (am.group(1).strip(), sm.group(1).strip()[:32] if sm else "",
+                    dm.group(1) if dm else "")
+    return None
 
 
 def files_for_arc(want: str) -> list[dict]:
