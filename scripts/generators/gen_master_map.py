@@ -57,7 +57,12 @@ def build():
             flags_by_file.setdefault(site.split(":")[0], set()).add(name)
 
     tests = _name_index(["tests"], (".py",))
-    papers = _name_index(["docs", os.path.join("research", "reviewed")], (".md",))
+    # T104 sweep: papers live in the atom projections now (P3 deleted the flat corpora);
+    # research/reviewed kept as a harmless no-op guard for any straggler restore.
+    _shelves = [os.path.join("docs", "library", t)
+                for t in ("design", "report", "brief", "contract", "chronicle",
+                          "ledger", "ruling", "map")]
+    papers = _name_index(["docs", os.path.join("research", "reviewed"), *_shelves], (".md",))
 
     def _squash(s):
         # hyphen/underscore-blind matching: packet_spec.py must find packet-spec-v1-2026-07.md
