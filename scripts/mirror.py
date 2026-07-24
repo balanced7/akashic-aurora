@@ -102,6 +102,21 @@ def main():
                     print(r.stderr.strip() if r.stderr else "")
                     print("[mirror] rule-8 mojibake guard REFUSED commit — fix and re-stage.")
                     sys.exit(1)
+        # Rule-13 birth guard (A1, T101): new .md is born through the door (atoms +
+        # projections), never loose. REFUSES new docs/*.md outside docs/library/ +
+        # crown; research/chronicles WARN during the migration window (P3 flips them).
+        # Same posture as rule-8: the guard optimizes, the census backstops.
+        if staged:
+            hook13 = os.path.join(ROOT, "scripts", "hooks", "birth_guard.py")
+            if os.path.exists(hook13):
+                r13 = subprocess.run([sys.executable, hook13],
+                                     cwd=ROOT, env=ENV, capture_output=True, text=True)
+                if (r13.stdout or "").strip():
+                    print(r13.stdout.strip())
+                if r13.returncode != 0:
+                    print("[mirror] rule-13 birth guard REFUSED commit — born-through-the-door: "
+                          "py agent_cli.py doc new (or --draft), or fix the path.")
+                    sys.exit(1)
         if staged:
             msg = msg or f"Mirror progress {datetime.now():%Y-%m-%d %H:%M}"
             if paths and not add_all:
