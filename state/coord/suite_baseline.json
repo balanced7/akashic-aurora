@@ -1,23 +1,11 @@
 {
  "v": 1,
- "sha": "5f5738d",
+ "sha": "bb0beac",
  "seat": "claude",
- "at": "2026-07-21T08:27:29",
+ "at": "2026-07-24T00:14:40",
  "failures": [
   {
    "node": "tests/test_agent_interface.py::test_messy_input_is_sanitized",
-   "lane": ""
-  },
-  {
-   "node": "tests/test_comprehensibility.py::test_guard_is_green_on_the_real_repo",
-   "lane": ""
-  },
-  {
-   "node": "tests/test_comprehensibility.py::test_derived_docs_current_is_green_now",
-   "lane": ""
-  },
-  {
-   "node": "tests/test_comprehensibility.py::test_derived_docs_drift_is_flagged",
    "lane": ""
   },
   {
@@ -33,7 +21,7 @@
    "lane": ""
   },
   {
-   "node": "tests/test_t058_clarification.py::test_b1_fourth_call_refused",
+   "node": "tests/test_t060_n0_shadow_router.py::test_cli_and_mcp_route_json_are_identical",
    "lane": ""
   },
   {
@@ -51,6 +39,22 @@
   {
    "node": "tests/test_t068_r3_preflight.py::test_p6_broadcast_skips_assertions",
    "lane": ""
+  },
+  {
+   "node": "tests/test_t086_s5_daemon_supervisor.py::test_s5_c1_sigterm_daemon_children_terminated_within_5s",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_t093_durable_job.py::test_wmi_broker_launches_guards_without_visible_consoles",
+   "lane": "T093"
+  },
+  {
+   "node": "tests/test_t093_durable_job.py::test_post_publish_optional_failure_preserves_primary_success",
+   "lane": "T093"
+  },
+  {
+   "node": "tests/test_t093_durable_job.py::test_real_ship_dry_run_is_recoverable_from_fresh_process",
+   "lane": "T093"
   }
  ],
  "claims_at_snapshot": {
@@ -110,6 +114,9 @@
   "T086": "in_progress",
   "T095": "claimed",
   "T099": "claimed",
+  "T101": "claimed",
+  "T103": "claimed",
+  "T104": "claimed",
   "T007": "approved",
   "T030": "approved",
   "T033": "approved",
@@ -146,6 +153,8 @@
   "T092": "proposed",
   "T096": "proposed",
   "T098": "proposed",
+  "T100": "proposed",
+  "T102": "proposed",
   "T075": "parked"
  }
 }
