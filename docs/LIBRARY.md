@@ -1,9 +1,11 @@
 # LIBRARY — where things live, and why (the filing law)
 
-Status: current  (v1, 2026-07-21 — ratified from the three-voice round; decision record:
-docs/library-schema-reconciliation-2026-07-21.md. Charter: Daniel — "know where to find what we
+Status: current  (v1.1, amended 2026-07-23 — the CATEGORY plane, §below; v1 ratified 2026-07-21
+from the three-voice round; decision records: docs/library-schema-reconciliation-2026-07-21.md ·
+docs/taxonomy-ergonomics-reconciliation-2026-07.md. Charter: Daniel — "know where to find what we
 are looking for instantly … know how to categorize and seed appropriately too. this too is a
-form of ergonomics.")
+form of ergonomics." + 2026-07-23: "I want our artifacts to fit into categories and hierarchies.
+for things to have a home and an order to them.")
 Type: contract · Arc: library-schema · Seats: fleet
 
 **The one-facet law:** a path encodes exactly ONE thing — the document's TYPE (+ date + slug).
@@ -78,6 +80,24 @@ grep-uncited (including store-side citations) AND superseded.
 | 10 | header contract on new docs | push-lint + wrap census (never write-time) | after D1 lands |
 | 11 | home-matches-type | check_boundaries | queued (claude) |
 | 12 | repo-root allowlist | check_boundaries | queued (claude) |
+
+## v1.1 amendment (2026-07-23) — the CATEGORY plane (the aboutness facet, now rostered)
+
+The one-facet law named "subsystem" as a header facet; it is now the governed CATEGORY plane
+(decision record: docs/taxonomy-ergonomics-reconciliation-2026-07.md — the homes-and-order round).
+- Three planes, never blurred: TYPE = kind (this file's canon) · ARC = campaign · CATEGORY =
+  aboutness. An artifact: exactly one type · >=1 arc · 1-3 categories (PRIMARY first; needing
+  4+ means split the artifact). A category never names a type or an arc.
+- THE ROSTER (capped 24; grow only via propose-category door + >=3 better-served artifacts +
+  Daniel gate; retire only with re-categorization; audit flags orphans + sprawl):
+  substrate · migration · library · recall · memory · bus · coordination · agent-lifecycle ·
+  identity · security · method · conducting · governance · audit · testing · tooling ·
+  ergonomics · ui · wiki · voice · optics · performance · frontier · narrative
+- HOME stays f(TYPE) — the one-facet law is unchanged; category is header/frontmatter-served,
+  rendered as grouping in VIEWS only. Re-categorization is never a re-shelving.
+- Default browse tree (the atom-era Library): L1 pinned, then LIVE ARCS current-first,
+  superseded collapsed under successors, fossils behind one fold; type-shelf and category-lens
+  are pivots. All trees derived, never hand-held.
 
 ## Amendment
 
