@@ -234,6 +234,13 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
     seen_keys = load_seen(sf)
     seen_set = set(seen_keys)
     twins = 0
+    # KNOWN SEAM (2026-07-24, measured live): wake_block's LOCAL cursor can sit far behind
+    # the group cursors, so a fresh session's first arms replay already-handled history one
+    # page per wake until the S0-gamma sidecar converges (live: 3 arms, 13+5 historic
+    # messages, twins 4->16 -- self-limiting, bounded by SEEN_CAP). An arm-time baseline
+    # sweep was tried and REVERTED here: it also swallows genuinely-waiting mail, which the
+    # arm-onto-pending contract (test_wake_detect pins) requires to wake. The honest fix is
+    # a session-scoped read cursor -- T095 mailbox-over-the-log / T106-A1 own that seam.
     # (T073: the skip-set assignment that lived here is gone -- wake_worthy() is the sole
     # wake gate; SKIP_KINDS/SKIP_KINDS_LANE remain for the lane-mode arm-time pending check.)
     out, seen = [], []
