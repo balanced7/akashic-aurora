@@ -6,7 +6,7 @@ Anchors are bounds/flags this week's incidents made famous: BIFROST_STALE_MS (D2
 MAX_FILE_BYTES=120000 (hit 3x in one session, T067). If a refactor renames one, this pin
 failing is the reminder that PHYSICS.md must follow. Run: py -m pytest tests/test_physics_sheet.py -q
 """
-from scripts.gen_physics_sheet import render, scan
+from scripts.generators.gen_physics_sheet import render, scan
 
 
 def _census():

@@ -7,15 +7,15 @@ truths: every env flag and every numeric bound is greppable, so the sheet derive
 never rot, only regenerate. Dynamic truths (throughput/latency envelopes) need MEASUREMENT
 drills and are explicitly out of scope here (charter M2b, benchmark half).
 
-Run:  py scripts/gen_physics_sheet.py            # writes docs/PHYSICS.md
-      py scripts/gen_physics_sheet.py --check    # exit 1 if the file is stale (for CI/pre-ship)
+Run:  py scripts/generators/gen_physics_sheet.py            # writes docs/PHYSICS.md
+      py scripts/generators/gen_physics_sheet.py --check    # exit 1 if the file is stale (for CI/pre-ship)
 """
 import os
 import re
 import subprocess
 import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # T104-M1 depth
 OUT = os.path.join(ROOT, "docs", "PHYSICS.md")
 
 # Vendored / heavy / generated dirs -- never part of the machinery's own physics.
@@ -85,7 +85,7 @@ def render(flags, bounds, sha):
         "Status: current",
         "Class: reference",
         "",
-        "> Do NOT edit by hand. Regenerate with `py scripts/gen_physics_sheet.py`.",
+        "> Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.",
         f"> Derived at {sha}. A bound you discover by collision is not awareness -- this sheet",
         "> exists so every clip, cap, timeout and flag is READABLE before it is HIT.",
         "> Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require",
@@ -125,7 +125,7 @@ def main():
         # compare bodies minus the derived-at line (sha churn is not staleness)
         strip = lambda t: "\n".join(l for l in t.splitlines() if not l.startswith("> Derived at "))
         if strip(old) != strip(text):
-            print("PHYSICS.md STALE vs code -- regenerate (py scripts/gen_physics_sheet.py)"); return 1
+            print("PHYSICS.md STALE vs code -- regenerate (py scripts/generators/gen_physics_sheet.py)"); return 1
         print("PHYSICS.md current"); return 0
     with open(OUT, "w", encoding="utf-8", newline="\n") as fh:
         fh.write(text)

@@ -5,14 +5,14 @@ rarely changes); THIS produces the churny per-module detail automatically, so it
 Every module's line-1 docstring IS its spec -- if a module has none, it shows as (no docstring),
 which is itself a useful signal (a module that can't state its one job in a line is a smell).
 
-Run:  py scripts/gen_arch_index.py            # writes docs/MODULE_INDEX.md
-      py scripts/gen_arch_index.py --check    # exit 1 if the file is stale (for CI/pre-ship)
+Run:  py scripts/generators/gen_arch_index.py            # writes docs/MODULE_INDEX.md
+      py scripts/generators/gen_arch_index.py --check    # exit 1 if the file is stale (for CI/pre-ship)
 """
 import ast
 import os
 import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # T104-M1 depth
 OUT = os.path.join(ROOT, "docs", "MODULE_INDEX.md")
 
 # Areas surveyed, in reading order. Kept in sync with the layers in ARCHITECTURE.md.
@@ -44,7 +44,7 @@ def render():
     lines = [
         "# Module Index (auto-generated)",
         "",
-        "> Do NOT edit by hand. Regenerate with `py scripts/gen_arch_index.py`.",
+        "> Do NOT edit by hand. Regenerate with `py scripts/generators/gen_arch_index.py`.",
         "> The big picture lives in [ARCHITECTURE.md](ARCHITECTURE.md); this is the per-module detail,",
         "> each module's line-1 docstring = its single responsibility.",
         "",
@@ -78,7 +78,7 @@ def main():
     if "--check" in sys.argv:
         current = open(OUT, encoding="utf-8").read() if os.path.exists(OUT) else ""
         if current.strip() != body.strip():
-            print("STALE: docs/MODULE_INDEX.md is out of date -- run `py scripts/gen_arch_index.py`")
+            print("STALE: docs/MODULE_INDEX.md is out of date -- run `py scripts/generators/gen_arch_index.py`")
             return 1
         print("PASS: docs/MODULE_INDEX.md is current.")
         return 0

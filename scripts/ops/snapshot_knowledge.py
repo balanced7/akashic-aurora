@@ -5,10 +5,10 @@ Git protects the CODE/architecture. This protects the DATA: the canonical Store
 (Redis db 0 + session_logs/store_state.json), the raw learnings.jsonl, and the
 curated chronicles/. So if an agent deletes or corrupts knowledge, you can roll back.
 
-    py scripts/snapshot_knowledge.py snapshot ["note"]   # take a timestamped snapshot
-    py scripts/snapshot_knowledge.py list                # list snapshots (newest first)
-    py scripts/snapshot_knowledge.py restore <name>      # restore (auto-snapshots current first)
-    py scripts/snapshot_knowledge.py verify              # show current canonical key count
+    py scripts/ops/snapshot_knowledge.py snapshot ["note"]   # take a timestamped snapshot
+    py scripts/ops/snapshot_knowledge.py list                # list snapshots (newest first)
+    py scripts/ops/snapshot_knowledge.py restore <name>      # restore (auto-snapshots current first)
+    py scripts/ops/snapshot_knowledge.py verify              # show current canonical key count
 
 Snapshots live in backups/snapshots/<timestamp>/ and are self-contained:
   redis_db0.json (type-aware dump) + store_state.json + learnings.jsonl + chronicles/.
@@ -21,7 +21,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 BASE = Path(os.getenv("AI_SETUP", "E:\\AI-Setup"))
 SNAP_DIR = BASE / "backups" / "snapshots"
@@ -126,7 +126,7 @@ def _prune():
 
 def list_snaps():
     if not SNAP_DIR.exists() or not any(SNAP_DIR.iterdir()):
-        print("(no snapshots yet -- run: py scripts/snapshot_knowledge.py snapshot)")
+        print("(no snapshots yet -- run: py scripts/ops/snapshot_knowledge.py snapshot)")
         return
     for p in sorted([p for p in SNAP_DIR.iterdir() if p.is_dir()], reverse=True):
         m = {}

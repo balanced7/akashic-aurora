@@ -17,7 +17,7 @@ import subprocess
 import sys
 import os
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # T104-M1 depth
 GATE_RE = re.compile(
     r"\bGATE\s*:?\s*(GREEN|RED)\b|\bAFFIRM(?:ED)?\b|\bverify\s+(?:record|verdict)\b",
     re.IGNORECASE)

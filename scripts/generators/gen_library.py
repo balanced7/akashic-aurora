@@ -9,9 +9,9 @@ Three projections from one walk:
 All three are idempotent and byte-stable when nothing changed (clean diffs).
 Never hand-edit any generated file.
 
-    py scripts/gen_library.py              # write SHELVES + READMEs + ARCS
-    py scripts/gen_library.py --stdout     # print SHELVES to stdout
-    py scripts/gen_library.py --readmes    # write only zone READMEs
+    py scripts/generators/gen_library.py              # write SHELVES + READMEs + ARCS
+    py scripts/generators/gen_library.py --stdout     # print SHELVES to stdout
+    py scripts/generators/gen_library.py --readmes    # write only zone READMEs
 """
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent  # T104-M1 depth
 
 SCAN_DIRS = ["docs", "research", "chronicles", "charters"]
 SKIP_PREFIXES = [".git", "__pycache__", "node_modules", ".venv", "backups",
@@ -174,7 +174,7 @@ def render_shelves(by_type):
         "# SHELVES — per-type census (auto-generated)", "",
         "Status: current  ",
         f"Type: map (generated) · Arc: library-schema · Date: {datetime.now(timezone.utc).strftime('%Y-%m-%d')}",
-        "", f"**Generated:** {now} · **Source:** `scripts/gen_library.py` · **Never hand-edit.**",
+        "", f"**Generated:** {now} · **Source:** `scripts/generators/gen_library.py` · **Never hand-edit.**",
         "", "This is door 1 of the library schema (docs/LIBRARY.md).", "", "---", "",
     ]
     for typ in sorted(by_type):
@@ -273,7 +273,7 @@ def _render_zone_readme(zone: str, zone_entries: list, now_str: str) -> str:
             lines.append(c)
         lines.append("")
     lines.extend([
-        f"**Generated:** {now_str} · **Source:** `scripts/gen_library.py` · **Never hand-edit.**",
+        f"**Generated:** {now_str} · **Source:** `scripts/generators/gen_library.py` · **Never hand-edit.**",
         "",
         "---",
         "",
@@ -346,7 +346,7 @@ def render_arcs(by_arc):
         "# ARCS — per-arc index (auto-generated)", "",
         "Status: current  ",
         f"Type: map (generated) · Arc: library-schema · Date: {datetime.now(timezone.utc).strftime('%Y-%m-%d')}",
-        "", f"**Generated:** {now} · **Source:** `scripts/gen_library.py` · **Never hand-edit.**",
+        "", f"**Generated:** {now} · **Source:** `scripts/generators/gen_library.py` · **Never hand-edit.**",
         "",
         "Every file declaring an `Arc:` header, grouped by arc. Current files first; "
         "archived files collapsed. Use this to trace an arc's artifacts across zones — "

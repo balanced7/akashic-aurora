@@ -33,7 +33,7 @@ HATCH_RE = re.compile(r"\[ungated:\s*([^\]]+?)\s*\]")
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--root", default=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    ap.add_argument("--root", default=os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     ap.add_argument("message")
     ap.add_argument("paths", nargs="*")
     args = ap.parse_args()

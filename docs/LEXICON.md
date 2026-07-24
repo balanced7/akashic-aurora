@@ -47,7 +47,7 @@ no translation layer. When you reach for a name, reach for one of these.
   (no 48s hang) and never loses durability.
 - **fail-fast connector** — `connect_to_redis_with_fail_fast`: the ONLY sanctioned
   way to reach Redis. Probes reachability first so a down Redis fails in ~seconds,
-  not ~48s. (Enforced by `scripts/check_boundaries.py`.)
+  not ~48s. (Enforced by `scripts/checkers/check_boundaries.py`.)
 - **Redis↔File reconcile** — `HybridStore.check_drift()` / `reconcile()` heal divergence by
   backfilling Redis from the durable File (the source of truth) after Redis was down. Wired into
   cold-start boot (`agent_cli cmd_boot`). (The old `StoreReconciler` wrapper was retired 2026-07-07.)

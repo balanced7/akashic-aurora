@@ -3,8 +3,8 @@
 Status: current
 Class: reference
 
-> Do NOT edit by hand. Regenerate with `py scripts/gen_physics_sheet.py`.
-> Derived at bffb27b. A bound you discover by collision is not awareness -- this sheet
+> Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
+> Derived at 55b609b. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -19,7 +19,7 @@ Class: reference
 | `AKASHIC_AGENT_ID` | `"claude"` | agent_cli.py:384, agent_cli.py:578, agent_cli.py:678 +29 |
 | `AKASHIC_ASK_EXPECT_S` | `"1800"` | agent_cli.py:3299 |
 | `AKASHIC_AUTOBOOT` | `"1"` | agent/harness/context.py:159 |
-| `AKASHIC_BIRTH_GUARD` | `""` | scripts/hooks/birth_guard.py:61 |
+| `AKASHIC_BIRTH_GUARD` | `""` | scripts/hooks/birth_guard.py:70 |
 | `AKASHIC_BOOT_FULL` | `"0"` | agent_cli.py:1133 |
 | `AKASHIC_CB_MAX` | `"3"` | scripts/bifrost_daemon.py:233 |
 | `AKASHIC_CB_WINDOW_S` | `"300"` | scripts/bifrost_daemon.py:232 |
@@ -31,7 +31,7 @@ Class: reference
 | `AKASHIC_EXPECT_TASK_SETTLE` | `"1"` | core/comm/expectations.py:44 |
 | `AKASHIC_FENCE_ROOT` | `` | core/coord/fence_workspace.py:53 |
 | `AKASHIC_FLOW_NO_COUNT` | `` | core/comm/flow_trace.py:199 |
-| `AKASHIC_GATE_NO_CEILING` | `` | scripts/check_reconciliation_gate.py:59 |
+| `AKASHIC_GATE_NO_CEILING` | `` | scripts/checkers/check_reconciliation_gate.py:59 |
 | `AKASHIC_INCARNATION_TTL_MIN` | `"30"` | core/comm/incarnation.py:35 |
 | `AKASHIC_JOB_ENFORCEMENT` | `` | scripts/run_job.py:596 |
 | `AKASHIC_JOB_OBJECT_NAME` | `` | scripts/run_job.py:595 |
@@ -103,7 +103,7 @@ Class: reference
 | `DEEPSEEK_READ_TIMEOUT` | `"120"` | scripts/deepseek_chat.py:62 |
 | `DEEPSEEK_RECALL_AT` | `` | core/comm/toolbox.py:1011, core/comm/toolbox.py:1041, scripts/bifrost_runner_deepseek.py:390 |
 | `DEEPSEEK_RUNNER_MAX_TOKENS` | `"8000"` | scripts/bifrost_runner_deepseek.py:66 |
-| `DOC_CURRENCY_STALE_DAYS` | `"45"` | scripts/check_doc_currency.py:30 |
+| `DOC_CURRENCY_STALE_DAYS` | `"45"` | scripts/checkers/check_doc_currency.py:30 |
 | `EMBED_MODEL` | `DEFAULT_MODEL` | core/primitives/embedder.py:48 |
 | `FRAG_REASSEMBLY_TTL` | `DEFAULT_FRAG_REASSEMBLY_TTL` | core/comm/packet_spec.py:74 |
 | `GEMINI_MODEL` | `"gemini-2.5-flash"` | scripts/ask_gemini.py:22, scripts/ask_gemini_vision.py:14 |
@@ -228,7 +228,7 @@ Class: reference
 | `RENDER_TTL_S` | 30 | agent/harness/delta.py:30 | X1: turn_metrics EST_CACHE_TTL pattern |
 | `SEEN_CAP` | 1,000 | scripts/bifrost_wake.py:181 | newest-last trim on save; a session outliving 1000 wakes re-earns a twin wake |
 | `SNIPPET_CHARS` | 72 | core/comm/flow_trace.py:31 |  |
-| `STALE_DAYS` | 14 | scripts/check_comprehensibility.py:35 |  |
+| `STALE_DAYS` | 14 | scripts/checkers/check_comprehensibility.py:35 |  |
 | `STALE_PROPOSED_DAYS` | 7 | core/coord/task_ledger.py:281 | default; render callers may override via env AKASHIC_PROPOSED_STALE_DAYS |
 | `STEER_TTL` | 900 | core/comm/nudge.py:42 | a queued steer that's never picked up self-expires after 15 min |
 | `SURFACE_MAXLEN` | 6,000 | core/recall/at_action.py:77 |  |

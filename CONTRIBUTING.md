@@ -15,8 +15,8 @@ Every change must pass all three before it lands:
 
 ```bash
 py -m pytest -q                  # the full suite — all green, no skips you didn't justify
-py scripts/check_boundaries.py   # core/ layering guardrail (exit 0)
-py scripts/check_doc_freshness.py# only living entry-point docs at the repo root
+py scripts/checkers/check_boundaries.py   # core/ layering guardrail (exit 0)
+py scripts/checkers/check_doc_freshness.py# only living entry-point docs at the repo root
 ```
 
 CI runs these on every push (see [`.github/workflows/ci.yml`](.github/workflows/ci.yml)).

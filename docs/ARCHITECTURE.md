@@ -4,7 +4,7 @@ Status: current  (2026-07-09, P4: Living skeleton, actively maintained)
 
 The map of the whole system at **subsystem altitude** — what each part is *for*, and how the
 layers stack. Deliberately coarse so it changes rarely; the churny per-module detail lives in the
-**auto-generated** [MODULE_INDEX.md](MODULE_INDEX.md) (run `py scripts/gen_arch_index.py`), which
+**auto-generated** [MODULE_INDEX.md](MODULE_INDEX.md) (run `py scripts/generators/gen_arch_index.py`), which
 cannot rot. See "How this map stays alive" at the bottom.
 
 > **Derived companion maps** (all auto-generated, all guarded by `check_comprehensibility.py` so
@@ -55,7 +55,7 @@ STORAGE BACKENDS — Redis (fast) · File (always) · Hybrid (both, the default;
 ```
 
 **The dependency rule:** a layer imports only *downward*. This is enforced by
-`scripts/check_boundaries.py` — run it before shipping; a violation means the architecture is drifting.
+`scripts/checkers/check_boundaries.py` — run it before shipping; a violation means the architecture is drifting.
 
 ---
 
@@ -169,7 +169,7 @@ map uses all three:
 1. **Stable altitude** — this file describes *subsystems*, which change rarely. Update it only when a
    new `core/` subpackage is born or a layer's *responsibility* changes — not when a file is added.
 2. **Auto-generated detail** — `MODULE_INDEX.md` is regenerated from module docstrings by
-   `py scripts/gen_arch_index.py`; the per-module truth never goes stale by hand.
+   `py scripts/generators/gen_arch_index.py`; the per-module truth never goes stale by hand.
 3. **Guardrail-enforced** — `check_comprehensibility.py` is the *immune system*: it FAILs when a `core/`
    subpackage is missing from this map, `MODULE_INDEX.md` is stale, a living doc (or a core docstring)
    cites a repo path that's gone (stale reference), or a filename's case drifts. It runs at three

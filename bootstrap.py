@@ -63,7 +63,7 @@ def emit_agent_init():
         "redis": {"host": host, "port": port, "reachable": reachable},
         "lessons_stored": lessons,
         "trial_mode": "set REDIS_DB=15 to sandbox your writes (never touches canonical db 0)",
-        "data_backed_up_by": f"{py} scripts/snapshot_knowledge.py snapshot",
+        "data_backed_up_by": f"{py} scripts/ops/snapshot_knowledge.py snapshot",
     }, indent=2))
 
 GREEN, RED, YELLOW, CYAN, RESET = '\033[92m', '\033[91m', '\033[93m', '\033[96m', '\033[0m'
@@ -221,9 +221,9 @@ def run(args):
         print("    docs/ROADMAP.md                 - the plan + current wave")
         print("    docs/LEXICON.md                 - the vocabulary")
         print("    docs/BACKUP_AND_RECOVERY.md     - how code + knowledge are backed up")
-        print("    py scripts/check_boundaries.py  - verify architectural boundaries")
-        print("    py scripts/check_doc_freshness.py - flag stale hand-written status docs")
-        print("    py scripts/snapshot_knowledge.py snapshot   - back up the knowledge store")
+        print("    py scripts/checkers/check_boundaries.py  - verify architectural boundaries")
+        print("    py scripts/checkers/check_doc_freshness.py - flag stale hand-written status docs")
+        print("    py scripts/ops/snapshot_knowledge.py snapshot   - back up the knowledge store")
         print()
 
 

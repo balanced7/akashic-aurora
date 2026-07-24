@@ -8,19 +8,20 @@ honest GAP column. Name-matching is a v0 heuristic (labeled as such in the outpu
 the paper-backfill queue (charter M3); it does not certify coverage. Universe: the core/ areas
 MODULE_INDEX surveys + agent/harness (the seat-side organs).
 
-Run:  py scripts/gen_master_map.py            # writes docs/MAP.md
-      py scripts/gen_master_map.py --check    # exit 1 if stale vs code (CI/pre-ship)
+Run:  py scripts/generators/gen_master_map.py            # writes docs/MAP.md
+      py scripts/generators/gen_master_map.py --check    # exit 1 if stale vs code (CI/pre-ship)
 """
 import os
 import re
 import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # T104-M1 depth
 OUT = os.path.join(ROOT, "docs", "MAP.md")
 sys.path.insert(0, ROOT)
 
-from scripts.gen_arch_index import CORE_ORDER, first_doc          # noqa: E402
-from scripts.gen_physics_sheet import scan as physics_scan        # noqa: E402
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from gen_arch_index import CORE_ORDER, first_doc          # noqa: E402
+from gen_physics_sheet import scan as physics_scan        # noqa: E402
 
 AREAS = [f"core/{a}" for a in CORE_ORDER] + ["agent/harness", "agent"]
 
@@ -88,7 +89,7 @@ def render(rows):
         "Status: current",
         "Class: reference",
         "",
-        "> Do NOT edit by hand. Regenerate with `py scripts/gen_master_map.py`.",
+        "> Do NOT edit by hand. Regenerate with `py scripts/generators/gen_master_map.py`.",
         "> Columns: line-1 docstring (the module's own spec) | name-matched pin file |",
         "> name-matched design/reference doc (v0 HEURISTIC -- ranks the M3 backfill queue,",
         "> does not certify coverage) | env flags read (physics scan). GAP = neither a",
@@ -123,7 +124,7 @@ def main():
         except OSError:
             print("MAP.md missing -- regenerate"); return 1
         if old != text:
-            print("MAP.md STALE vs code -- regenerate (py scripts/gen_master_map.py)"); return 1
+            print("MAP.md STALE vs code -- regenerate (py scripts/generators/gen_master_map.py)"); return 1
         print("MAP.md current"); return 0
     with open(OUT, "w", encoding="utf-8", newline="\n") as fh:
         fh.write(text)

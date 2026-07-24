@@ -28,8 +28,8 @@ import subprocess
 import sys
 from datetime import datetime
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(ROOT, "scripts"))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # T104-M1 depth
+sys.path.insert(0, os.path.join(ROOT, "scripts", "generators"))  # T104-M1
 import gen_arch_index as gen  # reuse the same module survey (single source of truth)
 
 STALE_DAYS = 14
@@ -199,7 +199,7 @@ def _subpackages_in_arch(arch, subs):
 
 def _index_current():
     return ([] if _read("docs/MODULE_INDEX.md").strip() == gen.render().strip()
-            else ["docs/MODULE_INDEX.md is stale -> run `py scripts/gen_arch_index.py`"])
+            else ["docs/MODULE_INDEX.md is stale -> run `py scripts/generators/gen_arch_index.py`"])
 
 
 def _derived_docs_current():
@@ -212,19 +212,19 @@ def _derived_docs_current():
         import gen_physics_sheet as phys
         strip = lambda t: "\n".join(l for l in t.splitlines() if not l.startswith("> Derived at "))
         if strip(_read("docs/PHYSICS.md")) != strip(phys.render(*phys.scan(), sha="_")):
-            out.append("docs/PHYSICS.md is stale -> run `py scripts/gen_physics_sheet.py`")
+            out.append("docs/PHYSICS.md is stale -> run `py scripts/generators/gen_physics_sheet.py`")
     except Exception as e:
         out.append(f"docs/PHYSICS.md check could not run ({type(e).__name__}: {e})")
     try:
         import gen_master_map as mapgen
         if _read("docs/MAP.md") != mapgen.render(mapgen.build()):
-            out.append("docs/MAP.md is stale -> run `py scripts/gen_master_map.py`")
+            out.append("docs/MAP.md is stale -> run `py scripts/generators/gen_master_map.py`")
     except Exception as e:
         out.append(f"docs/MAP.md check could not run ({type(e).__name__}: {e})")
     try:
         import gen_doors
         if _read("docs/DOORS.md") != gen_doors.render(gen_doors.cli_verbs()):
-            out.append("docs/DOORS.md is stale -> run `py scripts/gen_doors.py`")
+            out.append("docs/DOORS.md is stale -> run `py scripts/generators/gen_doors.py`")
     except Exception as e:
         out.append(f"docs/DOORS.md check could not run ({type(e).__name__}: {e})")
     return out

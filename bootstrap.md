@@ -64,7 +64,7 @@ The vocabulary below is exact — see **`docs/LEXICON.md`** for every term.
 
 ```bash
 py bootstrap.py                 # status: foundation, Redis, context, stored data
-py scripts/check_boundaries.py  # enforce core/ boundaries (should exit 0)
+py scripts/checkers/check_boundaries.py  # enforce core/ boundaries (should exit 0)
 ```
 
 ## Initialize an agent
@@ -83,9 +83,9 @@ py agent_cli.py boot <your_agent_id> --task "<what you are doing>"
   Cursor both wired; `docs/library/design/20260709_integration-tiers-what-each-harness-actu_38278c.md`).
 - Knowledge store: live on Redis 16379 db0 + file mirror. **Counts rot in prose** — get
   them generated: `py agent_cli.py stats` (lessons + funnel value), `list`, `story`.
-- Guardrails (`scripts/check_boundaries.py`, `scripts/check_doc_freshness.py`):
+- Guardrails (`scripts/checkers/check_boundaries.py`, `scripts/checkers/check_doc_freshness.py`):
   **enforced, green**; every ship is gated (`scripts/ship.py`). Code public on GitHub
-  (`balanced7/akashic-aurora`); knowledge backed up via `scripts/snapshot_knowledge.py`.
+  (`balanced7/akashic-aurora`); knowledge backed up via `scripts/ops/snapshot_knowledge.py`.
 
 > ⚠️ **Truth is generated, not hand-written.** The old root status snapshots
 > (`SYSTEM_STATUS.md`, `ACTUAL_INVENTORY.md`, `PHASE_1_CHECKPOINT.md`,
@@ -93,7 +93,7 @@ py agent_cli.py boot <your_agent_id> --task "<what you are doing>"
 > they drifted the moment code moved. For current truth use:
 > `py agent_cli.py story` (the chronicled narrative), `py agent_cli.py status`,
 > `git log`, and `docs/ROADMAP.md`. A guardrail keeps them from creeping back:
-> `py scripts/check_doc_freshness.py` (fails on any status snapshot at the repo root).
+> `py scripts/checkers/check_doc_freshness.py` (fails on any status snapshot at the repo root).
 
 Redis is optional everywhere — the Hybrid backends fall back to files, so the
 system works with Redis down (just slower / no cross-process sharing).

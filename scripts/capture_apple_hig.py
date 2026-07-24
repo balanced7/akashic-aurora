@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""capture_apple_hig.py — harvest Apple HIG component sub-sections into design/refs.
+"""capture_apple_hig.py — harvest Apple HIG component sub-sections into refs/design-inspiration.
 
 Daniel's charter (2026-07-23): "Lets capture both and all the visual data from every
 sub section on apples guidelines page" — the components page and every component
@@ -11,7 +11,7 @@ with image assets in `references` (type=image) pointing at docs-assets CDN. We w
 the components index's topicSections, fetch each sub-page's JSON, write the guidance
 text as markdown, and download every image variant.
 
-Output layout (design/refs/apple-hig/ — GITIGNORED: copyrighted material stays local;
+Output layout (refs/design-inspiration/apple-hig/ — GITIGNORED: copyrighted material stays local;
 this script + INDEX.md are the committed, reproducible part):
   raw/<slug>.json          the page JSON verbatim
   text/<slug>.md           extracted guidance text

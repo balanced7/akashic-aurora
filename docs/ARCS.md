@@ -3,7 +3,7 @@
 Status: current  
 Type: map (generated) · Arc: library-schema · Date: 2026-07-24
 
-**Generated:** 2026-07-24 02:22 UTC · **Source:** `scripts/gen_library.py` · **Never hand-edit.**
+**Generated:** 2026-07-24 02:22 UTC · **Source:** `scripts/generators/gen_library.py` · **Never hand-edit.**
 
 Every file declaring an `Arc:` header, grouped by arc. Current files first; archived files collapsed. Use this to trace an arc's artifacts across zones — the same arc may span `docs/`, `research/`, and `charters/`.
 

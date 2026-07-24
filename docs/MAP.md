@@ -3,7 +3,7 @@
 Status: current
 Class: reference
 
-> Do NOT edit by hand. Regenerate with `py scripts/gen_master_map.py`.
+> Do NOT edit by hand. Regenerate with `py scripts/generators/gen_master_map.py`.
 > Columns: line-1 docstring (the module's own spec) | name-matched pin file |
 > name-matched design/reference doc (v0 HEURISTIC -- ranks the M3 backfill queue,
 > does not certify coverage) | env flags read (physics scan). GAP = neither a

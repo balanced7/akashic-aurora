@@ -19,7 +19,7 @@ didn't match those patterns (AGENT_ONBOARDING.md, SYSTEMS_ARCHITECTURE.md, ...) 
   FAIL (exit 1) if any root-level *.md is NOT in the small allowlist of permitted living root docs.
 New design/plan docs belong in docs/; retired docs belong in _archive/. The root stays minimal.
 
-Run: py scripts/check_doc_freshness.py        (exit 0 = clean root, 1 = an unlisted root doc)
+Run: py scripts/checkers/check_doc_freshness.py        (exit 0 = clean root, 1 = an unlisted root doc)
 """
 import os
 import sys

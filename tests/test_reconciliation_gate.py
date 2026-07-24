@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CHECKER = os.path.join(REPO, "scripts", "check_reconciliation_gate.py")
+CHECKER = os.path.join(REPO, "scripts", "checkers", "check_reconciliation_gate.py")
 
 
 def _run(message, paths, root):

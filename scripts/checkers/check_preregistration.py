@@ -21,7 +21,7 @@ import re
 import subprocess
 import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # T104-M1 depth
 PREREG_RE = re.compile(r"pre-?registered", re.IGNORECASE)
 # Source = where impl lives. docs/, research/, chronicles/ ride along with registrations.
 NONSOURCE_PREFIXES = ("tests/", "docs/", "research/", "chronicles/")

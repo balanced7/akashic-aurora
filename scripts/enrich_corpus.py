@@ -33,7 +33,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(ROOT / "scripts" / "generators"))  # T104-M1: generators moved
 
 from gen_library import walk_docs, _extract, _relpath  # noqa: E402
 from core.library import taxonomy as tx  # noqa: E402
@@ -242,6 +242,8 @@ def cmd_verify() -> int:
         if atom is None:
             bars["missing_atom"].append(rel)
             continue
+        if atom["header"].get("visibility") == "local":
+            continue  # P3b redaction: no public projection by design
         import hashlib
         if hashlib.sha256(atom["body"].encode("utf-8", "replace")).hexdigest()[:12] != atom["body_sha"]:
             bars["sha_mismatch"].append(rel)

@@ -295,7 +295,7 @@ def test_fresh_stdio_mcp_registers_route_tools_and_returns_single_frame():
 
 def test_door_guard_understands_intentional_cli_mcp_route_aliases():
     """The public names are deliberate: CLI packet-trace/stats, MCP packet_route(_stats)."""
-    import scripts.check_door_parity as parity
+    import scripts.checkers.check_door_parity as parity
 
     assert parity.CLI_MCP_ALIASES["packet_trace"] == "packet_route"
     assert parity.CLI_MCP_ALIASES["packet_stats"] == "packet_route_stats"

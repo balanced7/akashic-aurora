@@ -113,9 +113,9 @@ DOOR_CENSUS = {
         "lane_routed": False, "exempt": True,
         "note": "durable event ledger (not bus transport -- separate Redis key family)",
     },
-    # scripts/snapshot_knowledge.py -- knowledge snapshot tool
+    # scripts/ops/snapshot_knowledge.py -- knowledge snapshot tool
     "snapshot_knowledge.xadd": {
-        "file": "scripts/snapshot_knowledge.py",
+        "file": "scripts/ops/snapshot_knowledge.py",
         "lane_routed": False, "exempt": True,
         "note": "knowledge snapshot (not bus transport -- separate tool)",
     },

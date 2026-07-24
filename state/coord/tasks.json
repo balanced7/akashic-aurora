@@ -1,5 +1,5 @@
 {
-  "seq": 101,
+  "seq": 104,
   "tasks": [
     {
       "id": "T001",
@@ -941,7 +941,7 @@
     },
     {
       "id": "T024",
-      "title": "P4 doc currency contract + guard (comms pillar): Status header convention for docs/*.md (current | superseded-by <path> | historical, + date, tolerant parse); stamping pass over all live docs per deepseek disposition table (claude-verified); scripts/check_doc_currency.py guard wired into ship gates -- FAILS on unstamped or UNTRACKED docs/ files (invisible-to-peers is a defect), WARNS on current-stamped docs untouched >45d. Gate: first guard run flags exactly the known offenders (master-directive-list, bifrost-sync-plan, the-environment-decides untracked); zero unstamped after the pass; guard green in ship",
+      "title": "P4 doc currency contract + guard (comms pillar): Status header convention for docs/*.md (current | superseded-by <path> | historical, + date, tolerant parse); stamping pass over all live docs per deepseek disposition table (claude-verified); scripts/checkers/check_doc_currency.py guard wired into ship gates -- FAILS on unstamped or UNTRACKED docs/ files (invisible-to-peers is a defect), WARNS on current-stamped docs untouched >45d. Gate: first guard run flags exactly the known offenders (master-directive-list, bifrost-sync-plan, the-environment-decides untracked); zero unstamped after the pass; guard green in ship",
       "desc": "",
       "owner": "claude",
       "deps": [],
@@ -3654,6 +3654,89 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-07-23T13:27:42+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T102",
+      "title": "Runner reply lane-straggler REGRESSION (2026-07-23 night): 3 LEGACY STRAGGLERS + 2 dup replies on claude work-drain after post-outage runner relaunch - T066 fixed the deepseek reply path; suspect kimi runner reply path or T066 regression. Receipt: work-drain warning 19:38 local. Fix through the lane router + a pin that BOTH runners' replies land on the work lane. Sibling receipt: counter-round bus handoff clipped at 8000 chars (MTU clip-not-refuse on runner sends) - same send-path audit should rule whether runner sends obey T043 refuse-loud.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-23T23:44:54+00:00",
+      "updated": "2026-07-23T23:44:54+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-23T23:44:54+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T103",
+      "title": "Super-wiki experience layer (Daniel brainstorm directive 2026-07-23 night, verbatim in research/briefs/super-wiki-brainstorm-brief-2026-07-23.md): bidirectional-link concept surfaces, multiple hierarchy trees (type/arc/category/logic/time), thematic+logical+temporal hop modes, fast modern UI (keynote-grade), permissive-license OSS modules only; fleet brainstorm -> reconcile -> Daniel gates; rides ON the T101 substrate (atoms/citations_out), does not modify it",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "claimed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-24T00:06:30+00:00",
+      "updated": "2026-07-24T00:19:24+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-24T00:06:30+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-24T00:19:12+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-24T00:19:24+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T104",
+      "title": "Machine-plane structure cleanup (Daniel directive 2026-07-23 night verbatim: 'clean up our file structure and file placements so that things make sense where they are positioned. Some of the pieces we built are in awkward places due to us just trying to get it to work... organize the mechanics and files and links as well... methodically find a way to do it with excellence and rigor'): fleet inventory + halves -> reconciled move-plan w/ per-move blast radius -> Daniel gates -> staged moves w/ checker+tests green between stages; scope = scripts/ sprawl, root clutter, state/data/scratch zones, hooks placement, tests/data fixtures; doc plane already solved by T101",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "claimed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-24T02:22:37+00:00",
+      "updated": "2026-07-24T02:22:38+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-24T02:22:37+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-24T02:22:37+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-24T02:22:38+00:00"
         }
       ]
     }

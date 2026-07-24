@@ -11,7 +11,7 @@ timeline (idempotent -- safe to re-run). Pre-existing commit Beats that were sto
 UNROUTED (track=None, from before Slice 2) are re-routed in place using the commit's
 touched paths. Then it runs the Chronicler so `story` and `boot` reflect reality.
 
-Snapshot first if you're nervous:  py scripts/snapshot_knowledge.py snapshot
+Snapshot first if you're nervous:  py scripts/ops/snapshot_knowledge.py snapshot
 """
 import json
 import os

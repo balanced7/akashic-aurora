@@ -183,7 +183,7 @@ def _warn_unmirrored(soft=False, status=None):
         print(f"    changed: {s['summary']}" + (" ..." if s["dirty"] > 6 else ""))
     print('    Run:  py scripts/mirror.py "<msg>" <explicit paths>  (commit+push, YOUR '
           "files only -- never a sweep over a sibling's lane), then  "
-          "py scripts/snapshot_knowledge.py snapshot")
+          "py scripts/ops/snapshot_knowledge.py snapshot")
     return True
 
 

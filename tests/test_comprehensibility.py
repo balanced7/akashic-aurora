@@ -13,7 +13,7 @@ import pytest
 
 _TESTS = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_TESTS))
-sys.path.insert(0, os.path.join(os.path.dirname(_TESTS), "scripts"))
+sys.path.insert(0, os.path.join(os.path.dirname(_TESTS), "scripts", "checkers"))
 
 import check_comprehensibility as cm
 

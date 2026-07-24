@@ -40,7 +40,7 @@ py -m pip install -r requirements.txt
 ```bash
 py bootstrap.py --agent-init     # prints JSON: the init command, the python cmd, Redis status, lesson count
 py -m pytest -q                  # the full quality gate (needs pytest)
-py scripts/check_boundaries.py   # architecture guardrail (should exit 0)
+py scripts/checkers/check_boundaries.py   # architecture guardrail (should exit 0)
 ```
 
 If `bootstrap.py --agent-init` prints a JSON blob and `check_boundaries` says PASS, you're up.
@@ -129,7 +129,7 @@ shared Redis (§5), and they coordinate via advisory path-locks and the message 
 - **`python` not found (Windows):** use `py`, not `python`.
 - **Redis warnings / "backend: File":** expected when no Redis is reachable — the system is using files. Harmless.
 - **A command erred:** it prints `ERROR: …` with a one-line reason and a usage example, and exits non-zero.
-- **Back up / restore knowledge:** `py scripts/snapshot_knowledge.py snapshot` (data is intentionally not in git).
+- **Back up / restore knowledge:** `py scripts/ops/snapshot_knowledge.py snapshot` (data is intentionally not in git).
 
 ## License
 

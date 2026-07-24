@@ -2,7 +2,7 @@
 
 Run: py -m pytest tests/test_master_map.py -q
 """
-from scripts.gen_master_map import build, render
+from scripts.generators.gen_master_map import build, render
 
 
 def test_matrix_contains_known_organs_with_truthful_columns():

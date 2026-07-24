@@ -3,7 +3,7 @@ T031 hooks 2-4 -- method-baseline enforcement: pre-registered acceptance (commit
 BEFORE impl, M3/T031 -- yes, the checker's own pins obey the law it enforces).
 Spec: docs/method-baseline-2026-07.md 'Enforcement lane' (hook order reconciled).
 
-Hook 2  scripts/check_preregistration.py  (M3): a ship that stages a NEW pre-registered
+Hook 2  scripts/checkers/check_preregistration.py  (M3): a ship that stages a NEW pre-registered
         pin file TOGETHER with non-test source FAILS -- registration is its own commit,
         BEFORE impl. Registration-only ships pass; modifying an EXISTING pin file in an
         impl ship passes (harness fixes are review-territory, not machine-checkable).
@@ -12,7 +12,7 @@ Hook 3  scripts/arc_scorecard.py  (wrap-time): deterministic M-practice reads ov
         arc window (registrations, verbatim records, guards born, gated-ship ratio,
         reverts, UNGATED audit lines) -- zero-signal practices render as annotate-me
         prompts, never silently absent. Wired into the wrap draft.
-Hook 4  scripts/check_verbatim_citation.py  (M6): a ship message that carries GATE
+Hook 4  scripts/checkers/check_verbatim_citation.py  (M6): a ship message that carries GATE
         language (GATE GREEN/RED, AFFIRM, verify record/verdict) must cite a
         research/reviewed/ path. No hatch -- the record must exist anyway (M6 bar).
 
@@ -28,9 +28,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _PY = sys.executable
 
-_H2 = os.path.join(_ROOT, "scripts", "check_preregistration.py")
+_H2 = os.path.join(_ROOT, "scripts", "checkers", "check_preregistration.py")
 _H3 = os.path.join(_ROOT, "scripts", "arc_scorecard.py")
-_H4 = os.path.join(_ROOT, "scripts", "check_verbatim_citation.py")
+_H4 = os.path.join(_ROOT, "scripts", "checkers", "check_verbatim_citation.py")
 
 _BUILT = all(os.path.isfile(p) for p in (_H2, _H3, _H4))
 

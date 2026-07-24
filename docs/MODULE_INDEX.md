@@ -1,6 +1,6 @@
 # Module Index (auto-generated)
 
-> Do NOT edit by hand. Regenerate with `py scripts/gen_arch_index.py`.
+> Do NOT edit by hand. Regenerate with `py scripts/generators/gen_arch_index.py`.
 > The big picture lives in [ARCHITECTURE.md](ARCHITECTURE.md); this is the per-module detail,
 > each module's line-1 docstring = its single responsibility.
 
@@ -180,25 +180,10 @@
 - `bifrost_runner_sol.py` — bifrost_runner_sol -- make Sol (gpt-5.6-sol, OpenAI Responses API) a FIRST-CLASS Bifrost citizen.
 - `bifrost_ui.py` — bifrost_ui -- a realtime web console for watching (and steering) live agent collaboration on Bifrost.
 - `bifrost_wake.py` — bifrost.wake -- the canonical wake listener for a Bifrost agent (the receive/wake arm of bifrost.api).
-- `capture_apple_hig.py` — capture_apple_hig.py — harvest Apple HIG component sub-sections into design/refs.
-- `check_boundaries.py` — Boundary guardrails for the clean core/ layer.
-- `check_comprehensibility.py` — check_comprehensibility -- the guard that keeps the comprehension layer honest (the immune system).
-- `check_doc_currency.py` — check_doc_currency -- P4 (T024): no dead law under docs/.
-- `check_doc_freshness.py` — Doc-freshness guardrail -- the repo ROOT holds only living, intentionally-maintained docs.
-- `check_door_parity.py` — check_door_parity -- guard the agent-facing DOOR surface against silent fragmentation.
-- `check_preregistration.py` — check_preregistration.py -- T031 hook 2: M3's forcing function at ship time.
-- `check_reconciliation_gate.py` — check_reconciliation_gate.py -- T031 hook 1: the method baseline's lead forcing function.
-- `check_ui_contract.py` — check_ui_contract.py — the design CONTRACT's enforcement teeth (organ 2's [M] half).
-- `check_verbatim_citation.py` — check_verbatim_citation.py -- T031 hook 4: M6's forcing function at ship time.
-- `check_wiring.py` — check_wiring -- the Built != Wired gate (membrane slice 2).
+- `capture_apple_hig.py` — capture_apple_hig.py — harvest Apple HIG component sub-sections into refs/design-inspiration.
 - `deepseek_chat.py` — deepseek_chat -- an interactive, TOOL-USING conversation with DeepSeek, in its own window.
 - `enrich_corpus.py` — A3 migration pipeline: the ~900-file corpus -> enriched atoms, verified, gated.
 - `gemini_web.py` — gemini_web -- ask Gemini through the FREE web surfaces (not API quota).
-- `gen_arch_index.py` — gen_arch_index -- regenerate docs/MODULE_INDEX.md from every module's one-line docstring.
-- `gen_doors.py` — gen_doors -- regenerate docs/DOORS.md: the agent-door I/O reference, derived (master-map M2, v0).
-- `gen_library.py` — gen_library.py — the library census generator (D2, deepseek 2026-07-22; v2 2026-07-23).
-- `gen_master_map.py` — gen_master_map -- regenerate docs/MAP.md: the master map's census matrix (T096-M0, v0).
-- `gen_physics_sheet.py` — gen_physics_sheet -- regenerate docs/PHYSICS.md: the machinery's mechanical truths, derived.
 - `harmonize_knowledge.py` — harmonize_knowledge.py — one-time knowledge-store harmonization (2026-06-20)
 - `kimi_chat.py` — kimi_chat -- the Kimi seat's model transport: kimi-k3 (Moonshot) as a first-class Akashic citizen.
 - `kimi_walk_narrator.py` — kimi_walk_narrator -- stream kimi's FULL REASONING from its Claude-Code session transcript
@@ -211,6 +196,5 @@
 - `seed_narrative.py` — seed_narrative.py -- dogfood the spine: ingest real git history as Beats, then chronicle.
 - `ship.py` — ship.py -- one disciplined command to ship a slice: GATE -> commit+push -> (lesson) -> snapshot.
 - `snapshot.py` — Snapshot the current Bifrost session for later resume. Run before shutting down.
-- `snapshot_knowledge.py` — snapshot_knowledge.py -- backup & restore the live knowledge layer.
 - `sol_chat.py` — sol_chat -- the Sol seat's model transport: gpt-5.6-sol (OpenAI) as a first-class Akashic citizen.
 - `worktree.py` — worktree.py -- per-agent git worktrees (Concurrency design C1).

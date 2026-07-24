@@ -6,9 +6,9 @@ browser, no Daniel-gate dependency. Same genus as check_boundaries.py and
 mojibake_signatures.py. ADVISORY by default (reports violations, exit 0);
 exit-1 flip rides Daniel's ratification + a recorded baseline.
 
-Run: py scripts/check_ui_contract.py               (default: bifrost_ui.py)
-     py scripts/check_ui_contract.py --baseline     (record current state as baseline)
-     py scripts/check_ui_contract.py --help
+Run: py scripts/checkers/check_ui_contract.py               (default: bifrost_ui.py)
+     py scripts/checkers/check_ui_contract.py --baseline     (record current state as baseline)
+     py scripts/checkers/check_ui_contract.py --help
 
 CHECKS (each maps to a design-contract [M] clause):
   M-L8  TOKEN LAW (hex half): no raw CSS hex color at call sites — use the
@@ -41,7 +41,7 @@ import re
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent  # T104-M1 depth
 DEFAULT = ROOT / "scripts" / "bifrost_ui.py"
 BASELINE_FILE = ROOT / "state" / "ui_contract_baseline.json"
 

@@ -9,14 +9,14 @@ modules in EXCEPTIONS, FAIL on a NEW unwired module.
 Limitation: static imports only (incl. lazy imports inside functions). A module reached solely via a
 computed importlib name won't be seen; add it to EXCEPTIONS with a note if so.
 
-Run:  py scripts/check_wiring.py            # gate (exit 1 on a NEW unwired core/ module)
-      py scripts/check_wiring.py --report   # print reachable vs unwired
+Run:  py scripts/checkers/check_wiring.py            # gate (exit 1 on a NEW unwired core/ module)
+      py scripts/checkers/check_wiring.py --report   # print reachable vs unwired
 """
 import ast
 import os
 import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # T104-M1 depth
 
 # The production call paths -- what actually RUNS in production.
 ENTRY_POINTS = [

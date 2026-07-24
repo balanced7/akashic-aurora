@@ -1,7 +1,7 @@
 """DOORS.md v0 pins (master-map M2): the CLI door reference is grounded in the real parser,
 truthful about inputs, and deterministic. Run: py -m pytest tests/test_doors.py -q
 """
-from scripts.gen_doors import cli_verbs, render
+from scripts.generators.gen_doors import cli_verbs, render
 
 
 def test_known_verbs_present_with_inputs():

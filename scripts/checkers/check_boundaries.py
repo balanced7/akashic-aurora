@@ -31,7 +31,7 @@ Rules (scoped to core/):
 Known pre-existing debt is listed in ALLOWLIST with a reason, so it is visible and
 tracked rather than silently passing. New violations fail the check.
 
-Run: py scripts/check_boundaries.py     (exit 0 = clean, 1 = new violation)
+Run: py scripts/checkers/check_boundaries.py     (exit 0 = clean, 1 = new violation)
 """
 
 import os

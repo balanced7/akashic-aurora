@@ -32,14 +32,14 @@ jobs:
       # so drift can't reach the shared repo via any local path (mirror/git commit that skipped hooks).
       # See docs/library/design/20260701_the-comprehensibility-immune-system-desi_339b01.md.
       - name: Architecture boundary guardrail
-        run: python scripts/check_boundaries.py
+        run: python scripts/checkers/check_boundaries.py
       - name: Doc-freshness guardrail
-        run: python scripts/check_doc_freshness.py
+        run: python scripts/checkers/check_doc_freshness.py
       - name: Comprehensibility guardrail (docs match code; no stale refs / case drift)
-        run: python scripts/check_comprehensibility.py
+        run: python scripts/checkers/check_comprehensibility.py
       - name: Wiring guardrail (no built-but-unwired core module)
-        run: python scripts/check_wiring.py
+        run: python scripts/checkers/check_wiring.py
       - name: Door-parity guardrail (CLI<->MCP verb surface)
-        run: python scripts/check_door_parity.py
+        run: python scripts/checkers/check_door_parity.py
       - name: Test suite
         run: python -m pytest -q

@@ -25,15 +25,15 @@ This does NOT unify everything now. It:
 The bus API is a separate programmatic door (a different abstraction level, not a verb
 surface); it is REPORTED for visibility but not parity-enforced.
 
-Run:  py scripts/check_door_parity.py            # gate (exit 1 on unclassified/regressed verb)
-      py scripts/check_door_parity.py --report   # print the four surfaces + the manifest
+Run:  py scripts/checkers/check_door_parity.py            # gate (exit 1 on unclassified/regressed verb)
+      py scripts/checkers/check_door_parity.py --report   # print the four surfaces + the manifest
 """
 import ast
 import os
 import re
 import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # T104-M1 depth
 
 
 def _norm(n):

@@ -3,7 +3,7 @@
 Status: current  
 Type: map (generated) · Arc: library-schema · Date: 2026-07-24
 
-**Generated:** 2026-07-24 02:22 UTC · **Source:** `scripts/gen_library.py` · **Never hand-edit.**
+**Generated:** 2026-07-24 02:22 UTC · **Source:** `scripts/generators/gen_library.py` · **Never hand-edit.**
 
 This is door 1 of the library schema (docs/LIBRARY.md).
 

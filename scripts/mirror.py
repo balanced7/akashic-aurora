@@ -13,7 +13,7 @@ them first with `git add <path>`. `--all` is the explicit opt-in to stage everyt
 (it prints the full file list first).
 
 This mirrors the CODE/architecture. Knowledge DATA is not in git -- snapshot it
-separately:  py scripts/snapshot_knowledge.py snapshot
+separately:  py scripts/ops/snapshot_knowledge.py snapshot
 
 Optional: install as a post-commit hook so every commit auto-pushes --
     echo 'py scripts/mirror.py --push-only' > .git/hooks/post-commit   (advanced)

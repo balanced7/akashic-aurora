@@ -17,7 +17,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import scripts.check_boundaries as cb
+import scripts.checkers.check_boundaries as cb
 
 
 def test_p1_extract_families():

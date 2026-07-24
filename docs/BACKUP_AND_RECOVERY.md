@@ -7,7 +7,7 @@ Two independent layers protect the system, because code and data fail differentl
 | Layer | Protects | Tool | Recover with |
 |---|---|---|---|
 | **Git** | the **architecture** (code, docs, curated chronicles) | `git` | `git checkout <ref> -- <path>` |
-| **Snapshots** | the **knowledge data** (Store, learnings, chronicles) | `scripts/snapshot_knowledge.py` | `... restore <name>` |
+| **Snapshots** | the **knowledge data** (Store, learnings, chronicles) | `scripts/ops/snapshot_knowledge.py` | `... restore <name>` |
 
 ## 1. Code / architecture — Git
 
@@ -37,10 +37,10 @@ The live knowledge (Redis db 0 + `session_logs/store_state.json` + `learnings.js
 + `chronicles/`) is **not** in git. Snapshot it instead:
 
 ```
-py scripts/snapshot_knowledge.py snapshot ["note"]   # take a timestamped snapshot
-py scripts/snapshot_knowledge.py list                # list snapshots (newest first)
-py scripts/snapshot_knowledge.py restore <name>      # roll back (auto-snapshots current first)
-py scripts/snapshot_knowledge.py verify              # current canonical key count
+py scripts/ops/snapshot_knowledge.py snapshot ["note"]   # take a timestamped snapshot
+py scripts/ops/snapshot_knowledge.py list                # list snapshots (newest first)
+py scripts/ops/snapshot_knowledge.py restore <name>      # roll back (auto-snapshots current first)
+py scripts/ops/snapshot_knowledge.py verify              # current canonical key count
 ```
 
 Snapshots are self-contained dirs under `backups/snapshots/<timestamp>/`; the last 20
@@ -56,6 +56,6 @@ or run it on a schedule. Or have the agent use **trial mode** (`REDIS_DB=15`, se
 | Situation | Fix |
 |---|---|
 | Agent deleted a code file | `git checkout HEAD -- <path>` |
-| Agent corrupted the knowledge store | `py scripts/snapshot_knowledge.py restore <name>` |
+| Agent corrupted the knowledge store | `py scripts/ops/snapshot_knowledge.py restore <name>` |
 | Want a safe sandbox for an agent | set `REDIS_DB=15` (trial mode) |
 | Canonical drifted from the 6 baseline lessons | `py scripts/harmonize_knowledge.py rebuild` |

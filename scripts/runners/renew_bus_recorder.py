@@ -13,8 +13,8 @@ docs/library/design/20260701_the-mediation-membrane-founding-design-n_4f941f.md 
 Standalone + reversible: touches no hook and no hot path. Registers as its own bus agent so it only
 READS; it never broadcasts (so it never pollutes the very stream it measures).
 
-  py scripts/research/renew_bus_recorder.py            # tail forever, append to today's JSONL
-  py scripts/research/renew_bus_recorder.py --once     # drain the current backlog and exit (smoke test)
+  py scripts/runners/renew_bus_recorder.py            # tail forever, append to today's JSONL
+  py scripts/runners/renew_bus_recorder.py --once     # drain the current backlog and exit (smoke test)
 """
 import argparse
 import json

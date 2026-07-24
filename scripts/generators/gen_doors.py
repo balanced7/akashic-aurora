@@ -7,14 +7,14 @@ v0 covers the CLI door (agent_cli.py). The MCP door (ai_setup_mcp.py) and the ru
 door are named as KNOWN-GAP sections for the fence (deepseek's map-counter question #3: are the
 ToolBox schemas introspectable as built) rather than half-derived here.
 
-Run:  py scripts/gen_doors.py            # writes docs/DOORS.md
-      py scripts/gen_doors.py --check    # exit 1 if stale vs code (CI/pre-ship)
+Run:  py scripts/generators/gen_doors.py            # writes docs/DOORS.md
+      py scripts/generators/gen_doors.py --check    # exit 1 if stale vs code (CI/pre-ship)
 """
 import argparse
 import os
 import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # T104-M1 depth
 OUT = os.path.join(ROOT, "docs", "DOORS.md")
 sys.path.insert(0, ROOT)
 
@@ -56,7 +56,7 @@ def render(verbs):
         "Status: current",
         "Class: reference",
         "",
-        "> Do NOT edit by hand. Regenerate with `py scripts/gen_doors.py`.",
+        "> Do NOT edit by hand. Regenerate with `py scripts/generators/gen_doors.py`.",
         "> What goes IN each door and what it is FOR, derived from the door's own declaration",
         "> (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by",
         "> check_comprehensibility so it cannot silently rot.",
@@ -109,7 +109,7 @@ def main():
                 print("DOORS.md current"); return 0
         except OSError:
             pass
-        print("DOORS.md STALE vs code -- regenerate (py scripts/gen_doors.py)"); return 1
+        print("DOORS.md STALE vs code -- regenerate (py scripts/generators/gen_doors.py)"); return 1
     with open(OUT, "w", encoding="utf-8", newline="\n") as fh:
         fh.write(text)
     print(f"wrote docs/DOORS.md: {len(verbs)} CLI verbs")

@@ -99,6 +99,25 @@ The one-facet law named "subsystem" as a header facet; it is now the governed CA
   superseded collapsed under successors, fossils behind one fold; type-shelf and category-lens
   are pivots. All trees derived, never hand-held.
 
+## v1.2 amendment (2026-07-23) — the MACHINE plane (owner-facet law; T104, Daniel-gated)
+
+The doc plane files by TYPE; the machine plane files by OWNER. **A file's home names the
+LIFECYCLE-OWNER that must keep it true — "when this breaks, whose job is it to notice?"**
+(kimi's law, T104 round; decision record: the T104 reconciled move-plan atom.)
+- Corollaries: kind-not-arc (never a directory named for a campaign — arcs end, owners
+  persist) · guards live where the guard-runner looks (scripts/githooks/, checkers with
+  the ship gate) · generators live beside their output's owner · doors at the boundary
+  (CLI/chat surfaces), organs in core/.
+- Machine zone map (M1+): scripts/generators/ · scripts/checkers/ · scripts/runners/ ·
+  scripts/ops/ · scripts/githooks/ (commit guards) · scripts/shortcuts/ · scripts/static/ ·
+  agent/harness/hooks/ (harness hooks, M2) · refs/ (external inspiration, never code).
+  Exceptions, deliberate: agent_cli.py and scripts/mirror.py stay put (live load-bearing
+  doors; the monolith splits at T104.5's named trigger — 4500 lines or A-series stable).
+- THE VISIBILITY RULE: every top-level directory is claimed by exactly ONE walker/census
+  (check_boundaries roster), or it is invisible by construction — fences/ was the founding
+  specimen. Verification law: literal paths verify by grep+rewrite; env/config/ACL/hook/
+  CI/MCP/runtime-built paths verify by FIRE (run, drill, handshake), never by inspection.
+
 ## Amendment
 
 This law amends at gates by the standing round protocol (counter → reconcile → Daniel ratifies).

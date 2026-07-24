@@ -86,14 +86,14 @@ Ordered by dependency and leverage. Each wave names the research it consumes.
 *Consumed: coding-principles.* Cheap, protects everything after it.
 - `docs/LEXICON.md` ✅ — the ubiquitous language written down (naming rules +
   every core term + the layer dependency order).
-- `scripts/check_boundaries.py` ✅ — 4 rules over `core/` (redis-only-via-connector,
+- `scripts/checkers/check_boundaries.py` ✅ — 4 rules over `core/` (redis-only-via-connector,
   no-bare-except, no-syspath-insert, no-duplicate-class-names), with a documented
   ALLOWLIST for known debt (fast_cache R3, SessionRecovery dup). Runs green (exit 0).
 - Core cleanups to pass green: removed vestigial `import redis`/`REDIS_AVAILABLE`
   from both coordinators; `SignalType` now defined once (facade imports it);
   narrowed session_recovery's 2 bare excepts.
 - TODO when the repo is under git: wire `check_boundaries.py` into a pre-commit
-  hook / CI (currently run manually: `py scripts/check_boundaries.py`).
+  hook / CI (currently run manually: `py scripts/checkers/check_boundaries.py`).
 
 ### Wave 1 — Make the existing surface honest + robust (quick wins)
 *Consumes: codebase-audit + ACI.* Low risk, high value.

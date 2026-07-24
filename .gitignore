@@ -2,17 +2,17 @@
 # AI-Setup .gitignore
 # Git tracks the ARCHITECTURE (code, docs, curated chronicles).
 # Volatile knowledge DATA (the live Store / learnings / session logs) is backed up
-# separately by scripts/snapshot_knowledge.py -- NOT committed (it churns constantly
+# separately by scripts/ops/snapshot_knowledge.py -- NOT committed (it churns constantly
 # and would bloat history). See docs/BACKUP_AND_RECOVERY.md.
 # ============================================================
 
 # --- Copyrighted design references (public repo -- assets stay LOCAL; the capture
-#     is reproducible: scripts/capture_apple_hig.py + the OneUI URL in design/refs docs;
+#     is reproducible: scripts/capture_apple_hig.py + the OneUI URL in refs/design-inspiration docs;
 #     only INDEX.md metadata is tracked) ---
-design/refs/oneui/
-design/refs/apple-hig/raw/
-design/refs/apple-hig/text/
-design/refs/apple-hig/images/
+refs/design-inspiration/oneui/
+refs/design-inspiration/apple-hig/raw/
+refs/design-inspiration/apple-hig/text/
+refs/design-inspiration/apple-hig/images/
 
 # --- Heavy third-party / generated trees (NOT our architecture) ---
 ComfyUI-Zluda/
@@ -38,7 +38,7 @@ __pycache__/
 *.egg-info/
 .Python
 
-# --- Volatile knowledge DATA (recover via scripts/snapshot_knowledge.py) ---
+# --- Volatile knowledge DATA (recover via scripts/ops/snapshot_knowledge.py) ---
 session_logs/
 blackboard_data/
 coordinator_logs/

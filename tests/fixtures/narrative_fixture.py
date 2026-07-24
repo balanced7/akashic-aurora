@@ -29,7 +29,7 @@ _ROWS = [
     ("ai-setup", "learning", [], "project_management", "", "semantic refactoring progress, 160 methods renamed", ("design",)),  # theme MISS
     ("ai-setup", "commit", ["context/project_context.py"], "", "", "Context pillar phase 1 onto Store", ("memory",)),
     ("ai-setup", "decision", [], "infrastructure", "harmonize knowledge store", "make Redis 16379 the canonical master", ("memory",)),
-    ("ai-setup", "commit", ["scripts/snapshot_knowledge.py"], "", "", "knowledge snapshot/restore tool", ("memory",)),  # theme MISS
+    ("ai-setup", "commit", ["scripts/ops/snapshot_knowledge.py"], "", "", "knowledge snapshot/restore tool", ("memory",)),  # theme MISS
     ("ai-setup", "learning", [], "testing", "", "robustness suite found the distiller source-less bug", ("evaluation",)),
     ("ai-setup", "note", [], "", "", "back to the harmonization pass", ()),                # no signal -> persist (ai-setup)
     ("ai-setup", "milestone", ["scripts/harmonize_knowledge.py"], "", "", "knowledge harmonized to 6 canonical lessons", ("memory",)),  # theme MISS
