@@ -388,6 +388,25 @@ shell-out dance disappears when the door attaches. Residual: acceptable harness 
 
 ### C4 Process/launcher state
 
+**C4-3 · Both seat workers died INSIDE their turns, same minute; daemon blind for 5+ hours**
+(2026-07-24 ~08:02→13:17, filed at recovery). Both runners took the T106 fence handoffs at
+08:02 and their WORKER THREADS died mid-turn within minutes of each other ('reading'/'thinking'
+phases frozen, DEAD pulse) while the runner PROCESSES stayed alive — so the runner-manager
+daemons (which watch process exit, not turn liveness) never respawned them. Compounding: the
+morning's 05:00 breaker trips were still latched ("daemon holds presence, runner stopped"), and
+the killed workers' worklive stamps persisted as stale HARD-WEDGE pages after the pids died.
+Detection came from a page-grade doctor read ~5h late; recovery = kill runners → daemons blind
+→ kill daemons → TTL-retry relaunch → 0 pages, fresh runners drain the redelivered queue.
+Root-cause hypotheses (unresolved): (a) simultaneous provider/API failure at 08:02 (both seats,
+same minute, different models — weakens ask-size theory), (b) a common crash in the heavy
+fence-ask processing path. RB-26 note: the fatal(?) asks REDELIVER to the fresh runners — if
+they re-wedge on the same asks, the ask is the killer (watchdog armed this recovery).
+ROUTING: T030 RB-27 (progress reader — turn-liveness, not process-liveness, is THE detection
+gap, third receipt now) + T086 (supervision prior-art owns respawn semantics) + a small
+fix-now candidate: daemon breaker auto-resets on manual runner kill (a latched breaker + a
+dead worker = a seat nobody restarts). Fleet-blindness cost: ~5h of a 3-seat fleet running
+at 1/3 capacity while every queue aged.
+
 **C4-2 · Process cleanup DURING a live test killed load-bearing pids — flagship crash +
 in-flight twin synthesis lost** (2026-07-16 ~21:54, Jester Forge night; filed post-crash by
 the recovery seat). Sequence: T086-S5 daemon-supervisor pytest failing (3 consecutive FAILs
