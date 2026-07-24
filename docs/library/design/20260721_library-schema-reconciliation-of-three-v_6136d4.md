@@ -3,6 +3,7 @@ akashic_id: art_20260721_library-schema-reconciliation-of-three-v_6136d4
 akashic_sha: f66a80cdedb5
 status: current
 type: design
+arc: library-schema
 date: 2026-07-21
 title: Library Schema — reconciliation of three voices
 gist: "Reconciles: `research/drafts/repo-organization-opening-claude-2026-07-21.md` + `research/drafts/library-schema-opening-claude-2026-07-21.md`"
@@ -24,7 +25,7 @@ citations:
   - target: art_20260721_kimi-counter-library-schema-repo-organiz_81a2e9
     rel: cites
 created: "2026-07-21T22:09:57"
-updated: "2026-07-23T21:42:05"
+updated: "2026-07-23T23:13:48"
 ---
 <!-- GENERATED PROJECTION of art_20260721_library-schema-reconciliation-of-three-v_6136d4 -- DO NOT EDIT. The atom is the truth; regeneration overwrites this file. Edit through the doc verbs. -->
 
