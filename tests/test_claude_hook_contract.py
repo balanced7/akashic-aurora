@@ -1,4 +1,4 @@
-"""Contract tests for the Claude Code PostToolUse hook (scripts/hooks/claude_posttooluse.py).
+"""Contract tests for the Claude Code PostToolUse hook (agent/harness/hooks/claude_posttooluse.py).
 
 The fixtures in tests/fixtures/claude_payloads/ are LIVE CAPTURES (2026-07-01, Claude Code on
 Windows) -- the ground truth this hook's assumptions are pinned to. Verified live and encoded here:
@@ -22,7 +22,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts.hooks import claude_posttooluse as hook
+from agent.harness.hooks import claude_posttooluse as hook
 from core.recall.at_action import normalize_target
 
 _FIX = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures", "claude_payloads")

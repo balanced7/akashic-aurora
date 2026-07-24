@@ -139,7 +139,7 @@ def test_normalize_path_folds_separators_and_case():
 
 # ------------------------------------------------------------------- hook veto
 def test_hook_blocks_edit_on_peer_locked_path(monkeypatch):
-    from scripts.hooks import claude_pretooluse as hook
+    from agent.harness.hooks import claude_pretooluse as hook
     monkeypatch.setenv("AKASHIC_AGENT_ID", "claude")
     monkeypatch.setattr(L, "path_conflict",
                         lambda path, agent, client=None: {"conflict": True, "held_by": "cursor",
@@ -149,7 +149,7 @@ def test_hook_blocks_edit_on_peer_locked_path(monkeypatch):
 
 
 def test_hook_allows_edit_when_no_agent_id_and_unlocked(monkeypatch):
-    from scripts.hooks import claude_pretooluse as hook
+    from agent.harness.hooks import claude_pretooluse as hook
     monkeypatch.delenv("AKASHIC_AGENT_ID", raising=False)
     monkeypatch.setattr(L, "path_conflict",
                         lambda p, a, client=None: {"conflict": False, "held_by": None, "reason": ""})
@@ -157,7 +157,7 @@ def test_hook_allows_edit_when_no_agent_id_and_unlocked(monkeypatch):
 
 
 def test_hook_fails_closed_when_no_agent_id_and_path_locked(monkeypatch):
-    from scripts.hooks import claude_pretooluse as hook
+    from agent.harness.hooks import claude_pretooluse as hook
     monkeypatch.delenv("AKASHIC_AGENT_ID", raising=False)   # RC-01 fix: unset id must not disable the guard
     monkeypatch.setattr(L, "path_conflict",
                         lambda p, a, client=None: {"conflict": True, "held_by": "cursor", "reason": "locked by cursor"})

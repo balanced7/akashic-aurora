@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 55b609b. A bound you discover by collision is not awareness -- this sheet
+> Derived at 167c2fa. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -14,18 +14,18 @@ Class: reference
 | Flag | Default (as written) | Read sites |
 |---|---|---|
 | `AGENT_ID` | `"unknown"` | core/comm/bus.py:1098 |
-| `AI_SETUP` | `"E:\\AI-Setup"` | agent_cli.py:1108, agent_cli.py:1825, agent_cli.py:1907 +15 |
+| `AI_SETUP` | `"E:\\AI-Setup"` | agent_cli.py:1108, agent_cli.py:1829, agent_cli.py:1911 +15 |
 | `AKASHIC_ACK_UNHANDLED_HOURS` | `UNHANDLED_HOURS` | core/comm/promoter.py:151 |
-| `AKASHIC_AGENT_ID` | `"claude"` | agent_cli.py:384, agent_cli.py:578, agent_cli.py:678 +29 |
-| `AKASHIC_ASK_EXPECT_S` | `"1800"` | agent_cli.py:3299 |
+| `AKASHIC_AGENT_ID` | `"claude"` | agent_cli.py:384, agent_cli.py:578, agent_cli.py:678 +42 |
+| `AKASHIC_ASK_EXPECT_S` | `"1800"` | agent_cli.py:3303 |
 | `AKASHIC_AUTOBOOT` | `"1"` | agent/harness/context.py:159 |
-| `AKASHIC_BIRTH_GUARD` | `""` | scripts/hooks/birth_guard.py:70 |
+| `AKASHIC_BIRTH_GUARD` | `""` | scripts/githooks/birth_guard.py:70 |
 | `AKASHIC_BOOT_FULL` | `"0"` | agent_cli.py:1133 |
 | `AKASHIC_CB_MAX` | `"3"` | scripts/bifrost_daemon.py:233 |
 | `AKASHIC_CB_WINDOW_S` | `"300"` | scripts/bifrost_daemon.py:232 |
 | `AKASHIC_CLEAN_DEATH` | `"1"` | core/comm/session_exit.py:51 |
-| `AKASHIC_DAEMON_WAKE` | `"1"` | scripts/hooks/claude_stop.py:247 |
-| `AKASHIC_DEBUG` | `` | scripts/hooks/claude_userpromptsubmit.py:93 |
+| `AKASHIC_DAEMON_WAKE` | `"1"` | agent/harness/hooks/claude_stop.py:247, scripts/hooks/claude_stop.py:247 |
+| `AKASHIC_DEBUG` | `` | agent/harness/hooks/claude_userpromptsubmit.py:93, scripts/hooks/claude_userpromptsubmit.py:93 |
 | `AKASHIC_DRILL_ECHO` | `` | scratch/sol_runner_fragments.py:325, scratch/sol_runner_fragments.py:358, scripts/bifrost_runner.py:152 +10 |
 | `AKASHIC_EMBED_THEMES` | `""` | core/narrative/beat_log.py:79, core/narrative/theme_discovery.py:190 |
 | `AKASHIC_EXPECT_TASK_SETTLE` | `"1"` | core/comm/expectations.py:44 |
@@ -45,33 +45,33 @@ Class: reference
 | `AKASHIC_MCP_DIAG` | `` | ai_setup_mcp.py:719 |
 | `AKASHIC_OPERATOR_IDS` | `"user,daniel"` | scripts/bifrost_wake.py:65 |
 | `AKASHIC_PAYLOAD_CAPTURE` | `"1"` | agent/harness/capture.py:37 |
-| `AKASHIC_PLAN_RECALL` | `"1"` | scripts/hooks/claude_userpromptsubmit.py:42 |
+| `AKASHIC_PLAN_RECALL` | `"1"` | agent/harness/hooks/claude_userpromptsubmit.py:42, scripts/hooks/claude_userpromptsubmit.py:42 |
 | `AKASHIC_PLAY_NETWORK` | `"0"` | core/toolbelt/play_sandbox.py:36 |
 | `AKASHIC_PLAY_OUTPUT_MAX` | `"65536"` | core/toolbelt/play_sandbox.py:34 |
 | `AKASHIC_PLAY_TIMEOUT_S` | `"30"` | core/toolbelt/play_sandbox.py:35 |
 | `AKASHIC_PROPOSED_STALE_DAYS` | `stale_days` | core/coord/task_ledger.py:397 |
-| `AKASHIC_RECALL_AT_ACTION` | `"1"` | scripts/hooks/claude_posttooluse.py:233, scripts/hooks/claude_pretooluse.py:107, scripts/hooks/cursor_posttooluse.py:105 |
+| `AKASHIC_RECALL_AT_ACTION` | `"1"` | agent/harness/hooks/claude_posttooluse.py:233, agent/harness/hooks/claude_pretooluse.py:107, agent/harness/hooks/cursor_posttooluse.py:105 +2 |
 | `AKASHIC_RECALL_CACHE_TTL` | `"120"` | core/recall/at_action.py:65 |
 | `AKASHIC_RECALL_FLOOR` | `"0.20"` | core/recall/at_action.py:919 |
 | `AKASHIC_RECALL_SELF_ECHO_H` | `"2"` | core/recall/at_action.py:855 |
-| `AKASHIC_RECALL_STATE_DIR` | `` | agent/harness/seen.py:14, core/recall/at_action.py:63, scripts/hooks/claude_posttooluse.py:61 +6 |
+| `AKASHIC_RECALL_STATE_DIR` | `` | agent/harness/seen.py:14, agent/harness/hooks/claude_posttooluse.py:61, agent/harness/hooks/claude_sessionend.py:35 +8 |
 | `AKASHIC_RECENT_INBOX_S` | `str(12 * 3600` | core/comm/doctor.py:60 |
-| `AKASHIC_RELEVANCE_BUDGET` | `"1"` | context/learning_loader.py:36 |
-| `AKASHIC_RELEVANCE_BUDGET_CHARS` | `""` | context/relevance_budget.py:49 |
+| `AKASHIC_RELEVANCE_BUDGET` | `"1"` | core/context/learning_loader.py:36 |
+| `AKASHIC_RELEVANCE_BUDGET_CHARS` | `""` | core/context/relevance_budget.py:49 |
 | `AKASHIC_SEAT_DOOR` | `""` | agent_cli.py:1201 |
 | `AKASHIC_SEAT_DOOR_DETAIL` | `""` | agent_cli.py:1202 |
-| `AKASHIC_SESSION_SIGNALS` | `"1"` | scripts/hooks/claude_sessionend.py:126 |
-| `AKASHIC_SESSION_SIGNALS_MAX_BYTES` | `str(16 * 1024 * 1024` | scripts/hooks/claude_sessionend.py:40 |
+| `AKASHIC_SESSION_SIGNALS` | `"1"` | agent/harness/hooks/claude_sessionend.py:126, scripts/hooks/claude_sessionend.py:126 |
+| `AKASHIC_SESSION_SIGNALS_MAX_BYTES` | `str(16 * 1024 * 1024` | agent/harness/hooks/claude_sessionend.py:40, scripts/hooks/claude_sessionend.py:40 |
 | `AKASHIC_SPILL_DIR` | `` | agent_cli.py:83 |
 | `AKASHIC_STALE_CUE_DAYS` | `"30"` | core/recall/at_action.py:70 |
 | `AKASHIC_STALL_HYSTERESIS_S` | `"180"` | core/comm/doctor.py:46 |
-| `AKASHIC_STOP_PROMISE` | `"1"` | scripts/hooks/claude_stop.py:168 |
-| `AKASHIC_STOP_WAKE` | `"1"` | scripts/hooks/claude_stop.py:238 |
+| `AKASHIC_STOP_PROMISE` | `"1"` | agent/harness/hooks/claude_stop.py:168, scripts/hooks/claude_stop.py:168 |
+| `AKASHIC_STOP_WAKE` | `"1"` | agent/harness/hooks/claude_stop.py:238, scripts/hooks/claude_stop.py:238 |
 | `AKASHIC_TIMEOUT_MULTIPLIER` | `"1"` | core/comm/timescale.py:21 |
 | `AKASHIC_TOMBSTONE` | `"1"` | core/comm/wake_seat.py:109, core/comm/wake_seat.py:167 |
 | `AKASHIC_TOOLBELT_QUOTA` | `"20"` | core/toolbelt/registry.py:32 |
-| `AKASHIC_TRACE` | `"1"` | agent/harness/trace.py:24, agent/harness/trace.py:52, scripts/hooks/claude_trace.py:27 |
-| `AKASHIC_TRANSCRIPT_TAIL_BYTES` | `str(4 * 1024 * 1024` | scripts/hooks/claude_posttooluse.py:105 |
+| `AKASHIC_TRACE` | `"1"` | agent/harness/trace.py:24, agent/harness/trace.py:52, agent/harness/hooks/claude_trace.py:27 +1 |
+| `AKASHIC_TRANSCRIPT_TAIL_BYTES` | `str(4 * 1024 * 1024` | agent/harness/hooks/claude_posttooluse.py:105, scripts/hooks/claude_posttooluse.py:105 |
 | `AKASHIC_WAKE_MARKER_FRESH_MIN` | `""` | core/comm/wake_seat.py:311 |
 | `AKASHIC_WHISPER_LINES` | `""` | agent/harness/context.py:109 |
 | `AKASHIC_WISHLIST_FILE` | `` | agent_cli.py:1455 |
@@ -81,20 +81,20 @@ Class: reference
 | `BIFROST_LANES_DUAL_WRITE` | `True` | core/comm/packet_spec.py:300 |
 | `BIFROST_MAX_HOPS` | `"6"` | core/comm/control.py:64 |
 | `BIFROST_MAX_REPLIES_PER_MIN` | `"12"` | core/comm/control.py:65 |
-| `BIFROST_NAMESPACE` | `"bifrost"` | agent_cli.py:4434, agent/harness/delta.py:35, core/comm/bus.py:151 +20 |
+| `BIFROST_NAMESPACE` | `"bifrost"` | agent_cli.py:4441, agent/harness/delta.py:35, core/comm/bus.py:151 +20 |
 | `BIFROST_PREFLIGHT_ASSERT` | `"1"` | core/comm/assertions.py:100 |
 | `BIFROST_PREMISE_GATE_MIN_AGE_MS` | `` | core/coord/task_ledger.py:333 |
 | `BIFROST_REPLY_DEDUP_TTL_S` | `"1200"` | core/comm/bus.py:334 |
 | `BIFROST_STALE_MS` | `DEFAULT_STALE_MS` | core/comm/packet_spec.py:337 |
 | `BIFROST_UI_PORT` | `"8787"` | core/comm/doctor.py:864 |
 | `BIFROST_WAKE_DEADLINE_S` | `""` | scripts/bifrost_wake.py:127 |
-| `BIFROST_WAKE_LANE` | `"work"` | agent_cli.py:3223, core/comm/bifrost_api.py:134 |
+| `BIFROST_WAKE_LANE` | `"work"` | agent_cli.py:3227, core/comm/bifrost_api.py:134 |
 | `BIFROST_WAKE_LONGLIVED` | `"1"` | scripts/bifrost_wake.py:132 |
 | `BIFROST_WEDGE_SECONDS` | `"300"` | core/comm/liveness.py:44 |
 | `BUS_MAX_MESSAGE_BYTES` | `DEFAULT_MAX_MESSAGE_BYTES` | core/comm/packet_spec.py:66 |
-| `CLAUDE_CODE_SESSION_ID` | `` | agent_cli.py:3230, core/comm/runner_lock.py:186 |
-| `CLAUDE_SESSION_ID` | `` | agent_cli.py:3230, core/comm/runner_lock.py:186 |
-| `CURSOR_PROJECT_DIR` | `` | scripts/hooks/cursor_posttooluse.py:91, scripts/hooks/cursor_sessionstart.py:49 |
+| `CLAUDE_CODE_SESSION_ID` | `` | agent_cli.py:3234, core/comm/runner_lock.py:186 |
+| `CLAUDE_SESSION_ID` | `` | agent_cli.py:3234, core/comm/runner_lock.py:186 |
+| `CURSOR_PROJECT_DIR` | `` | agent/harness/hooks/cursor_posttooluse.py:91, agent/harness/hooks/cursor_sessionstart.py:49 |
 | `DEEPSEEK_API_KEY` | `` | scripts/ask_deepseek.py:31, scripts/deepseek_chat.py:122 |
 | `DEEPSEEK_CONNECT_TIMEOUT` | `"15"` | scripts/deepseek_chat.py:61 |
 | `DEEPSEEK_MAX_CMD_TIMEOUT` | `"300"` | core/comm/toolbox.py:32 |
@@ -157,7 +157,7 @@ Class: reference
 | `STORM_DEPTH_WINDOW` | `3` | core/comm/storm_detect.py:53 |
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py:56 |
 
-## Mechanical bounds (92 numeric constants)
+## Mechanical bounds (96 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -165,8 +165,9 @@ Class: reference
 | `BENCH_MIN_SURFACED` | 10 | core/recall/curator.py:32 | exposure floor: it had its chances... |
 | `BODY_CHARS` | 12,000 | core/recall/lookback.py:37 | rationale often sits DEEP: a synthesis doc's convergence and |
 | `BOOT_CAP` | 3 | core/coord/defer_queue.py:34 |  |
-| `BUDGET_CHARS_DEFAULT` | 2,000 | context/relevance_budget.py:36 |  |
+| `BUDGET_CHARS_DEFAULT` | 2,000 | core/context/relevance_budget.py:36 |  |
 | `BUDGET_DEFAULT` | 1,200 | agent/harness/delta.py:29 |  |
+| `BULLET_MIN` | 6 | scripts/checkers/check_bus_atom_pointers.py:37 | or this many list items |
 | `CANONICAL_MAXLEN` | 100,000 | core/events/event_log.py:43 | the firehose: deep but bounded |
 | `CANONICAL_MAXLEN` | 100,000 | core/signals/agent_signal_ledger.py:52 | signals retained on the canonical stream |
 | `CAP` | 50 | core/comm/pager.py:20 |  |
@@ -197,6 +198,7 @@ Class: reference
 | `FORGE_WATCH_MIN_IMPRESSIONS` | 8 | core/recall/curator.py:58 | ...or this many fresh impressions, whichever first |
 | `FRESH_MIN_DEFAULT` | 30 | core/comm/wake_seat.py:33 | AKASHIC_WAKE_MARKER_FRESH_MIN overrides |
 | `GIT_CAP` | 10 | agent/harness/delta.py:31 | commits listed before the pull pointer takes over |
+| `HEADING_MIN` | 2 | scripts/checkers/check_bus_atom_pointers.py:36 | markdown headings that make a body design-shaped |
 | `HINT_MAX_PER_AGENT` | 8 | core/comm/context_hints.py:36 | ring buffer cap per receiving agent |
 | `HINT_TTL_SECONDS` | 300 | core/comm/context_hints.py:37 | 5 min soft expiry (stale hints silently dropped by drain) |
 | `HISTORY_CAP` | 200 | core/comm/turn_metrics.py:35 |  |
@@ -226,6 +228,7 @@ Class: reference
 | `REHAB_MIN_CONTEXTS` | 8 | core/recall/replay.py:27 | criterion 2: surfaced contexts per rehab candidate... |
 | `REHAB_MIN_SURFACED` | 10 | core/recall/forge_optimizer.py:26 | rehab class definition (mirrors the audit / curator) |
 | `RENDER_TTL_S` | 30 | agent/harness/delta.py:30 | X1: turn_metrics EST_CACHE_TTL pattern |
+| `SCHEMA_KNOWN_MAX` | 1 | core/library/atoms.py:39 |  |
 | `SEEN_CAP` | 1,000 | scripts/bifrost_wake.py:181 | newest-last trim on save; a session outliving 1000 wakes re-earns a twin wake |
 | `SNIPPET_CHARS` | 72 | core/comm/flow_trace.py:31 |  |
 | `STALE_DAYS` | 14 | scripts/checkers/check_comprehensibility.py:35 |  |
@@ -233,6 +236,7 @@ Class: reference
 | `STEER_TTL` | 900 | core/comm/nudge.py:42 | a queued steer that's never picked up self-expires after 15 min |
 | `SURFACE_MAXLEN` | 6,000 | core/recall/at_action.py:77 |  |
 | `TF_LEN_UNIT` | 4,000 | core/recall/lookback.py:46 | chars of text per EXPECTED occurrence of a matched stem: a 12KB doc |
+| `THRESHOLD` | 1,500 | scripts/checkers/check_bus_atom_pointers.py:35 | chars: below this a body is "a pointer with manners" |
 | `TOKEN_BUDGET` | 4,000 | core/narrative/chronicler.py:122 |  |
 | `TOOL_SEND_TEXT_MAX` | 8,000 | core/comm/packet_spec.py:331 | D3 (deepseek verdict 2026-07-19): the 4000 door |
 | `_ANSWERED_KEY_CAP` | 20,000 | core/comm/mailbox.py:43 |  |

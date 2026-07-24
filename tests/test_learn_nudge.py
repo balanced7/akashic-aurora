@@ -9,7 +9,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import core.recall.at_action as aa
-from scripts.hooks import claude_posttooluse as hook
+from agent.harness.hooks import claude_posttooluse as hook
 import agent_cli
 
 

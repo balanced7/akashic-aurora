@@ -36,7 +36,7 @@ STALE_DAYS = 14
 
 # Repo roots a doc/docstring reference is checked against. A path token is only treated as a
 # repo-relative reference when one of these is at the START of the token (root-anchored) -- so a
-# deployment/example path like `aurora/scripts/hooks/x.py` is NOT mis-read as `scripts/hooks/x.py`.
+# deployment/example path like `aurora/agent/harness/hooks/x.py` is NOT mis-read as `agent/harness/hooks/x.py`.
 _REF_ROOTS = ("core", "scripts", "tests", "agent", "context", "infrastructure", "security", "docs")
 # start-anchored: preceded by a non-path char; ends in a known code/doc/asset extension.
 _REF_RE = re.compile(

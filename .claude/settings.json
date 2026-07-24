@@ -61,7 +61,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "py scripts/hooks/claude_trace.py"
+            "command": "py agent/harness/hooks/claude_trace.py"
           }
         ]
       }
@@ -72,7 +72,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "py scripts/hooks/claude_posttooluse.py"
+            "command": "py agent/harness/hooks/claude_posttooluse.py"
           }
         ]
       }
@@ -83,7 +83,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "py scripts/hooks/claude_sessionend.py"
+            "command": "py agent/harness/hooks/claude_sessionend.py"
           }
         ]
       }
@@ -94,7 +94,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "py scripts/hooks/claude_sessionend.py"
+            "command": "py agent/harness/hooks/claude_sessionend.py"
           }
         ]
       }
@@ -105,7 +105,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "py scripts/hooks/claude_stop.py"
+            "command": "py agent/harness/hooks/claude_stop.py"
           }
         ]
       }

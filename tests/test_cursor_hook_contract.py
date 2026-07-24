@@ -1,4 +1,4 @@
-"""Contract tests for the Cursor hook adapters (scripts/hooks/cursor_*.py).
+"""Contract tests for the Cursor hook adapters (agent/harness/hooks/cursor_*.py).
 
 Two layers, honest about what is and is not pinned (Integration Tiers H2):
 
@@ -20,7 +20,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts.hooks import (cursor_beforeshell, cursor_posttooluse, cursor_pretooluse,
+from agent.harness.hooks import (cursor_beforeshell, cursor_posttooluse, cursor_pretooluse,
                            cursor_sessionstart)
 
 _FIX = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures", "cursor_payloads")

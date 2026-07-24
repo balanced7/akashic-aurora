@@ -10,7 +10,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts.hooks import pre_commit
+from scripts.githooks import pre_commit
 import core.comm.locks as L
 
 

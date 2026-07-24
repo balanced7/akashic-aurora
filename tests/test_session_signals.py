@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.recall.at_action import normalize_target
 from core.renew.session_signals import fold_signals
-from scripts.hooks import claude_sessionend as hook
+from agent.harness.hooks import claude_sessionend as hook
 
 _FIX = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures", "claude_payloads")
 _TRANSCRIPT = os.path.join(_FIX, "transcript_fail_then_success.jsonl")

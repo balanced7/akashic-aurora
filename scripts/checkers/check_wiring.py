@@ -24,9 +24,14 @@ ENTRY_POINTS = [
     "scripts/bifrost_runner_deepseek.py", "scripts/bifrost_runner.py",
     "scripts/bifrost_ui.py", "scripts/bifrost_wake.py", "scripts/deepseek_chat.py",
 ]
-_HOOKS = os.path.join(ROOT, "scripts", "hooks")
-if os.path.isdir(_HOOKS):
-    ENTRY_POINTS += [f"scripts/hooks/{h}" for h in sorted(os.listdir(_HOOKS)) if h.endswith(".py")]
+# T104-M2 (2026-07-24): hooks split by owner-facet -- harness adapters live in
+# agent/harness/hooks/, commit guards in scripts/githooks/. Enumerate BOTH live
+# dirs; the transitional scripts/hooks/ session-continuity copies are NOT entry
+# points (deleted at next session start) and are deliberately not walked.
+for _hd, _prefix in ((os.path.join(ROOT, "agent", "harness", "hooks"), "agent/harness/hooks"),
+                     (os.path.join(ROOT, "scripts", "githooks"), "scripts/githooks")):
+    if os.path.isdir(_hd):
+        ENTRY_POINTS += [f"{_prefix}/{h}" for h in sorted(os.listdir(_hd)) if h.endswith(".py")]
 
 # core/ modules NOT on a runtime path today (frozen 2026-07-07). This is a BACKLOG, not an amnesty: each
 # is either "built-ahead" (wire when its consumer lands) or "legacy" (delete). A NEW unwired module fails

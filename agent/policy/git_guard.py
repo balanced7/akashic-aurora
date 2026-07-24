@@ -6,8 +6,8 @@ unreviewed, in-progress changes into your commit and push them -- the FM1 failur
 observed 2026-06-28 (see docs/library/design/20260709_concurrent-agents-reinforcing-two-peers_5f6723.md). Stage explicit pathspecs, or
 use `py scripts/mirror.py "msg" <paths...>`.
 
-This module is the single rulebook. Both hooks -- scripts/hooks/claude_pretooluse.py
-and scripts/hooks/cursor_beforeshell.py -- call check_git_command() so the policy
+This module is the single rulebook. Both hooks -- agent/harness/hooks/claude_pretooluse.py
+and agent/harness/hooks/cursor_beforeshell.py -- call check_git_command() so the policy
 cannot drift between Claude and Cursor. Enforcement lives in the harness (the hook),
 not in the agent's memory, because agents skip docs.
 """

@@ -95,7 +95,7 @@ def main():
             # CHUNKED argv (2026-07-23, exposed by the A3 migration's 661-file commit):
             # Windows CreateProcess caps the command line at ~32K chars -- one hook call
             # per <=150 files stays far under it at any corpus size.
-            hook = os.path.join(ROOT, "scripts", "hooks", "mojibake_signatures.py")
+            hook = os.path.join(ROOT, "scripts", "githooks", "mojibake_signatures.py")
             for i in range(0, len(md_files), 150):
                 chunk = md_files[i:i + 150]
                 r = subprocess.run(
@@ -111,7 +111,7 @@ def main():
         # crown; research/chronicles WARN during the migration window (P3 flips them).
         # Same posture as rule-8: the guard optimizes, the census backstops.
         if staged:
-            hook13 = os.path.join(ROOT, "scripts", "hooks", "birth_guard.py")
+            hook13 = os.path.join(ROOT, "scripts", "githooks", "birth_guard.py")
             if os.path.exists(hook13):
                 r13 = subprocess.run([sys.executable, hook13],
                                      cwd=ROOT, env=ENV, capture_output=True, text=True)

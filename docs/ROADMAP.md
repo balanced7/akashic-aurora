@@ -165,7 +165,7 @@ current behavior before Wave 2/3 to prove no regression.
 - Logging: `session_log.py` retired (3→2); `agent_logger` fate pending decision.
 - **Context pillar Phase 1 ✅ COMPLETE 2026-06-20:** `project_context` migrated off
   raw Redis onto a `Store` (Redis-down hard-fail fixed); relocated to
-  `context/project_context.py` (+ deprecated root shim, bootstrap repointed,
+  `core/context/project_context.py` (+ deprecated root shim, bootstrap repointed,
   `context/__init__` exports it); 17 dead guards removed; docstring/`import redis`
   delying. Singleton integrity verified across all import paths. bootstrap's
   project-context check now passes with Redis down. First real brick of System 4.

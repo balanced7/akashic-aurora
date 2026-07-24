@@ -66,7 +66,7 @@ def test_scan_refs_extracts_root_anchored_paths():
 
 def test_scan_refs_ignores_deployment_and_midpath_prefixes():
     # the DEPLOY.md false-positive class: `scripts/...` inside `aurora/scripts/...` must NOT be a ref
-    assert cm.scan_refs("deploy to aurora/scripts/hooks/claude_pretooluse.py") == []
+    assert cm.scan_refs("deploy to aurora/agent/harness/hooks/claude_pretooluse.py") == []
     assert cm.scan_refs("vendored at thirdparty/core/utils.py") == []   # mid-path core/ not anchored
 
 

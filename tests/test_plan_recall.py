@@ -7,7 +7,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts.hooks import claude_userpromptsubmit as hook
+from agent.harness.hooks import claude_userpromptsubmit as hook
 
 
 def _wire(monkeypatch, lessons, seen=None, seen_log=None, inj_log=None, unread=0):

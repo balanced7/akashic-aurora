@@ -35,6 +35,10 @@ NARRATIVE (System 4)          KNOWLEDGE & MEMORY               COORDINATION
                                 markdown as projection (T101)
                                 core/toolbelt/  self-minted verbs,
                                 audit, spend (T099)
+                                core/context/  boot context assembly
+                                (loaders + aggregator; T104-M3 move)
+                                core/infrastructure/  startup
+                                diagnostics (T104-M3 move)
         |                              |                               |
         +---------------+--------------+---------------+---------------+
                         v

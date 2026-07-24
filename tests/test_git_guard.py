@@ -16,7 +16,7 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from agent.policy.git_guard import check_git_command
-from scripts.hooks import claude_pretooluse, cursor_beforeshell
+from agent.harness.hooks import claude_pretooluse, cursor_beforeshell
 
 
 # --------------------------------------------------------------- policy: blocked

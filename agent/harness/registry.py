@@ -23,7 +23,7 @@ TIERS = ("T0", "T1", "T2", "T3", "T4", "T5", "T6")
 HARNESSES = {
     "claude-code": {
         "default_agent_id": "claude",
-        "adapters": "scripts/hooks/claude_*.py (user-global registration, scope-guarded)",
+        "adapters": "agent/harness/hooks/claude_*.py (user-global registration, scope-guarded)",
         "tiers": {
             "T0": "yes -- shell (Bash/PowerShell) + ai_setup_mcp.py",
             "T1": "yes -- .claude/settings.json env",
@@ -37,7 +37,7 @@ HARNESSES = {
     },
     "cursor": {
         "default_agent_id": "composer",
-        "adapters": "scripts/hooks/cursor_*.py (project .cursor/hooks.json)",
+        "adapters": "agent/harness/hooks/cursor_*.py (project .cursor/hooks.json)",
         "tiers": {
             "T0": "yes -- Shell tool + mcp_global/cursor.mcp.json",
             "T1": "yes -- sessionStart hook returns env (propagates all session hooks) "

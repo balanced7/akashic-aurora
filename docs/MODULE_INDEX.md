@@ -139,6 +139,20 @@
 - `reinforce.py` — ReinforcedGraph (Slice P1) -- an association graph whose edges STRENGTHEN with co-use
 - `schema.py` — Perspectives schema (Slice P0) -- Lens + Map shapes. Pure data, no behavior.
 
+## core/context/  (9 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
+- `aggregator.py` — Aggregator: assemble the agent's starting context within a token budget.
+- `arch_loader.py` — Arch-slice loader (Context pillar): boot-time ORIENTATION to the code region of the current task.
+- `blocker_loader.py` — Blocker loader: surface the active blockers preventing progress, ranked.
+- `briefing_loader.py` — Briefing loader: the most recent handoff briefing addressed to an agent.
+- `decision_loader.py` — Decision loader: surface the decisions most applicable to a task, ranked.
+- `learning_loader.py` — Learning loader: surface the learnings most relevant to a task, ranked.
+- `narrative_loader.py` — Narrative loader (Slice 7) — recent Atlas + active chapters for agent boot context.
+- `project_context.py` — Project Context Manager: Store-backed multi-agent context
+- `relevance_budget.py` — T071-R1 relevance budget v1 -- boot's lesson section becomes MOST-RELEVANT under a
+
+## core/infrastructure/  (1 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
+- `health_check.py` — Startup Diagnostics: Report on initialization health
+
 ## core/library/  (3 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
 - `atoms.py` — The artifact-atom family (A1 core) -- atoms as truth, JSONL as the durable record.
 - `projection.py` — Projection renderer (A1) -- one atom -> one read-only markdown file.

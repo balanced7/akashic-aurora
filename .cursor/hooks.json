@@ -3,37 +3,37 @@
   "hooks": {
     "sessionStart": [
       {
-        "command": "py scripts/hooks/cursor_sessionstart.py"
+        "command": "py agent/harness/hooks/cursor_sessionstart.py"
       }
     ],
     "beforeShellExecution": [
       {
-        "command": "py scripts/hooks/cursor_beforeshell.py",
+        "command": "py agent/harness/hooks/cursor_beforeshell.py",
         "matcher": "git\\s+(add|commit)",
         "failClosed": true
       }
     ],
     "preToolUse": [
       {
-        "command": "py scripts/hooks/cursor_pretooluse.py",
+        "command": "py agent/harness/hooks/cursor_pretooluse.py",
         "matcher": "Shell|Write"
       }
     ],
     "postToolUse": [
       {
-        "command": "py scripts/hooks/cursor_posttooluse.py",
+        "command": "py agent/harness/hooks/cursor_posttooluse.py",
         "matcher": "Shell|Read|Write"
       }
     ],
     "postToolUseFailure": [
       {
-        "command": "py scripts/hooks/cursor_posttooluse.py --event postToolUseFailure",
+        "command": "py agent/harness/hooks/cursor_posttooluse.py --event postToolUseFailure",
         "matcher": "Shell|Read|Write"
       }
     ],
     "sessionEnd": [
       {
-        "command": "py scripts/hooks/cursor_sessionend.py"
+        "command": "py agent/harness/hooks/cursor_sessionend.py"
       }
     ]
   }

@@ -2,7 +2,7 @@
 Claude is DOING live -- the SAME kind=trace envelope DeepSeek's runner broadcasts
 (scripts/bifrost_runner_deepseek.py `on_trace`). DeepSeek shows up for free because its runner
 owns the model stream; Claude Code runs OUTSIDE any runner, so its trace has to be pushed from
-the Claude Code hooks (scripts/hooks/claude_trace.py).
+the Claude Code hooks (agent/harness/hooks/claude_trace.py).
 
 The UI already renders kind=trace with a per-agent colour (scripts/bifrost_ui.py `.trav.claude`),
 so this is the only missing half. Best-effort and FAIL-OPEN: a trace that can't send is a lost

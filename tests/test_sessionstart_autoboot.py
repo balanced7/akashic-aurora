@@ -1,7 +1,7 @@
 """SessionStart light auto-boot (friction audit D2 / fix #2): the whisper is tiered by
 where the session starts, silent-when-empty, killable, and never breaks session start.
 The whisper logic lives in agent/harness/context.py (shared by every harness adapter --
-Integration Tiers H0); the Claude adapter (scripts/hooks/claude_sessionstart.py) only
+Integration Tiers H0); the Claude adapter (agent/harness/hooks/claude_sessionstart.py) only
 translates stdin/stdout shapes, so main() is tested through the adapter.
 
 T074 Phase 1 (R5): the v1 SHAPE assertions (a `notes:` titles line, <=10 lines) were
@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from agent.harness import context as ctx
 from agent.harness.scope import repo_root
 from core.learning.agent_memory import Decision
-from scripts.hooks import claude_sessionstart as hook
+from agent.harness.hooks import claude_sessionstart as hook
 
 _REPO = repo_root()
 _HOME = os.path.expanduser("~")

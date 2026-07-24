@@ -10,7 +10,7 @@
  "hook_event_name": "PostToolUse",
  "tool_name": "Bash",
  "tool_input": {
-  "command": "cd E:/AI-Setup && py -m py_compile scripts/hooks/claude_posttooluse.py && echo COMPILE_OK",
+  "command": "cd E:/AI-Setup && py -m py_compile agent/harness/hooks/claude_posttooluse.py && echo COMPILE_OK",
   "description": "Syntax-check the edited hook"
  },
  "tool_response": {

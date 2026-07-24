@@ -1,4 +1,4 @@
-"""Stop-hook promise check (scripts/hooks/claude_stop.py) -- the last-paragraph audit.
+"""Stop-hook promise check (agent/harness/hooks/claude_stop.py) -- the last-paragraph audit.
 
 The discipline (first-party fold-in 2026-07-08): a turn may not END on a promise of future
 work. High precision beats recall here -- a false bounce teaches the model to distrust the
@@ -12,7 +12,7 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts.hooks.claude_stop import (final_paragraph, promise_shaped,
+from agent.harness.hooks.claude_stop import (final_paragraph, promise_shaped,
                                        last_assistant_text, _promise_block)
 
 

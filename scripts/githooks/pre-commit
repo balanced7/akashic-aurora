@@ -1,4 +1,4 @@
 #!/bin/sh
 # Concurrency design C4 -- tracked, shared across worktrees via core.hooksPath.
 # Delegates to the Python backstop (rejects staging a peer's advisory-locked file).
-exec py scripts/hooks/pre_commit.py
+exec py scripts/githooks/pre_commit.py
