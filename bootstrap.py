@@ -99,7 +99,7 @@ def check_foundation():
 def check_context():
     """Does the project context load? (Currently needs Redis until Context pillar Wave 1.)"""
     try:
-        from context.project_context import get_project_context_manager_instance
+        from core.context.project_context import get_project_context_manager_instance
         ctx = get_project_context_manager_instance().derive_full_context_for_agent_repriming()
         if isinstance(ctx, dict) and "error" not in ctx:
             return True, "loaded"

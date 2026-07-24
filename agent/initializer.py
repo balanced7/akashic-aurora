@@ -104,8 +104,8 @@ def derive_agent_context_from_startup_sources(
         # import the Context pillar (System 4) — lower layers never import upward.
         from core.signals.coordinator_api import initialize
         from core.state.session_checkpoint import SessionState
-        from infrastructure.health_check import create_startup_diagnostics
-        from context.aggregator import assemble_context
+        from core.infrastructure.health_check import create_startup_diagnostics
+        from core.context.aggregator import assemble_context
 
         logger.info(f"Initializing agent: {agent_id}")
 

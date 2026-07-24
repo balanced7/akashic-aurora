@@ -39,7 +39,7 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
-    from context import relevance_budget as rb
+    from core.context import relevance_budget as rb
 except ImportError:
     rb = None
 
@@ -174,7 +174,7 @@ def test_p8_irrelevant_lessons_never_ride_when_a_relevant_one_exists():
 # --------------------------------------------------------------- R1-d kill switch honored by the loader
 def test_kill_switch_falls_back_to_legacy(monkeypatch):
     _built()
-    from context import learning_loader as ll
+    from core.context import learning_loader as ll
     monkeypatch.setenv("AKASHIC_RELEVANCE_BUDGET", "0")
     store = FakeStore([_lesson("only", "anything", ts=NOW)])
     out = ll.load_learnings_for_boot(TASK, learning_store=store, now=NOW)

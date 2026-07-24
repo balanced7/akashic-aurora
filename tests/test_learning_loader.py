@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.foundation.store import FileStore
 from core.learning.learning_store import LearningStore
-from context.learning_loader import load_learnings_ranked_by_relevance
+from core.context.learning_loader import load_learnings_ranked_by_relevance
 
 NOW = 1_750_000_000.0
 DAY = 86400.0

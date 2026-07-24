@@ -24,8 +24,8 @@ from core.narrative.chronicler import Chronicler
 from core.narrative.schema import Chapter, Track, ATLAS_KEY, chapter_key, track_key
 from core.primitives.ranker import Ranker
 from core.primitives.distiller import Distiller
-from context.narrative_loader import load_recent_narrative_for_boot
-from context.aggregator import assemble_context
+from core.context.narrative_loader import load_recent_narrative_for_boot
+from core.context.aggregator import assemble_context
 
 
 def _store():

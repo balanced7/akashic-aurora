@@ -16,7 +16,7 @@ from core.foundation.ledger import FileLedger
 from core.learning.agent_memory import AgentMemory
 from core.learning.learning_store import LearningStore
 from core.signals.agent_signal_ledger import AgentSignalLedger
-from context.aggregator import assemble_context
+from core.context.aggregator import assemble_context
 
 
 def _isolated_sources():
@@ -29,7 +29,7 @@ def _isolated_sources():
         "what_tried": "ledger file fallback", "recommendation": "trust the fallback",
         "success": "yes", "confidence": "high"})
 
-    import context.project_context as pcmod
+    import core.context.project_context as pcmod
     pcmod.ProjectContextManager._instance = None
     cm = pcmod.ProjectContextManager()
     cm.record_milestone_marking_progress("Context pillar", "build it")
@@ -73,7 +73,7 @@ def test_full_assembly():
 def test_handoff_retires_once_target_agent_records_a_lesson():
     """A consumed briefing must stop topping every boot (2026-07-02 friction log): the target's
     first lesson AFTER the handoff proves the baton changed hands -> the briefing retires."""
-    from context.briefing_loader import load_briefing_from_previous_handoff
+    from core.context.briefing_loader import load_briefing_from_previous_handoff
 
     sl = AgentSignalLedger(ledger=FileLedger(tempfile.mkdtemp()))
     sl.append_signal({"agent_id": "planner", "signal_type": "handoff", "signal_number": 0,
@@ -104,7 +104,7 @@ def test_handoff_retires_once_target_agent_records_a_lesson():
 def test_handoff_without_timestamp_fails_open():
     """A legacy handoff (no timestamp) must keep surfacing -- losing a live briefing is worse
     than repeating a stale one."""
-    from context.briefing_loader import load_briefing_from_previous_handoff
+    from core.context.briefing_loader import load_briefing_from_previous_handoff
 
     sl = AgentSignalLedger(ledger=FileLedger(tempfile.mkdtemp()))
     sl.append_signal({"agent_id": "planner", "signal_type": "handoff", "signal_number": 0,

@@ -16,9 +16,9 @@ from core.foundation.store import FileStore
 from core.foundation.ledger import FileLedger
 from core.learning.agent_memory import AgentMemory
 from core.signals.agent_signal_ledger import AgentSignalLedger
-from context.decision_loader import load_decisions_applicable_to_task
-from context.blocker_loader import load_blockers_preventing_progress
-from context.briefing_loader import load_briefing_from_previous_handoff
+from core.context.decision_loader import load_decisions_applicable_to_task
+from core.context.blocker_loader import load_blockers_preventing_progress
+from core.context.briefing_loader import load_briefing_from_previous_handoff
 
 
 def test_decision_loader():
@@ -37,7 +37,7 @@ def test_decision_loader():
 
 
 def test_blocker_loader():
-    import context.project_context as pcmod
+    import core.context.project_context as pcmod
     pcmod.ProjectContextManager._instance = None      # fresh isolated singleton
     mgr = pcmod.ProjectContextManager()
     # Blockers persist in a shared store hash; clear it so this test is hermetic even

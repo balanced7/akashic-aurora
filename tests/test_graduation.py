@@ -64,7 +64,7 @@ def test_graduated_lesson_never_enters_the_recall_cache():
 
 
 def test_boot_learning_loader_excludes_graduated():
-    from context.learning_loader import load_learnings_ranked_by_relevance
+    from core.context.learning_loader import load_learnings_ranked_by_relevance
     ls = _isolated_ls()
     ls.record_learning(_lesson("live_git_lesson"))
     ls.record_learning(_lesson("graduated_git_lesson"))

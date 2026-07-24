@@ -9,7 +9,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from context.arch_loader import load_arch_slice, _parse_sections, _repo_docs_dir
+from core.context.arch_loader import load_arch_slice, _parse_sections, _repo_docs_dir
 
 
 def _headings(rows):

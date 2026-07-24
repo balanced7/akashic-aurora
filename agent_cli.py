@@ -261,7 +261,7 @@ def cmd_boot(args):
     try:   # ARCH SLICE (RENEW Strand E gap #2 / deferred step #3): orient the agent to the code
         # region of THIS task -- a stable projection over docs/ARCHITECTURE.md, show-nothing when the
         # task matches no subsystem. Both doors get it (MCP boot delegates to cmd_boot). Fail-open.
-        from context.arch_loader import load_arch_slice
+        from core.context.arch_loader import load_arch_slice
         arch = load_arch_slice(args.task or "")
         if arch:
             print("\n## ARCH SLICE (orientation for this task)")
