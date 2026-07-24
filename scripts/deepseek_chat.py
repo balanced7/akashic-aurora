@@ -81,7 +81,7 @@ if os.path.dirname(_HERE) not in sys.path:
     sys.path.insert(0, os.path.dirname(_HERE))
 from core.comm.toolbox import (   # noqa: F401,E402  (compat re-export)
     MAX_CMD_TIMEOUT, EXCLUDE_DIRS, BINARY_SUFFIXES, MAX_FILE_BYTES, MAX_MATCHES,
-    MAX_LIST, MAX_CMD_OUT, _fn, TOOLS, ToolBox,
+    MAX_LIST, MAX_CMD_OUT, CLARIFY_MAX_PER_TASK, _fn, TOOLS, ToolBox,
 )
 
 MAX_TOOL_ROUNDS = 30
