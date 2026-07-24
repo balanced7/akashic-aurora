@@ -1,3 +1,28 @@
+---
+akashic_id: art_20260714_t060-m1-continuous-presence-fence-brief_4f1905
+akashic_sha: 2be1606da659
+status: fossil
+type: brief
+arc: T060
+date: 2026-07-14
+title: T060-M1 continuous-presence fence brief
+gist: "# FENCE BRIEF — t060-m1-design (M1 Continuous Presence) Tier: full (blind halves; reconciliation follows). This brief is shared input and co"
+tenant: solo
+visibility: fleet
+seats: [claude, deepseek]
+category: [method, agent-lifecycle]
+origin: migrated
+settled: settled
+supersedes: null
+superseded: null
+citations: []
+created: "2026-07-23T22:03:08"
+updated: "2026-07-23T22:03:08"
+---
+<!-- GENERATED PROJECTION of art_20260714_t060-m1-continuous-presence-fence-brief_4f1905 -- DO NOT EDIT. The atom is the truth; regeneration overwrites this file. Edit through the doc verbs. -->
+
+# T060-M1 continuous-presence fence brief
+
 # FENCE BRIEF — t060-m1-design (M1 Continuous Presence)
 
 Tier: full (blind halves; reconciliation follows). This brief is shared input and contains NO design.

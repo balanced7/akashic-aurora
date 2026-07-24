@@ -3,7 +3,7 @@
 Status: current  
 Type: map (generated) · Arc: library-schema · Date: 2026-07-24
 
-**Generated:** 2026-07-24 02:05 UTC · **Source:** `scripts/gen_library.py` · **Never hand-edit.**
+**Generated:** 2026-07-24 02:22 UTC · **Source:** `scripts/gen_library.py` · **Never hand-edit.**
 
 Every file declaring an `Arc:` header, grouped by arc. Current files first; archived files collapsed. Use this to trace an arc's artifacts across zones — the same arc may span `docs/`, `research/`, and `charters/`.
 
@@ -47,11 +47,25 @@ Every file declaring an `Arc:` header, grouped by arc. Current files first; arch
 
 </details>
 
+## t060 (0 + 5 archived)
+
+*(all archived)*
+
+<details><summary>5 archived file(s)</summary>
+
+- ⚫ `docs/library/brief/20260714_t060-m1-continuous-presence-fence-brief_4f1905.md` — fossil · brief · 2026-07-14
+- ⚫ `docs/library/design/20260714_t060-m1-blind-half-a-continuous-presence_3f51c8.md` — fossil · design · 2026-07-14
+- ⚫ `docs/library/design/20260714_t060-m1-blind-half-b-continuous-presence_55481e.md` — fossil · design · 2026-07-14
+- ⚫ `docs/library/design/20260714_t060-m1-reconciliation-continuous-presen_55da7b.md` — fossil · design · 2026-07-14
+- ⚫ `docs/library/report/20260714_t060-m1-fence-machine-records-fence-json_4e2038.md` — fossil · report · 2026-07-14
+
+</details>
+
 ## t103 (1)
 
 - 🟢 `docs/library/report/20260723_a1-door-first-light_facad7.md` — report · 2026-07-23 · a1-door-first-light
 
-## (no arc) (210 + 444 archived)
+## (no arc) (210 + 434 archived)
 
 - 🟢 `docs/library/brief/20260723_brief-kimi-fresh-eyes-on-the-mcp-concurr_0f5617.md` — brief · 2026-07-23 · Brief — kimi fresh-eyes on the MCP-concurrency round
 - 🟢 `docs/library/brief/20260723_charter-per-zone-generated-readme-md-gen_474b95.md` — brief · 2026-07-23 · CHARTER — per-zone generated README.md (gen_library extensio
@@ -264,7 +278,7 @@ Every file declaring an `Arc:` header, grouped by arc. Current files first; arch
 - 🟢 `docs/library/design/20260701_the-resilience-battery-stress-tests-vali_7b7b49.md` — design · 2026-07-01 · The Resilience Battery -- stress tests + validations for the
 - 🟢 `docs/library/design/20260701_wave-2-design-claude-fenced-wake-seat-ow_7c4aaf.md` — design · 2026-07-01 · Wave 2 design (claude, FENCED): wake-seat ownership + nonvio
 
-<details><summary>444 archived file(s)</summary>
+<details><summary>434 archived file(s)</summary>
 
 - ⚪ `docs/library/brief/20260723_ask-deepseek-counter-on-mcp-door-concurr_cdb389.md` — draft · brief · 2026-07-23
 - ⚪ `docs/library/brief/20260723_claude-audit-live-announce-2026-07-23_db35c3.md` — draft · brief · 2026-07-23
@@ -519,8 +533,6 @@ Every file declaring an `Arc:` header, grouped by arc. Current files first; arch
 - ⚪ `docs/library/report/20260712_ultracode-v2-t036-t039-coordination-arc_50d062.md` — draft · report · 2026-07-12
 - ⚪ `docs/library/report/20260712_ultracode-v3-coordination-arc-3-4-fence_5e64b7.md` — draft · report · 2026-07-12
 - ⚪ `docs/library/report/20260712_what-internet-routing-teaches-a-knowledg_22553f.md` — draft · report · 2026-07-12
-- ⚪ `docs/library/design/20260711_source-google-sre-book-ch-6-monitoring-d_6b0396.md` — draft · design · 2026-07-11
-- ⚪ `docs/library/design/20260711_source-sd-notify-3-man-page-systemd-noti_179395.md` — draft · design · 2026-07-11
 - ⚪ `docs/library/design/20260711_t034-registry-dial-consolidation-deepsee_a65322.md` — draft · design · 2026-07-11
 - ⚪ `docs/library/report/20260711_claude-s-diagnosis-half-the-boot-intent_794515.md` — draft · report · 2026-07-11
 - ⚪ `docs/library/report/20260711_claude-s-l2-targeted-read-assessment-fle_66300d.md` — draft · report · 2026-07-11
@@ -551,14 +563,6 @@ Every file declaring an `Arc:` header, grouped by arc. Current files first; arch
 - ⚪ `docs/library/report/20260711_w3-rb-9-12-claude-wake-verify-record-202_a7b992.md` — draft · report · 2026-07-11
 - ⚪ `docs/library/report/20260711_wave-3-deepseek-blind-half-rb-8-12-dicts_dc03b7.md` — draft · report · 2026-07-11
 - ⚪ `docs/library/report/20260711_wave-3-rb-8-12-dictstore-differential-cl_c4f561.md` — draft · report · 2026-07-11
-- ⚪ `docs/library/design/20260710_source-akka-documentation-phi-accrual-fa_49da94.md` — draft · design · 2026-07-10
-- ⚪ `docs/library/design/20260710_source-bornholt-et-al-using-lightweight_854aee.md` — draft · design · 2026-07-10
-- ⚪ `docs/library/design/20260710_source-candea-fox-crash-only-software-ho_b4e6fc.md` — draft · design · 2026-07-10
-- ⚪ `docs/library/design/20260710_source-confluent-message-delivery-guaran_fbf7b9.md` — draft · design · 2026-07-10
-- ⚪ `docs/library/design/20260710_source-hypothesis-documentation-stateful_ea9daa.md` — draft · design · 2026-07-10
-- ⚪ `docs/library/design/20260710_source-john-regehr-independence-in-n-ver_ed7891.md` — draft · design · 2026-07-10
-- ⚪ `docs/library/design/20260710_source-kleppmann-how-to-do-distributed-l_0637a8.md` — draft · design · 2026-07-10
-- ⚪ `docs/library/design/20260710_source-pierre-zemb-diving-into-foundatio_f16884.md` — draft · design · 2026-07-10
 - ⚪ `docs/library/design/20260710_task-what-methods-calibrate-an-llm-criti_191d5f.md` — draft · design · 2026-07-10
 - ⚪ `docs/library/report/20260710_claude-s-sota-deep-read-assessment-robus_204e8e.md` — draft · report · 2026-07-10
 - ⚪ `docs/library/report/20260710_deepseek-blind-liveness-investigation-t0_aec8a6.md` — draft · report · 2026-07-10
@@ -714,4 +718,4 @@ Every file declaring an `Arc:` header, grouped by arc. Current files first; arch
 </details>
 
 ---
-**6 arc(s) · 660 file(s)**
+**7 arc(s) · 655 file(s)**

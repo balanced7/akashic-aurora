@@ -30,9 +30,16 @@ def test_research_refused_after_p3_flip():
     assert bg.classify("research/anything.md") == "refuse"
 
 
-def test_held_zones_still_warn():
-    assert bg.classify("chronicles/night-plan.md") == "warn"
-    assert bg.classify("charters/new-charter.md") == "warn"
+def test_chronicles_machinery_allowlist_after_p3b():
+    for f in ("memory.md", "last-session-draft.md", "lessons.md", "story.md"):
+        assert bg.classify(f"chronicles/{f}") == "allow"
+    assert bg.classify("chronicles/night-plan-2026-07-24.md") == "refuse"
+    assert bg.classify("chronicles/session-reflection-x.md") == "refuse"
+
+
+def test_charter_lawful_home_allowed_loose_warned():
+    assert bg.classify("charters/kimi/CHARTER.md") == "allow"
+    assert bg.classify("charters/new-loose-charter.md") == "warn"
 
 
 def test_non_md_untouched():

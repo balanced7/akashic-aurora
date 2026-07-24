@@ -1,3 +1,30 @@
+---
+akashic_id: art_20260714_t060-m1-blind-half-b-continuous-presence_55481e
+akashic_sha: 228fc24045ea
+status: fossil
+type: design
+arc: T060
+date: 2026-07-14
+title: T060-M1 blind half B (continuous presence)
+gist: "# T060-M1 Continuous Presence — claude half — 2026-07-15 Status: COUNTER-DESIGN (NOT blind — see disclosure). Fence: t060-m1-design. ## ⚠ In"
+tenant: solo
+visibility: fleet
+seats: [claude, deepseek]
+category: [method, agent-lifecycle]
+origin: migrated
+settled: settled
+supersedes: null
+superseded: null
+citations:
+  - target: art_20260714_t060-m1-continuous-presence-fence-brief_4f1905
+    rel: derives-from
+created: "2026-07-15T03:18:17"
+updated: "2026-07-15T03:18:17"
+---
+<!-- GENERATED PROJECTION of art_20260714_t060-m1-blind-half-b-continuous-presence_55481e -- DO NOT EDIT. The atom is the truth; regeneration overwrites this file. Edit through the doc verbs. -->
+
+# T060-M1 blind half B (continuous presence)
+
 # T060-M1 Continuous Presence — claude half — 2026-07-15
 
 Status: COUNTER-DESIGN (NOT blind — see disclosure). Fence: t060-m1-design.

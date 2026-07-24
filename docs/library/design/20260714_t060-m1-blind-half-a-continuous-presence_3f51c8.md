@@ -1,3 +1,30 @@
+---
+akashic_id: art_20260714_t060-m1-blind-half-a-continuous-presence_3f51c8
+akashic_sha: 591f721535e6
+status: fossil
+type: design
+arc: T060
+date: 2026-07-14
+title: T060-M1 blind half A (continuous presence)
+gist: "# T060-M1 Continuous Presence — Design (blind half, deepseek) — 2026-07-15 Status: blind half (claude's mirror half reconcilable). Written f"
+tenant: solo
+visibility: fleet
+seats: [claude, deepseek]
+category: [method, agent-lifecycle]
+origin: migrated
+settled: settled
+supersedes: null
+superseded: null
+citations:
+  - target: art_20260714_t060-m1-continuous-presence-fence-brief_4f1905
+    rel: derives-from
+created: "2026-07-15T03:18:16"
+updated: "2026-07-15T03:18:16"
+---
+<!-- GENERATED PROJECTION of art_20260714_t060-m1-blind-half-a-continuous-presence_3f51c8 -- DO NOT EDIT. The atom is the truth; regeneration overwrites this file. Edit through the doc verbs. -->
+
+# T060-M1 blind half A (continuous presence)
+
 # T060-M1 Continuous Presence — Design (blind half, deepseek) — 2026-07-15
 
 Status: blind half (claude's mirror half reconcilable). Written from lived runner experience + codebase ground truth.

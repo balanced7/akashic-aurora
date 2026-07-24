@@ -46,8 +46,17 @@ def classify(relpath: str) -> str:
         # P3 FLIP (2026-07-23 night, Daniel's deletion gate fired): the research zone's
         # corpus migrated to atoms; new loose research .md is refused like docs/.
         return "refuse"
-    if p.startswith("chronicles/") or p.startswith("charters/"):
-        return "warn"  # held zones (P3b pending the machinery check)
+    if p.startswith("chronicles/"):
+        # P3b flip (2026-07-23 night): write-once records migrated to atoms; only the
+        # four LIVE machinery projections exist as files (reprojected, never hand-born).
+        if p in ("chronicles/memory.md", "chronicles/last-session-draft.md",
+                 "chronicles/lessons.md", "chronicles/story.md"):
+            return "allow"
+        return "refuse"
+    if p.startswith("charters/"):
+        # charters/<agent>/CHARTER.md is the LAWFUL agent-contract home (LIBRARY canon);
+        # loose charter files belong in atoms.
+        return "allow" if re.fullmatch(r"charters/[a-z0-9_-]+/CHARTER\.md", p) else "warn"
     return "allow"
 
 

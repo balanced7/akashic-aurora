@@ -122,6 +122,9 @@ def _atoms_as_entries() -> list[tuple[Path, dict]]:
     entries: list[tuple[Path, dict]] = []
     for a in fam.find():
         h = a["header"]
+        if h.get("visibility") == "local":
+            continue  # P3b: redacted/local-only atoms stay out of the PUBLIC census
+        h = a["header"]
         entries.append((ROOT / projection_relpath(a), {
             "status": h.get("status", ""), "type": h.get("type", ""),
             "arc": h.get("arc") or "", "seats": ", ".join(h.get("seats", [])),

@@ -3,13 +3,13 @@
 Status: current  
 Type: map (generated) · Arc: library-schema · Date: 2026-07-24
 
-**Generated:** 2026-07-24 02:05 UTC · **Source:** `scripts/gen_library.py` · **Never hand-edit.**
+**Generated:** 2026-07-24 02:22 UTC · **Source:** `scripts/gen_library.py` · **Never hand-edit.**
 
 This is door 1 of the library schema (docs/LIBRARY.md).
 
 ---
 
-## brief (40)
+## brief (41)
 
 - 🟢 `docs/library/brief/20260723_brief-kimi-fresh-eyes-on-the-mcp-concurr_0f5617.md` — current · 2026-07-23
 - 🟢 `docs/library/brief/20260723_charter-per-zone-generated-readme-md-gen_474b95.md` — current · 2026-07-23
@@ -51,6 +51,7 @@ This is door 1 of the library schema (docs/LIBRARY.md).
 - ⚪ `docs/library/brief/20260717_mcp-log-single-frame-repair-m1-lite-brie_56130c.md` — draft · 2026-07-17
 - ⚪ `docs/library/brief/20260717_t060-moonshot-networking-spine-three-fro_18a046.md` — draft · 2026-07-17
 - ⚪ `docs/library/brief/20260717_t060-round-2-addendum-cross-critique-cad_9f37e6.md` — draft · 2026-07-17
+- ⚫ `docs/library/brief/20260714_t060-m1-continuous-presence-fence-brief_4f1905.md` — fossil · arc: T060 · 2026-07-14
 
 ## chronicle (15)
 
@@ -70,7 +71,7 @@ This is door 1 of the library schema (docs/LIBRARY.md).
 - ⚪ `docs/library/chronicle/20260704_adr-bifrost-sync-plan-protocol-session-s_90c4bd.md` — draft · 2026-07-04
 - ⚪ `docs/library/chronicle/20260627_lessons-auto-generated-from-the-learning_6dd9bf.md` — draft · 2026-06-27
 
-## design (244)
+## design (237)
 
 - 🟢 `docs/library/design/20260723_claude-half-homes-and-order-extend-libra_486510.md` — current · 2026-07-23
 - 🟢 `docs/library/design/20260723_deepseek-substrate-counters-builder-lens_a81409.md` — current · arc: artifact-substrate · 2026-07-23
@@ -209,6 +210,9 @@ This is door 1 of the library schema (docs/LIBRARY.md).
 - ⚪ `docs/library/design/20260717_the-reasoning-spine-deepseek-counter-rou_4493a3.md` — draft · 2026-07-17
 - ⚫ `docs/library/design/20260714_cross-agent-auto-logger-design-slice-pla_6d21c5.md` — fossil · 2026-07-14
 - ⚪ `docs/library/design/20260714_t045-stage-2-runner-consume-cutover-scop_b9c06c.md` — draft · 2026-07-14
+- ⚫ `docs/library/design/20260714_t060-m1-blind-half-a-continuous-presence_3f51c8.md` — fossil · arc: T060 · 2026-07-14
+- ⚫ `docs/library/design/20260714_t060-m1-blind-half-b-continuous-presence_55481e.md` — fossil · arc: T060 · 2026-07-14
+- ⚫ `docs/library/design/20260714_t060-m1-reconciliation-continuous-presen_55da7b.md` — fossil · arc: T060 · 2026-07-14
 - ⚪ `docs/library/design/20260712_control-plane-namespace-isolation-claude_fade67.md` — draft · 2026-07-12
 - ⚪ `docs/library/design/20260712_control-plane-namespace-isolation-fenced_24dc0b.md` — draft · 2026-07-12
 - ⚪ `docs/library/design/20260712_rb-25-drill-3-s3-wedge-root-cause-diagno_d92cb6.md` — draft · 2026-07-12
@@ -216,17 +220,7 @@ This is door 1 of the library schema (docs/LIBRARY.md).
 - ⚪ `docs/library/design/20260712_t038-identity-primitive-blind-fence-brie_275ec1.md` — draft · 2026-07-12
 - ⚪ `docs/library/design/20260712_t038-t039-implications-deep-dive-fenced_c9bea1.md` — draft · 2026-07-12
 - ⚪ `docs/library/design/20260712_t040-useful-endpoints-systems-claude-bli_a8dca5.md` — draft · 2026-07-12
-- ⚪ `docs/library/design/20260711_source-google-sre-book-ch-6-monitoring-d_6b0396.md` — draft · 2026-07-11
-- ⚪ `docs/library/design/20260711_source-sd-notify-3-man-page-systemd-noti_179395.md` — draft · 2026-07-11
 - ⚪ `docs/library/design/20260711_t034-registry-dial-consolidation-deepsee_a65322.md` — draft · 2026-07-11
-- ⚪ `docs/library/design/20260710_source-akka-documentation-phi-accrual-fa_49da94.md` — draft · 2026-07-10
-- ⚪ `docs/library/design/20260710_source-bornholt-et-al-using-lightweight_854aee.md` — draft · 2026-07-10
-- ⚪ `docs/library/design/20260710_source-candea-fox-crash-only-software-ho_b4e6fc.md` — draft · 2026-07-10
-- ⚪ `docs/library/design/20260710_source-confluent-message-delivery-guaran_fbf7b9.md` — draft · 2026-07-10
-- ⚪ `docs/library/design/20260710_source-hypothesis-documentation-stateful_ea9daa.md` — draft · 2026-07-10
-- ⚪ `docs/library/design/20260710_source-john-regehr-independence-in-n-ver_ed7891.md` — draft · 2026-07-10
-- ⚪ `docs/library/design/20260710_source-kleppmann-how-to-do-distributed-l_0637a8.md` — draft · 2026-07-10
-- ⚪ `docs/library/design/20260710_source-pierre-zemb-diving-into-foundatio_f16884.md` — draft · 2026-07-10
 - ⚪ `docs/library/design/20260710_task-what-methods-calibrate-an-llm-criti_191d5f.md` — draft · 2026-07-10
 - ⚫ `docs/library/design/20260709_agent-experience-plan-akashic-aurora_405872.md` — fossil · 2026-07-09
 - ⚫ `docs/library/design/20260709_agent-memory-analysis-of-learning-store_5ec82f.md` — fossil · 2026-07-09
@@ -317,7 +311,7 @@ This is door 1 of the library schema (docs/LIBRARY.md).
 - ⚫ `docs/library/design/20260619_shared-primitives-interface-spec_03e098.md` — fossil · 2026-06-19
 - ⚫ `docs/library/design/20260619_the-agent-interface-system-5-aci-thought_1b1edb.md` — fossil · 2026-06-19
 
-## report (361)
+## report (362)
 
 - 🟢 `docs/library/report/20260723_a1-door-first-light_facad7.md` — current · arc: T103 · 2026-07-23
 - 🟢 `docs/library/report/20260723_addendum-the-mcp-leverage-map-what-fleet_efa37a.md` — current · 2026-07-23
@@ -560,6 +554,7 @@ This is door 1 of the library schema (docs/LIBRARY.md).
 - ⚪ `docs/library/report/20260714_r7-mid-turn-clarification-deepseek-desig_bd991a.md` — draft · 2026-07-14
 - ⚪ `docs/library/report/20260714_t048-live-verify-deepseek-2026-07-14_a21bd4.md` — draft · 2026-07-14
 - ⚪ `docs/library/report/20260714_t056-build-review-deepseek-adversarial-2_3dde46.md` — draft · 2026-07-14
+- ⚫ `docs/library/report/20260714_t060-m1-fence-machine-records-fence-json_4e2038.md` — fossil · arc: T060 · 2026-07-14
 - ⚪ `docs/library/report/20260712_content-distribution-caching-and-name-re_5a8f9e.md` — draft · 2026-07-12
 - ⚪ `docs/library/report/20260712_control-plane-namespace-isolation-deepse_1505e1.md` — draft · 2026-07-12
 - ⚪ `docs/library/report/20260712_fenced-reconciliation-control-plane-ns-i_62fd36.md` — draft · 2026-07-12
@@ -682,4 +677,4 @@ This is door 1 of the library schema (docs/LIBRARY.md).
 - ⚫ `docs/library/report/20260620_lexicon-naming-schema-adherence-review-c_bc1348.md` — fossil · 2026-06-20
 
 ---
-**4 type(s) · 660 file(s)**
+**4 type(s) · 655 file(s)**

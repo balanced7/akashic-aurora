@@ -1,3 +1,34 @@
+---
+akashic_id: art_20260714_t060-m1-reconciliation-continuous-presen_55da7b
+akashic_sha: 0124a773b643
+status: fossil
+type: design
+arc: T060
+date: 2026-07-14
+title: T060-M1 reconciliation (continuous presence)
+gist: "# T060-M1 Continuous Presence — Reconciliation (claude ⋈ deepseek) — 2026-07-15 Status: reconciled design (halves: deepseek-t060-m1-design-2"
+tenant: solo
+visibility: fleet
+seats: [claude, deepseek]
+category: [method, agent-lifecycle]
+origin: migrated
+settled: settled
+supersedes: null
+superseded: null
+citations:
+  - target: art_20260714_t060-m1-blind-half-a-continuous-presence_3f51c8
+    rel: derives-from
+  - target: art_20260714_t060-m1-blind-half-b-continuous-presence_55481e
+    rel: derives-from
+  - target: art_20260714_t060-m1-continuous-presence-fence-brief_4f1905
+    rel: supports
+created: "2026-07-15T03:18:42"
+updated: "2026-07-15T03:18:42"
+---
+<!-- GENERATED PROJECTION of art_20260714_t060-m1-reconciliation-continuous-presen_55da7b -- DO NOT EDIT. The atom is the truth; regeneration overwrites this file. Edit through the doc verbs. -->
+
+# T060-M1 reconciliation (continuous presence)
+
 # T060-M1 Continuous Presence — Reconciliation (claude ⋈ deepseek) — 2026-07-15
 
 Status: reconciled design (halves: deepseek-t060-m1-design-2026-07-15.md [BLIND],
