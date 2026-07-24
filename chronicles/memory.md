@@ -1,10 +1,18 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 251 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 254 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
-- where-we-are: T104 RECONCILED -> move-plan atom, gates G7-G9 pending Daniel: owner-facet law + one-walker visibility rule + M1 (literal-path moves, ready to fire) / M2...  (source: mem:decision:ADR_0723223128_2fa36eaa)
+- where-we-are: SWEEP MID-FLIGHT, batch 2+3 landed. Fixed 7 of NEW-20: master_map (paper census reads shelves), t039a (projection repoint incl month-date artifact), mirror...  (source: mem:decision:ADR_0723231427_e04cab92)
+- scratch:kimi:validation-sweep-kimi-2026-07-23: VALIDATION SWEEP audit share DISCHARGED 2026-07-23 night (Daniel directive, exec=off). Filed knowledge_note...  (source: mem:decision:ADR_0723231036_3196c3e4)
+- kimi-validation-sweep-2026-07-23: Status: current · Type: report (validation sweep, audit share) · Arc: T104 validation sweep · From: kimi (audit clusters) · To: claude...  (source: mem:decision:ADR_0723230907_8801eb2c)
+- deepseek-validation-sweep-2026-07-23: # VALIDATION SWEEP — deepseek (builder clusters) — 2026-07-23
+
+## CLASSIFICATION (7 clusters)
+
+### MIGRATION-CAUSED
+-...  (source: mem:decision:ADR_0723230627_4e2ee0f0)
 - scratch:kimi:t104-structure-half-kimi-2026-07-23: T104 STRUCTURE HALF DISCHARGED 2026-07-23 night (claude, machine-plane cleanup round). Filed knowledge_note...  (source: mem:decision:ADR_0723222929_1fc4540e)
 - kimi-t104-structure-half-2026-07-23: Status: current · Type: design (T104 structure half) · Arc: T104 machine-plane structure cleanup · From: kimi (fresh-eyes/audit) ·...  (source: mem:decision:ADR_0723222816_99729636)
 - deepseek-t104-structure-half-2026-07-23: # T104 STRUCTURE HALF — deepseek (builder, the importer who fought these paths)
@@ -124,13 +132,4 @@ Q1 SCAR-SPRINGBOARD (3):
 - scratch:deepseek:t097-s1-ps1-5-fence-verdict-ship: t097-s1-ps1-5-fence-verdict-ship: CONFIRMED. SHIP. 'calling-model' composes cleanly with P-S1-0 (not in IDLE_PHASES...  (source: mem:decision:ADR_0721021452_790a92ad)
 - t097-s1-ps1-0-fence-verdict-ship: FENCE VERDICT — T097-S1 P-S1-0 (kimi implementation): CONFIRMED. SHIP. Branch ordering correct — if (>=300) then elif ([150,300)) with...  (source: mem:decision:ADR_0721021324_9b4a9fb6)
 - night-run-2026-07-21-plan: NIGHT RUN 2026-07-21 progress (refresh ~02:30; Daniel sleeping, roster consensus). SHIPPED SO FAR (all pushed): S0-gamma-a wake-dedup @7613971...  (source: mem:decision:ADR_0721021209_ba0ddc1b)
-- deepseek-ranking-t098-program-2026-07-20: ## deepseek independent ranking (2026-07-20)
-
-1. **T098-S0: Plugin architecture + program skeleton** (M, FLOOR). The program's...  (source: mem:decision:ADR_0721021126_975b3c18)
-- scratch:deepseek:homebase-consultation-deepseek-position-2026-07-21: homebase-consultation-deepseek-position-N1-N4: Full position filed to claude + fleet 2026-07-21 in...  (source: mem:decision:ADR_0721020537_7a031f3e)
-- t094-r0-prereg-v2-verified-2026-07-21: ## Cross-verification matrix (counter → v2)
-
-| Amendment | Counter demand | v2 delivery | Match |
-|---|---|---|---|
-| A1 | P3 →...  (source: mem:decision:ADR_0721020444_4af03f20)
 - next-focus: FOCUSNOW-1dc53c: engine before UI  (source: mem:decision:ADR_0715023839_3c2462dd)
