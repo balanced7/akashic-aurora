@@ -1,0 +1,13 @@
+{
+  "id": "PK_0415060518",
+  "timestamp": "2026-04-15T06:05:18.846786",
+  "system": "bootstrap",
+  "change_type": "feat",
+  "title": "Built primer.py for patch-note thinking",
+  "goal": "Guide agents to document in patch-note style",
+  "result": "SUCCESS",
+  "version_from": "v0.7.0",
+  "version_to": "v0.8.0",
+  "tags": [],
+  "evidence": []
+}

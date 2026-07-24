@@ -1,0 +1,13 @@
+{
+  "id": "PK_0415060522",
+  "timestamp": "2026-04-15T06:05:22.963090",
+  "system": "logging",
+  "change_type": "fix",
+  "title": "Session was not automatically logged - zero entries to Redis",
+  "goal": "Ensure session continuity",
+  "result": "FAILURE - Logger requires explicit import/call, no auto-hook exists",
+  "version_from": "v0.8.0",
+  "version_to": "v0.8.1",
+  "tags": [],
+  "evidence": []
+}

@@ -1,0 +1,25 @@
+# vLLM with ROCm 7.1.1 + PyTorch
+# Based on working rocm/dev-ubuntu-24.04:7.1.1-complete + PyTorch wheels
+# E:\AI-Setup\Dockerfile.vllm-rocm71
+
+FROM rocm/dev-ubuntu-24.04:7.1.1-complete
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install Python and PyTorch with ROCm support
+RUN apt-get update && apt-get install -y \
+    python3-pip \
+    python3.12-dev \
+    git \
+    && ln -sf /usr/bin/python3.12 /usr/bin/python3 \
+    && ln -sf /usr/bin/pip3 /usr/bin/pip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install PyTorch with ROCm 7.1 support
+RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/rocm7.1 --break-system-packages
+
+# Install vLLM
+RUN pip install --no-cache-dir vllm --break-system-packages
+
+# Health check
+CMD ["python3", "-c", "import torch; print(f'PyTorch: {torch.__version__}'); print(f'ROCm: {torch.cuda.is_available()}')"]

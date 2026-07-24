@@ -1,0 +1,13 @@
+{
+  "id": "PK_0415061836",
+  "timestamp": "2026-04-15T06:18:36.849559",
+  "system": "logging",
+  "change_type": "fix",
+  "title": "Stopped writing failures to JSON files - now uses Redis LearningStore",
+  "goal": "Use the system we built instead of bypassing it",
+  "result": "SUCCESS - learning.store.log_failure() properly indexes failures",
+  "version_from": "v0.12.1",
+  "version_to": "v0.12.2",
+  "tags": [],
+  "evidence": []
+}

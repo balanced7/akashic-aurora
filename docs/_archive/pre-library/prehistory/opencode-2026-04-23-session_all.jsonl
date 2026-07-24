@@ -1,0 +1,7 @@
+{"type": "action", "timestamp": "2026-04-23T20:01:45.546355", "sequence": 1, "session": "opencode_20260423_200145", "unique_id": "opencode_20260423_200145_log", "content": "ROCm", "tags": ["action"], "data": {}}
+{"type": "action", "timestamp": "2026-04-23T20:01:48.913407", "sequence": 1, "session": "opencode_20260423_200148", "unique_id": "opencode_20260423_200148_log", "content": "Verified", "tags": ["action"], "data": {}}
+{"type": "action", "timestamp": "2026-04-23T20:01:52.782761", "sequence": 1, "session": "opencode_20260423_200152", "unique_id": "opencode_20260423_200152_log", "content": "Verified", "tags": ["action"], "data": {}}
+{"type": "action", "timestamp": "2026-04-23T20:01:56.115052", "sequence": 1, "session": "opencode_20260423_200156", "unique_id": "opencode_20260423_200156_log", "content": "Synced", "tags": ["action"], "data": {}}
+{"type": "action", "timestamp": "2026-04-23T20:01:59.502317", "sequence": 1, "session": "opencode_20260423_200159", "unique_id": "opencode_20260423_200159_log", "content": "Updated", "tags": ["action"], "data": {}}
+{"type": "decision", "timestamp": "2026-04-23T20:02:02.825757", "sequence": 1, "session": "opencode_20260423_200202", "unique_id": "opencode_20260423_200202_log", "content": "Removed", "tags": ["decision"], "data": {}}
+{"type": "action", "timestamp": "2026-04-24T00:07:53.006340", "sequence": 1, "session": "opencode_20260424_000753", "unique_id": "opencode_20260424_000753_log", "content": "END", "tags": ["action"], "data": {}}

@@ -30,7 +30,8 @@ SCAN_DIRS = ["docs", "research", "chronicles", "charters"]
 SKIP_PREFIXES = [".git", "__pycache__", "node_modules", ".venv", "backups",
                  "dropbox", "data", "state", "sessions", ".claude", ".secrets",
                  "blobs", "model_cache", "temp", ".codex", "ComfyUI-Zluda",
-                 "assets", "ollama_data", "rocm-lib"]
+                 "assets", "ollama_data", "rocm-lib",
+                 "_archive"]   # M3 2026-07-24: fossils (docs/_archive) stay out of the living census
 SKIP_FILES = {"SHELVES.md", "ARCS.md"}   # don't catalog ourselves
 SKIP_README_IN = {"docs", "research", "chronicles", "charters"}  # these get full READMEs, never inline-catalogued
 

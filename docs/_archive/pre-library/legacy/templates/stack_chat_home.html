@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Akashic Aurora — AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --void: #050505;
+      --surface: #0c0c0c;
+      --elevated: #141414;
+      --border: #1f1f1f;
+      --border-glow: rgba(68, 214, 44, 0.35);
+      --text: #e6e6e6;
+      --muted: #7a7a7a;
+      --razer: #44d62c;
+      --razer-dim: #2a8a1a;
+      --razer-glow: 0 0 24px rgba(68, 214, 44, 0.25);
+      --accent-2: #00ffc8;
+      --danger: #ff4d4d;
+      --radius: 14px;
+      --radius-sm: 8px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: radial-gradient(1200px 600px at 10% -10%, rgba(68, 214, 44, 0.08), transparent),
+        radial-gradient(900px 500px at 90% 0%, rgba(0, 255, 200, 0.05), transparent),
+        var(--void);
+      color: var(--text);
+      font-family: "Inter", system-ui, sans-serif;
+      letter-spacing: 0.01em;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 28px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, var(--surface) 0%, var(--void) 100%);
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+    .brand {
+      font-family: "Rajdhani", sans-serif;
+      font-weight: 700;
+      font-size: 1.35rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--text);
+    }
+    .brand span { color: var(--razer); text-shadow: var(--razer-glow); }
+    .nav {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .nav a, .nav button {
+      font-family: "Rajdhani", sans-serif;
+      font-weight: 600;
+      font-size: 0.95rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      text-decoration: none;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      background: var(--elevated);
+      padding: 10px 18px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: border-color 0.2s, color 0.2s, box-shadow 0.2s;
+    }
+    .nav a:hover, .nav button:hover {
+      color: var(--razer);
+      border-color: var(--razer-dim);
+      box-shadow: var(--razer-glow);
+    }
+    .nav a.active { color: var(--void); background: var(--razer); border-color: var(--razer); }
+    main {
+      max-width: 1040px;
+      margin: 0 auto;
+      padding: 32px 24px 48px;
+    }
+    .hero {
+      margin-bottom: 28px;
+      padding: 28px 32px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: linear-gradient(135deg, var(--surface) 0%, var(--elevated) 55%, #101010 100%);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+    .hero h1 {
+      font-family: "Rajdhani", sans-serif;
+      font-size: 1.75rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      margin-bottom: 8px;
+    }
+    .hero p { color: var(--muted); font-size: 0.95rem; max-width: 640px; line-height: 1.55; }
+    .panel {
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      padding: 22px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.45);
+    }
+    .dropzone {
+      border: 1px dashed var(--border);
+      border-radius: var(--radius-sm);
+      padding: 18px;
+      text-align: center;
+      color: var(--muted);
+      margin-bottom: 16px;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .dropzone.drag { border-color: var(--razer); background: rgba(68, 214, 44, 0.06); color: var(--razer); }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; min-height: 28px; }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: var(--elevated);
+      border: 1px solid var(--border);
+      font-size: 0.8rem;
+      color: var(--text);
+    }
+    .chip button {
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 1rem;
+      line-height: 1;
+    }
+    .chip button:hover { color: var(--danger); }
+    textarea {
+      width: 100%;
+      min-height: 140px;
+      resize: vertical;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--void);
+      color: var(--text);
+      padding: 14px 16px;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      margin-bottom: 14px;
+      font-family: "Inter", sans-serif;
+    }
+    textarea:focus {
+      outline: none;
+      border-color: var(--razer-dim);
+      box-shadow: 0 0 0 1px rgba(68, 214, 44, 0.35);
+    }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    select.model {
+      background: var(--void);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-family: "Rajdhani", sans-serif;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+    }
+    .icon-btn {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--elevated);
+      color: var(--razer);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: box-shadow 0.2s, border-color 0.2s, transform 0.15s;
+    }
+    .icon-btn:hover { border-color: var(--razer); box-shadow: var(--razer-glow); transform: translateY(-1px); }
+    .icon-btn.recording { animation: pulse 1.2s infinite; border-color: var(--razer); }
+    @keyframes pulse { 0%,100%{ box-shadow: 0 0 0 0 rgba(68,214,44,0.5);} 50%{ box-shadow: 0 0 0 12px rgba(68,214,44,0);} }
+    .gear-wrap { position: relative; display: inline-flex; align-items: center; }
+    .gear-btn {
+      width: 40px; height: 40px; border-radius: 10px;
+      border: 1px solid var(--border); background: var(--void); color: var(--muted);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+    .gear-btn:hover { color: var(--razer); border-color: var(--razer-dim); }
+    .gear-pop {
+      display: none;
+      position: absolute;
+      top: 48px;
+      right: 0;
+      width: 260px;
+      padding: 14px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--elevated);
+      z-index: 30;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.55);
+    }
+    .gear-pop.open { display: block; }
+    .gear-pop label { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: var(--muted); margin-bottom: 10px; cursor: pointer; }
+    .send-btn {
+      font-family: "Rajdhani", sans-serif;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      padding: 12px 28px;
+      border-radius: var(--radius-sm);
+      border: none;
+      background: linear-gradient(90deg, var(--razer) 0%, #5ef743 100%);
+      color: #050505;
+      cursor: pointer;
+      margin-left: auto;
+    }
+    .send-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .messages {
+      margin-top: 22px;
+      border-top: 1px solid var(--border);
+      padding-top: 18px;
+      max-height: 420px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .msg { border-radius: var(--radius-sm); padding: 12px 14px; max-width: 92%; font-size: 0.9rem; line-height: 1.55; }
+    .msg.user { align-self: flex-end; background: #1a2417; border: 1px solid var(--razer-dim); color: var(--text); }
+    .msg.ai { align-self: flex-start; background: var(--elevated); border: 1px solid var(--border); color: var(--text); }
+    .msg .role { font-family: "Rajdhani", sans-serif; font-size: 0.7rem; letter-spacing: 0.12em; color: var(--razer); margin-bottom: 6px; text-transform: uppercase; }
+    .status-line { font-size: 0.8rem; color: var(--muted); margin-top: 8px; min-height: 1.2em; }
+    .status-line.err { color: var(--danger); }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Break<span>Through</span></div>
+    <nav class="nav">
+      <a href="/" class="active">AI Console</a>
+      <a href="/dashboard">Stack Status</a>
+      <a href="/api/docs" target="_blank" rel="noopener">API</a>
+    </nav>
+  </header>
+  <main>
+    <section class="hero">
+      <h1>Command Surface</h1>
+      <p>Local inference through your voice stack and Ollama. Attach context files, dictate, or type. Stack health lives under <strong>Stack Status</strong>.</p>
+    </section>
+    <section class="panel">
+      <div id="drop" class="dropzone">Drop files here or click to browse <input type="file" id="filePick" multiple hidden /></div>
+      <div id="chips" class="chips"></div>
+      <textarea id="input" placeholder="Message… (Shift+Enter for newline)"></textarea>
+      <div class="toolbar">
+        <select id="model" class="model" title="Ollama model name">
+          <option value="gemma2:2b">gemma2:2b</option>
+          <option value="gemma2:9b">gemma2:9b</option>
+          <option value="gemma3:4b">gemma3:4b</option>
+          <option value="llama3.2:3b">llama3.2:3b</option>
+        </select>
+        <button type="button" class="icon-btn" id="micBtn" title="Speak"><span style="font-family:Rajdhani,sans-serif;font-size:0.65rem;letter-spacing:0.12em;">MIC</span></button>
+        <div class="gear-wrap">
+          <button type="button" class="gear-btn" id="gearBtn" title="Speech options">&#9881;</button>
+          <div class="gear-pop" id="gearPop">
+            <label><input type="checkbox" id="rtSpeech" /> Realtime speech (continuous)</label>
+            <p style="font-size:0.75rem;color:var(--muted);line-height:1.4">Uses your browser speech engine when available. For server STT, run ai-voice on :5000.</p>
+          </div>
+        </div>
+        <button type="button" class="send-btn" id="sendBtn">Transmit</button>
+      </div>
+      <div id="status" class="status-line"></div>
+      <div id="msgs" class="messages"></div>
+    </section>
+  </main>
+  <script>
+    const drop = document.getElementById("drop");
+    const filePick = document.getElementById("filePick");
+    const chips = document.getElementById("chips");
+    const input = document.getElementById("input");
+    const sendBtn = document.getElementById("sendBtn");
+    const micBtn = document.getElementById("micBtn");
+    const gearBtn = document.getElementById("gearBtn");
+    const gearPop = document.getElementById("gearPop");
+    const rtSpeech = document.getElementById("rtSpeech");
+    const modelSel = document.getElementById("model");
+    const msgs = document.getElementById("msgs");
+    const status = document.getElementById("status");
+
+    let attachments = [];
+    let rec = null;
+    let recRunning = false;
+
+    function setStatus(t, err) {
+      status.textContent = t;
+      status.className = "status-line" + (err ? " err" : "");
+    }
+
+    drop.addEventListener("click", () => filePick.click());
+    drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("drag"); });
+    drop.addEventListener("dragleave", () => drop.classList.remove("drag"));
+    drop.addEventListener("drop", (e) => {
+      e.preventDefault();
+      drop.classList.remove("drag");
+      addFiles(e.dataTransfer.files);
+    });
+    filePick.addEventListener("change", () => addFiles(filePick.files));
+
+    function addFiles(fileList) {
+      for (const f of fileList) {
+        attachments.push(f);
+        renderChips();
+      }
+      filePick.value = "";
+    }
+    function esc(s) {
+      return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+    function renderChips() {
+      chips.innerHTML = attachments.map((f, i) =>
+        `<span class="chip">${esc(f.name)}<button type="button" data-i="${i}">&times;</button></span>`
+      ).join("");
+      chips.querySelectorAll("button").forEach((b) => {
+        b.onclick = () => { attachments.splice(+b.dataset.i, 1); renderChips(); };
+      });
+    }
+
+    gearBtn.addEventListener("click", (e) => { e.stopPropagation(); gearPop.classList.toggle("open"); });
+    document.addEventListener("click", () => gearPop.classList.remove("open"));
+
+    async function fileToAtt(f) {
+      const buf = await f.arrayBuffer();
+      let b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+      if (b64.length > 1_200_000) throw new Error("File too large for browser upload");
+      return { filename: f.name, mime: f.type || "application/octet-stream", data_b64: b64 };
+    }
+
+    async function sendMessage() {
+      const text = input.value.trim();
+      if (!text && !attachments.length) return;
+      sendBtn.disabled = true;
+      setStatus("Routing request…");
+      const userBubble = document.createElement("div");
+      userBubble.className = "msg user";
+      userBubble.innerHTML = `<div class="role">You</div><div>${escapeHtml(text || "(attachments only)")}</div>`;
+      msgs.appendChild(userBubble);
+      msgs.scrollTop = msgs.scrollHeight;
+      input.value = "";
+
+      let atts = [];
+      try {
+        for (const f of attachments) {
+          if (f.size > 4 * 1024 * 1024) { setStatus(f.name + " too large (max ~4MB in-browser)", true); sendBtn.disabled = false; return; }
+          atts.push(await fileToAtt(f));
+        }
+      } catch (e) {
+        setStatus(String(e), true);
+        sendBtn.disabled = false;
+        return;
+      }
+      attachments = [];
+      renderChips();
+
+      try {
+        const r = await fetch("/api/ai/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: text, model: modelSel.value, attachments: atts }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || data.error || r.statusText);
+        const ai = document.createElement("div");
+        ai.className = "msg ai";
+        ai.innerHTML = `<div class="role">AI</div><div>${escapeHtml(data.reply || "(empty)")}</div>`;
+        msgs.appendChild(ai);
+        setStatus(data.backend ? "via " + data.backend : "Done");
+      } catch (e) {
+        setStatus(String(e), true);
+        const er = document.createElement("div");
+        er.className = "msg ai";
+        er.innerHTML = `<div class="role">Error</div><div>${escapeHtml(String(e))}</div>`;
+        msgs.appendChild(er);
+      } finally {
+        sendBtn.disabled = false;
+        msgs.scrollTop = msgs.scrollHeight;
+      }
+    }
+    function escapeHtml(s) {
+      return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+
+    sendBtn.addEventListener("click", sendMessage);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    });
+
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    function startSpeech() {
+      if (!SR) { setStatus("Speech recognition not supported in this browser.", true); return; }
+      if (recRunning) return;
+      rec = new SR();
+      rec.lang = "en-US";
+      rec.interimResults = !!rtSpeech.checked;
+      rec.continuous = !!rtSpeech.checked;
+      rec.onresult = (e) => {
+        let t = "";
+        for (let i = e.resultIndex; i < e.results.length; i++) t += e.results[i][0].transcript;
+        if (rtSpeech.checked) {
+          input.value = t;
+        } else if (e.results[0].isFinal) {
+          input.value = (input.value + " " + t).trim();
+        }
+      };
+      rec.onerror = () => { setStatus("Speech error", true); stopSpeech(); };
+      rec.onend = () => { stopSpeech(); };
+      rec.start();
+      recRunning = true;
+      micBtn.classList.add("recording");
+      setStatus(rtSpeech.checked ? "Listening (realtime)…" : "Listening…");
+    }
+    function stopSpeech() {
+      try { if (rec) rec.stop(); } catch (_) {}
+      rec = null;
+      recRunning = false;
+      micBtn.classList.remove("recording");
+    }
+    micBtn.addEventListener("click", () => {
+      if (recRunning) stopSpeech();
+      else startSpeech();
+    });
+  </script>
+</body>
+</html>
