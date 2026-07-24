@@ -71,6 +71,10 @@ def _seat(tmp_path, pid=4242):
 def test_p7_watcher_survives_past_the_old_thirty_minute_deadline(tmp_path, monkeypatch, capsys):
     clock = FakeClock()
     monkeypatch.setattr(bw.time, "time", clock.time)
+    # isolate the S0-gamma dedup sidecar like every other test here: without this, the
+    # deterministic (frm|ts|kind) key persists in the REAL tempdir and dedupes the
+    # scripted mail on every run after the first (self-poisoning, found sweep 2026-07-23)
+    monkeypatch.setattr(bw.tempfile, "gettempdir", lambda: str(tmp_path))
     seat = _seat(tmp_path)
     api = FakeApi(clock, chunk_s=120, mail_at=clock.now + 2400, mail=[_msg()])  # mail at t+40min
     rc = bw.watch("claude", 14400, 120_000, api=api, hb_path=seat, my_pid=4242, session_id="s1")

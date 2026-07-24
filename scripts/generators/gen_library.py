@@ -12,6 +12,7 @@ Never hand-edit any generated file.
     py scripts/generators/gen_library.py              # write SHELVES + READMEs + ARCS
     py scripts/generators/gen_library.py --stdout     # print SHELVES to stdout
     py scripts/generators/gen_library.py --readmes    # write only zone READMEs
+    py scripts/generators/gen_library.py --verify     # projection-sha cross-read (drift meter)
 """
 from __future__ import annotations
 
@@ -386,6 +387,59 @@ def render_arcs(by_arc):
     return "\n".join(lines)
 
 
+# ---------------------------------------------------------------- verify (sweep fold-in)
+def _verify_projections() -> int:
+    """--verify (T104 sweep fold-in; deepseek spec + kimi's founding audit rule): the
+    projection-sha cross-read. BELIEF = the projection frontmatter's akashic_sha;
+    STATE = the atom's body_sha. Any mismatch, missing file, or orphan projection is a
+    broken-after-import specimen, mechanically detected. Exit 1 on drift (ship-gateable)."""
+    import sys as _sys
+    if str(ROOT) not in _sys.path:
+        _sys.path.insert(0, str(ROOT))
+    from core.foundation.store import create_store
+    from core.library.atoms import AtomFamily
+    from core.library.projection import projection_relpath
+    fam = AtomFamily(create_store(), repo_root=str(ROOT))
+    atoms = fam.find()
+    sha_re = re.compile(r"^akashic_sha:\s*\"?([0-9a-f]{12})\"?\s*$", re.MULTILINE)
+    drift: list[str] = []
+    checked = skipped = 0
+    known_ids: set[str] = set()
+    for a in atoms:
+        known_ids.add(a["id"])
+        if a["header"].get("visibility") == "local":
+            skipped += 1        # P3b redaction: no public projection by design
+            continue
+        rel = _relpath(ROOT / projection_relpath(a))
+        checked += 1
+        p = ROOT / rel
+        if not p.is_file():
+            drift.append(f"MISSING  {rel}  (atom {a['id']})")
+            continue
+        text = _safe_read(p) or ""      # frontmatter rides the top -- the 8k cap is fine
+        m = sha_re.search(text)
+        if not m:
+            drift.append(f"NO-SHA   {rel}  (frontmatter unreadable)")
+        elif m.group(1) != a.get("body_sha"):
+            drift.append(f"DRIFT    {rel}  (projection {m.group(1)} != atom {a.get('body_sha')})")
+    orphans: list[str] = []
+    lib = ROOT / "docs" / "library"
+    if lib.is_dir():
+        for fp in lib.rglob("*.md"):
+            if fp.name == "README.md":
+                continue
+            if f"art_{fp.stem}" not in known_ids:
+                orphans.append(_relpath(fp))
+    for row in drift:
+        print(f"[verify] {row}")
+    for o in orphans:
+        print(f"[verify] ORPHAN   {o}  (no atom in the store)")
+    verdict = "CLEAN" if not (drift or orphans) else "DRIFT"
+    print(f"[gen_library] --verify {verdict}: {checked} projection(s) cross-read, "
+          f"{skipped} local-redacted skipped, {len(drift)} drift row(s), {len(orphans)} orphan(s)")
+    return 0 if verdict == "CLEAN" else 1
+
+
 # ---------------------------------------------------------------- driver
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(
@@ -399,7 +453,12 @@ def main(argv=None) -> int:
                          "maps stay stale until the next full regen (mirror catches up)")
     ap.add_argument("--from-store", action="store_true", dest="from_store",
                     help="census ATOMS (the store) instead of walking .md files (A1)")
+    ap.add_argument("--verify", action="store_true",
+                    help="projection-sha cross-read: report DRIFT/MISSING/ORPHAN rows, exit 1 on any")
     args = ap.parse_args(argv)
+
+    if args.verify:
+        return _verify_projections()
 
     if args.one:
         import sys as _sys

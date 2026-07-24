@@ -149,10 +149,11 @@ def unpark(tid, *, by="", client="auto", path=None):
 
 
 def next_task(client="auto", path=None):
-    """The single task that may start now: none if something is already IN_PROGRESS (Phase 1's
-    one-at-a-time gate), else the first APPROVED task whose deps are all DONE. Returns a dict or None."""
+    """The single task that may start now: none while anything is ACTIVE (claimed/in_progress/
+    verifying all occupy the sequential slot -- TL.ACTIVE law, W15 header contract), else the
+    first APPROVED task whose deps are all DONE. Returns a dict or None."""
     v = TL.state_view(path or TL.LEDGER_PATH, client)
-    if any(t["status"] == TL.IN_PROGRESS for t in v["in_progress"]):
+    if v["in_progress"]:   # state_view buckets every ACTIVE status here, not just IN_PROGRESS
         return None
     return v["next"][0] if v["next"] else None
 

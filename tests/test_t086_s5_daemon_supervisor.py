@@ -52,7 +52,7 @@ def test_s5_c1_sigterm_daemon_children_terminated_within_5s():
     # Wait for daemon to print "up" and spawn the runner
     started = time.time()
     runner_spawned = False
-    while time.time() - started < 30:
+    while time.time() - started < 45:  # 30s flaked under full-suite + live-runner load (sweep 2026-07-23)
         line = p.stdout.readline()
         if not line:
             if p.poll() is not None:
@@ -72,7 +72,7 @@ def test_s5_c1_sigterm_daemon_children_terminated_within_5s():
         p.terminate()
         p.wait(timeout=10)
         import pytest
-        pytest.fail("daemon did not spawn runner within 30s")
+        pytest.fail("daemon did not spawn runner within 45s")
 
     # Give runner a moment to start
     time.sleep(1)

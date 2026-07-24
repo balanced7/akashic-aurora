@@ -21,7 +21,13 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 GATE_RE = re.compile(
     r"\bGATE\s*:?\s*(GREEN|RED)\b|\bAFFIRM(?:ED)?\b|\bverify\s+(?:record|verdict)\b",
     re.IGNORECASE)
-CITE_RE = re.compile(r"research/reviewed/[A-Za-z0-9_\-./]+\.md")
+# Atom-era homes (P3 migration): verbatim records are report ATOMS -- cite the projection
+# path (docs/library/report/...) or the atom id itself; the legacy research/reviewed/
+# form stays accepted for pre-migration history (--audit walks old commits).
+CITE_RE = re.compile(
+    r"research/reviewed/[A-Za-z0-9_\-./]+\.md"
+    r"|docs/library/report/[A-Za-z0-9_\-./]+\.md"
+    r"|\bart_\d{8}_[a-z0-9\-]+_[0-9a-f]{6}\b")
 
 
 def _check(message: str) -> int:
@@ -33,8 +39,8 @@ def _check(message: str) -> int:
         return 0
     print("FAIL: this ship message carries a GATE decision with no verbatim record cited "
           "(method baseline M6 -- decisions never rest on bus-stream/chat-scroll evidence).")
-    print("Fix: persist the peer verdict to research/reviewed/<agent>-<slice>-<date>.md "
-          "(provenance header + full text) and cite that path in the message.")
+    print("Fix: mint the peer verdict as a report atom (py agent_cli.py doc new --type report "
+          "...) and cite its projection path (docs/library/report/...) or atom id in the message.")
     return 1
 
 

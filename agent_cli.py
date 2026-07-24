@@ -1300,7 +1300,7 @@ def _orientation_header(agent_id: str, primer_aware: bool = False) -> str:
                 body = (d.decision or "")
                 if any(mark in body.lower() for mark in _DONE):
                     continue                              # completed arc -> never governs
-                m = re.search(r"docs/[\w\-.]+\.md", body)
+                m = re.search(r"docs/[\w\-./]+\.md", body)  # nested ok: atom projections live at docs/library/<type>/
                 if m:
                     slug_tokens = [w for w in d.title[:-len("-status")].split("-") if len(w) > 2]
                     governs = bool(slug_tokens) and all(w in active_text for w in slug_tokens)

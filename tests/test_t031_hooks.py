@@ -87,8 +87,8 @@ def test_h2_no_tests_staged_passes():
 
 def test_h4_gate_language_without_citation_fails():
     rc, out = _run(_H4, "RB-99 landed: deepseek GATE GREEN, all pins pass")
-    assert rc == 1 and "research/reviewed" in out, \
-        "a GATE decision must cite its persisted verbatim record (M6)"
+    assert rc == 1 and "docs/library/report" in out, \
+        "a GATE decision must cite its persisted verbatim record (M6; atom-era home post-P3)"
 
 
 def test_h4_gate_language_with_citation_passes():

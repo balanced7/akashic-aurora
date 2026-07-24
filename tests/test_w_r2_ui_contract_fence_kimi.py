@@ -33,7 +33,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SCRIPT = ROOT / "scripts" / "check_ui_contract.py"
+SCRIPT = ROOT / "scripts" / "checkers" / "check_ui_contract.py"  # T104-M1 moved it (owner-facet)
 TARGET = ROOT / "scripts" / "bifrost_ui.py"
 
 
