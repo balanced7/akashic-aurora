@@ -38,6 +38,13 @@ def test_classify_known_examples():
     assert tx.classify("") == []
 
 
+def test_trailing_slots_require_word_match():
+    # kimi gem ruling (fence round 1): a substring-only hit ('lock' inside 'blockchain')
+    # may never pad slots 2-3; slot 1 stays unrestricted.
+    got = tx.classify("substrate blockchain")
+    assert got == ["substrate"]
+
+
 def test_classify_is_deterministic():
     text = "migration census enrichment of the library shelves"
     assert tx.classify(text) == tx.classify(text)

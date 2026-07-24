@@ -56,7 +56,9 @@ CATEGORY_KEYWORDS: dict[str, str] = {
     "recall": r"recall|retriev|funnel|knowledge.?map|curator|inject",
     "memory": r"memory|note[s]?\b|lesson|decision|reasoning|spine|chapter",
     "bus": r"\bbus\b|bifrost|packet|lane|routing|dedup|stream|handoff|wake",
-    "coordination": r"coordinat|lock|ledger|barrier|control.?plane|negotiat|conductor",
+    # 'ledger'/'conductor' pruned 2026-07-23: over-generic tokens (they name a TYPE and a
+    # role) stamped the first-light dogfood falsely -- kimi gem, fence round 1.
+    "coordination": r"coordinat|lock\b|barrier|control.?plane|negotiat",
     "agent-lifecycle": r"runner|daemon|seat|liveness|hook|crash|recover|reviv|watchdog",
     "identity": r"identity|roster|acl|grant|tenan|quarantine|persona",
     "security": r"security|secret|credential|trust|auth|admin|escalat",
@@ -96,7 +98,14 @@ def classify(text: str, cap: int = CATEGORY_CAP_PER_ATOM) -> list[str]:
         elif re.search(pattern, hay):
             scored.append((1, pos, cat))
     scored.sort()
-    return [cat for _, _, cat in scored[:cap]]
+    if not scored:
+        return []
+    # kimi gem ruling (fence round 1): slot 1 as-is; slots 2..cap require a WORD match
+    # (tier 0) -- a weak substring hit can never fill a trailing slot, killing
+    # false-positive category padding without blunting genuinely multi-category atoms.
+    picked = [scored[0][2]]
+    picked += [cat for tier, _, cat in scored[1:] if tier == 0][: max(0, cap - 1)]
+    return picked[:cap]
 
 
 def resolve(term: str) -> str | None:

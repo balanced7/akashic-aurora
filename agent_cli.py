@@ -1502,11 +1502,41 @@ def _ledger_claim_arc(seat: str):
         return None
 
 
+def _read_bus_message(ref: str):
+    """--from-bus reader (A1, deepseek pulse spec): one already-delivered message by
+    stream id from this seat's inbox streams (work first, legacy archive net). Returns
+    (frm, kind, text) or None -- past the legacy TTL the capture fails LOUD, never
+    silently reconstructs."""
+    try:
+        from core.comm.bus import Bus
+        me = os.environ.get("AKASHIC_AGENT_ID", "claude")
+        c = Bus(me)._client
+        if c is None:
+            return None
+        for k in (f"bifrost:work:inbox:{me}", f"bifrost:inbox:{me}"):
+            got = c.xrange(k, min=ref, max=ref)
+            if got:
+                _sid, f = got[0]
+                return (str(f.get("frm", "?")), str(f.get("kind", "?")),
+                        _capture_decode(f.get("content") or f.get("text") or ""))
+    except Exception:
+        return None
+    return None
+
+
+# bus kind -> atom type when --from-bus supplies no --type (deepseek pulse spec)
+_BUS_KIND_TYPE = {"handoff": "design", "request": "brief", "question": "brief",
+                  "chat": "design", "reply": "report", "inform": "report"}
+
+
 def cmd_doc(args):
     """A1 (2026-07-23, artifact-substrate build; supersedes D1's file-writer): the birth
     door. Mints a typed ATOM in the store (append-only, supersession-aware; JSONL durable
     record under store/docs/) and renders its ONE read-only projection file under
     docs/library/<type>/. The file is the render; the atom is the truth.
+    --from-bus <stream-id>: file ONE bus message as a conversation-atom with provenance
+    (origin/speakers/source_thread/settled) -- opt-in only; blanket auto-filing is the
+    sprawl one transport layer over.
     Spec: docs/artifact-substrate-design-2026-07.md + docs/taxonomy-ergonomics-
     reconciliation-2026-07.md (Daniel gate fired 2026-07-23).
 
@@ -1522,8 +1552,23 @@ def cmd_doc(args):
 
     typ = (getattr(args, "type", "") or "").strip().lower()
     title = (getattr(args, "title", "") or "").strip()
+
+    from_bus = (getattr(args, "from_bus", "") or "").strip()
+    conv_kwargs = {}
+    if from_bus:
+        msg = _read_bus_message(from_bus)
+        if msg is None:
+            print(f"[doc] REFUSED: bus message {from_bus} not readable from inbox streams "
+                  "(expired past legacy TTL? loud failure by design -- T043 genus)")
+            return 2
+        frm, kind, text = msg
+        me = os.environ.get("AKASHIC_AGENT_ID", "claude")
+        typ = typ or _BUS_KIND_TYPE.get(kind, "report")
+        conv_kwargs = dict(origin="conversation", speakers=[frm, me],
+                           source_thread=from_bus, settled="live")
+
     if not typ or not title:
-        print("[doc] REFUSED: --type and --title are required")
+        print("[doc] REFUSED: --type and --title are required (--from-bus infers type from the message kind)")
         print("  atom types: contract map design brief report chronicle ledger ruling")
         print("  example: py agent_cli.py doc new --type report --title fence-x --seats claude --body-file x.md")
         return 2
@@ -1536,6 +1581,8 @@ def cmd_doc(args):
         except OSError as e:
             print(f"[doc] REFUSED: cannot read --body-file: {e}")
             return 2
+    if from_bus:
+        body = (body + "\n\n" if body else "") + text
 
     seats = [s.strip() for s in (getattr(args, "seats", "") or "").split(",") if s.strip()]
     arc = (getattr(args, "arc", "") or "").strip() or None
@@ -1560,11 +1607,14 @@ def cmd_doc(args):
     merged = merged[:_tx.CATEGORY_CAP_PER_ATOM]
     cat_srcs = cat_srcs[:len(merged)]
 
-    status = "draft" if getattr(args, "draft", False) else "current"
+    status = "draft" if (getattr(args, "draft", False) or from_bus) else "current"
+    citations = [{"target": t.strip(), "rel": "discusses"}
+                 for t in (getattr(args, "cite", None) or []) if t.strip()]
     fam = AtomFamily(create_store(), repo_root=str(Path(__file__).resolve().parent))
     try:
         atom = fam.mint(typ, title, body, arc=arc, seats=seats, categories=merged,
-                        status=status, gist=(getattr(args, "gist", "") or None))
+                        citations=citations, status=status, category_sources=cat_srcs,
+                        gist=(getattr(args, "gist", "") or None), **conv_kwargs)
     except AtomError as e:
         print(f"[doc] REFUSED: {e}")
         return 2
@@ -3640,7 +3690,7 @@ def build_parser():
     dsp = sub.add_parser("doc", help="seed a new doc with its header contract (library door)")
     dsps = dsp.add_subparsers(dest="sub")
     dnew = dsps.add_parser("new", help="create a new doc with header + canon name + home")
-    dnew.add_argument("--type", required=True, help="Type per LIBRARY.md: contract|design|brief|report|chronicle|ledger|map|plan|ruling")
+    dnew.add_argument("--type", required=False, default="", help="atom type: contract|map|design|brief|report|chronicle|ledger|ruling (--from-bus infers from message kind)")
     dnew.add_argument("--title", required=True, help="slug (lowercase, hyphens) — becomes the filename")
     dnew.add_argument("--arc", default="", help="arc label or T-number (absent = inferred from the seat's claimed ledger task)")
     dnew.add_argument("--seats", default="", help="authors (comma-sep); first seat drives arc inference")
@@ -3649,6 +3699,8 @@ def build_parser():
     dnew.add_argument("--category", action="append", default=None, help="governed roster category (repeatable, max 3; merged with auto-classify)")
     dnew.add_argument("--draft", action="store_true", help="born status:draft — dump-and-go; wrap sweep + lint curate")
     dnew.add_argument("--gist", default="", help="one-line abstract (<=140 chars; auto-derived from body if absent)")
+    dnew.add_argument("--from-bus", default="", dest="from_bus", help="file ONE bus message (stream id) as a conversation-atom w/ provenance; born draft; opt-in only")
+    dnew.add_argument("--cite", action="append", default=None, help="atom id this artifact discusses (repeatable; rel=discusses)")
     dnew.add_argument("--zone", default="", help="DEPRECATED (atoms have one home: docs/library/<type>/); ignored")
     dnew.set_defaults(fn=cmd_doc)
 

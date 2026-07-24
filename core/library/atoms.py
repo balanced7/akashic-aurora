@@ -129,8 +129,13 @@ class AtomFamily:
              source_thread: Optional[str] = None, settled: str = "settled",
              tenant: str = "solo", visibility: str = "fleet",
              supersedes: Optional[str] = None, date: Optional[str] = None,
-             gist: Optional[str] = None, now: Optional[float] = None) -> Dict[str, Any]:
+             gist: Optional[str] = None, category_sources: Optional[List[str]] = None,
+             now: Optional[float] = None) -> Dict[str, Any]:
         cats = self._validate(type_, title, categories or [], citations or [], origin, settled, status)
+        # kimi (fence round 1): inference provenance is PERSISTED, not just printed --
+        # the library lint reads recorded [flag|auto] sources instead of re-deriving.
+        srcs = list(category_sources or [])[:len(cats)]
+        srcs += ["unstated"] * (len(cats) - len(srcs))
         ts = float(now if now is not None else time.time())
         day = date or time.strftime("%Y-%m-%d", time.localtime(ts))
         slug = _slug(title)
@@ -147,6 +152,7 @@ class AtomFamily:
             },
             "body": body or "",
             "body_sha": _sha12(body or ""),
+            "category_sources": srcs,
             "citations_out": citations or [],
             "supersedes": supersedes, "superseded": None,
             "origin": origin, "speakers": speakers or [],
@@ -166,7 +172,12 @@ class AtomFamily:
 
     def supersede(self, old_id: str, *, title: Optional[str] = None, body: str,
                   now: Optional[float] = None, **mint_kwargs: Any) -> Dict[str, Any]:
-        """Mint the successor, then CAS-flip the ancestor (append-only everywhere)."""
+        """Mint the successor, then CAS-flip the ancestor (append-only everywhere).
+
+        Known window (deepseek fence, round 1): the successor exists BEFORE the ancestor
+        flip confirms; if the CAS exhausts retries, two atoms briefly claim current --
+        exactly the duplicate-current row the audit library domain photographs, and the
+        --repair pass reconciles at team scale."""
         old = self.get(old_id)
         if old is None:
             raise AtomError(f"cannot supersede unknown atom {old_id}")

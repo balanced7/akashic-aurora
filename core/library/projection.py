@@ -51,6 +51,8 @@ def frontmatter(atom: Dict[str, Any]) -> str:
     lines.append(f"akashic_id: {_yaml_escape(atom['id'])}")
     lines.append(f"akashic_sha: {_yaml_escape(atom['body_sha'])}")
     for field in ("status", "type", "arc", "date", "title", "gist", "tenant", "visibility"):
+        if field == "arc" and h.get("arc") is None:
+            continue  # deepseek fence: 'arc: null' renders as the STRING null in Bases -- omit
         lines.append(f"{field}: {_yaml_escape(h.get(field))}")
     lines.append("seats: [" + ", ".join(_yaml_escape(s) for s in h.get("seats", [])) + "]")
     lines.append("category: [" + ", ".join(_yaml_escape(c) for c in h.get("category", [])) + "]")

@@ -142,6 +142,12 @@ def test_backlinks_are_derived_with_rel_and_status(fam):
     assert bl == [{"source": src["id"], "rel": "contradicts", "status": "current"}]
 
 
+def test_category_sources_persisted_and_padded(fam):
+    a = fam.mint("design", "x", "b", categories=["bus", "ui"],
+                 category_sources=["flag"], now=1.0)
+    assert a["category_sources"] == ["flag", "unstated"]
+
+
 def test_gist_born_with_and_capped(fam):
     a = fam.mint("design", "x", "  lots   of\n\nwhitespace " + "y" * 300, now=1.0)
     assert a["header"]["gist"].startswith("lots of whitespace")
