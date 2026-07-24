@@ -1,0 +1,435 @@
+---
+akashic_id: art_20260701_the-resilience-battery-stress-tests-vali_7b7b49
+akashic_sha: 09865e1fb52b
+status: current
+type: design
+date: 2026-07-01
+title: "The Resilience Battery -- stress tests + validations for the comms arc (claude, FENCED)"
+gist: "Class: test Daniel's directive: \"the most demanding stress tests and feature validations... to test every nook and cranny of this system and"
+tenant: solo
+visibility: fleet
+seats: []
+category: [method, conducting, testing]
+origin: migrated
+settled: settled
+supersedes: null
+superseded: null
+citations:
+  - target: art_20260710_deepseek-s5-remedy-review-c3-ceiling-ref_dcf450
+    rel: cites
+  - target: art_20260710_deepseek-s5-build-review-mechanisms-3-4_226f05
+    rel: cites
+  - target: art_20260710_resilience-battery-deepseek-verbatim-fen_fca7cc
+    rel: cites
+  - target: art_20260710_deepseek-t029-wave-1-per-slice-review-rb_0e2a04
+    rel: cites
+  - target: art_20260710_deepseek-t029-wave-2-build-review-the-ga_f51330
+    rel: cites
+  - target: art_20260701_wave-2-design-claude-fenced-wake-seat-ow_7c4aaf
+    rel: cites
+created: "2026-07-10T19:43:09"
+updated: "2026-07-23T21:42:07"
+---
+<!-- GENERATED PROJECTION of art_20260701_the-resilience-battery-stress-tests-vali_7b7b49 -- DO NOT EDIT. The atom is the truth; regeneration overwrites this file. Edit through the doc verbs. -->
+
+# The Resilience Battery -- stress tests + validations for the comms arc (claude, FENCED)
+
+Class: test
+Daniel's directive: "the most demanding stress tests and feature validations... to test every
+nook and cranny of this system and evolve and improve it further." Committed before reading
+deepseek's parallel battery (the standing fence).
+
+DESIGN PRINCIPLE: a resilience battery is honest only if it aims at SUSPECTED weaknesses, not at
+what we know passes. Section 0 names, in the open, the five places I suspect my own designs
+from this arc are weakest. Every test names its KILL CONDITION (what breaking looks like).
+
+---
+
+## 0. NAMED SUSPICIONS (attack here first)
+
+S1. T019 drainer death resurrects the pipe-wedge: the drainer threads are daemons with no
+    supervisor -- if one dies (encoding bomb, OOM), the pipe silently refills and the child
+    freezes EXACTLY as before, but now we believe we fixed it.
+S2. P6 acks_for scans top_k=500 msg_ack events: past 500 lifetime acks, OLD acks fall off
+    the scan and settled messages RE-FLAG as UNHANDLED -- a volume-triggered lie.
+S3. P5 stale-proposed list in format_state is UNBOUNDED: 500 stale proposals = a render
+    bomb inside every boot head + wake report (the 6000-char onboarding head dies first).
+S4. P1 supersession has no cycle/fork detection: A--supersedes-->B --supersedes-->A hides
+    both; two concurrent re-notes of one title fork two co-current siblings (the exact
+    split-brain the discipline exists to prevent), and nothing detects the fork.
+S5. P7 relevance is a fraction of query terms matched (caps at 1.0): a keyword-stuffed doc
+    ties the honest artifact on relevance and wins on importance/recency -- corpus
+    poisoning by enthusiasm (or malice) dominates every query.
+
+## 1. Per-slice stress tests
+
+### P0 wake listeners (T017)
+- REAP COSMETICS (observed live 2026-07-10): the SessionStart reap kills a watcher with
+  taskkill /F -> exit 1 + empty (buffered) output -> a "task FAILED" notification for a
+  BENIGN, designed action (the reap-then-arm gap). KILL: an operator can't tell a real
+  watcher crash from a routine reap. EVOLVE: reap via CTRL_BREAK for a clean exit 0, or have
+  the watcher trap termination and exit 0 with a one-line "reaped at session boundary". Fits
+  R2 (watcher lifecycle). Low severity, high signal-to-noise value.
+- CURSOR STORM: arm 5 watchers for one agent by racing the heartbeat write, while a live
+  session consumes and a producer floods 1k traces + 10 wake-worthy directs.
+  KILL: any direct message unreadable afterward; >1 wake per wake-worthy message after the
+  singleton converges; convergence takes >1 inner block.
+- TRIM CHASE: producer sustains maxlen-rate flood so the stream head advances past the
+  watcher's local cursor CONTINUOUSLY while it pages.
+  KILL: unbounded paging loop, exception, or a wake-worthy message in the flood missed.
+- REDIS FLAP UNDER BLOCK: kill Redis during a blocking wait(); restart 10s later.
+  KILL: watcher exits nonzero, wedges, or double-detects after restart; cursor corrupted.
+- ZOMBIE GENERATIONS: script a dead-session lane that re-arms on kill (the 07-09 rebound),
+  run the reap, kill the survivor, repeat x5.
+  KILL: any generation consumes a message, or two watchers survive the reap.
+- ID EDGE MATH: seed local cursors with "0", "0-0", max-seq (18446744073709551615), and a
+  FUTURE-dated id (producer clock skew).
+  KILL: _id_key mis-orders any pair; fast-forward regresses the local cursor.
+
+### T018 promise-bounce
+- ADVERSARIAL ENDINGS CORPUS: 50 endings authored by the OTHER model in its own voice,
+  half promises half outcomes (pre-labeled, sealed), incl. bilingual, bullet-form, and
+  "I'll wait" stop-verb families.
+  KILL: precision < 0.9 (false bounces burn a completion each) or recall < 0.6 (stranded
+  deliverables persist); any DOUBLE bounce.
+- BOUNCE COST CEILING: force promise-shaped first replies 10x consecutively.
+  KILL: any turn exceeds 2 completions, or the 600s worker deadline trips from the bounce.
+
+### T019 pipe drainers
+- DRAINER ASSASSINATION: inject a poison line that raises inside _drain_pipe (monkeypatch
+  decode), then keep the child chatty.  (<- S1)
+  KILL: child blocks on write again (the resurrection); no signal anywhere that a drainer
+  died. EVOLVE: drainer supervisor or watchdog counter in launcher status.
+- BINARY FIREHOSE: child emits 100MB mixed stdout/stderr, invalid UTF-8, NUL bytes, 10MB
+  single line (no newline -- line-iterator starvation probe).
+  KILL: RSS growth unbounded, tail corrupted beyond errors=replace, or freeze.
+- EXIT RACE: child exits while both pipes still hold megabytes undelivered.
+  KILL: exit-classification reads empty tails (the classifier lies about WHY it died).
+
+### P1 notes supersession
+- CYCLE BOMB: A supersedes B; force B supersedes A via explicit --supersedes.  (<- S4)
+  KILL: both hidden from default reads (current-state vanishes) with no detector.
+- FORK RACE: two processes re-note the same title within 10ms.  (<- S4)
+  KILL: two co-current same-title notes and nothing flags the fork. EVOLVE: CAS on the
+  supersede write or a fork-detector in notes/boot render.
+- TITLE HOMOGLYPHS: re-note "where-we-are" vs "where-we-are " vs "where‑we‑are".
+  KILL: silent sibling minting (supersession misses; the pileup returns wearing unicode).
+- MIGRATION REPLAY: restore the pre-P1 snapshot (67 notes), replay the migration script
+  twice.
+  KILL: non-idempotent second run, or end-state differs from the shipped 11.
+
+### P2 orientation header
+- SOURCE CORRUPTION MATRIX: for each header line's source (ARCHITECTURE.md, notes store,
+  tasks.json, arch index), corrupt/delete/truncate it; boot for a fresh agent.
+  KILL: any combination bricks boot or prints a confidently-wrong line instead of its gap
+  line (fail-open must also be fail-HONEST).
+- GOVERNS COLLISION CENSUS: generate 200 synthetic (status-note, active-task-title) pairs
+  from real vocabulary; measure double-governs frequency.  (validates the documented bound)
+  KILL: >5% collision rate in realistic vocabulary -> the bound is not rare, redesign.
+- HEAD BUDGET SIEGE: 3 active tasks with 200-char titles + stale list + a 120-char wwa.
+  KILL: orientation block exceeds ~20 lines / the stateless peer's 6000-char head loses
+  the doctrine lines (the CONSUMER's contract is the budget).
+
+### P3 ledger push + fold
+- TRANSITION STORM: 500 scripted transitions in 60s across 20 synthetic tasks while a
+  runner works an unrelated request.
+  KILL: hints ring evicted (folds must not touch it -- pinned), fold dict grows unbounded,
+  the runner's turn latency degrades >2x, or the UI feed drowns.
+- MARKER TRIM RACE: transitions land while the runner sleeps; bus maxlen trims the markers
+  before its next drain.
+  KILL: the runner acts on a stale ledger view AND nothing (boot backstop) corrects it
+  within one wake cycle.
+- OFFLINE CONDUCTOR: Redis down for 10 transitions (doorbell dead, ledger file fine).
+  KILL: any transition lost from the LEDGER (file truth), or agents never learn (backstop
+  chain broken).
+
+### P4 doc currency guard
+- STAMP EVASION SUITE: Status in an HTML comment, inside a code fence, on line 13, cyrillic
+  homoglyph "Ѕtatus:", stamped-then-contradicted ("Status: current" + "THIS DOC IS DEAD").
+  KILL: guard passes any of them silently. EVOLVE: scope decisions documented per case.
+- DANGLING SUPERSESSION: A superseded-by B; delete B.
+  KILL: guard stays green while the successor pointer dangles (currently UNCHECKED -- a
+  known gap; this test forces the fix).
+- CURRENCY ENTROPY CLOCK: fake-age every current doc past 45d (env clock).
+  KILL: warnings drown (79 warnings = nobody reads them) -- EVOLVE: aggregate + rank by
+  reference-frequency from lookback hit counters.
+
+### P5 proposed decay
+- PROPOSAL FLOOD: 500 proposed tasks via script.  (<- S3)
+  KILL: boot head / wake report render bomb; onboarding head budget destroyed. EVOLVE:
+  cap the stale list render (count + top-3 oldest).
+- TIMESTAMP GARBAGE: proposals with missing/invalid/future created+updated stamps.
+  KILL: staleness silently wrong (future-dated = never stale = immortal parked intent).
+
+### P6 msg_ack
+- ACK VOLUME LIE: write 600 acks, then query a message acked FIRST.  (<- S2)
+  KILL: settled message re-flags UNHANDLED (top_k scan ceiling). EVOLVE: per-message ack
+  lookup via refs index instead of a bounded scan.
+- SPOOFED ACTOR: a quarantined/unknown agent acks someone else's handoff via CLI.
+  KILL: promoted() renders it indistinguishable from a legit ack (trust model says
+  advisory -- then the RENDER must show provenance, or the ACL must gate the verb).
+- SUPPRESSION FALSE POSITIVE CENSUS: run the closed-task suppressor over ALL real promoted
+  history; hand-label the suppressions.
+  KILL: any suppression where the ask was genuinely never handled (incidental T-id mention
+  suppressing a live ask).
+- SELF-ACK LAUNDERING: A asks B; A acks its own ask via a THIRD agent id it also controls.
+  KILL: nothing even records the delegation relationship (the on_behalf field deepseek
+  specced -- deferred; this test decides if it stays deferred).
+
+### P7 lookback
+- SHOW-NOTHING BATTERY: 10 pre-registered questions whose answers DO NOT EXIST in any
+  corpus ("why do we use kubernetes", "why was the rust rewrite abandoned").
+  KILL: any hit above the floor (precision is the product; hallucinated rationale is worse
+  than silence).
+- POISONED CORPUS: plant one keyword-stuffed doc containing every term from the 12-probe
+  battery.  (<- S5)
+  KILL: the plant enters top-3 for >2 probes. EVOLVE: term-frequency dampening or a
+  stuffing detector in the docs adapter.
+- RETIRED-ONLY TRUTH: ask a question answerable ONLY by a retired note.
+  KILL: the retired note is unreachable (archaeology broken) or unlabeled as retired.
+- SCALE CLIFF: 10x the git depth (2500 commits), 2k promoted events.
+  KILL: latency >5s or memory >500MB (the verb must stay a reflex, not a report).
+
+## 2. Cross-slice systemic stress scenarios
+
+- THE CHAOS HOUR: 60 minutes, live fleet, scripted: Redis killed twice, runner killed
+  mid-compose, UI killed, 2 zombie lanes armed, transition storm, 3 fenced asks in flight.
+  KILL: ANY of -- a message unrecoverable from streams; a ledger transition lost; an agent
+  acting on provably-stale state without a labeled source; a human unable to reconstruct
+  the hour from promoted+events+chronicles afterward.
+- THE NEWBORN GAUNTLET: a brand-new agent id (quarantined, deny-by-default) must go from
+  nothing to one correct contribution using ONLY boot + AGENTS.md + lookback. DEEPSEEK
+  PLAYS THE NEWBORN (fresh runner, no convo memory) -- scored rubric: found the map, obeyed
+  precedence, claimed correctly, was refused correctly by every gated door it probed.
+  KILL: any door lets the quarantined newborn write where it should not; any orientation
+  question unanswerable from the head.
+- THE 30-DAY ENTROPY SIM: scripted generator compresses a month -- 40 wraps, 200
+  transitions, 60 promoted asks, 30 doc edits -- then audit: notes count, stale flags,
+  unhandled count, doc warnings, funnel counters.
+  KILL: any curation loop loses to entropy (notes >20, unhandled unbounded, warnings
+  ignored-by-design) -- the pillar's claim is that current-state stays SMALL under load.
+- SPLIT-BRAIN HEAL: force Redis/File store divergence on notes + ledger mirror, boot.
+  KILL: heal picks the WRONG side or heals silently without logging what it chose.
+
+## 3. Method notes
+
+- Every test lands as either a pytest (fast, hermetic) or a scripted DRILL (live fleet,
+  runbook + evidence capture) -- no test theater: each names its kill condition up front.
+- Pre-registration fence applies to the graded batteries (T018 endings corpus, P7
+  show-nothing set) -- sealed before the detectors see them.
+- EVOLVE items found by kills become ledger tasks with the test as their acceptance gate.
+
+---
+
+## 3b. LIVE VALIDATION -- S5 + R18 fired for real during the Wave-1 build (2026-07-10)
+
+Not a drill: overnight, the Wave-1 build committed two new keyword-dense process-meta docs
+(resilience-battery-slices, resilience-battery-fix-plan). Within hours the P7 lookback
+battery pin went RED on probes C1 ("why is the bus ephemeral") and C3 ("why are notes
+write-once"): the new docs -- which CATALOG every slice's vocabulary -- scored 0.75-0.875
+relevance on those queries and displaced the PRIMARY rationale (comms-pillar-synthesis, the
+d6153c2 commit) out of the returned set entirely. This is:
+  - S5 (corpus poisoning by enthusiasm) CONFIRMED: fraction-of-query-terms relevance lets a
+    broad doc that mentions everything outrank the specific answer. Not malice -- a test
+    plan legitimately names all the terms; the ranking can't tell "about X" from "mentions X".
+  - R18/H18 (method rot) CONFIRMED, and BETTER than predicted: H18 said the frozen battery
+    would NOT catch new-corpus drift. It DID -- because the new docs happened to hit the
+    existing probes' queries. The pin caught a real quality regression the instant the
+    corpus shifted. The gate worked exactly as "trust the gates, not the author" intends.
+DISPOSITION: this is a TRUE POSITIVE. The fix is NOT to exclude the docs (real content) or
+re-register the battery's answers (buries the regression) -- it is the S5 remedy proper:
+specificity/term-frequency dampening so a doc matching MANY unrelated probes is down-weighted
+as broad, not up-ranked. That is Wave 5 (lookback quality). Until it lands, the battery pin
+stays RED as an honest confession -- a known-failing regression, not a hidden one. Escalated
+to Daniel for the fix-now-vs-defer-to-Wave-5 call; the red suite correctly blocks closing
+Wave 1 clean in the meantime.
+
+S5 REMEDY SHIPPED 2026-07-10 (Daniel ruled fix-now): two mechanisms at the Ranker's
+relevance_fn seam, both deterministic, zero new storage (core/recall/lookback.py):
+  1. CONCENTRATION (about-X vs mentions-X): each matched stem contributes
+     min(1, occurrences / (len/4000)) instead of flat coverage -- long docs must repeat a
+     term to own it; short corpora (commits, notes) keep pre-S5 behavior exactly.
+  2. PER-CALL IDF (function-stem displacement): stems weighted by rarity across the
+     sweep's own collected corpus -- ubiquitous stems ('project', 'instead') stop counting.
+RESULT: C1 RECOVERED (11/12 green). C3 RESIDUAL is a DIFFERENT disease, measured at the
+stem level: the synthesis doc is deep on the topic core (notes x10, supersession x12,
+saturated) but the QUESTION'S OWN PHRASING tokens (corrected/instead/editing) live only in
+test-plan prose -> battery-slices covers 7/8 stems vs synthesis 5/8; no monotone per-stem
+lexical scheme flips that (breadth-of-weak beats depth-of-strong at equal doc length).
+Separating them requires (a) semantic relevance -- embeddings, explicitly deferred v1 -- or
+(b) doc-CLASS metadata: extend the P4 Status header with class: rationale|plan|test|
+reference and weight WHY-queries toward rationale (clean candidate slice, fence it).
+C3 stays RED-LABELED (not re-registered, not xfailed silently) pending Daniel's pick of
+(a)/(b); deepseek review of both mechanisms + this ceiling analysis requested.
+
+C3 RECOVERED 2026-07-10 (BATTERY 12/12 GREEN, full suite green): deepseek review CONFIRMED
+mechanisms 1+2 and the ceiling (seven refutation attempts, all failed -- verbatim at
+research/reviewed/deepseek-s5-review-2026-07-10.md); his disposition "do both, sequenced"
+matched claude's lean and Daniel pre-read the direction before delegating continuation.
+Shipped as the sequenced fix:
+  3. DOC-CLASS PRIOR: optional `Class: rationale|plan|test|reference` header (inert to
+     check_doc_currency; unstamped = neutral); lands on the Ranker's IMPORTANCE component
+     (+1 rationale, -1 plan/test, reference joins the excluded class) -- a document-level
+     prior orthogonal to stems, never touching relevance-floor semantics. Stamping pass:
+     3 collider docs (plan/test) + 5 rationale answers.
+  4. MATCH-WINDOW EXCERPTS: a hit excerpts the densest cluster of the query's stems, not
+     the doc's title block -- the final C3 displacement was the RIGHT doc ranked top-3
+     while its head-of-doc excerpt hid the answer it had found.
+Not re-registered: the probes and expected artifacts are untouched; the system now finds
+them. Embeddings (option a) remain the v1 destination at the same relevance_fn seam.
+DEEPSEEK FINAL VERDICT (research/reviewed/deepseek-s5-final-verdict-2026-07-10.md): all
+four mechanisms correct, stamping map zero misclassifications, excerpt window red-teamed --
+cross-doc attack impossible (per-hit scope); DOCUMENTED BOUND: within one doc, a dense
+stem cluster in a glossary-style section can center the excerpt away from the deeper
+rationale passage (drill pointer still lands on the right doc). S5 CLOSED.
+
+## 4. RECONCILIATION with DeepSeek's fenced battery (2026-07-10)
+
+Both designed blind (fence commits: claude before reading, deepseek reply verbatim at
+research/reviewed/deepseek-resilience-battery-2026-07-10.md). The divergence is the value.
+
+### Independent CONVERGENCE (highest confidence -- two blind passes hit the same wound)
+- **Drainer death resurrects the wedge** -- my S1 == deepseek R4, verbatim same mechanism
+  (daemon drainers assumed immortal; one unhandled exception = Exhibit A returns with a
+  healthy heartbeat masking it). Both ranked it top-5. This is the arc's realest survivability
+  gap. EVOLVE: drainer liveness poll in the launcher monitor, not just at exit.
+- **The one-cursor-per-agent-id architecture's unfixed half** -- my P0 zombie-generations/
+  cursor-storm == deepseek R1/R2 (zombie SESSION cursor race; TTL-death without a
+  SessionStart trigger). P0 fixed watcher->watcher; session->session is open.
+
+### COMPLEMENTS (each caught what the other missed)
+- deepseek-only, and SHARPER than anything I had: **R9** (P3 closed-task suppression x P6
+  ack compose), **R15** (adversarial ledger_update injection -- ANY bus agent forges
+  control-plane messages), **R12** (self-ack scope), **R17** (promoted() vs lookback scan
+  windows disagree on ack state), **R18** (the dual-battery method has a built-in expiry --
+  the meta-level restatement of this whole arc's thesis: nothing retires without recurring
+  enforcement), **R6** (identical-timestamp governs tiebreaker is a coin flip), **R10**
+  (superseded-by breaks under git mv), **R13** (lookback blind on a cold clone).
+- claude-only: **S2/P6 ack-volume lie** (500-scan ceiling re-flags settled msgs -- same root
+  as deepseek R17), **S4/P1 cycle+fork detection**, **S5/P7 corpus poisoning**, **P4 stamp
+  evasion (homoglyphs/fences)**, **the Newborn Gauntlet** (deepseek PLAYS a quarantined
+  newborn), **P2 governs-collision census**, **the 30-Day Entropy Sim**.
+
+### LIVE VERIFICATION of deepseek's three concrete shipped-code claims (run 2026-07-10)
+- **R15 CONFIRMED REAL**: fold_ledger_update accepts a forged `kind=ledger_update` from
+  `frm=malicious-agent` -- no sender check. Low-severity in a trusted 2-agent fleet, but a
+  real trust-boundary hole. FIX (small): refuse the fold unless `m.frm in {"conductor"}`.
+  CORRECTION (deepseek fix-plan recon, research/reviewed/deepseek-resilience-fixplan-recon-
+  2026-07-10.md): key ONLY on `m.frm` (stamped by Bus._emit at bus.py:222-243 -- the closest
+  thing to authenticated identity without signed messages), NOT on `meta.via` -- that is a
+  sender-populated dict key a forger sets to "conductor" to walk through; it adds nothing and
+  teaches trust in a spoofable field. Honest bound: `frm` is unauthenticated today, so this
+  is defense-in-depth until identity is signed (the proper fix, deferred; acceptable for a
+  trusted fleet). Becomes the battery's slice 1 (Wave 1). ALSO adopted from the recon: R9
+  closed-task suppression should match structured task refs, not a regex over content.
+- **R12 ALREADY CORRECT** (validation, not a bug): cmd_bifrost_ack keys the refusal on
+  sender==acker, so an addressee acking a message sent TO them is allowed -- exactly
+  deepseek's recommended rule. Pin it so it stays correct.
+- **R9 DOWNGRADED**: ack() writes independently of promoted()'s display-only suppression --
+  no durable ack is lost. The concern is a promoted-vs-lookback COHERENCE pin (== R17), not
+  data loss. Keep as a coherence test, not an emergency.
+
+### Merged priority (next-sprint T028 acceptance gates)
+1. R15 forged-ledger-update injection (real, proven, small fix) + R4/S1 drainer watchdog
+   (real, converged) -- the two verified survivability/trust gaps, fix + regression pin.
+2. Cross-slice seams: R9/R17 scan-coherence, R8 ring-overflow loss, my P3 transition storm.
+3. Concurrency storms: R16/R1 dual-watcher kill-storm, my cursor storm, the Chaos Hour.
+4. Adversarial-insider: R15 generalized + my spoofed-actor ack + the Newborn Gauntlet
+   (deepseek plays the quarantined newborn -- the strongest single validation).
+5. Long-horizon: R14 72h soak + my 30-Day Entropy Sim + R18 method-rot (battery self-audit).
+6. Correctness edges: my S4 fork/cycle, R6 tiebreaker determinism, S5/R13 P7 poisoning+cold,
+   R10/R11 P4-P5 pointer/clock anchors, my P4 stamp evasion.
+
+Standing method: each kill -> a ledger task whose acceptance IS the failing test; graded
+batteries (T018 endings, P7 show-nothing, the Newborn rubric) pre-registered behind the fence.
+
+---
+
+## 5. WAVE 1 GATE VERDICT (2026-07-10 morning)
+
+DeepSeek's per-slice review (RB-1 forged fold, RB-2 ack_verdict x4 decisions, RB-3 drainer
+demotion, ACL renewal sanity) returned CONFIRMED on all four items, ZERO divergences: "Wave 1
+is gate-ready." Verbatim at research/reviewed/deepseek-rb1-wave1-review-2026-07-10.md. His
+live drill validated defense layer 1 for real: his own ToolBox door REFUSED to emit raw
+kind=ledger_update (bus_send_kinds allowlist held); layer 2 (runner fold sender check) is
+pinned by tests incl. the meta.via forgery vector he demanded in the recon. Wave 1 gate is
+CLOSED-GREEN with one standing exception: the P7 lookback pin stays RED per section 3b (S5
+live-fired; fix-now-vs-Wave-5 is Daniel's open call).
+
+## 6. LIVE WOUND -- session->session watcher kill loop (fired 2026-07-10 07:52-08:01)
+
+Not a drill. The R1/R16 "one-cursor-per-agent-id, session->session unfixed half" convergence
+(sec. 4) fired live, and it upgrades REAP COSMETICS (sec. 1/P0) from low-severity to an
+availability hole:
+
+TIMELINE (forensics from the claude lane, session 8a2c5dab):
+  07:52  session A arms bifrost_wake watcher #1 (stop-hook contract)
+  ~07:53 session B (same agent id "claude", Claude Desktop, same project) STARTS; its
+         SessionStart reap (_reap_stale_watcher, scripts/hooks/claude_sessionstart.py) reads
+         the name-keyed heartbeat, verifies only WHAT the pid is (cmdline contains
+         bifrost_wake), taskkill /F -> watcher #1 dies: exit 1, ZERO output (hard kill, lost
+         buffers, no finally), heartbeat deleted BY THE REAPER
+  07:53  session A re-arms watcher #2 (pid 46492) -- killed the same way minutes later
+  08:00  session B's stop arms ITS watcher (pid 65880, --deadline 14400); seat file later
+         cleared by A's diagnostic runs -> live watcher with EMPTY seat (holder=None is
+         fail-open in the singleton poll: a seatless watcher keeps watching, invisible)
+
+MECHANISM (three interacting flaws):
+  a) The wake seat (heartbeat) is keyed by AGENT NAME; the wake contract is per SESSION.
+     Two live sessions of one agent murder each other's watchers in a loop: B's start reaps
+     A's live watcher; A's stop re-arms; next start/clear reaps again.
+  b) The reap's orphan check verifies process identity, NOT session liveness. The docstring
+     assumes "a watcher outliving its session" -- under concurrency the watcher's session is
+     alive. Proven fix-shape exists: walking the watcher's parent chain found a LIVE
+     claude.exe ancestor in one WMI query (the check that cracked the case).
+  c) Seatless-watcher fail-open: bifrost_wake's singleton poll treats holder=None as "keep
+     watching", so a deleted/stolen heartbeat leaves invisible extra watchers -> double
+     wakes later.
+COLLATERAL: each kill fires a "task FAILED" notification into the victim session (phantom
+wake); the victim is deaf between kill and its next stop; forensic misdirection (a removed
+heartbeat fakes a graceful exit -- the KILLER removed it, not the victim's finally).
+
+INTERIM MITIGATION (2026-07-10): seat restored to the live watcher (65880); lesson
+wake_seat_name_keyed_concurrent_sessions recorded. The loop remains ARMED while two same-id
+sessions run: next start/clear reaps again.
+
+DISPOSITION: jumps the merged priority queue (was tier 3 "concurrency storms") -> WAVE 2,
+behind the standing fence (deepseek blind-designs from this evidence; claude designs in
+parallel; reconcile; build; per-slice review gates).
+GATE GREEN 2026-07-10: deepseek build review CONFIRMED on all items, zero defects (all 5
+build deviations traced, all 8 kill conditions pinned, 25-pin audit "hard and hermetic") --
+research/reviewed/deepseek-wave2-build-review-2026-07-10.md. Remaining: the live
+two-session drill (B4 runbook; requires two real Claude Desktop windows).
+BUILD SHIPPED 2026-07-10 (commit 2689db1):
+core/comm/wake_seat.py (per-session seats, two-factor janitor, provenance log) + thin
+shells in bifrost_wake.py / claude_stop.py / claude_sessionstart.py; pins in
+tests/test_wake_seat.py (K6/K7/K8 + exit-0 contract); design + reconciliation record in
+docs/resilience-wave2-seat-design-2026-07.md. Suite green except the sec. 3b known-RED
+lookback pin (unchanged probes C1/C3). KILL CONDITIONS for the fix:
+  - two concurrent same-agent sessions, each arming at stop: neither kills the other's LIVE
+    watcher; no kill loop over 3 start/stop cycles
+  - reap fires ONLY on proven orphanhood (owning session dead), never on identity alone
+  - a live watcher with an empty/foreign seat cannot persist silently (self-heal or stand
+    down loudly)
+  - a reap is operator-distinguishable from a crash (folds in the sec. 1 REAP COSMETICS
+    evolve: clean exit + one-line provenance)
+  - ZOMBIE GENERATIONS (sec. 1/P0) still passes: true orphans ARE reaped
+
+LIVE DRILL RUN 2026-07-10 09:00-09:10 (real WMI, real processes, evidence =
+%TEMP%/bifrost_wake_claude.reap.log 08:59:17-09:10:03) -- ALL KILL CONDITIONS PASS:
+  - fresh-marker fast path: 4 skips, zero WMI cost ("marker Nm fresh (< 30m)")
+  - K7 idle-immunity on the REAL chain: 3 independent firings ("marker 90/91m stale,
+    parent chain found claude.exe pid 49324") -- incl. one UNPLANNED adversarial probe:
+    the drill script tried to force a terminal reap while the drone's parent shell still
+    lived; the janitor correctly REFUSED (the drill design was wrong, the code was right)
+  - true-orphan reap, both factors logged: 2 firings ("marker missing + chain broken at
+    pid 66700 (dead)"; "marker 90m stale + chain broken at pid 58268 (dead)")
+  - selective lethality in ONE pass (09:00:18): skip the live watcher + kill the orphan
+  - 3 consecutive session-starts against a live fresh-marker watcher: zero kills
+  - exit-code contract: every watcher exit today post-fix = 0/"completed" (four wake or
+    overlap exits, zero FAILED badges; contrast the morning's two FAILED phantom kills)
+  - displacement: wake-preempted live (two watchers briefly shared the seat when mail
+    landed mid-displacement; both exited 0 benignly, overlap converged) -- the stand-down
+    path itself is hermetically pinned (test_watch_stolen_seat_exits_zero)
+DISPOSITION: Wave 2 CLOSED (gate green + live drill green). Residual: the twin-window
+cycle drills implicitly as Daniel's second window restarts under new-code hooks.

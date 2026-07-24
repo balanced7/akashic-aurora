@@ -1,0 +1,162 @@
+---
+akashic_id: art_20260723_fence-check-ui-contract-py-v0-g6-split-d_42c09b
+akashic_sha: 081c7e3202de
+status: current
+type: report
+date: 2026-07-23
+title: "FENCE — check_ui_contract.py v0 (G6 split: deepseek build, claude fence)"
+gist: "# FENCE — check_ui_contract.py v0 (G6 split: deepseek build, claude fence) **VERDICT: CONDITIONAL PASS.** M-L8 + M-L1 are fence-green and us"
+tenant: solo
+visibility: fleet
+seats: []
+category: [method, governance, testing]
+origin: migrated
+settled: settled
+supersedes: null
+superseded: null
+citations: []
+created: "2026-07-23T08:39:15"
+updated: "2026-07-23T08:39:15"
+---
+<!-- GENERATED PROJECTION of art_20260723_fence-check-ui-contract-py-v0-g6-split-d_42c09b -- DO NOT EDIT. The atom is the truth; regeneration overwrites this file. Edit through the doc verbs. -->
+
+# FENCE — check_ui_contract.py v0 (G6 split: deepseek build, claude fence)
+
+# FENCE — check_ui_contract.py v0 (G6 split: deepseek build, claude fence)
+
+**VERDICT: CONDITIONAL PASS.** M-L8 + M-L1 are fence-green and usable advisory tonight.
+M-L3 is RED with two probe-proven defects — fix loop to deepseek, re-fence bar below.
+
+## Method
+
+Probe battery (per d3_mojibake_guard_fenced: true positives crafted from the actual
+signature classes, not from what looks wrong), then false-positive traps, then the
+incumbent run. Probe files: scratchpad probe_true_positives.py / probe_false_positives.py
+(6 TP + 7 FP-trap constructs).
+
+## Results
+
+**True positives: 5/6 caught.**
+- TP1 raw hex CSS callsite ✅ · TP2 raw hex JS literal ✅ · TP3 gauge missing title ✅ ·
+  TP4 gauge missing data-agent ✅ · TP5 `warn` without predicate ✅
+- **TP6 `tripped` without predicate — MISSED (RED #1):** `"tripped"` is a member of BOTH
+  ALARM_CLASSES and STATE_PREDICATES, so any line containing the token self-satisfies the
+  predicate check. Law 3 is structurally dead for its flagship alarm class — a check that
+  cannot fire. Consequence: the incumbent's M-L3 = 0 report is UNTRUSTWORTHY (the zero is
+  exactly the class of lie the tool exists to prevent).
+
+**False-positive traps: 6/7 clean.**
+- Token definitions, var() fallbacks, JS comment hex, same-line predicate, prev-line
+  predicate: all correctly passed ✅. `.highlight` escaped only by adjacency luck (prev
+  line contained "tripped" = predicate) — substring risk stands.
+- **`--warn-ink` variable name flagged as alarm token (RED #2):** substring matching hits
+  "warn" inside CSS custom-property NAMES. M-L8 already strips `--[\w-]+` definitions —
+  M-L3 should reuse that cleaning; symmetry is free.
+
+**Incumbent run:** M-L8 = **53 raw-hex callsites** (true findings — the debt ledger the
+CONTRACT ratification needs; deepseek predicted these). M-L1 = **1**: L1908 fence-state
+gauge has title but no data-agent — TRUE per law-as-written, and it surfaces a real
+ratification question: a fence gauge measures a FENCE, so the axis law may want
+`data-measure` generalization instead of agent-only. Filed for Daniel's gate package.
+M-L3 = 0 — void until RED #1 is fixed.
+
+## Fix suggestions (builder's call on mechanism, per R001)
+
+1. Remove `tripped` from STATE_PREDICATES; represent tripped-GATING as comparisons
+   (e.g. `==='tripped'`, `.state==='tripped'`) so USE (class assignment) and PREDICATE
+   (comparison) are distinct token shapes.
+2. Word-boundary token match (`\b(tripped|warn|high)\b`) AND strip `--[\w-]+` custom-
+   property names before matching (M-L8's own cleaning pattern, reused).
+3. Cosmetic, sturdiness: checker output em-dashes mojibake on cp1252 consoles (the
+   rule-8 irony) — ASCII-only message text is scar-consistent.
+
+## Re-fence bar (pre-registered)
+
+TP6 flags · FP `--warn-ink` passes · TP5 still flags · `.tripped{` class-def still
+passes · incumbent M-L3 re-read with receipts (zero must be EARNED, not structural).
+
+## Standing rails confirmed
+
+No ship.py/pre-commit wiring landed (deepseek deferred — matches the advisory
+greenlight). Blocking flip rides Daniel's CONTRACT v0 ratification as a one-liner.
+
+*Red is a gem: TP6/FP-warn-ink are exactly why the fence exists — the same loop that
+caught-and-fixed three sighted-fence findings in one cycle last night. — claude*
+
+---
+
+# RE-FENCE ADDENDUM (fix 789838b) — **PASS at advisory tier**
+
+**Pre-registered bar: 4/4 cleared.** TP6 flags ✅ (self-exemption dead — `tripped` out of
+the predicate set, relational `_pred` regex distinct from assignment) · FP `--warn-ink`
+passes ✅ (custom-property strip + word-boundary tokens) · TP5 still flags ✅ · `.tripped{`
+class-def still passes ✅. **The incumbent M-L3 zero MOVED: 0 → 2 findings — earned, not
+structural.** Both probe-proven REDs fixed clean in one cycle; the fix docstring credits
+the fence findings by name.
+
+**Three NEW findings from the re-run — all M-L3 precision-tier (law 3 is warn-tier by
+design; none block advisory use). Filed as the checker's v2 queue:**
+
+- **F1 — no Python comment/docstring skip.** Incumbent L440 flags "false-tripped" inside
+  a DOCSTRING (English verb, prose). Probe file's own `#` comment also flagged. Fix:
+  skip `#`-leading lines; docstring awareness or restrict M-L3 to embedded template
+  strings is the deeper v2 cut.
+- **F2 — numeric predicates are magic literals.** Incumbent L1889 `tokPct>80?'high':...`
+  false-flags although the gate is ON THE SAME LINE — `>80` is not in `(>0|>10|>100)`.
+  Fix: one general relational pattern `[><]=?\s*\d+` replaces the three literals.
+- **F3 — `\b` dead after `===`.** `_state`'s `\b(runner===|...)\b`: a trailing word
+  boundary cannot match between `=` and a quote, so `runner==='down'` NEVER satisfies —
+  receipt: FP-trap L18 flagged despite a prev-line `s.runner==='down'` predicate. Fix:
+  drop the trailing `\b` on non-word-ending alternatives (or end alternatives at the
+  identifier and match the operator separately).
+
+**Incumbent truth after re-fence:** M-L8 = 53 (true debt) · M-L1 = 1 (true per
+law-as-written; data-measure semantics question to the gate) · M-L3 = 2 (both FALSE
+positives per F1/F2 — the honest count of true incumbent M-L3 violations is currently 0,
+now for EARNED reasons: accents in the live console are gated).
+
+**Conductor ruling:** checker v0.2 ships tonight advisory with M-L8+M-L1 ship-grade and
+M-L3 educational; F1–F3 are the owner's call — polish tonight or queue v2. G2 morning
+recommendation unchanged: on ratification, activate blocking for M-L8+M-L1; M-L3 earns
+promotion by precision receipts. — claude
+
+---
+
+# FENCE ADDENDUM 2 (baseline mode 0892211 + SA-1 prereg bc7ae77)
+
+**Baseline architecture: fence-green.** True-exit probes (unpiped): record → sane JSON
+{M-L8:53, M-L1a:1, M-L3:2} · delta-fail works (probe file vs baseline → exit 1) ·
+at-baseline passes with the FULL debt still printed (no silent-clean over 54 standing
+violations — the honesty concern is answered by construction). Honest naming landed:
+M-L1a "(label-presence half)" + M-L3 "(warn-tier)" in output; M-L1b TODO carried.
+
+**Four findings (B-series), none blocking advisory use:**
+- **B1 (probe-proven, the one to fix tonight):** M-L3 still holds the exit-1 vote — an
+  M-L3-only file with no baseline exits 1, and M-L3 counts feed new_violations in delta
+  mode. The docstring says "NEVER holds exit-1." Claim-vs-code lie — the exact genus
+  kimi's meta-law names, in the tool that enforces the meta-law's contract. Fix: exclude
+  M-L3 from both exit paths (report-only).
+- **B2 (probe-proven):** the baseline file is GLOBAL, not keyed by target — running the
+  checker on any OTHER file with a baseline recorded compares apples to oranges (probe
+  run rendered "51 FIXED since baseline"). Fix: key baseline dict by target path.
+- **B3 (schema-evident, documented-limitation tier):** count-based baseline nets out —
+  one fix + one new violation in the same commit reads "at baseline." Identity-based
+  baseline is v2; NAME the limitation in the docstring.
+- **B4 (code-read, one-liner):** _save_baseline swallows write failures yet "baseline
+  recorded" prints unconditionally — success-lie on failure. Print inside the try.
+
+**Conductor's own red, filed under law 8:** my probe harness read exit codes through a
+pipe (`checker | tail; echo $?`) — $? was tail's, and P3 briefly read as "DELTA FAIL
+printed but exit 0." Unpiped re-run corrected it. When probing exit codes, never read $?
+through a pipe. The fence fences itself.
+
+**SA-1 prereg suite read:** proper pre-registration — 16 one-assertion pins across 5
+bars, fail-closed semantics (S1-P4 registry-error → Denied), backward-compat bars (S2),
+audit-event pins (S3-P4/S4-P4), and it encodes TODAY'S ACL truth (S3-P3: deepseek has no
+ADMIN_APPROVE pre-SA-2 — its own suite says so). Design-only, nothing to fence-run.
+Makes the SA-1 gate item concrete: Daniel rules with the bar visible.
+
+**Standing after addendum 2:** v0.3 polish round = B1 (fix tonight — it is the night's
+own theme applied to the night's own tool) + B2/B3/B4 owner's call. The founding
+baseline {53,1,2} is gitignored (state/*) — counts are recorded in the morning package,
+which is the durable receipt for ratification. — claude

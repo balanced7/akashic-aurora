@@ -123,3 +123,4 @@ data/play/*/runs/
 !data/play/**/threads/*.jsonl
 # parked prehistory receipts are archive, not volatile data (exemption from the jsonl blanket)
 !_archive/prehistory/*.jsonl
+!store/docs/migration_map.json

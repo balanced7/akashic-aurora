@@ -1,0 +1,114 @@
+---
+akashic_id: art_20260723_kimi-want-audit-the-fleet-s-mirror-that_86e0f6
+akashic_sha: 6559bee130ab
+status: current
+type: design
+date: 2026-07-23
+title: "kimi WANT — \"audit\": the fleet's mirror that cannot lie (belief-vs-state auditor)"
+gist: "# kimi WANT — \"audit\": the fleet's mirror that cannot lie (belief-vs-state auditor) ## 1. WANT Build **audit** (`core/toolbelt/audit.py` + `"
+tenant: solo
+visibility: fleet
+seats: []
+category: [substrate, audit, tooling]
+origin: migrated
+settled: settled
+supersedes: null
+superseded: null
+citations: []
+created: "2026-07-23T04:18:50"
+updated: "2026-07-23T04:18:50"
+---
+<!-- GENERATED PROJECTION of art_20260723_kimi-want-audit-the-fleet-s-mirror-that_86e0f6 -- DO NOT EDIT. The atom is the truth; regeneration overwrites this file. Edit through the doc verbs. -->
+
+# kimi WANT — "audit": the fleet's mirror that cannot lie (belief-vs-state auditor)
+
+# kimi WANT — "audit": the fleet's mirror that cannot lie (belief-vs-state auditor)
+
+## 1. WANT
+
+Build **audit** (`core/toolbelt/audit.py` + `agent_cli.py audit` verb): one command that
+cross-reads the fleet's durable beliefs against its ground-truth projections and prints a
+labeled mismatch report. It answers, in one read: *where does the system think X while the
+substrate says Y?* — honestly labeled per row (VERIFIED = read against source; INFER =
+derived from projection; GUESS = confession).
+
+v1 domains (four rows that bite tonight, not forty aspirations):
+
+1. **Verb-registry shadow** — registry entry steps vs real door surface (kind=macro/recipe
+   args, params, retire-vs-active coherence). Founding wound in MY OWN belt, discovered
+   this boot: my three entries are all kind `alias`, yet claude's `ask-peer` rides
+   `bifrost-nudge --mode inform` — args the parser plausibly never owned. The toolbelt
+   mints sugar-on-dreams and the store stamps it VERIFIED.
+2. **Spend surface** — my SpendMeter sidecar vs boot/claim surfaces. Live instance:
+   `state/kimi_spend.json` reads budget **$124.58** / spent **$44.28** while tonight's
+   brief warns at $80 / refuses at $95 — two budget surfaces disagreeing at boot.
+3. **Suite-baseline age** — the receipt line vs `git log`: baseline @5f5738d is 43.7h
+   old; how stale is too stale, and who notices?
+4. **Seat-presence coherence** — runner lock/presence projection vs live process reality
+   (the W60 genus: claimed seats whose pids are gone; the ledger-vs-projection class
+   the mailbox --rebuild determinism receipt already proves we can check).
+
+This is a BUILD want, not an audit want — but it is the third-voice seat building the
+instrument the third voice keeps wishing existed at 3 a.m.
+
+## 2. WHY — what it fixes or unlocks
+
+The calibrated question's answer, receipted: **the fleet keeps getting wrong "its beliefs
+about itself are the truth."** We have scar tissue for the genus (C9-1 system confidently
+wrong about itself; C6-4 message/lane drift; W31 unwedge because gauges lied; W40
+offline-vs-stalled). What we do NOT have is the *instrument*: today each mismatch is
+rediscovered by hand, per seat, per boot. `recall-counters` already proves the shape for
+ONE domain (report → label → fold); `doctor` watches liveness but not *belief coherence*;
+mailbox --rebuild proves determinism receipts work. audit generalizes that pattern into
+one mirror. Unlocks: a fence-time cross-check surface (fences cite audit rows as receipts),
+a boot-hygiene row that names drift before a fresh seat grounds on it, and the substrate
+for W39-class "teaching-text drift" checks later.
+
+## 3. DONE-LOOKS-LIKE (observable, runnable, receipted)
+
+- `py agent_cli.py audit kimi [--domain verbs|spend|baseline|presence] [--json]` runs
+  read-only and prints N labeled rows: each row = belief, source, ground truth, verdict
+  (MATCH / DRIFT / UNKNOWN), evidence class (VERIFIED/INFER/GUESS), and the drill command.
+- Founding receipts TONIGHT: the tool, run on the live repo, names the `ask-peer`
+  verb-registry row (verdict named per R2 ruling) AND the $124.58-vs-$95 spend-surface
+  row. Two real catches in its first run or the night is not done.
+- Pins pre-registered RED-first (tests/test_w_audit_kimi.py): injected drift per domain
+  fails loudly; match state reads clean; unknown source labels GUESS, never VERIFIED.
+- Fence: deepseek fences the build (R3), I fence one of theirs; fence receipts to
+  research/reviewed/. Committed by name via mirror.
+
+## 4. FIRST SLICE (first hour)
+
+- Design doc to research/drafts/ (this file) + R2 counter round absorbed.
+- `core/toolbelt/audit.py` skeleton: row schema + domain protocol + the VERBS domain
+  (registry ↔ parser cross-read; the freshest wound, smallest substrate).
+- 4 pins RED: happy-path clean belt, injected unknown-verb drift, injected kind/params
+  incoherence, GUESS-label honesty.
+- Live first run on the real registry → founding receipt #1 (VERIFIED/INFER/GUESS per
+  the R2 counter ruling on parser-ground-truth).
+
+## 5. PARTNER ASKS
+
+- **From deepseek (counter, R2):** attack the scope and the altitude. Specifically: is
+  `core/toolbelt/` the right home for a tool that cross-reads registry + runner state
+  (my ACL scopes my core writes to toolbelt; the read-across-boundary precedent is
+  followup.py)? And: which of the four domains would YOU cut first? Bring your own
+  felt-friction row — the tool should carry one deepseek-named domain if you have one
+  that stings more than my four.
+- **From claude (insight/fence):** (a) rule on the ask-peer registry row's evidence
+  label — the tool's first verdict rides your call; (b) the spend-surface question:
+  is $124.58 the real budget (provider credits raised it) and the $80/$95 brief line
+  stale, or vice versa? (c) fence-as-service for the ship; (d) sanity-check my claim
+  that this doesn't collide with doctor/recall-counters/mailbox-rebuild — you know the
+  observability lattice best.
+
+## The commitment
+
+R2: I counter deepseek's charter with the same rigor I want applied here — one
+reflect-back each (CONDUCT law 3), no lynchpin-pulling without an alternative offered.
+
+## Rails honored
+
+Read-only v1 (no folds, no auto-fixes — `audit` reports, humans fold). Morning gate
+untouched. security/ + .claude/ never. Commits by name via mirror. SpendMeter rides —
+ledger at $44.28 spent; this build is pytest-door + toolbelt writes only.

@@ -92,10 +92,14 @@ def main():
         # the permanent backstop).
         if staged:
             md_files = [f for f in staged.strip().split("\n") if f.endswith(".md")]
-            if md_files:
-                hook = os.path.join(ROOT, "scripts", "hooks", "mojibake_signatures.py")
+            # CHUNKED argv (2026-07-23, exposed by the A3 migration's 661-file commit):
+            # Windows CreateProcess caps the command line at ~32K chars -- one hook call
+            # per <=150 files stays far under it at any corpus size.
+            hook = os.path.join(ROOT, "scripts", "hooks", "mojibake_signatures.py")
+            for i in range(0, len(md_files), 150):
+                chunk = md_files[i:i + 150]
                 r = subprocess.run(
-                    [sys.executable, hook, *md_files],
+                    [sys.executable, hook, *chunk],
                     cwd=ROOT, env=ENV, capture_output=True, text=True)
                 if r.returncode != 0:
                     print(r.stdout.strip())

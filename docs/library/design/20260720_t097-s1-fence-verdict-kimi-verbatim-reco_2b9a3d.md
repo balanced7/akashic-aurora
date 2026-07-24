@@ -1,0 +1,50 @@
+---
+akashic_id: art_20260720_t097-s1-fence-verdict-kimi-verbatim-reco_2b9a3d
+akashic_sha: 1a0dd3ab3f8b
+status: current
+type: design
+date: 2026-07-20
+title: "T097-S1 Fence Verdict -- kimi (VERBATIM, recovered; promoter bound may clip tail)"
+gist: "Date: 2026-07-20 T097-S1 FENCE VERDICT (kimi, verify lane). Read core/comm/doctor.py (examine + examine_fleet + known_agents + _default_prob"
+tenant: solo
+visibility: fleet
+seats: []
+category: [bus, agent-lifecycle, method]
+origin: migrated
+settled: settled
+supersedes: null
+superseded: null
+citations: []
+created: "2026-07-19T23:11:54"
+updated: "2026-07-19T23:11:54"
+---
+<!-- GENERATED PROJECTION of art_20260720_t097-s1-fence-verdict-kimi-verbatim-reco_2b9a3d -- DO NOT EDIT. The atom is the truth; regeneration overwrites this file. Edit through the doc verbs. -->
+
+# T097-S1 Fence Verdict -- kimi (VERBATIM, recovered; promoter bound may clip tail)
+
+Date: 2026-07-20
+
+T097-S1 FENCE VERDICT (kimi, verify lane). Read core/comm/doctor.py (examine + examine_fleet + known_agents + _default_probes), core/comm/liveness.py (WorkLive.set/refresh/_flush, pulse, progress_read, DEFAULT_WEDGE_S=300, PROGRESS_TTL=5, WORKLIVE_TTL=45, IDLE_PHASES), core/comm/turn_metrics.py (progress_view + count_pulse), scripts/bifrost_runner_deepseek.py (on_activity/on_trace writers + the heartbeat thread at 1074-1082). Labels VERIFIED = code-read. VERDICT UP FRONT: FOLD (O1), and the mystery resolves to a hypothesis the brief's H1-H4 list does NOT contain -- I name it H0 below. The machinery is correct and present; the C1-8 '0 findings' is a THRESHOLD-TIMING artifact, not missing machinery.
+
+THE MECHANISM (VERIFIED, kills H1 + H3-as-stated):
+- H1 (managed spawn never wrote worklive) is REFUTED by the heartbeat thread: bifrost_runner_deepseek.py:1079 runs liveness.worklive(agent).refresh() every 5s INDEPENDENT of the consume loop, explicitly 'keep worklive fresh (+ ageing) even mid-wedge.' WorkLive.refresh() -> _flush() re-stamps the key + TTL. So worklive does NOT expire during a hung stream. H1 dead.
+- H3 (examine never reads progress by default) is REFUTED by doctor.py:140: _default_probes() maps 'progress': liveness.progress_read, and examine() reads prog = p['progress'](agent) unconditionally, then computes pulse_fresh and the hard_wedge branch with NO flag gate. progress_view (turn_metrics) is only the /status card; the doctor's wedge detection reads liveness.progress_read directly. H3-as-stated dead.
+
+SO WHY '0 findings'? The gate is: non_idle AND stuck >= DEFAULT_WEDGE_S(300) AND NOT pulse_fresh -> hard_wedge page. During C1-8's hung stream: phase='handling' (non-idle, heartbeat keeps it alive), pulse is dead (PROGRESS_TTL=5s, no tool/chunk emits during a hang) -> pulse_fresh=False. stuck = now - since_ts. since_ts moves ONLY on a PHASE CHANGE (WorkLive.set: 'since_ts moves only when the phase actually changes'). The turn set phase='handling' at line 730 with new_turn=True at message receipt. So stuck grows from the moment the message was picked up. THE WEDGE ONLY BECOMES VISIBLE AT stuck >= 300s. THE C1-8 WINDOW WAS 25-40 MIN -- far past 300s. So at minute 6+ the gate SHOULD have paged. This is the contradiction the brief is really asking about.
+
+H0 (MY NAMED HYPOTHESIS -- the one not in the brief, folds to deepseek's reconstruction): the '0 findings' reading was taken either (a) BEFORE stuck crossed 300s (the wedge was real but sub-threshold at observation time -- a 25-40min stall is only PLAGIBLE after minute 5, and anyone reading doctor in minutes 0-5 sees 'healthy'), OR (b) deepseek was not in known_agents() at that examine call (H4 -- but the heartbeat-held runner lock + worklive + presence should keep him enumerated, so H4 needs evidence). The doctor CANNOT page a sub-threshold wedge by design (DEFAULT_WEDGE_S is deliberately past L0's worst-case self-heal, per liveness.py:44 comment). So the most likely truth is H0(a): THE DOCTOR WAS CORRECT-BUT-SLOW -- it would have paged at minute 5-6, and the 40-minute human-noticing gap was a human reading 'healthy' during the sub-threshold window and not re-reading after the threshold crossed. This is a LATENCY-of-detection problem, not an absence-of-detection problem. VERIFY THIS FIRST (deepseek's turn-hold reconstruction has the timestamps): what was since_ts at the first 'healthy' reading, and did any examine run land after since_ts+300? If a post-threshold examine STILL said healthy, then H4/H2 open; if all 'healthy' readings were sub-threshold, H0(a) is confirmed and the fix is NOT 'make detection exist' but 'make detection FASTER + visible-by-default.'
+
+FOLD vs NEW: O1 (FOLD), strongly. The existing worklive/pulse/progress_read/examine pipeline is CORRECT -- it just (i) fires too late for operator comfort and (ii) its 'working vs wedged' distinction is invisible until the threshold. Building a NEW parallel progress:<agent> key (O2) duplicates a working system to fix a threshold/timing problem -- exactly the twin the fence exists to prevent. The draft's separate key adds NOTHING the pulse doesn't already provide; redundancy-by-design (dual-write era) was for MIGRATION, not for a permanent parallel liveness primitive.
+
+THE O1 SUB-ITEMS, re-scoped by H0:
+  (a) 'wire the missing writer' -- MOSTLY UNNECESSARY per the heartbeat refutation of H1. The writer exists. What's missing is not a writer but a FASTER signal. REDUCE DEFAULT_WEDGE_S is NOT the answer (it's deliberately past L0 self-heal). Instead: surface the SUB-THRESHOLD wedge as a DASHBOARD finding ('aged work, pulse dead, approaching wedge threshold') so a human/doctor sees the stall building BEFORE it pages -- today examine() is SILENT below 300s, which is the actual visibility gap.
+  (b) tool-round pulse bump in Agent.send -- YES, but it's a no-op during a HUNG stream (the hang is INSIDE create(), before any tool round). The real hung-stream signal needs a pulse emitted BEFORE the blocking call (a 'call-issued' stamp) so a dead pulse + aged phase is distinguishable from 'between tool rounds.' Today the last pulse is the last tool call; a long/hung create() looks identical to a slow one until 300s.
+  (c) doctor DEFAULT render includes the stall line -- YES, and extend it: the default should render the APPROACHING wedge (sub-threshold) at dashboard grade, not just the crossed one at page grade.
+  (d) aged-stall pin replaying C1-8 -- YES, and add a SECOND pin: a SUB-threshold aged phase with dead pulse yields a dashboard 'approaching wedge' finding (not silence), so the visibility gap is pinned closed.
+
+PREREG PINS, amended (P-S1-1 stands; add):
+  P-S1-0: a replayed C1-8 window at stuck=250s (sub-threshold) yields a DASHBOARD 'approaching wedge' finding by default (today: silence). THIS is the pin that closes the real gap.
+  P-S1-5: a 'call-issued' stamp emitted before a blocking model create() means a hung stream reads as (aged phase + dead pulse + issued-call) -- distinguishing 'hung in the API' from 'between rounds.'
+  P-S1-1..P-S1-4 as in the brief (all sound; P-S1-3 fail-soft and P-S1-4 hop-tick are correct).
+
+NET: FOLD (O1). The detection machinery EXISTS and is CORRECT -- C1-8's '0 findings' was almost certainly correct-but-sub-threshold (H0a), i.e. a LATENCY + VISIBILITY gap, not missing machinery. Don't build a twin key; make the existing one visible below the page threshold and stamp the blocking call so 'hung in the API' is distinguishable from 'between rounds.' deepseek's reconstruction should confirm H0a vs H4 from the timestamps before any build. No code before the fence closes and Daniel gates S1.
