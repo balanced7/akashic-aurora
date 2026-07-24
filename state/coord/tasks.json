@@ -1,5 +1,5 @@
 {
-  "seq": 104,
+  "seq": 106,
   "tasks": [
     {
       "id": "T001",
@@ -3737,6 +3737,68 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-07-24T02:22:38+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T105",
+      "title": "SOTA agentic-quality research round (Daniel overnight 2026-07-24 verbatim in atom art_20260724_sota-agentic-quality-research-round_8eb04e): 3-voice sweep -> reconciled improvement map for steers + context/stance recall, gated slices at morning table",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "claimed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-24T04:40:24+00:00",
+      "updated": "2026-07-24T04:40:34+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-24T04:40:24+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-07-24T04:40:33+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-24T04:40:34+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T106",
+      "title": "MCP arc build wave: O1.5 seat-lease-keyed-to-door-lifetime + A1 bifrost_await long-poll (Daniel 2026-07-24 'lets start fleshing out the mcp arc, design and build with kimi and deepseek'; spec base = reconciliation atom art_20260723_reconciliation-mcp-door-concurrency-leve_600574)",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "claimed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-24T04:40:24+00:00",
+      "updated": "2026-07-24T04:40:34+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-24T04:40:24+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-07-24T04:40:34+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-24T04:40:34+00:00"
         }
       ]
     }
