@@ -107,6 +107,30 @@ def walk_docs() -> list[tuple[Path, dict]]:
     return entries
 
 
+def _atoms_as_entries() -> list[tuple[Path, dict]]:
+    """--from-store (A1 fold-in per deepseek's fence plan): walk ATOMS instead of files.
+    Header fields ride the atom directly (no _extract re-parse); entries keep the legacy
+    (path, header) shape so every renderer below is untouched. The path is the atom's
+    projection home (may not exist yet -- the census is of atoms, not files)."""
+    import sys as _sys
+    if str(ROOT) not in _sys.path:
+        _sys.path.insert(0, str(ROOT))
+    from core.foundation.store import create_store
+    from core.library.atoms import AtomFamily
+    from core.library.projection import projection_relpath
+    fam = AtomFamily(create_store(), repo_root=str(ROOT))
+    entries: list[tuple[Path, dict]] = []
+    for a in fam.find():
+        h = a["header"]
+        entries.append((ROOT / projection_relpath(a), {
+            "status": h.get("status", ""), "type": h.get("type", ""),
+            "arc": h.get("arc") or "", "seats": ", ".join(h.get("seats", [])),
+            "date": h.get("date", ""), "superseded": a.get("superseded") or "",
+            "heading": h.get("title", ""),
+        }))
+    return entries
+
+
 def _relpath(p: Path) -> str:
     try:
         return str(p.relative_to(ROOT)).replace("\\", "/")
@@ -367,9 +391,31 @@ def main(argv=None) -> int:
                     help="print SHELVES to stdout (legacy mode)")
     ap.add_argument("--readmes", action="store_true",
                     help="write only zone READMEs + ARCS (skip SHELVES)")
+    ap.add_argument("--one", default="",
+                    help="incremental (A1): render ONE atom's projection file and exit; "
+                         "maps stay stale until the next full regen (mirror catches up)")
+    ap.add_argument("--from-store", action="store_true", dest="from_store",
+                    help="census ATOMS (the store) instead of walking .md files (A1)")
     args = ap.parse_args(argv)
 
-    entries = walk_docs()
+    if args.one:
+        import sys as _sys
+        if str(ROOT) not in _sys.path:
+            _sys.path.insert(0, str(ROOT))
+        from core.foundation.store import create_store
+        from core.library.atoms import AtomFamily
+        from core.library.projection import render_atom
+        fam = AtomFamily(create_store(), repo_root=str(ROOT))
+        atom = fam.get(args.one)
+        if atom is None:
+            print(f"[gen_library] no atom '{args.one}' in the store")
+            return 2
+        path = render_atom(atom, repo_root=str(ROOT))
+        print(f"[gen_library] --one {args.one} -> {path}")
+        print("[gen_library] maps (SHELVES/ARCS/READMEs) not updated -- full regen at mirror catches up")
+        return 0
+
+    entries = _atoms_as_entries() if args.from_store else walk_docs()
     now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
     # 1) SHELVES.md (type census)
