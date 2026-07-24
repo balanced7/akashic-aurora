@@ -3,7 +3,7 @@
 
 Wire it in .claude/settings.json (project-launch, relative path):
   {"hooks":{"PostToolUse":[{"matcher":"Bash|PowerShell|Edit|Write|NotebookEdit","hooks":[
-    {"type":"command","command":"py scripts/hooks/claude_posttooluse.py"}]}]}}
+    {"type":"command","command":"py agent/harness/hooks/claude_posttooluse.py"}]}]}}
 Or user-level with an ABSOLUTE path (same as the PreToolUse hook).
 
 PowerShell is the harness's PRIMARY shell tool on Windows; treat it exactly like Bash (its

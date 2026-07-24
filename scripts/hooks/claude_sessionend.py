@@ -4,8 +4,8 @@ and (SessionEnd only) fold the session transcript into ONE durable `session_sign
 
 Wire it in .claude/settings.json for BOTH events (PreCompact is the high-value one -- it fires right
 before context is compacted away, the main "lost where-we-are" moment):
-  {"hooks":{"PreCompact":[{"hooks":[{"type":"command","command":"py scripts/hooks/claude_sessionend.py"}]}],
-            "SessionEnd":[{"hooks":[{"type":"command","command":"py scripts/hooks/claude_sessionend.py"}]}]}}
+  {"hooks":{"PreCompact":[{"hooks":[{"type":"command","command":"py agent/harness/hooks/claude_sessionend.py"}]}],
+            "SessionEnd":[{"hooks":[{"type":"command","command":"py agent/harness/hooks/claude_sessionend.py"}]}]}}
 
 DRAFT (both events): distills the session's own commits + lessons + notes into
 chronicles/last-session-draft.md (a DRAFT FILE, not a note -- so it never clutters the curated

@@ -4,7 +4,7 @@
 Wire it in .claude/settings.json (project-launch, relative path -- the "*" matcher is
 REQUIRED: session-lifecycle entries without one are silently skipped):
   {"hooks":{"SessionStart":[{"matcher":"*","hooks":[
-    {"type":"command","command":"py scripts/hooks/claude_sessionstart.py"}]}]}}
+    {"type":"command","command":"py agent/harness/hooks/claude_sessionstart.py"}]}]}}
 Or user-level with an ABSOLUTE path (fires for every session, any cwd).
 
 Thin translator (Integration Tiers H0): the whisper itself -- what it says, when it
