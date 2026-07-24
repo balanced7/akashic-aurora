@@ -152,7 +152,7 @@ def test_p9_dead_watcher_still_blocks_with_backstop_wording(tmp_path):
     env = dict(os.environ)
     env["AKASHIC_AGENT_ID"] = "p9probe"                    # namespaced guard files, no seat
     payload = json.dumps({"session_id": f"p9-{real_time.time():.0f}", "transcript_path": ""})
-    r = subprocess.run([sys.executable, os.path.join("scripts", "hooks", "claude_stop.py")],
+    r = subprocess.run([sys.executable, os.path.join("agent", "harness", "hooks", "claude_stop.py")],
                        input=payload, capture_output=True, text=True, timeout=60,
                        cwd=REPO, env=env)
     out = r.stdout.strip()

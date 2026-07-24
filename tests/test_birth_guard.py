@@ -5,7 +5,7 @@ import os
 
 _spec = importlib.util.spec_from_file_location(
     "birth_guard",
-    os.path.join(os.path.dirname(__file__), "..", "scripts", "hooks", "birth_guard.py"))
+    os.path.join(os.path.dirname(__file__), "..", "scripts", "githooks", "birth_guard.py"))
 bg = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(bg)
 

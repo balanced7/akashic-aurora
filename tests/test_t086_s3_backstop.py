@@ -25,7 +25,7 @@ except Exception:
 pytestmark = pytest.mark.skipif(not _ONLINE, reason="live-Redis pins; bus offline")
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-HOOK = os.path.join(REPO, "scripts", "hooks", "claude_stop.py")
+HOOK = os.path.join(REPO, "agent", "harness", "hooks", "claude_stop.py")
 
 
 def _run_hook(agent: str, session_id: str):

@@ -109,7 +109,7 @@ def test_stop_hook_stands_down_for_tombstoned_session(sid):
     the ghost's stop hook would have demanded re-arming; now it stands down by record.)"""
     assert wake_seat.write_tombstone(sid)   # default tempdir -- where the hook looks
     payload = json.dumps({"session_id": sid, "hook_event_name": "Stop"})
-    r = subprocess.run([sys.executable, os.path.join(REPO, "scripts", "hooks", "claude_stop.py")],
+    r = subprocess.run([sys.executable, os.path.join(REPO, "agent", "harness", "hooks", "claude_stop.py")],
                        input=payload, capture_output=True, text=True, timeout=60, cwd=REPO)
     assert '"decision": "block"' not in (r.stdout or "")
     assert "tombstoned" in (r.stderr or "")

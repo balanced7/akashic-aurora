@@ -8,7 +8,7 @@ import subprocess
 import sys
 
 HOOK = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                    "scripts", "hooks", "claude_stop.py")
+                    "agent", "harness", "hooks", "claude_stop.py")
 PAYLOAD = json.dumps({"session_id": "pin-ephemeral-0000", "transcript_path": "", "cwd": os.getcwd()})
 
 
