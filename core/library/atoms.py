@@ -31,6 +31,13 @@ DOC_TYPES: tuple[str, ...] = (
 )
 STATUSES: tuple[str, ...] = ("current", "draft", "superseded", "fossil")
 
+# v1.1 (atom-design reconciled, Daniel gate 2026-07-24): the FAMILY shape is versioned.
+# Readers default absent -> 1 (the pre-version corpus IS v1; append-only history stays
+# untouched) and refuse LOUD on newer-than-known (fail-closed -- kimi's lie-killer:
+# silent format drift is the belief-vs-state disease at the schema layer).
+SCHEMA_VERSION = 1
+SCHEMA_KNOWN_MAX = 1
+
 KEY_PREFIX = "artifact:"
 IDX_ALL = "artifact:index:all"           # zset id -> created_ts
 DEFAULT_JSONL_DIR = os.path.join("store", "docs")
@@ -68,7 +75,8 @@ class AtomFamily:
 
     def _validate(self, type_: str, title: str, categories: List[str],
                   citations: List[Dict[str, str]], origin: str, settled: str,
-                  status: str) -> List[str]:
+                  status: str, body_type: str = "markdown",
+                  body_type_source: str = "unstated") -> List[str]:
         if type_ not in DOC_TYPES:
             raise AtomError(f"type '{type_}' not in DOC_TYPES {DOC_TYPES} -- machine/file kinds stay files")
         if not (title or "").strip():
@@ -79,6 +87,10 @@ class AtomFamily:
             raise AtomError(f"origin '{origin}' not in {tx.ORIGINS}")
         if settled not in tx.SETTLED_STATES:
             raise AtomError(f"settled '{settled}' not in {tx.SETTLED_STATES}")
+        if body_type not in tx.BODY_TYPES:
+            raise AtomError(f"body_type '{body_type}' not in {tx.BODY_TYPES} (T034 roster; segments-v2 lifts this enum)")
+        if body_type_source not in tx.BODY_TYPE_SOURCES:
+            raise AtomError(f"body_type_source '{body_type_source}' not in {tx.BODY_TYPE_SOURCES}")
         resolved: List[str] = []
         for c in categories or []:
             r = tx.resolve(c)
@@ -89,8 +101,12 @@ class AtomFamily:
         if len(resolved) > tx.CATEGORY_CAP_PER_ATOM:
             raise AtomError(f"max {tx.CATEGORY_CAP_PER_ATOM} categories (PRIMARY first); needing more means split the artifact")
         for c in citations or []:
-            if c.get("rel") not in tx.REL_ROSTER:
+            # v1.1: rel names resolve through the fold table (legacy 'cites' -> 'discusses');
+            # the STORED value is always roster-true. Unknown rels refuse loud.
+            r = tx.resolve_rel(c.get("rel"))
+            if r is None:
                 raise AtomError(f"rel '{c.get('rel')}' not in REL_ROSTER {tx.REL_ROSTER} (supersession rides its own fields)")
+            c["rel"] = r
             if not c.get("target"):
                 raise AtomError("citation needs a target atom id")
         return resolved
@@ -115,6 +131,15 @@ class AtomFamily:
             self.store.sadd(_idx_key("arc", h["arc"]), atom["id"])
         for c in h.get("category", []):
             self.store.sadd(_idx_key("category", c), atom["id"])
+        # v1.1 inverse indexes (backlinks O(corpus)->O(1)). DERIVED belief surfaces:
+        # rebuild() recomputes them from citation truth, and verify_backlink_index()
+        # is the A2 lie-detector row they ship with (the audit law: a cache without
+        # its cross-read rots silently).
+        for c in atom.get("citations_out", []):
+            if c.get("target"):
+                self.store.sadd(_idx_key("cited-by", c["target"]), atom["id"])
+        if atom.get("supersedes"):
+            self.store.sadd(_idx_key("supersedes", atom["supersedes"]), atom["id"])
 
     def _move_status_index(self, atom_id: str, old: str, new: str) -> None:
         self.store.srem(_idx_key("status", old), atom_id)
@@ -128,10 +153,20 @@ class AtomFamily:
              origin: str = "authored", speakers: Optional[List[str]] = None,
              source_thread: Optional[str] = None, settled: str = "settled",
              tenant: str = "solo", visibility: str = "fleet",
+             body_type: Optional[str] = None, body_type_source: str = "unstated",
              supersedes: Optional[str] = None, date: Optional[str] = None,
              gist: Optional[str] = None, category_sources: Optional[List[str]] = None,
              now: Optional[float] = None) -> Dict[str, Any]:
-        cats = self._validate(type_, title, categories or [], citations or [], origin, settled, status)
+        # v1.1: absent body_type auto-detects (source stamped 'auto' so a wrong stamp
+        # is VISIBLE -- kimi hardening); an explicit value should arrive with source
+        # 'flag'. tenant is accepted for compat but NO LONGER STORED (demoted to a
+        # door-default until S-1b enforces it; visibility stays -- it is enforced).
+        if body_type is None:
+            body_type = tx.detect_body_type(body or "")
+            if body_type_source == "unstated":
+                body_type_source = "auto"
+        cats = self._validate(type_, title, categories or [], citations or [], origin,
+                              settled, status, body_type, body_type_source)
         # kimi (fence round 1): inference provenance is PERSISTED, not just printed --
         # the library lint reads recorded [flag|auto] sources instead of re-deriving.
         srcs = list(category_sources or [])[:len(cats)]
@@ -142,14 +177,16 @@ class AtomFamily:
         atom_id = f"art_{day.replace('-', '')}_{slug}_{_sha12(f'{title}|{ts}|{seats}')[:6]}"
         atom: Dict[str, Any] = {
             "id": atom_id,
+            "schema_version": SCHEMA_VERSION,
             "header": {
                 "status": status, "type": type_, "arc": arc, "seats": seats or [],
                 "date": day, "title": title.strip(), "category": cats,
-                "tenant": tenant, "visibility": visibility,
+                "visibility": visibility, "body_type": body_type,
                 # kimi R3: recall surfaces are capped and silent-when-empty -- a doc
                 # that cannot render in one line gets dropped, so the gist is born-with.
                 "gist": (gist or re.sub(r"\s+", " ", (body or "")).strip()[:140]),
             },
+            "body_type_source": body_type_source,
             "body": body or "",
             "body_sha": _sha12(body or ""),
             "category_sources": srcs,
@@ -168,7 +205,17 @@ class AtomFamily:
 
     def get(self, atom_id: str) -> Optional[Dict[str, Any]]:
         raw = self.store.get(KEY_PREFIX + atom_id)
-        return json.loads(raw) if raw else None
+        if not raw:
+            return None
+        atom = json.loads(raw)
+        # v1.1 version gate (fail-closed): absent -> 1 (the pre-version corpus IS v1);
+        # newer-than-known refuses LOUD -- a wrong render that LOOKS right is worse
+        # than a refusal (the migrate_schema door is the sanctioned path forward).
+        v = int(atom.get("schema_version", 1))
+        if v > SCHEMA_KNOWN_MAX:
+            raise AtomError(f"atom {atom_id} is schema v{v}; this reader knows <= v{SCHEMA_KNOWN_MAX} "
+                            f"-- upgrade the reader (or run the migrate_schema door), never guess-render")
+        return atom
 
     def supersede(self, old_id: str, *, title: Optional[str] = None, body: str,
                   now: Optional[float] = None, **mint_kwargs: Any) -> Dict[str, Any]:
@@ -188,6 +235,9 @@ class AtomFamily:
             body,
             arc=mint_kwargs.pop("arc", h["arc"]),
             categories=mint_kwargs.pop("categories", list(h.get("category", []))),
+            body_type=mint_kwargs.pop("body_type", h.get("body_type")),
+            body_type_source=mint_kwargs.pop("body_type_source",
+                                             old.get("body_type_source", "unstated")),
             supersedes=old_id,
             now=now,
             **mint_kwargs,
@@ -230,8 +280,34 @@ class AtomFamily:
         atoms = [a for a in (self.get(i) for i in ids) if a]
         return sorted(atoms, key=lambda a: a["created_ts"], reverse=True)
 
-    def backlinks(self, atom_id: str) -> List[Dict[str, Any]]:
-        """Derived inverse index -- computed, never stored (it cannot lie)."""
+    def backlinks(self, atom_id: str, *, lineage: bool = False) -> List[Dict[str, Any]]:
+        """v1.1: O(1) read off the cited-by inverse index (was a full-corpus scan).
+        lineage=True aggregates across the whole supersession chain -- the resolve-forward
+        law's answer to citation decay (a successor is born with zero direct backlinks;
+        the LINEAGE keeps them all). The index is DERIVED: rebuild() recomputes it and
+        verify_backlink_index() photographs drift (the A2 lie-detector row)."""
+        ids = self.lineage(atom_id) if lineage else [atom_id]
+        out: List[Dict[str, Any]] = []
+        seen: set = set()
+        for aid in ids:
+            for src_id in self.store.smembers(_idx_key("cited-by", aid)):
+                atom = self.get(src_id)
+                if atom is None:
+                    continue
+                for c in atom.get("citations_out", []):
+                    if c.get("target") == aid:
+                        key = (atom["id"], aid, c.get("rel"))
+                        if key in seen:
+                            continue
+                        seen.add(key)
+                        out.append({"source": atom["id"], "target": aid,
+                                    "rel": tx.resolve_rel(c.get("rel")) or c.get("rel"),
+                                    "status": atom["header"]["status"]})
+        return out
+
+    def backlinks_scan(self, atom_id: str) -> List[Dict[str, Any]]:
+        """The pre-v1.1 full scan, kept as the TRUTH SIDE of the index cross-read
+        (never the serving path)."""
         out: List[Dict[str, Any]] = []
         for atom in self.find():
             for c in atom.get("citations_out", []):
@@ -239,6 +315,62 @@ class AtomFamily:
                     out.append({"source": atom["id"], "rel": c.get("rel"),
                                 "status": atom["header"]["status"]})
         return out
+
+    def verify_backlink_index(self) -> List[str]:
+        """The lie-detector: BELIEF (cited-by sets) vs STATE (citations_out truth).
+        Returns drift rows; empty = the cache tells the truth. A2's founding row."""
+        truth: Dict[str, set] = {}
+        for atom in self.find():
+            for c in atom.get("citations_out", []):
+                if c.get("target"):
+                    truth.setdefault(c["target"], set()).add(atom["id"])
+        rows: List[str] = []
+        targets = set(truth)
+        for aid in self.store.zrange(IDX_ALL, 0, -1):
+            targets.add(aid)
+        for t in sorted(targets):
+            believed = set(self.store.smembers(_idx_key("cited-by", t)))
+            actual = truth.get(t, set())
+            for missing in sorted(actual - believed):
+                rows.append(f"INDEX-MISSING cited-by:{t} lacks {missing}")
+            for phantom in sorted(believed - actual):
+                rows.append(f"INDEX-PHANTOM cited-by:{t} claims {phantom}")
+        return rows
+
+    # ---------- resolution laws (v1.1) ----------
+
+    def lineage(self, atom_id: str) -> List[str]:
+        """The full supersession chain containing atom_id, oldest-first. Bounded walk
+        (a cycle -- impossible by construction, photographed by A2 if real -- stops)."""
+        a = self.get(atom_id)
+        if a is None:
+            return [atom_id]
+        back: List[str] = []
+        cur, hops = a, 0
+        while cur and cur.get("supersedes") and hops < 100:
+            back.append(cur["supersedes"])
+            cur = self.get(cur["supersedes"])
+            hops += 1
+        fwd: List[str] = []
+        cur, hops = a, 0
+        while cur and cur.get("superseded") and hops < 100:
+            fwd.append(cur["superseded"])
+            cur = self.get(cur["superseded"])
+            hops += 1
+        return list(reversed(back)) + [atom_id] + fwd
+
+    def resolve_current(self, atom_id: str) -> Optional[Dict[str, Any]]:
+        """Resolve-forward: hand back the CURRENT head of atom_id's chain (never read a
+        fossil thinking it is live; the receipt stays one hop away via 'supersedes')."""
+        a = self.get(atom_id)
+        hops = 0
+        while a and a.get("superseded") and hops < 100:
+            nxt = self.get(a["superseded"])
+            if nxt is None:
+                break
+            a = nxt
+            hops += 1
+        return a
 
     # ---------- recovery ----------
 

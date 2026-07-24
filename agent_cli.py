@@ -1611,9 +1611,11 @@ def cmd_doc(args):
     citations = [{"target": t.strip(), "rel": "discusses"}
                  for t in (getattr(args, "cite", None) or []) if t.strip()]
     fam = AtomFamily(create_store(), repo_root=str(Path(__file__).resolve().parent))
+    bt = (getattr(args, "body_type", "") or "").strip().lower() or None
     try:
         atom = fam.mint(typ, title, body, arc=arc, seats=seats, categories=merged,
                         citations=citations, status=status, category_sources=cat_srcs,
+                        body_type=bt, body_type_source=("flag" if bt else "unstated"),
                         gist=(getattr(args, "gist", "") or None), **conv_kwargs)
     except AtomError as e:
         print(f"[doc] REFUSED: {e}")
@@ -1625,6 +1627,8 @@ def cmd_doc(args):
     print(f"  arc: {arc or '(none)'}  [{arc_src}]")
     cat_render = ", ".join(f"{c}[{s}]" for c, s in zip(merged, cat_srcs)) or "(none)"
     print(f"  categories: {cat_render}")
+    print(f"  body_type: {atom['header'].get('body_type', 'markdown')}"
+          f"[{atom.get('body_type_source', 'unstated')}]")
     print(f"  projection: {rel}  (read-only render; the atom is the truth)")
     print("  wrong stamp? fix post-hoc at wrap/lint — never a write-time block")
     return 0
@@ -3699,6 +3703,9 @@ def build_parser():
     dnew.add_argument("--category", action="append", default=None, help="governed roster category (repeatable, max 3; merged with auto-classify)")
     dnew.add_argument("--draft", action="store_true", help="born status:draft — dump-and-go; wrap sweep + lint curate")
     dnew.add_argument("--gist", default="", help="one-line abstract (<=140 chars; auto-derived from body if absent)")
+    dnew.add_argument("--body-type", default="", dest="body_type",
+                      help="v1.1 datatype flag: markdown|code|json|tabular|transcript "
+                           "(absent = auto-detect, stamped body_type_source=auto)")
     dnew.add_argument("--from-bus", default="", dest="from_bus", help="file ONE bus message (stream id) as a conversation-atom w/ provenance; born draft; opt-in only")
     dnew.add_argument("--cite", action="append", default=None, help="atom id this artifact discusses (repeatable; rel=discusses)")
     dnew.add_argument("--zone", default="", help="DEPRECATED (atoms have one home: docs/library/<type>/); ignored")

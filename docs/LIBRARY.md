@@ -118,6 +118,27 @@ LIFECYCLE-OWNER that must keep it true — "when this breaks, whose job is it to
   specimen. Verification law: literal paths verify by grep+rewrite; env/config/ACL/hook/
   CI/MCP/runtime-built paths verify by FIRE (run, drill, handshake), never by inspection.
 
+## v1.3 amendment (2026-07-24) — the ARC law (zero-or-one) + the versioned atom
+
+Decision record: docs/library/design/20260724_atom-design-reconciled-v1-1_fd2275.md (three-voice
+convergence, Daniel's build gate 2026-07-24 — "I leave the order up to you lets keep building").
+- **An artifact belongs to exactly ZERO or ONE arc.** Arcless is legal for evergreens
+  (LEXICON, VOICE, CONDUCT — they ARE the constitution campaigns operate under; forcing an
+  arc manufactures fakes). Cross-arc relevance rides a SPECIFIC typed edge (derives-from or
+  discusses — named, never vague), NEVER two arc values (two values would fork the index).
+  The A2 arcless census lints arcless NON-evergreens only. (This supersedes v1.1's ">=1 arc"
+  line — the code was right and the law amends to match.)
+- Atoms are SCHEMA-VERSIONED (v1; absent reads as 1; readers refuse-loud on newer). The
+  body carries a typed facet: body_type (markdown|code|json|tabular|transcript, T034-capped)
+  + body_type_source (flag|auto|unstated — a wrong auto-stamp must be visible). segments[]
+  is schema-v2 at a NAMED TRIGGER: the Library pane reader build.
+- REL_ROSTER is derives-from | contradicts | supports | discusses ('cites' folded into
+  'discusses' at read; new mints store roster-true values). tenant is a door-default, no
+  longer stored; visibility stays (enforced by the census + --verify redaction skips).
+- Reading laws: resolve-forward (tools serve the current head of a supersession chain by
+  default; the receipt stays one hop away), lineage-aggregated backlinks, and the cited-by
+  inverse index ships WITH its cross-read (verify_backlink_index — the A2 founding row).
+
 ## Amendment
 
 This law amends at gates by the standing round protocol (counter → reconcile → Daniel ratifies).

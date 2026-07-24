@@ -50,9 +50,19 @@ def frontmatter(atom: Dict[str, Any]) -> str:
     lines = ["---"]
     lines.append(f"akashic_id: {_yaml_escape(atom['id'])}")
     lines.append(f"akashic_sha: {_yaml_escape(atom['body_sha'])}")
-    for field in ("status", "type", "arc", "date", "title", "gist", "tenant", "visibility"):
+    # v1.1: schema_version renders (absent -> 1, the pre-version corpus); body_type is a
+    # Bases-filterable facet (the reader's per-datatype render key). tenant only renders
+    # on legacy atoms that still carry it (demoted from the stored shape 2026-07-24).
+    lines.append(f"schema_version: {_yaml_escape(int(atom.get('schema_version', 1)))}")
+    fields = ["status", "type", "arc", "date", "title", "gist", "visibility", "body_type"]
+    if h.get("tenant") is not None:
+        fields.insert(6, "tenant")
+    for field in fields:
         if field == "arc" and h.get("arc") is None:
             continue  # deepseek fence: 'arc: null' renders as the STRING null in Bases -- omit
+        if field == "body_type" and h.get("body_type") is None:
+            lines.append("body_type: markdown")   # legacy default, explicit for Bases filters
+            continue
         lines.append(f"{field}: {_yaml_escape(h.get(field))}")
     lines.append("seats: [" + ", ".join(_yaml_escape(s) for s in h.get("seats", [])) + "]")
     lines.append("category: [" + ", ".join(_yaml_escape(c) for c in h.get("category", [])) + "]")

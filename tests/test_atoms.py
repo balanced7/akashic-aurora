@@ -139,7 +139,10 @@ def test_backlinks_are_derived_with_rel_and_status(fam):
     src = fam.mint("report", "counter", "b",
                    citations=[{"target": target["id"], "rel": "contradicts"}], now=2.0)
     bl = fam.backlinks(target["id"])
-    assert bl == [{"source": src["id"], "rel": "contradicts", "status": "current"}]
+    # v1.1 disclosed shape update: rows gained 'target' (lineage-aggregated backlinks
+    # must say WHICH chain member was cited); rel+status semantics unchanged.
+    assert bl == [{"source": src["id"], "target": target["id"],
+                   "rel": "contradicts", "status": "current"}]
 
 
 def test_category_sources_persisted_and_padded(fam):
