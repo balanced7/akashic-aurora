@@ -46,6 +46,36 @@ _BOUND_RE = re.compile(r"""^\s*(_?[A-Z][A-Z0-9_]*)\s*=\s*(\d[\d_]*)\s*(?:#\s*(.*
 
 
 def _py_files():
+    """The TRACKED .py files, sorted. Falls back to a filesystem walk, loudly.
+
+    This sheet is a derived map committed to the repo, so a checker has to be able to
+    regenerate it byte-for-byte from a fresh clone. Walking the filesystem broke that
+    permanently: the committed sheet cited `scratch/sol_runner_fragments.py` and
+    `temp/florence2_test.py` -- local-only files no other clone has -- so CI regenerated a
+    different sheet and called the committed one stale on every run, for over a day, while
+    it passed on the author's machine.
+
+    SKIP_DIRS alone cannot fix this: it is a blocklist, and the next untracked directory
+    someone creates reintroduces the bug. Git's index is the authority on what a visitor
+    actually has. (lesson: repo_presentation_cleanup -- audit git ls-files, not ls.)
+    """
+    import subprocess
+    try:
+        res = subprocess.run(["git", "-C", ROOT, "ls-files", "*.py"],
+                             capture_output=True, text=True, timeout=30)
+        if res.returncode == 0:
+            for rel in sorted(ln.strip() for ln in res.stdout.splitlines() if ln.strip()):
+                parts = rel.split("/")
+                if any(p in SKIP_DIRS for p in parts[:-1]):
+                    continue
+                full = os.path.join(ROOT, *parts)
+                if os.path.exists(full):
+                    yield full
+            return
+    except (OSError, subprocess.SubprocessError):
+        pass
+    print("[warn] git unavailable -- walking the filesystem instead. This sheet may cite "
+          "local-only files and will not reproduce on a fresh clone.", file=sys.stderr)
     for dirpath, dirnames, filenames in os.walk(ROOT):
         dirnames[:] = sorted(d for d in dirnames if d not in SKIP_DIRS)
         for f in sorted(filenames):

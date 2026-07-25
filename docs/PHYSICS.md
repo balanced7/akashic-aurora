@@ -4,19 +4,19 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 94bbcf4. A bound you discover by collision is not awareness -- this sheet
+> Derived at c753012. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (144 names)
+## Configuration flags (141 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
 | `AGENT_ID` | `"unknown"` | core/comm/bus.py:1098 |
 | `AI_SETUP` | `"E:\\AI-Setup"` | agent_cli.py:1111, agent_cli.py:2024, agent_cli.py:2106 +16 |
 | `AKASHIC_ACK_UNHANDLED_HOURS` | `UNHANDLED_HOURS` | core/comm/promoter.py:151 |
-| `AKASHIC_AGENT_ID` | `"claude"` | agent_cli.py:387, agent_cli.py:581, agent_cli.py:681 +43 |
+| `AKASHIC_AGENT_ID` | `"claude"` | agent/harness/hooks/claude_posttooluse.py:197, agent/harness/hooks/claude_posttooluse.py:299, agent/harness/hooks/claude_posttooluse.py:308 +43 |
 | `AKASHIC_ASK_EXPECT_S` | `"1800"` | agent_cli.py:3508 |
 | `AKASHIC_AUTOBOOT` | `"1"` | agent/harness/context.py:159 |
 | `AKASHIC_BIRTH_GUARD` | `""` | scripts/githooks/birth_guard.py:70 |
@@ -55,7 +55,7 @@ Class: reference
 | `AKASHIC_RECALL_CACHE_TTL` | `"120"` | core/recall/at_action.py:65 |
 | `AKASHIC_RECALL_FLOOR` | `"0.20"` | core/recall/at_action.py:1105 |
 | `AKASHIC_RECALL_SELF_ECHO_H` | `"2"` | core/recall/at_action.py:1041 |
-| `AKASHIC_RECALL_STATE_DIR` | `` | agent/harness/seen.py:14, agent/harness/hooks/claude_posttooluse.py:61, agent/harness/hooks/claude_sessionend.py:35 +9 |
+| `AKASHIC_RECALL_STATE_DIR` | `` | agent/harness/hooks/claude_posttooluse.py:61, agent/harness/hooks/claude_sessionend.py:35, agent/harness/hooks/cursor_beforeshell.py:23 +9 |
 | `AKASHIC_RECENT_INBOX_S` | `str(12 * 3600` | core/comm/doctor.py:60 |
 | `AKASHIC_RELEVANCE_BUDGET` | `"1"` | core/context/learning_loader.py:36 |
 | `AKASHIC_RELEVANCE_BUDGET_CHARS` | `""` | core/context/relevance_budget.py:49 |
@@ -71,7 +71,7 @@ Class: reference
 | `AKASHIC_TIMEOUT_MULTIPLIER` | `"1"` | core/comm/timescale.py:21 |
 | `AKASHIC_TOMBSTONE` | `"1"` | core/comm/wake_seat.py:109, core/comm/wake_seat.py:167 |
 | `AKASHIC_TOOLBELT_QUOTA` | `"20"` | core/toolbelt/registry.py:32 |
-| `AKASHIC_TRACE` | `"1"` | agent/harness/trace.py:24, agent/harness/trace.py:52, agent/harness/hooks/claude_trace.py:27 +1 |
+| `AKASHIC_TRACE` | `"1"` | agent/harness/hooks/claude_trace.py:27, agent/harness/trace.py:24, agent/harness/trace.py:52 +1 |
 | `AKASHIC_TRANSCRIPT_TAIL_BYTES` | `str(4 * 1024 * 1024` | agent/harness/hooks/claude_posttooluse.py:105, scripts/hooks/claude_posttooluse.py:105 |
 | `AKASHIC_WAKE_MARKER_FRESH_MIN` | `""` | core/comm/wake_seat.py:311 |
 | `AKASHIC_WHISPER_LINES` | `""` | agent/harness/context.py:109 |
@@ -82,7 +82,7 @@ Class: reference
 | `BIFROST_LANES_DUAL_WRITE` | `True` | core/comm/packet_spec.py:300 |
 | `BIFROST_MAX_HOPS` | `"6"` | core/comm/control.py:64 |
 | `BIFROST_MAX_REPLIES_PER_MIN` | `"12"` | core/comm/control.py:65 |
-| `BIFROST_NAMESPACE` | `"bifrost"` | agent_cli.py:4646, agent/harness/delta.py:35, core/comm/bus.py:151 +20 |
+| `BIFROST_NAMESPACE` | `"bifrost"` | agent/harness/delta.py:35, agent_cli.py:4646, core/comm/bus.py:151 +20 |
 | `BIFROST_PREFLIGHT_ASSERT` | `"1"` | core/comm/assertions.py:100 |
 | `BIFROST_PREMISE_GATE_MIN_AGE_MS` | `` | core/coord/task_ledger.py:333 |
 | `BIFROST_REPLY_DEDUP_TTL_S` | `"1200"` | core/comm/bus.py:334 |
@@ -115,7 +115,6 @@ Class: reference
 | `GEMINI_WEB_STEALTH` | `"1"` | scripts/gemini_web.py:180 |
 | `GEMINI_WEB_TIMEOUT_MS` | `"120000"` | scripts/gemini_web.py:50 |
 | `GEMINI_WEB_TZ` | `"America/New_York"` | scripts/gemini_web.py:234 |
-| `HSA_ENABLE_DXG_DETECTION` | `` | temp/florence2_test.py:16 |
 | `KIMI_API_KEY` | `` | scripts/kimi_chat.py:69 |
 | `KIMI_BUDGET_USD` | `"105.0"` | scripts/kimi_chat.py:61 |
 | `KIMI_CLAUDE_HOME` | `r"E:\AI-Setup\.kimi-claude-home"` | scripts/kimi_walk_narrator.py:36 |
@@ -134,7 +133,6 @@ Class: reference
 | `LAUNCHER_RESTART_BACKOFF_MAX` | `"60"` | core/comm/launcher.py:54 |
 | `LAUNCHER_RESTART_MAX` | `"5"` | core/comm/launcher.py:55 |
 | `LAUNCHER_RESTART_RESET` | `"300"` | core/comm/launcher.py:56 |
-| `LD_LIBRARY_PATH` | `""` | temp/florence2_test.py:11, temp/test_gpu_pytorch.py:8, temp/test_torch.py:8 +1 |
 | `OPENAI_API_KEY` | `` | scripts/ask_gpt.py:27 |
 | `OPENAI_MODEL` | `"gpt-5"` | scripts/ask_gpt.py:23 |
 | `PACKET_INTEGRITY_ENABLED` | `True` | core/comm/packet_spec.py:70 |
@@ -144,7 +142,6 @@ Class: reference
 | `REDIS_DB` | `` | core/foundation/redis_connection.py:86 |
 | `REDIS_HOST` | `` | core/foundation/redis_connection.py:72 |
 | `REDIS_PORT` | `` | core/foundation/redis_connection.py:72 |
-| `ROCM_PATH` | `` | temp/florence2_test.py:15, temp/test_torch.py:11 |
 | `SOL_401_RETRIES` | `"3"` | scripts/sol_chat.py:56 |
 | `SOL_CONNECT_TIMEOUT` | `"15"` | scripts/sol_chat.py:53 |
 | `SOL_EFFORT` | `"medium"` | scripts/sol_chat.py:45 |
