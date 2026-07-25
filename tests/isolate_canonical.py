@@ -25,13 +25,42 @@ Usage (must precede `from core.foundation...`):
 import os
 import sys
 import tempfile
+from pathlib import Path
 
 # Make config importable regardless of the importing test's own path setup.
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-if not os.environ.get("_AISETUP_TEST_ISOLATED"):
+def _already_redirected() -> bool:
+    """Is isolation ACTUALLY in force -- not merely claimed?
+
+    The flag `_AISETUP_TEST_ISOLATED` used to guard this whole block, which meant a process
+    that merely INHERITED the flag skipped isolation and ran against canonical while every
+    reader believed it was isolated. It is a claim, not proof.
+
+    This cost the corpus twice on 2026-07-25: fixture lessons written into canonical Redis
+    db 0 at 14:25 (vector unidentified at the time), and at 20:11 the live learning index
+    collapsed to FIVE entries -- 437 lessons, 98% of the corpus, invisible to every keyword
+    search -- when a peer ran the full suite through an exec door that pre-set the flag.
+
+    So: verify the CONDITION. AI_SETUP must point somewhere other than the real repo, and
+    REDIS_DB must not be the canonical logical db. The flag is kept only as a cheap
+    re-entrancy marker; it is never the authority.
+    """
+    ai = os.environ.get("AI_SETUP")
+    db = os.environ.get("REDIS_DB")
+    if not ai or not db:
+        return False
+    try:
+        if Path(ai).resolve() == Path(_ROOT).resolve():
+            return False          # pointed at the live repo: not isolated, whatever the flag says
+    except Exception:
+        return False              # cannot tell -> assume NOT isolated (fail safe, not silent)
+    return str(db).strip() not in ("", "0")
+
+
+if not _already_redirected():
     _tmp = tempfile.mkdtemp(prefix="aisetup_test_")
     os.makedirs(os.path.join(_tmp, "session_logs"), exist_ok=True)
     os.environ["AI_SETUP"] = _tmp
