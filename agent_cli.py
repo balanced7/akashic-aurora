@@ -1323,6 +1323,67 @@ def _charter_stretch(agent_id: str):
     return None
 
 
+def _head_commit_epoch():
+    """Unix time of HEAD, or None. The repo's clock, for comparing against note clocks."""
+    try:
+        import subprocess as _sp
+        root = os.path.dirname(os.path.abspath(__file__))
+        r = _sp.run(["git", "-C", root, "log", "-1", "--format=%ct"],
+                    capture_output=True, text=True, timeout=10)
+        return int((r.stdout or "").strip()) if r.returncode == 0 else None
+    except Exception:
+        return None
+
+
+def _continuity_drift(notes=None) -> str:
+    """Boot line: have the CONTINUITY ORGANS gone stale relative to the repo?
+
+    2026-07-25, the reason this exists. Three of the four continuity organs were carrying
+    stale content AT THE SAME TIME -- GROUND FIRST aimed at a two-day-old chronicle,
+    where-we-are trailing four commits, and the directive naming a plan a debate had
+    superseded. Nothing said so. The seat found out by looking.
+
+    That is the asymmetry this closes: RETRIEVAL is automatic (recall-at fires at every
+    action, unasked, and it is the organ that demonstrably works) while CAPTURE is manual
+    (wrap, note, --grounding all wait for a seat to remember at the right moment). A
+    continuity layer whose refresh depends on remembering is a continuity layer that goes
+    stale exactly when a session was too busy to remember -- which is when it matters most.
+
+    This does NOT auto-write anything. Deliberately. The corpus already grows at ~13.7x its
+    own target rate with flat measured value, so generating content automatically would add
+    noise to a system whose problem is not scarcity. Tonight's failures were never MISSING
+    content; they were stale POINTERS to content that already existed. So the automation
+    belongs on the pointer, not the payload: notice the drift, say it, and let a seat decide
+    whether it matters. Silent when the notes are newer than HEAD -- no drift, no line.
+    """
+    head_at = _head_commit_epoch()
+    if not head_at:
+        return ""
+    try:
+        from datetime import datetime as _dt
+        if notes is None:
+            notes = get_agent_memory().get_decisions(days=90)
+        stale = []
+        for title in ("where-we-are", "next-focus", "grounding-pointer"):
+            n = next((d for d in notes if d.title == title and not d.superseded), None)
+            if n is None:
+                stale.append(f"{title} MISSING")
+                continue
+            try:
+                if _dt.fromisoformat(str(n.created_at)).timestamp() < head_at - 1800:
+                    stale.append(title)
+            except Exception:
+                pass
+        if not stale:
+            return ""
+        return ("# [continuity DRIFT] the repo has moved since these were written: "
+                + ", ".join(stale)
+                + " -- they describe an OLDER system than the one you are booting into. "
+                  "Refresh at wrap (py agent_cli.py wrap --focus/--grounding, note where-we-are).")
+    except Exception:
+        return ""
+
+
 def _stance_block(agent_id: str) -> list:
     """C1 -- the boot stance block. The activation map's second organ, built 2026-07-25.
 
@@ -1566,6 +1627,14 @@ def _orientation_header(agent_id: str, primer_aware: bool = False) -> str:
     # what deepseek's finding actually requires is PRESENCE in the folded head, not primacy.
     try:
         lines.extend(_stance_block(agent_id))
+    except Exception:
+        pass
+    try:   # continuity drift -- silent unless the notes lag HEAD; placed here, not in the
+        # head-16, per new_boot_organ_must_not_spend_head16 (a lesson learned the hard way
+        # a few hours before this line was written).
+        _cd = _continuity_drift()
+        if _cd:
+            lines.append(_cd)
     except Exception:
         pass
     return "\n".join(lines)
