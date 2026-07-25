@@ -80,8 +80,28 @@ def test_learn_command_prefills_slug_and_agent():
 
 
 def test_build_learn_nudge_gap_vs_credited():
+    """CONTRACT CHANGED 2026-07-25 -- deliberately, and this test encoded the old defect.
+
+    It asserted "corpus gap" appears whenever credited==0. That claim was wrong: credited==0
+    is true in three disjoint cases -- nothing relevant exists, something exists but did not
+    SURFACE for this target, or something surfaced and was not credited -- and only the first
+    is a gap. The nudge asserted the first unconditionally.
+
+    It cost a duplicate: a Write flip produced that prompt, I filled the "gap", and one call
+    later recall surfaced write_tool_needs_read_tool, which already said the same thing. The
+    lesson existed; it could not rank for a path-keyed target.
+
+    The nudge now claims a gap ONLY when a probe ran and found nothing. Unprobed -- which is
+    the live default, because the failure signature is not in scope at the PostToolUse call
+    site -- it says what is true and nothing about gaps. See test_corpus_gap_honesty.py for
+    the full contract, and W79 for why a path-keyed probe must NOT be wired here.
+    """
     gap = aa.build_learn_nudge("c:py probe.py", 0, [], agent_id="claude")
-    assert "[flip]" in gap and "corpus gap" in gap and "learn claude" in gap
+    assert "[flip]" in gap and "learn claude" in gap
+    assert "corpus gap" not in gap, "claimed a gap with no probe -- the 2026-07-25 defect"
+    probed_empty = aa.build_learn_nudge("c:py probe.py", 0, [], agent_id="claude",
+                                        probe=lambda _t: [])
+    assert "corpus gap" in probed_empty, "a probe that RAN and found nothing may claim a gap"
     credited = aa.build_learn_nudge("c:py probe.py", 2, ["learn:experiment:a"], agent_id="claude")
     assert "2 stored lesson(s)" in credited and "corpus gap" not in credited
     assert len(credited) < 600, "small-when-not: the nudge must never be a wall of text"
