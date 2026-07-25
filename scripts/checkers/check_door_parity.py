@@ -69,12 +69,29 @@ def toolbox_verbs():
     """The third door (T067-1): every public method on the runner ToolBox, including runner
     plumbing (execute/release_written_locks) -- the ratchet SEES everything; hiding plumbing
     behind an exclusion list would recreate the exact blind spot this slice closes."""
-    tree = ast.parse(open(os.path.join(ROOT, "scripts/deepseek_chat.py"), encoding="utf-8").read())
+    # 2026-07-25 (deepseek's find): this parsed scripts/deepseek_chat.py, where ToolBox
+    # USED to live. The class moved to core/comm/toolbox.py and the parser did not follow,
+    # so it matched no ClassDef, returned [], and every shared verb read as having NO
+    # ToolBox coverage -- 66 phantom FAIL lines, including the two T067 pins that sat in
+    # the baseline being treated as evidence of real door divergence. The canary was not
+    # silent because the doors agreed; it was dead. Same genus as the GROUND FIRST pointer
+    # the same night: a migration moved the file and the reference did not follow.
+    # A guard that cannot find its subject must SAY SO, not report a clean empty set --
+    # so the missing-class case now fails loudly instead of cascading phantom failures.
+    src = os.path.join(ROOT, "core/comm/toolbox.py")
+    tree = ast.parse(open(src, encoding="utf-8").read())
     out = []
+    found = False
     for node in ast.walk(tree):
         if isinstance(node, ast.ClassDef) and node.name == "ToolBox":
+            found = True
             out += [m.name for m in node.body
                     if isinstance(m, ast.FunctionDef) and not m.name.startswith("_")]
+    if not found:
+        raise RuntimeError(
+            f"door-parity guard cannot find `class ToolBox` in {src} -- it has moved again. "
+            "Fix the path; an empty verb list would silently pass or phantom-fail every "
+            "shared verb.")
     return sorted(set(_norm(n) for n in out))
 
 
