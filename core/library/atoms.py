@@ -378,8 +378,16 @@ class AtomFamily:
         """Replay store/docs/*.jsonl into the store (latest line wins per id).
 
         The JSONL is the durable record; this is the machine-loss recovery path
-        (git clone -> rebuild -> the store is whole again)."""
+        (git clone -> rebuild -> the store is whole again).
+
+        v1.1 schema gate (kimi's evolution-round find, 2026-07-24: rebuild breaks FIRST
+        under an unshimmed v2 -- it wrote raw disk JSON into the store with no version
+        check, poisoning every index before any reader's fail-closed gate could fire):
+        newer-than-known atoms are PARKED loudly per line -- the v1 corpus restores in
+        full, recovery never bricks on one alien line, and nothing newer-than-known is
+        ever indexed. The migrate_schema door is the sanctioned path for parked lines."""
         latest: Dict[str, Dict[str, Any]] = {}
+        parked: List[str] = []
         if not os.path.isdir(self.jsonl_dir):
             return 0
         for name in sorted(os.listdir(self.jsonl_dir)):
@@ -391,6 +399,9 @@ class AtomFamily:
                     if not line:
                         continue
                     atom = json.loads(line)
+                    if int(atom.get("schema_version", 1)) > SCHEMA_KNOWN_MAX:
+                        parked.append(atom.get("id", "?"))
+                        continue
                     prev = latest.get(atom["id"])
                     if prev is None or atom.get("version", 1) >= prev.get("version", 1):
                         latest[atom["id"]] = atom
@@ -401,4 +412,7 @@ class AtomFamily:
             for st in STATUSES:
                 if st != h["status"]:
                     self.store.srem(_idx_key("status", st), atom["id"])
+        if parked:
+            print(f"[rebuild] PARKED {len(parked)} newer-than-v{SCHEMA_KNOWN_MAX} atom line(s) "
+                  f"(schema gate; migrate_schema is the door): " + ", ".join(sorted(set(parked))[:5]))
         return len(latest)

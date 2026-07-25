@@ -163,3 +163,48 @@ def test_frontmatter_legacy_atom_defaults_body_type(tmp_path):
     fm = frontmatter(a)
     assert "body_type: markdown" in fm
     assert "tenant: solo" in fm
+
+
+# ------------------------------------------- rebuild schema gate (kimi's find)
+# Evolution-round stranger-test 2026-07-24: rebuild() broke FIRST under an unshimmed
+# v2 -- raw disk JSON reached the store with no version check, poisoning every index
+# before any reader's gate could fire. Kimi's three-stage drill, pinned:
+
+def _plant_v2_line(fam, tmp_path):
+    import json as _json
+    alien = {"id": "art_20990101_from-the-future_beef01", "schema_version": 2,
+             "payload": {"segments": [{"kind": "markdown", "text": "v2 shape"}]},
+             "version": 1, "created_ts": 4102444800.0}
+    with open(os.path.join(str(tmp_path), "design.jsonl"), "a", encoding="utf-8") as f:
+        f.write(_json.dumps(alien) + "\n")
+    return alien["id"]
+
+
+def test_rebuild_parks_v2_lines_loudly(tmp_path, capsys):
+    """Drill A: one v2 line -> rebuild -> clean loud park, never a store write."""
+    fam = _fam(tmp_path)
+    fam.mint("design", "v1 citizen", "body one")
+    alien_id = _plant_v2_line(fam, tmp_path)
+    restored = fam.rebuild()
+    assert restored == 1                                   # the v1 corpus, in full
+    assert fam.store.get(at.KEY_PREFIX + alien_id) is None  # v2 never reached the store
+    out = capsys.readouterr().out
+    assert "PARKED" in out and "migrate_schema" in out
+
+
+def test_rebuild_mixed_corpus_v1_queryable_v2_parked(tmp_path, capsys):
+    """Drills B+C: 3 v1 + 1 v2 -> every v1 queryable through find/backlinks (the
+    census path), the v2 parked, no crash, no phantom index entries."""
+    fam = _fam(tmp_path)
+    a = fam.mint("design", "one", "b1")
+    fam.mint("report", "two", "b2", citations=[{"target": a["id"], "rel": "supports"}])
+    fam.mint("brief", "three", "b3")
+    alien_id = _plant_v2_line(fam, tmp_path)
+    restored = fam.rebuild()
+    assert restored == 3
+    assert {x["id"] for x in fam.find()} == {x["id"] for x in fam.find()}  # find() completes
+    assert len(fam.find()) == 3
+    assert fam.backlinks(a["id"])                          # index intact post-replay
+    assert fam.verify_backlink_index() == []               # no phantom entries
+    assert fam.store.get(at.KEY_PREFIX + alien_id) is None
+    assert "PARKED 1" in capsys.readouterr().out
