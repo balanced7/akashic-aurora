@@ -116,6 +116,29 @@ def test_s7_contrast_counts_per_session_and_target():
     assert c["without_lesson"] == {"n": 1, "ok": 1}
 
 
+def test_s9_tests_never_write_the_canonical_durable_stream(monkeypatch):
+    """THE ONE I BROKE. The first durable mirror wrote test fixtures into the canonical
+    stream: 36 of its first 51 records were these very pins. conftest redirects the tempdir
+    (AKASHIC_RECALL_STATE_DIR) but nothing redirects the event log, so the two writers had
+    different isolation and only one was honest about it. Same genus as the suite replacing
+    the live learning index -- committed by the seat that had filed that lesson hours
+    earlier. This pin makes the regression impossible to reintroduce silently."""
+    emitted = []
+    import core.events.event_log as el
+
+    class _FakeLedger:
+        def emit(self, *a, **k):
+            emitted.append(a)
+
+    monkeypatch.setattr(el, "get_event_log",
+                        lambda: type("L", (), {"ledger": _FakeLedger()})())
+    monkeypatch.setenv("AKASHIC_RECALL_STATE_DIR", "/tmp/redirected")
+    sid, tgt = _sid(), at_action.normalize_target(command="echo isolation")
+    at_action.resolve_action_outcome(sid, tgt, True)
+    assert emitted == [], "a redirected state root must never reach the canonical stream"
+    assert at_action.session_outcomes(sid), "the local record is still written"
+
+
 def test_s8_durable_readers_are_fail_soft(monkeypatch):
     """A PostToolUse-adjacent reader must never raise when the store is down."""
     import core.events.event_log as el

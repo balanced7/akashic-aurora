@@ -713,7 +713,19 @@ def _log_outcome_stage(session_id: str, target: str, success: bool, *,
             f.write(json.dumps(rec) + "\n")
     except Exception:
         pass
-    try:   # durable mirror -- a prevention RATE is a trend, and the tempdir prunes at ~7d
+    # Durable mirror -- a prevention RATE is a trend, and the tempdir is per-boot only.
+    # ISOLATION GUARD, and it is not theoretical: the first version of this mirror wrote
+    # test fixtures straight into the canonical stream. 36 of the first 51 records were
+    # my own pins. tests/conftest.py redirects AKASHIC_RECALL_STATE_DIR (the tempdir side)
+    # but NOTHING redirects the event log, so the two writers had different isolation and
+    # only one of them was honest about it. That is the same genus as the pytest suite
+    # replacing the live learning index (lesson: pytest_destroys_the_live_learning_index)
+    # and W66 -- committed here by the seat that filed both, hours later.
+    # RULE: if the state root is redirected, this is not production. One isolation signal,
+    # both writers, no divergence.
+    if os.environ.get("AKASHIC_RECALL_STATE_DIR") or os.environ.get("_AISETUP_TEST_ISOLATED"):
+        return
+    try:
         from core.events.event_log import get_event_log
         get_event_log().ledger.emit(OUTCOME_STREAM,
                                     dict(rec, sid=_safe_id(session_id)),
