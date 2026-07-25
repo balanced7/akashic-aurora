@@ -45,8 +45,16 @@ def _name_index(dirpath, exts):
             continue
         for f in os.listdir(d):
             if any(f.endswith(e) for e in exts):
-                out.append((base + "/" + f, f.lower()))
-    return out
+                # Normalise the separator: callers pass os.path.join(...) bases, which are
+                # backslash-joined on Windows, and these strings are RENDERED into the
+                # committed map. Mixed separators made the sheet platform-specific.
+                out.append((base.replace(os.sep, "/") + "/" + f, f.lower()))
+    # SORTED, because consumers take the FIRST match (`next(p for p, low in tests ...)`).
+    # os.listdir returns filesystem order -- roughly alphabetical on NTFS, inode order on
+    # ext4 -- so an unsorted index picked a DIFFERENT match on Linux than on Windows and
+    # the committed map could never be current on both. CI called MAP.md stale for exactly
+    # this reason while it verified clean on the author's machine.
+    return sorted(out)
 
 
 def build():
