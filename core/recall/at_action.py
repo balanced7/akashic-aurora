@@ -1177,9 +1177,20 @@ def recall_at(*, path: Optional[str] = None, command: Optional[str] = None,
                 "locks": locks, "counter": counter, "shown": len(lessons) + len(locks),
                 "total": total, "faithful": faithful, "confidence": conf}
     except Exception as e:
+        # faithful/confidence describe a check that RAN. This one raised, so they are
+        # UNAVAILABLE -- not True, not 1.0.
+        #
+        # Found by codex 2026-07-25: this handler returned faithful=True, confidence=1.0,
+        # which renders as "I looked thoroughly and there is genuinely nothing relevant."
+        # The `error` key was set here and read NOWHERE, so a store failure in the hot path
+        # was indistinguishable from an honest empty. Silence meaning "nothing relevant" and
+        # silence meaning "I could not look" are different facts and must not share a
+        # rendering. Sixth instance of this genus today and the worst-placed -- recall-at
+        # fires before every edit and command.
         return {"path": path, "command": command, "query": "", "lessons": [], "locks": [],
-                "counter": None, "shown": 0, "total": 0, "faithful": True, "confidence": 1.0,
-                "error": type(e).__name__}
+                "counter": None, "shown": 0, "total": 0,
+                "faithful": None, "confidence": None,
+                "error": type(e).__name__, "error_detail": str(e)[:200]}
 
 
 def _provenance_tag(item: Dict[str, Any]) -> str:
@@ -1235,6 +1246,13 @@ def render(result: Dict[str, Any], *, max_chars: int = 110,
     When more lessons cleared the relevance floor than `limit` surfaced, appends a single N-of-M
     escape line — the cheap one-hop pull to the rest, instead of silently truncating (the "recommend
     less, retrieve more" pull-side: a capped surface should say so, not pretend it's complete)."""
+    # A FAILED recall is not an empty one. Say so instead of rendering ordinary silence --
+    # otherwise a store outage looks exactly like "nothing relevant here" and the agent acts
+    # on a confidence nobody computed. Loud on purpose: this fires before every edit.
+    if result.get("error"):
+        return ("Recall-at-action (Akashic) - UNAVAILABLE: retrieval failed "
+                f"({result.get('error')}). This is NOT 'no relevant lessons' -- the check did "
+                "not run, so treat this action as unadvised and re-run recall if it matters.")
     lines: List[str] = []
     for lk in result.get("locks", []):
         lines.append(f"[lock] {lk.get('held_by')} holds an advisory lock on this path — coordinate before editing")
