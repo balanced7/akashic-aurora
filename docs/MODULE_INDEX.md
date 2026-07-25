@@ -205,6 +205,7 @@
 - `migrate_time_scores.py` — One-time migration (S5): re-score the persisted time-zsets with the unified `to_epoch`.
 - `mirror.py` — mirror.py -- commit local changes and push to GitHub in one step.
 - `rb25_storm_burst.py` — SUPERSEDED tombstone -- points old references to the canonical RB-25 storm-burst drill.
+- `repair_learning_index.py` — Repair `learn:experiments:all` -- the index that decides what recall can SEE.
 - `run_job.py` — Durable one-shot job supervision for long Akashic operations (T093).
 - `runner_token_journal.py` — runner_token_journal -- daily token-count ledger (T078 W1: C6 meter).
 - `seed_narrative.py` — seed_narrative.py -- dogfood the spine: ingest real git history as Beats, then chronicle.
