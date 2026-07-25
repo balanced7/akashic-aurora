@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (31 of 116 modules lack both pin and paper by name)
+## GAP queue (31 of 117 modules lack both pin and paper by name)
 
 - core/foundation/redis_connection.py
 - core/foundation/streams.py
@@ -136,10 +136,11 @@ Class: reference
 | `consolidation.py` | Consolidation: distill raw episodic memory + experiment lessons into a curated chronicle. | tests/test_consolidation.py | docs/library/design/20260709_s2-the-consolidation-pass-that-sharpens_68d42c.md | `AI_SETUP` |
 | `learning_store.py` | Learning Store: Persists and retrieves experiment outcomes via the Store. | GAP | docs/library/design/20260709_agent-memory-analysis-of-learning-store_5ec82f.md | `AI_SETUP` |
 
-## core/recall/  (9 modules)
+## core/recall/  (10 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
+| `anchors.py` | Lesson anchor resolver -- does a lesson's premise still hold? | tests/test_lesson_anchors.py | GAP | `AI_SETUP` |
 | `at_action.py` | Recall-at-action (`core/recall`) — read the right knowledge AT THE MOMENT of action. | GAP | GAP | `AKASHIC_AGENT_ID`, `AKASHIC_RECALL_CACHE_TTL`, `AKASHIC_RECALL_FLOOR`, `AKASHIC_RECALL_SELF_ECHO_H`, `AKASHIC_RECALL_STATE_DIR`, `AKASHIC_STALE_CUE_DAYS` |
 | `curator.py` | Recall curator (vNext loop 1) -- the funnel's triage made an ACTOR, not a report. | GAP | GAP |  |
 | `dissent.py` | Dissent-finder (`core/recall`) — surface the strongest genuine COUNTER to a recalled lesson. | tests/test_dissent_capture.py | docs/library/report/20260718_kimi-fresh-eyes-dissent-round-t094-recal_71a6f9.md |  |

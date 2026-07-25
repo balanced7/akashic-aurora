@@ -538,6 +538,15 @@ def cmd_recall(args):
             print(f"# no record found for '{full}'"); return 1
         for k, v in rec.items():
             print(f"  {k}: {v}")
+        # Anchor review: does this lesson's premise still hold? Advisory only -- it never
+        # retires, demotes or hides anything, and it says UNCHECKED rather than "clean" when
+        # it cannot tell. Read verb only, deliberately not on the recall hot path in v1.
+        # Spec: docs/library/design/20260725_lesson-decay-reconciled-design_194ab2.md
+        try:
+            from core.recall import anchors
+            print(f"  {anchors.review(rec).banner}")
+        except Exception:
+            pass          # a resolver fault must never break the record it annotates
         return 0
     from core.learning.learning_store import get_learning_store
     ls = get_learning_store()

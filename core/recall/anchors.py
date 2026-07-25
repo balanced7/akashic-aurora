@@ -230,5 +230,11 @@ def review(lesson: Dict[str, Any], *, root: Path = ROOT,
         tail = " -- weak path anchors only; a moved file is not a wrong lesson" if weak_only else ""
         return Review(verdicts, False, f"[{lead}: MISSING {detail}{tail}]")
 
+    # "anchors resolve", NOT "premise holds". The difference is the whole tier-4 problem:
+    # wake_consume_then_arm's anchors all resolve and the lesson is still incomplete -- it was
+    # right about the transient case, silent about the structural one, and it nearly cost a
+    # live 20%-of-a-core defect. Saying "premise holds" would endorse exactly the lesson this
+    # resolver cannot judge. It reports what it checked, not what it did not.
     return Review(verdicts, False,
-                  f"[premise holds: {len(checkable)} anchor(s) resolved]")
+                  f"[{len(checkable)} anchor(s) resolve -- anchors only; "
+                  f"says nothing about whether the lesson is complete]")
