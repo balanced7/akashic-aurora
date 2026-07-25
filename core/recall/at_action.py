@@ -76,6 +76,17 @@ _STALE_CUE_DAYS = float(os.getenv("AKASHIC_STALE_CUE_DAYS", "30"))
 SURFACE_STREAM = "recall:surface"
 SURFACE_MAXLEN = 6000
 
+# Durable mirror of the OUTCOME stage (2026-07-25). Same reasoning as F0b one line up, and
+# the same gap it was built to close: the tempdir ledger is ~7-day observability, but a
+# PREVENTION rate is a TREND -- it needs weeks before it says anything, and a 7-day prune
+# would destroy the series before it was long enough to read. That is the starved-index
+# genus (a signal that exists, is individually retrievable, and is silently unavailable in
+# aggregate), and it cost 382 lessons earlier tonight. Outcomes fire far more often than
+# injections (per tool resolution, not per surfacing), so the bound is larger: at a few
+# hundred/day, 20000 is roughly two months of series.
+OUTCOME_STREAM = "recall:outcome"
+OUTCOME_MAXLEN = 20000
+
 
 def _parse_trigger(text: str) -> str:
     """The lesson convention encodes its own firing condition: 'Use when <symptom>, before
@@ -688,16 +699,25 @@ def _log_outcome_stage(session_id: str, target: str, success: bool, *,
     the stages are separately observed. Carries agent_id so cross-seat questions become
     answerable. Fail-soft by contract: a PostToolUse hook must never affect the action.
     """
+    # Build the record ONCE, outside both writers: the tempdir write and the durable
+    # mirror must carry identical shapes, and neither may depend on the other having run.
+    srcs = [s for s in (surfaced_sources or []) if s]
+    rec = {"at": time.time(), "t": str(target or ""), "ok": bool(success),
+           "surfaced": bool(srcs), "s": srcs,
+           "flipped": bool(flipped), "credited": int(credited or 0),
+           "agent": str(os.getenv("AKASHIC_AGENT_ID") or "")}
     try:
-        srcs = [s for s in (surfaced_sources or []) if s]
         os.makedirs(_STAGE_DIR, exist_ok=True)
-        rec = {"at": time.time(), "t": str(target or ""), "ok": bool(success),
-               "surfaced": bool(srcs), "s": srcs,
-               "flipped": bool(flipped), "credited": int(credited or 0),
-               "agent": str(os.getenv("AKASHIC_AGENT_ID") or "")}
         with open(os.path.join(_STAGE_DIR, _safe_id(session_id) + ".jsonl"),
                   "a", encoding="utf-8") as f:
             f.write(json.dumps(rec) + "\n")
+    except Exception:
+        pass
+    try:   # durable mirror -- a prevention RATE is a trend, and the tempdir prunes at ~7d
+        from core.events.event_log import get_event_log
+        get_event_log().ledger.emit(OUTCOME_STREAM,
+                                    dict(rec, sid=_safe_id(session_id)),
+                                    maxlen=OUTCOME_MAXLEN)
     except Exception:
         pass
 
@@ -734,15 +754,27 @@ def prevention_rate(session_id: str) -> Dict[str, Any]:
     lesson leaves no trace unless the seat declares it (kimi), so `lift` bounds the
     prevention effect from above and attributes nothing.
     """
-    recs = session_outcomes(session_id)
-    seen: Dict[str, bool] = {}
+    return _contrast(session_outcomes(session_id))
+
+
+def _contrast(recs) -> Dict[str, Any]:
+    """The contrast math, shared by the session and durable readers so they cannot drift.
+
+    Counts the FIRST resolution per (session, target). First-try is the whole point: a
+    target that fails and is later rescued is a RESCUE, not a prevention, and counting the
+    eventual success would inflate the rate with exactly the cases the old metric already
+    saw."""
+    seen = set()
     with_l = {"n": 0, "ok": 0}
     without = {"n": 0, "ok": 0}
-    for r in recs:
+    for r in recs or []:
         t = str(r.get("t") or "")
-        if not t or t in seen:      # FIRST resolution per target only
+        if not t:
             continue
-        seen[t] = True
+        key = (str(r.get("sid") or ""), t)
+        if key in seen:
+            continue
+        seen.add(key)
         bucket = with_l if r.get("surfaced") else without
         bucket["n"] += 1
         if r.get("ok"):
@@ -753,6 +785,40 @@ def prevention_rate(session_id: str) -> Dict[str, Any]:
             "rate_with": rate_w, "rate_without": rate_o,
             "lift": (round(rate_w - rate_o, 4)
                      if (rate_w is not None and rate_o is not None) else None)}
+
+
+def durable_outcomes(days: float = 30.0) -> List[Dict[str, Any]]:
+    """The durable OUTCOME stream over a window, oldest-first. [] when the store is down."""
+    out: List[Dict[str, Any]] = []
+    cutoff = time.time() - (float(days) * 86400.0)
+    try:
+        from core.events.event_log import get_event_log
+        ledger = get_event_log().ledger
+        after = "0"
+        while True:
+            batch = ledger.consume(OUTCOME_STREAM, after_id=after, count=500)
+            if not batch:
+                break
+            for eid, ev in batch:
+                if isinstance(ev, dict) and float(ev.get("at") or 0) >= cutoff:
+                    out.append(ev)
+                after = str(eid)
+            if len(batch) < 500:
+                break
+    except Exception:
+        return out
+    return out
+
+
+def prevention_rate_durable(days: float = 30.0) -> Dict[str, Any]:
+    """The FLEET-WIDE prevention contrast over a window -- the trend version.
+
+    prevention_rate() answers "this session"; a prevention rate only means something as a
+    TREND, so this is the one that will eventually answer whether the store prevents
+    failure. Same honest bounds as prevention_rate: a contrast, not a counterfactual, with
+    the APPLIED stage still unobserved. Carries the same warning -- it bounds the effect
+    from above and attributes nothing."""
+    return _contrast(durable_outcomes(days))
 
 
 def session_flips(session_id: str) -> List[Dict[str, Any]]:

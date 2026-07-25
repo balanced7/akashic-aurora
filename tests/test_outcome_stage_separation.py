@@ -100,6 +100,35 @@ def test_s5_only_the_first_resolution_per_target_counts():
     assert pr["with_lesson"]["ok"] == 0, "the FIRST try failed; the later rescue is not prevention"
 
 
+def test_s7_contrast_counts_per_session_and_target():
+    """The durable reader spans sessions, so the first-try key must be (session, target) --
+    otherwise one session's target silently suppresses every other session's observation
+    of the same file, and the fleet-wide rate reads from a fraction of the evidence. That
+    is the starved-index genus wearing a different hat."""
+    recs = [
+        {"sid": "a", "t": "p:/x", "ok": True, "surfaced": True},
+        {"sid": "a", "t": "p:/x", "ok": False, "surfaced": True},   # same pair -> ignored
+        {"sid": "b", "t": "p:/x", "ok": False, "surfaced": True},   # different session -> counts
+        {"sid": "b", "t": "p:/y", "ok": True, "surfaced": False},
+    ]
+    c = at_action._contrast(recs)
+    assert c["with_lesson"] == {"n": 2, "ok": 1}, "one per (session,target), not one per target"
+    assert c["without_lesson"] == {"n": 1, "ok": 1}
+
+
+def test_s8_durable_readers_are_fail_soft(monkeypatch):
+    """A PostToolUse-adjacent reader must never raise when the store is down."""
+    import core.events.event_log as el
+
+    def boom():
+        raise RuntimeError("store down")
+
+    monkeypatch.setattr(el, "get_event_log", boom)
+    assert at_action.durable_outcomes(30) == []
+    pr = at_action.prevention_rate_durable(30)
+    assert pr["lift"] is None and pr["with_lesson"]["n"] == 0
+
+
 def test_s6_outcome_stage_does_not_steer_ranking(monkeypatch):
     """The debate's unanimous constraint: no automatic feedback, positive or negative,
     until the stages are separately observed. Recording an outcome must touch NO counter."""
