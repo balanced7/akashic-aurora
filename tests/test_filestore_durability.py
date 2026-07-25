@@ -145,8 +145,21 @@ def test_flush_leaves_no_temp_files_behind(tmp_path):
     assert not leftovers, f"temp files leaked: {leftovers}"
 
 
-def test_concurrent_writers_never_produce_an_unparseable_file(tmp_path):
-    """The end-state must always be valid JSON, whoever wins the race."""
+def test_concurrent_writers_unique_temps_always_parse(tmp_path):
+    """The end-state must always be valid JSON, whoever wins the race.
+
+    WHAT THIS ACTUALLY PROVES, because the old name implied the wrong mechanism (kimi):
+    each FileStore builds its OWN threading.RLock, so four instances hold four different
+    locks and nothing is serialised between them. This passes because the destructive PATH
+    was removed, not because a lock holds: temp paths are unique per writer, so racing
+    writers cannot interleave into one file, and os.replace is atomic so the final rename
+    is never half-written.
+
+    Do NOT "simplify" the unique temp path away on the assumption the lock covers it. It
+    does not. And note the scope: threads share a process, so this cannot exercise the
+    last-writer-wins coherence hole -- that needs true multi-process interleaving and is a
+    separate slice.
+    """
     import threading
 
     p = tmp_path / "store_state.json"

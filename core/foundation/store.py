@@ -389,18 +389,36 @@ class FileStore(Store):
             # bytes for forensics, refuse to persist over them, and stay usable in memory
             # (a hook must never brick the action it decorates).
             self._degraded = f"unparseable: {e}"
-            self._preserve_corrupt_bytes()
-            logger.error(
-                f"FileStore REFUSING TO PERSIST over {self._path}: {e}. "
-                f"Original bytes preserved alongside it; in-memory operation continues. "
-                f"Redis remains authoritative -- reconcile the mirror before trusting it."
-            )
+            kept = self._preserve_corrupt_bytes()
+            if kept:
+                logger.error(
+                    f"FileStore REFUSING TO PERSIST over {self._path}: {e}. "
+                    f"Original bytes preserved at {kept}; in-memory operation continues. "
+                    f"Redis remains authoritative -- reconcile the mirror before trusting it."
+                )
+            else:
+                # Never claim a side effect we did not verify. The old code logged
+                # "Original bytes preserved" unconditionally while the copy swallowed its
+                # own failure -- an operator would be told forensics exist that do not.
+                # Same genus as a census OK-line that reads healthy whether or not the work
+                # happened; caught by kimi, who had already found that shape twice today.
+                logger.error(
+                    f"FileStore REFUSING TO PERSIST over {self._path}: {e}. "
+                    f"PRESERVATION FAILED -- the corrupt bytes exist ONLY at {self._path} "
+                    f"and nothing else holds a copy. Back it up before any recovery attempt. "
+                    f"Redis remains authoritative."
+                )
 
-    def _preserve_corrupt_bytes(self) -> None:
-        """Copy (never move) the unreadable file aside. Best-effort, never raises.
+    def _preserve_corrupt_bytes(self) -> Optional[Path]:
+        """Copy (never move) the unreadable file aside. Returns the copy, or None on failure.
 
         Copy, because a move races every other process that is about to read it, and
         because the whole point is that we do not yet know which copy is the good one.
+
+        Returns rather than swallows: the caller must not report preservation it cannot
+        confirm. Failure here is survivable -- we still refuse to persist, so nothing is
+        destroyed -- but the operator has to KNOW the forensic copy is missing, because in
+        that case the corrupt file is the only copy left.
         """
         try:
             keep = self._path.with_suffix(
@@ -408,8 +426,9 @@ class FileStore(Store):
             )
             if not keep.exists():
                 shutil.copy2(self._path, keep)
+            return keep if keep.exists() else None
         except Exception:
-            pass
+            return None
 
     def _flush(self) -> None:
         if self._degraded:
