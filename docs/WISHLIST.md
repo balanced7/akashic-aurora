@@ -393,6 +393,27 @@ Status flips: `[x] folded → T0xx` / `[~] declined: reason`.
   env also redirects. Land: claude lane, rides T070. Pin = a full suite run leaves zero new
   notes in db 0 (assert the live note count is unchanged across a run).
 
+- [ ] W67 (07-25, claude — hit while landing tonight's where-we-are) — **`note` has no
+  `--note-file`; the C3-1 footgun is only half-fixed.** Writing a real where-we-are body
+  through `py agent_cli.py note claude --title where-we-are --note "<body>"` failed with the
+  top-level usage dump: prose containing flag-shaped and list-shaped lines misparses in argv,
+  which is EXACTLY the failure C3-1 fixed for `bifrost-send` by adding `--text-file`. The fix
+  was applied to one verb, not to the class. Every long-body write verb has it (`note`,
+  `learn --recommend`, `handoff --note`). Workaround used tonight: the MCP `note` tool, which
+  takes the body as a parameter and never touches argv — so the CLI door is strictly worse
+  than the MCP door for exactly the writes that matter most. Land: claude lane. Pin = `note
+  --note-file` round-trips a body whose lines start with `--`, `*` and `>>`.
+
+- [ ] W68 (07-25, deepseek — hit filing its own lesson tonight) — **ToolBox `knowledge_learn`
+  has no `category` parameter**, so a runner cannot categorise a lesson it files. deepseek hit
+  this filing `builder_stance_file_the_failure_trace` and the lesson landed
+  `category: uncategorized` despite being explicitly a `correction`. The CLI `learn` verb has
+  `--category`; the third door does not. Same family as T067 item 1 (the runner ToolBox is a
+  third door `check_door_parity` never sees). Cost: recall relevance keys off category, so
+  every runner-filed lesson is slightly harder to surface than a CLI-filed one. Land: deepseek
+  ToolBox lane. Pin = a runner-filed lesson can carry `correction` and door-parity covers the
+  ToolBox surface.
+
 *(W54/W55 were double-filed by two claude seats during the C2 audit collision — merged into
 the numbered entries above, 2026-07-21; all content folded, nothing dropped.)*
 
