@@ -141,16 +141,40 @@ def test_ranker_invariants(rounds=400):
 
 # ---------- 4. corruption resilience ----------
 def test_filestore_corruption_resilience():
+    """CONTRACT CHANGED 2026-07-25 -- deliberately, after a live data-loss incident.
+
+    This test used to assert that a corrupt store file "recovers" by being overwritten:
+    `assert FileStore(p).get("k") == "v", "recovered data persists"`. That behaviour is
+    exactly the defect codex reported -- a 9MB store_state.json found at 164 bytes holding
+    one vote, because a failed load left _data empty and the next set() flushed the empty
+    dict over the file. Reproduced at 108963 -> 98 bytes.
+
+    "Recovery" that discards the unreadable data is not resilience; it is silent
+    destruction, and it is worst precisely when the file was large and the corruption was
+    superficial (a trailing partial write from a concurrent writer). The store now REFUSES
+    to persist over bytes it could not parse.
+
+    What resilience still means here, and is asserted below: never crash on load, stay
+    fully usable in memory, and keep the original bytes recoverable.
+    """
     with tempfile.TemporaryDirectory() as d:
         p = os.path.join(d, "corrupt.json")
         with open(p, "w", encoding="utf-8") as f:
             f.write("{ this is not valid json @#$%")
+        original = open(p, encoding="utf-8").read()
+
         s = FileStore(p)               # must not crash on load
         assert s.get("anything") is None, "corrupt file should read as empty"
-        s.set("k", "v")                # must recover and work
-        assert s.get("k") == "v"
-        assert FileStore(p).get("k") == "v", "recovered data persists"
-    print("\n--- corruption resilience ---\n  garbage store file degrades + recovers (no crash) OK")
+        s.set("k", "v")                # must stay usable in memory
+        assert s.get("k") == "v", "a degraded store still serves its own writes"
+
+        # The corrupt bytes survive: either still in place, or in the forensic copy.
+        on_disk = [open(os.path.join(d, f), encoding="utf-8", errors="replace").read()
+                   for f in os.listdir(d)]
+        assert any(original in blob for blob in on_disk), \
+            "the unreadable bytes were destroyed -- this is the 2026-07-25 incident"
+    print("\n--- corruption resilience ---\n"
+          "  garbage store file: no crash, usable in memory, original bytes preserved OK")
 
 
 # ---------- 5. backward-compat loading ----------
