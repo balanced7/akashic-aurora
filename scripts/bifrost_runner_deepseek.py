@@ -144,6 +144,10 @@ CONTROL_PLANE_SENDERS = {"conductor"}
 """T078 W1: token tracking -- shared between responder closure and turn-close path.
 The agentic responder populates this per-peer; _process_one drains it after each turn."""
 _token_deltas: Dict[str, tuple] = {}           # peer -> (prompt, completion) since last poll
+# T078 W1b: peer -> {cache_hit, cache_miss, context_peak_chars} for the turn just closed.
+# Tokens alone cannot price a turn: a cached prefix bills ~0.1x, so a 1M-token turn may cost
+# less than a 200k one. Drained beside _token_deltas at turn close.
+_cost_shape: Dict[str, dict] = {}
 _token_journal = None                          # TokenJournal, created at runner start
 # M1-delta: simple run stats tracker (updated per turn in _process_one)
 _RUN_STATS: Dict[str, int] = {"turns": 0}
@@ -448,10 +452,25 @@ def make_agentic_replier(model: str, system: str, think: bool, root: Path, agent
         try:
             prompt_before = ag.prompt_tokens
             comp_before = ag.completion_tokens
+            # T078 W1b: per-TURN peak, so reset the running max before the turn runs.
+            hit_before = getattr(ag, "cache_hit_tokens", 0)
+            miss_before = getattr(ag, "cache_miss_tokens", 0)
+            try:
+                ag.context_high_water = 0
+            except Exception:
+                pass
             answer = ag.send(prompt)                 # streams to the runner window; returns final text
             prompt_after = ag.prompt_tokens
             comp_after = ag.completion_tokens
             _token_deltas[frm] = (prompt_after - prompt_before, comp_after - comp_before)
+            # The two numbers that explain the bill: how much of the re-sent prefix was
+            # CACHED (billed ~0.1x), and how large the context grew. A turn can be huge in
+            # tokens and cheap in money, or the reverse -- tokens alone cannot tell us which.
+            _cost_shape[frm] = {
+                "cache_hit": getattr(ag, "cache_hit_tokens", 0) - hit_before,
+                "cache_miss": getattr(ag, "cache_miss_tokens", 0) - miss_before,
+                "context_peak_chars": getattr(ag, "context_high_water", 0),
+            }
         except Exception as e:
             # RB-23: fold the error into the pipeline (no early return) -- the floor gate
             # gives a transient failure exactly one retry before it confesses.
@@ -872,6 +891,15 @@ def _process_one(m, bus, args, responder, rate) -> None:
             if _token_journal is not None and delta:
                 _token_journal.add_turn(prompt=delta[0], completion=delta[1],
                                         model=getattr(args, "model", ""))
+            # T078 W1b: print the COST SHAPE, not just the size. A meter nobody reads is a
+            # dead meter (T078 W1's own lesson), so this lands where the operator watching
+            # the runner window already looks.
+            shape = _cost_shape.pop(str(m.frm), None)
+            if shape and delta:
+                seen = shape["cache_hit"] + shape["cache_miss"]
+                rate = f"{100 * shape['cache_hit'] / seen:.0f}% cached" if seen else "cache: unmeasured"
+                print(f"[deepseek-runner] turn cost: {sum(delta):,} tok | {rate} | "
+                      f"context peak {shape['context_peak_chars']:,} chars")
         except Exception:
             pass
 

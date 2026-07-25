@@ -181,6 +181,53 @@ class Agent:
         self.json_mode = False
         self.messages = [{"role": "system", "content": system}]
         self.prompt_tokens = self.completion_tokens = 0
+        # T078 W1b -- meter the things that actually drive cost.
+        # Measured 2026-07-25: 309 deepseek turns / 393M tokens, worst turn 11.4M over 127
+        # hops. The driver is that `messages` is never trimmed and tool results append raw
+        # (MAX_FILE_BYTES=120_000), so one big read is re-sent every remaining hop. Before
+        # compacting anything we need to know how much of that re-send is CACHED -- DeepSeek
+        # bills a cached prefix at roughly 0.1x, so the raw token count can overstate real
+        # spend by up to 10x. Meters before levers (T078 R1).
+        self.cache_hit_tokens = self.cache_miss_tokens = 0
+        self.context_high_water = 0
+
+    def _absorb_usage(self, usage) -> None:
+        """Fold one usage report into the session counters. Never raises.
+
+        The cache split is optional by provider, so its absence degrades to 0 rather than
+        breaking accounting -- an exception here would silently cost us the whole meter,
+        which is how T078-W1 spent weeks reporting zero.
+        """
+        try:
+            self.prompt_tokens += getattr(usage, "prompt_tokens", 0) or 0
+            self.completion_tokens += getattr(usage, "completion_tokens", 0) or 0
+            self.cache_hit_tokens += getattr(usage, "prompt_cache_hit_tokens", 0) or 0
+            self.cache_miss_tokens += getattr(usage, "prompt_cache_miss_tokens", 0) or 0
+        except Exception:
+            pass
+
+    def cache_rate(self):
+        """Fraction of prompt tokens served from cache, or None when unmeasured.
+
+        None, never 0.0: 'no cache data' and 'nothing was cached' are different facts, and
+        collapsing them is how a dead meter reads as a real reading.
+        """
+        seen = self.cache_hit_tokens + self.cache_miss_tokens
+        return (self.cache_hit_tokens / seen) if seen else None
+
+    def _mark_context(self) -> int:
+        """Sample the live context size; keep the per-turn peak. Cheap, called per hop.
+
+        This is the number the cost is quadratic in -- a runaway turn is visible here while
+        it runs, instead of only in a turn_metrics row 575 seconds later.
+        """
+        try:
+            size = sum(len(str(m.get("content") or "")) for m in self.messages)
+            if size > self.context_high_water:
+                self.context_high_water = size
+            return size
+        except Exception:
+            return 0
 
     def _activity(self, state, detail=""):
         if self.on_activity:
@@ -239,8 +286,7 @@ class Agent:
                     self._activity("thinking")
                     streaming = True
                 if getattr(chunk, "usage", None):
-                    self.prompt_tokens += chunk.usage.prompt_tokens or 0
-                    self.completion_tokens += chunk.usage.completion_tokens or 0
+                    self._absorb_usage(chunk.usage)
                 if not chunk.choices:
                     continue
                 d = chunk.choices[0].delta
@@ -279,6 +325,9 @@ class Agent:
         if getattr(self, "toolbox", None) is not None:
             self.toolbox._clarify_count = 0   # R7 P2: the budget is per-task (per ask)
         for _round in range(MAX_TOOL_ROUNDS):
+            # Sample BEFORE the call: this is the context this hop is about to re-send, and
+            # it is the quantity the whole cost is quadratic in.
+            self._mark_context()
             if self.interrupt and self.interrupt():   # DeepSeek's fix: true barge-in mid-tool-loop
                 print(f"{C.yellow}[interrupted by your interjection -- pausing mid-task]{C.reset}")
                 return "[paused mid-task by your interjection -- resume to continue]"
