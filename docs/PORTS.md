@@ -1,6 +1,6 @@
 # Port Registry — what lives where
 
-Status: canonical (born 2026-07-16). **Single source of truth in code: `config.py` PORT
+Status: current  (canonical since 2026-07-16). **Single source of truth in code: `config.py` PORT
 REGISTRY block.** This doc is the human-readable companion. If they ever disagree, `config.py`
 wins and this doc is the bug.
 

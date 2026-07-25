@@ -37,9 +37,6 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))  # repo root (core/context/ depth, T104-M3)
-
-
 @dataclass
 class Milestone:
     id: str
@@ -617,7 +614,10 @@ class ProjectContextManager:
                     data = json.loads(a)
                     data["session"] = session_id
                     recent.append(data)
-                except:
+                except (json.JSONDecodeError, TypeError):
+                    # A malformed or non-dict action record is skipped, not fatal. Narrowed
+                    # from a bare `except:`, which also swallowed KeyboardInterrupt and
+                    # SystemExit -- that is what the boundary guard is protecting against.
                     pass
 
         return recent[:20]
@@ -791,7 +791,13 @@ def get_context_manager() -> ProjectContextManager:
 
 if __name__ == "__main__":
     import argparse
-    
+
+    # Direct-script execution only: put the repo root on the path so `core.*` resolves.
+    # This used to run at IMPORT time, which mutated sys.path for every consumer of this
+    # module and tripped the no-syspath-insert boundary guard -- the guard that fails
+    # FIRST in CI, skipping every gate behind it including the whole test suite.
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
     parser = argparse.ArgumentParser(description="Project Context Manager")
     parser.add_argument("--init", action="store_true", help="Initialize defaults")
     parser.add_argument("--context", action="store_true", help="Print full context")

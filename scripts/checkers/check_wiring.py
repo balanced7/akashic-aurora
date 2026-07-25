@@ -49,6 +49,17 @@ EXCEPTIONS = {
         "'invoker' registry (does not exist yet; Dispatcher.run() has no production caller) AND an "
         "architecture choice vs the live bifrost_wake mechanism -- wire when W3 lands (arch-triage 2026-07-07)",
     "core/comm/interject.py": "built-ahead: human-interjection router; not wired yet",
+    # Added 2026-07-25 while clearing a CI that had been RED for over a day -- the boundary
+    # guard failed FIRST and skipped every gate behind it, including the whole test suite,
+    # so these two never surfaced. Both are kimi-lane builds from arcs still in flight, not
+    # dead code. Dated and owned so they are TRACKED debt, not normalised debt: each names
+    # what would clear it. If the owning slice lands, delete the entry -- do not renew it.
+    "core/comm/runner_lib.py": "built-ahead (K0, 438f301): client-factory seam extracted for "
+        "the kimi seat alongside core/comm/toolbox.py. UNWIRE-WHEN: a runner imports the "
+        "factory instead of constructing its own client. Owner: kimi lane / T099.",
+    "core/toolbelt/contest.py": "built-ahead (1cc5a39): the chorus door, kimi's build, "
+        "claude-run green. UNWIRE-WHEN: a production caller invokes contest -- today only "
+        "its pins exercise it. Owner: kimi lane / T099 self-tooling.",
     "core/coord/experiment.py": "built-ahead: Stage-3 coordination evidence engine",
     "core/coord/metrics.py": "built-ahead: coordination metrics watchdog",
     "core/learning/consolidation.py": "built-ahead: memory->chronicle consolidation",

@@ -166,12 +166,25 @@ def check() -> int:
                        f"{rel} constructs `{{ns}}:{fam}:...` but '{fam}' is not in "
                        f"packet_spec.EPHEMERAL_PREFIXES nor DURABLE_FAMILIES -- register it "
                        f"(ephemeral-by-design -> roster; persisted -> durable allowlist)")
+        # The no-syspath-insert rule targets IMPORT-TIME path mutation: a library module
+        # that rewrites sys.path for every consumer that imports it. Inside a
+        # `if __name__ == "__main__":` block the same call is ordinary Python -- it runs
+        # only when the file is executed directly, never on import. Flagging it there made
+        # the rule mean something it does not say, and the only way to satisfy it was to
+        # break direct-script execution or allowlist the file (normalising the debt).
+        # Limitation, stated rather than discovered: everything after the __main__ guard is
+        # treated as script scope, so module-level code placed BELOW it is exempt too.
+        main_guard = re.compile(r'^if\s+__name__\s*==\s*[\'"]__main__[\'"]\s*:')
+        script_scope_from = None
+        for i, line in enumerate(text.splitlines(), 1):
+            if script_scope_from is None and main_guard.match(line):
+                script_scope_from = i
         for i, line in enumerate(text.splitlines(), 1):
             if bare_except.search(line):
                 record("no-bare-except", rel, f"{rel}:{i} bare except")
             if rel != REDIS_CONNECTOR and (import_redis.search(line) or use_redis.search(line)):
                 record("redis-only-via-connector", rel, f"{rel}:{i} direct redis use")
-            if syspath.search(line):
+            if syspath.search(line) and not (script_scope_from and i > script_scope_from):
                 record("no-syspath-insert", rel, f"{rel}:{i} sys.path.insert")
             m = classdef.match(line)
             if m:

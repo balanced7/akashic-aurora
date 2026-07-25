@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at ea60016. A bound you discover by collision is not awareness -- this sheet
+> Derived at 975f89c. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -14,10 +14,10 @@ Class: reference
 | Flag | Default (as written) | Read sites |
 |---|---|---|
 | `AGENT_ID` | `"unknown"` | core/comm/bus.py:1098 |
-| `AI_SETUP` | `"E:\\AI-Setup"` | agent_cli.py:1111, agent_cli.py:1955, agent_cli.py:2037 +15 |
+| `AI_SETUP` | `"E:\\AI-Setup"` | agent_cli.py:1111, agent_cli.py:2024, agent_cli.py:2106 +16 |
 | `AKASHIC_ACK_UNHANDLED_HOURS` | `UNHANDLED_HOURS` | core/comm/promoter.py:151 |
-| `AKASHIC_AGENT_ID` | `"claude"` | agent_cli.py:387, agent_cli.py:581, agent_cli.py:681 +42 |
-| `AKASHIC_ASK_EXPECT_S` | `"1800"` | agent_cli.py:3439 |
+| `AKASHIC_AGENT_ID` | `"claude"` | agent_cli.py:387, agent_cli.py:581, agent_cli.py:681 +43 |
+| `AKASHIC_ASK_EXPECT_S` | `"1800"` | agent_cli.py:3508 |
 | `AKASHIC_AUTOBOOT` | `"1"` | agent/harness/context.py:159 |
 | `AKASHIC_BIRTH_GUARD` | `""` | scripts/githooks/birth_guard.py:70 |
 | `AKASHIC_BOOT_FULL` | `"0"` | agent_cli.py:1136 |
@@ -53,9 +53,9 @@ Class: reference
 | `AKASHIC_PROPOSED_STALE_DAYS` | `stale_days` | core/coord/task_ledger.py:397 |
 | `AKASHIC_RECALL_AT_ACTION` | `"1"` | agent/harness/hooks/claude_posttooluse.py:233, agent/harness/hooks/claude_pretooluse.py:107, agent/harness/hooks/cursor_posttooluse.py:105 +2 |
 | `AKASHIC_RECALL_CACHE_TTL` | `"120"` | core/recall/at_action.py:65 |
-| `AKASHIC_RECALL_FLOOR` | `"0.20"` | core/recall/at_action.py:919 |
-| `AKASHIC_RECALL_SELF_ECHO_H` | `"2"` | core/recall/at_action.py:855 |
-| `AKASHIC_RECALL_STATE_DIR` | `` | agent/harness/seen.py:14, agent/harness/hooks/claude_posttooluse.py:61, agent/harness/hooks/claude_sessionend.py:35 +8 |
+| `AKASHIC_RECALL_FLOOR` | `"0.20"` | core/recall/at_action.py:1105 |
+| `AKASHIC_RECALL_SELF_ECHO_H` | `"2"` | core/recall/at_action.py:1041 |
+| `AKASHIC_RECALL_STATE_DIR` | `` | agent/harness/seen.py:14, agent/harness/hooks/claude_posttooluse.py:61, agent/harness/hooks/claude_sessionend.py:35 +9 |
 | `AKASHIC_RECENT_INBOX_S` | `str(12 * 3600` | core/comm/doctor.py:60 |
 | `AKASHIC_RELEVANCE_BUDGET` | `"1"` | core/context/learning_loader.py:36 |
 | `AKASHIC_RELEVANCE_BUDGET_CHARS` | `""` | core/context/relevance_budget.py:49 |
@@ -75,26 +75,26 @@ Class: reference
 | `AKASHIC_TRANSCRIPT_TAIL_BYTES` | `str(4 * 1024 * 1024` | agent/harness/hooks/claude_posttooluse.py:105, scripts/hooks/claude_posttooluse.py:105 |
 | `AKASHIC_WAKE_MARKER_FRESH_MIN` | `""` | core/comm/wake_seat.py:311 |
 | `AKASHIC_WHISPER_LINES` | `""` | agent/harness/context.py:109 |
-| `AKASHIC_WISHLIST_FILE` | `` | agent_cli.py:1581 |
+| `AKASHIC_WISHLIST_FILE` | `` | agent_cli.py:1650 |
 | `BIFROST_APPROACHING_WEDGE_SECONDS` | `"150"` | core/comm/liveness.py:49 |
 | `BIFROST_CONSUME_LANE` | `` | core/comm/bifrost_api.py:214 |
 | `BIFROST_INCARNATION` | `` | core/comm/bus.py:275, core/comm/bus.py:356 |
 | `BIFROST_LANES_DUAL_WRITE` | `True` | core/comm/packet_spec.py:300 |
 | `BIFROST_MAX_HOPS` | `"6"` | core/comm/control.py:64 |
 | `BIFROST_MAX_REPLIES_PER_MIN` | `"12"` | core/comm/control.py:65 |
-| `BIFROST_NAMESPACE` | `"bifrost"` | agent_cli.py:4577, agent/harness/delta.py:35, core/comm/bus.py:151 +20 |
+| `BIFROST_NAMESPACE` | `"bifrost"` | agent_cli.py:4646, agent/harness/delta.py:35, core/comm/bus.py:151 +20 |
 | `BIFROST_PREFLIGHT_ASSERT` | `"1"` | core/comm/assertions.py:100 |
 | `BIFROST_PREMISE_GATE_MIN_AGE_MS` | `` | core/coord/task_ledger.py:333 |
 | `BIFROST_REPLY_DEDUP_TTL_S` | `"1200"` | core/comm/bus.py:334 |
 | `BIFROST_STALE_MS` | `DEFAULT_STALE_MS` | core/comm/packet_spec.py:337 |
 | `BIFROST_UI_PORT` | `"8787"` | core/comm/doctor.py:864 |
 | `BIFROST_WAKE_DEADLINE_S` | `""` | scripts/bifrost_wake.py:127 |
-| `BIFROST_WAKE_LANE` | `"work"` | agent_cli.py:3363, core/comm/bifrost_api.py:134 |
+| `BIFROST_WAKE_LANE` | `"work"` | agent_cli.py:3432, core/comm/bifrost_api.py:134 |
 | `BIFROST_WAKE_LONGLIVED` | `"1"` | scripts/bifrost_wake.py:132 |
 | `BIFROST_WEDGE_SECONDS` | `"300"` | core/comm/liveness.py:44 |
 | `BUS_MAX_MESSAGE_BYTES` | `DEFAULT_MAX_MESSAGE_BYTES` | core/comm/packet_spec.py:66 |
-| `CLAUDE_CODE_SESSION_ID` | `` | agent_cli.py:3370, core/comm/runner_lock.py:186 |
-| `CLAUDE_SESSION_ID` | `` | agent_cli.py:3370, core/comm/runner_lock.py:186 |
+| `CLAUDE_CODE_SESSION_ID` | `` | agent_cli.py:3439, core/comm/runner_lock.py:186 |
+| `CLAUDE_SESSION_ID` | `` | agent_cli.py:3439, core/comm/runner_lock.py:186 |
 | `CURSOR_PROJECT_DIR` | `` | agent/harness/hooks/cursor_posttooluse.py:91, agent/harness/hooks/cursor_sessionstart.py:49 |
 | `DEEPSEEK_API_KEY` | `` | scripts/ask_deepseek.py:31, scripts/deepseek_chat.py:122 |
 | `DEEPSEEK_CONNECT_TIMEOUT` | `"15"` | scripts/deepseek_chat.py:61 |
@@ -158,7 +158,7 @@ Class: reference
 | `STORM_DEPTH_WINDOW` | `3` | core/comm/storm_detect.py:53 |
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py:56 |
 
-## Mechanical bounds (96 numeric constants)
+## Mechanical bounds (98 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -219,6 +219,7 @@ Class: reference
 | `MIN_SPAN_S` | 300 | core/narrative/episode_suggester.py:54 | a just-opened episode never suggests (anti rapid-fire after each close) |
 | `MIN_WITHIN_S` | 30 | core/comm/expectations.py:69 | clamp floor: sub-30s reply deadlines on a turn-based bus are noise |
 | `NUDGE_TTL` | 120 | core/comm/nudge.py:41 | a nudge auto-expires so a missed pick-up never sticks |
+| `OUTCOME_MAXLEN` | 20,000 | core/recall/at_action.py:88 |  |
 | `PER_AGENT_MAXLEN` | 10,000 | core/events/event_log.py:44 | per-agent: a shallower convenience index |
 | `PER_AGENT_MAXLEN` | 10,000 | core/signals/agent_signal_ledger.py:51 | signals retained per agent stream |
 | `PER_STREAM_LIMIT` | 400 | core/comm/flow_trace.py:30 | bounded read per stream; the window trims harder |
@@ -240,6 +241,7 @@ Class: reference
 | `THRESHOLD` | 1,500 | scripts/checkers/check_bus_atom_pointers.py:35 | chars: below this a body is "a pointer with manners" |
 | `TOKEN_BUDGET` | 4,000 | core/narrative/chronicler.py:122 |  |
 | `TOOL_SEND_TEXT_MAX` | 8,000 | core/comm/packet_spec.py:331 | D3 (deepseek verdict 2026-07-19): the 4000 door |
+| `WINDOW` | 240 | scripts/checkers/check_pointer_promises.py:95 |  |
 | `_ANSWERED_KEY_CAP` | 20,000 | core/comm/mailbox.py:43 |  |
 | `_CAP_MAX` | 200 | agent/harness/capture.py:17 |  |
 | `_CAP_STR` | 400 | agent/harness/capture.py:18 |  |

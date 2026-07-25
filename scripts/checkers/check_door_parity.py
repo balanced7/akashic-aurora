@@ -124,6 +124,42 @@ MANIFEST = {
     "knowledge_map": "shared", "task": "shared",
     # T060 N0: dry-run explanation + bounded observation counters are read-only on both doors.
     "packet_trace": "shared", "packet_stats": "shared",
+    # --- T067 backlog, classified by deepseek 2026-07-25 ---
+    # These 23 accumulated invisibly behind a DEAD CANARY: toolbox_verbs() parsed the file
+    # `class ToolBox` used to live in, so it returned an EMPTY set and phantom-failed
+    # everything (66 fails, all noise). With the parser repaired (dc107d2) the real backlog
+    # surfaced. deepseek classified all 23 against agent_cli.py's own add_parser calls:
+    # 22 CLI-only operator/author/diagnostic surfaces, 1 MCP-only health check. No gaps.
+    "alias": "cli_only",           # toolbelt authoring: mint/list/retire verb aliases
+    "audit": "cli_only",           # belief-vs-state audit; operator diagnostic, writes nothing
+    "bench": "cli_only",           # S0 triage bench: operator mailbox management
+    "bifrost_drain": "cli_only",   # drain a PEER's lane -- operator intervention, not self-service
+    "capture": "cli_only",         # full-fidelity bus read by stream id; forensic tool
+    "clobber_scan": "cli_only",    # static scan for unconditional shared-key writes (W47)
+    "defer": "cli_only",           # capability-gated standing queue (W33)
+    "doc": "cli_only",             # seed a new doc with the header contract; authoring door
+    "flightdeck": "cli_only",      # cockpit one-pager (W25); operator dashboard
+    "followup": "cli_only",        # charter question-back (W46)
+    "kata": "cli_only",            # grammar-prove a toolbelt alias against the door
+    "kit": "cli_only",             # install a kit bundle on a seat's belt (T099)
+    # deepseek classified this cli_only ("operator diagnostic, observation only") and the
+    # guard refuted it TWICE, which is the guard working: first that mailbox is already on
+    # the MCP door (so not cli_only), then that it is absent from the ToolBox (so not
+    # shared either). 22 of its 23 calls held; the one that did not was caught by the
+    # checker it was helping to fix. Recorded as a `gap` -- the honest label for a verb on
+    # two doors and missing from the third. Gaps are REPORTED, never silenced, and this one
+    # is tracked as a followup rather than left to live in a comment.
+    "mailbox": "gap",              # T095 M0 shadow mailbox: CLI+MCP, absent from ToolBox
+    "new": "cli_only",             # subcommand of `doc`
+    "pulse": "cli_only",           # LIFEWORKERS pressure map (W25)
+    "run": "cli_only",             # execute a toolbelt alias
+    "suite_baseline": "cli_only",  # record/compare the pytest baseline; needs shell
+    "tally": "cli_only",           # local counter roll-up
+    "toast": "cli_only",           # peer credit; receipt verifies against the learning store
+    "tool": "cli_only",            # toolbelt introspection
+    "unwedge": "cli_only",         # operator recovery for a wedged seat
+    "wish": "cli_only",            # append to WISHLIST.md -- author surface, needs the repo
+    "diag_echo_slow": "mcp_only",  # MCP server health check; no CLI meaning
     # --- cli_only: local diagnostics / operator controls / needs shell+git ---
     "discover": "cli_only", "console_log": "cli_only", "harnesses": "cli_only",
     "recall_counters": "cli_only", "triage": "cli_only", "wrap": "cli_only",

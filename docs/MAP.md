@@ -52,7 +52,7 @@ Class: reference
 | `ledger.py` | Ledger: Swappable event-record interface (append-and-replay) | tests/test_ledger.py | docs/failure-ledger-2026-07.md | `AI_SETUP` |
 | `redis_connection.py` | Redis Connection: Fail-fast connectivity primitive | GAP | GAP | `REDIS_DB`, `REDIS_HOST`, `REDIS_PORT` |
 | `relationship_types.py` | Comprehensive Relationship Type Framework for Knowledge Graphs | tests/test_relationship_types.py | GAP |  |
-| `store.py` | Store: Swappable persistence interface (full Redis-mirror) | tests/test_store.py | docs\library\design/20260709_agent-memory-analysis-of-learning-store_5ec82f.md | `AI_SETUP` |
+| `store.py` | Store: Swappable persistence interface (full Redis-mirror) | tests/test_filestore_durability.py | docs\library\design/20260709_agent-memory-analysis-of-learning-store_5ec82f.md | `AI_SETUP` |
 | `streams.py` | streams -- process plumbing for long-lived agent processes (T030 L3 / RB-28). | GAP | GAP |  |
 | `timeutil.py` | timeutil -- one deterministic, timezone-safe way to turn an ISO timestamp into a | GAP | GAP |  |
 
@@ -175,7 +175,7 @@ Class: reference
 | `beat_log.py` | BeatLog (Slice 1) -- append salient narrative Beats to the Store + read them by time. | tests/test_narrative_beat_log.py | GAP | `AKASHIC_EMBED_THEMES` |
 | `chapter_lifecycle.py` | Chapter lifecycle helpers (Slice 7) — bi-temporal stamping, in-place regeneration, | GAP | GAP |  |
 | `chronicler.py` | Chronicler (Slice 3) — distill narrative Beats into Chapters + Storyline + Atlas. | tests/test_chronicler.py | GAP | `AI_SETUP` |
-| `drift.py` | drift_check -- lightweight SEMANTIC drift detector over the narrative spine (prototype). | tests/test_drift.py | docs\library\report/20260711_deepseek-l2-verify-gate-green-3-drifts-v_3395cc.md |  |
+| `drift.py` | drift_check -- lightweight SEMANTIC drift detector over the narrative spine (prototype). | tests/test_continuity_drift.py | docs\library\report/20260711_deepseek-l2-verify-gate-green-3-drifts-v_3395cc.md |  |
 | `episode.py` | Session bookends -- the live EPISODE layer over the narrative Chapter (Slice S1). | tests/test_episode.py | docs\library\report/20260716_w8-gauge-honesty-episode-auto-close-prio_79e195.md |  |
 | `episode_suggester.py` | Episode auto-suggester (bookends Slice S3) -- ADVISORY phase-boundary suggestions, never a forced close. | tests/test_episode_suggester.py | GAP | `AKASHIC_AGENT_ID` |
 | `event_bridge.py` | EventBridge (Slice 4) -- join the narrative timeline to the raw event firehose. | tests/test_event_bridge.py | GAP |  |

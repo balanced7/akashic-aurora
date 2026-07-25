@@ -220,8 +220,10 @@ BAR: no "done" claim on unexercised runtime surfaces.
 ### M6. Verbatim preservation of peer output
 TRIGGER: any substantive report, review, or verdict from a peer agent (deepseek, GPT,
 frontier passes) -- especially when the delivery channel is lossy.
-PROTOCOL: persist the FULL text to research/reviewed/ with provenance header before
-synthesizing; chat is disposable, the record is not. When the reply channel fails
+PROTOCOL: persist the FULL text as a report ATOM (projected to docs/library/report/) with
+provenance header before synthesizing; chat is disposable, the record is not. Pre-migration
+records live at research/reviewed/ and stay cited as-is -- corrections supersede, they never
+rewrite history. When the reply channel fails
 (no-final-answer), harvest from the streamed log -- the work usually exists.
 RECEIPTS: 6 verbatim records this arc; the L1 verify GATE GREEN existed ONLY in the
 streamed log (bus reply was the 35-char no-answer marker, twice).
@@ -307,7 +309,8 @@ names.
   counted. An activity metric is only a proxy while its outcome is scarce, and the
   quarterly review asks whether each proxy has earned its outcome yet.
 - Each practice's metric is reviewable from durable records (git history, promoted
-  tier, research/reviewed, the funnel) -- no new bookkeeping demanded of anyone.
+  tier, the report atoms in docs/library/, the funnel) -- no new bookkeeping demanded
+  of anyone.
 - Wrap-time: the session draft already lists shipped slices; the arc retrospective
   (sprint_pattern_close_the_loop) scores the arc against this doc -- which practices
   fired, which were skipped WITH REASON, what the metrics read.
@@ -325,9 +328,10 @@ names.
 (2) Pre-registration checker: acceptance-test commit <= impl commit per slice (M3,
     from git history).
 (3) Wrap-time arc scorecard: which M# fired, which skipped WITH REASON, metric reads.
-(4) Verbatim-record linter: GATE strings in ship messages cite a research/reviewed/
-    path (M6).
+(4) Verbatim-record linter: GATE strings in ship messages cite a report-atom path
+    (docs/library/report/...) or the atom id; legacy research/reviewed/ paths stay
+    accepted for pre-migration history (M6).
 (5) M1-LITE tier recorded in the slice's ledger entry (checkable from the ledger).
 (6) M1-PV: reconciliation records open with the verification-pass header (checkable
-    from research/reviewed/).
+    from docs/library/report/).
 (7) M1-BRIEF: fence briefs carry the five mandatory sections (mechanically checkable).

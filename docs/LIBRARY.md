@@ -35,8 +35,8 @@ Type: <type> (<kind>) · Arc: <arc-or-T#> · Seats: <authors> · Date: YYYY-MM-D
 | Living law that must stay true | contract | `docs/`, named `UPPERCASE.md` (or repo root: README, AGENTS, CONTRIBUTING) |
 | Generated census/projection — never hand-edit | map | `docs/` (MODULE_INDEX, MAP, PHYSICS, DOORS, SHELVES) |
 | Position / counter / reconciliation | design | `research/drafts/` → reconciled to `docs/` |
-| Work order to a seat | brief | `research/briefs/` (the word is *brief* — see LEXICON: charter) |
-| Verbatim evidence: fence, review, walk, frontier sweep | report | `research/reviewed/` |
+| Work order to a seat | brief | `docs/library/brief/` (the word is *brief* — see LEXICON: charter) |
+| Verbatim evidence: fence, review, walk, frontier sweep | report | `docs/library/report/` |
 | Story, reflection, journey | chronicle | `chronicles/` (+ `docs/JOURNEY.md`) |
 | Living append/flip list | ledger | `docs/` (fleet) or `research/` root (research-day, per its README) |
 | A seat's standing contract | agent-contract | `charters/<agent>/CHARTER.md` |
