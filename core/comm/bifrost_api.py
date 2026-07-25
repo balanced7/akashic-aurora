@@ -196,9 +196,22 @@ class BifrostAPI:
             # Keep PENDING_SKIP_KINDS == bifrost_wake.SKIP_KINDS_LANE (parity pin L7).
             live = [m for m in pending
                     if str(getattr(m, "kind", "")) not in PENDING_SKIP_KINDS]
+            # SEED BEFORE RETURNING. Returning `live` without seeding meant the next call
+            # peeked again, found the same mail (detect-only never consumes -- T017), and
+            # returned instantly again: the "blocking" read never blocked for as long as any
+            # wake-worthy mail sat undrained. Measured 2026-07-25: 20% of one core burned
+            # continuously by an idle watcher, 6,202,600 twins deduped in one 3.97h life.
+            #
+            # The comment above already names this trap for SKIP-kinds ("lane_since never
+            # seeds and the watcher busy-peeks for its whole deadline"). The identical trap
+            # fires for WAKE-WORTHY kinds the seat cannot drain -- e.g. legacy-lane twins
+            # that a work-lane consume does not clear. Seeding here closes both.
+            #
+            # Nothing is lost: pending mail is still returned to this caller exactly once,
+            # and detect-only leaves it on the shared cursor for the real consumer.
+            self._lane_since = self._lane_tails()
             if live:
                 return live
-            self._lane_since = self._lane_tails()
         nxt: Dict[str, str] = {}
         msgs = self.bus.wait(timeout_ms=timeout_ms, since=self._lane_since, since_out=nxt,
                              streams=self._lane_streams())
