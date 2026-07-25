@@ -178,6 +178,109 @@ def test_p6_census_always_exits_zero_even_with_findings(tmp_path):
 # --------------------------------------------------------------------------
 # P7 -- scope: immutable library projections were true when written.
 # --------------------------------------------------------------------------
+def test_p8_ok_line_cannot_claim_clean_when_nothing_was_examined(tmp_path):
+    """kimi PATH 1: '0 flagged' must be distinguishable from '0 examined'.
+
+    The first draft printed "[OK] every falsifiable directory promise matches" whenever
+    nothing was flagged -- which reads identically for a doc full of unfalsifiable pointers
+    and for a doc that was never really checked. That is the fails-open genus, shipped
+    inside the checker built to catch it. deepseek asserted the caller distinguished these;
+    it did not. The census must report what it EXAMINED, not only what it found.
+    """
+    (tmp_path / "docs").mkdir()
+    _doc(tmp_path, "EMPTY.md", "No links here at all.")
+
+    stats = cpp.census_stats(root=tmp_path, live_docs=["EMPTY.md"])
+    assert stats["examined"] == 0
+    assert stats["flagged"] == 0
+    assert stats["clean_claim"] is False, (
+        "with nothing examined the census must NOT assert everything matches"
+    )
+
+
+def test_p9_cardinal_binds_to_the_nearest_promise_not_the_first(tmp_path):
+    """kimi PATH 2 / deepseek (b): first-cardinal-wins is a constructible false positive."""
+    target = tmp_path / "research" / "reviewed"
+    target.mkdir(parents=True)
+    for i in range(200):
+        (target / f"verdict-{i}.md").write_text("# v", encoding="utf-8")
+
+    doc = _doc(
+        tmp_path,
+        "README.md",
+        "We tried 3 reports before settling. The verdicts are preserved in "
+        "[`research/reviewed/`](research/reviewed/) -- ~180 records.",
+    )
+
+    findings = cpp.scan_doc(doc, root=tmp_path)
+    mismatches = [f for f in findings if f.verdict == "MISMATCH"]
+    assert not mismatches, (
+        f"bound the far cardinal '3 reports' instead of the near '~180 records': {findings!r}"
+    )
+    assert any(f.claimed == 180 for f in findings), f"expected claimed=180, got {findings!r}"
+
+
+def test_p9b_cardinal_preceding_the_pointer_is_still_bound(tmp_path):
+    """Regression: a forward-only window dropped every leading claim.
+
+    Coverage on the live repo fell from 2 falsifiable promises to 0 and the census said
+    NOTHING CHECKED -- the honesty line from P8 catching a defect in the fix for P9.
+    """
+    target = tmp_path / "docs" / "library" / "report"
+    target.mkdir(parents=True)
+    (target / "only-one.md").write_text("# r", encoding="utf-8")
+
+    doc = _doc(
+        tmp_path,
+        "README.md",
+        "114 review and verification records live in "
+        "[`docs/library/report/`](docs/library/report/), with the design rounds elsewhere.",
+    )
+
+    findings = cpp.scan_doc(doc, root=tmp_path)
+    assert any(f.claimed == 114 for f in findings), (
+        f"a cardinal PRECEDING its pointer was dropped: {findings!r}"
+    )
+    assert any(f.verdict == "MISMATCH" for f in findings)
+
+
+def test_p10_stray_readme_does_not_inflate_observed(tmp_path):
+    """kimi (c): _count_class counted ANY .md, so a directory's own README masked the rot."""
+    target = tmp_path / "research" / "reviewed"
+    target.mkdir(parents=True)
+    (target / "README.md").write_text("# index", encoding="utf-8")
+    for i in range(50):
+        (target / f"drill-{i}.json").write_text("{}", encoding="utf-8")
+
+    doc = _doc(
+        tmp_path,
+        "README.md",
+        "The verdicts are in [`research/reviewed/`](research/reviewed/) -- 3 records.",
+    )
+
+    findings = cpp.scan_doc(doc, root=tmp_path)
+    assert [f for f in findings if f.verdict == "MISMATCH"], (
+        "a directory's own README.md was counted as a promised record"
+    )
+
+
+def test_p11_markdown_link_with_title_is_not_silently_skipped(tmp_path):
+    """deepseek: `[text](url "title")` broke the href parse and vanished from the census."""
+    target = tmp_path / "research" / "reviewed"
+    target.mkdir(parents=True)
+    (target / "drill.json").write_text("{}", encoding="utf-8")
+
+    doc = _doc(
+        tmp_path,
+        "README.md",
+        'The verdicts are in [reviewed](research/reviewed/ "the record") -- ~180 records.',
+    )
+
+    findings = cpp.scan_doc(doc, root=tmp_path)
+    assert findings, "a titled markdown link was silently skipped"
+    assert any(f.verdict == "MISMATCH" for f in findings)
+
+
 def test_p7_immutable_library_projections_are_out_of_scope(tmp_path):
     lib = tmp_path / "docs" / "library" / "report"
     lib.mkdir(parents=True)

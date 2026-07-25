@@ -70,14 +70,32 @@ OUT_OF_SCOPE = (
     "tests/data/",
 )
 
-# How far below a claimed cardinal counts as a mismatch. Deliberately generous: the defining
-# case was 0 against 180, and a census that quibbles about 114-vs-120 is a census people mute.
+# How far below a claimed cardinal counts as a mismatch.
+#
+# The honest justification (kimi's verify corrected my first one): this is NOT defended by
+# "the defining case was 0 against 180" -- that case is caught at ANY threshold above zero.
+# 0.5 encodes a READER-TOLERANCE judgement: we call the prose a lie when a reader would find
+# fewer than HALF the promised evidence. It is a values call about how misled a reader has to
+# feel, not a measurement, and the next person tuning it should know that is what they are
+# tuning. Note the admitted cost: 91 records against a claim of 180 passes clean.
+#
+# Calibrated for LARGE-cardinal promises ("~180 records"). Small claimed cardinals (<= 10)
+# are weakly protected by this arithmetic -- check those by hand.
 MISMATCH_RATIO = 0.5
 
-# Characters of prose either side of a pointer that count as "the promise".
+# A directory's own scaffolding is not the class of thing prose promises. Counting these was
+# the real protection gap kimi found: with K stray .md files present, a false promise of up
+# to 2K records passed clean, because observed drifted up toward claimed.
+NON_CLASS_STEMS = {"readme", "index", "license", "notice", "contributing", "changelog"}
+
+# Prose scanned either side of a pointer, clipped at sentence boundaries. The binding rule
+# is PROXIMITY -- the promise-cardinal nearest the pointer wins -- which answers the
+# constructible false positive (kimi PATH 2 / deepseek (b)) without dropping the very common
+# case where the cardinal precedes its link.
 WINDOW = 240
 
-_LINK = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
+# Captures [text](href) and [text](href "title") without swallowing the title into href.
+_LINK = re.compile(r"\[([^\]]*)\]\(\s*([^)\s]+)(?:\s+\"[^\"]*\")?\s*\)")
 _CARDINAL = re.compile(r"~?\s*([0-9][0-9,]*)\s*\+?\s*(?:of\s+\w+\s+)?([a-z]+)", re.I)
 
 
@@ -126,9 +144,15 @@ def live_surfaces(root: Path = ROOT) -> list[str]:
 
 
 def _count_class(target: Path, exts: tuple[str, ...]) -> int:
+    """Count files of the promised class, excluding a directory's own scaffolding."""
     if not target.is_dir():
         return 0
-    return sum(1 for p in target.rglob("*") if p.is_file() and p.suffix.lower() in exts)
+    return sum(
+        1 for p in target.rglob("*")
+        if p.is_file()
+        and p.suffix.lower() in exts
+        and p.stem.lower() not in NON_CLASS_STEMS
+    )
 
 
 def scan_doc(doc: Path, root: Path = ROOT) -> list[Finding]:
@@ -140,24 +164,51 @@ def scan_doc(doc: Path, root: Path = ROOT) -> list[Finding]:
 
     findings: list[Finding] = []
     for m in _LINK.finditer(text):
-        href = m.group(1).split("#")[0].strip()
+        href = m.group(2).split("#")[0].strip()
         if not href or href.startswith(("http://", "https://", "mailto:")):
             continue
         # Only DIRECTORY pointers: file pointers already fail closed with a 404.
         if not href.endswith("/"):
             continue
 
-        window = text[max(0, m.start() - WINDOW): m.end() + WINDOW]
+        # NEAREST promise-cardinal wins, measured by character distance from the pointer,
+        # searching BOTH directions and stopping at sentence boundaries.
+        #
+        # Real prose puts the cardinal on either side: "~180 records" trails its pointer,
+        # while "114 review records live in [docs/library/report/]" precedes it. A
+        # forward-only window silently dropped every leading claim -- coverage fell to zero
+        # on the live repo, and the honesty line (P8) is what surfaced it. Proximity is the
+        # rule; direction is not.
+        before = text[max(0, m.start() - WINDOW): m.start()]
+        for stop in (". ", ".\n", "\n\n"):
+            idx = before.rfind(stop)
+            if idx != -1:
+                before = before[idx + len(stop):]
+        after = text[m.end(): m.end() + WINDOW]
+        for stop in (". ", ".\n", "\n\n"):
+            idx = after.find(stop)
+            if idx != -1:
+                after = after[:idx]
+
         claimed: int | None = None
         promise = ""
-        for cm in _CARDINAL.finditer(window):
-            noun = cm.group(2).lower()
-            if noun in PROMISE_CLASSES:
-                claimed = int(cm.group(1).replace(",", ""))
-                promise = noun
-                break
+        best: int | None = None
+        for text_chunk, base in ((before, -len(before)), (f" {m.group(1)} {after}", 0)):
+            for cm in _CARDINAL.finditer(text_chunk):
+                noun = cm.group(2).lower()
+                if noun not in PROMISE_CLASSES:
+                    continue
+                dist = abs(base + cm.start()) if base < 0 else cm.start()
+                if best is None or dist < best:
+                    best = dist
+                    claimed = int(cm.group(1).replace(",", ""))
+                    promise = noun
         if claimed is None:
             # Unfalsifiable prose. Silence is correct -- see P4.
+            findings.append(
+                Finding(doc.name, href, "", None, 0, "NO-CARDINAL",
+                        "directory pointer examined; prose makes no falsifiable claim")
+            )
             continue
 
         target = (root / href.lstrip("/")).resolve()
@@ -179,7 +230,14 @@ def scan_doc(doc: Path, root: Path = ROOT) -> list[Finding]:
     return findings
 
 
-def run_census(root: Path = ROOT, live_docs: list[str] | None = None) -> int:
+def census_stats(root: Path = ROOT, live_docs: list[str] | None = None) -> dict:
+    """Counts behind the report. `clean_claim` is False unless something was actually checked.
+
+    This exists because the first draft printed "[OK] every falsifiable directory promise
+    matches" whenever nothing was flagged -- which reads identically whether three promises
+    were verified or zero were ever examined. A checker built against fails-open pointers
+    shipped a fails-open summary line.
+    """
     docs = live_docs if live_docs is not None else live_surfaces(root)
     findings: list[Finding] = []
     for rel in docs:
@@ -187,17 +245,39 @@ def run_census(root: Path = ROOT, live_docs: list[str] | None = None) -> int:
         if p.is_file():
             findings.extend(scan_doc(p, root=root))
 
+    falsifiable = [f for f in findings if f.verdict != "NO-CARDINAL"]
     flagged = [f for f in findings if f.verdict in ("MISMATCH", "UNVERIFIABLE")]
+    return {
+        "docs": len(docs),
+        "pointers": len(findings),        # every directory pointer examined
+        "examined": len(falsifiable),     # those making a checkable claim
+        "flagged": len(flagged),
+        "clean_claim": bool(falsifiable) and not flagged,
+        "findings": findings,
+        "flagged_findings": flagged,
+    }
+
+
+def run_census(root: Path = ROOT, live_docs: list[str] | None = None) -> int:
+    s = census_stats(root=root, live_docs=live_docs)
 
     print("=" * 68)
     print("POINTER-PROMISE CENSUS  (report only -- never blocks)")
     print("=" * 68)
-    print(f"scanned {len(docs)} live doc(s); {len(findings)} falsifiable promise(s) found")
-    if not flagged:
-        print("\n[OK] every falsifiable directory promise matches its target's contents.")
-    for f in flagged:
+    print(f"scanned {s['docs']} live doc(s)")
+    print(f"  directory pointers examined : {s['pointers']}")
+    print(f"  making a falsifiable claim  : {s['examined']}")
+    print(f"  flagged                     : {s['flagged']}")
+
+    if s["clean_claim"]:
+        print(f"\n[OK] all {s['examined']} falsifiable promise(s) match their target's contents.")
+    elif not s["examined"]:
+        print("\n[NOTHING CHECKED] no falsifiable promise was found. This is NOT a clean bill "
+              "of health -- it means nothing was verifiable, which may itself be the finding.")
+    for f in s["flagged_findings"]:
         print(f"\n  [{f.verdict}] {f.doc} -> {f.target}")
         print(f"      {f.detail}")
+
     print("\nThis census REPORTS; a human decides. It verifies genus, not instance,")
     print("and it stays silent on promises with no number to check.")
     return 0  # by design -- see the module docstring
