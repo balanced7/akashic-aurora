@@ -97,15 +97,34 @@ def scan(root_files=None):
             text = open(path, encoding="utf-8", errors="replace").read()
         except OSError:
             continue
+        # Sites cite the FILE, not file:line.
+        #
+        # Line numbers made this sheet drift on every unrelated edit: inserting a comment
+        # shifted every reference below it, the doc went "stale", and the comprehensibility
+        # gate went RED -- while the physics (flag names, defaults, which files read them)
+        # had not changed at all. That gate runs early in CI and GitHub Actions skips every
+        # step behind a failure, so a cosmetic line shift could and did hide the ENTIRE test
+        # suite for over a day (2026-07-25).
+        #
+        # A line number in a committed derived doc is also a lying pointer the moment anyone
+        # edits above it. File-level citation is stable, honest, and one grep from precise.
         for i, line in enumerate(text.splitlines(), 1):
             for m in _FLAG_RE.finditer(line):
                 name, default = m.group(1), (m.group(2) or "").strip().rstrip(",")
-                flags.setdefault(name, []).append((f"{rel}:{i}", default))
+                flags.setdefault(name, []).append((rel, default))
             m = _BOUND_RE.match(line)
             if m and any(w in m.group(1).upper() for w in _BOUND_WORDS):
                 bounds.append((m.group(1), int(m.group(2).replace("_", "")),
-                               f"{rel}:{i}", (m.group(3) or "").strip()))
-    return flags, sorted(bounds, key=lambda b: (b[0], b[2]))
+                               rel, (m.group(3) or "").strip()))
+    # Dedupe repeated reads of one flag within one file; keep first-seen default.
+    for name, sites in flags.items():
+        seen, uniq = set(), []
+        for site, default in sites:
+            if site not in seen:
+                seen.add(site)
+                uniq.append((site, default))
+        flags[name] = uniq
+    return flags, sorted(set(bounds), key=lambda b: (b[0], b[2]))
 
 
 def _head_sha():
