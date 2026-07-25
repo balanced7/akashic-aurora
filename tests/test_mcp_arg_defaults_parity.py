@@ -17,9 +17,45 @@ construction (it is a Call node, not an Attribute read, and cannot raise).
 import ast
 from pathlib import Path
 
-import ai_setup_mcp
+# Deliberately NOT `import ai_setup_mcp`. This pin is static AST analysis of two source
+# files (see the docstring) and never touches the live module -- the import existed only to
+# locate the repo root. But importing it pulls in `mcp`, which needs `anyio`, and neither is
+# in requirements.txt because the MCP door is optional. So on any machine without the
+# optional extras -- including CI -- this module failed at COLLECTION, which aborts the whole
+# pytest run before a single test executes. A static-analysis pin must not depend on the
+# runtime it analyses.
+ROOT = Path(__file__).resolve().parents[1]
 
-ROOT = Path(ai_setup_mcp.__file__).resolve().parent
+
+def _arg_defaults_keys(src: str) -> set:
+    """The keys of ai_setup_mcp's module-level `_ARG_DEFAULTS = dict(...)`, read statically.
+
+    Read from the AST rather than the imported module so this pin keeps working without the
+    optional MCP extras. Fails LOUD if the assignment moves or changes shape -- an empty set
+    here would silently pass every assertion below, which is the failure mode this file
+    exists to prevent in the door itself.
+    """
+    for node in ast.walk(ast.parse(src)):
+        if isinstance(node, ast.Assign) and any(
+            isinstance(t, ast.Name) and t.id == "_ARG_DEFAULTS" for t in node.targets
+        ):
+            call = node.value
+            if isinstance(call, ast.Call):
+                keys = {kw.arg for kw in call.keywords if kw.arg}
+                keys |= {
+                    k.value for a in call.args if isinstance(a, ast.Dict)
+                    for k in a.keys if isinstance(k, ast.Constant)
+                }
+                if keys:
+                    return keys
+            if isinstance(call, ast.Dict):
+                keys = {k.value for k in call.keys if isinstance(k, ast.Constant)}
+                if keys:
+                    return keys
+    raise AssertionError(
+        "could not read _ARG_DEFAULTS statically from ai_setup_mcp.py -- the assignment "
+        "moved or changed shape. Fix this extractor; do NOT let it return an empty set."
+    )
 MCP_SRC = (ROOT / "ai_setup_mcp.py").read_text(encoding="utf-8")
 CLI_SRC = (ROOT / "agent_cli.py").read_text(encoding="utf-8")
 
@@ -70,8 +106,8 @@ def _args_attr_reads(cli_tree: ast.AST, cmd_name: str) -> set:
 
 def test_regression_notes_all_and_note_retire_present():
     # The two live AttributeError receipts from sol's MCP-native seat.
-    assert "all" in ai_setup_mcp._ARG_DEFAULTS
-    assert "retire" in ai_setup_mcp._ARG_DEFAULTS
+    assert "all" in _arg_defaults_keys(MCP_SRC)
+    assert "retire" in _arg_defaults_keys(MCP_SRC)
 
 
 def test_every_delegated_cmd_attribute_is_covered():
@@ -79,7 +115,7 @@ def test_every_delegated_cmd_attribute_is_covered():
     cli_tree = ast.parse(CLI_SRC)
     delegations = _delegations(mcp_tree)
     assert delegations, "no _run(agent_cli.cmd_*) delegations found -- test wiring broke"
-    defaults = set(ai_setup_mcp._ARG_DEFAULTS)
+    defaults = _arg_defaults_keys(MCP_SRC)
     misses = {}
     for cmd_name, overrides in sorted(delegations.items()):
         reads = _args_attr_reads(cli_tree, cmd_name)
