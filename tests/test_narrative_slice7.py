@@ -170,6 +170,12 @@ def test_boot_includes_narrative():
 
 
 def test_beat_log_isolated_under_test_env():
+    # SAVE and RESTORE, never pop blind. Under the old opt-in regime this flag was usually
+    # unset, so popping it was harmless. Since T070 made backend isolation universal
+    # (2026-07-25) the flag is set for the whole suite, and an unconditional pop stripped
+    # isolation from every test that ran after this one in the same process -- caught by
+    # test_t070_universal_isolation failing in CI while passing when run alone.
+    _prior = os.environ.get("_AISETUP_TEST_ISOLATED")
     os.environ["_AISETUP_TEST_ISOLATED"] = "1"
     reset_beat_log_singleton()
     try:
@@ -178,7 +184,10 @@ def test_beat_log_isolated_under_test_env():
         b = get_beat_log()
         assert a is not b, "isolated mode must not cache singleton"
     finally:
-        os.environ.pop("_AISETUP_TEST_ISOLATED", None)
+        if _prior is None:
+            os.environ.pop("_AISETUP_TEST_ISOLATED", None)
+        else:
+            os.environ["_AISETUP_TEST_ISOLATED"] = _prior
         reset_beat_log_singleton()
     print("  isolation: BeatLog skips singleton under test env OK")
 
