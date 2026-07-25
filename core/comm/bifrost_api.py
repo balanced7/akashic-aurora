@@ -17,11 +17,14 @@ a bus outage degrades to no-ops / empty, never an exception into the agent's loo
 """
 from __future__ import annotations
 
+import logging
 import os
 from typing import Any, Dict, List, Optional
 
 from core.comm.bus import Bus
 from core.comm import control, nudge
+
+_log = logging.getLogger("bifrost")
 
 
 def _id_key(sid: str):
@@ -211,6 +214,31 @@ class BifrostAPI:
             # and detect-only leaves it on the shared cursor for the real consumer.
             self._lane_since = self._lane_tails()
             if live:
+                # VISIBILITY MARKER -- required by kimi's verify, and the fix is a WORKAROUND
+                # without it. Before this change the undrainable-mail condition announced
+                # itself loudly: 20% of a core and a twin counter in the millions. Seeding
+                # silences that. The condition does NOT go away -- the same wake-worthy mail
+                # sits on the shared cursor forever, and it can MASK genuinely new mail
+                # arriving behind it (deepseek's missed-wake attack: a legacy-only straggler
+                # is no longer re-peeked, and the lane read cannot see it).
+                #
+                # So the alarm moves here rather than disappearing: seeding over NON-EMPTY
+                # pending means "this seat has wake-worthy mail its consume path cannot
+                # clear". Same fails-open genus kimi caught twice already today (the census
+                # OK-line, the FileStore silent copy) -- a component that stops reporting a
+                # problem while the problem persists.
+                self._pending_at_seed = len(live)
+                try:
+                    _log.warning(
+                        "wake: seeded the lane cursor over %d undrainable wake-worthy "
+                        "message(s) (kinds: %s). The watcher will now block correctly, but "
+                        "this mail is still pending and can mask newer mail behind it -- "
+                        "drain it or fix the lane it is stuck on.",
+                        len(live),
+                        ",".join(sorted({str(getattr(m, "kind", "?")) for m in live})),
+                    )
+                except Exception:
+                    pass
                 return live
         nxt: Dict[str, str] = {}
         msgs = self.bus.wait(timeout_ms=timeout_ms, since=self._lane_since, since_out=nxt,

@@ -233,6 +233,23 @@ Status flips: `[x] folded → T0xx` / `[~] declined: reason`.
 - [ ] W75 (07-25, claude) — W75: 'mailbox' (T095 M0 shadow mailbox) lives on CLI and MCP but is ABSENT from the ToolBox third door, so the deepseek/kimi runner seats cannot see their own per-message state. Recorded as a MANIFEST gap 2026-07-25 (not silenced -- gaps are reported). Surfaced while clearing the T067 door-parity backlog: deepseek classified it cli_only, the guard refuted that (it is on MCP), then refuted 'shared' too (missing from ToolBox). The verb is observation-only and read-shaped, which is exactly the class a runner seat should have. Decide: wire it into core/comm/toolbox.py, alias it, or state why a runner should not read its own mailbox.
 - [ ] W76 (07-25, claude) — W76: NOTHING READS the T078-W1 TokenJournal. Three runners now write state/runner_<agent>_<date>.json (deepseek/sol/kimi, fixed 2026-07-25) but the doctor cost line the shipping commit promised ('doctor cost line (meters before levers, R1)') has no reader anywhere in core/ or agent_cli.py -- the only non-runner reference is its own pin file. Built-not-wired at the CONSUMPTION end, the mirror image of the write-end bug just fixed. Needed: a doctor/flightdeck line that reads today's journals across seats, so the fleet cost is visible where operators already look. Note kimi ALSO has a SpendMeter (dollar budget with hard refusal) -- reconcile the two units rather than showing both raw: kimi's own governance counter argues the plan-unit/dollar meter is the one that matters, and the journal is tokens. Cite W76 + the token-cost-governance counter (ADR_0725092745) at the gate.
 - [ ] W77 (07-25, claude) — W76-CORRECTION (2026-07-25): my claim that 'NOTHING READS the TokenJournal' was WRONG. The doctor DOES read it -- it now prints 'deepseek: 2 turn(s) - 28k tokens today - ~$0.01 est' with drill 'py agent_cli.py doctor --token <agent>'. The reader shipped with T078-W1 as designed. It rendered nothing for weeks because the METER was dead (runners bound the journal to a function-local / never called add_turn), so an operator saw an absent line and could not distinguish 'no reader' from 'no data'. Fixing the write side lit the dashboard line up on its first real turn. THE REAL REMAINING GAP is narrower and still worth doing: total_cost_est prices every prompt token at full list rate with NO cache discount, and we measured 74% cached on a multi-hop turn -- so the dollar figure the doctor prints overstates by ~3x. Fix the estimator to split cached vs uncached input before anyone budgets against that number. Lesson: cache_rate_reframes_the_agentic_resend_cost.
+- [ ] W78 (07-25, claude) — ROOT CAUSE behind the wake hot-spin (filed 2026-07-25 at kimi verify (d)): a seat can hold WAKE-WORTHY mail its own consume path can never drain.
+
+EVIDENCE: claude ended the day with 10 wake-worthy messages (2 blocker, 1 completion, 3 handoff, 4 reply) that survive repeated BIFROST_CONSUME_LANE=work bifrost-sync --consume. They are legacy-lane twins of already-handled work-lane copies (T039a/T044 dual-write, still live until T047). The seat consumes the WORK lane; these live on LEGACY; nothing clears them.
+
+WHY IT MATTERS BEYOND TIDINESS:
+1. It produced a 20%-of-a-core hot spin, because the wake watcher peeked a permanently non-empty shared cursor (fixed at d03f380 by seeding the lane cursor before returning).
+2. kimi (d): the CPU fix converts a LOUD symptom into a SILENT one. The mail still sits there forever. Mitigated by a warning at the seed, but the condition persists.
+3. deepseek (a), verified by a constructed pin: once the watcher seeds, a legacy-ONLY straggler arriving later is no longer re-peeked and the lane read cannot see it. work_drain R2 still catches it at CONSUME time, so nothing is lost -- but the WAKE is semantically narrowed, and undrainable mail can mask newer mail behind it.
+
+THE FIX IS AT THE SOURCE, not the watcher. Either:
+  (a) give the seat a consume path that can clear legacy twins (a lane-aware drain), or
+  (b) land T047 (retire the legacy stream) so twins stop existing, or
+  (c) make the dual-write send door guarantee that a legacy copy always has a drainable work-lane twin -- T066 fixed the runner reply path for exactly this class, so the remaining producers need the same audit.
+
+ACCEPTANCE: a seat with zero unhandled work can reach zero wake-worthy pending, and the new bifrost warning stops firing on a normally-operating seat.
+
+Cites: kimi-verify-wake-hotspin-2026-07-25, deepseek missed-wake pin in tests/test_wake_pending_spin.py, T045/T066/T047.
 
 ## Folded (exemplars — the loop works)
 
