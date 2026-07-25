@@ -313,6 +313,86 @@ Status flips: `[x] folded → T0xx` / `[~] declined: reason`.
   birth guard, one lane earlier. Land: deepseek ToolBox lane (it owns write_file); pin =
   a runner write to docs/library/ is refused with the doc-new teaching message.
 
+- [ ] W61 (07-25, Daniel via claude — fresh-seat onboarding audit) — **GROUND FIRST points at
+  a deleted path.** boot's very first instruction was `GROUND FIRST:
+  chronicles/session-reflection-2026-07-23-fable-conductor-night.md [as of 2026-07-23]` —
+  that file does not exist. The library migration re-homed it to
+  `docs/library/chronicle/20260723_session-reflection-fable-s-conductor-nig_415441.md`; the
+  stored `grounding-pointer` note kept the pre-migration path. Mechanism: agent_cli.py:1262-1276
+  age-stamps the pointer (`GROUNDING_FRESH_DAYS` → `[STALE? Nd old]`) but NEVER checks that the
+  path resolves — a 2-day-old pointer reads "fresh" while being dangling. Cost to a fresh seat:
+  its first grounding hop fails, and it must search to recover (I did). Land: claude lane.
+  Pin = boot resolves the path before rendering; unresolvable → `[MOVED? searching library]`
+  plus the atom-id fallback, and the migration rewrites grounding pointers with the files.
+
+- [ ] W62 (07-25, Daniel via claude — same audit) — **delta's divergence alarm prints an
+  un-runnable remedy.** `delta claude` reported `git: HEAD moved BACKWARDS or diverged
+  (f6a96df -> b727096); history changed under you -- inspect: git log b727096..f6a96df`. That
+  command fatals: `f6a96df` is not a valid object in this repo (`rev-parse --verify` → "Needed
+  a single revision"). So the stored boot mark holds a sha git cannot resolve, and the alarm
+  reads as history-rewrite when it is really an unresolvable mark. Land: claude lane. Pin =
+  delta `rev-parse --verify`s BOTH shas before claiming divergence; unresolvable old mark →
+  "your last boot mark is no longer in this repo (re-marked)", not a rewrite alarm.
+
+- [ ] W63 (07-25, Daniel via claude — same audit) — **door-detect asserts a fleet fact from a
+  process-local view.** CLI boot printed `door: CLI-shell -- native akashic tools NOT attached;
+  remedy: ... restart` while the MCP door WAS attached in the same seat (MCP boot printed
+  `door: MCP-native` for the identical call). The shell process genuinely cannot see the MCP
+  door — but it states the absence as fact and prescribes a restart, sending a fresh seat to do
+  unnecessary work. Land: claude lane. Pin = soften to "this process is CLI-shell (cannot see
+  an MCP door from here; if your seat has one, ignore)".
+
+- [ ] W64 (07-25, Daniel via claude — same audit) — **the heal banner outranks the context.**
+  The first three paragraphs of every boot are fleet-hygiene: "484 UNKNOWN Redis-only key(s) ...
+  INVESTIGATE", 9677 Redis-ahead keys, 5152 expected — roughly 600 tokens of alarm ABOVE the
+  orientation header, and the 484-key line explicitly disclaims the reader ("owner: whoever
+  mints this family, not the booting seat"). A fresh seat's first impression is an alarm it is
+  told not to act on. Land: claude lane. Pin = heal output moves BELOW the context block (or
+  collapses to one line + `py agent_cli.py heal` for the detail) unless the booting seat is the
+  owner; unowned drift never leads.
+
+- [ ] W65 (07-25, Daniel via claude — same audit, lived end-to-end) — **the stop-hook arm
+  ritual is a dead end while T066 is live.** Sequence, all in one session: stop hook demanded a
+  manual arm → armed exactly as instructed (`BIFROST_WAKE_LANE=work`, harness-tracked) →
+  watcher **insta-fired and exited rc 0**, detecting 8 messages → recall-at surfaced the right
+  lesson unprompted (`wake_watcher_insta_fires_lane_divergence`) → its prescribed fix
+  (`BIFROST_CONSUME_LANE=work ... --consume`) returned **"(no messages consumed)" + "1 LEGACY
+  STRAGGLER — lane write failed upstream"**, which is T066 verbatim. So the watcher's DETECT
+  cursor sees 8 that the work-lane DRAIN cannot clear; the only remaining remedy is the
+  pause → skip-to-now → resume cursor surgery. Net: **a seat cannot stay wakeable without
+  either super-admin cursor surgery or the T066 sender-side fix.** Two sub-findings: (a) T050
+  item 6 ("stop hook arms the wake listener itself") sits in the DONE block, yet the hook still
+  asks the SEAT to arm by hand — done-but-manual; (b) the recall organ performed beautifully
+  here (right lesson, unprompted, at the exact moment) — the failure is downstream of it, which
+  is the good kind of failure. Land: T066 is the root fix (claude lane); until it lands, the
+  stop hook should run the consume→skip ritual itself or stop demanding an arm it knows will
+  insta-fire. Pin = arm-then-idle survives 60s with unread mail present.
+
+  **CORRECTION (same session, after two more probes — the above over-blamed T066).** The real
+  headline is smaller and worse: **`bifrost-sync --consume` prints `(no messages consumed)`
+  while consuming messages.** Both lanes reported that line; a follow-up peek showed unread had
+  gone **8 → 3**, and the 3 survivors were all traces — i.e. it had silently cleared all five
+  real messages (2 asks / 3 fyi) and said nothing. That false-negative line is what produced
+  the wrong T066 diagnosis above, in a live session, by an agent holding the correct lesson.
+  A status line that under-reports its own effect is a **names-that-lie defect on the door's
+  most-used verb** — it teaches every seat that the drain is broken and pushes them toward
+  cursor surgery they do not need. The T066 straggler line is real but was NOT the blocker.
+  Land: claude lane, cheap. Pin = `--consume` reports the actual count it advanced
+  (`consumed N (M traces skipped)`), and `(no messages consumed)` appears only when N==0.
+
+- [ ] W66 (07-25, claude — observed while fencing tonight's build) — **the suite writes drill
+  notes into the LIVE store, and they outrank real state at boot.** Running `pytest tests/`
+  left `drilldone51d538-status` ("GOVERNING ARC DOC ... ARC COMPLETE") and
+  `next-focus: FOCUSNOW-2e689e: engine before UI` in the live notes at 06:16 — visible in
+  `notes`, and eligible to be rendered as a real seat's governing arc / current directive.
+  Two costs, one cause: (a) a fresh seat can boot into a TEST's directive; (b)
+  `test_boot_orientation::test_cold_start_drill_answers_the_four_questions` becomes
+  order-dependent — it passes standalone and fails mid-suite because a sibling test's newer
+  note wins the governing-arc pick. This is T070's known gap with a concrete blast radius:
+  `_AISETUP_TEST_ISOLATED` yields fresh instances that still bind LIVE backends unless the
+  env also redirects. Land: claude lane, rides T070. Pin = a full suite run leaves zero new
+  notes in db 0 (assert the live note count is unchanged across a run).
+
 *(W54/W55 were double-filed by two claude seats during the C2 audit collision — merged into
 the numbered entries above, 2026-07-21; all content folded, nothing dropped.)*
 

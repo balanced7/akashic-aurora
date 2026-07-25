@@ -122,6 +122,11 @@ def test_p4_backwards_git_loud_and_mark_unmoved(monkeypatch):
     pos = d.current_positions(agent)
     pos["git_commit"] = "f" * 40           # not an ancestor of HEAD -> backwards/diverged
     mark.write(pos)
+    # W62 (2026-07-25): 'f'*40 is not IN the repo, so it exercised the unresolvable-mark
+    # path, not divergence -- the two were indistinguishable until delta learned to tell
+    # them apart. This pin owns DIVERGENCE, so assert the sha resolves; the unresolvable
+    # case has its own pin (test_status_line_honesty_2026_07_25.py::test_p6).
+    monkeypatch.setattr(d, "_git_has_commit", lambda sha: True)
     text, _ = d.delta_boot_block(agent)
     assert "backwards" in text.lower() or "diverged" in text.lower(), \
         "P4: backwards movement must render LOUD"

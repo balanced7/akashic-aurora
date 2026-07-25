@@ -206,6 +206,25 @@ def consume_inbox(agent_id: str, limit: int = 20) -> Dict[str, Any]:
         return {"seat_held": False, "consumed": []}
 
 
+def stale_notice_lines(res: Dict[str, Any], agent_id: str) -> List[str]:
+    """W65: the honest tail EVERY consume door must render.
+
+    consume_inbox already reports what it parked to the bench and skipped while the
+    cursor advanced; both doors used to drop it and answer "(no messages consumed)" /
+    "(no new messages)". The CLI door was fixed first and deepseek's fence immediately
+    found the MCP door still lying -- so the render lives HERE, once, and both doors call
+    it. A shared renderer is the only version of this fix that cannot drift back apart.
+    Returns [] when nothing moved, because silence is honest then."""
+    notice = (res.get("stale_notice") or "").strip()
+    if not notice:
+        return []
+    out = [notice]
+    if not (res.get("consumed") or []):
+        out.append(f"# no NEW mail surfaced for {agent_id} -- but the cursor ADVANCED past "
+                   f"the entries above (bench: py agent_cli.py bench {agent_id})")
+    return out
+
+
 def peek_locks(agent_id: str) -> List[Dict[str, Any]]:
     """Advisory path-locks currently held (C2 awareness). Never raises."""
     try:

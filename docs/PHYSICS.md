@@ -4,23 +4,23 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 167c2fa. A bound you discover by collision is not awareness -- this sheet
+> Derived at b727096. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (143 names)
+## Configuration flags (144 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
 | `AGENT_ID` | `"unknown"` | core/comm/bus.py:1098 |
-| `AI_SETUP` | `"E:\\AI-Setup"` | agent_cli.py:1108, agent_cli.py:1829, agent_cli.py:1911 +15 |
+| `AI_SETUP` | `"E:\\AI-Setup"` | agent_cli.py:1111, agent_cli.py:1955, agent_cli.py:2037 +15 |
 | `AKASHIC_ACK_UNHANDLED_HOURS` | `UNHANDLED_HOURS` | core/comm/promoter.py:151 |
-| `AKASHIC_AGENT_ID` | `"claude"` | agent_cli.py:384, agent_cli.py:578, agent_cli.py:678 +42 |
-| `AKASHIC_ASK_EXPECT_S` | `"1800"` | agent_cli.py:3303 |
+| `AKASHIC_AGENT_ID` | `"claude"` | agent_cli.py:387, agent_cli.py:581, agent_cli.py:681 +42 |
+| `AKASHIC_ASK_EXPECT_S` | `"1800"` | agent_cli.py:3439 |
 | `AKASHIC_AUTOBOOT` | `"1"` | agent/harness/context.py:159 |
 | `AKASHIC_BIRTH_GUARD` | `""` | scripts/githooks/birth_guard.py:70 |
-| `AKASHIC_BOOT_FULL` | `"0"` | agent_cli.py:1133 |
+| `AKASHIC_BOOT_FULL` | `"0"` | agent_cli.py:1136 |
 | `AKASHIC_CB_MAX` | `"3"` | scripts/bifrost_daemon.py:233 |
 | `AKASHIC_CB_WINDOW_S` | `"300"` | scripts/bifrost_daemon.py:232 |
 | `AKASHIC_CLEAN_DEATH` | `"1"` | core/comm/session_exit.py:51 |
@@ -32,6 +32,7 @@ Class: reference
 | `AKASHIC_FENCE_ROOT` | `` | core/coord/fence_workspace.py:53 |
 | `AKASHIC_FLOW_NO_COUNT` | `` | core/comm/flow_trace.py:199 |
 | `AKASHIC_GATE_NO_CEILING` | `` | scripts/checkers/check_reconciliation_gate.py:59 |
+| `AKASHIC_HEAL_VERBOSE` | `` | agent_cli.py:230 |
 | `AKASHIC_INCARNATION_TTL_MIN` | `"30"` | core/comm/incarnation.py:35 |
 | `AKASHIC_JOB_ENFORCEMENT` | `` | scripts/run_job.py:596 |
 | `AKASHIC_JOB_OBJECT_NAME` | `` | scripts/run_job.py:595 |
@@ -42,7 +43,7 @@ Class: reference
 | `AKASHIC_LEARN_NUDGE_CAP` | `"3"` | agent/harness/nudge.py:28 |
 | `AKASHIC_LOOKBACK_NO_COUNT` | `` | core/recall/lookback.py:363 |
 | `AKASHIC_MAILBOX` | `"1"` | core/comm/mailbox.py:60 |
-| `AKASHIC_MCP_DIAG` | `` | ai_setup_mcp.py:719 |
+| `AKASHIC_MCP_DIAG` | `` | ai_setup_mcp.py:724 |
 | `AKASHIC_OPERATOR_IDS` | `"user,daniel"` | scripts/bifrost_wake.py:65 |
 | `AKASHIC_PAYLOAD_CAPTURE` | `"1"` | agent/harness/capture.py:37 |
 | `AKASHIC_PLAN_RECALL` | `"1"` | agent/harness/hooks/claude_userpromptsubmit.py:42, scripts/hooks/claude_userpromptsubmit.py:42 |
@@ -58,8 +59,8 @@ Class: reference
 | `AKASHIC_RECENT_INBOX_S` | `str(12 * 3600` | core/comm/doctor.py:60 |
 | `AKASHIC_RELEVANCE_BUDGET` | `"1"` | core/context/learning_loader.py:36 |
 | `AKASHIC_RELEVANCE_BUDGET_CHARS` | `""` | core/context/relevance_budget.py:49 |
-| `AKASHIC_SEAT_DOOR` | `""` | agent_cli.py:1201 |
-| `AKASHIC_SEAT_DOOR_DETAIL` | `""` | agent_cli.py:1202 |
+| `AKASHIC_SEAT_DOOR` | `""` | agent_cli.py:1221 |
+| `AKASHIC_SEAT_DOOR_DETAIL` | `""` | agent_cli.py:1222 |
 | `AKASHIC_SESSION_SIGNALS` | `"1"` | agent/harness/hooks/claude_sessionend.py:126, scripts/hooks/claude_sessionend.py:126 |
 | `AKASHIC_SESSION_SIGNALS_MAX_BYTES` | `str(16 * 1024 * 1024` | agent/harness/hooks/claude_sessionend.py:40, scripts/hooks/claude_sessionend.py:40 |
 | `AKASHIC_SPILL_DIR` | `` | agent_cli.py:83 |
@@ -74,26 +75,26 @@ Class: reference
 | `AKASHIC_TRANSCRIPT_TAIL_BYTES` | `str(4 * 1024 * 1024` | agent/harness/hooks/claude_posttooluse.py:105, scripts/hooks/claude_posttooluse.py:105 |
 | `AKASHIC_WAKE_MARKER_FRESH_MIN` | `""` | core/comm/wake_seat.py:311 |
 | `AKASHIC_WHISPER_LINES` | `""` | agent/harness/context.py:109 |
-| `AKASHIC_WISHLIST_FILE` | `` | agent_cli.py:1455 |
+| `AKASHIC_WISHLIST_FILE` | `` | agent_cli.py:1581 |
 | `BIFROST_APPROACHING_WEDGE_SECONDS` | `"150"` | core/comm/liveness.py:49 |
 | `BIFROST_CONSUME_LANE` | `` | core/comm/bifrost_api.py:214 |
 | `BIFROST_INCARNATION` | `` | core/comm/bus.py:275, core/comm/bus.py:356 |
 | `BIFROST_LANES_DUAL_WRITE` | `True` | core/comm/packet_spec.py:300 |
 | `BIFROST_MAX_HOPS` | `"6"` | core/comm/control.py:64 |
 | `BIFROST_MAX_REPLIES_PER_MIN` | `"12"` | core/comm/control.py:65 |
-| `BIFROST_NAMESPACE` | `"bifrost"` | agent_cli.py:4441, agent/harness/delta.py:35, core/comm/bus.py:151 +20 |
+| `BIFROST_NAMESPACE` | `"bifrost"` | agent_cli.py:4577, agent/harness/delta.py:35, core/comm/bus.py:151 +20 |
 | `BIFROST_PREFLIGHT_ASSERT` | `"1"` | core/comm/assertions.py:100 |
 | `BIFROST_PREMISE_GATE_MIN_AGE_MS` | `` | core/coord/task_ledger.py:333 |
 | `BIFROST_REPLY_DEDUP_TTL_S` | `"1200"` | core/comm/bus.py:334 |
 | `BIFROST_STALE_MS` | `DEFAULT_STALE_MS` | core/comm/packet_spec.py:337 |
 | `BIFROST_UI_PORT` | `"8787"` | core/comm/doctor.py:864 |
 | `BIFROST_WAKE_DEADLINE_S` | `""` | scripts/bifrost_wake.py:127 |
-| `BIFROST_WAKE_LANE` | `"work"` | agent_cli.py:3227, core/comm/bifrost_api.py:134 |
+| `BIFROST_WAKE_LANE` | `"work"` | agent_cli.py:3363, core/comm/bifrost_api.py:134 |
 | `BIFROST_WAKE_LONGLIVED` | `"1"` | scripts/bifrost_wake.py:132 |
 | `BIFROST_WEDGE_SECONDS` | `"300"` | core/comm/liveness.py:44 |
 | `BUS_MAX_MESSAGE_BYTES` | `DEFAULT_MAX_MESSAGE_BYTES` | core/comm/packet_spec.py:66 |
-| `CLAUDE_CODE_SESSION_ID` | `` | agent_cli.py:3234, core/comm/runner_lock.py:186 |
-| `CLAUDE_SESSION_ID` | `` | agent_cli.py:3234, core/comm/runner_lock.py:186 |
+| `CLAUDE_CODE_SESSION_ID` | `` | agent_cli.py:3370, core/comm/runner_lock.py:186 |
+| `CLAUDE_SESSION_ID` | `` | agent_cli.py:3370, core/comm/runner_lock.py:186 |
 | `CURSOR_PROJECT_DIR` | `` | agent/harness/hooks/cursor_posttooluse.py:91, agent/harness/hooks/cursor_sessionstart.py:49 |
 | `DEEPSEEK_API_KEY` | `` | scripts/ask_deepseek.py:31, scripts/deepseek_chat.py:122 |
 | `DEEPSEEK_CONNECT_TIMEOUT` | `"15"` | scripts/deepseek_chat.py:61 |
@@ -190,7 +191,7 @@ Class: reference
 | `DEFAULT_TTL` | 900 | core/comm/locks.py:35 | 15 min -- long enough for a slice, short enough to self-heal a crash |
 | `DEFAULT_TTL` | 900 | core/coord/intent.py:37 | 15 min -- long enough for a slice, self-heals a crash (mirrors locks) |
 | `DEFAULT_WINDOW_SECONDS` | 1,800 | core/narrative/event_bridge.py:22 | +/- 30 min around a point (Beat / timestamp) |
-| `DIRECTIVE_STALE_DAYS` | 3 | agent_cli.py:1212 | W04: a directive older than this confesses its age at boot |
+| `DIRECTIVE_STALE_DAYS` | 3 | agent_cli.py:1237 | W04: a directive older than this confesses its age at boot |
 | `DRAIN_FLUSH_JOIN_SEC` | 2 | core/comm/launcher.py:218 |  |
 | `DRAIN_TTL_S` | 300 | core/comm/control.py:83 |  |
 | `EVENT_SCAN_LIMIT` | 5,000 | core/recall/funnel.py:35 |  |

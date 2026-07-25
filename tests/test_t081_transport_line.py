@@ -25,8 +25,20 @@ def test_toolbox_door_renders_detail():
 def test_cli_shell_names_the_remedy():
     out = _line("cli-shell")
     assert "CLI-shell" in out
-    assert "not attached" in out.lower()
     assert "W2" in out  # the remedy points at the user-scoped-MCP slice
+
+
+def test_cli_shell_does_not_assert_what_it_cannot_observe():
+    """W63 (2026-07-25): this pin used to require the line say tools are 'NOT attached'.
+
+    That is a claim the process cannot make: a bare CLI boot from a seat that DOES hold
+    the MCP door renders this same line. It happened live -- CLI boot said NOT attached
+    while MCP boot, same seat same call, said MCP-native -- and the reader was sent to a
+    remedy it did not need. The safe DEFAULT is still cli-shell; only the wording changes.
+    """
+    out = _line("cli-shell").lower()
+    assert "cannot tell" in out or "if yours are attached" in out, \
+        "the line must hedge a door it cannot observe, not assert its absence"
 
 
 def test_unknown_door_degrades_to_cli_shell():

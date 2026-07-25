@@ -224,7 +224,10 @@ def cmd_boot(args):
         from core.foundation.store import create_store, HybridStore
         _st = create_store(prefer_redis=True)
         if isinstance(_st, HybridStore) and _st.redis_available:
-            for _line in _st.heal_report():
+            # W64: heal STILL RUNS here (the backfill is a correctness step that must
+            # precede any read) -- only the RENDER folds.
+            for _line in _heal_render(_st.heal_report(),
+                                      verbose=bool(os.environ.get("AKASHIC_HEAL_VERBOSE"))):
                 print(f"[boot] {_line}", file=sys.stderr)
     except Exception:
         pass
@@ -1191,6 +1194,23 @@ def _boot_source_list(secs) -> list:
     return out
 
 
+def _heal_render(lines, verbose: bool = False) -> list:
+    """W64: keep unowned fleet drift OFF the top of a fresh seat's boot.
+
+    heal_report() is correct and its text already says the drift is not the booting
+    seat's job ([fleet-hygiene], W03) -- but it still led every boot with ~600 tokens of
+    'INVESTIGATE' about 484 keys the reader is explicitly told it does not own. First
+    impressions are a budget: an alarm the reader cannot act on teaches it to skim the
+    banner, and the next banner that DOES matter gets skimmed too. Fold to one line;
+    AKASHIC_HEAL_VERBOSE=1 restores the full render (the detail is never destroyed).
+    """
+    kept = [l for l in (lines or []) if str(l).strip()]
+    if not kept or verbose:
+        return list(kept)
+    return [f"[heal][fleet-hygiene] {len(kept)} drift line(s) folded -- unowned fleet "
+            f"drift, not this seat's task (AKASHIC_HEAL_VERBOSE=1 for the full render)"]
+
+
 def _transport_line(door=None, detail=None) -> str:
     """T081-W1: one boot line stating THIS seat's DOOR -- 'can I use tools?' answered
     before any project context. The door is set by the invocation path: the MCP tool
@@ -1205,13 +1225,55 @@ def _transport_line(door=None, detail=None) -> str:
         return f"# door: MCP-native{paren or ' (akashic tools attached)'}"
     if door == "toolbox":
         return f"# door: ToolBox-native{paren}"
-    return ("# door: CLI-shell -- native akashic tools NOT attached" + paren
-            + "; remedy: user-scoped MCP w/ absolute paths [T081-W2] or cd E:\\AI-Setup && restart")
+    # W63: state what this process can OBSERVE, not what it assumes. A shell-out from a
+    # seat that HAS the MCP door renders this exact line (it happened live 2026-07-25),
+    # and asserting "tools NOT attached" sent that seat to run a remedy it did not need.
+    return ("# door: CLI-shell -- this PROCESS carries no door stamp, so it cannot tell "
+            "whether your SEAT has akashic tools; a shell-out from an MCP seat looks "
+            "identical here. If yours are attached, ignore this line" + paren
+            + ". If not: user-scoped MCP w/ absolute paths [T081-W2] or cd E:\\AI-Setup && restart")
 
 
 DIRECTIVE_STALE_DAYS = 3   # W04: a directive older than this confesses its age at boot
 GROUNDING_FRESH_DAYS = 7   # W37 (kimi (b)): the kept-pointer bound, spelled -- a grounding
                            # doc ages slower than a directive but never silently forever
+
+
+def _grounding_exists(pointer: str) -> bool:
+    """Does the GROUND FIRST pointer resolve to a real file? (W61)
+
+    The pointer is free text that USUALLY opens with a repo-relative path. Only a
+    path-shaped pointer is checkable -- anything else returns True (not our business,
+    never a false alarm). Boot age-stamped this line but never resolved it, so when the
+    library migration re-homed chronicles/ into docs/library/chronicle/, a two-day-old
+    pointer kept rendering as FRESH while naming a deleted file. A dangling first
+    instruction is the most expensive line in the whole boot."""
+    try:
+        cand = (pointer or "").strip().split()[0]
+    except Exception:
+        return True
+    # deepseek fence F1 (2026-07-25): a slash alone is NOT path-evidence -- a pointer
+    # opening "C1/C2 design" or "G0-G5" would be treated as a path and render a false
+    # [MOVED?], which is the exact false-alarm class this whole change removes. Require a
+    # file-ish extension too; anything else is prose and is never claimed to be missing.
+    cand = cand.replace("\\", "/")
+    if not cand or "/" not in cand or not re.search(r"\.[A-Za-z0-9]{1,6}$", cand):
+        return True                      # prose, not a path -- nothing to resolve
+    root = os.path.dirname(os.path.abspath(__file__))
+    return os.path.exists(os.path.join(root, cand)) or os.path.exists(cand)
+
+
+def _grounding_line(pointer: str, created_day: str, age_days=None) -> str:
+    """Render GROUND FIRST: pointer + age stamp (W37) + resolvability (W61)."""
+    tags = f" [as of {created_day}]"
+    if age_days is not None and age_days >= GROUNDING_FRESH_DAYS:
+        tags += (f" [STALE? {age_days}d old -- the voice may have moved on; "
+                 "re-point at wrap]")
+    if not _grounding_exists(pointer):
+        tags += (" [MOVED? this path does not resolve -- the doc was re-homed or "
+                 "deleted; find it by title (py agent_cli.py lookback \"<title>\") "
+                 "or re-point at wrap]")
+    return f"# GROUND FIRST: {_clip(' '.join(pointer.split()), 160)}{tags}"
 
 
 def _directive_done_tasks(focus_text: str) -> list:
@@ -1235,6 +1297,65 @@ def _recall_armed_line(warm_n) -> str:
                 "session -- hints may not fire; investigate core.recall.at_action)")
     return (f"# recall-at: armed ({warm_n} lesson(s) warm) -- listening at every edit; "
             f"downstream silence is CALIBRATED (nothing relevant), not a dead hook")
+
+
+CONDUCT_VERSION = "conduct-v1"
+
+
+def _charter_stretch(agent_id: str):
+    """This seat's current stretch, read from its charter (L7 records it THERE).
+
+    Returns None when the charter carries none -- which today is every seat (kimi F6,
+    2026-07-25 audit): charters/ exists and is seated, but was never given the
+    demonstrated-abilities or current-stretch lines the activation map claims it carries.
+    L7 is the law with the most explicit recording requirement and it has no recorder yet,
+    so this renders a NAMED GAP rather than silently omitting the line."""
+    try:
+        p = Path(__file__).resolve().parent / "charters" / str(agent_id) / "CHARTER.md"
+        if not p.is_file():
+            return None
+        for ln in p.read_text(encoding="utf-8", errors="replace").splitlines():
+            s = ln.strip().lstrip("-").strip()
+            if s.lower().startswith(("current stretch:", "stretch:")):
+                return s.split(":", 1)[1].strip() or None
+    except Exception:
+        return None
+    return None
+
+
+def _stance_block(agent_id: str) -> list:
+    """C1 -- the boot stance block. The activation map's second organ, built 2026-07-25.
+
+    CONDUCT.md listed this among organs that FIRE, in the present tense. It had been
+    deferred as "build slice C1" and stayed deferred, so the doctrine's own activation
+    map overstated itself. Found independently by BOTH seats in tonight's stance-recall
+    round, by different methods: deepseek introspected its own system prompt (no stance
+    lines present in a runner's folded head) and kimi read cmd_boot end-to-end (no stance
+    render anywhere in the path). Verified a third time by this seat's own boots.
+
+    Kimi's audit named what the absence actually costs, and it decides the content here:
+    a seat inherits the FORMS (open with intent, quote Daniel) without the LICENSE (the
+    laws are a floor it is permitted to amend) -- "the difference between a culture and a
+    compliance checklist." That is why line 2 is the license and not more law text.
+
+    Stamped with conduct_version per the v1.1 substrate rule. Kimi F2 found ZERO existing
+    projections carry that stamp; this organ is born compliant instead of joining the gap.
+    Lives in the ORIENTATION HEADER, not cmd_boot, because the head is what a stateless
+    peer folds into its system prompt -- the precise surface deepseek proved was bare.
+    """
+    stretch = _charter_stretch(agent_id)
+    return [
+        f"# STANCE ({CONDUCT_VERSION}, docs/CONDUCT.md): intent before task | Daniel's "
+        "words verbatim | one calibrated question per ask | red is a gem (credit the "
+        "finder, help the lane, never blame) | 'no' is information | own, don't assign",
+        "# LICENSE: the laws are a FLOOR, not a ceiling -- exceed them, and file "
+        "divergences that WORK as wishes/lessons to be amended in at a gate (the "
+        "anti-fossil clause). Inheriting the forms WITHOUT this license is the known "
+        "failure mode; the forms alone are a compliance checklist, not a culture.",
+        (f"# stretch ({agent_id}): {stretch}" if stretch else
+         f"# stretch ({agent_id}): none recorded in charters/{agent_id}/CHARTER.md -- "
+         "L7 wants one per arc; unrecorded is a GAP, not a zero"),
+    ]
 
 
 def _orientation_header(agent_id: str, primer_aware: bool = False) -> str:
@@ -1263,17 +1384,13 @@ def _orientation_header(agent_id: str, primer_aware: bool = False) -> str:
             gp = next((d for d in get_agent_memory().get_decisions(days=3650)
                        if d.title == "grounding-pointer" and not d.superseded), None)
             if gp is not None:
-                g_tags = f" [as of {str(gp.created_at)[:10]}]"
+                g_age = None
                 try:
                     from datetime import datetime as _dtg
                     g_age = (_dtg.now() - _dtg.fromisoformat(str(gp.created_at))).days
-                    if g_age >= GROUNDING_FRESH_DAYS:
-                        g_tags += (f" [STALE? {g_age}d old -- the voice may have moved on; "
-                                   "re-point at wrap]")
                 except Exception:
                     pass
-                lines.append(f"# GROUND FIRST: {_clip(' '.join(gp.decision.split()), 160)}"
-                             f"{g_tags}")
+                lines.append(_grounding_line(gp.decision, str(gp.created_at)[:10], g_age))
         except Exception:
             pass
         # Governing arc = the <slug>-status note tied to what is ACTIVE, not merely newest:
@@ -1442,6 +1559,15 @@ def _orientation_header(agent_id: str, primer_aware: bool = False) -> str:
                 lines.extend(f"#   {b}" for b in bullets[:6])
         except Exception:
             pass
+    # C1 stance block, placed here for the SAME reason LIVE CONSTRAINTS is: the four
+    # cold-start questions own the head-16 (T022 contract). First placement put stance
+    # ahead of the map and pushed "RULE: DONE is closed" out of the window -- the P2 gate
+    # caught it immediately. A new organ earns its way in without displacing a proven one;
+    # what deepseek's finding actually requires is PRESENCE in the folded head, not primacy.
+    try:
+        lines.extend(_stance_block(agent_id))
+    except Exception:
+        pass
     return "\n".join(lines)
 
 
@@ -3173,7 +3299,8 @@ def cmd_bifrost_sync(args):
     """Presence heartbeat + unread inbox peek (pull floor). --consume advances the cursor."""
     from agent.bifrost_pull import (collect_boot_bifrost, consume_inbox, format_inbox_line,
                                      format_digest_line, print_boot_bifrost_section,
-                                     print_boot_locks_section, render_collapsed)
+                                     print_boot_locks_section, render_collapsed,
+                                     stale_notice_lines)
     show_traces = bool(getattr(args, "traces", False))   # W4: --traces expands folded telemetry
     if args.consume:
         res = consume_inbox(args.agent_id, limit=args.limit or 20)
@@ -3187,8 +3314,17 @@ def cmd_bifrost_sync(args):
                 print(f"  (peek) {ln}")
             return 1
         msgs = res.get("consumed") or []
+        # W65: consume_inbox already RETURNS an honest stale_notice (what it parked to the
+        # bench / skipped while the cursor advanced) -- the renderer discarded it and printed
+        # "(no messages consumed)". On 2026-07-25 five real messages went to the bench under
+        # that line, and it cost a live seat a wrong root-cause diagnosis. Silence is only
+        # honest when nothing moved.
+        notice_lines = stale_notice_lines(res, args.agent_id)
+        for _nl in notice_lines:
+            print(_nl)
         if not msgs:
-            print("(no messages consumed)")
+            if not notice_lines:
+                print("(no messages consumed)")
             return 0
         print(f"# consumed {len(msgs)} message(s) for {args.agent_id}")
         for ln in render_collapsed(msgs, show_traces=show_traces):

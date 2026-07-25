@@ -582,6 +582,11 @@ async def bifrost_inbox(agent: str, limit: int = 20, consume: bool = False) -> s
         res = consume_inbox(agent, limit=limit)
         msgs_d = (res.get("peeked") if res.get("seat_held") else res.get("consumed")) or []
         lines = [res["teach"]] if res.get("seat_held") and res.get("teach") else []
+        # W65 DOOR PARITY (deepseek fence, 2026-07-25): one shared renderer, both doors.
+        # The CLI door was fixed first and this one still answered "(no new messages)"
+        # while the cursor advanced and asks went to the bench.
+        from agent.bifrost_pull import stale_notice_lines
+        lines += stale_notice_lines(res, agent)
         if not msgs_d and not lines:
             return "(no new messages)"
         lines += [f"[{m.get('kind')}] from {m.get('frm')}: {str(m.get('content'))[:300]}"

@@ -69,6 +69,19 @@ def _git_log_range(frm: str, to: str) -> Optional[List[str]]:
     return [ln for ln in out.splitlines() if ln.strip()]
 
 
+def _git_has_commit(sha: str) -> bool:
+    """Does this sha resolve to a commit in THIS repo? (W62) A mark left by a rewritten
+    history, a foreign clone, or a pruned object does NOT -- and that is a different fact
+    from divergence. Conflating them printed a remedy (`git log A..B`) that fatals with
+    'unknown revision', sending the reader to debug a rewrite that never happened."""
+    try:
+        r = subprocess.run(["git", "-C", REPO, "cat-file", "-e", f"{sha}^{{commit}}"],
+                           capture_output=True, timeout=10)
+        return r.returncode == 0
+    except Exception:
+        return False
+
+
 def _git_is_forward(mark_sha: str, head_sha: str) -> Optional[bool]:
     """True = mark is an ancestor of HEAD (normal forward motion); False = backwards or
     diverged or unknown sha (all deserve the loud path); None never returned -- errors
@@ -191,6 +204,15 @@ def _sections(agent: str, mark: Dict[str, str], cur: Dict[str, str]) -> List[str
             tail = (f"\n    [+{more} more -- git log "
                     f"{mark['git_commit'][:7]}..{cur['git_commit'][:7]}]") if more else ""
             parts.append(f"  git: {len(lines)} commit(s)\n{body}{tail}")
+        elif lines is None and not _git_has_commit(mark["git_commit"]):
+            # W62: unresolvable mark FIRST -- it looks identical to divergence from here
+            # (both fail the range and the ancestor test), but it is a different fact and
+            # the divergence remedy cannot run against a sha git does not have.
+            parts.append(
+                f"  git: your last-boot mark ({mark['git_commit'][:7]}) is not in this "
+                f"repo -- rewritten history, a different clone, or a pruned object. "
+                f"Nothing to diff against; the mark re-stamps at this boot "
+                f"(HEAD is {cur['git_commit'][:7]}).")
         elif lines is None and not _git_is_forward(mark["git_commit"], cur["git_commit"]):
             parts.append(
                 f"  git: HEAD moved BACKWARDS or diverged "
