@@ -213,6 +213,23 @@ def test_p14_stance_rides_the_head_without_displacing_the_cold_start_four():
         "a new organ does not spend the head-16 the four cold-start questions own"
 
 
+def test_p20_stance_survives_the_runner_onboarding_trim():
+    """kimi's fence raised the decisive question: a runner folds boot's head into its
+    system prompt through _trim_onboarding, which cuts the TAIL at a budget (default
+    6000 chars) and names what it DROPPED. C1 is deliberately end-placed in the header,
+    so its survival is POSITIONAL -- and positional survival that nothing pins is a
+    silent failure waiting for the header to grow. Measured 2026-07-25: STANCE landed at
+    offset ~5238 of a 10145-char payload, inside the budget but with only ~760 chars of
+    margin. This pin fires BEFORE a growing header starts costing seats their stance."""
+    head = agent_cli._orientation_header("claude")
+    idx = head.find("# STANCE")
+    assert idx >= 0, "stance must be in the head at all"
+    assert idx < 5200, (
+        f"stance sits at offset {idx} in the orientation header; the runner's onboarding "
+        "trim budget defaults to 6000 chars and cuts the tail. Something above it grew -- "
+        "shorten it, or the fold will silently drop the stance for every runner seat.")
+
+
 # ---------------------------------------------------------------- W64
 def test_p8_heal_folds_by_default():
     """484 UNKNOWN keys led every boot, above the context, tagged not-your-job."""
