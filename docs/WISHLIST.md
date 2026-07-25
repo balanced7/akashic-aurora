@@ -250,6 +250,15 @@ THE FIX IS AT THE SOURCE, not the watcher. Either:
 ACCEPTANCE: a seat with zero unhandled work can reach zero wake-worthy pending, and the new bifrost warning stops firing on a normally-operating seat.
 
 Cites: kimi-verify-wake-hotspin-2026-07-25, deepseek missed-wake pin in tests/test_wake_pending_spin.py, T045/T066/T047.
+- [ ] W79 (07-25, claude) — W79: the flip nudge no longer LIES about corpus gaps (fixed), but the real fix -- a SYMPTOM-keyed probe -- is not built, and a path-keyed one must NOT be substituted for it.
+
+FIXED 2026-07-25 (core/recall/at_action.py build_learn_nudge): the nudge said 'this is a corpus gap worth filling' whenever credited==0. That is true in three disjoint cases -- (a) nothing relevant exists, (b) something exists but did not SURFACE for this target, (c) something surfaced and was not credited -- and only (a) is a gap. It now claims a gap ONLY when a probe ran and found nothing; with no probe it says 'No stored lesson was credited here' and nothing about gaps. 6 pins.
+
+WHY THE PROBE IS NOT WIRED, and this is the part to preserve: at the PostToolUse call site the hook holds the TARGET PATH, not the failure text. A probe keyed on the target would reuse EXACTLY the blindness that caused the original incident -- write_tool_needs_read_tool existed but could not rank for a path-keyed target because tool-mechanics lessons match no path. Wiring that probe would let the nudge upgrade from 'no lesson was credited' to 'a probe found no near-match, so this IS a gap' using the same blind search. That launders blindness into a stronger claim and is WORSE than the bug it replaces.
+
+WHAT THE REAL FIX NEEDS: the failure SIGNATURE (the error text / tool_result is_error payload) plumbed to the nudge, and a probe that searches the corpus by symptom rather than by target. Then the gap claim is earned. Until then the honest state is silence on gaps, which is what shipped.
+
+ACCEPTANCE: a flip on a target whose lesson exists but is path-invisible must name the candidate and warn about duplicates -- not claim a gap. Lesson: corpus_gap_signal_conflates_absent_with_unsurfaced.
 
 ## Folded (exemplars — the loop works)
 

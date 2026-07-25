@@ -999,7 +999,8 @@ def learn_command_for(target: str, agent_id: Optional[str] = None) -> str:
             f'--recommend "Use when <symptom>, before <action>: <advice>"')
 
 
-def build_learn_nudge(target: str, credited: int, sources, agent_id: Optional[str] = None) -> str:
+def build_learn_nudge(target: str, credited: int, sources, agent_id: Optional[str] = None,
+                      probe=None) -> str:
     """The JIT 'learn it?' prompt for a FAIL->SUCCESS flip (friction audit D5: a cue at the moment
     of insight converts lesson capture from memory to a signal prompt). Silent-when-irrelevant is
     the CALLER's job (only call on a real flip); this stays small-when-not: three short lines with
@@ -1009,7 +1010,33 @@ def build_learn_nudge(target: str, credited: int, sources, agent_id: Optional[st
     if credited:
         lines.append(f"{credited} stored lesson(s) just earned 'helped' credit here.")
     else:
-        lines.append("No stored lesson helped here -- if the fix generalizes, this is a corpus gap worth filling.")
+        # NEVER claim a corpus gap without probing for one. `credited == 0` is true in three
+        # disjoint cases -- (a) nothing relevant exists, (b) something relevant exists but did
+        # not SURFACE for this target, (c) something surfaced and was not credited -- and only
+        # (a) is a gap. The old text asserted (a) unconditionally.
+        #
+        # 2026-07-25: it told me "this is a corpus gap worth filling" after a Write flip. I
+        # filled it. One call later recall surfaced `write_tool_needs_read_tool`, which
+        # already said the same thing -- the lesson existed, it just could not rank for a
+        # path-keyed target. The instrument degraded the corpus it was measuring.
+        candidates = []
+        probed = False
+        if probe is not None:
+            try:
+                candidates = [c for c in (probe(target) or [])][:3]
+                probed = True
+            except Exception:
+                probed = False        # a probe fault must never license a gap claim
+        if probed and candidates:
+            lines.append("No stored lesson was CREDITED here, but the corpus already holds "
+                         f"possibly-relevant lesson(s): {', '.join(str(c) for c in candidates)}. "
+                         "Check before writing -- a near-match means a duplicate, not a gap.")
+        elif probed:
+            lines.append("No stored lesson helped here and a corpus probe found no near-match "
+                         "-- if the fix generalizes, this is a corpus gap worth filling.")
+        else:
+            # Unprobed: say what is true (nothing was credited) and nothing about gaps.
+            lines.append("No stored lesson was credited here.")
     lines.append("If there's a transferable lesson, record it now (one line): "
                  + learn_command_for(target, agent_id))
     return "\n".join(lines)
