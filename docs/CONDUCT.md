@@ -2,7 +2,7 @@
 
 Status: current  (v1.1, 2026-07-21 — laws unchanged; projection-drift discipline added.
 Lineage: Daniel's institutionalization directive → fleet design → outside-review sharpening;
-records in research/reviewed/ — frontier-leadership-mechanics-2026-07-21.md and the review files.)
+records in docs/library/report/ — 20260721_leadership-mechanics-the-conductor-s-res_225120.md and the review files.)
 Type: contract · Arc: leadership-doctrine · Seats: fleet (claude conducts; every seat leads its lane)
 
 **Daniel's charter (verbatim):** "Good leaders understand their teammates and are able to draw out

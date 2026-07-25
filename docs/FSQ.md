@@ -39,7 +39,7 @@ They're more mature products with better retrieval benchmarks, and we cite them.
 honest difference is what gets measured: their published evaluations are
 retrieval-quality benchmarks; our survey found no published curation-quality or
 outcome-attribution evidence from any of them (full record with citations in
-[`research/reviewed/`](../research/reviewed/) — corrections welcome, that's a claim
+[`docs/library/report/`](library/report/) — corrections welcome, that's a claim
 about our search, not about the field). This project is an experiment in measuring the
 thing we couldn't find measured. It may turn out their approach is right and the
 measurement doesn't matter. That would be a result too.
