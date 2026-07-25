@@ -35,6 +35,7 @@ with what callers already expect.
 import os
 import json
 import time
+import shutil
 import fnmatch
 import threading
 import logging
@@ -336,35 +337,113 @@ class FileStore(Store):
         self._lock = threading.RLock()
         self._data: Dict[str, Dict[str, Any]] = {b: {} for b in self.DATA_BUCKETS}
         self._expiry: Dict[str, float] = {}  # key -> unix expiry timestamp
+        # Set when the on-disk state could not be read. While set, this store serves reads
+        # and writes from memory but REFUSES to persist -- it will not overwrite bytes it
+        # was unable to parse. See _load().
+        self._degraded: Optional[str] = None
         self._load()
 
     def is_available(self) -> bool:
         return True
 
     # ---- persistence ----
+    def _temp_path(self) -> Path:
+        """A temp path unique to THIS writer.
+
+        A single shared `<state>.tmp` let concurrent processes interleave their writes into
+        one file; the survivor then got renamed into place. That is the origin of the
+        "Extra data: line 1 column N" corruption reported live on 2026-07-25 -- two JSON
+        documents concatenated in one temp file.
+        """
+        return self._path.with_suffix(
+            f"{self._path.suffix}.{os.getpid()}.{id(self)}.tmp"
+        )
+
     def _load(self) -> None:
         if not self._path.exists():
             return
         try:
-            with open(self._path, "r", encoding="utf-8") as f:
-                loaded = json.load(f)
+            raw = self._path.read_text(encoding="utf-8")
+        except Exception as e:
+            self._degraded = f"unreadable: {e}"
+            logger.error(
+                f"FileStore REFUSING TO PERSIST over {self._path}: {e}. "
+                f"In-memory operation continues; the file is left untouched."
+            )
+            return
+        if not raw.strip():
+            return  # a fresh or zero-byte file is normal, not an incident
+        try:
+            loaded = json.loads(raw)
             for bucket in self.DATA_BUCKETS:
                 if bucket in loaded:
                     self._data[bucket] = loaded[bucket]
             self._expiry = loaded.get("__expiry__", {})
         except Exception as e:
-            logger.warning(f"FileStore could not load {self._path}: {e}")
+            # THE INCIDENT GUARD. Previously this logged a warning and returned, leaving
+            # _data empty -- and because _flush() serialises the WHOLE state, the next
+            # set() wrote that empty dict over the file. A 9MB store became 164 bytes
+            # holding one vote. Reproduced at 108963 -> 98 bytes before this guard existed.
+            #
+            # A read error is survivable. The write it used to license was not. So: keep the
+            # bytes for forensics, refuse to persist over them, and stay usable in memory
+            # (a hook must never brick the action it decorates).
+            self._degraded = f"unparseable: {e}"
+            self._preserve_corrupt_bytes()
+            logger.error(
+                f"FileStore REFUSING TO PERSIST over {self._path}: {e}. "
+                f"Original bytes preserved alongside it; in-memory operation continues. "
+                f"Redis remains authoritative -- reconcile the mirror before trusting it."
+            )
+
+    def _preserve_corrupt_bytes(self) -> None:
+        """Copy (never move) the unreadable file aside. Best-effort, never raises.
+
+        Copy, because a move races every other process that is about to read it, and
+        because the whole point is that we do not yet know which copy is the good one.
+        """
+        try:
+            keep = self._path.with_suffix(
+                f"{self._path.suffix}.corrupt.{int(time.time())}.{os.getpid()}"
+            )
+            if not keep.exists():
+                shutil.copy2(self._path, keep)
+        except Exception:
+            pass
 
     def _flush(self) -> None:
-        tmp = self._path.with_suffix(self._path.suffix + ".tmp")
+        if self._degraded:
+            # Fail CLOSED on persistence only. Reads and writes still work in memory.
+            logger.debug(
+                f"FileStore not persisting ({self._degraded}); {self._path} left intact."
+            )
+            return
+        tmp = self._temp_path()
         try:
             payload = dict(self._data)
             payload["__expiry__"] = self._expiry
             with open(tmp, "w", encoding="utf-8") as f:
                 json.dump(payload, f)
-            os.replace(tmp, self._path)
+            # Windows raises WinError 32 when the destination is briefly held open by
+            # another reader; that is contention, not corruption, so a short retry is the
+            # correct response rather than surfacing an error and dropping the write.
+            last: Optional[Exception] = None
+            for attempt in range(5):
+                try:
+                    os.replace(tmp, self._path)
+                    return
+                except OSError as e:
+                    last = e
+                    time.sleep(0.02 * (attempt + 1))
+            raise last if last else OSError("replace failed")
         except Exception as e:
             logger.error(f"FileStore could not persist {self._path}: {e}")
+        finally:
+            try:
+                if tmp.exists():
+                    tmp.unlink()
+            except Exception:
+                pass
 
     # ---- expiry helpers ----
     def _raw_exists(self, key: str) -> bool:
