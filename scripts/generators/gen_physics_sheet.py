@@ -20,6 +20,14 @@ OUT = os.path.join(ROOT, "docs", "PHYSICS.md")
 
 # Vendored / heavy / generated dirs -- never part of the machinery's own physics.
 SKIP_DIRS = {
+    # `scratch` is GITIGNORED by design (LIBRARY.md routes run output, logs and play
+    # receipts there). Walking it made this sheet cite files that exist only on the author's
+    # machine -- the committed PHYSICS.md referenced scratch/sol_runner_fragments.py, which
+    # no other clone has, so CI regenerated a different sheet and called the committed one
+    # stale FOREVER. A derived map must be a function of the TRACKED tree, or it cannot be
+    # checked anywhere but the machine that wrote it. (lesson: repo_presentation_cleanup --
+    # audit what a visitor sees, not what is local.)
+    "scratch",
     ".git", ".claude", "__pycache__", ".venv", "venv", "node_modules", "backups", "assets",
     "model_cache", "ollama_data", "rocm-lib", ".pytest_cache", ".mypy_cache",
     "blobs", "dist", "build", "models", "dockerized-ai", "_archive", "ComfyUI-Zluda",

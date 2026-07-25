@@ -33,7 +33,7 @@ System 5  Agent Interface (ACI)      how agents DO things        docs/library/de
 System 4  Context pillar             what agents KNOW            docs/library/design/20260709_context-pillar-system-4-design-consolida_89733b.md
 System 1-3 Domain: memory, signals,  decisions/learnings/        docs/learning-memory-*.md
            coordination               coordination
-System 0  Foundation: Store + Ledger  persistence (state/events)  docs/architecture.md   [DONE]
+System 0  Foundation: Store + Ledger  persistence (state/events)  docs/ARCHITECTURE.md   [DONE]
           + AgentSignalLedger, reconciler, fail-fast
 ```
 

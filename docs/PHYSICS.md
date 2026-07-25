@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 975f89c. A bound you discover by collision is not awareness -- this sheet
+> Derived at 94bbcf4. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -26,7 +26,7 @@ Class: reference
 | `AKASHIC_CLEAN_DEATH` | `"1"` | core/comm/session_exit.py:51 |
 | `AKASHIC_DAEMON_WAKE` | `"1"` | agent/harness/hooks/claude_stop.py:247, scripts/hooks/claude_stop.py:247 |
 | `AKASHIC_DEBUG` | `` | agent/harness/hooks/claude_userpromptsubmit.py:93, scripts/hooks/claude_userpromptsubmit.py:93 |
-| `AKASHIC_DRILL_ECHO` | `` | scratch/sol_runner_fragments.py:325, scratch/sol_runner_fragments.py:358, scripts/bifrost_runner.py:152 +10 |
+| `AKASHIC_DRILL_ECHO` | `` | scripts/bifrost_runner.py:152, scripts/bifrost_runner.py:168, scripts/bifrost_runner_deepseek.py:960 +8 |
 | `AKASHIC_EMBED_THEMES` | `""` | core/narrative/beat_log.py:79, core/narrative/theme_discovery.py:190 |
 | `AKASHIC_EXPECT_TASK_SETTLE` | `"1"` | core/comm/expectations.py:44 |
 | `AKASHIC_FENCE_ROOT` | `` | core/coord/fence_workspace.py:53 |
@@ -36,7 +36,7 @@ Class: reference
 | `AKASHIC_INCARNATION_TTL_MIN` | `"30"` | core/comm/incarnation.py:35 |
 | `AKASHIC_JOB_ENFORCEMENT` | `` | scripts/run_job.py:596 |
 | `AKASHIC_JOB_OBJECT_NAME` | `` | scripts/run_job.py:595 |
-| `AKASHIC_KILLPOINT` | `""` | scratch/sol_runner_fragments.py:299, scripts/bifrost_runner_deepseek.py:73, scripts/bifrost_runner_kimi.py:128 +1 |
+| `AKASHIC_KILLPOINT` | `""` | scripts/bifrost_runner_deepseek.py:73, scripts/bifrost_runner_kimi.py:128, scripts/bifrost_runner_sol.py:128 |
 | `AKASHIC_KIMI_NARRATOR` | `"1"` | scripts/kimi_walk_narrator.py:106 |
 | `AKASHIC_KMAP_NO_COUNT` | `` | core/recall/knowledge_map.py:222 |
 | `AKASHIC_LEARN_NUDGE` | `"1"` | agent/harness/nudge.py:25 |

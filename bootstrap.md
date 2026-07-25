@@ -53,7 +53,7 @@ The vocabulary below is exact — see **`docs/LEXICON.md`** for every term.
 |--------------|------|
 | See the plan & current wave | **`docs/ROADMAP.md`** ⭐ |
 | Know what each term means | **`docs/LEXICON.md`** |
-| Understand the architecture | **`docs/architecture.md`** |
+| Understand the architecture | **`docs/ARCHITECTURE.md`** |
 | Understand the memory design | `docs/library/design/20260709_agent-memory-analysis-of-learning-store_5ec82f.md` + `-integration-plan.md` |
 | Understand the context goal | `docs/library/design/20260709_context-pillar-system-4-design-consolida_89733b.md` |
 | Understand the agent interface | `docs/library/design/20260619_the-agent-interface-system-5-aci-thought_1b1edb.md` |
