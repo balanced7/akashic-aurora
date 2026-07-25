@@ -86,6 +86,31 @@ def test_isolation_is_idempotent():
     )
 
 
+def test_spill_dir_is_isolated_too(tmp_path):
+    """The store is not the only thing a test writes through.
+
+    Found 2026-07-25 while tracing live pollution: agent_cli.py:83 derives the spill dir from
+    `__file__` -- the location of agent_cli.py itself -- NOT from AI_SETUP:
+
+        spill_dir = os.getenv("AKASHIC_SPILL_DIR") or os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "state", "spill")
+
+    So no amount of AI_SETUP redirection reaches it: agent_cli.py lives in the real repo, so
+    spills land in the real repo. My own T070 acceptance run left
+    state/spill/actual_outcome-20260725-125317-*.txt in canonical WHILE the store stayed
+    clean at 434 -> 434. I verified the store and missed the side channel, and reported the
+    hazard retired on that basis.
+
+    The lesson generalises past this one path: isolation that redirects a ROOT does not cover
+    a sibling that derives its own root from __file__. Every such derivation is a hole.
+    """
+    spill = os.environ.get("AKASHIC_SPILL_DIR")
+    assert spill, "AKASHIC_SPILL_DIR is unset -- spills fall back to the LIVE repo"
+    assert Path(spill).resolve() != (ROOT / "state" / "spill").resolve(), (
+        f"spill dir resolves to canonical {spill}"
+    )
+
+
 def test_an_explicit_opt_out_exists_and_is_documented():
     """Deny-by-default needs a legible escape hatch, or someone edits conftest instead."""
     conftest = (ROOT / "tests" / "conftest.py").read_text(encoding="utf-8")

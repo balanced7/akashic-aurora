@@ -40,6 +40,14 @@ if not os.environ.get("_AISETUP_TEST_ISOLATED"):
         os.environ["REDIS_DB"] = str(REDIS_TEST_DB)
     except Exception:
         os.environ["REDIS_DB"] = "15"
+    # Side channels that derive their own root instead of reading AI_SETUP must be redirected
+    # EXPLICITLY. agent_cli.py:83 builds the spill dir from `__file__` -- the location of
+    # agent_cli.py, which is always the real repo -- so redirecting AI_SETUP cannot reach it.
+    # Found 2026-07-25: a T070 acceptance run that left the STORE clean (434 -> 434) still
+    # wrote state/spill/actual_outcome-*.txt into canonical. Verifying the store and missing
+    # the side channel is how the hazard got reported retired while a hole remained.
+    os.environ["AKASHIC_SPILL_DIR"] = os.path.join(_tmp, "spill")
+    os.makedirs(os.environ["AKASHIC_SPILL_DIR"], exist_ok=True)
     os.environ["_AISETUP_TEST_ISOLATED"] = "1"
 
     # Start from an empty test DB so Redis-backed state can't accumulate across runs.
