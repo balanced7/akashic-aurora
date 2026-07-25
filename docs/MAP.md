@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (31 of 117 modules lack both pin and paper by name)
+## GAP queue (30 of 117 modules lack both pin and paper by name)
 
 - core/foundation/redis_connection.py
 - core/foundation/streams.py
@@ -39,7 +39,6 @@ Class: reference
 - core/narrative/chapter_lifecycle.py
 - core/narrative/theme_assigner.py
 - core/trust/capabilities.py
-- core/fleet/caller.py
 - core/state/session_checkpoint.py
 - core/state/session_recovery.py
 - core/perspectives/reinforce.py
@@ -202,7 +201,7 @@ Class: reference
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
-| `caller.py` | The direct caller -- one-shot invocation of a local model for a BOUNDED subtask. | GAP | GAP |  |
+| `caller.py` | The direct caller -- one-shot invocation of a local model for a BOUNDED subtask. | tests/test_recall_error_is_not_silence.py | GAP |  |
 | `roster.py` | The fleet roster -- the single source of truth for local models (docs/library/design/20260709_fleet-dispatch-a | GAP | docs/library/design/20260718_frontier-roster-playbook-opening-positio_fde0ed.md |  |
 
 ## core/state/  (2 modules)
