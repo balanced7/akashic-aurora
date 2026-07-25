@@ -121,7 +121,12 @@ def test_a_lesson_with_no_anchors_is_starved_not_clean():
     report = anchors.review({"experiment_name": "x", "recommendation": "do a thing"}, root=ROOT)
     assert report.starved is True
     assert report.banner, "a starved review must still say something"
-    assert "clean" not in report.banner.lower()
+    # Assert the INTENT, not a substring: the banner must not claim the premise holds.
+    # (First draft asserted "clean" was absent and failed on the banner "this is not a clean
+    # bill" -- which says exactly the right thing. A pin that fails correct behaviour on a
+    # keyword is a pin that will get loosened later for the wrong reason.)
+    assert "holds" not in report.banner.lower()
+    assert "unchecked" in report.banner.lower()
 
 
 def test_a_lesson_whose_anchor_is_gone_banners():
