@@ -512,6 +512,10 @@ def bump_surfaced(sources, *, store=None) -> None:
 # success credits nothing. All best-effort + fail-soft (a PostToolUse hook must never affect the action).
 _IMP_DIR = os.path.join(_CACHE_DIR, "imp")
 _OUTCOME_DIR = os.path.join(_CACHE_DIR, "outcome")
+# Stage-separation ledger (2026-07-25 debate): EVERY resolved outcome, flipped or not.
+# The flip log answers "was a failure rescued"; this answers "what happened, and had a
+# lesson surfaced" -- which is the only way to see PREVENTION.
+_STAGE_DIR = os.path.join(_CACHE_DIR, "stage")
 
 
 def _safe_id(session_id: str) -> str:
@@ -618,14 +622,21 @@ def resolve_action_outcome(session_id: str, target: str, success: bool, *, store
     if not session_id or not target:
         return out
     try:
+        # Read impressions ONCE, before any clear -- the outcome stage needs to know a
+        # lesson was surfaced even when nothing flipped (that is the prevention case).
+        srcs_now = _impressions_for(session_id, target)
         if success and _get_outcome(session_id, target) == "FAIL":
             out["flipped"] = True
-            out["sources"] = _impressions_for(session_id, target)
+            out["sources"] = srcs_now
             for src in out["sources"]:
                 if record_feedback(src, "helped", store=store):
                     out["credited"] += 1
             _clear_impressions(session_id, target)
             _log_flip(session_id, target, out["credited"], out["sources"])
+        # Stage separation: record EVERY resolution, flipped or not. Purely additive --
+        # the flip path above is byte-for-byte unchanged, and nothing here steers ranking.
+        _log_outcome_stage(session_id, target, success, surfaced_sources=srcs_now,
+                           flipped=out["flipped"], credited=out["credited"])
         _set_outcome(session_id, target, "SUCCESS" if success else "FAIL")
     except Exception:
         pass
@@ -645,6 +656,103 @@ def _log_flip(session_id: str, target: str, credited: int, sources) -> None:
             f.write(json.dumps(rec) + "\n")
     except Exception:
         pass
+
+
+def _log_outcome_stage(session_id: str, target: str, success: bool, *,
+                       surfaced_sources, flipped: bool, credited: int) -> None:
+    """Record the OUTCOME stage for EVERY resolution -- not only for flips.
+
+    STAGE SEPARATION (the 2026-07-25 four-seat debate's unanimous result). "surfaced",
+    "applied", "outcome" and "attributed" must be DISTINCT events, because an aggregate
+    cannot name which funnel stage is failing. codex decomposed it: C/N = (R/N)(S/R)(A/S)
+    (F/A)(C/F) -- four credited flips proves the PRODUCT is tiny and cannot say WHICH
+    factor is. Before this function, outcome and attribution were FUSED into the flip
+    record, and the record was written ONLY when a flip occurred.
+
+    That is the expensive blindness. kimi, verified in this file: the credited-flip
+    numerator counts RESCUE, never PREVENTION -- "a first-try success credits and logs
+    nothing" was the contrastive gate, by design -- so the single most valuable thing a
+    lesson can do (stop the failure from happening at all) was invisible to the only value
+    metric the system had. Daniel's bar is that agents PREFER the store, and you prefer
+    what stops you failing, not what rescues you.
+
+    This event makes the prevention numerator computable for the first time:
+        success AND surfaced AND NOT flipped  -> a PREVENTION candidate
+        success AND NOT surfaced              -> its CONTROL arm
+    The contrastive first-try-success rate falls straight out of that pair.
+
+    OBSERVATION ONLY -- nothing here feeds ranking. The debate showed BOTH feedback loops
+    are confounded (the positive by self-inflation; the negative by exposure-bias, and
+    is_benched makes it self-sealing: a demoted lesson stops surfacing, so it can never
+    earn the credit that would redeem it). No automatic steer may ride this signal until
+    the stages are separately observed. Carries agent_id so cross-seat questions become
+    answerable. Fail-soft by contract: a PostToolUse hook must never affect the action.
+    """
+    try:
+        srcs = [s for s in (surfaced_sources or []) if s]
+        os.makedirs(_STAGE_DIR, exist_ok=True)
+        rec = {"at": time.time(), "t": str(target or ""), "ok": bool(success),
+               "surfaced": bool(srcs), "s": srcs,
+               "flipped": bool(flipped), "credited": int(credited or 0),
+               "agent": str(os.getenv("AKASHIC_AGENT_ID") or "")}
+        with open(os.path.join(_STAGE_DIR, _safe_id(session_id) + ".jsonl"),
+                  "a", encoding="utf-8") as f:
+            f.write(json.dumps(rec) + "\n")
+    except Exception:
+        pass
+
+
+def session_outcomes(session_id: str) -> List[Dict[str, Any]]:
+    """Every resolved outcome this session (oldest first), flipped or not. Fail-soft."""
+    out: List[Dict[str, Any]] = []
+    try:
+        with open(os.path.join(_STAGE_DIR, _safe_id(session_id) + ".jsonl"),
+                  encoding="utf-8") as f:
+            for line in f:
+                try:
+                    out.append(json.loads(line))
+                except Exception:
+                    pass
+    except Exception:
+        pass
+    return out
+
+
+def prevention_rate(session_id: str) -> Dict[str, Any]:
+    """The CONTRASTIVE first-try-success rate -- the metric the rescue-only funnel cannot see.
+
+    Compares first-try success WHERE A LESSON SURFACED against first-try success where none
+    did. `lift` is the difference; a positive lift is the first evidence the store PREVENTS
+    failure rather than merely rescuing it.
+
+    HONEST BOUND, and it must travel with the number: this is a CONTRAST, not a
+    counterfactual. The two arms are not randomised -- lessons surface where they match, so
+    the surfaced arm is a biased sample of targets. It cannot prove causation; it can only
+    show whether the association exists at all, which is strictly more than the rescue
+    metric could show. A real counterfactual needs the control arm run in the sandbox.
+    Also unmeasured here: the APPLIED stage. Whether a seat changed course BECAUSE of a
+    lesson leaves no trace unless the seat declares it (kimi), so `lift` bounds the
+    prevention effect from above and attributes nothing.
+    """
+    recs = session_outcomes(session_id)
+    seen: Dict[str, bool] = {}
+    with_l = {"n": 0, "ok": 0}
+    without = {"n": 0, "ok": 0}
+    for r in recs:
+        t = str(r.get("t") or "")
+        if not t or t in seen:      # FIRST resolution per target only
+            continue
+        seen[t] = True
+        bucket = with_l if r.get("surfaced") else without
+        bucket["n"] += 1
+        if r.get("ok"):
+            bucket["ok"] += 1
+    rate_w = (with_l["ok"] / with_l["n"]) if with_l["n"] else None
+    rate_o = (without["ok"] / without["n"]) if without["n"] else None
+    return {"with_lesson": with_l, "without_lesson": without,
+            "rate_with": rate_w, "rate_without": rate_o,
+            "lift": (round(rate_w - rate_o, 4)
+                     if (rate_w is not None and rate_o is not None) else None)}
 
 
 def session_flips(session_id: str) -> List[Dict[str, Any]]:
