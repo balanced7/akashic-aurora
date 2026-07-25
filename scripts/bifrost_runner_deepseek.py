@@ -1004,6 +1004,11 @@ def main() -> int:
     _storm = storm_detect.StormDetector()
 
     # T078 W1: daily token journal (the meter -- every W2+ slice gets a before/after receipt)
+    # `global` is load-bearing: without it this bound a function-LOCAL and the module-level
+    # _token_journal stayed None for the whole process, so the hot-path guard
+    # `if _token_journal is not None and delta:` never fired once. The meter recorded ZERO
+    # turns from the day it shipped until 2026-07-25, while printing a reading every boot.
+    global _token_journal
     try:
         from scripts.runner_token_journal import TokenJournal
         _token_journal = TokenJournal(args.agent)

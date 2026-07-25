@@ -81,6 +81,9 @@ PULSE_GEN = [0]
 # T078 W1: per-peer token deltas, drained after each turn by _process_one.
 _token_deltas: dict = {}
 _RUN_STATS = {"turns": 0, "last_error": ""}
+# T078 W1 daily meter, opened in main(). Module-level so the turn-close seam can see it --
+# main() previously bound a purely local `journal` that nothing else could reach.
+_token_journal = None
 
 
 def should_answer(kind, frm, self_id) -> bool:
@@ -478,6 +481,11 @@ def _process_one(m, bus, args, responder, rate) -> None:
                    outcome=outcome, prompt_len=len(str(m.content)),
                    tokens=(sum(toks) if toks else None))
         _RUN_STATS["turns"] += 1
+        # T078 W1: record to the daily journal. This call did not exist -- main() opened a
+        # journal, printed its reading, and never wrote to it, so the meter was decorative.
+        if _token_journal is not None and toks:
+            _token_journal.add_turn(prompt=toks[0], completion=toks[1],
+                                    model=getattr(args, "model", ""))
     except Exception:
         pass
 
@@ -623,9 +631,10 @@ def main() -> int:
 
     try:
         from scripts.runner_token_journal import TokenJournal
-        journal = TokenJournal(args.agent)
-        print(f"[sol-runner] token journal: {journal.turns} turns, "
-              f"{journal.prompt_tokens + journal.completion_tokens} tokens today")
+        global _token_journal
+        _token_journal = TokenJournal(args.agent)
+        print(f"[sol-runner] token journal: {_token_journal.turns} turns, "
+              f"{_token_journal.prompt_tokens + _token_journal.completion_tokens} tokens today")
     except Exception:
         journal = None
 

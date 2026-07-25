@@ -78,6 +78,14 @@ PULSE_GEN = [0]
 # T078 W1: per-peer token deltas, drained after each turn by _process_one.
 _token_deltas: dict = {}
 _RUN_STATS = {"turns": 0, "last_error": ""}
+# T078 W1: the DAILY token journal the doctor's cost line reads. Distinct from METER below:
+# METER is this seat's in-session dollar conscience (it can refuse work); the journal is the
+# cross-seat daily aggregate for the dashboard. kimi had the first and not the second, so the
+# seat was governed for spend but INVISIBLE on the fleet cost line -- deepseek and sol both
+# wired it, kimi and the generic runner did not. Found while answering "what shipped from the
+# token-efficiency work"; it is the same shape as kimi's own governance argument: you cannot
+# steer against a meter that has no reading for one of the seats.
+_token_journal = None
 
 # The seat's one shared budget conscience (module-level so _process_one sees it).
 METER = SpendMeter()
@@ -497,6 +505,11 @@ def _process_one(m, bus, args, responder, rate) -> None:
                    outcome=outcome, prompt_len=len(str(m.content)),
                    tokens=(sum(toks) if toks else None))
         _RUN_STATS["turns"] += 1
+        # T078 W1: same seam deepseek's runner uses -- the delta is already drained above,
+        # so this adds the daily aggregate without a second accounting path to drift from.
+        if _token_journal is not None and toks:
+            _token_journal.add_turn(prompt=toks[0], completion=toks[1],
+                                    model=getattr(args, "model", ""))
     except Exception:
         pass
 
@@ -603,6 +616,17 @@ def main() -> int:
     if not bus.online:
         print("bifrost_runner_kimi: bus OFFLINE (Redis unreachable)")
         return 2
+
+    # T078 W1: daily token journal -- the meter the doctor's fleet cost line reads.
+    # Fail-soft by contract: a missing meter must never stop the seat from working.
+    global _token_journal
+    try:
+        from scripts.runner_token_journal import TokenJournal
+        _token_journal = TokenJournal(args.agent)
+        print(f"[kimi-runner] token journal: {_token_journal.turns} turns, "
+              f"{_token_journal.prompt_tokens + _token_journal.completion_tokens} tokens today")
+    except Exception:
+        pass
 
     # RB-25 F1: a quarantined id gets NO runner.
     if not os.environ.get("AKASHIC_DRILL_ECHO"):
