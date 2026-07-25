@@ -380,7 +380,18 @@ class Launcher:
                 text=True,
                 encoding="utf-8",
                 errors="replace",
-                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0,
+                # CREATE_NEW_PROCESS_GROUP so we can signal the child without hitting our own
+                # group; CREATE_NO_WINDOW so it does not pop a console. All stdio is piped
+                # above, so the child never needs a console -- and when the launcher runs
+                # without one (agent harness, IDE runner, scheduled task) Windows would
+                # otherwise hand every spawned runner its own cmd box.
+                # AKASHIC_SHOW_CONSOLES=1 to watch a runner that dies before it can log.
+                creationflags=(
+                    (subprocess.CREATE_NEW_PROCESS_GROUP
+                     | (0 if os.environ.get("AKASHIC_SHOW_CONSOLES")
+                        else getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)))
+                    if sys.platform == "win32" else 0
+                ),
             )
         except Exception as e:
             return {"ok": False, "error": f"failed to spawn: {type(e).__name__}: {e}"}
