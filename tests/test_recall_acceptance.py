@@ -289,3 +289,66 @@ def test_b3_a_benched_lesson_can_still_earn_its_way_back(tmp_path):
         "sound and its trigger is unreachable -- that is the self-seal, and it means a "
         "wrongly-benched lesson is lost permanently."
     )
+
+
+# ================================ B (cont). bounds, added after deepseek's review
+def test_b4_probing_is_bounded_so_it_cannot_starve_the_active_corpus(tmp_path):
+    """deepseek's finding (d): the first probe was UNBOUNDED.
+
+    Past the age threshold EVERY benched lesson surfaced on every cache refresh -- fifty
+    benched lessons meant fifty probes competing with the active corpus. That reintroduces
+    the slot starvation the probe was written to cure. The probe must be capped.
+    """
+    from core.recall.at_action import _bench_probe_set, _BENCH_PROBE_MAX
+
+    def benched(r):
+        return bool(r.get("benched"))
+
+    recs = [{"experiment_name": f"old_{i:03d}", "benched": f"2020-01-{(i % 28) + 1:02d}T00:00:00"}
+            for i in range(40)]
+    chosen = _bench_probe_set(recs, benched)
+    assert len(chosen) <= _BENCH_PROBE_MAX, (
+        f"{len(chosen)} of 40 benched lessons probed at once; the cap is {_BENCH_PROBE_MAX}. "
+        f"Unbounded probing starves the corpus it was meant to protect."
+    )
+    assert len(chosen) > 0, "the cap must bound probing, not disable it"
+
+
+def test_b5_oldest_bench_probes_first_so_every_lesson_gets_a_turn(tmp_path):
+    """The cap needs a FAIR selector or it becomes a different permanent exclusion.
+
+    Oldest-first is a queue: the most overdue lesson gets the slot, and when the curator
+    re-benches a probe that earned nothing it stamps a fresh timestamp, sending it to the
+    back. Note the coupling -- rotation depends on the curator running.
+    """
+    from core.recall.at_action import _bench_probe_set
+
+    def benched(r):
+        return bool(r.get("benched"))
+
+    recs = [
+        {"experiment_name": "newest", "benched": "2026-01-01T00:00:00"},
+        {"experiment_name": "oldest", "benched": "2020-01-01T00:00:00"},
+        {"experiment_name": "middle", "benched": "2023-01-01T00:00:00"},
+    ]
+    chosen = _bench_probe_set(recs, benched)
+    assert "oldest" in chosen, f"the most overdue lesson must probe first; got {sorted(chosen)}"
+
+
+def test_b6_a_probed_lesson_is_rendered_as_on_probation(tmp_path):
+    """deepseek's finding (b): bench_probe was WRITTEN AND NEVER READ.
+
+    A probed lesson was benched for never earning credit and is present only because it is
+    being re-tested. Rendering it identically to a lesson that earned its slot is exactly the
+    over-claim _provenance_tag exists to prevent -- and it is what shipped for a few hours,
+    while the commit message claimed probes were marked.
+    """
+    from core.recall.at_action import _provenance_tag
+
+    ordinary = _provenance_tag({"success": "yes", "agent_id": "claude"})
+    probed = _provenance_tag({"success": "yes", "agent_id": "claude", "bench_probe": True})
+    assert probed != ordinary, "a probed lesson must not render identically to an earned one"
+    assert "probation" in probed, f"the probe marker is missing from {probed!r}"
+    assert probed.startswith("[probation"), (
+        f"the marker must lead -- it qualifies everything after it; got {probed!r}"
+    )

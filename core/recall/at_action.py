@@ -99,6 +99,10 @@ def _parse_trigger(text: str) -> str:
 
 
 _BENCH_PROBE_DAYS = float(os.getenv("AKASHIC_BENCH_PROBE_DAYS", "14") or 14)
+# How many benched lessons may probe in ONE pass. Unbounded probing was the defect
+# deepseek found: past the age threshold EVERY benched lesson surfaced at once, so the
+# cure reintroduced the slot-starvation it was meant to treat.
+_BENCH_PROBE_MAX = int(os.getenv("AKASHIC_BENCH_PROBE_MAX", "3") or 3)
 
 
 def _bench_probe_due(rec: Dict[str, Any]) -> bool:
@@ -128,6 +132,34 @@ def _bench_probe_due(rec: Dict[str, Any]) -> bool:
     return (datetime.utcnow() - when).total_seconds() >= _BENCH_PROBE_DAYS * 86400
 
 
+def _bench_probe_set(recs: List[Dict[str, Any]], is_benched) -> set:
+    """WHICH benched lessons probe this pass -- at most _BENCH_PROBE_MAX, oldest bench first.
+
+    Added after deepseek's review found the first version UNBOUNDED: every benched lesson past
+    the age threshold probed on every cache refresh, so fifty benched lessons meant fifty
+    probes competing with the active corpus. That destroys the slot economy the probe was
+    written to preserve -- a cure that reintroduces the disease it treats.
+
+    Oldest-first is a queue, not a preference: the most overdue lesson gets the slot, and when
+    the curator re-benches a probe that earned nothing it stamps a FRESH timestamp, sending it
+    to the back. Rotation therefore DEPENDS ON THE CURATOR RUNNING. If it stops, the same few
+    lessons probe forever and the rest never get a turn -- a real coupling, recorded here
+    rather than discovered later.
+    """
+    due = []
+    for rec in recs:
+        if not is_benched(rec):
+            continue
+        if _bench_probe_due(rec):
+            due.append((str(rec.get("benched") or ""), _rec_name(rec)))
+    due.sort()                       # ISO timestamps sort chronologically; "" (unknown) first
+    return {name for _, name in due[:_BENCH_PROBE_MAX]}
+
+
+def _rec_name(rec: Dict[str, Any]) -> str:
+    return str(rec.get("experiment_name") or rec.get("experiment") or rec.get("name") or "")
+
+
 def _project_items(recs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     try:
         from core.learning.learning_store import is_graduated, is_benched
@@ -136,6 +168,7 @@ def _project_items(recs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             return False   # predicate unavailable -> fail OPEN (surface rather than lose)
         def is_benched(_):
             return False
+    _probe_set = _bench_probe_set(recs, is_benched)
     items: List[Dict[str, Any]] = []
     for rec in recs:
         # A GRADUATED lesson (rule now enforced by automation -- LearningStore.mark_graduated)
@@ -165,7 +198,7 @@ def _project_items(recs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         # ago has not.
         probe = False
         if is_benched(rec):
-            probe = _bench_probe_due(rec)
+            probe = _rec_name(rec) in _probe_set
             if not probe:
                 continue
         # Track WHICH field the surfaced text came from: `recommendation` is forward-looking advice
@@ -1265,6 +1298,15 @@ def _provenance_tag(item: Dict[str, Any]) -> str:
     author = str(item.get("agent_id") or "").strip()
     field = item.get("field") or ""
     parts: List[str] = []
+    if item.get("bench_probe"):
+        # FIRST, because it qualifies everything after it. This lesson was BENCHED for
+        # surfacing repeatedly without ever earning credit, and is here only because it is
+        # being re-tested. Rendering it identically to a lesson that earned its slot is the
+        # exact over-claim this function exists to prevent -- and it is what shipped for a
+        # few hours: the field was written at projection time and no renderer read it, so
+        # the commit message's claim that probes are marked was false until now.
+        # (deepseek's review, finding (b).)
+        parts.append("probation")
     if item.get("anti_pattern"):
         parts.append("anti-pattern")          # documented known-bad: doing this IS the mistake
     elif success in ("yes", "true"):
