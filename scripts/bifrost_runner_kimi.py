@@ -731,6 +731,49 @@ def main() -> int:
 
     threading.Thread(target=_heartbeat, daemon=True).start()
 
+    # ---- OUT-OF-BAND CONTROL (2026-07-26) ---------------------------------------------
+    # Born from this runner wedging for 12+ hours: up, heartbeating, and UNCOMMANDABLE,
+    # because control.is_halted is only checked INSIDE message handling -- which cannot run
+    # when the loop is blocked waiting for a message. The only path to the agent ran through
+    # the path that had failed.
+    #
+    # This listener shares nothing with the bus: no Redis, no wslrelay, no Docker NAT, no
+    # disk. It answers on its own thread while the main loop is dead.
+    from core.comm.control_channel import ControlChannel
+    _progress = {"last_msg_at": None, "last_msg_from": None, "handled": 0,
+                 "loop_beats": 0, "started": time.time()}
+
+    _control = ControlChannel(args.agent)
+
+    def _cc_status(_arg: str) -> str:
+        # PROGRESS, not mere liveness. The heartbeat proved the process was alive for twelve
+        # hours while the loop was dead; the number that would have exposed that is how long
+        # since the loop last ADVANCED, so that is what this reports.
+        now = time.time()
+        since_msg = (int(now - _progress["last_msg_at"])
+                     if _progress["last_msg_at"] else None)
+        return (f"agent={args.agent} pid={os.getpid()} "
+                f"uptime_s={int(now - _progress['started'])} "
+                f"loop_beats={_progress['loop_beats']} handled={_progress['handled']} "
+                f"last_msg_age_s={since_msg if since_msg is not None else 'never'} "
+                f"last_from={_progress['last_msg_from'] or '-'}")
+
+    def _cc_stand_down(arg: str) -> str:
+        # os._exit, deliberately. A wedged process cannot unwind: the main thread is parked in
+        # a C-level recv that no Python thread can interrupt, so a graceful shutdown would
+        # block on the very thing we are escaping. The cursor was never advanced, so RB-26
+        # redelivers whatever was in flight and the daemon relaunches us.
+        reason = arg or "control stand-down"
+        print(f"[kimi-runner] STAND-DOWN via control channel: {reason}", flush=True)
+        threading.Timer(0.25, lambda: os._exit(0)).start()   # let the reply flush first
+        return f"standing down: {reason}"
+
+    _control.register("status", _cc_status)
+    _control.register("stand-down", _cc_stand_down)
+    if not _control.start():
+        print("[kimi-runner] WARNING: no out-of-band control channel -- a wedge here would "
+              "be uncommandable, exactly as on 2026-07-26.")
+
     from core.comm.bifrost_api import BifrostAPI
     lane_mode = BifrostAPI.consume_lane_enabled()
     lane_key = bus.lane_cursor_key() if lane_mode else None
@@ -750,6 +793,7 @@ def main() -> int:
     bus_guard = liveness.BusLossGuard(max_dead=10)
     try:
         while True:
+            _progress["loop_beats"] += 1   # cycling, not merely alive
             verdict = bus_guard.beat(bus.probe())
             if verdict == "stand_down":
                 print(f"[kimi-runner] bus LOST for {bus_guard.max_dead} beats -- standing down.")
@@ -777,6 +821,9 @@ def main() -> int:
 
             fenced_out = False
             for m in msgs:
+                _progress["last_msg_at"] = time.time()
+                _progress["last_msg_from"] = m.frm
+                _progress["handled"] += 1
                 _killpoint("post-consume-pre-process")
                 try:
                     _process_one(m, bus, args, responder, rate)
