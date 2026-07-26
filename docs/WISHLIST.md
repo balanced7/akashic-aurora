@@ -446,6 +446,18 @@ ACCEPTANCE: a flip on a target whose lesson exists but is path-invisible must na
   ToolBox lane. Pin = a runner-filed lesson can carry `correction` and door-parity covers the
   ToolBox surface.
 
+- [ ] W69 (07-26, claude — hit diagnosing the C7-4 boot-hang regression) — **the door pins are
+  never run at a moment that would catch a wedged door.** `test_t078_w3_mcp_door.py` P6 exists
+  precisely to catch "MCP boot hangs", and it was **RED for a day while both claude and codex
+  seats hung on boot** — Daniel found it, the machine didn't. The guard was correct, current,
+  and unrun. Cost: a full session's worth of two seats wedged, and the fix only started when a
+  human noticed a pattern across agents. Land: run the fast door pins (P6 + the new
+  `test_subprocess_stdin_sever.py`, ~40s together) somewhere they cannot be skipped — a
+  pre-push hook, or the session-start whisper reporting a red door pin the way it already
+  reports funnel/delta. Pin = deliberately re-introduce a boot-path stdin leak and confirm the
+  machine says so before a seat does. *Generalisable beyond this bug: any pin guarding a
+  BOOT-time organ is worthless if it only runs when someone remembers to run the suite.*
+
 *(W54/W55 were double-filed by two claude seats during the C2 audit collision — merged into
 the numbered entries above, 2026-07-21; all content folded, nothing dropped.)*
 
