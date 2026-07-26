@@ -560,6 +560,30 @@ class SqliteStore(Store):
                 n += cur.rowcount if cur.rowcount and cur.rowcount > 0 else 0
             return n
 
+    def hgetall_prefix(self, prefix: str) -> Dict[str, Dict[str, str]]:
+        """Every matching hash in ONE indexed SELECT -- the whole point of being on SQL.
+
+        The old read path listed an index and then issued one hgetall PER LESSON: 455 lessons
+        meant 455 round-trips, extrapolating to 483 seconds per query at a million. Here the
+        engine does it in a single scan of the PRIMARY KEY (key, field) prefix range, and the
+        cost stops scaling with the caller's corpus.
+        """
+        with self._lock:
+            if self._conn is None:
+                return {}
+            out: Dict[str, Dict[str, str]] = {}
+            rows = self._conn.execute(
+                "SELECT key, field, value FROM hash WHERE key >= ? AND key < ? ORDER BY key",
+                (prefix, prefix + "￿")).fetchall()
+            now = self._now()
+            expired = {k for (k,) in self._conn.execute(
+                "SELECT key FROM expiry WHERE expires_at<=?", (now,)).fetchall()}
+            for key, field, value in rows:
+                if key in expired:
+                    continue
+                out.setdefault(key, {})[field] = value
+            return out
+
     # ------------------------------------------------------------- keyspace
     def keys(self, pattern: str = "*") -> List[str]:
         """fnmatch, deliberately -- NOT SQLite GLOB. The differential harness compares this

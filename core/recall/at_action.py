@@ -37,6 +37,7 @@ import os
 import re
 import tempfile
 import time
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 _TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
@@ -97,6 +98,36 @@ def _parse_trigger(text: str) -> str:
     return m.group(1).strip() if m else ""
 
 
+_BENCH_PROBE_DAYS = float(os.getenv("AKASHIC_BENCH_PROBE_DAYS", "14") or 14)
+
+
+def _bench_probe_due(rec: Dict[str, Any]) -> bool:
+    """Has this benched lesson been sidelined long enough to deserve one more look?
+
+    Breaks the self-seal without abandoning slot economy. Deterministic on purpose: the
+    caller feeds a TTL disk cache, so a random probe would make the cache irreproducible and
+    two seats reading one corpus would disagree about what exists.
+
+    `benched` holds the ISO timestamp of the bench (the flag IS the time -- see
+    LearningStore.mark_benched). Unparseable or missing means we cannot tell how long it has
+    been sidelined, and we probe: failing OPEN keeps a lesson reachable, and the cost of an
+    unnecessary probe is one slot while the cost of never probing is a permanently lost
+    lesson. AKASHIC_BENCH_PROBE_DAYS=0 disables probing entirely.
+    """
+    if _BENCH_PROBE_DAYS <= 0:
+        return False
+    stamp = str((rec or {}).get("benched") or "").strip()
+    if not stamp:
+        return True
+    try:
+        when = datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+        if when.tzinfo is not None:
+            when = when.replace(tzinfo=None)
+    except Exception:
+        return True
+    return (datetime.utcnow() - when).total_seconds() >= _BENCH_PROBE_DAYS * 86400
+
+
 def _project_items(recs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     try:
         from core.learning.learning_store import is_graduated, is_benched
@@ -112,8 +143,31 @@ def _project_items(recs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         # goes to knowledge that still needs remembering. Full record stays one hop away.
         # A BENCHED lesson (curator: surfaced-often-never-credited) is out for the same
         # slot-economy reason -- and unlike graduation it is auto-reversed on new credit.
-        if is_graduated(rec) or is_benched(rec):
+        if is_graduated(rec):
             continue
+        # BENCHED: excluded from slots, but NOT excluded from existence -- and that
+        # distinction is the whole fix.
+        #
+        # The slot-economy argument above is correct and is kept. What was wrong is that
+        # `continue` also removed benched lessons from the only surface that AWARDS credit,
+        # while the curator's documented rule is "UNBENCH on any new credit". The mechanism
+        # was sound and its input was cut off: demoted -> never surfaces -> never credited ->
+        # never redeemed. at_action's own docstring names this self-sealing loop.
+        #
+        # This is the exploration/exploitation shape: an arm that is never pulled can never
+        # have its value re-estimated, so a wrongly-benched lesson is lost permanently.
+        # The fix is a PROBE -- a benched lesson gets an occasional chance to prove itself.
+        #
+        # The probe is DETERMINISTIC (age-based), never random. `_project_items` feeds a TTL
+        # disk cache, so a random probe would make the cache non-reproducible and two seats
+        # reading the same corpus would disagree. Age is stable, cheap, and says the right
+        # thing: a lesson benched long ago has earned one more look, and one benched moments
+        # ago has not.
+        probe = False
+        if is_benched(rec):
+            probe = _bench_probe_due(rec)
+            if not probe:
+                continue
         # Track WHICH field the surfaced text came from: `recommendation` is forward-looking advice
         # (a claim), `actual` is an observed outcome (evidence), `what_tried` is the action. The
         # reader must be able to tell a claim from evidence, so carry the field through (-> _provenance_tag).
@@ -139,6 +193,10 @@ def _project_items(recs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             "confidence": rec.get("confidence", ""),
             "anti_pattern": rec.get("anti_pattern", ""),
             "field": field,
+            # Carried so the renderer can say so. A probed lesson was benched for failing to
+            # earn credit and is being re-tested -- presenting it as an ordinary lesson would
+            # overclaim its standing, which is the failure genus this whole arc is about.
+            "bench_probe": probe,
         })
     return items
 

@@ -177,6 +177,28 @@ class Store(ABC):
     @abstractmethod
     def keys(self, pattern: str = "*") -> List[str]: ...
 
+    def hgetall_prefix(self, prefix: str) -> Dict[str, Dict[str, str]]:
+        """Every hash whose key starts with `prefix`, as {key: {field: value}}. ONE round-trip.
+
+        The default below is the naive loop, so no backend breaks by not overriding it -- but
+        the naive loop IS the defect this exists to remove, and every real backend should
+        override it.
+
+        Why it exists: the lesson corpus was read by listing an index and then issuing ONE
+        hgetall PER LESSON. Measured 2026-07-26 at 455 lessons: 220ms per query, 0.483ms per
+        lesson, extrapolating to 483 SECONDS per query at a million -- and this sits on the
+        PreToolUse path, so it ran on every tool call. The cost was round-trips, not ranking.
+
+        Backends answer this in one operation: SQLite with a single indexed SELECT, FileStore
+        straight from the in-memory dict, Redis with a pipeline.
+        """
+        out: Dict[str, Dict[str, str]] = {}
+        for k in self.keys(f"{prefix}*"):
+            got = self.hgetall(k)
+            if got:
+                out[k] = got
+        return out
+
     # ----- optimistic concurrency (C3) -----
     def cas(self, key: str, expected: Optional[str], value: str) -> bool:
         """Compare-and-set: atomically set key=value IFF its current value equals
@@ -509,6 +531,15 @@ class FileStore(Store):
                 self._flush()
         return removed
 
+    def hgetall_prefix(self, prefix):
+        """One pass over the in-memory hash bucket. No per-key round-trips at all."""
+        with self._lock:
+            out = {}
+            for k, fields in self._data["hash"].items():
+                if k.startswith(prefix) and fields and not self._evict_if_expired(k):
+                    out[k] = dict(fields)
+            return out
+
     def cas(self, key, expected, value):
         # atomic under the reentrant lock: compare current kv to expected, set if equal
         with self._lock:
@@ -827,6 +858,9 @@ class HybridStore(Store):
 
     # key/value
     def get(self, key): return self._read().get(key)
+    def hgetall_prefix(self, prefix):
+        """Reads follow the same preference as every other read: Redis when up, else File."""
+        return self._read().hgetall_prefix(prefix)
     def set(self, key, value): return self._write("set", key, value)
     def delete(self, *keys): return self._write("delete", *keys)
     def exists(self, key): return self._read().exists(key)

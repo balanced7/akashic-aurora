@@ -708,11 +708,30 @@ class LearningStore:
         Semantic Relationship: AllLearnings derived_from LearningStore
         """
         try:
+            # ONE bulk read instead of one round-trip per lesson.
+            #
+            # This used to list the index and then call _load_experiment for every id.
+            # Measured 2026-07-26 at 455 lessons: 220ms per query, 0.483ms per lesson, and it
+            # sits on the PreToolUse path -- so it ran on EVERY tool call, extrapolating to
+            # 483 seconds per query at a million lessons. The cost was round-trips, not
+            # ranking, so the fix is to stop making N of them.
+            #
+            # The index still decides ORDER (newest first) and membership; the bulk read only
+            # supplies the payloads. That keeps the ordering contract exactly as it was --
+            # a set-based read would have silently changed result order.
+            by_key = self.store.hgetall_prefix("learn:experiment:")
             results = []
             for exp_id in self.store.lrange("learn:experiments:all", 0, -1):
-                data = self._load_experiment(exp_id)
-                if data:
-                    results.append(data)
+                data = by_key.get(f"learn:experiment:{exp_id}")
+                if not data:
+                    continue
+                data = dict(data)
+                if "metrics" in data:
+                    try:
+                        data["metrics"] = json.loads(data["metrics"])
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+                results.append(data)
             return results
         except Exception as e:
             self.logger.error(f"Error getting all learnings: {e}")

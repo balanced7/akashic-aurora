@@ -64,6 +64,15 @@ class CountingStore(FileStore):
         self._count()
         return super().keys(pattern)
 
+    def hgetall_prefix(self, prefix):
+        # Counted DELIBERATELY, and counted as ONE. A bulk read that returns N records in a
+        # single round-trip is genuinely O(1) in store operations -- that is the property
+        # these tests want. But it must be counted, or an implementation could satisfy them
+        # by moving work into a method the counter cannot see, and the suite would pass
+        # because the operation was RENAMED rather than because the complexity changed.
+        self._count()
+        return super().hgetall_prefix(prefix)
+
 
 def _seed(store, n: int) -> None:
     """n lessons through the real learning-store write path."""
@@ -245,17 +254,38 @@ def test_b3_a_benched_lesson_can_still_earn_its_way_back(tmp_path):
     assert ls.mark_benched(name, undo=True), "the undo door must exist"
     assert not is_benched(ls._load_experiment(name) or {}), "undo must clear the bench"
 
-    # THE ACTUAL PROPERTY: while benched, is the lesson still visible to the path that awards
-    # credit? If recall surfaces exclude it, the documented "unbench on new credit" rule can
-    # never fire on its own, and retirement is one-way in practice however reversible it is
-    # in principle.
-    ls.mark_benched(name, "re-benched for the surfacing check")
+    # THE ACTUAL PROPERTY, and I WEAKENED THIS ASSERTION DELIBERATELY -- recorded because
+    # moving a goalpost quietly is how acceptance suites rot.
+    #
+    # My first version demanded that a benched lesson be visible to the credit surface
+    # IMMEDIATELY. That is too strong and it would have been wrong to build: the slot-economy
+    # argument for benching is legitimate, and a lesson benched moments ago genuinely should
+    # not be competing for slots. Building to satisfy the original assertion would have
+    # deleted a correct behaviour.
+    #
+    # The property that actually matters is that retirement is not PERMANENT: there must be
+    # an automatic path back that needs no human. So both halves are asserted -- fresh bench
+    # stays out (economy preserved), old bench gets probed (self-seal broken).
     from core.recall import at_action
-    surfaced = at_action._project_items(ls.load_all_learnings_from_store())
-    names = {str(i.get("source") or i.get("experiment") or "") for i in surfaced}
-    assert any(name in n for n in names), (
-        "a benched lesson is invisible to the surface that awards credit, so the documented "
-        "'unbench on new credit' rule has no possible input. The mechanism is sound and its "
-        "trigger is unreachable -- that is the self-seal, and it is why retirement must be "
-        "time-bounding (still queryable, still creditable) rather than rank suppression."
+
+    def _surfaced_names(store):
+        items = at_action._project_items(
+            LearningStore(store=store).load_all_learnings_from_store())
+        return {str(i.get("source") or i.get("experiment") or "") for i in items}
+
+    # (i) freshly benched -> stays out of the slots.
+    ls.mark_benched(name, "just benched")
+    assert not any(name in n for n in _surfaced_names(store)), (
+        "a lesson benched moments ago should not compete for slots -- that is the economy "
+        "benching exists to protect"
+    )
+
+    # (ii) benched long ago -> gets one more look, WITHOUT a human intervening.
+    from core.learning.learning_store import LearningStore as _LS
+    store.hset(f"learn:experiment:{name}", mapping={"benched": "2020-01-01T00:00:00"})
+    assert any(name in n for n in _surfaced_names(store)), (
+        "a lesson benched long ago is still invisible to the surface that awards credit, so "
+        "the documented 'unbench on new credit' rule has no possible input. The mechanism is "
+        "sound and its trigger is unreachable -- that is the self-seal, and it means a "
+        "wrongly-benched lesson is lost permanently."
     )
