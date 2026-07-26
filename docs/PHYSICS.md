@@ -4,17 +4,17 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 61a64e1. A bound you discover by collision is not awareness -- this sheet
+> Derived at 94e050f. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (141 names)
+## Configuration flags (143 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
 | `AGENT_ID` | `"unknown"` | core/comm/bus.py |
-| `AI_SETUP` | `"E:\\AI-Setup"` | agent_cli.py, core/comm/blobs.py, core/foundation/ledger.py +13 |
+| `AI_SETUP` | `"E:\\AI-Setup"` | agent_cli.py, core/comm/blobs.py, core/foundation/ledger.py +15 |
 | `AKASHIC_ACK_UNHANDLED_HOURS` | `UNHANDLED_HOURS` | core/comm/promoter.py |
 | `AKASHIC_AGENT_ID` | `"claude"` | agent/harness/hooks/claude_posttooluse.py, agent/harness/hooks/claude_pretooluse.py, agent/harness/hooks/claude_sessionend.py +19 |
 | `AKASHIC_ASK_EXPECT_S` | `"1800"` | agent_cli.py |
@@ -63,11 +63,13 @@ Class: reference
 | `AKASHIC_SEAT_DOOR_DETAIL` | `""` | agent_cli.py |
 | `AKASHIC_SESSION_SIGNALS` | `"1"` | agent/harness/hooks/claude_sessionend.py, scripts/hooks/claude_sessionend.py |
 | `AKASHIC_SESSION_SIGNALS_MAX_BYTES` | `str(16 * 1024 * 1024` | agent/harness/hooks/claude_sessionend.py, scripts/hooks/claude_sessionend.py |
+| `AKASHIC_SHOW_CONSOLES` | `` | core/comm/launcher.py |
 | `AKASHIC_SPILL_DIR` | `` | agent_cli.py |
 | `AKASHIC_STALE_CUE_DAYS` | `"30"` | core/recall/at_action.py |
 | `AKASHIC_STALL_HYSTERESIS_S` | `"180"` | core/comm/doctor.py |
 | `AKASHIC_STOP_PROMISE` | `"1"` | agent/harness/hooks/claude_stop.py, scripts/hooks/claude_stop.py |
 | `AKASHIC_STOP_WAKE` | `"1"` | agent/harness/hooks/claude_stop.py, scripts/hooks/claude_stop.py |
+| `AKASHIC_STORE_BACKEND` | `` | core/foundation/store.py |
 | `AKASHIC_TIMEOUT_MULTIPLIER` | `"1"` | core/comm/timescale.py |
 | `AKASHIC_TOMBSTONE` | `"1"` | core/comm/wake_seat.py |
 | `AKASHIC_TOOLBELT_QUOTA` | `"20"` | core/toolbelt/registry.py |

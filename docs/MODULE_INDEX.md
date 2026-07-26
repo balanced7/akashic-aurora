@@ -4,10 +4,12 @@
 > The big picture lives in [ARCHITECTURE.md](ARCHITECTURE.md); this is the per-module detail,
 > each module's line-1 docstring = its single responsibility.
 
-## core/foundation/  (6 modules)
+## core/foundation/  (8 modules)
 - `ledger.py` — Ledger: Swappable event-record interface (append-and-replay)
+- `migrate_to_sqlite.py` — One-way, REVERSIBLE migration: the JSON FileStore -> SqliteStore.
 - `redis_connection.py` — Redis Connection: Fail-fast connectivity primitive
 - `relationship_types.py` — Comprehensive Relationship Type Framework for Knowledge Graphs
+- `sqlite_store.py` — SqliteStore -- the durable Store backend with real cross-process safety.
 - `store.py` — Store: Swappable persistence interface (full Redis-mirror)
 - `streams.py` — streams -- process plumbing for long-lived agent processes (T030 L3 / RB-28).
 - `timeutil.py` — timeutil -- one deterministic, timezone-safe way to turn an ISO timestamp into a

@@ -11,8 +11,9 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (30 of 117 modules lack both pin and paper by name)
+## GAP queue (31 of 119 modules lack both pin and paper by name)
 
+- core/foundation/migrate_to_sqlite.py
 - core/foundation/redis_connection.py
 - core/foundation/streams.py
 - core/foundation/timeutil.py
@@ -44,14 +45,16 @@ Class: reference
 - core/perspectives/reinforce.py
 - agent/initializer.py
 
-## core/foundation/  (6 modules)
+## core/foundation/  (8 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
 | `ledger.py` | Ledger: Swappable event-record interface (append-and-replay) | tests/test_ledger.py | docs/failure-ledger-2026-07.md | `AI_SETUP` |
+| `migrate_to_sqlite.py` | One-way, REVERSIBLE migration: the JSON FileStore -> SqliteStore. | GAP | GAP | `AI_SETUP` |
 | `redis_connection.py` | Redis Connection: Fail-fast connectivity primitive | GAP | GAP | `REDIS_DB`, `REDIS_HOST`, `REDIS_PORT` |
 | `relationship_types.py` | Comprehensive Relationship Type Framework for Knowledge Graphs | tests/test_relationship_types.py | GAP |  |
-| `store.py` | Store: Swappable persistence interface (full Redis-mirror) | tests/test_filestore_durability.py | docs/library/design/20260709_agent-memory-analysis-of-learning-store_5ec82f.md | `AI_SETUP` |
+| `sqlite_store.py` | SqliteStore -- the durable Store backend with real cross-process safety. | tests/test_sqlite_store.py | GAP | `AI_SETUP` |
+| `store.py` | Store: Swappable persistence interface (full Redis-mirror) | tests/test_filestore_coherence.py | docs/filestore-coherence-design-2026-07.md | `AI_SETUP`, `AKASHIC_STORE_BACKEND` |
 | `streams.py` | streams -- process plumbing for long-lived agent processes (T030 L3 / RB-28). | GAP | GAP |  |
 | `timeutil.py` | timeutil -- one deterministic, timezone-safe way to turn an ISO timestamp into a | GAP | GAP |  |
 
@@ -91,7 +94,7 @@ Class: reference
 | `incarnation.py` | incarnation -- who else is HERE right now, per agent id (T074 W3/R4). | tests/test_t074_incarnation_cards.py | GAP | `AKASHIC_INCARNATION_TTL_MIN`, `BIFROST_NAMESPACE` |
 | `interject.py` | Adaptive interjection router -- when a human types into a live agent session, decide whether the | GAP | GAP |  |
 | `lane_depths.py` | lane_depths -- the engine room's flow gauge source (T079-E2). | GAP | GAP | `BIFROST_NAMESPACE` |
-| `launcher.py` | Bifrost Launcher — spawn and monitor agent processes from the Bifrost UI. | tests/test_launcher_drain.py | GAP | `LAUNCHER_AUTO_REVIVE_JITTER`, `LAUNCHER_RESTART_BACKOFF`, `LAUNCHER_RESTART_BACKOFF_MAX`, `LAUNCHER_RESTART_MAX`, `LAUNCHER_RESTART_RESET` |
+| `launcher.py` | Bifrost Launcher — spawn and monitor agent processes from the Bifrost UI. | tests/test_launcher_drain.py | GAP | `AKASHIC_SHOW_CONSOLES`, `LAUNCHER_AUTO_REVIVE_JITTER`, `LAUNCHER_RESTART_BACKOFF`, `LAUNCHER_RESTART_BACKOFF_MAX`, `LAUNCHER_RESTART_MAX`, `LAUNCHER_RESTART_RESET` |
 | `liveness.py` | Work-progress heartbeat (L1) -- pure observability for wedge detection. | tests/test_launcher_drainer_liveness.py | docs/library/design/20260701_agent-liveness-tier-stuck-lost-agent-fai_8c0d79.md | `BIFROST_APPROACHING_WEDGE_SECONDS`, `BIFROST_NAMESPACE`, `BIFROST_WEDGE_SECONDS` |
 | `locks.py` | Advisory path-locks (Concurrency design C2). | tests/test_locks.py | GAP |  |
 | `mailbox.py` | mailbox -- T095 M0: shadow mailbox state index over the append-only lanes. | tests/test_t095_m0_mailbox_adversarial.py | docs/library/design/20260701_comms-mailbox-over-the-log-t095-governin_06357f.md | `AKASHIC_MAILBOX` |
