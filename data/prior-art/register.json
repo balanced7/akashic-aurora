@@ -245,5 +245,124 @@
     "import": "Schema-first verb definitions, so the CLI parser, the MCP tool description and the DOORS.md reference are generated from ONE declaration rather than maintained in three places. door-parity already checks that the doors agree; generating them would mean they cannot disagree.",
     "anti_import": "Do NOT chase full capability negotiation. LSP's initialise handshake exists because clients and servers version independently across vendors; our doors ship in one repo at one version, and the ceremony would buy nothing.",
     "evidence": "Three syntax failures logged 2026-07-25 (claude-painpoints-2026-07-25, pain P4). check_door_parity.py exists and compares CLI/MCP/ToolBox surfaces -- notably it was itself broken by a moved file and reported a clean pass over an EMPTY parse, which is why generation beats checking where it is available."
+  },
+
+  "core/codex": {
+    "module_count": 2,
+    "reviewed_at": "2026-07-26",
+    "reviewed_by": "claude",
+    "what": "The knowledge-axis node and its lifecycle. schema.py defines the Resource node and the structural bi-temporal contract; lifecycle.py provides bi-temporal stamping and supersession as TYPE-AGNOSTIC functions over a BiTemporal protocol rather than a base class.",
+    "connected": "Shares its lifecycle functions with core/narrative (Chapter uses the same supersede path). core/primitives/supersession.is_active is documented to AGREE with it, so one definition of inactive spans both axes.",
+    "comparable": [
+      {"name": "Zep / Graphiti bi-temporal model", "note": "Valid time plus ingestion time per fact; supersede by closing validity rather than deleting. THE SAME MODEL WE ALREADY HAVE."},
+      {"name": "SQL:2011 temporal tables", "note": "System-versioned and application-time period tables -- the relational standardisation of the same idea."},
+      {"name": "Datomic", "note": "Immutable assert/retract with as-of queries; supersession is the only mutation."}
+    ],
+    "delta": "INVERTED -- this is the one subsystem where we are level with the state of the art rather than behind it. valid_from is set once and never moves, valid_to closes on supersession, recorded_at refreshes on regeneration, and supersede() persists BOTH nodes so the old one stays queryable and inbound links forward via replaces edges. The real gap is not in this subsystem: it is that the LESSON plane never adopted it.",
+    "import": "Nothing from outside. The import is INTERNAL: make lesson records satisfy the BiTemporal protocol and route retirement through supersede() instead of is_benched. That replaces a self-sealing rank suppression with a mechanism already written, already used by two planes, and explicitly built to be type-agnostic.",
+    "anti_import": "Do NOT rebuild this for lessons, and do NOT let the recall redesign specify bi-temporal invalidation as new work. The 2026-07-26 recall research recommended importing exactly this from Zep before anyone checked whether we had it. We did.",
+    "evidence": "VERIFIED by reading core/codex/lifecycle.py: is_active, stamp, regenerate_in_place, supersede. Docstring: 'supersede is the only way a bi-temporal node goes inactive... persists BOTH (the old stays queryable; inbound links resolve to it and forward via replaces)'. Lesson: bitemporal_supersession_already_exists_and_is_type_agnostic"
+  },
+
+  "core/narrative": {
+    "module_count": 17,
+    "reviewed_at": "2026-07-26",
+    "reviewed_by": "claude (docstring sweep) + deepseek (partial, p4)",
+    "what": "The narrative spine: Beat -> Chapter -> Track -> Atlas, with a chronicler that distils beats into chapters, an event bridge and promoter joining the raw firehose, theme and track inference, episode bookends, drift detection, and an append-only confidence-gated tag governance path with a flag-only tag auditor.",
+    "connected": "Reads the event firehose; writes beats and chapters to the Store; shares chapter_lifecycle's bi-temporal stamping with core/codex; surfaces via story, episode and the boot digest.",
+    "comparable": [
+      {"name": "Event sourcing with projections", "note": "Beats are events, Chapters are read models rebuilt by the chronicler. Our own corpus already records CQRS as the chosen pattern here."},
+      {"name": "RAPTOR recursive summarisation", "note": "Hierarchical roll-up of a corpus into progressively coarser summaries -- the Beat-to-Chapter-to-Atlas shape, with an established evaluation."},
+      {"name": "Wikipedia revision + talk pages", "note": "Every assertion carries a revision history and a separate space for contested interpretation, rather than one authoritative render."}
+    ],
+    "delta": "Two things already right and worth noting rather than 'fixing': tag_governance is an APPEND-ONLY confidence-gated write path, and tag_audit is FLAG-ONLY (it returns suspects and does not act). Those are the exact disciplines the recall redesign has been trying to invent for lessons. The gap is that theme and track inference are Tier-0 heuristics with an embedding augmentation, and their accuracy is not measured.",
+    "import": "Nothing external and urgent. The internal one is the same as codex's: the lesson plane should adopt this plane's append-only, flag-only, confidence-gated tagging discipline rather than reinventing it.",
+    "anti_import": "Do NOT adopt LLM-based summarisation on any hot path. The spine's value is that it is deterministic and cheap; a chronicler that needs a model call becomes a cost and a nondeterminism on every session close.",
+    "evidence": "Docstring sweep of all 17 modules 2026-07-26. tag_governance.py: 'the append-only, confidence-gated re-tag write path'. tag_audit.py: 'FLAG-ONLY: it returns suspects'. chapter_lifecycle.py: 'bi-temporal stamping, in-place regeneration'. Partial prior-art detail in research/reviewed/deepseek-system-inventory-p4-recall-learning-narrative-2026-07-26.md"
+  },
+
+  "core/primitives": {
+    "module_count": 7,
+    "reviewed_at": "2026-07-26",
+    "reviewed_by": "deepseek (swept), claude (folded)",
+    "what": "Cross-cutting primitives built once at the seam: the Ranker (keyword relevance with IDF weighting), the faithfulness critic, supersession helpers, and the distiller family.",
+    "connected": "Ranker feeds recall; supersession.is_active is the shared truth with core/codex's bi-temporal lifecycle; the critic guards generated summaries.",
+    "comparable": [
+      {"name": "BM25 / Okapi ranking", "note": "The decades-proven lexical baseline. Includes DOCUMENT LENGTH NORMALISATION, which we lack."},
+      {"name": "Learning-to-rank (LambdaMART)", "note": "Learned ranking from click/relevance feedback."},
+      {"name": "RAGAS faithfulness", "note": "LLM-judged groundedness of generated text against its sources."}
+    ],
+    "delta": "The Ranker has IDF weighting but no document-length normalisation, so verbose lessons matching on generic terms are not penalised for dilution. deepseek prices the fix at roughly five lines in _damped_overlap.",
+    "import": "BM25 document-length normalisation -- log(1 + doc_length / avg_doc_length) into the keyword score. Small, deterministic, and it addresses a real ranking distortion.",
+    "anti_import": "Do NOT adopt learning-to-rank, and do NOT adopt RAGAS-style faithfulness. Learned ranking needs a TRUSTWORTHY funnel and ours is double-logged across a pre/post-fix series -- fix the measurement before learning from it. RAGAS would put an LLM call on the recall hot path, and deepseek's framing is right that the no-LLM constraint here is a deliberate design trade-off rather than a gap: recall must stay cheap and deterministic.",
+    "evidence": "research/reviewed/deepseek-system-inventory-p4-recall-learning-narrative-2026-07-26.md sections 27-28"
+  },
+
+  "core/perspectives": {
+    "module_count": 2,
+    "reviewed_at": "2026-07-26",
+    "reviewed_by": "claude",
+    "what": "Swappable interpretation: schema.py defines Lens and Map shapes as pure data; reinforce.py is an association graph whose edges STRENGTHEN with co-use.",
+    "connected": "Reads the knowledge graph; intended to let the same corpus be read through different interpretive frames.",
+    "comparable": [
+      {"name": "Hebbian learning / co-occurrence graphs", "note": "Edges strengthened by joint activation -- exactly reinforce.py's mechanism, with a long literature on its failure modes."},
+      {"name": "Spreading activation retrieval", "note": "The classic cognitive-model retrieval strategy over an association network."},
+      {"name": "Belnap four-valued logic", "note": "Represent BOTH-supported-and-attacked explicitly rather than resolving to one truth -- the formal shape for holding two perspectives at once."}
+    ],
+    "delta": "Co-use reinforcement is a POPULARITY signal, and popularity was the specific trap identified in the authoritative-atoms design work: if authority derives from how often something is cited, we have built a popularity metric wearing a provenance costume. This subsystem is where that risk actually lives in code.",
+    "import": "Belnap's explicit BOTH state, so two lenses disagreeing is representable rather than resolved. That also happens to be the one mechanism from the recall research that touches binding as well as retrieval, because a visible conflict forces the agent to reason rather than accept.",
+    "anti_import": "Do NOT let reinforcement strength feed authority or ranking. Hebbian edges measure co-use, which is exactly the popularity signal the provenance design is trying to avoid. Keep reinforcement as a navigation aid, never as a trust signal.",
+    "evidence": "Docstrings read 2026-07-26: reinforce.py 'an association graph whose edges STRENGTHEN with co-use'. Design context in research/reviewed/recall-redesign-peer-research-2026-07-26.md section 2 (source-provenance vs popularity)."
+  },
+
+  "core/state": {
+    "module_count": 2,
+    "reviewed_at": "2026-07-26",
+    "reviewed_by": "claude",
+    "what": "Crash recovery: session_checkpoint.py writes recovery checkpoints; session_recovery.py restores from them with fallback.",
+    "connected": "Written during a session's life; read on restart to rehydrate a seat.",
+    "comparable": [
+      {"name": "Temporal durable execution", "note": "The workflow's progress IS the persisted artifact, so a crashed worker resumes from the log rather than from a snapshot."},
+      {"name": "Write-ahead logging", "note": "Log the intent before the act, so recovery replays rather than guesses."},
+      {"name": "CRIU / process checkpointing", "note": "Whole-process snapshot and restore."}
+    ],
+    "delta": "Checkpoints are SNAPSHOTS at points in time; durable-execution systems persist the progress log itself, which makes recovery exact rather than approximate. Ours can only resume from the last checkpoint, losing whatever happened after it.",
+    "import": "The durable-execution framing for the one place it matters -- long-running jobs that cross an irreversible boundary. Our own corpus already has a lesson about fencing a publish before allowing forced cancellation, which is the same insight arrived at locally.",
+    "anti_import": "Do NOT adopt a workflow engine. Temporal is the right idea and enormous machinery; at our scale the framing is the import, not the runtime.",
+    "evidence": "Docstrings read 2026-07-26. Related corpus lesson: publish_fence_before_force. UNVERIFIED: I have not traced how often checkpoints are actually written or whether recovery is exercised."
+  },
+
+  "core/signals": {
+    "module_count": 2,
+    "reviewed_at": "2026-07-26",
+    "reviewed_by": "claude",
+    "what": "The Agent Signal Ledger -- an ordered record of every signal agents emit -- plus a minimal coordinator logging API.",
+    "connected": "Written by agents during work; feeds the event firehose and the coordination surfaces.",
+    "comparable": [
+      {"name": "OpenTelemetry", "note": "Traces, metrics and logs under ONE semantic convention, with span context propagated across process boundaries."},
+      {"name": "RED / USE method", "note": "Prescribed metric sets (Rate-Errors-Duration; Utilisation-Saturation-Errors) so dashboards are comparable across services."},
+      {"name": "structlog / canonical log lines", "note": "One wide structured event per unit of work rather than scattered log statements."}
+    ],
+    "delta": "We have an ordered signal record but no shared semantic convention, so each producer names things its own way and cross-agent comparison is manual. OTel's actual contribution is the CONVENTION, not the transport.",
+    "import": "Canonical log lines -- one wide structured event per turn carrying every dimension, instead of many narrow ones. It makes cross-agent questions answerable by filtering rather than by joining.",
+    "anti_import": "Do NOT adopt the OpenTelemetry SDK. It is a distributed-tracing runtime for multi-service systems; we have five local processes and already own the bus that would carry spans. Take the naming conventions, not the dependency.",
+    "evidence": "Docstrings read 2026-07-26. UNVERIFIED: consumer set and whether the ledger is queried operationally or only written."
+  },
+
+  "core/renew": {
+    "module_count": 1,
+    "reviewed_at": "2026-07-26",
+    "reviewed_by": "claude",
+    "what": "Session signals: fold one session's tool calls into deterministic context-health signals that survive the session.",
+    "connected": "Reads the session transcript at SessionEnd; writes a durable session_signals event consumed by later boots.",
+    "comparable": [
+      {"name": "Post-incident review automation", "note": "Deriving structured findings from a timeline automatically rather than by recollection."},
+      {"name": "Git bisect / blame", "note": "Deterministic attribution of an outcome to a point in a history."},
+      {"name": "Continuous profiling", "note": "Always-on sampling so questions can be asked after the fact instead of requiring foresight."}
+    ],
+    "delta": "One module doing a genuinely valuable thing -- deriving signals deterministically from what actually happened rather than from self-report. That determinism is exactly what kimi's binding-failure ruling says is unavailable at the APPLICATION stage, which makes this subsystem more important than its size suggests.",
+    "import": "Always-on capture, profiling-style: the signals worth having are the ones you did not know you needed, and they can only be derived if the raw material was kept.",
+    "anti_import": "Do NOT extend this into self-reported application claims. Deterministic derivation from tool calls is trustworthy; asking an agent to declare whether a lesson changed its behaviour is gameable, and kimi's ruling is explicit that no applied-stage gauge survives self-report.",
+    "evidence": "Docstring read 2026-07-26. Design context: kimi's binding-failure ruling (application observable only via self-report or counterfactual) in the recall redesign round."
   }
 }

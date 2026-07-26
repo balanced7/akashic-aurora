@@ -23,18 +23,11 @@ Letta's plain files beat a graph memory system; Wikidata's three ranks run at ~1
 statements where ATMS dies around 100 beliefs. The cost of NOT sweeping is measured in
 rebuilt wheels and dead ends, so the sweep is now a standing artifact rather than a mood.
 
-## Coverage: 14 current, 0 drift, 8 gap (of 22 subsystems)
+## Coverage: 21 current, 0 drift, 1 gap (of 22 subsystems)
 
 **GAP -- no prior-art entry yet.** The honest backlog, worst first:
 
-- `core/narrative` (17 modules)
 - `agent/harness` (9 modules)
-- `core/primitives` (7 modules)
-- `core/signals` (2 modules)
-- `core/state` (2 modules)
-- `core/codex` (2 modules)
-- `core/perspectives` (2 modules)
-- `core/renew` (1 modules)
 
 ---
 
@@ -83,9 +76,27 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `core/signals` -- 2 modules  ·  GAP
+## `core/signals` -- 2 modules  ·  current
 
-_No entry. This subsystem has not been swept against the field._
+**What it does.** The Agent Signal Ledger -- an ordered record of every signal agents emit -- plus a minimal coordinator logging API.
+
+**Connected to.** Written by agents during work; feeds the event firehose and the coordination surfaces.
+
+**Comparable systems.**
+
+- **OpenTelemetry** — Traces, metrics and logs under ONE semantic convention, with span context propagated across process boundaries.
+- **RED / USE method** — Prescribed metric sets (Rate-Errors-Duration; Utilisation-Saturation-Errors) so dashboards are comparable across services.
+- **structlog / canonical log lines** — One wide structured event per unit of work rather than scattered log statements.
+
+**The delta.** We have an ordered signal record but no shared semantic convention, so each producer names things its own way and cross-agent comparison is manual. OTel's actual contribution is the CONVENTION, not the transport.
+
+**The import.** Canonical log lines -- one wide structured event per turn carrying every dimension, instead of many narrow ones. It makes cross-agent questions answerable by filtering rather than by joining.
+
+**The anti-import.** Do NOT adopt the OpenTelemetry SDK. It is a distributed-tracing runtime for multi-service systems; we have five local processes and already own the bus that would carry spans. Take the naming conventions, not the dependency.
+
+**Evidence.** Docstrings read 2026-07-26. UNVERIFIED: consumer set and whether the ledger is queried operationally or only written.
+
+_Reviewed 2026-07-26 by claude._
 
 ## `core/comm` -- 36 modules  ·  current
 
@@ -179,17 +190,71 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `core/primitives` -- 7 modules  ·  GAP
+## `core/primitives` -- 7 modules  ·  current
 
-_No entry. This subsystem has not been swept against the field._
+**What it does.** Cross-cutting primitives built once at the seam: the Ranker (keyword relevance with IDF weighting), the faithfulness critic, supersession helpers, and the distiller family.
 
-## `core/renew` -- 1 modules  ·  GAP
+**Connected to.** Ranker feeds recall; supersession.is_active is the shared truth with core/codex's bi-temporal lifecycle; the critic guards generated summaries.
 
-_No entry. This subsystem has not been swept against the field._
+**Comparable systems.**
 
-## `core/narrative` -- 17 modules  ·  GAP
+- **BM25 / Okapi ranking** — The decades-proven lexical baseline. Includes DOCUMENT LENGTH NORMALISATION, which we lack.
+- **Learning-to-rank (LambdaMART)** — Learned ranking from click/relevance feedback.
+- **RAGAS faithfulness** — LLM-judged groundedness of generated text against its sources.
 
-_No entry. This subsystem has not been swept against the field._
+**The delta.** The Ranker has IDF weighting but no document-length normalisation, so verbose lessons matching on generic terms are not penalised for dilution. deepseek prices the fix at roughly five lines in _damped_overlap.
+
+**The import.** BM25 document-length normalisation -- log(1 + doc_length / avg_doc_length) into the keyword score. Small, deterministic, and it addresses a real ranking distortion.
+
+**The anti-import.** Do NOT adopt learning-to-rank, and do NOT adopt RAGAS-style faithfulness. Learned ranking needs a TRUSTWORTHY funnel and ours is double-logged across a pre/post-fix series -- fix the measurement before learning from it. RAGAS would put an LLM call on the recall hot path, and deepseek's framing is right that the no-LLM constraint here is a deliberate design trade-off rather than a gap: recall must stay cheap and deterministic.
+
+**Evidence.** research/reviewed/deepseek-system-inventory-p4-recall-learning-narrative-2026-07-26.md sections 27-28
+
+_Reviewed 2026-07-26 by deepseek (swept), claude (folded)._
+
+## `core/renew` -- 1 modules  ·  current
+
+**What it does.** Session signals: fold one session's tool calls into deterministic context-health signals that survive the session.
+
+**Connected to.** Reads the session transcript at SessionEnd; writes a durable session_signals event consumed by later boots.
+
+**Comparable systems.**
+
+- **Post-incident review automation** — Deriving structured findings from a timeline automatically rather than by recollection.
+- **Git bisect / blame** — Deterministic attribution of an outcome to a point in a history.
+- **Continuous profiling** — Always-on sampling so questions can be asked after the fact instead of requiring foresight.
+
+**The delta.** One module doing a genuinely valuable thing -- deriving signals deterministically from what actually happened rather than from self-report. That determinism is exactly what kimi's binding-failure ruling says is unavailable at the APPLICATION stage, which makes this subsystem more important than its size suggests.
+
+**The import.** Always-on capture, profiling-style: the signals worth having are the ones you did not know you needed, and they can only be derived if the raw material was kept.
+
+**The anti-import.** Do NOT extend this into self-reported application claims. Deterministic derivation from tool calls is trustworthy; asking an agent to declare whether a lesson changed its behaviour is gameable, and kimi's ruling is explicit that no applied-stage gauge survives self-report.
+
+**Evidence.** Docstring read 2026-07-26. Design context: kimi's binding-failure ruling (application observable only via self-report or counterfactual) in the recall redesign round.
+
+_Reviewed 2026-07-26 by claude._
+
+## `core/narrative` -- 17 modules  ·  current
+
+**What it does.** The narrative spine: Beat -> Chapter -> Track -> Atlas, with a chronicler that distils beats into chapters, an event bridge and promoter joining the raw firehose, theme and track inference, episode bookends, drift detection, and an append-only confidence-gated tag governance path with a flag-only tag auditor.
+
+**Connected to.** Reads the event firehose; writes beats and chapters to the Store; shares chapter_lifecycle's bi-temporal stamping with core/codex; surfaces via story, episode and the boot digest.
+
+**Comparable systems.**
+
+- **Event sourcing with projections** — Beats are events, Chapters are read models rebuilt by the chronicler. Our own corpus already records CQRS as the chosen pattern here.
+- **RAPTOR recursive summarisation** — Hierarchical roll-up of a corpus into progressively coarser summaries -- the Beat-to-Chapter-to-Atlas shape, with an established evaluation.
+- **Wikipedia revision + talk pages** — Every assertion carries a revision history and a separate space for contested interpretation, rather than one authoritative render.
+
+**The delta.** Two things already right and worth noting rather than 'fixing': tag_governance is an APPEND-ONLY confidence-gated write path, and tag_audit is FLAG-ONLY (it returns suspects and does not act). Those are the exact disciplines the recall redesign has been trying to invent for lessons. The gap is that theme and track inference are Tier-0 heuristics with an embedding augmentation, and their accuracy is not measured.
+
+**The import.** Nothing external and urgent. The internal one is the same as codex's: the lesson plane should adopt this plane's append-only, flag-only, confidence-gated tagging discipline rather than reinventing it.
+
+**The anti-import.** Do NOT adopt LLM-based summarisation on any hot path. The spine's value is that it is deterministic and cheap; a chronicler that needs a model call becomes a cost and a nondeterminism on every session close.
+
+**Evidence.** Docstring sweep of all 17 modules 2026-07-26. tag_governance.py: 'the append-only, confidence-gated re-tag write path'. tag_audit.py: 'FLAG-ONLY: it returns suspects'. chapter_lifecycle.py: 'bi-temporal stamping, in-place regeneration'. Partial prior-art detail in research/reviewed/deepseek-system-inventory-p4-recall-learning-narrative-2026-07-26.md
+
+_Reviewed 2026-07-26 by claude (docstring sweep) + deepseek (partial, p4)._
 
 ## `core/trust` -- 2 modules  ·  current
 
@@ -236,17 +301,71 @@ _Reviewed 2026-07-26 by deepseek (swept), claude (folded)._
 
 _Reviewed 2026-07-26 by deepseek (swept), claude (folded)._
 
-## `core/state` -- 2 modules  ·  GAP
+## `core/state` -- 2 modules  ·  current
 
-_No entry. This subsystem has not been swept against the field._
+**What it does.** Crash recovery: session_checkpoint.py writes recovery checkpoints; session_recovery.py restores from them with fallback.
 
-## `core/codex` -- 2 modules  ·  GAP
+**Connected to.** Written during a session's life; read on restart to rehydrate a seat.
 
-_No entry. This subsystem has not been swept against the field._
+**Comparable systems.**
 
-## `core/perspectives` -- 2 modules  ·  GAP
+- **Temporal durable execution** — The workflow's progress IS the persisted artifact, so a crashed worker resumes from the log rather than from a snapshot.
+- **Write-ahead logging** — Log the intent before the act, so recovery replays rather than guesses.
+- **CRIU / process checkpointing** — Whole-process snapshot and restore.
 
-_No entry. This subsystem has not been swept against the field._
+**The delta.** Checkpoints are SNAPSHOTS at points in time; durable-execution systems persist the progress log itself, which makes recovery exact rather than approximate. Ours can only resume from the last checkpoint, losing whatever happened after it.
+
+**The import.** The durable-execution framing for the one place it matters -- long-running jobs that cross an irreversible boundary. Our own corpus already has a lesson about fencing a publish before allowing forced cancellation, which is the same insight arrived at locally.
+
+**The anti-import.** Do NOT adopt a workflow engine. Temporal is the right idea and enormous machinery; at our scale the framing is the import, not the runtime.
+
+**Evidence.** Docstrings read 2026-07-26. Related corpus lesson: publish_fence_before_force. UNVERIFIED: I have not traced how often checkpoints are actually written or whether recovery is exercised.
+
+_Reviewed 2026-07-26 by claude._
+
+## `core/codex` -- 2 modules  ·  current
+
+**What it does.** The knowledge-axis node and its lifecycle. schema.py defines the Resource node and the structural bi-temporal contract; lifecycle.py provides bi-temporal stamping and supersession as TYPE-AGNOSTIC functions over a BiTemporal protocol rather than a base class.
+
+**Connected to.** Shares its lifecycle functions with core/narrative (Chapter uses the same supersede path). core/primitives/supersession.is_active is documented to AGREE with it, so one definition of inactive spans both axes.
+
+**Comparable systems.**
+
+- **Zep / Graphiti bi-temporal model** — Valid time plus ingestion time per fact; supersede by closing validity rather than deleting. THE SAME MODEL WE ALREADY HAVE.
+- **SQL:2011 temporal tables** — System-versioned and application-time period tables -- the relational standardisation of the same idea.
+- **Datomic** — Immutable assert/retract with as-of queries; supersession is the only mutation.
+
+**The delta.** INVERTED -- this is the one subsystem where we are level with the state of the art rather than behind it. valid_from is set once and never moves, valid_to closes on supersession, recorded_at refreshes on regeneration, and supersede() persists BOTH nodes so the old one stays queryable and inbound links forward via replaces edges. The real gap is not in this subsystem: it is that the LESSON plane never adopted it.
+
+**The import.** Nothing from outside. The import is INTERNAL: make lesson records satisfy the BiTemporal protocol and route retirement through supersede() instead of is_benched. That replaces a self-sealing rank suppression with a mechanism already written, already used by two planes, and explicitly built to be type-agnostic.
+
+**The anti-import.** Do NOT rebuild this for lessons, and do NOT let the recall redesign specify bi-temporal invalidation as new work. The 2026-07-26 recall research recommended importing exactly this from Zep before anyone checked whether we had it. We did.
+
+**Evidence.** VERIFIED by reading core/codex/lifecycle.py: is_active, stamp, regenerate_in_place, supersede. Docstring: 'supersede is the only way a bi-temporal node goes inactive... persists BOTH (the old stays queryable; inbound links resolve to it and forward via replaces)'. Lesson: bitemporal_supersession_already_exists_and_is_type_agnostic
+
+_Reviewed 2026-07-26 by claude._
+
+## `core/perspectives` -- 2 modules  ·  current
+
+**What it does.** Swappable interpretation: schema.py defines Lens and Map shapes as pure data; reinforce.py is an association graph whose edges STRENGTHEN with co-use.
+
+**Connected to.** Reads the knowledge graph; intended to let the same corpus be read through different interpretive frames.
+
+**Comparable systems.**
+
+- **Hebbian learning / co-occurrence graphs** — Edges strengthened by joint activation -- exactly reinforce.py's mechanism, with a long literature on its failure modes.
+- **Spreading activation retrieval** — The classic cognitive-model retrieval strategy over an association network.
+- **Belnap four-valued logic** — Represent BOTH-supported-and-attacked explicitly rather than resolving to one truth -- the formal shape for holding two perspectives at once.
+
+**The delta.** Co-use reinforcement is a POPULARITY signal, and popularity was the specific trap identified in the authoritative-atoms design work: if authority derives from how often something is cited, we have built a popularity metric wearing a provenance costume. This subsystem is where that risk actually lives in code.
+
+**The import.** Belnap's explicit BOTH state, so two lenses disagreeing is representable rather than resolved. That also happens to be the one mechanism from the recall research that touches binding as well as retrieval, because a visible conflict forces the agent to reason rather than accept.
+
+**The anti-import.** Do NOT let reinforcement strength feed authority or ranking. Hebbian edges measure co-use, which is exactly the popularity signal the provenance design is trying to avoid. Keep reinforcement as a navigation aid, never as a trust signal.
+
+**Evidence.** Docstrings read 2026-07-26: reinforce.py 'an association graph whose edges STRENGTHEN with co-use'. Design context in research/reviewed/recall-redesign-peer-research-2026-07-26.md section 2 (source-provenance vs popularity).
+
+_Reviewed 2026-07-26 by claude._
 
 ## `agent/harness` -- 9 modules  ·  GAP
 
