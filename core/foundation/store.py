@@ -1101,6 +1101,32 @@ def create_store(prefer_redis: bool = True, host: str = DEFAULT_REDIS_HOST, port
     Always returns a usable Store; never raises on a down Redis.
     """
     if not prefer_redis:
-        return FileStore(file_path)
+        return _file_tier(file_path)
     return HybridStore.create(host=host, port=port, timeout_seconds=timeout_seconds,
                               file_path=file_path, db=db)
+
+
+def _file_tier(file_path: Optional[str] = None) -> Store:
+    """The durable file tier: SqliteStore when opted in, FileStore otherwise.
+
+    OPT-IN ON PURPOSE, and it must stay opt-in until the canonical store is migrated.
+    SqliteStore reads store_state.DB; the live data is in store_state.JSON. Flipping this
+    default before migrating would hand every consumer a syntactically perfect, completely
+    EMPTY store -- a confidently-wrong answer, which is the exact failure genus this backend
+    exists to remove. Migrate first (py -m core.foundation.migrate_to_sqlite, which verifies
+    value-by-value and leaves the JSON untouched), then flip.
+
+    Why the swap is one line: create_store() is the universal factory. No production code
+    imports FileStore directly (deepseek's census: zero imports outside store.py and
+    learning_store.py), so every caller inherits the backend from here.
+
+    AKASHIC_STORE_BACKEND=sqlite  -> SqliteStore
+    unset / anything else         -> FileStore (today's default)
+    """
+    if (os.getenv("AKASHIC_STORE_BACKEND") or "").strip().lower() == "sqlite":
+        from core.foundation.sqlite_store import SqliteStore  # late: avoids an import cycle
+        path = file_path
+        if path and path.endswith(".json"):
+            path = path[:-len(".json")] + ".db"
+        return SqliteStore(path)
+    return FileStore(file_path)
