@@ -23,18 +23,15 @@ Letta's plain files beat a graph memory system; Wikidata's three ranks run at ~1
 statements where ATMS dies around 100 beliefs. The cost of NOT sweeping is measured in
 rebuilt wheels and dead ends, so the sweep is now a standing artifact rather than a mood.
 
-## Coverage: 8 current, 0 drift, 14 gap (of 22 subsystems)
+## Coverage: 11 current, 0 drift, 11 gap (of 22 subsystems)
 
 **GAP -- no prior-art entry yet.** The honest backlog, worst first:
 
 - `core/narrative` (17 modules)
 - `agent/harness` (9 modules)
 - `core/primitives` (7 modules)
-- `scripts/hooks` (7 modules)
 - `scripts/generators` (6 modules)
 - `core/signals` (2 modules)
-- `core/trust` (2 modules)
-- `core/fleet` (2 modules)
 - `core/state` (2 modules)
 - `core/codex` (2 modules)
 - `core/perspectives` (2 modules)
@@ -197,13 +194,50 @@ _No entry. This subsystem has not been swept against the field._
 
 _No entry. This subsystem has not been swept against the field._
 
-## `core/trust` -- 2 modules  ·  GAP
+## `core/trust` -- 2 modules  ·  current
 
-_No entry. This subsystem has not been swept against the field._
+**What it does.** Capability-based access control: capabilities.py issues Capability(action, resource, constraints) tokens and verifies them; registry.py maps agent_id to allowed capabilities and answers can(agent, action, resource).
 
-## `core/fleet` -- 2 modules  ·  GAP
+**Connected to.** Consumed by guards.py for pre-action authorisation and by toolbox.py for verb gating. deepseek marks the full consumer set UNVERIFIED -- neither module has been traced end to end.
 
-_No entry. This subsystem has not been swept against the field._
+**Comparable systems.**
+
+- **Macaroons** — Bearer tokens with caveats, supporting ATTENUATION -- deriving a strictly weaker capability from a stronger one -- plus third-party caveats.
+- **OAuth 2.0 scopes** — Our capabilities are essentially scopes with resource-level granularity, minus the refresh/revoke/introspect lifecycle.
+- **Kubernetes RBAC** — Role -> RoleBinding -> Subject. We bind agent directly to capability with no intermediate Role abstraction.
+- **OPA / Rego** — Policy as code, decoupled from the data it evaluates. Our registry is data with the policy embedded in Python.
+
+**The delta.** Our capabilities are STATIC -- you cannot derive a read-only capability from a read-write one. Macaroon attenuation makes privilege reduction a construction rather than a convention, which matters for a fleet where one seat spawns work for another.
+
+**The import.** Capability attenuation. An agent holding write:* should be able to mint write:scratch/* for a sub-agent by appending a caveat. That prevents privilege escalation by construction rather than by review.
+
+**The anti-import.** Do NOT deploy OPA as a service. An external policy engine consulted on every hook firing would add latency to every tool call, and in-process Python policy is both faster and sufficient at four agents. (deepseek's judgement, and it matches our own measurement that per-tool-call cost is the thing that hurts.)
+
+**Evidence.** research/reviewed/deepseek-system-inventory-p3-coord-trust-fleet-2026-07-26.md sections 21-22. Both modules marked UNVERIFIED by the sweeper -- capabilities.py and registry.py exist and are wired, but consumers are not fully traced. Treat this entry as a map of intent, not of enforcement.
+
+_Reviewed 2026-07-26 by deepseek (swept), claude (folded)._
+
+## `core/fleet` -- 2 modules  ·  current
+
+**What it does.** Presence autopilot supervising the fleet: crash backoff, circuit breaker, presence held across Redis outages, and a refusal to steal a running session's seat.
+
+**Connected to.** Watches runner and seat liveness; interacts with core/coord's consumer seat and with the launcher in core/comm.
+
+**Comparable systems.**
+
+- **Erlang/OTP supervision trees** — Restart strategies (one-for-one, one-for-all, rest-for-one) with intensity limits -- restart storms are bounded by construction rather than by a hand-written breaker.
+- **Kubernetes controllers** — The reconcile loop: continuously drive observed state toward declared state, with no assumption that any single action succeeded.
+- **systemd** — Restart policies, backoff, and dependency ordering as declarative unit configuration.
+
+**The delta.** Ours is an imperative supervisor with hand-rolled backoff; the comparables are declarative and make the restart POLICY inspectable separately from the code that enforces it.
+
+**The import.** The reconcile-loop framing: describe desired fleet state and let a loop converge toward it, instead of scripting transitions. It makes 'a seat died' an ordinary input rather than an exception path.
+
+**The anti-import.** Do NOT adopt Kubernetes scheduling semantics -- taints, tolerations, priorities and affinity are over-engineered for a four-agent fleet. deepseek's line, and it is the same judgement that rejected Raft for coord.
+
+**Evidence.** research/reviewed/deepseek-system-inventory-p3-coord-trust-fleet-2026-07-26.md section 24. Notable receipt: the autopilot's first live launch proved its safety property by REFUSING to steal a running session's seat, twice, with legible reasons -- a guard that demonstrated itself rather than being asserted.
+
+_Reviewed 2026-07-26 by deepseek (swept), claude (folded)._
 
 ## `core/state` -- 2 modules  ·  GAP
 
@@ -225,9 +259,28 @@ _No entry. This subsystem has not been swept against the field._
 
 _No entry. This subsystem has not been swept against the field._
 
-## `scripts/hooks` -- 7 modules  ·  GAP
+## `scripts/hooks` -- 7 modules  ·  current
 
-_No entry. This subsystem has not been swept against the field._
+**What it does.** Seven Claude Code integration hooks: pretooluse (recall injection before every tool call), posttooluse (outcome capture, flip detection, learn nudge), sessionstart (cache warm), sessionend (wrap), userpromptsubmit (plan-time recall), stop (wake enforcement), trace (tool-call to bus).
+
+**Connected to.** Registered in USER settings with absolute paths; read core/recall/at_action and core/comm/bus; write traces, flips and injections. They are the highest-frequency code in the system -- two to three process spawns per tool call.
+
+**Comparable systems.**
+
+- **git hooks** — Identical pattern: a script is registered, the host calls it, exit code decides. Our checkers are effectively pre-commit hooks.
+- **pre-commit framework** — A managed runner: environment caching, PARALLEL execution, autoupdate, standard interface. Our 12 checkers run sequentially as raw Python.
+- **oxlint category tiers** — Severity as confidence. Our hooks and checkers are binary -- gate or absent.
+- **OPA admission control** — Policy evaluated before an operation. Our PreToolUse hook IS admission control, with the policy embedded in Python.
+
+**The delta.** Two. (1) No severity tiers: a checker either fails the build or does not exist, which is why CI reads as a fire alarm. (2) No managed runner: the 12 checkers run sequentially with no caching, re-running against unchanged files.
+
+**The import.** The pre-commit framework for the checkers -- caching, parallelism and autoupdate for a YAML file plus a dependency, not a rewrite. Pairs naturally with oxlint-style tiering so correctness blocks and style warns.
+
+**The anti-import.** Do NOT put an external policy engine on the hook path. These fire two to three times per tool call; we already measured that per-tool-call cost is what makes the system unpleasant to use (it was console spawns, but the lesson generalises). Anything on this path must be cheap by construction.
+
+**Evidence.** research/reviewed/deepseek-system-inventory-p3-coord-trust-fleet-2026-07-26.md section 23. Status LIVE. Also measured by claude 2026-07-25: these hooks were the dominant source of Windows console spam precisely because they fire on every tool call -- the frequency is the defining property of this subsystem.
+
+_Reviewed 2026-07-26 by deepseek (swept), claude (folded)._
 
 ## `scripts/checkers` -- 12 modules  ·  current
 
