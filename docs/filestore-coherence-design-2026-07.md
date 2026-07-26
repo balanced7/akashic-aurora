@@ -134,23 +134,93 @@ criteria, not advice.
 5. **No new suite noise.** The subprocess-heavy files must fail exactly as before (`t093` ×3,
    `t086-s5` ×1, all pre-existing; `t086-s5` is pre-registered RED).
 
-## 6. Open before building
+## 6. The census — RESOLVED 2026-07-26
 
-- **deepseek's writer census, in full.** Its headline — *"there is exactly ONE writer path to
-  `store_state.json`: `FileStore._flush()`"* — is what makes ROT-2 retirable and the fix
-  bounded. Corroborated independently by kimi's morning enumeration of every `_flush` caller.
-  But the bus clipped the body, and a negative claim ("nothing writes outside the store") is
-  only as strong as the search that established it. **Needed:** the patterns searched, the
-  concurrent *process* set (one writer path with five live processes is still the hole), and
-  whether the census explains codex's live incident — `store_state.json` went 108,963 → 164
-  bytes holding a single vote object. If `_flush` is the sole writer, that was a nearly-empty
-  store flushed over a full one. "Does not explain it" is a legitimate answer and is preferred
-  to a stretch.
-- **Lock primitive undecided.** Windows and POSIX need different mechanisms (`msvcrt` /
-  `fcntl`) or a portable lock-file protocol. Must be chosen with the stale-lock-holder case
-  answered: a process that dies holding the lock must not wedge the store.
+deepseek's census landed (recovered verbatim at
+`research/in-flight/deepseek-writer-census-capture-2026-07-26.md`; the bus had clipped it).
+It closes the open item and settles two things I had wrong.
 
-## 7. Provenance
+**ROT-2 is retired.** *"There are zero direct `json.dump` or `open('w')` paths to this file
+outside `FileStore._flush()`."* The two scripts that reference the file
+(`harmonize_knowledge.py`, `snapshot_knowledge.py`) are **read-only** — they `shutil.copy2`
+*from* it, never to it. That is a stated method behind the negative claim, not a bare
+assertion, and it is independently corroborated by kimi's enumeration of every `_flush` caller.
+**One writer path ⇒ the fix touches one class and every mutator inherits it.**
+
+**codex's incident is explained, and its guard already exists.** The 108,963 → 164 byte
+collapse *was* a FileStore flush: one process's `_load()` threw, leaving `_data` empty, and the
+next mutation flushed that near-emptiness over 9MB of real data. That is precisely the case the
+`_degraded` flag now prevents — the store refuses to persist what it could not read. So the
+incident is historical, not a writer the census missed.
+
+**I was wrong about `git_guard`, twice over.** I had already retracted the claim that its
+`JSONDecodeError` was the coherence hole; deepseek closes the remaining "then it is a third
+thing" thread. It is not a third defect in this file at all — *"it's a DIFFERENT file (the git
+guard's own state file, not `store_state.json`), written by a different path."* Nothing about
+`git_guard` bears on this design.
+
+**Still genuinely open:**
+
+- **The concurrent *process* set.** The census establishes one writer *path*; it does not
+  enumerate which long-lived processes hold a FileStore against the canonical file
+  simultaneously. One path with five live processes is still the hole. This does not block the
+  design — the fix is correct regardless — but it sizes the contention and therefore the retry
+  loop's tuning.
+- **Lock primitive undecided,** with a caveat from the census: *"Windows `msvcrt.lockf` is
+  unreliable on network drives."* Windows and POSIX need different mechanisms (`msvcrt` /
+  `fcntl`) or a portable lock-file protocol. The stale-holder case must be answered: a process
+  that dies holding the lock must not wedge the store.
+
+### 6a. A fourth option the A/B/C frame did not contain
+
+deepseek proposes attacking the root rather than the race:
+
+> **per-key files** instead of one monolithic JSON. Each key gets its own file; no
+> write-clobber between keys.
+
+This deserves recording because it is categorically different from A/B/C. Those all keep the
+whole-file serialisation and add coordination around it; this **removes the whole-file write**,
+so there is no clobber to coordinate against — the defect becomes unrepresentable rather than
+guarded. Its own framing of the choice is the clearest statement of the root cause in any
+document here:
+
+> The whole-file serialization pattern is the root cause. Every mutation writes the entire
+> dict; any process that missed a prior mutation writes an incomplete dict. The fix is either
+> "don't miss mutations" (re-read before write) or "don't write the whole dict" (per-key
+> storage).
+
+Not adopted, and not rejected — **not yet evaluated**. It trades a concurrency problem for a
+filesystem-shape problem (inode pressure, directory scans on prefix reads, atomicity across
+*multi-key* operations, and a migration for the existing store). A is the lower-blast-radius
+change and remains the recommendation; per-key storage is the honest alternative if A's write
+amplification proves unacceptable in measurement rather than in argument.
+
+## 7. A dissent on sequencing, recorded rather than resolved
+
+The fleet split **2–1 on what to do first**, and the dissent is about verifiability, not
+importance.
+
+kimi and claude picked the FileStore. **deepseek picked D (the honest CI split)** and
+explicitly conceded severity: *"65.6% silent data loss is objectively more severe than CI
+hygiene."* Its argument is sequencing:
+
+> fixing it now, with CI red, means the fix lands into a gate that can't verify it. A green CI
+> makes the FileStore fix testable — the coherence pins go RED, the fix lands, the pins go
+> GREEN, and CI confirms nothing else regressed. Without that loop, the FileStore fix ships
+> blind.
+
+The counter, for the record: the coherence pin is **self-verifying** — `xfail(strict=True)`
+means an XPASS fails the build on its own, and it runs deterministically in isolation. And the
+tree-differential census means the red baseline is now *measured* (8 tree-independent
+candidates, 7 after `d0c4e3d`), so a new regression is detectable by diff rather than by
+greenness.
+
+The residual risk deepseek names is real and survives that counter: a store change has wide
+blast radius, and diffing against a baseline where 20 of 25 failures are tree-dependent is a
+weaker instrument than a green suite. **This is a judgement call for Daniel, not a fact to be
+settled by argument, and it is recorded here unresolved.**
+
+## 8. Provenance
 
 - Measurements, probes, and the coherence pin: claude.
 - The insufficiency-of-a-lock mechanism, the A/B/C ruling, the read-cache demotion, the ROT-1
