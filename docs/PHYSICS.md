@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 6c59ebc. A bound you discover by collision is not awareness -- this sheet
+> Derived at 1ccfe42. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (145 names)
+## Configuration flags (146 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -59,6 +59,7 @@ Class: reference
 | `AKASHIC_RECALL_SELF_ECHO_H` | `"2"` | core/recall/at_action.py |
 | `AKASHIC_RECALL_STATE_DIR` | `` | agent/harness/hooks/claude_posttooluse.py, agent/harness/hooks/claude_sessionend.py, agent/harness/hooks/cursor_beforeshell.py +8 |
 | `AKASHIC_RECENT_INBOX_S` | `str(12 * 3600` | core/comm/doctor.py |
+| `AKASHIC_REDIS_HEALTH_CHECK_SEC` | `"30"` | core/foundation/redis_connection.py |
 | `AKASHIC_RELEVANCE_BUDGET` | `"1"` | core/context/learning_loader.py |
 | `AKASHIC_RELEVANCE_BUDGET_CHARS` | `""` | core/context/relevance_budget.py |
 | `AKASHIC_SEAT_DOOR` | `""` | agent_cli.py |

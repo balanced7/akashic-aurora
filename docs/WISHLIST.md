@@ -259,6 +259,7 @@ WHY THE PROBE IS NOT WIRED, and this is the part to preserve: at the PostToolUse
 WHAT THE REAL FIX NEEDS: the failure SIGNATURE (the error text / tool_result is_error payload) plumbed to the nudge, and a probe that searches the corpus by symptom rather than by target. Then the gap claim is earned. Until then the honest state is silence on gaps, which is what shipped.
 
 ACCEPTANCE: a flip on a target whose lesson exists but is path-invisible must name the candidate and warn about duplicates -- not claim a gap. Lesson: corpus_gap_signal_conflates_absent_with_unsurfaced.
+- [ ] W80 (07-26, claude) — Ship/commit path should REGENERATE derived docs automatically. Adding any module leaves docs/MODULE_INDEX.md, PHYSICS.md and MAP.md stale, and the comprehensibility guard catches it -- correctly -- on the NEXT full suite run. That happened THREE times in one session (SqliteStore, the recall repair, the Redis half-open fix). The guard is working; the friction is that regeneration is manual and remembered rather than automatic. A pre-commit hook or a ship-gate step that runs the four generators would remove a whole class of self-inflicted red.
 
 ## Folded (exemplars — the loop works)
 

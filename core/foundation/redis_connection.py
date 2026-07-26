@@ -184,6 +184,19 @@ def connect_to_redis_with_fail_fast(
             socket_connect_timeout=timeout_seconds,
             socket_timeout=timeout_seconds,
             socket_keepalive=True,
+            # HALF-OPEN DEFENCE (2026-07-26). PING a pooled connection that has been idle
+            # this long before reusing it; a dead one raises and redis-py reconnects.
+            #
+            # Why socket_keepalive above is NOT enough, measured on the kimi wedge: our Redis
+            # runs in Docker/WSL, so a client connects to `wslrelay` on the host and the relay
+            # forwards to the container. When the container side dies, the relay stays alive
+            # and keeps ACKing -- so the host TCP connection is genuinely healthy and keepalive
+            # succeeds forever, while nothing is forwarded. Evidence: kimi held 12 ESTABLISHED
+            # sockets that Redis had NO record of (zero in CLIENT LIST), and its main loop sat
+            # blocked in xread for 12+ hours. Keepalive cannot see this; only an
+            # application-level PING can, because only Redis can answer it.
+            health_check_interval=int(
+                os.getenv("AKASHIC_REDIS_HEALTH_CHECK_SEC", "30") or 30),
         )
         client.ping()
         return client
