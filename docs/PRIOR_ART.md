@@ -23,11 +23,12 @@ Letta's plain files beat a graph memory system; Wikidata's three ranks run at ~1
 statements where ATMS dies around 100 beliefs. The cost of NOT sweeping is measured in
 rebuilt wheels and dead ends, so the sweep is now a standing artifact rather than a mood.
 
-## Coverage: 21 current, 1 drift, 0 gap (of 22 subsystems)
+## Coverage: 20 current, 2 drift, 0 gap (of 22 subsystems)
 
 **DRIFT -- surveyed, but the subsystem has changed size since:**
 
-- `tests` -- DRIFT (331->333), reviewed 2026-07-26
+- `core/comm` -- DRIFT (36->37), reviewed 2026-07-26
+- `tests` -- DRIFT (331->335), reviewed 2026-07-26
 
 ---
 
@@ -98,7 +99,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `core/comm` -- 36 modules  ·  current
+## `core/comm` -- 37 modules  ·  DRIFT (36->37)
 
 **What it does.** The Bifrost bus and everything around it -- purpose-keyed lanes (work / trace / sig), per-agent consume cursors, packet envelopes with integrity and fragmentation, expectations and redrives, the wake listener, the launcher, and the fidelity ladder (inform / steer / interrupt / halt). By far our largest subsystem.
 
@@ -504,7 +505,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `tests` -- 333 modules  ·  DRIFT (331->333)
+## `tests` -- 335 modules  ·  DRIFT (331->335)
 
 **What it does.** 331 test modules plus conftest, providing universal backend isolation, a parity exerciser shared across store backends, and a differential harness that cross-verifies two implementations of the same semantics.
 
