@@ -532,11 +532,22 @@ class FileStore(Store):
         return removed
 
     def hgetall_prefix(self, prefix):
-        """One pass over the in-memory hash bucket. No per-key round-trips at all."""
+        """One pass over the in-memory hash bucket. No per-key round-trips at all.
+
+        SNAPSHOT THE KEYS FIRST. _evict_if_expired DELETES from the same dict we are walking,
+        so iterating it live raised "dictionary changed size during iteration" the moment any
+        key in range had an expired TTL. Shipped that way and caught by the FileStore/SQLite
+        differential, not by the existing suite -- nothing else exercised expiry through a
+        prefix read. A read path that crashes on expiry is worse than the N round-trips it
+        replaced, because the slow version was at least correct.
+        """
         with self._lock:
             out = {}
-            for k, fields in self._data["hash"].items():
-                if k.startswith(prefix) and fields and not self._evict_if_expired(k):
+            for k in [k for k in self._data["hash"] if k.startswith(prefix)]:
+                if self._evict_if_expired(k):
+                    continue
+                fields = self._data["hash"].get(k)
+                if fields:
                     out[k] = dict(fields)
             return out
 
