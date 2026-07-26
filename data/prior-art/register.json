@@ -102,5 +102,41 @@
     "import": "Log compaction semantics for the high-volume families (trace, impressions) so retention is bounded without special-casing deletion -- the same reasoning that led to lane-scoped retention.",
     "anti_import": "Do NOT add Merkle-proof tamper-evidence. It answers a threat we do not have (a hostile local editor) at real complexity cost, and our actual measured event-integrity problem was silent WRITE LOSS in the store beneath, which is now fixed. Solve the defect we measured, not the one that is interesting.",
     "evidence": "Corpus lesson spine_v1_event_time_index records the CQRS read-model pattern as already-chosen for the narrative spine"
+  },
+
+  "core/comm": {
+    "module_count": 36,
+    "reviewed_at": "2026-07-26",
+    "reviewed_by": "claude",
+    "what": "The Bifrost bus and everything around it -- purpose-keyed lanes (work / trace / sig), per-agent consume cursors, packet envelopes with integrity and fragmentation, expectations and redrives, the wake listener, the launcher, and the fidelity ladder (inform / steer / interrupt / halt). By far our largest subsystem.",
+    "connected": "Every agent talks through it. Writes to core/events; read by wake, runners, the UI console and boot; coordinates with core/coord for consumer seats.",
+    "comparable": [
+      {"name": "Kafka", "note": "Consumer offsets, at-least-once by default, and REWIND -- a consumer can be moved back to an arbitrary point and replay everything, which is how downstream state gets rebuilt after a bug."},
+      {"name": "NATS JetStream", "note": "Core NATS is fire-and-forget at-most-once; JetStream adds durable streams, at-least-once and replay. Three delivery tiers that map onto MQTT's QoS levels."},
+      {"name": "MQTT QoS 0/1/2", "note": "Delivery guarantee as an explicit per-message property rather than a property of the whole system."},
+      {"name": "Erlang/OTP mailboxes + supervision", "note": "Per-process mailboxes with selective receive, and failure handled by supervised restart rather than by defensive code in the consumer."}
+    ],
+    "delta": "Two gaps. (1) We partition lanes by PURPOSE (work/trace/sig) and have organically ended up with different delivery guarantees per lane -- trace is effectively fire-and-forget, work is at-least-once with redrive -- but we never NAMED that as a QoS tier, so the guarantee is emergent rather than declared. (2) We have skip-to-now but no REWIND: Kafka can replay a consumer from an arbitrary earlier point, which is exactly what rebuilding state after a bug needs, and it is the capability we lacked every time a cursor got scarred this week.",
+    "import": "Declare the per-lane delivery guarantee explicitly, the way MQTT declares QoS, so consumers can reason about it instead of inferring it. Cheap: it is documentation plus an assertion, not new transport.",
+    "anti_import": "Do NOT pursue exactly-once. Kafka's transactional exactly-once is enormous machinery, and RB-26 already commits us to the cheaper correct answer -- idempotent consumers under at-least-once. Chasing exactly-once would replace a working discipline with a distributed-transaction problem we do not need at five processes on one machine.",
+    "evidence": "LIVE_CONSTRAINTS RB-26 (cursor advances AFTER processing; a crash redelivers), T039/T044 lane router, T045 consumer cutover. UNVERIFIED: whether a rewind primitive exists anywhere in the verb surface."
+  },
+
+  "core/coord": {
+    "module_count": 11,
+    "reviewed_at": "2026-07-26",
+    "reviewed_by": "claude",
+    "what": "Coordination primitives: advisory path locks, the RB-21 consumer seat with generations, the task ledger with gated transitions, the conductor, and expectation/redrive bookkeeping.",
+    "connected": "Guards concurrent writes across seats; the ledger is read at boot and is declared to outrank notes and bus messages in the precedence doctrine.",
+    "comparable": [
+      {"name": "Google Chubby", "note": "Coined SEQUENCERS -- monotonically increasing tokens handed out with a lock, which the protected RESOURCE checks and rejects if stale."},
+      {"name": "etcd / ZooKeeper", "note": "The same idea as a first-class primitive: etcd's key revision or ZooKeeper's zxid IS the fencing token. etcd also ships a Lease API -- grant(ttl) returns a lease_id, keys attach to it, a keepalive stream renews, and expiry auto-deletes everything attached."},
+      {"name": "Kleppmann's fencing argument", "note": "A lock WITHOUT fencing is unsafe by construction: a holder paused by GC can wake after expiry and still act. The token is not an optimisation, it is the correctness property."},
+      {"name": "Temporal", "note": "Durable execution -- the workflow's progress is the persisted thing, so a crashed worker resumes rather than needing a lock to prevent double-work."}
+    ],
+    "delta": "SMALLER THAN EXPECTED, and this entry was corrected by checking. I assumed the classic half-implementation -- tokens issued but never validated. VERIFIED FALSE: bus.py advance_to executes a Redis LUA script that refuses stale generations and backwards ids AT THE RESOURCE, atomically, returning STALE_GENERATION so a fenced-out predecessor must stand down. That is exactly where Chubby and etcd put the check, and it puts us ahead of most hand-rolled locking rather than behind it. The Redis dependency is coherent rather than a gap: the bus is Redis Streams by design and ephemeral, so the SQLite store migration does not touch this path. The remaining real gap is the DEAD HOLDER -- a process that dies holding a lock -- which is open and blocking the FileStore lock design.",
+    "import": "etcd's lease-attachment shape: resources attach to a lease id and expiry cascades automatically, instead of every holder managing its own TTL. That directly addresses the dead-holder case, which is the one genuinely open problem here.",
+    "anti_import": "Do NOT adopt Raft or any consensus protocol. It buys multi-node correctness at a real latency and complexity cost, and we are five processes on ONE machine with a shared filesystem. Kleppmann's own framing reserves consensus locks for correctness-critical DISTRIBUTED cases; ours is local coordination and SQLite's own locking already covers the store.",
+    "evidence": "VERIFIED at core/comm/bus.py:838-866 -- guarded Lua, stale-generation and backwards both refused at the resource on any cursor hash. LIVE_CONSTRAINTS RB-21. Corpus lesson rb21_live_drill_single_process_blind_spot notes the drill was single-process, so the mechanism is verified by CODE READING and the cross-process rejection is still unexercised by a live drill."
   }
 }
