@@ -23,20 +23,17 @@ Letta's plain files beat a graph memory system; Wikidata's three ranks run at ~1
 statements where ATMS dies around 100 beliefs. The cost of NOT sweeping is measured in
 rebuilt wheels and dead ends, so the sweep is now a standing artifact rather than a mood.
 
-## Coverage: 11 current, 0 drift, 11 gap (of 22 subsystems)
+## Coverage: 14 current, 0 drift, 8 gap (of 22 subsystems)
 
 **GAP -- no prior-art entry yet.** The honest backlog, worst first:
 
 - `core/narrative` (17 modules)
 - `agent/harness` (9 modules)
 - `core/primitives` (7 modules)
-- `scripts/generators` (6 modules)
 - `core/signals` (2 modules)
 - `core/state` (2 modules)
 - `core/codex` (2 modules)
 - `core/perspectives` (2 modules)
-- `agent` (2 modules)
-- `scripts/ops` (2 modules)
 - `core/renew` (1 modules)
 
 ---
@@ -255,9 +252,28 @@ _No entry. This subsystem has not been swept against the field._
 
 _No entry. This subsystem has not been swept against the field._
 
-## `agent` -- 2 modules  ·  GAP
+## `agent` -- 2 modules  ·  current
 
-_No entry. This subsystem has not been swept against the field._
+**What it does.** The agent-facing door surface: the boot/context assembly an agent receives at session start, and the harness-facing glue that carries it.
+
+**Connected to.** Assembles from the task ledger, durable notes, LIVE_CONSTRAINTS, recall and the bus; rendered into every seat's first turn and into the SessionStart whisper.
+
+**Comparable systems.**
+
+- **Model Context Protocol (MCP)** — A typed tool surface with descriptions that ARE the prompt -- discovery and invocation in one contract. We already expose an MCP door beside the CLI.
+- **Language Server Protocol (LSP)** — The precedent MCP follows: one protocol, many clients, capabilities negotiated at initialise. Its lesson is that the DOOR outlives the client.
+- **OpenAPI / JSON Schema** — Machine-readable contracts that generate clients and validate calls, so the surface cannot silently drift from its documentation.
+- **Unix man pages + --help conventions** — The oldest working answer to 'how does a newcomer learn a tool from the tool itself'.
+
+**The delta.** Our door is inconsistent in a way a schema-driven surface cannot be. Three CLI syntax failures in one session on 2026-07-25 -- bifrost-nudge rejecting --text, bifrost-send rejecting positional text after flags, capture taking no agent_id positional while nearly every sibling verb does. Each printed usage, which is good; none was guessable from its neighbours, which is the actual defect. LSP and OpenAPI make that class of inconsistency structurally impossible.
+
+**The import.** Schema-first verb definitions, so the CLI parser, the MCP tool description and the DOORS.md reference are generated from ONE declaration rather than maintained in three places. door-parity already checks that the doors agree; generating them would mean they cannot disagree.
+
+**The anti-import.** Do NOT chase full capability negotiation. LSP's initialise handshake exists because clients and servers version independently across vendors; our doors ship in one repo at one version, and the ceremony would buy nothing.
+
+**Evidence.** Three syntax failures logged 2026-07-25 (claude-painpoints-2026-07-25, pain P4). check_door_parity.py exists and compares CLI/MCP/ToolBox surfaces -- notably it was itself broken by a moved file and reported a clean pass over an EMPTY parse, which is why generation beats checking where it is available.
+
+_Reviewed 2026-07-26 by claude._
 
 ## `scripts/hooks` -- 7 modules  ·  current
 
@@ -304,13 +320,51 @@ _Reviewed 2026-07-26 by deepseek (swept), claude (folded)._
 
 _Reviewed 2026-07-26 by claude._
 
-## `scripts/generators` -- 6 modules  ·  GAP
+## `scripts/generators` -- 6 modules  ·  current
 
-_No entry. This subsystem has not been swept against the field._
+**What it does.** Six generators projecting live code into documents: MAP.md (module census), MODULE_INDEX.md (docstrings), PHYSICS.md (bounds and env flags), DOORS.md (CLI verb reference), PRIOR_ART.md (this register), and the arch index.
 
-## `scripts/ops` -- 2 modules  ·  GAP
+**Connected to.** Read the live source tree; their output is committed; check_comprehensibility re-runs each generator's own render() and fails the build if the committed document differs.
 
-_No entry. This subsystem has not been swept against the field._
+**Comparable systems.**
+
+- **go generate + a CI drift check** — The Go ecosystem's standard: commit generated code, have CI run the generator and fail if the diff is non-empty. Structurally identical to what we do.
+- **Golden-file / approval / snapshot testing** — Generate, compare against a committed artifact, fail on drift. Jest snapshots and approval-tests are the same mechanism applied to test output.
+- **terraform plan / kubectl diff** — Show the delta between declared and actual and refuse to proceed on unexpected drift. GitOps drift detection generalises it.
+- **Sphinx autodoc / Doxygen** — Extract documentation from source. WEAKER than ours: extraction keeps docs derived, but nothing fails if the published output is stale.
+
+**The delta.** Small, and in our favour -- this is a subsystem where we are already doing the established right thing. The generators reuse their OWN render() inside the checker, so there is exactly one definition of correct output and drift is impossible to miss. That is stronger than Sphinx-style extraction, which derives docs but never fails on a stale published copy.
+
+**The import.** Nothing structural. The available refinement is parallelism and caching (the pre-commit import noted under scripts/hooks) -- six generators plus twelve checkers currently run sequentially against unchanged files.
+
+**The anti-import.** Do NOT let any document become authored-and-trusted once it has a generator. The temptation is to hand-edit generated output when the generator is inconvenient; that is how MAP, PHYSICS and MODULE_INDEX all went stale the moment new modules landed on 2026-07-25. The header on every generated file says do not edit by hand, and it must stay true.
+
+**Evidence.** check_comprehensibility.py _derived_docs_current compares each committed doc against the generator's own render. VERIFIED 2026-07-26 by deliberately corrupting PRIOR_ART.md and confirming the checker reports it stale -- a green guard is not proof the guard can fail.
+
+_Reviewed 2026-07-26 by claude._
+
+## `scripts/ops` -- 2 modules  ·  current
+
+**What it does.** Operator tools for the knowledge substrate: snapshot_knowledge.py (snapshot / list / restore / verify across Redis, the file tier and chronicles, keeping the last 20) and reheal_durable_tier.py (backfill the durable tier FROM Redis, added 2026-07-26).
+
+**Connected to.** Reads Redis db0 and the store file(s); writes timestamped snapshot directories under backups/snapshots; the restore path writes back over live state.
+
+**Comparable systems.**
+
+- **PostgreSQL pg_basebackup + WAL archiving** — Physical backup plus a continuous log, giving point-in-time recovery rather than discrete restore points.
+- **restic / borg** — Content-addressed, deduplicated, ENCRYPTED snapshots with an explicit integrity-check command -- verification is a first-class operation, not an assumption.
+- **sqlite3 online backup API** — ADOPTED 2026-07-26. Reads through the write-ahead log to produce a complete file. The reason a plain file copy is wrong for a live database.
+- **ZFS / btrfs snapshots** — Copy-on-write snapshots that are atomic by construction rather than by a copy loop.
+
+**The delta.** Two. (1) We have discrete snapshots and no continuous log, so recovery granularity is 'the last snapshot' rather than a point in time. (2) restic and borg treat VERIFY as a routine command; our snapshots were until tonight taken with a plain file copy that would have silently produced stale artifacts once the store became a WAL database.
+
+**The import.** Routine verification, restic-style: a snapshot that has never been restore-tested is a hypothesis. We now hold 20 snapshots and have exercised restore rarely.
+
+**The anti-import.** Do NOT add deduplication or encryption. Both solve problems we do not have -- our corpus is ~10MB on a local disk with no adversary in the model -- and both add a failure mode between us and our own recovery path, which is the one place complexity is least welcome.
+
+**Evidence.** Fixed 2026-07-26: snapshot_knowledge.py:105/153-156 and harmonize_knowledge.py:78 used shutil.copy2, which under a WAL database yields a stale-or-corrupt copy WHILE REPORTING SUCCESS. Moved to the online backup API with sidecar clearing on restore; pinned in tests/test_snapshot_wal_correct.py.
+
+_Reviewed 2026-07-26 by claude._
 
 ## `tests` -- 331 modules  ·  current
 
