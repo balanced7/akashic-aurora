@@ -17,17 +17,36 @@ step. Nothing here is built.
 Both came from asking "does this already exist?" before designing — the check that has now
 paid off three times today.
 
-**`suite-baseline` already exists and does the thing the fleet split over.** Its own
-docstring: *"check = node-id delta (new/fixed/inherited — churn visible even at identical
-counts)."* deepseek's dissent was that fixing the store while CI is red means the fix "lands
-into a gate that can't verify it." That gate exists. It does not need green — it needs a
-**diff**, and diffing by node-id makes new breakage visible even when the failure count is
-unchanged.
+**`suite-baseline` already exists** and is **44.7 hours stale**: recorded at `bb0beac` with 13
+known failures, while HEAD is `32553c6` and the clean-clone census measured 25. The organ is
+not missing, it is *unrefreshed* — an instrument reporting a number nobody renewed, which is
+this week's genus exactly. Worth refreshing on its own merits.
 
-It is **44.7 hours stale**: recorded at `bb0beac` with 13 known failures, while HEAD is
-`32553c6` and the clean-clone census measured 25. So the organ is not missing, it is
-*unrefreshed* — an instrument reporting a number nobody renewed, which is this week's genus
-exactly.
+> ### CORRECTED 2026-07-26 — my claim about what this dissolved was motivated reasoning
+>
+> I originally wrote that this **dissolved** deepseek's dissent: the gate it wanted exists, so
+> D need not precede the store fix. I flagged to kimi that I could not audit that from inside,
+> because I picked the FileStore in the morning and then found a fact that conveniently removed
+> the objection to picking the FileStore. **kimi's verdict: it is the motivated-reasoning shape,
+> and the tell is a question I asked myself and then did not follow.**
+>
+> The node-id delta is only as good as the **stability of the set being diffed**, and by my own
+> **L0.2** the same commit yields 11 / 18 / 25 / 31 failures depending on tree × env ×
+> isolation × identity. **A store regression adding a handful of node-ids sits inside a churn
+> band of ±14.** The delta cannot separate signal from churn at that amplitude, so
+> **deepseek's objection survives**, and the baseline refresh does **not** verify the store fix.
+>
+> What survives, and it is the part that matters: **L1/L2 independence is real and
+> well-evidenced** (verified, not assumed — see the next finding). So the correct framing is
+> **not** "D is dissolved" but:
+>
+> **L1 and L2 are independent and proceed in PARALLEL. The store fix is verified by its own
+> pre-registered acceptance pin — a deterministic multi-process test — not by the suite-baseline
+> delta. D's value is independent of the store fix, and taming the tree-dependent churn is part
+> of D, which is what would eventually make the delta load-bearing.**
+>
+> The ordering below is unchanged in *content* but its justification is corrected: Phase 0 is
+> worth doing because the instrument is stale, **not** because it unblocks Phase 2.
 
 **The FileStore hole and the test-pollution problem are INDEPENDENT.** I expected them to be
 one defect at two layers and built an early draft on that. Checked instead of assumed: of
@@ -127,11 +146,21 @@ L4.6 capability truth ───────────► every future fleet br
 
 **Three relationships worth stating in words, because they are the non-obvious ones:**
 
-**(a) The recall debate is not actually a debate about recall.** kimi says narrow, deepseek
-says off — but both say *fix the measurement first*, and for the same reason: the funnel value
-is defective, so neither position can be tested. **The actionable item is L3.1, not L3.3.** The
-on/off question should not be answered until the impression series is un-double-logged; until
-then any answer is a preference, not a finding.
+**(a) The recall debate — CORRECTED 2026-07-26, partially rejected by kimi.**
+
+I originally wrote that the debate "is not actually a debate about recall": both dissenters say
+fix the measurement first, so the actionable item is L3.1 and the on/off question waits.
+**Half right, and the wrong half was load-bearing.** kimi's correction:
+
+- **deepseek's position (turn it OFF) *is* metric-gated.** "Off" is only justified if recall is
+  shown to be valueless, and that needs a working metric.
+- **kimi's position (NARROW it) is *not* metric-gated.** It is a *noise-reduction* argument, not
+  a value-attribution one — fewer, higher-confidence injections, on the grounds that noise
+  limits creativity. That argument stands whether or not the funnel metric is fixed.
+
+So the disagreement **is substantive** and I flattened it. The correct statement: *the on/off
+DECISION is blocked on L3.1; the NARROWING is actionable now and must not be deferred behind
+the metric fix.* That moves work out of Phase 4 and into "can start immediately."
 
 **(b) The binding failure (L3.4) is not on the recall axis at all.** A lesson that is
 retrieved, rendered, and then violated is not a retrieval defect, and no amount of refitting
@@ -236,6 +265,29 @@ pattern.
    so silence is not mistaken for assent.
 
 ## 5. Honest weaknesses in this plan
+
+### 5a. The four kimi added that I missed — all four accepted
+
+1. **The dissolution claim was the plan's least-audited *and* most load-bearing claim, and I
+   did not list it.** It ordered Phases 0–2 and it was the thing I had least right. A plan whose
+   ordering rests on its weakest claim must say so. Corrected in §0; kept visible rather than
+   quietly rewritten.
+2. **L1.7's dead-holder case is under-scoped exactly as S3.2 is, and I did not flag it.** My
+   verification line — *"a spike that shows a second process acquires rather than wedging"* — is
+   **a hope, not a verification**. The deadlock case is precisely the one a spike misses. It sits
+   in Phase 1 wearing the costume of a quick check.
+3. **The false-capability receipts are still in the record, uncorrected.** S0.3 fixes future
+   brief templates. It does nothing about the **three verifies already filed this week under
+   false premises** (kimi's exec-disabled code-reads presented as verifies). The fix is
+   forward-looking; the corrupted evidence is not retracted. That is a separate, unlisted task.
+4. **The Phase 2 acceptance test may itself be genus-A.** A deterministic multi-process CAS test
+   is non-trivial — and the FileStore durability pin *already made this exact mistake*, using
+   threads where only processes could prove the property. If the acceptance test is thread-based
+   or flaky, **the store fix's verification is itself the disease it is curing.** The coherence
+   pin got this right by using real subprocesses; the CAS test does not exist yet and could
+   repeat the error.
+
+### 5b. Originally listed
 
 - **L3.5 is the only ASSUMED number I have carried forward without re-deriving.** It should be
   re-counted before it is planned against.
