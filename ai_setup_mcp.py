@@ -115,6 +115,44 @@ class _ThreadLocalStdout:
 _stdout_proxy = _ThreadLocalStdout(sys.stdout)
 sys.stdout = _stdout_proxy
 
+
+# ---------------------------------------------------------------- P-5: the stdin membrane
+class _StdinSeveredPopen(subprocess.Popen):
+    """Every child spawned by THIS process gets DEVNULL stdin unless it asks otherwise.
+
+    C7-4 physics: this process owns the JSON-RPC transport on fd 0. A child that
+    inherits that handle makes Windows' Proactor defer the pending stdout completion
+    until the next inbound frame arrives -- so the tool's work runs to completion and
+    the reply never returns. The seat hangs on boot; any later frame flushes it in
+    <0.07s. It cost a session on 2026-07-16 and was point-fixed on 2026-07-17 by
+    severing stdin in agent_cli's `_git` helper.
+
+    That point fix held for nine days. On 2026-07-25 `_head_commit_epoch` landed on the
+    boot path without the sever and the hang came straight back (caught 2026-07-26 by
+    the P6 pin, which was red). The lesson is that "remember to pass stdin=DEVNULL" is a
+    HOPE, not a guard -- the same shape as the `_ARG_DEFAULTS` keep-in-sync comment that
+    the parity pin replaced. An audit found 17 more unsevered spawns in MCP-reachable
+    modules; each is one refactor away from being on a verb's path.
+
+    So the invariant is enforced where it actually lives: not at 17 call sites, but at
+    the ONE process that owns the handle. This also covers spawns inside third-party
+    libraries, which no call-site discipline could ever reach. A caller that genuinely
+    wants stdin passes it explicitly -- and `subprocess.run(input=...)` sets stdin=PIPE
+    itself, so piped input (scripts/gemini_web.py et al) is untouched. DEVNULL gives a
+    child an immediate EOF, which is strictly safer than a read on an inherited pipe.
+
+    Deliberately NOT applied process-wide in agent_cli: a CLI child inheriting the
+    terminal is correct there. This is door physics, and it belongs to the door.
+    """
+
+    def __init__(self, args, bufsize=-1, executable=None, stdin=None, *a, **kw):
+        # stdin=None IS the inherit case -- the one thing this process must never do.
+        super().__init__(args, bufsize, executable,
+                         subprocess.DEVNULL if stdin is None else stdin, *a, **kw)
+
+
+subprocess.Popen = _StdinSeveredPopen
+
 # ---------------------------------------------------------------- P-3: the write tier
 # ONE lock: write verbs, consuming reads, and bus sends serialize for ordering; read
 # verbs never touch it. RLock so a write-tier cmd_* that internally re-enters another

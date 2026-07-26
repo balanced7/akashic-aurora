@@ -651,6 +651,32 @@ agent_cli.py still inherit stdin and want an MCP-reachability audit + the same s
 (boot is proven fixed by P6), so this is a named residual, not a boot regression. Peer-review
 confirm of the stdin-refinement flagged for Daniel's morning gate.**
 
+**REGRESSED 2026-07-25, CAUGHT + CLASS CLOSED 2026-07-26.** The named residual came due. A new
+boot-path spawn — `_head_commit_epoch` (agent_cli.py:1335, born 2026-07-25 for the continuity-drift
+boot line) — ran `git log -1 --format=%ct` with `capture_output=True` and no stdin sever, and the
+hang came straight back: BOTH seats (claude and codex) wedged on MCP boot, which is how Daniel
+found it ("you and codex both get stuck on the boot process"). Nine days after the point fix.
+Diagnosis was cheap because the mechanism was already named here: CLI boot 882ms vs MCP boot never
+returning, a Popen tracer over a real `cmd_boot` naming one leaking site out of four spawns, and
+**the existing P6 pin was already RED** — it had simply not been run. Sharpest lesson of the round:
+*a red pin nobody runs is not a guard.*
+Root fix, chosen over point-fixing an 18th site: the invariant is not "every call site remembers
+`stdin=DEVNULL`" (a hope, and a false rule besides — a CLI child inheriting the terminal is
+correct). It is **"no child of the MCP server process may inherit the JSON-RPC handle"** — a
+property of the ONE process that owns fd 0. `ai_setup_mcp.py` now installs `_StdinSeveredPopen`
+at import (P-5, the stdin membrane): any child spawned without an explicit stdin gets DEVNULL.
+That covers all 17 remaining unsevered spawns found by an AST audit of MCP-reachable modules
+(agent_cli + core/**), every future site, and spawns inside third-party libraries — which no
+call-site discipline could ever reach. `subprocess.run(input=...)` sets stdin=PIPE itself, so
+piped-input helpers are untouched. `_head_commit_epoch` also keeps its own sever, so agent_cli
+stays safe when embedded in some other stdio door.
+Pins: tests/test_subprocess_stdin_sever.py — S1 membrane installed + child sees EOF, S2 piped
+input still works, **S3 runs a real boot and judges every spawn by what the CALLER passed** (the
+membrane would otherwise mask a leaky site), failing with the exact file:line. S3 was
+mutation-tested: re-introducing the 2026-07-25 regression turns it red naming `agent_cli.py:1345`.
+Door suites 15/15 green. **CLASS CLOSED at the door; the 17 sites remain unsevered by design for
+non-MCP processes.**
+
 **C7-1 · Glob `scripts/*.py` returned nothing while `**/bifrost_ui.py` matched** (2026-07-15).
 Harness tool quirk; cost one extra probe. **Routing: ACCEPTED BOUNDARY (log-only) — not Aurora
 code; workaround (recursive patterns) is zero-cost. Revisit only if it recurs with cost.**

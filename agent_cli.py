@@ -1337,7 +1337,13 @@ def _head_commit_epoch():
     try:
         import subprocess as _sp
         root = os.path.dirname(os.path.abspath(__file__))
+        # C7-4 (regressed 2026-07-25, caught 2026-07-26): this runs on the BOOT path, so
+        # an MCP seat's boot spawns it. capture_output gives fresh stdout/stderr pipes but
+        # leaves STDIN -- the server's JSON-RPC transport handle -- inherited, and Windows'
+        # Proactor then defers the pending tool response until another inbound frame. Sever
+        # it. See tests/test_subprocess_stdin_sever.py, which now pins the whole class.
         r = _sp.run(["git", "-C", root, "log", "-1", "--format=%ct"],
+                    stdin=_sp.DEVNULL, close_fds=True,
                     capture_output=True, text=True, timeout=10)
         return int((r.stdout or "").strip()) if r.returncode == 0 else None
     except Exception:
