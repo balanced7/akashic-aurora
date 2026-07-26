@@ -26,9 +26,51 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 BASE = Path(os.getenv("AI_SETUP", "E:\\AI-Setup"))
 SNAP_DIR = BASE / "backups" / "snapshots"
 STORE_FILE = BASE / "session_logs" / "store_state.json"
+STORE_DB = BASE / "session_logs" / "store_state.db"
 JSONL = BASE / "session_logs" / "learnings.jsonl"
 CHRONICLES = BASE / "chronicles"
 KEEP_LAST = 20
+
+
+def _backup_sqlite(src: Path, dest: Path) -> bool:
+    """Snapshot a SQLite store CORRECTLY -- never with a file copy.
+
+    A WAL-mode database keeps its most recent committed writes in the `-wal` sidecar, so
+    shutil.copy2 of the .db alone yields a stale or corrupt snapshot WHILE STILL REPORTING
+    SUCCESS. That failure only surfaces at restore time, which is the worst place to find it:
+    a backup that lies is worse than no backup, because it is trusted.
+
+    sqlite3's online backup API reads through the WAL and produces a complete, self-contained
+    file -- which is then safe to copy, unlike its source.
+    """
+    import sqlite3
+    try:
+        with sqlite3.connect(str(src)) as s, sqlite3.connect(str(dest)) as d:
+            s.backup(d)
+        return True
+    except Exception as e:
+        print(f"[snapshot] SQLITE BACKUP FAILED for {src.name}: {type(e).__name__}: {e}")
+        return False
+
+
+def _restore_sqlite(src: Path, dst: Path) -> bool:
+    """Restore a snapshot .db over the live path.
+
+    The snapshot is self-contained (backup() checkpoints as it copies), so copying it in is
+    safe -- but the DESTINATION may still have `-wal`/`-shm` sidecars belonging to the store
+    we are replacing. Left in place, SQLite would apply those stale sidecars over the restored
+    file and silently resurrect the very state we are rolling back.
+    """
+    try:
+        for sidecar in (dst.with_name(dst.name + "-wal"), dst.with_name(dst.name + "-shm")):
+            if sidecar.exists():
+                sidecar.unlink()
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dst)
+        return True
+    except Exception as e:
+        print(f"[restore] SQLITE RESTORE FAILED for {dst.name}: {type(e).__name__}: {e}")
+        return False
 
 try:
     from config import REDIS_HOST, REDIS_PORT
@@ -103,6 +145,11 @@ def snapshot(note=""):
         (dest / "redis_db0.json").write_text(json.dumps(dump, indent=1, ensure_ascii=False), encoding="utf-8")
     if STORE_FILE.exists():
         shutil.copy2(STORE_FILE, dest / "store_state.json")
+    # Both tiers are snapshotted while the SQLite migration is in flight, so a snapshot
+    # taken either side of the flip can restore either way. A file copy is correct for the
+    # JSON store and WRONG for the SQLite one -- see _backup_sqlite.
+    if STORE_DB.exists():
+        _backup_sqlite(STORE_DB, dest / "store_state.db")
     if JSONL.exists():
         shutil.copy2(JSONL, dest / "learnings.jsonl")
     if CHRONICLES.exists():
@@ -154,6 +201,8 @@ def restore(name):
         if (src / fname).exists():
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src / fname, dst)
+    if (src / "store_state.db").exists():
+        _restore_sqlite(src / "store_state.db", STORE_DB)
     if (src / "chronicles").exists():
         shutil.copytree(src / "chronicles", CHRONICLES, dirs_exist_ok=True)
     print(f"[restore] DONE -- knowledge rolled back to {name}")
