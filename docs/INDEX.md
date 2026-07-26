@@ -36,6 +36,7 @@ the whole point (an old design note read as current truth is how a project stops
 | [LIBRARY.md](LIBRARY.md) | where things live and why — types, header contract, four doors | header contract + guards 8–12 |
 | [PHYSICS.md](PHYSICS.md) | the machinery's static bounds + config flags | auto-generated (`gen_physics_sheet.py`) |
 | [DOORS.md](DOORS.md) | the agent-door I/O reference (CLI verbs + inputs) | auto-generated (`gen_doors.py`) |
+| [PRIOR_ART.md](PRIOR_ART.md) | every subsystem beside what the field already built (GAP/DRIFT coverage) | auto-generated (`gen_prior_art_register.py`); entries authored in `data/prior-art/register.json` |
 | [LEXICON.md](LEXICON.md) | the ubiquitous language | stable altitude |
 | [PRINCIPLES.md](PRINCIPLES.md) | the earned working principles | stable; each names what would revise it |
 | [JOURNEY.md](JOURNEY.md) | the story of how we got here | append-only narrative |

@@ -227,6 +227,20 @@ def _derived_docs_current():
             out.append("docs/DOORS.md is stale -> run `py scripts/generators/gen_doors.py`")
     except Exception as e:
         out.append(f"docs/DOORS.md check could not run ({type(e).__name__}: {e})")
+    try:
+        # PRIOR_ART.md joins AUTHORED research against the LIVE module census, so it rots two
+        # ways: a new subsystem appears with no entry (GAP), or a surveyed subsystem changes
+        # size and nobody looks again (DRIFT). Both render into the document rather than
+        # failing here -- this check only enforces that the document matches what the
+        # generator would emit right now. Daniel's constraint was "that piece needs to stay up
+        # to date"; a register that quietly lags the code it describes is the same failure
+        # genus as every stale instrument found this week.
+        import gen_prior_art_register as pa
+        if _read("docs/PRIOR_ART.md") != pa.render(pa.build()):
+            out.append("docs/PRIOR_ART.md is stale -> run "
+                       "`py scripts/generators/gen_prior_art_register.py`")
+    except Exception as e:
+        out.append(f"docs/PRIOR_ART.md check could not run ({type(e).__name__}: {e})")
     return out
 
 
