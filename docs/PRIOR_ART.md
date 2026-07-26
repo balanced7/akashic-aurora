@@ -23,11 +23,7 @@ Letta's plain files beat a graph memory system; Wikidata's three ranks run at ~1
 statements where ATMS dies around 100 beliefs. The cost of NOT sweeping is measured in
 rebuilt wheels and dead ends, so the sweep is now a standing artifact rather than a mood.
 
-## Coverage: 21 current, 0 drift, 1 gap (of 22 subsystems)
-
-**GAP -- no prior-art entry yet.** The honest backlog, worst first:
-
-- `agent/harness` (9 modules)
+## Coverage: 22 current, 0 drift, 0 gap (of 22 subsystems)
 
 ---
 
@@ -337,7 +333,7 @@ _Reviewed 2026-07-26 by claude._
 
 **The delta.** INVERTED -- this is the one subsystem where we are level with the state of the art rather than behind it. valid_from is set once and never moves, valid_to closes on supersession, recorded_at refreshes on regeneration, and supersede() persists BOTH nodes so the old one stays queryable and inbound links forward via replaces edges. The real gap is not in this subsystem: it is that the LESSON plane never adopted it.
 
-**The import.** Nothing from outside. The import is INTERNAL: make lesson records satisfy the BiTemporal protocol and route retirement through supersede() instead of is_benched. That replaces a self-sealing rank suppression with a mechanism already written, already used by two planes, and explicitly built to be type-agnostic.
+**The import.** Nothing from outside. The import is INTERNAL: make lesson records carry valid_from / valid_to / recorded_at and route retirement through supersede() instead of is_benched. VERIFIED 2026-07-26 by running it -- a lesson-shaped object with those three attributes works with lifecycle.stamp() and lifecycle.is_active() TODAY, unmodified: stamp set both timestamps and is_active correctly flipped when valid_to closed. Three fields buy the whole mechanism. GOTCHA FOUND WHILE VERIFYING: isinstance(node, BiTemporal) returns FALSE even for an object carrying all three attributes, because runtime_checkable Protocols validate METHODS and not DATA members. The lifecycle functions work regardless because they are duck-typed through getattr -- but anyone who adds an isinstance guard for safety will silently break a mechanism that otherwise just works.
 
 **The anti-import.** Do NOT rebuild this for lessons, and do NOT let the recall redesign specify bi-temporal invalidation as new work. The 2026-07-26 recall research recommended importing exactly this from Zep before anyone checked whether we had it. We did.
 
@@ -367,9 +363,28 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `agent/harness` -- 9 modules  ·  GAP
+## `agent/harness` -- 9 modules  ·  current
 
-_No entry. This subsystem has not been swept against the field._
+**What it does.** The seat side of the fleet: how an agent session is launched, kept alive, woken from idle, and stood down. Includes the wake listener, seat lifecycle and the runner glue that turns a bus message into a live turn.
+
+**Connected to.** Driven by core/comm's launcher and bus; coordinates with core/coord's consumer seat and generations; the stop hook enforces that a session stays wakeable.
+
+**Comparable systems.**
+
+- **Erlang/OTP supervision** — Restart strategies with INTENSITY LIMITS -- a supervisor that exceeds N restarts in T seconds escalates rather than looping. Restart storms are bounded by construction.
+- **systemd** — Declarative restart policy, backoff, and socket activation -- a unit is started BY demand rather than polling for it.
+- **Kubernetes liveness / readiness probes** — Two DISTINCT questions: is it alive, and is it ready to receive work. Conflating them is a classic outage cause.
+- **Long-poll / server-sent events** — The standard answer to 'wake on an event without burning a core polling for it'.
+
+**The delta.** The liveness/readiness distinction is the sharp one. Our wake path effectively answers only 'is it alive', and the failure mode we hit repeatedly on 2026-07-25 was a watcher that armed, fired instantly on undrainable mail, and exited -- alive but never ready, six times in a row, with the stop hook asking for the same action each time. OTP's intensity limit is exactly the missing guard: a supervisor that notices N restarts in T seconds and escalates rather than repeating.
+
+**The import.** Restart-intensity limiting on the wake path: detect the insta-fire signature (armed and exited within seconds, same pending count) and escalate with a diagnosis instead of requesting another identical arm. That converts a loop into a finding.
+
+**The anti-import.** Do NOT add a polling supervisor. The corpus already records a wake watcher burning 20% of a core continuously while idle, and the fix was to block correctly rather than to poll faster. Any liveness mechanism here must be event-driven or it re-creates the defect it was added to detect.
+
+**Evidence.** MEASURED 2026-07-25: six consecutive arm-and-exit cycles; root cause was that the watcher peeks the LEGACY stream while drains were going to the work lane. Corpus lessons wake_watcher_insta_fires_lane_divergence and nonseatholder_wake_spin_burns_plan. Pain point P1 in claude-painpoints-2026-07-25, where the deeper issue was named as the stop hook demanding a workaround on a loop.
+
+_Reviewed 2026-07-26 by claude (partial), deepseek (p3 adjacent)._
 
 ## `agent` -- 2 modules  ·  current
 
