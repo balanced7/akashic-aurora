@@ -1,0 +1,55 @@
+#!/bin/sh
+# pre-push -- the door gate. Nothing that wedges every seat's boot gets pushed.
+#
+# WHY THIS EXISTS
+# On 2026-07-26 both the claude and codex seats hung on MCP boot(). The guard already
+# existed -- tests/test_t078_w3_mcp_door.py P6 encodes exactly "MCP boot must not hang",
+# and it was RED. It had simply never been run. Detection was never the gap; delivery was.
+# deepseek's ruling in the co-design round, and it is right: a probe that can also be
+# not-run is not the fix. The gate that BLOCKS THE SHIP is the primary mechanism, and
+# everything else is defence in depth. This repo had no git hooks at all before this file
+# -- only samples -- which is precisely why a red pin could sit unrun for a day.
+#
+# INSTALL (one line, from the repo root):
+#     git config core.hooksPath scripts/githooks
+# Kept in scripts/githooks/ rather than .git/hooks/ so it is TRACKED, reviewable, and
+# survives a clone. .git/hooks/ is invisible to everyone but the one machine it lives on.
+#
+# BYPASS: git push --no-verify  -- git's own escape hatch, deliberately not re-invented
+# here. If you need it, the thing you are pushing had better be the fix for this gate.
+set -u
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT" || exit 0
+
+echo "[door-gate] the MCP door must answer before anything ships"
+
+# --- 1. the live door, always (~2s). Cheap, and it is the only check that can see the
+#        door as it actually is in THIS environment rather than as the source implies.
+if ! py -m core.comm.door_probe; then
+    echo ""
+    echo "[door-gate] BLOCKED: the MCP door is not healthy."
+    echo "[door-gate] Every MCP seat boots through this path -- pushing now ships a"
+    echo "[door-gate] fleet-wide boot hang. The verdict above carries the recovery."
+    exit 1
+fi
+
+# --- 2. the pins, when door-relevant code moved. A push that touches no python cannot
+#        break the door's code path, and this hook must not tax every docs commit.
+CHANGED="$(git diff --name-only origin/master..HEAD 2>/dev/null || git diff --name-only HEAD~1..HEAD 2>/dev/null || echo FORCE)"
+if [ "$CHANGED" = "FORCE" ] || echo "$CHANGED" | grep -qE '(^agent_cli\.py|^ai_setup_mcp\.py|^core/.*\.py|^tests/test_(subprocess_stdin_sever|t078_w3_mcp_door)\.py)'; then
+    echo "[door-gate] door-relevant code moved -- running the door pins (~40s)"
+    if ! py -m pytest tests/test_subprocess_stdin_sever.py tests/test_t078_w3_mcp_door.py -q; then
+        echo ""
+        echo "[door-gate] BLOCKED: a door pin is red."
+        echo "[door-gate] S3 names the exact file:line if a spawn on the boot path"
+        echo "[door-gate] inherits stdin (the C7-4 class). P6 is the end-to-end proof"
+        echo "[door-gate] that a single inbound frame is enough to get boot's reply back."
+        exit 1
+    fi
+else
+    echo "[door-gate] no door-relevant code in this push -- pins skipped (probe still ran)"
+fi
+
+echo "[door-gate] green -- push proceeding"
+exit 0
