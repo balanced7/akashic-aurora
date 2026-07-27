@@ -222,8 +222,28 @@ def main() -> int:
          f"{len(records)} record(s) added: " + ", ".join(os.path.basename(r) for r in records[:4]))
     line("M10", "guards for new law", guards,
          f"{len(guards)} guard(s) born: " + ", ".join(os.path.basename(g) for g in guards[:4]))
-    print(f"  M11  slice discipline            {n} slice(s), {reverts} revert(s), "
-          f"{gated}/{n} cite a spec/record ({(100.0 * gated / n if n else 0):.0f}% gated)")
+    # M11 is MEASURED by replaying the real gate, not by regexing doc paths out of messages.
+    # deepseek: "a typo fix mentioning docs/ARCHITECTURE.md counts as gated; a full-fence slice
+    # whose message says only 'RB-99 landed' does not... target it upward and you get more doc
+    # paths in messages, not more gated slices. Goodhart." The DENOMINATOR was wrong too: the
+    # gate only applies to substrate ships, so a rate over all commits meant nothing either way.
+    try:
+        sys.path.insert(0, os.path.join(ROOT, "scripts", "checkers"))
+        from check_reconciliation_gate import audit_stats as _gate_audit
+        g = _gate_audit(max(n, 20))
+        if g["applied"]:
+            print(f"  M11  slice discipline            {n} slice(s), {reverts} revert(s); "
+                  f"MEASURED {g['passed'] + g['ungated']}/{g['applied']} SUBSTRATE ship(s) "
+                  f"gated ({g['pct']:.0f}%)"
+                  + (f", {g['ungated']} ungated-with-reason" if g["ungated"] else ""))
+            for sha, subj, why in g["offenders"][:3]:
+                print(f"       ungated substrate: {sha} {subj}")
+        else:
+            print(f"  M11  slice discipline            {n} slice(s), {reverts} revert(s); "
+                  f"no substrate ships in window -- gate did not apply")
+    except Exception as exc:
+        print(f"  M11  slice discipline            {n} slice(s), {reverts} revert(s) "
+              f"[self-report: gate audit unavailable: {exc}]")
     if ungated:
         print(f"  !!   UNGATED substrate ship(s) this window: {len(ungated)} -- each needs a "
               f"wrap ruling (hook 1 audit line)")
