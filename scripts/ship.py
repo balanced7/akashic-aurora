@@ -40,7 +40,15 @@ def build_plan(args):
                       [PY, "scripts/checkers/check_preregistration.py", args.message, *args.paths]))
         steps.append(("guard: verbatim citation (GATE decisions cite their record, M6)",
                       [PY, "scripts/checkers/check_verbatim_citation.py", args.message]))
-        steps.append(("tests (full suite)", [PY, "-m", "pytest", "-q"]))
+        # The suite gate is a RATCHET, not a raw pass/fail. Raw `pytest -q` here made ship.py
+        # ABORT ALWAYS while the tree carried pre-existing failures, so the disciplined door was
+        # impassable and every seat routed around it with raw `git commit` -- which is why the
+        # T031 checkers above ran zero times in a night of six commits. ship_gate blocks on NEW
+        # failures only, announces inherited ones, and removes fixed ones from the baseline so
+        # the allowance can only shrink. See scripts/ship_gate.py for why it is a ratchet.
+        # Label deliberately unchanged: this step still runs the FULL suite, so the name stays
+        # true and two existing pins that match it keep passing. What changed is the JUDGEMENT.
+        steps.append(("tests (full suite)", [PY, "scripts/ship_gate.py", "--run"]))
     steps.append(("commit + push", [PY, "scripts/mirror.py", args.message, *args.paths]))
     if args.learn_exp:
         learn = [PY, "agent_cli.py", "learn", args.agent, "--experiment", args.learn_exp]

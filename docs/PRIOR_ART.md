@@ -28,7 +28,7 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 **DRIFT -- surveyed, but the subsystem has changed size since:**
 
 - `core/comm` -- DRIFT (36->38), reviewed 2026-07-26
-- `tests` -- DRIFT (331->338), reviewed 2026-07-26
+- `tests` -- DRIFT (331->341), reviewed 2026-07-26
 
 ---
 
@@ -505,7 +505,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `tests` -- 338 modules  ·  DRIFT (331->338)
+## `tests` -- 341 modules  ·  DRIFT (331->341)
 
 **What it does.** 331 test modules plus conftest, providing universal backend isolation, a parity exerciser shared across store backends, and a differential harness that cross-verifies two implementations of the same semantics.
 

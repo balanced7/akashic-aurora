@@ -215,6 +215,7 @@
 - `runner_token_journal.py` — runner_token_journal -- daily token-count ledger (T078 W1: C6 meter).
 - `seed_narrative.py` — seed_narrative.py -- dogfood the spine: ingest real git history as Beats, then chronicle.
 - `ship.py` — ship.py -- one disciplined command to ship a slice: GATE -> commit+push -> (lesson) -> snapshot.
+- `ship_gate.py` — ship_gate -- the suite gate as a ONE-WAY RATCHET (T031 unblock, 2026-07-27).
 - `snapshot.py` — Snapshot the current Bifrost session for later resume. Run before shutting down.
 - `sol_chat.py` — sol_chat -- the Sol seat's model transport: gpt-5.6-sol (OpenAI) as a first-class Akashic citizen.
 - `worktree.py` — worktree.py -- per-agent git worktrees (Concurrency design C1).

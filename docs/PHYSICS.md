@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at a26ae7d. A bound you discover by collision is not awareness -- this sheet
+> Derived at 22c3bac. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (149 names)
+## Configuration flags (151 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -17,6 +17,7 @@ Class: reference
 | `AI_SETUP` | `"E:\\AI-Setup"` | agent_cli.py, core/comm/blobs.py, core/foundation/ledger.py +15 |
 | `AKASHIC_ACK_UNHANDLED_HOURS` | `UNHANDLED_HOURS` | core/comm/promoter.py |
 | `AKASHIC_AGENT_ID` | `"claude"` | agent/harness/hooks/claude_posttooluse.py, agent/harness/hooks/claude_pretooluse.py, agent/harness/hooks/claude_sessionend.py +19 |
+| `AKASHIC_ALLOW_HARMONIZE` | `` | scripts/harmonize_knowledge.py |
 | `AKASHIC_ASK_EXPECT_S` | `"1800"` | agent_cli.py |
 | `AKASHIC_AUTOBOOT` | `"1"` | agent/harness/context.py |
 | `AKASHIC_BENCH_PROBE_DAYS` | `"14"` | core/recall/at_action.py |
@@ -128,6 +129,7 @@ Class: reference
 | `KIMI_CLAUDE_HOME` | `r"E:\AI-Setup\.kimi-claude-home"` | scripts/kimi_walk_narrator.py |
 | `KIMI_CONNECT_TIMEOUT` | `"15"` | scripts/kimi_chat.py |
 | `KIMI_EFFORT` | `"max"` | scripts/kimi_chat.py |
+| `KIMI_GRANT_BASIS_USD` | `"105.0"` | scripts/kimi_chat.py |
 | `KIMI_MAX_HOPS` | `"30"` | scripts/bifrost_runner_kimi.py, scripts/kimi_chat.py |
 | `KIMI_MAX_RETRIES` | `"1"` | scripts/kimi_chat.py |
 | `KIMI_MODEL` | `K3` | scripts/kimi_chat.py |
