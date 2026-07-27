@@ -65,10 +65,13 @@ def test_p2_an_inherited_failure_does_not_abort(monkeypatch, tmp_path):
 
 
 def test_p3_a_fixed_failure_tightens_the_baseline(monkeypatch, tmp_path):
-    """THE SELF-LIMITING PROPERTY. Without the ratchet, P2 is an amnesty that only grows."""
+    """THE SELF-LIMITING PROPERTY. Without the ratchet, P2 is an amnesty that only grows.
+    Tightening is DELIBERATE (kimi P9) and requires collection evidence (P10) -- but once a
+    seat asks for it with proof, the retirement must be permanent."""
     from scripts import ship_gate
     _mk(monkeypatch, tmp_path, ["tests/test_a.py::test_one", "tests/test_b.py::test_two"])
-    v = ship_gate.evaluate(["tests/test_a.py::test_one"])          # test_two now passes
+    v = ship_gate.evaluate(["tests/test_a.py::test_one"], tighten=True,
+                           collected=["tests/test_a.py::test_one", "tests/test_b.py::test_two"])
     assert "tests/test_b.py::test_two" in v["fixed"]
     assert v["blocked"] is False
     remaining = {f["node"] for f in sb.read()["failures"]}
@@ -120,6 +123,38 @@ def test_p8_an_expired_baseline_revokes_the_exemption(monkeypatch, tmp_path):
         "past the TTL the exemption must be REVOKED -- otherwise the inherited list grows "
         "monotonically and rots, which is amnesty wearing a different word")
     assert "expired" in expired["report"].lower()
+
+
+def test_p9_the_gate_is_read_only_by_default(monkeypatch, tmp_path):
+    """kimi's blocking objection, verified from the code: evaluate(tighten=True) called
+    sb.record() as a SIDE EFFECT OF PASSING, silently rewriting the fleet-wide baseline
+    under the shipping seat's name. Its line: 'a gate that writes state as a side effect
+    of passing is the same disease in miniature -- a silent state change nobody was asked
+    about.' Baseline mutation is now a DELIBERATE act."""
+    from scripts import ship_gate
+    _mk(monkeypatch, tmp_path, ["tests/test_a.py::test_one", "tests/test_b.py::test_two"])
+    ship_gate.evaluate(["tests/test_a.py::test_one"])          # test_two passes; default call
+    remaining = {f["node"] for f in sb.read()["failures"]}
+    assert "tests/test_b.py::test_two" in remaining, (
+        "the gate mutated the shared baseline just by being run -- shrinking is good, but "
+        "it must be something a seat CHOOSES, not a side effect of a green ship")
+
+
+def test_p10_absence_is_not_evidence_of_passing(monkeypatch, tmp_path):
+    """kimi's own doctrine (the three confessions) applied to its own objection. A baseline
+    node missing from the failure list is ambiguous: it either PASSED, or it was never
+    collected -- file deleted, lane mid-fix, collection error. Only the first is 'fixed'.
+    Treating absence as a pass silently strips a lane's exemption and blocks its next ship
+    on its own work in progress."""
+    from scripts import ship_gate
+    _mk(monkeypatch, tmp_path, ["tests/test_a.py::test_one", "tests/test_gone.py::test_x"])
+    # test_a ran and passed; test_gone was never collected at all
+    v = ship_gate.evaluate(["tests/test_a.py::test_one"], tighten=True,
+                           collected=["tests/test_a.py::test_one"])
+    remaining = {f["node"] for f in sb.read()["failures"]}
+    assert "tests/test_gone.py::test_x" in remaining, (
+        "an uncollected node was removed as 'fixed' -- absence is UNCHECKABLE, never a pass")
+    assert "tests/test_gone.py::test_x" not in v["fixed"]
 
 
 def test_p7_a_green_suite_is_always_clean(monkeypatch, tmp_path):
