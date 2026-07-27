@@ -46,13 +46,21 @@ def _declares_prereg(path: str) -> bool:
         return False
 
 
-def _audit(n: int) -> int:
-    """M3 metric: of the last N commits that ADD a tests/test_*.py, how many also
-    touched source in the same commit (violations)."""
+def audit_stats(n: int, root: str = "") -> dict:
+    """M3 metric as NUMBERS: of the last N commits that ADD a tests/test_*.py, how many also
+    touched source in the same commit (violations).
+
+    Split out from the printing path deliberately. The wrap scorecard needs the RATE, and a
+    reader that re-parses a rendered compliance line is fragile -- delimiters collide with
+    content, and the number silently becomes whatever the formatting last did. Returns
+    {total, clean, violations, pct, offenders}; callers render, this computes.
+    """
+    cwd = root or ROOT
     log = subprocess.run(
         ["git", "log", f"-n{n}", "--diff-filter=A", "--name-only", "--format=%x01%h %s"],
-        capture_output=True, cwd=ROOT, encoding="utf-8", errors="replace").stdout or ""
+        capture_output=True, cwd=cwd, encoding="utf-8", errors="replace").stdout or ""
     total = viol = 0
+    offenders = []
     for block in log.split("\x01"):
         lines = [l.strip() for l in block.strip().splitlines() if l.strip()]
         if not lines:
@@ -65,15 +73,24 @@ def _audit(n: int) -> int:
         # The same commit's FULL touch set (adds + modifications):
         sha = header.split()[0]
         touched = (subprocess.run(["git", "show", "--name-only", "--format=", sha],
-                                  capture_output=True, cwd=ROOT, encoding="utf-8",
+                                  capture_output=True, cwd=cwd, encoding="utf-8",
                                   errors="replace").stdout or "").split()
         src = [f for f in map(_norm, touched) if f and not f.startswith(NONSOURCE_PREFIXES)]
         if src:
             viol += 1
-            print(f"  VIOLATION {header}: new test(s) {added_tests} shipped with source {src[:3]}")
+            offenders.append((header, added_tests, src[:3]))
     ok = total - viol
-    pct = (100.0 * ok / total) if total else 100.0
-    print(f"M3 pre-registration compliance: {ok}/{total} test-adding commits clean ({pct:.0f}%)")
+    return {"total": total, "clean": ok, "violations": viol,
+            "pct": (100.0 * ok / total) if total else 100.0, "offenders": offenders}
+
+
+def _audit(n: int) -> int:
+    """The printing path -- renders audit_stats() for a human."""
+    r = audit_stats(n)
+    for header, added_tests, src in r["offenders"]:
+        print(f"  VIOLATION {header}: new test(s) {added_tests} shipped with source {src}")
+    print(f"M3 pre-registration compliance: {r['clean']}/{r['total']} "
+          f"test-adding commits clean ({r['pct']:.0f}%)")
     return 0
 
 

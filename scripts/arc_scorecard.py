@@ -90,7 +90,25 @@ def main() -> int:
 
     print(f"## ARC SCORECARD (last {days:g}d: {n} commit(s)) -- method-baseline reads (T031 hook 3)")
     line("M1", "fenced dual pass", fences, f"{fences} fence/review/reconcile ship(s)")
-    line("M3", "pre-registered acceptance", prereg, f"{prereg} registration-marked ship(s)")
+    # M3 is MEASURED, not self-reported. It used to render `{prereg} registration-marked
+    # ship(s)` -- a count of commits whose MESSAGE mentioned registration. That is compliance
+    # by announcement: it counted what we said, never what we did, and it rendered a healthy
+    # number straight through a window measured at 33% the first time anyone ran the audit
+    # (8/24 test-adding commits clean, 2026-07-27, on an --audit mode that had shipped with
+    # T031 and never once been run). The rate comes from git, so it cannot be talked up.
+    try:
+        sys.path.insert(0, os.path.join(ROOT, "scripts", "checkers"))
+        from check_preregistration import audit_stats
+        m3 = audit_stats(max(n, 20))
+        if m3["total"]:
+            flag = "  <-- pins are landing WITH their implementation" if m3["pct"] < 80 else ""
+            print(f"  M3   pre-registered acceptance  MEASURED {m3['clean']}/{m3['total']} "
+                  f"test-adding commit(s) clean ({m3['pct']:.0f}%){flag}")
+        else:
+            line("M3", "pre-registered acceptance", prereg, "no test-adding commits in window")
+    except Exception as exc:                      # a reader must never break the wrap
+        line("M3", "pre-registered acceptance", prereg,
+             f"{prereg} registration-marked ship(s) (audit unavailable: {exc})")
     line("M4", "drills as acceptance", drills, f"{drills} drill-bearing ship(s)")
     line("M5", "live-exercise after ship", live, f"{live} live-exercise mention(s)")
     line("M6", "verbatim preservation", records,
