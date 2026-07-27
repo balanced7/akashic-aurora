@@ -118,6 +118,47 @@ def imports_of(rel, modmap):
     return out
 
 
+SHELL_DIRS = ("scripts/githooks", ".github/workflows")
+
+
+def shell_invoked_modules(dirs=None) -> set:
+    """Modules invoked from tracked SHELL entry points -- hooks and CI.
+
+    The import-graph BFS below cannot see `py -m core.comm.door_probe`, so it declared
+    door_probe.py unwired while it was the FIRST BLOCKING STEP of the only mandatory door in
+    the repo (scripts/githooks/pre-push:29). That false positive is expensive: the remedy the
+    guard offers is "add to EXCEPTIONS", so each one pushes a load-bearing module onto a
+    permanent exemption list, and a guard that cries wolf gets fed exceptions until it guards
+    nothing.
+
+    A shell hook and a CI workflow ARE production entry points -- arguably the strictest ones,
+    since they gate the push. Fail-open by design: an unreadable directory yields nothing extra
+    and the import-graph verdict stands, so this can only ever ADD evidence of wiring, never
+    hide a genuinely dead module.
+    """
+    import re as _re
+    roots = dirs if dirs is not None else [os.path.join(ROOT, d) for d in SHELL_DIRS]
+    dash_m = _re.compile(r"-m\s+([A-Za-z_][A-Za-z0-9_.]*)")
+    by_path = _re.compile(r"\b((?:scripts|core|agent)/[A-Za-z0-9_\-./]+\.py)\b")
+    found = set()
+    for root in roots:
+        try:
+            for dirpath, _dirnames, filenames in os.walk(root):
+                for fn in filenames:
+                    try:
+                        text = open(os.path.join(dirpath, fn), encoding="utf-8",
+                                    errors="replace").read()
+                    except OSError:
+                        continue
+                    for mod in dash_m.findall(text):
+                        found.add(mod.replace(".", "/") + ".py")
+                    for rel in by_path.findall(text):
+                        found.add(rel.replace("\\", "/"))
+        except Exception:
+            continue                      # fail open: never crash the guard on a bad read
+    return found
+
+
 def analyze():
     modmap = module_map()
     # __init__.py are package markers (implicitly loaded on submodule import); the static graph can't
@@ -133,6 +174,10 @@ def analyze():
             if dep not in seen:
                 seen.add(dep); frontier.append(dep)
             reachable.add(dep)
+    # Shell hooks and CI are production entry points too -- the strictest ones, since they gate
+    # the push. Union them in as wiring evidence so a module invoked via `py -m` is not reported
+    # dead and pressured onto the permanent EXCEPTIONS list.
+    reachable = reachable | shell_invoked_modules()
     unwired = sorted(core_universe - reachable)
     return core_universe, reachable, unwired
 
