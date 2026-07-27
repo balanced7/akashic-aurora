@@ -10,12 +10,21 @@ work. L1 (worklive) records the phase; RB-27a's pulse records progress INSIDE it
 module is the L2 reader that turns both into graded findings, under the three-reviewer
 paging table (SRE ch.6, reconciled 2026-07-11):
 
-  PAGE-GRADE (the ONLY two; every page urgent + actionable):
+  PAGE-GRADE (every page urgent + actionable):
     hard_wedge        -- non-idle phase aged past threshold AND the pulse is dead: the
                          worker died inside a turn; not self-healing; act (revive).
     stalled_consumer  -- idle/online with unread backlog aged past HYSTERESIS: the
                          consumer stopped consuming. Hysteresis (first-seen must age)
                          because single-sample falses on every Redis blip.
+    lane_stall        -- work on the lane has WAITED past LANE_STALL_PAGE_S. The third
+                         page state, added 2026-07-26 on a receipt: kimi's lane sat 45h
+                         at depth 55 while every other signal read healthy, because the
+                         seat was alive and looping -- so the two states above (both of
+                         which need an idle phase or a dead pulse) could not see it.
+                         This one is deliberately BLIND to the pulse: presence proves
+                         the process, and this module exists to say it never proves
+                         the work. Graded on BACKLOG age, never cursor age -- a quiet
+                         agent's cursor is ancient because no mail arrived.
   BANNER: frozen      -- a deliberate pause, with provenance + age. Config, not crisis.
   DASHBOARD: working  -- aged phase WITH a fresh pulse (F2 solved: long legit work);
              self_reported_error -- a trigger:<reason> confession (self-reported beats
@@ -44,7 +53,16 @@ def _ns() -> str:
 
 
 STALL_HYSTERESIS_S = _scaled(int(os.getenv("AKASHIC_STALL_HYSTERESIS_S", "180")), floor=1)
-PAGE_DEDUP_TTL = _scaled(3600)          # one bus note per (agent, state) per hour
+PAGE_DEDUP_TTL = _scaled(3600)          # one emission per (channel, agent, state) per hour
+
+# Progress-age thresholds (2026-07-26). deepseek's line on the kimi post-mortem was
+# "if lane_cursor_age > 6h: escalate" -- 6h kept, measured against the age of the OLDEST
+# UNCONSUMED entry rather than the cursor (the cursor reading pages every returning seat).
+# The warn band exists so the window is never silent on its way to a page.
+# Literal seconds, not 6*3600: the physics sheet scrapes these defaults verbatim and
+# renders an arithmetic expression as a truncated fragment.
+LANE_STALL_PAGE_S = _scaled(int(os.getenv("AKASHIC_LANE_STALL_PAGE_S", "21600")), floor=1)   # 6h
+LANE_STALL_WARN_S = _scaled(int(os.getenv("AKASHIC_LANE_STALL_WARN_S", "3600")), floor=1)    # 1h
 
 
 def _stalled_since_prefix() -> str:
@@ -53,6 +71,28 @@ def _stalled_since_prefix() -> str:
 
 def _paged_prefix() -> str:
     return f"{_ns()}:doctor_paged:"
+
+
+def _escalated_prefix() -> str:
+    # A SEPARATE dedup namespace from _paged_prefix: the pager and the bus note are two
+    # channels, and one must never consume the other's slot for the hour.
+    return f"{_ns()}:doctor_escalated:"
+
+
+def _sid(s) -> tuple:
+    """Parse a stream id into a comparable (ms, seq)."""
+    h, _, t = str(s).partition("-")
+    try:
+        return (int(h), int(t or 0))
+    except ValueError:
+        return (0, 0)
+
+
+def _fmt_age(s: float) -> str:
+    n = int(max(0.0, float(s)))
+    if n >= 3600:
+        return f"{n // 3600}h{(n % 3600) // 60:02d}m"
+    return f"{n // 60}m" if n >= 60 else f"{n}s"
 # Recency window for surfacing an inbox-bearing agent whose runner has DIED (lost its runner-lock +
 # presence TTLs) but whose DURABLE inbox still holds undelivered work -- without resurrecting
 # long-retired agents' stale inboxes. The 2026-07-12 gap: deepseek's runner died, its lock+presence
@@ -141,6 +181,23 @@ def _probe_lane_health(agent: str) -> Optional[Dict[str, Any]]:
 
         depth = work_backlog(agent, c=b._client)
 
+        # PROGRESS AGE: how long the OLDEST UNCONSUMED entry has waited. age_s above is
+        # the cursor's own timestamp, which is ancient for any agent that simply had no
+        # mail -- grading on it pages every returning seat. This is the stall signal.
+        # O(1): XRANGE from the cursor, count=2 (the cursor's own entry may or may not
+        # still exist, so skip anything at or below it).
+        backlog_age_s = None
+        if depth > 0:
+            try:
+                floor = _sid(inbox_pos)
+                for sid, _fields in b._client.xrange(f"{b.ns}:work:inbox:{agent}",
+                                                     min=str(inbox_pos), count=2):
+                    if _sid(sid) > floor:
+                        backlog_age_s = max(0.0, time.time() - _ts(sid))
+                        break
+            except Exception:
+                backlog_age_s = None
+
         # Straggler: legacy-stream messages between the shadow and the effective cursor
         straggler = 0
         try:
@@ -163,7 +220,8 @@ def _probe_lane_health(agent: str) -> Optional[Dict[str, Any]]:
         is_lane = any(v != "0" for v in lane.values())
         if not is_lane:
             return None
-        return {"age_s": age_s, "depth": depth, "straggler": straggler}
+        return {"age_s": age_s, "depth": depth, "straggler": straggler,
+                "backlog_age_s": backlog_age_s}
     except Exception:
         return None
 
@@ -199,7 +257,20 @@ def _probe_halted(agent: str) -> Optional[Dict[str, Any]]:
     return None
 
 
+def _probe_bench_count(agent: str) -> int:
+    try:
+        from core.comm import triage_park
+        return int(triage_park.count(agent) or 0)
+    except Exception:
+        return 0
+
+
 def _default_probes() -> Dict[str, Any]:
+    # EVERY ambient reader goes through this seam. token_cost and bench_count used to
+    # reach past it straight to the filesystem, which made "healthy fleet = zero
+    # findings" fail on any day a runner had logged turns -- a pin that is red for
+    # reasons the test cannot control teaches the fleet to skip doctor reds, and this
+    # module now carries page-grade pins that nobody can afford to skip (W69).
     return {
         "worklive": liveness.read,
         "progress": liveness.progress_read,
@@ -207,6 +278,8 @@ def _default_probes() -> Dict[str, Any]:
         "stalled_since": _probe_stalled_since,
         "halted": _probe_halted,
         "lane_health": _probe_lane_health,
+        "token_cost": _token_cost_line,
+        "bench_count": _probe_bench_count,
         "now": time.time(),
     }
 
@@ -339,7 +412,7 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
 
     # T078 W1: token cost line from daily journal (meters before levers, R1)
     try:
-        cl = _token_cost_line(agent)
+        cl = p["token_cost"](agent)
         if cl is not None:
             out.append(cl)
     except Exception:
@@ -349,6 +422,22 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
     try:
         lh = p["lane_health"](agent)
         if lh is not None:
+            # PROGRESS AGE (2026-07-26, the kimi receipt). W16 computed these numbers and
+            # filed them dashboard-grade whatever they said; 45h at depth 55 rendered
+            # beside routine token spend. Undrained work that has WAITED past the
+            # threshold pages -- and it pages with no reference to the pulse or the
+            # phase, because kimi's pulse was FRESH the whole time. The 'working' row
+            # above and this one are both true: alive, and not moving the work.
+            waited = lh.get("backlog_age_s")
+            depth = int(lh.get("depth") or 0)
+            if depth > 0 and waited is not None and waited >= LANE_STALL_WARN_S:
+                paging = waited >= LANE_STALL_PAGE_S
+                head = "LANE STALL -- " if paging else "lane slowing -- "
+                tail = "" if paging else f" (pages at {_fmt_age(LANE_STALL_PAGE_S)})"
+                out.append(_f(agent, "lane_stall", "page" if paging else "dashboard",
+                              f"{agent}: {head}{depth} message(s) undrained on the work "
+                              f"lane, oldest waiting {_fmt_age(waited)}{tail}",
+                              f"py agent_cli.py unwedge {agent}"))
             parts = [f"{agent}: lane cursor"]
             if lh["age_s"] is not None:
                 parts.append(f"age {int(lh['age_s'])}s")
@@ -365,8 +454,7 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
 
     # S0-alpha: the triage bench (scry-to-bottom) -- parked asks are VISIBLE, never limbo.
     try:
-        from core.comm import triage_park
-        n = triage_park.count(agent)
+        n = int(p["bench_count"](agent) or 0)
         if n > 0:
             out.append(_f(agent, "triage_bench", "dashboard",
                           f"{agent}: {n} ask(s) on the triage bench (bottomed, not dropped)",
@@ -443,6 +531,7 @@ def unwedge(agent: str) -> Dict[str, Any]:
     frozen = any(f["state"] == "frozen" for f in evidence["findings"])
     hard_wedge = any(f["state"] == "hard_wedge" for f in pages)
     stalled = any(f["state"] == "stalled_consumer" for f in pages)
+    lane_stall = any(f["state"] == "lane_stall" for f in pages)
 
     if frozen:
         status, verdict, rec = "frozen", (
@@ -465,6 +554,24 @@ def unwedge(agent: str) -> Dict[str, Any]:
             f"{agent}: STALLED CONSUMER — backlog present but lane cursor current; "
             "legacy mail may have accumulated"), (
             f"sync: py agent_cli.py bifrost-sync {agent}")
+    elif lane_stall:
+        # Ranked ABOVE the runner and BUSY branches deliberately. This branch did not
+        # exist and the ladder fell through to BUSY ("working, not wedged") on a live
+        # runner with a fresh pulse -- printing that verdict directly above the
+        # page-grade lane_stall in its own evidence. A drill-down that argues against
+        # the page it was sent to explain is worse than no drill-down: it is the
+        # kimi mistake (presence read as progress) inside the tool built to catch it.
+        waited = int((lh.get("backlog_age_s") or 0))
+        status, verdict, rec = "stalled", (
+            f"{agent}: LANE STALL — {lh.get('depth', '?')} message(s) undrained, oldest "
+            f"waiting {_fmt_age(waited)}. The runner may be alive and looping; the WORK "
+            "is not moving."), (
+            # Measured 2026-07-26 on claude's own stalled lane (22 -> 2 -> 0): the D2
+            # stale-ask gate parks in BATCHES, so one pass rarely finishes. Saying so
+            # keeps a half-drained lane from reading as a failed recommendation.
+            f"drain (repeat until depth 0): BIFROST_CONSUME_LANE=work py agent_cli.py "
+            f"bifrost-sync {agent} --consume  | if it will not drain: py scripts/mirror.py "
+            f"skip-to-now {agent}  | inspect: py agent_cli.py mailbox --explain {agent}")
     elif runner == "down":
         status, verdict, rec = "down", (
             f"{agent}: runner DOWN — daemon holds presence but no live runner"), (
@@ -920,9 +1027,13 @@ def known_agents() -> List[str]:
 def examine_fleet(agents: Optional[List[str]] = None, *,
                   probes: Optional[Dict[str, Any]] = None,
                   page_notes: bool = False) -> Dict[str, Any]:
-    """The doctor's round: findings across the fleet + the one-line summary. With
-    page_notes=True, page-grade findings emit ONE bus note per (agent, state) per
-    PAGE_DEDUP_TTL -- the only two states that ever interrupt anyone."""
+    """The doctor's round: findings across the fleet + the one-line summary.
+
+    Page-grade findings ALWAYS escalate to the pager (the human-facing channel),
+    deduped per (agent, state) per PAGE_DEDUP_TTL. That is not opt-in and must not
+    become opt-in: escalation behind a flag is how a computed red goes unread for
+    45 hours. page_notes=True additionally broadcasts a fleet bus note -- louder,
+    fleet-wide, and still the caller's choice."""
     agents = agents if agents is not None else known_agents()
     findings: List[Dict[str, Any]] = []
     for a in agents:
@@ -942,23 +1053,58 @@ def examine_fleet(agents: Optional[List[str]] = None, *,
             summary = f"{pause_line}\n{summary}"   # RB-30: a frozen fleet outranks health counts
     except Exception:
         pass
-    if page_notes and pages:
-        _emit_pages(pages)
+    if pages:
+        _emit_pages(pages, notes=bool(page_notes))
     return {"agents": agents, "findings": findings, "pages": pages, "summary": summary}
 
 
-def _emit_pages(pages: List[Dict[str, Any]]) -> None:
-    c = _client()
+def _first_this_window(c, prefix: str, f: Dict[str, Any]) -> bool:
+    """True when this (channel, agent, state) has not fired inside PAGE_DEDUP_TTL.
+    Fail-OPEN toward emitting: no dedup store is a reason to page twice, never a
+    reason to stay silent."""
+    if c is None:
+        return True
     try:
+        return bool(c.set(f"{prefix}{f['agent']}:{f['state']}", "1",
+                          nx=True, ex=PAGE_DEDUP_TTL))
+    except Exception:
+        return True
+
+
+def _emit_pages(pages: List[Dict[str, Any]], *, notes: bool = True) -> None:
+    """Route page-grade findings OUT of the doctor, to two channels.
+
+    ORDER IS LOAD-BEARING (2026-07-26). The pager goes FIRST and stands alone: it is
+    the only channel that reaches a human (the UserPromptSubmit hook injects [PAGE]
+    lines into any live seat), and the bus-note broadcast below constructs a Bus --
+    a construction that can fail. Behind it, every page died silently, which is
+    exactly the outage in which a stall is most likely and least visible.
+    """
+    c = _client()
+    for f in pages:                                  # channel 1: the human
+        try:
+            if _first_this_window(c, _escalated_prefix(), f):
+                from core.comm import pager
+                # The pager renders '[PAGE] {agent}: {text}' and every doctor line
+                # already opens with '{agent}: ' -- strip ours or it stutters.
+                body = str(f["line"])
+                prefix = f"{f['agent']}: "
+                if body.startswith(prefix):
+                    body = body[len(prefix):]
+                pager.page(f["agent"], f"{body}  drill: {f['drill']}", c=c)
+        except Exception:
+            pass
+    if not notes:
+        return
+    try:                                             # channel 2: the fleet bus note
         from core.comm.bus import Bus
         bus = Bus("doctor")
     except Exception:
         return
     for f in pages:
         try:
-            key = f"{_paged_prefix()}{f['agent']}:{f['state']}"
-            if c is not None and not c.set(key, "1", nx=True, ex=PAGE_DEDUP_TTL):
-                continue                    # already paged this hour
+            if not _first_this_window(c, _paged_prefix(), f):
+                continue                    # already noted this hour
             bus.broadcast("note", f"[doctor] {f['line']}  drill: {f['drill']}",
                           meta={"via": "doctor", "display_only": True})
         except Exception:

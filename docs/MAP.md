@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (31 of 119 modules lack both pin and paper by name)
+## GAP queue (31 of 121 modules lack both pin and paper by name)
 
 - core/foundation/migrate_to_sqlite.py
 - core/foundation/redis_connection.py
@@ -73,7 +73,7 @@ Class: reference
 | `agent_signal_ledger.py` | Agent Signal Ledger: the ordered record of every signal agents emit | GAP | GAP |  |
 | `coordinator_api.py` | Coordinator API: Minimal signal-based logging for agents | GAP | GAP | `AI_SETUP` |
 
-## core/comm/  (36 modules)
+## core/comm/  (38 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
@@ -83,10 +83,12 @@ Class: reference
 | `bus.py` | Bifrost Bus (Slice B0) -- one ephemeral message transport for local agents, on Redis Streams. | tests/test_bifrost_bus.py | GAP | `AGENT_ID`, `BIFROST_INCARNATION`, `BIFROST_NAMESPACE`, `BIFROST_REPLY_DEDUP_TTL_S`, `PYTEST_CURRENT_TEST` |
 | `context_hints.py` | Context Hints -- compact, ephemeral, per-agent context forwarding between peers. | tests/test_context_hints_gate.py | GAP |  |
 | `control.py` | Bifrost control plane -- human-in-the-loop PAUSE + runaway-loop guard for live agent collaboration. | tests/test_bifrost_control_halt.py | docs/library/design/20260712_control-plane-namespace-isolation-claude_fade67.md | `BIFROST_MAX_HOPS`, `BIFROST_MAX_REPLIES_PER_MIN`, `BIFROST_NAMESPACE` |
+| `control_channel.py` | Out-of-band control: a loopback listener that survives a dead bus. | tests/test_control_channel.py | GAP | `AKASHIC_CONTROL_PORT_BASE` |
 | `cursor_admin.py` | cursor_admin -- T076a: SANCTIONED skip-to-now for an agent's consume cursors. | GAP | GAP |  |
 | `daemon_state.py` | daemon_state -- the autopilot's shared surface (slice A1, T075 gamma-scope). | GAP | GAP | `BIFROST_NAMESPACE` |
 | `dispatcher.py` | Dispatcher (Bifrost Mesh W2): one resident process that turns doorbell notices into wakes. | GAP | GAP |  |
-| `doctor.py` | Fleet doctor (L2 / RB-27b) -- the missing READER of the liveness signals: progress, | tests/test_doctor_dead_runner_visibility.py | GAP | `AKASHIC_RECENT_INBOX_S`, `AKASHIC_STALL_HYSTERESIS_S`, `BIFROST_NAMESPACE`, `BIFROST_UI_PORT` |
+| `doctor.py` | Fleet doctor (L2 / RB-27b) -- the missing READER of the liveness signals: progress, | tests/test_doctor_dead_runner_visibility.py | GAP | `AKASHIC_LANE_STALL_PAGE_S`, `AKASHIC_LANE_STALL_WARN_S`, `AKASHIC_RECENT_INBOX_S`, `AKASHIC_STALL_HYSTERESIS_S`, `BIFROST_NAMESPACE`, `BIFROST_UI_PORT` |
+| `door_probe.py` | door_probe -- does the MCP door actually answer, right now, in THIS environment? | tests/test_door_probe.py | research/reviewed/deepseek-door-probe-attack-2026-07-26.md |  |
 | `engine_vitals.py` | engine_vitals -- gauge_snapshot(), the engine room's pulse (T079-E1). | tests/test_t079_e1_engine_vitals.py | GAP | `BIFROST_NAMESPACE` |
 | `expectations.py` | expectations -- sender-side reply deadlines + redrive (T030 L4 / RB-29). | tests/test_t030_l4_expectations.py | GAP | `AKASHIC_EXPECT_TASK_SETTLE`, `BIFROST_NAMESPACE` |
 | `fence_phase.py` | fence_phase -- the method board's state source (T079-E2). | GAP | GAP |  |

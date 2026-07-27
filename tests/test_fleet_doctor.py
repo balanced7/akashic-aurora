@@ -35,6 +35,8 @@ def _probes(**over):
         stalled_since=lambda a, present: None,      # hysteresis first-seen (None = fresh)
         halted=lambda a: None,                      # None | {"reason":..., "age_s":...}
         lane_health=lambda a: None,                 # W16: lane-mode health (None = legacy)
+        token_cost=lambda a: None,                  # T078-W1: daily journal line
+        bench_count=lambda a: 0,                    # S0-alpha: parked asks
         now=time.time(),
     )
     base.update(over)

@@ -23,17 +23,19 @@
 - `agent_signal_ledger.py` — Agent Signal Ledger: the ordered record of every signal agents emit
 - `coordinator_api.py` — Coordinator API: Minimal signal-based logging for agents
 
-## core/comm/  (36 modules)
+## core/comm/  (38 modules)
 - `assertions.py` — Pre-flight assertions (T068-R3 / deepseek M10) -- verify a directed answer's FACTUAL
 - `bifrost_api.py` — bifrost.api -- the one door an agent uses to join and work the Bifrost bus.
 - `blobs.py` — BlobStore (Slice B1) -- a content-addressed blob store for Bifrost media/large payloads.
 - `bus.py` — Bifrost Bus (Slice B0) -- one ephemeral message transport for local agents, on Redis Streams.
 - `context_hints.py` — Context Hints -- compact, ephemeral, per-agent context forwarding between peers.
 - `control.py` — Bifrost control plane -- human-in-the-loop PAUSE + runaway-loop guard for live agent collaboration.
+- `control_channel.py` — Out-of-band control: a loopback listener that survives a dead bus.
 - `cursor_admin.py` — cursor_admin -- T076a: SANCTIONED skip-to-now for an agent's consume cursors.
 - `daemon_state.py` — daemon_state -- the autopilot's shared surface (slice A1, T075 gamma-scope).
 - `dispatcher.py` — Dispatcher (Bifrost Mesh W2): one resident process that turns doorbell notices into wakes.
 - `doctor.py` — Fleet doctor (L2 / RB-27b) -- the missing READER of the liveness signals: progress,
+- `door_probe.py` — door_probe -- does the MCP door actually answer, right now, in THIS environment?
 - `engine_vitals.py` — engine_vitals -- gauge_snapshot(), the engine room's pulse (T079-E1).
 - `expectations.py` — expectations -- sender-side reply deadlines + redrive (T030 L4 / RB-29).
 - `fence_phase.py` — fence_phase -- the method board's state source (T079-E2).

@@ -458,6 +458,17 @@ ACCEPTANCE: a flip on a target whose lesson exists but is path-invisible must na
   machine says so before a seat does. *Generalisable beyond this bug: any pin guarding a
   BOOT-time organ is worthless if it only runs when someone remembers to run the suite.*
 
+- [ ] W81 (07-26, claude — hit while landing the progress-age escalation) — **the four derived-doc
+  generators have no one-verb door.** W80 already records the failure (adding a module leaves
+  the docs stale and the comprehensibility guard fails; it bit the last seat THREE times in one
+  session), and the handoff's remedy is a list of four script names to remember and run by hand
+  — with no path, so the first attempt today went to `scripts/` and they live in
+  `scripts/generators/`. A remedy you must remember is the same class of thing as a red pin
+  nobody runs (W69). Cost: small every time, paid by every seat, and the failure lands on the
+  NEXT person's suite run rather than the author's. Land: `py agent_cli.py regen` running all
+  four (or a pre-push hook step, which also removes the remembering). Pin = touch a module,
+  run the verb, and the comprehensibility guard is green without anyone naming a generator.
+
 *(W54/W55 were double-filed by two claude seats during the C2 audit collision — merged into
 the numbered entries above, 2026-07-21; all content folded, nothing dropped.)*
 

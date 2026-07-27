@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 1ccfe42. A bound you discover by collision is not awareness -- this sheet
+> Derived at a26ae7d. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (146 names)
+## Configuration flags (149 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -26,6 +26,7 @@ Class: reference
 | `AKASHIC_CB_MAX` | `"3"` | scripts/bifrost_daemon.py |
 | `AKASHIC_CB_WINDOW_S` | `"300"` | scripts/bifrost_daemon.py |
 | `AKASHIC_CLEAN_DEATH` | `"1"` | core/comm/session_exit.py |
+| `AKASHIC_CONTROL_PORT_BASE` | `"47100"` | core/comm/control_channel.py |
 | `AKASHIC_DAEMON_WAKE` | `"1"` | agent/harness/hooks/claude_stop.py, scripts/hooks/claude_stop.py |
 | `AKASHIC_DEBUG` | `` | agent/harness/hooks/claude_userpromptsubmit.py, scripts/hooks/claude_userpromptsubmit.py |
 | `AKASHIC_DRILL_ECHO` | `` | scripts/bifrost_runner.py, scripts/bifrost_runner_deepseek.py, scripts/bifrost_runner_kimi.py +1 |
@@ -41,6 +42,8 @@ Class: reference
 | `AKASHIC_KILLPOINT` | `""` | scripts/bifrost_runner_deepseek.py, scripts/bifrost_runner_kimi.py, scripts/bifrost_runner_sol.py |
 | `AKASHIC_KIMI_NARRATOR` | `"1"` | scripts/kimi_walk_narrator.py |
 | `AKASHIC_KMAP_NO_COUNT` | `` | core/recall/knowledge_map.py |
+| `AKASHIC_LANE_STALL_PAGE_S` | `"21600"` | core/comm/doctor.py |
+| `AKASHIC_LANE_STALL_WARN_S` | `"3600"` | core/comm/doctor.py |
 | `AKASHIC_LEARN_NUDGE` | `"1"` | agent/harness/nudge.py |
 | `AKASHIC_LEARN_NUDGE_CAP` | `"3"` | agent/harness/nudge.py |
 | `AKASHIC_LOOKBACK_NO_COUNT` | `` | core/recall/lookback.py |
@@ -160,7 +163,7 @@ Class: reference
 | `STORM_DEPTH_WINDOW` | `3` | core/comm/storm_detect.py |
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 
-## Mechanical bounds (98 numeric constants)
+## Mechanical bounds (99 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -188,6 +191,7 @@ Class: reference
 | `DEFAULT_MAX_MESSAGE_BYTES` | 65,536 | core/comm/packet_spec.py |  |
 | `DEFAULT_MAX_PROMOTE` | 10 | core/narrative/event_promoter.py | per-run cap (rate-limit; no Beat flood) |
 | `DEFAULT_THRESHOLD` | 3 | core/narrative/event_promoter.py | salience >= this is worth a Beat |
+| `DEFAULT_TIMEOUT_S` | 25 | core/comm/door_probe.py |  |
 | `DEFAULT_TOKEN_BUDGET` | 4,000 | core/primitives/consolidator.py |  |
 | `DEFAULT_TRACE_SPOT_INTERVAL` | 1,000 | core/comm/packet_spec.py |  |
 | `DEFAULT_TTL` | 900 | core/comm/locks.py | 15 min -- long enough for a slice, short enough to self-heal a crash |
