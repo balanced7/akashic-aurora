@@ -61,6 +61,10 @@ FALLBACK_PRICE = PRICES[K3]                     # unknown model -> most expensiv
 STARTING_BUDGET = float(os.getenv("KIMI_BUDGET_USD", "105.0"))
 WARN_AT = float(os.getenv("KIMI_SPEND_WARN", "80.0"))      # $ spent (ACL reason: warn-$80)
 REFUSE_AT = float(os.getenv("KIMI_SPEND_REFUSE", "95.0"))  # $ spent (ACL reason: refuse-$95)
+# The grant these two thresholds were written against. They are RATIOS of this basis, not
+# absolute dollars -- SpendMeter._scale() re-derives the effective line from the CURRENT budget,
+# so a provider credit buys real runway instead of a bigger number next to a stuck gate.
+GRANT_BASIS = float(os.getenv("KIMI_GRANT_BASIS_USD", "105.0"))
 SPEND_FILE = Path(os.getenv("KIMI_SPEND_FILE", str(REPO_ROOT / "state" / "kimi_spend.json")))
 RECONCILE_DRIFT_USD = 0.50                       # deepseek contract: snap to balance beyond this
 
@@ -216,16 +220,44 @@ class SpendMeter:
     def spent(self) -> float:
         return float(self.state["spent_usd"])
 
+    def _scale(self, threshold: float) -> float:
+        """Thresholds are RATIOS of the grant, not absolute dollars.
+
+        THE DEFECT THIS FIXES (live 2026-07-27, and it cost Daniel real money): the budget
+        PERSISTS AND RISES when a provider credit lands -- `budget raised to $224.58` -- but
+        WARN_AT/REFUSE_AT were absolute dollars pinned to the original $105 grant. So a $100
+        top-up moved the ceiling to $225 and left the gate at $95 spent, with $96.15 already
+        on the meter. The seat kept answering only ['daniel','user'] and refused every peer ask
+        while holding $128 of unusable runway. Every future top-up would have re-blocked the
+        same way.
+
+        Scaling preserves the ORIGINAL SAFETY RATIO -- refuse at ~90% of grant, warn at ~76% --
+        so a bigger wallet buys proportionally more runway and never a laxer guard. Scale UP
+        only: if the wallet is smaller than the grant basis the absolute line stands, which is
+        the conservative side and is the case audit_spend's S2 check already polices.
+
+        The literal defaults are untouched on purpose: audit_spend.py source-parses them and
+        two pins assert 80.0/95.0. The ratio is applied here, at the point of judgement.
+        """
+        basis = GRANT_BASIS if GRANT_BASIS > 0 else 1.0
+        return threshold * (self.budget / basis) if self.budget > basis else threshold
+
+    def warn_at(self) -> float:
+        return self._scale(WARN_AT)
+
+    def refuse_at(self) -> float:
+        return self._scale(REFUSE_AT)
+
     def warn(self) -> bool:
-        return self.spent() >= WARN_AT
+        return self.spent() >= self.warn_at()
 
     def exceeded_hard_limit(self) -> bool:
-        return self.spent() >= REFUSE_AT
+        return self.spent() >= self.refuse_at()
 
     def status_line(self) -> str:
         b = self.state.get("last_balance")
         return (f"kimi spend ${self.spent():.2f} of ${self.budget:.0f} "
-                f"(warn {WARN_AT:.0f} / refuse {REFUSE_AT:.0f}; "
+                f"(warn {self.warn_at():.0f} / refuse {self.refuse_at():.0f}; "
                 f"cached {self.state['cached_tokens']:,}/{self.state['prompt_tokens']:,} in-tok; "
                 f"balance {'?' if b is None else f'${b:.2f}'})")
 
