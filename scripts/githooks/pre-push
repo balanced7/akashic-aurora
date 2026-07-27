@@ -51,5 +51,23 @@ else
     echo "[door-gate] no door-relevant code in this push -- pins skipped (probe still ran)"
 fi
 
+# --- 3. the lesson index must cover every lesson record (~1s, read-only).
+#        WHY THIS IS HERE: repair_learning_index.py has shipped a --check flag since
+#        2026-07-25 explicitly "to wire into ship gates" -- and it was wired to nothing. The
+#        index was repaired to 434 that day and was found at 16 of 464 on 2026-07-27, with 96%
+#        of the fleet's lessons invisible to recall. Nobody noticed, because the failure is
+#        invisible from outside: every spot-check of a KNOWN lesson name passes while keyword
+#        search answers from a fraction of the corpus. Third instance this week of a correct,
+#        current detector that no gate ran (W69).
+if ! py scripts/repair_learning_index.py --check; then
+    echo ""
+    echo "[index-gate] BLOCKED: lesson records exist that recall cannot see."
+    echo "[index-gate] Every recall read path takes MEMBERSHIP from learn:experiments:all,"
+    echo "[index-gate] so an unindexed lesson is invisible to search, the funnel, the curator"
+    echo "[index-gate] and the PreToolUse hot path -- while by-name lookup keeps working."
+    echo "[index-gate] Repair: py scripts/repair_learning_index.py --apply"
+    exit 1
+fi
+
 echo "[door-gate] green -- push proceeding"
 exit 0

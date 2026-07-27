@@ -405,6 +405,44 @@ class LearningStore:
             self.logger.error(f"rollback_forge_edit failed for {experiment_id}: {e}")
             return False
 
+    def _rebuild_index(self) -> None:
+        """Rebuild `learn:experiments:all` as a DERIVED projection over the hash plane.
+
+        Membership = every discoverable record, UNION whatever the index already holds.
+        Union-only is load-bearing and inherited from repair_learning_index.py: a record this
+        rebuild cannot see is KEPT rather than silently dropped, because a repair that can lose
+        data is worse than the defect it fixes.
+
+        Order = newest-first by the record's own timestamp, the list's documented semantic
+        (see the module header). Membership is integrity and derives here; QUALITY filtering
+        belongs to the recall surface, not to this list -- the claude/deepseek fence settled
+        that split on 2026-07-27 (gating membership on an anchor predicate would strand
+        unanchored lessons where no outcome loop could ever redeem them: is_benched's
+        self-seal, moved one layer down).
+
+        ONE bulk read, no per-record round trips. Scale caveat, named honestly: this is O(n)
+        per new lesson. At 464 that is one hgetall_prefix. At Daniel's millions target the
+        derivation must move to a periodic batch with an atomic swap (Postgres REFRESH
+        MATERIALIZED VIEW CONCURRENTLY: build under a temp key, RENAME over). The Store ABC
+        has no rename today, so that is a named follow-up rather than a silent omission.
+        """
+        prefix = "learn:experiment:"
+        rows: Dict[str, str] = {}
+        for key, val in (self.store.hgetall_prefix(prefix) or {}).items():
+            if prefix not in key:
+                continue
+            name = key.split(prefix, 1)[1]
+            if name:
+                rows[name] = str((val or {}).get("timestamp") or "")
+        for name in self.store.lrange("learn:experiments:all", 0, -1):
+            rows.setdefault(name, "")          # union-only: never drop what we cannot resolve
+        if not rows:
+            return
+        ordered = [n for n, _ in sorted(rows.items(), key=lambda kv: (kv[1], kv[0]),
+                                        reverse=True)]
+        self.store.delete("learn:experiments:all")
+        self.store.rpush("learn:experiments:all", *ordered)
+
     def _index_learning(self, learning_signal: Dict[str, Any]) -> None:
         """
         Index a learning signal into all Store structures (single code path).
@@ -446,13 +484,29 @@ class LearningStore:
             "source": _s(learning_signal.get("source"), f"learn:experiment:{experiment_id}"),
         }
 
-        is_new = not self.store.exists(f"learn:experiment:{experiment_id}")
         self.store.hset(f"learn:experiment:{experiment_id}", mapping=experiment_data)
-        # Indexes are SETS-of-names in spirit: only add a name once. Re-recording the
-        # same experiment updates the hash but must NOT duplicate index entries
-        # (this is the bug that accumulated verify_exp x4 in the original data).
-        if is_new:
-            self.store.lpush("learn:experiments:all", experiment_id)
+
+        # MEMBERSHIP DERIVES FROM THE HASH PLANE -- it never accumulates.
+        #
+        # This gate used to read `is_new = not exists(learn:experiment:<id>)`, keyed on HASH
+        # existence rather than INDEX membership. The consequence, measured live 2026-07-27:
+        # 464 records, 16 indexed, 446 lessons invisible to every recall read path. Once an id
+        # left the index while its hash survived, every later write saw is_new=False and skipped
+        # the lpush, so the index could never rebuild itself through its own write path. It had
+        # already been repaired once (24/406 on 2026-07-25) and recurred inside two days.
+        #
+        # Strategy from deepseek's prior-art half (materialized-view maintenance): FULL REBUILD
+        # beats incremental repair when the mutation log is unreliable -- and this one is
+        # provably unreliable. The list is a cached projection; the hashes are the truth.
+        # Cost is bounded: the common path (re-recording an already-indexed lesson) is ONE
+        # lrange. The rebuild fires only when this id is absent, which is exactly the new-lesson
+        # and self-heal cases, and costs one bulk hgetall_prefix -- no per-record round trips.
+        try:
+            if experiment_id not in set(self.store.lrange("learn:experiments:all", 0, -1)):
+                self._rebuild_index()
+        except Exception as e:                    # never let indexing lose the record itself
+            self.logger.warning(f"index rebuild skipped for {experiment_id}: {e}")
+        if experiment_id not in set(self.store.lrange(f"learn:agent:{agent_id}", 0, -1)):
             self.store.lpush(f"learn:agent:{agent_id}", experiment_id)
 
         score = self.SUCCESS_SCORES[success]

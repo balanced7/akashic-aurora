@@ -154,6 +154,26 @@ def _canonical_records():
 
 # ----------------------------------------------------------------------------- rebuild
 def phase_rebuild():
+    # SPENT ONE-TIME MIGRATION -- 2026-06-20, and it must never run again by accident.
+    #
+    # What this phase does: deletes every Redis key outside a HARDCODED canonical set, then
+    # rewrites learn:experiments:all from a six-element REAL list. That is correct exactly once,
+    # on the day it was designed, against the store as it was that day.
+    #
+    # Why the guard exists: on 2026-07-27 the live lesson index held 16 entries against 464
+    # records -- 96% of the fleet's memory invisible to recall -- and the SIX oldest survivors
+    # were all dated 2026-06-17 and were exactly this REAL set. That is circumstantial, not
+    # proven, and it is not the only candidate; but a spent migration that can silently reduce
+    # the corpus to six records should not be one `py scripts/harmonize_knowledge.py rebuild`
+    # away, whatever truncated the index this time.
+    if not os.environ.get("AKASHIC_ALLOW_HARMONIZE"):
+        sys.exit(
+            "REFUSING: harmonize_knowledge.py rebuild is a SPENT one-time migration "
+            "(2026-06-20). It deletes every non-canonical key and rewrites the live lesson "
+            "index from a hardcoded 6-record set. Re-running it destroys the corpus.\n"
+            "If you genuinely intend that, set AKASHIC_ALLOW_HARMONIZE=1 and take a snapshot "
+            "first (py scripts/snapshot_knowledge.py)."
+        )
     if not (BACKUP_DIR / "redis_16379_dump.json").exists():
         sys.exit("REFUSING: run `backup` first (no snapshot found).")
     recs = _canonical_records()
