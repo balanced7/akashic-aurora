@@ -79,6 +79,32 @@ def _added_guards(days: float) -> list:
 # rather than trusted, because presenting self-report as measurement is how a scorecard flatters.
 SELF_REPORT = {"M1", "M4", "M5"}
 
+# git revert writes this subject form. Structure, not prose -- a body cannot forge it.
+_REVERT_SUBJECT = re.compile(r'^\s*Revert\s+"', re.MULTILINE)
+
+
+def is_revert(message) -> bool:
+    """True only for a real `git revert` commit.
+
+    This used to be `\\brevert` over the whole message BODY. Then Daniel asked that risky
+    changes ship with a way to undo them, every commit of the arc grew a "REVERT: ..." line,
+    and the card read 20 of 20 commits as reverts while ZERO reverts had occurred.
+
+    Nobody edited the detector and nothing broke. A GOOD PRACTICE was adopted and its new
+    writing convention collided with an old regex, silently inverting the number. That is the
+    sharpest form of the confident-zero family found in this arc, because there is no defect to
+    find -- only a measurement that quietly stopped meaning what it said. It also arrived while
+    I was labelling three OTHER detectors [self-report], which is the lesson: prose-reading
+    instruments decay from changes in how we WRITE, not only from changes in what we DO.
+
+    Reading the subject line keeps it structural: only git itself produces `Revert "..."`.
+    """
+    try:
+        head = str(message or "").strip().splitlines()[0] if str(message or "").strip() else ""
+    except Exception:
+        return False
+    return bool(_REVERT_SUBJECT.match(head))
+
 SKIP_DIRS = {".git", "__pycache__", "node_modules", ".claude", "backups", "snapshots"}
 
 
@@ -140,7 +166,7 @@ def main() -> int:
     drills = count(r"\bdrill")
     live = count(r"\blive[- ](?:drill|drill:|exercis|prov|incident|finding)")
     fences = count(r"\b(?:fenced|design[- ]review|dual[- ]half|reconcil)")
-    reverts = count(r"\brevert")
+    reverts = sum(1 for m in msgs if is_revert(m))
     records = _added_files(days, "research/reviewed/")
     guards = _added_guards(days)
     ungated = []
@@ -208,4 +234,5 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
 
