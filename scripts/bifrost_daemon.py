@@ -353,8 +353,14 @@ def main(argv=None) -> int:
                         try:   # T078-W4: page-grade -> the pager surface (a live
                             #    seat relays via PushNotification; hook injects [PAGE])
                             from core.comm import pager
+                            # KEYED so this page can be RETRACTED when the runner comes
+                            # back. A keyless page has no retraction path and renders
+                            # forever (2026-07-27: a resolved lane_stall shouted into
+                            # every prompt for nine hours). Same key shape the doctor
+                            # uses -- "<agent>:<state>".
                             pager.page(agent, f"runner down {int(down_s/60)}m -- "
-                                              f"daemon holding presence; doctor {agent}")
+                                              f"daemon holding presence; doctor {agent}",
+                                       key=f"{agent}:runner_down")
                         except Exception:
                             pass
                     except Exception:

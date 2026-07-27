@@ -40,18 +40,59 @@ def _client(c=None, allow_fallback: bool = True):
         return None
 
 
-def page(agent: str, text: str, c=None, allow_fallback: bool = True) -> bool:
-    """Record a page-grade finding. Newest-first, capped at CAP (oldest drop)."""
+def page(agent: str, text: str, c=None, allow_fallback: bool = True,
+         key: str = "") -> bool:
+    """Record a page-grade finding. Newest-first, capped at CAP (oldest drop).
+
+    `key` identifies WHAT is being paged about -- conventionally "<agent>:<state>" -- so the
+    writer can retract this page when the condition resolves. Without it the only retraction
+    is fleet-wide ack_pages(), which discards other agents' LIVE pages; the 2026-07-27 receipt
+    is a resolved lane_stall that rendered into every prompt for nine hours because clearing it
+    would have thrown away a real one. Optional: a keyless page behaves exactly as before.
+    """
     cli = _client(c, allow_fallback)
     if cli is None:
         return False
     try:
-        cli.lpush(_key(), json.dumps({"ts": time.time(), "agent": str(agent),
-                                      "text": str(text)[:400]}))
+        rec = {"ts": time.time(), "agent": str(agent), "text": str(text)[:400]}
+        if key:
+            rec["key"] = str(key)
+        cli.lpush(_key(), json.dumps(rec))
         cli.ltrim(_key(), 0, CAP - 1)
         return True
     except Exception:
         return False
+
+
+def clear_key(key: str, c=None, allow_fallback: bool = True) -> int:
+    """Retract every page carrying `key`; leave all others standing. Returns the count removed.
+
+    A page channel that cannot retract is a channel that teaches people to ignore it -- the
+    same banner-blindness that lets a real page go unread. Retraction is what keeps the
+    channel worth reading."""
+    cli = _client(c, allow_fallback)
+    if cli is None or not key:
+        return 0
+    try:
+        kept, removed = [], 0
+        for raw in cli.lrange(_key(), 0, -1):
+            try:
+                rec = json.loads(raw)
+            except Exception:
+                kept.append(raw)             # unparseable: keep, never silently drop
+                continue
+            if rec.get("key") == str(key):
+                removed += 1
+            else:
+                kept.append(raw)
+        if not removed:
+            return 0
+        cli.delete(_key())
+        for raw in reversed(kept):           # lpush reverses; restore original order
+            cli.lpush(_key(), raw)
+        return removed
+    except Exception:
+        return 0
 
 
 def unread_pages(c=None, allow_fallback: bool = True) -> List[Dict[str, Any]]:

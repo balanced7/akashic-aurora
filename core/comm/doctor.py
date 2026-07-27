@@ -1055,7 +1055,51 @@ def examine_fleet(agents: Optional[List[str]] = None, *,
         pass
     if pages:
         _emit_pages(pages, notes=bool(page_notes))
+    _reconcile_pages(pages, agents)      # retract what resolved, even when nothing pages now
     return {"agents": agents, "findings": findings, "pages": pages, "summary": summary}
+
+
+def _page_key(f: Dict[str, Any]) -> str:
+    """What a page is ABOUT: (agent, state). Stable across re-observations, so the same
+    condition escalates once and retracts once."""
+    return f"{f.get('agent')}:{f.get('state')}"
+
+
+def _reconcile_pages(pages: List[Dict[str, Any]], agents: List[str]) -> None:
+    """Retract escalations whose condition is GONE.
+
+    An escalation channel that cannot retract stops being read. Live receipt (2026-07-27):
+    the lane_stall pages for claude and deepseek fired correctly, both lanes drained inside the
+    hour, and the pages kept rendering into every UserPromptSubmit for NINE HOURS -- because
+    ack_pages() is fleet-wide and acking the resolved one would have discarded the live one.
+    That is how a page becomes wallpaper, which is the same 45-hour silence this module exists
+    to prevent, arriving by a different road.
+
+    Scoped to the agents actually examined: a single-agent round must never retract a page for
+    a seat it did not look at. Clears the dedup key too, so a condition that resolves and
+    RECURS inside the window pages again -- a flapping consumer is a signal, not noise.
+    """
+    c = _client()
+    if c is None:
+        return
+    try:
+        from core.comm import pager
+        live = {_page_key(f) for f in pages}
+        scope = {str(a) for a in (agents or [])}
+        for rec in pager.unread_pages(c=c):
+            key = str(rec.get("key") or "")
+            if not key or key in live:
+                continue
+            if str(rec.get("agent") or "") not in scope:
+                continue                      # not ours to retract this round
+            pager.clear_key(key, c=c)
+            try:
+                agent, _, state = key.partition(":")
+                c.delete(f"{_escalated_prefix()}{agent}:{state}")
+            except Exception:
+                pass
+    except Exception:
+        pass
 
 
 def _first_this_window(c, prefix: str, f: Dict[str, Any]) -> bool:
@@ -1091,7 +1135,8 @@ def _emit_pages(pages: List[Dict[str, Any]], *, notes: bool = True) -> None:
                 prefix = f"{f['agent']}: "
                 if body.startswith(prefix):
                     body = body[len(prefix):]
-                pager.page(f["agent"], f"{body}  drill: {f['drill']}", c=c)
+                pager.page(f["agent"], f"{body}  drill: {f['drill']}", c=c,
+                           key=_page_key(f))
         except Exception:
             pass
     if not notes:
