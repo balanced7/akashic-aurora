@@ -74,6 +74,54 @@ def _added_guards(days: float) -> list:
     return sorted({l.strip() for l in raw.splitlines() if is_guard_path(l.strip())})
 
 
+# Detectors that read commit PROSE. They measure what we SAY, and they render green silence the
+# moment we stop typing a word -- the trap M3 sat in until it was made to read git. Labelled
+# rather than trusted, because presenting self-report as measurement is how a scorecard flatters.
+SELF_REPORT = {"M1", "M4", "M5"}
+
+SKIP_DIRS = {".git", "__pycache__", "node_modules", ".claude", "backups", "snapshots"}
+
+
+def detector_health(name: str, predicate, root: str = "") -> dict:
+    """kimi's META-GUARD: does this detector's evidence class exist AT ALL?
+
+    A path-predicate detector that matches NOTHING in the current tree is BLIND, not observing
+    an empty world -- and rendering blindness as zero is the confident-zero disease this arc
+    found ten instances of in one night. The proof case: M10 searched for "scripts/check_"
+    after T104 moved every checker to scripts/checkers/, so it reported "(no signal)" while
+    guards were being written, and nothing distinguished that from "none were written".
+
+    OK          -> the predicate matches real files; a zero in the window is real information
+    UNCHECKABLE -> matches nothing anywhere; the detector is looking for something that is gone
+
+    Fail-open: a predicate that raises confesses UNCHECKABLE rather than crashing the reader
+    it audits. A meta-guard that can break the organ is worse than no meta-guard.
+    """
+    base = root or ROOT
+    hits = 0
+    try:
+        for dirpath, dirnames, filenames in os.walk(base):
+            dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
+            for fn in filenames:
+                rel = os.path.relpath(os.path.join(dirpath, fn), base).replace("\\", "/")
+                try:
+                    if predicate(rel):
+                        hits += 1
+                        if hits >= 2:
+                            return {"name": name, "status": "OK", "matches": hits, "detail": ""}
+                except Exception:
+                    return {"name": name, "status": "UNCHECKABLE", "matches": 0,
+                            "detail": "predicate raised -- the detector cannot evaluate itself"}
+    except Exception:
+        return {"name": name, "status": "UNCHECKABLE", "matches": 0,
+                "detail": "tree walk failed"}
+    if hits:
+        return {"name": name, "status": "OK", "matches": hits, "detail": ""}
+    return {"name": name, "status": "UNCHECKABLE", "matches": 0,
+            "detail": "predicate matches nothing in the tree -- the detector is blind, "
+                      "so a zero here means NOT MEASURED, never 'none happened'"}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--days", type=float, default=2.0)
@@ -104,12 +152,22 @@ def main() -> int:
     except Exception:
         pass
 
+    # META-GUARD (kimi): before trusting a zero, ask whether the detector can see anything at
+    # all. A zero from a blind detector is not information.
+    health = {
+        "M6": detector_health("M6", lambda p: p.startswith("research/reviewed/")),
+        "M10": detector_health("M10", is_guard_path),
+    }
+
     def line(mid, label, signal, read):
+        tag = " [self-report]" if mid in SELF_REPORT else ""
         if signal:
-            print(f"  {mid:<4} {label:<28} FIRED   {read}")
+            print(f"  {mid:<4} {label:<28} FIRED   {read}{tag}")
+        elif health.get(mid, {}).get("status") == "UNCHECKABLE":
+            print(f"  {mid:<4} {label:<28} UNCHECKABLE -- {health[mid]['detail']}")
         else:
             print(f"  {mid:<4} {label:<28} (no signal -- annotate fired/skipped-with-reason "
-                  f"in the wrap note)")
+                  f"in the wrap note){tag}")
 
     print(f"## ARC SCORECARD (last {days:g}d: {n} commit(s)) -- method-baseline reads (T031 hook 3)")
     line("M1", "fenced dual pass", fences, f"{fences} fence/review/reconcile ship(s)")
