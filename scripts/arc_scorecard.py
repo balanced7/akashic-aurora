@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """arc_scorecard.py -- T031 hook 3: the wrap-time M-practice scorecard.
 
 Deterministic reads over the arc window (git history + the event firehose): which
@@ -51,6 +51,29 @@ def _added_files(days: float, prefix: str) -> list:
                    if l.strip().replace("\\", "/").startswith(prefix)})
 
 
+# A guard is a CHECKER SCRIPT. Both locations count: T104 moved them from scripts/ to
+# scripts/checkers/, and the old prefix "scripts/check_" silently stopped matching, because
+# "scripts/checkers/..." has an "e" where the prefix wants "_". M10 therefore reported
+# "no signal" through a window in which a guard was demonstrably added -- a detector blinded
+# by a refactor that touched neither it nor any test of it.
+#
+# The DEFINITION is deliberately unchanged. scripts/ship_gate.py is a guard in spirit and does
+# not match; counting it would be widening the instrument until it flatters the operator, which
+# is the one move that makes a self-measured method loop worthless.
+GUARD_PREFIXES = ("scripts/checkers/check_", "scripts/check_")
+
+
+def is_guard_path(path: str) -> bool:
+    """True when `path` is a guard by M10's definition. One predicate, so the scorecard and
+    its pins can never drift apart."""
+    return str(path or "").replace("\\", "/").startswith(GUARD_PREFIXES)
+
+
+def _added_guards(days: float) -> list:
+    raw = _git("log", f"--since={_since_iso(days)}", "--diff-filter=A", "--name-only", "--format=")
+    return sorted({l.strip() for l in raw.splitlines() if is_guard_path(l.strip())})
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--days", type=float, default=2.0)
@@ -71,7 +94,7 @@ def main() -> int:
     fences = count(r"\b(?:fenced|design[- ]review|dual[- ]half|reconcil)")
     reverts = count(r"\brevert")
     records = _added_files(days, "research/reviewed/")
-    guards = _added_files(days, "scripts/check_")
+    guards = _added_guards(days)
     ungated = []
     try:
         from core.events.event_query import get_event_query
@@ -127,3 +150,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
