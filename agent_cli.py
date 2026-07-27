@@ -336,6 +336,16 @@ def cmd_boot(args):
             print("  " + summary_line(snapshot(hours=7 * 24)))
         except Exception:
             pass
+    try:   # METHOD DRIFT (2026-07-27): the one method number on a channel with proven
+        # readership. SILENT while compliant -- deepseek's trigger-selectivity rule; an
+        # "all good" line every session is furniture, and furniture is how the message that
+        # mattered gets skimmed. Silence here means nothing drifted, never nothing was checked.
+        from core.coord.method_drift import boot_line as _mdrift
+        _ml = _mdrift()
+        if _ml:
+            print(f"\n## METHOD\n  {_ml}")
+    except Exception:
+        pass
     try:   # L2 (T030): the doctor's one-liner -- progress, not presence; findings drill
         # via `py agent_cli.py doctor`. Fail-open like every boot section.
         from core.comm.doctor import examine_fleet
