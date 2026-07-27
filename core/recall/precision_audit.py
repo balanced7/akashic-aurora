@@ -179,7 +179,12 @@ def score(labels: Dict[str, Dict[str, str]], *, total_surfaced: int = 0,
         elif n_off > n_on:
             off += 1
     labelled = on + off
-    agreement = 1.0 - (len(disputed) / len(per_item)) if per_item else None
+    # AGREEMENT IS UNDEFINED WITH ONE LABELLER. Caught on this module's first live run: a
+    # single-labeller pass reported "agreement 1.0", which reads as consensus and is really
+    # "nobody disagreed because nobody else looked". That is the confident-zero shape inside
+    # the instrument built to hunt it, so it confesses instead: None, not 1.0.
+    n_labellers = len({w for w, m in (labels or {}).items() if m})
+    agreement = (1.0 - (len(disputed) / len(per_item))) if (per_item and n_labellers > 1) else None
 
     # UNLABELLED IS NOT NEGATIVE. Precision is computed over labelled items only, and always
     # travels with the coverage it was computed over.
@@ -206,7 +211,11 @@ def score(labels: Dict[str, Dict[str, str]], *, total_surfaced: int = 0,
     else:
         verdict = "INCONCLUSIVE -- do not round toward the answer we already like"
 
+    if n_labellers < 2:
+        verdict = f"SINGLE-LABELLER, NOT SETTLED -- {verdict}"
+
     return {"status": "OK", "precision": precision, "recall": recall,
+            "labellers": n_labellers,
             "labelled": labelled, "on": on, "off": off,
             "label_coverage": round(coverage, 4), "agreement": agreement,
             "disputed": sorted(disputed), "misses_named": named,
