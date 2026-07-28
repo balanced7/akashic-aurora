@@ -110,10 +110,17 @@ _DATA_TABLES = ("kv", "hash", "list", "set_members", "zset")
 class SqliteStore(Store):
     """File-backed Store on SQLite in WAL mode. Safe across processes AND instances."""
 
-    def __init__(self, path: Optional[str] = None, busy_timeout_ms: int = 10_000):
+    def __init__(self, path: Optional[str] = None, busy_timeout_ms: int = 10_000,
+                 echo_json_path: Optional[str] = None):
         base = os.path.join(os.getenv("AI_SETUP", r"E:\AI-Setup"), "session_logs")
         os.makedirs(base, exist_ok=True)
         self._path = path or os.path.join(base, "store_state.db")
+        # Migration-era rollback escrow (T118 D4): when set, close() exports the full
+        # store to this JSON path in FileStore's on-disk format, so "select the file
+        # backend again" finds every post-cutover write instead of a frozen twin. A
+        # crash between closes leaves the echo stale -- that window is watched by
+        # scripts/checkers/check_dual_authority.py, not wished away.
+        self._echo_path = echo_json_path
         self._busy_timeout_ms = int(busy_timeout_ms)
         # Guards THIS object's connection handle. Cross-process safety comes from SQLite,
         # not from here -- unlike FileStore, where the RLock was mistaken for the guarantee.
@@ -146,6 +153,8 @@ class SqliteStore(Store):
         with self._lock:
             if self._conn is not None:
                 try:
+                    if self._echo_path:
+                        self._export_echo()
                     self.checkpoint()
                 finally:
                     try:
@@ -192,6 +201,65 @@ class SqliteStore(Store):
             return True
         except Exception:
             return False
+
+    # ------------------------------------------------- snapshot (reconciliation)
+    def snapshot(self) -> Dict[str, Any]:
+        """Point-in-time copy of every structure + expiry, in EXACTLY FileStore's
+        snapshot shape -- HybridStore.reconcile() and the migration verifier consume
+        this interchangeably with the FileStore one (T118 D6). Expired keys are swept
+        first, matching FileStore's contract that a snapshot never resurrects."""
+        with self._lock:
+            if self._conn is None:
+                return {"kv": {}, "hash": {}, "list": {}, "set": {},
+                        "zset": {}, "expiry": {}}
+            self.purge_expired()
+            out: Dict[str, Any] = {"kv": {}, "hash": {}, "list": {}, "set": {},
+                                   "zset": {}, "expiry": {}}
+            for k, v in self._conn.execute("SELECT key,value FROM kv"):
+                out["kv"][k] = v
+            for k, f, v in self._conn.execute("SELECT key,field,value FROM hash"):
+                out["hash"].setdefault(k, {})[f] = v
+            for k, v in self._conn.execute("SELECT key,value FROM list ORDER BY key,idx"):
+                out["list"].setdefault(k, []).append(v)
+            for k, m in self._conn.execute("SELECT key,member FROM set_members"):
+                out["set"].setdefault(k, []).append(m)
+            for k, m, s in self._conn.execute("SELECT key,member,score FROM zset"):
+                out["zset"].setdefault(k, {})[m] = float(s)
+            for k, ts in self._conn.execute("SELECT key,expires_at FROM expiry"):
+                out["expiry"][k] = float(ts)
+            return out
+
+    def _export_echo(self) -> None:
+        """Write the whole store to the JSON twin in FileStore's on-disk format
+        (buckets + __expiry__), atomically. Called from close() when echo_json_path
+        is set. SQLite is cross-process-true, so any full export is coherent at a
+        point in time and last-closer-wins is safe. Failure is LOUD, never raised:
+        close() must still close, but the operator has to know the rollback escrow
+        went stale."""
+        import json as _json
+        import logging
+        try:
+            snap = self.snapshot()
+            payload = {"kv": snap["kv"], "hash": snap["hash"], "list": snap["list"],
+                       "set": snap["set"], "zset": snap["zset"],
+                       "__expiry__": snap["expiry"]}
+            tmp = f"{self._echo_path}.tmp.{os.getpid()}"
+            with open(tmp, "w", encoding="utf-8") as f:
+                _json.dump(payload, f)
+            last: Optional[Exception] = None
+            for attempt in range(5):   # Windows: brief reader holds are contention
+                try:
+                    os.replace(tmp, self._echo_path)
+                    return
+                except OSError as e:
+                    last = e
+                    time.sleep(0.02 * (attempt + 1))
+            raise last if last else OSError("replace failed")
+        except Exception as e:
+            logging.getLogger(__name__).error(
+                f"SqliteStore echo export to {self._echo_path} FAILED ({e}) -- the "
+                f"JSON rollback twin is STALE; a rollback now loses writes since the "
+                f"last successful echo. check_dual_authority will flag the tear.")
 
     # ------------------------------------------------------------ expiry (TTL)
     def _now(self) -> float:

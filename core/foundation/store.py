@@ -844,7 +844,10 @@ class HybridStore(Store):
                timeout_seconds: float = 2.0, file_path: Optional[str] = None,
                db: int = DEFAULT_REDIS_DB) -> "HybridStore":
         rs = RedisStore.connect(host=host, port=port, timeout_seconds=timeout_seconds, db=db)
-        return cls(rs if rs.is_available() else None, FileStore(file_path))
+        # T118 D5: the durable tier comes from the ONE backend selector. Hardcoding
+        # FileStore here made AKASHIC_STORE_BACKEND=sqlite a lie for every canonical
+        # caller (create_store(prefer_redis=True)) -- the flip flipped nothing.
+        return cls(rs if rs.is_available() else None, _file_tier(file_path))
 
     def is_available(self) -> bool:
         return True  # File is always available
@@ -1110,8 +1113,15 @@ class HybridStore(Store):
         return out
 
     def close(self):
+        # T118 D7: both tiers, exactly once. Closing only Redis leaked the SQLite
+        # handle -- harmless for FileStore (no-op close), but on Windows an open
+        # SQLite connection blocks exactly the checkpoint/swap/rollback file ops a
+        # cutover depends on.
         if self._redis is not None:
             self._redis.close()
+        durable_close = getattr(self._file, "close", None)
+        if callable(durable_close):
+            durable_close()
 
 
 # =====================================================================
@@ -1192,7 +1202,18 @@ def _file_tier(file_path: Optional[str] = None) -> Store:
     if (os.getenv("AKASHIC_STORE_BACKEND") or "").strip().lower() == "sqlite":
         from core.foundation.sqlite_store import SqliteStore  # late: avoids an import cycle
         path = file_path
+        echo = file_path
         if path and path.endswith(".json"):
             path = path[:-len(".json")] + ".db"
-        return SqliteStore(path)
+        elif path is None:
+            # Defaults pair store_state.db with store_state.json -- the same twin the
+            # migration and the dual-authority checker reason about.
+            echo = os.path.join(os.getenv("AI_SETUP", r"E:\AI-Setup"),
+                                "session_logs", "store_state.json")
+        else:
+            echo = None  # a bare .db path names no JSON twin; nothing to escrow to
+        # T118 D4: while the cutover era lasts, closing a sqlite-selected store exports
+        # the full state to the JSON twin, so the advertised rollback ("select the file
+        # backend again") finds every post-flip write instead of a frozen twin.
+        return SqliteStore(path, echo_json_path=echo)
     return FileStore(file_path)
