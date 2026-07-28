@@ -974,12 +974,14 @@ def main() -> int:
     ap.add_argument("--inject-summary", default=None, dest="inject_summary",
                     help="M1-delta: read prior run summary from this path and fold "
                          "into the system prompt (summary injection v1)")
+    ap.add_argument("--session", default="",
+                    help="T108: session id for per-incarnation lane cursor (sid8)")
     args = ap.parse_args()
 
     if not load_key():
         print("bifrost_runner_deepseek: NO_KEY (set DEEPSEEK_API_KEY or .secrets/deepseek.key)")
         return 2
-    bus = Bus(args.agent)
+    bus = Bus(args.agent, incarnation=args.session[:8] if args.session else None)
     if not bus.online:
         print("bifrost_runner_deepseek: bus OFFLINE (Redis unreachable)")
         return 2
