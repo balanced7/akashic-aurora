@@ -66,37 +66,61 @@ def _env():
 
 @pytest.fixture
 def seat():
-    from core.comm import liveness
-    agent = f"t114{uuid.uuid4().hex[:6]}"
-    wl = liveness.worklive(agent)
+    """Two writers, two key shapes -- read the producers, do not assume (the standing
+    rule, and the reason the first draft of these pins used hgetall on a JSON string):
+      liveness.WorkLive._flush -> {ns}:worklive:{agent}        JSON, the RUNNERS' key
+      roster.heartbeat         -> {ns}:worklive:{agent}#{sid8} JSON, the SEATS' key
+    The stale processes that started this are runners; the roster shows seats. Both get
+    stamped, so both are answerable."""
+    from core.comm import liveness, roster
+    agent, sid = f"t114{uuid.uuid4().hex[:6]}", uuid.uuid4().hex
     if liveness._client() is None:
         pytest.skip("redis offline")
-    yield agent, wl
+    roster.heartbeat(NS, agent, sid, phase="thinking")
+    yield agent, sid[:8], liveness.worklive(agent)
     c = liveness._client()
     for k in c.scan_iter(match=f"{NS}:*{agent}*", count=200):
         c.delete(k)
 
 
+def _seat_doc(agent, sid8):
+    import json as _json
+    from core.comm import liveness
+    return _json.loads(liveness._client().get(f"{NS}:worklive:{agent}#{sid8}") or "{}")
+
+
+def _set_seat_sha(agent, sid8, sha):
+    import json as _json
+    from core.comm import liveness
+    d = _seat_doc(agent, sid8)
+    d["code_sha"] = sha
+    if sha is None:
+        d.pop("code_sha", None)
+    liveness._client().set(f"{NS}:worklive:{agent}#{sid8}", _json.dumps(d), ex=60)
+
+
 # --------------------------------------------------------------- P1
 def test_p1_a_process_stamps_the_commit_it_is_running(seat):
+    """BOTH writers, because the processes that were running stale code are RUNNERS
+    (bare-agent key) while the roster renders SEATS (#sid8 key). Stamping only the one
+    I happened to be looking at would leave the actual offenders invisible."""
+    import json as _json
     from core.comm import liveness
-    agent, wl = seat
+    agent, sid8, wl = seat
     wl.set("thinking")
-    rec = liveness._client().hgetall(f"{NS}:worklive:{agent}") or {}
-    assert rec.get("code_sha"), (
-        f"a heartbeat must carry the commit the process is EXECUTING, not just that it "
-        f"is alive: {rec}")
-    assert len(str(rec["code_sha"])) >= 7, f"a usable short sha, got {rec['code_sha']!r}"
+    runner = _json.loads(liveness._client().get(f"{NS}:worklive:{agent}") or "{}")
+    assert runner.get("code_sha"), f"the RUNNER heartbeat must carry its commit: {runner}"
+    assert len(str(runner["code_sha"])) >= 7, f"a usable short sha: {runner['code_sha']!r}"
+    assert _seat_doc(agent, sid8).get("code_sha"), "the SEAT heartbeat must carry it too"
 
 
 # --------------------------------------------------------------- P2 / P3 / P4 / P6
 def test_p2_p3_the_roster_derives_stale_code(seat):
     """DERIVED, never self-reported: a process running old code is exactly the process
     that cannot be trusted to know it is old."""
-    from core.comm import liveness, roster
-    agent, wl = seat
-    wl.set("thinking")
-    liveness._client().hset(f"{NS}:worklive:{agent}", "code_sha", "0" * 12)
+    from core.comm import roster
+    agent, sid8, wl = seat
+    _set_seat_sha(agent, sid8, "0" * 12)
 
     row = next((r for r in roster.roster(NS) if agent in r["seat"]), None)
     assert row is not None, f"seat {agent} missing from the roster entirely"
@@ -106,8 +130,7 @@ def test_p2_p3_the_roster_derives_stale_code(seat):
 
 def test_p4_a_seat_at_head_is_not_accused(seat):
     from core.comm import roster
-    agent, wl = seat
-    wl.set("thinking")                                  # stamps the real running sha
+    agent, sid8, wl = seat                              # fixture already beat the real sha
     row = next((r for r in roster.roster(NS) if agent in r["seat"]), None)
     assert row.get("code_state") != "stale", (
         f"a seat running HEAD must NOT be flagged -- a false staleness page is how the "
@@ -117,10 +140,9 @@ def test_p4_a_seat_at_head_is_not_accused(seat):
 def test_p6_unknown_is_not_stale(seat):
     """Absence of evidence gets its own word. An older build or a foreign runner writes
     no stamp, and must not be accused of running old code."""
-    from core.comm import liveness, roster
-    agent, wl = seat
-    wl.set("thinking")
-    liveness._client().hdel(f"{NS}:worklive:{agent}", "code_sha")
+    from core.comm import roster
+    agent, sid8, wl = seat
+    _set_seat_sha(agent, sid8, None)
     row = next((r for r in roster.roster(NS) if agent in r["seat"]), None)
     assert row.get("code_state") == "unknown", (
         f"no stamp must read UNKNOWN, never STALE: {row}")
@@ -130,10 +152,9 @@ def test_p6_unknown_is_not_stale(seat):
 def test_p5_the_human_render_says_it(seat):
     """A finding that reaches only --json is the T112 P11 defect: a notice on a channel
     the reader does not use."""
-    from core.comm import liveness, roster
-    agent, wl = seat
-    wl.set("thinking")
-    liveness._client().hset(f"{NS}:worklive:{agent}", "code_sha", "0" * 12)
+    from core.comm import roster
+    agent, sid8, wl = seat
+    _set_seat_sha(agent, sid8, "0" * 12)
     text = "\n".join(roster.render_roster(NS))
     assert "stale-code" in text.lower() or "stale code" in text.lower(), (
         f"the operator-facing render must name it:\n{text}")
@@ -145,12 +166,17 @@ def test_p7_the_version_probe_never_breaks_a_heartbeat(monkeypatch):
     no version probe -- it converts an observability nicety into an outage."""
     from core.comm import liveness
 
-    monkeypatch.setattr(liveness, "_running_code_sha", lambda: 1 / 0)
+    import json as _json
+
+    def _boom():
+        raise RuntimeError("git is gone")
+
+    monkeypatch.setattr(liveness, "_running_code_sha", _boom)
     agent = f"t114{uuid.uuid4().hex[:6]}"
     wl = liveness.worklive(agent)
     wl.set("thinking")                                   # must not raise
     if liveness._client() is not None:
-        rec = liveness._client().hgetall(f"{NS}:worklive:{agent}") or {}
+        rec = _json.loads(liveness._client().get(f"{NS}:worklive:{agent}") or "{}")
         assert rec.get("beat_ts"), "the heartbeat itself must still land"
         for k in liveness._client().scan_iter(match=f"{NS}:*{agent}*", count=200):
             liveness._client().delete(k)

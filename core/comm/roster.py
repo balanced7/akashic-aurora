@@ -49,6 +49,50 @@ def _key(ns: str, agent: str, sid8: str) -> str:
     return f"{ns}:worklive:{agent}#{sid8}"
 
 
+def _liveness_code_sha() -> str:
+    """The commit the BEATING PROCESS is running (T114). Guarded: an observability
+    field must never be able to break a heartbeat."""
+    try:
+        from core.comm import liveness
+        return liveness._safe_code_sha()
+    except Exception:
+        return ""
+
+
+_HEAD_SHA = None
+
+
+def _head_code_sha() -> str:
+    """The commit the REPOSITORY is at right now. Compared against each seat's stamp to
+    DERIVE staleness -- never self-reported, because a process running old code is
+    exactly the process that cannot be trusted to know it is old."""
+    global _HEAD_SHA
+    if _HEAD_SHA is None:
+        _HEAD_SHA = ""
+        try:
+            import subprocess
+            root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            r = subprocess.run(["git", "rev-parse", "--short=12", "HEAD"], cwd=root,
+                               capture_output=True, text=True, timeout=5,
+                               stdin=subprocess.DEVNULL, close_fds=True)
+            if r.returncode == 0:
+                _HEAD_SHA = (r.stdout or "").strip()
+        except Exception:
+            _HEAD_SHA = ""
+    return _HEAD_SHA or ""
+
+
+def code_state(stamped: str) -> str:
+    """current | stale | unknown. UNKNOWN IS NOT STALE (P6): a seat with no stamp is an
+    older build or a foreign runner, and absence of evidence gets its own word rather
+    than an accusation. Crying wolf here would land on a fleet that has already spent a
+    night learning to distrust false pages."""
+    stamped, head = str(stamped or "").strip(), _head_code_sha()
+    if not stamped or not head:
+        return "unknown"
+    return "current" if stamped == head else "stale"
+
+
 SEATSEEN_TTL_S = 86400          # kimi F1: death must outlive the worklive TTL to be RENDERABLE
 
 
@@ -91,7 +135,9 @@ def heartbeat(ns: str, agent: str, session_id: str, *, phase: str = "idle",
         doc = {"full_sid": full_sid, "phase": str(phase), "beat_ts": now,
                "since_ts": float(prev.get("since_ts") or now),
                "seq": int(prev.get("seq") or 0) + 1,
-               "ema_interval": round(ema, 3)}
+               "ema_interval": round(ema, 3),
+               # T114: WHAT is beating, not just that something is.
+               "code_sha": _liveness_code_sha()}
         client.set(k, json.dumps(doc), ex=WORKLIVE_TTL_S)
         # kimi F1: the long-lived death witness -- when worklive TTLs away, this record
         # lets the roster render DEAD-with-last-beat instead of silent absence.
@@ -179,6 +225,8 @@ def roster(ns: str, *, client=None, now: Optional[float] = None) -> List[Dict[st
             "seq": int(doc.get("seq") or 0),
             "state": state,
             "have": _have_summary(client, ns, agent, sid8),
+            "code_sha": str(doc.get("code_sha") or ""),
+            "code_state": code_state(doc.get("code_sha")),
         })
     rows.sort(key=lambda r: (r["agent"], -(r["beat_ts"] or 0)))
     return rows
@@ -193,6 +241,11 @@ def render_roster(ns: str, *, client=None) -> List[str]:
         have = ",".join(f"{k}@{str(v)[-9:]}" for k, v in (r.get("have") or {}).items())
         out.append(f"  [{r['state']:5}] {r['seat']:24} phase={r['phase']:10} beat={age:>7} "
                    f"seq={r['seq']:<5} have: {have}")
+        # T114: a seat can be perfectly alive and running the defect you already fixed.
+        # Only STALE earns a line -- current is the silent default, unknown says so plainly.
+        if r.get("code_state") == "stale":
+            out.append(f"          ^ STALE-CODE: running {r['code_sha'][:12]}, "
+                       f"HEAD is {_head_code_sha()[:12]} -- restart to pick up fixes")
     if not rows:
         out.append("  (no per-seat worklive keys -- no seat has ever heartbeat in this ns)")
     # W84: the confession line. A roster that cannot name its blind spots is unwedge again.

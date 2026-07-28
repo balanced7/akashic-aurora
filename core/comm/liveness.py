@@ -14,6 +14,10 @@ Record at ``bifrost:worklive:<agent>`` (JSON, TTL'd):
   turn      -- monotonic count of messages handled
   detail    -- short context (sender, tool name)
   seq       -- monotonic stamp counter
+  code_sha  -- T114: the commit THIS PROCESS is executing. A long-lived worker
+               keeps running the module it imported; without this the roster can
+               say a seat is alive but never say alive ON WHAT, and a fix can be
+               shipped, announced and believed while no process runs it.
 
 Two independent staleness signals a reader can derive:
   * ``now - since_ts`` large while phase != idle  -> stuck IN a phase (a wedge L0 didn't catch)
@@ -23,6 +27,7 @@ import json
 import os
 import threading
 import time
+from typing import Optional
 
 from core.comm.timescale import scaled as _scaled
 
@@ -34,6 +39,44 @@ def _ns() -> str:
 
 def _worklive_prefix() -> str:
     return f"{_ns()}:worklive:"
+
+
+_CODE_SHA: Optional[str] = None
+
+
+def _safe_code_sha() -> str:
+    """P7: liveness is load-bearing. A version probe that can break a heartbeat is
+    worse than no version probe -- it turns an observability nicety into an outage."""
+    try:
+        return _running_code_sha()
+    except Exception:
+        return ""
+
+
+def _running_code_sha() -> str:
+    """T114: the commit this PROCESS is executing, resolved once and cached.
+
+    Not a nicety. On 2026-07-28 a fix was committed, tested, pushed and announced to
+    the fleet while every runner still ran the old module from memory -- the roster
+    said LIVE, and nothing anywhere could say LIVE ON WHAT. The only way it surfaced
+    was hashing raw stream envelopes after two peers tested the claim.
+
+    Cached at first call because a process's code cannot change under it; re-reading
+    per heartbeat would spend a subprocess every few seconds to learn a constant."""
+    global _CODE_SHA
+    if _CODE_SHA is None:
+        _CODE_SHA = ""
+        try:
+            import subprocess
+            root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            r = subprocess.run(["git", "rev-parse", "--short=12", "HEAD"], cwd=root,
+                               capture_output=True, text=True, timeout=5,
+                               stdin=subprocess.DEVNULL, close_fds=True)
+            if r.returncode == 0:
+                _CODE_SHA = (r.stdout or "").strip()
+        except Exception:
+            _CODE_SHA = ""
+    return _CODE_SHA or ""
 WORKLIVE_TTL = _scaled(45)  # > the ~5s heartbeat refresh, so a live record never flaps; a wedge
                             # keeps it alive (drill-shrinkable via AKASHIC_TIMEOUT_MULTIPLIER)
 
@@ -125,6 +168,9 @@ class WorkLive:
                     "turn": self._turn,
                     "detail": self._detail,
                     "seq": self._seq,
+                    # T114: WHAT is alive, not just that something is. Guarded so an
+                    # observability field can never wedge the heartbeat it rides on.
+                    "code_sha": _safe_code_sha(),
                 }
             c.set(_worklive_prefix() + self.agent, json.dumps(rec), ex=WORKLIVE_TTL)
         except Exception:
