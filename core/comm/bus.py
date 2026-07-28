@@ -20,6 +20,7 @@ never silently swallowed. Streams are bounded (maxlen) since this is ephemeral t
 Read model: per-agent cursors (last-read stream id for inbox + broadcast) in a Redis hash, so each agent
 catches up on exactly what it missed and never re-reads (offset semantics without consumer-group coupling).
 """
+import hashlib
 import json
 import os
 import sys
@@ -391,6 +392,15 @@ class Bus:
                "content": json.dumps(content, default=str), "ts": _now(),
                "meta": json.dumps(meta or {}, default=str),
                "parts": json.dumps(part_dicts, default=str)}
+        # T112 SEND DOOR: collapse a RE-ASK into the original. Measured on the live bus --
+        # one byte-identical ask delivered FOUR times in 39 minutes, each copy costing the
+        # recipient a full turn. Waiting is not a reason to send the message again;
+        # retransmission belongs to the ack layer (nudge/expectations), never the payload
+        # layer. Runs before the MTU gate so an oversize re-ask is not re-fragmented either.
+        reask = self._reask_original(to=to, kind=str(kind), env=env)
+        if reask:
+            return reask
+
         # T043 SEND DOOR: enforce the MTU (refuse loud, or fragment on opt-in) then stamp v/len/sha.
         length, sha = packet_spec.compute_len_sha(env)
         if not packet_spec.within_mtu(length):
@@ -491,6 +501,9 @@ class Bus:
         # (work_drain) get their id from the stream read, not from this return.
         mid = legacy_mid or lane_mid
         self._touch()
+        # T112: remember WHICH id this ask landed as, so the next identical send can
+        # collapse onto it instead of costing the recipient another turn.
+        self._reask_remember(to=to, kind=str(kind), env=env, mid=str(mid))
         self._ring_bell(to, mid, str(kind))
         try:                           # B2: durably project salient kinds (best-effort)
             from core.comm.promoter import is_salient, promote
@@ -499,6 +512,97 @@ class Bus:
         except Exception:
             pass
         return mid
+
+    # ------------------------------------------------------- T112 re-ask collapse
+    _REASK_WINDOW_S = 1800                     # 30 min; BIFROST_REASK_WINDOW_S overrides
+
+    @staticmethod
+    def _reask_window() -> int:
+        try:
+            return max(0, int(os.environ.get("BIFROST_REASK_WINDOW_S",
+                                             Bus._REASK_WINDOW_S)))
+        except Exception:
+            return Bus._REASK_WINDOW_S
+
+    def _reask_key(self, to: str, kind: str, env: Dict[str, Any]) -> str:
+        """Identity of the ASK, not of the packet. packet_spec's sha covers ts and meta
+        (meta carries frm_incarnation), so it differs on every send of the same words --
+        useless for spotting a repeat. Hash what a reader would call 'the same message':
+        who, to whom, what kind, what content."""
+        h = hashlib.sha256()
+        for field in (self.agent_id, str(to), str(kind), str(env.get("content", ""))):
+            h.update(field.encode("utf-8", "replace"))
+            h.update(b"\x00")
+        return f"{self.ns}:reask:{to}:{h.hexdigest()[:32]}"
+
+    def _reask_original(self, *, to: str, kind: str, env: Dict[str, Any]) -> Optional[str]:
+        """The id of the still-live original this send would duplicate, or None to
+        deliver normally.
+
+        FAIL-OPEN EVERYWHERE. Every uncertainty resolves to 'deliver': window off, no
+        client, unreadable stream, any exception. A duplicate costs one turn; a
+        suppressed message that had no original costs the work itself, which is Sol's
+        S4 strand class one layer up."""
+        window = self._reask_window()
+        if window <= 0 or not self._truthy_env("BIFROST_REASK_COLLAPSE", True):
+            return None
+        if self._client is None or to == BROADCAST_TO:
+            return None                        # broadcast fan-out is not an ask
+        # DELIBERATE SYSTEM RE-DELIVERY IS NOT A RE-ASK. The fleet has machinery whose
+        # whole job is to send the same bytes again: expectations redrive past a deadline
+        # (meta.redrive_of), and the reaper re-homes a dead seat's mail to its role
+        # (meta.rehomed_from / meta.original_mid). Both are marked, and collapsing them
+        # would strand exactly the work they exist to rescue -- the S4 strand class again,
+        # arriving through a door P6 does not watch (there the original was GONE; here it
+        # is present and the re-send is still the point). Caught by the existing suite,
+        # not by my own pins, which is why the grep-derived sweep is not optional.
+        try:
+            _meta = json.loads(env.get("meta") or "{}") or {}
+        except Exception:
+            _meta = {}
+        if any(_meta.get(m) for m in ("redrive_of", "rehomed_from", "original_mid")):
+            return None
+        try:
+            key = self._reask_key(to, kind, env)
+            prior = self._client.get(key)
+            if not prior:
+                self._client.set(key, "", ex=window, nx=True)   # placeholder; id set by caller
+                return None
+            prior = str(prior)
+            if not prior:
+                return None
+            # P6 THE STRAND GUARD: only collapse onto an original the recipient can still
+            # see. If it was reaped, tombstoned or trimmed away, this re-ask is the only
+            # copy left and MUST land. Never trade a duplicate for a strand.
+            if not self._client.xrange(self._inbox_key(str(to)), min=prior, max=prior):
+                self._client.delete(key)
+                return None
+            _loud(f"[re-ask] identical {kind} to {to} already pending as {prior} "
+                  f"({window}s window) -- collapsed, not re-sent. Nudge it or change the "
+                  f"ask; a repeat send costs {to} a full turn.")
+            return prior
+        except Exception:
+            return None                        # fail OPEN
+
+    def _reask_remember(self, *, to: str, kind: str, env: Dict[str, Any], mid: str) -> None:
+        """Record which id this ask landed as, so the next identical send can collapse
+        onto it. Best-effort: losing this only costs a duplicate."""
+        if not mid or self._client is None or to == BROADCAST_TO:
+            return
+        window = self._reask_window()
+        if window <= 0 or not self._truthy_env("BIFROST_REASK_COLLAPSE", True):
+            return
+        try:
+            self._client.set(self._reask_key(to, kind, env), str(mid), ex=window)
+        except Exception:
+            pass
+
+    @staticmethod
+    def _truthy_env(name: str, default: bool) -> bool:
+        raw = os.environ.get(name)
+        if raw is None:
+            return default
+        return str(raw).strip().lower() not in ("0", "false", "no", "off", "")
 
     def _emit_fragments(self, stream: str, env: Dict[str, Any], *, to: str, kind: str) -> Optional[str]:
         """Split an oversize payload into MTU-safe fragment packets and xadd each (T043 pin 5).

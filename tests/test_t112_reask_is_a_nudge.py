@@ -154,14 +154,25 @@ def test_p6_a_vanished_original_always_redelivers(peers):
 
 # --------------------------------------------------------------- P7
 def test_p7_suppression_is_loud(peers, capsys):
+    """Asserts on stdout AND stderr. The first draft of this pin checked stdout only
+    and failed against a correct implementation: bus._loud() is the module's OWN
+    established loud channel and it writes to stderr by T043 convention. The bar --
+    'a suppressed message must be visible to an operator' -- is unchanged; the
+    assertion had named a mechanism the contract never specified, and reading the
+    producer before trusting the assertion is the standing rule
+    (fresh_eyes_read_the_label_generator_first)."""
     sender, _, rcv = peers
-    sender.send(rcv, "question", "please review the diff")
+    first = sender.send(rcv, "question", "please review the diff")
     capsys.readouterr()
     sender.send(rcv, "question", "please review the diff")
-    out = (capsys.readouterr().out or "").lower()
+    cap = capsys.readouterr()
+    out = ((cap.out or "") + (cap.err or "")).lower()
     assert "re-ask" in out or "reask" in out or "suppress" in out, (
-        "a silent drop is indistinguishable from a lost message. Say what happened and "
-        "name the original, or the next hour is spent debugging the fix.")
+        f"a silent drop is indistinguishable from a lost message. Say what happened and "
+        f"name the original, or the next hour is spent debugging the fix. Saw: {out!r}")
+    assert str(first) in out, (
+        f"the notice must NAME the original id so the sender can nudge it instead of "
+        f"re-sending: {out!r}")
 
 
 # --------------------------------------------------------------- P8
@@ -172,3 +183,37 @@ def test_p8_the_dial_turns_off(peers):
     b = sender.send(rcv, "question", "identical")
     assert a != b, "new send-door behaviour ships with an exit"
     assert _inbox_len(sender, rcv) == 2
+
+
+# --------------------------------------------------------------- P9 / P10 system re-delivery
+# Added after the grep-derived sweep failed three EXISTING pins that my own eight did not
+# cover: test_t030_l4_expectations::test_redrive_past_deadline and two
+# test_t108_nseat_delivery reaper pins. The fleet has machinery whose entire job is to send
+# the same bytes again, and collapsing it strands exactly the work it exists to rescue.
+# P6 does not catch this: there the original is GONE, here it is present and the re-send is
+# still correct. Same strand class, different door.
+
+def test_p9_a_redrive_is_never_collapsed(peers):
+    """expectations.redrive re-sends a copy past the reply deadline with
+    meta={redrive_of, attempt}. Suppressing it silences the only escalation the
+    sender-side deadline machinery has."""
+    sender, _, rcv = peers
+    first = sender.send(rcv, "question", "did the fence pass?")
+    again = sender.send(rcv, "question", "did the fence pass?",
+                        meta={"redrive_of": first, "attempt": 1})
+    assert again and again != first, (
+        "REDRIVE COLLAPSED: a deadline redrive is deliberate re-delivery, not an "
+        "impatient re-send. The marker is the difference and it must be honoured.")
+
+
+def test_p10_a_reaper_rehome_is_never_collapsed(peers):
+    """The reaper re-homes a dead seat's directed mail to its role -- identical bytes,
+    on purpose, to rescue work whose original recipient is gone. Collapsing it recreates
+    the S4 strand it was built to fix."""
+    sender, _, rcv = peers
+    first = sender.send(rcv, "note", "the ask that outlived its seat")
+    again = sender.send(rcv, "note", "the ask that outlived its seat",
+                        meta={"rehomed_from": "claude#dead1234", "original_mid": first})
+    assert again and again != first, (
+        "REHOME COLLAPSED: re-homed mail is the rescue path for a dead seat's work. "
+        "Suppressing it stranded the packet twice over.")
