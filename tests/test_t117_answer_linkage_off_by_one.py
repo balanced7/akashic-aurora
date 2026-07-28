@@ -160,3 +160,64 @@ def test_p5_a_reply_from_the_wrong_agent_clears_nothing(sender, monkeypatch):
                                       answers="1785226575153-0")], monkeypatch)
     assert not out["cleared"], (
         f"deepseek's reply must not settle an ask addressed to kimi: {out}")
+
+
+# --------------------------------------------------------------- P6/P7 sol's NO-GO
+def test_p6_the_reply_settles_the_ASK_IT_NAMES_not_the_fifo_oldest(sender, monkeypatch):
+    """Sol's NO-GO on f813e34, adversarial repro. The live twin ids differ in the
+    MILLISECOND (1785226575154-0 vs ...153-0, seq 0 in both); _resolve_link held ms
+    fixed and adjusted seq, so on the real shape it returned None -- and my P1-P3
+    passed via the FIFO fallback, which with ONE armed expectation happens to clear
+    the right one. With TWO armed asks to the same target, FIFO clears the OLDEST:
+    the reply meant for the newer ask silently settles the older work, and the
+    intended ask stays armed and redrives. A false green wearing a green suite.
+
+    The fix must resolve by EVIDENCE (the dual-id alias captured at _emit, where
+    both ids are actually known), never by id arithmetic -- Sol's words: independent
+    streams can share or differ in ms, and adjacent sends collide."""
+    from core.comm.bus import Bus as _Bus
+    s = sender
+    c = E._client()
+    # Arm two expectations to the same target. The OLDER is the FIFO trap.
+    _arm(s, "1785226575000-0", "kimi", "1785226574000-0", 1785226575.0)
+    _arm(s, "1785226575154-0", "kimi", "1785226575100-0", 1785226575.19)
+    # The alias a real dual-write send records: sibling lane id -> returned id.
+    c.set(f"{E._ns()}:idalias:1785226575153-0", "1785226575154-0", ex=600)
+    try:
+        out = _sweep_with(s, [_Reply("1785228386835-0", "kimi",
+                                     answers="1785226575153-0")], monkeypatch)
+        assert out["cleared"] == ["1785226575154-0"], (
+            f"WRONG WORK SETTLED: the reply names the sibling of the NEWER ask, and the "
+            f"sweep cleared {out['cleared']} -- FIFO ate the oldest while the intended "
+            f"ask stays armed to redrive. Resolution must follow the alias, not the "
+            f"queue order: {out}")
+        left = c.hgetall(E._key(s)) or {}
+        assert "1785226575000-0" in left, "the OLDER unanswered ask must remain armed"
+    finally:
+        c.delete(f"{E._ns()}:idalias:1785226575153-0")
+
+
+def test_p7_the_bus_records_the_dual_id_alias_at_emit():
+    """The alias is captured where both ids are KNOWN -- inside _emit, when the lane
+    and legacy writes both return. Everywhere else is reconstruction; here it is a
+    fact. Redis-ephemeral with a TTL, same lifecycle as the expectation itself."""
+    import uuid as _uuid
+    from core.comm.bus import Bus as _Bus
+    ns = "t117p7"
+    a, b = f"snd{_uuid.uuid4().hex[:6]}", f"rcv{_uuid.uuid4().hex[:6]}"
+    bus = _Bus(a, namespace=ns, promote=False)
+    if not bus.online:
+        pytest.skip("bus offline")
+    try:
+        mid = bus.send(b, "question", "alias pin: does the emit record the twin?")
+        assert mid
+        aliases = list(bus._client.scan_iter(match=f"{ns}:idalias:*", count=200))
+        vals = {bus._client.get(k) for k in aliases}
+        assert mid in vals, (
+            f"NO ALIAS RECORDED: a dual-write send produced no idalias -> {mid}. "
+            f"Without it, a reply naming the sibling id can only be resolved by "
+            f"arithmetic (proven wrong) or FIFO (proven to settle the wrong work). "
+            f"aliases={aliases}")
+    finally:
+        for k in bus._client.scan_iter(match=f"{ns}:*", count=500):
+            bus._client.delete(k)
