@@ -3095,6 +3095,16 @@ def cmd_doctor(args):
     from core.comm.doctor import examine_fleet, known_agents, examine_services
     agents = [a.strip() for a in (args.agents or "").split(",") if a.strip()] or None
     rep = examine_fleet(agents, page_notes=bool(args.page))
+    try:   # S4 tick owner (kimi's surface 3): the reaper rides the doctor's cadence -- the
+        #   L2 liveness organ IS the natural clock for death-consequences. Loud via its own
+        #   re-home lines; a quiet pass costs one roster scan.
+        from core.comm.reaper import reap as _reap
+        from core.comm.bus import NS as _NS
+        for _r in _reap(_NS):
+            print(f"[reaper] re-homed {_r['kind']} {_r['original_mid']} from dead seat "
+                  f"{_r['seat']} -> {_r['rehomed_mid']}")
+    except Exception:
+        pass
     try:   # T081-W3: fleet-infrastructure services (what's running?), distinct from agent findings
         rep["services"] = examine_services()
     except Exception:
@@ -3412,6 +3422,13 @@ def cmd_roster(args):
     """S2: the lobby -- every seat's proven liveness + inventory pointers (W84 render)."""
     from core.comm.roster import roster, render_roster
     from core.comm.bus import NS
+    if getattr(args, "reap", False):
+        from core.comm.reaper import reap
+        recs = reap(NS)
+        print(f"[reaper] {len(recs)} message(s) re-homed" if recs
+              else "[reaper] nothing to re-home (no provably-dead seats with stranded mail)")
+        for r in recs:
+            print(f"  {r['kind']} {r['original_mid']} from {r['seat']} -> {r['rehomed_mid']}")
     if getattr(args, "json", False):
         print(json.dumps(roster(NS), indent=2, default=str))
         return 0
@@ -4214,6 +4231,9 @@ def build_parser():
     ros = sub.add_parser("roster", help="S2 lobby: per-seat worklive (LIVE/STALE proven by "
                                         "beat freshness, never key-existence) + have-summaries")
     ros.add_argument("--json", action="store_true")
+    ros.add_argument("--reap", action="store_true",
+                     help="S4: re-home provably-dead seats' stranded mail now (also runs on "
+                          "the doctor's cadence -- this is the explicit tick)")
     ros.set_defaults(fn=cmd_roster)
 
     dr = sub.add_parser("doctor", help="fleet liveness doctor (L2): progress, not presence")

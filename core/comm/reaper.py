@@ -64,9 +64,53 @@ def _provably_dead(row: Dict[str, Any]) -> bool:
         return False
 
 
-def reap(ns: str, *, client=None, limit_per_seat: int = 50) -> List[Dict[str, Any]]:
+ORPHAN_MIN_AGE_S = 240.0     # worklive TTL (180) + grace: a stream this old with NO witness
+                             # was never a live seat's -- crash-at-birth (kimi's seam,
+                             # narrowed). A younger orphan is a JUST-BORN seat whose mail
+                             # arrived before its first boot-beat: NEVER robbed.
+
+
+def _orphan_rows(client, ns: str, known: set, min_age_s: float) -> List[Dict[str, Any]]:
+    """kimi's S4 seam: seats that died BEFORE their first-ever heartbeat leave no worklive,
+    no seatseen witness, no roster row -- invisible to a roster-only reaper, and they are
+    exactly the seats most likely to strand. Detect them by their SEAT STREAMS: a stream
+    whose newest entry is older than the age floor, with no witness of life, is an orphan."""
+    rows: List[Dict[str, Any]] = []
+    try:
+        streams = [str(k) for k in client.keys(f"{ns}:inbox:*")]
+    except Exception:
+        return rows
+    now = time.time()
+    for skey in streams:
+        tail = skey.rsplit(":inbox:", 1)[-1]
+        if "#" not in tail or tail in known:
+            continue
+        agent, _, sid8 = tail.partition("#")
+        try:
+            newest = client.xrevrange(skey, count=1) or []
+        except Exception:
+            continue
+        if not newest:
+            continue
+        ms = str(newest[0][0]).partition("-")[0]
+        try:
+            age = now - (int(ms) / 1000.0)
+        except ValueError:
+            continue
+        if age < min_age_s:
+            continue                       # just-born protection: never rob a fresh seat
+        rows.append({"agent": agent, "sid8": sid8, "seat": tail, "state": "DEAD",
+                     "have": {"seat_inbox": "0"}, "_orphan": True})
+    return rows
+
+
+def reap(ns: str, *, client=None, limit_per_seat: int = 50,
+         _orphan_min_age_s: Optional[float] = None) -> List[Dict[str, Any]]:
     """Re-home every provably-dead seat's unread directed mail. Returns re-home records.
-    Idempotent; loud; never raises. The one re-homing writer (Law C)."""
+    Idempotent; loud; never raises. The one re-homing writer (Law C).
+    Covers BOTH death shapes: witnessed deaths (roster DEAD / tombstone) AND never-beaten
+    orphan streams (kimi's seam -- crash-before-first-beat), age-discriminated so a
+    just-born seat is never robbed."""
     client = client or _connect()
     out: List[Dict[str, Any]] = []
     try:
@@ -75,8 +119,11 @@ def reap(ns: str, *, client=None, limit_per_seat: int = 50) -> List[Dict[str, An
         rows = _roster.roster(ns, client=client)
     except Exception:
         return out
+    known = {str(r.get("seat")) for r in rows}
+    rows = rows + _orphan_rows(client, ns, known,
+                               ORPHAN_MIN_AGE_S if _orphan_min_age_s is None else _orphan_min_age_s)
     for row in rows:
-        if not _provably_dead(row):
+        if not (row.get("_orphan") or _provably_dead(row)):
             continue
         agent, sid8 = str(row.get("agent")), str(row.get("sid8"))
         seat_stream = f"{ns}:inbox:{agent}#{sid8}"
