@@ -1,0 +1,60 @@
+# The retrieval regression gate has been RED for five days, and nobody heard it
+
+Status: current | 2026-07-28 | claude | found while gating Sol's stream-wedge repair
+AWAITING DANIEL'S GATE (it proposes a migration-completion task, not a test edit)
+
+## WHAT IS RED
+
+tests/test_lookback.py::test_the_preregistered_battery_passes -- 8 of 12 canonical
+why-questions no longer return their governing artifact in top-3:
+
+    C1/D1 why is the bifrost bus ephemeral      -> expected comms-pillar-synthesis
+    C4    why does the forge gate edits         -> expected lesson-forge-design
+    C5    the GPT experiment-pivot analysis     -> expected experiment-pivot-gpt-analysis
+    C6    why does wake detect without consuming-> expected p0-wake-detect-design
+    D2    why were CRDTs/consensus rejected     -> expected coordination-plan-synthesis
+    D3    why is the ledger the substrate       -> expected coordination-plan-synthesis
+    D5    where the forge blinded the optimizer -> expected 74d6e0d / 5562014
+
+## WHY IT IS RED, AND WHY IT IS NOT A TEST BUG
+
+This battery is not an ordinary test. Its own commit (1db3fce, T027/P7) calls it "a PERMANENT
+CANONICAL-CORPUS REGRESSION PIN", dual-pre-registered BEFORE implementation, taken to 12/12
+"after three ROOT-CAUSED rounds, NEVER TUNED". It measures the product claim directly: can a
+why-question find the artifact that answers it.
+
+It was 12/12 green at 9307249 (2026-07-10). Then f8510b6 (2026-07-23) -- "P3: THE SPRAWL DIES
+-- Daniel's gate verbatim: 'Delete the 643!'" -- removed 621 tracked docs and re-pointed
+references to atom projections. VERIFIED: `git log --diff-filter=D` names f8510b6 as the
+commit that deleted docs/comms-pillar-synthesis*, and the expected artifacts are absent from
+docs/ AND from docs/library/design/ under their old names.
+
+So the corpus was migrated OUT FROM UNDER the gate that measures it. The content survives as
+atoms (the migration was lossless by design); the battery's expectations are name/id-based and
+were never re-pointed. The gate went red the day of the migration.
+
+## THE PART THAT MATTERS MORE THAN THE FIX
+
+FIVE DAYS. A computed red, on the fleet's only end-to-end retrieval-quality gate, absorbed
+silently into the suite's known-failure baseline -- the exact disease this arc has now hit
+thirteen times (a red routed to a channel nobody reads). The ship_gate ratchet was built this
+week to stop precisely this, and this red predates the ratchet's baseline, so the ratchet
+INHERITED it as acceptable.
+
+It is also the census's finding demonstrated on ourselves: NONE-EXISTS was 0 -- the knowledge
+still exists, in atoms -- and retrieval still fails. Migration moved the content and the
+retrieval path did not follow.
+
+## THE FIX (proposed, NOT taken)
+
+RE-POINT the battery's expectations at the ATOM ids that now hold each artifact, then re-run.
+Do NOT relax the bar to whatever ranks today: the battery's own history says "never tuned",
+and widening a definition until the instrument flatters you is the named anti-pattern (M10's
+refusal is the precedent). If a re-pointed probe STILL fails, that is a real retrieval defect
+in the atom plane and belongs to the R-track -- which the census just scoped
+(dark planes 40-50% of demand; atoms are part of that plane).
+
+TASK SHAPE: migration-completion, not test maintenance. Whoever re-points also checks whether
+OTHER name-based references to the deleted 621 were left dangling -- one gate broke loudly
+enough to find; a reference that fails OPEN (the readme_directory_pointer_fails_open class)
+would not have.
