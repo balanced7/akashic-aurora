@@ -1,5 +1,5 @@
 {
-  "seq": 106,
+  "seq": 108,
   "tasks": [
     {
       "id": "T001",
@@ -3799,6 +3799,63 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-07-24T04:40:34+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T107",
+      "title": "Discovery-under-constraint evaluation arc: AFTER the current lesson-validity and instrumentation repair, test whether the same base model inside Aurora produces independently verified discoveries unavailable to that model alone. Phase 0 = sealed pre-fix or procedurally injected repo incidents; Phase 1 = synthetic hidden-law worlds. Compare matched-budget plain, single-seat Aurora, blind same-model fleet, and heterogeneous transfer arms; preserve dissent and promote only replicated candidate beliefs.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "PREREQUISITE: current lesson-validity and stage-separation/instrumentation gates are verified closed; this task stays unclaimed before then. Pre-register sealed corpus hashes, tool/egress policy, hidden oracles, factorial arms, and kill conditions before any run. No canonical memory, web, future git, or answer leakage. Run at least 10 unseen engineering incidents and 10 hidden-law worlds across repeated seeds with matched model, token, tool, time, and human budgets. Report hidden-test correctness, discriminating-probe quality, replication, calibration, approach diversity, leakage, human cost, and same-model Aurora lift. Independent verification required; one success remains a candidate belief and cannot justify an AGI claim.",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-25T18:24:05+00:00",
+      "updated": "2026-07-25T18:27:25+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "codex_root",
+          "at": "2026-07-25T18:24:05+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-25T18:27:25+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T108",
+      "title": "N-seat mailbox architecture: unshare everything but the role queue (Daniel 2026-07-28 verbatim: 'why can't we have two seats or as many as we need so we stop getting all this mail mis routing, mis waking, mis consuming, mis everything mess'). Design: directed mail -> per-incarnation streams (own cursor, own watcher -- theft/mis-wake structurally impossible); role mail -> ONE work queue via native Redis consumer groups (XREADGROUP+XAUTOCLAIM; exactly-once claim is the FEATURE; the original bus's consumer-group rejection was right for broadcast, wrong scope); broadcast -> fan-out per-seat cursors unchanged; replies auto-pin to frm_incarnation; reaper re-homes a dead seat's directed mail to the role queue loudly. Kills all five shared-key organs (research/reviewed/twin-seat-misdelivery-diagnosis-2026-07-27.md addendum: cursor, worklive, expectations, seat-succession, wake-arm) -- the sibling's tombstone machinery (3695d66) remains for sequential handoff; RB-21 seat semantics survive ONLY on the role queue where serialization is wanted. Migration = strangler fig per T044/T045 precedent (dual-write, cutover, storm bars as acceptance). FENCE REQUIRED (deepseek+kimi runners are consumers) citing both twin halves; Daniel gates.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "claimed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-28T05:22:49+00:00",
+      "updated": "2026-07-28T05:24:37+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-28T05:22:49+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-28T05:24:11+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-28T05:24:37+00:00"
         }
       ]
     }

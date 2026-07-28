@@ -1,24 +1,25 @@
-# Precision audit -- kimi blind labels (VERBATIM)
+# kimi BLIND LABELS -- precision audit pack, VERBATIM
 
-Status: current | 2026-07-27
+Status: current | 2026-07-27 | THIRD LABELLER (Daniel asked for this at session start)
 
----
+BLIND LABELS -- kimi, independent. INSTRUMENT CHECK FIRST (you asked): the shape is right with one asymmetry to flag. The precision arm is sound -- judge each surfaced item against the action. But the RECALL arm is blind in a way the precision arm is not: I can name a lesson I believe should have fired, but I CANNOT verify a better item existed in the candidate pool, because the pack hides the pool. So my MISS labels are necessarily LOWER-CONFIDENCE than my on/off labels -- a MISS from me means "a lesson on this plane plausibly exists and didn't surface," not "I confirmed a superior item was present and outranked." If you want the recall arm to carry the same evidentiary weight as precision, the pack must expose the post-membership candidate pool per case (then a MISS is verifiable: present-but-below-cutoff vs absent-from-pool -- which is also exactly the selection-vs-ranking discriminator). Flagging, not blocking: I label as designed, MISSes marked tentative.
 
+LABELS (judge = on-point for the ACTION taken):
 1:a on
-2:a on
+2:a off
 3:a off
 3:b off
-3:c skip
+3:c off
 4:a off
 4:b off
 4:c off
 5:a off
-5:b skip
-6:a on
-7:a off
+5:b off
+6:a off
+7:a on
 8:a on
-8:b skip
-8:c skip
+8:b off
+8:c on
 9:a off
 10:a off
 10:b on
@@ -30,7 +31,7 @@ Status: current | 2026-07-27
 13:b off
 14:a off
 14:b off
-14:c on
+14:c off
 15:a on
 16:a off
 16:b off
@@ -38,39 +39,29 @@ Status: current | 2026-07-27
 17:a on
 18:a on
 19:a on
-19:b on
-19:c on
+19:b off
+19:c off
 20:a off
 20:b off
-20:c skip
-21:a on
+20:c off
+21:a off
 22:a off
 22:b off
 22:c off
 23:a on
 23:b on
-23:c on
+23:c off
 24:a on
 25:a off
 25:b off
 25:c off
 26:a off
-26:b on
-26:c on
-27:a off
-27:b on
-28:a on
-28:b on
-28:c on
-29:a on
-29:b on
-29:c on
-30:a on
 
-MISS 4 knowledge_boot_stale_directive (boot-context action; the stale-directive lesson exists in corpus and is exactly about this situation, surfaced at case 25 instead)
-MISS 14 runner_guarded_write_leaks_locks fired, but the general "runner --help is not the runner's live behaviour" lesson (if filed) should have; partial — naming the pattern in case no lesson covers it: `--help` output drift from live flags, cf. bifrost_send_supported_flags
-MISS 21 semantic_documentation_update_strategy fired and WAS on-point, but note this is the receipt case from Daniel's original complaint (40-day-old doc lesson on wishlist.md) — under the repaired index it is arguably correct; flagging for the fence round, not as a miss
-MISS 25 gate_exit_codes_never_piped SHOULD have been the top hit for a `--help | head -25` action on a gate-adjacent CLI verb and it did fire — recording as on-label confusion risk instead; no miss
-MISS 27 bifrost_runner_backlog_skip fired; the kimi-runner-specific lesson (kimi_phase1_cannot_arm_wake_watcher) exists and did not fire on the kimi runner action — cross-seat matcher gap candidate
+MISS (tentative, pool-blind -- see caveat):
+MISS 2 a wake/daemon-concurrency lesson for the kimi-out-of-band probe exists on the wake plane beyond the surfaced one
+MISS 5 a beat/double-promotion or event-consolidation lesson for raw-event tailing should have fired
+MISS 12 a git-rewrite/SHA-dangling lesson is on-point for a readme commit but the surfaced pair were not; a commit-hygiene lesson (gate_exit_codes / never-claim-green) should have fired
+MISS 21 a doc-conventions/semantic-naming lesson for editing wishlist.md should have fired beyond the surfaced one
+MISS 26 a daemon/wake-lane lesson for editing bifrost_daemon.py should have fired (same plane as 15/19)
 
-**PACK SHAPE NOTE (design feedback, one line): the instrument is sound, but the recall arm needs the labeler to have grep access to the corpus — my MISS labels above are from memory of lesson titles, which makes the recall arm measure my memory, not the index. Next pass: give labelers a read-only grep door to the lesson store during the MISS phase.**
+NOTE on my own prior: case 21 (wishlist.md) is Daniel's ORIGINAL complaint example -- a 40-day-old semantic-naming lesson fired while editing docs. I labelled the surfaced item 21:a OFF against the action (the action is editing wishlist.md, not a doc-naming sweep) -- but that is the case where the RIGHT answer lived on a dark plane (notes/atoms doc-conventions), which the lesson plane could not supply. So 21 is simultaneously a precision OFF and a coverage MISS onto a dark plane -- the single most informative case in the pack for the selection-vs-ranking question, and it points at SELECTION-of-planes, not ranking.

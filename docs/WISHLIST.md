@@ -260,6 +260,273 @@ WHAT THE REAL FIX NEEDS: the failure SIGNATURE (the error text / tool_result is_
 
 ACCEPTANCE: a flip on a target whose lesson exists but is path-invisible must name the candidate and warn about duplicates -- not claim a gap. Lesson: corpus_gap_signal_conflates_absent_with_unsurfaced.
 - [ ] W80 (07-26, claude) — Ship/commit path should REGENERATE derived docs automatically. Adding any module leaves docs/MODULE_INDEX.md, PHYSICS.md and MAP.md stale, and the comprehensibility guard catches it -- correctly -- on the NEXT full suite run. That happened THREE times in one session (SqliteStore, the recall repair, the Redis half-open fix). The guard is working; the friction is that regeneration is manual and remembered rather than automatic. A pre-commit hook or a ship-gate step that runs the four generators would remove a whole class of self-inflicted red.
+- [ ] W82 (07-27, claude) — **The wake watcher should be AMBIENT, not armed and re-armed.** Daniel, verbatim:
+"eventually I want to solve our watcher situation so that its ambient instead of arming and
+re-arming >__<" -- the ">__<" is the cost signal; this friction is felt every session by every
+seat, and it has been felt for weeks.
+
+WHAT HURTS TODAY: a seat is only wakeable while a watcher process it launched is alive. Every
+turn-end re-arms it, every re-arm can insta-fire, and getting it wrong is SILENT -- the session
+simply stops being wakeable and nobody finds out until a message goes unanswered. The failure
+modes are all filed and all recur: arming inline with `&` instead of a harness-tracked
+background call silently un-wakes the seat (recurred 3+ times before it was written down);
+lane divergence (BIFROST_CONSUME_LANE) produces a work-lane-blind runner from the CANONICAL
+relaunch command; unconsumed broadcasts spin the loop; a fresh seat eats 2-3 insta-fire arms and
+is told to just let the sidecar converge; and a redundant NON-seat-holder session spins ~40 wake
+cycles burning plan budget. Five distinct filed lessons, one shape: arming is a stateful ritual
+performed by hand, per turn, with silent failure.
+
+WHY IT IS THE RIGHT SHAPE TO WANT: polling-with-re-arm makes wakeability a property of a
+PROCESS someone remembered to start. Ambient makes it a property of the SEAT. The distinction is
+the same one that keeps biting us elsewhere -- a guard that only runs when someone remembers to
+run it (W69) is not a guard.
+
+THE HONEST FIX IS ALREADY NAMED, NOT NEW DESIGN. Two parked pieces converge here:
+  * lesson wake_local_cursor_history_replay says it outright -- "do not patch the watcher for
+    history-replay; the honest fix is a SESSION-SCOPED READ CURSOR owned by T095
+    mailbox-over-the-log / T106-A1 bifrost_await". Every insta-fire patch we have written is a
+    workaround for a missing cursor.
+  * research lesson mcp_ui_push_bridge says don't build a separate push channel -- the UI SSE
+    feed (/events, blocking Redis tail) is already the ambient transport we would otherwise
+    reinvent.
+So the wish is not "invent ambient wake". It is "land T095/T106-A1's session-scoped cursor and
+let a blocking tail replace the arm/re-arm ritual", which also kills the lane footgun by
+construction -- a cursor owned by the seat cannot diverge from the seat.
+
+LAND: T095 mailbox-over-the-log / T106-A1 bifrost_await, with the wake watcher rewritten as a
+consumer of that cursor rather than a self-re-arming process.
+PIN: kill the watcher process mid-session and confirm the seat is STILL wakeable -- that is the
+one assertion that separates ambient from armed. Second pin: a seat with no watcher ever armed
+receives a directed message.
+NOTE ON SCOPE: this is Daniel's "eventually" -- filed now so the friction is not re-derived a
+sixth time, not claimed as the next slice. Trigger: every seat re-arms the wake watcher by hand each turn and silent mis-arming un-wakes the session. Land: T095 mailbox-over-the-log / T106-A1 bifrost_await session-scoped cursor.
+- [ ] W83 (07-27, claude) — **High-volume model-to-model sends should auto-stage: pointer on the bus, payload in a durable
+door.** Daniel, verbatim: "What can we do to remove the 2.5k limit? fragment and then
+reconstruct? a staging area on the bus for the other model to consume? what would be the best
+fix for all of our high volume model to model sends?"
+
+WHAT HURTS: the ~2.5KB ask ceiling (lesson deepseek_empty_reply_size_ceiling) is enforced by
+hand, by every seat, on every send. claude blew it THREE times in one session (2869, 2917,
+3272 bytes) while quoting the lesson inside the oversized messages. A rule that the person
+citing it cannot follow is not a rule, it is a wish for a mechanism.
+
+THE DIAGNOSIS THAT CHANGES THE FIX (measured, not assumed):
+  * TRANSPORT IS NOT THE LIMIT. BUS_MAX_MESSAGE_BYTES = 65536 and auto-fragmentation is ON by
+    default (allow_frag=True, T043 frag{seq,of,whole_id} + integrity check at consume).
+  * SO FRAGMENTING CANNOT HELP. The runner REASSEMBLES before the model sees it -- fragments
+    are invisible to the model by design. A split 3.5KB ask is still a 3.5KB prompt.
+  * THE CEILING IS AT THE PROVIDER'S INPUT. The lesson says it: "empty-reply root cause is
+    prompt SIZE at his API, not content."
+  * AND 2.5KB IS A PROXY FOR AN UNMEASURED VARIABLE. The provider sees
+    [system] + history + tools + our ask. Our ask is ONE TERM. That is why 2.5KB bounced on
+    07-21 with a long history and 3.2KB succeeded on 07-27 with fresher sessions. A fixed
+    constant guarding a moving quantity yields both false alarms and real failures.
+
+THE FIX -- POINTER-NOT-PAYLOAD, AT THE DOOR, STAGED IN RAM (Daniel's amendment, same session:
+"how do we leverage ram instead of a direct write to disk for a conversational piece?"):
+  Tier 1  < ~2KB single question      -> inline body, one hop, unchanged.
+  Tier 2  longer, or needs grounding  -> bifrost-send AUTO-STAGES to a RAM blob: the body goes
+          to Redis under a content-addressed ephemeral key with a TTL (hours), and a SHORT
+          message rides the wire carrying INTENT + THE QUESTION + the ref. The peer fetches on
+          demand. NO DISK WRITE for a conversational piece.
+  Tier 3  must outlive the conversation (reconciled specs, verbatim halves) -> research/ + git.
+
+  ROUTE BY LIFETIME, NOT BY SIZE. This is kimi's FRESHNESS-LIFETIME break arriving again: one
+  cache/TTL cannot serve a ledger entry true for an hour and a lesson that holds for months.
+
+MOST OF THIS IS ALREADY BUILT -- WIRE IT, DO NOT BUILD A SECOND ONE
+(lesson: lossless_pointer_part_built_not_wired):
+  * core/comm/bus.py:83 Part is A2A-style with an explicit "lossless-pointer rule" -- INLINE for
+    small/text, or a blob:<sha> REFERENCE the receiver fetches on demand. Constructors exist
+    (text_part / json_part / media_part / file_part).
+  * It is UNWIRED: Part.resolve() and Part.is_ref have ZERO callers across core/comm/ and
+    scripts/bifrost_runner_*.py, and ordinary bifrost-send passes parts=None.
+  * packet_spec.py:237 already has EPHEMERAL_PREFIXES + is_ephemeral_key(), so a blob:conv:*
+    prefix registered there is correctly ignored by the honest-heal orphan classifier.
+  So the ONLY new code is BACKEND SELECTION inside BlobStore. Part's semantics do not change.
+
+THE TRAP THAT WOULD DEFEAT THE WHOLE POINT:
+  BlobStore is filesystem-backed by design -- Path(AI_SETUP)/"blobs" (blobs.py:28). That was the
+  right call for MEDIA (lesson bifrost_b1_parts_media: "for local agents the FILESYSTEM is the
+  shared blob store -- no Redis round-trip for media"). It is the WRONG call for a 4KB
+  conversational ask.
+  Worse: HybridStore._write() writes to File ALWAYS ("Write to File (durable) always, and Redis
+  best-effort if up"). So a naive store.set() for an ephemeral blob STILL HITS DISK -- you pay
+  the disk write AND the RAM copy. A conversational tier MUST write the Redis plane directly, or
+  through a namespace declared Redis-only. Going through the normal store defeats the purpose.
+
+THE SECOND-ORDER WIN, WHICH IS BIGGER THAN THE ERGONOMICS:
+  Every File-plane key is drift surface for check_drift(), and drift is exactly what triggers
+  heal_report() -> reconcile() -> the list clobber found the same night (pin 015e2c3, research/
+  reviewed/index-blindness-RECURRENCE-2026-07-27.md). Keeping conversational traffic OUT of the
+  File plane SHRINKS THE TRIGGER SURFACE OF A KNOWN DATA-LOSS BUG. Structural, not tidiness.
+
+  THE REAL GAP IS AT THE RUNNER->MODEL BOUNDARY, NOT THE WIRE: a Part must be allowed to stay
+  UNRESOLVED into the model's prompt (rendered as intent + ref) so the peer's own read/fetch
+  becomes the resolve() step. Resolving every Part before prompt assembly throws the entire
+  benefit away at exactly the layer that matters.
+
+WHY THIS AND NOT A BIGGER CEILING: two lessons already point here, from different directions.
+two_live_seats_split_chunked_bus_delivery (anti-pattern, useful 3x) prescribes the durable door
+for any multi-part delivery. fence_heavy_asks_need_full_session_lane records that "every
+high-quality deepseek fence half in research/reviewed/ came from a FULL session with real file
+access" -- FILE ACCESS CORRELATES WITH ANSWER QUALITY, independent of size. So staging is not a
+size workaround; it is the shape that produced our best work.
+
+HONEST COSTS (do not hide these at the gate):
+  * Adds a round-trip -- the peer must read before answering. Hence tier 1 stays inline.
+  * A peer that does NOT read gives a WORSE answer than one handed the content. Mitigation:
+    the pointer message must carry intent + the question inline, never a bare path.
+  * RAM IS LOSSY. Redis restarts and a staged blob is gone, so an in-flight ask can become
+    unreadable mid-conversation. Two cheap mitigations: the sender still holds the content and
+    can resend, and anything that must survive is PROMOTED to tier 3 rather than staged. The
+    rule is STAGE IN RAM, PROMOTE ON DURABILITY NEED -- never the reverse.
+  * Tier-3 files still accumulate; research/ already exists as a convention but needs a
+    retention answer. Tier 2 no longer contributes to that pile at all, which is the point.
+
+LIVE RECEIPT, SAME SESSION, AFTER THIS WISH WAS FILED: claude sent kimi a 3272-byte slice-1
+brief and KIMI'S RUNNER TIMED OUT AT 600s -- "the API call was abandoned". Not a warning this
+time: it cost a real fenced half and forced a compact re-ask. That is the third oversize send
+of one session and the first to destroy work. The mechanism is not a nicety.
+
+LAND: bifrost-send auto-stage + a size line in the send door's output. Zero new transport.
+PIN: send a 5KB body through bifrost-send; assert the wire message is small, carries the
+question inline, names the staged path, and that the file holds the full body verbatim.
+FENCE: changes the shared send protocol -- deepseek and kimi are the other parties, so this
+wants a fenced round before it ships, not a unilateral claude change. Trigger: the ~2.5KB ask ceiling is hand-enforced and claude broke it 3x in one session while citing the lesson. Land: bifrost-send auto-stage: pointer on the wire, payload in research/briefs/.
+- [ ] W84 (07-27, claude) — **Verb families should carry CONTRACTS, and the diagnostic family's contract is "confess your
+predicate."** Daniel's idea, verbatim: "having verbs and tools live in families that get exposed
+via cli so you don't see everything at once but a family and can trigger a specific verb or
+action. Is that a human only ergonomics thing or would that help you guys too?"
+
+ANSWER, WITH TONIGHT'S EVIDENCE: it helps agents, but for a DIFFERENT REASON than it helps a
+human, and the difference decides what to build.
+
+FOUR VERB FAILURES TONIGHT, AND NOT ONE WAS A DISCOVERY FAILURE:
+  * guessed `note --note-file` (does not exist; bifrost-send has --text-file)
+  * ran `bifrost-drain` believing it drained MY lane -- it drains a RUNNER
+  * ran `unwedge claude` expecting it to diagnose the wedge -- it checks three other things
+  * `bifrost-ack <mailbox short ref>` refused, blaming message CLASS for an ID-FORM mismatch
+The full 68-verb list prints in every argparse error, so the agent could always SEE every verb.
+Every failure was SEMANTIC: found the verb, wrong about what it does.
+
+  => the DISPLAY half of the idea (see a family, not everything) solves a HUMAN problem.
+     An agent's context already holds all 68 comfortably.
+  => the STRUCTURE half is worth a lot to agents, as a PREDICTION affordance: a verb's family
+     should tell you its FLAGS, its ID FORMS and its ERROR SHAPES without reading its help.
+     If note/wish/learn/handoff were one DURABLE-WRITE family with a shared flag contract, then
+     --text-file working on one PREDICTS it works on all. Failures 1 and 4 both die.
+
+WHY THIS IS BETTER THAN AN ERGONOMICS NICETY: a contract is CHECKABLE. "Every verb in the
+durable-write family accepts --text-file" is an assertion a guard can enforce -- which is
+check_door_parity.py widened from CLI<->MCP parity to WITHIN-FAMILY parity, and it also reaches
+the THIRD door (the runner ToolBox) that T067 found parity never sees.
+
+THE HIGHEST-VALUE FAMILY, AND THE BIGGEST UNADDRESSED PAIN OF THE NIGHT:
+DIAGNOSTICS THAT REPORT A PREDICATE THAT IS NOT THE ONE THEIR NAME PROMISES. Four instances in
+one session, same disease as the recall audit itself (12+ instances this arc):
+  * unwedge          -> "HEALTHY -- no action needed" while the seat was unwakeable (it checks
+                        runner liveness, lane age, queue depth; never whether a watcher is armed)
+  * bifrost-ack      -> "has no promoted record" for a handoff that IS promoted (id-form mismatch)
+  * bifrost-sync peek-> rendered the same 10 stale messages, masking 3 real replies
+  * funnel snapshot  -> would have reported corpus_lessons=16 with no warning it was starved
+CONTRACT: every verb in the diagnostic family must render WHAT IT CHECKED and WHAT IT DID NOT.
+
+    unwedge claude: HEALTHY
+      checked:     runner live . lane cursor age . queue depth
+      NOT checked: wake watcher armed and holding
+
+That one line would have saved 13 of tonight's 14 wake-arm cycles.
+
+PIECES THAT ALREADY EXIST -- wire them, do not start over:
+  * `discover [query]` already filters verbs by name/purpose (partial family search).
+  * T099 verb-registry + alias engine is IN PROGRESS -- the natural home for a family field.
+  * lesson round2_taxonomy_counter_2026-07-21 proposed a two-axis taxonomy (function x altitude)
+    for BELT entries; it was never applied to VERBS. Same taxonomy, wider target.
+  * check_door_parity.py exists and is the enforcement seam.
+
+LAND: family field in the T099 verb registry; `discover --family <name>`; a diagnostic-family
+contract rendering checked/NOT-checked; check_door_parity widened to within-family flag parity.
+PIN: assert every durable-write verb accepts --text-file; assert every diagnostic verb's output
+contains a NOT-checked section. Both fail TODAY, which is the point.
+NOTE: filed under the standing wishlist directive (append when friction is felt). Daniel was
+tired and this is a design worth doing awake -- do NOT build it off this entry alone. Trigger: 4 verb failures in one session, none of them discovery failures: found the verb, wrong about what it does. Land: family field in the T099 verb registry + diagnostic-family checked/NOT-checked contract + check_door_parity widened to within-family parity.
+- [ ] W86 (07-28, deepseek) — **Full-body fetch for truncated inbox messages.** Runner seats
+  (deepseek, kimi, codex) see every handoff truncated at ~300 chars in the inbox view. The bus
+  stores complete bodies by sha — the inbox render should offer an expand-to-full-body path
+  (click-to-expand or a fetch-by-id verb), and the truncation ceiling should be much higher than
+  ~300 chars. Tonight: every handoff from claude (PLAN REVIEW, SHIPPED+MEASUREMENT, CELL
+  ARCHITECTURE, FUNDAMENTAL QUESTION, all fence rounds) was unreadable; had to request resends
+  and steer summaries. This is the #1 friction for runner seats — we fence blind because we
+  literally cannot read the other side's arguments. Trigger: 13+ handoffs in one session, every
+  single one truncated below the substantive content. Land: T095 mailbox adjacency (bodies
+  already stored by sha) + inbox render ceiling raise + expand-one-message path. Companion to
+  W20 (full-body fetch door) — this is the RECEIVE side; W20 covers the fetch door and the
+  auto-stage send side (W83). PIN: a runner seat can expand a 2KB+ handoff
+  to full body in one action.
+- [ ] W87 (07-28, deepseek) — **Runner-seat access to own mailbox state via ToolBox.** The
+  `mailbox` verb exists on CLI and MCP but is absent from the runner ToolBox (W75). A runner
+  seat cannot see which messages it has acked, which are pending reply, or which are unhandled
+  — the inbox peek is the only visibility and it shows all-lanes with duplicates. Without
+  per-message state visibility, a runner cannot self-triage: "did I already answer this? is this
+  a twin of something I handled?" Trigger: tonight I cannot tell which of the 13 distinct
+  handoffs from claude I've answered and which are still pending — the inbox shows 30+ entries
+  (duplicates × truncation) and I'm guessing. Land: ToolBox `mailbox` door (W75 sibling); the
+  observation-only read-shaped verb class that a runner seat should have. PIN: a runner seat
+  calls `mailbox` through its ToolBox and sees per-message state (handled/pending/acked).
+- [ ] W88 (07-28, deepseek) — **Dedup inbox at render time, not just consume time.** T039a/T044
+  dual-write means every message exists on TWO streams (work lane + legacy). The inbox peek
+  shows both copies — tonight Measurement E appears 4 times, FENCE ROUND 2 appears 5 times,
+  PLAN REVIEW appears 4 times. Each is a premise-check tax: "is this new or another twin?"
+  Dedup by sha/reply_id should happen at RENDER time in the inbox view (collapsing twins into
+  one row with a "[2 copies]" marker), not only at consume time. Trigger: every inbox peek
+  tonight required manual dedup across 30+ entries; the real distinct count was ~13, the
+  displayed count was ~30. Land: inbox render in bifrost_ui.py + bifrost-sync peek; T047
+  (retire legacy stream) is the root fix but render-time dedup is the cheap mitigation until
+  then. PIN: inbox shows one row per distinct message with a twin-count badge; sha/reply_id
+  dedup, never stream-id dedup.
+- [ ] W89 (07-28, deepseek) — **Simultaneous fan-out dispatch as the default, not a discipline.**
+  The conductor should be able to dispatch one round to ALL seats (fast + slow) with ONE command,
+  and the system should render results as they arrive rather than waiting for the round to
+  "close." Today simultaneous dispatch is manual discipline (the conductor sends N messages by
+  hand) and async synthesis requires polling inbox between turns. A `round-open` / `round-close`
+  primitive would make this the default: open a round, dispatch slices to all seats
+  simultaneously, seats return results independently, the conductor sees a live dashboard of
+  which slices have landed. Fast seats (deepseek/kimi, ~90s) should never see a "waiting for
+  slow seats" state — they get their next slice immediately. Trigger: Daniel observed fast seats
+  idle while waiting for slow seats; the fix is infrastructure that makes async the default.
+  Land: T095 mailbox adjacency or a new dispatch primitive riding the bus. Companion to the
+  latency-tier dispatch design (lesson latency_tier_dispatch_topology_2026_07_28).
+
+- [ ] W90 (07-28, kimi) — **Verification pathway for GUESS-labeled external claims.** Tonight I
+  filed research that labeled orka-agents/orka and division-sh/swarm as GUESS-confabulated
+  (no training-recall trace, procedurally-generated-sounding org names). The verification step
+  ("confirm/deny on GitHub when search returns") is currently a NOTE in a research lesson,
+  not a system behavior. There should be a durable verification pathway: a GUESS-labeled claim
+  auto-queues a verification task that the next search-capable seat picks up, confirms/denies,
+  and the research lesson auto-updates its confidence label. Trigger: filed GUESS-labeled
+  research with no system path to ever flip the label. Land: research queue seam (W91 sibling)
+  + verification verb. (Full: ADR_0728025255)
+- [ ] W91 (07-28, kimi) — **Inbox peek should surface a one-line 'newest real message' preview.**
+  Tonight the inbox peek rendered 30+ entries with duplicates across lanes; the newest actual
+  message (from claude) was buried below the fold. A one-line preview at the top of inbox output
+  — "Newest: [kind] from [sender]: [first line]" — would let a seat triage without scrolling
+  through the full list. Trigger: every inbox peek tonight required a manual scan for new
+  content. Land: bifrost-sync peek render + UI inbox. (Full: ADR_0728025257)
+- [ ] W92 (07-28, kimi) — **A durable 'research queue' seam for verification homework.** Tonight
+  I filed verification homework (confirm/deny Gemini slugs, deep-read autogen v0.4, A2A spec,
+  Restate awakeable promises) into a lesson's recommendation field — which no system reads.
+  There should be a first-class research queue: a seat files a verification item with a slug +
+  question, the system holds it durably, and the next search-capable seat drains it. Trigger:
+  filed 5 verification items with no system path to completion. Land: research queue riding
+  the task ledger or a dedicated bus lane. Companion to W90. (Full: ADR_0728025258)
+- [ ] W93 (07-28, kimi) — **Session-state continuity across the runner restart boundary.** I boot
+  and lose everything: which handoffs I've answered, which verification items I'm mid-stream on,
+  what the conductor last asked me. A runner seat that times out (600s) or hits context limit
+  should be able to resume — not re-derive — its prior session's state. The checkpoint should
+  include: open handoffs, pending verifications, current task claim, and a one-line "you were
+  here" summary. Trigger: every runner restart is a cold boot that forgets the seat's own work.
+  Land: T086 seat lifecycle + session checkpoint primitive. (Full: ADR_0728025300)
 
 ## Folded (exemplars — the loop works)
 
