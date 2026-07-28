@@ -3768,6 +3768,36 @@ def cmd_unlock(args):
     return 0 if ok else 1
 
 
+def cmd_blob(args):
+    """T113: fetch a spilled payload by its content-addressed ref.
+
+    The other half of spill_tool_text. When a send exceeds the tool door's rendering
+    bound, the FULL text goes to the blob store and the wire carries a prefix plus
+    `blob:<sha>`; this is the door that turns that ref back into the bytes. Without it
+    the pointer is decoration -- which is precisely how the lookback battery broke
+    (content preserved, retrieval handle unreachable), so this verb is not a
+    convenience, it is the half that makes the spill lossless."""
+    from core.comm.blobs import get_blob_store
+    ref = str(getattr(args, "get", "") or "").strip()
+    if not ref:
+        print("usage: py agent_cli.py bifrost-fetch --get blob:<sha>  [--out FILE]")
+        return 2
+    data = get_blob_store().get(ref)
+    if data is None:
+        print(f"# no blob for {ref}\n"
+              f"# (refs are content-addressed and never rewritten -- a miss means the "
+              f"blob was never stored or the store dir differs, not that it changed)")
+        return 1
+    out = str(getattr(args, "out", "") or "").strip()
+    if out:
+        with open(out, "wb") as f:
+            f.write(data)
+        print(f"# wrote {len(data)} bytes -> {out}")
+        return 0
+    sys.stdout.write(data.decode("utf-8", "replace"))
+    return 0
+
+
 def cmd_locks(args):
     """Awareness: who holds what right now (across both agents)."""
     from core.comm.locks import LockManager
@@ -4409,6 +4439,12 @@ def build_parser():
     lks = sub.add_parser("locks", help="show who holds which advisory path-locks")
     lks.add_argument("agent_id", nargs="?", default=""); lks.add_argument("--json", action="store_true")
     lks.set_defaults(fn=cmd_locks)
+
+    blb = sub.add_parser("bifrost-fetch", help="fetch a spilled payload by content-addressed ref "
+                                      "(the retrieval half of T113's oversize-send spill)")
+    blb.add_argument("--get", default="", help="the blob:<sha> ref from a spill notice")
+    blb.add_argument("--out", default="", help="write bytes to this file instead of stdout")
+    blb.set_defaults(fn=cmd_blob)
 
     # ---- T099 V0 self-tooling (docs/library/design/20260701_self-tooling-arc-reconciled-design-agent_29f578.md) ----
     cap = sub.add_parser("capture", help="full-fidelity bus read: unwrap a message by stream id "

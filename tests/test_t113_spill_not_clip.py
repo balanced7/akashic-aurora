@@ -129,3 +129,36 @@ def test_p7_a_blob_failure_degrades_to_the_old_clip(monkeypatch):
     assert not (meta or {}).get("spill_ref"), "no ref may be advertised when none was stored"
     assert "clipped" in out.lower(), (
         f"falling back must still CONFESS -- RB-5 holds in every branch: {out[-200:]!r}")
+
+
+# --------------------------------------------------------------- P8 the door must exist
+def test_p8_the_retrieval_door_we_advertise_actually_exists():
+    """CAUGHT ON MYSELF, minutes after writing the T113 commit message that criticised
+    exactly this. The spill confession instructs the reader to run
+    `py agent_cli.py blob --get <ref>` -- and agent_cli had no `blob` verb. That is the
+    lookback battery's disease reproduced by the person documenting it: content
+    preserved, handle unreachable.
+
+    Structural, so it cannot rot: whatever verb the confession names must be a real
+    agent_cli subcommand."""
+    import ast
+    import re
+
+    out, _ = packet_spec.spill_tool_text(BIG)
+    m = re.search(r"agent_cli\.py\s+([a-z][a-z0-9_-]*)", out)
+    assert m, f"the confession must name a concrete retrieval command: {out[-300:]!r}"
+    verb = m.group(1)
+
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    with open(os.path.join(root, "agent_cli.py"), encoding="utf-8") as f:
+        tree = ast.parse(f.read())
+    registered = {
+        n.args[0].value for n in ast.walk(tree)
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+        and n.func.attr == "add_parser" and n.args
+        and isinstance(n.args[0], ast.Constant) and isinstance(n.args[0].value, str)}
+    assert verb in registered, (
+        f"DEAD HANDLE: the spill notice tells the reader to run `agent_cli.py {verb}`, "
+        f"which is not a registered subcommand. A pointer nobody can follow is worse "
+        f"than a clip that admits the loss -- it looks like the data is reachable. "
+        f"Registered verbs: {sorted(registered)[:12]}...")

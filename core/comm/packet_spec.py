@@ -439,6 +439,52 @@ def bound_tool_text(text: Any, limit: int = TOOL_SEND_TEXT_MAX) -> str:
                           "resend in chunks]")
 
 
+def _blob_store():
+    """Indirection so a test can break the store and prove the fallback (T113 P7)."""
+    from core.comm.blobs import get_blob_store
+    return get_blob_store()
+
+
+def spill_tool_text(text: Any, limit: int = TOOL_SEND_TEXT_MAX) -> Tuple[str, Dict[str, Any]]:
+    """T113: the ToolBox send door, LOSSLESS. Returns (text_for_the_wire, meta_to_merge).
+
+    The bound stays -- 8000 chars in one runner turn is a real rendering concern -- but
+    the overflow is STORED rather than destroyed. blobs.py exists for exactly this and
+    calls it the lossless-pointer rule: the bytes go to a content-addressed blob, the
+    wire carries a short prefix plus the ref, and the reader fetches the rest on demand.
+
+    Before this, `bound_tool_text` kept a prefix and appended a confession, and the tail
+    was simply gone -- deepseek's demand-census detail past case 30 died that way, on a
+    path where the transport underneath (64KB MTU + auto-fragmentation, T043) never
+    needed us to drop anything.
+
+    The confession now says FETCHABLE, not "did NOT send". The old wording instructed the
+    sender to re-send the whole message, which is precisely the duplicate-ask defect T112
+    closed -- an error message should not teach the behaviour the next layer has to undo.
+
+    Degrades to the historical clip if the store is unreachable: today's behaviour is the
+    floor, never a dropped message. RB-5 holds in every branch -- a bound always confesses.
+    """
+    text = "" if text is None else str(text)
+    if len(text) <= limit:
+        return text, {}
+
+    full_len = len(text)
+    try:
+        ref = _blob_store().put(text.encode("utf-8"))
+    except Exception:
+        ref = ""
+    if not ref:
+        return bound_tool_text(text, limit), {}          # P7: the old floor
+
+    note = (f"\n\n[spilled: {full_len} chars total, first {{keep}} shown. "
+            f"The FULL text is stored at {ref} -- fetch it, do NOT ask for a resend. "
+            f"Retrieve with: py agent_cli.py bifrost-fetch --get {ref}]")
+    keep = max(0, limit - len(note.format(keep=full_len)) - 8)
+    return text[:keep] + note.format(keep=keep), {
+        "spilled": True, "spill_ref": ref, "spill_len": full_len, "spill_kept": keep}
+
+
 def clip_stamp(text: Any, limit: int = TOOL_SEND_TEXT_MAX) -> Optional[Dict[str, Any]]:
     """P2: durable CLIPPED stamp for envelope meta -- returns a dict with clip facts when
     the text exceeds the bound, or None when it fits. Callers merge this into their

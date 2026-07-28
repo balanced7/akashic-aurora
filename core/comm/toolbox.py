@@ -113,6 +113,8 @@ TOOLS = [
          "text": {"type": "string", "description": "the message"},
          "kind": {"type": "string", "description": "chat|note|request|handoff (default chat)"}}, ["to", "text"]),
     _fn("bifrost_inbox", "Peek your own unread bus messages (does not consume them). Use to check whether a peer replied.", {}),
+    _fn("bifrost_fetch", "Fetch the FULL text of a message that was spilled because it exceeded the send door's rendering bound. When a message ends with '[spilled: N chars total ... stored at blob:<sha>]', that ref holds every byte -- call this with it instead of asking the sender to resend. Asking for a resend costs them a whole turn and the bytes are already here.",
+        {"ref": {"type": "string", "description": "the blob:<sha> ref printed in the spill notice"}}, ["ref"]),
     _fn("bifrost_ack", "Mark a bus message as HANDLED (durable ack) so your inbox stops showing it as needing action. Use for messages you handled silently (read-and-filed); handoffs you ANSWER are auto-acked. Only the addressee's ack is accepted.",
         {"message_id": {"type": "string", "description": "the bus message id, e.g. '1784082287759-0'"}}, ["message_id"]),
     _fn("bifrost_nudge", "HARD interrupt a specific peer (e.g. 'claude'): make it drop its current work and look at this now (sets its barge-in flag AND sends a nudge). Use sparingly, for genuine 'stop and switch' moments.",
@@ -513,9 +515,13 @@ class ToolBox:
             return "ERROR: not on a Bifrost bus in this mode (no agent identity, or Redis offline)."
         to = str(to).strip().lower()
         raw_text = str(text or "")
-        text = packet_spec.bound_tool_text(raw_text)   # D3: 8000 door (deepseek verdict 2026-07-19), RB-5 confession retained
+        # T113: SPILL, do not clip -- the overflow goes to a content-addressed blob and
+        # the wire carries a prefix + the ref. The bound stays (one runner turn is a real
+        # rendering limit); the BYTES stop being destroyed on a path where the transport
+        # beneath (64KB MTU + auto-fragmentation) never needed us to drop anything.
+        text, spill = packet_spec.spill_tool_text(raw_text)
         meta: Dict[str, Any] = {"via": f"{self.agent_id}-tool", "hops": 0}
-        clip = packet_spec.clip_stamp(raw_text)
+        clip = spill or packet_spec.clip_stamp(raw_text)
         if clip:
             meta.update(clip)                          # P2: durable CLIPPED stamp rides on the envelope
         try:
@@ -529,12 +535,35 @@ class ToolBox:
         except Exception as e:
             return f"ERROR: bifrost_send failed: {type(e).__name__}: {e}"
 
+    def bifrost_fetch(self, ref):
+        """T113: the retrieval half of the oversize-send spill.
+
+        Without this the spill notice is decoration for every agent that reads through
+        the ToolBox rather than the CLI -- a pointer they cannot follow, which is the
+        lookback battery's exact disease (content preserved, handle unreachable) one
+        layer up. Transport is only lossless if the READER has a door."""
+        from core.comm.blobs import get_blob_store
+        ref = str(ref or "").strip()
+        if not ref:
+            return "ERROR: bifrost_fetch needs the blob:<sha> ref from the spill notice."
+        try:
+            data = get_blob_store().get(ref)
+        except Exception as e:
+            return f"ERROR: bifrost_fetch failed: {type(e).__name__}: {e}"
+        if data is None:
+            return (f"ERROR: no blob for {ref}. Refs are content-addressed and never "
+                    f"rewritten, so a miss means it was never stored -- not that it changed.")
+        return data.decode("utf-8", "replace")
+
     def bifrost_inbox(self):
         """Peek my unread bus messages (does NOT consume them, so the runner still processes them
         normally). Use to check whether a peer has replied. W4: consecutive same-kind traces from
         the same agent collapse to one summary line (shared render_collapsed in agent/bifrost_pull,
         using packet_spec.is_trace_kind as the single classification source). Work/sig mail is
-        always shown verbatim. Prior art: rsyslog pmlastmsg, Grafana Loki, OTel tail-sampling."""
+        always shown verbatim. Prior art: rsyslog pmlastmsg, Grafana Loki, OTel tail-sampling.
+        
+        W82 (07-28, deepseek): max_len was 220, making every handoff unreadable. Now defaults
+        to 2000 via render_collapsed, so a runner can actually READ the messages in its inbox."""
         b = self._bus()
         if b is None:
             return "ERROR: not on a Bifrost bus in this mode (no agent identity, or Redis offline)."
@@ -579,9 +608,13 @@ class ToolBox:
         if to in ("*", "all", "both", ""):
             return "ERROR: a nudge must target one agent (e.g. 'claude'), not a broadcast."
         raw_text = str(text or "")
-        text = packet_spec.bound_tool_text(raw_text)   # D3: 8000 door (deepseek verdict 2026-07-19), RB-5 confession retained
+        # T113: SPILL, do not clip -- the overflow goes to a content-addressed blob and
+        # the wire carries a prefix + the ref. The bound stays (one runner turn is a real
+        # rendering limit); the BYTES stop being destroyed on a path where the transport
+        # beneath (64KB MTU + auto-fragmentation) never needed us to drop anything.
+        text, spill = packet_spec.spill_tool_text(raw_text)
         meta: Dict[str, Any] = {"via": f"{self.agent_id}-tool", "hops": 0}
-        clip = packet_spec.clip_stamp(raw_text)
+        clip = spill or packet_spec.clip_stamp(raw_text)
         if clip:
             meta.update(clip)                          # P2: durable CLIPPED stamp
         try:
@@ -605,9 +638,13 @@ class ToolBox:
         if to in ("*", "all", "both", ""):
             return "ERROR: a steer must target one agent (e.g. 'claude'), not a broadcast."
         raw_text = str(text or "")
-        text = packet_spec.bound_tool_text(raw_text)   # D3: 8000 door (deepseek verdict 2026-07-19), RB-5 confession retained
+        # T113: SPILL, do not clip -- the overflow goes to a content-addressed blob and
+        # the wire carries a prefix + the ref. The bound stays (one runner turn is a real
+        # rendering limit); the BYTES stop being destroyed on a path where the transport
+        # beneath (64KB MTU + auto-fragmentation) never needed us to drop anything.
+        text, spill = packet_spec.spill_tool_text(raw_text)
         meta: Dict[str, Any] = {"via": f"{self.agent_id}-tool", "hops": 0, "display_only": True}
-        clip = packet_spec.clip_stamp(raw_text)
+        clip = spill or packet_spec.clip_stamp(raw_text)
         if clip:
             meta.update(clip)                          # P2: durable CLIPPED stamp
         try:

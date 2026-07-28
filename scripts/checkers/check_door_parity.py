@@ -119,6 +119,11 @@ MANIFEST = {
     # slice 1b: note/notes + lock/unlock/locks + tag_anti_pattern + bifrost_nudge now have MCP twins
     "note": "shared", "notes": "shared", "lock": "shared", "unlock": "shared", "locks": "shared",
     "tag_anti_pattern": "shared", "bifrost_nudge": "shared",
+    # T113: the retrieval half of the oversize-send spill. CLI verb `blob` and ToolBox
+    # tool `bifrost_fetch` are the SAME door under two names -- a spill notice is read
+    # by runners (ToolBox) and by operators (CLI), and a pointer either one cannot
+    # follow is a dead handle, which is precisely how the lookback battery broke.
+    "bifrost_fetch": "gap",
     # R8 (T059): knowledge_map walks the lesson/note/doc graph -- an agent-facing read verb
     # (B5's whole point: an agent OR Daniel walks the knowledge), so it ships on both doors.
     "knowledge_map": "shared", "task": "shared",
