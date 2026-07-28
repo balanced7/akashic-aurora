@@ -175,9 +175,20 @@ def _resolve_link(answers_id: Any, recs: Dict[str, Dict[str, Any]]) -> Optional[
         return a
     try:
         c = _client()
-        sib = c.get(f"{_ns()}:idalias:{a}") if c is not None else None
-        if sib and str(sib) in recs:
-            return str(sib)
+        # Bounded alias walk (2 hops): a reply to a REDRIVE names the redrive's
+        # LANE id -> its legacy sibling (emit alias) -> the ORIGINAL ask (redrive
+        # alias). One hop covers the plain dual-write pair; two covers a redrive's
+        # sibling. Bounded, never a loop: each hop must strictly resolve.
+        cur = a
+        for _ in range(2):
+            if c is None:
+                break
+            sib = c.get(f"{_ns()}:idalias:{cur}")
+            if not sib:
+                break
+            cur = str(sib)
+            if cur in recs:
+                return cur
     except Exception:
         pass
     return None
@@ -220,12 +231,25 @@ def sweep(sender: str, now: Optional[float] = None) -> Dict[str, List[str]]:
             except Exception:
                 return False               # marker unreadable -> behave as before
 
-        def _mark_settled(rid) -> None:
+        # T117 P10 (sol's fault injection): settle+mark is ONE ATOMIC TRANSITION.
+        # The best-effort mark AFTER hdel meant a failed marker SET with a healthy
+        # HDEL restored the double-settlement on the next sweep. Lua: the marker is
+        # written (NX, TTL bounded by the ASK'S OWN horizon, not a flat 48h --
+        # within_s has no API max) and the expectation deleted in one script; if the
+        # script cannot run, the expectation SURVIVES -- a loud redrive beats silent
+        # wrong-work settlement.
+        _SETTLE_LUA = ("redis.call('SET', KEYS[1], '1', 'EX', tonumber(ARGV[2]), 'NX') "
+                       "redis.call('HDEL', KEYS[2], ARGV[1]) return 1")
+
+        def _settle_atomic(oid, rid, rec) -> bool:
             try:
-                if rid:
-                    c.set(f"{_ns()}:reply_settled:{sender}:{rid}", "1", ex=172800)
+                horizon = max(172800, int(float(rec.get("within_s", MIN_WITHIN_S)))
+                              * (int(rec.get("redrives_left", 0)) + 2) * 4)
+                c.eval(_SETTLE_LUA, 2, f"{_ns()}:reply_settled:{sender}:{rid}", key,
+                       oid, horizon)
+                return True
             except Exception:
-                pass                       # best-effort: a lost marker costs one re-check
+                return False               # expectation stays armed; never half-settle
 
         replies = _answers_since(sender, oldest)
         linked = set()                         # T117: replies whose link RESOLVED
@@ -234,12 +258,14 @@ def sweep(sender: str, now: Optional[float] = None) -> Dict[str, List[str]]:
                 linked.add(getattr(r, "id", None))   # spent: never reaches FIFO either
                 continue
             a = _resolve_link((getattr(r, "meta", None) or {}).get("answers"), recs)
-            if a:
-                c.hdel(key, a)
+            # T117 P9 (sol): the precise path checks WHO answered -- P5 guarded FIFO
+            # only, so a reply from agent X naming Y's ask id settled Y's ask.
+            if a and recs[a].get("to") != getattr(r, "frm", None):
+                a = None
+            if a and _settle_atomic(a, getattr(r, "id", None), recs[a]):
                 del recs[a]
                 out["cleared"].append(a)
                 linked.add(getattr(r, "id", None))
-                _mark_settled(getattr(r, "id", None))
         for r in replies:                      # 2) FIFO fallback: one clear per reply
             # T117: skip only replies whose link actually RESOLVED (or that already
             # settled an ask on a PRIOR sweep). A reply naming an id we do not hold
@@ -251,16 +277,21 @@ def sweep(sender: str, now: Optional[float] = None) -> Dict[str, List[str]]:
                  if rec.get("to") == getattr(r, "frm", None)
                  and _id_tuple(rec.get("anchor", "0")) < _id_tuple(getattr(r, "id", "0"))),
                 key=lambda kv: float(kv[1].get("created", 0)))
-            if cands:
+            if cands and _settle_atomic(cands[0][0], getattr(r, "id", None), cands[0][1]):
                 oid = cands[0][0]
-                c.hdel(key, oid)
                 del recs[oid]
                 out["cleared"].append(oid)
-                _mark_settled(getattr(r, "id", None))
         for oid, rec in list(recs.items()):    # 3) deadlines
             if now < float(rec.get("deadline_ts", 0)):
                 continue
-            settle = _terminal_task_settle(rec.get("content"))   # T076c: echoes of DONE
+            # T117 P11 debug find: this probe reads the TASK PLANE, and in an isolated
+            # env (or any task-store outage) it RAISED -- sweep's outer catch then
+            # swallowed the whole deadline loop, so REDRIVES silently stopped. A
+            # settle-probe failure means "cannot prove settled", never "stop redriving".
+            try:
+                settle = _terminal_task_settle(rec.get("content"))   # T076c: echoes of DONE
+            except Exception:
+                settle = None
             if settle is not None:                               # work settle, never redrive
                 try:
                     from core.events.event_log import capture_event
@@ -277,8 +308,19 @@ def sweep(sender: str, now: Optional[float] = None) -> Dict[str, List[str]]:
             if int(rec.get("redrives_left", 0)) > 0:
                 from core.comm.bus import Bus
                 attempt = int(rec.get("attempt", 0)) + 1
-                Bus(str(sender)).send(rec["to"], rec.get("kind", "request"), rec.get("content"),
-                                      meta={"redrive_of": oid, "attempt": attempt})
+                new_mid = Bus(str(sender)).send(rec["to"], rec.get("kind", "request"),
+                                                rec.get("content"),
+                                                meta={"redrive_of": oid, "attempt": attempt})
+                # T117 P11 (sol): the peer answers the only id it ever SAW -- the
+                # redrive's. Alias it to the ORIGINAL ask, or the reply resolves to
+                # nothing and the original redrives again: the disease reborn one
+                # generation down. (_resolve_link follows aliases, so the redrive's
+                # lane sibling reaches the original in two hops.)
+                if new_mid:
+                    try:
+                        c.set(f"{_ns()}:idalias:{new_mid}", oid, ex=172800)
+                    except Exception:
+                        pass
                 rec.update(attempt=attempt,
                            redrives_left=int(rec.get("redrives_left", 0)) - 1,
                            deadline_ts=now + int(rec.get("within_s", MIN_WITHIN_S)))

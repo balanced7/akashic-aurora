@@ -311,10 +311,23 @@ def test_p11_a_reply_to_the_redrive_settles_the_original(sender, monkeypatch):
 
     sent = {}
     class _FakeBus:
+        """TEST-DOUBLE WIDTH LESSON, learned by three rounds of ghost-chasing: sweep
+        reaches core.comm.bus TWICE -- the redrive's `Bus(sender).send`, and
+        `_client()` via get_bus, which CONSTRUCTS Bus per call. The first draft
+        replaced the class without `_client`, so `_client()` hit AttributeError,
+        the except returned None, and sweep exited at the top looking exactly like
+        'the redrive never fired'. A double must satisfy EVERY door the seam uses,
+        or it tests a system that does not exist."""
+        _client = E._client()                     # the real client: get_bus path stays alive
+
         def __init__(self, *a, **k): pass
+
         def send(self, to, kind, content, meta=None):
             sent["mid"] = "1785228000000-0"
             return sent["mid"]
+
+        def tail(self):
+            return {"inbox": "0", "bc": "0"}
     import core.comm.bus as bus_mod
     monkeypatch.setattr(bus_mod, "Bus", _FakeBus)
 
