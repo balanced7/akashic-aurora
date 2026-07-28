@@ -149,6 +149,63 @@ def test_f1_drainer_ring_collects_output(monkeypatch, tmp_path):
     assert "line 49" in tail, f"F1: drainer must collect ALL output, got {len(tail)} chars"
 
 
+def test_f1_utf8_decode_error_cannot_kill_drainer_and_wedge_child(monkeypatch, tmp_path):
+    """F1-UTF8: the managed reader must explicitly decode the UTF-8 that runners emit.
+
+    Windows defaults a bare ``Popen(text=True)`` reader to cp1252.  Runners call
+    ``self_bless_stdout()`` and therefore emit UTF-8.  A valid UTF-8 continuation byte
+    that cp1252 cannot decode used to raise inside the drainer's broad exception guard;
+    the guard hid the dead reader, the pipe filled, and the still-live child blocked in
+    write/flush.  The no-newline flood below matches DeepSeek's streamed-token shape.
+    """
+    import scripts.bifrost_child as child_mod
+
+    child_script = tmp_path / "child_utf8_flood.py"
+    child_script.write_text(
+        f"import sys\nsys.path.insert(0, {ROOT!r})\n"
+        "from core.foundation.streams import self_bless_stdout\n"
+        "self_bless_stdout()\n"
+        "print('\\u3041', flush=True)\n"  # UTF-8 e3 81 81; cp1252 cannot decode 0x81
+        "for _ in range(256):\n"
+        "    print('x' * 2048, end='', flush=True)\n"
+        "print('DONE', flush=True)\n",
+        encoding="utf-8",
+    )
+
+    real_popen = child_mod.subprocess.Popen
+
+    def _cp1252_when_reader_is_implicit(*args, **kwargs):
+        # Make the Windows default deterministic on every test host.  A production
+        # reader that declares UTF-8 is left untouched and passes this exact drill.
+        if kwargs.get("encoding") is None:
+            kwargs["encoding"] = "cp1252"
+        return real_popen(*args, **kwargs)
+
+    monkeypatch.setattr(child_mod.subprocess, "Popen", _cp1252_when_reader_is_implicit)
+    mc = ManagedChild(
+        [sys.executable, str(child_script)],
+        env=dict(os.environ),
+        cwd=ROOT,
+        breaker_max=10,
+    )
+    try:
+        mc.spawn()
+        deadline = time.time() + 4.0
+        while mc.alive and time.time() < deadline:
+            time.sleep(0.02)
+        assert not mc.alive, (
+            "F1-UTF8: child is still alive after its bounded write -- the decoder killed "
+            f"the drainer and the pipe filled (drainer_alive={mc._drainer.is_alive()}, "
+            f"drainer_done={mc._drainer_done.is_set()}, ring_lines={len(mc._ring)})")
+        assert mc.poll() == 0
+        tail = "\n".join(mc._ring)
+        assert "\u3041" in tail and "DONE" in tail, (
+            "F1-UTF8: the drainer must preserve Unicode and reach the final sentinel")
+    finally:
+        if mc.alive:
+            mc.terminate()
+
+
 def test_child_benign_exit_resets_and_stops():
     """N1: exit 0 = deliberate handover. Backoff resets, _next_spawn_at = inf
     so the daemon never auto-respawns."""
