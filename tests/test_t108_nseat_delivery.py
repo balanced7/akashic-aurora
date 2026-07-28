@@ -131,6 +131,51 @@ def test_pin2_dead_seat_directed_mail_rehomes():
         "survivor still cannot reach it. Survivor saw: " + (bodies_b[:300] or "(nothing)"))
 
 
+def test_pin3_never_beaten_orphan_stream_still_reaped():
+    """kimi's S4 seam, NARROWED to the real residual: a seat that received directed mail but
+    died BEFORE ITS FIRST-EVER heartbeat leaves no worklive, no seatseen witness, no roster
+    row -- and reap()-over-roster-rows can never see it. Its mail strands forever: the
+    confident-zero in the organ built against stranding, on exactly the seats most likely
+    to strand (crash-at-birth). The reaper must ALSO scan orphan seat streams -- discriminated
+    by AGE (newest entry older than the worklive TTL + grace, so a just-born seat whose mail
+    arrived before its first boot-beat is NEVER robbed)."""
+    ns = NS + "o"
+    sender = Bus("deepseek", namespace=ns)
+    if not getattr(sender, "online", True):
+        print("SKIPPED (Redis not running)")
+        return
+    from core.comm import reaper
+    # Mail lands on a seat that NEVER beats (no heartbeat call at all)...
+    sender.send(AGENT, "note", f"orphan-{NS}", meta={"to_incarnation": SEAT_A})
+    # ...and it is OLD (backdate the stream entry's age by rewriting with an old id is not
+    # possible on XADD *, so the pin injects the age floor instead).
+    rehomed = reaper.reap(ns, _orphan_min_age_s=0)          # age floor 0 = eligible now
+    assert any(f"{AGENT}#" in str(r.get("seat")) for r in rehomed), (
+        "ORPHAN STRAND: a never-beaten seat's mail is invisible to a roster-row-only reaper "
+        f"-- kimi's seam, narrowed. reap() must scan orphan seat streams too. Got: {rehomed}")
+    seen_b = _drain_all(_seat_bus(SEAT_B, ns))
+    bodies = " | ".join(str(getattr(m, "content", m)) for m in seen_b)
+    assert f"orphan-{NS}" in bodies, f"survivor must receive the orphan's mail: {bodies[:200]}"
+    # And the discrimination: a FRESH orphan (age floor high) is NEVER robbed.
+    sender.send(AGENT, "note", f"fresh-{NS}", meta={"to_incarnation": SEAT_B + "9"})
+    assert not reaper.reap(ns), (
+        "JUST-BORN SEAT ROBBED: a fresh orphan stream (younger than the age floor) was "
+        "reaped -- the discrimination that protects a seat whose mail arrived before its "
+        "first boot-beat is missing")
+
+
+import pytest as _pytest
+
+
+@_pytest.mark.xfail(strict=False, reason=(
+    "PRE-REGISTERED (kimi S4 fence, defect not delta): a re-homed DIRECTED ask must re-point "
+    "the original asker's EXPECTATION at the claiming seat, or the answer never settles it "
+    "(T026 settle-on-answer bent -- the asker's expectation stays aimed at a dead seat). "
+    "Closes with the XREADGROUP claimable-home upgrade; flips to hard then."))
+def test_pin4_rehomed_ask_expectation_repoints_on_claim():
+    raise AssertionError("expectation re-pointing not built until the claimable-home upgrade")
+
+
 if __name__ == "__main__":
     test_pin1_directed_mail_never_crosses_seats()
     test_pin2_dead_seat_directed_mail_rehomes()
