@@ -200,3 +200,31 @@ def test_d1_an_unknown_program_never_matches_even_wearing_a_count_suffix():
             f"UNKNOWN/MUTATING SEGMENT SILENCED: {action!r} -> {v}. A denylist fails "
             f"toward SILENCING when the unknown mutator wears a known sink; the "
             f"allowlist grammar fails toward FIRING, which is the bar's law.")
+
+
+# --------------------------------------------------------------- E-pins: the instrument stop
+def test_e1_the_pack_renderer_never_clips_an_action():
+    """sol's INSTRUMENT STOP: precision_audit.py rendered action[:300] while telling
+    judges they saw THE ACTION ACTUALLY TAKEN. 11/30 frozen-pack actions clipped
+    mid-token -- including case 15, whose recovered tail contains a FILE WRITE the
+    truncation hid from both judges and every rule review. T113's silent-clip
+    disease inside the evaluation instrument itself. A pack renderer either shows
+    the whole action or says LOUDLY that it could not."""
+    import inspect
+    from core.recall import precision_audit as PA
+    src = inspect.getsource(PA)
+    import re as _re
+    assert not _re.search(r"\[\s*:\s*300\s*\]", src), (
+        "the silent [:300] clip is still in the renderer -- every pack drawn from it "
+        "trains judges and rules on partial evidence")
+
+
+def test_e2_inline_transform_is_dead():
+    """sol's smoking gun: _INLINE_TRANSFORM ('heredoc + import re') was never a
+    count principle -- it existed to buy the fifth match, and the recovered case-15
+    body proves it silenced an actual three-file REWRITE. The vocabulary entry
+    dies entirely: not reachable, not digested, not resurrectable by a future
+    refactor that consults the tuple."""
+    assert not hasattr(G, "_INLINE_TRANSFORM"), (
+        "_INLINE_TRANSFORM still exists -- it classified open(p,'wb').write(out) "
+        "as a read-only count")
