@@ -1,8 +1,9 @@
 """mailbox -- T095 M0: shadow mailbox state index over the append-only lanes.
 
 Read-only follower: derives per-message per-agent state from what the streams
-already contain.  Evidence ladder (docs/library/design/20260701_comms-mailbox-over-the-log-t095-governin_06357f.md sec 2,
-counter-folded 2026-07-18):
+already contain.  Evidence ladder (docs/library/design/20260701_comms-mailbox-over-the-log-t095-governin_06357f.md
+sec 2, counter-folded 2026-07-18; pointer verified against the archived filename 2026-07-28 --
+it ends "governin_", a one-char drift codex caught reading this module):
 
     acked > replied/auto_acked > consumed > unhandled
 

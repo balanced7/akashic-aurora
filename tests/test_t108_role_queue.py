@@ -30,6 +30,21 @@ import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _restore_incarnation_env():
+    """Impersonating seats mutates process env; restore after each test (T069 class)."""
+    saved = {k: os.environ.get(k) for k in ("BIFROST_INCARNATION", "CLAUDE_CODE_SESSION_ID")}
+    yield
+    for k, v in saved.items():
+        if v is None:
+            os.environ.pop(k, None)
+        else:
+            os.environ[k] = v
+
+
 NS = f"t108rq{uuid.uuid4().hex[:6]}"
 AGENT = "claude"
 SEAT_A = "aaaa1111"

@@ -29,6 +29,22 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.comm.bus import Bus  # noqa: E402
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _restore_incarnation_env():
+    """These tests impersonate seats by mutating process env; NEVER leak that to later tests
+    (the T069 order-coupling class -- caught live tonight: test_bifrost_bus roundtrip failed
+    only when run AFTER this file, because a seat identity leaked into its Bus)."""
+    saved = {k: os.environ.get(k) for k in ("BIFROST_INCARNATION", "CLAUDE_CODE_SESSION_ID")}
+    yield
+    for k, v in saved.items():
+        if v is None:
+            os.environ.pop(k, None)
+        else:
+            os.environ[k] = v
+
 NS = f"t108pin{uuid.uuid4().hex[:6]}"
 AGENT = "claude"
 SEAT_A = "aaaa1111-0000-0000-0000-000000000000"
