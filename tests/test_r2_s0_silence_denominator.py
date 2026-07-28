@@ -173,3 +173,43 @@ def test_p7_the_outcome_row_carries_the_query_shape(fake_store, _isolated_outcom
     assert len(rows) >= 2
     assert rows[-2].get("query_shape") == "command", rows[-2]
     assert rows[-1].get("query_shape") == "path", rows[-1]
+
+
+# --------------------------------------------------------------- P8/P9 sol's fence
+def test_p8_anti_repeat_silence_is_not_floor_silence(fake_store, _isolated_outcomes):
+    """Sol's R2-s0 fence, reproduced finding (1): a lesson that RANKED ABOVE THE FLOOR
+    but was suppressed by exclude_sources (anti-repeat) records floor_silent -- so the
+    reason column reports 'nothing relevant existed' when the truth is 'the relevant
+    thing was already shown'. Slice 1 will read by_reason['floor_silent'] as the
+    existing floor's behaviour; a mixed bucket poisons that read."""
+    r = A.recall_at(command="frobnicate the r2 denominator pin with the frobnicator",
+                    learning_store=fake_store, min_relevance=0.0)
+    assert r.get("lessons"), "precondition: this fires when not excluded"
+    shown = {l["source"] for l in r["lessons"]}
+
+    r2 = A.recall_at(command="frobnicate the r2 denominator pin with the frobnicator",
+                     learning_store=fake_store, min_relevance=0.0,
+                     exclude_sources=shown)
+    assert not r2.get("lessons"), "precondition: anti-repeat suppresses everything"
+    rows = _outcomes(_isolated_outcomes)
+    assert rows[-1]["reason"] == "excluded_silent", (
+        f"ANTI-REPEAT MASQUERADING AS FLOOR: items cleared the floor and were withheld "
+        f"as already-shown, but the row says {rows[-1]['reason']!r} -- 'already shown' "
+        f"and 'nothing relevant' are different facts: {rows[-1]}")
+
+
+def test_p9_faithfulness_rejection_is_not_floor_silence(fake_store, _isolated_outcomes,
+                                                        monkeypatch):
+    """Sol's fence, reproduced finding (2): lessons cleared the floor, then
+    faithfulness_report rejected the render -- recall_at zeroes the items (correct:
+    silence beats a fabricated hint) and then records floor_silent (wrong: the floor
+    never silenced anything; the FAITH gate did)."""
+    import core.primitives.faithfulness as F
+    monkeypatch.setattr(F, "faithfulness_report",
+                        lambda *a, **k: {"faithful": False, "confidence": 0.0})
+    r = A.recall_at(command="frobnicate the r2 denominator pin with the frobnicator",
+                    learning_store=fake_store, min_relevance=0.0)
+    assert not r.get("lessons"), "precondition: FAITH gate zeroes the items"
+    rows = _outcomes(_isolated_outcomes)
+    assert rows[-1]["reason"] == "unfaithful_silent", (
+        f"FAITH REJECTION MASQUERADING AS FLOOR: {rows[-1]}")
