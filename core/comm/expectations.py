@@ -157,30 +157,29 @@ def _answers_since(sender: str, anchor: str) -> List[Any]:
 def _resolve_link(answers_id: Any, recs: Dict[str, Dict[str, Any]]) -> Optional[str]:
     """The expectation `answers_id` refers to, tolerating the DUAL-WRITE ID PAIR.
 
-    One send lands on both the lane stream and the legacy stream, so it has two ids
-    one apart in the sequence part. The expectation is armed on the id send() returned;
-    the peer answers against the id it actually received. Live receipt: ask
-    1785226575154-0, reply meta.answers=1785226575153-0 -- same message, and exact
-    string comparison rejected it for four hours.
+    One send lands on both the lane stream and the legacy stream under two ids. The
+    expectation is armed on the id send() returned; the peer answers against the id
+    it actually received. Live receipt: ask 1785226575154-0, reply
+    meta.answers=1785226575153-0 -- one message, two names.
 
-    Deliberately narrow: same millisecond, sequence within one. A wider window would
-    start settling asks that merely arrived close together, and a settle that fires on
-    the wrong ask is worse than one that does not fire -- it loses the work silently
-    instead of loudly redriving it."""
+    RESOLVED BY EVIDENCE, NEVER ARITHMETIC (sol's NO-GO on the first fix, which
+    adjusted the SEQUENCE while the live pair differed in the MILLISECOND -- dead
+    code that let FIFO settle the WRONG ask when two were armed to one target).
+    The bus records `{ns}:idalias:<id> -> <sibling>` at _emit, the one place both
+    ids are known. Sends that predate the alias (or a lapsed TTL) degrade to the
+    FIFO fallback, which is at-least-once -- imprecise, never stranding."""
     a = str(answers_id or "")
     if not a:
         return None
     if a in recs:
         return a
-    ms, _, seq = a.partition("-")
     try:
-        seq_i = int(seq or 0)
-    except ValueError:
-        return None
-    for delta in (1, -1):
-        sib = f"{ms}-{seq_i + delta}"
-        if sib in recs:
-            return sib
+        c = _client()
+        sib = c.get(f"{_ns()}:idalias:{a}") if c is not None else None
+        if sib and str(sib) in recs:
+            return str(sib)
+    except Exception:
+        pass
     return None
 
 

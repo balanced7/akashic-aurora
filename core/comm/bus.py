@@ -500,6 +500,20 @@ class Bus:
         if lane_mid is None and legacy_mid is None:
             return None               # both writes failed: the send failed
 
+        # T117 P7 (sol's NO-GO): record the DUAL-ID ALIAS here, the one place both ids
+        # are actually KNOWN. One send lands on the lane stream and the legacy stream
+        # with two unrelated ids (the live pair differed in the MILLISECOND, not the
+        # sequence -- id arithmetic is unfixably wrong, adjacent sends collide). The
+        # expectation arms on the returned id; the peer answers with the id it saw;
+        # this alias is how the two names resolve to one message. Both directions,
+        # ephemeral (48h >> any expectation deadline), best-effort.
+        if lane_mid and legacy_mid and lane_mid != legacy_mid:
+            try:
+                self._client.set(f"{self.ns}:idalias:{lane_mid}", legacy_mid, ex=172800)
+                self._client.set(f"{self.ns}:idalias:{legacy_mid}", lane_mid, ex=172800)
+            except Exception:
+                pass                  # resolution degrades to FIFO, never blocks a send
+
         # Return the LEGACY mid: every consumer (inbox/cursor/wait/kill-window)
         # reads legacy streams, so the return value of send()/broadcast() must be
         # the id those consumers see.  The lane mid is internal -- lane consumers
