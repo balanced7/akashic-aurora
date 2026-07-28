@@ -973,9 +973,32 @@ def _token_cost_line(agent: str, journal_dir: str = "") -> Optional[Dict[str, An
         prompt_t = int(data.get("prompt_tokens", 0) or 0)
         comp_t = int(data.get("completion_tokens", 0) or 0)
         total = prompt_t + comp_t
+        # T110: PRICE AT READ TIME, never trust the stored cost_est. That key was
+        # computed by whatever wrote the file -- and every journal written before
+        # T110 carries a DeepSeek-priced figure regardless of vendor (kimi's real
+        # file said $9.076 for kimi-k3 tokens). Deriving here gives pricing one
+        # source of truth (the PRICES table) and self-heals every journal ever
+        # written, so no backfill script exists to go stale in turn. The stored
+        # value is the fallback only if the derivation itself fails.
         cost = float(data.get("cost_est", 0) or 0)
+        unpriced, missing = int(data.get("unpriced_tokens", 0) or 0), data.get("unpriced_models") or []
+        try:
+            from scripts.runner_token_journal import TokenJournal as _TJ
+            j = _TJ(agent, journal_dir=base)      # read-only: _load() only, no add_turn
+            if j.turns:
+                cost, unpriced, missing = j.total_cost_est(), j.unpriced_tokens(), j.unpriced_models()
+        except Exception:
+            pass
         line = (f"{agent}: {turns} turn(s) · {_fmt_toks(total)} tokens "
                 f"today · ~${cost:.2f} est")
+        # A journal may legitimately hold tokens we refuse to price (no sourced
+        # rate for that model). Rendering only the priced half turns a designed,
+        # visible gap back into a confident zero -- "~$0.00 est" on 16.1M real
+        # kimi tokens reads as FREE USAGE. Say the word and NAME the model: the
+        # operator reading this line is the one who can supply the rate.
+        if unpriced:
+            names = ", ".join(str(m) for m in missing) if missing else "unknown model"
+            line += f" · {_fmt_toks(unpriced)} UNPRICED ({names} — no rate in PRICES)"
         return _f(agent, "token_cost", "dashboard", line,
                   f"py agent_cli.py doctor --token {agent}")
     except Exception:

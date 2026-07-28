@@ -886,14 +886,21 @@ def _process_one(m, bus, args, responder, rate) -> None:
                        outcome=outcome, prompt_len=len(str(m.content)),
                        tokens={"prompt": delta[0], "completion": delta[1]} if delta else None)
             _RUN_STATS["turns"] = _RUN_STATS.get("turns", 0) + 1
+            # T110: drain the cost shape BEFORE the journal, not after. This pop used to
+            # sit below add_turn() and feed only the print() -- the cache hit/miss split
+            # was measured, shown to the operator, and dropped one line before the ledger,
+            # so a day of mostly re-read context (104M prompt : 322k completion) was
+            # billed at the full fresh-input rate. Cached prefix bills ~0.1x; the journal
+            # can only apply that if it is told.
+            shape = _cost_shape.pop(str(m.frm), None)
             # T078 W1: update daily token journal
             if _token_journal is not None and delta:
                 _token_journal.add_turn(prompt=delta[0], completion=delta[1],
-                                        model=getattr(args, "model", ""))
+                                        model=getattr(args, "model", ""),
+                                        cached_prompt=(shape or {}).get("cache_hit", 0))
             # T078 W1b: print the COST SHAPE, not just the size. A meter nobody reads is a
             # dead meter (T078 W1's own lesson), so this lands where the operator watching
             # the runner window already looks.
-            shape = _cost_shape.pop(str(m.frm), None)
             if shape and delta:
                 seen = shape["cache_hit"] + shape["cache_miss"]
                 rate = f"{100 * shape['cache_hit'] / seen:.0f}% cached" if seen else "cache: unmeasured"
