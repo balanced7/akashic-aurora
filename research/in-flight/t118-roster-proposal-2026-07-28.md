@@ -1,6 +1,9 @@
-# T118 ROSTER PROPOSAL — per-family authority for the durable reconcile
+# T118 ROSTER — per-family authority for the durable reconcile
 
-Status: current | 2026-07-28 evening | claude (builder lane), for Daniel's gate; codex counter invited
+Status: RATIFIED by Daniel 2026-07-28 evening, verbatim: "I like it, I assume since its a table we
+can add other categories as they emerge. Iapprove" — extensibility confirmed as a design property:
+the reconcile HALTS on any family without a row, so new categories force a new ruling, never a guess.
+(claude builder lane; codex counter remains welcome as post-ratification check)
 Evidence: two-sided read-only census (redis 22,303 keys / file 2,187), run post-a750728.
 Ruling vocabulary: **redis** = redis-authoritative, additive copy into durable source (escrow on divergence) ·
 **file** = durable side already owns it, no pull · **ephemeral** = no durable afterlife (packet_spec roster) ·
