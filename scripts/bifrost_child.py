@@ -178,7 +178,13 @@ class ManagedChild:
         self._proc = subprocess.Popen(
             self._args, env=self._env, cwd=self._cwd,
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            text=True, bufsize=1)
+            # Runners self-bless stdout/stderr to UTF-8.  On Windows a bare
+            # text=True reader defaults to cp1252; one valid UTF-8 continuation
+            # byte then kills the drainer's decoder, the broad exception guard
+            # hides that death, and the child blocks once the undrained pipe fills.
+            # Declare the wire encoding at BOTH ends; replacement keeps best-effort
+            # display from becoming a process-lifecycle dependency.
+            text=True, encoding="utf-8", errors="replace", bufsize=1)
         # F1: start drainer thread to prevent pipe wedge
         self._ring.clear()
         self._drainer_done.clear()
