@@ -208,3 +208,33 @@ def test_p8_the_doctor_line_names_the_unpriced_tokens(tmp_path):
     assert "kimi-k3" in line, (
         f"the line must NAME the model whose rate is missing, or nobody knows what "
         f"to look up: {line!r}")
+
+
+# --------------------------------------------------------------- P9 the fix must reach the live file
+def test_p9_the_doctor_recomputes_and_does_not_trust_a_stale_cost(tmp_path):
+    """RED ADDENDUM 2. Repairing the WRITER does not repair the numbers already
+    ON DISK. state/runner_kimi_2026-07-28.json holds cost_est 9.076 -- computed
+    by the old DeepSeek-priced path -- and the doctor prints whatever that key
+    says. Fixing the meter while the dashboard keeps reading a cached lie is a
+    fix that changes nothing anyone sees.
+
+    Pricing has exactly one source of truth (the PRICES table) and it must be
+    applied at READ time. Then a stale number cannot survive contact with the
+    dashboard, and no backfill script is needed for any journal ever written."""
+    from core.comm import doctor
+
+    today = __import__("time").strftime("%Y-%m-%d")
+    with open(tmp_path / f"runner_kimi_{today}.json", "w", encoding="utf-8") as f:
+        json.dump({"agent": "kimi", "date": today, "turns": 66,
+                   "prompt_tokens": 15_960_666, "completion_tokens": 135_810,
+                   "total_tokens": 16_096_476, "model": "kimi-k3",
+                   "cost_est": 9.076}, f)        # <- the real file, verbatim
+
+    line = str((doctor._token_cost_line("kimi", journal_dir=str(tmp_path)) or {}).get("line", ""))
+    assert "9.07" not in line and "9.08" not in line, (
+        f"STALE LIE SERVED: the doctor re-published the old DeepSeek-priced $9.076 for "
+        f"kimi straight from the file. Price at read time from PRICES, or every journal "
+        f"written before today keeps lying forever: {line!r}")
+    assert "unpriced" in line.lower(), (
+        f"and having refused the stale number, it must say WHY -- otherwise the line "
+        f"silently drops to $0.00, which is the same disease: {line!r}")
