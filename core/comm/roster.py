@@ -13,11 +13,19 @@ honesty about who is actually reachable (Sol rendered "sleeping" for exactly thi
 Keys (T5: no payload):
     {ns}:worklive:{agent}#{sid8}   JSON {phase, beat_ts, since_ts, seq}, TTL WORKLIVE_TTL_S.
 
-STATE LADDER (kimi P1 -- key-exists is NOT alive):
-    LIVE   beat within FRESH_S           STALE  key exists, beat older than FRESH_S
-    DEAD   no key (TTL reaped it)        -- absence is the only DEAD; never LIVE by default.
+STATE LADDER (kimi P1 + fence findings F1/F3 -- key-exists is NOT alive, and absence is
+not silence):
+    LIVE   beat within the seat's OWN cadence window (2x EMA of inter-beat intervals,
+           floor 10s; FRESH_S=45s only for seats with no rhythm yet) -- F3: the false-LIVE
+           window is bounded by the seat's real recovery time, never a fleet-wide dial.
+    STALE  worklive key exists, beat outside the window.
+    DEAD   worklive TTL'd away but the seatseen witness (24h) remembers -- F1: a seat that
+           EVER beat renders DEAD with its last beat age; silent absence is reserved for
+           seats that never existed. The reaper keys on worklive absence; the RENDER
+           confesses the death.
 Monotonic beats: heartbeat() refuses to write a beat_ts older than the stored one, so a
-replayed/duplicated beat can never resurrect a stale seat or mask a death.
+replayed/duplicated beat can never resurrect a stale seat or mask a death. Have-summaries
+derive their keys through the Bus door (F2) with shared cursors LABELED as shared.
 """
 from __future__ import annotations
 
@@ -39,6 +47,13 @@ def _key(ns: str, agent: str, sid8: str) -> str:
     return f"{ns}:worklive:{agent}#{sid8}"
 
 
+SEATSEEN_TTL_S = 86400          # kimi F1: death must outlive the worklive TTL to be RENDERABLE
+
+
+def _seen_key(ns: str, agent: str, sid8: str) -> str:
+    return f"{ns}:seatseen:{agent}#{sid8}"
+
+
 def heartbeat(ns: str, agent: str, sid8: str, *, phase: str = "idle",
               client=None, _beat_ts: Optional[float] = None) -> bool:
     """Beat this seat's liveness. Monotonic (P5): an older beat_ts never overwrites a
@@ -58,10 +73,24 @@ def heartbeat(ns: str, agent: str, sid8: str, *, phase: str = "idle",
             # the fresher stored beat; a replayed heartbeat cannot rewind liveness.
             client.expire(k, WORKLIVE_TTL_S)
             return False
+        # kimi F3: learn the seat's OWN cadence so LIVE's window derives from rhythm,
+        # not an unjustified fleet-wide dial. EMA of inter-beat intervals.
+        ema = float(prev.get("ema_interval") or 0)
+        if prev_beat > 0:
+            interval = max(0.0, now - prev_beat)
+            ema = (0.3 * interval + 0.7 * ema) if ema > 0 else interval
         doc = {"phase": str(phase), "beat_ts": now,
                "since_ts": float(prev.get("since_ts") or now),
-               "seq": int(prev.get("seq") or 0) + 1}
+               "seq": int(prev.get("seq") or 0) + 1,
+               "ema_interval": round(ema, 3)}
         client.set(k, json.dumps(doc), ex=WORKLIVE_TTL_S)
+        # kimi F1: the long-lived death witness -- when worklive TTLs away, this record
+        # lets the roster render DEAD-with-last-beat instead of silent absence.
+        try:
+            client.set(_seen_key(ns, agent, str(sid8)[:8]),
+                       json.dumps({"beat_ts": now, "phase": str(phase)}), ex=SEATSEEN_TTL_S)
+        except Exception:
+            pass
         return True
     except Exception:
         return False
@@ -69,18 +98,25 @@ def heartbeat(ns: str, agent: str, sid8: str, *, phase: str = "idle",
 
 def _have_summary(client, ns: str, agent: str, sid8: str) -> Dict[str, Any]:
     """T3 (torrent bitfield): the seat's consumed-through positions -- inventory POINTERS,
-    never payload (T5). A successor diffs these instead of guessing what a dead seat saw."""
+    never payload (T5). kimi F2: keys are DERIVED THROUGH THE BUS DOOR (the organ that owns
+    the formats), never a parallel hardcoded f-string; the shared legacy cursor is labeled
+    so a successor knows which pointer a twin could have advanced (advisory, not proof)."""
     have: Dict[str, Any] = {}
     try:
-        have["legacy_inbox"] = str((client.hgetall(f"{ns}:cursor:{agent}") or {}).get("inbox", "0"))
-    except Exception:
-        pass
-    try:
-        have["seat_inbox"] = str(client.hget(f"{ns}:cursor:seat:{agent}#{sid8}", "seat") or "0")
-    except Exception:
-        pass
-    try:
-        have["lane_inbox"] = str((client.hgetall(f"{ns}:cursor:lane:{agent}") or {}).get("inbox", "0"))
+        from core.comm.bus import Bus
+        b = Bus(str(agent), namespace=(None if ns == "bifrost" else ns))
+        try:
+            have["legacy_inbox_shared"] = str(b._read_cursor().get("inbox", "0"))
+        except Exception:
+            pass
+        try:
+            have["seat_inbox"] = str(client.hget(b._seat_cursor_key(str(sid8)[:8]), "seat") or "0")
+        except Exception:
+            pass
+        try:
+            have["lane_inbox_shared"] = str((client.hgetall(b.lane_cursor_key(str(agent))) or {}).get("inbox", "0"))
+        except Exception:
+            pass
     except Exception:
         pass
     return have
@@ -93,21 +129,34 @@ def roster(ns: str, *, client=None, now: Optional[float] = None) -> List[Dict[st
     now = float(now if now is not None else time.time())
     rows: List[Dict[str, Any]] = []
     try:
-        keys = sorted(client.keys(f"{ns}:worklive:*"))
+        live_keys = {str(k) for k in client.keys(f"{ns}:worklive:*")}
+        seen_keys = {str(k) for k in client.keys(f"{ns}:seatseen:*")}
     except Exception:
         return rows
-    for k in keys:
-        tail = str(k).rsplit(":worklive:", 1)[-1]
-        if "#" not in tail:
-            continue                       # agent-level runner worklive (legacy shape) -- skip
+    live_tails = {k.rsplit(":worklive:", 1)[-1] for k in live_keys if "#" in k.rsplit(":worklive:", 1)[-1]}
+    seen_tails = {k.rsplit(":seatseen:", 1)[-1] for k in seen_keys if "#" in k.rsplit(":seatseen:", 1)[-1]}
+    for tail in sorted(live_tails | seen_tails):
         agent, _, sid8 = tail.partition("#")
+        doc: Dict[str, Any] = {}
+        dead = tail not in live_tails
         try:
-            doc = json.loads(client.get(k) or "{}")
+            raw = client.get(_seen_key(ns, agent, sid8) if dead else _key(ns, agent, sid8))
+            doc = json.loads(raw or "{}")
         except (ValueError, TypeError):
             doc = {}
         beat = float(doc.get("beat_ts") or 0)
         age = now - beat if beat else None
-        state = "LIVE" if (age is not None and age <= FRESH_S) else "STALE"
+        if dead:
+            # kimi F1: a seat that EVER beat renders DEAD with its last beat age -- never
+            # silent absence; the reaper keys on absence, the RENDER confesses the death.
+            state = "DEAD"
+        else:
+            # kimi F3: LIVE's window derives from the seat's OWN cadence (2x EMA, floored),
+            # falling back to FRESH_S only for seats with no rhythm yet. A wedged loop's
+            # false-LIVE window is bounded by the seat's real recovery time, not a dial.
+            ema = float(doc.get("ema_interval") or 0)
+            window = max(2.0 * ema, 10.0) if ema > 0 else FRESH_S
+            state = "LIVE" if (age is not None and age <= window) else "STALE"
         rows.append({
             "seat": tail, "agent": agent, "sid8": sid8,
             "phase": str(doc.get("phase") or "?"),
