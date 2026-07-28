@@ -58,6 +58,27 @@ def _clip(s, n=_MAX):
 _MAX_NOTE = 100_000   # durable note bodies: a ceiling against runaway pastes, not a working size
 
 
+_LEARN_PROTOCOL_COLLAPSE = re.compile(
+    r"</(?:tried|result|recommend|expected)>\s*"
+    r"<parameter\s+name\s*=\s*(['\"])(?:tried|result|recommend|expected)\1\s*>",
+    re.IGNORECASE,
+)
+
+
+def _collapsed_learn_fields(fields):
+    """Name lesson fields that contain a serialized boundary into another field.
+
+    This is deliberately narrower than rejecting protocol-looking prose. A single
+    literal ``<parameter name="result">`` can be legitimate evidence; the corrupt
+    live shape was a field-closing tag immediately followed by the next serialized
+    parameter, proving that multiple tool arguments collapsed into one value.
+    """
+    return [
+        name for name, value in fields.items()
+        if _LEARN_PROTOCOL_COLLAPSE.search("" if value is None else str(value))
+    ]
+
+
 def _intake(s, n, field, confessions):
     """Bound a value about to be STORED -- and CONFESS when the bound bites.
 
@@ -421,6 +442,18 @@ def cmd_learn(args):
         print("ERROR: need --experiment and at least one of --tried/--result.")
         print('Example: py agent_cli.py learn me --experiment cache_fix '
               '--tried "memoize" --result "+50%" --recommend "use it"')
+        return 2
+    raw_fields = {
+        "what_tried": args.tried,
+        "actual_outcome": args.result,
+        "expected_outcome": args.expected,
+        "recommendation": args.recommend,
+    }
+    collapsed = _collapsed_learn_fields(raw_fields)
+    if collapsed:
+        print("ERROR: learn refused collapsed tool-protocol fields in "
+              f"{', '.join(collapsed)}; no lesson was written.")
+        print("Re-send tried, result, expected, and recommend as separate arguments.")
         return 2
     clipped = []
     signal = {
