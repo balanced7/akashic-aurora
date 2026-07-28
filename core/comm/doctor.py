@@ -309,21 +309,44 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
                           f"{agent}: worklive error phase -- {phase[len('error:'):]}",
                           "py agent_cli.py doctor --json"))
 
+        # S2 fix (self-demonstrated 2026-07-28: this doctor paged the live seat that was
+        # building and committing at that moment). `stuck` measures PHASE AGE -- since_ts is
+        # deliberately never refreshed by a beat, so a healthy seat holding one phase looks
+        # arbitrarily stuck. And the RB-27a progress pulse is a RUNNER organ: a live SEAT
+        # never writes one, so pulse_fresh is False for seats BY CONSTRUCTION. Non-idle +
+        # old phase + no runner pulse therefore paged every healthy seat, forever.
+        # A FRESH WORKLIVE BEAT IS LIVENESS EVIDENCE IN ITS OWN RIGHT (S2 roster: LIVE is
+        # proven by beat freshness). Demanding a runner-only organ from a non-runner is the
+        # category error, and a false page trains the fleet to ignore the real one.
+        # Window: the roster's own freshness law (cadence-derived, WORKLIVE_FRESH_S floor)
+        # rather than PROGRESS_TTL, which is a runner-tick constant far below seat cadence.
+        # Pins: tests/test_doctor_wedge_vs_beat.py
+        beat_ts = float(wl.get("beat_ts") or 0) if wl else 0.0
+        try:
+            from core.comm.roster import FRESH_S as _SEAT_FRESH_S
+        except Exception:
+            _SEAT_FRESH_S = 45.0
+        beat_fresh = bool(beat_ts) and (now - beat_ts) <= max(_SEAT_FRESH_S,
+                                                             liveness.PROGRESS_TTL * 2)
+        alive_signal = pulse_fresh or beat_fresh
+
         non_idle = bool(wl) and phase not in liveness.IDLE_PHASES \
             and not phase.startswith("error:")
         if non_idle and stuck >= liveness.DEFAULT_WEDGE_S:
-            if pulse_fresh:
+            if alive_signal:
+                evidence = (f"pulse is FRESH ({prog['age_s']}s: {prog.get('detail','')})"
+                            if pulse_fresh else
+                            f"worklive BEAT is fresh ({int(now - beat_ts)}s ago)")
                 out.append(_f(agent, "working", "dashboard",
                               f"{agent}: long work in '{phase}' ({int(stuck)}s) but the "
-                              f"pulse is FRESH ({prog['age_s']}s: {prog.get('detail','')})"
-                              " -- genuinely working, not wedged",
+                              f"{evidence} -- genuinely working, not wedged",
                               "py agent_cli.py doctor --json"))
             else:
                 out.append(_f(agent, "hard_wedge", "page",
                               f"{agent}: HARD WEDGE -- '{phase}' for {int(stuck)}s with a "
                               "DEAD pulse (worker died inside the turn; not self-healing)",
                               f"py-spy dump --pid <runner-pid>  |  relaunch the runner"))
-        elif non_idle and stuck >= liveness.APPROACHING_WEDGE_S and not pulse_fresh:
+        elif non_idle and stuck >= liveness.APPROACHING_WEDGE_S and not alive_signal:
             # P-S1-0: the sub-threshold window C1-8 hid in. Non-idle + dead pulse but not yet
             # past the page threshold -> DASHBOARD 'approaching wedge' (today: silence). Below
             # the page line because L0 self-heal may still land; visible so a mission face can
