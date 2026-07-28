@@ -76,7 +76,7 @@ Class: reference
 | `AKASHIC_STALL_HYSTERESIS_S` | `"180"` | core/comm/doctor.py |
 | `AKASHIC_STOP_PROMISE` | `"1"` | agent/harness/hooks/claude_stop.py, scripts/hooks/claude_stop.py |
 | `AKASHIC_STOP_WAKE` | `"1"` | agent/harness/hooks/claude_stop.py, scripts/hooks/claude_stop.py |
-| `AKASHIC_STORE_BACKEND` | `` | core/foundation/store.py |
+| `AKASHIC_STORE_BACKEND` | `sqlite` (user-env since 2026-07-28, T118 flip; code default stays FileStore; rollback = setx to empty) | core/foundation/store.py |
 | `AKASHIC_TIMEOUT_MULTIPLIER` | `"1"` | core/comm/timescale.py |
 | `AKASHIC_TOMBSTONE` | `"1"` | core/comm/wake_seat.py |
 | `AKASHIC_TOOLBELT_QUOTA` | `"20"` | core/toolbelt/registry.py |
