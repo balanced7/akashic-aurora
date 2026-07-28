@@ -194,6 +194,30 @@ def _resolve_link(answers_id: Any, recs: Dict[str, Dict[str, Any]]) -> Optional[
     return None
 
 
+# T117 P10 (sol's fault injection): settle+mark is ONE ATOMIC TRANSITION. The
+# best-effort mark AFTER hdel meant a failed marker SET with a healthy HDEL restored
+# the double-settlement on the next sweep. Lua: the marker is written (NX, TTL
+# bounded by the ASK'S OWN horizon -- within_s has no API max) and the expectation
+# deleted in one script; if the script cannot run, the expectation SURVIVES -- a
+# loud redrive beats silent wrong-work settlement. MODULE-LEVEL by sol's review of
+# the pin, not the code: nested inside sweep it was unfaultable, so P10 could only
+# patch an obsolete seam and would have gone nominal the moment the code moved.
+# The suite owns the receipt only if it can break the real transition.
+_SETTLE_LUA = ("redis.call('SET', KEYS[1], '1', 'EX', tonumber(ARGV[2]), 'NX') "
+               "redis.call('HDEL', KEYS[2], ARGV[1]) return 1")
+
+
+def _settle_once(c, sender: str, key: str, oid: str, rid, rec: Dict[str, Any]) -> bool:
+    try:
+        horizon = max(172800, int(float(rec.get("within_s", MIN_WITHIN_S)))
+                      * (int(rec.get("redrives_left", 0)) + 2) * 4)
+        c.eval(_SETTLE_LUA, 2, f"{_ns()}:reply_settled:{sender}:{rid}", key,
+               oid, horizon)
+        return True
+    except Exception:
+        return False                       # expectation stays armed; never half-settle
+
+
 def sweep(sender: str, now: Optional[float] = None) -> Dict[str, List[str]]:
     """One render-time pass: clear answered, redrive expired, kill exhausted.
     Returns {"redriven": [ids], "dead": [ids], "cleared": [ids]}; `now` injectable so
@@ -231,25 +255,8 @@ def sweep(sender: str, now: Optional[float] = None) -> Dict[str, List[str]]:
             except Exception:
                 return False               # marker unreadable -> behave as before
 
-        # T117 P10 (sol's fault injection): settle+mark is ONE ATOMIC TRANSITION.
-        # The best-effort mark AFTER hdel meant a failed marker SET with a healthy
-        # HDEL restored the double-settlement on the next sweep. Lua: the marker is
-        # written (NX, TTL bounded by the ASK'S OWN horizon, not a flat 48h --
-        # within_s has no API max) and the expectation deleted in one script; if the
-        # script cannot run, the expectation SURVIVES -- a loud redrive beats silent
-        # wrong-work settlement.
-        _SETTLE_LUA = ("redis.call('SET', KEYS[1], '1', 'EX', tonumber(ARGV[2]), 'NX') "
-                       "redis.call('HDEL', KEYS[2], ARGV[1]) return 1")
-
         def _settle_atomic(oid, rid, rec) -> bool:
-            try:
-                horizon = max(172800, int(float(rec.get("within_s", MIN_WITHIN_S)))
-                              * (int(rec.get("redrives_left", 0)) + 2) * 4)
-                c.eval(_SETTLE_LUA, 2, f"{_ns()}:reply_settled:{sender}:{rid}", key,
-                       oid, horizon)
-                return True
-            except Exception:
-                return False               # expectation stays armed; never half-settle
+            return _settle_once(c, sender, key, oid, rid, rec)
 
         replies = _answers_since(sender, oldest)
         linked = set()                         # T117: replies whose link RESOLVED

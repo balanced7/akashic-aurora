@@ -339,3 +339,66 @@ def test_p11_a_reply_to_the_redrive_settles_the_original(sender, monkeypatch):
     assert out2["cleared"] == ["1785226575154-0"], (
         f"REPLY TO THE REDRIVE LOST: the peer answered the only id it ever saw "
         f"(the redrive's) and the original ask did not settle: {out2}")
+
+
+# --------------------------------------------------------------- P12/P13 sol's receipts
+def test_p12_a_broken_settle_transition_preserves_everything(sender, monkeypatch):
+    """sol's pre-GREEN review: the first P10 patched c.set -- obsolete the moment the
+    atomic Lua landed, so the pin went nominal while proving nothing. This one
+    faults the REAL transition (_settle_once) and demands total preservation:
+    both asks armed, cleared=[]. Loud redrive beats deletion without receipt."""
+    s = sender
+    c = E._client()
+    _arm(s, "1785226575000-0", "kimi", "1785226574000-0", 1785226575.0,
+         deadline_past=False)
+    _arm(s, "1785226575200-0", "kimi", "1785226575100-0", 1785226575.2,
+         deadline_past=False)
+    monkeypatch.setattr(E, "_settle_once", lambda *a, **k: False)
+    out = _sweep_with(s, [_Reply("1785228386835-0", "kimi",
+                                 answers="1785226575200-0")], monkeypatch)
+    assert out["cleared"] == [], f"a failed transition must clear NOTHING: {out}"
+    still = c.hgetall(E._key(s)) or {}
+    assert "1785226575000-0" in still and "1785226575200-0" in still, (
+        f"BOTH expectations must survive a broken settle plane: {sorted(still)}")
+
+
+def test_p13_redrive_lane_id_settles_only_the_original_never_the_fifo_trap(sender, monkeypatch):
+    """sol: the first P11 was n=1 and replied to the fake bus's LEGACY return id --
+    it could pass via FIFO with the redrive mapping entirely missing (the original
+    masking error, repeated). This one arms an OLDER same-target FIFO trap, dual-
+    aliases the redrive (lane sibling -> legacy -> original, the real emit shape),
+    and replies against the LANE id a real runner actually sees. Only the newer
+    original may clear; the trap must survive."""
+    s = sender
+    c = E._client()
+    _arm(s, "1785226570000-0", "kimi", "1785226569000-0", 1785226570.0,
+         deadline_past=False)                                   # the FIFO trap
+    _arm(s, "1785226575154-0", "kimi", "1785226575100-0", 1785226575.19,
+         deadline_past=True, redrives=2)                        # the original
+
+    sent = {}
+    class _FakeBus:
+        _client = E._client()
+        def __init__(self, *a, **k): pass
+        def send(self, to, kind, content, meta=None):
+            sent["legacy"] = "1785228000000-0"
+            sent["lane"] = "1785227999999-0"
+            # the real emit records the dual-id alias both directions
+            c.set(f"{E._ns()}:idalias:{sent['lane']}", sent["legacy"], ex=600)
+            c.set(f"{E._ns()}:idalias:{sent['legacy']}", sent["lane"], ex=600)
+            return sent["legacy"]
+        def tail(self):
+            return {"inbox": "0", "bc": "0"}
+    import core.comm.bus as bus_mod
+    monkeypatch.setattr(bus_mod, "Bus", _FakeBus)
+
+    out1 = _sweep_with(s, [], monkeypatch)
+    assert "1785226575154-0" in out1["redriven"], f"precondition: {out1}"
+
+    out2 = _sweep_with(s, [_Reply("1785228386900-0", "kimi",
+                                  answers=sent["lane"])], monkeypatch)   # LANE id
+    assert out2["cleared"] == ["1785226575154-0"], (
+        f"the reply names the redrive's LANE id; it must reach the ORIGINAL through "
+        f"lane->legacy->original and never fall to FIFO: {out2}")
+    still = c.hgetall(E._key(s)) or {}
+    assert "1785226570000-0" in still, f"the FIFO trap must survive: {sorted(still)}"
