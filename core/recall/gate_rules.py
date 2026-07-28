@@ -81,6 +81,31 @@ _READ_DOORS = (r"agent_cli\.py\s+notes\b",
                r"agent_cli\.py\s+status\b", r"agent_cli\.py\s+stats\b",
                r"agent_cli\.py\s+events\b", r"agent_cli\.py\s+promoted\b")
 
+# FAIL-CLOSED ON MUTATION (sol's NO-GO on the first table): a silence rule may only
+# classify a command with NO mutating segment ANYWHERE. A count sink at the tail of a
+# mutation, a commit wearing a wc suffix, a status render piped into a file -- each is
+# an action with effects, and sink-spotting silenced them all. The vocabulary is
+# structural (verbs and redirect operators), and ANY hit anywhere kills every rule
+# before it is consulted. Enumerating "safe" would rot; enumerating "mutating" fails
+# toward FIRING when it rots, which is the bar's law.
+_MUTATION = (r"\bgit\s+(add|commit|push|reset|checkout|clean|rm|mv)\b",
+             r"\brm\b", r"\bdel\b", r"\bmv\b", r"\bremove-item\b",
+             r"\bset-content\b", r"\badd-content\b", r"\bout-file\b",
+             r"\bnew-item\b", r"(?<![0-9&12])>(?!&)",
+             r"\bmkdir\b", r"\btouch\b", r"\bcp\b", r"\bcopy-item\b",
+             r"agent_cli\.py\s+(learn|wish|handoff|bifrost-send|task|doc|log|"
+             r"graduate|tag-anti-pattern|lock|unlock|capture|wrap|kata|note|"
+             r"recall-feedback|recall-curate|bifrost-ack|bifrost-drain|"
+             r"bifrost-skip-to-now|bifrost-nudge|stand-down|unwedge|defer|"
+             r"followup|toast|alias|run|bench|tool|episode|fence|triage)\b",
+             r"\bmirror\.py\b", r"\bsnapshot_knowledge\b",
+             r"\bpip\s+install\b", r"\bnpm\b", r"\bredis-cli\b.*\b(set|del|xadd)\b")
+
+
+def _mutates(text: str) -> bool:
+    return any(re.search(pat, text, re.I) for pat in _MUTATION)
+
+
 # the door must be the PRIMARY invocation: strip position prefixes (cd /
 # set-location, interpreter launch) and require the door at the head of the FIRST
 # command segment. Pipelines MENTION doors without BEING door queries; a
@@ -131,6 +156,8 @@ def match(*, query_shape: str, action: str, **_forward_compat) -> Optional[Dict[
         if not action or str(query_shape) != "command":
             return None
         text = str(action)
+        if _mutates(text):
+            return None                    # fail-closed: any mutating segment -> FIRE
         for name, probe in _RULES:
             feats = probe(text)
             if feats:
@@ -148,7 +175,11 @@ def table_hash() -> str:
     h = hashlib.sha256()
     for name, _ in _RULES:
         h.update(name.encode())
-    for group in (_COUNT_SINKS, _INLINE_TRANSFORM, _READ_DOORS):
+    for group in (_COUNT_SINKS, _INLINE_TRANSFORM, _READ_DOORS, _MUTATION):
         for pat in group:
             h.update(pat.encode())
+    # _PREFIX changes which command segment the door rule examines -- decision-
+    # affecting structure, digested (sol: a hash that misses a deciding regex
+    # attributes new behaviour to the old table).
+    h.update(_PREFIX.pattern.encode())
     return h.hexdigest()[:16]
