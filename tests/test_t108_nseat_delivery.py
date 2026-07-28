@@ -96,33 +96,39 @@ def test_pin1_directed_mail_never_crosses_seats():
         "cursor advance or lost. Seat A saw: " + (bodies_a[:300] or "(nothing)"))
 
 
-import pytest
-
-
-@pytest.mark.xfail(strict=False, reason=(
-    "SLICE 2, pre-registered 2026-07-28: the reaper's re-home is DEFERRED by the reconciled "
-    "fence (kimi Q4: a heartbeat-TTL re-homer is the riskiest component -- a slow-but-alive "
-    "seat getting its mail stolen would be the NEW bug -- so slice 1 ships anti-theft only). "
-    "This pin stays visible and flips to a hard assertion when slice 2 builds the reaper."))
 def test_pin2_dead_seat_directed_mail_rehomes():
-    """A tombstoned/dead seat's unread directed mail must reach a survivor, loudly."""
-    sender = Bus("deepseek", namespace=NS + "r")
+    """A PROVABLY-dead seat's unread directed mail must reach a survivor, loudly.
+
+    FLIPPED FROM XFAIL 2026-07-28 (S4): the fence chose the mechanism -- the reaper
+    (core/comm/reaper.py) re-homes a provably-dead seat's stranded seat-stream mail to the
+    agent ROLE with the ORIGINAL clock riding in meta (fence Q3 synthesis). Provably-dead =
+    the S2 roster's DEAD state (seatseen witness, worklive gone) or a tombstone -- a
+    slow-but-alive seat is NEVER reaped (kimi's deferred-riskiest-component condition,
+    now satisfied by the sensor it lacked)."""
+    ns = NS + "r"
+    sender = Bus("deepseek", namespace=ns)
     if not getattr(sender, "online", True):
         print("SKIPPED (Redis not running)")
         return
 
+    from core.comm import roster as ro, reaper
+    sid8 = SEAT_A[:8]                                       # roster/seat keys use sid8
+    ro.heartbeat(ns, AGENT, sid8, phase="building")         # A lives, registers its witness
     sender.send(AGENT, "note", f"stranded-{NS}", meta={"to_incarnation": SEAT_A})
+    # A dies for real: worklive expires (simulated), seatseen witnesses -> roster says DEAD.
+    sender._client.delete(f"{ns}:worklive:{AGENT}#{sid8}")
+    dead = [r for r in ro.roster(ns) if r["seat"] == f"{AGENT}#{sid8}"]
+    assert dead and dead[0]["state"] == "DEAD", f"precondition: A must be PROVABLY dead: {dead}"
 
-    # Seat A dies without ever consuming (no clean SessionEnd -- the realistic death).
-    # Survivor B sweeps; the message must become reachable to B by SOME sanctioned door
-    # (re-homed to role delivery, a reaper queue -- mechanism is the fence's choice).
-    time.sleep(0.2)
-    seen_b = _drain_all(_seat_bus(SEAT_B, NS + "r"))
+    rehomed = reaper.reap(ns)
+    assert any(r["original_mid"] for r in rehomed), f"the reaper must report its re-homes: {rehomed}"
+    assert not reaper.reap(ns), "idempotence: a second pass re-homes NOTHING"
+
+    seen_b = _drain_all(_seat_bus(SEAT_B, ns))
     bodies_b = " | ".join(str(getattr(m, "content", m)) for m in seen_b)
     assert f"stranded-{NS}" in bodies_b, (
-        "SILENT STRANDING: seat A died holding directed mail and no survivor can reach it. "
-        "The reaper (re-home to role queue, loudly) does not exist. Survivor saw: "
-        + (bodies_b[:300] or "(nothing)"))
+        "SILENT STRANDING: seat A died holding directed mail, the reaper ran, and the "
+        "survivor still cannot reach it. Survivor saw: " + (bodies_b[:300] or "(nothing)"))
 
 
 if __name__ == "__main__":
