@@ -217,3 +217,51 @@ def test_p9_faithfulness_rejection_is_not_floor_silence(fake_store, _isolated_ou
     rows = _outcomes(_isolated_outcomes)
     assert rows[-1]["reason"] == "unfaithful_silent", (
         f"FAITH REJECTION MASQUERADING AS FLOOR: {rows[-1]}")
+
+
+# --------------------------------------------------------------- P10 the case-4 defect
+def test_p10_a_faithful_item_survives_unfaithful_neighbours(fake_store, _isolated_outcomes,
+                                                            monkeypatch):
+    """FOUND BY THE HARNESS + STAGE INSTRUMENTATION IN THEIR FIRST HOUR. Census case 4:
+    the actual HIT ranks top-3 and is faithful at conf 1.00, but two higher-ranked
+    neighbours fail faithfulness -- and the FAITH gate zeroes the WHOLE render.
+    Both blind judges called that lesson the one that would have changed the action;
+    today's pipeline silences it because of who it stood next to.
+
+    Silence-beats-fabrication is the right law PER ITEM: drop the unfaithful, keep
+    the faithful. All-or-nothing throws out the innocent with the guilty, and the
+    harm is maximal -- a silenced HIT is invisible forever."""
+    import core.primitives.faithfulness as F
+
+    real = F.faithfulness_report
+
+    def _per_item(items, skeleton):
+        # fault-inject: any item whose source mentions 'poison' is unfaithful
+        if any("poison" in str(i.get("source", "")) for i in items):
+            return {"faithful": False, "confidence": 0.2}
+        return real(items, skeleton)
+
+    monkeypatch.setattr(F, "faithfulness_report", _per_item)
+
+    class _Store:
+        def load_all_learnings_from_store(self, *a, **k):
+            good = {"experiment_name": "r2pin_good_hit",
+                    "recommendation": "use the frobnicator before the veeblefetzer "
+                                      "when frobnicating the r2 denominator pin",
+                    "what_worked": "frobnicate", "created_at": "2026-07-28",
+                    "success": "yes", "agent_id": "pin"}
+            bad = {"experiment_name": "poison_neighbour",
+                   "recommendation": "frobnicate the r2 denominator pin veeblefetzer "
+                                     "frobnicator frobnicating",
+                   "what_worked": "?", "created_at": "2026-07-28",
+                   "success": "yes", "agent_id": "pin"}
+            return [bad, good]
+
+    r = A.recall_at(command="frobnicate the r2 denominator pin with the frobnicator",
+                    learning_store=_Store(), min_relevance=0.0)
+    survivors = [l["source"] for l in (r.get("lessons") or [])]
+    assert any("good_hit" in s for s in survivors), (
+        f"INNOCENT SILENCED: the faithful item died for its neighbour's sin. "
+        f"survivors={survivors}, faithful={r.get('faithful')}")
+    assert not any("poison" in s for s in survivors), (
+        f"the unfaithful neighbour must still be dropped: {survivors}")

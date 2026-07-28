@@ -1334,16 +1334,39 @@ def recall_at(*, path: Optional[str] = None, command: Optional[str] = None,
             except Exception:
                 counter = None
             from core.primitives.faithfulness import faithfulness_report
-            checked = list(lessons) + ([{"text": counter["text"], "source": counter["source"]}]
-                                       if counter else [])
-            skeleton = "\n".join(f"- {c['text']}  (source: {c['source']})" for c in checked)
-            rep = faithfulness_report(checked, skeleton)
-            faithful, conf = rep["faithful"], rep["confidence"]
-            if not faithful:
+            # R2 P10 (found by the pack replay's FIRST run): the FAITH check is PER ITEM.
+            # It used to run once over the whole render and zero EVERYTHING on any
+            # failure -- census case 4's confirmed HIT (faithful, conf 1.00) was silenced
+            # because two higher-ranked NEIGHBOURS failed. Silence-beats-fabrication is
+            # the right law per item: drop the unfaithful, keep the innocent. A silenced
+            # HIT is invisible forever; that harm outranks the cost of N small checks.
+            kept: List[Dict[str, Any]] = []
+            confs: List[float] = []
+            for it in lessons:
+                rep = faithfulness_report([it], f"- {it['text']}  (source: {it['source']})")
+                if rep["faithful"]:
+                    kept.append(it)
+                    confs.append(float(rep["confidence"]))
+                else:
+                    lstats["faith_dropped"] = lstats.get("faith_dropped", 0) + 1
+            if counter is not None:
+                c_item = {"text": counter["text"], "source": counter["source"]}
+                rep = faithfulness_report([c_item],
+                                          f"- {c_item['text']}  (source: {c_item['source']})")
+                if not rep["faithful"]:
+                    counter = None            # a fabricated dissent is still fabricated
+                else:
+                    confs.append(float(rep["confidence"]))
+            faithful = bool(kept)
+            conf = min(confs) if confs else 0.0
+            if not kept:
                 # P9 (sol's fence): remember WHO silenced. This assignment used to destroy
                 # the fact, and the exit then blamed the floor for the FAITH gate's verdict.
                 lstats["faith_rejected"] = 1
-                lessons, total, counter = [], 0, None   # silence beats a fabricated hint (counter included)
+                lessons, total, counter = [], 0, None   # nothing faithful survived
+            else:
+                total -= lstats.get("faith_dropped", 0)
+                lessons = kept
         if count_surface and lessons:
             bump_surfaced([l.get("source") for l in lessons])   # impression count (best-effort, feeds noise-decay)
         # R2 s0: EVERY exit records an outcome. empty_query ("nothing was even rankable")
