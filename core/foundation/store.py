@@ -966,6 +966,9 @@ class HybridStore(Store):
 
         snap = self._file.snapshot()
         written = {"kv": 0, "hash": 0, "list": 0, "set": 0, "zset": 0, "expire": 0}
+        # What the heal DECLINED to touch because Redis already held it. Reported, never silent:
+        # a heal that quietly skips is how the previous one quietly destroyed.
+        skipped = {"list": 0}
         try:
             for k, v in snap["kv"].items():
                 self._redis.set(k, v); written["kv"] += 1
@@ -973,8 +976,26 @@ class HybridStore(Store):
                 if h:
                     self._redis.hset(k, mapping=h); written["hash"] += 1
             for k, lst in snap["list"].items():
-                # Rebuild list in order: clear then rpush the File ordering.
-                self._redis.delete(k)
+                # BACKFILL ONLY -- never overwrite a list Redis already holds.
+                #
+                # This used to delete(k) then rpush the File ordering unconditionally, on the
+                # premise "File is source of truth". That premise is FALSE for the learning
+                # corpus: measured 2026-07-27, File held a 16-entry learn:experiments:all while
+                # Redis held 485. heal_report() calls reconcile() whenever ANY key is missing in
+                # Redis, so ONE unrelated drifted key demoted the whole corpus to a 16-lesson
+                # fossil and recall went blind to 96% of its own memory -- repeatedly, because
+                # it is not an event but every boot that finds drift.
+                #
+                # The trigger is narrow (specific keys missing) so the action must be too. A key
+                # present in BOTH planes is not divergence this reconciler can adjudicate: Redis
+                # is the live authority (matches read-Redis-first and cas()), so we leave it
+                # alone and SAY we did. Backfilling a key Redis lacks stays exactly as it was.
+                #
+                # Pin: tests/test_heal_clobbers_richer_redis_list.py
+                # Evidence: research/reviewed/index-blindness-RECURRENCE-2026-07-27.md
+                if self._redis.exists(k):
+                    skipped["list"] += 1
+                    continue
                 if lst:
                     self._redis.rpush(k, *lst)
                 written["list"] += 1
@@ -989,10 +1010,10 @@ class HybridStore(Store):
                 remaining = int(exp - now)
                 if remaining > 0:
                     self._redis.expire(k, remaining); written["expire"] += 1
-            return {"status": "success", "written": written}
+            return {"status": "success", "written": written, "skipped": skipped}
         except Exception as e:
             logger.error(f"HybridStore reconcile failed: {e}")
-            return {"status": "error", "error": str(e), "written": written}
+            return {"status": "error", "error": str(e), "written": written, "skipped": skipped}
 
     def heal_report(self) -> List[str]:
         """RB-25 Drill 2 (H2/H2b): the OPERATOR-FACING cold-start heal. check_drift ->
