@@ -45,24 +45,52 @@ def register_presence(agent_id: str) -> Dict[str, Any]:
 
 
 def peek_inbox(agent_id: str, limit: int = 10) -> List[Dict[str, Any]]:
-    """Unread direct+broadcast mail; advance=False so cursor is unchanged."""
+    """Unread direct+broadcast mail; advance=False so cursor is unchanged.
+
+    FRESHNESS WINDOW (pins: tests/test_sync_peek_freshness.py; kimi's Q4, adopted 3/3):
+    the old peek rendered the OLDEST `limit` from the cursor, so a stale backlog showed the
+    SAME items on every call and newly-arrived mail was INVISIBLE -- at this session's boot
+    that masked three real replies behind ten stale notices. Now the peek OVER-READS
+    (detect-only, cursor untouched) and windows: a few oldest for context, the NEWEST for
+    truth, and an explicit gap marker plus `pending_at_least` on every row so no renderer
+    can present a window as the whole inbox."""
     try:
         from core.comm.bus import Bus
         b = Bus(str(agent_id or "unknown"))
         if not b.online:
             return []
-        msgs = b.inbox(limit=max(1, limit), advance=False)
-        out = []
-        for m in msgs:
+        want = max(1, limit)
+        raw = b.inbox(limit=max(want * 5, 50), advance=False)
+        total = len(raw)
+        if total > want:
+            k_old = max(1, want // 4)
+            head, tail = raw[:k_old], raw[-(want - k_old):]
+            hidden = total - len(head) - len(tail)
+            windowed = True
+        else:
+            head, tail, hidden, windowed = raw, [], 0, False
+        out: List[Dict[str, Any]] = []
+
+        def _row(m):
             d = m.to_dict() if hasattr(m, "to_dict") else {}
-            out.append({
+            return {
                 "id": d.get("id") or getattr(m, "id", ""),
                 "frm": d.get("frm") or getattr(m, "frm", ""),
                 "to": d.get("to") or getattr(m, "to", ""),
                 "kind": d.get("kind") or getattr(m, "kind", ""),
                 "content": d.get("content", getattr(m, "content", "")),
                 "ts": d.get("ts") or getattr(m, "ts", ""),
-            })
+                "pending_at_least": total,
+            }
+
+        out.extend(_row(m) for m in head)
+        if hidden > 0:
+            out.append({"gap": True, "id": "", "frm": "backlog", "to": str(agent_id),
+                        "kind": "gap", "ts": "", "pending_at_least": total,
+                        "content": f"(... {hidden} older unread hidden between oldest and "
+                                   f"newest -- the cursor is behind; --consume or drain "
+                                   f"to clear)"})
+        out.extend(_row(m) for m in tail)
         return out
     except Exception:
         return []
@@ -257,7 +285,10 @@ def collect_boot_bifrost(agent_id: str, limit: int = 8) -> Dict[str, Any]:
         "bus_online": pres["online"],
         "presence_registered": pres["registered"],
         "agents_online": pres["agents_online"],
-        "pending": len(msgs),
+        # Honest count: when the peek is WINDOWED, pending_at_least (the true unread depth)
+        # beats len(msgs) -- the perpetual "8 unread" whisper all night was this exact lie.
+        "pending": (max((int(m.get("pending_at_least", 0)) for m in msgs), default=0)
+                    or len(msgs)),
         "messages": msgs,
         "locks": peek_locks(agent_id),
         "pause_line": pause_line,
