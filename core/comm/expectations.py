@@ -154,6 +154,36 @@ def _answers_since(sender: str, anchor: str) -> List[Any]:
         return []
 
 
+def _resolve_link(answers_id: Any, recs: Dict[str, Dict[str, Any]]) -> Optional[str]:
+    """The expectation `answers_id` refers to, tolerating the DUAL-WRITE ID PAIR.
+
+    One send lands on both the lane stream and the legacy stream, so it has two ids
+    one apart in the sequence part. The expectation is armed on the id send() returned;
+    the peer answers against the id it actually received. Live receipt: ask
+    1785226575154-0, reply meta.answers=1785226575153-0 -- same message, and exact
+    string comparison rejected it for four hours.
+
+    Deliberately narrow: same millisecond, sequence within one. A wider window would
+    start settling asks that merely arrived close together, and a settle that fires on
+    the wrong ask is worse than one that does not fire -- it loses the work silently
+    instead of loudly redriving it."""
+    a = str(answers_id or "")
+    if not a:
+        return None
+    if a in recs:
+        return a
+    ms, _, seq = a.partition("-")
+    try:
+        seq_i = int(seq or 0)
+    except ValueError:
+        return None
+    for delta in (1, -1):
+        sib = f"{ms}-{seq_i + delta}"
+        if sib in recs:
+            return sib
+    return None
+
+
 def sweep(sender: str, now: Optional[float] = None) -> Dict[str, List[str]]:
     """One render-time pass: clear answered, redrive expired, kill exhausted.
     Returns {"redriven": [ids], "dead": [ids], "cleared": [ids]}; `now` injectable so
@@ -178,14 +208,20 @@ def sweep(sender: str, now: Optional[float] = None) -> Dict[str, List[str]]:
             return out
         oldest = min((r.get("anchor", "0") for r in recs.values()), key=_id_tuple)
         replies = _answers_since(sender, oldest)
+        linked = set()                         # T117: replies whose link RESOLVED
         for r in replies:                      # 1) exact linkage clears first
-            a = (getattr(r, "meta", None) or {}).get("answers")
-            if a and a in recs:
+            a = _resolve_link((getattr(r, "meta", None) or {}).get("answers"), recs)
+            if a:
                 c.hdel(key, a)
                 del recs[a]
                 out["cleared"].append(a)
+                linked.add(getattr(r, "id", None))
         for r in replies:                      # 2) FIFO fallback: one clear per reply
-            if (getattr(r, "meta", None) or {}).get("answers"):
+            # T117: skip only replies whose link actually RESOLVED. A reply naming an
+            # id we do not hold is UNLINKED, and the fallback exists for exactly that.
+            # Treating a non-matching `answers` as "already handled" left an answered
+            # ask armed until it redrove -- three times, at a full peer turn each.
+            if getattr(r, "id", None) in linked:
                 continue
             cands = sorted(
                 ((oid, rec) for oid, rec in recs.items()
