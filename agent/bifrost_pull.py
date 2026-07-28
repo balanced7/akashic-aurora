@@ -62,17 +62,66 @@ def peek_inbox(agent_id: str, limit: int = 10) -> List[Dict[str, Any]]:
         want = max(1, limit)
         cap = max(want * 5, 50)
         raw = b.inbox(limit=cap, advance=False)
-        total = len(raw)
-        # kimi fence-lite finding 2: when the over-read HITS its cap, `total` is a floor,
-        # not the depth -- confess it (renderers show "50+") instead of silently capping.
-        capped = total >= cap
+        # SOL'S BOUNDARY REGRESSION (blocker, reproduced at 80 msgs; pin
+        # test_true_tail_visible_beyond_the_overread_cap): the forward over-read XREADs
+        # oldest-first from the cursor, so with backlog > cap the "newest" above is the
+        # newest OF THE OLDEST cap -- the true tail is invisible exactly in the storm
+        # condition freshness exists for. Fix contract (Sol's): TRUE-TAIL reverse-range
+        # merge, not a larger magic cap. We XREVRANGE each stream's genuine tail (unread
+        # only: min exclusive of the cursor), apply the same consume-door filters _drain
+        # uses (integrity, own-broadcast, other-seat directed mail; frags skipped -- they
+        # cannot reassemble backwards, a documented residual), and merge by id.
+        tail_msgs = []
+        try:
+            from core.comm import packet_spec as _ps
+            cur = b._read_cursor()
+            sid8 = b._my_sid8()
+            streams = [(b._inbox_key(str(agent_id)), cur.get("inbox", "0"), False)]
+            streams.append((b._bc_key, cur.get("bc", "0"), True))
+            if sid8:
+                try:
+                    seat_cur = str(b._client.hget(b._seat_cursor_key(sid8), "seat") or "0")
+                    streams.append((b._seat_inbox_key(str(agent_id), sid8), seat_cur, False))
+                except Exception:
+                    pass
+            seen_tail = set()
+            for skey, scur, is_bc in streams:
+                lo = "(" + str(scur) if str(scur) not in ("0", "0-0") else "-"
+                try:
+                    rows = b._client.xrevrange(skey, max="+", min=lo, count=want)
+                except Exception:
+                    continue
+                for sid, fields in rows or []:
+                    if str(sid) in seen_tail:
+                        continue
+                    seen_tail.add(str(sid))
+                    ok, _why = _ps.verify_integrity(fields)
+                    if not ok or _ps.parse_frag(fields) is not None:
+                        continue
+                    m = b._to_msg(str(sid), dict(fields))
+                    if is_bc and m.frm == str(agent_id):
+                        continue
+                    inc = str((m.meta or {}).get("to_incarnation") or "")[:8]
+                    if inc and sid8 and inc != sid8:
+                        continue
+                    tail_msgs.append(m)
+        except Exception:
+            tail_msgs = []
+        by_id = {str(m.id): m for m in raw}
+        for m in tail_msgs:
+            by_id.setdefault(str(m.id), m)
+        merged = sorted(by_id.values(), key=lambda m: str(m.id))
+        total = len(merged)
+        # kimi fence-lite finding 2: when the forward over-read HITS its cap, `total` is a
+        # floor, not the depth -- confess it (renderers show "N+") instead of silently capping.
+        capped = len(raw) >= cap
         if total > want:
             k_old = max(1, want // 4)
-            head, tail = raw[:k_old], raw[-(want - k_old):]
+            head, tail = merged[:k_old], merged[-(want - k_old):]
             hidden = total - len(head) - len(tail)
             windowed = True
         else:
-            head, tail, hidden, windowed = raw, [], 0, False
+            head, tail, hidden, windowed = merged, [], 0, False
         out: List[Dict[str, Any]] = []
 
         def _row(m):
