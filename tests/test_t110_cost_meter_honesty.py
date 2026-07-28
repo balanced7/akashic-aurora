@@ -182,3 +182,29 @@ def test_p7_the_agent_default_is_explicit_and_narrow(tmp_path):
         f"FALLBACK TOO WIDE: kimi's unlabelled turns fell through to a priced default. "
         f"The agent default must be a per-agent statement of fact, never a catch-all -- "
         f"a catch-all is how the original defect was written. to_dict()={km.to_dict()}")
+
+
+# --------------------------------------------------------------- P8 the render must say it
+def test_p8_the_doctor_line_names_the_unpriced_tokens(tmp_path):
+    """RED ADDENDUM. Refusing to guess a price only helps if the DASHBOARD shows
+    the refusal. A kimi line reading `16.1M tokens today - ~$0.00 est` is a NEW
+    confident zero -- the same disease, relocated. The unpriced tokens must reach
+    the operator's eye, because the operator is the one who can supply the rate."""
+    from core.comm import doctor
+
+    today = __import__("time").strftime("%Y-%m-%d")
+    with open(tmp_path / f"runner_kimi_{today}.json", "w", encoding="utf-8") as f:
+        json.dump({"agent": "kimi", "date": today, "turns": 66,
+                   "prompt_tokens": 15_960_666, "completion_tokens": 135_810,
+                   "total_tokens": 16_096_476, "model": "kimi-k3", "cost_est": 0.0,
+                   "unpriced_tokens": 16_096_476, "unpriced_models": ["kimi-k3"]}, f)
+
+    finding = doctor._token_cost_line("kimi", journal_dir=str(tmp_path))
+    line = str((finding or {}).get("line", ""))
+    assert "unpriced" in line.lower(), (
+        f"SILENT ZERO ON THE DASHBOARD: 16.1M unpriced kimi tokens rendered as "
+        f"{line!r}. A $0.00 cost line reads as free usage. Say the word: the gap is "
+        f"only fillable if it is visible.")
+    assert "kimi-k3" in line, (
+        f"the line must NAME the model whose rate is missing, or nobody knows what "
+        f"to look up: {line!r}")
