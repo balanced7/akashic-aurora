@@ -155,6 +155,11 @@ class Bus:
         # design -- every existing caller omits it and keeps the byte-identical legacy
         # key, so the fleet's lane progress does not move when this lands.
         self._incarnation = str(incarnation or "")[:8]
+        # T112 P11 (deepseek's fence residual): the collapse notice goes to stderr, which
+        # a runner's MODEL never reads -- it reaches the ManagedChild ring, not the turn.
+        # Record it here so the calling door can say so in the string the model DOES read.
+        # Reset on every send: a stale flag would report a collapse that did not happen.
+        self.last_reask: Optional[str] = None
         self.ns = namespace or os.environ.get("BIFROST_NAMESPACE", NS)
         self.maxlen = maxlen
         self._client = client if client is not None else _connect()
@@ -543,6 +548,7 @@ class Bus:
         client, unreadable stream, any exception. A duplicate costs one turn; a
         suppressed message that had no original costs the work itself, which is Sol's
         S4 strand class one layer up."""
+        self.last_reask = None                 # P11: fresh verdict every send
         window = self._reask_window()
         if window <= 0 or not self._truthy_env("BIFROST_REASK_COLLAPSE", True):
             return None
@@ -580,6 +586,7 @@ class Bus:
             _loud(f"[re-ask] identical {kind} to {to} already pending as {prior} "
                   f"({window}s window) -- collapsed, not re-sent. Nudge it or change the "
                   f"ask; a repeat send costs {to} a full turn.")
+            self.last_reask = prior
             return prior
         except Exception:
             return None                        # fail OPEN

@@ -217,3 +217,40 @@ def test_p10_a_reaper_rehome_is_never_collapsed(peers):
     assert again and again != first, (
         "REHOME COLLAPSED: re-homed mail is the rescue path for a dead seat's work. "
         "Suppressing it stranded the packet twice over.")
+
+
+# --------------------------------------------------------------- P11 deepseek's fence residual
+def test_p11_the_sender_learns_it_was_collapsed_not_just_stderr():
+    """deepseek's T112 fence, filed after I asked it to fence harder than usual: PASSES on
+    all three surfaces, one residual -- "collapse reason should reach the sender through
+    more than stderr."
+
+    Exactly right, and it is the same disease in miniature. A runner's stderr goes to the
+    ManagedChild ring; the MODEL that called bifrost_send never sees it. So the sender gets
+    an id back, believes it sent something new, and learns nothing -- while the whole point
+    of collapsing is to teach "nudge the original instead". A notice the actor cannot read
+    is a notice that does not exist.
+
+    The Bus records the collapse on itself so the calling door can report it in the string
+    the model actually reads."""
+    import uuid as _uuid
+    from core.comm.bus import Bus as _Bus
+
+    a, rcv = f"snd{_uuid.uuid4().hex[:6]}", f"rcv{_uuid.uuid4().hex[:6]}"
+    sender = _Bus(a, namespace=NS, promote=False)
+    if not sender.online:
+        pytest.skip("bus offline")
+    try:
+        first = sender.send(rcv, "question", "fence this please")
+        assert sender.last_reask is None, (
+            "a normal send must not report a collapse -- a false positive here teaches the "
+            "sender to stop sending real work")
+        sender.send(rcv, "question", "fence this please")
+        assert sender.last_reask == first, (
+            f"the Bus must expose WHICH id the send collapsed onto, so the calling door can "
+            f"put it in the string the model reads: {sender.last_reask!r} != {first!r}")
+    finally:
+        for k in sender._client.scan_iter(match=f"{NS}:*{a}*", count=200):
+            sender._client.delete(k)
+        for k in sender._client.scan_iter(match=f"{NS}:*{rcv}*", count=200):
+            sender._client.delete(k)

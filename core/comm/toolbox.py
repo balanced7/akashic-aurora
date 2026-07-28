@@ -531,7 +531,19 @@ class ToolBox:
             else:
                 mid = b.send(to, kind, text, meta=meta)
                 dest = to
-            return f"sent [{kind}] to {dest} (id {mid})" if mid else "ERROR: send failed (bus offline?)"
+            if not mid:
+                return "ERROR: send failed (bus offline?)"
+            # T112 P11 (deepseek's fence residual): the collapse notice goes to stderr,
+            # which the MODEL calling this tool never reads -- it lands in the runner's
+            # child ring, not in the turn. Without this line the sender is told "sent",
+            # believes it delivered new work, and learns nothing; teaching "nudge the
+            # original instead" is the entire point of collapsing. A notice the actor
+            # cannot read is a notice that does not exist.
+            if getattr(b, "last_reask", None):
+                return (f"NOT SENT -- identical [{kind}] to {dest} is already pending as "
+                        f"{mid}. Collapsed onto it, because a duplicate costs {dest} a full "
+                        f"turn. Nudge {mid} or change the ask; do not repeat this send.")
+            return f"sent [{kind}] to {dest} (id {mid})"
         except Exception as e:
             return f"ERROR: bifrost_send failed: {type(e).__name__}: {e}"
 
