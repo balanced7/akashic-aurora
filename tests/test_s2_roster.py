@@ -34,6 +34,24 @@ SEAT_A = "aaaa1111"
 SEAT_B = "bbbb2222"
 
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _restore_incarnation_env():
+    """P7 impersonates a seat via env; NEVER leak it to later tests (the T069 class --
+    re-committed by this very file an hour after fixing it in the T108 files: the roundtrip
+    test failed downstream AGAIN and the S2 commit claimed green falsely. Fixture, not
+    memory, is the guard)."""
+    saved = {k: os.environ.get(k) for k in ("BIFROST_INCARNATION", "CLAUDE_CODE_SESSION_ID")}
+    yield
+    for k, v in saved.items():
+        if v is None:
+            os.environ.pop(k, None)
+        else:
+            os.environ[k] = v
+
+
 def _ro():
     from core.comm import roster
     return roster
