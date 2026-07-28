@@ -503,7 +503,7 @@ def _process_one(m, bus, args, responder, rate) -> None:
         _tm.record(args.agent, str(m.kind), duration_s=time.time() - turn_t0,
                    progress_points=_tm.take_pulse_count(args.agent),
                    outcome=outcome, prompt_len=len(str(m.content)),
-                   tokens=(sum(toks) if toks else None))
+                   tokens=({"prompt": toks[0], "completion": toks[1]} if toks else None))
         _RUN_STATS["turns"] += 1
         # T078 W1: same seam deepseek's runner uses -- the delta is already drained above,
         # so this adds the daily aggregate without a second accounting path to drift from.

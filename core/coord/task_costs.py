@@ -56,6 +56,21 @@ def _active_task_for(agent: str, ledger=None) -> Optional[str]:
         return None
 
 
+def _token_total(tokens: Any) -> int:
+    """Normalize the canonical split dict and the legacy scalar-total shape.
+
+    Kimi and Sol historically passed ``prompt + completion`` as one integer while
+    DeepSeek passed ``{"prompt": ..., "completion": ...}``. Silently rejecting the
+    scalar produced a confident zero in otherwise healthy task telemetry. Negative
+    values clamp to zero so malformed usage can never decrement an accumulator.
+    """
+    if isinstance(tokens, dict):
+        return max(0, int(sum(int(value or 0) for value in tokens.values())))
+    if isinstance(tokens, (int, float)) and not isinstance(tokens, bool):
+        return max(0, int(tokens))
+    return 0
+
+
 def attribute_turn(agent: str, row: Dict[str, Any], ledger=None) -> Optional[str]:
     """HOT PATH (called from turn_metrics.record, inside its fail-open try): attribute
     one turn's facts to the agent's active task. Returns the tid or None. Never raises."""
@@ -70,9 +85,9 @@ def attribute_turn(agent: str, row: Dict[str, Any], ledger=None) -> Optional[str
         c.hincrby(key, "turns", 1)
         c.hincrby(key, "duration_cs", int(round(float(row.get("duration_s", 0) or 0) * 100)))
         c.hincrby(key, "tool_calls", int(row.get("tool_count", 0) or 0))
-        toks = row.get("tokens") or {}
-        if isinstance(toks, dict) and toks:
-            c.hincrby(key, "tokens", int(sum(int(v or 0) for v in toks.values())))
+        token_total = _token_total(row.get("tokens"))
+        if token_total:
+            c.hincrby(key, "tokens", token_total)
         return tid
     except Exception:
         return None
