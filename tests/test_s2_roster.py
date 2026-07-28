@@ -99,6 +99,68 @@ def test_p5_replayed_beat_cannot_resurrect():
         "replay could resurrect a stale seat or mask a death (kimi P1, never-replayed half)")
 
 
+def test_p6_just_died_seat_renders_dead_not_absent():
+    """kimi F1: an expired worklive key made a seat VANISH -- dead indistinguishable from
+    never-existed, the confident-zero in the reaper's own sensor. A seat that has EVER
+    beaten must render DEAD (with its last beat age) after its worklive expires."""
+    ro = _ro()
+    ns = NS + "x"
+    ro.heartbeat(ns, AGENT, SEAT_A, phase="building")
+    # simulate expiry: delete the worklive key (TTL reaping), leaving history only
+    _client().delete(f"{ns}:worklive:{AGENT}#{SEAT_A}")
+    rows = ro.roster(ns)
+    mine = [r for r in rows if r.get("seat") == f"{AGENT}#{SEAT_A}"]
+    assert mine and mine[0]["state"] == "DEAD", (
+        f"JUST-DIED SEAT INVISIBLE: worklive expired and the seat vanished from the roster "
+        f"instead of rendering DEAD -- absence-as-dead is fine for the reaper's predicate, "
+        f"never for the render's claim (kimi F1). rows={rows}")
+
+
+def test_p7_have_summary_reads_through_the_bus_door():
+    """kimi F2: have-summaries were built from RAW hgetall on hardcoded key strings --
+    duplicated key-format knowledge and an unverified read stamped into the inventory a
+    successor diffs against (T1). The seat-cursor half must agree with the Bus's own
+    door-derived read after a real slice-1 consume."""
+    import os as _os
+    from core.comm.bus import Bus
+    ro = _ro()
+    ns = NS + "b"
+    sender = Bus("deepseek", namespace=ns)
+    if not sender.online:
+        print("SKIPPED (Redis not running)")
+        return
+    sender.send(AGENT, "note", "seat-mail", meta={"to_incarnation": SEAT_A})
+    _os.environ["BIFROST_INCARNATION"] = SEAT_A
+    _os.environ["CLAUDE_CODE_SESSION_ID"] = SEAT_A
+    b = Bus(AGENT, namespace=ns)
+    b.inbox(advance=True)                       # real consume advances the seat cursor
+    ro.heartbeat(ns, AGENT, SEAT_A, phase="sync")
+    rows = ro.roster(ns)
+    mine = [r for r in rows if r.get("seat") == f"{AGENT}#{SEAT_A}"][0]
+    door_val = str(b._client.hget(b._seat_cursor_key(SEAT_A), "seat") or "0")
+    assert str(mine["have"].get("seat_inbox")) == door_val != "0", (
+        f"HAVE-SUMMARY DOOR MISMATCH: roster's seat_inbox={mine['have'].get('seat_inbox')} "
+        f"vs the Bus door's {door_val} -- the bitfield must be built through the organ that "
+        f"owns the key, not a raw parallel format (kimi F2 / T1).")
+
+
+def test_p8_live_window_derives_from_the_seats_own_cadence():
+    """kimi F3: FRESH_S=45 was an unjustified dial -- a wedged loop renders LIVE for 45s.
+    LIVE's window must derive from the seat's OWN observed cadence: a seat beating every
+    ~2s whose last beat is 20s old is STALE (20 >> 2x cadence), even though 20 < 45."""
+    ro = _ro()
+    ns = NS + "c"
+    base = time.time() - 30
+    for i in range(6):                          # establish ~2s cadence, ending 20s ago
+        ro.heartbeat(ns, AGENT, SEAT_A, phase="building", _beat_ts=base + i * 2)
+    rows = ro.roster(ns)
+    mine = [r for r in rows if r.get("seat") == f"{AGENT}#{SEAT_A}"][0]
+    assert mine["state"] == "STALE", (
+        f"LIVE OVERCLAIMS (kimi F3): seat cadence ~2s, last beat ~20s ago, and the roster "
+        f"still says {mine['state']} because a fixed 45s dial ignores the seat's own "
+        f"rhythm. The false-LIVE window must be bounded by the seat's real cadence. {mine}")
+
+
 if __name__ == "__main__":
     test_p1_provably_live_vs_stale()
     test_p2_dead_seat_never_live()
