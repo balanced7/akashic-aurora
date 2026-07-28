@@ -50,12 +50,16 @@ def fake_store():
     class _Rec(dict):
         pass
 
+    name = f"r2pin_{uuid.uuid4().hex[:6]}"    # stable WITHIN a test: minting a fresh
+    # name per CALL made exclude_sources never match and P8's precondition fail --
+    # the anti-repeat key is the source id, so the double must keep it constant.
+
     class _Store:
         # the contract _cached_items actually calls on an injected store -- read the
         # producer, do not guess the method name (first draft used find_lessons and
         # every call crashed into error_empty, which P4 then happily recorded).
         def load_all_learnings_from_store(self, *a, **k):
-            return [{"experiment_name": f"r2pin_{uuid.uuid4().hex[:6]}",
+            return [{"experiment_name": name,
                      "recommendation": "use the frobnicator before the veeblefetzer "
                                        "when frobnicating the r2 denominator pin",
                      "what_worked": "frobnicate first", "created_at": "2026-07-28",

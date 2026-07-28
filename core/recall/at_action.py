@@ -1240,7 +1240,8 @@ def _self_echo(item: Dict[str, Any], agent_id: Optional[str], now: Optional[floa
 def _lessons(query: str, now: Optional[float], limit: int, min_relevance: float,
              learning_store: Optional[Any] = None,
              exclude_sources: Optional[set] = None,
-             agent_id: Optional[str] = None) -> "tuple[List[Dict[str, Any]], int]":
+             agent_id: Optional[str] = None,
+             stats_out: Optional[Dict[str, int]] = None) -> "tuple[List[Dict[str, Any]], int]":
     """Rank ACTIVE lessons by TRIGGER-AWARE relevance; keep those above the show-nothing floor,
     minus any already surfaced this session (`exclude_sources` -> anti-repeat), the caller's own
     fresh lessons (self-echo window), and intra-call source dups. Returns (items capped at `limit`,
@@ -1255,10 +1256,19 @@ def _lessons(query: str, now: Optional[float], limit: int, min_relevance: float,
     for s in ranker.rank(items, query=query, now=now):   # Ranker excludes superseded (is_active)
         if s.components.get("relevance", 0.0) <= min_relevance:
             continue   # SHOW-NOTHING floor (T_min): must actually match this path/command; never pad to `limit`
+        # R2 s0 P8 (sol's fence): count the stages so the outcome row can tell
+        # "nothing cleared the floor" apart from "cleared, then withheld". A mixed
+        # floor_silent bucket poisons any read of the floor's own behaviour.
+        if stats_out is not None:
+            stats_out["above_floor"] = stats_out.get("above_floor", 0) + 1
         src = s.item.get("source")
         if src in seen or src in excl:
+            if stats_out is not None and src in excl:
+                stats_out["excluded"] = stats_out.get("excluded", 0) + 1
             continue   # intra-call dedup + cross-action anti-repeat (each item adds NEW info)
         if _self_echo(s.item, agent_id, now):
+            if stats_out is not None:
+                stats_out["excluded"] = stats_out.get("excluded", 0) + 1
             continue   # the author just recorded this one; don't echo it back to them
         seen.add(src)
         # usefulness re-rank: proven-useful lessons rise; surfaced-often-yet-never-useful decay
@@ -1307,8 +1317,9 @@ def recall_at(*, path: Optional[str] = None, command: Optional[str] = None,
     try:
         floor = _floor_default() if min_relevance is None else float(min_relevance)
         query = _query_from(path, command)
+        lstats: Dict[str, int] = {}
         lessons, total = _lessons(query, now, limit, floor, learning_store, exclude_sources,
-                                  agent_id=agent_id) \
+                                  agent_id=agent_id, stats_out=lstats) \
             if query else ([], 0)
         locks = _locks(path, agent_id)
         counter = None
@@ -1329,6 +1340,9 @@ def recall_at(*, path: Optional[str] = None, command: Optional[str] = None,
             rep = faithfulness_report(checked, skeleton)
             faithful, conf = rep["faithful"], rep["confidence"]
             if not faithful:
+                # P9 (sol's fence): remember WHO silenced. This assignment used to destroy
+                # the fact, and the exit then blamed the floor for the FAITH gate's verdict.
+                lstats["faith_rejected"] = 1
                 lessons, total, counter = [], 0, None   # silence beats a fabricated hint (counter included)
         if count_surface and lessons:
             bump_surfaced([l.get("source") for l in lessons])   # impression count (best-effort, feeds noise-decay)
@@ -1348,6 +1362,16 @@ def recall_at(*, path: Optional[str] = None, command: Optional[str] = None,
             elif not query:
                 _record_outcome("silent", "empty_query", agent_id=agent_id or "",
                                 query_shape=shape)
+            elif lstats.get("faith_rejected"):
+                # cleared the floor; the FAITH gate rejected the render (sol P9)
+                _record_outcome("silent", "unfaithful_silent", query=query,
+                                agent_id=agent_id or "", query_shape=shape)
+            elif lstats.get("above_floor", 0) > 0 and \
+                    lstats.get("excluded", 0) >= lstats.get("above_floor", 0):
+                # everything that cleared the floor was withheld (anti-repeat /
+                # self-echo) -- 'already shown' is not 'nothing relevant' (sol P8)
+                _record_outcome("silent", "excluded_silent", query=query,
+                                agent_id=agent_id or "", query_shape=shape)
             else:
                 _record_outcome("silent", "floor_silent", query=query,
                                 agent_id=agent_id or "", query_shape=shape)
