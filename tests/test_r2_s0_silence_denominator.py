@@ -51,7 +51,10 @@ def fake_store():
         pass
 
     class _Store:
-        def find_lessons(self, *a, **k):
+        # the contract _cached_items actually calls on an injected store -- read the
+        # producer, do not guess the method name (first draft used find_lessons and
+        # every call crashed into error_empty, which P4 then happily recorded).
+        def load_all_learnings_from_store(self, *a, **k):
             return [{"experiment_name": f"r2pin_{uuid.uuid4().hex[:6]}",
                      "recommendation": "use the frobnicator before the veeblefetzer "
                                        "when frobnicating the r2 denominator pin",

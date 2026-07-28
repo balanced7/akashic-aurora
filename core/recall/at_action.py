@@ -74,6 +74,69 @@ _STALE_CUE_DAYS = float(os.getenv("AKASHIC_STALE_CUE_DAYS", "30"))
 # observability; the Forge gate's axis-B validation set needs RETENTION (dual blind audit
 # 2026-07-09: retention, not resolvability, was the gap). Own bounded stream so the raw
 # event firehose stays clean (~44 entries/day -> maxlen 6000 = ~4.5 months).
+# R2 slice 0 (2026-07-28): the OUTCOME sink -- every recall_at call, fired OR silent.
+# recall:surface records only firings, so the census's 27%-silent target was unverifiable:
+# a floor-silent call, an empty-query call and a crash-empty all left NO record. The
+# denominator lives here, built BEFORE the correlation gate so the gate's effect lands on
+# a baseline. JSONL in the state dir (same lifecycle as the injection ledger); reasons:
+#   fired | floor_silent | empty_query | error_empty | disabled | gate_silent (slice 1, reserved)
+_OUTCOME_DIR = os.getenv("AKASHIC_RECALL_STATE_DIR") or _CACHE_DIR
+_OUTCOME_FILE = "recall_outcomes.jsonl"
+_OUTCOME_MAX_BYTES = 4_000_000          # ~4MB ring; oldest half dropped on overflow
+
+
+def _record_outcome(outcome: str, reason: str = "", *, query: str = "",
+                    n_items: int = 0, agent_id: str = "") -> None:
+    """One row per recall_at call. Best-effort by contract (P6): an exception here must
+    never cost the caller its items -- observability must not wedge the path it observes."""
+    try:
+        os.makedirs(_OUTCOME_DIR, exist_ok=True)
+        fp = os.path.join(_OUTCOME_DIR, _OUTCOME_FILE)
+        try:                                    # bounded: drop the oldest half on overflow
+            if os.path.getsize(fp) > _OUTCOME_MAX_BYTES:
+                with open(fp, encoding="utf-8") as f:
+                    keep = f.readlines()[-2000:]
+                with open(fp, "w", encoding="utf-8") as f:
+                    f.writelines(keep)
+        except OSError:
+            pass
+        with open(fp, "a", encoding="utf-8") as f:
+            f.write(json.dumps({"at": time.time(), "outcome": outcome, "reason": reason,
+                                "q": str(query)[:160], "n_items": int(n_items),
+                                "agent": str(agent_id or "")}) + "\n")
+    except Exception:
+        pass
+
+
+def silence_rate(window_s: float = 86400.0) -> Dict[str, Any]:
+    """The number the census bar needs: over the window, {calls, fired, silent, by_reason}.
+    Reads the outcome sink; zeros when absent (a missing file is 'no calls recorded', and
+    the caller can tell that apart from '0% silent' by calls==0)."""
+    out: Dict[str, Any] = {"calls": 0, "fired": 0, "silent": 0, "by_reason": {}}
+    try:
+        cutoff = time.time() - float(window_s)
+        with open(os.path.join(_OUTCOME_DIR, _OUTCOME_FILE), encoding="utf-8") as f:
+            for line in f:
+                try:
+                    row = json.loads(line)
+                except ValueError:
+                    continue
+                if float(row.get("at", 0)) < cutoff:
+                    continue
+                out["calls"] += 1
+                if row.get("outcome") == "fired":
+                    out["fired"] += 1
+                else:
+                    out["silent"] += 1
+                    r = str(row.get("reason") or "unknown")
+                    out["by_reason"][r] = out["by_reason"].get(r, 0) + 1
+    except OSError:
+        pass
+    except Exception:
+        pass
+    return out
+
+
 SURFACE_STREAM = "recall:surface"
 SURFACE_MAXLEN = 6000
 
@@ -1264,6 +1327,23 @@ def recall_at(*, path: Optional[str] = None, command: Optional[str] = None,
                 lessons, total, counter = [], 0, None   # silence beats a fabricated hint (counter included)
         if count_surface and lessons:
             bump_surfaced([l.get("source") for l in lessons])   # impression count (best-effort, feeds noise-decay)
+        # R2 s0: EVERY exit records an outcome. empty_query ("nothing was even rankable")
+        # is a different fact from floor_silent ("ranked; nothing cleared the floor") --
+        # conflating them hides query-construction bugs behind an honest-looking silence.
+        # Guarded AT THE CALL SITE, not only inside the callee (P6): _record_outcome is
+        # fail-safe internally, but a replaced/broken sink raising HERE would fall into the
+        # outer except and convert a SUCCESSFUL recall into an error-empty -- the caller
+        # would lose its items to an observability write. Same belt-and-suspenders as
+        # liveness._safe_code_sha, same reason.
+        try:
+            if lessons:
+                _record_outcome("fired", query=query, n_items=len(lessons), agent_id=agent_id or "")
+            elif not query:
+                _record_outcome("silent", "empty_query", agent_id=agent_id or "")
+            else:
+                _record_outcome("silent", "floor_silent", query=query, agent_id=agent_id or "")
+        except Exception:
+            pass
         return {"path": path, "command": command, "query": query, "lessons": lessons,
                 "locks": locks, "counter": counter, "shown": len(lessons) + len(locks),
                 "total": total, "faithful": faithful, "confidence": conf}
@@ -1278,6 +1358,13 @@ def recall_at(*, path: Optional[str] = None, command: Optional[str] = None,
         # silence meaning "I could not look" are different facts and must not share a
         # rendering. Sixth instance of this genus today and the worst-placed -- recall-at
         # fires before every edit and command.
+        # R2 s0: the crash-empty is RECORDED as its own reason. An empty-from-crash that
+        # renders identically to an empty-from-judgment is the confident-zero disease at
+        # the meta level (recall_at_error_masks_as_confident_empty, landed as pin P4).
+        try:
+            _record_outcome("silent", "error_empty", agent_id=agent_id or "")
+        except Exception:
+            pass                              # the fail-soft contract outranks the record
         return {"path": path, "command": command, "query": "", "lessons": [], "locks": [],
                 "counter": None, "shown": 0, "total": 0,
                 "faithful": None, "confidence": None,
