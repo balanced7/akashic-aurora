@@ -61,7 +61,31 @@ def test_windowed_peek_confesses_the_hidden_middle():
         f"the whole inbox. Result keys: {[sorted(m.keys()) for m in msgs[:2]]}")
 
 
+def test_true_tail_visible_beyond_the_overread_cap():
+    """Sol's blocker (independent review of 73349b0/a190494, REPRODUCED at 80 msgs):
+    the over-read XREADs oldest-first from the cursor, so with backlog > cap (50) the
+    window's "newest" is the newest OF THE OLDEST 50 -- the TRUE tail (msg-079) is
+    invisible, exactly in the storm condition freshness exists for. The 31-message pin
+    could not expose it (31 < 50). This pin uses 80 and asserts GENUINE tail visibility.
+    Fix contract: true-tail logic (reverse-range merge), not a larger magic cap."""
+    sender = Bus("deepseek")
+    if not sender.online:
+        print("SKIPPED (Redis not running)")
+        return
+    agent = AGENT + "t"
+    for i in range(80):
+        sender.send(agent, "note", f"deep-backlog-{i:03d}")
+
+    msgs = peek_inbox(agent, limit=10)
+    bodies = " | ".join(str(m.get("content", "")) for m in msgs)
+    assert "deep-backlog-079" in bodies, (
+        f"TRUE TAIL INVISIBLE: 80 unread, over-read cap 50 -- the window's 'newest' is the "
+        f"newest of the OLDEST 50, and the genuinely newest message is hidden. Sol's "
+        f"reproduction, pinned. Rendered: ...{bodies[-300:]}")
+
+
 if __name__ == "__main__":
     test_newest_mail_visible_through_stale_backlog()
     test_windowed_peek_confesses_the_hidden_middle()
+    test_true_tail_visible_beyond_the_overread_cap()
     print("PASS")
