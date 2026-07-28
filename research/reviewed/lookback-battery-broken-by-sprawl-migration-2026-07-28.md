@@ -58,3 +58,35 @@ TASK SHAPE: migration-completion, not test maintenance. Whoever re-points also c
 OTHER name-based references to the deleted 621 were left dangling -- one gate broke loudly
 enough to find; a reference that fails OPEN (the readme_directory_pointer_fails_open class)
 would not have.
+
+## MEASURED AT THE GATE (06:30, after kimi's build)
+
+Numbers, now that the construction has actually been run rather than reasoned about:
+
+* f8510b6 deleted **621 tracked files**, of which **103 are top-level `docs/*.md`** --
+  the population the battery's expected slugs live in. Earlier text in this file says
+  "621 docs"; that is the total tracked deletion, not the doc-name population. Stated
+  here rather than edited above, so the correction is visible.
+* kimi's added finding, which reframes the whole task: **the `legacy_path -> art_id`
+  map is a design claim that was never wired.** The migration's own design doc §167
+  says it "records a legacy_path -> art_id map as a committed atom". No such field, no
+  such lookup, no such artifact. The battery going red is not the defect -- it is the
+  ONLY DETECTOR that ever fired on a missing artifact, five days late.
+* First execution of the constructor: **2 of 103 matched.** The cause is structural,
+  not incidental. The migration lifted each doc's title line and Status line into the
+  atom `header` and kept the remainder as `body`, so a sha over the whole pre-deletion
+  file can never equal the atom's `body_sha`:
+
+      docs/coordination-plan-synthesis.md            23380 chars
+      art_20260710_multi-agent-coordination-...      23267 chars   (delta 113)
+      doc[113:].rstrip() == atom.body.rstrip()  ->   True
+
+  Byte-exact after stripping the same header the migration stripped. The fix keeps the
+  content-addressed guarantee -- strip, then match, and ASSERT the equality so a wrong
+  strip fails loudly instead of writing a wrong art_id into a committed map.
+
+**The method point.** kimi built this and explicitly refused to claim it green, because
+it could not execute from its seat. That refusal is why the diagnosis took one pass
+instead of arriving after a bad commit: a constructor that was never called, and a
+premise that cannot hold, both surfaced on first execution. A build that says
+"verification pending" is worth more than one that says "done" and is not.
