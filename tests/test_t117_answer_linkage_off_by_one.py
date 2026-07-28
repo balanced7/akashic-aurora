@@ -254,3 +254,75 @@ def test_p8_one_reply_settles_exactly_one_ask_across_sweeps(sender, monkeypatch)
         f"arrived. Settlement must be idempotent per reply: {out2}")
     assert "1785226575000-0" in (c.hgetall(E._key(s)) or {}), (
         "the older unanswered ask must still be armed after both sweeps")
+
+
+# --------------------------------------------------------------- P9-P11 sol's fence round 2
+def test_p9_a_wrong_sender_exact_id_never_clears(sender, monkeypatch):
+    """sol: the exact-linkage path never checked WHO answered. A reply from agent X
+    naming an id armed for agent Y cleared Y's ask -- the one property P5 guarded on
+    the FIFO path was absent from the precise path."""
+    _arm(sender, "1785226575154-0", "kimi", "1785226472805-0", 1785226575.19,
+         deadline_past=False)
+    out = _sweep_with(sender, [_Reply("1785228386835-0", "deepseek",
+                                      answers="1785226575154-0")], monkeypatch)
+    assert not out["cleared"], (
+        f"WRONG SENDER SETTLED THE ASK: deepseek's reply cleared an expectation "
+        f"addressed to kimi via the exact-id path: {out}")
+
+
+def test_p10_marker_write_failure_never_reopens_double_settlement(sender, monkeypatch):
+    """sol, fault-injected: _mark_settled ran AFTER hdel, best-effort -- so a failed
+    marker SET with a healthy HDEL restored the exact prior defect on the next
+    sweep. Settle+mark must be one atomic transition; if the marker cannot be
+    written, the expectation must survive (loud redrive beats silent wrong-work)."""
+    s = sender
+    c = E._client()
+    _arm(s, "1785226575000-0", "kimi", "1785226574000-0", 1785226575.0,
+         deadline_past=False)                                  # older, UNANSWERED
+    _arm(s, "1785226575200-0", "kimi", "1785226575100-0", 1785226575.2)   # newer
+    reply = _Reply("1785228386835-0", "kimi", answers="1785226575200-0")
+
+    real_set = c.set
+    def _failing_set(k, *a, **kw):
+        if "reply_settled" in str(k):
+            raise RuntimeError("marker plane down")
+        return real_set(k, *a, **kw)
+    monkeypatch.setattr(c, "set", _failing_set)
+    out1 = _sweep_with(s, [reply], monkeypatch)
+    monkeypatch.setattr(c, "set", real_set)
+
+    out2 = _sweep_with(s, [reply], monkeypatch)
+    still = c.hgetall(E._key(s)) or {}
+    assert "1785226575000-0" in still, (
+        f"DOUBLE SETTLEMENT REOPENED: marker write failed, HDEL succeeded anyway, and "
+        f"the re-read reply FIFO-cleared the older ask on the next sweep. "
+        f"sweep1={out1} sweep2={out2} remaining={sorted(still)}")
+
+
+def test_p11_a_reply_to_the_redrive_settles_the_original(sender, monkeypatch):
+    """sol: a redrive is a NEW send with NEW stream ids; a peer that answers the
+    REDRIVE's id (the only id it ever saw) resolved to nothing, so the original
+    expectation redrove again -- the T117 disease reborn one generation down.
+    The redrive branch must alias its new ids back to the ORIGINAL ask."""
+    s = sender
+    c = E._client()
+    _arm(s, "1785226575154-0", "kimi", "1785226472805-0", 1785226575.19,
+         deadline_past=True, redrives=2)
+
+    sent = {}
+    class _FakeBus:
+        def __init__(self, *a, **k): pass
+        def send(self, to, kind, content, meta=None):
+            sent["mid"] = "1785228000000-0"
+            return sent["mid"]
+    import core.comm.bus as bus_mod
+    monkeypatch.setattr(bus_mod, "Bus", _FakeBus)
+
+    out1 = _sweep_with(s, [], monkeypatch)          # deadline passed -> redrives
+    assert "1785226575154-0" in out1["redriven"], f"precondition: must redrive: {out1}"
+
+    out2 = _sweep_with(s, [_Reply("1785228386900-0", "kimi",
+                                  answers=sent["mid"])], monkeypatch)
+    assert out2["cleared"] == ["1785226575154-0"], (
+        f"REPLY TO THE REDRIVE LOST: the peer answered the only id it ever saw "
+        f"(the redrive's) and the original ask did not settle: {out2}")
