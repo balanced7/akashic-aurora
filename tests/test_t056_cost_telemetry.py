@@ -13,8 +13,10 @@ REGISTERED SEAM (core/coord/task_costs.py -- deepseek's adopted design):
   * cost_line(task) -> str -- render: "" unless task is done AND carries cost_turns;
     <=120 chars; tokens drop first.
 
-Pins K1-K7 per the reconciliation (expected RED -- module absent).
+Pins K1-K7 per the reconciliation, plus K8-K9 for the confident-zero usage-shape
+regression found in the live Kimi/Sol runner wiring.
 """
+import ast
 import json
 import os
 import sys
@@ -164,6 +166,75 @@ def test_k7_pre_t056_tasks_render_nothing(monkeypatch, tmp_path):
     tc = _mod()
     t = _task("T900", "alice", "done")       # no cost_* keys at all
     assert tc.cost_line(t) == "", "K7: absent stamps render absent -- no placeholders"
+
+
+# ------------------------------------------------------ K8: legacy scalar shape
+def test_k8_scalar_token_total_never_becomes_confident_zero(monkeypatch, tmp_path):
+    """Kimi/Sol passed one integer total while task_costs accepted dictionaries only.
+
+    Turns, duration, and tools still incremented, so the missing token field looked like
+    a real zero. Keep scalar acceptance as a compatibility fence while the runners move
+    to the canonical split shape (K9).
+    """
+    c = _client()
+    ns = _ns(monkeypatch)
+    tc = _mod()
+    led = _ledger(tmp_path, [_task("T900", "alice", "in_progress")])
+
+    assert tc.attribute_turn("alice", _row(tokens=1234), ledger=led) == "T900"
+    acc = c.hgetall(f"{ns}:task_cost:T900")
+    assert int(acc.get("tokens", 0)) == 1234, (
+        "K8: a positive scalar token total must be counted, not silently omitted as zero")
+
+
+def _runner_record_token_exprs(relpath):
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    source = open(os.path.join(root, relpath), encoding="utf-8").read()
+    tree = ast.parse(source, filename=relpath)
+    out = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        fn = node.func
+        if not (isinstance(fn, ast.Attribute) and fn.attr == "record"
+                and isinstance(fn.value, ast.Name) and fn.value.id == "_tm"):
+            continue
+        out.extend(kw.value for kw in node.keywords if kw.arg == "tokens")
+    return out
+
+
+def _is_toks_index(node, index):
+    return (isinstance(node, ast.Subscript)
+            and isinstance(node.value, ast.Name) and node.value.id == "toks"
+            and isinstance(node.slice, ast.Constant) and node.slice.value == index)
+
+
+# ------------------------------------------------------ K9: live runner wiring
+@pytest.mark.parametrize("relpath", [
+    "scripts/bifrost_runner_kimi.py",
+    "scripts/bifrost_runner_sol.py",
+])
+def test_k9_kimi_and_sol_pass_split_token_usage(relpath):
+    """Pin the consumers, not only the meter: both runners must reach turn_metrics with
+    the same split dictionary DeepSeek uses. A scalar here recreates confident-zero task
+    telemetry even if every isolated meter test is green.
+    """
+    exprs = _runner_record_token_exprs(relpath)
+    assert len(exprs) == 1, f"K9: expected one _tm.record token seam in {relpath}"
+    expr = exprs[0]
+    assert isinstance(expr, ast.IfExp) and isinstance(expr.body, ast.Dict), (
+        f"K9: {relpath} must pass a conditional split token dictionary, got "
+        f"{ast.dump(expr, include_attributes=False)}")
+    pairs = {
+        key.value: value
+        for key, value in zip(expr.body.keys, expr.body.values)
+        if isinstance(key, ast.Constant) and isinstance(key.value, str)
+    }
+    assert set(pairs) == {"prompt", "completion"}, (
+        f"K9: {relpath} token keys must be prompt+completion, got {sorted(pairs)}")
+    assert _is_toks_index(pairs["prompt"], 0), f"K9: {relpath} prompt must use toks[0]"
+    assert _is_toks_index(pairs["completion"], 1), (
+        f"K9: {relpath} completion must use toks[1]")
 
 
 if __name__ == "__main__":
