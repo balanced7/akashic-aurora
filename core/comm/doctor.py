@@ -393,8 +393,15 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
                                   f"GONE (no worklive, no runner, no wake seat). The backlog "
                                   f"is ghost mail from a retired seat — retire the inbox or "
                                   f"ignore.",
-                                  f"py agent_cli.py retire {agent}  | or ignore: the mail "
-                                  f"TTLs with the stream"))
+                                  # T115: this used to advertise a `retire` verb that
+                                  # has never existed -- an operator following
+                                  # the doctor's own advice got an argparse error and no way
+                                  # to act on a finding the doctor deliberately raised.
+                                  # skip-to-now IS "retire the inbox": it advances the
+                                  # cursors past ghost mail, with an audited reason.
+                                  f"py agent_cli.py bifrost-skip-to-now {agent} --by <you> "
+                                  f"--reason 'ghost mail from a retired seat'  | or ignore: "
+                                  f"the mail TTLs with the stream"))
                 p["stalled_since"](agent, False)
             else:
                 first = p["stalled_since"](agent, True)
