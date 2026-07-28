@@ -155,3 +155,21 @@ def test_p6_recording_never_breaks_recall(fake_store, _isolated_outcomes, monkey
     assert r.get("lessons"), (
         "the outcome sink threw and the caller lost its items -- observability must "
         "never wedge the path it observes (liveness.py's own rule, same layer)")
+
+
+# --------------------------------------------------------------- P7 deepseek's review bonus
+def test_p7_the_outcome_row_carries_the_query_shape(fake_store, _isolated_outcomes):
+    """deepseek's R2 review, the actionable line: "add query_shape to the slice-0
+    outcome row so silent records are auditable against the census cases that
+    justified them." The census's NONE-NEEDED reasons are SHAPE reasons (pure count,
+    tool-is-retrieval, work-already-done) -- a silent row that cannot say what SHAPE
+    of action went silent cannot be audited against the pack that justified the
+    silence, and slice 1's gate rules will key on exactly this field."""
+    A.recall_at(command="git commit -q -m done", learning_store=fake_store,
+                min_relevance=99.0)                                    # silent
+    A.recall_at(path=r"E:\AI-Setup\core\recall\at_action.py",
+                learning_store=fake_store, min_relevance=99.0)         # silent
+    rows = _outcomes(_isolated_outcomes)
+    assert len(rows) >= 2
+    assert rows[-2].get("query_shape") == "command", rows[-2]
+    assert rows[-1].get("query_shape") == "path", rows[-1]
