@@ -8,6 +8,8 @@ fence reproduced against the live tree:
   H2  recovered work preserves the original asker and remains answerable;
   H3  a page limit does not make item 51 unreachable forever;
   H4  the original clock actually governs freshness after re-home.
+  H5  a full-session tombstone remains connected to its sid8 roster row;
+  H6  the observational doctor does not mutate mail by running the reaper.
 
 They deliberately assert properties at the consumer boundary, not log text. Namespaces
 are unique and exact-cleaned; no shared cursor or canonical task state is touched.
@@ -18,6 +20,7 @@ import json
 import os
 import time
 import uuid
+from types import SimpleNamespace
 
 import pytest
 
@@ -180,3 +183,46 @@ def test_h4_original_clock_drives_stale_gate_after_rehome(isolated_bus):
     assert not fresh and len(stale_asks) == 1 and not stale_skips, (
         "the re-home got a fresh stream id and bypassed the 6h stale-ask gate; "
         "meta.original_ts/original_mid is currently ignored downstream")
+
+
+def test_h5_full_session_tombstone_reaches_sid8_roster_row(isolated_bus):
+    """T086 ends a full session id; the seat directory must not discard that identity."""
+    ns, client = isolated_bus
+    original_mid = _add_seat_packet(client, ns, "ended-session")
+    roster.heartbeat(ns, AGENT, SID, phase="working", client=client)
+    client.set(f"{ns}:session:ended:{SID}", str(time.time()), ex=3600)
+
+    rows = [row for row in roster.roster(ns, client=client)
+            if row.get("seat") == f"{AGENT}#{SID[:8]}"]
+    assert rows and rows[0].get("state") == "LIVE", (
+        "precondition: worklive is still present, so only the durable tombstone proves death")
+    assert rows[0].get("full_sid") == SID, (
+        "the roster retained only sid8, making the full-id T086 tombstone unreachable")
+
+    records = reaper.reap(ns, client=client)
+    assert [record.get("original_mid") for record in records] == [original_mid], (
+        "an ended session remained unreapable because _provably_dead checked its sid8 "
+        "against a tombstone written under the full session id")
+
+
+def test_h6_doctor_is_observational_and_does_not_reap(monkeypatch, capsys):
+    """A diagnostic read must not secretly become the writer that moves durable mail."""
+    import agent_cli
+    from core.comm import doctor
+
+    calls = []
+    monkeypatch.setattr(doctor, "examine_fleet",
+                        lambda agents, page_notes=False: {
+                            "agents": [], "findings": [], "summary": "doctor: healthy"})
+    monkeypatch.setattr(doctor, "known_agents", lambda: [])
+    monkeypatch.setattr(doctor, "examine_services", lambda: [])
+    monkeypatch.setattr(reaper, "reap", lambda ns: calls.append(ns) or [])
+
+    rc = agent_cli.cmd_doctor(SimpleNamespace(
+        agents=None, page=False, progress=False, json=True))
+
+    assert rc == 0
+    assert calls == [], (
+        "doctor invoked the S4 reaper while claiming to diagnose fleet state; "
+        "mail movement belongs behind the explicit roster --reap maintenance action")
+    capsys.readouterr()
