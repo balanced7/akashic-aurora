@@ -86,7 +86,8 @@ _OUTCOME_MAX_BYTES = 4_000_000          # ~4MB ring; oldest half dropped on over
 
 
 def _record_outcome(outcome: str, reason: str = "", *, query: str = "",
-                    n_items: int = 0, agent_id: str = "") -> None:
+                    n_items: int = 0, agent_id: str = "",
+                    query_shape: str = "") -> None:
     """One row per recall_at call. Best-effort by contract (P6): an exception here must
     never cost the caller its items -- observability must not wedge the path it observes."""
     try:
@@ -103,7 +104,11 @@ def _record_outcome(outcome: str, reason: str = "", *, query: str = "",
         with open(fp, "a", encoding="utf-8") as f:
             f.write(json.dumps({"at": time.time(), "outcome": outcome, "reason": reason,
                                 "q": str(query)[:160], "n_items": int(n_items),
-                                "agent": str(agent_id or "")}) + "\n")
+                                "agent": str(agent_id or ""),
+                                # deepseek's R2 review: the census's NONE-NEEDED reasons are
+                                # SHAPE reasons; a silent row must say what shape went silent
+                                # or it cannot be audited against the pack that justified it.
+                                "query_shape": str(query_shape or "")}) + "\n")
     except Exception:
         pass
 
@@ -1336,12 +1341,16 @@ def recall_at(*, path: Optional[str] = None, command: Optional[str] = None,
         # would lose its items to an observability write. Same belt-and-suspenders as
         # liveness._safe_code_sha, same reason.
         try:
+            shape = ("command" if command else "path" if path else "")
             if lessons:
-                _record_outcome("fired", query=query, n_items=len(lessons), agent_id=agent_id or "")
+                _record_outcome("fired", query=query, n_items=len(lessons),
+                                agent_id=agent_id or "", query_shape=shape)
             elif not query:
-                _record_outcome("silent", "empty_query", agent_id=agent_id or "")
+                _record_outcome("silent", "empty_query", agent_id=agent_id or "",
+                                query_shape=shape)
             else:
-                _record_outcome("silent", "floor_silent", query=query, agent_id=agent_id or "")
+                _record_outcome("silent", "floor_silent", query=query,
+                                agent_id=agent_id or "", query_shape=shape)
         except Exception:
             pass
         return {"path": path, "command": command, "query": query, "lessons": lessons,
