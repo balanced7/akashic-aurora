@@ -110,7 +110,7 @@ def _mutates(text: str) -> bool:
 # set-location, interpreter launch) and require the door at the head of the FIRST
 # command segment. Pipelines MENTION doors without BEING door queries; a
 # measurement that greps a door's output is still a measurement.
-_PREFIX = re.compile(r"^(?:\s*(?:cd|set-location)\s+\S+\s*(?:&&|;)?\s*)*(?:\s*pyw?(?:thon)?\s+)?",
+_PREFIX = re.compile(r"^(?:\s*(?:cd|set-location)\s+\S+\s*(?:&&|;)?\s*)*(?:\s*(?:py|pyw|python|python3)\s+)?",
                      re.I)
 
 
@@ -145,19 +145,65 @@ _RULES = (
 )
 
 
+# THE ALLOWLIST GRAMMAR (sol's round-2 inversion): the mutator vocabulary is
+# INFINITE, so safety cannot be a denylist -- a denylist fails toward SILENCING
+# whenever an unknown mutator wears a known sink (`py destructive_script.py | wc -l`).
+# Instead, EVERY command segment and every pipeline stage must be recognised as one
+# of the exact read/count primitives below, or the whole action is unmatchable and
+# the gate FIRES. Unknown programs, interpreters, heredocs, redirections: all fire.
+# The vocabulary rots toward FIRING, which is the bar's law.
+_ALLOWED_STAGE = (
+    r"cd\s+\S+", r"set-location\s+\S+",
+    r"echo(\s|$).*",
+    r"ls(\s+\S+)*", r"dir(\s+\S+)*",
+    r"wc(\s+-\w+)?(\s+\S+)*", r"head(\s+\S+)*", r"tail(\s+\S+)*",
+    r"sort(\s+\S+)*", r"uniq(\s+\S+)*",
+    r"grep\s+(?!.*(-exec|--include-dir))\S.*",          # read-only grep forms
+    r"select-string(\s+\S+)*", r"select-object(\s+\S+)*", r"measure-object(\s+\S+)*",
+    r"cat\s+\S+.*", r"get-content\s+\S+.*", r"get-childitem(\s+\S+)*",
+    # the knowledge system's own READ doors, optionally interpreter-launched
+    r"(?:pyw?(?:thon)?\s+)?agent_cli\.py\s+(?:notes|mailbox|recall\S*|status|stats|"
+    r"events|promoted)(\s+(?!--(?:retire|supersedes|fold|consume))\S+)*",
+    r"(?:pyw?(?:thon)?\s+)?agent_cli\.py\s+\S+(\s+\S+)*\s+--help",
+    r"2>\s*&?\s*1", r"2>\s*\$?null",                    # stderr merges are reads
+)
+_STAGE_RE = tuple(re.compile(rf"^\s*(?:{p})\s*$", re.I) for p in _ALLOWED_STAGE)
+
+
+def _whole_command_readonly(text: str) -> bool:
+    """True only when EVERY segment (split on && ; |) matches an allowed read-only
+    stage. Any redirection (>, >>, tee/Tee-Object/Set-Content/Out-File) fails at
+    the split residue or the stage regexes -- there is no allowed stage containing
+    a write. Unparsed anything = False = FIRE."""
+    t = str(text)
+    if re.search(r"(?<![0-9&12])>(?!&)|<<", t):
+        return False                       # file redirection / heredoc: never silence
+    segs = [s for s in re.split(r"&&|;|\|(?!\|)", t) if s.strip()]
+    if not segs:
+        return False
+    # A PowerShell one-liner runs `set-location X py agent_cli.py ...` with no
+    # separator; strip position prefixes per segment before matching, so the
+    # grammar judges the PROGRAM, not the preamble.
+    return all(any(rx.match(_PREFIX.sub("", seg)) or rx.match(seg) for rx in _STAGE_RE)
+               for seg in segs)
+
+
 def match(*, query_shape: str, action: str, **_forward_compat) -> Optional[Dict[str, Any]]:
     """The first principle this action satisfies, or None (= the gate must not
     silence on shape grounds; the floor and FAITH gates still apply downstream).
 
     None on any doubt: empty action, path shape (edits are relevance judgments),
-    or an exception inside a predicate -- fire-on-uncertainty is the bar's law and
-    it is enforced HERE, not only at the gate."""
+    an unrecognised segment ANYWHERE (the allowlist grammar), or an exception --
+    fire-on-uncertainty is the bar's law and it is enforced HERE, not only at
+    the gate."""
     try:
         if not action or str(query_shape) != "command":
             return None
         text = str(action)
         if _mutates(text):
-            return None                    # fail-closed: any mutating segment -> FIRE
+            return None                    # belt: known mutators fire fast
+        if not _whole_command_readonly(text):
+            return None                    # suspenders: UNKNOWN anything fires too
         for name, probe in _RULES:
             feats = probe(text)
             if feats:
@@ -175,7 +221,7 @@ def table_hash() -> str:
     h = hashlib.sha256()
     for name, _ in _RULES:
         h.update(name.encode())
-    for group in (_COUNT_SINKS, _INLINE_TRANSFORM, _READ_DOORS, _MUTATION):
+    for group in (_COUNT_SINKS, _INLINE_TRANSFORM, _READ_DOORS, _MUTATION, _ALLOWED_STAGE):
         for pat in group:
             h.update(pat.encode())
     # _PREFIX changes which command segment the door rule examines -- decision-
