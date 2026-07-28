@@ -88,20 +88,53 @@ def _probe_start_time(pid: int) -> str:
         return ""
 
 
+def _redis():
+    try:
+        from core.comm.bus import get_bus
+        return get_bus("runtime_age")._client
+    except Exception:
+        return None
+
+
 def start_time(pid: int) -> str:
-    """Cached `_probe_start_time`. P7: one subprocess per pid, ever."""
+    """Cached `_probe_start_time` -- CROSS-PROCESS (P8). A process's start time is a
+    cross-process constant, and the per-process dict alone was a boot-path
+    regression: the door-gate's probe child is a FRESH process every time, so every
+    door probe re-paid one PowerShell spawn PER PID and boot degraded 1.3s -> 5.0s
+    (the gate's own budget) -- the detector built to catch stale processes made the
+    door look wedged. Redis carries the value (1h TTL, cheap staleness bound for
+    pid reuse); the subprocess runs only on a truly cold fleet."""
     try:
         pid = int(pid)
     except Exception:
         return ""
     if pid <= 0:
         return ""
-    if pid not in _START_CACHE:
+    if pid in _START_CACHE:
+        return _START_CACHE[pid]
+    c = _redis()
+    key = f"{os.environ.get('BIFROST_NAMESPACE', 'bifrost')}:pidstart:{pid}"
+    if c is not None:
         try:
-            _START_CACHE[pid] = _probe_start_time(pid) or ""
+            hit = c.get(key)
+            if hit is not None:
+                _START_CACHE[pid] = str(hit)
+                return _START_CACHE[pid]
         except Exception:
-            _START_CACHE[pid] = ""
-    return _START_CACHE[pid]
+            pass
+    try:
+        val = _probe_start_time(pid) or ""
+    except Exception:
+        val = ""
+    _START_CACHE[pid] = val
+    if c is not None:
+        try:
+            # empty is cached too ("" = unreadable pid): an unreadable pid re-probed
+            # by every fresh process is the same regression wearing a failure mask.
+            c.set(key, val, ex=3600)
+        except Exception:
+            pass
+    return val
 
 
 def describe(*, pid: int, started_at: str, stamped_sha: str = "") -> Dict[str, Any]:

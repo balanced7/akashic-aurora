@@ -126,3 +126,30 @@ def test_p7_the_per_pid_probe_is_cached(monkeypatch):
     for _ in range(5):
         runtime_age.start_time(4242)
     assert len(calls) == 1, f"probed {len(calls)} times for one pid; expected 1"
+
+
+# --------------------------------------------------------------- P8 the boot-path cost
+def test_p8_a_warm_fleet_probe_spawns_no_subprocess(monkeypatch):
+    """FOUND BY THE DOOR-GATE, 4th occurrence: boot degraded 1.3s -> 5.0s (budget)
+    and the door probe went RED persistently. The cost is T116's own probe: one
+    PowerShell Get-Process PER PID on the doctor path, and the per-process cache
+    never helps because the door's probe child is a FRESH process every time.
+
+    A process start time is a cross-process constant; the cache must be too. With
+    Redis carrying the value, a fresh process's probe spawns NOTHING."""
+    from core.comm import runtime_age as ra
+
+    calls = []
+    monkeypatch.setattr(ra, "_probe_start_time",
+                        lambda pid: calls.append(pid) or "2026-07-28T04:00:00+00:00")
+    ra._START_CACHE.clear()
+    first = ra.start_time(31337)
+    assert first and calls == [31337], "cold probe pays once"
+
+    ra._START_CACHE.clear()                 # simulate a FRESH process (empty local cache)
+    second = ra.start_time(31337)
+    assert second == first, f"the cross-process cache must serve the value: {second!r}"
+    assert calls == [31337], (
+        f"FRESH PROCESS RE-PAID THE SUBPROCESS: {calls}. The door's probe child is "
+        f"always fresh, so a per-process cache makes every boot pay ~1.5s per pid -- "
+        f"this is the regression that turned the door-gate RED.")
