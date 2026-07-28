@@ -67,8 +67,11 @@ from typing import Any, Dict, List, Optional
 # sinks whose presence means the pipeline exists to measure, not to act
 _COUNT_SINKS = (r"\bwc\s+-l\b", r"\bgrep\s+-r?c\b", r"\bmeasure-object\b",
                 r"\|\s*wc\b")
-# an inline interpreter transform over an enumerated file list (mechanical byte-map)
-_INLINE_TRANSFORM = (r"<<\s*'?eof'?[\s\S]*\bimport\s+re\b",)
+# (the inline-transform vocabulary is DEAD -- sol's smoking gun: the recovered body
+# of the pack case it was fitted to contained an actual three-file rewrite via a
+# binary-mode write call. An interpreter heredoc is arbitrary code; classifying one
+# as a read-only count was never a principle, it was a purchase of the fifth match.
+# The allowlist grammar hard-rejects heredocs; this note is the tombstone.)
 
 # the knowledge system's own READ doors -- STATE renders only. A NAMED-artifact
 # read (`note --get <id>`) is deliberately absent: consuming a specific knowledge
@@ -116,9 +119,8 @@ _PREFIX = re.compile(r"^(?:\s*(?:cd|set-location)\s+\S+\s*(?:&&|;)?\s*)*(?:\s*(?
 
 def _features_count(text: str) -> Optional[Dict[str, Any]]:
     sinks = [pat for pat in _COUNT_SINKS if re.search(pat, text, re.I)]
-    inline = [pat for pat in _INLINE_TRANSFORM if re.search(pat, text, re.I)]
-    if sinks or inline:
-        return {"sinks": len(sinks), "inline_transform": bool(inline)}
+    if sinks:
+        return {"sinks": len(sinks)}
     return None
 
 
@@ -221,7 +223,7 @@ def table_hash() -> str:
     h = hashlib.sha256()
     for name, _ in _RULES:
         h.update(name.encode())
-    for group in (_COUNT_SINKS, _INLINE_TRANSFORM, _READ_DOORS, _MUTATION, _ALLOWED_STAGE):
+    for group in (_COUNT_SINKS, _READ_DOORS, _MUTATION, _ALLOWED_STAGE):
         for pat in group:
             h.update(pat.encode())
     # _PREFIX changes which command segment the door rule examines -- decision-

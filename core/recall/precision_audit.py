@@ -134,7 +134,13 @@ def render_pack(items: List[Dict[str, Any]], bodies: Optional[Dict[str, str]] = 
     ]
     for i, it in enumerate(items, 1):
         lines.append(f"## case {i}  [{it['action_kind']}]")
-        lines.append(f"ACTION: {it['action'][:300]}")
+        # T113-in-the-instrument (sol's stop): the old 300-char slice silently amputated
+        # 11/30 actions mid-token and hid a file WRITE from two blind judges and
+        # every rule review. The judge sees the WHOLE action, or a LOUD marker.
+        act = str(it["action"])
+        if len(act) > 4000:
+            act = act[:4000] + f"  [[CLIPPED: {len(act)} chars total -- judge as UNKNOWN, do not label]]"
+        lines.append(f"ACTION: {act}")
         for j, src in enumerate(it["surfaced"]):
             slot = chr(ord("a") + j)
             body = (bodies.get(src) or "").strip().replace("\n", " ")
