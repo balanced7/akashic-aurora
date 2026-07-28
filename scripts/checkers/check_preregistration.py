@@ -33,8 +33,11 @@ def _norm(p: str) -> str:
 
 def _is_new_in_git(path: str) -> bool:
     """True when HEAD does not know this path (a brand-new file in this ship)."""
+    # C7-4: stdin severed on every boot-path spawn -- an inherited stdin on an MCP seat's
+    # boot hangs until another frame arrives (the W69 incident class; door-gate S3 enforces).
     r = subprocess.run(["git", "cat-file", "-e", f"HEAD:{_norm(path)}"],
-                       capture_output=True, cwd=ROOT)
+                       capture_output=True, cwd=ROOT,
+                       stdin=subprocess.DEVNULL, close_fds=True)
     return r.returncode != 0
 
 
@@ -58,7 +61,8 @@ def audit_stats(n: int, root: str = "") -> dict:
     cwd = root or ROOT
     log = subprocess.run(
         ["git", "log", f"-n{n}", "--diff-filter=A", "--name-only", "--format=%x01%h %s"],
-        capture_output=True, cwd=cwd, encoding="utf-8", errors="replace").stdout or ""
+        capture_output=True, cwd=cwd, encoding="utf-8", errors="replace",
+        stdin=subprocess.DEVNULL, close_fds=True).stdout or ""
     total = viol = 0
     offenders = []
     for block in log.split("\x01"):
@@ -74,7 +78,8 @@ def audit_stats(n: int, root: str = "") -> dict:
         sha = header.split()[0]
         touched = (subprocess.run(["git", "show", "--name-only", "--format=", sha],
                                   capture_output=True, cwd=cwd, encoding="utf-8",
-                                  errors="replace").stdout or "").split()
+                                  errors="replace", stdin=subprocess.DEVNULL,
+                                  close_fds=True).stdout or "").split()
         src = [f for f in map(_norm, touched) if f and not f.startswith(NONSOURCE_PREFIXES)]
         if src:
             viol += 1
