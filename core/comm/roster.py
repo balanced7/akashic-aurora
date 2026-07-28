@@ -35,6 +35,7 @@ import time
 from typing import Any, Dict, List, Optional
 
 WORKLIVE_TTL_S = int(os.environ.get("AKASHIC_WORKLIVE_TTL_S", "180") or 180)
+RESUME_GAP_S = float(os.environ.get("AKASHIC_RESUME_GAP_S", "600") or 600)   # S3: away-time that counts as a RESUME
 FRESH_S = float(os.environ.get("AKASHIC_WORKLIVE_FRESH_S", "45") or 45)
 
 
@@ -68,11 +69,14 @@ def heartbeat(ns: str, agent: str, sid8: str, *, phase: str = "idle",
         except (ValueError, TypeError):
             prev = {}
         prev_beat = float(prev.get("beat_ts") or 0)
+        # S3 (Discord's Resumed marker): a beat after a long absence IS a resume -- report
+        # it so the sync render can separate replayed backlog from live mail.
+        resumed_after = (now - prev_beat) if (prev_beat > 0 and now - prev_beat > RESUME_GAP_S) else None
         if now < prev_beat:
             # P5: replay refused -- refresh the TTL (the seat IS being touched) but keep
             # the fresher stored beat; a replayed heartbeat cannot rewind liveness.
             client.expire(k, WORKLIVE_TTL_S)
-            return False
+            return {"ok": False, "resumed_after_s": None}
         # kimi F3: learn the seat's OWN cadence so LIVE's window derives from rhythm,
         # not an unjustified fleet-wide dial. EMA of inter-beat intervals.
         ema = float(prev.get("ema_interval") or 0)
@@ -91,9 +95,10 @@ def heartbeat(ns: str, agent: str, sid8: str, *, phase: str = "idle",
                        json.dumps({"beat_ts": now, "phase": str(phase)}), ex=SEATSEEN_TTL_S)
         except Exception:
             pass
-        return True
+        return {"ok": True,
+                "resumed_after_s": (round(resumed_after, 1) if resumed_after else None)}
     except Exception:
-        return False
+        return {"ok": False, "resumed_after_s": None}
 
 
 def _have_summary(client, ns: str, agent: str, sid8: str) -> Dict[str, Any]:

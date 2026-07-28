@@ -190,6 +190,20 @@ def consume_inbox(agent_id: str, limit: int = 20) -> Dict[str, Any]:
     try:
         from core.comm.bus import Bus
         from core.comm import runner_lock
+        # S3 INVALID SESSION, named (pin P2): a tombstoned self must hear "you ended", never
+        # the contention teach that blames a phantom holder. Ends the masquerade.
+        try:
+            from core.comm import wake_seat as _ws
+            _sid = _session_holder_token()
+            _sid = _sid[len("session:"):] if _sid.startswith("session:") else _sid
+            if _sid and _sid != "anon-cli" and _ws.is_tombstoned(_sid):
+                return {"seat_held": True, "invalid_session": True, "consumed": [],
+                        "teach": ("INVALID SESSION -- this session ENDED BY RECORD "
+                                  "(tombstone, T086 S1). Boot fresh (K2-tail seed); this "
+                                  "seat must not consume, arm, or re-arm. The successor "
+                                  "owns the seat.")}
+        except Exception:
+            pass
         b = Bus(str(agent_id or "unknown"))
         if not b.online:
             return {"seat_held": False, "consumed": []}
@@ -326,12 +340,19 @@ def collect_boot_bifrost(agent_id: str, limit: int = 8) -> Dict[str, Any]:
     # S2: every sync/boot BEATS this seat's per-incarnation worklive -- the roster's (and
     # the future reaper's) sensor. Zero-cost, never raises; claude seats heartbeat for the
     # first time here (deepseek/kimi runners already beat their agent-level keys).
+    resume_line = ""
     try:
         from core.comm import roster as _roster
         from core.comm.bus import Bus as _B, NS as _NS
         _sid8 = _B._my_sid8()
         if _sid8:
-            _roster.heartbeat(_NS, str(agent_id), _sid8, phase="sync")
+            _hb = _roster.heartbeat(_NS, str(agent_id), _sid8, phase="sync")
+            _gap = (_hb or {}).get("resumed_after_s") if isinstance(_hb, dict) else None
+            if _gap:
+                # S3, the Discord marker: replay and live are different states; say which.
+                resume_line = (f"RESUMED after {int(_gap // 60)}m{int(_gap % 60)}s away -- "
+                               f"the unread below accumulated while away; replay ends here, "
+                               f"now live")
     except Exception:
         pass
     msgs = peek_inbox(agent_id, limit=limit)
@@ -361,6 +382,7 @@ def collect_boot_bifrost(agent_id: str, limit: int = 8) -> Dict[str, Any]:
         "locks": peek_locks(agent_id),
         "pause_line": pause_line,
         "expect_lines": expect_lines,
+        "resume_line": resume_line,
     }
 
 
@@ -529,6 +551,8 @@ def print_boot_bifrost_section(block: Dict[str, Any], show_traces: bool = False)
     print("\n## UNREAD BIFROST (live bus)")
     if block.get("pause_line"):
         print(f"  {block['pause_line']}")   # RB-30: a frozen fleet announces itself first
+    if block.get("resume_line"):
+        print(f"  {block['resume_line']}")  # S3: the Resumed marker (Discord semantics)
     for ln in block.get("expect_lines") or []:
         print(f"  {ln}")                     # RB-29: redrives + dead expectations, loud
     if not block.get("bus_online"):
