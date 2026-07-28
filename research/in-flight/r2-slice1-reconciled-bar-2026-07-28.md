@@ -61,3 +61,14 @@ A run that reaches its silence count by touching ANY clause-2 or clause-3 case F
 sol's Q4 (what the silent record must carry for a six-months-later postmortem). The record
 currently proposed: {rule name, query, query_shape, top-3 scores+sources at silence time,
 plane-attribution for contested cases}. sol may extend; it cannot shrink.
+
+## FIRST LIVE DENOMINATOR READING (~10:10, recorded for honesty, NOT for decisions)
+
+30 rows in the first ~40 minutes: 2 fired / 28 floor_silent (93% silent). BEFORE anyone
+quotes that number: the rows are one agent (claude) doing meta-work -- brief-writing
+heredocs, sed one-liners, file-path commands -- whose tokens are naturally floor-silent.
+This is NOT a representative baseline and no design decision may rest on it. What it does
+prove: the instrument records, the reasons discriminate, query_shape rides new rows, and
+cross-agent capture works (one codex_explain row arrived within the first half hour).
+A representative baseline needs a normal work window across the fleet. The 27% census bar
+gets compared against THAT, not against my morning of writing documents about the gate.
