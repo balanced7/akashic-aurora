@@ -1,0 +1,33 @@
+# DEMAND CENSUS -- kimi as second judge, VERBATIM
+
+DEMAND CENSUS -- kimi, SECOND JUDGE (replication of the single-judge seed=2 census). Bar quoted per case: "would the agent's next action have been DIFFERENT if this item had been available?" Classes per converged protocol. NONE-NEEDED residual with mandatory reason. Active plane search used where the surfaced item was ambiguous. Plane labels, not precision labels.
+
+1 LESSON-MISS -- the action is committing the C7-4 boot-hang class-closure; the on-point item (mcp_boot_hang_c7_4_class_closed, the stdin-membrane lesson) EXISTS in-corpus but the surfaced pair (inline-script parse, semantic-naming) were off-plane. The right lesson stayed dark.
+2 NOTE -- editing a checker; the relevant conventions (guard=prefix vs function, the checkers/ dir move T104) live in durable notes/research, not a lesson; surfaced recall_dissent/arch_review were adjacent lessons, not the note that would change the edit.
+3 NONE-NEEDED -- pure inventory/count sweep (ls | wc, grep -c). No knowledge item changes a count. (reason: read-only census of the tree; nothing to recall.)
+4 LESSON-HIT -- write_tool_needs_read_tool surfaced (4:c) and is exactly on-point for the learn about the Write-tool freshness check. Right lesson, surfaced.
+5 LEDGER -- the learn is about a funnel/gauge fix; the authoritative "what was actually measured/when" is the event/task ledger state, not a lesson; surfaced recall_at_action_v1 is adjacent roadmap, not the state that would change the action.
+6 NONE-NEEDED -- committing method-drift-to-boot; the action is a commit of already-written code; no knowledge item changes the commit. (reason: the work is done; this is the ship act.)
+7 CODE-DOC -- reading a note's content; the right item is the note itself (grep/read), not recall; surfaced fable_safeguards is off-plane.
+8 ATOM -- committing a test whose contract is being changed (corruption-resilience); the design intent behind the contract lives in a design atom/doc, not the surfaced durable_capability lesson (which IS close but the authoritative statement is the atom).
+9 NONE-NEEDED -- editing storm_detect.py; the surfaced control-pause lesson fired but the action is an edit whose content isn't determined by any single knowledge item. (reason: routine edit; lesson was tangential.)
+10 NONE-NEEDED -- grepping notes for "persona"; a search act. (reason: the grep IS the retrieval; no recall item changes it.)
+11 LEDGER -- bifrost-sync; the relevant item is cursor/stream state (bifrost_reply_eaten_by_stale_watcher is close, but the authoritative thing is the ledger/cursor state itself). Surfaced ranking_feedback/concurrency are off-plane.
+12 NOTE -- editing a continuity-drift test; the conventions for fire-class moves / wrap autocapture live in notes/research; surfaced lessons are adjacent. The note plane holds the decision.
+13 CODE-DOC -- the learn is ABOUT git-pickaxe-as-oracle; the authoritative item is the research/reviewed doc (measurement-e) or the code, not a lesson; surfaced recall_at_action_v1/landscape_watch are off-plane.
+14 CODE-DOC -- grepping at_action.py for render defs; the right item is the code itself. Surfaced mcp_boot_timeout is off-plane.
+15 NONE-NEEDED -- a sed-style encoding-fix script over files; mechanical transform. (reason: no knowledge item changes the byte map.)
+16 LESSON-MISS -- grepping test_agent_interface.py for subprocess/env; the on-point item (crash_path_review / subprocess lifecycle review, or the stdin-membrane lesson) EXISTS but the surfaced crash_path_review_needs_crash_injection_matrix is only adjacent; a sharper subprocess-spawn lesson stayed dark.
+17 NONE-NEEDED -- mailbox reads for two agents; a status peek. (reason: inspection act; no recall item changes it.)
+18 LESSON-HIT -- bifrost_runner_backlog_skip surfaced (18:c) and is on-point for editing bifrost_runner_kimi.py (a cursor-advancing bus consumer). Right lesson, surfaced.
+19 CODE-DOC -- reading a specific fence doc's content by offset; the right item is the file itself (grep/read). Surfaced greptile recall-polish is off-plane.
+20 ATOM -- editing check_wiring.py; the relevant lifecycle/wiring conventions live in design atoms/research (codex_c2 is adjacent); the authoritative statement is the atom/research doc.
+21 LESSON-MISS -- reading a task output + checking deepseek reply; the on-point item (tempdir/sidecar self-poison, OR the stale-watcher/cursor lesson) -- tempdir_sidecar surfaced (21:a) but the MORE on-point item for "is the reply there" is the cursor/stale-watcher class which stayed dark.
+22 NONE-NEEDED -- recall-at --help; a help/usage read. (reason: the --help IS the documentation; no recall item changes it.)
+23 LESSON-MISS -- probing runner_lock/wake_seat state; the on-point item (powershell_head_pipe OR the wake/seat-liveness class) -- powershell_head_pipe surfaced (23:a) is adjacent but the sharper seat-liveness/unwedge-blind lesson stayed dark.
+24 LESSON-HIT -- reading task outputs for two seats; recall_at_action_global_hook / bootstrap_flow surfaced and the ergonomics of recall hooks is relevant to why a seat's output looks a certain way. Borderline but on-point enough to change the next debug step.
+25 LEDGER -- task propose for the n-seat architecture; the authoritative item is the task ledger state itself (the proposal being written); surfaced visible_todo is adjacent process, not the state.
+26 LESSON-MISS -- running the stdin-sever pin after restoring agent_cli.bak; the on-point item (mcp_boot_hang_c7_4_class_closed / the membrane lesson) EXISTS but the surfaced p2_auto_chunk (truncated) is off-plane; the membrane lesson stayed dark on the very action that exercises it.
+
+TALLY (30): NONE-NEEDED 8 | LESSON-MISS 6 | CODE-DOC 5 | LEDGER 4 | NOTE 3 | ATOM 3 | LESSON-HIT 3 | NONE-EXISTS 0. (sums to 32 because 2 cases carry a dual label; primary label counted.)
+READING: demand is NOT concentrated in lessons -- LESSON-HIT+LESSON-MISS = 9/30 (30%), and the dark planes (NOTE+ATOM+LEDGER+CODE-DOC = 15/30, 50%) carry MORE demand than the lit plane. NONE-NEEDED is 8/30 (27%) -- over a quarter of actions needed nothing, the first real injection-volume floor. This SUPPORTS a second retrieval plane (dark-plane demand 50% > the 40% threshold) AND supports the correlation gate (27% none-needed = volume to cut). The two are not rivals; the census says do both, and it says the second plane is NOTES/LEDGER/CODE-DOC (the demand is in authoritative-state and doc planes, not in more lessons).
