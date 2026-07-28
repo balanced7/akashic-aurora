@@ -168,3 +168,25 @@ def test_c5_table_hash_covers_every_decision_affecting_structure(monkeypatch):
     assert G.table_hash() != h1, (
         "changing _PREFIX changes decisions but not the hash -- receipts would "
         "attribute new behaviour to the old table")
+
+
+# --------------------------------------------------------------- D-pins: the inversion
+def test_d1_an_unknown_program_never_matches_even_wearing_a_count_suffix():
+    """sol's round-2 NO-GO, the generative pin it asked for: the mutator vocabulary
+    is INFINITE, so safety cannot be a denylist. `py destructive_script.py | wc -l`
+    matched the count rule -- the sink was known, the program was not, and unknown
+    programs mutate. The grammar must recognise EVERY segment as read-only or FIRE.
+    This pin uses a program no list could contain."""
+    for action in (
+        "py destructive_script.py | wc -l",
+        "cd /e/ai-setup && frobulate --hard | grep -c done",
+        "py -c \"import os; os.remove('victim')\" | wc -l",
+        "Clear-Content victim; Get-Content data | Measure-Object",
+        "py agent_cli.py status | Tee-Object -FilePath status.txt",
+        "git tag release && grep -c TODO README.md",
+    ):
+        v = G.match(query_shape="command", action=action)
+        assert v is None, (
+            f"UNKNOWN/MUTATING SEGMENT SILENCED: {action!r} -> {v}. A denylist fails "
+            f"toward SILENCING when the unknown mutator wears a known sink; the "
+            f"allowlist grammar fails toward FIRING, which is the bar's law.")
