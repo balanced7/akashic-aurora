@@ -236,6 +236,27 @@ class Bus:
     def _cursor_key(self) -> str:
         return f"{self.ns}:cursor:{self.agent_id}"
 
+    # ------------------------------------------------- T108 slice 1: per-seat delivery
+    # Charter (Daniel, verbatim): "why can't we have two seats or as many as we need so we
+    # stop getting all this mail mis routing, mis waking, mis consuming, mis everything mess."
+    # Directed (to_incarnation) mail gains a PER-SEAT stream + PER-SEAT cursor, so twin seats
+    # cannot consume each other's directed mail BY CONSTRUCTION. The legacy copy remains as
+    # the straggler net (T044 dual-write doctrine: dedupe by sha, never by stream id) -- a
+    # twin advancing the shared cursor past a directed message is now harmless, because the
+    # real delivery rides the seat stream. Fence: research/reviewed/t108-fence-halves-2026-07-28.md
+
+    def _seat_inbox_key(self, agent: str, sid8: str) -> str:
+        return f"{self.ns}:inbox:{agent}#{sid8}"
+
+    def _seat_cursor_key(self, sid8: str) -> str:
+        # Own key per incarnation: NO contention by construction, so no RB-21 fence needed.
+        return f"{self.ns}:cursor:seat:{self.agent_id}#{sid8}"
+
+    @staticmethod
+    def _my_sid8() -> str:
+        sid = os.environ.get("BIFROST_INCARNATION") or os.environ.get("CLAUDE_CODE_SESSION_ID") or ""
+        return str(sid)[:8]
+
     # ------------------------------------------------------------------ send
     def send(self, to: str, kind: str, content: Any = None, *, parts: Optional[List[Part]] = None,
              meta: Optional[Dict[str, Any]] = None, allow_frag: bool = True) -> Optional[str]:
@@ -244,8 +265,11 @@ class Bus:
         `allow_frag` is False (a REFUSE-LOUD, never a silent truncation -- T043). By default
         oversize payloads are auto-fragmented (P2 auto-chunk); pass allow_frag=False for the
         legacy LOUD-refusal behavior."""
+        # T108 slice 1: incarnation-directed mail also lands on the target SEAT's own stream.
+        inc = str((meta or {}).get("to_incarnation") or "")[:8]
+        mirror = self._seat_inbox_key(str(to), inc) if inc else None
         return self._emit(self._inbox_key(str(to)), to=str(to), kind=kind, content=content,
-                          parts=parts, meta=meta, allow_frag=allow_frag)
+                          parts=parts, meta=meta, allow_frag=allow_frag, mirror_stream=mirror)
 
     def broadcast(self, kind: str, content: Any = None, *, parts: Optional[List[Part]] = None,
                   meta: Optional[Dict[str, Any]] = None, allow_frag: bool = True) -> Optional[str]:
@@ -339,7 +363,8 @@ class Bus:
             return False
 
     def _emit(self, stream: str, *, to: str, kind: str, content: Any,
-              parts: Optional[List[Part]] = None, meta=None, allow_frag: bool = True) -> Optional[str]:
+              parts: Optional[List[Part]] = None, meta=None, allow_frag: bool = True,
+              mirror_stream: Optional[str] = None) -> Optional[str]:
         """C6-7: lane-first send door (generalizes send_reply's pattern to ALL kinds).
 
         For a mapped kind, the LANE write happens FIRST (with one retry on transient failure)
@@ -438,6 +463,18 @@ class Bus:
             legacy_mid = str(self._client.xadd(stream, env, maxlen=self.maxlen, approximate=True))
         except Exception:
             pass
+
+        # T108 slice 1: seat-stream mirror for incarnation-directed mail. Best-effort -- the
+        # legacy copy is the fallback delivery (straggler net), so a failed mirror degrades to
+        # pre-T108 behavior rather than losing the message. Fragmented sends never reach here
+        # (early return above): oversize incarnation-directed mail keeps legacy semantics
+        # until slice 2 -- a DOCUMENTED residual, not a silent one.
+        if mirror_stream is not None:
+            try:
+                self._client.xadd(mirror_stream, env, maxlen=self.maxlen, approximate=True)
+            except Exception:
+                _loud(f"[seat-mirror] write FAILED for {mirror_stream} -- directed mail rides "
+                      f"legacy only (twin-theft protection degraded for this message)")
 
         if lane_mid is None and legacy_mid is None:
             return None               # both writes failed: the send failed
@@ -582,15 +619,28 @@ class Bus:
         # (work lane) without touching any downstream logic -- cursor rules, integrity, frag
         # reassembly and own-broadcast filtering are key-agnostic.
         keys = streams or {"inbox": self._inbox_key(self.agent_id), "bc": self._bc_key}
+        # T108 slice 1: an incarnated seat ALSO reads its own seat stream from its OWN cursor
+        # (no contention by construction -- no RB-21 fence needed). Only on the plain consume
+        # path: `since` (watcher-owned positions) and `streams` (lane retarget) opt out.
+        sid8 = self._my_sid8()
+        seat_key: Optional[str] = None
+        seat_cur = "0"
+        if sid8 and since is None and streams is None:
+            seat_key = self._seat_inbox_key(self.agent_id, sid8)
+            try:
+                seat_cur = str(self._client.hget(self._seat_cursor_key(sid8), "seat") or "0")
+            except Exception:
+                seat_cur = "0"
         client, temp = self._client, None
         if block is not None:                      # a blocking wait() needs a long-socket-timeout client
             temp = self._blocking_client(block)
             if temp is not None:
                 client = temp
         try:
-            res = client.xread(
-                {keys["inbox"]: cur["inbox"], keys["bc"]: cur["bc"]},
-                count=max(1, limit), block=block)
+            xread_map = {keys["inbox"]: cur["inbox"], keys["bc"]: cur["bc"]}
+            if seat_key is not None:
+                xread_map[seat_key] = seat_cur
+            res = client.xread(xread_map, count=max(1, limit), block=block)
         except Exception:
             res = None
         finally:
@@ -606,16 +656,19 @@ class Bus:
             return []
         if not packet_spec.integrity_enabled():    # kill-switch off: delivering UNVERIFIED -> LOUD (pin 4)
             self._integrity_degraded_warn()
-        new_inbox, new_bc = cur["inbox"], cur["bc"]
+        new_inbox, new_bc, new_seat = cur["inbox"], cur["bc"], seat_cur
         out: List[Message] = []
         # Track which stream each message came from so we can fix the cursor AFTER truncation.
         # (The old code used the last-read id -- even for entries skipped by out[:limit] -- causing
         # a cursor-skip when the stream had more entries than limit. T014 Defect 1.)
-        out_streams: List[str] = []                # "inbox" | "bc" (parallel to out)
+        out_streams: List[str] = []                # "inbox" | "bc" | "seat" (parallel to out)
         for stream, entries in res or []:
             is_bc = (stream == keys["bc"])
+            is_seat = (seat_key is not None and stream == seat_key)
             for sid, fields in entries:
-                if is_bc:
+                if is_seat:
+                    new_seat = sid
+                elif is_bc:
                     new_bc = sid
                 else:
                     new_inbox = sid
@@ -627,7 +680,8 @@ class Bus:
                 if not ok:
                     self._integrity_drop(sid, fields, why)     # DROP + loud event (pin 2/3)
                     continue
-                if packet_spec.parse_frag(fields) is not None:
+                was_frag = packet_spec.parse_frag(fields) is not None
+                if was_frag:
                     whole, prob = self._reasm.add(fields, now=now)   # buffer/reassemble (pin 5)
                     if prob is not None:
                         self._frag_problem(sid, prob)          # loud orphan/stale/whole-corrupt
@@ -639,8 +693,25 @@ class Bus:
                     m = self._to_msg(sid, fields)
                 if is_bc and m.frm == self.agent_id:
                     continue                       # don't deliver an agent its own broadcast
+                # T108 slice 1 ANTI-THEFT (fence: t108-fence-halves-2026-07-28.md).
+                # Directed mail for a DIFFERENT incarnation is not ours to deliver -- the
+                # target's own seat stream carries it, so skipping here is safe (filtered !=
+                # truncated; the shared cursor advancing past it no longer strands anyone).
+                # Directed mail for THIS incarnation arrives on BOTH streams (seat + legacy
+                # straggler copy): first sight delivers and MARKS by packet sha, the twin copy
+                # is dropped (T044 doctrine: dedupe by sha, never by stream id). Reassembled
+                # frags are exempt -- no seat mirror for fragments until slice 2 (documented).
+                inc = str((m.meta or {}).get("to_incarnation") or "")[:8]
+                if inc and sid8 and not was_frag:
+                    if inc != sid8:
+                        if not is_seat:
+                            continue               # another seat's directed mail: filtered
+                    else:
+                        sha_val = str(fields.get("sha") or "")
+                        if sha_val and self._seat_seen(sha_val, mark=advance):
+                            continue               # dual-delivery twin: already delivered
                 out.append(m)
-                out_streams.append("bc" if is_bc else "inbox")
+                out_streams.append("seat" if is_seat else ("bc" if is_bc else "inbox"))
         for wid, missing in self._reasm.sweep_expired(now):    # pin 6/7: LOUD timeout, seq named
             self._fragment_timeout(wid, missing)
         # Sort messages (and their stream-tags) by id so newest-last
@@ -658,12 +729,14 @@ class Bus:
         #   per-stream order, so the returned set holds a prefix of each stream; everything
         #   unreturned stays ahead of its cursor.
         if len(out) <= limit:
-            next_inbox, next_bc = new_inbox, new_bc
+            next_inbox, next_bc, next_seat = new_inbox, new_bc, new_seat
         else:
-            next_inbox, next_bc = cur["inbox"], cur["bc"]
+            next_inbox, next_bc, next_seat = cur["inbox"], cur["bc"], seat_cur
             for m, stream_tag in zip(returned, out_streams[:limit]):
                 if stream_tag == "inbox":
                     next_inbox = m.id
+                elif stream_tag == "seat":
+                    next_seat = m.id
                 else:
                     next_bc = m.id
         if since_out is not None:      # hand the caller its next safe position -- works for
@@ -681,7 +754,32 @@ class Bus:
                 generation=generation)
             if commit_status_out is not None:
                 commit_status_out["status"] = status
+        # T108 slice 1: the seat cursor is OURS ALONE (per-incarnation key) -- a plain write,
+        # no fence, no generation. That absence-of-machinery is the point of the design.
+        if seat_key is not None and advance and next_seat != seat_cur:
+            try:
+                self._client.hset(self._seat_cursor_key(sid8), "seat", next_seat)
+            except Exception:
+                pass
         return returned
+
+    def _seat_seen(self, sha: str, *, mark: bool) -> bool:
+        """T108 dual-delivery dedupe (seat stream + legacy straggler copy of the SAME packet).
+        mark=True (a real consume): first sight MARKS (SET NX + TTL 1200s) and reports False;
+        the twin copy reports True and is dropped. mark=False (detect-only reads, e.g. a wake
+        watcher's advance=False wait): CHECK without marking -- a detect pass must never be
+        able to suppress the real consume's delivery. Fail-open: on any error report False
+        (deliver twice rather than drop -- losing mail is the worse bug)."""
+        if not sha or not self.online:
+            return False
+        key = f"{self.ns}:seat_seen:{sha}"
+        try:
+            if mark:
+                fresh = self._client.set(key, "1", nx=True, ex=1200)
+                return not bool(fresh)
+            return bool(self._client.get(key))
+        except Exception:
+            return False
 
     def _seat_born_key(self) -> str:
         return f"{self.ns}:seat:born:{self.agent_id}"
@@ -719,8 +817,11 @@ class Bus:
         if not (t.get("inbox", "0") == "0" and t.get("bc", "0") == "0"):
             # First citizen boot: seed at tail whether the cursor is virgin (P3, the
             # original RB-25 case) or walk-polluted (P1, kimi's defect).
-            self.advance_to(inbox=t.get("inbox"), bc=t.get("bc"), generation=0)
-            seeded = True
+            try:
+                status = self.advance_to(inbox=t.get("inbox"), bc=t.get("bc"), generation=0)
+                seeded = status in ("OK", "OK_NOOP")
+            except Exception:
+                seeded = False
         try:                                # birth certificate: written once, first boot,
             import time as _t               # even when there was nothing to skip
             self._client.hset(self._seat_born_key(), mapping={

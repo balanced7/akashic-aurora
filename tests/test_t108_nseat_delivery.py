@@ -80,6 +80,14 @@ def test_pin1_directed_mail_never_crosses_seats():
         "cursor advance or lost. Seat A saw: " + (bodies_a[:300] or "(nothing)"))
 
 
+import pytest
+
+
+@pytest.mark.xfail(strict=False, reason=(
+    "SLICE 2, pre-registered 2026-07-28: the reaper's re-home is DEFERRED by the reconciled "
+    "fence (kimi Q4: a heartbeat-TTL re-homer is the riskiest component -- a slow-but-alive "
+    "seat getting its mail stolen would be the NEW bug -- so slice 1 ships anti-theft only). "
+    "This pin stays visible and flips to a hard assertion when slice 2 builds the reaper."))
 def test_pin2_dead_seat_directed_mail_rehomes():
     """A tombstoned/dead seat's unread directed mail must reach a survivor, loudly."""
     sender = Bus("deepseek", namespace=NS + "r")
