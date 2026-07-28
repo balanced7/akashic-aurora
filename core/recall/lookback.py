@@ -175,12 +175,53 @@ def _doc_class(head: str) -> str:
     return ""
 
 
+def _library_paths() -> List[str]:
+    """docs/library/<type>/*.md -- the projection plane the corpus MOVED to (f8510b6).
+
+    The migration preserved bytes as atoms and projections under docs/library/, but the
+    docs sweep never followed, so a governing doc became unreachable even though its
+    content sits in the tree (T109: the retrieval plane must follow the corpus)."""
+    lib = os.path.join(ROOT, "docs", "library")
+    out: List[str] = []
+    try:
+        for type_dir in sorted(os.listdir(lib)):
+            d = os.path.join(lib, type_dir)
+            if not os.path.isdir(d):
+                continue
+            for n in sorted(os.listdir(d)):
+                if n.endswith(".md"):
+                    out.append(os.path.join(d, n))
+    except OSError:
+        pass
+    return out
+
+
+def _legacy_slug_for(proj_rel: str, legacy: Dict[str, Any]) -> str:
+    """The original slug a library projection inherited, if the legacy map names it.
+
+    The map is original_slug -> {art_id, path, ...}; a projection's filename embeds the
+    atom id (art_<...>_<hash>.md), so we reverse it through art_id. '' when unmapped --
+    the doc still answers by content, just not by its old handle."""
+    stem = os.path.splitext(os.path.basename(proj_rel))[0]     # e.g. 20260710_multi-..._283c99
+    for slug, rec in legacy.items():
+        art = str((rec or {}).get("art_id") or "")
+        if art and art.replace("art_", "", 1) == stem:
+            return slug
+    return ""
+
+
 def _docs_items() -> List[Dict[str, Any]]:
     out = []
     docs = os.path.join(ROOT, "docs")
     paths = [os.path.join(docs, n) for n in sorted(os.listdir(docs))
              if n.endswith(".md") and n not in REFERENCE_DOCS]
     paths.append(os.path.join(ROOT, "AGENTS.md"))   # the root contract is rationale too
+    paths += _library_paths()                        # T109: the projection plane follows
+    try:
+        from core.library import legacy_map as _legacy_mod
+        _legacy = _legacy_mod.load_map()
+    except Exception:
+        _legacy = {}
     for p in paths:
         try:
             head = _read_head(p)
@@ -190,6 +231,13 @@ def _docs_items() -> List[Dict[str, Any]]:
             if dclass == "reference":
                 continue        # self-declared reference class joins REFERENCE_DOCS: WHAT/WHERE, never WHY
             rel = os.path.relpath(p, ROOT).replace(os.sep, "/")
+            # T109 handle: a library projection carries its ORIGINAL slug in the searchable
+            # surface (text + source) so a cold agent asking by the deleted doc's name
+            # resolves to the atom that inherited its content. Bytes AND handle, not bytes alone.
+            slug = _legacy_slug_for(rel, _legacy) if rel.startswith("docs/library/") else ""
+            if slug:
+                head = f"{slug}\n{head}"
+                rel = f"{rel} (was docs/{slug}.md)"
             # current docs outrank equally-relevant dead law, but historical stays
             # REACHABLE (a why-question's answer is often in its moment); the class
             # prior then nudges rationale above plans/tests at equal relevance.
