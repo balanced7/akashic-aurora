@@ -206,20 +206,44 @@ def sweep(sender: str, now: Optional[float] = None) -> Dict[str, List[str]]:
         if not recs:
             return out
         oldest = min((r.get("anchor", "0") for r in recs.values()), key=_id_tuple)
+        # T117 P8 (sol's third NO-GO): SETTLEMENT IS IDEMPOTENT PER REPLY. sweep()
+        # re-reads from the oldest anchor every pass, so a stored reply that settled
+        # an ask on sweep N is read again on sweep N+1 -- its target now gone from
+        # recs, its link "unrecognised", and FIFO would hand it a DIFFERENT ask.
+        # One reply settled two asks; the second was wrong, and the older ask's real
+        # answer then found nothing left to settle. A durable PER-REPLY marker (not
+        # a stream frontier -- a frontier could skip a reply needed by a later-armed
+        # expectation whose anchor predates it) makes every settlement once-only.
+        def _settled(rid) -> bool:
+            try:
+                return bool(rid) and bool(c.exists(f"{_ns()}:reply_settled:{sender}:{rid}"))
+            except Exception:
+                return False               # marker unreadable -> behave as before
+
+        def _mark_settled(rid) -> None:
+            try:
+                if rid:
+                    c.set(f"{_ns()}:reply_settled:{sender}:{rid}", "1", ex=172800)
+            except Exception:
+                pass                       # best-effort: a lost marker costs one re-check
+
         replies = _answers_since(sender, oldest)
         linked = set()                         # T117: replies whose link RESOLVED
         for r in replies:                      # 1) exact linkage clears first
+            if _settled(getattr(r, "id", None)):
+                linked.add(getattr(r, "id", None))   # spent: never reaches FIFO either
+                continue
             a = _resolve_link((getattr(r, "meta", None) or {}).get("answers"), recs)
             if a:
                 c.hdel(key, a)
                 del recs[a]
                 out["cleared"].append(a)
                 linked.add(getattr(r, "id", None))
+                _mark_settled(getattr(r, "id", None))
         for r in replies:                      # 2) FIFO fallback: one clear per reply
-            # T117: skip only replies whose link actually RESOLVED. A reply naming an
-            # id we do not hold is UNLINKED, and the fallback exists for exactly that.
-            # Treating a non-matching `answers` as "already handled" left an answered
-            # ask armed until it redrove -- three times, at a full peer turn each.
+            # T117: skip only replies whose link actually RESOLVED (or that already
+            # settled an ask on a PRIOR sweep). A reply naming an id we do not hold
+            # is UNLINKED, and the fallback exists for exactly that.
             if getattr(r, "id", None) in linked:
                 continue
             cands = sorted(
@@ -232,6 +256,7 @@ def sweep(sender: str, now: Optional[float] = None) -> Dict[str, List[str]]:
                 c.hdel(key, oid)
                 del recs[oid]
                 out["cleared"].append(oid)
+                _mark_settled(getattr(r, "id", None))
         for oid, rec in list(recs.items()):    # 3) deadlines
             if now < float(rec.get("deadline_ts", 0)):
                 continue
