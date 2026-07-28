@@ -60,8 +60,12 @@ def peek_inbox(agent_id: str, limit: int = 10) -> List[Dict[str, Any]]:
         if not b.online:
             return []
         want = max(1, limit)
-        raw = b.inbox(limit=max(want * 5, 50), advance=False)
+        cap = max(want * 5, 50)
+        raw = b.inbox(limit=cap, advance=False)
         total = len(raw)
+        # kimi fence-lite finding 2: when the over-read HITS its cap, `total` is a floor,
+        # not the depth -- confess it (renderers show "50+") instead of silently capping.
+        capped = total >= cap
         if total > want:
             k_old = max(1, want // 4)
             head, tail = raw[:k_old], raw[-(want - k_old):]
@@ -81,12 +85,16 @@ def peek_inbox(agent_id: str, limit: int = 10) -> List[Dict[str, Any]]:
                 "content": d.get("content", getattr(m, "content", "")),
                 "ts": d.get("ts") or getattr(m, "ts", ""),
                 "pending_at_least": total,
+                "pending_capped": capped,
             }
 
         out.extend(_row(m) for m in head)
         if hidden > 0:
-            out.append({"gap": True, "id": "", "frm": "backlog", "to": str(agent_id),
-                        "kind": "gap", "ts": "", "pending_at_least": total,
+            # display_only + kind outside every salient/flaggable/ackable set: the gap row
+            # is un-actionable BY CONSTRUCTION (kimi finding 2), not by empty-id accident.
+            out.append({"gap": True, "display_only": True, "id": "", "frm": "backlog",
+                        "to": str(agent_id), "kind": "gap", "ts": "",
+                        "pending_at_least": total, "pending_capped": capped,
                         "content": f"(... {hidden} older unread hidden between oldest and "
                                    f"newest -- the cursor is behind; --consume or drain "
                                    f"to clear)"})
@@ -445,7 +453,11 @@ def print_boot_bifrost_section(block: Dict[str, Any], show_traces: bool = False)
         scope = "legacy peek"
     summary = render_kind_summary(block.get("messages") or [])
     summary_tag = f" [{summary}]" if summary else ""
-    print(f"  {pending} unread ({scope}, peek -- use bifrost_inbox or "
+    # kimi fence-lite finding 2: when the over-read hit its cap, `pending` is a FLOOR --
+    # render "N+" so a capped window can never read as the whole depth.
+    capped = any(m.get("pending_capped") for m in (block.get("messages") or [])
+                 if isinstance(m, dict))
+    print(f"  {pending}{'+' if capped else ''} unread ({scope}, peek -- use bifrost_inbox or "
           f"`py agent_cli.py bifrost-sync --consume` to ack):{summary_tag}")
     for ln in render_collapsed(block.get("messages") or [], show_traces=show_traces):
         print(f"  {ln}")   # W4: trace-class telemetry folded (--traces to expand)

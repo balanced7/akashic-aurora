@@ -58,6 +58,35 @@ def test_mailbox_sha_prefix_resolves_and_acks():
     assert resolve_ack_ref(AGENT, f"bifrost:{resolved}") == resolved
 
 
+def test_resolved_but_unackable_blames_content_not_form():
+    """kimi fence-lite finding 1: when a sha ref RESOLVES but no id passes the verdict, the
+    refusal must carry the TRUE content reason (not promoted / quarantined / wrong addressee)
+    and must NOT append the id-form hint -- otherwise the fix launders a content refusal into
+    a form refusal, re-creating the doubly-misleading class it exists to kill."""
+    sender = Bus("kimi", promote=False)          # NOT promoted -> unackable by content
+    if not sender.online:
+        print("SKIPPED (Redis not running)")
+        return
+    mid = sender.send(AGENT, "handoff", f"unpromoted-{TAG}")
+    from core.comm import mailbox
+    ns = sender.ns
+    mailbox.catch_up(ns, AGENT)
+    hit = mailbox.explain(ns, AGENT, mid)
+    assert hit.get("found")
+    sha_ref = str(hit["sha"])[:10]
+
+    from core.comm.promoter import resolve_ack_ref
+    resolved = resolve_ack_ref(AGENT, sha_ref)
+    assert resolved, "resolution itself must succeed -- the message exists in the mailbox"
+    # The door-level contract: hint fires ONLY when resolution FAILED.
+    from agent_cli import _ack_refusal_hint
+    assert _ack_refusal_hint(sha_ref, resolved is None) == "", (
+        "FORM-BLAME LAUNDERING: resolution succeeded but the door still appends the "
+        "id-form hint, blaming the ref for a content refusal.")
+    assert _ack_refusal_hint(sha_ref, True) != "", (
+        "the hint must still fire when a hex ref genuinely fails to resolve")
+
+
 if __name__ == "__main__":
     test_mailbox_sha_prefix_resolves_and_acks()
     print("PASS")

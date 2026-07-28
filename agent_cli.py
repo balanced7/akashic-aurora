@@ -3355,6 +3355,18 @@ def cmd_flow(args):
     return 0
 
 
+def _ack_refusal_hint(raw_ref: str, resolution_failed: bool) -> str:
+    """T063: the id-form hint, gated on RESOLUTION FAILURE only (kimi fence-lite finding 1).
+    A hex ref that RESOLVED but was refused by the verdict gets NO form hint -- the verdict's
+    own reason (not promoted / quarantined / wrong addressee) is the true cause."""
+    import re as _re
+    if resolution_failed and _re.fullmatch(r"[0-9a-f]{6,40}", str(raw_ref or "")):
+        return (" (note: that looks like a MAILBOX sha ref and no matching message "
+                "resolved -- the message may be evicted, or the ref is truncated; "
+                "try the full stream id from promoted/xrange)")
+    return ""
+
+
 def cmd_bifrost_ack(args):
     """P6 (T026): durably record that YOU handled a salient bus message. Read != handled --
     consuming advances a cursor; this records an actor and a moment. RB-2 (T029): only the
@@ -3368,17 +3380,16 @@ def cmd_bifrost_ack(args):
     # (resolved via mailbox.explain). Pin: tests/test_t063_ack_ref_roundtrip.py.
     raw = str(args.msg_id)
     mid = resolve_ack_ref(args.agent_id, raw)
+    resolution_failed = mid is None
     if mid is None:
         mid = raw[len("bifrost:"):] if raw.startswith("bifrost:") else raw
     allowed, why = ack_verdict(args.agent_id, mid)
     if not allowed:
-        hint = ""
-        import re as _re
-        if _re.fullmatch(r"[0-9a-f]{6,40}", raw):
-            hint = (" (note: that looks like a MAILBOX sha ref and no matching message "
-                    "resolved -- the message may be evicted, or the ref is truncated; "
-                    "try the full stream id from promoted/xrange)")
-        print(f"ERROR: ack refused -- {why}{hint}")
+        # kimi fence-lite finding 1: the hint fires ONLY when resolution FAILED. When a sha
+        # ref RESOLVED but the verdict refuses, the refusal is a CONTENT/permission verdict
+        # and blaming the id form would launder it into the very misleading-error class this
+        # door exists to kill.
+        print(f"ERROR: ack refused -- {why}{_ack_refusal_hint(raw, resolution_failed)}")
         return 1
     ok = ack(args.agent_id, mid, note=args.note or "")
     if args.json:
