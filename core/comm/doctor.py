@@ -279,6 +279,7 @@ def _default_probes() -> Dict[str, Any]:
         "halted": _probe_halted,
         "lane_health": _probe_lane_health,
         "token_cost": _token_cost_line,
+        "stale_code": _stale_code_line,
         "bench_count": _probe_bench_count,
         "now": time.time(),
     }
@@ -455,6 +456,17 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
         cl = p["token_cost"](agent)
         if cl is not None:
             out.append(cl)
+    except Exception:
+        pass
+
+    # T116: is this agent even RUNNING the code we think it is? Dashboard, never a
+    # page -- stale code is not an outage, it is the reason a fix you already shipped
+    # is not taking effect. On 2026-07-28 two runners sat 23 commits behind while
+    # every liveness surface read healthy, and the only way it surfaced was forensics.
+    try:
+        sc = p["stale_code"](agent)
+        if sc is not None:
+            out.append(sc)
     except Exception:
         pass
 
@@ -958,6 +970,25 @@ def format_flightdeck(fd: Dict[str, Any], json_mode: bool = False) -> str:
                 lines.append(f"    [{f['grade']}] {f['line']}")
 
     return "\n".join(lines)
+
+
+def _stale_code_line(agent: str) -> Optional[Dict[str, Any]]:
+    """T116: how much of the repo this agent's RUNNING PROCESS cannot contain.
+
+    Prefers T114's self-reported stamp (ground truth); falls back to process start time
+    vs commit times, which needs no cooperation from the process -- and the processes
+    that most need catching are exactly the ones too old to have been taught to report.
+    Returns None when there is nothing to say, so a current fleet stays one line."""
+    try:
+        from core.comm import runtime_age
+        v = runtime_age.for_agent(agent)
+        text = runtime_age.line(agent, v)
+        if not text:
+            return None
+        return _f(agent, "stale_code", "dashboard", text,
+                  f"py agent_cli.py roster   # per-seat code state")
+    except Exception:
+        return None
 
 
 def _token_cost_line(agent: str, journal_dir: str = "") -> Optional[Dict[str, Any]]:
