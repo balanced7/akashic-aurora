@@ -3408,6 +3408,18 @@ def cmd_console_log(args):
     return 0
 
 
+def cmd_roster(args):
+    """S2: the lobby -- every seat's proven liveness + inventory pointers (W84 render)."""
+    from core.comm.roster import roster, render_roster
+    from core.comm.bus import NS
+    if getattr(args, "json", False):
+        print(json.dumps(roster(NS), indent=2, default=str))
+        return 0
+    for ln in render_roster(NS):
+        print(ln)
+    return 0
+
+
 def cmd_bifrost_sync(args):
     """Presence heartbeat + unread inbox peek (pull floor). --consume advances the cursor."""
     from agent.bifrost_pull import (collect_boot_bifrost, consume_inbox, format_inbox_line,
@@ -4198,6 +4210,11 @@ def build_parser():
     ev.add_argument("--limit", type=int, default=None, help="max results")
     ev.add_argument("--json", action="store_true", help="JSON output")
     ev.set_defaults(fn=cmd_events)
+
+    ros = sub.add_parser("roster", help="S2 lobby: per-seat worklive (LIVE/STALE proven by "
+                                        "beat freshness, never key-existence) + have-summaries")
+    ros.add_argument("--json", action="store_true")
+    ros.set_defaults(fn=cmd_roster)
 
     dr = sub.add_parser("doctor", help="fleet liveness doctor (L2): progress, not presence")
     dr.add_argument("--agents", default=None, help="comma-separated ids (default: discovered)")

@@ -323,6 +323,17 @@ def collect_boot_bifrost(agent_id: str, limit: int = 8) -> Dict[str, Any]:
     """Presence + unread peek + held locks for boot() / bifrost-sync.
     RB-30: a leftover pause is surfaced LOUDLY here (the pull floor every turn touches)."""
     pres = register_presence(agent_id)
+    # S2: every sync/boot BEATS this seat's per-incarnation worklive -- the roster's (and
+    # the future reaper's) sensor. Zero-cost, never raises; claude seats heartbeat for the
+    # first time here (deepseek/kimi runners already beat their agent-level keys).
+    try:
+        from core.comm import roster as _roster
+        from core.comm.bus import Bus as _B, NS as _NS
+        _sid8 = _B._my_sid8()
+        if _sid8:
+            _roster.heartbeat(_NS, str(agent_id), _sid8, phase="sync")
+    except Exception:
+        pass
     msgs = peek_inbox(agent_id, limit=limit)
     pause_line = ""
     try:
@@ -353,7 +364,7 @@ def collect_boot_bifrost(agent_id: str, limit: int = 8) -> Dict[str, Any]:
     }
 
 
-def format_inbox_line(msg: Dict[str, Any], max_len: int = 220) -> str:
+def format_inbox_line(msg: Dict[str, Any], max_len: int = 2000) -> str:
     frm = msg.get("frm", "?")
     kind = msg.get("kind", "?")
     body = _clip(_content_str(msg.get("content")), max_len)
@@ -419,7 +430,7 @@ def render_kind_summary(messages) -> str:
     return " / ".join(parts)
 
 
-def render_collapsed(messages, *, show_traces: bool = False, max_len: int = 220):
+def render_collapsed(messages, *, show_traces: bool = False, max_len: int = 2000):
     """W4 (T081) -- THE shared trace-collapse render (bifrost-sync CLI + the runner's bifrost_inbox
     both go through this, so the two surfaces can never diverge). Algorithm (deepseek's, reconciled
     2026-07-16): work/sig mail shown FIRST and verbatim; trace-class messages grouped into runs of
@@ -428,21 +439,51 @@ def render_collapsed(messages, *, show_traces: bool = False, max_len: int = 220)
     Grafana Loki (collapse at render, never at ingest); OTel tail-sampling (decide per snapshot,
     carry no state across peeks). The journald failure mode (silent suppression) is designed out:
     the fold is reversible (show_traces expands, in original order), lossless (nothing dropped),
-    and explicit (states the count). Accepts dict OR Message-object messages; returns a line list."""
+    and explicit (states the count).
+    
+    W84 (07-28, deepseek): DUAL-WRITE TWIN DEDUP. T039a/T044 dual-write means every message
+    exists on TWO streams. Before rendering, adjacent near-identical messages (same frm+kind+
+    content_prefix) collapse to one line with a '[N copies]' marker. The dedup is RENDER-ONLY
+    (lossless -- nothing dropped, nothing consumed) and uses content prefix matching so a
+    genuine follow-up with different content is never collapsed. Sha/reply_id dedup is stronger
+    but requires envelope access; the prefix heuristic catches the dual-write case (identical
+    content on two streams) without false positives on real follow-ups.
+    
+    Accepts dict OR Message-object messages; returns a line list."""
     msgs = list(messages or [])
 
     def _line(m):
         return (f"[{str(_mget(m, 'kind', '?'))}] from {str(_mget(m, 'frm', '?'))}: "
                 f"{_clip(_content_str(_mget(m, 'content')), max_len)}")
+    
+    def _twin_key(m):
+        """W84: logical identity for dual-write twin detection. (frm, kind, first 200 chars
+        of content). Two copies of the same message on different streams share these three
+        fields. A genuine follow-up from the same sender with different content won't match."""
+        content = _content_str(_mget(m, 'content'))
+        return (str(_mget(m, 'frm', '?')), str(_mget(m, 'kind', '?')), content[:200])
 
     if show_traces:
         return [_line(m) for m in msgs]     # full, original order -- the reversible expand
 
     work_lines, trace_lines = [], []
+    seen_twins = {}  # W84: twin_key -> first occurrence index in work_lines
     i = 0
     while i < len(msgs):
         m = msgs[i]
         if not _is_trace_class(m):
+            tk = _twin_key(m)
+            if tk in seen_twins:
+                # W84: twin detected -- bump the count on the first occurrence
+                first_idx = seen_twins[tk]
+                # Count how many twins we've seen for this key (stored as [line, count])
+                if isinstance(work_lines[first_idx], list):
+                    work_lines[first_idx][1] += 1
+                else:
+                    work_lines[first_idx] = [work_lines[first_idx], 2]
+                i += 1
+                continue
+            seen_twins[tk] = len(work_lines)
             work_lines.append(_line(m))     # verbatim; breaks any trace run
             i += 1
             continue
@@ -459,7 +500,14 @@ def render_collapsed(messages, *, show_traces: bool = False, max_len: int = 220)
             trace_lines.append(f"  └─ {run_count - 1} more {kind}(s) from {frm} "
                                f"-- --traces to expand")
 
-    out = list(work_lines)
+    # W84: expand twin-count lines: "[kind] from X: ..." -> "[kind] from X: ... [2 copies]"
+    out = []
+    for item in work_lines:
+        if isinstance(item, list):
+            line, count = item
+            out.append(f"{line}  [{count} copies]")
+        else:
+            out.append(item)
     if trace_lines:
         if work_lines:
             out.append("")                  # separator between mail and folded traces
