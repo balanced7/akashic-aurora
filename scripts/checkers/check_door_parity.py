@@ -150,6 +150,8 @@ MANIFEST = {
     # two doors and missing from the third. Gaps are REPORTED, never silenced, and this one
     # is tracked as a followup rather than left to live in a comment.
     "mailbox": "gap",              # T095 M0 shadow mailbox: CLI+MCP, absent from ToolBox
+    "roster": "gap",               # T108 S2 seat directory: CLI only; agents need an MCP read twin
+    "stand_down": "gap",           # T086 session yield: CLI only; no MCP lifecycle twin yet
     "new": "cli_only",             # subcommand of `doc`
     "pulse": "cli_only",           # LIFEWORKERS pressure map (W25)
     "run": "cli_only",             # execute a toolbelt alias
