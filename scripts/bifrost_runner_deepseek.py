@@ -40,6 +40,7 @@ from core.comm import control
 from core.comm import liveness
 from core.comm import nudge
 from core.comm import runner_lock
+from core.comm import self_restart
 from core.comm import context_hints
 from core.comm import packet_spec, triage_park
 from core.comm import storm_detect, lane_depths, cursor_admin
@@ -1199,6 +1200,16 @@ def main() -> int:
                 print(f"[deepseek-runner] DRAIN honored (by {_drain_req.get('by', '?')}: "
                       f"{_drain_req.get('reason') or 'no reason given'}) -- exiting clean; "
                       "the singleton lock releases; relaunch when ready.")
+                break
+            # A1: stale-code self-restart -- loop-top only (same safety as drain: the
+            # previous message is finished, nothing is claimed). On 2026-07-28 this
+            # runner executed 29-commit-old code all day while its own fixes landed;
+            # the fresh copy this launches takes the singleton lock at a higher
+            # generation and this process stands down through the SAME takeover path
+            # a crash would use. Fail direction is keep-running (proven staleness only).
+            _sr = self_restart.maybe_self_restart(args.agent)
+            if _sr:
+                print(f"[deepseek-runner] {_sr} -- exiting clean; the successor takes the lock.")
                 break
             # RB-26 (T030): detect WITHOUT consuming, then commit the cursor per message
             # AFTER it is handled (commit-after-processing). A crash mid-batch redelivers

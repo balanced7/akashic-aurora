@@ -135,3 +135,27 @@ def test_p8_never_raises(monkeypatch):
     monkeypatch.setattr(SR, "_min_behind", lambda: (_ for _ in ()).throw(RuntimeError()))
     assert SR.should_restart(stamped_sha="a", head_sha="b", commits_behind=9,
                              uptime_s=9999, in_flight=False) is None
+
+
+# --------------------------------------------------------------- P9 the frozen-HEAD trap
+def test_p9_the_head_the_ceremony_compares_against_is_fresh(monkeypatch):
+    """Caught during wiring, before any fence: runtime_age.head_sha() caches per
+    process -- correct for the doctor's fresh probe children, FATAL here. A runner
+    that boots at HEAD X and calls gather() every loop beat would freeze HEAD at X
+    and the ceremony would never fire: the self-restart feature would itself be the
+    day's disease (an instrument frozen at its own birth). gather() must re-resolve
+    HEAD on a short TTL, not inherit a process-lifetime cache."""
+    calls = []
+
+    def _fake_git_head():
+        calls.append(1)
+        return "f" * 12 if len(calls) > 1 else "e" * 12
+
+    monkeypatch.setattr(SR, "_resolve_head_fresh", _fake_git_head)
+    SR._HEAD_CACHE.update({"sha": "", "at": 0.0})
+    first = SR.fresh_head_sha()
+    SR._HEAD_CACHE["at"] = 0.0                    # force TTL expiry
+    second = SR.fresh_head_sha()
+    assert first == "e" * 12 and second == "f" * 12, (
+        f"HEAD must MOVE for a long-lived process: {first!r} -> {second!r}. A "
+        f"process-lifetime cache freezes the ceremony at boot and it never fires.")
