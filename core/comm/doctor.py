@@ -321,13 +321,23 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
         # Window: the roster's own freshness law (cadence-derived, WORKLIVE_FRESH_S floor)
         # rather than PROGRESS_TTL, which is a runner-tick constant far below seat cadence.
         # Pins: tests/test_doctor_wedge_vs_beat.py
+        # SOL'S NO-GO ON THE FIRST VERSION, and it is the load-bearing distinction:
+        # a RUNNER's heartbeat runs on its OWN THREAD -- py-spy caught this live, deepseek's
+        # MainThread blocked in streams.py flush while 'Thread-3 (_heartbeat)' kept beating.
+        # For a runner the beat proves PROCESS liveness, never WORK progress, so counting it
+        # would mask the real wedge forever (v1 of this fix did exactly that).
+        # Only a SEAT may retract a page with its beat: a seat is per-incarnation
+        # (agent#sid8), single-threaded per turn, and writes its worklive from the turn
+        # itself (roster.heartbeat on sync/boot) -- so its beat IS work evidence. For a bare
+        # agent id the PROGRESS PULSE governs, unchanged.
+        is_seat = "#" in str(agent)
         beat_ts = float(wl.get("beat_ts") or 0) if wl else 0.0
         try:
             from core.comm.roster import FRESH_S as _SEAT_FRESH_S
         except Exception:
             _SEAT_FRESH_S = 45.0
-        beat_fresh = bool(beat_ts) and (now - beat_ts) <= max(_SEAT_FRESH_S,
-                                                             liveness.PROGRESS_TTL * 2)
+        beat_fresh = is_seat and bool(beat_ts) and \
+            (now - beat_ts) <= max(_SEAT_FRESH_S, liveness.PROGRESS_TTL * 2)
         alive_signal = pulse_fresh or beat_fresh
 
         non_idle = bool(wl) and phase not in liveness.IDLE_PHASES \
