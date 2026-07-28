@@ -2340,8 +2340,25 @@ def cmd_stats(args):
     """The recall-value funnel (leapfrog T3): is surfaced knowledge actually HELPING, and are
     earned lessons being CAPTURED? Computation lives in core/recall/funnel.py (shared with the
     boot pulse + SessionStart whisper); this renders it. --days N adds a per-day trend from
-    DURABLE records (flip events + lesson timestamps) and the 30d pace vs the Wave-A gate."""
+    DURABLE records (flip events + lesson timestamps) and the 30d pace vs the Wave-A gate.
+    --silence renders the R2 denominator (fired/silent/by_reason) + the pack-replay tallies --
+    the census bar's numbers, on the door agents already use (capability_without_a_door)."""
     import json as _json
+    if getattr(args, "silence", False):
+        from core.recall.at_action import silence_rate
+        s = silence_rate(window_s=float(args.hours or 24) * 3600)
+        if args.json:
+            print(_json.dumps(s, indent=1)); return 0
+        n = max(1, s["calls"])
+        print(f"# RECALL SILENCE (R2 denominator, last {args.hours or 24}h)")
+        print(f"  calls {s['calls']} | fired {s['fired']} | silent {s['silent']} "
+              f"({100 * s['silent'] // n}% -- census floor: >=27% once the gate lands)")
+        for r, c in sorted((s.get("by_reason") or {}).items(), key=lambda kv: -kv[1]):
+            print(f"    {r:18} {c}")
+        if s["calls"] == 0:
+            print("  (no rows -- calls==0 is 'nothing recorded', NOT '0% silent')")
+        print("  pack replay (frozen-30 vs the reconciled bar): py -m core.recall.pack_replay")
+        return 0
     from core.recall.funnel import snapshot, trend, TARGET_LESSONS_30D
     hours = float(args.hours or 24)
     out = snapshot(hours=hours)
@@ -4167,6 +4184,8 @@ def build_parser():
     sts.add_argument("--hours", type=float, default=24, help="window for flips/lessons-recorded (default 24)")
     sts.add_argument("--days", type=int, default=None,
                      help="ALSO print a per-day trend over N days (durable records) + the 30d pace")
+    sts.add_argument("--silence", action="store_true",
+                     help="R2 denominator: fired/silent/by_reason over --hours + replay pointer")
     sts.add_argument("--json", action="store_true")
     sts.set_defaults(fn=cmd_stats)
 
