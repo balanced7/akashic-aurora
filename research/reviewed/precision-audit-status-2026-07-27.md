@@ -52,3 +52,40 @@ FILES
   kimi     research/reviewed/precision-audit-labels-kimi-2026-07-27.md
   calib    research/reviewed/precision-audit-calibration-deepseek-2026-07-27.md
   module   core/recall/precision_audit.py   pins tests/test_precision_audit.py (7 green)
+
+=====================================================================
+LATE ADDITION -- kimi's CONFESSION, filed BEFORE it labelled. Read this before
+quoting misses_rate at anyone.
+=====================================================================
+"The recall arm measures MY MEMORY OF THE CORPUS, not the index -- I cannot grep during a blind
+ pass without contaminating the precision labels, so my MISS labels are limited to lessons I
+ happen to know exist. That asymmetry is worth naming now; it argues for a read-only grep door
+ in the MISS phase of the NEXT pass."
+
+CONSEQUENCE, AND IT CUTS AGAINST THE OUTGOING SEAT'S POSITION: misses_rate is a LOWER BOUND.
+The recall arm can only count misses a labeller happens to remember, so SELECTION failures are
+systematically UNDER-counted. deepseek's 0.167 -- the single number that supported "selection is
+adequate, ranking is the problem" -- is the number with a known downward bias. Do not treat it
+as evidence that selection is fine.
+FIX for the next pass (kimi's): a read-only grep door available ONLY in the MISS phase, after
+precision labels are locked.
+
+A THIRD CATEGORY THE RUBRIC CANNOT EXPRESS (kimi, flagging two of its own labels for the fence):
+  21:a -- Daniel's original complaint receipt. On-point for the action, arguably, even though the
+          lesson is stale. Pack blindness to credit history cuts both ways here.
+  11:a -- the intelligence_roadmap lesson that prescribes DONE work. kimi labelled it ON because
+          the action does enumerate curation machinery, but: "on-point-but-invalid may be a third
+          category the rubric cannot express."
+That is a genuine rubric gap: a lesson can be TOPICALLY RELEVANT and FACTUALLY DEAD at once, and
+on/off collapses them. The next pass needs a third label, or the tier-1 decay work and the
+precision work are measuring through each other.
+
+CONCRETE SELECTION FAILURE FOUND (kimi's MISS entries, verifiable):
+  learn:experiment:bifrost_send_always_text_file did NOT fire on TWO separate --text-file send
+  actions (cases 24 and 30) -- an unconditional rule, exactly on-point, absent both times.
+
+KIMI'S RUNNER IS DOWN. Exit 127, lock released, NOT a budget stop (spend $97.86 of $225, refuse
+line $203). It was answering right up to the exit. Relaunch for the next seat with:
+    BIFROST_CONSUME_LANE=work py scripts/bifrost_runner_kimi.py --agent kimi --agentic --allow-write
+NEVER via bifrost_daemon --spawn-runner: that hardcodes deepseek's runner script regardless of
+--agent, so kimi would come up wearing deepseek's transport.
