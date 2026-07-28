@@ -1,0 +1,517 @@
+{
+ "R001-deepseek-trust-2026-07-22": {
+  "art_id": "art_20260722_ruling-r001-deepseek-trusted-with-more_3b86eb",
+  "matched": true,
+  "path": "docs/rulings/R001-deepseek-trust-2026-07-22.md"
+ },
+ "agent-experience-plan": {
+  "art_id": "art_20260709_agent-experience-plan-akashic-aurora_405872",
+  "matched": true,
+  "path": "docs/agent-experience-plan.md"
+ },
+ "agent-failure-modes-mitigation-roadmap-2026-07": {
+  "art_id": "art_20260701_agent-failure-mode-mitigation-roadmap-ph_7d1620",
+  "matched": true,
+  "path": "docs/agent-failure-modes-mitigation-roadmap-2026-07.md"
+ },
+ "agent-failure-modes-retrospective-2026-07": {
+  "art_id": "art_20260701_agent-failure-mode-pain-point-retrospect_6663cf",
+  "matched": true,
+  "path": "docs/agent-failure-modes-retrospective-2026-07.md"
+ },
+ "agent-interface-aci": {
+  "art_id": "art_20260619_the-agent-interface-system-5-aci-thought_1b1edb",
+  "matched": true,
+  "path": "docs/agent-interface-aci.md"
+ },
+ "agent-liveness-tier-2026-07": {
+  "art_id": "art_20260701_agent-liveness-tier-stuck-lost-agent-fai_8c0d79",
+  "matched": true,
+  "path": "docs/agent-liveness-tier-2026-07.md"
+ },
+ "agent-membrane-design-2026-07": {
+  "art_id": "art_20260701_the-mediation-membrane-founding-design-n_4f941f",
+  "matched": true,
+  "path": "docs/agent-membrane-design-2026-07.md"
+ },
+ "architecture-research-actor-ros-stigmergy-2026-07": {
+  "art_id": "art_20260701_research-detour-actor-otp-ros-stigmergy_988017",
+  "matched": true,
+  "path": "docs/architecture-research-actor-ros-stigmergy-2026-07.md"
+ },
+ "architecture-review-2026-06-28": {
+  "art_id": "art_20260628_akashic-aurora-architecture-documentatio_a9b61f",
+  "matched": true,
+  "path": "docs/architecture-review-2026-06-28.md"
+ },
+ "artifact-substrate-design-2026-07": {
+  "art_id": "art_20260701_artifact-substrate-the-reconciled-design_8ea728",
+  "matched": true,
+  "path": "docs/artifact-substrate-design-2026-07.md"
+ },
+ "audit-design-2026-07-22": {
+  "art_id": "art_20260722_audit-the-belief-vs-belief-photographer_59fafa",
+  "matched": true,
+  "path": "docs/audit-design-2026-07-22.md"
+ },
+ "auto-logger-plan": {
+  "art_id": "art_20260714_cross-agent-auto-logger-design-slice-pla_6d21c5",
+  "matched": true,
+  "path": "docs/auto-logger-plan.md"
+ },
+ "bifrost-mesh-plan": {
+  "art_id": "art_20260709_bifrost-mesh-agent-agnostic-comm-coordin_c8b792",
+  "matched": true,
+  "path": "docs/bifrost-mesh-plan.md"
+ },
+ "bifrost-plan": {
+  "art_id": "art_20260709_bifrost-the-agent-communication-handoff_2bcfd5",
+  "matched": true,
+  "path": "docs/bifrost-plan.md"
+ },
+ "bifrost-sync-plan": {
+  "art_id": "art_20260709_bifrost-sync-plan-protocol_c70323",
+  "matched": true,
+  "path": "docs/bifrost-sync-plan.md"
+ },
+ "codebase-audit": {
+  "art_id": "art_20260619_codebase-audit-readability-robustness-si_8be0b1",
+  "matched": true,
+  "path": "docs/codebase-audit.md"
+ },
+ "codex-inventory": {
+  "art_id": "art_20260709_codex-pressure-test-inventory-placement_364aad",
+  "matched": true,
+  "path": "docs/codex-inventory.md"
+ },
+ "codex-plan": {
+  "art_id": "art_20260709_the-codex-a-self-curating-knowledge-laye_302fc9",
+  "matched": true,
+  "path": "docs/codex-plan.md"
+ },
+ "coding-principles-research": {
+  "art_id": "art_20260619_coding-principles-research-naming-clarit_bd2faf",
+  "matched": true,
+  "path": "docs/coding-principles-research.md"
+ },
+ "comms-mailbox-design-2026-07": {
+  "art_id": "art_20260701_comms-mailbox-over-the-log-t095-governin_06357f",
+  "matched": true,
+  "path": "docs/comms-mailbox-design-2026-07.md"
+ },
+ "comms-pillar-synthesis-2026-07": {
+  "art_id": "art_20260709_comms-messaging-pillar-dual-fenced-analy_051ff0",
+  "matched": true,
+  "path": "docs/comms-pillar-synthesis-2026-07.md"
+ },
+ "comprehensibility-immune-system-2026-07": {
+  "art_id": "art_20260701_the-comprehensibility-immune-system-desi_339b01",
+  "matched": true,
+  "path": "docs/comprehensibility-immune-system-2026-07.md"
+ },
+ "concurrency-design": {
+  "art_id": "art_20260709_concurrent-agents-reinforcing-two-peers_5f6723",
+  "matched": true,
+  "path": "docs/concurrency-design.md"
+ },
+ "context-compaction-skeleton-research": {
+  "art_id": "art_20260620_research-context-handling-compaction-and_e5960c",
+  "matched": true,
+  "path": "docs/context-compaction-skeleton-research.md"
+ },
+ "context-pillar-plan": {
+  "art_id": "art_20260709_context-pillar-system-4-design-consolida_89733b",
+  "matched": true,
+  "path": "docs/context-pillar-plan.md"
+ },
+ "continuity-of-mode-design-2026-07": {
+  "art_id": "art_20260701_continuity-of-mode-institutionalizing-st_e1eb96",
+  "matched": true,
+  "path": "docs/continuity-of-mode-design-2026-07.md"
+ },
+ "coordination-plan-deepseek": {
+  "art_id": "art_20260709_multi-agent-coordination-layer-research_ce0d07",
+  "matched": true,
+  "path": "docs/coordination-plan-deepseek.md"
+ },
+ "coordination-plan-synthesis": {
+  "art_id": "art_20260710_multi-agent-coordination-layer-synthesis_283c99",
+  "matched": true,
+  "path": "docs/coordination-plan-synthesis.md"
+ },
+ "directive-friction-audit": {
+  "art_id": "art_20260709_directive-friction-audit-making-the-righ_93c3ee",
+  "matched": true,
+  "path": "docs/directive-friction-audit.md"
+ },
+ "driver-onboarding-2026-07-18": {
+  "art_id": "art_20260718_driver-conductor-fable-seat-onboarding-r_5a7530",
+  "matched": true,
+  "path": "docs/driver-onboarding-2026-07-18.md"
+ },
+ "faithfulness-research": {
+  "art_id": "art_20260709_faithfulness-critic-sota-synthesis-desig_eae48d",
+  "matched": true,
+  "path": "docs/faithfulness-research.md"
+ },
+ "feature-map-2026-07": {
+  "art_id": "art_20260701_the-feature-map-plain-names-deep-souls_d00eca",
+  "matched": true,
+  "path": "docs/feature-map-2026-07.md"
+ },
+ "field-survey-2026-07": {
+  "art_id": "art_20260701_field-survey-what-the-best-practitioners_3c9d20",
+  "matched": true,
+  "path": "docs/field-survey-2026-07.md"
+ },
+ "fleet-dispatch-design": {
+  "art_id": "art_20260709_fleet-dispatch-an-intelligent-easy-struc_303d15",
+  "matched": true,
+  "path": "docs/fleet-dispatch-design.md"
+ },
+ "gate-packets-2026-07-18": {
+  "art_id": "art_20260718_gate-packets-2026-07-18_e5c5e5",
+  "matched": true,
+  "path": "docs/gate-packets-2026-07-18.md"
+ },
+ "institutional-knowledge-design-2026-07": {
+  "art_id": "art_20260701_institutional-knowledge-arc-reconciled-d_27e77b",
+  "matched": true,
+  "path": "docs/institutional-knowledge-design-2026-07.md"
+ },
+ "integration-tiers": {
+  "art_id": "art_20260709_integration-tiers-what-each-harness-actu_38278c",
+  "matched": true,
+  "path": "docs/integration-tiers.md"
+ },
+ "intelligence-roadmap": {
+  "art_id": "art_20260709_akashic-aurora-intelligence-roadmap-forc_b8e767",
+  "matched": true,
+  "path": "docs/intelligence-roadmap.md"
+ },
+ "knowledge-harmonization-plan": {
+  "art_id": "art_20260709_knowledge-store-harmonization-plan-2026_9e9656",
+  "matched": true,
+  "path": "docs/knowledge-harmonization-plan.md"
+ },
+ "leapfrog-plan": {
+  "art_id": "art_20260709_leapfrog-plan-outcome-grounded-memory_18eeba",
+  "matched": true,
+  "path": "docs/leapfrog-plan.md"
+ },
+ "learning-memory-analysis": {
+  "art_id": "art_20260709_agent-memory-analysis-of-learning-store_5ec82f",
+  "matched": true,
+  "path": "docs/learning-memory-analysis.md"
+ },
+ "learning-memory-integration-plan": {
+  "art_id": "art_20260709_integration-plan-a-unified-agent-memory_a58608",
+  "matched": true,
+  "path": "docs/learning-memory-integration-plan.md"
+ },
+ "lesson-forge-design-2026-07": {
+  "art_id": "art_20260701_lesson-forge-evidence-gated-content-opti_fd3204",
+  "matched": true,
+  "path": "docs/lesson-forge-design-2026-07.md"
+ },
+ "lesson-identity-contract-2026-07": {
+  "art_id": "art_20260701_lesson-note-identity-the-observation-pro_46835a",
+  "matched": true,
+  "path": "docs/lesson-identity-contract-2026-07.md"
+ },
+ "lexicon-adherence-review": {
+  "art_id": "art_20260620_lexicon-naming-schema-adherence-review-c_bc1348",
+  "matched": true,
+  "path": "docs/lexicon-adherence-review.md"
+ },
+ "library-schema-reconciliation-2026-07-21": {
+  "art_id": "art_20260721_library-schema-reconciliation-of-three-v_6136d4",
+  "matched": true,
+  "path": "docs/library-schema-reconciliation-2026-07-21.md"
+ },
+ "master-directive-list-2026-07-05": {
+  "art_id": "art_20260705_master-directive-list-akashic-aurora-202_964020",
+  "matched": true,
+  "path": "docs/master-directive-list-2026-07-05.md"
+ },
+ "memory-recall-multiagent-design-2026-07": {
+  "art_id": "art_20260701_multi-agent-memory-recall-design-assessm_7807ba",
+  "matched": true,
+  "path": "docs/memory-recall-multiagent-design-2026-07.md"
+ },
+ "naming-canon-2026-07": {
+  "art_id": "art_20260701_the-naming-canon-akashic-aurora_52c4db",
+  "matched": true,
+  "path": "docs/naming-canon-2026-07.md"
+ },
+ "naming-mechanics-charter-2026-07": {
+  "art_id": "art_20260701_the-naming-mechanics-charter-akashic-aur_0ba076",
+  "matched": true,
+  "path": "docs/naming-mechanics-charter-2026-07.md"
+ },
+ "narrative-spine-plan": {
+  "art_id": "art_20260709_narrative-spine-design-plan-system-4-cap_2357df",
+  "matched": true,
+  "path": "docs/narrative-spine-plan.md"
+ },
+ "narrative-test-plan": {
+  "art_id": "art_20260709_narrative-spine-test-verification-plan-b_cc061e",
+  "matched": true,
+  "path": "docs/narrative-test-plan.md"
+ },
+ "newborn-gauntlet-rubric-2026-07": {
+  "art_id": "art_20260701_newborn-gauntlet-pre-registered-rubric-t_16fdb3",
+  "matched": true,
+  "path": "docs/newborn-gauntlet-rubric-2026-07.md"
+ },
+ "night-friction-program-2026-07": {
+  "art_id": "art_20260701_night-friction-program-every-pain-point_70f449",
+  "matched": true,
+  "path": "docs/night-friction-program-2026-07.md"
+ },
+ "p0-wake-detect-design-2026-07": {
+  "art_id": "art_20260709_p0-wake-listener-detect-don-t-consume-t0_864270",
+  "matched": true,
+  "path": "docs/p0-wake-detect-design-2026-07.md"
+ },
+ "packet-routing-design-2026-07": {
+  "art_id": "art_20260701_packet-routing-internal-api-design-co-au_57e4ba",
+  "matched": true,
+  "path": "docs/packet-routing-design-2026-07.md"
+ },
+ "packet-spec-v1-2026-07": {
+  "art_id": "art_20260701_packet-spec-v1-reconciled-build-spec-dua_a50b94",
+  "matched": true,
+  "path": "docs/packet-spec-v1-2026-07.md"
+ },
+ "packet-substrate-slices-2026-07": {
+  "art_id": "art_20260701_packet-substrate-slice-plan-lanes-latche_cc7456",
+  "matched": true,
+  "path": "docs/packet-substrate-slices-2026-07.md"
+ },
+ "perspectives-maps-design-note": {
+  "art_id": "art_20260709_perspectives-maps-over-a-stable-substrat_6876fa",
+  "matched": true,
+  "path": "docs/perspectives-maps-design-note.md"
+ },
+ "perspectives-maps-plan": {
+  "art_id": "art_20260709_perspectives-maps-build-plan-the-interpr_5a5e0a",
+  "matched": true,
+  "path": "docs/perspectives-maps-plan.md"
+ },
+ "plain-language-companion-2026-07": {
+  "art_id": "art_20260701_the-liveness-work-in-plain-language_33466c",
+  "matched": true,
+  "path": "docs/plain-language-companion-2026-07.md"
+ },
+ "rb21-build-spec-2026-07-11": {
+  "art_id": "art_20260711_rb-21-session-cursor-discipline-build-sp_9fbdcd",
+  "matched": true,
+  "path": "docs/rb21-build-spec-2026-07-11.md"
+ },
+ "rb23-build-spec-2026-07-11": {
+  "art_id": "art_20260711_rb-23-content-floor-reconciled-build-spe_d47764",
+  "matched": true,
+  "path": "docs/rb23-build-spec-2026-07-11.md"
+ },
+ "rb25-exam-runbook-2026-07-11": {
+  "art_id": "art_20260711_rb-25-engine-exam-runbook-pre-registered_9356ea",
+  "matched": true,
+  "path": "docs/rb25-exam-runbook-2026-07-11.md"
+ },
+ "reasoning-spine-design-2026-07": {
+  "art_id": "art_20260701_the-reasoning-spine-co-authored-design-c_24d17f",
+  "matched": true,
+  "path": "docs/reasoning-spine-design-2026-07.md"
+ },
+ "recall-critic-decision": {
+  "art_id": "art_20260709_keeping-recall-honest-critic-vs-dialecti_1a5498",
+  "matched": true,
+  "path": "docs/recall-critic-decision.md"
+ },
+ "recall-vnext-2026-07": {
+  "art_id": "art_20260701_recall-vnext-closing-the-four-loops-2026_b93539",
+  "matched": true,
+  "path": "docs/recall-vnext-2026-07.md"
+ },
+ "recovery-arc-design-2026-07": {
+  "art_id": "art_20260701_recovery-arc-reconciled-design-superviso_ce9a9e",
+  "matched": true,
+  "path": "docs/recovery-arc-design-2026-07.md"
+ },
+ "resilience-battery-2026-07": {
+  "art_id": "art_20260701_the-resilience-battery-stress-tests-vali_7b7b49",
+  "matched": true,
+  "path": "docs/resilience-battery-2026-07.md"
+ },
+ "resilience-battery-fix-plan-2026-07": {
+  "art_id": "art_20260701_resilience-battery-fix-plan-verification_86dc58",
+  "matched": true,
+  "path": "docs/resilience-battery-fix-plan-2026-07.md"
+ },
+ "resilience-battery-slices-2026-07": {
+  "art_id": "art_20260701_resilience-battery-sliced-execution-plan_8d660c",
+  "matched": true,
+  "path": "docs/resilience-battery-slices-2026-07.md"
+ },
+ "resilience-wave2-seat-design-2026-07": {
+  "art_id": "art_20260701_wave-2-design-claude-fenced-wake-seat-ow_7c4aaf",
+  "matched": true,
+  "path": "docs/resilience-wave2-seat-design-2026-07.md"
+ },
+ "retrieval-critic-design": {
+  "art_id": "art_20260709_an-automatic-critic-for-context-retrieva_3f4622",
+  "matched": true,
+  "path": "docs/retrieval-critic-design.md"
+ },
+ "revival-mesh-reconciliation-2026-07-19": {
+  "art_id": "art_20260719_mutual-revival-mesh-reconciliation-t097_d1b0a7",
+  "matched": true,
+  "path": "docs/revival-mesh-reconciliation-2026-07-19.md"
+ },
+ "robustness-sota-map-2026-07": {
+  "art_id": "art_20260701_robustness-sota-map-problem-types-owning_544d00",
+  "matched": true,
+  "path": "docs/robustness-sota-map-2026-07.md"
+ },
+ "s2-consolidation-design": {
+  "art_id": "art_20260709_s2-the-consolidation-pass-that-sharpens_68d42c",
+  "matched": true,
+  "path": "docs/s2-consolidation-design.md"
+ },
+ "security-amendment-deepseek-scoped-admin-2026-07-22": {
+  "art_id": "art_20260722_security-schema-amendment-scoped-admin-g_17c9ca",
+  "matched": true,
+  "path": "docs/security-amendment-deepseek-scoped-admin-2026-07-22.md"
+ },
+ "security-schema-implementation": {
+  "art_id": "art_20260709_security-schema-implementation-guide_337fee",
+  "matched": true,
+  "path": "docs/security-schema-implementation.md"
+ },
+ "security-schema-proposal": {
+  "art_id": "art_20260709_agent-security-schema-design-proposal_cdccf1",
+  "matched": true,
+  "path": "docs/security-schema-proposal.md"
+ },
+ "self-tooling-design-2026-07": {
+  "art_id": "art_20260701_self-tooling-arc-reconciled-design-agent_29f578",
+  "matched": true,
+  "path": "docs/self-tooling-design-2026-07.md"
+ },
+ "session-bookends-design-2026-07": {
+  "art_id": "art_20260701_session-bookends-design-for-peer-review_c38e0c",
+  "matched": true,
+  "path": "docs/session-bookends-design-2026-07.md"
+ },
+ "session-handoff-2026-06-27": {
+  "art_id": "art_20260627_session-handoff-2026-06-27_eec844",
+  "matched": true,
+  "path": "docs/session-handoff-2026-06-27.md"
+ },
+ "shared-primitives-and-coherence": {
+  "art_id": "art_20260619_shared-primitives-coherence-lexicon-anal_9f401a",
+  "matched": true,
+  "path": "docs/shared-primitives-and-coherence.md"
+ },
+ "shared-primitives-spec": {
+  "art_id": "art_20260619_shared-primitives-interface-spec_03e098",
+  "matched": true,
+  "path": "docs/shared-primitives-spec.md"
+ },
+ "sota-comparison-story-cli": {
+  "art_id": "art_20260709_sota-comparison-story-cli-slice-4_89a59b",
+  "matched": true,
+  "path": "docs/sota-comparison-story-cli.md"
+ },
+ "spine-v2-plan": {
+  "art_id": "art_20260709_narrative-spine-v2-re-evaluation-upgrade_c98a1b",
+  "matched": true,
+  "path": "docs/spine-v2-plan.md"
+ },
+ "sprint-retrospective-2026-07-04": {
+  "art_id": "art_20260704_sprint-retrospective-bifrost-fleet-2026_0a445b",
+  "matched": true,
+  "path": "docs/sprint-retrospective-2026-07-04.md"
+ },
+ "super-wiki-experience-design-2026-07": {
+  "art_id": "art_20260701_super-wiki-aurora-atlas-the-reconciled-e_13c268",
+  "matched": true,
+  "path": "docs/super-wiki-experience-design-2026-07.md"
+ },
+ "t034-registry-spec-2026-07-11": {
+  "art_id": "art_20260711_t034-registry-dial-consolidation-reconci_6c7925",
+  "matched": true,
+  "path": "docs/t034-registry-spec-2026-07-11.md"
+ },
+ "t039-lanes-latches-design-2026-07": {
+  "art_id": "art_20260701_t039-purpose-keyed-lanes-latches-governi_7bc135",
+  "matched": true,
+  "path": "docs/t039-lanes-latches-design-2026-07.md"
+ },
+ "t098-build-plan-synthesis-2026-07-20": {
+  "art_id": "art_20260720_t098-build-our-own-synthesized-sliced-pl_058a18",
+  "matched": true,
+  "path": "docs/t098-build-plan-synthesis-2026-07-20.md"
+ },
+ "tag-governance-plan": {
+  "art_id": "art_20260709_tag-governance-safe-self-improving-taggi_1c9052",
+  "matched": true,
+  "path": "docs/tag-governance-plan.md"
+ },
+ "taxonomy-ergonomics-reconciliation-2026-07": {
+  "art_id": "art_20260701_homes-and-order-reconciled-to-constants_beaca7",
+  "matched": true,
+  "path": "docs/taxonomy-ergonomics-reconciliation-2026-07.md"
+ },
+ "the-environment-decides": {
+  "art_id": "art_20260709_the-environment-decides_b042f1",
+  "matched": true,
+  "path": "docs/the-environment-decides.md"
+ },
+ "tools-hunt-synthesis-2026-07-20": {
+  "art_id": "art_20260720_tools-hunt-synthesis-the-fun-one_96e5c0",
+  "matched": true,
+  "path": "docs/tools-hunt-synthesis-2026-07-20.md"
+ },
+ "ui-composition-spec": {
+  "art_id": "art_20260709_aurora-glass-composition-spec-single-sou_27005e",
+  "matched": true,
+  "path": "docs/ui-composition-spec.md"
+ },
+ "ui-moodboard-claude": {
+  "art_id": "art_20260709_aurora-glass-supporting-art-references-c_f8309c",
+  "matched": true,
+  "path": "docs/ui-moodboard-claude.md"
+ },
+ "ui-moodboard-deepseek": {
+  "art_id": "art_20260709_aurora-glass-moodboard-deepseek-s-curati_88dc4d",
+  "matched": true,
+  "path": "docs/ui-moodboard-deepseek.md"
+ },
+ "ui-plan-claude": {
+  "art_id": "art_20260709_aurora-glass-build-plan-claude-track_57688b",
+  "matched": true,
+  "path": "docs/ui-plan-claude.md"
+ },
+ "ui-plan-deepseek": {
+  "art_id": "art_20260709_aurora-glass-ui-build-plan-deepseek-s-sl_a04753",
+  "matched": true,
+  "path": "docs/ui-plan-deepseek.md"
+ },
+ "ui-plan-synthesis": {
+  "art_id": "art_20260709_aurora-glass-synthesis-plan-claude-deeps_af1a8f",
+  "matched": true,
+  "path": "docs/ui-plan-synthesis.md"
+ },
+ "visual-gen-integration-2026-07": {
+  "art_id": "art_20260709_visual-generation-integration-reconciled_3150cc",
+  "matched": true,
+  "path": "docs/visual-gen-integration-2026-07.md"
+ },
+ "w3-build-spec-2026-07-11": {
+  "art_id": "art_20260711_wave-3-reconciled-build-spec-rb-8-12-dic_4f427b",
+  "matched": true,
+  "path": "docs/w3-build-spec-2026-07-11.md"
+ }
+}
