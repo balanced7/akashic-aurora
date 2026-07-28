@@ -1385,11 +1385,13 @@ def _write_exit_summary(path: Optional[str], exit_code: int = 0, verdict: str = 
         pass
 
 
-"""T078 W1: token tracking -- shared between responder closure and turn-close path.
-The agentic responder populates this per-peer; _process_one drains it after each turn."""
-_token_deltas: Dict[str, tuple] = {}           # peer -> (prompt, completion) since last poll
-_token_journal = None                          # TokenJournal, created at runner start
-_RUN_STATS: Dict[str, int] = {"turns": 0}
+# T110b: a SECOND definition of _token_deltas / _token_journal / _RUN_STATS stood
+# here, 1,240 lines below the originals at 146-153. Both ran at import and this one
+# won, harmless only because it re-assigned the same empty values -- and primed to
+# silently discard any real initial value the first block ever gains. Removed rather
+# than annotated; the canonical definitions are at the top of the module. Pinned by
+# tests/test_t110_runner_globals_defined_once.py so it cannot grow back here or in
+# the kimi/sol runners.
 
 
 if __name__ == "__main__":
