@@ -121,3 +121,50 @@ def test_b4_matched_features_carry_no_raw_command():
         assert cases[n]["action"][:40] not in feats, (
             f"RAW COMMAND IN THE RECEIPT (case {n}): secrets ride argv; the receipt "
             f"records structural facts, never the text (sol Q4): {feats[:120]}")
+
+
+# --------------------------------------------------------------- C-pins: sol's s1a NO-GO
+def test_c1_a_write_verb_through_a_door_prefix_never_matches():
+    """sol's NO-GO: `recall-feedback` matched the door rule via the recall\S* pattern.
+    It WRITES (a vote mutates the funnel). The write-verb exclusion must be the
+    principle 'any mutating segment kills the match', not an enumerated list that
+    rots as verbs are added."""
+    v = G.match(query_shape="command",
+                action="cd /e/ai-setup && py agent_cli.py recall-feedback claude "
+                       "--source learn:experiment:x --vote useful")
+    assert v is None, f"a WRITE through the knowledge door matched a silence rule: {v}"
+
+
+def test_c2_mutation_then_measurement_never_matches():
+    """A compound command that MUTATES then counts is an action with effects; the
+    count sink at the tail must not silence the mutation at the head."""
+    v = G.match(query_shape="command",
+                action="cd /e/ai-setup && rm -rf build && ls build 2>/dev/null | wc -l")
+    assert v is None, f"mutate-then-measure matched: {v}"
+
+
+def test_c3_commit_then_count_never_matches():
+    v = G.match(query_shape="command",
+                action="cd /e/ai-setup && git add x.py && git commit -q -m done && "
+                       "git log --oneline | wc -l")
+    assert v is None, f"a commit wearing a count suffix matched: {v}"
+
+
+def test_c4_a_door_read_piped_to_a_writer_never_matches():
+    """Reading status is inert; MATERIALIZING it somewhere is an action whose
+    destination a lesson can absolutely change."""
+    v = G.match(query_shape="command",
+                action="py agent_cli.py status | Set-Content -Path state/snapshot.txt")
+    assert v is None, f"door-read piped to a writer matched: {v}"
+
+
+def test_c5_table_hash_covers_every_decision_affecting_structure(monkeypatch):
+    """sol: a decision-affecting _PREFIX change left table_hash unchanged -- the
+    receipt field failed its one job (a silence stays explainable after edits).
+    Everything that can flip a verdict must be digested."""
+    import re as _re
+    h1 = G.table_hash()
+    monkeypatch.setattr(G, "_PREFIX", _re.compile(r"^something-else", _re.I))
+    assert G.table_hash() != h1, (
+        "changing _PREFIX changes decisions but not the hash -- receipts would "
+        "attribute new behaviour to the old table")
