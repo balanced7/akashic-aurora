@@ -22,24 +22,26 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.comm.bus import Bus  # noqa: E402
 
-AGENT = f"ackpin_{uuid.uuid4().hex[:6]}"
+AGENT = "claude"          # a GRANTED id -- unknown ids are correctly quarantined by acl
+TAG = uuid.uuid4().hex[:8]
 
 
 def test_mailbox_sha_prefix_resolves_and_acks():
-    sender = Bus("kimi")
+    # promote=True: auto-promotion is OFF under pytest by design (promoter-pollution
+    # guard, bus.py:156); conftest isolation makes explicit promotion safe here.
+    sender = Bus("kimi", promote=True)
     if not sender.online:
         print("SKIPPED (Redis not running)")
         return
-    mid = sender.send(AGENT, "handoff", f"handoff-body-{AGENT}")
+    mid = sender.send(AGENT, "handoff", f"handoff-body-{TAG}")
     assert mid
 
     from core.comm import mailbox
     ns = sender.ns
     mailbox.catch_up(ns, AGENT)
-    q = mailbox.query(ns, AGENT)
-    assert q.get("available") and q.get("entries"), f"mailbox must index the handoff: {q}"
-    entry = next(e for e in q["entries"] if e["kind"] == "handoff")
-    sha_ref = entry["sha"][:10]                      # exactly what the mailbox renders
+    hit = mailbox.explain(ns, AGENT, mid)            # OUR entry, located by stream id
+    assert hit.get("available") and hit.get("found"), f"mailbox must index the handoff: {hit}"
+    sha_ref = str(hit["sha"])[:10]                   # exactly what the mailbox renders
 
     from core.comm.promoter import resolve_ack_ref, ack_verdict, ack
     resolved = resolve_ack_ref(AGENT, sha_ref)

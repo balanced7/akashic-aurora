@@ -3362,15 +3362,23 @@ def cmd_bifrost_ack(args):
     messages are all refused at promoter.ack_verdict, the single rule guarding every caller
     (the old guard here scanned a 200-message page under try/except and could be
     volume-defeated)."""
-    from core.comm.promoter import ack, ack_verdict
-    # T063: the unhandled-warning prints ids as 'bifrost:<id>' -- the door accepts that
-    # exact form (and the raw id) so its own printed command round-trips.
-    mid = str(args.msg_id)
-    if mid.startswith("bifrost:"):
-        mid = mid[len("bifrost:"):]
+    from core.comm.promoter import ack, ack_verdict, resolve_ack_ref
+    # T063 COMPLETE: the door accepts EVERY id form its sibling verbs print -- the raw
+    # stream id, the unhandled-warning's 'bifrost:<id>', and the MAILBOX's sha prefix
+    # (resolved via mailbox.explain). Pin: tests/test_t063_ack_ref_roundtrip.py.
+    raw = str(args.msg_id)
+    mid = resolve_ack_ref(args.agent_id, raw)
+    if mid is None:
+        mid = raw[len("bifrost:"):] if raw.startswith("bifrost:") else raw
     allowed, why = ack_verdict(args.agent_id, mid)
     if not allowed:
-        print(f"ERROR: ack refused -- {why}")
+        hint = ""
+        import re as _re
+        if _re.fullmatch(r"[0-9a-f]{6,40}", raw):
+            hint = (" (note: that looks like a MAILBOX sha ref and no matching message "
+                    "resolved -- the message may be evicted, or the ref is truncated; "
+                    "try the full stream id from promoted/xrange)")
+        print(f"ERROR: ack refused -- {why}{hint}")
         return 1
     ok = ack(args.agent_id, mid, note=args.note or "")
     if args.json:

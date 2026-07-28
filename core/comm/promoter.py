@@ -86,6 +86,47 @@ def _promoted_record(msg_id: str, *, event_query=None) -> Optional[Dict[str, Any
     return None
 
 
+def resolve_ack_ref(agent: str, ref: str) -> Optional[str]:
+    """T063 completion: resolve EVERY id form the sibling verbs print to an ackable stream id.
+
+    Forms accepted (pin: tests/test_t063_ack_ref_roundtrip.py):
+      * raw stream id            1785202439775-0        -> itself
+      * the unhandled-warning's  bifrost:<id>           -> stripped
+      * the MAILBOX's sha prefix ca13a5bad5             -> resolved via mailbox.explain,
+        which already maps a sha prefix to that message's per-stream ids.
+    Lived defect: the operator copy-pastes the mailbox's own printed ref into bifrost-ack
+    and is refused with "has no promoted record -- only salient messages carry acks" -- a
+    doubly-misleading blame (the message IS salient and IS promoted; the id FORM was the
+    problem). Five unacked handoffs pinned the wake watcher behind exactly this.
+    Returns None when nothing matches -- the caller names the id-form in its refusal."""
+    r = str(ref or "").strip()
+    if not r:
+        return None
+    if r.startswith("bifrost:"):
+        r = r[len("bifrost:"):]
+    if re.fullmatch(r"\d+-\d+", r):
+        return r                                    # already a stream id
+    if re.fullmatch(r"[0-9a-f]{6,40}", r):          # mailbox sha-prefix form
+        try:
+            from core.comm import mailbox
+            from core.comm.bus import Bus
+            ns = Bus(agent).ns
+            hit = mailbox.explain(ns, agent, r)
+            if hit.get("available") and hit.get("found"):
+                ids = list((hit.get("acks") or {}).keys()) or [
+                    str(c.get("stream_id")) for c in (hit.get("cursor_comparisons") or [])
+                    if c.get("stream_id")]
+                # prefer an id that passes the verdict (promoted record attached)
+                for sid in ids:
+                    ok, _why = ack_verdict(agent, str(sid))
+                    if ok:
+                        return str(sid)
+                return str(ids[0]) if ids else None
+        except Exception:
+            return None
+    return None
+
+
 def ack_verdict(by: str, msg_id: str, *, event_query=None) -> tuple:
     """(allowed, reason) -- the ONE ack-acceptance rule, guarding every caller (RB-2/T029).
     An ack is accepted only from the message's ADDRESSEE: the sender cannot settle its own
