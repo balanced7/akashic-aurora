@@ -66,6 +66,12 @@ def _slug_of(path: str) -> str:
     return os.path.splitext(os.path.basename(path))[0]
 
 
+# A trivially short atom body could suffix-match many docs by accident (a 3-line body is
+# the tail of dozens of files), which would make the match ambiguous and unsafe. 200 chars
+# is the floor: long enough that a byte-exact tail is a fingerprint, not a coincidence.
+_MIN_SUFFIX_CHARS = 200
+
+
 def _match_atom(body: str, atoms_by_id: Dict[str, Any]) -> Optional[str]:
     """Return the one atom whose body is the legacy document's byte-exact suffix.
 
