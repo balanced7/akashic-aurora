@@ -195,10 +195,59 @@ def claim_consumer(agent: str, holder_token: str, ttl: Optional[int] = None):
     generation (the acquire() own-token precedent; pinned as RB-21 P10). `ttl` in raw
     seconds; None -> SESSION_CONSUMER_TTL."""
     t = int(ttl or SESSION_CONSUMER_TTL)
+    # A TOMBSTONED SESSION MAY NOT CLAIM. Live incident 2026-07-28: a retiring seat kept
+    # draining its successor's mail, because the seat serialises to whoever refreshed most
+    # recently and the STOP HOOK refreshes on every turn end. A session being wound down still
+    # takes turns -- re-arm demands, task notifications, one more operator question -- and each
+    # one renewed the claim it was trying to give up. It never reached a clean SessionEnd, so
+    # session_exit never released, and the successor was refused and silently degraded to peek.
+    # A dying session out-competed its successor purely by still breathing.
+    # The tombstone already recorded "done by RECORD, not by inference" and free_if_dead()
+    # already honoured it; this end never did, so standing down was undone by the next consume.
+    if str(holder_token or "").startswith("session:"):
+        try:
+            from core.comm import wake_seat
+            if wake_seat.is_tombstoned(str(holder_token)[len("session:"):]):
+                return False, 0, holder(agent) or {}
+        except Exception:
+            pass                      # tombstone unreadable -> fail toward the old behaviour
     if acquire(agent, holder_token, ttl=t):
         heartbeat(agent, holder_token, ttl=t)   # refresh on re-entrant claims; fresh = harmless
         return True, generation_of(holder_token), holder(agent) or {"token": holder_token}
     return False, 0, holder(agent) or {}
+
+
+def stand_down(agent: str, holder_token: str) -> bool:
+    """Yield the consumer seat PERMANENTLY for this session -- the voluntary hand-over.
+
+    release_consumer() alone is not enough: the very next consume re-claims, because nothing
+    remembers that the session was retiring. session_exit() does both but only fires on a clean
+    SessionEnd, which a session that keeps being invoked never reaches -- which is exactly how a
+    retiring seat spent an evening draining its successor's mail.
+
+    So this writes the tombstone FIRST (the durable "I am done" record that claim_consumer now
+    honours) and then releases. Order matters: tombstone-then-release means a crash between the
+    two leaves the seat held by a session that can no longer re-claim -- it TTLs away and the
+    successor gets it. Release-then-tombstone would leave a window where the retiree could take
+    the seat straight back.
+
+    Idempotent, and safe when we never held the seat. Never raises: a stand-down that can fail
+    loudly is one an operator will skip.
+    """
+    ok = True
+    try:
+        from core.comm import wake_seat
+        sid = str(holder_token or "")
+        wake_seat.write_tombstone(sid[len("session:"):] if sid.startswith("session:") else sid)
+    except Exception:
+        ok = False
+    try:
+        held = holder(agent) or {}
+        if held.get("token") == holder_token:
+            release_consumer(agent, holder_token)
+    except Exception:
+        ok = False
+    return ok
 
 
 def refresh_consumer(agent: str, holder_token: str, ttl: Optional[int] = None) -> bool:

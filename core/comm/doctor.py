@@ -452,6 +452,34 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
     except Exception:
         pass
 
+    # TWIN SESSIONS ON ONE AGENT ID (2026-07-28 incident). Two live sessions share a cursor:
+    # exactly one may consume, and the seat goes to whoever refreshed most recently. A retiring
+    # session still takes turns -- re-arm demands, task notifications, one more question -- and
+    # every turn renews its claim, so it out-competes its successor purely by still breathing.
+    # The successor is refused and SILENTLY degraded to peek, which is why this went unnoticed
+    # until the operator saw mail vanishing. Dashboard, not a page: twins are legitimate (the
+    # twin-split protocol), and it is the UNANNOUNCED overlap that costs.
+    try:
+        from core.comm import wake_seat
+        seats = [sid for _p, sid in wake_seat.iter_seats(agent)]
+        if len(seats) > 1:
+            held = ""
+            try:
+                from core.comm import runner_lock as _rl
+                h = (_rl.holder(agent) or {}).get("token", "")
+                held = h[len("session:"):] if h.startswith("session:") else h
+            except Exception:
+                pass
+            who = ", ".join(s[:8] for s in seats)
+            out.append(_f(agent, "twin_sessions", "dashboard",
+                          f"{agent}: {len(seats)} LIVE SESSIONS share this agent id ({who}) -- "
+                          f"one cursor, one consumer seat"
+                          + (f"; held by {held[:8]}" if held else "; seat unheld")
+                          + ". The other is being degraded to peek and may be losing mail.",
+                          f"retiring seat: py agent_cli.py stand-down {agent}"))
+    except Exception:
+        pass
+
     # S0-alpha: the triage bench (scry-to-bottom) -- parked asks are VISIBLE, never limbo.
     try:
         n = int(p["bench_count"](agent) or 0)

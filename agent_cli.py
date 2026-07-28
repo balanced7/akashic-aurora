@@ -4480,6 +4480,11 @@ def build_parser():
     fd.add_argument("--json", action="store_true")
     fd.set_defaults(fn=cmd_flightdeck)
 
+    sd = sub.add_parser("stand-down", help="yield this session's consumer seat PERMANENTLY so a "
+                                           "successor can take it immediately (retiring a seat)")
+    sd.add_argument("agent", help="the agent id whose seat this session is holding")
+    sd.set_defaults(fn=cmd_stand_down)
+
     uw = sub.add_parser("unwedge", help="W31 (deepseek): one-verb wedge diagnosis -- why is "
                                          "this agent stuck? READ-only v1 (recommends, never acts)")
     uw.add_argument("agent", help="the agent to diagnose")
@@ -4885,6 +4890,28 @@ def cmd_flightdeck(args):
     fd = flightdeck_fn(agent=getattr(args, "agent", None))
     print(format_flightdeck(fd, json_mode=getattr(args, "json", False)))
     return 0
+
+
+def cmd_stand_down(args):
+    """stand-down <agent>: yield the consumer seat permanently for THIS session.
+
+    Exists because release alone is undone by the next consume. A retiring session keeps being
+    invoked -- re-arm demands, task notifications, one more question -- and every turn refreshes
+    the seat via the stop hook, so it out-competes its successor purely by still breathing while
+    the successor is silently degraded to peek. Live incident 2026-07-28.
+    """
+    from core.comm import runner_lock
+    token = runner_lock.session_holder_token()
+    if not token:
+        print("no session id in the environment -- nothing to yield "
+              "(CLAUDE_CODE_SESSION_ID unset; this door is for interactive seats)")
+        return 1
+    ok = runner_lock.stand_down(args.agent, token)
+    held = runner_lock.holder(args.agent)
+    print(f"[stand-down] {args.agent}: seat yielded by {token} -- ok={ok}; "
+          f"holder now {held.get('token') if held else 'NONE (successor may claim)'}")
+    print("[stand-down] this session can no longer re-claim the seat; it is tombstoned by record.")
+    return 0 if ok else 1
 
 
 def cmd_unwedge(args):
