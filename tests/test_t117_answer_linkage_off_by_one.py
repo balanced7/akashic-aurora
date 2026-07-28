@@ -221,3 +221,36 @@ def test_p7_the_bus_records_the_dual_id_alias_at_emit():
     finally:
         for k in bus._client.scan_iter(match=f"{ns}:*", count=500):
             bus._client.delete(k)
+
+
+# --------------------------------------------------------------- P8 sol's third NO-GO
+def test_p8_one_reply_settles_exactly_one_ask_across_sweeps(sender, monkeypatch):
+    """Sol's third NO-GO, the sharpest: sweep() re-reads answers from the OLDEST
+    anchor every pass, and nothing remembers that a reply already settled
+    something. Sweep 1: the reply exact-clears the newer ask -- correct. Sweep 2:
+    the SAME stored reply is read again; its target is gone from recs, so the link
+    is unrecognised, and FIFO hands it the OLDER ask. One reply, two settlements,
+    the second one wrong -- and the older ask's real answer, when it arrives,
+    finds nothing left to settle.
+
+    The fix is idempotent settlement: a reply that settled an ask is durably
+    marked and never settles again. PER-REPLY markers, not a stream frontier --
+    sol's own warning: a frontier could skip a reply needed by a later-armed
+    expectation whose anchor predates it."""
+    s = sender
+    c = E._client()
+    _arm(s, "1785226575000-0", "kimi", "1785226574000-0", 1785226575.0,
+         deadline_past=False)                                  # older, UNANSWERED
+    _arm(s, "1785226575200-0", "kimi", "1785226575100-0", 1785226575.2)   # newer
+    reply = _Reply("1785228386835-0", "kimi", answers="1785226575200-0")
+
+    out1 = _sweep_with(s, [reply], monkeypatch)
+    assert out1["cleared"] == ["1785226575200-0"], f"sweep 1 must clear the newer: {out1}"
+
+    out2 = _sweep_with(s, [reply], monkeypatch)    # same stored reply, next pass
+    assert not out2["cleared"], (
+        f"ONE REPLY SETTLED TWO ASKS: the same stored reply cleared again on the "
+        f"second sweep -- FIFO handed it the older ask whose real answer has not "
+        f"arrived. Settlement must be idempotent per reply: {out2}")
+    assert "1785226575000-0" in (c.hgetall(E._key(s)) or {}), (
+        "the older unanswered ask must still be armed after both sweeps")
