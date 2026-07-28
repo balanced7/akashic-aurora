@@ -1,5 +1,15 @@
 # T108 fence -- VERBATIM halves (deepseek + kimi)
 
+ERRATUM 2026-07-28 (Sol/codex outside review, verified against Redis semantics): deepseek's Q2
+half reasons that "XAUTOCLAIM doesn't fire because the consumer is still connected (pinging
+heartbeats)". That is INCORRECT about the mechanism: XAUTOCLAIM selects entries by DELIVERY
+IDLE TIME alone -- Redis tracks no connection state for PEL purposes, so a healthy-but-slow
+worker past min-idle CAN be reclaimed. The CONCLUSION both halves reached (application-layer
+claim discipline on top of the PEL) survives and is strengthened: the fence generation, not
+PEL ownership, is the side-effect authority (role_queue.py P3+P6). Recorded rather than
+edited-away; the reasoning error stays visible.
+
+
 Brief: scratch t108-fence (3346B, sent 1785216278552-0/1785216278891-0)
 Fenced: independent; neither saw the other.
 

@@ -8,12 +8,31 @@ WHAT THIS IS: ONE work queue per agent ROLE. Any free seat claims the next item,
 once. This is the single place serialization survives in the N-seat architecture -- role
 work must not be double-executed -- and it uses the primitive built for it:
 
-  * NATIVE CONSUMER GROUPS (XREADGROUP): exactly-once claim per group; the PEL is the claim
-    ledger; XAUTOCLAIM recovers from dead AND stalled claimants (P1, P2).
-  * SIDE-EFFECT FENCE (P3, kimi's fence): a per-message fence key names the CURRENT
-    claimant; commit() is an atomic compare-and-delete only the current claimant passes.
-    A reclaimed (stale) writer's commit is REFUSED -- its side effect never crosses the hop.
+THE LAYER CONTRACT (Sol review 2, adopted -- each layer owns ONE thing):
+    Redis PEL     transport delivery ONLY: who received an entry and has not acked.
+                  XREADGROUP is AT-LEAST-ONCE DELIVERY, not exactly-once execution, and
+                  XAUTOCLAIM selects by DELIVERY IDLE TIME, not connection state -- a
+                  healthy-but-slow worker CAN be reclaimed (the fence doc's original
+                  connection-state reasoning was wrong; erratum recorded there).
+    claim GENERATION   application authority: who may ACT. Advanced on every takeover
+                  (_take_fence); side effects accept only the CURRENT generation.
+    mailbox       rebuildable operator projection -- renders, never owns.
+    roster (S2)   seat liveness and reachability.
+  FAIL-CLOSED: Redis is the live claim authority; no Redis -> no claiming. FileStore.cas
+  is process-local (RLock over a cached copy, store.py:554) and is NOT a certified
+  cross-process fallback -- offline claiming waits for that repair + kill drill.
+
+  * NATIVE CONSUMER GROUPS (XREADGROUP): one delivery per group at a time; the PEL is the
+    transport claim ledger; XAUTOCLAIM recovers idle claims -- dead, stalled, OR merely
+    slow (P1, P2).
+  * SIDE-EFFECT FENCE (P3 + P6): the fence carries consumer#GENERATION; commit() is an
+    atomic compare-and-delete on the FULL token. A reclaimed writer -- including the SAME
+    consumer name reclaiming across cycles (the ABA race) -- is REFUSED.
     Fenced ONLY at commit, not blanket: pure/read-only role work pays nothing extra.
+    EXTERNAL side effects that cannot validate the token before landing must be idempotent
+    via a durable key -- bus sends already are (packet sha + idempotency_key, T040/T043);
+    anything else needs an outbox record BEFORE the effect. Checking the token immediately
+    before an external call is NOT sufficient (the pause-between-check-and-act race).
   * FRESHNESS (P4): publish() stamps fresh_until; delivery past it is DROPPED-AS-STALE
     (acked + loud), never handed to a consumer -- the resent packet that arrived too late
     (netcode doc sec 5; games drop it, never replay it).
@@ -60,6 +79,24 @@ def _fence_key(ns: str, agent: str, msg_id: str) -> str:
     return f"{ns}:rolefence:{agent}:{msg_id}"
 
 
+def _gen_key(ns: str, agent: str, msg_id: str) -> str:
+    return f"{ns}:rolegen:{agent}:{msg_id}"
+
+
+def _take_fence(client, ns: str, agent: str, msg_id: str, consumer: str) -> str:
+    """Advance the CLAIM GENERATION and stamp the fence with consumer#generation.
+
+    P6 (Sol review 2, the ABA race): fence-by-name resurrects a dead claim when the same
+    incarnation reclaims across cycles (restart loops). The generation is monotonic per
+    message; every takeover advances it; commit compares the FULL token. 'One current
+    claim generation' -- the six-invariant header, made mechanical. Same shape as the
+    RB-21 cursor generations."""
+    gen = int(client.incr(_gen_key(ns, agent, msg_id)))
+    token = f"{consumer}#{gen}"
+    client.set(_fence_key(ns, agent, msg_id), token)
+    return token
+
+
 # Atomic compare-and-delete: commit passes ONLY while the fence still names this claimant.
 _COMMIT_LUA = """
 if redis.call('get', KEYS[1]) == ARGV[1] then
@@ -85,6 +122,7 @@ class Claim:
     msg_id: str
     consumer: str
     fields: Dict[str, Any] = field(default_factory=dict)
+    token: str = ""          # consumer#generation -- what commit() must match (P3+P6)
 
 
 def publish(ns: str, agent: str, kind: str, content: Any = None, *,
@@ -148,8 +186,9 @@ def claim_next(ns: str, agent: str, consumer: str, *, block_ms: int = 0,
         if _is_stale(fields):
             _drop_stale(client, ns, agent, msg_id, fields)
             continue
-        client.set(_fence_key(ns, agent, msg_id), consumer)
-        return Claim(ns=ns, agent=agent, msg_id=msg_id, consumer=consumer, fields=fields)
+        token = _take_fence(client, ns, agent, msg_id, consumer)
+        return Claim(ns=ns, agent=agent, msg_id=msg_id, consumer=consumer, fields=fields,
+                     token=token)
     return None
 
 
@@ -173,8 +212,9 @@ def reclaim_stalled(ns: str, agent: str, consumer: str, *, min_idle_s: float,
         if _is_stale(fields):
             _drop_stale(client, ns, agent, msg_id, fields)
             continue
-        client.set(_fence_key(ns, agent, msg_id), consumer)   # authority transfer (P3)
-        out.append(Claim(ns=ns, agent=agent, msg_id=msg_id, consumer=consumer, fields=fields))
+        token = _take_fence(client, ns, agent, msg_id, consumer)   # generation advances (P3+P6)
+        out.append(Claim(ns=ns, agent=agent, msg_id=msg_id, consumer=consumer, fields=fields,
+                         token=token))
     return out
 
 
@@ -188,7 +228,7 @@ def commit(claim: Claim, *, client=None) -> bool:
     try:
         ok = bool(client.eval(_COMMIT_LUA, 1,
                               _fence_key(claim.ns, claim.agent, claim.msg_id),
-                              claim.consumer))
+                              claim.token or claim.consumer))
     except Exception:
         return False
     if not ok:
@@ -220,7 +260,9 @@ def claim_state(ns: str, agent: str, msg_id: str, *, client=None) -> Dict[str, A
     if not pel and not holder:
         return {"claimed_by": None, "pending": False}
     row = pel[0] if pel else {}
-    return {"claimed_by": holder or (row.get("consumer") if isinstance(row, dict) else None),
+    name, _, gen = str(holder or "").partition("#")
+    return {"claimed_by": (name or (row.get("consumer") if isinstance(row, dict) else None)),
+            "generation": (int(gen) if gen.isdigit() else None),
             "pending": bool(pel),
             "idle_ms": (row.get("time_since_delivered") if isinstance(row, dict) else None),
             "deliveries": (row.get("times_delivered") if isinstance(row, dict) else None)}
