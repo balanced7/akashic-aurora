@@ -10,6 +10,12 @@ fence reproduced against the live tree:
   H4  the original clock actually governs freshness after re-home.
   H5  a full-session tombstone remains connected to its sid8 roster row;
   H6  the observational doctor does not mutate mail by running the reaper.
+  H7  two live reapers serialize one message without duplicating the send.
+  H8  the persistent reap cursor never advances across a failed delivery hole.
+
+One runner-wide identity residual is pinned strict-xfail below: same-role work sent
+to a particular session (for example Claude -> Claude#dead) must be distinguished
+from an ordinary self echo after recovery.
 
 They deliberately assert properties at the consumer boundary, not log text. Namespaces
 are unique and exact-cleaned; no shared cursor or canonical task state is touched.
@@ -18,8 +24,11 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
@@ -62,7 +71,7 @@ def _seat_stream(ns: str) -> str:
 
 
 def _add_seat_packet(client, ns: str, content: str, *, frm: str = "real_sender",
-                     stream_id: str = "*", sent_at: float | None = None) -> str:
+                     stream_id: str = "*", sent_at: object | None = None) -> str:
     meta = {"to_incarnation": SID}
     env = {
         "frm": frm,
@@ -160,6 +169,10 @@ def test_h3_repeated_passes_progress_beyond_first_page(isolated_bus, monkeypatch
         "the second pass reread the same 50 marked entries and never reached item 51")
     assert third == []
     assert {r["original_mid"] for r in first + second} == set(original_ids)
+    cursor_key = f"{ns}:cursor:seat:{AGENT}#{SID[:8]}"
+    assert client.hget(cursor_key, "reaper") == original_ids[-1], (
+        "pagination reached item 55 but did not persist progress; every later tick would "
+        "rescan the dead seat's whole history")
 
 
 def test_h4_original_clock_drives_stale_gate_after_rehome(isolated_bus):
@@ -167,8 +180,9 @@ def test_h4_original_clock_drives_stale_gate_after_rehome(isolated_bus):
     ns, client = isolated_bus
     now_ms = int(time.time() * 1000)
     old_ms = now_ms - (7 * 3600 * 1000)
+    original_ts = datetime.fromtimestamp(old_ms / 1000.0, timezone.utc).isoformat()
     original_mid = _add_seat_packet(
-        client, ns, "old-request", stream_id=f"{old_ms}-0", sent_at=old_ms / 1000.0)
+        client, ns, "old-request", stream_id=f"{old_ms}-0", sent_at=original_ts)
     _make_dead(client, ns)
 
     records = reaper.reap(ns, client=client)
@@ -226,3 +240,74 @@ def test_h6_doctor_is_observational_and_does_not_reap(monkeypatch, capsys):
         "doctor invoked the S4 reaper while claiming to diagnose fleet state; "
         "mail movement belongs behind the explicit roster --reap maintenance action")
     capsys.readouterr()
+
+
+def test_h7_live_reapers_serialize_one_send(isolated_bus, monkeypatch):
+    """The transient claim closes the ordinary two-writer race without poisoning retries."""
+    ns, client = isolated_bus
+    original_mid = _add_seat_packet(client, ns, "race-me")
+    _make_dead(client, ns)
+    send_started = threading.Event()
+    release_send = threading.Event()
+    sends = []
+
+    def slow_send(self, *args, **kwargs):
+        sends.append((self.agent_id, args))
+        send_started.set()
+        assert release_send.wait(timeout=3), "test harness failed to release the first send"
+        return "rehomed-once"
+
+    monkeypatch.setattr(Bus, "send", slow_send)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(reaper.reap, ns, client=client)
+        assert send_started.wait(timeout=3), "precondition: first reaper must hold the claim"
+        second = pool.submit(reaper.reap, ns, client=client)
+        second_records = second.result(timeout=3)
+        release_send.set()
+        first_records = first.result(timeout=3)
+
+    assert len(sends) == 1, "two live reapers both sent the same stranded packet"
+    assert second_records == []
+    assert [record.get("original_mid") for record in first_records] == [original_mid]
+
+
+def test_h8_reap_cursor_never_crosses_a_failed_hole(isolated_bus, monkeypatch):
+    """Later successes stay reachable, but cannot make an earlier failed item disappear."""
+    ns, client = isolated_bus
+    original_ids = [_add_seat_packet(client, ns, f"hole-{i}") for i in range(3)]
+    _make_dead(client, ns)
+    calls = iter([None, "later-1", "later-2"])
+    monkeypatch.setattr(Bus, "send", lambda self, *args, **kwargs: next(calls))
+
+    first = reaper.reap(ns, client=client)
+    cursor_key = f"{ns}:cursor:seat:{AGENT}#{SID[:8]}"
+
+    assert [record.get("original_mid") for record in first] == original_ids[1:]
+    assert str(client.hget(cursor_key, "reaper") or "0") == "0", (
+        "the reap cursor crossed a failed first message and made its retry unreachable")
+
+    monkeypatch.setattr(Bus, "send", lambda self, *args, **kwargs: "retried")
+    second = reaper.reap(ns, client=client)
+
+    assert [record.get("original_mid") for record in second] == [original_ids[0]]
+    assert client.hget(cursor_key, "reaper") == original_ids[-1], (
+        "after the hole closed, the cursor did not compact across already-finished later work")
+
+
+@pytest.mark.xfail(strict=True, reason=(
+    "PRE-REGISTERED identity residual: preserving frm is insufficient when the original "
+    "ask was same-role but cross-session. Runners need rehomed_from-aware echo filtering "
+    "and original_mid logical reply identity across every provider."))
+def test_h9_self_directed_seat_work_remains_answerable_after_rehome(isolated_bus):
+    """The canonical Claude -> Claude#dead recovery is work, not an echo."""
+    ns, client = isolated_bus
+    original_mid = _add_seat_packet(client, ns, "same-role-work", frm=AGENT)
+    _make_dead(client, ns)
+
+    records = reaper.reap(ns, client=client)
+    fields = _role_rehome_fields(client, ns, original_mid)
+    assert records and fields
+    meta = json.loads(fields.get("meta") or "{}")
+
+    assert should_answer(
+        str(fields.get("kind") or ""), str(fields.get("frm") or ""), AGENT, meta)

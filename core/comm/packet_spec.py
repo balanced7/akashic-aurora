@@ -35,6 +35,7 @@ import hashlib
 import json
 import os
 from collections import OrderedDict
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 SPEC_VERSION = 2
@@ -337,12 +338,53 @@ def stale_gate_ms() -> int:
     return _int_env("BIFROST_STALE_MS", DEFAULT_STALE_MS)
 
 
-def msg_age_ms(msg_id: Any, now_ms: int) -> Optional[int]:
-    """Age from a stream id '{ms}-{seq}' -- every message carries its arrival time in its id
-    (kimi D2, verified against bus.tail). None when the id isn't stream-shaped: age unknowable
-    reads as FRESH downstream (fail toward showing, never toward hiding)."""
+def _timestamp_ms(value: Any) -> Optional[int]:
+    """Normalize an epoch-seconds/ms or ISO-8601 timestamp to epoch milliseconds."""
+    if value in (None, ""):
+        return None
     try:
-        return max(0, int(now_ms) - int(str(msg_id).split("-", 1)[0]))
+        number = float(value)
+        return int(number if abs(number) >= 1_000_000_000_000 else number * 1000)
+    except (ValueError, TypeError, OverflowError):
+        pass
+    try:
+        return int(datetime.fromisoformat(str(value).replace("Z", "+00:00")).timestamp() * 1000)
+    except (ValueError, TypeError, OverflowError):
+        return None
+
+
+def _message_meta(message: Any) -> Dict[str, Any]:
+    raw = message.get("meta") if isinstance(message, dict) else getattr(message, "meta", None)
+    if isinstance(raw, dict):
+        return raw
+    try:
+        parsed = json.loads(raw or "{}")
+        return parsed if isinstance(parsed, dict) else {}
+    except (ValueError, TypeError):
+        return {}
+
+
+def msg_age_ms(message_or_id: Any, now_ms: int) -> Optional[int]:
+    """Age from a message's authoritative clock.
+
+    A normal packet uses its stream id ``{ms}-{seq}``. A re-homed packet first uses
+    ``meta.original_ts`` (ISO-8601 in production, epoch seconds/ms in older packets),
+    then ``meta.original_mid``. This keeps recovery from making old work look new.
+    Unknown clocks read as FRESH downstream: fail toward showing, never hiding.
+    """
+    value = message_or_id
+    if (isinstance(message_or_id, dict) or hasattr(message_or_id, "meta")
+            or hasattr(message_or_id, "id")):
+        meta = _message_meta(message_or_id)
+        original_ms = _timestamp_ms(meta.get("original_ts"))
+        if original_ms is not None:
+            return max(0, int(now_ms) - original_ms)
+        value = meta.get("original_mid")
+        if not value:
+            value = (message_or_id.get("id") if isinstance(message_or_id, dict)
+                     else getattr(message_or_id, "id", None))
+    try:
+        return max(0, int(now_ms) - int(str(value).split("-", 1)[0]))
     except (ValueError, TypeError):
         return None
 
@@ -358,7 +400,7 @@ def partition_stale(messages, *, now_ms: int, stale_ms: int,
     auto-acks (P4); stale non-asks skip the responder, and the caller's existing cursor sweep
     commits past them (P3). Fresh mail is untouched -- the gate relabels only the backlog
     tail (kimi D2 sec.4). Direct and broadcast entries gate identically (P5)."""
-    id_of = id_of or (lambda m: getattr(m, "id", None))
+    id_of = id_of or (lambda m: m)
     kind_of = kind_of or (lambda m: getattr(m, "kind", None))
     msgs = list(messages)
     if stale_ms is None or stale_ms <= 0:
@@ -379,7 +421,7 @@ def stale_notice(stale_asks, *, now_ms: int, id_of=None) -> str:
     """P4: the collapsed triage line -- count + oldest age + the triage instruction."""
     if not stale_asks:
         return ""
-    id_of = id_of or (lambda m: getattr(m, "id", None))
+    id_of = id_of or (lambda m: m)
     ages = [a for a in (msg_age_ms(id_of(m), now_ms) for m in stale_asks) if a is not None]
     oldest_h = (max(ages) / 3600000.0) if ages else 0.0
     return (f"{len(stale_asks)} stale ask(s) (oldest {oldest_h:.1f}h) -- triage with --traces "

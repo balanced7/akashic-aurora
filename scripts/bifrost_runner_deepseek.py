@@ -745,8 +745,7 @@ def _process_one(m, bus, args, responder, rate) -> None:
     try:
         from core.coord.task_ledger import premise_settled
         _pg = premise_settled(str(m.kind),
-                              packet_spec.msg_age_ms(getattr(m, "id", ""),
-                                                     int(time.time() * 1000)),
+                              packet_spec.msg_age_ms(m, int(time.time() * 1000)),
                               prompt)
     except Exception:
         _pg = []
@@ -1224,7 +1223,7 @@ def main() -> int:
                 for stale in _stale_asks:               # S0-beta: auto-park to durable bench
                     try:
                         age_h = (packet_spec.msg_age_ms(
-                            getattr(stale, "id", ""), _now_ms) or 0) / 3600000.0
+                            stale, _now_ms) or 0) / 3600000.0
                         triage_park.park(args.agent,
                                          {"id": getattr(stale, "id", ""),
                                           "frm": getattr(stale, "frm", ""),

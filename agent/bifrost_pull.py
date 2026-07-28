@@ -7,6 +7,7 @@ salient messages from the Ledger (B2). Presence is refreshed on boot.
 from __future__ import annotations
 
 import json
+import os
 from typing import Any, Dict, List, Optional
 
 
@@ -277,7 +278,7 @@ def consume_inbox(agent_id: str, limit: int = 20) -> Dict[str, Any]:
                         try:
                             from core.comm import triage_park
                             age_h = (packet_spec.msg_age_ms(
-                                getattr(stale, "id", ""), now_ms) or 0) / 3600000.0
+                                stale, now_ms) or 0) / 3600000.0
                             triage_park.park(
                                 str(agent_id),
                                 {"id": getattr(stale, "id", ""),
@@ -343,10 +344,12 @@ def collect_boot_bifrost(agent_id: str, limit: int = 8) -> Dict[str, Any]:
     resume_line = ""
     try:
         from core.comm import roster as _roster
-        from core.comm.bus import Bus as _B, NS as _NS
-        _sid8 = _B._my_sid8()
-        if _sid8:
-            _hb = _roster.heartbeat(_NS, str(agent_id), _sid8, phase="sync")
+        from core.comm.bus import NS as _DEFAULT_NS
+        _ns = os.environ.get("BIFROST_NAMESPACE", _DEFAULT_NS)
+        _sid = (os.environ.get("BIFROST_INCARNATION")
+                or os.environ.get("CLAUDE_CODE_SESSION_ID") or "")
+        if _sid:
+            _hb = _roster.heartbeat(_ns, str(agent_id), _sid, phase="sync")
             _gap = (_hb or {}).get("resumed_after_s") if isinstance(_hb, dict) else None
             if _gap:
                 # S3, the Discord marker: replay and live are different states; say which.

@@ -11,7 +11,8 @@ input for bare-role mail (priority: actively-working > idle-alive > stale), and 
 honesty about who is actually reachable (Sol rendered "sleeping" for exactly this gap).
 
 Keys (T5: no payload):
-    {ns}:worklive:{agent}#{sid8}   JSON {phase, beat_ts, since_ts, seq}, TTL WORKLIVE_TTL_S.
+    {ns}:worklive:{agent}#{sid8}   JSON {full_sid, phase, beat_ts, since_ts, seq},
+                                    TTL WORKLIVE_TTL_S.
 
 STATE LADDER (kimi P1 + fence findings F1/F3 -- key-exists is NOT alive, and absence is
 not silence):
@@ -55,13 +56,17 @@ def _seen_key(ns: str, agent: str, sid8: str) -> str:
     return f"{ns}:seatseen:{agent}#{sid8}"
 
 
-def heartbeat(ns: str, agent: str, sid8: str, *, phase: str = "idle",
+def heartbeat(ns: str, agent: str, session_id: str, *, phase: str = "idle",
               client=None, _beat_ts: Optional[float] = None) -> bool:
     """Beat this seat's liveness. Monotonic (P5): an older beat_ts never overwrites a
-    fresher one. `_beat_ts` is injectable for pins only. Never raises."""
+    fresher one. The key stays sid8-sized, while the value retains the full session id
+    so T086 tombstones remain reachable. `_beat_ts` is injectable for pins only.
+    Never raises."""
     try:
         client = client or _connect()
-        k = _key(ns, agent, str(sid8)[:8])
+        full_sid = str(session_id or "")
+        sid8 = full_sid[:8]
+        k = _key(ns, agent, sid8)
         now = float(_beat_ts if _beat_ts is not None else time.time())
         prev: Dict[str, Any] = {}
         try:
@@ -83,7 +88,7 @@ def heartbeat(ns: str, agent: str, sid8: str, *, phase: str = "idle",
         if prev_beat > 0:
             interval = max(0.0, now - prev_beat)
             ema = (0.3 * interval + 0.7 * ema) if ema > 0 else interval
-        doc = {"phase": str(phase), "beat_ts": now,
+        doc = {"full_sid": full_sid, "phase": str(phase), "beat_ts": now,
                "since_ts": float(prev.get("since_ts") or now),
                "seq": int(prev.get("seq") or 0) + 1,
                "ema_interval": round(ema, 3)}
@@ -91,8 +96,10 @@ def heartbeat(ns: str, agent: str, sid8: str, *, phase: str = "idle",
         # kimi F1: the long-lived death witness -- when worklive TTLs away, this record
         # lets the roster render DEAD-with-last-beat instead of silent absence.
         try:
-            client.set(_seen_key(ns, agent, str(sid8)[:8]),
-                       json.dumps({"beat_ts": now, "phase": str(phase)}), ex=SEATSEEN_TTL_S)
+            client.set(_seen_key(ns, agent, sid8),
+                       json.dumps({"full_sid": full_sid, "beat_ts": now,
+                                   "phase": str(phase)}),
+                       ex=SEATSEEN_TTL_S)
         except Exception:
             pass
         return {"ok": True,
@@ -115,7 +122,9 @@ def _have_summary(client, ns: str, agent: str, sid8: str) -> Dict[str, Any]:
         except Exception:
             pass
         try:
-            have["seat_inbox"] = str(client.hget(b._seat_cursor_key(str(sid8)[:8]), "seat") or "0")
+            seat_cursor_key = b._seat_cursor_key(str(sid8)[:8])
+            have["seat_inbox"] = str(client.hget(seat_cursor_key, "seat") or "0")
+            have["reaper"] = str(client.hget(seat_cursor_key, "reaper") or "0")
         except Exception:
             pass
         try:
@@ -164,6 +173,7 @@ def roster(ns: str, *, client=None, now: Optional[float] = None) -> List[Dict[st
             state = "LIVE" if (age is not None and age <= window) else "STALE"
         rows.append({
             "seat": tail, "agent": agent, "sid8": sid8,
+            "full_sid": str(doc.get("full_sid") or sid8),
             "phase": str(doc.get("phase") or "?"),
             "beat_ts": beat, "beat_age_s": (round(age, 1) if age is not None else None),
             "seq": int(doc.get("seq") or 0),

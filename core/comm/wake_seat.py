@@ -103,7 +103,12 @@ def tombstone_path(session_id: str, tmp: Optional[str] = None) -> str:
     return os.path.join(tmp or tempfile.gettempdir(), f"akashic_session_ended_{session_id}.tomb")
 
 
-def write_tombstone(session_id: str, tmp: Optional[str] = None, c=None) -> bool:
+def _tombstone_key(session_id: str, namespace: Optional[str] = None) -> str:
+    return f"{namespace or os.environ.get('BIFROST_NAMESPACE', 'bifrost')}:session:ended:{session_id}"
+
+
+def write_tombstone(session_id: str, tmp: Optional[str] = None, c=None,
+                    namespace: Optional[str] = None) -> bool:
     """Record that `session_id` ENDED: local file (bus-independent) + Redis key (shared,
     7d TTL). Best-effort both legs; True if either landed."""
     if not session_id or os.getenv("AKASHIC_TOMBSTONE", "1") == "0":
@@ -121,15 +126,16 @@ def write_tombstone(session_id: str, tmp: Optional[str] = None, c=None) -> bool:
             from core.comm.bus import get_bus
             cli = get_bus("control")._client
         if cli is not None:
-            ns = os.environ.get("BIFROST_NAMESPACE", "bifrost")
-            cli.set(f"{ns}:session:ended:{session_id}", str(time.time()), ex=7 * 24 * 3600)
+            cli.set(_tombstone_key(session_id, namespace), str(time.time()),
+                    ex=7 * 24 * 3600)
             ok = True
     except Exception:
         pass
     return ok
 
 
-def clear_tombstone(session_id: str, tmp: Optional[str] = None, c=None) -> bool:
+def clear_tombstone(session_id: str, tmp: Optional[str] = None, c=None,
+                    namespace: Optional[str] = None) -> bool:
     """T086 S1b: the resurrection edge. SessionEnd writes a tombstone; a later SessionStart
     for the SAME session id clears it -- the harness owns BOTH edges, so restart/compact
     cycles that end-and-continue one session heal themselves (live receipt 2026-07-19: a
@@ -152,15 +158,15 @@ def clear_tombstone(session_id: str, tmp: Optional[str] = None, c=None) -> bool:
             from core.comm.bus import get_bus
             cli = get_bus("control")._client
         if cli is not None:
-            ns = os.environ.get("BIFROST_NAMESPACE", "bifrost")
-            if cli.delete(f"{ns}:session:ended:{session_id}"):
+            if cli.delete(_tombstone_key(session_id, namespace)):
                 existed = True
     except Exception:
         pass
     return existed
 
 
-def is_tombstoned(session_id: str, tmp: Optional[str] = None, c=None) -> bool:
+def is_tombstoned(session_id: str, tmp: Optional[str] = None, c=None,
+                  namespace: Optional[str] = None) -> bool:
     """Has this session ENDED? File first (cheap, offline-safe), Redis second.
     FAIL TOWARD ALIVE: any probe error reads as not-tombstoned -- a tombstone may only
     ACCELERATE a release, never cause one on a guess (S1c pin)."""
@@ -177,8 +183,7 @@ def is_tombstoned(session_id: str, tmp: Optional[str] = None, c=None) -> bool:
             from core.comm.bus import get_bus
             cli = get_bus("control")._client
         if cli is not None:
-            ns = os.environ.get("BIFROST_NAMESPACE", "bifrost")
-            return bool(cli.exists(f"{ns}:session:ended:{session_id}"))
+            return bool(cli.exists(_tombstone_key(session_id, namespace)))
     except Exception:
         pass
     return False
