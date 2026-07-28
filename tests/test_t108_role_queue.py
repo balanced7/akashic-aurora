@@ -131,6 +131,33 @@ def test_p5_claim_state_is_a_projection_of_the_durable_layer():
         f"PROJECTION stale after commit: {st2} -- a committed claim must read as released")
 
 
+def test_p6_aba_same_name_reclaim_does_not_resurrect_old_claim():
+    """P6 (Sol's second review, ABA race): fence-by-CONSUMER-NAME is not enough.
+
+    A claims -> stalls -> B reclaims -> B stalls -> A (same incarnation, e.g. a restart
+    loop) reclaims BACK. The fence again names 'A' -- so the ORIGINAL, long-stale first
+    claim held by old-A would pass a name-only fence and its side effect would land.
+    The fence must carry a CLAIM GENERATION: takeover advances it, side effects accept
+    only the CURRENT generation. 'One current claim generation' -- the six-invariant
+    header, made mechanical."""
+    rq = _rq()
+    rq.publish(NS + "a", AGENT, "task", f"aba-{NS}")
+    first = rq.claim_next(NS + "a", AGENT, SEAT_A, block_ms=0)
+    assert first is not None
+    time.sleep(1.1)
+    taken_b = rq.reclaim_stalled(NS + "a", AGENT, SEAT_B, min_idle_s=1)
+    assert taken_b, "B must be able to reclaim past the idle threshold"
+    time.sleep(1.1)
+    taken_a2 = rq.reclaim_stalled(NS + "a", AGENT, SEAT_A, min_idle_s=1)
+    assert taken_a2, "A (same name, fresh claim) must be able to reclaim back"
+    ok_old = rq.commit(first)
+    assert not ok_old, (
+        "ABA VIOLATION: the ORIGINAL stale claim committed successfully because the fence "
+        "again names the same consumer. Fence-by-name resurrects dead claims across "
+        "reclaim cycles; the fence must compare CLAIM GENERATION, not consumer identity.")
+    assert rq.commit(taken_a2[0]), "the CURRENT-generation claim must still commit"
+
+
 if __name__ == "__main__":
     test_p1_exactly_once_claim()
     test_p2_stall_recovery()
