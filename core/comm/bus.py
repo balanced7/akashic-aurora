@@ -146,8 +146,14 @@ class Bus:
     """An agent's handle on the Bifrost transport. One per agent identity."""
 
     def __init__(self, agent_id: str, client: Optional[Any] = None, *,
-                 namespace: Optional[str] = None, maxlen: int = DEFAULT_MAXLEN, promote: Optional[bool] = None):
+                 namespace: Optional[str] = None, maxlen: int = DEFAULT_MAXLEN,
+                 promote: Optional[bool] = None, incarnation: Optional[str] = None):
         self.agent_id = str(agent_id or "unknown")
+        # T108 slice 2 (deepseek's proposal): when a caller declares WHICH incarnation
+        # it is, its lane cursor is per-incarnation instead of per-agent. Optional by
+        # design -- every existing caller omits it and keeps the byte-identical legacy
+        # key, so the fleet's lane progress does not move when this lands.
+        self._incarnation = str(incarnation or "")[:8]
         self.ns = namespace or os.environ.get("BIFROST_NAMESPACE", NS)
         self.maxlen = maxlen
         self._client = client if client is not None else _connect()
@@ -992,19 +998,43 @@ class Bus:
         WORK-lane positions (the at-least-once surface, advanced via advance_to(cursor_key=)
         after processing); sig_inbox/sig_bc = sig-lane positions (P3 interleave, consumed on
         return); shadow_inbox/shadow_bc = LEGACY positions for the dual-write straggler peek
-        (vestigial once T047 retires the legacy stream)."""
-        return f"{self.ns}:cursor:lane:{agent or self.agent_id}"
+        (vestigial once T047 retires the legacy stream).
+
+        T108 slice 2: when this Bus declares an incarnation, ITS OWN cursor is
+        suffixed '#<sid8>' so two live incarnations of one agent cannot advance the
+        same hash. An EXPLICIT `agent` argument is a question about somebody else's
+        progress and is never suffixed -- stamping my session onto a peer's key would
+        name a hash that holds nothing, and an empty cursor reads as a confident zero
+        about their position rather than as the error it is."""
+        who = agent or self.agent_id
+        if self._incarnation and (agent is None or str(agent) == self.agent_id):
+            return f"{self.ns}:cursor:lane:{who}#{self._incarnation}"
+        return f"{self.ns}:cursor:lane:{who}"
 
     _LANE_CURSOR_FIELDS = ("inbox", "bc", "sig_inbox", "sig_bc", "shadow_inbox", "shadow_bc")
 
     def read_lane_cursor(self) -> Dict[str, str]:
         """All lane-cursor fields with '0' defaults (virgin = drain-from-start semantics --
         a truly-new post-strangler agent's lane holds only real mail, pin R7; MIGRATING
-        agents run lane_cursor_flip_init() at the flip instead)."""
+        agents run lane_cursor_flip_init() at the flip instead).
+
+        T108 slice 2 INHERITANCE: a per-incarnation cursor is born virgin, and virgin
+        means drain-from-start. Read literally, the first incarnation to adopt the
+        split key would re-read its ENTIRE lane as new mail -- the redelivery storm of
+        077f4ed ($97 -> $109 overnight, two runners killed). So a virgin incarnation
+        cursor falls back to the AGENT-keyed position it forked from. Splitting a
+        cursor forks progress; the fork starts where the trunk was. Read-only: the
+        inherited value is returned, not written, so the trunk stays authoritative
+        until this incarnation advances its own key for the first time."""
         try:
             h = self._client.hgetall(self.lane_cursor_key()) or {}
         except Exception:
             h = {}
+        if self._incarnation and not any(str(v) != "0" for v in h.values()):
+            try:
+                h = self._client.hgetall(f"{self.ns}:cursor:lane:{self.agent_id}") or h
+            except Exception:
+                pass
         return {f: str(h.get(f, "0")) for f in self._LANE_CURSOR_FIELDS}
 
     def _lane_keys(self, lane: str) -> Dict[str, str]:
