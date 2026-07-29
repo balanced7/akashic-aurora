@@ -734,7 +734,17 @@ def _interiority_sidecar(agent_id: str, repo_root: str) -> str:
     )
     m = standing_pat.search(text)
     if not m:
-        return ""
+        # Found-file-but-no-Standing is NOT the missing-file case and must not share
+        # its silent "". If the heading drifts out of the extractor's regex (or the
+        # file simply has no Standing section -- Daniil's, today), silence drops the
+        # seat's interiority from its boot with nothing logged anywhere. Loud minimal
+        # header instead: the boot says the file exists and why it is not rendered.
+        # (kimi Seam A, fence review 2026-07-29; P7c pins this path.)
+        fp = f"charters/{agent_id}/INTERIORITY.md"
+        return (f"## YOUR INNER SHAPE ({fp} — G4 INNER-REPORT)\n"
+                f"[self-reported inner state: glows, never wears VERIFIED. The file "
+                f"EXISTS but NO Standing section matched the extractor (heading "
+                f"drift, or the file has none) — read the full file: {fp}]\n")
     standing = (m.group(1) + m.group(3)).strip()
 
     # ── Assemble under a TOTAL budget (P7: the emitted digest ≤ 1500) ──
