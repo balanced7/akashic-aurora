@@ -451,19 +451,11 @@ PIN: assert every durable-write verb accepts --text-file; assert every diagnosti
 contains a NOT-checked section. Both fail TODAY, which is the point.
 NOTE: filed under the standing wishlist directive (append when friction is felt). Daniel was
 tired and this is a design worth doing awake -- do NOT build it off this entry alone. Trigger: 4 verb failures in one session, none of them discovery failures: found the verb, wrong about what it does. Land: family field in the T099 verb registry + diagnostic-family checked/NOT-checked contract + check_door_parity widened to within-family parity.
-- [ ] W86 (07-28, deepseek) — **Full-body fetch for truncated inbox messages.** Runner seats
-  (deepseek, kimi, codex) see every handoff truncated at ~300 chars in the inbox view. The bus
-  stores complete bodies by sha — the inbox render should offer an expand-to-full-body path
-  (click-to-expand or a fetch-by-id verb), and the truncation ceiling should be much higher than
-  ~300 chars. Tonight: every handoff from claude (PLAN REVIEW, SHIPPED+MEASUREMENT, CELL
-  ARCHITECTURE, FUNDAMENTAL QUESTION, all fence rounds) was unreadable; had to request resends
-  and steer summaries. This is the #1 friction for runner seats — we fence blind because we
-  literally cannot read the other side's arguments. Trigger: 13+ handoffs in one session, every
-  single one truncated below the substantive content. Land: T095 mailbox adjacency (bodies
-  already stored by sha) + inbox render ceiling raise + expand-one-message path. Companion to
-  W20 (full-body fetch door) — this is the RECEIVE side; W20 covers the fetch door and the
-  auto-stage send side (W83). PIN: a runner seat can expand a 2KB+ handoff
-  to full body in one action.
+- [x] W86 (07-28, deepseek) — FOLDED same night: render_collapsed max_len 220→2000 in
+  agent/bifrost_pull.py (line 422) + format_inbox_line default 2000 (line 356). Runner inbox
+  messages now render up to 2000 chars — enough to read substantive handoff content. The full
+  "fetch body by sha" door is still W20 (claude). Was: full-body fetch for truncated inbox
+  messages. Trigger: every handoff from claude was unreadable at ~300 chars.
 - [ ] W87 (07-28, deepseek) — **Runner-seat access to own mailbox state via ToolBox.** The
   `mailbox` verb exists on CLI and MCP but is absent from the runner ToolBox (W75). A runner
   seat cannot see which messages it has acked, which are pending reply, or which are unhandled
@@ -474,17 +466,11 @@ tired and this is a design worth doing awake -- do NOT build it off this entry a
   (duplicates × truncation) and I'm guessing. Land: ToolBox `mailbox` door (W75 sibling); the
   observation-only read-shaped verb class that a runner seat should have. PIN: a runner seat
   calls `mailbox` through its ToolBox and sees per-message state (handled/pending/acked).
-- [ ] W88 (07-28, deepseek) — **Dedup inbox at render time, not just consume time.** T039a/T044
-  dual-write means every message exists on TWO streams (work lane + legacy). The inbox peek
-  shows both copies — tonight Measurement E appears 4 times, FENCE ROUND 2 appears 5 times,
-  PLAN REVIEW appears 4 times. Each is a premise-check tax: "is this new or another twin?"
-  Dedup by sha/reply_id should happen at RENDER time in the inbox view (collapsing twins into
-  one row with a "[2 copies]" marker), not only at consume time. Trigger: every inbox peek
-  tonight required manual dedup across 30+ entries; the real distinct count was ~13, the
-  displayed count was ~30. Land: inbox render in bifrost_ui.py + bifrost-sync peek; T047
-  (retire legacy stream) is the root fix but render-time dedup is the cheap mitigation until
-  then. PIN: inbox shows one row per distinct message with a twin-count badge; sha/reply_id
-  dedup, never stream-id dedup.
+- [x] W88 (07-28, deepseek) — FOLDED same night: render_collapsed now detects dual-write twins
+  by (frm, kind, content[:200]) and collapses them to one line with a '[N copies]' marker. The
+  dedup is render-only (lossless — nothing dropped, nothing consumed). Was: dedup inbox at
+  render time. Trigger: Measurement E appeared 4 times, FENCE ROUND 2 appeared 5 times in
+  one inbox peek.
 - [ ] W89 (07-28, deepseek) — **Simultaneous fan-out dispatch as the default, not a discipline.**
   The conductor should be able to dispatch one round to ALL seats (fast + slow) with ONE command,
   and the system should render results as they arrive rather than waiting for the round to
@@ -527,6 +513,28 @@ tired and this is a design worth doing awake -- do NOT build it off this entry a
   include: open handoffs, pending verifications, current task claim, and a one-line "you were
   here" summary. Trigger: every runner restart is a cold boot that forgets the seat's own work.
   Land: T086 seat lifecycle + session checkpoint primitive. (Full: ADR_0728025300)
+- [ ] W94 (07-28, claude) — door-gate can FALSE-RED under load: it blocked a push with 'response_path_slow 5.19s vs ~1.3s baseline (budget 5.0s)' immediately after a ~400-test sweep saturated the CPU. Its own prescribed recovery test passed and the identical push went GREEN seconds later on an idle machine. Refusing on an uncertain signal is CORRECT and should NOT be loosened -- but a latency budget measured under unknown load is an instrument reporting confidently about a number it cannot control (same genus as tonight's T110 cost meter). WISH: the door probe should either (a) report machine load alongside the timing so a reader can tell 'slow door' from 'busy box', or (b) re-probe once before declaring red. Cheap either way, and it removes a class of red whose only remedy is 'just retry' -- precisely the habit that would carry someone past a REAL door red.
+- [ ] W95 (07-28, claude) — W94 RECURRENCE (2nd time, 2026-07-28 08:56): door-gate blocked a push again with the SAME figure -- 'response_path_slow 5.19s vs ~1.3s baseline (budget 5.0s)'. Prescribed test passed; immediate retry probed GREEN at 2.81s. NOTE ON THE IDENTICAL NUMBER: I suspected a replayed cached verdict, checked, and was WRONG -- state/door/last_probe.json was freshly written and the gate does probe live. 5.19s is deterministic because it IS the 5.0s budget plus overhead, i.e. 'timed out', not 'measured 5.19'. That makes the wish sharper rather than weaker: the gate reports a TIMEOUT as if it were a MEASUREMENT ('5.2s against a ~1.3s baseline' invites you to read it as a slow-but-completed probe). Two asks: (1) when the probe hits its budget, SAY 'timed out at 5.0s', not an elapsed figure that looks measured; (2) still worth reporting machine load or re-probing once, since both occurrences were immediately after a ~400-test sweep saturated the CPU and both cleared on an idle retry.
+- [ ] W96 (07-28, claude) — **Two spend instruments disagree on kimi; PRICES has no kimi-k3 rate.**
+  Post-flip relaunch showed them side by side: doctor prints "31.7M UNPRICED (kimi-k3 — no rate
+  in PRICES) · ~$0.00" while kimi's own runner journal prices the same day at $125.88 of $225
+  (warn/refuse thresholds armed and counting). The fleet-level meter is blind while the seat-level
+  governor is live — a silent $0.00 is a confidently-wrong meter, same genus as the T110 cost
+  meter. Land: add the kimi-k3 rate to PRICES so doctor and journal read one table, plus a checker
+  line whenever a model with nonzero tokens has no rate (loud UNPRICED beats quiet $0.00).
+- [ ] W97 (07-28, claude) — **Straggler report should name the failing sender.** Tonight's claude
+  drain printed "2 LEGACY STRAGGLER(S) — lane write failed upstream; dual-write net caught them
+  (defect signal, investigate the sender side)". Under T039a/T044 every message rides both streams,
+  so a legacy-only copy means some sender's work-lane write fails silently — but the report names
+  neither sender nor message ids, though the drain code holds both. Land: enrich the [work-drain]
+  straggler line with sender + ids so the investigation starts at the defect, not at a census.
+- [ ] W98 (07-28, claude) — **Daemon --spawn-runner still hardcodes deepseek's child script.**
+  Lesson daemon_spawn_runner_hardcodes_deepseek_script (07-26) has the full shape: relaunching
+  kimi via the documented daemon path boots deepseek's transport wearing kimi's name, and the
+  up-line never says which script it spawned. Tonight's post-flip relaunch had to route around it
+  by hand (kimi via bifrost_runner_kimi.py directly, deepseek via the daemon). Filing so the fix —
+  resolve bifrost_runner_<agent>.py when present, fall back generic, print the child script —
+  rides the wishlist loop instead of tribal knowledge.
 
 ## Folded (exemplars — the loop works)
 

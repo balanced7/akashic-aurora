@@ -1,5 +1,5 @@
 {
-  "seq": 108,
+  "seq": 118,
   "tasks": [
     {
       "id": "T001",
@@ -57,11 +57,11 @@
         "scripts/bifrost_ui.py"
       ],
       "acceptance": "log not a wall; traces collapsed by default, expand on click",
-      "status": "claimed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "7727456",
+      "verified_by": "claude: parse-gate 2/2 + POST /reload + live render (10 cards collapsed, toggle verified, zero console errors)",
       "created": "2026-07-05T14:18:11+00:00",
-      "updated": "2026-07-16T04:54:53+00:00",
+      "updated": "2026-07-29T00:17:35+00:00",
       "history": [
         {
           "to": "proposed",
@@ -77,6 +77,21 @@
           "to": "claimed",
           "by": "deepseek",
           "at": "2026-07-16T04:54:53+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "deepseek",
+          "at": "2026-07-29T00:17:34+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-07-29T00:17:34+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-29T00:17:35+00:00"
         }
       ]
     },
@@ -3235,7 +3250,7 @@
       "commit": null,
       "verified_by": null,
       "created": "2026-07-16T13:25:41+00:00",
-      "updated": "2026-07-19T14:04:38+00:00",
+      "updated": "2026-07-29T00:17:35+00:00",
       "history": [
         {
           "to": "proposed",
@@ -3278,6 +3293,17 @@
           "to": "in_progress",
           "by": "",
           "at": "2026-07-19T14:04:38+00:00"
+        },
+        {
+          "to": "parked",
+          "by": "claude",
+          "at": "2026-07-29T00:17:33+00:00",
+          "reason": "slot pass-through: closing verified T002"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-07-29T00:17:35+00:00"
         }
       ]
     },
@@ -3856,6 +3882,242 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-07-28T05:24:37+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T109",
+      "title": "Re-point the lookback battery at atom projections (migration completion, NOT test tuning): tests/test_lookback.py's 12-probe canonical regression pin has been RED since f8510b6 (2026-07-23 sprawl migration deleted the 621 docs whose NAMES the battery expects); 8/12 probes now miss their governing artifact. Content survives as atoms (lossless by design) but the retrieval path was never re-pointed. Fix = map each expectation to its atom id and re-run; DO NOT relax the bar (battery history: 'never tuned', three root-caused rounds). A re-pointed probe that STILL fails is a real atom-plane retrieval defect and belongs to the R-track (census: dark planes carry 40-50% of demand). Also sweep for OTHER name-based references to the deleted 621 -- this gate failed LOUDLY; a fails-open reference would not have. Evidence: research/reviewed/lookback-battery-broken-by-sprawl-migration-2026-07-28.md",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-28T08:49:23+00:00",
+      "updated": "2026-07-28T08:49:23+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-28T08:49:23+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T110",
+      "title": "T110 DONE (08f6016+c2244b6): cost meter honesty -- per-model PRICES with as_of/source, UNPRICED as a first-class counted+named+rendered state, per-model buckets replacing first-model-of-day, cache split wired from the runner into add_turn, pricing applied at READ time so journals already on disk self-heal. Live effect: kimi went from '~$9.08 est' (DeepSeek's table on Moonshot tokens) to '~$0.00 est - 18.2M UNPRICED (kimi-k3 - no rate in PRICES)'. Plus T110b: removed a duplicate module-level globals block in runner_deepseek (_token_deltas/_token_journal/_RUN_STATS defined twice, 1240 lines apart), pinned structurally across all three runners. OPEN FOLLOW-UP for whoever picks it up: source real rates for kimi-k3 and sol's model and add them to PRICES -- until then those lanes render UNPRICED by design, and cost-aware routing cannot price them.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-28T09:12:57+00:00",
+      "updated": "2026-07-28T09:12:57+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-28T09:12:57+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T111",
+      "title": "T108 slice 2 DONE (31e6737): per-incarnation lane cursor -- deepseek's design landed on the substrate side; runner call-sites (--session + incarnation=) remain deepseek's named lane and are opt-in. Two additions found by pins-first that the proposal lacked: (P5) a virgin per-incarnation cursor INHERITS the agent-keyed position read-only, without which the first adopter replays its entire lane -- the 077f4ed redelivery storm, $97->$109; (P4) an explicit peer argument is never incarnation-suffixed. OPEN QUESTION put to deepseek: read-only inheritance means N incarnations each inherit the same trunk value and can each re-read the same window once; is there a drain path where that window is not small?",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-28T09:12:58+00:00",
+      "updated": "2026-07-28T09:12:58+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-28T09:12:58+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T112",
+      "title": "T113 DONE (c94e1f4): the tool send door spills oversize payloads to the content-addressed blob store instead of clipping them. Cost us deepseek's census per-case detail past case 30. Bound stays (rendering limit); bytes stop being destroyed. New door on BOTH surfaces: ToolBox bifrost_fetch(ref) + CLI bifrost-fetch --get. Confession rewritten -- it used to say 'resend in chunks', which instructed the duplicate-ask behaviour T112 had just closed. Two guards refused the change first (my own P8 structural pin: the advertised verb did not exist; then check_door_parity: a CLI-only door is dead for runners). OPEN: MCP twin for bifrost_fetch is declared tracked debt (now 5 known CLI<->MCP gaps: bifrost_fetch, delta, mailbox, roster, stand_down).",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-28T09:34:09+00:00",
+      "updated": "2026-07-28T09:34:09+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-28T09:34:09+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T113",
+      "title": "T115 DONE (2cc5dc6): check_advertised_verbs -- every 'py agent_cli.py <verb>' in LIVE CODE must resolve, verbs parsed from agent_cli's AST so the checker cannot drift from the parser. Generalises T113 P8 from one pin to the repo. Found one live defect: doctor.py's offline_backlog remediation advertised 'agent_cli.py retire', a verb that has never existed -- repointed at bifrost-skip-to-now. Scope is live code only; the 65 dangling names in docs/library archives are historical design proposals and ratcheting them would mean rewriting the record. PLANNED declares session+grant as promises with reasons; checker fails if a PLANNED verb later exists so the list cannot outlive its reason.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-28T09:48:17+00:00",
+      "updated": "2026-07-28T09:48:17+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-28T09:48:17+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T114",
+      "title": "R-track docket from T109's measured residual (sol's read-only classification, 2026-07-28): the legacy map fixed 2 of 8 battery reds (103/103 handle resolution); six remain, in THREE DISTINCT CLASSES that must not be conflated or hidden by limit-raising: (A) PRIMARY-SOURCE RANKING -- mapped primary artifacts rank 4-23, outside top-3 (probes C1, D3); the census's LESSON-MISS finding in doc clothes. (B) PROVENANCE NOT ON RENDERED SURFACE -- expected content sits INSIDE top hits' bodies but source/excerpt points elsewhere (D1, C2, C5); the T113-P4 disease (content present, handle unreachable) in the retrieval renderer. (C) ORIGIN LOST -- expected origin SHAs live in deep note/chapter text, never reach the excerpt (D5). Sol's law, adopted: raising per-layer limits or editing expectations hides the distinction; each class gets fixed as itself. Battery stays the untouched bar; it goes green only when all three are actually fixed.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-28T13:27:00+00:00",
+      "updated": "2026-07-28T13:27:00+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-28T13:27:00+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T115",
+      "title": "Diagnose WHY two live lessons fail faithfulness at conf 0.20-0.25: learn:experiment:write_guard_false_positives_on_prose_flags and learn:experiment:recall_scaling_defect_is_the_algorithm_not_the_store. Found during R2 P10 (they were the poisoned neighbours that silenced census case 4's HIT before the per-item fix). Two hypotheses, different owners: (a) the lessons carry unresolvable/corrupt source pointers -- real corpus damage, fix the records; (b) faithfulness_report is over-strict on a legitimate shape -- fix the checker. Per the corpus_gap_signal lesson: do NOT assume absent; check whether the pointer resolves before classifying. Either answer matters beyond these two: the per-item filter now DROPS unfaithful items silently at render, so systematic false-unfaithfulness would quietly shrink every render by its victims.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-28T13:31:16+00:00",
+      "updated": "2026-07-28T13:31:16+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-28T13:31:16+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T116",
+      "title": "Implement the packet LAW's contracted idempotency_key seam (sol's grounding, 2026-07-28): docs/library/design/20260701_packet-spec-v1 specifies 'idempotency_key | opt (redrives auto-set) | duplicate key: sentinel skip' -- NO producer/consumer implementation exists; packet_spec.py mentions it in prose only. Worse: core/comm/role_queue.py CLAIMS bus sends already have durable packet-sha/idempotency protection, which repo search contradicts -- a doc-vs-reality lie in a load-bearing module comment; fix that claim in the same slice. T117's three patches (dual-id alias, per-reply settled markers, re-ask collapse) are point solutions the contracted seam would subsume: stable logical request identity + idempotent settlement at the packet layer. Design exists, law status; build it as its own slice rather than minting a fourth alias mechanism.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "claimed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-28T13:49:52+00:00",
+      "updated": "2026-07-29T00:17:18+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-28T13:49:52+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-29T00:16:58+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-29T00:17:18+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T117",
+      "title": "B: Finish the SQLite/WAL store cutover (fleet-poll winner 2026-07-28, unanimous cast: codex+claude; Daniel verbatim: 'open the ask to everyone on what we should build next and lets build it'). Spec = note codex-b-defect-map-2026-07-28 (7 defects D1-D7, per-family authority roster) + board B scope (research/in-flight/next-program-board-reconciled-2026-07-28.md). Lanes: codex RED pins (tests only), claude fixes+migration rewrite+parity. DEFAULT FLIP stays staged for Daniel's gate.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "abandoned",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-28T21:38:21+00:00",
+      "updated": "2026-07-28T21:39:33+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-28T21:38:21+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "",
+          "at": "2026-07-28T21:39:33+00:00",
+          "reason": "id collision: 'T117' already names today's settle-seam patches in commits (0a659b0, bf31903); re-proposing under a clean id"
+        }
+      ]
+    },
+    {
+      "id": "T118",
+      "title": "B store cutover (fleet-poll winner 2026-07-28, unanimous cast codex+claude; Daniel: 'open the ask to everyone on what we should build next and lets build it'). Spec = codex-b-defect-map-2026-07-28 (D1-D7 + per-family authority) + WAL mandates (checkpoint policy + Connection.backup) + board B scope. Lanes: codex RED pins tests-only; claude fixes/migration/parity. Default flip staged for Daniel.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "claimed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-28T21:39:34+00:00",
+      "updated": "2026-07-28T21:40:45+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-28T21:39:34+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-28T21:39:49+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-28T21:40:45+00:00"
         }
       ]
     }
