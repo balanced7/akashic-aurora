@@ -369,6 +369,14 @@ class BifrostAPI:
                 print(f"[work-drain] {len(stragglers)} LEGACY STRAGGLER(S) for "
                       f"{self.agent} -- lane write failed upstream; dual-write net caught "
                       f"them (defect signal, investigate the sender side)", file=sys.stderr)
+                # W97 (T122 scope 3): name the sender + id per straggler -- the
+                # investigation starts at the defect, not at a census. getattr-safe.
+                for m in stragglers[:20]:
+                    print(f"[work-drain]   from {getattr(m, 'frm', '?')} "
+                          f"[{getattr(m, 'kind', '?')}] id={getattr(m, 'id', '?')}",
+                          file=sys.stderr)
+                if len(stragglers) > 20:
+                    print(f"[work-drain]   (+{len(stragglers) - 20} more)", file=sys.stderr)
             for m in stragglers:
                 try:
                     m.meta["_lane_src"] = "legacy"   # consumed via shadow; never advances work fields

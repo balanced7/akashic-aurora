@@ -226,6 +226,38 @@ def _probe_lane_health(agent: str) -> Optional[Dict[str, Any]]:
         return None
 
 
+def _probe_lane_wrongtype(agent: str) -> List[Dict[str, str]]:
+    """T122 scope 2 (G7): probe each lane stream key's Redis TYPE. A lane key holding a
+    non-stream type makes every xadd fail upstream -- the packet then exists legacy-only
+    and surfaces as a straggler at some consumer's drain (the 2026-07-28 class, per
+    deepseek's C counter-half). The dual-write net hides the loss; only TYPE tells.
+    Probes directed (to=agent) + broadcast keys for every lane. Missing keys are fine
+    (type 'none'); anything else non-stream is a finding. Never raises."""
+    out: List[Dict[str, str]] = []
+    try:
+        from core.comm.bus import Bus
+        from core.comm import packet_spec as ps
+        b = Bus(agent)
+        if not b.online:
+            return out
+        seen = set()
+        for lane in ps.LANES:
+            for key in (ps.lane_stream_key(b.ns, lane, to=agent),
+                        ps.lane_stream_key(b.ns, lane)):
+                if not key or key in seen:
+                    continue
+                seen.add(key)
+                try:
+                    t = str(b._client.type(key))
+                except Exception:
+                    continue
+                if t not in ("stream", "none"):
+                    out.append({"key": key, "actual_type": t})
+    except Exception:
+        return out
+    return out
+
+
 def _present_no_worklive(agent: str) -> bool:
     """W40 fence-fix: is the agent present by a signal OTHER than worklive? A runner lock
     OR a wake-seat file (the interactive seat's liveness -- claude has no runner but an
@@ -501,6 +533,19 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
             out.append(_f(agent, "lane_health", "dashboard",
                           lh_line if len(parts) > 1 else lh_line + " healthy",
                           f"py agent_cli.py mailbox --explain {agent}"))
+    except Exception:
+        pass
+
+    # T122 scope 2 (G7): WRONGTYPE lane-key probe. A lane stream key holding a
+    # non-stream Redis type makes every xadd fail upstream -- the exact cause of the
+    # 2026-07-28 straggler class (deepseek's C counter-half diagnosis). The dual-write
+    # net hides the loss, so ONLY an explicit TYPE probe surfaces it.
+    try:
+        for wt in _probe_lane_wrongtype(agent):
+            out.append(_f(agent, "wrongtype_lane_key", "banner",
+                          f"{agent}: lane key WRONG TYPE -- {wt['key']} is "
+                          f"'{wt['actual_type']}', xadd fails upstream (straggler cause)",
+                          f"redis-cli TYPE {wt['key']}  | then rename/clear the key"))
     except Exception:
         pass
 

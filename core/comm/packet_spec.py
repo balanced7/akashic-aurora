@@ -197,6 +197,11 @@ KIND_LANE = {
     # and a blocker (wake-worthy) are salient coordination -- both rode legacy-only + loud
     # before this line; the test_w07 completeness pins keep the census from missing again.
     "decision": "work", "blocker": "work",
+    # T122 census fix (2026-07-28): fyi was REAL send-door traffic riding legacy-only +
+    # loud all night (ToolBox + CLI both emit it). An fyi is directed mail -- work lane.
+    "fyi": "work",
+    # unmapped-BY-DESIGN (T122 census, each needs a reason to stay off the table):
+    #   "propose" -- core/coord/negotiation.py, S0 alpha; not a production sender yet.
     # sig -- fidelity-ladder control (QoS1/EF, seatless, never queues behind trace)
     "halt": "sig", "interrupt": "sig", "pause": "sig", "resume": "sig",
     "nudge": "sig", "steer": "sig",
