@@ -17,7 +17,6 @@ into `learn`/`mirror` can't break those commands.
 import json
 import os
 import random
-from datetime import datetime
 from typing import List, Optional
 
 from core.foundation.store import Store, create_store
@@ -29,7 +28,7 @@ TIMELINE = "narr:beats:timeline"
 ROUTER_ACTIVE = "narr:router:active"
 
 
-from core.foundation.timeutil import to_epoch as _epoch   # unified tz-safe epoch (S5)
+from core.foundation.timeutil import now_iso, to_epoch as _epoch   # unified tz-safe epoch (S5)
 
 
 class BeatLog:
@@ -48,7 +47,7 @@ class BeatLog:
         if not source:
             return None
         kind = kind if kind in BEAT_KINDS else "note"
-        at = at or datetime.utcnow().isoformat()
+        at = at or now_iso()   # T119: aware UTC (to_epoch reads both eras)
         weight = clamp_weight(weight if weight is not None else DEFAULT_WEIGHT.get(kind, 1))
         bid = f"beat_{int(_epoch(at))}_{random.randint(1000, 9999)}"
         # `themes=None` means "infer at write time" (the assign-at-write rule, like the

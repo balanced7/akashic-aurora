@@ -44,6 +44,11 @@ for _stream in (sys.stdout, sys.stderr):
     except Exception:
         pass   # non-reconfigurable stream (exotic wrapper/capture) -> old behavior, still safe
 
+# T119 (one clock, G5): every rendered timestamp goes through THE display door and names
+# its frame (Z / local tz label) -- a bare truncated ISO masquerading as local time was
+# the defect class. Imported module-level: several commands render times.
+from core.foundation.timeutil import render_iso
+
 _MAX = 4000   # clamp absurdly long fields an agent might paste
 
 
@@ -908,9 +913,8 @@ def cmd_injections(args):
     if not inj:
         print("  (none -- either quiet, or nothing cleared the relevance floor)")
         return 0
-    import datetime as _dt
     for i in inj[-25:]:
-        when = _dt.datetime.fromtimestamp(float(i.get("at", 0))).strftime("%m-%d %H:%M")
+        when = render_iso(float(i.get("at", 0)), tz="local")   # T119: labeled, no bare local clock
         tgt = _human_flip_target(i.get("t", "")) if i.get("t") else "(prompt)"
         print(f"  [{when}] {i.get('alt', 'action'):<6} {_clip(tgt, 60)}  "
               f"{len(i.get('s', []))} lesson(s), {i.get('chars', 0)} chars")
@@ -2569,7 +2573,7 @@ def cmd_story(args, store=None):
             evs = res.get("events", [])
             print(f"\n## RAW EVENTS around this beat ({len(evs)})")
             for e in evs[:20]:
-                print(f"  [{e.get('kind', '?')}] {str(e.get('at', ''))[:19]}  "
+                print(f"  [{e.get('kind', '?')}] {render_iso(e.get('at', ''), tz='local')}  "
                       f"{_clip(e.get('summary', ''), 80)}")
             if not evs:
                 print("  (none captured in this window)")
@@ -3028,7 +3032,7 @@ def _print_events(evs, args, header):
         print("  (none)")
         return
     for e in evs:
-        at = str(e.get("at", ""))[:19]
+        at = render_iso(e.get("at", ""), tz="local")   # T119: the one display door, frame labeled
         line = f"  [{e.get('kind', '?')}] {at}  {_clip(e.get('summary', ''), 90)}"
         print(line)
         tail = e.get("_ref", "")
@@ -3110,7 +3114,8 @@ def cmd_events(args):
             return 2
         sp = res["span"]
         _print_events(res["events"], args,
-                      f"# {len(res['events'])} raw event(s) in {sp['start'][:19]} -> {sp['end'][:19]}")
+                      f"# {len(res['events'])} raw event(s) in {render_iso(sp['start'], tz='local')} "
+                      f"-> {render_iso(sp['end'], tz='local')}")
         return 0
 
     # --search: relevance-ranked; or default: recent
@@ -3146,7 +3151,7 @@ def cmd_promoted(args):
     acked = [e for e in evs if e.get("acks")]
     for e in acked:
         ref = str(e.get("refs", [""])[0])
-        who = ", ".join(f"{a['by']} @ {str(a['at'])[:16]}" for a in e["acks"])
+        who = ", ".join(f"{a['by']} @ {render_iso(a['at'], tz='local')}" for a in e["acks"])
         print(f"  [acked] {ref}: {who}")
     if flagged:
         print(f"\n  !! {len(flagged)} UNHANDLED salient message(s) older than {hours}h "

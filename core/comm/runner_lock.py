@@ -20,9 +20,11 @@ import json
 import os
 import time
 import uuid
+from datetime import datetime
 from typing import Any, Dict, Optional
 
 from core.comm.timescale import scaled
+from core.foundation.timeutil import now_iso
 
 def _ns() -> str:
     # ns-isolation (2026-07-12): the consumer SEAT + fencing generation are per-namespace by design
@@ -56,7 +58,7 @@ def generation_of(token: str) -> int:
 
 
 def _now() -> str:
-    return time.strftime("%Y-%m-%dT%H:%M:%S")
+    return now_iso()   # T119: the one clock (aware UTC), not the machine's naive wall
 
 
 def _client():
@@ -373,15 +375,22 @@ def free_if_dead(agent: str, *, grace_s: int = 300, stale_s: int = 900,
 
 
 def _ts_epoch(ts, default: float = 0.0) -> float:
-    """A holder record's ts -> epoch seconds. _now() writes LOCAL-time ISO ('%Y-%m-%dT%H:%M:%S');
-    mktime(strptime) is its exact inverse (one date source, the W1-flake lesson). Numeric strings
-    pass through for forward-compat. Unparseable -> default (callers pass t_now => age 0 => grace
-    protects; fail toward ALIVE)."""
+    """A holder record's ts -> epoch seconds. _now() stamps via the one clock (T119:
+    timeutil.now_iso, aware UTC) whose own offset is its exact inverse; LEGACY naive rows
+    were written as LOCAL wall-clock, so mktime(strptime) stays their inverse (one date
+    source per era, the W1-flake lesson). Numeric strings pass through for forward-compat.
+    Unparseable -> default (callers pass t_now => age 0 => grace protects; fail toward ALIVE)."""
     if ts is None:
         return default
     try:
         return float(ts)
     except (TypeError, ValueError):
+        pass
+    try:
+        dt = datetime.fromisoformat(str(ts))
+        if dt.tzinfo is not None:
+            return dt.timestamp()
+    except ValueError:
         pass
     try:
         return time.mktime(time.strptime(str(ts)[:19], "%Y-%m-%dT%H:%M:%S"))

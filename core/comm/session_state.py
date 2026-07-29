@@ -15,9 +15,10 @@ from __future__ import annotations
 
 import json
 import os
-import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+from core.foundation.timeutil import now_iso
 
 HERE = Path(__file__).resolve().parent.parent.parent  # core/comm -> repo root
 SNAPSHOT_DIR = HERE / "session_snapshots"
@@ -25,11 +26,12 @@ LATEST = SNAPSHOT_DIR / "latest.json"
 
 
 def _ts() -> str:
-    return time.strftime("%Y-%m-%dT%H%M")
+    # Filename-safe stamp (no colons, Windows law) derived from the one clock: UTC minutes.
+    return now_iso()[:16].replace(":", "")
 
 
 def _now() -> str:
-    return time.strftime("%Y-%m-%dT%H:%M:%S")
+    return now_iso()   # T119: the one clock (aware UTC), not the machine's naive wall
 
 
 def save(label: str = "") -> Dict[str, Any]:

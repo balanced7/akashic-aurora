@@ -20,8 +20,9 @@ from __future__ import annotations
 
 import json
 import os
-import time
 from typing import Any, Dict, Optional
+
+from core.foundation.timeutil import now_iso
 
 
 def _ns() -> str:
@@ -43,7 +44,7 @@ STEER_TTL = 900          # a queued steer that's never picked up self-expires af
 
 
 def _now() -> str:
-    return time.strftime("%Y-%m-%dT%H:%M:%S")
+    return now_iso()   # T119: the one clock (aware UTC), not the machine's naive wall
 
 
 def _client():

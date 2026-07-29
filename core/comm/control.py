@@ -28,7 +28,10 @@ import json
 import os
 import time
 from collections import deque
+from datetime import datetime
 from typing import Any, Dict, Optional
+
+from core.foundation.timeutil import now_iso
 
 # --- namespace-scoped control plane (2026-07-12 isolation fix; claude fenced half, deepseek review
 # pending) -----------------------------------------------------------------------------------------
@@ -66,7 +69,7 @@ MAX_REPLIES_PER_MIN = int(os.getenv("BIFROST_MAX_REPLIES_PER_MIN", "12"))
 
 
 def _now() -> str:
-    return time.strftime("%Y-%m-%dT%H:%M:%S")
+    return now_iso()   # T119: the one clock (aware UTC), not the machine's naive wall
 
 
 def _client():
@@ -152,7 +155,12 @@ def format_pause_line(status: Dict[str, Any], now: Optional[float] = None) -> st
         return ""
     age = "?"
     try:
-        then = time.mktime(time.strptime(str(status.get("ts", "")), "%Y-%m-%dT%H:%M:%S"))
+        ts_s = str(status.get("ts", ""))
+        dt = datetime.fromisoformat(ts_s)
+        # T119 dual-era read: one-clock stamps (now_iso) carry their offset; legacy naive
+        # rows were written as LOCAL wall-clock, so they keep their historical meaning.
+        then = dt.timestamp() if dt.tzinfo is not None \
+            else time.mktime(time.strptime(ts_s, "%Y-%m-%dT%H:%M:%S"))
         mins = max(0, int(((now if now is not None else time.time()) - then) / 60))
         age = f"{mins // 60}h{mins % 60:02d}m" if mins >= 60 else f"{mins}m"
     except Exception:

@@ -25,6 +25,8 @@ import re
 import time
 from typing import Any, Dict, List, Optional
 
+from core.foundation.timeutil import now_iso
+
 
 def _ns() -> str:
     # ns-isolation (2026-07-12 core/coord follow-up, deepseek-reviewed): intent coordination is
@@ -38,7 +40,7 @@ DEFAULT_TTL = 900          # 15 min -- long enough for a slice, self-heals a cra
 
 
 def _now() -> str:
-    return time.strftime("%Y-%m-%dT%H:%M:%S")
+    return now_iso()   # T119: the one clock (aware UTC), not the machine's naive wall
 
 
 def _client():

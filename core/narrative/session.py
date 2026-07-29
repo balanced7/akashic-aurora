@@ -20,10 +20,10 @@ A single marker key tracks the open session:
 
 Best-effort throughout: a hiccup here must never block boot or any CLI command.
 """
-from datetime import datetime
 from typing import Optional
 
 from core.foundation.store import Store, create_store
+from core.foundation.timeutil import now_iso as _now_iso   # aliased: locals below are named now_iso
 from core.narrative.beat_log import BeatLog
 from core.narrative.track_router import RouteHint
 
@@ -62,7 +62,7 @@ def start_session(store: Optional[Store] = None, *, now: Optional[str] = None,
     try:
         store = store if store is not None else create_store()
         bl = BeatLog(store)
-        now_iso = now or datetime.utcnow().isoformat()
+        now_iso = now or _now_iso()   # T119: aware UTC (to_epoch reads both eras)
 
         prior = store.get(SESSION_OPEN_KEY)
         if prior:
@@ -109,7 +109,7 @@ def end_session(store: Optional[Store] = None, *, now: Optional[str] = None,
     try:
         store = store if store is not None else create_store()
         bl = BeatLog(store)
-        now_iso = now or datetime.utcnow().isoformat()
+        now_iso = now or _now_iso()   # T119: aware UTC (to_epoch reads both eras)
 
         if store.get(SESSION_OPEN_KEY):
             # Session bookends: resolve the open episode BEFORE the session ends, with no fresh

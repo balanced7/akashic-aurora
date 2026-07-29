@@ -17,9 +17,9 @@ Design rules this enforces (docs/library/design/20260709_narrative-spine-design-
   newest-first.
 """
 import json
-from datetime import datetime
 from typing import List, Optional
 
+from core.foundation.timeutil import now_iso as _now_iso   # aliased: locals below are named now_iso
 from core.narrative.schema import Chapter, Edge, Track, chapter_key, track_key
 
 
@@ -50,7 +50,7 @@ def persist_chapter_in_place(store, chapter: Chapter, *, now: Optional[str] = No
     regenerate-from-atoms rebuild is the same logical chapter, so it stays stable
     and idempotent.
     """
-    now_iso = now or datetime.utcnow().isoformat()
+    now_iso = now or _now_iso()   # T119: aware UTC (to_epoch reads both eras)
     existing = load_chapter_from_store(store, chapter.id)
     if existing is not None and existing.valid_from:
         chapter.valid_from = existing.valid_from           # never move the origin
@@ -72,7 +72,7 @@ def correct_chapter(store, old_id: str, new_chapter: Chapter, *, now: Optional[s
     ``replaces`` / ``is_version_of`` edges (66-type vocabulary), and writes the
     replacement. History stays queryable; only the new chapter is active.
     """
-    now_iso = now or datetime.utcnow().isoformat()
+    now_iso = now or _now_iso()   # T119: aware UTC (to_epoch reads both eras)
     old = load_chapter_from_store(store, old_id)
     if old is not None and is_active_chapter(old):
         old.valid_to = now_iso

@@ -24,7 +24,10 @@ import os
 import re
 import time
 import uuid
+from datetime import datetime
 from typing import Any, Dict, List, Optional
+
+from core.foundation.timeutil import now_iso
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 BASELINE_PATH = os.path.join(_ROOT, "state", "coord", "suite_baseline.json")
@@ -87,7 +90,7 @@ def record(nodes: List[str], *, seat: str, sha: str = "") -> Dict[str, Any]:
     """Snapshot the receipt: failures + lanes + claims-at-snapshot + provenance."""
     lanes = classify(nodes)
     rec = {"v": 1, "sha": str(sha), "seat": str(seat),
-           "at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+           "at": now_iso(),   # T119: the one clock (aware UTC)
            "failures": [{"node": n, "lane": lanes.get(n, "")} for n in nodes],
            "claims_at_snapshot": _ledger_claims()}
     os.makedirs(os.path.dirname(BASELINE_PATH), exist_ok=True)
@@ -125,8 +128,13 @@ def render_boot_line() -> str:
     if not rec:
         return ""
     try:
-        age_h = max(0.0, (time.time()
-                          - time.mktime(time.strptime(rec["at"], "%Y-%m-%dT%H:%M:%S"))) / 3600.0)
+        at_s = str(rec["at"])
+        dt = datetime.fromisoformat(at_s)
+        # T119 dual-era read: one-clock stamps carry their offset; legacy naive rows
+        # were LOCAL wall-clock and keep their historical meaning.
+        then = dt.timestamp() if dt.tzinfo is not None \
+            else time.mktime(time.strptime(at_s, "%Y-%m-%dT%H:%M:%S"))
+        age_h = max(0.0, (time.time() - then) / 3600.0)
     except Exception:
         age_h = -1.0
     n = len(rec.get("failures", []))

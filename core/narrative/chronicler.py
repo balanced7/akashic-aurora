@@ -27,12 +27,11 @@ import json
 import os
 import re
 from collections import defaultdict
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from core.foundation.store import Store, create_store
-from core.foundation.timeutil import to_epoch, hours_between
+from core.foundation.timeutil import to_epoch, hours_between, now_iso as _now_iso
 from core.narrative.beat_log import BeatLog, get_beat_log
 from core.narrative.schema import (
     Beat, Chapter, Track, Theme, Atlas, Edge,
@@ -182,7 +181,7 @@ class Chronicler:
         if not beats:
             return self._empty_report()
 
-        now_iso = now or datetime.utcnow().isoformat()
+        now_iso = now or _now_iso()   # T119: aware UTC (to_epoch reads both eras)
 
         by_track: Dict[str, List[Beat]] = defaultdict(list)
         for b in beats:
@@ -272,7 +271,7 @@ class Chronicler:
             relates=[
                 Edge("part_of", f"narr:track:{track}"),
             ],
-            recorded_at=now or datetime.utcnow().isoformat(),
+            recorded_at=now or _now_iso(),
             valid_from=span_start,
             critic_ok=distillation.critic_ok,
         )
@@ -297,7 +296,7 @@ class Chronicler:
             summary_parts.append(f"{t}: {count} chapter(s)")
         summary = "; ".join(summary_parts)
         return Atlas(
-            generated_at=now or datetime.utcnow().isoformat(),
+            generated_at=now or _now_iso(),
             summary=summary,
             tracks=tracks,
         )
@@ -382,7 +381,7 @@ class Chronicler:
         Returns dict with paths + faithfulness + coverage metrics.
         """
         self.chronicle_dir.mkdir(parents=True, exist_ok=True)
-        now_iso = now or datetime.utcnow().isoformat()
+        now_iso = now or _now_iso()   # T119: aware UTC (to_epoch reads both eras)
 
         chapters.sort(key=lambda c: to_epoch(c.span_start))
 

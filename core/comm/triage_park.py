@@ -18,9 +18,10 @@ from __future__ import annotations
 
 import json
 import os
-import time
 import uuid
 from typing import Any, Dict, List, Optional
+
+from core.foundation.timeutil import now_iso
 
 
 def _ns() -> str:
@@ -44,7 +45,7 @@ def park(agent: str, msg: Dict[str, Any], *, reason: str, by: str) -> Dict[str, 
         raise RuntimeError("triage park needs the bus (durable bench + sender notify)")
     entry = {"parked_id": uuid.uuid4().hex[:12], "agent": agent, "msg": dict(msg),
              "reason": str(reason), "by": str(by),
-             "parked_at": time.strftime("%Y-%m-%dT%H:%M:%S")}
+             "parked_at": now_iso()}   # T119: the one clock (aware UTC)
     c.rpush(_key(agent), json.dumps(entry, ensure_ascii=False))
     frm = str(msg.get("frm") or "")
     if frm and frm != agent:                      # RB-29: never silent -- the sender HEARS it

@@ -23,9 +23,10 @@ from __future__ import annotations
 
 import json
 import os
-import time
 import uuid
 from typing import Any, Dict, List, Optional, Set
+
+from core.foundation.timeutil import now_iso
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # state/coord/ is the ledger's own git-TRACKED home (state/*.json at top level is
@@ -64,7 +65,7 @@ def add(by: str, cmd: str, *, needs: str = "exec", why: str = "") -> Dict[str, A
         raise ValueError("defer needs the command itself (what should the capable seat run?)")
     item = {"id": uuid.uuid4().hex[:10], "by": str(by), "cmd": cmd,
             "needs": str(needs or "exec"), "why": str(why or ""),
-            "filed_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "filed_at": now_iso(),   # T119: the one clock (aware UTC)
             "done_by": "", "done_at": "", "receipt": ""}
     doc = _load()
     doc["items"].append(item)
@@ -86,7 +87,7 @@ def mark_done(item_id: str, *, seat: str, receipt: str) -> Dict[str, Any]:
     for i in doc["items"]:
         if i["id"] == str(item_id) and not i.get("done_by"):
             i["done_by"] = str(seat)
-            i["done_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+            i["done_at"] = now_iso()   # T119: the one clock (aware UTC)
             i["receipt"] = str(receipt).strip()
             _save(doc)
             return i

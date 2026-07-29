@@ -14,11 +14,10 @@ Best-effort + fail-soft throughout: a bookend hiccup must never break boot, a CL
 """
 import json
 import random
-from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional
 
 from core.foundation.store import Store, create_store
-from core.foundation.timeutil import to_epoch as _epoch
+from core.foundation.timeutil import now_iso as _now_iso, to_epoch as _epoch
 from core.narrative.beat_log import BeatLog, ROUTER_ACTIVE
 from core.narrative.chapter_lifecycle import load_chapter_from_store, persist_chapter_in_place
 from core.narrative.schema import Chapter
@@ -29,7 +28,7 @@ _DEFAULT_TRACK = "ai-setup"
 
 
 def _now(now: Optional[str]) -> str:
-    return now or datetime.utcnow().isoformat()
+    return now or _now_iso()   # T119: aware UTC (to_epoch reads both eras)
 
 
 def _dur(start_iso: str, end_iso: str) -> int:

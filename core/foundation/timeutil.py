@@ -13,12 +13,12 @@ string is interpreted at its offset. So mixing the two:
 locale-dependent), a tz-aware one keeps its offset. Both collapse to the same instant, so
 sorting and gap math agree regardless of how each value was written.
 
-NOTE (deliberate scope): this is used on the COMPARISON path (the chronicler re-sorts and
-re-segments from scratch each run, so there is no persisted value to migrate). The several
-`_epoch` helpers that compute PERSISTED zset scores (timeline, event index) are intentionally
-left untouched here -- changing their interpretation would shift already-stored scores by the
-local offset and create an ordering discontinuity at the migration boundary. Unifying those
-behind a one-time re-score is a separate, deliberate migration.
+NOTE (scope, updated T119): to_epoch began on the COMPARISON path only (the chronicler
+re-sorts and re-segments from scratch each run). The PERSISTED zset scorers have since been
+unified onto it too -- core/events/event_index.py and core/events/event_query.py import
+to_epoch as their `_epoch` (S5), with already-stored scores re-aligned by
+scripts/migrate_time_scores.py. This module is now the one clock end to end: now_iso()
+writes stamps, to_epoch() compares them, render_iso() is the single display door.
 """
 from datetime import datetime, timezone
 from typing import Any
@@ -45,3 +45,42 @@ def to_epoch(iso: Any) -> float:
 def hours_between(a: Any, b: Any) -> float:
     """Absolute elapsed hours between two ISO timestamps, timezone-safe (never raises)."""
     return abs(to_epoch(b) - to_epoch(a)) / 3600.0
+
+
+def now_iso() -> str:
+    """The one write-side stamp (T119 G5): aware UTC ISO, self-describing on the wire.
+    to_epoch() is its exact inverse; legacy naive rows keep working (naive == UTC)."""
+    return datetime.now(timezone.utc).isoformat()
+
+
+def render_iso(value: Any, *, tz: str = "local") -> str:
+    """THE single display door (T119 G5): every rendered timestamp names its frame.
+
+    Accepts an ISO string (naive == UTC, per to_epoch's law), an epoch float/int, or a
+    datetime. tz="utc" -> UTC wall clock at seconds precision with a trailing 'Z'
+    ("2026-07-28T20:41:26Z"). tz="local" -> the machine's local wall clock plus a short
+    tz label (%Z; multi-word Windows names collapse to initials, e.g. "Eastern Daylight
+    Time" -> "EDT"; an empty %Z falls back to the UTC offset, e.g. "UTC-04:00").
+    Never raises: an unparseable value renders as str(value), unchanged.
+    """
+    try:
+        if isinstance(value, datetime):
+            dt = value
+        elif isinstance(value, (int, float)) and not isinstance(value, bool):
+            dt = datetime.fromtimestamp(float(value), tz=timezone.utc)
+        else:
+            dt = datetime.fromisoformat(str(value).strip())
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)          # naive == UTC: one law, one door
+        if str(tz).strip().lower() == "utc":
+            return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        local = dt.astimezone()                            # machine-local zone
+        label = local.strftime("%Z")
+        if label and " " in label:                         # "Eastern Daylight Time" -> "EDT"
+            label = "".join(w[0] for w in label.split() if w[:1].isalpha()).upper()
+        if not label:                                      # nameless zone -> explicit offset
+            off = local.strftime("%z")                     # e.g. "-0400"
+            label = f"UTC{off[:3]}:{off[3:]}" if len(off) == 5 else "UTC"
+        return local.strftime("%Y-%m-%dT%H:%M:%S") + f" {label}"
+    except (ValueError, TypeError, OverflowError, OSError):
+        return str(value)

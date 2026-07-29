@@ -17,6 +17,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, Optional, Tuple
 
 from core.foundation.store import Store, create_store
+from core.foundation.timeutil import now_iso
 from core.events.event_query import EventQuery, get_event_query
 
 DEFAULT_WINDOW_SECONDS = 1800   # +/- 30 min around a point (Beat / timestamp)
@@ -59,7 +60,7 @@ def resolve_span(ref: str, *, store: Store,
         try:
             ch = Chapter.from_dict(json.loads(raw))
             if ch.span_start:
-                return ch.span_start, (ch.span_end or datetime.utcnow().isoformat())
+                return ch.span_start, (ch.span_end or now_iso())   # T119: aware UTC
         except (ValueError, TypeError, KeyError):
             pass
 

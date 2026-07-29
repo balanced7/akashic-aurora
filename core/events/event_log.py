@@ -32,10 +32,10 @@ into hot paths (commits, CLI verbs, sessions) can never break them.
 import os
 import json
 import logging
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from core.foundation.ledger import Ledger, create_ledger
+from core.foundation.timeutil import now_iso
 
 logger = logging.getLogger("event_log")
 
@@ -122,7 +122,7 @@ class EventLog:
         try:
             agent = self._clean(agent_id) or "unknown"
             event = {
-                "at": at or datetime.utcnow().isoformat(),
+                "at": at or now_iso(),   # T119: aware UTC (to_epoch reads both eras)
                 "agent_id": agent,
                 "session_id": self._clean(session_id),
                 "kind": str(kind) if kind else "note",
