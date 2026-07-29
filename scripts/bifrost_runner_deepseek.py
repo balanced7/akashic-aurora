@@ -680,6 +680,19 @@ def _runner_continuity_header(agent_id: str,
 # self-reported, glows, never wears VERIFIED), and (c) a pull pointer to the full file.
 
 
+def _interiority_summary(digest: str, agent_id: str) -> str:
+    """Extract metadata from the interiority digest for the startup log line.
+    The seat should never wonder whether its own interiority reached its prompt
+    (deepseek B9 / fence 2.5 — the self-reporting log line). Degrades gracefully:
+    if markers are absent, reports '?' rather than crashing."""
+    import re as _re
+    provenance = "G4-INNER-REPORT" if "G4" in digest else "?"
+    excerpted = "excerpted" if "excerpted" in digest.lower() else "full"
+    m = _re.search(r'(\d+) later section', digest)
+    dropped = f"{m.group(1)} dropped" if m else "none dropped"
+    return f"{len(digest)} chars, {provenance}, {excerpted}, {dropped} — charters/{agent_id}/INTERIORITY.md"
+
+
 def _interiority_sidecar(agent_id: str, repo_root: str) -> str:
     """Read charters/<agent>/INTERIORITY.md and return a compact digest suitable for
     the boot fold. The digest focuses on the 'Standing: what it is like to be this seat'
@@ -1203,7 +1216,8 @@ def main() -> int:
         interiority = _interiority_sidecar(args.agent, str(args.root))
         if interiority:
             system = system + "\n" + interiority
-            print(f"[deepseek-runner] interiority sidecar injected ({len(interiority)} chars)")
+            print(f"[deepseek-runner] interiority sidecar injected "
+                  f"({_interiority_summary(interiority, args.agent)})")
         # M1-delta: summary injection v1 -- fold prior run's outcome into this boot
         if getattr(args, "inject_summary", None):
             try:
