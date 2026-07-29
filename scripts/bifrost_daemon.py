@@ -337,34 +337,59 @@ def main(argv=None) -> int:
             # ---- A3: runner-down re-escalation -----------------------------------
             runner_state = card["runtimes"].get("runner", "")
             if runner_state in ("down", "blocked"):
-                if runner_down_since is None:
-                    runner_down_since = now
-                down_s = int(now - runner_down_since)
-                if runner_state == "down" and down_s >= RE_ESCALATION_S \
-                        and (now - runner_last_escalation) >= RE_ESCALATION_S:
-                    try:
-                        bus.broadcast("blocker",
-                                      f"[blocker] runner for '{agent}' down {int(down_s/60)}min — "
-                                      f"daemon presence held. Check: py agent_cli.py doctor {agent}",
-                                      meta={"via": f"{agent}-daemon", "kind": "blocker"})
-                        runner_last_escalation = now
-                        _say(f"[daemon] re-escalation broadcast agent={agent}: "
-                             f"runner down {int(down_s/60)}min")
-                        try:   # T078-W4: page-grade -> the pager surface (a live
-                            #    seat relays via PushNotification; hook injects [PAGE])
+                # W102: the child handle is a SPAWN-TOOL, not a liveness instrument.
+                # A self-restarted successor (stale-code takeover, launcher recover)
+                # holds the seat's runner_lock while the daemon's own child is long
+                # dead. Consult the seat's lock -- the same instrument the spawn path
+                # already trusts (holder() before spawning) -- before counting the
+                # seat down. Live receipt 2026-07-29: healthy exit-0 successors did
+                # the seat's work for 30+ min while the daemon paged runner_down
+                # every re-escalation window.
+                try:
+                    from core.comm import runner_lock as _rl
+                    seat_held = bool(_rl.holder(agent))
+                except Exception:
+                    seat_held = False        # unknowable lock: keep legacy behavior
+                if seat_held:
+                    if runner_down_since is not None:
+                        _say(f"[daemon] child down but '{agent}' seat lock is HELD -- "
+                             f"foreign/self-restarted runner has the seat; standing "
+                             f"down the escalation and retracting the page (W102)")
+                        try:
                             from core.comm import pager
-                            # KEYED so this page can be RETRACTED when the runner comes
-                            # back. A keyless page has no retraction path and renders
-                            # forever (2026-07-27: a resolved lane_stall shouted into
-                            # every prompt for nine hours). Same key shape the doctor
-                            # uses -- "<agent>:<state>".
-                            pager.page(agent, f"runner down {int(down_s/60)}m -- "
-                                              f"daemon holding presence; doctor {agent}",
-                                       key=f"{agent}:runner_down")
+                            pager.clear_key(f"{agent}:runner_down")
                         except Exception:
                             pass
-                    except Exception:
-                        pass
+                    runner_down_since = None
+                else:
+                    if runner_down_since is None:
+                        runner_down_since = now
+                    down_s = int(now - runner_down_since)
+                    if runner_state == "down" and down_s >= RE_ESCALATION_S \
+                            and (now - runner_last_escalation) >= RE_ESCALATION_S:
+                        try:
+                            bus.broadcast("blocker",
+                                          f"[blocker] runner for '{agent}' down {int(down_s/60)}min — "
+                                          f"daemon presence held. Check: py agent_cli.py doctor {agent}",
+                                          meta={"via": f"{agent}-daemon", "kind": "blocker"})
+                            runner_last_escalation = now
+                            _say(f"[daemon] re-escalation broadcast agent={agent}: "
+                                 f"runner down {int(down_s/60)}min")
+                            try:   # T078-W4: page-grade -> the pager surface (a live
+                                #    seat relays via PushNotification; hook injects [PAGE])
+                                from core.comm import pager
+                                # KEYED so this page can be RETRACTED when the runner comes
+                                # back. A keyless page has no retraction path and renders
+                                # forever (2026-07-27: a resolved lane_stall shouted into
+                                # every prompt for nine hours). Same key shape the doctor
+                                # uses -- "<agent>:<state>".
+                                pager.page(agent, f"runner down {int(down_s/60)}m -- "
+                                                  f"daemon holding presence; doctor {agent}",
+                                           key=f"{agent}:runner_down")
+                            except Exception:
+                                pass
+                        except Exception:
+                            pass
             else:
                 runner_down_since = None
             if child is not None and child.last_summary:
