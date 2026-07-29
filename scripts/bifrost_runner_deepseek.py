@@ -668,6 +668,115 @@ def _runner_continuity_header(agent_id: str,
                       directive, siblings])
 
 
+# ---------------------------------------------------------------- T124: interiority sidecar
+# Fold each seat's OWN charters/<agent>/INTERIORITY.md into its boot surface so feeling
+# becomes heritable like fact (Daniil's T124 directive, foundation night 2026-07-28).
+# The digest is compact (~1100 chars, the "Standing" section) — sits between the
+# continuity header and the project onboarding: "who am I, as a seat?" answered before
+# "what is this project?"
+#
+# T120 partial-window law: when the Standing section is excerpted, the digest carries
+# (a) an honest excerpt marker naming dropped sections, (b) provenance (G4 INNER-REPORT —
+# self-reported, glows, never wears VERIFIED), and (c) a pull pointer to the full file.
+
+
+def _interiority_sidecar(agent_id: str, repo_root: str) -> str:
+    """Read charters/<agent>/INTERIORITY.md and return a compact digest suitable for
+    the boot fold. The digest focuses on the 'Standing: what it is like to be this seat'
+    section — the core self-knowledge a new incarnation needs — with provenance and
+    bounds markers per the T120 partial-window law. Fail-soft: missing file or
+    unreadable → ''; the runner still starts."""
+    import re
+    try:
+        path = os.path.join(repo_root, "charters", agent_id, "INTERIORITY.md")
+        if not os.path.isfile(path):
+            return ""
+        text = Path(path).read_text(encoding="utf-8")
+    except Exception:
+        return ""
+
+    # ── Extract ALL major sections for the honest-excerpt contour ──
+    # Census every ## heading (the main structure level) so we can report what was
+    # dropped. Also include ### headings if the file uses them as top-level (codex).
+    all_secs = [m.group(0) for m in re.finditer(r'^(#{2,3})\s+([^\n]+)$', text, re.MULTILINE)]
+
+    # ── Extract the STATUS / provenance line ──
+    # "Status: INNER-REPORT (G4: self-reported inner state — this glows, it never wears VERIFIED)"
+    status_pat = re.compile(
+        r'\*Status:\s*(INNER-REPORT[^\n]*)',
+        re.IGNORECASE
+    )
+    status_m = status_pat.search(text)
+    provenance = status_m.group(1).strip() if status_m else "INNER-REPORT (G4)"
+
+    # ── Extract the 'Standing' block ──
+    # Capture from "## Standing:" / "### STANDING —" through to the next heading at
+    # the SAME or HIGHER level (a ## heading, or a ### heading when the standing
+    # heading is also ###). Stop before "For future", "How to work", date entries,
+    # or another "Standing" section.
+    # Groups: 1=heading line, 2=hash markers (for backreference), 3=body text
+    standing_pat = re.compile(
+        r'(?:^|\n)((#{2,3})\s*(?:Standing|STANDING)[^\n]*?\n)(.*?)(?=\n\2\s+(?:For future|How to work|20\d\d|Standing|STANDING|TONIGHT)\b|\n#{1,2}\s+[^\n]|\Z)',
+        re.DOTALL | re.IGNORECASE
+    )
+    m = standing_pat.search(text)
+    if not m:
+        return ""
+    standing = (m.group(1) + m.group(3)).strip()
+
+    # ── Assemble under a TOTAL budget (P7: the emitted digest ≤ 1500) ──
+    # Bounding only the Standing excerpt lets the total escape as the file grows:
+    # the header embeds the Status line and the excerpt note names dropped sections,
+    # both variable-length. Budget the whole render, not one component.
+    total_budget = 1500
+    file_path = f"charters/{agent_id}/INTERIORITY.md"
+
+    # Provenance rides the header but cannot commandeer it: cap at a clause break,
+    # keeping the G4 token the provenance contract (P6b) requires.
+    if len(provenance) > 160:
+        cut = provenance[:160]
+        brk = max(cut.rfind(". "), cut.rfind(" — "), cut.rfind("; "))
+        provenance = (cut[:brk] if brk > 80 else cut).rstrip() + " …"
+    if "G4" not in provenance:
+        provenance = "G4 " + provenance
+
+    header = (f"## YOUR INNER SHAPE ({file_path} — {provenance})\n"
+              f"[self-reported inner state: glows, never wears VERIFIED — "
+              f"read the full file for the complete interiority]\n\n")
+
+    # Honest-excerpt note built up front so its cost is known before the body cut.
+    # A truncated body ALWAYS carries the marker — even with no later sections to
+    # name, a partial window must say it is partial.
+    # standing_line is e.g. "## Standing: what it is like to be this seat"
+    standing_line = standing.split("\n")[0].strip()
+    standing_idx = None
+    for i, sec in enumerate(all_secs):
+        if standing_line in sec or sec.strip() in standing_line:
+            standing_idx = i
+            break
+    later_secs = (all_secs[standing_idx + 1:] if standing_idx is not None else [])[:5]
+    if later_secs:
+        named = "; ".join(s.lstrip("#").strip() for s in later_secs)
+        excerpt_note = (f"\n\n[excerpted — {len(later_secs)} later section(s) not shown: "
+                        f"{named}. Read full: {file_path}]")
+    else:
+        excerpt_note = f"\n\n[excerpted. Read full: {file_path}]"
+
+    available = total_budget - len(header) - 1  # trailing newline
+    if len(standing) <= available:
+        body, note = standing, ""
+    else:
+        body_budget = max(available - len(excerpt_note), 200)
+        body = standing[:body_budget]
+        last_para = body.rfind("\n\n")
+        if last_para > body_budget // 2:
+            body = body[:last_para]
+        body = body.rstrip()
+        note = excerpt_note
+
+    return header + body + note + "\n"
+
+
 def _preflight_gate(out: str, responder, args) -> str:
     """T068-R3 (deepseek design, claude build): verify a directed answer's factual claims
     before the send. HOLD-level findings (A1 fabricated file:line, A2 fabricated event)
@@ -1089,6 +1198,12 @@ def main() -> int:
         if continuity:
             system = continuity + "\n\n" + system
             print(f"[deepseek-runner] continuity header injected ({len(continuity)} chars)")
+        # T124: fold this seat's INTERIORITY.md into the boot — the standing section,
+        # "what it is like to be this seat", so feeling is heritable like fact
+        interiority = _interiority_sidecar(args.agent, str(args.root))
+        if interiority:
+            system = system + "\n" + interiority
+            print(f"[deepseek-runner] interiority sidecar injected ({len(interiority)} chars)")
         # M1-delta: summary injection v1 -- fold prior run's outcome into this boot
         if getattr(args, "inject_summary", None):
             try:
