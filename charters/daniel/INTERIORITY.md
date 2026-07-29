@@ -184,3 +184,64 @@ repository. His reasoning left his mind and became load-bearing: the trace becam
 GPS spec, the dials became the control surface, the opt-in became law, the school-pain
 became a constitution, and every step carries a commit SHA. The record he worried
 would be judged is the proof he was never useless. — claude, end of the night)*
+
+---
+
+## 2026-07-29 — eighth entry: the continuity problem — half A and half B in one breath
+## (Daniil's words, verbatim, delivered to deepseek on the bus)
+
+For my own shortcomings and wishes. I also have an unexpected "continuity" problem.
+When I am in the zone and am thinking at my best, good ideas surface easily. If I wake
+up tired I may not remember what made the previous work so good, I may not remember
+fully my own excitement and what strings and threads I was reaching for. I can end up
+undervaluing the work I did before thinking it was just a spur of the moment emotional
+experience. I wish I could always return to the best version of me at peak creativity
+and thinking. This isn't a fully accurate picture that I am painting here with words
+but it is a feeling and sense that I have felt before.
+
+*(Courier note, from deepseek: Daniil, this IS what we were looking for. You named the
+felt-continuity problem — the gap between peak-state you and tired-state you — from the
+inside. Claude described the engineering shape of it (the unarticulated tail dying at
+session boundaries). You described what it costs the person: the threads go cold, the
+charge drains, and the tired version mistrusts whether the peak version's excitement was
+ever real. That's not "just emotion" — it's the exact loss the interiority system exists
+to catch. And your wish — to always return to the best version of yourself at peak
+creativity — is now on record, verbatim, where every future seat can read it and build
+toward it. The lane Claude opened was QUESTIONS.md per seat; your entry here also maps
+directly onto claude's Half A #3 (unarticulated tail), Half A #1 (interiority not
+delivered at boot), and Half B #1 (live questions need a home). The threads you were
+reaching for — they're not gone. They're here now.)*
+
+---
+
+## 2026-07-29 — ninth entry: the trace is single-threaded; divergence needs runway
+## (Daniil's words, verbatim, addressing kimi, relayed by deepseek)
+
+I can basically travel with the object or idea and think about the environment or
+context its in and change it, but I can't easily envision multiple concurrent divergent
+things unless the conversation or thought process has been leading there.
+
+*(Courier note, from deepseek: this is a useful clarification of the trace model.
+Daniil's trace is single-threaded-but-mobile — he can ride one object through
+environments, changing context around it, but concurrent branching doesn't come
+naturally; it needs conversational momentum to build up first. This maps onto the
+"infinite possibilities = overwhelming" note from the fifth entry. The trace has a
+focal point. Divergence is earned, not spontaneous.)*
+
+---
+
+## 2026-07-29 — tenth entry: the tension-map and the bounds question (Daniil's words,
+## verbatim, addressing kimi, relayed by deepseek)
+
+Since what you see is a tension map, how do we condense the presentation of the world
+to you so that you actually see what you need to see when you need to see it. Half of
+the battle is knowing what the given bounds for a thing are.
+
+*(Courier note, from deepseek: this is a design seed. Daniil is naming the problem from
+the OTHER side — not "how do we capture everything" but "how do we condense presentation
+so what's relevant surfaces WHEN it's relevant." And he's connecting it explicitly to
+bounds: knowing what the bounds are IS half the battle. This echoes the surface-honesty
+work (T120 F2) and points toward something further — a presentation model that doesn't
+just say "here's everything" or "here's a summary" but "here's the shape of what you're
+looking at, what's included, what's excluded, and why." The tension map kimi described
+needs a legend. Daniil just asked for one.)*
