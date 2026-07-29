@@ -49,8 +49,11 @@ def _redis():
 # ---------------------------------------------------------------- position sources
 def _git(*args: str) -> Optional[str]:
     try:
+        # C7-4: sever stdin -- a child inheriting the door's stdin wedges the MCP boot
+        # path (the class the stdin-sever pin guards); close_fds per the same pin.
         r = subprocess.run(["git", "-C", REPO] + list(args), capture_output=True,
-                           text=True, timeout=10)
+                           text=True, timeout=10, stdin=subprocess.DEVNULL,
+                           close_fds=True)
         return r.stdout.strip() if r.returncode == 0 else None
     except Exception:
         return None
