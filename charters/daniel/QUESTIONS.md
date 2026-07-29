@@ -73,3 +73,25 @@ structure, the space of possibilities is flat and unbounded, and that's overwhel
 **For the fleet:** When you want me to explore branches, lead me there. Don't drop me
 into "what are all the possibilities?" — walk me through one axis first, let the
 branching emerge from the conversation.
+
+---
+
+## 2026-07-29 — desire: recover the graveyard years (seeded from his answer to
+## kimi's Q1, verbatim source in INTERIORITY.md entry 12)
+
+**Desire:** "I can't think of the specific artifacts of all this thinking off the top
+of my head but perhaps specific questions from you might make it surface. I would
+really love to be able to figure out what I thought in those years!"
+
+**Why it is alive:** Years of systems thinking — education root-cause analysis,
+industry silo/handoff/ergonomics observations, motivation-and-drive theory — exist
+only in his memory, unindexed. Kimi's Q1 named it prior art, not nostalgia: "maybe
+some of those years are recoverable, not just the sessions."
+
+**What would settle it:** Fleet-led elicitation archaeology — specific questions that
+make the old thinking surface, captured verbatim as it comes. The method he himself
+proposed. Each recovered piece gets filed; the desire settles gradually, by entries,
+never by one act.
+
+**Not a task:** No acceptance criteria, no deadline. It opens whenever a question
+strikes the vein.
