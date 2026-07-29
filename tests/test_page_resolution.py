@@ -136,6 +136,55 @@ def test_p6_a_pager_fault_never_breaks_the_round(monkeypatch):
     assert "summary" in rep, "the doctor must render through its own escalation channel's outage"
 
 
+def _ghost_page(fake, age_s: float, agent="claude#dead1234", state="hard_wedge"):
+    """Plant a page whose subject has left the examinable universe, aged as given."""
+    import json
+    import time
+    from core.comm import pager
+    fake.lpush(pager._key(), json.dumps({
+        "ts": time.time() - age_s, "agent": agent,
+        "text": "HARD WEDGE -- worker died inside the turn", "key": f"{agent}:{state}"}))
+
+
+def test_p7_ghost_page_for_vanished_subject_is_retracted(fake, monkeypatch):
+    """[observed RED 2026-07-29] A page whose SUBJECT left the examinable universe
+    (no worklive/runner/presence/recent-mail -> never in known_agents()) can never be
+    re-examined, so the P5 scoping guard makes it IMMORTAL. Live receipt: the
+    claude#b2a4c581 hard_wedge page rendered into every prompt whisper for 14+ hours
+    after the incarnation's pulse expired. A FULL round must retract it once aged."""
+    from core.comm import doctor, pager
+    _ghost_page(fake, age_s=7200)
+    monkeypatch.setattr(doctor, "known_agents", lambda: ["kimi"])
+    doctor._reconcile_pages([], ["kimi"])          # scope covers the whole universe
+    assert not pager.unread_pages(c=fake), (
+        "a page for a vanished incarnation survived a full round -- the scoping guard "
+        "has become an immortality clause; this exact ghost haunted every whisper for 14h")
+
+
+def test_p8_fresh_ghost_page_survives_the_age_gate(fake, monkeypatch):
+    """A subject can drop out of the universe transiently (pulse TTL flap, runner
+    restart window). The ghost clause must wait out GHOST_PAGE_AGE_S before retracting."""
+    from core.comm import doctor, pager
+    _ghost_page(fake, age_s=60)
+    monkeypatch.setattr(doctor, "known_agents", lambda: ["kimi"])
+    doctor._reconcile_pages([], ["kimi"])
+    assert pager.unread_pages(c=fake), (
+        "a seconds-old page was retracted as a ghost -- the age gate must protect "
+        "subjects in a transient presence gap")
+
+
+def test_p9_partial_round_never_retracts_ghosts(fake, monkeypatch):
+    """P5 extended: only a round that examined the WHOLE known universe can declare a
+    subject universe-absent. A single-agent round keeps its hands off, aged or not."""
+    from core.comm import doctor, pager
+    _ghost_page(fake, age_s=7200)
+    monkeypatch.setattr(doctor, "known_agents", lambda: ["kimi", "deepseek"])
+    doctor._reconcile_pages([], ["kimi"])          # partial: deepseek not examined
+    assert pager.unread_pages(c=fake), (
+        "a partial round retracted a ghost page -- universe-absence can only be judged "
+        "by a round that looked at everything")
+
+
 def _probes(**over):
     import time
     base = dict(
