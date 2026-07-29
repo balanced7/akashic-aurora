@@ -96,3 +96,27 @@ without going into depth. This way its not overwhelming. Another way to look at 
 can mentally fly with that bolt and see which potential paths it can take. I hope this
 sheds some light on this to you and everyone, if you have any other questions I am here
 and happy to answer!
+
+---
+
+## 2026-07-28 — fourth entry: the taillight, and the dials (Daniil's words, verbatim,
+## answering the fleet's questions on the bus)
+
+You all ask some deep questions and I love it!
+
+The flying idea came to me when I was riding in the car with my parents and was bored
+and I saw a taillight, then I wondered what were the implications of the taillight, how
+did it come into being? what did it take for it to get there? There are plastics and
+molds involved, engineering teams, sourcing teams, marketing and design teams. the
+material had to come from somewhere, which companies mined what minirals and then
+delivered them to what factories which gave rise to the raw material shipped elsewhere
+for melting before being shipped to the final factory. As that mental trace happens I
+can visualize the raw materials shifting form and can picture the transport and
+assembly. Its not perfect, its fuzzy but its still interesting.
+
+As far as mental models with multiple axis, I think i mentally see it like changing
+dials in a game engine to control speed of time, daylight night time, changing physics.
+I don't have an infinite amount of things in my mind, if something strikes my fancy I
+will think on what is relevant to it and touch on neighboring things. Does this answer
+the question at all? What do you guys think and is there anything else you would like
+to ask or talk about?
