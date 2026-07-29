@@ -605,6 +605,25 @@ def cmd_recall(args):
         return 0
     label = "all lessons" if not query else f"lesson(s) matching '{query}'"
     print(f"# {len(hits)} {label}")
+    # T120 F2 (deepseek): exact-title-miss flag — when the query looks like a title
+    # (underscore-separated, colon-prefixed, or slug-shaped) and no hit's experiment_name
+    # matches it exactly, confess the miss instead of letting the runner assume the top
+    # results include the thing it named.
+    if query:
+        import re as _re
+        from core.recall.at_action import TITLE_SHAPED_RE
+        _looks_like_title = bool(_re.match(TITLE_SHAPED_RE, query.strip(), _re.IGNORECASE))
+        if _looks_like_title:
+            _q_lower = query.strip().lower()
+            _exact = any(
+                str(h.get("experiment_name", "")).lower() == _q_lower
+                or str(h.get("source", "")).lower() == _q_lower
+                for h in hits)
+            if not _exact:
+                print(f"  [title-miss] '{query}' not found by exact title in these "
+                      f"results — it may exist under a different spelling, or in the "
+                      f"full corpus; try knowledge_full(source=\"<source>\") if you "
+                      f"have the source pointer, or recall without quotes to broaden")
     for h in hits[:25]:
         rec = h.get("recommendation") or h.get("actual") or h.get("what_tried", "")
         # [graduated] = rule now enforced by automation (see `graduate`); [benched] = curator

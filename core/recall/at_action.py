@@ -33,6 +33,12 @@ action. Anti-repeat (don't re-surface a lesson already shown this session) is ha
 from __future__ import annotations
 
 import json
+
+# T120 F2 (G11b): the ONE title-shaped-query heuristic. The CLI (cmd_recall), the
+# ToolBox (knowledge_recall), and the pin (test_t120_surface_honesty_bounds) all import
+# THIS — a second copy is the defect (same law as G5's one-derivation-function).
+# Shape: source-prefixed slug with content after the prefix, OR a 3+-token slug.
+TITLE_SHAPED_RE = r'^(?:(?:learn:experiment:|research:web:)\S+|\w{4,}(?:[\s_-]\w+){2,})$'
 import os
 import re
 import tempfile

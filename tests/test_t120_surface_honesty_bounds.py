@@ -167,9 +167,11 @@ def test_boot_trim_onboarding_no_false_positive():
 # ── TEST 4: title-miss flag regex (T120 fix 2) ─────────────────────────
 
 def test_title_miss_regex_matches_lesson_slugs():
-    """The title-miss heuristic recognizes experiment-style and source-style slugs."""
+    """The title-miss heuristic recognizes experiment-style and source-style slugs.
+    Imports the CANONICAL pattern — a hardcoded copy here would be the two-derivations
+    defect this whole charter round exists to kill."""
     import re
-    pat = r'^(learn:experiment:|research:web:|[\w]{4,}(?:[\s_-][\w]+){2,})$'
+    from core.recall.at_action import TITLE_SHAPED_RE as pat
     # Should match: experiment names with underscores, source prefixes, multi-word slugs
     assert re.match(pat, 'learn:experiment:my_test_lesson', re.IGNORECASE)
     assert re.match(pat, 'research:web:some_pattern', re.IGNORECASE)

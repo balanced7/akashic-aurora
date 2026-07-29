@@ -361,8 +361,33 @@ class ToolBox:
 
     def knowledge_recall(self, query, novelty=False):
         result = self._agent_cli(["recall", query, "--json"])
+        # T120 F2 (deepseek): exact-title-miss flag — when the query looks like a
+        # title/slug and no hit matches it exactly, confess the miss in the output.
+        title_miss = ""
+        qs = str(query or "").strip()
+        if qs:
+            import re as _re
+            from core.recall.at_action import TITLE_SHAPED_RE
+            _looks_like_title = bool(_re.match(TITLE_SHAPED_RE, qs, _re.IGNORECASE))
+            if _looks_like_title:
+                try:
+                    data = json.loads(result)
+                    hits = data if isinstance(data, list) else []
+                    q_lower = qs.lower()
+                    exact = any(
+                        str(h.get("experiment_name", "")).lower() == q_lower
+                        or str(h.get("source", "")).lower() == q_lower
+                        for h in hits)
+                    if not exact:
+                        title_miss = (
+                            f"\n[title-miss] '{qs}' not found by exact title in these "
+                            f"results — it may exist under a different spelling; try "
+                            f"knowledge_full(source=\"<source>\") if you have the source "
+                            f"pointer, or broaden the query\n")
+                except Exception:
+                    pass  # title-miss is advisory; parsing failure must not break recall
         if not novelty:
-            return result
+            return title_miss + result if title_miss else result
         # T048 item 3: tag each result [boot]/[new] against the sources folded into this agent's
         # boot onboarding. Fail-open -- untagged results beat an error.
         try:
@@ -370,9 +395,9 @@ class ToolBox:
             for entry in (data if isinstance(data, list) else data.get("lessons", [])):
                 if isinstance(entry, dict):
                     entry["_novelty"] = "[boot]" if entry.get("source") in self._boot_sources else "[new]"
-            return json.dumps(data, default=str)
+            return title_miss + json.dumps(data, default=str) if title_miss else json.dumps(data, default=str)
         except Exception:
-            return result
+            return title_miss + result if title_miss else result
 
     def recall_at(self, limit=3, path=None, command=None):
         """T048 item 1: the one-hop pull from a truncated recall surface -- same engine, more entries."""
@@ -575,17 +600,32 @@ class ToolBox:
         always shown verbatim. Prior art: rsyslog pmlastmsg, Grafana Loki, OTel tail-sampling.
         
         W82 (07-28, deepseek): max_len was 220, making every handoff unreadable. Now defaults
-        to 2000 via render_collapsed, so a runner can actually READ the messages in its inbox."""
-        b = self._bus()
-        if b is None:
-            return "ERROR: not on a Bifrost bus in this mode (no agent identity, or Redis offline)."
+        to 2000 via render_collapsed, so a runner can actually READ the messages in its inbox.
+        
+        T120 F2 (07-28, deepseek): surface honesty -- emits a bounds header as the FIRST line:
+        'N messages (oldest->newest, truncated: y/n)' so the runner knows the full shape
+        of its inbox, not just the rendered window. Uses peek_inbox (TRUE-TAIL) for honest
+        pending depth, not the legacy cursor read that caps at the limit."""
         try:
-            msgs = b.inbox(limit=50, advance=False)
+            from agent.bifrost_pull import peek_inbox, render_collapsed, render_kind_summary
+            aid = self.agent_id or os.environ.get("AKASHIC_AGENT_ID", "deepseek")
+            msgs = peek_inbox(aid, limit=30)
             if not msgs:
                 return "(inbox empty -- no unread messages)"
-            from agent.bifrost_pull import render_collapsed
             lines = render_collapsed(msgs)
-            return "\n".join(lines) if lines else "(inbox empty -- no unread messages)"
+            if not lines:
+                return "(inbox empty -- no unread messages)"
+            # T120: bounds header -- true depth, ordering, truncation status
+            pending = max((int(m.get("pending_at_least", 0)) for m in msgs
+                          if isinstance(m, dict)), default=len(msgs))
+            capped = any(m.get("pending_capped") for m in msgs if isinstance(m, dict))
+            n_shown = len(msgs)
+            summary = render_kind_summary(msgs)
+            summary_tag = f" [{summary}]" if summary else ""
+            header = (f"{pending}{'+' if capped else ''} message(s) "
+                      f"({n_shown} shown, oldest→newest, "
+                      f"truncated:{'y' if capped else 'n'}){summary_tag}")
+            return header + "\n" + "\n".join(lines)
         except Exception as e:
             return f"ERROR: bifrost_inbox failed: {type(e).__name__}: {e}"
 

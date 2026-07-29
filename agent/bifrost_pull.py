@@ -534,8 +534,8 @@ def render_collapsed(messages, *, show_traces: bool = False, max_len: int = 2000
         else:
             out.append(item)
     if trace_lines:
-        if work_lines:
-            out.append("")                  # separator between mail and folded traces
+        # T120 G11b: no blank separator -- every emitted line carries structure; a bare
+        # "" between mail and folded traces was render noise wearing a line's identity.
         out.extend(trace_lines)
     return out
 

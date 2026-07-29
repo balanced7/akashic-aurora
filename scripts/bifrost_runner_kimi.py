@@ -147,15 +147,31 @@ def _killpoint(name: str) -> None:
 
 def _trim_onboarding(digest: str, budget_chars: int) -> str:
     """T050 Q2 / T043 packet law: never silently truncate -- cut at budget, NAME every dropped
-    section with a pull pointer."""
+    section with a pull pointer.
+    
+    T120 F2 (07-28, deepseek): the contour names total sections, how many were dropped,
+    and the budget constraint so the agent can gauge the severity of the cut — not just
+    which sections are gone."""
     if len(digest) <= budget_chars:
         return digest
     head, tail = digest[:budget_chars], digest[budget_chars:]
+    all_sections = [ln.strip().lstrip("#").strip() for ln in digest.splitlines()
+                    if ln.strip().startswith("##")]
     dropped = [ln.strip().lstrip("#").strip() for ln in tail.splitlines()
                if ln.strip().startswith("##")]
-    what = "; ".join(dropped[:8]) if dropped else "tail content (cut mid-section)"
+    n_total = len(all_sections)
+    n_dropped = len(dropped)
+    n_kept = n_total - n_dropped
+    # T120 pin: NAME distinct sections (a 40x-repeated heading must not drown the unique
+    # ones past the cap); counts stay raw so the contour never understates the cut.
+    _seen = set()
+    distinct = [s for s in dropped if not (s in _seen or _seen.add(s))]
+    named = "; ".join(distinct[:8]) if distinct else "tail content (cut mid-section)"
+    more = f" (+{len(distinct) - 8} more distinct)" if len(distinct) > 8 else ""
+    contour = f"{n_kept}/{n_total} sections kept"
     return (head.rstrip()
-            + f"\n... [onboarding TRIMMED at its {budget_chars}-char budget. DROPPED: {what}. "
+            + f"\n... [onboarding TRIMMED at its {budget_chars}-char budget "
+              f"({contour}). DROPPED: {named}{more}. "
               f"Pull any of it: knowledge_boot(task=...) re-assembles the full briefing; "
               f"knowledge_recall(query=...) fetches specifics. Never guess at what was cut.]")
 
