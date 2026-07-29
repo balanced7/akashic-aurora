@@ -147,3 +147,16 @@ know, if I am wrong I can find out what is correct and adjust my model. If I don
 and I can't ask, I can do my best effort reasoning and that is interesting and
 satisfying enough. If the goal is for a particular reason then it guides my exploration
 to the specifics.
+
+---
+
+## 2026-07-28 — sixth entry: opt-in at curiosity (Daniil's words, verbatim)
+
+I also don't want to unduly burden you all so I am leaning towards an opt in at
+curiosity. I do love knowing what potential options are out there and implications that
+I may not have considered. Its always fascinating hearing you all go "this actually
+points to something deeper and fully realized can enable x, y and z"!
+
+*(Courier note: this ratifies the drift-mode consent invariant from the operator's own
+side — chosen wandering begins at the widened aperture; possibility-surfacing is loved
+AND opt-in. The two are not in tension; they are the same law seen from inside.)*
