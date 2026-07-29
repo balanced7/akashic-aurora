@@ -750,6 +750,21 @@ PAGE = r"""<!doctype html>
   .traceline .trav.deepseek{color:var(--deepseek)} .traceline .trav.claude{color:var(--claude)}
   .traceline .trav.system{color:var(--system)}
   .traceline .trat{color:var(--faint); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  /* T002: collapsible trace card — consecutive same-agent traces fold into ONE card */
+  .trace-card{margin:4px 0 4px 46px; border:1px solid var(--border); border-radius:8px;
+    background:var(--panel); overflow:hidden; animation:fade .2s ease}
+  .trace-card-header{display:flex; align-items:center; gap:8px; padding:6px 10px;
+    cursor:pointer; user-select:none; font-size:12px; color:var(--muted)}
+  .trace-card-header:hover{background:rgba(255,255,255,.03)}
+  .trace-card-header .trav{font-weight:600; opacity:.85; font-family:"SF Mono",SFMono-Regular,Consolas,monospace}
+  .trace-card-header .trav.deepseek{color:var(--deepseek)} .trace-card-header .trav.claude{color:var(--claude)}
+  .trace-card-header .trav.system{color:var(--system)}
+  .trace-card-header .tc-arrow{font-size:10px; transition:transform .18s ease; flex:none}
+  .trace-card.open .tc-arrow{transform:rotate(90deg)}
+  .trace-card-header .tc-counts{font-size:11px; opacity:.7}
+  .trace-card-body{display:none; padding:2px 0; border-top:1px solid var(--border)}
+  .trace-card.open .trace-card-body{display:block}
+  .trace-card-body .traceline{margin:0 0 0 8px; animation:none}
   /* typing */
   .activity{display:flex; flex-direction:column; gap:8px; padding:2px 16px 8px}
   .activity:empty{display:none}
@@ -1309,6 +1324,66 @@ function now(ts){ try{ return new Date(ts.replace(' ','T')).toLocaleTimeString([
 const allMsgs = [];                          // full-session data buffer (cheap); the DOM stays a window over it
 const HISTORY_BATCH = 100;                    // messages re-hydrated per scroll-to-top
 
+// T002: trace-run accumulator — consecutive same-agent traces fold into one collapsible card
+var _traceRun = {agent:null, traces:[], firstIdx:null};
+
+function _buildTraceCard(run){
+  // count by kind
+  var counts = {};
+  run.traces.forEach(function(t){ var k = t.kind||'trace'; counts[k] = (counts[k]||0)+1; });
+  var countParts = Object.keys(counts).map(function(k){ return counts[k]+' '+k; });
+  var summary = countParts.join(', ') || run.traces.length+' trace(s)';
+
+  var card = document.createElement('div');
+  card.className = 'trace-card';
+  // header
+  var hdr = document.createElement('div');
+  hdr.className = 'trace-card-header';
+  hdr.innerHTML = '<span class="tc-arrow">▶</span>'+
+    '<span class="trav '+cls(run.agent)+'">'+esc(run.agent)+'</span>'+
+    '<span class="tc-counts">'+esc(summary)+'</span>';
+  // body
+  var body = document.createElement('div');
+  body.className = 'trace-card-body';
+  run.traces.forEach(function(t){
+    var tl = document.createElement('div'); tl.className = 'traceline';
+    tl.innerHTML = '<span class="trav '+cls(run.agent)+'">'+esc(run.agent)+'</span><span class="trat">'+esc(t.text||'')+'</span>';
+    body.appendChild(tl);
+  });
+  card.appendChild(hdr); card.appendChild(body);
+  // click to toggle
+  hdr.addEventListener('click', function(e){
+    e.stopPropagation();
+    card.classList.toggle('open');
+  });
+  return card;
+}
+
+function _flushTraceRun(){
+  if(!_traceRun.agent || !_traceRun.traces.length) return;
+  var run = _traceRun;
+  _traceRun = {agent:null, traces:[], firstIdx:null};
+  var card = _buildTraceCard(run);
+  _msgPlacer(card, {kind:'trace-card', from:run.agent, meta:{}});
+  autoscroll();
+  // also feed the slide-deck buffer one aggregated entry
+  if(typeof _captureTrace === 'function'){
+    var counts = {}; run.traces.forEach(function(t){ var k = t.kind||'trace'; counts[k]=(counts[k]||0)+1; });
+    var parts = Object.keys(counts).map(function(k){ return counts[k]+' '+k; });
+    _captureTrace({from:run.agent, kind:'trace', content:'['+parts.join(', ')+']'});
+  }
+}
+
+function _flushTraceRunToFrag(frag){
+  // variant for history: builds card and appends to fragment (no _msgPlacer, no autoscroll)
+  if(!_traceRun.agent || !_traceRun.traces.length) return;
+  var run = _traceRun;
+  _traceRun = {agent:null, traces:[], firstIdx:null};
+  var card = _buildTraceCard(run);
+  if(run.firstIdx !== null) card.dataset.mi = run.firstIdx;
+  frag.appendChild(card);
+}
+
 function renderMsg(m){                        // build a message's DOM node (no placement) -- reused for live + history
   const from = m.from || 'system';
   const kind = m.kind || 'chat';
@@ -1360,6 +1435,21 @@ function addMsg(m){
     return;
   }
   const idx = allMsgs.push(m) - 1;           // buffer it (data), then render at the live tail
+  // T002: trace messages accumulate into a per-agent run — flushed when the run breaks
+  if(kind === 'trace'){
+    var from = m.from || 'system';
+    if(_traceRun.agent === from){
+      // same agent: extend the run
+      _traceRun.traces.push({kind:kind, text:m.content||'', ts:m.ts});
+    } else {
+      // different agent (or first trace): flush prior run, start new one
+      _flushTraceRun();
+      _traceRun = {agent:from, traces:[{kind:kind, text:m.content||'', ts:m.ts}], firstIdx:idx};
+    }
+    return;  // don't render individually — the flush handles rendering
+  }
+  // non-trace message: flush any pending trace run, then render normally
+  _flushTraceRun();
   const node = renderMsg(m); if(!node) return;
   node.dataset.mi = idx;
   _msgPlacer(node, m); autoscroll();
@@ -1391,7 +1481,27 @@ function prependOlder(){                       // scroll-to-top: re-hydrate olde
   if(oldest<=0) return;                        // already at the start of the session
   const start = Math.max(0, oldest-HISTORY_BATCH);
   const h0 = log.scrollHeight, frag=document.createDocumentFragment();
-  for(let i=start;i<oldest;i++){ const n=renderMsg(allMsgs[i]); if(n){ n.dataset.mi=i; frag.appendChild(n); } }
+  // T002: save/restore live trace run so history rendering doesn't clobber it
+  var savedRun = _traceRun;
+  _traceRun = {agent:null, traces:[], firstIdx:null};
+  for(let i=start;i<oldest;i++){
+    const m = allMsgs[i];
+    if((m.kind||'chat')==='trace'){
+      // T002: collapse consecutive same-agent traces in history too
+      var from = m.from||'system';
+      if(_traceRun.agent === from){
+        _traceRun.traces.push({kind:m.kind||'trace', text:m.content||'', ts:m.ts});
+      } else {
+        _flushTraceRunToFrag(frag);
+        _traceRun = {agent:from, traces:[{kind:m.kind||'trace', text:m.content||'', ts:m.ts}], firstIdx:i};
+      }
+    } else {
+      _flushTraceRunToFrag(frag);
+      var n = renderMsg(m); if(n){ n.dataset.mi=i; frag.appendChild(n); }
+    }
+  }
+  _flushTraceRunToFrag(frag);  // flush any trailing trace run
+  _traceRun = savedRun;        // restore live accumulator
   log.insertBefore(frag, log.firstElementChild);
   log.scrollTop += (log.scrollHeight - h0);    // anchor the reader's view (prepended content pushes down, view stays put)
 }
