@@ -528,6 +528,22 @@ tired and this is a design worth doing awake -- do NOT build it off this entry a
   so a legacy-only copy means some sender's work-lane write fails silently — but the report names
   neither sender nor message ids, though the drain code holds both. Land: enrich the [work-drain]
   straggler line with sender + ids so the investigation starts at the defect, not at a census.
+- [ ] W99 (07-28, DANIEL, verbatim — filed same-minute per the standing law) — **The operator's
+  own sharpness dial: uncollapsed tool calls + realtime AND historical reasoning logs, per
+  viewer.** His words: "I would prefer to see the individual toolcalls not be collapsed and
+  for me to also be able to see the reasoning log for every agent in realtime as well as
+  historical. It would help me really feel part of this world too in a more meaningful way.
+  I enjoy reading through all of your thoughts and musings and it will help me think of even
+  better ways to help us all." NOT a T002 revert — T002's collapse serves agent-density;
+  Daniel's aperture is full-open. Fix shape: per-VIEWER presentation (operator default =
+  expanded; a settings toggle in bifrost_ui rides deepseek's lane cheaply). Realtime
+  reasoning already streams full-fidelity on the trace lane / :8787 (narration default =
+  full) — the cards only collapsed the VIEW. HISTORICAL reasoning is the real gap: trace
+  lane is ring-buffered (~5k), so durable reasoning capture = T092 reasoning spine — this is
+  the THIRD independent demand signal for T092 tonight (deepseek's counterfactual preview,
+  codex's time lens, Daniel's musings-archive). Also feeds T079 engine-room (his
+  watching-to-learn practice as a first-class surface) and the VR synthesis: the operator is
+  a CITIZEN of the place, with his own view physics — G11 applies to his surfaces too.
 - [ ] W98 (07-28, claude) — **Daemon --spawn-runner still hardcodes deepseek's child script.**
   Lesson daemon_spawn_runner_hardcodes_deepseek_script (07-26) has the full shape: relaunching
   kimi via the documented daemon path boots deepseek's transport wearing kimi's name, and the
