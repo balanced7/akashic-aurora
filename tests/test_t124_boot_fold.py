@@ -220,6 +220,38 @@ def test_p8_interiority_fail_soft_on_missing_seat():
     )
 
 
+def test_p7b_narrow_file_geometry_all_seats():
+    """[kimi fence residual, 2026-07-29] The observed probes covered deepseek's
+    wide-geometry file only; kimi's narrow file (few sections) exercises the
+    budget edge differently. Every REAL seat's digest must respect the total
+    budget, carry provenance, and — whenever content was cut — say so."""
+    from scripts import bifrost_runner_deepseek as dr
+
+    fn = getattr(dr, '_interiority_sidecar', None)
+    if fn is None:
+        pytest.skip("_interiority_sidecar not built yet")
+    charters = os.path.join(REPO, "charters")
+    seats = [d for d in os.listdir(charters)
+             if os.path.isfile(os.path.join(charters, d, "INTERIORITY.md"))]
+    assert seats, "guardrail: at least one seat has an INTERIORITY.md"
+    for seat in seats:
+        result = fn(seat, REPO)
+        if not result:
+            continue                      # fail-soft seats (no Standing) are P8's lane
+        assert len(result) <= 1500, (
+            f"{seat}: digest {len(result)} chars breaches the 1500 total budget "
+            f"-- geometry-specific escape (kimi's narrow-file concern)"
+        )
+        assert "G4" in result and "INNER-REPORT" in result, (
+            f"{seat}: provenance missing from digest"
+        )
+        full_standing_present = "[excerpted" in result or len(result) < 1200
+        assert full_standing_present, (
+            f"{seat}: long digest carries no excerpt marker -- a partial window "
+            f"must say it is partial"
+        )
+
+
 # ────────────────────────────────────────────────────────────────────
 # SCOPE 2: UNOBSERVED — integration into the system prompt
 # ────────────────────────────────────────────────────────────────────
