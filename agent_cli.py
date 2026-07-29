@@ -3963,24 +3963,42 @@ def cmd_packet_stats(args):
 
 
 # ------------------------------------------------------------------------- status
+def _durable_backend_name(store) -> str:
+    """Name the concrete durable tier selected by the canonical store factory."""
+    from core.foundation.sqlite_store import SqliteStore
+    from core.foundation.store import FileStore
+
+    durable = getattr(store, "_file", store)
+    if isinstance(durable, SqliteStore):
+        return "SQLite"
+    if isinstance(durable, FileStore):
+        return "File"
+    return f"UNKNOWN:{type(durable).__name__}"
+
+
 def cmd_status(args):
     from core.foundation.redis_connection import (
         connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
     client = connect_to_redis_with_fail_fast(
         host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=2)
     learn = mem = total = None
-    backend = "File (Redis down -> fallback active)"
     if client is not None:
-        backend = f"Redis {DEFAULT_REDIS_HOST}:{DEFAULT_REDIS_PORT} (+ File mirror)"
         learn, mem, total = len(client.keys("learn:*")), len(client.keys("mem:*")), len(client.keys("*"))
     # narrative health -- surface the best-effort paths so silent degradation is visible (W-c)
     health = {}
+    durable_backend = "UNKNOWN"
     try:
         from core.foundation.store import create_store
         from core.narrative.health import snapshot
-        health = snapshot(create_store())
+        store = create_store()
+        durable_backend = _durable_backend_name(store)
+        health = snapshot(store)
     except Exception:
         health = {}
+    if client is not None:
+        backend = f"Redis {DEFAULT_REDIS_HOST}:{DEFAULT_REDIS_PORT} (+ {durable_backend} mirror)"
+    else:
+        backend = f"{durable_backend} (Redis down -> fallback active)"
     info = {"backend": backend, "learnings": learn, "agent_memory": mem, "total_keys": total,
             "narrative_health": health}
     if args.json:
