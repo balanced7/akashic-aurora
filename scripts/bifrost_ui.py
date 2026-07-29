@@ -30,6 +30,7 @@ from core.comm import control
 from core.comm import promoter
 from core.comm.launcher import get_launcher
 from core.trust import registry
+from core.primitives.epistemic import epistemic_view_from_bus
 
 DROPBOX = os.path.join(REPO, "dropbox")
 BUS = Bus("user")   # the console posts to the bus as 'user'; also registers 'user' presence
@@ -54,7 +55,7 @@ def _fmt(sid, fields):
             return json.loads(s)
         except Exception:
             return s
-    return {
+    msg = {
         "id": str(sid),
         "from": fields.get("frm", ""),
         "to": fields.get("to", ""),
@@ -63,6 +64,14 @@ def _fmt(sid, fields):
         "ts": fields.get("ts", ""),
         "meta": _loads(fields.get("meta", "{}")),
     }
+    # T121 composition seam: attach the typed EpistemicView product so the
+    # browser's m.epistemic boundary is populated. Fail-closed: a derivation
+    # error degrades to the total-unknown product, never breaks rendering.
+    try:
+        msg["epistemic"] = epistemic_view_from_bus(msg).to_dict()
+    except Exception:
+        msg["epistemic"] = epistemic_view_from_bus({}).to_dict()
+    return msg
 
 
 def _inbox_streams(client):
@@ -712,6 +721,18 @@ PAGE = r"""<!doctype html>
   .who{font-weight:650; font-size:13px}
   .who.claude{color:var(--claude)} .who.deepseek{color:var(--deepseek)} .who.user{color:var(--user)}
   .time{color:var(--faint); font-size:11px}
+  /* T121 S-cut epistemic glyph (kimi G4/G11): structural truth signal. Shape AND
+     color dual-encode (color-blind safe). Deliberately outside any focus/density
+     dial path -- a dial must not be able to dim a truth glyph. */
+  .epi{font-size:12px; line-height:1; flex:none; font-style:normal}
+  .epi-fresh{color:var(--ok,#5fd39b)}
+  .epi-aging{color:var(--amber)}
+  .epi-stale{color:var(--danger)}
+  .epi-unknown{color:var(--faint); border:1px dashed var(--border); border-radius:50%;
+    width:13px; height:13px; display:inline-flex; align-items:center; justify-content:center;
+    font-size:9px}
+  .epi-mark{font-size:9.5px; font-weight:700; letter-spacing:.3px; padding:0 4px;
+    border:1px dashed var(--border); border-radius:4px; opacity:.85}
   .hop{color:var(--faint); font-size:10.5px; border:1px solid var(--border); border-radius:5px; padding:0 5px}
   .ib{font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; padding:1px 6px; border-radius:5px; border:1px solid var(--border)}
   .ib-halt{color:var(--amber); border-color:rgba(240,178,70,.45); background:rgba(240,178,70,.12)}
@@ -764,6 +785,9 @@ PAGE = r"""<!doctype html>
   .trace-card-header .tc-counts{font-size:11px; opacity:.7}
   .trace-card-body{display:none; padding:2px 0; border-top:1px solid var(--border)}
   .trace-card.open .trace-card-body{display:block}
+  /* W99: traces-expanded mode — all cards open at creation; click still toggles */
+  .traces-expanded .trace-card .trace-card-body{display:block}
+  .traces-expanded .trace-card-header .tc-arrow{transform:rotate(90deg)}
   .trace-card-body .traceline{margin:0 0 0 8px; animation:none}
   /* typing */
   .activity{display:flex; flex-direction:column; gap:8px; padding:2px 16px 8px}
@@ -1242,6 +1266,15 @@ PAGE = r"""<!doctype html>
         <span style="font-size:11px;color:var(--faint);margin-left:8px" id="hudStatus">on — pure DOM, no perf cost</span>
       </div>
       <div class="setrow">
+        <label>Traces</label>
+        <span class="setdesc">agent tool-use cards — expanded (full visibility) | collapsed (compact)</span>
+      </div>
+      <div class="setrow" style="justify-content:flex-end;gap:6px">
+        <button class="lctl traces-btn active" data-lvl="expanded" onclick="setTraces('expanded')">expanded</button>
+        <button class="lctl traces-btn" data-lvl="collapsed" onclick="setTraces('collapsed')">collapsed</button>
+        <span style="font-size:11px;color:var(--faint);margin-left:8px" id="tracesStatus">expanded — operator view</span>
+      </div>
+      <div class="setrow">
         <label>Narration</label>
         <span class="setdesc">claude's reasoning visibility — off | key | full</span>
       </div>
@@ -1320,6 +1353,35 @@ function fmt(s){
 function initials(a){ return (a||'?').slice(0,2).toUpperCase(); }
 function cls(a){ return (a==='claude'||a==='deepseek'||a==='user') ? a : 'system'; }
 function now(ts){ try{ return new Date(ts.replace(' ','T')).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});}catch(e){return '';} }
+
+/* ---- T121 S-cut epistemic glyph (kimi, G4-amended + G11) --------------------
+   ONE pure derivation over the EXACT renderer boundary m.epistemic =
+   EpistemicView.to_dict(). Python seam (codex's half):
+       core.primitives.epistemic.epistemic_view_from_bus(message)
+   S-cut consumes TWO typed inputs only:
+       m.epistemic.currency.value    -> staleness glyph (fresh/aging/stale/?)
+       m.epistemic.claim_kind.value  -> text marker      ([infer]/[guess])
+   Missing/unsupported axis => value:'unknown'. NO fallback to m.ts or prose:
+   a transport timestamp is not a currency receipt, so absent evidence renders
+   UNKNOWN, never default-fresh.
+   The glyph is a STRUCTURAL sibling of .time (not content, not dial-reachable). */
+var EPI_GLYPH = {fresh:'\u25CF', aging:'\u25D0', stale:'\u25CB', unknown:'?'};
+// currency.value (EpistemicView) -> render tier. Exact enum values only; NO ts fallback.
+// UNKNOWN is the explicit default (G4-amended): unsupported/missing axis => 'unknown' tier.
+var EPI_CURRENCY_TIER = {current:'fresh', aging:'aging', stale:'stale', superseded:'stale', unknown:'unknown'};
+function epiGlyph(m){
+  m = m || {};
+  var epi = m.epistemic || {};
+  // claim_kind.value -> text marker (typed field only; no prose sniffing)
+  var ck = ((epi.claim_kind && epi.claim_kind.value) || '').toString().toLowerCase();
+  var marker = (ck==='inferred') ? '[infer]'
+             : (ck==='guessed')  ? '[guess]' : '';
+  // currency.value -> staleness tier (typed field only; unknown by default)
+  var cur = ((epi.currency && epi.currency.value) || 'unknown').toString().toLowerCase();
+  var tier = EPI_CURRENCY_TIER.hasOwnProperty(cur) ? EPI_CURRENCY_TIER[cur] : 'unknown';
+  return {tier:tier, glyph:EPI_GLYPH[tier]||EPI_GLYPH.unknown, marker:marker,
+          unknown:(tier==='unknown')};
+}
 
 const allMsgs = [];                          // full-session data buffer (cheap); the DOM stays a window over it
 const HISTORY_BATCH = 100;                    // messages re-hydrated per scroll-to-top
@@ -1401,10 +1463,13 @@ function renderMsg(m){                        // build a message's DOM node (no 
   const wrap=document.createElement('div'); wrap.className='msg'+(me?' me':'');
   const hop = (m.meta && m.meta.hops)? '<span class="hop">hop '+m.meta.hops+'</span>':'';
   const intent = (m.meta && m.meta.intent)? '<span class="ib ib-'+m.meta.intent+'" title="'+esc(m.meta.why||'')+'">'+m.meta.intent+'</span>':'';
+  const epi = epiGlyph(m);
+  const epimark = epi.marker? '<span class="epi epi-mark epi-'+epi.tier+'">'+epi.marker+'</span>' : '';
+  const epig = '<span class="epi epi-'+epi.tier+'" data-epi-tier="'+epi.tier+'" title="'+epi.tier+(epi.unknown?' (no stamp — status unknown)':'')+'">'+epi.glyph+'</span>';
   wrap.innerHTML =
     '<div class="av '+c+'">'+initials(from)+'</div>'+
     '<div class="bubble"><div class="row"><span class="who '+c+'">'+esc(from)+'</span>'+
-    '<span class="time">'+now(m.ts)+'</span>'+intent+hop+'</div>'+
+    '<span class="time">'+now(m.ts)+'</span>'+epig+epimark+intent+hop+'</div>'+
     '<div class="content">'+_msgRenderer(m)+'</div></div>';
   return wrap;
 }
@@ -2748,7 +2813,10 @@ var _auroraShader = null;
 var _auroraEnabled = false;
 function auroraFlagKey(){ return 'bifrost_aurora_shader'; }
 function hudFlagKey(){ return 'bifrost_hud_strip'; }
+function tracesFlagKey(){ return 'bifrost_traces'; }  // W99: traces expanded/collapsed
 function initAurora(){
+  // W99: apply traces mode on first init (default expanded)
+  applyTracesMode(tracesMode());
   if (!window.AuroraGlass || !window.AuroraGlass.isSupported()) return false;
   if (_auroraShader) return true;   // already running
   try {
@@ -2816,6 +2884,28 @@ function refreshHUDButtons(){
 }
 (function(){ refreshHUDButtons(); })();
 
+// W99: traces expanded/collapsed — per-viewer sharpness dial (Daniel, 2026-07-28)
+function tracesMode(){ return localStorage.getItem(tracesFlagKey()) !== '0'; }
+function setTraces(mode){
+  var expanded = (mode === 'expanded');
+  localStorage.setItem(tracesFlagKey(), expanded ? '1' : '0');
+  applyTracesMode(expanded);
+  [].forEach.call(document.querySelectorAll('.traces-btn'), function(b){
+    b.classList.toggle('active', b.dataset.lvl === mode);
+  });
+  var st = document.getElementById('tracesStatus');
+  if(st) st.textContent = expanded ? 'expanded — operator view' : 'collapsed — compact';
+}
+function applyTracesMode(expanded){
+  var logEl = document.getElementById('log');
+  if(!logEl) return;
+  if(expanded){ logEl.classList.add('traces-expanded'); }
+  else { logEl.classList.remove('traces-expanded'); }
+  [].forEach.call(logEl.querySelectorAll('.trace-card'), function(card){
+    if(expanded){ card.classList.add('open'); }
+    else { card.classList.remove('open'); }
+  });
+}
 // Shaderpark controls: aurora speed + intensity sliders (live-tune uniforms, localStorage persistence)
 function auroraSpeedKey(){ return 'bifrost_aurora_speed'; }
 function auroraIntensityKey(){ return 'bifrost_aurora_intensity'; }
