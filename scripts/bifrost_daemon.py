@@ -161,6 +161,7 @@ def main(argv=None) -> int:
     # ---- delta path: daemon lock (bifrost:daemon:<agent>) + runner child ----------
     child: _Opt[ManagedChild] = None
     dlock = None
+    idle_mode = False  # W102: daemon alive but runner spawning deferred
     summary_file = args.summary_file or os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
         "state", f"runner_{agent}_last.json")
@@ -183,17 +184,24 @@ def main(argv=None) -> int:
             _say(f"[daemon] refused agent={agent}: daemon lock held by another process "
                  f"-- exiting 0")
             return 0
-        # Coexistence: spawn-runner refuses if a bare runner holds the runner lock.
+        # Coexistence: spawn-runner inspects the runner lock BEFORE spawning.
         # manage-listener-only NEVER touches runner_lock -- it coexists with a
         # consuming session (session:<sid> token, RB-21) and with a bare runner.
         if spawn_runner:
             rh = runner_lock.holder(agent)
             if rh and not str(rh.get("token", "")).startswith("daemon:"):
-                _say(f"[daemon] refused agent={agent}: a bare runner pid={rh.get('pid')} holds "
-                     f"the runner lock -- stop it first, or let the daemon own it (M1-P11 "
-                     f"coexistence) -- exiting 0")
-                dlock.release()
-                return 0
+                # W102 full fix: a foreign bare runner (self-restarted successor,
+                # kimi-style self-managing seat) holds the seat. The daemon goes IDLE
+                # instead of refusing boot: it holds its own daemon lock, maintains
+                # presence, and probes runner_lock.holder() until the foreign holder
+                # releases -- then it reclaims and spawns. This closes the gap the
+                # half-fix (a9f7f6a) discovered: the hard-refuse left the seat
+                # daemon-less until the takeover chain broke.
+                _say(f"[daemon] idle agent={agent}: a foreign runner pid={rh.get('pid')} "
+                     f"holds the runner lock (token prefix: {str(rh.get('token', ''))[:20]}...) "
+                     f"-- daemon alive, spawning deferred; will reclaim when lock frees "
+                     f"(W102 idle-watcher)")
+                idle_mode = True
 
         # ---- blocker callback (M1-P9 circuit breaker) ------------------------------
         def _send_blocker():
@@ -209,8 +217,22 @@ def main(argv=None) -> int:
             except Exception:
                 pass
 
+        def _on_runner_exit(code: int, tail: str):
+            s = read_summary(summary_file)
+            if s:
+                child.last_summary = s
+                nonlocal last_summary_text
+                last_summary_text = format_summary_for_prompt(s)
+                _say(f"[daemon] runner exited code={code} summary={last_summary_text}")
+            else:
+                _say(f"[daemon] runner exited code={code} (no summary file)")
+            if tail:
+                short = " ".join(str(tail).split())[:200]
+                if short:
+                    _say(f"[daemon] runner tail: {short}")
+
         # ---- runner child (spawn-runner only) --------------------------------------
-        if spawn_runner:
+        if spawn_runner and not idle_mode:
             runner_args = [sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                                         "bifrost_runner_deepseek.py"),
                            "--agent", agent, "--agentic",
@@ -233,20 +255,6 @@ def main(argv=None) -> int:
                 breaker_max=int(os.environ.get("AKASHIC_CB_MAX", "3")),
             )
 
-            def _on_runner_exit(code: int, tail: str):
-                s = read_summary(summary_file)
-                if s:
-                    child.last_summary = s
-                    nonlocal last_summary_text
-                    last_summary_text = format_summary_for_prompt(s)
-                    _say(f"[daemon] runner exited code={code} summary={last_summary_text}")
-                else:
-                    _say(f"[daemon] runner exited code={code} (no summary file)")
-                if tail:
-                    short = " ".join(str(tail).split())[:200]
-                    if short:
-                        _say(f"[daemon] runner tail: {short}")
-
             child.on_exit = _on_runner_exit
             if not child.spawn():
                 _say(f"[daemon] runner spawn blocked agent={agent} (circuit breaker pre-tripped?) "
@@ -255,8 +263,9 @@ def main(argv=None) -> int:
                 _say(f"[daemon] runner spawned agent={agent} pid={child.pid}")
         _say(f"[daemon] up agent={agent} ns={bus.ns} daemon-token={dlock.token[:20]}... "
              f"ttl={ttl}s hb={hb}s pid={os.getpid()}"
-             + (" mode=runner-manager" if spawn_runner else "")
-             + (" mode=listener-manager" if manage_listener else ""))
+             + (" mode=runner-manager" if (spawn_runner and not idle_mode) else "")
+             + (" mode=listener-manager" if manage_listener else "")
+             + (" mode=idle-watcher" if idle_mode else ""))
     else:
         # ---- alpha path: daemon holds the runner lock directly ---------------------
         h = runner_lock.holder(agent)
@@ -278,7 +287,9 @@ def main(argv=None) -> int:
     # ---- shared: presence card + heartbeat loop -----------------------------------
     card = {"runtime_class": "daemon", "wake_mode": "supervisor",
             "door": "scripts/bifrost_daemon.py",
-            "slice": "M1-alpha" if not (spawn_runner or manage_listener) else "M1-delta",
+            "slice": ("M1-delta" if (spawn_runner and not idle_mode or manage_listener)
+                      else "W102-idle" if idle_mode
+                      else "M1-alpha"),
             "pid": os.getpid(),
             "token8": (dlock.token[-8:] if (spawn_runner or manage_listener) else token[-8:]),
             "gen": 0 if (spawn_runner or manage_listener) else runner_lock.generation_of(token),
@@ -314,6 +325,60 @@ def main(argv=None) -> int:
                 child.poll()
             for _sid, lch in list(listeners.items()):
                 lch.poll()
+
+            # ---- W102: idle-mode reclaim probe (once per heartbeat) ---------------
+            # When the daemon booted under a foreign holder (bare runner, self-
+            # restarted successor), it went idle instead of refusing. Probe the
+            # runner lock on each heartbeat cadence; when the foreign holder releases
+            # (or its token becomes daemon-prefixed), spawn the runner child and
+            # leave idle mode. The reclaim check fires at the same rate as the
+            # heartbeat (hb seconds) so it never thrashes Redis.
+            if idle_mode and spawn_runner and child is None:
+                try:
+                    rh = runner_lock.holder(agent)
+                    if rh is None:
+                        _say(f"[daemon] reclaim agent={agent}: runner lock freed -- "
+                             f"spawning runner child (W102)")
+                        idle_mode = False
+                    elif str(rh.get("token", "")).startswith("daemon:"):
+                        _say(f"[daemon] reclaim agent={agent}: runner lock now held by "
+                             f"a daemon token -- spawning runner child (W102)")
+                        idle_mode = False
+                    if not idle_mode:
+                        # Re-run the spawn block inline (same args as boot path).
+                        # The _send_blocker closure already captures 'child' from
+                        # this scope; we re-create the runner_args and ManagedChild.
+                        runner_args = [sys.executable, os.path.join(
+                            os.path.dirname(os.path.abspath(__file__)),
+                            "bifrost_runner_deepseek.py"),
+                            "--agent", agent, "--agentic", "--allow-write",
+                            "--summary-file", summary_file]
+                        prev = read_summary(summary_file)
+                        if prev:
+                            # last_summary_text is main()'s own local -- plain
+                            # assignment binds it; `nonlocal` here is a SyntaxError
+                            # (only legal in a NESTED function; fence red 2026-07-29).
+                            last_summary_text = format_summary_for_prompt(prev)
+                            runner_args.extend(["--inject-summary", summary_file])
+                        child = ManagedChild(
+                            runner_args,
+                            env=dict(os.environ),
+                            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            on_blocker=_send_blocker,
+                            breaker_window_s=float(os.environ.get("AKASHIC_CB_WINDOW_S", "300")),
+                            breaker_max=int(os.environ.get("AKASHIC_CB_MAX", "3")),
+                        )
+                        child.on_exit = _on_runner_exit
+                        if not child.spawn():
+                            _say(f"[daemon] reclaim spawn BLOCKED agent={agent} "
+                                 f"(circuit breaker pre-tripped?) -- daemon still alive")
+                        else:
+                            _say(f"[daemon] runner spawned agent={agent} pid={child.pid} "
+                                 f"(reclaimed from idle, W102)")
+                            card["slice"] = "M1-delta"
+                except Exception as e:
+                    _say(f"[daemon] reclaim probe error agent={agent}: "
+                         f"{type(e).__name__}: {e} -- will retry")
 
             # ---- A1: consume rearm triggers + marker sweep -----------------------
             if manage_listener:
