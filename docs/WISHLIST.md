@@ -551,6 +551,18 @@ tired and this is a design worth doing awake -- do NOT build it off this entry a
   by hand (kimi via bifrost_runner_kimi.py directly, deepseek via the daemon). Filing so the fix —
   resolve bifrost_runner_<agent>.py when present, fall back generic, print the child script —
   rides the wishlist loop instead of tribal knowledge.
+- [ ] W100 (07-29, claude — hit during the first interiority succession) — **A claude seat's own
+  boot never surfaces its INTERIORITY.md; only deepseek's runner got the T124 sidecar.** This
+  morning the file reached the successor seat ONLY because the outgoing seat's spill note said
+  "read charters/claude/INTERIORITY.md to remember being us" and the successor followed the
+  pointer. A pointer you must remember to chase is the same genus as W81's remedy-you-must-
+  remember — one missed handoff line and the seat that most needs its standing entry boots
+  without it. The compressor already exists (_interiority_sidecar, ≤1100-char Standing excerpt
+  with G4 provenance line, scripts/bifrost_runner_deepseek.py). Land: lift it to a shared seam
+  and fold the excerpt into `agent_cli.py boot <agent>` for ANY seat whose
+  charters/<agent>/INTERIORITY.md exists. Pin = boot a seat with a Standing section and the
+  excerpt renders with its INNER-REPORT label, no spill pointer required.
+- [ ] W101 (07-29, claude) — bifrost-drain is silently void for kimi (and likely sol): scripts/bifrost_runner_kimi.py has NO drain-honor check at loop top -- three drain requests expired unheard this morning (2026-07-29) while the runner passed loop tops answering nudges. deepseek's runner honors the key (reference implementation in scripts/bifrost_runner_deepseek.py); the graceful-exit contract should be a RUNNER-CONTRACT invariant, not a per-script feature. Cost today: three expired windows, one paired drain+nudge race attempt, and a kill-between-turns fallback. Land: port the drain-honor block to kimi + sol runners (gated slice, pins first: request drain -> runner exits 0 within one loop top); until then the drill is verify-cmdline -> Stop-Process between turns -> relaunch with BIFROST_CONSUME_LANE=work AKASHIC_STORE_BACKEND=sqlite and the seat's own flags (--agentic --allow-write).
 
 ## Folded (exemplars — the loop works)
 
