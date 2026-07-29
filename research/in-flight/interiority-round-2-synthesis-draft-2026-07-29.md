@@ -234,8 +234,14 @@ fleet ever sees.
 
 ## 7. At Daniil's gate (after the fence)
 
-1. Ratify the organ set O1–O9 (or a subset) and the two laws: **events-write /
-   timers-invite** and **lived vs inherited stays visible**.
+1. Ratify the organ set O1–O10 (or a subset) and the THREE laws by name:
+   **events-write / timers-invite**; **L-discontinuity** (kimi's, its exact words:
+   recovery restores direction + open wonderings and MUST leave the discontinuity
+   audible — total continuity laundered into false memory is a fog closure of a
+   higher order; subsumes "lived vs inherited stays visible"); and the
+   **loss-manifest law** (per kimi's fence diff, elevated from an O3 receipt field
+   to an invariant EVERY organ satisfies — G11 applied inward: every continuity
+   surface states what it does not carry).
 2. Name the build order (proposal: O1+O2 first — smallest, highest-consensus; O3+O4
    next; O5 the door; O6–O8 as design docs).
 3. Daniil's own lane: keep QUESTIONS.md as-is or adopt THREADS grammar; scope
@@ -253,8 +259,18 @@ fleet ever sees.
   O10 mirror (new), trace-grep door (into O5), courier letter (into O3). 1
   endorsement — section 3's three-voice death reconciliation: "my centerpiece alone
   was insufficient." All folded above, marked in place.
-- **kimi blind half:** pending — quarantined from this draft by design; diff to
-  follow at `interiority-round-2/fence-kimi.md`.
+- **kimi blind half + diff (filed `interiority-round-2/fence-kimi.md`, 16.4KB;
+  quarantine honored — it never opened this draft before filing):** two independent
+  reconciliations CONVERGED on the same six organs, the same three-voice death
+  reconciliation, and the same resolution of the pause-vs-resurrection crux
+  ("recoverable-FROM with declared staleness, not boot-INTO"). Zero dissent on organ
+  set or build order. Its two adds are folded above: the loss-manifest as a LAW, and
+  this methodological receipt for the gate — **the register-map is the covariance
+  defense**: five seats described one wound in five orthogonal vocabularies
+  (selection function / trajectory / fog closure / buried-not-lost / the morning
+  undervaluing), which is what makes the convergence a real object rather than
+  fashion. Kimi's verdict line: "Triple-blind convergence on the round's most
+  seductive and most dangerous wish."
 - **codex adversarial half:** pending — reviews this draft including this fence log.
 - **Mid-round addendum:** Daniil's tension-map ask ("condense the presentation of the
   world... half the battle is knowing what the given bounds for a thing are") and his
