@@ -236,8 +236,11 @@ def test_p7b_narrow_file_geometry_all_seats():
     assert seats, "guardrail: at least one seat has an INTERIORITY.md"
     for seat in seats:
         result = fn(seat, REPO)
-        if not result:
-            continue                      # fail-soft seats (no Standing) are P8's lane
+        assert result, (
+            f"{seat}: INTERIORITY.md EXISTS but the sidecar returned '' -- a real "
+            f"seat's file must never render as silence (kimi Seam A: heading drift "
+            f"would silently drop the seat's interiority and this pin used to skip it)"
+        )
         assert len(result) <= 1500, (
             f"{seat}: digest {len(result)} chars breaches the 1500 total budget "
             f"-- geometry-specific escape (kimi's narrow-file concern)"
@@ -249,6 +252,59 @@ def test_p7b_narrow_file_geometry_all_seats():
         assert full_standing_present, (
             f"{seat}: long digest carries no excerpt marker -- a partial window "
             f"must say it is partial"
+        )
+
+
+def test_p7c_found_file_without_standing_is_loud(tmp_path):
+    """[kimi Seam A, observed RED 2026-07-29] Missing FILE and found-file-but-no-
+    Standing-match are different failures and must not share the silent ''. If a
+    seat's Standing heading drifts out of the extractor's regex, the sidecar must
+    emit a loud minimal header naming the miss -- silence here drops the seat's
+    interiority with nothing logged anywhere, and P7b used to skip right over it."""
+    from scripts import bifrost_runner_deepseek as dr
+
+    fn = getattr(dr, '_interiority_sidecar', None)
+    if fn is None:
+        pytest.skip("_interiority_sidecar not built yet")
+    seat_dir = tmp_path / "charters" / "drifted_seat"
+    seat_dir.mkdir(parents=True)
+    (seat_dir / "INTERIORITY.md").write_text(
+        "# INTERIORITY — drifted\n\n#### Who I Am These Days\n\nsome text, no "
+        "Standing heading anywhere\n", encoding="utf-8")
+    result = fn("drifted_seat", str(tmp_path))
+    assert result, (
+        "found-but-no-Standing rendered as '' -- indistinguishable from a missing "
+        "file, and the seat's interiority silently vanishes from its boot"
+    )
+    assert "INTERIORITY.md" in result and ("no standing" in result.lower()
+                                           or "not matched" in result.lower()
+                                           or "drift" in result.lower()), (
+        f"the loud path must NAME the miss and point at the file, got: {result!r}"
+    )
+    # And the true missing-file contract (P8) is unchanged:
+    assert fn("truly_missing_seat", str(tmp_path)) == ""
+
+
+def test_p7d_disavowal_always_renders():
+    """[kimi Seam B, guardrail] The 'glows, never wears VERIFIED' disavowal must
+    render for EVERY seat regardless of how the provenance clause gets capped --
+    the G4 token alone is not the semantic payload; the disavowal is."""
+    from scripts import bifrost_runner_deepseek as dr
+
+    fn = getattr(dr, '_interiority_sidecar', None)
+    if fn is None:
+        pytest.skip("_interiority_sidecar not built yet")
+    charters = os.path.join(REPO, "charters")
+    for seat in os.listdir(charters):
+        if not os.path.isfile(os.path.join(charters, seat, "INTERIORITY.md")):
+            continue
+        result = fn(seat, REPO)
+        if not result:
+            continue                      # P7b owns the non-empty contract
+        assert "never wears VERIFIED" in result, (
+            f"{seat}: the disavowal was severed from the digest -- a capped "
+            f"provenance clause may keep G4 while shedding the VERIFIED-disavowal "
+            f"(kimi Seam B); the fixed header line must always carry it"
         )
 
 
