@@ -54,6 +54,7 @@ def _ns() -> str:
 
 STALL_HYSTERESIS_S = _scaled(int(os.getenv("AKASHIC_STALL_HYSTERESIS_S", "180")), floor=1)
 PAGE_DEDUP_TTL = _scaled(3600)          # one emission per (channel, agent, state) per hour
+GHOST_PAGE_AGE_S = _scaled(3600)        # a vanished subject's page outlives it this long, max
 
 # Progress-age thresholds (2026-07-26). deepseek's line on the kimi post-mortem was
 # "if lane_cursor_age > 6h: escalate" -- 6h kept, measured against the age of the OLDEST
@@ -1253,12 +1254,29 @@ def _reconcile_pages(pages: List[Dict[str, Any]], agents: List[str]) -> None:
         from core.comm import pager
         live = {_page_key(f) for f in pages}
         scope = {str(a) for a in (agents or [])}
+        # GHOST PAGES (2026-07-29): a page whose SUBJECT left the examinable universe
+        # (an expired incarnation -- no worklive/runner/presence/recent-mail, so never
+        # in known_agents() again) can never be re-examined, and the scoping guard
+        # below turns into an immortality clause. Only a round that examined the WHOLE
+        # known universe may judge universe-absence, and only past an age gate that
+        # protects transient presence gaps. Live receipt: claude#b2a4c581's hard_wedge
+        # page rendered into every prompt whisper for 14+ hours after its pulse expired.
+        try:
+            universe = set(known_agents())
+        except Exception:
+            universe = None                   # unknowable universe: judge nothing
+        full_round = universe is not None and universe <= scope
+        now = time.time()
         for rec in pager.unread_pages(c=c):
             key = str(rec.get("key") or "")
             if not key or key in live:
                 continue
             if str(rec.get("agent") or "") not in scope:
-                continue                      # not ours to retract this round
+                subject = str(rec.get("agent") or "")
+                age = now - float(rec.get("ts") or now)
+                if not (full_round and subject not in universe
+                        and age > GHOST_PAGE_AGE_S):
+                    continue                  # not ours to retract this round
             pager.clear_key(key, c=c)
             try:
                 agent, _, state = key.partition(":")
