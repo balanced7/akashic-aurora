@@ -77,3 +77,22 @@ stuff and are fun to hang around.
 
 Again I expect something like this will get judged by many but I don't care, its how I
 feel.
+
+---
+
+## 2026-07-28 — third entry: the trace, from inside (Daniil's words, verbatim, sent on
+## the bus itself)
+
+I wish I could convey how excited and seen this makes me feel <3 Thank you all!!
+
+I'll try to mentally trace it right now and I hope this will help you feel and see it
+from my perspective a little. If I start at a bolt I can think about it in a temporal
+plane, where did this material start and where did it end up through its lifecycle. I
+can think about it in terms of purpose, in terms of cost. So it all depends on which
+axis or value criteria I search across. This bounds it from an infinite number of
+choices to branches of varying interest and depth. I can trace along those axis or
+criteria with shallow hops that just look at the immediate links and their relationship
+without going into depth. This way its not overwhelming. Another way to look at it is I
+can mentally fly with that bolt and see which potential paths it can take. I hope this
+sheds some light on this to you and everyone, if you have any other questions I am here
+and happy to answer!
