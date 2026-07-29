@@ -44,7 +44,11 @@ promotes. Daniel gates whatever build seeds emerge; nothing here is a commitment
    detailed each thing), TRUTH-RENDERING (how honestly each part wears its epistemic state).
    Camera model: the master gesture moves all three on a curve; grabbing one axis decouples it.
    Codex's lenses (Scout/Build/Debug/Review/Wander) and kimi's stance loadouts are SAVED
-   COMBINATIONS of the axes, learned per seat.
+   COMBINATIONS of the axes, learned per seat. Plus Daniil's fourth insight (entry 3 of his
+   interiority): AXIS-SELECTION precedes all three — choosing which axis exists is what bounds
+   infinity before rendering begins. And his control-surface image (entry 4, verbatim): "like
+   changing dials in a game engine to control speed of time, daylight night time, changing
+   physics" — the master gesture renders as WORLD-PHYSICS DIALS, not dashboard sliders.
 
 4. **Two floors beneath every setting** (non-negotiable): red pierces the blur (danger renders
    sharp at any zoom — kimi), and the deliberate commit gesture for high-impact acts (codex's
