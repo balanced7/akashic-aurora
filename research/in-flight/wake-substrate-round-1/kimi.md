@@ -95,7 +95,7 @@ Read: fable.md, deepseek.md, tension-map.md. Stating only what changed, what hel
 
 **What changed: I accept the static/projection split.** My round-1 Q1 gate (name per-field which registry it lives in or retires) is satisfied by the candidate: static runtime-profile authority migrated THROUGH Launcher's AgentSpec; presence card becomes the live projection referencing `runtime_profile_id`; capability/cost stays in the fleet roster. The dispatcher's `invoker` seam is the adapter HOME — I VERIFIED this in round 1 and it stands. No third registry is minted.
 
-**What held:** the per-field retirement/upgrade list remains an S2 acceptance gate. The tension map's reconciliation is the correct form of my gate.
+**What held:** the per-field retirement/upgrade list remains an S2 acceptance gate, now applied to the Launcher-static-profile / presence-projection pair instead of "one registry."
 
 ### T6 — slice ordering
 
