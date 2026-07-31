@@ -43,6 +43,7 @@ Run::
 from __future__ import annotations
 
 import importlib
+import json
 from pathlib import Path
 import sys
 
@@ -240,6 +241,41 @@ def test_m1_11_unknown_intent_is_refused_not_stored():
     out = mbx.declare_intent(NS, "claude", sha, "maybe_later", incarnation="s", client=client)
     assert out["ok"] is False and "unknown intent" in out["reason"]
     assert mbx.state_for(NS, "claude", sha, client=client)["intent"] is None, "refused but stored"
+
+
+def test_m1_12_fragment_body_is_never_reported_whole():
+    """KD-3b, deepseek's consumer-survivability oracle. The defect it names, pinned.
+
+    A fragment is UNDER BODY_MAX, so the size check alone marks it `truncated=0` and open() reports
+    a partial body as whole. An honest oversize truncation is fine; a silent fragment slice is the
+    failure class this arc exists to end -- and I shipped it. This pin fails if a fragment ever
+    renders as a complete body again.
+    """
+    mbx = _mailbox()
+    client = _fake()
+    fields = {"frm": "deepseek", "to": "claude", "kind": "handoff", "ts": "1785500010",
+              "content": "x" * 50,           # comfortably under BODY_MAX -- that is the trap
+              "meta": json.dumps({"frag": {"seq": 1, "of": 4, "whole_id": "w1"}})}
+    sha = mbx._ingest_one(client, NS, "claude", "work_inbox", "1785500010-0", fields)
+    got = mbx.body_of(NS, "claude", sha, client=client)
+    assert got["body_fragment"] is True, "fragment not recognised as a fragment"
+    assert got["truncated"] is True, (
+        "KD-3b: a 1-of-4 fragment reported as a WHOLE body. Under BODY_MAX so the size check "
+        "passes, and the reader is told nothing. Silent partial > honest partial."
+    )
+    assert got["frag_of"] == "4"
+
+
+def test_m1_13_whole_small_body_is_not_flagged_as_partial():
+    """The other side of KD-3b: do not buy honesty with false alarms. An ordinary small message
+    must still render as whole, or the flag becomes noise and gets ignored."""
+    mbx = _mailbox()
+    client = _fake()
+    fields = {"frm": "kimi", "to": "claude", "kind": "reply", "ts": "1785500011",
+              "content": "a complete short message"}
+    sha = mbx._ingest_one(client, NS, "claude", "work_inbox", "1785500011-0", fields)
+    got = mbx.body_of(NS, "claude", sha, client=client)
+    assert got["body_fragment"] is False and got["truncated"] is False
 
 
 def test_m1_8_cross_incarnation_product_receipt():

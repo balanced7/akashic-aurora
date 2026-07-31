@@ -204,6 +204,16 @@ def _ingest_one(client, ns: str, agent: str, source: str, sid: str,
     # (dual-write is LIVE until T047) and only some carry content.
     body = str(fields.get("content", "") or "")
     kept, truncated = body[:BODY_MAX], len(body) > BODY_MAX
+    # KD-3b (deepseek's consumer-survivability oracle, 2026-07-31): a FRAGMENT is a partial body
+    # that is not itself over BODY_MAX, so the size check alone marks it `truncated=0` and open()
+    # then reports a 25% body as whole. That is a silent lie of exactly the class this arc exists
+    # to end -- worse than the honest oversize case, because nothing signals it. _ingest_one had
+    # zero fragment awareness. A fragment is now marked incomplete on its face; reassembly feeding
+    # the mailbox is a later slice, and until it exists the entry says so rather than pretending.
+    frag = meta.get("frag") if isinstance(meta, dict) else None
+    is_fragment = bool(isinstance(frag, dict) and int(frag.get("of") or 1) > 1)
+    if is_fragment:
+        truncated = True
     if not body and existing.get("body"):
         kept, truncated = existing.get("body", ""), existing.get("body_truncated") == "1"
     mapping = {
@@ -217,6 +227,8 @@ def _ingest_one(client, ns: str, agent: str, source: str, sid: str,
         "body_truncated": "1" if truncated else "0",
         "body_len": str(len(body)) if body else str(existing.get("body_len") or 0),
         "identity_basis": id_basis,
+        "body_fragment": "1" if is_fragment else existing.get("body_fragment", "0"),
+        "frag_of": str((frag or {}).get("of") or "") if is_fragment else existing.get("frag_of", ""),
     }
     client.hset(mkey, mapping=mapping)
     client.zadd(k["z"], {sha: float(mapping["ts_s"]) if float(mapping["ts_s"]) > 0
@@ -487,6 +499,8 @@ def body_of(ns: str, agent: str, sha: str, *, client=None) -> Optional[Dict[str,
             "to": m.get("to", ""), "ts": m.get("ts", ""), "body": m.get("body", ""),
             "truncated": m.get("body_truncated") == "1",
             "body_len": int(m.get("body_len") or 0),
+            "body_fragment": m.get("body_fragment") == "1",
+            "frag_of": m.get("frag_of", ""),
             "body_available": stored,
             "body_unavailable_reason": None if stored else
             "indexed before M1 body storage -- run `mailbox <agent> --backfill` to recover any "
@@ -644,4 +658,16 @@ def state_for(ns: str, agent: str, sha: str, *, client=None) -> Dict[str, Any]:
     return {"available": True, "found": True, **entry,
             "seen_by": seen, "intent": intent,
             "read_but_undeclared": bool(seen) and intent is None,
-            "retention_s": retention_s_for(entry["kind"])}
+            "retention_s": retention_s_for(entry["kind"]),
+            # KD-2 (deepseek's oracle): the index half is re-derivable from the streams, but seen
+            # receipts and intents are NOT -- rebuild() never touches them and nothing in the log
+            # can regenerate them. So the product receipt's "a new incarnation sees that the prior
+            # one read it" holds only WITHIN A SINGLE REDIS LIFETIME. A flush is a total amnesia
+            # event for M1 state while the streams survive -- the worst asymmetry, because the mail
+            # comes back looking never-read. Declared on every response rather than documented in a
+            # module nobody reads: an unstated bound is how a surface starts lying about itself.
+            "durability": {
+                "index": "re-derivable from the log via rebuild()",
+                "seen_and_intent": "Redis-only; NOT re-derivable; lost on flush",
+                "receipt_scope": "survives incarnation death within one Redis lifetime",
+            }}
