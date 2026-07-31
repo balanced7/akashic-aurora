@@ -80,14 +80,29 @@ def test_m1_1_entry_carries_the_body():
 
 
 def test_m1_2_body_survives_transport_eviction():
-    """The whole point of durable: the body outlives the ephemeral lane it arrived on."""
+    """The whole point of durable: the body outlives the ephemeral lane it arrived on.
+
+    The first draft of this pin was an unconditional `pytest.fail` placeholder, labelled as such.
+    This is the real assertion it stood in for -- index a message, destroy the transport entirely,
+    and the body must still read.
+    """
     mbx = _mailbox()
-    assert hasattr(mbx, "body_of"), "D1: body_of() must exist before this can be exercised"
     client = _fake()
-    assert mbx.body_of(NS, "claude", "any-sha", client=client) is not None or True, (
-        "placeholder -- real pin asserts: index a message, drop the stream entry, body still reads"
+    fields = {"frm": "kimi", "to": "claude", "kind": "reply", "ts": "1785500000",
+              "content": "the cold-seat critique that was minutes from being lost"}
+    sha = mbx._ingest_one(client, NS, "claude", "work_inbox", "1785500000-0", fields)
+    assert sha, "ingest refused a normal directed reply"
+
+    got = mbx.body_of(NS, "claude", sha, client=client)
+    assert got and got["body"] == fields["content"], "body not retrievable right after ingest"
+
+    client.streams.clear()          # the ephemeral lane is gone -- aged out, trimmed, or evicted
+    after = mbx.body_of(NS, "claude", sha, client=client)
+    assert after and after["body"] == fields["content"], (
+        "D1: the body died with the transport. A mailbox whose contents vanish with the stream is "
+        "an index of envelopes, not a mailbox."
     )
-    pytest.fail("D1 UNBUILT: no durable body store behind the mailbox index")
+    assert after["truncated"] is False and after["body_len"] == len(fields["content"])
 
 
 # --------------------------------------------------------------- D2: one taxonomy

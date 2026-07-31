@@ -38,6 +38,15 @@ from core.comm import packet_spec
 LONG_KINDS = frozenset({"handoff", "request", "question", "blocker"})
 LONG_RETENTION_S = 30 * 86400
 SHORT_RETENTION_S = 7 * 86400
+
+# M1/D1: the largest body kept inline on the entry. Beyond this the entry records the true length
+# and flags itself truncated rather than pretending to be whole.
+BODY_MAX = 64 * 1024
+
+# M1/D4: the intent roster. CLOSED on purpose -- an open set lets two seats mint incompatible
+# intents, and this repo currently runs two live seats on one agent id. PROVISIONAL: taxonomy is
+# codex's lane and the roster is out for its ruling; the closed-ness is the part I am confident in.
+INTENTS = frozenset({"act", "decline", "delegate", "defer"})
 DEFAULT_CAP = 5000
 DEFAULT_BUDGET = 2000
 _LAG_PROBE = 64
@@ -85,6 +94,30 @@ def _fallback_sha(fields: Dict[str, str]) -> str:
     return "fb" + hashlib.sha256(basis.encode("utf-8", "replace")).hexdigest()[:40]
 
 
+# M1/D3. Codex's ruling: fresh message_id per intentional send; idempotency_key minted once and
+# preserved through retry/dual-write/redrive/rehome; payload_digest for CONFLICT DETECTION ONLY,
+# never identity. Content-derived identity collapses legitimate repeated mail while still failing
+# to collapse transport duplicates -- the exact inversion of the goal.
+#
+# T116 owns the PRODUCER side and is unbuilt, so this is the consumer seam it will feed. Until
+# then the content fallback still runs, but it is now LABELLED: every entry records which basis
+# its identity came from, so degraded identity is visible instead of silently equivalent to real
+# identity. Ranked strongest-first.
+_IDENTITY_FIELDS = (("message_id", "message_id"), ("idempotency_key", "idempotency_key"),
+                    ("sha", "packet_sha"))
+
+
+def identity_of(fields: Dict[str, str], meta: Optional[Dict[str, Any]] = None) -> Tuple[str, str]:
+    """Return (identity, basis). Basis is never omitted -- a caller must be able to tell an
+    identity the packet ASSERTED from one this module INFERRED off the payload."""
+    meta = meta if isinstance(meta, dict) else {}
+    for key, basis in _IDENTITY_FIELDS:
+        val = str(fields.get(key) or meta.get(key) or "")
+        if val:
+            return val, basis
+    return _fallback_sha(fields), "content_fallback"
+
+
 def _entry_ts_s(fields: Dict[str, str], sid: str) -> float:
     ts = str(fields.get("ts", ""))
     try:
@@ -122,6 +155,10 @@ def _keys(ns: str, agent: str) -> Dict[str, str]:
         "msg": f"{ns}:mailbox:msg:{agent}:",          # + sha
         "evicted": f"{ns}:mailbox:evicted:{agent}",
         "answered": f"{ns}:mailbox:answered",          # global answers map
+        # M1 additions. Both stay inside {ns}:mailbox:* so M0's containment invariant holds:
+        # the mailbox still writes no cursors, no acks, no sends, no wake state.
+        "seen": f"{ns}:mailbox:seen:{agent}",          # field "<sha>|<incarnation>" -> ts
+        "intent": f"{ns}:mailbox:intent:{agent}",      # field "<sha>" -> json declaration
     }
 
 
@@ -152,7 +189,7 @@ def _ingest_one(client, ns: str, agent: str, source: str, sid: str,
             raise
     if not _is_mailbox_kind(kind, meta):
         return None
-    sha = str(fields.get("sha") or "") or _fallback_sha(fields)
+    sha, id_basis = identity_of(fields, meta)
     k = _keys(ns, agent)
     mkey = k["msg"] + sha
     existing = client.hgetall(mkey) or {}
@@ -161,10 +198,25 @@ def _ingest_one(client, ns: str, agent: str, source: str, sid: str,
     except (ValueError, TypeError):
         ids = {}
     ids[source] = sid
+    # M1/D1: STORE THE BODY. Without this the index lists an envelope it cannot open, and codex's
+    # product receipt ("opens the full body") is unreachable once the ephemeral lane ages out.
+    # Never clobber a stored body with an empty one -- the same message arrives on several sources
+    # (dual-write is LIVE until T047) and only some carry content.
+    body = str(fields.get("content", "") or "")
+    kept, truncated = body[:BODY_MAX], len(body) > BODY_MAX
+    if not body and existing.get("body"):
+        kept, truncated = existing.get("body", ""), existing.get("body_truncated") == "1"
     mapping = {
         "sha": sha, "kind": kind, "frm": str(fields.get("frm", "?")),
+        "to": str(fields.get("to", "") or existing.get("to", "")),
         "ts": str(fields.get("ts", "")), "ids": json.dumps(ids),
         "ts_s": str(existing.get("ts_s") or _entry_ts_s(fields, sid)),
+        "body": kept,
+        # Declared, never silent: a reader must be able to tell a whole body from a clipped one
+        # (T120 -- every partial surface declares its bounds).
+        "body_truncated": "1" if truncated else "0",
+        "body_len": str(len(body)) if body else str(existing.get("body_len") or 0),
+        "identity_basis": id_basis,
     }
     client.hset(mkey, mapping=mapping)
     client.zadd(k["z"], {sha: float(mapping["ts_s"]) if float(mapping["ts_s"]) > 0
@@ -396,3 +448,122 @@ def explain(ns: str, agent: str, ref: str, *, client=None,
                                 if sid in answered}}
     except Exception as exc:
         return _unavailable(f"explain failed ({exc})")
+
+
+# ------------------------------------------------------------- M1: bodies, seen, intent
+#
+# M0 was OBSERVATIONAL ONLY. M1 deliberately changes that: `open` and `declare_intent` WRITE.
+# The containment invariant is unchanged and load-bearing -- every write below lands inside
+# {ns}:mailbox:*, so the mailbox still touches no cursor, no ack, no send, no wake state.
+#
+# The ruling this implements (STATE-OF-THE-ROUND sec 3, codex, accepted without defence):
+#   "Opening mail may say seen. It must never mean consumed, handled, agreed, settled, or safe
+#    to forget."
+# Hence: open() appends exactly one idempotent seen receipt and touches nothing else. Consumption
+# stays the cursor's business; settlement stays the instrument's; judgement stays the agent's.
+
+def retention_s_for(kind: str) -> int:
+    """How long an entry is promised. D2's fix is structural rather than by policy: because the
+    BODY now lives on the entry, an entry and its body expire together by construction -- the
+    30-day-index-pointing-at-a-7-day-stream promise can no longer be made."""
+    return LONG_RETENTION_S if str(kind) in LONG_KINDS else SHORT_RETENTION_S
+
+
+def body_of(ns: str, agent: str, sha: str, *, client=None) -> Optional[Dict[str, Any]]:
+    """The full body, from the mailbox's own storage -- not from the ephemeral lane.
+
+    Returns None when the entry is unknown (never a fabricated empty body: absent and empty are
+    different facts, and conflating them is how a surface starts lying)."""
+    client = client or _connect()
+    m = client.hgetall(_keys(ns, agent)["msg"] + str(sha)) or {}
+    if not m:
+        return None
+    return {"sha": str(sha), "kind": m.get("kind", "_unknown"), "frm": m.get("frm", "?"),
+            "to": m.get("to", ""), "ts": m.get("ts", ""), "body": m.get("body", ""),
+            "truncated": m.get("body_truncated") == "1",
+            "body_len": int(m.get("body_len") or 0)}
+
+
+def open(ns: str, agent: str, sha: str, *, incarnation: str, client=None) -> Dict[str, Any]:
+    """Say SEEN, once, and hand back the full body. Writes exactly one receipt and nothing else.
+
+    Idempotent per (message, incarnation): the field key IS the identity, so a retry, a redelivery,
+    or a second call in the same incarnation cannot mint a second receipt. A DIFFERENT incarnation
+    reading the same mail is a genuinely new fact and gets its own receipt -- that is what lets a
+    fresh seat see 'the prior incarnation read this'.
+
+    Does NOT advance any cursor. The falsifier for that claim is a pin, not this sentence.
+    """
+    client = client or _connect()
+    entry = body_of(ns, agent, sha, client=client)
+    if entry is None:
+        return {"ok": False, "reason": f"no mailbox entry for sha {sha}"}
+    k = _keys(ns, agent)
+    field = f"{sha}|{incarnation}"
+    first = not (client.hgetall(k["seen"]) or {}).get(field)
+    if first:
+        client.hset(k["seen"], field, str(time.time()))
+    return {"ok": True, "first_open_by_this_incarnation": first,
+            "seen_by": seen_by(ns, agent, sha, client=client), **entry}
+
+
+def seen_by(ns: str, agent: str, sha: str, *, client=None) -> List[Dict[str, Any]]:
+    """Which incarnations have opened this, and when. The evidence a fresh seat reads to learn
+    that a predecessor saw the mail."""
+    client = client or _connect()
+    out = []
+    for field, ts in (client.hgetall(_keys(ns, agent)["seen"]) or {}).items():
+        f = str(field)
+        if f.startswith(f"{sha}|"):
+            out.append({"incarnation": f.split("|", 1)[1], "at": float(ts or 0)})
+    return sorted(out, key=lambda r: r["at"])
+
+
+def declare_intent(ns: str, agent: str, sha: str, intent: str, *, incarnation: str,
+                   note: str = "", to: str = "", client=None) -> Dict[str, Any]:
+    """Declare what you will DO about this mail. The gap Daniil named: without it, 'read and
+    declined' is indistinguishable from 'never seen', and every reader re-adjudicates.
+
+    Refuses an unknown intent rather than storing it. An open vocabulary across two live seats
+    produces incompatible declarations that no reader can reconcile -- refusing loudly is cheaper.
+    """
+    if str(intent) not in INTENTS:
+        return {"ok": False, "reason": f"unknown intent {intent!r}; allowed: {sorted(INTENTS)}"}
+    if str(intent) == "delegate" and not to:
+        return {"ok": False, "reason": "delegate requires `to` -- an unrouted delegation is a drop"}
+    client = client or _connect()
+    if body_of(ns, agent, sha, client=client) is None:
+        return {"ok": False, "reason": f"no mailbox entry for sha {sha}"}
+    rec = {"intent": str(intent), "by": incarnation, "at": time.time(),
+           "note": str(note)[:500], "to": str(to)}
+    # Append-only in spirit: a later declaration supersedes rather than erases, and the prior one
+    # stays readable under its own key (corrections are new entries, never edits).
+    k = _keys(ns, agent)
+    prior = (client.hgetall(k["intent"]) or {}).get(str(sha))
+    if prior:
+        client.hset(k["intent"], f"{sha}|superseded|{time.time()}", prior)
+    client.hset(k["intent"], str(sha), json.dumps(rec))
+    return {"ok": True, **rec}
+
+
+def state_for(ns: str, agent: str, sha: str, *, client=None) -> Dict[str, Any]:
+    """Everything a fresh incarnation needs about one message, in ONE hop.
+
+    `read_but_undeclared` is the receipt's load-bearing state: somebody opened this and did not
+    say what they would do. Silence is now visible instead of being indistinguishable from
+    absence.
+    """
+    client = client or _connect()
+    entry = body_of(ns, agent, sha, client=client)
+    if entry is None:
+        return {"available": True, "found": False, "sha": str(sha)}
+    seen = seen_by(ns, agent, sha, client=client)
+    raw = (client.hgetall(_keys(ns, agent)["intent"]) or {}).get(str(sha))
+    try:
+        intent = json.loads(raw) if raw else None
+    except (ValueError, TypeError):
+        intent = None
+    return {"available": True, "found": True, **entry,
+            "seen_by": seen, "intent": intent,
+            "read_but_undeclared": bool(seen) and intent is None,
+            "retention_s": retention_s_for(entry["kind"])}
