@@ -201,8 +201,10 @@ def _warn_unmirrored(soft=False, status=None):
     if soft:
         print(f"\n[i] Unmirrored: {label}\n"
               "    Safe default: commit YOUR OWN lane's files BY NAME; modified-tracked "
-              "files may be a sibling's mid-flight work (check `task list` claims). "
-              "research/** persists by doctrine.")
+              "files may be a sibling's mid-flight work (check `task list` claims).\n"
+              "    NEW loose research/**.md does NOT persist by committing it -- rule-13 has "
+              "REFUSED that since the P3 flip (2026-07-23). Bring it through the door:\n"
+              "      py agent_cli.py doc adopt <path>   (mints an atom; leaves your file alone)")
         return True
     print(f"\n[!] UNMIRRORED WORK: {label} -- a slice isn't done until it's mirrored.")
     if s.get("summary"):
