@@ -516,9 +516,38 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
             waited = lh.get("backlog_age_s")
             depth = int(lh.get("depth") or 0)
             if depth > 0 and waited is not None and waited >= LANE_STALL_WARN_S:
-                paging = waited >= LANE_STALL_PAGE_S
-                head = "LANE STALL -- " if paging else "lane slowing -- "
-                tail = "" if paging else f" (pages at {_fmt_age(LANE_STALL_PAGE_S)})"
+                # W108 (2026-07-30): a PAGE is a demand that someone act. It is only
+                # honest when a drainer exists. `wl` (a runner phase) is that evidence --
+                # the same signal the unread-backlog finding ~100 lines above already
+                # grades by, where an absent agent renders OFFLINE/ghost-mail and a
+                # present-but-runnerless seat renders "consumes on next turn/wake", both
+                # DASHBOARD and neither a page. This finding consulted no liveness at all,
+                # so two adjacent checks over one seat disagreed: one knew the seat was
+                # gone, the other paged anyway.
+                #
+                # Live receipt: five seats paged every turn into the operator's console --
+                # gemini (parked), codex_root (works off-bus), claude (drains next turn).
+                # None was actionable, and the doctor's own suggested drills for them
+                # (skip-to-now, roster --reap) ADVANCE CURSORS PAST UNDELIVERED MAIL; per
+                # grok's verification the reap path would have re-homed live runners'
+                # seat mail. A false page whose only remedy destroys data is worse than
+                # silence.
+                #
+                # What SURVIVES: a live runner whose lane has not moved still pages. That
+                # is the 2026-07-26 kimi receipt (pulse fresh, 45h at depth 55) and the
+                # whole reason this finding exists -- alive is not the same as moving.
+                drainer = bool(wl)
+                paging = drainer and waited >= LANE_STALL_PAGE_S
+                if paging:
+                    head, tail = "LANE STALL -- ", ""
+                elif drainer:
+                    head = "lane slowing -- "
+                    tail = f" (pages at {_fmt_age(LANE_STALL_PAGE_S)})"
+                else:
+                    # No runner phase: held, not stalled. Stays VISIBLE (T120 -- a surface
+                    # must not go quiet about what it holds) and stops demanding action.
+                    head = "lane HELD (no runner draining) -- "
+                    tail = " -- not a stall: no drainer is expected"
                 out.append(_f(agent, "lane_stall", "page" if paging else "dashboard",
                               f"{agent}: {head}{depth} message(s) undrained on the work "
                               f"lane, oldest waiting {_fmt_age(waited)}{tail}",
