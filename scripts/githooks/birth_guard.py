@@ -60,19 +60,30 @@ def classify(relpath: str) -> str:
     return "allow"
 
 
-def staged_added() -> list[str]:
-    r = subprocess.run(["git", "diff", "--cached", "--name-only", "--diff-filter=A"],
-                       cwd=ROOT, capture_output=True, text=True)
+def staged_added(paths: "list[str] | None" = None) -> list[str]:
+    """New .md in the index. `paths` pathspec-limits the query -- C2-4.
+
+    The index is SHARED between seats. Called bare (the pre-commit hook) this judges the whole
+    index, which is right for a hook guarding a whole commit. Called with paths (mirror's
+    named-path mode) it must judge ONLY those, or one seat's loose .md refuses every other
+    seat's unrelated commit and keeps refusing until somebody runs `git reset` -- a one-seat
+    mistake becoming a fleet-wide commit outage. --diff-filter=A is preserved in BOTH modes:
+    narrowing by path must never turn an edit to an existing doc into a 'birth'."""
+    cmd = ["git", "diff", "--cached", "--name-only", "--diff-filter=A"]
+    if paths:
+        cmd += ["--", *paths]
+    r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
     return [ln.strip() for ln in r.stdout.splitlines() if ln.strip()]
 
 
-def main() -> int:
+def main(argv: "list[str] | None" = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
     mode = os.environ.get("AKASHIC_BIRTH_GUARD", "").strip().lower()
     if mode == "off":
         print("[birth-guard] AKASHIC_BIRTH_GUARD=off -- SKIPPED (loud by design)")
         return 0
     refusals, warns = [], []
-    for p in staged_added():
+    for p in staged_added(argv or None):
         verdict = classify(p)
         if verdict == "refuse":
             refusals.append(p)

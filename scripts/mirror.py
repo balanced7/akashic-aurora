@@ -113,14 +113,24 @@ def main():
         if staged:
             hook13 = os.path.join(ROOT, "scripts", "githooks", "birth_guard.py")
             if os.path.exists(hook13):
-                r13 = subprocess.run([sys.executable, hook13],
-                                     cwd=ROOT, env=ENV, capture_output=True, text=True)
-                if (r13.stdout or "").strip():
-                    print(r13.stdout.strip())
-                if r13.returncode != 0:
-                    print("[mirror] rule-13 birth guard REFUSED commit — born-through-the-door: "
-                          "py agent_cli.py doc new (or --draft), or fix the path.")
-                    sys.exit(1)
+                # SCOPED like rule-8 above (C2-4): pass the staged list this invocation is
+                # actually committing. Called bare, the guard re-derives the WHOLE shared
+                # index -- so another seat's loose .md refused THIS commit of an entirely
+                # allowed path, and kept refusing until someone ran `git reset` (W111,
+                # lesson mirror_refusal_leaves_tree_staged; two false refusals on a crown
+                # doc, 2026-07-31). Same 150-file chunking as rule-8 for the Windows
+                # ~32K argv cap.
+                staged13 = [f for f in staged.strip().split("\n") if f.endswith(".md")]
+                for i in range(0, len(staged13), 150):
+                    chunk13 = staged13[i:i + 150]
+                    r13 = subprocess.run([sys.executable, hook13, *chunk13],
+                                         cwd=ROOT, env=ENV, capture_output=True, text=True)
+                    if (r13.stdout or "").strip():
+                        print(r13.stdout.strip())
+                    if r13.returncode != 0:
+                        print("[mirror] rule-13 birth guard REFUSED commit — born-through-the-door: "
+                              "py agent_cli.py doc new (or --draft), or fix the path.")
+                        sys.exit(1)
         if staged:
             msg = msg or f"Mirror progress {datetime.now():%Y-%m-%d %H:%M}"
             if paths and not add_all:
