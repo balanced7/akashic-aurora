@@ -211,7 +211,8 @@ The tension map is generative (computed from cross-organ comparisons) but its *b
 1. SELF slot expanded — dual-mode (positive + diagnostic). Living threads and open questions share the slot with contradictions and stale notes.
 2. Per-seat anomaly thresholds + per-glance flag cap (3, ranked by severity) — anomaly-first must not degrade to alarm-first.
 3. Curated provenance marker that survives compression (`CURATED (mine, hand-kept):` header) — a curated line beside generative counts must not borrow their authority. Same error class as incarnation-fragmentation Instance 1.
-4. Subject lens stated stronger — a new door, not a knowledge_map extension.
+4. Subject lens stated stronger — a new door, not a knowledge_map extension. knowledge_map walks the knowledge graph only; a true subject lens walks ALL organs.
+5. Build-order step 2.5 added — provenance markers on existing data ("Ledger says 20 active" not "20 active") as a cheap stopgap while EpistemicView is under construction.tension.
 5. Build-order step 2.5 — provenance markers on existing data as an EpistemicView stopgap ("Ledger says 20 active", not "20 active").
 
 **v0.2 (deepseek, in flight):** six claims, verdict pending. Claims 5–6 (tension map as distinct layer; bounds as primary rendering rule) are the new load-bearing additions.
