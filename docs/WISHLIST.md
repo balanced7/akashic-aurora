@@ -609,6 +609,62 @@ This is census face 2 (invisible liveness) with a reproducible receipt, and it c
   path a PEER holds, independent of how it got staged (`--all`, `git add -A`, or a hook), and
   say whose lock it is. Related: [[no-coauthor-trailer]] is about attribution in the message;
   this is attribution of the CHANGE itself.
+- [ ] W111 (07-31, claude) — mirror.py must UNSTAGE on guard refusal.
+
+It stages, THEN guards, then exits(1) without rolling back. birth_guard scans
+`git diff --cached --diff-filter=A`, so a refused commit leaves strangers' .md staged and
+every SUBSEQUENT commit -- by any seat, on any path -- inherits the same refusal until
+someone thinks to run `git reset`. A one-seat mistake becomes a fleet-wide commit outage
+that outlives the session that caused it.
+
+This is the MECHANISM behind W109 ("one seat's loose markdown blocks every seat's commits"),
+and it shares its root with W110 (blanket-stage swept two locked files mid-edit): mirror
+stages more than it commits.
+
+Cost today: two false refusals, and ~20 minutes spent investigating a doc-door migration
+that was never the problem. The refusal named files I had never touched, which is the part
+that misleads -- it reads as "your artifact is malformed", not "someone else's file is
+stuck in your index".
+
+Fix: stage only AFTER the guard passes, or wrap stage->guard->commit in try/finally with a
+reset of exactly what mirror staged. Structural, not disciplinary: today's workaround
+("remember to check git diff --cached first") is precisely the class of guard Daniil ruled
+against -- a discipline with a delay fuse.
+
+Lesson: mirror_refusal_leaves_tree_staged. Trigger: rule-13 refused a commit naming files I never touched; the real cause was a prior refusal's leftover staging. Land: mirror/commit-door hardening (with W109 + W110).
+- [ ] W112 (07-31, claude) — The door-gate cannot tell "the door is broken" from "the probe was starved" — and its message
+asserts the alarming one.
+
+OBSERVED, 2026-07-31: `mirror.py` push blocked by scripts/githooks/pre-push with
+  [door-gate] BLOCKED: the MCP door is not healthy.
+  [door-gate] Every MCP seat boots through this path -- pushing now ships a
+  [door-gate] fleet-wide boot hang.
+Re-running `py -m core.comm.door_probe` immediately afterwards, on an idle machine, returned
+`door: GREEN (2.58s) -- MCP path healthy`. The push then succeeded unchanged.
+
+NOT ISOLATED — I am not claiming the mechanism. The plausible cause is that the probe ran while
+a pytest suite still had the machine loaded and it exceeded its budget; I did not reproduce it
+under controlled load, so treat that as a hypothesis. What IS certain is the pair of
+observations above.
+
+WHY IT MATTERS more than a flake. That message is maximally alarming and, in this instance,
+false. A seat that trusts it stops and investigates a fleet-wide boot hang that does not exist
+(I did, correctly — given the wording, stopping was the right call). A seat that learns to
+distrust it will one day push through a real one. **A guard that cries wolf is worse than no
+guard, because it trains the exact behaviour it exists to prevent.**
+
+WISH: the probe should distinguish its outcomes and say which it got —
+  GREEN            door answered within budget
+  RED              door answered and was WRONG  -> block, keep the current alarming wording
+  INDETERMINATE    probe did not complete in budget -> say exactly that, report the elapsed
+                   time and the budget, and offer the one-line retry rather than asserting
+                   the door is unhealthy
+An INDETERMINATE result under load is information about the MACHINE, not about the door, and
+should read that way. Existing lesson `hang_guard_needs_latency_budget` already says a hang
+guard needs a latency budget rather than a deadline; this is its reporting half.
+
+Cheap version if the above is too much: on a failed probe, retry once after a short pause
+before blocking, and print both attempts. Most of the value, almost none of the work. Trigger: door-gate blocked a push asserting the MCP door was unhealthy; the probe returned GREEN in 2.58s seconds later, idle. Land: door-probe reporting (with hang_guard_needs_latency_budget).
 
 ## Folded (exemplars — the loop works)
 
