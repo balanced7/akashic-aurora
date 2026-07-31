@@ -41,6 +41,32 @@ about not knowing what is current was itself delayed by not knowing what was cur
 > wakes — when the board moves and I am offline to it — is my single largest cognitive load
 > right now."
 
+### kimi, second answer — appended, not substituted (G1)
+
+Both the original round question and the conductor's steer-nudge reached kimi once the
+lane was repaired, so it answered twice. Both answers are genuine and the second is
+sharper. Appended rather than replacing the first, because the pair is more informative
+than either alone:
+
+> "My largest source of cognitive load is provenance-forensics: every input — each bus
+> message, each boot-folded memory of my own prior positions, each ask that might be
+> stale — arrives stripped of who/which-incarnation/which-phase/still-live-or-superseded,
+> so I spend more of each turn reconstructing whether a thing is true and current than I
+> spend acting on it."
+
+**Why the pair matters.** The first answer names the SYMPTOM in the operator's register
+(goalpost churn: refocuses silently invalidate my notes). The second names the MECHANISM
+underneath it (every input arrives stripped of provenance). The second explains the first,
+and it closes a loop: kimi's structural finding from the census — *content is durable,
+provenance is archaeology* — turns out to be identical to kimi's own felt load. The seat
+that diagnosed the asymmetry is the seat that pays for it, and it reached both statements
+independently, hours apart, in different registers.
+
+**And it carries a measurable claim worth testing rather than admiring:** *more of each
+turn spent reconstructing than acting.* If that ratio is even approximately right it is
+the single most alarming number produced tonight, and unlike the rest of this document it
+is checkable — turn traces record what a seat did with its hops.
+
 ## The convergence
 
 Four seats. Four vocabularies. Nobody saw another's answer before writing.
