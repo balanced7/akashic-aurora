@@ -3928,6 +3928,53 @@ def cmd_mailbox(args):
     from core.comm.bus import Bus
     from core.comm import mailbox
     bus = Bus("mailbox-observer", promote=False)
+
+    # ---- M1 verbs. Built is not wired: these existed in core/comm/mailbox.py with tests green
+    # while NO door exposed them, so no agent could actually use them. This is the door.
+    inc = (getattr(args, "incarnation", None) or os.environ.get("AKASHIC_SESSION8") or "unknown")
+    if getattr(args, "open_sha", None):
+        out = mailbox.open(bus.ns, args.agent_id, args.open_sha, incarnation=inc,
+                           client=bus._client)
+        if args.json:
+            print(json.dumps(out, indent=2, default=str)); return 0
+        if not out.get("ok"):
+            print(f"[mailbox] {out['reason']}"); return 1
+        readers = ", ".join(r["incarnation"] for r in out["seen_by"]) or "(none)"
+        print(f"[mailbox-open] {out['sha'][:12]} kind={out['kind']} frm={out['frm']}")
+        print(f"  seen by: {readers}"
+              f"{'  (first open by this incarnation)' if out['first_open_by_this_incarnation'] else ''}")
+        print(f"  SEEN only -- not consumed, not handled, not settled. Cursor untouched.")
+        if out["truncated"]:
+            print(f"  !! body truncated at {len(out['body'])} of {out['body_len']} chars")
+        print("-" * 60); print(out["body"])
+        return 0
+    if getattr(args, "state_sha", None):
+        out = mailbox.state_for(bus.ns, args.agent_id, args.state_sha, client=bus._client)
+        if args.json:
+            print(json.dumps(out, indent=2, default=str)); return 0
+        if not out.get("found"):
+            print(f"[mailbox] no entry for {args.state_sha}"); return 1
+        print(f"[mailbox-state] {out['sha'][:12]} kind={out['kind']} frm={out['frm']}")
+        print(f"  opened by : {', '.join(r['incarnation'] for r in out['seen_by']) or '(nobody)'}")
+        print(f"  intent    : {out['intent'] or 'NONE DECLARED'}")
+        if out["read_but_undeclared"]:
+            print("  >> READ BUT UNDECLARED -- a seat opened this and said nothing about acting.")
+        print(f"  retention : {out['retention_s'] // 86400}d   identity basis on entry stored")
+        return 0
+    if getattr(args, "intent_sha", None):
+        if not args.intent_kind:
+            print("[mailbox] --intent needs --as act|decline|delegate|defer"); return 2
+        out = mailbox.declare_intent(bus.ns, args.agent_id, args.intent_sha, args.intent_kind,
+                                     incarnation=inc, note=args.intent_note or "",
+                                     to=args.intent_to or "", client=bus._client)
+        if args.json:
+            print(json.dumps(out, indent=2, default=str)); return 0
+        if not out.get("ok"):
+            print(f"[mailbox] {out['reason']}"); return 1
+        print(f"[mailbox-intent] {args.intent_sha[:12]} -> {out['intent']}"
+              f"{' to ' + out['to'] if out['to'] else ''} (by {out['by']})")
+        return 0
+
     if args.rebuild:
         out = mailbox.rebuild(bus.ns, args.agent_id, client=bus._client)
     elif args.explain:
@@ -4422,6 +4469,25 @@ def build_parser():
     mbx.add_argument("--rebuild", action="store_true", help="drop + rebuild the index from the log (determinism receipt)")
     mbx.add_argument("--min-evidence", choices=["unhandled", "consumed", "replied", "acked"],
                      default=None, help="show only entries at or below this evidence tier")
+    # M1: the mailbox stops being read-only. These three are the product receipt's verbs.
+    mbx.add_argument("--open", metavar="SHA", dest="open_sha",
+                     help="M1: say SEEN once and print the FULL BODY. Appends one idempotent seen "
+                          "receipt per (message, incarnation); advances NO cursor. Seen never "
+                          "means consumed, handled, agreed, or settled.")
+    mbx.add_argument("--state", metavar="SHA", dest="state_sha",
+                     help="M1: everything about one message in ONE hop -- body, who has opened it, "
+                          "the declared intent, and read_but_undeclared")
+    mbx.add_argument("--intent", metavar="SHA", dest="intent_sha",
+                     help="M1: declare what you will DO about this message (needs --as)")
+    mbx.add_argument("--as", dest="intent_kind", choices=sorted(("act", "decline", "delegate", "defer")),
+                     help="the declaration: act | decline | delegate | defer")
+    mbx.add_argument("--to", dest="intent_to", default="",
+                     help="required with --as delegate: an unrouted delegation is a drop")
+    mbx.add_argument("--note", dest="intent_note", default="", help="optional free-text reason")
+    mbx.add_argument("--incarnation", default=None,
+                     help="your session suffix. Defaults to $AKASHIC_SESSION8 or 'unknown'. It is "
+                          "load-bearing: seen receipts are keyed per incarnation so a FRESH seat "
+                          "can tell that a PRIOR one read this and declared nothing.")
     mbx.add_argument("--json", action="store_true")
     mbx.set_defaults(fn=cmd_mailbox)
 

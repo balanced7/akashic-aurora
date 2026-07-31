@@ -182,6 +182,66 @@ def test_m1_7_intent_is_declarable_and_distinct_from_seen():
 
 # --------------------------------------------------------------- the receipt, end to end
 
+def test_m1_9_open_leaves_every_cursor_byte_identical():
+    """The MUST NOT, with an executable falsifier.
+
+    Added after I flagged its absence in my own contract review: I had argued to the fleet that a
+    forbidden-effect clause without a test that ATTEMPTS the forbidden act is decoration, and then
+    shipped exactly that -- `open()` documented as cursor-safe with nothing proving it. This is the
+    falsifier. It snapshots every cursor hash, opens, and demands byte-identity.
+    """
+    mbx = _mailbox()
+    client = _fake()
+    fields = {"frm": "codex", "to": "claude", "kind": "question", "ts": "1785500001",
+              "content": "does opening this move anything?"}
+    sha = mbx._ingest_one(client, NS, "claude", "work_inbox", "1785500001-0", fields)
+
+    keys = [f"{NS}:cursor:lane:claude", f"{NS}:cursor:claude"]
+    for k in keys:                      # give the cursors real content to be damaged
+        client.hset(k, "inbox", "1785400000-0")
+    before = {k: dict(client.hgetall(k) or {}) for k in keys}
+
+    mbx.open(NS, "claude", sha, incarnation="seat-A", client=client)
+    mbx.open(NS, "claude", sha, incarnation="seat-B", client=client)
+    mbx.declare_intent(NS, "claude", sha, "decline", incarnation="seat-B", client=client)
+
+    after = {k: dict(client.hgetall(k) or {}) for k in keys}
+    assert before == after, (
+        "open()/declare_intent() moved a cursor. Seen must never mean consumed: the ruling is "
+        f"explicit and this is its falsifier. before={before} after={after}"
+    )
+
+
+def test_m1_10_seen_receipt_is_idempotent_across_retries():
+    """'Exactly one receipt' is contested by construction in a repo that has run two live seats on
+    one agent id, and dual-write is LIVE until T047. Re-opening must not mint a second receipt;
+    a DIFFERENT incarnation must."""
+    mbx = _mailbox()
+    client = _fake()
+    fields = {"frm": "kimi", "to": "claude", "kind": "handoff", "ts": "1785500002",
+              "content": "one body"}
+    sha = mbx._ingest_one(client, NS, "claude", "work_inbox", "1785500002-0", fields)
+    for _ in range(4):
+        mbx.open(NS, "claude", sha, incarnation="seat-A", client=client)
+    assert len(mbx.seen_by(NS, "claude", sha, client=client)) == 1, "retries minted extra receipts"
+    mbx.open(NS, "claude", sha, incarnation="seat-B", client=client)
+    seen = mbx.seen_by(NS, "claude", sha, client=client)
+    assert len(seen) == 2 and {r["incarnation"] for r in seen} == {"seat-A", "seat-B"}, (
+        "a genuinely different incarnation reading the same mail is a NEW fact and must record"
+    )
+
+
+def test_m1_11_unknown_intent_is_refused_not_stored():
+    """An open vocabulary across seats mints declarations no reader can reconcile."""
+    mbx = _mailbox()
+    client = _fake()
+    fields = {"frm": "x", "to": "claude", "kind": "request", "ts": "1785500003", "content": "b"}
+    sha = mbx._ingest_one(client, NS, "claude", "work_inbox", "1785500003-0", fields)
+    out = mbx.declare_intent(NS, "claude", sha, "maybe_later", incarnation="s", client=client)
+    assert out["ok"] is False and "unknown intent" in out["reason"]
+    assert mbx.state_for(NS, "claude", sha, client=client)["intent"] is None, "refused but stored"
+
+
 def test_m1_8_cross_incarnation_product_receipt():
     """Codex's receipt, whole. This is the slice's acceptance; the pins above are its parts.
 
