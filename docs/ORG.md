@@ -355,24 +355,50 @@ which was the wrong question, adversarially framed. Nothing in this design refus
 binds only the fleet's ability to start a third thing silently. Corrected in place rather than
 deleted, per G1.)*
 
-**When a third thing is promoted, who chooses what pauses?**
+**RULED PROVISIONALLY, 2026-07-31, by the conductor under explicit delegation.** Daniil,
+verbatim, on leaving: *"Right now you can choose, when I come back we can adjust this."* This
+carries exactly that weight — a conductor's call made so the fleet is not blocked on an absent
+gate, and the first thing to revisit on his return. It is not a ruling of his.
 
-Three shapes, and the difference is entirely in how the workflow *feels* to him:
+### The standing pause rule
+
+1. **Corrections never trigger this.** A correction INTERRUPTs; it does not promote. The cap
+   governs **new material only**. (Buffer round, C5.)
+2. **The design/research lane pauses. Never a build in flight.**
+3. If both live lanes are builds, the cap was already violated upstream — the newer one pauses,
+   and the violation is filed as a lesson, never as a scold.
+4. The pause is **announced**: what stopped, and what it costs to resume.
+5. One word from Daniil overrides any of it. This is a default, not a gate.
+
+**Why this one.** A paused build *leaks* — locks outlive it, staged trees outlive it, partial
+state outlives it. Three incidents in 48 hours say so, and one of them was still live today: a
+stranger's file left staged by a refused commit was blocking every seat's markdown commits
+hours after the session that staged it had ended. A paused design lane costs almost nothing;
+its positions stay filed and it resumes where it stopped. **The buffer round is the proof** —
+it sat paused across a full stand-down and reconciled intact from three filed positions.
+
+It is also the only one of the three shapes below that is *structural*: nobody has to judge,
+under time pressure, which lane matters more. The rule already knows, and a rule that never
+needs a judgement cannot be judged wrong in the moment.
+
+*The three shapes considered, kept for the revisit:*
 
 | | he experiences | cost |
 |---|---|---|
-| **A standing rule, set once** *(recommended)* | zero friction, forever — e.g. *"always pause design, never pause a build in flight"* | one decision now; the rule can be wrong in a specific case |
+| **A standing rule, set once** *(taken)* | zero friction, forever | one decision now; the rule can be wrong in a specific case |
 | System picks and notifies | fastest per-event, no question back | it will eventually pause the thing he cared about |
 | System asks which | he keeps every choice | a question back on every third promotion — friction exactly where he wanted speed |
 
-**Recommendation: the standing rule.** It is the only one of the three that is *structural* by
-his own boulder test — the other two require either the system or the operator to make a fresh
-judgement each time, and a judgement made repeatedly under time pressure is a discipline with a
-delay fuse. One decision now buys a workflow that never asks again, and the rule itself stays
-amendable at any gate.
+The two rejected shapes both require a fresh judgement each time — by the system or by him —
+and a judgement made repeatedly under time pressure is a discipline with a delay fuse.
 
-This is his call and not the conductor's, because the whole question is what he wants the
-workflow to feel like, and only he is sitting on that side of it.
+**The honest weakness of what was taken**, so the revisit has something to bite on: a standing
+rule is wrong precisely when the design lane is the one that matters and the build is trivial.
+That case is real and the rule will get it wrong. It is accepted because the failure is *cheap
+and visible* — he sees the announced pause and says one word — whereas the failure the rule
+prevents (a build paused mid-flight, leaking locks and staged state) is expensive and silent.
+**Prefer the loud cheap failure over the quiet expensive one** is the whole argument; if he
+disagrees with that trade, the rule should change, not be patched.
 
 ---
 
@@ -407,6 +433,10 @@ because it spends a scarce seat per watch on objection in a fleet of eight. Atta
 *(1) Part 8's question was reframed 2026-07-31 after Daniil named the actual goal — an executive
 workflow, fast and responsive — which revealed the original framing ("does the cap bind you") as
 adversarial and wrong. The cap refuses no one; it refuses silence about cost.*
+*(3) Part 8 was RULED provisionally 2026-07-31 under Daniil's explicit delegation ("right now
+you can choose, when I come back we can adjust this"): the standing pause rule, design pauses
+and never a build in flight. A conductor's call, not his — flagged as the first thing to
+revisit, with its own honest weakness stated so the revisit has something to bite on.*
 *(2) Part 3's executive loop was amended 2026-07-31 by the buffer round (codex, kimi, deepseek,
 filed independently): `UNKNOWN` added as a first-class outcome because a total 2×2 turns
 ambiguity into policy; silent APPLY narrowed to deterministic transport only because any
