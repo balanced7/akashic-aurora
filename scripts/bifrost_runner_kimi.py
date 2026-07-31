@@ -831,7 +831,10 @@ def main() -> int:
             if _sr:
                 print(f"[kimi-runner] {_sr} -- exiting clean; the successor takes the lock.")
                 break
-            if control.is_halted(args.agent):
+            # LOOP-TOP GATE (2026-07-30): is_frozen, not is_halted -- it also honors a
+            # SOFT pause ("finish the message in hand, then hold"). is_halted stays the
+            # MID-TURN interrupt above, so a soft pause never abandons live work.
+            if control.is_frozen(args.agent):
                 bus.register(card=dict(CARD, spend=METER.status_line()))
                 time.sleep(0.4)
                 continue

@@ -33,22 +33,27 @@ def test_p1_parser_accepts_ttl():
 def test_p2_ttl_passes_through(monkeypatch):
     seen = {}
 
-    def fake_pause(reason="", by="user", ttl=None):
-        seen.update(reason=reason, by=by, ttl=ttl)
+    # soft= added 2026-07-30 with the soft-pause slice. Asserting it here keeps this a
+    # BACKWARD-COMPAT pin: the door must still default to a HARD pause when nobody asks
+    # for a soft one.
+    def fake_pause(reason="", by="user", ttl=None, soft=False):
+        seen.update(reason=reason, by=by, ttl=ttl, soft=soft)
         return True
 
     monkeypatch.setattr(control, "pause", fake_pause)
     rc = agent_cli.cmd_bifrost_pause(Ns(reason="x", by="t", ttl=120, json=False))
     assert rc == 0 and seen["ttl"] == 120
+    assert seen["soft"] is False, "no --soft flag must still mean a HARD pause"
 
 
 def test_p3_no_ttl_is_legacy(monkeypatch):
     seen = {}
 
-    def fake_pause(reason="", by="user", ttl=None):
-        seen.update(ttl=ttl)
+    def fake_pause(reason="", by="user", ttl=None, soft=False):
+        seen.update(ttl=ttl, soft=soft)
         return True
 
     monkeypatch.setattr(control, "pause", fake_pause)
     rc = agent_cli.cmd_bifrost_pause(Ns(reason="", by="t", ttl=None, json=False))
     assert rc == 0 and seen["ttl"] is None
+    assert seen["soft"] is False, "no --soft flag must still mean a HARD pause"

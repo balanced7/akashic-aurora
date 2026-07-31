@@ -51,6 +51,13 @@ def _pause_key() -> str:
     return f"{_ns()}:control:paused"
 
 
+def _soft_pause_key() -> str:              # "pause nudge" (Daniil, 2026-07-30): finish the turn, THEN hold
+    # Deliberately a SEPARATE key from _pause_key so is_halted() -- which runners pass as
+    # a MID-TURN interrupt -- can never see it. That separation IS the feature: a soft
+    # pause must not abandon the message a seat is holding.
+    return f"{_ns()}:control:paused:soft"
+
+
 def _halt_prefix() -> str:                 # per-agent targeted halt (A1); union'd with the pause by is_halted
     return f"{_ns()}:control:halt:"
 
@@ -130,16 +137,32 @@ def clear_drain(agent: str) -> None:
 
 
 # ------------------------------------------------------------------ pause
-def pause(reason: str = "", by: str = "user", ttl: Optional[int] = None) -> bool:
+def pause(reason: str = "", by: str = "user", ttl: Optional[int] = None,
+          soft: bool = False) -> bool:
     """Freeze the auto-responders. Idempotent. Returns False if the bus is offline.
     RB-30 (T030 L5): `ttl` seconds makes the pause SELF-HEAL -- automated backstops
     (rate-limit guards) must never freeze the fleet forever if everyone forgets them.
-    None = persistent until an explicit resume (human intent stays human)."""
+    None = persistent until an explicit resume (human intent stays human).
+
+    soft=True is Daniil's "pause nudge" (2026-07-30): FINISH THE CURRENT MESSAGE, THEN
+    HOLD. It fills the empty cell in a 2x2 the fleet had three quarters of --
+
+                      | stop NOW           | stop GRACEFULLY
+        --------------+--------------------+-----------------
+        and HOLD      | pause / halt       | soft pause  <- this
+        and EXIT      | kill               | drain
+
+    A hard pause is honored through is_halted(), which the runners pass as a MID-TURN
+    interrupt callback, so it ABANDONS in-flight work. drain() is graceful but exits the
+    process and costs a relaunch. A soft pause writes a SEPARATE key that is_halted()
+    never reads, so the seat keeps the message it is holding and simply stops taking new
+    work at its next loop top. Resumable without a relaunch."""
     c = _client()
     if c is None:
         return False
     try:
-        c.set(_pause_key(), json.dumps({"reason": reason, "by": by, "ts": _now()}),
+        key = _soft_pause_key() if soft else _pause_key()
+        c.set(key, json.dumps({"reason": reason, "by": by, "ts": _now(), "soft": bool(soft)}),
               ex=int(ttl) if ttl else None)
         return True
     except Exception:
@@ -165,6 +188,14 @@ def format_pause_line(status: Dict[str, Any], now: Optional[float] = None) -> st
         age = f"{mins // 60}h{mins % 60:02d}m" if mins >= 60 else f"{mins}m"
     except Exception:
         pass
+    if status.get("soft"):
+        # Never let a soft pause hide behind the same words as a hard one: the fleet
+        # already has two organs answering "is it paused" at different scopes with no way
+        # to tell them apart. A third invisible pause state would be that bug on purpose.
+        return (f"~~ SOFT PAUSE / winding down (by {status.get('by', '?')}: "
+                f"{status.get('reason') or 'no reason given'}, {age} old) -- seats FINISH "
+                f"the message in hand, then hold; in-flight work is NOT abandoned; "
+                f"resume: py agent_cli.py bifrost-resume")
     return (f"!! PAUSED (by {status.get('by', '?')}: {status.get('reason') or 'no reason given'}, "
             f"{age} old) -- auto-responders frozen; resume: py agent_cli.py bifrost-resume")
 
@@ -180,6 +211,8 @@ def resume(targets=None) -> bool:
     try:
         if not ts:
             c.delete(_pause_key())
+            c.delete(_soft_pause_key())   # a pause that survives its own resume is the
+                                          # RB-30 forever-freeze failure, softly
             keys = c.keys(_halt_prefix() + "*") or []
             if keys:
                 c.delete(*keys)
@@ -191,30 +224,63 @@ def resume(targets=None) -> bool:
 
 
 def is_paused() -> bool:
-    """True iff a pause flag is set. Fail-open: any error -> not paused (never wedge the bus)."""
+    """True iff ANY pause flag is set, hard or soft. Fail-open: any error -> not paused
+    (never wedge the bus). Soft counts here because this is the PAUSE-HYGIENE probe --
+    'was it already paused before I paused it, so should my resume clobber someone
+    else's freeze?' (the control-pause-clobbers-preexisting-pause lesson). For 'may I
+    still act', use is_halted (mid-turn) or is_frozen (loop top)."""
     c = _client()
     if c is None:
         return False
     try:
-        return bool(c.exists(_pause_key()))
+        return bool(c.exists(_pause_key())) or bool(c.exists(_soft_pause_key()))
+    except Exception:
+        return False
+
+
+def is_frozen(agent: str) -> bool:
+    """THE LOOP-TOP GATE: may this agent pick up NEW work? False under a hard pause, a
+    soft pause, or a halt targeted at it. Distinct from is_halted() by design --
+
+        is_halted(a)  -> "abandon what you are doing NOW" (mid-turn interrupt; hard only)
+        is_frozen(a)  -> "do not START anything new"      (loop top; hard OR soft)
+
+    A runner checks is_halted mid-turn and is_frozen at the top of its loop. That pair is
+    what makes a soft pause mean 'finish the message in hand, then hold' rather than
+    'drop it'. Fail-open: any error -> not frozen."""
+    c = _client()
+    if c is None:
+        return False
+    try:
+        if c.exists(_soft_pause_key()):
+            return True
+        return is_halted(agent)
     except Exception:
         return False
 
 
 def pause_status() -> Dict[str, Any]:
-    """{paused, online, reason?, by?, ts?} -- for the UI/CLI status line."""
+    """{paused, soft, online, reason?, by?, ts?} -- for the UI/CLI status line. A HARD
+    pause wins the render when both are somehow set: it is the stronger claim, and a
+    surface must never describe a fleet as merely winding down while it is actually
+    frozen mid-turn."""
     c = _client()
     if c is None:
         return {"paused": False, "online": False}
     try:
         raw = c.get(_pause_key())
-        if not raw:
-            return {"paused": False, "online": True}
-        d = json.loads(raw)
-        d.update({"paused": True, "online": True})
-        return d
+        if raw:
+            d = json.loads(raw)
+            d.update({"paused": True, "online": True, "soft": False})
+            return d
+        raw = c.get(_soft_pause_key())
+        if raw:
+            d = json.loads(raw)
+            d.update({"paused": True, "online": True, "soft": True})
+            return d
+        return {"paused": False, "online": True, "soft": False}
     except Exception:
-        return {"paused": False, "online": True}
+        return {"paused": False, "online": True, "soft": False}
 
 
 # ------------------------------------------------------------------ narration (claude reasoning visibility)

@@ -3742,12 +3742,20 @@ def cmd_bifrost_pause(args):
     C1-8-genus find, 2026-07-21)."""
     from core.comm import control
     ttl = int(args.ttl) if getattr(args, "ttl", None) else None
-    ok = control.pause(reason=args.reason or "", by=args.by or "user", ttl=ttl)
+    soft = bool(getattr(args, "soft", False))
+    ok = control.pause(reason=args.reason or "", by=args.by or "user", ttl=ttl, soft=soft)
     if args.json:
         print(json.dumps(control.pause_status(), default=str)); return 0 if ok else 1
     tag = f" (self-heals in {ttl}s)" if ttl else ""
-    print(f"[bifrost] PAUSED{tag} -- runners frozen; resume with `bifrost-resume`" if ok
-          else "[bifrost] pause failed (bus offline)")
+    if not ok:
+        print("[bifrost] pause failed (bus offline)")
+    elif soft:
+        print(f"[bifrost] SOFT PAUSE{tag} -- seats FINISH the message in hand, then hold. "
+              "In-flight work is NOT abandoned and no runner exits; resume with "
+              "`bifrost-resume`")
+    else:
+        print(f"[bifrost] PAUSED{tag} -- runners frozen mid-turn (in-flight work is "
+              "abandoned); for a graceful stop use `--soft`; resume with `bifrost-resume`")
     return 0 if ok else 1
 
 
@@ -4492,11 +4500,17 @@ def build_parser():
     dr.add_argument("--reason", default="", help="why (rides the runner's exit line)")
     dr.set_defaults(fn=cmd_bifrost_drain)
 
-    pz = sub.add_parser("bifrost-pause", help="freeze bus auto-responders (human barge-in)")
+    pz = sub.add_parser("bifrost-pause", help="freeze bus auto-responders (human barge-in); "
+                                              "--soft to let seats finish first")
     pz.add_argument("--reason", default=""); pz.add_argument("--by", default="user")
     pz.add_argument("--ttl", type=int, default=None,
                     help="self-heal seconds (RB-30) -- ceremony/automation pauses should "
                          "ALWAYS set this so a mid-ceremony crash can't freeze the fleet")
+    pz.add_argument("--soft", action="store_true",
+                    help="PAUSE NUDGE: seats FINISH the message in hand, then hold. Default "
+                         "(hard) pause is a mid-turn interrupt and ABANDONS in-flight work; "
+                         "drain is graceful but EXITS the runner. --soft is the third thing: "
+                         "graceful AND resumable without a relaunch")
     pz.add_argument("--json", action="store_true")
     pz.set_defaults(fn=cmd_bifrost_pause)
 

@@ -1346,7 +1346,11 @@ def main() -> int:
                 print(f"[deepseek-runner] lost the singleton lock for '{args.agent}' -- another runner is "
                       "live. Standing down to avoid a cursor race.")
                 break
-            if control.is_halted(args.agent):                # global pause OR a halt targeted at me: freeze
+            # LOOP-TOP GATE (2026-07-30): is_frozen, not is_halted -- hard pause, targeted
+            # halt, OR a SOFT pause ("finish the message in hand, then hold"). is_halted
+            # stays the MID-TURN interrupt above (:424/:921/:1028), so a soft pause never
+            # abandons live work the way a hard pause does.
+            if control.is_frozen(args.agent):
                 bus.register(card=CARD)                       # stay "online-but-frozen" on the roster, not vanish
                 time.sleep(0.4)
                 continue
