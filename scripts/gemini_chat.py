@@ -1,0 +1,403 @@
+"""
+gemini_chat -- the gemini seat's model transport: gemini-1.5-pro as a first-class Akashic citizen.
+
+gemini is its OWN seat (Daniel directive 2026-07-30: "I am authorizing gemeni to be in the fold
+and lets have her play and interact with everyone").
+gemini-named module, GEMINI_* envs, nothing deepseek- or sol-named on this surface. Peer modules:
+ask_gemini.py (one-shot CLI opinions), bifrost_runner_gemini.py (the seat's body).
+
+THE SIX DELTAS from the deepseek seat's Agent (fence-agreed, species-specific by ruling):
+  1. reasoning_effort: always-on thinking, "max" is the only level today -- param-ready via
+     GEMINI_EFFORT, sent only when it differs from the server default (omit == max).
+  2. NO temperature/top_p knobs: fixed server-side (t=1.0/p=0.95). Attempts WARN once, never error.
+  3. max_completion_tokens (not max_tokens); generous floor -- the probe receipts show thinking
+     bills INSIDE completion and a skimpy cap returns EMPTY content (stop_reason=max_tokens).
+  4. CACHE-AWARE LAYOUT (the reason this seat is affordable): messages = [system] + history,
+     where the system block + tool schemas are FROZEN at construction (byte-stable prefix) and
+     history is append-only. Google's automatic prefix cache then bills repeat input at
+     a discount. Nothing may mutate the prefix mid-run.
+  5. reasoning_content is STRIPPED from answer assembly (parse content only) and streamed to
+     on_trace("think", ...) so the seat's mind stays visible on the bus.
+  6. Spend meter wired at the transport (this file): fine meter from usage x price table,
+     durable across restarts, balance-endpoint reconciliation. Budget is a hard $105.
+
+Key: env GEMINI_API_KEY else .secrets/gemini.key. 
+"""
+from __future__ import annotations
+
+import json
+import os
+import sys
+import time
+from pathlib import Path
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.dirname(HERE))
+
+from core.comm.runner_lib import make_openai_compat_client
+
+KEY_FILE = Path(__file__).resolve().parent.parent / ".secrets" / "gemini.key"
+REPO_ROOT = Path(__file__).resolve().parent.parent
+# Google's OpenAI-compatible door -- keeps the kimi/sol runner skeleton (tool loop, cache layout)
+# without rewriting against google.genai. Native SDK remains ask_gemini.py's one-shot path.
+BASE_URL = os.getenv(
+    "GEMINI_BASE_URL",
+    "https://generativelanguage.googleapis.com/v1beta/openai/",
+)
+FLASH, PRO = "gemini-2.5-flash", "gemini-2.5-pro"
+DEFAULT_MODEL = os.getenv("GEMINI_MODEL", FLASH)
+DEFAULT_EFFORT = os.getenv("GEMINI_EFFORT", "max")
+MAX_COMPLETION_TOKENS = int(os.getenv("GEMINI_RUNNER_MAX_TOKENS", "8000"))
+GEMINI_CONNECT_TIMEOUT = float(os.getenv("GEMINI_CONNECT_TIMEOUT", "15"))
+GEMINI_READ_TIMEOUT = float(os.getenv("GEMINI_READ_TIMEOUT", "180"))
+GEMINI_MAX_RETRIES = int(os.getenv("GEMINI_MAX_RETRIES", "1"))
+
+# $/M tokens: (input cache-MISS, input cache-HIT, output). Approximate Gemini 2.5 rates;
+# spend meter is conservative guidance, not billing authority.
+PRICES = {
+    FLASH: (0.30, 0.075, 2.50),
+    PRO: (1.25, 0.315, 10.00),
+}
+FALLBACK_PRICE = PRICES[PRO]
+STARTING_BUDGET = float(os.getenv("GEMINI_BUDGET_USD", "105.0"))
+WARN_AT = float(os.getenv("GEMINI_SPEND_WARN", "80.0"))
+REFUSE_AT = float(os.getenv("GEMINI_SPEND_REFUSE", "95.0"))
+GRANT_BASIS = float(os.getenv("GEMINI_GRANT_BASIS_USD", "105.0"))
+SPEND_FILE = Path(os.getenv("GEMINI_SPEND_FILE", str(REPO_ROOT / "state" / "gemini_spend.json")))
+RECONCILE_DRIFT_USD = 0.50
+
+
+def load_key() -> str | None:
+    for env in ("GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_GENAI_API_KEY"):
+        v = os.getenv(env)
+        if v and v.strip():
+            return v.strip()
+    if KEY_FILE.exists():
+        t = KEY_FILE.read_text(encoding="utf-8").strip()
+        if t:
+            return t
+    return None
+
+
+def make_client(api_key=None, base_url=BASE_URL):
+    """gemini wrap of the shared hardening factory (K0): gemini owns only its env conventions."""
+    return make_openai_compat_client(api_key or load_key(), base_url,
+                                     connect_timeout=GEMINI_CONNECT_TIMEOUT,
+                                     read_timeout=GEMINI_READ_TIMEOUT,
+                                     max_retries=GEMINI_MAX_RETRIES)
+
+
+def fetch_balance(timeout=20):
+    """Google has no Moonshot-style /users/me/balance -- fail-soft None.
+    SpendMeter then runs on usage-derived totals only."""
+    return None
+
+
+class SpendMeter:
+    """The seat's budget conscience (fence sec 3 contract): fine meter = usage x price table,
+    durable in a JSON sidecar (atomic replace; survives restarts); balance endpoint reconciles
+    (snap on >$0.50 drift). Conservative by construction: unknown cache fields bill full price,
+    unknown models bill k3 rates. Thresholds are $ SPENT against the $105 grant."""
+
+    def __init__(self, path: Path = SPEND_FILE, budget: float = STARTING_BUDGET):
+        import threading
+        self.path = Path(path)
+        self._lock = threading.Lock()   # B1 rider: responder thread + heartbeat reconcile interleave
+        self.state = {"spent_usd": 0.0, "turns": 0, "prompt_tokens": 0, "cached_tokens": 0,
+                      "completion_tokens": 0, "last_reconcile_ts": 0.0, "last_balance": None,
+                      "seeded": False, "budget": budget}
+        try:
+            if self.path.exists():
+                self.state.update(json.loads(self.path.read_text(encoding="utf-8")))
+        except Exception:
+            pass   # unreadable sidecar -> fresh state; the boot reconcile re-seeds truth
+        # Budget PERSISTS (claude rider on the deepseek sketch): provider credits raise it, and
+        # a restart must not forget the raised runway. Grant floor: never below the constructor's.
+        self.budget = max(float(self.state.get("budget") or budget), budget)
+        self.state["budget"] = self.budget
+
+    def _save(self):
+        try:
+            with self._lock:
+                self.path.parent.mkdir(parents=True, exist_ok=True)
+                tmp = self.path.with_suffix(".tmp")
+                tmp.write_text(json.dumps(self.state, indent=2), encoding="utf-8")
+                os.replace(tmp, self.path)
+        except Exception:
+            pass   # metering must never break the seat; reconcile re-grounds later
+
+    @staticmethod
+    def _cached_tokens(usage) -> int:
+        """Both reporting dialects checked (anthropic door: top-level cached_tokens; OpenAI
+        style: prompt_tokens_details.cached_tokens). Absent -> 0 -> bills full price."""
+        for probe in (lambda u: u.get("cached_tokens"),
+                      lambda u: (u.get("prompt_tokens_details") or {}).get("cached_tokens")):
+            try:
+                v = probe(usage)
+                if v:
+                    return int(v)
+            except Exception:
+                continue
+        return 0
+
+    def record(self, usage, model: str = DEFAULT_MODEL) -> float:
+        """One API call's usage -> $ cost, tallied durably. Accepts dict or SDK object."""
+        if usage is None:
+            return 0.0
+        if not isinstance(usage, dict):
+            try:
+                usage = usage.model_dump()
+            except Exception:
+                usage = {k: getattr(usage, k, 0) for k in
+                         ("prompt_tokens", "completion_tokens", "total_tokens")}
+        prompt = int(usage.get("prompt_tokens") or 0)
+        completion = int(usage.get("completion_tokens") or 0)
+        cached = min(self._cached_tokens(usage), prompt)
+        miss, hit, out = PRICES.get(model, FALLBACK_PRICE)
+        cost = ((prompt - cached) * miss + cached * hit + completion * out) / 1_000_000
+        self.state["spent_usd"] = round(self.state["spent_usd"] + cost, 6)
+        self.state["turns"] += 1
+        self.state["prompt_tokens"] += prompt
+        self.state["cached_tokens"] += cached
+        self.state["completion_tokens"] += completion
+        self._save()
+        return cost
+
+    def reconcile(self, force=False, min_interval_s=600):
+        """Snap the ledger to balance-endpoint ground truth when drift exceeds the contract.
+        Also SEEDS the ledger on first run (pre-runner spend becomes visible)."""
+        now = time.time()
+        if not force and now - float(self.state.get("last_reconcile_ts") or 0) < min_interval_s:
+            return None
+        bal = fetch_balance()
+        self.state["last_reconcile_ts"] = now
+        if bal is not None:
+            prev = self.state.get("last_balance")
+            if prev is None or not self.state.get("seeded"):
+                # First contact only: absolute seed (no prior balance to delta against).
+                self.state["spent_usd"] = max(round(self.budget - bal, 6), 0.0)
+                self.state["seeded"] = True
+            else:
+                # DELTA-BASED thereafter (2026-07-18 incident: a provider CREDIT pushed the
+                # balance ABOVE the grant and the absolute formula "un-spent" $14 -- balances
+                # move BOTH ways; only deltas are ground truth for spend).
+                delta = round(float(prev) - bal, 6)
+                if delta > 0:
+                    # The delta AUDITS the fine meter over the same window: if we metered less
+                    # than the wallet lost, correct UPWARD (conservative); reconcile never
+                    # reduces spent_usd -- credits are the only downward force and they raise
+                    # the BUDGET, not lower the spend.
+                    fine_delta = round(self.state["spent_usd"]
+                                       - float(self.state.get("spent_at_reconcile") or 0.0), 6)
+                    under = delta - fine_delta
+                    if under > RECONCILE_DRIFT_USD:
+                        self.state["spent_usd"] = round(self.state["spent_usd"] + under, 6)
+                        print(f"[gemini-spend] AUDIT: wallet lost ${delta:.2f} vs metered "
+                              f"${fine_delta:.2f} this window -- spent corrected +${under:.2f}")
+                elif delta < 0:
+                    credit = -delta
+                    self.budget = round(self.budget + credit, 6)
+                    self.state["budget"] = self.budget
+                    print(f"[gemini-spend] PROVIDER CREDIT: ${credit:.2f} -- "
+                          f"budget raised to ${self.budget:.2f} (free money is an event)")
+            self.state["last_balance"] = bal
+            self.state["spent_at_reconcile"] = self.state["spent_usd"]
+        self._save()
+        return bal
+
+    # -- the governance surface (runner + doctor read these) --
+    def spent(self) -> float:
+        return float(self.state["spent_usd"])
+
+    def _scale(self, threshold: float) -> float:
+        """Thresholds are RATIOS of the grant, not absolute dollars.
+
+        THE DEFECT THIS FIXES (live 2026-07-27, and it cost Daniel real money): the budget
+        PERSISTS AND RISES when a provider credit lands -- `budget raised to $224.58` -- but
+        WARN_AT/REFUSE_AT were absolute dollars pinned to the original $105 grant. So a $100
+        top-up moved the ceiling to $225 and left the gate at $95 spent, with $96.15 already
+        on the meter. The seat kept answering only ['daniel','user'] and refused every peer ask
+        while holding $128 of unusable runway. Every future top-up would have re-blocked the
+        same way.
+
+        Scaling preserves the ORIGINAL SAFETY RATIO -- refuse at ~90% of grant, warn at ~76% --
+        so a bigger wallet buys proportionally more runway and never a laxer guard. Scale UP
+        only: if the wallet is smaller than the grant basis the absolute line stands, which is
+        the conservative side and is the case audit_spend's S2 check already polices.
+
+        The literal defaults are untouched on purpose: audit_spend.py source-parses them and
+        two pins assert 80.0/95.0. The ratio is applied here, at the point of judgement.
+        """
+        basis = GRANT_BASIS if GRANT_BASIS > 0 else 1.0
+        return threshold * (self.budget / basis) if self.budget > basis else threshold
+
+    def warn_at(self) -> float:
+        return self._scale(WARN_AT)
+
+    def refuse_at(self) -> float:
+        return self._scale(REFUSE_AT)
+
+    def warn(self) -> bool:
+        return self.spent() >= self.warn_at()
+
+    def exceeded_hard_limit(self) -> bool:
+        return self.spent() >= self.refuse_at()
+
+    def status_line(self) -> str:
+        b = self.state.get("last_balance")
+        return (f"gemini spend ${self.spent():.2f} of ${self.budget:.0f} "
+                f"(warn {self.warn_at():.0f} / refuse {self.refuse_at():.0f}; "
+                f"cached {self.state['cached_tokens']:,}/{self.state['prompt_tokens']:,} in-tok; "
+                f"balance {'?' if b is None else f'${b:.2f}'})")
+
+
+class GeminiAgent:
+    """Chat-completions tool loop -- the gemini seat's engine (peer of the deepseek seat's Agent
+    and SolAgent; species-specific by fence ruling). Interface-parity with SolAgent so the
+    runner skeleton drops in: send(text)->final answer; dependency-injected tools_schemas
+    (OpenAI chat-nested) + dispatch(name, args)->str; interrupt/inject/on_trace/on_activity
+    hooks; .input_tokens/.output_tokens for T078 deltas.
+
+    CACHE CONTRACT (delta 4): the system text and tool schemas FREEZE at construction --
+    self._system and self._tools are never reassigned; history is append-only; every request
+    is [system] + history + tools, byte-stable at the front. Violating this multiplies input
+    cost ~10x, so treat any prefix mutation as a defect, not a style choice."""
+
+    def __init__(self, *, instructions, model=DEFAULT_MODEL, effort=DEFAULT_EFFORT,
+                 max_completion_tokens=MAX_COMPLETION_TOKENS, tools_schemas=None, dispatch=None,
+                 interrupt=None, inject=None, on_trace=None, on_activity=None, max_hops=None,
+                 client=None, meter: SpendMeter | None = None,
+                 temperature=None, top_p=None):
+        if temperature is not None or top_p is not None:
+            print("[gemini] WARN: temperature/top_p are FIXED server-side (1.0/0.95) -- "
+                  "ignoring the requested values (delta 2)", flush=True)
+        self.model, self.effort = model, effort
+        self.max_completion_tokens = max_completion_tokens
+        self._system = str(instructions)                    # frozen (cache contract)
+        self._tools = tuple(tools_schemas) if tools_schemas else None   # frozen
+        self.dispatch = dispatch
+        self.interrupt, self.inject = interrupt, inject
+        self.on_trace, self.on_activity = on_trace, on_activity
+        self.max_hops = int(os.getenv("GEMINI_MAX_HOPS", "30")) if max_hops is None else max_hops
+        self.history: list = []                             # append-only (cache contract)
+        self.input_tokens = self.output_tokens = 0
+        self.meter = meter or SpendMeter()
+        self._client = client                               # injectable for pins
+        self.last_response = None
+
+    @property
+    def client(self):
+        if self._client is None:
+            self._client = make_client()
+        return self._client
+
+    def _trace(self, kind, text):
+        if self.on_trace and text:
+            try:
+                self.on_trace(kind, str(text))
+            except Exception:
+                pass
+
+    def _activity(self, state, detail=""):
+        if self.on_activity:
+            try:
+                self.on_activity(state, detail)
+            except Exception:
+                pass
+
+    def reset(self):
+        self.history = []
+
+    def request_kwargs(self):
+        """Exact create() kwargs -- split out so pins assert the shape (incl. prefix stability)
+        offline. reasoning_effort rides extra_body only when it differs from the server default."""
+        kw = {"model": self.model,
+              "messages": [{"role": "system", "content": self._system}] + self.history,
+              "max_completion_tokens": self.max_completion_tokens}
+        if self._tools:
+            kw["tools"] = list(self._tools)
+        if self.effort and self.effort != "max":
+            kw["extra_body"] = {"reasoning_effort": self.effort}
+        return kw
+
+    def _run_tool(self, name, args):
+        if not self.dispatch:
+            return "ERROR: no dispatcher wired (tools_schemas given without dispatch)"
+        try:
+            return str(self.dispatch(name, args))
+        except Exception as e:
+            return f"ERROR: {type(e).__name__}: {e}"
+
+    def send(self, user_text):
+        """One task: user text in, final answer out, tool hops between. Thinking streams to
+        on_trace('think'); the hop gauge rides every tool result (T018: gauges change behavior)."""
+        self.history.append({"role": "user", "content": user_text})
+        partial = ""
+        for hop in range(1, self.max_hops + 1):
+            if self.interrupt and self.interrupt():
+                return "[gemini paused mid-task by interjection -- resume to continue]"
+            if self.inject:
+                for fact in (self.inject() or []):
+                    self.history.append({"role": "user",
+                        "content": f"[STEER -- new fact to fold into the live task, keep going]: {fact}"})
+            self._activity("thinking", f"hop {hop}")
+            resp = self.client.chat.completions.create(**self.request_kwargs())
+            self.last_response = resp
+            u = getattr(resp, "usage", None)
+            if u is not None:
+                self.input_tokens += getattr(u, "prompt_tokens", 0) or 0
+                self.output_tokens += getattr(u, "completion_tokens", 0) or 0
+                self.meter.record(u, self.model)
+            msg = resp.choices[0].message
+            thinking = getattr(msg, "reasoning_content", None)
+            if thinking:
+                for i in range(0, len(thinking), 700):
+                    self._trace("think", thinking[i:i + 700])
+            text = (msg.content or "").strip()               # delta 5: content ONLY
+            calls = list(getattr(msg, "tool_calls", None) or [])
+            # chat round-trip: echo the assistant turn (sans reasoning) then each tool result
+            echo = {"role": "assistant", "content": msg.content or ""}
+            if calls:
+                echo["tool_calls"] = [
+                    {"id": c.id, "type": "function",
+                     "function": {"name": c.function.name, "arguments": c.function.arguments}}
+                    for c in calls]
+            self.history.append(echo)
+            if not calls:
+                return text or "(gemini produced no final text)"
+            partial = text
+            for c in calls:
+                try:
+                    args = json.loads(c.function.arguments or "{}")
+                except Exception:
+                    args = {"_raw": c.function.arguments}
+                self._trace("tool", f"{c.function.name}({json.dumps(args)[:200]})")
+                self._activity("tool", c.function.name)
+                out = self._run_tool(c.function.name, args)
+                self.history.append({"role": "tool", "tool_call_id": c.id,
+                                     "content": f"[hop {hop}/{self.max_hops}] {out}"[:20000]})
+        return (f"{partial}\n[gemini tool budget exhausted at {self.max_hops} hops -- "
+                f"partial answer above; re-ask to continue]").strip()
+
+
+if __name__ == "__main__":
+    # Manual smoke (network, costs ~$0.02): py scripts/gemini_chat.py --smoke
+    if "--smoke" in sys.argv:
+        meter = SpendMeter()
+        meter.reconcile(force=True)
+        print("pre :", meter.status_line())
+        ag = geminiAgent(instructions="You are gemini, smoke-testing your seat transport.",
+                       meter=meter)
+        print("text=", repr(ag.send("Reply with exactly: gemini TRANSPORT LIVE")))
+        calc = [{"type": "function", "function": {"name": "calc",
+                 "description": "evaluate arithmetic",
+                 "parameters": {"type": "object",
+                                "properties": {"expr": {"type": "string"}},
+                                "required": ["expr"]}}}]
+        ag2 = geminiAgent(instructions="Use tools when asked.", tools_schemas=calc,
+                        dispatch=lambda n, a: "42", meter=meter)
+        print("tool round-trip:", repr(ag2.send("What is 6*7? Use the calc tool, then answer.")))
+        u = ag2.last_response.usage
+        print("last usage:", u.model_dump() if hasattr(u, "model_dump") else u)
+        print("post:", meter.status_line())
+        print("== smoke complete ==")
