@@ -409,7 +409,26 @@ def rebuild(ns: str, agent: str, *, client=None,
         client = client if client is not None else _connect()
         k = _keys(ns, agent)
         old = {e["sha"]: e["tier"] for e in _resolve(client, ns, agent, acks_lookup)}
-        for sha in client.zrange(k["z"], 0, -1) or []:
+        # M1 BODY PRESERVATION -- codex's contract review, 2026-07-31, and it was the strongest
+        # falsifier in it. `msg:*` is specified as a REBUILDABLE PROJECTION, and it is: tiers,
+        # ids and positions all re-derive from the log. The BODY does not. Once a message is
+        # evicted from the ephemeral lane, nothing can regenerate it -- so a rebuild would have
+        # destroyed every stored body whose transport entry had aged out. Measured on the live
+        # index at the time this was written: 935 bodies stored, only ~30 still recoverable from
+        # streams. A determinism receipt that silently eats 905 message bodies is not a receipt.
+        # The tier derivation does not read these fields, so carrying them across costs the
+        # receipt nothing.
+        # The whole entry is snapshotted, not just its body fields. First attempt kept only the
+        # body and restored it onto entries the rebuild reproduced -- useless, because when the
+        # transport is gone the entry does not come back AT ALL, so there is nothing to attach to
+        # (the pin caught this: entries=0, bodies_orphaned=1). An entry the log can no longer
+        # produce must SURVIVE the rebuild rather than be deleted for being unregenerable.
+        preserved, scores = {}, {}
+        for sha, score in client.zrange(k["z"], 0, -1, withscores=True) or []:
+            m = client.hgetall(k["msg"] + str(sha)) or {}
+            if m.get("body") is not None:
+                preserved[str(sha)] = dict(m)
+                scores[str(sha)] = float(score)
             client.delete(k["msg"] + str(sha))
         client.delete(k["z"])
         client.delete(k["pos"])
@@ -417,10 +436,26 @@ def rebuild(ns: str, agent: str, *, client=None,
             cu = catch_up(ns, agent, client=client, budget=DEFAULT_BUDGET)
             if cu["ingested"] == 0:
                 break
+        # Restore only onto entries the rebuild actually reproduced. A body whose entry did not
+        # come back has nothing to attach to and is reported, never silently dropped.
+        restored = readded = 0
+        for sha, keep in preserved.items():
+            if client.hgetall(k["msg"] + sha):
+                # Entry re-derived from the log: re-attach only the fields the log cannot carry.
+                client.hset(k["msg"] + sha, mapping={f: v for f, v in keep.items() if f in (
+                    "body", "body_len", "body_truncated", "body_fragment", "frag_of")})
+                restored += 1
+            else:
+                # The log can no longer produce this entry. Keeping it is the whole point: its
+                # body is the only surviving copy of that message.
+                client.hset(k["msg"] + sha, mapping=keep)
+                client.zadd(k["z"], {sha: scores.get(sha, 0.0)})
+                readded += 1
         new_entries = _resolve(client, ns, agent, acks_lookup)
         new = {e["sha"]: e["tier"] for e in new_entries}
         divergence = sum(1 for sha in set(old) | set(new) if old.get(sha) != new.get(sha))
-        return {"available": True, "divergence": divergence, "entries": len(new_entries)}
+        return {"available": True, "divergence": divergence, "entries": len(new_entries),
+                "bodies_preserved": restored, "entries_kept_unregenerable": readded}
     except Exception as exc:
         return _unavailable(f"rebuild failed ({exc})")
 

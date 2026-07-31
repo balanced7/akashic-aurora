@@ -278,6 +278,33 @@ def test_m1_13_whole_small_body_is_not_flagged_as_partial():
     assert got["body_fragment"] is False and got["truncated"] is False
 
 
+def test_m1_14_rebuild_does_not_eat_bodies_whose_transport_is_gone():
+    """Codex's strongest falsifier against the M1 sufficiency claim, pinned.
+
+    `msg:*` is documented as a rebuildable projection, and for tiers/ids/positions it is. The BODY
+    is not: once the lane entry is evicted nothing can regenerate it. So the old rebuild -- delete
+    every msg key, re-ingest from the log -- destroyed exactly the durability D1 was built to
+    provide. This pin ingests a message, DELETES the transport, rebuilds, and demands the body
+    survive. It fails against the pre-fix implementation.
+    """
+    mbx = _mailbox()
+    client = _fake()
+    fields = {"frm": "codex", "to": "claude", "kind": "handoff", "ts": "1785500020",
+              "content": "the body a rebuild must not eat"}
+    sha = mbx._ingest_one(client, NS, "claude", "work_inbox", "1785500020-0", fields)
+    assert mbx.body_of(NS, "claude", sha, client=client)["body"] == fields["content"]
+
+    client.streams.clear()                      # transport evicted: unregenerable from here on
+    out = mbx.rebuild(NS, "claude", client=client)
+    assert out.get("available"), f"rebuild failed: {out}"
+
+    after = mbx.body_of(NS, "claude", sha, client=client)
+    assert after is not None and after["body"] == fields["content"], (
+        "rebuild destroyed a body it could not regenerate -- a determinism receipt that eats "
+        f"message bodies is not a receipt. result={out}"
+    )
+
+
 def test_m1_8_cross_incarnation_product_receipt():
     """Codex's receipt, whole. This is the slice's acceptance; the pins above are its parts.
 
