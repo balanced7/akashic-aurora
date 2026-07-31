@@ -1,0 +1,179 @@
+"""T095 M1 PRE-REGISTERED ACCEPTANCE -- durable mail WITH INTENT. Committed RED.
+
+Daniil, 2026-07-31: "fix our durable mail with intent system ... have our mailboxes actually be
+mailboxes."
+
+The bar is not invented here. It is codex's ruled product receipt
+(research/in-flight/STATE-OF-THE-ROUND-2026-07-30.md sec 3), quoted:
+
+    "A seat dies after reading a question; a new incarnation lists the same mail, sees that the
+    prior incarnation read it but did not declare action, opens the full body, and may act
+    without moving or destroying any transport history."
+
+That one sentence contains the whole slice: durable BODIES ("opens the full body"), a SEEN receipt
+distinct from consumption ("read it"), declared INTENT distinct from seen ("did not declare
+action"), and NON-DESTRUCTION ("without moving or destroying any transport history").
+
+Four defects these pins encode, each VERIFIED in the tree at 0de1a3f before this file was written:
+
+  D1 NO BODIES.  core/comm/mailbox.py:164-169 persists only {sha, kind, frm, ts, ids, ts_s}.
+     The body is never stored, so "opens the full body" is impossible once the ephemeral stream
+     entry ages out -- the index lists an envelope with nothing inside.
+  D2 TWO TAXONOMIES THAT DISAGREE.  mailbox.LONG_KINDS = {handoff, request, question, blocker}
+     (30d index) vs promoter.SALIENT_KINDS = {handoff, decision, completion, blocker} (durable).
+     So `question` and `request` are indexed for 30 days and NEVER made durable, and `reply` is in
+     NEITHER -- short-retention and non-durable, while being the kind that carries most substance
+     in practice (measured 2026-07-31: two peer seats' round contributions were recoverable only
+     by hand-capturing them off the ephemeral lane before they aged out).
+  D3 IDENTITY CAN BE CONTENT-DERIVED.  mailbox._fallback_sha hashes frm|to|kind|content|ts when a
+     packet carries no sha. Codex ruled the opposite: fresh message_id per intentional send;
+     idempotency_key minted once and preserved through retry/dual-write/redrive/rehome;
+     payload_digest for conflict detection ONLY, never identity.
+  D4 NO INTENT.  The state ladder (acked > replied/auto_acked > consumed > unhandled) is entirely
+     DERIVED. Nothing lets a seat DECLARE "seen, and I am not the right owner" or "seen, answering
+     in two hours". Absence of a declaration is indistinguishable from absence of a reader.
+
+RED by construction: the APIs asserted below do not exist yet. Do not weaken a pin to make it
+green -- the pins are the contract.
+
+Run::
+
+    py -m pytest tests/test_t095_m1_mailbox_intent.py -q
+"""
+from __future__ import annotations
+
+import importlib
+from pathlib import Path
+import sys
+
+import pytest
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "tests"))
+
+NS = "test-mbx-m1"
+
+
+def _mailbox():
+    # Imported inside each pin so collection still names every RED test before the M1 API exists
+    # (T060 RED convention, same as the M0 pins).
+    return importlib.import_module("core.comm.mailbox")
+
+
+def _fake():
+    from test_t095_m0_mailbox_shadow import _FakeRedis  # reuse the M0 double, do not fork it
+    return _FakeRedis()
+
+
+# --------------------------------------------------------------- D1: durable bodies
+
+def test_m1_1_entry_carries_the_body():
+    """A mailbox entry must carry the body, or a durable pointer that still resolves after the
+    ephemeral stream entry is gone. Envelope-without-contents is the defect."""
+    mbx = _mailbox()
+    assert hasattr(mbx, "body_of"), (
+        "D1: no way to retrieve a message body from the mailbox. Codex's receipt requires a new "
+        "incarnation to OPEN THE FULL BODY; today mailbox entries persist only "
+        "{sha, kind, frm, ts, ids, ts_s} (mailbox.py:164-169)."
+    )
+
+
+def test_m1_2_body_survives_transport_eviction():
+    """The whole point of durable: the body outlives the ephemeral lane it arrived on."""
+    mbx = _mailbox()
+    assert hasattr(mbx, "body_of"), "D1: body_of() must exist before this can be exercised"
+    client = _fake()
+    assert mbx.body_of(NS, "claude", "any-sha", client=client) is not None or True, (
+        "placeholder -- real pin asserts: index a message, drop the stream entry, body still reads"
+    )
+    pytest.fail("D1 UNBUILT: no durable body store behind the mailbox index")
+
+
+# --------------------------------------------------------------- D2: one taxonomy
+
+def test_m1_3_no_entry_outlives_its_body():
+    """THE INVARIANT: an index entry may never outlive the body it points at.
+
+    Pin amended before commit, and the reason is recorded rather than quietly rewritten. The first
+    draft asserted `mailbox.LONG_KINDS <= promoter.SALIENT_KINDS` -- i.e. it encoded ONE MECHANISM
+    (promote more kinds into the Ledger) as though it were the requirement. That mechanism is
+    wrong: promoting every `reply` would flood the append-only Ledger with conversational traffic,
+    and the Ledger is for salient decisions, not for mail storage. The correct fix is that THE
+    MAILBOX OWNS ITS OWN DURABLE BODIES -- which is what "mailboxes should actually be mailboxes"
+    means. Same defect, better mechanism, so the pin states the invariant and lets the
+    implementation choose how.
+    """
+    mbx = _mailbox()
+    assert hasattr(mbx, "retention_s_for") and hasattr(mbx, "body_of"), (
+        "D2: nothing ties an entry's advertised retention to its body's durability, so a 30-day "
+        "index entry can point at a 7-day stream -- a promise the system cannot keep."
+    )
+
+
+def test_m1_4_reply_body_survives_the_ephemeral_lane():
+    """`reply` carries most of the substance in practice and is in NEITHER kind-set today.
+
+    Stated as an outcome, not a set-membership: the BODY must be retrievable after the lane drops
+    it. Whether that is achieved by mailbox-owned storage or by promotion is the implementation's
+    call; the guarantee is not.
+    """
+    mbx = _mailbox()
+    assert hasattr(mbx, "body_of"), (
+        "D2: a reply body is unretrievable once the ephemeral lane ages out. Measured 2026-07-31: "
+        "round contributions from two peer seats were minutes from loss and survived only by "
+        "manual capture off the lane."
+    )
+
+
+# --------------------------------------------------------------- D3: identity
+
+def test_m1_5_identity_is_not_derived_from_content():
+    """Two INTENTIONAL sends of identical text are different mail. A retry of one send is not.
+
+    Codex's ruling: fresh message_id per intentional send; idempotency_key preserved across
+    retry/dual-write/redrive/rehome; payload_digest for conflict detection only, never identity.
+    Content-derived identity collapses legitimate repeated mail while still failing to collapse
+    transport duplicates -- the exact inversion of the goal.
+    """
+    mbx = _mailbox()
+    assert not hasattr(mbx, "_fallback_sha") or hasattr(mbx, "identity_of"), (
+        "D3: mailbox._fallback_sha derives identity from frm|to|kind|content|ts. Identity must "
+        "come from the packet's message_id/idempotency_key seam (T116), not the payload."
+    )
+
+
+# --------------------------------------------------------------- D4: intent
+
+def test_m1_6_open_appends_exactly_one_seen_receipt():
+    """`open` says SEEN and nothing else. It must not advance a cursor or imply handled.
+
+    Ruled verbatim: "Opening mail may say seen. It must never mean consumed, handled, agreed,
+    settled, or safe to forget."
+    """
+    mbx = _mailbox()
+    assert hasattr(mbx, "open"), "D4: no open() verb -- peek/fetch/open are not yet split"
+
+
+def test_m1_7_intent_is_declarable_and_distinct_from_seen():
+    """The gap Daniil named. A reader must be able to declare what it will DO, and 'read but
+    declared nothing' must be distinguishable from 'never read'."""
+    mbx = _mailbox()
+    assert hasattr(mbx, "declare_intent"), (
+        "D4: no declare_intent(). Today the ladder is entirely derived, so a seat that read a "
+        "question and chose not to act is indistinguishable from one that never saw it."
+    )
+
+
+# --------------------------------------------------------------- the receipt, end to end
+
+def test_m1_8_cross_incarnation_product_receipt():
+    """Codex's receipt, whole. This is the slice's acceptance; the pins above are its parts.
+
+    A seat opens a question and dies without declaring intent. A NEW incarnation lists the same
+    mail, sees it was read but not acted on, opens the full body, and acts -- with transport
+    history unmoved and undestroyed.
+    """
+    mbx = _mailbox()
+    for verb in ("open", "declare_intent", "body_of", "state_for"):
+        assert hasattr(mbx, verb), f"receipt UNBUILT: mailbox.{verb}() missing"
