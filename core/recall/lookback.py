@@ -251,6 +251,53 @@ def _docs_items() -> List[Dict[str, Any]]:
     return out
 
 
+def _charter_paths() -> List[str]:
+    """charters/*.md and charters/<seat>/*.md -- every seat's CHARTER/INTERIORITY/QUESTIONS."""
+    root = os.path.join(ROOT, "charters")
+    out: List[str] = []
+    try:
+        for n in sorted(os.listdir(root)):
+            p = os.path.join(root, n)
+            if os.path.isdir(p):
+                out += [os.path.join(p, m) for m in sorted(os.listdir(p)) if m.endswith(".md")]
+            elif n.endswith(".md"):
+                out.append(p)
+    except OSError:
+        pass
+    return out
+
+
+def _charter_items() -> List[Dict[str, Any]]:
+    """The corpus of what was MEANT -- its own layer, not a tenant of `docs`.
+
+    Every other layer records what was DONE (docs, research, notes, promoted, chapters, git).
+    Intent lived only in charters/ and was reachable ONLY by already knowing the path, which a
+    newcomer by definition does not (VERIFIED 2026-07-31: "handoff ergonomics between
+    departments" returned nothing while appearing verbatim in charters/daniel/INTERIORITY.md).
+
+    Its OWN layer, deliberately: folding it into `docs` would leave it competing with a far more
+    numerous corpus for the same PER_LAYER slots -- present in the code, still absent in the
+    answers. Registered AFTER docs so `docs` stays LAYERS[0] (the query counter keys off it)."""
+    out = []
+    for p in _charter_paths():
+        try:
+            head = _read_head(p)
+            rel = os.path.relpath(p, ROOT).replace(os.sep, "/")
+            # A charter is STANDING intent -- current unless it says otherwise. A retired seat's
+            # charter stays reachable (its reasoning still answers why-questions) but must never
+            # outrank a live one: label honesty over a uniform default.
+            status = _doc_status(head)
+            if status == "unstamped":
+                status = "historical" if "RETIRED" in head[:600].upper() else "current"
+            importance = {"current": 3, "unstamped": 2}.get(status, 1)
+            out.append({"text": head, "source": rel, "timestamp": os.path.getmtime(p),
+                        "importance": importance, "layer": "charters", "status": status,
+                        "class": "intent", "drill": rel})
+        except OSError:
+            continue
+    return out
+
+
 def _research_items() -> List[Dict[str, Any]]:
     out = []
     rr = os.path.join(ROOT, "research", "reviewed")
@@ -346,8 +393,11 @@ def _git_items(limit: int = 250) -> List[Dict[str, Any]]:
     return out
 
 
-LAYERS = (("docs", _docs_items), ("research", _research_items), ("notes", _note_items),
+LAYERS = (("docs", _docs_items), ("charters", _charter_items),
+          ("research", _research_items), ("notes", _note_items),
           ("promoted", _promoted_items), ("chapters", _chapter_items), ("git", _git_items))
+# `docs` stays FIRST: lookback's query counter bumps on LAYERS[0][0]. Pinned by
+# tests/test_charters_in_lookback_corpus.py::test_p3.
 
 
 # ---------------------------------------------------------------- the fan-out
