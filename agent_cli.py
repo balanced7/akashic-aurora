@@ -1805,6 +1805,60 @@ _BUS_KIND_TYPE = {"handoff": "design", "request": "brief", "question": "brief",
                   "chat": "design", "reply": "report", "inform": "report"}
 
 
+# ---------------------------------------------------------------- doc adopt inference
+# `doc new` mints from a body you hand it. ADOPT brings an EXISTING loose file through the
+# same door -- the rescue path for work filed by seats that cannot commit (no exec) into a
+# zone rule-13 refuses (research/** since the P3 flip). Inference is best-effort and every
+# guess is PRINTED: a wrong stamp is a post-hoc lint fix, a lost artifact is not.
+
+# First match wins -- order is specificity, not preference. 'design-conversation' is a
+# captured conversation (chronicle), not a design, so 'conversation' outranks 'design'.
+_ADOPT_TYPE_HINTS = (
+    ("conversation", "chronicle"), ("capture", "chronicle"), ("retro", "chronicle"),
+    ("session", "chronicle"),
+    ("verdict", "ruling"), ("ruling", "ruling"),
+    ("charter", "contract"),
+    ("reconcil", "design"),
+    ("position", "report"), ("answer", "report"), ("review", "report"),
+    ("audit", "report"), ("walk", "report"), ("critique", "report"),
+    ("brief", "brief"),
+    ("design", "design"), ("spec", "design"), ("plan", "design"), ("proposal", "design"),
+    ("map", "map"),
+)
+
+# Authorship, not identity: these are the names peers actually appear under in filenames.
+_ADOPT_KNOWN_SEATS = ("claude", "deepseek", "kimi", "codex", "cursor_grok", "gemini", "fable")
+
+
+def _adopt_title(stem: str) -> str:
+    """Filename -> title slug: a filename is a title with punctuation and a date bolted on."""
+    s = re.sub(r"\d{4}-\d{2}-\d{2}", "", stem)      # ISO date anywhere
+    s = re.sub(r"^\d{8}[-_]?", "", s)               # 20260731_ prefixes (library canon)
+    s = re.sub(r"[^A-Za-z0-9]+", "-", s).strip("-").lower()
+    return s or "adopted-document"                  # a date-only name still needs a handle
+
+
+def _adopt_type(stem: str) -> str:
+    low = stem.lower()
+    for key, typ in _ADOPT_TYPE_HINTS:
+        if key in low:
+            return typ
+    return "report"                                  # the honest default: it is a record
+
+
+def _adopt_seats(stem: str) -> str:
+    """Authors named in the filename. Silence beats a wrong stamp -- returns '' when unsure."""
+    low = re.sub(r"[^a-z0-9]+", "-", stem.lower())
+    hits = []
+    for seat in _ADOPT_KNOWN_SEATS:
+        if seat in hits:
+            continue
+        # ids carrying '_' appear hyphenated in filenames (cursor_grok -> cursor-grok)
+        if any(v in low for v in {seat, seat.replace("_", "-")}):
+            hits.append(seat)
+    return ",".join(hits)
+
+
 def cmd_doc(args):
     """A1 (2026-07-23, artifact-substrate build; supersedes D1's file-writer): the birth
     door. Mints a typed ATOM in the store (append-only, supersession-aware; JSONL durable
@@ -1822,8 +1876,32 @@ def cmd_doc(args):
     --draft births status:draft (wrap sweep + library lint curate drafts).
     """
     sub = getattr(args, "sub", "new")
+    if sub == "adopt":
+        # NON-DESTRUCTIVE by construction: read, mint, leave the original exactly where it
+        # is. An adopt that deleted its source would be a Scribe that can lose work.
+        src = (getattr(args, "path", "") or "").strip()
+        if not src:
+            print("[doc] REFUSED: adopt needs a path — doc adopt <file.md> [--type T] [--seats s]")
+            return 2
+        sp = Path(src)
+        if not sp.is_file():
+            print(f"[doc] REFUSED: no such file: {src}")
+            return 2
+        args.body_file = str(sp)
+        stem = sp.stem
+        if not (getattr(args, "title", "") or "").strip():
+            args.title = _adopt_title(stem)
+        if not (getattr(args, "type", "") or "").strip():
+            args.type = _adopt_type(stem)
+        if not (getattr(args, "seats", "") or "").strip():
+            args.seats = _adopt_seats(stem)
+        rel_src = str(sp).replace("\\", "/")
+        print(f"[doc] adopting {rel_src}")
+        print(f"  inferred: type={args.type} title={args.title} "
+              f"seats={args.seats or '(none — pass --seats)'}   [override with flags]")
+        sub = "new"
     if sub != "new":
-        print("[doc] only 'new' is implemented — pass 'doc new ...'")
+        print("[doc] only 'new' and 'adopt' are implemented — pass 'doc new ...' or 'doc adopt <path>'")
         return 2
 
     typ = (getattr(args, "type", "") or "").strip().lower()
@@ -4168,6 +4246,21 @@ def build_parser():
     dnew.add_argument("--cite", action="append", default=None, help="atom id this artifact discusses (repeatable; rel=discusses)")
     dnew.add_argument("--zone", default="", help="DEPRECATED (atoms have one home: docs/library/<type>/); ignored")
     dnew.set_defaults(fn=cmd_doc)
+
+    # adopt: bring an EXISTING loose .md through the same door. The rescue path for work
+    # filed by seats that cannot commit, into zones rule-13 refuses (research/** since P3).
+    # Non-destructive: the source file is never touched.
+    dado = dsps.add_parser("adopt", help="mint an EXISTING loose .md as an atom (source untouched)")
+    dado.add_argument("path", help="path to the loose .md to adopt")
+    dado.add_argument("--type", default="", help="atom type (absent = inferred from the filename)")
+    dado.add_argument("--title", default="", help="slug (absent = inferred from the filename)")
+    dado.add_argument("--seats", default="", help="authors (absent = inferred from the filename)")
+    dado.add_argument("--arc", default="", help="arc label or T-number")
+    dado.add_argument("--category", action="append", default=None, help="governed roster category")
+    dado.add_argument("--draft", action="store_true", help="born status:draft")
+    dado.add_argument("--gist", default="", help="one-line abstract (auto-derived if absent)")
+    dado.add_argument("--cite", action="append", default=None, help="atom id this artifact discusses")
+    dado.set_defaults(fn=cmd_doc)
 
     ap = sub.add_parser("tag-anti-pattern", help="tag an EXISTING lesson as a reusable known-bad")
     ap.add_argument("agent_id"); ap.add_argument("--experiment", required=True)
