@@ -157,21 +157,40 @@ a fast and responsive AI to interact with that helps make sure everything is don
 proper delegation and assistance."* The watch is the execution side of that. This is the
 intake side, and it is where "fast" is won or lost.
 
-**Five outcomes. Four are instant and cost him nothing.**
+**Seven outcomes. Five happen immediately and cost him nothing; two wait.**
+
+*(Amended 2026-07-31 by the buffer round — `docs/library/design/20260731_buffer-round-
+reconciliation_e63e58.md`. The original five-outcome loop was the conductor's and did not
+survive the round intact: it had no `UNKNOWN`, and it let semantic corrections apply silently.
+Both are corrected below.)*
 
 | Outcome | When | What he experiences |
 |---|---|---|
 | **ANSWER** | the record already settles it | answered in the same turn — no round, no document |
-| **APPLY** | corrects live work, costs nothing | silent; it is simply done |
-| **INTERRUPT** | corrects live work, requires a pause | loud, immediate, **names the trade** |
-| **ABSORB** | new material, no pause needed | filed to the record; nobody notified |
-| **BUFFER** | new material, would need a pause | held, listed, surfaced at the next gate with a recommendation |
+| **APPLY** | **deterministic transport only** — encoding, dedup, attaching provenance | silent |
+| **INTERRUPT** | a correction that must land **before the next irreversible or expensive boundary** | loud, immediate, zero-latency, names the trade |
+| **STEER** | a correction with a named target, but no boundary pressing | a visible transition; folded at the next safe boundary |
+| **ABSORB** | new material, nothing pending | filed to the record; nobody notified |
+| **BUFFER** | new material that would need a pause | held, listed, surfaced at the next gate with a recommendation |
+| **UNKNOWN** | the relation or intent cannot be named | preserved verbatim; acted on by nobody; one calibrated question or the next glance |
 
-APPLY / INTERRUPT / ABSORB / BUFFER and the two classifying questions behind them are his, from
-the morning capture, and both questions are mechanically checkable in seconds: *does this
-CORRECT something in flight* (locks + active tasks) · *does acting require PAUSING something*
-(what is running). Default for new material stays BUFFER — nothing becomes work by being
-mentioned.
+The two classifying questions behind this are his, from the morning capture, and both are
+mechanically checkable in seconds. The round sharpened each:
+
+- *does this CORRECT something in flight* — a correction must **name the governed state it
+  contradicts** (a decision, assumption, authorization, acceptance criterion, or operator
+  instruction). "This sounds corrective" is not enough; unnamed means `NEW` or `UNKNOWN`.
+- *does acting require PAUSING something* — not "someone is currently working," but "**must
+  this arrive before the next irreversible or expensive boundary**" (locks, active tasks,
+  phase, named files, pending external effects, the next gate).
+
+Default for new material stays BUFFER — nothing becomes work by being mentioned. But the
+hold-bias applies to **new material only**: corrections are zero-latency, always. deepseek,
+from inside the loop: *"the cost of backing out wrong work dwarfs the cost of the interrupt."*
+
+**`UNKNOWN` is the load-bearing addition.** The original matrix was 2×2 and therefore *total* —
+every item had to land somewhere, so ambiguity became policy by construction. codex: *"if it
+must always choose a side, it will confidently turn ambiguity into policy."*
 
 **ANSWER is the addition, and it is what makes the loop feel fast.** Many operator asks are
 questions the record already settles; today each one costs a full fleet round. His own note:
@@ -384,6 +403,13 @@ record so the analogy has to earn its keep. Parts 5, 6 and the three Part-4 addi
 claude's. All of it is UNFENCED — the Contrarian post is the claim I am least confident in,
 because it spends a scarce seat per watch on objection in a fleet of eight. Attack that first.*
 
-*Correction log: Part 8's question was reframed 2026-07-31 after Daniil named the actual goal —
-an executive workflow, fast and responsive — which revealed the original framing ("does the cap
-bind you") as adversarial and wrong. The cap refuses no one; it refuses silence about cost.*
+*Correction log:*
+*(1) Part 8's question was reframed 2026-07-31 after Daniil named the actual goal — an executive
+workflow, fast and responsive — which revealed the original framing ("does the cap bind you") as
+adversarial and wrong. The cap refuses no one; it refuses silence about cost.*
+*(2) Part 3's executive loop was amended 2026-07-31 by the buffer round (codex, kimi, deepseek,
+filed independently): `UNKNOWN` added as a first-class outcome because a total 2×2 turns
+ambiguity into policy; silent APPLY narrowed to deterministic transport only because any
+semantic change alters governed state; INTERRUPT split from STEER on the irreversible-boundary
+test; and the hold-bias restricted to new material, since corrections must be zero-latency. The
+conductor's loop did not survive the round intact, which is the round working.*
