@@ -143,6 +143,41 @@ def _find_note(notes: list, title: str):
     return None
 
 
+def _mailbox_line(agent_id: str) -> str:
+    """T095-M1 orientation, one line: what a fresh seat cannot otherwise learn.
+
+    `read_but_undeclared` is the point -- mail some PRIOR incarnation opened and declared nothing
+    about. Before M1 that was indistinguishable from never-seen, so every new seat re-adjudicated
+    the same questions its predecessor had already read.
+
+    Fail-SILENT toward boot (an orientation line must never be able to break the boot it decorates)
+    but HONEST about its own bounds: entries whose body did not survive are counted separately
+    rather than folded in, because a count that mixes 'you can read this' with 'this is gone' is
+    the kind of quiet completeness claim this arc exists to end.
+    """
+    try:
+        from core.comm import mailbox
+        from core.comm.bus import Bus
+        if not mailbox.enabled():
+            return ""
+        bus = Bus("boot-mailbox", promote=False)
+        # Three Redis calls, size-independent. The first two cuts of this line cost 3.8s and 3.2s
+        # per boot -- the second because it still went through query(), which resolves every
+        # entry's tier, cursors and acks to answer a question that needs none of them. An
+        # orientation surface that taxes every boot stops being orientation.
+        c = mailbox.orientation_counts(bus.ns, agent_id, client=bus._client)
+        unopened, undeclared = c["unopened"], c["read_but_undeclared"]
+        if not (undeclared or unopened):
+            return ""
+        # Body availability is deliberately NOT counted here: it needs a read per entry, which is
+        # the cost this rewrite removed. It is reported per-message by --open/--state instead.
+        # Omitting a field is honest; asserting one cheaply and wrongly would not be.
+        return (f"mailbox: {unopened} unopened | {undeclared} read-but-undeclared -> "
+                f"py agent_cli.py mailbox {agent_id} --state <sha> | --open <sha>")
+    except Exception:
+        return ""
+
+
 def _note_line(prefix: str, note, body_clip: int = _LINE_CLAMP, flag: str = "") -> str:
     """'PREFIX: <body> (<flag, >Nh ago)' with a [STALE] marker past _STALE_DAYS (W4/W5)."""
     age_str, age_days = _age_parts(getattr(note, "created_at", ""))
@@ -254,6 +289,14 @@ def build_autoboot_context(cwd: str, agent_id: str, session_id: str = "") -> str
             scope = "legacy peek"
         sections.append(("mail", [f"mail: {unread} unread ({scope}) -> "
                                   f"py agent_cli.py bifrost-sync {agent_id}"]))
+    # T095-M1: the mailbox becomes INHABITED here. The verbs shipped wired to a door, but a door
+    # nobody walks through is not a mailbox -- a seat only benefits if the state reaches the place
+    # it already looks. `read_but_undeclared` is the load-bearing count: mail a PRIOR incarnation
+    # opened and said nothing about. Without this line a fresh seat cannot tell that from unread,
+    # which is the gap this whole arc exists to close.
+    mbx_line = _mailbox_line(agent_id)
+    if mbx_line:
+        sections.append(("mailbox", [mbx_line]))
     if fresh_draft:
         sections.append(("draft", ["draft: chronicles/last-session-draft.md -> review; promote with "
                                    "`py agent_cli.py wrap --commit`"]))

@@ -478,10 +478,85 @@ def body_of(ns: str, agent: str, sha: str, *, client=None) -> Optional[Dict[str,
     m = client.hgetall(_keys(ns, agent)["msg"] + str(sha)) or {}
     if not m:
         return None
+    # ABSENT IS NOT EMPTY. An entry indexed before M1 has no `body` FIELD at all; an entry whose
+    # message genuinely carried no text has the field set to "". Rendering both as "" would make
+    # the index quietly claim it holds something it never stored -- the precise failure this arc
+    # exists to end. The presence of the key is the discriminator.
+    stored = "body" in m
     return {"sha": str(sha), "kind": m.get("kind", "_unknown"), "frm": m.get("frm", "?"),
             "to": m.get("to", ""), "ts": m.get("ts", ""), "body": m.get("body", ""),
             "truncated": m.get("body_truncated") == "1",
-            "body_len": int(m.get("body_len") or 0)}
+            "body_len": int(m.get("body_len") or 0),
+            "body_available": stored,
+            "body_unavailable_reason": None if stored else
+            "indexed before M1 body storage -- run `mailbox <agent> --backfill` to recover any "
+            "whose transport entry still exists"}
+
+
+def orientation_counts(ns: str, agent: str, *, client=None) -> Dict[str, int]:
+    """The boot line's whole data need, in THREE Redis calls, regardless of mailbox size.
+
+    Deliberately NOT built on query(): that resolves every entry's tier by reading its hash, its
+    cursors and its acks, which cost 3.2s on a 1500-entry mailbox -- three seconds added to every
+    boot to render one line. Nothing here needs a tier. The membership sets alone answer it:
+    the zset gives the entries, and `seen`/`intent` are each ONE hash for the whole agent.
+    """
+    client = client or _connect()
+    k = _keys(ns, agent)
+    shas = [str(s) for s in (client.zrange(k["z"], 0, -1) or [])]
+    opened = {str(f).split("|", 1)[0] for f in (client.hgetall(k["seen"]) or {})}
+    declared = {str(f) for f in (client.hgetall(k["intent"]) or {}) if "|" not in str(f)}
+    unopened = sum(1 for s in shas if s not in opened)
+    undeclared = sum(1 for s in shas if s in opened and s not in declared)
+    return {"total": len(shas), "unopened": unopened, "read_but_undeclared": undeclared}
+
+
+def backfill_bodies(ns: str, agent: str, *, client=None, limit: int = 5000) -> Dict[str, Any]:
+    """Recover bodies for entries indexed before M1, WITHOUT dropping the index.
+
+    Deliberately not `rebuild()`: that drops and re-derives, so every entry whose stream data has
+    already aged out would silently disappear -- trading a missing body for a missing message. This
+    walks the existing entries instead, re-reads each one's own recorded stream ids, and fills what
+    is still recoverable. What is unrecoverable STAYS listed and stays honestly marked.
+    """
+    client = client or _connect()
+    k = _keys(ns, agent)
+    filled = scanned = unrecoverable = 0
+    for sha in [s for s, _ in (client.zrange(k["z"], 0, -1, withscores=True) or [])][:limit]:
+        mkey = k["msg"] + str(sha)
+        m = client.hgetall(mkey) or {}
+        if not m or "body" in m:
+            continue
+        scanned += 1
+        try:
+            ids = json.loads(m.get("ids") or "{}")
+        except (ValueError, TypeError):
+            ids = {}
+        body = ""
+        for source, sid in ids.items():
+            spec = next((s for s in _SOURCES if s[0] == source), None)
+            if spec is None:
+                continue
+            stream = spec[1].format(ns=ns, agent=agent)
+            try:
+                rows = client.xrange(stream, min=sid, max=sid, count=1) or []
+            except Exception:
+                rows = []
+            for _rid, fields in rows:
+                body = str((fields or {}).get("content", "") or "")
+                if body:
+                    break
+            if body:
+                break
+        if body:
+            client.hset(mkey, mapping={"body": body[:BODY_MAX], "body_len": str(len(body)),
+                                       "body_truncated": "1" if len(body) > BODY_MAX else "0"})
+            filled += 1
+        else:
+            unrecoverable += 1
+    return {"scanned": scanned, "filled": filled, "unrecoverable": unrecoverable,
+            "note": "unrecoverable entries keep their state and stay marked body_available=False; "
+                    "their transport entry is gone and no body was ever stored"}
 
 
 def open(ns: str, agent: str, sha: str, *, incarnation: str, client=None) -> Dict[str, Any]:
@@ -503,6 +578,9 @@ def open(ns: str, agent: str, sha: str, *, incarnation: str, client=None) -> Dic
     first = not (client.hgetall(k["seen"]) or {}).get(field)
     if first:
         client.hset(k["seen"], field, str(time.time()))
+    # The seen receipt is recorded either way -- a seat DID read this entry, and that fact is true
+    # whether or not the body survived. But `open` must not hand back an empty string as though it
+    # were the message.
     return {"ok": True, "first_open_by_this_incarnation": first,
             "seen_by": seen_by(ns, agent, sha, client=client), **entry}
 

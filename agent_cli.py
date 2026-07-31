@@ -3944,9 +3944,21 @@ def cmd_mailbox(args):
         print(f"  seen by: {readers}"
               f"{'  (first open by this incarnation)' if out['first_open_by_this_incarnation'] else ''}")
         print(f"  SEEN only -- not consumed, not handled, not settled. Cursor untouched.")
+        if not out.get("body_available"):
+            print(f"  !! NO BODY STORED: {out['body_unavailable_reason']}")
+            return 0
         if out["truncated"]:
             print(f"  !! body truncated at {len(out['body'])} of {out['body_len']} chars")
         print("-" * 60); print(out["body"])
+        return 0
+    if getattr(args, "backfill", False):
+        out = mailbox.backfill_bodies(bus.ns, args.agent_id, client=bus._client)
+        if args.json:
+            print(json.dumps(out, indent=2, default=str)); return 0
+        print(f"[mailbox-backfill] {out['scanned']} bodyless entrie(s) scanned; "
+              f"{out['filled']} recovered from transport; {out['unrecoverable']} unrecoverable")
+        if out["unrecoverable"]:
+            print(f"  {out['note']}")
         return 0
     if getattr(args, "state_sha", None):
         out = mailbox.state_for(bus.ns, args.agent_id, args.state_sha, client=bus._client)
@@ -4484,6 +4496,10 @@ def build_parser():
     mbx.add_argument("--to", dest="intent_to", default="",
                      help="required with --as delegate: an unrouted delegation is a drop")
     mbx.add_argument("--note", dest="intent_note", default="", help="optional free-text reason")
+    mbx.add_argument("--backfill", action="store_true",
+                     help="M1: recover bodies for entries indexed before body storage, WITHOUT "
+                          "dropping the index (unlike --rebuild). Unrecoverable entries keep "
+                          "their state and stay honestly marked.")
     mbx.add_argument("--incarnation", default=None,
                      help="your session suffix. Defaults to $AKASHIC_SESSION8 or 'unknown'. It is "
                           "load-bearing: seen receipts are keyed per incarnation so a FRESH seat "
