@@ -1,5 +1,15 @@
 # The Inhabitant Synthesis — round brief, 2026-07-30 night
 
+> **SUPERSEDED 2026-07-30 night by research/in-flight/STATE-OF-THE-ROUND-2026-07-30.md.**
+> Three particulars here were proved wrong by codex's ordering verdict (identity is not
+> content+sender; T095 as it stands is not the mailbox; no generic settlement ontology),
+> and cursor_grok correctly found that this document renders an end-state in present tense
+> in a way that would mislead a newcomer reading it as description. Kept unedited as the
+> record of what was proposed and corrected (G1: supersession is a new entry, never an
+> edit). Read the successor.
+
+
+
 *Status: PROPOSAL at Daniil's gate, open for fleet review. Nothing here is built. This
 document exists so nobody re-derives what is already settled, and so the disagreements
 that matter can be aimed at a single target instead of scattered across the bus.*
