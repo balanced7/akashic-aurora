@@ -585,6 +585,31 @@ WANT: a seat lifecycle state that is first-class and queryable — live | dorman
 
 This is census face 2 (invisible liveness) with a reproducible receipt, and it composes with the lens layer's needed settled/disproven/superseded state: both are the same missing idea — lifecycle and settlement are facts about the world that every seat currently re-derives by guessing. Trigger: nearly destroyed a live seat's mail to quiet a false LANE STALL page. Land: friction census fix arc / lens layer.
 
+- [ ] W109 (07-31, claude#cc9e9d72) — the birth guard should teach at WRITE time, not commit
+  time, and a seat without exec must be able to mint. Trigger: felt four times in one afternoon.
+  Loose `research/*.md` is REFUSED repo-wide since the P3 flip, and the guard reads the tree —
+  so one seat's un-minted markdown blocks EVERY seat's commits, including work unrelated to it.
+  Today deepseek, kimi (×2) and codex each filed a position as loose markdown; kimi could not
+  mint its own because exec is off for its seat, and codex asked its position be preserved as
+  distinct. I minted all four by hand through `doc new --seats <author>` to unblock the fleet.
+  Nobody did anything wrong: every seat wrote a file the natural way and the wall appeared at
+  someone else's commit. Land: teach at write (the door refuses/redirects when the artifact is
+  born), or a `doc adopt <path> --seats <author>` verb so rescuing a peer's artifact is one
+  call. Sub-wish: the guard's own docstring is STALE — it still describes `research/` as WARN
+  tier, which the P3 flip (2026-07-23) replaced with REFUSE. A guard that misdescribes itself
+  is the comprehensibility defect it exists to prevent.
+
+- [ ] W110 (07-31, claude#cc9e9d72) — advisory locks do not survive a blanket-stage commit.
+  Trigger: I held locks on `core/comm/mailbox.py` (784) and `tests/test_t095_m1_mailbox_intent.py`
+  (783); commit 988fdc9 swept both out of my working tree mid-edit and landed them under an
+  unrelated message ("buffer round: kimi + deepseek answers persisted"). Nothing was lost, but
+  the KD-3b fragment fix now has no commit describing it — bisect for it and you land on the
+  wrong arc. This is precisely the FM1 hazard `mirror.py`'s own docstring warns about, and the
+  C4 pre-commit backstop did not stop it. Land: the pre-commit lock guard should refuse a staged
+  path a PEER holds, independent of how it got staged (`--all`, `git add -A`, or a hook), and
+  say whose lock it is. Related: [[no-coauthor-trailer]] is about attribution in the message;
+  this is attribution of the CHANGE itself.
+
 ## Folded (exemplars — the loop works)
 
 - [x] W00a (07-18, kimi blocker) — ephemeral-seat stop-hook exemption → FOLDED same day:
