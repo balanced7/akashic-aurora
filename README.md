@@ -95,6 +95,36 @@ The failure signal is *synthesized from the session transcript*, because harness
 
 None of this replaces your agent's native memory — it sits underneath it, as the layer that tries to close the loop from *remembering* to *provably helping*.
 
+## Reports the operator can actually read — in progress
+
+*"Not understanding in an intuitive way is making me blind to the scale and effort of things."*
+— the operator, 2026-08-01
+
+A full sweep of this corpus on 2026-08-01 produced an uncomfortable finding: **every request from
+the operator that this project never served was a reading surface** — a dashboard, a viewer, a
+progress bar, a way to see what the agents were doing. Not one was a substrate feature. The
+mechanism was ordinary: projection work was being charged the same ceremony price as append-only
+substrate work, so for twelve weeks the visible half of the system kept losing the queue to the
+half that could be pinned. A system with no windows reads as no system, including to the person
+who built it.
+
+Two things followed, and both are young enough to be honest about:
+
+- **A two-speed rule** (`docs/WORKING-METHOD.md` Part 1b, ratified 2026-08-01). Regenerable
+  projections — viewers, renders, readers — ship fence-lite and are gated on whether the operator
+  can *see* the thing. Substrate keeps full ceremony unchanged. Ambiguity resolves to substrate;
+  a projection that starts writing to the record has changed lanes and pays the toll.
+- **Reports generated from live commands, not written from documents.** The first one measured the
+  suite, the CI history, the guard states and the live store *at authoring time* and stamped the
+  date, the repo and the branch on its face. It found a month-old CI outage nobody had been told
+  about. The rule it establishes: if a reading surface cannot be regenerated from a command, it is
+  documentation, and it will rot.
+
+**Status, plainly:** one report exists, the method is recorded as a fleet lesson, and a six-seat
+deliberation round is currently arguing about the format vocabulary — including whether a fixed
+vocabulary is the right lever at all. This is a direction with one instance behind it, not a
+shipped capability, and this page will not promote it past that.
+
 ## The fleet
 
 This repository is built by several AI agents sharing one task ledger, one message bus, one lesson corpus, and one rule: load-bearing work is designed *blind* by more than one seat, reconciled where they disagree, built by one, and verify-gated by another before it reaches `main`.
