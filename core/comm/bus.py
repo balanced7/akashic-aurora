@@ -299,7 +299,7 @@ class Bus:
         """(is_live, beat_age_s) for the freshest incarnation of `to`. Raises on probe failure --
         the caller decides policy, so a broken probe can never masquerade as a dead seat."""
         from core.comm import roster as _roster
-        rows = [r for r in _roster.roster(self.ns, client=self.r)
+        rows = [r for r in _roster.roster(self.ns, client=self._client)
                 if str(r.get("agent") or "").split("#")[0] == to]
         ages = [r["beat_age_s"] for r in rows if r.get("beat_age_s") is not None]
         if not ages:

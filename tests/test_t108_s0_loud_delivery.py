@@ -81,3 +81,30 @@ def test_unlock_failure_is_not_swallowed(monkeypatch):
     tb.release_written_locks()
     assert problems, "an unlock that threw was swallowed silently -- the peer-freezing defect"
     assert "bifrost_ui.py" in problems[0], "the report names no path, so nobody can act on it"
+
+
+def test_the_real_probe_is_wired_not_just_the_monkeypatched_one():
+    """THE PIN THAT WOULD HAVE CAUGHT MY OWN NO-OP.
+
+    The four pins above all monkeypatch `_recipient_liveness`, so every one passed while the REAL
+    method raised AttributeError on every call (`self.r` -- an attribute Bus does not have; the
+    client is `_client`). My own fail-open then swallowed it, so a loudness fix shipped as a
+    silent no-op and I reported it as working. Verified live only because a probe send stayed
+    quiet against a seat dead 2h+.
+
+    The transferable shape: FAIL-OPEN + MONKEYPATCHED PINS = AN INVISIBLE NO-OP. Whenever a guard
+    swallows its own errors by policy, at least one pin must exercise the UNPATCHED path, or the
+    guard's absence is indistinguishable from its silence -- which is the exact defect class the
+    guard was written to end.
+    """
+    from core.comm import bus as B
+    b = B.Bus("claude")
+    try:
+        live, age = b._recipient_liveness("claude")     # the real probe, no monkeypatch
+    except Exception as e:
+        raise AssertionError(
+            f"the REAL liveness probe raised {type(e).__name__}: {e} -- with fail-open this "
+            "means the warning never fires in production, no matter how green the other pins are"
+        )
+    assert isinstance(live, bool), f"probe returned a non-bool liveness: {live!r}"
+    assert age is None or isinstance(age, (int, float)), f"probe returned a bad age: {age!r}"
