@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 from typing import Any, Optional
 
-from core.fleet import roster
+from core.fleet import model_roster as roster
 
 
 class FleetCallError(RuntimeError):

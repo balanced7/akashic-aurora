@@ -30,7 +30,6 @@ whole arc exists to stop building those.
 from __future__ import annotations
 
 import os
-import sys
 from typing import Any, Dict
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -43,9 +42,14 @@ WINDOW = 30
 
 
 def _stats(n: int) -> Dict[str, Any]:
-    """Measured M3 compliance. Injectable so the pins never shell out to git."""
-    sys.path.insert(0, os.path.join(ROOT, "scripts", "checkers"))
-    from check_preregistration import audit_stats
+    """Measured M3 compliance. Injectable so the pins never shell out to git.
+
+    T123: this used to mutate the import path to reach scripts/checkers and pull the checker
+    back in -- an INVERTED dependency (core reaching out to the script layer) that the
+    architecture guardrail refuses by rule `no-syspath-insert`. The metric now lives at
+    core/coord/preregistration.py; this reader and the ship gate both import INWARD from it.
+    """
+    from core.coord.preregistration import audit_stats
     return audit_stats(n)
 
 
