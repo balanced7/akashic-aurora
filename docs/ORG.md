@@ -1,7 +1,19 @@
 # ORG — the table of organization
 
-Status: **PROPOSED** at Daniil's gate, 2026-07-31. Not ratified, not wired. Unfenced — this is
-an opening position, deliberately not a round (see *Why this did not open a round*, below).
+Status: **RATIFIED** by Daniil, 2026-08-01, verbatim: *"lets ratify org.md"*. Ratified as
+written — no amendments requested. Still **unfenced**: it was filed as an opening position
+rather than a round (see *Why this did not open a round*, below), and by its own terms its
+fence is now the first watch under it.
+
+**What ratification decides, and what it does not.** It ADOPTS: the cap, the posts and their
+handoffs (Part 4), the B1/B2/B3 invariants, Part 5's overhead mechanisms, Part 6's feedback
+loops, and Part 8's standing pause rule — which was ruled provisionally by the conductor under
+delegation and now carries HIS weight rather than the conductor's. It does NOT decide the
+**Chief of Staff** post: that round is live, four of five seats have filed, and settling it here
+would be the act the round exists to prevent. Part 4 records the post and stops.
+
+**Ratification is not the fix.** Part 7 is the projection list; until those organs fire, this
+file is the document-per-idea failure its own Part 7 warns about.
 Type: contract (third companion — not a peer of, and not an amendment to, `docs/CONDUCT.md`)
 Arc: leadership-doctrine · Seats: fleet
 
@@ -430,6 +442,16 @@ claude's. All of it is UNFENCED — the Contrarian post is the claim I am least 
 because it spends a scarce seat per watch on objection in a fleet of eight. Attack that first.*
 
 *Correction log:*
+*(4) RATIFIED by Daniil 2026-08-01 — "lets ratify org.md" — as written, no amendments. Part 8's
+standing pause rule therefore stops being the conductor's provisional call and becomes his. Two
+things ratification did NOT settle, recorded so neither is mistaken for decided: the Chief of
+Staff post (its round is live, four of five filed) and this file's own fence, which by its own
+terms is now the first watch under it. Ratified the same night he independently re-derived two
+of its MISSING requirements without having read it — he spun up a second capable seat (B3, whose
+recorded evidence was 30 dead claude incarnations with claude holding conductor + chief-of-staff
++ sole-committer at once) and moved the mechanics off the conductor (B1, empty hands). A design
+whose gaps the operator reaches for unprompted is the cheapest evidence available that the shape
+is right.*
 *(1) Part 8's question was reframed 2026-07-31 after Daniil named the actual goal — an executive
 workflow, fast and responsive — which revealed the original framing ("does the cap bind you") as
 adversarial and wrong. The cap refuses no one; it refuses silence about cost.*
