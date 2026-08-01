@@ -132,6 +132,40 @@ def test_quiet_seed_does_not_cry_wolf(caplog, monkeypatch):
     )
 
 
+def test_seed_warning_does_not_promise_a_future_it_cannot_deliver(caplog, monkeypatch):
+    """The marker must not claim the NEXT arm is fixed, because seeding cannot survive to it.
+
+    _lane_since is PER-PROCESS state and every arm is a NEW process, so seeding only holds for
+    the remainder of this call -- which returns `live` immediately and exits. "The watcher will
+    now block correctly" was therefore true for a future that never arrives: the identical
+    pending set is re-detected on the next arm, printing the identical reassurance.
+
+    Measured 2026-07-31: five consecutive arms, same message each time, same pending count.
+    Measured 2026-07-25 on the same class: six. A guard that reports success while failing is
+    why this recurs -- the reader believes the next arm is fine and re-arms instead of draining.
+
+    So the contract is: do not promise, INSTRUCT. Name the lane this watcher actually PEEKS.
+    The whole cost tonight was draining `work` (the lane armed) while detection reads `legacy`.
+    """
+    import logging
+    bus = _Bus([_Msg()])
+    api = _api(bus)
+    monkeypatch.setattr(api, "_lane_tails", lambda: {"work": "0-0"}, raising=False)
+    monkeypatch.setattr(api, "_lane_streams", lambda: {"inbox": "s"}, raising=False)
+
+    with caplog.at_level(logging.WARNING, logger="bifrost"):
+        api._wake_block_lane(timeout_ms=1)
+
+    msg = " ".join(r.getMessage() for r in caplog.records)
+    assert "will now block correctly" not in msg, (
+        "the warning promises the next arm is fixed; seeding is per-process and cannot deliver it"
+    )
+    assert "BIFROST_CONSUME_LANE=legacy" in msg, (
+        "the warning says 'drain it' without naming WHICH lane -- and the lane it peeks (legacy) "
+        "is not the lane the operator armed (work), which is the entire trap"
+    )
+
+
 def test_a_quiet_bus_still_seeds_and_blocks(monkeypatch):
     """Regression guard: the no-pending path must keep working exactly as before."""
     bus = _Bus([])
