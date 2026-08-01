@@ -81,8 +81,13 @@ if os.path.dirname(_HERE) not in sys.path:
     sys.path.insert(0, os.path.dirname(_HERE))
 from core.comm.toolbox import (   # noqa: F401,E402  (compat re-export)
     MAX_CMD_TIMEOUT, EXCLUDE_DIRS, BINARY_SUFFIXES, MAX_FILE_BYTES, MAX_MATCHES,
-    MAX_LIST, MAX_CMD_OUT, CLARIFY_MAX_PER_TASK, _fn, TOOLS, ToolBox,
+    MAX_LIST, MAX_CMD_OUT, CLARIFY_MAX_PER_TASK, CLARIFY_TIMEOUT_S, _fn, TOOLS, ToolBox,
 )
+# CLARIFY_TIMEOUT_S was missing from this list while the clarification-TIMEOUT branch below
+# uses it -- so the runner died with a NameError precisely when a clarification went
+# unanswered (2026-08-01, two attempts, mid-battery). The happy path never touches the name;
+# tests/test_deepseek_chat_imports.py now AST-checks the whole re-export against usage so the
+# NEXT drifted constant fails in CI instead of in a live turn.
 
 MAX_TOOL_ROUNDS = 30
 
