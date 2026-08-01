@@ -682,7 +682,25 @@ PAGE = r"""<!doctype html>
     box-shadow:0 0 18px rgba(122,162,247,.45)}
   .brand small{color:var(--muted); font-weight:450; margin-left:2px}
   .spacer{flex:1}
-  .pills{display:flex; gap:7px; align-items:center}
+  /* BOUNDED (design/CONTRACT.md §1 layout). SEEN, not inferred: at 1280x860 and 900x820 the
+     header controls -- Pause, Deck, Agents, gear, reload -- were pushed clean OFF the right edge
+     and were unreachable, and at 900px the strip clipped mid-word ("kimi" sliced in half).
+     Measured cause: the row overflowed by 399px (scrollWidth 1579 vs 1180) because .pills took
+     998px of it with no min-width:0, so #epiChip was crushed from 162px of content into a 22px
+     box and everything after it was pushed out of the viewport.
+     A flex item's default min-width is auto, so a data strip that grows with the fleet will
+     ALWAYS win the row unless told otherwise. It is the same unbounded-by-roster-count disease as
+     the roster popover height and the animation budget: size as a function of fleet size, with no
+     ceiling. The strip scrolls internally; the controls never yield. */
+  .pills{display:flex; gap:7px; align-items:center; flex:1 1 0; min-width:0;
+    overflow-x:auto; overflow-y:hidden; scrollbar-width:thin;
+    scrollbar-color:var(--border) transparent; padding-bottom:2px}
+  .pills::-webkit-scrollbar{height:6px}
+  .pills::-webkit-scrollbar-thumb{background:var(--border); border-radius:3px}
+  .pills::-webkit-scrollbar-track{background:transparent}
+  .pill{flex:none}                      /* pills keep their size; the STRIP scrolls, not the pill */
+  /* Controls are never sacrificed to make room for data. */
+  #epiChip,#reloadBtn,#gearBtn,#lnchrBtn,#vizBtn,#pauseBtn{flex:none}
   .pill{display:flex; align-items:center; gap:6px; padding:5px 10px; border:1px solid var(--border);
     border-radius:999px; background:var(--panel); font-size:12.5px; color:var(--muted); cursor:pointer}
   .dot{width:7px;height:7px;border-radius:50%;background:var(--faint); box-shadow:0 0 0 0 rgba(0,0,0,0)}
