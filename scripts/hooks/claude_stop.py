@@ -213,6 +213,38 @@ def _promise_block(payload: dict):
             "This check fires once per session.")
 
 
+def _beat_idle(session_id: str) -> None:
+    """Turn boundary: the seat is idle-ALIVE, not working. Closes the F5 false-page window.
+
+    WHY: the PostToolUse heartbeat beats phase="working", and roster.heartbeat carries
+    since_ts forward, so "working" persisted across the gaps BETWEEN turns while the beat
+    went stale. doctor.py:378-391 pages hard_wedge on exactly that shape -- non-idle phase
+    aged past DEFAULT_WEDGE_S with no fresh pulse -- so an ordinary thinking gap rendered as
+    "worker died inside the turn". Measured live 2026-08-01: opus-engineer#6ac75463 paged
+    HARD WEDGE at 608s while merely between turns, and was beating again (seq=52) minutes
+    later. Before the per-action heartbeat existed this window could not open, because the
+    worklive key simply expired; the pulse fix opened it. This closes it at the boundary
+    rather than by loosening the detector, which would blind it to REAL wedges.
+
+    IDLE_PHASES = {"idle","online","replied"} (liveness.py:84), so "idle" makes non_idle
+    False and no wedge is computed. Identity resolves through seat_identity (B1) -- never
+    guessed, and no row at all when unknown, per the W4 pin.
+    """
+    if os.getenv("AKASHIC_SEAT_HEARTBEAT", "1") == "0":
+        return
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        agent = _seat(session_id)
+        if not agent or agent == "unknown" or not session_id:
+            return
+        from core.comm import roster as _roster
+        from core.comm.bus import NS as _DEFAULT_NS
+        _roster.heartbeat(os.environ.get("BIFROST_NAMESPACE", _DEFAULT_NS),
+                          agent, session_id, phase="idle")
+    except Exception:
+        pass   # a liveness marker must never break the turn boundary
+
+
 def main():
     try:
         payload = json.loads(sys.stdin.read().lstrip("﻿"))   # BOM-tolerant (PS pipes)
@@ -221,6 +253,7 @@ def main():
         print(f"[stop-hook] stdin unparseable: {type(e).__name__}: {e}", file=sys.stderr)
         payload = {}
     session_id = str(payload.get("session_id") or "")
+    _beat_idle(session_id)
     if session_id:
         try:   # T086 S1b: a resurrected turn of an ENDED session stands down QUIETLY --
             #    no marker touch (that would fake renewal), no seat refresh, no wake-arm
