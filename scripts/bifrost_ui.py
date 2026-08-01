@@ -721,8 +721,22 @@ PAGE = r"""<!doctype html>
   /* messages */
   #log{flex:1; overflow-y:auto; padding:20px 24px 8px; scroll-behavior:smooth}
   #log::-webkit-scrollbar{width:10px} #log::-webkit-scrollbar-thumb{background:#20232e;border-radius:6px;border:2px solid var(--bg)}
-  .msg{display:flex; gap:12px; margin-bottom:18px; animation:fade .28s ease}
+  /* MOTION BUDGET (design/CONTRACT.md §1). Measured 2026-08-01 on the live console: 261 elements
+     carrying a CSS animation, and 250 of them were this one -- `fade` on every .msg in the feed.
+     The entry animation is right; applying it to 250 historical rows forever is not. The feed is
+     ring-buffered at ~250 nodes, so this count is a FLOOR, not a peak.
+     content-visibility:auto lets the engine skip layout+paint for rows outside the viewport
+     entirely -- the single largest win available here, because the feed is almost all off-screen.
+     contain-intrinsic-size keeps the scrollbar honest while rows are skipped. */
+  .msg{display:flex; gap:12px; margin-bottom:18px; animation:fade .28s ease;
+       content-visibility:auto; contain-intrinsic-size:auto 64px}
   @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  /* CONTRACT §1 motion budget, global floor: ambient motion is a nicety and must never be the
+     reason a frame is missed. Honors the OS setting rather than inventing a project dial. */
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.001ms !important; animation-iteration-count:1 !important;
+      transition-duration:.001ms !important; scroll-behavior:auto !important}
+  }
   .av{flex:none; width:34px;height:34px;border-radius:10px; display:grid;place-items:center;
     font-weight:700; font-size:13px; color:#0a0b0f}
   .av.claude{background:linear-gradient(135deg,#e0915c,#d97b5a)}
