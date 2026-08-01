@@ -29,6 +29,20 @@ from pathlib import Path
 
 from core.comm import packet_spec
 
+
+def _loud(msg: str) -> None:
+    """Report a swallowed-class failure without ever raising (T108-S0).
+
+    Fail-open is the policy for advisory machinery -- a lock error must not block a reply. Silence
+    was never the policy; it was an accident of `except Exception: pass`. This is the seam that
+    turns those into visible events, and it is monkeypatchable so pins can assert the report.
+    """
+    try:
+        sys.stderr.write(msg.rstrip() + "\n")
+        sys.stderr.flush()
+    except Exception:
+        pass
+
 MAX_CMD_TIMEOUT       = int(os.getenv("DEEPSEEK_MAX_CMD_TIMEOUT", "300"))  # ceiling a single run_command can't exceed, even if the model asks for more
 
 # Dirs never worth walking (vendored / caches / heavy data) -- keeps search fast and tokens bounded.
@@ -847,13 +861,24 @@ class ToolBox:
     def release_written_locks(self) -> int:
         """T048: release every advisory lock this task's guarded writes took. Called by the runner
         AFTER the reply is sent -- task end is lock end (T026 ack semantics). Reuses the unlock door
-        (the exact path used for tonight's three manual releases); best-effort, returns count tried."""
+        (the exact path used for tonight's three manual releases); best-effort, returns count tried.
+
+        T108-S0 (2026-08-01): the failure is now LOUD. This used to swallow every exception, so a
+        failing unlock left a stale lock that FROZE A PEER and nothing anywhere paged -- kimi traced
+        it to source across six bounces while it was blocking deepseek's UI work, and named the fix
+        in one line: "a failed unlock should be loud." Best-effort is still the right POLICY (a lock
+        error must never block a reply); silence was never part of that policy, it was an accident
+        of the except clause. Fail-open AND report.
+        """
         paths, self._written_lock_paths = self._written_lock_paths, []
         for p in paths:
             try:
                 self._agent_cli(["unlock", self.agent_id or "deepseek", p], timeout=15)
-            except Exception:
-                pass
+            except Exception as e:
+                _loud(f"[toolbox] UNLOCK FAILED for {p} (holder {self.agent_id}): "
+                      f"{type(e).__name__}: {e} -- the lock is STALE and will block peers until "
+                      f"its TTL expires. Release it by hand: py agent_cli.py unlock "
+                      f"{self.agent_id} {p}")
         return len(paths)
 
     def write_file(self, path, content):

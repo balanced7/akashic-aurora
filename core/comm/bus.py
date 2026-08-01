@@ -278,10 +278,57 @@ class Bus:
         oversize payloads are auto-fragmented (P2 auto-chunk); pass allow_frag=False for the
         legacy LOUD-refusal behavior."""
         # T108 slice 1: incarnation-directed mail also lands on the target SEAT's own stream.
+        self._warn_if_unattended(str(to))     # T108-S0: delivery is not receipt
         inc = str((meta or {}).get("to_incarnation") or "")[:8]
         mirror = self._seat_inbox_key(str(to), inc) if inc else None
         return self._emit(self._inbox_key(str(to)), to=str(to), kind=kind, content=content,
                           parts=parts, meta=meta, allow_frag=allow_frag, mirror_stream=mirror)
+
+    # --- T108 slice 0: delivery is not receipt -------------------------------------------------
+    # Sending to a seat with no live heartbeat SUCCEEDS and always has -- correctly, because
+    # durable mail to an offline seat is the whole point of a handoff. What was missing is that
+    # the SENDER was never told. Live receipt 2026-08-01: an `interrupt`, the highest fidelity
+    # below halt, went to a seat dead 2h11m and was reported as dispatched; the conductor found
+    # out only when the operator asked why the work had not happened. Two briefs died that way in
+    # one session. This does not change delivery semantics; it removes the sender's ignorance,
+    # and with it the "check the roster before trusting a send" branch from every caller's logic.
+
+    UNATTENDED_S = float(os.environ.get("AKASHIC_UNATTENDED_S", "300") or 300)
+
+    def _recipient_liveness(self, to: str):
+        """(is_live, beat_age_s) for the freshest incarnation of `to`. Raises on probe failure --
+        the caller decides policy, so a broken probe can never masquerade as a dead seat."""
+        from core.comm import roster as _roster
+        rows = [r for r in _roster.roster(self.ns, client=self.r)
+                if str(r.get("agent") or "").split("#")[0] == to]
+        ages = [r["beat_age_s"] for r in rows if r.get("beat_age_s") is not None]
+        if not ages:
+            return False, None
+        youngest = min(ages)
+        return youngest <= self.UNATTENDED_S, youngest
+
+    def _warn_if_unattended(self, to: str):
+        """Report (never raise, never refuse) when `to` has no attending seat. Returns the warning
+        text if one fired, else None. FAILS OPEN on any probe error: a transport that refuses to
+        send because it cannot check liveness is strictly worse than one that sends blind."""
+        if str(to) in ("*", BROADCAST_TO):
+            return None                                   # broadcast has no single recipient
+        try:
+            live, age = self._recipient_liveness(to)
+        except Exception:
+            return None                                   # probe crash -> silent, send proceeds
+        if live:
+            return None
+        where = f"last beat {age:.0f}s ago" if age is not None else "no heartbeat on record"
+        msg = (f"[bus] UNATTENDED RECIPIENT: '{to}' has no live seat ({where}). The message is "
+               f"durably queued and will deliver on its next boot -- but nothing is reading it "
+               f"now. If you expected action, relaunch the seat or route to a live one.")
+        try:
+            sys.stderr.write(msg + "\n")
+            sys.stderr.flush()
+        except Exception:
+            pass
+        return msg
 
     def broadcast(self, kind: str, content: Any = None, *, parts: Optional[List[Part]] = None,
                   meta: Optional[Dict[str, Any]] = None, allow_frag: bool = True) -> Optional[str]:
