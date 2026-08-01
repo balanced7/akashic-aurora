@@ -1,6 +1,15 @@
 # THE WORKING METHOD — how a problem becomes work, and whose correction catches what
 
-Status: **PROPOSED** at Daniil's gate, 2026-07-31. Not ratified, not wired.
+Status: **RATIFIED** by Daniil, 2026-08-01, verbatim: *"Lets ratify working method"*. Ratified as
+written. Still **not wired** — Part 3's organs are unbuilt, and by this file's own honest limit that
+means ratification changes nothing yet.
+
+**O7 (Q1) is RULED by the same session**, from his own words rather than by a conductor's choice:
+*"We decide together on what to work on while I am seeding ideas."* That settles the DEFAULT and
+settles it in the direction of the filed counter-position — **thinking aloud is free; seeding is not
+promoting; promotion is a JOINT act.** It does not settle the MECHANISM: the four intents codex
+named (idea / explore / promote / interrupt) still need a door, and that door is T126. So O7 moves
+from `OPEN` to `RULED — mechanism pending T126`, not to `SHIPPED`.
 Type: contract (companion to `docs/CONDUCT.md`, not a peer of it) · Arc: leadership-doctrine
 Seats: fleet — every seat originates, every seat corrects.
 
@@ -60,7 +69,12 @@ which is the 20-ACTIVE ledger we are now cutting; 2026-07-29/30 opened eight lan
 produced a coordination cascade. Depth is this fleet's strength and width is its
 recurring wound. **A new lane without a named pause is a lane the fleet cannot afford.**
 
-**O7. Promotion is an explicit, visible act. `OPEN` — Q1 at Daniil's gate.**
+**O7. Promotion is an explicit, visible act. `RULED` 2026-08-01 — mechanism pending T126.**
+*Daniil, verbatim: "We decide together on what to work on while I am seeding ideas."* The default is
+settled in favour of the counter-position below: **seeding is not promoting, thinking aloud is free,
+and promotion is a JOINT act** — not a unilateral rule either party applies. What remains unbuilt is
+the door for the four intents; that is T126, and until it exists this rule lives in the conductor's
+discipline rather than in an organ, which is exactly the failure mode Part 3 names.
 Four intents that the system currently cannot tell apart (codex): *idea* — capture and
 discuss, no priority change · *explore* — one bounded sandbox lane, trunk continues ·
 *promote* — make current, and say what pauses · *interrupt* — stop mutations, produce one
