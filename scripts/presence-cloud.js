@@ -19,6 +19,20 @@
       'pointer-events:none;font-family:var(--sans,-apple-system,system-ui,sans-serif)}' +
     '#pcloud.hide{opacity:0;transform:translateY(8px);transition:opacity .4s,transform .4s}' +
     '#pcloud.show{opacity:1;transform:none;transition:opacity .4s,transform .4s}' +
+    /* INLINE MODE (Daniil 2026-08-01: "have it be to the left of the broadcast button not awkwardly
+       in the middle"). Fixed positioning at bottom:88px landed the 38px avatar directly on top of the
+       Inform/Steer/Interrupt ladder -- measured live, #pcloud rect (16,1176,38x38) overlapping the
+       ladder rect (16,1178,702x24), which is why "Inform" rendered as "orm". There is only ~31px to
+       the left of the Broadcast pill, so nudging a FIXED element cannot satisfy the ask; the avatar
+       has to join the composer's flex row. When mounted inline we drop out of the fixed layer
+       entirely and become an ordinary flex item ahead of the recipient chip. */
+    '#pcloud.pc-inline{position:relative;left:auto;bottom:auto;z-index:auto;flex:none;' +
+      'align-self:center;margin:0 2px 0 0}' +
+    '#pcloud.pc-inline.hide{display:none}' +   /* collapse, never a dead 30px gap beside Broadcast */
+    '#pcloud.pc-inline .pcav{width:30px;height:30px;border-radius:10px;font-size:12px}' +
+    '#pcloud.pc-inline .pcav .rglow{inset:-2px;border-radius:14px;filter:blur(6px)}' +
+    '#pcloud.pc-inline .cloud{left:22px;bottom:38px}' +
+    '#pcloud.pc-inline .trail{left:22px;bottom:32px}' +
     /* avatar */
     '#pcloud .pcav{width:38px;height:38px;border-radius:13px;flex:none;display:grid;place-items:center;' +
       'font-size:14px;font-weight:700;color:#0a0b0f;letter-spacing:.02em;position:relative;' +
@@ -62,7 +76,16 @@
     wrap.innerHTML='<div class="trail"><i></i><i></i></div>' +
       '<div class="cloud"><div class="verb"><span class="z"></span><span class="vt"></span></div><div class="detail"></div></div>' +
       '<div class="pcav"><span class="rglow"></span><span class="lt"></span></div>';
-    document.body.appendChild(wrap);
+    // Prefer the composer row so the avatar sits immediately LEFT of the Broadcast/recipient chip.
+    // Fall back to body (original fixed behaviour) if the composer is not present -- this file is
+    // standalone and must not depend on a particular UI revision being loaded.
+    var host = document.querySelector('.cwrap'), anchor = el('recipient');
+    if (host && anchor && anchor.parentNode === host) {
+      wrap.classList.add('pc-inline');
+      host.insertBefore(wrap, anchor);
+    } else {
+      document.body.appendChild(wrap);
+    }
     return wrap;
   }
 
@@ -107,7 +130,9 @@
     var d=global._glassCardData||{}, acts=global._lastActs||{};
     var wrap=ensureDom();
     var sel=pick(d,acts);
-    if(!sel){ wrap.className='hide'; return; }
+    // classList, NOT className= : a wholesale assignment wipes pc-inline (the mount-mode class)
+    // on the first state change, silently reverting the avatar to the fixed layer over the ladder.
+    if(!sel){ wrap.classList.add('hide'); wrap.classList.remove('show'); return; }
     var aid=sel.aid, act=sel.act||{};
     var info=(typeof global.avatarInfo==='function')?global.avatarInfo(aid):{a:'#7aa2f7',b:'#5fd39b',l:(aid[0]||'?').toUpperCase()};
     var grad='linear-gradient(140deg,'+info.a+','+info.b+')';
@@ -125,7 +150,7 @@
     // cloud shows when the agent is actively thinking or has a fresh thought; avatar stays either way
     cloud.style.display = thinking ? '' : 'none';
     wrap.querySelector('.trail').style.display = thinking ? '' : 'none';
-    wrap.className='show';
+    wrap.classList.add('show'); wrap.classList.remove('hide');
   }
 
   function start(){

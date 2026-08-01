@@ -906,11 +906,22 @@ PAGE = r"""<!doctype html>
   .cav{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;
     font-weight:700; font-size:10px; color:#0a0b0f; flex:none}
   /* --- roster popover (agent selector dropdown) --- */
+  /* Height-BOUNDED (Daniil 2026-08-01: "lets make the ai list at the top not take half the screen").
+     It had max-height:none + overflow:visible -- verified live on the running console -- so the list
+     grew linearly with the roster. At 11 agents x ~40px it was ~440px of a 1317px viewport, and it
+     opens UPWARD (bottom:100%), so it swallowed the feed. Bound it and let it scroll: the roster is
+     a picker, not a page. Rows also tightened 8px->6px vertical, which is ~11% off the open height
+     before scrolling starts. */
   .roster-pop{display:none; position:absolute; bottom:calc(100% + 4px); left:16px; z-index:15;
     background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:6px;
-    box-shadow:var(--shadow); min-width:180px; animation:drop .18s ease}
+    box-shadow:var(--shadow); min-width:180px; animation:drop .18s ease;
+    max-height:min(34vh,280px); overflow-y:auto; overscroll-behavior:contain;
+    scrollbar-width:thin; scrollbar-color:var(--border) transparent}
+  .roster-pop::-webkit-scrollbar{width:8px}
+  .roster-pop::-webkit-scrollbar-thumb{background:var(--border); border-radius:4px}
+  .roster-pop::-webkit-scrollbar-track{background:transparent}
   .roster-pop.show{display:block}
-  .roster-pop .ri{display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:9px;
+  .roster-pop .ri{display:flex; align-items:center; gap:10px; padding:6px 10px; border-radius:9px;
     cursor:pointer; transition:.12s; font-size:13px; color:var(--text); margin-bottom:2px}
   .roster-pop .ri:last-child{margin-bottom:0}
   .roster-pop .ri:hover{background:var(--glass-hi)}
