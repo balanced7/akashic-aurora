@@ -120,10 +120,20 @@ def load_existing():
 # standing law is "half the battle is knowing what the given bounds for a thing are", and a
 # count that hides a cut is the defect class this corpus keeps paying for.
 
-def _bound(shown, total, what):
+# EVERY altitude gets a budget, not just the menu (codex, o200k-measured 2026-08-01:
+# --directives printed 284k tokens, --orphans 95k, --stale 63k -- unbounded bands blow a
+# context window just as surely as reading the corpus raw). Default cap, announced
+# truncation, and a CONTINUATION pointer, lifted only by an explicit --all.
+DEFAULT_LIMIT = 40
+
+
+def _bound(shown, total, what, offset=0):
     line = f"[digests] {shown} of {total} {what}"
-    if shown < total:
-        line += f"  (TRUNCATED -- {total - shown} more; raise --limit or narrow the query)"
+    if offset:
+        line += f"  (from --offset {offset})"
+    if offset + shown < total:
+        line += (f"  (TRUNCATED -- {total - offset - shown} more; continue with "
+                 f"--offset {offset + shown}, widen with --limit, or --all)")
     return line
 
 
@@ -131,8 +141,8 @@ def _rows_with(rows, field):
     return [r for r in rows if r.get(field)]
 
 
-def _print_hits(rows, total, what, field=None):
-    print(_bound(len(rows), total, what))
+def _print_hits(rows, total, what, field=None, offset=0):
+    print(_bound(len(rows), total, what, offset))
     for r in rows:
         extra = ""
         if field:
@@ -240,36 +250,62 @@ def _query(rows, args):
               "in ANY chapter -- they are excluded from every span, not from this one.")
         return 0
 
+    # One budget rule for every listing surface: default DEFAULT_LIMIT, --all lifts,
+    # --offset continues. No surface prints unbounded unless explicitly told to.
+    eff_limit = None if args.all else (args.limit or DEFAULT_LIMIT)
+    offset = max(0, args.offset or 0)
+
     if args.themes:
         counts = {}
         for r in rows:
             for t in (r.get("themes") or []):
                 counts[t] = counts.get(t, 0) + 1
         ordered = sorted(counts.items(), key=lambda x: (-x[1], x[0]))
-        shown = ordered[:args.limit] if args.limit else ordered
-        print(_bound(len(shown), len(ordered), "axes (themes) -- pick one with --theme"))
-        for t, c in shown:
+        page = ordered[offset:offset + eff_limit] if eff_limit else ordered[offset:]
+        print(_bound(len(page), len(ordered),
+                     "axes (exact labels) -- --theme matches EXACTLY; --contains to browse",
+                     offset))
+        for t, c in page:
             print(f"  {c:>5}  {t}")
         return 0
 
     picks, what, field = None, None, None
     if args.theme:
         t = args.theme.lower()
-        picks = [r for r in rows if any(t in str(x).lower() for x in (r.get("themes") or []))]
-        what = f"artifacts on axis {args.theme!r}"
+        if args.contains:
+            # Substring browsing stays available, but as a DECLARED different query. The
+            # defect this replaces: the menu counted exact labels while the hop matched
+            # substrings -- '95 recall' on one surface, '137 of 137' on the other. Two
+            # surfaces, two sets, one claiming completeness (codex, reproduced 2026-08-01).
+            picks = [r for r in rows
+                     if any(t in str(x).lower() for x in (r.get("themes") or []))]
+            what = f"artifacts whose labels CONTAIN {args.theme!r} (substring browse)"
+        else:
+            picks = [r for r in rows
+                     if any(t == str(x).lower() for x in (r.get("themes") or []))]
+            what = f"artifacts labeled exactly {args.theme!r}"
     elif args.grep:
         g = args.grep.lower()
         picks = [r for r in rows if g in json.dumps(r, ensure_ascii=False).lower()]
         what = f"artifacts matching {args.grep!r}"
+    # Band headers say CLAIMS. The critic proved these carry TOON-class false positives --
+    # a header that reads as fact launders a sweep agent's assertion into a finding.
     elif args.orphans:
-        picks, what, field = _rows_with(rows, "orphaned"), "orphan candidates", "orphaned"
+        picks, what, field = (_rows_with(rows, "orphaned"),
+                              "orphan CLAIMS (sweep-agent assertions -- verify before citing)",
+                              "orphaned")
     elif args.stale:
-        picks, what, field = _rows_with(rows, "staleness_signal"), "staleness signals", "staleness_signal"
+        picks, what, field = (_rows_with(rows, "staleness_signal"),
+                              "staleness CLAIMS (sweep-agent assertions -- verify before citing)",
+                              "staleness_signal")
     elif args.gold:
-        picks, what, field = _rows_with(rows, "gold"), "gold candidates", "gold"
+        picks, what, field = (_rows_with(rows, "gold"),
+                              "gold CLAIMS (sweep-agent assertions -- verify before citing)",
+                              "gold")
     elif args.directives:
         picks, what, field = (_rows_with(rows, "daniil_directives"),
-                              "artifacts carrying his verbatim words", "daniil_directives")
+                              "artifacts carrying his words as captured by the sweep",
+                              "daniil_directives")
     elif args.show:
         hits = [r for r in rows if args.show.lower() in str(r.get("path", "")).lower()]
         print(_bound(len(hits), len(hits), f"record(s) for {args.show!r}"))
@@ -279,9 +315,8 @@ def _query(rows, args):
     if picks is None:
         return None
     total = len(picks)
-    if args.limit:
-        picks = picks[:args.limit]
-    _print_hits(picks, total, what, field)
+    page = picks[offset:offset + eff_limit] if eff_limit else picks[offset:]
+    _print_hits(page, total, what, field, offset=offset)
     return 0
 
 
@@ -311,7 +346,12 @@ def main(argv=None):
                     help="join: which narrative chapter's span contains this artifact")
     ap.add_argument("--in-chapter", dest="in_chapter",
                     help="join: which artifacts were born inside this chapter's span")
-    ap.add_argument("--limit", type=int, default=0, help="cap rows (truncation is ANNOUNCED)")
+    ap.add_argument("--limit", type=int, default=0,
+                    help=f"cap rows (default {DEFAULT_LIMIT}; truncation is ANNOUNCED)")
+    ap.add_argument("--all", action="store_true", help="lift the default row budget")
+    ap.add_argument("--offset", type=int, default=0, help="continuation: skip the first N rows")
+    ap.add_argument("--contains", action="store_true",
+                    help="with --theme: substring browse instead of exact label match")
     args = ap.parse_args(argv)
 
     existing = load_existing()

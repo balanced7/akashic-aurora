@@ -36,6 +36,11 @@ ROWS = [
      "gist": "verdict ✓ shipped → next — done",
      "themes": ["recall"], "gold": "✓ a mechanism with a check mark",
      "orphaned": "→ designed, never built", "staleness_signal": "— stale"},
+    # The substring trap (codex, 2026-08-01, reproduced live: menu said '95 recall', the hop
+    # returned '137 of 137'). Menu counts EXACT labels; the hop matched SUBSTRINGS -- so the
+    # two surfaces described different sets, and the hop claimed completeness while doing it.
+    {"run": "r1", "shard": "s1", "path": "docs/at.md", "gist": "the recall-at hook",
+     "themes": ["recall-at"]},
 ]
 
 
@@ -110,6 +115,57 @@ def test_missing_dataset_teaches_instead_of_crashing(tmp_path):
     r = _run(tmp_path / "nope.jsonl", "--themes")
     out = (r.stdout + r.stderr).lower()
     assert "corpus_digests" in out or "no digests" in out or "run" in out, out
+
+
+# --- codex's review corrections (2026-08-01) -------------------------------------------------
+
+def test_menu_and_hop_describe_the_same_set(tmp_path):
+    """Menu cardinality MUST equal hop cardinality for the same label. Reproduced live: the
+    menu said '95 recall' while --theme recall returned '137 of 137' via substring match --
+    two surfaces describing different sets, one of them claiming completeness."""
+    import re
+    fx = _fixture(tmp_path)
+    menu = _run(fx, "--themes").stdout
+    m = re.search(r"^\s+(\d+)\s+recall\s*$", menu, re.M)
+    assert m, "menu lost the exact 'recall' label:\n" + menu
+    hop = _run(fx, "--theme", "recall").stdout
+    h = re.search(r"\[digests\] (\d+) of (\d+)", hop)
+    assert h and h.group(2) == m.group(1), (
+        f"menu says {m.group(1)} but the hop's total is {h.group(2) if h else '?'} -- "
+        "two surfaces, two different sets:\n" + hop
+    )
+    assert "docs/at.md" not in hop, "exact hop leaked the 'recall-at' row via substring"
+
+
+def test_contains_is_opt_in_and_says_so(tmp_path):
+    """Substring browsing stays available, but as a DECLARED different query."""
+    r = _run(_fixture(tmp_path), "--theme", "recall", "--contains")
+    assert "docs/at.md" in r.stdout, "contains-mode should include recall-at:\n" + r.stdout
+    # Assert the CONTRACT word ("substring" -- the match semantics), not incidental phrasing.
+    assert "substring" in r.stdout.lower(), "contains-mode did not declare itself:\n" + r.stdout
+
+
+def test_no_surface_prints_unbounded_by_default(tmp_path):
+    """codex measured --directives at 284k tokens and --orphans at 95k: EVERY altitude needs a
+    budget, not just the menu. Default cap + announced truncation + a continuation pointer."""
+    rows = [{"run": "r", "path": f"docs/x{i}.md", "gist": "g", "themes": ["bulk"]}
+            for i in range(55)]
+    p = tmp_path / "digests.jsonl"
+    p.write_text("\n".join(json.dumps(x) for x in rows) + "\n", encoding="utf-8")
+    out = _run(p, "--theme", "bulk").stdout
+    assert "40 of 55" in out and "TRUNCATED" in out, "no default budget:\n" + out[:500]
+    assert "--offset" in out, "truncation offered no continuation mechanism:\n" + out[:500]
+    out_all = _run(p, "--theme", "bulk", "--all").stdout
+    assert "55 of 55" in out_all, "--all did not lift the cap"
+    out_page2 = _run(p, "--theme", "bulk", "--offset", "40").stdout
+    assert "docs/x40.md" in out_page2 and "docs/x39.md" not in out_page2
+
+
+def test_bands_are_labeled_claims_not_facts(tmp_path):
+    """The critic proved the sweep's bands carry false positives (TOON-class). A band header
+    that reads as fact launders an agent's claim into a finding."""
+    r = _run(_fixture(tmp_path), "--orphans")
+    assert "claim" in r.stdout.lower(), "orphan band reads as fact:\n" + r.stdout.splitlines()[0]
 
 
 # --- the join: narrative <-> specifics ------------------------------------------------------
