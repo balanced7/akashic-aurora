@@ -36,6 +36,7 @@ import json
 import os
 import sys
 import tempfile
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 
@@ -229,12 +230,70 @@ def _mark_failure_processed(session_id: str, target: str, fid: str) -> None:
         pass
 
 
+# --- S2 seat liveness: every tool action ticks this seat's worklive key.
+# WHY THIS EXISTS: roster.heartbeat had exactly ONE production caller (agent/bifrost_pull.py --
+# boot, manual sync, SessionStart, UserPromptSubmit), so a seat working continuously inside one
+# turn read DEAD after WORKLIVE_TTL_S=180. The reaper, the bus UNATTENDED RECIPIENT warning and
+# doctor's "genuinely working" retraction all consume that sensor as truth. Measured 2026-08-01:
+# 89 seats, ZERO live -- including the seat taking the measurement.
+# WHY IT SITS ABOVE EVERY GATE IN main(): the recall kill switch, the Task branch, the tool
+# filter and _in_scope() each return early. _in_scope is TARGET-scoped -- for a shell tool it is
+# true only when cwd is under the repo or the command text names it -- so a home-rooted seat
+# working on non-repo paths would miss it. That is precisely the seat that goes DEAD, which
+# would make the failure CORRELATED with the thing being measured, and silent.
+# Pinned UNPATCHED by tests/test_seat_heartbeat_wiring.py (W1/W2/W2b/W3/W4).
+def _beat_seat(data) -> None:
+    """Beat this seat's liveness. SESSION-scoped (not target-scoped), own kill switch, never
+    raises, and NEVER guesses an identity -- a phantom row is worse than a missing one, and this
+    fleet has already rendered one physical session as two seats under two different names."""
+    if os.getenv("AKASHIC_SEAT_HEARTBEAT", "1") == "0":
+        return
+    try:
+        from agent.harness.scope import session_in_scope
+        d = data or {}
+        if not session_in_scope(d.get("cwd") or os.getcwd()):
+            return
+        agent = (os.getenv("AKASHIC_AGENT_ID") or "").strip()
+        # PAYLOAD FIRST, env only as fallback. The payload's session_id is the ground truth for
+        # WHICH SESSION made this tool call; the environment is merely ambient and can be
+        # inherited from a parent or a sibling. Env-first was the original shape here and the
+        # unpatched pin caught it attributing one session's action to another live session --
+        # the same wrong-attribution class that already rendered one physical session as two
+        # roster rows under two names. A beat that names the wrong seat is worse than no beat:
+        # it marks a corpse alive and leaves the real worker reapable.
+        sid = (str(d.get("session_id") or "")
+               or os.environ.get("BIFROST_INCARNATION")
+               or os.environ.get("CLAUDE_CODE_SESSION_ID") or "").strip()
+        if not agent or not sid:
+            return
+        from core.comm import roster as _roster
+        from core.comm.bus import NS as _DEFAULT_NS
+        _roster.heartbeat(os.environ.get("BIFROST_NAMESPACE", _DEFAULT_NS),
+                          agent, sid, phase="working")
+    except Exception as e:
+        # A sensor must never break the action it observes. But a SILENT swallow is exactly what
+        # made today's other no-op invisible, so leave a bounded receipt: the unpatched pin
+        # catches absence in CI, this catches it at 3am in production.
+        try:
+            with open(os.path.join(tempfile.gettempdir(), "akashic_heartbeat_err.log"), "a",
+                      encoding="utf-8") as fh:
+                fh.write(f"{time.time():.0f} {type(e).__name__}: {e}\n")
+        except Exception:
+            pass
+
+
 def main() -> int:
-    if os.getenv("AKASHIC_RECALL_AT_ACTION", "1") == "0":
-        return 0
+    # stdin first, then BEAT, then every pre-existing gate -- liveness must not be a hostage of
+    # the recall feature's kill switch (a seat that turns recall off must not become invisible
+    # to the reaper).
     try:
         data = json.load(sys.stdin)
     except Exception:
+        data = {}
+    _beat_seat(data)
+    if os.getenv("AKASHIC_RECALL_AT_ACTION", "1") == "0":
+        return 0
+    if not data:
         return 0
     tool = data.get("tool_name") or ""
     if tool == "Task":
