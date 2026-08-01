@@ -64,3 +64,50 @@ def test_wish_text_file_path(tmp_path):
     r = _run(f, "seat", "--text-file", str(body))
     assert r.returncode == 0 and "filed W08" in r.stdout
     assert "--flag-shaped prose" in f.read_text(encoding="utf-8")
+
+
+# --- the ledger must not corrupt itself silently -------------------------------------------
+# Measured 2026-08-01: docs/WISHLIST.md carries 128 blocks but a highest id of W114 -- 14 ids
+# (W00, W57..W69) each appear TWICE, so any citation of "W58" is ambiguous. max(nums)+1 can
+# never collide against a CORRECT read, so these came from STALE reads: two seats each filed a
+# batch against different versions of the file. The door then wrote the duplicate without
+# noticing, because it checks nothing after allocating. This is Daniil's standing capture
+# mechanism ("append the moment friction is felt; never delete") quietly corrupting itself.
+
+DUPED = """# WISHLIST — test double
+
+## Open
+
+- [ ] W03 (07-18, seat-a) — an existing wish. Trigger: t. Land: l.
+- [ ] W04 (07-21, seat-a) — first of a colliding batch.
+- [ ] W04 (07-24, seat-b) — same id, different day, different content.
+
+## Folded (exemplars)
+
+## Declined
+"""
+
+
+def test_wish_reports_a_collided_ledger_instead_of_extending_it_silently(tmp_path):
+    """A ledger with duplicate ids must be REPORTED. It still files -- a no-ceremony capture
+    door that refuses is worse than an ambiguous id -- but it may not stay quiet about it."""
+    p = tmp_path / "WISHLIST.md"
+    p.write_text(DUPED, encoding="utf-8")
+    r = _run(p, "claude", "a new wish")
+    out = (r.stdout or "") + (r.stderr or "")
+    assert "W04" in out and ("collid" in out.lower() or "duplicate" in out.lower()), (
+        "the door appended to a ledger whose id space is already corrupt and said nothing:\n" + out
+    )
+
+
+def test_wish_never_reuses_an_existing_id(tmp_path):
+    """Whatever id is allocated must not already exist in the file."""
+    import re
+    p = tmp_path / "WISHLIST.md"
+    p.write_text(SEED, encoding="utf-8")
+    before = set(re.findall(r"- \[[ x~]\] W(\d+)", p.read_text(encoding="utf-8")))
+    r = _run(p, "claude", "another wish")
+    assert r.returncode == 0, r.stdout + r.stderr
+    m = re.search(r"filed W(\d+)", r.stdout or "")
+    assert m, "no filed-id echoed: " + (r.stdout or "")
+    assert m.group(1) not in before, f"allocated W{m.group(1)} which already existed"

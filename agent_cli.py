@@ -1745,7 +1745,22 @@ def cmd_wish(args):
         return 2
     text = path.read_text(encoding="utf-8")
     nums = [int(m) for m in _re.findall(r"- \[[ x~]\] W(\d+)", text)]
+    # The id space can COLLIDE and nothing used to notice. max+1 never collides against a correct
+    # read, so duplicates arrive via STALE reads -- two seats filing batches against different
+    # versions of this file. Measured 2026-08-01: 128 blocks, highest id W114, 14 ids doubled
+    # (W00, W57..W69), so citing "W58" is ambiguous. Report it LOUDLY and still file: this is
+    # Daniil's no-ceremony capture door ("append the moment friction is felt") and a capture
+    # mechanism that refuses is worse than one with an ambiguous id.
+    _dupes = sorted({x for x in nums if nums.count(x) > 1})
+    if _dupes:
+        print("[wish] WARNING: this ledger's id space has COLLIDED -- " +
+              ", ".join(f"W{d:02d}" for d in _dupes) +
+              " each appear more than once, so citing them is ambiguous. Filing anyway; "
+              "re-number at the next curation.")
     n = (max(nums) if nums else 0) + 1
+    if n in nums:   # unreachable via max+1; a guard against a future refactor reintroducing reuse
+        print(f"[wish] REFUSED: computed W{n:02d} but it already exists -- allocator is unsafe")
+        return 2
     block = f"- [ ] W{n:02d} ({_dt.now().strftime('%m-%d')}, {args.agent_id}) — {body.rstrip('.')}."
     if (args.trigger or "").strip():
         block += f" Trigger: {args.trigger.strip().rstrip('.')}."
