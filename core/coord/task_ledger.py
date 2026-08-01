@@ -63,9 +63,10 @@ STATUSES = (PROPOSED, APPROVED, CLAIMED, IN_PROGRESS, VERIFYING, DONE, BLOCKED, 
 TRANSITIONS: Dict[str, set] = {
     PROPOSED:    {APPROVED, ABANDONED},
     APPROVED:    {CLAIMED, ABANDONED},
-    CLAIMED:     {IN_PROGRESS, APPROVED, ABANDONED},   # release back to APPROVED if you can't do it
+    CLAIMED:     {IN_PROGRESS, APPROVED, ABANDONED, PARKED},   # release: APPROVED drops it silently,
+                                                               # PARKED shelves it WITH a reason
     IN_PROGRESS: {VERIFYING, BLOCKED, ABANDONED, PARKED},
-    VERIFYING:   {DONE, IN_PROGRESS, BLOCKED},         # verification can bounce it back
+    VERIFYING:   {DONE, IN_PROGRESS, BLOCKED, PARKED},  # verification can bounce it back, or shelve
     BLOCKED:     {APPROVED, IN_PROGRESS, ABANDONED},
     DONE:        set(),
     ABANDONED:   set(),
@@ -75,6 +76,14 @@ TRANSITIONS: Dict[str, set] = {
     # file claims -- resuming re-enters through the same one-in-progress gate. Live receipt
     # 2026-07-16: T075 (explicitly 'PARKED behind T047' in its own text) held the slot for a day
     # and blocked T081's done transition. Prior art: issue-tracker on-hold states.
+    #
+    # 2026-07-31: PARKED also reachable from CLAIMED and VERIFYING. It was written for work shelved
+    # MID-FLIGHT, so IN_PROGRESS was its only door -- but CLAIMED-and-never-started is the state that
+    # ACCUMULATES, because claiming is free and releasing is not. Its only exits were ABANDONED
+    # (destructive: asserts the intent DIED when it merely DRIFTED) and APPROVED (no --reason, so the
+    # rationale is lost). Receipt: 21 ACTIVE / 16 CLAIMED-not-started, unparkable without routing each
+    # through the one serialized IN_PROGRESS slot -- 16 FALSE in_progress events in an audited ledger
+    # purely to reach a legal state. A ledger you cannot cut honestly is a ledger that grows.
     PARKED:      {IN_PROGRESS, ABANDONED},
 }
 ACTIVE = {CLAIMED, IN_PROGRESS, VERIFYING}   # occupies the sequential slot / working set

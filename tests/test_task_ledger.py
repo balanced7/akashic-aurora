@@ -187,8 +187,13 @@ def test_claimed_can_park_without_faking_a_start(tmp_path):
     TL.park(L, t["id"], "wave 3 -- unpark after the grade", at="t3")
     got = L.get(t["id"])
     assert got["status"] == TL.PARKED
-    assert got["reason"] == "wave 3 -- unpark after the grade"   # the debt survives the release
     assert got["owner"] == "claude"                              # parking is not disowning
+    # the debt must survive the release AND stay reachable -- reason lives on the history entry,
+    # not the task record, and _park_reason is what every surface reads it back through
+    assert got["history"][-1]["reason"] == "wave 3 -- unpark after the grade"
+    v = TL.ledger_view(path=None, ledger=L) if hasattr(TL, "ledger_view") else None
+    if v:
+        assert v["parked"][0]["reason"] == "wave 3 -- unpark after the grade"
 
 
 def test_verifying_can_park(tmp_path):
