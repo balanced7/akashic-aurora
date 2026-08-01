@@ -281,6 +281,18 @@ class Handler(BaseHTTPRequestHandler):
                     seat_class[a] = "seat"       # on bus, not a runner — harness/launcher
                 else:
                     seat_class[a] = "unseated"
+            # ---- progress (turn_metrics live view, per agent) -----------
+            progress = {}
+            try:
+                from core.comm.turn_metrics import progress_view
+                for a in agents_list:
+                    if not a or a == "_fence":
+                        continue
+                    pv = progress_view(a)
+                    if pv:
+                        progress[a] = pv
+            except Exception:
+                progress = {}
             # ---- assemble --------------------------------------------------------
             return {
                 "status": status,
@@ -288,6 +300,7 @@ class Handler(BaseHTTPRequestHandler):
                 "fence": vitals.get("_fence", {}),
                 "seat_class": seat_class,
                 "daemon_live": daemon_live,
+                "progress": progress,
             }
         except Exception:
             return {}
@@ -1036,13 +1049,21 @@ PAGE = r"""<!doctype html>
     border-radius:8px; padding:7px 10px; font:inherit; font-size:13px; outline:none; cursor:pointer}
   .setrow select:hover{border-color:#39405a}
   .setrow .setdesc{font-size:11.5px; color:var(--faint); min-width:80px; text-align:right}
-  /* glass-card tiles (strangler: lives alongside pills, shown when glass-card variant active) */
+  /* ---- responsive card deck grid (NOW-card N-P10, kills absolute-position islands) ---- */
+.deck-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:12px;padding:16px}
+@media(max-width:1199px){.deck-grid{grid-template-columns:repeat(auto-fill,minmax(340px,1fr))}}
+@media(max-width:767px){.deck-grid{grid-template-columns:1fr;padding:10px}}
+/* glass-card tiles (strangler: lives alongside pills, shown when glass-card variant active) */
   #tiles{display:none; flex-wrap:wrap; gap:10px; padding:0}
   #tiles.show{display:flex}
   .gcard{position:relative; background:rgba(20,22,29,.7); backdrop-filter:blur(12px);
     border:1px solid var(--border); border-radius:14px; padding:10px 14px; min-width:125px;
     cursor:pointer; transition:.18s; display:flex; align-items:center; gap:10px; box-shadow:var(--shadow)}
-  .gcard:hover{border-color:#39405a; background:rgba(23,26,34,.82)}
+  .gcard{position:relative; background:rgba(20,22,29,.7); backdrop-filter:blur(12px); border:1px solid var(--border); border-radius:14px; padding:12px 16px; cursor:pointer; transition:.15s; user-select:none; width:100%; box-sizing:border-box}
+.gcard .gplan{display:flex; gap:4px; flex-wrap:wrap; margin:6px 0 8px; font-size:11.5px}
+.gcard .gplan-mark{font-family:"SF Mono",SFMono-Regular,Consolas,monospace; font-size:10.5px}
+.gplan-mark.done{color:#5fd39b}.gplan-mark.prog{color:var(--amber)}.gplan-mark.pend{color:var(--faint)}.gplan-mark.blocked{color:var(--danger)}
+.gcard:hover{border-color:#39405a; background:rgba(23,26,34,.82)}
   .gcard.online{border-color:rgba(95,211,155,.22)}
   .gcard.online .gdot{background:var(--user); box-shadow:0 0 10px var(--user)}
   .gcard.nudged{border-color:rgba(240,102,110,.4); animation:gpulse 1.5s infinite}
@@ -1186,7 +1207,7 @@ PAGE = r"""<!doctype html>
     <div class="fpulse green" id="fpulse" title="fleet: all clear"></div>
     <div class="spacer"></div>
     <div class="pills" id="pills"></div>
-    <div id="tiles"></div>
+    <div id="tiles" class="deck-grid"></div>
     <button class="lctl" id="epiChip" onclick="toggleEpisode()" title="current episode (session bookends)">📖 episode</button>
     <button class="ctl" id="reloadBtn" onclick="reloadUI()" title="reload the UI server (after an agent edits it)">↻</button>
     <button class="lctl" id="gearBtn" onclick="toggleSettings()" title="presentation settings">⚙</button>
@@ -2454,7 +2475,7 @@ const SLOTS=['theme','tile','message','viewmode'];
 const DEFAULTS={theme:'aurora',tile:'glass-card',message:'markdown',viewmode:'feed'};
 const REGISTRY={theme:{},tile:{},message:{},viewmode:{}};
 let _activeVariant={...DEFAULTS};
-let _glassCardData={agents:[],known:[],signals:{}};
+let _glassCardData={agents:[],known:[],signals:{},tasks:{},seat_class:{}};
 
 function getPref(slot){ try{ return localStorage.getItem('bifrost_pref_'+slot)||DEFAULTS[slot]; }catch(e){ return DEFAULTS[slot]; } }
 function setPref(slot,id){
@@ -2591,6 +2612,19 @@ function renderGlassCards(){
     return '<div class="'+cl+'" onclick="toggleGCard(event,\''+esc(aid)+'\')">'+
       '<div class="gdot"></div>'+
       '<div style="flex:1;min-width:0"><div class="gname">'+esc(aid)+statusMark+'</div>'+roleHtml+'</div>'+
+    // C-3 PLAN row — story-state spine (NOW-card pin N-P7)
+    (function planRow(){
+      var task=(d.tasks||{})[aid]||{}; var plan=task.plan||'';
+      var marks={'done':'✓','in_progress':'●','pending':'○','blocked':'─'};
+      if(!plan) return '';
+      var items=plan.split(/[,;]/).map(function(s){return s.trim();}).filter(Boolean);
+      var html=items.map(function(item,idx){
+        var m='pending'; if(idx===0&&task.status==='in_progress') m='in_progress';
+        if(task.done_items&&task.done_items.indexOf(item)>-1) m='done';
+        return '<span class="gplan-mark '+({'done':'done','in_progress':'prog','pending':'pend','blocked':'blocked'}[m]||'pend')+'">'+marks[m]+' '+esc(item)+'</span>';
+      }).join(' ');
+      return '<div class="gplan">'+html+'</div>';
+    })()+
       steerMark+nudgeMark+
       '<div class="gactions">'+
         '<button onclick="event.stopPropagation();setTarget(\''+esc(aid)+'\')">\u{1f3af} Select</button>'+
