@@ -9,7 +9,7 @@ with Claude's colour. The result -- Claude "shows up" doing work, at parity with
 Register under PreToolUse with a broad matcher so it covers the shell (Bash AND PowerShell, the
 Windows primary), file tools, and the read/search tools that make up most exploration:
   {"hooks":{"PreToolUse":[{"matcher":"Bash|PowerShell|Read|Edit|Write|NotebookEdit|Glob|Grep|Task|WebFetch|WebSearch",
-    "hooks":[{"type":"command","command":"py scripts/hooks/claude_trace.py"}]}]}}
+    "hooks":[{"type":"command","command":"py agent/harness/hooks/claude_trace.py"}]}]}}
 
 SEPARATE from claude_pretooluse.py on purpose: that hook is the git/lock GUARD + recall, scoped
 to mutating tools and able to DENY. This one only observes -- it emits and always exits 0, never

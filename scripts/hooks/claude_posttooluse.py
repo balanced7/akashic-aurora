@@ -253,7 +253,6 @@ def _beat_seat(data) -> None:
         d = data or {}
         if not session_in_scope(d.get("cwd") or os.getcwd()):
             return
-        agent = (os.getenv("AKASHIC_AGENT_ID") or "").strip()
         # PAYLOAD FIRST, env only as fallback. The payload's session_id is the ground truth for
         # WHICH SESSION made this tool call; the environment is merely ambient and can be
         # inherited from a parent or a sibling. Env-first was the original shape here and the
@@ -264,8 +263,21 @@ def _beat_seat(data) -> None:
         sid = (str(d.get("session_id") or "")
                or os.environ.get("BIFROST_INCARNATION")
                or os.environ.get("CLAUDE_CODE_SESSION_ID") or "").strip()
-        if not agent or not sid:
+        if not sid:
             return
+        # AGENT AXIS, the other half of the same bug. The payload-first fix above settled WHICH
+        # SESSION; this settles WHICH SEAT. Env-only resolution beat every session under
+        # AKASHIC_AGENT_ID (default "claude"), so a correctly-named seat stayed DEAD while its
+        # own tool calls beat the conductor's row -- one physical session, two rows, and the
+        # row carrying the real worker's name was the reapable one. Measured live before this
+        # fix: claude#6ac75463 LIVE 1.1s / opus-engineer#6ac75463 DEAD 13020s, same session.
+        # W4 IS PRESERVED DELIBERATELY: when nothing is bound and no env is set the identity is
+        # genuinely unknown, and we still emit NO ROW rather than a phantom -- a beat naming
+        # unknown-<sid8> would be honest but would still invent a seat.
+        from core.comm.seat_identity import resolve as _resolve, resolved_from as _resolved_from
+        if _resolved_from(sid) == "unknown":
+            return
+        agent = _resolve(sid)
         from core.comm import roster as _roster
         from core.comm.bus import NS as _DEFAULT_NS
         # CAPTURE THE RETURN. heartbeat() never raises -- it swallows internally and returns

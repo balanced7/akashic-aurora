@@ -37,6 +37,22 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 
+
+def _seat(session_id: str = "") -> str:
+    """Session-scoped seat identity: binding -> env -> loud unknown-<sid8>.
+
+    Replaces os.getenv("AKASHIC_AGENT_ID") or "claude". That fallback did not lose
+    information, it IMPERSONATED the conductor: one session held two roster rows, locks
+    locked a seat out of its own files, and the wakeability check could not see a correctly
+    named watcher. Fail-open by hook contract -- identity must never break a session.
+    """
+    try:
+        from core.comm.seat_identity import resolve
+        return resolve(session_id)
+    except Exception:
+        import os as _os
+        return (_os.getenv("AKASHIC_AGENT_ID") or "").strip() or "unknown"
+
 def build_plan_recall(prompt: str, session_id: str, agent_id: str) -> str:
     """The plan-altitude context block for this prompt, or "" for silence."""
     if os.getenv("AKASHIC_PLAN_RECALL", "1") == "0":
@@ -93,7 +109,7 @@ def main() -> int:
             if os.getenv("AKASHIC_DEBUG"):
                 print(f"[plan-recall] out of scope: cwd={cwd!r}", file=sys.stderr)
             return 0   # unrelated project -> full silence
-        agent_id = os.getenv("AKASHIC_AGENT_ID") or "claude"
+        agent_id = _seat(str(data.get("session_id") or ""))
         pieces = [build_plan_recall(data.get("prompt") or "",
                                     data.get("session_id") or "", agent_id),
                   build_bus_line(agent_id)] + build_page_lines()

@@ -3,12 +3,12 @@
 
 Wire it in .claude/settings.json (project-launch, relative path):
   {"hooks":{"PreToolUse":[{"matcher":"Bash|PowerShell","hooks":[
-    {"type":"command","command":"py scripts/hooks/claude_pretooluse.py"}]}]}}
+    {"type":"command","command":"py agent/harness/hooks/claude_pretooluse.py"}]}]}}
 (PowerShell is the harness's PRIMARY shell tool on Windows -- a Bash-only matcher routes every
 shell command around the guard/recall/credit pipeline entirely. Matchers, the tool filter in
 main(), and _in_scope must all know a new shell tool, or it is invisible.)
 Or register at the USER level with an ABSOLUTE path so it fires for EVERY session launched from
-any cwd (the read-bootstrap flow), e.g. command "py E:/AI-Setup/scripts/hooks/claude_pretooluse.py".
+any cwd (the read-bootstrap flow), e.g. command "py E:/AI-Setup/agent/harness/hooks/claude_pretooluse.py".
 The scope guard (agent/harness/scope.py -- shared policy, this adapter only maps Claude's tool
 names onto it) makes it a silent no-op outside this repo, so global registration is safe.
 

@@ -27,18 +27,35 @@ Both checks fail OPEN (never wedge the session).
 """
 import json, os, re, subprocess, sys, tempfile, time
 
-AGENT = os.environ.get("AKASHIC_AGENT_ID", "claude")
+# LEGACY, no-session paths only (below). Session-scoped paths resolve via _seat().
+# Default is NOT a peer name: a session with no env previously wrote bifrost_wake_claude.pid
+# on a SHARED path, i.e. it impersonated the conductor on disk. Unknown is honest and unshared.
+AGENT = os.environ.get("AKASHIC_AGENT_ID", "").strip() or "unknown"
 HEARTBEAT = os.path.join(tempfile.gettempdir(), f"bifrost_wake_{AGENT}.pid")   # legacy (no session id)
 MARKER = os.path.join(tempfile.gettempdir(), f"bifrost_wake_{AGENT}_stophook.ts")
 PROMISE_LATCH = os.path.join(tempfile.gettempdir(), f"claude_stop_promise_{AGENT}.sid")
 
+
+def _seat(session_id: str = "") -> str:
+    """Session-scoped seat identity: binding -> env -> loud unknown-<sid8>.
+
+    AGENT (module-level, env-only) stays for the LEGACY no-session paths above, which have no
+    session to key on. Every SESSION-SCOPED path resolves here instead -- that is what lets the
+    wakeability check find a correctly-named seat's watcher rather than hunting for a
+    claude-named one that will never exist and then prescribing a duplicate.
+    """
+    try:
+        from core.comm.seat_identity import resolve
+        return resolve(session_id)
+    except Exception:
+        return (os.environ.get("AKASHIC_AGENT_ID") or "").strip() or "unknown"
 
 def _seat_path(session_id: str) -> str:
     """Per-SESSION wake seat (T029 Wave 2): concurrent sessions of one agent id each arm
     their own watcher; nobody satisfies this check with another session's seat. Falls back
     to the legacy per-agent path when the payload carries no session id."""
     if session_id:
-        return os.path.join(tempfile.gettempdir(), f"bifrost_wake_{AGENT}_{session_id}.pid")
+        return os.path.join(tempfile.gettempdir(), f"bifrost_wake_{_seat(session_id)}_{session_id}.pid")
     return HEARTBEAT
 
 
@@ -46,7 +63,7 @@ def _loop_guard_path(session_id: str) -> str:
     """The 25s block-throttle latch -- session-scoped so twin sessions don't eat each
     other's block window (pre-Wave-2 they shared one file)."""
     if session_id:
-        return os.path.join(tempfile.gettempdir(), f"bifrost_wake_{AGENT}_{session_id}_stophook.ts")
+        return os.path.join(tempfile.gettempdir(), f"bifrost_wake_{_seat(session_id)}_{session_id}_stophook.ts")
     return MARKER
 
 
@@ -58,7 +75,7 @@ def _touch_activity(session_id: str) -> None:
     try:
         sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
         from core.comm import wake_seat
-        wake_seat.touch_activity(AGENT, session_id)
+        wake_seat.touch_activity(_seat(session_id), session_id)
     except Exception:
         pass
 
@@ -154,7 +171,7 @@ def wake_armed(session_id: str = ""):
 def _rearm_trigger_fresh(session_id: str, max_age_s: float = 6 * 3600) -> bool:
     """A fresh .rearm trigger = the watcher CYCLED (planned, T073 P8), not died --
     the backstop message says so instead of crying wolf."""
-    name = (f"bifrost_wake_{AGENT}_{session_id}.rearm" if session_id
+    name = (f"bifrost_wake_{_seat(session_id)}_{session_id}.rearm" if session_id
             else f"bifrost_wake_{AGENT}.rearm")
     p = os.path.join(tempfile.gettempdir(), name)
     try:

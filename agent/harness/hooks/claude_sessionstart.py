@@ -20,6 +20,22 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 
 
+
+def _seat(session_id: str = "") -> str:
+    """Session-scoped seat identity: binding -> env -> loud unknown-<sid8>.
+
+    Replaces os.getenv("AKASHIC_AGENT_ID") or "claude". That fallback did not lose
+    information, it IMPERSONATED the conductor: one session held two roster rows, locks
+    locked a seat out of its own files, and the wakeability check could not see a correctly
+    named watcher. Fail-open by hook contract -- identity must never break a session.
+    """
+    try:
+        from core.comm.seat_identity import resolve
+        return resolve(session_id)
+    except Exception:
+        import os as _os
+        return (_os.getenv("AKASHIC_AGENT_ID") or "").strip() or "unknown"
+
 def _reap_stale_watcher(my_session: str = "") -> None:
     """T029 Wave 2 (supersedes the T017 D4 identity-only reap -- battery sec. 6): the janitor.
     Walks every seat for this agent and acts per the reconciled protocol: dead-pid seats are
@@ -29,7 +45,7 @@ def _reap_stale_watcher(my_session: str = "") -> None:
     error means alive (K8). Concurrent same-id sessions therefore never kill each other's
     watchers -- duty moves by displacement + stand-down, and every decision lands as one line
     in bifrost_wake_<agent>.reap.log. Best-effort, bounded, never blocks the session."""
-    agent = os.getenv("AKASHIC_AGENT_ID") or "claude"
+    agent = _seat(my_session)
     try:
         from core.comm import wake_seat
         wake_seat.janitor(agent, my_session=my_session or None)
@@ -60,7 +76,7 @@ def main() -> int:
             # stood down against its own cycle's tombstone); a true zombie never gets a
             # SessionStart, so the S1/C1-5 protection stands.
             wake_seat.clear_tombstone(sid)
-            wake_seat.touch_activity(os.getenv("AKASHIC_AGENT_ID") or "claude", sid)
+            wake_seat.touch_activity(_seat(sid), sid)
     except Exception:
         pass
     try:
@@ -68,7 +84,7 @@ def main() -> int:
         # whispers render it, --to-incarnation has an address, TTL reaps it if we die.
         if sid:
             from core.comm import incarnation
-            incarnation.publish_card(os.getenv("AKASHIC_AGENT_ID") or "claude", sid)
+            incarnation.publish_card(_seat(sid), sid)
     except Exception:
         pass
     try:
@@ -83,7 +99,7 @@ def main() -> int:
     try:
         from agent.harness.context import build_autoboot_context
         ctx = build_autoboot_context(data.get("cwd") or os.getcwd(),
-                                     os.getenv("AKASHIC_AGENT_ID") or "claude",
+                                     _seat(sid),
                                      session_id=str(data.get("session_id") or ""))
         if ctx:
             print(json.dumps({"hookSpecificOutput": {

@@ -31,6 +31,22 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+
+def _seat(session_id: str = "") -> str:
+    """Session-scoped seat identity: binding -> env -> loud unknown-<sid8>.
+
+    Replaces os.getenv("AKASHIC_AGENT_ID") or "claude". That fallback did not lose
+    information, it IMPERSONATED the conductor: one session held two roster rows, locks
+    locked a seat out of its own files, and the wakeability check could not see a correctly
+    named watcher. Fail-open by hook contract -- identity must never break a session.
+    """
+    try:
+        from core.comm.seat_identity import resolve
+        return resolve(session_id)
+    except Exception:
+        import os as _os
+        return (_os.getenv("AKASHIC_AGENT_ID") or "").strip() or "unknown"
+
 # State root shared with the other claude hooks (honors AKASHIC_RECALL_STATE_DIR for test isolation).
 _STATE_ROOT = os.getenv("AKASHIC_RECALL_STATE_DIR") or os.path.join(tempfile.gettempdir(), "akashic_recall")
 _SIG_DIR = os.path.join(_STATE_ROOT, "session_signals")
@@ -151,7 +167,7 @@ def emit_session_signals(data) -> None:
             "session_signals",
             f"SESSION SIGNALS: {signals['total_calls']} calls, {signals['fail_count']} fails, "
             f"{signals['progress_count']} progress",
-            agent_id=os.getenv("AKASHIC_AGENT_ID") or "unknown",
+            agent_id=_seat(sid),
             session_id=sid, detail=signals)
         _mark_emitted(sid, len(calls))
     except Exception:
@@ -192,7 +208,7 @@ def main() -> int:
     try:   # T075 M1-beta clean-death trio (seat + card + listener); event guard +
         #    kill switch live INSIDE clean_death -- PreCompact passes through as a no-op.
         from core.comm.session_exit import clean_death
-        clean_death(os.getenv("AKASHIC_AGENT_ID") or "claude",
+        clean_death(_seat(str(data.get("session_id") or "")),
                     str(data.get("session_id") or ""),
                     event=str(data.get("hook_event_name") or ""))
     except Exception:

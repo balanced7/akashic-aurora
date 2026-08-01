@@ -774,11 +774,11 @@ def cmd_fleet(args):
       select -- pick the best model for a capability + constraints (what to RUN right now)
       call   -- run a bounded subtask on one model and print its output (also the manual smoke test)
     Reads are fail-soft; a failed call surfaces the error, never a silent empty string."""
-    from core.fleet import roster
+    from core.fleet import model_roster
     action = args.action or "list"
     if action == "list":
-        rows = roster.models(status=args.status, capability=args.capability)
-        probe = roster.probe_availability() if args.probe else None
+        rows = model_roster.models(status=args.status, capability=args.capability)
+        probe = model_roster.probe_availability() if args.probe else None
         present = set(probe["present"]) if probe and probe.get("ok") else None
         if args.json:
             out = {"models": rows}
@@ -806,8 +806,8 @@ def cmd_fleet(args):
                 print(f"            GATED: {m['disqualifier']}")
         return 0
     if action == "select":
-        pick = roster.select(args.capability, status=(args.status or "active"),
-                             max_vram=args.max_vram, min_context=args.min_context)
+        pick = model_roster.select(args.capability, status=(args.status or "active"),
+                                   max_vram=args.max_vram, min_context=args.min_context)
         if args.json:
             print(json.dumps(pick, indent=1) if pick else "null")
             return 0 if pick else 1
@@ -3944,6 +3944,43 @@ def cmd_bifrost_nudge(args):
 
 
 # -------------------------------------------------------------------------- locks
+def cmd_seat_identity(args) -> int:
+    """Declare / show THIS SESSION'S seat identity (fold 2).
+
+    The door exists because the seat that needs it cannot use the old mechanism: identity lived
+    in a process-wide env var read from a settings.json shared by every home-rooted session, and
+    a running session cannot mutate its own process env. So a seat could not name itself, and
+    every hook silently called it "claude" -- the conductor. This binds it per session instead.
+    """
+    from core.comm import seat_identity as si
+    sid = (args.session or os.environ.get("CLAUDE_CODE_SESSION_ID")
+           or os.environ.get("BIFROST_INCARNATION") or "").strip()
+    if not sid:
+        print("[seat-identity] no session id -- pass --session <uuid> "
+              "(CLAUDE_CODE_SESSION_ID is unset in this process)")
+        return 1
+    if args.clear:
+        print(f"[seat-identity] binding cleared for {sid[:8]}" if si.clear(sid)
+              else f"[seat-identity] no binding to clear for {sid[:8]}")
+        return 0
+    if args.agent_id:
+        if not si.valid(args.agent_id):
+            print(f"[seat-identity] REFUSED: {args.agent_id!r} is not a valid seat id")
+            return 1
+        if not si.declare(args.agent_id, sid):
+            print("[seat-identity] REFUSED: could not write the binding")
+            return 1
+        print(f"[seat-identity] {sid[:8]} is now {args.agent_id}")
+    got, src = si.resolve(sid), si.resolved_from(sid)
+    print(f"  seat: {got}#{sid[:8]}   (resolved from: {src})")
+    if src == "unknown":
+        print("  NOTE: unresolved. Hook-authored records will read unknown-" + sid[:8]
+              + " rather than borrowing a peer's name -- honest, but not yours until declared.")
+    elif src == "env":
+        print("  NOTE: from the shared process env, not a per-session binding. If another seat "
+              "runs in this process profile it resolves identically. Declare to make it yours.")
+    return 0
+
 def cmd_lock(args):
     """Claim an advisory path-lock so the peer sees you're editing it (C2). Re-claiming
     your own lock refreshes its TTL. Advisory: it coordinates, it does not OS-enforce."""
@@ -4747,6 +4784,14 @@ def build_parser():
                      help="interrupt (hard, default) | steer (soft, fold into current task) | inform (ambient)")
     ndg.add_argument("--json", action="store_true")
     ndg.set_defaults(fn=cmd_bifrost_nudge)
+
+    si_ = sub.add_parser("seat-identity",
+                        help="declare/show THIS session's seat id (binding beats the shared env)")
+    si_.add_argument("agent_id", nargs="?", default="",
+                     help="the seat id to bind; omit to just show the current resolution")
+    si_.add_argument("--session", default="", help="session id (default: this process's)")
+    si_.add_argument("--clear", action="store_true", help="drop this session's binding")
+    si_.set_defaults(fn=cmd_seat_identity)
 
     lk = sub.add_parser("lock", help="claim an advisory path-lock (C2)")
     lk.add_argument("agent_id"); lk.add_argument("path")
