@@ -229,13 +229,23 @@ class BifrostAPI:
                 # problem while the problem persists.
                 self._pending_at_seed = len(live)
                 try:
+                    # Do NOT promise the next arm is fixed. _lane_since is PER-PROCESS and every
+                    # arm is a NEW process, so this seed dies with the call that set it -- we
+                    # return `live` immediately below and exit. The old text ("the watcher will
+                    # now block correctly") was true for a future that never arrives, and that is
+                    # the recurrence engine: the reader believes it and re-arms instead of
+                    # draining. 5 identical arms 2026-07-31, 6 on 2026-07-25.
+                    # Name the lane we PEEK -- it is not the lane the operator armed.
                     _log.warning(
                         "wake: seeded the lane cursor over %d undrainable wake-worthy "
-                        "message(s) (kinds: %s). The watcher will now block correctly, but "
-                        "this mail is still pending and can mask newer mail behind it -- "
-                        "drain it or fix the lane it is stuck on.",
+                        "message(s) (kinds: %s). This seed is per-process and does NOT carry to "
+                        "the next arm -- if you see this line again, the pending set is not "
+                        "clearing and re-arming will not help. Detection PEEKS the legacy lane "
+                        "(not the lane you armed), so drain that one: "
+                        "BIFROST_CONSUME_LANE=legacy py agent_cli.py bifrost-sync %s --consume",
                         len(live),
                         ",".join(sorted({str(getattr(m, "kind", "?")) for m in live})),
+                        getattr(self, "agent", "<agent>"),
                     )
                 except Exception:
                     pass
