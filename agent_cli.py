@@ -2306,6 +2306,27 @@ def cmd_wrap(args):
     records the draft as a note (supersede-by-title) so it surfaces at the next boot."""
     from datetime import datetime
     from core.learning.agent_memory import get_agent_memory
+
+    # STANDING PRACTICE (2026-08-01): land any new corpus digests before distilling. A 59-agent
+    # sweep produced 2,484 structured digests -- what each artifact IS, what it SETTLED, whether
+    # it is ORPHANED, whether it claims a state it is not in, plus Daniil's words verbatim -- and
+    # that output lived ONLY in .claude/ workflow scratch, which is the class of directory people
+    # clean out. Landing it here is what makes the sweep a RATCHET instead of a one-off: digests
+    # accumulate every wrap, so "what are we missing that we discussed before" stops requiring
+    # another full read. Idempotent (dedupes by run+path) and fail-open -- a wrap must never be
+    # blocked by an index refresh. Query with: py scripts/corpus_digests.py --themes
+    try:
+        import subprocess as _sp
+        _r = _sp.run([sys.executable, str(Path(__file__).resolve().parent / "scripts" /
+                                          "corpus_digests.py")],
+                     capture_output=True, text=True, timeout=180)
+        for _line in (_r.stdout or "").splitlines():
+            if "new," in _line:
+                print(f"[wrap] {_line.strip()}")
+                break
+    except Exception:
+        pass
+
     commits = _recent_commits(args.hours or 12)
     lessons = _recent_lessons(8)
     notes = get_agent_memory().get_decisions(days=1)
