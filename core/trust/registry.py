@@ -1,5 +1,5 @@
 """
-Grant registry -- the reader over security/acl.json (source of truth), mirroring core/fleet/roster.py.
+Grant registry -- the reader over security/acl.json (source of truth), mirroring core/fleet/model_roster.py (renamed from roster.py at f8510b6; T123 duplicate-basename class).
 
 The one function the doors call is `resolve(agent_id, verified=...)`: it returns the EFFECTIVE Grant an
 agent acts under, fail-closed to QUARANTINED for anything unknown, unverified, or expired. Enforcement

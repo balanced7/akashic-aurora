@@ -69,7 +69,7 @@
 - `turn_metrics.py` — Turn metrics (progress-bars data half; co-designed claude+deepseek 2026-07-11).
 - `wake_seat.py` — wake_seat -- the per-session wake-seat protocol (T029 Wave 2, the R1/R16 fix).
 
-## core/coord/  (12 modules)
+## core/coord/  (13 modules)
 - `cognitive_metrics.py` — Cognitive Efficiency Metrics — live instrumentation for the Stage-3 evidence engine.
 - `conductor.py` — Conductor — the impure orchestration shell over the pure task ledger (Slice D).
 - `defer_queue.py` — defer_queue — the capability-gated standing queue (W33, seat-zero wave B3).
@@ -79,6 +79,7 @@
 - `method_drift.py` — method_drift -- the one method number that reaches a channel people actually read.
 - `metrics.py` — Solution-Space-Shrinkage Tracker — the Metric C cross-run watchdog.
 - `negotiation.py` — Negotiation round — brief window after user input where agents declare plans.
+- `preregistration.py` — preregistration -- M3's pre-registration metric, as numbers (T123 boundary fix).
 - `suite_baseline.py` — suite_baseline — the test-suite receipt the next seat diffs instead of re-deriving (W34/B4).
 - `task_costs.py` — Task cost telemetry (T056 / wishlist R5) -- per-slice ROI, honestly attributed.
 - `task_ledger.py` — Governed task ledger — the deterministic coordination substrate (Phase 1: sequential-correct).
@@ -137,11 +138,11 @@
 
 ## core/trust/  (2 modules)
 - `capabilities.py` — Capability tokens + role templates -- the atomic vocabulary of the security schema.
-- `registry.py` — Grant registry -- the reader over security/acl.json (source of truth), mirroring core/fleet/roster.py.
+- `registry.py` — Grant registry -- the reader over security/acl.json (source of truth), mirroring core/fleet/model_roster.py (r
 
 ## core/fleet/  (2 modules)
 - `caller.py` — The direct caller -- one-shot invocation of a local model for a BOUNDED subtask.
-- `roster.py` — The fleet roster -- the single source of truth for local models (docs/library/design/20260709_fleet-dispatch-a
+- `model_roster.py` — The fleet roster -- the single source of truth for local models (docs/library/design/20260709_fleet-dispatch-a
 
 ## core/state/  (2 modules)
 - `session_checkpoint.py` — Session Checkpoint: crash-recovery checkpoint system (renamed from session_state.py 2026-07-07 to
@@ -213,8 +214,10 @@
 - `bifrost_ui.py` — bifrost_ui -- a realtime web console for watching (and steering) live agent collaboration on Bifrost.
 - `bifrost_wake.py` — bifrost.wake -- the canonical wake listener for a Bifrost agent (the receive/wake arm of bifrost.api).
 - `capture_apple_hig.py` — capture_apple_hig.py — harvest Apple HIG component sub-sections into refs/design-inspiration.
+- `corpus_digests.py` — corpus_digests -- land structured corpus digests as a durable, queryable dataset.
 - `deepseek_chat.py` — deepseek_chat -- an interactive, TOOL-USING conversation with DeepSeek, in its own window.
 - `enrich_corpus.py` — A3 migration pipeline: the ~900-file corpus -> enriched atoms, verified, gated.
+- `g_recall_at_seed.py` — (no docstring)
 - `gemini_chat.py` — gemini_chat -- the gemini seat's model transport: gemini-1.5-pro as a first-class Akashic citizen.
 - `gemini_web.py` — gemini_web -- ask Gemini through the FREE web surfaces (not API quota).
 - `harmonize_knowledge.py` — harmonize_knowledge.py — one-time knowledge-store harmonization (2026-06-20)

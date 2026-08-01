@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (34 of 132 modules lack both pin and paper by name)
+## GAP queue (36 of 133 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/migrate_to_sqlite.py
@@ -35,6 +35,7 @@ Class: reference
 - core/comm/session_state.py
 - core/comm/storm_detect.py
 - core/comm/timescale.py
+- core/coord/preregistration.py
 - core/coord/task_costs.py
 - core/recall/at_action.py
 - core/recall/curator.py
@@ -43,6 +44,7 @@ Class: reference
 - core/narrative/chapter_lifecycle.py
 - core/narrative/theme_assigner.py
 - core/trust/capabilities.py
+- core/fleet/model_roster.py
 - core/state/session_checkpoint.py
 - core/state/session_recovery.py
 - core/perspectives/reinforce.py
@@ -125,7 +127,7 @@ Class: reference
 | `turn_metrics.py` | Turn metrics (progress-bars data half; co-designed claude+deepseek 2026-07-11). | tests/test_turn_metrics.py | GAP | `BIFROST_NAMESPACE` |
 | `wake_seat.py` | wake_seat -- the per-session wake-seat protocol (T029 Wave 2, the R1/R16 fix). | tests/test_wake_seat.py | docs/library/design/20260701_wave-2-design-claude-fenced-wake-seat-ow_7c4aaf.md | `AKASHIC_TOMBSTONE`, `AKASHIC_WAKE_MARKER_FRESH_MIN`, `BIFROST_NAMESPACE` |
 
-## core/coord/  (12 modules)
+## core/coord/  (13 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
@@ -138,6 +140,7 @@ Class: reference
 | `method_drift.py` | method_drift -- the one method number that reaches a channel people actually read. | tests/test_boot_surfaces_method_drift.py | GAP |  |
 | `metrics.py` | Solution-Space-Shrinkage Tracker — the Metric C cross-run watchdog. | tests/narrative_metrics.py | GAP |  |
 | `negotiation.py` | Negotiation round — brief window after user input where agents declare plans. | tests/test_negotiation.py | GAP |  |
+| `preregistration.py` | preregistration -- M3's pre-registration metric, as numbers (T123 boundary fix). | GAP | GAP |  |
 | `suite_baseline.py` | suite_baseline — the test-suite receipt the next seat diffs instead of re-deriving (W34/B4). | tests/test_w34_suite_baseline.py | GAP |  |
 | `task_costs.py` | Task cost telemetry (T056 / wishlist R5) -- per-slice ROI, honestly attributed. | GAP | GAP | `BIFROST_NAMESPACE` |
 | `task_ledger.py` | Governed task ledger — the deterministic coordination substrate (Phase 1: sequential-correct). | tests/test_task_ledger.py | GAP | `AKASHIC_PROPOSED_STALE_DAYS`, `BIFROST_PREMISE_GATE_MIN_AGE_MS` |
@@ -214,14 +217,14 @@ Class: reference
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
 | `capabilities.py` | Capability tokens + role templates -- the atomic vocabulary of the security schema. | GAP | GAP |  |
-| `registry.py` | Grant registry -- the reader over security/acl.json (source of truth), mirroring core/fleet/roster.py. | tests/test_audit_registry_wiring_kimi.py | docs/library/design/20260711_t034-registry-dial-consolidation-deepsee_a65322.md |  |
+| `registry.py` | Grant registry -- the reader over security/acl.json (source of truth), mirroring core/fleet/model_roster.py (r | tests/test_audit_registry_wiring_kimi.py | docs/library/design/20260711_t034-registry-dial-consolidation-deepsee_a65322.md |  |
 
 ## core/fleet/  (2 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
 | `caller.py` | The direct caller -- one-shot invocation of a local model for a BOUNDED subtask. | tests/test_recall_error_is_not_silence.py | GAP |  |
-| `roster.py` | The fleet roster -- the single source of truth for local models (docs/library/design/20260709_fleet-dispatch-a | tests/test_s2_roster.py | docs/library/design/20260718_frontier-roster-playbook-opening-positio_fde0ed.md |  |
+| `model_roster.py` | The fleet roster -- the single source of truth for local models (docs/library/design/20260709_fleet-dispatch-a | GAP | GAP |  |
 
 ## core/state/  (2 modules)
 
