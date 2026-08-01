@@ -268,8 +268,16 @@ def _beat_seat(data) -> None:
             return
         from core.comm import roster as _roster
         from core.comm.bus import NS as _DEFAULT_NS
-        _roster.heartbeat(os.environ.get("BIFROST_NAMESPACE", _DEFAULT_NS),
-                          agent, sid, phase="working")
+        # CAPTURE THE RETURN. heartbeat() never raises -- it swallows internally and returns
+        # {"ok": False} (roster.py:153-154). bus._connect() returns None when Redis is
+        # unreachable, so the most likely production failure is a caught AttributeError inside
+        # heartbeat, not an exception out here. Discarding this value made the receipt below
+        # unable to fire for exactly that case: exit 0, empty log, no row -- byte-identical to
+        # the no-op this whole slice exists to end. Found by the audit's critic pass.
+        _r = _roster.heartbeat(os.environ.get("BIFROST_NAMESPACE", _DEFAULT_NS),
+                               agent, sid, phase="working")
+        if _r is False or (isinstance(_r, dict) and not _r.get("ok", True)):
+            raise RuntimeError(f"heartbeat refused: {_r!r} (seat {agent}#{sid[:8]})")
     except Exception as e:
         # A sensor must never break the action it observes. But a SILENT swallow is exactly what
         # made today's other no-op invisible, so leave a bounded receipt: the unpatched pin
