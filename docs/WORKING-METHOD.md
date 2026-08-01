@@ -82,7 +82,25 @@ shared snapshot. Claude's counter, unresolved: **invert the default** so nothing
 work until explicitly promoted, rather than requiring the operator to carry a suppressing
 phrase while thinking out loud. Thinking aloud should be free.
 
-## Part 2 — The correction map: whose lens catches what
+## Part 1b — THE TWO-SPEED RULE (RATIFIED by Daniil, 2026-08-01)
+
+His authorization, verbatim: *"I authorize the two speed rule. I want us to start seeing and
+feeling our progress so that our momentum doesn't fizzle out due to the complexity and magnitude
+of our work."*
+
+The rule, from the founding thesis (*everything is disposable BECAUSE the substrate isn't*):
+
+- **PROJECTION speed** — UI, viewers, renders, readers, dashboards, anything regenerable from the
+  record: ships **fence-lite and demo-gated**. The bar is the operator's eyes ("Daniil can see X"),
+  not pins. Failure is cheap by construction; iterate in the open.
+- **SUBSTRATE speed** — stores, transports, locks, identity, doctrine, anything append-only or
+  load-bearing for trust: pays **full ceremony** (RED-first, fences, pre-registration), as now.
+
+The diagnosis this fixes, measured in the 2026-08-01 sweep: every never-served ask was a READING
+surface while every served one was a WRITING surface — substrate-grade ceremony applied to
+projection-grade work priced the visible half of the system out of the queue, twelve weeks running.
+Misclassification rule: when a slice is genuinely ambiguous, it is substrate. A projection that
+starts writing to the record has changed lanes and pays the toll.
 
 **The thesis.** Collective intelligence is *not* the union of what everyone knows — that
 is just a bigger corpus, and a bigger corpus is the load we are currently drowning in.
