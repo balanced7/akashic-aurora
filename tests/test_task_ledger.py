@@ -168,3 +168,48 @@ def test_format_state_shows_done_next_and_rule(tmp_path):
     assert "DONE" in s and "deadbeef" in s          # closed task shown with its commit
     assert "NEXT" in s and "next one" in s and "<- you" in s   # b claimable, tagged for its owner
     assert "obey THIS, not old messages" in s and "in DONE is closed" in s
+
+
+# --- releasing a claim -------------------------------------------------------------------------
+# PARKED was designed for work shelved MID-FLIGHT, so only IN_PROGRESS could reach it. But a task
+# can sit CLAIMED and never start, and that is the state that actually accumulates: claiming is
+# free, releasing is not. The only exits from CLAIMED were ABANDONED (destructive -- says the intent
+# DIED when it merely DRIFTED) and APPROVED (takes no reason, so the shelving rationale is lost).
+# Live receipt 2026-07-31: 21 ACTIVE tasks, 16 of them CLAIMED-not-started, none parkable without
+# routing each through the single serialized IN_PROGRESS slot -- 16 false in_progress transitions
+# written into a git-durable audit trail purely to reach a legal state.
+
+def test_claimed_can_park_without_faking_a_start(tmp_path):
+    L = fresh(tmp_path)
+    t = L.propose("claimed but never started", files=["x.py"], at="t0")
+    TL.approve(L, t["id"], at="t1")
+    TL.claim(L, t["id"], "claude", at="t2")
+    TL.park(L, t["id"], "wave 3 -- unpark after the grade", at="t3")
+    got = L.get(t["id"])
+    assert got["status"] == TL.PARKED
+    assert got["reason"] == "wave 3 -- unpark after the grade"   # the debt survives the release
+    assert got["owner"] == "claude"                              # parking is not disowning
+
+
+def test_verifying_can_park(tmp_path):
+    L = fresh(tmp_path)
+    t = L.propose("awaiting verification", at="t0")
+    TL.approve(L, t["id"], at="t1")
+    TL.claim(L, t["id"], "claude", at="t2")
+    TL.start(L, t["id"], at="t3")
+    TL.verifying(L, t["id"], at="t4")
+    TL.park(L, t["id"], "shelved before verification landed", at="t5")
+    assert L.get(t["id"])["status"] == TL.PARKED
+
+
+def test_parked_claim_frees_the_serialize_slot_but_keeps_its_files(tmp_path):
+    L = fresh(tmp_path)
+    a = L.propose("a", files=["shared.py"], at="t0")
+    b = L.propose("b", files=["other.py"], at="t0")
+    for t in (a, b):
+        TL.approve(L, t["id"], at="t1")
+        TL.claim(L, t["id"], "claude", at="t2")
+    TL.park(L, a["id"], "shelved", at="t3")
+    TL.start(L, b["id"], at="t4")                    # a parked claim must not block the slot
+    assert L.get(b["id"])["status"] == TL.IN_PROGRESS
+    assert L.files_held()["shared.py"] == a["id"]    # shelved work still owns its files
