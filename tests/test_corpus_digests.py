@@ -110,3 +110,66 @@ def test_missing_dataset_teaches_instead_of_crashing(tmp_path):
     r = _run(tmp_path / "nope.jsonl", "--themes")
     out = (r.stdout + r.stderr).lower()
     assert "corpus_digests" in out or "no digests" in out or "run" in out, out
+
+
+# --- the join: narrative <-> specifics ------------------------------------------------------
+# The spine already implements skim-then-drill (--themes / --theme / --chapter / --beat / --raw)
+# and its beats already carry pointers -- but ONLY `git:SHA`. Not atoms, not lessons, not his
+# directives. So the general and the specific have never been connected for anything except
+# commits. The join key is TIME CONTAINMENT: a chapter carries span_start/span_end, a digest
+# carries a date. That is a fact, not an inference -- no prose is interpreted to produce it.
+
+CHAPTERS = [
+    {"id": "chapter_aaa", "track": "ai-setup", "title": "The alpha arc",
+     "span_start": "2026-07-01T00:00:00-04:00", "span_end": "2026-07-10T00:00:00-04:00"},
+    {"id": "chapter_bbb", "track": "ai-setup", "title": "The beta arc",
+     "span_start": "2026-07-20T00:00:00-04:00", "span_end": "2026-07-30T00:00:00-04:00"},
+]
+
+DATED = [
+    {"run": "r1", "path": "docs/early.md", "gist": "in alpha", "date": "2026-07-05", "themes": []},
+    {"run": "r1", "path": "docs/late.md", "gist": "in beta", "date": "2026-07-23", "themes": []},
+    {"run": "r1", "path": "docs/undated.md", "gist": "no date at all", "themes": []},
+]
+
+
+def _joined(tmp_path):
+    d = tmp_path / "digests.jsonl"
+    d.write_text("\n".join(json.dumps(r) for r in DATED) + "\n", encoding="utf-8")
+    c = tmp_path / "chapters.json"
+    c.write_text(json.dumps(CHAPTERS), encoding="utf-8")
+    return d, c
+
+
+def _runj(fx, ch, *argv):
+    env = {**os.environ, "AKASHIC_DIGESTS_FILE": str(fx), "AKASHIC_CHAPTERS_FILE": str(ch)}
+    return subprocess.run([sys.executable, TOOL, *argv],
+                          capture_output=True, text=True, timeout=60, env=env, cwd=REPO)
+
+
+def test_artifact_resolves_to_its_chapter(tmp_path):
+    """From a specific, arrive at the general."""
+    fx, ch = _joined(tmp_path)
+    r = _runj(fx, ch, "--chapter-of", "docs/late.md")
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "chapter_bbb" in r.stdout and "beta arc" in r.stdout, r.stdout
+    assert "chapter_aaa" not in r.stdout, "matched a chapter whose span does not contain it"
+
+
+def test_chapter_resolves_to_its_artifacts(tmp_path):
+    """From the general, arrive at the specifics -- the whole point of the exercise."""
+    fx, ch = _joined(tmp_path)
+    r = _runj(fx, ch, "--in-chapter", "chapter_aaa")
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "docs/early.md" in r.stdout and "docs/late.md" not in r.stdout, r.stdout
+
+
+def test_undated_digests_are_reported_never_silently_dropped(tmp_path):
+    """A record with no date cannot be placed. Saying so is the difference between a gap and a
+    lie -- UNSCANNED is not EMPTY, applied to the join itself."""
+    fx, ch = _joined(tmp_path)
+    r = _runj(fx, ch, "--in-chapter", "chapter_aaa")
+    low = r.stdout.lower()
+    assert "undated" in low or "unplaceable" in low or "no date" in low, (
+        "1 undated digest vanished from the join with no signal:\n" + r.stdout
+    )

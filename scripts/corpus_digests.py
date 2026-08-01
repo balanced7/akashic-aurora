@@ -82,8 +82,12 @@ def _digests_from(journal):
                 # from the same transcript file into one record and silently dropped ~half his
                 # utterances -- losing operator speech to a dedup bug is the worst available
                 # failure here, and it looked like success because the count was still large.
+                # Shard labels are agent-authored and one of them returned its entire report as
+                # its `shard` -- a 2KB "path" that made the index unreadable. Clamp the label;
+                # the index is a NAVIGATION key, and a key nobody can read is not a key.
+                _s = " ".join(str(shard).split())[:48]
                 yield run, shard, {
-                    "path": f"utterance:{shard}:{i}:{d.get('source') or '?'}",
+                    "path": f"utterance:{_s}:{i}:{d.get('source') or '?'}",
                     "date": d.get("date"),
                     "gist": d.get("about") or "",
                     "themes": [d.get("kind")] if d.get("kind") else [],
@@ -140,7 +144,102 @@ def _print_hits(rows, total, what, field=None):
         print(f"  {r.get('path')}\n      {r.get('gist','')}{extra}")
 
 
+# --- the JOIN: narrative <-> specifics -------------------------------------------------------
+# The spine's beats already carry pointers, but only `git:SHA` -- never an atom, a lesson, or one
+# of his directives. So "skim the general, arrive at the specific" has only ever worked for
+# commits. The join key is TIME CONTAINMENT: a chapter carries span_start/span_end and a digest
+# carries a date. That is a FACT, not an inference; no prose is interpreted to produce it, which
+# is exactly why it is trustworthy where a theme-match would not be.
+
+def _load_chapters():
+    """Chapters from the sanctioned door (`story --json`), or an injected file for pins."""
+    inj = os.environ.get("AKASHIC_CHAPTERS_FILE")
+    if inj:
+        try:
+            with open(inj, encoding="utf-8") as fh:
+                return json.load(fh)
+        except Exception:
+            return []
+    # `story --json` bare returns an ATLAS (a dict of track NAMES), not chapters. The first
+    # version of this loader expected a list, got the dict, returned [] -- and the join then
+    # printed a confident "0 of 0 chapters whose span contains 2026-07-31", which I nearly
+    # reported as "the spine does not cover recent work". It covers 2026-04-15..2026-07-31.
+    # A coverage claim manufactured by the reader's own bug is the exact disease this corpus
+    # keeps paying for, produced here by the tool built to detect it. Chapters live PER TRACK.
+    import subprocess
+    cli = os.path.join(ROOT, "agent_cli.py")
+
+    def _cli(*args):
+        try:
+            r = subprocess.run([sys.executable, cli, "story", *args],
+                               capture_output=True, text=True, timeout=180, cwd=ROOT)
+            return json.loads(r.stdout)
+        except Exception:
+            return None
+
+    atlas = _cli("--json")
+    tracks = (atlas or {}).get("tracks") if isinstance(atlas, dict) else None
+    if not tracks:
+        return []
+    out = []
+    for t in tracks:
+        got = _cli("--track", str(t), "--json")
+        if isinstance(got, list):
+            out += [c for c in got if isinstance(c, dict) and c.get("id")]
+    return out
+
+
+def _day(value):
+    """YYYY-MM-DD or None. A date we cannot parse is UNPLACEABLE, never silently 'now'."""
+    s = str(value or "")[:10]
+    return s if len(s) == 10 and s[4] == "-" and s[7] == "-" else None
+
+
+def _contains(ch, day):
+    a, b = _day(ch.get("span_start")), _day(ch.get("span_end"))
+    return bool(a and b and day and a <= day <= b)
+
+
 def _query(rows, args):
+    if args.chapter_of:
+        hits = [r for r in rows if args.chapter_of.lower() in str(r.get("path", "")).lower()]
+        if not hits:
+            print(f"[digests] no digest matches {args.chapter_of!r}")
+            return 1
+        chapters = _load_chapters()
+        for r in hits:
+            day = _day(r.get("date"))
+            print(f"  {r.get('path')}\n      {r.get('gist','')}")
+            if not day:
+                print("      UNPLACEABLE -- this digest carries no parsable date, so it belongs "
+                      "to no chapter. That is a gap in the record, not an empty result.")
+                continue
+            owning = [c for c in chapters if _contains(c, day)]
+            print(_bound(len(owning), len(owning), f"chapter(s) whose span contains {day}"))
+            for c in owning:
+                print(f"      {c.get('id')}  [{c.get('track')}]  {c.get('title')}"
+                      f"\n        {_day(c.get('span_start'))} .. {_day(c.get('span_end'))}")
+        return 0
+
+    if args.in_chapter:
+        chapters = _load_chapters()
+        ch = next((c for c in chapters if c.get("id") == args.in_chapter), None)
+        if not ch:
+            print(f"[digests] no chapter {args.in_chapter!r} (chapters loaded: {len(chapters)})")
+            return 1
+        placed = [r for r in rows if _contains(ch, _day(r.get("date")))]
+        undated = [r for r in rows if not _day(r.get("date"))]
+        print(f"[digests] chapter {ch.get('id')} [{ch.get('track')}] {ch.get('title')}")
+        print(f"          span {_day(ch.get('span_start'))} .. {_day(ch.get('span_end'))}")
+        total = len(placed)
+        shown = placed[:args.limit] if args.limit else placed
+        _print_hits(shown, total, "artifacts born inside this chapter")
+        # UNSCANNED is not EMPTY, applied to the join itself: a digest with no date is not
+        # absent from this chapter, it is unplaceable, and the difference is the whole point.
+        print(f"[digests] NOTE: {len(undated)} undated digest(s) in the dataset cannot be placed "
+              "in ANY chapter -- they are excluded from every span, not from this one.")
+        return 0
+
     if args.themes:
         counts = {}
         for r in rows:
@@ -208,6 +307,10 @@ def main(argv=None):
     ap.add_argument("--gold", action="store_true", help="mechanisms worth resurfacing")
     ap.add_argument("--directives", action="store_true", help="his words, verbatim")
     ap.add_argument("--show", help="drill: every field recorded for one path")
+    ap.add_argument("--chapter-of", dest="chapter_of",
+                    help="join: which narrative chapter's span contains this artifact")
+    ap.add_argument("--in-chapter", dest="in_chapter",
+                    help="join: which artifacts were born inside this chapter's span")
     ap.add_argument("--limit", type=int, default=0, help="cap rows (truncation is ANNOUNCED)")
     args = ap.parse_args(argv)
 
@@ -215,7 +318,7 @@ def main(argv=None):
     rows = list(existing.values())
 
     if any([args.themes, args.theme, args.grep, args.orphans, args.stale, args.gold,
-            args.directives, args.show]):
+            args.directives, args.show, args.chapter_of, args.in_chapter]):
         if not rows:
             print(f"[digests] no digests at {OUT} -- land them first: py scripts/corpus_digests.py")
             return 2
