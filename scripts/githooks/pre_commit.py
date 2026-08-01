@@ -56,13 +56,22 @@ def _comprehensibility_fast():
     so drift can't reach the shared repo via `mirror`/`git commit`, not just `ship.py` (property
     UNBYPASSABLE). Fail-OPEN on a guard CRASH (a broken guard must never brick every commit; CI + ship
     run the full guard anyway); real drift fails CLOSED. Emergency bypass: `git commit --no-verify`."""
+    # T104 moved this checker into scripts/checkers/ and this invocation was not updated. Python
+    # then exited rc=2 ("can't open file") -- not the rc==1 main() blocks on, and not an exception
+    # the fail-open except could catch -- so this gate silently no-opped on EVERY commit from the
+    # move until 2026-08-01 while reporting green. Fail-open on a guard CRASH is deliberate policy
+    # (a broken guard must never brick every commit). Fail-open on a guard that ISN'T THERE is a
+    # wiring defect, and it is invisible precisely because absence looks exactly like success.
+    checker = os.path.join(ROOT, "scripts", "checkers", "check_comprehensibility.py")
+    if not os.path.exists(checker):
+        return 2, ("pre-commit: comprehensibility checker MISSING at " + checker +
+                   " -- this gate is NOT running. Wiring defect, not drift: fix the path.\n")
     try:
-        r = subprocess.run(
-            [sys.executable, os.path.join(ROOT, "scripts", "check_comprehensibility.py"), "--fast"],
-            capture_output=True, text=True, timeout=60)
+        r = subprocess.run([sys.executable, checker, "--fast"],
+                           capture_output=True, text=True, timeout=60)
         return r.returncode, (r.stdout or "") + (r.stderr or "")
     except Exception:
-        return 0, ""   # guard unavailable/slow -> fail open
+        return 0, ""   # guard crashed/slow -> fail open, per the policy in the docstring
 
 
 def main():
@@ -76,6 +85,11 @@ def main():
                          "filename case-mismatch):\n" + out +
                          "\nFix it, or `git commit --no-verify` to bypass in a genuine emergency.\n")
         return 1
+    if rc not in (0, 1):
+        # Do NOT block -- fail-open on a non-working guard is the standing policy. But never let
+        # a dead gate look like a passing one: the whole cost of this defect was its silence.
+        sys.stderr.write("pre-commit WARNING: the comprehensibility gate did not run "
+                         "(rc=%d). Commit allowed; the gate is not protecting you.\n%s" % (rc, out))
     return 0
 
 
