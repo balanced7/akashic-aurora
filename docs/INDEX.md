@@ -56,6 +56,18 @@ the whole point (an old design note read as current truth is how a project stops
   [WISHLIST.md](WISHLIST.md) — the standing ergonomics ledger · [PORTS.md](PORTS.md) — the port map ·
   [CONDUCT.md](CONDUCT.md) — the conductor's standing law (ten laws + activation map + fresh-boot bar).
 
+**The three doctrine planes (kept apart on purpose — CONDUCT leads, WORKING-METHOD originates, ORG shapes)**
+- [CONDUCT.md](CONDUCT.md) — how the fleet is LED: how a seat behaves. *(ratified, v1.1)*
+- [WORKING-METHOD.md](WORKING-METHOD.md) — where work COMES FROM: how a problem becomes work, and
+  whose lens catches which failure. *(ratified 2026-08-01)*
+- [ORG.md](ORG.md) — how the unit is SHAPED: how many things run at once, who holds which post, what
+  each post owes. Posts own HANDOFFS, not domains. *(ratified 2026-08-01)*
+
+**Orientation for a new seat**
+- [ARRIVAL-PACKET.md](ARRIVAL-PACKET.md) — what a newcomer reads first ·
+  [ONBOARDING-BRIDGE.md](ONBOARDING-BRIDGE.md) — the bridge into the live system ·
+  [ARCS.md](ARCS.md) — the arc register.
+
 **The contract (repo root)**
 - [../README.md](../README.md) — what this is. [../AGENTS.md](../AGENTS.md) — the contract every agent honors.
 - [../CONTRIBUTING.md](../CONTRIBUTING.md) — how to change it. [../bootstrap.md](../bootstrap.md) — agent quick-start.

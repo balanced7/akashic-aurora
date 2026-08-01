@@ -23,16 +23,23 @@ Letta's plain files beat a graph memory system; Wikidata's three ranks run at ~1
 statements where ATMS dies around 100 beliefs. The cost of NOT sweeping is measured in
 rebuilt wheels and dead ends, so the sweep is now a standing artifact rather than a mood.
 
-## Coverage: 20 current, 2 drift, 0 gap (of 22 subsystems)
+## Coverage: 13 current, 9 drift, 0 gap (of 22 subsystems)
 
 **DRIFT -- surveyed, but the subsystem has changed size since:**
 
-- `core/comm` -- DRIFT (36->38), reviewed 2026-07-26
-- `tests` -- DRIFT (331->341), reviewed 2026-07-26
+- `core/foundation` -- DRIFT (8->9), reviewed 2026-07-26
+- `core/comm` -- DRIFT (36->43), reviewed 2026-07-26
+- `core/coord` -- DRIFT (11->12), reviewed 2026-07-26
+- `core/recall` -- DRIFT (10->13), reviewed 2026-07-26
+- `core/primitives` -- DRIFT (7->8), reviewed 2026-07-26
+- `scripts/checkers` -- DRIFT (12->14), reviewed 2026-07-26
+- `scripts/generators` -- DRIFT (6->7), reviewed 2026-07-26
+- `scripts/ops` -- DRIFT (2->3), reviewed 2026-07-26
+- `tests` -- DRIFT (331->393), reviewed 2026-07-26
 
 ---
 
-## `core/foundation` -- 8 modules  ·  current
+## `core/foundation` -- 9 modules  ·  DRIFT (8->9)
 
 **What it does.** The Store: a Redis-command-shaped key/value substrate emulating five structures (kv, hash, list, set, zset) over three backends -- RedisStore (pass-through), FileStore (JSON whole-file, superseded), SqliteStore (WAL, landed 2026-07-26), and HybridStore (dual-write, Redis-preferred reads).
 
@@ -99,7 +106,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `core/comm` -- 38 modules  ·  DRIFT (36->38)
+## `core/comm` -- 43 modules  ·  DRIFT (36->43)
 
 **What it does.** The Bifrost bus and everything around it -- purpose-keyed lanes (work / trace / sig), per-agent consume cursors, packet envelopes with integrity and fragmentation, expectations and redrives, the wake listener, the launcher, and the fidelity ladder (inform / steer / interrupt / halt). By far our largest subsystem.
 
@@ -122,7 +129,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `core/coord` -- 11 modules  ·  current
+## `core/coord` -- 12 modules  ·  DRIFT (11->12)
 
 **What it does.** Coordination primitives: advisory path locks, the RB-21 consumer seat with generations, the task ledger with gated transitions, the conductor, and expectation/redrive bookkeeping.
 
@@ -168,7 +175,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `core/recall` -- 10 modules  ·  current
+## `core/recall` -- 13 modules  ·  DRIFT (10->13)
 
 **What it does.** Retrieval over the lesson corpus: at_action (PreToolUse injection), funnel (surface/credit accounting), curator (bench/unbench), forge (lesson content optimisation), anchors, dissent, lookback, knowledge_map.
 
@@ -191,7 +198,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `core/primitives` -- 7 modules  ·  current
+## `core/primitives` -- 8 modules  ·  DRIFT (7->8)
 
 **What it does.** Cross-cutting primitives built once at the seam: the Ranker (keyword relevance with IDF weighting), the faithfulness critic, supersession helpers, and the distiller family.
 
@@ -437,7 +444,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by deepseek (swept), claude (folded)._
 
-## `scripts/checkers` -- 12 modules  ·  current
+## `scripts/checkers` -- 14 modules  ·  DRIFT (12->14)
 
 **What it does.** Twelve guards run at ship/CI time: door parity, doc currency, pointer promises, comprehensibility, boundaries, clobber scan and others. They fail the build on drift.
 
@@ -459,7 +466,7 @@ _Reviewed 2026-07-26 by deepseek (swept), claude (folded)._
 
 _Reviewed 2026-07-26 by claude._
 
-## `scripts/generators` -- 6 modules  ·  current
+## `scripts/generators` -- 7 modules  ·  DRIFT (6->7)
 
 **What it does.** Six generators projecting live code into documents: MAP.md (module census), MODULE_INDEX.md (docstrings), PHYSICS.md (bounds and env flags), DOORS.md (CLI verb reference), PRIOR_ART.md (this register), and the arch index.
 
@@ -482,7 +489,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `scripts/ops` -- 2 modules  ·  current
+## `scripts/ops` -- 3 modules  ·  DRIFT (2->3)
 
 **What it does.** Operator tools for the knowledge substrate: snapshot_knowledge.py (snapshot / list / restore / verify across Redis, the file tier and chronicles, keeping the last 20) and reheal_durable_tier.py (backfill the durable tier FROM Redis, added 2026-07-26).
 
@@ -505,7 +512,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `tests` -- 341 modules  ·  DRIFT (331->341)
+## `tests` -- 393 modules  ·  DRIFT (331->393)
 
 **What it does.** 331 test modules plus conftest, providing universal backend isolation, a parity exerciser shared across store backends, and a differential harness that cross-verifies two implementations of the same semantics.
 

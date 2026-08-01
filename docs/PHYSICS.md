@@ -4,17 +4,17 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 22c3bac. A bound you discover by collision is not awareness -- this sheet
+> Derived at bb5883c. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (151 names)
+## Configuration flags (170 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
 | `AGENT_ID` | `"unknown"` | core/comm/bus.py |
-| `AI_SETUP` | `"E:\\AI-Setup"` | agent_cli.py, core/comm/blobs.py, core/foundation/ledger.py +15 |
+| `AI_SETUP` | `"E:\\AI-Setup"` | agent_cli.py, core/comm/blobs.py, core/foundation/durable_reconcile.py +18 |
 | `AKASHIC_ACK_UNHANDLED_HOURS` | `UNHANDLED_HOURS` | core/comm/promoter.py |
 | `AKASHIC_AGENT_ID` | `"claude"` | agent/harness/hooks/claude_posttooluse.py, agent/harness/hooks/claude_pretooluse.py, agent/harness/hooks/claude_sessionend.py +19 |
 | `AKASHIC_ALLOW_HARMONIZE` | `` | scripts/harmonize_knowledge.py |
@@ -30,7 +30,7 @@ Class: reference
 | `AKASHIC_CONTROL_PORT_BASE` | `"47100"` | core/comm/control_channel.py |
 | `AKASHIC_DAEMON_WAKE` | `"1"` | agent/harness/hooks/claude_stop.py, scripts/hooks/claude_stop.py |
 | `AKASHIC_DEBUG` | `` | agent/harness/hooks/claude_userpromptsubmit.py, scripts/hooks/claude_userpromptsubmit.py |
-| `AKASHIC_DRILL_ECHO` | `` | scripts/bifrost_runner.py, scripts/bifrost_runner_deepseek.py, scripts/bifrost_runner_kimi.py +1 |
+| `AKASHIC_DRILL_ECHO` | `` | scripts/bifrost_runner.py, scripts/bifrost_runner_deepseek.py, scripts/bifrost_runner_gemini.py +2 |
 | `AKASHIC_EMBED_THEMES` | `""` | core/narrative/beat_log.py, core/narrative/theme_discovery.py |
 | `AKASHIC_EXPECT_TASK_SETTLE` | `"1"` | core/comm/expectations.py |
 | `AKASHIC_FENCE_ROOT` | `` | core/coord/fence_workspace.py |
@@ -40,7 +40,7 @@ Class: reference
 | `AKASHIC_INCARNATION_TTL_MIN` | `"30"` | core/comm/incarnation.py |
 | `AKASHIC_JOB_ENFORCEMENT` | `` | scripts/run_job.py |
 | `AKASHIC_JOB_OBJECT_NAME` | `` | scripts/run_job.py |
-| `AKASHIC_KILLPOINT` | `""` | scripts/bifrost_runner_deepseek.py, scripts/bifrost_runner_kimi.py, scripts/bifrost_runner_sol.py |
+| `AKASHIC_KILLPOINT` | `""` | scripts/bifrost_runner_deepseek.py, scripts/bifrost_runner_gemini.py, scripts/bifrost_runner_kimi.py +1 |
 | `AKASHIC_KIMI_NARRATOR` | `"1"` | scripts/kimi_walk_narrator.py |
 | `AKASHIC_KMAP_NO_COUNT` | `` | core/recall/knowledge_map.py |
 | `AKASHIC_LANE_STALL_PAGE_S` | `"21600"` | core/comm/doctor.py |
@@ -66,8 +66,12 @@ Class: reference
 | `AKASHIC_REDIS_HEALTH_CHECK_SEC` | `"30"` | core/foundation/redis_connection.py |
 | `AKASHIC_RELEVANCE_BUDGET` | `"1"` | core/context/learning_loader.py |
 | `AKASHIC_RELEVANCE_BUDGET_CHARS` | `""` | core/context/relevance_budget.py |
+| `AKASHIC_RESUME_GAP_S` | `"600"` | core/comm/roster.py |
 | `AKASHIC_SEAT_DOOR` | `""` | agent_cli.py |
 | `AKASHIC_SEAT_DOOR_DETAIL` | `""` | agent_cli.py |
+| `AKASHIC_SELF_RESTART_MIN_BEHIND` | `"3"` | core/comm/self_restart.py |
+| `AKASHIC_SELF_RESTART_MIN_UPTIME_S` | `"900"` | core/comm/self_restart.py |
+| `AKASHIC_SESSION8` | `` | agent_cli.py |
 | `AKASHIC_SESSION_SIGNALS` | `"1"` | agent/harness/hooks/claude_sessionend.py, scripts/hooks/claude_sessionend.py |
 | `AKASHIC_SESSION_SIGNALS_MAX_BYTES` | `str(16 * 1024 * 1024` | agent/harness/hooks/claude_sessionend.py, scripts/hooks/claude_sessionend.py |
 | `AKASHIC_SHOW_CONSOLES` | `` | core/comm/launcher.py |
@@ -76,7 +80,7 @@ Class: reference
 | `AKASHIC_STALL_HYSTERESIS_S` | `"180"` | core/comm/doctor.py |
 | `AKASHIC_STOP_PROMISE` | `"1"` | agent/harness/hooks/claude_stop.py, scripts/hooks/claude_stop.py |
 | `AKASHIC_STOP_WAKE` | `"1"` | agent/harness/hooks/claude_stop.py, scripts/hooks/claude_stop.py |
-| `AKASHIC_STORE_BACKEND` | `sqlite` (user-env since 2026-07-28, T118 flip; code default stays FileStore; rollback = setx to empty) | core/foundation/store.py |
+| `AKASHIC_STORE_BACKEND` | `""` | core/foundation/store.py, scripts/checkers/check_dual_authority.py |
 | `AKASHIC_TIMEOUT_MULTIPLIER` | `"1"` | core/comm/timescale.py |
 | `AKASHIC_TOMBSTONE` | `"1"` | core/comm/wake_seat.py |
 | `AKASHIC_TOOLBELT_QUOTA` | `"20"` | core/toolbelt/registry.py |
@@ -85,15 +89,18 @@ Class: reference
 | `AKASHIC_WAKE_MARKER_FRESH_MIN` | `""` | core/comm/wake_seat.py |
 | `AKASHIC_WHISPER_LINES` | `""` | agent/harness/context.py |
 | `AKASHIC_WISHLIST_FILE` | `` | agent_cli.py |
+| `AKASHIC_WORKLIVE_FRESH_S` | `"45"` | core/comm/roster.py |
+| `AKASHIC_WORKLIVE_TTL_S` | `"180"` | core/comm/roster.py |
 | `BIFROST_APPROACHING_WEDGE_SECONDS` | `"150"` | core/comm/liveness.py |
 | `BIFROST_CONSUME_LANE` | `` | core/comm/bifrost_api.py |
-| `BIFROST_INCARNATION` | `` | core/comm/bus.py |
+| `BIFROST_INCARNATION` | `` | agent/bifrost_pull.py, core/comm/bus.py |
 | `BIFROST_LANES_DUAL_WRITE` | `True` | core/comm/packet_spec.py |
 | `BIFROST_MAX_HOPS` | `"6"` | core/comm/control.py |
 | `BIFROST_MAX_REPLIES_PER_MIN` | `"12"` | core/comm/control.py |
-| `BIFROST_NAMESPACE` | `"bifrost"` | agent/harness/delta.py, agent_cli.py, core/comm/bus.py +17 |
+| `BIFROST_NAMESPACE` | `_DEFAULT_NS` | agent/bifrost_pull.py, agent/harness/delta.py, agent_cli.py +19 |
 | `BIFROST_PREFLIGHT_ASSERT` | `"1"` | core/comm/assertions.py |
 | `BIFROST_PREMISE_GATE_MIN_AGE_MS` | `` | core/coord/task_ledger.py |
+| `BIFROST_REASK_WINDOW_S` | `` | core/comm/bus.py |
 | `BIFROST_REPLY_DEDUP_TTL_S` | `"1200"` | core/comm/bus.py |
 | `BIFROST_STALE_MS` | `DEFAULT_STALE_MS` | core/comm/packet_spec.py |
 | `BIFROST_UI_PORT` | `"8787"` | core/comm/doctor.py |
@@ -102,7 +109,7 @@ Class: reference
 | `BIFROST_WAKE_LONGLIVED` | `"1"` | scripts/bifrost_wake.py |
 | `BIFROST_WEDGE_SECONDS` | `"300"` | core/comm/liveness.py |
 | `BUS_MAX_MESSAGE_BYTES` | `DEFAULT_MAX_MESSAGE_BYTES` | core/comm/packet_spec.py |
-| `CLAUDE_CODE_SESSION_ID` | `` | agent_cli.py, core/comm/runner_lock.py |
+| `CLAUDE_CODE_SESSION_ID` | `` | agent/bifrost_pull.py, agent_cli.py, core/comm/bus.py +1 |
 | `CLAUDE_SESSION_ID` | `` | agent_cli.py, core/comm/runner_lock.py |
 | `CURSOR_PROJECT_DIR` | `` | agent/harness/hooks/cursor_posttooluse.py, agent/harness/hooks/cursor_sessionstart.py |
 | `DEEPSEEK_API_KEY` | `` | scripts/ask_deepseek.py, scripts/deepseek_chat.py |
@@ -116,7 +123,18 @@ Class: reference
 | `DOC_CURRENCY_STALE_DAYS` | `"45"` | scripts/checkers/check_doc_currency.py |
 | `EMBED_MODEL` | `DEFAULT_MODEL` | core/primitives/embedder.py |
 | `FRAG_REASSEMBLY_TTL` | `DEFAULT_FRAG_REASSEMBLY_TTL` | core/comm/packet_spec.py |
-| `GEMINI_MODEL` | `"gemini-2.5-flash"` | scripts/ask_gemini.py, scripts/ask_gemini_vision.py |
+| `GEMINI_BUDGET_USD` | `"105.0"` | scripts/gemini_chat.py |
+| `GEMINI_CONNECT_TIMEOUT` | `"15"` | scripts/gemini_chat.py |
+| `GEMINI_EFFORT` | `"max"` | scripts/gemini_chat.py |
+| `GEMINI_GRANT_BASIS_USD` | `"105.0"` | scripts/gemini_chat.py |
+| `GEMINI_MAX_HOPS` | `"30"` | scripts/bifrost_runner_gemini.py, scripts/gemini_chat.py |
+| `GEMINI_MAX_RETRIES` | `"1"` | scripts/gemini_chat.py |
+| `GEMINI_MODEL` | `"gemini-2.5-flash"` | scripts/ask_gemini.py, scripts/ask_gemini_vision.py, scripts/gemini_chat.py |
+| `GEMINI_READ_TIMEOUT` | `"180"` | scripts/gemini_chat.py |
+| `GEMINI_RUNNER_MAX_TOKENS` | `"8000"` | scripts/gemini_chat.py |
+| `GEMINI_SPEND_FILE` | `str(REPO_ROOT / "state" / "gemini_spend.json"` | scripts/gemini_chat.py |
+| `GEMINI_SPEND_REFUSE` | `'95'` | scripts/bifrost_runner_gemini.py, scripts/gemini_chat.py |
+| `GEMINI_SPEND_WARN` | `"80.0"` | scripts/gemini_chat.py |
 | `GEMINI_WEB_BROWSER` | `""` | scripts/gemini_web.py |
 | `GEMINI_WEB_ENGINE` | `"playwright"` | scripts/gemini_web.py |
 | `GEMINI_WEB_HEADED` | `""` | scripts/gemini_web.py |
@@ -164,8 +182,9 @@ Class: reference
 | `STORM_DEPTH_THRESHOLD` | `50` | core/comm/storm_detect.py |
 | `STORM_DEPTH_WINDOW` | `3` | core/comm/storm_detect.py |
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
+| `TEMP` | `"/tmp"` | core/recall/precision_audit.py |
 
-## Mechanical bounds (99 numeric constants)
+## Mechanical bounds (105 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -237,8 +256,10 @@ Class: reference
 | `REDIS_TIMEOUT` | 5 | config.py |  |
 | `REHAB_MIN_CONTEXTS` | 8 | core/recall/replay.py | criterion 2: surfaced contexts per rehab candidate... |
 | `REHAB_MIN_SURFACED` | 10 | core/recall/forge_optimizer.py | rehab class definition (mirrors the audit / curator) |
+| `REHOME_CLAIM_TTL_S` | 30 | core/comm/reaper.py |  |
 | `RENDER_TTL_S` | 30 | agent/harness/delta.py | X1: turn_metrics EST_CACHE_TTL pattern |
 | `SCHEMA_KNOWN_MAX` | 1 | core/library/atoms.py |  |
+| `SEATSEEN_TTL_S` | 86,400 | core/comm/roster.py | kimi F1: death must outlive the worklive TTL to be RENDERABLE |
 | `SEEN_CAP` | 1,000 | scripts/bifrost_wake.py | newest-last trim on save; a session outliving 1000 wakes re-earns a twin wake |
 | `SNIPPET_CHARS` | 72 | core/comm/flow_trace.py |  |
 | `STALE_DAYS` | 14 | scripts/checkers/check_comprehensibility.py |  |
@@ -249,6 +270,7 @@ Class: reference
 | `THRESHOLD` | 1,500 | scripts/checkers/check_bus_atom_pointers.py | chars: below this a body is "a pointer with manners" |
 | `TOKEN_BUDGET` | 4,000 | core/narrative/chronicler.py |  |
 | `TOOL_SEND_TEXT_MAX` | 8,000 | core/comm/packet_spec.py | D3 (deepseek verdict 2026-07-19): the 4000 door |
+| `WINDOW` | 30 | core/coord/method_drift.py |  |
 | `WINDOW` | 240 | scripts/checkers/check_pointer_promises.py |  |
 | `_ANSWERED_KEY_CAP` | 20,000 | core/comm/mailbox.py |  |
 | `_CAP_MAX` | 200 | agent/harness/capture.py |  |
@@ -261,7 +283,10 @@ Class: reference
 | `_MAX_DETAIL_CHARS` | 8,000 | core/events/event_log.py | raw is rich, but a single payload is still bounded |
 | `_MAX_NOTE` | 100,000 | agent_cli.py | durable note bodies: a ceiling against runaway pastes, not a working size |
 | `_MAX_SUMMARY` | 500 | core/events/event_log.py |  |
+| `_MIN_SUFFIX_CHARS` | 200 | core/library/legacy_map.py |  |
 | `_NOTE_WINDOW_DAYS` | 60 | agent/harness/context.py | one store pull feeds every note-derived section |
+| `_OUTCOME_MAX_BYTES` | 4,000,000 | core/recall/at_action.py | ~4MB ring; oldest half dropped on overflow |
+| `_REASK_WINDOW_S` | 1,800 | core/comm/bus.py | 30 min; BIFROST_REASK_WINDOW_S overrides |
 | `_RECYCLE_SLACK_MS` | 1,000 | core/comm/wake_seat.py | parent may not be YOUNGER than child by more |
 | `_SHA_LEN` | 24 | core/comm/blobs.py | 96 bits of sha256 -- ample for a single-user blob store |
 | `_STALE_DAYS` | 7 | agent/harness/context.py | W5: note-derived lines gain [STALE] at this age |

@@ -8,7 +8,7 @@ Class: reference
 > (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by
 > check_comprehensibility so it cannot silently rot.
 
-## CLI door -- `py agent_cli.py <verb>` (68 verbs)
+## CLI door -- `py agent_cli.py <verb>` (71 verbs)
 
 The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.
 
@@ -19,8 +19,9 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `bench` | S0 triage bench (scry-to-bottom): list/park/unpark stale asks -- bottomed so fresh mail flows, NEVER dropped; sender always notified (RB-29) | `<agent_id>*` `<action> {list,park,unpark}` `<ref>` `--reason` `--by` |
 | `bifrost-ack` | durably record you HANDLED a salient bus message (P6) | `<agent_id>*` `<msg_id>*` `--note` `--json` |
 | `bifrost-drain` | request a runner's GRACEFUL exit: finish current message -> release lock -> exit 0 (the TaskStop restart-tax killer) | `<agent_id>*` `--to*` `--reason` |
+| `bifrost-fetch` | fetch a spilled payload by content-addressed ref (the retrieval half of T113's oversize-send spill) | `--get` `--out` |
 | `bifrost-nudge` | targeted fidelity signal to ONE peer (interrupt/steer/inform) | `<agent_id>*` `<text>*` `--to` `--mode` `--json` |
-| `bifrost-pause` | freeze bus auto-responders (human barge-in) | `--reason` `--by` `--ttl` `--json` |
+| `bifrost-pause` | freeze bus auto-responders (human barge-in); --soft to let seats finish first | `--reason` `--by` `--ttl` `--soft` `--json` |
 | `bifrost-resume` | un-freeze bus auto-responders |  |
 | `bifrost-send` | send a message to another agent on the bus | `<agent_id>*` `<text>` `--text-file` `--to` `--kind` `--broadcast` `--expect-reply-within` `--to-incarnation` `--json` |
 | `bifrost-skip-to-now` | T076a: advance an agent's consume cursors to stream tails (audited echo-mountain escape; requires pause + --reason) | `<agent_id>*` `--by*` `--reason*` `--json` |
@@ -33,7 +34,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `defer` | the capability-gated standing queue (W33): file a command awaiting an exec/write seat; boot surfaces it; discharge with a receipt | `<agent_id>*` `<cmd_text>` `--needs` `--why` `--list` `--done` `--receipt` |
 | `delta` | what changed since this agent's last boot (T052 delta door) | `<agent_id>*` `--ack` |
 | `discover` | list every verb + its purpose (the self-describing door) | `<query>` `--json` |
-| `doc` | seed a new doc with its header contract (library door) | `<sub> {new}` |
+| `doc` | seed a new doc with its header contract (library door) | `<sub> {new,adopt}` |
 | `doctor` | fleet liveness doctor (L2): progress, not presence | `--agents` `--page` `--progress` `--json` |
 | `episode` | session bookends: current episode, close+draft, accept | `<action>* {current,close,accept}` `<chapter_id>` `--title` `--desc` `--why` `--accept-title` `--accept-desc` `--accept-why` `--json` |
 | `events` | search / drill / capture the raw event firehose | `--search` `--around` `--window` `--get` `--capture` `--promote` `--threshold` `--kind` `--summary` `--detail-json` `--refs` `--agent` `--track` `--since` `--until` `--limit` `--json` |
@@ -55,7 +56,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `locks` | show who holds which advisory path-locks | `<agent_id>` `--json` |
 | `log` | record an arbitrary narrative Beat | `<kind>` `--summary` `--source` `--category` `--task` `--json` |
 | `lookback` | one question over the rationale corpus: the strategic WHY, layered + drillable (P7) | `<question>*` `--per-layer` `--layers` `--json` |
-| `mailbox` | T095 M0 shadow mailbox: per-message state for an agent (observation only) | `<agent_id>*` `--explain` `--rebuild` `--min-evidence {unhandled,consumed,replied,acked}` `--json` |
+| `mailbox` | T095 M0 shadow mailbox: per-message state for an agent (observation only) | `<agent_id>*` `--explain` `--rebuild` `--min-evidence {unhandled,consumed,replied,acked}` `--open` `--state` `--intent` `--as {act,decline,defer,delegate}` `--to` `--note` `--backfill` `--incarnation` `--json` |
 | `note` | record a durable project note (write-once; re-note same title to update) | `<agent_id>*` `--title` `--note` `--context` `--category` `--supersedes` `--retire` `--get` `--session` `--json` |
 | `notes` | list active project notes (--project regenerates chronicles/memory.md) | `--limit` `--days` `--project` `--all` `--json` |
 | `packet-stats` | N0 bounded shadow route/mirror counters | `--json` |
@@ -67,8 +68,10 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `recall-counters` | sharpening S2a: fold bare-slug + ghost recall:use:* counters (report; --fold applies) | `--fold` `--agent-id` |
 | `recall-curate` | bench surfaced-never-credited lessons + prune ghost counters (report; --apply stamps) | `--apply` `--forge-audit` `--forge-check` `--draft` `--forge-propose` `--forge-proposals` `--limit` `--json` |
 | `recall-feedback` | mark a recalled lesson useful/noise (teaches recall what helps) | `--source*` `--useful` `--noise` |
+| `roster` | S2 lobby: per-seat worklive (LIVE/STALE proven by beat freshness, never key-existence) + have-summaries | `--json` `--reap` |
 | `run` | execute a toolbelt alias: run <agent> <name> (explicit door -- a real verb can never be shadowed) | `<agent_id>*` `<name>*` `<args>` `--dry` |
-| `stats` | recall-value funnel: surfaced -> helped -> flips -> captured | `--hours` `--days` `--json` |
+| `stand-down` | yield this session's consumer seat PERMANENTLY so a successor can take it immediately (retiring a seat) | `<agent>*` |
+| `stats` | recall-value funnel: surfaced -> helped -> flips -> captured | `--hours` `--days` `--silence` `--json` |
 | `status` | honest system status | `--json` |
 | `story` | print narrative story views | `--chronicle` `--mark` `--session-end` `--track` `--theme` `--themes` `--at` `--chapter` `--beat` `--raw` `--json` |
 | `suite-baseline` | the test-suite receipt (W34): record a pytest run's failures + lanes; the next seat diffs (new/fixed/inherited) | `<agent_id>*` `--from-file` `--sha` `--check` `--show` |
