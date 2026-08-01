@@ -1127,12 +1127,20 @@ PAGE = r"""<!doctype html>
   .igact .ig-spawn{background:rgba(122,162,247,.15); border-color:rgba(122,162,247,.3); color:var(--accent)}
   .igact .ig-kill{color:var(--danger); border-color:rgba(240,102,110,.25)}
 
-  /* === RAZER SQUARE selector frame === */
-  #ash{display:flex; align-items:center; gap:0; margin:0 16px 12px; position:relative}
-  #ash-frame{flex:none; width:56px; height:56px; border-radius:16px;
-    background:var(--panel); border:2.5px solid var(--border); cursor:pointer; transition:.25s ease;
-    display:grid; place-items:center; position:relative; z-index:2; font-size:22px; color:var(--muted)}
-  #ash-frame.open{border-radius:18px 18px 4px 18px}
+  /* === RAZER SQUARE selector frame ===
+     Daniil 2026-08-01: "the hexagon and agent avatar are supposed to be one button to the left of
+     the message field." They were two controls doing one job in two places -- #ash was a standalone
+     56px row ABOVE the composer (hexagon -> horizontally expanding tile strip) while the live
+     presence avatar sat separately in the composer, and the Broadcast chip was a THIRD way to pick
+     a target. Now: #ash lives inside .cwrap as the single left-hand control, the live avatar mounts
+     INSIDE the frame (presence-cloud.js pc-inframe), and the tile strip opens as a popover instead
+     of expanding inline -- an inline expander in the composer row would squeeze the message field,
+     which is the thing it sits next to. */
+  #ash{display:flex; align-items:center; gap:0; margin:0; position:static; flex:none; align-self:center}
+  #ash-frame{flex:none; width:34px; height:34px; border-radius:11px;
+    background:var(--panel); border:2px solid var(--border); cursor:pointer; transition:.25s ease;
+    display:grid; place-items:center; position:relative; z-index:2; font-size:15px; color:var(--muted)}
+  #ash-frame.open{border-radius:13px 13px 4px 13px}
   @keyframes chroma-breath{
     0%,100%{box-shadow:0 0 6px 0 rgba(122,162,247,.25),inset 0 0 6px 0 rgba(122,162,247,.08)}
     50%{box-shadow:0 0 18px 4px rgba(122,162,247,.45),inset 0 0 12px 2px rgba(122,162,247,.14)}
@@ -1143,10 +1151,17 @@ PAGE = r"""<!doctype html>
   @keyframes chroma-breath-c{0%,100%{box-shadow:0 0 6px 0 rgba(224,145,92,.2),inset 0 0 6px 0 rgba(224,145,92,.06)}50%{box-shadow:0 0 20px 5px rgba(224,145,92,.42),inset 0 0 14px 3px rgba(224,145,92,.12)}}
   @keyframes chroma-breath-d{0%,100%{box-shadow:0 0 6px 0 rgba(122,162,247,.25),inset 0 0 6px 0 rgba(122,162,247,.08)}50%{box-shadow:0 0 20px 5px rgba(122,162,247,.48),inset 0 0 14px 3px rgba(122,162,247,.14)}}
   @keyframes chroma-breath-u{0%,100%{box-shadow:0 0 6px 0 rgba(95,211,155,.2),inset 0 0 6px 0 rgba(95,211,155,.06)}50%{box-shadow:0 0 20px 5px rgba(95,211,155,.38),inset 0 0 14px 3px rgba(95,211,155,.11)}}
-  #ash-content{display:none; align-items:center; gap:2px; overflow:hidden; animation:ashSlide .22s ease}
+  /* tile strip as a POPOVER above the composer (was an inline horizontal expander to max-width:600px,
+     which inside .cwrap would shove the message field sideways every time it opened). Bounded and
+     scrollable for the same reason .roster-pop is: the fleet grows, the picker must not. */
+  #ash-content{display:none; position:absolute; bottom:calc(100% + 10px); left:16px; z-index:16;
+    align-items:center; gap:2px; flex-wrap:wrap; animation:ashSlide .22s ease;
+    background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:6px;
+    box-shadow:var(--shadow); max-width:min(560px,calc(100vw - 48px));
+    max-height:min(34vh,280px); overflow:auto; overscroll-behavior:contain}
   #ash-content.show{display:flex}
-  @keyframes ashSlide{from{opacity:0;max-width:0;transform:translateX(-12px)}to{opacity:1;max-width:600px;transform:none}}
-  #ash-sep{width:1px;height:34px;background:var(--border); margin:0 8px; flex:none}
+  @keyframes ashSlide{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  #ash-sep{display:none}   /* the inline separator has no meaning once the strip is a popover */
 
   /* === settings per-variant config === */
   .setcfg{margin-top:3px; display:flex; flex-wrap:wrap; gap:8px; padding-left:82px}
@@ -1239,11 +1254,6 @@ PAGE = r"""<!doctype html>
   <div id="hud"><div id="hud-toggle" class="show" onclick="toggleHUD()" title="collapse HUD">⌃ collapse</div></div>
   <div id="engine-room"></div>
   <div id="deck"><div class="deck-cards" id="deckCards"></div><div class="slide-dots" id="deckDots"></div><div class="deck-controls"><span class="deck-ctrl" id="deckPrev" onclick="deckPrev()">◀ prev</span><span class="deck-ctrl" id="deckPause" onclick="deckTogglePause()">⏸ pause</span><span class="deck-ctrl" id="deckNext" onclick="deckNext()">next ▶</span></div></div>
-  <div id="ash">
-    <div id="ash-frame" onclick="toggleAsh()" title="agent selector">⏣</div>
-    <div id="ash-sep"></div>
-    <div id="ash-content"></div>
-  </div>
   <div id="lnchr">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
       <span style="font-weight:650;font-size:13px">Agent Launcher</span>
@@ -1339,6 +1349,10 @@ PAGE = r"""<!doctype html>
       <button type="button" class="seg" data-fid="interrupt" onclick="setFidelity('interrupt')">Interrupt</button>
     </div>
     <div class="cwrap">
+      <div id="ash">
+        <div id="ash-frame" onclick="toggleAsh()" title="agent selector — live presence">⏣</div>
+        <div id="ash-sep"></div>
+      </div>
       <div class="recipient" id="recipient" role="button" tabindex="0" title="who receives your message — click to choose" onclick="toggleRoster()">
         <div class="rstack" id="rstack"></div>
         <div class="rlabel" id="rlabel"></div>
@@ -1348,6 +1362,7 @@ PAGE = r"""<!doctype html>
       <textarea id="input" rows="1" placeholder="Message the agents… (Enter to send, Shift+Enter for newline)"></textarea>
       <button class="send" id="sendBtn" onclick="send()">➤</button>
     </div>
+    <div id="ash-content"></div>
     <div class="roster-pop" id="rosterPop"></div>
     <div class="hint" id="fidhint">↳ Inform = adopt next turn · Steer = fold into current task (no stop) · Interrupt = drop &amp; switch · ⏸ Pause = freeze everyone · 📎 Ctrl+V paste images or drag &amp; drop files</div>
   </div>

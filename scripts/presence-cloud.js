@@ -33,6 +33,17 @@
     '#pcloud.pc-inline .pcav .rglow{inset:-2px;border-radius:14px;filter:blur(6px)}' +
     '#pcloud.pc-inline .cloud{left:22px;bottom:38px}' +
     '#pcloud.pc-inline .trail{left:22px;bottom:32px}' +
+    /* IN-FRAME MODE: the avatar fills #ash-frame so the selector button IS the presence indicator.
+       The frame owns the border/chroma-breath, so the avatar drops its own shadow ring and inherits
+       the frame's radius. Clicks pass THROUGH to the frame's onclick -- pointer-events stay none on
+       #pcloud (it is an indicator, not a control) and the frame beneath is what the operator hits. */
+    '#pcloud.pc-inframe{position:absolute;inset:0;left:auto;bottom:auto;z-index:auto;' +
+      'display:grid;place-items:center;pointer-events:none}' +
+    '#pcloud.pc-inframe.hide{display:none}' +
+    '#pcloud.pc-inframe .pcav{width:100%;height:100%;border-radius:9px;font-size:13px;box-shadow:none}' +
+    '#pcloud.pc-inframe .pcav .rglow{inset:-1px;border-radius:11px;opacity:.4;filter:blur(5px)}' +
+    '#pcloud.pc-inframe .cloud{left:26px;bottom:34px}' +
+    '#pcloud.pc-inframe .trail{left:24px;bottom:28px}' +
     /* avatar */
     '#pcloud .pcav{width:38px;height:38px;border-radius:13px;flex:none;display:grid;place-items:center;' +
       'font-size:14px;font-weight:700;color:#0a0b0f;letter-spacing:.02em;position:relative;' +
@@ -76,11 +87,18 @@
     wrap.innerHTML='<div class="trail"><i></i><i></i></div>' +
       '<div class="cloud"><div class="verb"><span class="z"></span><span class="vt"></span></div><div class="detail"></div></div>' +
       '<div class="pcav"><span class="rglow"></span><span class="lt"></span></div>';
-    // Prefer the composer row so the avatar sits immediately LEFT of the Broadcast/recipient chip.
-    // Fall back to body (original fixed behaviour) if the composer is not present -- this file is
-    // standalone and must not depend on a particular UI revision being loaded.
+    // Mount preference, best first (Daniil: hexagon + avatar are ONE button, left of the message
+    // field). Each fallback is a real UI revision this standalone file may be loaded against, so it
+    // degrades rather than breaking:
+    //   1. INSIDE #ash-frame -- the selector frame becomes the live presence avatar. One control.
+    //   2. composer row before #recipient -- separate avatar, still left of the message field.
+    //   3. document.body -- original fixed-position behaviour.
+    var frame = el('ash-frame');
     var host = document.querySelector('.cwrap'), anchor = el('recipient');
-    if (host && anchor && anchor.parentNode === host) {
+    if (frame) {
+      wrap.classList.add('pc-inframe');
+      frame.appendChild(wrap);
+    } else if (host && anchor && anchor.parentNode === host) {
       wrap.classList.add('pc-inline');
       host.insertBefore(wrap, anchor);
     } else {
