@@ -48,6 +48,13 @@
     /* READABILITY IS MEASURED IN CHARACTERS, NOT PIXELS. A line longer than ~75ch is hard to
        track back to the next line, and that is true at every resolution -- which is exactly the
        property a px width cannot express. */
+    /* THE EMPTY SPACE. The feed is capped at 78ch for readability, so on a wide screen the
+       leftover pooled entirely on ONE side and read as a hole. Centring the column balances it
+       into two margins, which stops looking like a gap and starts looking like breathing room --
+       and lets the aurora show through symmetrically on both sides, which is the point of having
+       an atmosphere at all. Readability is unchanged: the measure is still 78ch. */
+    '.rail-grid > #log{display:flex;flex-direction:column;align-items:center}',
+    '.rail-grid > #log > *{width:min(100%, 82ch);flex:none}',
     '.rail-grid > #log .msg{max-width:min(100%, 78ch)}',
     /* Long unbroken tokens (paths, kind=... strings, ids) are the thing that actually breaks a
        narrow column -- seen at 390px: "handoff/decision/completion/bloc·ker" split mid-word.
@@ -82,9 +89,19 @@
     '}',
 
     /* card primitive — glass, per the mockup */
-    '#rail .rcard{background:var(--glass,rgba(18,20,28,.55));backdrop-filter:blur(26px) saturate(1.35);',
-    '  -webkit-backdrop-filter:blur(26px) saturate(1.35);border:1px solid var(--border,rgba(255,255,255,.07));',
-    '  border-radius:14px;padding:13px 14px;box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 24px 60px -30px rgba(0,0,0,.8)}',
+    /* NO backdrop-filter here, deliberately. It is the most expensive thing on the page: each
+       blurred surface re-samples the backdrop EVERY frame, and with an animating shader behind
+       it the result can never be cached. Measured: putting glass on the composer AND all four
+       rail cards took 1440x900 from 60fps to 53.2 (87% smooth). Blur is a HERO effect -- it
+       belongs on the one surface the eye rests on (the composer) and the sticky header, not on
+       every panel.
+       These cards get the LOOK without the cost: a translucent gradient fill so the lattice
+       still shows through, the same 1px top-lip highlight that reads as thickness, and a
+       feathered shadow. Composited once, no per-frame resample. */
+    '#rail .rcard{background:linear-gradient(180deg,rgba(22,25,36,.82),rgba(16,18,27,.88));',
+    '  border:1px solid rgba(255,255,255,.08);',
+    '  border-radius:14px;padding:13px 14px;',
+    '  box-shadow:0 1px 0 rgba(255,255,255,.09) inset,0 18px 44px -28px rgba(0,0,0,.9)}',
     /* FLUID TYPE. clamp(min, preferred, max) scales continuously with the viewport and stops at
        both ends -- never smaller than legible, never absurd on an ultrawide. The rem term is what
        keeps it accessible: a pure vw formula IGNORES the user's browser font-size setting, so
@@ -549,6 +566,7 @@
 
     rail.innerHTML = h;
     supersedeOldRail();     // the variant can be remounted at runtime; keep the swap asserted
+    paintAgentButton(now);
 
     rail.querySelectorAll('.rdens button').forEach(function (b) {
       b.onclick = function (e) {
@@ -572,6 +590,45 @@
         el.classList.add('here');
       };
     });
+  }
+
+  /* The agent button's label + hover. The avatar alone is an unlabelled square; a name and a live
+     status under it is what makes the control readable without clicking, and the title carries the
+     detail that would clutter the button itself. */
+  function paintAgentButton(now) {
+    var lab = document.getElementById('ash-label');
+    var frame = document.getElementById('ash-frame');
+    if (!lab || !frame) return;
+    var sel = '';
+    try { var t = document.getElementById('target'); sel = (t && t.value !== 'all') ? t.value : ''; } catch (e) {}
+    var st = now.status || {}, vit = (now.vitals || {})[sel] || {};
+    var sig = (st.signals || {})[sel] || {};
+    var acts = (st.activities || {})[sel];
+    var seen = null;
+    (st.agents || []).forEach(function (r) { if (r.agent === sel) seen = r.last_seen; });
+
+    if (!sel) {
+      lab.querySelector('.nm').textContent = 'Broadcast';
+      var l0 = lab.querySelector('.st'); l0.textContent = 'all agents'; l0.classList.remove('live');
+      frame.title = 'Broadcast — your message goes to every agent.\nClick to choose a single target.';
+      return;
+    }
+    var live = seen && (Date.now() - Date.parse(seen)) < 300000;
+    var verb = acts && acts.state ? acts.state : (live ? 'idle' : 'offline');
+    lab.querySelector('.nm').textContent = sel;
+    var l = lab.querySelector('.st');
+    l.textContent = verb;
+    l.classList.toggle('live', !!(acts && acts.state));
+    // hover carries what will not fit: freshness, queue depth, seat class, pending steer
+    var bits = [sel];
+    bits.push(live ? 'beating ' + ago(seen) + ' ago' : 'no beat' + (seen ? ' for ' + ago(seen) : ' on record'));
+    if (acts && acts.state) bits.push('doing: ' + acts.state + (acts.detail ? ' — ' + acts.detail : ''));
+    if ((now.seat_class || {})[sel]) bits.push('seat class: ' + now.seat_class[sel]);
+    if (vit.lanes) bits.push('work queue: ' + vit.lanes.work + ' undrained');
+    if (sig.steer_pending) bits.push('steer pending: ' + sig.steer_pending);
+    if ((st.halted || {})[sel]) bits.push('HALTED');
+    bits.push('Click to change target.');
+    frame.title = bits.join('\n');
   }
 
   var _lastNow = null, _lastChans = null, _chanAt = 0;

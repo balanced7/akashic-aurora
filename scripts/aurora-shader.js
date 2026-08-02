@@ -102,23 +102,74 @@
     // aspect-correct the x so the curtain doesn't stretch on wide viewports
     vec2 suv = vec2(uv.x * (u_resolution.x / u_resolution.y), uv.y);
 
-    // --- domain warp (INVARIANT): fbm(uv + fbm(uv + time)) — the folded-curtain look ---
-    float T = u_time * u_speed;   // u_speed = the live-tunable motion param
-    vec2 q = vec2(
-      fbm(suv * 2.0 + vec2(0.0, T * 0.03)),
-      fbm(suv * 2.0 + vec2(5.2, 1.3) + T * 0.04)
-    );
-    float aurora = fbm(suv * 2.0 + 1.2 * q + vec2(0.0, T * 0.02));
+    // ===================== DOT LATTICE  (Daniil's brief, 2026-08-01) =====================
+    // "a grid of dots that move and have patterns that swim through them changing which order
+    //  they flow through them" + "wireframe mosaics that have a neon color gradient".
+    //
+    // WHY THIS REPLACED THE FBM CURTAIN, and it is a perf argument before an aesthetic one:
+    // the previous field cost FIVE fbm evaluations per fragment (2 warp + 1 sheet + 1 void +
+    // 1 filament), each of which is multi-octave value noise. Adding the voids and filaments he
+    // asked for measured 60fps -> 43.7fps / 62.7% smooth at 1600x900. A lattice is a different
+    // cost class entirely: one fract, one length, and three sin() -- no noise at all. That is
+    // what makes it viable on a phone, which was the other half of the brief.
+    //
+    // THE MECHANISM. Tile space into cells; each cell holds one dot. A dot's brightness is
+    // driven by a WAVE PHASE derived from its own cell id, so the pattern sweeps ACROSS the
+    // lattice rather than every dot pulsing together. Three waves at different angles sum into
+    // interference, and the angles ROTATE at different rates -- so the direction the pattern
+    // swims through the grid keeps changing and never repeats on a visible cycle. That is
+    // literally "changing which order they flow through them", and it costs three sines.
+    float T = u_time * u_speed;
 
-    // --- center-dark envelope (claude): two faint bands high in the frame; hard-clamp so nothing
-    //     reaches the vertical center where body text lives. uv.y: 0 bottom, 1 top. ---
-    float band1 = smoothstep(0.58, 0.74, uv.y) * (1.0 - smoothstep(0.80, 0.98, uv.y));
-    float band2 = smoothstep(0.66, 0.82, uv.y) * (1.0 - smoothstep(0.88, 1.02, uv.y)) * 0.6;
-    float curtain = aurora * (band1 + band2);
-    curtain *= smoothstep(0.50, 0.62, uv.y);          // keep the lower/center dark for legibility
+    const float CELLS = 26.0;                  // lattice density across the short axis
+    vec2 gp = suv * CELLS;
+    vec2 id = floor(gp);
+    vec2 gv = fract(gp) - 0.5;                 // -0.5..0.5 within the cell
 
-    float t = clamp(curtain, 0.0, 1.0);
-    vec3 col = auroraColor(t) * t * 1.6 * u_intensity;  // energy toward the bright ribs; intensity = live param
+    // three travelling waves; each angle rotates at its own rate so the flow direction drifts
+    float a1 = T * 0.045, a2 = -T * 0.031 + 2.1, a3 = T * 0.019 + 4.2;
+    vec2 d1 = vec2(cos(a1), sin(a1));
+    vec2 d2 = vec2(cos(a2), sin(a2));
+    vec2 d3 = vec2(cos(a3), sin(a3));
+    float w = sin(dot(id, d1) * 0.42 - T * 0.9)
+            + sin(dot(id, d2) * 0.30 - T * 0.6)
+            + sin(dot(id, d3) * 0.21 - T * 0.4);
+    w /= 3.0;                                   // -1..1
+    float pulse = 0.5 + 0.5 * w;                // 0..1
+
+    // DOTS MOVE: displace each dot inside its own cell along the wave gradient. Small, so the
+    // lattice stays legible as a lattice while visibly breathing.
+    vec2 drift = 0.17 * vec2(sin(dot(id, d1) * 0.42 - T * 0.9),
+                             cos(dot(id, d2) * 0.30 - T * 0.6));
+    float dist = length(gv - drift);
+
+    // dot radius rides the wave -- the crest is where the lattice brightens
+    float r = mix(0.055, 0.20, pulse * pulse);
+    float dot_ = smoothstep(r, r * 0.35, dist);
+
+    // WIREFRAME MOSAIC: the cell's own edge, revealed only where the wave is high. Reusing gv
+    // means the mesh costs one more max() -- no second field, no extra noise.
+    float edge = max(abs(gv.x), abs(gv.y));
+    float mesh = smoothstep(0.46, 0.5, edge) * pow(pulse, 3.0) * 0.5;
+
+    // --- composition envelope: keep the vertical middle dark so body text stays legible.
+    // Same intent as the old curtain bands, one smoothstep instead of two.
+    float envTop = smoothstep(0.42, 1.0, uv.y);
+    float envBot = smoothstep(0.34, 0.0, uv.y) * 0.75;     // a little light under the composer
+    float env = max(envTop, envBot);
+
+    float lattice = (dot_ * (0.35 + 0.9 * pulse) + mesh) * env;
+
+    // NEON GRADIENT across the lattice: hue rides position + wave, so colour travels with the
+    // pattern instead of being painted on. auroraColor is the palette gate, so the lattice can
+    // never introduce a hue the design system does not own.
+    float t = clamp(lattice, 0.0, 1.0);
+    float hue = clamp(0.35 + 0.45 * pulse + 0.22 * uv.x, 0.0, 1.0);
+    vec3 col = auroraColor(hue) * t * 2.1 * u_intensity;
+
+    // faint atmospheric bloom so the lattice sits in air rather than on black -- a wide, cheap
+    // radial that also stops the lower half reading as a flat void
+    col += auroraColor(0.62) * 0.055 * u_intensity * smoothstep(1.25, 0.15, length(uv - vec2(0.5, 0.86)));
 
     // --- state tint (synthesis §2a) ---
     // paused -> shift toward amber; halted -> desaturate + darken. Lerped by u_state_intensity.

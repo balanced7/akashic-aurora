@@ -1024,9 +1024,33 @@ PAGE = r"""<!doctype html>
   .slide-card:nth-child(3){animation-delay:.1s}
   /* composer */
   .composer{padding:12px 16px 18px; border-top:1px solid var(--glass-line); background:rgba(14,16,22,.9); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); position:relative}
-  .cwrap{display:flex; gap:10px; align-items:flex-end; background:var(--panel); border:1px solid var(--border);
-    border-radius:14px; padding:8px 8px 8px 14px; transition:.15s}
-  .cwrap:focus-within{border-color:#3b425e; box-shadow:0 0 0 3px rgba(122,162,247,.12)}
+  /* GLASS COMPOSER (Daniil: "sucker for glass blur effect and subtle edges with either glow or
+     shadow"). Four layers, and each does a different job -- this is what separates real glass
+     from a translucent rectangle:
+       1 TRANSLUCENT FILL + BACKDROP BLUR -- the aurora behind is visible but abstracted, so the
+         box sits IN the scene rather than on top of it.
+       2 A BRIGHT TOP EDGE (inset 1px highlight). Physical glass catches light on its upper lip;
+         this single inset line is what reads as "thickness" and is the most-skipped detail.
+       3 A DROP SHADOW that is mostly BELOW and heavily feathered -- it lifts the box off the
+         background without drawing a hard outline.
+       4 A FOCUS GLOW rather than a focus border: colour blooms outward on focus-within instead
+         of a ring snapping on, which is the modern reading of "subtle edges with glow". */
+  .cwrap{display:flex; gap:10px; align-items:flex-end;
+    background:linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.02));
+    backdrop-filter:blur(22px) saturate(1.5); -webkit-backdrop-filter:blur(22px) saturate(1.5);
+    border:1px solid rgba(255,255,255,.10);
+    border-radius:16px; padding:8px 8px 8px 14px;
+    box-shadow:0 1px 0 rgba(255,255,255,.13) inset,        /* the top lip -- reads as thickness */
+               0 18px 40px -22px rgba(0,0,0,.95),          /* feathered lift, mostly below */
+               0 2px 10px -6px rgba(0,0,0,.6);
+    transition:box-shadow .22s ease, border-color .22s ease}
+  .cwrap:hover{border-color:rgba(255,255,255,.15)}
+  .cwrap:focus-within{
+    border-color:rgba(122,162,247,.42);
+    box-shadow:0 1px 0 rgba(255,255,255,.16) inset,
+               0 0 0 3px rgba(122,162,247,.10),            /* tight halo */
+               0 0 34px -6px rgba(122,162,247,.32),        /* the bloom, outside the halo */
+               0 18px 44px -22px rgba(0,0,0,.95)}
   textarea{flex:1; background:none; border:none; outline:none; resize:none; color:var(--text);
     font:inherit; font-size:15px; max-height:160px; padding:6px 0}
   textarea::placeholder{color:var(--faint)}
@@ -1279,11 +1303,32 @@ PAGE = r"""<!doctype html>
      INSIDE the frame (presence-cloud.js pc-inframe), and the tile strip opens as a popover instead
      of expanding inline -- an inline expander in the composer row would squeeze the message field,
      which is the thing it sits next to. */
-  #ash{display:flex; align-items:center; gap:0; margin:0; position:static; flex:none; align-self:center}
-  #ash-frame{flex:none; width:34px; height:34px; border-radius:11px;
-    background:var(--panel); border:2px solid var(--border); cursor:pointer; transition:.25s ease;
-    display:grid; place-items:center; position:relative; z-index:2; font-size:15px; color:var(--muted)}
-  #ash-frame.open{border-radius:13px 13px 4px 13px}
+  /* THE AGENT BUTTON: avatar + name + status, as one labelled control.
+     Daniil: "fix our agent selection button to not have that C be misplaced. thats supposed to be
+     our avatar, I want it to have useful information on hover and to actually have the name of
+     the ai underneath it as well as other cool status info."
+     The C looked misplaced because TWO things shared one box: the frame's own centred glyph and
+     #pcloud absolutely positioned over it. Now the frame is a pure container -- the glyph only
+     renders when no avatar is present -- and the name/status sit UNDER it in a column, which is
+     also what makes it identifiable at a glance instead of being an unlabelled square. */
+  #ash{display:flex; flex-direction:column; align-items:center; gap:3px; margin:0;
+       position:static; flex:none; align-self:flex-end; padding-bottom:2px; min-width:46px}
+  #ash-frame{flex:none; width:38px; height:38px; border-radius:12px;
+    background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
+    border:1px solid rgba(255,255,255,.12); cursor:pointer; transition:.25s ease;
+    display:grid; place-items:center; position:relative; z-index:2; font-size:15px; color:var(--muted);
+    box-shadow:0 1px 0 rgba(255,255,255,.12) inset, 0 6px 16px -8px rgba(0,0,0,.85)}
+  #ash-frame:hover{border-color:rgba(122,162,247,.5);
+    box-shadow:0 1px 0 rgba(255,255,255,.16) inset, 0 0 22px -6px rgba(122,162,247,.5)}
+  #ash-frame.open{border-radius:14px 14px 4px 14px}
+  /* the label: name on top line, live status beneath -- glanceability, not decoration */
+  #ash-label{display:flex; flex-direction:column; align-items:center; line-height:1.15;
+             max-width:76px; pointer-events:none}
+  #ash-label .nm{font-size:9.5px; font-weight:650; color:var(--text); letter-spacing:.01em;
+                 max-width:76px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  #ash-label .st{font-size:8.5px; color:var(--faint); letter-spacing:.05em; text-transform:uppercase;
+                 max-width:76px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  #ash-label .st.live{color:var(--user-a,#48e6bf)}
   @keyframes chroma-breath{
     0%,100%{box-shadow:0 0 6px 0 rgba(122,162,247,.25),inset 0 0 6px 0 rgba(122,162,247,.08)}
     50%{box-shadow:0 0 18px 4px rgba(122,162,247,.45),inset 0 0 12px 2px rgba(122,162,247,.14)}
@@ -1494,6 +1539,7 @@ PAGE = r"""<!doctype html>
     <div class="cwrap">
       <div id="ash">
         <div id="ash-frame" onclick="toggleAsh()" title="agent selector — live presence">⏣</div>
+        <div id="ash-label"><span class="nm">—</span><span class="st">no target</span></div>
         <div id="ash-sep"></div>
       </div>
       <div class="recipient" id="recipient" role="button" tabindex="0" title="who receives your message — click to choose" onclick="toggleRoster()">
