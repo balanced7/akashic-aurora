@@ -110,6 +110,10 @@ def main() -> int:
     p.add_argument("--from", dest="from_", type=float, default=0.0)
     p.add_argument("--to", type=float, default=8.0)
     p.add_argument("--name")
+    p.add_argument("--style", default="geodesic")
+    p.add_argument("--chunk", help="render a chunk instead of a style")
+    p.add_argument("--state")
+    p.add_argument("--identity")
 
     p = sub.add_parser("grid", help="permutation grid: one param across, another down")
     p.add_argument("--a", required=True)
@@ -123,6 +127,10 @@ def main() -> int:
     p.add_argument("--cell", type=int, default=150)
     p.add_argument("--t", type=float, default=2.0)
     p.add_argument("--name")
+    p.add_argument("--style", default="geodesic")
+    p.add_argument("--chunk", help="render a chunk instead of a style")
+    p.add_argument("--state")
+    p.add_argument("--identity")
 
     p = sub.add_parser("sketch", help="render a saved .frag; --frames turns it into a contact sheet")
     p.add_argument("--name", required=True, help="sketch name, without .frag")

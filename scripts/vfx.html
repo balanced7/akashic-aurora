@@ -1487,6 +1487,30 @@ async function runJob(j){
   if(j.op === 'snap'){
     return await snap(a.name || 'job');
   }
+  // ESTABLISH THE SUBJECT BEFORE RENDERING. grid and sheet used to render whatever shader
+  // happened to be compiled, so their output depended on INVISIBLE PRIOR STATE -- a sketch job
+  // left its shader resident and the next grid silently rendered that instead of the avatar. A
+  // render request that cannot say what it is rendering is not reproducible, which defeats the
+  // point of having a tool at all.
+  if(j.op === 'sheet' || j.op === 'grid'){
+    if(a.chunk){
+      var cc = chunkBy(a.chunk);
+      if(!cc) return {ok:false, error:'no such chunk: '+a.chunk};
+      var ce = av.trySource(thumbShaderFor(cc));
+      if(ce) return {ok:false, error:ce.slice(0,240)};
+    } else {
+      // FORCE the recompile. setStyle early-returns when the requested name equals this.style,
+      // which is right for a UI (no redundant compiles) and wrong here: trySource leaves the
+      // PROGRAM replaced while style can still read 'geodesic', so the guard would skip the very
+      // recompile that makes the render reproducible. Clearing the name first makes "establish
+      // the subject" mean it.
+      av.style = '';
+      av.setStyle(a.style || 'geodesic');
+    }
+    if(a.state) setState(a.state);
+    if(a.identity){ av.setIdentity(a.identity); av.id0=av.idT0.slice(); av.id1=av.idT1.slice(); }
+    av.cur = Object.assign({}, av.target); av.cur.tint = av.target.tint.slice();
+  }
   if(j.op === 'sheet'){
     return await renderSheet({name: a.name||'job-sheet', frames: a.frames||12, cols: a.cols||4,
                               cell: a.cell||170, from: a.from||0, to: (a.to==null?8:a.to)});

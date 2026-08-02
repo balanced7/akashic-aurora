@@ -59,6 +59,8 @@
 'uniform float u_star;     // tile shape: >0 scallops the border, <0 pulls it into points',
 'uniform float u_see;      // see-through: how strongly the FAR side shows through the near',
 'uniform float u_thick;    // shell thickness: 0 = thin plates, 1 = solid wedge',
+'uniform float u_cube;     // body: 0 = sphere, 1 = superquadric cube (the tiling is unchanged)',
+'uniform float u_hole;     // revolution term: opens the body into a hex-tiled torus',
 '',
 '#define PI 3.14159265359',
 '',
@@ -111,7 +113,25 @@
 '  float rTop=.05/sub, rCor=(.10+.62*u_round)/sub;',
 '  // BREATHING: the shell height oscillates with u_pulse. At pulse 0 it is a still solid.',
 '  float phase=dot(hc,pca)*22.+u_time*2.5;',
-'  float h=2.-u_pulse*.16*(cos(phase)*.5+.5);',
+// THE BODY BECOMES A SUPERQUADRIC, AND THE TILING NEVER NOTICES.
+// This is the whole trick and it is four lines. The geodesic tiling is computed from
+// normalize(p) -- pure DIRECTION -- while the shell radius has always been a separate constant.
+// So swapping that constant for the superquadric's radius IN THAT DIRECTION leaves the hexagons
+// exactly where they were and changes the solid they are wrapped around. Hexagons on a cube.
+//
+// For |x|^n+|y|^n+|z|^n = 1 the radius along a unit direction d is (sum |d_i|^n)^(-1/n). n=2 is
+// the sphere we already had, so u_cube=0 is bit-identical to the old behaviour and the morph is
+// continuous rather than a branch.
+//
+// u_hole borrows the other half of the HAL shape: subtracting a radial term punches the middle
+// out, so the SAME body walks sphere -> cube -> hex-tiled TORUS. The tiles stretch over the
+// corners on the way, which is the part that looks like nothing else -- a geodesic dome fitted
+// to a box rather than a box with hexagons painted on it.
+'  vec3 bd=abs(normalize(p));',
+'  float qn=mix(2.,8.,u_cube);',
+'  float rq=pow(pow(bd.x,qn)+pow(bd.y,qn)+pow(bd.z,qn),-1./qn);',
+'  rq-=u_hole*.9*(bd.x*bd.x+bd.y*bd.y);',
+'  float h=(2.-u_pulse*.16*(cos(phase)*.5+.5))*max(rq,.35);',
 // THICKNESS, RESTORED. This is the axis the port lost. The original HexSpec varies it across its
 // three animations: animation 1 sets thickness == height (a SOLID wedge), while animations 2 and
 // 3 set it to roundTop*4 and roundTop*2 -- THIN PLATES. Hardcoding th=h kept only the solid case,
@@ -214,7 +234,7 @@
 '    m=map(ro+rd*t);',
 '    if(t>.001) cone=min(cone,m.d/t);',
 '    if(m.d<.0015){hit=true;break;}',
-'    t+=m.d*.9;',
+'    t+=m.d*mix(.9,.5,clamp(u_cube+u_hole,0.,1.));',
 '    if(t>9.)break;',
 '  }',
 '  vec3 col=vec3(0.);',
@@ -412,21 +432,21 @@
     // busy. Rich subdivision so it reads as an object rather than a blob, a slow turn, and a
     // gentle breath -- the difference between "idle" (one agent waiting) and "ambient"
     // (the system, at rest) is that ambient is not a diagnosis about anyone.
-    ambient:   { sub: 3.0, gap: 0.014, spin: 0.09, pulse: 0.55, sat: 1.0, dim: 0.95, round: 0.35, star: 0.00, thick: 0.30, tint: [0.29, 0.44, 0.95] },
+    ambient:   { sub: 3.0, gap: 0.014, spin: 0.09, pulse: 0.55, sat: 1.0, dim: 0.95, round: 0.35, star: 0.00, thick: 0.30, cube: 0.00, hole: 0.00, tint: [0.29, 0.44, 0.95] },
     // THINKING vs TOOL is the distinction Daniil asked for, and the two must not merely differ in
     // hue -- they differ in KIND of motion, because they are different kinds of work. Thinking is
     // INTERNAL: the shell barely turns and breathes hard, tight and dense, like something holding
     // still to concentrate. Tool use is EXTERNAL: it spins fast and breathes little, because the
     // work is happening out in the world rather than inside. Read across a room you can tell them
     // apart by movement alone, before the colour resolves -- which is the point of a codebook.
-    thinking:  { sub: 3.1, gap: 0.009, spin: 0.06, pulse: 1.0,  sat: 1.0, dim: 1.0, round: 0.85, star: 0.30, thick: 0.18,  tint: [0.56, 0.42, 1.0] },
-    composing: { sub: 2.7, gap: 0.012, spin: 0.22, pulse: 1.0, sat: 1.0, dim: 1.0, round: 0.55, star: 0.10, thick: 0.35,  tint: [0.02, 0.51, 1.0] },
-    tool:      { sub: 3.4, gap: 0.006, spin: 0.55, pulse: 0.45, sat: 1.0, dim: 1.0, round: 0.00, star: -0.35, thick: 0.22,  tint: [0.24, 0.86, 0.60] },
-    idle:      { sub: 1.8, gap: 0.010, spin: 0.05, pulse: 0.15, sat: 0.55, dim: 0.62, round: 0.60, star: 0.00, thick: 0.45, tint: [0.30, 0.64, 1.0] },
-    wedged:    { sub: 2.2, gap: 0.075, spin: 0.0,  pulse: 0.0,  sat: 0.85, dim: 0.85, round: 0.00, star: -0.85, thick: 1.00, tint: [1.0, 0.70, 0.16] },
-    throttled: { sub: 2.2, gap: 0.030, spin: 0.10, pulse: 0.7,  sat: 0.9,  dim: 0.8, round: 0.20, star: 0.55, thick: 0.55,  tint: [0.96, 0.35, 0.55] },
-    dead:      { sub: 1.2, gap: 0.004, spin: 0.0,  pulse: 0.0,  sat: 0.0,  dim: 0.30, round: 0.90, star: 0.00, thick: 1.00, tint: [0.45, 0.48, 0.52] },
-    unsensed:  { sub: 1.6, gap: 0.055, spin: 0.02, pulse: 0.0,  sat: 0.0,  dim: 0.45, round: 0.50, star: 0.00, thick: 0.25, tint: [0.55, 0.50, 0.62] }
+    thinking:  { sub: 3.1, gap: 0.009, spin: 0.06, pulse: 1.0,  sat: 1.0, dim: 1.0, round: 0.85, star: 0.30, thick: 0.18, cube: 0.15, hole: 0.00,  tint: [0.56, 0.42, 1.0] },
+    composing: { sub: 2.7, gap: 0.012, spin: 0.22, pulse: 1.0, sat: 1.0, dim: 1.0, round: 0.55, star: 0.10, thick: 0.35, cube: 0.25, hole: 0.00,  tint: [0.02, 0.51, 1.0] },
+    tool:      { sub: 3.4, gap: 0.006, spin: 0.55, pulse: 0.45, sat: 1.0, dim: 1.0, round: 0.00, star: -0.35, thick: 0.22, cube: 0.55, hole: 0.00,  tint: [0.24, 0.86, 0.60] },
+    idle:      { sub: 1.8, gap: 0.010, spin: 0.05, pulse: 0.15, sat: 0.55, dim: 0.62, round: 0.60, star: 0.00, thick: 0.45, cube: 0.00, hole: 0.00, tint: [0.30, 0.64, 1.0] },
+    wedged:    { sub: 2.2, gap: 0.075, spin: 0.0,  pulse: 0.0,  sat: 0.85, dim: 0.85, round: 0.00, star: -0.85, thick: 1.00, cube: 1.00, hole: 0.00, tint: [1.0, 0.70, 0.16] },
+    throttled: { sub: 2.2, gap: 0.030, spin: 0.10, pulse: 0.7,  sat: 0.9,  dim: 0.8, round: 0.20, star: 0.55, thick: 0.55, cube: 0.35, hole: 0.30,  tint: [0.96, 0.35, 0.55] },
+    dead:      { sub: 1.2, gap: 0.004, spin: 0.0,  pulse: 0.0,  sat: 0.0,  dim: 0.30, round: 0.90, star: 0.00, thick: 1.00, cube: 0.00, hole: 0.00, tint: [0.45, 0.48, 0.52] },
+    unsensed:  { sub: 1.6, gap: 0.055, spin: 0.02, pulse: 0.0,  sat: 0.0,  dim: 0.45, round: 0.50, star: 0.00, thick: 0.25, cube: 0.10, hole: 0.00, tint: [0.55, 0.50, 0.62] }
   };
 
   // IDENTITY PRESETS. These are NOT new colours -- claude, deepseek and user are lifted verbatim
@@ -542,6 +562,8 @@
     { k: 'sub',   min: 0.8, max: 5.0,  step: 0.05,  label: 'subdivision' },
     { k: 'gap',   min: 0,   max: 0.40, step: 0.002, label: 'tile gap' },
     { k: 'thick', min: 0,   max: 1,    step: 0.01,  label: 'shell thickness' },
+    { k: 'cube',  min: 0,   max: 1,    step: 0.01,  label: 'sphere → cube' },
+    { k: 'hole',  min: 0,   max: 1,    step: 0.01,  label: 'open into a torus' },
     { k: 'spin',  min: 0,   max: 1.2,  step: 0.01,  label: 'spin' },
     { k: 'pulse', min: 0,   max: 1.5,  step: 0.01,  label: 'breathe' },
     { k: 'sat',   min: 0,   max: 1,    step: 0.01,  label: 'saturation' },
@@ -632,7 +654,7 @@
     if (prev) gl.deleteProgram(prev);   // the new one linked: only NOW is the old one disposable
     var u = {};
     ['u_res','u_time','u_sub','u_gap','u_spin','u_pulse','u_sat','u_tint','u_dim','u_wire',
-     'u_id0','u_id1','u_round','u_star','u_see','u_thick']
+     'u_id0','u_id1','u_round','u_star','u_see','u_thick','u_cube','u_hole']
       .forEach(function (n) { u[n] = gl.getUniformLocation(p, n); });
     this.u = u;
     gl.enable(gl.BLEND);
@@ -703,6 +725,8 @@
     // (that reads as a rendering fault, not as depth), while a wireframe is defined by doing so.
     gl.uniform1f(u.u_see, this.wire * this.see);
     gl.uniform1f(u.u_thick, c.thick);
+    gl.uniform1f(u.u_cube, c.cube);
+    gl.uniform1f(u.u_hole, c.hole);
     gl.uniform3f(u.u_tint, c.tint[0], c.tint[1], c.tint[2]);
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
@@ -727,7 +751,7 @@
     var k = 1 - Math.exp(-dt / TAU);
 
     var c = this.cur, t = this.target, i;
-    ['sub','gap','spin','pulse','sat','dim','round','star','thick'].forEach(function (key) { c[key] += (t[key] - c[key]) * k; });
+    ['sub','gap','spin','pulse','sat','dim','round','star','thick','cube','hole'].forEach(function (key) { c[key] += (t[key] - c[key]) * k; });
 
     // TINT EASES THROUGH HSV, NOT RGB. thinking is violet and tool is green -- close to opposite
     // on the wheel -- so a straight RGB lerp between them passes through their average, which is
