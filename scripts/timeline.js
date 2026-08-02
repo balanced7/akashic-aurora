@@ -223,7 +223,15 @@
     // Same honesty rule as labels(): no exact stamps -> no time readout. The rail still
     // scrubs and still lenses; it just does not claim to know when.
     if (!p || !p.t || !HAS_EXACT) { readEl.style.opacity = '0'; return; }
-    readEl.textContent = fmtDay(p.t) + '  ' + fmtTime(p.t);
+    // Two lines: the minute is the answer, the day is the context. Rebuild only when the
+    // target message actually changes -- a mousemove that lands on the same message must
+    // not touch innerHTML, or the panel restyles 60 times a second for no reason.
+    if (readEl._for !== p.el) {
+      readEl._for = p.el;
+      readEl.innerHTML = '<b class="tl-hh"></b><b class="tl-dd"></b>';
+      readEl.firstChild.textContent = fmtTime(p.t);
+      readEl.lastChild.textContent = fmtDay(p.t);
+    }
     readEl.style.transform = 'translateY(' + cursorY.toFixed(1) + 'px) translateY(-50%)';
     readEl.style.opacity = '1';
   }
@@ -231,8 +239,16 @@
   function leave() { cursorY = null; readEl.style.opacity = '0'; schedule(); }
 
   // ---------------------------------------------------------------- mount
+  /* THE RAIL HAS ITS OWN PALETTE, deliberately. It previously borrowed --accent/--accent2,
+   * which are the deepseek and claude identity colours -- so navigation chrome was wearing
+   * an agent's clothes. A timeline is not a participant. These four tokens are scoped to
+   * the rail and are the ONLY place its colour is decided: retune here and everything --
+   * ticks, lens, thumb, glow, day markers, the glass edge -- moves together.
+   * Cyan->mint reads as instrument rather than actor, and stays clear of every seat colour
+   * in the console (blue #7aa2f7, violet #9d7cf7, coral #e0915c, pink #f472b6, green #5fd39b). */
   var CSS = ''
-    + '#tl-rail{position:fixed;width:' + RAIL_W + 'px;z-index:40;pointer-events:auto;'
+    + '#tl-rail{--tl-1:#38d9e0;--tl-2:#5fe3bf;--tl-dim:#5a6b78;--tl-hot:#7ef0ff;'
+    + 'position:fixed;width:' + RAIL_W + 'px;z-index:40;pointer-events:auto;'
     + 'font:10px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;'
     + 'user-select:none;cursor:pointer}'
     + '#tl-rail:before{content:"";position:absolute;right:6px;top:0;bottom:0;width:1px;'
@@ -241,40 +257,60 @@
     + '#tl-ticks{position:absolute;inset:0}'
     // transform-origin right: a lens stretch grows LEFTWARD off the spine, so the rail's
     // edge stays a clean line while the ticks reach toward the cursor.
-    + '.tl-t{position:absolute;right:6px;width:5px;height:1px;background:var(--faint,#727890);'
-    + 'opacity:.5;transform-origin:100% 50%;will-change:transform,opacity;'
+    + '.tl-t{position:absolute;right:6px;width:5px;height:1px;background:var(--tl-dim);'
+    + 'opacity:.55;transform-origin:100% 50%;will-change:transform,opacity;'
     + 'transition:transform .12s cubic-bezier(.22,1,.36,1),opacity .12s ease,background .2s}'
-    + '.tl-t-x{width:3px;opacity:.25}'
-    + '#tl-rail:hover .tl-t{background:var(--accent,#7aa2f7)}'
+    + '.tl-t-x{width:3px;opacity:.28}'
+    + '#tl-rail:hover .tl-t{background:var(--tl-1)}'
     // the cursor glow: a soft bloom tracking the pointer, purely decorative and cheap
-    + '#tl-glow{position:absolute;right:0;width:26px;height:64px;margin-top:-32px;opacity:0;'
+    + '#tl-glow{position:absolute;right:0;width:30px;height:76px;margin-top:-38px;opacity:0;'
     + 'pointer-events:none;will-change:transform,opacity;transition:opacity .18s ease;'
-    + 'background:radial-gradient(ellipse at 78% 50%,rgba(122,162,247,.30),'
-    + 'rgba(157,124,247,.14) 45%,transparent 72%)}'
+    + 'background:radial-gradient(ellipse at 80% 50%,rgba(56,217,224,.34),'
+    + 'rgba(95,227,191,.15) 46%,transparent 72%)}'
     + '.tl-l{position:absolute;right:14px;transform:translateY(-50%);white-space:nowrap;'
-    + 'color:var(--faint,#727890);font-weight:400;letter-spacing:.02em;opacity:.75}'
-    + '.tl-l.tl-day{color:var(--accent2,#9d7cf7);font-weight:600;opacity:1;'
-    + 'text-shadow:0 0 10px rgba(157,124,247,.35)}'
+    + 'color:var(--tl-dim);font-weight:400;letter-spacing:.02em;opacity:.8}'
+    + '.tl-l.tl-day{color:var(--tl-2);font-weight:600;opacity:1;'
+    + 'text-shadow:0 0 10px rgba(95,227,191,.4)}'
     // The thumb EASES to its new position while the feed jumps instantly. The content must
     // not animate (see header); the indicator may, and that easing is what makes a jump
     // read as travel instead of a teleport.
     + '#tl-thumb{position:absolute;top:0;right:3px;width:7px;border-radius:4px;'
-    + 'background:linear-gradient(180deg,var(--accent,#7aa2f7),var(--accent2,#9d7cf7));'
-    + 'opacity:.30;pointer-events:none;will-change:transform;'
+    + 'background:linear-gradient(180deg,var(--tl-1),var(--tl-2));'
+    + 'opacity:.32;pointer-events:none;will-change:transform;'
     + 'transition:transform .22s cubic-bezier(.22,1,.36,1),opacity .15s,box-shadow .2s}'
-    + '#tl-rail:hover #tl-thumb{opacity:.75;box-shadow:0 0 12px rgba(122,162,247,.45)}'
-    + '#tl-rail:active #tl-thumb{opacity:.95;transition:transform .06s linear}'
-    + '#tl-read{position:absolute;top:0;right:16px;opacity:0;'
-    + 'transition:opacity .12s ease,transform .16s cubic-bezier(.22,1,.36,1);'
-    + 'padding:3px 7px;border-radius:5px;white-space:nowrap;'
-    + 'background:var(--glass,rgba(18,20,28,.55));border:1px solid var(--glass-line,rgba(255,255,255,.08));'
-    + 'color:var(--text,#e7e9f0);backdrop-filter:blur(6px);box-shadow:var(--shadow,0 8px 30px rgba(0,0,0,.35));'
-    + 'pointer-events:none;font-variant-numeric:tabular-nums}'
+    + '#tl-rail:hover #tl-thumb{opacity:.8;box-shadow:0 0 14px rgba(56,217,224,.5)}'
+    + '#tl-rail:active #tl-thumb{opacity:1;transition:transform .06s linear}'
+
+    /* THE GLASS PANEL. Real glass is three things stacked, not one translucent fill:
+     * a BLURRED backdrop (so the feed behind it smears rather than disappears), a
+     * SATURATION lift (blur alone reads muddy and grey), and a bright TOP EDGE where
+     * light would catch a physical pane. The ::before sheen is that edge; the shadow
+     * beneath gives it height off the page. It tracks the cursor on the same eased
+     * transform as everything else, so it glides rather than teleports. */
+    + '#tl-read{position:absolute;top:0;right:18px;opacity:0;'
+    + 'transition:opacity .16s ease,transform .19s cubic-bezier(.22,1,.36,1);'
+    + 'padding:9px 13px 8px;border-radius:13px;white-space:nowrap;overflow:hidden;'
+    + 'background:linear-gradient(150deg,rgba(38,52,58,.62),rgba(20,26,32,.52));'
+    + 'border:1px solid rgba(255,255,255,.14);border-top-color:rgba(255,255,255,.26);'
+    + 'color:var(--text,#e7e9f0);pointer-events:none;'
+    + '-webkit-backdrop-filter:blur(18px) saturate(180%);backdrop-filter:blur(18px) saturate(180%);'
+    + 'box-shadow:0 10px 34px rgba(0,0,0,.5),0 0 0 1px rgba(56,217,224,.10),'
+    + 'inset 0 1px 0 rgba(255,255,255,.13);will-change:transform,opacity}'
+    // the sheen: a soft diagonal highlight across the top third, the tell of a glass surface
+    + '#tl-read:before{content:"";position:absolute;left:0;right:0;top:0;height:56%;'
+    + 'background:linear-gradient(160deg,rgba(255,255,255,.16),rgba(255,255,255,.03) 55%,transparent);'
+    + 'pointer-events:none}'
+    + '#tl-read .tl-hh{display:block;position:relative;font-size:14px;font-weight:600;'
+    + 'letter-spacing:-.01em;line-height:1.15;font-variant-numeric:tabular-nums;'
+    + 'color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.45)}'
+    + '#tl-read .tl-dd{display:block;position:relative;margin-top:2px;font-size:10px;'
+    + 'font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--tl-1);'
+    + 'opacity:.95}'
     // The spine brightens and the gutter breathes on hover -- the rail says "I am grabbable"
     // before you click it.
     + '#tl-rail:before{transition:background .25s ease,width .25s ease}'
     + '#tl-rail:hover:before{width:2px;background:linear-gradient(180deg,transparent,'
-    + 'var(--accent,#7aa2f7) 10%,var(--accent2,#9d7cf7) 90%,transparent);opacity:.55}'
+    + 'var(--tl-1) 10%,var(--tl-2) 90%,transparent);opacity:.6}'
     + '@media (prefers-reduced-motion:reduce){'
     + '#tl-thumb,#tl-read,.tl-t,#tl-glow,#tl-rail:before{transition:none}'
     + '.tl-t{transform:none!important}}';
