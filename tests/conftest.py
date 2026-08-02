@@ -109,3 +109,24 @@ if sys.platform == "win32" and not os.environ.get("AKASHIC_TEST_SHOW_CONSOLES"):
         return _popen_init(self, *args, **kwargs)
 
     _subprocess.Popen.__init__ = _quiet_popen_init
+
+    # GRANDCHILDREN. The patch above lives in THIS process, so it covers what a test spawns
+    # directly -- and nothing deeper. Measured 2026-08-01: tests spawn scripts/mirror.py 17
+    # times (silenced here), and mirror.py then spawns git 3 times from a process that never
+    # imported this file, so every one of those git.exe children still got a console window.
+    # That is where the remaining flashing came from.
+    #
+    # PYTHONPATH is an ENVIRONMENT variable and is therefore inherited transitively, so naming
+    # a directory that holds sitecustomize.py makes every descendant -- child, grandchild,
+    # great-grandchild -- auto-import it and apply the same rule. Same argument as the comment
+    # above ("fixed here rather than in 35 files"), carried one level further out.
+    #
+    # A DEDICATED directory, never the repo root: putting the root on PYTHONPATH would place
+    # every top-level module here on the import path of every python process that inherits the
+    # env, which is a shadowing hazard traded for a cosmetic fix. scripts/quiet/ holds exactly
+    # one file and nothing else can be shadowed by it.
+    _quiet = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                          "scripts", "quiet")
+    _pp = os.environ.get("PYTHONPATH", "")
+    if _quiet not in _pp.split(os.pathsep):
+        os.environ["PYTHONPATH"] = (_quiet + os.pathsep + _pp) if _pp else _quiet
