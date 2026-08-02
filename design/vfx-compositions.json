@@ -1,0 +1,13 @@
+{
+  "aurora-plasma": {
+    "chain": [
+      "superlinear-highlight",
+      "tanh-tonemap",
+      "vignette-cubic",
+      "triangular-dither"
+    ],
+    "identity": "claude",
+    "source": "plasma-field",
+    "state": "thinking"
+  }
+}

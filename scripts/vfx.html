@@ -42,6 +42,20 @@
   .lib b{color:var(--acc2);display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase}
   .lib span{color:var(--dim)}
   textarea{height:120px;font-family:Consolas,monospace;font-size:11px;resize:vertical}
+  /* The chain IS the composition, so it is drawn as blocks in order rather than as a list of
+     checkboxes -- the visual has to carry the one fact that matters, which is sequence. */
+  .chain{margin:10px 0;display:flex;flex-direction:column;gap:0}
+  .node{display:flex;align-items:center;gap:8px;background:#0e1520;border:1px solid var(--line);
+    border-radius:9px;padding:8px 10px;position:relative}
+  .node.src{border-color:var(--acc);background:#0d1826}
+  .node .k{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);min-width:56px}
+  .node .n{flex:1;font-weight:600;font-size:12px}
+  .node .x{cursor:pointer;color:var(--dim);padding:0 4px;border:none;background:none;width:auto}
+  .node .x:hover{color:var(--warn);background:none;border:none}
+  .node .mv{cursor:pointer;color:var(--dim);background:none;border:none;width:auto;padding:0 2px;font-size:14px}
+  .node .mv:hover{color:var(--acc2);background:none}
+  /* the wire between blocks: a real connector, so the eye reads flow and not a stack */
+  .wire{width:2px;height:12px;background:linear-gradient(var(--acc),var(--line));margin-left:26px}
   .note{color:var(--dim);font-size:11px;margin-top:8px}
   .err{color:var(--warn)}
 </style>
@@ -69,6 +83,27 @@
       <canvas id="cv"></canvas>
       <div class="hud" id="hud">—</div>
     </div>
+    <div class="card" style="margin-top:14px">
+      <h2>Compose</h2>
+      <div class="row" style="margin-top:0">
+        <select id="csource"></select>
+        <button onclick="buildComp()" class="pri" style="width:auto;white-space:nowrap">Build &amp; run</button>
+      </div>
+      <div id="chain" class="chain"></div>
+      <div class="row">
+        <select id="addmod"><option value="">+ add modifier…</option></select>
+        <select id="compos"><option value="">— saved chains —</option></select>
+        <button onclick="loadComp()" style="width:auto;white-space:nowrap">Open</button>
+      </div>
+      <div class="row">
+        <input id="cname" placeholder="name this chain"
+               style="background:#0e1520;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:7px 9px;font:inherit;flex:1">
+        <button onclick="saveComp()" style="width:auto;white-space:nowrap">Save chain</button>
+      </div>
+      <p class="note" id="cmsg">Order matters for modifiers — that order <em>is</em> the composition.
+        Helpers are pulled in automatically and deduplicated.</p>
+    </div>
+
     <div class="card" style="margin-top:14px">
       <h2>Shader scratch</h2>
       <div class="row" style="margin-top:0">
@@ -238,6 +273,158 @@ async function loadPreset(){
   syncAll(); emit();
 }
 
+// ---- compose: chunks -> a shader ---------------------------------------------------------------
+// The composition model is a CHAIN, not a free dataflow graph, and that is a deliberate limit.
+// Almost every technique we have lifted is of the form col = f(col): tone map, vignette, dither,
+// highlight. A general node graph would let you wire nonsense that cannot compile, and would
+// spend all its complexity on the 5% of cases a chain cannot express -- which are new SOURCES,
+// and a source is a file, not a wiring problem.
+var CHUNKS = [], chain = [];      // chain = ordered modifier names; the source is separate
+
+function chunkBy(n){ return CHUNKS.filter(function(c){ return c.name===n; })[0]; }
+
+function renderChain(){
+  var box = el('chain'); box.innerHTML = '';
+  var src = chunkBy(el('csource').value);
+  function node(kind, name, idx){
+    var d = document.createElement('div');
+    d.className = 'node' + (kind==='source' ? ' src' : '');
+    var k = document.createElement('span'); k.className='k'; k.textContent = kind;
+    var n = document.createElement('span'); n.className='n'; n.textContent = name;
+    d.appendChild(k); d.appendChild(n);
+    if (kind !== 'source') {
+      var up = document.createElement('button'); up.className='mv'; up.textContent='↑';
+      up.title = 'earlier in the chain';
+      up.onclick = function(){ if(idx>0){ var t=chain[idx-1]; chain[idx-1]=chain[idx]; chain[idx]=t; renderChain(); } };
+      var dn = document.createElement('button'); dn.className='mv'; dn.textContent='↓';
+      dn.title = 'later in the chain';
+      dn.onclick = function(){ if(idx<chain.length-1){ var t=chain[idx+1]; chain[idx+1]=chain[idx]; chain[idx]=t; renderChain(); } };
+      var x = document.createElement('button'); x.className='x'; x.textContent='✕';
+      x.onclick = function(){ chain.splice(idx,1); renderChain(); };
+      d.appendChild(up); d.appendChild(dn); d.appendChild(x);
+    }
+    var c = chunkBy(name); if(c) d.title = (c.note||'') + (c.from ? '\n\nfrom: '+c.from : '');
+    box.appendChild(d);
+  }
+  function wire(){ var w=document.createElement('div'); w.className='wire'; box.appendChild(w); }
+  if (src) node('source', src.name, -1);
+  chain.forEach(function(m,i){ wire(); node('modifier', m, i); });
+}
+
+// The generator. Helpers are hoisted and DEDUPLICATED by name -- two chunks both needing h31 must
+// not emit it twice, which is a link error rather than a warning.
+function buildGLSL(){
+  var src = chunkBy(el('csource').value);
+  if(!src) return null;
+  var used = [src].concat(chain.map(chunkBy)).filter(Boolean);
+  // Helpers emit in DECLARED order, not alphabetical. GLSL requires a function to be declared
+  // before it is used, and alphabetical order only happened to put hash31 before value-noise-3d.
+  // A helper named "a-warp" depending on value-noise-3d would have emitted first and failed with
+  // an undeclared-identifier error -- which reads like a broken chunk rather than a broken ORDER,
+  // and would cost an hour. The `order` field in each chunk header makes it explicit.
+  var helpers = CHUNKS.filter(function(c){ return c.kind==='helper'; })
+                      .sort(function(a,b){ return (a.order||50)-(b.order||50); });
+  var seen = {}, hsrc = [];
+  helpers.forEach(function(h){                    // include every helper: cheap, and it removes a
+    if(seen[h.name]) return;                      // whole class of "forgot a dependency" failures
+    seen[h.name]=true; hsrc.push(h.body);
+  });
+  return [
+    '#version 300 es','precision highp float;','out vec4 outColor;',
+    'uniform vec2  u_res;','uniform float u_time;','uniform float u_sub;','uniform float u_gap;',
+    'uniform float u_spin;','uniform float u_pulse;','uniform float u_sat;','uniform vec3  u_tint;',
+    'uniform float u_dim;','uniform float u_wire;','uniform vec3  u_id0;','uniform vec3  u_id1;',
+    'uniform float u_round;','uniform float u_star;','uniform float u_see;','',
+    '// ---- helpers ----', hsrc.join('\n'), '',
+    'void main(){',
+    '  vec2 uv=(-u_res.xy+2.*gl_FragCoord.xy)/u_res.y;',
+    '  vec3 col=vec3(0.); float alpha=0.;',
+    '  // ---- source: ' + src.name + ' ----',
+    src.body,
+    chain.map(function(m){
+      var c = chunkBy(m); if(!c) return '';
+      return '  // ---- ' + c.name + ' ----\n' + c.body;
+    }).join('\n'),
+    '  col*=u_dim;',
+    '  outColor=vec4(max(col,0.),clamp(alpha,0.,1.));',
+    '}'
+  ].join('\n');
+}
+
+function buildComp(){
+  var g = buildGLSL();
+  if(!g){ el('cmsg').className='note err'; el('cmsg').textContent='pick a source first'; return; }
+  el('glsl').value = g;                           // the code view IS the same object, not a copy
+  var err = av.trySource(g);
+  if(err){ el('cmsg').className='note err'; el('cmsg').textContent='compile failed — see scratch panel';
+           msg(err, true); return; }
+  av._resize(420); syncAll(); emit();
+  el('cmsg').className='note';
+  el('cmsg').textContent = 'running: ' + el('csource').value +
+    (chain.length ? ' → ' + chain.join(' → ') : ' (no modifiers)');
+  msg('built from ' + (1+chain.length) + ' chunks');
+}
+
+async function refreshChunks(){
+  try{
+    var r = await (await fetch('/vfx/chunks')).json();
+    CHUNKS = r.chunks||[];
+    var cs = el('csource'); cs.innerHTML='';
+    CHUNKS.filter(function(c){return c.kind==='source';}).forEach(function(c){
+      var o=document.createElement('option'); o.value=c.name; o.textContent=c.name; cs.appendChild(o);
+    });
+    var am = el('addmod'); am.innerHTML='<option value="">+ add modifier…</option>';
+    CHUNKS.filter(function(c){return c.kind==='modifier';}).forEach(function(c){
+      var o=document.createElement('option'); o.value=c.name; o.textContent=c.name;
+      o.title=c.note||''; am.appendChild(o);
+    });
+    am.onchange=function(){ if(am.value){ chain.push(am.value); am.value=''; renderChain(); } };
+    cs.onchange=renderChain;
+    // Library view gets the chunks too -- same data, a different representation of it.
+    var lb=el('lib');
+    CHUNKS.forEach(function(c){
+      var d=document.createElement('div'); d.className='lib';
+      d.innerHTML='<b></b><span></span>';
+      d.firstChild.textContent = c.kind.toUpperCase()+' · '+c.name;
+      d.lastChild.textContent = (c.note||'') + (c.from ? '  [from: '+c.from+']' : '');
+      lb.appendChild(d);
+    });
+    renderChain();
+  }catch(e){ el('cmsg').className='note err'; el('cmsg').textContent='chunks unavailable: '+e; }
+}
+async function refreshCompos(){
+  try{
+    var r = await (await fetch('/vfx/compositions')).json();
+    var s=el('compos'); s.innerHTML='<option value="">— saved chains —</option>';
+    Object.keys(r||{}).sort().forEach(function(k){
+      var o=document.createElement('option'); o.value=k; o.textContent=k; s.appendChild(o);
+    });
+  }catch(e){}
+}
+async function saveComp(){
+  var n=(el('cname').value||'').trim();
+  if(!n){ el('cmsg').className='note err'; el('cmsg').textContent='name the chain first'; return; }
+  var r = await (await fetch('/vfx/compositions',{method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name:n, value:{source: el('csource').value, chain: chain.slice(),
+                                         state: curState, identity: el('ident').value}})})).json();
+  el('cmsg').className = r.ok ? 'note' : 'note err';
+  el('cmsg').textContent = r.ok ? ('saved "'+r.name+'" to design/vfx-compositions.json')
+                                : ('save failed: '+r.error);
+  refreshCompos();
+}
+async function loadComp(){
+  var k=el('compos').value; if(!k) return;
+  var all = await (await fetch('/vfx/compositions')).json();
+  var v = all[k]; if(!v) return;
+  el('csource').value = v.source || el('csource').value;
+  chain = (v.chain||[]).slice();
+  if(v.identity){ el('ident').value=v.identity; av.setIdentity(v.identity);
+                  av.id0=av.idT0.slice(); av.id1=av.idT1.slice(); }
+  if(v.state) setState(v.state);
+  renderChain(); buildComp();
+}
+
 // ---- shader scratch ---------------------------------------------------------------------------
 // Compiling is SAFE by construction: _compile builds the new program before disposing the old, so
 // a shader that fails to compile or link leaves the avatar rendering exactly what it was. The
@@ -359,6 +546,8 @@ var LIBRARY = [
   setState('thinking');
   refreshPresets();
   refreshSketches();
+  refreshChunks();      // populates the source/modifier pickers AND appends to the library view
+  refreshCompos();
 
   // Honest HUD: measured frame cost, not a guess. The bench is where a change gets its number.
   var last=performance.now(), acc=0, n=0;

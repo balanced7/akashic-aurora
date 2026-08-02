@@ -131,6 +131,75 @@ def tail(client, last_ids, ns="bifrost", block_ms=15000):
 #
 # Files, again, rather than browser storage -- a sketch Daniil pastes is one claude can read and
 # improve, and a sketch claude writes shows up in Daniil's dropdown with no handover step.
+# ---- VFX chunks + compositions ----------------------------------------------------------------
+# A CHUNK is one reusable piece of shader with a declared role, stored as a .glsl file whose first
+# line is a //! JSON header. Roles exist because a fragment shader has exactly three places a piece
+# can go, and pretending otherwise is what makes shader node editors collapse into spaghetti:
+#     helper   -- a top-level function; order-free, deduplicated by name
+#     source   -- writes col/alpha; exactly one per composition, it is what you are looking at
+#     modifier -- transforms col in place; ORDER MATTERS and that order is the composition
+# Anything that does not fit one of the three is not a chunk, it is a new source.
+#
+# This is the part that remembers HOW rather than WHAT. Presets remember a tuning and sketches
+# remember a finished shader; neither can tell you that tanh must come after the superlinear
+# highlight, or that the cubic vignette must be normalised by the true corner distance or it
+# blacks out the sides of a widescreen. Those facts lived only in commit messages, which is to say
+# they were already lost.
+VFX_CHUNKS = os.path.join(REPO, "design", "vfx-chunks")
+VFX_COMPOS = os.path.join(REPO, "design", "vfx-compositions.json")
+
+
+def _vfx_chunks_read():
+    """All chunks, parsed. Fail-open per file: one malformed chunk must not hide the library."""
+    out = []
+    try:
+        names = sorted(f for f in os.listdir(VFX_CHUNKS) if f.endswith(".glsl"))
+    except Exception:
+        return out
+    for fn in names:
+        try:
+            with open(os.path.join(VFX_CHUNKS, fn), "r", encoding="utf-8") as fh:
+                txt = fh.read()
+            head, _, body = txt.partition("\n")
+            meta = json.loads(head[3:].strip()) if head.startswith("//!") else {}
+            meta["body"] = body.strip()
+            meta.setdefault("name", fn[:-5])
+            meta.setdefault("kind", "modifier")
+            out.append(meta)
+        except Exception as exc:
+            out.append({"name": fn[:-5], "kind": "broken", "note": str(exc)[:160], "body": ""})
+    return out
+
+
+def _vfx_compos_read():
+    try:
+        with open(VFX_COMPOS, "r", encoding="utf-8") as fh:
+            d = json.load(fh)
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+def _vfx_compos_write(name, value):
+    """Merge one composition. Read-modify-write through a temp file, same as the presets: two
+    saves in a session must not clobber each other and a crash must not leave a half-written
+    library behind."""
+    key = "".join(c for c in str(name or "") if c.isalnum() or c in "-_ ")[:60].strip()
+    if not key:
+        return {"ok": False, "error": "name required"}
+    try:
+        os.makedirs(os.path.dirname(VFX_COMPOS), exist_ok=True)
+        cur = _vfx_compos_read()
+        cur[key] = value
+        tmp = VFX_COMPOS + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(cur, fh, indent=2, sort_keys=True)
+        os.replace(tmp, VFX_COMPOS)
+        return {"ok": True, "name": key, "count": len(cur)}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)[:200]}
+
+
 VFX_SKETCHES = os.path.join(REPO, "design", "vfx-sketches")
 
 
@@ -254,6 +323,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(_vfx_presets_read())
         if path == "/vfx/sketches":
             return self._json({"names": _vfx_sketches_list()})
+        if path == "/vfx/chunks":
+            return self._json({"chunks": _vfx_chunks_read()})
+        if path == "/vfx/compositions":
+            return self._json(_vfx_compos_read())
         if path.startswith("/vfx/sketch"):
             from urllib.parse import urlparse, parse_qs
             q = parse_qs(urlparse(self.path).query)
@@ -538,6 +611,8 @@ class Handler(BaseHTTPRequestHandler):
             data = {}
         if path == "/vfx/sketch":
             return self._json(_vfx_sketch_write(data.get("name"), data.get("src")))
+        if path == "/vfx/compositions":
+            return self._json(_vfx_compos_write(data.get("name"), data.get("value")))
         if path == "/vfx/presets":
             name = str(data.get("name") or "").strip()
             if not name:

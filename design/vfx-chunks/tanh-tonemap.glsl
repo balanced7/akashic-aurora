@@ -1,0 +1,2 @@
+//! {"name": "tanh-tonemap", "kind": "modifier", "from": "the tunnel shader Daniil pasted 2026-08-02", "note": "Maps [0,inf) onto [0,1) with a filmic shoulder and NEVER clips. The piece that makes every other additive effect safe: without a shoulder, distinct bright things merge into one flat white plateau, which is the classic look of an HDR field dumped into 8 bits.", "order": 50}
+col = tanh(col);
