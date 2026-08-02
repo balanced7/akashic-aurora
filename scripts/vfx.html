@@ -1510,6 +1510,21 @@ async function runJob(j){
     av.setStyle('geodesic'); av._resize(420);
     return r;
   }
+  if(j.op === 'sketch'){
+    // Render a saved .frag by name. The missing verb: without it, examining an imported shader
+    // meant driving the browser by hand, which is the exact friction the job queue removed.
+    var sr = await (await fetch('/vfx/sketch?name='+encodeURIComponent(a.name||''))).json();
+    if(!sr.ok) return {ok:false, error:sr.error||'no such sketch'};
+    var se = av.trySource(sr.src);
+    if(se) return {ok:false, error:se.slice(0,240)};
+    av._resize(a.cell || 320);
+    if(a.frames){
+      return await renderSheet({name:a.out||('sketch-'+sr.name), frames:a.frames, cols:a.cols||4,
+                                cell:a.cell||170, from:a.from||0, to:(a.to==null?8:a.to)});
+    }
+    av._t0 = (performance.now()/1000) - (a.t==null?0:a.t);
+    return await snap(a.out || ('sketch-'+sr.name));
+  }
   if(j.op === 'state'){
     // Render one avatar STATE, which is the thing claude most often needs to eyeball and the
     // thing it has been least able to see.

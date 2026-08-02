@@ -124,6 +124,16 @@ def main() -> int:
     p.add_argument("--t", type=float, default=2.0)
     p.add_argument("--name")
 
+    p = sub.add_parser("sketch", help="render a saved .frag; --frames turns it into a contact sheet")
+    p.add_argument("--name", required=True, help="sketch name, without .frag")
+    p.add_argument("--out", help="output file name")
+    p.add_argument("--cell", type=int, default=320)
+    p.add_argument("--t", type=float, default=0.0)
+    p.add_argument("--frames", type=int)
+    p.add_argument("--cols", type=int, default=4)
+    p.add_argument("--from", dest="from_", type=float, default=0.0)
+    p.add_argument("--to", type=float, default=8.0)
+
     p = sub.add_parser("graph", help="render a saved graph JSON (or whatever is on the bench)")
     p.add_argument("--file", help="path to a graph JSON; omit to render the bench's current graph")
     p.add_argument("--cell", type=int, default=320)
