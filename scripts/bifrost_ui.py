@@ -838,11 +838,22 @@ PAGE = r"""<!doctype html>
   /* The hero avatar fills the agent-selector frame. If WebGL never comes up the canvas is
      simply never created and the frame keeps its ⏣ glyph -- the avatar is an enhancement,
      never load-bearing. */
+  /* THE AVATAR AT FULL SIZE. Daniil: "make the avatar be 2 inch by 2 inch... I want to have
+     our eyecatching piece be big enough to appreciate." 2in = 192px at the CSS reference 96dpi.
+     Cost is unchanged in kind and still trivial: the backing store renders at half scale, so
+     192 CSS px is a 96px render target -- about 9k fragments against a full-screen 700k. */
+  #ash-frame.has-av{width:192px; height:192px; border-radius:26px; font-size:0; color:transparent}
   .heroav{position:absolute; inset:0; width:100%; height:100%; display:block;
-          border-radius:11px; pointer-events:none}
-  #ash-frame.has-av{font-size:0}        /* the avatar IS the glyph now; hide the fallback ⏣ */
+          border-radius:25px; pointer-events:none}
   #ash-frame.has-av:hover{border-color:rgba(122,162,247,.65);
-          box-shadow:0 1px 0 rgba(255,255,255,.16) inset, 0 0 26px -4px rgba(122,162,247,.6)}
+          box-shadow:0 1px 0 rgba(255,255,255,.16) inset, 0 0 40px -6px rgba(122,162,247,.55)}
+  /* presence-cloud keeps its seat but becomes a CORNER BADGE -- at this size the geodesic is
+     the subject and the initial is a footnote, not a competing glyph in the middle. */
+  #ash-frame.has-av #pcloud{position:absolute; right:7px; bottom:6px; left:auto; top:auto;
+          z-index:3; font-size:11px; opacity:.9}
+  /* The composer grows to match. He offered: "We can make the textbox bigger." */
+  #ash-frame.has-av ~ #ash-label, #ash.big #ash-label{font-size:12px}
+  .cwrap.tall textarea{min-height:150px}
   /* Controls are never sacrificed to make room for data. */
   #epiChip,#reloadBtn,#gearBtn,#lnchrBtn,#vizBtn,#pauseBtn{flex:none}
   .pill{display:flex; align-items:center; gap:6px; padding:5px 10px; border:1px solid var(--border);
@@ -1873,13 +1884,36 @@ function mountHeroAvatar(){
   if(typeof AgentAvatar === 'undefined' || !AgentAvatar.isSupported()){ _avatarsOff = true; return; }
   var frame = document.getElementById('ash-frame');
   if(!frame) return;
+  // Remove the fallback glyph OUTRIGHT rather than hiding it with font-size. It is a bare text
+  // node on the frame, and relying on the cascade to suppress it is one specificity accident
+  // away from a hexagon sitting on top of the avatar -- which is exactly what happened first try.
+  [].slice.call(frame.childNodes).forEach(function(n){
+    if(n.nodeType === 3) frame.removeChild(n);   // text nodes only; #pcloud stays
+  });
   var cv = document.createElement('canvas');
   cv.className = 'heroav';
-  cv.width = 44; cv.height = 44;               // backing store; CSS sizes the box
+  cv.width = 96; cv.height = 96;               // backing store = half of the 192px box
   try{ _heroAv = {canvas: cv, shader: new AgentAvatar(cv), st: null}; }
   catch(e){ _avatarsOff = true; return; }
-  frame.appendChild(cv);
-  frame.classList.add('has-av');               // hides the ⏣ glyph; the avatar IS the glyph now
+  frame.insertBefore(cv, frame.firstChild);    // beneath #pcloud, which is now a corner badge
+  frame.classList.add('has-av');               // the avatar IS the glyph now
+  // Size set INLINE as well as in CSS. The stylesheet rule is correct and higher-specificity,
+  // but the frame's base rule is a long-standing 38px and this is the one dimension that must
+  // not lose a cascade argument -- an avatar silently rendering at thumbnail size looks like a
+  // bug in the shader rather than a bug in a selector. Inline is unambiguous.
+  var SIZE = 192;                              // 2in at the CSS reference 96dpi (Daniil's ask)
+  frame.style.width = SIZE + 'px';
+  frame.style.height = SIZE + 'px';
+  frame.style.borderRadius = '26px';
+  var cw = frame.closest('.cwrap'); if(cw) cw.classList.add('tall');
+  // The backing store follows the box at half scale, and _resize() reads clientWidth -- so it
+  // must run AFTER layout has settled on the new size. Calling it synchronously right after
+  // setting the style races the reflow and locks in the OLD box, which renders a blurry
+  // thumbnail stretched over a 192px square. Defer a frame, then once more on load for the
+  // case where fonts/scrollbars shift the row after first paint.
+  var sizeIt = function(){ if(_heroAv && _heroAv.shader._resize) _heroAv.shader._resize(); };
+  requestAnimationFrame(function(){ requestAnimationFrame(sizeIt); });
+  window.addEventListener('load', sizeIt, {once:true});
   _heroAv.shader.setState('ambient');
   _heroAv.shader.start();
 }
