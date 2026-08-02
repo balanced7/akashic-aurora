@@ -77,6 +77,8 @@
   /* Sprite window: 64px of a 8x64 strip, stepped. steps(8) is what makes it read as animation
      rather than as a slide -- a linear interpolation would smear between frames that were never
      meant to be tweened. */
+  .pill.hasthumb video.thumbanim{width:64px;height:64px;display:block;border-radius:5px;
+    object-fit:cover;background:#080c13;animation:none}
   .pill.hasthumb .thumbanim{width:64px;height:64px;display:block;border-radius:5px;
     background-repeat:no-repeat;background-size:512px 64px;background-color:#080c13;
     animation:thumbroll 4s steps(8) infinite}
@@ -452,11 +454,22 @@ function renderPalette(){
       // The tile carries the thumbnail when one exists and degrades to the plain label when it
       // does not -- a palette that only works after an index has been built is a palette that is
       // broken on first run, which is precisely when someone is least able to diagnose it.
-      if(it.thumb && THUMBS[it.thumb]){
+      if(it.thumb && (CLIPS[it.thumb] || THUMBS[it.thumb])){
         p.classList.add('hasthumb');
-        var im=document.createElement('div'); im.className='thumbanim';
-        im.style.backgroundImage = 'url(/vfx/thumb/'+it.thumb+'.png)';
-        p.appendChild(im);
+        if(CLIPS[it.thumb]){
+          // A looping muted video is the only widely-supported way to get REAL-TIME smoothness
+          // out of a static asset. playsinline+muted+autoplay is the combination browsers accept
+          // without a user gesture; drop any one of them and the tile silently never starts.
+          var v=document.createElement('video'); v.className='thumbanim';
+          v.src='/vfx/clip/'+it.thumb+'.webm';
+          v.autoplay=true; v.loop=true; v.muted=true; v.playsInline=true;
+          v.setAttribute('muted',''); v.setAttribute('playsinline','');
+          p.appendChild(v);
+        } else {
+          var im=document.createElement('div'); im.className='thumbanim';
+          im.style.backgroundImage = 'url(/vfx/thumb/'+it.thumb+'.png)';
+          p.appendChild(im);
+        }
       }
       var tx=document.createElement('span'); tx.textContent=it.label; p.appendChild(tx);
       p.draggable=true;
@@ -1331,7 +1344,7 @@ function thumbShaderFor(c){
   // almost nothing; the same block CROSS-FADING IN against the untouched reference tells you
   // exactly what it contributes. k eases 0 -> 1 -> 0 forever, so a tile is perpetually answering
   // "what does this CHANGE" -- which is the real question behind a confusing name.
-  var K = '  float k = 0.5 - 0.5*cos(u_time * 1.1);\n';
+  var K = '  float k = 0.5 - 0.5*cos(u_time * 3.14159265);\n';
   if(c.kind==='source'){ body = c.body; }
   else if(c.kind==='domain'){
     // ORDER IS THE WHOLE POINT: the warp must run BEFORE the source samples the space. Falling
@@ -1384,7 +1397,12 @@ function thumbShaderFor(c){
     '}'].join('\n');
 }
 
-async function generateThumbs(){
+var CLIPS = {};
+// useClips=false gives the fast sprite-only pass; the default records real-time video and takes
+// about a minute for the full library, which is stated in the progress line rather than left as a
+// surprise hang.
+async function generateThumbs(useClips){
+  if(useClips === undefined) useClips = mediaRecorderOK();
   var targets = CHUNKS.filter(function(c){ return c.kind!=='helper'; });
   var saveStyle = av.style, saveSize = av.cssSize, ok=0, fail=[];
   el('chatmsg').className='note';
@@ -1393,7 +1411,7 @@ async function generateThumbs(){
   // to each and make two runs of the same library disagree.
   for(var i=0;i<targets.length;i++){
     var c = targets[i];
-    el('chatmsg').textContent = 'rendering thumbnails… ' + (i+1) + '/' + targets.length + '  ' + c.name;
+    el('chatmsg').textContent = (useClips ? 'recording (real time, ~'+Math.ceil((targets.length-i)*2.2)+'s left) ' : 'rendering ') + (i+1)+'/'+targets.length+'  '+c.name;
     try{
       var err = av.trySource(thumbShaderFor(c));
       if(err){ fail.push(c.name); continue; }
@@ -1419,6 +1437,18 @@ async function generateThumbs(){
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({name:c.name, png:url})})).json();
       if(r.ok){ ok++; THUMBS[c.name]=1; } else fail.push(c.name);
+      // Then the FLUID version. The sprite is still written first and unconditionally: it is the
+      // fallback for a browser without MediaRecorder, and it means a half-finished index still
+      // leaves every block with something rather than leaving the tail of the list blank.
+      if(useClips && mediaRecorderOK()){
+        try{
+          var durl = await recordClip();
+          var vr = await (await fetch('/vfx/clip',{method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({name:c.name, webm:durl})})).json();
+          if(vr.ok) CLIPS[c.name]=1;
+        }catch(e){ /* a failed clip leaves the sprite in place, which is a complete answer */ }
+      }
     }catch(e){ fail.push(c.name); }
   }
   // restore the bench to what it was: generating an index must not cost you your working state
@@ -1431,6 +1461,75 @@ async function generateThumbs(){
 async function refreshThumbs(){
   try{ var r = await (await fetch('/vfx/thumbs')).json();
        THUMBS={}; (r.names||[]).forEach(function(n){ THUMBS[n]=1; }); }catch(e){}
+  try{ var q = await (await fetch('/vfx/clips')).json();
+       CLIPS={}; (q.names||[]).forEach(function(n){ CLIPS[n]=1; }); }catch(e){}
+}
+
+
+// ---- WEBM THUMBNAILS: fluid, not a slideshow ---------------------------------------------------
+// Daniil: "it can be a gif that fluidly animates through the realtime speed of the animation so
+// its not a slideshow... we save our precious concurrent render fields for the node items."
+//
+// Both halves are right. A steps(8) sprite is 2fps -- a flipbook, and it misrepresents anything
+// whose whole character is smooth. The format answer is NOT gif: MediaRecorder over
+// canvas.captureStream() is native, needs no library, and unlike gif's 256 colours it will not
+// posterise these gradients. It records the ACTUAL animation at ACTUAL speed, so fidelity is
+// structural rather than approximated.
+//
+// The cost is honest and worth saying: recording happens in REAL TIME. A 2s clip takes 2s, so a
+// full index of ~26 blocks is about a minute. That is a one-time build for a permanent artefact,
+// and the alternative -- 26 live contexts -- is not available at any price.
+var CLIP_SECONDS = 2.0, CLIP_FPS = 30;
+
+function mediaRecorderOK(){
+  try{ return typeof MediaRecorder !== 'undefined' &&
+              (MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ||
+               MediaRecorder.isTypeSupported('video/webm;codecs=vp8')); }
+  catch(e){ return false; }
+}
+function clipMime(){
+  return MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9'
+                                                                : 'video/webm;codecs=vp8';
+}
+function recordClip(){
+  return new Promise(function(resolve, reject){
+    // A capture that never fires ondataavailable must fail LOUDLY and move on, or one bad block
+    // stalls the entire library build with no indication of which one.
+    var bailed=false;
+    var bail = setTimeout(function(){ bailed=true; reject(new Error('clip timeout')); },
+                          (CLIP_SECONDS+4)*1000);
+    var stream, rec, chunks=[];
+    try{
+      stream = av.canvas.captureStream(CLIP_FPS);
+      rec = new MediaRecorder(stream, {mimeType: clipMime(), videoBitsPerSecond: 2000000});
+    }catch(e){ return reject(e); }
+    rec.ondataavailable = function(e){ if(e.data && e.data.size) chunks.push(e.data); };
+    rec.onstop = function(){
+      var fr = new FileReader();
+      fr.onload = function(){ resolve(fr.result); };
+      fr.onerror = reject;
+      clearTimeout(bail); if(bailed) return;
+      fr.readAsDataURL(new Blob(chunks, {type:'video/webm'}));
+    };
+    var t0 = performance.now();
+    rec.start();
+    (function frame(){
+      var e2 = (performance.now() - t0) / 1000;
+      // Time is FORCED from a fixed origin rather than left free-running: captureStream samples
+      // whatever the canvas shows, so the canvas has to be authoritative about where in the
+      // period it is, or the clip would start and end at arbitrary phases and never loop.
+      av._t0 = (performance.now()/1000) - e2;
+      av._draw();
+      // DRIVEN ON A TIMER, NOT rAF -- and this is a correctness fix, not a workaround. Browsers
+      // throttle requestAnimationFrame to about 1fps in a hidden or backgrounded tab, so an
+      // rAF-driven recording either never reaches its stop condition or silently produces a
+      // two-frame clip that still LOOKS like a successful capture. A recording wants its own
+      // fixed cadence anyway: the clip's frame rate should be a decision, not a consequence of
+      // whatever the monitor is doing.
+      if(e2 < CLIP_SECONDS) setTimeout(frame, 1000/CLIP_FPS);
+      else setTimeout(function(){ try{ rec.stop(); }catch(err){ reject(err); } }, 120);
+    })();
+  });
 }
 
 // ---- THE RENDERER --------------------------------------------------------------------------

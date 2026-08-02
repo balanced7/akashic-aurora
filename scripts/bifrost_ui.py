@@ -203,6 +203,39 @@ def _vfx_thumb_write(name, data_url):
         return {"ok": False, "error": str(exc)[:200]}
 
 
+def _vfx_clip_write(name, data_url):
+    """Write a WebM loop. Separate from the PNG path because they are different artefacts with
+    different lifetimes: the sprite is the FALLBACK and must survive even when a clip exists, so a
+    failed recording never leaves a block with no tile at all."""
+    import base64
+    safe = "".join(c for c in str(name or "") if c.isalnum() or c in "-_")[:60]
+    if not safe:
+        return {"ok": False, "error": "bad name"}
+    try:
+        head, _, b64 = str(data_url or "").partition(",")
+        if "base64" not in head or not b64:
+            return {"ok": False, "error": "expected a base64 data URL"}
+        raw = base64.b64decode(b64)
+        if len(raw) > 6 * 1024 * 1024:
+            return {"ok": False, "error": "clip too large"}
+        os.makedirs(VFX_THUMBS, exist_ok=True)
+        path = os.path.join(VFX_THUMBS, safe + ".webm")
+        tmp = path + ".tmp"
+        with open(tmp, "wb") as fh:
+            fh.write(raw)
+        os.replace(tmp, path)
+        return {"ok": True, "name": safe, "bytes": len(raw)}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)[:200]}
+
+
+def _vfx_clips_list():
+    try:
+        return sorted(f[:-5] for f in os.listdir(VFX_THUMBS) if f.endswith(".webm"))
+    except Exception:
+        return []
+
+
 def _vfx_thumbs_list():
     try:
         return sorted(f[:-4] for f in os.listdir(VFX_THUMBS) if f.endswith(".png"))
@@ -478,6 +511,14 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"chunks": _vfx_chunks_read()})
         if path == "/vfx/thumbs":
             return self._json({"names": _vfx_thumbs_list()})
+        if path == "/vfx/clips":
+            return self._json({"names": _vfx_clips_list()})
+        if path.startswith("/vfx/clip/"):
+            leaf = path.rsplit("/", 1)[-1]
+            safe = "".join(c for c in leaf if c.isalnum() or c in "-_.")
+            if not safe.endswith(".webm"):
+                return self.send_error(404)
+            return self._static("design/vfx-thumbs/" + safe, "video/webm")
         if path.startswith("/vfx/thumb/"):
             leaf = path.rsplit("/", 1)[-1]
             safe = "".join(c for c in leaf if c.isalnum() or c in "-_.")
@@ -784,6 +825,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(_vfx_snap_write(data.get("name"), data.get("png")))
         if path == "/vfx/thumb":
             return self._json(_vfx_thumb_write(data.get("name"), data.get("png")))
+        if path == "/vfx/clip":
+            return self._json(_vfx_clip_write(data.get("name"), data.get("webm")))
         if path == "/vfx/presets":
             name = str(data.get("name") or "").strip()
             if not name:
