@@ -55,6 +55,9 @@
 'uniform float u_wire;     // 0 = lit solid shell, 1 = dark wireframe (edges carry the light)',
 'uniform vec3  u_id0;      // agent identity gradient, start (the BODY -- who this is)',
 'uniform vec3  u_id1;      // agent identity gradient, end',
+'uniform float u_round;    // tile shape: 0 = hexagon, 1 = disc',
+'uniform float u_star;     // tile shape: >0 scallops the border, <0 pulls it into points',
+'uniform float u_see;      // see-through: how strongly the FAR side shows through the near',
 '',
 '#define PI 3.14159265359',
 '',
@@ -101,13 +104,22 @@
 '',
 'struct Model{float d;vec3 col;float glow;};',
 'Model hexModel(vec3 p,vec3 hc,vec3 eA,vec3 eB,float sub){',
-'  float rTop=.05/sub, rCor=.1/sub;',
+// TILE SHAPE. rCor is the corner-blend radius: at 0 the tile keeps the sharp hexagon the
+// geodesic triangle gives it, and as it grows the corners round off until the tile is a disc.
+// That single number is a real shape axis and costs nothing -- it was already in the smax.
+'  float rTop=.05/sub, rCor=(.10+.62*u_round)/sub;',
 '  // BREATHING: the shell height oscillates with u_pulse. At pulse 0 it is a still solid.',
 '  float phase=dot(hc,pca)*22.+u_time*2.5;',
 '  float h=2.-u_pulse*.16*(cos(phase)*.5+.5);',
 '  float th=h;',
 '  float eAd=dot(p,eA)+u_gap, eBd=dot(p,eB)-u_gap;',
 '  float ed=smax(eAd,-eBd,rCor);',
+// STAR / FLOWER. The two edge planes already form a 2D frame around the tile, so the atan of
+// their signed distances is an angle -- no tangent basis to build, no extra normalisation. A
+// six-fold modulation of the border pulls it into points (negative) or scallops it (positive),
+// which is a genuinely different SHAPE rather than the same hexagon at another size.
+'  float ang=atan(dot(p,eB),dot(p,eA));',
+'  ed+=u_star*(.040/sub)*cos(6.*ang);',
 '  float d=smax(ed,length(p)-h,rTop);',
 '  d=smax(d,-(length(p)-h+th),rTop);',
 '  float fb=clamp((h-length(p))/th,0.,1.);',
@@ -138,6 +150,16 @@
 // soft shoulder appropriate to a shaded solid; at two inches it would look like a fat border.
 '  float ew=mix(.040,.016,u_wire);',
 '  float eb=smoothstep(-ew,-.004,ed);',
+// THE SWEEP, and this is the part meant to reward a long look rather than a glance. A band of
+// brightness travels across the shell; its DIRECTION drifts on three incommensurate rates, so
+// the sweep never repeats on any cycle an eye can latch onto. A loop that repeats teaches you
+// its period in about thirty seconds and then there is nothing left to see -- that is the
+// difference between a decoration and something you keep watching. Cost: one normalize, one
+// dot, one cos, and it rides the tile centre so it moves ACROSS the tiling rather than with it.
+'  vec3 wd=normalize(vec3(sin(u_time*.083),cos(u_time*.061),sin(u_time*.047+1.7)));',
+'  float wv=smoothstep(.72,1.,cos(dot(hc,wd)*3.4-u_time*.85));',
+'  ec*=1.+1.5*wv;',
+'  eb=min(1.,eb*(1.+.55*wv));',
 '  return Model(d,mix(col,ec,eb),eb);',
 '}',
 // if/else and NOT a ternary. ESSL refuses `?:` on struct types -- the compiler says
@@ -216,6 +238,26 @@
 '    col=u_tint*mix(.42,.75,u_wire)*cov;',
 '    alpha=cov*mix(.80,.95,u_wire);',
 '  }',
+// SEE-THROUGH BACK LAYER -- this is what makes it a WIREFRAME rather than a dark solid with
+// bright seams. You see the far side of the shell through the near one, and the moire between
+// two tilings sliding across each other is the thing worth staring at: it is generated, not
+// looped, so it never shows you the same interference twice.
+//
+// Marching the shell a second time would double the most expensive part of the shader. The shell
+// is a sphere, so instead SOLVE the ray-sphere crossing in closed form and evaluate the tile
+// pattern exactly once at the far point. Two map() calls against a 48-step march is noise, and
+// it is exact rather than approximate.
+'  if(u_see>.001){',
+'    float bb=dot(ro,rd), cc=dot(ro,ro)-4.0;',      // shell radius ~2
+'    float dd=bb*bb-cc;',
+'    if(dd>0.){',
+'      Model mb=map(ro+rd*(-bb+sqrt(dd)));',
+// Only the EDGES come through. Letting the far FACES through would just flood the silhouette
+// with a flat wash and destroy the very depth the second layer exists to create.
+'      col+=mb.col*mb.glow*u_see*.55*u_dim;',
+'      alpha=max(alpha,mb.glow*u_see*.9);',
+'    }',
+'  }',
 '  col=pow(max(col,0.),vec3(1./2.2));',
 '  outColor=vec4(col,alpha);   // transparent background: the avatar sits on the console glass',
 '}'
@@ -229,21 +271,21 @@
     // busy. Rich subdivision so it reads as an object rather than a blob, a slow turn, and a
     // gentle breath -- the difference between "idle" (one agent waiting) and "ambient"
     // (the system, at rest) is that ambient is not a diagnosis about anyone.
-    ambient:   { sub: 3.0, gap: 0.014, spin: 0.09, pulse: 0.55, sat: 1.0, dim: 0.95, tint: [0.29, 0.44, 0.95] },
+    ambient:   { sub: 3.0, gap: 0.014, spin: 0.09, pulse: 0.55, sat: 1.0, dim: 0.95, round: 0.35, star: 0.00, tint: [0.29, 0.44, 0.95] },
     // THINKING vs TOOL is the distinction Daniil asked for, and the two must not merely differ in
     // hue -- they differ in KIND of motion, because they are different kinds of work. Thinking is
     // INTERNAL: the shell barely turns and breathes hard, tight and dense, like something holding
     // still to concentrate. Tool use is EXTERNAL: it spins fast and breathes little, because the
     // work is happening out in the world rather than inside. Read across a room you can tell them
     // apart by movement alone, before the colour resolves -- which is the point of a codebook.
-    thinking:  { sub: 3.1, gap: 0.009, spin: 0.06, pulse: 1.0,  sat: 1.0, dim: 1.0,  tint: [0.56, 0.42, 1.0] },
-    composing: { sub: 2.7, gap: 0.012, spin: 0.22, pulse: 1.0, sat: 1.0, dim: 1.0,  tint: [0.02, 0.51, 1.0] },
-    tool:      { sub: 3.4, gap: 0.006, spin: 0.55, pulse: 0.45, sat: 1.0, dim: 1.0,  tint: [0.24, 0.86, 0.60] },
-    idle:      { sub: 1.8, gap: 0.010, spin: 0.05, pulse: 0.15, sat: 0.55, dim: 0.62, tint: [0.30, 0.64, 1.0] },
-    wedged:    { sub: 2.2, gap: 0.075, spin: 0.0,  pulse: 0.0,  sat: 0.85, dim: 0.85, tint: [1.0, 0.70, 0.16] },
-    throttled: { sub: 2.2, gap: 0.030, spin: 0.10, pulse: 0.7,  sat: 0.9,  dim: 0.8,  tint: [0.96, 0.35, 0.55] },
-    dead:      { sub: 1.2, gap: 0.004, spin: 0.0,  pulse: 0.0,  sat: 0.0,  dim: 0.30, tint: [0.45, 0.48, 0.52] },
-    unsensed:  { sub: 1.6, gap: 0.055, spin: 0.02, pulse: 0.0,  sat: 0.0,  dim: 0.45, tint: [0.55, 0.50, 0.62] }
+    thinking:  { sub: 3.1, gap: 0.009, spin: 0.06, pulse: 1.0,  sat: 1.0, dim: 1.0, round: 0.85, star: 0.30,  tint: [0.56, 0.42, 1.0] },
+    composing: { sub: 2.7, gap: 0.012, spin: 0.22, pulse: 1.0, sat: 1.0, dim: 1.0, round: 0.55, star: 0.10,  tint: [0.02, 0.51, 1.0] },
+    tool:      { sub: 3.4, gap: 0.006, spin: 0.55, pulse: 0.45, sat: 1.0, dim: 1.0, round: 0.00, star: -0.35,  tint: [0.24, 0.86, 0.60] },
+    idle:      { sub: 1.8, gap: 0.010, spin: 0.05, pulse: 0.15, sat: 0.55, dim: 0.62, round: 0.60, star: 0.00, tint: [0.30, 0.64, 1.0] },
+    wedged:    { sub: 2.2, gap: 0.075, spin: 0.0,  pulse: 0.0,  sat: 0.85, dim: 0.85, round: 0.00, star: -0.85, tint: [1.0, 0.70, 0.16] },
+    throttled: { sub: 2.2, gap: 0.030, spin: 0.10, pulse: 0.7,  sat: 0.9,  dim: 0.8, round: 0.20, star: 0.55,  tint: [0.96, 0.35, 0.55] },
+    dead:      { sub: 1.2, gap: 0.004, spin: 0.0,  pulse: 0.0,  sat: 0.0,  dim: 0.30, round: 0.90, star: 0.00, tint: [0.45, 0.48, 0.52] },
+    unsensed:  { sub: 1.6, gap: 0.055, spin: 0.02, pulse: 0.0,  sat: 0.0,  dim: 0.45, round: 0.50, star: 0.00, tint: [0.55, 0.50, 0.62] }
   };
 
   // IDENTITY PRESETS. These are NOT new colours -- claude, deepseek and user are lifted verbatim
@@ -296,6 +338,11 @@
     this.wire = (wv >= 0 && wv <= 1) ? wv : 1.0;
     // Identity eases too, so a broadcast avatar handing over from one agent to another MORPHS
     // between their gradients instead of snapping -- the same courtesy the state gets.
+    // See-through amount. Dial it live with _heroAv.shader.see = 0..1, or pin it before the
+    // avatar mounts with window.AKASHIC_AVATAR_SEE -- the comment used to claim that global was
+    // read and it was not, which is the kind of small lie that costs somebody an afternoon.
+    var sv = parseFloat(global.AKASHIC_AVATAR_SEE);
+    this.see = (sv >= 0 && sv <= 1) ? sv : 0.85;
     this.id0 = IDENT.system[0].slice(); this.id1 = IDENT.system[1].slice();
     this.idT0 = this.id0.slice();       this.idT1 = this.id1.slice();
     this.cur = Object.assign({}, STATES.idle);
@@ -383,7 +430,7 @@
     this.prog = p;
     var u = {};
     ['u_res','u_time','u_sub','u_gap','u_spin','u_pulse','u_sat','u_tint','u_dim','u_wire',
-     'u_id0','u_id1']
+     'u_id0','u_id1','u_round','u_star','u_see']
       .forEach(function (n) { u[n] = gl.getUniformLocation(p, n); });
     this.u = u;
     gl.enable(gl.BLEND);
@@ -448,6 +495,11 @@
     gl.uniform1f(u.u_wire, this.wire);
     gl.uniform3f(u.u_id0, this.id0[0], this.id0[1], this.id0[2]);
     gl.uniform3f(u.u_id1, this.id1[0], this.id1[1], this.id1[2]);
+    gl.uniform1f(u.u_round, c.round);
+    gl.uniform1f(u.u_star, c.star);
+    // see-through rides the wireframe amount: a LIT SOLID shell must not show its own back face
+    // (that reads as a rendering fault, not as depth), while a wireframe is defined by doing so.
+    gl.uniform1f(u.u_see, this.wire * this.see);
     gl.uniform3f(u.u_tint, c.tint[0], c.tint[1], c.tint[2]);
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
@@ -472,7 +524,7 @@
     var k = 1 - Math.exp(-dt / TAU);
 
     var c = this.cur, t = this.target, i;
-    ['sub','gap','spin','pulse','sat','dim'].forEach(function (key) { c[key] += (t[key] - c[key]) * k; });
+    ['sub','gap','spin','pulse','sat','dim','round','star'].forEach(function (key) { c[key] += (t[key] - c[key]) * k; });
 
     // TINT EASES THROUGH HSV, NOT RGB. thinking is violet and tool is green -- close to opposite
     // on the wheel -- so a straight RGB lerp between them passes through their average, which is
