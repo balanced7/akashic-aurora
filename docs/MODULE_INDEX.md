@@ -24,7 +24,7 @@
 - `agent_signal_ledger.py` — Agent Signal Ledger: the ordered record of every signal agents emit
 - `coordinator_api.py` — Coordinator API: Minimal signal-based logging for agents
 
-## core/comm/  (44 modules)
+## core/comm/  (45 modules)
 - `assertions.py` — Pre-flight assertions (T068-R3 / deepseek M10) -- verify a directed answer's FACTUAL
 - `bifrost_api.py` — bifrost.api -- the one door an agent uses to join and work the Bifrost bus.
 - `blobs.py` — BlobStore (Slice B1) -- a content-addressed blob store for Bifrost media/large payloads.
@@ -54,6 +54,7 @@
 - `promoter.py` — Bifrost B2 -- the durable projection. Promote SALIENT bus messages into the append-only Ledger.
 - `reaper.py` — reaper -- S4: a dead seat's unread directed mail re-homes, loudly. Never stranded.
 - `role_queue.py` — role_queue -- T108 S1: load-balanced role-addressed work with claim semantics.
+- `room_feed.py` — Namespace-aware feed-stream discovery -- the backend half of readable side rooms.
 - `roster.py` — roster -- S2: the lobby. Per-seat liveness the whole fleet can read.
 - `router.py` — T060 N0: pure route explanation and bounded shadow-delivery counters.
 - `runner_lib.py` — core.comm.runner_lib -- shared hardening for OpenAI-compatible seat transports (K0, 2026-07-18).

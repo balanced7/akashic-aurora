@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (36 of 134 modules lack both pin and paper by name)
+## GAP queue (36 of 135 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/migrate_to_sqlite.py
@@ -79,7 +79,7 @@ Class: reference
 | `agent_signal_ledger.py` | Agent Signal Ledger: the ordered record of every signal agents emit | GAP | GAP |  |
 | `coordinator_api.py` | Coordinator API: Minimal signal-based logging for agents | GAP | GAP | `AI_SETUP` |
 
-## core/comm/  (44 modules)
+## core/comm/  (45 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
@@ -112,6 +112,7 @@ Class: reference
 | `promoter.py` | Bifrost B2 -- the durable projection. Promote SALIENT bus messages into the append-only Ledger. | tests/test_bifrost_promoter.py | GAP | `AKASHIC_ACK_UNHANDLED_HOURS` |
 | `reaper.py` | reaper -- S4: a dead seat's unread directed mail re-homes, loudly. Never stranded. | tests/test_t108_s4_reaper_hardening.py | research/reviewed/fence-lite-s4-reaper-kimi-2026-07-28.md |  |
 | `role_queue.py` | role_queue -- T108 S1: load-balanced role-addressed work with claim semantics. | tests/test_t108_role_queue.py | GAP |  |
+| `room_feed.py` | Namespace-aware feed-stream discovery -- the backend half of readable side rooms. | tests/test_room_feed_namespace.py | GAP |  |
 | `roster.py` | roster -- S2: the lobby. Per-seat liveness the whole fleet can read. | tests/test_s2_roster.py | docs/library/design/20260718_frontier-roster-playbook-opening-positio_fde0ed.md | `AKASHIC_RESUME_GAP_S`, `AKASHIC_WORKLIVE_FRESH_S`, `AKASHIC_WORKLIVE_TTL_S` |
 | `router.py` | T060 N0: pure route explanation and bounded shadow-delivery counters. | tests/test_router_confusables.py | docs/library/report/20260717_t060-n0-shadow-router-deepseek-review-pe_bf6b68.md |  |
 | `runner_lib.py` | core.comm.runner_lib -- shared hardening for OpenAI-compatible seat transports (K0, 2026-07-18). | GAP | GAP |  |
