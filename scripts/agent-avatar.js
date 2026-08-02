@@ -53,6 +53,8 @@
 'uniform vec3  u_tint;     // state hue',
 'uniform float u_dim;      // overall brightness',
 'uniform float u_wire;     // 0 = lit solid shell, 1 = dark wireframe (edges carry the light)',
+'uniform vec3  u_id0;      // agent identity gradient, start (the BODY -- who this is)',
+'uniform vec3  u_id1;      // agent identity gradient, end',
 '',
 '#define PI 3.14159265359',
 '',
@@ -114,7 +116,19 @@
 // to near-void and lets the edge carry everything. Keeping both under one uniform means the
 // state codebook (sub/gap/spin/pulse) is untouched -- an agent looks like itself in either mode.
 '  vec3 solidFace=mix(vec3(.9,.9,1.),vec3(.10,.10,.15),step(.5,fb));',
-'  vec3 wireFace=vec3(.010,.014,.024);            // not pure black: a faint blue cast keeps the',
+// IDENTITY LIVES IN THE BODY, STATE LIVES IN THE LINES. Wireframe drained the faces to near-void
+// and left them doing nothing, which is exactly the surface an agent's identity can occupy
+// without fighting the state codebook for the same channel. The edges keep carrying the state
+// hue, so the two never collide: you read WHO from the body and WHAT from the lines, and either
+// can change without disturbing the other.
+//
+// The ramp runs diagonally across the shell to echo the 135deg the CSS identity gradients use --
+// same colours, same direction, so the hero avatar and the little .av chips are recognisably the
+// same object at two sizes rather than two different visual systems.
+'  float gt=clamp(.5+.62*dot(normalize(hc),normalize(vec3(.7,.7,0.))),0.,1.);',
+'  vec3 ident=mix(u_id0,u_id1,gt);',
+'  ident=mix(vec3(dot(ident,vec3(.33))),ident,u_sat);   // a dead seat shows no vivid identity',
+'  vec3 wireFace=ident*.062;                      // dim: a body to be read, not a lamp',
 '  vec3 col=mix(solidFace,wireFace,u_wire);       // shell readable as a body, not a hole',
 '  vec3 ec=spectrum(dot(hc,pca)*5.+length(p)+.8);',
 '  ec=mix(vec3(dot(ec,vec3(.33))),ec,u_sat);      // desaturate for dead / unsensed',
@@ -232,6 +246,33 @@
     unsensed:  { sub: 1.6, gap: 0.055, spin: 0.02, pulse: 0.0,  sat: 0.0,  dim: 0.45, tint: [0.55, 0.50, 0.62] }
   };
 
+  // IDENTITY PRESETS. These are NOT new colours -- claude, deepseek and user are lifted verbatim
+  // from the .av chip gradients already in bifrost_ui.py (linear-gradient(135deg, ...)), so the
+  // hero avatar and the little roster chips are the same visual object at two sizes. Inventing a
+  // second scheme here would have been the easy path and would have quietly split the design
+  // system in two, which is exactly the sort of drift nobody notices until it is everywhere.
+  //
+  // The additions (kimi, sol, gemini) are new only because no chip existed for them; they are
+  // picked in the same saturation and luminance register so no one agent reads as louder than
+  // another purely by accident of palette.
+  var IDENT = {
+    claude:   [[0.878, 0.569, 0.361], [0.851, 0.482, 0.353]],   // #e0915c -> #d97b5a  coral
+    deepseek: [[0.478, 0.635, 0.969], [0.616, 0.486, 0.969]],   // #7aa2f7 -> #9d7cf7  peri->violet
+    user:     [[0.373, 0.827, 0.608], [0.247, 0.749, 0.525]],   // #5fd39b -> #3fbf86  green
+    kimi:     [[0.941, 0.698, 0.275], [0.878, 0.541, 0.235]],   // amber
+    sol:      [[0.373, 0.816, 0.851], [0.247, 0.690, 0.788]],   // cyan
+    gemini:   [[0.847, 0.478, 0.729], [0.706, 0.400, 0.784]],   // rose -> orchid
+    system:   [[0.478, 0.522, 0.612], [0.376, 0.412, 0.502]]    // neutral slate: the unnamed
+  };
+
+  function identFor(agent) {
+    if (IDENT[agent]) return IDENT[agent];
+    // Prefix match so incarnations and variants inherit their parent's identity rather than
+    // falling to slate -- deepseek-ui and deepseek-plumbing ARE deepseek to the eye.
+    for (var k in IDENT) { if (k !== 'system' && agent && agent.indexOf(k) === 0) return IDENT[k]; }
+    return IDENT.system;
+  }
+
   function isSupported() {
     try {
       if (global.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
@@ -253,6 +294,10 @@
     // original lit solid, 1 is full dark wireframe.
     var wv = parseFloat(global.AKASHIC_AVATAR_WIRE);
     this.wire = (wv >= 0 && wv <= 1) ? wv : 1.0;
+    // Identity eases too, so a broadcast avatar handing over from one agent to another MORPHS
+    // between their gradients instead of snapping -- the same courtesy the state gets.
+    this.id0 = IDENT.system[0].slice(); this.id1 = IDENT.system[1].slice();
+    this.idT0 = this.id0.slice();       this.idT1 = this.id1.slice();
     this.cur = Object.assign({}, STATES.idle);
     this.target = Object.assign({}, STATES.idle);
     this.rate = 0;
@@ -263,6 +308,44 @@
     this._compile();
     this._resize();
     this._bind();
+  }
+
+  // WHO this avatar is currently speaking for. Separate call from setState on purpose: identity
+  // and state change for different reasons and at different rates, and folding them into one
+  // setter would force every caller that knows one to also assert the other.
+  AgentAvatar.prototype.setIdentity = function (agent) {
+    var p = identFor(agent);
+    this.idT0 = p[0].slice(); this.idT1 = p[1].slice();
+    if (!this.animating) {                    // static avatar: snap, same rule as setState
+      this.id0 = this.idT0.slice(); this.id1 = this.idT1.slice();
+    }
+  };
+
+  // --- colour easing helpers ---------------------------------------------------------------
+  // A straight RGB lerp between two distant hues passes through their average, and the average of
+  // violet and green is mud. Easing in HSV keeps every intermediate frame a real colour.
+  function rgb2hsv(c) {
+    var r = c[0], g = c[1], b = c[2];
+    var mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, h = 0;
+    if (d > 1e-6) {
+      if (mx === r)      h = ((g - b) / d) % 6;
+      else if (mx === g) h = (b - r) / d + 2;
+      else               h = (r - g) / d + 4;
+      h /= 6; if (h < 0) h += 1;
+    }
+    return [h, mx > 1e-6 ? d / mx : 0, mx];
+  }
+  function hsv2rgb(h, s, v) {
+    var i = Math.floor(h * 6), f = h * 6 - i;
+    var p = v * (1 - s), q = v * (1 - f * s), t = v * (1 - (1 - f) * s);
+    switch (i % 6) {
+      case 0: return [v, t, p];
+      case 1: return [q, v, p];
+      case 2: return [p, v, t];
+      case 3: return [p, q, v];
+      case 4: return [t, p, v];
+      default: return [v, p, q];
+    }
   }
 
   AgentAvatar.prototype.setState = function (name) {
@@ -299,7 +382,8 @@
     gl.useProgram(p);
     this.prog = p;
     var u = {};
-    ['u_res','u_time','u_sub','u_gap','u_spin','u_pulse','u_sat','u_tint','u_dim','u_wire']
+    ['u_res','u_time','u_sub','u_gap','u_spin','u_pulse','u_sat','u_tint','u_dim','u_wire',
+     'u_id0','u_id1']
       .forEach(function (n) { u[n] = gl.getUniformLocation(p, n); });
     this.u = u;
     gl.enable(gl.BLEND);
@@ -362,6 +446,8 @@
     gl.uniform1f(u.u_sat, c.sat);
     gl.uniform1f(u.u_dim, c.dim);
     gl.uniform1f(u.u_wire, this.wire);
+    gl.uniform3f(u.u_id0, this.id0[0], this.id0[1], this.id0[2]);
+    gl.uniform3f(u.u_id1, this.id1[0], this.id1[1], this.id1[2]);
     gl.uniform3f(u.u_tint, c.tint[0], c.tint[1], c.tint[2]);
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
@@ -373,10 +459,38 @@
     var self = this;
     global.requestAnimationFrame(function () { self._tick(); });
 
-    // Ease every parameter toward its target so a state change MORPHS rather than cuts.
-    var k = 0.08, c = this.cur, t = this.target;
+    // FRAME-RATE INDEPENDENT, and this is a correctness fix rather than a matter of taste. k was a
+    // fixed 0.08 PER FRAME, so the identical transition settled in ~0.47s at 60Hz and in half that
+    // on a 144Hz panel: the animation ran at whatever speed the monitor happened to be. An
+    // exponential on ELAPSED TIME settles in the same wall-clock everywhere, and TAU can then be
+    // stated as something meaningful -- 0.45s here, so a change reads as a deliberate morph over
+    // roughly a second and a third rather than as a cut.
+    var TAU = 0.45;
+    var nowS = (global.performance ? performance.now() : Date.now()) / 1000;
+    var dt = this._lastT ? Math.min(0.1, nowS - this._lastT) : 0.016;
+    this._lastT = nowS;
+    var k = 1 - Math.exp(-dt / TAU);
+
+    var c = this.cur, t = this.target, i;
     ['sub','gap','spin','pulse','sat','dim'].forEach(function (key) { c[key] += (t[key] - c[key]) * k; });
-    for (var i = 0; i < 3; i++) c.tint[i] += (t.tint[i] - c.tint[i]) * k;
+
+    // TINT EASES THROUGH HSV, NOT RGB. thinking is violet and tool is green -- close to opposite
+    // on the wheel -- so a straight RGB lerp between them passes through their average, which is
+    // a desaturated grey-brown. Every intermediate frame looked like a fault. Interpolating hue
+    // the SHORT way round sweeps violet -> blue -> teal -> green instead: each frame is a real
+    // colour, and the transition reads as one light changing rather than two fighting.
+    var ch = rgb2hsv(c.tint), th = rgb2hsv(t.tint);
+    var dh = th[0] - ch[0];
+    if (dh > 0.5) dh -= 1; else if (dh < -0.5) dh += 1;      // shortest path around the wheel
+    var h = ch[0] + dh * k; if (h < 0) h += 1; else if (h > 1) h -= 1;
+    // Saturation and value stay linear: only HUE is angular, and treating the other two as
+    // angles too would make a fade to grey take the long way through white.
+    c.tint = hsv2rgb(h, ch[1] + (th[1] - ch[1]) * k, ch[2] + (th[2] - ch[2]) * k);
+
+    for (i = 0; i < 3; i++) {
+      this.id0[i] += (this.idT0[i] - this.id0[i]) * k;
+      this.id1[i] += (this.idT1[i] - this.id1[i]) * k;
+    }
 
     this._draw();
 

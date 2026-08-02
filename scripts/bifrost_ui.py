@@ -2068,7 +2068,7 @@ function driveAvatars(acts, s){
   }));
   var tsel = document.getElementById('target');
   var a = tsel ? tsel.value : 'all';
-  var st;
+  var st, who = null;      // who = the agent whose identity gradient the body should wear
   // ORDER MATTERS, and the distinctions are the whole point of the avatar:
   //   broadcast -> AMBIENT (no single subject; alive but addressed to nobody)
   //   halted    -> wedged  (held against its will; stillness IS the diagnosis)
@@ -2087,19 +2087,29 @@ function driveAvatars(acts, s){
     // state exists -- but a fleet at work should show the work. Rank across everyone: trouble
     // first, then the busiest verb, and ambient only when genuinely nobody is doing anything.
     var RANK = ['wedged','throttled','tool','thinking','composing','idle'];
-    var best = Object.keys(s.halted||{}).length ? 0 : -1;
+    var halted = Object.keys(s.halted||{});
+    var best = -1;
+    if(halted.length){ best = 0; who = halted[0]; }
     Object.keys(acts).forEach(function(n){
       var v = acts[n] && acts[n].state; if(!v) return;
       var r = RANK.indexOf(AV_STATE[v] || '');
-      if(r >= 0 && (best < 0 || r < best)) best = r;
+      if(r >= 0 && (best < 0 || r < best)){ best = r; who = n; }
     });
     st = best >= 0 ? RANK[best] : 'ambient';
+    // WHOEVER SET THE STATE OWNS THE FACE. On broadcast the avatar wears the identity gradient of
+    // the agent that won the ranking, so the body answers "who is working" while the edges answer
+    // "at what" -- one glance gives both. With nobody working there is no subject, and it falls
+    // back to the neutral slate rather than picking someone arbitrarily.
   }
   else if((s.halted||{})[a])            st = 'wedged';
   else if(!(online.has(a)||a==='user')) st = 'dead';
   else if(!(acts[a] && acts[a].state))  st = 'idle';
   else                                  st = AV_STATE[acts[a].state] || 'unsensed';
+  if(!who && a && a !== 'all') who = a;      // addressed directly: that agent IS the subject
   if(_heroAv.st !== st){ _heroAv.st = st; _heroAv.shader.setState(st); }
+  // Guarded so an unchanged identity does not re-slice its arrays every poll. Both setters ease,
+  // so a handover morphs body and lines together rather than snapping either.
+  if(_heroAv.ident !== who){ _heroAv.ident = who; _heroAv.shader.setIdentity(who || 'system'); }
   // rate rides ON TOP of the state's base spin, so it must know about 'thinking' -- it was added
   // to the codebook without being added here, and fell to the 0.1 default reserved for the states
   // that are NOT working. Thinking is work; it just is not motion.
