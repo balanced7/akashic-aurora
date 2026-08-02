@@ -126,6 +126,18 @@
     float r = mix(0.055, 0.20, pulse * pulse);
     float dot_ = smoothstep(r, r * 0.35, dist);
 
+    // INVERSE-DISTANCE HALO -- the mechanism behind the tunnel shader Daniil liked, whose whole
+    // colour story is an accumulator of (light colour / distance to emitter). It is the
+    // difference between a point that IS a light and a disc that has been painted to look like
+    // one: a hard-edged dot has no presence off itself, while a 1/d^2 falloff spills into the
+    // space around it and the surrounding dark starts carrying information.
+    //
+    // It also answers the austerity problem directly. Only ~3% of the screen was above a
+    // perceptible threshold after the last pass, because between the dots there was nothing at
+    // all. Halos fill that space with light too faint to compete and too present to read as
+    // void -- so the field gets richer WITHOUT getting brighter at the crests.
+    float halo = 0.055 / (0.03 + dist * dist * 7.0) * (0.25 + 0.75 * pulse);
+
     // WIREFRAME MOSAIC: the cell's own edge, revealed only where the wave is high. Reusing gv
     // means the mesh costs one more max() -- no second field, no extra noise. meshAmt exists
     // because three overlaid meshes at three scales is clutter, not depth: only the near layer
@@ -133,7 +145,20 @@
     float edge = max(abs(gv.x), abs(gv.y));
     float mesh = smoothstep(0.46, 0.5, edge) * pow(pulse, 3.0) * 0.5 * meshAmt;
 
-    return vec2(dot_ * (0.35 + 0.9 * pulse) + mesh, pulse);
+    return vec2(dot_ * (0.35 + 0.9 * pulse) + mesh + halo, pulse);
+  }
+
+  // AERIAL PERSPECTIVE, PER CHANNEL. Lifted from the tunnel shader's closing line, which tints
+  // by exp(vec4(1e1,2,1,0)*d/5e2) -- attenuating each channel at a DIFFERENT rate so distance
+  // shifts HUE rather than only dimming. That is what actually sells depth, and it is not a
+  // stylistic trick: it is Beer-Lambert with a per-wavelength extinction coefficient, the same
+  // physics that makes far hills read blue.
+  //
+  // Direction is chosen for this palette: red falls off fastest, blue slowest, so receding
+  // layers cool toward the indigo end that auroraColor already owns. One mechanism now does the
+  // depth-hue work that hand-picked per-layer palette offsets were doing by eye.
+  vec3 aerial(float depth) {
+    return exp(-vec3(1.30, 1.00, 0.66) * depth);
   }
 
   void main() {
@@ -191,9 +216,16 @@
     float t0 = clamp(L0.x * env, 0.0, 1.0);
     float t1 = clamp(L1.x * env, 0.0, 1.0);
     float t2 = clamp(L2.x * env, 0.0, 1.0);
-    vec3 col = auroraColor(clamp(0.16 + 0.14 * L0.y,                    0.0, 1.0)) * t0 * 0.34
-             + auroraColor(clamp(0.26 + 0.30 * L1.y + 0.10 * uv.x,      0.0, 1.0)) * t1 * 0.62
-             + auroraColor(clamp(0.35 + 0.45 * L2.y + 0.22 * uv.x,      0.0, 1.0)) * t2 * 1.30;
+    // Every layer now indexes the palette the SAME way; the depth-hue shift comes from aerial()
+    // instead of from three hand-tuned offsets. One physically-grounded mechanism beats three
+    // eyeballed constants -- and it cannot drift out of tune with the palette, because it
+    // multiplies whatever auroraColor returns rather than second-guessing where to sample it.
+    float hue0 = clamp(0.30 + 0.42 * L0.y + 0.18 * uv.x, 0.0, 1.0);
+    float hue1 = clamp(0.32 + 0.44 * L1.y + 0.20 * uv.x, 0.0, 1.0);
+    float hue2 = clamp(0.35 + 0.45 * L2.y + 0.22 * uv.x, 0.0, 1.0);
+    vec3 col = auroraColor(hue0) * t0 * 0.55 * aerial(1.00)     // far
+             + auroraColor(hue1) * t1 * 0.80 * aerial(0.45)     // mid
+             + auroraColor(hue2) * t2 * 1.30;                   // near -- no attenuation
     col *= u_intensity;
 
     // FIELD MAGNITUDE, kept because the state tints below modulate BY the lattice -- the amber
@@ -209,6 +241,16 @@
     // crests, so the mids sink toward black while the bright nodes bloom. Lowering brightness
     // alone would have flattened the crests along with everything else.
     col += col * col * 0.90;
+
+    // TANH TONE MAP -- the closing move of the tunnel shader, and the piece that makes every
+    // other change here safe. tanh maps [0, inf) onto [0, 1) with a smooth filmic shoulder and
+    // NEVER clips. Until now the field was implicitly hard-clamped at the framebuffer, so the
+    // c*c highlight and the new halos both risked flat white plateaus where distinct bright
+    // things merged into one featureless blob -- the classic look of an HDR field dumped into
+    // 8 bits. With a shoulder instead of a wall, crests can keep gaining energy and still
+    // separate from each other, which is precisely what lets a very dark image carry very
+    // bright accents without either end going to mush.
+    col = tanh(col);
 
     // faint atmospheric bloom so the lattice sits in air rather than on black -- a wide, cheap
     // radial that also stops the lower half reading as a flat void
