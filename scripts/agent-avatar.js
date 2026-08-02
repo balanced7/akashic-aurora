@@ -39,7 +39,7 @@
 
   var VERT = '#version 300 es\nvoid main(){vec2 p=vec2((gl_VertexID<<1)&2,gl_VertexID&2);gl_Position=vec4(p*2.0-1.0,0.0,1.0);}';
 
-  var FRAG = [
+  var FRAG_GEODESIC = [
 '#version 300 es',
 'precision highp float;',
 'out vec4 outColor;',
@@ -263,6 +263,141 @@
 '}'
   ].join('\n');
 
+  // ===================== RENDER STYLES =====================
+  // The avatar used to hardcode ONE fragment shader, which made "change the render style" a
+  // rewrite rather than a setting. Styles are now a registry: same driver, same state easing,
+  // same identity gradient, different renderer. Switching recompiles one program -- a few
+  // milliseconds, once -- and nothing above this line has to know which style is mounted.
+  //
+  // Uniform sets do NOT have to match. gl.uniform1f(null, x) is a legal no-op in WebGL, so
+  // getUniformLocation returning null for a uniform a style does not declare is harmless: one
+  // _draw sets everything and each style uses what it wants. That is why adding a style costs a
+  // shader and nothing else.
+  //
+  // WHAT MUST STAY CONSTANT ACROSS STYLES is the MEANING, not the mechanism: u_tint is always
+  // the diagnosed state and u_id0/u_id1 are always the agent. A style may render them however it
+  // likes, but it may not repurpose them -- otherwise the codebook stops being a codebook the
+  // moment somebody switches renderer.
+  var FRAG_MARBLE = [
+'#version 300 es',
+'precision highp float;',
+'out vec4 outColor;',
+'uniform vec2  u_res;',
+'uniform float u_time;',
+'uniform float u_sub;      // interior swirl density',
+'uniform float u_spin;     // orbit + interior rotation rate',
+'uniform float u_pulse;    // the marble breathes',
+'uniform float u_sat;',
+'uniform vec3  u_tint;     // STATE',
+'uniform float u_dim;',
+'uniform float u_wire;     // how hard the orbiters dominate the marble',
+'uniform vec3  u_id0;      // IDENTITY, the aurora inside the glass',
+'uniform vec3  u_id1;',
+'uniform float u_star;     // orbit tilt spread',
+'uniform float u_see;      // glass transparency',
+'',
+'float h11(float n){ return fract(sin(n)*43758.5453123); }',
+'float h31(vec3 p){ return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453123); }',
+'float vn(vec3 x){',
+'  vec3 i=floor(x), f=fract(x); f=f*f*(3.-2.*f);',
+'  return mix(mix(mix(h31(i),h31(i+vec3(1,0,0)),f.x),mix(h31(i+vec3(0,1,0)),h31(i+vec3(1,1,0)),f.x),f.y),',
+'             mix(mix(h31(i+vec3(0,0,1)),h31(i+vec3(1,0,1)),f.x),mix(h31(i+vec3(0,1,1)),h31(i+vec3(1,1,1)),f.x),f.y),f.z);',
+'}',
+'float fbm3(vec3 p){ return .55*vn(p)+.27*vn(p*2.1+7.3)+.13*vn(p*4.3+19.1); }',
+'void pR(inout vec2 p,float a){ p=cos(a)*p+sin(a)*vec2(p.y,-p.x); }',
+'float segD(vec2 p,vec2 a,vec2 b){',
+'  vec2 pa=p-a, ba=b-a;',
+'  float h=clamp(dot(pa,ba)/max(dot(ba,ba),1e-6),0.,1.);',
+'  return length(pa-ba*h);',
+'}',
+'// One orbiter, analytic in time -- which is what makes the TRAIL free: sampling the same',
+'// function at t - k*dt IS the past, so there is no history buffer to keep or to desynchronise.',
+'vec3 orbPos(float i,float t){',
+'  float a1=h11(i*17.13+3.1), a2=h11(i*31.77+9.7);',
+'  float rad=1.34+a1*0.44;',
+'  float rate=(0.55+a2*0.9)*(0.45+u_spin*2.4);',
+'  float a=t*rate+i*2.39996;                       // golden angle: no two orbiters ever bunch',
+'  vec3 p=vec3(cos(a)*rad,0.,sin(a)*rad);',
+'  pR(p.yz,(a1-0.5)*2.4*(0.35+abs(u_star)*1.2));   // each orbit on its own tilted plane',
+'  pR(p.xy,a2*6.28318);',
+'  return p;',
+'}',
+'void main(){',
+'  vec2 uv=(-u_res.xy+2.*gl_FragCoord.xy)/u_res.y;',
+'  float T=u_time;',
+'  vec3 ro=vec3(0,0,-3.4), rd=normalize(vec3(uv,2.3));',
+'  vec3 col=vec3(0.); float alpha=0.; float tNear=1e9;',
+'',
+'  // ---- THE MARBLE: a glass shell with an aurora living inside it ----',
+'  float b=dot(ro,rd), cc=dot(ro,ro)-1.0, disc=b*b-cc;',
+'  if(disc>0.){',
+'    float s=sqrt(disc), t0=-b-s, t1=-b+s;',
+'    tNear=t0;',
+'    vec3 nrm=normalize(ro+rd*t0);',
+'    float fres=pow(1.-max(0.,dot(-rd,nrm)),3.5);',
+'    float dt=(t1-t0)/16.0, trans=1.;',
+'    vec3 acc=vec3(0.);',
+'    for(int i=0;i<16;i++){',
+'      vec3 p=ro+rd*(t0+dt*(float(i)+.5));',
+'      pR(p.xz,T*0.11*(0.4+u_spin));',
+'      // DOMAIN WARP is what makes this read as aurora rather than as fog: sampling noise at a',
+'      // position already displaced BY noise folds the field into sheets and filaments instead of',
+'      // clouds. One extra fbm buys the whole character.',
+'      vec3 q=p*(1.5+u_sub*0.35);',
+'      float w=fbm3(q+vec3(0.,T*0.13,0.));',
+'      q+=vec3(w*1.6,w*1.1,-w*1.3);',
+'      float d=fbm3(q*1.35+vec3(0.,-T*0.09,T*0.05));',
+'      d=smoothstep(0.44,0.86,d);',
+'      d*=1.-smoothstep(0.55,1.0,length(p));       // denser toward the core, so it has a heart',
+'      d*=0.7+0.6*u_pulse*(0.5+0.5*sin(T*1.6));',
+'      // IDENTITY inside the glass, STATE as the light falling on it -- the same split the',
+'      // geodesic style uses, so switching style never changes what a colour MEANS.',
+'      vec3 ac=mix(u_id0,u_id1,clamp(w*1.3,0.,1.));',
+'      ac=mix(ac,u_tint,0.38);',
+'      ac=mix(vec3(dot(ac,vec3(.33))),ac,u_sat);',
+'      float a=d*dt*2.9;',
+'      acc+=trans*a*ac*2.2;',
+'      trans*=exp(-a*1.35);',
+'      if(trans<0.03) break;',
+'    }',
+'    col+=acc*u_dim;',
+'    col+=fres*mix(u_tint,vec3(1.),0.35)*1.15*u_dim;   // the glass rim',
+'    alpha=clamp(max(1.-trans,fres)*mix(1.,0.92,u_see)+fres*0.6,0.,1.);',
+'  }',
+'',
+'  // ---- THE SWARM: thin lines with glowing trails, orbiting the marble ----',
+'  vec3 lines=vec3(0.);',
+'  for(int i=0;i<10;i++){',
+'    float fi=float(i);',
+'    vec3 lc=mix(u_id1,u_tint,0.55);',
+'    vec3 pp=orbPos(fi,T); float dp=pp.z+3.4; vec2 sp=pp.xy*2.3/max(dp,0.2);',
+'    for(int k=1;k<=5;k++){',
+'      vec3 pc=orbPos(fi,T-float(k)*0.085);',
+'      float dc=pc.z+3.4; vec2 sc=pc.xy*2.3/max(dc,0.2);',
+'      float dd=segD(uv,sp,sc);',
+'      float w=0.020/max(dc*0.42,0.2);',
+'      float g=w/(dd+w*0.5);',
+'      float fade=1.-float(k)/6.;',
+'      // OCCLUSION, and it is what sells the marble as solid: a segment behind the sphere is seen',
+'      // THROUGH glass, so it dims rather than disappearing. Without this the orbits read as a',
+'      // flat ring painted over a ball instead of a swarm going around one.',
+'      float behind=step(tNear,0.5*(dp+dc));',
+'      float occ=mix(1.,0.30,behind*step(length(0.5*(sp+sc)),0.62));',
+'      lines+=lc*(g*g*2.3)*fade*fade*occ;',
+'      sp=sc; dp=dc;',
+'    }',
+'  }',
+'  col+=lines*mix(0.55,1.35,u_wire)*u_dim;',
+'  alpha=clamp(alpha+dot(lines,vec3(.5)),0.,1.);',
+'',
+'  col=pow(max(col,0.),vec3(1./2.2));',
+'  outColor=vec4(col,alpha);',
+'}'
+  ].join('\n');
+
+  var STYLES = { geodesic: FRAG_GEODESIC, marble: FRAG_MARBLE };
+
+
   // STATE TABLE. This is the codebook made visible -- each row is how a diagnosed state LOOKS.
   // Motion means work; stillness means none; grey means we cannot see.
   var STATES = {
@@ -322,7 +457,7 @@
     } catch (e) { return false; }
   }
 
-  function AgentAvatar(canvas) {
+  function AgentAvatar(canvas, style) {
     this.canvas = canvas;
     this.gl = canvas.getContext('webgl2', {
       alpha: true, antialias: false,
@@ -352,7 +487,8 @@
     this.disabled = false;                // set by the watchdog; never re-enabled
     this._t0 = (global.performance ? performance.now() : Date.now()) / 1000;
     this._frames = 0; this._fpsAt = 0;
-    this._compile();
+    this.style = (STYLES[style] ? style : 'geodesic');
+    this._compile(this.style);
     this._resize();
     this._bind();
   }
@@ -360,6 +496,43 @@
   // WHO this avatar is currently speaking for. Separate call from setState on purpose: identity
   // and state change for different reasons and at different rates, and folding them into one
   // setter would force every caller that knows one to also assert the other.
+  // Switch renderer at runtime. Recompiles and re-looks-up uniforms; state, identity and the
+  // eased parameters all survive, so the avatar keeps its diagnosis across the change instead of
+  // resetting to a default and lying for a second and a half.
+  AgentAvatar.prototype.setStyle = function (name) {
+    if (!STYLES[name] || name === this.style) return;
+    this.style = name;
+    this._compile(name);
+    this._resize(this.cssSize);      // viewport survives, but the new program needs its uniforms
+  };
+
+  AgentAvatar.styles = function () { return Object.keys(STYLES); };
+  AgentAvatar.states = function () { return Object.keys(STATES); };
+  AgentAvatar.stateTable = function () { return JSON.parse(JSON.stringify(STATES)); };
+  AgentAvatar.identities = function () { return Object.keys(IDENT); };
+
+  // TUNABLE MANIFEST. The VFX dashboard builds its controls FROM this rather than from a list it
+  // keeps itself, so a parameter can never exist in the shader and be missing from the panel (or
+  // worse, exist in the panel and quietly do nothing). Adding a knob is one line here.
+  //   PARAMS are per-STATE   -- they live in the state table and ease on a state change.
+  //   DIALS are per-INSTANCE -- they describe the renderer, not the diagnosis, so they do not
+  //                             belong in the codebook and must not change when a state does.
+  AgentAvatar.PARAMS = [
+    { k: 'sub',   min: 0.8, max: 5.0,  step: 0.05,  label: 'subdivision' },
+    { k: 'gap',   min: 0,   max: 0.12, step: 0.001, label: 'tile gap' },
+    { k: 'spin',  min: 0,   max: 1.2,  step: 0.01,  label: 'spin' },
+    { k: 'pulse', min: 0,   max: 1.5,  step: 0.01,  label: 'breathe' },
+    { k: 'sat',   min: 0,   max: 1,    step: 0.01,  label: 'saturation' },
+    { k: 'dim',   min: 0,   max: 1.4,  step: 0.01,  label: 'brightness' },
+    { k: 'round', min: 0,   max: 1,    step: 0.01,  label: 'tile round' },
+    { k: 'star',  min: -1,  max: 1,    step: 0.01,  label: 'tile star' }
+  ];
+  AgentAvatar.DIALS = [
+    { k: 'wire', min: 0, max: 1, step: 0.01, label: 'wireframe' },
+    { k: 'see',  min: 0, max: 1, step: 0.01, label: 'see-through' },
+    { k: 'rate', min: 0, max: 1, step: 0.01, label: 'activity rate' }
+  ];
+
   AgentAvatar.prototype.setIdentity = function (agent) {
     var p = identFor(agent);
     this.idT0 = p[0].slice(); this.idT1 = p[1].slice();
@@ -414,8 +587,10 @@
     this.rate = Math.max(0, Math.min(1, +v || 0));
   };
 
-  AgentAvatar.prototype._compile = function () {
+  AgentAvatar.prototype._compile = function (styleName) {
     var gl = this.gl;
+    var frag = STYLES[styleName] || STYLES.geodesic;
+    if (this.prog) gl.deleteProgram(this.prog);   // switching styles must not leak programs
     function sh(type, src) {
       var s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
       if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error('avatar compile: ' + gl.getShaderInfoLog(s));
@@ -423,7 +598,7 @@
     }
     var p = gl.createProgram();
     gl.attachShader(p, sh(gl.VERTEX_SHADER, VERT));
-    gl.attachShader(p, sh(gl.FRAGMENT_SHADER, FRAG));
+    gl.attachShader(p, sh(gl.FRAGMENT_SHADER, frag));
     gl.linkProgram(p);
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error('avatar link: ' + gl.getProgramInfoLog(p));
     gl.useProgram(p);

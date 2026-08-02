@@ -1,0 +1,298 @@
+<meta charset="utf-8">
+<title>VFX Bench — Akashic Aurora</title>
+<style>
+  :root{
+    --bg:#05070c; --panel:#0b1018; --line:#1a2230; --ink:#dfe7f2; --dim:#7c8798;
+    --acc:#0381fe; --acc2:#4da3ff; --warn:#f0b246; --ok:#3fbf86;
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-size:13px;line-height:1.5}
+  .wrap{display:grid;grid-template-columns:300px 1fr 320px;gap:14px;padding:14px;min-height:100vh;align-items:start}
+  @media (max-width:1100px){ .wrap{grid-template-columns:1fr} }
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+  h1{font-size:14px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin:0 0 12px;font-weight:600}
+  h2{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin:16px 0 8px;font-weight:600}
+  h2:first-child{margin-top:0}
+  label{display:block;margin:9px 0}
+  .lab{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-bottom:3px}
+  .lab b{color:var(--acc2);font-weight:600;font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%;accent-color:var(--acc);height:16px}
+  select,button,textarea{background:#0e1520;color:var(--ink);border:1px solid var(--line);
+    border-radius:8px;padding:7px 9px;font:inherit;width:100%}
+  button{cursor:pointer;transition:border-color .15s,background .15s}
+  button:hover{border-color:var(--acc);background:#121b28}
+  button.pri{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+  button.pri:hover{background:var(--acc2);border-color:var(--acc2)}
+  .row{display:flex;gap:8px;margin-top:8px}
+  .stage{display:flex;align-items:center;justify-content:center;min-height:520px;
+    background:radial-gradient(circle at 50% 45%,#0a1220,#04060a 70%);border-radius:12px;
+    border:1px solid var(--line);position:relative;overflow:hidden}
+  #cv{width:420px;height:420px;display:block;border-radius:16px}
+  .hud{position:absolute;left:12px;bottom:10px;font-size:11px;color:var(--dim);
+    font-variant-numeric:tabular-nums}
+  .hud b{color:var(--ok)}
+  .chips{display:flex;flex-wrap:wrap;gap:5px}
+  .chip{padding:4px 9px;border:1px solid var(--line);border-radius:999px;cursor:pointer;
+    font-size:11px;background:#0e1520;transition:.15s}
+  .chip:hover{border-color:var(--acc2)}
+  .chip.on{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+  .lib{border-top:1px solid var(--line);padding:9px 0;font-size:12px}
+  .lib:last-child{border-bottom:none}
+  .lib b{color:var(--acc2);display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+  .lib span{color:var(--dim)}
+  textarea{height:120px;font-family:Consolas,monospace;font-size:11px;resize:vertical}
+  .note{color:var(--dim);font-size:11px;margin-top:8px}
+  .err{color:var(--warn)}
+</style>
+
+<div class="wrap">
+  <!-- ─────────── left: the codebook ─────────── -->
+  <div class="card">
+    <h1>Bench</h1>
+    <h2>Render style</h2>
+    <select id="style"></select>
+    <h2>State</h2>
+    <div class="chips" id="states"></div>
+    <h2>Identity</h2>
+    <select id="ident"></select>
+
+    <h2>Instance dials</h2>
+    <div id="dials"></div>
+    <p class="note">Dials describe the <em>renderer</em>. They are not part of the state codebook,
+       so they survive a state change.</p>
+  </div>
+
+  <!-- ─────────── centre: the thing itself ─────────── -->
+  <div>
+    <div class="stage">
+      <canvas id="cv"></canvas>
+      <div class="hud" id="hud">—</div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h2>Hand-off</h2>
+      <p class="note">Tuned something good? This is the exact row to paste into
+         <code>STATES</code> in agent-avatar.js — no transcription, no drift.</p>
+      <textarea id="out" readonly></textarea>
+      <div class="row">
+        <button onclick="copyRow()">Copy state row</button>
+        <button onclick="resetState()">Revert to shipped</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────── right: params, presets, library ─────────── -->
+  <div class="card">
+    <h1>Parameters</h1>
+    <div id="params"></div>
+
+    <h2>Presets</h2>
+    <div class="row">
+      <select id="presets"><option value="">— saved —</option></select>
+      <button onclick="loadPreset()" style="width:auto;white-space:nowrap">Load</button>
+    </div>
+    <div class="row">
+      <input id="pname" placeholder="name this look"
+             style="background:#0e1520;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:7px 9px;font:inherit;flex:1">
+      <button class="pri" onclick="savePreset()" style="width:auto;white-space:nowrap">Save</button>
+    </div>
+    <p class="note" id="pmsg">Saved to <code>design/vfx-presets.json</code> — readable from either
+       side, which is the point.</p>
+
+    <h2>Technique library</h2>
+    <div id="lib"></div>
+  </div>
+</div>
+
+<script src="/agent-avatar.js"></script>
+<script>
+// The bench drives the SAME AgentAvatar the console mounts -- not a copy, not a simplified stand-in.
+// A bench that renders its own approximation of the thing is a bench that lets you tune something
+// which then looks different in production, which is worse than having no bench.
+var av = null, curState = 'thinking', shipped = null, dirty = {};
+
+function el(id){ return document.getElementById(id); }
+
+function slider(spec, get, set){
+  var wrap = document.createElement('label');
+  var lab  = document.createElement('div'); lab.className = 'lab';
+  var nm   = document.createElement('span'); nm.textContent = spec.label;
+  var val  = document.createElement('b');
+  var inp  = document.createElement('input');
+  inp.type='range'; inp.min=spec.min; inp.max=spec.max; inp.step=spec.step;
+  function sync(){ var v=get(); inp.value=v; val.textContent=(+v).toFixed(spec.step<0.01?3:2); }
+  inp.addEventListener('input', function(){ set(parseFloat(inp.value)); sync(); emit(); });
+  lab.appendChild(nm); lab.appendChild(val);
+  wrap.appendChild(lab); wrap.appendChild(inp);
+  wrap._sync = sync; sync();
+  return wrap;
+}
+
+function buildParams(){
+  var box = el('params'); box.innerHTML='';
+  AgentAvatar.PARAMS.forEach(function(p){
+    box.appendChild(slider(p,
+      function(){ return av.target[p.k]; },
+      function(v){ av.target[p.k]=v; av.cur[p.k]=v; dirty[p.k]=true; }));   // snap: a bench must
+  });                                                                        // answer immediately
+  var db = el('dials'); db.innerHTML='';
+  AgentAvatar.DIALS.forEach(function(d){
+    db.appendChild(slider(d, function(){ return av[d.k]; }, function(v){ av[d.k]=v; }));
+  });
+}
+function syncAll(){
+  ['params','dials'].forEach(function(id){
+    [].forEach.call(el(id).children, function(c){ if(c._sync) c._sync(); });
+  });
+}
+
+function setState(name){
+  curState = name;
+  av.setState(name);
+  av.cur = Object.assign({}, av.target); av.cur.tint = av.target.tint.slice();
+  dirty = {};
+  [].forEach.call(el('states').children, function(c){ c.classList.toggle('on', c.dataset.s===name); });
+  syncAll(); emit();
+}
+function resetState(){ av.setState(curState); setState(curState); }
+
+// The hand-off artefact. Emitting the row in SOURCE FORM rather than as a table of numbers is the
+// difference between a bench that informs a change and one that makes it -- retyping eight floats
+// out of a UI is exactly where a good tune goes wrong.
+function emit(){
+  var t = av.target, f = function(k,n){ return k+': '+(+t[k]).toFixed(n); };
+  el('out').value =
+    curState.padEnd(10) + ': { ' +
+    f('sub',2)+', '+f('gap',3)+', '+f('spin',2)+', '+f('pulse',2)+', '+
+    f('sat',2)+', '+f('dim',2)+', '+f('round',2)+', '+f('star',2)+
+    ', tint: ['+t.tint.map(function(v){return (+v).toFixed(2);}).join(', ')+'] },\n' +
+    '// dials (per-instance, not part of the codebook): wire '+av.wire.toFixed(2)+
+    ', see '+av.see.toFixed(2)+', rate '+av.rate.toFixed(2)+', style '+av.style;
+}
+function copyRow(){
+  el('out').select(); document.execCommand('copy');
+  el('out').blur();
+}
+
+// ---- presets: the collaboration seam ----------------------------------------------------------
+// Written to a file on disk rather than to localStorage ON PURPOSE. localStorage is invisible to
+// the other party; a JSON file is something Daniil can tune into and claude can read, which is the
+// only thing that makes this a shared bench instead of two private ones.
+async function refreshPresets(){
+  try{
+    var r = await (await fetch('/vfx/presets')).json();
+    var s = el('presets'); s.innerHTML = '<option value="">— saved —</option>';
+    Object.keys(r||{}).sort().forEach(function(k){
+      var o=document.createElement('option'); o.value=k; o.textContent=k; s.appendChild(o);
+    });
+  }catch(e){ el('pmsg').className='note err'; el('pmsg').textContent='presets unavailable: '+e; }
+}
+async function savePreset(){
+  var name = (el('pname').value||'').trim();
+  if(!name){ el('pmsg').textContent='name it first.'; return; }
+  var body = { name: name, value: {
+    style: av.style, state: curState, identity: el('ident').value,
+    params: Object.fromEntries(AgentAvatar.PARAMS.map(function(p){ return [p.k, av.target[p.k]]; })),
+    tint: av.target.tint.slice(),
+    dials: { wire: av.wire, see: av.see, rate: av.rate }
+  }};
+  try{
+    await fetch('/vfx/presets', {method:'POST', headers:{'Content-Type':'application/json'},
+                                 body: JSON.stringify(body)});
+    el('pmsg').className='note'; el('pmsg').textContent='saved "'+name+'" to design/vfx-presets.json';
+    refreshPresets();
+  }catch(e){ el('pmsg').className='note err'; el('pmsg').textContent='save failed: '+e; }
+}
+async function loadPreset(){
+  var k = el('presets').value; if(!k) return;
+  var all = await (await fetch('/vfx/presets')).json();
+  var v = all[k]; if(!v) return;
+  if(v.style && v.style!==av.style){ av.setStyle(v.style); el('style').value=v.style; }
+  if(v.state){ setState(v.state); }
+  Object.keys(v.params||{}).forEach(function(kk){ av.target[kk]=v.params[kk]; av.cur[kk]=v.params[kk]; });
+  if(v.tint){ av.target.tint=v.tint.slice(); av.cur.tint=v.tint.slice(); }
+  if(v.dials){ av.wire=v.dials.wire; av.see=v.dials.see; av.setRate(v.dials.rate); }
+  if(v.identity){ el('ident').value=v.identity; av.setIdentity(v.identity);
+                  av.id0=av.idT0.slice(); av.id1=av.idT1.slice(); }
+  syncAll(); emit();
+}
+
+// ---- what each pasted shader actually contributed ---------------------------------------------
+// Kept as DATA, not prose in a commit message, because the useful question months from now is
+// "where did this technique come from and what else did that source have" -- and that is a lookup.
+var LIBRARY = [
+  ['Geodesic tiling (llVXRd)', 'icosahedral domain mirroring + triangle tiling. The avatar itself.'],
+  ['Wave / two swirling paths', 'c*.4 + c.brg*.6 + c*c channel-rotation palette; the sin/cos phase pair that makes two paths intertwine; p.y = 2./p.y reflection.'],
+  ['Line (voice)', 'edge-enveloped waveform. Became the activity strip. Its constants assume a 16:9 frame -- see the aspect note.'],
+  ['Saturday weirdness', 'FXAA. Rejected for the avatar: it blurs the very lines a wireframe is made of. Native-resolution + cone AA instead.'],
+  ['Compositing / vignette', 'pow(dist,3) vignette on an aspect-corrected circle; pow(.8) then mix(.1,.9) filmic curve.'],
+  ['Tunnel with lights', 'inverse-square emitter accumulation; per-channel exp() depth tint (Beer-Lambert aerial perspective); tanh tone map -- the shoulder that never clips.'],
+  ['Overly satisfying (nimitz)', 'phase-offset sine palette and triangle noise. NOT adopted: the palette walks outside the analogous set the design system owns.'],
+  ['Volumetric fog (Wallis)', 'Beer-Lambert transmittance, in-scattering, IQ value noise, march jitter for banding.'],
+  ['Height fog (Gallardo)', 'height-falloff medium; transmittance-weighted composite; the jitter-to-kill-banding trick, made STATIC so it is not film grain.'],
+  ['0b5vr hardware grid', 'hierarchical grid marching. Still unused -- it belongs to an instrument panel, not a fog volume.']
+];
+
+// ---- boot -------------------------------------------------------------------------------------
+(function(){
+  if(!AgentAvatar.isSupported()){
+    document.querySelector('.stage').innerHTML =
+      '<p class="err" style="padding:24px">WebGL2 unavailable, or prefers-reduced-motion is set — '+
+      'the bench needs both.</p>';
+    return;
+  }
+  var cv = el('cv');
+  av = new AgentAvatar(cv, 'geodesic');
+  av._resize(420);
+  av.start();
+
+  var ss = el('style');
+  AgentAvatar.styles().forEach(function(s){
+    var o=document.createElement('option'); o.value=s; o.textContent=s; ss.appendChild(o);
+  });
+  ss.addEventListener('change', function(){
+    av.setStyle(ss.value); av._resize(420); syncAll(); emit();
+  });
+
+  var st = el('states');
+  AgentAvatar.states().forEach(function(s){
+    var c=document.createElement('div'); c.className='chip'; c.dataset.s=s; c.textContent=s;
+    c.onclick=function(){ setState(s); }; st.appendChild(c);
+  });
+
+  var idn = el('ident');
+  AgentAvatar.identities().forEach(function(a){
+    var o=document.createElement('option'); o.value=a; o.textContent=a; idn.appendChild(o);
+  });
+  idn.value='claude';
+  idn.addEventListener('change', function(){
+    av.setIdentity(idn.value); av.id0=av.idT0.slice(); av.id1=av.idT1.slice(); emit();
+  });
+  av.setIdentity('claude'); av.id0=av.idT0.slice(); av.id1=av.idT1.slice();
+
+  var lb = el('lib');
+  LIBRARY.forEach(function(r){
+    var d=document.createElement('div'); d.className='lib';
+    d.innerHTML='<b></b><span></span>';
+    d.firstChild.textContent=r[0]; d.lastChild.textContent=r[1];
+    lb.appendChild(d);
+  });
+
+  shipped = AgentAvatar.stateTable();
+  buildParams();
+  setState('thinking');
+  refreshPresets();
+
+  // Honest HUD: measured frame cost, not a guess. The bench is where a change gets its number.
+  var last=performance.now(), acc=0, n=0;
+  setInterval(function(){
+    var now=performance.now(); acc+=now-last; n++; last=now;
+    if(n>=30){
+      el('hud').innerHTML = av.style+' · '+curState+' · <b>'+(acc/n).toFixed(1)+' ms/frame</b> · '+
+                            cv.width+'×'+cv.height+' backing'+
+                            (av.disabled ? ' · <span style="color:var(--warn)">watchdog stopped</span>' : '');
+      acc=0; n=0;
+    }
+  }, 33);
+})();
+</script>

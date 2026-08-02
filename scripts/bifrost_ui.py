@@ -117,6 +117,41 @@ def tail(client, last_ids, ns="bifrost", block_ms=15000):
     return out
 
 
+# ---- VFX bench presets ------------------------------------------------------------------------
+# A FILE, deliberately, not localStorage. A preset in a browser's storage is invisible to the other
+# party -- Daniil could tune something excellent and claude would have no way to read it, and vice
+# versa. On disk it is a shared artefact: tune in the browser, read it with any tool, paste it into
+# the state table, commit it. That is the whole difference between a shared bench and two private
+# ones, and it costs one JSON file.
+VFX_PRESETS = os.path.join(REPO, "design", "vfx-presets.json")
+
+
+def _vfx_presets_read():
+    try:
+        with open(VFX_PRESETS, "r", encoding="utf-8") as fh:
+            d = json.load(fh)
+        return d if isinstance(d, dict) else {}
+    except FileNotFoundError:
+        return {}                      # no presets yet is not an error, it is Tuesday
+    except Exception:
+        return {}                      # fail-open: a corrupt preset file must not break the bench
+
+
+def _vfx_presets_write(name, value):
+    """Merge one preset. Read-modify-write so two saves in a session cannot clobber each other."""
+    try:
+        os.makedirs(os.path.dirname(VFX_PRESETS), exist_ok=True)
+        cur = _vfx_presets_read()
+        cur[str(name)[:80]] = value
+        tmp = VFX_PRESETS + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(cur, fh, indent=2, sort_keys=True)
+        os.replace(tmp, VFX_PRESETS)   # atomic: a crash mid-write leaves the old file intact,
+        return {"ok": True, "count": len(cur)}      # never a half-written one
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)[:200]}
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass  # quiet
@@ -158,6 +193,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._static("scripts/agent-avatar.js", "application/javascript")
         if path == "/activity-line.js":
             return self._static("scripts/activity-line.js", "application/javascript")
+        if path == "/vfx":
+            return self._static("scripts/vfx.html", "text/html; charset=utf-8")
+        if path == "/vfx/presets":
+            return self._json(_vfx_presets_read())
         self.send_error(404)
 
     def _html(self):
@@ -436,6 +475,11 @@ class Handler(BaseHTTPRequestHandler):
             data = json.loads(raw.decode("utf-8")) if raw else {}
         except Exception:
             data = {}
+        if path == "/vfx/presets":
+            name = str(data.get("name") or "").strip()
+            if not name:
+                return self._json({"ok": False, "error": "name required"})
+            return self._json(_vfx_presets_write(name, data.get("value")))
         if path == "/send":
             return self._send(data)
         if path == "/pause":
