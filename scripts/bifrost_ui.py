@@ -613,6 +613,28 @@ def _vfx_sketch_write(name, src):
         return {"ok": False, "error": str(exc)[:200]}
 
 
+def _vfx_ingest(name, src):
+    """Translate a pasted Shadertoy shader and store it as a sketch.
+
+    The translation lives in scripts/vfx_ingest.py so the CLI verb and (next) a paste box in the
+    page share ONE implementation -- the same rule that keeps a CLI render from disagreeing with a
+    clicked one. Nothing is written when the rewrite fails: a scratch slot holding source that
+    cannot compile is a trap for whoever opens it next, and the error is more useful in the reply
+    than on disk.
+    """
+    import vfx_ingest
+    r = vfx_ingest.rewrite(src, name=name)
+    if not r.get("ok"):
+        return r
+    w = _vfx_sketch_write(name, r["src"])
+    if not w.get("ok"):
+        return {"ok": False, "error": w.get("error", "could not save"),
+                "notes": r.get("notes", []), "warnings": r.get("warnings", [])}
+    return {"ok": True, "name": w["name"], "bytes": w["bytes"], "kind": r.get("kind"),
+            "notes": r.get("notes", []), "warnings": r.get("warnings", []),
+            "summary": vfx_ingest.summary(r)}
+
+
 VFX_PRESETS = os.path.join(REPO, "design", "vfx-presets.json")
 
 
@@ -1038,6 +1060,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(_vfx_thumb_write(data.get("name"), data.get("png")))
         if path == "/vfx/clip":
             return self._json(_vfx_clip_write(data.get("name"), data.get("webm")))
+        if path == "/vfx/ingest":
+            return self._json(_vfx_ingest(data.get("name"), data.get("src")))
         if path == "/vfx/job":
             return self._json(_vfx_job_add(data.get("op"), data.get("args")))
         if path == "/vfx/job/result":

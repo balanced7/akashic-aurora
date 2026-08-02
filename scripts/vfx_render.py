@@ -28,6 +28,7 @@ what he meant, while claude could only send words back about pictures Daniil cou
     py scripts/vfx_render.py sheet --frames 12 --to 8
     py scripts/vfx_render.py grid --a thick --a-from 0 --a-to 1 --b gap --b-from 0.004 --b-to 0.18
     py scripts/vfx_render.py say "that read as glow because round turns tile area into gap"
+    py scripts/vfx_render.py ingest --name tunnel --file shadertoy.txt
 """
 from __future__ import annotations
 
@@ -61,6 +62,63 @@ def say(text, kind="say", label=""):
         print("the console is not running on %s (%s)" % (BASE, exc), file=sys.stderr)
         return 2
     return 0 if r.get("ok") else 1
+
+
+def ingest(ns):
+    """Paste a Shadertoy shader in, get a preview out.
+
+    ONE MOTION, on purpose. Ingesting and then looking are the same act -- a stored shader nobody
+    has rendered is an unverified claim that it compiles, and the compile error is the single most
+    likely outcome of importing a stranger's code. So the preview is the default and the shader's
+    own translation notes ride along as the reason, which puts "needs a texture you do not have"
+    directly above the picture that failed to render.
+
+    A CONTACT SHEET rather than a still, also on purpose: almost every Shadertoy shader is a
+    function of time, and a still cannot tell a shader that is moving from one that is broken and
+    happens to be dark. --frames 1 gives the still when the still is what you want.
+    """
+    if ns.text:
+        src = ns.text
+    elif ns.file == "-":
+        src = sys.stdin.read()
+    elif ns.file:
+        with open(ns.file, "r", encoding="utf-8") as fh:
+            src = fh.read()
+    else:
+        print("ingest needs --file PATH (or - for stdin) or --text", file=sys.stderr)
+        return 2
+
+    try:
+        r = _post("/vfx/ingest", {"name": ns.name, "src": src})
+    except urllib.error.URLError as exc:
+        print("the console is not running on %s (%s)" % (BASE, exc), file=sys.stderr)
+        return 2
+    if not r.get("ok"):
+        print("ingest failed: %s" % r.get("error", "unknown"), file=sys.stderr)
+        return 1
+
+    # The notes go to stderr so the PATH stays the only thing on stdout -- the whole tool is built
+    # around that path being pipeable into a Read.
+    for n in r.get("notes", []):
+        print("  . %s" % n, file=sys.stderr)
+    for w in r.get("warnings", []):
+        print("  ! %s" % w, file=sys.stderr)
+    print("stored design/vfx-sketches/%s.frag (%d bytes)" % (r["name"], r["bytes"]), file=sys.stderr)
+
+    if ns.no_preview:
+        return say("ingested `%s` -- %s" % (r["name"], r.get("summary", "")))
+
+    # --say overrides the generated reason: the translation summary is a good default and a poor
+    # substitute for knowing WHY this shader was worth importing.
+    why = getattr(ns, "say", None) or ("ingested `%s` -- %s" % (r["name"], r.get("summary", "")))
+    if r.get("warnings"):
+        why += ". " + " ".join(r["warnings"])
+    args = {"name": r["name"], "cell": ns.cell, "out": "ingest-" + r["name"], "say": why}
+    if ns.frames and ns.frames > 1:
+        args.update({"frames": ns.frames, "cols": ns.cols, "from": ns.from_, "to": ns.to})
+    else:
+        args["t"] = ns.t
+    return submit("sketch", args)
 
 
 def submit(op, args, wait=90):
@@ -183,6 +241,19 @@ def main() -> int:
     p.add_argument("--cell", type=int, default=320)
     p.add_argument("--name")
 
+    p = sub.add_parser("ingest", help="paste a Shadertoy shader in; get a compiled preview back")
+    p.add_argument("--name", required=True, help="scratch slot name, without .frag")
+    p.add_argument("--file", help="path to the shader source, or - for stdin")
+    p.add_argument("--text", help="the shader source inline")
+    p.add_argument("--cell", type=int, default=200)
+    p.add_argument("--frames", type=int, default=6, help="contact sheet frames; 1 = a single still")
+    p.add_argument("--cols", type=int, default=3)
+    p.add_argument("--from", dest="from_", type=float, default=0.0)
+    p.add_argument("--to", type=float, default=6.0)
+    p.add_argument("--t", type=float, default=1.0, help="time for a single still")
+    p.add_argument("--no-preview", dest="no_preview", action="store_true",
+                   help="store it without rendering")
+
     p = sub.add_parser("say", help="narrate into the open bench, with no render")
     p.add_argument("text", nargs="+")
 
@@ -197,6 +268,8 @@ def main() -> int:
     ns = ap.parse_args()
     if ns.op == "say":
         return say(" ".join(ns.text))
+    if ns.op == "ingest":
+        return ingest(ns)
     args = {k: v for k, v in vars(ns).items() if k != "op" and v is not None}
     if "from_" in args:
         args["from"] = args.pop("from_")
