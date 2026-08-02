@@ -1,4 +1,4 @@
-//! {"name": "sphere-glass", "kind": "source", "from": "the marble, reduced to its shell", "note": "A raymarch-free glass sphere: the ray-sphere crossing is closed form, so this costs one sqrt rather than a march. Fresnel rim plus a tinted interior. The cheapest way to get a believable solid into a composition.", "order": 50, "cat": "shape", "in": {}, "out": {"col": "vec3", "alpha": "float"}}
+//! {"name": "sphere-glass", "kind": "source", "from": "the marble, reduced to its shell", "note": "A raymarch-free glass sphere: the ray-sphere crossing is closed form, so this costs one sqrt rather than a march. Fresnel rim plus a tinted interior. The cheapest way to get a believable solid into a composition.", "order": 50, "cat": "shape", "in": {"uv": "vec2"}, "out": {"col": "vec3", "alpha": "float"}}
 {
   vec3 ro=vec3(0,0,-3.2), rd=normalize(vec3(uv,2.2));
   float b=dot(ro,rd), cc=dot(ro,ro)-1.0, dsc=b*b-cc;

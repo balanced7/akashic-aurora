@@ -1,0 +1,2 @@
+//! {"name": "orbit", "kind": "domain", "from": "built for the domain layer", "note": "Translate the whole domain around a small circle. The SOURCE holds still and the WORLD moves, which reads as a drifting camera rather than a wobbling object -- a different feeling entirely from rotating the thing itself.", "order": 50, "cat": "domain", "in": {"uv": "vec2"}, "out": {"uv": "vec2"}}
+uv += vec2(cos(u_time*0.6), sin(u_time*0.47)) * (0.12 + 0.25*u_pulse);

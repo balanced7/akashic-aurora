@@ -1,4 +1,4 @@
-//! {"name": "orbit-swarm", "kind": "source", "from": "the background flock, reduced to one object", "note": "Thin lines with glowing trails on tilted orbits. Trails are ANALYTIC -- sampling the orbit at t-k*dt IS the past, so there is no history buffer to keep or desynchronise. Golden-angle spacing so no two orbiters ever bunch. Needs segment-distance and rot2.", "order": 50, "cat": "motion", "in": {}, "out": {"col": "vec3", "alpha": "float"}}
+//! {"name": "orbit-swarm", "kind": "source", "from": "the background flock, reduced to one object", "note": "Thin lines with glowing trails on tilted orbits. Trails are ANALYTIC -- sampling the orbit at t-k*dt IS the past, so there is no history buffer to keep or desynchronise. Golden-angle spacing so no two orbiters ever bunch. Needs segment-distance and rot2.", "order": 50, "cat": "motion", "in": {"uv": "vec2"}, "out": {"col": "vec3", "alpha": "float"}}
 for(int i=0;i<10;i++){
   float fi=float(i);
   float a1=fract(sin(fi*17.13+3.1)*43758.5453), a2=fract(sin(fi*31.77+9.7)*43758.5453);

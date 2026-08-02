@@ -1,2 +1,2 @@
-//! {"name": "radial-mask", "kind": "mask", "from": "standard", "note": "A soft radial falloff, 1 at centre. The simplest thing that is a FLOAT rather than a colour -- and therefore the simplest proof that the port types matter: this can drive a blend, and can never be mistaken for an image.", "order": 50, "cat": "mask", "in": {}, "out": {"m": "float"}}
+//! {"name": "radial-mask", "kind": "mask", "from": "standard", "note": "A soft radial falloff, 1 at centre. The simplest thing that is a FLOAT rather than a colour -- and therefore the simplest proof that the port types matter: this can drive a blend, and can never be mistaken for an image.", "order": 50, "cat": "mask", "in": {"uv": "vec2"}, "out": {"m": "float"}}
 m = 1.0 - smoothstep(0.15, 0.95, length(uv));

@@ -58,6 +58,12 @@
   .wire{width:2px;height:12px;background:linear-gradient(var(--acc),var(--line));margin-left:26px}
   /* PALETTE. Grouped by what a piece DOES to the image -- a flat list of seventeen names is a
      list; grouped, it is something you can reach into without reading every label. */
+  .prow{display:flex;gap:10px;align-items:flex-start;margin:2px 0 10px;padding:8px;
+    border:1px solid var(--line);border-radius:10px;background:#080c13}
+  .pv{width:150px;height:150px;flex:none;border-radius:8px;display:block;
+    background:radial-gradient(circle at 50% 45%,#0d1420,#070a10 72%)}
+  .pvinfo{font-size:11px;color:var(--dim);line-height:1.45}
+  .pvinfo b{display:block;color:var(--acc2);font-size:12px;margin-bottom:3px}
   .pal{margin-bottom:10px}
   .palcat{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin:8px 0 4px}
   .palrow{display:flex;flex-wrap:wrap;gap:5px}
@@ -68,8 +74,15 @@
      unflattened. */
   .pill.hasthumb{display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px 6px 4px;
     width:78px;text-align:center;line-height:1.15}
-  .pill.hasthumb img{width:64px;height:64px;display:block;border-radius:5px;
-    background:radial-gradient(circle at 50% 45%,#0d1420,#070a10 72%)}
+  /* Sprite window: 64px of a 8x64 strip, stepped. steps(8) is what makes it read as animation
+     rather than as a slide -- a linear interpolation would smear between frames that were never
+     meant to be tweened. */
+  .pill.hasthumb .thumbanim{width:64px;height:64px;display:block;border-radius:5px;
+    background-repeat:no-repeat;background-size:512px 64px;background-color:#080c13;
+    animation:thumbroll 4s steps(8) infinite}
+  @keyframes thumbroll{ from{background-position:0 0} to{background-position:-512px 0} }
+  /* Twenty looping tiles is a lot of motion to put in front of someone who asked for less of it. */
+  @media (prefers-reduced-motion: reduce){ .pill.hasthumb .thumbanim{animation:none} }
   .pill.hasthumb span{font-size:9.5px;color:var(--dim);word-break:break-word}
   .pill.hasthumb:hover span{color:var(--ink)}
   .pill:hover{border-color:var(--acc2);background:#121b28}
@@ -100,6 +113,7 @@
     border-radius:9px;padding:6px 8px;font-size:11px;cursor:grab;user-select:none;z-index:2}
   .gnode.out{border-color:var(--ok)}
   .gnode.srcn{border-color:var(--acc)}
+  .gnode.landing{border-color:var(--ok);box-shadow:0 0 0 3px rgba(63,191,134,.28)}
   .gnode .t{font-weight:600;margin-bottom:2px}
   .gnode .kk{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
   .gnode .del{position:absolute;top:2px;right:4px;color:var(--dim);cursor:pointer;font-size:11px}
@@ -110,6 +124,8 @@
     cursor:crosshair;z-index:3;transition:transform .1s,opacity .1s}
   .sock.vec3{background:var(--acc2)}
   .sock.float{background:var(--warn);border-radius:2px;transform:rotate(45deg)}
+  .sock.vec2{background:#7ee0a8;border-radius:2px}
+  .sock.vec2:hover{transform:scale(1.45)}
   .sock.in{left:-7px}
   .sock.out{right:-7px}
   .sock:hover{transform:scale(1.45)}
@@ -117,6 +133,19 @@
   /* while dragging a wire: compatible sockets light, the rest fade out of reach */
   .dragging .sock{opacity:.15}
   .dragging .sock.ok{opacity:1;box-shadow:0 0 0 3px rgba(3,129,254,.35)}
+
+
+  /* ---- link HUD ---- */
+  /* Dropping a node ON a node asks HOW rather than demanding you hit an 11px dot. The HUD lists
+     only relationships that are actually legal between these two, so it is not a menu you have to
+     read carefully -- an illegal option is never offered, and a pair with one legal relationship
+     shows one button. */
+  .hud{position:absolute;z-index:20;background:#0c131e;border:1px solid var(--acc);
+    border-radius:10px;padding:8px;box-shadow:0 10px 30px rgba(0,0,0,.6);min-width:172px}
+  .hud .h{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-bottom:6px}
+  .hud button{display:block;width:100%;text-align:left;margin:3px 0;padding:6px 8px;font-size:11px}
+  .hud .sub{font-size:9.5px;color:var(--dim);display:block;margin-top:1px}
+  .hud .none{font-size:10.5px;color:var(--warn);padding:4px 2px}
 
   /* ---- chat ---- */
   .thread{max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:9px;
@@ -160,6 +189,12 @@
       <div class="row" style="margin-top:0">
         <select id="csource"></select>
         <button onclick="buildComp()" class="pri" style="width:auto;white-space:nowrap">Build &amp; run</button>
+      </div>
+      <div class="prow">
+        <canvas id="pvcv" class="pv"></canvas>
+        <div class="pvinfo"><b id="pvname">hover a block</b><span id="pvnote">live preview runs on
+          YOUR current parameters, so it shows what the block would do here — not to a canned
+          reference.</span></div>
       </div>
       <div id="palette"></div>
       <div id="chain" class="chain"></div>
@@ -419,7 +454,8 @@ function renderPalette(){
       // broken on first run, which is precisely when someone is least able to diagnose it.
       if(it.thumb && THUMBS[it.thumb]){
         p.classList.add('hasthumb');
-        var im=document.createElement('img'); im.src='/vfx/thumb/'+it.thumb+'.png'; im.alt='';
+        var im=document.createElement('div'); im.className='thumbanim';
+        im.style.backgroundImage = 'url(/vfx/thumb/'+it.thumb+'.png)';
         p.appendChild(im);
       }
       var tx=document.createElement('span'); tx.textContent=it.label; p.appendChild(tx);
@@ -429,6 +465,15 @@ function renderPalette(){
       // Click is a fallback and an accelerator both: dragging is nice, but appending to the end
       // is what you want nine times in ten and a click says it in one gesture.
       p.addEventListener('click', function(){ applyDrop(it.payload, chain.length); });
+      if(it.thumb){
+        var ch = chunkBy(it.thumb);
+        if(ch){
+          p.addEventListener('mouseenter', function(){ pvShow(ch); });
+          // Deliberately NOT stopping on mouseleave: the preview persists so you can read the
+          // note beside it after the pointer has moved on. Stopping on exit would make the panel
+          // flash empty every time you crossed a gap between tiles.
+        }
+      }
       r.appendChild(p);
     });
     box.appendChild(h); box.appendChild(r);
@@ -605,6 +650,9 @@ async function refreshChunks(){
     });
     ga.onchange=function(){ if(ga.value){ addNode(ga.value); ga.value=''; } };
     ensureOutput(); renderGraph();
+    el('gcanvas').addEventListener('mousedown', function(e){
+      if(hudEl && !hudEl.contains(e.target)) closeHud();
+    });
     // Library view gets the chunks too -- same data, a different representation of it.
     var lb=el('lib');
     CHUNKS.forEach(function(c){
@@ -648,6 +696,96 @@ async function loadComp(){
                   av.id0=av.idT0.slice(); av.id1=av.idT1.slice(); }
   if(v.state) setState(v.state);
   renderChain(); buildComp();
+}
+
+
+// ---- LINK HUD: drop a node on a node, then say HOW -------------------------------------------
+// Daniil: "perhaps upon dropping it you get a multi button hud for how you are linking the two
+// objects. this way you dont need to aim for a dot."
+//
+// The insight underneath it is that a cable is not a pipe, it is a RELATIONSHIP -- and two pieces
+// can relate in several ways at once. A source can feed another source's DOMAIN (warping the space
+// it is evaluated in), COMPOSITE with it, or MASK it. Those are different edges, not different
+// amounts of the same edge, which is exactly why one drop cannot be guessed and has to be asked.
+//
+// The HUD offers only relationships that are legal for THIS pair, computed from the port types --
+// so it is not a menu to read carefully. An illegal option is never shown, and a pair with one
+// legal relationship shows one button.
+function linkOptions(A, B){
+  var ca = A.chunk==='__out' ? null : gchunk(A), cb = B.chunk==='__out' ? {in:{col:'vec3'},out:{}} : gchunk(B);
+  if(!ca || !cb) return [];
+  var outs = ca.out||{}, ins = cb.in||{}, opt = [];
+  if(outs.uv && ins.uv)
+    opt.push({label:'warp its domain', sub:'space '+A.chunk+' → '+B.chunk, edge:{p:'uv',q:'uv',t:'vec2'}});
+  if(outs.col && ins.col)
+    opt.push({label:'feed colour', sub:'replaces its input', edge:{p:'col',q:'col',t:'vec3'}});
+  if(outs.col && ins.colB)
+    opt.push({label:'feed second input', sub:'B side of the blend', edge:{p:'col',q:'colB',t:'vec3'}});
+  // AUTO-INSERT. The condition is that BOTH nodes PRODUCE colour -- not that B accepts it. That
+  // distinction is the whole thing: a source generates and takes no colour input, so "composite
+  // these two sources" -- the most natural creative act available -- can never be an edge into B.
+  // It is a blend node that consumes both and stands where B stood. My first version keyed on
+  // B's INPUT and therefore offered compositing in exactly the cases nobody wants it and never in
+  // the case everybody does.
+  if(outs.col && (cb.out||{}).col && B.chunk!=='__out'){
+    ['add-blend','screen-blend','mix-blend'].forEach(function(bn){
+      if(chunkBy(bn)) opt.push({label:'composite: '+bn.replace('-blend',''),
+        sub:'inserts '+bn+', taking both', via:bn});
+    });
+  }
+  if(outs.m && (cb.out||{}).col)
+    opt.push({label:'use as mask', sub:'a float cannot enter a colour port — inserts mix-blend',
+              via:'mix-blend', mask:true});
+  return opt;
+}
+
+var hudEl = null;
+function closeHud(){ if(hudEl && hudEl.parentNode) hudEl.parentNode.removeChild(hudEl); hudEl=null; }
+
+function openLinkHud(A, B, x, y){
+  closeHud();
+  var opts = linkOptions(A, B);
+  hudEl = document.createElement('div'); hudEl.className='hud';
+  hudEl.style.left = x+'px'; hudEl.style.top = y+'px';
+  var h = document.createElement('div'); h.className='h';
+  h.textContent = (gchunk(A)||{name:A.chunk}).name + '  →  ' + (B.chunk==='__out'?'OUTPUT':(gchunk(B)||{}).name);
+  hudEl.appendChild(h);
+  if(!opts.length){
+    var nn=document.createElement('div'); nn.className='none';
+    nn.textContent='no legal link between these';   // stated, not silently ignored
+    hudEl.appendChild(nn);
+  }
+  opts.forEach(function(o){
+    var b=document.createElement('button');
+    b.innerHTML='<b></b><span class="sub"></span>';
+    b.querySelector('b').textContent=o.label; b.querySelector('.sub').textContent=o.sub;
+    b.onclick=function(){ applyLink(A,B,o); closeHud(); };
+    hudEl.appendChild(b);
+  });
+  el('gcanvas').appendChild(hudEl);
+}
+
+function applyLink(A, B, o){
+  histPush();
+  if(o.via){
+    // The blend TAKES B'S PLACE: it consumes A and B, and everything that was downstream of B is
+    // repointed at the blend. Inserting a node that consumed both but fed nothing would look
+    // connected and change the picture not at all, which is the worst kind of wrong -- it reads
+    // as success.
+    var mid = addNodeNoHist(o.via, Math.round((A.x+B.x)/2), Math.max(A.y,B.y)+70);
+    var downstream = G.edges.filter(function(e){ return e.from===B.id && e.fromPort==='col'; });
+    downstream.forEach(function(e){ e.from = mid.id; e.fromPort = 'col'; });
+    G.edges.push({from:B.id, fromPort:'col', to:mid.id, toPort:'col', type:'vec3'});
+    G.edges.push({from:A.id, fromPort:(o.mask?'m':'col'), to:mid.id, toPort:'colB',
+                  type:(o.mask?'float':'vec3')});
+    renderGraph();
+    gmsg('inserted '+o.via+(downstream.length?', took over '+downstream.length+' downstream link(s)':'')+'   (ctrl+Z to undo)');
+    return;
+  }
+  if(reaches(A.id, B.id)){ gmsg('refused: that would close a cycle', true); return; }
+  G.edges = G.edges.filter(function(e){ return !(e.to===B.id && e.toPort===o.edge.q); });
+  G.edges.push({from:A.id, fromPort:o.edge.p, to:B.id, toPort:o.edge.q, type:o.edge.t});
+  renderGraph(); gmsg(o.label+'   (ctrl+Z to undo)');
 }
 
 // ---- GRAPH: typed ports, so an unbuildable graph is unbuildable ---------------------------------
@@ -702,6 +840,10 @@ function reaches(fromId, targetId, seen){
 
 function gmsg(t, bad){ var e=el('gmsg'); e.textContent=t; e.className='note'+(bad?' err':''); }
 
+function addNodeNoHist(chunk, x, y){
+  var n = {id:'n'+(G.seq++), chunk:chunk, x:x||20, y:y||20};
+  G.nodes.push(n); return n;
+}
 function addNode(chunk, x, y){
   histPush();
   var n = {id:'n'+(G.seq++), chunk:chunk, x:x||20+((G.nodes.length*40)%320), y:y||20+((G.nodes.length*46)%220)};
@@ -739,9 +881,25 @@ function renderGraph(){
       if(ev.target.classList.contains('sock')||ev.target.classList.contains('del')) return;
       histPush();                      // once, on grab -- not per mousemove
       var sx=ev.clientX-n.x, sy=ev.clientY-n.y;
-      function mv(e2){ n.x=Math.max(0,e2.clientX-sx); n.y=Math.max(0,e2.clientY-sy);
-                       d.style.left=n.x+'px'; d.style.top=n.y+'px'; drawWires(); }
-      function up(){ document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); }
+      var moved=false;
+      function mv(e2){ moved=true; n.x=Math.max(0,e2.clientX-sx); n.y=Math.max(0,e2.clientY-sy);
+                       d.style.left=n.x+'px'; d.style.top=n.y+'px'; drawWires();
+                       // live hint: highlight whatever node this would land on
+                       [].forEach.call(el('gcanvas').querySelectorAll('.gnode'), function(g2){
+                         g2.classList.remove('landing'); });
+                       var over=nodeUnder(e2, n); if(over) over.el.classList.add('landing'); }
+      function up(e2){
+        document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up);
+        [].forEach.call(el('gcanvas').querySelectorAll('.gnode'), function(g2){ g2.classList.remove('landing'); });
+        // DROPPING A NODE ON A NODE ASKS HOW. Only when it actually MOVED -- a plain click on a
+        // node should never pop a menu, and without that guard selecting a node to drag it one
+        // pixel would feel like the canvas was interrogating you.
+        if(!moved) return;
+        var over = nodeUnder(e2, n);
+        if(over){ var c=el('gcanvas').getBoundingClientRect();
+                  openLinkHud(n, over.node, e2.clientX-c.left+el('gcanvas').scrollLeft+8,
+                                            e2.clientY-c.top+el('gcanvas').scrollTop+8); }
+      }
       document.addEventListener('mousemove',mv); document.addEventListener('mouseup',up);
     });
 
@@ -762,6 +920,21 @@ function renderGraph(){
   });
   wireUpSockets();
   drawWires();
+}
+
+// Which node is under the pointer, excluding the one in hand. Uses geometry rather than
+// elementFromPoint because the dragged node is under the cursor by definition and would always
+// win the hit test.
+function nodeUnder(ev, exclude){
+  var c=el('gcanvas').getBoundingClientRect();
+  var px=ev.clientX-c.left+el('gcanvas').scrollLeft, py=ev.clientY-c.top+el('gcanvas').scrollTop;
+  var hit=null;
+  [].forEach.call(el('gcanvas').querySelectorAll('.gnode'), function(d,i){
+    var n=G.nodes[i]; if(!n || (exclude && n===exclude)) return;
+    var w=d.offsetWidth, h=d.offsetHeight;
+    if(px>=n.x && px<=n.x+w && py>=n.y && py<=n.y+h) hit={node:n, el:d};
+  });
+  return hit;
 }
 
 function socketXY(id, port, dir){
@@ -787,7 +960,7 @@ function drawWires(){
     hit.setAttribute('d',d); hit.setAttribute('fill','none'); hit.setAttribute('class','hit');
     var vis=document.createElementNS(SVGNS,'path');
     vis.setAttribute('d',d); vis.setAttribute('fill','none'); vis.setAttribute('class','vis');
-    vis.setAttribute('stroke', e.type==='float' ? '#f0b246' : '#4da3ff');
+    vis.setAttribute('stroke', e.type==='float' ? '#f0b246' : e.type==='vec2' ? '#7ee0a8' : '#4da3ff');
     vis.setAttribute('stroke-width','2'); vis.setAttribute('opacity','.85');
     hit.addEventListener('mouseenter', function(){ vis.classList.add('hot'); });
     hit.addEventListener('mouseleave', function(){ vis.classList.remove('hot'); });
@@ -824,7 +997,7 @@ function beginDrag(payload, ev){
   });
   rubber=document.createElementNS(SVGNS,'path');
   rubber.setAttribute('class','rubber'); rubber.setAttribute('fill','none');
-  rubber.setAttribute('stroke', wire.type==='float' ? '#f0b246' : '#4da3ff');
+  rubber.setAttribute('stroke', wire.type==='float' ? '#f0b246' : wire.type==='vec2' ? '#7ee0a8' : '#4da3ff');
   rubber.setAttribute('stroke-width','2');
   el('gwires').appendChild(rubber);
   var anchor = socketXY(wire.node, wire.port, wire.dir);
@@ -905,16 +1078,18 @@ function buildGraphGLSL(){
   order.forEach(function(id){
     var n=byId[id]; if(!n || n.chunk==='__out') return;
     var c=gchunk(n); if(!c) return;
-    var eCol=edgeInto(id,'col'), eB=edgeInto(id,'colB');
+    var eCol=edgeInto(id,'col'), eB=edgeInto(id,'colB'), eUV=edgeInto(id,'uv');
     body.push('  // ---- '+c.name+' ('+id+') ----');
     body.push('  vec3 '+id+'_col = vec3(0.); float '+id+'_alpha = 0.; float '+id+'_m = 0.;');
+    body.push('  vec2 '+id+'_uv = uv;');
     body.push('  {');
+    body.push('    vec2 uv = '+(eUV ? eUV.from+'_uv' : 'uv')+';');
     body.push('    vec3 col = '+(eCol ? eCol.from+'_col' : 'vec3(0.)')+';');
     body.push('    float alpha = '+(eCol ? eCol.from+'_alpha' : '0.')+';');
     if(c.in && c.in.colB) body.push('    vec3 colB = '+(eB ? eB.from+'_col' : 'vec3(0.)')+';');
     if(c.out && c.out.m) body.push('    float m = 0.;');
     body.push(c.body.split('\n').map(function(l){return '    '+l;}).join('\n'));
-    body.push('    '+id+'_col = col; '+id+'_alpha = alpha;');
+    body.push('    '+id+'_col = col; '+id+'_alpha = alpha; '+id+'_uv = uv;');
     if(c.out && c.out.m) body.push('    '+id+'_m = m;');
     body.push('  }');
   });
@@ -1082,6 +1257,50 @@ async function snapOnly(){
                                    : ('snapshot failed: ' + r.error);
 }
 
+
+// ---- LIVE PREVIEW ------------------------------------------------------------------------------
+// Daniil: "we could probably even just render real gl snippets so you can preview the effect in
+// realtime!!!"  Yes -- but not one context per tile. Browsers cap live WebGL contexts around 8-16
+// and there are thirty chunks; past the cap contexts are force-LOST rather than queued, and on a
+// host with a documented display-driver TDR history that is exactly the workload that trips it.
+//
+// So: ONE shared context, driven on hover, at a size you can actually see. That is not a
+// compromise on the idea -- it is better than a live grid would have been, because a preview that
+// only has to serve one tile at a time can afford to be 150px instead of 64, and because it runs
+// on the BENCH'S CURRENT PARAMETERS. Hovering a block shows what it would do to YOUR composition,
+// with your sub, your pulse, your identity gradient. A pre-rendered thumbnail cannot do that at
+// any size, and that -- not smoothness -- is the reason to build it.
+var PV = null, pvName = null, pvRAF = 0;
+function pvEnsure(){
+  if(PV) return PV;
+  try{ PV = new AgentAvatar(el('pvcv'), 'geodesic'); PV._resize(150); }
+  catch(e){ PV = null; }
+  return PV;
+}
+function pvStop(){
+  if(pvRAF) cancelAnimationFrame(pvRAF);
+  pvRAF = 0; pvName = null;
+}
+function pvShow(c){
+  if(!pvEnsure() || pvName===c.name) return;
+  pvStop(); pvName = c.name;
+  el('pvname').textContent = c.kind + ' · ' + c.name;
+  el('pvnote').textContent = c.note || '';
+  var err = PV.trySource(thumbShaderFor(c));
+  if(err){ el('pvnote').textContent = 'does not compile: ' + err.slice(0,120); return; }
+  PV._resize(150);
+  // Inherit the bench's live state so the preview is in YOUR context, not a demo.
+  PV.cur = JSON.parse(JSON.stringify(av.cur));
+  PV.id0 = av.id0.slice(); PV.id1 = av.id1.slice();
+  PV.wire = av.wire; PV.see = av.see; PV.rate = av.rate;
+  var t0 = performance.now()/1000;
+  (function loop(){
+    if(pvName !== c.name) return;              // a newer hover already took over
+    PV._t0 = t0; PV._draw();
+    pvRAF = requestAnimationFrame(loop);
+  })();
+}
+
 // ---- THUMBNAILS: a visual index for the palette -------------------------------------------------
 // The design call that matters: a MODIFIER's tile renders a REFERENCE SOURCE with that one effect
 // applied. Rendering the modifier alone would show nothing (it transforms an image it was not
@@ -1098,6 +1317,7 @@ var THUMBS = {};
 // plasma is almost entirely bright, so every tone operator pushed it to the same white -- a
 // reference with no DARK range cannot show what a tone curve does to darks, which is most of what
 // a tone curve is for. thumb-reference ramps 0 to 2.2 so both the toe and the shoulder are visible.
+var THUMB_FRAMES = 8, THUMB_CELL = 96, THUMB_LOOP = 4.0;
 var THUMB_REF = 'thumb-reference';
 var THUMB_REF_B = 'sphere-glass';      // B is the second input for blend tiles
 
@@ -1107,21 +1327,49 @@ function thumbShaderFor(c){
                       .map(function(h){return h.body;}).join('\n');
   var ref = chunkBy(THUMB_REF), refB = chunkBy(THUMB_REF_B);
   var body;
+  // EVERY TILE IS A BEFORE/AFTER, not a result. "screen-blend" rendered as a still tells you
+  // almost nothing; the same block CROSS-FADING IN against the untouched reference tells you
+  // exactly what it contributes. k eases 0 -> 1 -> 0 forever, so a tile is perpetually answering
+  // "what does this CHANGE" -- which is the real question behind a confusing name.
+  var K = '  float k = 0.5 - 0.5*cos(u_time * 1.1);\n';
   if(c.kind==='source'){ body = c.body; }
+  else if(c.kind==='domain'){
+    // ORDER IS THE WHOLE POINT: the warp must run BEFORE the source samples the space. Falling
+    // through to the modifier branch emits the reference first and the warp after, which compiles
+    // cleanly, renders something, and shows the opposite of what the block does.
+    //
+    // And the fade happens in the UV, not in the image. Dissolving between two pictures would
+    // show a ghost; interpolating the COORDINATE shows the space itself bending, which is the
+    // thing the block actually does and is legible in a way a dissolve never is.
+    body = K + '  vec2 _w = uv;\n  {\n    vec2 uv = _w;\n' +
+           c.body.split('\n').map(function(l){ return '    ' + l; }).join('\n') +
+           '\n    _w = uv;\n  }\n  { vec2 uv = mix(uv, _w, k);\n' + ref.body + '\n  }';
+  }
   else if(c.kind==='mask'){
-    // A mask has no colour, so render it AS one -- greyscale is the honest depiction of a float.
+    // A mask has no colour, so render it AS one -- greyscale is the honest depiction of a float,
+    // and it needs no fade because there is no "before" to compare against.
     body = '  float m=0.;\n' + c.body + '\n  col=vec3(m); alpha=m;';
   }
   else if(c.kind==='blend'){
     // The second input is computed in its OWN scope and lifted out, so refB's body can freely
-    // write col/alpha without trampling the first source. Then the reference runs normally and
-    // the blend sees it as col with refB as colB -- which is exactly the binding the graph gives
-    // a blend node, so a thumbnail cannot disagree with what the block does when wired.
-    body = '  vec3 _b=vec3(0.);\n' +
-           '  { vec3 col=vec3(0.); float alpha=0.;\n' + refB.body + '\n    _b=col; }\n' +
-           ref.body + '\n  { vec3 colB=_b;\n' + c.body + '\n  }';
+    // write col/alpha without trampling the first source. The blend then sees the reference as
+    // col with refB as colB -- exactly the binding the graph gives a blend node, so a tile cannot
+    // disagree with what the block does once wired.
+    body = K +
+      '  vec3 _b=vec3(0.), _raw=vec3(0.);\n' +
+      '  { vec3 col=vec3(0.); float alpha=0.;\n' + refB.body + '\n    _b=col; }\n' +
+      '  { vec3 col=vec3(0.); float alpha=0.;\n' + ref.body + '\n    _raw=col; }\n' +
+      '  { vec3 col=_raw; vec3 colB=_b; float alpha=1.;\n' + c.body + '\n    _b=col; }\n' +
+      '  col = mix(_raw, _b, k); alpha = 1.0;';
   }
-  else { body = ref.body + '\n' + c.body; }      // modifier: reference, then the one effect
+  else {
+    // modifier: run the reference, keep it, run the effect on a copy, cross-fade between them
+    body = K +
+      '  vec3 _raw=vec3(0.);\n' +
+      '  { vec3 col=vec3(0.); float alpha=0.;\n' + ref.body + '\n    _raw=col; }\n' +
+      '  { vec3 col=_raw; float alpha=1.;\n' + c.body + '\n    _raw = mix(_raw, col, k); }\n' +
+      '  col = _raw; alpha = 1.0;';
+  }
   return ['#version 300 es','precision highp float;','out vec4 outColor;',
     'uniform vec2  u_res;','uniform float u_time;','uniform float u_sub;','uniform float u_gap;',
     'uniform float u_spin;','uniform float u_pulse;','uniform float u_sat;','uniform vec3  u_tint;',
@@ -1149,10 +1397,24 @@ async function generateThumbs(){
     try{
       var err = av.trySource(thumbShaderFor(c));
       if(err){ fail.push(c.name); continue; }
-      av._resize(128);
-      av._t0 = (performance.now()/1000) - 2.4;
-      av._draw();
-      var url = av.canvas.toDataURL('image/png');   // NO flatten: keep the alpha
+      av._resize(THUMB_CELL);
+      // A SPRITE STRIP, NOT A STILL. Daniil's point is exact: a still cannot tell a shape-morph
+      // from a time-morph from a count-morph, and a tone operator and a domain operator can
+      // produce IDENTICAL stills while meaning completely different things. N frames side by side
+      // + a CSS steps() animation gives real motion with no encoder, no library and one request.
+      // It also makes STILLNESS informative: a tone tile that does not move is telling you it
+      // does not touch time, which is exactly what you want to know about it.
+      var strip = document.createElement('canvas');
+      strip.width = THUMB_CELL * THUMB_FRAMES; strip.height = THUMB_CELL;
+      var sg = strip.getContext('2d');
+      for(var fI=0; fI<THUMB_FRAMES; fI++){
+        // One full loop of THUMB_LOOP seconds, so every tile in the palette is in phase and the
+        // grid pulses together instead of shimmering at twenty unrelated rates.
+        av._t0 = (performance.now()/1000) - (fI/THUMB_FRAMES)*THUMB_LOOP;
+        av._draw();
+        sg.drawImage(av.canvas, fI*THUMB_CELL, 0, THUMB_CELL, THUMB_CELL);
+      }
+      var url = strip.toDataURL('image/png');   // NO flatten: keep the alpha
       var r = await (await fetch('/vfx/thumb',{method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({name:c.name, png:url})})).json();
