@@ -321,13 +321,76 @@ def _default_acks(ids: List[str]) -> Dict[str, List[Dict[str, Any]]]:
         return {}
 
 
+def _stream_id_gt(a: Any, b: Any) -> bool:
+    """True when stream id `a` is strictly later than `b`.
+
+    Stream ids are ``<ms>-<seq>`` and MUST be compared NUMERICALLY per part: a
+    lexicographic compare sorts '9-0' after '10-0' and would silently regress a
+    cursor by nine entries.  Unparseable input sorts as earliest, so a corrupt
+    field can never win a merge and resurrect handled mail.
+    """
+    def _parts(v: Any) -> Tuple[int, int]:
+        try:
+            ms, _, seq = str(v).partition("-")
+            return int(ms), int(seq or 0)
+        except (TypeError, ValueError):
+            return (-1, -1)
+    return _parts(a) > _parts(b)
+
+
+def merged_lane_cursor(ns: str, agent: str, *, client=None) -> Dict[str, str]:
+    """The agent's lane position, merged across every live incarnation (T108 U3).
+
+    ``Bus.lane_cursor_key`` (core/comm/bus.py:1182-1183) suffixes the key with
+    ``#<sid8>`` when a Bus declares an incarnation and leaves it bare otherwise, so
+    ONE agent can own several cursor hashes at once.  Reading only the bare key --
+    which this module did until now -- makes every message an incarnated seat
+    consumed report ``unhandled`` forever.  The break is dormant only while no
+    launcher passes an incarnation; the U2 slice sets one, which arms it.
+
+    MERGE RULE: per-field MAX.  If ANY incarnation of the agent consumed lane
+    position N then the agent has handled N, and the lane is the role queue where
+    that serialization is the wanted property.  This is a REPORTING view -- merging
+    it never advances a real consumption cursor, so a lagging incarnation still
+    redelivers per RB-26, and a position can only appear here if some incarnation
+    reached it through the guarded advance (which refuses backwards moves).
+    Per-FIELD is load-bearing: a whole-hash "last key wins" would let a
+    later-started incarnation holding lower positions REGRESS the view and
+    resurrect messages another incarnation genuinely handled.
+
+    DISCOVERY USES SCAN, NEVER KEYS.  KEYS is O(the entire keyspace) and blocks the
+    server for its duration -- the cost is the walk, not the size of the result --
+    and the seat roster is already in the hundreds.  This is a hot read.
+
+    Kept public and separate from ``_resolve`` deliberately: this composition is the
+    thing most likely to rot, because it is the seam between two independently
+    evolving halves (the runner's cursor writes and this module's reads).  A
+    maintainer changing either side gets a RED test here rather than a silent
+    mailbox misreport weeks later.
+    """
+    client = client if client is not None else _connect()
+    base = f"{ns}:cursor:lane:{agent}"
+    merged: Dict[str, str] = dict(client.hgetall(base) or {})
+    try:
+        siblings = list(client.scan_iter(match=f"{base}#*"))
+    except AttributeError:
+        # A client double without scan_iter is a test artifact, not a production
+        # path. Degrade to the bare cursor rather than reaching for KEYS.
+        siblings = []
+    for key in siblings:
+        for field, val in (client.hgetall(key) or {}).items():
+            if field not in merged or _stream_id_gt(val, merged.get(field)):
+                merged[str(field)] = str(val)
+    return merged
+
+
 def _resolve(client, ns: str, agent: str,
              acks_lookup: Optional[Callable[[List[str]], Dict[str, Any]]]) -> List[Dict[str, Any]]:
     """Tier every live entry. Cursor hashes are read EXACTLY ONCE (snapshot
     semantics, pin 12); acks use the exact per-id lookup; answers ride the global
     map fed at ingest time."""
     k = _keys(ns, agent)
-    lane_cursor = client.hgetall(f"{ns}:cursor:lane:{agent}") or {}
+    lane_cursor = merged_lane_cursor(ns, agent, client=client)
     legacy_cursor = client.hgetall(f"{ns}:cursor:{agent}") or {}
     cursors = {"lane": lane_cursor, "legacy": legacy_cursor}
     answered = client.hgetall(k["answered"]) or {}
