@@ -29,6 +29,13 @@ import deepseek_chat as dc
 from pathlib import Path
 
 
+def _repo_root():
+    """Derived: the old literal pinned one machine."""
+    from core.paths import repo_root
+    return repo_root()
+
+
+
 # ------------------------------------------------------------------ W1: loud trim
 def test_trim_under_budget_unchanged():
     assert runner._trim_onboarding("short digest", 6000) == "short digest"
@@ -63,7 +70,7 @@ class _FakeMemory:
 
 
 def _toolbox():
-    return dc.ToolBox(Path("E:/AI-Setup"), allow_exec=False, trust=False, allow_secrets=False,
+    return dc.ToolBox(_repo_root(), allow_exec=False, trust=False, allow_secrets=False,
                       confirm=lambda _p: False, agent_id="testagent")
 
 

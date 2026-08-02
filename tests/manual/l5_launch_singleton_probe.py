@@ -3,7 +3,12 @@ acquires-and-holds the lock itself (which starved the child it spawned). No real
 the refusal returns before Popen."""
 import os, ast, sys, re
 
-ROOT = r"E:/AI-Setup"
+# Root DERIVED from this file, never hardcoded: the literal pinned one machine's disk,
+# so a copy of the repo anywhere else resolved every path under it to nothing.
+import os as _os, pathlib as _pl
+_here = _pl.Path(__file__).resolve()
+ROOT = str(next((p for p in (_here, *_here.parents)
+                 if (p / 'agent_cli.py').exists() and (p / 'core').is_dir()), _here.parent))
 src = open(os.path.join(ROOT, "core/comm/launcher.py"), encoding="utf-8").read()
 ast.parse(src); print("parse OK: core/comm/launcher.py")
 

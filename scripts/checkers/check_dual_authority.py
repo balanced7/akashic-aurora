@@ -39,6 +39,19 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional
 
+def _repo_root_str() -> str:
+    """AI_SETUP override, else the root DERIVED from this file (core/paths).
+
+    Was os.getenv("AI_SETUP", <hardcoded absolute path>). The default was a
+    specific machine's path, and AI_SETUP was never actually set anywhere -- so
+    every call here silently used that literal and the repo only ran from one
+    directory on one disk.
+    """
+    from core.paths import root_str
+    import os as _os
+    return (_os.getenv("AI_SETUP") or "").strip() or root_str()
+
+
 DEFAULT_WINDOW_HOURS = 24.0
 # Alert at 8x the measured starvation probe (523,272 bytes): growth, not existence.
 DEFAULT_WAL_ALERT_BYTES = 4 * 1024 * 1024
@@ -105,7 +118,7 @@ def classify(json_path: Path, db_path: Path, backend_env: str = "",
 
 
 def _defaults() -> Dict[str, Path]:
-    base = Path(os.getenv("AI_SETUP", r"E:\AI-Setup")) / "session_logs"
+    base = Path(_repo_root_str()) / "session_logs"
     return {"json": base / "store_state.json", "db": base / "store_state.db"}
 
 

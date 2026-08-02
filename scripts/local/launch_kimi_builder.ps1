@@ -8,8 +8,15 @@
 # security/ + .claude/ are NEVER in any allowlist.
 #
 # Usage: set $env:KIMI_BRIEF to the brief doc path before launching (or edit the default).
-$key = (Get-Content E:\AI-Setup\.secrets\kimi.key -Raw).Trim()
-$env:CLAUDE_CONFIG_DIR = "E:\AI-Setup\.kimi-claude-home"
+
+# Repo root DERIVED from this script's own location -- never a hardcoded absolute path.
+# These launchers pinned one machine's E:\AI-Setup, so a deploy anywhere else could not
+# find the key file, the isolated config home, or the repo at all. $PSScriptRoot is the
+# directory holding THIS file; the repo root is two levels up from scripts/local/.
+$Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+
+$key = (Get-Content $Root\.secrets\kimi.key -Raw).Trim()
+$env:CLAUDE_CONFIG_DIR = "$Root\.kimi-claude-home"
 $env:ANTHROPIC_BASE_URL = "https://api.moonshot.ai/anthropic"
 $env:ANTHROPIC_AUTH_TOKEN = $key
 $env:ANTHROPIC_API_KEY = $key
@@ -24,10 +31,10 @@ $env:CLAUDE_CODE_EFFORT_LEVEL = "max"
 $env:ENABLE_TOOL_SEARCH = "false"
 $env:AKASHIC_AGENT_ID = "kimi"
 $env:AKASHIC_STOP_WAKE = "0"
-Set-Location E:\AI-Setup
+Set-Location $Root
 
 $briefPath = if ($env:KIMI_BRIEF) { $env:KIMI_BRIEF } else {
-    "E:\AI-Setup\research\briefs\kimi-builder-brief-current.md" }
+    "$Root\research\briefs\kimi-builder-brief-current.md" }
 $doc = Get-Content $briefPath -Raw
 $lines = ($doc -split "`n") | Where-Object { $_ -match '^> ?' } | ForEach-Object { $_ -replace '^> ?', '' }
 $brief = ($lines -join "`n").Trim()

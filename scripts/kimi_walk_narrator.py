@@ -33,7 +33,15 @@ sys.path.insert(0, os.path.dirname(HERE))
 
 from agent.harness.trace import emit   # broadcast kind=trace, display_only -- UI already renders
 
-HOME = Path(os.getenv("KIMI_CLAUDE_HOME", r"E:\AI-Setup\.kimi-claude-home")) / "projects"
+
+def _repo_root():
+    """Derived, not hardcoded -- the old default pinned one machine's disk."""
+    from core.paths import repo_root
+    return repo_root()
+
+
+HOME = Path(os.getenv("KIMI_CLAUDE_HOME")
+     or (_repo_root() / ".kimi-claude-home")) / "projects"
 CHUNK = 700          # thinking arrives in paragraphs; bus lines stay skimmable
 POLL_S = 1.0
 

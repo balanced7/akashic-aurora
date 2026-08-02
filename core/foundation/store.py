@@ -45,6 +45,19 @@ from typing import Any, Dict, List, Optional, Iterable, Tuple
 
 from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT, DEFAULT_REDIS_DB
 
+def _repo_root_str() -> str:
+    """AI_SETUP override, else the root DERIVED from this file (core/paths).
+
+    Was os.getenv("AI_SETUP", <hardcoded absolute path>). The default was a
+    specific machine's path, and AI_SETUP was never actually set anywhere -- so
+    every call here silently used that literal and the repo only ran from one
+    directory on one disk.
+    """
+    from core.paths import root_str
+    import os as _os
+    return (_os.getenv("AI_SETUP") or "").strip() or root_str()
+
+
 logger = logging.getLogger("store")
 
 
@@ -1208,7 +1221,7 @@ def _file_tier(file_path: Optional[str] = None) -> Store:
         elif path is None:
             # Defaults pair store_state.db with store_state.json -- the same twin the
             # migration and the dual-authority checker reason about.
-            echo = os.path.join(os.getenv("AI_SETUP", r"E:\AI-Setup"),
+            echo = os.path.join(_repo_root_str(),
                                 "session_logs", "store_state.json")
         else:
             echo = None  # a bare .db path names no JSON twin; nothing to escrow to

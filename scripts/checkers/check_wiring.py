@@ -14,6 +14,7 @@ Run:  py scripts/checkers/check_wiring.py            # gate (exit 1 on a NEW unw
 """
 import ast
 import os
+import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # T104-M1 depth
@@ -21,9 +22,23 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 # The production call paths -- what actually RUNS in production.
 ENTRY_POINTS = [
     "agent_cli.py", "ai_setup_mcp.py", "bootstrap.py", "config.py",
-    "scripts/bifrost_runner_deepseek.py", "scripts/bifrost_runner.py",
+    "scripts/bifrost_runner.py",
     "scripts/bifrost_ui.py", "scripts/bifrost_wake.py", "scripts/deepseek_chat.py",
 ]
+
+# EVERY seat runner, enumerated rather than listed by hand (2026-08-01). The hand-written list
+# named only bifrost_runner_deepseek and drifted the moment new seats landed: gemini, kimi and
+# sol runners -- ~900 tracked lines each, with __main__ entries -- were invisible to this walk.
+# The consequence is a FALSE built-not-wired report for anything reachable only through them,
+# and core/comm/control_channel.py was exactly that: imported by the gemini AND kimi runners,
+# reported unwired for a week. A false positive here is expensive twice over -- it pressures a
+# live module onto the EXCEPTIONS backlog (which the comment below calls a backlog, not an
+# amnesty), and it teaches readers that this gate cries wolf.
+# Same enumerate-don't-list discipline the hook dirs below already use.
+_rd = os.path.join(ROOT, "scripts")
+if os.path.isdir(_rd):
+    ENTRY_POINTS += [f"scripts/{r}" for r in sorted(os.listdir(_rd))
+                     if r.startswith("bifrost_runner_") and r.endswith(".py")]
 # T104-M2 (2026-07-24): hooks split by owner-facet -- harness adapters live in
 # agent/harness/hooks/, commit guards in scripts/githooks/. Enumerate BOTH live
 # dirs; the transitional scripts/hooks/ session-continuity copies are NOT entry
@@ -68,6 +83,29 @@ EXCEPTIONS = {
     "core/narrative/tag_governance.py": "built-ahead: governed re-tag write path",
     "core/perspectives/reinforce.py": "built-ahead: perspectives ReinforcedGraph",
     "core/perspectives/schema.py": "built-ahead: perspectives Map/Lens schema",
+    # Added 2026-08-01 (opus-engineer) while draining this backlog at Daniil's ask, after the
+    # write-edge hook made check_wiring run at COMMIT time rather than only in a CI nobody read.
+    # The sweep started at 7 and only these 3 were real: core/comm/control_channel.py was a
+    # FALSE POSITIVE (imported by the gemini AND kimi runners, which were missing from
+    # ENTRY_POINTS), and durable_reconcile / migrate_to_sqlite / pack_replay are SELF-INVOKING
+    # tools with their own __main__ -- both classes are now recognised structurally above, so
+    # neither can recur. These three are library modules with no consumer yet: genuinely
+    # built-ahead, each naming what clears it.
+    "core/comm/role_queue.py": "built-ahead (451d2a9, T108 S1): the role work queue. Design "
+        "settled by the T108 fence and gated by Daniil 2026-07-28. VERIFIED NEVER RUN "
+        "2026-08-01 -- bifrost:role:*, *rolefence*, *rolegen* all hold ZERO keys and no "
+        "production module imports it; the reaper still routes around it (reaper.py:228 strips "
+        "to_incarnation, :239 re-sends onto the shared inbox). UNWIRE-WHEN: the T108 migration "
+        "routes directed/role mail through it. Owner: T108.",
+    "core/recall/gate_rules.py": "built-ahead (eae78d4, R2 slice 1a): the silence-gate rules, "
+        "written deliberately BEFORE the gate that consumes them -- its own docstring says so, "
+        "because a rule stated by pointing at the census sample would be a fit rather than a "
+        "principle. UNWIRE-WHEN: the silence gate lands and imports them. Owner: recall-heuristics.",
+    "core/recall/precision_audit.py": "built-ahead (25dbcd5): the retrieval-accuracy instrument "
+        "kimi named as the hole every 2026-07-27 architecture position argued around without a "
+        "single accuracy number. Exercised by 3 test files, no production caller yet. "
+        "UNWIRE-WHEN: a door or scheduled audit invokes it -- an instrument nobody runs measures "
+        "nothing. Owner: recall lane.",
     # unwired diagnostic -- kept, not on a runtime path (name-collision cleanup pending)
     "core/state/session_recovery.py": "unwired but KEPT (P2 2026-07-07): session-HISTORY recovery from "
         "local files, distinct from session_checkpoint's crash-resume. Class-name collision RESOLVED "
@@ -119,6 +157,32 @@ def imports_of(rel, modmap):
 
 
 SHELL_DIRS = ("scripts/githooks", ".github/workflows")
+
+# A real guard block, not the bare string: a module that merely MENTIONS __main__ in prose or
+# in a docstring has not declared itself runnable, and this rule must not be evadable by a
+# comment. (The sibling no-syspath-insert rule is evadable by aliasing the import -- a gap found
+# 2026-08-01 while testing this file's neighbour; flagged, not fixed here.)
+_SELF_ENTRY = re.compile(r"^if\s+__name__\s*==\s*[\"']__main__[\"']\s*:", re.M)
+
+
+def self_invoking_modules(universe) -> set:
+    """core/ modules that ARE entry points: run directly by a human, never imported.
+
+    Migrations, audits and replay harnesses have no caller to find -- that is what they are.
+    They declare their own runnability instead, and this reads that declaration. Without it
+    the entire class is permanently reported unwired, which is worse than noise: the gate's
+    only offered remedy is EXCEPTIONS, so each false positive pushes a live tool onto a list
+    the file itself calls "a BACKLOG, not an amnesty".
+    """
+    out = set()
+    for rel in universe:
+        try:
+            with open(os.path.join(ROOT, rel), encoding="utf-8", errors="replace") as fh:
+                if _SELF_ENTRY.search(fh.read()):
+                    out.add(rel)
+        except OSError:
+            continue
+    return out
 
 
 def shell_invoked_modules(dirs=None) -> set:
@@ -178,6 +242,17 @@ def analyze():
     # the push. Union them in as wiring evidence so a module invoked via `py -m` is not reported
     # dead and pressured onto the permanent EXCEPTIONS list.
     reachable = reachable | shell_invoked_modules()
+    # SELF-INVOKING TOOLS are entry points, not orphans (2026-08-01). shell_invoked_modules()
+    # already encodes the intent one line above -- "a module invoked via `py -m` is not reported
+    # dead" -- but detects invocation only from OUTSIDE, by finding a caller. A migration, an
+    # audit or a replay harness is run by a HUMAN at need; there is no caller to find, and the
+    # module declares its own runnability with `if __name__ == "__main__":`.
+    #
+    # Without this, that whole class lands on the built-not-wired backlog permanently. Measured
+    # here: 3 of 6 reported orphans were self-invoking tools (durable_reconcile, migrate_to_sqlite,
+    # pack_replay), and the backlog comment above calls itself "a BACKLOG, not an amnesty" --
+    # so every false positive quietly converts a live tool into normalised debt.
+    reachable = reachable | self_invoking_modules(core_universe)
     unwired = sorted(core_universe - reachable)
     return core_universe, reachable, unwired
 

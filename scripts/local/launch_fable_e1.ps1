@@ -9,9 +9,16 @@
 # operator included -- knows the pairing from this file; unblind by reading _arm-map.json AFTER
 # scoring. Scorer hygiene (protocol): scorers must not read scripts/local/ or scratch/e1/.
 # (Replaces the earlier hardcoded recall=A/bare=B/doc=C map that kimi de-blinded -- F2, 2026-07-21.)
+
+# Repo root DERIVED from this script's own location -- never a hardcoded absolute path.
+# These launchers pinned one machine's E:\AI-Setup, so a deploy anywhere else could not
+# find the key file, the isolated config home, or the repo at all. $PSScriptRoot is the
+# directory holding THIS file; the repo root is two levels up from scripts/local/.
+$Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+
 param([Parameter(Mandatory=$true)][ValidateSet("bare","doc","recall")][string]$Arm)
 
-$repo = "E:\AI-Setup"
+$repo = "$Root"
 $mapFile = Join-Path $repo "scratch\e1\_arm-map.json"
 New-Item -ItemType Directory -Force -Path (Join-Path $repo "scratch\e1") | Out-Null
 

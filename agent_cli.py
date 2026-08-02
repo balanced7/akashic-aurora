@@ -3278,7 +3278,82 @@ def cmd_promoted(args):
     return 0
 
 
+def cmd_doctor_deploy() -> int:
+    """Is THIS machine a working deploy? One hop, before anything else is believed.
+
+    Written after a deploy at a second machine failed: the repo carried 710 hardcoded absolute
+    paths, AI_SETUP was never set on ANY machine including the original, and the symptom was a
+    scatter of unrelated tracebacks rather than one legible answer. A fresh machine should be
+    able to ASK what is wrong instead of discovering it one failure at a time.
+    """
+    from core.paths import repo_root, env_override_is_wrong
+    root = repo_root()
+    bad = []
+    env_set = bool((os.getenv("AI_SETUP") or "").strip())
+    print("# DEPLOY CHECK")
+    print("  repo root      : %s" % root)
+    print("  derived from   : %s" % ("AI_SETUP env" if env_set else "this file (nothing to configure)"))
+
+    warn = env_override_is_wrong()
+    if warn:
+        bad.append("AI_SETUP is set but wrong -- %s. It is being IGNORED (the root above was "
+                   "derived instead), so anything reading AI_SETUP directly disagrees with "
+                   "everything reading core.paths." % warn)
+
+    for name in ("agent_cli.py", "core", "scripts", "tests", "AGENTS.md"):
+        ok = (root / name).exists()
+        print("  %-14s : %s" % (name, "ok" if ok else "MISSING"))
+        if not ok and name != "AGENTS.md":
+            bad.append("%s missing from the repo root -- this is not a complete checkout" % name)
+
+    try:
+        from core.comm.bus import get_bus
+        get_bus("control")._client.ping()
+        print("  redis          : reachable")
+    except Exception as e:
+        print("  redis          : UNREACHABLE (%s)" % type(e).__name__)
+        bad.append("Redis unreachable -- bus, roster, mailbox and locks are all dead without "
+                   "it. Start it before judging anything else on this list.")
+
+    # WRITE-EDGE ENFORCEMENT. The hooks are tracked, but git only runs them if core.hooksPath
+    # points at them -- a one-line per-clone config that shipped and was never run here, which
+    # is why every architecture gate was CI-only and CI sat red for 30 days unnoticed.
+    try:
+        import subprocess as _sp
+        _cfg = _sp.run(["git", "config", "core.hooksPath"], capture_output=True, text=True,
+                       cwd=str(root), stdin=_sp.DEVNULL, close_fds=True).stdout.strip()
+    except Exception:
+        _cfg = ""
+    _hooked = _cfg.replace(chr(92), "/").endswith("scripts/githooks")
+    print("  git hooks      : %s" % ("installed" if _hooked else "NOT INSTALLED"))
+    if not _hooked:
+        bad.append("core.hooksPath is not set, so the pre-commit gates never run -- violations "
+                   "reach CI instead of being refused at the commit. Fix: "
+                   "py scripts/githooks/install_git_hooks.py")
+
+    quiet = root / "scripts" / "quiet"
+    pp = [x for x in (os.getenv("PYTHONPATH") or "").split(os.pathsep) if x.strip()]
+    on_path = any(os.path.normcase(os.path.normpath(x)) == os.path.normcase(str(quiet))
+                  for x in pp)
+    print("  no-console fix : %s" % ("active" if on_path else "NOT on PYTHONPATH"))
+    if (quiet / "sitecustomize.py").exists() and not on_path:
+        bad.append("scripts/quiet is not on PYTHONPATH, so child processes pop console windows "
+                   "that steal focus. Add PYTHONPATH=%s to the env block of BOTH "
+                   ".claude/settings.json files (repo AND user-level)." % quiet)
+
+    print("")
+    if not bad:
+        print("DEPLOY OK -- nothing blocking.")
+        return 0
+    print("%d PROBLEM(S):" % len(bad))
+    for b in bad:
+        print("  - %s" % b)
+    return 1
+
+
 def cmd_doctor(args):
+    if getattr(args, 'deploy', False):
+        return cmd_doctor_deploy()
     """L2 (T030): the fleet doctor -- reads worklive + the progress pulse + backlogs and
     grades findings per the reconciled paging table (page: hard_wedge, aged stall;
     banner: frozen; dashboard: the rest). Healthy fleet = one line."""
@@ -4587,6 +4662,8 @@ def build_parser():
 
     dr = sub.add_parser("doctor", help="fleet liveness doctor (L2): progress, not presence")
     dr.add_argument("--agents", default=None, help="comma-separated ids (default: discovered)")
+    dr.add_argument("--deploy", action="store_true",
+                    help="is THIS machine a working deploy? root, dirs, redis, consoles")
     dr.add_argument("--page", action="store_true",
                     help="emit bus notes for page-grade findings (deduped 1/(agent,state)/hour)")
     dr.add_argument("--progress", action="store_true",

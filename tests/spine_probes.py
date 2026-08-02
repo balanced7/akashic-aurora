@@ -1,10 +1,16 @@
+# Root DERIVED from this file, never hardcoded: the literal pinned one machine's disk,
+# so a copy of the repo anywhere else resolved every path under it to nothing.
+import os as _os, pathlib as _pl
+_here = _pl.Path(__file__).resolve()
+ROOT = str(next((p for p in (_here, *_here.parents)
+                 if (p / 'agent_cli.py').exists() and (p / 'core').is_dir()), _here.parent))
 """
 Adversarial probes against the REAL narrative-spine code (isolated FileStore/FileLedger).
 Each probe tries to surface a defect. Prints VULNERABLE / ok / robust with evidence.
 Run: py spine_probes.py
 """
 import json, os, sys, tempfile
-sys.path.insert(0, "E:\\AI-Setup")
+sys.path.insert(0, ROOT)
 
 from core.foundation.store import FileStore
 from core.foundation.ledger import FileLedger
@@ -50,7 +56,7 @@ try:
     print(f"  -> note: best-effort swallows errors; check if all 3 beats landed in a chapter")
     idx = json.loads((st.get('does-not')) or '{}') if False else None
     # count beats represented
-    total = sum(len(c['beats']) for c in json.loads(open('E:/AI-Setup/chronicles/story.index.json').read())['chapters']) if False else rep['total_beats']
+    total = sum(len(c['beats']) for c in json.loads(open(os.path.join(ROOT, 'chronicles/story.index.json')).read())['chapters']) if False else rep['total_beats']
     print(f"  total_beats reported = {rep['total_beats']} (expected 3)")
 except Exception as e:
     print(f"  VULNERABLE: chronicle CRASHED on mixed tz: {type(e).__name__}: {e}")

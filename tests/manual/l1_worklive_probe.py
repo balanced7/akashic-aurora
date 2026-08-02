@@ -2,7 +2,12 @@
 can BOTH rise (wedge visible) and reset on a phase change (metric not pinned)."""
 import os, ast, sys, time
 
-ROOT = r"E:/AI-Setup"
+# Root DERIVED from this file, never hardcoded: the literal pinned one machine's disk,
+# so a copy of the repo anywhere else resolved every path under it to nothing.
+import os as _os, pathlib as _pl
+_here = _pl.Path(__file__).resolve()
+ROOT = str(next((p for p in (_here, *_here.parents)
+                 if (p / 'agent_cli.py').exists() and (p / 'core').is_dir()), _here.parent))
 for f in ("core/comm/liveness.py", "scripts/bifrost_runner_deepseek.py"):
     ast.parse(open(os.path.join(ROOT, f), encoding="utf-8").read()); print(f"parse OK: {f}")
 

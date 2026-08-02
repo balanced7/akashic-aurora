@@ -29,6 +29,13 @@ from core.recall.at_action import render
 import deepseek_chat as dc
 
 
+def _repo_root():
+    """Derived: the old literal pinned one machine."""
+    from core.paths import repo_root
+    return repo_root()
+
+
+
 def _result(lessons, total=None):
     return {"lessons": lessons, "total": total if total is not None else len(lessons)}
 
@@ -72,7 +79,7 @@ def test_new_tools_registered():
 
 
 def _toolbox(boot_text=""):
-    return dc.ToolBox(Path("E:/AI-Setup"), allow_exec=False, trust=False, allow_secrets=False,
+    return dc.ToolBox(_repo_root(), allow_exec=False, trust=False, allow_secrets=False,
                       confirm=lambda _p: False, agent_id="testagent", boot_text=boot_text)
 
 
@@ -121,7 +128,8 @@ def test_novelty_fail_open_on_bad_json(monkeypatch):
 # ---------------------------------------------------------------- L1: lock release
 def test_release_written_locks(monkeypatch):
     tb = _toolbox()
-    tb._written_lock_paths = ["E:/AI-Setup/research/reviewed/a.md", "E:/AI-Setup/docs/b.md"]
+    _r = str(_repo_root()).replace(chr(92), "/")
+    tb._written_lock_paths = [f"{_r}/research/reviewed/a.md", f"{_r}/docs/b.md"]
     calls = []
     monkeypatch.setattr(tb, "_agent_cli", lambda args, timeout=90: calls.append(args) or "released")
     n = tb.release_written_locks()

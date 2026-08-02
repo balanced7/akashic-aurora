@@ -32,6 +32,19 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+def _repo_root_str() -> str:
+    """AI_SETUP override, else the root DERIVED from this file (core/paths).
+
+    Was os.getenv("AI_SETUP", <hardcoded absolute path>). The default was a
+    specific machine's path, and AI_SETUP was never actually set anywhere -- so
+    every call here silently used that literal and the repo only ran from one
+    directory on one disk.
+    """
+    from core.paths import root_str
+    import os as _os
+    return (_os.getenv("AI_SETUP") or "").strip() or root_str()
+
+
 # family -> (authority, structure). RATIFIED by Daniel 2026-07-28 ("I like it, I
 # assume since its a table we can add other categories as they emerge. Iapprove") --
 # the full table with receipts: research/in-flight/t118-roster-proposal-2026-07-28.md.
@@ -297,7 +310,7 @@ def main(argv=None) -> int:
                   f"type_anomalies={len(rep['type_anomalies'])}")
             return 0
         stamp = int(time.time())
-        escrow = Path(os.getenv("AI_SETUP", r"E:\AI-Setup")) / "session_logs" / \
+        escrow = Path(_repo_root_str()) / "session_logs" / \
             f"reconcile-displaced-{stamp}.json"
         rep = apply(redis, file_store, escrow_path=escrow)
         print(f"[reconcile] APPLIED: copied={rep['copied']} displaced={rep['displaced']} "

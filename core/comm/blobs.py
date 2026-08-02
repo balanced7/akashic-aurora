@@ -20,12 +20,25 @@ import os
 from pathlib import Path
 from typing import Optional
 
+def _repo_root_str() -> str:
+    """AI_SETUP override, else the root DERIVED from this file (core/paths).
+
+    Was os.getenv("AI_SETUP", <hardcoded absolute path>). The default was a
+    specific machine's path, and AI_SETUP was never actually set anywhere -- so
+    every call here silently used that literal and the repo only ran from one
+    directory on one disk.
+    """
+    from core.paths import root_str
+    import os as _os
+    return (_os.getenv("AI_SETUP") or "").strip() or root_str()
+
+
 PREFIX = "blob:"
 _SHA_LEN = 24                       # 96 bits of sha256 -- ample for a single-user blob store
 
 
 def _default_base() -> Path:
-    return Path(os.getenv("AI_SETUP", r"E:\AI-Setup")) / "blobs"
+    return Path(_repo_root_str()) / "blobs"
 
 
 class BlobStore:

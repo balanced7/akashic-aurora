@@ -8,7 +8,10 @@ Single source of truth for all configuration values.
 from pathlib import Path
 from dataclasses import dataclass
 
-BASE_DIR = Path(r"E:\AI-Setup")
+# Root DERIVED, never hardcoded: this file previously pinned one machine's absolute
+# path, so a copy of the repo anywhere else resolved every path under it to nothing.
+from core.paths import repo_root as _repo_root  # noqa: E402
+BASE_DIR = _repo_root()
 COORD_DIR = BASE_DIR / "blackboard_data" / "agent_coordination"
 DATA_DIR = BASE_DIR / "data"
 

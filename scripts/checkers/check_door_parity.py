@@ -143,6 +143,20 @@ MANIFEST = {
     "clobber_scan": "cli_only",    # static scan for unconditional shared-key writes (W47)
     "defer": "cli_only",           # capability-gated standing queue (W33)
     "doc": "cli_only",             # seed a new doc with the header contract; authoring door
+    # "adopt" is doc's RESCUE subcommand: mint an already-written loose .md as an atom.
+    # Classified GAP, not cli_only, on the evidence rather than by convenience. Since the P3
+    # flip (2026-07-23) rule-13 refuses new loose research/*.md from commits, so a seat WITHOUT
+    # EXEC (deepseek, kimi, codex) writes a file that exists on disk and can never be committed
+    # -- invisible to the fleet. The recorded workaround (lesson doc_adopt_rescue_path) is to
+    # ASK A SEAT WITH EXEC to run it for you; 8 files were drained that way by 2026-07-31,
+    # including kimi's, which cannot save its own work.
+    # So this verb exists BECAUSE no-exec seats cannot commit, and being CLI-only puts it out of
+    # reach of exactly the seats it was built for. It needs no shell -- it takes a path and mints
+    # an atom, the same shape as note/learn, which are both shared. cli_only would declare that
+    # friction INTENTIONAL and close the question; gap records it as debt and leaves it open,
+    # which is the honest reading and the reversible one.
+    # PAY DOWN BY: exposing doc_adopt on the MCP door. Owner: whoever owns the doc door.
+    "adopt": "gap",
     "flightdeck": "cli_only",      # cockpit one-pager (W25); operator dashboard
     "followup": "cli_only",        # charter question-back (W46)
     "kata": "cli_only",            # grammar-prove a toolbelt alias against the door
@@ -165,6 +179,10 @@ MANIFEST = {
     "toast": "cli_only",           # peer credit; receipt verifies against the learning store
     "tool": "cli_only",            # toolbelt introspection
     "unwedge": "cli_only",         # operator recovery for a wedged seat
+    "seat_identity": "cli_only",  # declare THIS session's seat id; binds a per-session file
+                                  # and reads the local process env, so it is meaningless
+                                  # through a shared MCP door -- the session that needs to
+                                  # name itself is the one running the command.
     "wish": "cli_only",            # append to WISHLIST.md -- author surface, needs the repo
     "diag_echo_slow": "mcp_only",  # MCP server health check; no CLI meaning
     # --- cli_only: local diagnostics / operator controls / needs shell+git ---

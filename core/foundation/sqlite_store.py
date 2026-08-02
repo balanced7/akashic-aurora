@@ -65,6 +65,19 @@ from typing import Any, Dict, List, Optional
 
 from core.foundation.store import Store
 
+def _repo_root_str() -> str:
+    """AI_SETUP override, else the root DERIVED from this file (core/paths).
+
+    Was os.getenv("AI_SETUP", <hardcoded absolute path>). The default was a
+    specific machine's path, and AI_SETUP was never actually set anywhere -- so
+    every call here silently used that literal and the repo only ran from one
+    directory on one disk.
+    """
+    from core.paths import root_str
+    import os as _os
+    return (_os.getenv("AI_SETUP") or "").strip() or root_str()
+
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS kv (
     key   TEXT PRIMARY KEY,
@@ -112,7 +125,7 @@ class SqliteStore(Store):
 
     def __init__(self, path: Optional[str] = None, busy_timeout_ms: int = 10_000,
                  echo_json_path: Optional[str] = None):
-        base = os.path.join(os.getenv("AI_SETUP", r"E:\AI-Setup"), "session_logs")
+        base = os.path.join(_repo_root_str(), "session_logs")
         os.makedirs(base, exist_ok=True)
         self._path = path or os.path.join(base, "store_state.db")
         # Migration-era rollback escrow (T118 D4): when set, close() exports the full

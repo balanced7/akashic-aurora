@@ -28,6 +28,19 @@ import time
 from pathlib import Path
 from typing import Dict, List
 
+def _repo_root_str() -> str:
+    """AI_SETUP override, else the root DERIVED from this file (core/paths).
+
+    Was os.getenv("AI_SETUP", <hardcoded absolute path>). The default was a
+    specific machine's path, and AI_SETUP was never actually set anywhere -- so
+    every call here silently used that literal and the repo only ran from one
+    directory on one disk.
+    """
+    from core.paths import root_str
+    import os as _os
+    return (_os.getenv("AI_SETUP") or "").strip() or root_str()
+
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 SWEEP_PATTERNS = ("t-*", "t056_*", "t117dbg:*", "census_test")
@@ -98,7 +111,7 @@ def main(argv=None) -> int:
         return 1
 
     stamp = int(time.time())
-    audit = Path(os.getenv("AI_SETUP", r"E:\AI-Setup")) / "session_logs" / \
+    audit = Path(_repo_root_str()) / "session_logs" / \
         f"sweep-drill-{stamp}.json"
     doomed = sweep(r, audit_path=audit, apply=a.apply)
     mode = "SWEPT" if a.apply else "DRY-RUN (would sweep)"

@@ -28,7 +28,10 @@ from datetime import datetime
 from typing import Dict, List, Optional
 from collections import defaultdict, Counter
 
-BASE_DIR = Path(r"E:\AI-Setup")
+# Root DERIVED, never hardcoded: this file previously pinned one machine's absolute
+# path, so a copy of the repo anywhere else resolved every path under it to nothing.
+from core.paths import repo_root as _repo_root  # noqa: E402
+BASE_DIR = _repo_root()
 SESSION_LOGS_DIR = BASE_DIR / "session_logs"
 SESSION_STATE_FILE = BASE_DIR / "blackboard_data" / "session_state.json"
 
