@@ -73,13 +73,28 @@
   // Blackbody-ish temperature LUT (INVARIANT). t in 0..1 -> aurora colour, fading to void at both
   // ends. Palette keys from the synthesis: teal(deepseek) -> aurora green -> edge violet.
   vec3 auroraColor(float t) {
-    vec3 teal   = vec3(0.29, 0.42, 0.46);
-    vec3 green  = vec3(0.28, 0.90, 0.75);   // #48e6bf — the signature neon
-    vec3 violet = vec3(0.46, 0.18, 0.54);
-    if (t < 0.3) return mix(vec3(0.0), teal,  t / 0.3);
-    if (t < 0.5) return mix(teal,  green,  (t - 0.3) / 0.2);
-    if (t < 0.7) return mix(green, violet, (t - 0.5) / 0.2);
-    return mix(violet, vec3(0.0), (t - 0.7) / 0.3);
+    // PALETTE: cool indigo -> periwinkle -> soft violet. Analogous, not a rainbow.
+    //
+    // WHY THE OLD ONE READ AS DATED (Daniil: "ugly and not modern"): it ran teal -> #48e6bf neon
+    // green -> violet, which is three hues spanning ~180 degrees. A wide multi-hue sweep at high
+    // saturation is the 2018 gradient-mesh look. Modern dark surfaces use an ANALOGOUS set --
+    // neighbours on the wheel -- at lower saturation and higher luminance range, so the light
+    // reads as one light source rather than four.
+    //
+    // These are the palette's OWN hues, not a new invention: #7aa2f7 and #9d7cf7 are the
+    // deepseek identity pair already in design/refs/aurora-glass-tokens.css. The background now
+    // harmonises with the identity colours instead of competing with them, which is also why the
+    // coral claude avatars will finally read as an accent -- they are the only warm thing on
+    // screen instead of one warm thing among four.
+    vec3 deep   = vec3(0.04, 0.05, 0.13);   // near-black indigo, the floor
+    vec3 indigo = vec3(0.22, 0.28, 0.62);
+    vec3 peri   = vec3(0.48, 0.64, 0.97);   // #7aa2f7
+    vec3 violet = vec3(0.62, 0.49, 0.97);   // #9d7cf7
+    if (t < 0.30) return mix(vec3(0.0), deep,   t / 0.30);
+    if (t < 0.52) return mix(deep,   indigo, (t - 0.30) / 0.22);
+    if (t < 0.74) return mix(indigo, peri,   (t - 0.52) / 0.22);
+    if (t < 0.88) return mix(peri,   violet, (t - 0.74) / 0.14);
+    return mix(violet, vec3(0.0), (t - 0.88) / 0.12);
   }
 
   void main() {

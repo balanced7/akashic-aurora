@@ -268,6 +268,36 @@
       }
       var p = document.getElementById('pills');
       if (p && p.style.display === 'none') p.style.display = '';
+
+      /* IDENTIFY BY BEHAVIOUR, NOT BY NAME. The tile layer is a registry of swappable variants
+         persisted per browser, so the component stacking agents into the header is one I have
+         never had mounted and cannot select for. Four attempts to name it (.pills, the roster
+         popover, #tiles.presence-rail) each fixed a real but innocent element.
+         What every offender HAS in common is observable: it is a direct header child whose
+         natural height far exceeds the band and which holds several stacked rows. The band
+         already stops it breaking the page; this stops it rendering as a clipped sliver.
+         Guarded tightly so it can never eat a legitimate control: direct children only, must
+         want >2x the band AND contain 4+ element children. The brand, the chips and the button
+         cluster all fail both tests. */
+      var hdr = document.querySelector('header');
+      if (hdr) {
+        var band = hdr.clientHeight || 72;
+        [].forEach.call(hdr.children, function (el) {
+          if (el.id === 'pills' || el.dataset.railKept) return;
+          var wants = el.scrollHeight;
+          if (wants > band * 2 && el.childElementCount >= 4) {
+            if (el.dataset.railHid !== '1') {
+              el.dataset.railHid = '1';
+              el.style.display = 'none';
+              try {
+                console.info('[rail] hid a header child that wanted ' + wants + 'px in a ' + band +
+                  'px band (' + el.childElementCount + ' rows) — the rail owns per-agent presence now. ' +
+                  'id=' + (el.id || '(none)') + ' class=' + (el.className || '(none)'));
+              } catch (e2) {}
+            }
+          }
+        });
+      }
     } catch (e) {}
   }
 
