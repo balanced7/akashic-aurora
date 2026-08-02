@@ -239,4 +239,5 @@
 - `snapshot.py` — Snapshot the current Bifrost session for later resume. Run before shutting down.
 - `sol_chat.py` — sol_chat -- the Sol seat's model transport: gpt-5.6-sol (OpenAI) as a first-class Akashic citizen.
 - `ui_shot.py` — Headless screenshots of the live console -- the EYES half of the design loop.
+- `vfx_render.py` — Render something in the VFX bench from the command line, and get a file path back.
 - `worktree.py` — worktree.py -- per-agent git worktrees (Concurrency design C1).

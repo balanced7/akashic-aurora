@@ -167,6 +167,54 @@ def tail(client, last_ids, ns="bifrost", block_ms=15000):
 # pixels and infer it looks right" into "I looked at it". A number can only confirm what you
 # already suspected; a picture can surprise you, and being surprised is the entire value of
 # looking.
+# ---- VFX job queue: claude asks, the open bench renders --------------------------------------
+# Every render this session cost 4-5 tool calls -- restart, navigate, inject JS, wait, read back --
+# and kept breaking on browser-pane quirks. The fix is not a second renderer in Python: porting the
+# shaders would duplicate every one of them into something that drifts. It is to let the bench that
+# is ALREADY OPEN do the work, and give claude a client.
+#
+# One implementation, two callers. The page executes the same thumbShaderFor / renderSheet / snap
+# it uses for its own buttons, so a CLI-requested thumbnail cannot disagree with a clicked one.
+#
+# The honest constraint: a /vfx tab must be open. That is stated in the CLI's error rather than
+# left as a hang -- "no renderer attached" is a diagnosis, a timeout is a mystery.
+_VFX_JOBS = {}
+_VFX_SEQ = [0]
+
+
+def _vfx_job_add(op, args):
+    _VFX_SEQ[0] += 1
+    jid = "j%d" % _VFX_SEQ[0]
+    _VFX_JOBS[jid] = {"id": jid, "op": str(op or ""), "args": args or {},
+                      "state": "pending", "result": None}
+    # Keep the table small; a bench left open for a day should not accumulate a thousand records.
+    if len(_VFX_JOBS) > 200:
+        for k in sorted(_VFX_JOBS)[:100]:
+            if _VFX_JOBS[k]["state"] == "done":
+                _VFX_JOBS.pop(k, None)
+    return _VFX_JOBS[jid]
+
+
+def _vfx_job_next():
+    """Hand out ONE pending job and mark it running. One at a time on purpose: these are GPU
+    captures, and two concurrent recordings on one context would interleave and corrupt both."""
+    for k in sorted(_VFX_JOBS, key=lambda x: int(x[1:])):
+        j = _VFX_JOBS[k]
+        if j["state"] == "pending":
+            j["state"] = "running"
+            return j
+    return None
+
+
+def _vfx_job_result(jid, result):
+    j = _VFX_JOBS.get(str(jid or ""))
+    if not j:
+        return {"ok": False, "error": "unknown job"}
+    j["state"] = "done"
+    j["result"] = result
+    return {"ok": True}
+
+
 # ---- VFX thumbnails ---------------------------------------------------------------------------
 # A visual index for the block palette. Seventeen names in a list is a list; seventeen TILES that
 # each show what the block does is something you can shop from -- and for a modifier the tile
@@ -513,6 +561,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"names": _vfx_thumbs_list()})
         if path == "/vfx/clips":
             return self._json({"names": _vfx_clips_list()})
+        if path == "/vfx/job/next":
+            return self._json(_vfx_job_next() or {})
+        if path.startswith("/vfx/job/"):
+            return self._json(_VFX_JOBS.get(path.rsplit("/", 1)[-1]) or {"error": "unknown job"})
         if path.startswith("/vfx/clip/"):
             leaf = path.rsplit("/", 1)[-1]
             safe = "".join(c for c in leaf if c.isalnum() or c in "-_.")
@@ -827,6 +879,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(_vfx_thumb_write(data.get("name"), data.get("png")))
         if path == "/vfx/clip":
             return self._json(_vfx_clip_write(data.get("name"), data.get("webm")))
+        if path == "/vfx/job":
+            return self._json(_vfx_job_add(data.get("op"), data.get("args")))
+        if path == "/vfx/job/result":
+            return self._json(_vfx_job_result(data.get("id"), data.get("result")))
         if path == "/vfx/presets":
             name = str(data.get("name") or "").strip()
             if not name:

@@ -1466,6 +1466,92 @@ async function refreshThumbs(){
 }
 
 
+
+// ---- RENDER WORKER: the open bench is claude's render farm ---------------------------------------
+// Daniil: "you can call a tool to make a thumbnail and it works, it just pings the same script that
+// we have in the vfx engine, and you have it as a standalone tool you can call."
+//
+// Exactly that, and the "same script" part is the whole point. Each op below calls the function the
+// UI's own buttons call -- thumbShaderFor, renderSheet, renderGrid, snap -- so a CLI-requested
+// render CANNOT disagree with a clicked one. A second renderer in Python would have duplicated
+// every shader into something that drifts silently until the two disagree and nobody knows which
+// is right.
+//
+// Polled rather than pushed: no websocket to keep alive, no reconnect logic, and a bench that gets
+// closed simply stops answering -- which the CLI reports as "no renderer attached" rather than
+// hanging on a socket that will never speak again.
+var WORKER_ON = true;
+
+async function runJob(j){
+  var a = j.args || {};
+  if(j.op === 'snap'){
+    return await snap(a.name || 'job');
+  }
+  if(j.op === 'sheet'){
+    return await renderSheet({name: a.name||'job-sheet', frames: a.frames||12, cols: a.cols||4,
+                              cell: a.cell||170, from: a.from||0, to: (a.to==null?8:a.to)});
+  }
+  if(j.op === 'grid'){
+    return await renderGrid({k:a.a, from:a.aFrom, to:a.aTo}, {k:a.b, from:a.bFrom, to:a.bTo},
+                            {cols:a.cols||5, rows:a.rows||4, cell:a.cell||150,
+                             t:(a.t==null?2:a.t), name:a.name||'job-grid'});
+  }
+  if(j.op === 'thumb'){
+    var c = chunkBy(a.chunk);
+    if(!c) return {ok:false, error:'no such chunk: '+a.chunk};
+    var err = av.trySource(thumbShaderFor(c));
+    if(err) return {ok:false, error:err.slice(0,240)};
+    av._resize(a.cell || 200);
+    av._t0 = (performance.now()/1000) - (a.t==null?1.0:a.t);
+    av._draw();
+    var r = await (await fetch('/vfx/snap',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({name: a.name || ('chunk-'+a.chunk), png: av.canvas.toDataURL('image/png')})})).json();
+    av.setStyle('geodesic'); av._resize(420);
+    return r;
+  }
+  if(j.op === 'state'){
+    // Render one avatar STATE, which is the thing claude most often needs to eyeball and the
+    // thing it has been least able to see.
+    av.setStyle(a.style || 'geodesic'); av._resize(a.cell || 320);
+    setState(a.state || 'thinking');
+    if(a.identity){ av.setIdentity(a.identity); av.id0=av.idT0.slice(); av.id1=av.idT1.slice(); }
+    av.cur = Object.assign({}, av.target); av.cur.tint = av.target.tint.slice();
+    if(a.wire!=null) av.wire=a.wire;
+    if(a.see!=null)  av.see=a.see;
+    return await snap(a.name || ('state-'+(a.state||'thinking')));
+  }
+  if(j.op === 'graph'){
+    if(a.graph){ G = a.graph; ensureOutput(); renderGraph(); }
+    var g = buildGraphGLSL();
+    if(g.err) return {ok:false, error:g.err};
+    var e2 = av.trySource(g.src);
+    if(e2) return {ok:false, error:e2.slice(0,240)};
+    av._resize(a.cell || 320);
+    return await snap(a.name || 'job-graph');
+  }
+  return {ok:false, error:'unknown op: '+j.op};
+}
+
+async function workerTick(){
+  if(!WORKER_ON) return;
+  try{
+    var j = await (await fetch('/vfx/job/next')).json();
+    if(j && j.id){
+      el('chatmsg').className='note';
+      el('chatmsg').textContent = 'render job ' + j.id + ': ' + j.op;
+      var res;
+      // A job that throws must still REPORT, or the CLI waits forever on a renderer that is alive
+      // and well and simply failed once.
+      try{ res = await runJob(j); }catch(e){ res = {ok:false, error:String(e).slice(0,240)}; }
+      await fetch('/vfx/job/result', {method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({id:j.id, result:res})});
+      el('chatmsg').textContent = 'render job ' + j.id + ': ' + (res && res.ok ? (res.path||'ok') : ('failed — '+(res&&res.error)));
+    }
+  }catch(e){ /* server restarting: stay quiet and try again next tick */ }
+  setTimeout(workerTick, 900);
+}
+
 // ---- WEBM THUMBNAILS: fluid, not a slideshow ---------------------------------------------------
 // Daniil: "it can be a gif that fluidly animates through the realtime speed of the animation so
 // its not a slideshow... we save our precious concurrent render fields for the node items."
@@ -1761,6 +1847,7 @@ var LIBRARY = [
   refreshGroups();      // after chunks: the palette redraws with groups once they land
   refreshGraphs();
   startThread();
+  workerTick();          // claude's render requests land here
   // Ctrl+Enter sends. A design bench is a two-handed place -- reaching for the mouse to send a
   // one-line "warmer" is exactly the friction this box exists to remove.
   el('chat').addEventListener('keydown', function(e){
