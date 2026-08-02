@@ -102,6 +102,17 @@
   /* while dragging a wire: compatible sockets light, the rest fade out of reach */
   .dragging .sock{opacity:.15}
   .dragging .sock.ok{opacity:1;box-shadow:0 0 0 3px rgba(3,129,254,.35)}
+
+  /* ---- chat ---- */
+  .thread{max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:9px;
+    padding:8px;background:#080c13;display:flex;flex-direction:column;gap:6px}
+  .msg{padding:6px 9px;border-radius:8px;font-size:12px;max-width:92%;white-space:pre-wrap;
+    word-break:break-word}
+  .msg.me{background:#12233a;border:1px solid #1d3550;align-self:flex-end}
+  .msg.them{background:#1d1526;border:1px solid #34274a;align-self:flex-start}
+  .msg .who{display:block;font-size:9px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--dim);margin-bottom:2px}
+  .thread .empty{color:var(--dim);font-size:11px;text-align:center;padding:10px}
   .note{color:var(--dim);font-size:11px;margin-top:8px}
   .err{color:var(--warn)}
 </style>
@@ -225,6 +236,24 @@
     </div>
     <p class="note" id="pmsg">Saved to <code>design/vfx-presets.json</code> — readable from either
        side, which is the point.</p>
+
+    <h2>Talk to claude</h2>
+    <div id="thread" class="thread"></div>
+    <textarea id="chat" placeholder="Ask for a change, or describe what you want…"
+              style="height:64px;margin-top:8px"></textarea>
+    <label style="display:flex;align-items:center;gap:6px;margin:6px 0;font-size:11px;color:var(--dim)">
+      <input type="checkbox" id="attach" checked style="width:auto;accent-color:var(--acc)">
+      attach what the bench is showing
+    </label>
+    <label style="display:flex;align-items:center;gap:6px;margin:0 0 6px;font-size:11px;color:var(--dim)">
+      <input type="checkbox" id="withsnap" checked style="width:auto;accent-color:var(--acc)">
+      send a snapshot — <em>claude can actually look at it</em>
+    </label>
+    <div class="row" style="margin-top:0">
+      <button class="pri" onclick="sendChat()" style="width:auto;white-space:nowrap">Send</button>
+      <button onclick="snapOnly()" style="width:auto;white-space:nowrap">Snapshot</button>
+      <span id="chatmsg" class="note" style="flex:1;margin:0;align-self:center"></span>
+    </div>
 
     <h2>Technique library</h2>
     <div id="lib"></div>
@@ -898,6 +927,129 @@ async function saveSketch(){
   refreshSketches();
 }
 
+// ---- chat: a real bus message, carrying the bench state -----------------------------------------
+// HONEST LIMITATION, stated here because it decides what this box is FOR. A message sent here is a
+// genuine Bifrost message: durable, timestamped, and claude reads it. What it does NOT do is
+// INTERRUPT a turn already in flight -- claude's hooks report an unread COUNT, not content, so a
+// message arriving mid-turn waits until the next natural check. Typing in Claude Code does barge
+// in. So: use Claude Code for "stop what you are doing"; use this for "here is the thing I want
+// next", which is the majority of iteration and is where this box is strictly better.
+//
+// WHY STRICTLY BETTER: it attaches WHAT THE BENCH IS SHOWING. Alt-tabbing loses that -- "make this
+// warmer" typed elsewhere means claude has to ask what "this" is. Sent from here it arrives with
+// the source, the chain, the graph and the live parameters, so the first reply can be the change
+// instead of a question.
+function benchState(){
+  var g = G.nodes.filter(function(n){return n.chunk!=='__out';})
+                 .map(function(n){return n.chunk;});
+  var t = av.target;
+  return [
+    'bench: style=' + av.style + '  state=' + curState + '  identity=' + el('ident').value,
+    'source=' + el('csource').value + (chain.length ? '  chain=' + chain.join(' → ') : ''),
+    (g.length ? 'graph nodes=' + g.join(', ') + '  edges=' + G.edges.length : ''),
+    'params: ' + AgentAvatar.PARAMS.map(function(p){ return p.k + '=' + (+t[p.k]).toFixed(2); }).join(' '),
+    'dials: wire=' + av.wire.toFixed(2) + ' see=' + av.see.toFixed(2)
+  ].filter(Boolean).join('\n');
+}
+
+// THE ONE DETAIL THAT DECIDES WHETHER THIS WORKS AT ALL: the avatar context is created with
+// preserveDrawingBuffer:false, so the drawing buffer is discarded after compositing and
+// toDataURL returns a BLANK image unless it is called in the same tick as a draw. Drawing
+// immediately before reading is not belt-and-braces here, it is the whole mechanism -- and it
+// would have failed silently, producing a transparent PNG and a very confusing conversation.
+async function snap(name){
+  av._draw();
+  // COMPOSITE ON THE DEPLOYMENT BACKGROUND BEFORE EXPORTING, and this is not cosmetic. The avatar
+  // renders with a TRANSPARENT background because it sits on a dark console. Exporting that alpha
+  // straight to PNG means any viewer composites it on WHITE -- the exact inverse of where it
+  // lives. Additive glow disappears into white; dark wireframe faces dominate instead of sinking
+  // into the background. The first snapshots I took were legible and were the NEGATIVE of what
+  // Daniil sees, which is worse than no snapshot: a misleading picture gets acted on.
+  var flat = document.createElement('canvas');
+  flat.width = av.canvas.width; flat.height = av.canvas.height;
+  var g2 = flat.getContext('2d');
+  g2.fillStyle = '#05070c';                       // the console ground, same as --bg
+  g2.fillRect(0, 0, flat.width, flat.height);
+  g2.drawImage(av.canvas, 0, 0);
+  var url = flat.toDataURL('image/png');
+  var r = await (await fetch('/vfx/snap', {method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name: name || 'latest', png: url})})).json();
+  return r;
+}
+async function snapOnly(){
+  el('chatmsg').className='note'; el('chatmsg').textContent='capturing…';
+  var r = await snap('latest');
+  el('chatmsg').className = r.ok ? 'note' : 'note err';
+  el('chatmsg').textContent = r.ok ? ('saved ' + r.path + ' (' + r.bytes + ' bytes)')
+                                   : ('snapshot failed: ' + r.error);
+}
+
+function pushMsg(who, text, mine){
+  var th = el('thread');
+  var e = th.querySelector('.empty'); if(e) e.remove();
+  var d = document.createElement('div');
+  d.className = 'msg ' + (mine ? 'me' : 'them');
+  d.innerHTML = '<span class="who"></span>';
+  d.firstChild.textContent = who;
+  d.appendChild(document.createTextNode(text));
+  th.appendChild(d); th.scrollTop = th.scrollHeight;
+}
+
+async function sendChat(){
+  var box = el('chat'), text = (box.value||'').trim();
+  if(!text){ el('chatmsg').textContent='nothing to send'; return; }
+  el('chatmsg').className='note'; el('chatmsg').textContent = 'sending…';
+  var full = el('attach').checked ? (text + '\n\n--- ' + benchState()) : text;
+  // The snapshot path goes IN THE MESSAGE, not just to disk. A file claude does not know exists
+  // is a file claude will not open -- the whole point is that the reply can start from having
+  // looked, and that only happens if the message says where to look.
+  if(el('withsnap').checked){
+    try{
+      var sr = await snap('latest');
+      if(sr.ok) full += '\nsnapshot: ' + sr.path + '   (open it — this is the render, not a metric)';
+    }catch(e){ /* a failed capture must not eat the message */ }
+  }
+  try{
+    // fidelity 'chat': plain delivery, adopted at claude's next turn. Deliberately NOT 'interrupt'
+    // -- a barge-in from a design bench would land mid-edit, and "try this colour" is never worth
+    // derailing whatever is already half-written.
+    var r = await fetch('/send', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({target:'claude', text:full, fidelity:'chat', from:'user'})});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    pushMsg('you', text, true);
+    box.value='';
+    el('chatmsg').textContent = 'sent on the bus' + (el('attach').checked ? ' with bench state' : '');
+  }catch(e){
+    el('chatmsg').className='note err';
+    el('chatmsg').textContent = 'send failed: ' + e;
+  }
+}
+
+// The thread listens to the SAME room feed the main console renders, so a reply claude sends from
+// anywhere -- CLI, MCP, the other tab -- shows up here. This is a VIEW of the bus, not a private
+// side-channel that would quietly fork the conversation in two.
+function startThread(){
+  var th = el('thread');
+  th.innerHTML = '<div class="empty">messages between you and claude appear here</div>';
+  try{
+    var es = new EventSource('/events');
+    es.onmessage = function(ev){
+      var m; try{ m = JSON.parse(ev.data); }catch(e){ return; }
+      var from = m.from || m.agent || m.sender || '';
+      var to   = m.to || m.target || '';
+      var text = m.text || m.content || m.body || '';
+      if(!text) return;
+      if(String(m.kind||'') === 'trace') return;            // tool traces are noise in a chat
+      var pair = (from==='claude' && (to==='user'||to==='all'||!to)) ||
+                 (from==='user' && to==='claude');
+      if(!pair) return;
+      pushMsg(from, text, from==='user');
+    };
+    es.onerror = function(){ el('chatmsg').textContent='live feed dropped — sends still work'; };
+  }catch(e){ el('chatmsg').textContent='no live feed: '+e; }
+}
+
 // ---- what each pasted shader actually contributed ---------------------------------------------
 // Kept as DATA, not prose in a commit message, because the useful question months from now is
 // "where did this technique come from and what else did that source have" -- and that is a lookup.
@@ -968,6 +1120,12 @@ var LIBRARY = [
   refreshCompos();
   refreshGroups();      // after chunks: the palette redraws with groups once they land
   refreshGraphs();
+  startThread();
+  // Ctrl+Enter sends. A design bench is a two-handed place -- reaching for the mouse to send a
+  // one-line "warmer" is exactly the friction this box exists to remove.
+  el('chat').addEventListener('keydown', function(e){
+    if(e.key==='Enter' && (e.ctrlKey||e.metaKey)){ e.preventDefault(); sendChat(); }
+  });
 
   // Honest HUD: measured frame cost, not a guess. The bench is where a change gets its number.
   var last=performance.now(), acc=0, n=0;

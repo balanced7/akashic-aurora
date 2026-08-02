@@ -158,6 +158,41 @@ def tail(client, last_ids, ns="bifrost", block_ms=15000):
 # ---- VFX graphs -------------------------------------------------------------------------------
 # A graph is nodes + typed edges. It is stored, not compiled, here -- codegen lives in the browser
 # next to the thing that has to run it, so a graph that fails to compile fails where you can see it.
+# ---- VFX snapshots ----------------------------------------------------------------------------
+# THE MIRROR. claude cannot see rendered output -- every visual judgement this session has been
+# made by counting pixels through readPixels, which is why "your eyes are the verification here"
+# kept appearing. But claude CAN read an image file. So the bench writes one.
+#
+# This is the single highest-leverage thing in the whole bench: it turns "I measured 42,120 lit
+# pixels and infer it looks right" into "I looked at it". A number can only confirm what you
+# already suspected; a picture can surprise you, and being surprised is the entire value of
+# looking.
+VFX_SNAPS = os.path.join(REPO, "design", "vfx-snaps")
+
+
+def _vfx_snap_write(name, data_url):
+    """Decode a data: URL from canvas.toDataURL and write a PNG claude can open with Read."""
+    import base64
+    safe = "".join(c for c in str(name or "snap") if c.isalnum() or c in "-_")[:50] or "snap"
+    try:
+        head, _, b64 = str(data_url or "").partition(",")
+        if "base64" not in head or not b64:
+            return {"ok": False, "error": "expected a base64 data URL"}
+        raw = base64.b64decode(b64)
+        if len(raw) > 8 * 1024 * 1024:            # a bench canvas is ~100KB; anything near 8MB is
+            return {"ok": False, "error": "too large"}   # not a canvas and should not be written
+        os.makedirs(VFX_SNAPS, exist_ok=True)
+        path = os.path.join(VFX_SNAPS, safe + ".png")
+        tmp = path + ".tmp"
+        with open(tmp, "wb") as fh:
+            fh.write(raw)
+        os.replace(tmp, path)
+        # The RELATIVE path is what goes back, because that is what claude pastes into Read.
+        return {"ok": True, "path": "design/vfx-snaps/" + safe + ".png", "bytes": len(raw)}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)[:200]}
+
+
 VFX_GRAPHS = os.path.join(REPO, "design", "vfx-graphs.json")
 
 
@@ -694,6 +729,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(_vfx_groups_write(data.get("name"), data.get("items")))
         if path == "/vfx/graphs":
             return self._json(_vfx_graphs_write(data.get("name"), data.get("value")))
+        if path == "/vfx/snap":
+            return self._json(_vfx_snap_write(data.get("name"), data.get("png")))
         if path == "/vfx/presets":
             name = str(data.get("name") or "").strip()
             if not name:
