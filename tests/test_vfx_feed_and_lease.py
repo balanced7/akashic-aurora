@@ -166,6 +166,51 @@ def test_a_fresh_page_catches_up_without_replaying_the_day():
     assert entries[-1]["text"] == "n119", "the catch-up must be the NEWEST, not the oldest"
 
 
+# ---- what the bench is showing -----------------------------------------------------------------
+# Daniil: "If I refresh the page your buffered demo gets lost." The bench had no notion of a current
+# subject, so a reload always came back to the default avatar and threw away whatever claude had
+# loaded. This is that notion, and it is durable because a server restart must not lose it either.
+
+@pytest.fixture
+def bench(tmp_path, monkeypatch):
+    monkeypatch.setattr(B, "VFX_BENCH", str(tmp_path / "vfx-bench.json"))
+    return tmp_path / "vfx-bench.json"
+
+
+def test_a_bench_that_has_never_been_used_still_opens(bench):
+    d = B._vfx_bench_read()
+    assert d["subject"] == "avatar" and d["sketch"] == ""
+
+
+def test_what_it_was_showing_survives(bench):
+    assert B._vfx_bench_write({"subject": "shader", "sketch": "geodesic-original"})["ok"]
+    d = B._vfx_bench_read()
+    assert d["subject"] == "shader" and d["sketch"] == "geodesic-original"
+
+
+def test_a_partial_write_merges_rather_than_clobbers(bench):
+    """Two callers write this file -- the page (subject/sketch) and the CLI (a note). A writer that
+    replaced the keys it did not mention would make them fight over a file neither fully owns."""
+    B._vfx_bench_write({"subject": "shader", "sketch": "ringpulse", "identity": "claude"})
+    B._vfx_bench_write({"note": "looking at the gap bloom"})
+    d = B._vfx_bench_read()
+    assert d["sketch"] == "ringpulse" and d["identity"] == "claude"
+    assert d["note"] == "looking at the gap bloom"
+
+
+def test_an_unknown_subject_is_refused(bench):
+    B._vfx_bench_write({"subject": "shader"})
+    r = B._vfx_bench_write({"subject": "banana"})
+    assert r["ok"] is False
+    assert B._vfx_bench_read()["subject"] == "shader", "a refused write must not half-apply"
+    assert B._vfx_bench_write("not a dict")["ok"] is False
+
+
+def test_a_corrupt_bench_file_does_not_stop_the_bench_opening(bench):
+    bench.write_text("{ this is not json", encoding="utf-8")
+    assert B._vfx_bench_read()["subject"] == "avatar", "fail open: a bad file must not brick /vfx"
+
+
 def test_the_feed_does_not_grow_without_bound():
     for i in range(400):
         B._vfx_feed_add({"kind": "say", "text": "n%d" % i})

@@ -183,6 +183,22 @@
     color:var(--acc);background:#111c2e;border:1px solid #1d2c47;border-radius:4px;
     padding:1px 6px;font-weight:400}
   .rolebadge.viewer{color:var(--dim);background:#12151b;border-color:var(--line)}
+  /* SUBJECT SWITCH. A segmented control rather than a dropdown because there are exactly two and
+     the answer must be readable without opening anything -- this governs what every other control
+     on the page is even talking about. */
+  .subj{display:flex;gap:0;margin:10px 0 4px;border:1px solid var(--line);border-radius:8px;
+    overflow:hidden}
+  .subj button{flex:1;width:auto;border:0;border-radius:0;background:#0d1017;color:var(--dim);
+    font-size:11px;letter-spacing:.05em;text-transform:uppercase;padding:7px 4px;cursor:pointer}
+  .subj button.on{background:var(--acc);color:#04070d;font-weight:600}
+  .subj button:not(.on):hover{background:#141a24;color:#cfd6e2}
+  /* Avatar-only surfaces do not VANISH in shader mode, they go quiet. Hiding them would make the
+     page reflow into a different shape every switch and hide where the avatar went; dimming says
+     "still here, not what you are working on" and keeps the layout still. */
+  .avoff{opacity:.32;pointer-events:none;filter:saturate(.25)}
+  .avhint{display:none}
+  .shader-mode .avhint{display:block}
+  .shader-mode .avonly{opacity:.32;pointer-events:none;filter:saturate(.25)}
   .note{color:var(--dim);font-size:11px;margin-top:8px}
   .err{color:var(--warn)}
 </style>
@@ -191,17 +207,31 @@
   <!-- ─────────── left: the codebook ─────────── -->
   <div class="card">
     <h1>Bench</h1>
-    <h2>Render style</h2>
-    <select id="style"></select>
-    <h2>State</h2>
-    <div class="chips" id="states"></div>
-    <h2>Identity</h2>
-    <select id="ident"></select>
+    <!-- THE SUBJECT. This bench was born as an avatar tuner and grew into a VFX studio, and for a
+         while it was silently both: every shader you compiled ran through the SAME AgentAvatar,
+         with the avatar's state table and identity still on screen claiming to drive something
+         that had long stopped listening. Naming the subject fixes the honesty problem and the
+         expressiveness one at once -- a free shader is no longer a thing the avatar is briefly
+         wearing, and the avatar is one subject you can load rather than the thing the bench IS. -->
+    <div class="subj" id="subj">
+      <button data-s="shader" onclick="setSubject('shader')">free shader</button>
+      <button data-s="avatar" onclick="setSubject('avatar')">avatar</button>
+    </div>
+    <p class="note" id="subjnote"></p>
 
-    <h2>Instance dials</h2>
-    <div id="dials"></div>
-    <p class="note">Dials describe the <em>renderer</em>. They are not part of the state codebook,
-       so they survive a state change.</p>
+    <div id="avatarctl">
+      <h2>Render style</h2>
+      <select id="style"></select>
+      <h2>State</h2>
+      <div class="chips" id="states"></div>
+      <h2>Identity</h2>
+      <select id="ident"></select>
+
+      <h2>Instance dials</h2>
+      <div id="dials"></div>
+      <p class="note">Dials describe the <em>renderer</em>. They are not part of the state codebook,
+         so they survive a state change.</p>
+    </div>
   </div>
 
   <!-- ─────────── centre: the thing itself ─────────── -->
@@ -283,7 +313,7 @@
          never loaded by the console, so a broken one costs you the sketch and nothing else.</p>
     </div>
 
-    <div class="card" style="margin-top:14px">
+    <div class="card avonly" style="margin-top:14px">
       <h2>Hand-off</h2>
       <p class="note">Tuned something good? This is the exact row to paste into
          <code>STATES</code> in agent-avatar.js — no transcription, no drift.</p>
@@ -298,7 +328,11 @@
   <!-- ─────────── right: params, presets, library ─────────── -->
   <div class="card">
     <h1>Parameters</h1>
-    <div id="params"></div>
+    <div id="paramswrap">
+      <div id="params"></div>
+    </div>
+    <p class="note avhint">The parameter codebook belongs to the avatar. Switch the subject to
+       <em>avatar</em> to tune it.</p>
 
     <h2>Presets</h2>
     <div class="row">
@@ -389,6 +423,124 @@ function setState(name){
   syncAll(); emit();
 }
 function resetState(){ av.setState(curState); setState(curState); }
+
+// ---- THE SUBJECT: what this bench is currently about -------------------------------------------
+// Daniil: "make sure its separate from our avatar".
+//
+// The bench was born as an avatar tuner and grew into a VFX studio, and for a long while it was
+// silently both -- every shader compiled here ran through the SAME AgentAvatar, with the state
+// table and identity picker still on screen driving something that had stopped listening. That is
+// what made a free shader feel like a costume the avatar was briefly wearing.
+//
+// Naming the subject separates them without splitting the page, which matters because the parts
+// worth keeping -- the graph, the chunk library, ingest, the render farm, the feed -- are shared.
+// The avatar becomes ONE subject you can load, not the thing the bench IS.
+var SUBJECT = 'avatar', BENCH_SKETCH = '';
+
+function paintSubject(){
+  [].forEach.call(el('subj').children, function(b){
+    b.classList.toggle('on', b.dataset.s === SUBJECT);
+  });
+  document.body.classList.toggle('shader-mode', SUBJECT === 'shader');
+  el('avatarctl').className = (SUBJECT === 'shader') ? 'avoff' : '';
+  el('paramswrap').className = (SUBJECT === 'shader') ? 'avoff' : '';
+  el('subjnote').textContent = (SUBJECT === 'shader')
+    ? (BENCH_SKETCH ? 'free shader — running ' + BENCH_SKETCH
+                    : 'free shader — nothing loaded yet; open a sketch or compile some scratch')
+    : 'the avatar itself: its states, identity and codebook'
+      + (BENCH_SKETCH ? '   (free shader still holds ' + BENCH_SKETCH + ')' : '');
+}
+
+// Restoring on the way BACK IN is the guard that makes experimenting safe. A sketch replaces the
+// GL program, so without this the avatar stays whatever the last experiment left behind while the
+// controls claim otherwise -- the bench lying about its own subject.
+function restoreAvatar(){
+  var keep = {};
+  // Unsaved tuning survives the round trip. Wiping it would make the switch cost you work, and a
+  // control that costs you work is one you stop touching.
+  Object.keys(dirty).forEach(function(k){ if(k in av.target) keep[k] = av.target[k]; });
+  av.style = ''; av.setStyle(el('style').value || 'geodesic');
+  av._resize(420);
+  setState(curState);
+  Object.keys(keep).forEach(function(k){ av.target[k] = keep[k]; av.cur[k] = keep[k]; });
+  syncAll(); emit();
+}
+
+// Re-COMPILE a named sketch. Used both by the reload path and by switching back to the shader
+// subject, because those are the same act: return the bench to what this subject was showing.
+async function reloadSketch(name){
+  try{
+    var r = await (await fetch('/vfx/sketch?name=' + encodeURIComponent(name))).json();
+    if(r.ok && !av.trySource(r.src)){ av._resize(420); paintSubject(); return true; }
+    msg('could not reload ' + name + ' — the avatar is still on the bench', true);
+  }catch(e){ /* leave whatever is running; a failed reload must not blank the bench */ }
+  paintSubject();
+  return false;
+}
+
+function setSubject(name, opts){
+  opts = opts || {};
+  if(name !== 'avatar' && name !== 'shader') return;
+  var changed = (name !== SUBJECT);
+  SUBJECT = name;
+  if(name === 'shader'){
+    if(opts.sketch != null) BENCH_SKETCH = opts.sketch;
+    // EACH SUBJECT REMEMBERS ITS OWN. Clicking back to "free shader" used to leave the avatar on
+    // screen under a label saying otherwise -- the exact dishonesty this switch exists to remove,
+    // reintroduced one layer up. A subject you return to shows what you left on it.
+    if(changed && !opts.quiet && BENCH_SKETCH) reloadSketch(BENCH_SKETCH);
+  } else {
+    // BENCH_SKETCH is deliberately KEPT here: the shader subject has not been abandoned, it is
+    // just not the one on screen, and forgetting it would make the round trip lossy.
+    if(changed && !opts.quiet) restoreAvatar();
+  }
+  paintSubject();
+  if(!opts.quiet) saveBench();
+}
+
+// The bench's subject is SERVER state, not page state. A reload has to restore what claude loaded
+// -- "if I refresh the page your buffered demo gets lost" was exactly right and the cause was that
+// the bench had nowhere to say what it was showing.
+async function saveBench(){
+  // ONLY THE RENDERER DESCRIBES THE BENCH. Bench state says what the render farm is showing, so a
+  // viewer tab writing it would overwrite the truth with its own local view -- and the next reload
+  // anywhere would restore the wrong thing. A viewer reads this file; it does not author it.
+  if(WAS_VIEWER) return;
+  try{
+    await fetch('/vfx/bench', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({subject: SUBJECT, sketch: BENCH_SKETCH,
+                            style: el('style').value || 'geodesic',
+                            state: curState, identity: el('ident').value || ''})});
+  }catch(e){ /* the bench still works unsaved; do not make a save failure a render failure */ }
+}
+
+async function loadBench(){
+  paintSubject();          // paint FIRST: a failed fetch must still leave a legible switch
+  var b;
+  try{ b = await (await fetch('/vfx/bench')).json(); }catch(e){ return; }
+  if(!b) return;
+  if(b.style && el('style').value !== b.style){ el('style').value = b.style; av.setStyle(b.style); }
+  if(b.identity){ el('ident').value = b.identity; av.setIdentity(b.identity);
+                  av.id0 = av.idT0.slice(); av.id1 = av.idT1.slice(); }
+  if(b.state){ setState(b.state); }
+  if(b.subject === 'shader' && b.sketch){
+    // Re-COMPILE it, do not merely claim it. Restoring the label without the shader would be the
+    // same lie in a new place: the page would say it is running something it is not.
+    try{
+      var r = await (await fetch('/vfx/sketch?name=' + encodeURIComponent(b.sketch))).json();
+      if(r.ok && !av.trySource(r.src)){
+        av._resize(420);
+        setSubject('shader', {sketch: b.sketch, quiet: true});
+        msg('restored ' + b.sketch + ' — the bench came back to what it was showing');
+        return;
+      }
+      msg('could not restore ' + b.sketch + ' — showing the avatar instead', true);
+    }catch(e){ /* fall through to the avatar */ }
+  }
+  // Reached when the subject was 'avatar', or when it was 'shader' with nothing restorable behind
+  // it (unsaved scratch). Either way the avatar is the honest thing to show.
+  setSubject('avatar', {quiet: true});
+}
 
 // The hand-off artefact. Emitting the row in SOURCE FORM rather than as a table of numbers is the
 // difference between a bench that informs a change and one that makes it -- retyping eight floats
@@ -1203,11 +1355,17 @@ function compileSketch(){
   var err = av.trySource(src);
   if(err){ msg(err, true); return; }              // the running shader survived; say so plainly
   av._resize(420); syncAll(); emit();
-  msg('compiled in ' + (performance.now()-t0).toFixed(0) + ' ms — running as (sketch)');
+  // Deliberately NAMELESS. Unsaved scratch has no .frag behind it, so recording a name would
+  // promise a restore that cannot happen -- the reload would come back to the avatar having told
+  // you it was coming back to your shader. Save it and the name gets recorded then.
+  setSubject('shader', {sketch: ''});
+  msg('compiled in ' + (performance.now()-t0).toFixed(0) + ' ms — running as (sketch). ' +
+      'Save it to survive a reload.');
 }
 function revertStyle(){
   av.setStyle('geodesic'); av.setStyle(el('style').value);   // force a recompile of the built-in
   av._resize(420); syncAll(); emit();
+  setSubject('avatar');            // reverting to the built-in IS handing the bench back
   msg('reverted to built-in ' + av.style);
 }
 async function refreshSketches(){
@@ -1233,7 +1391,9 @@ async function saveSketch(){
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({name:n, src: el('glsl').value})})).json();
   if(!r.ok){ msg(r.error||'save failed', true); return; }
-  msg('saved design/vfx-sketches/' + r.name + '.frag (' + r.bytes + ' bytes)');
+  // NOW there is a file behind it, so the bench can honestly promise to come back to this.
+  if(SUBJECT === 'shader') setSubject('shader', {sketch: r.name});
+  msg('saved design/vfx-sketches/' + r.name + '.frag (' + r.bytes + ' bytes) — it will survive a reload');
   refreshSketches();
 }
 
@@ -1567,6 +1727,10 @@ async function runJob(j){
     var se = av.trySource(sr.src);
     if(se) return {ok:false, error:se.slice(0,240)};
     av._resize(a.cell || 320);
+    // The bench now SAYS it is showing a shader, and remembers which one. Without this a CLI
+    // render left the page displaying a sketch while the avatar controls still claimed the floor,
+    // and a reload threw the whole thing away.
+    setSubject('shader', {sketch: sr.name});
     if(a.frames){
       return await renderSheet({name:a.out||('sketch-'+sr.name), frames:a.frames, cols:a.cols||4,
                                 cell:a.cell||170, from:a.from||0, to:(a.to==null?8:a.to)});
@@ -1578,6 +1742,7 @@ async function runJob(j){
     // Render one avatar STATE, which is the thing claude most often needs to eyeball and the
     // thing it has been least able to see.
     av.setStyle(a.style || 'geodesic'); av._resize(a.cell || 320);
+    setSubject('avatar', {quiet: true});      // rendering a STATE is avatar work, by definition
     setState(a.state || 'thinking');
     if(a.identity){ av.setIdentity(a.identity); av.id0=av.idT0.slice(); av.id1=av.idT1.slice(); }
     av.cur = Object.assign({}, av.target); av.cur.tint = av.target.tint.slice();
@@ -2056,6 +2221,9 @@ var LIBRARY = [
   startThread();
   workerTick();          // claude's render requests land here
   feedTick();            // ...and what claude is doing with them shows up in the thread
+  // LAST, and after the selects and the shipped table exist: come back to whatever the bench was
+  // showing. Everything above builds the controls; this decides what they are pointed at.
+  loadBench();
   // Ctrl+Enter sends. A design bench is a two-handed place -- reaching for the mouse to send a
   // one-line "warmer" is exactly the friction this box exists to remove.
   el('chat').addEventListener('keydown', function(e){

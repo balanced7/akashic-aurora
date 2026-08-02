@@ -635,6 +635,61 @@ def _vfx_ingest(name, src):
             "summary": vfx_ingest.summary(r)}
 
 
+# ---- WHAT THE BENCH IS CURRENTLY SHOWING -------------------------------------------------------
+# Daniil: "If I refresh the page your buffered demo gets lost."
+#
+# Exactly so, and it was worse than a nuisance: claude loads a shader into the open bench, Daniil
+# reloads for any reason, and the bench boots back to the default avatar with no trace of what was
+# on it. The work was not saved anywhere because the bench had no notion of a CURRENT SUBJECT -- it
+# only had an AgentAvatar that things were temporarily done to.
+#
+# So the bench's current subject is state, and it lives HERE rather than in localStorage for two
+# reasons: a reload must restore it (either would do that), and claude must be able to READ and SET
+# it (only this does). It is a plain JSON file next to the presets, on the same principle as
+# everything else in this bench -- either side can read it, edit it and commit it.
+VFX_BENCH = os.path.join(REPO, "design", "vfx-bench.json")
+_BENCH_KEYS = ("subject", "sketch", "style", "state", "identity", "note")
+_BENCH_DEFAULT = {"subject": "avatar", "sketch": "", "style": "geodesic",
+                  "state": "thinking", "identity": "claude", "note": ""}
+
+
+def _vfx_bench_read():
+    out = dict(_BENCH_DEFAULT)
+    try:
+        with open(VFX_BENCH, "r", encoding="utf-8") as fh:
+            d = json.load(fh)
+        if isinstance(d, dict):
+            out.update({k: d[k] for k in _BENCH_KEYS if k in d})
+    except FileNotFoundError:
+        pass                       # never bench-stated before is not an error, it is a fresh clone
+    except Exception:
+        pass                       # a corrupt file must not stop the bench from opening
+    return out
+
+
+def _vfx_bench_write(patch):
+    """MERGE, never replace. The page knows the subject and the sketch; a CLI caller may only want
+    to leave a note. A writer that clobbered the keys it did not mention would make those two
+    callers fight over a file neither of them fully owns."""
+    if not isinstance(patch, dict):
+        return {"ok": False, "error": "expected an object"}
+    cur = _vfx_bench_read()
+    for k in _BENCH_KEYS:
+        if k in patch:
+            cur[k] = str(patch[k] or "")[:200]
+    if cur["subject"] not in ("avatar", "shader"):
+        return {"ok": False, "error": "subject must be 'avatar' or 'shader'"}
+    try:
+        os.makedirs(os.path.dirname(VFX_BENCH), exist_ok=True)
+        tmp = VFX_BENCH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(cur, fh, indent=2)
+        os.replace(tmp, VFX_BENCH)          # atomic, same reason as the presets file
+        return {"ok": True, "bench": cur}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)[:200]}
+
+
 VFX_PRESETS = os.path.join(REPO, "design", "vfx-presets.json")
 
 
@@ -724,6 +779,8 @@ class Handler(BaseHTTPRequestHandler):
                                             (q.get("visible") or ["1"])[0] != "0") or {})
         if path == "/vfx/renderer":
             return self._json(_vfx_lease_state())
+        if path == "/vfx/bench":
+            return self._json(_vfx_bench_read())
         if path.startswith("/vfx/job/"):
             return self._json(_VFX_JOBS.get(path.rsplit("/", 1)[-1]) or {"error": "unknown job"})
         if path.startswith("/vfx/clip/"):
@@ -1060,6 +1117,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(_vfx_thumb_write(data.get("name"), data.get("png")))
         if path == "/vfx/clip":
             return self._json(_vfx_clip_write(data.get("name"), data.get("webm")))
+        if path == "/vfx/bench":
+            return self._json(_vfx_bench_write(data))
         if path == "/vfx/ingest":
             return self._json(_vfx_ingest(data.get("name"), data.get("src")))
         if path == "/vfx/job":
