@@ -86,10 +86,12 @@
 - `task_costs.py` — Task cost telemetry (T056 / wishlist R5) -- per-slice ROI, honestly attributed.
 - `task_ledger.py` — Governed task ledger — the deterministic coordination substrate (Phase 1: sequential-correct).
 
-## core/learning/  (3 modules)
+## core/learning/  (5 modules)
 - `agent_memory.py` — Agent Memory: a multi-type memory for agents (decisions, experiences, reflections, approaches)
 - `consolidation.py` — Consolidation: distill raw episodic memory + experiment lessons into a curated chronicle.
+- `domains.py` — Recall domains — the boundary line, and why it is not a tag.
 - `learning_store.py` — Learning Store: Persists and retrieves experiment outcomes via the Store.
+- `vfx_chunk_lessons.py` — Adopt the VFX chunk rules into recall — as a PROJECTION, not a migration.
 
 ## core/recall/  (13 modules)
 - `anchors.py` — Lesson anchor resolver -- does a lesson's premise still hold?
@@ -240,5 +242,6 @@
 - `sol_chat.py` — sol_chat -- the Sol seat's model transport: gpt-5.6-sol (OpenAI) as a first-class Akashic citizen.
 - `ui_shot.py` — Headless screenshots of the live console -- the EYES half of the design loop.
 - `vfx_ingest.py` — Turn a pasted Shadertoy shader into one the bench can compile, and SAY WHAT IT CHANGED.
+- `vfx_probe_metrics.py` — Probe: do structured metrics surface anything a PNG does not?
 - `vfx_render.py` — Render something in the VFX bench from the command line, and get a file path back.
 - `worktree.py` — worktree.py -- per-agent git worktrees (Concurrency design C1).

@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (36 of 135 modules lack both pin and paper by name)
+## GAP queue (38 of 137 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/migrate_to_sqlite.py
@@ -37,6 +37,8 @@ Class: reference
 - core/comm/timescale.py
 - core/coord/preregistration.py
 - core/coord/task_costs.py
+- core/learning/domains.py
+- core/learning/vfx_chunk_lessons.py
 - core/recall/at_action.py
 - core/recall/curator.py
 - core/recall/funnel.py
@@ -147,13 +149,15 @@ Class: reference
 | `task_costs.py` | Task cost telemetry (T056 / wishlist R5) -- per-slice ROI, honestly attributed. | GAP | GAP | `BIFROST_NAMESPACE` |
 | `task_ledger.py` | Governed task ledger — the deterministic coordination substrate (Phase 1: sequential-correct). | tests/test_task_ledger.py | GAP | `AKASHIC_PROPOSED_STALE_DAYS`, `BIFROST_PREMISE_GATE_MIN_AGE_MS` |
 
-## core/learning/  (3 modules)
+## core/learning/  (5 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
 | `agent_memory.py` | Agent Memory: a multi-type memory for agents (decisions, experiences, reflections, approaches) | tests/test_agent_memory.py | docs/library/design/20260701_multi-agent-memory-recall-design-assessm_7807ba.md |  |
 | `consolidation.py` | Consolidation: distill raw episodic memory + experiment lessons into a curated chronicle. | tests/test_consolidation.py | docs/library/design/20260709_s2-the-consolidation-pass-that-sharpens_68d42c.md | `AI_SETUP` |
+| `domains.py` | Recall domains — the boundary line, and why it is not a tag. | GAP | GAP |  |
 | `learning_store.py` | Learning Store: Persists and retrieves experiment outcomes via the Store. | GAP | docs/library/design/20260709_agent-memory-analysis-of-learning-store_5ec82f.md | `AI_SETUP` |
+| `vfx_chunk_lessons.py` | Adopt the VFX chunk rules into recall — as a PROJECTION, not a migration. | GAP | GAP | `AI_SETUP` |
 
 ## core/recall/  (13 modules)
 

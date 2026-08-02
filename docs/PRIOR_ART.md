@@ -23,19 +23,20 @@ Letta's plain files beat a graph memory system; Wikidata's three ranks run at ~1
 statements where ATMS dies around 100 beliefs. The cost of NOT sweeping is measured in
 rebuilt wheels and dead ends, so the sweep is now a standing artifact rather than a mood.
 
-## Coverage: 13 current, 9 drift, 0 gap (of 22 subsystems)
+## Coverage: 12 current, 10 drift, 0 gap (of 22 subsystems)
 
 **DRIFT -- surveyed, but the subsystem has changed size since:**
 
 - `core/foundation` -- DRIFT (8->9), reviewed 2026-07-26
 - `core/comm` -- DRIFT (36->45), reviewed 2026-07-26
 - `core/coord` -- DRIFT (11->13), reviewed 2026-07-26
+- `core/learning` -- DRIFT (3->5), reviewed 2026-07-26
 - `core/recall` -- DRIFT (10->13), reviewed 2026-07-26
 - `core/primitives` -- DRIFT (7->8), reviewed 2026-07-26
 - `scripts/checkers` -- DRIFT (12->14), reviewed 2026-07-26
 - `scripts/generators` -- DRIFT (6->7), reviewed 2026-07-26
 - `scripts/ops` -- DRIFT (2->3), reviewed 2026-07-26
-- `tests` -- DRIFT (331->417), reviewed 2026-07-26
+- `tests` -- DRIFT (331->418), reviewed 2026-07-26
 
 ---
 
@@ -152,7 +153,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `core/learning` -- 3 modules  ·  current
+## `core/learning` -- 5 modules  ·  DRIFT (3->5)
 
 **What it does.** The lesson corpus: learning_store (455 lessons as learn:experiment:* hashes), agent_memory, consolidation. Each lesson carries tried/result/recommend, an agent_id, a success verdict and a confidence field.
 
@@ -512,7 +513,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `tests` -- 417 modules  ·  DRIFT (331->417)
+## `tests` -- 418 modules  ·  DRIFT (331->418)
 
 **What it does.** 331 test modules plus conftest, providing universal backend isolation, a parity exerciser shared across store backends, and a differential harness that cross-verifies two implementations of the same semantics.
 

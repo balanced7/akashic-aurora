@@ -44,6 +44,77 @@ from pathlib import Path
 import os
 
 from core.foundation.store import Store, create_store
+from core.learning.domains import DEFAULT_DOMAIN, infer_domain
+
+# ---- RETRIEVAL VOCABULARY ----------------------------------------------------------------------
+# The flood, measured 2026-08-02: asking the corpus a shader question returned 77, 707 and 675 rows,
+# every one of them about bus lanes and ACLs, and it never said "I have nothing". The cause was two
+# lines below the surface -- `hits = sum(1 for t in terms if t in haystack)` then `if hits:`. That
+# is a SUBSTRING test with no floor, so "the" matched almost every record and "state" matched
+# "statement". A ten-word question therefore reached most of the corpus and came back RANKED, which
+# reads as confidence.
+#
+# The same defect turned up twice more the same day in unrelated instruments (a PNG decoder that
+# returned ten identical confident errors; a metric suite that scored three visibly different images
+# as identical). AN INSTRUMENT THAT CANNOT SEE ITS SUBJECT RETURNS A CONFIDENT ANSWER, NOT SILENCE.
+# Recall is allowed to answer "nothing" -- and must, or every other honesty guarantee is decoration.
+_STOPWORDS = frozenset("""
+a an and are as at be been being both but by can could did do does for from had has have how i if
+in into is it its may might most must no not of on once one only or other our over own same should
+so some such than that the their them then there these they this those through to too two under
+until up very was we were what when where which while who why will with would you your about after
+again all also any because before between during each few more much never new now off out same
+""".split())
+
+# UNDERSCORE IS PART OF A TOKEN; HYPHEN IS A SEPARATOR. That asymmetry is deliberate and was caught
+# by an existing pin: splitting on '_' made the query `gamma_lesson` match the record `alpha_lesson`
+# through the shared fragment "lesson", which is exactly the false confidence this work exists to
+# remove. snake_case names are single symbols and must match whole; kebab-case labels like
+# `channel-rotate` are multi-word and must stay reachable by either half.
+_TOKEN = re.compile(r"[a-z0-9_]+")
+
+
+# LIGHT SUFFIX FOLDING, and it was forced by evidence rather than chosen. Exact-token matching
+# fixed the flood and immediately broke an older bar (test_recall_match): the query "salience
+# promotion consolidation track" stopped finding lessons about "salient", "promote" and "tracks".
+# That older pin was labelled OR-matching, but what it was really defending was MORPHOLOGY -- the
+# old substring test caught "track" inside "tracks" by accident. Folding a few suffixes serves both
+# bars honestly instead of weakening either: word forms match, fragments still do not.
+# Longest suffix first; the stem must stay >=4 characters so short words are left alone.
+_SUFFIXES = ("ations", "ation", "ions", "ion", "ences", "ence", "ances", "ance",
+             "ents", "ent", "ings", "ing", "ed", "es", "s", "e")
+
+
+def _stem(tok: str) -> str:
+    for suf in _SUFFIXES:
+        if tok.endswith(suf) and len(tok) - len(suf) >= 4:
+            return tok[:-len(suf)]
+    return tok
+
+
+def _content_terms(query: str) -> List[str]:
+    """Query words that carry meaning, folded to stems. Single characters go too: they cannot
+    discriminate and they were half the flood."""
+    return [_stem(t) for t in _TOKEN.findall(str(query or "").lower())
+            if t not in _STOPWORDS and len(t) > 1]
+
+
+def _tokens_of(text: str) -> set:
+    """WORD stems, not substrings -- so 'track' still matches 'tracks' while 'state' no longer
+    matches 'statement'."""
+    return {_stem(t) for t in _TOKEN.findall(str(text or "").lower())}
+
+
+def _min_hits(n_terms: int) -> int:
+    """How many content terms must actually land before a record counts as an answer.
+
+    One term matching out of ten is not a match, it is a coincidence -- and returning it ranked is
+    what made the corpus look like it knew things it did not. Short queries keep a floor of one
+    because there is nothing to be relative to.
+    """
+    if n_terms <= 2:
+        return 1
+    return max(2, -(-n_terms // 4))         # ceil(n/4), never below 2
 
 # Generic verbs/nouns that describe *that* something failed rather than *what* the known-bad is;
 # stripped so an auto-drafted slug names the pattern, not the failure event.
@@ -478,6 +549,12 @@ class LearningStore:
             "root_cause": _s(learning_signal.get("root_cause")),
             "confidence": _s(learning_signal.get("confidence"), "medium"),
             "category": _s(learning_signal.get("category"), "uncategorized"),
+            # THE DOMAIN AXIS. Declared if the writer knows, inferred otherwise -- because a field
+            # nothing fills stays empty (that is why --category has been offered for months and
+            # essentially every lesson still reads 'uncategorized'). Inference is biased hard toward
+            # the default: ~840 lessons predate domains and all of them MEAN system by construction,
+            # so only a clear signal moves one.
+            "domain": _s(learning_signal.get("domain")) or infer_domain(learning_signal),
             "agent_id": agent_id,
             # lossy summary + lossless pointer: the store record IS the raw for an
             # agent-authored learning, so it points at itself -> Distiller can keep it.
@@ -537,21 +614,25 @@ class LearningStore:
         return data
 
     # ----- read: search -----
-    def search_learnings_by_keyword(self, keyword: str) -> List[Dict[str, Any]]:
+    def search_learnings_by_keyword(self, keyword: str,
+                                    domain: Optional[str] = None) -> List[Dict[str, Any]]:
         """
-        Search learnings by keyword (matches experiment id or any field).
+        Search learnings by keyword, optionally scoped to one domain.
 
         Semantic Relationship: SearchResults derived_from Learnings (by keyword)
+
+        The original here OR-matched substrings with no floor, which meant a long question reached
+        most of the corpus and returned it ranked. See the module header for the measurement. Now:
+        stopwords dropped, WORD tokens rather than substrings, and a minimum number of content terms
+        that must actually land. `domain` scopes the answer so shader work stops competing with
+        bus-lane work -- pass None to search everything, which keeps every existing caller working.
         """
         try:
-            # Tokenize + OR-match: a multi-word query matches any learning containing
-            # ANY of its terms, ranked by how many terms hit (so the closest matches
-            # surface first). A single substring match made multi-word queries return
-            # nothing -- the worst failure mode for a memory system (Cursor caught this).
-            terms = [t for t in (keyword or "").lower().split() if t]
+            terms = _content_terms(keyword)
             if not terms:
                 return []
-            scored, seen = [], set()
+            need = _min_hits(len(terms))
+            scored, weak, seen = [], [], set()
             for exp_id in self.store.lrange("learn:experiments:all", 0, -1):
                 if exp_id in seen:
                     continue
@@ -559,12 +640,27 @@ class LearningStore:
                 data = self._load_experiment(exp_id)
                 if not data:
                     continue
-                haystack = exp_id.lower() + " " + " ".join(str(v).lower() for v in data.values())
-                hits = sum(1 for t in terms if t in haystack)
-                if hits:
+                # A record written before domains existed has no field; it means system, which is
+                # what DEFAULT_DOMAIN says, so the filter stays correct across the backfill gap.
+                if domain and (data.get("domain") or DEFAULT_DOMAIN) != domain:
+                    continue
+                hay = _tokens_of(exp_id) | _tokens_of(" ".join(str(v) for v in data.values()))
+                hits = sum(1 for t in terms if t in hay)
+                if hits >= need:
                     scored.append((hits, {"id": exp_id, **data}))
+                elif hits:
+                    weak.append((hits, {"id": exp_id, **data}))
             scored.sort(key=lambda x: -x[0])   # most terms matched first
-            return [d for _, d in scored]
+            if scored:
+                return [d for _, d in scored]
+            # NOTHING CLEARED THE FLOOR, BUT SOMETHING TOUCHED. Returning silence here would be the
+            # mirror of the defect this work removes: a nine-word grab-bag ("shader glow tile gap
+            # vignette tonemap hue palette wireframe") spreads one hit across many real shader
+            # lessons and clears no floor, so a strict cut answers "I know nothing" about a corpus
+            # that demonstrably knows. So: hand back the best few, FLAGGED, and let the caller
+            # decide. Capped hard, because the flag is a confession and confessions do not scale.
+            weak.sort(key=lambda x: -x[0])
+            return [dict(d, weak_match=True) for _, d in weak[:5]]
         except Exception as e:
             self.logger.error(f"Error searching learnings: {e}")
             return []
