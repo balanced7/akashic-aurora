@@ -118,6 +118,19 @@
        rail HIDES what it replaces rather than deleting it, so pulling one script tag restores the
        old surface exactly — a reversible swap, not a demolition. */
     '#engine-room{display:none !important}',
+
+    /* SUPERSEDE THE OLD PRESENCE RAIL. presence-rail.js registers a tile variant ("Presence Rail")
+       whose mount does two things: sets #pills to display:none, and puts `presence-rail` on #tiles
+       which makes it flex-direction:column. #tiles lives in the HEADER flex row, so a vertical
+       stack of eleven agent rows turns the header into a ~1000px column. THAT is the "ai list at
+       the top taking half the screen" from Daniil's very first message.
+       It went unfound for four rounds because the variant is persisted PER BROWSER: his had it,
+       my headless Chromium did not. Every screenshot I took was of a console where this feature
+       was off, so I kept fixing .pills -- an element that is display:none in his configuration.
+       Its own description is "vertical avatars + role/state + live status", which is exactly what
+       #rail now provides, in a column that was designed to hold it. Same reversible-swap rule as
+       #engine-room: hidden, never deleted. */
+    '#tiles.presence-rail{display:none !important}',
     '.rfence{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:11.5px;',
     '  border-top:1px solid var(--border,rgba(255,255,255,.07))}',
     '.rfence:first-of-type{border-top:0}',
@@ -197,7 +210,24 @@
   try { density = localStorage.getItem('bifrost_rail_density') || 'glance'; } catch (e) {}
   var open = {};                              // agent -> reasoning drawer open
 
+  /* Undo the old Presence Rail variant if it is mounted. A CSS hide is not enough: its
+     mountPresence() sets `pills.style.display='none'` INLINE, and an inline style outlives any
+     stylesheet rule. Re-asserted on every render because the variant can be remounted at runtime
+     from the settings panel -- a swap that only holds until the next click is not a swap. */
+  function supersedeOldRail() {
+    try {
+      var t = document.getElementById('tiles');
+      if (t && t.classList.contains('presence-rail')) {
+        t.classList.remove('show', 'presence-rail');
+        t.innerHTML = '';
+      }
+      var p = document.getElementById('pills');
+      if (p && p.style.display === 'none') p.style.display = '';
+    } catch (e) {}
+  }
+
   function ensure() {
+    supersedeOldRail();
     if (document.getElementById('rail')) return document.getElementById('rail');
     var log = document.getElementById('log');
     if (!log || !log.parentNode) return null;
@@ -443,6 +473,7 @@
     }
 
     rail.innerHTML = h;
+    supersedeOldRail();     // the variant can be remounted at runtime; keep the swap asserted
 
     rail.querySelectorAll('.rdens button').forEach(function (b) {
       b.onclick = function (e) {
