@@ -18,10 +18,16 @@ THE DESIGN DECISION IS WHERE THE GL RUNS, and there were three options:
 THE HONEST CONSTRAINT: a /vfx tab must be open. That is reported as "no renderer attached" rather
 than left as a hang -- a diagnosis beats a mystery, and the fix (open the page) is one sentence.
 
+Every verb takes --say, and there is a bare `say` verb for narration with no render. Both post to
+the bench's live feed, which the open page renders into the thread NEXT TO THE IMAGE. That closes
+the last asymmetry here: Daniil's chat box has always attached a snapshot so claude could look at
+what he meant, while claude could only send words back about pictures Daniil could not see.
+
     py scripts/vfx_render.py state --state thinking --identity claude
-    py scripts/vfx_render.py thumb --chunk swirl
+    py scripts/vfx_render.py thumb --chunk swirl --say "the reference, before I touch gap"
     py scripts/vfx_render.py sheet --frames 12 --to 8
     py scripts/vfx_render.py grid --a thick --a-from 0 --a-to 1 --b gap --b-from 0.004 --b-to 0.18
+    py scripts/vfx_render.py say "that read as glow because round turns tile area into gap"
 """
 from __future__ import annotations
 
@@ -43,6 +49,18 @@ def _post(path, payload):
 
 def _get(path):
     return json.load(urllib.request.urlopen(BASE + path, timeout=10))
+
+
+def say(text, kind="say", label=""):
+    """Narrate into the open bench. The counterpart to Daniil's chat box: his messages carry a
+    snapshot so claude can look, and until now claude's carried nothing back but words on a bus
+    that arrive a turn later. This lands on the page NOW, next to the render it is about."""
+    try:
+        r = _post("/vfx/feed", {"text": text, "kind": kind, "label": label, "from": "claude"})
+    except urllib.error.URLError as exc:
+        print("the console is not running on %s (%s)" % (BASE, exc), file=sys.stderr)
+        return 2
+    return 0 if r.get("ok") else 1
 
 
 def submit(op, args, wait=90):
@@ -77,6 +95,19 @@ def submit(op, args, wait=90):
     # Distinguish "nobody is listening" from "the render is slow" -- they need opposite responses.
     if picked_up:
         print("job %s was picked up but did not finish in %ss" % (jid, wait), file=sys.stderr)
+        return 3
+    # And distinguish "no tab" from "a tab, but it is hidden". Both look identical from here -- a
+    # job that never moves -- and the fixes are different sentences, so guessing wastes the very
+    # minutes the tool exists to save.
+    try:
+        r = _get("/vfx/renderer")
+    except Exception:
+        r = {}
+    if r.get("attached") and not r.get("visible"):
+        print("the /vfx tab is HIDDEN, so it cannot render: bring it to the front", file=sys.stderr)
+    elif r.get("attached"):
+        print("a renderer is attached (%s) but took no job in %ss -- reload %s/vfx"
+              % (r.get("worker", "?"), wait, BASE), file=sys.stderr)
     else:
         print("no renderer attached: open %s/vfx in a browser and leave the tab open" % BASE,
               file=sys.stderr)
@@ -152,7 +183,20 @@ def main() -> int:
     p.add_argument("--cell", type=int, default=320)
     p.add_argument("--name")
 
+    p = sub.add_parser("say", help="narrate into the open bench, with no render")
+    p.add_argument("text", nargs="+")
+
+    # Every render can carry its reason, and they travel together because separating them is what
+    # made the old feed useless: a picture with no intent is decoration, and an intent whose
+    # picture is somewhere else is a claim you have to go check. Attached to the SUBPARSERS rather
+    # than typed six times, so a verb added later inherits it instead of quietly lacking it.
+    for _vn, _vp in sub.choices.items():
+        if _vn != "say":
+            _vp.add_argument("--say", help="narrate this render into the open bench")
+
     ns = ap.parse_args()
+    if ns.op == "say":
+        return say(" ".join(ns.text))
     args = {k: v for k, v in vars(ns).items() if k != "op" and v is not None}
     if "from_" in args:
         args["from"] = args.pop("from_")

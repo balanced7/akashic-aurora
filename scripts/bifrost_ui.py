@@ -195,9 +195,63 @@ def _vfx_job_add(op, args):
     return _VFX_JOBS[jid]
 
 
-def _vfx_job_next():
+# ---- WHICH TAB IS THE RENDER FARM --------------------------------------------------------------
+# Found by reproducing it: open /vfx a second time and that tab ALSO starts polling for jobs, so
+# renders split between the two at random depending on which one's timer fires first. That is bad
+# in every case and actively broken in the common one -- the second tab is usually a background or
+# hidden pane, where the browser throttles rAF and never composites, so the job it wins either
+# stalls or captures a frame that was never drawn. The failure has no symptom at the CLI beyond a
+# render that took the wrong path or timed out, which sends you debugging the shader.
+#
+# So the renderer is a LEASE, not a free-for-all: one tab holds it, renews it by polling, and loses
+# it after a few seconds of silence so closing the tab hands the farm to whoever is left. A visible
+# tab may take the lease from a hidden one, because a hidden holder cannot do the job it is
+# holding -- which is the exact case that made this a bug rather than a curiosity.
+_VFX_LEASE = {"worker": "", "at": 0.0, "visible": True}
+VFX_LEASE_TTL = 6.0
+
+
+def _vfx_lease(worker, visible):
+    """True if `worker` may render right now. Renews the lease as a side effect of asking."""
+    now = time.time()
+    cur = _VFX_LEASE
+    held = bool(cur["worker"]) and (now - cur["at"]) < VFX_LEASE_TTL
+    if held and cur["worker"] != worker:
+        holder_visible = bool(cur.get("visible"))
+        # RULE 1, and it outranks everything: a tab that can actually draw displaces one that
+        # cannot. Nothing else may promote a hidden tab over a visible one.
+        if visible and not holder_visible:
+            pass
+        # RULE 2, and only BETWEEN EQUALS. A page from before the lease existed identifies as
+        # 'legacy'; it still renders (a deploy must not stop a working bench) but its claim is weak,
+        # so a reloaded tab takes the farm rather than waiting behind a holder that cannot be asked
+        # about. Ordering this rule ABOVE rule 1 is a bug that reproduced immediately and loudly:
+        # a hidden pane and a visible legacy tab traded the lease twice a second, so every render
+        # was a coin flip on whether it landed in a tab that composites.
+        elif visible == holder_visible and cur["worker"] == "legacy" and worker != "legacy":
+            pass
+        else:
+            return False
+    cur["worker"], cur["at"], cur["visible"] = worker, now, bool(visible)
+    return True
+
+
+def _vfx_lease_state():
+    now = time.time()
+    held = bool(_VFX_LEASE["worker"]) and (now - _VFX_LEASE["at"]) < VFX_LEASE_TTL
+    return {"attached": held, "worker": _VFX_LEASE["worker"] if held else "",
+            "visible": bool(_VFX_LEASE["visible"]) if held else False,
+            "idle": round(now - _VFX_LEASE["at"], 2) if _VFX_LEASE["worker"] else None}
+
+
+def _vfx_job_next(worker="", visible=True):
     """Hand out ONE pending job and mark it running. One at a time on purpose: these are GPU
     captures, and two concurrent recordings on one context would interleave and corrupt both."""
+    # An unnamed caller is a page that predates the lease. It gets a name anyway, so /vfx/renderer
+    # never reports "nothing attached" while something is quietly rendering -- a status surface
+    # that under-reports is worse than none, because it sends you to fix a problem you do not have.
+    if not _vfx_lease(worker or "legacy", visible):
+        return {"viewer": True}
     for k in sorted(_VFX_JOBS, key=lambda x: int(x[1:])):
         j = _VFX_JOBS[k]
         if j["state"] == "pending":
@@ -212,7 +266,87 @@ def _vfx_job_result(jid, result):
         return {"ok": False, "error": "unknown job"}
     j["state"] = "done"
     j["result"] = result
+    # EVERY render announces itself. This is the automatic half of the feed and it matters more
+    # than the deliberate half: narration that must be remembered is narration that gets skipped
+    # on exactly the busy passes worth watching. Posting from HERE rather than from the browser
+    # means one place covers every op, including the ones added later.
+    _vfx_feed_add(_vfx_feed_from_job(j))
     return {"ok": True}
+
+
+# ---- THE FEED: claude's side of the mirror -----------------------------------------------------
+# The bench was asymmetric. Daniil's chat box attaches a snapshot so claude can LOOK at what he is
+# talking about -- that asymmetry was noticed and fixed in claude's favour first, because claude
+# was the one flying blind. But it left the opposite hole: in a bench where claude makes the
+# renders, claude could only send WORDS back. Daniil got told about pictures he could not see
+# unless he went and opened files.
+#
+# So: an append-only feed of what claude is doing, carrying the IMAGE, polled by the open page and
+# rendered into the same thread the conversation already uses. Not a second surface -- the point is
+# that "what claude said" and "what claude rendered" are one stream, in order, because a render
+# without its reason is a pretty picture and a reason without its render is a claim.
+#
+# In memory on purpose. This is a live channel between two people looking at the same screen; the
+# durable record is the PNG on disk and the commit, both of which already exist. A feed that
+# survived restarts would be a third store of the same facts.
+_VFX_FEED = []
+_VFX_FEED_SEQ = [0]
+
+
+def _vfx_feed_url(path):
+    """Map a repo-relative render path to a URL the page can put in an <img>."""
+    p = str(path or "").replace("\\", "/")
+    leaf = p.rsplit("/", 1)[-1]
+    if not leaf.endswith(".png"):
+        return ""
+    if "vfx-thumbs" in p:
+        return "/vfx/thumb/" + leaf
+    return "/vfx/snap/" + leaf
+
+
+def _vfx_feed_add(entry):
+    if not entry:
+        return None
+    _VFX_FEED_SEQ[0] += 1
+    entry["id"] = _VFX_FEED_SEQ[0]
+    entry.setdefault("ts", time.time())
+    entry.setdefault("from", "claude")
+    _VFX_FEED.append(entry)
+    # A bench left open all day must not grow without bound. The page only ever asks for what it
+    # has not seen, so trimming the head costs nothing a live watcher will notice.
+    if len(_VFX_FEED) > 300:
+        del _VFX_FEED[:100]
+    return entry
+
+
+def _vfx_feed_from_job(j):
+    """Turn a finished job into a feed entry. Failures post TOO -- a render that silently does not
+    appear is indistinguishable from a renderer that died, and those need opposite responses."""
+    res = j.get("result") or {}
+    args = j.get("args") or {}
+    ok = bool(res.get("ok"))
+    # The subject, not the verb: "thumb swirl" tells you what you are looking at; "thumb" does not.
+    subject = args.get("chunk") or args.get("state") or args.get("name") or args.get("style") or ""
+    return {"kind": "render", "op": j.get("op", ""), "ok": ok,
+            "text": (args.get("say") or "").strip(),
+            "label": (str(j.get("op", "")) + " " + str(subject)).strip(),
+            "error": "" if ok else str(res.get("error") or "failed")[:200],
+            "path": res.get("path") or "", "url": _vfx_feed_url(res.get("path"))}
+
+
+def _vfx_feed_since(since):
+    try:
+        n = int(since)
+    except (TypeError, ValueError):
+        n = 0
+    out = [e for e in _VFX_FEED if e["id"] > n]
+    # A FRESH PAGE CATCHES UP, IT DOES NOT REPLAY THE DAY. since=0 is a reload or a newly opened
+    # tab, and handing it 300 entries would fire 300 image requests at once -- turning the one
+    # action that recovers a broken bench (reload it) into the one that hammers it. A live watcher
+    # never hits this: they are always asking for the handful since their last tick.
+    if n <= 0:
+        out = out[-30:]
+    return {"entries": out, "last": _VFX_FEED_SEQ[0]}
 
 
 # ---- VFX thumbnails ---------------------------------------------------------------------------
@@ -562,7 +696,12 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/vfx/clips":
             return self._json({"names": _vfx_clips_list()})
         if path == "/vfx/job/next":
-            return self._json(_vfx_job_next() or {})
+            from urllib.parse import urlparse, parse_qs
+            q = parse_qs(urlparse(self.path).query)
+            return self._json(_vfx_job_next((q.get("worker") or [""])[0],
+                                            (q.get("visible") or ["1"])[0] != "0") or {})
+        if path == "/vfx/renderer":
+            return self._json(_vfx_lease_state())
         if path.startswith("/vfx/job/"):
             return self._json(_VFX_JOBS.get(path.rsplit("/", 1)[-1]) or {"error": "unknown job"})
         if path.startswith("/vfx/clip/"):
@@ -577,6 +716,19 @@ class Handler(BaseHTTPRequestHandler):
             if not safe.endswith(".png"):
                 return self.send_error(404)
             return self._static("design/vfx-thumbs/" + safe, "image/png")
+        if path.startswith("/vfx/snap/"):
+            # Snapshots were write-only until now: claude wrote them, and the only reader was
+            # claude's own Read tool. Serving them is what lets the render appear in the page
+            # instead of merely being reported to have happened.
+            leaf = path.rsplit("/", 1)[-1]
+            safe = "".join(c for c in leaf if c.isalnum() or c in "-_.")
+            if not safe.endswith(".png"):
+                return self.send_error(404)
+            return self._static("design/vfx-snaps/" + safe, "image/png")
+        if path == "/vfx/feed":
+            from urllib.parse import urlparse, parse_qs
+            q = parse_qs(urlparse(self.path).query)
+            return self._json(_vfx_feed_since((q.get("since") or ["0"])[0]))
         if path == "/vfx/compositions":
             return self._json(_vfx_compos_read())
         if path == "/vfx/groups":
@@ -890,6 +1042,19 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(_vfx_job_add(data.get("op"), data.get("args")))
         if path == "/vfx/job/result":
             return self._json(_vfx_job_result(data.get("id"), data.get("result")))
+        if path == "/vfx/feed":
+            # The DELIBERATE half: claude narrating intent between renders. Kept separate from the
+            # bus on purpose -- the bus is the conversation, which is durable and arrives at
+            # claude's next turn; this is a live shoulder-to-shoulder channel about the thing on
+            # screen right now, and mixing the two would put "watch this gap close" in the mailbox.
+            txt = str(data.get("text") or "").strip()
+            if not txt:
+                return self._json({"ok": False, "error": "text required"})
+            e = _vfx_feed_add({"kind": str(data.get("kind") or "say"), "text": txt[:2000],
+                               "from": str(data.get("from") or "claude")[:32],
+                               "label": str(data.get("label") or "")[:80],
+                               "path": "", "url": "", "ok": True, "error": ""})
+            return self._json({"ok": True, "id": e["id"]})
         if path == "/vfx/presets":
             name = str(data.get("name") or "").strip()
             if not name:

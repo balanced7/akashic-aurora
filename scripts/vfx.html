@@ -150,7 +150,9 @@
   .hud .none{font-size:10.5px;color:var(--warn);padding:4px 2px}
 
   /* ---- chat ---- */
-  .thread{max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:9px;
+  /* 220px was right for a text thread and is wrong now that renders land here: an image plus its
+     reason is most of that budget, so watching claude work meant scrolling a letterbox. */
+  .thread{max-height:360px;overflow:auto;border:1px solid var(--line);border-radius:9px;
     padding:8px;background:#080c13;display:flex;flex-direction:column;gap:6px}
   .msg{padding:6px 9px;border-radius:8px;font-size:12px;max-width:92%;white-space:pre-wrap;
     word-break:break-word}
@@ -158,7 +160,29 @@
   .msg.them{background:#1d1526;border:1px solid #34274a;align-self:flex-start}
   .msg .who{display:block;font-size:9px;letter-spacing:.1em;text-transform:uppercase;
     color:var(--dim);margin-bottom:2px}
+  /* WORK, not talk. Claude's renders are a third voice in this thread and they read as one:
+     flush left like claude's replies, but quieter and rule-marked, so a glance separates "claude
+     said" from "claude did" without reading a word of either. */
+  .msg.work{background:#0e1524;border:1px solid #1b2740;border-left:2px solid var(--acc);
+    align-self:stretch;max-width:100%;padding:7px 9px}
+  .msg.work.fail{border-left-color:#c2564b;background:#1a1013}
+  .msg .lbl{display:inline-block;font-size:9px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--acc);background:#111c2e;border:1px solid #1d2c47;border-radius:4px;
+    padding:1px 5px;margin-bottom:4px}
+  .msg.work.fail .lbl{color:#e08b82;background:#241417;border-color:#4a2226}
+  /* The image is the payload, so it gets real size -- a 64px chip would reproduce the exact
+     problem the snapshot pipeline was built to fix. Click opens it full in a tab. */
+  .msg img{display:block;margin-top:5px;max-width:100%;width:230px;border-radius:6px;
+    border:1px solid var(--line);background:#05070b;cursor:zoom-in}
+  .msg .err{color:#e08b82}
   .thread .empty{color:var(--dim);font-size:11px;text-align:center;padding:10px}
+  /* Says which tab claude's renders actually execute in. Worth a permanent pixel: "render farm"
+     vs "viewing" is the difference between a bench that will answer and one that is only
+     watching, and guessing wrong costs a debugging session on a shader that was never run. */
+  .rolebadge{float:right;font-size:9px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--acc);background:#111c2e;border:1px solid #1d2c47;border-radius:4px;
+    padding:1px 6px;font-weight:400}
+  .rolebadge.viewer{color:var(--dim);background:#12151b;border-color:var(--line)}
   .note{color:var(--dim);font-size:11px;margin-top:8px}
   .err{color:var(--warn)}
 </style>
@@ -289,7 +313,7 @@
     <p class="note" id="pmsg">Saved to <code>design/vfx-presets.json</code> — readable from either
        side, which is the point.</p>
 
-    <h2>Talk to claude</h2>
+    <h2>Talk to claude <span id="rolebadge" class="rolebadge"></span></h2>
     <div id="thread" class="thread"></div>
     <textarea id="chat" placeholder="Ask for a change, or describe what you want…"
               style="height:64px;margin-top:8px"></textarea>
@@ -1638,10 +1662,30 @@ async function runJob(j){
   return {ok:false, error:'unknown op: '+j.op};
 }
 
+// This tab's identity as a renderer. Random per LOAD, not per browser: two tabs of the same bench
+// are two renderers and must not be able to impersonate each other into sharing one lease.
+var WORKER_ID = 'w' + Math.random().toString(36).slice(2, 10);
+var WAS_VIEWER = null;
+
+function setRole(viewer){
+  if(viewer === WAS_VIEWER) return;               // paint on CHANGE, not every 900ms
+  WAS_VIEWER = viewer;
+  var b = el('rolebadge'); if(!b) return;
+  b.textContent = viewer ? 'viewing' : 'render farm';
+  b.className = 'rolebadge' + (viewer ? ' viewer' : '');
+  b.title = viewer ? 'another /vfx tab holds the renderer — this one still shows the feed'
+                   : "claude's renders execute in THIS tab";
+}
+
 async function workerTick(){
   if(!WORKER_ON) return;
   try{
-    var j = await (await fetch('/vfx/job/next')).json();
+    // Tell the server whether this tab can actually DRAW. A hidden tab has throttled rAF and
+    // never composites, so claiming the farm from one produces stalls and blank captures -- the
+    // server hands the lease to a visible tab instead.
+    var vis = (document.visibilityState === 'visible') ? 1 : 0;
+    var j = await (await fetch('/vfx/job/next?worker=' + WORKER_ID + '&visible=' + vis)).json();
+    setRole(!!(j && j.viewer));
     if(j && j.id){
       el('chatmsg').className='note';
       el('chatmsg').textContent = 'render job ' + j.id + ': ' + j.op;
@@ -1816,15 +1860,73 @@ async function sheetNow(){
   el('chatmsg').textContent = r.ok ? ('sheet: ' + r.path + '  ' + r.grid) : ('failed: ' + r.error);
 }
 
-function pushMsg(who, text, mine){
+function pushMsg(who, text, mine, opts){
   var th = el('thread');
   var e = th.querySelector('.empty'); if(e) e.remove();
+  // STICK TO THE BOTTOM ONLY IF ALREADY THERE. Renders arrive on their own schedule, and yanking
+  // the view down while Daniil is reading an earlier one makes the feed hostile to the exact use
+  // it exists for -- looking back at what just changed.
+  var atEnd = (th.scrollHeight - th.scrollTop - th.clientHeight) < 40;
+  opts = opts || {};
   var d = document.createElement('div');
-  d.className = 'msg ' + (mine ? 'me' : 'them');
+  d.className = 'msg ' + (opts.work ? ('work' + (opts.fail ? ' fail' : '')) : (mine ? 'me' : 'them'));
   d.innerHTML = '<span class="who"></span>';
   d.firstChild.textContent = who;
-  d.appendChild(document.createTextNode(text));
-  th.appendChild(d); th.scrollTop = th.scrollHeight;
+  // textContent throughout, never innerHTML: this thread carries text claude generated and paths
+  // from disk, and a bench is not the place to invent an injection surface.
+  if(opts.label){
+    var lb = document.createElement('span'); lb.className='lbl'; lb.textContent = opts.label;
+    d.appendChild(lb);
+  }
+  if(text) d.appendChild(document.createTextNode(text));
+  if(opts.err){
+    var ee = document.createElement('div'); ee.className='err'; ee.textContent = opts.err;
+    d.appendChild(ee);
+  }
+  if(opts.img){
+    var im = document.createElement('img');
+    // Cache-bust per entry: a re-render under the SAME name is the common case when tuning one
+    // value, and a cached <img> would show the previous attempt -- which reads as "the change did
+    // nothing" and sends you debugging a shader that was already right.
+    im.src = opts.img + (opts.img.indexOf('?')<0 ? '?v=' : '&v=') + (opts.id||0);
+    im.alt = opts.label || 'render';
+    im.title = opts.path || '';
+    im.onclick = function(){ window.open(im.src, '_blank'); };
+    d.appendChild(im);
+  }
+  th.appendChild(d);
+  if(atEnd) th.scrollTop = th.scrollHeight;
+}
+
+// ---- THE FEED: what claude is doing, as it does it ---------------------------------------------
+// Daniil: "so that as you work it renders live into the vfx ui".
+//
+// The bench already had claude's EYES (his chat box attaches a snapshot). This is the return path,
+// and it was the missing half: claude renders constantly and could only report having done so, so
+// Daniil's view of a working session was a chat line reading "render job j7: grid" and a PNG
+// somewhere on disk. Now the picture lands in the thread, under the reason it was made.
+//
+// Polled, and deliberately on its OWN loop rather than folded into the worker tick. The worker
+// awaits runJob, and a contact sheet holds it for many seconds -- so sharing that loop would
+// freeze the narration for exactly the renders slow enough to be worth narrating. Liveness is the
+// entire feature; it does not get to be the thing traded away for one fewer timer.
+var FEED_AT = 0, FEED_ON = true;
+async function feedTick(){
+  if(!FEED_ON){ setTimeout(feedTick, 700); return; }
+  try{
+    var r = await (await fetch('/vfx/feed?since=' + FEED_AT)).json();
+    (r.entries || []).forEach(function(e){
+      FEED_AT = Math.max(FEED_AT, e.id || 0);
+      if(e.kind === 'render'){
+        pushMsg(e.from || 'claude', e.text || '', false,
+                {work:true, fail:!e.ok, label:e.label, img:e.url, path:e.path,
+                 id:e.id, err:e.error});
+      } else {
+        pushMsg(e.from || 'claude', e.text || '', false, {work:true, label:e.label});
+      }
+    });
+  }catch(err){ /* server restarting: the next tick picks up where this one left off */ }
+  setTimeout(feedTick, 700);
 }
 
 async function sendChat(){
@@ -1953,6 +2055,7 @@ var LIBRARY = [
   refreshGraphs();
   startThread();
   workerTick();          // claude's render requests land here
+  feedTick();            // ...and what claude is doing with them shows up in the thread
   // Ctrl+Enter sends. A design bench is a two-handed place -- reaching for the mouse to send a
   // one-line "warmer" is exactly the friction this box exists to remove.
   el('chat').addEventListener('keydown', function(e){
