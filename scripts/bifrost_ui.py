@@ -167,6 +167,49 @@ def tail(client, last_ids, ns="bifrost", block_ms=15000):
 # pixels and infer it looks right" into "I looked at it". A number can only confirm what you
 # already suspected; a picture can surprise you, and being surprised is the entire value of
 # looking.
+# ---- VFX thumbnails ---------------------------------------------------------------------------
+# A visual index for the block palette. Seventeen names in a list is a list; seventeen TILES that
+# each show what the block does is something you can shop from -- and for a modifier the tile
+# renders a REFERENCE source WITH that one effect applied, so it shows the block DOING its job
+# rather than showing an object that happens to be nearby.
+#
+# Alpha is PRESERVED here, unlike snapshots. A snapshot is composited on the console ground because
+# claude has to judge it against the background it lives on; a thumbnail is placed on a UI chip
+# whose colour the tile cannot know, so it must carry transparency and let the chip show through.
+# Same capture, opposite requirement -- which is why they are two paths and not one.
+VFX_THUMBS = os.path.join(REPO, "design", "vfx-thumbs")
+
+
+def _vfx_thumb_write(name, data_url):
+    import base64
+    safe = "".join(c for c in str(name or "") if c.isalnum() or c in "-_")[:60]
+    if not safe:
+        return {"ok": False, "error": "bad name"}
+    try:
+        head, _, b64 = str(data_url or "").partition(",")
+        if "base64" not in head or not b64:
+            return {"ok": False, "error": "expected a base64 data URL"}
+        raw = base64.b64decode(b64)
+        if len(raw) > 2 * 1024 * 1024:
+            return {"ok": False, "error": "too large for a thumbnail"}
+        os.makedirs(VFX_THUMBS, exist_ok=True)
+        path = os.path.join(VFX_THUMBS, safe + ".png")
+        tmp = path + ".tmp"
+        with open(tmp, "wb") as fh:
+            fh.write(raw)
+        os.replace(tmp, path)
+        return {"ok": True, "name": safe, "bytes": len(raw)}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)[:200]}
+
+
+def _vfx_thumbs_list():
+    try:
+        return sorted(f[:-4] for f in os.listdir(VFX_THUMBS) if f.endswith(".png"))
+    except Exception:
+        return []
+
+
 VFX_SNAPS = os.path.join(REPO, "design", "vfx-snaps")
 
 
@@ -433,6 +476,14 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"names": _vfx_sketches_list()})
         if path == "/vfx/chunks":
             return self._json({"chunks": _vfx_chunks_read()})
+        if path == "/vfx/thumbs":
+            return self._json({"names": _vfx_thumbs_list()})
+        if path.startswith("/vfx/thumb/"):
+            leaf = path.rsplit("/", 1)[-1]
+            safe = "".join(c for c in leaf if c.isalnum() or c in "-_.")
+            if not safe.endswith(".png"):
+                return self.send_error(404)
+            return self._static("design/vfx-thumbs/" + safe, "image/png")
         if path == "/vfx/compositions":
             return self._json(_vfx_compos_read())
         if path == "/vfx/groups":
@@ -731,6 +782,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(_vfx_graphs_write(data.get("name"), data.get("value")))
         if path == "/vfx/snap":
             return self._json(_vfx_snap_write(data.get("name"), data.get("png")))
+        if path == "/vfx/thumb":
+            return self._json(_vfx_thumb_write(data.get("name"), data.get("png")))
         if path == "/vfx/presets":
             name = str(data.get("name") or "").strip()
             if not name:

@@ -63,6 +63,15 @@
   .palrow{display:flex;flex-wrap:wrap;gap:5px}
   .pill{padding:4px 9px;border:1px solid var(--line);border-radius:7px;background:#0e1520;
     font-size:11px;cursor:grab;user-select:none;transition:.12s}
+  /* With a thumbnail the tile becomes a small card: image on top, name beneath. The chip keeps its
+     own background because thumbnails carry alpha -- which is the entire reason they are captured
+     unflattened. */
+  .pill.hasthumb{display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px 6px 4px;
+    width:78px;text-align:center;line-height:1.15}
+  .pill.hasthumb img{width:64px;height:64px;display:block;border-radius:5px;
+    background:radial-gradient(circle at 50% 45%,#0d1420,#070a10 72%)}
+  .pill.hasthumb span{font-size:9.5px;color:var(--dim);word-break:break-word}
+  .pill.hasthumb:hover span{color:var(--ink)}
   .pill:hover{border-color:var(--acc2);background:#121b28}
   .pill:active{cursor:grabbing}
   .pill.grp{border-color:#5a4a86;background:#171331}
@@ -253,6 +262,7 @@
       <button class="pri" onclick="sendChat()" style="width:auto;white-space:nowrap">Send</button>
       <button onclick="snapOnly()" style="width:auto;white-space:nowrap">Snapshot</button>
       <button onclick="sheetNow()" style="width:auto;white-space:nowrap" title="12 frames over 8s, tiled — motion in one image">Sheet</button>
+      <button onclick="generateThumbs()" style="width:auto;white-space:nowrap" title="render a tile for every block">Thumbs</button>
       <span id="chatmsg" class="note" style="flex:1;margin:0;align-self:center"></span>
     </div>
 
@@ -397,7 +407,16 @@ function renderPalette(){
     var r=document.createElement('div'); r.className='palrow';
     items.forEach(function(it){
       var p=document.createElement('div');
-      p.className='pill'+(cls?' '+cls:''); p.textContent=it.label; p.title=it.title||'';
+      p.className='pill'+(cls?' '+cls:''); p.title=it.title||'';
+      // The tile carries the thumbnail when one exists and degrades to the plain label when it
+      // does not -- a palette that only works after an index has been built is a palette that is
+      // broken on first run, which is precisely when someone is least able to diagnose it.
+      if(it.thumb && THUMBS[it.thumb]){
+        p.classList.add('hasthumb');
+        var im=document.createElement('img'); im.src='/vfx/thumb/'+it.thumb+'.png'; im.alt='';
+        p.appendChild(im);
+      }
+      var tx=document.createElement('span'); tx.textContent=it.label; p.appendChild(tx);
       p.draggable=true;
       p.addEventListener('dragstart', function(e){ drag=it.payload; e.dataTransfer.effectAllowed='copy'; });
       p.addEventListener('dragend', function(){ drag=null; clearOver(); });
@@ -411,11 +430,11 @@ function renderPalette(){
   var cats={};
   CHUNKS.filter(function(c){return c.kind==='modifier';}).forEach(function(c){
     (cats[c.cat||'misc']=cats[c.cat||'misc']||[]).push(
-      {label:c.name, title:(c.note||''), payload:{t:'mod', name:c.name}});
+      {label:c.name, title:(c.note||''), thumb:c.name, payload:{t:'mod', name:c.name}});
   });
   Object.keys(cats).sort().forEach(function(k){ section(k, cats[k]); });
   section('sources', CHUNKS.filter(function(c){return c.kind==='source';}).map(function(c){
-    return {label:c.name, title:c.note||'', payload:{t:'src', name:c.name}}; }), 'src');
+    return {label:c.name, title:c.note||'', thumb:c.name, payload:{t:'src', name:c.name}}; }), 'src');
   section('groups', Object.keys(GROUPS).sort().map(function(g){
     return {label:g+' ('+GROUPS[g].length+')', title:GROUPS[g].join(' → '),
             payload:{t:'grp', name:g}}; }), 'grp');
@@ -986,6 +1005,95 @@ async function snapOnly(){
                                    : ('snapshot failed: ' + r.error);
 }
 
+// ---- THUMBNAILS: a visual index for the palette -------------------------------------------------
+// The design call that matters: a MODIFIER's tile renders a REFERENCE SOURCE with that one effect
+// applied. Rendering the modifier alone would show nothing (it transforms an image it was not
+// given), and rendering it as a name shows only that it exists. Against a fixed reference the tile
+// shows the block DOING ITS JOB -- and because every modifier shares the same reference, the tiles
+// become comparable: you can see that filmic-curve lifts the floor where tanh-tonemap does not.
+//
+// Alpha is PRESERVED, unlike snapshots. A snapshot is flattened onto the console ground because I
+// have to judge it against the background it lives on; a thumbnail sits on a UI chip whose colour
+// it cannot know, so it must carry transparency. Same capture, opposite requirement.
+var THUMBS = {};
+// THE REFERENCE IS A CALIBRATION RAMP, not a pretty field, and that was learned by looking: with
+// plasma-field as the reference, tanh-tonemap and filmic-curve produced nearly IDENTICAL tiles.
+// plasma is almost entirely bright, so every tone operator pushed it to the same white -- a
+// reference with no DARK range cannot show what a tone curve does to darks, which is most of what
+// a tone curve is for. thumb-reference ramps 0 to 2.2 so both the toe and the shoulder are visible.
+var THUMB_REF = 'thumb-reference';
+var THUMB_REF_B = 'sphere-glass';      // B is the second input for blend tiles
+
+function thumbShaderFor(c){
+  var helpers = CHUNKS.filter(function(h){return h.kind==='helper';})
+                      .sort(function(a,b){return (a.order||50)-(b.order||50);})
+                      .map(function(h){return h.body;}).join('\n');
+  var ref = chunkBy(THUMB_REF), refB = chunkBy(THUMB_REF_B);
+  var body;
+  if(c.kind==='source'){ body = c.body; }
+  else if(c.kind==='mask'){
+    // A mask has no colour, so render it AS one -- greyscale is the honest depiction of a float.
+    body = '  float m=0.;\n' + c.body + '\n  col=vec3(m); alpha=m;';
+  }
+  else if(c.kind==='blend'){
+    // The second input is computed in its OWN scope and lifted out, so refB's body can freely
+    // write col/alpha without trampling the first source. Then the reference runs normally and
+    // the blend sees it as col with refB as colB -- which is exactly the binding the graph gives
+    // a blend node, so a thumbnail cannot disagree with what the block does when wired.
+    body = '  vec3 _b=vec3(0.);\n' +
+           '  { vec3 col=vec3(0.); float alpha=0.;\n' + refB.body + '\n    _b=col; }\n' +
+           ref.body + '\n  { vec3 colB=_b;\n' + c.body + '\n  }';
+  }
+  else { body = ref.body + '\n' + c.body; }      // modifier: reference, then the one effect
+  return ['#version 300 es','precision highp float;','out vec4 outColor;',
+    'uniform vec2  u_res;','uniform float u_time;','uniform float u_sub;','uniform float u_gap;',
+    'uniform float u_spin;','uniform float u_pulse;','uniform float u_sat;','uniform vec3  u_tint;',
+    'uniform float u_dim;','uniform float u_wire;','uniform vec3  u_id0;','uniform vec3  u_id1;',
+    'uniform float u_round;','uniform float u_star;','uniform float u_see;','uniform float u_thick;','',
+    helpers,'',
+    'void main(){',
+    '  vec2 uv=(-u_res.xy+2.*gl_FragCoord.xy)/u_res.y;',
+    '  vec3 col=vec3(0.); float alpha=0.;',
+    body,
+    '  outColor=vec4(max(col,0.), clamp(max(alpha,dot(col,vec3(.4))),0.,1.));',
+    '}'].join('\n');
+}
+
+async function generateThumbs(){
+  var targets = CHUNKS.filter(function(c){ return c.kind!=='helper'; });
+  var saveStyle = av.style, saveSize = av.cssSize, ok=0, fail=[];
+  el('chatmsg').className='note';
+  // A FIXED TIME for every tile. Thumbnails are compared side by side, so they must differ by
+  // WHAT THE BLOCK DOES and by nothing else -- capturing at wall-clock would add a random phase
+  // to each and make two runs of the same library disagree.
+  for(var i=0;i<targets.length;i++){
+    var c = targets[i];
+    el('chatmsg').textContent = 'rendering thumbnails… ' + (i+1) + '/' + targets.length + '  ' + c.name;
+    try{
+      var err = av.trySource(thumbShaderFor(c));
+      if(err){ fail.push(c.name); continue; }
+      av._resize(128);
+      av._t0 = (performance.now()/1000) - 2.4;
+      av._draw();
+      var url = av.canvas.toDataURL('image/png');   // NO flatten: keep the alpha
+      var r = await (await fetch('/vfx/thumb',{method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({name:c.name, png:url})})).json();
+      if(r.ok){ ok++; THUMBS[c.name]=1; } else fail.push(c.name);
+    }catch(e){ fail.push(c.name); }
+  }
+  // restore the bench to what it was: generating an index must not cost you your working state
+  av.setStyle(saveStyle==='(sketch)' ? 'geodesic' : saveStyle);
+  av._resize(saveSize||420);
+  el('chatmsg').textContent = 'thumbnails: ' + ok + ' ok' + (fail.length ? ', failed: '+fail.join(', ') : '');
+  renderPalette();
+  return {ok:ok, fail:fail};
+}
+async function refreshThumbs(){
+  try{ var r = await (await fetch('/vfx/thumbs')).json();
+       THUMBS={}; (r.names||[]).forEach(function(n){ THUMBS[n]=1; }); }catch(e){}
+}
+
 // ---- THE RENDERER --------------------------------------------------------------------------
 // A single frame of a shader whose scenes last six seconds tells you almost nothing, and twelve
 // separate PNGs cost claude twelve separate looks. A CONTACT SHEET solves both: N frames across a
@@ -1210,7 +1318,7 @@ var LIBRARY = [
   setState('thinking');
   refreshPresets();
   refreshSketches();
-  refreshChunks();      // populates the source picker, the palette AND the library view
+  refreshThumbs().then(refreshChunks);   // thumbs first: the palette draws tiles if they exist
   refreshCompos();
   refreshGroups();      // after chunks: the palette redraws with groups once they land
   refreshGraphs();
