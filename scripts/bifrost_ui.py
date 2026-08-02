@@ -155,6 +155,38 @@ def tail(client, last_ids, ns="bifrost", block_ms=15000):
 # sequence, not an indirection: expanding on drop means a composition never depends on a group
 # file still existing or still meaning the same thing, and editing a group cannot silently change
 # a picture somebody already saved.
+# ---- VFX graphs -------------------------------------------------------------------------------
+# A graph is nodes + typed edges. It is stored, not compiled, here -- codegen lives in the browser
+# next to the thing that has to run it, so a graph that fails to compile fails where you can see it.
+VFX_GRAPHS = os.path.join(REPO, "design", "vfx-graphs.json")
+
+
+def _vfx_graphs_read():
+    try:
+        with open(VFX_GRAPHS, "r", encoding="utf-8") as fh:
+            d = json.load(fh)
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+def _vfx_graphs_write(name, value):
+    key = "".join(c for c in str(name or "") if c.isalnum() or c in "-_ ")[:60].strip()
+    if not key:
+        return {"ok": False, "error": "name required"}
+    try:
+        os.makedirs(os.path.dirname(VFX_GRAPHS), exist_ok=True)
+        cur = _vfx_graphs_read()
+        cur[key] = value
+        tmp = VFX_GRAPHS + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(cur, fh, indent=2, sort_keys=True)
+        os.replace(tmp, VFX_GRAPHS)
+        return {"ok": True, "name": key, "count": len(cur)}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)[:200]}
+
+
 VFX_GROUPS = os.path.join(REPO, "design", "vfx-groups.json")
 
 
@@ -370,6 +402,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(_vfx_compos_read())
         if path == "/vfx/groups":
             return self._json(_vfx_groups_read())
+        if path == "/vfx/graphs":
+            return self._json(_vfx_graphs_read())
         if path.startswith("/vfx/sketch"):
             from urllib.parse import urlparse, parse_qs
             q = parse_qs(urlparse(self.path).query)
@@ -658,6 +692,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(_vfx_compos_write(data.get("name"), data.get("value")))
         if path == "/vfx/groups":
             return self._json(_vfx_groups_write(data.get("name"), data.get("items")))
+        if path == "/vfx/graphs":
+            return self._json(_vfx_graphs_write(data.get("name"), data.get("value")))
         if path == "/vfx/presets":
             name = str(data.get("name") or "").strip()
             if not name:

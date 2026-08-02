@@ -1,4 +1,4 @@
-//! {"name": "torus-ring", "kind": "source", "from": "standard SDF torus, marched", "note": "A rotating torus. Included because a ring reads as MOTION in a way a sphere cannot -- the silhouette changes as it turns, so the eye gets told the object is three-dimensional without any lighting cue. Needs rot2.", "order": 50, "cat": "shape"}
+//! {"name": "torus-ring", "kind": "source", "from": "standard SDF torus, marched", "note": "A rotating torus. Included because a ring reads as MOTION in a way a sphere cannot -- the silhouette changes as it turns, so the eye gets told the object is three-dimensional without any lighting cue. Needs rot2.", "order": 50, "cat": "shape", "in": {}, "out": {"col": "vec3", "alpha": "float"}}
 {
   vec3 ro=vec3(0,0,-3.4), rd=normalize(vec3(uv,2.2));
   float t=0.; float hit=0.; vec3 p;

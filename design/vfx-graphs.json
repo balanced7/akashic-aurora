@@ -1,0 +1,73 @@
+{
+  "blend-demo": {
+    "edges": [
+      {
+        "from": "n2",
+        "fromPort": "col",
+        "to": "n4",
+        "toPort": "col",
+        "type": "vec3"
+      },
+      {
+        "from": "n3",
+        "fromPort": "col",
+        "to": "n4",
+        "toPort": "colB",
+        "type": "vec3"
+      },
+      {
+        "from": "n4",
+        "fromPort": "col",
+        "to": "n5",
+        "toPort": "col",
+        "type": "vec3"
+      },
+      {
+        "from": "n5",
+        "fromPort": "col",
+        "to": "n1",
+        "toPort": "col",
+        "type": "vec3"
+      }
+    ],
+    "nodes": [
+      {
+        "chunk": "__out",
+        "id": "n1",
+        "x": 420,
+        "y": 140
+      },
+      {
+        "chunk": "sphere-glass",
+        "id": "n2",
+        "x": 20,
+        "y": 20
+      },
+      {
+        "chunk": "plasma-field",
+        "id": "n3",
+        "x": 20,
+        "y": 140
+      },
+      {
+        "chunk": "screen-blend",
+        "id": "n4",
+        "x": 200,
+        "y": 70
+      },
+      {
+        "chunk": "tanh-tonemap",
+        "id": "n5",
+        "x": 330,
+        "y": 70
+      },
+      {
+        "chunk": "radial-mask",
+        "id": "n6",
+        "x": 20,
+        "y": 250
+      }
+    ],
+    "seq": 7
+  }
+}

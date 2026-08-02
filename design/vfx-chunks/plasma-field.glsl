@@ -1,4 +1,4 @@
-//! {"name": "plasma-field", "kind": "source", "from": "domain warp, from the marble interior", "note": "A 2D field warped by its own noise. The warp is the whole character: sampling noise at a position already displaced BY noise folds it into sheets and filaments instead of clouds. Needs value-noise-3d.", "order": 50, "cat": "field"}
+//! {"name": "plasma-field", "kind": "source", "from": "domain warp, from the marble interior", "note": "A 2D field warped by its own noise. The warp is the whole character: sampling noise at a position already displaced BY noise folds it into sheets and filaments instead of clouds. Needs value-noise-3d.", "order": 50, "cat": "field", "in": {}, "out": {"col": "vec3", "alpha": "float"}}
 vec3 q=vec3(uv*1.6,u_time*0.07);
 float w=fbm3(q);
 q+=vec3(w*1.7,w*1.2,-w*0.6);

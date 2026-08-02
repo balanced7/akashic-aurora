@@ -74,6 +74,34 @@
   .node.over{box-shadow:0 -2px 0 var(--acc)}
   .chain.empty{border:1px dashed var(--line);border-radius:9px;padding:14px;text-align:center;
     color:var(--dim);font-size:11px}
+
+  /* ---- graph canvas ---- */
+  .gcanvas{position:relative;height:340px;overflow:auto;border:1px solid var(--line);
+    border-radius:10px;margin:10px 0;
+    background:#080c13 repeating-linear-gradient(0deg,transparent 0 23px,#0d131c 23px 24px),
+               repeating-linear-gradient(90deg,transparent 0 23px,#0d131c 23px 24px)}
+  #gwires{position:absolute;left:0;top:0;width:2000px;height:1400px;pointer-events:none;overflow:visible}
+  .gnode{position:absolute;min-width:132px;background:#0e1520;border:1px solid var(--line);
+    border-radius:9px;padding:6px 8px;font-size:11px;cursor:grab;user-select:none;z-index:2}
+  .gnode.out{border-color:var(--ok)}
+  .gnode.srcn{border-color:var(--acc)}
+  .gnode .t{font-weight:600;margin-bottom:2px}
+  .gnode .kk{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+  .gnode .del{position:absolute;top:2px;right:4px;color:var(--dim);cursor:pointer;font-size:11px}
+  .gnode .del:hover{color:var(--warn)}
+  /* SOCKETS ARE TYPED AND THE TYPE IS VISIBLE. Colour is a filled dot, mask is a diamond -- the
+     shape says what will connect before you try, which is the whole point of typing the ports. */
+  .sock{position:absolute;width:11px;height:11px;border-radius:50%;border:2px solid #0e1520;
+    cursor:crosshair;z-index:3;transition:transform .1s,opacity .1s}
+  .sock.vec3{background:var(--acc2)}
+  .sock.float{background:var(--warn);border-radius:2px;transform:rotate(45deg)}
+  .sock.in{left:-7px}
+  .sock.out{right:-7px}
+  .sock:hover{transform:scale(1.45)}
+  .sock.float:hover{transform:rotate(45deg) scale(1.45)}
+  /* while dragging a wire: compatible sockets light, the rest fade out of reach */
+  .dragging .sock{opacity:.15}
+  .dragging .sock.ok{opacity:1;box-shadow:0 0 0 3px rgba(3,129,254,.35)}
   .note{color:var(--dim);font-size:11px;margin-top:8px}
   .err{color:var(--warn)}
 </style>
@@ -125,6 +153,26 @@
       </div>
       <p class="note" id="cmsg">Order matters for modifiers — that order <em>is</em> the composition.
         Helpers are pulled in automatically and deduplicated.</p>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <h2>Graph</h2>
+      <div class="row" style="margin-top:0">
+        <select id="gadd"><option value="">+ node…</option></select>
+        <select id="graphs"><option value="">— saved graphs —</option></select>
+        <button onclick="loadGraph()" style="width:auto;white-space:nowrap">Open</button>
+        <button class="pri" onclick="buildGraph()" style="width:auto;white-space:nowrap">Build &amp; run</button>
+      </div>
+      <div id="gcanvas" class="gcanvas"><svg id="gwires"></svg></div>
+      <div class="row">
+        <input id="grname" placeholder="name this graph"
+               style="background:#0e1520;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:7px 9px;font:inherit;flex:1">
+        <button onclick="saveGraph()" style="width:auto;white-space:nowrap">Save graph</button>
+        <button onclick="clearGraph()" style="width:auto;white-space:nowrap">Clear</button>
+      </div>
+      <p class="note" id="gmsg">Drag from a socket to wire. Incompatible sockets dim while you
+        drag — a mask cannot enter a colour port, so an unbuildable graph is unbuildable rather
+        than merely rejected.</p>
     </div>
 
     <div class="card" style="margin-top:14px">
@@ -490,6 +538,18 @@ async function refreshChunks(){
     });
     cs.onchange=renderChain;
     renderPalette();          // the modifier picker IS the palette now -- one place, draggable
+
+    // graph node picker: everything except helpers, which are hoisted automatically and have no
+    // ports to wire -- offering them would be offering a connection that cannot exist.
+    var ga=el('gadd'); ga.innerHTML='<option value="">+ node…</option>';
+    CHUNKS.filter(function(c){return c.kind!=='helper';})
+          .sort(function(a,b){ return (a.kind+a.name).localeCompare(b.kind+b.name); })
+          .forEach(function(c){
+      var o=document.createElement('option'); o.value=c.name;
+      o.textContent=c.kind+' · '+c.name; o.title=c.note||''; ga.appendChild(o);
+    });
+    ga.onchange=function(){ if(ga.value){ addNode(ga.value); ga.value=''; } };
+    ensureOutput(); renderGraph();
     // Library view gets the chunks too -- same data, a different representation of it.
     var lb=el('lib');
     CHUNKS.forEach(function(c){
@@ -533,6 +593,254 @@ async function loadComp(){
                   av.id0=av.idT0.slice(); av.id1=av.idT1.slice(); }
   if(v.state) setState(v.state);
   renderChain(); buildComp();
+}
+
+// ---- GRAPH: typed ports, so an unbuildable graph is unbuildable ---------------------------------
+// Three rules carry the whole design:
+//   1. every port has a TYPE (vec3 colour, float mask) and an edge is legal only between matching
+//      types -- a mask can never land in a colour socket;
+//   2. begin and end are STRUCTURAL, not conventional: sources have no input, and there is exactly
+//      one Output node with one input and no output;
+//   3. order is DERIVED, not declared -- a DAG with one sink has a deterministic topological
+//      order, and refusing any edge that would close a cycle guarantees the walk terminates.
+//
+// The affordance that makes it easy rather than merely safe: while a wire is being dragged,
+// incompatible sockets fade and compatible ones light. You cannot aim at an invalid target, so
+// the constraint stops being a rule to learn and becomes something the hand feels.
+var G = {nodes:[], edges:[], seq:1}, wire = null;
+
+function gchunk(n){ return chunkBy(n.chunk); }
+function portsOf(n){
+  if(n.chunk==='__out') return {in:{col:'vec3'}, out:{}};
+  var c = gchunk(n); return {in:(c&&c.in)||{}, out:(c&&c.out)||{}};
+}
+function edgeInto(id, port){
+  return G.edges.filter(function(e){ return e.to===id && e.toPort===port; })[0];
+}
+// Cycle check by walking upstream from the proposed source. Refusing at CONNECT time is what
+// keeps codegen total: if no edge can close a loop, the topological walk can never fail.
+function reaches(fromId, targetId, seen){
+  seen = seen || {};
+  if(fromId===targetId) return true;
+  if(seen[fromId]) return false; seen[fromId]=true;
+  return G.edges.filter(function(e){ return e.to===fromId; })
+                .some(function(e){ return reaches(e.from, targetId, seen); });
+}
+
+function gmsg(t, bad){ var e=el('gmsg'); e.textContent=t; e.className='note'+(bad?' err':''); }
+
+function addNode(chunk, x, y){
+  var n = {id:'n'+(G.seq++), chunk:chunk, x:x||20+((G.nodes.length*40)%320), y:y||20+((G.nodes.length*46)%220)};
+  G.nodes.push(n); renderGraph(); return n;
+}
+function ensureOutput(){
+  if(!G.nodes.some(function(n){return n.chunk==='__out';})) addNode('__out', 420, 140);
+}
+function clearGraph(){ G={nodes:[],edges:[],seq:1}; ensureOutput(); renderGraph(); gmsg('cleared'); }
+
+function renderGraph(){
+  var box=el('gcanvas'), svg=el('gwires');
+  [].slice.call(box.querySelectorAll('.gnode')).forEach(function(e){ e.remove(); });
+  while(svg.firstChild) svg.removeChild(svg.firstChild);
+
+  G.nodes.forEach(function(n){
+    var c = n.chunk==='__out' ? {name:'OUTPUT', kind:'output', note:'the single sink'} : gchunk(n);
+    var d=document.createElement('div');
+    d.className='gnode'+(n.chunk==='__out'?' out':'')+((c&&(c.kind==='source'||c.kind==='mask'))?' srcn':'');
+    d.style.left=n.x+'px'; d.style.top=n.y+'px';
+    d.innerHTML='<div class="kk"></div><div class="t"></div>';
+    d.querySelector('.kk').textContent=(c&&c.kind)||'?';
+    d.querySelector('.t').textContent=(c&&c.name)||n.chunk;
+    d.title=(c&&c.note)||'';
+    if(n.chunk!=='__out'){
+      var x=document.createElement('span'); x.className='del'; x.textContent='✕';
+      x.onclick=function(ev){ ev.stopPropagation();
+        G.nodes=G.nodes.filter(function(m){return m!==n;});
+        G.edges=G.edges.filter(function(e){return e.from!==n.id&&e.to!==n.id;});
+        renderGraph(); };
+      d.appendChild(x);
+    }
+    // node dragging
+    d.addEventListener('mousedown', function(ev){
+      if(ev.target.classList.contains('sock')||ev.target.classList.contains('del')) return;
+      var sx=ev.clientX-n.x, sy=ev.clientY-n.y;
+      function mv(e2){ n.x=Math.max(0,e2.clientX-sx); n.y=Math.max(0,e2.clientY-sy);
+                       d.style.left=n.x+'px'; d.style.top=n.y+'px'; drawWires(); }
+      function up(){ document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); }
+      document.addEventListener('mousemove',mv); document.addEventListener('mouseup',up);
+    });
+
+    var P=portsOf(n), yi=0, yo=0;
+    Object.keys(P.in).forEach(function(p){
+      var s=document.createElement('div'); s.className='sock in '+P.in[p];
+      s.style.top=(16+yi*15)+'px'; s.title=p+' : '+P.in[p]; s.dataset.node=n.id;
+      s.dataset.port=p; s.dataset.dir='in'; s.dataset.type=P.in[p]; yi++;
+      d.appendChild(s);
+    });
+    Object.keys(P.out).forEach(function(p){
+      var s=document.createElement('div'); s.className='sock out '+P.out[p];
+      s.style.top=(16+yo*15)+'px'; s.title=p+' : '+P.out[p]; s.dataset.node=n.id;
+      s.dataset.port=p; s.dataset.dir='out'; s.dataset.type=P.out[p]; yo++;
+      d.appendChild(s);
+    });
+    box.appendChild(d);
+  });
+  wireUpSockets();
+  drawWires();
+}
+
+function socketXY(id, port, dir){
+  var s = el('gcanvas').querySelector('.sock[data-node="'+id+'"][data-port="'+port+'"][data-dir="'+dir+'"]');
+  if(!s) return null;
+  var b=s.getBoundingClientRect(), c=el('gcanvas').getBoundingClientRect();
+  return {x:b.left-c.left+el('gcanvas').scrollLeft+5, y:b.top-c.top+el('gcanvas').scrollTop+5};
+}
+function drawWires(){
+  var svg=el('gwires');
+  while(svg.firstChild) svg.removeChild(svg.firstChild);
+  G.edges.forEach(function(e){
+    var a=socketXY(e.from,e.fromPort,'out'), b=socketXY(e.to,e.toPort,'in');
+    if(!a||!b) return;
+    var p=document.createElementNS('http://www.w3.org/2000/svg','path');
+    var dx=Math.max(30,Math.abs(b.x-a.x)*0.5);
+    p.setAttribute('d','M'+a.x+','+a.y+' C'+(a.x+dx)+','+a.y+' '+(b.x-dx)+','+b.y+' '+b.x+','+b.y);
+    p.setAttribute('fill','none');
+    p.setAttribute('stroke', e.type==='float' ? '#f0b246' : '#4da3ff');
+    p.setAttribute('stroke-width','2'); p.setAttribute('opacity','.85');
+    svg.appendChild(p);
+  });
+}
+
+function wireUpSockets(){
+  [].forEach.call(el('gcanvas').querySelectorAll('.sock'), function(s){
+    s.addEventListener('mousedown', function(ev){
+      ev.stopPropagation(); ev.preventDefault();
+      wire = {node:s.dataset.node, port:s.dataset.port, dir:s.dataset.dir, type:s.dataset.type};
+      el('gcanvas').classList.add('dragging');
+      // COMPATIBILITY HIGHLIGHT: only sockets of the opposite direction, matching type, on a
+      // different node, that would not close a cycle. Everything else fades out of reach.
+      [].forEach.call(el('gcanvas').querySelectorAll('.sock'), function(o){
+        var ok = o.dataset.dir!==wire.dir && o.dataset.type===wire.type && o.dataset.node!==wire.node;
+        if(ok){
+          var from = wire.dir==='out' ? wire.node : o.dataset.node;
+          var to   = wire.dir==='out' ? o.dataset.node : wire.node;
+          if(reaches(from, to)) ok=false;          // would close a loop
+        }
+        o.classList.toggle('ok', ok);
+      });
+      function up(e2){
+        el('gcanvas').classList.remove('dragging');
+        [].forEach.call(el('gcanvas').querySelectorAll('.sock'), function(o){ o.classList.remove('ok'); });
+        var tgt = document.elementFromPoint(e2.clientX, e2.clientY);
+        if(tgt && tgt.classList.contains('sock') && tgt!==s) connect(s, tgt);
+        wire=null;
+        document.removeEventListener('mouseup', up);
+      }
+      document.addEventListener('mouseup', up);
+    });
+  });
+}
+
+function connect(a, b){
+  var o = a.dataset.dir==='out' ? a : b, i = a.dataset.dir==='in' ? a : b;
+  if(o.dataset.dir!=='out' || i.dataset.dir!=='in'){ gmsg('connect an output to an input', true); return; }
+  if(o.dataset.type!==i.dataset.type){
+    gmsg('type mismatch: '+o.dataset.type+' cannot drive a '+i.dataset.type+' port', true); return; }
+  if(o.dataset.node===i.dataset.node){ gmsg('a node cannot feed itself', true); return; }
+  if(reaches(o.dataset.node, i.dataset.node)){ gmsg('refused: that would close a cycle', true); return; }
+  // one edge per INPUT: an input is a value, not a bus. Replacing is the intent 100% of the time.
+  G.edges = G.edges.filter(function(e){ return !(e.to===i.dataset.node && e.toPort===i.dataset.port); });
+  G.edges.push({from:o.dataset.node, fromPort:o.dataset.port,
+                to:i.dataset.node, toPort:i.dataset.port, type:o.dataset.type});
+  drawWires(); gmsg('connected '+o.dataset.port+' → '+i.dataset.port);
+}
+
+// CODEGEN: topological walk. Each node compiles to a BLOCK where col/alpha (or m) are bound to
+// its inputs and the result is assigned to that node's own variables -- which is why every chunk
+// written for the linear chain works here UNCHANGED. The graph wraps bodies; it never rewrites them.
+function buildGraphGLSL(){
+  var out = G.nodes.filter(function(n){return n.chunk==='__out';})[0];
+  if(!out) return {err:'no output node'};
+  var order=[], mark={};
+  function visit(id){
+    if(mark[id]==='done') return true;
+    if(mark[id]==='open') return false;            // cannot happen: connect() refuses cycles
+    mark[id]='open';
+    G.edges.filter(function(e){return e.to===id;}).forEach(function(e){ visit(e.from); });
+    mark[id]='done'; order.push(id); return true;
+  }
+  if(!visit(out.id)) return {err:'cycle'};
+  var byId={}; G.nodes.forEach(function(n){ byId[n.id]=n; });
+
+  var helpers = CHUNKS.filter(function(c){return c.kind==='helper';})
+                      .sort(function(a,b){return (a.order||50)-(b.order||50);})
+                      .map(function(h){return h.body;});
+  var body=[];
+  order.forEach(function(id){
+    var n=byId[id]; if(!n || n.chunk==='__out') return;
+    var c=gchunk(n); if(!c) return;
+    var eCol=edgeInto(id,'col'), eB=edgeInto(id,'colB');
+    body.push('  // ---- '+c.name+' ('+id+') ----');
+    body.push('  vec3 '+id+'_col = vec3(0.); float '+id+'_alpha = 0.; float '+id+'_m = 0.;');
+    body.push('  {');
+    body.push('    vec3 col = '+(eCol ? eCol.from+'_col' : 'vec3(0.)')+';');
+    body.push('    float alpha = '+(eCol ? eCol.from+'_alpha' : '0.')+';');
+    if(c.in && c.in.colB) body.push('    vec3 colB = '+(eB ? eB.from+'_col' : 'vec3(0.)')+';');
+    if(c.out && c.out.m) body.push('    float m = 0.;');
+    body.push(c.body.split('\n').map(function(l){return '    '+l;}).join('\n'));
+    body.push('    '+id+'_col = col; '+id+'_alpha = alpha;');
+    if(c.out && c.out.m) body.push('    '+id+'_m = m;');
+    body.push('  }');
+  });
+  var last = edgeInto(out.id,'col');
+  if(!last) return {err:'nothing is wired into OUTPUT'};
+
+  return {src:[
+    '#version 300 es','precision highp float;','out vec4 outColor;',
+    'uniform vec2  u_res;','uniform float u_time;','uniform float u_sub;','uniform float u_gap;',
+    'uniform float u_spin;','uniform float u_pulse;','uniform float u_sat;','uniform vec3  u_tint;',
+    'uniform float u_dim;','uniform float u_wire;','uniform vec3  u_id0;','uniform vec3  u_id1;',
+    'uniform float u_round;','uniform float u_star;','uniform float u_see;','',
+    helpers.join('\n'),'',
+    'void main(){',
+    '  vec2 uv=(-u_res.xy+2.*gl_FragCoord.xy)/u_res.y;',
+    body.join('\n'),
+    '  outColor = vec4(max('+last.from+'_col,0.)*u_dim, clamp('+last.from+'_alpha,0.,1.));',
+    '}'].join('\n')};
+}
+
+function buildGraph(){
+  var r = buildGraphGLSL();
+  if(r.err){ gmsg(r.err, true); return; }
+  el('glsl').value = r.src;
+  var err = av.trySource(r.src);
+  if(err){ gmsg('compile failed — see scratch panel', true); msg(err, true); return; }
+  av._resize(420); syncAll(); emit();
+  gmsg('running a graph of '+G.nodes.length+' nodes / '+G.edges.length+' edges');
+  msg('built from graph');
+}
+
+async function refreshGraphs(){
+  try{
+    var r = await (await fetch('/vfx/graphs')).json();
+    var s=el('graphs'); s.innerHTML='<option value="">— saved graphs —</option>';
+    Object.keys(r||{}).sort().forEach(function(k){
+      var o=document.createElement('option'); o.value=k; o.textContent=k; s.appendChild(o); });
+  }catch(e){}
+}
+async function saveGraph(){
+  var n=(el('grname').value||'').trim();
+  if(!n){ gmsg('name the graph first', true); return; }
+  var r=await (await fetch('/vfx/graphs',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name:n, value:G})})).json();
+  gmsg(r.ok?('saved "'+r.name+'" to design/vfx-graphs.json'):('save failed: '+r.error), !r.ok);
+  if(r.ok) refreshGraphs();
+}
+async function loadGraph(){
+  var k=el('graphs').value; if(!k) return;
+  var all=await (await fetch('/vfx/graphs')).json();
+  if(!all[k]) return;
+  G=all[k]; ensureOutput(); renderGraph(); buildGraph();
 }
 
 // ---- shader scratch ---------------------------------------------------------------------------
@@ -659,6 +967,7 @@ var LIBRARY = [
   refreshChunks();      // populates the source picker, the palette AND the library view
   refreshCompos();
   refreshGroups();      // after chunks: the palette redraws with groups once they land
+  refreshGraphs();
 
   // Honest HUD: measured frame cost, not a guess. The bench is where a change gets its number.
   var last=performance.now(), acc=0, n=0;

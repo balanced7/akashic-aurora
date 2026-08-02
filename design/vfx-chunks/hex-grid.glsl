@@ -1,4 +1,4 @@
-//! {"name": "hex-grid", "kind": "source", "from": "the avatar's tiling, flattened to 2D", "note": "A flat hex lattice. Cheap -- one fract and a couple of dots, no march -- and it is the same tiling the geodesic avatar wears, so a composition using it reads as family rather than as a borrowed texture.", "order": 50, "cat": "shape"}
+//! {"name": "hex-grid", "kind": "source", "from": "the avatar's tiling, flattened to 2D", "note": "A flat hex lattice. Cheap -- one fract and a couple of dots, no march -- and it is the same tiling the geodesic avatar wears, so a composition using it reads as family rather than as a borrowed texture.", "order": 50, "cat": "shape", "in": {}, "out": {"col": "vec3", "alpha": "float"}}
 {
   vec2 p=uv*(3.0+u_sub);
   p.x*=1.1547;
