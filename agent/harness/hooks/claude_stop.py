@@ -274,7 +274,7 @@ def main():
     # present and simply idle, which the avatar renders as idle rather than dead.
     try:
         from agent.harness.hooks._activity import report
-        report("", "", "")
+        report("", "", "", session_id or "")
     except Exception:
         pass
     if session_id:

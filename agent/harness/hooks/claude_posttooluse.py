@@ -316,7 +316,7 @@ def main() -> int:
     # feature's kill switch. A seat that turns recall off must still show as working.
     try:
         from agent.harness.hooks._activity import report
-        report("thinking", "", data.get("cwd") or "")
+        report("thinking", "", data.get("cwd") or "", data.get("session_id") or "")
     except Exception:
         pass
     if os.getenv("AKASHIC_RECALL_AT_ACTION", "1") == "0":

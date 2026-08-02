@@ -45,7 +45,7 @@ def verb_for(tool: str) -> str:
     return _VERB.get(tool or "", "working")
 
 
-def report(state: str, detail: str = "", cwd: str = "") -> None:
+def report(state: str, detail: str = "", cwd: str = "", session_id: str = "") -> None:
     """Best-effort. Never raises, never blocks the caller's decision, never speaks out of scope."""
     try:
         from agent.harness.scope import session_in_scope
@@ -57,5 +57,39 @@ def report(state: str, detail: str = "", cwd: str = "") -> None:
             control.set_activity(agent, state, detail)
         else:
             control.clear_activity(agent)
+        _beat_seat(agent, state, session_id)
+    except Exception:
+        pass
+
+
+def _beat_seat(agent: str, state: str, session_id: str) -> None:
+    """Beat this SEAT's worklive, because a tool call is the strongest possible proof of work.
+
+    WHY THIS EXISTS. core/comm/doctor.py pages hard_wedge on: non-idle phase, aged past threshold,
+    AND no alive signal. It accepts a SEAT's worklive beat as that signal -- deliberately, and the
+    reasoning there is careful: a RUNNER's heartbeat runs on its own thread and can keep beating
+    while the main thread is blocked, so it proves process liveness and never work progress. A seat
+    is single-threaded per turn, so its beat IS work evidence.
+
+    The gap was that a seat's beat was only written on sync/boot. A Claude Code turn that runs for
+    forty minutes of solid tool calls without calling either goes silent, ages past the threshold,
+    and pages HARD WEDGE at exactly the moment it is working hardest. That fired repeatedly today
+    while this seat was continuously active.
+
+    A tool call is the ideal beat: it cannot happen unless the turn is alive and advancing, it
+    already flows through this hook, and it carries the PHASE, so the doctor sees non-idle work
+    with a fresh beat and emits its 'genuinely working, not wedged' dashboard line instead of a
+    page. The retraction path already existed -- it was starved of input, not missing.
+
+    Fail-open and silent: a seat that cannot beat is exactly the seat the pager should still be
+    able to page.
+    """
+    if not session_id:
+        return                      # no seat identity to beat; a bare agent id is governed by the
+                                    # progress pulse instead, which is the doctor's own fallback
+    try:
+        from core.comm import roster
+        ns = os.getenv("BIFROST_NAMESPACE") or "bifrost"
+        roster.heartbeat(ns, agent, session_id, phase=(state or "idle"))
     except Exception:
         pass

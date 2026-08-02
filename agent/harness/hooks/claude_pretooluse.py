@@ -166,7 +166,7 @@ def main() -> int:
     # rather than a missing one. Fail-open and side-effect-only; see _activity.py.
     try:
         from agent.harness.hooks._activity import report, verb_for
-        report(verb_for(tool), tool, data.get("cwd") or "")
+        report(verb_for(tool), tool, data.get("cwd") or "", data.get("session_id") or "")
     except Exception:
         pass
     if tool not in _SHELL_TOOLS + _FILE_TOOLS:

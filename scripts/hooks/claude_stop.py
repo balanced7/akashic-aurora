@@ -273,7 +273,7 @@ def main():
     # Clearing is distinct from going absent: the seat is present and idle, not dead.
     try:
         from agent.harness.hooks._activity import report
-        report("", "", "")
+        report("", "", "", session_id or "")
     except Exception:
         pass
     if session_id:

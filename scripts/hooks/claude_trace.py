@@ -48,7 +48,7 @@ def main() -> int:
         # with the broad matcher -- pretooluse only matches shell and file tools, so a Read or a
         # Grep would never have reported and would have rendered as idle, a wrong claim.
         from agent.harness.hooks._activity import report, verb_for
-        report(verb_for(tool), tool, data.get("cwd") or "")
+        report(verb_for(tool), tool, data.get("cwd") or "", data.get("session_id") or "")
     except Exception:
         pass   # observation must never affect the action
     return 0
