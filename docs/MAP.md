@@ -258,7 +258,7 @@ Class: reference
 | `guards.py` | Action-veto policy shared by every harness adapter (Integration Tiers H1). | tests/test_birth_guard_scoping.py | docs/library/design/20260719_fable-opus-safeguards-downgrade-research_570a26.md |  |
 | `nudge.py` | JIT learn-nudge rate limiting shared by every harness adapter (friction audit D5). | tests/test_learn_nudge.py | GAP | `AKASHIC_LEARN_NUDGE`, `AKASHIC_LEARN_NUDGE_CAP` |
 | `registry.py` | Harness registry (Integration Tiers H2): which runtimes plug into the stack, and what | tests/test_audit_registry_wiring_kimi.py | docs/library/design/20260711_t034-registry-dial-consolidation-deepsee_a65322.md |  |
-| `scope.py` | Repo-scoping policy shared by every harness adapter (Integration Tiers H0). | GAP | docs/library/design/20260722_security-schema-amendment-scoped-admin-g_17c9ca.md |  |
+| `scope.py` | Repo-scoping policy shared by every harness adapter (Integration Tiers H0). | tests/test_write_door_acl_scope.py | docs/library/design/20260722_security-schema-amendment-scoped-admin-g_17c9ca.md |  |
 | `seen.py` | Per-session anti-repeat state shared by every recall surface (Integration Tiers H0). | GAP | docs/library/report/20260716_mcp-surface-reverse-engineering-deepseek_c79c35.md | `AKASHIC_RECALL_STATE_DIR` |
 | `trace.py` | Push display-only trace lines (tool calls) onto the Bifrost bus so the console shows what | tests/test_flow_trace.py | docs/library/report/20260716_t002-ui-trace-collapse-design-pre-regist_fc22a6.md | `AKASHIC_AGENT_ID`, `AKASHIC_TRACE` |
 
