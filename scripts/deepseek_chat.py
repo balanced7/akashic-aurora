@@ -298,11 +298,19 @@ class Agent:
                 r = getattr(d, "reasoning_content", None)
                 if r is None and getattr(d, "model_extra", None):
                     r = d.model_extra.get("reasoning_content")
-                if r and self.think:
-                    if not in_reasoning:
-                        print(f"{C.grey}💭 ", end="", flush=True); in_reasoning = True
-                    print(f"{C.grey}{r}", end="", flush=True)
+                if r:
+                    # CAPTURE IS NOT DISPLAY. The provider streams reasoning_content whether
+                    # or not we asked for it (measured 2026-08-02: thinking is server-side
+                    # default), so buffering is free and the trace at the end of this method
+                    # is the ONLY way the operator ever sees an agent think. Until now this
+                    # whole branch was gated on self.think, which meant a runner launched
+                    # without --think discarded reasoning it had already been given: the bus
+                    # carried 219 deepseek tool traces and ZERO thinking traces.
                     reasoning_buf.append(r)
+                    if self.think:                    # PRINTING stays opt-in (terminal noise)
+                        if not in_reasoning:
+                            print(f"{C.grey}💭 ", end="", flush=True); in_reasoning = True
+                        print(f"{C.grey}{r}", end="", flush=True)
                 if d.content:
                     if in_reasoning:
                         print(C.reset); in_reasoning = False
