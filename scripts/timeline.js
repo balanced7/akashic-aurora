@@ -49,11 +49,32 @@
    * the SCROLL stays instant: visual feedback is cheap and continuous, content movement is
    * discrete and must not be animated (a smooth scroll here would be cancelled by the next
    * arriving message -- the bug this module was built beside). */
-  var FISH_R = 68;            // px; lens radius
-  var FISH_MAX = 3.2;         // px; extra tick length at the centre of the lens
-  var cursorY = null;         // px within the rail, or null when the pointer is away
+  var FISH_R = 76;            // px; lens radius
+  var FISH_MAX = 7;           // px; extra tick reach at the centre of the lens
+  var cursorY = null;         // RAW pointer position, or null when the pointer is away
+  var smoothY = null;         // DAMPED position -- what the lens actually follows
+  var lensAmp = 0;            // 0..1 damped lens strength; eases in AND out
+  var looping = false;
   var tickEls = [];           // cached so the hover pass never re-queries the DOM
   var reduceMotion = false;
+
+  /* WHY A DAMPED LOOP INSTEAD OF CSS TRANSITIONS -- this was a real bug, reported as
+   * "the little lines that extend aren't smooth, they stop and restart".
+   *
+   * The first version had BOTH a CSS `transition: transform .12s` on every tick AND a JS
+   * pass writing `transform` each frame. Those fight: each frame the transition restarts
+   * toward a target it never reaches, so the ticks visibly stutter and re-trigger instead
+   * of flowing. The rule is simple and absolute -- IF JAVASCRIPT DRIVES A PROPERTY EVERY
+   * FRAME, CSS MUST NOT TRANSITION THAT PROPERTY. Smoothness comes from interpolation, not
+   * from the cascade.
+   *
+   * So the lens now runs a continuous rAF loop with a critically-damped follow: the raw
+   * pointer sets a target, and both position and amplitude ease toward it at a fixed rate
+   * per frame. That is how One UI motion feels physical -- nothing snaps, nothing has a
+   * fixed duration, everything settles. The loop parks itself when the pointer leaves and
+   * the amplitude has decayed, so an idle rail costs zero frames. */
+  var FOLLOW = 0.28;          // per-frame approach rate for position (higher = tighter)
+  var AMP_IN = 0.22, AMP_OUT = 0.14;
 
   // ---------------------------------------------------------------- timestamps
   function parseTs(el) {
@@ -169,27 +190,57 @@
     var h = Math.max(14, (log.clientHeight / H) * hPx);
     thumbEl.style.transform = 'translateY(' + top.toFixed(1) + 'px)';
     thumbEl.style.height = h.toFixed(1) + 'px';
-    lens();
+    paintLens();
   }
 
-  /* The hover pass. Runs on the same rAF as everything else and touches only transform and
-   * opacity, so a dense rail stays at 60fps while the pointer moves. */
-  function lens() {
-    if (reduceMotion) return;
+  /* One paint of the lens at the CURRENT damped state. Touches transform and opacity only,
+   * so a dense rail stays on the compositor. translateX (not scaleX) does the reaching:
+   * scaling a 5px bar quantises at small values and reads as chatter, while a translate is
+   * sub-pixel smooth all the way down. */
+  function paintLens() {
     for (var i = 0; i < tickEls.length; i++) {
       var el = tickEls[i], f = 0;
-      if (cursorY !== null) {
-        var d = Math.abs(el._y - cursorY);
-        if (d < FISH_R) { var n = 1 - d / FISH_R; f = n * n * (3 - 2 * n); }   // smoothstep
+      if (smoothY !== null && lensAmp > 0.002) {
+        var d = Math.abs(el._y - smoothY);
+        if (d < FISH_R) { var n = 1 - d / FISH_R; f = n * n * (3 - 2 * n) * lensAmp; }
       }
-      el.style.transform = f ? 'translateX(' + (-FISH_MAX * f).toFixed(2) + 'px) scaleX('
-        + (1 + f * 1.9).toFixed(3) + ')' : '';
-      el.style.opacity = f ? (0.5 + f * 0.5).toFixed(3) : '';
+      if (f > 0.002) {
+        el.style.transform = 'translateX(' + (-FISH_MAX * f).toFixed(2) + 'px)';
+        el.style.width = (5 + f * 9).toFixed(2) + 'px';
+        el.style.opacity = (0.55 + f * 0.45).toFixed(3);
+      } else if (el._lit) {
+        el.style.transform = ''; el.style.width = ''; el.style.opacity = '';
+      }
+      el._lit = f > 0.002;
     }
     if (glowEl) {
-      glowEl.style.opacity = cursorY === null ? '0' : '1';
-      if (cursorY !== null) glowEl.style.transform = 'translateY(' + cursorY.toFixed(1) + 'px)';
+      glowEl.style.opacity = lensAmp.toFixed(3);
+      if (smoothY !== null) glowEl.style.transform = 'translateY(' + smoothY.toFixed(1) + 'px)';
     }
+  }
+
+  /* The damped follow loop. Runs only while there is something to settle. */
+  function loop() {
+    var wantAmp = cursorY === null ? 0 : 1;
+    lensAmp += (wantAmp - lensAmp) * (wantAmp ? AMP_IN : AMP_OUT);
+    if (cursorY !== null) {
+      smoothY = smoothY === null ? cursorY : smoothY + (cursorY - smoothY) * FOLLOW;
+    }
+    paintLens();
+    var settled = Math.abs(lensAmp - wantAmp) < 0.003 &&
+                  (cursorY === null || Math.abs(cursorY - smoothY) < 0.3);
+    if (settled) {
+      lensAmp = wantAmp;
+      if (cursorY !== null) smoothY = cursorY;
+      paintLens();
+      if (cursorY === null) { smoothY = null; looping = false; return; }
+    }
+    requestAnimationFrame(loop);
+  }
+
+  function startLoop() {
+    if (reduceMotion || looping) return;
+    looping = true; requestAnimationFrame(loop);
   }
 
   function schedule() { if (!raf) raf = requestAnimationFrame(render); }
@@ -216,8 +267,8 @@
 
   function hover(ev) {
     var r = rail.getBoundingClientRect();
-    cursorY = ev.clientY - r.top;                 // drives the lens + the glow
-    schedule();
+    cursorY = ev.clientY - r.top;                 // raw target; the loop damps it
+    startLoop();
     var frac = Math.min(1, Math.max(0, cursorY / r.height));
     var p = nearest(frac);
     // Same honesty rule as labels(): no exact stamps -> no time readout. The rail still
@@ -236,7 +287,7 @@
     readEl.style.opacity = '1';
   }
 
-  function leave() { cursorY = null; readEl.style.opacity = '0'; schedule(); }
+  function leave() { cursorY = null; readEl.style.opacity = '0'; readEl._for = null; startLoop(); }
 
   // ---------------------------------------------------------------- mount
   /* THE RAIL HAS ITS OWN PALETTE, deliberately. It previously borrowed --accent/--accent2,
@@ -247,7 +298,7 @@
    * Cyan->mint reads as instrument rather than actor, and stays clear of every seat colour
    * in the console (blue #7aa2f7, violet #9d7cf7, coral #e0915c, pink #f472b6, green #5fd39b). */
   var CSS = ''
-    + '#tl-rail{--tl-1:#38d9e0;--tl-2:#5fe3bf;--tl-dim:#5a6b78;--tl-hot:#7ef0ff;'
+    + '#tl-rail{--tl-1:#0381fe;--tl-2:#4da3ff;--tl-dim:#4a5259;--tl-hot:#8ec8ff;'
     + 'position:fixed;width:' + RAIL_W + 'px;z-index:40;pointer-events:auto;'
     + 'font:10px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;'
     + 'user-select:none;cursor:pointer}'
@@ -257,16 +308,20 @@
     + '#tl-ticks{position:absolute;inset:0}'
     // transform-origin right: a lens stretch grows LEFTWARD off the spine, so the rail's
     // edge stays a clean line while the ticks reach toward the cursor.
+    // NO TRANSITION ON transform/width/opacity: the rAF loop owns those every frame, and a
+    // transition here is exactly what made the ticks stop and restart. Only `background`
+    // transitions, because nothing drives it per-frame.
     + '.tl-t{position:absolute;right:6px;width:5px;height:1px;background:var(--tl-dim);'
-    + 'opacity:.55;transform-origin:100% 50%;will-change:transform,opacity;'
-    + 'transition:transform .12s cubic-bezier(.22,1,.36,1),opacity .12s ease,background .2s}'
+    + 'opacity:.55;border-radius:1px;will-change:transform,width,opacity;'
+    + 'transition:background .25s ease}'
     + '.tl-t-x{width:3px;opacity:.28}'
     + '#tl-rail:hover .tl-t{background:var(--tl-1)}'
     // the cursor glow: a soft bloom tracking the pointer, purely decorative and cheap
-    + '#tl-glow{position:absolute;right:0;width:30px;height:76px;margin-top:-38px;opacity:0;'
-    + 'pointer-events:none;will-change:transform,opacity;transition:opacity .18s ease;'
-    + 'background:radial-gradient(ellipse at 80% 50%,rgba(56,217,224,.34),'
-    + 'rgba(95,227,191,.15) 46%,transparent 72%)}'
+    // opacity is loop-driven too -- no transition, same rule as the ticks.
+    + '#tl-glow{position:absolute;right:0;width:34px;height:88px;margin-top:-44px;opacity:0;'
+    + 'pointer-events:none;will-change:transform,opacity;'
+    + 'background:radial-gradient(ellipse at 82% 50%,rgba(3,129,254,.38),'
+    + 'rgba(77,163,255,.16) 46%,transparent 72%)}'
     + '.tl-l{position:absolute;right:14px;transform:translateY(-50%);white-space:nowrap;'
     + 'color:var(--tl-dim);font-weight:400;letter-spacing:.02em;opacity:.8}'
     + '.tl-l.tl-day{color:var(--tl-2);font-weight:600;opacity:1;'
@@ -278,7 +333,7 @@
     + 'background:linear-gradient(180deg,var(--tl-1),var(--tl-2));'
     + 'opacity:.32;pointer-events:none;will-change:transform;'
     + 'transition:transform .22s cubic-bezier(.22,1,.36,1),opacity .15s,box-shadow .2s}'
-    + '#tl-rail:hover #tl-thumb{opacity:.8;box-shadow:0 0 14px rgba(56,217,224,.5)}'
+    + '#tl-rail:hover #tl-thumb{opacity:.85;box-shadow:0 0 16px rgba(3,129,254,.55)}'
     + '#tl-rail:active #tl-thumb{opacity:1;transition:transform .06s linear}'
 
     /* THE GLASS PANEL. Real glass is three things stacked, not one translucent fill:
@@ -287,25 +342,29 @@
      * light would catch a physical pane. The ::before sheen is that edge; the shadow
      * beneath gives it height off the page. It tracks the cursor on the same eased
      * transform as everything else, so it glides rather than teleports. */
+    /* One UI in dark mode is TRUE BLACK with one confident accent, generous corner radii,
+     * and restraint over ornament -- so the panel loses the coloured tint and the busy
+     * multi-stop sheen it had, and becomes near-black glass with a single blue edge.
+     * The transform is still transitioned here (unlike the ticks) because the panel is
+     * driven by DISCRETE hover events, not per-frame -- so the cascade and the JS are not
+     * competing for it. That distinction is the whole lesson of this commit. */
     + '#tl-read{position:absolute;top:0;right:18px;opacity:0;'
-    + 'transition:opacity .16s ease,transform .19s cubic-bezier(.22,1,.36,1);'
-    + 'padding:9px 13px 8px;border-radius:13px;white-space:nowrap;overflow:hidden;'
-    + 'background:linear-gradient(150deg,rgba(38,52,58,.62),rgba(20,26,32,.52));'
-    + 'border:1px solid rgba(255,255,255,.14);border-top-color:rgba(255,255,255,.26);'
-    + 'color:var(--text,#e7e9f0);pointer-events:none;'
-    + '-webkit-backdrop-filter:blur(18px) saturate(180%);backdrop-filter:blur(18px) saturate(180%);'
-    + 'box-shadow:0 10px 34px rgba(0,0,0,.5),0 0 0 1px rgba(56,217,224,.10),'
-    + 'inset 0 1px 0 rgba(255,255,255,.13);will-change:transform,opacity}'
-    // the sheen: a soft diagonal highlight across the top third, the tell of a glass surface
-    + '#tl-read:before{content:"";position:absolute;left:0;right:0;top:0;height:56%;'
-    + 'background:linear-gradient(160deg,rgba(255,255,255,.16),rgba(255,255,255,.03) 55%,transparent);'
-    + 'pointer-events:none}'
-    + '#tl-read .tl-hh{display:block;position:relative;font-size:14px;font-weight:600;'
-    + 'letter-spacing:-.01em;line-height:1.15;font-variant-numeric:tabular-nums;'
-    + 'color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.45)}'
-    + '#tl-read .tl-dd{display:block;position:relative;margin-top:2px;font-size:10px;'
-    + 'font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--tl-1);'
-    + 'opacity:.95}'
+    + 'transition:opacity .18s ease,transform .34s cubic-bezier(.17,.89,.32,1.06);'
+    + 'padding:10px 15px 9px;border-radius:18px;white-space:nowrap;overflow:hidden;'
+    + 'background:linear-gradient(155deg,rgba(24,26,29,.80),rgba(8,9,11,.74));'
+    + 'border:1px solid rgba(255,255,255,.10);border-top-color:rgba(255,255,255,.20);'
+    + 'color:#fff;pointer-events:none;'
+    + '-webkit-backdrop-filter:blur(22px) saturate(150%);backdrop-filter:blur(22px) saturate(150%);'
+    + 'box-shadow:0 12px 40px rgba(0,0,0,.62),0 0 0 1px rgba(3,129,254,.16),'
+    + 'inset 0 1px 0 rgba(255,255,255,.10);will-change:transform,opacity}'
+    // a single restrained sheen along the top lip -- the tell of glass, not a gradient wash
+    + '#tl-read:before{content:"";position:absolute;left:0;right:0;top:0;height:40%;'
+    + 'background:linear-gradient(180deg,rgba(255,255,255,.09),transparent);pointer-events:none}'
+    // One UI leads with a big legible number and demotes everything else
+    + '#tl-read .tl-hh{display:block;position:relative;font-size:16px;font-weight:600;'
+    + 'letter-spacing:-.02em;line-height:1.1;font-variant-numeric:tabular-nums;color:#fff}'
+    + '#tl-read .tl-dd{display:block;position:relative;margin-top:3px;font-size:10px;'
+    + 'font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--tl-2)}'
     // The spine brightens and the gutter breathes on hover -- the rail says "I am grabbable"
     // before you click it.
     + '#tl-rail:before{transition:background .25s ease,width .25s ease}'
