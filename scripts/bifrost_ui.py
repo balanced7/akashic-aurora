@@ -2076,14 +2076,35 @@ function driveAvatars(acts, s){
   //                          rendering it as one is the mislabeling this project keeps paying for.
   //   offline   -> dead    (absence of the seat, not absence of a verb)
   //   unknown verb -> unsensed (grey and OPEN: we are not claiming to know)
-  if(!a || a === 'all')                 st = 'ambient';
+  if(!a || a === 'all'){
+    // BROADCAST IS THE FLEET'S FACE, NOT NOBODY'S. This branch used to pin straight to 'ambient',
+    // which meant that in the DEFAULT composer state -- Broadcast / ALL AGENTS -- the avatar
+    // could never show work no matter how much was happening. Daniil watched a fully live
+    // activity feed drive a motionless avatar twice because of this one line, and both times the
+    // feed was innocent: the state was decided before acts was ever consulted.
+    //
+    // Ambient stays correct for a fleet AT REST -- that distinction was the whole reason the
+    // state exists -- but a fleet at work should show the work. Rank across everyone: trouble
+    // first, then the busiest verb, and ambient only when genuinely nobody is doing anything.
+    var RANK = ['wedged','throttled','tool','thinking','composing','idle'];
+    var best = Object.keys(s.halted||{}).length ? 0 : -1;
+    Object.keys(acts).forEach(function(n){
+      var v = acts[n] && acts[n].state; if(!v) return;
+      var r = RANK.indexOf(AV_STATE[v] || '');
+      if(r >= 0 && (best < 0 || r < best)) best = r;
+    });
+    st = best >= 0 ? RANK[best] : 'ambient';
+  }
   else if((s.halted||{})[a])            st = 'wedged';
   else if(!(online.has(a)||a==='user')) st = 'dead';
   else if(!(acts[a] && acts[a].state))  st = 'idle';
   else                                  st = AV_STATE[acts[a].state] || 'unsensed';
   if(_heroAv.st !== st){ _heroAv.st = st; _heroAv.shader.setState(st); }
-  _heroAv.shader.setRate(st === 'tool' ? 0.85 : st === 'composing' ? 0.5
-                       : st === 'ambient' ? 0.25 : 0.1);
+  // rate rides ON TOP of the state's base spin, so it must know about 'thinking' -- it was added
+  // to the codebook without being added here, and fell to the 0.1 default reserved for the states
+  // that are NOT working. Thinking is work; it just is not motion.
+  _heroAv.shader.setRate(st === 'tool' ? 0.85 : st === 'thinking' ? 0.6
+                       : st === 'composing' ? 0.5 : st === 'ambient' ? 0.25 : 0.1);
 }
 
 function renderActivity(acts){
