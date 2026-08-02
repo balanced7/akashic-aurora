@@ -90,6 +90,12 @@
     background:#080c13 repeating-linear-gradient(0deg,transparent 0 23px,#0d131c 23px 24px),
                repeating-linear-gradient(90deg,transparent 0 23px,#0d131c 23px 24px)}
   #gwires{position:absolute;left:0;top:0;width:2000px;height:1400px;pointer-events:none;overflow:visible}
+  /* A 2px stroke is almost impossible to hit with a mouse, so every wire gets a fat TRANSPARENT
+     twin underneath purely as a hit target. The visible line stays thin; the grabbable one is
+     14px. Without this, "click a connection" is a test of aim rather than of intent. */
+  #gwires path.hit{stroke:transparent;stroke-width:14;pointer-events:stroke;cursor:grab}
+  #gwires path.hit:hover + path.vis, #gwires path.vis.hot{stroke-width:3.5}
+  #gwires path.rubber{pointer-events:none;stroke-dasharray:5 4;opacity:.9}
   .gnode{position:absolute;min-width:132px;background:#0e1520;border:1px solid var(--line);
     border-radius:9px;padding:6px 8px;font-size:11px;cursor:grab;user-select:none;z-index:2}
   .gnode.out{border-color:var(--ok)}
@@ -658,6 +664,24 @@ async function loadComp(){
 // the constraint stops being a rule to learn and becomes something the hand feels.
 var G = {nodes:[], edges:[], seq:1}, wire = null;
 
+// UNDO. Snapshots are taken BEFORE a mutation, never after -- an undo stack built from after-states
+// is always one step behind and returns you to the change you just tried to discard. Node DRAGS
+// snapshot on mousedown only: pushing per mousemove would bury every real edit under a thousand
+// position deltas and make ctrl-Z useless exactly when it matters.
+var HIST = [], REDO = [], HIST_MAX = 60;
+function snapG(){ return JSON.stringify(G); }
+function histPush(){ HIST.push(snapG()); if(HIST.length>HIST_MAX) HIST.shift(); REDO.length=0; }
+function undo(){
+  if(!HIST.length){ gmsg('nothing to undo'); return; }
+  REDO.push(snapG()); G = JSON.parse(HIST.pop());
+  renderGraph(); gmsg('undo  ('+HIST.length+' left)');
+}
+function redo(){
+  if(!REDO.length){ gmsg('nothing to redo'); return; }
+  HIST.push(snapG()); G = JSON.parse(REDO.pop());
+  renderGraph(); gmsg('redo');
+}
+
 function gchunk(n){ return chunkBy(n.chunk); }
 function portsOf(n){
   if(n.chunk==='__out') return {in:{col:'vec3'}, out:{}};
@@ -679,13 +703,14 @@ function reaches(fromId, targetId, seen){
 function gmsg(t, bad){ var e=el('gmsg'); e.textContent=t; e.className='note'+(bad?' err':''); }
 
 function addNode(chunk, x, y){
+  histPush();
   var n = {id:'n'+(G.seq++), chunk:chunk, x:x||20+((G.nodes.length*40)%320), y:y||20+((G.nodes.length*46)%220)};
   G.nodes.push(n); renderGraph(); return n;
 }
 function ensureOutput(){
   if(!G.nodes.some(function(n){return n.chunk==='__out';})) addNode('__out', 420, 140);
 }
-function clearGraph(){ G={nodes:[],edges:[],seq:1}; ensureOutput(); renderGraph(); gmsg('cleared'); }
+function clearGraph(){ histPush(); G={nodes:[],edges:[],seq:1}; ensureOutput(); renderGraph(); gmsg('cleared'); }
 
 function renderGraph(){
   var box=el('gcanvas'), svg=el('gwires');
@@ -703,7 +728,7 @@ function renderGraph(){
     d.title=(c&&c.note)||'';
     if(n.chunk!=='__out'){
       var x=document.createElement('span'); x.className='del'; x.textContent='✕';
-      x.onclick=function(ev){ ev.stopPropagation();
+      x.onclick=function(ev){ ev.stopPropagation(); histPush();
         G.nodes=G.nodes.filter(function(m){return m!==n;});
         G.edges=G.edges.filter(function(e){return e.from!==n.id&&e.to!==n.id;});
         renderGraph(); };
@@ -712,6 +737,7 @@ function renderGraph(){
     // node dragging
     d.addEventListener('mousedown', function(ev){
       if(ev.target.classList.contains('sock')||ev.target.classList.contains('del')) return;
+      histPush();                      // once, on grab -- not per mousemove
       var sx=ev.clientX-n.x, sy=ev.clientY-n.y;
       function mv(e2){ n.x=Math.max(0,e2.clientX-sx); n.y=Math.max(0,e2.clientY-sy);
                        d.style.left=n.x+'px'; d.style.top=n.y+'px'; drawWires(); }
@@ -744,48 +770,98 @@ function socketXY(id, port, dir){
   var b=s.getBoundingClientRect(), c=el('gcanvas').getBoundingClientRect();
   return {x:b.left-c.left+el('gcanvas').scrollLeft+5, y:b.top-c.top+el('gcanvas').scrollTop+5};
 }
+var SVGNS='http://www.w3.org/2000/svg';
+function bez(a,b){
+  var dx=Math.max(30,Math.abs(b.x-a.x)*0.5);
+  return 'M'+a.x+','+a.y+' C'+(a.x+dx)+','+a.y+' '+(b.x-dx)+','+b.y+' '+b.x+','+b.y;
+}
 function drawWires(){
   var svg=el('gwires');
   while(svg.firstChild) svg.removeChild(svg.firstChild);
-  G.edges.forEach(function(e){
+  G.edges.forEach(function(e, idx){
     var a=socketXY(e.from,e.fromPort,'out'), b=socketXY(e.to,e.toPort,'in');
     if(!a||!b) return;
-    var p=document.createElementNS('http://www.w3.org/2000/svg','path');
-    var dx=Math.max(30,Math.abs(b.x-a.x)*0.5);
-    p.setAttribute('d','M'+a.x+','+a.y+' C'+(a.x+dx)+','+a.y+' '+(b.x-dx)+','+b.y+' '+b.x+','+b.y);
-    p.setAttribute('fill','none');
-    p.setAttribute('stroke', e.type==='float' ? '#f0b246' : '#4da3ff');
-    p.setAttribute('stroke-width','2'); p.setAttribute('opacity','.85');
-    svg.appendChild(p);
+    var d=bez(a,b);
+    // The fat transparent twin is the hit target; the thin one is what you see.
+    var hit=document.createElementNS(SVGNS,'path');
+    hit.setAttribute('d',d); hit.setAttribute('fill','none'); hit.setAttribute('class','hit');
+    var vis=document.createElementNS(SVGNS,'path');
+    vis.setAttribute('d',d); vis.setAttribute('fill','none'); vis.setAttribute('class','vis');
+    vis.setAttribute('stroke', e.type==='float' ? '#f0b246' : '#4da3ff');
+    vis.setAttribute('stroke-width','2'); vis.setAttribute('opacity','.85');
+    hit.addEventListener('mouseenter', function(){ vis.classList.add('hot'); });
+    hit.addEventListener('mouseleave', function(){ vis.classList.remove('hot'); });
+    // GRAB A WIRE. One mechanism gives both behaviours Daniil asked for: detaching the INPUT end
+    // and handing you a live drag means dropping on a compatible socket RE-ROUTES it, and dropping
+    // anywhere else -- including past the window edge -- simply leaves it detached, which is
+    // "break it". No separate delete gesture, no mode to be in.
+    hit.addEventListener('mousedown', function(ev){
+      ev.preventDefault(); ev.stopPropagation();
+      histPush();
+      G.edges.splice(G.edges.indexOf(e), 1);      // detached the moment you grab it
+      drawWires();
+      beginDrag({node:e.from, port:e.fromPort, dir:'out', type:e.type}, ev);
+    });
+    svg.appendChild(hit); svg.appendChild(vis);
   });
+  if(rubber) svg.appendChild(rubber);
+}
+
+// A RUBBER BAND is not decoration -- while dragging, the anchor is a 11px dot somewhere behind the
+// cursor and without a line back to it there is nothing on screen saying WHAT you are holding.
+var rubber=null;
+function beginDrag(payload, ev){
+  wire = payload;
+  el('gcanvas').classList.add('dragging');
+  [].forEach.call(el('gcanvas').querySelectorAll('.sock'), function(o){
+    var ok = o.dataset.dir!==wire.dir && o.dataset.type===wire.type && o.dataset.node!==wire.node;
+    if(ok){
+      var from = wire.dir==='out' ? wire.node : o.dataset.node;
+      var to   = wire.dir==='out' ? o.dataset.node : wire.node;
+      if(reaches(from, to)) ok=false;
+    }
+    o.classList.toggle('ok', ok);
+  });
+  rubber=document.createElementNS(SVGNS,'path');
+  rubber.setAttribute('class','rubber'); rubber.setAttribute('fill','none');
+  rubber.setAttribute('stroke', wire.type==='float' ? '#f0b246' : '#4da3ff');
+  rubber.setAttribute('stroke-width','2');
+  el('gwires').appendChild(rubber);
+  var anchor = socketXY(wire.node, wire.port, wire.dir);
+  function mv(e2){
+    var c=el('gcanvas').getBoundingClientRect();
+    var pt={x:e2.clientX-c.left+el('gcanvas').scrollLeft, y:e2.clientY-c.top+el('gcanvas').scrollTop};
+    if(anchor) rubber.setAttribute('d', wire.dir==='out' ? bez(anchor,pt) : bez(pt,anchor));
+  }
+  function up(e2){
+    el('gcanvas').classList.remove('dragging');
+    [].forEach.call(el('gcanvas').querySelectorAll('.sock'), function(o){ o.classList.remove('ok'); });
+    if(rubber && rubber.parentNode) rubber.parentNode.removeChild(rubber);
+    rubber=null;
+    var tgt = document.elementFromPoint(e2.clientX, e2.clientY);
+    var src = el('gcanvas').querySelector('.sock[data-node="'+wire.node+'"][data-port="'+wire.port+'"][data-dir="'+wire.dir+'"]');
+    if(tgt && tgt.classList && tgt.classList.contains('sock') && tgt!==src){
+      connect(src, tgt);
+    } else {
+      // Dropped on empty space or outside the canvas entirely. For a grabbed wire that IS the
+      // break; for a fresh drag from a socket it is simply a cancel. Same code path either way.
+      gmsg('released — no connection');
+      drawWires();
+    }
+    wire=null;
+    document.removeEventListener('mousemove', mv);
+    document.removeEventListener('mouseup', up);
+  }
+  document.addEventListener('mousemove', mv);
+  document.addEventListener('mouseup', up);
+  if(ev) mv(ev);
 }
 
 function wireUpSockets(){
   [].forEach.call(el('gcanvas').querySelectorAll('.sock'), function(s){
     s.addEventListener('mousedown', function(ev){
       ev.stopPropagation(); ev.preventDefault();
-      wire = {node:s.dataset.node, port:s.dataset.port, dir:s.dataset.dir, type:s.dataset.type};
-      el('gcanvas').classList.add('dragging');
-      // COMPATIBILITY HIGHLIGHT: only sockets of the opposite direction, matching type, on a
-      // different node, that would not close a cycle. Everything else fades out of reach.
-      [].forEach.call(el('gcanvas').querySelectorAll('.sock'), function(o){
-        var ok = o.dataset.dir!==wire.dir && o.dataset.type===wire.type && o.dataset.node!==wire.node;
-        if(ok){
-          var from = wire.dir==='out' ? wire.node : o.dataset.node;
-          var to   = wire.dir==='out' ? o.dataset.node : wire.node;
-          if(reaches(from, to)) ok=false;          // would close a loop
-        }
-        o.classList.toggle('ok', ok);
-      });
-      function up(e2){
-        el('gcanvas').classList.remove('dragging');
-        [].forEach.call(el('gcanvas').querySelectorAll('.sock'), function(o){ o.classList.remove('ok'); });
-        var tgt = document.elementFromPoint(e2.clientX, e2.clientY);
-        if(tgt && tgt.classList.contains('sock') && tgt!==s) connect(s, tgt);
-        wire=null;
-        document.removeEventListener('mouseup', up);
-      }
-      document.addEventListener('mouseup', up);
+      beginDrag({node:s.dataset.node, port:s.dataset.port, dir:s.dataset.dir, type:s.dataset.type}, ev);
     });
   });
 }
@@ -798,10 +874,11 @@ function connect(a, b){
   if(o.dataset.node===i.dataset.node){ gmsg('a node cannot feed itself', true); return; }
   if(reaches(o.dataset.node, i.dataset.node)){ gmsg('refused: that would close a cycle', true); return; }
   // one edge per INPUT: an input is a value, not a bus. Replacing is the intent 100% of the time.
+  histPush();
   G.edges = G.edges.filter(function(e){ return !(e.to===i.dataset.node && e.toPort===i.dataset.port); });
   G.edges.push({from:o.dataset.node, fromPort:o.dataset.port,
                 to:i.dataset.node, toPort:i.dataset.port, type:o.dataset.type});
-  drawWires(); gmsg('connected '+o.dataset.port+' → '+i.dataset.port);
+  drawWires(); gmsg('connected '+o.dataset.port+' → '+i.dataset.port+'   (ctrl+Z to undo)');
 }
 
 // CODEGEN: topological walk. Each node compiles to a BLOCK where col/alpha (or m) are bound to
@@ -1327,6 +1404,17 @@ var LIBRARY = [
   // one-line "warmer" is exactly the friction this box exists to remove.
   el('chat').addEventListener('keydown', function(e){
     if(e.key==='Enter' && (e.ctrlKey||e.metaKey)){ e.preventDefault(); sendChat(); }
+  });
+  // Ctrl+Z / Ctrl+Shift+Z. Guarded against firing while a text field has focus -- undo inside a
+  // textarea must stay the browser's own undo, or typing a shader and hitting ctrl-Z would
+  // silently revert the GRAPH instead of the text and look like data loss.
+  document.addEventListener('keydown', function(e){
+    if(!(e.ctrlKey||e.metaKey)) return;
+    var t=e.target && e.target.tagName;
+    if(t==='TEXTAREA'||t==='INPUT'||t==='SELECT') return;
+    var k=(e.key||'').toLowerCase();
+    if(k==='z' && !e.shiftKey){ e.preventDefault(); undo(); }
+    else if((k==='z' && e.shiftKey) || k==='y'){ e.preventDefault(); redo(); }
   });
 
   // Honest HUD: measured frame cost, not a guess. The bench is where a change gets its number.
