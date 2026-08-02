@@ -97,6 +97,45 @@
     return mix(violet, vec3(0.0), (t - 0.88) / 0.12);
   }
 
+  // ONE LATTICE LAYER, factored out of main so the field can be built from several at different
+// depths. Everything here is what main() used to do inline; nothing about a single layer changed.
+// Returns x = lattice brightness, y = wave pulse (the hue driver).
+  vec2 latticeLayer(vec2 suv, float T, float cells, float seed, float drift, float meshAmt) {
+    vec2 gp = suv * cells + seed * 17.0;       // seed offsets the grid so layers never align
+    vec2 id = floor(gp);
+    vec2 gv = fract(gp) - 0.5;                 // -0.5..0.5 within the cell
+
+    // three travelling waves; each angle rotates at its own rate so the flow direction drifts
+    float a1 = T * 0.045 + seed, a2 = -T * 0.031 + 2.1 + seed, a3 = T * 0.019 + 4.2 + seed;
+    vec2 d1 = vec2(cos(a1), sin(a1));
+    vec2 d2 = vec2(cos(a2), sin(a2));
+    vec2 d3 = vec2(cos(a3), sin(a3));
+    float w = sin(dot(id, d1) * 0.42 - T * 0.9)
+            + sin(dot(id, d2) * 0.30 - T * 0.6)
+            + sin(dot(id, d3) * 0.21 - T * 0.4);
+    w /= 3.0;                                   // -1..1
+    float pulse = 0.5 + 0.5 * w;                // 0..1
+
+    // DOTS MOVE: displace each dot inside its own cell along the wave gradient. Small, so the
+    // lattice stays legible as a lattice while visibly breathing.
+    vec2 dr = drift * vec2(sin(dot(id, d1) * 0.42 - T * 0.9),
+                           cos(dot(id, d2) * 0.30 - T * 0.6));
+    float dist = length(gv - dr);
+
+    // dot radius rides the wave -- the crest is where the lattice brightens
+    float r = mix(0.055, 0.20, pulse * pulse);
+    float dot_ = smoothstep(r, r * 0.35, dist);
+
+    // WIREFRAME MOSAIC: the cell's own edge, revealed only where the wave is high. Reusing gv
+    // means the mesh costs one more max() -- no second field, no extra noise. meshAmt exists
+    // because three overlaid meshes at three scales is clutter, not depth: only the near layer
+    // draws its full mesh, and the far ones read as texture instead of competing grids.
+    float edge = max(abs(gv.x), abs(gv.y));
+    float mesh = smoothstep(0.46, 0.5, edge) * pow(pulse, 3.0) * 0.5 * meshAmt;
+
+    return vec2(dot_ * (0.35 + 0.9 * pulse) + mesh, pulse);
+  }
+
   void main() {
     vec2 uv = gl_FragCoord.xy / u_resolution.xy;
     // aspect-correct the x so the curtain doesn't stretch on wide viewports
@@ -122,35 +161,22 @@
     float T = u_time * u_speed;
 
     const float CELLS = 26.0;                  // lattice density across the short axis
-    vec2 gp = suv * CELLS;
-    vec2 id = floor(gp);
-    vec2 gv = fract(gp) - 0.5;                 // -0.5..0.5 within the cell
 
-    // three travelling waves; each angle rotates at its own rate so the flow direction drifts
-    float a1 = T * 0.045, a2 = -T * 0.031 + 2.1, a3 = T * 0.019 + 4.2;
-    vec2 d1 = vec2(cos(a1), sin(a1));
-    vec2 d2 = vec2(cos(a2), sin(a2));
-    vec2 d3 = vec2(cos(a3), sin(a3));
-    float w = sin(dot(id, d1) * 0.42 - T * 0.9)
-            + sin(dot(id, d2) * 0.30 - T * 0.6)
-            + sin(dot(id, d3) * 0.21 - T * 0.4);
-    w /= 3.0;                                   // -1..1
-    float pulse = 0.5 + 0.5 * w;                // 0..1
-
-    // DOTS MOVE: displace each dot inside its own cell along the wave gradient. Small, so the
-    // lattice stays legible as a lattice while visibly breathing.
-    vec2 drift = 0.17 * vec2(sin(dot(id, d1) * 0.42 - T * 0.9),
-                             cos(dot(id, d2) * 0.30 - T * 0.6));
-    float dist = length(gv - drift);
-
-    // dot radius rides the wave -- the crest is where the lattice brightens
-    float r = mix(0.055, 0.20, pulse * pulse);
-    float dot_ = smoothstep(r, r * 0.35, dist);
-
-    // WIREFRAME MOSAIC: the cell's own edge, revealed only where the wave is high. Reusing gv
-    // means the mesh costs one more max() -- no second field, no extra noise.
-    float edge = max(abs(gv.x), abs(gv.y));
-    float mesh = smoothstep(0.46, 0.5, edge) * pow(pulse, 3.0) * 0.5;
+    // ===================== PARALLAX DEPTH =====================
+    // The field was ONE plane, and that is why it read as flat however good the motion was:
+    // nothing receded, nothing occluded, every dot the same size and the same brightness.
+    // Three layers at different scales, speeds and depths buy real space for almost nothing --
+    // a lattice layer is one fract, one length and five sines, so all three together are still
+    // a small fraction of ONE of the five fbm evaluations this field replaced.
+    //
+    // AERIAL PERSPECTIVE is what makes it read as distance rather than as clutter. Far layers
+    // are DIMMER, DENSER (more cells = smaller dots), SLOWER, and pulled toward the cool end of
+    // the palette; the near layer is brighter, larger, faster and spans the full hue range.
+    // That is how atmosphere actually attenuates something far away, so the eye reads depth
+    // without being told -- and it is why the far layers do not simply look like more dots.
+    vec2 L0 = latticeLayer(suv, T * 0.55, CELLS * 1.90, 3.7, 0.09, 0.0);   // far   -- texture
+    vec2 L1 = latticeLayer(suv, T * 0.80, CELLS * 1.28, 1.3, 0.13, 0.35);  // mid
+    vec2 L2 = latticeLayer(suv, T,        CELLS,        0.0, 0.17, 1.0);   // near  -- the subject
 
     // --- composition envelope: keep the vertical middle dark so body text stays legible.
     // Same intent as the old curtain bands, one smoothstep instead of two.
@@ -158,14 +184,31 @@
     float envBot = smoothstep(0.34, 0.0, uv.y) * 0.75;     // a little light under the composer
     float env = max(envTop, envBot);
 
-    float lattice = (dot_ * (0.35 + 0.9 * pulse) + mesh) * env;
-
     // NEON GRADIENT across the lattice: hue rides position + wave, so colour travels with the
-    // pattern instead of being painted on. auroraColor is the palette gate, so the lattice can
-    // never introduce a hue the design system does not own.
-    float t = clamp(lattice, 0.0, 1.0);
-    float hue = clamp(0.35 + 0.45 * pulse + 0.22 * uv.x, 0.0, 1.0);
-    vec3 col = auroraColor(hue) * t * 2.1 * u_intensity;
+    // pattern instead of being painted on. auroraColor is still the palette gate -- every layer
+    // indexes THROUGH it, so depth cannot smuggle in a hue the design system does not own. The
+    // far layers simply sit lower in the ramp, which is where its cool end lives.
+    float t0 = clamp(L0.x * env, 0.0, 1.0);
+    float t1 = clamp(L1.x * env, 0.0, 1.0);
+    float t2 = clamp(L2.x * env, 0.0, 1.0);
+    vec3 col = auroraColor(clamp(0.16 + 0.14 * L0.y,                    0.0, 1.0)) * t0 * 0.34
+             + auroraColor(clamp(0.26 + 0.30 * L1.y + 0.10 * uv.x,      0.0, 1.0)) * t1 * 0.62
+             + auroraColor(clamp(0.35 + 0.45 * L2.y + 0.22 * uv.x,      0.0, 1.0)) * t2 * 1.30;
+    col *= u_intensity;
+
+    // FIELD MAGNITUDE, kept because the state tints below modulate BY the lattice -- the amber
+    // (paused) and grey (halted) washes have to land on the pattern rather than flood the void.
+    // This used to be the single layer's t; with three layers it is their weighted sum.
+    float t = clamp(t0 * 0.34 + t1 * 0.62 + t2 * 1.30, 0.0, 1.0);
+
+    // SUPERLINEAR HIGHLIGHT, the c*c term from the wave shader Daniil singled out (no backticks
+    // in this comment on purpose: the whole shader is a JS template literal, and one would end
+    // it mid-sentence). This is
+    // what lets the field go DARKER and more striking at once instead of trading one for the
+    // other: squaring leaves the dark two-thirds essentially untouched and pays out only at the
+    // crests, so the mids sink toward black while the bright nodes bloom. Lowering brightness
+    // alone would have flattened the crests along with everything else.
+    col += col * col * 0.90;
 
     // faint atmospheric bloom so the lattice sits in air rather than on black -- a wide, cheap
     // radial that also stops the lower half reading as a flat void
@@ -180,14 +223,36 @@
       col = mix(col, vec3(dot(col, vec3(0.299, 0.587, 0.114))) * 0.3, u_state_intensity * 0.7);
     }
 
-    // --- radial vignette (awwwards hero-shader staple): darken toward the corners so the centered
-    //     glass panels pop and body text stays legible. One length + smoothstep. ---
-    float vig = smoothstep(1.15, 0.35, length(uv - 0.5));
-    col *= mix(0.72, 1.0, vig);
+    // --- VIGNETTE: aspect-corrected, on a POWER falloff (the shape from the compositing shader
+    //     Daniil pasted, which uses pow(dist * scale, 3)). Two real fixes over the old
+    //     smoothstep. FIRST, it was measured in raw uv, so on a 16:9 monitor the "circle" was an
+    //     ellipse squashed to the viewport and the left and right edges darkened far harder than
+    //     the top and bottom -- correcting x by the aspect makes it an actual circle. SECOND, a
+    //     smoothstep begins shading immediately from the centre, dimming the middle of the
+    //     screen; a cubic stays essentially flat across the centre and falls away only near the
+    //     corners, which is what "framing" means as opposed to "dimming". ---
+    float aspect = u_resolution.x / u_resolution.y;
+    vec2 vuv = uv;
+    vuv.x = (vuv.x - 0.5) * aspect + 0.5;
+    // Normalise by the ACTUAL corner distance, not by the 0.7071 of a unit square. Once x is
+    // aspect-corrected the corner sits at length(0.5*aspect, 0.5) -- 1.02 at 16:9, not 0.707 --
+    // so dividing by 0.7071 would push both corners AND the mid-side edges past 1.0 and clamp
+    // them to full black, blacking out the sides of a widescreen display entirely.
+    float vd = length(vuv - 0.5) / length(vec2(0.5 * aspect, 0.5));   // 0 centre, 1 at corners
+    float vig = 1.0 - pow(clamp(vd * 0.94, 0.0, 1.0), 3.0);
+    col *= mix(1.0, vig, 0.66);
 
-    // --- film grain (awwwards: kills visible banding on dark gradients). Tiny per-pixel dither. ---
-    float grain = fract(sin(dot(gl_FragCoord.xy + u_time, vec2(12.9898, 78.233))) * 43758.5453);
-    col += (grain - 0.5) * 0.015;
+    // --- DITHER: triangular PDF, at the quantisation step rather than above it.
+    //     Two changes, and both matter more now that the field is darker. The noise is a
+    //     DIFFERENCE of two hashes, giving a triangular distribution -- the correct shape for
+    //     breaking up quantisation, and it defeats banding at roughly half the amplitude that
+    //     uniform noise needs, so less visible grain for a better result. And the amplitude
+    //     drops from .015 (~3.8/255) to ~1.6/255: grain that read as filmic over mid greys reads
+    //     as sensor noise over near-black, and a darker image needs LESS of it, not more --
+    //     while still needing at least one code value to break up the ramps. ---
+    float n1 = fract(sin(dot(gl_FragCoord.xy + u_time * 1.7, vec2(12.9898, 78.233))) * 43758.5453);
+    float n2 = fract(sin(dot(gl_FragCoord.yx - u_time * 1.3, vec2(63.7264, 10.8730))) * 32168.4321);
+    col += (n1 - n2) * (1.6 / 255.0);
 
     outColor = vec4(col, 1.0);   // opaque; the canvas is the backmost layer
   }`;
