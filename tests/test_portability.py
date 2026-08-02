@@ -109,11 +109,17 @@ def test_p2_a_wrong_env_override_is_reported_not_silently_ignored(monkeypatch):
 # skipped, matching check_boundaries.py's ALLOWLIST convention: known debt stays VISIBLE.
 # Verified individually, not assumed -- blind allowlisting is how a real offender hides in a
 # crowd of harmless ones.
+#
+# A REASON MUST NOT QUOTE THE LITERAL IT EXCUSES. These values are string literals, so the
+# scanner reads them as code and flags them -- and this file's own entry then makes it the
+# offender it was written to catch. Found the moment this pin was first COMMITTED: the walk
+# is over git-tracked files, so while it sat untracked it never scanned itself and passed.
+# Describe the shape (`cd <repo-root> && ls`), never the path.
 _FIXTURE_DATA = {
     "tests/test_claude_hook_contract.py":
         "synthetic command strings fed to normalize_target(); asserts on parsing, opens nothing",
     "tests/test_harness_lib.py":
-        "'cd E:/AI-Setup && ls' passed to scope.shell_in_scope() as sample input",
+        "a 'cd <repo-root> && ls' command string passed to scope.shell_in_scope() as sample input",
     "tests/test_ir4_mirror_family.py":
         "sample argv for the mirror family parser; the path is the thing under test, not a target",
     "tests/test_session_signals.py":
