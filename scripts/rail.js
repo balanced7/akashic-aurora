@@ -37,18 +37,63 @@
        bottom is hard." Both are the same defect -- the page began scrolling instead of the feed.
        min-height:0 is the load-bearing half: without it a flex child REFUSES to shrink below its
        content, so flex:1 alone would not have been enough. */
-    '.rail-grid{display:grid;grid-template-columns:1fr 300px;gap:16px;align-items:stretch;',
-    '  flex:1;min-height:0}',
+    /* ADAPTIVE, not breakpoint-driven. The 2026 intrinsic-design toolbox: the rail's WIDTH is a
+       clamp of the available space rather than a fixed 300px, so it shrinks continuously on a
+       laptop and grows on an ultrawide with no jump. minmax(0,...) is what lets the feed column
+       actually shrink -- a grid track's default min is auto, the same trap as flex min-width. */
+    '.rail-grid{display:grid;',
+    '  grid-template-columns:minmax(0,1fr) clamp(240px, 24%, 360px);',
+    '  gap:clamp(10px,1.4vw,18px);align-items:stretch;flex:1;min-height:0}',
     '.rail-grid > #log{height:100%;min-height:0;overflow-y:auto}',
-    '@media (max-width:1080px){.rail-grid{grid-template-columns:1fr}#rail{display:none}}',
+    /* READABILITY IS MEASURED IN CHARACTERS, NOT PIXELS. A line longer than ~75ch is hard to
+       track back to the next line, and that is true at every resolution -- which is exactly the
+       property a px width cannot express. */
+    '.rail-grid > #log .msg{max-width:min(100%, 78ch)}',
+    /* Long unbroken tokens (paths, kind=... strings, ids) are the thing that actually breaks a
+       narrow column -- seen at 390px: "handoff/decision/completion/bloc·ker" split mid-word.
+       break-word keeps normal prose wrapping at spaces and only breaks a token that genuinely
+       cannot fit, which is the behaviour you want for a console full of file paths. */
+    '.rail-grid > #log .msg,.rail-grid > #log .bubble{overflow-wrap:break-word;word-break:normal}',
+    '.rail-grid > #log code,.rail-grid > #log pre{overflow-wrap:anywhere}',
+
+    /* Below ~900px the two-column shape stops working, so the rail moves ABOVE the feed as a
+       horizontal band rather than disappearing. Hiding it was the lazy answer and it loses
+       information on precisely the device that has least room to spare. */
+    '@media (max-width:900px){',
+    '  .rail-grid{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}',
+    '  #rail{order:-1;flex-direction:row;overflow-x:auto;overflow-y:hidden;',
+    '        max-height:clamp(120px,22vh,190px);padding-bottom:4px}',
+    '  #rail .rcard{flex:none;width:min(78vw,300px)}',
+    '}',
+
+    /* CONTAINER QUERIES: the cards respond to the RAIL, not the viewport. That is the whole point
+       -- the rail can be narrow on a wide screen (ultrawide with a big feed) or wide on a small
+       one, and a viewport media query cannot tell those apart. */
     '#rail{display:flex;flex-direction:column;gap:12px;min-width:0;',
-    '  height:100%;min-height:0;overflow-y:auto;padding-right:2px}',
+    '  height:100%;min-height:0;overflow-y:auto;padding-right:2px;',
+    '  container-type:inline-size;container-name:rail}',
+    '@container rail (max-width: 260px){',
+    '  .rtiles{grid-template-columns:1fr}',            /* one tile per row before numbers wrap */
+    '  .ragent .rst{display:none}',                    /* drop the second line, keep identity */
+    '  #rail h3 .cnt{display:none}',
+    '}',
+    '@container rail (min-width: 340px){',
+    '  .rtiles{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}',
+    '}',
 
     /* card primitive — glass, per the mockup */
     '#rail .rcard{background:var(--glass,rgba(18,20,28,.55));backdrop-filter:blur(26px) saturate(1.35);',
     '  -webkit-backdrop-filter:blur(26px) saturate(1.35);border:1px solid var(--border,rgba(255,255,255,.07));',
     '  border-radius:14px;padding:13px 14px;box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 24px 60px -30px rgba(0,0,0,.8)}',
-    '#rail h3{font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint,#5c6178);',
+    /* FLUID TYPE. clamp(min, preferred, max) scales continuously with the viewport and stops at
+       both ends -- never smaller than legible, never absurd on an ultrawide. The rem term is what
+       keeps it accessible: a pure vw formula IGNORES the user's browser font-size setting, so
+       text stops responding to zoom, which is the accessibility bug most fluid-type snippets
+       quietly ship. Pairing rem with vw keeps both working, and satisfies One UI's 200%
+       text-scalability rule that design/CONTRACT.md §1 adopted. */
+    '#rail{font-size:clamp(11.5px, 0.62rem + 0.22vw, 14px)}',
+    '#rail h3{font-size:clamp(9.5px,0.5rem + 0.14vw,11.5px);letter-spacing:.13em;',
+    '  text-transform:uppercase;color:var(--faint,#5c6178);',
     '  font-weight:600;margin:0 0 10px;display:flex;align-items:center;gap:8px}',
     '#rail h3 .cnt{color:var(--muted,#9297ab);letter-spacing:0;text-transform:none;font-weight:500}',
 

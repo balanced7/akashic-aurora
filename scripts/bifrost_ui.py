@@ -738,14 +738,44 @@ PAGE = r"""<!doctype html>
     filter:blur(60px)}
   body::after{content:""; position:fixed; inset:0; z-index:-1; pointer-events:none; opacity:.3;
     background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/></svg>")}
-  .app{display:flex; flex-direction:column; height:100vh; max-width:1180px; margin:0 auto; position:relative; z-index:1}
+  /* ADAPTIVE SHELL (design/CONTRACT.md §1 + the 2026 intrinsic-design toolbox).
+     100dvh not 100vh: on mobile, 100vh is the LARGEST viewport (chrome retracted), so a
+     100vh shell puts the composer under the address bar until you scroll. dvh tracks the
+     live viewport, which is the whole point for a console whose composer must always be
+     reachable. Fallback line first for engines without dvh.
+     max-width is fluid rather than a hard 1180: min(1180px, 96vw) keeps the shell from
+     touching the edge on a small screen and from stretching past a readable measure on an
+     ultrawide. Nothing here is a breakpoint -- it degrades continuously. */
+  .app{display:flex; flex-direction:column; height:100vh; height:100dvh;
+       width:min(1180px, 96vw); max-width:100%; margin:0 auto; position:relative; z-index:1}
+  @media (min-width:1500px){ .app{width:min(1400px, 92vw)} }   /* ultrawide: use some of it */
   /* header */
+  /* THE HEADER IS A BAND, NOT A CANVAS -- enforced structurally rather than per-element.
+     Daniil reported "the ai list at the top takes half the screen" and I diagnosed it THREE
+     times wrong: .pills (capped it -- not the culprit), the roster popover (bounded it -- not
+     the culprit), then #tiles.presence-rail (superseded it -- still not the culprit). Each fix
+     was correct for the element it touched and none of them fixed his screen, because the tile
+     layer is a REGISTRY of swappable variants persisted per browser, so the thing rendering into
+     his header is a component I have never had mounted and therefore cannot name from here.
+     Identification kept failing; a constraint cannot. Whatever renders into this row, it lives
+     inside a bounded band from now on: children may scroll sideways, never grow the page
+     downward. This is the same lesson as .pills nowrap, applied one level up where it holds for
+     components that do not exist yet.
+     flex:none on children so a wide child scrolls the row instead of being squeezed; the
+     controls already carry their own flex:none and keep it. */
   header{
     display:flex; align-items:center; gap:14px; padding:14px 20px;
     border-bottom:1px solid var(--glass-line); background:var(--glass);
     backdrop-filter:blur(26px) saturate(1.35); -webkit-backdrop-filter:blur(26px) saturate(1.35);
     box-shadow:0 1px 0 var(--glass-hi) inset; position:sticky; top:0; z-index:5;
+    flex-wrap:nowrap; max-height:clamp(60px, 9vh, 84px); overflow-x:auto; overflow-y:hidden;
+    scrollbar-width:thin; scrollbar-color:var(--border) transparent;
   }
+  header::-webkit-scrollbar{height:5px}
+  header::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+  /* Any header child, present or future, is clipped to the band and may not stack vertically. */
+  header > *{flex:none; max-height:100%; overflow:hidden}
+  header > #tiles, header > .pills{overflow-x:auto; overflow-y:hidden}
   .brand{display:flex; align-items:center; gap:11px; font-weight:650; letter-spacing:.2px}
   .logo{width:26px;height:26px;border-radius:8px;
     background:conic-gradient(from 210deg,var(--accent),var(--accent2),#e0915c,var(--accent));
