@@ -311,6 +311,14 @@ def main() -> int:
     except Exception:
         data = {}
     _beat_seat(data)
+    # THE TOOL IS DONE, SO THE MODEL IS COMPOSING AGAIN. Placed beside _beat_seat and above every
+    # gate below for the same reason liveness is: presence must not be a hostage of the recall
+    # feature's kill switch. A seat that turns recall off must still show as working.
+    try:
+        from agent.harness.hooks._activity import report
+        report("thinking", "", data.get("cwd") or "")
+    except Exception:
+        pass
     if os.getenv("AKASHIC_RECALL_AT_ACTION", "1") == "0":
         return 0
     if not data:

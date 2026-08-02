@@ -160,6 +160,15 @@ def main() -> int:
     except Exception:
         return 0   # unparseable -> allow
     tool = data.get("tool_name") or ""
+    # PRESENCE, before the tool filter and before every gate below. This must fire for EVERY tool,
+    # not just the shell/file ones this hook guards -- the avatar is reporting whether the seat is
+    # busy at all, and a Read that reported nothing would render as idle, which is a wrong claim
+    # rather than a missing one. Fail-open and side-effect-only; see _activity.py.
+    try:
+        from agent.harness.hooks._activity import report, verb_for
+        report(verb_for(tool), tool, data.get("cwd") or "")
+    except Exception:
+        pass
     if tool not in _SHELL_TOOLS + _FILE_TOOLS:
         return 0
     if _dedup_should_skip(data):

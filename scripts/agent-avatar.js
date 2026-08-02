@@ -216,6 +216,13 @@
     // gentle breath -- the difference between "idle" (one agent waiting) and "ambient"
     // (the system, at rest) is that ambient is not a diagnosis about anyone.
     ambient:   { sub: 3.0, gap: 0.014, spin: 0.09, pulse: 0.55, sat: 1.0, dim: 0.95, tint: [0.29, 0.44, 0.95] },
+    // THINKING vs TOOL is the distinction Daniil asked for, and the two must not merely differ in
+    // hue -- they differ in KIND of motion, because they are different kinds of work. Thinking is
+    // INTERNAL: the shell barely turns and breathes hard, tight and dense, like something holding
+    // still to concentrate. Tool use is EXTERNAL: it spins fast and breathes little, because the
+    // work is happening out in the world rather than inside. Read across a room you can tell them
+    // apart by movement alone, before the colour resolves -- which is the point of a codebook.
+    thinking:  { sub: 3.1, gap: 0.009, spin: 0.06, pulse: 1.0,  sat: 1.0, dim: 1.0,  tint: [0.56, 0.42, 1.0] },
     composing: { sub: 2.7, gap: 0.012, spin: 0.22, pulse: 1.0, sat: 1.0, dim: 1.0,  tint: [0.02, 0.51, 1.0] },
     tool:      { sub: 3.4, gap: 0.006, spin: 0.55, pulse: 0.45, sat: 1.0, dim: 1.0,  tint: [0.24, 0.86, 0.60] },
     idle:      { sub: 1.8, gap: 0.010, spin: 0.05, pulse: 0.15, sat: 0.55, dim: 0.62, tint: [0.30, 0.64, 1.0] },

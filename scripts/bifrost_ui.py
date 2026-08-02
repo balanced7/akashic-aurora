@@ -2046,7 +2046,12 @@ else mountHeroAvatar();
 
 // Activity verb -> avatar state. The console already knows what each agent is doing; this is
 // only the mapping, so there is no second source of truth about agent state.
-var AV_STATE = {thinking:'composing', recalling:'composing',
+// 'thinking' now has its OWN row rather than borrowing composing's -- see the note in the avatar
+// state table. 'calling-model' and 'awaiting-clarification' are verbs the deepseek/sol/gemini
+// chat drivers actually emit (scripts/deepseek_chat.py:283,367) and which nothing here mapped, so
+// they fell through to the unknown branch and rendered as a state the agent was not in.
+var AV_STATE = {thinking:'thinking', recalling:'thinking', 'calling-model':'thinking',
+                'awaiting-clarification':'composing',
                 reading:'tool', writing:'tool', searching:'tool', running:'tool',
                 inspecting:'tool', working:'tool', idle:'idle'};
 
