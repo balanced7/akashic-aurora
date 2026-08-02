@@ -1,0 +1,158 @@
+/* ============================================================================
+   AURORA GLASS — the design system, extracted verbatim from Daniil's approved
+   mockup artifact "Bifrost — Aurora Glass" (2026-07-04)
+   https://claude.ai/code/artifact/4c051d39-72a5-452f-856e-6e9746c8fa21
+
+   WHY THIS FILE EXISTS. design/CONTRACT.md §0 said the references were
+   chat-resident and had to be pinned. This is the most important one and it was
+   the most exposed: a mockup of THIS console, which Daniil designed and liked,
+   living only on claude.ai. The live console at scripts/bifrost_ui.py is a
+   DEGRADED COPY of it — same vocabulary, drifted execution. Three specific
+   divergences, all measured on the running console 2026-08-01:
+
+     1. NO RAIL. The mockup's shell is `grid-template-columns: 1fr 300px` — a
+        message stream beside a right rail carrying Presence and Bus-throughput
+        cards. The live console never built the rail, which is exactly the ~280px
+        of dead gutter I measured at 1280 and mistook for a layout bug. It is not
+        a bug; it is an unbuilt half.
+     2. AURORA IS FIXED, FULL-VIEWPORT. `.aurora{position:fixed;inset:0;z-index:-2}`
+        plus a blurred conic ::before and a grain overlay. The live console renders
+        it as a clipped band in the top-left corner — Daniil's "fix the aurora
+        rendering in the corner". The mockup already had it right.
+     3. THE GEMINI-STYLE GLOW ALREADY EXISTS HERE. `.spin-ring::before` is a
+        conic-gradient driven by an @property angle — the same technique every
+        "recreate the Gemini thinking glow" writeup lands on. We do not need to
+        invent the look Daniil asked for; we need to finish shipping it.
+
+   USAGE: this is a REFERENCE, not a stylesheet to import blindly. The rebuild
+   consumes these tokens; it does not re-derive them. Values are verbatim — if a
+   value here disagrees with the live console, the live console is wrong.
+   ========================================================================== */
+
+@property --spin { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+
+:root{
+  /* --- surfaces --- */
+  --ink:#08090d;  --ink2:#0b0d12;  --panel:#12141c;
+  --line:rgba(255,255,255,.07);  --line2:rgba(255,255,255,.12);
+  --glass:rgba(18,20,28,.55);    --glass2:rgba(24,27,37,.62);
+
+  /* --- ink --- */
+  --text:#eef0f7;  --muted:#9297ab;  --faint:#5c6178;
+
+  /* --- IDENTITY colors. One gradient pair per actor. NOT status colors:
+         per design/CONTRACT.md and the dataviz rule, alarm hues stay reserved
+         for alarms and are never spent on "agent 4". --- */
+  --claude-a:#f0a56c; --claude-b:#e0724f;   /* claude   = warm coral       */
+  --deep-a:#7aa2f7;   --deep-b:#9d7cf7;     /* deepseek = periwinkle→violet */
+  --user-a:#48e6bf;   --user-b:#2fbf8f;     /* user     = teal→green        */
+  --fleet-a:#f472b6;  --fleet-b:#db4f9d;    /* local fleet = magenta        */
+
+  --radius:16px;
+  --sans:-apple-system,"SF Pro Display","Segoe UI Variable","Segoe UI",Inter,system-ui,sans-serif;
+  --mono:"SF Mono",ui-monospace,"Cascadia Code","JetBrains Mono",Consolas,monospace;
+}
+
+/* --- ATMOSPHERE. Fixed and full-viewport — this is the corner-rendering fix. --- */
+.aurora{position:fixed;inset:0;z-index:-2;overflow:hidden;background:
+    radial-gradient(1100px 700px at 8% -8%,  rgba(240,120,90,.16), transparent 60%),
+    radial-gradient(1000px 720px at 92% 8%,  rgba(122,162,247,.20), transparent 60%),
+    radial-gradient(1200px 800px at 60% 108%,rgba(72,230,191,.14), transparent 62%),
+    radial-gradient(900px 900px at 30% 90%,  rgba(157,124,247,.16), transparent 60%),
+    var(--ink);}
+.aurora::before{content:"";position:absolute;inset:-25%;background:
+    conic-gradient(from 200deg at 40% 40%, rgba(122,162,247,.12), rgba(72,230,191,.10),
+                   rgba(240,120,90,.10), rgba(157,124,247,.12), rgba(122,162,247,.12));
+  filter:blur(60px);animation:drift 34s linear infinite;}
+@keyframes drift{to{transform:rotate(1turn)}}
+/* grain: an inline SVG turbulence overlay at .5 opacity, mix-blend-mode:overlay.
+   Cheap film grain — no image request, no per-frame cost. */
+
+/* --- GLASS PRIMITIVE. One class, used everywhere. --- */
+.glass{background:var(--glass);
+  backdrop-filter:blur(26px) saturate(1.35);-webkit-backdrop-filter:blur(26px) saturate(1.35);
+  border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:0 1px 0 rgba(255,255,255,.06) inset, 0 24px 60px -30px rgba(0,0,0,.8);}
+/* PERF NOTE (contract §1 motion budget): backdrop-filter is the most expensive
+   thing in this system. Practitioner guidance is to prefer a pre-blurred layer
+   when frames slip. Measured 2026-08-01: 60fps / 100% smooth WITH it, so it
+   stays — but it is the first thing to suspect if that ever changes. */
+
+/* --- SHELL. The rail is the part the live console never built. --- */
+.app{max-width:1180px;margin:0 auto;padding:22px 22px 30px;
+     display:flex;flex-direction:column;gap:16px;min-height:100vh}
+.body{display:grid;grid-template-columns:1fr 300px;gap:16px;align-items:start}
+@media (max-width:840px){.body{grid-template-columns:1fr}.rail{order:-1}}
+.rail{display:flex;flex-direction:column;gap:16px;position:sticky;top:22px}
+
+/* --- THE GLOW Daniil asked for, already solved here. A conic gradient rotated
+       by an @property angle, clipped to a 1px pad so it reads as a moving border.
+       This is the same technique the Gemini-glow writeups arrive at. --- */
+.spin-ring{position:relative;border-radius:9px;padding:1px;overflow:hidden}
+.spin-ring::before{content:"";position:absolute;inset:-60%;background:
+   conic-gradient(from var(--spin), var(--deep-a), var(--user-a), var(--claude-a),
+                  var(--deep-b), var(--deep-a));
+   animation:sweep 4s linear infinite}
+.spin-ring>button{position:relative;border-radius:8px;background:var(--panel);color:var(--text)}
+@keyframes sweep{to{--spin:360deg}}
+
+@media (prefers-reduced-motion:reduce){
+  .aurora::before{animation:none}
+  .spin-ring::before{animation:none}
+}
+
+/* --- COMPONENT SPECS worth keeping verbatim --- */
+/* identity avatar */
+.av{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;
+    font-size:12px;font-weight:600;color:#0a0b0f;letter-spacing:.02em}
+.av.claude{background:linear-gradient(140deg,var(--claude-a),var(--claude-b))}
+.av.deep  {background:linear-gradient(140deg,var(--deep-a),var(--deep-b))}
+.av.user  {background:linear-gradient(140deg,var(--user-a),var(--user-b))}
+
+/* message bubble — asymmetric radius encodes direction (5px corner points at the speaker) */
+.bubble{padding:11px 14px;border-radius:5px 15px 15px 15px;font-size:14px;
+  background:rgba(255,255,255,.045);border:1px solid var(--line);color:#dfe2ee}
+.msg.me .bubble{border-radius:15px 5px 15px 15px;
+  background:linear-gradient(140deg,rgba(72,230,191,.15),rgba(72,230,191,.05));
+  border-color:rgba(72,230,191,.28)}
+
+/* section label — the recurring "quiet uppercase mono" device */
+.card h3{font-size:11px;letter-spacing:.13em;text-transform:uppercase;
+         color:var(--faint);font-weight:600}
+
+/* metric tile — the honest alternative to an unlabelled sparkline */
+.tile{padding:11px 12px;border-radius:12px;background:rgba(255,255,255,.035);border:1px solid var(--line)}
+.tile .n{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.tile .l{font-size:10.5px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;margin-top:2px}
+
+/* divider with a centred label — carries structure without a heading */
+.divider{display:flex;align-items:center;gap:12px;color:var(--faint);
+         font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+.divider::before,.divider::after{content:"";height:1px;flex:1;background:var(--line)}
+
+/* ============================================================================
+   STATUS PALETTE — from Daniil's other approved artifact, "The Visual README"
+   https://claude.ai/code/artifact/b3336c57-845b-481f-b9a4-b2fa646d58e6
+   (that page is a LIGHT editorial register, not this console's — only its status
+   scale is imported, because it is the one thing Aurora Glass never defined.)
+
+   THIS IS THE FIX FOR THE OLDEST UNMET COMPLAINT. The console currently spends
+   red and orange on NOMINAL activity in the per-agent sparklines, which is why a
+   real alarm has nowhere left to escalate to — trust erosion by color. The
+   dataviz rule is explicit: status colors are RESERVED, ship with an icon and a
+   label, and are never reused as "series 4". Identity gradients above carry
+   identity; these four carry state; the two sets never trade jobs.
+
+   Each has a paired background so a status can be a filled chip rather than
+   coloured text alone (never color-only — CONTRACT §2 axis law).
+   ========================================================================== */
+:root{
+  --good:#5FBE87;  --good-bg:#16301F;
+  --warn:#D9A648;  --warn-bg:#33270F;
+  --crit:#E4736A;  --crit-bg:#34191A;
+  --info:#9B87E8;  --info-bg:#221C3A;
+}
+/* Nominal state uses --muted or the actor's own identity hue. NOT --good:
+   "everything is fine" is the absence of a status, not a status. Painting
+   healthy things green is how a dashboard becomes a christmas tree that nobody
+   reads. */
