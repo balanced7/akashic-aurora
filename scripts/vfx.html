@@ -752,7 +752,7 @@ function linkOptions(A, B){
   return opt;
 }
 
-var hudEl = null;
+var hudEl = null, _lastInserted = null;
 function closeHud(){ if(hudEl && hudEl.parentNode) hudEl.parentNode.removeChild(hudEl); hudEl=null; }
 
 function openLinkHud(A, B, x, y){
@@ -792,6 +792,7 @@ function applyLink(A, B, o){
     G.edges.push({from:A.id, fromPort:(o.mask?'m':'col'), to:mid.id, toPort:'colB',
                   type:(o.mask?'float':'vec3')});
     renderGraph();
+    _lastInserted = mid;
     gmsg('inserted '+o.via+(downstream.length?', took over '+downstream.length+' downstream link(s)':'')+'   (ctrl+Z to undo)');
     return;
   }
@@ -1590,7 +1591,14 @@ async function runJob(j){
                               : opts[0];
             if(!pick){ done.push('link SKIPPED: no "'+(st.how||'default')+'" between '+
                                  (gchunk(A)||{}).name+' and '+(st.to)); }
-            else { applyLink(A,B,pick); done.push('link ' + pick.label); }
+            else {
+              _lastInserted = null;
+              applyLink(A,B,pick);
+              // A composite inserts a node; without a way to NAME it the next step cannot wire
+              // it, and wiring the source onward instead silently bypasses the composite.
+              if(st.as && _lastInserted) named[st.as] = _lastInserted;
+              done.push('link ' + pick.label + (_lastInserted ? ' (+node)' : ''));
+            }
           }
         } else if(st.do === 'set'){
           if(st.k in av.target){ av.target[st.k]=st.v; av.cur[st.k]=st.v; }

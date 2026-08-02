@@ -1,0 +1,85 @@
+[
+  {
+    "do": "clear",
+    "say": "Third time. The last two failed for different reasons and both were mine.",
+    "pause": 1300
+  },
+  {
+    "do": "node",
+    "chunk": "superquadric-slices",
+    "as": "sq",
+    "x": 30,
+    "y": 30,
+    "say": "1 - the cube alone first, so I can see what I am compositing.",
+    "pause": 900
+  },
+  {
+    "do": "link",
+    "from": "sq",
+    "to": "out",
+    "how": "feed colour",
+    "pause": 600
+  },
+  {
+    "do": "build",
+    "say": "2 - baseline.",
+    "pause": 1400
+  },
+  {
+    "do": "node",
+    "chunk": "plasma-field",
+    "as": "pf",
+    "x": 30,
+    "y": 210,
+    "pause": 600
+  },
+  {
+    "do": "link",
+    "from": "sq",
+    "to": "pf",
+    "how": "composite: add",
+    "as": "bl",
+    "say": "3 - ADD, not screen. Screen multiplies toward white and swallows sparse bright lines. And this time I NAME the blend it inserts.",
+    "pause": 1700
+  },
+  {
+    "do": "link",
+    "from": "bl",
+    "to": "out",
+    "how": "feed colour",
+    "say": "4 - wiring the BLEND to output. Last run I wired the plasma instead and silently bypassed the composite.",
+    "pause": 1500
+  },
+  {
+    "do": "build",
+    "say": "5 - recompiling.",
+    "pause": 1500
+  },
+  {
+    "do": "set",
+    "k": "sub",
+    "v": 1.1,
+    "say": "6 - sub is the cube's slice count and touches nothing else here. Low first.",
+    "pause": 1400
+  },
+  {
+    "do": "set",
+    "k": "sub",
+    "v": 4.4,
+    "say": "7 - more slices: the cube gains contours while the plasma is unchanged.",
+    "pause": 1500
+  },
+  {
+    "do": "set",
+    "k": "dim",
+    "v": 0.55,
+    "say": "8 - global light down. Broad things lose more than sparse bright cores do.",
+    "pause": 1400
+  },
+  {
+    "do": "snap",
+    "name": "fix-final",
+    "say": "Done.",
+    "pause": 300
+  }
+]
