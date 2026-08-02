@@ -622,7 +622,26 @@ class ToolBox:
         pending depth, not the legacy cursor read that caps at the limit."""
         try:
             from agent.bifrost_pull import peek_inbox, render_collapsed, render_kind_summary
-            aid = self.agent_id or os.environ.get("AKASHIC_AGENT_ID", "deepseek")
+            # NO IDENTITY -> SAY SO. This was `... or os.environ.get("AKASHIC_AGENT_ID",
+            # "deepseek")`, so a ToolBox with no identity silently BECAME deepseek: it peeked a
+            # peer's inbox and, finding nothing, answered "(inbox empty)". An unidentified seat
+            # was told its mail was empty when the truth was that it had no mailbox -- and the
+            # `ERROR: not on a Bifrost bus` guard this method already owns was unreachable,
+            # because `aid` could never be falsy.
+            #
+            # Same defect class as the hooks defaulting a missing identity to "claude"
+            # (lesson seat_identity_is_process_scoped_not_session_scoped): substituting a real
+            # peer's name does not lose information, it IMPERSONATES, and every downstream
+            # answer is then about somebody else.
+            #
+            # SIBLINGS NOT TOUCHED, flagged rather than blind-fixed: toolbox.py:419, :1128 and
+            # :1158 carry the same `"deepseek"` default, but they pass --agent-id to a
+            # subprocess where that default may be correct for the deepseek runner itself.
+            # Each needs its own check; a sweep here would be guessing.
+            aid = (self.agent_id or os.environ.get("AKASHIC_AGENT_ID") or "").strip()
+            if not aid:
+                return ("ERROR: not on a Bifrost bus in this mode (no agent identity, or Redis "
+                        "offline).")
             msgs = peek_inbox(aid, limit=30)
             if not msgs:
                 return "(inbox empty -- no unread messages)"
@@ -842,10 +861,29 @@ class ToolBox:
         # Protected surface: an agent must not rewrite its OWN trust/launch/contract config -- that would be
         # self-escalation (grant itself caps in acl.json, add an arbitrary command to launcher.json, or edit
         # AGENTS.md). Reads are still allowed; only WRITES to these are blocked, even under --allow-write.
-        rel = p.relative_to(self.root).as_posix().lower()
+        rel_true = p.relative_to(self.root).as_posix()     # case-preserved: fnmatch patterns are case-sensitive
+        rel = rel_true.lower()
         if rel.startswith("security/") or rel == "agents.md" or rel.endswith("/agents.md"):
             return None, (f"ERROR: '{rel}' is a protected trust/contract path -- writes are blocked even under "
                           "--allow-write (an agent cannot escalate its own ACL/launch surface). Ask a super-admin.")
+        # The ACL is the authority on WHERE a runner may write, exactly as it is the authority on
+        # whether it may exec (run_command, below). Until 2026-08-02 this check did not exist: the
+        # write door consulted only the --allow-write PROCESS FLAG, so `path_scope` -- the per-grant
+        # field whose whole purpose is bounding writes -- was dead code, and Grant.can_write() was
+        # defined at registry.py:51 and called nowhere. Any seat with the flag wrote anywhere in-root
+        # regardless of its grant. Found by Codex Sol while reviewing an unrelated design.
+        # Identity-less ToolBoxes (CLI/interactive) skip this, mirroring run_command's `if self.agent_id`
+        # -- otherwise every non-runner ToolBox loses writes. Fail-CLOSED on trust errors: a broken
+        # guard that falls through is the RB-25 F1 hole reopened on the write lane.
+        if self.agent_id:
+            try:
+                from core.trust.registry import resolve
+                if not resolve(self.agent_id).can_write(rel_true):
+                    return None, (f"REFUSED: '{self.agent_id}' may not write '{rel_true}' -- outside its "
+                                  f"path_scope in security/acl.json. A super-admin widens the scope.")
+            except Exception:
+                return None, ("REFUSED: write capability could not be verified (trust layer error, "
+                              "fail-closed).")
         try:                                              # A0.1 environmental write-gate: claim, or YIELD visibly
             from core.comm.locks import guard_write
             g = guard_write(str(p), self.agent_id or "deepseek",
