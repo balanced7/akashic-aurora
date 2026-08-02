@@ -70,6 +70,27 @@
       <div class="hud" id="hud">—</div>
     </div>
     <div class="card" style="margin-top:14px">
+      <h2>Shader scratch</h2>
+      <div class="row" style="margin-top:0">
+        <select id="sketches"><option value="">— sketches —</option></select>
+        <button onclick="loadSketch()" style="width:auto;white-space:nowrap">Open</button>
+        <button onclick="forkStyle()" style="width:auto;white-space:nowrap">Fork current</button>
+      </div>
+      <textarea id="glsl" spellcheck="false" style="height:230px;margin-top:8px"
+                placeholder="Paste a fragment shader, or Fork current to start from a built-in.&#10;Compile is safe: a shader that fails leaves the running one untouched."></textarea>
+      <div class="row">
+        <button class="pri" onclick="compileSketch()" style="width:auto;white-space:nowrap">Compile &amp; run</button>
+        <input id="sname" placeholder="sketch name"
+               style="background:#0e1520;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:7px 9px;font:inherit;flex:1">
+        <button onclick="saveSketch()" style="width:auto;white-space:nowrap">Save</button>
+        <button onclick="revertStyle()" style="width:auto;white-space:nowrap">Revert</button>
+      </div>
+      <pre id="glslmsg" class="note" style="white-space:pre-wrap;margin:8px 0 0"></pre>
+      <p class="note">Sketches are <code>.frag</code> files in <code>design/vfx-sketches/</code> —
+         never loaded by the console, so a broken one costs you the sketch and nothing else.</p>
+    </div>
+
+    <div class="card" style="margin-top:14px">
       <h2>Hand-off</h2>
       <p class="note">Tuned something good? This is the exact row to paste into
          <code>STATES</code> in agent-avatar.js — no transcription, no drift.</p>
@@ -217,6 +238,61 @@ async function loadPreset(){
   syncAll(); emit();
 }
 
+// ---- shader scratch ---------------------------------------------------------------------------
+// Compiling is SAFE by construction: _compile builds the new program before disposing the old, so
+// a shader that fails to compile or link leaves the avatar rendering exactly what it was. The
+// experiment costs the experiment. That is the whole reason this can be a play space rather than
+// a careful place -- you can paste something broken and find out, which is how remixing works.
+function msg(t, bad){
+  var e = el('glslmsg');
+  e.textContent = t || '';
+  e.className = 'note' + (bad ? ' err' : '');
+}
+function forkStyle(){
+  el('glsl').value = AgentAvatar.styleSource(el('style').value);
+  msg('forked ' + el('style').value + ' — edit and compile. The built-in is untouched.');
+}
+function compileSketch(){
+  var src = el('glsl').value;
+  if(!src.trim()){ msg('nothing to compile', true); return; }
+  var t0 = performance.now();
+  var err = av.trySource(src);
+  if(err){ msg(err, true); return; }              // the running shader survived; say so plainly
+  av._resize(420); syncAll(); emit();
+  msg('compiled in ' + (performance.now()-t0).toFixed(0) + ' ms — running as (sketch)');
+}
+function revertStyle(){
+  av.setStyle('geodesic'); av.setStyle(el('style').value);   // force a recompile of the built-in
+  av._resize(420); syncAll(); emit();
+  msg('reverted to built-in ' + av.style);
+}
+async function refreshSketches(){
+  try{
+    var r = await (await fetch('/vfx/sketches')).json();
+    var s = el('sketches'); s.innerHTML = '<option value="">— sketches —</option>';
+    (r.names||[]).forEach(function(n){
+      var o=document.createElement('option'); o.value=n; o.textContent=n; s.appendChild(o);
+    });
+  }catch(e){ msg('sketch list unavailable: '+e, true); }
+}
+async function loadSketch(){
+  var n = el('sketches').value; if(!n) return;
+  var r = await (await fetch('/vfx/sketch?name='+encodeURIComponent(n))).json();
+  if(!r.ok){ msg(r.error||'read failed', true); return; }
+  el('glsl').value = r.src; el('sname').value = r.name;
+  msg('loaded ' + r.name + ' — compile to run it');
+}
+async function saveSketch(){
+  var n = (el('sname').value||'').trim();
+  if(!n){ msg('name the sketch first', true); return; }
+  var r = await (await fetch('/vfx/sketch', {method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name:n, src: el('glsl').value})})).json();
+  if(!r.ok){ msg(r.error||'save failed', true); return; }
+  msg('saved design/vfx-sketches/' + r.name + '.frag (' + r.bytes + ' bytes)');
+  refreshSketches();
+}
+
 // ---- what each pasted shader actually contributed ---------------------------------------------
 // Kept as DATA, not prose in a commit message, because the useful question months from now is
 // "where did this technique come from and what else did that source have" -- and that is a lookup.
@@ -282,6 +358,7 @@ var LIBRARY = [
   buildParams();
   setState('thinking');
   refreshPresets();
+  refreshSketches();
 
   // Honest HUD: measured frame cost, not a guess. The bench is where a change gets its number.
   var last=performance.now(), acc=0, n=0;

@@ -507,6 +507,21 @@
   };
 
   AgentAvatar.styles = function () { return Object.keys(STYLES); };
+  AgentAvatar.styleSource = function (n) { return STYLES[n] || STYLES.geodesic; };
+
+  // SCRATCH COMPILE. The whole point of a bench is that a broken experiment costs you the
+  // experiment and nothing else. Because _compile now builds the new program BEFORE disposing the
+  // old one, a shader that fails to compile or link throws with this.prog and this.u untouched --
+  // the avatar keeps rendering whatever it was rendering, and the caller gets the driver's error
+  // text to put on screen. Returns null on success, the compiler message on failure.
+  //
+  // Sketches deliberately do NOT enter STYLES. A style is something the console can mount; a
+  // sketch is something being tried. Keeping them separate is what stops a half-finished idea
+  // from ever being reachable from production.
+  AgentAvatar.prototype.trySource = function (src) {
+    try { this._compile(null, src); this.style = '(sketch)'; return null; }
+    catch (e) { return String((e && e.message) || e); }
+  };
   AgentAvatar.states = function () { return Object.keys(STATES); };
   AgentAvatar.stateTable = function () { return JSON.parse(JSON.stringify(STATES)); };
   AgentAvatar.identities = function () { return Object.keys(IDENT); };
@@ -587,10 +602,14 @@
     this.rate = Math.max(0, Math.min(1, +v || 0));
   };
 
-  AgentAvatar.prototype._compile = function (styleName) {
+  AgentAvatar.prototype._compile = function (styleName, srcOverride) {
     var gl = this.gl;
-    var frag = STYLES[styleName] || STYLES.geodesic;
-    if (this.prog) gl.deleteProgram(this.prog);   // switching styles must not leak programs
+    var frag = srcOverride || STYLES[styleName] || STYLES.geodesic;
+    // The OLD program is deleted only AFTER the new one links -- see _compile's callers. Deleting
+    // first (which this did) means a shader that fails to compile leaves the avatar with no
+    // program at all: the experiment does not just fail, it takes the working thing with it. That
+    // is exactly the property a scratch bench must not have.
+    var prev = this.prog;
     function sh(type, src) {
       var s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
       if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error('avatar compile: ' + gl.getShaderInfoLog(s));
@@ -603,6 +622,7 @@
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error('avatar link: ' + gl.getProgramInfoLog(p));
     gl.useProgram(p);
     this.prog = p;
+    if (prev) gl.deleteProgram(prev);   // the new one linked: only NOW is the old one disposable
     var u = {};
     ['u_res','u_time','u_sub','u_gap','u_spin','u_pulse','u_sat','u_tint','u_dim','u_wire',
      'u_id0','u_id1','u_round','u_star','u_see']

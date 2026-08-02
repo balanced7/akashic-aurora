@@ -123,6 +123,61 @@ def tail(client, last_ids, ns="bifrost", block_ms=15000):
 # versa. On disk it is a shared artefact: tune in the browser, read it with any tool, paste it into
 # the state table, commit it. That is the whole difference between a shared bench and two private
 # ones, and it costs one JSON file.
+# ---- VFX sketches -----------------------------------------------------------------------------
+# A sketch is a fragment shader being TRIED. It lives as a plain .frag file rather than inside
+# agent-avatar.js, and that separation IS the buffer property: a sketch that does not compile costs
+# you the sketch and never the console avatar, because nothing in production ever loads one.
+# Promotion into STYLES stays a deliberate edit rather than a side effect of saving.
+#
+# Files, again, rather than browser storage -- a sketch Daniil pastes is one claude can read and
+# improve, and a sketch claude writes shows up in Daniil's dropdown with no handover step.
+VFX_SKETCHES = os.path.join(REPO, "design", "vfx-sketches")
+
+
+def _sketch_path(name):
+    """Reject anything that is not a bare name. This endpoint WRITES FILES, so accepting a path
+    here would be a write-anywhere primitive; the whitelist is the point, not decoration."""
+    safe = "".join(c for c in str(name or "") if c.isalnum() or c in "-_")[:60]
+    if not safe:
+        return None
+    return os.path.join(VFX_SKETCHES, safe + ".frag"), safe
+
+
+def _vfx_sketches_list():
+    try:
+        return sorted(f[:-5] for f in os.listdir(VFX_SKETCHES) if f.endswith(".frag"))
+    except Exception:
+        return []                      # no sketches dir yet is not an error
+
+
+def _vfx_sketch_read(name):
+    r = _sketch_path(name)
+    if not r:
+        return {"ok": False, "error": "bad name"}
+    path, safe = r
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            return {"ok": True, "name": safe, "src": fh.read()}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)[:200]}
+
+
+def _vfx_sketch_write(name, src):
+    r = _sketch_path(name)
+    if not r:
+        return {"ok": False, "error": "bad name"}
+    path, safe = r
+    try:
+        os.makedirs(VFX_SKETCHES, exist_ok=True)
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            fh.write(str(src or ""))
+        os.replace(tmp, path)          # atomic, same reason as the presets file
+        return {"ok": True, "name": safe, "bytes": len(src or "")}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)[:200]}
+
+
 VFX_PRESETS = os.path.join(REPO, "design", "vfx-presets.json")
 
 
@@ -197,6 +252,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._static("scripts/vfx.html", "text/html; charset=utf-8")
         if path == "/vfx/presets":
             return self._json(_vfx_presets_read())
+        if path == "/vfx/sketches":
+            return self._json({"names": _vfx_sketches_list()})
+        if path.startswith("/vfx/sketch"):
+            from urllib.parse import urlparse, parse_qs
+            q = parse_qs(urlparse(self.path).query)
+            return self._json(_vfx_sketch_read((q.get("name") or [""])[0]))
         self.send_error(404)
 
     def _html(self):
@@ -475,6 +536,8 @@ class Handler(BaseHTTPRequestHandler):
             data = json.loads(raw.decode("utf-8")) if raw else {}
         except Exception:
             data = {}
+        if path == "/vfx/sketch":
+            return self._json(_vfx_sketch_write(data.get("name"), data.get("src")))
         if path == "/vfx/presets":
             name = str(data.get("name") or "").strip()
             if not name:
