@@ -34,9 +34,26 @@
   var MIN_LABEL_GAP = 34;     // px; below this two labels collide, so one is dropped
   var TICK_MIN_GAP = 7;       // px; below this ticks read as a smear
 
-  var log, rail, ticksEl, thumbEl, readEl, mounted = false;
+  var log, rail, ticksEl, thumbEl, readEl, glowEl, mounted = false;
   var model = [];             // [{y: 0..1, t: Date|null, el}]
   var raf = null;
+
+  /* FISHEYE. The rail is dense by design -- 58 ticks in ~500px on a busy feed -- which is
+   * right for seeing shape and wrong for picking a moment. So the cursor carries a lens:
+   * ticks within FISH_R px stretch and brighten on a smooth falloff, giving local precision
+   * without a mode, a zoom control, or a second scale. It is the same answer as the label
+   * thinning one layer down -- density where it helps, detail where you are looking.
+   *
+   * Everything here animates via transform/opacity ONLY, so it rides the compositor and
+   * never triggers layout. That distinction is the whole reason this can be smooth while
+   * the SCROLL stays instant: visual feedback is cheap and continuous, content movement is
+   * discrete and must not be animated (a smooth scroll here would be cancelled by the next
+   * arriving message -- the bug this module was built beside). */
+  var FISH_R = 68;            // px; lens radius
+  var FISH_MAX = 3.2;         // px; extra tick length at the centre of the lens
+  var cursorY = null;         // px within the rail, or null when the pointer is away
+  var tickEls = [];           // cached so the hover pass never re-queries the DOM
+  var reduceMotion = false;
 
   // ---------------------------------------------------------------- timestamps
   function parseTs(el) {
@@ -143,13 +160,36 @@
         + L.text + '</b>';
     });
     ticksEl.innerHTML = t;
+    tickEls = [].slice.call(ticksEl.querySelectorAll('.tl-t'));
+    for (var i = 0; i < tickEls.length; i++) tickEls[i]._y = parseFloat(tickEls[i].style.top);
 
     // viewport thumb: where you are, proportional to what you can see
     var H = log.scrollHeight || 1;
     var top = (log.scrollTop / H) * hPx;
     var h = Math.max(14, (log.clientHeight / H) * hPx);
-    thumbEl.style.top = top.toFixed(1) + 'px';
+    thumbEl.style.transform = 'translateY(' + top.toFixed(1) + 'px)';
     thumbEl.style.height = h.toFixed(1) + 'px';
+    lens();
+  }
+
+  /* The hover pass. Runs on the same rAF as everything else and touches only transform and
+   * opacity, so a dense rail stays at 60fps while the pointer moves. */
+  function lens() {
+    if (reduceMotion) return;
+    for (var i = 0; i < tickEls.length; i++) {
+      var el = tickEls[i], f = 0;
+      if (cursorY !== null) {
+        var d = Math.abs(el._y - cursorY);
+        if (d < FISH_R) { var n = 1 - d / FISH_R; f = n * n * (3 - 2 * n); }   // smoothstep
+      }
+      el.style.transform = f ? 'translateX(' + (-FISH_MAX * f).toFixed(2) + 'px) scaleX('
+        + (1 + f * 1.9).toFixed(3) + ')' : '';
+      el.style.opacity = f ? (0.5 + f * 0.5).toFixed(3) : '';
+    }
+    if (glowEl) {
+      glowEl.style.opacity = cursorY === null ? '0' : '1';
+      if (cursorY !== null) glowEl.style.transform = 'translateY(' + cursorY.toFixed(1) + 'px)';
+    }
   }
 
   function schedule() { if (!raf) raf = requestAnimationFrame(render); }
@@ -176,15 +216,19 @@
 
   function hover(ev) {
     var r = rail.getBoundingClientRect();
-    var frac = Math.min(1, Math.max(0, (ev.clientY - r.top) / r.height));
+    cursorY = ev.clientY - r.top;                 // drives the lens + the glow
+    schedule();
+    var frac = Math.min(1, Math.max(0, cursorY / r.height));
     var p = nearest(frac);
     // Same honesty rule as labels(): no exact stamps -> no time readout. The rail still
-    // scrubs; it just does not claim to know when.
+    // scrubs and still lenses; it just does not claim to know when.
     if (!p || !p.t || !HAS_EXACT) { readEl.style.opacity = '0'; return; }
     readEl.textContent = fmtDay(p.t) + '  ' + fmtTime(p.t);
-    readEl.style.top = (ev.clientY - r.top) + 'px';
+    readEl.style.transform = 'translateY(' + cursorY.toFixed(1) + 'px) translateY(-50%)';
     readEl.style.opacity = '1';
   }
+
+  function leave() { cursorY = null; readEl.style.opacity = '0'; schedule(); }
 
   // ---------------------------------------------------------------- mount
   var CSS = ''
@@ -195,23 +239,45 @@
     + 'background:linear-gradient(180deg,transparent,var(--glass-line,rgba(255,255,255,.08)) 8%,'
     + 'var(--glass-line,rgba(255,255,255,.08)) 92%,transparent)}'
     + '#tl-ticks{position:absolute;inset:0}'
+    // transform-origin right: a lens stretch grows LEFTWARD off the spine, so the rail's
+    // edge stays a clean line while the ticks reach toward the cursor.
     + '.tl-t{position:absolute;right:6px;width:5px;height:1px;background:var(--faint,#727890);'
-    + 'opacity:.5;transform:translateY(-.5px)}'
+    + 'opacity:.5;transform-origin:100% 50%;will-change:transform,opacity;'
+    + 'transition:transform .12s cubic-bezier(.22,1,.36,1),opacity .12s ease,background .2s}'
     + '.tl-t-x{width:3px;opacity:.25}'
+    + '#tl-rail:hover .tl-t{background:var(--accent,#7aa2f7)}'
+    // the cursor glow: a soft bloom tracking the pointer, purely decorative and cheap
+    + '#tl-glow{position:absolute;right:0;width:26px;height:64px;margin-top:-32px;opacity:0;'
+    + 'pointer-events:none;will-change:transform,opacity;transition:opacity .18s ease;'
+    + 'background:radial-gradient(ellipse at 78% 50%,rgba(122,162,247,.30),'
+    + 'rgba(157,124,247,.14) 45%,transparent 72%)}'
     + '.tl-l{position:absolute;right:14px;transform:translateY(-50%);white-space:nowrap;'
     + 'color:var(--faint,#727890);font-weight:400;letter-spacing:.02em;opacity:.75}'
     + '.tl-l.tl-day{color:var(--accent2,#9d7cf7);font-weight:600;opacity:1;'
     + 'text-shadow:0 0 10px rgba(157,124,247,.35)}'
-    + '#tl-thumb{position:absolute;right:3px;width:7px;border-radius:4px;'
+    // The thumb EASES to its new position while the feed jumps instantly. The content must
+    // not animate (see header); the indicator may, and that easing is what makes a jump
+    // read as travel instead of a teleport.
+    + '#tl-thumb{position:absolute;top:0;right:3px;width:7px;border-radius:4px;'
     + 'background:linear-gradient(180deg,var(--accent,#7aa2f7),var(--accent2,#9d7cf7));'
-    + 'opacity:.30;transition:opacity .15s;pointer-events:none}'
-    + '#tl-rail:hover #tl-thumb{opacity:.55}'
-    + '#tl-read{position:absolute;right:16px;transform:translateY(-50%);opacity:0;'
-    + 'transition:opacity .12s;padding:3px 7px;border-radius:5px;white-space:nowrap;'
+    + 'opacity:.30;pointer-events:none;will-change:transform;'
+    + 'transition:transform .22s cubic-bezier(.22,1,.36,1),opacity .15s,box-shadow .2s}'
+    + '#tl-rail:hover #tl-thumb{opacity:.75;box-shadow:0 0 12px rgba(122,162,247,.45)}'
+    + '#tl-rail:active #tl-thumb{opacity:.95;transition:transform .06s linear}'
+    + '#tl-read{position:absolute;top:0;right:16px;opacity:0;'
+    + 'transition:opacity .12s ease,transform .16s cubic-bezier(.22,1,.36,1);'
+    + 'padding:3px 7px;border-radius:5px;white-space:nowrap;'
     + 'background:var(--glass,rgba(18,20,28,.55));border:1px solid var(--glass-line,rgba(255,255,255,.08));'
     + 'color:var(--text,#e7e9f0);backdrop-filter:blur(6px);box-shadow:var(--shadow,0 8px 30px rgba(0,0,0,.35));'
     + 'pointer-events:none;font-variant-numeric:tabular-nums}'
-    + '@media (prefers-reduced-motion:reduce){#tl-thumb,#tl-read{transition:none}}';
+    // The spine brightens and the gutter breathes on hover -- the rail says "I am grabbable"
+    // before you click it.
+    + '#tl-rail:before{transition:background .25s ease,width .25s ease}'
+    + '#tl-rail:hover:before{width:2px;background:linear-gradient(180deg,transparent,'
+    + 'var(--accent,#7aa2f7) 10%,var(--accent2,#9d7cf7) 90%,transparent);opacity:.55}'
+    + '@media (prefers-reduced-motion:reduce){'
+    + '#tl-thumb,#tl-read,.tl-t,#tl-glow,#tl-rail:before{transition:none}'
+    + '.tl-t{transform:none!important}}';
 
   function mount() {
     log = document.getElementById(LOG_ID);
@@ -221,18 +287,23 @@
     rail.setAttribute('role', 'slider');
     rail.setAttribute('aria-label', 'Jump to a time in the conversation');
     ticksEl = document.createElement('div'); ticksEl.id = 'tl-ticks';
+    glowEl = document.createElement('div'); glowEl.id = 'tl-glow';
     thumbEl = document.createElement('div'); thumbEl.id = 'tl-thumb';
     readEl = document.createElement('div'); readEl.id = 'tl-read';
-    rail.appendChild(ticksEl); rail.appendChild(thumbEl); rail.appendChild(readEl);
+    rail.appendChild(glowEl); rail.appendChild(ticksEl);
+    rail.appendChild(thumbEl); rail.appendChild(readEl);
     document.body.appendChild(rail);
+    try { reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
     mounted = true;
 
     var dragging = false;
-    rail.addEventListener('mousedown', function (e) { dragging = true; jump(e); e.preventDefault(); });
-    window.addEventListener('mousemove', function (e) { if (dragging) jump(e); });
-    window.addEventListener('mouseup', function () { dragging = false; });
+    rail.addEventListener('mousedown', function (e) {
+      dragging = true; rail.classList.add('tl-drag'); jump(e); hover(e); e.preventDefault();
+    });
+    window.addEventListener('mousemove', function (e) { if (dragging) { jump(e); hover(e); } });
+    window.addEventListener('mouseup', function () { dragging = false; rail.classList.remove('tl-drag'); });
     rail.addEventListener('mousemove', hover);
-    rail.addEventListener('mouseleave', function () { readEl.style.opacity = '0'; });
+    rail.addEventListener('mouseleave', function () { if (!dragging) leave(); });
 
     log.addEventListener('scroll', schedule, { passive: true });
     window.addEventListener('resize', function () { build(); schedule(); });
