@@ -252,6 +252,7 @@
     <div class="row" style="margin-top:0">
       <button class="pri" onclick="sendChat()" style="width:auto;white-space:nowrap">Send</button>
       <button onclick="snapOnly()" style="width:auto;white-space:nowrap">Snapshot</button>
+      <button onclick="sheetNow()" style="width:auto;white-space:nowrap" title="12 frames over 8s, tiled — motion in one image">Sheet</button>
       <span id="chatmsg" class="note" style="flex:1;margin:0;align-self:center"></span>
     </div>
 
@@ -983,6 +984,99 @@ async function snapOnly(){
   el('chatmsg').className = r.ok ? 'note' : 'note err';
   el('chatmsg').textContent = r.ok ? ('saved ' + r.path + ' (' + r.bytes + ' bytes)')
                                    : ('snapshot failed: ' + r.error);
+}
+
+// ---- THE RENDERER --------------------------------------------------------------------------
+// A single frame of a shader whose scenes last six seconds tells you almost nothing, and twelve
+// separate PNGs cost claude twelve separate looks. A CONTACT SHEET solves both: N frames across a
+// time range, tiled into one image with timestamps burned in, so the whole cycle arrives in one
+// read and MOTION becomes visible as a sequence rather than inferred from a still.
+//
+// Time is forced by rewinding _t0 -- _draw computes u_time as (now - _t0), so setting
+// _t0 = now - T renders exactly T. That makes the sheet deterministic and repeatable, which a
+// wall-clock capture never is: two runs of the same shader produce the same sheet, so a sheet is
+// evidence about a CHANGE rather than about when you happened to press the button.
+//
+// The per-frame hook (opts.at) exists because some animations live in the UNIFORMS rather than in
+// u_time -- the original's three scenes vary subdivision, thickness and gap on a timer we replaced
+// with state. Sweeping those across the sheet is how you see a morph the shader clock cannot show.
+async function renderSheet(opts){
+  opts = opts || {};
+  var frames = opts.frames || 12, cols = opts.cols || 4, cell = opts.cell || 170;
+  var from = (opts.from == null ? 0 : opts.from), to = (opts.to == null ? 6 : opts.to);
+  var rows = Math.ceil(frames / cols);
+  var sheet = document.createElement('canvas');
+  sheet.width = cols * cell; sheet.height = rows * cell;
+  var g = sheet.getContext('2d');
+  g.fillStyle = '#05070c'; g.fillRect(0, 0, sheet.width, sheet.height);
+
+  var saveT0 = av._t0, saveCur = JSON.parse(JSON.stringify(av.cur));
+  for (var i = 0; i < frames; i++){
+    var f = frames > 1 ? i / (frames - 1) : 0;
+    var t = from + (to - from) * f;
+    if (opts.at) opts.at(f, av);                 // let the caller drive uniforms, not just time
+    av._t0 = (performance.now() / 1000) - t;
+    av._draw();
+    // drawImage must happen in the SAME TICK as _draw: preserveDrawingBuffer is false, so the
+    // buffer is gone the moment the browser composites. Synchronous loop, deliberately.
+    var x = (i % cols) * cell, y = Math.floor(i / cols) * cell;
+    g.drawImage(av.canvas, x, y, cell, cell);
+    g.font = '10px Consolas,monospace';
+    g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(x + 3, y + 3, 58, 14);
+    g.fillStyle = 'rgba(220,235,255,.85)';
+    g.fillText((opts.label ? opts.label(f, t) : t.toFixed(2) + 's'), x + 7, y + 13);
+  }
+  av._t0 = saveT0; av.cur = saveCur;
+  var r = await (await fetch('/vfx/snap', {method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name: opts.name || 'sheet', png: sheet.toDataURL('image/png')})})).json();
+  r.grid = cols + 'x' + rows; r.frames = frames;
+  return r;
+}
+// PERMUTATION GRID: one parameter across columns, another down rows, every combination in one
+// image. This is the thing a slider cannot do -- a slider shows you a path through the space one
+// point at a time and relies on memory to compare; a grid shows the SPACE, so an interaction
+// between two axes (thickness only reads once the gap is wide enough to see into) is visible at a
+// glance instead of being something you eventually notice.
+async function renderGrid(a, b, opts){
+  opts = opts || {};
+  var cols = opts.cols || 5, rows = opts.rows || 4, cell = opts.cell || 150;
+  var sheet = document.createElement('canvas');
+  sheet.width = cols*cell; sheet.height = rows*cell;
+  var g = sheet.getContext('2d');
+  g.fillStyle='#05070c'; g.fillRect(0,0,sheet.width,sheet.height);
+  var saveCur = JSON.parse(JSON.stringify(av.cur)), saveT0 = av._t0;
+  for(var r0=0;r0<rows;r0++){
+    for(var c0=0;c0<cols;c0++){
+      var av_ = cols>1 ? c0/(cols-1) : 0, bv_ = rows>1 ? r0/(rows-1) : 0;
+      var va = a.from + (a.to-a.from)*av_, vb = b.from + (b.to-b.from)*bv_;
+      if(a.dial) av[a.k]=va; else { av.target[a.k]=va; av.cur[a.k]=va; }
+      if(b.dial) av[b.k]=vb; else { av.target[b.k]=vb; av.cur[b.k]=vb; }
+      // Time is FROZEN across the grid so the only thing varying is the two axes. A grid that
+      // also advanced the clock would confound the comparison it exists to make.
+      av._t0 = (performance.now()/1000) - (opts.t==null?2.0:opts.t);
+      av._draw();
+      var x=c0*cell, y=r0*cell;
+      g.drawImage(av.canvas, x, y, cell, cell);
+      g.font='9px Consolas,monospace';
+      g.fillStyle='rgba(0,0,0,.6)'; g.fillRect(x+3,y+3,84,13);
+      g.fillStyle='rgba(220,235,255,.9)';
+      g.fillText(a.k+' '+va.toFixed(2)+'  '+b.k+' '+vb.toFixed(2), x+6, y+12);
+    }
+  }
+  av.cur = saveCur; av._t0 = saveT0;
+  var res = await (await fetch('/vfx/snap',{method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name: opts.name||'grid', png: sheet.toDataURL('image/png')})})).json();
+  res.grid = cols+'x'+rows; res.axes = a.k+' × '+b.k;
+  return res;
+}
+
+async function sheetNow(){
+  el('chatmsg').className='note'; el('chatmsg').textContent='rendering sheet…';
+  var r = await renderSheet({name:'sheet-latest', frames:12, cols:4, from:0, to:8});
+  el('chatmsg').className = r.ok ? 'note' : 'note err';
+  el('chatmsg').textContent = r.ok ? ('sheet: ' + r.path + '  ' + r.grid) : ('failed: ' + r.error);
 }
 
 function pushMsg(who, text, mine){
