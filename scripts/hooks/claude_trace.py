@@ -41,6 +41,14 @@ def main() -> int:
             return 0
         from agent.harness.trace import emit, summarize
         emit("tool", summarize(tool, data.get("tool_input") or {}))
+        # PRESENCE, alongside the trace and for the same reason this hook exists: claude runs
+        # outside any runner, so nothing else reports what it is doing. The trace says WHAT
+        # happened; this says WHAT IS HAPPENING NOW, which is what the avatar's state codebook
+        # reads. It belongs HERE rather than in claude_pretooluse.py because this is the hook
+        # with the broad matcher -- pretooluse only matches shell and file tools, so a Read or a
+        # Grep would never have reported and would have rendered as idle, a wrong claim.
+        from agent.harness.hooks._activity import report, verb_for
+        report(verb_for(tool), tool, data.get("cwd") or "")
     except Exception:
         pass   # observation must never affect the action
     return 0

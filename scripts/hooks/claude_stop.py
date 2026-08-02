@@ -267,6 +267,15 @@ def main():
         except Exception:
             pass   # fail-open: tombstone probe errors never change stop-hook behavior
     _touch_activity(session_id)          # stamp ALIVE on every firing -- K7 fast path
+    # THE TURN IS OVER, so stop claiming work. Without this the last verb lingers until its 25s
+    # TTL expires and the avatar shows the seat mid-tool-call for half a minute after it went
+    # quiet -- an overstatement, which is the one thing the state codebook exists to prevent.
+    # Clearing is distinct from going absent: the seat is present and idle, not dead.
+    try:
+        from agent.harness.hooks._activity import report
+        report("", "", "")
+    except Exception:
+        pass
     if session_id:
         try:                             # RB-21: keep the consumer seat alive while the
             sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
