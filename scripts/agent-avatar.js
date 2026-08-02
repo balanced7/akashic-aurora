@@ -173,6 +173,12 @@
   // STATE TABLE. This is the codebook made visible -- each row is how a diagnosed state LOOKS.
   // Motion means work; stillness means none; grey means we cannot see.
   var STATES = {
+    // AMBIENT is the resting face of the fleet, shown when the composer is addressed to
+    // everyone: nobody in particular is the subject, so it must look alive without looking
+    // busy. Rich subdivision so it reads as an object rather than a blob, a slow turn, and a
+    // gentle breath -- the difference between "idle" (one agent waiting) and "ambient"
+    // (the system, at rest) is that ambient is not a diagnosis about anyone.
+    ambient:   { sub: 3.0, gap: 0.014, spin: 0.09, pulse: 0.55, sat: 1.0, dim: 0.95, tint: [0.29, 0.44, 0.95] },
     composing: { sub: 2.7, gap: 0.012, spin: 0.22, pulse: 1.0, sat: 1.0, dim: 1.0,  tint: [0.02, 0.51, 1.0] },
     tool:      { sub: 3.4, gap: 0.006, spin: 0.55, pulse: 0.45, sat: 1.0, dim: 1.0,  tint: [0.24, 0.86, 0.60] },
     idle:      { sub: 1.8, gap: 0.010, spin: 0.05, pulse: 0.15, sat: 0.55, dim: 0.62, tint: [0.30, 0.64, 1.0] },
@@ -212,8 +218,17 @@
   AgentAvatar.prototype.setState = function (name) {
     var s = STATES[name] || STATES.unsensed;
     this.target = Object.assign({}, s);
+    this.target.tint = s.tint.slice();
     if (!this.animating && !this.disabled) this.start();
-    else if (this.disabled) this._draw();     // static avatars still repaint on state change
+    // A STATIC avatar must SNAP, not ease. `cur` is interpolated toward `target` only inside
+    // the animation loop, so an avatar that is disabled (watchdog) or past the live cap has
+    // no loop to move it -- it would render its initial state forever while believing it had
+    // changed. Snapping is the whole reason a capped avatar is still honest.
+    if (!this.animating) {
+      this.cur = Object.assign({}, this.target);
+      this.cur.tint = this.target.tint.slice();
+      this._draw();
+    }
   };
   AgentAvatar.prototype.setRate = function (v) {
     this.rate = Math.max(0, Math.min(1, +v || 0));

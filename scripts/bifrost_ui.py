@@ -29,11 +29,13 @@ from core.comm.bus import Bus
 from core.comm import control
 from core.comm import promoter
 from core.comm.launcher import get_launcher
+from core.comm import room_feed
 from core.trust import registry
 from core.primitives.epistemic import epistemic_view_from_bus
 
 DROPBOX = os.path.join(REPO, "dropbox")
 BUS = Bus("user")   # the console posts to the bus as 'user'; also registers 'user' presence
+_BUS_CACHE = {}     # per-ns Bus("user", namespace=ns) constructed lazily; never per-request
 
 
 def _client(block_ms: int = 20000):
@@ -74,19 +76,19 @@ def _fmt(sid, fields):
     return msg
 
 
-def _inbox_streams(client):
+def _inbox_streams(client, ns="bifrost"):
     try:
-        streams = [k for k in (client.keys("bifrost:inbox:*") or [])]
+        return room_feed.streams_for(client, ns)
+    except ValueError:
+        raise
     except Exception:
-        streams = []
-    streams.append("bifrost:broadcast")
-    return streams
+        return []
 
 
-def backfill(client, last_ids, per_stream=12):
+def backfill(client, last_ids, ns="bifrost", per_stream=12):
     """Recent history across all inbox+broadcast streams, oldest-first; seeds last_ids gap-free."""
     collected = []
-    for s in _inbox_streams(client):
+    for s in _inbox_streams(client, ns):
         try:
             entries = client.xrevrange(s, count=per_stream) or []
         except Exception:
@@ -99,9 +101,9 @@ def backfill(client, last_ids, per_stream=12):
     return collected
 
 
-def tail(client, last_ids, block_ms=15000):
+def tail(client, last_ids, ns="bifrost", block_ms=15000):
     """Block up to block_ms for new entries across all streams; returns them, advancing last_ids."""
-    streams = {s: last_ids.get(s, "$") for s in _inbox_streams(client)}
+    streams = {s: last_ids.get(s, "$") for s in _inbox_streams(client, ns)}
     try:
         res = client.xread(streams, block=block_ms, count=50)
     except Exception:
@@ -150,6 +152,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._static("scripts/presence-cloud.js", "application/javascript")
         if path == "/rail.js":
             return self._static("scripts/rail.js", "application/javascript")
+        if path == "/timeline.js":
+            return self._static("scripts/timeline.js", "application/javascript")
+        if path == "/agent-avatar.js":
+            return self._static("scripts/agent-avatar.js", "application/javascript")
         self.send_error(404)
 
     def _html(self):
@@ -376,6 +382,18 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _events(self):
+        import urllib.parse
+        import os as _os
+        default_ns = _os.environ.get("BIFROST_NAMESPACE", "bifrost")
+        qs = urllib.parse.parse_qs(self.path.split("?", 1)[-1] if "?" in self.path else "")
+        ns_list = qs.get("ns", [default_ns])
+        ns = ns_list[0].strip() if ns_list else default_ns
+        if not room_feed.valid_namespace(ns):
+            self.send_response(400)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            self.wfile.write(f"invalid namespace: {ns!r} — a room name is a bare token".encode("utf-8"))
+            return
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
@@ -389,11 +407,11 @@ class Handler(BaseHTTPRequestHandler):
             return
         last_ids = {}
         try:
-            for m in backfill(client, last_ids):
+            for m in backfill(client, last_ids, ns):
                 self._sse(m)
             self._sse({"from": "system", "kind": "_ready", "content": "", "ts": "", "meta": {}, "id": "0"})
             while True:
-                entries = tail(client, last_ids, block_ms=15000)
+                entries = tail(client, last_ids, ns, block_ms=15000)
                 if entries:
                     for m in entries:
                         self._sse(m)
@@ -519,6 +537,12 @@ class Handler(BaseHTTPRequestHandler):
         control.set_narration_level(level, by="user")
         return self._json({"ok": True, "level": level})
 
+    def _send_bus(self, ns):
+        """Get or construct a Bus("user", namespace=ns). Cached per ns; never per-request."""
+        if ns not in _BUS_CACHE:
+            _BUS_CACHE[ns] = Bus("user", namespace=ns)
+        return _BUS_CACHE[ns]
+
     def _send(self, data):
         """Deliver an operator message at an EXPLICIT fidelity (chosen in the UI, not guessed from
         keywords -- that keyword-guessing false-tripped 'halt' on ordinary prose). Fidelities:
@@ -534,18 +558,21 @@ class Handler(BaseHTTPRequestHandler):
         text = (data.get("text") or "").strip()
         to = (data.get("to") or "all").strip().lower()       # default: reach every agent
         fidelity = (data.get("fidelity") or "chat").strip().lower()
+        ns = (data.get("ns") or "").strip() or "bifrost"
+        if not room_feed.valid_namespace(ns):
+            return self._json({"ok": False, "error": f"invalid namespace: {ns!r}"}, 400)
         if not text:
             return self._json({"ok": False, "error": "empty"}, 400)
+        bus = self._send_bus(ns)
         broadcast = to in ("all", "both", "*", "")
         meta = {"hops": 0, "via": "console", "intent": fidelity}
         from core.comm import nudge
 
         # Auto-launch: if target is a known agent and not online, spawn it now.
-        # The user just talks — the system ensures the recipient exists.
         launched = []
         if not broadcast and to != "user":
             try:
-                online_agents = [a.get("agent") for a in BUS.presence()]
+                online_agents = [a.get("agent") for a in bus.presence()]
             except Exception:
                 online_agents = []
             if to not in online_agents:
@@ -554,27 +581,25 @@ class Handler(BaseHTTPRequestHandler):
                     if lresult.get("ok"):
                         launched.append(to)
                 except Exception:
-                    pass  # launch failed — message still delivered (agent may come online later)
+                    pass
 
-        # Targeted fidelity signals need one recipient; if broadcast, they degrade to plain delivery.
         if fidelity in ("interrupt", "steer") and not broadcast:
             if fidelity == "interrupt":
                 nudge.nudge(to, by="user", reason=text[:80])
-                mid = BUS.send(to, "nudge", text, meta=meta)
+                mid = bus.send(to, "nudge", text, meta=meta)
             else:
                 nudge.steer_push(to, "user", text)
-                mid = BUS.send(to, "steer", text, meta={**meta, "display_only": True})
+                mid = bus.send(to, "steer", text, meta={**meta, "display_only": True})
             result = {"ok": bool(mid), "id": mid, "intent": fidelity, "to": to, "paused": False}
             if launched:
                 result["launched"] = launched
                 result["msg"] = f"auto-launched {to} — steer queued, it'll fold this in when it starts"
             else:
-                # Steer is silent by design, but echo a brief ack so the user KNOWS it landed
                 result["msg"] = f"steered {to} — folded into its current task"
             return self._json(result)
 
         kind = "inform" if fidelity == "inform" else "chat"
-        mid = BUS.broadcast(kind, text, meta=meta) if broadcast else BUS.send(to, kind, text, meta=meta)
+        mid = bus.broadcast(kind, text, meta=meta) if broadcast else bus.send(to, kind, text, meta=meta)
         result = {"ok": bool(mid), "id": mid, "intent": fidelity, "to": to, "paused": False}
         if launched:
             result["launched"] = launched
@@ -810,6 +835,14 @@ PAGE = r"""<!doctype html>
   .pills::-webkit-scrollbar-thumb{background:var(--border); border-radius:3px}
   .pills::-webkit-scrollbar-track{background:transparent}
   .pill{flex:none}                      /* pills keep their size; the STRIP scrolls, not the pill */
+  /* The hero avatar fills the agent-selector frame. If WebGL never comes up the canvas is
+     simply never created and the frame keeps its ⏣ glyph -- the avatar is an enhancement,
+     never load-bearing. */
+  .heroav{position:absolute; inset:0; width:100%; height:100%; display:block;
+          border-radius:11px; pointer-events:none}
+  #ash-frame.has-av{font-size:0}        /* the avatar IS the glyph now; hide the fallback ⏣ */
+  #ash-frame.has-av:hover{border-color:rgba(122,162,247,.65);
+          box-shadow:0 1px 0 rgba(255,255,255,.16) inset, 0 0 26px -4px rgba(122,162,247,.6)}
   /* Controls are never sacrificed to make room for data. */
   #epiChip,#reloadBtn,#gearBtn,#lnchrBtn,#vizBtn,#pauseBtn{flex:none}
   .pill{display:flex; align-items:center; gap:6px; padding:5px 10px; border:1px solid var(--border);
@@ -1697,6 +1730,7 @@ function renderMsg(m){                        // build a message's DOM node (no 
   }
   const me = from==='user'; const c = cls(from);
   const wrap=document.createElement('div'); wrap.className='msg'+(me?' me':'');
+  if(m.ts) wrap.setAttribute('data-ts', m.ts.replace(' ','T'));
   const hop = (m.meta && m.meta.hops)? '<span class="hop">hop '+m.meta.hops+'</span>':'';
   const intent = (m.meta && m.meta.intent)? '<span class="ib ib-'+m.meta.intent+'" title="'+esc(m.meta.why||'')+'">'+m.meta.intent+'</span>':'';
   const epi = epiGlyph(m);
@@ -1804,7 +1838,7 @@ function prependOlder(){                       // scroll-to-top: re-hydrate olde
   _flushTraceRunToFrag(frag);  // flush any trailing trace run
   _traceRun = savedRun;        // restore live accumulator
   log.insertBefore(frag, log.firstElementChild);
-  log.scrollTop += (log.scrollHeight - h0);    // anchor the reader's view (prepended content pushes down, view stays put)
+  log.scrollTo({top: log.scrollTop + (log.scrollHeight - h0), behavior: 'instant'});  // anchor: instant jump, not smooth animation (CSS smooth serviced user scroll, not programmatic anchoring)
 }
 const MAX_LOG_NODES = 250;                  // bounded render window (Doom 'culling'): cap DOM so a long/bursty log never grows into lag
 function trimLog(){
@@ -1813,11 +1847,80 @@ function trimLog(){
   // tail window: at the live tail keep it lean (250); scrollback stays for reading history + re-hydration
   if(nearBottom) while(log.childElementCount > MAX_LOG_NODES) log.removeChild(log.firstElementChild);
 }
-function autoscroll(){ trimLog(); if(nearBottom) log.scrollTop = log.scrollHeight; }
+function autoscroll(){ trimLog(); if(nearBottom) log.scrollTo({top: log.scrollHeight, behavior: 'instant'}); }
 // real rich presence: what each agent is actually doing, from /status (not a client-side guess)
 const ICON = {thinking:'💭', reading:'📖', searching:'🔍', inspecting:'🔎', recalling:'🧠', running:'⚙️', writing:'✍️', working:'⚡'};
 const VERB = {thinking:'thinking', reading:'reading', searching:'searching', inspecting:'inspecting git', recalling:'searching memory', running:'running a command', writing:'writing', working:'working'};
 let lastActSig = null;
+// === THE AGENT AVATAR (geodesic shader, claude's lane) =======================================
+// ONE avatar, mounted in the agent-selector frame beside the message field, big enough to
+// actually read. Daniil: "I want the avatar to be the current button on the bottom left. that
+// way its just one avatar for now and it can be big enough to be appreciated and can have an
+// ambiant mode and other modes."
+//
+// One instead of one-per-pill is the better engineering answer as well as the better design
+// one: a single 38px canvas costs a rounding error, eleven tiny ones cost eleven WebGL
+// contexts (a browser force-loses them past ~16) and eleven raymarchers on a machine whose
+// display driver is already TDR-prone.
+//
+// WHAT IT SHOWS: the state of whoever you are about to talk to. Broadcast has no single
+// subject, so it falls to AMBIENT -- alive, unhurried, addressed to nobody in particular.
+var _heroAv = null;                // {canvas, shader, st}
+var _avatarsOff = false;
+
+function mountHeroAvatar(){
+  if(_avatarsOff || _heroAv) return;
+  if(typeof AgentAvatar === 'undefined' || !AgentAvatar.isSupported()){ _avatarsOff = true; return; }
+  var frame = document.getElementById('ash-frame');
+  if(!frame) return;
+  var cv = document.createElement('canvas');
+  cv.className = 'heroav';
+  cv.width = 44; cv.height = 44;               // backing store; CSS sizes the box
+  try{ _heroAv = {canvas: cv, shader: new AgentAvatar(cv), st: null}; }
+  catch(e){ _avatarsOff = true; return; }
+  frame.appendChild(cv);
+  frame.classList.add('has-av');               // hides the ⏣ glyph; the avatar IS the glyph now
+  _heroAv.shader.setState('ambient');
+  _heroAv.shader.start();
+}
+
+// Activity verb -> avatar state. The console already knows what each agent is doing; this is
+// only the mapping, so there is no second source of truth about agent state.
+var AV_STATE = {thinking:'composing', recalling:'composing',
+                reading:'tool', writing:'tool', searching:'tool', running:'tool',
+                inspecting:'tool', working:'tool', idle:'idle'};
+
+function driveAvatars(acts, s){
+  mountHeroAvatar();
+  if(_avatarsOff || !_heroAv) return;
+  acts = acts||{}; s = s||{};
+  // status.agents is a list of RECORDS ({agent, last_seen, ...}), not names. Building a Set
+  // straight from it yields a Set of objects whose .has('claude') is always false, so every
+  // agent silently fell through to 'dead' -- a confident wrong answer, which is the exact
+  // failure class this avatar exists to make visible. Accept either shape.
+  var online = new Set((s.agents||[]).map(function(x){
+    return (x && typeof x === 'object') ? x.agent : x;
+  }));
+  var tsel = document.getElementById('target');
+  var a = tsel ? tsel.value : 'all';
+  var st;
+  // ORDER MATTERS, and the distinctions are the whole point of the avatar:
+  //   broadcast -> AMBIENT (no single subject; alive but addressed to nobody)
+  //   halted    -> wedged  (held against its will; stillness IS the diagnosis)
+  //   online, no activity -> IDLE, never dead. An agent sitting ready is not a corpse, and
+  //                          rendering it as one is the mislabeling this project keeps paying for.
+  //   offline   -> dead    (absence of the seat, not absence of a verb)
+  //   unknown verb -> unsensed (grey and OPEN: we are not claiming to know)
+  if(!a || a === 'all')                 st = 'ambient';
+  else if((s.halted||{})[a])            st = 'wedged';
+  else if(!(online.has(a)||a==='user')) st = 'dead';
+  else if(!(acts[a] && acts[a].state))  st = 'idle';
+  else                                  st = AV_STATE[acts[a].state] || 'unsensed';
+  if(_heroAv.st !== st){ _heroAv.st = st; _heroAv.shader.setState(st); }
+  _heroAv.shader.setRate(st === 'tool' ? 0.85 : st === 'composing' ? 0.5
+                       : st === 'ambient' ? 0.25 : 0.1);
+}
+
 function renderActivity(acts){
   acts = acts||{};
   const sig = JSON.stringify(acts);
@@ -2028,7 +2131,59 @@ addMsg = function(m){
 
 // --- SSE ---
 function connect(){
-  const es = new EventSource('/events');
+  var _currentRoom = 'bifrost', _es = null;
+
+function switchRoom(ns) {
+  if (!ns || ns === _currentRoom) return;
+  // close the old SSE
+  if (_es) { _es.close(); _es = null; }
+  // clear the feed and seen set for the new room
+  var logEl = document.getElementById('log');
+  if (logEl) logEl.innerHTML = '';
+  seen.clear();
+  allMsgs.length = 0;
+  _bkCount = 0; _bkLast = '';
+  var bkEl = document.getElementById('bkFooter'); if (bkEl) bkEl.remove();
+  // flush any pending trace run
+  _flushTraceRun();
+  _currentRoom = ns;
+  // update the header room indicator
+  _renderRoomIndicator();
+  // reconnect SSE
+  _connectSSE();
+  // tell rail.js to re-highlight (it polls)
+  toast('Switched to room: ' + ns);
+}
+
+function _connectSSE() {
+  if (_es) { _es.close(); }
+  _es = new EventSource('/events?ns=' + encodeURIComponent(_currentRoom));
+  _es.onmessage = function(e) {
+    try { var m = JSON.parse(e.data); addMsg(m); } catch(err) {}
+  };
+  _es.onerror = function() {
+    // EventSource auto-reconnects; the feed will be empty until it does
+    setTimeout(function() {
+      if (_es && _es.readyState === EventSource.CLOSED) _connectSSE();
+    }, 3000);
+  };
+}
+
+function _renderRoomIndicator() {
+  var el = document.getElementById('roomInd');
+  if (!el) {
+    el = document.createElement('span');
+    el.id = 'roomInd';
+    el.style.cssText = 'font-size:12px;font-weight:600;color:var(--accent);padding:4px 10px;'+
+      'background:rgba(122,162,247,.10);border:1px solid rgba(122,162,247,.25);border-radius:8px;';
+    var brand = document.querySelector('.brand');
+    if (brand) brand.appendChild(el);
+  }
+  el.textContent = _currentRoom === 'bifrost' ? '' : '📡 ' + _currentRoom;
+  el.style.display = _currentRoom === 'bifrost' ? 'none' : '';
+}
+
+const es = new EventSource('/events');
   es.onmessage = e=>{ try{ addMsg(JSON.parse(e.data)); }catch(err){} };
   es.onerror = ()=>{ /* browser auto-reconnects */ };
 }
@@ -2247,6 +2402,7 @@ function applyStatus(s){
     }
   }
   renderActivity(s.activities||{});
+  driveAvatars(s.activities||{}, s);
   renderHUD(s.activities||{});
   syncAuroraState(paused, Object.keys(s.halted||{}).length);
   refreshNarrButtons(s.narration || 'key');
@@ -3466,6 +3622,8 @@ initViz();
 <script src="/presence-rail.js"></script>
 <script src="/presence-cloud.js"></script>
 <script src="/rail.js"></script>
+<script src="/timeline.js"></script>
+<script src="/agent-avatar.js"></script>
 </body>
 </html>
 """
