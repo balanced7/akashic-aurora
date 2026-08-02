@@ -130,6 +130,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(self._vitals())
         if path == "/api/now":                  # TRUTH/NOISE tier: one call to rule all cards
             return self._json(self._api_now())
+        if path == "/api/channels":             # side-channel visibility (Daniil's standing ask)
+            return self._json(self._api_channels())
         if path == "/events":
             return self._events()
         if path == "/launcher/status":
@@ -146,6 +148,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._static("scripts/presence-rail.js", "application/javascript")
         if path == "/presence-cloud.js":
             return self._static("scripts/presence-cloud.js", "application/javascript")
+        if path == "/rail.js":
+            return self._static("scripts/rail.js", "application/javascript")
         self.send_error(404)
 
     def _html(self):
@@ -304,6 +308,64 @@ class Handler(BaseHTTPRequestHandler):
             }
         except Exception:
             return {}
+
+    def _api_channels(self):
+        """Discover SIDE CHANNELS -- agent groups talking on a non-default namespace.
+
+        Daniil's standing ask: "visibility for side chats for AI groups". Today the console
+        reads ONE namespace (bifrost), so a side conversation is not merely unlisted -- it is
+        structurally invisible. Tonight's own example: claude and deepseek-ui have been working
+        the UI rebuild on namespace `uiwork` for hours, and nothing on this page could show it.
+
+        A namespace is not registered anywhere, so it must be DISCOVERED. Every live seat writes
+        `<ns>:worklive:<agent>#<sid8>`, which makes that key family the cheapest honest census --
+        a channel exists exactly when somebody is beating in it. Read-only, no cursor touched,
+        no consumer seat taken: this must never be able to steal mail from the very seats it
+        reports on (the Eye rule -- observe without disturbing any reader).
+
+        Bounded by construction: SCAN with a count cap rather than KEYS, and only worklive keys.
+        Returns [] on any failure -- a discovery surface that cannot answer says nothing rather
+        than inventing a fleet.
+        """
+        import os as _os
+        default_ns = _os.environ.get("BIFROST_NAMESPACE", "bifrost")
+        out, seen = [], {}
+        try:
+            from core.comm.bus import _connect
+            r = _connect()
+            if r is None:
+                return {"channels": [], "default": default_ns,
+                        "note": "store unreachable -- channel discovery unavailable"}
+            scanned = 0
+            for raw in r.scan_iter(match="*:worklive:*", count=200):
+                scanned += 1
+                if scanned > 4000:          # hard cap: a census must not become a scan storm
+                    break
+                key = raw.decode("utf-8", "replace") if isinstance(raw, bytes) else str(raw)
+                ns = key.split(":worklive:", 1)[0]
+                seat = key.split(":worklive:", 1)[1] if ":worklive:" in key else ""
+                if not ns:
+                    continue
+                d = seen.setdefault(ns, {"ns": ns, "seats": set()})
+                if seat:
+                    d["seats"].add(seat)
+            for ns, d in sorted(seen.items()):
+                seats = sorted(d["seats"])
+                out.append({
+                    "ns": ns,
+                    "is_default": ns == default_ns,
+                    "seats": seats,
+                    "count": len(seats),
+                    # agents, not incarnations -- "who is in the room" is the operator's question
+                    "agents": sorted({s.split("#", 1)[0] for s in seats}),
+                })
+        except Exception as e:
+            return {"channels": [], "default": default_ns,
+                    "note": f"discovery failed: {type(e).__name__}"}
+        return {"channels": out, "default": default_ns,
+                "checked": "worklive keys only (a channel exists when someone beats in it)",
+                "not_checked": "namespaces with no live seat are invisible here BY DESIGN -- "
+                               "an empty room is not a conversation"}
 
     def _json(self, obj, code=200):
         body = json.dumps(obj, default=str).encode("utf-8")
@@ -647,7 +709,15 @@ PAGE = r"""<!doctype html>
      Replaces the body::before blur pseudo-element when WebGL2 is available;
      falls back to the CSS gradient when not. z-index:-2 so the body::after
      noise texture (z-index:-1) sits ON TOP of the aurora for grain. */
-  #aurora-canvas{position:fixed; inset:0; z-index:-2; pointer-events:none}
+  /* WIDTH/HEIGHT ARE LOAD-BEARING, not decoration. A <canvas> is a REPLACED element, so
+     `inset:0` does NOT stretch it the way it stretches a div -- it keeps its intrinsic default of
+     300x150 and pins to the top-left. That is exactly the clipped band in the corner Daniil kept
+     pointing at. Measured before the fix: computed size 300x150 in a 1280x720 viewport, and
+     aurora-shader.js:203 sizes its backing store from canvas.clientWidth, so the shader has been
+     faithfully rendering a 300px world this whole time. The shader was never wrong; the CSS
+     starved it. Percentages resolve against the containing block (the viewport for a fixed
+     element), which avoids the scrollbar overflow 100vw would introduce. */
+  #aurora-canvas{position:fixed; inset:0; width:100%; height:100%; z-index:-2; pointer-events:none}
   /* Viz canvas — slide-deck cards between aurora and cockpit. Hidden by default;
      shown when the viz engine is active (toggle via 'v' key or header button). */
   #viz-canvas{position:fixed; inset:0; z-index:-1; pointer-events:none; display:none}
@@ -3308,6 +3378,7 @@ initViz();
 <script src="/theme-void.js"></script>
 <script src="/presence-rail.js"></script>
 <script src="/presence-cloud.js"></script>
+<script src="/rail.js"></script>
 </body>
 </html>
 """
