@@ -1,0 +1,35 @@
+[
+  {"do": "clear", "say": "Starting clean. Building a hex-tiled cube seen through a lit plasma field.", "pause": 900},
+
+  {"do": "node", "chunk": "swirl", "as": "sw", "x": 20, "y": 30,
+   "say": "1/9 — a domain warp first. Everything downstream gets evaluated in bent space.", "pause": 850},
+
+  {"do": "node", "chunk": "superquadric-slices", "as": "sq", "x": 200, "y": 20,
+   "say": "2/9 — the z-sliced superquadric: the HAL cube, drawn as stacked cross-sections.", "pause": 850},
+
+  {"do": "link", "from": "sw", "to": "sq", "how": "warp its domain",
+   "say": "3/9 — wiring swirl into its DOMAIN, not its colour. Green wire, because vec2.", "pause": 1100},
+
+  {"do": "node", "chunk": "plasma-field", "as": "pf", "x": 200, "y": 200,
+   "say": "4/9 — a plasma field: the medium the cube will sit inside.", "pause": 850},
+
+  {"do": "link", "from": "sq", "to": "pf", "how": "composite: screen",
+   "say": "5/9 — compositing. Screen not add: both are already bright and add would clip. Watch a blend node get inserted automatically.", "pause": 1300},
+
+  {"do": "node", "chunk": "superlinear-highlight", "as": "hi", "x": 420, "y": 40,
+   "say": "6/9 — superlinear highlight. Crests bloom, mids sink — darker AND brighter at once.", "pause": 850},
+  {"do": "link", "from": "pf", "to": "hi", "how": "feed colour", "pause": 800},
+
+  {"do": "node", "chunk": "tanh-tonemap", "as": "tn", "x": 420, "y": 140,
+   "say": "7/9 — tanh. Nothing above it is bounded, so this is the shoulder that stops it blowing out. It must come AFTER the highlight.", "pause": 1000},
+  {"do": "link", "from": "hi", "to": "tn", "how": "feed colour", "pause": 800},
+
+  {"do": "node", "chunk": "vignette-cubic", "as": "vg", "x": 420, "y": 240,
+   "say": "8/9 — a cubic vignette to frame it.", "pause": 800},
+  {"do": "link", "from": "tn", "to": "vg", "how": "feed colour", "pause": 800},
+  {"do": "link", "from": "vg", "to": "out", "how": "feed colour",
+   "say": "…and into OUTPUT. Nothing renders until something reaches the sink.", "pause": 1000},
+
+  {"do": "build", "say": "9/9 — compiling and running.", "pause": 1500},
+  {"do": "snap", "name": "watch-hexcube-fog", "say": "Done — snapshotting exactly what you are looking at.", "pause": 300}
+]

@@ -142,6 +142,11 @@ def main() -> int:
     p.add_argument("--from", dest="from_", type=float, default=0.0)
     p.add_argument("--to", type=float, default=8.0)
 
+    p = sub.add_parser("script", help="build in the OPEN bench, step by step, so it can be watched")
+    p.add_argument("--file", help="path to a JSON list of steps")
+    p.add_argument("--json", help="inline JSON list of steps")
+    p.add_argument("--name", help="name for the final snapshot")
+
     p = sub.add_parser("graph", help="render a saved graph JSON (or whatever is on the bench)")
     p.add_argument("--file", help="path to a graph JSON; omit to render the bench's current graph")
     p.add_argument("--cell", type=int, default=320)
@@ -151,6 +156,16 @@ def main() -> int:
     args = {k: v for k, v in vars(ns).items() if k != "op" and v is not None}
     if "from_" in args:
         args["from"] = args.pop("from_")
+    if ns.op == "script":
+        raw = args.pop("json", None)
+        f = args.pop("file", None)
+        if f:
+            with open(f, "r", encoding="utf-8") as fh:
+                raw = fh.read()
+        if not raw:
+            print("script needs --file or --json", file=sys.stderr)
+            return 2
+        args["steps"] = json.loads(raw)
     if ns.op == "graph" and args.get("file"):
         with open(args.pop("file"), "r", encoding="utf-8") as fh:
             args["graph"] = json.load(fh)

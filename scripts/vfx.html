@@ -1560,6 +1560,64 @@ async function runJob(j){
     if(a.see!=null)  av.see=a.see;
     return await snap(a.name || ('state-'+(a.state||'thinking')));
   }
+  if(j.op === 'script'){
+    // WORK IN THE OPEN. Every step below calls the SAME function a click calls -- addNode,
+    // applyLink, connect, setState, the slider setters -- so the graph Daniil is watching IS the
+    // graph being built, not a replay of one. It also removes a duplicate: previously claude
+    // assembled a graph in a job and rendered it offscreen, so there were two states that could
+    // disagree. Now there is one, and the snapshot at the end is literally what is on screen.
+    //
+    // Paced deliberately. Executing twelve mutations in one frame is correct and unwatchable;
+    // a beat between them is the difference between a result appearing and a PROCESS being
+    // legible. The pause is per-step so a long explanation can hold and a routine wire can fly.
+    var named = {}, done = [];
+    for (var si=0; si<(a.steps||[]).length; si++){
+      var st = a.steps[si];
+      if(st.say) gmsg(st.say);
+      try{
+        if(st.do === 'node'){
+          var nn = addNode(st.chunk, st.x, st.y);
+          if(st.as) named[st.as] = nn;
+          done.push('node ' + st.chunk);
+        } else if(st.do === 'link'){
+          var A = named[st.from] || G.nodes.filter(function(n){return n.chunk===st.from;})[0];
+          var B = st.to === 'out' ? G.nodes.filter(function(n){return n.chunk==='__out';})[0]
+                                  : (named[st.to] || G.nodes.filter(function(n){return n.chunk===st.to;})[0]);
+          if(!A || !B){ done.push('link SKIPPED (missing node)'); }
+          else {
+            var opts = linkOptions(A,B);
+            var pick = st.how ? opts.filter(function(o){ return o.label.indexOf(st.how)>=0; })[0]
+                              : opts[0];
+            if(!pick){ done.push('link SKIPPED: no "'+(st.how||'default')+'" between '+
+                                 (gchunk(A)||{}).name+' and '+(st.to)); }
+            else { applyLink(A,B,pick); done.push('link ' + pick.label); }
+          }
+        } else if(st.do === 'set'){
+          if(st.k in av.target){ av.target[st.k]=st.v; av.cur[st.k]=st.v; }
+          else if(st.k in av){ av[st.k]=st.v; }
+          syncAll(); emit(); done.push('set '+st.k+'='+st.v);
+        } else if(st.do === 'state'){
+          setState(st.state); done.push('state '+st.state);
+        } else if(st.do === 'style'){
+          av.style=''; av.setStyle(st.style); av._resize(420); done.push('style '+st.style);
+        } else if(st.do === 'identity'){
+          el('ident').value=st.identity; av.setIdentity(st.identity); done.push('identity '+st.identity);
+        } else if(st.do === 'clear'){
+          clearGraph(); named={}; done.push('cleared');
+        } else if(st.do === 'build'){
+          buildGraph(); done.push('built: ' + el('gmsg').textContent.slice(0,40));
+        } else if(st.do === 'snap'){
+          var sr = await snap(st.name || 'script'); done.push('snap ' + (sr.path||sr.error));
+        }
+      }catch(e){ done.push(st.do + ' FAILED: ' + String(e).slice(0,80)); }
+      await new Promise(function(r){ setTimeout(r, st.pause == null ? 650 : st.pause); });
+    }
+    // The last snapshot is the return value, so the CLI still hands claude a path to LOOK at --
+    // watching and verifying are the same act rather than two.
+    var fin = await snap(a.name || 'script-final');
+    fin.steps = done;
+    return fin;
+  }
   if(j.op === 'graph'){
     if(a.graph){ G = a.graph; ensureOutput(); renderGraph(); }
     var g = buildGraphGLSL();

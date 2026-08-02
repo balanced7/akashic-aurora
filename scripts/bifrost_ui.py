@@ -605,6 +605,13 @@ class Handler(BaseHTTPRequestHandler):
                 data = fh.read()
             self.send_response(200)
             self.send_header("Content-Type", mime)
+            # NO-CACHE, and this was a real source of confusion rather than a nicety. Every asset
+            # here is edited live and reloaded constantly; without these headers a browser can
+            # serve a stale copy after a restart, so a fix that IS on disk and IS being served
+            # still appears not to work. That failure looks exactly like a broken change, which is
+            # the most expensive kind of wrong -- it sends you hunting in the code you just fixed.
+            self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+            self.send_header("Pragma", "no-cache")
             self.send_header("Content-Length", str(len(data)))
             self.end_headers()
             self.wfile.write(data)
