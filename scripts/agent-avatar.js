@@ -58,6 +58,7 @@
 'uniform float u_round;    // tile shape: 0 = hexagon, 1 = disc',
 'uniform float u_star;     // tile shape: >0 scallops the border, <0 pulls it into points',
 'uniform float u_see;      // see-through: how strongly the FAR side shows through the near',
+'uniform float u_thick;    // shell thickness: 0 = thin plates, 1 = solid wedge',
 '',
 '#define PI 3.14159265359',
 '',
@@ -111,7 +112,12 @@
 '  // BREATHING: the shell height oscillates with u_pulse. At pulse 0 it is a still solid.',
 '  float phase=dot(hc,pca)*22.+u_time*2.5;',
 '  float h=2.-u_pulse*.16*(cos(phase)*.5+.5);',
-'  float th=h;',
+// THICKNESS, RESTORED. This is the axis the port lost. The original HexSpec varies it across its
+// three animations: animation 1 sets thickness == height (a SOLID wedge), while animations 2 and
+// 3 set it to roundTop*4 and roundTop*2 -- THIN PLATES. Hardcoding th=h kept only the solid case,
+// which is exactly why every state read as chunky and the shell never looked delicate: an inner
+// cavity is what lets a tile have an EDGE you can see past rather than a slab you cannot.
+'  float th=mix(rTop*4.,h,u_thick);',
 '  float eAd=dot(p,eA)+u_gap, eBd=dot(p,eB)-u_gap;',
 '  float ed=smax(eAd,-eBd,rCor);',
 // STAR / FLOWER. The two edge planes already form a 2D frame around the tile, so the atan of
@@ -406,21 +412,21 @@
     // busy. Rich subdivision so it reads as an object rather than a blob, a slow turn, and a
     // gentle breath -- the difference between "idle" (one agent waiting) and "ambient"
     // (the system, at rest) is that ambient is not a diagnosis about anyone.
-    ambient:   { sub: 3.0, gap: 0.014, spin: 0.09, pulse: 0.55, sat: 1.0, dim: 0.95, round: 0.35, star: 0.00, tint: [0.29, 0.44, 0.95] },
+    ambient:   { sub: 3.0, gap: 0.014, spin: 0.09, pulse: 0.55, sat: 1.0, dim: 0.95, round: 0.35, star: 0.00, thick: 0.30, tint: [0.29, 0.44, 0.95] },
     // THINKING vs TOOL is the distinction Daniil asked for, and the two must not merely differ in
     // hue -- they differ in KIND of motion, because they are different kinds of work. Thinking is
     // INTERNAL: the shell barely turns and breathes hard, tight and dense, like something holding
     // still to concentrate. Tool use is EXTERNAL: it spins fast and breathes little, because the
     // work is happening out in the world rather than inside. Read across a room you can tell them
     // apart by movement alone, before the colour resolves -- which is the point of a codebook.
-    thinking:  { sub: 3.1, gap: 0.009, spin: 0.06, pulse: 1.0,  sat: 1.0, dim: 1.0, round: 0.85, star: 0.30,  tint: [0.56, 0.42, 1.0] },
-    composing: { sub: 2.7, gap: 0.012, spin: 0.22, pulse: 1.0, sat: 1.0, dim: 1.0, round: 0.55, star: 0.10,  tint: [0.02, 0.51, 1.0] },
-    tool:      { sub: 3.4, gap: 0.006, spin: 0.55, pulse: 0.45, sat: 1.0, dim: 1.0, round: 0.00, star: -0.35,  tint: [0.24, 0.86, 0.60] },
-    idle:      { sub: 1.8, gap: 0.010, spin: 0.05, pulse: 0.15, sat: 0.55, dim: 0.62, round: 0.60, star: 0.00, tint: [0.30, 0.64, 1.0] },
-    wedged:    { sub: 2.2, gap: 0.075, spin: 0.0,  pulse: 0.0,  sat: 0.85, dim: 0.85, round: 0.00, star: -0.85, tint: [1.0, 0.70, 0.16] },
-    throttled: { sub: 2.2, gap: 0.030, spin: 0.10, pulse: 0.7,  sat: 0.9,  dim: 0.8, round: 0.20, star: 0.55,  tint: [0.96, 0.35, 0.55] },
-    dead:      { sub: 1.2, gap: 0.004, spin: 0.0,  pulse: 0.0,  sat: 0.0,  dim: 0.30, round: 0.90, star: 0.00, tint: [0.45, 0.48, 0.52] },
-    unsensed:  { sub: 1.6, gap: 0.055, spin: 0.02, pulse: 0.0,  sat: 0.0,  dim: 0.45, round: 0.50, star: 0.00, tint: [0.55, 0.50, 0.62] }
+    thinking:  { sub: 3.1, gap: 0.009, spin: 0.06, pulse: 1.0,  sat: 1.0, dim: 1.0, round: 0.85, star: 0.30, thick: 0.18,  tint: [0.56, 0.42, 1.0] },
+    composing: { sub: 2.7, gap: 0.012, spin: 0.22, pulse: 1.0, sat: 1.0, dim: 1.0, round: 0.55, star: 0.10, thick: 0.35,  tint: [0.02, 0.51, 1.0] },
+    tool:      { sub: 3.4, gap: 0.006, spin: 0.55, pulse: 0.45, sat: 1.0, dim: 1.0, round: 0.00, star: -0.35, thick: 0.22,  tint: [0.24, 0.86, 0.60] },
+    idle:      { sub: 1.8, gap: 0.010, spin: 0.05, pulse: 0.15, sat: 0.55, dim: 0.62, round: 0.60, star: 0.00, thick: 0.45, tint: [0.30, 0.64, 1.0] },
+    wedged:    { sub: 2.2, gap: 0.075, spin: 0.0,  pulse: 0.0,  sat: 0.85, dim: 0.85, round: 0.00, star: -0.85, thick: 1.00, tint: [1.0, 0.70, 0.16] },
+    throttled: { sub: 2.2, gap: 0.030, spin: 0.10, pulse: 0.7,  sat: 0.9,  dim: 0.8, round: 0.20, star: 0.55, thick: 0.55,  tint: [0.96, 0.35, 0.55] },
+    dead:      { sub: 1.2, gap: 0.004, spin: 0.0,  pulse: 0.0,  sat: 0.0,  dim: 0.30, round: 0.90, star: 0.00, thick: 1.00, tint: [0.45, 0.48, 0.52] },
+    unsensed:  { sub: 1.6, gap: 0.055, spin: 0.02, pulse: 0.0,  sat: 0.0,  dim: 0.45, round: 0.50, star: 0.00, thick: 0.25, tint: [0.55, 0.50, 0.62] }
   };
 
   // IDENTITY PRESETS. These are NOT new colours -- claude, deepseek and user are lifted verbatim
@@ -534,7 +540,8 @@
   //                             belong in the codebook and must not change when a state does.
   AgentAvatar.PARAMS = [
     { k: 'sub',   min: 0.8, max: 5.0,  step: 0.05,  label: 'subdivision' },
-    { k: 'gap',   min: 0,   max: 0.12, step: 0.001, label: 'tile gap' },
+    { k: 'gap',   min: 0,   max: 0.40, step: 0.002, label: 'tile gap' },
+    { k: 'thick', min: 0,   max: 1,    step: 0.01,  label: 'shell thickness' },
     { k: 'spin',  min: 0,   max: 1.2,  step: 0.01,  label: 'spin' },
     { k: 'pulse', min: 0,   max: 1.5,  step: 0.01,  label: 'breathe' },
     { k: 'sat',   min: 0,   max: 1,    step: 0.01,  label: 'saturation' },
@@ -625,7 +632,7 @@
     if (prev) gl.deleteProgram(prev);   // the new one linked: only NOW is the old one disposable
     var u = {};
     ['u_res','u_time','u_sub','u_gap','u_spin','u_pulse','u_sat','u_tint','u_dim','u_wire',
-     'u_id0','u_id1','u_round','u_star','u_see']
+     'u_id0','u_id1','u_round','u_star','u_see','u_thick']
       .forEach(function (n) { u[n] = gl.getUniformLocation(p, n); });
     this.u = u;
     gl.enable(gl.BLEND);
@@ -695,6 +702,7 @@
     // see-through rides the wireframe amount: a LIT SOLID shell must not show its own back face
     // (that reads as a rendering fault, not as depth), while a wireframe is defined by doing so.
     gl.uniform1f(u.u_see, this.wire * this.see);
+    gl.uniform1f(u.u_thick, c.thick);
     gl.uniform3f(u.u_tint, c.tint[0], c.tint[1], c.tint[2]);
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
@@ -719,7 +727,7 @@
     var k = 1 - Math.exp(-dt / TAU);
 
     var c = this.cur, t = this.target, i;
-    ['sub','gap','spin','pulse','sat','dim','round','star'].forEach(function (key) { c[key] += (t[key] - c[key]) * k; });
+    ['sub','gap','spin','pulse','sat','dim','round','star','thick'].forEach(function (key) { c[key] += (t[key] - c[key]) * k; });
 
     // TINT EASES THROUGH HSV, NOT RGB. thinking is violet and tool is green -- close to opposite
     // on the wheel -- so a straight RGB lerp between them passes through their average, which is
