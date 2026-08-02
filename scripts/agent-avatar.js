@@ -52,6 +52,7 @@
 'uniform float u_sat;      // colour saturation (0 = greyscale, for dead/unsensed)',
 'uniform vec3  u_tint;     // state hue',
 'uniform float u_dim;      // overall brightness',
+'uniform float u_wire;     // 0 = lit solid shell, 1 = dark wireframe (edges carry the light)',
 '',
 '#define PI 3.14159265359',
 '',
@@ -108,11 +109,21 @@
 '  float d=smax(ed,length(p)-h,rTop);',
 '  d=smax(d,-(length(p)-h+th),rTop);',
 '  float fb=clamp((h-length(p))/th,0.,1.);',
-'  vec3 col=mix(vec3(.9,.9,1.),vec3(.10,.10,.15),step(.5,fb));',
+// WIREFRAME IS A REASSIGNMENT OF WHERE THE LIGHT LIVES, not a new geometry. The face and the
+// edge band already exist; solid mode puts the brightness on the face, wireframe drains the face
+// to near-void and lets the edge carry everything. Keeping both under one uniform means the
+// state codebook (sub/gap/spin/pulse) is untouched -- an agent looks like itself in either mode.
+'  vec3 solidFace=mix(vec3(.9,.9,1.),vec3(.10,.10,.15),step(.5,fb));',
+'  vec3 wireFace=vec3(.010,.014,.024);            // not pure black: a faint blue cast keeps the',
+'  vec3 col=mix(solidFace,wireFace,u_wire);       // shell readable as a body, not a hole',
 '  vec3 ec=spectrum(dot(hc,pca)*5.+length(p)+.8);',
 '  ec=mix(vec3(dot(ec,vec3(.33))),ec,u_sat);      // desaturate for dead / unsensed',
-'  ec=mix(ec,u_tint,.45);                          // pull the edge toward the state hue',
-'  float eb=smoothstep(-.04,-.005,ed);',
+'  ec=mix(ec,u_tint,mix(.45,.88,u_wire));         // wireframe leans hard on the state hue: with',
+'                                                 // the faces dark, the lines ARE the signal',
+// Narrow the band in wireframe so it reads as a drawn LINE rather than a lit bevel. .04 is a
+// soft shoulder appropriate to a shaded solid; at two inches it would look like a fat border.
+'  float ew=mix(.040,.016,u_wire);',
+'  float eb=smoothstep(-ew,-.004,ed);',
 '  return Model(d,mix(col,ec,eb),eb);',
 '}',
 // if/else and NOT a ternary. ESSL refuses `?:` on struct types -- the compiler says
@@ -134,9 +145,14 @@
 '  return m;',
 '}',
 '',
+// TETRAHEDRAL, not central differences: four map() evaluations for a normal of equivalent
+// quality instead of six. map() is by far the expensive call -- it evaluates three hex SDFs --
+// so this is a third off the per-pixel normal cost, and it is most of what pays for rendering at
+// native resolution rather than half.
 'vec3 calcNormal(vec3 p){',
-'  vec2 e=vec2(.0015,0);',
-'  return normalize(vec3(map(p+e.xyy).d-map(p-e.xyy).d,map(p+e.yxy).d-map(p-e.yxy).d,map(p+e.yyx).d-map(p-e.yyx).d));',
+'  const vec2 k=vec2(1,-1); const float e=.0015;',
+'  return normalize(k.xyy*map(p+k.xyy*e).d + k.yyx*map(p+k.yyx*e).d +',
+'                   k.yxy*map(p+k.yxy*e).d + k.xxx*map(p+k.xxx*e).d);',
 '}',
 '',
 'void main(){',
@@ -146,8 +162,15 @@
 '  float t=0.; Model m; bool hit=false;',
 '  // 48 steps, not the original 100: at avatar size the surface converges long before that,',
 '  // and the step count is the single biggest lever on GPU cost.',
+// CONE TRACKING FOR ANALYTIC SILHOUETTE AA, and this is the half of "pixel perfect" that
+// resolution alone cannot buy. A raymarch answers hit/miss as a BOOLEAN, so every silhouette
+// pixel is fully on or fully off -- that binary IS the staircase, and rendering at native
+// resolution only renders it more crisply. Recording the closest ANGULAR approach (d/t) costs
+// one min() per step and converts the outer edge into genuine coverage.
+'  float cone=1e9;',
 '  for(int i=0;i<48;i++){',
 '    m=map(ro+rd*t);',
+'    if(t>.001) cone=min(cone,m.d/t);',
 '    if(m.d<.0015){hit=true;break;}',
 '    t+=m.d*.9;',
 '    if(t>9.)break;',
@@ -162,8 +185,22 @@
 '    float bac=pow(clamp(dot(n,bl),0.,1.),1.5);',
 '    float fre=pow(clamp(1.+dot(n,rd),0.,1.),2.);',
 '    vec3 lin=1.20*dif*vec3(.9)+0.80*amb*vec3(.5,.7,.8)+0.30*bac*vec3(.25)+0.25*fre*u_tint;',
+// In wireframe the SURFACE has to stop competing with the lines. Diffuse and ambient drop to a
+// fifth and the fresnel rim comes up, so what the eye reads is a silhouette and its edges rather
+// than a lit ball with seams drawn on it.
+'    vec3 wlin=0.22*lin+1.05*fre*u_tint;',
+'    lin=mix(lin,wlin,u_wire);',
 '    col=mix(m.col*lin,m.col,m.glow)*u_dim;',
 '    alpha=1.;',
+'  }else{',
+// THE NEAR-MISS BAND. One pixel subtends ~1/u_res.y radians here (rd is built from a uv scaled
+// by 1/u_res.y against z=2), so coverage falls off over about a pixel and a half. Tinting it is
+// not a fudge: a near-miss is by definition adjacent to the rim it is antialiasing, and the rim
+// is exactly what fresnel makes tint-coloured.
+'    float px=1./u_res.y;',
+'    float cov=1.-smoothstep(0.,px*1.6,cone);',
+'    col=u_tint*mix(.42,.75,u_wire)*cov;',
+'    alpha=cov*mix(.80,.95,u_wire);',
 '  }',
 '  col=pow(max(col,0.),vec3(1./2.2));',
 '  outColor=vec4(col,alpha);   // transparent background: the avatar sits on the console glass',
@@ -203,6 +240,12 @@
       preserveDrawingBuffer: false
     });
     if (!this.gl) throw new Error('webgl2 unavailable');
+    // Wireframe is a LOOK, not a state, so it lives on the instance rather than in the codebook:
+    // every state must survive both treatments unchanged. Exposed as a global so it can be dialled
+    // live (window.AKASHIC_AVATAR_WIRE = 0.4) without an edit-restart-reload cycle -- 0 is the
+    // original lit solid, 1 is full dark wireframe.
+    var wv = parseFloat(global.AKASHIC_AVATAR_WIRE);
+    this.wire = (wv >= 0 && wv <= 1) ? wv : 1.0;
     this.cur = Object.assign({}, STATES.idle);
     this.target = Object.assign({}, STATES.idle);
     this.rate = 0;
@@ -249,7 +292,7 @@
     gl.useProgram(p);
     this.prog = p;
     var u = {};
-    ['u_res','u_time','u_sub','u_gap','u_spin','u_pulse','u_sat','u_tint','u_dim']
+    ['u_res','u_time','u_sub','u_gap','u_spin','u_pulse','u_sat','u_tint','u_dim','u_wire']
       .forEach(function (n) { u[n] = gl.getUniformLocation(p, n); });
     this.u = u;
     gl.enable(gl.BLEND);
@@ -257,11 +300,15 @@
   };
 
   AgentAvatar.prototype._resize = function (cssSize) {
-    // Same undersampling logic as the aurora, and it matters far more here: the avatar is the
-    // ONLY thing keeping this cheap. A 64px box at 0.5 scale is a 32px render target.
+    // ONE BACKING PIXEL PER DEVICE PIXEL, and this is the whole aliasing fix. The avatar used to
+    // render at 0.5 and let the browser stretch it 2x, which was fine when it was a 38px chip and
+    // is indefensible now that it is a two-inch object the eye is invited to study: no
+    // post-process recovers detail a 2x upscale destroyed, and FXAA over a wireframe would only
+    // soften the very lines it exists to sharpen. Undersampling is correct for a full-screen
+    // ambient background. It was never correct for the subject.
     var dpr = Math.min(global.devicePixelRatio || 1, 2);
     var scale = parseFloat(global.AKASHIC_AVATAR_SCALE);
-    if (!(scale > 0 && scale <= 1)) scale = 0.5;
+    if (!(scale > 0 && scale <= 2)) scale = 1.0;
     var eff = Math.max(0.35, dpr * scale);
     // A caller that ALREADY knows the box may hand over its CSS size, and the hero avatar does.
     // Measuring clientWidth is a bet that layout has settled since the box was set; lose that
@@ -272,8 +319,17 @@
     if (cssSize > 0) this.cssSize = cssSize;
     var box = this.cssSize || this.canvas.clientWidth || 64;
     var boxH = this.cssSize || this.canvas.clientHeight || 64;
-    var w = Math.max(1, Math.floor(box * eff));
-    var h = Math.max(1, Math.floor(boxH * eff));
+    var w = Math.max(1, Math.round(box * eff));
+    var h = Math.max(1, Math.round(boxH * eff));
+    // Bound the worst case rather than trusting dpr. Per-fragment cost here is high -- 48 march
+    // steps, each evaluating three hex SDFs, plus normals -- so an unbounded 2x-dpr 192px box
+    // would be a 384px target and four times the work of native. 320 keeps a hidpi display
+    // genuinely sharp without letting the bill scale with someone's monitor.
+    var MAX = 320;
+    if (w > MAX || h > MAX) {
+      var k = MAX / Math.max(w, h);
+      w = Math.max(1, Math.round(w * k)); h = Math.max(1, Math.round(h * k));
+    }
     this.canvas.width = w; this.canvas.height = h;
     this.gl.viewport(0, 0, w, h);
   };
@@ -298,6 +354,7 @@
     gl.uniform1f(u.u_pulse, c.pulse);
     gl.uniform1f(u.u_sat, c.sat);
     gl.uniform1f(u.u_dim, c.dim);
+    gl.uniform1f(u.u_wire, this.wire);
     gl.uniform3f(u.u_tint, c.tint[0], c.tint[1], c.tint[2]);
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
