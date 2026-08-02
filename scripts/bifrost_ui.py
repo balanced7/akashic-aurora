@@ -156,6 +156,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._static("scripts/timeline.js", "application/javascript")
         if path == "/agent-avatar.js":
             return self._static("scripts/agent-avatar.js", "application/javascript")
+        if path == "/activity-line.js":
+            return self._static("scripts/activity-line.js", "application/javascript")
         self.send_error(404)
 
     def _html(self):
@@ -843,6 +845,12 @@ PAGE = r"""<!doctype html>
      Cost is unchanged in kind and still trivial: the backing store renders at half scale, so
      192 CSS px is a 96px render target -- about 9k fragments against a full-screen 700k. */
   #ash-frame.has-av{width:192px; height:192px; border-radius:26px; font-size:0; color:transparent}
+  /* THE FLEET'S VOICE. A full-bleed strip between the fidelity ladder and the input row, kept in
+     NORMAL FLOW rather than absolutely positioned: .cwrap is not position:relative, and making it
+     so to host an overlay would re-home every absolutely-positioned descendant it already has --
+     #pcloud among them. 22px is enough for the waveform's travel without the composer growing in
+     any way you would notice. */
+  .voiceline{display:block; width:100%; height:22px; margin:1px 0 3px; cursor:help}
   /* THE DEGRADED PATH, and it has to look deliberate. If WebGL2 is missing or the shader will
      not compile the box stays two inches -- so the glyph must grow into it rather than sit as a
      14px mark adrift in a large empty square, which reads as breakage rather than as a fallback.
@@ -1588,6 +1596,7 @@ PAGE = r"""<!doctype html>
       <button type="button" class="seg" data-fid="steer" onclick="setFidelity('steer')">Steer</button>
       <button type="button" class="seg" data-fid="interrupt" onclick="setFidelity('interrupt')">Interrupt</button>
     </div>
+    <canvas id="voiceline" class="voiceline" title="emission rate"></canvas>
     <div class="cwrap">
       <div id="ash">
         <div id="ash-frame" onclick="toggleAsh()" title="agent selector — live presence">⏣</div>
@@ -1945,6 +1954,84 @@ function mountHeroAvatar(){
   _heroAv.shader._resize(SIZE);
   _heroAv.shader.setState('ambient');
   _heroAv.shader.start();
+}
+
+// ===== THE FLEET'S VOICE: emission rate as a waveform =====
+// Three readings, and the third is the one the console could not previously express:
+//   LIVE    amplitude tracks tokens/sec              -- generating
+//   FLAT    solid, steady, dim                       -- measured, and the measure is zero
+//   DOTTED  broken baseline                          -- NOT measured; there is no sensor here
+var _voice = null, _voiceOff = false, _tokMark = {}, _lastSignals = {};
+
+function mountVoiceLine(){
+  if(_voiceOff || _voice) return;
+  var cv = document.getElementById('voiceline');
+  if(!cv) return;
+  // Same transient-vs-terminal split the avatar had to learn: activity-line.js is a plain sync
+  // script at the end of <body>, so a fast poll can arrive before it parses. Do not latch.
+  if(typeof ActivityLine === 'undefined'){ cv.dataset.vlOff = 'pending-script'; return; }
+  if(!ActivityLine.isSupported()){ cv.dataset.vlOff = 'no-webgl2'; _voiceOff = true; return; }
+  try{ _voice = new ActivityLine(cv); }
+  catch(e){ cv.dataset.vlOff = 'ctor: '+String(e).slice(0,120); _voiceOff = true; return; }
+  delete cv.dataset.vlOff;
+  var fit = function(){ if(_voice) _voice._resize(cv.clientWidth||640, 22); };
+  if(window.ResizeObserver){ new ResizeObserver(fit).observe(cv); } else { window.addEventListener('resize', fit); }
+  fit();
+  _voice.start();
+}
+
+function driveVoiceLine(vitals){
+  mountVoiceLine();
+  if(_voiceOff || !_voice) return;
+  vitals = vitals || {};
+  var cv = document.getElementById('voiceline');
+  var tsel = document.getElementById('target');
+  var tgt = tsel ? tsel.value : 'all';
+  // _fence is a pseudo-agent in the vitals blob (renderVitals filters it out too); leaving it in
+  // the roll-up would mark a non-agent in _tokMark and dilute nothing useful.
+  var names = (tgt === 'all') ? Object.keys(vitals).filter(function(n){ return n !== '_fence'; }) : [tgt];
+  var now = performance.now();
+
+  // SENSOR PRESENCE, NOT QUIET. Token counts are reported by the RUNNER path only -- see
+  // bifrost_runner_deepseek.py:1037 and its kimi/sol siblings, which pass tokens={prompt,
+  // completion} on each turn. An agent with no runner therefore has NO emission sensor at all,
+  // and for claude that is structural rather than transient: it runs inside Claude Code, whose
+  // usage this process never sees. Reporting that as a quiet line would be a confident lie about
+  // a thing we cannot observe, which is the exact failure the avatar was built to stop making.
+  var sensed = names.some(function(n){ return (_lastSignals[n]||{}).runner; });
+
+  var rate = 0;
+  names.forEach(function(n){
+    var c = (((vitals[n]||{}).tokens)||{}).completion || 0;
+    var m = _tokMark[n];
+    // A DERIVATIVE OF A REAL COUNTER, not an inference from liveness. Guard the negative case:
+    // a runner restarting resets its cumulative count, and an unguarded delta would read that
+    // as a burst of emission at exactly the moment the agent produced nothing.
+    if(m && now > m.t && c >= m.c) rate += (c - m.c) * 1000 / (now - m.t);
+    _tokMark[n] = {c: c, t: now};   // marked even when unsensed, so regaining a sensor does not
+  });                               // bill the whole blind interval as one instantaneous spike
+
+  _voice.setSensed(sensed);
+  _voice.setRate(Math.min(1, rate / 50));      // 50 tok/s = full scale
+  // State the claim in WORDS as well as in the encoding. A visual grammar nobody can look up is
+  // a cipher; the tooltip is what makes solid-versus-dotted teachable on first hover.
+  if(cv){
+    var who = (tgt === 'all') ? 'the fleet' : tgt;
+    // WORD THE CLAIM TO THE STRENGTH OF THE EVIDENCE. The flat reading rests on
+    // signals[agent].runner, which is bool(runner_lock.holder(agent)) -- and holder() reads the
+    // lock key WITHOUT checking that its recorded pid is still alive (core/comm/runner_lock.py
+    // has _alive(), but only clear_if_pid() calls it). So a runner that died without releasing
+    // leaves the flag true indefinitely. "A runner holds the lock" is therefore all this can
+    // honestly assert; "we are measuring it" would be a stronger claim than the evidence bears,
+    // and overstating certainty is the precise habit this indicator exists to break.
+    cv.title = !sensed
+      ? 'no emission sensor for ' + who + ' — token counts are reported by the runner path, and '
+        + 'no runner lock is held here'
+      : (rate > 0.5
+          ? 'emitting ~' + Math.round(rate) + ' tok/s'
+          : 'a runner lock is held for ' + who + ', reporting no emission '
+            + '(note: the lock is not liveness-checked, so a dead runner still reads as present)');
+  }
 }
 
 // MOUNT DOES NOT WAIT ON THE STATUS POLL. Until now mountHeroAvatar was reachable ONLY through
@@ -2475,6 +2562,10 @@ function applyStatus(s){
     }
   }
   renderActivity(s.activities||{});
+  // The voice line needs the runner flag from STATUS and the token counter from VITALS, which
+  // arrive through two different render functions. Cache the half that lands here rather than
+  // threading a second argument through a call chain that does not otherwise need it.
+  _lastSignals = s.signals || {};
   driveAvatars(s.activities||{}, s);
   renderHUD(s.activities||{});
   syncAuroraState(paused, Object.keys(s.halted||{}).length);
@@ -2489,6 +2580,12 @@ async function poll(){ try{ applyStatus(await (await fetch('/status')).json()); 
 var _lastVitalsSig = '';
 function renderVitals(vitals){
   vitals = vitals || {};
+  // BEFORE both early returns below, deliberately. renderVitals bails on an unchanged signature
+  // and again on a missing #engine-room -- and "unchanged" is precisely the case where emission
+  // has gone quiet, which is a reading the voice line must still receive. Hooking in after
+  // either guard would freeze the waveform at its last value the moment it mattered most, and
+  // a stalled needle is worse than no needle: it reports activity that has stopped.
+  try{ driveVoiceLine(vitals); }catch(e){}
   var fenceData = vitals['_fence'] || {};
   var sig = JSON.stringify(vitals);
   if(sig === _lastVitalsSig) return;
@@ -3697,6 +3794,7 @@ initViz();
 <script src="/rail.js"></script>
 <script src="/timeline.js"></script>
 <script src="/agent-avatar.js"></script>
+<script src="/activity-line.js"></script>
 </body>
 </html>
 """
