@@ -4,19 +4,19 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 69c94c0. A bound you discover by collision is not awareness -- this sheet
+> Derived at 29ac4cc. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (172 names)
+## Configuration flags (177 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
 | `AGENT_ID` | `"unknown"` | core/comm/bus.py |
 | `AI_SETUP` | `"E:\\AI-Setup"` | agent_cli.py, core/comm/blobs.py, core/foundation/durable_reconcile.py +18 |
 | `AKASHIC_ACK_UNHANDLED_HOURS` | `UNHANDLED_HOURS` | core/comm/promoter.py |
-| `AKASHIC_AGENT_ID` | `"claude"` | agent/harness/hooks/claude_posttooluse.py, agent/harness/hooks/claude_pretooluse.py, agent/harness/hooks/claude_sessionend.py +19 |
+| `AKASHIC_AGENT_ID` | `""` | agent/harness/hooks/claude_posttooluse.py, agent/harness/hooks/claude_pretooluse.py, agent/harness/hooks/claude_sessionend.py +20 |
 | `AKASHIC_ALLOW_HARMONIZE` | `` | scripts/harmonize_knowledge.py |
 | `AKASHIC_ASK_EXPECT_S` | `"1800"` | agent_cli.py |
 | `AKASHIC_AUTOBOOT` | `"1"` | agent/harness/context.py |
@@ -71,23 +71,27 @@ Class: reference
 | `AKASHIC_RESUME_GAP_S` | `"600"` | core/comm/roster.py |
 | `AKASHIC_SEAT_DOOR` | `""` | agent_cli.py |
 | `AKASHIC_SEAT_DOOR_DETAIL` | `""` | agent_cli.py |
+| `AKASHIC_SEAT_HEARTBEAT` | `"1"` | agent/harness/hooks/claude_posttooluse.py, agent/harness/hooks/claude_stop.py, scripts/hooks/claude_posttooluse.py +1 |
 | `AKASHIC_SELF_RESTART_MIN_BEHIND` | `"3"` | core/comm/self_restart.py |
 | `AKASHIC_SELF_RESTART_MIN_UPTIME_S` | `"900"` | core/comm/self_restart.py |
 | `AKASHIC_SESSION8` | `` | agent_cli.py |
 | `AKASHIC_SESSION_SIGNALS` | `"1"` | agent/harness/hooks/claude_sessionend.py, scripts/hooks/claude_sessionend.py |
 | `AKASHIC_SESSION_SIGNALS_MAX_BYTES` | `str(16 * 1024 * 1024` | agent/harness/hooks/claude_sessionend.py, scripts/hooks/claude_sessionend.py |
-| `AKASHIC_SHOW_CONSOLES` | `` | core/comm/launcher.py |
+| `AKASHIC_SHOW_CONSOLES` | `` | core/__init__.py, core/comm/launcher.py, scripts/quiet/sitecustomize.py |
 | `AKASHIC_SPILL_DIR` | `` | agent_cli.py |
 | `AKASHIC_STALE_CUE_DAYS` | `"30"` | core/recall/at_action.py |
 | `AKASHIC_STALL_HYSTERESIS_S` | `"180"` | core/comm/doctor.py |
 | `AKASHIC_STOP_PROMISE` | `"1"` | agent/harness/hooks/claude_stop.py, scripts/hooks/claude_stop.py |
 | `AKASHIC_STOP_WAKE` | `"1"` | agent/harness/hooks/claude_stop.py, scripts/hooks/claude_stop.py |
 | `AKASHIC_STORE_BACKEND` | `""` | core/foundation/store.py, scripts/checkers/check_dual_authority.py |
+| `AKASHIC_TEST_SHOW_CONSOLES` | `` | core/__init__.py, scripts/quiet/sitecustomize.py |
 | `AKASHIC_TIMEOUT_MULTIPLIER` | `"1"` | core/comm/timescale.py |
 | `AKASHIC_TOMBSTONE` | `"1"` | core/comm/wake_seat.py |
 | `AKASHIC_TOOLBELT_QUOTA` | `"20"` | core/toolbelt/registry.py |
 | `AKASHIC_TRACE` | `"1"` | agent/harness/hooks/claude_trace.py, agent/harness/trace.py, scripts/hooks/claude_trace.py |
 | `AKASHIC_TRANSCRIPT_TAIL_BYTES` | `str(4 * 1024 * 1024` | agent/harness/hooks/claude_posttooluse.py, scripts/hooks/claude_posttooluse.py |
+| `AKASHIC_UI_URL` | `"http://localhost:8787"` | scripts/ui_shot.py |
+| `AKASHIC_UNATTENDED_S` | `"300"` | core/comm/bus.py |
 | `AKASHIC_WAKE_MARKER_FRESH_MIN` | `""` | core/comm/wake_seat.py |
 | `AKASHIC_WHISPER_LINES` | `""` | agent/harness/context.py |
 | `AKASHIC_WISHLIST_FILE` | `` | agent_cli.py |
@@ -95,11 +99,11 @@ Class: reference
 | `AKASHIC_WORKLIVE_TTL_S` | `"180"` | core/comm/roster.py |
 | `BIFROST_APPROACHING_WEDGE_SECONDS` | `"150"` | core/comm/liveness.py |
 | `BIFROST_CONSUME_LANE` | `` | core/comm/bifrost_api.py |
-| `BIFROST_INCARNATION` | `` | agent/bifrost_pull.py, core/comm/bus.py |
+| `BIFROST_INCARNATION` | `` | agent/bifrost_pull.py, agent/harness/hooks/claude_posttooluse.py, agent_cli.py +2 |
 | `BIFROST_LANES_DUAL_WRITE` | `True` | core/comm/packet_spec.py |
 | `BIFROST_MAX_HOPS` | `"6"` | core/comm/control.py |
 | `BIFROST_MAX_REPLIES_PER_MIN` | `"12"` | core/comm/control.py |
-| `BIFROST_NAMESPACE` | `_DEFAULT_NS` | agent/bifrost_pull.py, agent/harness/delta.py, agent_cli.py +19 |
+| `BIFROST_NAMESPACE` | `_DEFAULT_NS` | agent/bifrost_pull.py, agent/harness/delta.py, agent/harness/hooks/claude_posttooluse.py +24 |
 | `BIFROST_PREFLIGHT_ASSERT` | `"1"` | core/comm/assertions.py |
 | `BIFROST_PREMISE_GATE_MIN_AGE_MS` | `` | core/coord/task_ledger.py |
 | `BIFROST_REASK_WINDOW_S` | `` | core/comm/bus.py |
@@ -111,7 +115,7 @@ Class: reference
 | `BIFROST_WAKE_LONGLIVED` | `"1"` | scripts/bifrost_wake.py |
 | `BIFROST_WEDGE_SECONDS` | `"300"` | core/comm/liveness.py |
 | `BUS_MAX_MESSAGE_BYTES` | `DEFAULT_MAX_MESSAGE_BYTES` | core/comm/packet_spec.py |
-| `CLAUDE_CODE_SESSION_ID` | `` | agent/bifrost_pull.py, agent_cli.py, core/comm/bus.py +1 |
+| `CLAUDE_CODE_SESSION_ID` | `` | agent/bifrost_pull.py, agent/harness/hooks/claude_posttooluse.py, agent_cli.py +3 |
 | `CLAUDE_SESSION_ID` | `` | agent_cli.py, core/comm/runner_lock.py |
 | `CURSOR_PROJECT_DIR` | `` | agent/harness/hooks/cursor_posttooluse.py, agent/harness/hooks/cursor_sessionstart.py |
 | `DEEPSEEK_API_KEY` | `` | scripts/ask_deepseek.py, scripts/deepseek_chat.py |
@@ -146,7 +150,7 @@ Class: reference
 | `GEMINI_WEB_TZ` | `"America/New_York"` | scripts/gemini_web.py |
 | `KIMI_API_KEY` | `` | scripts/kimi_chat.py |
 | `KIMI_BUDGET_USD` | `"105.0"` | scripts/kimi_chat.py |
-| `KIMI_CLAUDE_HOME` | `r"E:\AI-Setup\.kimi-claude-home"` | scripts/kimi_walk_narrator.py |
+| `KIMI_CLAUDE_HOME` | `` | scripts/kimi_walk_narrator.py |
 | `KIMI_CONNECT_TIMEOUT` | `"15"` | scripts/kimi_chat.py |
 | `KIMI_EFFORT` | `"max"` | scripts/kimi_chat.py |
 | `KIMI_GRANT_BASIS_USD` | `"105.0"` | scripts/kimi_chat.py |
@@ -169,6 +173,7 @@ Class: reference
 | `PACKET_INTEGRITY_TRACE` | `False` | core/comm/packet_spec.py |
 | `PACKET_TRACE_SPOT_INTERVAL` | `DEFAULT_TRACE_SPOT_INTERVAL` | core/comm/packet_spec.py |
 | `PYTEST_CURRENT_TEST` | `` | core/comm/bus.py |
+| `PYTHONPATH` | `""` | agent_cli.py, core/__init__.py, scripts/quiet/sitecustomize.py |
 | `REDIS_DB` | `` | core/foundation/redis_connection.py |
 | `REDIS_HOST` | `` | core/foundation/redis_connection.py |
 | `REDIS_PORT` | `` | core/foundation/redis_connection.py |

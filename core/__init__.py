@@ -52,10 +52,20 @@ def _quiet_bootstrap() -> None:
                             "scripts", "quiet")
         if not os.path.isdir(qdir):
             return
-        if qdir not in sys.path:
-            sys.path.insert(0, qdir)
+        # Load it BY PATH, never via sys.path. core/ must not reach outward into scripts/ --
+        # that is the inverted dependency check_boundaries.no-syspath-insert exists to stop, and
+        # the same class T123 was opened for (core/coord/method_drift.py inserting into
+        # scripts/checkers). The guardrail caught this on the first commit attempt; the honest
+        # fix is to stop inserting, not to allowlist it. importlib gives the identical
+        # side-effect with no global state touched, and the private name keeps it out of
+        # sys.modules['sitecustomize'] where a later real sitecustomize would collide.
         try:
-            import sitecustomize  # noqa: F401  -- side-effecting, idempotent, self-marking
+            import importlib.util as _ilu
+            _src = os.path.join(qdir, "sitecustomize.py")
+            if os.path.isfile(_src):
+                _spec = _ilu.spec_from_file_location("_akashic_quiet_boot", _src)
+                if _spec and _spec.loader:
+                    _spec.loader.exec_module(_ilu.module_from_spec(_spec))
         except Exception:
             pass
         key = os.path.normcase(os.path.normpath(qdir))

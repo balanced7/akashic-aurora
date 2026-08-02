@@ -28,9 +28,21 @@
 
   var CSS = [
     /* shell: the grid the mockup specified */
-    '.rail-grid{display:grid;grid-template-columns:1fr 300px;gap:16px;align-items:start}',
-    '@media (max-width:1080px){.rail-grid{grid-template-columns:1fr}#rail{order:-1}}',
-    '#rail{display:flex;flex-direction:column;gap:12px;position:sticky;top:12px;min-width:0}',
+    /* CRITICAL: the grid must INHERIT the flex role it displaced, or it eats the composer.
+       .app is `display:flex; flex-direction:column; height:100vh` and #log was `flex:1;
+       overflow-y:auto` -- the child that absorbed leftover height and scrolled INTERNALLY.
+       Wrapping #log in a plain div made THAT div the flex child, with no flex:1 and no
+       min-height:0, so it sized to the whole feed (thousands of px), overflowed .app, and
+       pushed the composer below the viewport. Daniil, live: "message box is gone, zooming to
+       bottom is hard." Both are the same defect -- the page began scrolling instead of the feed.
+       min-height:0 is the load-bearing half: without it a flex child REFUSES to shrink below its
+       content, so flex:1 alone would not have been enough. */
+    '.rail-grid{display:grid;grid-template-columns:1fr 300px;gap:16px;align-items:stretch;',
+    '  flex:1;min-height:0}',
+    '.rail-grid > #log{height:100%;min-height:0;overflow-y:auto}',
+    '@media (max-width:1080px){.rail-grid{grid-template-columns:1fr}#rail{display:none}}',
+    '#rail{display:flex;flex-direction:column;gap:12px;min-width:0;',
+    '  height:100%;min-height:0;overflow-y:auto;padding-right:2px}',
 
     /* card primitive — glass, per the mockup */
     '#rail .rcard{background:var(--glass,rgba(18,20,28,.55));backdrop-filter:blur(26px) saturate(1.35);',
@@ -110,7 +122,47 @@
     '  border-top:1px solid var(--border,rgba(255,255,255,.07))}',
     '.rfence:first-of-type{border-top:0}',
     '.rfence .nm{font-family:var(--mono,ui-monospace,monospace);color:var(--muted,#9297ab);flex:1;',
-    '  min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
+    '  min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+
+    /* SCROLLBAR — Daniil: "we could use a nice looking ui scroll". Styled, not hidden: a
+       scrollbar is the only affordance telling you how much feed exists and where you are in it.
+       Hiding it is the common mistake and it costs orientation. */
+    '.rail-grid > #log::-webkit-scrollbar,#rail::-webkit-scrollbar{width:10px}',
+    '.rail-grid > #log::-webkit-scrollbar-track,#rail::-webkit-scrollbar-track{background:transparent}',
+    '.rail-grid > #log::-webkit-scrollbar-thumb,#rail::-webkit-scrollbar-thumb{',
+    '  background:linear-gradient(180deg,rgba(122,162,247,.30),rgba(157,124,247,.22));',
+    '  border-radius:99px;border:2px solid transparent;background-clip:padding-box}',
+    '.rail-grid > #log:hover::-webkit-scrollbar-thumb,#rail:hover::-webkit-scrollbar-thumb{',
+    '  background:linear-gradient(180deg,rgba(122,162,247,.55),rgba(157,124,247,.42));background-clip:padding-box}',
+    '.rail-grid > #log,#rail{scrollbar-width:thin;scrollbar-color:rgba(122,162,247,.35) transparent}',
+
+    /* JUMP TO LATEST — "zooming to bottom is hard". Appears only when you are actually away
+       from the bottom, so it never covers the feed while you are reading live. */
+    /* anchored to the GRID, not .app: anchoring to .app put it on top of the composer hint row,
+       because bottom:18px there is inside the composer's own 134px band. The feed is what you are
+       returning to, so the button belongs at the foot of the feed. */
+    '.rail-grid{position:relative}',
+    '#rjump{position:absolute;right:322px;bottom:14px;z-index:14;display:none;align-items:center;gap:6px;',
+    '  padding:7px 12px;border-radius:99px;cursor:pointer;font:inherit;font-size:11.5px;font-weight:550;',
+    '  color:var(--text,#eef0f7);border:1px solid var(--border,rgba(255,255,255,.12));',
+    '  background:rgba(18,20,28,.82);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);',
+    '  box-shadow:0 10px 30px -12px rgba(0,0,0,.9);transition:transform .16s,opacity .16s}',
+    '#rjump.show{display:flex}',
+    '#rjump:hover{transform:translateY(-1px)}',
+    '#rjump .n{color:var(--user-a,#48e6bf);font-variant-numeric:tabular-nums}',
+    '@media (max-width:1080px){#rjump{right:18px}}',
+
+    /* CHAPTERS — "no clickable chapters on the left to quickly orient yourself".
+       Derived from the feed itself (speaker changes + time gaps), never hand-maintained. */
+    '.rchap{display:flex;gap:8px;align-items:baseline;padding:5px 0;cursor:pointer;',
+    '  border-top:1px solid var(--border,rgba(255,255,255,.07));font-size:11.5px}',
+    '.rchap:first-of-type{border-top:0}',
+    '.rchap:hover .t{color:var(--text,#eef0f7)}',
+    '.rchap.here .t{color:var(--user-a,#48e6bf)}',
+    '.rchap .ts{font-family:var(--mono,ui-monospace,monospace);font-size:9.5px;',
+    '  color:var(--faint,#5c6178);flex:none;width:52px}',
+    '.rchap .t{color:var(--muted,#9297ab);flex:1;min-width:0;overflow:hidden;',
+    '  text-overflow:ellipsis;white-space:nowrap;transition:color .15s}'
   ].join('');
 
   var GRAD = {
@@ -158,7 +210,75 @@
     grid.appendChild(log);
     var rail = document.createElement('aside'); rail.id = 'rail';
     grid.appendChild(rail);
+    mountJump(log);
     return rail;
+  }
+
+  /* ---- jump-to-latest ------------------------------------------------------------------
+     "zooming to bottom is hard". A feed that auto-scrolls while you read is worse than one
+     that does not, so the honest answer is not more auto-scroll -- it is a visible way BACK,
+     that appears only once you have actually left the bottom, and that tells you how much you
+     missed while you were away. */
+  function mountJump(log) {
+    if (document.getElementById('rjump')) return;
+    var btn = document.createElement('button');
+    btn.id = 'rjump';
+    btn.title = 'Scroll to the newest message';
+    btn.innerHTML = '<span>↓ Latest</span><span class="n"></span>';
+    (log.parentNode || document.body).appendChild(btn);   // the grid; see #rjump CSS note
+    var seenAtBottom = log.children.length;
+    function atBottom() { return (log.scrollHeight - log.scrollTop - log.clientHeight) < 80; }
+    function sync() {
+      if (atBottom()) { seenAtBottom = log.children.length; btn.classList.remove('show'); return; }
+      var behind = Math.max(0, log.children.length - seenAtBottom);
+      btn.querySelector('.n').textContent = behind ? '+' + behind : '';
+      btn.classList.add('show');
+    }
+    log.addEventListener('scroll', sync, { passive: true });
+    btn.onclick = function () {
+      // ONE CLICK MUST ARRIVE. Daniil: "it takes multiple clicks to get to the bottom."
+      // A smooth scroll toward scrollHeight is a moving target here -- the feed re-renders on a
+      // 5s poll, images/markdown settle after layout, and content-visibility:auto means
+      // off-screen rows have an ESTIMATED height that is replaced by the real one as they come
+      // into view. Each of those changes scrollHeight mid-animation, so the smooth scroll lands
+      // where the bottom USED to be. Jump instantly, then re-assert on the next few frames until
+      // the target stops moving. Instant is also the honest interaction: the button says take me
+      // to the bottom, not take me toward it.
+      var tries = 0;
+      (function land() {
+        log.scrollTop = log.scrollHeight;
+        if (++tries < 8 && (log.scrollHeight - log.scrollTop - log.clientHeight) > 2) {
+          requestAnimationFrame(land);
+        } else { sync(); }
+      })();
+    };
+    setInterval(sync, 1500);   // catches new messages arriving while scrolled away
+    sync();
+  }
+
+  /* ---- chapters ------------------------------------------------------------------------
+     DERIVED from the feed, never authored: a new chapter starts on a speaker change or a gap
+     of >8 minutes. That keeps it honest (it cannot claim structure the transcript does not
+     have) and self-maintaining (nothing to update when the feed grows). */
+  function chapters(log) {
+    var out = [], lastWho = null, lastT = 0;
+    [].forEach.call(log.children, function (el) {
+      if (!el.classList || !el.classList.contains('msg')) return;
+      var who = (el.querySelector('.who b, .who, .nm') || {}).textContent || '';
+      who = who.trim().split(/\s+/)[0] || '?';
+      var tEl = el.querySelector('.t, .time, .who i, .who span');
+      var label = (tEl && tEl.textContent || '').trim();
+      var t = Date.parse(el.dataset.ts || '') || 0;
+      var gap = lastT && t && (t - lastT) > 8 * 60000;
+      if (who !== lastWho || gap) {
+        var first = (el.textContent || '').replace(/\s+/g, ' ').trim();
+        first = first.replace(/^\S+\s*\d{1,2}:\d{2}\s*(AM|PM)?\s*\??\s*/i, '').slice(0, 46);
+        out.push({ el: el, who: who, ts: label, text: first || who });
+        lastWho = who;
+      }
+      if (t) lastT = t;
+    });
+    return out.slice(-14);          // bounded: a nav that grows without limit is a second feed
   }
 
   /* reasoning: the trace buffer is where 💭 lines land (same source presence-cloud reads) */
@@ -293,7 +413,21 @@
       h += '</section>';
     }
 
-    /* zone 4 — side channels (the standing ask) */
+    /* zone 4 — chapters, so the feed is navigable rather than only scrollable */
+    var log = document.getElementById('log');
+    var chaps = log ? chapters(log) : [];
+    if (chaps.length > 1) {
+      h += '<section class="rcard"><h3>Chapters<span class="cnt">' + chaps.length + '</span></h3>';
+      chaps.forEach(function (c, i) {
+        h += '<div class="rchap" data-i="' + i + '" title="' + esc(c.who) + ' — jump here">' +
+             '<span class="ts">' + esc(c.ts || c.who) + '</span>' +
+             '<span class="t">' + esc(c.text) + '</span></div>';
+      });
+      h += '<div class="rfoot">Derived from the feed — a chapter starts on a speaker change or an ' +
+           '8-minute gap. Newest ' + chaps.length + ' shown; nothing is authored, so nothing rots.</div></section>';
+    }
+
+    /* zone 5 — side channels (the standing ask) */
     if (chans && chans.channels) {
       h += '<section class="rcard"><h3>Rooms<span class="cnt">' + chans.channels.length + '</span></h3>';
       chans.channels.forEach(function (c) {
@@ -321,6 +455,15 @@
       el.onclick = function () {
         var a = el.dataset.a; open[a] = !open[a];
         el.classList.toggle('open', !!open[a]);
+      };
+    });
+    rail.querySelectorAll('.rchap').forEach(function (el) {
+      el.onclick = function () {
+        var c = chaps[parseInt(el.dataset.i, 10)];
+        if (!c || !c.el) return;
+        c.el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        rail.querySelectorAll('.rchap.here').forEach(function (o) { o.classList.remove('here'); });
+        el.classList.add('here');
       };
     });
   }

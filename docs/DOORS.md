@@ -8,7 +8,7 @@ Class: reference
 > (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by
 > check_comprehensibility so it cannot silently rot.
 
-## CLI door -- `py agent_cli.py <verb>` (71 verbs)
+## CLI door -- `py agent_cli.py <verb>` (72 verbs)
 
 The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.
 
@@ -35,7 +35,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `delta` | what changed since this agent's last boot (T052 delta door) | `<agent_id>*` `--ack` |
 | `discover` | list every verb + its purpose (the self-describing door) | `<query>` `--json` |
 | `doc` | seed a new doc with its header contract (library door) | `<sub> {new,adopt}` |
-| `doctor` | fleet liveness doctor (L2): progress, not presence | `--agents` `--page` `--progress` `--json` |
+| `doctor` | fleet liveness doctor (L2): progress, not presence | `--agents` `--deploy` `--page` `--progress` `--json` |
 | `episode` | session bookends: current episode, close+draft, accept | `<action>* {current,close,accept}` `<chapter_id>` `--title` `--desc` `--why` `--accept-title` `--accept-desc` `--accept-why` `--json` |
 | `events` | search / drill / capture the raw event firehose | `--search` `--around` `--window` `--get` `--capture` `--promote` `--threshold` `--kind` `--summary` `--detail-json` `--refs` `--agent` `--track` `--since` `--until` `--limit` `--json` |
 | `fence` | fence workspace: slots + seal-time method checks; confabulated filenames unrepresentable (R2) | `<action>* {open,write,seal,pv,status,list}` `<fence_id>` `--question` `--tier {full,lite}` `--slot {brief,half_a,half_b,reconciliation}` `--text` `--file` `--by` `--json` |
@@ -70,6 +70,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `recall-feedback` | mark a recalled lesson useful/noise (teaches recall what helps) | `--source*` `--useful` `--noise` |
 | `roster` | S2 lobby: per-seat worklive (LIVE/STALE proven by beat freshness, never key-existence) + have-summaries | `--json` `--reap` |
 | `run` | execute a toolbelt alias: run <agent> <name> (explicit door -- a real verb can never be shadowed) | `<agent_id>*` `<name>*` `<args>` `--dry` |
+| `seat-identity` | declare/show THIS session's seat id (binding beats the shared env) | `<agent_id>` `--session` `--clear` |
 | `stand-down` | yield this session's consumer seat PERMANENTLY so a successor can take it immediately (retiring a seat) | `<agent>*` |
 | `stats` | recall-value funnel: surfaced -> helped -> flips -> captured | `--hours` `--days` `--silence` `--json` |
 | `status` | honest system status | `--json` |

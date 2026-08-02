@@ -24,7 +24,7 @@
 - `agent_signal_ledger.py` — Agent Signal Ledger: the ordered record of every signal agents emit
 - `coordinator_api.py` — Coordinator API: Minimal signal-based logging for agents
 
-## core/comm/  (43 modules)
+## core/comm/  (44 modules)
 - `assertions.py` — Pre-flight assertions (T068-R3 / deepseek M10) -- verify a directed answer's FACTUAL
 - `bifrost_api.py` — bifrost.api -- the one door an agent uses to join and work the Bifrost bus.
 - `blobs.py` — BlobStore (Slice B1) -- a content-addressed blob store for Bifrost media/large payloads.
@@ -59,6 +59,7 @@
 - `runner_lib.py` — core.comm.runner_lib -- shared hardening for OpenAI-compatible seat transports (K0, 2026-07-18).
 - `runner_lock.py` — Bifrost runner singleton-lock -- at most ONE live runner per agent id.
 - `runtime_age.py` — runtime_age (T116) -- how much code a RUNNING process cannot possibly contain.
+- `seat_identity.py` — seat_identity -- WHO AM I, resolved per SESSION instead of per PROCESS.
 - `self_restart.py` — self_restart (A1) -- a runner that knows it is stale restarts itself.
 - `session_exit.py` — session_exit -- the clean-death trio (T075 M1-beta, reconciliation ruling 3).
 - `session_state.py` — Session State — snapshot the live Bifrost session so it can be resumed later.
@@ -189,6 +190,7 @@
 - `toast.py` — toast (T099 · tools-hunt BETA-2) -- gratitude with a receipt (kimi's hunt B3).
 
 ## entry points (repo root)
+- `_scratch_extract_lines.py` — (no docstring)
 - `agent_cli.py` — agent_cli.py -- THE single door an external agent (e.g. OpenCode) uses.
 - `ai_setup_mcp.py` — ai_setup_mcp.py -- the MCP-transport door into the Akashic Aurora (System 5).
 - `bootstrap.py` — Bootstrap — system entry point & honest status check
@@ -235,4 +237,5 @@
 - `ship_gate.py` — ship_gate -- the suite gate as a ONE-WAY RATCHET (T031 unblock, 2026-07-27).
 - `snapshot.py` — Snapshot the current Bifrost session for later resume. Run before shutting down.
 - `sol_chat.py` — sol_chat -- the Sol seat's model transport: gpt-5.6-sol (OpenAI) as a first-class Akashic citizen.
+- `ui_shot.py` — Headless screenshots of the live console -- the EYES half of the design loop.
 - `worktree.py` — worktree.py -- per-agent git worktrees (Concurrency design C1).

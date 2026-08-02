@@ -764,7 +764,18 @@ PAGE = r"""<!doctype html>
      ceiling. The strip scrolls internally; the controls never yield. */
   .pills{display:flex; gap:7px; align-items:center; flex:1 1 0; min-width:0;
     overflow-x:auto; overflow-y:hidden; scrollbar-width:thin;
-    scrollbar-color:var(--border) transparent; padding-bottom:2px}
+    scrollbar-color:var(--border) transparent; padding-bottom:2px;
+    /* NOWRAP IS LOAD-BEARING, and only reproducible with the right tile variant. The pill
+       children are rendered by a swappable REGISTRY['tile'] variant persisted per browser.
+       Under the default variant they are 58px chips and everything is fine; under `glass-card`
+       they are ~535px cards, and with wrapping allowed 11 of them stack into a ~950px column
+       INSIDE THE HEADER ROW -- which is exactly the "ai list taking half the screen" Daniil kept
+       reporting while my headless browser, holding the default variant, rendered a tidy strip and
+       showed me nothing wrong. Same code, different persisted preference, opposite layout.
+       nowrap + a height cap makes the strip behave identically under EVERY variant: it scrolls
+       sideways, it never grows downward, and no future tile renderer can reopen this. */
+    flex-wrap:nowrap; max-height:46px}
+  .pills > *{flex:none; max-height:40px; overflow:hidden}
   .pills::-webkit-scrollbar{height:6px}
   .pills::-webkit-scrollbar-thumb{background:var(--border); border-radius:3px}
   .pills::-webkit-scrollbar-track{background:transparent}
