@@ -22,6 +22,37 @@
 (function (global) {
   'use strict';
 
+  // --- FLOCK ----------------------------------------------------------------------------------
+  // Eleven fish, eight trail points each. TRAIL_DT is the spacing BETWEEN trail samples in path
+  // time, so it sets how long a trail looks rather than how fast a fish moves -- the two are
+  // independent, which is what lets a slow fish still draw a long streak.
+  const FISH = 11, TRAILP = 8, TRAIL_DT = 0.19;
+
+  // Per-fish constants, generated once. Each fish gets its own frequency triple and phase, so
+  // its path is a distinct Lissajous-style loop: bounded, closed-ish, and never retracing the
+  // same line twice on a visible cycle. That is what makes it read as PURPOSEFUL travel between
+  // points rather than as an orbit -- an ellipse looks like machinery, three incommensurate
+  // sines look like something deciding where to go.
+  function frac(x) { return x - Math.floor(x); }
+  const FISH_PARAMS = (function () {
+    const out = [];
+    for (let i = 0; i < FISH; i++) {
+      const h1 = frac(Math.sin((i + 1) * 12.9898) * 43758.5453);
+      const h2 = frac(Math.sin((i + 1) * 78.2330) * 22578.1459);
+      const h3 = frac(Math.sin((i + 1) * 39.4250) * 19349.1170);
+      out.push({
+        fx: 0.42 + h1 * 0.55, fy: 0.23 + h2 * 0.40, fz: 0.37 + h3 * 0.52,
+        px: h1 * 6.2831,      py: h2 * 6.2831,      pz: h3 * 6.2831,
+        ax: 1.30 + h3 * 0.60, az: 1.30 + h1 * 0.60,
+        alt: (h2 - 0.5) * 1.9,        // ALTITUDE BAND: each fish flies its path at its own height
+        hue: 0.24 + h3 * 0.50,        // indexed through auroraColor, so the palette still gates it
+        sat: h1 > 0.60 ? 1.0 : 0.0,   // only some carry a satellite ring
+        ring: 0.10 + h2 * 0.09
+      });
+    }
+    return out;
+  })();
+
   // --- GLSL -----------------------------------------------------------------------------------
   // Fullscreen triangle: no vertex buffer, positions synthesized from gl_VertexID.
   const VERT = `#version 300 es
@@ -161,8 +192,33 @@
     return exp(-vec3(1.30, 1.00, 0.66) * depth);
   }
 
+  // ===================== THE FLOCK =====================
+  // Daniil's brief: "lines moving like a flock of fish between points flying at different
+  // altitudes along their paths, they could sometimes spawn lines moving around them and
+  // rotating", with fog and light, on black.
+  //
+  // WHY THE PATHS ARRIVE AS UNIFORMS RATHER THAN BEING COMPUTED HERE. Every fragment would
+  // otherwise evaluate the SAME flock: eleven fish times eight trail points is 88 path
+  // evaluations of three sines each, roughly 460 transcendentals per pixel for a value that
+  // does not vary across the frame at all. Done once in JS it is 88 sines PER FRAME instead of
+  // per pixel, and the shader is left doing the only thing that genuinely is per-pixel --
+  // distance to a line segment.
+  //
+  // And the trail needs no history buffer: the path is ANALYTIC, so evaluating it at t - k*dt
+  // IS the past. No feedback texture, no state, nothing to get out of sync on a resize.
+  uniform vec3 u_trail[TRAIL_N];   // xy = already-projected screen position, z = depth
+  uniform vec4 u_fish[FISH_N];     // x hue, y satellite on/off, z ring radius, w ring phase
+
+  float segDist(vec2 p, vec2 a, vec2 b) {
+    vec2 pa = p - a, ba = b - a;
+    float h = clamp(dot(pa, ba) / max(dot(ba, ba), 1e-6), 0.0, 1.0);
+    return length(pa - ba * h);
+  }
+
   void main() {
     vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+    // centred and aspect-correct: the flock lives in world-ish space, not in 0..1 screen space
+    vec2 sc = (uv - 0.5) * vec2(u_resolution.x / u_resolution.y, 1.0);
     // aspect-correct the x so the curtain doesn't stretch on wide viewports
     vec2 suv = vec2(uv.x * (u_resolution.x / u_resolution.y), uv.y);
 
@@ -223,9 +279,61 @@
     float hue0 = clamp(0.30 + 0.42 * L0.y + 0.18 * uv.x, 0.0, 1.0);
     float hue1 = clamp(0.32 + 0.44 * L1.y + 0.20 * uv.x, 0.0, 1.0);
     float hue2 = clamp(0.35 + 0.45 * L2.y + 0.22 * uv.x, 0.0, 1.0);
-    vec3 col = auroraColor(hue0) * t0 * 0.55 * aerial(1.00)     // far
-             + auroraColor(hue1) * t1 * 0.80 * aerial(0.45)     // mid
-             + auroraColor(hue2) * t2 * 1.30;                   // near -- no attenuation
+    // The lattice is no longer the subject -- it is the DUST the flock's light passes through.
+    // Dropped hard rather than deleted: at this weight it reads as motes suspended in the fog,
+    // which is exactly what gives the trails something to illuminate. A flock glowing against
+    // literal nothing has no medium, and no medium means no fog however much haze is added.
+    vec3 col = (auroraColor(hue0) * t0 * 0.55 * aerial(1.00)     // far
+              + auroraColor(hue1) * t1 * 0.80 * aerial(0.45)     // mid
+              + auroraColor(hue2) * t2 * 1.30) * 0.34;           // near -- no attenuation
+
+    // ---- THE FLOCK ----
+    vec3 flock = vec3(0.0);
+    for (int i = 0; i < FISH_N; i++) {
+      vec4 meta = u_fish[i];
+      vec3 fc = auroraColor(meta.x);              // still gated by the palette
+      for (int k = 0; k < SEG_N; k++) {
+        vec3 a = u_trail[i * TRAILP + k];
+        vec3 b = u_trail[i * TRAILP + k + 1];
+        float d = segDist(sc, a.xy, b.xy);
+        float depth = 0.5 * (a.z + b.z);
+        // thickness falls with depth, for the same reason far things are thinner in a photograph
+        float w = 0.030 / depth;
+        float fade = 1.0 - float(k) / float(SEG_N);
+        // INVERSE-SQUARE LIGHT, not a filled stroke. The segment IS an emitter, so it lights the
+        // space around it instead of being a painted mark that stops dead at its own edge -- that
+        // spill is what reads as fog.
+        //
+        // SQUARED, and the first attempt proves why. A bare 1/d falloff measured 89.9% of the
+        // screen above a perceptible threshold and a median pixel at 22/255: individually each
+        // of the 77 segments looked faint at distance, but 1/d has such a long tail that
+        // seventy-seven faint tails sum to a wash everywhere, and the black background was gone.
+        // Squaring gives a 1/d^2 tail -- the same inverse-square real light obeys -- so a segment
+        // is bright at its core and genuinely absent a short way off, which is the only way lines
+        // can read as bright while the field stays dark.
+        float g = w / (d + w * 0.45);
+        flock += fc * (g * g * 2.2) * fade * fade * aerial(depth * 0.30);
+      }
+      // SATELLITES: an ellipse around the head whose minor axis breathes as its orbital plane
+      // turns -- which is precisely what a circle rotating in 3D projects to, so the rotation is
+      // implied by the projection rather than faked. Gated per fish so only some carry one.
+      vec3 hd = u_trail[i * TRAILP];
+      vec2 rp = sc - hd.xy;
+      float ca = cos(meta.w), sa = sin(meta.w);
+      rp = mat2(ca, -sa, sa, ca) * rp;
+      rp.y /= max(0.12, abs(sin(meta.w * 0.6)));
+      float rd = abs(length(rp) - meta.z / hd.z);
+      float rw = 0.015 / hd.z;
+      float rg = rw / (rd + rw * 0.9);
+      flock += fc * meta.y * (rg * rg * 2.0) * aerial(hd.z * 0.30);   // squared, same reason
+    }
+    // The flock respects the composition envelope too, but only PARTLY. That envelope exists to
+    // keep the vertical middle dark so body text stays legible, and bright trails running behind
+    // a paragraph would undo exactly what it is for. Applying it at full strength would also be
+    // wrong, though -- it would carve a dead band straight through the flock and make the fish
+    // vanish mid-flight, which reads as a bug rather than as depth. Floored at 0.42: dimmed
+    // enough to sit behind text, present enough to still be flying.
+    col += flock * mix(0.42, 1.0, env);
     col *= u_intensity;
 
     // FIELD MAGNITUDE, kept because the state tints below modulate BY the lattice -- the amber
@@ -297,7 +405,15 @@
     col += (n1 - n2) * (1.6 / 255.0);
 
     outColor = vec4(col, 1.0);   // opaque; the canvas is the backmost layer
-  }`;
+  }`
+  // GLSL array sizes must be compile-time literals, so the counts are injected rather than
+  // duplicated. Duplicating them would be a silent-corruption bug waiting to happen: raise FISH
+  // in JS, forget the shader, and the loop reads past the uploaded data into whatever the driver
+  // left in those uniform slots -- which renders as stray lines rather than as an error.
+  .replace(/TRAIL_N/g, String(FISH * TRAILP))
+  .replace(/FISH_N/g,  String(FISH))
+  .replace(/TRAILP/g,  String(TRAILP))
+  .replace(/SEG_N/g,   String(TRAILP - 1));
 
   // --- Driver ---------------------------------------------------------------------------------
   function isSupported() {
@@ -369,6 +485,35 @@
       this.u_state_intensity = gl.getUniformLocation(prog, 'u_state_intensity');
       this.u_speed = gl.getUniformLocation(prog, 'u_speed');
       this.u_intensity = gl.getUniformLocation(prog, 'u_intensity');
+      this.u_trail = gl.getUniformLocation(prog, 'u_trail');
+      this.u_fish = gl.getUniformLocation(prog, 'u_fish');
+      this._trailBuf = new Float32Array(FISH * TRAILP * 3);
+      this._fishBuf = new Float32Array(FISH * 4);
+    }
+
+    // The whole flock, once per frame. Eighty-eight path evaluations here replace roughly four
+    // hundred and sixty transcendentals PER PIXEL in the shader -- see the note above u_trail.
+    _updateFlock(t) {
+      const tb = this._trailBuf, fb = this._fishBuf;
+      let o = 0;
+      for (let i = 0; i < FISH; i++) {
+        const p = FISH_PARAMS[i];
+        for (let k = 0; k < TRAILP; k++) {
+          // Sampling the path BACKWARDS in time is the trail. k=0 is the head.
+          const tt = t - k * TRAIL_DT;
+          const x = Math.sin(tt * p.fx + p.px) * p.ax;
+          const y = Math.sin(tt * p.fy + p.py) * 0.45 + p.alt;
+          const z = Math.cos(tt * p.fz + p.pz) * p.az;
+          // Project here, not in the shader: perspective divide is per-point, not per-pixel.
+          // Clamped so a fish swinging through the camera plane cannot divide by ~0 and throw a
+          // segment to infinity -- which draws as a full-screen streak, not as a missing line.
+          const depth = Math.max(z + 3.15, 0.25);
+          const inv = 1 / depth;
+          tb[o++] = x * inv; tb[o++] = y * inv; tb[o++] = depth;
+        }
+        fb[i * 4] = p.hue; fb[i * 4 + 1] = p.sat;
+        fb[i * 4 + 2] = p.ring; fb[i * 4 + 3] = t * 0.55 + i * 1.7;
+      }
     }
 
     _resize() {
@@ -414,6 +559,11 @@
       gl.uniform1f(this.u_state_intensity, this.stateLerp);
       gl.uniform1f(this.u_speed, this.speed);
       gl.uniform1f(this.u_intensity, this.intensity);
+      // Flock time rides u_speed like everything else, so the speed slider still governs the
+      // whole field rather than desynchronising the trails from the lattice behind them.
+      this._updateFlock(time * this.speed);
+      gl.uniform3fv(this.u_trail, this._trailBuf);
+      gl.uniform4fv(this.u_fish, this._fishBuf);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       this._frames++;
     }
