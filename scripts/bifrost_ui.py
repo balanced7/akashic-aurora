@@ -843,6 +843,14 @@ PAGE = r"""<!doctype html>
      Cost is unchanged in kind and still trivial: the backing store renders at half scale, so
      192 CSS px is a 96px render target -- about 9k fragments against a full-screen 700k. */
   #ash-frame.has-av{width:192px; height:192px; border-radius:26px; font-size:0; color:transparent}
+  /* THE DEGRADED PATH, and it has to look deliberate. If WebGL2 is missing or the shader will
+     not compile the box stays two inches -- so the glyph must grow into it rather than sit as a
+     14px mark adrift in a large empty square, which reads as breakage rather than as a fallback.
+     Hover `data-av-off` on the element to see which of the three bails was taken. */
+  #ash-frame.av-fallback{width:192px; height:192px; border-radius:26px; font-size:58px;
+          display:flex; align-items:center; justify-content:center; line-height:1;
+          color:rgba(122,162,247,.5);
+          background:radial-gradient(circle at 50% 45%, rgba(122,162,247,.16), transparent 68%)}
   .heroav{position:absolute; inset:0; width:100%; height:100%; display:block;
           border-radius:25px; pointer-events:none}
   #ash-frame.has-av:hover{border-color:rgba(122,162,247,.65);
@@ -1879,44 +1887,75 @@ let lastActSig = null;
 var _heroAv = null;                // {canvas, shader, st}
 var _avatarsOff = false;
 
-function mountHeroAvatar(){
-  if(_avatarsOff || _heroAv) return;
-  if(typeof AgentAvatar === 'undefined' || !AgentAvatar.isSupported()){ _avatarsOff = true; return; }
-  var frame = document.getElementById('ash-frame');
-  if(!frame) return;
-  // Remove the fallback glyph OUTRIGHT rather than hiding it with font-size. It is a bare text
-  // node on the frame, and relying on the cascade to suppress it is one specificity accident
-  // away from a hexagon sitting on top of the avatar -- which is exactly what happened first try.
-  [].slice.call(frame.childNodes).forEach(function(n){
-    if(n.nodeType === 3) frame.removeChild(n);   // text nodes only; #pcloud stays
-  });
-  var cv = document.createElement('canvas');
-  cv.className = 'heroav';
-  cv.width = 96; cv.height = 96;               // backing store = half of the 192px box
-  try{ _heroAv = {canvas: cv, shader: new AgentAvatar(cv), st: null}; }
-  catch(e){ _avatarsOff = true; return; }
-  frame.insertBefore(cv, frame.firstChild);    // beneath #pcloud, which is now a corner badge
-  frame.classList.add('has-av');               // the avatar IS the glyph now
-  // Size set INLINE as well as in CSS. The stylesheet rule is correct and higher-specificity,
-  // but the frame's base rule is a long-standing 38px and this is the one dimension that must
-  // not lose a cascade argument -- an avatar silently rendering at thumbnail size looks like a
-  // bug in the shader rather than a bug in a selector. Inline is unambiguous.
+// SIZE IS NOT THE SHADER'S BUSINESS. Daniil asked for a two-inch piece; the shader is HOW it
+// is beautiful, not WHETHER it exists. Sizing used to sit AFTER the WebGL attempt, so all three
+// bail paths -- script absent, no WebGL2, compile failure -- silently left a 38px hexagon and
+// looked identical to "the change never shipped". On a host with a documented display-driver
+// TDR history that path is not hypothetical. The box is now set first and kept regardless.
+function sizeHeroFrame(frame){
   var SIZE = 192;                              // 2in at the CSS reference 96dpi (Daniil's ask)
   frame.style.width = SIZE + 'px';
   frame.style.height = SIZE + 'px';
   frame.style.borderRadius = '26px';
   var cw = frame.closest('.cwrap'); if(cw) cw.classList.add('tall');
-  // The backing store follows the box at half scale, and _resize() reads clientWidth -- so it
-  // must run AFTER layout has settled on the new size. Calling it synchronously right after
-  // setting the style races the reflow and locks in the OLD box, which renders a blurry
-  // thumbnail stretched over a 192px square. Defer a frame, then once more on load for the
-  // case where fonts/scrollbars shift the row after first paint.
-  var sizeIt = function(){ if(_heroAv && _heroAv.shader._resize) _heroAv.shader._resize(); };
-  requestAnimationFrame(function(){ requestAnimationFrame(sizeIt); });
-  window.addEventListener('load', sizeIt, {once:true});
+  return SIZE;
+}
+
+function mountHeroAvatar(){
+  if(_avatarsOff || _heroAv) return;
+  var frame = document.getElementById('ash-frame');
+  if(!frame) return;
+  var SIZE = sizeHeroFrame(frame);
+  // TRANSIENT IS NOT TERMINAL, and conflating the two is the whole bug. agent-avatar.js is a
+  // plain sync <script> at the END of <body>, after this one -- so a status poll returning from
+  // localhost in under a millisecond can reach here DURING parse, before the class exists. The
+  // old code latched _avatarsOff on that check, which turned a millisecond race into a permanent
+  // verdict: the poll won on Daniil's machine and lost on mine, same bytes, and the avatar was
+  // disabled for the life of the page. Bail without latching; the DOMContentLoaded door mounts
+  // it once the script is genuinely there.
+  if(typeof AgentAvatar === 'undefined'){ frame.dataset.avOff = 'pending-script'; return; }
+  // These two ARE terminal -- no amount of waiting produces a GPU. Latch, and leave WHY on the
+  // element: a silent permanent bail is what cost a screenshot and a round-trip to diagnose.
+  if(!AgentAvatar.isSupported()){
+    frame.dataset.avOff = 'no-webgl2';
+    frame.classList.add('av-fallback');
+    _avatarsOff = true; return;
+  }
+  var cv = document.createElement('canvas');
+  cv.className = 'heroav';
+  cv.width = 96; cv.height = 96;               // backing store = half of the 192px box
+  try{ _heroAv = {canvas: cv, shader: new AgentAvatar(cv), st: null}; }
+  catch(e){ frame.dataset.avOff = 'ctor: ' + String(e).slice(0,120);
+            frame.classList.add('av-fallback'); _avatarsOff = true; return; }
+  frame.insertBefore(cv, frame.firstChild);    // beneath #pcloud, which is now a corner badge
+  frame.classList.add('has-av');               // the avatar IS the glyph now
+  delete frame.dataset.avOff;                  // clear any 'pending-script' left by a lost race
+  // Drop the fallback glyph OUTRIGHT rather than hiding it through the cascade -- it is a bare
+  // text node on the frame, and font-size:0 is one specificity accident away from a hexagon
+  // sitting on top of the avatar, which is exactly what happened on the first attempt. This runs
+  // only once the shader is CONSTRUCTED: removing it earlier meant a compile failure left an
+  // empty two-inch box, trading a visible wrong thing for an invisible one.
+  [].slice.call(frame.childNodes).forEach(function(n){
+    if(n.nodeType === 3) frame.removeChild(n);   // text nodes only; #pcloud and the canvas stay
+  });
+  // The backing store follows the box at half scale. It used to be DISCOVERED by measuring
+  // clientWidth, which only works if layout has already settled on the size we set moments ago
+  // -- a timing bet that, lost, bakes a thumbnail render target into a two-inch square. The size
+  // is not a mystery at this point, so hand it over rather than asking the shader to find it.
+  _heroAv.shader._resize(SIZE);
   _heroAv.shader.setState('ambient');
   _heroAv.shader.start();
 }
+
+// MOUNT DOES NOT WAIT ON THE STATUS POLL. Until now mountHeroAvatar was reachable ONLY through
+// driveAvatars(), i.e. only from a status render that parsed cleanly -- so a slow, failed or
+// still-pending first poll left the composer's centrepiece as a 38px hexagon, indistinguishable
+// from "the change never shipped". That is the exact symptom Daniil screenshotted. The avatar is
+// chrome, not data: it should exist as soon as the DOM does, and the poll should only choose its
+// STATE. driveAvatars still calls mount() -- it is idempotent -- so this is a second door, not a
+// replacement, and the avatar survives whichever of the two arrives first.
+if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mountHeroAvatar);
+else mountHeroAvatar();
 
 // Activity verb -> avatar state. The console already knows what each agent is doing; this is
 // only the mapping, so there is no second source of truth about agent state.

@@ -256,15 +256,24 @@
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
   };
 
-  AgentAvatar.prototype._resize = function () {
+  AgentAvatar.prototype._resize = function (cssSize) {
     // Same undersampling logic as the aurora, and it matters far more here: the avatar is the
     // ONLY thing keeping this cheap. A 64px box at 0.5 scale is a 32px render target.
     var dpr = Math.min(global.devicePixelRatio || 1, 2);
     var scale = parseFloat(global.AKASHIC_AVATAR_SCALE);
     if (!(scale > 0 && scale <= 1)) scale = 0.5;
     var eff = Math.max(0.35, dpr * scale);
-    var w = Math.max(1, Math.floor((this.canvas.clientWidth || 64) * eff));
-    var h = Math.max(1, Math.floor((this.canvas.clientHeight || 64) * eff));
+    // A caller that ALREADY knows the box may hand over its CSS size, and the hero avatar does.
+    // Measuring clientWidth is a bet that layout has settled since the box was set; lose that
+    // bet and the OLD width is sampled, baking a thumbnail-sized render target into a much
+    // larger square -- which is a blur no amount of later redrawing repairs, because the backing
+    // store is only re-cut on resize. `cssSize` sticks, so the window-resize handler that calls
+    // _resize() bare keeps the right target instead of falling back to a guess.
+    if (cssSize > 0) this.cssSize = cssSize;
+    var box = this.cssSize || this.canvas.clientWidth || 64;
+    var boxH = this.cssSize || this.canvas.clientHeight || 64;
+    var w = Math.max(1, Math.floor(box * eff));
+    var h = Math.max(1, Math.floor(boxH * eff));
     this.canvas.width = w; this.canvas.height = h;
     this.gl.viewport(0, 0, w, h);
   };
