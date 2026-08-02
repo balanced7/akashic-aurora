@@ -1,0 +1,8 @@
+{
+  "filmic finish": [
+    "superlinear-highlight",
+    "tanh-tonemap",
+    "vignette-cubic",
+    "triangular-dither"
+  ]
+}

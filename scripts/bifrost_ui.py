@@ -145,6 +145,47 @@ def tail(client, last_ids, ns="bifrost", block_ms=15000):
 # highlight, or that the cubic vignette must be normalised by the true corner distance or it
 # blacks out the sides of a widescreen. Those facts lived only in commit messages, which is to say
 # they were already lost.
+# ---- VFX groups -------------------------------------------------------------------------------
+# A GROUP is a named run of modifiers -- "filmic finish" = superlinear-highlight, tanh-tonemap,
+# vignette-cubic, triangular-dither. It is the reusable unit that sits between a chunk (one idea)
+# and a composition (a whole picture), and it is the one that actually gets reused: nobody reaches
+# for a tone curve alone, they reach for the four-step finish that has always worked together.
+#
+# Stored EXPANDED, as the list of chunk names, not as a reference. A group is a shorthand for a
+# sequence, not an indirection: expanding on drop means a composition never depends on a group
+# file still existing or still meaning the same thing, and editing a group cannot silently change
+# a picture somebody already saved.
+VFX_GROUPS = os.path.join(REPO, "design", "vfx-groups.json")
+
+
+def _vfx_groups_read():
+    try:
+        with open(VFX_GROUPS, "r", encoding="utf-8") as fh:
+            d = json.load(fh)
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+def _vfx_groups_write(name, items):
+    key = "".join(c for c in str(name or "") if c.isalnum() or c in "-_ ")[:60].strip()
+    if not key:
+        return {"ok": False, "error": "name required"}
+    if not isinstance(items, list) or not items:
+        return {"ok": False, "error": "empty group"}
+    try:
+        os.makedirs(os.path.dirname(VFX_GROUPS), exist_ok=True)
+        cur = _vfx_groups_read()
+        cur[key] = [str(x)[:80] for x in items]
+        tmp = VFX_GROUPS + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(cur, fh, indent=2, sort_keys=True)
+        os.replace(tmp, VFX_GROUPS)
+        return {"ok": True, "name": key, "count": len(cur)}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)[:200]}
+
+
 VFX_CHUNKS = os.path.join(REPO, "design", "vfx-chunks")
 VFX_COMPOS = os.path.join(REPO, "design", "vfx-compositions.json")
 
@@ -327,6 +368,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"chunks": _vfx_chunks_read()})
         if path == "/vfx/compositions":
             return self._json(_vfx_compos_read())
+        if path == "/vfx/groups":
+            return self._json(_vfx_groups_read())
         if path.startswith("/vfx/sketch"):
             from urllib.parse import urlparse, parse_qs
             q = parse_qs(urlparse(self.path).query)
@@ -613,6 +656,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(_vfx_sketch_write(data.get("name"), data.get("src")))
         if path == "/vfx/compositions":
             return self._json(_vfx_compos_write(data.get("name"), data.get("value")))
+        if path == "/vfx/groups":
+            return self._json(_vfx_groups_write(data.get("name"), data.get("items")))
         if path == "/vfx/presets":
             name = str(data.get("name") or "").strip()
             if not name:

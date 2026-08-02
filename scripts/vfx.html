@@ -56,6 +56,24 @@
   .node .mv:hover{color:var(--acc2);background:none}
   /* the wire between blocks: a real connector, so the eye reads flow and not a stack */
   .wire{width:2px;height:12px;background:linear-gradient(var(--acc),var(--line));margin-left:26px}
+  /* PALETTE. Grouped by what a piece DOES to the image -- a flat list of seventeen names is a
+     list; grouped, it is something you can reach into without reading every label. */
+  .pal{margin-bottom:10px}
+  .palcat{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin:8px 0 4px}
+  .palrow{display:flex;flex-wrap:wrap;gap:5px}
+  .pill{padding:4px 9px;border:1px solid var(--line);border-radius:7px;background:#0e1520;
+    font-size:11px;cursor:grab;user-select:none;transition:.12s}
+  .pill:hover{border-color:var(--acc2);background:#121b28}
+  .pill:active{cursor:grabbing}
+  .pill.grp{border-color:#5a4a86;background:#171331}
+  .pill.src{border-color:var(--acc)}
+  .node{cursor:grab}
+  .node.drag{opacity:.35}
+  /* The drop line is the whole affordance: it says WHERE the thing will land, which is the only
+     question the hand is asking mid-drag. Without it a drop is a guess. */
+  .node.over{box-shadow:0 -2px 0 var(--acc)}
+  .chain.empty{border:1px dashed var(--line);border-radius:9px;padding:14px;text-align:center;
+    color:var(--dim);font-size:11px}
   .note{color:var(--dim);font-size:11px;margin-top:8px}
   .err{color:var(--warn)}
 </style>
@@ -89,9 +107,14 @@
         <select id="csource"></select>
         <button onclick="buildComp()" class="pri" style="width:auto;white-space:nowrap">Build &amp; run</button>
       </div>
+      <div id="palette"></div>
       <div id="chain" class="chain"></div>
       <div class="row">
-        <select id="addmod"><option value="">+ add modifier…</option></select>
+        <input id="gname" placeholder="group the chain as…"
+               style="background:#0e1520;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:7px 9px;font:inherit;flex:1">
+        <button onclick="saveGroup()" style="width:auto;white-space:nowrap">Make group</button>
+      </div>
+      <div class="row">
         <select id="compos"><option value="">— saved chains —</option></select>
         <button onclick="loadComp()" style="width:auto;white-space:nowrap">Open</button>
       </div>
@@ -283,9 +306,74 @@ var CHUNKS = [], chain = [];      // chain = ordered modifier names; the source 
 
 function chunkBy(n){ return CHUNKS.filter(function(c){ return c.name===n; })[0]; }
 
+// DRAG STATE lives in a module variable, not in dataTransfer. Browsers restrict reading
+// dataTransfer during dragover -- which is exactly when the drop indicator has to decide what it
+// is showing -- so relying on it means the affordance cannot know what it is about to accept.
+var GROUPS = {}, drag = null;
+
+function renderPalette(){
+  var box = el('palette'); box.innerHTML='';
+  function section(title, items, cls){
+    if(!items.length) return;
+    var h=document.createElement('div'); h.className='palcat'; h.textContent=title;
+    var r=document.createElement('div'); r.className='palrow';
+    items.forEach(function(it){
+      var p=document.createElement('div');
+      p.className='pill'+(cls?' '+cls:''); p.textContent=it.label; p.title=it.title||'';
+      p.draggable=true;
+      p.addEventListener('dragstart', function(e){ drag=it.payload; e.dataTransfer.effectAllowed='copy'; });
+      p.addEventListener('dragend', function(){ drag=null; clearOver(); });
+      // Click is a fallback and an accelerator both: dragging is nice, but appending to the end
+      // is what you want nine times in ten and a click says it in one gesture.
+      p.addEventListener('click', function(){ applyDrop(it.payload, chain.length); });
+      r.appendChild(p);
+    });
+    box.appendChild(h); box.appendChild(r);
+  }
+  var cats={};
+  CHUNKS.filter(function(c){return c.kind==='modifier';}).forEach(function(c){
+    (cats[c.cat||'misc']=cats[c.cat||'misc']||[]).push(
+      {label:c.name, title:(c.note||''), payload:{t:'mod', name:c.name}});
+  });
+  Object.keys(cats).sort().forEach(function(k){ section(k, cats[k]); });
+  section('sources', CHUNKS.filter(function(c){return c.kind==='source';}).map(function(c){
+    return {label:c.name, title:c.note||'', payload:{t:'src', name:c.name}}; }), 'src');
+  section('groups', Object.keys(GROUPS).sort().map(function(g){
+    return {label:g+' ('+GROUPS[g].length+')', title:GROUPS[g].join(' → '),
+            payload:{t:'grp', name:g}}; }), 'grp');
+}
+
+function clearOver(){
+  [].forEach.call(document.querySelectorAll('#chain .node'), function(n){ n.classList.remove('over'); });
+}
+
+// A group EXPANDS on drop rather than staying a reference. A group is shorthand for a sequence,
+// not an indirection: expanding means a saved chain never depends on a group file still existing
+// or still meaning the same thing, and editing a group cannot silently rewrite a picture that was
+// already saved.
+function applyDrop(payload, at){
+  if(!payload) return;
+  if(payload.t==='src'){ el('csource').value=payload.name; renderChain(); return; }
+  var items = payload.t==='grp' ? (GROUPS[payload.name]||[]).slice() : [payload.name];
+  if(payload.t==='move'){
+    var moving = chain.splice(payload.idx,1)[0];
+    if(payload.idx < at) at--;
+    chain.splice(at,0,moving);
+  } else {
+    chain.splice.apply(chain, [at,0].concat(items));
+  }
+  renderChain();
+}
+
 function renderChain(){
-  var box = el('chain'); box.innerHTML = '';
+  var box = el('chain'); box.innerHTML = ''; box.className='chain'+(chain.length?'':' empty');
   var src = chunkBy(el('csource').value);
+  if(!chain.length && !src){ box.textContent='drag a source here'; return; }
+
+  function dropTarget(d, at){
+    d.addEventListener('dragover', function(e){ e.preventDefault(); clearOver(); d.classList.add('over'); });
+    d.addEventListener('drop', function(e){ e.preventDefault(); clearOver(); applyDrop(drag, at); drag=null; });
+  }
   function node(kind, name, idx){
     var d = document.createElement('div');
     d.className = 'node' + (kind==='source' ? ' src' : '');
@@ -293,22 +381,49 @@ function renderChain(){
     var n = document.createElement('span'); n.className='n'; n.textContent = name;
     d.appendChild(k); d.appendChild(n);
     if (kind !== 'source') {
-      var up = document.createElement('button'); up.className='mv'; up.textContent='↑';
-      up.title = 'earlier in the chain';
-      up.onclick = function(){ if(idx>0){ var t=chain[idx-1]; chain[idx-1]=chain[idx]; chain[idx]=t; renderChain(); } };
-      var dn = document.createElement('button'); dn.className='mv'; dn.textContent='↓';
-      dn.title = 'later in the chain';
-      dn.onclick = function(){ if(idx<chain.length-1){ var t=chain[idx+1]; chain[idx+1]=chain[idx]; chain[idx]=t; renderChain(); } };
+      d.draggable = true;
+      d.addEventListener('dragstart', function(e){ drag={t:'move', idx:idx};
+        d.classList.add('drag'); e.dataTransfer.effectAllowed='move'; });
+      d.addEventListener('dragend', function(){ d.classList.remove('drag'); drag=null; clearOver(); });
+      dropTarget(d, idx);                       // dropping ON a node inserts BEFORE it
       var x = document.createElement('button'); x.className='x'; x.textContent='✕';
-      x.onclick = function(){ chain.splice(idx,1); renderChain(); };
-      d.appendChild(up); d.appendChild(dn); d.appendChild(x);
+      x.title='remove'; x.onclick=function(){ chain.splice(idx,1); renderChain(); };
+      d.appendChild(x);
+    } else {
+      dropTarget(d, 0);                          // dropping on the source prepends
     }
-    var c = chunkBy(name); if(c) d.title = (c.note||'') + (c.from ? '\n\nfrom: '+c.from : '');
+    var c = chunkBy(name);
+    if(c) d.title=(c.note||'')+(c.from?'\n\nfrom: '+c.from:'');
     box.appendChild(d);
   }
   function wire(){ var w=document.createElement('div'); w.className='wire'; box.appendChild(w); }
   if (src) node('source', src.name, -1);
   chain.forEach(function(m,i){ wire(); node('modifier', m, i); });
+
+  // The tail target: without it there is nowhere to drop "at the end", which is the most common
+  // intent of all and would otherwise require aiming at the last node and thinking about before
+  // versus after.
+  var tail=document.createElement('div');
+  tail.className='node'; tail.style.opacity='.5'; tail.style.borderStyle='dashed';
+  tail.innerHTML='<span class="k">drop</span><span class="n">append to end</span>';
+  dropTarget(tail, chain.length);
+  if(src){ wire(); box.appendChild(tail); }
+}
+
+async function refreshGroups(){
+  try{ GROUPS = await (await fetch('/vfx/groups')).json() || {}; }catch(e){ GROUPS={}; }
+  renderPalette();
+}
+async function saveGroup(){
+  var n=(el('gname').value||'').trim();
+  if(!n){ el('cmsg').className='note err'; el('cmsg').textContent='name the group first'; return; }
+  if(!chain.length){ el('cmsg').className='note err'; el('cmsg').textContent='chain is empty'; return; }
+  var r = await (await fetch('/vfx/groups',{method:'POST',headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name:n, items:chain.slice()})})).json();
+  el('cmsg').className = r.ok?'note':'note err';
+  el('cmsg').textContent = r.ok ? ('grouped '+chain.length+' modifiers as "'+r.name+'" — now draggable from the palette')
+                                : ('group failed: '+r.error);
+  if(r.ok){ el('gname').value=''; refreshGroups(); }
 }
 
 // The generator. Helpers are hoisted and DEDUPLICATED by name -- two chunks both needing h31 must
@@ -373,13 +488,8 @@ async function refreshChunks(){
     CHUNKS.filter(function(c){return c.kind==='source';}).forEach(function(c){
       var o=document.createElement('option'); o.value=c.name; o.textContent=c.name; cs.appendChild(o);
     });
-    var am = el('addmod'); am.innerHTML='<option value="">+ add modifier…</option>';
-    CHUNKS.filter(function(c){return c.kind==='modifier';}).forEach(function(c){
-      var o=document.createElement('option'); o.value=c.name; o.textContent=c.name;
-      o.title=c.note||''; am.appendChild(o);
-    });
-    am.onchange=function(){ if(am.value){ chain.push(am.value); am.value=''; renderChain(); } };
     cs.onchange=renderChain;
+    renderPalette();          // the modifier picker IS the palette now -- one place, draggable
     // Library view gets the chunks too -- same data, a different representation of it.
     var lb=el('lib');
     CHUNKS.forEach(function(c){
@@ -546,8 +656,9 @@ var LIBRARY = [
   setState('thinking');
   refreshPresets();
   refreshSketches();
-  refreshChunks();      // populates the source/modifier pickers AND appends to the library view
+  refreshChunks();      // populates the source picker, the palette AND the library view
   refreshCompos();
+  refreshGroups();      // after chunks: the palette redraws with groups once they land
 
   // Honest HUD: measured frame cost, not a guess. The bench is where a change gets its number.
   var last=performance.now(), acc=0, n=0;
