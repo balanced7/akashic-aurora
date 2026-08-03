@@ -80,6 +80,38 @@ def instance_token(agent: str) -> str:
     return f"{agent}:{os.getpid()}:{uuid.uuid4().hex[:12]}"
 
 
+def acquire_waiting(agent: str, token: str, ttl: Optional[int] = None,
+                    wait_s: Optional[float] = None, on_wait=None) -> bool:
+    """acquire(), but willing to outwait a DEAD predecessor's key instead of refusing outright.
+
+    THE FRICTION THIS REMOVES, paid for repeatedly on 2026-08-02: kill a runner, relaunch it three
+    seconds later, and the start is refused because the corpse's key has ~20s of TTL left -- so the
+    new process exits and the seat is simply down until a human notices. The refusal is CORRECT
+    (steal semantics are TTL-only and a live holder must never be evicted); the EXIT is what makes
+    it a watcher woe.
+
+    Waiting is deliberately chosen over PID-liveness stealing. A stale-PID check would let a
+    restart proceed instantly, but a recycled pid or a paused process would let it evict a LIVE
+    holder and produce the split-brain this lock exists to prevent. Waiting cannot: whoever is
+    genuinely alive keeps heartbeating and keeps the lock, and only a key nobody is refreshing
+    expires. The cost of being wrong is bounded by a few seconds either way.
+    """
+    deadline = time.time() + float(LOCK_TTL + 8 if wait_s is None else wait_s)
+    announced = False
+    while True:
+        if acquire(agent, token, ttl):
+            return True
+        if time.time() >= deadline:
+            return False
+        if not announced and on_wait:
+            try:
+                on_wait(holder(agent) or {})
+            except Exception:
+                pass
+            announced = True
+        time.sleep(1.0)
+
+
 def acquire(agent: str, token: str, ttl: Optional[int] = None) -> bool:
     """Try to become THE runner for `agent`. Returns True if we now hold the lock (either it was free,
     or a prior holder's key had expired). False means another live runner holds it -- do not start.

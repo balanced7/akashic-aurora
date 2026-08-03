@@ -1204,7 +1204,13 @@ def main() -> int:
     # Singleton guard: at most ONE runner per agent id. Two runners share one read-cursor and race --
     # one advances past a message the other should answer, so mail gets consumed with no reply.
     lock_token = runner_lock.instance_token(args.agent)
-    if not runner_lock.acquire(args.agent, lock_token):
+    # Wait out a DEAD predecessor's key rather than exiting (see acquire_waiting): a relaunch
+    # seconds after a kill used to be refused, and the seat stayed down until a human noticed.
+    if not runner_lock.acquire_waiting(
+            args.agent, lock_token,
+            on_wait=lambda h: print(
+                f"[deepseek-runner] '{args.agent}' lock held by pid {h.get('pid')} -- waiting for "
+                f"it to lapse. A LIVE holder keeps refreshing it and we will stand down.")):
         h = runner_lock.holder(args.agent) or {}
         tok = str(h.get("token", ""))
         if tok.startswith("session:"):

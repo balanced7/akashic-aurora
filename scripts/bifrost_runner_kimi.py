@@ -707,7 +707,15 @@ def main() -> int:
 
     # Singleton: at most ONE runner per agent id.
     lock_token = runner_lock.instance_token(args.agent)
-    if not runner_lock.acquire(args.agent, lock_token):
+    # Wait out a DEAD predecessor's key rather than exiting. Killing a runner and relaunching it
+    # seconds later used to be refused (the corpse's key still had TTL) and the seat simply stayed
+    # down until a human noticed -- paid for repeatedly on 2026-08-02.
+    if not runner_lock.acquire_waiting(
+            args.agent, lock_token,
+            on_wait=lambda h: print(
+                f"[kimi-runner] '{args.agent}' lock held by pid {h.get('pid')} -- waiting for it "
+                f"to lapse. A LIVE holder keeps refreshing it and we will stand down; only an "
+                f"unrefreshed key expires.")):
         h = runner_lock.holder(args.agent) or {}
         tok = str(h.get("token", ""))
         if tok.startswith("session:"):

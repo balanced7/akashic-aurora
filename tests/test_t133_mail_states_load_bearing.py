@@ -74,6 +74,46 @@ def _seed(mbx, client, msg, agent="claude"):
     return sha
 
 
+# ---- M5: a relaunch outwaits a corpse instead of exiting -----------------------------------------
+
+def test_a_relaunch_waits_out_a_dead_predecessors_key(monkeypatch):
+    """The friction paid for repeatedly on 2026-08-02: kill a runner, relaunch three seconds later,
+    get refused because the corpse's key still has TTL, and the seat stays DOWN until a human
+    notices. The refusal is correct; the exit is the watcher woe."""
+    from core.comm import runner_lock as rl
+    calls = {"n": 0}
+
+    def _acq(agent, token, ttl=None):
+        calls["n"] += 1
+        return calls["n"] >= 3          # the dead holder's key lapses on the third try
+    monkeypatch.setattr(rl, "acquire", _acq)
+    monkeypatch.setattr(rl.time, "sleep", lambda s: None)
+    assert rl.acquire_waiting("kimi", "tok", wait_s=30) is True
+    assert calls["n"] == 3
+
+
+def test_a_LIVE_holder_is_never_evicted(monkeypatch):
+    """The property that must not be traded for the convenience above. Waiting was chosen over a
+    stale-PID steal precisely because a recycled pid or a paused process would let a steal evict a
+    live holder and produce the split-brain this lock exists to prevent."""
+    from core.comm import runner_lock as rl
+    monkeypatch.setattr(rl, "acquire", lambda a, t, ttl=None: False)
+    monkeypatch.setattr(rl.time, "sleep", lambda s: None)
+    assert rl.acquire_waiting("kimi", "tok", wait_s=2) is False
+
+
+def test_the_wait_announces_itself_once(monkeypatch):
+    """Silence during a wait is indistinguishable from a hang -- the operator must be able to tell
+    'waiting for a lock' from 'wedged'."""
+    from core.comm import runner_lock as rl
+    seen = []
+    monkeypatch.setattr(rl, "acquire", lambda a, t, ttl=None: False)
+    monkeypatch.setattr(rl, "holder", lambda a: {"pid": 1234})
+    monkeypatch.setattr(rl.time, "sleep", lambda s: None)
+    rl.acquire_waiting("kimi", "tok", wait_s=3, on_wait=lambda h: seen.append(h))
+    assert len(seen) == 1 and seen[0]["pid"] == 1234
+
+
 # ---- M4: the send door stops calling a working seat unattended ----------------------------------
 
 def _bus(monkeypatch, beat_age, pulse_age):
