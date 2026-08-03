@@ -471,12 +471,27 @@ def test_an_unknown_intent_is_refused_not_silently_accepted():
     assert r.get("ok") is False and "maybe-later" in str(r.get("reason", ""))
 
 
-def test_declaring_about_mail_that_was_never_indexed_says_so():
-    """Absent and empty are different facts. A declaration against an unknown entry must report
-    that, not invent a receipt."""
+def test_declaring_indexes_mail_the_follower_has_not_reached_yet():
+    """FOUND LIVE. The index ingests on READ, so a message a runner is handling right now usually
+    has no entry -- and the declaration had nothing to attach to. That was the SECOND cause of the
+    "no mailbox entry for sha" run; the first was the bus dropping the packet sha. A seat actively
+    adjudicating a message is the strongest evidence that it is mail addressed to that seat."""
     mbx = _mailbox()
-    r = mbx.declare_for_message("claude", _Msg(content="never ingested"), "act",
-                                incarnation="inc1", ns=NS, client=_fake())
+    client, msg = _fake(), _Msg(kind="request", content="never ingested by a reader")
+    r = mbx.declare_for_message("claude", msg, "act", incarnation="inc1", ns=NS, client=client)
+    assert r.get("ok") is True, r
+    st = mbx.state_for(NS, "claude", r["sha"], client=client)
+    assert st["found"] and st["intent"]["intent"] == "act"
+    assert st["body"] == "never ingested by a reader", "the body must be captured, not just the id"
+
+
+def test_a_kind_the_mailbox_does_not_carry_is_refused_honestly():
+    """Not every envelope is mail. A trace is not addressed correspondence, and the seam must say
+    so rather than mint an entry for it -- absent and empty are different facts."""
+    mbx = _mailbox()
+    client = _fake()
+    r = mbx.declare_for_message("claude", _Msg(kind="trace", content="tool call"), "act",
+                                incarnation="inc1", ns=NS, client=client)
     assert r.get("ok") is False and "no mailbox entry" in str(r.get("reason", "")).lower()
 
 

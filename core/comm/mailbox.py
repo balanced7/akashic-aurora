@@ -799,6 +799,22 @@ def declare_for_message(agent: str, msg: Any, intent: str, *, incarnation: str,
         sha, basis = identity_of(fields, meta if isinstance(meta, dict) else {})
 
         client = client or _connect()
+
+        # INDEX IT IF THE FOLLOWER HAS NOT CAUGHT UP. The index ingests on READ, so a message a
+        # runner is handling RIGHT NOW usually has no entry yet -- and a declaration with nothing to
+        # attach to was the second cause of the "no mailbox entry for sha" run (the first was the
+        # bus dropping the packet sha). A seat actively adjudicating a message is the strongest
+        # possible evidence that the message is mail addressed to it, so recording it here is the
+        # follower doing its job early rather than a new source of truth.
+        if body_of(ns, agent, sha, client=client) is None:
+            try:
+                _ingest_one(client, ns, agent, "declare", str(getattr(msg, "id", "") or "0-0"),
+                            {"frm": fields["frm"], "to": fields["to"], "kind": fields["kind"],
+                             "content": fields["content"], "ts": fields["ts"],
+                             "meta": json.dumps(meta if isinstance(meta, dict) else {})})
+            except Exception:
+                pass                     # fall through: open() reports the miss honestly below
+
         # SEEN FIRST, then the decision. If the declaration is refused (unknown intent), the fact
         # that this seat READ the mail is still true and must survive -- that is exactly the
         # read-but-undeclared state the surface exists to make visible.
