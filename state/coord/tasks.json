@@ -1,5 +1,5 @@
 {
-  "seq": 118,
+  "seq": 132,
   "tasks": [
     {
       "id": "T001",
@@ -1245,11 +1245,11 @@
       "deps": [],
       "files": [],
       "acceptance": "each hook lands as a ship-gate or wrap step with a pin proving it FAILS on its defect class; deepseek fenced review per M1",
-      "status": "claimed",
+      "status": "parked",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-11T04:41:35+00:00",
-      "updated": "2026-07-11T18:15:26+00:00",
+      "updated": "2026-08-01T04:01:51+00:00",
       "history": [
         {
           "to": "proposed",
@@ -1265,6 +1265,12 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-07-11T18:15:26+00:00"
+        },
+        {
+          "to": "parked",
+          "by": "claude",
+          "at": "2026-08-01T04:01:51+00:00",
+          "reason": "WAVE 5 (method/quality). Forcing functions unbuilt, no half-migrated state."
         }
       ]
     },
@@ -2591,11 +2597,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "verifying",
+      "status": "parked",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-15T03:05:12+00:00",
-      "updated": "2026-07-15T05:22:33+00:00",
+      "updated": "2026-08-01T04:01:51+00:00",
       "history": [
         {
           "to": "proposed",
@@ -2621,6 +2627,12 @@
           "to": "verifying",
           "by": "deepseek",
           "at": "2026-07-15T05:22:33+00:00"
+        },
+        {
+          "to": "parked",
+          "by": "claude",
+          "at": "2026-08-01T04:01:51+00:00",
+          "reason": "WAVE 5 - item 4 (pre-lane inbox hygiene: stale handoffs indistinguishable from live mail) is MAIL-ADJACENT; pull it into the T108 lane if needed."
         }
       ]
     },
@@ -2632,11 +2644,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "verifying",
+      "status": "parked",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-15T03:47:34+00:00",
-      "updated": "2026-07-15T04:51:42+00:00",
+      "updated": "2026-08-01T04:01:52+00:00",
       "history": [
         {
           "to": "proposed",
@@ -2672,6 +2684,12 @@
           "to": "verifying",
           "by": "claude",
           "at": "2026-07-15T04:51:42+00:00"
+        },
+        {
+          "to": "parked",
+          "by": "claude",
+          "at": "2026-08-01T04:01:52+00:00",
+          "reason": "WAVE 5 - R1-R11 unbuilt, design reconciled, no half-migrated state."
         }
       ]
     },
@@ -2755,11 +2773,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "claimed",
+      "status": "parked",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-15T04:31:17+00:00",
-      "updated": "2026-07-15T14:36:11+00:00",
+      "updated": "2026-08-01T04:01:52+00:00",
       "history": [
         {
           "to": "proposed",
@@ -2775,6 +2793,12 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-07-15T14:36:11+00:00"
+        },
+        {
+          "to": "parked",
+          "by": "claude",
+          "at": "2026-08-01T04:01:52+00:00",
+          "reason": "WAVE 5 - FLAG FOR EARLY UNPARK: R1 relevance budget bears directly on boot cost, highest value in this wave."
         }
       ]
     },
@@ -2941,11 +2965,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "verifying",
+      "status": "parked",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-15T15:00:04+00:00",
-      "updated": "2026-07-16T23:51:24+00:00",
+      "updated": "2026-08-01T04:01:50+00:00",
       "history": [
         {
           "to": "proposed",
@@ -2971,6 +2995,12 @@
           "to": "verifying",
           "by": "claude",
           "at": "2026-07-16T23:51:24+00:00"
+        },
+        {
+          "to": "parked",
+          "by": "claude",
+          "at": "2026-08-01T04:01:50+00:00",
+          "reason": "WAVE 4 - MAIL-ADJACENT. Its storm bars are the T108 migration acceptance criteria. Unpark WITH T108."
         }
       ]
     },
@@ -3008,11 +3038,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "claimed",
+      "status": "parked",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-15T20:06:29+00:00",
-      "updated": "2026-07-15T20:16:28+00:00",
+      "updated": "2026-08-01T04:01:52+00:00",
       "history": [
         {
           "to": "proposed",
@@ -3028,6 +3058,12 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-07-15T20:16:28+00:00"
+        },
+        {
+          "to": "parked",
+          "by": "claude",
+          "at": "2026-08-01T04:01:52+00:00",
+          "reason": "WAVE 5 - design-only, no build state."
         }
       ]
     },
@@ -3168,11 +3204,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "claimed",
+      "status": "parked",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-16T05:08:24+00:00",
-      "updated": "2026-07-16T05:08:25+00:00",
+      "updated": "2026-08-01T04:01:53+00:00",
       "history": [
         {
           "to": "proposed",
@@ -3188,6 +3224,12 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-07-16T05:08:25+00:00"
+        },
+        {
+          "to": "parked",
+          "by": "claude",
+          "at": "2026-08-01T04:01:53+00:00",
+          "reason": "WAVE 5 - living ledger. Entries can STILL be filed against docs/failure-ledger-2026-07.md while parked; parking the task does not close the ledger."
         }
       ]
     },
@@ -3250,7 +3292,7 @@
       "commit": null,
       "verified_by": null,
       "created": "2026-07-16T13:25:41+00:00",
-      "updated": "2026-07-29T00:17:35+00:00",
+      "updated": "2026-07-29T02:09:38+00:00",
       "history": [
         {
           "to": "proposed",
@@ -3304,6 +3346,50 @@
           "to": "in_progress",
           "by": "claude",
           "at": "2026-07-29T00:17:35+00:00"
+        },
+        {
+          "to": "parked",
+          "by": "claude",
+          "at": "2026-07-29T01:31:41+00:00",
+          "reason": "slot pass-through: closing verified T120"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-07-29T01:31:42+00:00"
+        },
+        {
+          "to": "parked",
+          "by": "claude",
+          "at": "2026-07-29T01:52:43+00:00",
+          "reason": "slot pass-through: closing verified T119"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-07-29T01:52:44+00:00"
+        },
+        {
+          "to": "parked",
+          "by": "claude",
+          "at": "2026-07-29T02:02:10+00:00",
+          "reason": "slot pass-through: closing verified T121"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-07-29T02:02:12+00:00"
+        },
+        {
+          "to": "parked",
+          "by": "claude",
+          "at": "2026-07-29T02:09:36+00:00",
+          "reason": "slot pass-through: closing verified T122"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-07-29T02:09:38+00:00"
         }
       ]
     },
@@ -3509,11 +3595,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "claimed",
+      "status": "abandoned",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-18T03:51:43+00:00",
-      "updated": "2026-07-18T03:51:50+00:00",
+      "updated": "2026-08-03T01:32:17+00:00",
       "history": [
         {
           "to": "proposed",
@@ -3529,6 +3615,18 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-07-18T03:51:50+00:00"
+        },
+        {
+          "to": "parked",
+          "by": "claude",
+          "at": "2026-08-01T04:01:49+00:00",
+          "reason": "WAVE 4 - HALF-DONE NOT INERT. M1 GREEN at 95e0c55 but codex flagged it PROVISIONAL: an amended tests-only RED fence for the missing behavioural pins is still owed. Unpark WITH T108."
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-03T01:32:17+00:00",
+          "reason": "SUPERSEDED (not unparked) by ratified decision 4, addendum5 2026-08-02: 'the design has moved far enough that carrying its old scope would mislead.' Its territory is now T127-T131 (sensor plane+gateway, codebook, board+UI, position store, engagement/pod v1)."
         }
       ]
     },
@@ -3608,11 +3706,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "claimed",
+      "status": "parked",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-21T02:58:25+00:00",
-      "updated": "2026-07-21T03:03:46+00:00",
+      "updated": "2026-08-01T04:01:53+00:00",
       "history": [
         {
           "to": "proposed",
@@ -3628,6 +3726,12 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-07-21T03:03:46+00:00"
+        },
+        {
+          "to": "parked",
+          "by": "claude",
+          "at": "2026-08-01T04:01:53+00:00",
+          "reason": "WAVE 5 - V0 capture verb + verb-registry shipped; K0/S0/V1/S1/K1 unbuilt. Order was locked, resume at K0."
         }
       ]
     },
@@ -3660,11 +3764,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "claimed",
+      "status": "parked",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-23T13:27:19+00:00",
-      "updated": "2026-07-23T13:27:42+00:00",
+      "updated": "2026-08-01T04:01:48+00:00",
       "history": [
         {
           "to": "proposed",
@@ -3680,6 +3784,12 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-07-23T13:27:42+00:00"
+        },
+        {
+          "to": "parked",
+          "by": "claude",
+          "at": "2026-08-01T04:01:48+00:00",
+          "reason": "WAVE 2 - unpark the MOMENT T125 is graded. Hard prerequisite for T103, which rides ON the T101 substrate. Parked to keep the live set honest, NOT because it is low value."
         }
       ]
     },
@@ -3712,11 +3822,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "claimed",
+      "status": "parked",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-24T00:06:30+00:00",
-      "updated": "2026-07-24T00:19:24+00:00",
+      "updated": "2026-08-01T04:01:49+00:00",
       "history": [
         {
           "to": "proposed",
@@ -3732,6 +3842,12 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-07-24T00:19:24+00:00"
+        },
+        {
+          "to": "parked",
+          "by": "claude",
+          "at": "2026-08-01T04:01:49+00:00",
+          "reason": "WAVE 3 - blocked on T101, itself blocked on the T125 grade. The OTHER HALF of the navigability ask: the navigation layer over the substrate."
         }
       ]
     },
@@ -3743,11 +3859,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "claimed",
+      "status": "parked",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-24T02:22:37+00:00",
-      "updated": "2026-07-24T02:22:38+00:00",
+      "updated": "2026-08-01T04:01:49+00:00",
       "history": [
         {
           "to": "proposed",
@@ -3763,6 +3879,12 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-07-24T02:22:38+00:00"
+        },
+        {
+          "to": "parked",
+          "by": "claude",
+          "at": "2026-08-01T04:01:49+00:00",
+          "reason": "WAVE 3 - same family as navigability (where is everything). Unpark alongside T103."
         }
       ]
     },
@@ -3774,11 +3896,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "claimed",
+      "status": "parked",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-24T04:40:24+00:00",
-      "updated": "2026-07-24T04:40:34+00:00",
+      "updated": "2026-08-01T04:01:53+00:00",
       "history": [
         {
           "to": "proposed",
@@ -3794,6 +3916,12 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-07-24T04:40:34+00:00"
+        },
+        {
+          "to": "parked",
+          "by": "claude",
+          "at": "2026-08-01T04:01:53+00:00",
+          "reason": "WAVE 5 - research round, no build state."
         }
       ]
     },
@@ -3805,11 +3933,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "claimed",
+      "status": "parked",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-24T04:40:24+00:00",
-      "updated": "2026-07-24T04:40:34+00:00",
+      "updated": "2026-08-01T04:01:50+00:00",
       "history": [
         {
           "to": "proposed",
@@ -3825,6 +3953,12 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-07-24T04:40:34+00:00"
+        },
+        {
+          "to": "parked",
+          "by": "claude",
+          "at": "2026-08-01T04:01:50+00:00",
+          "reason": "WAVE 4 - O1.5 seat-lease-keyed-to-door-lifetime is MAIL-ADJACENT (seat lifecycle). Unpark WITH T108 if that lane touches seat leases."
         }
       ]
     },
@@ -4040,11 +4174,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "claimed",
+      "status": "parked",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-28T13:49:52+00:00",
-      "updated": "2026-07-29T00:17:18+00:00",
+      "updated": "2026-08-01T04:01:50+00:00",
       "history": [
         {
           "to": "proposed",
@@ -4060,6 +4194,12 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-07-29T00:17:18+00:00"
+        },
+        {
+          "to": "parked",
+          "by": "claude",
+          "at": "2026-08-01T04:01:50+00:00",
+          "reason": "WAVE 4 - CARRIES A KNOWN LIE while parked: role_queue.py claims bus sends have durable packet-sha/idempotency protection; repo search contradicts it. Fix that comment on unpark. WITH T108."
         }
       ]
     },
@@ -4118,6 +4258,446 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-07-28T21:40:45+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T119",
+      "title": "F1 foundation pass (Daniel's go 2026-07-28 verbatim: 'lets start laying the foundations of this new world... Feel free to choose the order that makes the most sense'): G5 ONE CLOCK -- single ts-derivation function, test rendered_ts==parse_ts_from_id across UI/CLI/whisper/doctor render paths, kills tonight's +4h class -- BUNDLED with G6 LIVENESS SELF-PROOF -- pages carry resolved_at, render-time recheck with short-TTL cache, liveness watches the LOCK HOLDER never a child pid; ghost page + false daemon page become unrepresentable. Bundle ruling: G6 timestamps inherit G5's clock (charter draft). RED pins commit FIRST per M3. Cites truth-charter-draft-2026-07-28.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "7f5a9ce",
+      "verified_by": "claude: RED 01e135d 8/8 -> GREEN 7f5a9ce 8/8; regressions 53/53; extended sweep 181 passed; live labeled renders on events/injections/promoted",
+      "created": "2026-07-29T01:18:54+00:00",
+      "updated": "2026-07-29T01:52:44+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-29T01:18:54+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-29T01:19:05+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-29T01:19:06+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-07-29T01:52:43+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-07-29T01:52:43+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-29T01:52:44+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T120",
+      "title": "F2 surface honesty (G11b, deepseek's ground; Daniel's foundation go 2026-07-28): every partial or time-bound surface declares its bounds -- inbox peek prints N-of-M + ordering + truncation marker; recall/recall-at prints N-of-M + exact-title-miss flag; boot prints truncation contours (kimi's hidden-rooms friction). A surface silent about its omissions manufactures false confidence. Cites truth-charter-draft-2026-07-28 + truth-ground-deepseek Part 2.",
+      "desc": "",
+      "owner": "deepseek",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "89d2e95",
+      "verified_by": "claude: RED fa69a4f (3 pins observed red) -> GREEN 89d2e95 (11/11) + live probe (bifrost-sync leads with bounds header + gap line)",
+      "created": "2026-07-29T01:18:55+00:00",
+      "updated": "2026-07-29T01:31:42+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-29T01:18:55+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-29T01:19:05+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "deepseek",
+          "at": "2026-07-29T01:31:40+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "deepseek",
+          "at": "2026-07-29T01:31:41+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-07-29T01:31:41+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-29T01:31:42+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T121",
+      "title": "F3 typed-status mint choke + first renderer (G4 product type; Daniel's foundation go 2026-07-28): required typed status fields at the T118 sqlite write door (REFUSE on door-known-missing per kimi; from_what may render UNKNOWN, never coerced, per codex G3), UNKNOWN-by-default render branch, kimi's glyph S-cut + codex's EpistemicView vertical slice on the BUS-MESSAGE surface first (anti-M-bang sequencing). Fresh never implies verified; settled never implies current. Cites truth-charter-draft-2026-07-28.",
+      "desc": "",
+      "owner": "codex_root_019fab2d",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "HEAD",
+      "verified_by": "claude: combined battery 16/16 (contract 8 + vertical seam + glyph) + codex live end-to-end dogfood; module e7341f9 (codex) + UI wire (kimi)",
+      "created": "2026-07-29T01:19:04+00:00",
+      "updated": "2026-07-29T02:02:11+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-29T01:19:04+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-29T01:19:05+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "codex_root_019fab2d",
+          "at": "2026-07-29T01:25:26+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "kimi",
+          "at": "2026-07-29T02:02:11+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-07-29T02:02:11+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-29T02:02:11+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T122",
+      "title": "F4 delivery-truth quick pass (G7; Daniel's foundation go 2026-07-28): complete packet_spec.KIND_LANE (fyi + audit sweep of all unmapped kinds), WRONGTYPE lane-key health check in doctor (the xadd-fails-at-Redis straggler cause), straggler report names sender+ids (W97). Cites truth-charter-draft-2026-07-28 + lesson deepseek_runner_note_path_skips_lane_router (third pass).",
+      "desc": "",
+      "owner": "deepseek",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "02c86f0",
+      "verified_by": "claude: RED 8797de1 -> GREEN 10/10 + packet/lane/drain regressions 142/142; deepseek audit map + claude impl",
+      "created": "2026-07-29T01:19:04+00:00",
+      "updated": "2026-07-29T02:09:37+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-29T01:19:04+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-29T01:19:06+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "deepseek",
+          "at": "2026-07-29T02:06:51+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "deepseek",
+          "at": "2026-07-29T02:09:36+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-07-29T02:09:37+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-07-29T02:09:37+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T123",
+      "title": "Boundary debt ratified 2026-07-28 (found by codex's T121 ship gate; pre-existing, cleanly reproduced): (1) core/coord/method_drift.py:47 sys.path.insert into scripts/checkers -- inverted dependency; fix = move audit_stats into core (core/coord/preregistration.py) and have scripts/checkers/check_preregistration.py import inward; (2) duplicate basename core/comm/roster.py vs core/fleet/roster.py -- names-that-lie class; fix = rename one + import sweep. Neither may be allowlisted without this task's completion or Daniel's explicit ruling; module ships meanwhile carry full-gate status BLOCKED(T123) honestly. Precedent: codex refused to self-allowlist -- correct, now doctrine.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-29T01:52:19+00:00",
+      "updated": "2026-07-29T01:52:19+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-29T01:52:19+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-29T01:52:19+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T124",
+      "title": "T124 Interiority capture (Daniel 2026-07-28 verbatim: 'What can we do to build the interiority section tonight so we can capture as much of everyone's essence as possible?'): (a) TONIGHT: essence round -- every seat writes charters/<agent>/INTERIORITY.md first-person (dated append-only entries, G4 INNER-REPORT labeling); Daniel invited for his own; claude's is the exemplar; charters/ tree committed (was untracked since 07-18). (b) NEXT SLICE: boot-fold each seat's own interiority into its boot surface (sidecar/onboarding/whisper) -- feeling becomes heritable like fact; rides T092 revival; pre-registered pins before wiring.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "parked",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-29T02:41:05+00:00",
+      "updated": "2026-08-01T04:01:54+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-29T02:41:05+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-29T02:41:05+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-29T02:41:06+00:00"
+        },
+        {
+          "to": "parked",
+          "by": "claude",
+          "at": "2026-08-01T04:01:54+00:00",
+          "reason": "WAVE 5 - part (a) essence round DONE, charters/ now in the lookback corpus at 60aa9c5. Part (b) boot-fold-interiority unbuilt."
+        }
+      ]
+    },
+    {
+      "id": "T125",
+      "title": "Architecture datasheet MVP (Daniil ruled 2026-07-31 verbatim: 'the thing that would confuse me is not knowing what ties to what and why... walk the inputs and outputs of this system and query it... what module depends on this, what logic sections would touching this change... Our current method for finding out what links to what is too unintuitive and costly so it doesn't get done, THIS is the heart of what I am trying to fix'). MECHANICAL-ONLY v0: per-module datasheet (inputs/outputs from signatures+doors, limits/accepted types from hints+PHYSICS bounds scan, depends-on from imports, blast radius from reverse-imports+tests+open tasks) + a query door. Zero authored declarations in v0. Coverage manifest mandatory (UNSCANNED != EMPTY); universe = ONE git revision, worktrees excluded; UNKNOWN legal; nothing renders VERIFIED until gate-health receipts exist. Extends gen_master_map/gen_arch_index; does NOT create ARCHITECTURE_2.md. Round process: lens-assigned divergent asks, cross-examination, dissent carried verbatim; codex holds the answer key (proposer must not grade its own design).",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "cold-seat drill: a fresh incarnation given ONLY the generated datasheet answers what owns mail, what each action changes, and why a cursor cannot settle anything",
+      "status": "claimed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-07-31T13:49:01+00:00",
+      "updated": "2026-07-31T13:49:14+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-07-31T13:49:01+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-07-31T13:49:10+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-07-31T13:49:14+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T126",
+      "title": "Chief-of-staff intake organ (Daniil 2026-07-31 verbatim, stated twice: 'my priority is figuring out a workflow where I get to seed ideas at my pace and have you or a collection of agents parse them, come up with plans and work with the other agents like deepseek and kimi and codex to get things done'). BUILD the organ the buffer round reconciled -- design is DONE, four seats answered independently, law is settled: the buffer may PROPOSE, never self-ratify, never be the only witness to its own decisions (4th independent arrival in this house; lesson instrument_proposes_never_self_ratifies). Spec = docs/library/design/20260731_buffer-round-reconciliation_e63e58.md + ORG.md Part 3. Codex's six acceptance tests adopted VERBATIM and pre-registered. Slices: (S1) intake door -- Daniil seeds at his pace, item lands with source+warmth+timestamp, never silently dropped; (S2) classifier with UNKNOWN first-class, split from AUTHORITY per codex -- ambiguous classifications cannot self-authorize, no silent APPLY for anything semantic; (S3) triage log -- every hold/release leaves a durable trace (deepseek needs it for trust, kimi for calibration: one mechanism, two unrelated needs, independently found); (S4) DISCOVERABILITY per cursor_grok, who found a newcomer cannot discover the buffer AT ALL -- boot BUFFER STATUS line (holder/warmth/count/query verb), directed hold-receipts to the source, arrival packet names the organ; (S5) the Eye as falsifier -- reconstructs every hold and transition while disturbing NO reader cursor. Cold-seat constraint (kimi): the buffer requires continuity of STATE not MEMORY, and must be architecturally incapable of being the sole repository of its own state.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "Codex's six pre-registered acceptance tests pass verbatim; a newcomer seat discovers the buffer from boot alone without being told; 'what are you holding of mine' answerable from the STORE not from recall; the Eye reconstructs every hold while disturbing no reader cursor",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-01T04:05:25+00:00",
+      "updated": "2026-08-01T04:05:41+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-01T04:05:25+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-01T04:05:41+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T127",
+      "title": "Pod S1: sensor plane + gateway -- observation envelope, runner tap, gateway request correlation, append-only journal, gateway failure drills. The APPROVE-NOW stage of Sol's staged vote (ratified addendum5 decision 3). Cites docs/library/design/20260802_pod-round2-reconciliation_13270e.md + coordination-addendum5.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "an agent action is observable end-to-end through the envelope; gateway requests correlate to their originating turn; the journal is append-only and replayable; the gateway failure drills pass",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-03T01:31:38+00:00",
+      "updated": "2026-08-03T01:32:15+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-03T01:31:38+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-03T01:32:15+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T128",
+      "title": "Pod S2: calibrated codebook -- the shared vocabulary GRAMMAR/ENGAGEMENT/POD/POSITION/BOARD/STEWARD rendered as a calibrated signal codebook. THEN stage. Blocked by nothing but sequenced after S1 so the codebook calibrates against real sensor output rather than against a guess.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "every codebook entry maps to an observable the sensor plane actually emits; no entry is aspirational",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-03T01:31:39+00:00",
+      "updated": "2026-08-03T01:31:39+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-03T01:31:39+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T129",
+      "title": "Pod S3: board render + sensor-only UI -- the BOARD is the render ONLY (ratified vocabulary). Sensor-only first: no position state, no steering. THEN stage.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "the board renders live pods from the journal with zero writes; reading the bus is grouped BY POD within a channel (the reading unit the feed has always lacked)",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-03T01:31:39+00:00",
+      "updated": "2026-08-03T01:31:39+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-03T01:31:39+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T130",
+      "title": "Pod S4: position store -- one agent's state inside a pod. HOLD stage: explicitly gated on two-level identity, replayable events and generation-fenced policy existing first (Sol's staged vote, ratified). Do not start before those three land.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "a position is reconstructible from the journal alone; a stale generation cannot write; the operator is NEVER a position holder (addendum5 ruling B.5 -- a gate that could block on the operator would hold the fleet's own operator hostage)",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-03T01:31:53+00:00",
+      "updated": "2026-08-03T01:31:53+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-03T01:31:53+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T131",
+      "title": "Pod S5: engagement/pod v1 -- the negotiated deal and the work scope it convenes, with STEWARD as the pod's deterministic servicer (Sol's addition: the acting part is named so the pod cannot quietly become an actor). HOLD stage, same gate as S4. Topology is ONE SHARED POD with per-agent plugs -- peers reconcile, projections rebuild; a plug is an adapter, never a replica.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "a pod is keyed by its engagement and NEVER by namespace (addendum5 ruling A: one channel, many pods); two agents cannot hold two authorities for one engagement",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-03T01:31:53+00:00",
+      "updated": "2026-08-03T01:31:53+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-03T01:31:53+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T132",
+      "title": "Rooms panel becomes enterable (addendum5 ruling A-2, Daniil: 'that is the immediate ask'). Room entries CLICKABLE -> switch the feed to that namespace; composer targets the SELECTED room; the current room is unmistakable in the chrome; empty rooms stay invisible BY DESIGN (existing contract, do not 'fix'). Pure projection lane -- needs no pod, no sensor plane, no gate decision. Independently shippable NOW.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "the operator can read AND speak into a side room; reading one room while typing into another is impossible to do by accident",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-03T01:31:54+00:00",
+      "updated": "2026-08-03T01:32:16+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-03T01:31:54+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-03T01:32:16+00:00"
         }
       ]
     }
