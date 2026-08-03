@@ -320,8 +320,18 @@ class Bus:
             from core.comm import liveness as _liveness
             if _liveness.progress_age(to) is not None:
                 return True, youngest          # working right now, whatever the heartbeat says
+            # AND THE IDLE CASE, which the pulse cannot cover and which is the common one. A pulse
+            # marks WORK and has a ~5s TTL, so a runner sitting in its consume loop has none --
+            # yet it is perfectly alive and will answer the moment mail lands. Its worklive record
+            # is refreshed by a heartbeat thread every ~5s under a 45s TTL, so a FRESH one is
+            # attendance. Measured 2026-08-03: kimi 2.4s and deepseek 1.0s, both idle, both
+            # answering, while the roster called them 29,611s stale and this door warned about
+            # seats that were listening.
+            wl = _liveness.worklive_beat_age(to)
+            if wl is not None and wl <= self.UNATTENDED_S:
+                return True, youngest
         except Exception:
-            pass                               # pulse unreadable -> fall back to the beat's verdict
+            pass                               # unreadable -> fall back to the beat's verdict
         return False, youngest
 
     def _warn_if_unattended(self, to: str):

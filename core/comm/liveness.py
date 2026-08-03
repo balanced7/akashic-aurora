@@ -204,6 +204,27 @@ def read(agent: str):
         return None
 
 
+def worklive_beat_age(agent: str):
+    """Seconds since this agent's worklive record was last stamped, or None if there is no record.
+
+    The signal a roster heartbeat cannot give for a runner-backed seat. WORKLIVE_TTL is 45s and a
+    heartbeat thread refreshes every ~5s, so an IDLE-but-alive runner keeps this fresh while it has
+    no progress pulse at all (pulses mark work, and idle is not work). Measured 2026-08-03: kimi
+    2.4s and deepseek 1.0s, both idle, both demonstrably answering, while the roster reported both
+    as 29,611s stale.
+
+    A record whose own beat has aged out is evidence the heartbeat THREAD stopped -- death, not
+    life. Readers must check the age, never merely the record's existence.
+    """
+    rec = read(agent)
+    if not rec:
+        return None
+    try:
+        return max(0.0, time.time() - float(rec["beat_ts"]))
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
 def stuck_seconds(agent: str):
     """Seconds the agent has been in its current phase (None if unknown). A reader's convenience."""
     rec = read(agent)

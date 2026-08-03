@@ -74,6 +74,62 @@ def _seed(mbx, client, msg, agent="claude"):
     return sha
 
 
+# ---- M6: the HARNESS seat says seen too, not just the runners -----------------------------------
+
+def test_a_harness_seat_can_record_seen_without_declaring():
+    """The gap the counts exposed: kimi 8 seen, deepseek 7, claude 2. The runners declare because
+    their _process_one was wired; the claude seat is a HARNESS seat with no such loop, so nothing
+    recorded that it had read anything. Reading and deciding are separate acts for a human-driven
+    seat -- it reads its mail in one gesture and decides over the following minutes -- so `seen`
+    must be recordable WITHOUT inventing an intent it has not formed."""
+    mbx = _mailbox()
+    client, msg = _fake(), _Msg(kind="request")
+    sha = _seed(mbx, client, msg)
+    r = mbx.open_for_message("claude", msg, incarnation="sess1", ns=NS, client=client)
+    assert r.get("ok") is True and r.get("sha") == sha
+
+    st = mbx.state_for(NS, "claude", sha, client=client)
+    assert [s["incarnation"] for s in st["seen_by"]] == ["sess1"]
+    assert st["intent"] is None, "opening must NOT fabricate a decision"
+    assert st["read_but_undeclared"] is True, \
+        "this is the state the whole receipt exists to make visible: somebody read it and said nothing"
+
+
+def test_seen_is_idempotent_per_incarnation():
+    """Re-reading your inbox must not mint a second receipt; a DIFFERENT incarnation reading the
+    same mail is a genuinely new fact and gets its own."""
+    mbx = _mailbox()
+    client, msg = _fake(), _Msg(kind="request")
+    sha = _seed(mbx, client, msg)
+    mbx.open_for_message("claude", msg, incarnation="sess1", ns=NS, client=client)
+    mbx.open_for_message("claude", msg, incarnation="sess1", ns=NS, client=client)
+    mbx.open_for_message("claude", msg, incarnation="sess2", ns=NS, client=client)
+    seen = mbx.seen_by(NS, "claude", sha, client=client)
+    assert sorted(s["incarnation"] for s in seen) == ["sess1", "sess2"]
+
+
+def test_a_declaration_still_records_seen_first():
+    """declare_for_message must keep opening before it declares -- the two paths share one seam."""
+    mbx = _mailbox()
+    client, msg = _fake(), _Msg(kind="request")
+    sha = _seed(mbx, client, msg)
+    mbx.declare_for_message("claude", msg, "act", incarnation="run1", ns=NS, client=client)
+    st = mbx.state_for(NS, "claude", sha, client=client)
+    assert st["seen_by"] and st["intent"]["intent"] == "act"
+
+
+def test_reading_never_touches_a_cursor():
+    """A harness seat reading its inbox must not advance anything. Seen is a receipt, not a
+    consumption -- the exact conflation this arc removed."""
+    mbx = _mailbox()
+    client, msg = _fake(), _Msg(kind="request")
+    _seed(mbx, client, msg)
+    before = {k: v for k, v in getattr(client, "kv", {}).items() if "mailbox" not in k}
+    mbx.open_for_message("claude", msg, incarnation="sess1", ns=NS, client=client)
+    after = {k: v for k, v in getattr(client, "kv", {}).items() if "mailbox" not in k}
+    assert before == after
+
+
 # ---- M5: a relaunch outwaits a corpse instead of exiting -----------------------------------------
 
 def test_a_relaunch_waits_out_a_dead_predecessors_key(monkeypatch):
@@ -148,7 +204,46 @@ def test_a_stale_beat_with_a_live_pulse_is_ATTENDED(monkeypatch):
 
 def test_a_stale_beat_with_no_pulse_is_still_unattended(monkeypatch):
     """The warning must survive: a genuinely dead seat still reports as one."""
-    assert _bus(monkeypatch, beat_age=990.0, pulse_age=None)._recipient_liveness("kimi")[0] is False
+    b = _bus(monkeypatch, beat_age=990.0, pulse_age=None)
+    import core.comm.liveness as _liveness
+    monkeypatch.setattr(_liveness, "worklive_beat_age", lambda a: None)
+    assert b._recipient_liveness("kimi")[0] is False
+
+
+def test_an_IDLE_but_alive_runner_is_attended(monkeypatch):
+    """THE GAP M4 LEFT, measured live 2026-08-03: UNATTENDED fired for kimi ("last beat 29611s
+    ago") minutes after kimi demonstrably answered on the bus. The pulse rescues a seat that is
+    MID-TURN -- its TTL is ~5s by design -- but an idle-and-waiting runner has no pulse at all,
+    which is the common case. Its worklive record, however, is refreshed by a heartbeat thread
+    every ~5s under a 45s TTL: kimi read 2.4s, deepseek 1.0s, both idle, both alive, while the
+    roster claimed eight hours dead."""
+    b = _bus(monkeypatch, beat_age=29611.0, pulse_age=None)
+    import core.comm.liveness as _liveness
+    monkeypatch.setattr(_liveness, "worklive_beat_age", lambda a: 2.4)
+    assert b._recipient_liveness("kimi")[0] is True
+
+
+def test_a_stale_worklive_record_does_not_rescue(monkeypatch):
+    """A worklive record whose own beat has aged out means the heartbeat thread stopped -- that is
+    evidence of death, not life, and must not be read as attendance."""
+    b = _bus(monkeypatch, beat_age=990.0, pulse_age=None)
+    import core.comm.liveness as _liveness
+    monkeypatch.setattr(_liveness, "worklive_beat_age", lambda a: 5000.0)
+    assert b._recipient_liveness("kimi")[0] is False
+
+
+def test_the_real_worklive_reader_actually_works():
+    """The monkeypatch trap again: every policy pin above stubs worklive_beat_age, so all of them
+    would pass if the real reader were a no-op."""
+    import importlib
+    liveness = importlib.reload(importlib.import_module("core.comm.liveness"))
+    agent = "t133-worklive-probe"
+    liveness.worklive(agent).set("thinking", detail="t133 verification")
+    age = liveness.worklive_beat_age(agent)
+    if age is None:
+        pytest.skip("no live store for the worklive probe")
+    assert age < 30, f"the real reader returned {age!r}"
+    assert liveness.worklive_beat_age("t133-agent-that-never-lived") is None
 
 
 def test_no_seat_at_all_but_a_live_pulse_is_attended(monkeypatch):

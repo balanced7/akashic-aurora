@@ -3738,6 +3738,24 @@ def cmd_bifrost_sync(args):
         print(f"# consumed {len(msgs)} message(s) for {args.agent_id}")
         for ln in render_collapsed(msgs, show_traces=show_traces):
             print(f"  {ln}")   # W4: trace-class telemetry folded (--traces to expand)
+        # T133/M6: THE HARNESS SEAT SAYS SEEN TOO. The runners record because their _process_one
+        # was wired; a harness seat has no such loop, so on 2026-08-03 claude showed 2 seen receipts
+        # against 1536 entries that had in fact been read. THIS is that seat's read point -- the
+        # bodies above just reached the agent -- so the receipt belongs here and nowhere earlier.
+        # SEEN ONLY, never an intent: reading and deciding are separate acts for a human-driven
+        # seat, and minting a decision at read time would fabricate one that has not been made.
+        # The honest product is `read_but_undeclared`, which is exactly the state this surfaces.
+        try:
+            from core.comm import mailbox as _mbx
+            _inc = (os.environ.get("AKASHIC_SESSION8")
+                    or os.environ.get("CLAUDE_CODE_SESSION_ID", "")[:8] or "harness")
+            _n = sum(1 for _m in msgs
+                     if _mbx.open_for_message(args.agent_id, _m, incarnation=_inc).get("ok"))
+            if _n:
+                print(f"  ({_n} seen receipt(s) recorded -- declare intent with "
+                      f"`mailbox {args.agent_id} --intent <sha> --as act|decline|defer|delegate`)")
+        except Exception:
+            pass      # a bookkeeping failure must never break the read that already succeeded
         return 0
     block = collect_boot_bifrost(args.agent_id, limit=args.limit or 10)
     if args.json:

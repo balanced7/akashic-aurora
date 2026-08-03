@@ -762,6 +762,73 @@ def intents_of(ns: str, agent: str, sha: str, *, client=None) -> List[Dict[str, 
     return out
 
 
+def open_for_message(agent: str, msg: Any, *, incarnation: str, ns: Optional[str] = None,
+                     client=None) -> Dict[str, Any]:
+    """Say SEEN about a message this seat just read, WITHOUT inventing a decision.
+
+    The gap the counts exposed on 2026-08-03: kimi 8 seen, deepseek 7, claude 2. The runners record
+    because their _process_one was wired; a HARNESS seat has no such loop, so nothing recorded that
+    it had read anything and 1536 entries sat "unopened" that had in fact been read.
+
+    Reading and deciding are separate acts for a human-driven seat -- it takes its inbox in one
+    gesture and forms intentions over the following minutes. Forcing an intent at read time would
+    fabricate a decision that has not been made; recording only `seen` produces the honest
+    read_but_undeclared state instead, which is the whole reason the receipt exists.
+
+    Same seam declare_for_message uses, so both paths agree about identity. Fail-open.
+    """
+    try:
+        ns = ns or os.getenv("BIFROST_NAMESPACE", "bifrost")
+        client = client or _connect()
+        sha, basis = _identity_for_message(msg)
+        _ensure_indexed(client, ns, agent, msg, sha)
+        opened = open(ns, agent, sha, incarnation=incarnation, client=client)
+        if not opened.get("ok"):
+            return {"ok": False, "sha": sha, "identity_basis": basis,
+                    "reason": opened.get("reason", "open failed")}
+        return {"ok": True, "sha": sha, "identity_basis": basis,
+                "first_open_by_this_incarnation": opened.get("first_open_by_this_incarnation")}
+    except Exception as exc:
+        return {"ok": False, "reason": f"mailbox open failed ({exc})"}
+
+
+def _msg_fields(msg: Any) -> "tuple[Dict[str, str], Dict[str, Any]]":
+    def _f(name):
+        v = getattr(msg, name, None)
+        if v is None and isinstance(msg, dict):
+            v = msg.get(name)
+        return "" if v is None else str(v)
+
+    meta = getattr(msg, "meta", None)
+    if meta is None and isinstance(msg, dict):
+        meta = msg.get("meta")
+    return ({"frm": _f("frm"), "to": _f("to"), "kind": _f("kind"),
+             "content": _f("content"), "ts": _f("ts")},
+            meta if isinstance(meta, dict) else {})
+
+
+def _identity_for_message(msg: Any) -> "tuple[str, str]":
+    """Identity computed the SAME way the index computed it at ingest. When these disagree the
+    whole layer fails silently -- the caller believes it declared while the surface still reads
+    unhandled -- so both doors go through this one function."""
+    fields, meta = _msg_fields(msg)
+    return identity_of(fields, meta)
+
+
+def _ensure_indexed(client, ns: str, agent: str, msg: Any, sha: str) -> None:
+    """Index a message the read-triggered follower has not reached yet. A seat holding a message is
+    the strongest evidence it is that seat's mail; this is the follower doing its job early rather
+    than a second source of truth."""
+    if body_of(ns, agent, sha, client=client) is not None:
+        return
+    fields, meta = _msg_fields(msg)
+    try:
+        _ingest_one(client, ns, agent, "declare", str(getattr(msg, "id", "") or "0-0"),
+                    {**fields, "meta": json.dumps(meta)})
+    except Exception:
+        pass                     # the caller's open() reports the miss honestly
+
+
 def declare_for_message(agent: str, msg: Any, intent: str, *, incarnation: str,
                         note: str = "", to: str = "", ns: Optional[str] = None,
                         client=None) -> Dict[str, Any]:
@@ -781,47 +848,15 @@ def declare_for_message(agent: str, msg: Any, intent: str, *, incarnation: str,
     """
     try:
         ns = ns or os.getenv("BIFROST_NAMESPACE", "bifrost")
-
-        def _f(name, default=""):
-            v = getattr(msg, name, None)
-            if v is None and isinstance(msg, dict):
-                v = msg.get(name)
-            return default if v is None else str(v)
-
-        meta = getattr(msg, "meta", None)
-        if meta is None and isinstance(msg, dict):
-            meta = msg.get("meta")
-        # Identity must be computed the SAME way the index computed it at ingest, or the
-        # declaration lands on a sha with no entry and the whole layer fails silently -- the
-        # runner believing it declared while the surface still reads unhandled.
-        fields = {"frm": _f("frm"), "to": _f("to"), "kind": _f("kind"),
-                  "content": _f("content"), "ts": _f("ts")}
-        sha, basis = identity_of(fields, meta if isinstance(meta, dict) else {})
-
         client = client or _connect()
-
-        # INDEX IT IF THE FOLLOWER HAS NOT CAUGHT UP. The index ingests on READ, so a message a
-        # runner is handling RIGHT NOW usually has no entry yet -- and a declaration with nothing to
-        # attach to was the second cause of the "no mailbox entry for sha" run (the first was the
-        # bus dropping the packet sha). A seat actively adjudicating a message is the strongest
-        # possible evidence that the message is mail addressed to it, so recording it here is the
-        # follower doing its job early rather than a new source of truth.
-        if body_of(ns, agent, sha, client=client) is None:
-            try:
-                _ingest_one(client, ns, agent, "declare", str(getattr(msg, "id", "") or "0-0"),
-                            {"frm": fields["frm"], "to": fields["to"], "kind": fields["kind"],
-                             "content": fields["content"], "ts": fields["ts"],
-                             "meta": json.dumps(meta if isinstance(meta, dict) else {})})
-            except Exception:
-                pass                     # fall through: open() reports the miss honestly below
-
-        # SEEN FIRST, then the decision. If the declaration is refused (unknown intent), the fact
-        # that this seat READ the mail is still true and must survive -- that is exactly the
-        # read-but-undeclared state the surface exists to make visible.
-        opened = open(ns, agent, sha, incarnation=incarnation, client=client)
+        # SEEN FIRST, then the decision -- through the SAME door the harness seat uses, so the two
+        # paths can never disagree about a message's identity. If the declaration is then refused
+        # (unknown intent), the fact that this seat READ the mail is still true and survives, which
+        # is exactly the read-but-undeclared state the surface exists to show.
+        opened = open_for_message(agent, msg, incarnation=incarnation, ns=ns, client=client)
         if not opened.get("ok"):
-            return {"ok": False, "sha": sha, "identity_basis": basis,
-                    "reason": opened.get("reason", "open failed")}
+            return opened
+        sha, basis = opened["sha"], opened["identity_basis"]
         res = declare_intent(ns, agent, sha, intent, incarnation=incarnation,
                              note=note, to=to, client=client)
         return {**res, "sha": sha, "identity_basis": basis}
