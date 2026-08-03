@@ -5076,16 +5076,36 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "cb148bf",
+      "verified_by": "6 pins green. AGENTS.md forks to the tool-surface door; all five tool names verified present before being written. check_advertised_tools unions BOTH tool doors (63 tools, 7 namespaces) and counts only tokens written as a CALL -- both fixes forced by a 5/5 false-positive first run. Erratum: shipped as T141 in cb148bf, renamed to T142 (ledger had already issued T141).",
       "created": "2026-08-03T23:38:11+00:00",
-      "updated": "2026-08-03T23:38:11+00:00",
+      "updated": "2026-08-03T23:42:17+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-03T23:38:11+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-03T23:42:15+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-03T23:42:15+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-03T23:42:15+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-03T23:42:17+00:00"
         }
       ]
     },
@@ -5097,16 +5117,36 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "ef01c0e",
+      "verified_by": "5 pins green, 28/28 across all five wiring pin files. Red-team A1 confirmed by RUNNING it (dead def in core/comm/bus.py inside 'if _FLAG:' produced a clean PASS), then closed. Live tree after fix: 111 rows, 108 distinct keys, baseline 108, ZERO new -- the hole was real, nothing was hiding in it. Probe removed, bus.py verified clean.",
       "created": "2026-08-03T23:39:50+00:00",
-      "updated": "2026-08-03T23:39:50+00:00",
+      "updated": "2026-08-03T23:42:17+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-03T23:39:50+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-03T23:42:16+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-03T23:42:16+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-03T23:42:17+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-03T23:42:17+00:00"
         }
       ]
     }
