@@ -242,6 +242,7 @@
 - `sol_chat.py` — sol_chat -- the Sol seat's model transport: gpt-5.6-sol (OpenAI) as a first-class Akashic citizen.
 - `ui_shot.py` — Headless screenshots of the live console -- the EYES half of the design loop.
 - `vfx_ingest.py` — Turn a pasted Shadertoy shader into one the bench can compile, and SAY WHAT IT CHANGED.
+- `vfx_probe_chroma.py` — Probe: chroma-aware structured metrics over real bench PNGs.
 - `vfx_probe_metrics.py` — Probe: do structured metrics surface anything a PNG does not?
 - `vfx_render.py` — Render something in the VFX bench from the command line, and get a file path back.
 - `worktree.py` — worktree.py -- per-agent git worktrees (Concurrency design C1).

@@ -244,6 +244,25 @@ def test_unreadable_liveness_never_retires():
         inc.live_incarnations = orig
 
 
+def test_a_bounded_sweep_says_what_it_did_not_look_at():
+    """NO SILENT CAPS, and this bit within hours of shipping: the sweep examined the oldest 1000 of
+    deepseek's 1306 entries and reported '0 ghosts' while 35 sat beyond the cap. A clean bill from a
+    partial pass is a lie by omission -- exactly the class of confident-wrong-answer this whole arc
+    is about, committed by the cure again."""
+    mbx = _mailbox()
+    client = _fake()
+    for i in range(12):
+        _aged(mbx, client, _Msg(frm="ghost_seat", content=f"m{i}"))
+    r = mbx.retire_ghost_mail(NS, "claude", client=client, limit=5, is_live=lambda s: False,
+                              incarnation="sweep")
+    assert r["scanned"] == 5 and r["total"] == 12
+    assert r["truncated"] is True and r["unscanned"] == 7
+
+    full = mbx.retire_ghost_mail(NS, "claude", client=client, limit=100, is_live=lambda s: False,
+                                 incarnation="sweep")
+    assert full["truncated"] is False and full["unscanned"] == 0
+
+
 def test_a_dry_run_changes_nothing():
     """It writes to mail state, so the operator sees the list before anything moves."""
     mbx = _mailbox()

@@ -56,7 +56,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `locks` | show who holds which advisory path-locks | `<agent_id>` `--json` |
 | `log` | record an arbitrary narrative Beat | `<kind>` `--summary` `--source` `--category` `--task` `--json` |
 | `lookback` | one question over the rationale corpus: the strategic WHY, layered + drillable (P7) | `<question>*` `--per-layer` `--layers` `--json` |
-| `mailbox` | T095 M0 shadow mailbox: per-message state for an agent (observation only) | `<agent_id>*` `--explain` `--rebuild` `--retire-ghosts` `--apply` `--min-age-h` `--min-evidence {unhandled,consumed,replied,acked}` `--open` `--state` `--intent` `--as {act,decline,defer,delegate}` `--to` `--note` `--backfill` `--incarnation` `--json` |
+| `mailbox` | T095 M0 shadow mailbox: per-message state for an agent (observation only) | `<agent_id>*` `--explain` `--rebuild` `--retire-ghosts` `--apply` `--min-age-h` `--limit-scan` `--min-evidence {unhandled,consumed,replied,acked}` `--open` `--state` `--intent` `--as {act,decline,defer,delegate}` `--to` `--note` `--backfill` `--incarnation` `--json` |
 | `note` | record a durable project note (write-once; re-note same title to update) | `<agent_id>*` `--title` `--note` `--context` `--category` `--supersedes` `--retire` `--get` `--session` `--json` |
 | `notes` | list active project notes (--project regenerates chronicles/memory.md) | `--limit` `--days` `--project` `--all` `--json` |
 | `packet-stats` | N0 bounded shadow route/mirror counters | `--json` |

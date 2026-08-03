@@ -4177,15 +4177,19 @@ def cmd_mailbox(args):
         out = mailbox.retire_ghost_mail(bus.ns, args.agent_id, client=bus._client,
                                         dry_run=not apply,
                                         min_age_h=float(getattr(args, "min_age_h", 24.0)),
+                                        limit=int(getattr(args, "limit_scan", 5000)),
                                         incarnation=f"ghost-sweep:{inc}")
         if args.json:
             print(json.dumps(out, indent=2, default=str)); return 0
         if not out.get("ok"):
             print(f"[mailbox] ghost sweep failed: {out.get('reason')}"); return 1
         cands = out.get("candidates") or []
-        print(f"# ghost sweep for {args.agent_id}: scanned {out['scanned']}, "
+        print(f"# ghost sweep for {args.agent_id}: scanned {out['scanned']} of {out.get('total', '?')}, "
               f"{len(cands)} from senders with no live seat"
               + ("" if apply else "  (REPORT ONLY -- add --apply to write)"))
+        if out.get("truncated"):
+            print(f"  !! {out['unscanned']} entr(ies) NOT scanned (cap {args.limit_scan}). "
+                  f"'0 ghosts' here does NOT mean the mailbox is clean -- raise --limit-scan.")
         for c in cands[:40]:
             print(f"  {c['sha'][:10]}  {c['kind']:<10} from {c['frm']:<26} {c['age_h']}h old")
         if len(cands) > 40:
@@ -4779,6 +4783,8 @@ def build_parser():
                      help="with --retire-ghosts: actually write the declarations")
     mbx.add_argument("--min-age-h", type=float, default=24.0, dest="min_age_h",
                      help="with --retire-ghosts: how old mail must be to be sweepable (default 24)")
+    mbx.add_argument("--limit-scan", type=int, default=5000, dest="limit_scan",
+                     help="with --retire-ghosts: max entries to examine (default 5000, the index cap)")
     mbx.add_argument("--min-evidence", choices=["unhandled", "consumed", "replied", "acked"],
                      default=None, help="show only entries at or below this evidence tier")
     # M1: the mailbox stops being read-only. These three are the product receipt's verbs.

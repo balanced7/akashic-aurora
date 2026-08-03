@@ -908,9 +908,14 @@ def retire_ghost_mail(ns: str, agent: str, *, min_age_h: float = 24.0, dry_run: 
         return _live_cache[sender]
 
     try:
+        total = int(client.zcard(k["z"]) or 0)
         shas = client.zrange(k["z"], 0, int(limit) - 1) or []
     except Exception as exc:
         return {"ok": False, "reason": f"could not list mail ({exc})"}
+    # NO SILENT CAPS. A sweep that quietly examines the oldest 1000 of 1306 entries and reports a
+    # clean bill has lied by omission -- and this bit within hours: deepseek read "0 ghosts" while
+    # 35 sat beyond the cap. A bounded pass must say what it did not look at.
+    truncated = total > len(shas)
 
     declared = client.hgetall(k["intent"]) or {}
     candidates: List[Dict[str, Any]] = []
@@ -947,7 +952,8 @@ def retire_ghost_mail(ns: str, agent: str, *, min_age_h: float = 24.0, dry_run: 
             if r.get("ok"):
                 retired += 1
 
-    return {"ok": True, "scanned": len(shas), "candidates": candidates,
+    return {"ok": True, "scanned": len(shas), "total": total, "truncated": truncated,
+            "unscanned": max(0, total - len(shas)), "candidates": candidates,
             "would_retire": len(candidates), "retired": retired, "dry_run": bool(dry_run)}
 
 
