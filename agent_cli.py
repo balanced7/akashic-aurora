@@ -243,6 +243,24 @@ def cmd_boot(args):
         print(_recall_armed_line(_warm_n))
     except Exception:
         print(_recall_armed_line(None))
+    # T133: GHOST MAIL RECONCILES ITSELF, on the same terms as the heal below -- cheap no-op when
+    # nothing is due, real work only on drift, silent unless something moved. Ghost mail RECURS by
+    # construction (the index ingests on read, so it grows as it is queried and each growth can
+    # surface more mail from ended sessions: deepseek was clean at 22:00 and had 46 again by
+    # morning). The alternative is a human catch-up ritual, and a reproducible defect is a trigger
+    # to fix rather than to normalise. Cadence-bounded because the scan is O(entries) and boot is
+    # on the hot path for every session.
+    try:
+        from core.comm import mailbox as _mbx
+        _g = _mbx.maybe_retire_ghosts(os.environ.get("BIFROST_NAMESPACE", "bifrost"),
+                                      args.agent_id)
+        if _g.get("retired"):
+            print(f"# mail: declined {_g['retired']} message(s) from retired seats "
+                  f"(they stay readable; they stop competing with live work)")
+        if _g.get("truncated"):
+            print(f"# mail: {_g['unscanned']} entr(ies) beyond the sweep cap were NOT examined")
+    except Exception:
+        pass                      # boot must never fail on mail hygiene
     # Cold-start safety net (ported from the retired StoreReconciler): if Redis was down during past
     # writes, the durable File is ahead -- backfill Redis so recall/state read consistent values. Best-
     # effort; only reconciles when drift is actually found (a no-op fast path when the backends are in sync).

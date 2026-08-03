@@ -358,6 +358,61 @@ def test_a_bounded_sweep_says_what_it_did_not_look_at():
     assert full["truncated"] is False and full["unscanned"] == 0
 
 
+def test_the_sweep_runs_on_a_cadence_not_a_ritual():
+    """Ghost mail RECURS by construction -- the index ingests on read, so it grows as it is queried
+    and each growth can surface more mail from ended sessions. deepseek was clean at 22:00 and had
+    46 again by morning. The alternative to automating this is a human catch-up procedure, and the
+    standing rule here is that a reproducible defect is a trigger to fix, never to normalise."""
+    mbx = _mailbox()
+    client = _fake()
+    _aged(mbx, client, _Msg(frm="codex_root_019fab2d", content="a corpse's ask"))
+
+    first = mbx.maybe_retire_ghosts(NS, "claude", client=client, every_h=12)
+    assert first["due"] is True and first["retired"] == 1
+
+    _aged(mbx, client, _Msg(frm="codex_root_019fab2d", content="another corpse's ask"))
+    again = mbx.maybe_retire_ghosts(NS, "claude", client=client, every_h=12)
+    assert again["due"] is False and again["retired"] == 0, \
+        "boot is on the hot path for every session; an O(entries) scan must not run every time"
+
+    due = mbx.maybe_retire_ghosts(NS, "claude", client=client, every_h=0)
+    assert due["due"] is True and due["retired"] == 1
+
+
+def test_a_failed_sweep_still_stamps():
+    """Retrying a broken scan on every boot of every session would turn one fault into a permanent
+    startup tax.
+
+    The first draft of this double subclassed dict, and an EMPTY dict is falsy -- so
+    `client = client or _connect()` swapped in the REAL store and the test silently exercised live
+    state instead of the failure it claimed to test. A stub that can be mistaken for absent is not
+    a stub."""
+    mbx = _mailbox()
+
+    class _Broken:
+        def __init__(self):
+            self.stamped = None
+
+        def zcard(self, *a, **k):
+            raise RuntimeError("store down")
+
+        def zrange(self, *a, **k):
+            raise RuntimeError("store down")
+
+        def get(self, *a, **k):
+            return None
+
+        def set(self, _k, v, *a, **k):
+            self.stamped = v
+            return True
+
+    c = _Broken()
+    assert c, "the double must be TRUTHY or the module will treat it as no client at all"
+    r = mbx.maybe_retire_ghosts(NS, "claude", client=c, every_h=12)
+    assert r["due"] is True and r["ok"] is False
+    assert c.stamped is not None, "a failed sweep must still stamp, or it retries on every boot"
+
+
 def test_a_dry_run_changes_nothing():
     """It writes to mail state, so the operator sees the list before anything moves."""
     mbx = _mailbox()

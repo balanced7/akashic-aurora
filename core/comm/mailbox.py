@@ -905,7 +905,7 @@ def _sender_can_return(sender: str) -> bool:
 
 def retire_ghost_mail(ns: str, agent: str, *, min_age_h: float = 24.0, dry_run: bool = True,
                       client=None, is_live=None, incarnation: str = "ghost-sweep",
-                      limit: int = 1000) -> Dict[str, Any]:
+                      limit: int = DEFAULT_CAP) -> Dict[str, Any]:
     """Declare `decline` on old, unadjudicated mail from seats that no longer exist.
 
     THE FAILURE THIS TREATS, from 2026-08-02: kimi spent three turns answering
@@ -990,6 +990,43 @@ def retire_ghost_mail(ns: str, agent: str, *, min_age_h: float = 24.0, dry_run: 
     return {"ok": True, "scanned": len(shas), "total": total, "truncated": truncated,
             "unscanned": max(0, total - len(shas)), "candidates": candidates,
             "would_retire": len(candidates), "retired": retired, "dry_run": bool(dry_run)}
+
+
+def maybe_retire_ghosts(ns: str, agent: str, *, every_h: float = 12.0, client=None,
+                        incarnation: str = "boot-sweep") -> Dict[str, Any]:
+    """Run the ghost sweep on a CADENCE, not on a ritual.
+
+    Ghost mail recurs by construction: the index ingests on READ, so it grows as it is queried, and
+    each growth can surface more mail from sessions that ended long ago. A one-shot sweep is
+    therefore never finished -- deepseek was clean at 22:00 and had 46 again by morning.
+
+    The alternative to automation here is a human catch-up procedure, and this repo's standing rule
+    is that a known-limitation note around a reproducible defect is the trigger to FIX it, never to
+    normalise it. So it hangs off the reconciliation boot already performs (warm_cache, prune_state,
+    the Store heal) and follows that precedent exactly: a cheap no-op when nothing is due, real work
+    only when there is drift, and silence unless something actually moved.
+
+    Bounded by a stamp rather than run every time, because the scan is O(entries) and boot is on the
+    hot path for every session.
+    """
+    client = client or _connect()
+    stamp = f"{ns}:mailbox:sweptat:{agent}"
+    try:
+        last = float(client.get(stamp) or 0.0)
+    except Exception:
+        last = 0.0
+    now = time.time()
+    if now - last < float(every_h) * 3600.0:
+        return {"ok": True, "due": False, "retired": 0}
+    res = retire_ghost_mail(ns, agent, client=client, dry_run=False, incarnation=incarnation)
+    try:
+        client.set(stamp, str(now))
+    except Exception:
+        pass
+    # The stamp is set even on a failed sweep: retrying a broken scan on every boot of every session
+    # would turn one fault into a permanent tax on startup.
+    return {"ok": bool(res.get("ok")), "due": True, "retired": int(res.get("retired") or 0),
+            "truncated": bool(res.get("truncated")), "unscanned": int(res.get("unscanned") or 0)}
 
 
 def state_for(ns: str, agent: str, sha: str, *, client=None) -> Dict[str, Any]:
