@@ -3729,6 +3729,12 @@ def cmd_bifrost_sync(args):
                                      print_boot_locks_section, render_collapsed,
                                      stale_notice_lines)
     show_traces = bool(getattr(args, "traces", False))   # W4: --traces expands folded telemetry
+    # T133: READ THE LANE THE RUNNERS READ. The runners self-default onto `work`; this door did not,
+    # so the harness seat read LEGACY -- the same lane, plus every trace, from a cursor that drifted
+    # 22 hours behind while real mail sat on `work` unread. Aligning the two ends the drift at its
+    # source instead of re-discovering it with a cursor-vs-tail query every few days.
+    # Per-process and still overridable: set BIFROST_CONSUME_LANE explicitly to pin either side.
+    os.environ.setdefault("BIFROST_CONSUME_LANE", "work")
     if args.consume:
         res = consume_inbox(args.agent_id, limit=args.limit or 20)
         if args.json:
