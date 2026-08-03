@@ -70,9 +70,11 @@ EXCEPTIONS = {
     # so these two never surfaced. Both are kimi-lane builds from arcs still in flight, not
     # dead code. Dated and owned so they are TRACKED debt, not normalised debt: each names
     # what would clear it. If the owning slice lands, delete the entry -- do not renew it.
-    "core/comm/runner_lib.py": "built-ahead (K0, 438f301): client-factory seam extracted for "
-        "the kimi seat alongside core/comm/toolbox.py. UNWIRE-WHEN: a runner imports the "
-        "factory instead of constructing its own client. Owner: kimi lane / T099.",
+    # core/comm/runner_lib.py -- ENTRY REMOVED 2026-08-03 (T134). Its own UNWIRE-WHEN was "a
+    # runner imports the factory instead of constructing its own client", and that is now the
+    # case: scripts/kimi_chat.py:41 `from core.comm.runner_lib import make_openai_compat_client`,
+    # reached from scripts/bifrost_runner_kimi.py:52. The entry asked to be deleted rather than
+    # renewed when its slice landed; this is that deletion.
     "core/toolbelt/contest.py": "built-ahead (1cc5a39): the chorus door, kimi's build, "
         "claude-run green. UNWIRE-WHEN: a production caller invokes contest -- today only "
         "its pins exercise it. Owner: kimi lane / T099 self-tooling.",
@@ -111,7 +113,11 @@ EXCEPTIONS = {
     "core/state/session_recovery.py": "unwired but KEPT (P2 2026-07-07): session-HISTORY recovery from "
         "local files, distinct from session_checkpoint's crash-resume. Class-name collision RESOLVED "
         "(checkpoint's helper renamed CheckpointRecovery). Still unwired (exported by __init__, no live "
-        "consumer) -- wire when a session-history consumer lands, or retire then",
+        "consumer) -- wire when a session-history consumer lands, or retire then. "
+        "RE-CONFIRMED UNWIRED 2026-08-03 (T134b): this entry read STALE for two days because "
+        "self_invoking_modules absolved it on a two-line `recovery = main()` stub. Traced -- no "
+        "importer, no shell caller. The gate was wrong, not the entry; see tests/"
+        "test_t134_self_invoking_is_not_a_library.py.",
 }
 
 
@@ -166,7 +172,33 @@ SHELL_DIRS = ("scripts/githooks", ".github/workflows")
 _SELF_ENTRY = re.compile(r"^if\s+__name__\s*==\s*[\"']__main__[\"']\s*:", re.M)
 
 
-def self_invoking_modules(universe) -> set:
+def _is_reexported(rel, root=ROOT) -> bool:
+    """True if rel's OWN package __init__.py imports it by name -- i.e. it is an API surface.
+
+    A package that re-exports a module is publishing it for callers to import THROUGH the
+    package; if it were live, the import graph would already show it. That makes re-export the
+    discriminator between a tool and a library (T134b).
+    """
+    init = os.path.join(root, os.path.dirname(rel), "__init__.py")
+    mod = os.path.basename(rel)[:-3]
+    try:
+        with open(init, encoding="utf-8", errors="replace") as fh:
+            tree = ast.parse(fh.read())
+    except (OSError, SyntaxError, ValueError):
+        return False                      # fail open: an unreadable __init__ re-exports nothing
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            if node.module and node.module.rsplit(".", 1)[-1] == mod:   # from .mod import X
+                return True
+            if any(a.name == mod for a in node.names):                  # from . import mod
+                return True
+        elif isinstance(node, ast.Import):
+            if any(a.name.rsplit(".", 1)[-1] == mod for a in node.names):
+                return True
+    return False
+
+
+def self_invoking_modules(universe, root=ROOT) -> set:
     """core/ modules that ARE entry points: run directly by a human, never imported.
 
     Migrations, audits and replay harnesses have no caller to find -- that is what they are.
@@ -174,15 +206,31 @@ def self_invoking_modules(universe) -> set:
     the entire class is permanently reported unwired, which is worse than noise: the gate's
     only offered remedy is EXCEPTIONS, so each false positive pushes a live tool onto a list
     the file itself calls "a BACKLOG, not an amnesty".
+
+    A LIBRARY IS NOT A TOOL (T134b, 2026-08-03). Reading the `__main__` guard alone also absolved
+    any library carrying a demo stub. Measured: core/state/session_recovery.py has no importer and
+    no shell caller, its whole guard body is `recovery = main()`, its docstring's usage is `from
+    core.state.session_recovery import SessionRecovery`, and core/state/__init__.py re-exports it.
+    Nothing about the module changed -- this rule landed and silently reclassified it as wired,
+    and the resulting stale-EXCEPTIONS warning invited deleting a still-accurate entry.
+
+    That failure runs the opposite way to the one above and is worse for it: a false positive is
+    LOUD and gets argued with, while a gate that quietly stops asking just gets believed. So
+    re-exported modules keep their unwired verdict; the three modules this rule was written for
+    (durable_reconcile, migrate_to_sqlite, pack_replay) are re-exported by nothing and are
+    unaffected.
     """
     out = set()
     for rel in universe:
         try:
-            with open(os.path.join(ROOT, rel), encoding="utf-8", errors="replace") as fh:
-                if _SELF_ENTRY.search(fh.read()):
-                    out.add(rel)
+            with open(os.path.join(root, rel), encoding="utf-8", errors="replace") as fh:
+                if not _SELF_ENTRY.search(fh.read()):
+                    continue
         except OSError:
             continue
+        if _is_reexported(rel, root=root):
+            continue
+        out.add(rel)
     return out
 
 
