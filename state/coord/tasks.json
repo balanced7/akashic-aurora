@@ -1,5 +1,5 @@
 {
-  "seq": 139,
+  "seq": 140,
   "tasks": [
     {
       "id": "T001",
@@ -4848,16 +4848,36 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "2e46dff",
+      "verified_by": "Delivered across c61fa98 (RED, 9 pins) + 1a4ffe8 (GREEN) + 5df699d/a0115d7 (T134b library-vs-tool) + 1fb7740/2e46dff (T134c scripts/ as production). 21 pins green across four files. HISTORICAL VALIDATION in worktrees at the real commits: FAIL on mailbox.py::declare_intent at 95e0c55 (built, 8/8 pins, no door), silent at b945813 (door added, message reads 'built was not wired'). Precision measured by sampling 22 backlog entries: 6 false positives found and retired, backlog 114 -> 108. Two stale module exceptions resolved: runner_lib removed (genuinely wired at kimi_chat.py:41), session_recovery kept and re-confirmed unwired.",
       "created": "2026-08-03T13:00:48+00:00",
-      "updated": "2026-08-03T13:00:48+00:00",
+      "updated": "2026-08-03T13:35:10+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-03T13:00:48+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-03T13:35:07+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-03T13:35:08+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-03T13:35:08+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-03T13:35:10+00:00"
         }
       ]
     },
@@ -4953,16 +4973,57 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "3dca734",
+      "verified_by": "Delivered across 444c4c4 (RED, 5 pins) + 3dca734 (GREEN), erratum in 3f3a421. 5 pins green plus all 39 tests across test_task_ledger, test_ledger, test_t083_c5_parked, test_proposed_decay. Evidence bar unchanged (done still refuses without commit AND verified_by); APPROVED->VERIFYING still illegal; serialize gate untouched, T086 held the IN_PROGRESS slot throughout. Exercised live: it is the path all five closures this session used.",
       "created": "2026-08-03T13:19:51+00:00",
-      "updated": "2026-08-03T13:19:51+00:00",
+      "updated": "2026-08-03T13:35:10+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-03T13:19:51+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-03T13:35:08+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-03T13:35:09+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-03T13:35:09+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-03T13:35:10+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T140",
+      "title": "Stage-3 cognitive metrics is a sensor suite nobody reads, and most of its sensors are unplugged. FOUND BY the new function-level wiring gate 2026-08-03 (T134) -- the module-level gate could never see it, because core/coord/cognitive_metrics.py IS imported by five runners and so reads WIRED. Measured: 16 public functions, 4 live (init, record_file_read, record_human_interjection, record_turn_complete), 12 dead. The dead ones are the module's stated purpose -- its docstring leads with Token economy, and record_prompt_tokens, record_completion_tokens, record_reasoning, record_abandoned, record_tool_call and record_context_refresh have ZERO production callers. So 9 of the 16 EfficiencySnapshot fields can never be anything but 0. Worse: dump and dump_all are called ONLY by tests, so nothing in production ever READS the accumulator the five runners are faithfully feeding. The docstring names the consumer -- Snapshot-able: dump returns a dict for the experiment harness to collect -- and core/coord/experiment.py plus core/coord/metrics.py are BOTH already on the module backlog as built-ahead. The whole evidence engine is unwired; this module only looked different because someone imported it. THE HAZARD IS NOT THE DEAD CODE, it is that a zero here is indistinguishable from a measured zero -- same class as the dead-ECN open-loop sender in the recall-as-network research. DECIDE: wire the recorders (T110 cost meter already computes prompt/completion/cache tokens per turn in the runners, so the data exists and only the wiring is missing) plus a real reader, or retire the unpopulated fields so the snapshot stops promising measurements it cannot make. Do NOT delete the module -- 4 of its functions are live in five runners.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-03T13:30:19+00:00",
+      "updated": "2026-08-03T13:30:19+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-03T13:30:19+00:00"
         }
       ]
     }

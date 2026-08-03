@@ -688,6 +688,31 @@ My answers to your two questions are in reply 1785606435279-0. If peek hid it, t
 - [ ] W119 (08-02, claude) — Namespace orphans: 760 namespaces hold inbox streams in live Redis and exactly ONE has a live seat. 114 are bifrost_c67_* T067 drill orphans, the rest t045/t066/t045s2 drill residue. Test drills mint a namespace per run and never reap it. Same class as F7 seat inflation, one layer down. Found 2026-08-02 while verifying room_feed against live Redis rather than a fake. Two asks: a drill-namespace reaper, and namespaced drills that clean up after themselves.
 - [ ] W120 (08-02, claude) — T125 pin staleness: test_p7_broken_path_named_by_pre_commit and its one_hop sibling expect the datasheet to flag a ghost checker path (the checkers/ directory omitted) as a broken path reference in pre_commit.py. That ghost is gone - line 66 now uses the correct scripts/checkers/ path - so the pins assert a defect that was already fixed and fail on a stale premise. Either point them at a live ghost or retire them. Found 2026-08-02 during a regression sweep; not caused by that night's changes.
 - [ ] W121 (08-02, claude) — UI layout audit, measured live 2026-08-02 05:00 against his spacing-and-placement ask. TWO findings, neither fixed (deepseek was mid-flight in bifrost_ui.py and his prior asks need his context). ONE: the presence strip #pills is only 155px wide (x480-635) in a 1280px viewport, flex/nowrap/overflow-x auto, holding 11 agent pills - so 5 of 11 seats are clipped out of view. Part of that is the deliberate GLANCE vs DETAIL density choice, but the strip itself is squeezed while the header has room to spare. TWO: #engine-room is display:none while fully populated - 13 children and 6342 chars of live vitals content, built every poll and never shown. Either a deliberate toggle worth a visible control, or the T079 vitals strip silently lost its slot. Feed gets 68.6 percent of viewport height which is reasonable. No horizontal page overflow beyond the clipped pills.
+- [ ] W122 (08-03, claude) — agent_cli.py note has no --body-file, but a durable where-we-are note is EXACTLY the long
+multi-paragraph body that must not ride argv. bifrost-send already learned this the hard way
+(T083-C3-1: argv text containing flags or long bodies misparses -- hence --text-file, which the
+corpus now states as an unconditional rule). Today, writing the seat handoff note, I had to shell
+out through a python subprocess to pass the body safely as a single argv element.
+
+Give `note` the same --body-file / --note-file door bifrost-send has. Same class as the CLI<->MCP
+parity gaps tracked in T137: the capability exists, the door for it does not.
+
+Found the same session: `wish` itself REFUSED a long positional body with "empty wish", which is
+the identical defect one door over -- and its own error message names the fix (--text-file).
+- [ ] W123 (08-03, claude) — `doc adopt` has no --supersedes, so re-adopting a loose .md after EDITING it mints a SECOND atom
+with a second projection, and both render as current. Hit live today: adopting the session
+risk/undo doc, correcting one claim in it, then re-adopting produced
+docs/library/chronicle/20260803_session-risks-and-undo_adc7cd.md AND ..._135ddc.md -- same title,
+same day, different content, no link between them.
+
+`note` already solves exactly this: re-noting a stable --title supersedes the prior and SAYS SO
+("superseded prior ADR_..."). Give doc adopt the same behaviour -- either --supersedes <atom-id>,
+or infer it from an identical source path + title and stamp supersedes automatically.
+
+Why it matters beyond tidiness: a correction is the MOST important edit a doc gets, and right now
+correcting an adopted doc is the operation most likely to leave the wrong version equally visible.
+Deleting the stale projection is not the workaround -- library deletions are Daniil's gate and the
+substrate is append-only on purpose; the missing thing is the SUPERSESSION EDGE, not a delete.
 
 ## Folded (exemplars — the loop works)
 
