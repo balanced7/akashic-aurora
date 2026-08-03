@@ -1,4 +1,4 @@
-"""check_advertised_tools -- the tool-surface twin of check_advertised_verbs (T141).
+"""check_advertised_tools -- the tool-surface twin of check_advertised_verbs (T142).
 
 check_advertised_verbs enforces the SHELL half of the door contract: every `py agent_cli.py <verb>`
 named in live code must resolve. This enforces the TOOL half: every tool a doc tells an agent to

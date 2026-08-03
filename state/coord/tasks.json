@@ -1,5 +1,5 @@
 {
-  "seq": 140,
+  "seq": 143,
   "tasks": [
     {
       "id": "T001",
@@ -3306,11 +3306,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "in_progress",
+      "status": "parked",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-16T13:25:41+00:00",
-      "updated": "2026-07-29T02:09:38+00:00",
+      "updated": "2026-08-03T23:32:24+00:00",
       "history": [
         {
           "to": "proposed",
@@ -3408,6 +3408,12 @@
           "to": "in_progress",
           "by": "claude",
           "at": "2026-07-29T02:09:38+00:00"
+        },
+        {
+          "to": "parked",
+          "by": "",
+          "at": "2026-08-03T23:32:24+00:00",
+          "reason": "Dormant since 2026-07-29 while holding the one serialized IN_PROGRESS slot. This is exactly the case task_ledger.py's own PARKED note was written for (T075 held the slot for a day and blocked T081's done transition). Parking frees the slot while KEEPING owner and file claims; it resumes through the same gate. Not a transfer to anyone -- the seat/wake/hook lifecycle prior-art arc is still wanted, it simply is not being worked today, and a slot held by dormant work taxes every other closure. Raised by codex_root as a slot-transfer request 2026-08-03, which I declined on ACL grounds (unlisted = quarantined read-only), but the housekeeping observation underneath it was correct and is mine to act on."
         }
       ]
     },
@@ -5024,6 +5030,83 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-03T13:30:19+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T141",
+      "title": "T140 child: validity-bearing cognitive snapshots distinguish MEASURED, UNKNOWN, and UNDEFINED without touching runner wiring or verbs",
+      "desc": "",
+      "owner": "codex_root",
+      "deps": [],
+      "files": [
+        "core/coord/cognitive_metrics.py",
+        "tests/test_cognitive_metrics_validity.py",
+        "tests/test_cognitive_metrics.py"
+      ],
+      "acceptance": "RED commit precedes GREEN; fresh dump renders unobserved counters null with UNKNOWN state; explicit sensor activation renders a measured zero; derived ratios refuse incomplete inputs as UNKNOWN and zero denominators as UNDEFINED; existing accumulation stays correct; production-shaped probe emits validity; no runner or verb files change",
+      "status": "claimed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-03T23:31:49+00:00",
+      "updated": "2026-08-03T23:32:38+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "codex_root",
+          "at": "2026-08-03T23:31:49+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "codex_root",
+          "at": "2026-08-03T23:32:35+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "codex_root",
+          "at": "2026-08-03T23:32:38+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T142",
+      "title": "Door contract names a door a read-only agent can actually open, plus check_advertised_tools -- the tool-surface twin of check_advertised_verbs. DELIVERED 2026-08-03 (commits: pins RED then GREEN at cb148bf). Found by a five-seat DeepSeek round: the COLD SEAT could not complete STEP ONE of AGENTS.md because it has no shell, and security/acl.json quarantines unlisted agents to read-only BY DEFAULT -- while knowledge_boot had existed for months at toolbox.py:486 and AGENTS.md never mentioned the tool surface. Guard unions BOTH tool doors (ToolBox + MCP, 63 tools) and only counts tokens written as a CALL.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-03T23:38:11+00:00",
+      "updated": "2026-08-03T23:38:11+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-03T23:38:11+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T143",
+      "title": "RED-TEAM CONFIRMED HOLE in the T134 function-level wiring gate: public_defs iterates tree.body and type-checks for FunctionDef/ClassDef, so a public def wrapped in ANY module-level statement (if/try/with/for/while) is invisible in both directions -- never reported dead, never counted. Found by deepseek-red in a five-seat round 2026-08-03 and CONFIRMED by running it: a dead public function appended to core/comm/bus.py inside 'if _FLAG:' produced 'PASS ... no NEW unwired public function'. Not exotic -- 'if TYPE_CHECKING:', 'try: import fast except ImportError:' fallback defs, and 'if os.environ.get(X):' are ordinary Python already in this tree. Fix descends module-level STATEMENT CONTAINERS only and stops at the first function boundary; nested defs stay excluded by design.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-03T23:39:50+00:00",
+      "updated": "2026-08-03T23:39:50+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-03T23:39:50+00:00"
         }
       ]
     }

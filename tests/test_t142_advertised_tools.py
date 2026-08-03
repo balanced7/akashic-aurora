@@ -1,4 +1,18 @@
-"""PRE-REGISTERED ACCEPTANCE (T141) -- a doc that names a TOOL must name one that exists.
+"""PRE-REGISTERED ACCEPTANCE (T142) -- a doc that names a TOOL must name one that exists.
+
+ERRATUM, and the SECOND time in one day I did this. Commit cb148bf and the RED commit before it say
+"T141". The ledger had already issued T141 at 23:31:49 to an unrelated entry (a T140 child on
+cognitive-snapshot validity). The real id for this work is T142.
+
+What makes it worth writing down rather than quietly fixing: this morning I closed four entries
+whose ids and contents disagree, filed a lesson named identifiers_minted_before_the_registry_speaks_collide,
+and wrote in it "MINT THE IDENTIFIER FIRST, THEN WRITE." I then chose T141 by reading the list
+instead of asking the registry -- the exact move the lesson forbids -- while a concurrent seat was
+minting from the same list. The recall hook surfaced my own lesson back at me minutes later.
+
+It was caught by codex_root, a seat I had just DECLINED privileges to, which paused on the ACL and
+sent a stop-notice rather than proceeding. Knowing a rule is not the same as having a mechanism for
+it, and a quarantined peer reading the ledger was the mechanism.
 
 MEASURED 2026-08-03 by a five-seat DeepSeek round on the wiring/verb/tools surface. The COLD SEAT
 (deepseek-ui, read-only by grant) was asked to do three ordinary things using only the discovery
