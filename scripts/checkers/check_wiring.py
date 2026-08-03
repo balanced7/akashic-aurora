@@ -13,6 +13,7 @@ Run:  py scripts/checkers/check_wiring.py            # gate (exit 1 on a NEW unw
       py scripts/checkers/check_wiring.py --report   # print reachable vs unwired
 """
 import ast
+import json
 import os
 import re
 import sys
@@ -223,6 +224,142 @@ def shell_invoked_modules(dirs=None) -> set:
     return found
 
 
+# ---------------------------------------------------------------- function level (T134)
+#
+# The module gate above passed every day while core/comm/mailbox.py::declare_intent had zero
+# production callers: mailbox.py IS imported by the CLI door, so the MODULE read wired while the
+# capability inside it was dead. Git holds the diagnosis in a human's handwriting -- 95e0c55 built
+# declare_intent with 8/8 pins, and b945813 wired it with the message "built was not wired -- no
+# door exposed the M1 verbs". This is that sentence, automated.
+#
+# EVIDENCE IS DELIBERATELY WEAK, and that is the design. "Referenced" means MENTIONED BY NAME on a
+# production path -- call, attribute, bare name, import alias, keyword argument, or an exact-match
+# string constant (getattr and verb-table dispatch). The comments above record the same lesson
+# twice (control_channel.py, door_probe.py): a false positive here is expensive twice over, because
+# the only remedy this file offers is an EXCEPTIONS entry, and a guard that cries wolf gets fed
+# exceptions until it guards nothing. So this reports only capability with ZERO mentions -- the
+# class it can be certain about -- and stays quiet everywhere else.
+#
+# Limitations, stated rather than discovered later: an unused import counts as wiring (an unused
+# import is a different defect, and calling it deadness would produce false positives); a name
+# assembled at runtime ("declare_" + verb) is invisible; a private helper reached only through a
+# dead public function is not reported, because the public function is what gets reported first.
+
+BASELINE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "wiring_function_baseline.json")
+
+
+def public_defs(rel, root=ROOT):
+    """[(name, lineno, end_lineno, is_method)] -- public functions and methods defined in rel.
+
+    Top level and one level into a class. Nested defs are private by construction. `main` is a
+    self-invoking entry convention, and dunders are protocol, not capability.
+    """
+    out = []
+    try:
+        tree = ast.parse(open(os.path.join(root, rel), encoding="utf-8", errors="replace").read())
+    except Exception:
+        return out
+
+    def _take(node, is_method):
+        if not node.name.startswith("_") and node.name != "main":
+            out.append((node.name, node.lineno, getattr(node, "end_lineno", node.lineno), is_method))
+
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            _take(node, False)
+        elif isinstance(node, ast.ClassDef):
+            for sub in node.body:
+                if isinstance(sub, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    _take(sub, True)
+    return out
+
+
+def reference_sites(rel, root=ROOT):
+    """[(name, lineno)] -- every name MENTIONED in rel, over-broad on purpose (see above).
+
+    String constants match EXACTLY, so `getattr(mod, "promote")` is wiring while a docstring that
+    merely says `reason = should_restart(...)` is not. A guard evadable by writing the name in a
+    comment guards nothing.
+    """
+    out = []
+    try:
+        tree = ast.parse(open(os.path.join(root, rel), encoding="utf-8", errors="replace").read())
+    except Exception:
+        return out
+    for node in ast.walk(tree):
+        ln = getattr(node, "lineno", 0)
+        if isinstance(node, ast.Name):
+            out.append((node.id, ln))
+        elif isinstance(node, ast.Attribute):
+            out.append((node.attr, ln))
+        elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+            out.append((node.value, ln))
+        elif isinstance(node, ast.keyword) and node.arg:
+            out.append((node.arg, ln))
+        elif isinstance(node, ast.alias):
+            out.append((node.name.rsplit(".", 1)[-1], ln))
+            if node.asname:
+                out.append((node.asname, ln))
+    return out
+
+
+def unwired_functions(candidate_mods, production_files, root=ROOT):
+    """[(module, name, lineno)] -- public defs no production file ever names.
+
+    A def at lines lo..hi in module M is WIRED if its name appears anywhere on a production path
+    OTHER than inside its own body. That last clause is the whole subtlety, and the first draft got
+    it wrong in the expensive direction: suppressing every reference made inside the DEFINING
+    MODULE (rather than inside the function's own body) reported load_learnings_for_boot as never
+    called, when core/context/aggregator.py:104 calls it from inside aggregator's own public
+    function. That draft found 277 orphans; this rule finds 44. Recursion is still not wiring.
+
+    The caller passes the candidate list, so a module already frozen on the MODULE backlog can be
+    excluded there -- reporting every function inside a known-unwired module is noise, and noise is
+    what turns a guard into a thing people silence.
+    """
+    sites = {}
+    for p in production_files:
+        for name, ln in reference_sites(p, root=root):
+            sites.setdefault(name, []).append((p, ln))
+    out = []
+    for m in candidate_mods:
+        for name, lo, hi, _is_method in public_defs(m, root=root):
+            wired = any(mod != m or not (lo <= ln <= hi) for mod, ln in sites.get(name, ()))
+            if not wired:
+                out.append((m, name, lo))
+    return sorted(out)
+
+
+def stale_function_baseline(baseline, candidate_mods, production_files, root=ROOT):
+    """Baseline entries that are now WIRED (or gone) -- the backlog must be able to shrink.
+
+    The module gate is currently reporting two of its own stale entries, which is the property
+    worth copying: an exemption list that can only grow stops being a backlog.
+    """
+    live = {f"{m}::{n}" for m, n, _lo in
+            unwired_functions(candidate_mods, production_files, root=root)}
+    return sorted(e for e in baseline if e not in live)
+
+
+def load_baseline(path=BASELINE_PATH):
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return set(json.load(fh).get("entries", []))
+    except (OSError, ValueError):
+        return set()          # fail open: a missing baseline freezes nothing, it does not crash
+
+
+def function_level(reachable, core_universe):
+    """-> (candidate_mods, production_files, orphans, stale) for the gate and the report."""
+    cand = sorted(m for m in core_universe if m in reachable and m not in EXCEPTIONS)
+    prod = sorted({p for p in (set(ENTRY_POINTS) | {r for r in reachable if r.endswith(".py")})
+                   if os.path.exists(os.path.join(ROOT, p))})
+    orphans = unwired_functions(cand, prod)
+    stale = stale_function_baseline(sorted(load_baseline()), cand, prod)
+    return cand, prod, orphans, stale
+
+
 def analyze():
     modmap = module_map()
     # __init__.py are package markers (implicitly loaded on submodule import); the static graph can't
@@ -273,11 +410,39 @@ def main():
     for u in new_unwired:
         print(f"FAIL: '{u}' exists but is NOT reachable from any production entry point "
               f"(built != wired) -> wire it, delete it, or add to EXCEPTIONS with a reason")
-    if new_unwired:
-        print(f"\n{len(new_unwired)} NEW unwired core/ module(s). Latent capability must not accumulate.")
+
+    # T134: the same question one level down -- a wired module can still hold dead capability.
+    _cand, _prod, orphans, fn_stale = function_level(reachable, core_universe)
+    baseline = load_baseline()
+    new_orphans = [(m, n, lo) for m, n, lo in orphans if f"{m}::{n}" not in baseline]
+    if report or "--functions" in sys.argv:
+        print(f"\npublic core/ functions unwired: {len(orphans)}  "
+              f"|  frozen backlog: {len(baseline)}  |  new: {len(new_orphans)}\n")
+        cur = None
+        for m, n, lo in orphans:
+            if m != cur:
+                print(f"  {m}")
+                cur = m
+            print(f"      {n}  (:{lo}){'' if f'{m}::{n}' in baseline else '   [NEW]'}")
+    for s in fn_stale:
+        print(f"WARN: '{s}' is in the function backlog but is now wired (or gone) "
+              f"-> remove the stale entry")
+    for m, n, lo in new_orphans:
+        print(f"FAIL: '{m}::{n}' (:{lo}) is public but NO production entry point ever calls it "
+              f"(built != wired, one level down) -> wire it, delete it, or add it to "
+              f"{os.path.relpath(BASELINE_PATH, ROOT).replace(os.sep, '/')} with a reason")
+
+    if new_unwired or new_orphans:
+        if new_unwired:
+            print(f"\n{len(new_unwired)} NEW unwired core/ module(s). "
+                  f"Latent capability must not accumulate.")
+        if new_orphans:
+            print(f"\n{len(new_orphans)} NEW unwired public function(s). A capability nothing "
+                  f"calls runs nowhere, however green its tests are.")
         return 1
     print(f"\nPASS: every core/ module is wired to a production path "
-          f"({len(EXCEPTIONS)} known-standalone exception(s)).")
+          f"({len(EXCEPTIONS)} known-standalone exception(s)); no NEW unwired public function "
+          f"({len(baseline)} on the frozen backlog).")
     return 0
 
 
