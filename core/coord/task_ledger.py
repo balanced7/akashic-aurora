@@ -63,8 +63,24 @@ STATUSES = (PROPOSED, APPROVED, CLAIMED, IN_PROGRESS, VERIFYING, DONE, BLOCKED, 
 TRANSITIONS: Dict[str, set] = {
     PROPOSED:    {APPROVED, ABANDONED},
     APPROVED:    {CLAIMED, ABANDONED},
-    CLAIMED:     {IN_PROGRESS, APPROVED, ABANDONED, PARKED},   # release: APPROVED drops it silently,
-                                                               # PARKED shelves it WITH a reason
+    CLAIMED:     {IN_PROGRESS, VERIFYING, APPROVED, ABANDONED, PARKED},
+    #            ^ release: APPROVED drops it silently, PARKED shelves it WITH a reason.
+    #
+    # T138 (2026-08-03): VERIFYING is reachable from CLAIMED so a COMPLETION RECORD can be closed
+    # without pretending to build it. Four entries were proposals whose own titles read "T110 DONE
+    # (08f6016+c2244b6)", "T113 DONE (c94e1f4)" and so on -- finished slices someone filed as new
+    # entries instead of closing the originals. Reaching DONE required IN_PROGRESS, IN_PROGRESS is
+    # serialized one-at-a-time, so recording four week-old deliveries meant faking four IN_PROGRESS
+    # events; the only reachable terminal was ABANDONED, which asserts the intent DIED when it was
+    # DELIVERED and drops the receipts out of the record.
+    #
+    # This is the SAME defect the PARKED note below records ("16 FALSE in_progress events ... purely
+    # to reach a legal state"), at a different terminal, and it takes the same shape of fix.
+    # VERIFICATION IS LITERALLY THE WORK: checking a claimed sha against the commit. The evidence bar
+    # does not move -- the done gate still refuses without a commit AND a verification record, which
+    # is what makes a shorter route safe rather than a hole -- and the serialize gate is untouched,
+    # since it tests `to == IN_PROGRESS` specifically. A fresh proposal still walks the whole
+    # lifecycle: APPROVED -> VERIFYING is not legal, only CLAIMED -> VERIFYING.
     IN_PROGRESS: {VERIFYING, BLOCKED, ABANDONED, PARKED},
     VERIFYING:   {DONE, IN_PROGRESS, BLOCKED, PARKED},  # verification can bounce it back, or shelve
     BLOCKED:     {APPROVED, IN_PROGRESS, ABANDONED},

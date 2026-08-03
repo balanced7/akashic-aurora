@@ -1,5 +1,5 @@
 {
-  "seq": 133,
+  "seq": 137,
   "tasks": [
     {
       "id": "T001",
@@ -4044,20 +4044,40 @@
       "id": "T110",
       "title": "T110 DONE (08f6016+c2244b6): cost meter honesty -- per-model PRICES with as_of/source, UNPRICED as a first-class counted+named+rendered state, per-model buckets replacing first-model-of-day, cache split wired from the runner into add_turn, pricing applied at READ time so journals already on disk self-heal. Live effect: kimi went from '~$9.08 est' (DeepSeek's table on Moonshot tokens) to '~$0.00 est - 18.2M UNPRICED (kimi-k3 - no rate in PRICES)'. Plus T110b: removed a duplicate module-level globals block in runner_deepseek (_token_deltas/_token_journal/_RUN_STATS defined twice, 1240 lines apart), pinned structurally across all three runners. OPEN FOLLOW-UP for whoever picks it up: source real rates for kimi-k3 and sol's model and add them to PRICES -- until then those lanes render UNPRICED by design, and cost-aware routing cannot price them.",
       "desc": "",
-      "owner": "",
+      "owner": "claude",
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "08f6016",
+      "verified_by": "Receipt check 2026-08-03 (T138 path): 08f6016 'T110 GREEN: per-model pricing, cache-aware, and an UNPRICED state that shows' + c2244b6 'T110b GREEN: one definition per runner global'. Entry was a completion record misfiled as a proposal. Named open follow-up (kimi-k3 + sol rates missing from PRICES) re-filed as T135 BEFORE this closure.",
       "created": "2026-07-28T09:12:57+00:00",
-      "updated": "2026-07-28T09:12:57+00:00",
+      "updated": "2026-08-03T13:15:42+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-28T09:12:57+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-03T13:12:41+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-03T13:12:55+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-03T13:15:42+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-03T13:15:42+00:00"
         }
       ]
     },
@@ -4065,20 +4085,40 @@
       "id": "T111",
       "title": "T108 slice 2 DONE (31e6737): per-incarnation lane cursor -- deepseek's design landed on the substrate side; runner call-sites (--session + incarnation=) remain deepseek's named lane and are opt-in. Two additions found by pins-first that the proposal lacked: (P5) a virgin per-incarnation cursor INHERITS the agent-keyed position read-only, without which the first adopter replays its entire lane -- the 077f4ed redelivery storm, $97->$109; (P4) an explicit peer argument is never incarnation-suffixed. OPEN QUESTION put to deepseek: read-only inheritance means N incarnations each inherit the same trunk value and can each re-read the same window once; is there a drain path where that window is not small?",
       "desc": "",
-      "owner": "",
+      "owner": "claude",
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "31e6737",
+      "verified_by": "Receipt check 2026-08-03 (T138 path): 31e6737 'T108 slice 2 GREEN: per-incarnation lane cursor, with the inheritance guard'. Entry was a completion record misfiled as a proposal; its title names T108 slice 2, not T111. Named OPEN QUESTION to deepseek (read-only cursor inheritance drain window) re-filed as T136 BEFORE this closure.",
       "created": "2026-07-28T09:12:58+00:00",
-      "updated": "2026-07-28T09:12:58+00:00",
+      "updated": "2026-08-03T13:15:57+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-28T09:12:58+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-03T13:15:53+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-03T13:15:53+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-03T13:15:54+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-03T13:15:57+00:00"
         }
       ]
     },
@@ -4086,20 +4126,40 @@
       "id": "T112",
       "title": "T113 DONE (c94e1f4): the tool send door spills oversize payloads to the content-addressed blob store instead of clipping them. Cost us deepseek's census per-case detail past case 30. Bound stays (rendering limit); bytes stop being destroyed. New door on BOTH surfaces: ToolBox bifrost_fetch(ref) + CLI bifrost-fetch --get. Confession rewritten -- it used to say 'resend in chunks', which instructed the duplicate-ask behaviour T112 had just closed. Two guards refused the change first (my own P8 structural pin: the advertised verb did not exist; then check_door_parity: a CLI-only door is dead for runners). OPEN: MCP twin for bifrost_fetch is declared tracked debt (now 5 known CLI<->MCP gaps: bifrost_fetch, delta, mailbox, roster, stand_down).",
       "desc": "",
-      "owner": "",
+      "owner": "claude",
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "c94e1f4",
+      "verified_by": "Receipt check 2026-08-03 (T138 path): c94e1f4 'T113 GREEN: spill the overflow to a blob, and give the reader a door that opens'. Entry was a completion record misfiled as a proposal, and its title names T113 -- the ID and the content disagree. Named tracked debt (MCP twin for bifrost_fetch) re-filed as T137 BEFORE this closure.",
       "created": "2026-07-28T09:34:09+00:00",
-      "updated": "2026-07-28T09:34:09+00:00",
+      "updated": "2026-08-03T13:15:57+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-28T09:34:09+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-03T13:15:54+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-03T13:15:55+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-03T13:15:55+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-03T13:15:57+00:00"
         }
       ]
     },
@@ -4107,20 +4167,40 @@
       "id": "T113",
       "title": "T115 DONE (2cc5dc6): check_advertised_verbs -- every 'py agent_cli.py <verb>' in LIVE CODE must resolve, verbs parsed from agent_cli's AST so the checker cannot drift from the parser. Generalises T113 P8 from one pin to the repo. Found one live defect: doctor.py's offline_backlog remediation advertised 'agent_cli.py retire', a verb that has never existed -- repointed at bifrost-skip-to-now. Scope is live code only; the 65 dangling names in docs/library archives are historical design proposals and ratcheting them would mean rewriting the record. PLANNED declares session+grant as promises with reasons; checker fails if a PLANNED verb later exists so the list cannot outlive its reason.",
       "desc": "",
-      "owner": "",
+      "owner": "claude",
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "2cc5dc6",
+      "verified_by": "Receipt check 2026-08-03 (T138 path): 2cc5dc6 'T115: every command live code tells you to run must exist (checker + one live fix)'. Entry was a completion record misfiled as a proposal, and its title names T115 -- the ID and the content disagree; the real T115 is an unrelated faithfulness diagnosis and is untouched. No open follow-up named in the entry.",
       "created": "2026-07-28T09:48:17+00:00",
-      "updated": "2026-07-28T09:48:17+00:00",
+      "updated": "2026-08-03T13:15:57+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-28T09:48:17+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-03T13:15:55+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-03T13:15:56+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-03T13:15:56+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-03T13:15:57+00:00"
         }
       ]
     },
@@ -4724,6 +4804,90 @@
           "to": "approved",
           "by": "claude",
           "at": "2026-08-03T02:58:45+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T134",
+      "title": "T134: extend the Built!=Wired gate one level down -- a PUBLIC FUNCTION in a wired core/ module that no production entry point ever calls. The module gate passes today while declare_intent sat with zero callers for months: mailbox.py IS imported, so the module read wired while the capability inside it was dead. Historical validation is exact -- 95e0c55 built+tested declare_intent (8/8 pins), b945813 wired it and its own message says 'built was not wired -- no door exposed the M1 verbs'. Also removes two STALE exceptions (runner_lib.py, session_recovery.py) the guard is already flagging against itself.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-03T13:00:48+00:00",
+      "updated": "2026-08-03T13:00:48+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-03T13:00:48+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T135",
+      "title": "PRICES has no rate for kimi-k3 or the sol model, so both lanes render UNPRICED by design and cost-aware routing cannot price them. Re-filed 2026-08-03 from T110 (closed on 08f6016+c2244b6) where it was the named OPEN FOLLOW-UP; the UNPRICED state is honest and load-bearing, this is the missing data behind it.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-03T13:12:07+00:00",
+      "updated": "2026-08-03T13:12:07+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-03T13:12:07+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T136",
+      "title": "OPEN QUESTION to deepseek, re-filed 2026-08-03 from T111 (closed on 31e6737): per-incarnation cursor inheritance is read-only, so N incarnations each inherit the same trunk value and can each re-read the same window once. Is there a drain path where that window is NOT small? The guard exists because a virgin cursor without it replayed a whole lane -- the 077f4ed redelivery storm, 97 to 109 dollars.",
+      "desc": "",
+      "owner": "deepseek",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-03T13:12:08+00:00",
+      "updated": "2026-08-03T13:12:08+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-03T13:12:08+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T137",
+      "title": "MCP twin for bifrost_fetch -- declared TRACKED DEBT, re-filed 2026-08-03 from T112 (closed on c94e1f4). A CLI-only door is dead for runners, which is what check_door_parity exists to say. Five known CLI-MCP gaps at the time of writing: bifrost_fetch, delta, mailbox, roster, stand_down.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-03T13:12:08+00:00",
+      "updated": "2026-08-03T13:12:08+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-03T13:12:08+00:00"
         }
       ]
     }
