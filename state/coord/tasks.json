@@ -1,5 +1,5 @@
 {
-  "seq": 137,
+  "seq": 139,
   "tasks": [
     {
       "id": "T001",
@@ -1382,16 +1382,22 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
+      "status": "abandoned",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-12T06:22:21+00:00",
-      "updated": "2026-07-12T06:22:21+00:00",
+      "updated": "2026-08-03T13:18:02+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-12T06:22:21+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-03T13:18:02+00:00",
+          "reason": "ABSORBED, not dropped -- executing an absorption its own successors declared. T072 says verbatim: 'Supersedes/absorbs proposed T036+T037'. T072 is in turn absorbed by T088, which says verbatim: 'Absorbs T072 + T036 scope; folds T080 frm-spoofing caveat'. LIVE SUCCESSOR = T088 (deliberately pointed at the surviving entry, not at another tombstone). Scope preserved there: session-env scrub for non-session children, and per-session seat rendering at boot/doctor. Consolidation pass 2026-08-03; census: research/in-flight/ledger-consolidation-analysis-2026-08-03.md"
         }
       ]
     },
@@ -1403,16 +1409,22 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
+      "status": "abandoned",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-12T06:24:36+00:00",
-      "updated": "2026-07-12T06:24:36+00:00",
+      "updated": "2026-08-03T13:18:02+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-12T06:24:36+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-03T13:18:02+00:00",
+          "reason": "ABSORBED, not dropped. T072 says verbatim: 'Supersedes/absorbs proposed T036+T037', and carries this scope as its item (2) consume-seat ownership. T072 is absorbed by T088 ('Absorbs T072 + T036 scope'). LIVE SUCCESSOR = T088. Scope preserved: non-holder wake discipline -- watcher anchors at its own arm-time tail, stop hook accepts a live twin holding the consumer seat. NOTE the transitive step: T088 names T072 and T036 but not T037; T037 rides in because T088 absorbs T072 WHOLLY and T037 is T072's item (2). Consolidation pass 2026-08-03."
         }
       ]
     },
@@ -2810,16 +2822,22 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
+      "status": "abandoned",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-15T05:26:44+00:00",
-      "updated": "2026-07-15T05:26:44+00:00",
+      "updated": "2026-08-03T13:18:02+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-07-15T05:26:44+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-03T13:18:02+00:00",
+          "reason": "ABSORBED, not dropped. T088 says verbatim: 'Absorbs T072 + T036 scope; folds T080 frm-spoofing caveat'. LIVE SUCCESSOR = T088. All five T072 items ride there: per-session presence cards, consume-seat ownership, fleet-lifecycle lease, runner_lock stealing a DEAD pid's lock, and the ledger actor gaining a session suffix under twins. Consolidation pass 2026-08-03. NOT merged into T108: T108 declares no absorption of this chain anywhere in its text -- that merge was proposed by analysis, not by an author, so it is left for Daniil."
         }
       ]
     },
@@ -4785,15 +4803,15 @@
       "id": "T133",
       "title": "MAIL-FIRST: make the mailbox states LOAD-BEARING (corrects the T095 supersession). The mail model is already BUILT -- core/comm/mailbox.py M1 ships non-destructive open + declare_intent(act/decline/delegate/defer) + tiered retention -- and has ZERO callers outside its own module (1509 unopened, 1 declared). With no read record, 'handled' falls back to 'the target's cursor advanced past it', which is a transport position being asked to also be a delivery record, a read receipt and a handled-flag. That substitution is the root cause of ghost mail being re-answered, of 'unhandled' for completed work, and of the wake re-arm loop. Slices: M1 runners open-on-read + declare-on-decision; M2 wake/delivery consult opened/declared instead of the cursor; M3 retire ghost senders; M4 send-door attendance stops lying.",
       "desc": "",
-      "owner": "",
+      "owner": "claude",
       "deps": [],
       "files": [],
       "acceptance": "declare_intent has callers; a message a runner handled reads as declared, not as unhandled; a retired seat's mail cannot out-compete a live directed ask; the wake path re-fires zero times on already-opened mail",
-      "status": "approved",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "f419596",
+      "verified_by": "Receipt check 2026-08-03. All four slices the entry names are delivered and their commits read: M1 53fe21a, M2 b1c36e2, M3+M4 3b2eff2; M5 0acdc0e and M6 f419596 landed beyond the entry's stated scope, plus 92cd35f (declaration indexes unreached mail) and 3882bf8 (ghost sweep on a cadence). 44 pins green in tests/test_t133_mail_states_load_bearing.py at this commit. M3's named residual -- the scheduled sweep -- is CLOSED by 3882bf8, wired at agent_cli.py:4219 and mailbox.py:1021. The one remaining residual (M6 harness receipts unproven end-to-end live) is re-filed as its own entry BEFORE this closure.",
       "created": "2026-08-03T02:58:44+00:00",
-      "updated": "2026-08-03T02:58:45+00:00",
+      "updated": "2026-08-03T13:19:04+00:00",
       "history": [
         {
           "to": "proposed",
@@ -4804,6 +4822,21 @@
           "to": "approved",
           "by": "claude",
           "at": "2026-08-03T02:58:45+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-03T13:19:04+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-03T13:19:04+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-03T13:19:04+00:00"
         }
       ]
     },
@@ -4888,6 +4921,48 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-03T13:12:08+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T138",
+      "title": "T133 M6 residual, re-filed 2026-08-03 before closing the parent: the harness seat's mail receipts are PINNED but never proven end-to-end live. Every consume so far surfaced only trace-class telemetry, which correctly is not mail and correctly gets no receipt -- so open_for_message on the harness door has no live receipt yet. It proves itself the first time real mail reaches the cursor; until then M6 is green-by-pin, not green-by-run. Distinguish: this is unVERIFIED, not suspected-broken.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-03T13:19:03+00:00",
+      "updated": "2026-08-03T13:19:03+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-03T13:19:03+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T139",
+      "title": "Ledger receipt path: CLAIMED -> VERIFYING, so a completion record can be closed without faking that it is being built. DELIVERED 2026-08-03 (commits 444c4c4 RED + 3dca734 GREEN, 5 pins). Found while consolidating: four entries were finished slices misfiled as proposals, and DONE was reachable only through the serialized IN_PROGRESS slot -- so closing four week-old deliveries meant faking four IN_PROGRESS events, and the only reachable terminal was ABANDONED, which asserts the intent DIED when it was DELIVERED. Same class as the PARKED fix at task_ledger.py:80 ('16 FALSE in_progress events ... purely to reach a legal state'). Evidence bar unchanged: done still refuses without commit AND verified_by; APPROVED -> VERIFYING stays illegal.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-03T13:19:51+00:00",
+      "updated": "2026-08-03T13:19:51+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-03T13:19:51+00:00"
         }
       ]
     }

@@ -66,7 +66,7 @@ TRANSITIONS: Dict[str, set] = {
     CLAIMED:     {IN_PROGRESS, VERIFYING, APPROVED, ABANDONED, PARKED},
     #            ^ release: APPROVED drops it silently, PARKED shelves it WITH a reason.
     #
-    # T138 (2026-08-03): VERIFYING is reachable from CLAIMED so a COMPLETION RECORD can be closed
+    # T139 (2026-08-03): VERIFYING is reachable from CLAIMED so a COMPLETION RECORD can be closed
     # without pretending to build it. Four entries were proposals whose own titles read "T110 DONE
     # (08f6016+c2244b6)", "T113 DONE (c94e1f4)" and so on -- finished slices someone filed as new
     # entries instead of closing the originals. Reaching DONE required IN_PROGRESS, IN_PROGRESS is

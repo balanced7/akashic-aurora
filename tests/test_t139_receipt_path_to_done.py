@@ -1,4 +1,16 @@
-"""PRE-REGISTERED ACCEPTANCE (T138) -- a delivered-but-misfiled entry can reach DONE honestly.
+"""PRE-REGISTERED ACCEPTANCE (T139) -- a delivered-but-misfiled entry can reach DONE honestly.
+
+ERRATUM, and an instance of the very defect this file was written to clean up. The two commits
+that carry this work -- 444c4c4 (RED) and 3dca734 (GREEN) -- say "T138" in their subject lines.
+They were written before the ledger assigned an id, and by the time it did, T138 had gone to an
+unrelated entry (the T133 M6 residual). The ledger id for THIS work is T139. Renaming the file and
+the transition-table comment fixes it going forward; the two commit subjects are left standing
+with this note rather than rewritten, because they are the pre-registration evidence and rewriting
+shared history to tidy a label is a worse trade. Cite T139, and expect T138 in `git log`.
+
+That this happened WHILE closing four entries whose ids and contents disagree is the point worth
+keeping: the defect is not carelessness, it is that a name gets chosen before the registry issues
+one. Anything that mints its own label before the ledger speaks can collide.
 
 MEASURED 2026-08-03 while executing the ledger consolidation Daniil asked for. Four entries are
 COMPLETION RECORDS misfiled as proposals -- someone recorded a finished slice by proposing a new
