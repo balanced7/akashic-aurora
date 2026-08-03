@@ -398,10 +398,33 @@ def load_baseline(path=BASELINE_PATH):
         return set()          # fail open: a missing baseline freezes nothing, it does not crash
 
 
+def _script_files():
+    """Every .py under scripts/ -- ALL of them are production call paths (T134c).
+
+    scripts/ is the tools directory: a file in it is either run by a human or imported by one that
+    is, and the import graph cannot tell which. Measured 2026-08-03: counting only the reachable
+    ones left 29 of 47 invisible, including mirror.py (commit+push), ship.py and snapshot.py. The
+    caller that exposed it was `scripts/snapshot.py:21  snaps = list_snapshots()` -- a live backup
+    door with NO `__main__` guard (it needs none; `py scripts/snapshot.py` runs the module body),
+    so neither the BFS nor self_invoking_modules could see it.
+
+    This can only ADD evidence of wiring. A function nothing anywhere names is still reported.
+    """
+    out = set()
+    for dp, _dn, fn in os.walk(os.path.join(ROOT, "scripts")):
+        if "__pycache__" in dp:
+            continue
+        for f in fn:
+            if f.endswith(".py"):
+                out.add(os.path.relpath(os.path.join(dp, f), ROOT).replace(os.sep, "/"))
+    return out
+
+
 def function_level(reachable, core_universe):
     """-> (candidate_mods, production_files, orphans, stale) for the gate and the report."""
     cand = sorted(m for m in core_universe if m in reachable and m not in EXCEPTIONS)
-    prod = sorted({p for p in (set(ENTRY_POINTS) | {r for r in reachable if r.endswith(".py")})
+    prod = sorted({p for p in (set(ENTRY_POINTS) | _script_files()
+                               | {r for r in reachable if r.endswith(".py")})
                    if os.path.exists(os.path.join(ROOT, p))})
     orphans = unwired_functions(cand, prod)
     stale = stale_function_baseline(sorted(load_baseline()), cand, prod)

@@ -3,7 +3,7 @@
   "generated_by": "T134, claude",
   "what_this_is": "A frozen CENSUS of public functions in WIRED core/ modules that no production entry point names, taken the day the function-level gate landed. It is a BACKLOG, not an amnesty -- the same contract as EXCEPTIONS in check_wiring.py. A NEW orphan FAILS the gate; these are the ones that already existed. Deliberately NOT annotated with 117 hand-written reasons: inventing a justification per entry would read as 117 considered decisions when it is one measurement. Drain it in slices, with a real reason per slice, and delete entries as they are wired or removed. stale_function_baseline() reports entries that became wired, so this list can shrink -- an exemption list that can only grow stops being a backlog.",
   "how_to_read": "module::function -- see py scripts/checkers/check_wiring.py --functions",
-  "count": 114,
+  "count": 108,
   "entries": [
     "core/comm/bifrost_api.py::council",
     "core/comm/bifrost_api.py::covers",
@@ -17,9 +17,6 @@
     "core/comm/bus.py::text_part",
     "core/comm/context_hints.py::clear_all",
     "core/comm/context_hints.py::pending_count",
-    "core/comm/daemon_state.py::build_runtimes",
-    "core/comm/daemon_state.py::consume_rearms",
-    "core/comm/daemon_state.py::sweep_stale_markers",
     "core/comm/door_probe.py::read_verdict",
     "core/comm/launcher.py::restore_session",
     "core/comm/launcher.py::shutdown",
@@ -28,7 +25,6 @@
     "core/comm/nudge.py::nudge_status",
     "core/comm/pager.py::ack_pages",
     "core/comm/promoter.py::promote_interjection",
-    "core/comm/session_state.py::list_snapshots",
     "core/context/project_context.py::add_blocker",
     "core/context/project_context.py::add_milestone",
     "core/context/project_context.py::add_task",
@@ -56,7 +52,6 @@
     "core/coord/cognitive_metrics.py::record_reasoning",
     "core/coord/cognitive_metrics.py::record_tool_call",
     "core/coord/intent.py::clear_round",
-    "core/coord/task_ledger.py::by_status",
     "core/coord/task_ledger.py::sync_redis_from_git",
     "core/events/event_log.py::rebuild_index",
     "core/events/event_log.py::reset_event_log_singleton",
@@ -99,7 +94,6 @@
     "core/narrative/tagging.py::from_list",
     "core/narrative/tagging.py::rollback_to",
     "core/narrative/track_router.py::route_sequence",
-    "core/primitives/clusterer.py::assignment",
     "core/primitives/consolidator.py::get_consolidator",
     "core/primitives/embedder.py::is_loaded",
     "core/primitives/embedder.py::similarity",
@@ -119,5 +113,20 @@
     "core/state/session_checkpoint.py::print_recovery_summary",
     "core/state/session_checkpoint.py::save_checkpoint",
     "core/trust/registry.py::role_template"
+  ],
+  "history": [
+    {
+      "date": "2026-08-03",
+      "change": "114 -> 108",
+      "why": "T134c: scripts/ became a production call path. Sampling 22 entries to measure a false-positive RATE found scripts/snapshot.py:21 calling list_snapshots -- a live backup door with no __main__ guard, invisible to both the import BFS and self_invoking_modules. 29 of 47 scripts were uncounted, including mirror.py and ship.py. These entries were never dead; the gate could not see their callers.",
+      "removed": [
+        "core/comm/daemon_state.py::build_runtimes",
+        "core/comm/daemon_state.py::consume_rearms",
+        "core/comm/daemon_state.py::sweep_stale_markers",
+        "core/comm/session_state.py::list_snapshots",
+        "core/coord/task_ledger.py::by_status",
+        "core/primitives/clusterer.py::assignment"
+      ]
+    }
   ]
 }
