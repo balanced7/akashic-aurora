@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 0acdc0e. A bound you discover by collision is not awareness -- this sheet
+> Derived at 92cd35f. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -98,7 +98,7 @@ Class: reference
 | `AKASHIC_WORKLIVE_FRESH_S` | `"45"` | core/comm/roster.py |
 | `AKASHIC_WORKLIVE_TTL_S` | `"180"` | core/comm/roster.py |
 | `BIFROST_APPROACHING_WEDGE_SECONDS` | `"150"` | core/comm/liveness.py |
-| `BIFROST_CONSUME_LANE` | `` | core/comm/bifrost_api.py |
+| `BIFROST_CONSUME_LANE` | `` | core/comm/bifrost_api.py, scripts/bifrost_runner_deepseek.py, scripts/bifrost_runner_kimi.py |
 | `BIFROST_INCARNATION` | `` | agent/bifrost_pull.py, agent/harness/hooks/claude_posttooluse.py, agent_cli.py +4 |
 | `BIFROST_LANES_DUAL_WRITE` | `True` | core/comm/packet_spec.py |
 | `BIFROST_MAX_HOPS` | `"6"` | core/comm/control.py |

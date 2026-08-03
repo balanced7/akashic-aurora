@@ -848,7 +848,22 @@ def main() -> int:
               "be uncommandable, exactly as on 2026-07-26.")
 
     from core.comm.bifrost_api import BifrostAPI
+    # DRAIN THE LANE THE MAIL IS ON. Found live 2026-08-03: this runner was ONLINE, healthy, and
+    # not reaching its mail for hours, because BIFROST_CONSUME_LANE was unset -- so it read the
+    # LEGACY lane from a cursor 480 entries behind while sends landed on the work lane. Nothing
+    # reported a fault; the seat simply looked idle. That is the most expensive shape of bug this
+    # fleet produces: a silent misconfiguration wearing the costume of a quiet peer.
+    #
+    # The library gate stays legacy-by-default -- that is correct strangler discipline and other
+    # consumers still migrate on their own schedule. But a RUNNER exists to reach mail, and T045
+    # stage 2 is the live cutover, so the runner defaults ITSELF onto the work lane. Per-process
+    # and still overridable: set BIFROST_CONSUME_LANE explicitly to pin either behaviour.
+    os.environ.setdefault("BIFROST_CONSUME_LANE", "work")
     lane_mode = BifrostAPI.consume_lane_enabled()
+    if not lane_mode:
+        print(f"[kimi-runner] WARNING: consuming the LEGACY lane "
+              f"(BIFROST_CONSUME_LANE={os.environ.get('BIFROST_CONSUME_LANE')!r}). Mail sent to "
+              f"the work lane will NOT be reached. Unset it, or set it to 'work'.")
     lane_key = bus.lane_cursor_key() if lane_mode else None
     api = BifrostAPI(args.agent) if lane_mode else None
     if lane_mode:

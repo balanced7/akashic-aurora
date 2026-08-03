@@ -1365,7 +1365,16 @@ def main() -> int:
     # T045 stage 2: the consume side rides the WORK LANE when flipped (per-process strangler
     # env gate BIFROST_CONSUME_LANE=work; unset = legacy path byte-identical).
     from core.comm.bifrost_api import BifrostAPI
+    # DRAIN THE LANE THE MAIL IS ON (see the kimi runner for the full receipt): with
+    # BIFROST_CONSUME_LANE unset a runner reads the LEGACY lane from a badly-lagged cursor while
+    # sends land on work, and simply looks idle. The library gate stays legacy-by-default for
+    # strangler discipline; a RUNNER defaults itself onto work because reaching mail is its job.
+    os.environ.setdefault("BIFROST_CONSUME_LANE", "work")
     lane_mode = BifrostAPI.consume_lane_enabled()
+    if not lane_mode:
+        print(f"[deepseek-runner] WARNING: consuming the LEGACY lane "
+              f"(BIFROST_CONSUME_LANE={os.environ.get('BIFROST_CONSUME_LANE')!r}). Mail sent to "
+              f"the work lane will NOT be reached. Unset it, or set it to 'work'.")
     lane_key = bus.lane_cursor_key() if lane_mode else None
     api = BifrostAPI(args.agent) if lane_mode else None
     if lane_mode:
