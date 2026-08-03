@@ -299,6 +299,10 @@ def _project_items(recs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             "agent_id": rec.get("agent_id", ""),
             "confidence": rec.get("confidence", ""),
             "anti_pattern": rec.get("anti_pattern", ""),
+            # Carried for the same reason the provenance fields above are: the store holds it and
+            # the projection was dropping it, so nothing downstream could scope on it. A lesson
+            # written before domains existed has no field and means DEFAULT_DOMAIN by construction.
+            "domain": rec.get("domain", ""),
             "field": field,
             # Carried so the renderer can say so. A probed lesson was benched for failing to
             # earn credit and is being re-tested -- presenting it as an ordinary lesson would
@@ -417,6 +421,44 @@ def _load_use(store, source: str) -> Dict[str, int]:
         return json.loads(raw) if raw else {}
     except Exception:
         return {}
+
+
+# ---- D5: cross-domain promotion, earned rather than declared ------------------------------------
+# A lesson credited useful in >= 2 DOMAINS is domain-general and surfaces everywhere. This is not
+# new machinery: it is the funnel that already counts surfaced/useful/noise, read across a boundary.
+#
+# Promotion has to be EARNED because the first case is the one that motivated it. "An instrument
+# that cannot see its subject returns a confident answer, not silence" was found three times in one
+# day -- in a PNG decoder, in a metric suite, and in recall itself. Hand-labelling that lesson
+# general would ship the mechanism untested on the single example it exists for.
+_GENERAL_AT = 2
+
+
+def credit_useful(source: str, domain: str, store: Optional[Any] = None) -> Dict[str, Any]:
+    """Record a useful vote AND the domain it was useful in. Additive: the ordinary `useful` counter
+    keeps counting, because the funnel's value gauge reads the same record and a promotion that
+    reset it would corrupt the measurement it depends on."""
+    st = store if store is not None else _store()
+    use = _load_use(st, source)
+    use["useful"] = int(use.get("useful", 0) or 0) + 1
+    doms = list(use.get("useful_domains") or [])
+    d = str(domain or "").strip()
+    if d and d not in doms:
+        doms.append(d)
+    use["useful_domains"] = doms
+    try:
+        st.set(_USE_PREFIX + str(source), json.dumps(use))
+    except Exception:
+        pass
+    return use
+
+
+def is_general(source: str, store: Optional[Any] = None,
+               use: Optional[Dict[str, Any]] = None) -> bool:
+    """True once a lesson has earned credit in >= 2 distinct domains. Twice in one domain is a
+    popular lesson; that is not the same claim and must not be promoted to one."""
+    rec = use if use is not None else _load_use(store if store is not None else _store(), source)
+    return len(set(rec.get("useful_domains") or [])) >= _GENERAL_AT
 
 
 def _with_usefulness(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -626,7 +668,8 @@ def prune_ghost_counters(*, store=None, learning_store: Optional[Any] = None) ->
     return {"pruned": pruned, "kept_credited": kept}
 
 
-def record_feedback(source: str, kind: str = "useful", *, store=None) -> bool:
+def record_feedback(source: str, kind: str = "useful", *, store=None,
+                    domain: Optional[str] = None) -> bool:
     """Record a usefulness signal for a recalled lesson. kind: 'useful'/'noise' (explicit votes),
     'helped' (the automatic contrastive positive -- a FAIL->SUCCESS flip), or 'engaged' (the agent
     pulled the FULL record -- strong interest, weaker than helped; counted + shown in triage and
@@ -637,6 +680,11 @@ def record_feedback(source: str, kind: str = "useful", *, store=None) -> bool:
     try:
         source = canonicalize_source(source)
         store = store or _store()
+        if kind == "useful":
+            # ONE write path for useful, so `useful` and `useful_domains` can never disagree about
+            # the same vote -- which is what would let a lesson be promoted by credit it never got.
+            credit_useful(source, domain, store=store)
+            return True
         use = _load_use(store, source)
         use[kind] = int(use.get(kind, 0)) + 1
         store.set(_USE_PREFIX + str(source), json.dumps(use))
@@ -1207,20 +1255,52 @@ def build_learn_nudge(target: str, credited: int, sources, agent_id: Optional[st
     return "\n".join(lines)
 
 
-def _query_from(path: Optional[str], command: Optional[str]) -> str:
-    """Build a keyword query from a path (dir/stem tokens) and/or command. Keeps tokens len>3
-    (the Ranker's keyword_relevance ignores shorter ones) minus generic noise; order-stable, deduped."""
+def _query_from(path: Optional[str], command: Optional[str],
+                subject: Optional[str] = None, gesture: Optional[str] = None) -> str:
+    """Build a keyword query from a path (dir/stem tokens), a command, and/or a composition
+    GESTURE and SUBJECT. Keeps tokens len>3 (the Ranker's keyword_relevance ignores shorter ones)
+    minus generic noise; order-stable, deduped.
+
+    subject/gesture exist because path and command are both SYSTEM-shaped triggers: they assume the
+    point of action is a file or a shell line. "About to add tanh-tonemap after superlinear-
+    highlight" is neither, so the moment when the chunk-ordering rule is worth knowing was a moment
+    recall could not be asked about. Extending this one function rather than adding a second door is
+    deliberate -- the hooks already call recall_at and nothing else, so the mediation layer exists.
+    """
     parts: List[str] = []
     if path:
         parts += _TOKEN_RE.findall(path.replace("\\", "/"))
     if command:
         parts += _TOKEN_RE.findall(command)[:16]
+    # The gesture leads: it names what is ABOUT to happen, which is what the lesson must match. The
+    # subject is context and follows.
+    if gesture:
+        parts = _TOKEN_RE.findall(gesture)[:16] + parts
+    if subject:
+        parts += _TOKEN_RE.findall(subject)[:8]
     out: List[str] = []
     for t in parts:
         t = t.lower()
         if len(t) > 3 and t not in _STOP and t not in out:
             out.append(t)
     return " ".join(out)
+
+
+def _domain_from_trigger(path: Optional[str], command: Optional[str],
+                         subject: Optional[str], gesture: Optional[str]) -> Optional[str]:
+    """Which domain is this point of action in? None when there is nothing to go on.
+
+    Returning None rather than the default matters: an unscoped call must keep searching everything,
+    exactly as it did before domains existed. Guessing "system" from an empty trigger would silently
+    hide every vfx lesson from callers that simply did not say.
+    """
+    if gesture or subject:
+        return "vfx"          # a composition gesture only exists inside the bench
+    blob = " ".join(str(x or "") for x in (path, command))
+    if not blob.strip():
+        return None
+    from core.learning.domains import infer_domain
+    return infer_domain({"what_tried": blob, "recommendation": ""})
 
 
 def _self_echo(item: Dict[str, Any], agent_id: Optional[str], now: Optional[float]) -> bool:
@@ -1247,13 +1327,24 @@ def _lessons(query: str, now: Optional[float], limit: int, min_relevance: float,
              learning_store: Optional[Any] = None,
              exclude_sources: Optional[set] = None,
              agent_id: Optional[str] = None,
-             stats_out: Optional[Dict[str, int]] = None) -> "tuple[List[Dict[str, Any]], int]":
+             stats_out: Optional[Dict[str, int]] = None,
+             domain: Optional[str] = None) -> "tuple[List[Dict[str, Any]], int]":
     """Rank ACTIVE lessons by TRIGGER-AWARE relevance; keep those above the show-nothing floor,
     minus any already surfaced this session (`exclude_sources` -> anti-repeat), the caller's own
     fresh lessons (self-echo window), and intra-call source dups. Returns (items capped at `limit`,
     TOTAL that cleared the floor) -- the total powers the N-of-M escape line in render()."""
     from core.primitives.ranker import Ranker
     items = _cached_items(learning_store)
+    if domain:
+        # SCOPE, with two deliberate escapes. A lesson written before domains existed carries no
+        # field and means DEFAULT_DOMAIN by construction, so it stays visible to system actions
+        # rather than vanishing during the backfill gap. And a lesson credited useful in two
+        # domains has EARNED its way across the boundary -- that is D5, and this is the one line
+        # where cross-domain learning actually pays out.
+        from core.learning.domains import DEFAULT_DOMAIN
+        items = [it for it in items
+                 if (it.get("domain") or DEFAULT_DOMAIN) == domain
+                 or is_general(it.get("source"), use=it.get("_use"))]
     excl = exclude_sources or set()
     by_text = {str(it.get("text") or ""): it for it in items}
     cands: List = []
@@ -1310,6 +1401,8 @@ def _floor_default() -> float:
 
 
 def recall_at(*, path: Optional[str] = None, command: Optional[str] = None,
+              subject: Optional[str] = None, gesture: Optional[str] = None,
+              domain: Optional[str] = None,
               agent_id: Optional[str] = None, limit: int = 3,
               min_relevance: Optional[float] = None, now: Optional[float] = None,
               learning_store: Optional[Any] = None,
@@ -1322,10 +1415,13 @@ def recall_at(*, path: Optional[str] = None, command: Optional[str] = None,
     Deterministic, no-LLM, FAITH-gated, fail-soft (returns an empty result on any error)."""
     try:
         floor = _floor_default() if min_relevance is None else float(min_relevance)
-        query = _query_from(path, command)
+        query = _query_from(path, command, subject, gesture)
+        # An explicit domain wins; otherwise the trigger decides; otherwise nothing is scoped and
+        # the whole corpus is searched, exactly as before domains existed.
+        scope = domain or _domain_from_trigger(path, command, subject, gesture)
         lstats: Dict[str, int] = {}
         lessons, total = _lessons(query, now, limit, floor, learning_store, exclude_sources,
-                                  agent_id=agent_id, stats_out=lstats) \
+                                  agent_id=agent_id, stats_out=lstats, domain=scope) \
             if query else ([], 0)
         locks = _locks(path, agent_id)
         counter = None

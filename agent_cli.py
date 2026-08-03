@@ -656,6 +656,9 @@ def cmd_recall_at(args):
     The same engine the PreToolUse hook calls to inject additionalContext at the moment of action."""
     from core.recall.at_action import recall_at, render
     res = recall_at(path=args.path, command=args.command,
+                    subject=getattr(args, "subject", None),
+                    gesture=getattr(args, "gesture", None),
+                    domain=getattr(args, "domain", None),
                     agent_id=args.agent_id or os.getenv("AKASHIC_AGENT_ID"),
                     limit=args.limit or 3)
     if args.json:
@@ -972,10 +975,18 @@ def cmd_recall_feedback(args):
     """Teach recall what's load-bearing: mark a surfaced lesson 'useful' (it changed what you did) or
     'noise' (off-target). Boosts/decays it in future recall ranking. Source = the lesson's pointer,
     e.g. learn:experiment:NAME."""
-    from core.recall.at_action import record_feedback
+    from core.recall.at_action import record_feedback, is_general
     kind = "noise" if args.noise else "useful"
-    ok = record_feedback(args.source, kind)
-    print(f"[recall-feedback] {'recorded' if ok else 'failed'}: {kind} <- {args.source}")
+    dom = getattr(args, "domain", None)
+    ok = record_feedback(args.source, kind, domain=dom)
+    print(f"[recall-feedback] {'recorded' if ok else 'failed'}: {kind} <- {args.source}"
+          + (f" (domain: {dom})" if dom and kind == "useful" else ""))
+    # Promotion is EARNED and it is worth saying out loud the moment it happens -- a lesson that has
+    # now proved itself in two domains starts surfacing in both, and that is a change in behaviour
+    # the operator should hear about rather than discover.
+    if ok and kind == "useful" and is_general(args.source):
+        print("[recall-feedback] this lesson has now earned credit in 2+ domains -- "
+              "it is DOMAIN-GENERAL and will surface everywhere.")
     return 0 if ok else 1
 
 
@@ -4431,6 +4442,13 @@ def build_parser():
     ra = sub.add_parser("recall-at", help="recall-at-action: relevant lessons/locks for a path or command")
     ra.add_argument("--path", default=None, help="the file path about to be acted on")
     ra.add_argument("--command", default=None, help="the shell command about to run")
+    # A composition gesture is a point of action with no path and no command. Without these two,
+    # the moment a chunk-ordering rule is worth knowing is a moment recall cannot be asked about.
+    ra.add_argument("--gesture", default=None,
+                    help="the composition gesture about to happen, e.g. 'add tanh-tonemap after superlinear-highlight'")
+    ra.add_argument("--subject", default=None, help="what the bench is currently showing")
+    ra.add_argument("--domain", default=None,
+                    help="scope to one domain (system|vfx); omit to let the trigger decide")
     ra.add_argument("--agent-id", dest="agent_id", default=None, help="who is asking (defaults to $AKASHIC_AGENT_ID)")
     ra.add_argument("--limit", type=int, default=3, help="max items to surface (default 3)")
     ra.add_argument("--hint-style", dest="hint_style", choices=["cli", "tool"], default="cli",
@@ -4442,6 +4460,9 @@ def build_parser():
     rf.add_argument("--source", required=True, help="the lesson's source pointer, e.g. learn:experiment:NAME")
     rf.add_argument("--useful", action="store_true", help="it changed what you did (default)")
     rf.add_argument("--noise", action="store_true", help="it was off-target")
+    rf.add_argument("--domain", default=None,
+                    help="which domain it was useful IN (system|vfx) -- credit in 2+ domains "
+                         "promotes the lesson to domain-general")
     rf.set_defaults(fn=cmd_recall_feedback)
 
     rc = sub.add_parser("recall-curate",

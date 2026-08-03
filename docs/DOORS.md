@@ -64,10 +64,10 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `promoted` | query durable salient Bifrost msgs (kind=bifrost_msg / B2) | `--limit` `--since` `--until` `--json` |
 | `pulse` | W25 (deepseek): LIFEWORKERS pressure-map -- where is pressure building in the fleet? lane-depths to zones. Companion to vitals. READ-only | `<agent>` `--json` |
 | `recall` | search past lessons (no query = list all) | `<query>` `--json` `--full` |
-| `recall-at` | recall-at-action: relevant lessons/locks for a path or command | `--path` `--command` `--agent-id` `--limit` `--hint-style {cli,tool}` `--json` |
+| `recall-at` | recall-at-action: relevant lessons/locks for a path or command | `--path` `--command` `--gesture` `--subject` `--domain` `--agent-id` `--limit` `--hint-style {cli,tool}` `--json` |
 | `recall-counters` | sharpening S2a: fold bare-slug + ghost recall:use:* counters (report; --fold applies) | `--fold` `--agent-id` |
 | `recall-curate` | bench surfaced-never-credited lessons + prune ghost counters (report; --apply stamps) | `--apply` `--forge-audit` `--forge-check` `--draft` `--forge-propose` `--forge-proposals` `--limit` `--json` |
-| `recall-feedback` | mark a recalled lesson useful/noise (teaches recall what helps) | `--source*` `--useful` `--noise` |
+| `recall-feedback` | mark a recalled lesson useful/noise (teaches recall what helps) | `--source*` `--useful` `--noise` `--domain` |
 | `roster` | S2 lobby: per-seat worklive (LIVE/STALE proven by beat freshness, never key-existence) + have-summaries | `--json` `--reap` |
 | `run` | execute a toolbelt alias: run <agent> <name> (explicit door -- a real verb can never be shadowed) | `<agent_id>*` `<name>*` `<args>` `--dry` |
 | `seat-identity` | declare/show THIS session's seat id (binding beats the shared env) | `<agent_id>` `--session` `--clear` |

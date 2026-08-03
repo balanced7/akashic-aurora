@@ -69,12 +69,23 @@ def _signal_for(meta: Dict[str, Any]) -> Dict[str, Any]:
     tried = "the %s chunk (%s%s)" % (name, kind, (", " + cat) if cat else "")
     if origin:
         tried += ", from " + origin
+
+    # SYNTHESISE THE TRIGGER CLAUSE, and this was found live rather than reasoned: adoption made
+    # these lessons retrievable by keyword search and they STILL never surfaced at a gesture,
+    # because recall-at ranks by the corpus convention "Use when <symptom>, before <action>:
+    # <advice>" and a chunk note has no such clause. Every adopted lesson scored ~0.17 against a
+    # 0.20 floor with trigger=''. The note was authored for a human reading a palette; the ranker
+    # assumes a different authoring surface, and a projection has to bridge that rather than copy
+    # text across. The clause is derived from the chunk's own declared metadata, so it states a
+    # fact the header already carries -- it is a rendering, not an invention.
+    trigger = ("Use when adding or ordering the %s chunk (%s%s) in a composition, "
+               "before compiling: " % (name, kind, (", " + cat) if cat else ""))
     return {
         "experiment_name": "vfx_chunk_" + name,
         "what_tried": tried,
         "expected_outcome": "",
         "actual_outcome": "",
-        "recommendation": note,
+        "recommendation": trigger + note,
         "category": "vfx-chunk",
         "domain": "vfx",
         "success": "yes",
@@ -137,6 +148,16 @@ def main(argv: Optional[List[str]] = None) -> int:
     n = adopt_chunk_lessons(ls, ns.chunks, force=ns.force)
     warned = sum(1 for m in _chunk_headers(ns.chunks) if _is_warning(str(m.get("note") or "")))
     print("adopted %d chunk rule(s) into recall (domain=vfx), %d as anti-patterns" % (n, warned))
+    # WARM THE CACHE, or this verb appears to do nothing. recall-at reads a prebuilt cache file, so
+    # freshly adopted lessons stayed invisible at the surface that matters while every test passed --
+    # cost a live debugging pass to notice. A write door that leaves a stale read path is only half
+    # a door.
+    try:
+        from core.recall.at_action import warm_cache
+        print("recall cache rebuilt: %d item(s)" % warm_cache(learning_store=ls))
+    except Exception as exc:
+        print("WARNING: adopted, but the recall cache did not rebuild (%s). "
+              "Run: py -c \"from core.recall.at_action import warm_cache; warm_cache()\"" % exc)
     return 0
 
 
