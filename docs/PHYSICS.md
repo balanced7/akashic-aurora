@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at cb148bf. A bound you discover by collision is not awareness -- this sheet
+> Derived at 386dad6. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (177 names)
+## Configuration flags (178 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -128,6 +128,7 @@ Class: reference
 | `DEEPSEEK_RUNNER_MAX_TOKENS` | `"8000"` | scripts/bifrost_runner_deepseek.py |
 | `DOC_CURRENCY_STALE_DAYS` | `"45"` | scripts/checkers/check_doc_currency.py |
 | `EMBED_MODEL` | `DEFAULT_MODEL` | core/primitives/embedder.py |
+| `ENABLE_X` | `` | scripts/checkers/check_wiring.py |
 | `FRAG_REASSEMBLY_TTL` | `DEFAULT_FRAG_REASSEMBLY_TTL` | core/comm/packet_spec.py |
 | `GEMINI_BUDGET_USD` | `"105.0"` | scripts/gemini_chat.py |
 | `GEMINI_CONNECT_TIMEOUT` | `"15"` | scripts/gemini_chat.py |

@@ -297,11 +297,30 @@ BASELINE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "wiring_function_baseline.json")
 
 
+# Module-level statement containers a def can legitimately hide inside. Descending these is the
+# T143 fix; NOT descending into a function body is the limit on it.
+_CONTAINERS = (ast.If, ast.Try, ast.With, ast.AsyncWith, ast.For, ast.AsyncFor, ast.While)
+
+
 def public_defs(rel, root=ROOT):
     """[(name, lineno, end_lineno, is_method)] -- public functions and methods defined in rel.
 
-    Top level and one level into a class. Nested defs are private by construction. `main` is a
-    self-invoking entry convention, and dunders are protocol, not capability.
+    Module level (including inside module-level if/try/with/for/while) and one level into a class.
+    Nested defs are private by construction. `main` is a self-invoking entry convention, and
+    dunders are protocol, not capability.
+
+    T143, found by a red team and confirmed by running it: this used to iterate `tree.body` and
+    type-check for FunctionDef/ClassDef, so a def wrapped in ANY module-level statement sat inside
+    an If/Try/With node and the walk stepped straight over it -- invisible in both directions,
+    never reported dead and never counted. A dead public function appended to core/comm/bus.py
+    inside `if _FLAG:` produced a clean PASS from the whole gate.
+
+    That shape is ordinary, not exotic: `if TYPE_CHECKING:`, `try: import fast / except
+    ImportError:` fallback defs, and `if os.environ.get("ENABLE_X"):` all produce it by accident.
+
+    The descent stops at the first function boundary on purpose. A closure is private by
+    construction, and reporting closures would flood the gate -- which is how a guard gets fed
+    exceptions until it guards nothing, the lesson this file's comments already record twice.
     """
     out = []
     try:
@@ -313,13 +332,21 @@ def public_defs(rel, root=ROOT):
         if not node.name.startswith("_") and node.name != "main":
             out.append((node.name, node.lineno, getattr(node, "end_lineno", node.lineno), is_method))
 
-    for node in tree.body:
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            _take(node, False)
-        elif isinstance(node, ast.ClassDef):
-            for sub in node.body:
-                if isinstance(sub, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                    _take(sub, True)
+    def _walk(body):
+        for node in body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                _take(node, False)                     # do NOT descend: nested defs stay private
+            elif isinstance(node, ast.ClassDef):
+                for sub in node.body:
+                    if isinstance(sub, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                        _take(sub, True)
+            elif isinstance(node, _CONTAINERS):
+                for attr in ("body", "orelse", "finalbody"):
+                    _walk(getattr(node, attr, []) or [])
+                for h in getattr(node, "handlers", []) or []:
+                    _walk(h.body)
+
+    _walk(tree.body)
     return out
 
 
