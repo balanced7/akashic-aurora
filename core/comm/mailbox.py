@@ -28,6 +28,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -810,6 +811,128 @@ def declare_for_message(agent: str, msg: Any, intent: str, *, incarnation: str,
         return {**res, "sha": sha, "identity_basis": basis}
     except Exception as exc:                                  # fail-open, always
         return {"ok": False, "reason": f"mailbox declare failed ({exc})"}
+
+
+# The operator is never a ghost, however old the mail and however dead the sending surface looks.
+# Same roster bifrost_wake uses for its override, and for the same reason: the 2026-07-15 "I'm
+# back!" incident, where every idle seat slept through the human.
+_OPERATOR_IDS = frozenset({"user", "daniel", "daniil", "operator"})
+
+
+# An INCARNATION-SUFFIXED id: `codex_root_019fab2d`, `claude#30e6af5c`. These name ONE session and
+# can never be live again once it ends. A bare fleet id (`deepseek`, `kimi`) names an agent that
+# comes and goes, and its mail is not ghost mail merely because the process is between runs.
+_INCARNATION_SUFFIX = re.compile(r"[#_]([0-9a-f]{8,})$", re.I)
+
+
+def _sender_can_return(sender: str) -> bool:
+    """Could this sender ever speak again? The ghost test, and it is deliberately NOT "is it live".
+
+    THE NEAR-MISS THAT PRODUCED THIS FUNCTION, 2026-08-02: the first version asked
+    live_incarnations() whether the sender was up right now. It reported deepseek as absent while
+    deepseek's runner was demonstrably running, and the sweep proposed declining 939 of 1000
+    messages -- most of the mailbox -- on the word of a liveness sensor that lies. That is the exact
+    disease this whole arc exists to treat, reproduced inside its own cure. Only the dry-run default
+    stood between a bad sensor and mass auto-declining live mail.
+
+    So the question changed. A bare fleet id is NEVER a ghost: deepseek is still deepseek between
+    processes. Only an id naming a specific dead SESSION is unreachable by construction, and that is
+    precisely the failure this treats -- kimi answering codex_root_019fab2d, a retired incarnation.
+    """
+    s = str(sender or "")
+    m = _INCARNATION_SUFFIX.search(s)
+    if not m:
+        return True                     # a fleet member, however quiet
+    try:
+        from core.comm.incarnation import live_incarnations
+        base, sid = s[:m.start()], m.group(1)
+        return any(str(x.get("session_id") or "").startswith(sid[:8])
+                   for x in live_incarnations(base))
+    except Exception:
+        return True                     # never retire because liveness was unreadable
+
+
+def retire_ghost_mail(ns: str, agent: str, *, min_age_h: float = 24.0, dry_run: bool = True,
+                      client=None, is_live=None, incarnation: str = "ghost-sweep",
+                      limit: int = 1000) -> Dict[str, Any]:
+    """Declare `decline` on old, unadjudicated mail from seats that no longer exist.
+
+    THE FAILURE THIS TREATS, from 2026-08-02: kimi spent three turns answering
+    codex_root_019fab2d -- a retired seat -- while a live directed ask sat unhandled. FIFO delivery
+    was working exactly as designed; the problem was that a corpse's mail had never been adjudicated
+    and so competed forever with living work.
+
+    IT DECLARES, IT DOES NOT DELETE. That is the whole design: a declaration is legible (the note
+    names the dead sender and the age), it is reversible, it preserves the message, and because M2
+    reads declarations it also stops the mail waking anyone -- one mechanism, reused, instead of a
+    second deletion path. A sweep that silently dropped mail would be precisely the "silent-loss
+    mechanism that looks safe" the coordination design warns about.
+
+    NO SEEN RECEIPT IS WRITTEN, deliberately. Nothing read this mail; it was adjudicated
+    administratively. Minting a seen receipt would claim a reader who never existed.
+
+    Unknown liveness reads as LIVE: a sweep must never retire mail on ignorance.
+    """
+    client = client or _connect()
+    k = _keys(ns, agent)
+    now = time.time()
+
+    if is_live is None:
+        is_live = _sender_can_return
+
+    # MEMOISE PER SENDER. Found by the first live run, which hung past ten minutes: liveness was
+    # being resolved once per MESSAGE, and a mailbox holding 1500 entries from a dozen distinct
+    # senders therefore made ~1400 expensive lookups to answer twelve questions. The sweep is a
+    # per-SENDER judgement; asking it per message was the bug.
+    _live_cache: Dict[str, bool] = {}
+
+    def _live(sender: str) -> bool:
+        if sender not in _live_cache:
+            _live_cache[sender] = bool(is_live(sender))
+        return _live_cache[sender]
+
+    try:
+        shas = client.zrange(k["z"], 0, int(limit) - 1) or []
+    except Exception as exc:
+        return {"ok": False, "reason": f"could not list mail ({exc})"}
+
+    declared = client.hgetall(k["intent"]) or {}
+    candidates: List[Dict[str, Any]] = []
+    for sha in shas:
+        e = client.hgetall(k["msg"] + str(sha)) or {}
+        frm = str(e.get("frm") or "")
+        if not frm or frm.lower() in _OPERATOR_IDS:
+            continue
+        # A SEAT THAT ALREADY ADJUDICATED IS NOT OVERRULED. An automated broom must never outrank
+        # a reader who actually looked -- including one who declared `defer`, which is a promise.
+        if declared.get(str(sha)):
+            continue
+        try:
+            age_h = (now - float(e.get("ts_s") or 0.0)) / 3600.0
+        except (TypeError, ValueError):
+            continue
+        # Age is the discriminator between a RETIRED seat and one that is merely between processes.
+        # Without it this sweep would decline mail from every peer mid-restart, which in this fleet
+        # is most of them, most of the time.
+        if age_h < float(min_age_h):
+            continue
+        if _live(frm):
+            continue
+        candidates.append({"sha": str(sha), "frm": frm, "kind": str(e.get("kind") or ""),
+                           "age_h": round(age_h, 1)})
+
+    retired = 0
+    if not dry_run:
+        for c in candidates:
+            r = declare_intent(
+                ns, agent, c["sha"], "decline", incarnation=incarnation, client=client,
+                note=(f"ghost sweep: sender {c['frm']} has no live seat and this is {c['age_h']}h "
+                      f"old -- declined so it stops competing with live work"))
+            if r.get("ok"):
+                retired += 1
+
+    return {"ok": True, "scanned": len(shas), "candidates": candidates,
+            "would_retire": len(candidates), "retired": retired, "dry_run": bool(dry_run)}
 
 
 def state_for(ns: str, agent: str, sha: str, *, client=None) -> Dict[str, Any]:

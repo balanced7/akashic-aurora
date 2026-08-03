@@ -249,6 +249,28 @@ def pulse(agent: str, detail: str = "", *, generation: int = 0) -> bool:
         return False
 
 
+def progress_age(agent: str):
+    """Seconds since this agent's last progress pulse, or None when there is no live pulse key.
+
+    PRESENCE IS A POSITIVE SIGNAL ONLY. The key's TTL is deliberately short, so a missing pulse
+    means "no progress point in the last few seconds" and never "this seat is dead" -- a seat
+    between tool calls has no pulse and is perfectly alive. Readers must use this to CONFIRM
+    liveness, never to conclude death. That asymmetry is the whole reason it is safe to consult
+    from the send door, where a false negative costs a wrong warning and a false positive costs
+    nothing at all.
+    """
+    c = _client()
+    if c is None:
+        return None
+    try:
+        raw = c.get(_progress_prefix() + str(agent))
+        if not raw:
+            return None
+        return max(0.0, time.time() - float(json.loads(raw)["ts"]))
+    except Exception:
+        return None
+
+
 def pulse_error(agent: str, reason: str, *, generation: int = 0) -> bool:
     """Self-confessed failure (WATCHDOG=trigger equivalent): distinguishable from a
     silent hang, rendered with its reason by the doctor. Longer TTL so the confession

@@ -297,15 +297,32 @@ class Bus:
 
     def _recipient_liveness(self, to: str):
         """(is_live, beat_age_s) for the freshest incarnation of `to`. Raises on probe failure --
-        the caller decides policy, so a broken probe can never masquerade as a dead seat."""
+        the caller decides policy, so a broken probe can never masquerade as a dead seat.
+
+        T133/M4: THE BEAT ALONE LIES, and it lied twice on 2026-08-02 -- UNATTENDED RECIPIENT fired
+        for both kimi and deepseek while both runners were demonstrably working, because a seat
+        mid-API-call does not beat. That row is the one the coordination design calls the least
+        informative measurement on the panel: stale in four of five states.
+
+        So a PROGRESS PULSE now rescues a stale beat. The pulse is stamped at real progress points
+        (each tool call, turn edge) and its key has a short TTL, which makes presence a positive
+        signal and absence no evidence at all. Consulted in exactly that direction: a live pulse can
+        only ever turn a false "unattended" into a correct "attended" -- it can never invent a death.
+        """
         from core.comm import roster as _roster
         rows = [r for r in _roster.roster(self.ns, client=self._client)
                 if str(r.get("agent") or "").split("#")[0] == to]
         ages = [r["beat_age_s"] for r in rows if r.get("beat_age_s") is not None]
-        if not ages:
-            return False, None
-        youngest = min(ages)
-        return youngest <= self.UNATTENDED_S, youngest
+        youngest = min(ages) if ages else None
+        if youngest is not None and youngest <= self.UNATTENDED_S:
+            return True, youngest
+        try:
+            from core.comm import liveness as _liveness
+            if _liveness.progress_age(to) is not None:
+                return True, youngest          # working right now, whatever the heartbeat says
+        except Exception:
+            pass                               # pulse unreadable -> fall back to the beat's verdict
+        return False, youngest
 
     def _warn_if_unattended(self, to: str):
         """Report (never raise, never refuse) when `to` has no attending seat. Returns the warning

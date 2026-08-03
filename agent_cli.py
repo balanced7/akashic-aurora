@@ -4171,6 +4171,30 @@ def cmd_mailbox(args):
     # ---- M1 verbs. Built is not wired: these existed in core/comm/mailbox.py with tests green
     # while NO door exposed them, so no agent could actually use them. This is the door.
     inc = (getattr(args, "incarnation", None) or os.environ.get("AKASHIC_SESSION8") or "unknown")
+
+    if getattr(args, "retire_ghosts", False):
+        apply = bool(getattr(args, "apply", False))
+        out = mailbox.retire_ghost_mail(bus.ns, args.agent_id, client=bus._client,
+                                        dry_run=not apply,
+                                        min_age_h=float(getattr(args, "min_age_h", 24.0)),
+                                        incarnation=f"ghost-sweep:{inc}")
+        if args.json:
+            print(json.dumps(out, indent=2, default=str)); return 0
+        if not out.get("ok"):
+            print(f"[mailbox] ghost sweep failed: {out.get('reason')}"); return 1
+        cands = out.get("candidates") or []
+        print(f"# ghost sweep for {args.agent_id}: scanned {out['scanned']}, "
+              f"{len(cands)} from senders with no live seat"
+              + ("" if apply else "  (REPORT ONLY -- add --apply to write)"))
+        for c in cands[:40]:
+            print(f"  {c['sha'][:10]}  {c['kind']:<10} from {c['frm']:<26} {c['age_h']}h old")
+        if len(cands) > 40:
+            print(f"  ... and {len(cands) - 40} more")
+        if apply:
+            print(f"[mailbox] declined {out['retired']} ghost message(s) -- they stay readable, "
+                  f"stop competing with live work, and no longer wake a seat")
+        return 0
+
     if getattr(args, "open_sha", None):
         out = mailbox.open(bus.ns, args.agent_id, args.open_sha, incarnation=inc,
                            client=bus._client)
@@ -4745,6 +4769,16 @@ def build_parser():
     mbx.add_argument("agent_id", help="whose mailbox to inspect")
     mbx.add_argument("--explain", metavar="REF", help="evidence chain for one message (sha prefix or stream id)")
     mbx.add_argument("--rebuild", action="store_true", help="drop + rebuild the index from the log (determinism receipt)")
+    # M3: a retired seat's mail competes with living work forever until somebody adjudicates it.
+    # This DECLARES rather than deletes -- legible, reversible, and it inherits the wake
+    # suppression because bifrost_wake reads declarations.
+    mbx.add_argument("--retire-ghosts", action="store_true", dest="retire_ghosts",
+                     help="declare `decline` on old unadjudicated mail from senders with no live "
+                          "seat (report only; add --apply to write). The operator is never a ghost.")
+    mbx.add_argument("--apply", action="store_true",
+                     help="with --retire-ghosts: actually write the declarations")
+    mbx.add_argument("--min-age-h", type=float, default=24.0, dest="min_age_h",
+                     help="with --retire-ghosts: how old mail must be to be sweepable (default 24)")
     mbx.add_argument("--min-evidence", choices=["unhandled", "consumed", "replied", "acked"],
                      default=None, help="show only entries at or below this evidence tier")
     # M1: the mailbox stops being read-only. These three are the product receipt's verbs.

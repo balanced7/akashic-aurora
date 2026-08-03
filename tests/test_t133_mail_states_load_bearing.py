@@ -74,6 +74,196 @@ def _seed(mbx, client, msg, agent="claude"):
     return sha
 
 
+# ---- M4: the send door stops calling a working seat unattended ----------------------------------
+
+def _bus(monkeypatch, beat_age, pulse_age):
+    """A Bus with its two liveness probes stubbed. Policy only -- no connection.
+
+    Stubs go through monkeypatch so they are UNDONE at teardown. Assigning the module attributes
+    directly would leak a fake roster into every later test in the session, which is a slower and
+    much more confusing version of the exact defect this file is about: a surface reporting
+    something that is not true.
+    """
+    from core.comm.bus import Bus
+    import core.comm.roster as _roster
+    import core.comm.liveness as _liveness
+    b = Bus.__new__(Bus)
+    b.ns, b._client, b.UNATTENDED_S = "test-ns", None, 300.0
+    rows = [] if beat_age is None else [{"agent": "kimi", "beat_age_s": beat_age}]
+    monkeypatch.setattr(_roster, "roster", lambda ns, client=None: rows)
+    monkeypatch.setattr(_liveness, "progress_age", lambda a: pulse_age)
+    return b
+
+
+def test_a_fresh_beat_is_attended(monkeypatch):
+    assert _bus(monkeypatch, beat_age=5.0, pulse_age=None)._recipient_liveness("kimi")[0] is True
+
+
+def test_a_stale_beat_with_a_live_pulse_is_ATTENDED(monkeypatch):
+    """THE FIX. On 2026-08-02 UNATTENDED RECIPIENT fired for kimi and deepseek while both runners
+    were demonstrably working -- a seat mid-API-call does not beat. The pulse is stamped at real
+    progress points and rescues exactly that case."""
+    assert _bus(monkeypatch, beat_age=990.0, pulse_age=1.2)._recipient_liveness("kimi")[0] is True
+
+
+def test_a_stale_beat_with_no_pulse_is_still_unattended(monkeypatch):
+    """The warning must survive: a genuinely dead seat still reports as one."""
+    assert _bus(monkeypatch, beat_age=990.0, pulse_age=None)._recipient_liveness("kimi")[0] is False
+
+
+def test_no_seat_at_all_but_a_live_pulse_is_attended(monkeypatch):
+    """A runner that never registered a roster row is still working if it is pulsing."""
+    assert _bus(monkeypatch, beat_age=None, pulse_age=0.5)._recipient_liveness("kimi")[0] is True
+
+
+def test_an_unreadable_pulse_falls_back_to_the_beat(monkeypatch):
+    """Fail-open DIRECTION: an unreadable pulse must not invent liveness, only fail to rescue."""
+    import core.comm.liveness as _liveness
+
+    def _boom(_a):
+        raise RuntimeError("pulse store down")
+
+    b = _bus(monkeypatch, beat_age=990.0, pulse_age=None)
+    monkeypatch.setattr(_liveness, "progress_age", _boom)
+    assert b._recipient_liveness("kimi")[0] is False
+
+
+def test_the_real_pulse_reader_actually_works():
+    """GUARDS AGAINST THE MONKEYPATCH TRAP. Every pin above stubs progress_age, so all of them
+    would still pass if the real reader were a no-op -- fail-open probes plus monkeypatched pins
+    equal an invisible no-op, which this repo has already been burned by. This one calls the real
+    pulse and the real reader against the real store."""
+    import importlib
+    liveness = importlib.import_module("core.comm.liveness")
+    liveness = importlib.reload(liveness)          # undo any stub a sibling test installed
+    agent = "t133-pulse-probe"
+    if not liveness.pulse(agent, "t133 verification"):
+        pytest.skip("no live store for the pulse probe")
+    age = liveness.progress_age(agent)
+    assert age is not None and age < 30, f"the real reader returned {age!r}"
+    assert liveness.progress_age("t133-agent-that-never-pulsed") is None
+
+
+# ---- M3: mail from seats that no longer exist stops competing with live work --------------------
+
+def _aged(mbx, client, msg, agent="claude", age_h=48.0):
+    """Seed an entry and backdate it, so age-gated behaviour can be tested without waiting."""
+    sha = _seed(mbx, client, msg, agent)
+    k = mbx._keys(NS, agent)
+    client.hset(k["msg"] + sha, mapping={"ts_s": str(__import__("time").time() - age_h * 3600)})
+    return sha
+
+
+def test_a_retired_seats_old_mail_is_declined_with_a_reason():
+    """TODAY'S FAILURE, and the one this arc had not touched: kimi spent three turns answering
+    codex_root_019fab2d -- a seat that no longer exists -- while a live directed ask sat unhandled.
+    The sweep DECLARES rather than deletes, which is what makes it legible AND (via M2) stops it
+    waking anyone. A sweep that silently dropped mail would be the silent-loss mechanism that looks
+    safe."""
+    mbx = _mailbox()
+    client = _fake()
+    ghost = _Msg(frm="codex_root_019fab2d", kind="nudge", content="a corpse's nudge")
+    sha = _aged(mbx, client, ghost)
+    r = mbx.retire_ghost_mail(NS, "claude", client=client, dry_run=False,
+                              is_live=lambda s: s != "codex_root_019fab2d",
+                              incarnation="sweep")
+    assert r["retired"] == 1, r
+    st = mbx.state_for(NS, "claude", sha, client=client)
+    assert st["intent"]["intent"] == "decline"
+    assert "codex_root_019fab2d" in st["intent"]["note"], "the reason must name the dead sender"
+
+
+def test_a_bare_fleet_id_is_never_a_ghost():
+    """THE NEAR-MISS, pinned. The first version of the sweep asked live_incarnations() whether a
+    sender was up RIGHT NOW. It reported deepseek absent while deepseek's runner was demonstrably
+    running, and proposed declining 939 of 1000 messages -- most of the mailbox -- on the word of a
+    liveness sensor that lies. Only the dry-run default stood between that sensor and mass
+    auto-declining live mail. The question is not "is it live" but "can it ever come back"."""
+    mbx = _mailbox()
+    for bare in ("deepseek", "kimi", "claude", "deepseek-ui", "sol"):
+        assert mbx._sender_can_return(bare) is True, bare
+
+
+def test_a_dead_incarnation_id_cannot_come_back():
+    """The actual failure: kimi spent three turns answering codex_root_019fab2d. An id naming ONE
+    session is unreachable by construction once that session ends."""
+    mbx = _mailbox()
+    assert mbx._sender_can_return("codex_root_019fab2d") is False
+    assert mbx._sender_can_return("claude#30e6af5c") is False
+
+
+def test_unreadable_liveness_never_retires():
+    """A sweep must not retire mail on ignorance -- the fail direction that matters."""
+    mbx = _mailbox()
+    import core.comm.incarnation as inc
+    orig = inc.live_incarnations
+    try:
+        inc.live_incarnations = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("down"))
+        assert mbx._sender_can_return("codex_root_019fab2d") is True
+    finally:
+        inc.live_incarnations = orig
+
+
+def test_a_dry_run_changes_nothing():
+    """It writes to mail state, so the operator sees the list before anything moves."""
+    mbx = _mailbox()
+    client = _fake()
+    sha = _aged(mbx, client, _Msg(frm="ghost_seat"))
+    r = mbx.retire_ghost_mail(NS, "claude", client=client, is_live=lambda s: False,
+                              incarnation="sweep")
+    assert r["would_retire"] == 1 and r.get("retired", 0) == 0
+    assert mbx.state_for(NS, "claude", sha, client=client)["intent"] is None
+
+
+def test_a_live_senders_mail_is_never_touched():
+    mbx = _mailbox()
+    client = _fake()
+    sha = _aged(mbx, client, _Msg(frm="deepseek"))
+    r = mbx.retire_ghost_mail(NS, "claude", client=client, dry_run=False,
+                              is_live=lambda s: True, incarnation="sweep")
+    assert r["retired"] == 0
+    assert mbx.state_for(NS, "claude", sha, client=client)["intent"] is None
+
+
+def test_fresh_mail_from_a_briefly_down_seat_is_not_a_ghost():
+    """A seat that is restarting is not a retired seat. Age is the discriminator, and without it a
+    sweep would decline mail from every peer that happened to be between processes -- which is most
+    of them, most of the time, in this fleet."""
+    mbx = _mailbox()
+    client = _fake()
+    sha = _aged(mbx, client, _Msg(frm="kimi"), age_h=0.2)
+    r = mbx.retire_ghost_mail(NS, "claude", client=client, dry_run=False,
+                              is_live=lambda s: False, min_age_h=24.0, incarnation="sweep")
+    assert r["retired"] == 0
+    assert mbx.state_for(NS, "claude", sha, client=client)["intent"] is None
+
+
+def test_the_operator_is_never_a_ghost():
+    """Daniil's mail is never retired, however old and however dead the sending surface looks."""
+    mbx = _mailbox()
+    client = _fake()
+    for frm in ("user", "daniel", "daniil"):
+        sha = _aged(mbx, client, _Msg(frm=frm, content=f"from {frm}"))
+        mbx.retire_ghost_mail(NS, "claude", client=client, dry_run=False,
+                              is_live=lambda s: False, incarnation="sweep")
+        assert mbx.state_for(NS, "claude", sha, client=client)["intent"] is None, frm
+
+
+def test_a_seat_that_already_adjudicated_is_not_overruled():
+    """The sweep only touches UNHANDLED mail. Re-declaring over a seat's own judgement would make
+    an automated broom outrank a reader who actually looked."""
+    mbx = _mailbox()
+    client = _fake()
+    msg = _Msg(frm="ghost_seat")
+    sha = _aged(mbx, client, msg)
+    mbx.declare_for_message("claude", msg, "defer", incarnation="inc1", ns=NS, client=client,
+                            note="I will come back to this")
+    r = mbx.retire_ghost_mail(NS, "claude", client=client, dry_run=False,
+                              is_live=lambda s: False, incarnation="sweep")
+    assert r["retired"] == 0
+    assert mbx.state_for(NS, "claude", sha, client=client)["intent"]["intent"] == "defer"
+
+
 # ---- M2: the wake path finally has a vocabulary for "already dealt with" ------------------------
 
 def _wake():
