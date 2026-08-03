@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at beb2704. A bound you discover by collision is not awareness -- this sheet
+> Derived at 9c846ef. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -99,11 +99,11 @@ Class: reference
 | `AKASHIC_WORKLIVE_TTL_S` | `"180"` | core/comm/roster.py |
 | `BIFROST_APPROACHING_WEDGE_SECONDS` | `"150"` | core/comm/liveness.py |
 | `BIFROST_CONSUME_LANE` | `` | core/comm/bifrost_api.py |
-| `BIFROST_INCARNATION` | `` | agent/bifrost_pull.py, agent/harness/hooks/claude_posttooluse.py, agent_cli.py +2 |
+| `BIFROST_INCARNATION` | `` | agent/bifrost_pull.py, agent/harness/hooks/claude_posttooluse.py, agent_cli.py +3 |
 | `BIFROST_LANES_DUAL_WRITE` | `True` | core/comm/packet_spec.py |
 | `BIFROST_MAX_HOPS` | `"6"` | core/comm/control.py |
 | `BIFROST_MAX_REPLIES_PER_MIN` | `"12"` | core/comm/control.py |
-| `BIFROST_NAMESPACE` | `_DEFAULT_NS` | agent/bifrost_pull.py, agent/harness/delta.py, agent/harness/hooks/_activity.py +25 |
+| `BIFROST_NAMESPACE` | `_DEFAULT_NS` | agent/bifrost_pull.py, agent/harness/delta.py, agent/harness/hooks/_activity.py +26 |
 | `BIFROST_PREFLIGHT_ASSERT` | `"1"` | core/comm/assertions.py |
 | `BIFROST_PREMISE_GATE_MIN_AGE_MS` | `` | core/coord/task_ledger.py |
 | `BIFROST_REASK_WINDOW_S` | `` | core/comm/bus.py |

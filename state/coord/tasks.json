@@ -1,5 +1,5 @@
 {
-  "seq": 132,
+  "seq": 133,
   "tasks": [
     {
       "id": "T001",
@@ -4698,6 +4698,32 @@
           "to": "approved",
           "by": "claude",
           "at": "2026-08-03T01:32:16+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T133",
+      "title": "MAIL-FIRST: make the mailbox states LOAD-BEARING (corrects the T095 supersession). The mail model is already BUILT -- core/comm/mailbox.py M1 ships non-destructive open + declare_intent(act/decline/delegate/defer) + tiered retention -- and has ZERO callers outside its own module (1509 unopened, 1 declared). With no read record, 'handled' falls back to 'the target's cursor advanced past it', which is a transport position being asked to also be a delivery record, a read receipt and a handled-flag. That substitution is the root cause of ghost mail being re-answered, of 'unhandled' for completed work, and of the wake re-arm loop. Slices: M1 runners open-on-read + declare-on-decision; M2 wake/delivery consult opened/declared instead of the cursor; M3 retire ghost senders; M4 send-door attendance stops lying.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "declare_intent has callers; a message a runner handled reads as declared, not as unhandled; a retired seat's mail cannot out-compete a live directed ask; the wake path re-fires zero times on already-opened mail",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-03T02:58:44+00:00",
+      "updated": "2026-08-03T02:58:45+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-03T02:58:44+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-03T02:58:45+00:00"
         }
       ]
     }

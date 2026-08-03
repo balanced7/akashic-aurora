@@ -1281,9 +1281,20 @@ class Bus:
 
     def _to_msg(self, sid: str, fields: Dict[str, Any]) -> Message:
         parts = [Part.from_dict(d) for d in (_loads(fields.get("parts")) or []) if isinstance(d, dict)]
+        meta = _loads(fields.get("meta")) or {}
+        # T133: CARRY THE PACKET SHA. This module's own dedup doctrine a few hundred lines up is
+        # "dedupe by sha, never by stream id" -- and then this seam dropped the sha, so a consumer
+        # holding a Message could not name the mail it had just handled. The mailbox index reads
+        # the RAW fields and keys entries by that sha; a runner reading the same message computed a
+        # content hash instead and every declaration landed on an entry that did not exist. Found
+        # live: eight consecutive "no mailbox entry for sha fb..." lines, the fb prefix being the
+        # content-fallback basis announcing itself. Additive and non-clobbering: a meta that
+        # already carries its own `sha` keeps it.
+        if fields.get("sha") and "sha" not in meta:
+            meta["sha"] = str(fields.get("sha"))
         return Message(id=str(sid), frm=fields.get("frm", ""), to=fields.get("to", ""),
                        kind=fields.get("kind", ""), content=_loads(fields.get("content")),
-                       ts=fields.get("ts", ""), meta=_loads(fields.get("meta")) or {}, parts=parts)
+                       ts=fields.get("ts", ""), meta=meta, parts=parts)
 
     # ------------------------------------------------ T043 consume-door loud events
     def _integrity_drop(self, sid: str, fields: Dict[str, Any], why: str) -> None:

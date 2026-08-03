@@ -736,6 +736,82 @@ def declare_intent(ns: str, agent: str, sha: str, intent: str, *, incarnation: s
     return {"ok": True, **rec}
 
 
+def intents_of(ns: str, agent: str, sha: str, *, client=None) -> List[Dict[str, Any]]:
+    """Every declaration made about this message, oldest first.
+
+    declare_intent already preserves a superseded declaration under its own key -- "corrections are
+    new entries, never edits" -- and nothing has ever read them back. A seat that declared `defer`
+    and later `act` said two true things in order, and a cold incarnation reconstructing what
+    happened needs the order, not just the last word.
+    """
+    client = client or _connect()
+    raw = client.hgetall(_keys(ns, agent)["intent"]) or {}
+    out: List[Dict[str, Any]] = []
+    for field, val in raw.items():
+        f = str(field)
+        if f != str(sha) and not f.startswith(f"{sha}|superseded|"):
+            continue
+        try:
+            rec = json.loads(val)
+        except (ValueError, TypeError):
+            continue
+        rec["superseded"] = f != str(sha)
+        out.append(rec)
+    out.sort(key=lambda r: (float(r.get("at") or 0.0), 0 if r.get("superseded") else 1))
+    return out
+
+
+def declare_for_message(agent: str, msg: Any, intent: str, *, incarnation: str,
+                        note: str = "", to: str = "", ns: Optional[str] = None,
+                        client=None) -> Dict[str, Any]:
+    """THE RUNNER SEAM: record that this seat read a message and what it decided to do about it.
+
+    This is the call that was missing. `open()` and `declare_intent()` have shipped since M1 with
+    ZERO callers outside this module, so "handled" fell back to the only other available signal --
+    the target's cursor having advanced past the message. A transport position was doing duty as a
+    delivery record, a read receipt AND a handled-flag, and it can only honestly be the first.
+
+    Every runner's `_process_one` already MAKES this decision at each of its exit paths (route ->
+    delegate, swallow -> decline, rate-limit -> defer, answer -> act). It just never wrote it down.
+
+    FAIL-OPEN, and that is not politeness: mail bookkeeping that can raise into the consume loop
+    would trade a mail bug for a dead seat, which is strictly worse than the problem being fixed.
+    Every failure comes back as {"ok": False, "reason": ...} and the caller may ignore it.
+    """
+    try:
+        ns = ns or os.getenv("BIFROST_NAMESPACE", "bifrost")
+
+        def _f(name, default=""):
+            v = getattr(msg, name, None)
+            if v is None and isinstance(msg, dict):
+                v = msg.get(name)
+            return default if v is None else str(v)
+
+        meta = getattr(msg, "meta", None)
+        if meta is None and isinstance(msg, dict):
+            meta = msg.get("meta")
+        # Identity must be computed the SAME way the index computed it at ingest, or the
+        # declaration lands on a sha with no entry and the whole layer fails silently -- the
+        # runner believing it declared while the surface still reads unhandled.
+        fields = {"frm": _f("frm"), "to": _f("to"), "kind": _f("kind"),
+                  "content": _f("content"), "ts": _f("ts")}
+        sha, basis = identity_of(fields, meta if isinstance(meta, dict) else {})
+
+        client = client or _connect()
+        # SEEN FIRST, then the decision. If the declaration is refused (unknown intent), the fact
+        # that this seat READ the mail is still true and must survive -- that is exactly the
+        # read-but-undeclared state the surface exists to make visible.
+        opened = open(ns, agent, sha, incarnation=incarnation, client=client)
+        if not opened.get("ok"):
+            return {"ok": False, "sha": sha, "identity_basis": basis,
+                    "reason": opened.get("reason", "open failed")}
+        res = declare_intent(ns, agent, sha, intent, incarnation=incarnation,
+                             note=note, to=to, client=client)
+        return {**res, "sha": sha, "identity_basis": basis}
+    except Exception as exc:                                  # fail-open, always
+        return {"ok": False, "reason": f"mailbox declare failed ({exc})"}
+
+
 def state_for(ns: str, agent: str, sha: str, *, client=None) -> Dict[str, Any]:
     """Everything a fresh incarnation needs about one message, in ONE hop.
 

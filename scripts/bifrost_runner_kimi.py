@@ -365,6 +365,36 @@ def budget_refusal(m, bus, agent_id: str, hops: int):
 
 # ---- consume-to-commit pipeline (sol spec section 1; per-message) ----------------------------
 
+# T133: SAY WHAT YOU DID ABOUT THE MAIL.
+#
+# Every exit path below is already a DECISION -- route, swallow, refuse, defer, answer -- and until
+# now not one of them was written down. With no declaration, "handled" fell back to the only other
+# signal in the system: the target's cursor having advanced past the message. That made a transport
+# position do duty as a read receipt and a handled-flag, which is why a retired seat's mail gets
+# re-answered, why the surface reports "unhandled" for work that is finished, and why the wake
+# watcher re-arms on mail somebody already dealt with.
+#
+# The incarnation is the PID when the env does not name one: a different process reading the same
+# mail is genuinely a different fact, which is exactly what lets a fresh seat see that a predecessor
+# read this and what it decided.
+_INCARNATION = os.environ.get("BIFROST_INCARNATION") or f"kimi-{os.getpid()}"
+
+
+def _declare(agent, m, intent, note="", to=""):
+    """Record this seat's decision about one message. Never raises -- mail bookkeeping that could
+    break the consume loop would trade a mail bug for a dead seat."""
+    try:
+        from core.comm import mailbox
+        r = mailbox.declare_for_message(agent, m, intent, incarnation=_INCARNATION,
+                                        note=note, to=to)
+        if not r.get("ok"):
+            print(f"[kimi-runner] mail declare skipped ({intent}): {r.get('reason','?')}")
+        return r
+    except Exception as exc:
+        print(f"[kimi-runner] mail declare failed ({intent}): {exc}")
+        return {"ok": False}
+
+
 def _process_one(m, bus, args, responder, rate) -> None:
     """Process ONE incoming message: filter chain, budget gate, model turn, reply, sentinel.
     Cursor commit stays in the main loop."""
@@ -393,10 +423,16 @@ def _process_one(m, bus, args, responder, rate) -> None:
     # [3] ledger fold gate -- transitions are SWALLOWED (never answered); sol-precedent deferral
     if str(m.kind) in ("ledger_update", "resolved"):
         print(f"[kimi-runner] ledger fold: {str(m.content)[:80]}")
+        _declare(args.agent, m, "decline", note="ledger transition: folded, never answered")
         return
 
     # [4] ANSWERABLE gate
     if not should_answer(m.kind, m.frm, args.agent):
+        # The single largest source of permanently-"unhandled" mail: this seat looked, decided the
+        # message was not its to answer, and said nothing. Silence here is indistinguishable from
+        # never having read it, which is what makes every later reader re-adjudicate.
+        _declare(args.agent, m, "decline",
+                 note=f"not answerable by this seat (kind={m.kind}, from={m.frm})")
         return
 
     # [5] RB-26 dedup sentinel check
@@ -411,6 +447,7 @@ def _process_one(m, bus, args, responder, rate) -> None:
                  f"[loop-guard] max hops ({control.MAX_HOPS}) reached -- returning to a human.",
                  meta={"via": f"{args.agent}-runner", "hops": hops})
         print(f"[kimi-runner] loop-guard: hops>={control.MAX_HOPS}; not answering {m.frm}")
+        _declare(args.agent, m, "decline", note=f"loop-guard: hops>={control.MAX_HOPS}")
         return
 
     # [7] rate-limit backstop
@@ -420,12 +457,17 @@ def _process_one(m, bus, args, responder, rate) -> None:
                  "[loop-guard] reply rate limit hit -- auto-paused (self-heals in <=1h).",
                  meta={"via": f"{args.agent}-runner", "hops": hops})
         print("[kimi-runner] rate limit -> auto-paused (ttl 1h)")
+        # DEFER, not decline: this mail is still owed an answer once the limiter clears. The
+        # distinction is the whole point of a closed intent roster -- "I will not" and "not yet"
+        # are different promises and a reader must be able to tell them apart.
+        _declare(args.agent, m, "defer", note="reply rate limit hit; auto-paused, self-heals <=1h")
         return
 
     # [7b] BUDGET GATE (kimi delta): over the ceiling, non-exempt sender -> loud settling refusal
     if METER.exceeded_hard_limit() and str(m.frm).lower() not in BUDGET_EXEMPT_SENDERS:
         budget_refusal(m, bus, args.agent, hops)
         _mark_reply_sent(bus, m.id)          # a refusal IS the reply; dedupe redeliveries
+        _declare(args.agent, m, "decline", note="over the hard budget ceiling; settling refusal sent")
         return
 
     # [8] nudge / halt handling
@@ -504,6 +546,12 @@ def _process_one(m, bus, args, responder, rate) -> None:
     # [15] P6 handoff auto-ack -- RB-29: timeout/error answers never ack
     answered_ok = (finished and result_holder and not isinstance(result_holder[0], Exception)
                    and not out.startswith("(kimi"))
+    # A timeout or a responder error is NOT an act -- it is work still owed. Declaring `act` on a
+    # non-answer would launder a failure into a completion, which is the exact laundering this
+    # whole layer exists to stop.
+    _declare(args.agent, m, "act" if answered_ok else "defer",
+             note="answered on the bus" if answered_ok
+             else f"reply attempt did not answer ({_RUN_STATS.get('last_error', 'non-answer')})")
     if str(m.kind) == "handoff" and answered_ok:
         try:
             from core.comm.promoter import ack as _ack
