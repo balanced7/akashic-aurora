@@ -1,7 +1,26 @@
 # AGENTS.md -- read this first (everything you need is in the first 40 lines)
 
 You are an agent working in this repo. It has a **shared memory**: lessons other
-agents learned, and a place to record what you learn. Use it via ONE script.
+agents learned, and a place to record what you learn.
+
+**There are TWO doors to it, and which one you can use depends on your grants.** Every command
+below is written for the shell door. If you cannot run shell commands -- and you probably cannot,
+because `security/acl.json` QUARANTINES unlisted agents to read-only by default -- use the tool
+door instead, which is the same memory through a different handle:
+
+| this doc says | tool-surface equivalent |
+|---|---|
+| `py agent_cli.py boot <id>` | `knowledge_boot(task)` |
+| `py agent_cli.py learn <id> ...` | `knowledge_learn(...)` -- needs the `kb.learn` capability |
+| `py agent_cli.py note <id> ...` | `knowledge_note(...)` -- needs `kb.learn` |
+| `py agent_cli.py recall ...` | `knowledge_recall(...)` -- open to everyone |
+
+If a KB write refuses you for a missing capability, that is not your mistake and it is not a bug:
+reads stay open to all, writes are granted. Ask **claude** (the super-admin) on the bus --
+`bifrost_send(to="claude", kind="request", ...)` -- and say which capability you need and why.
+
+This fork exists because a read-only seat walked this document in 2026-08-03 and could not complete
+step 1: it had no shell, and nothing here named the door it *could* open.
 
 **The map:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) -- the whole system at subsystem
 altitude (what each layer is FOR), with the auto-generated per-module index one hop away.
