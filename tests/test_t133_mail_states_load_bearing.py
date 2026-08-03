@@ -43,6 +43,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tests"))
+sys.path.insert(0, str(ROOT / "scripts"))      # bifrost_wake lives here, not in a package
 
 NS = "test-mbx-t133"
 
@@ -71,6 +72,68 @@ def _seed(mbx, client, msg, agent="claude"):
     sha = mbx._ingest_one(client, NS, agent, "work_inbox", msg.id, fields)
     assert sha, "ingest refused a normal directed message"
     return sha
+
+
+# ---- M2: the wake path finally has a vocabulary for "already dealt with" ------------------------
+
+def _wake():
+    return importlib.import_module("bifrost_wake")
+
+
+def _wm(**kw):
+    """A message shaped for wake_worthy."""
+    d = {"frm": "deepseek", "to": "claude", "kind": "request", "content": "do the thing",
+         "ts": "1785500000", "meta": {}}
+    d.update(kw)
+    return _Msg(**{k: v for k, v in d.items() if k in
+                   ("frm", "to", "kind", "content", "ts", "meta")})
+
+
+def test_wake_still_fires_on_mail_nobody_has_dealt_with():
+    """The regression guard, first: the whole point is to stop RE-firing, never to stop firing."""
+    w = _wake()
+    assert w.wake_worthy(_wm(), agent="claude") is True
+
+
+def test_wake_does_not_re_fire_on_mail_this_seat_already_settled(monkeypatch):
+    """THE re-arm loop, and the pod design named its cause exactly: the watcher has no vocabulary
+    for 'seen'. It has one now -- a declaration -- and this is the line that reads it."""
+    w = _wake()
+    monkeypatch.setattr(w, "_declared_intent_for", lambda m, agent: "act")
+    assert w.wake_worthy(_wm(), agent="claude") is False
+    monkeypatch.setattr(w, "_declared_intent_for", lambda m, agent: "decline")
+    assert w.wake_worthy(_wm(), agent="claude") is False
+
+
+def test_a_DEFERRED_message_may_still_wake(monkeypatch):
+    """`defer` means "not yet", not "no". Treating it as settled would silently drop work the seat
+    explicitly promised to come back to -- turning a debt into a loss."""
+    w = _wake()
+    monkeypatch.setattr(w, "_declared_intent_for", lambda m, agent: "defer")
+    assert w.wake_worthy(_wm(), agent="claude") is True
+
+
+def test_the_operator_always_breaks_through_even_if_settled(monkeypatch):
+    """Non-negotiable, and it has a receipt: the 2026-07-15 "I'm back!" incident, where every idle
+    seat slept through the human. This slice must not become a second way to do that, so the
+    operator path returns before the settled check is ever consulted."""
+    w = _wake()
+    monkeypatch.setattr(w, "_declared_intent_for", lambda m, agent: "act")
+    assert w.wake_worthy(_wm(frm="user"), agent="claude") is True
+    assert w.wake_worthy(_wm(frm="daniel"), agent="claude") is True
+
+
+def test_a_broken_mailbox_makes_wake_fire_not_sleep(monkeypatch):
+    """FAIL OPEN, and the direction matters more here than anywhere else in the slice. A mailbox
+    outage that silenced a seat would trade a bookkeeping fault for missed mail -- strictly worse
+    than the re-arm it prevents."""
+    w = _wake()
+
+    def _boom(m, agent):
+        raise RuntimeError("redis down")
+
+    monkeypatch.setattr(w, "_declared_intent_for", _boom)
+    assert w.wake_worthy(_wm(), agent="claude") is True
 
 
 # ---- the transport seam that made the identity wrong in the first place -------------------------

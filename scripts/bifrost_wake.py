@@ -66,6 +66,36 @@ def _operator_ids() -> frozenset:
     return frozenset(x.strip() for x in raw.split(",") if x.strip())
 
 
+def _declared_intent_for(m, agent: str):
+    """This agent's own declared intent about this exact message, or None.
+
+    T133/M2. The pod design names the wake loop's structural cause precisely: "seen_by -- the
+    watcher's vocabulary; today it has none". It has one now. A seat that already declared what it
+    would do about a message has, by definition, dealt with it, and re-waking for it is the re-arm
+    ritual in its purest form.
+
+    Imported lazily and inside the try on purpose: this module is deliberately importable without
+    the core.comm chain (T050 Q6, the fast path), and a wake decision must never depend on the
+    mailbox being reachable.
+    """
+    from core.comm import mailbox
+    meta = getattr(m, "meta", None) or {}
+    fields = {"frm": str(getattr(m, "frm", "") or ""), "to": str(getattr(m, "to", "") or ""),
+              "kind": str(getattr(m, "kind", "") or ""),
+              "content": str(getattr(m, "content", "") or ""),
+              "ts": str(getattr(m, "ts", "") or "")}
+    sha, _basis = mailbox.identity_of(fields, meta if isinstance(meta, dict) else {})
+    ns = os.environ.get("BIFROST_NAMESPACE", "bifrost")
+    st = mailbox.state_for(ns, agent, sha)
+    intent = (st or {}).get("intent") or {}
+    return str(intent.get("intent") or "") or None
+
+
+# A DECLARATION THAT MEANS "DONE WITH IT". `defer` is deliberately absent: it means "not yet", and
+# treating it as settled would turn a debt the seat explicitly promised to repay into a silent loss.
+_SETTLED_INTENTS = frozenset({"act", "decline"})
+
+
 def wake_worthy(m, *, agent: str, incarnation: str = "") -> bool:
     """T073 Phase 1+2: ONE decision for 'does this message wake this seat'.
 
@@ -96,6 +126,18 @@ def wake_worthy(m, *, agent: str, incarnation: str = "") -> bool:
         return False
     if kind == "reply" and str(getattr(m, "to", "")) == "*":
         return False
+    # LAST, and deliberately so: this is the only check that costs a round trip, so it runs only
+    # for mail that would otherwise wake the seat. Everything above is free.
+    #
+    # FAIL OPEN, and the direction matters more here than anywhere else in this slice: a mailbox
+    # outage that silenced a seat would trade a bookkeeping fault for missed mail, which is far
+    # worse than the re-arm it prevents. Note the operator override returned above, so this can
+    # never become a second way to sleep through the human.
+    try:
+        if str(_declared_intent_for(m, agent) or "") in _SETTLED_INTENTS:
+            return False
+    except Exception:
+        pass
     return True
 
 

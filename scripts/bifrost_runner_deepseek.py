@@ -831,6 +831,27 @@ def _preflight_gate(out: str, responder, args) -> str:
     return fixed
 
 
+# T133: SAY WHAT YOU DID ABOUT THE MAIL. Every exit path below is already a decision that was
+# never written down, so "handled" fell back to the target's cursor having advanced past the
+# message. Same seam as the kimi runner; one shared implementation in core.comm.mailbox.
+_INCARNATION = os.environ.get("BIFROST_INCARNATION") or f"deepseek-{os.getpid()}"
+
+
+def _declare(agent, m, intent, note="", to=""):
+    """Record this seat's decision about one message. Never raises -- mail bookkeeping that could
+    break the consume loop would trade a mail bug for a dead seat."""
+    try:
+        from core.comm import mailbox
+        r = mailbox.declare_for_message(agent, m, intent, incarnation=_INCARNATION,
+                                        note=note, to=to)
+        if not r.get("ok"):
+            print(f"[deepseek-runner] mail declare skipped ({intent}): {r.get('reason','?')}")
+        return r
+    except Exception as exc:
+        print(f"[deepseek-runner] mail declare failed ({intent}): {exc}")
+        return {"ok": False}
+
+
 def _process_one(m, bus, args, responder, rate) -> None:
     """Process a SINGLE incoming message: filter, answer, reply. (T014: extracted from the
     main loop so per-message exceptions never skip the rest of the batch.)"""
@@ -860,8 +881,14 @@ def _process_one(m, bus, args, responder, rate) -> None:
         # P3 (T023): fold, never answer -- the ledger view stops being frozen at onboarding.
         if fold_ledger_update(m):
             print(f"[deepseek-runner] ledger fold: {str(m.content)[:80]}")
+        _declare(args.agent, m, "decline", note="ledger transition: folded, never answered")
         return
     if not should_answer(m.kind, m.frm, args.agent):
+        # The largest source of permanently-"unhandled" mail: this seat looked, decided the message
+        # was not its to answer, and said nothing. Silence is indistinguishable from never having
+        # read it, which is what makes every later reader re-adjudicate.
+        _declare(args.agent, m, "decline",
+                 note=f"not answerable by this seat (kind={m.kind}, from={m.frm})")
         return
     if _reply_already_sent(bus, m.id):
         # RB-26: a redelivered message we already answered in a prior tenure -- the
@@ -874,6 +901,7 @@ def _process_one(m, bus, args, responder, rate) -> None:
                  f"[loop-guard] max hops ({control.MAX_HOPS}) reached -- returning to a human.",
                  meta={"via": f"{args.agent}-runner", "hops": hops})
         print(f"[deepseek-runner] loop-guard: hops>={control.MAX_HOPS}; not answering {m.frm}")
+        _declare(args.agent, m, "decline", note=f"loop-guard: hops>={control.MAX_HOPS}")
         return
     if not rate.allow():                          # backstop: too many replies too fast
         # RB-30: the AUTO-pause carries a ttl -- a forgotten backstop self-heals instead
@@ -884,6 +912,8 @@ def _process_one(m, bus, args, responder, rate) -> None:
                  "[loop-guard] reply rate limit hit -- auto-paused (self-heals in <=1h). Resume when ready.",
                  meta={"via": f"{args.agent}-runner", "hops": hops})
         print("[deepseek-runner] rate limit -> auto-paused (ttl 1h)")
+        # DEFER, not decline: this mail is still owed an answer once the limiter clears.
+        _declare(args.agent, m, "defer", note="reply rate limit hit; auto-paused, self-heals <=1h")
         return
     prompt = m.content if isinstance(m.content, str) else str(m.content)
     # PREMISE GATE (frugality made mechanical, 2026-07-21; T076 root-spigot's sibling at
@@ -909,6 +939,10 @@ def _process_one(m, bus, args, responder, rate) -> None:
         _mark_reply_sent(bus, m.id)
         print(f"[deepseek-runner] premise-gate: {m.frm}'s ask names settled work "
               f"({', '.join(_pg)}) -- one-liner sent, full answer skipped")
+        # ACT: the gate SENT a settled-line answer. Declining here would say the mail went
+        # unanswered when it did not -- the premise gate is a cheap answer, not a refusal.
+        _declare(args.agent, m, "act",
+                 note=f"premise-gate: ledger already settled {', '.join(_pg)}; settled-line sent")
         return
     print(f"[deepseek-runner] <- {m.frm} [{m.kind}] (hop {hops}): {prompt[:80]}")
     if str(m.kind) == "nudge" or nudge.is_nudged(args.agent):
@@ -1002,6 +1036,15 @@ def _process_one(m, bus, args, responder, rate) -> None:
         killpoint("post-send-pre-sentinel")
         _mark_reply_sent(bus, m.id)   # RB-26: dedup sentinel BEFORE the cursor commits
         cog.record_turn_complete(args.agent)
+        # Declared AFTER the send, on the same rule the auto-ack below uses: a timeout or an
+        # error-STRING reply is work still owed, not work done. Declaring `act` on a non-answer
+        # would launder a failure into a completion -- which is the disease this layer treats.
+        _answered_ok = (finished and result_holder
+                        and not isinstance(result_holder[0], Exception)
+                        and not str(out).startswith("(deepseek"))
+        _declare(args.agent, m, "act" if _answered_ok else "defer",
+                 note="answered on the bus" if _answered_ok
+                 else "reply attempt did not answer (timeout or responder error)")
         # P6 (T026): a REAL answer to a handoff IS handling it -- auto-ack durably. Timeout
         # and error replies deliberately do NOT ack: the sender must still see UNHANDLED in
         # promoted() and re-drive (read != handled was the four-incident disease).
