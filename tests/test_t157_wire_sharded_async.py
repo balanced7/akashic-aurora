@@ -246,3 +246,91 @@ def test_p8_agent_read_is_a_selection_and_still_verifies(tmp_path):
     assert {r.get("response_id") for r in rows} == {"A"}, (
         f"a scoped read leaked another agent's rows through a sanitisation collision: "
         f"{[(r.get('agent'), r.get('response_id')) for r in rows]}")
+
+
+# --------------------------------------------------------------------------- P9
+
+def test_p9_async_io_failure_is_counted_even_though_record_returned_true(tmp_path):
+    """The coverage B1/B2 give up when they pin the sync writer, regained on the async side.
+
+    record() CANNOT report a write failure on the async path -- it returns before any write is
+    attempted. So the guarantee moves: the caller learns nothing, and `dropped` learns everything.
+    If that counter did not move, an IO failure would be perfectly silent, which is the
+    "measured zero" hazard wearing its most dangerous costume -- a forensic store that appears
+    healthy while writing nothing.
+    """
+    j = _mk(tmp_path, "seat")
+    assert j.record(status=200, model="m") is True, "the record was not even accepted"
+    j.flush()
+    assert j.dropped == 0
+
+    j._journal_dir = "\x00::impossible::"
+    for sh in list(j._shards.values()):          # point the live shard at the impossible path
+        sh.dir = os.path.join("\x00::impossible::", sh.name)
+
+    accepted = j.record(status=200, model="m")
+    j.flush()
+    assert accepted is True, (
+        "on the async path record() reports ACCEPTANCE, not durability -- if this ever returns "
+        "False the writer became synchronous again and the convoy is back")
+    assert j.dropped >= 1, (
+        "the write failed on the writer thread and nothing counted it -- a silent drop in a "
+        "forensic store is worse than a loud crash")
+
+
+# --------------------------------------------------------------------------- P10
+
+def test_p10_unbounded_agent_ids_cannot_spawn_unbounded_threads(tmp_path):
+    """Raised as CRITICAL by the design fence, and it is the right thing to be scared of.
+
+    The shard key comes from a RECORD FIELD (`kw['agent'] or self.agent`), not from trusted
+    process identity. A buggy or hostile caller varying the agent per request would otherwise
+    create a directory, a queue and a THREAD per record -- a fork bomb built into the one path
+    that must never be able to take a runner down.
+
+    Past the cap everything lands in one overflow shard. That does reintroduce a shared resource
+    for the pathological caller, which is the correct trade: the well-behaved fleet keeps its
+    isolation, and the abusive case degrades to pre-T157 behaviour instead of exhausting the
+    process.
+    """
+    WJ = _wj()
+    before = threading.active_count()
+    j = WJ.WireJournal(journal_dir=str(tmp_path), agent="seat")
+    for i in range(WJ.MAX_SHARDS * 4):
+        j.record(status=200, model="m", agent=f"spam_{i}")
+    j.flush()
+
+    assert len(j._shards) <= WJ.MAX_SHARDS + 1, (
+        f"{len(j._shards)} shards for {WJ.MAX_SHARDS * 4} distinct agent ids -- the cap is not "
+        f"holding, and each shard costs a thread")
+    grew = threading.active_count() - before
+    assert grew <= WJ.MAX_SHARDS + 2, (
+        f"{grew} new threads from {WJ.MAX_SHARDS * 4} agent ids -- thread growth is unbounded "
+        f"in the telemetry path")
+    assert WJ.OVERFLOW_SHARD in j._shards, "past the cap, records must land in the overflow shard"
+
+
+# --------------------------------------------------------------------------- P11
+
+def test_p11_drops_are_attributable_to_a_shard(tmp_path):
+    """"Some telemetry was lost" is not a finding. "player07 lost 412 records" is.
+
+    A player can flood its OWN queue to drop its OWN traffic -- the cheapest attack on a
+    telemetry store. Per-agent sharding already stops it from dropping ANYONE ELSE's records;
+    per-shard counting is what stops it being deniable.
+    """
+    j = _mk(tmp_path, "quiet", queue_size=4)
+    j.pause()
+    try:
+        for _ in range(200):
+            j.record(status=200, model="m", agent="flooder")
+        j.record(status=200, model="m", agent="quiet")
+    finally:
+        j.resume()
+    j.flush()
+
+    drops = j.drops_by_shard()
+    assert drops.get("flooder", 0) > 0, f"the flooder's losses were not attributed: {drops}"
+    assert drops.get("quiet", 0) == 0, (
+        f"a flooding agent caused drops in another agent's shard -- the isolation claim is "
+        f"false: {drops}")

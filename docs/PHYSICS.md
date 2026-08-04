@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 3a5d811. A bound you discover by collision is not awareness -- this sheet
+> Derived at f3f619f. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (183 names)
+## Configuration flags (186 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -98,6 +98,9 @@ Class: reference
 | `AKASHIC_WIRE_DIR` | `` | scripts/wire_journal.py |
 | `AKASHIC_WIRE_MAX_BYTES` | `str(8 * 1024 * 1024` | scripts/wire_journal.py |
 | `AKASHIC_WIRE_MAX_FILES` | `"14"` | scripts/wire_journal.py |
+| `AKASHIC_WIRE_MAX_SHARDS` | `"64"` | scripts/wire_journal.py |
+| `AKASHIC_WIRE_QUEUE` | `"4096"` | scripts/wire_journal.py |
+| `AKASHIC_WIRE_WRITER` | `` | scripts/wire_journal.py |
 | `AKASHIC_WISHLIST_FILE` | `` | agent_cli.py |
 | `AKASHIC_WORKLIVE_FRESH_S` | `"45"` | core/comm/roster.py |
 | `AKASHIC_WORKLIVE_TTL_S` | `"180"` | core/comm/roster.py |

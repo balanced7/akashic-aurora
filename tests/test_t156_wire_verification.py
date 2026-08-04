@@ -137,8 +137,18 @@ def test_a5_the_transport_hook_adds_bounded_latency(tmp_path, monkeypatch):
 
 # ===================================================================== B. FAULT INJECTION
 
+# B1/B2 PIN THE SYNCHRONOUS WRITE CONTRACT, and after T157 they say so explicitly.
+#
+# Both assert that record() RETURNS False when the disk write fails. On the async path that is
+# structurally impossible: record() hands the record to a queue and returns before any write is
+# attempted, so it cannot know the outcome. That is a real contract change, not a test to relax --
+# on the async path an IO failure surfaces in `dropped`, which T157's P9 pins separately.
+#
+# Pointing these at writer="sync" is not a dodge: _write_now() is the SAME function both writers
+# use, so these still exercise the exact failure path the async writer runs on its own thread.
+# What changes is only who observes the result.
 def test_b1_unwritable_directory_never_raises_and_is_counted(tmp_path):
-    j = _j(tmp_path)
+    j = WireJournal(journal_dir=str(tmp_path / "j"), writer="sync")
     j._journal_dir = "\x00::impossible::"
     assert j.record(model="m", status=200) is False
     assert j.dropped == 1, "a lost record must be counted, never silent"
@@ -146,7 +156,7 @@ def test_b1_unwritable_directory_never_raises_and_is_counted(tmp_path):
 
 def test_b2_disk_full_midwrite_is_survived(tmp_path, monkeypatch):
     """An OSError from write() must be swallowed and counted, not propagated into an API call."""
-    j = _j(tmp_path)
+    j = WireJournal(journal_dir=str(tmp_path / "j"), writer="sync")
     j.record(model="m", status=200)
     real_open = open
 
@@ -180,6 +190,7 @@ def test_b4_vanished_directory_is_survived(tmp_path):
     """Journal dir deleted underneath us (cleanup script, operator, container restart)."""
     j = _j(tmp_path)
     j.record(model="m", status=200)
+    j.flush()                     # T157: the dir exists once the write LANDS, not when it is accepted
     import shutil
     shutil.rmtree(j._journal_dir)
     assert j.record(model="m", status=200) is True, "record() must recreate its own directory"

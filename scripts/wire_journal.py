@@ -46,9 +46,12 @@ is guarded. But a swallowed failure that vanishes is exactly the "unpopulated co
 a MEASURED zero" defect this project keeps relearning -- so drops are COUNTED, and `summarize()`
 reports them. Fail-open is only honest when the failures are visible.
 """
+import atexit
 import hashlib
 import json
 import os
+import queue
+import re
 import threading
 import time
 
@@ -73,35 +76,226 @@ def _sha(text: str) -> str:
     return hashlib.sha256(str(text or "").encode("utf-8", "replace")).hexdigest()[:16]
 
 
+# --------------------------------------------------------------------------- T157: shards
+QUEUE_SIZE = int(os.getenv("AKASHIC_WIRE_QUEUE", "4096"))
+MAX_SHARDS = int(os.getenv("AKASHIC_WIRE_MAX_SHARDS", "64"))
+OVERFLOW_SHARD = "_overflow"
+
+_UNSAFE = re.compile(r"[^A-Za-z0-9._-]")
+# Windows refuses these as file OR directory names, with or without an extension, and the
+# failure is an OSError at open() -- i.e. a silently dropped record on a machine that is our
+# primary dev target. POSIX does not care; we pay the stricter rule everywhere so a journal
+# copied between platforms stays readable.
+_RESERVED = {"con", "prn", "aux", "nul"} | {f"com{i}" for i in range(1, 10)} \
+    | {f"lpt{i}" for i in range(1, 10)}
+
+
+def shard_name(agent: str) -> str:
+    """Filesystem-safe DIRECTORY name for an agent id.
+
+    Real ids in this fleet are 'claude#7507b107' and 'deepseek#ds-t155-', so this is not a
+    theoretical concern. Sanitisation is LOSSY on purpose -- it is a fast path for selecting
+    files, never an identity. The authoritative agent is the one inside each record, and
+    read_all() re-checks it, so two ids that collide here still cannot read each other's rows.
+    """
+    s = _UNSAFE.sub("_", str(agent or "").strip())
+    s = s.strip(". ")                       # '..' and trailing dots/spaces: traversal + Windows
+    if not s:
+        s = "unknown"
+    if s.split(".")[0].lower() in _RESERVED:
+        s = "_" + s
+    return s[:64]
+
+
+class _Shard:
+    """One agent's slice of the journal: its own directory, cursor, queue and writer thread.
+
+    The shard is the ISOLATION boundary. Rotation, quota and blast radius are all per-shard, so a
+    runaway player fills its own directory and no one else's -- which is the property that makes
+    a semi-trusted player pool safe to run at all, and it matters more than the microseconds.
+    """
+
+    def __init__(self, root: str, name: str, queue_size: int):
+        self.name = name
+        self.dir = os.path.join(root, name)
+        self.day, self.n = "", 1              # segment cursor -- amortized O(1), see _segment_path
+        self.q = queue.Queue(maxsize=queue_size)
+        self.thread = None
+        self.lock = threading.Lock()          # guards the SYNC path and the cursor
+        # PER-SHARD drop count. The journal-wide total answers "did we lose records"; only this
+        # answers "WHOSE records", and with a semi-trusted player pool that is the forensically
+        # load-bearing question -- a player who floods its own queue to drop its own traffic is
+        # the cheapest way to attack a telemetry store, and it must not be deniable.
+        self.dropped = 0
+
+
 class WireJournal:
     """Append-only JSONL of API round trips. One record per HTTP request, retries included."""
 
-    def __init__(self, journal_dir: str = None, agent: str = ""):
+    def __init__(self, journal_dir: str = None, agent: str = "",
+                 writer: str = None, queue_size: int = None):
         self._journal_dir = journal_dir or os.getenv("AKASHIC_WIRE_DIR") or DEFAULT_DIR
         self.agent = agent or os.getenv("BIFROST_AGENT") or "unknown"
         self.dropped = 0                      # W5: swallowed failures are counted, never silent
+
+        # THE SEAM (T157). Two writers behind one record() signature:
+        #   async  -- enqueue on the caller's thread, write on a per-shard background thread
+        #   sync   -- the pre-T157 path, byte for byte
+        # Selected per-instance or by AKASHIC_WIRE_WRITER, so the shipped behaviour is one env
+        # var away and needs no revert. The operator's standing condition for risky work is that
+        # it be reversible; a seam is how that is honoured without freezing the design.
+        kind = (writer or os.getenv("AKASHIC_WIRE_WRITER") or "async").strip().lower()
+        self.writer_kind = kind if kind in ("async", "sync") else "async"
+
+        self._queue_size = int(queue_size or QUEUE_SIZE)
+        self._shards = {}                     # shard name -> _Shard
+        self._shards_lock = threading.Lock()
+        self._paused = threading.Event()      # test hook: hold the writers to fill the queue
+        self._closing = False
+        self._seg_day, self._seg_n = "", 1    # legacy cursor, kept for the no-arg _segment_path
         self._lock = threading.Lock()
-        self._seg_day, self._seg_n = "", 1    # segment cursor -- see _segment_path (amortized O(1))
+        atexit.register(self.flush)
 
     # ---------------------------------------------------------------- write
     def record(self, **kw) -> bool:
-        """Write one round-trip record. NEVER raises -- returns True if it landed.
+        """Hand off one round-trip record. NEVER raises -- returns True if it was ACCEPTED.
 
         Accepts loose kwargs on purpose: this is called from a transport hook and from the
         response-field extractor, and a capture path that can raise on an unexpected key is a
         capture path that takes a runner down.
+
+        T157 changed what the return value MEANS on the async path, and the honest reading is
+        "accepted for writing", not "on disk". The caller is mid-API-call and must not wait for
+        a disk write; what it needs to know is whether the record was taken or dropped. A drop
+        is counted either way, because a silent drop renders as a measured zero -- the hazard
+        this repo has been bitten by twice.
         """
         try:
             rec = self._shape(kw)
-            with self._lock:
-                os.makedirs(self._journal_dir, exist_ok=True)
-                with open(self._segment_path(), "a", encoding="utf-8") as f:
-                    f.write(json.dumps(rec, ensure_ascii=False) + "\n")
-                self._rotate()
+            shard = self._shard_for(rec.get("agent"))
+            if self.writer_kind == "sync":
+                return self._write_now(shard, rec)
+            try:
+                shard.q.put_nowait(rec)
+            except queue.Full:
+                # BACKPRESSURE NEVER REACHES THE API THREAD. Blocking here would make telemetry
+                # able to stall the very call it is observing, which is a worse failure than
+                # losing a record. Drop, count, move on -- and count it AGAINST THE SHARD, so the
+                # loss is attributable rather than merely known.
+                self.dropped += 1
+                shard.dropped += 1
+                return False
+            self._ensure_writer(shard)
             return True
         except Exception:
             self.dropped += 1                 # W4 + W5: swallow for the caller, but COUNT it
             return False
+
+    # ------------------------------------------------------------ shards (T157)
+    def _shard_for(self, agent: str) -> "_Shard":
+        """The shard owning `agent`, created on demand and CAPPED.
+
+        The cap is not hypothetical: the shard key comes from a record field, so a buggy or
+        hostile caller that varies its agent id per request would otherwise spawn a directory,
+        a queue and a THREAD per record. Past the cap everything lands in one overflow shard --
+        which does reintroduce a shared resource for those callers, and that is the correct
+        trade: the well-behaved fleet keeps its isolation, and the pathological case degrades to
+        the behaviour we had before this slice instead of exhausting the process.
+        """
+        name = shard_name(agent or self.agent)
+        with self._shards_lock:
+            sh = self._shards.get(name)
+            if sh is None:
+                if len(self._shards) >= MAX_SHARDS:
+                    name = OVERFLOW_SHARD
+                    sh = self._shards.get(name)
+                if sh is None:
+                    sh = _Shard(self._journal_dir, name, self._queue_size)
+                    self._shards[name] = sh
+            return sh
+
+    def _ensure_writer(self, shard: "_Shard"):
+        if shard.thread is not None and shard.thread.is_alive():
+            return
+        with self._shards_lock:
+            if shard.thread is not None and shard.thread.is_alive():
+                return
+            t = threading.Thread(target=self._drain, args=(shard,),
+                                 name=f"wire-{shard.name}", daemon=True)
+            shard.thread = t
+            t.start()
+
+    def _drain(self, shard: "_Shard"):
+        """One shard's writer loop. Runs off the request thread, forever, quietly."""
+        while True:
+            try:
+                rec = shard.q.get(timeout=1.0)
+            except queue.Empty:
+                if self._closing:
+                    return
+                continue
+            try:
+                while self._paused.is_set():
+                    time.sleep(0.005)
+                self._write_now(shard, rec)
+            finally:
+                shard.q.task_done()
+
+    def _write_now(self, shard: "_Shard", rec: dict) -> bool:
+        """The actual disk write. On the writer thread (async) or the caller's (sync)."""
+        try:
+            with shard.lock:
+                os.makedirs(shard.dir, exist_ok=True)
+                with open(self._segment_path(shard), "a", encoding="utf-8") as f:
+                    f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+                self._rotate(shard)
+            return True
+        except Exception:
+            self.dropped += 1
+            shard.dropped += 1
+            return False
+
+    def drops_by_shard(self) -> dict:
+        """{agent-shard: dropped} -- WHOSE telemetry was lost, not merely that some was.
+
+        A single journal-wide counter says the store is incomplete; it cannot say for whom, and
+        "the instrument lost some records" is not a finding anyone can act on. Per-shard counts
+        make a flooding player visible as itself.
+        """
+        return {name: sh.dropped for name, sh in list(self._shards.items()) if sh.dropped}
+
+    def flush(self, timeout: float = 10.0) -> bool:
+        """Block until every accepted record is on disk. For tests and clean shutdown.
+
+        Deliberately NOT called on the hot path. Async buys the caller ~9000x precisely by not
+        waiting, and a flush inside record() would hand all of that back.
+        """
+        deadline = time.time() + timeout
+        for sh in list(self._shards.values()):
+            self._ensure_writer(sh)
+            while not sh.q.empty() and time.time() < deadline:
+                time.sleep(0.002)
+            with sh.lock:                     # the last record may be mid-write
+                pass
+        return all(sh.q.empty() for sh in list(self._shards.values()))
+
+    def _flush_for_read(self, timeout: float = 2.0):
+        """Drain before a read, but never from a writer thread and never while paused.
+
+        Both exclusions are deadlocks rather than optimisations: a writer draining itself would
+        wait forever, and a paused writer is a test deliberately holding records in the queue --
+        flushing there would hang the very pin that proves backpressure works.
+        """
+        if self._paused.is_set() or threading.current_thread().name.startswith("wire-"):
+            return
+        self.flush(timeout=timeout)
+
+    def pause(self):
+        """Hold the writer threads. Test hook for proving backpressure never blocks a caller."""
+        self._paused.set()
+
+    def resume(self):
+        self._paused.clear()
 
     def _shape(self, kw: dict) -> dict:
         """Metadata only. Bodies are hashed, never stored (W2)."""
@@ -144,8 +338,11 @@ class WireJournal:
         }
         return rec
 
-    def _segment_path(self) -> str:
+    def _segment_path(self, shard: "_Shard" = None) -> str:
         """The segment currently being appended to, ROLLING when it exceeds MAX_BYTES.
+
+        T157: takes a SHARD. Called with none, it answers for this journal's own agent, which is
+        what the pre-shard callers and pins mean by "the current segment".
 
         D1, found by the wire-next design workflow and reproduced before the fix: the previous
         implementation wrote to one file per day and, whenever that file exceeded MAX_BYTES,
@@ -160,25 +357,41 @@ class WireJournal:
         verification suite, which is the argument for having one. The cursor makes it amortized
         O(1): we walk forward from where we last were, and only when the segment is actually full.
         """
+        if shard is None:
+            shard = self._shard_for(self.agent)
+        # The shard directory is created HERE rather than at the call site, so the returned path
+        # is always one a caller may append to. Costs the same stat the write path already paid,
+        # and without it _segment_path() hands back a path inside a directory that does not exist
+        # yet -- which is exactly how it broke the D1 regression pin when shards landed.
+        try:
+            os.makedirs(shard.dir, exist_ok=True)
+        except OSError:
+            pass                               # unwritable dir is the write path's problem to count
         day = time.strftime("%Y%m%d")
-        if self._seg_day != day:               # new day -> restart the cursor
-            self._seg_day, self._seg_n = day, 1
+        if shard.day != day:                   # new day -> restart the cursor
+            shard.day, shard.n = day, 1
         while True:
-            p = os.path.join(self._journal_dir, f"wire-{day}-{self._seg_n:03d}.jsonl")
+            p = os.path.join(shard.dir, f"wire-{day}-{shard.n:03d}.jsonl")
             try:
                 if os.path.getsize(p) <= MAX_BYTES:
                     return p
             except OSError:
                 return p                       # does not exist yet -> this is the one to write
-            self._seg_n += 1
+            shard.n += 1
 
-    def _rotate(self):
+    def _rotate(self, shard: "_Shard" = None):
         """Bound the store by TOTAL size and segment count -- never as a side effect of one write.
 
         Deletion happens only while genuinely over budget, and the newest segment is never a
         candidate: an investigation reaches for what just happened.
+
+        T157: the budget is PER SHARD. That is the isolation property, and without it sharding
+        would be a naming convention -- a runaway player would still evict every other player's
+        history, which is exactly the blindness a semi-trusted pool must not be able to cause.
+        The cost is that worst-case disk is now MAX_FILES * MAX_BYTES * shards rather than a
+        single global budget; bounding the fleet is the shard CAP's job, not this loop's.
         """
-        files = self.files()
+        files = self._shard_files(shard) if shard is not None else self.files()
         while len(files) > MAX_FILES:
             try:
                 os.remove(files[0])
@@ -198,13 +411,41 @@ class WireJournal:
             pass
 
     # ---------------------------------------------------------------- read
-    def files(self):
+    def _shard_files(self, shard: "_Shard"):
+        """One shard's segments -- the unit rotation and quota operate on."""
         try:
-            return sorted(os.path.join(self._journal_dir, f)
-                          for f in os.listdir(self._journal_dir)
+            return sorted(os.path.join(shard.dir, f) for f in os.listdir(shard.dir)
                           if f.startswith("wire-") and f.endswith(".jsonl"))
         except Exception:
             return []
+
+    def files(self, agent: str = None):
+        """Every segment: shard directories PLUS pre-T157 segments at the journal root.
+
+        Legacy files are included deliberately. A telemetry store that loses its history on
+        upgrade is a worse failure than the convoy this slice removed, and the old flat segments
+        are still perfectly good records -- they simply predate the shard layout.
+
+        `agent` narrows to one shard, which is the file SELECTION read_all()'s docstring promised
+        when it said this filter "becomes a file selection rather than a scan". It is a fast path
+        only: sanitisation is lossy, so the caller must still verify the in-record agent.
+        """
+        self._flush_for_read()                 # same reason as read_all: reads see what was accepted
+        out = []
+        root = self._journal_dir
+        try:
+            for entry in sorted(os.listdir(root)):
+                p = os.path.join(root, entry)
+                if os.path.isdir(p):
+                    if agent is not None and entry != shard_name(agent):
+                        continue
+                    out += sorted(os.path.join(p, f) for f in os.listdir(p)
+                                  if f.startswith("wire-") and f.endswith(".jsonl"))
+                elif entry.startswith("wire-") and entry.endswith(".jsonl"):
+                    out.append(p)              # pre-T157 flat segment
+        except Exception:
+            return []
+        return out
 
     def read_all(self, limit: int = 0, agent: str = None):
         """`agent` scopes to one seat's records.
@@ -214,8 +455,19 @@ class WireJournal:
         signal. Scoping also pre-figures T157, where the journal shards per agent and this filter
         becomes a file selection rather than a scan.
         """
+        # T157: a READ drains pending writes first, so "record then read" still sees your record.
+        # Async moved the write off the caller's thread; it must not also move the goalposts for
+        # every reader. Consistency belongs HERE because this is not the hot path -- the whole
+        # point of the slice is that the API thread never waits, and a reader waiting a few
+        # milliseconds costs nothing. Without this, doctor renders a report that is stale by up to
+        # a queue's worth of records and has no way to know it.
+        self._flush_for_read()
+
         rows = []
-        for p in self.files():
+        # Scoping is now a file SELECTION (one shard directory) instead of a whole-store scan.
+        # The in-record filter below still runs and is AUTHORITATIVE -- shard names are sanitised
+        # and therefore lossy, so 'team/one' and 'team:one' can share a directory.
+        for p in self.files(agent=agent) if agent else self.files():
             try:
                 with open(p, encoding="utf-8") as f:
                     for line in f:
