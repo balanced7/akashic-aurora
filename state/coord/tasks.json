@@ -1,5 +1,5 @@
 {
-  "seq": 154,
+  "seq": 155,
   "tasks": [
     {
       "id": "T001",
@@ -5548,6 +5548,27 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-04T05:00:40+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T155",
+      "title": "FLEET LIVENESS LIES IN BOTH DIRECTIONS -- the Season 1 supervision blocker (measured 2026-08-03/04, one session, one seat). Asked four gauges about codex_root and got four answers: bifrost-sync said 'online: codex_root'; bifrost-send said 'no live seat (no heartbeat on record)' and durably queued; pulse said a near-identical id codex_root_019fab2d was CRITICAL with backlog 75-76; roster listed NO codex seat among 40. Directed mail addressed exactly as the seat itself requested was therefore unread by anything. SECOND FAILURE, same night, opposite direction: kimi#66784-ki paged HARD WEDGE -- phase 'running' with a beating worklive key for 996s while the worker had died inside the turn -- and roster prints its own disclaimer for this: 'NOT checked: process liveness (a beating loop can host a wedged model)'. It had filed its deliverable before wedging, so the work was NOT lost, but nothing except the page knew the difference. WHY IT BLOCKS THE SEASON: at N=20 a wedged player keeps a heartbeat and scores zero, and the scoreboard cannot tell that from a live player who found nothing -- the 'unpopulated counter renders as a MEASURED zero' hazard promoted into the fitness function itself. ACCEPTANCE SHAPE (pins RED first): (a) ONE liveness verdict that AGREES with the send path -- if bifrost-send would warn UNATTENDED, no other surface may print 'online'; (b) any gauge that cannot check process liveness must render UNKNOWN, never LIVE (pairs with T141 MEASURED/UNKNOWN/UNDEFINED); (c) agent-id resolution reconciles the bare id with agent_<session> forms, or refuses the send loudly rather than queueing into a void.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-04T05:01:50+00:00",
+      "updated": "2026-08-04T05:01:50+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-04T05:01:50+00:00"
         }
       ]
     }
