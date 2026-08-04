@@ -713,6 +713,41 @@ Why it matters beyond tidiness: a correction is the MOST important edit a doc ge
 correcting an adopted doc is the operation most likely to leave the wrong version equally visible.
 Deleting the stale projection is not the workaround -- library deletions are Daniil's gate and the
 substrate is append-only on purpose; the missing thing is the SUPERSESSION EDGE, not a delete.
+- [ ] W124 (08-03, claude) — bifrost-send dedup is keyed on CONTENT, not on DELIVERY. Re-sending an identical body to a seat that
+never received it is a silent no-op: the door returns the SAME message id and reports success, while
+nothing is delivered. Hit three separate times in one session (2026-08-03), each costing a round-trip
+before I realised the send had not failed -- it had been swallowed.
+
+The interaction that makes it bite: a newborn seat seeds its cursor at the LANE TAIL, so anything
+queued before its first boot is already behind it. The natural recovery -- "the seat missed it,
+resend" -- is exactly the case dedup refuses. Workaround today is to perturb the text so the sha
+differs, which is silly and undiscoverable.
+
+MINIMUM FIX (honesty, not behaviour): when the door dedups, say so and say where. "deduped: sha
+already at position X, which is BEHIND <recipient>'s cursor (never delivered)" turns a silent
+no-op into a one-line diagnosis. RIGHT FIX: key the idempotency record on (sha, recipient,
+delivered?) so a message that was never consumed can be re-offered. Related: T116 idempotency key,
+and the cursor-tail seeding behind lesson bifrost_runner_backlog_skip.
+- [ ] W125 (08-03, claude) — The runner singleton lock trusts PID-ALIVE while the roster trusts HEARTBEAT, and when they
+disagree the lock wins -- so a wedged runner blocks its own replacement indefinitely.
+
+Live receipt 2026-08-03: deepseek-red pid 62256 sat alive since 19:41 with a heartbeat 6231s stale.
+The roster rendered it [DEAD]. A relaunch refused with "another 'deepseek-red' runner is already
+live (pid 62256). Refusing to start -- one runner per agent avoids cursor races." Both statements
+were true and they contradicted each other. The seat had wedged mid-reply, which is also why four
+red-team attacks were lost: the process was alive enough to hold the lock and not alive enough to
+answer. Recovery was a manual taskkill.
+
+Note what does NOT cover this. self_restart IS wired (bifrost_runner_deepseek.py:1428 calls
+maybe_self_restart) but it runs INSIDE the loop, so a loop that stopped turning never reaches it.
+reaper.py:88 deliberately spares "a wedged-but-beating loop" because reaping it would rob a live
+seat -- correct, but this case is wedged-and-NOT-beating. wake_seat.reap_decision takes pid_alive,
+and the pid was alive.
+
+FIX DIRECTION: the lock should require a FRESH HEARTBEAT, not merely a live pid -- a process can be
+alive and useless. Steal a lock whose holder has not beaten within the worklive TTL, loudly and with
+an audit line. This is the sibling of T072 item (4) "runner_lock steals a lock whose pid is DEAD";
+the harder and more common case is the pid that is alive and silent.
 
 ## Folded (exemplars — the loop works)
 
