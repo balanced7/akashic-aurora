@@ -1,5 +1,5 @@
 {
-  "seq": 151,
+  "seq": 152,
   "tasks": [
     {
       "id": "T001",
@@ -5435,16 +5435,67 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "d2b707f",
+      "verified_by": "5/5 pins, 20/20 across Season 0. Live: doctor renders 'codex_root: 31.1h left (expires 2026-08-05T12:00:00Z)'. Two shape bugs in the first cut (dict-not-list, Grant-dataclass-not-record) caught only by X5, the against-reality pin.",
       "created": "2026-08-04T04:48:02+00:00",
-      "updated": "2026-08-04T04:48:02+00:00",
+      "updated": "2026-08-04T04:51:57+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-04T04:48:02+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-04T04:51:56+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-04T04:51:57+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-04T04:51:57+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-04T04:51:57+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T152",
+      "title": "T151: the fifth runner was left out of T150 -- scripts/bifrost_runner.py (the GENERIC wake adapter, the cheapest player body for Season 1) has no stream reconfigure at all. T150's pin enumerates by the prefix 'bifrost_runner_', which is exactly the set it fixed, so it passes 5/5 while the member whose name IS the prefix stays block-buffered and platform-encoded. Same file, same cause as the opus5 mechanics C3 finding (cognitive_metrics imported by FOUR runners, zero refs in bifrost_runner.py): an enumeration-by-prefix that cannot see the bare-prefix member. Season 1 supervising 10-20 players through it would be blind for exactly the reason the 2026-08-03 five-seat round was blind -- while the landed fix looked like it covered them. W1-W4 pinned RED first; W4 asserts over the CORRECTED glob so the next runner added cannot inherit the hole.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "claimed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-04T04:58:48+00:00",
+      "updated": "2026-08-04T04:59:09+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-04T04:58:48+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-04T04:59:09+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-04T04:59:09+00:00"
         }
       ]
     }
