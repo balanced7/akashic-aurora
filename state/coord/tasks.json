@@ -1,5 +1,5 @@
 {
-  "seq": 150,
+  "seq": 151,
   "tasks": [
     {
       "id": "T001",
@@ -5394,16 +5394,57 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "1d8a49b",
+      "verified_by": "5/5 pins green, 11/11 with T147. Live receipt: log non-empty (58 bytes, readable) while runner pid 52264 was still alive; previously 0 bytes for whole sessions.",
       "created": "2026-08-04T04:38:14+00:00",
-      "updated": "2026-08-04T04:38:14+00:00",
+      "updated": "2026-08-04T04:41:14+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-04T04:38:14+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-04T04:41:13+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-04T04:41:13+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-04T04:41:14+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-04T04:41:14+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T151",
+      "title": "SEASON 0: grant expiry is SILENT. registry.py:184 drops an expired grant to quarantined, and nothing outside core/trust ever reads expires_at -- no boot line, no doctor row, no warning. So a time-boxed seat simply stops working mid-arc and the next person debugs the symptom. This is the documented 07-05 failure ('the whole-grant time-box silently quarantined the entire admin role at expiry'), which is why three ACL records say verbatim 'NOT time-boxed ... revoke by editing this record, never by expiry'. Live instance: codex_root was granted 2026-08-04T00:45Z with expires_at 2026-08-05T12:00:00Z, and nothing will announce the lapse. Fix = registry exposes expiring/expired grants and the fleet doctor renders them, so a time-box becomes a VISIBLE deadline instead of a trapdoor. Time-boxing a new unproven identity is prudent; doing it silently is the defect.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-04T04:48:02+00:00",
+      "updated": "2026-08-04T04:48:02+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-04T04:48:02+00:00"
         }
       ]
     }
