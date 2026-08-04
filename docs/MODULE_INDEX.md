@@ -240,6 +240,7 @@
 - `repair_learning_index.py` — Repair `learn:experiments:all` -- the index that decides what recall can SEE.
 - `run_job.py` — Durable one-shot job supervision for long Akashic operations (T093).
 - `runner_token_journal.py` — runner_token_journal -- daily token-count ledger (T078 W1: C6 meter).
+- `season_dryrun.py` — season_dryrun -- run the Season 1 bounty loop end to end against a shadow tree (W6).
 - `seed_narrative.py` — seed_narrative.py -- dogfood the spine: ingest real git history as Beats, then chronicle.
 - `ship.py` — ship.py -- one disciplined command to ship a slice: GATE -> commit+push -> (lesson) -> snapshot.
 - `ship_gate.py` — ship_gate -- the suite gate as a ONE-WAY RATCHET (T031 unblock, 2026-07-27).
