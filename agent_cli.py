@@ -3427,6 +3427,19 @@ def cmd_doctor(args):
         print(f"  {_family_gauge_render(injections_by_family(24.0))}")
     except Exception:
         pass
+    try:   # T151: a time-box must be a DEADLINE, not a trapdoor. resolve() drops an expired grant
+        from core.trust.registry import expiring_grants   # to quarantined, and nothing ever said so
+        _exp = expiring_grants(within_h=72.0)
+        if _exp:
+            print("## GRANTS LAPSING (security/acl.json -- an expired grant silently quarantines)")
+            for _g in _exp:
+                _state = "EXPIRED -- now quarantined" if _g["expired"] else f"{_g['hours_left']}h left"
+                print(f"  [{'  page   ' if _g['expired'] else 'dashboard'}] {_g['agent_id']}: "
+                      f"{_state} (expires {_g['expires_at']})")
+            print("              drill: edit the record in security/acl.json -- renew by editing, "
+                  "never by letting it lapse")
+    except Exception:
+        pass
     return 0
 
 

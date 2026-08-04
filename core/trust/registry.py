@@ -118,6 +118,68 @@ def _bootstrap_or_quarantine(agent_id: str) -> Grant:
     return _template_grant(agent_id, role)
 
 
+def expiring_grants(within_h: float = 48.0, grants=None) -> list:
+    """[{agent_id, expires_at, hours_left, expired}] -- time-boxed grants at or near their lapse.
+
+    T151: expiry was a TRAPDOOR. resolve() correctly drops an expired grant to QUARANTINED, and
+    nothing outside this module ever read expires_at -- no boot line, no doctor row, no warning.
+    A time-boxed seat just stopped working mid-arc and the next reader debugged refused writes
+    instead of the cause. security/acl.json says in three separate records "NOT time-boxed -- the
+    07-05 whole-grant time-box silently quarantined the entire admin role at expiry", and that
+    doctrine exists ONLY because the lapse was unobserved. Observed, a time-box is a deadline.
+
+    PERMANENT GRANTS ARE NEVER REPORTED. Every long-lived seat carries expires_at=None by that same
+    doctrine, so including them would make this notice pure noise -- and noise is how a warning
+    gets silenced, which this repo's guards keep re-learning.
+
+    Read-only and never raises: observability must not be able to gate trust. A malformed record
+    degrades to silence, EXCEPT an unparseable expiry, which resolve() already treats as expired
+    and which is therefore reported as expired here too -- the two must not disagree.
+    """
+    try:
+        recs = grants if grants is not None else (_load() or [])
+        # _load() returns a DICT keyed by agent_id, not a list. Iterating it yielded KEYS, every
+        # .get() raised on a string, the per-record `except` swallowed it, and this returned []
+        # silently -- passing every unit pin (which inject lists) while reporting nothing against
+        # the real ACL. Only X5, the pin that reads the actual file, caught it.
+        if isinstance(recs, dict):
+            recs = list(recs.values())
+    except Exception:
+        return []
+    def _field(rec, name):
+        """Records arrive in TWO shapes and both are legitimate: raw dicts (the file, and pins that
+        inject fixtures) and Grant dataclasses (what _load returns). Reading only one shape is how
+        the first cut of this function silently reported nothing."""
+        if isinstance(rec, dict):
+            return rec.get(name)
+        return getattr(rec, name, None)
+
+    out = []
+    now = datetime.now(timezone.utc)
+    for rec in recs or []:
+        try:
+            raw = _field(rec, "expires_at")
+            agent = _field(rec, "agent_id")
+            if not raw or not agent:
+                continue                      # permanent, or nothing to name
+            try:
+                exp = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+                if exp.tzinfo is None:
+                    exp = exp.replace(tzinfo=timezone.utc)
+                hours_left = (exp - now).total_seconds() / 3600.0
+            except Exception:
+                out.append({"agent_id": agent, "expires_at": str(raw),
+                            "hours_left": None, "expired": True})   # matches _expired's fail-closed
+                continue
+            if hours_left <= float(within_h):
+                out.append({"agent_id": agent, "expires_at": str(raw),
+                            "hours_left": round(hours_left, 1),
+                            "expired": hours_left <= 0})
+        except Exception:
+            continue
+    return sorted(out, key=lambda r: (not r["expired"], r["agent_id"]))
+
+
 def _expired(expires_at: Optional[str]) -> bool:
     if not expires_at:
         return False
