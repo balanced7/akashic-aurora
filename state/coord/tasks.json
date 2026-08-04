@@ -1,5 +1,5 @@
 {
-  "seq": 143,
+  "seq": 144,
   "tasks": [
     {
       "id": "T001",
@@ -5147,6 +5147,27 @@
           "to": "done",
           "by": "",
           "at": "2026-08-03T23:42:17+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T144",
+      "title": "Wiring gate: a STRING naming a function counts as evidence only from ANOTHER module. Found by systematically probing the T143-patched gate 2026-08-03: __all__ = ['dead_fn'] immunises a dead function, because the string constant sits at module level outside the function body and the rule only excluded the function's OWN body. Same mechanism made a string type-annotation count. Measured in an isolated worktree arena: the patch closes both evasion classes and surfaces 8 MORE genuinely dead functions -- setex, and seven in core/signals/coordinator_api.py -- at ZERO false-positive cost. All 8 verified to have zero external production references. coordinator_api.py carries a SELF-DESCRIBING API catalogue (strings naming its own functions, e.g. line 600 'briefing = api.get_startup_briefing()') which was immunising every function it documented -- the same pathology the verb census named this morning: a manifest entry is a claim, not a reference.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-04T01:39:10+00:00",
+      "updated": "2026-08-04T01:39:10+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-04T01:39:10+00:00"
         }
       ]
     }

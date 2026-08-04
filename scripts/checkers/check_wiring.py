@@ -293,6 +293,12 @@ def shell_invoked_modules(dirs=None) -> set:
 # assembled at runtime ("declare_" + verb) is invisible; a private helper reached only through a
 # dead public function is not reported, because the public function is what gets reported first.
 
+# T144: marks a reference that came from a STRING CONSTANT rather than a name/attr/alias.
+# Tagged rather than dropped, because string evidence is still real -- getattr dispatch -- but only
+# when it crosses a module boundary. Plain ASCII on purpose: a sentinel that cannot appear in a
+# Python identifier, and cannot corrupt the source the way a control character would.
+STRLIT = "STRLIT::"
+
 BASELINE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "wiring_function_baseline.json")
 
@@ -369,7 +375,7 @@ def reference_sites(rel, root=ROOT):
         elif isinstance(node, ast.Attribute):
             out.append((node.attr, ln))
         elif isinstance(node, ast.Constant) and isinstance(node.value, str):
-            out.append((node.value, ln))
+            out.append((STRLIT + node.value, ln))     # T144: tagged, weighed differently below
         elif isinstance(node, ast.keyword) and node.arg:
             out.append((node.arg, ln))
         elif isinstance(node, ast.alias):
@@ -393,14 +399,24 @@ def unwired_functions(candidate_mods, production_files, root=ROOT):
     excluded there -- reporting every function inside a known-unwired module is noise, and noise is
     what turns a guard into a thing people silence.
     """
-    sites = {}
+    sites, strsites = {}, {}
     for p in production_files:
         for name, ln in reference_sites(p, root=root):
-            sites.setdefault(name, []).append((p, ln))
+            if name.startswith(STRLIT):
+                strsites.setdefault(name[len(STRLIT):], []).append((p, ln))
+            else:
+                sites.setdefault(name, []).append((p, ln))
     out = []
     for m in candidate_mods:
         for name, lo, hi, _is_method in public_defs(m, root=root):
             wired = any(mod != m or not (lo <= ln <= hi) for mod, ln in sites.get(name, ()))
+            if not wired:
+                # T144: a STRING naming a function is evidence only from ANOTHER module. A string
+                # is how a CALLER dispatches (getattr(mod, "promote")), and a caller lives
+                # elsewhere; a module naming itself in a string is DESCRIBING itself, not using
+                # itself. `__all__ = ["dead_fn"]` was proving its own exports alive, so every
+                # module with an export list blinded the gate to exactly what it exported.
+                wired = any(mod != m for mod, _ln in strsites.get(name, ()))
             if not wired:
                 out.append((m, name, lo))
     return sorted(out)

@@ -3,7 +3,7 @@
   "generated_by": "T134, claude",
   "what_this_is": "A frozen CENSUS of public functions in WIRED core/ modules that no production entry point names, taken the day the function-level gate landed. It is a BACKLOG, not an amnesty -- the same contract as EXCEPTIONS in check_wiring.py. A NEW orphan FAILS the gate; these are the ones that already existed. Deliberately NOT annotated with 117 hand-written reasons: inventing a justification per entry would read as 117 considered decisions when it is one measurement. Drain it in slices, with a real reason per slice, and delete entries as they are wired or removed. stale_function_baseline() reports entries that became wired, so this list can shrink -- an exemption list that can only grow stops being a backlog.",
   "how_to_read": "module::function -- see py scripts/checkers/check_wiring.py --functions",
-  "count": 108,
+  "count": 116,
   "entries": [
     "core/comm/bifrost_api.py::council",
     "core/comm/bifrost_api.py::covers",
@@ -58,6 +58,7 @@
     "core/foundation/redis_connection.py::clear_reachability_cache",
     "core/foundation/sqlite_store.py::backup_to",
     "core/foundation/sqlite_store.py::wal_bytes",
+    "core/foundation/store.py::setex",
     "core/infrastructure/health_check.py::check_infrastructure_health",
     "core/infrastructure/health_check.py::generate_report",
     "core/infrastructure/health_check.py::get_total_time",
@@ -102,7 +103,14 @@
     "core/recall/at_action.py::prevention_rate",
     "core/recall/at_action.py::prevention_rate_durable",
     "core/recall/at_action.py::session_flips",
+    "core/signals/coordinator_api.py::get_bootstrap_info",
+    "core/signals/coordinator_api.py::get_context_summary",
     "core/signals/coordinator_api.py::get_next_action_suggestion",
+    "core/signals/coordinator_api.py::get_startup_briefing",
+    "core/signals/coordinator_api.py::get_startup_context",
+    "core/signals/coordinator_api.py::get_startup_decisions",
+    "core/signals/coordinator_api.py::get_startup_learnings",
+    "core/signals/coordinator_api.py::request_handoff",
     "core/state/session_checkpoint.py::clear_checkpoint",
     "core/state/session_checkpoint.py::get_all_checkpoints",
     "core/state/session_checkpoint.py::get_blockers",
@@ -126,6 +134,21 @@
         "core/comm/session_state.py::list_snapshots",
         "core/coord/task_ledger.py::by_status",
         "core/primitives/clusterer.py::assignment"
+      ]
+    },
+    {
+      "date": "2026-08-03",
+      "change": "108 -> 116",
+      "why": "T144: a STRING naming a function is evidence only from ANOTHER module. __all__ = [\"x\"] was proving its own exports alive, so every module with an export list blinded the gate to exactly what it exported. These 8 were ALWAYS dead -- they were hidden, not created. All verified by hand to have zero external production references before being frozen. SEVEN of them are in core/signals/coordinator_api.py, which carries a self-describing API catalogue (strings naming its own functions, e.g. :600 \"briefing = api.get_startup_briefing()\") that was immunising every function it documented -- a manifest entry is a claim, not a reference.",
+      "added": [
+        "core/foundation/store.py::setex",
+        "core/signals/coordinator_api.py::get_bootstrap_info",
+        "core/signals/coordinator_api.py::get_context_summary",
+        "core/signals/coordinator_api.py::get_startup_briefing",
+        "core/signals/coordinator_api.py::get_startup_context",
+        "core/signals/coordinator_api.py::get_startup_decisions",
+        "core/signals/coordinator_api.py::get_startup_learnings",
+        "core/signals/coordinator_api.py::request_handoff"
       ]
     }
   ]
