@@ -49,6 +49,24 @@ sys.path.insert(0, HERE)
 from core.comm.bus import Bus
 from core.comm import control
 from core.comm import liveness, roster
+
+# T150: make this runner WATCHABLE. Python block-buffers stdout when it is not a TTY -- exactly the
+# case when an orchestrator captures it -- so a five-seat round on 2026-08-03 ran with every log at
+# 0 bytes and seat failures were diagnosed blind. Line buffering (not unbuffered) flushes on
+# newline: enough to watch, without the write storm that
+# managedchild_utf8_decode_kills_drainer_and_fills_pipe_2026_07_28 warns about.
+# The same call pins the ENCODING, which closes a real crash: a check-mark in a trace line raises
+# UnicodeEncodeError under Windows cp1252. Guarded -- a stream that cannot be reconfigured (pytest
+# capture, an exotic wrapper) must degrade to the old behaviour, never take the runner down.
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
+except Exception:
+    pass
+try:
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
+except Exception:
+    pass
+
 from core.comm import nudge
 from core.comm import runner_lock
 from core.comm import self_restart
