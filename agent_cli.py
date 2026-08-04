@@ -3914,11 +3914,23 @@ def cmd_bifrost_send(args):
                 tag = " [auto: directed ask -- add --expect-reply-within 0 to opt out]" if auto else ""
                 print(f"[bifrost-send] expecting a reply within {max(MIN_WITHIN_S, expect)}s{tag} "
                       f"(3 redrives then a loud expectation_dead; swept at boot/bifrost-sync)")
+    # T149: STDOUT MUST NOT CLAIM A SEND THAT DID NOT HAPPEN. When the re-ask window collapses a
+    # duplicate, the bus says so on STDERR and sets last_reask -- but stdout used to print the
+    # ordinary arrow line, carrying the ORIGINAL's id, which is indistinguishable from success on
+    # the one channel scripts, pipes and logs keep. Three briefs were lost to that in one night.
+    # The collapse itself is correct and untouched; only the rendering was dishonest.
+    collapsed = getattr(bus, "last_reask", None)
     if args.json:
-        print(json.dumps({"sent": bool(mid), "id": mid, "to": dest, "kind": args.kind,
+        print(json.dumps({"sent": bool(mid) and not collapsed, "id": mid, "to": dest,
+                          "kind": args.kind, "collapsed_onto": collapsed or None,
                           "expect_reply_within": expect or None}, default=str))
         return 0 if mid else 1
-    print(f"[bifrost-send] -> {dest} [{args.kind}] (id {mid})" if mid else "[bifrost-send] send failed")
+    if mid and collapsed:
+        print(f"[bifrost-send] COLLAPSED onto {collapsed} -- NOT re-sent (identical "
+              f"{args.kind} to {dest} is still pending). Nudge it, or change the ask.")
+    else:
+        print(f"[bifrost-send] -> {dest} [{args.kind}] (id {mid})" if mid
+              else "[bifrost-send] send failed")
     return 0 if mid else 1
 
 
