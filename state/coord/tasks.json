@@ -1,5 +1,5 @@
 {
-  "seq": 155,
+  "seq": 157,
   "tasks": [
     {
       "id": "T001",
@@ -5555,20 +5555,107 @@
       "id": "T155",
       "title": "FLEET LIVENESS LIES IN BOTH DIRECTIONS -- the Season 1 supervision blocker (measured 2026-08-03/04, one session, one seat). Asked four gauges about codex_root and got four answers: bifrost-sync said 'online: codex_root'; bifrost-send said 'no live seat (no heartbeat on record)' and durably queued; pulse said a near-identical id codex_root_019fab2d was CRITICAL with backlog 75-76; roster listed NO codex seat among 40. Directed mail addressed exactly as the seat itself requested was therefore unread by anything. SECOND FAILURE, same night, opposite direction: kimi#66784-ki paged HARD WEDGE -- phase 'running' with a beating worklive key for 996s while the worker had died inside the turn -- and roster prints its own disclaimer for this: 'NOT checked: process liveness (a beating loop can host a wedged model)'. It had filed its deliverable before wedging, so the work was NOT lost, but nothing except the page knew the difference. WHY IT BLOCKS THE SEASON: at N=20 a wedged player keeps a heartbeat and scores zero, and the scoreboard cannot tell that from a live player who found nothing -- the 'unpopulated counter renders as a MEASURED zero' hazard promoted into the fitness function itself. ACCEPTANCE SHAPE (pins RED first): (a) ONE liveness verdict that AGREES with the send path -- if bifrost-send would warn UNATTENDED, no other surface may print 'online'; (b) any gauge that cannot check process liveness must render UNKNOWN, never LIVE (pairs with T141 MEASURED/UNKNOWN/UNDEFINED); (c) agent-id resolution reconciles the bare id with agent_<session> forms, or refuses the send loudly rather than queueing into a void.",
       "desc": "",
-      "owner": "",
+      "owner": "claude",
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "cfcfd63",
+      "verified_by": "5/5 T155 pins + 79 green across 6 liveness/presence suites; live bifrost-sync no longer lists codex_root as online",
       "created": "2026-08-04T05:01:50+00:00",
-      "updated": "2026-08-04T05:01:50+00:00",
+      "updated": "2026-08-04T05:17:01+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-04T05:01:50+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-04T05:09:31+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-04T05:09:32+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-04T05:17:00+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-04T05:17:01+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T156",
+      "title": "T156 WIRE-A: API wire journal, capture+dissect slice (Wireshark order). In-process httpx transport recorder via the SDK http_client= seam (openai 2.24.0; kwarg unused anywhere in our code). METADATA ONLY -- no prompt/response bodies, so no DLP dependency: status, x-ds-trace-id, timing, and the fields we measurably discard (system_fingerprint = silent-model-swap detector, finish_reason, usage.total_tokens, completion_tokens_details.reasoning_tokens, service_tier, chunk id/model). Prefix HASH not prefix text, so cache forensics costs no stored content. READER NAMED AND SHIPPED IN THIS SLICE (summarize()) so T140 does not repeat. Fail-open for the runner, but skipped captures are COUNTED -- a silent drop is a measured zero. Daniil 2026-08-04: 'lets build it, this will serve as a strong foundation as well as be a good place for our security eyes when we get them'",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "dd0fcfc",
+      "verified_by": "7/7 T156 pins + 26 green deepseek runner suites + check_wiring PASS + live capture of x-ds-trace-id against api.deepseek.com",
+      "created": "2026-08-04T05:56:19+00:00",
+      "updated": "2026-08-04T06:00:58+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-04T05:56:19+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-04T05:56:25+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-04T05:56:25+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-04T06:00:58+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-04T06:00:58+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T157",
+      "title": "T157 WIRE-B: rewrite the wire journal write path as sharded + async before extending it to any other runner. MEASURED baseline (note wire-perf-baseline): the shipped synchronous record() is a lock convoy costing ~8266us mean / 21891us p99 of CALLER-BLOCKING time per round trip at 20 threads, growing linearly with concurrency. Four-way benchmark at 20 threads: monolith 7458us, sharded-only 3055us, async-only 0.8us, sharded+async 0.8us mean with a 4.2x better worst case (96us vs 405us). Two defects wearing one costume: work on the caller's thread (fixed only by a bounded non-blocking enqueue) and a shared resource (fixed only by sharding). Ship BOTH: per-agent shards for ISOLATION (a runaway player cannot starve the writer or blind other players; attribution becomes free; per-player quota becomes expressible) plus background writers for latency, with backpressure that DROPS AND COUNTS rather than blocking an API call. Promote scratchpad bench_wire_hotpath.py + bench_shard.py into tests/ as the pre-registered perf pin. BLOCKS: extending WireJournal to gemini/kimi/sol runners. Daniil 2026-08-04: 'I dont want things stalled on performance because we built things in singlethreaded ways.'",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-04T06:12:10+00:00",
+      "updated": "2026-08-04T06:12:10+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-04T06:12:10+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-04T06:12:10+00:00"
         }
       ]
     }
