@@ -312,6 +312,7 @@ def _default_probes() -> Dict[str, Any]:
         "halted": _probe_halted,
         "lane_health": _probe_lane_health,
         "token_cost": _token_cost_line,
+        "wire": _wire_findings,               # T156 Expert Info -- through the seam, like the rest
         "stale_code": _stale_code_line,
         "bench_count": _probe_bench_count,
         "now": time.time(),
@@ -489,6 +490,15 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
         cl = p["token_cost"](agent)
         if cl is not None:
             out.append(cl)
+    except Exception:
+        pass
+
+    # T156: API wire Expert Info -- truncation, retries, HTTP errors, a system_fingerprint
+    # change (the silent model swap). Anomalies only; a clean wire prints nothing.
+    try:
+        wf = p["wire"](agent)
+        if wf:
+            out.extend(wf)
     except Exception:
         pass
 
@@ -1116,6 +1126,34 @@ def _token_cost_line(agent: str, journal_dir: str = "") -> Optional[Dict[str, An
                   f"py agent_cli.py doctor --token {agent}")
     except Exception:
         return None
+
+
+def _wire_findings(agent: str):
+    """T156: surface the API wire journal's Expert Info here, on the fleet health surface.
+
+    Wired deliberately, and late, because the omission was the lesson. The T156 slice shipped a
+    pin asserting "a reader exists" -- and it passed against a reader NOTHING CALLED. That is
+    cognitive_metrics rebuilt by the very slice that cited it as the cautionary tale: a function
+    can satisfy an existence pin while being dead. `expert()` had zero callers outside its own
+    module until this hook.
+
+    Read-only and fail-quiet: doctor must never be the reason a health check dies. Findings are
+    dashboard-grade -- a fingerprint change or a truncation streak is worth a human's eye, not an
+    interrupt.
+    """
+    try:
+        from scripts.wire_journal import journal
+        findings = journal().expert(agent=agent)   # scoped: doctor walks the whole fleet
+    except Exception:
+        return None
+    out = []
+    for sev, headline, detail in findings or []:
+        if sev == "info":
+            continue                      # a clean wire is not news; only anomalies earn a line
+        out.append(_f(agent, "wire", "dashboard", f"wire: {headline} — {detail}",
+                      "py -c \"from scripts.wire_journal import journal; "
+                      "print(journal().expert())\""))
+    return out or None
 
 
 def _fmt_toks(n: int) -> str:

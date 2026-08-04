@@ -116,6 +116,41 @@ def test_w6_a_reader_exists_and_summarizes(tmp_path):
     assert len(s["fingerprints"]) == 2, "a fingerprint CHANGE is the silent-model-swap signal"
 
 
+def test_w8_a_full_current_file_must_not_eat_history(tmp_path):
+    """REGRESSION (D1), found by the wire-next design workflow and reproduced before fixing.
+
+    The shipped `_rotate()` deleted the OLDEST file whenever the NEWEST exceeded MAX_BYTES -- and
+    it ran on every single record. So once the current day's journal was large, each new record
+    destroyed another day of history: measured 15 files -> 1 file in 13 records. A size cap meant
+    to bound the store had become a per-record deletion loop.
+
+    The right behaviour when the current segment is full is to ROLL to a new one. Deleting history
+    to make room for a write is the opposite of a forensic store -- the oldest records are exactly
+    what an investigation reaches for.
+    """
+    from scripts.wire_journal import WireJournal
+    import scripts.wire_journal as WJ
+
+    d = str(tmp_path)
+    for i in range(1, 15):                       # 14 days of history already on disk
+        with open(os.path.join(d, f"wire-202607{i:02d}.jsonl"), "w", encoding="utf-8") as f:
+            f.write('{"old":true}\n')
+    j = WireJournal(journal_dir=d)
+    before = len(j.files())
+
+    seg = j._segment_path()                      # fill the CURRENT segment past the byte cap
+    with open(seg, "w", encoding="utf-8") as f:
+        f.write("x" * (WJ.MAX_BYTES + 1))
+
+    for _ in range(13):
+        j.record(model="m", status=200)
+
+    after = len(j.files())
+    assert after >= before, (
+        f"history destroyed: {before} files -> {after} after 13 records. A full current segment "
+        f"must ROLL, never delete older days.")
+
+
 def test_w7_unknown_is_not_zero(tmp_path):
     """A field the provider never sent must render UNKNOWN, not 0 -- the cognitive_metrics
     hazard, refused by construction rather than by discipline."""

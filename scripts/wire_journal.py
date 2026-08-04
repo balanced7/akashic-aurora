@@ -94,8 +94,7 @@ class WireJournal:
             rec = self._shape(kw)
             with self._lock:
                 os.makedirs(self._journal_dir, exist_ok=True)
-                path = os.path.join(self._journal_dir, f"wire-{time.strftime('%Y%m%d')}.jsonl")
-                with open(path, "a", encoding="utf-8") as f:
+                with open(self._segment_path(), "a", encoding="utf-8") as f:
                     f.write(json.dumps(rec, ensure_ascii=False) + "\n")
                 self._rotate()
             return True
@@ -144,21 +143,51 @@ class WireJournal:
         }
         return rec
 
+    def _segment_path(self) -> str:
+        """The segment currently being appended to, ROLLING when it exceeds MAX_BYTES.
+
+        D1, found by the wire-next design workflow and reproduced before the fix: the previous
+        implementation wrote to one file per day and, whenever that file exceeded MAX_BYTES,
+        deleted the OLDEST file -- on every record. Measured 15 files -> 1 in 13 records. A size
+        cap intended to bound the store had become a per-record shredder, and it destroyed exactly
+        what a forensic store exists to keep. Deleting history to make room for a write is never
+        the right answer; rolling to a new segment is.
+        """
+        day = time.strftime("%Y%m%d")
+        n = 1
+        while True:
+            p = os.path.join(self._journal_dir, f"wire-{day}-{n:03d}.jsonl")
+            try:
+                if os.path.getsize(p) <= MAX_BYTES:
+                    return p
+            except OSError:
+                return p                       # does not exist yet -> this is the one to write
+            n += 1
+
     def _rotate(self):
+        """Bound the store by TOTAL size and segment count -- never as a side effect of one write.
+
+        Deletion happens only while genuinely over budget, and the newest segment is never a
+        candidate: an investigation reaches for what just happened.
+        """
         files = self.files()
         while len(files) > MAX_FILES:
             try:
                 os.remove(files[0])
             except Exception:
                 break
-            files = self.files()
-        if files:
-            newest = files[-1]
-            try:
-                if os.path.getsize(newest) > MAX_BYTES and len(files) > 1:
-                    os.remove(files[0])
-            except Exception:
-                pass
+            files = files[1:]
+        try:
+            budget = MAX_BYTES * MAX_FILES
+            total = sum(os.path.getsize(f) for f in files)
+            while total > budget and len(files) > 1:
+                oldest = files[0]
+                sz = os.path.getsize(oldest)
+                os.remove(oldest)
+                total -= sz
+                files = files[1:]
+        except Exception:
+            pass
 
     # ---------------------------------------------------------------- read
     def files(self):
@@ -169,7 +198,14 @@ class WireJournal:
         except Exception:
             return []
 
-    def read_all(self, limit: int = 0):
+    def read_all(self, limit: int = 0, agent: str = None):
+        """`agent` scopes to one seat's records.
+
+        Needed the moment a reader iterates a fleet: doctor examines every agent, so an unscoped
+        read rendered the same finding 15 times -- one per agent -- which is noise dressed as
+        signal. Scoping also pre-figures T157, where the journal shards per agent and this filter
+        becomes a file selection rather than a scan.
+        """
         rows = []
         for p in self.files():
             try:
@@ -184,9 +220,11 @@ class WireJournal:
                             continue           # a torn line is one lost record, not a dead reader
             except Exception:
                 continue
+        if agent:
+            rows = [r for r in rows if str(r.get("agent") or "") == str(agent)]
         return rows[-limit:] if limit else rows
 
-    def summarize(self, limit: int = 0) -> dict:
+    def summarize(self, limit: int = 0, agent: str = None) -> dict:
         """THE READER (W6). Ships with the writer, because `cognitive_metrics` is the standing
         proof of what happens otherwise: five runners feeding an accumulator nothing reads.
 
@@ -195,7 +233,7 @@ class WireJournal:
         never sent renders as UNKNOWN, never as 0, because a zero here would be a lie that reads
         like a measurement.
         """
-        rows = self.read_all(limit)
+        rows = self.read_all(limit, agent=agent)
         out = {
             "records": len(rows),
             "dropped_captures": self.dropped,
@@ -226,14 +264,14 @@ class WireJournal:
             out["cache_hit_rate"] = UNKNOWN
         return out
 
-    def expert(self, limit: int = 0):
+    def expert(self, limit: int = 0, agent: str = None):
         """Expert Info: the wrong things, named. Wireshark's real value is not the packet list.
 
         Each finding below is the LLM analogue of a transport diagnostic -- truncation is a cut
         frame, a retry is a retransmission, a fingerprint change is a route flap. Returns a list
         of (severity, headline, detail) so a caller can render or alert.
         """
-        s = self.summarize(limit)
+        s = self.summarize(limit, agent=agent)
         findings = []
         if s["records"] == 0:
             return [("info", "no traffic captured", "journal is empty -- is the transport hooked?")]
@@ -249,7 +287,7 @@ class WireJournal:
         # counted and an HTTP error status is a perfectly successful round trip at the transport.
         # A forensics tool that stays quiet about 4xx/5xx is the blindness it was built to cure.
         bad = {}
-        for r in self.read_all(limit):
+        for r in self.read_all(limit, agent=agent):
             st = r.get("status")
             if isinstance(st, int) and not (200 <= st < 300):
                 bad[st] = bad.get(st, 0) + 1
