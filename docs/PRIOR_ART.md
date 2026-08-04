@@ -23,7 +23,7 @@ Letta's plain files beat a graph memory system; Wikidata's three ranks run at ~1
 statements where ATMS dies around 100 beliefs. The cost of NOT sweeping is measured in
 rebuilt wheels and dead ends, so the sweep is now a standing artifact rather than a mood.
 
-## Coverage: 12 current, 10 drift, 0 gap (of 22 subsystems)
+## Coverage: 11 current, 11 drift, 0 gap (of 22 subsystems)
 
 **DRIFT -- surveyed, but the subsystem has changed size since:**
 
@@ -33,6 +33,7 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 - `core/learning` -- DRIFT (3->5), reviewed 2026-07-26
 - `core/recall` -- DRIFT (10->13), reviewed 2026-07-26
 - `core/primitives` -- DRIFT (7->8), reviewed 2026-07-26
+- `core/trust` -- DRIFT (2->3), reviewed 2026-07-26
 - `scripts/checkers` -- DRIFT (12->15), reviewed 2026-07-26
 - `scripts/generators` -- DRIFT (6->7), reviewed 2026-07-26
 - `scripts/ops` -- DRIFT (2->3), reviewed 2026-07-26
@@ -265,7 +266,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude (docstring sweep) + deepseek (partial, p4)._
 
-## `core/trust` -- 2 modules  ·  current
+## `core/trust` -- 3 modules  ·  DRIFT (2->3)
 
 **What it does.** Capability-based access control: capabilities.py issues Capability(action, resource, constraints) tokens and verifies them; registry.py maps agent_id to allowed capabilities and answers can(agent, action, resource).
 

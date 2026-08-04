@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (37 of 137 modules lack both pin and paper by name)
+## GAP queue (38 of 138 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/migrate_to_sqlite.py
@@ -45,6 +45,7 @@ Class: reference
 - core/narrative/chapter_lifecycle.py
 - core/narrative/theme_assigner.py
 - core/trust/capabilities.py
+- core/trust/grant_writer.py
 - core/fleet/model_roster.py
 - core/state/session_checkpoint.py
 - core/state/session_recovery.py
@@ -217,12 +218,13 @@ Class: reference
 | `theme_discovery.py` | ThemeDiscoverer (Spine v2, slice V6) -- embedding theme inference that augments the | tests/test_theme_discovery.py | GAP | `AKASHIC_EMBED_THEMES` |
 | `track_router.py` | TrackRouter (Slice 2, Tier 0 heuristic) -- infer which domain Track a Beat belongs to, | tests/test_track_router.py | GAP |  |
 
-## core/trust/  (2 modules)
+## core/trust/  (3 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
 | `capabilities.py` | Capability tokens + role templates -- the atomic vocabulary of the security schema. | GAP | GAP |  |
-| `registry.py` | Grant registry -- the reader over security/acl.json (source of truth), mirroring core/fleet/model_roster.py (r | tests/test_audit_registry_wiring_kimi.py | docs/library/design/20260711_t034-registry-dial-consolidation-deepsee_a65322.md |  |
+| `grant_writer.py` | core.trust.grant_writer -- the WRITE side of security/acl.json (T163, S-3 of the security schema). | GAP | GAP |  |
+| `registry.py` | Grant registry -- the reader over security/acl.json (source of truth), mirroring core/fleet/model_roster.py (r | tests/test_audit_registry_wiring_kimi.py | docs/library/design/20260711_t034-registry-dial-consolidation-deepsee_a65322.md | `AKASHIC_ACL_PATH` |
 
 ## core/fleet/  (2 modules)
 

@@ -140,8 +140,9 @@
 - `theme_discovery.py` — ThemeDiscoverer (Spine v2, slice V6) -- embedding theme inference that augments the
 - `track_router.py` — TrackRouter (Slice 2, Tier 0 heuristic) -- infer which domain Track a Beat belongs to,
 
-## core/trust/  (2 modules)
+## core/trust/  (3 modules)
 - `capabilities.py` — Capability tokens + role templates -- the atomic vocabulary of the security schema.
+- `grant_writer.py` — core.trust.grant_writer -- the WRITE side of security/acl.json (T163, S-3 of the security schema).
 - `registry.py` — Grant registry -- the reader over security/acl.json (source of truth), mirroring core/fleet/model_roster.py (r
 
 ## core/fleet/  (2 modules)

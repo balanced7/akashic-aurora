@@ -8,7 +8,7 @@ Class: reference
 > (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by
 > check_comprehensibility so it cannot silently rot.
 
-## CLI door -- `py agent_cli.py <verb>` (72 verbs)
+## CLI door -- `py agent_cli.py <verb>` (73 verbs)
 
 The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.
 
@@ -44,6 +44,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `flow` | OTel-style waterfall of recent message flows across lanes: asks, answers, gaps, duplicate copies exposed (R3) | `<agent>` `--window` `--limit` `--json` |
 | `followup` | charter question-back (W46): append a q-id'd question to a verdict's Open Questions block + defer it to the responsible seat | `<agent_id>*` `--on*` `--to*` `--ask*` `--needs` `--json` |
 | `graduate` | retire a lesson from recall surfacing -- automation now enforces its rule | `<agent_id>*` `--experiment` `--enforced-by` `--undo` `--json` |
+| `grant` | S-3: mint / revoke / list ACL grants (atomic + audited). NOT an auth boundary -- see the module docstring | `<agent_id>` `--role` `--by` `--reason` `--hours` `--permanent` `--caps` `--path-scope` `--request-ref` `--revoke` `--list` `--dry-run` `--json` |
 | `handoff` | hand work to another agent (writes a briefing its next boot reads) | `<agent_id>*` `--to` `--task` `--note` `--blocker` `--list` `--json` |
 | `harnesses` | integration-tier matrix: what each harness (claude-code/cursor/bare-cli) actually delivers | `--json` |
 | `injections` | the injection ledger: what recall pushed into contexts + cost | `--hours` `--json` |
