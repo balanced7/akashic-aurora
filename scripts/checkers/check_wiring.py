@@ -368,6 +368,20 @@ def reference_sites(rel, root=ROOT):
         tree = ast.parse(open(os.path.join(root, rel), encoding="utf-8", errors="replace").read())
     except Exception:
         return out
+    # T145: lines belonging to an `__all__` assignment. An export list DECLARES a surface; it does
+    # not USE anything. T144 excluded same-module strings, which closed `__all__` written beside the
+    # function -- and the hole simply MOVED into the package __init__.py, the most idiomatic home
+    # for __all__ in Python, where the cross-module test waves it through. Chasing the location
+    # would only move it again, so the manifest itself is excluded wherever it lives. This cannot
+    # create a false positive by construction: a function whose only mention is an export list is
+    # by definition not called by anyone.
+    _all_lines = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            for t in node.targets:
+                if isinstance(t, ast.Name) and t.id == "__all__":
+                    end = getattr(node, "end_lineno", node.lineno) or node.lineno
+                    _all_lines.update(range(node.lineno, end + 1))
     for node in ast.walk(tree):
         ln = getattr(node, "lineno", 0)
         if isinstance(node, ast.Name):
@@ -375,7 +389,8 @@ def reference_sites(rel, root=ROOT):
         elif isinstance(node, ast.Attribute):
             out.append((node.attr, ln))
         elif isinstance(node, ast.Constant) and isinstance(node.value, str):
-            out.append((STRLIT + node.value, ln))     # T144: tagged, weighed differently below
+            if ln not in _all_lines:                  # T145: __all__ is a manifest, not a use
+                out.append((STRLIT + node.value, ln))  # T144: tagged, weighed differently below
         elif isinstance(node, ast.keyword) and node.arg:
             out.append((node.arg, ln))
         elif isinstance(node, ast.alias):

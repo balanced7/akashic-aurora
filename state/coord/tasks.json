@@ -1,5 +1,5 @@
 {
-  "seq": 144,
+  "seq": 145,
   "tasks": [
     {
       "id": "T001",
@@ -5168,6 +5168,27 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-04T01:39:10+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T145",
+      "title": "Wiring gate: __all__ is NEVER evidence of use, wherever it lives. Round-3 finding 2026-08-03, and the answer to whether hardening converges: the T144 patch (string evidence must cross a module boundary) did NOT close the __all__ class -- it RELOCATED it. Moving the export list one file up into the package __init__.py restores full immunity, because __init__.py is a different module and so satisfies T144's cross-module test. That is the MOST idiomatic place to put __all__, so the evasion got easier to trigger by accident, not harder. Verified in the arena: D1 LANDED against T144. The principled fix is not about location -- an __all__ entry is a DECLARATION of an export surface, not a USE of it. Excluding __all__ assignments as evidence anywhere closes both the same-module and the package-init case, at ZERO false-positive cost on the live tree (116 baseline unchanged, PASS). Complementary to T144, not a replacement: T144 still catches self-describing API catalogues that are not __all__, such as coordinator_api.py:600.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-04T01:43:10+00:00",
+      "updated": "2026-08-04T01:43:10+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-04T01:43:10+00:00"
         }
       ]
     }
