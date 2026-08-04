@@ -1,5 +1,5 @@
 {
-  "seq": 152,
+  "seq": 154,
   "tasks": [
     {
       "id": "T001",
@@ -5476,11 +5476,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "claimed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "f6f17cc",
+      "verified_by": "py -m pytest tests/test_t152_generic_runner_is_watchable_too.py tests/test_t150_runner_streams_are_watchable.py -q -> 9 passed; py scripts/bifrost_runner.py --help starts clean",
       "created": "2026-08-04T04:58:48+00:00",
-      "updated": "2026-08-04T04:59:09+00:00",
+      "updated": "2026-08-04T05:00:11+00:00",
       "history": [
         {
           "to": "proposed",
@@ -5496,6 +5496,58 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-08-04T04:59:09+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-04T05:00:10+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-04T05:00:11+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T153",
+      "title": "Telemetry gap under the scoreboard: scripts/bifrost_runner.py references cognitive_metrics ZERO times while the four provider runners each call cog.init -- found by the opus5 Season 1 mechanics review (C3) and confirmed while fixing T152's watchability half in the same file. Consequence: a player fleet on the generic wake adapter emits NO cognitive metrics at all, so its EfficiencySnapshot renders as measured zeros rather than absent data -- the exact 'unpopulated counter renders as a MEASURED zero' hazard T140 names, landing directly beneath a game scoreboard that would read those zeros as performance. Decision, not a build order: wire cog into the generic runner, or declare it unsupported as a player body and make the scoreboard refuse to score seats it cannot instrument. Pairs with T141 (MEASURED/UNKNOWN/UNDEFINED, claimed by codex_root) which is the honest-rendering half.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-04T05:00:40+00:00",
+      "updated": "2026-08-04T05:00:40+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-04T05:00:40+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T154",
+      "title": "CONVERGENCE INSTRUMENT for the game arc (kimi's Auditor verdict, research/in-flight/game-arc-convergence-objection-kimi-2026-08-04.md, adopted): burn-down of the bounty board measures the PLAYERS, not the system. Role hats decorrelate prompts but not induction, and ensemble error covariance lives in the induction layer -- so a same-checkpoint pool cannot distinguish 'the system got better' from 'these attackers ran out of ideas'. A5 is the live proof: a fourth gate hole found AFTER the three-round T143/T144/T146 streak by a lens the streak did not contain. FIX (not a kill): canary oracle -- each round the adjudicator plants K=3-5 LABELED defects into a git-worktree SHADOW copy with sealed answers, in three classes (catchable/T143-shape, known-undetectable/A5-shape, false-positive bait). Headline metric becomes catchable-canary CATCH-RATE; board burn-down is still reported but labeled INVENTORY, never convergence. Works because the answer key is independent of the players' induction BY CONSTRUCTION: a tired pool stops catching canaries too, so exhaustion cannot masquerade as completeness. In-repo precedent: scripts/checkers/check_door_parity.py:76 already seeds a canary so a PASS means the instrument works. Pins K0/G1-G5 pre-registered in kimi's file, kill condition FIRST per M3. Daniil gate item G13.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-04T05:00:40+00:00",
+      "updated": "2026-08-04T05:00:40+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-04T05:00:40+00:00"
         }
       ]
     }
