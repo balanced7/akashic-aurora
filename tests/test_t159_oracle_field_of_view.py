@@ -154,7 +154,16 @@ def test_k12_the_manifest_records_how_the_universe_was_resolved(worktree):
     assert u.get("source") == "detector", (
         f"a real worktree must resolve its universe by ASKING the detector; got {u.get('source')!r}")
     assert isinstance(u.get("size"), int) and u["size"] > 0
-    assert u["size"] == len(_wiring().candidate_modules())
+
+    # Against the SHADOW's own detector, not this tree's. They legitimately differ: a worktree
+    # holds only TRACKED files, so an untracked core module present here is absent there (that
+    # exact case, core/comm/room_feed.py, made this assertion fail the first time it was written).
+    # Comparing to the live number would reintroduce T159's mistake in the pin itself -- asserting
+    # against a universe that is not the one being measured.
+    r = subprocess.run([sys.executable, "scripts/checkers/check_wiring.py", "--candidates"],
+                       cwd=worktree, capture_output=True, text=True, timeout=600)
+    assert r.returncode == 0, "the shadow's own detector could not report its field of view"
+    assert u["size"] == len(json.loads(r.stdout))
 
 
 # --------------------------------------------------------------------------- K13

@@ -494,9 +494,36 @@ def _script_files():
     return out
 
 
+def candidate_modules(reachable=None, core_universe=None):
+    """The FUNCTION gate's TRUE field of view: reachable core modules, minus EXCEPTIONS.
+
+    THE ONE DEFINITION. Everything that needs to know what this gate examines asks here rather
+    than re-deriving it, and function_level() below consumes it so the gate itself keeps the
+    definition honest.
+
+    T159, and it is worth stating plainly because the ticket got it backwards: a module OUTSIDE
+    this set is not a blind spot, it is already reported at MODULE granularity. Listing every dead
+    function inside an already-reported dead module is the noise that turns a guard into a thing
+    people silence -- the same argument unwired_functions' docstring makes about candidate_mods.
+
+    That distinction is invisible from outside, which is how it caused a false measurement. The
+    T158 canary oracle planted into `core_universe` (151 modules) on the reasonable-looking
+    assumption that it was the gate's scope. The gate's scope is this (134). The 17-module
+    difference is territory where a MISS IS CORRECT BEHAVIOUR, so canaries landing there were
+    scored as detector failures and published 0.67 detector health for a healthy detector.
+
+    Exported rather than inlined for exactly that reason: the previous fix RE-IMPLEMENTED the
+    selector by walking core/, and a copy drifts the moment either side moves. Callers outside
+    this process get the same answer through `--candidates`.
+    """
+    if reachable is None or core_universe is None:
+        core_universe, reachable, _unwired = analyze()
+    return sorted(m for m in core_universe if m in reachable and m not in EXCEPTIONS)
+
+
 def function_level(reachable, core_universe):
     """-> (candidate_mods, production_files, orphans, stale) for the gate and the report."""
-    cand = sorted(m for m in core_universe if m in reachable and m not in EXCEPTIONS)
+    cand = candidate_modules(reachable, core_universe)
     prod = sorted({p for p in (set(ENTRY_POINTS) | _script_files()
                                | {r for r in reachable if r.endswith(".py")})
                    if os.path.exists(os.path.join(ROOT, p))})
@@ -541,6 +568,15 @@ def analyze():
 
 def main():
     core_universe, reachable, unwired = analyze()
+
+    # T159: the machine-readable door onto the field of view. The canary oracle runs against a
+    # SHADOW worktree, so it must ask THAT tree's own detector what it examines -- a shadow can
+    # be a different commit, with a different EXCEPTIONS list and a different import graph.
+    # Answering across the process boundary is what makes "ask, never re-implement" enforceable.
+    if "--candidates" in sys.argv:
+        print(json.dumps(candidate_modules(reachable, core_universe)))
+        return 0
+
     report = "--report" in sys.argv
     if report:
         print(f"core/ modules: {len(core_universe)}  |  reachable from production: "

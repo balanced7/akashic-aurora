@@ -49,6 +49,8 @@ import hashlib
 import json
 import os
 import random
+import subprocess
+import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -95,15 +97,71 @@ def _inside_repo(path: str) -> bool:
 #: Files the wiring gate actually examines. A "catchable" canary planted anywhere else is a
 #: MISLABEL, not a miss -- discovered on the first calibration run, where 3 of 3 catchable
 #: canaries landed in tests/ and docs/_archive/ and the gate correctly ignored all of them.
-def _gate_universe(shadow_root: str):
-    """core/**.py minus __init__.py -- mirrors check_wiring.analyze()'s core_universe."""
+#:
+#: T159 is the SECOND time that same defect landed, one level deeper, and the reason it recurred
+#: is that the first fix RE-IMPLEMENTED the detector's selector here by walking core/. That copy
+#: was right about `core_universe` (151 modules) and wrong about the gate, which filters once more
+#: downstream to `cand` (134) -- reachable, minus the module-level EXCEPTIONS backlog. The 17
+#: modules in between are territory where a MISS IS CORRECT, because those modules are already
+#: reported at module granularity; a canary landing there was scored as detector failure and
+#: published 0.67 detector health for a detector that was working.
+#:
+#: So the rule is now ASK, NEVER RE-IMPLEMENT. A copy of a selector drifts the moment either side
+#: moves, and both times it drifted it did so silently and in the direction that flatters nobody.
+def _resolve_universe(shadow_root: str):
+    """-> (paths, source). Ask the SHADOW'S OWN detector what it examines.
+
+    The shadow is a worktree and may be a DIFFERENT COMMIT than this process is running -- with a
+    different EXCEPTIONS list and a different import graph. Asking it across a process boundary is
+    the only answer that is true of the tree the canaries actually live in.
+
+    Falls back to the structural walk only when the shadow has no detector to ask (a synthetic
+    fixture tree). The fallback is RECORDED, never silent: a round scored against a fallback
+    universe is measuring something other than the gate, and the manifest has to say so.
+    """
+    checker = os.path.join(shadow_root, "scripts", "checkers", "check_wiring.py")
+    if os.path.isfile(checker):
+        detail = ""
+        try:
+            r = subprocess.run(
+                [sys.executable, os.path.join("scripts", "checkers", "check_wiring.py"),
+                 "--candidates"],
+                cwd=shadow_root, capture_output=True, text=True, timeout=600)
+            if r.returncode == 0 and r.stdout.strip():
+                rels = json.loads(r.stdout)
+                if rels:
+                    return sorted(os.path.join(shadow_root, p.replace("/", os.sep))
+                                  for p in rels), "detector"
+                detail = "the detector answered with an EMPTY candidate list"
+            else:
+                detail = (f"--candidates exited {r.returncode} and did not print JSON "
+                          f"(first line: {(r.stdout or r.stderr).strip().splitlines()[:1]})")
+        except (OSError, ValueError, subprocess.SubprocessError) as exc:
+            detail = f"{type(exc).__name__}: {exc}"
+
+        # A detector EXISTS here and could not answer. Falling back silently is precisely the
+        # failure this ticket is made of: the round would be scored against a universe that is
+        # not the gate's, and the number would look like a measurement. The usual cause is
+        # VERSION SKEW -- a shadow pinned to a commit older than the --candidates door.
+        raise RuntimeError(
+            f"{checker} exists but could not report its field of view -- {detail}. Refusing to "
+            f"guess: a canary planted outside the gate's scope is scored as a detector failure, "
+            f"which is how T158 published 0.67 health for a healthy detector (twice). If this "
+            f"shadow predates the --candidates door, either rebuild it from a commit that has "
+            f"the door or pass targets= explicitly and own the choice.")
+
     out = []
     core = os.path.join(shadow_root, "core")
     for base, dirs, files in os.walk(core):
         dirs[:] = [d for d in dirs if not d.startswith((".", "__"))]
         out += [os.path.join(base, f) for f in files
                 if f.endswith(".py") and f != "__init__.py"]
-    return sorted(out)
+    return sorted(out), "structural-fallback"
+
+
+def _gate_universe(shadow_root: str):
+    """The plantable target set: what the shadow's own wiring gate actually examines."""
+    return _resolve_universe(shadow_root)[0]
 
 
 def plant(shadow_root: str, k: int = 6, seed: int = 0, targets=None) -> dict:
@@ -117,6 +175,11 @@ def plant(shadow_root: str, k: int = 6, seed: int = 0, targets=None) -> dict:
     passed clean with 9 canaries in the tree. Not because the gate is blind: because the canaries
     were never in its scope. A canary outside the detector's field of view measures nothing, and
     scoring it as a miss would have reported 0% detector health for a healthy detector.
+
+    T159: that default is now RESOLVED BY ASKING the shadow's own detector, not by re-deriving it
+    here. The re-derivation was itself the second occurrence of the same bug. The manifest records
+    which universe was used and how big it was, because the tempting fix for a bad detector-health
+    number is to quietly narrow what gets measured, and that must not be doable quietly.
     """
     shadow_root = os.path.abspath(shadow_root)
     if _inside_repo(shadow_root):
@@ -127,7 +190,9 @@ def plant(shadow_root: str, k: int = 6, seed: int = 0, targets=None) -> dict:
         raise ValueError(f"shadow root does not exist: {shadow_root}")
 
     if targets is None:
-        targets = _gate_universe(shadow_root)
+        targets, universe_source = _resolve_universe(shadow_root)
+    else:
+        universe_source = "caller-supplied"
     targets = [t if os.path.isabs(t) else os.path.join(shadow_root, t) for t in targets]
     targets = sorted(t for t in targets if os.path.isfile(t))
     if not targets:
@@ -155,7 +220,11 @@ def plant(shadow_root: str, k: int = 6, seed: int = 0, targets=None) -> dict:
             "cls": cls, "shape": shape, "name": name,
             "file": os.path.relpath(target, shadow_root).replace("\\", "/"),
         })
-    return {"seed": seed, "k": k, "shadow_root": shadow_root, "canaries": canaries}
+    return {"seed": seed, "k": k, "shadow_root": shadow_root, "canaries": canaries,
+            # T159 receipt: WHICH universe this round was measured against, and how big it was.
+            # Detector health is only interpretable next to the field of view it was scored over
+            # -- narrowing the universe raises the number without improving anything.
+            "universe": {"source": universe_source, "size": len(targets)}}
 
 
 def exclude_self(shadow_root: str) -> bool:
