@@ -303,9 +303,12 @@ BASELINE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "wiring_function_baseline.json")
 
 
-# Module-level statement containers a def can legitimately hide inside. Descending these is the
-# T143 fix; NOT descending into a function body is the limit on it.
-_CONTAINERS = (ast.If, ast.Try, ast.With, ast.AsyncWith, ast.For, ast.AsyncFor, ast.While)
+# T146: there is deliberately NO container list here any more. The T143 fix enumerated
+# (If, Try, With, AsyncWith, For, AsyncFor, While) and the PYTHON GRAMMAR drifted past it --
+# ast.Match (3.10) and ast.TryStar (3.11) both walked straight through, as did methods on inner
+# classes. That is the same anti-pattern this file warns about for ENTRY_POINTS two functions up:
+# a hand-written list drifts the moment the world adds a member. public_defs now descends any
+# statement that is not a def, structurally, so a grammar addition in 3.14 needs no edit here.
 
 
 def public_defs(rel, root=ROOT):
@@ -338,19 +341,32 @@ def public_defs(rel, root=ROOT):
         if not node.name.startswith("_") and node.name != "main":
             out.append((node.name, node.lineno, getattr(node, "end_lineno", node.lineno), is_method))
 
-    def _walk(body):
-        for node in body:
+    def _nested(node):
+        """Every statement nested inside a non-def statement, at ANY field name.
+
+        No list of node types and no list of field names. ExceptHandler and match_case are not
+        statements themselves, so their bodies are reached one level deeper -- generically.
+        """
+        found = []
+        for _f, val in ast.iter_fields(node):
+            for item in (val if isinstance(val, list) else [val]):
+                if isinstance(item, ast.stmt):
+                    found.append(item)
+                elif isinstance(item, ast.AST):        # ExceptHandler, match_case, ...
+                    for _f2, val2 in ast.iter_fields(item):
+                        for it2 in (val2 if isinstance(val2, list) else [val2]):
+                            if isinstance(it2, ast.stmt):
+                                found.append(it2)
+        return found
+
+    def _walk(stmts, in_class=False):
+        for node in stmts:
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                _take(node, False)                     # do NOT descend: nested defs stay private
+                _take(node, in_class)                  # do NOT descend: nested defs stay private
             elif isinstance(node, ast.ClassDef):
-                for sub in node.body:
-                    if isinstance(sub, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                        _take(sub, True)
-            elif isinstance(node, _CONTAINERS):
-                for attr in ("body", "orelse", "finalbody"):
-                    _walk(getattr(node, attr, []) or [])
-                for h in getattr(node, "handlers", []) or []:
-                    _walk(h.body)
+                _walk(node.body, in_class=True)        # inner classes are still public surface
+            else:
+                _walk(_nested(node), in_class=in_class)
 
     _walk(tree.body)
     return out

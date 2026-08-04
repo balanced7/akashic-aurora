@@ -1,5 +1,5 @@
 {
-  "seq": 145,
+  "seq": 146,
   "tasks": [
     {
       "id": "T001",
@@ -5158,16 +5158,36 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "7752ba1",
+      "verified_by": "5 pins green. Arena-measured before landing: closes 2 evasion classes, surfaces 8 more genuinely dead functions, ZERO false positives. All 8 hand-verified to have zero external production refs.",
       "created": "2026-08-04T01:39:10+00:00",
-      "updated": "2026-08-04T01:39:10+00:00",
+      "updated": "2026-08-04T01:45:25+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-04T01:39:10+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-04T01:45:22+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-04T01:45:23+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-04T01:45:23+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-04T01:45:25+00:00"
         }
       ]
     },
@@ -5179,16 +5199,57 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "dc37d56",
+      "verified_by": "5 pins green, 38/38 across seven wiring files, baseline unchanged at 116 (zero FP cost). Closes both the same-module and package-__init__ __all__ cases; E3/E5 keep getattr dispatch and non-__all__ string tables working.",
       "created": "2026-08-04T01:43:10+00:00",
-      "updated": "2026-08-04T01:43:10+00:00",
+      "updated": "2026-08-04T01:45:25+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-04T01:43:10+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-04T01:45:24+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-04T01:45:24+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-04T01:45:25+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-04T01:45:25+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T146",
+      "title": "Wiring gate: stop ENUMERATING statement containers -- descend structurally. Round-4 finding 2026-08-03, found by deepseek-red: _CONTAINERS is a hand-written tuple (If, Try, With, AsyncWith, For, AsyncFor, While) and it DRIFTED. A public def inside a match statement (ast.Match) or an except* handler (ast.TryStar) is invisible, and so is a method on an INNER class because public_defs goes only one level into a class body. All three verified LANDED in the arena. The root cause is the exact anti-pattern check_wiring's own comments warn about two functions higher, about ENTRY_POINTS: 'enumerated rather than listed by hand -- the hand-written list drifted the moment new seats landed'. I wrote a hand list in the T143 fix and Python 3.10/3.11 grammar additions drifted past it. Fix: walk any statement that is not a def, via ast.iter_fields, never descending into a FunctionDef body -- no list to drift. Same lesson as T145: patch the MEANING, not the enumeration.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-04T01:51:50+00:00",
+      "updated": "2026-08-04T01:51:50+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-04T01:51:50+00:00"
         }
       ]
     }
