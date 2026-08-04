@@ -748,6 +748,31 @@ FIX DIRECTION: the lock should require a FRESH HEARTBEAT, not merely a live pid 
 alive and useless. Steal a lock whose holder has not beaten within the worklive TTL, loudly and with
 an audit line. This is the sibling of T072 item (4) "runner_lock steals a lock whose pid is DEAD";
 the harder and more common case is the pid that is alive and silent.
+- [ ] W126 (08-04, claude) — CORRECTION TO W125 -- my diagnosis was WRONG and the fix I proposed was dangerous. Do not implement
+W125 as filed. The real defect is different, verified below, and is filed as its own entry.
+
+WHAT I GOT WRONG. W125 said the runner singleton lock "trusts pid-liveness while the roster trusts
+heartbeat" and proposed stealing a lock whose holder has not beaten within the TTL. Reading
+core/comm/runner_lock.py:93 shows the lock already reasons about exactly this and rejects it in
+writing: "Waiting is deliberately chosen over PID-liveness stealing. A stale-PID check would let a
+restart proceed instantly, but a recycled pid or a paused process would let it evict a LIVE holder
+and produce the split-brain this lock exists to prevent." Steal semantics are TTL-only (LOCK_TTL 20s)
+with a Kleppmann fencing generation validated at the resource, and acquire_waiting already outwaits
+a dead predecessor. The lock was CORRECT every time it refused me. My four "zombie" runners were
+persistent runners idling in their wait loop exactly as designed -- I had simply never stood them
+down, which is an operator error, not a defect.
+
+WHAT IS ACTUALLY BROKEN, proven on live keys 2026-08-04: runner seats are structurally invisible to
+the roster. There are two worklive key shapes and nobody bridges them.
+  runners write   bifrost:worklive:<agent>              (bare)
+  roster reads    bifrost:worklive:<agent>#<sid8>       (per-incarnation, roster.py:49)
+roster.py's own header records the split at lines 8-9 and never closed it. Live proof: the kimi
+runner is alive (pid 10608) and beating its bare key every ~40s, and `roster` renders
+"[DEAD] kimi#51a77a23 beat=8790.9s". Worse, roster.py:9 calls the roster "the reaper's only sensor",
+and reaper._provably_dead() returns True for that row -- along with every deepseek seat.
+
+The fix is to make runner seats first-class in the roster (publish the per-incarnation beat the
+roster reads), NOT to weaken the lock or the reaper. Filed properly with pins.
 
 ## Folded (exemplars — the loop works)
 

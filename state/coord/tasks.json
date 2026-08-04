@@ -1,5 +1,5 @@
 {
-  "seq": 146,
+  "seq": 147,
   "tasks": [
     {
       "id": "T001",
@@ -5240,16 +5240,57 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "482bcd4",
+      "verified_by": "6 pins green, 44/44 across eight wiring pin files, baseline unchanged at 116 (zero FP cost). Found by deepseek-red 3/3 in the arena: ast.Match, ast.TryStar, inner-class methods.",
       "created": "2026-08-04T01:51:50+00:00",
-      "updated": "2026-08-04T01:51:50+00:00",
+      "updated": "2026-08-04T01:53:43+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-04T01:51:50+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-04T01:53:42+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-04T01:53:43+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-04T01:53:43+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-04T01:53:43+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T147",
+      "title": "SEASON 0 / load lab: runner seats are invisible to the roster, which is the reaper's only sensor. Two worklive key shapes and nothing bridges them -- runners write bifrost:worklive:<agent> (bare), the roster reads bifrost:worklive:<agent>#<sid8> (roster.py:49). roster.py's own header records the split at lines 8-9 and it was never closed. PROVEN on live keys 2026-08-04: the kimi runner is alive (pid 10608) beating its bare key every ~40s while roster renders '[DEAD] kimi#51a77a23 beat=8790.9s', and reaper._provably_dead() returns True for it and for every deepseek seat. Consequence: the fleet's liveness sensor is blind to exactly the seat class Season 1 wants twenty of, and a live runner's directed mail is eligible for re-homing. Fix = runners publish the per-incarnation beat the roster reads; do NOT weaken the lock or the reaper (see the W125 correction -- the lock is correct by design and rejects pid-stealing in writing at runner_lock.py:93).",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-04T04:26:50+00:00",
+      "updated": "2026-08-04T04:26:50+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-04T04:26:50+00:00"
         }
       ]
     }
