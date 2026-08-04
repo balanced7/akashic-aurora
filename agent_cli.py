@@ -3715,6 +3715,131 @@ def cmd_console_log(args):
     return 0
 
 
+def cmd_season_score(args):
+    """T165: score a Season 1 round, or diff the two rule sets over the same input.
+
+    The rules used to live only in a markdown table, so nothing could execute them and the W2
+    refinements could not be COMPARED -- both the old and the new were prose. `--compare` is the
+    artifact the operator actually rules on: identical claims, both policies, the delta and the
+    rank change. A decision needs a diff on real data, not two paragraphs that both sound fine.
+    """
+    from core.season import scoring
+
+    if args.policies:
+        for name, p in scoring.POLICIES.items():
+            default = "  [DEFAULT]" if name == scoring.DEFAULT_POLICY else "  [PROPOSED]"
+            print(f"\n## {name}{default}\n{p['notes']}")
+        return 0
+
+    claims, verifications, uptime, fixed = [], [], {}, set()
+    if args.round_file:
+        doc = json.loads(io.open(args.round_file, encoding="utf-8").read())
+        claims = doc.get("claims", [])
+        verifications = doc.get("verifications", [])
+        uptime = doc.get("uptime", {}) or {}
+        fixed = set(doc.get("fixed_keys", []) or [])
+    if not claims:
+        print("season-score: no claims (pass --round-file <json> or --policies)")
+        return 2
+
+    if args.compare:
+        out = scoring.compare(claims, verifications, uptime=uptime, fixed_keys=fixed)
+        if args.json:
+            print(json.dumps(out, indent=2))
+            return 0
+        print("## SCORING POLICY DIFF -- same claims, both rule sets")
+        for p in sorted(set(out["v1_doc"]) | set(out["v2_aixcc"])):
+            print(f"  {p:<16} v1={out['v1_doc'].get(p,0):>5}  v2={out['v2_aixcc'].get(p,0):>5}  "
+                  f"delta={out['delta'].get(p,0):>+5}")
+        print(f"\n  rank v1_doc  : {' > '.join(out['rank_v1'])}")
+        print(f"  rank v2_aixcc: {' > '.join(out['rank_v2'])}")
+        if out["rank_v1"] != out["rank_v2"]:
+            print("  ^ the proposals CHANGE THE ORDER -- this is the decision, not a tuning knob")
+        return 0
+
+    res = scoring.score_round(claims, verifications, policy=args.policy,
+                              uptime=uptime, fixed_keys=fixed)
+    if args.json:
+        print(json.dumps(res, indent=2))
+        return 0
+    print(f"## ROUND SCORE (policy {res['policy']}, {res['unscored']} unscored)")
+    for p, pts in sorted(res["totals"].items(), key=lambda kv: -kv[1]):
+        print(f"  {p:<16} {pts:>5}")
+    for c in res["claims"]:
+        if not c["scored"]:
+            print(f"  [unscored] {c['player']} {c['dedupe_key']}: {c['reason']}")
+    return 0
+
+
+def cmd_grant(args):
+    """S-3: the ACL write door (T163). Replaces "go edit security/acl.json by hand".
+
+    HONEST SCOPE, repeated here because this is the surface an operator reads: --by is a string,
+    and anyone who can run this CLI can already edit the JSON. This door is not authentication.
+    What it buys is that every grant is atomic, schema-validated, time-boxed unless someone said
+    otherwise out loud, carries a reason, and can be undone with --revoke instead of an edit.
+    """
+    from core.trust import grant_writer
+
+    def _emit(payload):
+        if getattr(args, "json", False):
+            print(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
+        return 0
+
+    if args.list or (not args.agent_id and not args.revoke):
+        rows = grant_writer.listing()
+        if args.json:
+            return _emit(rows)
+        print(f"## GRANTS ({len(rows)}) -- source of truth: security/acl.json")
+        for g in rows:
+            exp = g.get("expires_at") or "permanent"
+            print(f"  {str(g.get('agent_id')):<22} {str(g.get('role')):<12} {exp:<22} "
+                  f"by={g.get('granted_by')}")
+            if g.get("reason"):
+                print(f"      {str(g['reason'])[:110]}")
+        return 0
+
+    if not args.agent_id:
+        print("grant: name the agent (or pass --list)")
+        return 2
+
+    try:
+        if args.revoke:
+            out = grant_writer.revoke(args.agent_id, by=args.by, reason=args.reason or "")
+            if args.json:
+                return _emit(out)
+            print(f"[grant] REVOKED {args.agent_id} (was {out['was'].get('role')}) by {args.by}")
+            return 0
+
+        caps = [c.strip() for c in args.caps.split(",") if c.strip()] if args.caps else None
+        scope = ([s.strip() for s in args.path_scope.split(",") if s.strip()]
+                 if args.path_scope else None)
+
+        if args.dry_run:
+            # Build nothing, write nothing -- just say what would land. Deliberately does not
+            # run the guards: a dry run that passed while the real call would be REFUSED would
+            # be worse than no preview, so this prints the intent and names its own limit.
+            print(json.dumps({"agent_id": args.agent_id, "role": args.role, "by": args.by,
+                              "hours": args.hours, "permanent": bool(args.permanent),
+                              "caps": caps, "path_scope": scope,
+                              "reason": args.reason}, indent=2))
+            print("[grant] DRY RUN -- nothing written. Authority guards run on the real call.")
+            return 0
+
+        rec = grant_writer.grant(args.agent_id, role=args.role, by=args.by,
+                                 reason=args.reason or "", hours=args.hours,
+                                 permanent=bool(args.permanent), caps=caps, path_scope=scope,
+                                 request_ref=args.request_ref)
+        if args.json:
+            return _emit(rec)
+        print(f"[grant] {rec['agent_id']} -> {rec['role']} "
+              f"({rec['expires_at'] or 'permanent'}) by {rec['granted_by']}")
+        return 0
+    except (PermissionError, ValueError) as e:
+        print(f"grant REFUSED: {e}")
+        return 2
+
+
 def cmd_roster(args):
     """S2: the lobby -- every seat's proven liveness + inventory pointers (W84 render)."""
     from core.comm.roster import roster, render_roster
@@ -4775,6 +4900,36 @@ def build_parser():
     ros.add_argument("--reap", action="store_true",
                      help="S4: explicitly re-home provably-dead seats' stranded mail now")
     ros.set_defaults(fn=cmd_roster)
+
+    ss = sub.add_parser("season-score", help="T165: score a Season 1 round, or --compare the two "
+                                             "rule sets over the same claims")
+    ss.add_argument("--round-file", default=None, help="JSON: {claims, verifications, uptime, "
+                                                       "fixed_keys}")
+    ss.add_argument("--policy", default="v1_doc", help="v1_doc (committed table) | v2_aixcc (W2 proposal)")
+    ss.add_argument("--compare", action="store_true", help="score BOTH policies and show the delta")
+    ss.add_argument("--policies", action="store_true", help="print each policy and its rationale")
+    ss.add_argument("--json", action="store_true")
+    ss.set_defaults(fn=cmd_season_score)
+
+    gr = sub.add_parser("grant", help="S-3: mint / revoke / list ACL grants (atomic + audited). "
+                                      "NOT an auth boundary -- see the module docstring")
+    gr.add_argument("agent_id", nargs="?", help="the seat receiving the grant")
+    gr.add_argument("--role", default=None, help="super_admin|admin|member|restricted|quarantined")
+    gr.add_argument("--by", default=None, help="the GRANTER's agent id (must hold admin.grant)")
+    gr.add_argument("--reason", default=None, help="why -- required; an unexplained grant "
+                                                   "is the one nobody can safely revoke later")
+    gr.add_argument("--hours", type=float, default=None, help="time box (T151: an observed "
+                                                              "time box is a deadline)")
+    gr.add_argument("--permanent", action="store_true", help="explicitly permanent (10 of the "
+                                                             "11 original grants are)")
+    gr.add_argument("--caps", default=None, help="comma-separated cap override (default: role template)")
+    gr.add_argument("--path-scope", default=None, help="comma-separated globs (default: role template)")
+    gr.add_argument("--request-ref", default=None, help="the ask this grant answers")
+    gr.add_argument("--revoke", action="store_true", help="remove the grant (the undo path)")
+    gr.add_argument("--list", action="store_true", help="show stored grants, expiring first")
+    gr.add_argument("--dry-run", action="store_true", help="print the record, write nothing")
+    gr.add_argument("--json", action="store_true")
+    gr.set_defaults(fn=cmd_grant)
 
     dr = sub.add_parser("doctor", help="fleet liveness doctor (L2): progress, not presence")
     dr.add_argument("--agents", default=None, help="comma-separated ids (default: discovered)")

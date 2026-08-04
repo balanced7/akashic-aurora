@@ -141,6 +141,16 @@ MANIFEST = {
     "bifrost_drain": "cli_only",   # drain a PEER's lane -- operator intervention, not self-service
     "capture": "cli_only",         # full-fidelity bus read by stream id; forensic tool
     "clobber_scan": "cli_only",    # static scan for unconditional shared-key writes (W47)
+    # T163. DELIBERATELY NOT SHARED. `--by` is an unauthenticated string, so the door's honesty
+    # depends on who can reach it: on the CLI a caller already needs shell access, and anyone with
+    # shell access could edit security/acl.json anyway -- the verb takes nothing away. On MCP it
+    # would become a tool any seat can call while naming itself the granter, which widens the
+    # surface for exactly nothing, since the operator is the intended user. Administrative door,
+    # operator-facing, stays here.
+    "grant": "cli_only",           # S-3 ACL write door: mint/revoke/list grants (atomic, audited)
+    # T165. Adjudicator-side, not player-side: a player must never be able to score its own round,
+    # and putting this on MCP would hand every seat the scorer. Operator surface, CLI only.
+    "season_score": "cli_only",    # score a Season 1 round / diff the two rule sets
     "defer": "cli_only",           # capability-gated standing queue (W33)
     "doc": "cli_only",             # seed a new doc with the header contract; authoring door
     # "adopt" is doc's RESCUE subcommand: mint an already-written loose .md as an atom.

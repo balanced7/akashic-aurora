@@ -8,7 +8,7 @@ Class: reference
 > (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by
 > check_comprehensibility so it cannot silently rot.
 
-## CLI door -- `py agent_cli.py <verb>` (73 verbs)
+## CLI door -- `py agent_cli.py <verb>` (74 verbs)
 
 The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.
 
@@ -71,6 +71,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `recall-feedback` | mark a recalled lesson useful/noise (teaches recall what helps) | `--source*` `--useful` `--noise` `--domain` |
 | `roster` | S2 lobby: per-seat worklive (LIVE/STALE proven by beat freshness, never key-existence) + have-summaries | `--json` `--reap` |
 | `run` | execute a toolbelt alias: run <agent> <name> (explicit door -- a real verb can never be shadowed) | `<agent_id>*` `<name>*` `<args>` `--dry` |
+| `season-score` | T165: score a Season 1 round, or --compare the two rule sets over the same claims | `--round-file` `--policy` `--compare` `--policies` `--json` |
 | `seat-identity` | declare/show THIS session's seat id (binding beats the shared env) | `<agent_id>` `--session` `--clear` |
 | `stand-down` | yield this session's consumer seat PERMANENTLY so a successor can take it immediately (retiring a seat) | `<agent>*` |
 | `stats` | recall-value funnel: surfaced -> helped -> flips -> captured | `--hours` `--days` `--silence` `--json` |

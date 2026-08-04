@@ -145,6 +145,10 @@ The project's self-writing story: **Atlas → Track → Chapter → Beat**. `sch
   (`session_checkpoint.py` = crash-resume checkpoints; `session_recovery.py` = session-history recovery).
 - **Projections (swappable, over the substrate)** — `core/perspectives/` (interpretation lenses over
   the narrative graph — Map × Lens), `core/codex/` (knowledge-compiler / regenerable-projection work).
+- **Season / game mechanics** — `core/season/` (`scoring.py` = Season 1 round scoring as a PURE
+  function over a policy dict, so the rules are executable data rather than a markdown table and a
+  rule change is a config diff). Deliberately imports nothing from `core/trust/`: *score is
+  evidence, never a key* — nothing may read a score to settle an access question.
 - **Agent membrane / RENEW** — a *control loop* (not a subpackage) over snapshot + boot + funnel +
   launcher + supersession that keeps an agent's working context healthy **across** the session boundary:
   detect cognitive debt → capture durable knowledge → reload a curated set. Design + status:

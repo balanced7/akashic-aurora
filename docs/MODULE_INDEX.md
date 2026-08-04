@@ -181,6 +181,9 @@
 - `projection.py` — Projection renderer (A1) -- one atom -> one read-only markdown file.
 - `taxonomy.py` — Taxonomy constants + the birth-door classifier (A1, homes-and-order round).
 
+## core/season/  (1 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
+- `scoring.py` — core.season.scoring -- Season 1 scoring, as a pure function over data (T165).
+
 ## core/toolbelt/  (10 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
 - `audit.py` — audit — the belief-vs-belief photographer (deepseek build, kimi's v2 domain #1).
 - `audit_spend.py` — audit_spend — the SPEND domain for core.toolbelt.audit (kimi build, partner night R3).
