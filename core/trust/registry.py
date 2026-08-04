@@ -19,7 +19,17 @@ from typing import Optional
 
 from core.trust.capabilities import Cap, ROLE_TEMPLATES, DEFAULT_ROLE, caps_from
 
-ACL_PATH = Path(__file__).resolve().parent.parent.parent / "security" / "acl.json"
+_DEFAULT_ACL = Path(__file__).resolve().parent.parent.parent / "security" / "acl.json"
+# T163: overridable so the grant WRITER can be exercised against a copy. Before this there was no
+# writer at all, so nothing ever needed to point elsewhere -- and a test that must edit the real
+# security/acl.json to prove anything is a test nobody dares run twice.
+ACL_PATH = Path(os.getenv("AKASHIC_ACL_PATH") or _DEFAULT_ACL)
+
+
+def acl_path() -> Path:
+    """The ACL in force. Read through this rather than the module constant: a long-lived process
+    that imported before the override was set would otherwise hold a frozen path."""
+    return Path(os.getenv("AKASHIC_ACL_PATH") or _DEFAULT_ACL)
 
 # Code-level bootstrap: the trusted CORE agents keep these roles even if security/acl.json is missing or
 # corrupt. This is the availability guarantee -- DeepSeek's admin does NOT depend on the file surviving,
@@ -83,15 +93,19 @@ def _load():
     """Parse security/acl.json into {agent_id: Grant}. Returns None when the file is MISSING or CORRUPT
     (a total failure -> callers fall back to BOOTSTRAP_ROLES for core agents, quarantine for the rest).
     Returns a dict (possibly empty) when the file was read successfully. In-process mtime cache."""
+    path = acl_path()
     try:
-        mtime = os.path.getmtime(ACL_PATH)
+        mtime = os.path.getmtime(path)
     except OSError:
         return None                                   # file missing -> signal total failure
-    if _CACHE["mtime"] == mtime:
+    # T163: the cache key includes the PATH. Keyed on mtime alone, pointing the process at a
+    # different ACL could serve the previous file's grants whenever the two mtimes matched --
+    # a stale-authority answer, which is the one kind this module must never give.
+    if _CACHE["mtime"] == (str(path), mtime):
         return _CACHE["grants"]
     out: dict = {}
     try:
-        doc = json.loads(ACL_PATH.read_text(encoding="utf-8"))
+        doc = json.loads(path.read_text(encoding="utf-8"))
         for rec in doc.get("grants", []):
             aid = rec.get("agent_id")
             if not aid:
@@ -107,7 +121,7 @@ def _load():
                 request_ref=rec.get("request_ref"))
     except Exception:
         return None                                   # malformed file -> signal total failure
-    _CACHE["mtime"], _CACHE["grants"] = mtime, out
+    _CACHE["mtime"], _CACHE["grants"] = (str(path), mtime), out
     return out
 
 

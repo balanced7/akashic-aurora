@@ -44,8 +44,10 @@ SKIP_DIRS = {"__pycache__", ".git", "node_modules"}
 PLANNED = {
     "session": "core/comm/session_state.py module docstring: the snapshot/resume door "
                "is designed (T086 lineage), not yet a CLI verb",
-    "grant": "core/trust/__init__.py docstring: S-3 of the security schema; grants are "
-             "currently edited in security/acl.json, no CLI door yet",
+    # "grant" -- ENTRY REMOVED 2026-08-04 (T163). It was here because grants were hand-edited in
+    # security/acl.json with no CLI door; that door now exists (agent_cli.py cmd_grant, backed by
+    # core/trust/grant_writer.py). A promise list that never shrinks when a promise is KEPT has
+    # quietly become an amnesty, so the entry is deleted rather than annotated.
 }
 
 VERB_RE = re.compile(r"agent_cli\.py\s+([a-z][a-z0-9_-]*)")
