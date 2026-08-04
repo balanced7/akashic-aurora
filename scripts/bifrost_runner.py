@@ -17,6 +17,26 @@ import os
 import subprocess
 import sys
 
+# T152 (T150's fifth runner). T150 made every bifrost_runner_<provider>.py watchable but
+# enumerated by the prefix `bifrost_runner_`, which cannot see the member whose name IS the
+# prefix -- so this file kept block-buffering while the fix read as complete. An orchestrator
+# watching a block-buffered runner sees nothing until it exits; that is how the 2026-08-03
+# five-seat round ran with every log at 0 bytes. Line buffering (not unbuffered) flushes on
+# newline: enough to watch, without the write storm that
+# managedchild_utf8_decode_kills_drainer_and_fills_pipe_2026_07_28 warns about. The same call
+# pins the ENCODING, closing a real crash class -- a check-mark in a trace line raises
+# UnicodeEncodeError under Windows cp1252. Guarded: a stream that cannot be reconfigured
+# (pytest capture, an exotic wrapper) must degrade to the old behaviour, never take the runner
+# down at import.
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
+except Exception:
+    pass
+try:
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
+except Exception:
+    pass
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 sys.path.insert(0, HERE)
