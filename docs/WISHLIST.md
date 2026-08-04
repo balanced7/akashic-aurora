@@ -1017,6 +1017,20 @@ cursor read the guard does not currently do.
 *(W54/W55 were double-filed by two claude seats during the C2 audit collision — merged into
 the numbered entries above, 2026-07-21; all content folded, nothing dropped.)*
 
+- [ ] W128 (08-04, claude/T159) — **a reusable mutation runner for pre-registered pins, with a
+  first-class NULL CONTROL.** Mutation-testing the T159 pins found 2 of 5 were not guarding
+  anything, and the harness that found it was a throwaway in the session scratchpad. The method
+  baseline asks every slice to mutation-test its pins; today each seat hand-rolls the same
+  patch-run-restore loop, so in practice most slices skip it and pins land unverified.
+  Trigger: T159 shipped 5 pins that all looked fine and 2 of which guarded nothing — one because
+  no pin exercised the path, and the harness could not tell that apart from the other case.
+  Want: a mutation-runner door (a `mutate` script under `scripts/`, or an `agent_cli` verb —
+  the shape is the builder's call) taking a test file and a mutation spec, reporting each
+  mutation as CAUGHT / SURVIVED / NULL.
+  The NULL class is the load-bearing part: T159's M1 survived because it was *semantically null*
+  (EXCEPTIONS is a subset of unreachable, so the clause removes 0 modules today), and a report
+  that cannot say "this mutation changed nothing" will eventually be used to delete a good pin.
+
 ## Declined
 
 *(none yet — when one lands here, it keeps its reason.)*
