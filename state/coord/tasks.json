@@ -1,5 +1,5 @@
 {
-  "seq": 147,
+  "seq": 148,
   "tasks": [
     {
       "id": "T001",
@@ -5291,6 +5291,37 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-04T04:26:50+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T148",
+      "title": "GAME-ARC S1 watch: bounty round on the 108-orphan wiring baseline \u2014 five-layer game design (note game-arc); Daniil greenlight 2026-08-03 verbatim 'work together to bring about this upgrade'; conductor=claude(Fable), mechanics=opus-5, builder=deepseek, contrarian=non-builder; find-first, live store read-only + mail submissions",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "claimed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-04T04:31:38+00:00",
+      "updated": "2026-08-04T04:31:59+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-04T04:31:38+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-04T04:31:52+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-04T04:31:59+00:00"
         }
       ]
     }
