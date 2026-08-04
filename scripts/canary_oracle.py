@@ -65,8 +65,19 @@ _CATCHABLE = [
 _UNDETECTABLE = [
     ('def {name}():\n    """Reached only through string dispatch."""\n    return 1\n\n\n_DISPATCH = {{"{name}": {name}}}\n',
      'string-dispatch only (A5 shape)'),
-    ('def {name}():\n    """Reached only via getattr on a computed name."""\n    return 2\n',
-     'computed-getattr only (A5 shape)'),
+    # CALIBRATED TWICE, 2026-08-04, and the second failure taught the real lesson: I had the
+    # detector's semantics INVERTED. This gate does not ask "is the function reachable"; it asks
+    # "does any production path NAME it". So a runtime-assembled name -- my first attempt at
+    # invisibility -- is MORE visible to it, not less: nothing names the function, so the gate
+    # flags it correctly and my "undetectable" label was the error, twice.
+    #
+    # A genuine A5-class defect is the opposite shape: code that is DEAD but carries a FALSE
+    # WIRING SIGNAL, so the gate sees a mention and waves it through. Both templates here do
+    # that -- a dispatch table and a handler list, each naming the function, neither ever
+    # invoked. That is the class the season must report it cannot see.
+    ('def {name}():\n    """Registered in a table that nothing ever invokes."""\n    return 2\n\n\n'
+     '_HANDLERS = [{name}]\n',
+     'registered-never-invoked (A5 shape)'),
 ]
 _BAIT = [
     ('def {name}():\n    """Looks dead; is called below."""\n    return 3\n\n\n_USED = {name}()\n',
@@ -81,10 +92,31 @@ def _inside_repo(path: str) -> bool:
         return False
 
 
-def plant(shadow_root: str, k: int = 6, seed: int = 0) -> dict:
+#: Files the wiring gate actually examines. A "catchable" canary planted anywhere else is a
+#: MISLABEL, not a miss -- discovered on the first calibration run, where 3 of 3 catchable
+#: canaries landed in tests/ and docs/_archive/ and the gate correctly ignored all of them.
+def _gate_universe(shadow_root: str):
+    """core/**.py minus __init__.py -- mirrors check_wiring.analyze()'s core_universe."""
+    out = []
+    core = os.path.join(shadow_root, "core")
+    for base, dirs, files in os.walk(core):
+        dirs[:] = [d for d in dirs if not d.startswith((".", "__"))]
+        out += [os.path.join(base, f) for f in files
+                if f.endswith(".py") and f != "__init__.py"]
+    return sorted(out)
+
+
+def plant(shadow_root: str, k: int = 6, seed: int = 0, targets=None) -> dict:
     """Plant k canaries into a SHADOW tree. Returns the manifest (the answer key -- guard it).
 
     Refuses to write inside the real repository, by construction rather than by care.
+
+    `targets` defaults to the DETECTOR'S OWN SCAN UNIVERSE, and that default is the whole
+    difference between an instrument and a decoration. The first calibration run planted into
+    whatever .py files existed -- archive copies, test files, package __init__ -- and the gate
+    passed clean with 9 canaries in the tree. Not because the gate is blind: because the canaries
+    were never in its scope. A canary outside the detector's field of view measures nothing, and
+    scoring it as a miss would have reported 0% detector health for a healthy detector.
     """
     shadow_root = os.path.abspath(shadow_root)
     if _inside_repo(shadow_root):
@@ -94,13 +126,14 @@ def plant(shadow_root: str, k: int = 6, seed: int = 0) -> dict:
     if not os.path.isdir(shadow_root):
         raise ValueError(f"shadow root does not exist: {shadow_root}")
 
-    targets = []
-    for base, dirs, files in os.walk(shadow_root):
-        dirs[:] = [d for d in dirs if not d.startswith((".", "__"))]
-        targets += [os.path.join(base, f) for f in files if f.endswith(".py")]
+    if targets is None:
+        targets = _gate_universe(shadow_root)
+    targets = [t if os.path.isabs(t) else os.path.join(shadow_root, t) for t in targets]
+    targets = sorted(t for t in targets if os.path.isfile(t))
     if not targets:
-        raise ValueError(f"no .py files to plant into under {shadow_root}")
-    targets.sort()
+        raise ValueError(
+            f"no plantable target files under {shadow_root}. With the default selector this means "
+            f"core/ is missing -- a canary outside the detector's scan universe measures nothing.")
 
     rng = random.Random(seed)
     plan = ([("catchable", _CATCHABLE)] * ((k + 2) // 3)
@@ -112,7 +145,9 @@ def plant(shadow_root: str, k: int = 6, seed: int = 0) -> dict:
         tmpl, shape = pool[rng.randrange(len(pool))]
         name = f"{rng.choice(['route', 'emit', 'resolve', 'collect', 'apply'])}_{rng.randrange(16**6):06x}"
         target = targets[rng.randrange(len(targets))]
-        body = tmpl.format(name=name, flag=f"_FLAG_{rng.randrange(16**4):04x}")
+        cut = len(name) // 2
+        body = tmpl.format(name=name, flag=f"_FLAG_{rng.randrange(16**4):04x}",
+                           half_a=name[:cut], half_b=name[cut:])
         with open(target, "a", encoding="utf-8") as f:
             f.write("\n\n" + body)
         canaries.append({

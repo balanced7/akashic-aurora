@@ -41,7 +41,7 @@ def test_k1_three_classes_exist(tmp_path):
     shadow = tmp_path / "shadow"
     shadow.mkdir()
     (shadow / "target.py").write_text("def live_one():\n    return 1\n", encoding="utf-8")
-    manifest = c.plant(str(shadow), k=6, seed=42)
+    manifest = c.plant(str(shadow), k=6, seed=42, targets=["target.py"])
     classes = {x["cls"] for x in manifest["canaries"]}
     assert classes == {"catchable", "undetectable", "bait"}, f"got {classes}"
 
@@ -60,7 +60,7 @@ def test_k3_the_key_is_sealed_and_tamper_evident(tmp_path):
     shadow = tmp_path / "s3"
     shadow.mkdir()
     (shadow / "t.py").write_text("def a():\n    return 1\n", encoding="utf-8")
-    m = c.plant(str(shadow), k=3, seed=7)
+    m = c.plant(str(shadow), k=3, seed=7, targets=["t.py"])
     p = str(tmp_path / "key.json")
     c.seal(m, p)
     assert c.verify_seal(p) is True
@@ -74,7 +74,7 @@ def test_k4_scoring_is_a_confusion_matrix_by_class(tmp_path):
     shadow = tmp_path / "s4"
     shadow.mkdir()
     (shadow / "t.py").write_text("def a():\n    return 1\n", encoding="utf-8")
-    m = c.plant(str(shadow), k=6, seed=11)
+    m = c.plant(str(shadow), k=6, seed=11, targets=["t.py"])
     ids = [x["id"] for x in m["canaries"] if x["cls"] == "catchable"]
     res = c.score(m, claims=ids[:1])
     assert "by_class" in res
@@ -89,7 +89,7 @@ def test_k5_catch_rate_uses_catchable_only(tmp_path):
     shadow = tmp_path / "s5"
     shadow.mkdir()
     (shadow / "t.py").write_text("def a():\n    return 1\n", encoding="utf-8")
-    m = c.plant(str(shadow), k=6, seed=13)
+    m = c.plant(str(shadow), k=6, seed=13, targets=["t.py"])
     catchable = [x["id"] for x in m["canaries"] if x["cls"] == "catchable"]
     res = c.score(m, claims=catchable)                     # every catchable found, nothing else
     assert res["catch_rate"] == 1.0, f"expected 1.0, got {res['catch_rate']}"
@@ -103,11 +103,31 @@ def test_k6_claiming_an_undetectable_canary_voids_the_round(tmp_path):
     shadow = tmp_path / "s6"
     shadow.mkdir()
     (shadow / "t.py").write_text("def a():\n    return 1\n", encoding="utf-8")
-    m = c.plant(str(shadow), k=6, seed=17)
+    m = c.plant(str(shadow), k=6, seed=17, targets=["t.py"])
     undetectable = [x["id"] for x in m["canaries"] if x["cls"] == "undetectable"]
     res = c.score(m, claims=undetectable[:1])
     assert res["voided"] is True, "an undetectable-canary catch must void the round"
     assert res["void_reason"]
+
+
+def test_k8_catchable_canaries_land_in_the_detectors_universe(tmp_path):
+    """CALIBRATION REGRESSION. The first real calibration run planted 3 catchable canaries into
+    tests/ and docs/_archive/ and the gate passed clean -- not because the gate was blind, but
+    because the canaries were never in its scope. A canary outside the detector's field of view
+    measures nothing, and scoring it as a miss would report 0% detector health for a healthy
+    detector. The default target selector must mirror check_wiring's own core_universe:
+    core/**.py, excluding __init__.py."""
+    c = _mod()
+    shadow = tmp_path / "u"
+    (shadow / "core" / "comm").mkdir(parents=True)
+    (shadow / "core" / "comm" / "real.py").write_text("def a():\n    return 1\n", encoding="utf-8")
+    (shadow / "core" / "__init__.py").write_text("", encoding="utf-8")
+    (shadow / "tests").mkdir()
+    (shadow / "tests" / "t_x.py").write_text("def b():\n    return 1\n", encoding="utf-8")
+    m = c.plant(str(shadow), k=6, seed=5)
+    landed = {x["file"] for x in m["canaries"]}
+    assert landed == {"core/comm/real.py"}, (
+        f"canaries landed outside the detector's universe: {landed}")
 
 
 def test_k7_planting_is_deterministic_under_a_seed(tmp_path):
@@ -117,6 +137,6 @@ def test_k7_planting_is_deterministic_under_a_seed(tmp_path):
         shadow = tmp_path / n
         shadow.mkdir()
         (shadow / "t.py").write_text("def a():\n    return 1\n", encoding="utf-8")
-        out.append(_mod().plant(str(shadow), k=6, seed=99))
+        out.append(_mod().plant(str(shadow), k=6, seed=99, targets=["t.py"]))
     assert [x["id"] for x in out[0]["canaries"]] == [x["id"] for x in out[1]["canaries"]]
     assert [x["cls"] for x in out[0]["canaries"]] == [x["cls"] for x in out[1]["canaries"]]

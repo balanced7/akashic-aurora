@@ -1,5 +1,5 @@
 {
-  "seq": 157,
+  "seq": 159,
   "tasks": [
     {
       "id": "T001",
@@ -5656,6 +5656,63 @@
           "to": "approved",
           "by": "user",
           "at": "2026-08-04T06:12:10+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T158",
+      "title": "T158 canary oracle: the instrument that separates 'the system got better' from 'the attackers got tired'. kimi's convergence objection (docs/library/report/20260804_game-arc-convergence-objection-kimi_1a73b5.md) established that a same-checkpoint player pool CANNOT certify its own completeness -- role hats decorrelate prompts, not induction -- so board burn-down measures the players, not the system. Fix is not to kill the game but to kill the CLAIM: plant K labeled defects into a git-worktree SHADOW copy with answers sealed BEFORE the round, in three classes (catchable = T143 compound-statement shape the current gate SHOULD catch, measures detector health; known-undetectable = A5 string-dispatch shape it structurally CANNOT see, measures coverage honesty; false-positive bait = a genuinely live function planted to look dead, measures precision). Headline metric becomes catchable-canary CATCH-RATE; burn-down is reported separately and labeled INVENTORY, never convergence. Works because the answer key is independent of the players' induction by construction: a tired pool stops catching canaries too. Precedent in-repo at scripts/checkers/check_door_parity.py:76. Live tree is READ-ONLY throughout. Ungated: no spend, no players, no ACL change.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "claimed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-04T13:02:37+00:00",
+      "updated": "2026-08-04T13:02:38+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-04T13:02:37+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-04T13:02:38+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-04T13:02:38+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T159",
+      "title": "T159 (found by the T158 canary oracle on its calibration run): check_wiring misses a try-block def in at least one reachable core module. Planted canary core/recall/precision_audit.py::resolve_5eac8c -- shape 'try: import x / def NAME()' at module level -- is SEEN by public_defs (confirmed: it appears in the returned list), the module IS reachable from entry points (confirmed via analyze()), and the name is referenced nowhere -- yet the gate reports only 2 NEW unwired functions and never names it. Two sibling canaries of the compound-statement and loop-scoped shapes in other core modules WERE caught in the same run, so the descent works generally; something about this shape or this file suppresses it. Detector health measured 0.67 (2/3) where it should be 1.0. Reproduce: git worktree add --detach <shadow> HEAD; py -c 'from scripts import canary_oracle as C; C.plant(<shadow>, k=9, seed=4242)'; run check_wiring in the shadow. This is the wiring gate's FOURTH hole after T143/T144/T146 and the first found by an instrument rather than a red-team seat.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-04T13:23:04+00:00",
+      "updated": "2026-08-04T13:23:04+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-04T13:23:04+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-04T13:23:04+00:00"
         }
       ]
     }
