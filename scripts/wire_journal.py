@@ -81,6 +81,7 @@ class WireJournal:
         self.agent = agent or os.getenv("BIFROST_AGENT") or "unknown"
         self.dropped = 0                      # W5: swallowed failures are counted, never silent
         self._lock = threading.Lock()
+        self._seg_day, self._seg_n = "", 1    # segment cursor -- see _segment_path (amortized O(1))
 
     # ---------------------------------------------------------------- write
     def record(self, **kw) -> bool:
@@ -152,17 +153,24 @@ class WireJournal:
         cap intended to bound the store had become a per-record shredder, and it destroyed exactly
         what a forensic store exists to keep. Deleting history to make room for a write is never
         the right answer; rolling to a new segment is.
+
+        MEASURED, and the reason this is not a naive scan: probing from segment 1 on every record
+        is O(segments). At 800 segments that cost 13,747us per call -- inside the lock, on the
+        request thread. That regression was introduced BY the D1 fix above and caught only by the
+        verification suite, which is the argument for having one. The cursor makes it amortized
+        O(1): we walk forward from where we last were, and only when the segment is actually full.
         """
         day = time.strftime("%Y%m%d")
-        n = 1
+        if self._seg_day != day:               # new day -> restart the cursor
+            self._seg_day, self._seg_n = day, 1
         while True:
-            p = os.path.join(self._journal_dir, f"wire-{day}-{n:03d}.jsonl")
+            p = os.path.join(self._journal_dir, f"wire-{day}-{self._seg_n:03d}.jsonl")
             try:
                 if os.path.getsize(p) <= MAX_BYTES:
                     return p
             except OSError:
                 return p                       # does not exist yet -> this is the one to write
-            n += 1
+            self._seg_n += 1
 
     def _rotate(self):
         """Bound the store by TOTAL size and segment count -- never as a side effect of one write.
