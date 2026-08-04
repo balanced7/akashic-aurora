@@ -11,12 +11,11 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (38 of 137 modules lack both pin and paper by name)
+## GAP queue (37 of 137 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/migrate_to_sqlite.py
 - core/foundation/redis_connection.py
-- core/foundation/streams.py
 - core/foundation/timeutil.py
 - core/signals/agent_signal_ledger.py
 - core/signals/coordinator_api.py
@@ -63,7 +62,7 @@ Class: reference
 | `relationship_types.py` | Comprehensive Relationship Type Framework for Knowledge Graphs | tests/test_relationship_types.py | GAP |  |
 | `sqlite_store.py` | SqliteStore -- the durable Store backend with real cross-process safety. | tests/test_sqlite_store.py | GAP | `AI_SETUP` |
 | `store.py` | Store: Swappable persistence interface (full Redis-mirror) | tests/test_filestore_coherence.py | docs/filestore-coherence-design-2026-07.md | `AI_SETUP`, `AKASHIC_STORE_BACKEND` |
-| `streams.py` | streams -- process plumbing for long-lived agent processes (T030 L3 / RB-28). | GAP | GAP |  |
+| `streams.py` | streams -- process plumbing for long-lived agent processes (T030 L3 / RB-28). | tests/test_t150_runner_streams_are_watchable.py | GAP |  |
 | `timeutil.py` | timeutil -- one deterministic, timezone-safe way to turn an ISO timestamp into a | GAP | GAP |  |
 
 ## core/events/  (3 modules)

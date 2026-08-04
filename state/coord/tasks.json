@@ -1,5 +1,5 @@
 {
-  "seq": 149,
+  "seq": 150,
   "tasks": [
     {
       "id": "T001",
@@ -5353,16 +5353,57 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "ca4aab7",
+      "verified_by": "4/4 pins green plus live receipt on both channels: stdout says COLLAPSED and names the id; --json reports sent:false with collapsed_onto. Collapse logic untouched.",
       "created": "2026-08-04T04:35:24+00:00",
-      "updated": "2026-08-04T04:35:24+00:00",
+      "updated": "2026-08-04T04:37:55+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-04T04:35:24+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-04T04:37:54+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-04T04:37:54+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-04T04:37:55+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-04T04:37:55+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T150",
+      "title": "SEASON 0: runner stdout is block-buffered, so an orchestrator watching a runner sees nothing until it exits. Hit live 2026-08-03/04 -- I ran a five-seat round with every runner log at 0 bytes for the entire session and diagnosed seat failures blind, then only recovered observability by setting PYTHONUNBUFFERED=1 by hand on one relaunch. Python block-buffers stdout when it is not a TTY, which is exactly the case when a parent process captures it. The runner already has --summary-file for exit state, but nothing for PROGRESS. Fix = each runner reconfigures its own streams to line buffering at startup, so it works for a direct launch and a daemon spawn alike, with no env var to remember. Season 1 cannot supervise twenty seats it cannot watch.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-04T04:38:14+00:00",
+      "updated": "2026-08-04T04:38:14+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-04T04:38:14+00:00"
         }
       ]
     }
