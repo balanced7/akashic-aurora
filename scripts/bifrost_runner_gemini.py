@@ -41,7 +41,7 @@ sys.path.insert(0, HERE)
 
 from core.comm.bus import Bus
 from core.comm import control
-from core.comm import liveness
+from core.comm import liveness, roster
 from core.comm import nudge
 from core.comm import runner_lock
 from core.comm import self_restart
@@ -741,6 +741,13 @@ def main() -> int:
                 runner_lock.heartbeat(args.agent, lock_token)
                 bus.register(card=dict(CARD, spend=METER.status_line()))   # W14: spend on the card
                 liveness.worklive(args.agent).refresh()
+                # T147: the roster reads a PER-INCARNATION key; the worklive refresh above writes the
+                # BARE one. Without this beat a live runner renders DEAD and reaper._provably_dead()
+                # agrees -- and roster.py:9 calls the roster "the reaper's only sensor".
+                roster.heartbeat(os.environ.get("BIFROST_NAMESPACE", "bifrost"), args.agent,
+                                 getattr(args, "session", None)
+                                 or os.environ.get("BIFROST_INCARNATION")
+                                 or f"{os.getpid()}-{args.agent}", phase="running")
                 if beats % 120 == 0:                       # ~10 min: balance reconciliation
                     METER.reconcile()
             except Exception:

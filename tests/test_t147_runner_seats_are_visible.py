@@ -41,6 +41,7 @@ me. W126 is that correction.
   R3  EVERY scripts/bifrost_runner_*.py calls roster.heartbeat   (enumerated from disk, not listed)
   R4  the bare worklive refresh survives                (other readers still depend on it)
   R5  a broken client never raises                      (a heartbeat must never kill the loop)
+  R6  successive incarnations of one agent get DISTINCT seats   (sid8 truncation trap)
 
 Run: py -m pytest tests/test_t147_runner_seats_are_visible.py -q
 """
@@ -136,3 +137,24 @@ def test_r5_a_broken_client_never_raises():
     # NOTE: heartbeat is annotated -> bool but returns {"ok": ..., "resumed_after_s": ...}.
     # An `is not False` assertion would therefore pass on ANY outcome -- my first draft of R1
     # did exactly that and was green while proving nothing. Both pins now read ["ok"].
+
+
+def test_r6_successive_incarnations_of_one_agent_get_distinct_seats():
+    """Caught by reading my own fix's output: the first fallback was f"{agent}-{pid}", and the
+    roster truncates the session id to sid8. For every deepseek-* seat that is the literal string
+    "deepseek", so a dead incarnation and a live one would share one roster row -- reintroducing
+    the exact confusion T147 exists to remove, at the scale Season 0 is meant to survive.
+    """
+    import re as _re
+    rd = os.path.join(ROOT, "scripts")
+    runners = [f for f in os.listdir(rd)
+               if f.startswith("bifrost_runner_") and f.endswith(".py")]
+    bad = [f for f in runners
+           if _re.search(r'f"\{args\.agent\}-\{os\.getpid\(\)\}"',
+                         open(os.path.join(rd, f), encoding="utf-8", errors="replace").read())]
+    assert not bad, (
+        f"agent-first fallback truncates to a shared sid8 across incarnations: {bad}")
+    # and the property itself, independent of how it is spelled
+    for agent in ("deepseek-red", "deepseek-review"):
+        sids = {f"{pid}-{agent}"[:8] for pid in (49976, 51002, 62256)}
+        assert len(sids) == 3, f"{agent}: incarnations collapsed onto {sids}"
