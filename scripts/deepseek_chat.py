@@ -66,12 +66,29 @@ MODEL_MAX_RETRIES     = int(os.getenv("DEEPSEEK_MAX_RETRIES", "1"))        # exp
 def make_client(api_key=None, base_url=BASE_URL):
     """OpenAI-compatible client hardened against G4 wedges. A per-read streaming timeout turns a hung
     model call into a caught httpx.ReadTimeout (Agent.send()'s try/except then revives the loop); an
-    explicit max_retries stops the SDK default (2) from tripling the wall-clock before recovery."""
+    explicit max_retries stops the SDK default (2) from tripling the wall-clock before recovery.
+
+    T156: the client is also given a RECORDING transport, so every HTTP round trip lands in the
+    wire journal -- status, headers (x-ds-trace-id is only visible here), and each SDK retry as the
+    separate request it really is. Metadata only; no bodies. Set AKASHIC_WIRE=0 to opt out.
+
+    Telemetry never blocks a launch: if httpx or the recorder is unavailable, this falls straight
+    back to the ordinary client. A runner that cannot start because its instrumentation failed
+    would be a worse defect than the blindness it was built to cure.
+    """
     from openai import OpenAI
     import httpx
+    timeout = httpx.Timeout(MODEL_READ_TIMEOUT, connect=MODEL_CONNECT_TIMEOUT)
+    http_client = None
+    if os.getenv("AKASHIC_WIRE", "1") != "0":
+        try:
+            from scripts.wire_journal import recording_http_client
+            http_client = recording_http_client(timeout=timeout)
+        except Exception:
+            http_client = None
+    kw = {"http_client": http_client} if http_client is not None else {"timeout": timeout}
     return OpenAI(api_key=api_key or load_key(), base_url=base_url,
-                  timeout=httpx.Timeout(MODEL_READ_TIMEOUT, connect=MODEL_CONNECT_TIMEOUT),
-                  max_retries=MODEL_MAX_RETRIES)
+                  max_retries=MODEL_MAX_RETRIES, **kw)
 
 # ---- tool surface + guarded executor: EXTRACTED to core/comm/toolbox.py (K0 2026-07-18,
 # rule-of-three: the deepseek, sol, and kimi seats share one seam). Behavior-preserving move;
