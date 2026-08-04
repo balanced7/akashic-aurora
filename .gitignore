@@ -134,3 +134,8 @@ refs/design-inspiration/
 
 # UI screenshot evidence: regenerate with py scripts/ui_shot.py, never worth repo weight
 artifacts/ui/*.png
+
+# T158: canary answer keys must never enter a retrieval plane (lesson
+# answer_keys_never_enter_retrieval_planes) -- untracked by rule, sha256 in the commit instead.
+state/canary/
+*.canary-key.json

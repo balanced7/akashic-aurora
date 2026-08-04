@@ -218,6 +218,7 @@
 - `bifrost_runner_sol.py` — bifrost_runner_sol -- make Sol (gpt-5.6-sol, OpenAI Responses API) a FIRST-CLASS Bifrost citizen.
 - `bifrost_ui.py` — bifrost_ui -- a realtime web console for watching (and steering) live agent collaboration on Bifrost.
 - `bifrost_wake.py` — bifrost.wake -- the canonical wake listener for a Bifrost agent (the receive/wake arm of bifrost.api).
+- `canary_oracle.py` — The canary oracle -- the control that separates "the system improved" from "the attackers tired".
 - `capture_apple_hig.py` — capture_apple_hig.py — harvest Apple HIG component sub-sections into refs/design-inspiration.
 - `corpus_digests.py` — corpus_digests -- land structured corpus digests as a durable, queryable dataset.
 - `deepseek_chat.py` — deepseek_chat -- an interactive, TOOL-USING conversation with DeepSeek, in its own window.
