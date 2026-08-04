@@ -34,14 +34,39 @@ def set_seat_agent(agent: str) -> str:
 def make_openai_compat_client(api_key: str, base_url: str, *,
                               connect_timeout: float = 15.0,
                               read_timeout: float = 120.0,
-                              max_retries: int = 1):
+                              max_retries: int = 1,
+                              record_wire: bool = True):
     """OpenAI-compatible client hardened against hung-stream wedges (G4/L0): a per-read
     streaming timeout turns a stalled model call into a caught httpx.ReadTimeout the caller's
     try/except revives from, and an explicit max_retries stops the SDK default (2) from
     tripling wall-clock before the wedge surfaces. Lazy imports keep this module import-cheap
-    for callers that never build a client (e.g. spend-ledger-only tooling)."""
+    for callers that never build a client (e.g. spend-ledger-only tooling).
+
+    T161: instrumented by default. kimi and gemini reach the wire ONLY through this factory, so
+    one seam covers both -- and until now three of the four seats made model calls with no wire
+    record at all, leaving system_fingerprint (the silent model-swap detector) unobservable for
+    most of the fleet.
+
+    THE TIMEOUT TRAVELS WITH THE CLIENT, and that is the trap this function has to avoid. Hand
+    the SDK an http_client and it takes its timeout from THAT object, ignoring the one this
+    factory would otherwise set -- so instrumenting is exactly how a seat silently loses the
+    anti-wedge hardening this module exists to provide. The recorder is therefore built WITH the
+    computed timeout, and every fallback below keeps it too. An instrumented but wedge-prone seat
+    is a worse trade than a blind one, so if capture cannot be set up, capture is what we drop.
+    """
     from openai import OpenAI
     import httpx
+    timeout = httpx.Timeout(read_timeout, connect=connect_timeout)
+
+    if record_wire:
+        try:
+            from scripts.wire_journal import recording_http_client
+            http_client = recording_http_client(timeout=timeout)
+            if http_client is not None:
+                return OpenAI(api_key=api_key, base_url=base_url,
+                              http_client=http_client, max_retries=max_retries)
+        except Exception:
+            pass          # telemetry never blocks a launch -- fall through uninstrumented
+
     return OpenAI(api_key=api_key, base_url=base_url,
-                  timeout=httpx.Timeout(read_timeout, connect=connect_timeout),
-                  max_retries=max_retries)
+                  timeout=timeout, max_retries=max_retries)

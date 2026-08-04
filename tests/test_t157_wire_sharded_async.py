@@ -334,3 +334,46 @@ def test_p11_drops_are_attributable_to_a_shard(tmp_path):
     assert drops.get("quiet", 0) == 0, (
         f"a flooding agent caused drops in another agent's shard -- the isolation claim is "
         f"false: {drops}")
+
+
+# --------------------------------------------------------------------------- P12
+
+def test_p12_two_journals_on_one_shard_do_not_tear_the_file(tmp_path):
+    """Found as a FLAKE: P8 passed alone and failed inside a suite, which is a race announcing
+    itself in the most expensive way available.
+
+    Two WireJournal instances pointing at the same directory build two _Shard objects for the
+    same shard. With a per-INSTANCE lock they append to one file with no mutual exclusion. That
+    was latent before T157 -- the synchronous writer finished inside record(), so the second
+    instance never overlapped the first -- and became a real torn-line race the moment writes
+    moved to background threads.
+
+    The lock belongs to the FILE, so it is keyed by directory at module scope.
+    """
+    WJ = _wj()
+    a = WJ.WireJournal(journal_dir=str(tmp_path), agent="shared")
+    b = WJ.WireJournal(journal_dir=str(tmp_path), agent="shared")
+    assert a._shard_for("shared").lock is b._shard_for("shared").lock, (
+        "two journals on one shard hold different locks -- they can interleave mid-line")
+
+    N = 300
+    for i in range(N):
+        a.record(status=200, model="m", response_id=f"a{i:04d}")
+        b.record(status=200, model="m", response_id=f"b{i:04d}")
+    a.flush(); b.flush()
+
+    raw = "".join(open(p, encoding="utf-8").read() for p in a.files())
+    bad = [ln for ln in raw.splitlines() if ln.strip() and not _parses(ln)]
+    assert not bad, f"{len(bad)} torn line(s) from interleaved appends, e.g. {bad[:1]}"
+
+    ids = {r.get("response_id") for r in a.read_all()}
+    missing = [x for i in range(N) for x in (f"a{i:04d}", f"b{i:04d}") if x not in ids]
+    assert not missing, f"{len(missing)} record(s) lost to the race: {missing[:5]}"
+
+
+def _parses(line):
+    try:
+        json.loads(line)
+        return True
+    except Exception:
+        return False

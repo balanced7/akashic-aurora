@@ -107,6 +107,28 @@ def shard_name(agent: str) -> str:
     return s[:64]
 
 
+#: Shard locks live at MODULE scope, keyed by DIRECTORY, because the thing being protected is a
+#: FILE and not an object. Two WireJournal instances pointing at the same journal_dir build two
+#: _Shard objects for the same shard; per-instance locks would leave them appending to one file
+#: with no mutual exclusion at all.
+#:
+#: Latent before T157 and harmless in practice, because the synchronous writer finished inside
+#: record() before the caller's next statement. Making the writes concurrent turned it into a
+#: real torn-line race, and it surfaced as a pin that passed alone and failed in a suite -- a
+#: flake, which is the most expensive way for a race to announce itself.
+_SHARD_LOCKS = {}
+_SHARD_LOCKS_GUARD = threading.Lock()
+
+
+def _shard_lock(dirpath: str) -> threading.Lock:
+    key = os.path.abspath(dirpath)
+    with _SHARD_LOCKS_GUARD:
+        lk = _SHARD_LOCKS.get(key)
+        if lk is None:
+            lk = _SHARD_LOCKS[key] = threading.Lock()
+        return lk
+
+
 class _Shard:
     """One agent's slice of the journal: its own directory, cursor, queue and writer thread.
 
@@ -121,7 +143,9 @@ class _Shard:
         self.day, self.n = "", 1              # segment cursor -- amortized O(1), see _segment_path
         self.q = queue.Queue(maxsize=queue_size)
         self.thread = None
-        self.lock = threading.Lock()          # guards the SYNC path and the cursor
+        # keyed by DIRECTORY, shared across every journal instance writing this shard -- the
+        # file is the resource, not this object. See _shard_lock above.
+        self.lock = _shard_lock(self.dir)
         # PER-SHARD drop count. The journal-wide total answers "did we lose records"; only this
         # answers "WHOSE records", and with a semi-trusted player pool that is the forensically
         # load-bearing question -- a player who floods its own queue to drop its own traffic is
@@ -613,7 +637,13 @@ def recording_http_client(timeout=None, **kw):
 
     Returns None if httpx is unavailable, so a caller can fall back to the ordinary client rather
     than fail: telemetry must never be the reason a runner cannot start.
+
+    T161: AKASHIC_WIRE=0 is the fleet-wide off switch and is honoured HERE, at the one place that
+    builds the recorder, rather than at each of the four seats that want one. An off switch each
+    caller re-implements is an off switch that some caller forgets.
     """
+    if os.getenv("AKASHIC_WIRE", "1") == "0":
+        return None
     try:
         import httpx
     except Exception:

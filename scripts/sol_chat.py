@@ -57,12 +57,19 @@ PREVIEW_401_RETRIES = int(os.getenv("SOL_401_RETRIES", "3"))
 
 
 def make_client(api_key=None, base_url=BASE_URL):
-    """OpenAI client hardened against hung-stream wedges (per-read timeout + explicit retries)."""
-    import httpx
-    from openai import OpenAI
-    return OpenAI(api_key=api_key or load_key(), base_url=base_url,
-                  timeout=httpx.Timeout(SOL_READ_TIMEOUT, connect=SOL_CONNECT_TIMEOUT),
-                  max_retries=SOL_MAX_RETRIES)
+    """OpenAI client hardened against hung-stream wedges (per-read timeout + explicit retries).
+
+    T161: routed through the shared factory so this seat is instrumented like the others. sol was
+    the one seat building a bare OpenAI() -- it uses the Responses API rather than chat
+    completions, which is a difference at the REQUEST layer and none at all at the transport, so
+    there was never a reason for its wire traffic to be invisible. Its own env conventions stay
+    here, which is the boundary runner_lib documents.
+    """
+    from core.comm.runner_lib import make_openai_compat_client
+    return make_openai_compat_client(api_key or load_key(), base_url,
+                                     connect_timeout=SOL_CONNECT_TIMEOUT,
+                                     read_timeout=SOL_READ_TIMEOUT,
+                                     max_retries=SOL_MAX_RETRIES)
 
 
 def to_responses_tools(tools):
