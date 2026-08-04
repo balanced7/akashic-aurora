@@ -308,31 +308,22 @@ class Bus:
         (each tool call, turn edge) and its key has a short TTL, which makes presence a positive
         signal and absence no evidence at all. Consulted in exactly that direction: a live pulse can
         only ever turn a false "unattended" into a correct "attended" -- it can never invent a death.
+
+        T155: the three-probe ladder this docstring describes now lives in ONE place --
+        core.comm.liveness.attendance -- because while it lived only here, every other surface
+        invented a weaker answer. On 2026-08-03 the boot render called `codex_root` online from a
+        registration key in the same minute this door correctly called it unattended, and a
+        directed brief queued where nothing would read it. Same verdict everywhere, or it is not
+        a verdict.
         """
-        from core.comm import roster as _roster
-        rows = [r for r in _roster.roster(self.ns, client=self._client)
-                if str(r.get("agent") or "").split("#")[0] == to]
-        ages = [r["beat_age_s"] for r in rows if r.get("beat_age_s") is not None]
-        youngest = min(ages) if ages else None
-        if youngest is not None and youngest <= self.UNATTENDED_S:
-            return True, youngest
-        try:
-            from core.comm import liveness as _liveness
-            if _liveness.progress_age(to) is not None:
-                return True, youngest          # working right now, whatever the heartbeat says
-            # AND THE IDLE CASE, which the pulse cannot cover and which is the common one. A pulse
-            # marks WORK and has a ~5s TTL, so a runner sitting in its consume loop has none --
-            # yet it is perfectly alive and will answer the moment mail lands. Its worklive record
-            # is refreshed by a heartbeat thread every ~5s under a 45s TTL, so a FRESH one is
-            # attendance. Measured 2026-08-03: kimi 2.4s and deepseek 1.0s, both idle, both
-            # answering, while the roster called them 29,611s stale and this door warned about
-            # seats that were listening.
-            wl = _liveness.worklive_beat_age(to)
-            if wl is not None and wl <= self.UNATTENDED_S:
-                return True, youngest
-        except Exception:
-            pass                               # unreadable -> fall back to the beat's verdict
-        return False, youngest
+        from core.comm.liveness import attendance
+        v = attendance(to, namespace=self.ns, client=self._client)
+        if v.state == "UNKNOWN":
+            # Preserve this method's contract: probe failure RAISES so _warn_if_unattended stays
+            # silent and the send proceeds. A door that refuses to send because it cannot check
+            # liveness is strictly worse than one that sends blind.
+            raise RuntimeError(f"liveness probe unreadable for {to!r}: {v.reason}")
+        return v.state == "ATTENDED", v.beat_age_s
 
     def _warn_if_unattended(self, to: str):
         """Report (never raise, never refuse) when `to` has no attending seat. Returns the warning

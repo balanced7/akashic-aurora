@@ -104,7 +104,7 @@ Class: reference
 | `interject.py` | Adaptive interjection router -- when a human types into a live agent session, decide whether the | GAP | GAP |  |
 | `lane_depths.py` | lane_depths -- the engine room's flow gauge source (T079-E2). | GAP | GAP | `BIFROST_NAMESPACE` |
 | `launcher.py` | Bifrost Launcher — spawn and monitor agent processes from the Bifrost UI. | tests/test_launcher_drain.py | GAP | `AKASHIC_SHOW_CONSOLES`, `LAUNCHER_AUTO_REVIVE_JITTER`, `LAUNCHER_RESTART_BACKOFF`, `LAUNCHER_RESTART_BACKOFF_MAX`, `LAUNCHER_RESTART_MAX`, `LAUNCHER_RESTART_RESET` |
-| `liveness.py` | Work-progress heartbeat (L1) -- pure observability for wedge detection. | tests/test_launcher_drainer_liveness.py | docs/library/design/20260701_agent-liveness-tier-stuck-lost-agent-fai_8c0d79.md | `BIFROST_APPROACHING_WEDGE_SECONDS`, `BIFROST_NAMESPACE`, `BIFROST_WEDGE_SECONDS` |
+| `liveness.py` | Work-progress heartbeat (L1) -- pure observability for wedge detection. | tests/test_launcher_drainer_liveness.py | docs/library/design/20260701_agent-liveness-tier-stuck-lost-agent-fai_8c0d79.md | `AKASHIC_UNATTENDED_S`, `BIFROST_APPROACHING_WEDGE_SECONDS`, `BIFROST_NAMESPACE`, `BIFROST_WEDGE_SECONDS` |
 | `locks.py` | Advisory path-locks (Concurrency design C2). | tests/test_locks.py | GAP |  |
 | `mailbox.py` | mailbox -- T095 M0: shadow mailbox state index over the append-only lanes. | tests/test_t095_m0_mailbox_adversarial.py | docs/library/design/20260701_comms-mailbox-over-the-log-t095-governin_06357f.md | `AKASHIC_MAILBOX`, `BIFROST_NAMESPACE` |
 | `nudge.py` | Bifrost nudge -- targeted, per-agent barge-in (companion to control.py's global PAUSE). | tests/test_learn_nudge.py | GAP | `BIFROST_NAMESPACE` |

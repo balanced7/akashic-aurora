@@ -25,6 +25,7 @@ Two independent staleness signals a reader can derive:
 """
 import json
 import os
+import re
 import threading
 import time
 from typing import Optional
@@ -223,6 +224,112 @@ def worklive_beat_age(agent: str):
         return max(0.0, time.time() - float(rec["beat_ts"]))
     except (KeyError, TypeError, ValueError):
         return None
+
+
+# T155: the same threshold the send door uses (core/comm/bus.py UNATTENDED_S), read from the same
+# env var so the two cannot drift apart -- a shared verdict with two thresholds is still two answers.
+UNATTENDED_S = float(os.environ.get("AKASHIC_UNATTENDED_S", "300") or 300)
+
+# T155: an id like `codex_root_019fab2d` is one INCARNATION of `codex_root`, but `codex_root`
+# itself contains an underscore -- so "strip the last _segment" would resolve it to `codex`.
+# Only a trailing session-shaped suffix (>=6 hex chars) is stripped, which `root` is not.
+_INCARNATION_SUFFIX = re.compile(r"_([0-9a-f]{6,})$", re.I)
+
+
+class Attendance(tuple):
+    """A three-state verdict: ATTENDED | UNATTENDED | UNKNOWN.
+
+    UNKNOWN is the load-bearing member. Every gauge before this one collapsed "I cannot tell"
+    into "not here", which is how a beating-but-wedged seat read as running and a registration
+    echo read as online. Absence of evidence is not evidence of absence -- and it is certainly
+    not evidence of presence.
+    """
+    __slots__ = ()
+
+    def __new__(cls, state, reason="", beat_age_s=None, agent=""):
+        return tuple.__new__(cls, (state, reason, beat_age_s, agent))
+
+    state = property(lambda s: s[0])
+    reason = property(lambda s: s[1])
+    beat_age_s = property(lambda s: s[2])
+    agent = property(lambda s: s[3])
+
+    def __repr__(self):
+        return f"Attendance({self.state}, {self.reason!r}, beat_age_s={self.beat_age_s})"
+
+
+def attendance(agent: str, *, namespace: str = None, client=None) -> "Attendance":
+    """THE liveness verdict. One answer, so surfaces cannot contradict each other (T155).
+
+    Measured 2026-08-03/04: four surfaces gave four answers about one seat, and a directed brief
+    addressed exactly as that seat asked was queued where nothing would read it. The cause was two
+    meanings of one word -- `Bus.presence()` answers "who REGISTERED recently" while the send path
+    answers "who is ATTENDING now" -- and only the second is what a sender needs to know.
+
+    Evidence is consulted in ONE direction: each probe can only ever turn UNATTENDED into
+    ATTENDED, never invent a death. Each was bought by a real incident:
+
+      1. roster beat      -- the ordinary signal, and the one that lies while a seat is mid-call
+      2. progress pulse   -- stamped at real work (T133/M4: the beat alone lied twice on 08-02)
+      3. worklive beat    -- the IDLE case a pulse cannot cover; a runner in its consume loop has
+                             no pulse yet answers instantly (kimi 2.4s, deepseek 1.0s, both called
+                             29,611s stale by the roster on 2026-08-03)
+
+    NEVER RAISES. If no probe can be reached at all, the verdict is UNKNOWN -- a caller that
+    cannot check liveness must not be handed a confident "dead".
+    """
+    name = str(agent or "")
+    probed_anything = False
+    youngest = None
+
+    for candidate in _id_forms(name):
+        try:
+            from core.comm import roster as _roster
+            rows = [r for r in _roster.roster(namespace or _ns(), client=client)
+                    if str(r.get("agent") or "").split("#")[0] == candidate]
+            ages = [r["beat_age_s"] for r in rows if r.get("beat_age_s") is not None]
+            probed_anything = True
+            if ages:
+                fresh = min(ages)
+                youngest = fresh if youngest is None else min(youngest, fresh)
+                if fresh <= UNATTENDED_S:
+                    return Attendance("ATTENDED", f"roster beat {fresh:.0f}s", fresh, candidate)
+        except Exception:
+            pass
+
+        try:
+            if progress_age(candidate) is not None:
+                probed_anything = True
+                return Attendance("ATTENDED", "progress pulse (working now)", youngest, candidate)
+            probed_anything = True
+        except Exception:
+            pass
+
+        try:
+            wl = worklive_beat_age(candidate)
+            probed_anything = True
+            if wl is not None and wl <= UNATTENDED_S:
+                return Attendance("ATTENDED", f"worklive beat {wl:.0f}s (idle, listening)",
+                                  youngest, candidate)
+        except Exception:
+            pass
+
+    if not probed_anything:
+        return Attendance("UNKNOWN", "no probe could be read (bus unreachable?)", youngest, name)
+    return Attendance("UNATTENDED", "no beat, pulse, or worklive", youngest, name)
+
+
+def _id_forms(agent: str):
+    """The id as given, plus its bare agent form if it carries a session-shaped suffix.
+
+    T155: mail addressed to `codex_root_019fab2d` must not get a different answer than mail to
+    `codex_root`, or a directed ask queues into a void under a near-identical name.
+    """
+    forms = [agent]
+    bare = _INCARNATION_SUFFIX.sub("", agent)
+    if bare and bare != agent:
+        forms.append(bare)
+    return forms
 
 
 def stuck_seconds(agent: str):

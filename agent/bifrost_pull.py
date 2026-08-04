@@ -29,20 +29,42 @@ def _content_str(content: Any) -> str:
 
 
 def register_presence(agent_id: str) -> Dict[str, Any]:
-    """Mark agent online + list who else is present. Never raises."""
+    """Mark agent online + list who else is ATTENDING. Never raises.
+
+    T155. `Bus.presence()` lists `{ns}:presence:*` REGISTRATION keys -- it answers "who registered
+    recently", which is not the question a sender has. Printing that list under the word "online"
+    is how, on 2026-08-03, this surface said `codex_root` was online in the same minute the send
+    door said it had no heartbeat and queued a directed brief where nothing would read it.
+
+    So registration is now filtered through the one shared verdict (core.comm.liveness.attendance,
+    the same probe the send door uses). Registered-but-unattended agents are NOT dropped -- they
+    move to their own field, because "registered, but nothing is reading its mail" is precisely the
+    state that cost a night, and it deserves a name rather than a silent omission.
+    """
     try:
         from core.comm.bus import Bus
         b = Bus(str(agent_id or "unknown"))
         registered = b.register() if b.online else False
         live = b.presence() if b.online else []
+        names = [p.get("agent") for p in live if p.get("agent")]
+        attended, unattended = [], []
+        for n in names:
+            try:
+                from core.comm.liveness import attendance
+                state = attendance(n).state
+            except Exception:
+                state = "UNKNOWN"          # a broken probe never promotes to "online"
+            (attended if state == "ATTENDED" else unattended).append(n)
         return {
             "online": b.online,
             "registered": registered,
             "pending": b.pending() if b.online else 0,
-            "agents_online": [p.get("agent") for p in live],
+            "agents_online": attended,
+            "agents_registered_unattended": unattended,
         }
     except Exception:
-        return {"online": False, "registered": False, "pending": 0, "agents_online": []}
+        return {"online": False, "registered": False, "pending": 0,
+                "agents_online": [], "agents_registered_unattended": []}
 
 
 def peek_inbox(agent_id: str, limit: int = 10) -> List[Dict[str, Any]]:
@@ -564,6 +586,11 @@ def print_boot_bifrost_section(block: Dict[str, Any], show_traces: bool = False)
     online = block.get("agents_online") or []
     if online:
         print(f"  online: {', '.join(online)}")
+    # T155: registered, but no beat, pulse, or worklive -- mail addressed here QUEUES and nothing
+    # reads it. Named rather than omitted: the silent version of this line cost a directed brief.
+    idle = block.get("agents_registered_unattended") or []
+    if idle:
+        print(f"  registered but UNATTENDED (mail queues, nothing reads it): {', '.join(idle)}")
     pending = block.get("pending") or 0
     if pending == 0:
         print("  (no new messages -- peek only; cursor unchanged)")

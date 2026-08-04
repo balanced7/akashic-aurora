@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at bc4e658. A bound you discover by collision is not awareness -- this sheet
+> Derived at 186243e. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -91,7 +91,7 @@ Class: reference
 | `AKASHIC_TRACE` | `"1"` | agent/harness/hooks/claude_trace.py, agent/harness/trace.py, scripts/hooks/claude_trace.py |
 | `AKASHIC_TRANSCRIPT_TAIL_BYTES` | `str(4 * 1024 * 1024` | agent/harness/hooks/claude_posttooluse.py, scripts/hooks/claude_posttooluse.py |
 | `AKASHIC_UI_URL` | `"http://localhost:8787"` | scripts/ui_shot.py |
-| `AKASHIC_UNATTENDED_S` | `"300"` | core/comm/bus.py |
+| `AKASHIC_UNATTENDED_S` | `"300"` | core/comm/bus.py, core/comm/liveness.py |
 | `AKASHIC_WAKE_MARKER_FRESH_MIN` | `""` | core/comm/wake_seat.py |
 | `AKASHIC_WHISPER_LINES` | `""` | agent/harness/context.py |
 | `AKASHIC_WISHLIST_FILE` | `` | agent_cli.py |
