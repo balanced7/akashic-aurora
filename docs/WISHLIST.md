@@ -773,6 +773,38 @@ and reaper._provably_dead() returns True for that row -- along with every deepse
 
 The fix is to make runner seats first-class in the roster (publish the per-incarnation beat the
 roster reads), NOT to weaken the lock or the reaper. Filed properly with pins.
+- [ ] W127 (08-04, claude) — CORRECTION TO W124 -- "silent no-op" is WRONG. The bus is not silent; I was not reading it.
+
+Verified 2026-08-04 by sending an identical body twice and capturing both streams separately:
+
+  stderr: [re-ask] identical request to t147probe already pending as 1785818090897-0 (1800s
+          window) -- collapsed, not re-sent. Nudge it or change the ask; a repeat send costs
+          t147probe a full turn.
+
+The notice is there, it is accurate, and it even names the remedy. I missed it three times because
+every one of my sends was piped through `| tail -1`, and _loud() writes to STDERR (bus.py:54-58).
+Operator error, not a transport defect.
+
+THE REAL DEFECT IS SHARPER AND WORSE. On the SAME call, STDOUT prints:
+
+  [bifrost-send] -> t147probe [request] (id 1785818090897-0)
+
+which is indistinguishable from a successful send -- same shape, same id, no hint anything was
+suppressed. So the two streams CONTRADICT each other, and the one that lies is the default channel
+that scripts, pipes and logs keep. This is the lesson a_warning_needs_a_channel_the_reader_actually
+_has, in its nastiest form: the warning had a channel, but a louder line on a better channel said
+the opposite.
+
+FIX: the stdout line must not claim a send that did not happen. When the re-ask collapses, stdout
+should say COLLAPSED and name the id it collapsed onto, instead of rendering the normal arrow line.
+Do not touch the collapse LOGIC -- it is well built (P6 strand guard: it refuses to collapse onto an
+original the recipient can no longer see, and it already exempts redrives and re-homes).
+
+SECOND, SMALLER: the strand guard checks the original is still PRESENT in the recipient's stream,
+but not whether it is still REACHABLE -- a message behind the consumer's committed cursor is as
+unreachable as a trimmed one. That is exactly what bit me: a newborn seat seeded at the lane tail,
+leaving my queued message present but permanently unread. Filed as its own note, since it needs a
+cursor read the guard does not currently do.
 
 ## Folded (exemplars — the loop works)
 

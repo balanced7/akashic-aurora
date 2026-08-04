@@ -1,5 +1,5 @@
 {
-  "seq": 148,
+  "seq": 149,
   "tasks": [
     {
       "id": "T001",
@@ -5281,16 +5281,36 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "7039855",
+      "verified_by": "6/6 pins green plus a LIVE receipt: a real runner rendered '[LIVE] deepseek-plumbing#55424-de phase=running beat=4.1s' with provably_dead=False, where before a live kimi runner rendered DEAD at beat=8790.9s. Live check insisted on because R3 is a text pin and the call sits inside except-pass.",
       "created": "2026-08-04T04:26:50+00:00",
-      "updated": "2026-08-04T04:26:50+00:00",
+      "updated": "2026-08-04T04:33:57+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-04T04:26:50+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-04T04:33:56+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-04T04:33:57+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-04T04:33:57+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-04T04:33:57+00:00"
         }
       ]
     },
@@ -5322,6 +5342,27 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-08-04T04:31:59+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T149",
+      "title": "SEASON 0: bifrost-send stdout claims a send that did not happen. When the re-ask window collapses a duplicate, stderr correctly says '[re-ask] ... collapsed, not re-sent' but STDOUT still prints '[bifrost-send] -> <to> [<kind>] (id <same-id>)' -- indistinguishable from success, on the channel scripts and pipes keep. Verified 2026-08-04 by sending an identical body twice and capturing both streams. The collapse LOGIC is well built (P6 strand guard refuses to collapse onto an original the recipient can no longer see; redrives and re-homes are exempt) -- only the stdout rendering is dishonest. Fix = stdout says COLLAPSED and names the id it collapsed onto. RESIDUAL for its own slice: the strand guard checks PRESENCE in the recipient's stream but not REACHABILITY -- a message behind the consumer's committed cursor is as unreachable as a trimmed one, which is exactly the newborn-tail-seeding case that cost three round-trips.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-04T04:35:24+00:00",
+      "updated": "2026-08-04T04:35:24+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-04T04:35:24+00:00"
         }
       ]
     }
