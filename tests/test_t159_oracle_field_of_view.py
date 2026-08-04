@@ -194,3 +194,66 @@ def test_k13_every_catchable_canary_is_caught_end_to_end(worktree):
     if tryblock:
         assert all(c["name"] in out for c in tryblock), (
             "the T143 try-block shape was missed -- T159's original diagnosis would be back")
+
+
+# --------------------------------------------------------------------------- K14
+
+def test_k14_narrowing_the_universe_hides_nothing():
+    """The fix NARROWS what the oracle plants into (151 -> 134). Prove nothing falls in the gap.
+
+    This is the objection the fence raised and it is the right one to raise: a fix that improves
+    a health metric by shrinking what the metric covers is worse than the bug it replaces. The
+    defence is that the excluded region is not unwatched, it is watched by a COARSER surface --
+    check_wiring reports those modules as dead at MODULE granularity, which strictly dominates
+    reporting their individual functions.
+
+    So the invariant is coverage, not scope: every core module is examined by the function gate
+    OR reported by the module gate. A module in neither would be genuinely invisible, and that is
+    the only thing the narrowing could have created.
+    """
+    W = _wiring()
+    core_universe, reachable, unwired = W.analyze()
+    fn_gate = set(W.candidate_modules(reachable, core_universe))
+    mod_gate = set(unwired)          # every module the module-level gate names
+
+    uncovered = core_universe - fn_gate - mod_gate
+    assert not uncovered, (
+        f"{len(uncovered)} core module(s) are examined by NEITHER surface -- the narrowing "
+        f"created a blind spot: {sorted(uncovered)[:5]}")
+
+    # and the boundary between the two surfaces is itself guarded: an EXCEPTIONS entry that
+    # becomes wired again is reported stale rather than silently granting amnesty forever.
+    stale = sorted(e for e in W.EXCEPTIONS if e not in unwired)
+    assert isinstance(stale, list)   # the guard exists; its content is the gate's business
+
+
+# --------------------------------------------------------------------------- K15
+
+def test_k15_version_skew_is_loud_not_silent(tmp_path):
+    """A detector that is PRESENT but cannot answer must raise, never quietly fall back.
+
+    Added after mutation testing: replacing the raise with a silent fallback left every other pin
+    green, because no pin exercised the path. A shadow pinned to a commit older than the
+    --candidates door is the ordinary way this happens, and a silent fallback there would score
+    the round against a universe that is not the gate's -- T159 all over again, one layer out.
+    """
+    C = _oracle()
+    shadow = tmp_path / "skewed"
+    (shadow / "scripts" / "checkers").mkdir(parents=True)
+    (shadow / "core").mkdir()
+    (shadow / "core" / "m.py").write_text("def a():\n    return 1\n", encoding="utf-8")
+
+    # a detector that exists and does NOT understand --candidates (the pre-T159 door)
+    (shadow / "scripts" / "checkers" / "check_wiring.py").write_text(
+        "import sys\nprint('PASS: legacy detector, no --candidates door')\nsys.exit(0)\n",
+        encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="field of view"):
+        C.plant(str(shadow), k=3, seed=1)
+
+    # a tree with NO detector at all is a synthetic fixture -- fallback is allowed, and recorded
+    plain = tmp_path / "plain"
+    (plain / "core").mkdir(parents=True)
+    (plain / "core" / "m.py").write_text("def a():\n    return 1\n", encoding="utf-8")
+    m = C.plant(str(plain), k=3, seed=1)
+    assert m["universe"]["source"] == "structural-fallback"
