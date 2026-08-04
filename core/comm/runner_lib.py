@@ -11,6 +11,26 @@ chat-completions loops stay species-specific until two of them stabilize side by
 from __future__ import annotations
 
 
+def set_seat_agent(agent: str) -> str:
+    """Declare which seat this runner process is, so its wire records are attributable.
+
+    T160: BIFROST_AGENT was read in exactly one place and written in none, so 102 of 102 records
+    in the live journal said 'unknown' and doctor's per-seat wire forensics matched nothing for
+    as long as it had existed. Every runner already knows its own id from argv; nothing carried
+    it the last few inches.
+
+    Wrapped here rather than imported directly by four runners so the SAFETY NET has one
+    definition: a runner must never fail to start because its instrumentation could not load.
+    That is the same rule recording_http_client() follows, and for the same reason -- the
+    blindness this cures is far cheaper than a seat that will not boot.
+    """
+    try:
+        from scripts.wire_journal import set_seat_agent as _set
+        return _set(agent)
+    except Exception:
+        return ""
+
+
 def make_openai_compat_client(api_key: str, base_url: str, *,
                               connect_timeout: float = 15.0,
                               read_timeout: float = 120.0,

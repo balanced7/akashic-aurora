@@ -1188,6 +1188,10 @@ def main() -> int:
     ap.add_argument("--session", default="",
                     help="T108: session id for per-incarnation lane cursor (sid8)")
     args = ap.parse_args()
+    # T160: wire records must name the seat that made the call. Imported at the call site so a
+    # telemetry import can never keep a runner from starting.
+    from core.comm.runner_lib import set_seat_agent
+    set_seat_agent(args.agent)
 
     if not load_key():
         print("bifrost_runner_deepseek: NO_KEY (set DEEPSEEK_API_KEY or .secrets/deepseek.key)")

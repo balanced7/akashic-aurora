@@ -583,6 +583,27 @@ def journal() -> "WireJournal":
     return _DEFAULT
 
 
+def set_seat_agent(agent: str) -> str:
+    """Declare which seat this PROCESS is, so its wire records are attributable. Call once, early.
+
+    T160, and the measurement is the argument: BIFROST_AGENT was read here and written NOWHERE, so
+    102 of 102 records in the live journal said 'unknown'. doctor asks the journal per seat and had
+    been matching nothing since the journal shipped -- rendering empty and calling itself clean.
+
+    Two writes, not one, and the second is the subtle half. The env var covers every journal built
+    LATER (the singleton is created inside the transport hook, long after argv is parsed), and the
+    re-point covers a singleton that already exists because a call happened first. With only the
+    env write, attribution would silently depend on call order.
+    """
+    agent = str(agent or "").strip()
+    if not agent:
+        return ""
+    os.environ["BIFROST_AGENT"] = agent
+    if _DEFAULT is not None:
+        _DEFAULT.agent = agent
+    return agent
+
+
 def recording_http_client(timeout=None, **kw):
     """An httpx.Client whose transport journals every round trip -- pass to OpenAI(http_client=...).
 

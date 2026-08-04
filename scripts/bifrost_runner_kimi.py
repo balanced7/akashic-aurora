@@ -687,6 +687,10 @@ def main() -> int:
         pass
 
     args = build_parser().parse_args()
+    # T160: wire records must name the seat that made the call. Imported at the call site so a
+    # telemetry import can never keep a runner from starting.
+    from core.comm.runner_lib import set_seat_agent
+    set_seat_agent(args.agent)
     if args.summary_file is None:
         args.summary_file = default_summary_path(args.agent)
     prior = read_prior_summary(args.inject_summary or default_summary_path(args.agent))
