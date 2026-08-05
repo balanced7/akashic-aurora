@@ -1,5 +1,5 @@
 {
-  "seq": 170,
+  "seq": 173,
   "tasks": [
     {
       "id": "T001",
@@ -6120,16 +6120,119 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "6a361cb",
+      "verified_by": "claude",
       "created": "2026-08-05T02:41:40+00:00",
-      "updated": "2026-08-05T02:41:40+00:00",
+      "updated": "2026-08-05T04:00:28+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-05T02:41:40+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-05T04:00:06+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-05T04:00:17+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-05T04:00:17+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-05T04:00:28+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T171",
+      "title": "ASK verb: a low-ceremony synchronous helper call, separating ASK from SEAT. Daniil 2026-08-04: 'what if you could quickly invoke with a verb a deepseek instance to help you with something... this might help reduce your cognitive load if you could quickly ask for help yourself.' Evidence it is needed: across two multi-seat rounds tonight, NINE seat-tasks produced TWO findings that reached me; the rest died to cursor tail-seeding, dedup collapse, budget exhaustion returning empty, and wedges -- and I spent most of the session on seat plumbing instead of getting help. The expensive part is not the model call, it is the SEAT: identity, lock, cursor, mailbox, heartbeat, roster row, wake listener, reaper protection, all of which exist so a peer can be addressed ASYNCHRONOUSLY and survive without me. A synchronous ask needs none of it. Scope: single turn first, returns BoundaryOutcome (so budget exhaustion yields a marked partial, not silence), carries the spend meter, read-scoped tools only, NO persistent memory (persistence is what makes a seat; cross-invocation memory belongs in the store where the fleet can inspect it). fleet call already exists but is wired to a local Ollama endpoint, not the DeepSeek API.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "e47858b",
+      "verified_by": "claude",
+      "created": "2026-08-05T03:11:52+00:00",
+      "updated": "2026-08-05T04:08:47+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-05T03:11:52+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-05T04:00:43+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-05T04:00:44+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-05T04:08:47+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-05T04:08:47+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T172",
+      "title": "check_boundaries must match SEMANTICALLY, not by raw text. Red specimen in HEAD: core/comm/ask.py carries a comment explaining that a path hack was REMOVED, and the comment cannot name the hack because check_boundaries greps raw source and flags the explanation. Same defect K6 had (fixed at a7f5845 by ast.parse over imports/attributes/names/call targets); this is that fix applied to the checker. Acceptance: a forbidden token appearing ONLY in a docstring or comment does not fail the checker, while a real code reference still does. See lesson text_matching_guards_treat_documentation_as_code.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-05T04:10:43+00:00",
+      "updated": "2026-08-05T04:10:43+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-05T04:10:43+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T173",
+      "title": "Move the canonical price table (price_of) from scripts/runner_token_journal.py into core/. Direction inversion: core/comm/ask.py imports FROM scripts, which is backwards -- core must not depend on scripts. It resolves through every real door today and degrades to unpriced (None) if it does not, so it is not urgent, but it is named as a seam in ask.py rather than hidden. Callers to move with it: agent_cli.py, runner_token_journal.py itself, and the *_chat.py family. Acceptance: no core/ module imports from scripts/, and an unpriced model still reports None rather than a borrowed rate (T171 K7).",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-05T04:10:44+00:00",
+      "updated": "2026-08-05T04:10:44+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-05T04:10:44+00:00"
         }
       ]
     }
