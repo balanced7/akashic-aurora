@@ -61,7 +61,14 @@ def mechanical_player(shadow: str):
 
 
 def run(k: int = 9, seed: int = 20260804, policy: str = "v1_doc",
-        shadow: str = None, key_path: str = None) -> dict:
+        shadow: str = None, key_path: str = None, player=None,
+        player_name: str = "mechanical") -> dict:
+    """T184: `player` is injectable so the loop can be driven by something other than a gate.
+
+    The mechanical player cannot claim a `bait` canary by construction -- it only echoes what
+    check_wiring names -- so it measures the MACHINERY and not a player's judgment. An LLM
+    player can claim bait, which is the precision question a twenty-player round lives on.
+    """
     from scripts import canary_oracle as C
     from core.season import scoring as S
 
@@ -73,7 +80,7 @@ def run(k: int = 9, seed: int = 20260804, policy: str = "v1_doc",
     manifest = C.plant(shadow, k=k, seed=seed)
     digest = C.seal(manifest, key_path)
 
-    found = mechanical_player(shadow)
+    found = (player or mechanical_player)(shadow)
 
     known = {c["name"]: c for c in manifest["canaries"]}
     claims, stream = [], 1785860000000
@@ -81,7 +88,7 @@ def run(k: int = 9, seed: int = 20260804, policy: str = "v1_doc",
         stream += 137                       # monotonic, standing in for a bus stream id
         hit = known.get(name)
         claims.append({
-            "player": "solo",
+            "player": player_name,
             "dedupe_key": f"canary::{name}",
             "claim_class": "needs-caller",
             "outcome": "confirmed" if hit else "unverifiable",
@@ -92,7 +99,7 @@ def run(k: int = 9, seed: int = 20260804, policy: str = "v1_doc",
         })
 
     scored = S.score_round(
-        claims, verifications=[{"player": "solo", "verdict": "confirmed", "upheld": False}],
+        claims, verifications=[{"player": player_name, "verdict": "confirmed", "upheld": False}],
         policy=policy)
 
     if not C.verify_seal(key_path):
@@ -100,7 +107,7 @@ def run(k: int = 9, seed: int = 20260804, policy: str = "v1_doc",
     verdict = C.score(manifest, {c["_canary_id"] for c in claims if c["_canary_id"]})
 
     return {
-        "seed": seed, "k": k, "key_sha256": digest,
+        "seed": seed, "k": k, "key_sha256": digest, "player_name": player_name,
         "universe": manifest.get("universe"),
         "planted": {cls: sum(1 for c in manifest["canaries"] if c["cls"] == cls)
                     for cls in ("catchable", "undetectable", "bait")},
@@ -119,9 +126,26 @@ def main() -> int:
     ap.add_argument("--seed", type=int, default=20260804)
     ap.add_argument("--policy", default="v1_doc")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--player", default="mechanical", choices=("mechanical", "llm"),
+                    help="T184: 'llm' fans N stateless leaves over the shadow tree instead of "
+                         "echoing check_wiring. The mechanical player cannot claim a bait "
+                         "canary by construction; an LLM player can, which is the point")
+    ap.add_argument("--batch-size", type=int, default=20)
+    ap.add_argument("--workers", type=int, default=6)
     a = ap.parse_args()
 
-    res = run(k=a.k, seed=a.seed, policy=a.policy)
+    player, report_box = None, {}
+    if a.player == "llm":
+        from scripts.season_llm_player import llm_player
+
+        def player(shadow):                                     # noqa: F811
+            names, rep = llm_player(shadow, batch_size=a.batch_size, workers=a.workers)
+            report_box.update(rep)
+            return names
+
+    res = run(k=a.k, seed=a.seed, policy=a.policy, player=player, player_name=a.player)
+    if report_box:
+        res["player_report"] = report_box
     if a.json:
         print(json.dumps(res, indent=2))
         return 0
@@ -131,7 +155,15 @@ def main() -> int:
     print(f"  planted    : {res['planted']}  (universe {res['universe']['source']}, "
           f"size {res['universe']['size']})")
     print(f"  key sha256 : {res['key_sha256'][:16]}...  (untracked, outside the repo)")
-    print(f"  player     : reported {res['player_found']} NEW unwired function(s)")
+    print(f"  player     : {res.get('player_name', 'mechanical')} -- reported "
+          f"{res['player_found']} suspected dead function(s)")
+    pr = res.get("player_report")
+    if pr:
+        print(f"               {pr['candidates']} candidates -> {pr['batches']} batches, "
+              f"{pr['branches_ok']}/{pr['branches']} branches landed, "
+              f"{pr['verdicts_returned']} verdicts, {pr['unjudged']} UNJUDGED")
+        print(f"               ${pr['usd']} / {pr['elapsed_s']}s wall"
+              if pr.get("usd") is not None else "               spend unpriced")
     print(f"  scoring    : {res['scoring']['policy']} -> {res['scoring']['totals']} "
           f"({res['scoring']['unscored']} unscored)")
     print("\n  ADJUDICATION vs the sealed key")

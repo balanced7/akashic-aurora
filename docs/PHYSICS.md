@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 016da5d. A bound you discover by collision is not awareness -- this sheet
+> Derived at 5d08e10. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -209,7 +209,7 @@ Class: reference
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py |
 
-## Mechanical bounds (106 numeric constants)
+## Mechanical bounds (107 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -265,6 +265,7 @@ Class: reference
 | `MAX_LIST` | 400 | core/comm/toolbox.py |  |
 | `MAX_MATCHES` | 120 | core/comm/toolbox.py |  |
 | `MAX_REFLECTIONS` | 50 | core/learning/agent_memory.py | keep only the newest N reflections in the index |
+| `MAX_REFS` | 2 | scripts/season_llm_player.py |  |
 | `MAX_TARGETS_PER_PASS` | 2 | core/recall/forge_optimizer.py | locked design decision 1 |
 | `MAX_TOOL_ROUNDS` | 30 | scripts/deepseek_chat.py |  |
 | `MIN_BEATS` | 2 | core/narrative/episode_suggester.py | a thin episode has nothing worth bookending |
