@@ -1,5 +1,5 @@
 {
-  "seq": 185,
+  "seq": 188,
   "tasks": [
     {
       "id": "T001",
@@ -6665,6 +6665,69 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-05T06:47:45+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T186",
+      "title": "Canary fixtures leak their own answers -- the harness grades partly on label-reading. Every 'undetectable' template in scripts/canary_oracle.py carries the docstring 'Registered in a table that nothing ever invokes'; a 'catchable' one carries 'Fan-out path -- unreachable'; bait carries 'Looks dead; is called below'. A player can score by reading the label instead of analysing the code. MEASURED, not suspected: probing the T184 LLM player on the raw windows, its undetectable verdict cited 'The comment states the registration table is never invoked' -- it quoted the fixture. Stripping every docstring and re-asking gave 7/7 with STRUCTURAL reasoning instead ('no invocation or iteration over _HANDLERS visible', 'its definition is conditional'), so this particular result was not manufactured by the leak. But the difficulty is partly fake and a weaker player WOULD be flattered by it. This is the same defect T184's K2 pins against in the player, sitting in the fixtures instead: an instrument that scores high by never really asking the question. FIX: canary docstrings must be neutral and indistinguishable across classes (e.g. all three read 'Helper.'), so the class is inferable only from code structure. Cheap, and it makes every prior catch_rate comparable only to future ones -- which should be recorded, not hidden.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-05T07:02:17+00:00",
+      "updated": "2026-08-05T07:02:17+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-05T07:02:17+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T187",
+      "title": "The T184 player is structurally blind to 2 of 3 undetectable canaries, and the score does not say so. Its zero-token pre-pass keeps functions whose name occurs at most twice in the tree. The string-dispatch canary shape is _DISPATCH = {\"name\": name}, which puts the name in THREE times (def, dict key string, dict value), so it fails the filter and never reaches the model. Measured directly: probing seed 20260804, c03 and c05 'did NOT survive the pre-filter' while c04 (the _HANDLERS = [X] shape, two occurrences) did. CONSEQUENCE FOR THE SCOREBOARD: the round reported coverage_honesty 0.67, which reads as 'the player correctly declined to claim two undetectable canaries'. The truth is the player was never shown them. Same number, entirely different fact -- a player's restraint and a player's blindness must not render identically, which is this arc's invariant on the scoreboard itself. FIX, two parts: (1) raise MAX_REFS or make the pre-pass reference-shape aware so a name mentioned inside a dict literal still qualifies; (2) more important, have the player REPORT its own filter's exclusions so a candidate it never saw is UNSEEN in the adjudication, never scored as a correct decline.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-05T07:02:18+00:00",
+      "updated": "2026-08-05T07:02:18+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-05T07:02:18+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T188",
+      "title": "doc adopt silently FORKS an atom when a file is re-adopted -- there is no supersede path through the door. Hit live tonight: adopted research/reviewed/season1-first-llm-played-round-2026-08-05.md, then updated the file with confirmed probe evidence and re-adopted it, producing a SECOND atom and a second projection (\u2026_8f898d.md and \u2026_456086.md) with the same title, no link between them, and no indication which is current. The atom schema already carries supersedes/superseded fields -- the projections show them as null -- so the model supports supersession and only the door does not.  exposes exactly two verbs, new and adopt, so an author who improves an adopted document has no correct move: re-adopting forks, and not re-adopting leaves the library holding a stale render of a file that has moved on. NOTE the contrast that makes this a door gap rather than a design choice:  handles this properly -- re-noting the same title supersedes the prior and SAYS SO ('superseded prior ADR_...'). FIX: doc adopt should detect an existing atom for the same source path or title and either supersede it (stamping both sides) or refuse and point at a supersede verb. Until then an updated research doc quietly accumulates duplicate projections, and a reader greping the library gets two answers with no way to tell which one won. NOT deleting the orphan: the substrate is append-only and deletions are Daniil's gate.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-05T07:03:38+00:00",
+      "updated": "2026-08-05T07:03:38+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-05T07:03:38+00:00"
         }
       ]
     }
