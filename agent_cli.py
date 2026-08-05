@@ -1822,6 +1822,7 @@ def cmd_ask(args):
     call. Everything a seat carries exists so a peer can be addressed ASYNCHRONOUSLY and survive
     without the caller -- an answer needs none of it.
     """
+    from core.comm import ask as ask_mod
     from core.comm.ask import ask as ask_helper, ask_many
 
     prompt = " ".join(args.text).strip() if args.text else ""
@@ -1869,6 +1870,22 @@ def cmd_ask(args):
               f"| {d['workers']} workers | {d.get('model')}", file=sys.stderr)
         if o.why:
             print(f"== {o.why}", file=sys.stderr)
+        # T182: "3/3 landed" alone lets one answer read as three findings. Say the agreement --
+        # in three states, because a lexical metric genuinely cannot resolve paraphrase.
+        div, score = d.get("diversity"), d.get("lexical_agreement")
+        if div == "collapsed":
+            print(f"== COLLAPSED: {d['n_compared']} branches at lexical {score:.2f} -- ONE "
+                  f"answer billed {d['n_compared']} times, not {d['n_compared']} findings. "
+                  f"Vary the POSITION (a different question or different evidence per branch), "
+                  f"not the seed.", file=sys.stderr)
+        elif div == "unknown":
+            print(f"== DIVERSITY UNKNOWN: lexical {score:.2f} across {d['n_compared']} branches "
+                  f"sits between the calibrated bands ({ask_mod.DISTINCT_AT:.2f}.."
+                  f"{ask_mod.COLLAPSE_AT:.2f}). Word overlap cannot tell one idea in N "
+                  f"phrasings from N ideas -- read them, or adjudicate with one more call.",
+                  file=sys.stderr)
+        elif div == "distinct":
+            print(f"== branches genuinely differ (lexical {score:.2f})", file=sys.stderr)
         return 0 if o.ok else 1
 
     o = ask_helper(prompt, system=args.system or None, model=args.model or None,

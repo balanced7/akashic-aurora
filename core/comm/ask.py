@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import concurrent.futures
 import os
+import re
 import time
 from pathlib import Path
 from typing import Optional
@@ -152,6 +153,61 @@ def ask(prompt: str, *, system: Optional[str] = None, model: Optional[str] = Non
     return BoundaryOutcome.done(**detail)
 
 
+# T182 bands, CALIBRATED on known-outcome controls rather than chosen. The first cut used one
+# threshold at 0.6 and MISSED the case it was built for: three answers that restated one idea in
+# different words scored 0.19 and read as "diverse". Lexical overlap is brutal on paraphrase.
+#
+#   control                                    score   must read as
+#   identical strings                          1.00    collapsed
+#   same question x3, paraphrased (REAL case)  0.19    cannot tell -> UNKNOWN
+#   five-position wavefront                    0.011   distinct
+#   disjoint nonsense                          0.00    distinct
+#
+# So the honest instrument has THREE outputs, not two. Between the bands it does not know, and
+# saying "distinct" there is the same defect this measurement exists to catch: a detector
+# coercing "I cannot tell" into "all clear".
+COLLAPSE_AT = float(os.getenv("AKASHIC_ASK_COLLAPSE_AT", "0.85"))
+DISTINCT_AT = float(os.getenv("AKASHIC_ASK_DISTINCT_AT", "0.05"))
+_STOPWORDS = frozenset("""
+that this these those with from into onto upon which where when what whom whose
+have will would could should must been being were where there their they them then than
+your yours ours only also just very much more most some such each other another
+about above after again against because before below between during under while
+""".split())
+
+
+def _content_words(text):
+    """Words a reader would call the substance: 4+ chars, stopwords dropped."""
+    return {w for w in re.findall(r"[a-z0-9']+", str(text or "").lower())
+            if len(w) > 3 and w not in _STOPWORDS}
+
+
+def _agreement(answers):
+    """(mean pairwise Jaccard over content words, how many answers were compared).
+
+    None for fewer than two answers, because one answer cannot corroborate itself and 1.0
+    there would be a fabricated corroboration -- the exact reading this measurement exists to
+    prevent.
+
+    WHAT IT CAN AND CANNOT DO, measured rather than asserted. It separates near-verbatim
+    duplication (1.00) from unrelated text (0.00) reliably and for free. It does NOT separate
+    "one idea, three phrasings" (0.19 on the real control) from genuinely different answers
+    (0.011) with any margin worth gating on. That is why the caller gets a BAND, and why the
+    middle band is UNKNOWN rather than a guess: this function is not entitled to a verdict it
+    cannot support.
+    """
+    sets = [s for s in (_content_words(a) for a in answers if a) if s]
+    if len(sets) < 2:
+        return None, len(sets)
+    total = pairs = 0
+    for i in range(len(sets)):
+        for j in range(i + 1, len(sets)):
+            union = sets[i] | sets[j]
+            total += (len(sets[i] & sets[j]) / len(union)) if union else 0.0
+            pairs += 1
+    return round(total / pairs, 4), len(sets)
+
+
 def _fan_client(client):
     """ONE client for the whole fan, or a named configuration failure for the whole fan.
 
@@ -245,10 +301,26 @@ def ask_many(prompts, *, system: Optional[str] = None, model: Optional[str] = No
             "elapsed_s": d.get("elapsed_s"), "model": d.get("model"),
         })
 
+    # T182: does this fan carry N findings, or one finding N times? Measured over the branches
+    # that LANDED -- an outage is not a dissenting voice, and counting it as one would
+    # manufacture diversity out of a failure.
+    agreement, n_compared = _agreement([b["answer"] for b in branches if b["ok"]])
+    if agreement is None:
+        diversity = None                       # one answer cannot agree or disagree with itself
+    elif agreement >= COLLAPSE_AT:
+        diversity = "collapsed"                # near-verbatim: one answer billed N times
+    elif agreement <= DISTINCT_AT:
+        diversity = "distinct"                 # genuinely different answers
+    else:
+        diversity = "unknown"                  # lexical overlap cannot tell paraphrase apart
+    collapsed = diversity == "collapsed"
+
     n = len(prompts)
     detail = {
         "n": n, "n_ok": n_ok, "n_partial": n_partial, "branches": branches,
         "answers": [b["answer"] for b in branches],
+        "lexical_agreement": agreement, "n_compared": n_compared,
+        "diversity": diversity, "collapsed": collapsed,
         # None, never a guess: one unpriced branch makes the fan total unknowable, and a
         # partial sum presented as a total is the same lie one layer up.
         "usd": round(total_usd, 6) if priced_all else None,
