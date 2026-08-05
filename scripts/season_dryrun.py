@@ -62,7 +62,8 @@ def mechanical_player(shadow: str):
 
 def run(k: int = 9, seed: int = 20260804, policy: str = "v1_doc",
         shadow: str = None, key_path: str = None, player=None,
-        player_name: str = "mechanical") -> dict:
+        player_name: str = "mechanical", archive: bool = True,
+        player_config: dict = None) -> dict:
     """T184: `player` is injectable so the loop can be driven by something other than a gate.
 
     The mechanical player cannot claim a `bait` canary by construction -- it only echoes what
@@ -106,8 +107,33 @@ def run(k: int = 9, seed: int = 20260804, policy: str = "v1_doc",
         raise SystemExit("the sealed key no longer matches its digest -- round is void")
     verdict = C.score(manifest, {c["_canary_id"] for c in claims if c["_canary_id"]})
 
+    # T190: the round's evidence outlives the round. Three earlier rounds costing $1.069
+    # printed their claims and discarded them, so a scoreboard replacement had no old-score /
+    # new-score comparison to be judged on. The record goes OUTSIDE git beside the key: claims
+    # carry canary names, so committing one leaks name->class for this seed.
+    round_path = None
+    if archive:
+        try:
+            from scripts.round_archive import archive_round
+            round_path = archive_round({
+                "seed": seed, "k": k, "key_sha256": digest,
+                "player_name": player_name, "player_config": player_config or {},
+                "universe": manifest.get("universe"),
+                "manifest": manifest,          # replay needs the key it was scored against
+                "claims": claims,
+                "scoring": {"policy": scored["policy"], "totals": scored["totals"],
+                            "unscored": scored["unscored"]},
+                "adjudication": verdict,
+            })
+        except Exception as e:
+            # Loud, never silent: a round whose evidence was not stored must SAY so, or the
+            # next replay quietly reads a shorter history than it thinks it has.
+            print(f"[round-archive] FAILED to store this round: {type(e).__name__}: {e}",
+                  file=sys.stderr)
+
     return {
         "seed": seed, "k": k, "key_sha256": digest, "player_name": player_name,
+        "round_path": round_path,
         "universe": manifest.get("universe"),
         "planted": {cls: sum(1 for c in manifest["canaries"] if c["cls"] == cls)
                     for cls in ("catchable", "undetectable", "bait")},
@@ -143,7 +169,8 @@ def main() -> int:
             report_box.update(rep)
             return names
 
-    res = run(k=a.k, seed=a.seed, policy=a.policy, player=player, player_name=a.player)
+    res = run(k=a.k, seed=a.seed, policy=a.policy, player=player, player_name=a.player,
+              player_config={"batch_size": a.batch_size, "workers": a.workers})
     if report_box:
         res["player_report"] = report_box
     if a.json:
@@ -171,6 +198,9 @@ def main() -> int:
     print(f"    coverage honesty             : {v['coverage_honesty']}")
     print(f"    false positives              : {v['false_positives']}")
     print(f"    voided                       : {v['voided']} {v['void_reason']}")
+    stored = res.get("round_path")
+    print("\n  round archived: " + (stored if stored
+                                    else "NOT STORED -- this round cannot be re-scored"))
     if res["unmatched_finds"]:
         print(f"\n  {len(res['unmatched_finds'])} find(s) matched NO canary -- real pre-existing "
               f"findings in the tree, not planted:")

@@ -239,6 +239,7 @@
 - `mirror.py` — mirror.py -- commit local changes and push to GitHub in one step.
 - `rb25_storm_burst.py` — SUPERSEDED tombstone -- points old references to the canonical RB-25 storm-burst drill.
 - `repair_learning_index.py` — Repair `learn:experiments:all` -- the index that decides what recall can SEE.
+- `round_archive.py` — round_archive -- a round's evidence outlives the round, so a scorer can be replaced (T190).
 - `run_job.py` — Durable one-shot job supervision for long Akashic operations (T093).
 - `runner_token_journal.py` — runner_token_journal -- daily token-count ledger (T078 W1: C6 meter).
 - `season_dryrun.py` — season_dryrun -- run the Season 1 bounty loop end to end against a shadow tree (W6).
