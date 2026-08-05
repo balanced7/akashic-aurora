@@ -243,6 +243,7 @@
 - `run_job.py` — Durable one-shot job supervision for long Akashic operations (T093).
 - `runner_token_journal.py` — runner_token_journal -- daily token-count ledger (T078 W1: C6 meter).
 - `season_dryrun.py` — season_dryrun -- run the Season 1 bounty loop end to end against a shadow tree (W6).
+- `season_fan_calibration.py` — Matched DeepSeek calibration: redundant replication versus positional sharding (T195).
 - `season_llm_player.py` — season_llm_player -- an LLM player for the Season 1 bounty loop (T184).
 - `seed_narrative.py` — seed_narrative.py -- dogfood the spine: ingest real git history as Beats, then chronicle.
 - `ship.py` — ship.py -- one disciplined command to ship a slice: GATE -> commit+push -> (lesson) -> snapshot.
