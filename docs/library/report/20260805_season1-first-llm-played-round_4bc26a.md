@@ -1,3 +1,28 @@
+---
+akashic_id: art_20260805_season1-first-llm-played-round_4bc26a
+akashic_sha: a498e965869d
+schema_version: 1
+status: current
+type: report
+date: 2026-08-05
+title: season1-first-llm-played-round
+gist: "# Season 1: the first LLM-played round **2026-08-05, ~03:30-03:45. Run autonomously while Daniil slept, under his standing mandate to build "
+visibility: fleet
+body_type: markdown
+seats: []
+category: [method, conducting]
+origin: authored
+settled: settled
+supersedes: null
+superseded: null
+citations: []
+created: "2026-08-05T03:26:31"
+updated: "2026-08-05T03:26:31"
+---
+<!-- GENERATED PROJECTION of art_20260805_season1-first-llm-played-round_4bc26a -- DO NOT EDIT. The atom is the truth; regeneration overwrites this file. Edit through the doc verbs. -->
+
+# season1-first-llm-played-round
+
 # Season 1: the first LLM-played round
 
 **2026-08-05, ~03:30-03:45. Run autonomously while Daniil slept, under his standing mandate to

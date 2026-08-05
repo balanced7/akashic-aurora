@@ -1,5 +1,5 @@
 {
-  "seq": 188,
+  "seq": 189,
   "tasks": [
     {
       "id": "T001",
@@ -6676,16 +6676,36 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "71836ab",
+      "verified_by": "claude",
       "created": "2026-08-05T07:02:17+00:00",
-      "updated": "2026-08-05T07:02:17+00:00",
+      "updated": "2026-08-05T07:08:43+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-05T07:02:17+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-05T07:04:19+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-05T07:04:19+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-05T07:08:43+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-05T07:08:43+00:00"
         }
       ]
     },
@@ -6697,16 +6717,36 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "71836ab",
+      "verified_by": "claude",
       "created": "2026-08-05T07:02:18+00:00",
-      "updated": "2026-08-05T07:02:18+00:00",
+      "updated": "2026-08-05T07:08:44+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-05T07:02:18+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-05T07:05:11+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-05T07:05:11+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-05T07:08:44+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-05T07:08:44+00:00"
         }
       ]
     },
@@ -6728,6 +6768,27 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-05T07:03:38+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T189",
+      "title": "coverage_honesty REWARDS a capable player for underperforming -- the other half of T185. canary_oracle.score computes coverage_honesty = undetectable.missed / undetectable.total, so MISSING every undetectable canary scores a perfect 1.0. Paired with the K0 void rule (voided = bool(undetectable_hits)) the scoreboard is perverse in both directions at once: a player that FINDS an undetectable canary has its entire round voided as fraud, and a player that misses all of them is scored maximally honest. The scoreboard actively penalises the one capability the season should be hunting for. Both come from one root cause, which T185 names: the class is defined relative to check_wiring ('the class the season must report IT CANNOT SEE'), so for the gate, not claiming them IS honesty -- it genuinely cannot see them, and the scorer's own comment says 'an undetectable canary missed is the gate's blind spot, not the pool's failure'. For a player that provably CAN see them the same number means the opposite. MEASURED BOTH WAYS TONIGHT: an isolating probe with fixture docstrings stripped had the player identify the registered-never-invoked shape with structural reasoning ('no invocation of apply_339e07 or ITERATION OVER _HANDLERS visible') -- capability, not luck. Then the clean round on the fixed harness reported coverage_honesty 1.0 while T187 had already verified all three undetectable canaries DID reach the player. It saw them and declined; the scoreboard called that perfect honesty when it is a recall floor. FIX, alongside T185: the metric must be keyed to the PLAYER'S demonstrated capability, not to the gate's. For a player that cannot see the class, missing it is honesty. For one that can, missing it is a MISS and finding it is the round's most valuable output. Concretely: rename the gate-relative reading (call it blind_spot_respected) and add a separate recall number over the undetectable class for players that have demonstrated they can see it -- so one number stops carrying two opposite meanings depending on who is playing.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-05T07:18:01+00:00",
+      "updated": "2026-08-05T07:18:01+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-05T07:18:01+00:00"
         }
       ]
     }
