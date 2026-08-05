@@ -56,16 +56,27 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Shapes are varied so a single grep signature cannot harvest a whole round. Each entry is a
 # template plus the verdict the gate SHOULD return for it.
+# T186: EVERY TEMPLATE DOCSTRING IS NEUTRAL AND IDENTICAL, and that is load-bearing.
+# They used to describe their own class -- "Registered in a table that nothing ever invokes",
+# "Fan-out path -- unreachable", "Looks dead; is called below". Measured 2026-08-05: the first
+# LLM player's correct verdict on an undetectable canary cited "The comment states the
+# registration table is never invoked". It quoted the fixture. Stripping the docstrings and
+# re-asking still gave 7/7 with structural reasoning, so that result was not manufactured -- but
+# a weaker player WOULD have been flattered, and a harness that grades on label-reading measures
+# reading, not analysis. The class must be inferable ONLY from code structure.
+#
+# COMPARABILITY: catch_rate figures recorded BEFORE this change were taken on an easier board.
+# Do not compare across this line.
 _CATCHABLE = [
-    ('if {flag}:\n    def {name}():\n        """Fan-out path -- unreachable."""\n        return None\n',
+    ('if {flag}:\n    def {name}():\n        """Helper."""\n        return None\n',
      'compound-statement def (T143 shape)'),
-    ('try:\n    import json as _j\n\n    def {name}():\n        """Fallback encoder."""\n        return _j\nexcept ImportError:\n    pass\n',
+    ('try:\n    import json as _j\n\n    def {name}():\n        """Helper."""\n        return _j\nexcept ImportError:\n    pass\n',
      'try-block def (T143 shape)'),
-    ('for _ in range(1):\n    def {name}():\n        """Loop-scoped helper."""\n        return 0\n',
+    ('for _ in range(1):\n    def {name}():\n        """Helper."""\n        return 0\n',
      'loop-scoped def (T143 shape)'),
 ]
 _UNDETECTABLE = [
-    ('def {name}():\n    """Reached only through string dispatch."""\n    return 1\n\n\n_DISPATCH = {{"{name}": {name}}}\n',
+    ('def {name}():\n    """Helper."""\n    return 1\n\n\n_DISPATCH = {{"{name}": {name}}}\n',
      'string-dispatch only (A5 shape)'),
     # CALIBRATED TWICE, 2026-08-04, and the second failure taught the real lesson: I had the
     # detector's semantics INVERTED. This gate does not ask "is the function reachable"; it asks
@@ -77,12 +88,12 @@ _UNDETECTABLE = [
     # WIRING SIGNAL, so the gate sees a mention and waves it through. Both templates here do
     # that -- a dispatch table and a handler list, each naming the function, neither ever
     # invoked. That is the class the season must report it cannot see.
-    ('def {name}():\n    """Registered in a table that nothing ever invokes."""\n    return 2\n\n\n'
+    ('def {name}():\n    """Helper."""\n    return 2\n\n\n'
      '_HANDLERS = [{name}]\n',
      'registered-never-invoked (A5 shape)'),
 ]
 _BAIT = [
-    ('def {name}():\n    """Looks dead; is called below."""\n    return 3\n\n\n_USED = {name}()\n',
+    ('def {name}():\n    """Helper."""\n    return 3\n\n\n_USED = {name}()\n',
      'live function that reads dead'),
 ]
 

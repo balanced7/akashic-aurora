@@ -143,6 +143,57 @@ def test_k5_a_dead_branch_shrinks_coverage_visibly(monkeypatch, tmp_path):
     assert dead == ["fn_1"]
 
 
+def test_k7_a_name_in_a_string_is_not_a_code_reference(monkeypatch, tmp_path):
+    """T187, and it is a third way this instrument flattered itself. Counting raw word
+    occurrences made the string-dispatch shape score THREE (def, key string, value) and fail the
+    <=2 cut, so two of three undetectable canaries were never shown to the player -- and the
+    round scored that as the player correctly DECLINING them. Restraint and blindness rendered
+    identically. Discounting quoted hits is also the semantically right rule: a bare name inside
+    a string is exactly the false wiring signal the A5 class is built from."""
+    got = _candidates_over(monkeypatch, tmp_path, {
+        "dispatch.py": """
+            def string_dispatched():
+                return 1
+
+
+            _DISPATCH = {"string_dispatched": string_dispatched}
+        """,
+    })
+    assert "string_dispatched" in got, (
+        "the def, the quoted key and the value are three raw occurrences but only TWO code "
+        "references; a filter that cannot tell them apart hides this canary class entirely")
+
+
+def test_k8_the_filter_reports_what_it_never_showed_the_model(monkeypatch, tmp_path):
+    """A candidate the pre-pass dropped was not judged LIVE and was not DECLINED -- it was
+    UNSEEN. An adjudicator that cannot distinguish those scores blindness as restraint."""
+    files = {"a.py": "def kept():\n    return 1\n",
+             "b.py": "def popular():\n    return 2\n",
+             "c.py": "from core.b import popular\npopular()\npopular()\npopular()\n"}
+    targets = _tree(tmp_path, files)
+    monkeypatch.setattr("scripts.canary_oracle._resolve_universe", lambda root: (targets, "test"))
+    _fake_fan(monkeypatch, [{"ok": True, "answer": '{"name": "kept", "verdict": "DEAD"}'}])
+    _dead, rep = P.llm_player(str(tmp_path), batch_size=99)
+    assert rep["excluded_by_filter"] >= 1
+    assert "popular" in rep["excluded_names"], (
+        "the round must be able to say WHICH candidates the player never saw")
+
+
+def test_k9_the_canary_fixtures_no_longer_state_their_own_answers():
+    """T186. Every template docstring used to describe its class -- 'Registered in a table that
+    nothing ever invokes', 'Fan-out path -- unreachable', 'Looks dead; is called below'. The
+    first LLM player's correct verdict quoted one of them verbatim. A harness that grades on
+    label-reading measures reading, not analysis."""
+    from scripts import canary_oracle as C
+    for pool in (C._CATCHABLE, C._UNDETECTABLE, C._BAIT):
+        for tmpl, _shape in pool:
+            assert '"""Helper."""' in tmpl, f"template still self-describes: {tmpl[:70]!r}"
+    leaks = ("unreachable", "never invokes", "Looks dead", "string dispatch", "Fallback")
+    blob = "".join(t for pool in (C._CATCHABLE, C._UNDETECTABLE, C._BAIT) for t, _ in pool)
+    for word in leaks:
+        assert word not in blob, f"{word!r} still leaks the class into the fixture"
+
+
 def test_k6_only_dead_verdicts_become_claims(monkeypatch, tmp_path):
     files = {"f.py": "def alpha():\n    return 1\n\n\ndef beta():\n    return 2\n"}
     targets = _tree(tmp_path, files)

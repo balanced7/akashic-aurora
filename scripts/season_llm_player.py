@@ -74,8 +74,12 @@ Answer with ONE JSON object per line and nothing else:
 """
 
 
-def candidates(shadow_root: str):
-    """The zero-token pass: low-reference function definitions, with a reading window."""
+def candidates(shadow_root: str, *, with_excluded: bool = False):
+    """The zero-token pass: low-reference function definitions, with a reading window.
+
+    `with_excluded` returns what the filter DROPPED, so a caller can report what its player was
+    never shown instead of letting silence read as judgment (T187).
+    """
     from scripts import canary_oracle as C
     files, _src = C._resolve_universe(shadow_root)
     files = [f for f in files if os.path.isfile(f)]
@@ -88,14 +92,24 @@ def candidates(shadow_root: str):
             continue
     blob = "\n".join(texts.values())
 
-    out = []
+    out, excluded = [], []
     for path, text in texts.items():
         lines = text.splitlines()
         for m in DEF_RE.finditer(text):
             name = m.group(1)
             if name.startswith("__"):
                 continue
-            if len(re.findall(rf"\b{re.escape(name)}\b", blob)) > MAX_REFS:
+            esc = re.escape(name)
+            # A NAME INSIDE A STRING LITERAL IS NOT A CODE REFERENCE (T187). Counting raw word
+            # occurrences made the string-dispatch shape -- _DISPATCH = {"foo": foo} -- score
+            # THREE (def, key string, value) and fail the cut, so two of three undetectable
+            # canaries were never shown to the player and the round scored that as a correct
+            # DECLINE. Discounting quoted hits is also the semantically right rule: a bare name
+            # in a string is exactly the false wiring signal the A5 class is built from.
+            refs = (len(re.findall(rf"\b{esc}\b", blob))
+                    - len(re.findall(rf"""['"]{esc}['"]""", blob)))
+            if refs > MAX_REFS:
+                excluded.append({"name": name, "refs": refs})
                 continue
             ln = text[:m.start()].count("\n")
             out.append({
@@ -104,7 +118,7 @@ def candidates(shadow_root: str):
                 "line": ln + 1,
                 "window": "\n".join(lines[max(0, ln - WINDOW_BEFORE): ln + WINDOW_AFTER]),
             })
-    return out
+    return (out, excluded) if with_excluded else out
 
 
 def _batch_prompt(batch):
@@ -141,7 +155,7 @@ def llm_player(shadow_root: str, *, batch_size: int = 20, workers: int = 6,
     """Play one round. Returns (names_judged_dead, report)."""
     from core.comm.ask import ask_many
 
-    cands = candidates(shadow_root)
+    cands, excluded = candidates(shadow_root, with_excluded=True)
     if limit:
         cands = cands[:limit]
     batches = [cands[i:i + batch_size] for i in range(0, len(cands), batch_size)]
@@ -167,6 +181,10 @@ def llm_player(shadow_root: str, *, batch_size: int = 20, workers: int = 6,
         # let a branch that answered nothing read as a branch that cleared everything.
         "unjudged": len(cands) - len(verdicts),
         "dead_calls": len(dead),
+        # T187: what the filter never showed the model. A canary in here was not DECLINED, it was
+        # UNSEEN, and an adjudicator that cannot tell those apart scores blindness as restraint.
+        "excluded_by_filter": len(excluded),
+        "excluded_names": sorted(e["name"] for e in excluded),
         "why": {n: verdicts[n]["why"] for n in dead[:20]},
     }
 
