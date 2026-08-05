@@ -300,6 +300,45 @@ def summarize(manifest: dict, call_plan, branches) -> dict:
     }
 
 
+def _public_score(score: dict) -> dict:
+    """Strip identity-bearing lists while retaining every aggregate needed for the ruling."""
+    by_class = {}
+    for cls, row in score.get("by_class", {}).items():
+        by_class[cls] = {key: value for key, value in row.items() if key != "ids"}
+    return {
+        "by_class": by_class,
+        "claims": score.get("claims"),
+        "true_positives": score.get("true_positives"),
+        "precision": score.get("precision"),
+        "false_positives": score.get("false_positives"),
+        "unknown_claims": len(score.get("unknown_claims", [])),
+        "capability_findings": len(score.get("capability_findings", [])),
+    }
+
+
+def public_summary(summary: dict) -> dict:
+    """Return the terminal-safe projection; verbatim identities remain only in the archive."""
+    arms = {}
+    for arm, row in summary.get("arms", {}).items():
+        positions = row.get("positions", [])
+        arms[arm] = {
+            key: value for key, value in row.items()
+            if key not in {"score", "positions"}
+        }
+        arms[arm]["score"] = _public_score(row.get("score", {}))
+        arms[arm]["parse_anomalies"] = {
+            "missing_items": sum(
+                len(pos.get("parse", {}).get("missing_items", [])) for pos in positions),
+            "unknown_items": sum(
+                len(pos.get("parse", {}).get("unknown_items", [])) for pos in positions),
+            "conflicts": sum(
+                len(pos.get("parse", {}).get("conflicts", [])) for pos in positions),
+            "invalid_lines": sum(
+                int(pos.get("parse", {}).get("invalid_lines", 0)) for pos in positions),
+        }
+    return {"arms": arms, "prompt_char_gap": summary.get("prompt_char_gap")}
+
+
 def adjudicate(summary: dict, *, prompt_tolerance: float = 0.05,
                min_judgment_coverage: float = 0.80,
                precision_tolerance: float = 0.10) -> dict:
@@ -485,7 +524,10 @@ def run(*, seed: int = 20260805, packet_count: int = 4, packet_size: int = 8,
 
     return {
         "config": record["config"],
-        "summary": summary,
+        # The internal summary carries canary ids in per-position receipts.  Terminal output is
+        # a retrieval surface too, so return only the identity-free aggregate; the verbatim
+        # summary already lives in the external archive.
+        "summary": public_summary(summary),
         "decision": decision,
         "protocol": protocol,
         "archive_path": archive_path,

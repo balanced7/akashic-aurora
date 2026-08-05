@@ -233,3 +233,6 @@ def test_run_uses_one_combined_fan_with_matched_controls(tmp_path, monkeypatch):
     assert got["decision"]["ruling"] == "SHARDING"
     assert got["protocol"]["validity"] == "VALID"
     assert os.path.isfile(got["archive_path"])
+    rendered = json.dumps(got, sort_keys=True)
+    assert all(c["id"] not in rendered for c in manifest["canaries"]), (
+        "the external archive keeps identities, but CLI/terminal output is a retrieval plane")
