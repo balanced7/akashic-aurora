@@ -81,7 +81,19 @@ def run(k: int = 9, seed: int = 20260804, policy: str = "v1_doc",
     manifest = C.plant(shadow, k=k, seed=seed)
     digest = C.seal(manifest, key_path)
 
-    found = (player or mechanical_player)(shadow)
+    # A model player produces TWO load-bearing outputs: names to turn into claims, and the
+    # coverage/reasoning report that explains how those names were produced.  T190 archived the
+    # claims but the CLI used to attach the report only after run() returned -- after the archive
+    # boundary had already passed.  Keep the products together at the player boundary so display
+    # and durable replay cannot diverge (T191).  A list-only return remains the mechanical-player
+    # contract; only the explicit (names, dict-report) shape is treated as the richer result.
+    player_output = (player or mechanical_player)(shadow)
+    player_report = None
+    if (isinstance(player_output, tuple) and len(player_output) == 2
+            and isinstance(player_output[1], dict)):
+        found, player_report = player_output
+    else:
+        found = player_output
 
     known = {c["name"]: c for c in manifest["canaries"]}
     claims, stream = [], 1785860000000
@@ -115,7 +127,7 @@ def run(k: int = 9, seed: int = 20260804, policy: str = "v1_doc",
     if archive:
         try:
             from scripts.round_archive import archive_round
-            round_path = archive_round({
+            round_record = {
                 "seed": seed, "k": k, "key_sha256": digest,
                 "player_name": player_name, "player_config": player_config or {},
                 "universe": manifest.get("universe"),
@@ -124,14 +136,17 @@ def run(k: int = 9, seed: int = 20260804, policy: str = "v1_doc",
                 "scoring": {"policy": scored["policy"], "totals": scored["totals"],
                             "unscored": scored["unscored"]},
                 "adjudication": verdict,
-            })
+            }
+            if player_report is not None:
+                round_record["player_report"] = player_report
+            round_path = archive_round(round_record)
         except Exception as e:
             # Loud, never silent: a round whose evidence was not stored must SAY so, or the
             # next replay quietly reads a shorter history than it thinks it has.
             print(f"[round-archive] FAILED to store this round: {type(e).__name__}: {e}",
                   file=sys.stderr)
 
-    return {
+    result = {
         "seed": seed, "k": k, "key_sha256": digest, "player_name": player_name,
         "round_path": round_path,
         "universe": manifest.get("universe"),
@@ -144,6 +159,9 @@ def run(k: int = 9, seed: int = 20260804, policy: str = "v1_doc",
         "unmatched_finds": [c["dedupe_key"] for c in claims if not c["_canary_id"]],
         "shadow": shadow,
     }
+    if player_report is not None:
+        result["player_report"] = player_report
+    return result
 
 
 def main() -> int:
@@ -160,19 +178,15 @@ def main() -> int:
     ap.add_argument("--workers", type=int, default=6)
     a = ap.parse_args()
 
-    player, report_box = None, {}
+    player = None
     if a.player == "llm":
         from scripts.season_llm_player import llm_player
 
         def player(shadow):                                     # noqa: F811
-            names, rep = llm_player(shadow, batch_size=a.batch_size, workers=a.workers)
-            report_box.update(rep)
-            return names
+            return llm_player(shadow, batch_size=a.batch_size, workers=a.workers)
 
     res = run(k=a.k, seed=a.seed, policy=a.policy, player=player, player_name=a.player,
               player_config={"batch_size": a.batch_size, "workers": a.workers})
-    if report_box:
-        res["player_report"] = report_box
     if a.json:
         print(json.dumps(res, indent=2))
         return 0

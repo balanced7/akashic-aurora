@@ -1,5 +1,5 @@
 {
-  "seq": 189,
+  "seq": 193,
   "tasks": [
     {
       "id": "T001",
@@ -6789,6 +6789,136 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-05T07:18:01+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T190",
+      "title": "Archive the round record so a round can be RE-SCORED without being re-played. Found while checking codex_root's proposed step 'replay the existing three rounds through scoreboard v2 before buying another model call': it is currently impossible. The nine surviving season_dryrun temp dirs hold key.json and shadow -- and no claims. The player's output was printed and never persisted, so there is nothing to re-score. Three rounds at $1.069 produced evidence and discarded it, which is this arc's invariant applied to the round itself. WHY IT BLOCKS EVERYTHING ELSE: the scoreboard ontology slice (T185+T189 merged) needs an old/new comparison to be trustworthy, and without archived rounds the next LIVE round becomes the new scorer's test fixture -- an instrument validated on the only data it will ever be judged by. TRUST BOUNDARY, which decides where this lives: a round record must carry the CLAIMS, and claims carry dedupe_key canary::<name>, so a committed record would leak name->class for that seed and let a replay of the same seed cheat. canary_oracle already refuses to seal anywhere git tracks and season_dryrun defaults the key outside the repo; the round record inherits exactly that boundary -- it lives BESIDE the key, outside git, and may therefore also carry the manifest so replay is self-contained. The repo gets only summary metrics and digests. SCOPE: archive_round writes seed, k, key_sha256, universe, planted counts, player name and config, full claims, the player report (verdicts, why, unjudged, excluded), scoring and adjudication; replay_round re-scores stored claims with NO model call. Acceptance includes the point of the whole thing -- the same stored claims scored under a DIFFERENT scorer must produce a different verdict, or replay is decorative.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "94da571",
+      "verified_by": "claude",
+      "created": "2026-08-05T12:26:03+00:00",
+      "updated": "2026-08-05T12:30:21+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-05T12:26:03+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-05T12:26:03+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-05T12:26:04+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-05T12:30:20+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-05T12:30:21+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T191",
+      "title": "LLM round archives preserve the player report before any scorer or matched fan spend",
+      "desc": "",
+      "owner": "codex_root",
+      "deps": [],
+      "files": [
+        "scripts/season_dryrun.py",
+        "tests/test_t191_llm_round_archive_keeps_player_report.py"
+      ],
+      "acceptance": "RED pin first: an injectable player returning names plus a structured report must place that exact report in both the returned round and the external archive; legacy list-only players remain compatible; no model call. Tier: no fence, two files, trivial-revert seam bug.",
+      "status": "verifying",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-05T12:41:45+00:00",
+      "updated": "2026-08-05T12:46:04+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "codex_root",
+          "at": "2026-08-05T12:41:45+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-05T12:42:01+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "codex_root",
+          "at": "2026-08-05T12:42:05+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "codex_root",
+          "at": "2026-08-05T12:46:04+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T192",
+      "title": "Foreign doc-currency debt blocks every ship: ratified status is rejected and Bifrost orientation is unstamped",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [
+        "docs/ORG.md",
+        "docs/WORKING-METHOD.md",
+        "docs/bifrost-new-seat-orientation.md",
+        "scripts/checkers/check_doc_currency.py"
+      ],
+      "acceptance": "Preserve the ratification semantics while making the checker and headers share one current/superseded/historical vocabulary; py scripts/checkers/check_doc_currency.py passes globally with no new allowlist or bypass.",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-05T12:47:54+00:00",
+      "updated": "2026-08-05T12:47:54+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "codex_root",
+          "at": "2026-08-05T12:47:54+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T193",
+      "title": "Expired suite baseline and 30 new failures block global ship verdict; refresh only from a clean reproducible run",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [
+        "core/coord/suite_baseline.py",
+        "scripts/ship_gate.py"
+      ],
+      "acceptance": "From a clean detached worktree at current HEAD, run the full suite to completion, classify every failure by owner and cause, then deliberately record a fresh baseline only if the clean run is reproducible; ship_gate --run reports zero NEW and no expired baseline.",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-05T12:57:55+00:00",
+      "updated": "2026-08-05T12:57:55+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "codex_root",
+          "at": "2026-08-05T12:57:55+00:00"
         }
       ]
     }
