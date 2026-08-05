@@ -41,13 +41,15 @@ def test_capture_roundtrip():
     el = _log()
     ev = el.capture("tool_call", "ran pytest", detail={"cmd": "pytest -q"},
                     agent_id="opencode", session_id="abc123", refs=["git:deadbeef"])
-    assert ev is not None
-    assert ev["kind"] == "tool_call"
-    assert ev["summary"] == "ran pytest"
-    assert ev["agent_id"] == "opencode"
-    assert ev["detail"] == {"cmd": "pytest -q"}
-    assert ev["refs"] == ["git:deadbeef"]
-    assert ev["id"] and ev["_ref"] == event_ref(RAW_STREAM, ev["id"])
+    # T179: capture returns a BoundaryOutcome. The stored event is o.detail; the followable
+    # pointer is o.ref. Every assertion below is the one this test always made.
+    assert ev.ok and not ev.partial
+    assert ev.detail["kind"] == "tool_call"
+    assert ev.detail["summary"] == "ran pytest"
+    assert ev.detail["agent_id"] == "opencode"
+    assert ev.detail["detail"] == {"cmd": "pytest -q"}
+    assert ev.detail["refs"] == ["git:deadbeef"]
+    assert ev.detail["id"] and ev.ref == event_ref(RAW_STREAM, ev.detail["id"])
     # readable back off the firehose
     back = el.recent(10)
     assert len(back) == 1 and back[0]["summary"] == "ran pytest"
@@ -71,9 +73,9 @@ def test_recent_is_newest_first():
 def test_get_resolves_ref():
     el = _log()
     ev = el.capture("observation", "found a bug", agent_id="claude")
-    again = el.get(ev["_ref"])
+    again = el.get(ev.ref)
     assert again is not None and again["summary"] == "found a bug"
-    assert again["id"] == ev["id"]
+    assert again["id"] == ev.detail["id"]
 
 
 def test_get_bad_ref_returns_none():
@@ -86,7 +88,7 @@ def test_get_bad_ref_returns_none():
 def test_open_vocab_kind_preserved():
     el = _log()
     ev = el.capture("weird_custom_kind", "x", agent_id="a")
-    assert ev["kind"] == "weird_custom_kind"   # open vocab: NOT downgraded to 'note'
+    assert ev.detail["kind"] == "weird_custom_kind"   # open vocab: NOT downgraded to 'note'
 
 
 # ----------------------------------------------------------------- per-agent index
@@ -111,26 +113,26 @@ def test_per_agent_stream_name_sanitized():
 
 def test_capture_never_raises_on_bad_input():
     el = _log()
-    assert el.capture("note", None, agent_id=None) is not None        # None summary -> ""
-    assert el.capture(None, "s") is not None                          # None kind -> 'note'
+    assert el.capture("note", None, agent_id=None).ok                 # None summary -> ""
+    assert el.capture(None, "s").ok                                   # None kind -> 'note'
     huge = "x" * 50000
     ev = el.capture("note", huge, detail={"blob": huge})
-    assert ev is not None
-    assert ev["summary"].endswith("...[clipped]")                     # summary clipped
-    assert ev["detail"].get("_truncated") is True                     # detail bounded
+    assert ev.ok
+    assert ev.detail["summary"].endswith("...[clipped]")              # summary clipped
+    assert ev.detail["detail"].get("_truncated") is True              # detail bounded
 
 
 def test_capture_handles_unserializable_detail():
     el = _log()
     ev = el.capture("note", "weird", detail={"obj": object()})
-    assert ev is not None                                             # default=str saves it
+    assert ev.ok                                                      # default=str saves it
     # round-trips as JSON (the stored event must be serializable)
     json.dumps(el.recent(1)[0], default=str)
 
 
 def test_missing_kind_defaults_to_note():
     el = _log()
-    assert el.capture("", "s")["kind"] == "note"
+    assert el.capture("", "s").detail["kind"] == "note"
 
 
 def test_fuzz_order_and_invariants():

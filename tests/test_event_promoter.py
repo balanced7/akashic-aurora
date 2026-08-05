@@ -115,7 +115,7 @@ def test_promoted_beat_points_at_atom():
     ev = eq.log.capture("command", "error: critical failure", at="2026-06-22T12:00:00")
     promote_salient(store, eq, threshold=3, max_promote=50)
     beat = next(b for b in BeatLog(store).recent(100) if b.summary == "error: critical failure")
-    assert beat.source == ev["_ref"]                         # provenance preserved
+    assert beat.source == ev.ref                             # provenance preserved
     # and the bridge can drill back from the Beat to the raw atom
     res = raw_for_beat(beat.id, store=store, event_query=eq)
     assert res["atom"] is not None and res["atom"]["summary"] == "error: critical failure"

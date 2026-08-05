@@ -36,6 +36,7 @@ from typing import Any, Dict, List, Optional
 
 from core.foundation.ledger import Ledger, create_ledger
 from core.foundation.timeutil import now_iso
+from core.outcome import BoundaryOutcome
 
 logger = logging.getLogger("event_log")
 
@@ -107,12 +108,26 @@ class EventLog:
                 detail: Optional[Dict[str, Any]] = None,
                 agent_id: Optional[str] = None, session_id: str = "",
                 refs: Optional[List[str]] = None, track: Optional[str] = None,
-                at: Optional[str] = None) -> Optional[Dict[str, Any]]:
+                at: Optional[str] = None) -> BoundaryOutcome:
         """Append one raw event to events:raw (+ the per-agent stream).
 
-        Returns the stored event enriched with its assigned `id` and `_ref`
-        (event:<stream>:<id>), or None on a refusal. NEVER raises -- a capture hiccup
-        must not break the host command.
+        THREE STATES, because the situation has three (T179):
+          done       the record is on the firehose and every index is current
+          PARTIALLY  the record is on the firehose, an index is behind -- NOT a lost event
+          failed     the canonical emit itself failed; the event really is gone
+
+        `detail` carries the stored event (its `id` and `_ref`, the followable
+        event:<stream>:<id> pointer), and `ref` is that pointer directly.
+
+        The old return was dict-or-None: two states for three situations, so "record written,
+        index behind" had to be squeezed into one of them and the code chose LOST -- logging
+        "capture failed (ignored)" for an event that was safely stored. Callers may still
+        ignore the result; __bool__ is false for both failed and partial, so nobody who starts
+        reading it mistakes a degraded write for a clean one.
+
+        NEVER raises on an Exception -- a capture hiccup must not break the host command.
+        BaseException (Ctrl-C, SystemExit) passes through on purpose: a telemetry write that
+        eats the operator makes a hung capture unkillable.
 
         `track` is an OPTIONAL pass-through: this is a pure domain primitive (it knows
         nothing of narrative Tracks). Routing a raw event to a Track is a narrative
@@ -134,19 +149,37 @@ class EventLog:
             # The canonical firehose is the system of record AND the source of the
             # followable id (reads resolve event:<RAW_STREAM>:<id> against it).
             eid = self.ledger.emit(RAW_STREAM, event, maxlen=CANONICAL_MAXLEN)
-            try:
-                self.ledger.emit(per_agent_stream(agent), event, maxlen=PER_AGENT_MAXLEN)
-            except Exception:
-                pass   # the per-agent stream is a convenience index; canonical is the record
-            out = dict(event)
-            out["id"] = str(eid)
-            out["_ref"] = event_ref(RAW_STREAM, str(eid))
-            if self.index is not None:
-                self.index.add(out)   # best-effort; the Ledger write above is the record
-            return out
         except Exception as e:
-            logger.warning(f"capture failed (ignored): {type(e).__name__}: {e}")
-            return None
+            logger.warning(f"capture failed: {type(e).__name__}: {e}")
+            return BoundaryOutcome.caught(e, where="capture(canonical emit)")
+
+        # ---- THE RECORD IS WRITTEN. Everything below is a convenience INDEX (T179) ----
+        # These two used to sit inside the try above, so an index failure was caught by the
+        # same handler, logged "capture failed (ignored)" and returned None -- reporting a
+        # LOST event that was safely on the firehose. A boundary lying in the opposite
+        # direction from T149. The lie had nowhere else to go because dict-or-None is two
+        # states for three situations; PARTIALLY is the missing one.
+        out = dict(event)
+        out["id"] = str(eid)
+        out["_ref"] = event_ref(RAW_STREAM, str(eid))
+
+        behind = []
+        try:
+            self.ledger.emit(per_agent_stream(agent), event, maxlen=PER_AGENT_MAXLEN)
+        except Exception as e:
+            behind.append(f"per-agent stream ({type(e).__name__}: {e})")
+        if self.index is not None:
+            try:
+                self.index.add(out)
+            except Exception as e:
+                behind.append(f"time index ({type(e).__name__}: {e})")
+
+        if behind:
+            why = ("event IS on the canonical firehose; convenience index(es) behind -- "
+                   + "; ".join(behind))
+            logger.warning(f"capture partial: {why}")
+            return BoundaryOutcome.partially(why, ref=out["_ref"], **out)
+        return BoundaryOutcome.done(ref=out["_ref"], **out)
 
     # --------------------------------------------------------------- read
     def recent(self, limit: int = 20, *, agent: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -282,18 +315,26 @@ class EventLog:
             return {"_repr": blob[:_MAX_DETAIL_CHARS]}
 
 
-def capture_event(kind: str, summary: str, **kwargs) -> Optional[Dict[str, Any]]:
+def capture_event(kind: str, summary: str, **kwargs) -> BoundaryOutcome:
     """Best-effort one-liner for hot-path hooks: capture one raw event via the singleton.
 
-    Swallows EVERYTHING (including import/connect failures the caller can't foresee), so a
+    Swallows EVERY Exception (including import/connect failures the caller can't foresee), so a
     hook site reduces to ``capture_event(...)`` with no try/except of its own and zero risk
     of breaking the host command (commit, boot, learn, session). The auto-logger's prime
     directive: capturing the story must never cost you the thing you were doing.
+
+    BaseException (Ctrl-C, SystemExit) deliberately passes through -- a telemetry write that
+    eats the operator makes a hung capture unkillable, which is worse than the loss it prevents.
+
+    Returns a BoundaryOutcome, never a bare None (T179): "the singleton could not be built" is
+    a real answer, and the old None made it indistinguishable from "nothing to say". Callers may
+    keep ignoring the result -- __bool__ keeps ``if capture_event(...)`` honest for the ones that
+    start reading it.
     """
     try:
         return get_event_log().capture(kind, summary, **kwargs)
-    except Exception:
-        return None
+    except Exception as e:
+        return BoundaryOutcome.caught(e, where="capture_event(singleton)")
 
 
 _INSTANCE: Optional[EventLog] = None

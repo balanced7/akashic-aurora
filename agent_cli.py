@@ -3260,15 +3260,23 @@ def cmd_events(args):
                 print("ERROR: --detail-json must be valid JSON.")
                 return 2
         refs = [r for r in (args.refs or "").split(",") if r.strip()] or None
-        ev = get_event_log().capture(args.kind or "note", args.summary or "",
-                                     detail=detail, agent_id=args.agent, refs=refs,
-                                     track=args.track)
+        o = get_event_log().capture(args.kind or "note", args.summary or "",
+                                    detail=detail, agent_id=args.agent, refs=refs,
+                                    track=args.track)
+        # T179: three states, so the render has three. This used to read dict-or-None and print
+        # FAIL for anything that was not a clean dict -- including a write that LANDED with a
+        # convenience index behind. Reporting a stored event as lost is the defect being fixed;
+        # repeating it at the door would just move it.
+        state = "OK" if o else ("PARTIAL" if o.partial else "FAIL")
         if args.json:
-            print(json.dumps(ev, default=str))
+            print(json.dumps({"ok": o.ok, "partial": o.partial, "why": o.why,
+                              "ref": o.ref, "event": o.detail}, default=str))
         else:
-            print(f"[{'OK' if ev else 'FAIL'}] captured {args.kind or 'note'}: "
-                  f"{_clip(args.summary or '', 80)}" + (f"  -> {ev['_ref']}" if ev else ""))
-        return 0 if ev else 1
+            print(f"[{state}] captured {args.kind or 'note'}: "
+                  f"{_clip(args.summary or '', 80)}" + (f"  -> {o.ref}" if o.ref else ""))
+            if o.why:
+                print(f"  {o.why}")
+        return 0 if o.ok else 1
 
     # --promote: consolidate salient raw events into Beats (reflection; rate-limited)
     if args.promote:

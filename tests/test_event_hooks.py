@@ -127,7 +127,11 @@ def test_hook_survives_capture_failure(monkeypatch):
         raise RuntimeError("simulated auto-logger failure")
     # break the logger at its root; capture_event must swallow it
     monkeypatch.setattr(event_log, "get_event_log", boom)
-    assert event_log.capture_event("note", "should not raise") is None
+    # T179: capture_event returns a BoundaryOutcome instead of a bare None. The claim this
+    # test makes is unchanged and slightly stronger: it must not RAISE, and the failure must
+    # SAY what happened rather than being indistinguishable from "nothing to report".
+    o = event_log.capture_event("note", "should not raise")
+    assert o.ok is False and "simulated auto-logger failure" in o.why
     # the host hook still returns success despite the broken logger
     rc = agent_cli.cmd_log(_Args(kind="note", summary=f"resilient_{uuid.uuid4().hex[:6]}",
                                  source="x:y", category="", task=""))

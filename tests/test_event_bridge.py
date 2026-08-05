@@ -130,7 +130,7 @@ def test_raw_for_beat_resolves_atom():
     store, eq = _ctx()
     ev = eq.log.capture("file_edit", "edited the file", at="2026-06-22T12:00:00")
     b = Beat(id="b1", at="2026-06-22T12:00:00", kind="commit", summary="commit it",
-             source=ev["_ref"])           # the Beat points AT the raw atom
+             source=ev.ref)               # the Beat points AT the raw atom
     store.set(beat_key("b1"), json.dumps(b.to_dict()))
     res = raw_for_beat("b1", store=store, event_query=eq)
     assert res["atom"] is not None and res["atom"]["summary"] == "edited the file"
@@ -177,8 +177,8 @@ def test_cli_story_beat_raw(capsys):
     store = create_store()
     t = "2026-06-15T12:00:00"
     ev = get_event_log().capture("tool_call", "RAWDRILL_" + uuid.uuid4().hex[:6], at=t)
-    beat = BeatLog(store).emit("note", "a beat with raw beneath it", source=ev["_ref"], at=t)
+    beat = BeatLog(store).emit("note", "a beat with raw beneath it", source=ev.ref, at=t)
     rc = agent_cli.cmd_story(FakeArgs(beat=beat.id, raw=True), store=store)
     assert rc == 0
     out = capsys.readouterr().out
-    assert ev["summary"] in out               # drilled from the beat into the raw record
+    assert ev.detail["summary"] in out        # drilled from the beat into the raw record
