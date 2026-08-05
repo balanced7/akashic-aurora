@@ -37,7 +37,7 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 - `scripts/checkers` -- DRIFT (12->16), reviewed 2026-07-26
 - `scripts/generators` -- DRIFT (6->7), reviewed 2026-07-26
 - `scripts/ops` -- DRIFT (2->3), reviewed 2026-07-26
-- `tests` -- DRIFT (331->449), reviewed 2026-07-26
+- `tests` -- DRIFT (331->450), reviewed 2026-07-26
 
 ---
 
@@ -514,7 +514,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `tests` -- 449 modules  ·  DRIFT (331->449)
+## `tests` -- 450 modules  ·  DRIFT (331->450)
 
 **What it does.** 331 test modules plus conftest, providing universal backend isolation, a parity exerciser shared across store backends, and a differential harness that cross-verifies two implementations of the same semantics.
 
