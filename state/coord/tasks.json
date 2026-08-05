@@ -1,5 +1,5 @@
 {
-  "seq": 159,
+  "seq": 167,
   "tasks": [
     {
       "id": "T001",
@@ -5637,15 +5637,15 @@
       "id": "T157",
       "title": "T157 WIRE-B: rewrite the wire journal write path as sharded + async before extending it to any other runner. MEASURED baseline (note wire-perf-baseline): the shipped synchronous record() is a lock convoy costing ~8266us mean / 21891us p99 of CALLER-BLOCKING time per round trip at 20 threads, growing linearly with concurrency. Four-way benchmark at 20 threads: monolith 7458us, sharded-only 3055us, async-only 0.8us, sharded+async 0.8us mean with a 4.2x better worst case (96us vs 405us). Two defects wearing one costume: work on the caller's thread (fixed only by a bounded non-blocking enqueue) and a shared resource (fixed only by sharding). Ship BOTH: per-agent shards for ISOLATION (a runaway player cannot starve the writer or blind other players; attribution becomes free; per-player quota becomes expressible) plus background writers for latency, with backpressure that DROPS AND COUNTS rather than blocking an API call. Promote scratchpad bench_wire_hotpath.py + bench_shard.py into tests/ as the pre-registered perf pin. BLOCKS: extending WireJournal to gemini/kimi/sol runners. Daniil 2026-08-04: 'I dont want things stalled on performance because we built things in singlethreaded ways.'",
       "desc": "",
-      "owner": "",
+      "owner": "claude",
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "approved",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "fcf697a",
+      "verified_by": "41 pins green (22 T156 + 11 T157); measured 9701us -> 7.6us mean caller-side at 20 threads, 0 drops; deepseek design fence F1+F2 adopted and pinned as P10/P11",
       "created": "2026-08-04T06:12:10+00:00",
-      "updated": "2026-08-04T06:12:10+00:00",
+      "updated": "2026-08-04T14:00:07+00:00",
       "history": [
         {
           "to": "proposed",
@@ -5656,6 +5656,26 @@
           "to": "approved",
           "by": "user",
           "at": "2026-08-04T06:12:10+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-04T14:00:06+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-08-04T14:00:06+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-04T14:00:07+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-04T14:00:07+00:00"
         }
       ]
     },
@@ -5694,15 +5714,15 @@
       "id": "T159",
       "title": "T159 (found by the T158 canary oracle on its calibration run): check_wiring misses a try-block def in at least one reachable core module. Planted canary core/recall/precision_audit.py::resolve_5eac8c -- shape 'try: import x / def NAME()' at module level -- is SEEN by public_defs (confirmed: it appears in the returned list), the module IS reachable from entry points (confirmed via analyze()), and the name is referenced nowhere -- yet the gate reports only 2 NEW unwired functions and never names it. Two sibling canaries of the compound-statement and loop-scoped shapes in other core modules WERE caught in the same run, so the descent works generally; something about this shape or this file suppresses it. Detector health measured 0.67 (2/3) where it should be 1.0. Reproduce: git worktree add --detach <shadow> HEAD; py -c 'from scripts import canary_oracle as C; C.plant(<shadow>, k=9, seed=4242)'; run check_wiring in the shadow. This is the wiring gate's FOURTH hole after T143/T144/T146 and the first found by an instrument rather than a red-team seat.",
       "desc": "",
-      "owner": "",
+      "owner": "claude",
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "approved",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "11aeb3e",
+      "verified_by": "pins K9-K15 green; 3/3 real mutations caught (M1 is a labelled null control); two-arm experiment with shape+seed held constant refuted the filed diagnosis",
       "created": "2026-08-04T13:23:04+00:00",
-      "updated": "2026-08-04T13:23:04+00:00",
+      "updated": "2026-08-04T13:45:38+00:00",
       "history": [
         {
           "to": "proposed",
@@ -5713,6 +5733,300 @@
           "to": "approved",
           "by": "user",
           "at": "2026-08-04T13:23:04+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-04T13:45:32+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-08-04T13:45:37+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-04T13:45:38+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-04T13:45:38+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T160",
+      "title": "T160 (found while preparing W5, the wire-journal extension to gemini/kimi/sol): EVERY wire record in the live journal is attributed to 'unknown'. Measured 2026-08-04: 102 of 102 records in state/wire carry agent='unknown'. BIFROST_AGENT appears exactly ONCE in the entire repo -- scripts/wire_journal.py:138, the line that READS it. Nothing anywhere SETS it. Consequences: (1) core/comm/doctor.py:1146 calls journal().expert(agent=agent) for each seat, which has therefore matched NOTHING since T156 shipped -- the fleet's wire forensics renders empty and calls itself clean; (2) T157's per-agent sharding and per-shard drop attribution would be INERT in production, every seat landing in one 'unknown' shard, so the isolation property is real in the pins and absent on the machine; (3) extending the journal to three more runners (W5) would triple a defect rather than triple coverage. The existing pin test_c6_agent_scope_isolates passes because it passes agent= EXPLICITLY -- it tests the mechanism, never the wiring. This is 'built != wired' one level below where check_wiring can see it: the function IS called, but the DATA that gives it meaning never arrives. ACCEPTANCE: a runner's wire records carry that runner's agent id; a structural pin fails if any scripts/bifrost_runner_*.py can reach a model call without stamping its seat identity.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "3c931b1",
+      "verified_by": "5 pins green; verified end-to-end seat->journal.agent->record->shard dir; 46 wire pins green; all 4 runners parse and the runner_lib door resolves at runtime",
+      "created": "2026-08-04T14:03:11+00:00",
+      "updated": "2026-08-04T14:07:03+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-04T14:03:11+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-04T14:07:02+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-04T14:07:02+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-08-04T14:07:02+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-04T14:07:03+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-04T14:07:03+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T161",
+      "title": "T161: extend wire capture to every seat (W5). kimi/gemini/sol had made model calls since T156 with NO wire record -- system_fingerprint (the silent model-swap detector) unobservable for three quarters of the fleet, which makes any champion-vs-challenger tournament comparison silently invalid. Blocked until T157 (convoy) and T160 (attribution) landed, because extending a measured defect multiplies it.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "25321ec",
+      "verified_by": "6 T161 pins green; all 4 seats verified building _RecordingTransport clients with their own timeouts; found+fixed a real per-instance-lock race (P12); 53 wire pins green over 3 consecutive randomised runs",
+      "created": "2026-08-04T14:16:10+00:00",
+      "updated": "2026-08-04T14:16:12+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-04T14:16:10+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-04T14:16:10+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-04T14:16:11+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-08-04T14:16:11+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-04T14:16:12+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-04T14:16:12+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T162",
+      "title": "T163 (found by deepseek in the T162 security design fence, 2026-08-04 -- credited): THE BOOTSTRAP FLOOR IS MORE PERMISSIVE THAN THE FILE IT REPLACES, which makes 'make acl.json unreadable' a privilege primitive rather than a fail-closed event. core/trust/registry.py resolves to _bootstrap_or_quarantine() whenever _load() returns None (file MISSING or CORRUPT), and BOOTSTRAP_ROLES = {claude: super_admin, deepseek: admin} hands back the full ROLE TEMPLATE -- unscoped path_scope ['*'], every cap including admin.grant, and NO expiry. So if security/acl.json ever time-boxes or path-scopes claude or deepseek, corrupting the file PROMOTES them past what the considered ACL said. Today the two floor agents' stored grants happen to match their floor, so the escalation is latent rather than live -- which is exactly why it should be fixed before someone reasonably decides to scope or time-box an admin. THE TENSION IS REAL AND IS NOT MINE TO SETTLE: the floor exists deliberately (registry.py comment: 'DeepSeek's admin does NOT depend on the file surviving, on Claude being online, or on anyone re-granting it') -- it is an AVAILABILITY guarantee, and least-privilege wants the opposite. Daniil's call. OPTIONS, cheapest first: (1) make the floor the INTERSECTION of the template and the last-known-good grant, so a corrupt file can never widen authority, only preserve or narrow it; (2) keep the floor but make it LOUD -- a fleet-visible banner whenever any resolve() is answered from the floor rather than the file, so degraded authority is never silent (today nothing renders it); (3) cache a last-known-good ACL and prefer it over the template floor; (4) accept it and document it as a known, dated trade. T162's write path is NOT the exposure -- it validates the exact bytes, fsyncs, os.replaces, and restores on failure, pinned by V6 (failing replace) and V9 (torn write, deepseek's exact scenario). This ticket is about every OTHER way the file can become unreadable: disk error, a hand-edit, an interrupted git operation, another process.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "abandoned",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-04T14:30:15+00:00",
+      "updated": "2026-08-04T14:31:58+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-04T14:30:15+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-04T14:31:58+00:00",
+          "reason": "MIS-FILED: an id collision of my own making. I wrote test_t162_grant_verb.py and committed 'T162 pins RED' for the grant verb BEFORE proposing it, so when I later proposed the deepseek bootstrap-floor finding the registry issued T162 to that instead -- a record whose body calls itself T163 sitting under the id T162. Exactly the identifiers_minted_before_the_registry_speaks_collide lesson, earned again. Re-filing both in the right order so id and body agree."
+        }
+      ]
+    },
+    {
+      "id": "T163",
+      "title": "T162: build the `grant` verb -- S-3 of the security schema, promised in a docstring and never built. scripts/checkers/check_advertised_verbs.py carried it on PLANNED ('grants are currently edited in security/acl.json, no CLI door yet'), which is why codex_root's time-boxed grant was a hand-edit and why agent_cli.py:3439's own remediation tells operators to go edit JSON. HONEST SCOPE: --by is an unauthenticated string and anyone who can run the CLI can already edit the ACL, so this is NOT a new security boundary -- it is a safer path to an always-writable file: atomic + schema-validated instead of hand-edited, audited by construction, time-boxed unless someone says --permanent out loud, revocable.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "0f27b52",
+      "verified_by": "9 pins green incl V9 (deepseek's exact torn-write scenario); every guard exercised live against a probe ACL and refusing correctly; door-parity + advertised-verbs checkers pass; live security/acl.json never written",
+      "created": "2026-08-04T14:31:59+00:00",
+      "updated": "2026-08-04T14:33:22+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-04T14:31:59+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-04T14:33:21+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-04T14:33:21+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-08-04T14:33:21+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-04T14:33:22+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-04T14:33:22+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T164",
+      "title": "T164 (found by deepseek in the T163 security design fence, 2026-08-04 -- credited to deepseek): THE BOOTSTRAP FLOOR IS MORE PERMISSIVE THAN THE FILE IT REPLACES, so 'make security/acl.json unreadable' is a privilege primitive rather than a fail-closed event. core/trust/registry.py resolves via _bootstrap_or_quarantine() whenever _load() returns None (file MISSING or CORRUPT), and BOOTSTRAP_ROLES={claude:super_admin, deepseek:admin} returns the full ROLE TEMPLATE -- path_scope ['*'], every cap including admin.grant, NO expiry. If the ACL ever time-boxes or path-scopes claude or deepseek, corrupting the file PROMOTES them past what the considered ACL said. LATENT TODAY (both floor agents' stored grants match their floor) which is precisely the argument for fixing it BEFORE someone reasonably decides to scope or time-box an admin. NOT MINE TO SETTLE: the floor is a deliberate AVAILABILITY guarantee (registry.py: 'DeepSeek's admin does NOT depend on the file surviving, on Claude being online, or on anyone re-granting it') and least-privilege wants the opposite -- Daniil's trade. OPTIONS, cheapest first: (1) floor = INTERSECTION of template and last-known-good grant, so an unreadable file can only preserve or narrow authority, never widen it; (2) keep the floor but make it LOUD -- nothing today renders that a resolve() was answered from the floor rather than the file, so degraded authority is silent; (3) cache a last-known-good ACL and prefer it to the template; (4) accept and document as a dated, known trade. T163's writer is NOT the exposure -- it validates the exact bytes, fsyncs, os.replaces and restores on failure (pins V6 failing-replace, V9 torn-write). This is about every OTHER path to unreadability: disk error, hand-edit, interrupted git op, another process.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-04T14:33:13+00:00",
+      "updated": "2026-08-04T14:33:13+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-04T14:33:13+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T165",
+      "title": "T165: Season 1 scoring as a pure function over a policy dict, replacing a markdown table nothing executed. Also unblocks W2 by making the four AIxCC refinements COMPARABLE -- v1_doc reproduces the committed table exactly (pinned, so doc/code drift is a test failure), v2_aixcc carries the proposals and is NOT the default. NEEDS DANIIL: the measured diff flips the rank (careful > corrob > wedged > volume under v2 vs careful > wedged > corrob > volume under v1), and uptime_floor=0.5 means a seat down 90 percent of a round still keeps half its score, which may be too generous. Both are one number in a dict.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "3941d28",
+      "verified_by": "9 pins green; wiring/door-parity/advertised-verbs/comprehensibility all pass; module WIRED via season-score rather than excepted; v1_doc pinned against the committed table",
+      "created": "2026-08-04T14:40:41+00:00",
+      "updated": "2026-08-04T14:40:43+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-04T14:40:41+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-04T14:40:41+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-04T14:40:41+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-08-04T14:40:42+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-04T14:40:42+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-04T14:40:43+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T166",
+      "title": "ROBUSTNESS FIRE DRILL before Season 1: a multi-seat round whose subject is the FLEET ITSELF, not a feature. Four DeepSeek seats observe while claude deliberately injects failures, and the score is whether the fleet's own instruments tell the truth about them. Tests all four Season 0 items under load: T147 (does a killed runner render dead, and how fast), T149 (does a send behind a cursor report COLLAPSED honestly), T150 (is a wedged runner's log readable while it hangs), T151 (does an expiring grant surface before it lapses -- exercised against a COPY via the AKASHIC_ACL_PATH override T163 added, never the live ACL). Also measures the known regression: 52 DEAD roster rows to 3 LIVE, with two stale HARD WEDGE pages firing for seats that died 12h ago. Deliverable is a fortification list ranked by what actually broke, not by what looked fragile.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-05T02:05:39+00:00",
+      "updated": "2026-08-05T02:05:39+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-05T02:05:39+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T167",
+      "title": "THE WAKE WATCHER PROBLEM, ROOT CAUSE FOUND: the listener autopilot has never worked. scripts/bifrost_daemon.py:386 calls 'lambda sid: _spawn_listener(sid, bus.ns)' -- two arguments -- while :140 defines 'def _spawn_listener(sid: str)' -- one. Every rearm trigger therefore raises TypeError, and core/comm/daemon_state.py:consume_rearms swallows it ('except Exception: ok = False'), leaving the trigger 'for the next tick' forever. So a daemon running --manage-listener spawns NOTHING, silently, and retries forever. Reproduced exactly 2026-08-04: dropped a valid .rearm for session cdfb9126, daemon alive at pid 9572, no listener after 134s, trigger still present. Wild evidence: bifrost_wake_bob.rearm has sat unanswered since 10:17. This is the mechanism behind the recurring 'session silently stops being wakeable' (3+ recurrences before it was written down as a lesson). Fix = the signature, AND make a spawn failure LOUD -- the fail-open swallow is why a one-line typo survived indefinitely.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-05T02:19:01+00:00",
+      "updated": "2026-08-05T02:19:01+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-05T02:19:01+00:00"
         }
       ]
     }
