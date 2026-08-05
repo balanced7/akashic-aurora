@@ -137,17 +137,29 @@ def main(argv=None) -> int:
     listeners: Dict[str, ManagedChild] = {}     # sid[:8] -> ManagedChild
     next_marker_sweep: float = 0.0              # boot + hourly
 
-    def _spawn_listener(sid: str) -> bool:
+    def _spawn_listener(sid: str, ns: _Opt[str] = None) -> bool:
         """Spawn a wake listener ManagedChild for sid. Reuses existing child if
-        already alive. N1: benign exit = no auto-respawn (next .rearm trigger)."""
+        already alive. N1: benign exit = no auto-respawn (next .rearm trigger).
+
+        T167: `ns` exists because the ONLY caller has always passed it --
+        `lambda sid: _spawn_listener(sid, bus.ns)` -- against a one-argument def. Every rearm
+        raised TypeError, consume_rearms swallowed it ("falsy/raising leaves it for the next
+        tick"), and the autopilot spawned nothing, forever, in silence. Reproduced 2026-08-04:
+        a valid trigger for session cdfb9126 went unanswered for 134s with the daemon alive.
+        The caller's intent is honoured rather than deleted -- the listener now inherits the
+        namespace it was always meant to be given.
+        """
         sid8 = sid[:8] if len(sid) > 8 else sid
         if sid8 in listeners and listeners[sid8].alive:
             return True  # already seated
+        _env = dict(os.environ, BIFROST_WAKE_LANE="work")
+        if ns:
+            _env["BIFROST_NAMESPACE"] = str(ns)
         lch = ManagedChild(
             [sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                           "bifrost_wake.py"),
              "--agent", agent, "--session", sid],
-            env=dict(os.environ, BIFROST_WAKE_LANE="work"),
+            env=_env,
             cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             breaker_window_s=300,
             breaker_max=3,

@@ -23,6 +23,7 @@ for the hook path: AKASHIC_DAEMON_WAKE=0 (checked by the caller, ruling 4).
 from __future__ import annotations
 
 import os
+import sys
 import tempfile
 import time
 from typing import Any, Callable, Dict, List, Optional
@@ -90,8 +91,19 @@ def consume_rearms(agent: str, spawn_fn: Callable[[str], bool],
         sid = name[len(prefix):-len(REARM_SUFFIX)]
         try:
             ok = bool(spawn_fn(sid))
-        except Exception:
+        except Exception as e:
+            # T167: fail-open is RIGHT (a bad spawn must not kill the daemon loop) but SILENT
+            # fail-open turned a one-line arity typo into a permanent invisible no-op. The daemon
+            # called _spawn_listener(sid, bus.ns) against a one-argument def, every rearm raised
+            # TypeError, this line ate it, and the wake autopilot spawned nothing for weeks while
+            # reporting nothing. Repair is not "catch less" -- it is "say something when you catch".
             ok = False
+            try:
+                print(f"[rearm] spawn FAILED for {agent} sid={sid}: "
+                      f"{type(e).__name__}: {e} -- trigger left for the next tick",
+                      file=sys.stderr, flush=True)
+            except Exception:
+                pass
         if ok:
             try:
                 os.remove(os.path.join(base, name))
