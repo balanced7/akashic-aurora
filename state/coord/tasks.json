@@ -1,5 +1,5 @@
 {
-  "seq": 173,
+  "seq": 176,
   "tasks": [
     {
       "id": "T001",
@@ -6233,6 +6233,69 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-05T04:10:44+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T174",
+      "title": "LEXICON collision: the CLI verb 'ask' (T171) and the bus message kind 'ask' mean different things. The kind is in STALE_ASK_KINDS but in neither ASK_KINDS (auto expectation window, agent_cli.py:4091) nor WAKE_WORTHY_KINDS -- so a kind=ask message gets no auto deadline and wakes nobody, while the staleness predicate still classifies it as an ask. Cheapest item in the census and a name that lies TODAY. Decide one: retire the 'ask' kind, rename it, or give it full ask-kind membership. Acceptance: no identifier named 'ask' means two things, and whichever survives is in every set its siblings are in. See report 20260805_merged-record-wire-census_aa6282.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-05T04:29:01+00:00",
+      "updated": "2026-08-05T04:29:01+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-05T04:29:01+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T175",
+      "title": "Reconcile the two SKIP_KINDS. scripts/bifrost_wake.py:45 = {ledger_update, resolved, steer, trace}; scripts/checkers/check_bus_atom_pointers.py:49 = {halt, heartbeat, interrupt, ledger_update, nudge, pause, presence, resume, steer, trace}. One identifier, two memberships, 8 members of symmetric difference. Give them distinct names that say what they skip and FOR WHAT, then add a parity pin following L7's pattern (PENDING_SKIP_KINDS == SKIP_KINDS_LANE), which is the one guarded pair in this space and currently HOLDS. Acceptance: no two files define the same *KINDS identifier with different membership; a pin fails if they drift.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-05T04:29:02+00:00",
+      "updated": "2026-08-05T04:29:02+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-05T04:29:02+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T176",
+      "title": "SEASON 1 PREREQUISITE -- total kind resolution with a loud UNCLASSIFIED. Census measured 31 kinds, 14 hand-maintained policy sets across 11 files, and 17/31 kinds in one set or fewer; because every policy is a membership test, a miss is indistinguishable from a deliberate exclusion, so an unlisted kind is silently not-an-answer, not-salient, not-wake-worthy. Confirmed casualty: bifrost_review_kind_is_silent_2026_07_29. Do NOT close the vocabulary -- a fenced adversarial pass established that closing creates a classification bottleneck and kills extensibility between independently developed agents. Design: vocabulary stays OPEN; registration stays SPARSE and PER-DIMENSION (declare a kind wake-worthy without touching salience -- preserves the orthogonality that is the 14-subset design's one real virtue); RESOLUTION becomes TOTAL, returning CLASSIFIED(value) or UNCLASSIFIED and never a silent False; UNCLASSIFIED is counted and surfaced in a coverage report. Same invariant as BoundaryOutcome (boundary), R14 (pointer) and the coverage manifest (replay), applied to the taxonomy. Gates the reducer: it cannot route what the vocabulary cannot classify. Also fold in: name the three planes bus_kind/event_kind/beat_kind (they collide on 'note' with opposite policies), and land 'friction' as a facet of learn following tag-anti-pattern's precedent.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-05T04:29:02+00:00",
+      "updated": "2026-08-05T04:29:02+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-05T04:29:02+00:00"
         }
       ]
     }
