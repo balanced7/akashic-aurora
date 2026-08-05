@@ -1,5 +1,5 @@
 {
-  "seq": 176,
+  "seq": 185,
   "tasks": [
     {
       "id": "T001",
@@ -6244,16 +6244,36 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "5996418",
+      "verified_by": "claude",
       "created": "2026-08-05T04:29:01+00:00",
-      "updated": "2026-08-05T04:29:01+00:00",
+      "updated": "2026-08-05T05:16:16+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-05T04:29:01+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-05T05:12:40+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-05T05:12:41+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-05T05:16:16+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-05T05:16:16+00:00"
         }
       ]
     },
@@ -6265,16 +6285,36 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "93c78b7",
+      "verified_by": "claude",
       "created": "2026-08-05T04:29:02+00:00",
-      "updated": "2026-08-05T04:29:02+00:00",
+      "updated": "2026-08-05T05:16:15+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-05T04:29:02+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-05T05:12:40+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-05T05:12:41+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-05T05:16:15+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-05T05:16:15+00:00"
         }
       ]
     },
@@ -6296,6 +6336,335 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-05T04:29:02+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T177",
+      "title": "check_kind_policy -- the KIND-plane mirror of check_door_parity. That checker guards the VERB surface against silent fragmentation with an explicit manifest, a fail-on-new-unclassified rule and a ratchet; the KIND surface has no equivalent, which is why 31 kinds accumulated 14 hand-maintained policy sets with 55% of kinds in one set or fewer. Implements the fragmentation doctrine EXECUTABLY rather than as prose, because a rule that lives only in a document requires someone to remember it -- which is the exact failure the doctrine describes. Checks: (K-A) FAIL when two files define the same *KINDS identifier with different membership (catches T175's SKIP_KINDS); (K-B) FAIL on an unclassified cross-plane name collision (catches 'note', which means lossy cue on the bus and durable write-once as a record); (K-C) ratcheted count of bus-plane orphans -- kinds in <=1 policy set, the born-silent population that cost us the kind=review peer gate; (K-D) report-only redundancy candidates (identical signatures), NEVER a fail, because that test produced 10 false positives when run across planes -- the instrument's own error is why it may only advise. Carries a PLANES manifest so 'enumerate the consumers' is explicit data instead of a thing someone remembers. Emits the coverage number that justifies T176.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "1a66ec3",
+      "verified_by": "claude",
+      "created": "2026-08-05T04:41:49+00:00",
+      "updated": "2026-08-05T04:50:18+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-05T04:41:49+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-05T04:47:51+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-05T04:47:51+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-05T04:50:18+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-05T04:50:18+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T178",
+      "title": "THE WRITE-EDGE RATCHET IS A NO-OP ON ANY FRESH CLONE, AND NOTHING SAYS SO. state/ci/guardrail_baseline.json is gitignored by 'state/*', nothing generates it, and read_baseline() (pre_commit.py:153) catches the missing-file exception and returns {}. ratchet_ok then hits 'if not base: return True' -- verified: ratchet_ok(baseline={}, live={'check_boundaries':99}) returns (True, ''). So the 2026-08-01 root-cause fix for 30 days of red CI silently does not run for anyone who has not hand-built a baseline, including CI and every fresh seat. The irony is one function deep: guardrail_counts' own docstring says 'A CRASHED guardrail returns -1 and NEVER counts as zero. Absence must not look like success' -- and read_baseline does exactly that immediately below it. Second-order effect: because ratchet_ok iterates base.items(), a guardrail present in GUARDRAILS but absent from a stale local baseline is never compared either, so newly added guards (check_kind_policy today) enforce only on the machine that baselined them. FIX, both halves: (1) read_baseline must distinguish MISSING from EMPTY and a missing baseline must be a loud UNKNOWN, never a silent pass; (2) either track the baseline or generate it, so the debt allowance travels with the repo. Same invariant as T170/R14/T176: absence must be representable and loud, never coerced to a falsy default -- this is the fifth instance and it is in the guard-of-guards.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "6db62d8",
+      "verified_by": "claude",
+      "created": "2026-08-05T04:50:07+00:00",
+      "updated": "2026-08-05T05:05:05+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-05T04:50:07+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-05T04:59:24+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-05T04:59:25+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-05T05:05:05+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-05T05:05:05+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T179",
+      "title": "EventLog.capture must not report a lost event that it actually stored. Reading it for the T170 migration found a real defect: self.index.add(out) and the per-agent stream emit both sit INSIDE the outer try, so a failure in either -- explicitly documented one line above as 'best-effort; the Ledger write above is the record' -- is caught by the outer handler, logged as 'capture failed (ignored)' and returned as None. The event IS on the canonical firehose. That is a boundary lying in the opposite direction from T149: reporting failure for something that happened. It also poisons any drop count built on it, which is exactly what Sol's Season 1 coverage manifest needs. FIX, one function: (1) separate the canonical write from the convenience indexes so an index failure can never be reported as a lost event; (2) return BoundaryOutcome -- done when everything landed, PARTIALLY when the record is written but an index is behind (a state currently unrepresentable, which is why the lie had nowhere else to go), failed/caught only when the canonical emit itself failed. Safe to change: 37 call sites, ZERO read the return value (verified by scan), and capture_event already swallows everything. This is T170's second real adoption and Source 1's first producer. NO NEW ORGAN -- one function, no registry, no checker; the durable drop COUNT belongs to the manifest slice, not here.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "2d65756",
+      "verified_by": "claude",
+      "created": "2026-08-05T05:21:28+00:00",
+      "updated": "2026-08-05T05:57:19+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-05T05:21:28+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-05T05:22:57+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-05T05:22:57+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-05T05:56:45+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-05T05:57:19+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T180",
+      "title": "A FRESH CLONE OF THIS REPO IS BROKEN AND NOTHING SAYS SO. core/comm/room_feed.py is UNTRACKED, and scripts/bifrost_ui.py:32 (tracked) imports it -- so on any fresh clone that import raises and pytest hits 3 collection errors (test_fleet.py, test_t121_f3_bifrost_vertical.py, test_vfx_feed_and_lease.py). pytest INTERRUPTS on collection errors, so the whole suite runs ZERO tests and a naive pipeline reads that as an empty failure list, i.e. success. Found while running a control suite in a fresh clone to verify T179; the control produced no output at all and exit 0. Three other untracked .py files in the same class: scripts/g_recall_at_seed.py, scripts/vfx_probe_chroma.py, scripts/vfx_probe_metrics.py -- none currently imported by tracked code, but the same trap armed. NOT MY LANE: I did not author these; per the boot rule I am filing rather than adopting them, because a modified/untracked sibling file may be mid-flight work. FIX: decide per file whether it is source (commit it) or scratch (delete or gitignore it), and add a clone-import smoke check so 'the working tree is not the repo' fails loudly instead of only on someone else's machine. THIRD instance today of that class after ask.py (a working slice untracked for 9h) and the guardrail baseline (T178, a ratchet whose memory did not travel).",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-05T05:43:34+00:00",
+      "updated": "2026-08-05T05:43:34+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-05T05:43:34+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T181",
+      "title": "ask --fan / ask_many: PARALLEL leaf execution with no seat behind it. Daniil 2026-08-05 (going to sleep): 'I want to see you find a way to start getting value from our ability of spinning up multiple deepseek instances at once. using that fleet solve the orchestration problems of running that fleet.' Sol's fleet design (fleet_traverses_objective_rooted_tree_projection_2026_08_05) names the patterns this unlocks: breadth wavefront (disjoint sibling leaves + one integrator), fenced triangle (two blind investigators + one reconciler), branch-and-bound (several cheap hypotheses, one adjudicator), cross-cutting transect. All of them need N concurrent leaves and NONE of them need a seat. T171 established ask is not a seat -- this is that thesis scaled from 1 to N. Scope: ask_many(prompts) in core/comm/ask.py running a bounded thread pool (ask is I/O-bound HTTP, no new deps); per-branch BoundaryOutcome so one failure cannot kill the fan; an AGGREGATE outcome that is done only if all branches landed, PARTIALLY if some did (the state that matters most here), failed if none; aggregate spend meter. CLI: ask --fan N (same prompt N times, for N-version blind) and --prompts-file (different prompts, for breadth wavefront). Explicitly NOT in scope: tools, persistent memory, write access, scheduling, or anything that would make a branch into a seat -- that is the runner path and it is what wedges. Reversible: additive, no existing signature changes.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "85c9d90",
+      "verified_by": "claude",
+      "created": "2026-08-05T05:57:39+00:00",
+      "updated": "2026-08-05T06:15:13+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-05T05:57:39+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-05T05:59:08+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-05T05:59:09+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-05T06:15:13+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-05T06:15:13+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T182",
+      "title": "ask_many must not let N correlated essays read as N independent findings. Measured on T181's first live run: --fan 3 on one question returned three near-identical answers and the aggregate reported '3/3 landed' -- technically true, structurally a lie, because the caller reads 3 as three pieces of evidence. A five-position breadth wavefront run minutes later produced genuinely different content, which is the contrast that proves the point: diversity comes from POSITION, not repetition. Independently confirmed by the fleet in that same wavefront: the diversity engineer branch ranked temperature/seed variation as FAKE diversity and named context-sharding and divergent task decomposition as the genuine cheap techniques; the failure analyst branch listed 'false consensus' as a distinct fan-out failure mode with 'check if all responses are identical' as its cheapest detection signal. Scope: measure pairwise answer similarity across branches (normalised word-set Jaccard, no new deps), report detail['consensus'] with the actual number rather than a boolean, and make the CLI say loudly when a fan collapsed into one answer. Deliberately NOT a failure state -- nothing failed, so faking a failed/partial verdict would be its own lie; it is information, surfaced where it cannot be missed. Same invariant as T170/T176/T178/T179 at the fleet layer: a fan that cannot express 'these N answers are one answer' will present correlation as corroboration.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "ab32513",
+      "verified_by": "claude",
+      "created": "2026-08-05T06:06:54+00:00",
+      "updated": "2026-08-05T06:14:29+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-05T06:06:54+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-05T06:06:55+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-05T06:06:55+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-05T06:14:21+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-05T06:14:29+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T183",
+      "title": "roster --by-agent: make seat churn LOUD, do not collapse it quiet. 49 rows for 8 logical agents (kimi 15, claude 14), 46 DEAD, because T147 made sid8 pid-derived so every restart mints a new identity and the deliberate 24h seatseen witness (F1: a seat that EVER beat must render DEAD, never vanish) faithfully remembers each one. MY FIRST DESIGN WAS WRONG AND THE FLEET KILLED IT. I proposed a collapsed render -- one line per agent, best state, count of dead incarnations. A four-position fenced wavefront refuted it from two independent directions: the status-quo defender gave the decisive scenario (an agent crash-looping every 4 minutes shows as one green row with a dead COUNT; the on-call engineer sees a green dot and goes back to bed, where the raw view would have shown six deaths clustered in an hour and exposed the death spiral), and the reaper's advocate independently said a single count hides whether deaths occurred in the last minute or over days, masking instability and identity churn. Both are the same finding: collapsing coerces 'this agent is thrashing' into 'this agent is live' -- the invariant this whole arc keeps rediscovering, this time inside my own proposal. CORRECTED DESIGN: the count is not the signal, the RATE is. Render one line per logical agent carrying best state, live incarnation, total dead, and DEATHS IN THE LAST HOUR, flagging CHURNING above a threshold. That is strictly better than both the raw view and the collapse: raw makes you INFER churn by squinting at 49 last-beat ages, this STATES it. Computable from data already present (each row carries last-beat age). Additive and opt-in as --by-agent; the raw view stays the default because its noise is load-bearing until the churn signal is proven. Flipping the default later is one line. NOT in scope: changing sid8 to be stable across restarts -- the identity architect branch says that is the true root fix but named the hazard pid-derivation solves (a restarted agent inheriting the prior incarnation's inbox replays already-delivered unacked mail), so it needs its own slice with idempotency evidence, not a drive-by.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "5d08e10",
+      "verified_by": "claude",
+      "created": "2026-08-05T06:19:20+00:00",
+      "updated": "2026-08-05T06:24:44+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-05T06:19:20+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-05T06:19:20+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-05T06:19:21+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-05T06:24:34+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-05T06:24:44+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T184",
+      "title": "LLM player for the Season 1 bounty loop -- players without seats. season_dryrun already runs the whole chain (plant sealed canaries in a shadow worktree, play, shape claims, score, adjudicate against the sealed key) and states its own limitation: 'The default player is MECHANICAL: it runs check_wiring and reports what the gate names... It cannot tell you whether a model writes good claims.' The chain was never the blocker. PLAYERS were, and every prior attempt used persistent seats -- the path that produced nine seat-tasks and two findings. This player is a FAN (T181 ask_many): N stateless concurrent leaves, no identity, no locks, no cursors, no mailbox, nothing to wedge. ROUTING per Sol's expansion of Daniil's tree design -- deterministic host code for scans, models for judgment: a zero-token pass keeps every function whose name occurs at most twice in the detector's own universe (a def plus at most one other mention, ~598 candidates for ~9 canaries), and the model decides whether that other mention is a real CALL or a decorative one. That is exactly the judgment the wiring gate cannot make: it sees a mention and waves the function through, which is the line between the undetectable canary (def X; _HANDLERS=[X] -- named by a table nothing invokes, so DEAD) and the bait canary (def X; _USED=X() -- genuinely called, so LIVE). So an LLM player can in principle BEAT the mechanical player on undetectable and can LOSE to it on bait, which the mechanical player cannot claim by construction. That asymmetry is the measurement worth having before twenty players multiply it. The filter deliberately does NOT drop call-shaped references: dropping them would remove every bait canary from the player's view and quietly delete the precision test -- scoring high by never being shown the hard case. Unjudged candidates are reported as UNJUDGED, never folded into LIVE, so a branch that answered nothing cannot read as a branch that cleared everything.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "4098e41",
+      "verified_by": "claude",
+      "created": "2026-08-05T06:36:38+00:00",
+      "updated": "2026-08-05T06:40:41+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-05T06:36:38+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-05T06:40:40+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-05T06:40:40+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-05T06:40:41+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-05T06:40:41+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T185",
+      "title": "The canary oracle's K0 void rule mislabels a BETTER player as a cheat. First LLM-played Season 1 round (T184): 603 candidates, 3 claims, catch_rate 0.67, false_positives 0 -- and VOIDED, because one claim was an 'undetectable' canary (c04_97781467). canary_oracle.score says: 'a claimed UNDETECTABLE canary VOIDS the round (kimi's K0 tripwire): either the key leaked or the instrument is being gamed, and the round's evidence is worthless either way.' That disjunction is incomplete. The same file defines the class relative to ONE detector: 'a dispatch table and a handler list, each naming the function, neither ever invoked. That is the class the season must report IT CANNOT SEE' -- it being check_wiring, which sees a mention and waves the function through. But def X() followed by _HANDLERS = [X] is plainly dead to any reader given a 16-line window, and an LLM player is not the gate. So there is a third term the rule does not admit: the player is better than the detector the class was named after. Key leak is ruled out BY CONSTRUCTION here -- the key is sealed outside the repo and the player only ever receives code windows from the shadow tree; it has no path to the manifest. FIX: claiming an undetectable canary must become a FLAG REQUIRING ADJUDICATION, not an automatic void. Void when the claim carries no supporting evidence (a guess or a leak); record a CAPABILITY FINDING when the claim carries evidence visible in the player's window, because that is the season discovering its detector has a blind spot a player can cover -- which is the most valuable thing a round can produce and is currently discarded as fraud. Ninth instance of this arc's invariant: an instrument whose category is bound to one specific detector cannot represent 'better than that detector', so it coerces that case into 'cheating'.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-05T06:47:45+00:00",
+      "updated": "2026-08-05T06:47:45+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-05T06:47:45+00:00"
         }
       ]
     }
