@@ -85,7 +85,7 @@ Class: reference
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
-| `ask.py` | ask -- a synchronous helper call, with no seat behind it (T171). | tests/test_t112_reask_is_a_nudge.py | GAP | `AKASHIC_ASK_BASE_URL`, `AKASHIC_ASK_MAX_TOKENS`, `AKASHIC_ASK_MODEL`, `DEEPSEEK_API_KEY` |
+| `ask.py` | ask -- a synchronous helper call, with no seat behind it (T171). | tests/test_t112_reask_is_a_nudge.py | GAP | `AKASHIC_ASK_BASE_URL`, `AKASHIC_ASK_FAN_WORKERS`, `AKASHIC_ASK_MAX_TOKENS`, `AKASHIC_ASK_MODEL`, `DEEPSEEK_API_KEY` |
 | `assertions.py` | Pre-flight assertions (T068-R3 / deepseek M10) -- verify a directed answer's FACTUAL | GAP | GAP | `BIFROST_PREFLIGHT_ASSERT` |
 | `bifrost_api.py` | bifrost.api -- the one door an agent uses to join and work the Bifrost bus. | tests/test_bifrost_api.py | GAP | `BIFROST_CONSUME_LANE`, `BIFROST_WAKE_LANE` |
 | `blobs.py` | BlobStore (Slice B1) -- a content-addressed blob store for Bifrost media/large payloads. | GAP | GAP | `AI_SETUP` |

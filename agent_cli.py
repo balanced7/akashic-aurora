@@ -1822,7 +1822,7 @@ def cmd_ask(args):
     call. Everything a seat carries exists so a peer can be addressed ASYNCHRONOUSLY and survive
     without the caller -- an answer needs none of it.
     """
-    from core.comm.ask import ask as ask_helper
+    from core.comm.ask import ask as ask_helper, ask_many
 
     prompt = " ".join(args.text).strip() if args.text else ""
     if not prompt and args.prompt_file:
@@ -1831,6 +1831,45 @@ def cmd_ask(args):
         except OSError as e:
             print(f"cannot read --prompt-file: {e}", file=sys.stderr)
             return 2
+
+    # T181 -- the fan. Two shapes, because the fleet patterns need two:
+    #   --fan N        one prompt, N independent answers  -> N-version blind, branch-and-bound
+    #   --prompts-file many prompts, run at once          -> breadth wavefront, fenced triangle
+    prompts = None
+    if getattr(args, "prompts_file", None):
+        try:
+            raw = Path(args.prompts_file).read_text(encoding="utf-8")
+        except OSError as e:
+            print(f"cannot read --prompts-file: {e}", file=sys.stderr)
+            return 2
+        try:
+            loaded = json.loads(raw)
+            prompts = [str(p) for p in loaded] if isinstance(loaded, list) else None
+        except ValueError:
+            prompts = None
+        if prompts is None:      # not JSON -> fence-separated, so a prompt may be multi-line
+            prompts = [chunk.strip() for chunk in re.split(r"(?m)^---\s*$", raw) if chunk.strip()]
+    elif getattr(args, "fan", 0) and args.fan > 1:
+        prompts = [prompt] * int(args.fan)
+
+    if prompts is not None:
+        o = ask_many(prompts, system=args.system or None, model=args.model or None,
+                     max_tokens=args.max_tokens, max_workers=args.workers)
+        if args.json:
+            print(json.dumps({"ok": o.ok, "partial": o.partial, "why": o.why, **o.detail},
+                             ensure_ascii=False, default=str))
+            return 0 if o.ok else 1
+        for b in o.detail.get("branches", []):
+            mark = "ok" if b["ok"] and not b["partial"] else ("PARTIAL" if b["partial"] else "FAIL")
+            print(f"\n--- branch {b['i']} [{mark}] " + "-" * 46)
+            print(b["answer"] if b["answer"] else f"({b['why']})")
+        d = o.detail
+        spend = f"${d['usd']:.6f}" if d.get("usd") is not None else "unpriced"
+        print(f"\n== fan: {d['n_ok']}/{d['n']} landed | {spend} | {d['elapsed_s']}s wall "
+              f"| {d['workers']} workers | {d.get('model')}", file=sys.stderr)
+        if o.why:
+            print(f"== {o.why}", file=sys.stderr)
+        return 0 if o.ok else 1
 
     o = ask_helper(prompt, system=args.system or None, model=args.model or None,
                    max_tokens=args.max_tokens)
@@ -4669,6 +4708,15 @@ def build_parser():
     ask_p.add_argument("--model", default="", help="override the helper model")
     ask_p.add_argument("--max-tokens", dest="max_tokens", type=int, default=None,
                        help="answer ceiling; hitting it returns a marked PARTIAL, never a silent cut")
+    ask_p.add_argument("--fan", type=int, default=0,
+                       help="T181: ask the SAME question N times concurrently -- N-version "
+                            "blind. Disagreement between branches is the signal")
+    ask_p.add_argument("--prompts-file", dest="prompts_file",
+                       help="T181: run MANY questions at once. JSON array, or prompts separated "
+                            "by a line containing only --- (so a prompt may be multi-line)")
+    ask_p.add_argument("--workers", type=int, default=None,
+                       help="fan width (default 6). Merge attention binds before generation "
+                            "does -- a fan wider than its integrator makes debt, not progress")
     ask_p.add_argument("--json", action="store_true")
     ask_p.set_defaults(fn=cmd_ask)
 

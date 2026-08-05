@@ -30,6 +30,7 @@ that ran out of room hands back what it has, marked, instead of looking complete
 """
 from __future__ import annotations
 
+import concurrent.futures
 import os
 import time
 from pathlib import Path
@@ -40,6 +41,10 @@ from core.outcome import BoundaryOutcome
 DEFAULT_MODEL = os.getenv("AKASHIC_ASK_MODEL", "deepseek-v4-pro")
 DEFAULT_MAX_TOKENS = int(os.getenv("AKASHIC_ASK_MAX_TOKENS", "2000"))
 BASE_URL = os.getenv("AKASHIC_ASK_BASE_URL", "https://api.deepseek.com")
+# T181 fan width. 6 is a DECISION, not a measurement: merge attention at the junction binds
+# before generation does, so a fan wider than an integrator can absorb produces merge debt
+# rather than progress. Raise it once something downstream is proven able to consume more.
+DEFAULT_FAN_WORKERS = int(os.getenv("AKASHIC_ASK_FAN_WORKERS", "6"))
 KEY_FILE = Path(__file__).resolve().parents[2] / ".secrets" / "deepseek.key"
 DEFAULT_SYSTEM = (
     "You are a helper called synchronously by claude, the conductor of the Akashic Aurora fleet. "
@@ -144,4 +149,123 @@ def ask(prompt: str, *, system: Optional[str] = None, model: Optional[str] = Non
         return BoundaryOutcome.partially(
             f"answer cut at the {max_tokens or DEFAULT_MAX_TOKENS}-token ceiling "
             f"(finish_reason=length) -- ask again narrower, or raise --max-tokens", **detail)
+    return BoundaryOutcome.done(**detail)
+
+
+def _fan_client(client):
+    """ONE client for the whole fan, or a named configuration failure for the whole fan.
+
+    Shared deliberately: the SDK's httpx client is thread-safe and pools connections, so N
+    branches cost N requests rather than N clients. A missing key is ONE configuration state,
+    not N model failures, and saying so is cheaper to act on than N identical branch errors.
+    """
+    if client is not None:
+        return client, None
+    key = _load_key()
+    if not key:
+        return None, ("no DEEPSEEK_API_KEY and no .secrets/deepseek.key -- the door is closed "
+                      "for the WHOLE fan; that is a configuration state, not N model failures")
+    from core.comm.runner_lib import make_openai_compat_client
+    return make_openai_compat_client(key, BASE_URL), None
+
+
+def ask_many(prompts, *, system: Optional[str] = None, model: Optional[str] = None,
+             max_tokens: Optional[int] = None, client=None,
+             max_workers: Optional[int] = None) -> BoundaryOutcome:
+    """Ask N helpers at once. Still no seat behind any of them (T181). Never raises.
+
+    THE PRIMITIVE THE FLEET PATTERNS NEED. Daniil's design, expanded by Sol at his ask: the
+    corpus is a graph at rest that becomes an objective-rooted TREE while working, traversed by
+    dispersal pattern -- breadth wavefront (disjoint sibling leaves, one integrator), fenced
+    triangle (two blind investigators, one reconciler), branch-and-bound (cheap hypotheses, one
+    adjudicator), cross-cutting transect (one invariant across every branch). All of them need N
+    concurrent LEAVES. None of them needs a seat.
+
+    WHY NOT N SEATS. A seat carries identity, a singleton lock, cursors, a mailbox, a heartbeat,
+    a roster row and reaper protection -- so N seats cost N of each, and the measured result on
+    this repo was nine seat-tasks returning two findings. N asks cost N HTTP requests.
+
+    THE AGGREGATE IS THREE-STATE AND THAT IS THE POINT. A binary fan verdict discards the
+    partial result, which is exactly how "nine tasks, two findings" reads as failure instead of
+    as two findings. done only when every branch landed; PARTIALLY with counts when some did;
+    failed with counts when none did. Per-branch verdicts live in detail["branches"], in INPUT
+    order regardless of completion order, because attribution depends on order.
+
+    Branches are dicts rather than BoundaryOutcomes so the whole aggregate stays JSON-
+    serialisable for the CLI door; the aggregate itself keeps the one vocabulary.
+    """
+    prompts = [str(p) for p in (prompts or [])]
+    if not prompts:
+        return BoundaryOutcome.failed(
+            "empty fan -- no prompts to ask. Asking nothing is not the same as asking and "
+            "hearing nothing back.")
+
+    model = model or DEFAULT_MODEL
+    workers = max(1, min(int(max_workers or DEFAULT_FAN_WORKERS), len(prompts)))
+    client, why = _fan_client(client)
+    if client is None:
+        return BoundaryOutcome.failed(why, n=len(prompts), n_ok=0, branches=[])
+
+    t0 = time.time()
+    results = [None] * len(prompts)
+
+    def _one(i):
+        try:
+            return ask(prompts[i], system=system, model=model,
+                       max_tokens=max_tokens, client=client)
+        except Exception as e:      # ask() does not raise Exception; never lose a slot anyway
+            return BoundaryOutcome.caught(e, where=f"ask_many(branch {i})")
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = {pool.submit(_one, i): i for i in range(len(prompts))}
+        for fut in concurrent.futures.as_completed(futures):
+            i = futures[fut]
+            try:
+                results[i] = fut.result()
+            except BaseException as e:                              # noqa: BLE001
+                results[i] = BoundaryOutcome.caught(
+                    e if isinstance(e, Exception) else RuntimeError(repr(e)),
+                    where=f"ask_many(future {i})")
+
+    branches, total_usd, priced_all = [], 0.0, True
+    n_ok = n_partial = 0
+    for i, o in enumerate(results):
+        d = o.detail or {}
+        usd = d.get("usd")
+        if usd is None:
+            priced_all = False
+        else:
+            total_usd += float(usd)
+        n_ok += 1 if o.ok else 0
+        n_partial += 1 if o.partial else 0
+        branches.append({
+            "i": i, "prompt": prompts[i][:300], "ok": o.ok, "partial": o.partial,
+            "why": o.why, "answer": d.get("answer"), "usd": usd,
+            "prompt_tokens": d.get("prompt_tokens"), "completion_tokens": d.get("completion_tokens"),
+            "elapsed_s": d.get("elapsed_s"), "model": d.get("model"),
+        })
+
+    n = len(prompts)
+    detail = {
+        "n": n, "n_ok": n_ok, "n_partial": n_partial, "branches": branches,
+        "answers": [b["answer"] for b in branches],
+        # None, never a guess: one unpriced branch makes the fan total unknowable, and a
+        # partial sum presented as a total is the same lie one layer up.
+        "usd": round(total_usd, 6) if priced_all else None,
+        "elapsed_s": round(time.time() - t0, 2), "model": model, "workers": workers,
+    }
+
+    if n_ok == 0:
+        return BoundaryOutcome.failed(
+            f"the whole fan failed: {n_ok} of {n} branches landed. First reason: "
+            f"{branches[0]['why'] or 'unreported'}", **detail)
+    if n_ok < n or n_partial:
+        lost = [b["i"] for b in branches if not b["ok"]]
+        cut = [b["i"] for b in branches if b["partial"]]
+        bits = [f"{n_ok} of {n} branches landed"]
+        if lost:
+            bits.append(f"failed: {lost}")
+        if cut:
+            bits.append(f"truncated: {cut}")
+        return BoundaryOutcome.partially(" | ".join(bits), **detail)
     return BoundaryOutcome.done(**detail)
