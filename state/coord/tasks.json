@@ -1,5 +1,5 @@
 {
-  "seq": 169,
+  "seq": 170,
   "tasks": [
     {
       "id": "T001",
@@ -6079,16 +6079,57 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "7ed4a7b",
+      "verified_by": "5/5 pins green. Exhaustion now returns a [BUDGET-TRUNCATED] banner plus a forced tools-disabled answer; F5 pins that a failing forced call still returns the work trail rather than empty.",
       "created": "2026-08-05T02:32:31+00:00",
-      "updated": "2026-08-05T02:32:31+00:00",
+      "updated": "2026-08-05T02:41:03+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-05T02:32:31+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-05T02:41:02+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-05T02:41:02+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-05T02:41:03+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-05T02:41:03+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T170",
+      "title": "ARCHITECTURE SIMPLIFICATION -- one Outcome vocabulary at every fleet boundary. Evidence: six fixes on 2026-08-04 (T147 T149 T150 T151 T167 T169) were the SAME defect in six costumes -- a boundary that failed and said nothing. Each subsystem invented its own answer to 'what happened': consume_rearms returns an int and swallows exceptions; bus.send returns a mid plus a last_reask SIDE CHANNEL while stdout prints success; roster.heartbeat returns a dict annotated -> bool; Agent.send returns str or ''; registry.resolve silently downgrades to quarantined. Five dialects, so every consumer must speak five. PROPOSAL: Outcome(ok, why, ref, partial) returned by every boundary. It replaces five conventions with one, and it makes PARTIAL expressible -- today most boundaries can only say success or nothing, which is precisely why partial work vanishes (T169 invented 'partial' locally for one function). It ENABLES complexity: a delivery ledger, the Season 1 scoreboard, retry policy and doctor rows all read one shape instead of five. Paired guard: check_silent_fallopen -- grep for 'except: return <falsy>' with no output, freeze today's instances, fail on new ones, same ratchet as check_wiring.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-05T02:41:40+00:00",
+      "updated": "2026-08-05T02:41:40+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-05T02:41:40+00:00"
         }
       ]
     }

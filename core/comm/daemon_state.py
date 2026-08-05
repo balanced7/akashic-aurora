@@ -99,9 +99,12 @@ def consume_rearms(agent: str, spawn_fn: Callable[[str], bool],
             # reporting nothing. Repair is not "catch less" -- it is "say something when you catch".
             ok = False
             try:
-                print(f"[rearm] spawn FAILED for {agent} sid={sid}: "
-                      f"{type(e).__name__}: {e} -- trigger left for the next tick",
-                      file=sys.stderr, flush=True)
+                # T170: the reason is BUILT, not hand-written. BoundaryOutcome.caught() is the
+                # fail-open-without-silence shape, and this is its first production consumer --
+                # deliberately the exact boundary where the silence cost us the wake autopilot.
+                from core.outcome import BoundaryOutcome
+                print(f"[rearm] {BoundaryOutcome.caught(e, where=f'spawn({agent})', ref=sid).line()}"
+                      f" -- trigger left for the next tick", file=sys.stderr, flush=True)
             except Exception:
                 pass
         if ok:
