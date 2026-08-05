@@ -1810,6 +1810,51 @@ def cmd_wish(args):
     return 0
 
 
+def cmd_ask(args):
+    """ask -- ONE synchronous question to a helper model, with no seat behind it (T171).
+
+    Daniil, 2026-08-04: "what if you could quickly invoke with a verb a deepseek instance to
+    help you with something... this might help reduce your cognitive load if you could quickly
+    ask for help yourself."
+
+    The point is that this is NOT a seat: no identity, no lock, no cursor, no mailbox, no
+    heartbeat, no roster row, no reaper protection. It is born, it answers, it dies inside this
+    call. Everything a seat carries exists so a peer can be addressed ASYNCHRONOUSLY and survive
+    without the caller -- an answer needs none of it.
+    """
+    from core.comm.ask import ask as ask_helper
+
+    prompt = " ".join(args.text).strip() if args.text else ""
+    if not prompt and args.prompt_file:
+        try:
+            prompt = Path(args.prompt_file).read_text(encoding="utf-8").strip()
+        except OSError as e:
+            print(f"cannot read --prompt-file: {e}", file=sys.stderr)
+            return 2
+
+    o = ask_helper(prompt, system=args.system or None, model=args.model or None,
+                   max_tokens=args.max_tokens)
+
+    if args.json:
+        print(json.dumps({"ok": o.ok, "partial": o.partial, "why": o.why, **o.detail},
+                         ensure_ascii=False, default=str))
+        return 0 if bool(o) else 1
+
+    if not o.ok:                       # a real failure always says why -- the type guarantees it
+        print(f"ASK FAILED: {o.why}", file=sys.stderr)
+        return 1
+
+    print(o.detail.get("answer", ""))  # a PARTIAL still prints what it got (the T169 lesson)
+    d = o.detail
+    usd = d.get("usd")
+    spend = f"${usd:.6f}" if usd is not None else "unpriced"
+    print(f"\n-- {d.get('prompt_tokens', 0)}+{d.get('completion_tokens', 0)} tok | {spend}"
+          f" | {d.get('elapsed_s')}s | {d.get('model')}", file=sys.stderr)
+    if o.partial:
+        print(f"-- {o.line()}", file=sys.stderr)
+    return 0
+
+
 def _ledger_claim_arc(seat: str):
     """AUTO_ARC (taxonomy-ergonomics reconciliation §7): the seat's claimed ledger task
     is the arc authority; no claim -> None (born without arc; library lint flags it
@@ -4606,6 +4651,18 @@ def build_parser():
     wsh.add_argument("--trigger", default="", help="what hurt (one clause)")
     wsh.add_argument("--land", default="", help="suggested landing arc/slice")
     wsh.set_defaults(fn=cmd_wish)
+
+    # T171: ask is NOT a seat -- one synchronous question, no lifecycle, dies in the call.
+    ask_p = sub.add_parser("ask", help="ask a helper model ONE question, synchronously "
+                                       "(no seat, no lock, no mailbox -- it dies in the call)")
+    ask_p.add_argument("text", nargs="*", help="the question (or use --prompt-file)")
+    ask_p.add_argument("--prompt-file", dest="prompt_file", help="read the question from PATH")
+    ask_p.add_argument("--system", default="", help="override the helper's system prompt")
+    ask_p.add_argument("--model", default="", help="override the helper model")
+    ask_p.add_argument("--max-tokens", dest="max_tokens", type=int, default=None,
+                       help="answer ceiling; hitting it returns a marked PARTIAL, never a silent cut")
+    ask_p.add_argument("--json", action="store_true")
+    ask_p.set_defaults(fn=cmd_ask)
 
     # D1: doc new — the library seeding door
     dsp = sub.add_parser("doc", help="seed a new doc with its header contract (library door)")

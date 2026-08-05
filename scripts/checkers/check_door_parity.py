@@ -129,6 +129,11 @@ MANIFEST = {
     "knowledge_map": "shared", "task": "shared",
     # T060 N0: dry-run explanation + bounded observation counters are read-only on both doors.
     "packet_trace": "shared", "packet_stats": "shared",
+    # T171: `ask` SHOULD be shared and is recorded as debt, not as a design choice. Its whole
+    # purpose is cutting the cost of asking for help, and the seat that needs it most is the
+    # MCP-attached conductor -- so an MCP twin is the right end state. CLI-only is survivable
+    # today only because seats shell out. Pay it down with the other membrane gaps.
+    "ask": "gap",
     # --- T067 backlog, classified by deepseek 2026-07-25 ---
     # These 23 accumulated invisibly behind a DEAD CANARY: toolbox_verbs() parsed the file
     # `class ToolBox` used to live in, so it returned an EMPTY set and phantom-failed

@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 84eaeac. A bound you discover by collision is not awareness -- this sheet
+> Derived at a7f5845. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (187 names)
+## Configuration flags (190 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -19,7 +19,10 @@ Class: reference
 | `AKASHIC_ACL_PATH` | `` | core/trust/registry.py |
 | `AKASHIC_AGENT_ID` | `""` | agent/harness/hooks/_activity.py, agent/harness/hooks/claude_posttooluse.py, agent/harness/hooks/claude_pretooluse.py +21 |
 | `AKASHIC_ALLOW_HARMONIZE` | `` | scripts/harmonize_knowledge.py |
+| `AKASHIC_ASK_BASE_URL` | `"https://api.deepseek.com"` | core/comm/ask.py |
 | `AKASHIC_ASK_EXPECT_S` | `"1800"` | agent_cli.py |
+| `AKASHIC_ASK_MAX_TOKENS` | `"2000"` | core/comm/ask.py |
+| `AKASHIC_ASK_MODEL` | `"deepseek-v4-pro"` | core/comm/ask.py |
 | `AKASHIC_AUTOBOOT` | `"1"` | agent/harness/context.py |
 | `AKASHIC_BENCH_PROBE_DAYS` | `"14"` | core/recall/at_action.py |
 | `AKASHIC_BENCH_PROBE_MAX` | `"3"` | core/recall/at_action.py |
@@ -127,7 +130,7 @@ Class: reference
 | `CLAUDE_CODE_SESSION_ID` | `""` | agent/bifrost_pull.py, agent/harness/hooks/claude_posttooluse.py, agent_cli.py +3 |
 | `CLAUDE_SESSION_ID` | `` | agent_cli.py, core/comm/runner_lock.py |
 | `CURSOR_PROJECT_DIR` | `` | agent/harness/hooks/cursor_posttooluse.py, agent/harness/hooks/cursor_sessionstart.py |
-| `DEEPSEEK_API_KEY` | `` | scripts/ask_deepseek.py, scripts/deepseek_chat.py |
+| `DEEPSEEK_API_KEY` | `` | core/comm/ask.py, scripts/ask_deepseek.py, scripts/deepseek_chat.py |
 | `DEEPSEEK_CONNECT_TIMEOUT` | `"15"` | scripts/deepseek_chat.py |
 | `DEEPSEEK_MAX_CMD_TIMEOUT` | `"300"` | core/comm/toolbox.py |
 | `DEEPSEEK_MAX_RETRIES` | `"1"` | scripts/deepseek_chat.py |
