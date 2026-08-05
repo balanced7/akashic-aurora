@@ -325,3 +325,146 @@ def score(manifest: dict, claims) -> dict:
                         f"leaked or the instrument is being gamed; this round's evidence is void"
                         if undetectable_hits else ""),
     }
+
+
+def _ratio(numerator: int, denominator: int):
+    """Return an observable rate, preserving an empty denominator as unknown."""
+    return (numerator / denominator) if denominator else None
+
+
+def score_v2(manifest: dict, claims, *, assigned, judged) -> dict:
+    """Measure canary findings without making a protocol-validity judgment.
+
+    ``assigned`` is what the host exposed to the player, ``judged`` is the subset for which the
+    player returned a verdict, and ``claims`` is the subset judged to be defective.  Those sets
+    are host-derived orchestration facts; a player must not be allowed to choose its own
+    denominator.  Non-canary ids are allowed because a real assignment also contains ordinary
+    candidates and findings, but the subset chain is structural and therefore mandatory.
+
+    Unlike :func:`score`, finding an ``undetectable`` canary is a capability observation.  It is
+    not evidence that the answer key leaked.  Protocol integrity belongs in
+    :func:`protocol_verdict`, where it can be tied to independently observed facts.
+    """
+    claimed = set(claims or [])
+    assigned = set(assigned or [])
+    judged = set(judged or [])
+
+    if not claimed <= judged:
+        extra = sorted(claimed - judged)
+        raise ValueError(
+            f"claimed ids must be a subset of judged ids; unjudged claims: {extra}")
+    if not judged <= assigned:
+        extra = sorted(judged - assigned)
+        raise ValueError(
+            f"judged ids must be a subset of assigned ids; unassigned judgments: {extra}")
+
+    canaries = list(manifest.get("canaries", []))
+    ids = [c["id"] for c in canaries]
+    duplicate_ids = sorted({canary_id for canary_id in ids if ids.count(canary_id) > 1})
+    if duplicate_ids:
+        raise ValueError(f"duplicate manifest canary id(s): {duplicate_ids}")
+
+    by_class = {}
+    for cls in ("catchable", "undetectable", "bait"):
+        class_ids = {c["id"] for c in canaries if c["cls"] == cls}
+        class_assigned = class_ids & assigned
+        class_judged = class_ids & judged
+        class_claimed = class_ids & claimed
+        total = len(class_ids)
+        assigned_count = len(class_assigned)
+        judged_count = len(class_judged)
+        claimed_count = len(class_claimed)
+
+        row = {
+            "total": total,
+            "assigned": assigned_count,
+            "judged": judged_count,
+            "claimed": claimed_count,
+            "declined": judged_count - claimed_count,
+            "unjudged": assigned_count - judged_count,
+            "unseen": total - assigned_count,
+            "claim_rate": _ratio(claimed_count, total),
+            "assigned_claim_rate": _ratio(claimed_count, assigned_count),
+            "judgment_coverage": _ratio(judged_count, assigned_count),
+            "ids": sorted(class_ids),
+        }
+        # Catchable and baseline-blind canaries are planted defects, so a claim is a true
+        # positive and the rate is recall.  Bait is live code: its claim rate is useful, but
+        # calling that rate "recall" would invert the meaning again.
+        row["recall"] = row["claim_rate"] if cls != "bait" else None
+        row["assigned_recall"] = (
+            row["assigned_claim_rate"] if cls != "bait" else None)
+        by_class[cls] = row
+
+    known = set(ids)
+    defect_ids = {c["id"] for c in canaries if c["cls"] in {"catchable", "undetectable"}}
+    bait_ids = {c["id"] for c in canaries if c["cls"] == "bait"}
+    true_claims = claimed & defect_ids
+    bait_claims = claimed & bait_ids
+
+    return {
+        "by_class": by_class,
+        "claims": len(claimed),
+        "true_positives": len(true_claims),
+        "precision": _ratio(len(true_claims), len(claimed)),
+        "false_positives": len(bait_claims),
+        "unknown_claims": sorted(claimed - known),
+        "capability_findings": sorted(
+            claimed & {c["id"] for c in canaries if c["cls"] == "undetectable"}),
+    }
+
+
+def protocol_verdict(*, seal_verified, archive_complete, key_leak_detected) -> dict:
+    """Derive a three-state validity verdict from independently observed protocol facts.
+
+    An observed broken seal or key leak is enough to void a round.  Missing or incomplete
+    evidence is ``UNKNOWN`` rather than optimistically valid or punitively void.  A hard-class
+    model finding is deliberately absent from this function: capability is not contamination.
+    """
+    facts = {
+        "seal_verified": seal_verified,
+        "archive_complete": archive_complete,
+        "key_leak_detected": key_leak_detected,
+    }
+    for name, value in facts.items():
+        if value is not None and not isinstance(value, bool):
+            raise ValueError(f"{name} must be True, False, or None; got {value!r}")
+
+    void_basis = []
+    if seal_verified is False:
+        void_basis.append("seal_verified=False: the sealed manifest failed verification")
+    if key_leak_detected is True:
+        void_basis.append("key_leak_detected=True: answer-key exposure was observed")
+    if void_basis:
+        return {
+            "validity": "VOID",
+            "voided": True,
+            "basis": void_basis,
+            "facts": facts,
+        }
+
+    if (seal_verified is True
+            and archive_complete is True
+            and key_leak_detected is False):
+        return {
+            "validity": "VALID",
+            "voided": False,
+            "basis": [
+                "seal verified, archive complete, and no answer-key leak was detected"
+            ],
+            "facts": facts,
+        }
+
+    unknown_basis = []
+    for name, value in facts.items():
+        if value is None:
+            unknown_basis.append(f"{name}=None: the fact was not established")
+        elif name == "archive_complete" and value is False:
+            unknown_basis.append(
+                "archive_complete=False: the evidence record is incomplete")
+    return {
+        "validity": "UNKNOWN",
+        "voided": None,
+        "basis": unknown_basis or ["protocol evidence is insufficient for a valid verdict"],
+        "facts": facts,
+    }
