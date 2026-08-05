@@ -46,13 +46,21 @@ _HEADING_RE = re.compile(r"^#{1,6}\s+\S", re.MULTILINE)
 _BULLET_RE = re.compile(r"^\s*(?:[-*]|\d+\.)\s+\S", re.MULTILINE)
 
 # Kinds that are telemetry or control -- never cargo that needs a library home.
-SKIP_KINDS = {"trace", "halt", "interrupt", "pause", "resume", "nudge", "steer",
-              "ledger_update", "presence", "heartbeat"}
+#
+# NAMED FOR WHAT IT EXCLUDES, not for what the code does with it (T175). This was SKIP_KINDS,
+# which is also the name of a set in scripts/bifrost_wake.py with eight different members. The
+# two answer DIFFERENT QUESTIONS -- that one means "must not wake an idle seat", this one means
+# "not cargo" -- so a reader who grepped the name got a different answer depending on which file
+# they landed in (the corpus calls this one_word_two_meanings_is_how_gauges_lie). This side moved
+# because it is referenced in exactly one function in this file, while the wake side carries
+# parity pin L7, two T045 suites and ~20 library documents that are historical record.
+NON_CARGO_KINDS = {"trace", "halt", "interrupt", "pause", "resume", "nudge", "steer",
+                   "ledger_update", "presence", "heartbeat"}
 
 
 def classify_body(text: str, kind: str = "") -> Optional[str]:
     """Return a flag-reason for an atomless design-shaped body, else None (clean)."""
-    if not text or (kind or "").lower() in SKIP_KINDS:
+    if not text or (kind or "").lower() in NON_CARGO_KINDS:
         return None
     # Transport reality (founding-run find): stream envelopes carry newlines as literal
     # backslash-n escapes -- classify what the WIRE stores, or every line-anchored

@@ -51,6 +51,11 @@ PLANES = {
     "STALE_ASK_KINDS": "bus", "SALIENT_KINDS": "bus", "FLAGGABLE_KINDS": "bus",
     "PENDING_SKIP_KINDS": "bus", "SKIP_KINDS": "bus", "SKIP_KINDS_LANE": "bus",
     "WAKE_WORTHY_KINDS": "bus", "ASK_KINDS": "bus", "CONSOLE_KINDS": "bus",
+    # T175: was SKIP_KINDS in check_bus_atom_pointers, colliding with bifrost_wake's. Renamed for
+    # what it excludes (cargo), not for what the code does with it. K-D caught the rename the
+    # moment it landed and demanded this line -- which is the bedside test working: nobody had to
+    # REMEMBER to classify the new set.
+    "NON_CARGO_KINDS": "bus",
     # the event plane -- what a seat DID
     "EVENT_KINDS": "event",
     # the narrative plane -- beats on the story spine
