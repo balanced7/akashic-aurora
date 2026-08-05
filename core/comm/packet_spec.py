@@ -342,7 +342,13 @@ def lane_stream_key(ns: str, lane: str, to: Optional[str] = None) -> str:
 
 
 # ------------------------------------------------- stale-mail gate (D2) + send bound (D3)
-STALE_ASK_KINDS = ("question", "request", "handoff", "ask")
+# T174: 'ask' RETIRED from this tuple. It was the only set in the tree containing it, so a
+# kind="ask" message got no automatic expectation window (ASK_KINDS gates that and excluded it)
+# and woke nobody (WAKE_WORTHY_KINDS excluded it) while this predicate still called it an ask --
+# the kind=review casualty pre-loaded. Nothing has ever emitted it: every send-shaped call site
+# in the tree is walked by tests/test_t174_ask_names_one_thing.py::test_k2, which now FAILS if a
+# producer appears. `ask` is the T171 CLI verb; one token, one meaning.
+STALE_ASK_KINDS = ("question", "request", "handoff")
 DEFAULT_STALE_MS = 6 * 3600 * 1000        # kimi D2: 6h default; 0 disables the gate (P2)
 
 TOOL_SEND_TEXT_MAX = 8000                 # D3 (deepseek verdict 2026-07-19): the 4000 door
