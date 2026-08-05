@@ -1,5 +1,5 @@
 {
-  "seq": 167,
+  "seq": 169,
   "tasks": [
     {
       "id": "T001",
@@ -6017,16 +6017,78 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "258c29f",
+      "verified_by": "5/5 pins green. LIVE RECEIPT: restarted daemon spawned SIX listeners (2d5b828d, 30e6af5c, 51a77a23, 7507b107, 98931ec2, cdfb9126) from triggers that had been backed up unanswered; all triggers consumed. Chain verified end to end: rearm -> daemon spawns -> listener detects wake-worthy mail -> exits 0 (detect-only, per T017). Before the fix: 0 spawns, trigger unanswered after 134s with the daemon alive.",
       "created": "2026-08-05T02:19:01+00:00",
-      "updated": "2026-08-05T02:19:01+00:00",
+      "updated": "2026-08-05T02:27:23+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-05T02:19:01+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-05T02:27:21+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-05T02:27:22+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-05T02:27:22+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-05T02:27:23+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T168",
+      "title": "The daemon REFUSES a relaunch while the previous daemon's lock is still warm and EXITS 0 -- observed 2026-08-04 restarting the claude daemon for T167: '[daemon] refused agent=claude: another daemon pid=9572 holds the daemon lock -- exiting 0', with pid 9572 already killed. This is the exact friction acquire_waiting was written to remove for RUNNERS (runner_lock.py:83-98: 'kill a runner, relaunch it three seconds later, and the start is refused because the corpse key has ~20s of TTL left -- so the new process exits and the seat is simply down until a human notices'). The runner path got acquire_waiting; the daemon path never did, so a daemon restart silently leaves the fleet without a listener-manager until someone retries by hand. Fix = the daemon uses the same outwait-a-dead-predecessor acquire, or at minimum exits NONZERO with the wait-time so a supervisor retries.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-05T02:27:23+00:00",
+      "updated": "2026-08-05T02:27:23+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-05T02:27:23+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T169",
+      "title": "FLEET BLOCKER for Season 1: an agentic seat that exhausts its tool-round budget delivers NOTHING. scripts/deepseek_chat.py:357 loops 'for _round in range(MAX_TOOL_ROUNDS)' (30) and on exhaustion line 442 prints '[stopped: hit 30 tool rounds]' and returns with no final answer. Measured 2026-08-04 in the T166 fire drill: all four seats RECEIVED their brief (FIRE DRILL in every log) and ZERO issued a send. deepseek-red hit the stop twice, having produced 109KB of genuinely good wedge analysis in its log -- lost entirely. The seats doing the DEEPEST investigation are the most likely to deliver nothing, which is exactly backwards for a research fleet. FIX = a FORCED-ANSWER FINAL HOP: on budget exhaustion make one more model call with tools DISABLED and an explicit 'you are out of budget, answer now with what you have', so total loss becomes a partial answer. SECOND: wire consumed-but-never-answered into a visible state -- expectations already exist (RB-29), nothing reports a seat that ate a brief and returned silence.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-05T02:32:31+00:00",
+      "updated": "2026-08-05T02:32:31+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-05T02:32:31+00:00"
         }
       ]
     }
