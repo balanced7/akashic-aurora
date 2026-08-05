@@ -439,8 +439,40 @@ class Agent:
             if content:
                 self.messages.append({"role": "assistant", "content": content})
             return content
-        print(f"{C.red}[stopped: hit {MAX_TOOL_ROUNDS} tool rounds]{C.reset}")
-        return ""
+        # T169 FORCED ANSWER. This used to `return ""`, and the empty string WAS the loss: in the
+        # T166 fire drill four seats received their brief and none replied, because the ones doing
+        # the deepest work spent every round investigating and fell off this cliff. deepseek-red
+        # produced 109KB of correct analysis and delivered none of it. The incentive was backwards
+        # -- more effort, more likely to return silence.
+        #
+        # A bigger budget only moves the cliff. Instead: one more call with TOOLS DISABLED, asking
+        # for the answer now from what was already gathered. Total loss becomes a partial answer,
+        # and a partial answer is scoreable. It is MARKED, because a partial answer that does not
+        # say so is read as complete.
+        print(f"{C.red}[stopped: hit {MAX_TOOL_ROUNDS} tool rounds -- forcing a final answer]{C.reset}")
+        _banner = (f"[BUDGET-TRUNCATED after {MAX_TOOL_ROUNDS} tool rounds -- "
+                   f"partial answer, no further tool calls were made]")
+        _tools_were = self.tools_enabled
+        try:
+            self.tools_enabled = False          # no 31st round; this call must produce prose
+            self.messages.append({"role": "user", "content":
+                f"You have used your entire tool budget ({MAX_TOOL_ROUNDS} rounds) and may make NO "
+                f"further tool calls. Answer NOW using only what you have already gathered. State "
+                f"your findings and say plainly what you could not determine. A partial answer is "
+                f"expected and useful; silence is not."})
+            content, _tc = self._stream_turn()
+            if content:
+                self.messages.append({"role": "assistant", "content": content})
+                return f"{_banner}\n\n{content}"
+        except Exception as e:
+            print(f"{C.red}[forced-answer call failed: {type(e).__name__}: {e}]{C.reset}")
+        finally:
+            self.tools_enabled = _tools_were
+        # Never "" again: even with no model available, hand back the trail so the work is not lost.
+        _trail = [m.get("content") or "" for m in self.messages
+                  if m.get("role") == "tool" or m.get("role") == "assistant"]
+        _tail = " | ".join(t.strip().replace("\n", " ")[:200] for t in _trail[-3:] if t.strip())
+        return f"{_banner} The forced answer could not be produced. Last work: {_tail or '(none)'}"
 
     def save(self, path):
         Path(path).write_text(json.dumps({"model": self.model, "think": self.think,

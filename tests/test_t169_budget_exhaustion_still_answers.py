@@ -56,8 +56,13 @@ def _agent(turns, tools_enabled=True):
     a.think = False
     a.tools_enabled = tools_enabled
     a.toolbox = _Box()
-    a.interrupt = None
-    a.inject = None
+    # every optional hook the constructor sets, so the fake matches the real object's shape --
+    # discovered one AttributeError at a time, which is its own small lesson about fakes
+    a.interrupt = a.on_activity = a.inject = a.on_trace = a.agent_id = None
+    a.client = None
+    a.temperature = a.max_tokens = None
+    a.json_mode = False
+    a.prompt_tokens = a.completion_tokens = 0
     a._seen = []
     seq = list(turns)
 
