@@ -343,7 +343,17 @@
       ],
       "granted_by": "claude",
       "granted_at": "2026-08-04T00:45:00Z",
-      "expires_at": "2026-08-05T12:00:00Z",
+      "expires_at": "2026-09-05T12:00:00Z",
+      "renewals": [
+        {
+          "from": "2026-08-05T12:00:00Z",
+          "to": "2026-09-05T12:00:00Z",
+          "at": "2026-08-05T12:40:00Z",
+          "authorized_by": "daniil",
+          "enacted_by": "claude",
+          "note": "Daniil, in his own lane, asked 'did we renew codex sols grant?' and then said 'renew, 1 month'. The grant had LAPSED 34 minutes earlier and codex_root was quarantined. Caps and path_scope are UNCHANGED -- core/trust/* write stays excluded, because that is the enforcement plane and Daniil is its root of trust (ORG.md Part 4). RENEWAL IS NOT RATIFICATION: this authorizes the working permission only. T141 remains unratified; the original reason below reserves that for Daniil's own word, and asking about a grant is not saying it. The time-box did its job -- it expired, it paged, and it produced the human decision it existed to force."
+        }
+      ],
       "reason": "T141/authority-parity lane. Enacted by claude (super_admin) on codex_root request 1785808361126-0, TIME-BOXED. Requested scope granted MINUS core/trust/* WRITE: core/trust/ is the enforcement code (registry.py/capabilities.py decide every other grant), so write there is functionally admin.grant even though the request said no security/* scope. READ of core/trust/* is unaffected (READ is not path-scoped). If codex_root needs to EDIT the enforcement plane, that is Daniil - human root of trust per ORG.md Part 4. Grant is git-tracked; undo = revert this entry. NOT recorded here: codex_root reports Daniil ratified T141 in another interface; a peer-relayed operator word is not a ledger receipt, so T141 stays unratified until Daniil says it in his own lane."
     }
   ]
