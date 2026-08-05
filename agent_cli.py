@@ -3951,7 +3951,7 @@ def cmd_grant(args):
 
 def cmd_roster(args):
     """S2: the lobby -- every seat's proven liveness + inventory pointers (W84 render)."""
-    from core.comm.roster import roster, render_roster
+    from core.comm.roster import roster, render_roster, by_agent, render_by_agent
     from core.comm.bus import NS as DEFAULT_NS
     ns = os.environ.get("BIFROST_NAMESPACE", DEFAULT_NS)
     if getattr(args, "reap", False):
@@ -3961,6 +3961,17 @@ def cmd_roster(args):
               else "[reaper] nothing to re-home (no provably-dead seats with stranded mail)")
         for r in recs:
             print(f"  {r['kind']} {r['original_mid']} from {r['seat']} -> {r['rehomed_mid']}")
+    # T183: --by-agent states churn instead of leaving it to be inferred from N last-beat ages.
+    # NOT the default: a fenced wavefront showed the raw view's noise is load-bearing (a
+    # crash-loop is visible there as clustered deaths), so this compresses the render on request
+    # while the record and the raw view stay exactly as they were.
+    if getattr(args, "by_agent", False):
+        if getattr(args, "json", False):
+            print(json.dumps(by_agent(roster(ns)), indent=2, default=str))
+            return 0
+        for ln in render_by_agent(ns):
+            print(ln)
+        return 0
     if getattr(args, "json", False):
         print(json.dumps(roster(ns), indent=2, default=str))
         return 0
@@ -5029,6 +5040,10 @@ def build_parser():
     ros.add_argument("--json", action="store_true")
     ros.add_argument("--reap", action="store_true",
                      help="S4: explicitly re-home provably-dead seats' stranded mail now")
+    ros.add_argument("--by-agent", dest="by_agent", action="store_true",
+                     help="T183: one line per LOGICAL agent, stating churn (deaths in the last "
+                          "hour) instead of leaving it to be inferred from N last-beat ages. "
+                          "Compresses the render, never the record -- raw rows are the default")
     ros.set_defaults(fn=cmd_roster)
 
     ss = sub.add_parser("season-score", help="T165: score a Season 1 round, or --compare the two "

@@ -96,6 +96,24 @@ def test_k5_summarising_is_not_hiding():
         "the graveyard size stays visible -- this view compresses the render, not the record")
 
 
+def test_k7_two_live_incarnations_of_one_agent_is_itself_the_signal():
+    """FOUND BY DOGFOODING, not by these tests. The first implementation picked live[0] and
+    rendered one incarnation -- so two live `claude` seats showed as one. That is the same
+    collapse this file exists to prevent, and it has a filed hazard behind it: with 2+ live
+    seats on one agent id, directed and multi-part delivery splits between them
+    (two_live_seats_split_chunked_bus_delivery). Silently naming one of them as THE address is
+    worse than naming none."""
+    rows = [_row("claude", "LIVE", 1, sid8="aaaa0001"),
+            _row("claude", "LIVE", 2, sid8="bbbb0002"),
+            _row("claude", "DEAD", 90000)]
+    g = by_agent(rows)[0]
+    assert g["n_live"] == 2
+    assert g["split_brain"] is True, "two live seats on one id must be stated, not averaged away"
+    assert set(g["live_sids"]) == {"aaaa0001", "bbbb0002"}, "name BOTH; delivery splits between them"
+    single = by_agent([_row("kimi", "LIVE", 1, sid8="cccc0003")])[0]
+    assert single["split_brain"] is False and single["live_sids"] == ["cccc0003"]
+
+
 def test_k6_a_fully_dead_agent_still_appears():
     rows = [_row("ghost", "DEAD", 70000), _row("ghost", "DEAD", 71000)]
     g = by_agent(rows)[0]

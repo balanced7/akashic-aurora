@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at ab32513. A bound you discover by collision is not awareness -- this sheet
+> Derived at 016da5d. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (193 names)
+## Configuration flags (195 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -76,6 +76,8 @@ Class: reference
 | `AKASHIC_RELEVANCE_BUDGET` | `"1"` | core/context/learning_loader.py |
 | `AKASHIC_RELEVANCE_BUDGET_CHARS` | `""` | core/context/relevance_budget.py |
 | `AKASHIC_RESUME_GAP_S` | `"600"` | core/comm/roster.py |
+| `AKASHIC_ROSTER_CHURN_AT` | `"3"` | core/comm/roster.py |
+| `AKASHIC_ROSTER_CHURN_WINDOW_S` | `"3600"` | core/comm/roster.py |
 | `AKASHIC_SEAT_DOOR` | `""` | agent_cli.py |
 | `AKASHIC_SEAT_DOOR_DETAIL` | `""` | agent_cli.py |
 | `AKASHIC_SEAT_HEARTBEAT` | `"1"` | agent/harness/hooks/claude_posttooluse.py, agent/harness/hooks/claude_stop.py, scripts/hooks/claude_posttooluse.py +1 |

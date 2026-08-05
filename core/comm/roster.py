@@ -182,6 +182,103 @@ def _have_summary(client, ns: str, agent: str, sid8: str) -> Dict[str, Any]:
     return have
 
 
+CHURN_WINDOW_S = float(os.environ.get("AKASHIC_ROSTER_CHURN_WINDOW_S", "3600") or 3600)
+CHURN_AT = int(os.environ.get("AKASHIC_ROSTER_CHURN_AT", "3") or 3)
+
+_STATE_RANK = {"LIVE": 3, "STALE": 2, "DEAD": 1}
+
+
+def by_agent(rows, *, churn_window_s: Optional[float] = None,
+             churn_at: Optional[int] = None) -> List[Dict[str, Any]]:
+    """One summary per LOGICAL agent, with churn STATED rather than implied (T183).
+
+    WHY THIS IS NOT A COLLAPSE. The obvious version of this function -- one line per agent with a
+    count of dead incarnations -- was proposed, reviewed by a fenced wavefront, and refuted from
+    two independent directions. The decisive case: an agent crash-looping every four minutes
+    renders as one green row with a count, and the on-call engineer sees a green dot and goes
+    back to bed. A count hides whether the deaths happened in the last minute or over days.
+
+    So the count is not the signal, the RATE is. `deaths_in_window` and `churning` say the thing
+    the raw 49-row view only lets you INFER by comparing last-beat ages by eye. This view
+    compresses the render, never the record: the graveyard total stays, and the raw rows are one
+    flag away, because F1 reserves silent absence for seats that never existed.
+
+    A CHURN FLAG THAT FIRES ON EVERY LONG-LIVED AGENT IS A FLAG NOBODY READS, so an old
+    graveyard under a healthy heartbeat is deliberately quiet.
+    """
+    window = float(CHURN_WINDOW_S if churn_window_s is None else churn_window_s)
+    threshold = int(CHURN_AT if churn_at is None else churn_at)
+
+    groups: Dict[str, List[Dict[str, Any]]] = {}
+    for r in (rows or []):
+        groups.setdefault(str(r.get("agent") or "?"), []).append(r)
+
+    def _rank(r):
+        age = r.get("beat_age_s")
+        return (_STATE_RANK.get(str(r.get("state")), 0),
+                -(float(age) if age is not None else 1e12))
+
+    def _recent(r):
+        age = r.get("beat_age_s")
+        return age is not None and float(age) <= window
+
+    out: List[Dict[str, Any]] = []
+    for agent, rs in sorted(groups.items()):
+        best = max(rs, key=_rank)
+        live = [r for r in rs if str(r.get("state")) == "LIVE"]
+        stale = [r for r in rs if str(r.get("state")) == "STALE"]
+        dead = [r for r in rs if str(r.get("state")) == "DEAD"]
+        recent_deaths = [r for r in dead if _recent(r)]
+        newest_death = min((float(r["beat_age_s"]) for r in dead
+                            if r.get("beat_age_s") is not None), default=None)
+        out.append({
+            "agent": agent,
+            "state": str(best.get("state") or "?"),
+            # None, never a stale stand-in: "who do I address" must not be answered with a corpse.
+            # And when there are TWO live incarnations, naming one of them as THE address is
+            # worse than naming none -- directed and multi-part delivery splits between them
+            # (two_live_seats_split_chunked_bus_delivery). Found by dogfooding: the first cut
+            # took live[0] and rendered two live claude seats as one.
+            "live_sid8": str(live[0].get("sid8")) if len(live) == 1 else None,
+            "live_sids": [str(r.get("sid8")) for r in live],
+            "split_brain": len(live) > 1,
+            "phase": str(best.get("phase") or "?"),
+            "beat_age_s": best.get("beat_age_s"),
+            "n_total": len(rs), "n_live": len(live), "n_stale": len(stale), "n_dead": len(dead),
+            "deaths_in_window": len(recent_deaths),
+            "newest_death_age_s": newest_death,
+            "churn_window_s": window,
+            "churning": len(recent_deaths) >= threshold,
+        })
+    return out
+
+
+def render_by_agent(ns: str, *, client=None) -> List[str]:
+    """The per-agent render. Churn is the headline; the graveyard total is context."""
+    groups = by_agent(roster(ns, client=client))
+    lines = [f"# seat roster BY AGENT -- {len(groups)} agent(s) "
+             f"(raw incarnations: `roster` without --by-agent)"]
+    for g in groups:
+        beat = f"{g['beat_age_s']:.1f}s" if g["beat_age_s"] is not None else "never"
+        who = f"#{g['live_sid8']}" if g["live_sid8"] else ("SPLIT" if g["split_brain"] else "-")
+        churn = ""
+        if g["churning"]:
+            mins = int(g["churn_window_s"] // 60)
+            churn = (f"  <<< CHURNING: {g['deaths_in_window']} death(s) in {mins}m")
+        elif g["deaths_in_window"]:
+            churn = f"  ({g['deaths_in_window']} recent)"
+        if g["split_brain"]:
+            churn += (f"  <<< SPLIT-BRAIN: {g['n_live']} live incarnations "
+                      f"({', '.join(g['live_sids'])}) -- directed delivery splits between them")
+        # A negative beat age is clock skew between the seat and this reader, not freshness.
+        # Say so rather than rendering a confident -0.4s that reads like a very fresh beat.
+        if g["beat_age_s"] is not None and float(g["beat_age_s"]) < 0:
+            churn += "  [clock skew: beat timestamped ahead of this reader]"
+        lines.append(f"  [{g['state']:<5}] {g['agent']:<20} {who:<10} beat={beat:>9} "
+                     f"phase={g['phase']:<9} dead={g['n_dead']:<3}{churn}")
+    return lines
+
+
 def roster(ns: str, *, client=None, now: Optional[float] = None) -> List[Dict[str, Any]]:
     """Every known seat in `ns`, with its PROVEN state. Read-only; derives everything from
     worklive keys + cursor hashes (a projection -- rebuild-safe by construction)."""
