@@ -10,6 +10,7 @@ is correct; the exit-2 rule was specific to Claude Code PreToolUse, not git hook
 Install once per clone/worktree:  py scripts/githooks/install_git_hooks.py
 """
 import os
+import re
 import subprocess
 import sys
 
@@ -74,11 +75,180 @@ def _comprehensibility_fast():
         return 0, ""   # guard crashed/slow -> fail open, per the policy in the docstring
 
 
+# --------------------------------------------------------------------------- WRITE-EDGE GATES
+# Root-cause fix, 2026-08-01, after CI sat red for 30 consecutive days. The repo had five good
+# guardrails, four debt allowlists and a suite baseline -- and enforced NONE of it at the moment
+# of authorship. The loop from "author a violation" to "learn about it" was commit -> push ->
+# 40s of CI -> a red badge, which is too slow to change behaviour, delivered to nobody, and
+# self-severing: once the badge sits red a NEW red carries no information. That is how thirty
+# days passed unnoticed. These two functions move the gates to the write.
+
+GUARDRAILS = ("check_boundaries", "check_doc_freshness", "check_comprehensibility",
+              "check_wiring", "check_door_parity", "check_kind_policy")
+
+# GENERATED, not authored. Committing a derivative and then gating on its freshness is a
+# category error: every code commit invalidates it, so the gate fires on whoever commits next
+# rather than on whoever caused it. Measured: regenerated twice in one hour, stale both times.
+# The commit REGENERATES them; it does not check them.
+GENERATORS = ("gen_arch_index", "gen_physics_sheet", "gen_master_map",
+              "gen_doors", "gen_prior_art_register")
+
+BASELINE_PATH = os.path.join(ROOT, "state", "ci", "guardrail_baseline.json")
+
+_VIOLATION_LINE = re.compile(r"^(?:FAIL:|\s+-\s+\[)")
+
+
+def _count_violations(text: str) -> int:
+    """Count REAL violations, never allowlist entries.
+
+    check_boundaries prints its known-debt ALLOWLIST in the same '- [rule] path' shape as a
+    violation; only the lines under the VIOLATIONS heading are real. A naive line match read
+    13 where the truth was 1 -- and a baseline built from a wrong count is not a ratchet, it
+    is a rubber stamp with room to absorb twelve new violations silently.
+    """
+    itemised, summaries, in_violations = 0, 0, False
+    for ln in (text or "").splitlines():
+        stripped = ln.strip()
+        if stripped.startswith("VIOLATIONS"):
+            in_violations = True
+            continue
+        if stripped.startswith(("Known debt", "PASS")):
+            in_violations = False
+            continue
+        if stripped.startswith("FAIL:"):
+            in_violations = False
+            summaries += 1
+            continue
+        if in_violations and stripped.startswith("- ["):
+            itemised += 1
+    # Itemised wins when present: check_boundaries prints BOTH an itemised list and a trailing
+    # "FAIL: new boundary violation(s)" summary, so adding them double-counts. Every checker
+    # emits one form or the other, and a ratchet with slack in it quietly absorbs real debt.
+    return itemised or summaries
+
+
+def guardrail_counts(names=GUARDRAILS) -> dict:
+    """{guardrail: violation_count}. A CRASHED guardrail returns -1 and NEVER counts as zero.
+
+    Absence must not look like success -- that is the exact defect recorded above this function
+    for the comprehensibility gate, which silently no-opped for weeks while reporting green.
+    """
+    out = {}
+    for name in names:
+        path = os.path.join(ROOT, "scripts", "checkers", name + ".py")
+        if not os.path.exists(path):
+            out[name] = -1
+            continue
+        try:
+            r = subprocess.run([sys.executable, "-X", "utf8", path], capture_output=True,
+                               text=True, timeout=120, cwd=ROOT,
+                               stdin=subprocess.DEVNULL, close_fds=True)
+            out[name] = 0 if r.returncode == 0 else max(
+                1, _count_violations((r.stdout or "") + (r.stderr or "")))
+        except Exception:
+            out[name] = -1
+    return out
+
+
+def read_baseline() -> dict:
+    try:
+        import json
+        with open(BASELINE_PATH, encoding="utf-8") as fh:
+            return json.load(fh).get("counts", {})
+    except Exception:
+        return {}
+
+
+def ratchet_ok(baseline=None, live=None):
+    """(ok, message). Debt may fall or hold; it may never RISE.
+
+    An absolute gate over a dirty baseline can never pass, so it teaches everyone to ignore it
+    -- and an ignored gate is how a 30-day outage goes unnoticed. A counted baseline makes green
+    achievable TODAY at the current debt level while making the debt monotonically
+    non-increasing. Pay it down and re-baseline; you can never quietly add to it.
+    """
+    base = read_baseline() if baseline is None else baseline
+    now = guardrail_counts() if live is None else live
+    if not base:
+        return True, ""            # no baseline recorded -> nothing to ratchet against
+    worse = []
+    for name, was in base.items():
+        is_now = now.get(name, 0)
+        if is_now == -1:
+            worse.append("%s: the guardrail did not RUN (crash/missing) -- absence is not a pass"
+                         % name)
+        elif is_now > was:
+            worse.append("%s: %d -> %d violation(s)" % (name, was, is_now))
+    if worse:
+        return False, ("guardrail debt INCREASED:\n    " + "\n    ".join(worse) +
+                       "\n  Fix it, or pay something else down first. To accept a deliberate "
+                       "rise, update state/ci/guardrail_baseline.json in the same commit so the "
+                       "increase is a RECORDED decision rather than a silent one.")
+    return True, ""
+
+
+def regenerate_derived(stage: bool = True):
+    """Run the generators and stage their output. Returns (ok, note).
+
+    Fail-OPEN: a generator that breaks must never brick every commit in the repo (the standing
+    policy one function above). But a generator that did not RUN is reported, never silent.
+    """
+    changed, broke = [], []
+    for g in GENERATORS:
+        path = os.path.join(ROOT, "scripts", "generators", g + ".py")
+        if not os.path.exists(path):
+            broke.append(g + " (missing)")
+            continue
+        try:
+            r = subprocess.run([sys.executable, "-X", "utf8", path], capture_output=True,
+                               text=True, timeout=120, cwd=ROOT,
+                               stdin=subprocess.DEVNULL, close_fds=True)
+            if r.returncode != 0:
+                broke.append(g)
+        except Exception:
+            broke.append(g)
+    if stage:
+        for doc in ("MODULE_INDEX.md", "PHYSICS.md", "MAP.md", "DOORS.md", "PRIOR_ART.md"):
+            rel = "docs/" + doc
+            try:
+                d = subprocess.run(["git", "diff", "--quiet", "--", rel], cwd=ROOT,
+                                   stdin=subprocess.DEVNULL, close_fds=True)
+                if d.returncode != 0:
+                    subprocess.run(["git", "add", "--", rel], cwd=ROOT,
+                                   capture_output=True, stdin=subprocess.DEVNULL,
+                                   close_fds=True)
+                    changed.append(rel)
+            except Exception:
+                pass
+    note = ""
+    if changed:
+        note += "pre-commit: regenerated and staged %s\n" % ", ".join(changed)
+    if broke:
+        note += ("pre-commit WARNING: generator(s) did not run: %s -- derived docs may be stale "
+                 "and the comprehensibility gate is not protecting you.\n" % ", ".join(broke))
+    return (not broke), note
+
+
 def main():
     ok, reason = check_staged(_staged_files(), os.getenv("AKASHIC_AGENT_ID"))
     if not ok:
         sys.stderr.write(reason + "\n")
         return 1
+
+    # DERIVED DOCS FIRST: regenerate and stage BEFORE any freshness gate looks at them.
+    # Ordering is the whole point -- checking a derivative before refreshing it is what made
+    # the comprehensibility gate fire on people who had not caused the staleness.
+    _ok_gen, _note = regenerate_derived()
+    if _note:
+        sys.stderr.write(_note)
+
+    # THE RATCHET: debt may fall or hold, never rise.
+    _r_ok, _r_msg = ratchet_ok()
+    if not _r_ok:
+        sys.stderr.write("pre-commit BLOCKED: " + _r_msg + "\n  Emergency bypass: "
+                         "`git commit --no-verify`.\n")
+        return 1
+
     rc, out = _comprehensibility_fast()
     if rc == 1:
         sys.stderr.write("pre-commit BLOCKED: comprehensibility drift (a stale repo reference or a "
