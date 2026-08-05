@@ -114,6 +114,14 @@ research/shift-console-*.log.err
 # state/* (not state/) excludes the CONTENTS so these re-includes can take effect.
 !state/coord/
 !state/coord/**
+
+# EXCEPTION: the guardrail baseline is the RATCHET's memory, not runtime scratch (T178).
+# Untracked, it was per-machine: every fresh clone and CI itself ran with no baseline, and
+# ratchet_ok read a missing baseline as nothing-to-compare and PASSED. The debt allowance has
+# to travel with the repo or "green" only ever means green on one workstation.
+!state/ci/
+state/ci/*
+!state/ci/guardrail_baseline.json
 research/sources-cache/
 state/spill/
 

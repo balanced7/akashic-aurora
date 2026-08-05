@@ -150,13 +150,83 @@ def guardrail_counts(names=GUARDRAILS) -> dict:
     return out
 
 
-def read_baseline() -> dict:
+def _load_baseline():
+    """(counts, status) where status is 'present' | 'missing' | 'unreadable' (T178).
+
+    THREE STATES, NOT ONE FALSY. The first version collapsed every failure -- including
+    file-not-found -- into {}, and ratchet_ok read {} as "nothing to ratchet against" and
+    PASSED. The baseline is gitignored by `state/*` and nothing generated it, so the write-edge
+    ratchet silently did not run for anyone who had not hand-built one. Absence looked like
+    success, one function below the docstring warning about exactly that.
+    """
+    if not os.path.exists(BASELINE_PATH):
+        return {}, "missing"
     try:
         import json
         with open(BASELINE_PATH, encoding="utf-8") as fh:
-            return json.load(fh).get("counts", {})
+            return json.load(fh).get("counts", {}), "present"
     except Exception:
-        return {}
+        return {}, "unreadable"
+
+
+def read_baseline() -> dict:
+    """The counts alone (back-compat). Anything that must tell a MISSING baseline from an
+    empty one -- which is the whole T178 defect -- uses _load_baseline instead."""
+    return _load_baseline()[0]
+
+
+def ensure_baseline(live=None) -> tuple:
+    """(created, note). Resolve absence LOUDLY; never let it read as success.
+
+    Two cases, both of which used to mean "no enforcement and no notice":
+      * no baseline file at all -- every fresh clone, and CI
+      * a guard in GUARDRAILS with no entry, which ratchet_ok never compared because it
+        iterates the BASELINE's keys. That is why check_kind_policy (T177) enforced on
+        exactly one workstation: it blocked nobody, and it protected nobody.
+
+    Both are adopted at TODAY's count, because a commit cannot be blamed for debt that
+    predates it -- the same reasoning that made the ratchet counted rather than absolute.
+    From the next commit on that debt may fall or hold, and may never rise.
+
+    Adoption is the side effect; ratchet_ok stays a predicate.
+    """
+    import json
+    now = guardrail_counts() if live is None else live
+    counts, status = _load_baseline()
+    if status == "unreadable":
+        return False, ("baseline at %s is UNREADABLE -- refusing to overwrite it blindly. Fix "
+                       "or delete it; a corrupt ratchet must not be silently replaced."
+                       % BASELINE_PATH)
+
+    # A guard that CRASHED reports -1. Adopting that as a debt level would launder a broken
+    # guard into an allowance, so it is left out and ratchet_ok fails on it instead.
+    adopt = {k: v for k, v in now.items() if k not in counts and v >= 0}
+    if status == "present" and not adopt:
+        return False, ""
+
+    merged = dict(counts)
+    merged.update(adopt)
+    payload = {}
+    if status == "present":
+        try:
+            with open(BASELINE_PATH, encoding="utf-8") as fh:
+                payload = json.load(fh)
+        except Exception:
+            payload = {}
+    payload["counts"] = merged
+    payload.setdefault("_why", "Write-edge ratchet baseline. Debt may fall or hold; it may "
+                               "never rise without editing this file in the same commit.")
+    os.makedirs(os.path.dirname(BASELINE_PATH), exist_ok=True)
+    with open(BASELINE_PATH, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, indent=2)
+        fh.write("\n")
+
+    if status == "missing":
+        return True, ("no guardrail baseline existed -- created %s adopting today's debt %s. "
+                      "Enforcement starts NOW; it was not running before this."
+                      % (BASELINE_PATH, merged))
+    return True, ("guardrail(s) with no baseline entry were never being compared: adopted %s at "
+                  "today's level. They enforce from the next commit on." % adopt)
 
 
 def ratchet_ok(baseline=None, live=None):
@@ -167,10 +237,19 @@ def ratchet_ok(baseline=None, live=None):
     achievable TODAY at the current debt level while making the debt monotonically
     non-increasing. Pay it down and re-baseline; you can never quietly add to it.
     """
-    base = read_baseline() if baseline is None else baseline
+    if baseline is None:
+        base, status = _load_baseline()
+        if status != "present":
+            return False, ("no readable guardrail baseline at %s (%s). A MISSING baseline is "
+                           "UNKNOWN debt, NEVER zero -- this gate used to pass here, which is "
+                           "how it silently did not run on any fresh clone (T178). Let the hook "
+                           "materialise one via ensure_baseline()." % (BASELINE_PATH, status))
+    else:
+        base = baseline
     now = guardrail_counts() if live is None else live
     if not base:
-        return True, ""            # no baseline recorded -> nothing to ratchet against
+        return False, ("the guardrail baseline is EMPTY, so it ratchets nothing -- which is not "
+                       "the same as clean. Populate it, or remove the gate deliberately.")
     worse = []
     for name, was in base.items():
         is_now = now.get(name, 0)
@@ -241,6 +320,12 @@ def main():
     _ok_gen, _note = regenerate_derived()
     if _note:
         sys.stderr.write(_note)
+
+    # Resolve an absent baseline (or an unadopted guard) LOUDLY before ratcheting -- otherwise
+    # the gate below has nothing to compare against and used to call that a pass (T178).
+    _b_created, _b_note = ensure_baseline()
+    if _b_note:
+        sys.stderr.write("pre-commit: " + _b_note + "\n")
 
     # THE RATCHET: debt may fall or hold, never rise.
     _r_ok, _r_msg = ratchet_ok()
