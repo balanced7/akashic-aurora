@@ -1882,23 +1882,30 @@ def cmd_ask(args):
                               **(o.detail or {})}, ensure_ascii=False, default=str))
             return 0 if (o.ok or o.partial) else 1
         d = o.detail or {}
-        if o.ok and d.get("state") == "CLOSED.ANSWERED":
+        # ORDER IS LOAD-BEARING (post-incident pin): ok means NOT-FAILED, so a
+        # PARTIALLY has ok=True -- branch failed, then partial, and only then the
+        # two clean-done states. The first cut tested `o.ok` for ECHO and rendered
+        # a timeout as CLOSED.ECHO on the verb's first live use.
+        if not o.ok:
+            print(f"ASK FAILED: {o.why}", file=sys.stderr)
+            if d.get("how_to_check"):
+                print(f"-- evidence: {d.get('how_to_check')}", file=sys.stderr)
+            return 1
+        if o.partial:                          # OPEN.* or UNKNOWN: a handle, not an error
+            print(f"-- {d.get('state')}: {o.why}", file=sys.stderr)
+            print(f"-- check: {d.get('how_to_check')}", file=sys.stderr)
+            return 0
+        if d.get("state") == "CLOSED.ANSWERED":
             print(d.get("answer", ""))
             print(f"\n-- CLOSED.ANSWERED | {d.get('elapsed_s')}s | "
                   f"redrives {d.get('redrives')} | ask {d.get('ask_id')}",
                   file=sys.stderr)
             return 0
-        if o.ok:                               # CLOSED.ECHO
-            print(f"-- CLOSED.ECHO: the referenced work is already done "
-                  f"({d.get('settle')}) -- read the ledger, not the mailbox",
-                  file=sys.stderr)
-            return 0
-        if o.partial:                          # OPEN.* or UNKNOWN: a handle, not an error
-            print(f"-- {d.get('state')}: {o.why}", file=sys.stderr)
-            print(f"-- check: {d.get('how_to_check')}", file=sys.stderr)
-            return 0
-        print(f"ASK FAILED: {o.why}", file=sys.stderr)
-        return 1
+        # the only remaining clean done: CLOSED.ECHO
+        print(f"-- CLOSED.ECHO: the referenced work is already done "
+              f"({d.get('settle')}) -- read the ledger, not the mailbox; "
+              f"ask {d.get('ask_id')}", file=sys.stderr)
+        return 0
 
     # T181 -- the fan. Two shapes, because the fleet patterns need two:
     #   --fan N        one prompt, N independent answers  -> N-version blind, branch-and-bound
