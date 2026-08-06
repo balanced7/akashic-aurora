@@ -1887,7 +1887,9 @@ def cmd_ask(args):
         from core.comm.ask import ask_peer
         sender = args.as_agent or os.environ.get("AKASHIC_AGENT_ID") or "claude"
         o = ask_peer(sender, args.peer, prompt,
-                     wait_s=args.wait, poll_s=args.poll)
+                     wait_s=args.wait, poll_s=args.poll,
+                     launch=bool(getattr(args, "launch", False)),
+                     launch_wait_s=getattr(args, "launch_wait", 60.0))
         if args.json:
             print(json.dumps({"ok": o.ok, "partial": o.partial, "why": o.why,
                               **(o.detail or {})}, ensure_ascii=False, default=str))
@@ -1897,6 +1899,15 @@ def cmd_ask(args):
         # learn. Printed FIRST, before any outcome branch, because when nobody was home
         # it is the explanation for whatever follows -- and printed for every state,
         # since "the peer was live and still said nothing" is the more alarming reading.
+        lz = d.get("launched") or {}
+        if lz.get("action") == "launched":
+            print(f"-- LAUNCHED {lz.get('tag')} (pid {lz.get('pid')}) -- {lz.get('why')}",
+                  file=sys.stderr)
+        elif lz.get("action") == "ambiguous":
+            print(f"-- WHICH ONE? {lz.get('why')}\n   Re-run with the tag: "
+                  f"--peer {(lz.get('candidates') or ['<tag>'])[0]}", file=sys.stderr)
+        elif lz.get("action") in ("never_attended", "launch_refused", "no_tag"):
+            print(f"-- LAUNCH {lz.get('action').upper()}: {lz.get('why')}", file=sys.stderr)
         if d.get("peer_at_ask") == "UNATTENDED":
             print(f"-- NOBODY HOME: '{args.peer}' has no attending seat "
                   f"({d.get('peer_at_ask_why')}). The ask is armed and durable, and "
@@ -4912,6 +4923,13 @@ def build_parser():
                             "the DURABLE expectation keeps redriving after it")
     ask_p.add_argument("--poll", type=float, default=2.0,
                        help="poll interval for --peer (default 2s)")
+    ask_p.add_argument("--launch", action="store_true",
+                       help="with --peer: if nobody is home, LAUNCH the seat first, wait "
+                            "for it to attend, then ask. The launcher's singleton gate is "
+                            "the only single-flight; an ambiguous peer is never guessed")
+    ask_p.add_argument("--launch-wait", type=float, default=60.0, metavar="SEC",
+                       help="how long to wait for a launched seat to attend (default 60); "
+                            "readiness is a liveness probe, never a sleep")
     ask_p.add_argument("--status", metavar="ASK_ID",
                        help="T196d: render one durable ask's honest state (seven states "
                             "incl UNKNOWN) and what to do now. Read-only; always exit 0")

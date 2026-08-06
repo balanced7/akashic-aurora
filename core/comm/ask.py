@@ -209,7 +209,8 @@ def _agreement(answers):
 
 
 def ask_peer(sender, peer, prompt, *, wait_s: float = 120.0, poll_s: float = 2.0,
-             within_s: int = 1800, kind: str = "request"):
+             within_s: int = 1800, kind: str = "request", launch: bool = False,
+             launch_wait_s: float = 60.0):
     """One durable ask to a SEAT, ergonomically synchronous (T196c). Never raises.
 
     Sol's front door: `ask` and `ask_peer` are one verb with two transports -- the
@@ -257,6 +258,24 @@ def ask_peer(sender, peer, prompt, *, wait_s: float = 120.0, poll_s: float = 2.0
         peer_state, peer_why = str(_att.state), str(_att.reason or "")
     except Exception as e:
         peer_state, peer_why = "UNKNOWN", f"attendance probe unreadable ({e.__class__.__name__})"
+    # T197c, opt-in: don't just REPORT that nobody is home -- make someone be home. The
+    # launcher's ergonomics become the front door (Sol's recommendation), so the caller
+    # names a peer and a question and never learns the words runner, lock, tag or lane.
+    # Opt-in because spawning a process is the one irreversible thing on this path, and
+    # `launched` records what was actually done so the outcome never implies more.
+    launched = None
+    if launch and peer_state != "ATTENDED":
+        try:
+            from core.comm.peer_ready import ensure_peer
+            launched = ensure_peer(peer, wait_s=launch_wait_s)
+            if launched.get("attending"):
+                # It is attending NOW, so that is the honest ask-time verdict; `launched`
+                # is what says we are the reason.
+                peer_state = "ATTENDED"
+                peer_why = f"launched {launched.get('tag')} -- {launched.get('why')}"
+        except Exception as e:
+            launched = {"action": "launch_refused", "attending": False,
+                        "why": f"ensure_peer raised ({e.__class__.__name__})"}
     try:
         from core.comm.bus import Bus
         from core.comm.expectations import arm, sweep, _answers_since
@@ -289,6 +308,7 @@ def ask_peer(sender, peer, prompt, *, wait_s: float = 120.0, poll_s: float = 2.0
         "elapsed_s": round(time.time() - t0, 2), "armed": bool(armed),
         "redrives": st.get("redrives"),
         "peer_at_ask": peer_state, "peer_at_ask_why": peer_why,
+        "launched": launched,
         "how_to_check": f"py agent_cli.py ask --status {mid} --as {sender}",
     }
     if st["state"] == "CLOSED.ANSWERED":
