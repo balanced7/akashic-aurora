@@ -119,7 +119,33 @@ def _emit_dead(sender: str, orig_id: str, rec: Dict[str, Any]) -> None:
                       f"{rec.get('to')} never answered {orig_id} after {REDRIVES} redrives",
                       agent_id=str(sender), refs=[str(orig_id)],
                       detail={"to": rec.get("to"), "kind": rec.get("kind"),
-                              "attempts": rec.get("attempt")})
+                              "attempts": rec.get("attempt"),
+                              # T196b parity: the record dies with this event, so episode
+                              # duration must be computable from the event ALONE.
+                              "created": rec.get("created")})
+    except Exception:
+        pass
+
+
+def _emit_settled(sender: str, orig_id: str, reply_id: Any, rec: Dict[str, Any]) -> None:
+    """Durable ANSWERED evidence (T196b). DEAD and ECHO settles already leave firehose
+    events; ANSWERED -- the state most asks end in -- left only a TTL'd marker and a
+    trimmable stream entry (bus maxlen ~10k). Terminal truth must not live in evidence
+    that trims (T196 fence, branch A's fatal). The expectation record is deleted in the
+    same Lua transition that settles, so this event is the episode's lasting terminal
+    record: refs = [ask id, answer id] (ask FIRST -- attribution depends on order) and
+    `created` rides in detail so duration is computable from the event ALONE.
+    Best-effort like _emit_dead: never raises into the sweep."""
+    try:
+        from core.events.event_log import capture_event
+        attempt = int(rec.get("attempt", 0) or 0)
+        capture_event("expectation_settled_answered",
+                      f"{rec.get('to')} answered {orig_id}"
+                      + (f" after {attempt} redrive(s)" if attempt else ""),
+                      agent_id=str(sender), refs=[str(orig_id), str(reply_id)],
+                      detail={"to": rec.get("to"), "kind": rec.get("kind"),
+                              "attempt": attempt, "created": rec.get("created"),
+                              "answer_id": str(reply_id)})
     except Exception:
         pass
 
@@ -270,9 +296,17 @@ def sweep(sender: str, now: Optional[float] = None) -> Dict[str, List[str]]:
             if a and recs[a].get("to") != getattr(r, "frm", None):
                 a = None
             if a and _settle_atomic(a, getattr(r, "id", None), recs[a]):
+                rec_settled = recs[a]
                 del recs[a]
                 out["cleared"].append(a)
                 linked.add(getattr(r, "id", None))
+                # T196b: guarded AT THE CALL SITE, not just inside the seam -- a broken
+                # emit (even one whose own try/except is gone) must never reach sweep's
+                # outer catch and poison the transition bookkeeping.
+                try:
+                    _emit_settled(sender, a, getattr(r, "id", None), rec_settled)
+                except Exception:
+                    pass
         for r in replies:                      # 2) FIFO fallback: one clear per reply
             # T117: skip only replies whose link actually RESOLVED (or that already
             # settled an ask on a PRIOR sweep). A reply naming an id we do not hold
@@ -286,8 +320,13 @@ def sweep(sender: str, now: Optional[float] = None) -> Dict[str, List[str]]:
                 key=lambda kv: float(kv[1].get("created", 0)))
             if cands and _settle_atomic(cands[0][0], getattr(r, "id", None), cands[0][1]):
                 oid = cands[0][0]
+                rec_settled = cands[0][1]
                 del recs[oid]
                 out["cleared"].append(oid)
+                try:                              # T196b: same call-site guard as above
+                    _emit_settled(sender, oid, getattr(r, "id", None), rec_settled)
+                except Exception:
+                    pass
         for oid, rec in list(recs.items()):    # 3) deadlines
             if now < float(rec.get("deadline_ts", 0)):
                 continue
