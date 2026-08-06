@@ -1,5 +1,5 @@
 {
-  "seq": 198,
+  "seq": 199,
   "tasks": [
     {
       "id": "T001",
@@ -7135,6 +7135,52 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-06T13:24:25+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T199",
+      "title": "T199: friction v2 -- who answers, and does presence predict it. Builds the two collaboration-friction metrics the durable evidence can honestly support (by_peer breakdown; presence_effect answer-rate split by peer_at_ask) and CONFESSES the three from Sol's list that remain unmeasured (commands per task, operator interventions, recovery time). Key property: presence_effect is the instrument that can FALSIFY T197's own premise -- T197 shipped autolaunch on the reasoning that absent peers cause dead asks, which was a hypothesis no record could test. First live read is appropriately undecided: ATTENDED 1/1 and UNATTENDED 1/1, both 100 pct at n=1, with the UNATTENDED answer being the late-binding case deepseek's fence predicted. 26 pre-T197 deaths excluded from both rates and COUNTED as n_unobserved rather than folded into UNATTENDED, which would have manufactured the very correlation being tested.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "HEAD",
+      "verified_by": "pytest 168 passed (10 new T199 pins, RED first); live read renders presence_effect + by_peer over the real 336h window",
+      "created": "2026-08-06T17:16:40+00:00",
+      "updated": "2026-08-06T17:17:04+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-06T17:16:40+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-06T17:16:41+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-06T17:16:41+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-08-06T17:16:41+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-06T17:16:42+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-06T17:17:04+00:00"
         }
       ]
     }
