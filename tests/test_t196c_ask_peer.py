@@ -153,6 +153,39 @@ def test_empty_prompt_fails():
     assert not o.ok and not o.partial and "empty" in (o.why or "").lower()
 
 
+# --- P6 (post-incident, first live use 2026-08-06): the CLI render must branch on
+#     partial BEFORE ok. BoundaryOutcome's ok means NOT-FAILED, so a timeout PARTIALLY
+#     has ok=True -- and an `if o.ok:` echo-branch swallowed it, rendering CLOSED.ECHO
+#     for an ask that was OPEN.DISPATCHED and armed. The library told the truth; the
+#     render lied. Same trap this file's own P3 hit an hour earlier: pinned so the
+#     class closes. ---
+
+@needs_built
+def test_cli_render_partial_is_not_echo(monkeypatch, capsys):
+    import types
+    import agent_cli
+    from core.outcome import BoundaryOutcome
+
+    fake = BoundaryOutcome.partially(
+        "not settled within 1s -- the ask stays armed",
+        ask_id="123-0", peer="deepseek", state="OPEN.DISPATCHED",
+        elapsed_s=1.0, armed=True, redrives=0,
+        how_to_check="py agent_cli.py ask --status 123-0 --as claude")
+    import core.comm.ask as ask_mod
+    monkeypatch.setattr(ask_mod, "ask_peer", lambda *a, **k: fake)
+
+    args = types.SimpleNamespace(
+        text=["anyone", "home?"], prompt_file=None, prompts_file=None, fan=0,
+        system="", model="", max_tokens=None, workers=None, json=False,
+        status=None, as_agent="claude", peer="deepseek", wait=1.0, poll=0.25)
+    rc = agent_cli.cmd_ask(args)
+    err = capsys.readouterr().err
+    assert rc == 0, "an OPEN handle is a normal outcome: exit 0"
+    assert "OPEN.DISPATCHED" in err and "--status" in err
+    assert "ECHO" not in err, \
+        "a PARTIALLY must never render as CLOSED.ECHO -- partial checks BEFORE ok"
+
+
 # --- P5: the door is wired ---
 
 def test_door_wired():
