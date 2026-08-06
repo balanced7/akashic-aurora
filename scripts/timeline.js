@@ -297,6 +297,9 @@
       readEl.innerHTML = '<b class="tl-hh"></b><b class="tl-dd"></b>';
       readEl.firstChild.textContent = fmtTime(p.t);
       readEl.lastChild.textContent = fmtDay(p.t);
+      // One layout read, only when the content changes -- never per mousemove.
+      var rr = rail.getBoundingClientRect();
+      readEl.classList.toggle('tl-flip', rr.right - 16 - readEl.offsetWidth < 4);
     }
     readEl.style.transform = 'translateY(' + cursorY.toFixed(1) + 'px) translateY(-50%)';
     readEl.style.opacity = '1';
@@ -327,12 +330,19 @@
      * (artifacts/ui/rail-lab-v4.png): the type stays naked; the material does the work.
      * Static by design -- backdrop-filter never animates (compositing cost lives here),
      * and the feathered mask keeps the strip from reading as a hard panel. */
-    + '#tl-smoke{position:absolute;inset:0;pointer-events:none;'
+    /* v2 (Daniil, live): "the boundary on the left is too close to the time." The fix is
+     * that the boundary stops EXISTING: the strip extends 18px past the widest label and
+     * its left edge is a 24px feathered fade (mask-composite intersects it with the
+     * vertical feather), so the glass dissolves into the page instead of drawing a wall.
+     * The -webkit- single-gradient line is a fallback; in Blink the unprefixed pair wins. */
+    + '#tl-smoke{position:absolute;top:0;bottom:0;right:0;left:-18px;pointer-events:none;'
     + 'background:rgba(9,11,17,.22);'
     + '-webkit-backdrop-filter:blur(14px) brightness(.35) saturate(120%);'
     + 'backdrop-filter:blur(14px) brightness(.35) saturate(120%);'
     + '-webkit-mask-image:linear-gradient(transparent,#000 4%,#000 96%,transparent);'
-    + 'mask-image:linear-gradient(transparent,#000 4%,#000 96%,transparent)}'
+    + 'mask-image:linear-gradient(to right,transparent,#000 24px),'
+    + 'linear-gradient(transparent,#000 4%,#000 96%,transparent);'
+    + 'mask-composite:intersect}'
     + '#tl-rail:before{content:"";position:absolute;right:6px;top:0;bottom:0;width:1px;'
     + 'background:linear-gradient(180deg,transparent,var(--glass-line,rgba(255,255,255,.08)) 8%,'
     + 'var(--glass-line,rgba(255,255,255,.08)) 92%,transparent)}'
@@ -382,23 +392,31 @@
      * The transform is still transitioned here (unlike the ticks) because the panel is
      * driven by DISCRETE hover events, not per-frame -- so the cascade and the JS are not
      * competing for it. That distinction is the whole lesson of this commit. */
-    + '#tl-read{position:absolute;top:0;right:18px;opacity:0;'
+    /* v2 (Daniil, live): "too rounded, font doesn't seem cool." An 18px radius on a card
+     * this small reads as a pill tooltip; 16px/600 reads as a default chip. The redesign
+     * is the instrument idiom: LARGE AND LIGHT beats small and bold -- a 21px thin
+     * tabular numeral (Segoe UI Light on this host), crisp 9px corners, ornament
+     * stripped (no sheen, no accent ring, one shadow), and the same multiplicative
+     * glass family as #tl-smoke so the two read as one material. Text right-aligns
+     * toward the rail: the number faces the axis it describes. */
+    + '#tl-read{position:absolute;top:0;right:16px;opacity:0;'
     + 'transition:opacity .18s ease,transform .34s cubic-bezier(.17,.89,.32,1.06);'
-    + 'padding:10px 15px 9px;border-radius:18px;white-space:nowrap;overflow:hidden;'
-    + 'background:linear-gradient(155deg,rgba(24,26,29,.80),rgba(8,9,11,.74));'
-    + 'border:1px solid rgba(255,255,255,.10);border-top-color:rgba(255,255,255,.20);'
+    + 'padding:8px 13px 7px;border-radius:9px;white-space:nowrap;overflow:hidden;'
+    + 'text-align:right;'
+    + 'background:rgba(10,12,16,.44);'
+    + 'border:1px solid rgba(255,255,255,.09);border-top-color:rgba(255,255,255,.15);'
     + 'color:#fff;pointer-events:none;'
-    + '-webkit-backdrop-filter:blur(22px) saturate(150%);backdrop-filter:blur(22px) saturate(150%);'
-    + 'box-shadow:0 12px 40px rgba(0,0,0,.62),0 0 0 1px rgba(3,129,254,.16),'
-    + 'inset 0 1px 0 rgba(255,255,255,.10);will-change:transform,opacity}'
-    // a single restrained sheen along the top lip -- the tell of glass, not a gradient wash
-    + '#tl-read:before{content:"";position:absolute;left:0;right:0;top:0;height:40%;'
-    + 'background:linear-gradient(180deg,rgba(255,255,255,.09),transparent);pointer-events:none}'
-    // One UI leads with a big legible number and demotes everything else
-    + '#tl-read .tl-hh{display:block;position:relative;font-size:16px;font-weight:600;'
-    + 'letter-spacing:-.02em;line-height:1.1;font-variant-numeric:tabular-nums;color:#fff}'
-    + '#tl-read .tl-dd{display:block;position:relative;margin-top:3px;font-size:10px;'
-    + 'font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--tl-2)}'
+    + '-webkit-backdrop-filter:blur(18px) brightness(.42) saturate(130%);'
+    + 'backdrop-filter:blur(18px) brightness(.42) saturate(130%);'
+    + 'box-shadow:0 10px 30px rgba(0,0,0,.5);will-change:transform,opacity}'
+    + '#tl-read .tl-hh{display:block;position:relative;font-size:21px;font-weight:300;'
+    + 'letter-spacing:-.03em;line-height:1.05;font-variant-numeric:tabular-nums;color:#fff}'
+    + '#tl-read .tl-dd{display:block;position:relative;margin-top:4px;font-size:9px;'
+    + 'font-weight:500;letter-spacing:.16em;text-transform:uppercase;'
+    + 'color:rgba(141,166,192,.85)}'
+    // No room portside (narrow window, log flush to the edge) -> dock starboard of the
+    // rail instead of clipping off-screen. Set in hover(), only when the target changes.
+    + '#tl-read.tl-flip{right:auto;left:calc(100% + 10px);text-align:left}'
     // The spine brightens and the gutter breathes on hover -- the rail says "I am grabbable"
     // before you click it.
     + '#tl-rail:before{transition:background .25s ease,width .25s ease}'
