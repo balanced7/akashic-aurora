@@ -56,6 +56,7 @@
   var lensAmp = 0;            // 0..1 damped lens strength; eases in AND out
   var looping = false;
   var tickEls = [];           // cached so the hover pass never re-queries the DOM
+  var minEls = [];            // minute labels: they join the lens (opacity only)
   var reduceMotion = false;
 
   /* WHY A DAMPED LOOP INSTEAD OF CSS TRANSITIONS -- this was a real bug, reported as
@@ -183,6 +184,8 @@
     ticksEl.innerHTML = t;
     tickEls = [].slice.call(ticksEl.querySelectorAll('.tl-t'));
     for (var i = 0; i < tickEls.length; i++) tickEls[i]._y = parseFloat(tickEls[i].style.top);
+    minEls = [].slice.call(ticksEl.querySelectorAll('.tl-l:not(.tl-day)'));
+    for (var j = 0; j < minEls.length; j++) minEls[j]._y = parseFloat(minEls[j].style.top);
 
     // viewport thumb: where you are, proportional to what you can see
     var H = log.scrollHeight || 1;
@@ -212,6 +215,18 @@
         el.style.transform = ''; el.style.width = ''; el.style.opacity = '';
       }
       el._lit = f > 0.002;
+    }
+    /* Minutes join the lens ("detail on approach, quiet at rest"): their resting dim gray
+     * is the aesthetic; near the cursor they resolve to full presence. Opacity only --
+     * the same compositor discipline as the ticks. Day markers stay constant anchors. */
+    for (var k = 0; k < minEls.length; k++) {
+      var lab = minEls[k], g = 0;
+      if (smoothY !== null && lensAmp > 0.002) {
+        var dd = Math.abs(lab._y - smoothY);
+        if (dd < FISH_R) { var nn = 1 - dd / FISH_R; g = nn * nn * (3 - 2 * nn) * lensAmp; }
+      }
+      if (g > 0.002) { lab.style.opacity = (0.8 + g * 0.2).toFixed(3); lab._lit = true; }
+      else if (lab._lit) { lab.style.opacity = ''; lab._lit = false; }
     }
     if (glowEl) {
       glowEl.style.opacity = lensAmp.toFixed(3);
@@ -302,6 +317,22 @@
     + 'position:fixed;width:' + RAIL_W + 'px;z-index:40;pointer-events:auto;'
     + 'font:10px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;'
     + 'user-select:none;cursor:pointer}'
+
+    /* THE SMOKE (2026-08-06, Daniil: "a subtle dark tint to the glass behind the time...
+     * not bogged down by a shadow"). MULTIPLICATIVE glass: brightness() SCALES the
+     * backdrop, so over the console's near-black this strip does not exist -- by
+     * construction, not by tuning -- while a bright backdrop (white artifact, ember
+     * streak, same-hue teal wash) is pulled down to a field the unarmored glyphs always
+     * win. Chosen over glyph scrims after a four-hostile-background lab
+     * (artifacts/ui/rail-lab-v4.png): the type stays naked; the material does the work.
+     * Static by design -- backdrop-filter never animates (compositing cost lives here),
+     * and the feathered mask keeps the strip from reading as a hard panel. */
+    + '#tl-smoke{position:absolute;inset:0;pointer-events:none;'
+    + 'background:rgba(9,11,17,.22);'
+    + '-webkit-backdrop-filter:blur(14px) brightness(.35) saturate(120%);'
+    + 'backdrop-filter:blur(14px) brightness(.35) saturate(120%);'
+    + '-webkit-mask-image:linear-gradient(transparent,#000 4%,#000 96%,transparent);'
+    + 'mask-image:linear-gradient(transparent,#000 4%,#000 96%,transparent)}'
     + '#tl-rail:before{content:"";position:absolute;right:6px;top:0;bottom:0;width:1px;'
     + 'background:linear-gradient(180deg,transparent,var(--glass-line,rgba(255,255,255,.08)) 8%,'
     + 'var(--glass-line,rgba(255,255,255,.08)) 92%,transparent)}'
@@ -322,8 +353,11 @@
     + 'pointer-events:none;will-change:transform,opacity;'
     + 'background:radial-gradient(ellipse at 82% 50%,rgba(3,129,254,.38),'
     + 'rgba(77,163,255,.16) 46%,transparent 72%)}'
+    // tabular-nums: the minutes align like a timepiece column. NO transition on opacity --
+    // the lens loop drives it per-frame for minute labels, same absolute rule as .tl-t.
     + '.tl-l{position:absolute;right:14px;transform:translateY(-50%);white-space:nowrap;'
-    + 'color:var(--tl-dim);font-weight:400;letter-spacing:.02em;opacity:.8}'
+    + 'color:var(--tl-dim);font-weight:400;letter-spacing:.02em;opacity:.8;'
+    + 'font-variant-numeric:tabular-nums;will-change:opacity}'
     + '.tl-l.tl-day{color:var(--tl-2);font-weight:600;opacity:1;'
     + 'text-shadow:0 0 10px rgba(95,227,191,.4)}'
     // The thumb EASES to its new position while the feed jumps instantly. The content must
@@ -385,6 +419,8 @@
     glowEl = document.createElement('div'); glowEl.id = 'tl-glow';
     thumbEl = document.createElement('div'); thumbEl.id = 'tl-thumb';
     readEl = document.createElement('div'); readEl.id = 'tl-read';
+    var smokeEl = document.createElement('div'); smokeEl.id = 'tl-smoke';
+    rail.appendChild(smokeEl);                 // first child: the glass sits behind everything
     rail.appendChild(glowEl); rail.appendChild(ticksEl);
     rail.appendChild(thumbEl); rail.appendChild(readEl);
     document.body.appendChild(rail);
