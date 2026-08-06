@@ -1,5 +1,5 @@
 {
-  "seq": 197,
+  "seq": 198,
   "tasks": [
     {
       "id": "T001",
@@ -7114,6 +7114,27 @@
           "to": "done",
           "by": "",
           "at": "2026-08-06T13:04:02+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T198",
+      "title": "T198: one meaning of 'drained' -- the wake watcher and the consume door key on different cursor families (root cause of W130, diagnosed 2026-08-06 but NOT fixed; do not treat the diagnosis as the cure). SYMPTOM: a session becomes unwakeable -- the watcher exits instantly on every arm reporting 'N undrainable wake-worthy message(s)', across 6 consecutive arms, and every documented remediation fails. Draining legacy (the lane the watcher's own log names) converged 11->5->1->0 stale asks and did NOT clear it; draining work did not clear it; acking the 2 unacked handoffs did not clear it. All N items were verified READ off the raw stream -- 4 were that session's own ask --peer dogfood answers. Only bifrost-pause + bifrost-skip-to-now cleared it, and its output shows WHY: it advanced SIX cursor keys (shared bc, shared inbox, lane bc, lane inbox, shadow_bc, shadow_inbox). MECHANISM: three cursor families exist -- bus.py:249 {ns}:cursor:{agent} (shared), bus.py:265 {ns}:cursor:seat:{agent}#{sid8}, bus.py:1186 {ns}:cursor:lane:{agent} whose _LANE_CURSOR_FIELDS (bus.py:1204) include shadow_inbox/shadow_bc = LEGACY positions for the dual-write straggler peek. The arm-time pending check (bifrost_api.py:194) peeks via bus.wait() on the SHARED cursor, while BIFROST_CONSUME_LANE=work advances the LANE cursor. Non-empty pending returns immediately (bifrost_api.py:252) = the watcher exits; empty falls through to the real blocking read (line 254) = armed. So anything the consume door cannot clear from the peeked cursor pins the watcher permanently. CONTRIBUTING: ask_peer polls answers NON-CONSUMINGLY BY LAW (T196c, correct -- sibling sessions must not steal each other's mail), so every SETTLED answer stays on the lane forever; the more the T197 front door succeeds, the faster the pending set refills. The existing code is unusually honest that it is a workaround (bifrost_api.py:217-229 'a component that stops reporting a problem while the problem persists'). FENCED WITH DEEPSEEK 2026-08-06, three findings and two were WRONG -- record both: (B) ACCEPTED IN FULL, the failure direction must point toward WAKING because deafness is terminal and a spurious re-arm is merely annoying; (C) REJECTED, it argued the arm-time check must be deliberately BROADER than wake_worthy or the seat goes 'permanently unwakeable' -- the polarity is inverted, verified in source: SMALLER pending = blocks = wakeable, BROADER = exits = the pin; (A) REJECTED, its deafness scenario required ask-id REUSE, but ask ids are Redis XADD stream ids, monotonic and never reused. RESIDUAL DOUBT not cleared by the fence: deepseek's (D) 'no missed-wake path' assumes settled-implies-read, but sweep() runs at boot/bifrost-sync and can settle an expectation without the answer BODY ever being surfaced -- so an already-settled test is NOT automatically safe. ACCEPTANCE SHAPE (pins RED first, and the deafness direction pinned as law like T197 pinned observe-never-gate): (a) one predicate or one cursor notion, so 'drained' means the same thing to the watcher and the consume door; (b) a message the seat has consumed on ANY lane never counts as pending on another (dedup twins -- bifrost_api.py:275 _dedup_key already models logical identity across dual-write copies); (c) NO change may make a genuinely unread message non-waking -- every narrowing fails OPEN toward waking; (d) live drill: run ask --peer --launch, let it settle, then arm -- the watcher must stay armed, which is the exact case that failed 6 times.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-06T13:24:25+00:00",
+      "updated": "2026-08-06T13:24:25+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-06T13:24:25+00:00"
         }
       ]
     }
