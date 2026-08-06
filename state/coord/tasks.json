@@ -1,5 +1,5 @@
 {
-  "seq": 199,
+  "seq": 200,
   "tasks": [
     {
       "id": "T001",
@@ -7181,6 +7181,52 @@
           "to": "done",
           "by": "",
           "at": "2026-08-06T17:17:04+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T200",
+      "title": "T200: ask + friction get MCP and ToolBox twins -- the front door reaches every door. Pays down two entries check_door_parity carried as 'gap' since T171/T196a, whose own note said ask 'SHOULD be shared and is recorded as debt, not as a design choice... the seat that needs it most is the MCP-attached conductor'. Measured: that conductor shelled out to py agent_cli.py ask eight times in one session while BUILDING the collaboration front door. Tracked CLI<->MCP debt drops 8 -> 6. Twins delegate to the same cmd_* so the doors cannot drift. FIDELITY CONTRACT PINNED: both return the STRUCTURED record because the MCP adapter captures stdout only, while cmd_ask writes the T197 peer verdict and cmd_friction writes its blind list to STDERR -- a naive text twin would ship answers without the reason a dead ask died, and numbers without their stated blindness (omniscience by transport). Verified live: all 10 blind entries survive the ToolBox transport. DELIBERATE OMISSIONS, each recorded as a decision with a reason rather than left as drift: launch is not on the MCP door (spawning a peer process is privileged and MCP widens the caller set from 'someone with a shell' to 'any attached seat' -- the rule already applied to grant and season_score); ask --peer is not on the ToolBox door (a runner is a single-turn body and would arm a durable 30-minute expectation it cannot poll or settle, orphaning exactly the asks this arc exists to stop producing). Also closes a pre-existing RED parity pin: cmd_mailbox read seven attributes missing from _ARG_DEFAULTS, the same latent defect class these twins were designed to avoid.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "HEAD",
+      "verified_by": "pytest 216 passed (10 new T200 pins RED first); check_door_parity PASS with gaps 8->6; live ToolBox round trip preserved all 10 blind entries",
+      "created": "2026-08-06T21:21:40+00:00",
+      "updated": "2026-08-06T21:22:06+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-06T21:21:40+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-06T21:21:40+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-06T21:21:41+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-08-06T21:21:41+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-06T21:21:41+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-06T21:22:06+00:00"
         }
       ]
     }
