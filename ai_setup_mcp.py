@@ -206,6 +206,22 @@ _ARG_DEFAULTS = dict(
     # args.sources_json (T081-W6 sidecar flag) -- a THIRD latent MCP-twin AttributeError,
     # masked until now by C7-4 (boot's response never returned for other reasons).
     sources_json=None,
+    # T200: ask + friction twins (paying down the two `gap` entries check_door_parity has
+    # carried since T171/T196a). cmd_ask reads a wide namespace and cmd_friction one extra
+    # field; every attribute either reads must live here or the twin raises
+    # AttributeError while the CLI works -- the C7-1 failure shape, now pinned by
+    # tests/test_mcp_arg_defaults_parity.py.
+    status=None, as_agent=None, text=None, prompt_file=None, peer=None,
+    fan=0, prompts_file=None, wait=120.0, poll=2.0, launch=False, launch_wait=60.0,
+    system="", model="", max_tokens=None, workers=None,
+    window_h=168.0,
+    # cmd_mailbox's seven, which the parity pin has been failing on independently of this
+    # slice (verified pre-existing by stash). Same latent defect the T200 twins were built
+    # to avoid: the MCP mailbox twin raises AttributeError while the CLI works. Costs seven
+    # lines to close, and leaving a red pin red next to a green one it shares a mechanism
+    # with is how the next reader learns to skim past it.
+    intent_kind=None, intent_note=None, intent_sha=None, intent_to=None,
+    limit_scan=None, open_sha=None, state_sha=None,
 )
 
 
@@ -668,6 +684,64 @@ async def bifrost_presence(agent: str = "") -> str:
 # ---------------------------------------------------------------- Gemini panel (web UI + AI Mode — bypass API token limits)
 # Uses a dedicated Playwright Chrome profile (.secrets/gemini_web_profile). One-time login required.
 # Cannot reuse your main Chrome profile or inject your Google account credentials — sign in manually once.
+
+@mcp.tool()
+async def ask(prompt: str = "", peer: str = "", as_agent: str = "claude",
+              status: str = "", wait: float = 120.0, model: str = "",
+              max_tokens: int = 0, fan: int = 0) -> str:
+    """Ask for help. One verb, two transports, transport chosen by whether you name a peer.
+
+    NO PEER  -- a stateless helper call: born, answers, dies inside this call. No seat, no
+                lock, no cursor, no mailbox. Use `fan` for N independent answers at once
+                (the aggregate reports diversity, so one answer billed N times cannot read
+                as N findings).
+    peer=X   -- a DURABLE ask to a real seat X, riding the bus with the full settle
+                machinery underneath. Returns when it settles or when `wait` expires; an
+                unsettled ask is NOT an error -- the expectation stays armed, redrives fire
+                on their own schedule, and you get a handle. Check it later with status=.
+    status=ID -- the seven-state readout for one durable ask (OPEN.DISPATCHED / OPEN.NOTED /
+                OPEN.REDRIVING / CLOSED.ANSWERED / CLOSED.ECHO / CLOSED.DEAD / UNKNOWN),
+                each carrying what the caller should do NOW.
+
+    Returns the STRUCTURED record, not the CLI's rendered text. That is deliberate: the
+    CLI writes the T197 peer verdict (peer_at_ask -- was anyone actually home when you
+    asked?) to stderr, and this door captures stdout only, so a text twin would hand back
+    an answer while silently dropping the reason a dead ask died.
+
+    `launch` is NOT exposed here. On the CLI, `ask --peer X --launch` spawns X's runner if
+    nobody is home; spawning a process is a privileged side effect, and this door widens
+    the caller set from "someone with a shell" to "any attached seat" -- the same reasoning
+    that keeps `grant` and `season_score` CLI-only. Launch a peer from the CLI, or ask a
+    peer that is already attending.
+    """
+    if status:
+        return await _athread(_run, agent_cli.cmd_ask, json=True,
+                              status=status, as_agent=as_agent, text=None, launch=False)
+    # A durable ask WRITES (sends + arms an expectation); the stateless helper does not.
+    return await _athread(_run, agent_cli.cmd_ask, lock=bool(peer), json=True,
+                          text=[prompt] if prompt else None, peer=peer or None,
+                          as_agent=as_agent, wait=wait, fan=int(fan or 0),
+                          model=model or "", max_tokens=(int(max_tokens) or None),
+                          launch=False, status=None)
+
+
+@mcp.tool()
+async def friction(agent: str = "claude", window_h: float = 168.0) -> str:
+    """The collaboration tax, read from evidence that already exists. WRITES NOTHING.
+
+    Episodes from durable terminal events + armed expectation records: how many asks were
+    answered, died, or echoed; time-to-settle percentiles; WHY the dead ones died (absent /
+    vanished / ignored / arrived_late, from the peer's attendance at ask time AND at death);
+    a per-peer breakdown worst-first; and whether a peer being present actually predicts an
+    answer.
+
+    Returns the structured record. The CLI prints its `blind` list -- what this reader
+    cannot see -- to stderr, and shipping the numbers without that confession would be
+    omniscience by transport. Read `blind` before quoting any figure from here.
+    """
+    return await _athread(_run, agent_cli.cmd_friction, json=True,
+                          agent_id=agent, window_h=float(window_h))
+
 
 @mcp.tool()
 async def ask_gemini_web(prompt: str, mode: str = "gemini", system: str = "") -> str:

@@ -494,6 +494,38 @@ class ToolBox:
         --max-nodes flags never existed on the verb)."""
         return self._agent_cli(["knowledge-map", str(topic), "--per-layer", str(int(per_layer)), "--json"])
 
+    def ask(self, prompt, fan=0, max_tokens=0):
+        """T200: ask a helper model one question, synchronously. No seat behind it -- no
+        identity, lock, cursor, mailbox or heartbeat. It is born, answers, and dies inside
+        this call. `fan` asks N independent helpers at once and reports whether their
+        answers actually differ, so one answer billed N times cannot read as N findings.
+
+        STATELESS ONLY ON THIS DOOR, deliberately. The CLI's `ask --peer <seat>` arms a
+        DURABLE expectation that outlives the call by design (redrives fire for 30 minutes
+        on their own schedule). A runner is a single-turn body: it would arm an expectation
+        it cannot poll and cannot settle, orphaning exactly the kind of ask this whole arc
+        exists to stop producing. Durable peer asks belong to a seat that persists.
+        """
+        cmd = ["ask", str(prompt)]
+        if int(fan or 0) > 1:
+            cmd += ["--fan", str(int(fan))]
+        if int(max_tokens or 0) > 0:
+            cmd += ["--max-tokens", str(int(max_tokens))]
+        return self._agent_cli(cmd + ["--json"])
+
+    def friction(self, agent=None, window_h=168):
+        """T200: the collaboration tax, read from evidence that already exists. Writes
+        NOTHING -- no stream, no record, no cursor.
+
+        How many asks were answered, died or echoed; time-to-settle percentiles; WHY the
+        dead ones died (absent / vanished / ignored / arrived_late, from the peer's
+        attendance at ask time AND at death); a per-peer breakdown worst-first; and whether
+        a peer being present actually predicts an answer. Read the `blind` list in the
+        result before quoting any number from it -- it names what this reader cannot see.
+        """
+        who = str(agent or self.agent_id or "claude")
+        return self._agent_cli(["friction", who, "--window-h", str(float(window_h)), "--json"])
+
     def delta(self, agent=None):
         """T067-1 B3: what moved since I was last here? Commits, task transitions and bus flow
         since this agent's last boot mark -- the R1 delta door (T052); replaces archaeology

@@ -133,11 +133,22 @@ MANIFEST = {
     # purpose is cutting the cost of asking for help, and the seat that needs it most is the
     # MCP-attached conductor -- so an MCP twin is the right end state. CLI-only is survivable
     # today only because seats shell out. Pay it down with the other membrane gaps.
-    "ask": "gap",
+    # T200 (2026-08-06): PAID DOWN. The MCP twin ships `ask` and `ask --peer` (durable) and
+    # the seven-state `status` readout. The debt note below was right about who needed it:
+    # the MCP-attached conductor shelled out to the CLI eight times in one session while
+    # building the collaboration front door. `launch` stays CLI-only BY DECISION, not by
+    # omission -- spawning a peer process is privileged, and this door widens the caller
+    # set from "someone with a shell" to "any attached seat" (same rule as grant /
+    # season_score). Pinned in tests/test_t200_ask_friction_mcp_twins.py.
+    "ask": "shared",
     # T196a: friction is the collaboration-tax readout, and the seat that most needs to
     # read it is the MCP-attached conductor -- same argument as `ask` above, so the same
     # honest classification: debt, not design. Pay down with the membrane gaps.
-    "friction": "gap",
+    # T200 (2026-08-06): PAID DOWN, same argument and same session as `ask`. The twin
+    # returns the STRUCTURED record so the `blind` list -- which the CLI prints to stderr
+    # -- survives the transport; numbers without their stated blindness would be
+    # omniscience by transport.
+    "friction": "shared",
     # --- T067 backlog, classified by deepseek 2026-07-25 ---
     # These 23 accumulated invisibly behind a DEAD CANARY: toolbox_verbs() parsed the file
     # `class ToolBox` used to live in, so it returned an EMPTY set and phantom-failed
