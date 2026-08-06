@@ -58,6 +58,10 @@ PLANES = {
     "NON_CARGO_KINDS": "bus",
     # the event plane -- what a seat DID
     "EVENT_KINDS": "event",
+    # T196a: friction's map of durable terminal-event kinds -> episode outcomes. These are
+    # firehose kinds (expectation_settled_answered / expectation_dead /
+    # expectation_settled_done_task), so the set lives on the event plane.
+    "TERMINAL_KINDS": "event",
     # the narrative plane -- beats on the story spine
     "BEAT_KINDS": "beat", "BOUNDARY_KINDS": "beat",
 }

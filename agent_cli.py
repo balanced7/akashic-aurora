@@ -1911,6 +1911,46 @@ def cmd_ask(args):
     return 0
 
 
+def cmd_friction(args):
+    """friction -- the collaboration tax, read from evidence that already exists (T196a).
+
+    Sol's metric recommendation fenced through deepseek (T196 spec): episodes from
+    durable terminal events + armed expectation records; honest Nones over guesses;
+    a blind list because a report that names no blindness is claiming omniscience.
+    READ-ONLY: writes nothing to any stream, record, or cursor (pinned)."""
+    from core.comm.friction import gather
+
+    rep = gather(args.agent_id, window_h=args.window_h)
+    if args.json:
+        print(json.dumps(rep, ensure_ascii=False, default=str))
+        return 0
+
+    a = rep["agg"]
+
+    def _s(v, suffix="s"):
+        return "n/a" if v is None else f"{round(float(v), 1)}{suffix}"
+
+    print(f"# friction -- {args.agent_id} (window {args.window_h}h)")
+    rate = "n/a (nothing closed)" if a["dead_rate"] is None else f"{a['dead_rate']:.1%}"
+    print(f"open {a['n_open']} | answered {a['n_answered']} | echo {a['n_echo']} "
+          f"| dead {a['n_dead']} | dead-rate {rate}")
+    print(f"time-to-settle p50 {_s(a['settle_p50_s'])} p90 {_s(a['settle_p90_s'])}"
+          + (f" | duration unknown for {a['n_duration_unknown']} episode(s)"
+             if a["n_duration_unknown"] else ""))
+    for e in rep["episodes"]:
+        if e["outcome"] == "open":
+            print(f"  OPEN.{e['state'].upper():<10} {e['ask_id']} -> {e['peer']} "
+                  f"| age {_s(e['age_s'])} | redrives {e['redrives']} "
+                  f"| deadline in {_s(e['deadline_in_s'])}")
+        else:
+            print(f"  {e['outcome'].upper():<15} {e['ask_id']} -> {e['peer']} "
+                  f"| took {_s(e['duration_s'])} | redrives {e['redrives']}")
+    print("blind (what this reader cannot see):", file=sys.stderr)
+    for b in rep["blind"]:
+        print(f"  - {b}", file=sys.stderr)
+    return 0
+
+
 def _ledger_claim_arc(seat: str):
     """AUTO_ARC (taxonomy-ergonomics reconciliation §7): the seat's claimed ledger task
     is the arc authority; no claim -> None (born without arc; library lint flags it
@@ -4747,6 +4787,15 @@ def build_parser():
                             "does -- a fan wider than its integrator makes debt, not progress")
     ask_p.add_argument("--json", action="store_true")
     ask_p.set_defaults(fn=cmd_ask)
+
+    fr = sub.add_parser("friction", help="collaboration-friction readout from existing "
+                                         "evidence (T196a): episodes, dead-rate, "
+                                         "time-to-settle. Read-only")
+    fr.add_argument("agent_id", help="whose asks to report on (the sender seat)")
+    fr.add_argument("--window-h", dest="window_h", type=float, default=168,
+                    help="terminal-event window in hours (default 168 = 7d)")
+    fr.add_argument("--json", action="store_true")
+    fr.set_defaults(fn=cmd_friction)
 
     # D1: doc new — the library seeding door
     dsp = sub.add_parser("doc", help="seed a new doc with its header contract (library door)")

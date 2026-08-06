@@ -111,6 +111,26 @@ def arm(sender: str, orig_id: str, to: str, kind: str, content: Any, within_s: i
         return False
 
 
+def snapshot(sender: str) -> Dict[str, Dict[str, Any]]:
+    """READ-ONLY view of the armed records (T196a). Observation split from action
+    (T025): never consumes, never advances, never settles, never heals -- the sweep
+    owns every transition, including dropping unparseable records; a reader SKIPS
+    them instead. friction.gather() is the intended caller."""
+    c = _client()
+    if c is None:
+        return {}
+    try:
+        out: Dict[str, Dict[str, Any]] = {}
+        for oid, v in (c.hgetall(_key(str(sender))) or {}).items():
+            try:
+                out[str(oid)] = json.loads(v)
+            except Exception:
+                continue
+        return out
+    except Exception:
+        return {}
+
+
 def _emit_dead(sender: str, orig_id: str, rec: Dict[str, Any]) -> None:
     """Durable exhaustion record; the sweep's caller prints the loud line."""
     try:

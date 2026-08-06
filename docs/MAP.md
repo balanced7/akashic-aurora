@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (38 of 139 modules lack both pin and paper by name)
+## GAP queue (38 of 140 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/migrate_to_sqlite.py
@@ -81,7 +81,7 @@ Class: reference
 | `agent_signal_ledger.py` | Agent Signal Ledger: the ordered record of every signal agents emit | GAP | GAP |  |
 | `coordinator_api.py` | Coordinator API: Minimal signal-based logging for agents | GAP | GAP | `AI_SETUP` |
 
-## core/comm/  (46 modules)
+## core/comm/  (47 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
@@ -102,6 +102,7 @@ Class: reference
 | `expectations.py` | expectations -- sender-side reply deadlines + redrive (T030 L4 / RB-29). | tests/test_t030_l4_expectations.py | GAP | `AKASHIC_EXPECT_TASK_SETTLE`, `BIFROST_NAMESPACE` |
 | `fence_phase.py` | fence_phase -- the method board's state source (T079-E2). | GAP | GAP |  |
 | `flow_trace.py` | flow_trace (R3 / T054) -- the OTel-style waterfall over lanes: what HAPPENED, in causal | tests/test_flow_trace.py | GAP | `AKASHIC_FLOW_NO_COUNT`, `BIFROST_NAMESPACE` |
+| `friction.py` | friction -- read the collaboration tax from evidence that already exists (T196a). | tests/test_t196a_friction.py | docs/library/design/20260701_night-friction-program-every-pain-point_70f449.md |  |
 | `incarnation.py` | incarnation -- who else is HERE right now, per agent id (T074 W3/R4). | tests/test_t074_incarnation_cards.py | GAP | `AKASHIC_INCARNATION_TTL_MIN`, `BIFROST_NAMESPACE` |
 | `interject.py` | Adaptive interjection router -- when a human types into a live agent session, decide whether the | GAP | GAP |  |
 | `lane_depths.py` | lane_depths -- the engine room's flow gauge source (T079-E2). | GAP | GAP | `BIFROST_NAMESPACE` |

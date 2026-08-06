@@ -134,6 +134,10 @@ MANIFEST = {
     # MCP-attached conductor -- so an MCP twin is the right end state. CLI-only is survivable
     # today only because seats shell out. Pay it down with the other membrane gaps.
     "ask": "gap",
+    # T196a: friction is the collaboration-tax readout, and the seat that most needs to
+    # read it is the MCP-attached conductor -- same argument as `ask` above, so the same
+    # honest classification: debt, not design. Pay down with the membrane gaps.
+    "friction": "gap",
     # --- T067 backlog, classified by deepseek 2026-07-25 ---
     # These 23 accumulated invisibly behind a DEAD CANARY: toolbox_verbs() parsed the file
     # `class ToolBox` used to live in, so it returned an EMPTY set and phantom-failed
