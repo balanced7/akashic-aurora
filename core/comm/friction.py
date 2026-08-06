@@ -54,6 +54,13 @@ BLIND = [
     "episodes closed before T197 (2026-08-06) carry no peer observation at all and "
     "count as dead_peer_unknown -- they are NOT back-filled, because the reader is not "
     "entitled to a verdict it never took",
+    "presence_effect is a CORRELATION and licenses no causal claim: the same conductor "
+    "who launches a peer also asks better-formed questions to peers worth launching, so "
+    "a higher attended answer-rate is not proof that launching caused it (T199)",
+    "Sol's collaboration-friction list is only PARTLY built: commands per task, "
+    "operator interventions, and recovery time are all still unmeasured -- none of the "
+    "three has a durable anchor yet, and time-to-first-useful-output is approximated by "
+    "time-to-settle, which says an answer ARRIVED, not that it helped",
 ]
 
 
@@ -122,6 +129,21 @@ def fold(terminal_events: Optional[List[Dict[str, Any]]],
     durations: List[float] = []
     counts = {"answered": 0, "dead": 0, "echo": 0}
     dead_by_verdict = {v: 0 for v in DEAD_VERDICTS}
+    # T199 v2 accumulators. by_peer answers "which peer is broken" (one fleet rate hides
+    # it); presence_effect answers "does a present peer actually answer", the question
+    # T197 shipped autolaunch on and could not test.
+    peers: Dict[str, Dict[str, Any]] = {}
+    presence = {"ATTENDED": {"n": 0, "n_answered": 0},
+                "UNATTENDED": {"n": 0, "n_answered": 0}, "n_unobserved": 0}
+
+    def _peer_row(name: Any) -> Optional[Dict[str, Any]]:
+        """The bucket for one peer, or None when the event names no peer -- a malformed
+        record must not mint a peer called None and then get reported as one."""
+        if name is None or str(name) == "":
+            return None
+        return peers.setdefault(str(name), {
+            "n_open": 0, "n_answered": 0, "n_dead": 0, "n_echo": 0,
+            "_durations": []})
 
     for ev in terminal_events or []:
         outcome = TERMINAL_KINDS.get(str(ev.get("kind") or ""))
@@ -153,6 +175,27 @@ def fold(terminal_events: Optional[List[Dict[str, Any]]],
         if duration is not None:
             durations.append(duration)
 
+        prow = _peer_row(detail.get("to"))
+        if prow is not None:
+            prow[f"n_{outcome}"] += 1
+            if duration is not None:
+                prow["_durations"].append(duration)
+
+        # ECHO is excluded on purpose: a T076c settle has no message anywhere -- the
+        # answer arrived as ledger state -- so it says nothing about whether a present
+        # peer answers MAIL, and counting it would move a rate it cannot inform.
+        if outcome in ("answered", "dead"):
+            bucket = presence.get(str(at_ask or ""))
+            if bucket is None:
+                # Unobserved (pre-T197) or attendance's own UNKNOWN. EXCLUDED from the
+                # rates and COUNTED here: folding these into UNATTENDED would fabricate
+                # exactly the correlation this instrument exists to test.
+                presence["n_unobserved"] += 1
+            else:
+                bucket["n"] += 1
+                if outcome == "answered":
+                    bucket["n_answered"] += 1
+
     for oid, rec in (open_records or {}).items():
         try:
             attempt = int(rec.get("attempt", 0) or 0)
@@ -168,7 +211,11 @@ def fold(terminal_events: Optional[List[Dict[str, Any]]],
             "state": "redriving" if attempt > 0 else "dispatched",
             "age_s": _span(now, rec.get("created")), "redrives": attempt,
             "deadline_in_s": deadline_in,
+            "peer_at_ask": rec.get("peer_at_ask"),
         })
+        prow = _peer_row(rec.get("to"))
+        if prow is not None:
+            prow["n_open"] += 1
 
     n_closed = sum(counts.values())
     durations.sort()
@@ -179,8 +226,37 @@ def fold(terminal_events: Optional[List[Dict[str, Any]]],
         i = int(round(p * (len(durations) - 1)))
         return durations[min(len(durations) - 1, max(0, i))]
 
+    def _median(vals):
+        s = sorted(vals)
+        return s[len(s) // 2] if s else None      # None, never 0.0, over an empty set
+
+    by_peer: Dict[str, Dict[str, Any]] = {}
+    for name, row in peers.items():
+        closed = row["n_answered"] + row["n_dead"] + row["n_echo"]
+        by_peer[name] = {
+            "n_open": row["n_open"], "n_answered": row["n_answered"],
+            "n_dead": row["n_dead"], "n_echo": row["n_echo"], "n_closed": closed,
+            "dead_rate": (row["n_dead"] / closed) if closed else None,
+            "settle_median_s": _median(row["_durations"]),
+        }
+    # Ordered by PAIN, not alphabet: the reader's job is to surface the broken peer, and
+    # an alphabetical listing buries it. Name breaks ties so the order is stable.
+    by_peer = dict(sorted(by_peer.items(),
+                          key=lambda kv: (-kv[1]["n_dead"], kv[0])))
+
+    presence_effect = {"n_unobserved": presence["n_unobserved"]}
+    for state in ("ATTENDED", "UNATTENDED"):
+        b = presence[state]
+        presence_effect[state] = {
+            "n": b["n"], "n_answered": b["n_answered"],
+            # None over an empty cell. Early on every denominator is 0 or 1, and 0.0
+            # rendered against n=0 would read as "attended peers never answer".
+            "answer_rate": (b["n_answered"] / b["n"]) if b["n"] else None,
+        }
+
     agg = {
         "n_open": len(open_records or {}),
+        "by_peer": by_peer, "presence_effect": presence_effect,
         "n_answered": counts["answered"], "n_dead": counts["dead"],
         "n_echo": counts["echo"], "n_closed": n_closed,
         # 0/0 rendered as 0.0 would read as "nothing ever dies" -- None is the truth.

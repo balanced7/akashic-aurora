@@ -2062,6 +2062,31 @@ def cmd_friction(args):
             n = a.get(key, 0)
             if n:
                 print(f"  {label:<13} {n:>3}  {action}")
+    # T199: does presence predict an answer? The question T197 shipped autolaunch on and
+    # could not test. Rendered BEFORE the per-episode list because it is the finding.
+    pe = a.get("presence_effect") or {}
+    obs = sum(pe.get(k, {}).get("n", 0) for k in ("ATTENDED", "UNATTENDED"))
+    if obs:
+        print("does presence predict an answer? (correlation, not cause)")
+        for state in ("ATTENDED", "UNATTENDED"):
+            b = pe.get(state) or {}
+            if not b.get("n"):
+                continue
+            rate = ("n/a" if b.get("answer_rate") is None
+                    else f"{b['answer_rate']:.0%}")
+            print(f"  peer {state:<11} {b['n_answered']}/{b['n']} answered ({rate})")
+        if pe.get("n_unobserved"):
+            print(f"  unobserved  {pe['n_unobserved']:>4}  no peer reading taken "
+                  f"(pre-T197) -- excluded from both rates, never back-filled")
+    by = a.get("by_peer") or {}
+    if by:
+        print("by peer (worst first):")
+        for name, p in list(by.items())[:12]:
+            rate = "n/a" if p["dead_rate"] is None else f"{p['dead_rate']:.0%}"
+            med = "n/a" if p["settle_median_s"] is None else f"{p['settle_median_s']:.0f}s"
+            print(f"  {name:<22} answered {p['n_answered']:>3} | dead {p['n_dead']:>3} "
+                  f"| echo {p['n_echo']:>3} | open {p['n_open']:>3} "
+                  f"| dead-rate {rate:>4} | median {med}")
     for e in rep["episodes"]:
         if e["outcome"] == "open":
             print(f"  OPEN.{e['state'].upper():<10} {e['ask_id']} -> {e['peer']} "
