@@ -1825,6 +1825,39 @@ def cmd_ask(args):
     from core.comm import ask as ask_mod
     from core.comm.ask import ask as ask_helper, ask_many
 
+    # T196d: `ask --status <id>` -- the transaction readout. A state is a successful
+    # READ whatever it says: even UNKNOWN is an answer (the spec's forgotten state),
+    # so every rendered state exits 0.
+    if getattr(args, "status", None):
+        from core.comm.ask_state import state_of
+        sender = args.as_agent or os.environ.get("AKASHIC_AGENT_ID") or "claude"
+        st = state_of(sender, args.status)
+        if args.json:
+            print(json.dumps(st, ensure_ascii=False, default=str))
+            return 0
+        print(f"# ask {st['ask_id']} -- {st['state']}"
+              + (" (terminal)" if st["terminal"] else ""))
+        if st["resolved_id"] != st["ask_id"]:
+            print(f"  resolves to {st['resolved_id']} (alias chain)")
+        bits = []
+        if st.get("peer"):
+            bits.append(f"peer {st['peer']}")
+        if st.get("redrives") is not None:
+            bits.append(f"redrives {st['redrives']}")
+        for label, key in (("age", "age_s"), ("took", "duration_s"),
+                           ("deadline in", "deadline_in_s")):
+            v = st.get(key)
+            if v is not None:
+                bits.append(f"{label} {round(float(v), 1)}s")
+        if bits:
+            print("  " + " | ".join(bits))
+        if st.get("answer_id"):
+            print(f"  answer: {st['answer_id']}")
+        if (st.get("evidence") or {}).get("answer_visible_unswept"):
+            print("  an ANSWER is visible but unswept -- a sync/boot sweep will settle it")
+        print(f"  caller should: {st['caller_should']}")
+        return 0
+
     prompt = " ".join(args.text).strip() if args.text else ""
     if not prompt and args.prompt_file:
         try:
@@ -4785,6 +4818,12 @@ def build_parser():
     ask_p.add_argument("--workers", type=int, default=None,
                        help="fan width (default 6). Merge attention binds before generation "
                             "does -- a fan wider than its integrator makes debt, not progress")
+    ask_p.add_argument("--status", metavar="ASK_ID",
+                       help="T196d: render one durable ask's honest state (seven states "
+                            "incl UNKNOWN) and what to do now. Read-only; always exit 0")
+    ask_p.add_argument("--as", dest="as_agent", default="",
+                       help="the SENDER seat the ask belongs to (expectations are "
+                            "per-sender; default $AKASHIC_AGENT_ID or claude)")
     ask_p.add_argument("--json", action="store_true")
     ask_p.set_defaults(fn=cmd_ask)
 
