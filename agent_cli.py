@@ -1853,6 +1853,17 @@ def cmd_ask(args):
             print("  " + " | ".join(bits))
         if st.get("answer_id"):
             print(f"  answer: {st['answer_id']}")
+        # T197: was anyone home? Rendered at BOTH ends when known, because one end alone
+        # cannot tell 'died mid-flight' from 'home and ignored me'.
+        if st.get("peer_at_ask"):
+            line = f"  peer at ask: {st['peer_at_ask']}"
+            if st.get("peer_at_ask_why"):
+                line += f" ({st['peer_at_ask_why']})"
+            if st.get("peer_at_death"):
+                from core.comm.friction import dead_verdict
+                line += (f" | at death: {st['peer_at_death']}"
+                         f" -> {dead_verdict(st['peer_at_ask'], st['peer_at_death'])}")
+            print(line)
         if (st.get("evidence") or {}).get("answer_visible_unswept"):
             print("  an ANSWER is visible but unswept -- a sync/boot sweep will settle it")
         print(f"  caller should: {st['caller_should']}")
@@ -1882,6 +1893,20 @@ def cmd_ask(args):
                               **(o.detail or {})}, ensure_ascii=False, default=str))
             return 0 if (o.ok or o.partial) else 1
         d = o.detail or {}
+        # T197: the verdict the caller used to pay 30 minutes and a forensic dig to
+        # learn. Printed FIRST, before any outcome branch, because when nobody was home
+        # it is the explanation for whatever follows -- and printed for every state,
+        # since "the peer was live and still said nothing" is the more alarming reading.
+        if d.get("peer_at_ask") == "UNATTENDED":
+            print(f"-- NOBODY HOME: '{args.peer}' has no attending seat "
+                  f"({d.get('peer_at_ask_why')}). The ask is armed and durable, and "
+                  f"redrives keep firing in case it comes up -- but nothing is reading "
+                  f"it yet. Launch the seat, or use the stateless `ask` instead.",
+                  file=sys.stderr)
+        elif d.get("peer_at_ask") == "UNKNOWN":
+            print(f"-- peer liveness UNREADABLE ({d.get('peer_at_ask_why')}) -- sending "
+                  f"blind, which is the right call: a door that refuses to send because "
+                  f"it cannot check is worse than one that sends.", file=sys.stderr)
         # ORDER IS LOAD-BEARING (post-incident pin): ok means NOT-FAILED, so a
         # PARTIALLY has ok=True -- branch failed, then partial, and only then the
         # two clean-done states. The first cut tested `o.ok` for ECHO and rendered
@@ -2011,14 +2036,33 @@ def cmd_friction(args):
     print(f"time-to-settle p50 {_s(a['settle_p50_s'])} p90 {_s(a['settle_p90_s'])}"
           + (f" | duration unknown for {a['n_duration_unknown']} episode(s)"
              if a["n_duration_unknown"] else ""))
+    # T197: WHY they died, not just how many. Each verdict names a different bug with a
+    # different action, so the line carries the action -- a partition an operator has to
+    # translate is a partition that gets read as one number again.
+    if a["n_dead"]:
+        print("why they died:")
+        for key, label, action in (
+                ("dead_absent", "absent", "nobody was ever home -- launch the peer"),
+                ("dead_vanished", "vanished", "it died mid-flight -- chase the crash"),
+                ("dead_ignored", "ignored", "home the whole time -- chase the consumer"),
+                ("dead_arrived_late", "arrived_late", "came up late and still went silent"),
+                ("dead_peer_unknown", "unknown", "no peer observation (pre-T197, or probe "
+                                                 "unreadable) -- NOT back-filled")):
+            n = a.get(key, 0)
+            if n:
+                print(f"  {label:<13} {n:>3}  {action}")
     for e in rep["episodes"]:
         if e["outcome"] == "open":
             print(f"  OPEN.{e['state'].upper():<10} {e['ask_id']} -> {e['peer']} "
                   f"| age {_s(e['age_s'])} | redrives {e['redrives']} "
                   f"| deadline in {_s(e['deadline_in_s'])}")
         else:
+            peer_bit = ""
+            if e["outcome"] == "dead" and e.get("peer_verdict") != "unknown":
+                peer_bit = (f" | {e['peer_verdict']} ({e.get('peer_at_ask')}"
+                            f"->{e.get('peer_at_death')})")
             print(f"  {e['outcome'].upper():<15} {e['ask_id']} -> {e['peer']} "
-                  f"| took {_s(e['duration_s'])} | redrives {e['redrives']}")
+                  f"| took {_s(e['duration_s'])} | redrives {e['redrives']}{peer_bit}")
     print("blind (what this reader cannot see):", file=sys.stderr)
     for b in rep["blind"]:
         print(f"  - {b}", file=sys.stderr)

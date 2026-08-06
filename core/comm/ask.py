@@ -227,6 +227,21 @@ def ask_peer(sender, peer, prompt, *, wait_s: float = 120.0, poll_s: float = 2.0
     NON-CONSUMING BY LAW (two-live-seats): the poll reads answers from the stream
     position via the expectations anchor, never advances a lane cursor -- concurrent
     sibling sessions keep their mail; the seat's normal sync consumes later.
+
+    T197 -- IT NOW ASKS WHETHER ANYONE IS HOME, AND SAYS SO AT t=0. The friction reader
+    measured 32 closed episodes with 0 ANSWERED and 26 DEAD (81.2%) on 2026-08-06; every
+    launchable agent sat at never_launched. The verdict that would have explained it
+    already existed (liveness.attendance, T155) and bus.send already printed it -- to
+    stderr, where this transaction discarded it. Now it is observed here, returned in
+    detail["peer_at_ask"], and armed onto the record so the death event can carry it.
+
+    OBSERVING IS NOT GATING, AND THE DIFFERENCE IS LOAD-BEARING. An UNATTENDED verdict
+    NEVER stops the send (fenced with deepseek, whose argument won): a peer absent now
+    can be alive by the second redrive, so refusing fast would conflate "down right now"
+    with "never coming" -- destroying both the late-binding window the 30-minute
+    expectation exists to catch AND the durable dead-ask evidence that found this bug.
+    The caller loses nothing and learns in one second what used to cost thirty minutes
+    and a forensic dig.
     """
     from core.outcome import BoundaryOutcome as _BO   # local alias for clarity only
 
@@ -234,6 +249,14 @@ def ask_peer(sender, peer, prompt, *, wait_s: float = 120.0, poll_s: float = 2.0
         return _BO.failed("empty prompt -- nothing to ask")
     sender, peer = str(sender), str(peer)
     t0 = time.time()
+    # Preflight: OBSERVE, never gate. Fail-open -- a probe that cannot be read must not
+    # cost the ask, so an unreadable verdict is UNKNOWN and the send proceeds unchanged.
+    try:
+        from core.comm import liveness as _liveness
+        _att = _liveness.attendance(peer)
+        peer_state, peer_why = str(_att.state), str(_att.reason or "")
+    except Exception as e:
+        peer_state, peer_why = "UNKNOWN", f"attendance probe unreadable ({e.__class__.__name__})"
     try:
         from core.comm.bus import Bus
         from core.comm.expectations import arm, sweep, _answers_since
@@ -242,8 +265,10 @@ def ask_peer(sender, peer, prompt, *, wait_s: float = 120.0, poll_s: float = 2.0
         anchor = b.tail().get("inbox", "0")
         mid = b.send(peer, kind, prompt)
         if not mid:
-            return _BO.failed(f"send to {peer} failed -- bus offline or refused the message")
-        armed = arm(sender, mid, peer, kind, prompt, int(within_s))
+            return _BO.failed(f"send to {peer} failed -- bus offline or refused the message",
+                              peer_at_ask=peer_state, peer_at_ask_why=peer_why)
+        armed = arm(sender, mid, peer, kind, prompt, int(within_s),
+                    peer_state=peer_state, peer_why=peer_why)
     except Exception as e:
         return _BO.caught(e, where="ask_peer(send+arm)")
 
@@ -263,6 +288,7 @@ def ask_peer(sender, peer, prompt, *, wait_s: float = 120.0, poll_s: float = 2.0
         "ask_id": str(mid), "peer": peer, "state": st["state"],
         "elapsed_s": round(time.time() - t0, 2), "armed": bool(armed),
         "redrives": st.get("redrives"),
+        "peer_at_ask": peer_state, "peer_at_ask_why": peer_why,
         "how_to_check": f"py agent_cli.py ask --status {mid} --as {sender}",
     }
     if st["state"] == "CLOSED.ANSWERED":

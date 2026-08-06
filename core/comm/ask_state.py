@@ -119,7 +119,12 @@ def state_of(sender: str, ask_id: Any, *, log=None,
         base = {"ask_id": str(ask_id), "resolved_id": resolved, "state": state,
                 "terminal": terminal, "caller_should": should,
                 "peer": None, "redrives": None, "age_s": None, "duration_s": None,
-                "deadline_in_s": None, "answer_id": None, "evidence": {}}
+                "deadline_in_s": None, "answer_id": None, "evidence": {},
+                # T197: was anyone home when this was asked -- and, once closed, when
+                # it gave up. None means UNOBSERVED (the episode predates T197 or the
+                # probe was unreadable), which is deliberately not the same as the
+                # UNKNOWN verdict attendance itself can return.
+                "peer_at_ask": None, "peer_at_ask_why": None, "peer_at_death": None}
         base.update(extra)
         return base
 
@@ -143,6 +148,8 @@ def state_of(sender: str, ask_id: Any, *, log=None,
         deadline = rec.get("deadline_ts")
         return _result(
             state, cand, peer=rec.get("to"), redrives=attempt,
+            peer_at_ask=rec.get("peer_at_ask"),
+            peer_at_ask_why=rec.get("peer_at_ask_why"),
             age_s=_span(now, rec.get("created")),
             deadline_in_s=_span(deadline, now) if deadline is not None else None,
             evidence={"record": True,
@@ -182,6 +189,9 @@ def state_of(sender: str, ask_id: Any, *, log=None,
                 break
         return _result(
             state, hit, peer=detail.get("to"), redrives=redrives,
+            peer_at_ask=detail.get("peer_at_ask"),
+            peer_at_ask_why=detail.get("peer_at_ask_why"),
+            peer_at_death=detail.get("peer_at_death"),
             duration_s=_span(closed_at, detail.get("created")),
             answer_id=detail.get("answer_id"),
             evidence={"event": ev.get("_ref") or ev.get("id") or True,

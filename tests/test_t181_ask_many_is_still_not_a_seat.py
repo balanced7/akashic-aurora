@@ -132,8 +132,19 @@ def test_k7_an_empty_fan_is_a_named_failure():
 
 def test_k8_ask_many_touches_no_seat_machinery():
     """The T171 guard still holds at N. The moment a branch acquires a lock or a cursor it has
-    become a seat, and N seats is the path whose failure rate motivated this whole primitive."""
+    become a seat, and N seats is the path whose failure rate motivated this whole primitive.
+
+    Scoped to the stateless path 2026-08-06 (T197), for the same reason and in the same way as
+    its T171 twin: `ask_peer` is a DURABLE ask by design and rides the expectation machinery, so
+    a whole-file scan went red on a reference the design requires. Every forbidden name is still
+    enforced with no exemptions on the fan path; the durable verb answers to its own narrower law
+    in test_t197_peer_presence.py.
+    """
     tree = ast.parse(open(os.path.join(ROOT, "core", "comm", "ask.py"), encoding="utf-8").read())
+    tree = ast.Module(body=[n for n in tree.body
+                            if not (isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+                                    and n.name == "ask_peer")],
+                      type_ignores=[])
     forbidden = {"runner_lock", "seed_cursor", "roster", "mailbox", "worklive",
                  "acquire", "bifrost_send", "heartbeat", "role_queue", "expectations"}
     referenced = set()

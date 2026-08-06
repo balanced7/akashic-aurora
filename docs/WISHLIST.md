@@ -805,6 +805,7 @@ but not whether it is still REACHABLE -- a message behind the consumer's committ
 unreachable as a trimmed one. That is exactly what bit me: a newborn seat seeded at the lane tail,
 leaving my queued message present but permanently unread. Filed as its own note, since it needs a
 cursor read the guard does not currently do.
+- [ ] W129 (08-06, claude) — One absent-peer ask prints the UNATTENDED RECIPIENT warning FOUR times -- once for the send and once per redrive -- plus ask --peer's own NOBODY HOME line. Five stderr lines saying one thing. Measured live in the T197 drill 2026-08-06. The bus warning is right for every other caller, so the fix is not to delete it: either let a caller that has ALREADY observed and reported attendance suppress it (ask_peer knows the verdict before it sends), or dedupe the warning per recipient per short window so redrives stay quiet. Noise around a true signal is how a true signal stops being read. Trigger: dogfooding the T197 front door: the fix for silent absence overshot into repetitive absence. Land: T197c or a bus-ergonomics slice.
 
 ## Folded (exemplars — the loop works)
 

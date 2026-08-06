@@ -90,10 +90,19 @@ def _id_tuple(sid: str) -> Tuple[int, int]:
         return (0, 0)
 
 
-def arm(sender: str, orig_id: str, to: str, kind: str, content: Any, within_s: int) -> bool:
+def arm(sender: str, orig_id: str, to: str, kind: str, content: Any, within_s: int,
+        *, peer_state: Optional[str] = None, peer_why: Optional[str] = None) -> bool:
     """Record a reply expectation for an already-sent message. Clamps within_s to
     >= MIN_WITHIN_S. The anchor is the sender-inbox tail AT ARM TIME (the sender's own
-    send never lands in its own inbox, so the anchor cleanly precedes any reply)."""
+    send never lands in its own inbox, so the anchor cleanly precedes any reply).
+
+    T197: `peer_state`/`peer_why` carry the caller's attendance verdict AT ASK TIME --
+    the answer to "was anyone home when I sent this?". Keyword-only and optional so
+    every existing caller is untouched, and OMITTED FROM THE RECORD when not supplied:
+    an unobserved verdict must stay distinguishable from a verdict of UNKNOWN, because
+    "we never looked" and "we looked and could not tell" call for different actions.
+    Defaulting the field would erase that distinction at the source.
+    """
     c = _client()
     if c is None:
         return False
@@ -105,6 +114,9 @@ def arm(sender: str, orig_id: str, to: str, kind: str, content: Any, within_s: i
                "within_s": within, "deadline_ts": time.time() + within,
                "redrives_left": REDRIVES, "attempt": 0,
                "anchor": anchor, "created": time.time()}
+        if peer_state is not None:
+            rec["peer_at_ask"] = str(peer_state)
+            rec["peer_at_ask_why"] = str(peer_why or "")
         c.hset(_key(str(sender)), str(orig_id), json.dumps(rec, default=str))
         return True
     except Exception:
@@ -131,18 +143,49 @@ def snapshot(sender: str) -> Dict[str, Dict[str, Any]]:
         return {}
 
 
+def _peer_at_death(to: Any) -> Optional[str]:
+    """T197: was the peer attending AT THE MOMENT THE ASK GAVE UP?
+
+    The second half of the pair, and the reason the pair exists. deepseek's fence
+    finding (2026-08-06): a single fixed-time observation is structurally incapable of
+    explaining a deferred outcome -- a t=0 verdict frozen into the record turns a
+    debugging aid into a systemic attribution error, because a peer LIVE at t=0 can be
+    gone by t+2s and the record would still blame an unresponsive consumer. Only
+    ask-time AND death-time together separate 'never home' from 'died mid-flight' from
+    'home and ignored me'.
+
+    FAIL-OPEN, like every observability field on this path: a probe that raises costs
+    the COLUMN, never the terminal event. Returning None (rather than "UNKNOWN") keeps
+    "we never got to look" distinct from attendance's own UNKNOWN verdict.
+    """
+    try:
+        from core.comm.liveness import attendance
+        return str(attendance(str(to)).state)
+    except Exception:
+        return None
+
+
 def _emit_dead(sender: str, orig_id: str, rec: Dict[str, Any]) -> None:
     """Durable exhaustion record; the sweep's caller prints the loud line."""
     try:
         from core.events.event_log import capture_event
+        detail = {"to": rec.get("to"), "kind": rec.get("kind"),
+                  "attempts": rec.get("attempt"),
+                  # T196b parity: the record dies with this event, so episode
+                  # duration must be computable from the event ALONE.
+                  "created": rec.get("created")}
+        # T197: both ends of the pair ride the terminal event, for the same reason
+        # duration does -- the record is deleted in the transition that closes it, so
+        # a field absent here is a field lost forever.
+        if rec.get("peer_at_ask") is not None:
+            detail["peer_at_ask"] = rec.get("peer_at_ask")
+            detail["peer_at_ask_why"] = rec.get("peer_at_ask_why")
+        at_death = _peer_at_death(rec.get("to"))
+        if at_death is not None:
+            detail["peer_at_death"] = at_death
         capture_event("expectation_dead",
                       f"{rec.get('to')} never answered {orig_id} after {REDRIVES} redrives",
-                      agent_id=str(sender), refs=[str(orig_id)],
-                      detail={"to": rec.get("to"), "kind": rec.get("kind"),
-                              "attempts": rec.get("attempt"),
-                              # T196b parity: the record dies with this event, so episode
-                              # duration must be computable from the event ALONE.
-                              "created": rec.get("created")})
+                      agent_id=str(sender), refs=[str(orig_id)], detail=detail)
     except Exception:
         pass
 
@@ -159,13 +202,20 @@ def _emit_settled(sender: str, orig_id: str, reply_id: Any, rec: Dict[str, Any])
     try:
         from core.events.event_log import capture_event
         attempt = int(rec.get("attempt", 0) or 0)
+        detail = {"to": rec.get("to"), "kind": rec.get("kind"),
+                  "attempt": attempt, "created": rec.get("created"),
+                  "answer_id": str(reply_id)}
+        # T197: answered episodes carry the ask-time end too. A partition defined only
+        # over failures cannot answer "do attended peers actually answer more often?",
+        # which is the question the whole arc is ultimately for -- and a success with
+        # no peer column is a control group thrown away.
+        if rec.get("peer_at_ask") is not None:
+            detail["peer_at_ask"] = rec.get("peer_at_ask")
         capture_event("expectation_settled_answered",
                       f"{rec.get('to')} answered {orig_id}"
                       + (f" after {attempt} redrive(s)" if attempt else ""),
                       agent_id=str(sender), refs=[str(orig_id), str(reply_id)],
-                      detail={"to": rec.get("to"), "kind": rec.get("kind"),
-                              "attempt": attempt, "created": rec.get("created"),
-                              "answer_id": str(reply_id)})
+                      detail=detail)
     except Exception:
         pass
 

@@ -47,7 +47,48 @@ BLIND = [
     "helped -- v2 candidates: re-ask window, self-reclamation rate (fence C2)",
     "reads the per-agent event stream (an index): an event whose index write degraded "
     "(T179 PARTIALLY) is on the canonical firehose but absent here",
+    "the peer partition rests on TWO POINT SAMPLES (attendance at ask, attendance at "
+    "death) and observes nothing in between: a peer that died and recovered inside the "
+    "window reads as `ignored`, and one that flapped repeatedly reads as whichever "
+    "state the two samples happened to catch (T197)",
+    "episodes closed before T197 (2026-08-06) carry no peer observation at all and "
+    "count as dead_peer_unknown -- they are NOT back-filled, because the reader is not "
+    "entitled to a verdict it never took",
 ]
+
+
+# T197: the pair -> the bug. Until 2026-08-06 every dead ask was the same row, and the
+# 81.2% dead-rate could not say WHICH failure it was measuring. With attendance observed
+# at ask time AND at death, four different bugs separate -- each with a different action:
+#
+#   at ask       at death        verdict        what to actually do
+#   UNATTENDED   UNATTENDED      absent         launch the peer; nobody was ever home
+#   ATTENDED     UNATTENDED      vanished       chase the crash; it died mid-flight
+#   ATTENDED     ATTENDED        ignored        chase the consumer (wrong lane? wedge?)
+#   UNATTENDED   ATTENDED        arrived_late   it came up and STILL did not answer
+#
+# Anything else is `unknown`, including every episode closed before this instrument
+# existed. UNKNOWN is not a rounding error here: it is the guard against the reader
+# back-filling 26 historical deaths with the answer it expects.
+_DEAD_VERDICT = {
+    ("UNATTENDED", "UNATTENDED"): "absent",
+    ("ATTENDED", "UNATTENDED"): "vanished",
+    ("ATTENDED", "ATTENDED"): "ignored",
+    ("UNATTENDED", "ATTENDED"): "arrived_late",
+}
+DEAD_VERDICTS = ("absent", "vanished", "ignored", "arrived_late", "unknown")
+
+
+def dead_verdict(at_ask: Any, at_death: Any) -> str:
+    """Which of the four deaths this was -- or `unknown`, said plainly.
+
+    BOTH ends are required. One end is not the pair: `peer_at_ask == ATTENDED` alone
+    cannot tell `vanished` from `ignored`, and choosing either would be the fabricated
+    attribution deepseek's fence (2026-08-06) identified as worse than no column at all.
+    attendance's own UNKNOWN verdict also lands here -- a probe that could not read is
+    evidence about the PROBE, never about the peer.
+    """
+    return _DEAD_VERDICT.get((str(at_ask or ""), str(at_death or "")), "unknown")
 
 
 def _redrives(detail: Dict[str, Any]) -> int:
@@ -80,6 +121,7 @@ def fold(terminal_events: Optional[List[Dict[str, Any]]],
     episodes: List[Dict[str, Any]] = []
     durations: List[float] = []
     counts = {"answered": 0, "dead": 0, "echo": 0}
+    dead_by_verdict = {v: 0 for v in DEAD_VERDICTS}
 
     for ev in terminal_events or []:
         outcome = TERMINAL_KINDS.get(str(ev.get("kind") or ""))
@@ -94,12 +136,19 @@ def fold(terminal_events: Optional[List[Dict[str, Any]]],
         except Exception:
             closed_at = None
         duration = _span(closed_at, detail.get("created"))
-        episodes.append({
+        at_ask, at_death = detail.get("peer_at_ask"), detail.get("peer_at_death")
+        row = {
             "ask_id": str(refs[0]), "peer": detail.get("to"), "outcome": outcome,
             "duration_s": duration, "redrives": _redrives(detail),
             "closed_at": ev.get("at"),
             "answer_id": detail.get("answer_id"),
-        })
+            "peer_at_ask": at_ask, "peer_at_death": at_death,
+        }
+        if outcome == "dead":
+            verdict = dead_verdict(at_ask, at_death)
+            row["peer_verdict"] = verdict
+            dead_by_verdict[verdict] += 1
+        episodes.append(row)
         counts[outcome] += 1
         if duration is not None:
             durations.append(duration)
@@ -138,6 +187,11 @@ def fold(terminal_events: Optional[List[Dict[str, Any]]],
         "dead_rate": (counts["dead"] / n_closed) if n_closed else None,
         "settle_p50_s": _pct(0.5), "settle_p90_s": _pct(0.9),
         "n_duration_unknown": n_closed - len(durations),
+        # T197: the partition, keyed `dead_<verdict>` and summing EXACTLY to n_dead.
+        # A partition that does not sum is a set of overlapping guesses, and the rows
+        # it drops would be invisible instead of named.
+        **{f"dead_{v}": dead_by_verdict[v] for v in DEAD_VERDICTS if v != "unknown"},
+        "dead_peer_unknown": dead_by_verdict["unknown"],
     }
     return {"episodes": episodes, "agg": agg, "blind": list(BLIND)}
 

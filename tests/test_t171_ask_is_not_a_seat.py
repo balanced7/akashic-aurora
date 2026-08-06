@@ -94,6 +94,23 @@ def test_k5_no_key_is_a_configuration_failure_that_says_so(monkeypatch):
     assert "key" in o.why.lower()
 
 
+# The durable transport, excluded from the STATELESS law and governed by its own (T197).
+# Named explicitly rather than pattern-matched: a new durable verb must be added here
+# DELIBERATELY, which is the point -- silent growth of this set is the drift the law guards.
+_DURABLE_FUNCS = {"ask_peer"}
+
+
+def _stateless_only(tree):
+    """The module with its durable-transport functions removed, so the stateless law reads
+    only the stateless code. Module-level statements are KEPT: a top-level seat import would
+    still be a violation no matter which function it was for."""
+    return ast.Module(
+        body=[n for n in tree.body
+              if not (isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+                      and n.name in _DURABLE_FUNCS)],
+        type_ignores=[])
+
+
 def test_k6_ask_touches_no_seat_machinery():
     """THE DESIGN CLAIM, enforced SEMANTICALLY: the moment ask acquires a lock or a cursor it has
     become a seat, and inherits every failure mode that made the last two rounds expensive.
@@ -107,8 +124,21 @@ def test_k6_ask_touches_no_seat_machinery():
     STATED LIMIT, not papered over: this reads static imports, attribute access, bare names and
     call targets. Dynamic access -- getattr(o, "mail" + "box") -- would evade it. That blind spot
     is accepted: this pin guards against DRIFT, not sabotage.
+
+    SCOPED TO THE STATELESS PATH (amended 2026-08-06, T197). T196c added `ask_peer` to this
+    module -- a DURABLE ask to a real seat, whose entire purpose is to ride the expectation
+    machinery. It made this whole-file scan red on a reference the design requires, and the pin
+    then sat red rather than saying anything true. The law was written when `ask` meant only the
+    stateless helper; the module has since grown a second, deliberately-durable transport.
+
+    So the law now says what it always MEANT: the STATELESS path touches no seat machinery. Every
+    original forbidden name is still enforced, with no exemptions, on `ask`/`ask_many` and every
+    helper they reach. `ask_peer` gets its own narrower law in test_t197_peer_presence.py --
+    expectations ONLY, and still no lock, cursor, roster or heartbeat. Teeth kept, scope corrected;
+    an amended law beats a red one nobody can act on (docs/CONDUCT.md's anti-fossil clause).
     """
     tree = ast.parse(open(os.path.join(ROOT, "core", "comm", "ask.py"), encoding="utf-8").read())
+    tree = _stateless_only(tree)
 
     forbidden = {"runner_lock", "seed_cursor", "roster", "mailbox", "worklive",
                  "acquire", "bifrost_send", "heartbeat", "role_queue", "expectations"}
