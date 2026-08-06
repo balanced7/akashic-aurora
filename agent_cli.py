@@ -1866,6 +1866,40 @@ def cmd_ask(args):
             print(f"cannot read --prompt-file: {e}", file=sys.stderr)
             return 2
 
+    # T196c: `ask --peer <seat>` -- the durable route on the SAME verb. One command;
+    # send + arm + poll underneath; the expectation outlives the interactive wait.
+    if getattr(args, "peer", None):
+        if getattr(args, "fan", 0) or getattr(args, "prompts_file", None):
+            print("--peer is ONE durable ask to ONE seat; --fan/--prompts-file are the "
+                  "stateless fan. Pick a transport.", file=sys.stderr)
+            return 2
+        from core.comm.ask import ask_peer
+        sender = args.as_agent or os.environ.get("AKASHIC_AGENT_ID") or "claude"
+        o = ask_peer(sender, args.peer, prompt,
+                     wait_s=args.wait, poll_s=args.poll)
+        if args.json:
+            print(json.dumps({"ok": o.ok, "partial": o.partial, "why": o.why,
+                              **(o.detail or {})}, ensure_ascii=False, default=str))
+            return 0 if (o.ok or o.partial) else 1
+        d = o.detail or {}
+        if o.ok and d.get("state") == "CLOSED.ANSWERED":
+            print(d.get("answer", ""))
+            print(f"\n-- CLOSED.ANSWERED | {d.get('elapsed_s')}s | "
+                  f"redrives {d.get('redrives')} | ask {d.get('ask_id')}",
+                  file=sys.stderr)
+            return 0
+        if o.ok:                               # CLOSED.ECHO
+            print(f"-- CLOSED.ECHO: the referenced work is already done "
+                  f"({d.get('settle')}) -- read the ledger, not the mailbox",
+                  file=sys.stderr)
+            return 0
+        if o.partial:                          # OPEN.* or UNKNOWN: a handle, not an error
+            print(f"-- {d.get('state')}: {o.why}", file=sys.stderr)
+            print(f"-- check: {d.get('how_to_check')}", file=sys.stderr)
+            return 0
+        print(f"ASK FAILED: {o.why}", file=sys.stderr)
+        return 1
+
     # T181 -- the fan. Two shapes, because the fleet patterns need two:
     #   --fan N        one prompt, N independent answers  -> N-version blind, branch-and-bound
     #   --prompts-file many prompts, run at once          -> breadth wavefront, fenced triangle
@@ -4818,6 +4852,15 @@ def build_parser():
     ask_p.add_argument("--workers", type=int, default=None,
                        help="fan width (default 6). Merge attention binds before generation "
                             "does -- a fan wider than its integrator makes debt, not progress")
+    ask_p.add_argument("--peer", metavar="SEAT",
+                       help="T196c: ONE durable ask to a SEAT (send+arm+poll on the "
+                            "bus) instead of the stateless helper. The expectation "
+                            "outlives --wait; timeout hands back a --status handle")
+    ask_p.add_argument("--wait", type=float, default=120.0,
+                       help="interactive patience in seconds for --peer (default 120); "
+                            "the DURABLE expectation keeps redriving after it")
+    ask_p.add_argument("--poll", type=float, default=2.0,
+                       help="poll interval for --peer (default 2s)")
     ask_p.add_argument("--status", metavar="ASK_ID",
                        help="T196d: render one durable ask's honest state (seven states "
                             "incl UNKNOWN) and what to do now. Read-only; always exit 0")

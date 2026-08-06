@@ -114,7 +114,7 @@ def test_settles_in_band_without_consuming(pair):
     t = _responder(r, s, text="42, obviously")
     o = ask_peer(s, r, "what is the answer?", wait_s=15, poll_s=0.2)
     t.join(timeout=1)
-    assert o.ok, f"settled ask must be done, got: {o.why}"
+    assert o.ok and not o.partial, f"settled ask must be a clean done, got: {o.why}"
     d = o.detail
     assert d["state"] == "CLOSED.ANSWERED" and d["ask_id"]
     assert d["answer"] == "42, obviously", "the peer's text comes back IN-BAND"
@@ -130,8 +130,12 @@ def test_settles_in_band_without_consuming(pair):
 def test_timeout_returns_handle_and_stays_armed(pair):
     s, r = pair
     o = ask_peer(s, r, "anyone home?", wait_s=1, poll_s=0.25)
-    assert o.partial and not o.ok, \
-        "an OPEN ask is a normal state: PARTIALLY, never failed"
+    # House vocabulary (T181): done = ok and not partial; PARTIALLY = ok AND partial
+    # (ok means "not failed"); failed = not ok. The first cut of this pin asserted
+    # `partial and not ok` -- a foreign outcome type, corrected to the contract's
+    # actual intent: a timeout is PARTIALLY, never failed, never a clean done.
+    assert o.partial and not bool(o), \
+        "an OPEN ask is a normal state: PARTIALLY, never failed, never a clean done"
     d = o.detail
     assert d["state"].startswith("OPEN.") and d["ask_id"]
     assert "--status" in d.get("how_to_check", ""), "the handle says how to check later"

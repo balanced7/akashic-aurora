@@ -208,6 +208,91 @@ def _agreement(answers):
     return round(total / pairs, 4), len(sets)
 
 
+def ask_peer(sender, peer, prompt, *, wait_s: float = 120.0, poll_s: float = 2.0,
+             within_s: int = 1800, kind: str = "request"):
+    """One durable ask to a SEAT, ergonomically synchronous (T196c). Never raises.
+
+    Sol's front door: `ask` and `ask_peer` are one verb with two transports -- the
+    stateless helper dies in the call; this one rides the bus with the full T030/T117
+    settle machinery underneath, invisibly. Send + arm + poll: expectations.sweep() is
+    the ACTOR (transitions), ask_state.state_of() the ORACLE (readout) -- the verb is
+    the T196d state machine in a loop, so verb and readout can never disagree.
+
+    THE ASYMMETRY IS THE POINT: wait_s is the short interactive patience; within_s is
+    the long durable expectation. When the wait gives up, nothing is abandoned -- the
+    record stays armed, redrives fire on their own schedule, and the caller holds a
+    handle (`ask --status <id>`) instead of an error. An OPEN ask is a normal state,
+    so the timeout path returns PARTIALLY, never failed.
+
+    NON-CONSUMING BY LAW (two-live-seats): the poll reads answers from the stream
+    position via the expectations anchor, never advances a lane cursor -- concurrent
+    sibling sessions keep their mail; the seat's normal sync consumes later.
+    """
+    from core.outcome import BoundaryOutcome as _BO   # local alias for clarity only
+
+    if not str(prompt or "").strip():
+        return _BO.failed("empty prompt -- nothing to ask")
+    sender, peer = str(sender), str(peer)
+    t0 = time.time()
+    try:
+        from core.comm.bus import Bus
+        from core.comm.expectations import arm, sweep, _answers_since
+        from core.comm.ask_state import state_of
+        b = Bus(sender)
+        anchor = b.tail().get("inbox", "0")
+        mid = b.send(peer, kind, prompt)
+        if not mid:
+            return _BO.failed(f"send to {peer} failed -- bus offline or refused the message")
+        armed = arm(sender, mid, peer, kind, prompt, int(within_s))
+    except Exception as e:
+        return _BO.caught(e, where="ask_peer(send+arm)")
+
+    deadline = t0 + max(0.0, float(wait_s))
+    st = None
+    while True:
+        try:
+            sweep(sender)                    # actor: clear answered / redrive / kill
+            st = state_of(sender, mid)       # oracle: the honest readout
+        except Exception as e:
+            return _BO.caught(e, where="ask_peer(poll)", ask_id=str(mid))
+        if st["terminal"] or time.time() >= deadline:
+            break
+        time.sleep(max(0.05, float(poll_s)))
+
+    detail = {
+        "ask_id": str(mid), "peer": peer, "state": st["state"],
+        "elapsed_s": round(time.time() - t0, 2), "armed": bool(armed),
+        "redrives": st.get("redrives"),
+        "how_to_check": f"py agent_cli.py ask --status {mid} --as {sender}",
+    }
+    if st["state"] == "CLOSED.ANSWERED":
+        answer = None
+        try:
+            for m in _answers_since(sender, anchor):     # anchored, non-consuming
+                if getattr(m, "frm", None) == peer:
+                    answer = getattr(m, "content", None) # newest from the peer wins
+        except Exception:
+            answer = None
+        if answer is None:
+            answer = ("(answer settled but its body is outside the stream window -- "
+                      "follow answer_id)")
+        return _BO.done(answer=answer, answer_id=st.get("answer_id"), **detail)
+    if st["state"] == "CLOSED.ECHO":
+        return _BO.done(answer=None, settle=(st.get("evidence") or {}).get("settle"),
+                        **detail)
+    if st["state"] == "CLOSED.DEAD":
+        return _BO.failed(
+            f"{peer} never answered {mid} -- redrives exhausted (the durable "
+            f"expectation_dead event has the record)", **detail)
+    if st["state"] == "UNKNOWN":
+        return _BO.partially(
+            "the record vanished mid-wait (evidence lost or trimmed) -- re-ask; the "
+            "old transaction is unresolvable", **detail)
+    return _BO.partially(
+        f"not settled within {wait_s}s -- the ask stays armed, redrives continue on "
+        f"their own schedule; check later with ask --status", **detail)
+
+
 def _fan_client(client):
     """ONE client for the whole fan, or a named configuration failure for the whole fan.
 
