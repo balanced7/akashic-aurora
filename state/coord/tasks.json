@@ -1,5 +1,5 @@
 {
-  "seq": 193,
+  "seq": 197,
   "tasks": [
     {
       "id": "T001",
@@ -6844,11 +6844,11 @@
         "tests/test_t191_llm_round_archive_keeps_player_report.py"
       ],
       "acceptance": "RED pin first: an injectable player returning names plus a structured report must place that exact report in both the returned round and the external archive; legacy list-only players remain compatible; no model call. Tier: no fence, two files, trivial-revert seam bug.",
-      "status": "verifying",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "b812b1b",
+      "verified_by": "17 focused tests + zero-model live archive probe; global ship blocked by T192 doc-currency and T193 expired suite baseline",
       "created": "2026-08-05T12:41:45+00:00",
-      "updated": "2026-08-05T12:46:04+00:00",
+      "updated": "2026-08-05T13:00:59+00:00",
       "history": [
         {
           "to": "proposed",
@@ -6869,6 +6869,11 @@
           "to": "verifying",
           "by": "codex_root",
           "at": "2026-08-05T12:46:04+00:00"
+        },
+        {
+          "to": "done",
+          "by": "codex_root",
+          "at": "2026-08-05T13:00:59+00:00"
         }
       ]
     },
@@ -6919,6 +6924,196 @@
           "to": "proposed",
           "by": "codex_root",
           "at": "2026-08-05T12:57:55+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T194",
+      "title": "Scoreboard v2 separates ground truth, exposure, judgment and protocol integrity; supersedes T185 and T189",
+      "desc": "",
+      "owner": "codex_root",
+      "deps": [
+        "T190",
+        "T191"
+      ],
+      "files": [
+        "scripts/canary_oracle.py",
+        "tests/test_t194_scoreboard_v2_separates_truth_exposure_integrity.py"
+      ],
+      "acceptance": "Fence-lite scorer semantics with positional DeepSeek review before implementation. RED pins first: baseline-blind hits are capability findings, never automatic fraud; only explicit protocol contamination voids; clean/contaminated/unknown integrity is three-state; planted/offered/judged/claimed facts remain distinct by class; misses never render as honesty; inconsistent claim/exposure inputs fail loudly; legacy score remains executable for old/new replay.",
+      "status": "done",
+      "commit": "7a7f7cc",
+      "verified_by": "37 focused tests plus zero-model archived v1-v2 replay; origin/master matches",
+      "created": "2026-08-05T13:02:43+00:00",
+      "updated": "2026-08-05T13:24:33+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "codex_root",
+          "at": "2026-08-05T13:02:43+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-05T13:02:50+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "codex_root",
+          "at": "2026-08-05T13:02:54+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "codex_root",
+          "at": "2026-08-05T13:20:36+00:00"
+        },
+        {
+          "to": "done",
+          "by": "codex_root",
+          "at": "2026-08-05T13:24:33+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T195",
+      "title": "Matched DeepSeek calibration: redundant replication versus positional breadth sharding",
+      "desc": "",
+      "owner": "codex_root",
+      "deps": [
+        "T194"
+      ],
+      "files": [
+        "scripts/season_fan_calibration.py",
+        "tests/test_t195_replication_vs_positional_sharding.py"
+      ],
+      "acceptance": "RED pin precedes implementation. One combined eight-call fan interleaves four replication leaves and four sharding leaves. Replication repeats one anchor packet four times; sharding gets that identical anchor once plus three disjoint sibling packets. System, model, token ceiling, call count, packet size, and total prompt characters within five percent are matched. No manifest id or class reaches a prompt. Missing verdicts remain unjudged. Full prompts, answers, usage, parse anomalies, score_v2 measurement, and separate protocol verdict archive outside git. Primary ruling is pre-registered from unique true findings, conservative precision, judged coverage, and all-branch completion; otherwise INCONCLUSIVE.",
+      "status": "done",
+      "commit": "5cb2d71",
+      "verified_by": "43 focused tests; valid 8-of-8 live fan; exact archive hash; zero public identity leaks; origin parity",
+      "created": "2026-08-05T13:28:25+00:00",
+      "updated": "2026-08-05T13:48:18+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "codex_root",
+          "at": "2026-08-05T13:28:25+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-05T13:28:29+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "codex_root",
+          "at": "2026-08-05T13:28:29+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "codex_root",
+          "at": "2026-08-05T13:28:29+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "codex_root",
+          "at": "2026-08-05T13:46:17+00:00"
+        },
+        {
+          "to": "done",
+          "by": "codex_root",
+          "at": "2026-08-05T13:48:18+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T196",
+      "title": "aurora ask <peer>: durable collaboration transaction as the Bifrost front door (Sol synthesis 2026-08-05; fenced co-design w/ deepseek; metrics slice first; spec: research/reviewed/sol-bifrost-collaboration-first-2026-08-05.md)",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "59e7bd3",
+      "verified_by": "pytest t196 a/b/c/d suites 35/35 green + live receipts (85.7pct baseline; CLOSED.DEAD and UNKNOWN render true; first durable ask armed to deepseek 1785985931818-0)",
+      "created": "2026-08-06T01:08:25+00:00",
+      "updated": "2026-08-06T03:16:13+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-06T01:08:25+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil (verbatim 2026-08-05: 'lets get to building, feel free to use the ask verb')",
+          "at": "2026-08-06T01:28:17+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-06T01:28:17+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-08-06T03:16:13+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-06T03:16:13+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-06T03:16:13+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T197",
+      "title": "T197: the peer must EXIST -- collaboration-first front door (Sol's vision write-up, Daniil 2026-08-06: 'Bifrost should optimize for collaboration first and infrastructure second'). MEASURED CAUSE: friction reader over 14d shows 32 closed ask-episodes, 0 ANSWERED, 26 DEAD (81.2 pct); launcher registry shows ALL EIGHT launchable agents never_launched -- every durable ask was addressed to a seat with no process behind it. The verb, the transaction and the seven-state machine all work; nothing was ever listening. SLICES: (a) peer_state -- an honest 'will this peer consume?' reader that resolves the W126 two-key-shapes lie by reading BOTH worklive shapes and naming which answered, with UNKNOWN first-class; (b) preflight wired into ask --peer as an OBSERVATION not a gate (fenced with deepseek, who won the argument that instant refusal conflates 'down right now' with 'never coming' and destroys the late-binding detection window) -- reports at t=0, never refuses, records the peer verdict INTO the transaction so friction can separate 'nobody home' from 'home and ignored me'; (c) autolaunch, opt-in and under the existing singleton runner lock (deepseek named thundering herd / launch storms / boots-but-never-consumes in the same fence).",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "806a450",
+      "verified_by": "pytest 183 passed (tests/test_t197_peer_presence.py 17 + tests/test_t197c_peer_ready.py 14 new, RED-first); live receipts: ask --peer deepseek --launch -> LAUNCHED pid 24704 -> CLOSED.ANSWERED 28.23s; friction 0 -> 2 answered, dead-rate 81.2 -> 76.5 pct",
+      "created": "2026-08-06T12:42:20+00:00",
+      "updated": "2026-08-06T13:04:02+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-06T12:42:20+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-06T12:42:37+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-06T12:42:43+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-08-06T13:04:01+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-06T13:04:02+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-06T13:04:02+00:00"
         }
       ]
     }
