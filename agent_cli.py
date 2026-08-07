@@ -5048,13 +5048,22 @@ def cmd_blob(args):
     from core.comm.blobs import get_blob_store
     ref = str(getattr(args, "get", "") or "").strip()
     if not ref:
-        print("usage: py agent_cli.py bifrost-fetch --get blob:<sha>  [--out FILE]")
+        print("usage: py agent_cli.py bifrost-fetch --get blob:<sha>|<stream-id>  [--out FILE]")
         return 2
     data = get_blob_store().get(ref)
+    if data is None and _looks_like_stream_id(ref):
+        # T222: the SECOND address space, added because T220 minted pointers into this door
+        # that it could not serve. A clipped bus body's real identity is its STREAM ID, and
+        # until now no door resolved one -- the bytes were reachable only by a raw xrange.
+        # The peer I shipped T220 to hit this within the hour: "your blob pointer was dead on
+        # my side". Extending the resolver serves the address the message actually has;
+        # rewriting the pointer to name some other door would only move the lie.
+        data = _fetch_bus_body(ref)
     if data is None:
-        print(f"# no blob for {ref}\n"
-              f"# (refs are content-addressed and never rewritten -- a miss means the "
-              f"blob was never stored or the store dir differs, not that it changed)")
+        print(f"# no blob or bus message for {ref}\n"
+              f"# (blob refs are content-addressed and never rewritten -- a miss means it was "
+              f"never stored or the store dir differs. A stream id misses when it is not in "
+              f"any stream this agent can read: check the namespace and the lane.)")
         return 1
     out = str(getattr(args, "out", "") or "").strip()
     if out:
@@ -5064,6 +5073,62 @@ def cmd_blob(args):
         return 0
     sys.stdout.write(data.decode("utf-8", "replace"))
     return 0
+
+
+def _looks_like_stream_id(ref: str) -> bool:
+    """A Redis stream id is '<ms>-<seq>'. Deliberately narrow so a malformed blob ref is
+    never silently re-routed into a stream scan and reported as a stream miss."""
+    parts = str(ref).split("-")
+    return len(parts) == 2 and all(p.isdigit() for p in parts) and len(parts[0]) >= 10
+
+
+def _fetch_bus_body(mid: str):
+    """The body of a bus message, by stream id, as bytes. None when unreachable.
+
+    T222. Scans the streams THIS agent can read rather than guessing one: a message lands on
+    the work lane, the legacy inbox, or a broadcast depending on kind and era, and the whole
+    point of this door is that the caller holding a clipped render does not know which.
+
+    Reassembles T043 fragments when the id names a fragmented send, because a body that
+    clipped is exactly the size that fragments -- resolving only the first part would hand
+    back another truncation and call it a fix.
+    """
+    try:
+        from core.comm.bus import Bus
+        b = Bus("claude")
+        r = b._client
+        if r is None:
+            return None
+        seen = []
+        for key in (f"{b.ns}:work:inbox:claude", f"{b.ns}:inbox:claude",
+                    f"{b.ns}:work:broadcast", f"{b.ns}:broadcast"):
+            try:
+                got = r.xrange(key, min=mid, max=mid)
+            except Exception:
+                continue
+            for _id, f in got or []:
+                d = {(k.decode() if isinstance(k, bytes) else k):
+                     (v.decode("utf-8", "replace") if isinstance(v, bytes) else v)
+                     for k, v in f.items()}
+                body = d.get("content") or d.get("text") or ""
+                if body:
+                    seen.append(body)
+        if not seen:
+            return None
+        body = max(seen, key=len)
+        # The stream stores `content` JSON-ENCODED, so a raw read hands back a quoted string
+        # with literal \n. A body the reader has to un-escape by hand is a half-resolved
+        # pointer, which is the defect this door exists to close -- decode it here.
+        if body[:1] == '"':
+            try:
+                decoded = json.loads(body)
+                if isinstance(decoded, str):
+                    body = decoded
+            except (ValueError, TypeError):
+                pass
+        return body.encode("utf-8")
+    except Exception:
+        return None
 
 
 def cmd_locks(args):
