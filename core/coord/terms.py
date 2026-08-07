@@ -47,11 +47,28 @@ BLIND = [
     "semantics. Calibrated against the four known positives, they landed at the 71st, "
     "94th, 76th and 13th percentile -- three of four in the bottom quartile, i.e. the "
     "score is anti-correlated with truth. Do not trust this ranking as a detector",
-    "WHY, and it inverts the intuition: forked words are LOW-spread. `drained` lives in "
-    "6 files and `wakeable` in 3. They fork BECAUSE few authors touched them and each "
-    "imported their own everyday meaning; a word in 100 files has been read by everyone "
-    "and its meaning was forced into agreement. High spread means the meaning got "
-    "socialised",
+    # CORRECTED 2026-08-07 by the next seat (session 69363f5a), within an hour of
+    # inheriting this file. The original entry read: "forked words are LOW-spread ... a
+    # word in 100 files has been read by everyone and its meaning was forced into
+    # agreement. High spread means the meaning got socialised." That was a CAUSAL STORY I
+    # invented to explain the measurement above, filed in the same list as the
+    # measurement, with nothing marking which was which -- AUTHORED inference laundered
+    # into a DERIVED slot, which is precisely what the relationship-plane design forbids.
+    # It is also FALSIFIED BY MY OWN HEADLINE FINDING THE SAME DAY: W135 records `open`
+    # as forked across 61 files and 13 subsystems -- the highest-spread term in the repo.
+    # The harm was specific: a reader inherits "high spread = socialised", concludes
+    # spread is safe, and skips the one word most worth checking.
+    "THE MECHANISM IS UNKNOWN. What is MEASURED is only the entry above: this ranking is "
+    "anti-correlated with the four known positives. The tempting explanation -- that high "
+    "spread socialises meaning -- is FALSIFIED: `open` is forked across 61 files and 13 "
+    "subsystems (W135). Do not infer that a widely-used term is safe",
+    "SELECTION BIAS in the calibration set, stated because it bounds every conclusion "
+    "drawn from it: the four known positives are known BECAUSE they cost me turns. They "
+    "are survivors-of-pain, not a random sample of forks. `open` and `home` were found by "
+    "a fan-out instead, and have no recorded cost -- which is NOT evidence they are cheap, "
+    "only that nothing recorded it. A live hypothesis worth testing (from the next seat): "
+    "spread may predict what a fork COSTS rather than WHETHER one happens, since a "
+    "low-spread fork has fewer readers to catch it",
     "the four positives are also ordinary ENGLISH words used in specialised senses, "
     "which is exactly why they fork -- so no rarity filter can separate them from "
     "English, because they ARE English. Detection is a MEANING-level job (the fan); this "

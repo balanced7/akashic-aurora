@@ -131,7 +131,26 @@ def test_the_measured_failure_of_the_ranking_is_recorded():
     blind = " ".join(TM.BLIND).lower()
     assert "negative result" in blind
     assert "anti-correlated" in blind
-    assert "low-spread" in blind, "the inverted intuition must survive, not just the verdict"
+
+
+def test_the_blind_list_does_not_claim_high_spread_is_safe():
+    """CAUGHT BY THE NEXT SEAT within an hour of inheriting this file, and the error was
+    mine. BLIND[1] used to explain the measurement with a causal story -- "high spread
+    means the meaning got socialised" -- filed in the same list as the measurement with
+    nothing marking which was measured and which was invented.
+
+    My OWN headline finding the same day falsifies it: W135 records `open` as forked
+    across 61 files and 13 subsystems, the highest-spread term in the repo. The harm is
+    specific and inheritable: a reader concludes spread is safe and skips exactly the
+    word most worth checking.
+
+    An inference shelved beside a measurement, undifferentiated, is the plane-laundering
+    the 07-30 relationship design forbids. This pin makes the correction non-revertible."""
+    blind = " ".join(TM.BLIND).lower()
+    assert "mechanism is unknown" in blind
+    assert "falsified" in blind and "61 files" in blind
+    assert "selection bias" in blind, "the calibration set is survivors-of-pain, not a sample"
+    assert "socialised" not in blind or "falsified" in blind
 
 
 def test_scoring_is_still_exercised_so_a_future_fix_is_measurable(tree):
