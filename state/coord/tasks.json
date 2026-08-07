@@ -1,5 +1,5 @@
 {
-  "seq": 201,
+  "seq": 203,
   "tasks": [
     {
       "id": "T001",
@@ -7273,6 +7273,98 @@
           "to": "done",
           "by": "",
           "at": "2026-08-07T01:18:00+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T202",
+      "title": "T202: name the cause of a dead ask and say what to do (prior-art adoption from data4sci agentic-harness: classify errors by CAUSE, give each its own recovery). Our redrive was blind -- 3 attempts on a fixed schedule regardless of why. Measured: 26 dead asks are four different situations wearing one label (deepseek x9 launchable and attending NOW; 4 session-suffixed incarnation ids; kimi/sol/deepseek-review/etc real seats with no registry tag; claude x2 self-addressed while attended). FENCE WITH DEEPSEEK KILLED HALF THE DESIGN AND BOTH KILLS WERE CORRECT: (A) I claimed a dead incarnation is PROVABLY unanswerable -- overclaimed, reaper.py re-homes orphan mail ('never stranded'), so the class survives only as a ROUTING HINT and no recovery string may assert futility (pinned); (B) I wanted to skip futile redrives while keeping 'preflight never gates the send' -- deepseek: 'redrive is still a send', and fewer redrives is a shorter late-binding window, the exact thing the law protects. So this slice changes NO transport policy: pure diagnosis + recovery advice. LIVE TESTING THEN CAUGHT TWO DEFECTS THE PINS COULD NOT, because pins supply observations and reality does not: STALE_INCARNATION wrongly required the base to be attending (codex_root_019fab2d rendered UNKNOWN_PEER), and known_seat was derived from 'launchable or attending', which is absence-of-evidence as a boolean -- it called kimi, sol and deepseek-review nonexistent. Fixed: incarnation-ness is a fact about the id; UNKNOWN_PEER now needs a positive witness (roster) and the safe default is SEAT_DOWN.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "HEAD",
+      "verified_by": "10/10 pins; live diagnosis correct on all four real peer classes",
+      "created": "2026-08-07T01:58:49+00:00",
+      "updated": "2026-08-07T01:59:03+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-07T01:58:49+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-07T01:58:50+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-07T01:58:50+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-08-07T01:58:51+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-07T01:58:51+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-07T01:59:03+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T203",
+      "title": "T203: ask --with <paths> -- stop asking blind helpers to reason about code. Inlines repo files into the prompt WITH LINE NUMBERS so the answer can cite file:line. MEASURED A/B on the exact question deepseek got wrong earlier the same session: BLIND it said the wake watcher's arm-time pending check 'must be deliberately BROADER or the seat goes permanently unwakeable' (polarity inverted; I caught it only by reading the source myself, which was the work I was delegating). WITH THE FILE, same model, same question: 'non-empty live -> returns immediately (lines 216, 252); empty -> blocks (253-258); therefore FEWER kinds' -- correct, cited, verifiable in seconds. Blindness, not intelligence, capped every fence in this session. Honesty requirements pinned: an unreadable path is NAMED in the prompt AND the meta (a helper reasoning from files it never received, while believing it did, is blind WITH confidence); truncation is confessed to the model and the caller; per-CALL budget with starvation reported; containment root is an injectable PARAMETER, because a hardcoded security boundary cannot be exercised by a test and an unexercised control is an assumption. FINDING, live within minutes: --with makes the completion-budget problem WORSE (8662 prompt tokens -> reasoning ate the whole 1200-token completion budget and returned 20 characters), which is direct evidence for the completion-reserve idea in the API redesign -- the two features are coupled. ALSO FIXES a regression I shipped in T202: _diagnose read the roster directly for a known_seat witness, violating the T171 law that an ask is not a seat; removed in favour of the honest None (UNKNOWN_PEER needs positive evidence; SEAT_DOWN is the safe default).",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "HEAD",
+      "verified_by": "8/8 new pins RED first, 56 green across ask family; live A/B: blind answer inverted, with-file answer correct and cited",
+      "created": "2026-08-07T02:16:30+00:00",
+      "updated": "2026-08-07T02:17:01+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-07T02:16:30+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-07T02:16:30+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-07T02:16:31+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-08-07T02:16:31+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-07T02:16:32+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-07T02:17:01+00:00"
         }
       ]
     }
