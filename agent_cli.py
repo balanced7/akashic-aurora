@@ -2263,19 +2263,36 @@ def cmd_sift(args):
         return 2
 
     # ---- tier 0: evidence, and the chance to stop before spending anything
-    packs = {t: S.evidence_pack(t, planes=planes, max_occurrences=args.max_occurrences)
-             for t in args.terms}
-    print(f"# sift: {len(args.terms)} term(s) x {len(hats)} hat(s), planes={list(planes)}")
+    mode = "junction" if args.junction else "breadth"
+    if args.junction:
+        packs = {t: S.junction_pack(t, planes=planes) for t in args.terms}
+    else:
+        packs = {t: S.evidence_pack(t, planes=planes,
+                                    max_occurrences=args.max_occurrences)
+                 for t in args.terms}
+    print(f"# sift: {len(args.terms)} term(s) x {len(hats)} hat(s), "
+          f"planes={list(planes)}, evidence={mode}")
     for t, p in packs.items():
-        files = len({o["file"] for o in p.occurrences})
-        flag = " CAPPED" if p.truncated else ""
-        print(f"  {t:<12} occ={len(p.occurrences):<4} files={files:<4} sha={p.sha}{flag}")
+        if args.junction:
+            cross = sum(1 for j in p.junctions if not j["same_file"])
+            print(f"  {t:<12} junctions={len(p.junctions):<4} cross-file={cross:<4} "
+                  f"sha={p.sha}")
+        else:
+            files = len({o["file"] for o in p.occurrences})
+            flag = " CAPPED" if p.truncated else ""
+            print(f"  {t:<12} occ={len(p.occurrences):<4} files={files:<4} "
+                  f"sha={p.sha}{flag}")
     if args.dry_run:
         print("\n# DRY RUN -- nothing spent. Read one pack before trusting any finding:")
         for t, p in packs.items():
-            print(f"\n--- {t} (first 5 of {len(p.occurrences)}) ---")
-            for o in p.occurrences[:5]:
-                print(f"  [{o['plane']}] {o['file']}:{o['line']}: {o['text'][:100]}")
+            if args.junction:
+                print(f"\n--- {t}: {len(p.junctions)} junction(s) ---")
+                for j in p.junctions[:3]:
+                    print(f"  {j['crossing']}{'  [same file]' if j['same_file'] else ''}")
+            else:
+                print(f"\n--- {t} (first 5 of {len(p.occurrences)}) ---")
+                for o in p.occurrences[:5]:
+                    print(f"  [{o['plane']}] {o['file']}:{o['line']}: {o['text'][:100]}")
             for b in p.blind[:2]:
                 print(f"  BLIND: {b[:150]}")
         return 0
@@ -5443,6 +5460,13 @@ def build_parser():
                                                        "Default source, because two meanings "
                                                        "in the MECHANISM is a defect while "
                                                        "two in prose is often just English")
+    sf.add_argument("--junction", action="store_true",
+                    help="use JUNCTION evidence instead of breadth: pairs of sites where "
+                         "the term is WRITTEN with sites where it is READ. Ask for this "
+                         "when the question is 'do the senses MEET' -- a breadth sample can "
+                         "enumerate senses but structurally cannot show a producer and its "
+                         "consumer in one frame, which is what made the junction hat vote "
+                         "NO_FORK on a term whose fork cost six turns")
     sf.add_argument("--dry-run", action="store_true", dest="dry_run",
                     help="build and show the evidence packs, spend NOTHING. Run this first: "
                          "a fan answers faithfully about whatever you hand it, so verifying "

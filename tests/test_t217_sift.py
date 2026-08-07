@@ -128,6 +128,84 @@ def test_capping_samples_across_files_instead_of_truncating():
         f"sample's clothes")
 
 
+def test_junction_pack_shows_writer_and_reader_together():
+    """THE SECOND EVIDENCE MODE, and the reason it exists is a measured negative result.
+
+    The first live round ran drained/open/lock through 7 hats. The `junction` hat voted
+    NO_FORK on BOTH drained and open -- including drained, whose three cursor families
+    provably DO meet (T198, 6 turns + a fleet pause). It did not find the junction that IS
+    the documented defect.
+
+    The helpers said why, in their own BLIND lists: they wanted "the actual callers that
+    unpack the drained integer" and "runtime branching logic where the fork would produce
+    silent failures". A one-line-per-file breadth sample can ENUMERATE SENSES; it is
+    structurally incapable of showing a PRODUCER AND ITS CONSUMER TOGETHER, which is what a
+    junction is.
+
+    Reading that NO_FORK as evidence against the junction hypothesis would have been
+    inferring absence from a blind instrument -- the house disease, one level up.
+
+    So: a junction pack pairs WRITE sites with READ sites and carries surrounding context.
+    """
+    corpus = {
+        "producer.py": "def f():\n    out['drained'] = len(msgs)\n    return out\n",
+        "consumer.py": "def g(rep):\n    if rep['drained'] > 0:\n        wake()\n",
+        "unrelated.py": "# drained is discussed here but never read or written\n",
+    }
+    pack = sift.junction_pack("drained", corpus=corpus)
+    assert pack.junctions, "found no writer/reader pair for a term that plainly has one"
+    j = pack.junctions[0]
+    assert j["writes"] and j["reads"], "a junction needs BOTH sides or it is not a junction"
+    wf = {w["file"] for w in j["writes"]}
+    rf = {r["file"] for r in j["reads"]}
+    assert "producer.py" in wf and "consumer.py" in rf
+    assert pack.sha and pack.blind
+
+
+def test_junction_pack_excludes_its_own_pattern_definitions_and_comments():
+    """L7's text-scanning trap, one level up, and it fired on the first live run.
+
+    The prior seat's version: "a prohibition worth pinning is worth documenting, and
+    documenting it puts the forbidden token in the file", which reddened four pins on the
+    docstrings explaining their own compliance.
+
+    Mine: a lexical junction detector CONTAINS its own patterns as string literals, so
+    sift.py matched itself as a reader of `drained` -- the instrument measuring the
+    instrument. The very first cross-file crossing reported for drained was
+    `agent/bifrost_pull.py -> core/coord/sift.py`, pointing at my regex on line 307.
+
+    A comment is also not a write. `# out["drained"] = ...` describes an assignment; it
+    does not perform one, and counting prose as mechanism is how a docstring becomes
+    evidence of a defect.
+    """
+    corpus = {
+        "real.py": "out['x'] = 1\n",
+        "reader.py": "if d['x'] > 0:\n    pass\n",
+        "commentary.py": "# out['x'] = 1 is how you would write it\n",
+        "patterns.py": "PAT = r\"\\['x'\\]\\s*=\"   # a detector's own literal\n",
+    }
+    pack = sift.junction_pack("x", corpus=corpus, exclude_self=False)
+    cited = {w["file"] for j in pack.junctions for w in j["writes"]}
+    assert "commentary.py" not in cited, "a comment describing a write counted as a write"
+    assert "real.py" in cited, "dropped the genuine write while filtering"
+
+    # and the module never reports itself
+    live = sift.junction_pack("drained")
+    selfhits = [j["crossing"] for j in live.junctions if "coord/sift.py" in j["crossing"]]
+    assert not selfhits, f"the detector matched its own source: {selfhits[:2]}"
+
+
+def test_junction_pack_reports_no_junction_rather_than_inventing_one():
+    """UNKNOWN must stay representable. A term used only in prose has no junction, and
+    saying so is a real answer -- collapsing 'I cannot see one' into 'there is none' is the
+    T155 failure that made a beating-but-wedged seat read as running."""
+    corpus = {"a.py": "# the word cursor appears only in this comment\n"}
+    pack = sift.junction_pack("cursor", corpus=corpus)
+    assert pack.junctions == []
+    assert any("no writer/reader pair" in b.lower() or "no junction" in b.lower()
+               for b in pack.blind), "must SAY it found none, not merely return empty"
+
+
 def test_every_tier_states_its_blindness():
     """T200's fidelity contract: numbers never travel without their stated blindness, or
     the transport launders a caveated finding into an omniscient one."""

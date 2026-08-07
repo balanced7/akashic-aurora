@@ -276,6 +276,177 @@ def _sha(s: str) -> str:
     return hashlib.sha256(s.encode("utf-8")).hexdigest()[:12]
 
 
+# ============================================================ tier 0b: junction evidence
+@dataclass
+class JunctionPack:
+    """Sites where a term is WRITTEN paired with sites where it is READ.
+
+    A separate pack type rather than a flag on EvidencePack, because it answers a different
+    question and a reader must never mistake one for the other. Enumerating senses and
+    detecting whether senses MEET are different measurements with different blindness, and
+    merging them under one name would be this repo's dominant bug class committed inside
+    the tool built to find it.
+    """
+    term: str
+    junctions: List[Dict[str, Any]] = field(default_factory=list)
+    blob: str = ""
+    sha: str = ""
+    blind: List[str] = field(default_factory=list)
+
+
+#: A term is WRITTEN when it is assigned, stored under a key, or returned as a field.
+_WRITE_PATTERNS = (
+    r"\[[\"']{t}[\"']\]\s*=",          # out["drained"] = ...
+    r"\b{t}\s*=(?!=)",                  # drained = ...
+    r"[\"']{t}[\"']\s*:",              # {"drained": ...}
+    r"\bdef\s+{t}\b",                   # def drained(...)
+    r"\bself\.{t}\s*=(?!=)",           # self.drained = ...
+)
+#: A term is READ when its value is consumed in a condition, an access, or an argument.
+_READ_PATTERNS = (
+    r"\[[\"']{t}[\"']\]\s*(?!=)",      # rep["drained"] > 0
+    r"\.get\(\s*[\"']{t}[\"']",        # d.get("drained")
+    r"\bif\s+.*\b{t}\b",                # if drained ...
+    r"\breturn\s+.*\b{t}\b",
+    r"\b{t}\s*[<>!=]=",                 # drained == ...
+)
+
+
+def _code_part(line: str) -> str:
+    """The executable part of a line, with any trailing comment removed.
+
+    A comment DESCRIBES a write; it does not perform one. Counting `# out["x"] = 1` as an
+    assignment is how prose becomes evidence of a mechanism, and it is the same class as
+    the text-scanning pin trap: the clearest code is the most heavily commented, so a
+    detector blind to comments finds the most defects exactly where the author explained
+    themselves best.
+
+    Deliberately crude -- a '#' inside a string literal truncates the line early. That
+    biases toward MISSING a write, never toward inventing one, which is the right direction
+    for a candidate generator.
+    """
+    s = line.split("#", 1)[0]
+    return s if s.strip() else ""
+
+
+def _matches(patterns: Sequence[str], term: str, line: str) -> bool:
+    code = _code_part(line)
+    if not code:
+        return False
+    t = re.escape(term)
+    return any(re.search(p.format(t=t), code) for p in patterns)
+
+
+def junction_pack(term: str, *, corpus: Optional[Dict[str, str]] = None,
+                  root: Optional[str] = None, planes: Sequence[str] = ("source",),
+                  context: int = 2, max_sites: int = 40,
+                  exclude_self: bool = True) -> JunctionPack:
+    """Pair write-sites with read-sites, carrying surrounding lines.
+
+    WHY THIS SHAPE. The first live sift round handed every hat a one-line-per-file breadth
+    sample. The junction hat then voted NO_FORK on `drained` -- a term whose three cursor
+    families demonstrably collide -- because the evidence could not show a producer and a
+    consumer in the same frame. That verdict was a property of the sample, not of the code.
+
+    The pairing here is DELIBERATELY CRUDE and says so in blind: it is lexical, so a write
+    through an alias or a read via **kwargs is invisible. It proposes candidate junctions
+    for a reader to adjudicate; it does not prove that two sites are the same concept.
+    """
+    files = _collect(corpus, root, planes)
+    if exclude_self:
+        # THE INSTRUMENT MUST NOT MEASURE ITSELF. This module holds _WRITE_PATTERNS and
+        # _READ_PATTERNS as string literals, so a lexical scan finds them and reports
+        # sift.py as a reader of whatever term it is hunting. The first live run's very
+        # first crossing for `drained` was bifrost_pull.py -> core/coord/sift.py, pointing
+        # at a regex. Self-reference is not a junction.
+        files = [(f, t) for f, t in files if not f.endswith("core/coord/sift.py")]
+    writes: List[Dict[str, Any]] = []
+    reads: List[Dict[str, Any]] = []
+
+    for shown, text in files:
+        lines = text.splitlines()
+        for i, line in enumerate(lines, start=1):
+            rec = {"file": shown, "line": i, "text": line.strip()[:300],
+                   "context": [l.strip()[:200]
+                               for l in lines[max(0, i - 1 - context): i + context]]}
+            if _matches(_WRITE_PATTERNS, term, line):
+                writes.append(rec)
+            elif _matches(_READ_PATTERNS, term, line):
+                reads.append(rec)
+
+    junctions: List[Dict[str, Any]] = []
+    if writes and reads:
+        # One junction record per (write-file, read-file) crossing, capped. A crossing
+        # BETWEEN files is the interesting case: same-file write/read is usually one author
+        # holding one meaning, which is precisely the case that does NOT fork.
+        by_wfile: Dict[str, List[Dict]] = {}
+        for w in writes:
+            by_wfile.setdefault(w["file"], []).append(w)
+        by_rfile: Dict[str, List[Dict]] = {}
+        for r in reads:
+            by_rfile.setdefault(r["file"], []).append(r)
+        for wf in sorted(by_wfile):
+            for rf in sorted(by_rfile):
+                if len(junctions) >= max_sites:
+                    break
+                junctions.append({
+                    "writes": by_wfile[wf][:3], "reads": by_rfile[rf][:3],
+                    "same_file": wf == rf,
+                    "crossing": f"{wf} -> {rf}",
+                })
+
+    blob = _render_junction_blob(term, junctions)
+    blind = [
+        "LEXICAL pairing: a write through an alias, a **kwargs read, or a value passed "
+        "through a helper is INVISIBLE here. These are CANDIDATE junctions for a reader to "
+        "adjudicate, never proof that two sites carry the same concept",
+        "a crossing is listed per (write-file, read-file) pair, so one busy writer produces "
+        "many rows -- row count is NOT a severity measure",
+        f"write patterns are assignment-shaped and read patterns are access-shaped; a term "
+        f"that travels only as a bare positional argument matches neither",
+    ]
+    if not junctions:
+        why = ("no writer/reader pair found -- NO JUNCTION in this evidence. That is not "
+               "proof of absence: the pairing is lexical (see above), so this reads as "
+               "UNKNOWN rather than as 'the senses never meet'")
+        blind.insert(0, why)
+    elif not any(not j["same_file"] for j in junctions):
+        blind.insert(0, "every junction found is SAME-FILE: one author holding one meaning, "
+                        "which is the shape that does NOT fork. Cross-file crossings are the "
+                        "ones worth reading")
+    return JunctionPack(term=term, junctions=junctions, blob=blob, sha=_sha(blob),
+                        blind=blind)
+
+
+def _collect(corpus, root, planes) -> List[Tuple[str, str]]:
+    """Shared file walk for both pack types, so they cannot drift apart on membership."""
+    out: List[Tuple[str, str]] = []
+    if corpus is not None:
+        return [(p, t) for p, t in corpus.items()]
+    root = root or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    root = os.path.dirname(root) if os.path.basename(root) == "core" else root
+    want = set(planes)
+    for p in _iter_repo_files(root):
+        shown = os.path.relpath(p, root).replace("\\", "/")
+        if _plane_of(shown) in want:
+            out.append((shown, _read(p)))
+    return out
+
+
+def _render_junction_blob(term: str, junctions: Sequence[Dict[str, Any]]) -> str:
+    lines = [f"=== JUNCTION CANDIDATES for {term!r}: where it is WRITTEN vs READ ===", ""]
+    if not junctions:
+        lines.append("(none found -- see BLIND; the pairing is lexical)")
+    for j in junctions:
+        lines.append(f"--- {j['crossing']}{'  [same file]' if j['same_file'] else ''}")
+        for w in j["writes"]:
+            lines.append(f"  WRITE {w['file']}:{w['line']}: {w['text']}")
+        for r in j["reads"]:
+            lines.append(f"  READ  {r['file']}:{r['line']}: {r['text']}")
+        lines.append("")
+    return "\n".join(lines) + "\n"
+
+
 # ========================================================================= tier 1: hats
 #: Each hat asks what the code DOES. L1, measured at T207: five grounded factual lookups
 #: were correct 5/5 with citations, while ONE normative question came back confidently
