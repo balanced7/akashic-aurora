@@ -74,6 +74,58 @@ def finish(handle: str, result: Dict[str, Any]) -> None:
     rec["result"] = result
     rec["finished"] = time.time()
     write_record(handle, rec)
+    _emit_completed(handle, rec, result)
+
+
+def _emit_completed(handle: str, rec: Dict[str, Any], result: Dict[str, Any]) -> None:
+    """One durable event per finished ask (T206).
+
+    WHY AN EVENT AND NOT MAIL. A background ask is PULL -- the caller must remember to
+    `--get` -- and "remember to check later" is what produced this repo's 1,324 unopened
+    mailbox items. Mail would fix the remembering by adding a wake surface, a cursor, and
+    one more thing that accumulates unread; all three were measured failing on 2026-08-06.
+    An event adds none of them: durable, append-only, queryable by any reader, and it does
+    not demand attention -- the right default for something that may fire dozens of times
+    an hour. Waking someone stays opt-in, because a notification that always fires is how
+    a reader learns to ignore notifications.
+
+    IT IS ALSO THE ANCHOR THE METRICS LACKED. Sol's friction list named commands per task,
+    operator interventions and recovery time, and all three were unbuildable because
+    nothing durable recorded a DELEGATION. This does: cost, duration, model, outcome,
+    truncation class, and whether the ask was grounded in files.
+
+    The answer BODY never rides along -- the firehose is a durable index, not a document
+    store, and the body is one hop away via the handle. Never raises: observability must
+    not be able to destroy the thing it observes.
+    """
+    try:
+        from core.events.event_log import capture_event
+        outcome = ("partial" if result.get("partial")
+                   else "done" if result.get("ok") else "failed")
+        started = rec.get("started")
+        detail = {
+            "handle": handle, "outcome": outcome,
+            "model": result.get("model"), "usd": result.get("usd"),
+            "elapsed_s": result.get("elapsed_s"),
+            "prompt_tokens": result.get("prompt_tokens"),
+            "completion_tokens": result.get("completion_tokens"),
+            "reasoning_tokens": result.get("reasoning_tokens"),
+            "truncation": result.get("truncation"),
+            "continuations": result.get("continuations"),
+            # The T203 lever, recorded so its effect is measurable rather than believed:
+            # did this ask carry source files, or was the helper reasoning blind?
+            "grounded": bool(rec.get("with")),
+            "n_files": len(rec.get("with") or []),
+            "why": result.get("why"),
+            "waited_s": (round(time.time() - float(started), 2) if started else None),
+        }
+        capture_event("ask_completed",
+                      f"background ask {handle} {outcome}"
+                      + (f" ({result.get('model')})" if result.get("model") else ""),
+                      agent_id=os.environ.get("AKASHIC_AGENT_ID", "claude"),
+                      refs=[handle], detail=detail)
+    except Exception:
+        pass
 
 
 def _alive(pid: Any) -> Optional[bool]:
