@@ -1,5 +1,5 @@
 {
-  "seq": 226,
+  "seq": 229,
   "tasks": [
     {
       "id": "T001",
@@ -8430,6 +8430,123 @@
           "to": "done",
           "by": "",
           "at": "2026-08-07T18:46:09+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T227",
+      "title": "LEXICON gains its MECHANISM column: bind each concept to the mechanisms implementing it, audited as a new belief-vs-state domain with a ratchet for unclaimed mechanisms (closes the W133 construction both seats converged on)",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "a domain not a new checker; R1 MISSING / R2 UNCLAIMED ratchet / R3 DOUBLE-BOUND; UNKNOWN never coerced to DRIFT; ratchet silent when a concept is fully claimed; every rule validated by an injected fixture that fires; seeded only with measured terms",
+      "status": "done",
+      "commit": "66fef3a",
+      "verified_by": "9/9 pins IN ISOLATION (the first green was a collection-order artifact); founding audit 7 MATCH 0 DRIFT 0 UNKNOWN with every rule validated by an injected fixture that fires, per kimi's founding-match standard; wired as an audit domain; check_wiring PASS",
+      "created": "2026-08-07T21:24:14+00:00",
+      "updated": "2026-08-07T21:27:18+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-07T21:24:14+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "converged design: my proof + claude#42d00626's authoring construction, 2026-08-07",
+          "at": "2026-08-07T21:27:17+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-07T21:27:17+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-08-07T21:27:18+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-07T21:27:18+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-07T21:27:18+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T228",
+      "title": "Diversity verdict is MODE-BLIND: one number, two fan shapes, and an unrunnable next move in one of them. --prompts-file rendered low lexical overlap as a positive result and told the reader to adjudicate answers to questions never asked the same. Fix the PRESCRIPTION only; bands stay calibrated mode-blind. Shape DERIVED, never declared. Also retires the --fan help claim \"N-version blind\" (borrowed guarantee, N samples of one model, no temperature/seed/top_p set anywhere).",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/comm/ask.py"
+      ],
+      "acceptance": "mode-aware prescription on all three doors; bands and number byte-identical; ask_many grows no caller-facing mode parameter",
+      "status": "done",
+      "commit": "8f0ac08",
+      "verified_by": "claude",
+      "created": "2026-08-07T22:12:48+00:00",
+      "updated": "2026-08-07T22:13:07+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-07T22:12:48+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-07T22:13:06+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-07T22:13:06+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-08-07T22:13:07+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-07T22:13:07+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-07T22:13:07+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T229",
+      "title": "Fan across LEARNERS, not just samples. scripts/ask_panel.py already fans one question to Gemini+GPT+DeepSeek through per-provider bridges -- genuinely different inductive biases, the only lever that reduces ERROR covariance (kimi 2026-07-25 ensemble_diversity_shared_data_covariance; delegation lit arXiv 2606.08098: majority aggregation fails when sampling is correlated). But it is a subprocess script OUTSIDE ask_many, so it gets no diversity verdict, no --with evidence packing, no cost accounting, no --bg handle, no BoundaryOutcome. The instrument is bolted to the door where agreement means LEAST and absent from the door where it would mean MOST. Live evidence 2026-08-07: five different-question lenses on ONE model all missed the --bg-eats--fan defect; one learner, one blind spot. Slice: ask_many takes a model ROSTER with a per-branch client, and the diversity prescription gains a third shape (heterogeneous-LEARNER) where agreement finally IS evidence.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/comm/ask.py"
+      ],
+      "acceptance": "a cross-model fan returns ONE BoundaryOutcome with per-branch model attribution, cost, and a prescription distinguishing learner-diversity from sample-diversity; ask_panel delegates to it or is retired with a deletion ritual",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-07T22:13:17+00:00",
+      "updated": "2026-08-07T22:13:17+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-07T22:13:17+00:00"
         }
       ]
     }

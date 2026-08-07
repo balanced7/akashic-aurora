@@ -2277,7 +2277,7 @@ def cmd_ask(args):
             print(f"!! {_clip}", file=sys.stderr)
         # T182: "3/3 landed" alone lets one answer read as three findings. Say the agreement --
         # in three states, because a lexical metric genuinely cannot resolve paraphrase.
-        # T227: the SCORE is mode-blind and stays exactly as calibrated; the NEXT MOVE is not.
+        # T228: the SCORE is mode-blind and stays exactly as calibrated; the NEXT MOVE is not.
         # Five different questions used to render low overlap as a positive result, and to
         # prescribe settling a disagreement between answers to questions that were never the
         # same. One shared prescription so this surface and `ask --get` cannot drift (T225's

@@ -469,7 +469,7 @@ about above after again against because before below between during under while
 
 
 def diversity_prescription(verdict, homogeneous, *, n_compared=0, score=None) -> str:
-    """What to DO about a diversity verdict. The number is mode-blind; this is not (T227).
+    """What to DO about a diversity verdict. The number is mode-blind; this is not (T228).
 
     THE VERDICT MEANS OPPOSITE THINGS IN THE TWO FAN SHAPES, and only the prescription can say
     so. Same prompt N times: agreement is self-consistency over CORRELATED samples (nothing here
@@ -860,7 +860,7 @@ def ask_many(prompts, *, system: Optional[str] = None, model: Optional[str] = No
         "answers": [b["answer"] for b in branches],
         "lexical_agreement": agreement, "n_compared": n_compared,
         "diversity": diversity, "collapsed": collapsed,
-        # T227: DERIVED, never declared -- a caller adds nothing and cannot get it wrong.
+        # T228: DERIVED, never declared -- a caller adds nothing and cannot get it wrong.
         # The verdict is the same number in both shapes; what to DO about it is not.
         "homogeneous": len(set(prompts)) == 1,
         "diversity_next": diversity_prescription(

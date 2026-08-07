@@ -1,4 +1,4 @@
-"""T227 RED: one diversity verdict, two fan shapes, and the NEXT MOVE is wrong in one of them.
+"""T228 RED: one diversity verdict, two fan shapes, and the NEXT MOVE is wrong in one of them.
 
 FOUND BY USING IT, 2026-08-07, then confirmed by a fan against its own source and sharpened by
 an adversary arm that argued the fix down to its defensible core.

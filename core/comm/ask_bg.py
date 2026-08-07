@@ -192,7 +192,7 @@ def summarize(rec: Optional[Dict[str, Any]]) -> Dict[str, Any]:
                 f"[{'ok' if b.get('ok') and not b.get('partial') else ('PARTIAL' if b.get('partial') else 'FAIL')}] "
                 f"{'-' * 40}\n{b.get('answer') or '(' + str(b.get('why') or 'no answer') + ')'}"
                 for b in branches)
-            # T227: whoever reads a retrieved fan may never have seen the command that made
+            # T228: whoever reads a retrieved fan may never have seen the command that made
             # it, so this is the surface where the shape MOST needs saying. One shared
             # prescription with the CLI renderer.
             nxt = f"read {n_ok} of {n} branches"
