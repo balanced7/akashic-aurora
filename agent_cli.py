@@ -2244,6 +2244,132 @@ def cmd_ask(args):
     return 0
 
 
+def cmd_sift(args):
+    """sift -- the nested ask (T217). Tiered read that returns DISSENT, not consensus.
+
+    Tier 0 builds one content-addressed evidence pack per term; tier 1 fans the hats over
+    it; tier 2 pairs curators over tier-1 output; tier 3 diffs the pairs and gates the flip
+    rate on evidence identity. Adjudication stops here on purpose -- T207 measured that
+    step as the one a helper gets confidently wrong.
+    """
+    from core.coord import sift as S
+    from core.comm.ask import ask_many
+
+    hats = [h.strip() for h in args.hats.split(",") if h.strip()] or list(S.DEFAULT_HATS)
+    planes = tuple(p.strip() for p in args.planes.split(",") if p.strip())
+    unknown = [h for h in hats if h not in S.DEFAULT_HATS]
+    if unknown:
+        print(f"unknown hat(s) {unknown}; known: {sorted(S.DEFAULT_HATS)}")
+        return 2
+
+    # ---- tier 0: evidence, and the chance to stop before spending anything
+    packs = {t: S.evidence_pack(t, planes=planes, max_occurrences=args.max_occurrences)
+             for t in args.terms}
+    print(f"# sift: {len(args.terms)} term(s) x {len(hats)} hat(s), planes={list(planes)}")
+    for t, p in packs.items():
+        files = len({o["file"] for o in p.occurrences})
+        flag = " CAPPED" if p.truncated else ""
+        print(f"  {t:<12} occ={len(p.occurrences):<4} files={files:<4} sha={p.sha}{flag}")
+    if args.dry_run:
+        print("\n# DRY RUN -- nothing spent. Read one pack before trusting any finding:")
+        for t, p in packs.items():
+            print(f"\n--- {t} (first 5 of {len(p.occurrences)}) ---")
+            for o in p.occurrences[:5]:
+                print(f"  [{o['plane']}] {o['file']}:{o['line']}: {o['text'][:100]}")
+            for b in p.blind[:2]:
+                print(f"  BLIND: {b[:150]}")
+        return 0
+
+    # ---- tier 1: the hat fan. Evidence is INLINED rather than passed as a file so the
+    # bytes each helper reads are exactly the bytes we hashed. T216 was the other choice
+    # failing silently, and the gate downstream is only meaningful if identity is real.
+    prompts, index = [], []
+    for t, p in packs.items():
+        for h in hats:
+            prompts.append(f"{p.blob}\n\n{S.hat_prompt(h, p)}")
+            index.append((t, h))
+    print(f"\n# tier 1: fanning {len(prompts)} branches, {args.workers} workers ...")
+    fan = ask_many(prompts, max_workers=args.workers)
+    branches = (fan.detail or {}).get("branches", [])
+
+    analyses = {}
+    for (t, h), b in zip(index, branches):
+        if b.get("ok") and b.get("answer"):
+            analyses.setdefault(t, []).append({"hat": h, "answer": b["answer"]})
+    fd = fan.detail or {}
+    usd1 = fd.get("usd_total")
+    # Three states, never two: a partial fan carries findings, and rendering it as failure
+    # is exactly how "nine tasks, two findings" reads as a dead run.
+    agg = S.summarise(n=fd.get("n", 0), n_ok=fd.get("n_ok", 0),
+                      blind=[f"{fd.get('n', 0) - fd.get('n_ok', 0)} branch(es) did not "
+                             f"land -- UNKNOWN, not a negative verdict"] if
+                      fd.get("n_ok", 0) < fd.get("n", 0) else ["all branches landed"])
+    print(f"# tier 1: {fd.get('n_ok')}/{fd.get('n')} landed"
+          f"{'' if usd1 is None else f'  ${usd1:.4f}'}"
+          f"  diversity={fd.get('diversity')}"
+          f"  aggregate={'DONE' if bool(agg) else ('PARTIAL' if agg.ok else 'FAILED')}")
+    if agg.why:
+        print(f"#   {agg.why}")
+
+    # ---- tier 2: curator PAIRS, per term. Both members read the identical bundle, so any
+    # disagreement between them is about curation -- which is the only reason a flip rate
+    # over them means anything.
+    cur_prompts, cur_index = [], []
+    for t, ans in analyses.items():
+        if len(ans) < 2:
+            continue
+        prompt, ev_sha = S.curator_prompt(t, ans)
+        for a, b in S.curator_pairs(t, hats[:2] or ["outsider", "adversary"], ev_sha):
+            for member in (a, b):
+                cur_prompts.append(prompt)
+                cur_index.append({**member, "evidence_sha": ev_sha})
+    dossiers = []
+    if cur_prompts:
+        print(f"# tier 2: {len(cur_prompts)} curators over {len(analyses)} term(s) ...")
+        cur = ask_many(cur_prompts, max_workers=args.workers)
+        for meta, b in zip(cur_index, (cur.detail or {}).get("branches", [])):
+            if b.get("ok"):
+                dossiers.append({**meta, "verdict": S.parse_verdict(b.get("answer") or ""),
+                                 "answer": b.get("answer")})
+
+    # ---- tier 3: dissent first
+    cmp_ = S.compare_dossiers(dossiers) if dossiers else {
+        "refused": "no curator dossiers landed", "flip_rate": None, "dissents": [],
+        "agreements": [], "triage_required": False, "triage_reason": "",
+        "blind": ["tier 2 produced nothing; tier 1 answers are still in --out"]}
+
+    record = {"terms": args.terms, "hats": hats, "planes": list(planes),
+              "packs": {t: {"sha": p.sha, "n": len(p.occurrences),
+                            "truncated": p.truncated, "blind": p.blind}
+                        for t, p in packs.items()},
+              "tier1": analyses, "dossiers": dossiers, "comparison": cmp_}
+    if args.out:
+        with open(args.out, "w", encoding="utf-8") as f:
+            json.dump(record, f, ensure_ascii=False, indent=2, default=str)
+        print(f"# full record -> {args.out}")
+    if args.json:
+        print(json.dumps(record, ensure_ascii=False, default=str))
+        return 0
+
+    print("\n" + "=" * 68)
+    if cmp_.get("refused"):
+        print("REFUSED: " + cmp_["refused"])
+    else:
+        print(f"DISSENT ({len(cmp_['dissents'])} of "
+              f"{len(cmp_['dissents']) + len(cmp_['agreements'])} terms) -- READ THIS FIRST")
+        for d in cmp_["dissents"]:
+            print(f"  ! {d['term']:<12} {d['verdicts']}  hats={d['hats']}")
+        if cmp_.get("triage_required"):
+            print(f"\nTRIAGE: {cmp_['triage_reason']}")
+        print(f"\nagreement ({len(cmp_['agreements'])}) -- weaker evidence than dissent:")
+        for a in cmp_["agreements"]:
+            print(f"    {a['term']:<12} {a['verdicts']}")
+        print(f"\nflip_rate={cmp_['flip_rate']}")
+    for b in cmp_.get("blind", []):
+        print(f"BLIND: {b}")
+    return 0
+
+
 def cmd_friction(args):
     """friction -- the collaboration tax, read from evidence that already exists (T196a).
 
@@ -5303,6 +5429,34 @@ def build_parser():
                             "per-sender; default $AKASHIC_AGENT_ID or claude)")
     ask_p.add_argument("--json", action="store_true")
     ask_p.set_defaults(fn=cmd_ask)
+
+    sf = sub.add_parser("sift", help="the NESTED ask (T217): evidence -> hat fan -> curator "
+                                     "pairs -> DISSENT FIRST. Use it when the answer needs "
+                                     "more reading than fits in one context and you want "
+                                     "the disagreements, not a summary")
+    sf.add_argument("terms", nargs="+", help="the word(s) to examine, one dossier each")
+    sf.add_argument("--hats", default="", help="comma-separated subset of the hats. Default "
+                                               "is all of them, because a shared blind spot "
+                                               "shows up as AGREEMENT and diverse hats are "
+                                               "the only defence against it")
+    sf.add_argument("--planes", default="source", help="comma-separated: source|test|doc. "
+                                                       "Default source, because two meanings "
+                                                       "in the MECHANISM is a defect while "
+                                                       "two in prose is often just English")
+    sf.add_argument("--dry-run", action="store_true", dest="dry_run",
+                    help="build and show the evidence packs, spend NOTHING. Run this first: "
+                         "a fan answers faithfully about whatever you hand it, so verifying "
+                         "the evidence is the step that decides whether any finding is real")
+    sf.add_argument("--workers", type=int, default=20,
+                    help="fan concurrency (default 20); branches are HTTP requests, not seats")
+    sf.add_argument("--max-occurrences", type=int, default=120, dest="max_occurrences",
+                    help="cap per pack. A cap is always REPORTED in the pack's blind list, "
+                         "never silent -- a rate over a cap is not a rate over the corpus")
+    sf.add_argument("--out", default="", help="write the full JSON record here (the dossiers "
+                                              "are the durable artifact; the console render "
+                                              "is a summary and clips)")
+    sf.add_argument("--json", action="store_true")
+    sf.set_defaults(fn=cmd_sift)
 
     fr = sub.add_parser("friction", help="collaboration-friction readout from existing "
                                          "evidence (T196a): episodes, dead-rate, "

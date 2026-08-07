@@ -154,6 +154,18 @@ MANIFEST = {
     # seat that most needs it is the MCP-attached conductor. Debt, not design.
     "compare": "gap",
     "timeline": "gap",
+    # T217 (2026-08-07): sift is the nested ask -- evidence packs, a hat fan, curator pairs,
+    # dissent-first. Classified as DEBT rather than design, deliberately and with the same
+    # argument as `compare`/`timeline` above: it is a READ verb whose whole value is to an
+    # agent trying to understand more of the repo than fits in one context, and the seat
+    # that most needs it is the MCP-attached conductor -- who will otherwise shell out, as
+    # T200 measured happening eight times in one session for `ask`.
+    # NOT paid down tonight because the twin has a REAL fidelity problem to solve first: the
+    # MCP adapter captures stdout only, and sift's load-bearing output is the per-tier BLIND
+    # list plus the refusal string from the identity gate. A naive text twin would ship
+    # dissent tables without the reason a flip rate was refused -- omniscience by transport,
+    # the exact defect T200's structured-record contract exists to prevent.
+    "sift": "gap",
     # T196a: friction is the collaboration-tax readout, and the seat that most needs to
     # read it is the MCP-attached conductor -- same argument as `ask` above, so the same
     # honest classification: debt, not design. Pay down with the membrane gaps.

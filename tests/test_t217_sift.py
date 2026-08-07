@@ -71,6 +71,63 @@ def test_evidence_pack_runs_on_the_real_repo():
         assert o["file"] and not o["file"].startswith("b'"), f"undecoded path: {o}"
 
 
+def test_vendored_vocabulary_never_enters_the_corpus():
+    """FOUND BY RUNNING IT, not by thinking about it -- which is the L7 point.
+
+    The first live pack reported `drained` in 67 files against a measured 6. The breakdown:
+    56 tests / 51 docs / 27 source / 2 ComfyUI-Zluda -- a VENDORED third-party project with
+    its own pyproject.toml living inside the tree. Its authors' use of `drained` is not our
+    vocabulary in any sense the question means, and feeding it to a fan would have produced
+    confident, well-formed findings about a stranger's codebase.
+
+    This is the L2 failure one level up: the evidence gatherer, not the helper, was wrong.
+    """
+    pack = sift.evidence_pack("drained")
+    bad = [o["file"] for o in pack.occurrences if "ComfyUI" in o["file"]]
+    assert not bad, f"vendored third-party vocabulary leaked into the corpus: {bad[:3]}"
+
+
+def test_every_occurrence_carries_its_plane_and_exclusions_are_counted():
+    """Merging source/test/doc/vendor under one label 'occurrence' is itself a
+    forked-semantics bug -- committed by the fork detector, which is why the plane rides on
+    the occurrence instead of being resolved silently at scan time.
+
+    And an exclusion must be COUNTED: 'no silent caps' applies to corpus membership as much
+    as to result truncation. Absence that was a decision must not read as absence in fact.
+    """
+    pack = sift.evidence_pack("drained", planes=("source",))
+    assert pack.occurrences
+    assert all(o["plane"] == "source" for o in pack.occurrences)
+    assert any("EXCLUDED BY PLANE" in b for b in pack.blind), \
+        "dropped a large share of the corpus without saying so"
+
+    docs = sift.evidence_pack("drained", planes=("doc",))
+    assert docs.occurrences, "doc plane should be selectable, not merely discardable"
+    assert docs.sha != pack.sha, "different planes must be different addresses"
+
+
+def test_capping_samples_across_files_instead_of_truncating():
+    """FOUND BY LOOKING AT WHAT THE FAN WOULD ACTUALLY SEE, which is a different act from
+    checking that the cap works.
+
+    The cap was honest about its SIZE (120 of 665, stated in blind) and silently dishonest
+    about its SHAPE: it kept the first 120 in filesystem walk order, so 'open' reached the
+    helper as 26 of 163 files with agent_cli.py alone supplying 47 occurrences. A helper
+    reading that sample would correctly report that `open` means opening a file -- a
+    well-formed, confident, unrepresentative answer produced by a truncation nobody
+    described as a sample.
+
+    A cap is a SAMPLE, and a sample that is not spread is a lie about the corpus.
+    """
+    corpus = {f"f{i}.py": "open one\nopen two\nopen three\n" for i in range(40)}
+    pack = sift.evidence_pack("open", corpus=corpus, max_occurrences=20)
+    files = {o["file"] for o in pack.occurrences}
+    assert len(pack.occurrences) == 20
+    assert len(files) >= 15, (
+        f"cap kept only {len(files)} distinct files of 40 -- that is truncation wearing a "
+        f"sample's clothes")
+
+
 def test_every_tier_states_its_blindness():
     """T200's fidelity contract: numbers never travel without their stated blindness, or
     the transport launders a caveated finding into an omniscient one."""
@@ -191,11 +248,23 @@ def test_aggregate_is_three_state_never_binary():
     two findings.' Branch failed -> partial -> done, in that order
     (boundary_outcome_ok_includes_partial_double_strike: .ok includes partials, and that
     trap struck twice in one hour)."""
-    out = sift.summarise(n=5, n_ok=3, blind=["one branch never returned"])
-    assert out.status == "partially", f"3 of 5 is not a binary outcome: {out.status}"
-    assert out.detail["n"] == 5 and out.detail["n_ok"] == 3
-    assert sift.summarise(n=5, n_ok=5, blind=["x"]).status == "done"
-    assert sift.summarise(n=5, n_ok=0, blind=["x"]).status == "failed"
+    part = sift.summarise(n=5, n_ok=3, blind=["one branch never returned"])
+    full = sift.summarise(n=5, n_ok=5, blind=["x"])
+    none = sift.summarise(n=5, n_ok=0, blind=["x"])
+
+    assert (part.ok, part.partial) == (True, True), "3 of 5 must be PARTIAL, not binary"
+    assert (full.ok, full.partial) == (True, False)
+    assert none.ok is False
+    assert part.detail["n"] == 5 and part.detail["n_ok"] == 3
+    assert part.why, "a partial that cannot say what is missing is the T170 defect"
+
+    # THE DOUBLE-STRIKE, pinned as a behaviour rather than as a comment. `.ok` is True for
+    # BOTH the partial and the full run, so branching on .ok silently treats 3-of-5 as
+    # success -- that trap hit twice in one hour on 2026-08-05 (a timeout rendered as
+    # CLOSED.ECHO because the CLI echo-branch tested o.ok). Truthiness is the safe test.
+    assert part.ok == full.ok, "precondition: .ok cannot separate partial from done"
+    assert bool(part) is False and bool(full) is True, \
+        "a partial must be FALSY so callers that ignore partiality fail closed"
 
 
 def test_no_silent_caps():
