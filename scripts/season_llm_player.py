@@ -177,6 +177,13 @@ def llm_player(shadow_root: str, *, batch_size: int = 20, workers: int = 6,
         "branches_ok": o.detail.get("n_ok"), "branches": o.detail.get("n"),
         "usd": o.detail.get("usd"), "elapsed_s": o.detail.get("elapsed_s"),
         "judged_shown": judged, "verdicts_returned": len(verdicts),
+        # T219: the NAME SETS score_v2 requires, not just their sizes. Both are host-derived
+        # orchestration facts -- `candidates()` is a deterministic scan and `verdicts` is
+        # what the parse actually recovered -- so K6 holds: the model never chooses its own
+        # denominator. Without these the adjudicator cannot tell UNJUDGED from DECLINED and
+        # scores a branch that died as a player that looked and saw nothing.
+        "assigned_names": sorted(c["name"] if isinstance(c, dict) else c for c in cands),
+        "judged_names": sorted(verdicts),
         # A candidate the model never mentioned is UNJUDGED, not LIVE. Collapsing the two would
         # let a branch that answered nothing read as a branch that cleared everything.
         "unjudged": len(cands) - len(verdicts),

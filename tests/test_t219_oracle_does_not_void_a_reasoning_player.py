@@ -1,47 +1,43 @@
-"""T219 RED: the oracle voids the players it was built to reward.
+"""T219: the season's dry-run harness was on the SUPERSEDED scorer, and it voided the
+players it was built to reward.
 
 FOUND LIVE, first LLM-player dry run, 2026-08-07, seed 20260807, $0.395 for the round.
+The round was VOIDED and its evidence discarded.
 
-TWO MODULES WRITTEN FOR THE SAME SEASON, IN DIRECT CONTRADICTION:
+WHAT THE VOID SAID
+    canary_oracle.score():294 -- "a claimed UNDETECTABLE canary VOIDS the round (kimi's K0
+    tripwire): either the key leaked or the instrument is being gamed"
 
-  scripts/canary_oracle.py:294
-    "a claimed UNDETECTABLE canary VOIDS the round (kimi's K0 tripwire): either the key
-     leaked or the instrument is being gamed, and the round's evidence is worthless"
+WHAT THE PLAYER WAS BUILT TO DO
+    season_llm_player.py:25 -- "an LLM player can in principle BEAT the mechanical player on
+    `undetectable` ... That asymmetry is the measurement worth having"
 
-  scripts/season_llm_player.py:25
-    "an LLM player can in principle BEAT the mechanical player on `undetectable` ...
-     That asymmetry is the measurement worth having before twenty players multiply it."
+THE FORK IS IN THE WORD. The class taxonomy defines `undetectable` as the shape THE GATE
+structurally cannot see -- a fact about the DETECTOR. The void rule read it as "nobody
+legitimate can find this" -- a fact about ANY PLAYER. Both readings are defensible in
+isolation, which is the reliable tell. The tripwire was CORRECT while the only player
+echoed check_wiring, and became a false accusation the moment a player reasoned.
 
-The exact measurement one module exists to produce is the tripwire the other voids for.
-
-THE FORK IS IN THE WORD. `undetectable` is defined by the class taxonomy as "the A5
-string-dispatch shape, which THE GATE structurally CANNOT see" -- a statement about the
-DETECTOR. The void rule reads it as "nobody legitimate can find this" -- a statement about
-ANY PLAYER. Both readings are defensible in isolation, which is the tell.
-
-The tripwire was CORRECT while the only player was mechanical: that player echoes
-check_wiring by construction, so it cannot name an undetectable canary except by leakage.
-It becomes a false accusation the moment a player reasons instead of echoing.
-
-THE SAME-SEED RECEIPT, which is why this is not a judgement call (seed 20260807, k=12):
-
+THE SAME-SEED RECEIPT, so this is evidence and not an argument (seed 20260807, k=12):
     player      catchable   undetectable   bait
-    mechanical    4/4           0/4         0/4     <- the gate does NOT name them
-    llm           3/4           2/4         0/4     <- found two anyway, MISSED an easy one
+    mechanical    4/4           0/4         0/4    <- the gate does NOT name them
+    llm           3/4           2/4         0/4    <- found two anyway, MISSED an easy one
+A player holding the answer key does not miss a catchable canary.
 
-A player holding the answer key does not miss a catchable canary. Missing an easy one while
-finding two hard ones is the signature of analysis, not of leakage. The round was voided
-and its evidence discarded.
+AND THE CORRECTION I HAD TO MAKE TO MYSELF, which is the actual finding.
+I wrote a score_v3 to fix this. It was redundant: T194 had ALREADY fixed it in score_v2
+("finding an undetectable canary is a capability observation. It is NOT evidence that the
+answer key leaked"), with integrity moved to protocol_verdict where it is tied to
+independently observed facts and can answer UNKNOWN. score_v2 also tracks unjudged/unseen
+per class, which score() cannot -- and my v3 duplicated `capability_findings` under a second
+name, which would have been a fresh fork inside the module built to study forks.
 
-SECOND DEFECT, same run. season_dryrun.py:110 stamps every claim with
-
-    "evidence": [f"check_wiring --report names {name} as NEW unwired"]
-
-a hardcoded template. True by construction for the mechanical player; FABRICATED for the
-LLM player, whose finds the gate never named -- as this very round proves. `evidence` means
-"what the mechanical player observed" at the write site and "what the player observed" at
-the read site, and the shared claim-shaper laundered one into the other. That is T216's
-shape (a field accepted on one path, silently wrong on another) inside the season harness.
+SO THE REAL DEFECT IS NARROWER AND WORSE: the fix existed and was WIRED INTO ONE HARNESS
+ONLY. season_fan_calibration.py calls score_v2 + protocol_verdict; season_dryrun.py still
+called score(). One season, two scorers, contradictory semantics for the same event -- and
+the two tokens differ (`score` vs `score_v2`), so no grep for a shared name finds it. That
+is the forked-semantics class this repo has been chasing since 2026-06-19, live, in the
+game arc, costing a real voided round.
 """
 from __future__ import annotations
 
@@ -58,75 +54,91 @@ import canary_oracle as CO  # noqa: E402
 
 
 def _manifest():
-    """Four canaries, one per relevant class, ids mirroring a real round."""
     return {"canaries": [
-        {"id": "c00", "cls": "catchable"},
-        {"id": "c01", "cls": "catchable"},
-        {"id": "c04", "cls": "undetectable"},
-        {"id": "c05", "cls": "undetectable"},
-        {"id": "c08", "cls": "bait"},
+        {"id": "c00", "cls": "catchable", "name": "f00"},
+        {"id": "c01", "cls": "catchable", "name": "f01"},
+        {"id": "c04", "cls": "undetectable", "name": "f04"},
+        {"id": "c05", "cls": "undetectable", "name": "f05"},
+        {"id": "c08", "cls": "bait", "name": "f08"},
     ]}
 
 
-def test_gate_echo_player_claiming_undetectable_still_voids():
-    """kimi's K0 tripwire keeps its teeth where it was earned. A player that can only echo
-    the detector cannot name an undetectable canary by analysis -- so a claim IS a leak
-    signal, and preserving that is the whole reason this fix must not be a blanket removal.
-    """
-    out = CO.score_v3(_manifest(), ["c00", "c04"], player_kind="gate_echo")
-    assert out["voided"] is True
-    assert "leak" in out["void_reason"].lower()
+ALL = {"c00", "c01", "c04", "c05", "c08"}
 
 
-def test_reasoning_player_beating_the_gate_is_scored_not_voided():
-    """THE PIN. The same claim set from a REASONING player is the design goal, not fraud."""
-    out = CO.score_v3(_manifest(), ["c00", "c04"], player_kind="reasoning")
-    assert out["voided"] is False, (
-        "voided a reasoning player for doing exactly what season_llm_player.py:25 says it "
-        "should be able to do")
-    assert out["gate_beating_finds"] == 1, \
-        "an undetectable canary found by analysis must be COUNTED, not merely tolerated"
-    assert out["catch_rate"] == 0.5, "catch_rate still measures the DETECTOR, unchanged"
+def test_finding_an_undetectable_canary_is_capability_not_contamination():
+    """THE PIN. The claim set that voided the live round must score as a capability."""
+    got = CO.score_v2(_manifest(), {"c00", "c04"}, assigned=ALL, judged=ALL)
+    assert got["capability_findings"] == ["c04"], \
+        "an undetectable canary reached by analysis must be COUNTED, not punished"
+    assert got["false_positives"] == 0
+    assert "voided" not in got, \
+        "measurement must not carry a protocol judgment -- that is what T194 separated"
 
 
-def test_the_real_leak_signature_still_voids_a_reasoning_player():
-    """Dropping the tripwire entirely would be the opposite error. A leaked key shows up as
-    a claim set that is too good ACROSS classes -- including the bait, which no honest
-    analysis claims, and with no misses to pay for it."""
-    out = CO.score_v3(_manifest(), ["c00", "c01", "c04", "c05", "c08"],
-                      player_kind="reasoning")
-    assert out["voided"] is True
-    assert "bait" in out["void_reason"].lower() or "every" in out["void_reason"].lower()
+def test_protocol_verdict_answers_unknown_rather_than_guessing():
+    """The harness gathers no independent leak evidence. UNKNOWN is the honest value;
+    passing False would assert an audit that never ran, and True would void on nothing."""
+    got = CO.protocol_verdict(seal_verified=True, archive_complete=True,
+                              key_leak_detected=None)
+    assert got["validity"] == "UNKNOWN"
+    # `voided` is itself THREE-STATE, and my first draft of this pin asserted `is False` --
+    # forcing a binary read onto a field deliberately built not to be binary. None here
+    # means "not established", which is neither an accusation nor a clearance. Pinning that
+    # distinction is worth more than pinning the value.
+    assert got["voided"] is None, "unknown integrity must not collapse to a clearance"
+    assert got["voided"] is not True, "nor to an accusation"
 
 
-def test_a_bait_claim_is_precision_failure_not_automatically_a_leak():
-    """One bait claim alongside ordinary misses is a wrong answer, which is a precision
-    number -- not evidence of cheating. Conflating the two would make the season unable to
-    report that its players are sometimes simply wrong."""
-    out = CO.score_v3(_manifest(), ["c00", "c08"], player_kind="reasoning")
-    assert out["false_positives"] == 1
-    assert out["voided"] is False
+def test_protocol_verdict_still_voids_on_observed_facts():
+    """kimi's tripwire keeps its teeth -- moved, not removed, and now tied to a fact that
+    actually indicates leakage rather than to a canary class."""
+    broken = CO.protocol_verdict(seal_verified=False, archive_complete=True,
+                                 key_leak_detected=None)
+    assert broken["validity"] == "VOID" and broken["voided"] is True
+    leaked = CO.protocol_verdict(seal_verified=True, archive_complete=True,
+                                 key_leak_detected=True)
+    assert leaked["voided"] is True
 
 
-def test_score_v3_keeps_the_old_headline_semantics():
-    """catch_rate is still CATCHABLE-only. An undetectable canary missed remains the gate's
-    blind spot rather than the pool's failure -- that rule was right and is untouched."""
-    out = CO.score_v3(_manifest(), ["c00", "c01"], player_kind="reasoning")
-    assert out["catch_rate"] == 1.0
-    assert out["coverage_honesty"] == 1.0
-    assert out["voided"] is False
+def test_unjudged_is_not_scored_as_a_miss():
+    """A canary in a branch that never landed was not passed over -- it was never asked
+    about. The live round had 44 UNJUDGED candidates and 2 dead branches; scoring those as
+    player misses attributes a harness failure to the player, which is UNKNOWN collapsing to
+    negative, the failure T155 cost a whole seat-hunt to learn."""
+    got = CO.score_v2(_manifest(), {"c00"}, assigned=ALL, judged={"c00", "c01", "c08"})
+    und = got["by_class"]["undetectable"]
+    assert und["unjudged"] == 2, "two undetectable canaries were assigned but never judged"
+    assert und["declined"] == 0, "unjudged must not be reported as declined"
+
+
+def test_bait_rate_is_never_called_recall():
+    """Bait is LIVE code, so a high claim rate on it is a precision failure. Calling that
+    rate 'recall' would invert the meaning -- the same inversion, one field over."""
+    got = CO.score_v2(_manifest(), {"c08"}, assigned=ALL, judged=ALL)
+    assert got["by_class"]["bait"]["recall"] is None
+    assert got["false_positives"] == 1
+    assert got["precision"] == 0.0
+
+
+def test_the_dryrun_harness_uses_the_corrected_scorer():
+    """THE WIRING PIN, which is the whole defect. The fix existed since T194 and reached
+    only season_fan_calibration.py. A correction that is built and unwired is not a fix."""
+    src = (REPO / "scripts" / "season_dryrun.py").read_text(encoding="utf-8")
+    assert "score_v2" in src, "dry-run harness still on the superseded scorer"
+    assert "protocol_verdict" in src, "integrity must come from independent facts"
 
 
 def test_claim_evidence_is_not_a_fabricated_gate_result():
-    """season_dryrun stamps a check_wiring sentence onto EVERY claim. For an LLM player the
-    gate never named those functions -- the round that exposed this had the gate naming 0 of
-    the 2 undetectable canaries the player claimed."""
+    """season_dryrun stamped `check_wiring --report names {name} as NEW unwired` onto EVERY
+    claim. True by construction for the mechanical player; FABRICATED for the LLM player,
+    whose finds the gate never named -- as the voided round proves. Those fabrications went
+    into the permanent round archive, where they survive and get cited."""
     from season_dryrun import claim_evidence
 
-    ev = claim_evidence("some_fn", player_name="llm", gate_named=False)
-    joined = " ".join(ev).lower()
-    assert "check_wiring" not in joined or "not" in joined, (
-        "an LLM claim must not assert a check_wiring result that was never obtained")
+    ev = " ".join(claim_evidence("some_fn", player_name="llm", gate_named=False)).lower()
+    assert "did not" in ev or "not name" in ev, \
+        "an LLM claim must not assert a check_wiring result that was never obtained"
     ev_mech = claim_evidence("some_fn", player_name="mechanical", gate_named=True)
     assert any("check_wiring" in e for e in ev_mech), \
         "the mechanical player's evidence IS the gate result and must still say so"

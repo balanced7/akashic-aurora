@@ -60,6 +60,49 @@ def mechanical_player(shadow: str):
     return found
 
 
+def _gate_names(shadow: str) -> list:
+    """What check_wiring ACTUALLY names in this shadow. Asked, never assumed.
+
+    The claim evidence used to assert a gate result for every player. Asking costs one
+    subprocess per round and is the difference between a record and a story.
+    """
+    try:
+        return mechanical_player(shadow)
+    except (OSError, subprocess.SubprocessError):
+        return []
+
+
+def claim_evidence(name: str, *, player_name: str, gate_named: bool) -> list:
+    """What this player can honestly say it observed.
+
+    THE DEFECT THIS REPLACES. Every claim carried the hardcoded line
+    `check_wiring --report names {name} as NEW unwired`. For the mechanical player that is
+    true BY CONSTRUCTION -- it reports exactly what the gate names. For the LLM player added
+    later by T184 it is FABRICATED: the first live LLM round claimed two undetectable
+    canaries the gate names by definition never named, and every one of those claims went
+    into the permanent round archive asserting a check_wiring result nobody had obtained.
+
+    `evidence` meant "what the mechanical player observed" at the write site and "what the
+    player observed" at the read site, and the shared claim-shaper laundered one into the
+    other -- T216's shape (a field accepted on one path, silently wrong on another) inside
+    the season harness. An archive of fabricated attributions is worse than no archive,
+    because it survives and is cited.
+
+    A gate result is now stated only when the gate was asked and said so, and the
+    NEGATIVE case is stated explicitly: a find the gate did not name is the player's own,
+    which is exactly the signal a season wants to keep.
+    """
+    if gate_named:
+        return [f"check_wiring --report names {name} as NEW unwired"]
+    if player_name == "mechanical":
+        # Should be unreachable: this player only reports what the gate named. If it fires,
+        # the two are disagreeing and that is the finding, not something to paper over.
+        return [f"{name} was reported by the mechanical player but check_wiring did NOT "
+                f"name it on re-ask -- the player and the gate disagree"]
+    return [f"{name} judged dead by {player_name} analysis; check_wiring did NOT name it "
+            f"(so this is the player's own find, not an echo of the gate)"]
+
+
 def run(k: int = 9, seed: int = 20260804, policy: str = "v1_doc",
         shadow: str = None, key_path: str = None, player=None,
         player_name: str = "mechanical", archive: bool = True,
@@ -96,6 +139,7 @@ def run(k: int = 9, seed: int = 20260804, policy: str = "v1_doc",
         found = player_output
 
     known = {c["name"]: c for c in manifest["canaries"]}
+    gate_named = set(_gate_names(shadow))
     claims, stream = [], 1785860000000
     for name in found:
         stream += 137                       # monotonic, standing in for a bus stream id
@@ -107,7 +151,8 @@ def run(k: int = 9, seed: int = 20260804, policy: str = "v1_doc",
             "outcome": "confirmed" if hit else "unverifiable",
             "confidence": "high",
             "stream_id": f"{stream}-0",
-            "evidence": [f"check_wiring --report names {name} as NEW unwired"],
+            "evidence": claim_evidence(name, player_name=player_name,
+                                       gate_named=name in gate_named),
             "_canary_id": hit["id"] if hit else None,
         })
 
@@ -117,7 +162,38 @@ def run(k: int = 9, seed: int = 20260804, policy: str = "v1_doc",
 
     if not C.verify_seal(key_path):
         raise SystemExit("the sealed key no longer matches its digest -- round is void")
-    verdict = C.score(manifest, {c["_canary_id"] for c in claims if c["_canary_id"]})
+    # T219: THIS HARNESS WAS ON THE SUPERSEDED SCORER. score() folds protocol integrity into
+    # measurement and voids any round claiming an undetectable canary -- correct while the
+    # only player echoed the gate, and a false accusation the moment a player REASONS. The
+    # first live LLM round (seed 20260807, $0.395) was voided and its evidence discarded for
+    # doing exactly what season_llm_player.py:25 says an LLM player should be able to do.
+    #
+    # T194 had already fixed this in score_v2 ("finding an undetectable canary is a
+    # capability observation. It is NOT evidence that the answer key leaked") with integrity
+    # moved to protocol_verdict, tied to independently observed facts. That fix was wired
+    # into season_fan_calibration.py and NOT into this harness -- one season, two scorers,
+    # contradictory semantics for the same event, and no shared token to grep for.
+    claimed_ids = {c["_canary_id"] for c in claims if c["_canary_id"]}
+    all_ids = {c["id"] for c in manifest.get("canaries", [])}
+    name_to_id = {c["name"]: c["id"] for c in manifest.get("canaries", [])}
+    if (player_report or {}).get("assigned_names") is not None:
+        assigned = {name_to_id[n] for n in player_report["assigned_names"] if n in name_to_id}
+        judged = {name_to_id[n] for n in player_report.get("judged_names", [])
+                  if n in name_to_id}
+    else:
+        # The mechanical player scans the whole tree through the gate, so every planted
+        # canary was both assigned and judged. Stated rather than assumed, because a wrong
+        # denominator here is how blindness scores as restraint.
+        assigned = judged = set(all_ids)
+    judged |= claimed_ids          # a claim is a judgment; keeps the subset chain valid
+
+    verdict = C.score_v2(manifest, claimed_ids, assigned=assigned, judged=judged)
+    verdict["protocol"] = C.protocol_verdict(
+        seal_verified=C.verify_seal(key_path),
+        archive_complete=bool(archive),
+        # No independent leak evidence is gathered by this harness, and UNKNOWN is the
+        # honest value. Passing False here would assert an audit that never ran.
+        key_leak_detected=None)
 
     # T190: the round's evidence outlives the round. Three earlier rounds costing $1.069
     # printed their claims and discarded them, so a scoreboard replacement had no old-score /
@@ -208,10 +284,25 @@ def main() -> int:
     print(f"  scoring    : {res['scoring']['policy']} -> {res['scoring']['totals']} "
           f"({res['scoring']['unscored']} unscored)")
     print("\n  ADJUDICATION vs the sealed key")
-    print(f"    detector health (catch rate) : {v['catch_rate']}")
-    print(f"    coverage honesty             : {v['coverage_honesty']}")
-    print(f"    false positives              : {v['false_positives']}")
-    print(f"    voided                       : {v['voided']} {v['void_reason']}")
+    cat, und, bait = v["by_class"]["catchable"], v["by_class"]["undetectable"], v["by_class"]["bait"]
+    print(f"    catchable    : {cat['claimed']}/{cat['total']} claimed  "
+          f"recall={cat['recall']}  unjudged={cat['unjudged']} unseen={cat['unseen']}")
+    print(f"    undetectable : {und['claimed']}/{und['total']} claimed  "
+          f"unjudged={und['unjudged']} unseen={und['unseen']}")
+    print(f"    bait         : {bait['claimed']}/{bait['total']} claimed  "
+          f"(any claim is a PRECISION failure -- these are live functions)")
+    print(f"    precision    : {v['precision']}   false positives: {v['false_positives']}")
+    # T194's name for it: an undetectable canary reached by analysis is a CAPABILITY
+    # observation, not contamination. This is the PLAYER's headline as recall is the
+    # DETECTOR's, and scoring it as fraud is what T219 removed.
+    if v.get("capability_findings"):
+        print(f"    capability   : {len(v['capability_findings'])} undetectable canary/ies "
+              f"found by ANALYSIS -- the gate structurally cannot see these: "
+              f"{v['capability_findings']}")
+    p = v.get("protocol", {})
+    print(f"    protocol     : {p.get('validity')}  {'; '.join(p.get('basis', []))}")
+    print("    BLIND: unjudged != declined != unseen -- a canary in a branch that never "
+          "landed was not passed over, it was never asked about")
     stored = res.get("round_path")
     print("\n  round archived: " + (stored if stored
                                     else "NOT STORED -- this round cannot be re-scored"))
@@ -220,7 +311,11 @@ def main() -> int:
               f"findings in the tree, not planted:")
         for u in res["unmatched_finds"][:5]:
             print(f"    {u}")
-    return 0 if not v["voided"] else 1
+    # T219: validity is the PROTOCOL's verdict, not the scoreboard's -- score_v2 deliberately
+    # carries no `voided` key, because measurement must not adjudicate integrity. Only an
+    # OBSERVED violation is a failure exit: UNKNOWN means the fact was never established,
+    # and exiting non-zero on it would turn "we did not audit" into "we caught you".
+    return 1 if v.get("protocol", {}).get("validity") == "VOID" else 0
 
 
 if __name__ == "__main__":
