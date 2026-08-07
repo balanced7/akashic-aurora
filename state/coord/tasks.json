@@ -1,5 +1,5 @@
 {
-  "seq": 213,
+  "seq": 214,
   "tasks": [
     {
       "id": "T001",
@@ -7825,6 +7825,52 @@
           "to": "done",
           "by": "",
           "at": "2026-08-07T06:13:42+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T214",
+      "title": "T214: vocabulary as a comparable set, and a MEASURED NEGATIVE RESULT. Built the terms domain so W133's question becomes a query: compare terms:code terms:lexicon. Extracts from PROSE (comments + docstrings), not identifiers, because none of the four violations that motivated W133 were identifiers -- 'wakeable' is not a token anywhere in the repo and cost six turns. THE INSTRUMENT FAILED ITS CALIBRATION, and that is the finding. Ranked 2983 undefined candidates by rarity (IDF) x subsystem-spread, then checked the four KNOWN POSITIVES that measurably forked and cost real turns: drained rank 2126/2983 (71st pct), unread 2794 (94th), wakeable 2265 (76th), fixed 395 (13th). Three of four in the bottom quartile -- the score is ANTI-CORRELATED with truth. WHY, and it inverts the intuition: forked words are LOW-spread. drained lives in 6 files, wakeable in 3. They fork BECAUSE few authors touched them and each imported their own everyday meaning; a word in 100 files has been read by everyone and its meaning was forced into agreement. High spread means the meaning got socialised. Worse for any frequency approach: all four are ordinary ENGLISH words used in specialised senses -- which is exactly why they fork -- so no rarity filter can separate them from English because they ARE English. CONSEQUENCE FOR THE DESIGN: forked-semantics detection is a MEANING-level job (the fan), and this module's honest role is to supply the CORPUS, not the ranking. That is the index-proposes/fan-disposes split, with the measurement showing which half owns this problem. LEFT BEHIND: KNOWN_FORKED as a permanent calibration set and a pin that makes deleting the negative result a test failure -- a negative result nobody wrote down gets re-discovered by the next person with the same reasonable idea. ALSO: caught the built-not-wired class MYSELF this time (terms registers on import and nothing imported it) rather than being blocked by the gate for a third time.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "HEAD",
+      "verified_by": "13/13 pins; instrument calibrated against 4 known positives and FAILED (3 of 4 bottom-quartile); negative result pinned",
+      "created": "2026-08-07T06:49:24+00:00",
+      "updated": "2026-08-07T06:49:37+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-07T06:49:24+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-07T06:49:24+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-07T06:49:25+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-08-07T06:49:25+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-07T06:49:25+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-07T06:49:37+00:00"
         }
       ]
     }
