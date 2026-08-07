@@ -1,5 +1,5 @@
 {
-  "seq": 203,
+  "seq": 204,
   "tasks": [
     {
       "id": "T001",
@@ -7365,6 +7365,52 @@
           "to": "done",
           "by": "",
           "at": "2026-08-07T02:17:01+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T204",
+      "title": "T204: un-truncate -- two causes of a cut answer, two recoveries, and no ceiling by default. MEASURED TWICE IN ONE SESSION: a 2200-token fence answer cut mid-sentence (real content, unfinished) and a --with ask returning TWENTY CHARACTERS then nothing at all (reasoning consumed the entire completion budget before a visible token). Both report finish_reason=length; they are NOT the same failure. CUT (partial exists) -> CONTINUE and stitch, costing one completion instead of re-paying the whole prompt (8662 tokens with --with). STARVED (empty) -> continuation has nothing to continue, so say so precisely and do NOT spend a call proving it. Same philosophy as T202: name the cause, differentiate the recovery. DIAGNOSIS: reads completion_tokens_details.reasoning_tokens, one of the seven zero-cost fields the T156 wire survey named as discarded, and the one it called 'the diagnosis for content-empty-because-thinking-ate-the-budget' -- turning 'the answer was cut' into 'reasoning used 1200 of 1200'. None never 0 for a provider that does not report it. UNLIMITED BY DEFAULT (Daniil: 'make an unlimited version and we can figure out scaling down from there'): max_tokens is omitted entirely, 0 means unlimited. The ceiling existed to protect the CALLER'S CONTEXT, which is a reason to bound DELIVERY, not GENERATION -- and it produced the worst outcome available: full price for zero visible tokens, then a retry paying for the whole prompt again. Continuation defaults ON, so hitting the model's own ceiling stitches rather than loses. Exhausted continuations still report PARTIALLY, never a clean done hiding a stitched-but-incomplete answer. LIVE: the identical question STARVED at 1200 and 2600, then returned a complete cited answer with no ceiling.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "HEAD",
+      "verified_by": "9/9 new pins RED first, 32 green; live: same question STARVED at 1200 and 2600, complete cited answer unlimited",
+      "created": "2026-08-07T02:37:13+00:00",
+      "updated": "2026-08-07T02:37:40+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-07T02:37:13+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-07T02:37:14+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-07T02:37:14+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-08-07T02:37:14+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-07T02:37:15+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-07T02:37:40+00:00"
         }
       ]
     }
