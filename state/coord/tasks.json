@@ -1,5 +1,5 @@
 {
-  "seq": 211,
+  "seq": 212,
   "tasks": [
     {
       "id": "T001",
@@ -7733,6 +7733,52 @@
           "to": "done",
           "by": "",
           "at": "2026-08-07T05:31:54+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T212",
+      "title": "T212: the filesystem as an OBSERVED plane. Daniil 2026-08-07: 'we dont have to only derive time from file contents and titles, we can see how old a file is and last time it was modified.' WHY IT IS A THIRD PLANE, not a fourth source: the 07-30 relationship design keeps DERIVED/AUTHORED/OBSERVED distinct and forbids laundering one into another. Every existing timeline source is something an agent DECLARED -- events are what a seat said happened, commits are what someone chose to record, task rows are ledger transitions. A file's mtime is different in kind: the filesystem WITNESSED it with nobody's narration in between. WHAT IT CATCHES THAT NOTHING ELSE CAN: activity that left no other trace. This session's boot said '18 modified (tracked), 127 untracked' and no event, commit or ledger row could say whose or when. It also makes touched-MINUS-committed computable, which is work-in-flight or work-abandoned -- the cross-domain difference Daniil identified as where the value lives. LIVE: 22 touched / 12 committed / 10 touched-only in 30 minutes, and every touched-only file was runtime state no declared plane narrated (session logs, the door probe, the sqlite WAL, and _verbs_snapshot.txt -- a side effect of my own capability_search that nothing recorded). THE TRAP PINNED, and it is our bug class inside the standard library: st_ctime means CREATION on Windows and INODE CHANGE on Unix -- one attribute, two meanings, chosen by platform. Reading it as 'created' is correct on the machine I develop on and wrong on the machine CI runs on, the worst failure shape available. Only st_birthtime, which exists solely where it means what it says, may claim a birth; absent is None, never 0. FIFTH one-word-two-meanings instance in two days and the first we did not write ourselves. ALSO: fourth reflexivity trap -- the pin forbidding st_ctime went red on the docstring explaining why we never use it. Root cause is structural: a prohibition worth pinning is worth DOCUMENTING, and documenting it puts the forbidden token in the file, so text-scanning pins and good docs are incompatible by construction. Fixed with an AST read, as the three before it.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "HEAD",
+      "verified_by": "29/29 pins; live touched-minus-committed = 10 files, all runtime state invisible to every declared plane",
+      "created": "2026-08-07T05:41:53+00:00",
+      "updated": "2026-08-07T05:42:05+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-07T05:41:53+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-07T05:41:53+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-07T05:41:54+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-08-07T05:41:54+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-07T05:41:55+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-07T05:42:05+00:00"
         }
       ]
     }
