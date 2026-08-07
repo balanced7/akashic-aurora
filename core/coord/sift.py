@@ -532,12 +532,32 @@ CURATOR_CONTRACT = (
     "redo your work. Cite file:line from the analyses; do not invent citations.\n\n"
     "FORMAT, strictly:\n"
     "VERDICT: FORK | NO_FORK | UNCLEAR\n"
+    "TALLY: FORK=<n> NO_FORK=<n> UNCLEAR=<n>  -- how many of the analyses reached each "
+    "verdict. Count them; do not estimate.\n"
     "SENSES: one line per distinct sense, each with one file:line\n"
     "DISSENT: where the analyses disagreed with EACH OTHER, naming the hats\n"
     "DROPPED: what you did NOT carry forward, and why. A minority reading you discarded "
     "silently would manufacture consensus -- say it here instead.\n"
     "BLIND: what none of these analyses could see\n"
 )
+
+_TALLY_RE = re.compile(r"^\s*TALLY\s*:\s*(.+)$", re.MULTILINE | re.IGNORECASE)
+
+
+def parse_tally(answer: str) -> Dict[str, int]:
+    """Recover the vote split a curator reported. {} when it reported none.
+
+    The TALLY line exists because the first cost-blind sample's two false positives were
+    both a lone hat promoted over a five-hat consensus, and the winning LABEL alone could
+    not show that. An empty dict means UNKNOWN margin, never a low one.
+    """
+    m = _TALLY_RE.search(answer or "")
+    if not m:
+        return {}
+    out: Dict[str, int] = {}
+    for k, n in re.findall(r"(FORK|NO_FORK|UNCLEAR)\s*=\s*(\d+)", m.group(1), re.IGNORECASE):
+        out[k.upper()] = int(n)
+    return out
 
 
 def curator_prompt(term: str, analyses: Sequence[Dict[str, str]]) -> Tuple[str, str]:
@@ -555,6 +575,41 @@ def curator_prompt(term: str, analyses: Sequence[Dict[str, str]]) -> Tuple[str, 
     bundle = "\n".join(parts) + "\n"
     prompt = f"{bundle}\n\n{CURATOR_CONTRACT}"
     return prompt, _sha(bundle)
+
+
+#: A positive verdict must clear this share of the hats that voted, or it is CONTESTED.
+#: Set from the measured failure rather than from taste: the two false positives in the
+#: first cost-blind sample rested on 1 of 7 and 1 of 6 hats (0.14 and 0.17), while the one
+#: genuine find had 5 of 7 (0.71). Anything strictly above a third clears.
+CONSENSUS_FLOOR = 1 / 3
+
+
+def settle_verdict(dossier: Dict[str, Any]) -> str:
+    """The verdict a dossier is entitled to, given the margin it won by.
+
+    MEASURED, first cost-blind sample (pre-registered at b73a757): two of three FORK
+    verdicts were false positives, and both were a LONE hat promoted over a five- or
+    six-hat NO_FORK consensus. `behaviour` and `remain` are ordinary English polysemy that
+    6-of-7 and 5-of-7 hats respectively rejected, and the curator carried the minority
+    forward anyway -- disclosing it honestly in DROPPED, but carrying it.
+
+    The cost was not cosmetic. Untriaged, that sample showed a +43 point spread effect;
+    triaged it showed +14, and those sit on OPPOSITE SIDES of a pre-registered 20-point
+    line. A tier that reports the winning label without the margin will keep doing this.
+
+    A MISSING TALLY IS NOT A LOW ONE. With no vote data the margin is UNKNOWN, and the
+    verdict passes through untouched rather than being downgraded on an absence -- inferring
+    weakness from silence is the same error as inferring absence from a blind instrument.
+    """
+    v = str(dossier.get("verdict", "")).upper()
+    tally = dossier.get("tally") or {}
+    if v not in {"FORK"} or not tally:
+        return v or "UNCLEAR"
+    total = sum(int(n) for n in tally.values() if isinstance(n, (int, float)))
+    if not total:
+        return v
+    share = int(tally.get(v, 0)) / total
+    return v if share > CONSENSUS_FLOOR else "CONTESTED"
 
 
 def parse_verdict(answer: str) -> str:

@@ -2356,9 +2356,18 @@ def cmd_sift(args):
         print(f"# tier 2: {len(cur_prompts)} curators over {len(analyses)} term(s) ...")
         cur = ask_many(cur_prompts, max_workers=args.workers)
         for meta, b in zip(cur_index, (cur.detail or {}).get("branches", [])):
-            if b.get("ok"):
-                dossiers.append({**meta, "verdict": S.parse_verdict(b.get("answer") or ""),
-                                 "answer": b.get("answer")})
+            if not b.get("ok"):
+                continue
+            ans = b.get("answer") or ""
+            # T217 follow-up: settle the verdict against the MARGIN it won by. Measured on
+            # the first cost-blind sample -- two of three FORK verdicts were a lone hat
+            # promoted over a five-hat consensus, and untriaged vs triaged fell on opposite
+            # sides of a pre-registered line.
+            d = {**meta, "verdict": S.parse_verdict(ans),
+                 "tally": S.parse_tally(ans), "answer": ans}
+            d["raw_verdict"] = d["verdict"]
+            d["verdict"] = S.settle_verdict(d)
+            dossiers.append(d)
 
     # ---- tier 3: dissent first
     cmp_ = S.compare_dossiers(dossiers) if dossiers else {

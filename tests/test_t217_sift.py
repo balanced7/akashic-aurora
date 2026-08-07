@@ -275,6 +275,48 @@ def test_flip_rate_computes_when_hashes_match():
     assert out["dissents"], "a disagreement must surface in dissents"
 
 
+def test_a_verdict_resting_on_one_hat_against_five_renders_contested():
+    """MEASURED DEFECT, first cost-blind sample (pre-registered at b73a757).
+
+    Two of three FORK verdicts were false positives and both had one shape: the curator
+    promoted a LONE dissenting hat over a five-or-six hat NO_FORK consensus. `behaviour`
+    (intended vs actual) and `remain` (continue-to-be vs residual) are ordinary English
+    polysemy that 6-of-7 and 5-of-7 hats respectively rejected.
+
+    The effect on the headline was not cosmetic: untriaged the sample showed a +43 point
+    spread effect, triaged it showed +14, and those fall on OPPOSITE SIDES of the
+    pre-registered 20-point line. A curation tier that reports only the winning label,
+    without the margin it won by, will keep doing this.
+
+    So the tally rides in the verdict. One-against-five is CONTESTED, never FORK.
+    """
+    lopsided = {"term": "behaviour", "hat": "outsider", "evidence_sha": "aa11",
+                "verdict": "FORK", "tally": {"FORK": 1, "NO_FORK": 6}}
+    assert sift.settle_verdict(lopsided) == "CONTESTED"
+
+    solid = {"term": "capabilities", "hat": "outsider", "evidence_sha": "aa11",
+             "verdict": "FORK", "tally": {"FORK": 5, "NO_FORK": 2}}
+    assert sift.settle_verdict(solid) == "FORK", \
+        "a real majority must survive -- this guard must not eat the genuine finding"
+
+    # No tally reported: the margin is UNKNOWN and must not be invented in either direction.
+    assert sift.settle_verdict({"verdict": "FORK"}) == "FORK"
+
+
+def test_contested_is_not_silently_folded_into_agreement():
+    """A CONTESTED term is a finding about the EVIDENCE being genuinely ambiguous, which is
+    the second of the three causes of disagreement. Folding it into NO_FORK would discard
+    exactly the cases most worth a human read."""
+    same = "bb22"
+    ds = [
+        {"term": "t1", "hat": "a", "evidence_sha": same, "verdict": "CONTESTED"},
+        {"term": "t1", "hat": "b", "evidence_sha": same, "verdict": "CONTESTED"},
+    ]
+    out = sift.compare_dossiers(ds)
+    assert out["agreements"], "both curators agreed the term is contested"
+    assert out["agreements"][0]["verdicts"] == ["CONTESTED"]
+
+
 def test_dissent_is_rendered_before_agreement():
     """The prior seat's §7: 'you are the bottleneck, not the helpers'. Dissent-first was
     his highest-leverage UNBUILT feature -- read the one disagreement, skip the four
