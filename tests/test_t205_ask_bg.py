@@ -92,6 +92,49 @@ def test_a_crashed_child_does_not_read_as_running_forever(store):
     assert "no longer running" in s["next"].lower() or "re-ask" in s["next"].lower()
 
 
+def test_a_failed_liveness_probe_is_cannot_tell_never_dead(store, monkeypatch):
+    """FOUND BY A FAN-OUT OVER THIS REPO'S OWN DOCSTRINGS, hours after it shipped.
+
+    _alive's docstring says "cannot-tell must not be reported as dead, or a healthy
+    child gets declared orphaned" -- and the code caught SubprocessError and returned
+    False one screen below. A `tasklist` TIMEOUT is a SubprocessError, so a slow probe
+    reported a live helper as dead and summarize() rendered it ORPHANED: "no longer
+    running, re-ask, nothing will arrive."
+
+    The law was stated and violated in the same function. Each failure must now map to
+    what it actually proves: only ProcessLookupError proves death."""
+    import subprocess
+
+    def timeout(*a, **k):
+        raise subprocess.TimeoutExpired(cmd="tasklist", timeout=10)
+
+    monkeypatch.setattr(subprocess, "run", timeout)
+    assert ask_bg._alive(4242) is None, "a failed probe is cannot-tell, never dead"
+
+
+def test_permission_denied_means_alive_not_dead(store, monkeypatch):
+    """A process we may not signal is one that EXISTS. Reporting it dead is the same
+    lie in a different costume."""
+    monkeypatch.setattr(ask_bg.os, "name", "posix")
+    monkeypatch.setattr(ask_bg.os, "kill", lambda *a: (_ for _ in ()).throw(PermissionError()))
+    assert ask_bg._alive(4242) is True
+
+
+def test_process_lookup_error_is_the_one_error_that_proves_death(store, monkeypatch):
+    monkeypatch.setattr(ask_bg.os, "name", "posix")
+    monkeypatch.setattr(ask_bg.os, "kill",
+                        lambda *a: (_ for _ in ()).throw(ProcessLookupError()))
+    assert ask_bg._alive(4242) is False
+
+
+def test_write_record_really_never_raises(store):
+    """"Never raises" was false: only OSError was caught, so a circular reference would
+    propagate ValueError out of json.dumps into a caller promised it could not."""
+    circular = {}
+    circular["self"] = circular
+    ask_bg.write_record("h-circ", {"status": "running", "bad": circular})  # must not raise
+
+
 def test_result_written_by_the_child_is_readable(store):
     """The child writes the same structured record `ask --json` produces, so the
     background path and the foreground path cannot report different shapes."""

@@ -53,7 +53,10 @@ def write_record(handle: str, rec: Dict[str, Any]) -> None:
         rec = {"handle": handle, "started": rec.get("started", time.time()), **rec}
         _path(handle).write_text(json.dumps(rec, ensure_ascii=False, default=str),
                                  encoding="utf-8")
-    except OSError:
+    except Exception:
+        # Was `except OSError`, which made "Never raises" false: a circular reference
+        # raises ValueError out of json.dumps and would have propagated into a caller
+        # that was promised it could not. Same fan-out audit as _alive below.
         pass
 
 
@@ -137,17 +140,32 @@ def _alive(pid: Any) -> Optional[bool]:
         return None
     if pid <= 0:
         return None
+    # FOUND BY A FAN-OUT OVER THIS REPO'S OWN DOCSTRINGS (T215), hours after it was
+    # written: the original caught (OSError, SubprocessError) and returned False, so a
+    # `tasklist` TIMEOUT -- which is a SubprocessError -- reported a healthy child as
+    # dead, and summarize() rendered it ORPHANED: "no longer running, re-ask, nothing
+    # will arrive". That is precisely the failure the docstring above forbids, violated
+    # one screen below where the law is stated. Each failure now maps to what it actually
+    # proves.
+    import subprocess
     try:
         if os.name == "nt":
-            import subprocess
             out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"],
                                  capture_output=True, text=True, timeout=10,
                                  stdin=subprocess.DEVNULL)
+            if out.returncode != 0:
+                return None                     # the probe failed: cannot tell
             return str(pid) in (out.stdout or "")
         os.kill(pid, 0)
         return True
-    except (OSError, subprocess.SubprocessError):
-        return False
+    except subprocess.SubprocessError:
+        return None                             # timeout/probe failure: cannot tell
+    except ProcessLookupError:
+        return False                            # the ONE error that proves death
+    except PermissionError:
+        return True                             # it exists; we merely may not signal it
+    except OSError:
+        return None                             # any other OS failure: cannot tell
     except Exception:
         return None
 
