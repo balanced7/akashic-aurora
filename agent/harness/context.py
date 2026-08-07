@@ -65,8 +65,41 @@ def _funnel_line() -> str:
 
 
 def _unread_count(agent_id: str) -> int:
+    """How much mail `bifrost-sync` would actually SURFACE (T201).
+
+    The raw pending count counted the conductor's ledger_update/resolved echoes of this
+    agent's OWN task transitions. Measured 2026-08-06: the whisper said "7 unread ->
+    py agent_cli.py bifrost-sync claude" three times in one session, and running that on
+    both lanes returned "(no messages consumed)" every time. The wake watcher already
+    skips those kinds and the consume door already declines to surface them -- only this
+    counter took them literally, so it nagged every turn about a condition its own
+    printed remediation could not clear. That is the W131 pathology in a second organ:
+    an alert that is routinely wrong teaches the reader to skip the line, and the habit
+    carries into the turn when the number means real mail.
+
+    Reuses the SHARED skip set rather than inventing a third meaning of "unread" (the
+    T198 lesson, applied where it is safe to apply). FAILS TOWARD NAGGING, deliberately
+    and opposite to T198: unknown kinds count, and a truncated peek adds its unseen
+    remainder back, because under-reporting real mail is the worse error here while the
+    wake path -- where the worse error is deafness -- is untouched by this function.
+    """
     from agent.bifrost_pull import collect_boot_bifrost
-    return int((collect_boot_bifrost(agent_id, limit=8) or {}).get("pending", 0) or 0)
+    try:
+        data = collect_boot_bifrost(agent_id, limit=8) or {}
+    except Exception:
+        return 0                                  # fail-soft: the whisper never breaks a turn
+    pending = int(data.get("pending", 0) or 0)
+    msgs = data.get("messages")
+    if not isinstance(msgs, list):
+        return pending                            # no rendered list -> cannot filter; say the raw truth
+    try:
+        from core.comm.bifrost_api import PENDING_SKIP_KINDS as _SKIP
+    except Exception:
+        return pending
+    actionable = sum(1 for m in msgs
+                     if str((m or {}).get("kind") or "") not in _SKIP)
+    # The peek is capped, so anything beyond it was never classified. Count it.
+    return actionable + max(0, pending - len(msgs))
 
 
 def _draft_fresh() -> bool:
