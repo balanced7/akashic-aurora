@@ -1,5 +1,5 @@
 {
-  "seq": 207,
+  "seq": 208,
   "tasks": [
     {
       "id": "T001",
@@ -7549,6 +7549,52 @@
           "to": "done",
           "by": "",
           "at": "2026-08-07T04:20:01+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T208",
+      "title": "T208: 'is this failure mine?' answered by the organ that already knew. MEASURED RECEIPT: on 2026-08-06 I hit four test failures and ran a manual git-stash bisect for each (2-4 turns apiece), and answered ONE of them WRONG in public from an inconclusive single-test run. state/coord/suite_baseline.json had already recorded one of the four (test_t060_n0_shadow_router) since 2026-07-24 and nothing surfaced it -- the same shape as T197, the verdict existed and the door never asked. It answered only 1 of 4 because it is 320h stale: the other three broke after it was recorded (T196c landed 2026-08-05). THE DEFECT, confirmed at line level by a grounded background helper: delta() (suite_baseline.py:113-120) does pure set math and performs NO sha comparison anywhere, so 'new' silently means both 'arrived with your change' and 'broke somewhere in the 14-day gap'. Fourth instance of one-word-two-meanings in this arc after drained, unread and wakeable. FIX: verdicts() gives four honest states -- YOURS (baseline is CURRENT and this is absent from it), INHERITED, LIKELY_INHERITED (in a STALE baseline: probably not yours, but it could have been fixed and re-broken in the gap -- staleness contaminates the EXCULPATING verdict too, which is the half a naive fix misses), and UNKNOWN (bisect this one). Unresolvable HEAD reads stale, never fresh. UNKNOWN never exits nonzero, because 'I cannot tell' must not become an accusation. delta() keeps its contract; verdicts() is additive. CAUGHT LIVE on first real use: running three files reported TEN baseline failures as 'fixed' when they had merely not been run -- and 'fixed' invites a re-record that would have deleted them from the receipt. Subset runs now report not_evaluated and refuse to claim anything was fixed. DOOR: suite-baseline --whose 'tests/ -k ask' runs the tests and attributes every failure in one command, replacing the manual bisect.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "HEAD",
+      "verified_by": "10/10 pins RED first; live run attributes 3 LIKELY_INHERITED + names 10 not-run rather than calling them fixed",
+      "created": "2026-08-07T04:36:54+00:00",
+      "updated": "2026-08-07T04:37:06+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-07T04:36:54+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-07T04:36:54+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-07T04:36:55+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-08-07T04:36:55+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-07T04:36:56+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-07T04:37:06+00:00"
         }
       ]
     }
