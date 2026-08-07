@@ -1,5 +1,5 @@
 {
-  "seq": 220,
+  "seq": 226,
   "tasks": [
     {
       "id": "T001",
@@ -8147,6 +8147,289 @@
           "to": "done",
           "by": "",
           "at": "2026-08-07T09:21:28+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T221",
+      "title": "Season 1 scoring: low confidence is a FREE OPTION -- a hedger with 3 hits and 30 wrong low-confidence claims outscores an honest player with 3 hits and 1 wrong, in BOTH policies, unboundedly",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "exploit pinned and reproducible; a proposed policy prices the option (low-confidence hits earn less, free misses bounded) without changing the default; honest low-confidence misses stay cheap; ruling left to Daniil per the v2_aixcc precedent",
+      "status": "done",
+      "commit": "5eaf883",
+      "verified_by": "exploit reproduced then closed: hedge 6->-51 while honest holds at 5; 39 existing season tests green; defaults byte-identical; guard confirms 0-3 flagged misses stay free",
+      "created": "2026-08-07T13:08:41+00:00",
+      "updated": "2026-08-07T13:12:24+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-07T13:08:41+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude, found by attacking the scoring rule before the season runs 2026-08-07",
+          "at": "2026-08-07T13:08:42+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-07T13:08:42+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-08-07T13:08:43+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-07T13:12:23+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-07T13:12:24+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T222",
+      "title": "T220 minted a clip pointer into bifrost-fetch, which serves spill blobs and cannot resolve a bus stream id -- both branches named a dead door; found by the peer within the hour",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "the pin RUNS the command the render prints and requires the body back; bifrost-fetch gains the stream-id address space; narrow detection; longest copy wins; JSON-decoded; misses stay loud; spill blobs still resolve",
+      "status": "done",
+      "commit": "d5ac6bc",
+      "verified_by": "the exact pointer that failed on the peer's machine now returns the full note as clean text; 8/8 pins incl. spill-blob regression; the pin RUNS the printed command rather than checking it was printed",
+      "created": "2026-08-07T13:24:51+00:00",
+      "updated": "2026-08-07T13:25:24+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-07T13:24:51+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude#42d00626 field report 2026-08-07",
+          "at": "2026-08-07T13:24:52+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-07T13:24:52+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-08-07T13:24:53+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-07T13:25:23+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-07T13:25:24+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T223",
+      "title": "Discord bridge phase 1: outbound-only feed so the fleet is watchable from a phone (Daniil 2026-08-07, leaving for work). Inbound deferred behind an identity gate.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "zero new deps; allowlist of kinds not denylist; secrets redacted visibly; clips carry their address; not-configured is a state; no inbound door exposed (pinned); cli_only by design",
+      "status": "done",
+      "commit": "fec999a",
+      "verified_by": "9/9 pins, none touching the network; check_kind_policy refused the commit until FORWARD_KINDS declared its plane and now passes; door classified cli_only by design",
+      "created": "2026-08-07T13:33:09+00:00",
+      "updated": "2026-08-07T13:34:35+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-07T13:33:09+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "Daniil verbatim ask 2026-08-07",
+          "at": "2026-08-07T13:33:09+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-07T13:33:10+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-08-07T13:33:10+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-07T13:34:35+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-07T13:34:35+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T224",
+      "title": "confidence carries two type systems: the boot ranker reads high/medium/low while tagging.py clamps a float to [0,1]; 25 of 830 live lessons store it numerically and every one ranked as UNSET",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "numeric confidence maps onto the same bands; a considered value no longer ranks like a typo; categorical scale byte-identical; unparseable takes the neutral default; booleans are a type error not max confidence",
+      "status": "done",
+      "commit": "d7f3612",
+      "verified_by": "6/6 pins; 25 numeric-confidence lessons now rank 5 instead of the unset default; categorical scale unchanged and pinned; 44 learning/context tests green",
+      "created": "2026-08-07T13:41:19+00:00",
+      "updated": "2026-08-07T13:41:59+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-07T13:41:19+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude, found by the T221 hedging sweep 2026-08-07",
+          "at": "2026-08-07T13:41:20+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-07T13:41:20+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-08-07T13:41:20+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-07T13:41:58+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-07T13:41:59+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T225",
+      "title": "ask --with reports only CLIPPED evidence; REFUSED, MISSING and SKIPPED files are silent to the caller. Found by running the fan at its own door (pre-reg research/in-flight/prereg-ask-ergonomics-fan-2026-08-07.md): 3 of 4 --with files refused, 0 bytes of stderr, 0.065 USD spent, one lens structurally unable to answer. Widens T218's notice to the whole class, each class carrying its own next move.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/comm/ask.py",
+        "agent_cli.py"
+      ],
+      "acceptance": "tests/test_t225_ask_caller_told_about_unusable_evidence.py green; live re-run of the original scenario prints REFUSED and MISSING",
+      "status": "done",
+      "commit": "40ec00e",
+      "verified_by": "claude",
+      "created": "2026-08-07T18:33:37+00:00",
+      "updated": "2026-08-07T18:46:07+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-07T18:33:37+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-07T18:33:50+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-07T18:34:01+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-08-07T18:34:02+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-07T18:46:00+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-07T18:46:07+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T226",
+      "title": "--bg assembles its child argv by hand from four remembered flags, so every flag added since is silently dropped: measured, ask --bg --fan 5 ran ONE ask (n=None, branches=0) while --bg's own help advertises 'fan out without drowning'. --system and --continuations dropped the same way; the fan path also never wrote the bg record (ask --get said ORPHANED about completed paid-for work) and --get could not render a fan. Replaces the hand list with two total tables the pin walks the parser against.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "agent_cli.py",
+        "core/comm/ask.py",
+        "core/comm/ask_bg.py"
+      ],
+      "acceptance": "tests/test_t226_fan_honors_the_flags_it_accepts.py green; live ask --bg --fan 3 records 3 branches and --get renders them with the diversity verdict; T204 opt-in ruling intact",
+      "status": "done",
+      "commit": "40ec00e",
+      "verified_by": "claude",
+      "created": "2026-08-07T18:33:45+00:00",
+      "updated": "2026-08-07T18:46:09+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-07T18:33:45+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-07T18:33:51+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-07T18:46:07+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-08-07T18:46:08+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-07T18:46:08+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-07T18:46:09+00:00"
         }
       ]
     }
