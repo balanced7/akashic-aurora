@@ -132,10 +132,79 @@ def _task_rows(since: Optional[float] = None, **_) -> List[Dict]:
     return out
 
 
+#: Which PLANE each domain speaks for -- the 07-30 relationship design's distinction,
+#: carried here so a cross-match between "what was declared" and "what was witnessed" is
+#: expressible at all. events/git/tasks are all things somebody CHOSE to record; a file's
+#: mtime is what the filesystem witnessed with nobody's narration in between.
+PLANE_OF = {"events": "AUTHORED", "git": "AUTHORED", "tasks": "AUTHORED",
+            "files": "OBSERVED"}
+
+#: Directory names whose mtimes are somebody else's bookkeeping, not this project's story.
+_SKIP_DIRS = {".git", "__pycache__", "node_modules", ".venv", "venv", ".pytest_cache",
+              ".mypy_cache", ".ruff_cache", "artifacts"}
+
+FILE_SCAN_LIMIT = int(os.environ.get("AKASHIC_TIMELINE_FILE_LIMIT", "4000"))
+
+
+def _birth(st) -> Optional[float]:
+    """When the file was born, or None where the platform cannot say.
+
+    DELIBERATELY NOT st_ctime. That attribute means CREATION time on Windows and INODE
+    CHANGE time on Unix -- one name, two meanings, chosen by platform. Reading it as
+    "created" would be right on the machine I develop on and wrong on the machine CI runs
+    on, which is the worst failure shape available. st_birthtime exists only where it
+    means what it says, so it is the only source allowed to claim a birth.
+    """
+    b = getattr(st, "st_birthtime", None)
+    try:
+        return float(b) if b else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _file_rows(root: Optional[str] = None, limit: Optional[int] = None,
+               since: Optional[float] = None, **_) -> List[Dict]:
+    """The OBSERVED plane: what was actually touched, and when.
+
+    Catches the activity that left no other trace -- a sibling agent's mid-flight edits,
+    uncommitted work, a file changed between two events that nothing narrated. This
+    session's own boot said "18 modified (tracked), 127 untracked", and no event, commit
+    or ledger row could say whose or when.
+
+    Bounded by construction: an unbounded walk is how a fast index becomes one nobody
+    runs. One unreadable file costs that file, never the plane.
+    """
+    base = root or _ROOT
+    cap = int(limit if limit is not None else FILE_SCAN_LIMIT)
+    out: List[Dict] = []
+    for dirpath, dirnames, filenames in os.walk(base):
+        dirnames[:] = [d for d in dirnames if d not in _SKIP_DIRS]
+        for fn in filenames:
+            if len(out) >= cap:
+                return out
+            p = os.path.join(dirpath, fn)
+            try:
+                st = os.stat(p)
+            except OSError:
+                continue                      # one bad stat, not a dead plane
+            ts = float(getattr(st, "st_mtime", 0) or 0)
+            if since is not None and ts and ts < float(since):
+                continue
+            row = {"ts": ts or None, "actor": "", "kind": "file:modified",
+                   "summary": os.path.relpath(p, base).replace("\\", "/"),
+                   "ref": p.replace("\\", "/")}
+            born = _birth(st)
+            if born is not None:
+                row["born"] = born
+            out.append(row)
+    return out
+
+
 def default_sources() -> List[Tuple[str, Callable]]:
     """The domains, registered BY NAME so a missing one shows up in coverage rather than
     being quietly absent from the design."""
-    return [("events", _events_rows), ("git", _git_rows), ("tasks", _task_rows)]
+    return [("events", _events_rows), ("git", _git_rows), ("tasks", _task_rows),
+            ("files", _file_rows)]
 
 
 def gather(*, sources: Optional[List[Tuple[str, Callable]]] = None,
@@ -159,7 +228,10 @@ def gather(*, sources: Optional[List[Tuple[str, Callable]]] = None,
             # Named, never silent: an unreadable domain is a FACT about the report.
             failed[name] = f"{e.__class__.__name__}: {e}"
             continue
-        normed = [_norm(r, name) for r in got]
+        normed = [dict(_norm(r, name),
+                       plane=PLANE_OF.get(name, "UNKNOWN"),
+                       **({"born": r["born"]} if r.get("born") else {}))
+                  for r in got]
         if since is not None:
             normed = [r for r in normed if r["ts"] is None or r["ts"] >= float(since)]
         read.append(name)
