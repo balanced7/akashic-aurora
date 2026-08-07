@@ -613,7 +613,8 @@ def _fan_client(client):
 
 def ask_many(prompts, *, system: Optional[str] = None, model: Optional[str] = None,
              max_tokens: Optional[int] = None, client=None,
-             max_workers: Optional[int] = None) -> BoundaryOutcome:
+             max_workers: Optional[int] = None, with_files=None,
+             context_root=None) -> BoundaryOutcome:
     """Ask N helpers at once. Still no seat behind any of them (T181). Never raises.
 
     THE PRIMITIVE THE FLEET PATTERNS NEED. Daniil's design, expanded by Sol at his ask: the
@@ -651,9 +652,20 @@ def ask_many(prompts, *, system: Optional[str] = None, model: Optional[str] = No
     t0 = time.time()
     results = [None] * len(prompts)
 
+    # T216, found while playing: --with was accepted on the fan path and SILENTLY did
+    # nothing, because with_files was threaded into the single-ask call and never here.
+    # Five helpers correctly reported they had been given no files; the flag had simply
+    # evaporated. Built once per fan rather than per branch -- N branches share one
+    # context, so the read and the budget are paid once.
+    shared_ctx, ctx_meta = ("", None)
+    if with_files:
+        shared_ctx, ctx_meta = build_context(with_files, root=context_root)
+
     def _one(i):
+        body = (f"{shared_ctx}\n\n=== QUESTION ===\n{prompts[i]}"
+                if shared_ctx else prompts[i])
         try:
-            return ask(prompts[i], system=system, model=model,
+            return ask(body, system=system, model=model,
                        max_tokens=max_tokens, client=client)
         except Exception as e:      # ask() does not raise Exception; never lose a slot anyway
             return BoundaryOutcome.caught(e, where=f"ask_many(branch {i})")
@@ -712,6 +724,8 @@ def ask_many(prompts, *, system: Optional[str] = None, model: Optional[str] = No
         "usd": round(total_usd, 6) if priced_all else None,
         "elapsed_s": round(time.time() - t0, 2), "model": model, "workers": workers,
     }
+    if ctx_meta is not None:
+        detail["context"] = ctx_meta
 
     if n_ok == 0:
         return BoundaryOutcome.failed(

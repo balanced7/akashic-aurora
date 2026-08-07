@@ -2179,7 +2179,8 @@ def cmd_ask(args):
 
     if prompts is not None:
         o = ask_many(prompts, system=args.system or None, model=args.model or None,
-                     max_tokens=args.max_tokens, max_workers=args.workers)
+                     max_tokens=args.max_tokens, max_workers=args.workers,
+                     with_files=getattr(args, "with_files", None))
         if args.json:
             print(json.dumps({"ok": o.ok, "partial": o.partial, "why": o.why, **o.detail},
                              ensure_ascii=False, default=str))

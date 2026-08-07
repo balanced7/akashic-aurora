@@ -127,6 +127,44 @@ def test_ask_accepts_with_and_records_what_it_sent(monkeypatch, tree):
     assert o.detail.get("context", {}).get("included"), "outcome records what it sent"
 
 
+def test_with_files_reaches_the_FAN_not_only_the_single_ask(tree):
+    """FOUND WHILE PLAYING, and it was a SILENT no-op. --with was accepted on --fan and
+    --prompts-file and did nothing: with_files was threaded into the single-ask path and
+    never into ask_many. Five helpers in a 5-way fan correctly answered 'I cannot answer,
+    the files were not attached' -- the flag had simply evaporated between the door and
+    the worker.
+
+    Silent flag-drop is the worst shape available: the command succeeds, the answers look
+    well-formed, and only a reader who knows what SHOULD have been in the prompt can tell.
+    Built once per fan rather than per branch, so N branches share one context read."""
+    seen = []
+
+    class FakeResp:
+        class C:
+            class M:
+                content = "ok"
+            message = M()
+            finish_reason = "stop"
+        choices = [C()]
+        usage = None
+
+    class FakeClient:
+        class chat:
+            class completions:
+                @staticmethod
+                def create(**kw):
+                    seen.append(str(kw.get("messages")))
+                    return FakeResp()
+
+    o = ask_mod.ask_many(["q1", "q2"], client=FakeClient(),
+                         with_files=[str(tree / "a.py")], context_root=tree)
+    assert o.ok
+    assert len(seen) == 2
+    for msg in seen:
+        assert "alpha" in msg, "every branch must receive the inlined file"
+    assert o.detail.get("context", {}).get("included")
+
+
 def test_context_block_is_delimited_so_prose_and_code_cannot_blur():
     """A model that cannot tell the question from the source will answer about the
     wrong one. Cheap to guarantee, expensive to debug."""
