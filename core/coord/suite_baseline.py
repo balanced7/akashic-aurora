@@ -120,6 +120,97 @@ def delta(current_nodes: List[str]) -> Dict[str, List[str]]:
             "inherited": sorted(cur & base)}
 
 
+def head_sha() -> str:
+    """Short sha of the tree the tests just ran against, or "" when git cannot answer.
+
+    Injectable in pins, and "" is load-bearing: an unresolvable HEAD means we cannot
+    know the baseline is current, and the only honest reading is UNKNOWN. Failing toward
+    "fresh" would manufacture confident attributions out of a broken git call.
+    """
+    try:
+        import subprocess
+        r = subprocess.run(["git", "rev-parse", "--short=7", "HEAD"],
+                           cwd=os.path.dirname(os.path.dirname(os.path.dirname(
+                               os.path.abspath(__file__)))),
+                           capture_output=True, text=True, timeout=10,
+                           stdin=subprocess.DEVNULL)
+        return (r.stdout or "").strip() if r.returncode == 0 else ""
+    except Exception:
+        return ""
+
+
+#: verdict -> what the reader should actually do about it.
+VERDICT_NEXT = {
+    "YOURS": "this failure is not in the baseline and the baseline is CURRENT -- it "
+             "arrived with your change; investigate it",
+    "INHERITED": "already failing at the baseline, which is current -- not yours, leave it",
+    "LIKELY_INHERITED": "was failing when the baseline was taken, but that baseline is "
+                        "STALE -- probably not yours, though it could have been fixed and "
+                        "re-broken in the gap; re-record the baseline to be sure",
+    "UNKNOWN": "cannot be attributed: the baseline is stale or absent, so this may have "
+               "arrived any time in the gap -- BISECT this one (stash or a worktree at "
+               "HEAD), or re-record the baseline first",
+}
+
+
+def verdicts(current_nodes: List[str], *, now_sha: Optional[str] = None,
+             full_suite: bool = False) -> Dict[str, Any]:
+    """Per-node attribution: is this failure MINE? (T208)
+
+    WHY THIS EXISTS, measured 2026-08-06. Four failures were hit while shipping T200 and
+    T203, and each cost a manual `git stash` bisect -- one of which was answered WRONG,
+    publicly, from an inconclusive single-test run. The baseline already knew one of the
+    four (`test_t060_n0_shadow_router`, recorded 2026-07-24) and nothing surfaced it. Same
+    shape as T197: the verdict existed, the door never asked.
+
+    WHAT delta() COULD NOT SAY. It does pure set math and never compares the stored sha to
+    HEAD, so "new" silently means both "arrived with your change" and "broke somewhere in
+    the 14-day gap". Collapsing those is how a baseline trains a lie -- and it is the same
+    one-word-two-meanings failure as `drained`, `unread` and `wakeable`.
+
+    STALENESS CONTAMINATES BOTH DIRECTIONS, which is the half a naive fix misses: a node
+    IN a stale baseline is only PROBABLY inherited, because it could have been fixed and
+    re-broken since. "It was failing before" is the comfortable answer, so it is the one
+    that rots unwatched.
+
+    ADDITIVE: delta() keeps its contract; existing callers are untouched.
+    """
+    rec = read()
+    base = {f["node"] for f in (rec or {}).get("failures", [])}
+    b_sha = str((rec or {}).get("sha") or "")
+    h_sha = str(now_sha if now_sha is not None else head_sha())
+    # Fresh ONLY when both shas are known and equal. Unknown either side -> stale, because
+    # "I could not check" must never render as "I checked and it matched".
+    fresh = bool(rec) and bool(b_sha) and bool(h_sha) and b_sha.startswith(h_sha[:7])
+
+    by_node: Dict[str, Any] = {}
+    for n in sorted(set(current_nodes)):
+        if n in base:
+            v = "INHERITED" if fresh else "LIKELY_INHERITED"
+        else:
+            v = "YOURS" if fresh else "UNKNOWN"
+        by_node[n] = {"verdict": v, "next": VERDICT_NEXT[v]}
+
+    counts: Dict[str, int] = {}
+    for row in by_node.values():
+        counts[row["verdict"]] = counts.get(row["verdict"], 0) + 1
+
+    # `fixed` is only computable when the run COVERED the baseline's scope. Caught live
+    # 2026-08-07 on this function's first real use: running three files reported ten
+    # baseline failures as "fixed" when they had simply not been run -- and "fixed"
+    # invites a re-record, which would have DELETED ten known failures from the receipt.
+    # Correct under one assumption, silently wrong under another: the same shape as
+    # every other defect in this arc. A subset run reports them as not_evaluated.
+    missing = sorted(base - set(current_nodes))
+    return {"by_node": by_node, "counts": counts,
+            "fixed": missing if full_suite else [],
+            "not_evaluated": [] if full_suite else missing,
+            "full_suite": bool(full_suite),
+            "stale": not fresh, "baseline_sha": b_sha or None,
+            "head_sha": h_sha or None, "baseline_at": (rec or {}).get("at"),
+            "has_baseline": bool(rec)}
+
+
 def render_boot_line() -> str:
     """One boot line: count + provenance + age + the DECAY advisory (kimi (b)):
     classified lanes that have since CLOSED mean the classification rotted even if

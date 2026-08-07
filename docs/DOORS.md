@@ -79,7 +79,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `stats` | recall-value funnel: surfaced -> helped -> flips -> captured | `--hours` `--days` `--silence` `--json` |
 | `status` | honest system status | `--json` |
 | `story` | print narrative story views | `--chronicle` `--mark` `--session-end` `--track` `--theme` `--themes` `--at` `--chapter` `--beat` `--raw` `--json` |
-| `suite-baseline` | the test-suite receipt (W34): record a pytest run's failures + lanes; the next seat diffs (new/fixed/inherited) | `<agent_id>*` `--from-file` `--sha` `--check` `--show` |
+| `suite-baseline` | the test-suite receipt (W34): record a pytest run's failures + lanes; the next seat diffs (new/fixed/inherited) | `<agent_id>*` `--from-file` `--sha` `--check` `--show` `--whose` |
 | `tag-anti-pattern` | tag an EXISTING lesson as a reusable known-bad | `<agent_id>*` `--experiment*` `--name*` `--reason` `--json` |
 | `tally` | W48 (kimi): blind-counter consensus matrix -- scan research/ for counters naming an opening, align their q-ids, print agree/conflict at a glance | `<opening>*` `--research-dir` `--json` |
 | `task` | task lifecycle over the governed ledger: propose/approve/claim/start/verify/done/block/list/next (the coordination door) | `<rest>*` |

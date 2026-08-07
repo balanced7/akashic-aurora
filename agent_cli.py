@@ -4484,6 +4484,61 @@ def cmd_suite_baseline(args):
         line = sb.render_boot_line()
         print(line or "[suite-baseline] none recorded yet")
         return 0
+
+    # T208 --whose: run the tests AND attribute every failure, in one command. This is
+    # the ergonomic point: on 2026-08-06 four failures each cost a manual git-stash
+    # bisect, one of which I answered WRONG in public, while the baseline already knew
+    # one of them and never said so.
+    whose = getattr(args, "whose", None)
+    if whose is not None:
+        import shlex
+        import subprocess
+        pa = shlex.split(whose) if whose.strip() else ["tests/"]
+        print(f"[suite-baseline] running: pytest {' '.join(pa)}", file=sys.stderr)
+        try:
+            r = subprocess.run([sys.executable, "-m", "pytest", *pa, "-q"],
+                               capture_output=True, text=True, timeout=3600,
+                               cwd=os.path.dirname(os.path.abspath(__file__)),
+                               stdin=subprocess.DEVNULL)
+        except Exception as e:
+            print(f"[suite-baseline] could not run pytest: {type(e).__name__}: {e}",
+                  file=sys.stderr)
+            return 2
+        nodes = sb.ingest_pytest((r.stdout or "") + "\n" + (r.stderr or ""))
+        # Only a bare `tests/` run covers the baseline's scope; anything narrower cannot
+        # prove a baseline failure was fixed rather than simply not run.
+        v = sb.verdicts(nodes, full_suite=(not pa or pa == ["tests/"]))
+        if getattr(args, "json", False):
+            print(json.dumps(v, ensure_ascii=False, default=str))
+            return 0
+        if not nodes:
+            print("[suite-baseline] 0 failures")
+            return 0
+        prov = (f"baseline @{v['baseline_sha']} vs HEAD @{v['head_sha']}"
+                if v["has_baseline"] else "NO baseline recorded")
+        print(f"# {len(nodes)} failure(s) -- {prov}"
+              + ("  [STALE: attribution is limited]" if v["stale"] else "  [current]"))
+        for verdict in ("YOURS", "UNKNOWN", "LIKELY_INHERITED", "INHERITED"):
+            hits = [n for n, row in v["by_node"].items() if row["verdict"] == verdict]
+            if not hits:
+                continue
+            print(f"\n{verdict} ({len(hits)}): {sb.VERDICT_NEXT[verdict]}")
+            for n in hits:
+                print(f"    {n}")
+        if v["fixed"]:
+            print(f"\nfixed since baseline ({len(v['fixed'])}) -- re-record to keep "
+                  f"attribution sharp:")
+            for n in v["fixed"][:10]:
+                print(f"    {n}")
+        elif v["not_evaluated"]:
+            print(f"\n{len(v['not_evaluated'])} baseline failure(s) NOT RUN by this "
+                  f"selection -- not fixed, just unevaluated. Do NOT re-record from a "
+                  f"subset: it would drop them from the receipt.", file=sys.stderr)
+        # Exit 1 only for failures this tree is actually answerable for. UNKNOWN is not
+        # an accusation, so it must not fail a gate -- that is how an honest "I cannot
+        # tell" gets quietly converted into "yours".
+        return 1 if v["counts"].get("YOURS") else 0
+
     path = getattr(args, "from_file", None)
     if not path:
         print("[suite-baseline] need --from-file <pytest output> (or --show)")
@@ -5584,6 +5639,13 @@ def build_parser():
     sbp.add_argument("--check", action="store_true",
                      help="diff --from-file against the baseline instead of recording")
     sbp.add_argument("--show", action="store_true", help="print the baseline boot line")
+    sbp.add_argument("--whose", nargs="?", const="", default=None, metavar="PYTEST_ARGS",
+                     help="run the tests and ATTRIBUTE every failure: YOURS / UNKNOWN / "
+                          "LIKELY_INHERITED / INHERITED, each with what to do. Replaces "
+                          "the manual git-stash bisect. Says UNKNOWN rather than guessing "
+                          "when the baseline is stale -- and UNKNOWN never exits nonzero, "
+                          "because 'I cannot tell' must not become an accusation. "
+                          'e.g. --whose "tests/ -k ask"')
     sbp.set_defaults(fn=cmd_suite_baseline)
 
     dr = sub.add_parser("bifrost-drain", help="request a runner's GRACEFUL exit: finish "
