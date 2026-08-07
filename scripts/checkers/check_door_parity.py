@@ -141,6 +141,15 @@ MANIFEST = {
     # set from "someone with a shell" to "any attached seat" (same rule as grant /
     # season_score). Pinned in tests/test_t200_ask_friction_mcp_twins.py.
     "ask": "shared",
+    # T211: the cross-domain timeline. Classified `gap` on the same evidence and by the
+    # same argument as `ask` and `friction` below -- it is a READ verb whose whole value
+    # is to a debugging agent, and the seat that most needs it is the MCP-attached
+    # conductor who just spent six turns on a bug this view resolves at a glance. CLI-only
+    # is survivable today only because that seat can shell out. Debt, not design: pay it
+    # down with the other membrane gaps, in the T200 shape (structured record over both
+    # twins so the COVERAGE block survives the transport -- a timeline that loses its
+    # coverage report is a timeline that lies by omission).
+    "timeline": "gap",
     # T196a: friction is the collaboration-tax readout, and the seat that most needs to
     # read it is the MCP-attached conductor -- same argument as `ask` above, so the same
     # honest classification: debt, not design. Pay down with the membrane gaps.

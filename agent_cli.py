@@ -1186,6 +1186,46 @@ def list_verbs(query=""):
     return verbs
 
 
+def cmd_timeline(args):
+    """timeline -- one chronological view across domains (T211).
+
+    Forensics' super timeline: you do not search for the cause, you line the domains up
+    by time and it becomes visible. Built after a wake bug cost six turns because my own
+    asks were manufacturing the mail I kept draining -- every fact was already recorded,
+    in four domains, and nothing put them in one column.
+
+    Coverage is printed with the rows, never separately: a merged view missing a domain
+    looks exactly like a view where nothing happened in it.
+    """
+    import time as _t
+    from core.coord import timeline as tl
+
+    since = _t.time() - float(args.hours) * 3600.0 if args.hours else None
+    r = tl.gather(since=since)
+    if args.json:
+        print(json.dumps(r, ensure_ascii=False, default=str))
+        return 0
+
+    cov = r["coverage"]
+    print(f"# timeline -- {cov['n']} row(s)"
+          + (f" over the last {args.hours}h" if args.hours else " (all)"))
+    print(f"  read: {', '.join(f'{k}={v}' for k, v in sorted(cov['counts'].items())) or 'none'}"
+          + (f" | undated {cov['undated']}" if cov["undated"] else ""))
+    for name, why in (cov["failed"] or {}).items():
+        print(f"  NOT READ: {name} ({why}) -- contributed zero rows, which is NOT the "
+              f"same as having none", file=sys.stderr)
+
+    rows = r["rows"][-int(args.limit):] if args.limit else r["rows"]
+    for row in rows:
+        stamp = (_t.strftime("%m-%d %H:%M:%S", _t.localtime(row["ts"]))
+                 if row["ts"] else "  ??  ??:??:??")
+        print(f"  {stamp}  {row['domain']:<7} {str(row['actor'])[:12]:<12} "
+              f"{str(row['kind'])[:18]:<18} {row['summary'][:60]}")
+    for b in r["blind"]:
+        print(f"  - {b}", file=sys.stderr)
+    return 0
+
+
 def cmd_discover(args):
     """The self-describing door: list every verb + its one-line purpose (the L1 skeleton). Optional
     QUERY filters by substring. Run `py agent_cli.py <verb> -h` for a verb's full arguments."""
@@ -5085,6 +5125,16 @@ def build_parser():
     dl.add_argument("--ack", action="store_true",
                     help="advance the seen mark to current positions after reading")
     dl.set_defaults(fn=cmd_delta)
+
+    tlp = sub.add_parser("timeline", help="one chronological view across domains "
+                                          "(events + git + task transitions) -- line the "
+                                          "domains up by time and the cause becomes visible")
+    tlp.add_argument("--hours", type=float, default=6.0, metavar="H",
+                     help="window in hours (default 6); 0 for everything")
+    tlp.add_argument("--limit", type=int, default=60, metavar="N",
+                     help="show the last N rows (default 60); 0 for all")
+    tlp.add_argument("--json", action="store_true")
+    tlp.set_defaults(fn=cmd_timeline)
 
     dsc = sub.add_parser("discover", help="list every verb + its purpose (the self-describing door)")
     dsc.add_argument("query", nargs="?", default="", help="optional substring to filter verbs by name/purpose")

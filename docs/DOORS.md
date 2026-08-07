@@ -8,7 +8,7 @@ Class: reference
 > (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by
 > check_comprehensibility so it cannot silently rot.
 
-## CLI door -- `py agent_cli.py <verb>` (76 verbs)
+## CLI door -- `py agent_cli.py <verb>` (77 verbs)
 
 The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.
 
@@ -83,6 +83,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `tag-anti-pattern` | tag an EXISTING lesson as a reusable known-bad | `<agent_id>*` `--experiment*` `--name*` `--reason` `--json` |
 | `tally` | W48 (kimi): blind-counter consensus matrix -- scan research/ for counters naming an opening, align their q-ids, print agree/conflict at a glance | `<opening>*` `--research-dir` `--json` |
 | `task` | task lifecycle over the governed ledger: propose/approve/claim/start/verify/done/block/list/next (the coordination door) | `<rest>*` |
+| `timeline` | one chronological view across domains (events + git + task transitions) -- line the domains up by time and the cause becomes visible | `--hours` `--limit` `--json` |
 | `toast` | gratitude-with-receipt (T099 BETA-2): toast a peer whose lesson saved you hops; receipt verifies against the learning store or the send REFUSES | `<agent_id>*` `<to>*` `<receipt>*` `--credit` `--force` `--json` |
 | `tool` | play-tier sandbox: list/run draft tools (data/play/<agent>/) | `<tool_cmd> {list,run}` |
 | `triage` | sharpening S1: lessons ranked by measured value (protect / cost-no-return / noise) for review | `--min-surfaced` `--json` |

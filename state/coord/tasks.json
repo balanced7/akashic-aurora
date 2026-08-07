@@ -1,5 +1,5 @@
 {
-  "seq": 210,
+  "seq": 211,
   "tasks": [
     {
       "id": "T001",
@@ -7687,6 +7687,52 @@
           "to": "done",
           "by": "",
           "at": "2026-08-07T05:18:58+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T211",
+      "title": "T211: one chronological SET across domains -- the super timeline. THE SIX TURNS IT EXISTS TO SAVE: on 2026-08-06 a wake watcher kept exiting instantly and I chased it across six turns (arm, drain, arm, ack, arm, drain both lanes, arm, pause fleet, skip cursors, arm). What I could not see FROM INSIDE was that my own dogfood asks were manufacturing the pending mail I kept draining. Every fact was already recorded in four separate domains and nothing put them in one column; the GROWTH from 7 to 10 undrainable across two arms IS the diagnosis, visible at a glance in a merged view. Forensics calls this a super timeline (plaso/log2timeline): you do not search for the cause, you line the domains up by time and it becomes visible. IT EMITS A SET, NOT A RENDERING -- Daniil's correction adopted. He pushed back on my 'one result set, many lenses' framing because the value at his work comes from CROSS-MATCHING what one system has and another does not, and he is right: nearly every guard we own is ALREADY a cross-domain set difference (check_door_parity CLI-minus-MCP-minus-ToolBox, check_wiring tracked-minus-reachable, suite_baseline.delta, T122 unmapped kinds) -- four of our best instruments, one shape, each hand-built as a one-off. So gather() returns rows a future compare() can diff. COVERAGE IS LOAD-BEARING: a set difference is only as true as the coverage of BOTH sides, and A-minus-B with B partly collected MANUFACTURES findings -- the exact bug I shipped and caught four minutes later today. Every result names read / failed / per-domain counts / undated / window, and 'nothing happened there' is never confused with 'I could not look there'. CAUGHT LIVE ON FIRST RUN, one function below the pin forbidding it: git's %at is a bare epoch STRING, to_epoch parses ISO and returned 0.0 for every commit, so all of git was stamped 1970 and the since-filter dropped it -- coverage read git:0 while six commits sat in the window. A 0 from any parser means 'could not read', never 1 Jan 1970; trusting it is how undateable evidence silently becomes the OLDEST evidence. The original pins passed because they fed dicts straight in and never exercised the parse -- third instance today of 'a pin that supplies its own inputs tests the mechanism, not the wiring'.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "HEAD",
+      "verified_by": "20/20 pins; live merge across events/git/tasks with coverage, after catching an epoch-0 coercion on first run",
+      "created": "2026-08-07T05:31:42+00:00",
+      "updated": "2026-08-07T05:31:54+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-07T05:31:42+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-07T05:31:43+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-07T05:31:43+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-08-07T05:31:44+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-07T05:31:44+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-07T05:31:54+00:00"
         }
       ]
     }
