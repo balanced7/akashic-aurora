@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (38 of 142 modules lack both pin and paper by name)
+## GAP queue (38 of 143 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/migrate_to_sqlite.py
@@ -81,7 +81,7 @@ Class: reference
 | `agent_signal_ledger.py` | Agent Signal Ledger: the ordered record of every signal agents emit | GAP | GAP |  |
 | `coordinator_api.py` | Coordinator API: Minimal signal-based logging for agents | GAP | GAP | `AI_SETUP` |
 
-## core/comm/  (49 modules)
+## core/comm/  (50 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
@@ -101,6 +101,7 @@ Class: reference
 | `door_probe.py` | door_probe -- does the MCP door actually answer, right now, in THIS environment? | tests/test_door_probe.py | research/reviewed/deepseek-door-probe-attack-2026-07-26.md |  |
 | `engine_vitals.py` | engine_vitals -- gauge_snapshot(), the engine room's pulse (T079-E1). | tests/test_t079_e1_engine_vitals.py | GAP | `BIFROST_NAMESPACE` |
 | `expectations.py` | expectations -- sender-side reply deadlines + redrive (T030 L4 / RB-29). | tests/test_t030_l4_expectations.py | GAP | `AKASHIC_EXPECT_TASK_SETTLE`, `BIFROST_NAMESPACE` |
+| `failure_class.py` | failure_class -- name the cause of a dead ask, and say what to do about it (T202). | tests/test_t202_failure_class.py | GAP |  |
 | `fence_phase.py` | fence_phase -- the method board's state source (T079-E2). | GAP | GAP |  |
 | `flow_trace.py` | flow_trace (R3 / T054) -- the OTel-style waterfall over lanes: what HAPPENED, in causal | tests/test_flow_trace.py | GAP | `AKASHIC_FLOW_NO_COUNT`, `BIFROST_NAMESPACE` |
 | `friction.py` | friction -- read the collaboration tax from evidence that already exists (T196a). | tests/test_t196a_friction.py | docs/library/design/20260701_night-friction-program-every-pain-point_70f449.md |  |

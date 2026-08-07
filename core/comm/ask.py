@@ -311,6 +311,17 @@ def ask_peer(sender, peer, prompt, *, wait_s: float = 120.0, poll_s: float = 2.0
         "launched": launched,
         "how_to_check": f"py agent_cli.py ask --status {mid} --as {sender}",
     }
+    # T202: when it did NOT settle, name WHICH failure this is and what to do -- the
+    # caller used to work that out by hand thirty minutes later. Computed only on the
+    # unhappy path, so a healthy ask pays nothing (the wake_worthy discipline: the one
+    # check that costs a round trip runs only for the case that needs it). DIAGNOSIS
+    # ONLY -- nothing here changes send or redrive policy (deepseek's law: a redrive is
+    # still a send, so skipping one is gating a decision point later).
+    if st["state"] not in ("CLOSED.ANSWERED", "CLOSED.ECHO"):
+        try:
+            detail["diagnosis"] = _diagnose(peer, peer_state)
+        except Exception:
+            detail["diagnosis"] = None      # a diagnosis must never cost the outcome
     if st["state"] == "CLOSED.ANSWERED":
         answer = None
         try:
@@ -337,6 +348,51 @@ def ask_peer(sender, peer, prompt, *, wait_s: float = 120.0, poll_s: float = 2.0
     return _BO.partially(
         f"not settled within {wait_s}s -- the ask stays armed, redrives continue on "
         f"their own schedule; check later with ask --status", **detail)
+
+
+def _diagnose(peer: str, peer_state: str):
+    """Gather the observations failure_class.classify needs, then classify (T202).
+
+    Observation split from decision, the T025 idiom: every probe happens HERE and the
+    taxonomy stays pure. Each read is independently guarded -- a missing observation
+    becomes None and the classifier falls to a weaker but honest verdict, rather than the
+    whole diagnosis vanishing because one probe was unreachable.
+    """
+    from core.comm.failure_class import base_form, classify
+
+    base = base_form(peer)
+    base_attending = None
+    if base:
+        try:
+            from core.comm.liveness import attendance
+            base_attending = attendance(base).state == "ATTENDED"
+        except Exception:
+            base_attending = None
+    launchable = None
+    try:
+        from core.comm.launcher import get_launcher
+        from core.comm.peer_ready import resolve_tag
+        launchable = bool(resolve_tag(peer, get_launcher().registry())["ok"])
+    except Exception:
+        launchable = None
+    # known_seat stays None unless a witness POSITIVELY says this seat exists. The first
+    # cut derived it from `launchable or attending`, which is absence-of-evidence wearing
+    # a boolean: kimi, sol and deepseek-review are real, long-lived seats with no
+    # launcher tag, and that formula called all three UNKNOWN_PEER on their first live
+    # run. A seat the roster has ever witnessed is known; anything else is unknown, and
+    # unknown must not collapse to False.
+    known_seat = None
+    try:
+        from core.comm import roster as _roster
+        from core.comm.liveness import _ns as _lns
+        seen = {str(r.get("agent") or "").split("#")[0] for r in _roster.roster(_lns())}
+        if peer in seen or (base and base in seen):
+            known_seat = True
+    except Exception:
+        known_seat = None
+    return classify(peer, attending=(peer_state == "ATTENDED"),
+                    base_attending=base_attending, launchable=launchable,
+                    known_seat=known_seat)
 
 
 def _fan_client(client):
