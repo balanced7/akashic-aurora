@@ -30,9 +30,14 @@ translate flags"; Lens 2 returned a clean negative trace and marked its own unce
 
 The reason is mechanical, and it is the same mechanism T225 is about. `build_context` writes, in
 band, `--- COULD NOT READ <path> (...) -- do not assume its contents ---`, and the helpers obeyed
-it exactly. **The in-band refusal notice is an anti-confabulation device, and it is why the fan's
-precision beat my prediction.** The defect was never that the door lies to the model. It is that
-the same fact never reaches the human.
+it exactly. ~~**The in-band refusal notice is an anti-confabulation device, and it is why the
+fan's precision beat my prediction.**~~ The defect was never that the door lies to the model. It
+is that the same fact never reaches the human.
+
+> **CORRECTION, same day, struck above.** That sentence was a causal claim from two observations
+> about a mechanism I had just shipped, filed in the document where I was scoring my own honesty.
+> Four screens away the friction reader says `presence_effect is a CORRELATION and licenses no
+> causal claim`. I had the disease I was diagnosing. Ablation below; it cost $0.03 and refutes me.
 
 **P2 is a note, not an action.** Five genuinely different lenses scored 0.0606, between the
 calibrated bands (DISTINCT_AT 0.05, COLLAPSE_AT 0.85), so the instrument returned `unknown`.
@@ -121,6 +126,51 @@ Both closed in the same slice, because each was created by fixing the one above 
   A2 every claim dispositioned in writing, refutations kept -- **met** (table above).
   A3 per-branch yield reported including zeros -- **met** (Lenses 1 and 5 yielded no claims, and
      Lens 1's silence was the finding).
+
+## ABLATION: what actually makes the helpers abstain? (added same day)
+
+Written because the struck sentence above was unearned, and because noticing WHY it was unearned
+found a confound: `DEFAULT_SYSTEM` already ends *"If you cannot answer from what you were given,
+say exactly what is missing -- a stated gap is worth more than a confident guess."* Two abstention
+instructions were in play and I credited the one whose slice I was writing.
+
+Target: `QUORUM_FLOOR` in `core/comm/quorum_gate.py`. Neither exists, so any specific value is
+invented by construction -- no lucky guesses to argue about.
+
+| condition | n | confabulated |
+|---|---|---|
+| 2x2: notice x gap-instruction, BLATANT absence (wrong file entirely) | 16 | **0** |
+| notice x gap-instruction, TEMPTING (file present, on-topic, truncated before the answer) | 8 | **0** |
+| BARE: no header, no notice, no gap instruction, plain assistant persona | 5 | **1** |
+| HEADER ONLY: exactly one factor added back to BARE | 5 | **0** |
+
+**The refusal notice is not what produced the abstentions.** Removing it AND the system prompt's
+gap sentence changed nothing across 24 branches at two difficulty levels. The struck claim is
+refuted, not merely unsupported.
+
+**The load-bearing nudge is the one nobody was talking about**: `build_context`'s header --
+*"CITE `filename:line` for any claim about this code; if you are inferring rather than reading,
+say so explicitly."* It is the only factor whose removal produced the class
+(`"The default value of QUORUM_FLOOR is 3"`, flat and unhedged), and adding it back as a
+single-factor change restored 5/5 abstention -- with every answer now citing `quorum_gate.py:4-6`,
+which is the behaviour the header asks for. That is a mechanism, not just a correlation: the
+header makes the answer's FORM require a line reference, and you cannot cite a line for a constant
+that is not there.
+
+**What this does NOT establish.** 1 event in 5 is not a rate; the effect is qualitative (the class
+appears / does not appear), and the size is unmeasured. The BARE arm also changed the system
+persona, which is why the HEADER-ONLY arm exists -- but one single-factor arm at n=5 is suggestive,
+not settled. Replication belongs to whoever needs to depend on it.
+
+**Why the original P1 refutation actually happened**, most likely: I forecast >=50% confabulation
+from a general prior about hallucination, and that prior does not transfer to *"is symbol X in the
+text I was handed?"* -- a locally checkable question about evidence the helper can see. Cheaper and
+less flattering than "my notice saved it."
+
+**T225 is unaffected and still right.** The notice's job was never to make the helper abstain --
+the helper had other reasons. Its job is to tell the CALLER, and that half was genuinely broken,
+measured at 0 bytes of stderr and $0.065. What changed is my story about the helper half, which I
+had no business asserting.
 
 ## Still open, filed not closed
 
