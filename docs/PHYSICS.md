@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 12dec2e. A bound you discover by collision is not awareness -- this sheet
+> Derived at 892cdbc. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -25,7 +25,7 @@ Class: reference
 | `AKASHIC_ASK_DISTINCT_AT` | `"0.05"` | core/comm/ask.py |
 | `AKASHIC_ASK_EXPECT_S` | `"1800"` | agent_cli.py |
 | `AKASHIC_ASK_FAN_WORKERS` | `"6"` | core/comm/ask.py |
-| `AKASHIC_ASK_MAX_TOKENS` | `"2000"` | core/comm/ask.py |
+| `AKASHIC_ASK_MAX_TOKENS` | `"0"` | core/comm/ask.py |
 | `AKASHIC_ASK_MODEL` | `"deepseek-v4-pro"` | core/comm/ask.py |
 | `AKASHIC_AUTOBOOT` | `"1"` | agent/harness/context.py |
 | `AKASHIC_BENCH_PROBE_DAYS` | `"14"` | core/recall/at_action.py |

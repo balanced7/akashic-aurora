@@ -2000,7 +2000,9 @@ def cmd_ask(args):
 
     o = ask_helper(prompt, system=args.system or None, model=args.model or None,
                    max_tokens=args.max_tokens,
-                   with_files=getattr(args, "with_files", None))
+                   with_files=getattr(args, "with_files", None),
+                   continue_on_cut=bool(getattr(args, "continue_on_cut", False)),
+                   max_continuations=int(getattr(args, "continuations", 2)))
 
     if args.json:
         print(json.dumps({"ok": o.ok, "partial": o.partial, "why": o.why, **o.detail},
@@ -4949,6 +4951,16 @@ def build_parser():
                             "the DURABLE expectation keeps redriving after it")
     ask_p.add_argument("--poll", type=float, default=2.0,
                        help="poll interval for --peer (default 2s)")
+    ask_p.add_argument("--no-continue", dest="continue_on_cut", action="store_false",
+                       default=True,
+                       help="do NOT resume a CUT answer. Continuation is ON by default: "
+                            "with no token ceiling, a cut means the model hit its OWN "
+                            "limit, and stitching costs one completion while a re-ask "
+                            "pays for the whole prompt again. Never fires for a STARVED "
+                            "answer -- there is nothing to continue")
+    ask_p.add_argument("--continuations", type=int, default=2, metavar="N",
+                       help="how many continuations --continue may spend (default 2); "
+                            "running out still reports PARTIALLY, never a clean done")
     ask_p.add_argument("--with", dest="with_files", action="append", metavar="PATH",
                        help="inline a repo file into the ask, WITH LINE NUMBERS, so the "
                             "helper can cite file:line instead of reasoning blind. "

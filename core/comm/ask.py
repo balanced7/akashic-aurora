@@ -40,7 +40,18 @@ from typing import Optional
 from core.outcome import BoundaryOutcome
 
 DEFAULT_MODEL = os.getenv("AKASHIC_ASK_MODEL", "deepseek-v4-pro")
-DEFAULT_MAX_TOKENS = int(os.getenv("AKASHIC_ASK_MAX_TOKENS", "2000"))
+# 0 == UNLIMITED: omit max_tokens from the request entirely and let the model run to its
+# own ceiling. Daniil 2026-08-06: "make an unlimited version and we can figure out scaling
+# down from there."
+#
+# WHY THIS IS THE RIGHT DEFAULT NOW, and was not before. A ceiling existed to protect the
+# CALLER'S CONTEXT -- a long answer was expensive because it landed in the conductor's
+# window whole. That is a reason to bound DELIVERY, not GENERATION, and it produced the
+# worst possible failure: measured twice today, a reasoning model spent the entire budget
+# thinking and returned zero visible tokens, having been billed for all of it. A truncated
+# answer costs full price for nothing, then costs a retry that pays for the whole prompt
+# again (8662 tokens with --with).
+DEFAULT_MAX_TOKENS = int(os.getenv("AKASHIC_ASK_MAX_TOKENS", "0"))
 BASE_URL = os.getenv("AKASHIC_ASK_BASE_URL", "https://api.deepseek.com")
 # T181 fan width. 6 is a DECISION, not a measurement: merge attention at the junction binds
 # before generation does, so a fan wider than an integrator can absorb produces merge debt
@@ -181,7 +192,8 @@ def build_context(paths, *, budget_chars: Optional[int] = None, root=None):
 
 def ask(prompt: str, *, system: Optional[str] = None, model: Optional[str] = None,
         max_tokens: Optional[int] = None, client=None, with_files=None,
-        context_root=None) -> BoundaryOutcome:
+        context_root=None, continue_on_cut: bool = False,
+        max_continuations: int = 2) -> BoundaryOutcome:
     """Ask a helper one question, synchronously. Never raises.
 
     Returns a BoundaryOutcome whose `detail["answer"]` carries the text. done / partially / failed
@@ -209,12 +221,15 @@ def ask(prompt: str, *, system: Optional[str] = None, model: Optional[str] = Non
             # per-read timeout AND lands in the T156 wire journal for free.
             from core.comm.runner_lib import make_openai_compat_client
             client = make_openai_compat_client(key, BASE_URL)
-        resp = client.chat.completions.create(
-            model=model,
-            messages=[{"role": "system", "content": system or DEFAULT_SYSTEM},
-                      {"role": "user", "content": prompt}],
-            max_tokens=max_tokens or DEFAULT_MAX_TOKENS,
-        )
+        kwargs = {
+            "model": model,
+            "messages": [{"role": "system", "content": system or DEFAULT_SYSTEM},
+                         {"role": "user", "content": prompt}],
+        }
+        cap = DEFAULT_MAX_TOKENS if max_tokens is None else int(max_tokens)
+        if cap > 0:                      # 0 -> omit entirely: the model's own ceiling
+            kwargs["max_tokens"] = cap
+        resp = client.chat.completions.create(**kwargs)
     except Exception as e:
         return BoundaryOutcome.caught(e, where=f"ask({model})")
 
@@ -226,26 +241,117 @@ def ask(prompt: str, *, system: Optional[str] = None, model: Optional[str] = Non
         usage = getattr(resp, "usage", None)
         pt = int(getattr(usage, "prompt_tokens", 0) or 0)
         ct = int(getattr(usage, "completion_tokens", 0) or 0)
+        rt = _reasoning_tokens(usage)
     except Exception as e:
         return BoundaryOutcome.caught(e, where="ask(parse response)")
 
+    # T204: a cut answer has TWO causes and they need opposite moves. CUT means the model
+    # said something and stopped -- continuing costs one completion. STARVED means
+    # reasoning consumed the budget before a visible token appeared, so there is nothing
+    # to continue and only a bigger budget helps. Measured both in one session.
+    continuations = 0
+    if finish == "length" and answer and continue_on_cut:
+        answer, continuations, finish, pt, ct, rt = _continue_answer(
+            client, model, system or DEFAULT_SYSTEM, prompt, answer,
+            cap, int(max_continuations), pt, ct, rt)
+
+    truncation = None
+    if finish == "length":
+        truncation = "CUT" if answer else "STARVED"
     detail = {"answer": answer, "model": model, "prompt_tokens": pt,
               "completion_tokens": ct, "usd": _usd(model, pt, ct),
-              "elapsed_s": elapsed, "finish_reason": finish}
+              "elapsed_s": elapsed, "finish_reason": finish,
+              # None, never 0: a provider that does not report reasoning must not read as
+              # "reasoned zero" -- the fabricated-measurement lie, one field down.
+              "reasoning_tokens": rt, "truncation": truncation,
+              "continuations": continuations}
     if ctx_meta is not None:
         # Which files this answer was based on. Without it a cited claim cannot be traced
         # back to the version of the file that was actually read.
         detail["context"] = ctx_meta
 
     if not answer:
+        if truncation == "STARVED":
+            # Name the cause and the size of it. "The answer was cut" is not actionable;
+            # "reasoning used 1200 of 1200" says raise the budget, and by how much.
+            spent = f"{rt} of {ct}" if rt is not None else f"all {ct}"
+            where = (f"this call had max_tokens={cap}" if cap > 0 else
+                     "this call was UNLIMITED, so the model hit its own ceiling -- "
+                     "narrow the question or trim the inlined context")
+            return BoundaryOutcome.failed(
+                f"STARVED: reasoning consumed {spent} completion tokens before any "
+                f"visible output -- there is nothing to continue ({where})", **detail)
         return BoundaryOutcome.failed(
             f"model returned an empty answer (finish_reason={finish})", **detail)
     if finish == "length":
         # The T169 lesson, generalized: out of room is a PARTIAL, never a silent complete.
+        # Still PARTIALLY after exhausted continuations -- a stitched-but-incomplete
+        # answer rendered as done would hide precisely what the stitching failed to fix.
+        cont = (f" after {continuations} continuation(s)" if continuations else "")
+        ceiling = f"the {cap}-token ceiling" if cap > 0 else "the model's own ceiling"
         return BoundaryOutcome.partially(
-            f"answer cut at the {max_tokens or DEFAULT_MAX_TOKENS}-token ceiling "
-            f"(finish_reason=length) -- ask again narrower, or raise --max-tokens", **detail)
+            f"answer cut at {ceiling}{cont} (finish_reason=length) -- ask again "
+            f"narrower, or allow more continuations", **detail)
     return BoundaryOutcome.done(**detail)
+
+
+def _reasoning_tokens(usage):
+    """Hidden reasoning tokens, or None when the provider does not report them (T204).
+
+    A zero-cost field we have always discarded: the T156 wire survey listed
+    completion_tokens_details.reasoning_tokens among seven free fields we never read, and
+    named it the diagnosis for content-empty-because-thinking-ate-the-budget. None rather
+    than 0 for an absent field -- "did not report" is not "reasoned nothing".
+    """
+    try:
+        d = getattr(usage, "completion_tokens_details", None)
+        v = getattr(d, "reasoning_tokens", None)
+        return int(v) if v is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _continue_answer(client, model, system, prompt, partial, max_tokens, budget,
+                     pt, ct, rt):
+    """Resume a CUT answer, bounded. Returns (answer, continuations, finish, pt, ct, rt).
+
+    The partial rides back as an ASSISTANT turn: a continuation that cannot see what was
+    already said will restart or repeat itself. Cheaper than re-asking, which with --with
+    means paying for the whole inlined context again (8662 tokens, measured).
+
+    Never raises: a continuation that fails leaves the original partial intact, because
+    losing a real partial answer while trying to improve it is strictly worse than
+    returning it cut.
+    """
+    finish = "length"
+    done = 0
+    for _ in range(max(0, int(budget))):
+        try:
+            resp = client.chat.completions.create(
+                model=model, **({"max_tokens": max_tokens} if max_tokens > 0 else {}),
+                messages=[{"role": "system", "content": system},
+                          {"role": "user", "content": prompt},
+                          {"role": "assistant", "content": partial},
+                          {"role": "user", "content":
+                           "Continue from exactly where you stopped. Do not repeat any "
+                           "text you already wrote, and do not restate the question."}])
+            choice = resp.choices[0]
+            more = (choice.message.content or "").strip()
+            finish = getattr(choice, "finish_reason", None)
+            usage = getattr(resp, "usage", None)
+            pt += int(getattr(usage, "prompt_tokens", 0) or 0)
+            ct += int(getattr(usage, "completion_tokens", 0) or 0)
+            more_rt = _reasoning_tokens(usage)
+            if more_rt is not None:
+                rt = (rt or 0) + more_rt
+        except Exception:
+            return partial, done, "length", pt, ct, rt
+        done += 1
+        if more:
+            partial = f"{partial} {more}" if not partial.endswith(("\n", " ")) else partial + more
+        if finish != "length":
+            break
+    return partial, done, finish, pt, ct, rt
 
 
 # T182 bands, CALIBRATED on known-outcome controls rather than chosen. The first cut used one
