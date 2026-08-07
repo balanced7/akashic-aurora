@@ -1,5 +1,5 @@
 {
-  "seq": 215,
+  "seq": 216,
   "tasks": [
     {
       "id": "T001",
@@ -7917,6 +7917,52 @@
           "to": "done",
           "by": "",
           "at": "2026-08-07T07:11:48+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T216",
+      "title": "T216: --with was silently dropped on the fan path. FOUND WHILE PLAYING, not by a gate or a test. Ran a 5-way forecast with --with and all five helpers answered 'I cannot answer, the files were not attached' -- correctly. with_files had been threaded into the single-ask call in T203 and never into ask_many, so --with on --fan and --prompts-file was ACCEPTED and did NOTHING. Silent flag-drop is the worst shape available: the command succeeds, every answer is well-formed, and only a reader who knows what SHOULD have been in the prompt can tell. My earlier 408-way and 40-way runs were unaffected because I had inlined files into each prompt by hand, which is exactly why it survived a night of heavy use. Fixed by building the context ONCE per fan (N branches share one read and one budget) and threading it through the door; the aggregate now carries detail['context'] like the single ask does. Pinned. NOTE ON THE FIVE ABSTENTIONS: five for five declined rather than confabulating, and one used the required output shape to say CLASS: cannot be determined -- L1 abstention behaviour holding under a real failure, which is how the bug became visible at all instead of producing five plausible forecasts about a ledger nobody read.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "HEAD",
+      "verified_by": "26 green across ask family incl. a new pin that every fan branch receives the inlined file",
+      "created": "2026-08-07T07:28:27+00:00",
+      "updated": "2026-08-07T07:28:39+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-07T07:28:27+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-07T07:28:28+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-07T07:28:28+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-08-07T07:28:28+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-07T07:28:29+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-07T07:28:39+00:00"
         }
       ]
     }
