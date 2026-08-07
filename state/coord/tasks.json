@@ -1,5 +1,5 @@
 {
-  "seq": 208,
+  "seq": 209,
   "tasks": [
     {
       "id": "T001",
@@ -7595,6 +7595,52 @@
           "to": "done",
           "by": "",
           "at": "2026-08-07T04:37:06+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T209",
+      "title": "T209: cold-encounter testing -- measure ergonomics from outside familiarity, then fix what newcomers actually hit. Daniil's framing 2026-08-07: test how a model that has never seen the thing THINKS on first encounter, and use the gap between intuition and the shape of the system. I had diagnosed ask's ergonomics from my OWN intuition ('17 flags, three commands wearing one name'), but I had been steeped in that verb all session, so the read was contaminated by knowing. METHOD: three fresh helper instances given ONLY the --help output (what a newcomer reads), asked what they EXPECT five specific invocations to do, scored against ground truth I verified empirically FIRST. RESULT, two hard defects located precisely: (A) 'ask --peer X --fan 3' -- 0 of 3 predicted the refusal, all three expected a fan at the seat, and one instance named the cause itself: 'the help does not forbid combining --peer with --fan'; (C) 'ask --bg --get H' -- 0 of 3, and TWO guessed the precedence exactly backwards. --get wins because reads run first so a typo never spends a model call, which is sound reasoning no reader can see. THE SURPRISE: the no-max-tokens question scored 3 of 3 -- those flags were written the same day with help text explaining WHY (why continuation defaults on, why exhaustion still reports PARTIAL), and every cold reader inferred the semantics correctly. Help that explains WHY teaches; help that lists WHAT does not. FIXES: --bg with --get/--list now REFUSES rather than silently picking a winner (impossible state made unrepresentable, not surprising); the --peer/--fan conflict is now stated in BOTH flags' help, because a conflict documented on one of two flags is a conflict the reader meets by surprise. DEEPER LAYER (Daniil): a helper's confusion is a leading indicator of MY OWN -- the T207 helper equivocated on 'wakeable', and I made that same one-word-two-meanings error four times today (drained, unread, fixed, and the wake bug itself), invisibly. Their blind spots are mine, externalized where I can see them.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "HEAD",
+      "verified_by": "3 cold instances scored against empirically-verified ground truth; both defects closed and re-verified live",
+      "created": "2026-08-07T04:43:58+00:00",
+      "updated": "2026-08-07T04:44:10+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-07T04:43:58+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-07T04:43:59+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-07T04:43:59+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-08-07T04:44:00+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-07T04:44:00+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-07T04:44:10+00:00"
         }
       ]
     }
