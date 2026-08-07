@@ -47,8 +47,40 @@ def load_learnings_for_boot(task: str, *, learning_store: Optional[LearningStore
 _CONFIDENCE_IMPORTANCE = {"high": 5, "medium": 3, "low": 2}
 
 
+def _confidence_base(raw: Any) -> int:
+    """Categorical OR numeric confidence -> base importance. Found 2026-08-07 by the T221
+    hedging sweep, measuring what the field actually contains.
+
+    `confidence` carries TWO TYPE SYSTEMS in this repo: a categorical high/medium/low here,
+    and a float clamped to [0,1] in core/narrative/tagging.py ("coerce `c` to a FINITE
+    confidence clamped to [0,1]"). 25 of 830 live lessons store it numerically -- 0.85, 0.8,
+    0.9 -- and every one of them landed on the SAME default as a lesson with no confidence at
+    all, and as the string 'bogus'. Their authors expressed high confidence and the ranker
+    read it as unset.
+
+    A considered 0.9 and a typo must not rank identically. Numerics map onto the same 1-5
+    scale; anything genuinely unparseable still takes the neutral default, because a bad
+    value should not silently promote OR demote a lesson.
+    """
+    if isinstance(raw, (int, float)) and not isinstance(raw, bool):
+        val = float(raw)
+    else:
+        s = str(raw if raw is not None else "").strip().lower()
+        if s in _CONFIDENCE_IMPORTANCE:
+            return _CONFIDENCE_IMPORTANCE[s]
+        try:
+            val = float(s)
+        except (TypeError, ValueError):
+            return 3
+    if not (val == val) or val in (float("inf"), float("-inf")):   # NaN / inf
+        return 3
+    val = max(0.0, min(1.0, val))
+    # Same three bands the categorical scale expresses, so the two type systems agree.
+    return 5 if val >= 0.75 else (3 if val >= 0.4 else 2)
+
+
 def _importance_of(learning: Dict[str, Any]) -> int:
-    base = _CONFIDENCE_IMPORTANCE.get(str(learning.get("confidence", "medium")).lower(), 3)
+    base = _confidence_base(learning.get("confidence", "medium"))
     success = str(learning.get("success", "")).lower()
     if success == "yes":
         base = min(5, base + 1)   # a proven win is worth surfacing
