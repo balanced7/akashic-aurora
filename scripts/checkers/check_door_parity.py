@@ -149,6 +149,10 @@ MANIFEST = {
     # down with the other membrane gaps, in the T200 shape (structured record over both
     # twins so the COVERAGE block survives the transport -- a timeline that loses its
     # coverage report is a timeline that lies by omission).
+    # T213: the cross-domain set difference. Same classification and same argument as
+    # timeline directly below -- a READ verb whose value is to a debugging agent, and the
+    # seat that most needs it is the MCP-attached conductor. Debt, not design.
+    "compare": "gap",
     "timeline": "gap",
     # T196a: friction is the collaboration-tax readout, and the seat that most needs to
     # read it is the MCP-attached conductor -- same argument as `ask` above, so the same

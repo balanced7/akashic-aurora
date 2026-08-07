@@ -1,5 +1,5 @@
 {
-  "seq": 212,
+  "seq": 213,
   "tasks": [
     {
       "id": "T001",
@@ -7779,6 +7779,52 @@
           "to": "done",
           "by": "",
           "at": "2026-08-07T05:42:05+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T213",
+      "title": "T213: compare -- the cross-domain set difference, with a name. Daniil 2026-08-07: 'at work I find a lot of value by seeing what one system has and the other doesn't, cross matching account numbers, ips, design documents, logs, timestamps.' He named the shape that was ALREADY our best guard family: check_door_parity (CLI verbs minus MCP minus ToolBox), check_wiring (tracked minus reachable), suite_baseline.delta (baseline minus current), T122 (declared kinds minus kinds sent) -- four instruments we trust, one operation, each hand-built as a separate module. A lens SHOWS; a difference FINDS. Now the fifth instance costs a line. A SET DECLARES WHAT ITS ELEMENTS ARE: every KeySet carries a key_type and diff() REFUSES a mismatch rather than coercing, because comparing verb names to file paths yields a large confident meaningless difference -- Principle 5 (names must not lie) applied to sets. COVERAGE IS THE BALLGAME: A-minus-B is only as true as the coverage of BOTH sides, so an incomplete side makes the result UNRELIABLE and says which side and why -- that is T208's shipped-and-caught bug generalized, where a three-file run reported ten baseline failures as 'fixed' because they had merely not been run. Two empty sides are also unreliable: 0 minus 0 proves nothing about the world, only that nothing was collected. CAUGHT ON THE FIRST LIVE RUN, and it is the classic cross-matching problem Daniil named: the CLI hyphenates (bifrost-send) and the MCP door underscores (bifrost_send), so a raw difference reported each as missing from the other side, twice. Without a per-type normalizer a comparison measures the two systems' FORMATTING as much as their contents. Adding normalization by key_type moved shared from 21 to 28 and MCP-only from 16 to 9 -- SEVEN of sixteen findings, 44 percent, were phantoms produced by spelling. Findings are still reported in each system's own spelling, so you can go look for them.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "HEAD",
+      "verified_by": "16/16 pins; live reproduces door parity, and normalization removed 7 of 16 phantom findings",
+      "created": "2026-08-07T06:13:29+00:00",
+      "updated": "2026-08-07T06:13:42+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-07T06:13:29+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-07T06:13:30+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-07T06:13:30+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-08-07T06:13:31+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-07T06:13:31+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-07T06:13:42+00:00"
         }
       ]
     }

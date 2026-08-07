@@ -77,9 +77,10 @@
 - `turn_metrics.py` — Turn metrics (progress-bars data half; co-designed claude+deepseek 2026-07-11).
 - `wake_seat.py` — wake_seat -- the per-session wake-seat protocol (T029 Wave 2, the R1/R16 fix).
 
-## core/coord/  (15 modules)
+## core/coord/  (16 modules)
 - `capability_search.py` — capability_search -- "does this system already do X?", asked at the level of MEANING.
 - `cognitive_metrics.py` — Cognitive Efficiency Metrics — live instrumentation for the Stage-3 evidence engine.
+- `compare.py` — compare -- the cross-domain set difference, with a name (T213).
 - `conductor.py` — Conductor — the impure orchestration shell over the pure task ledger (Slice D).
 - `defer_queue.py` — defer_queue — the capability-gated standing queue (W33, seat-zero wave B3).
 - `experiment.py` — Coordination experiment harness -- the Stage-3 evidence engine.

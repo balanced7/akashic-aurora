@@ -1186,6 +1186,50 @@ def list_verbs(query=""):
     return verbs
 
 
+def cmd_compare(args):
+    """compare -- what does one domain have that another does not (T213).
+
+    The operation four of our guards each hand-rolled (door parity, wiring, the suite
+    baseline, unmapped kinds). Refuses to compare different KINDS of key, and marks a
+    result UNRELIABLE when either side was incompletely collected -- because every
+    uncollected element of the short side surfaces as a false finding on the other.
+    """
+    from core.coord import compare as cmp_mod
+
+    if getattr(args, "list", False) or not args.a:
+        print("# comparable domains (only like key-types may be diffed)")
+        for name, (_fn, kt) in sorted(cmp_mod.DOMAINS.items()):
+            print(f"  {name:<18} keys: {kt}")
+        return 0
+
+    r = cmp_mod.run(args.a, args.b)
+    if args.json:
+        print(json.dumps(r, ensure_ascii=False, default=str))
+        return 0
+    if not r["ok"]:
+        print(f"REFUSED: {r['why']}", file=sys.stderr)
+        return 2
+
+    a, b = r["a"], r["b"]
+    print(f"# {a['name']} ({a['n']}) vs {b['name']} ({b['n']})  keys={r['key_type']}")
+    if not r["reliable"]:
+        print(f"  UNRELIABLE: {r['why']}", file=sys.stderr)
+    for label, side, other in (("only in", "only_a", a), ("only in", "only_b", b)):
+        rows = r[side]
+        who = a["name"] if side == "only_a" else b["name"]
+        print(f"\n{label} {who} ({len(rows)}):")
+        for k in rows[: int(args.limit or 40)]:
+            print(f"    {k}")
+        if len(rows) > int(args.limit or 40):
+            print(f"    ... {len(rows) - int(args.limit or 40)} more")
+    print(f"\nin both: {len(r['both'])}")
+    for name, why in (a.get("failed") or {}).items():
+        print(f"  {a['name']} FAILED [{name}]: {why}", file=sys.stderr)
+    for name, why in (b.get("failed") or {}).items():
+        print(f"  {b['name']} FAILED [{name}]: {why}", file=sys.stderr)
+    return 0
+
+
 def cmd_timeline(args):
     """timeline -- one chronological view across domains (T211).
 
@@ -5125,6 +5169,16 @@ def build_parser():
     dl.add_argument("--ack", action="store_true",
                     help="advance the seen mark to current positions after reading")
     dl.set_defaults(fn=cmd_delta)
+
+    cmp_p = sub.add_parser("compare", help="what does one domain have that another does "
+                                           "not -- the cross-domain set difference four "
+                                           "of our guards each hand-rolled")
+    cmp_p.add_argument("a", nargs="?", default="", help="left domain (see --list)")
+    cmp_p.add_argument("b", nargs="?", default="", help="right domain")
+    cmp_p.add_argument("--list", action="store_true", help="show comparable domains")
+    cmp_p.add_argument("--limit", type=int, default=40, help="rows per side (default 40)")
+    cmp_p.add_argument("--json", action="store_true")
+    cmp_p.set_defaults(fn=cmd_compare)
 
     tlp = sub.add_parser("timeline", help="one chronological view across domains "
                                           "(events + git + task transitions) -- line the "

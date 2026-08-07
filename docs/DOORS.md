@@ -8,7 +8,7 @@ Class: reference
 > (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by
 > check_comprehensibility so it cannot silently rot.
 
-## CLI door -- `py agent_cli.py <verb>` (77 verbs)
+## CLI door -- `py agent_cli.py <verb>` (78 verbs)
 
 The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.
 
@@ -31,6 +31,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `boot` | print an agent's startup context | `<agent_id>*` `--task` `--json` `--sources-json` |
 | `capture` | full-fidelity bus read: unwrap a message by stream id (or last N from an agent) + optional verbatim-persist (the 5x-hand-written extractor, now a verb) | `<ref>` `--from-agent` `--count` `--persist` `--title` `--json` |
 | `clobber-scan` | W47 (kimi's design): flag unconditional writes to shared control keys in a file -- the fence-review reviewer-prompt | `<path>*` `--json` |
+| `compare` | what does one domain have that another does not -- the cross-domain set difference four of our guards each hand-rolled | `<a>` `<b>` `--list` `--limit` `--json` |
 | `console-log` | durable console events (interjection/bus_control/file_drop) | `--limit` `--since` `--until` `--json` |
 | `defer` | the capability-gated standing queue (W33): file a command awaiting an exec/write seat; boot surfaces it; discharge with a receipt | `<agent_id>*` `<cmd_text>` `--needs` `--why` `--list` `--done` `--receipt` |
 | `delta` | what changed since this agent's last boot (T052 delta door) | `<agent_id>*` `--ack` |
