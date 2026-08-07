@@ -336,7 +336,13 @@ def stale_notice_lines(res: Dict[str, Any], agent_id: str) -> List[str]:
     "(no new messages)". The CLI door was fixed first and deepseek's fence immediately
     found the MCP door still lying -- so the render lives HERE, once, and both doors call
     it. A shared renderer is the only version of this fix that cannot drift back apart.
-    Returns [] when nothing moved, because silence is honest then."""
+    Returns [] when NOTHING WAS PARKED OR SKIPPED -- i.e. when res carries no stale_notice.
+    It does NOT key off `consumed`: a run that benched entries while consuming nothing is
+    exactly the case this renderer exists for, and it gets the extra cursor-advanced line.
+    The phrase "nothing moved" stood here until a claim audit on 2026-08-07 pointed out it
+    could mean three things -- nothing consumed, nothing benched, or the cursor did not
+    advance -- which is the same one-word-several-meanings problem this repo keeps paying
+    for, sitting in a docstring about honesty."""
     notice = (res.get("stale_notice") or "").strip()
     if not notice:
         return []
@@ -531,8 +537,16 @@ def render_collapsed(messages, *, show_traces: bool = False, max_len: int = 2000
     and explicit (states the count).
     
     W84 (07-28, deepseek): DUAL-WRITE TWIN DEDUP. T039a/T044 dual-write means every message
-    exists on TWO streams. Before rendering, adjacent near-identical messages (same frm+kind+
-    content_prefix) collapse to one line with a '[N copies]' marker. The dedup is RENDER-ONLY
+    exists on TWO streams. Before rendering, near-identical messages (same frm+kind+
+    content_prefix) collapse to one line with a '[N copies]' marker. The match is over the
+    WHOLE window, NOT adjacent-only: `seen_twins` is keyed across the entire list, which is
+    correct for the case this exists to catch -- a dual-write twin can be separated from its
+    original by any number of interleaved messages. The docstring said "adjacent" until a
+    claim audit on 2026-08-07 flagged the mismatch; the CODE was right and the word was
+    stale. Note the deliberate asymmetry with the TRACE fold above, which IS
+    consecutive-only (rsyslog pmlastmsg semantics) -- two different collapse rules in one
+    function, and conflating them is exactly how this word went wrong.
+    The dedup is RENDER-ONLY
     (lossless -- nothing dropped, nothing consumed) and uses content prefix matching so a
     genuine follow-up with different content is never collapsed. Sha/reply_id dedup is stronger
     but requires envelope access; the prefix heuristic catches the dual-write case (identical
