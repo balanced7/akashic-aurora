@@ -1,5 +1,5 @@
 {
-  "seq": 205,
+  "seq": 206,
   "tasks": [
     {
       "id": "T001",
@@ -7457,6 +7457,52 @@
           "to": "done",
           "by": "",
           "at": "2026-08-07T02:46:21+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T206",
+      "title": "T206: a finished background ask leaves a durable trace -- the surface an OUTSIDE observer reads. Daniil 2026-08-07: 'you dont need to drive it yourself to observe it, you can troubleshoot from without now.' THE POINT, and it is bigger than a metric: today's wake-watcher hunt cost six turns because I was BOTH driver and observer -- and my own dogfood asks generated the replies that pinned the watcher, so I was polluting the thing I was measuring and could not see it from inside. An observer that is not the actor sees what the actor cannot, because the actor's activity is part of the system under test. WHY AN EVENT AND NOT MAIL: a background ask is PULL and 'remember to check later' is what produced 1324 unopened mailbox items; mail would fix the remembering by adding a wake surface, a cursor, and one more thing that accumulates unread -- all three measured failing on 2026-08-06. An event adds none of them, is durable and queryable, and does NOT demand attention, which is the right default for something that fires dozens of times an hour. Waking stays opt-in because a notification that always fires teaches the reader to ignore notifications (the W131 disarming pathology). UNPLANNED PAYOFF: Sol's friction list named commands-per-task, operator-interventions and recovery-time as unmeasured, and all three were unbuildable because NOTHING DURABLE RECORDED A DELEGATION. This does: cost, duration, model, outcome, truncation class, continuations, and whether the ask was GROUNDED in files -- so T203's effect becomes measurable rather than believed. The answer BODY never rides the event (the firehose is a durable index, not a document store); the handle puts it one hop away. Emission never raises: observability must not be able to destroy what it observes. LIVE: [ask_completed] background ask 49da7c75 done (deepseek-v4-pro) on the firehose, readable by anything that did not drive it.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "HEAD",
+      "verified_by": "6/6 pins RED first, 16 green; live ask_completed event on the firehose",
+      "created": "2026-08-07T04:08:28+00:00",
+      "updated": "2026-08-07T04:08:40+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-07T04:08:28+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-07T04:08:29+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-07T04:08:29+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-08-07T04:08:29+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-07T04:08:30+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-07T04:08:40+00:00"
         }
       ]
     }
