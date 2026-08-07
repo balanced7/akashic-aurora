@@ -1,5 +1,5 @@
 {
-  "seq": 216,
+  "seq": 220,
   "tasks": [
     {
       "id": "T001",
@@ -7963,6 +7963,190 @@
           "to": "done",
           "by": "",
           "at": "2026-08-07T07:28:39+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T217",
+      "title": "sift -- the nested ask: evidence packs -> hat fan -> per-term curator pairs -> dissent table, with an INPUT-IDENTITY GATE (flip rate refuses to compute unless every curator's evidence blob hashes identical). Daniil-directed 2026-08-07 night; design amended by claude#42d00626: curator disagreement has THREE causes (ambiguity, curation artifact, input divergence) -- T216 one tier up.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "RED pins first; word-boundary evidence; hash gate refuses on mismatch; L3 triggers triage never discard; three-state aggregate; BLIND at every tier; one live run on real repo data",
+      "status": "done",
+      "commit": "bc92d8a",
+      "verified_by": "18/18 pins green; live 3-term x 7-hat x 2-curator run landed 21/21; junction mode run clean on 5 terms",
+      "created": "2026-08-07T08:15:58+00:00",
+      "updated": "2026-08-07T08:44:25+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-07T08:15:58+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "Daniil 2026-08-07 verbatim: 'have fun and explore and build as you want... I want to see how the fanout and games turn out'",
+          "at": "2026-08-07T08:16:07+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-07T08:16:14+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-08-07T08:16:15+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-07T08:44:18+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-07T08:44:25+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T218",
+      "title": "ask --with tells the HELPER its evidence was clipped but not the CALLER, so a window-caused abstention reads as absence",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "clipped_evidence_notice beside build_context; fires on single + fan paths; names file and both sizes; warns that absence may be the window; silent when nothing clipped",
+      "status": "done",
+      "commit": "8c36d79",
+      "verified_by": "3/3 pins; verified live -- the notice fired directly above a false absence claim about cursor:lane, defined at bus.py:1201",
+      "created": "2026-08-07T08:44:08+00:00",
+      "updated": "2026-08-07T08:45:36+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-07T08:44:08+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude, found while using the door 2026-08-07",
+          "at": "2026-08-07T08:44:08+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-07T08:44:09+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-08-07T08:44:18+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-07T08:45:35+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-07T08:45:36+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T219",
+      "title": "Season 1 oracle voids its best players: 'undetectable' means the GATE cannot see it, but the void tripwire reads it as nobody-can, so a reasoning player that out-analyses the gate is accused of leaking the key. Plus: claim evidence is a hardcoded template asserting a check_wiring result that was never run for LLM players.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "same-seed A/B receipt kept; void rule distinguishes gate-echo players from reasoning players; gate-beating finds scored as their own metric not as fraud; leak tripwire rebuilt on a signal that actually indicates leakage; claim evidence states what the PLAYER did, never a fabricated gate result",
+      "status": "done",
+      "commit": "377a35a",
+      "verified_by": "36/36 across t219+t194+t158+t195; same-seed A/B receipt; live re-run not voided, precision 1.0, 3 capability findings; both player paths exercised",
+      "created": "2026-08-07T08:58:03+00:00",
+      "updated": "2026-08-07T09:13:56+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-07T08:58:03+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude, found live during the first LLM-player dry run 2026-08-07; blocks Season 1",
+          "at": "2026-08-07T08:58:09+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-07T08:58:10+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-08-07T08:58:10+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-07T09:13:55+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-07T09:13:56+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T220",
+      "title": "W137 mint half: a render that clips a message body must print the address that body already has (Daniil 2026-08-07: 'have it auto-reconstruct for you when you reach for it')",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "pointer at BOTH clip sites; no new blob (use the id/sha the message carries); no pointer on unclipped bodies; a body with no handle confesses it",
+      "status": "done",
+      "commit": "4951fc8",
+      "verified_by": "4/4 pins; verified live -- a 9KB self-note rendered '...[truncated]  [full body: bifrost-fetch --get 1786094397115-0]'",
+      "created": "2026-08-07T09:20:58+00:00",
+      "updated": "2026-08-07T09:21:28+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-07T09:20:58+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "Daniil verbatim ask 2026-08-07",
+          "at": "2026-08-07T09:20:58+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-07T09:20:58+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-08-07T09:20:59+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-07T09:21:18+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-07T09:21:28+00:00"
         }
       ]
     }
