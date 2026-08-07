@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (38 of 143 modules lack both pin and paper by name)
+## GAP queue (38 of 144 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/migrate_to_sqlite.py
@@ -81,11 +81,12 @@ Class: reference
 | `agent_signal_ledger.py` | Agent Signal Ledger: the ordered record of every signal agents emit | GAP | GAP |  |
 | `coordinator_api.py` | Coordinator API: Minimal signal-based logging for agents | GAP | GAP | `AI_SETUP` |
 
-## core/comm/  (50 modules)
+## core/comm/  (51 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
 | `ask.py` | ask -- a synchronous helper call, with no seat behind it (T171). | tests/test_t112_reask_is_a_nudge.py | GAP | `AKASHIC_ASK_BASE_URL`, `AKASHIC_ASK_COLLAPSE_AT`, `AKASHIC_ASK_CONTEXT_CHARS`, `AKASHIC_ASK_DISTINCT_AT`, `AKASHIC_ASK_FAN_WORKERS`, `AKASHIC_ASK_MAX_TOKENS`, `AKASHIC_ASK_MODEL`, `DEEPSEEK_API_KEY` |
+| `ask_bg.py` | ask_bg -- a helper call that outlives your turn without becoming a seat (T205). | tests/test_t205_ask_bg.py | GAP | `AKASHIC_ASK_BG_ORPHAN_S` |
 | `ask_state.py` | ask_state -- one durable ask's honest state (T196d). | tests/test_t196d_ask_state.py | GAP |  |
 | `assertions.py` | Pre-flight assertions (T068-R3 / deepseek M10) -- verify a directed answer's FACTUAL | GAP | GAP | `BIFROST_PREFLIGHT_ASSERT` |
 | `bifrost_api.py` | bifrost.api -- the one door an agent uses to join and work the Bifrost bus. | tests/test_bifrost_api.py | GAP | `BIFROST_CONSUME_LANE`, `BIFROST_WAKE_LANE` |

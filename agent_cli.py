@@ -1869,6 +1869,38 @@ def cmd_ask(args):
         print(f"  caller should: {st['caller_should']}")
         return 0
 
+    # T205: --get / --list read the background register. Reads first, so a typo in a
+    # handle never accidentally spends a model call.
+    if getattr(args, "get", None):
+        from core.comm import ask_bg
+        s = ask_bg.summarize(ask_bg.read_record(args.get))
+        if args.json:
+            print(json.dumps(s, ensure_ascii=False, default=str))
+            return 0
+        print(f"# ask {args.get} -- {s['state']}")
+        if s.get("answer"):
+            print(s["answer"])
+        if s.get("why"):
+            print(f"  why: {s['why']}", file=sys.stderr)
+        print(f"  {s['next']}", file=sys.stderr)
+        return 0
+    if getattr(args, "list", False):
+        from core.comm import ask_bg
+        rows = ask_bg.list_records(limit=getattr(args, "limit", None) or 20)
+        if args.json:
+            print(json.dumps([ask_bg.summarize(r) for r in rows],
+                             ensure_ascii=False, default=str))
+            return 0
+        if not rows:
+            print("# no background asks recorded")
+            return 0
+        print(f"# background asks ({len(rows)}, newest first)")
+        for r in rows:
+            s = ask_bg.summarize(r)
+            print(f"  {s.get('handle','?'):<10} {s['state']:<9} "
+                  f"{str(r.get('prompt') or '')[:58]}")
+        return 0
+
     prompt = " ".join(args.text).strip() if args.text else ""
     if not prompt and args.prompt_file:
         try:
@@ -1943,6 +1975,54 @@ def cmd_ask(args):
               f"ask {d.get('ask_id')}", file=sys.stderr)
         return 0
 
+    # T205: --bg -- spawn a DETACHED child running this same ask and hand back a handle.
+    # The child is the same CLI with --json, so the background and foreground paths cannot
+    # report different shapes; the parent exits immediately and the answer waits in a file.
+    if getattr(args, "bg", False):
+        import subprocess
+        from core.comm import ask_bg as _bg
+        handle = _bg.new_handle()
+        _bg.ASK_DIR.mkdir(parents=True, exist_ok=True)
+        out_path = _bg.ASK_DIR / f"{handle}.out"
+        child = [sys.executable, str(Path(__file__).resolve()), "ask", "--json",
+                 "--bg-child", handle]
+        for f in (getattr(args, "with_files", None) or []):
+            child += ["--with", f]
+        if args.model:
+            child += ["--model", args.model]
+        if args.max_tokens is not None:
+            child += ["--max-tokens", str(args.max_tokens)]
+        if not getattr(args, "continue_on_cut", True):
+            child.append("--no-continue")
+        child.append(prompt)
+        try:
+            fh = open(out_path, "w", encoding="utf-8")
+            flags = 0
+            if os.name == "nt":
+                flags = (getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+                         | getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+                         | getattr(subprocess, "DETACHED_PROCESS", 0x00000008))
+            proc = subprocess.Popen(child, cwd=str(Path(__file__).resolve().parent),
+                                    stdout=fh, stderr=subprocess.DEVNULL,
+                                    stdin=subprocess.DEVNULL, creationflags=flags,
+                                    close_fds=True)
+        except Exception as e:
+            print(f"could not spawn background ask: {type(e).__name__}: {e}",
+                  file=sys.stderr)
+            return 1
+        _bg.write_record(handle, {"status": "running", "pid": proc.pid,
+                                  "prompt": prompt[:400], "out": str(out_path),
+                                  "with": list(getattr(args, "with_files", None) or [])})
+        print(handle)
+        print(f"-- running in background (pid {proc.pid}) -- "
+              f"`py agent_cli.py ask --get {handle}`", file=sys.stderr)
+        return 0
+
+    # The child half of --bg: run normally, then file the structured result under the
+    # handle so `--get` finds it. Kept here (not a separate verb) so there is exactly one
+    # ask implementation and the two paths cannot diverge.
+    _bg_child = getattr(args, "bg_child", None)
+
     # T181 -- the fan. Two shapes, because the fleet patterns need two:
     #   --fan N        one prompt, N independent answers  -> N-version blind, branch-and-bound
     #   --prompts-file many prompts, run at once          -> breadth wavefront, fenced triangle
@@ -2003,6 +2083,11 @@ def cmd_ask(args):
                    with_files=getattr(args, "with_files", None),
                    continue_on_cut=bool(getattr(args, "continue_on_cut", False)),
                    max_continuations=int(getattr(args, "continuations", 2)))
+
+    if _bg_child:
+        from core.comm import ask_bg as _bg
+        _bg.finish(_bg_child, {"ok": o.ok, "partial": o.partial, "why": o.why,
+                               **(o.detail or {})})
 
     if args.json:
         print(json.dumps({"ok": o.ok, "partial": o.partial, "why": o.why, **o.detail},
@@ -4951,6 +5036,17 @@ def build_parser():
                             "the DURABLE expectation keeps redriving after it")
     ask_p.add_argument("--poll", type=float, default=2.0,
                        help="poll interval for --peer (default 2s)")
+    ask_p.add_argument("--bg", action="store_true",
+                       help="run this ask in a DETACHED child and return a handle "
+                            "immediately -- the answer waits in a file instead of your "
+                            "context. Fan out without drowning")
+    ask_p.add_argument("--get", metavar="HANDLE",
+                       help="read a background ask: RUNNING / DONE / FAILED / ORPHANED, "
+                            "each with what to do now")
+    ask_p.add_argument("--list", action="store_true",
+                       help="recent background asks, newest first")
+    ask_p.add_argument("--bg-child", dest="bg_child", metavar="HANDLE",
+                       help=argparse.SUPPRESS)
     ask_p.add_argument("--no-continue", dest="continue_on_cut", action="store_false",
                        default=True,
                        help="do NOT resume a CUT answer. Continuation is ON by default: "

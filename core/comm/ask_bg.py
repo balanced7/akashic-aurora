@@ -1,0 +1,146 @@
+"""ask_bg -- a helper call that outlives your turn without becoming a seat (T205).
+
+THE FRICTION THIS REMOVES, measured on 2026-08-06. Every fence that day ran serially --
+24s, 43s, 48s, 54s of dead wall-clock each -- because `ask` blocks and its answer lands in
+the caller's context whole. The fan primitive existed (ask_many, six workers) and was
+unaffordable for exactly one reason: attention, not capability. So I asked two helpers
+instead of six and paid the latency on both.
+
+T204 removed the other half of the problem by taking the token ceiling off: with output
+landing in a file rather than a context window, there is no longer any reason for a
+background answer to hold back.
+
+STILL NOT A SEAT (T171's law, and pinned). No identity, no singleton lock, no cursor, no
+mailbox, no heartbeat, no roster row, no reaper protection. A backgrounded ask is a CALL
+whose result lands somewhere durable instead of in the caller's window. Nothing addresses
+it but the handle its caller holds -- which is also why it needs no wake machinery at all.
+
+DESIGNED AGAINST ONE SPECIFIC FAILURE: this repo has 1,324 unopened mailbox items. "Write
+it somewhere and check it later" is precisely the pattern that produced them. So:
+  * the handle is printed immediately and `--get` is one hop
+  * RUNNING, DONE, FAILED and ORPHANED are four distinct readings -- an unfinished ask must
+    never look like an empty answer, or the reader learns to stop looking
+  * a record whose process is gone but whose status never advanced reads ORPHANED, so a
+    dead child cannot look busy forever (the wedge shape this fleet already knows)
+"""
+from __future__ import annotations
+
+import json
+import os
+import time
+import uuid
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+ASK_DIR = Path(__file__).resolve().parents[2] / "state" / "asks"
+#: A record still "running" past this with no live process is ORPHANED rather than busy.
+ORPHAN_AFTER_S = float(os.getenv("AKASHIC_ASK_BG_ORPHAN_S", "1800"))
+
+
+def new_handle() -> str:
+    """Short enough to type from a terminal, unique enough not to collide in a session."""
+    return uuid.uuid4().hex[:8]
+
+
+def _path(handle: str) -> Path:
+    return ASK_DIR / f"{handle}.json"
+
+
+def write_record(handle: str, rec: Dict[str, Any]) -> None:
+    """Best-effort durable write. Never raises: losing bookkeeping must not lose the ask."""
+    try:
+        ASK_DIR.mkdir(parents=True, exist_ok=True)
+        rec = {"handle": handle, "started": rec.get("started", time.time()), **rec}
+        _path(handle).write_text(json.dumps(rec, ensure_ascii=False, default=str),
+                                 encoding="utf-8")
+    except OSError:
+        pass
+
+
+def read_record(handle: str) -> Optional[Dict[str, Any]]:
+    """The record, or None for an unknown handle. None is NOT an empty answer -- a typo and
+    a silent helper are different facts and must render differently."""
+    try:
+        return json.loads(_path(str(handle)).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def finish(handle: str, result: Dict[str, Any]) -> None:
+    """Attach the child's structured result -- the same shape `ask --json` produces, so the
+    background and foreground paths cannot drift into reporting different things."""
+    rec = read_record(handle) or {"handle": handle}
+    rec["status"] = "done" if result.get("ok") or result.get("partial") else "failed"
+    rec["result"] = result
+    rec["finished"] = time.time()
+    write_record(handle, rec)
+
+
+def _alive(pid: Any) -> Optional[bool]:
+    """Is that pid still running? None when we cannot tell -- and cannot-tell must not be
+    reported as dead, or a healthy child gets declared orphaned."""
+    try:
+        pid = int(pid)
+    except (TypeError, ValueError):
+        return None
+    if pid <= 0:
+        return None
+    try:
+        if os.name == "nt":
+            import subprocess
+            out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"],
+                                 capture_output=True, text=True, timeout=10,
+                                 stdin=subprocess.DEVNULL)
+            return str(pid) in (out.stdout or "")
+        os.kill(pid, 0)
+        return True
+    except (OSError, subprocess.SubprocessError):
+        return False
+    except Exception:
+        return None
+
+
+def summarize(rec: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """One state and one next step. Four readings, deliberately distinct."""
+    if not rec:
+        return {"state": "UNKNOWN", "next": "no ask by that handle -- check the id, or "
+                                            "`ask --list` to see recent ones"}
+    status = str(rec.get("status") or "")
+    result = rec.get("result") or {}
+    if status == "done":
+        return {"state": "DONE", "handle": rec.get("handle"),
+                "answer": result.get("answer"), "usd": result.get("usd"),
+                "partial": bool(result.get("partial")),
+                "next": "read the answer" + (" -- it is PARTIAL, see `why`"
+                                             if result.get("partial") else "")}
+    if status == "failed":
+        return {"state": "FAILED", "handle": rec.get("handle"),
+                "why": result.get("why") or rec.get("why") or "unreported",
+                "next": "read `why` -- a STARVED ask needs a narrower question, not a retry"}
+    # Still marked running. Is anything actually behind it?
+    alive = _alive(rec.get("pid"))
+    age = time.time() - float(rec.get("started") or time.time())
+    if alive is False or (alive is None and age > ORPHAN_AFTER_S):
+        return {"state": "ORPHANED", "handle": rec.get("handle"),
+                "next": f"the child is no longer running and never wrote a result "
+                        f"(age {age:.0f}s) -- re-ask; nothing will arrive"}
+    return {"state": "RUNNING", "handle": rec.get("handle"),
+            "age_s": round(age, 1),
+            "next": "still working -- do something else and check back with "
+                    "`ask --get <handle>`"}
+
+
+def list_records(limit: int = 20) -> List[Dict[str, Any]]:
+    """Recent asks, newest first. Bounded, because an unbounded listing of a growing
+    directory is how a listing surface stops being read."""
+    out: List[Dict[str, Any]] = []
+    try:
+        for p in ASK_DIR.glob("*.json"):
+            try:
+                out.append(json.loads(p.read_text(encoding="utf-8")))
+            except (OSError, ValueError):
+                continue
+    except OSError:
+        return []
+    out.sort(key=lambda r: float(r.get("started") or 0), reverse=True)
+    return out[:max(1, int(limit))]
