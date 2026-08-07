@@ -411,7 +411,7 @@ def collect_boot_bifrost(agent_id: str, limit: int = 8) -> Dict[str, Any]:
     }
 
 
-def clip_pointer(msg: Any) -> str:
+def clip_pointer(msg: Any, *, clipped: bool = True) -> str:
     """Where the rest of a clipped body lives, using the address the message ALREADY has.
 
     DANIIL, 2026-08-07: "can we make the truncation be handled by the substrate and have it
@@ -428,9 +428,19 @@ def clip_pointer(msg: Any) -> str:
     promoted, git log -- to recover the tail of one peer note. An unaddressed clip is a
     data-loss path by design rather than by accident.
 
-    Returns "" when the body was not clipped, and a CONFESSION when there is genuinely no
-    handle: "I cannot reach the rest" must not read as "there is no more".
+    Returns "" when `clipped` is False, and a CONFESSION when the body WAS clipped but has
+    genuinely no handle: "I cannot reach the rest" must not read as "there is no more".
+
+    `clipped` is a PARAMETER rather than something the caller checks before calling, because
+    the first version of this docstring promised the ""-when-not-clipped behaviour while the
+    function had no path returning "" -- both call sites did the check themselves. A claim
+    audit over my own six-hour-old code caught it: a law stated and broken in the same
+    function, which is the exact shape the fan-out playbook predicted for fresh code. Owning
+    the condition here makes the claim TRUE instead of aspirational, and removes the
+    duplicated guard that two callers would eventually disagree about.
     """
+    if not clipped:
+        return ""
     sha = str(_mget(msg, "sha", "") or "")
     mid = str(_mget(msg, "id", "") or "")
     if sha:
@@ -446,7 +456,7 @@ def format_inbox_line(msg: Dict[str, Any], max_len: int = 2000) -> str:
     kind = msg.get("kind", "?")
     full = _content_str(msg.get("content"))
     body = _clip(full, max_len)
-    tail = clip_pointer(msg) if len(full) > max_len else ""
+    tail = clip_pointer(msg, clipped=len(full) > max_len)
     return f"[{kind}] from {frm}: {body}{tail}"
 
 
@@ -536,7 +546,7 @@ def render_collapsed(messages, *, show_traces: bool = False, max_len: int = 2000
         # the peer note behind the 2026-08-07 six-door hunt, so fixing only the other call
         # site would repeat T219 (a correction that reached one of two callers).
         full = _content_str(_mget(m, "content"))
-        tail = clip_pointer(m) if len(full) > max_len else ""
+        tail = clip_pointer(m, clipped=len(full) > max_len)
         return (f"[{str(_mget(m, 'kind', '?'))}] from {str(_mget(m, 'frm', '?'))}: "
                 f"{_clip(full, max_len)}{tail}")
     

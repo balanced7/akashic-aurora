@@ -55,6 +55,20 @@ def test_the_pointer_names_the_door_not_just_the_id():
         "name the door that turns this handle back into the body"
 
 
+def test_clip_pointer_keeps_the_promise_its_docstring_makes():
+    """FOUND BY A CLAIM AUDIT OVER MY OWN SIX-HOUR-OLD CODE.
+
+    The first version promised 'Returns "" when the body was not clipped' and had no path
+    returning "" -- both call sites did the check themselves. A law stated and broken in the
+    same function, which is precisely the shape the fan-out playbook predicts for fresh code
+    ("point it at the code you wrote most recently"). The condition is now a PARAMETER, so
+    the claim is enforceable here instead of duplicated in two callers who would eventually
+    disagree about it.
+    """
+    assert BP.clip_pointer(_msg("short"), clipped=False) == ""
+    assert BP.clip_pointer(_msg("short"), clipped=True) != ""
+
+
 def test_an_unclipped_body_gains_no_pointer():
     """Noise on clean output gets filtered out mentally, and that is how the real notice
     gets missed. A short body is complete and needs no address."""
