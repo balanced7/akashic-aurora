@@ -35,6 +35,7 @@ production hits the threshold.
 """
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -64,10 +65,18 @@ def test_a_large_prompt_spawns(tmp_path):
     big.write_text("Reply with one word: OK. " + ("padding " * 5000), encoding="utf-8")
     assert big.stat().st_size > 32767, "precondition: must exceed the Windows argv cap"
 
+    # THE CHILD MUST NOT REACH THE NETWORK. The first cut of this test omitted this and cost
+    # $0.0029 of live DeepSeek tokens on every full-suite run -- caught by reading the ask
+    # records before closing the task, four billed calls in. A unit test that spends money is
+    # unbounded over the life of the repo and smuggles an API key and a network into the suite.
+    # The discard port refuses instantly, so the child dies fast; the SPAWN is what is under
+    # test here, and the spawn is unaffected by where the child would have posted to.
+    env = {**os.environ, "AKASHIC_ASK_BASE_URL": "http://127.0.0.1:9"}
+
     r = subprocess.run(
         [sys.executable, "agent_cli.py", "ask", "--bg", "--prompt-file", str(big)],
         cwd=REPO, capture_output=True, text=True, encoding="utf-8", errors="replace",
-        timeout=180)
+        timeout=180, env=env)
 
     assert "could not spawn" not in (r.stdout + r.stderr), \
         f"spawn failed: {r.stderr.strip()[:300]}"
