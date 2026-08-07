@@ -204,7 +204,19 @@ def test_the_background_record_carries_the_shape():
     assert "expect" in nxt, "the retrieved fan must not read 'branches genuinely differ' either"
 
 
-def test_the_cli_renderer_uses_the_shared_prescription():
-    """One source for the next move, or the two surfaces drift -- T225's lesson, same day."""
+def test_the_cli_renderer_does_not_reimplement_the_prescriptions():
+    """One source for the next move, or the two surfaces drift -- T225's lesson, same day.
+
+    The first cut of this pin asserted the CLI literally CALLS diversity_prescription(). It
+    does not, and should not: ask_many computes the line once and carries it in
+    detail["diversity_next"], so the JSON door, the CLI door and the background record all
+    quote one string. The pin was asserting an implementation, not the invariant -- the third
+    crude locator I have written today, and the second to fail on the code being better than
+    the test. The invariant is that the CLI CONSUMES the shared line and hardcodes none of it.
+    """
     src = (REPO / "agent_cli.py").read_text(encoding="utf-8", errors="replace")
-    assert "diversity_prescription(" in src
+    assert "diversity_next" in src, "the CLI must quote the shared prescription"
+    for stale in ("branches genuinely differ", "one answer billed",
+                  "adjudicate with one more call"):
+        assert stale not in src, \
+            f"the CLI still hardcodes a prescription ({stale!r}) -- two sources, one question"

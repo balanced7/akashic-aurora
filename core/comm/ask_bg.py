@@ -192,13 +192,14 @@ def summarize(rec: Optional[Dict[str, Any]]) -> Dict[str, Any]:
                 f"[{'ok' if b.get('ok') and not b.get('partial') else ('PARTIAL' if b.get('partial') else 'FAIL')}] "
                 f"{'-' * 40}\n{b.get('answer') or '(' + str(b.get('why') or 'no answer') + ')'}"
                 for b in branches)
+            # T227: whoever reads a retrieved fan may never have seen the command that made
+            # it, so this is the surface where the shape MOST needs saying. One shared
+            # prescription with the CLI renderer.
             nxt = f"read {n_ok} of {n} branches"
-            if div == "collapsed":
-                nxt += " -- COLLAPSED: one answer billed N times, vary the POSITION not the seed"
-            elif div == "unknown":
-                nxt += " -- diversity UNKNOWN: word overlap cannot tell paraphrase from agreement"
-            elif div == "distinct":
-                nxt += " -- branches genuinely differ"
+            if div:
+                from core.comm.ask import diversity_prescription
+                nxt += " -- " + (result.get("diversity_next") or diversity_prescription(
+                    div, bool(result.get("homogeneous")), n_compared=n_ok or n))
             return {"state": "DONE", "handle": rec.get("handle"), "answer": body,
                     "usd": result.get("usd"), "partial": bool(result.get("partial")),
                     "n": n, "n_ok": n_ok, "diversity": div, "next": nxt}

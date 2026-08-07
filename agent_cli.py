@@ -2277,20 +2277,19 @@ def cmd_ask(args):
             print(f"!! {_clip}", file=sys.stderr)
         # T182: "3/3 landed" alone lets one answer read as three findings. Say the agreement --
         # in three states, because a lexical metric genuinely cannot resolve paraphrase.
+        # T227: the SCORE is mode-blind and stays exactly as calibrated; the NEXT MOVE is not.
+        # Five different questions used to render low overlap as a positive result, and to
+        # prescribe settling a disagreement between answers to questions that were never the
+        # same. One shared prescription so this surface and `ask --get` cannot drift (T225's
+        # lesson, same day). The dead strings are deliberately NOT quoted here: a pin greps
+        # this file for them, and it cannot tell a live prescription from a comment about one.
         div, score = d.get("diversity"), d.get("lexical_agreement")
-        if div == "collapsed":
-            print(f"== COLLAPSED: {d['n_compared']} branches at lexical {score:.2f} -- ONE "
-                  f"answer billed {d['n_compared']} times, not {d['n_compared']} findings. "
-                  f"Vary the POSITION (a different question or different evidence per branch), "
-                  f"not the seed.", file=sys.stderr)
-        elif div == "unknown":
-            print(f"== DIVERSITY UNKNOWN: lexical {score:.2f} across {d['n_compared']} branches "
-                  f"sits between the calibrated bands ({ask_mod.DISTINCT_AT:.2f}.."
-                  f"{ask_mod.COLLAPSE_AT:.2f}). Word overlap cannot tell one idea in N "
-                  f"phrasings from N ideas -- read them, or adjudicate with one more call.",
+        if div:
+            shape = "same prompt" if d.get("homogeneous") else "different prompts"
+            print(f"== diversity {div} (lexical {score:.2f} across {d['n_compared']} branches, "
+                  f"{shape}; bands {ask_mod.DISTINCT_AT:.2f}..{ask_mod.COLLAPSE_AT:.2f})",
                   file=sys.stderr)
-        elif div == "distinct":
-            print(f"== branches genuinely differ (lexical {score:.2f})", file=sys.stderr)
+            print(f"== {d.get('diversity_next') or ''}", file=sys.stderr)
         return 0 if o.ok else 1
 
     o = ask_helper(prompt, system=args.system or None, model=args.model or None,
@@ -5583,9 +5582,11 @@ def build_parser():
     ask_p.add_argument("--max-tokens", dest="max_tokens", type=int, default=None,
                        help="answer ceiling; hitting it returns a marked PARTIAL, never a silent cut")
     ask_p.add_argument("--fan", type=int, default=0,
-                       help="T181: ask the SAME question N times concurrently -- N-version "
-                            "blind. Disagreement between branches is the signal. STATELESS "
-                            "only: cannot be combined with --peer, which is one durable ask "
+                       help="ask the SAME question N times concurrently: N samples of ONE "
+                            "model on ONE prompt, so agreement is self-consistency and NOT "
+                            "independent verification -- correlated samples fail together. "
+                            "For decorrelated evidence vary the POSITION with --prompts-file. "
+                            "STATELESS only: cannot be combined with --peer, one durable ask "
                             "to one seat")
     ask_p.add_argument("--prompts-file", dest="prompts_file",
                        help="T181: run MANY questions at once. JSON array, or prompts separated "

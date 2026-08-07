@@ -228,8 +228,12 @@ def test_get_renders_a_backgrounded_fan():
     """
     from core.comm.ask_bg import summarize
 
+    # `homogeneous` is explicit here because T227 made the PRESCRIPTION mode-aware: a collapsed
+    # same-prompt fan and a collapsed different-prompts fan now say different (opposite) things,
+    # and this pin is about the same-prompt one. Written before that distinction existed, it
+    # relied on a default; naming the shape keeps it testing what it meant to test.
     rec = {"handle": "h", "status": "done", "result": {
-        "n": 3, "n_ok": 3, "usd": 0.01, "diversity": "collapsed",
+        "n": 3, "n_ok": 3, "usd": 0.01, "diversity": "collapsed", "homogeneous": True,
         "branches": [{"i": i, "ok": True, "partial": False, "answer": f"A{i}"} for i in range(3)]}}
     s = summarize(rec)
 

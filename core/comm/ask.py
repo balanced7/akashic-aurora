@@ -468,6 +468,50 @@ about above after again against because before below between during under while
 """.split())
 
 
+def diversity_prescription(verdict, homogeneous, *, n_compared=0, score=None) -> str:
+    """What to DO about a diversity verdict. The number is mode-blind; this is not (T227).
+
+    THE VERDICT MEANS OPPOSITE THINGS IN THE TWO FAN SHAPES, and only the prescription can say
+    so. Same prompt N times: agreement is self-consistency over CORRELATED samples (nothing here
+    sets temperature, seed or top_p), and disagreement means the model is unstable. N different
+    prompts: low agreement is what different questions produce BY CONSTRUCTION and licenses
+    nothing, while high agreement is the real alarm -- the differences were not engaged.
+
+    DELIBERATELY NOT A THRESHOLD CHANGE. T182's bands were calibrated mode-blind and stay exactly
+    where they were; re-tuning them per mode would be a guess with no controls behind it. The
+    number was never the defect. The NEXT MOVE was, in one shape, where it told the reader to
+    adjudicate answers to questions that were never the same.
+    """
+    if not verdict:
+        return ""
+    n = n_compared or 0
+    if homogeneous:
+        if verdict == "collapsed":
+            return (f"COLLAPSED: {n} samples of ONE model on ONE prompt agree. That is "
+                    f"self-consistency, NOT independent verification -- the samples are "
+                    f"correlated by construction, so they fail together as readily as they "
+                    f"succeed together. Vary the POSITION (a different question or different "
+                    f"evidence per branch), not the seed.")
+        if verdict == "distinct":
+            return (f"UNSTABLE: {n} samples of the same prompt disagreed. Read them -- the "
+                    f"number cannot tell genuine ambiguity in the question from noise in the "
+                    f"model, and those need opposite responses.")
+        return (f"read them, or adjudicate with one more call -- {n} samples of one prompt sit "
+                f"between the bands, which is exactly where word overlap cannot resolve "
+                f"paraphrase.")
+    if verdict == "collapsed":
+        return (f"ALARM: {n} DIFFERENT questions produced near-identical answers. That is the "
+                f"signature of boilerplate, or of helpers ignoring what differs between your "
+                f"prompts -- suspect the evidence pack answered all of them the same way, or "
+                f"that the prompts differ less than you think.")
+    if verdict == "distinct":
+        return (f"EXPECTED: {n} different questions produced different answers, which is what "
+                f"different questions do. This says nothing about whether any of them is any "
+                f"good -- the measure cannot speak to quality here, only to boilerplate.")
+    return (f"read them -- {n} different questions were never asked the same thing, so there is "
+            f"no disagreement here for another call to settle.")
+
+
 def _content_words(text):
     """Words a reader would call the substance: 4+ chars, stopwords dropped."""
     return {w for w in re.findall(r"[a-z0-9']+", str(text or "").lower())
@@ -816,6 +860,11 @@ def ask_many(prompts, *, system: Optional[str] = None, model: Optional[str] = No
         "answers": [b["answer"] for b in branches],
         "lexical_agreement": agreement, "n_compared": n_compared,
         "diversity": diversity, "collapsed": collapsed,
+        # T227: DERIVED, never declared -- a caller adds nothing and cannot get it wrong.
+        # The verdict is the same number in both shapes; what to DO about it is not.
+        "homogeneous": len(set(prompts)) == 1,
+        "diversity_next": diversity_prescription(
+            diversity, len(set(prompts)) == 1, n_compared=n_compared, score=agreement),
         # None, never a guess: one unpriced branch makes the fan total unknowable, and a
         # partial sum presented as a total is the same lie one layer up.
         "usd": round(total_usd, 6) if priced_all else None,
