@@ -485,11 +485,26 @@ DEFAULT_HATS: Dict[str, str] = {
         "the code survive it? Then argue -- seriously -- that the multiple meanings are a "
         "FEATURE worth keeping. A defence that collapses under its own evidence is the "
         "strongest confirmation available; a defence that holds is a finding of its own."),
-    "economist": (
-        "You cannot see any cost data. From the evidence alone, state where a confusion "
-        "between the senses would produce a WRONG RESULT rather than merely a confusing "
-        "read: cite the file:line where the mistake would be silent rather than loud. "
-        "Rank those sites by how silent the failure would be."),
+}
+
+#: RETIRED 2026-08-07 by ablation (pre-registered 1f31575, result 40de626), kept as a record
+#: rather than deleted so the reason survives and nobody re-adds it reasonably.
+#:
+#: `economist` asked where a confusion between senses would produce a WRONG RESULT rather
+#: than a confusing read. It measured 1/3 precision on the hand-adjudicated terms -- it
+#: reached FORK on all three, including BOTH false positives in the cost-blind sample -- with
+#: the second-highest uniqueness in the pool and ZERO marginal contribution. That combination
+#: is the whole finding: a hat rewarded by rarity and refuted by truth. Its characteristic
+#: output was precisely the lone-hat FORK that CONSENSUS_FLOOR now exists to suppress, so it
+#: was manufacturing the defect another mechanism had to clean up.
+#:
+#: If someone wants a cost lens back, the honest version asks a DESCRIPTIVE question ("which
+#: of these sites pass a value produced under one sense into code that reads it under
+#: another") rather than a speculative one about hypothetical damage -- the speculative
+#: framing is what made it a confabulation engine.
+RETIRED_HATS = {
+    "economist": "1/3 precision, 0 marginal contribution, generated both false positives "
+                 "in the cost-blind sample (ablation 2026-08-07)",
 }
 
 _ANSWER_CONTRACT = (

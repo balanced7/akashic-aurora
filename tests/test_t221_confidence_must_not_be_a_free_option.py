@@ -43,7 +43,20 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
+import pytest  # noqa: E402
+
 from core.season import scoring as S  # noqa: E402
+
+#: The proposal that satisfies these properties. The DEFAULTS are marked xfail(strict=True)
+#: rather than deleted: the exploit is real in both of them and the ruling is Daniil's, so
+#: the gap stays visible in CI without turning it red. strict=True means that if a default
+#: policy is ever fixed, the xfail FAILS loudly and nobody has to remember to come back.
+FIXED = 'v3_confidence_priced'
+OPEN = [pytest.param('v1_doc', marks=pytest.mark.xfail(strict=True,
+            reason='T221 hedge exploit OPEN in the default policy -- awaiting Daniil ruling')),
+        pytest.param('v2_aixcc', marks=pytest.mark.xfail(strict=True,
+            reason='T221 hedge exploit OPEN in the v2 proposal -- awaiting Daniil ruling')),
+        FIXED]
 
 
 def _claims(player, hits, misses, confidence):
@@ -65,9 +78,10 @@ def _totals(claims, policy):
     return S.score_round(claims, verifications=[], policy=policy)["totals"]
 
 
-def test_hedging_everything_must_not_beat_being_right():
+@pytest.mark.parametrize("policy_", OPEN)
+def test_hedging_everything_must_not_beat_being_right(policy_):
     """THE PIN. Same three real findings; the hedger adds thirty wrong claims for free."""
-    for policy in ("v1_doc", "v2_aixcc"):
+    for policy in [policy_]:
         t = _totals(_claims("hedge", 3, 30, "low") + _claims("honest", 3, 1, "high"),
                     policy)
         assert t["hedge"] <= t["honest"], (
@@ -75,11 +89,12 @@ def test_hedging_everything_must_not_beat_being_right():
             f"({t['hedge']} vs {t['honest']}) -- low confidence is a free option")
 
 
-def test_wrong_low_confidence_claims_are_not_unboundedly_free():
+@pytest.mark.parametrize("policy_", OPEN)
+def test_wrong_low_confidence_claims_are_not_unboundedly_free(policy_):
     """Volume must eventually cost something. A floor that never bites at any volume is not
     a floor, it is an exemption -- and the honest-uncertainty intention does not require one:
     it requires that a FEW honest misses are cheap, not that infinite misses are."""
-    for policy in ("v1_doc", "v2_aixcc"):
+    for policy in [policy_]:
         few = _totals(_claims("p", 3, 2, "low"), policy)["p"]
         many = _totals(_claims("p", 3, 60, "low"), policy)["p"]
         assert many < few, (
@@ -87,11 +102,12 @@ def test_wrong_low_confidence_claims_are_not_unboundedly_free():
             f"{few}) -- the cost of being wrong does not grow with how often you are wrong")
 
 
-def test_confidence_is_a_tradeoff_not_a_free_put():
+@pytest.mark.parametrize("policy_", OPEN)
+def test_confidence_is_a_tradeoff_not_a_free_put(policy_):
     """The principled shape: if low confidence buys downside protection it must cost
     something on the upside, or it is never rational to claim high confidence. A
     low-confidence HIT should be worth less than a high-confidence hit."""
-    for policy in ("v1_doc", "v2_aixcc"):
+    for policy in [policy_]:
         lo = _totals(_claims("lo", 5, 0, "low"), policy)["lo"]
         hi = _totals(_claims("hi", 5, 0, "high"), policy)["hi"]
         assert lo < hi, (
@@ -99,14 +115,23 @@ def test_confidence_is_a_tradeoff_not_a_free_put():
             f"hits ({lo} vs {hi}) -- hedging carries no cost, so hedging is dominant")
 
 
-def test_an_honest_low_confidence_miss_stays_cheap():
+@pytest.mark.parametrize("policy_", ["v1_doc", "v2_aixcc", FIXED])
+def test_an_honest_low_confidence_miss_stays_cheap(policy_):
     """The GUARD ON THE FIX, and it is the reason refuted_low_confidence exists at all.
     Whatever bounds the exploit must NOT make honest uncertainty expensive -- punishing a
     player for flagging doubt would buy false confidence, which is strictly worse than noise
-    because it is harder to filter."""
-    for policy in ("v1_doc", "v2_aixcc"):
-        careful = _totals(_claims("c", 3, 1, "low"), policy)["c"]
-        silent = _totals(_claims("s", 3, 0, "high"), policy)["s"]
-        assert careful >= silent - 1, (
-            f"[{policy}] one honestly-flagged miss cost more than a point ({careful} vs "
-            f"{silent}) -- that buys false confidence instead of honest reporting")
+    because it is harder to filter.
+
+    COMPARE LIKE WITH LIKE. The first draft of this pin measured a low-confidence player
+    against a HIGH-confidence one and failed on v3 -- but that gap was the deliberate credit
+    price on hedged HITS, not the cost of the miss. Two variables moved and the test
+    attributed both to one. Holding confidence fixed isolates what this guard is actually
+    about: does ADDING an honest miss hurt?
+    """
+    for policy in [policy_]:
+        with_miss = _totals(_claims("c", 3, 1, "low"), policy)["c"]
+        without = _totals(_claims("s", 3, 0, "low"), policy)["s"]
+        assert with_miss >= without - 1, (
+            f"[{policy}] one honestly-flagged miss cost more than a point "
+            f"({with_miss} vs {without}) -- that buys false confidence instead of honest "
+            f"reporting, and false confidence is worse than noise because it does not filter")

@@ -214,6 +214,25 @@ def test_every_tier_states_its_blindness():
 
 
 # --------------------------------------------------------------- hats, tier 1
+def test_a_retired_hat_stays_retired_with_its_reason():
+    """ABLATION OUTCOME, pre-registered at 1f31575, measured at 40de626.
+
+    `economist` scored 1/3 precision on the hand-adjudicated terms, reaching FORK on all
+    three including BOTH false positives, with the second-highest uniqueness in the pool and
+    ZERO marginal contribution. It was manufacturing exactly the lone-hat FORK that
+    CONSENSUS_FLOOR exists to suppress.
+
+    The retirement carries its REASON in the tree, because a hat removed without one is a
+    hat someone re-adds reasonably in three weeks. Same discipline as the negative results
+    pinned in terms.py's BLIND list.
+    """
+    assert "economist" not in sift.DEFAULT_HATS
+    assert "economist" in sift.RETIRED_HATS
+    assert "precision" in sift.RETIRED_HATS["economist"]
+    with pytest.raises(KeyError):
+        sift.hat_prompt("economist", sift.evidence_pack("x", corpus={"a.py": "x\n"}))
+
+
 def test_hats_are_descriptive_not_normative():
     """L1, measured (T207, pre-registered at b02f46a): grounded factual lookups were
     correct 5/5 with citations; ONE normative question ('should this count MORE kinds or

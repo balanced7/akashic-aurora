@@ -91,6 +91,52 @@ POLICIES = {
         "duplicate_decay_hours": 6.0,  # an independent find within the window keeps a share
         "duplicate_decay_floor": 0.0,
     },
+    "v3_confidence_priced": {
+        "notes":
+            "PROPOSED 2026-08-07, NOT the default -- same standing as v2_aixcc, and it "
+            "carries v2's four changes plus one more. Closes the HEDGE EXPLOIT (T221), "
+            "found by attacking this scorer before the season ran: a player with 3 real "
+            "finds and THIRTY wrong claims, every one marked low-confidence, outscored a "
+            "player with the same 3 finds and one wrong high-confidence claim -- 6 to 4 "
+            "under v1_doc, 6 to 5 under v2_aixcc, and unbounded in both (300 wrong claims "
+            "cost exactly what 30 do, which is nothing). "
+            "CAUSE: refuted_low_confidence=0 gives an honestly-flagged wrong claim downside "
+            "protection, which is right; but a CONFIRMED low-confidence claim still earns "
+            "FULL points, so the protection is free. In competition terms that is a free "
+            "option, and a free option is always exercised -- the dominant strategy becomes "
+            "hedge everything, spray, keep the hits. "
+            "TWO KNOBS, and they must move together. (1) low_confidence_credit prices the "
+            "option: a hedged claim that lands earns less than one its author stood behind, "
+            "so confidence becomes a real trade rather than a free put. (2) "
+            "low_confidence_free_misses bounds the volume: the first few honest misses stay "
+            "free -- that is the whole point of the floor and it must survive -- but the "
+            "exemption stops being infinite. "
+            "WHY BOTH: pricing alone still lets a hedger spray at zero downside, and "
+            "bounding alone makes honest uncertainty expensive without making confidence "
+            "worth anything. The failure mode to avoid is over-correcting into punishing "
+            "flagged doubt, which buys FALSE CONFIDENCE -- strictly worse than noise, "
+            "because noise is filterable and false confidence is not.",
+        "base": dict(_BASE),
+        "duplicate": 0,
+        "refuted": -2,
+        "refuted_low_confidence": 0,
+        "unverifiable": 0,
+        "already_known": 0,
+        "verify_delivered": 1,
+        "verify_refuted_upheld": 3,
+        "uptime_weighted": True,
+        "uptime_floor": 0.5,
+        "graduated_penalty": True,
+        "graduated_penalty_max": -5,
+        "duplicate_decay": True,
+        "duplicate_decay_hours": 6.0,
+        "duplicate_decay_floor": 0.0,
+        # T221. A hedged find is worth half a find its author stood behind.
+        "low_confidence_credit": 0.5,
+        # The first N honestly-flagged misses per player are free; beyond that the ordinary
+        # refuted penalty applies. Set to 3 so a careful player is never taxed for doubt.
+        "low_confidence_free_misses": 3,
+    },
 }
 
 DEFAULT_POLICY = "v1_doc"
@@ -149,6 +195,10 @@ def score_round(claims, verifications=None, policy: str = DEFAULT_POLICY,
             refuted[p] = refuted.get(p, 0) + 1
 
     first_seen = {}
+    # T221: per-player consumption of the free-miss budget, counted in the round's own
+    # deterministic order (`ordered`) so which specific misses are free is reproducible and
+    # cannot depend on submission timing within a millisecond.
+    low_conf_misses: dict = {}
     out, totals = [], {}
 
     for c in ordered:
@@ -172,8 +222,19 @@ def score_round(claims, verifications=None, policy: str = DEFAULT_POLICY,
             first_seen[key] = c
         detail["first_finder"] = is_first
 
+        is_low_conf = str(c.get("confidence") or "").lower() == "low"
+
         if outcome == "confirmed":
             pts = P["base"].get(str(c.get("claim_class")), 0)
+            # T221: price the hedge. A confirmed low-confidence claim used to earn FULL
+            # points while its wrong twin cost nothing -- downside protection with no upside
+            # cost, i.e. a free option, and a free option is always exercised. Absent from a
+            # policy this is 1.0, so v1_doc and v2_aixcc are byte-identical to before.
+            credit = float(P.get("low_confidence_credit", 1.0))
+            if is_low_conf and credit != 1.0:
+                pts = int(round(pts * credit))
+                detail["reason"] = (detail["reason"] + "; " if detail["reason"] else "") + \
+                    f"low-confidence credit x{credit:g}"
             if not is_first:
                 if P["duplicate_decay"]:
                     # An independent corroborating find keeps a SHARE. A hard zero makes
@@ -200,9 +261,23 @@ def score_round(claims, verifications=None, policy: str = DEFAULT_POLICY,
             detail["points"] = pts
 
         elif outcome == "refuted":
-            if str(c.get("confidence") or "").lower() == "low":
-                detail.update(points=P["refuted_low_confidence"],
-                              reason="honest low-confidence report: floored at 0")
+            if is_low_conf:
+                # T221: the floor is a KINDNESS FOR HONEST DOUBT, not an exemption from
+                # being wrong. Unbounded, it let a hedger spray thirty free wrong claims and
+                # win. Bounded, the first N misses stay free -- which is the entire reason
+                # this branch exists and must survive -- and the ordinary penalty resumes
+                # after. Absent from a policy the budget is infinite, so v1_doc and
+                # v2_aixcc keep their exact prior behaviour.
+                budget = P.get("low_confidence_free_misses")
+                used = low_conf_misses.get(player, 0)
+                low_conf_misses[player] = used + 1
+                if budget is None or used < int(budget):
+                    detail.update(points=P["refuted_low_confidence"],
+                                  reason="honest low-confidence report: floored at 0")
+                else:
+                    detail.update(points=P["refuted"],
+                                  reason=f"low-confidence, but past the free-miss budget "
+                                         f"({budget}): ordinary penalty applies")
             elif P["graduated_penalty"]:
                 rate = refuted.get(player, 0) / max(1, seen.get(player, 1))
                 worst = float(P["graduated_penalty_max"])
