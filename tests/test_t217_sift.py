@@ -336,6 +336,60 @@ def test_contested_is_not_silently_folded_into_agreement():
     assert out["agreements"][0]["verdicts"] == ["CONTESTED"]
 
 
+def test_two_abstentions_are_not_agreement():
+    """HEDGING SWEEP, proposed by claude#42d00626 after T221: "any place we let an agent hedge
+    (confidence, UNCLEAR, UNKNOWN, PARTIALLY) and score it, check whether hedging is
+    dominant." Ran it against this module first and it fired.
+
+    Two curators who both said UNCLEAR rendered as AGREEMENT, and the pair counted in the
+    flip-rate DENOMINATOR at 0.0 -- so an abstention silently improved the very number I
+    published as the curation tier's artifact rate. In the cost-blind sample `grants` and
+    `lease` were both UNCLEAR/UNCLEAR and sat in "agreement (8)".
+
+    Two people saying "I do not know" is not consensus. It is a shared blind spot with no
+    verdict, and calling it agreement is the same lie as calling UNKNOWN a negative -- which
+    this repo has now paid for at T155, T141 and T179.
+
+    His deeper point is why this matters beyond one function: we spend all night TEACHING
+    helpers to abstain, because L1 makes abstention the correct answer under uncertainty. If
+    a scored surface then makes abstention free, we pay for exactly the behaviour we praise,
+    and the praise hides it.
+    """
+    same = "cc33"
+    out = sift.compare_dossiers([
+        {"term": "t1", "hat": "a", "evidence_sha": same, "verdict": "UNCLEAR"},
+        {"term": "t1", "hat": "b", "evidence_sha": same, "verdict": "UNCLEAR"},
+    ])
+    assert [a["term"] for a in out["agreements"]] == [], \
+        "two abstentions counted as consensus"
+    assert [d["term"] for d in out["dissents"]] == [], "nor is it dissent -- nobody decided"
+    assert [u["term"] for u in out["undecided"]] == ["t1"]
+    assert out["flip_rate"] is None, \
+        "a flip rate over zero deciding pairs is not 0.0, it is undefined"
+
+
+def test_the_flip_rate_denominator_counts_only_deciding_pairs():
+    """The artifact rate must be per-DECISION. Leaving abstentions in the denominator lets a
+    tier improve its own score by declining to answer -- hedging made profitable in the one
+    metric that is supposed to catch bad curation."""
+    same = "dd44"
+    ds = [
+        {"term": "real1", "hat": "a", "evidence_sha": same, "verdict": "FORK"},
+        {"term": "real1", "hat": "b", "evidence_sha": same, "verdict": "NO_FORK"},
+        {"term": "real2", "hat": "a", "evidence_sha": same, "verdict": "NO_FORK"},
+        {"term": "real2", "hat": "b", "evidence_sha": same, "verdict": "NO_FORK"},
+        {"term": "punt", "hat": "a", "evidence_sha": same, "verdict": "UNCLEAR"},
+        {"term": "punt", "hat": "b", "evidence_sha": same, "verdict": "UNCLEAR"},
+    ]
+    out = sift.compare_dossiers(ds)
+    assert out["flip_rate"] == 0.5, (
+        f"1 dissent over 2 DECIDING pairs is 0.5, not {out['flip_rate']} -- an abstention "
+        f"must not dilute the artifact rate")
+    assert len(out["undecided"]) == 1
+    assert any("undecided" in b.lower() or "abstain" in b.lower() for b in out["blind"]), \
+        "a report with undecided terms must say so where the rate is read"
+
+
 def test_dissent_is_rendered_before_agreement():
     """The prior seat's §7: 'you are the bottleneck, not the helpers'. Dissent-first was
     his highest-leverage UNBUILT feature -- read the one disagreement, skip the four

@@ -702,6 +702,7 @@ def compare_dossiers(dossiers: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
 
     dissents: List[Dict[str, Any]] = []
     agreements: List[Dict[str, Any]] = []
+    undecided: List[Dict[str, Any]] = []
     for term, ds in sorted(by_term.items()):
         verdicts = {str(d.get("verdict", "")).upper() for d in ds}
         row = {"term": term,
@@ -709,12 +710,26 @@ def compare_dossiers(dossiers: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
                "hats": sorted(str(d.get("hat", "")) for d in ds),
                "evidence_sha": str(ds[0].get("evidence_sha", "")),
                "dossiers": ds}
-        (dissents if len(verdicts) > 1 else agreements).append(row)
+        # A term where EVERY curator abstained is neither agreement nor dissent -- nobody
+        # decided anything. Counting it as agreement (which this did until the T221 hedging
+        # sweep) is the same lie as reading UNKNOWN as a negative, and it let an abstention
+        # silently improve the flip rate this function exists to report.
+        if verdicts <= {"UNCLEAR", ""}:
+            undecided.append(row)
+        elif len(verdicts) > 1:
+            dissents.append(row)
+        else:
+            agreements.append(row)
 
-    n_pairs = len(by_term)
-    rate = (len(dissents) / n_pairs) if n_pairs else 0.0
+    # PER-DECISION denominator. Leaving abstentions in it would let the tier improve its own
+    # artifact rate by declining to answer -- hedging made profitable in the one metric meant
+    # to catch bad curation.
+    n_deciding = len(dissents) + len(agreements)
+    rate = (len(dissents) / n_deciding) if n_deciding else None
 
-    triage = n_pairs >= IMPLAUSIBLE_MIN_N and rate >= IMPLAUSIBLE_DISSENT_RATE
+    n_pairs = n_deciding
+    triage = (rate is not None and n_pairs >= IMPLAUSIBLE_MIN_N
+              and rate >= IMPLAUSIBLE_DISSENT_RATE)
     reason = ""
     if triage:
         reason = (
@@ -731,10 +746,15 @@ def compare_dossiers(dossiers: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
         "refused": None,
         "dissents": dissents,
         "agreements": agreements,
+        "undecided": undecided,
         "triage_required": triage,
         "triage_reason": reason,
-        "render_order": ["dissents", "triage", "agreements"],
+        "render_order": ["dissents", "triage", "agreements", "undecided"],
         "blind": [
+            (f"{len(undecided)} term(s) UNDECIDED -- every curator abstained, so they are in "
+             f"NEITHER the agreement list nor the flip-rate denominator. Two people saying "
+             f"'I do not know' is a shared blind spot, not consensus"
+             if undecided else "no term was left undecided by every curator"),
             "a shared blind spot produces AGREEMENT, so agreement here is weaker evidence "
             "than disagreement -- two curators can be identically wrong",
             "verdict equality is compared as a STRING: two dossiers can agree on FORK while "
