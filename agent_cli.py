@@ -5582,8 +5582,12 @@ def build_parser():
                                          "gate and does not ship until it exists")
     dsc.add_argument("action", nargs="?", default="status",
                      choices=["status", "test", "send"],
-                     help="status = is it configured and what forwards; test = post a real "
-                          "line so you can confirm it lands; send = forward one message")
+                     help="status = is it configured and what forwards; EXITS 0 EVEN WHEN "
+                          "UNCONFIGURED, because opt-in-and-unset is a state rather than a "
+                          "failure, and it prints the setup steps. test = post a real line "
+                          "so you can confirm it lands. send = forward one message, and an "
+                          "explicit send BYPASSES the kind allowlist (the person typing the "
+                          "command is the selection); only the automatic feed filters.")
     dsc.add_argument("--text", default="", help="body for `send`")
     dsc.add_argument("--kind", default="chat", help="kind for `send` (default chat)")
     dsc.add_argument("--json", action="store_true")
@@ -5616,8 +5620,12 @@ def build_parser():
     sf.add_argument("--workers", type=int, default=20,
                     help="fan concurrency (default 20); branches are HTTP requests, not seats")
     sf.add_argument("--max-occurrences", type=int, default=120, dest="max_occurrences",
-                    help="cap per pack. A cap is always REPORTED in the pack's blind list, "
-                         "never silent -- a rate over a cap is not a rate over the corpus")
+                    help="cap per pack. The cap SAMPLES ROUND-ROBIN ACROSS FILES -- every "
+                         "file contributes its first occurrence before any file contributes "
+                         "a second -- so a term in 163 files still reaches the helper as 163 "
+                         "files, not as the first few alphabetically. (It is also always "
+                         "reported in the pack's blind list; a rate over a cap is not a rate "
+                         "over the corpus.)")
     sf.add_argument("--out", default="", help="write the full JSON record here (the dossiers "
                                               "are the durable artifact; the console render "
                                               "is a summary and clips)")
