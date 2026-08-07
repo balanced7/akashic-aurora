@@ -1,5 +1,5 @@
 {
-  "seq": 204,
+  "seq": 205,
   "tasks": [
     {
       "id": "T001",
@@ -7411,6 +7411,52 @@
           "to": "done",
           "by": "",
           "at": "2026-08-07T02:37:40+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T205",
+      "title": "T205: ask --bg -- stop blocking on your own helpers. Every fence this session ran SERIALLY (24s/43s/48s/54s dead wall-clock each) because ask blocks and its answer lands in the caller's context whole; the fan primitive existed and was unaffordable for one reason -- attention, not capability. --bg spawns a DETACHED child running the same CLI with --json, files the structured result under a short handle, and returns the handle immediately; --get reads it, --list shows recent ones. NOT A SEAT (T171 pinned via AST): no identity, lock, cursor, mailbox, heartbeat or reaper protection -- nothing addresses it but the handle its caller holds, which is also why it needs no wake machinery. DESIGNED AGAINST THE 1324-UNOPENED-MAILBOX FAILURE: RUNNING / DONE / FAILED / ORPHANED are four distinct readings, because an unfinished ask that renders like an empty answer teaches the reader to stop looking; a record whose child is gone but never wrote a result reads ORPHANED rather than busy forever. LIVE PROOF, three concurrent grounded investigations of T198 spawned in one command: (1) expectations -- after settle the answer message is untouched, NO cursor advances, it persists until the ~10k maxlen trims it (cited lines 111, 246-248, 302-314); (2) bus -- a BIFROST_CONSUME_LANE=work consumer advances ONLY the lane cursor, the shared cursor is left behind, and bus.wait() with no since= (exactly what the arm-time pending check does) replays everything the lane consumer already handled -- the T198 root cause confirmed independently with citations; it also REFUSED to cite a line for the lane cursor key because that part of the file was outside the --with budget, i.e. the T203 truncation confession worked end to end.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "HEAD",
+      "verified_by": "10/10 pins RED first, 34 green; live: 3 concurrent grounded investigations, two returned cited confirmations of the T198 root cause",
+      "created": "2026-08-07T02:45:51+00:00",
+      "updated": "2026-08-07T02:46:21+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-07T02:45:51+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-07T02:45:51+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-07T02:45:51+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-08-07T02:45:52+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-07T02:45:52+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-07T02:46:21+00:00"
         }
       ]
     }
