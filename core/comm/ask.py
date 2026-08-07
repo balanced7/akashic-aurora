@@ -96,8 +96,92 @@ def _usd(model: str, prompt_tokens: int, completion_tokens: int) -> Optional[flo
         return None
 
 
+#: Per-CALL ceiling for inlined source. Shared by every file in one ask, first-come, so a
+#: huge first file cannot silently starve the rest -- starvation is reported, never quiet.
+DEFAULT_CONTEXT_CHARS = int(os.getenv("AKASHIC_ASK_CONTEXT_CHARS", "40000"))
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def build_context(paths, *, budget_chars: Optional[int] = None, root=None):
+    """Inline source files for a helper to reason about. Returns (block, meta) (T203).
+
+    THE PROBLEM THIS SOLVES, measured on this session's own fences: four times a helper was
+    asked to attack a design from a PROSE description, because it has no file access. Twice
+    it was wrong, and both times the error was settled by four lines of source it could not
+    see. Its blindness, not its intelligence, capped every fence.
+
+    LINE NUMBERS ARE THE POINT. A helper that can write `bifrost_api.py:252` produces a
+    claim verifiable in seconds; the same claim from prose costs a manual investigation.
+
+    Never raises, and never lies about what it sent: an unreadable path is NAMED in both
+    the prompt and the meta, truncation is confessed to the model AND the caller, and a
+    file starved by the budget is reported rather than dropped. A context assembler that
+    silently omits is worse than none -- it turns a blind helper into a confident one.
+    """
+    budget = int(budget_chars if budget_chars is not None else DEFAULT_CONTEXT_CHARS)
+    # The containment boundary is a PARAMETER, not a global: a hardcoded root is a
+    # security control that cannot be exercised by a test, and an unexercised control is
+    # an assumption. Defaults to the repo so callers get containment without asking.
+    base = Path(root).resolve() if root else _REPO_ROOT
+    included, missing, skipped, refused = [], [], [], []
+    parts, spent, truncated = [], 0, False
+
+    for raw in (paths or []):
+        p = str(raw)
+        try:
+            full = Path(p).expanduser().resolve()
+        except Exception:
+            missing.append({"path": p, "why": "unresolvable path"})
+            continue
+        # A prompt assembler reads whatever it is handed, so keep it inside the repo: a
+        # stray path must not be able to lift a key or a secret into a model prompt.
+        try:
+            full.relative_to(base)
+        except ValueError:
+            refused.append({"path": p, "why": "outside the repo root"})
+            continue
+        try:
+            text = full.read_text(encoding="utf-8", errors="replace")
+        except OSError as e:
+            missing.append({"path": p, "why": f"{e.__class__.__name__}: {e}"})
+            continue
+
+        room = budget - spent
+        if room <= 0:
+            skipped.append({"path": p, "why": "no room left in the per-call budget"})
+            continue
+        cut = len(text) > room
+        body = text[:room]
+        if cut:
+            truncated = True
+        numbered = "\n".join(f"{i:>5}  {ln}"
+                             for i, ln in enumerate(body.splitlines(), start=1))
+        header = f"--- BEGIN {full.name} ({p}) ---"
+        footer = (f"--- END {full.name} [TRUNCATED at {room} chars of {len(text)}; you are "
+                  f"seeing a PARTIAL file -- say so if it limits your answer] ---"
+                  if cut else f"--- END {full.name} ---")
+        parts.append(f"{header}\n{numbered}\n{footer}")
+        spent += len(body)
+        included.append({"path": str(full), "chars": len(body), "truncated": cut})
+
+    for m in missing + refused:
+        parts.append(f"--- COULD NOT READ {m['path']} ({m['why']}) -- "
+                     f"do not assume its contents ---")
+    for s in skipped:
+        parts.append(f"--- NOT INCLUDED {s['path']} ({s['why']}) ---")
+
+    block = ""
+    if parts:
+        block = ("The following repository files are provided so you can cite evidence.\n"
+                 "CITE `filename:line` for any claim about this code; if you are inferring "
+                 "rather than reading, say so explicitly.\n\n" + "\n\n".join(parts))
+    return block, {"included": included, "missing": missing, "skipped": skipped,
+                   "refused": refused, "truncated": truncated, "chars": spent}
+
+
 def ask(prompt: str, *, system: Optional[str] = None, model: Optional[str] = None,
-        max_tokens: Optional[int] = None, client=None) -> BoundaryOutcome:
+        max_tokens: Optional[int] = None, client=None, with_files=None,
+        context_root=None) -> BoundaryOutcome:
     """Ask a helper one question, synchronously. Never raises.
 
     Returns a BoundaryOutcome whose `detail["answer"]` carries the text. done / partially / failed
@@ -106,6 +190,13 @@ def ask(prompt: str, *, system: Optional[str] = None, model: Optional[str] = Non
     if not str(prompt or "").strip():
         return BoundaryOutcome.failed("empty prompt -- nothing to ask")
     model = model or DEFAULT_MODEL
+    # T203: source first, question last. The question is what the model should still be
+    # holding when it starts generating, and a wall of code between them buries it.
+    ctx_meta = None
+    if with_files:
+        block, ctx_meta = build_context(with_files, root=context_root)
+        if block:
+            prompt = f"{block}\n\n=== QUESTION ===\n{prompt}"
     t0 = time.time()
     try:
         if client is None:
@@ -141,6 +232,10 @@ def ask(prompt: str, *, system: Optional[str] = None, model: Optional[str] = Non
     detail = {"answer": answer, "model": model, "prompt_tokens": pt,
               "completion_tokens": ct, "usd": _usd(model, pt, ct),
               "elapsed_s": elapsed, "finish_reason": finish}
+    if ctx_meta is not None:
+        # Which files this answer was based on. Without it a cited claim cannot be traced
+        # back to the version of the file that was actually read.
+        detail["context"] = ctx_meta
 
     if not answer:
         return BoundaryOutcome.failed(
@@ -375,21 +470,19 @@ def _diagnose(peer: str, peer_state: str):
         launchable = bool(resolve_tag(peer, get_launcher().registry())["ok"])
     except Exception:
         launchable = None
-    # known_seat stays None unless a witness POSITIVELY says this seat exists. The first
-    # cut derived it from `launchable or attending`, which is absence-of-evidence wearing
-    # a boolean: kimi, sol and deepseek-review are real, long-lived seats with no
-    # launcher tag, and that formula called all three UNKNOWN_PEER on their first live
-    # run. A seat the roster has ever witnessed is known; anything else is unknown, and
-    # unknown must not collapse to False.
+    # known_seat stays None -- DELIBERATELY UNOBSERVED HERE. Two earlier cuts were wrong
+    # in opposite directions. The first derived it from `launchable or attending`, which
+    # is absence-of-evidence wearing a boolean, and declared kimi, sol and deepseek-review
+    # nonexistent. The second read the roster for a real witness and got the right answer
+    # -- but referencing seat machinery from this module violates the T171 law that an ask
+    # is not a seat, and that law is worth more than this field.
+    #
+    # None is also the honest value: UNKNOWN_PEER asserts "nothing identifies a reader",
+    # a claim about the world that needs positive evidence we rarely hold. classify()
+    # therefore falls to SEAT_DOWN, whose advice (launch it, or leave the ask armed) is
+    # sound even for an id that never existed. A caller holding a real witness can still
+    # pass known_seat=False and get the sharper verdict.
     known_seat = None
-    try:
-        from core.comm import roster as _roster
-        from core.comm.liveness import _ns as _lns
-        seen = {str(r.get("agent") or "").split("#")[0] for r in _roster.roster(_lns())}
-        if peer in seen or (base and base in seen):
-            known_seat = True
-    except Exception:
-        known_seat = None
     return classify(peer, attending=(peer_state == "ATTENDED"),
                     base_attending=base_attending, launchable=launchable,
                     known_seat=known_seat)

@@ -1999,7 +1999,8 @@ def cmd_ask(args):
         return 0 if o.ok else 1
 
     o = ask_helper(prompt, system=args.system or None, model=args.model or None,
-                   max_tokens=args.max_tokens)
+                   max_tokens=args.max_tokens,
+                   with_files=getattr(args, "with_files", None))
 
     if args.json:
         print(json.dumps({"ok": o.ok, "partial": o.partial, "why": o.why, **o.detail},
@@ -4948,6 +4949,11 @@ def build_parser():
                             "the DURABLE expectation keeps redriving after it")
     ask_p.add_argument("--poll", type=float, default=2.0,
                        help="poll interval for --peer (default 2s)")
+    ask_p.add_argument("--with", dest="with_files", action="append", metavar="PATH",
+                       help="inline a repo file into the ask, WITH LINE NUMBERS, so the "
+                            "helper can cite file:line instead of reasoning blind. "
+                            "Repeatable; one shared char budget; truncation and "
+                            "unreadable paths are stated, never silently dropped")
     ask_p.add_argument("--launch", action="store_true",
                        help="with --peer: if nobody is home, LAUNCH the seat first, wait "
                             "for it to attend, then ask. The launcher's singleton gate is "
