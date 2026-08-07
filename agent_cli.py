@@ -2189,8 +2189,20 @@ def cmd_ask(args):
         child = [sys.executable, str(Path(__file__).resolve()), "ask", "--json",
                  "--bg-child", handle]
         child += _bg_forward_argv(args)
+        # T231: the prompt rides a FILE, never the argv. It used to be appended as one
+        # command-line argument, so `--bg --prompt-file <big>` died at the Windows ~32k cap
+        # with WinError 206 -- and those two flags are the pair most worth combining, since
+        # both exist for size. ONE PATH FOR ALL SIZES, deliberately: a "spill to a file only
+        # when large" branch is where this class hides, because every small test passes and
+        # only production ever meets the threshold.
         if prompt:
-            child.append(prompt)
+            pf = _bg.prompt_path(handle)
+            try:
+                pf.write_text(prompt, encoding="utf-8")
+                child += ["--prompt-file", str(pf)]
+            except OSError as e:
+                print(f"could not stage the background prompt: {e}", file=sys.stderr)
+                return 1
         try:
             fh = open(out_path, "w", encoding="utf-8")
             flags = 0

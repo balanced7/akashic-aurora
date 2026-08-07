@@ -46,6 +46,20 @@ def _path(handle: str) -> Path:
     return ASK_DIR / f"{handle}.json"
 
 
+def prompt_path(handle: str) -> Path:
+    """Where a backgrounded ask's QUESTION lives, so it never has to ride the command line.
+
+    T231: the parent used to append the resolved prompt to the child's argv, which dies at the
+    Windows ~32k command-line cap -- so `--bg --prompt-file <big>` could not spawn at all, and
+    those are the two flags most worth combining, both of them being about SIZE.
+
+    Keeping the question next to the record is worth more than the bug it fixes: `ask --get`
+    could previously show an answer whose question was only ever an argv string in a dead
+    process. Now the pair is durable and colocated, which is what a record is for.
+    """
+    return ASK_DIR / f"{handle}.prompt"
+
+
 def write_record(handle: str, rec: Dict[str, Any]) -> None:
     """Best-effort durable write. Never raises: losing bookkeeping must not lose the ask."""
     try:
