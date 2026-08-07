@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (37 of 144 modules lack both pin and paper by name)
+## GAP queue (38 of 145 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/migrate_to_sqlite.py
@@ -34,6 +34,7 @@ Class: reference
 - core/comm/session_state.py
 - core/comm/storm_detect.py
 - core/comm/timescale.py
+- core/coord/capability_search.py
 - core/coord/task_costs.py
 - core/learning/domains.py
 - core/learning/vfx_chunk_lessons.py
@@ -136,10 +137,11 @@ Class: reference
 | `turn_metrics.py` | Turn metrics (progress-bars data half; co-designed claude+deepseek 2026-07-11). | tests/test_turn_metrics.py | GAP | `BIFROST_NAMESPACE` |
 | `wake_seat.py` | wake_seat -- the per-session wake-seat protocol (T029 Wave 2, the R1/R16 fix). | tests/test_wake_seat.py | docs/library/design/20260701_wave-2-design-claude-fenced-wake-seat-ow_7c4aaf.md | `AKASHIC_TOMBSTONE`, `AKASHIC_WAKE_MARKER_FRESH_MIN`, `BIFROST_NAMESPACE` |
 
-## core/coord/  (13 modules)
+## core/coord/  (14 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
+| `capability_search.py` | capability_search -- "does this system already do X?", asked at the level of MEANING. | GAP | GAP |  |
 | `cognitive_metrics.py` | Cognitive Efficiency Metrics — live instrumentation for the Stage-3 evidence engine. | tests/test_cognitive_metrics.py | GAP |  |
 | `conductor.py` | Conductor — the impure orchestration shell over the pure task ledger (Slice D). | tests/test_conductor.py | docs/library/chronicle/20260723_session-reflection-fable-s-conductor-nig_415441.md |  |
 | `defer_queue.py` | defer_queue — the capability-gated standing queue (W33, seat-zero wave B3). | tests/test_w33_defer_queue.py | GAP |  |

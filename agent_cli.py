@@ -1189,6 +1189,31 @@ def list_verbs(query=""):
 def cmd_discover(args):
     """The self-describing door: list every verb + its one-line purpose (the L1 skeleton). Optional
     QUERY filters by substring. Run `py agent_cli.py <verb> -h` for a verb's full arguments."""
+    # T210: --semantic asks the question at the level of MEANING. The substring path
+    # below is a FACT about the verb table; this is a model READING it, so the two are
+    # rendered differently and never laundered into each other.
+    if getattr(args, "semantic", False):
+        from core.coord import capability_search
+        r = capability_search.find(args.query or "")
+        if args.json:
+            print(json.dumps(r, ensure_ascii=False, default=str))
+            return 0
+        print(f"# does this system already do it?  '{args.query}'")
+        print(f"  EXISTS: {r['exists']}"
+              + ("" if r["confident"] else "   [NOT CONFIDENT -- do not act on this]"))
+        for label, key in (("WHAT", "what"), ("GAP", "gap"),
+                           ("NEAREST MISS", "nearest_miss")):
+            if r.get(key):
+                print(f"  {label}: {r[key]}")
+        if r.get("why"):
+            print(f"  why: {r['why']}", file=sys.stderr)
+        spend = f"${r['usd']:.4f}" if r.get("usd") is not None else "unpriced"
+        print(f"  -- a MODEL READ of the verb table + module index (not a lookup) "
+              f"| {r.get('model') or '?'} | {spend}", file=sys.stderr)
+        # UNKNOWN is not a "no". This tool exists because absence gets inferred; it must
+        # never be the thing that infers one.
+        return 0
+
     verbs = list_verbs(args.query)
     if args.json:
         print(json.dumps([{"verb": n, "purpose": h} for n, h in verbs], indent=2)); return 0
@@ -1198,6 +1223,15 @@ def cmd_discover(args):
     width = max((len(n) for n, _ in verbs), default=0)
     for n, h in verbs:
         print(f"  {n.ljust(width)}  {h}")
+    # ZERO MATCHES IS THE MOMENT THE POINTER IS WORTH MOST, and the moment it was
+    # missing: asked "check whether a test failure is pre-existing" this path returns 0
+    # while `suite-baseline` sits in the list it just searched. A substring search cannot
+    # match meaning, and saying so here is the difference between an honest empty result
+    # and one that reads as "no such thing".
+    if q and not verbs:
+        print(f"\n0 matches -- but this is a SUBSTRING search and cannot match meaning. "
+              f"Ask at the level of meaning before concluding it does not exist:\n"
+              f"  py agent_cli.py discover --semantic \"{q}\"", file=sys.stderr)
     return 0
 
 
@@ -5055,6 +5089,13 @@ def build_parser():
     dsc = sub.add_parser("discover", help="list every verb + its purpose (the self-describing door)")
     dsc.add_argument("query", nargs="?", default="", help="optional substring to filter verbs by name/purpose")
     dsc.add_argument("--json", action="store_true")
+    dsc.add_argument("--semantic", action="store_true",
+                     help="ask at the level of MEANING instead of substring: 'does this "
+                          "system already do X?' Returns EXISTS/WHAT/GAP/NEAREST MISS "
+                          "over the verb table + module index. Costs one model call "
+                          "(~20s, under a cent). A failed or malformed call renders "
+                          "UNKNOWN, never 'no' -- this verb exists to stop absence being "
+                          "inferred, so it must never infer one")
     dsc.set_defaults(fn=cmd_discover)
 
     l = sub.add_parser("learn", help="record a lesson")

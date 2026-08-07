@@ -29,7 +29,7 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 
 - `core/foundation` -- DRIFT (8->9), reviewed 2026-07-26
 - `core/comm` -- DRIFT (36->51), reviewed 2026-07-26
-- `core/coord` -- DRIFT (11->13), reviewed 2026-07-26
+- `core/coord` -- DRIFT (11->14), reviewed 2026-07-26
 - `core/learning` -- DRIFT (3->5), reviewed 2026-07-26
 - `core/recall` -- DRIFT (10->13), reviewed 2026-07-26
 - `core/primitives` -- DRIFT (7->8), reviewed 2026-07-26
@@ -37,7 +37,7 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 - `scripts/checkers` -- DRIFT (12->16), reviewed 2026-07-26
 - `scripts/generators` -- DRIFT (6->7), reviewed 2026-07-26
 - `scripts/ops` -- DRIFT (2->3), reviewed 2026-07-26
-- `tests` -- DRIFT (331->476), reviewed 2026-07-26
+- `tests` -- DRIFT (331->477), reviewed 2026-07-26
 
 ---
 
@@ -131,7 +131,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `core/coord` -- 13 modules  ·  DRIFT (11->13)
+## `core/coord` -- 14 modules  ·  DRIFT (11->14)
 
 **What it does.** Coordination primitives: advisory path locks, the RB-21 consumer seat with generations, the task ledger with gated transitions, the conductor, and expectation/redrive bookkeeping.
 
@@ -514,7 +514,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `tests` -- 476 modules  ·  DRIFT (331->476)
+## `tests` -- 477 modules  ·  DRIFT (331->477)
 
 **What it does.** 331 test modules plus conftest, providing universal backend isolation, a parity exerciser shared across store backends, and a differential harness that cross-verifies two implementations of the same semantics.
 

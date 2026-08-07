@@ -34,7 +34,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `console-log` | durable console events (interjection/bus_control/file_drop) | `--limit` `--since` `--until` `--json` |
 | `defer` | the capability-gated standing queue (W33): file a command awaiting an exec/write seat; boot surfaces it; discharge with a receipt | `<agent_id>*` `<cmd_text>` `--needs` `--why` `--list` `--done` `--receipt` |
 | `delta` | what changed since this agent's last boot (T052 delta door) | `<agent_id>*` `--ack` |
-| `discover` | list every verb + its purpose (the self-describing door) | `<query>` `--json` |
+| `discover` | list every verb + its purpose (the self-describing door) | `<query>` `--json` `--semantic` |
 | `doc` | seed a new doc with its header contract (library door) | `<sub> {new,adopt}` |
 | `doctor` | fleet liveness doctor (L2): progress, not presence | `--agents` `--deploy` `--page` `--progress` `--json` |
 | `episode` | session bookends: current episode, close+draft, accept | `<action>* {current,close,accept}` `<chapter_id>` `--title` `--desc` `--why` `--accept-title` `--accept-desc` `--accept-why` `--json` |
