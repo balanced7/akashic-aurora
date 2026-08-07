@@ -15,9 +15,12 @@ The refusal was correct. The SILENCE about it was not:
 
 T218 closed exactly this asymmetry for the CLIP class and its docstring states the law:
 "a clip is only safe if the party who will draw a conclusion from it is told." REFUSED and
-MISSING are the same law's other two cases, and `clipped_evidence_notice` returns "" for both
-because it gates on `ctx_meta["truncated"]` alone. The data is already there and correct --
-build_context records {"refused": [...], "missing": [...]} -- and nothing reads it.
+MISSING are the same law's other two cases, and T218's `clipped_evidence_notice` returned ""
+for both because it gated on `ctx_meta["truncated"]` alone. The data is already there and
+correct -- build_context records {"refused": [...], "missing": [...]} -- and nothing read it.
+`unusable_evidence_notice` supersedes that name outright: a delegating alias kept for
+compatibility would have been a second answer to one question with no caller, and
+check_wiring refused it on exactly those grounds.
 
 REFUSED IS STRICTLY WORSE THAN CLIPPED. A clipped file delivers most of itself; a refused file
 delivers nothing, so a lens grounded in it is not degraded but VOID. The caller's next move
@@ -145,14 +148,21 @@ def test_both_cli_doors_use_the_widened_notice():
     src = (REPO / "agent_cli.py").read_text(encoding="utf-8", errors="replace")
     assert src.count("ask_mod.unusable_evidence_notice(") == 2, \
         "both the fan render and the single-ask render must use the widened notice"
-    assert "ask_mod.clipped_evidence_notice(" not in src, \
-        "no CLI door should still be on the CLIP-only notice"
+    assert "clipped_evidence_notice" not in src, \
+        "no CLI door should still reach for the retired CLIP-only name"
 
 
 def test_t218_notice_survives_as_the_clip_case():
-    """The predecessor keeps working. T218's pins must not need editing for T225 to land."""
-    from core.comm.ask import build_context, clipped_evidence_notice
+    """T218's guarantee is unchanged in substance -- only the function's name moved.
+
+    Its pins now import `unusable_evidence_notice` and assert the same strings against the
+    same meta, because the CLIP branch of the widened notice is byte-for-byte T218's text. A
+    rename that preserves every assertion is not a weakening of a predecessor's pins; keeping
+    a caller-less alias to avoid the rename would have been the fork this repo has a lesson
+    about, and check_wiring blocked the commit that tried it.
+    """
+    from core.comm.ask import build_context, unusable_evidence_notice
 
     _ctx, meta = build_context(["core/comm/bus.py"], root=str(REPO))
     assert meta["truncated"] is True
-    assert "EVIDENCE CLIPPED" in clipped_evidence_notice(meta)
+    assert "EVIDENCE CLIPPED" in unusable_evidence_notice(meta)

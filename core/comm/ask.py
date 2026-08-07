@@ -190,37 +190,69 @@ def build_context(paths, *, budget_chars: Optional[int] = None, root=None):
                    "refused": refused, "truncated": truncated, "chars": spent}
 
 
-def clipped_evidence_notice(ctx_meta: Optional[Dict[str, Any]]) -> str:
-    """One line for the CALLER when the evidence it supplied was clipped. "" when it wasn't.
+def unusable_evidence_notice(ctx_meta: Optional[Dict[str, Any]]) -> str:
+    """What the caller must be told about evidence that did not arrive whole. "" when all did.
 
-    THE ASYMMETRY THIS CLOSES, found by using the door on 2026-08-07. build_context already
-    tells the HELPER, in band, that it is reading a partial file -- and helpers obey it: one
-    correctly reported "does not appear anywhere in the 743-line excerpt" about a key
-    defined at line 1201. That half works.
+    T225, found by running the fan at its own door 2026-08-07. T218 closed this asymmetry for
+    ONE of build_context's four outcomes and stated the law generally: "a clip is only safe if
+    the party who will draw a conclusion from it is told." The other three stayed silent, and
+    the silence was measured -- three refused files, 0 bytes of stderr, $0.065 spent, one lens
+    structurally unable to answer.
 
-    The caller was told tokens, spend, elapsed and model, and nothing about the clip. So an
-    abstention caused by the WINDOW is indistinguishable, at the surface a human reads, from
-    an abstention caused by ABSENCE -- and the natural conclusion is "the code isn't there".
-    That is this repo's most expensive recurring error, handed to the one participant who
-    cannot check the evidence themselves.
+    FOUR OUTCOMES, FOUR DIFFERENT NEXT MOVES, WHICH IS WHY THEY DO NOT MERGE:
+      CLIPPED  the file arrived partial      -> narrow the question or cite line ranges
+      REFUSED  outside the repo root         -> move it in, or pass a path that is inside
+      MISSING  unreadable / no such path     -> fix the path (a typo is the common case)
+      SKIPPED  budget spent by earlier files -> reorder, raise the budget, or ask twice
 
-    Kept beside build_context deliberately: the notice and the meta it describes drift apart
-    the moment they live in different modules (the same argument T200 made for door twins
-    delegating to one implementation).
+    A count is not actionable, so every file is NAMED. The reason is carried too: "refused"
+    without "outside the repo root" leaves the caller guessing at the fix.
+
+    Kept beside build_context for the reason T218 gave: the notice and the meta it describes
+    drift the moment they live in different modules.
     """
-    if not ctx_meta or not ctx_meta.get("truncated"):
+    if not ctx_meta:
         return ""
+    lines = []
+
     cut = [i for i in ctx_meta.get("included", []) if i.get("truncated")]
-    bits = []
-    for i in cut:
-        name = os.path.basename(str(i.get("path", "?")))
-        shown = i.get("chars")
-        total = i.get("total_chars") or i.get("of") or _file_chars(i.get("path"))
-        bits.append(f"{name} ({shown} of {total} chars)" if total else f"{name} ({shown} chars)")
-    return ("EVIDENCE CLIPPED: " + ", ".join(bits) +
+    if cut:
+        bits = []
+        for i in cut:
+            name = os.path.basename(str(i.get("path", "?")))
+            shown = i.get("chars")
+            total = i.get("total_chars") or i.get("of") or _file_chars(i.get("path"))
+            bits.append(f"{name} ({shown} of {total} chars)" if total else f"{name} ({shown} chars)")
+        lines.append(
+            "EVIDENCE CLIPPED: " + ", ".join(bits) +
             " -- the helper saw a PARTIAL file, so anything it reported as missing or "
             "absent may be outside the window rather than outside the code. Narrow the "
             "file set or cite line ranges before concluding absence.")
+
+    for key, label, move in (
+        ("refused", "EVIDENCE REFUSED",
+         "-- these were NOT sent, so any answer grounded in them is void, not merely "
+         "degraded. The helper was told not to assume their contents. Pass a path inside "
+         "the repo, or copy the file in."),
+        ("missing", "EVIDENCE MISSING",
+         "-- these could not be read and were NOT sent. Check the path (a typo is the "
+         "common case) and re-ask; nothing about them was seen."),
+        ("skipped", "EVIDENCE SKIPPED",
+         "-- the per-call character budget was spent by earlier files before these were "
+         "reached. Reorder the file list, raise the budget, or split into two asks."),
+    ):
+        rows = ctx_meta.get(key) or []
+        if not rows:
+            continue
+        # THE PATH AS THE CALLER TYPED IT, not the basename. A clipped file arrived and is
+        # identified by its name; these three did NOT arrive, and the caller's next move is to
+        # fix the string they passed -- which they cannot do if the notice shows a basename.
+        # (Caught by this slice's own pin: "no/such/file/t225.py" rendered as "t225.py",
+        # which is exactly the information a typo hides in.)
+        bits = [f"{r.get('path', '?')} ({r.get('why', 'no reason recorded')})" for r in rows]
+        lines.append(f"{label}: " + ", ".join(bits) + " " + move)
+
+    return "\n".join(lines)
 
 
 def _file_chars(path) -> Optional[int]:
@@ -238,6 +270,25 @@ def ask(prompt: str, *, system: Optional[str] = None, model: Optional[str] = Non
 
     Returns a BoundaryOutcome whose `detail["answer"]` carries the text. done / partially / failed
     are the three real states, and every one of them can say why.
+
+    continue_on_cut DEFAULTS FALSE HERE AND TRUE ON THE CLI, AND THAT IS DELIBERATE (T204,
+    re-affirmed T226 2026-08-07). It reads like drift and it is not, so the reason lives here
+    now -- because its absence is what made two readers call it a bug on the same day.
+
+      LIBRARY (this default, False): "spending extra calls must be asked for" -- T204's ruling,
+      pinned by test_t204_untruncate.test_continuation_is_opt_in. A programmatic caller has no
+      human watching the spend line, so an automatic extra completion is money nobody agreed to.
+      MCP, ToolBox, sift and every runner arrive through here.
+
+      CLI (--no-continue, default True): a door may choose a policy FOR its user, and this one
+      does, with the argument in its help text -- with no token ceiling a cut means the model hit
+      its OWN limit, so stitching costs one completion while a re-ask pays for the whole prompt
+      again (8662 tokens with --with, measured). A human sees the spend line and can say no.
+
+    So the invariant is NOT "both defaults agree". It is: the CLI passes its choice EXPLICITLY to
+    every path it owns (single ask AND fan), and the library never continues unasked. T226 pins
+    that, because the fan was silently getting neither.
+
     """
     if not str(prompt or "").strip():
         return BoundaryOutcome.failed("empty prompt -- nothing to ask")
@@ -654,7 +705,8 @@ def _fan_client(client):
 def ask_many(prompts, *, system: Optional[str] = None, model: Optional[str] = None,
              max_tokens: Optional[int] = None, client=None,
              max_workers: Optional[int] = None, with_files=None,
-             context_root=None) -> BoundaryOutcome:
+             context_root=None, continue_on_cut: bool = False,
+             max_continuations: int = 2) -> BoundaryOutcome:
     """Ask N helpers at once. Still no seat behind any of them (T181). Never raises.
 
     THE PRIMITIVE THE FLEET PATTERNS NEED. Daniil's design, expanded by Sol at his ask: the
@@ -705,8 +757,13 @@ def ask_many(prompts, *, system: Optional[str] = None, model: Optional[str] = No
         body = (f"{shared_ctx}\n\n=== QUESTION ===\n{prompts[i]}"
                 if shared_ctx else prompts[i])
         try:
+            # T226: continue_on_cut/max_continuations were accepted by the CLI and reached
+            # NOTHING here -- the T216 shape one flag over, and it bit hardest on the fan,
+            # where N branches share one budget-shaped prompt and so tend to cut together.
             return ask(body, system=system, model=model,
-                       max_tokens=max_tokens, client=client)
+                       max_tokens=max_tokens, client=client,
+                       continue_on_cut=continue_on_cut,
+                       max_continuations=max_continuations)
         except Exception as e:      # ask() does not raise Exception; never lose a slot anyway
             return BoundaryOutcome.caught(e, where=f"ask_many(branch {i})")
 

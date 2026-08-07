@@ -178,6 +178,30 @@ def summarize(rec: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     status = str(rec.get("status") or "")
     result = rec.get("result") or {}
     if status == "done":
+        # T226: a backgrounded FAN has branches and no single `answer`, so this rendered
+        # "DONE" with an empty body -- three paid-for answers on disk and nothing shown.
+        # A fan is summarised as a fan: how many landed, what they cost, and whether they
+        # were N findings or one finding billed N times (the T182 verdict is the whole
+        # reason to read a fan at all).
+        branches = result.get("branches") or []
+        if branches:
+            n, n_ok = result.get("n") or len(branches), result.get("n_ok")
+            div = result.get("diversity")
+            body = "\n\n".join(
+                f"--- branch {b.get('i')} "
+                f"[{'ok' if b.get('ok') and not b.get('partial') else ('PARTIAL' if b.get('partial') else 'FAIL')}] "
+                f"{'-' * 40}\n{b.get('answer') or '(' + str(b.get('why') or 'no answer') + ')'}"
+                for b in branches)
+            nxt = f"read {n_ok} of {n} branches"
+            if div == "collapsed":
+                nxt += " -- COLLAPSED: one answer billed N times, vary the POSITION not the seed"
+            elif div == "unknown":
+                nxt += " -- diversity UNKNOWN: word overlap cannot tell paraphrase from agreement"
+            elif div == "distinct":
+                nxt += " -- branches genuinely differ"
+            return {"state": "DONE", "handle": rec.get("handle"), "answer": body,
+                    "usd": result.get("usd"), "partial": bool(result.get("partial")),
+                    "n": n, "n_ok": n_ok, "diversity": div, "next": nxt}
         return {"state": "DONE", "handle": rec.get("handle"),
                 "answer": result.get("answer"), "usd": result.get("usd"),
                 "partial": bool(result.get("partial")),

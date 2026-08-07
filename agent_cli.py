@@ -1932,6 +1932,74 @@ def cmd_wish(args):
     return 0
 
 
+#: T226 -- what `--bg` hands to its detached child, and what it deliberately does not.
+#:
+#: THE DEFECT THIS REPLACES. The child argv was assembled by hand from four remembered flags,
+#: so every flag added since was silently dropped. Measured 2026-08-07:
+#:   py agent_cli.py ask --bg --fan 5 "..."   ->  ONE answer, n=None, branches=0.
+#: The caller asked for a five-branch N-version blind, got a single ask, and was told nothing
+#: -- while `--bg`'s own help advertises "Fan out without drowning". --system and
+#: --continuations were dropped the same way.
+#:
+#: A hand-written forwarder is a MEMBERSHIP list, and membership lists rot at exactly the rate
+#: new flags are added. This one is still a list, but it is a TOTAL one: the pin walks the ask
+#: parser and fails if any flag is in neither table, so the next flag cannot be forgotten --
+#: it has to be classified. (convergent_fixes_describe_meaning_not_location_or_membership: the
+#: fix that lasts describes the RULE, and the rule here is "every flag is forwarded or
+#: explicitly is not".)
+_BG_FORWARD = {
+    "with_files":   lambda v: [x for f in v for x in ("--with", str(f))],
+    "model":        lambda v: ["--model", str(v)],
+    "max_tokens":   lambda v: ["--max-tokens", str(v)],
+    "system":       lambda v: ["--system", str(v)],
+    "fan":          lambda v: ["--fan", str(v)],
+    "prompts_file": lambda v: ["--prompts-file", str(v)],
+    "workers":      lambda v: ["--workers", str(v)],
+    "continuations": lambda v: ["--continuations", str(v)],
+    # store_false: only the NON-default is expressible, so only it is emitted.
+    "continue_on_cut": lambda v: [] if v else ["--no-continue"],
+    "as_agent":     lambda v: ["--as", str(v)],
+}
+
+#: Deliberately NOT forwarded, each with the reason. A flag lands here to be excluded on
+#: purpose; the pin treats an unlisted flag as an omission, which is what silence was.
+_BG_NOT_FORWARDED = {
+    "text":        "the prompt is appended positionally by the caller",
+    "prompt_file": "already read into `prompt` above -- forwarding it would read the file twice",
+    "bg":          "the child must not spawn its own child (unbounded recursion)",
+    "bg_child":    "set explicitly with the new handle",
+    "json":        "set explicitly -- the child always reports JSON so both paths share a shape",
+    "get":         "a READ; refused alongside --bg before this point",
+    "list":        "a READ; refused alongside --bg before this point",
+    "status":      "a READ; returns before this point",
+    "peer":        "the durable path is handled before --bg and never reaches here",
+    "wait":        "--peer only, and --peer never reaches here",
+    "poll":        "--peer only, and --peer never reaches here",
+    "launch":      "--peer only, and --peer never reaches here",
+    "launch_wait": "--peer only, and --peer never reaches here",
+    "fn":          "argparse plumbing, not a flag",
+}
+
+
+def _bg_forward_argv(args) -> list:
+    """Rebuild the child's flags from the parent's parsed args. Never raises."""
+    out = []
+    for dest, emit in _BG_FORWARD.items():
+        v = getattr(args, dest, None)
+        # None/""/0/[] all mean "not asked for". continue_on_cut is the one flag whose
+        # meaningful value is False, so it is emitted from its own branch above.
+        if dest == "continue_on_cut":
+            out += emit(True if v is None else bool(v))
+            continue
+        if v is None or v == "" or v == 0 or v == []:
+            continue
+        try:
+            out += emit(v)
+        except Exception:
+            continue
+    return out
+
+
 def cmd_ask(args):
     """ask -- ONE synchronous question to a helper model, with no seat behind it (T171).
 
@@ -2120,15 +2188,9 @@ def cmd_ask(args):
         out_path = _bg.ASK_DIR / f"{handle}.out"
         child = [sys.executable, str(Path(__file__).resolve()), "ask", "--json",
                  "--bg-child", handle]
-        for f in (getattr(args, "with_files", None) or []):
-            child += ["--with", f]
-        if args.model:
-            child += ["--model", args.model]
-        if args.max_tokens is not None:
-            child += ["--max-tokens", str(args.max_tokens)]
-        if not getattr(args, "continue_on_cut", True):
-            child.append("--no-continue")
-        child.append(prompt)
+        child += _bg_forward_argv(args)
+        if prompt:
+            child.append(prompt)
         try:
             fh = open(out_path, "w", encoding="utf-8")
             flags = 0
@@ -2180,7 +2242,20 @@ def cmd_ask(args):
     if prompts is not None:
         o = ask_many(prompts, system=args.system or None, model=args.model or None,
                      max_tokens=args.max_tokens, max_workers=args.workers,
-                     with_files=getattr(args, "with_files", None))
+                     with_files=getattr(args, "with_files", None),
+                     continue_on_cut=bool(getattr(args, "continue_on_cut", True)),
+                     max_continuations=int(getattr(args, "continuations", 2)))
+        # T226: the fan path returned WITHOUT writing the background record, because
+        # _bg.finish sits only on the single-ask path below. Measured the moment --bg
+        # started forwarding --fan: three branches landed, cost real money, and
+        # `ask --get` said ORPHANED -- "never wrote a result -- re-ask; nothing will
+        # arrive" -- about work that was complete and on disk. A tool that tells you to
+        # buy again what you already own is worse than one that quietly under-delivers,
+        # so this line is part of the SAME fix, not a follow-up.
+        if _bg_child:
+            from core.comm import ask_bg as _bg
+            _bg.finish(_bg_child, {"ok": o.ok, "partial": o.partial, "why": o.why,
+                                   **(o.detail or {})})
         if args.json:
             print(json.dumps({"ok": o.ok, "partial": o.partial, "why": o.why, **o.detail},
                              ensure_ascii=False, default=str))
@@ -2197,7 +2272,7 @@ def cmd_ask(args):
             print(f"== {o.why}", file=sys.stderr)
         # T218, fan path: one shared context feeds every branch, so a clip here silently
         # shapes N answers at once rather than one.
-        _clip = ask_mod.clipped_evidence_notice(d.get("context"))
+        _clip = ask_mod.unusable_evidence_notice(d.get("context"))
         if _clip:
             print(f"!! {_clip}", file=sys.stderr)
         # T182: "3/3 landed" alone lets one answer read as three findings. Say the agreement --
@@ -2243,7 +2318,7 @@ def cmd_ask(args):
     # T218: the helper was told in-band that its file was clipped; the caller was not, so an
     # abstention about the WINDOW read as an abstention about the CODE. Printed AFTER the
     # answer, where the reader is when they form that conclusion.
-    _clip = ask_mod.clipped_evidence_notice(d.get("context"))
+    _clip = ask_mod.unusable_evidence_notice(d.get("context"))
     if _clip:
         print(f"\n!! {_clip}", file=sys.stderr)
     usd = d.get("usd")

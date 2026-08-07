@@ -58,10 +58,10 @@ def test_caller_is_told_when_its_evidence_was_clipped():
     the reader can decide whether the answer's silence is about the code or about the window.
     """
     sys.path.insert(0, str(REPO))
-    from core.comm.ask import build_context, clipped_evidence_notice
+    from core.comm.ask import build_context, unusable_evidence_notice
 
     _, meta = build_context(["core/comm/bus.py"], root=str(REPO))
-    notice = clipped_evidence_notice(meta)
+    notice = unusable_evidence_notice(meta)
     assert notice, "evidence was clipped and the caller-facing notice was empty"
     assert "bus.py" in notice, "a clip notice that does not name the file is unactionable"
     assert "40000" in notice and "80052" in notice, \
@@ -76,8 +76,8 @@ def test_no_notice_when_nothing_was_clipped():
     """A warning that fires on clean runs is noise, and noise gets filtered out mentally --
     which is how the real one gets missed."""
     sys.path.insert(0, str(REPO))
-    from core.comm.ask import build_context, clipped_evidence_notice
+    from core.comm.ask import build_context, unusable_evidence_notice
 
     _, meta = build_context(["core/outcome.py"], root=str(REPO))
     assert meta["truncated"] is False, "precondition: outcome.py fits in the budget"
-    assert clipped_evidence_notice(meta) == ""
+    assert unusable_evidence_notice(meta) == ""
