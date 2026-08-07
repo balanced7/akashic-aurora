@@ -1195,6 +1195,10 @@ def cmd_compare(args):
     uncollected element of the short side surfaces as a false finding on the other.
     """
     from core.coord import compare as cmp_mod
+    # Domains that register themselves on import must actually BE imported, or they are
+    # invisible at the door -- the built-not-wired class that blocked two commits
+    # tonight. Imported here rather than from compare.py, which terms.py imports.
+    from core.coord import terms as _terms_domain   # noqa: F401  (registers on import)
 
     if getattr(args, "list", False) or not args.a:
         print("# comparable domains (only like key-types may be diffed)")
