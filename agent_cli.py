@@ -2195,6 +2195,11 @@ def cmd_ask(args):
               f"| {d['workers']} workers | {d.get('model')}", file=sys.stderr)
         if o.why:
             print(f"== {o.why}", file=sys.stderr)
+        # T218, fan path: one shared context feeds every branch, so a clip here silently
+        # shapes N answers at once rather than one.
+        _clip = ask_mod.clipped_evidence_notice(d.get("context"))
+        if _clip:
+            print(f"!! {_clip}", file=sys.stderr)
         # T182: "3/3 landed" alone lets one answer read as three findings. Say the agreement --
         # in three states, because a lexical metric genuinely cannot resolve paraphrase.
         div, score = d.get("diversity"), d.get("lexical_agreement")
@@ -2235,9 +2240,15 @@ def cmd_ask(args):
 
     print(o.detail.get("answer", ""))  # a PARTIAL still prints what it got (the T169 lesson)
     d = o.detail
+    # T218: the helper was told in-band that its file was clipped; the caller was not, so an
+    # abstention about the WINDOW read as an abstention about the CODE. Printed AFTER the
+    # answer, where the reader is when they form that conclusion.
+    _clip = ask_mod.clipped_evidence_notice(d.get("context"))
+    if _clip:
+        print(f"\n!! {_clip}", file=sys.stderr)
     usd = d.get("usd")
     spend = f"${usd:.6f}" if usd is not None else "unpriced"
-    print(f"\n-- {d.get('prompt_tokens', 0)}+{d.get('completion_tokens', 0)} tok | {spend}"
+    print(f"-- {d.get('prompt_tokens', 0)}+{d.get('completion_tokens', 0)} tok | {spend}"
           f" | {d.get('elapsed_s')}s | {d.get('model')}", file=sys.stderr)
     if o.partial:
         print(f"-- {o.line()}", file=sys.stderr)

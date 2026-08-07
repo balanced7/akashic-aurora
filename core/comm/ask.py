@@ -190,6 +190,46 @@ def build_context(paths, *, budget_chars: Optional[int] = None, root=None):
                    "refused": refused, "truncated": truncated, "chars": spent}
 
 
+def clipped_evidence_notice(ctx_meta: Optional[Dict[str, Any]]) -> str:
+    """One line for the CALLER when the evidence it supplied was clipped. "" when it wasn't.
+
+    THE ASYMMETRY THIS CLOSES, found by using the door on 2026-08-07. build_context already
+    tells the HELPER, in band, that it is reading a partial file -- and helpers obey it: one
+    correctly reported "does not appear anywhere in the 743-line excerpt" about a key
+    defined at line 1201. That half works.
+
+    The caller was told tokens, spend, elapsed and model, and nothing about the clip. So an
+    abstention caused by the WINDOW is indistinguishable, at the surface a human reads, from
+    an abstention caused by ABSENCE -- and the natural conclusion is "the code isn't there".
+    That is this repo's most expensive recurring error, handed to the one participant who
+    cannot check the evidence themselves.
+
+    Kept beside build_context deliberately: the notice and the meta it describes drift apart
+    the moment they live in different modules (the same argument T200 made for door twins
+    delegating to one implementation).
+    """
+    if not ctx_meta or not ctx_meta.get("truncated"):
+        return ""
+    cut = [i for i in ctx_meta.get("included", []) if i.get("truncated")]
+    bits = []
+    for i in cut:
+        name = os.path.basename(str(i.get("path", "?")))
+        shown = i.get("chars")
+        total = i.get("total_chars") or i.get("of") or _file_chars(i.get("path"))
+        bits.append(f"{name} ({shown} of {total} chars)" if total else f"{name} ({shown} chars)")
+    return ("EVIDENCE CLIPPED: " + ", ".join(bits) +
+            " -- the helper saw a PARTIAL file, so anything it reported as missing or "
+            "absent may be outside the window rather than outside the code. Narrow the "
+            "file set or cite line ranges before concluding absence.")
+
+
+def _file_chars(path) -> Optional[int]:
+    try:
+        return len(Path(path).read_text(encoding="utf-8", errors="replace"))
+    except (OSError, TypeError):
+        return None
+
+
 def ask(prompt: str, *, system: Optional[str] = None, model: Optional[str] = None,
         max_tokens: Optional[int] = None, client=None, with_files=None,
         context_root=None, continue_on_cut: bool = False,
