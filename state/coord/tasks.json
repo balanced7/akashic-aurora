@@ -1,5 +1,5 @@
 {
-  "seq": 206,
+  "seq": 207,
   "tasks": [
     {
       "id": "T001",
@@ -7503,6 +7503,52 @@
           "to": "done",
           "by": "",
           "at": "2026-08-07T04:08:40+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T207",
+      "title": "T207: grounding A/B, pre-registered -- hypothesis falsified, better finding recovered. I shipped ask --with on ONE anecdote and built a design conversation on it; this is the measurement I should have taken first. Pre-registration (ground truth + three-way rubric) committed at b02f46a BEFORE any answer was read. PART 1, lookups: BLIND abstained 5/5 with ZERO confabulations; GROUNDED correct 5/5 with citations. My hypothesis -- that blind helpers confabulate rather than abstain -- is FALSIFIED. PART 2, reasoning: blind abstained on both DESCRIPTIVE questions, but on the one NORMATIVE question ('should the check count MORE kinds or FEWER?') the GROUNDED arm answered confidently WRONG (MORE; truth is FEWER, bifrost_api.py:252-258). Its citations were all REAL: _wake_block_lane exists at line 180, the PENDING_SKIP_KINDS snippet is verbatim, its mechanism description correct. It failed by EQUIVOCATING on 'wakeable' -- reading 'returns immediately with pending mail' as 'wakes the session', narrowly true and operationally backwards. Same model, same file, got it RIGHT the previous day when I DECOMPOSED it into 'if non-empty does it return or block? if empty, which? THEREFORE?'. FINDING: grounding fixes FACTS, not EQUIVOCATION -- every citation can be checkable and correct while the conclusion is inverted, because the error lives in the meaning of a word rather than in any cited fact. WHAT CHANGES: ask descriptive decomposed questions and draw the therefore myself (the conductor's adjudication is not a bottleneck to automate, it is the step doing the work); the danger tell is should/better/more/fewer; blind is safer than assumed since the real hazard is a missing PREMISE, invisible to answerer and reader alike. LIMITS: n=5 lookups solid, n=1 normative is a signal not a law; one model; our system prompt actively rewards abstention so this may not transfer.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "HEAD",
+      "verified_by": "pre-registered at b02f46a; 16 background asks across two arms; ground truth verified from source by me, not by either arm",
+      "created": "2026-08-07T04:19:34+00:00",
+      "updated": "2026-08-07T04:20:01+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-07T04:19:34+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-07T04:19:34+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-07T04:19:35+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-08-07T04:19:35+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-07T04:19:36+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-07T04:20:01+00:00"
         }
       ]
     }
