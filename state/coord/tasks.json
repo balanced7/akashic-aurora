@@ -1,5 +1,5 @@
 {
-  "seq": 209,
+  "seq": 210,
   "tasks": [
     {
       "id": "T001",
@@ -7641,6 +7641,52 @@
           "to": "done",
           "by": "",
           "at": "2026-08-07T04:44:10+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T210",
+      "title": "T210: discover --semantic -- offload 'I infer absence instead of verifying it' to the substrate. MEASURED ON ME, three times in two days, all wrong: T197 I scoped a slice to build a peer-liveness reader while liveness.attendance() had existed since T155; T208 I hand-bisected four test failures (one wrongly, in public) while suite_baseline had recorded one since 2026-07-24; W133 I filed a wish asserting the naming doctrine was UNGUARDED while check_boundaries.py had been enforcing it in CI since 2026-06-19. One failure mode in three costumes, and NOT laziness: verification costs a turn AT THE MOMENT OF THE ASSUMPTION while being wrong costs nothing until later, so the only fix is making the check cheaper than the assumption. WHY discover COULD NOT ANSWER IT: substring filter over verb names. Asked 'check whether a test failure is pre-existing' it returns 0 while suite-baseline sits in the list it just searched. Same shape as every gap this session -- check_boundaries matches TOKENS and misses forked MEANINGS, delta() matched node-id SETS and missed attribution, the unread counter matched KINDS and missed actionability. The substrate is token-strong and meaning-blind, and so am I. THE REQUIREMENT THAT OUTRANKS THE REST, pinned: a tool built to stop me fabricating absence must never fabricate absence itself -- a dead key, timeout, truncated reply, or off-format answer all render UNKNOWN, never 'no'; 'no' is reserved for a healthy well-formed call and is still labelled a MODEL READ rather than a lookup, because letting an inference inherit a lookup's authority is the laundering the 07-30 relationship-plane design forbids one level up. ALSO: the zero-result substring path now prints the pointer, because 0 matches is exactly the moment the semantic tier is worth most and exactly where it was missing. FIRST LIVE USE evaluated Daniil's own cross-domain-search proposal and returned EXISTS: no with named near-misses -- honestly, including an incomplete near-miss list (it missed lookback), which is precisely what the MODEL READ label warns about.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "HEAD",
+      "verified_by": "9/9 pins RED first; live: zero-result pointer fires, semantic query returns EXISTS/WHAT/GAP/NEAREST MISS with provenance and cost",
+      "created": "2026-08-07T05:18:46+00:00",
+      "updated": "2026-08-07T05:18:58+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-07T05:18:46+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-07T05:18:46+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-07T05:18:47+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-08-07T05:18:47+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-07T05:18:48+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-07T05:18:58+00:00"
         }
       ]
     }
