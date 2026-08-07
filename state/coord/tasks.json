@@ -1,5 +1,5 @@
 {
-  "seq": 200,
+  "seq": 201,
   "tasks": [
     {
       "id": "T001",
@@ -7227,6 +7227,52 @@
           "to": "done",
           "by": "",
           "at": "2026-08-06T21:22:06+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T201",
+      "title": "T201: the unread counter must count what its own remediation would surface. MEASURED three times in one session 2026-08-06: the turn-start whisper said 'mail: 7 unread bus msg(s) -> py agent_cli.py bifrost-sync claude', and running that on BOTH lanes returned '(no messages consumed)' every time. The 7 were ledger_update/resolved broadcasts -- the conductor's control-plane echoes of THIS agent's own task transitions, emitted by its own done/approve/claim calls minutes earlier. Three surfaces, one question, two answers: the wake watcher SKIPS those kinds (correct), the consume door does not surface them (correct), and only this counter took them literally. So it nagged every turn about a condition its own printed command could not clear -- the W131 pathology in a second organ, where an alert that is routinely wrong teaches the reader to skip the line and the habit carries into the turn the number is real. FIX: reuse the SHARED skip set (bifrost_api.PENDING_SKIP_KINDS, already pinned equal to bifrost_wake.SKIP_KINDS_LANE by parity pin L7) rather than invent a third meaning of 'unread' -- the T198 lesson applied where it is SAFE to apply. Direction of failure is deliberately OPPOSITE to T198's: there, narrowing risked deafness so the fix was left unbuilt; here the surface is a nag line and the wake path is untouched, so unknown kinds count and a truncated peek adds its unseen remainder back. Live: raw pending 7 -> actionable 0, matching bifrost-sync.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "HEAD",
+      "verified_by": "pytest 8/8 new pins RED first; live raw 7 -> actionable 0 matching bifrost-sync; 5 sweep failures verified pre-existing by stash",
+      "created": "2026-08-07T01:17:32+00:00",
+      "updated": "2026-08-07T01:18:00+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-07T01:17:32+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-07T01:17:32+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-07T01:17:33+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-08-07T01:17:33+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-07T01:17:34+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-07T01:18:00+00:00"
         }
       ]
     }
