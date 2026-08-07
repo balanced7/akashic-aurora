@@ -1,4 +1,4 @@
-"""T225 RED: bind each LEXICON term to the MECHANISMS that implement it, and audit the binding.
+"""T227 RED: bind each LEXICON term to the MECHANISMS that implement it, and audit the binding.
 
 THE ARC THIS CLOSES. Tonight's proof: forked semantics is the DUAL of a homonym -- one
 CONCEPT implemented by several MECHANISMS whose tokens deliberately differ -- so a token-level

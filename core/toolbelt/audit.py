@@ -322,7 +322,7 @@ def _default_domains() -> List[Domain]:
     pulls an SDK client at import time). Import here so `import audit` stays light
     and the SPEND domain rides the same row schema."""
     from core.toolbelt.audit_spend import SpendDomain
-    # T225: the CONCEPT -> MECHANISM bindings. Same belief-vs-state shape as the other two --
+    # T227: the CONCEPT -> MECHANISM bindings. Same belief-vs-state shape as the other two --
     # belief is the ratified table, ground truth is the tree -- which is why this arrived as a
     # domain rather than as a fourth checker nobody would remember to run.
     from core.toolbelt.lexicon_bindings import LexiconDomain

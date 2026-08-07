@@ -38,7 +38,20 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from core.toolbelt.audit import Row
+
+def _Row(**kw):
+    """Row, imported LAZILY to break a real import cycle.
+
+    audit.py runs `DOMAINS = _default_domains()` in its module body, and that now imports
+    LexiconDomain from here -- so a module-level `from audit import Row` deadlocks whenever
+    THIS module is imported first. It passed on the first run only because a broader pytest
+    selection had already warmed `audit`; running the file alone exposed it. A green that
+    depends on collection order is the ambient-state trap, and the cycle is structural rather
+    than a naming accident.
+    """
+    from core.toolbelt.audit import Row
+    return Row(**kw)
+
 
 ROOT = Path(__file__).resolve().parents[2]
 BINDINGS_PATH = ROOT / "data" / "lexicon-bindings.json"
@@ -61,10 +74,10 @@ def _read(rel: str) -> Optional[str]:
         return None
 
 
-def audit_bindings(bindings: Optional[Dict[str, Any]] = None) -> List[Row]:
+def audit_bindings(bindings: Optional[Dict[str, Any]] = None) -> List[Any]:
     """Cross-read the binding table (belief) against the live tree (ground truth)."""
     tbl = load_bindings() if bindings is None else bindings
-    rows: List[Row] = []
+    rows: List[Any] = []
     seen_mech: Dict[str, str] = {}          # "file::pattern" -> first concept that claimed it
 
     for concept, rec in sorted(tbl.items()):
@@ -77,7 +90,7 @@ def audit_bindings(bindings: Optional[Dict[str, Any]] = None) -> List[Row]:
             key = f"{f}::{pat}"
 
             if key in seen_mech and seen_mech[key] != concept:
-                rows.append(Row(
+                rows.append(_Row(
                     domain="LEXICON", entry_ref=ref,
                     belief_a=concept, source_a="bindings",
                     belief_b=seen_mech[key], source_b="bindings",
@@ -90,7 +103,7 @@ def audit_bindings(bindings: Optional[Dict[str, Any]] = None) -> List[Row]:
 
             src = _read(f)
             if src is None:
-                rows.append(Row(
+                rows.append(_Row(
                     domain="LEXICON", entry_ref=ref,
                     belief_a=pat, source_a="bindings",
                     belief_b=None, source_b="tree",
@@ -100,13 +113,13 @@ def audit_bindings(bindings: Optional[Dict[str, Any]] = None) -> List[Row]:
                 continue
 
             if pat and pat in src:
-                rows.append(Row(
+                rows.append(_Row(
                     domain="LEXICON", entry_ref=ref,
                     belief_a=pat, source_a="bindings", belief_b=pat, source_b="tree",
                     verdict="MATCH",
                     detail=f"{m.get('sense') or pat}"))
             else:
-                rows.append(Row(
+                rows.append(_Row(
                     domain="LEXICON", entry_ref=ref,
                     belief_a=pat, source_a="bindings", belief_b=None, source_b="tree",
                     verdict="DRIFT", rule="MISSING",
@@ -121,7 +134,7 @@ def audit_bindings(bindings: Optional[Dict[str, Any]] = None) -> List[Row]:
         for f in (rec.get("discover_files") or []):
             src = _read(str(f))
             if src is None:
-                rows.append(Row(
+                rows.append(_Row(
                     domain="LEXICON", entry_ref=f"{concept}::discover",
                     belief_a=disc, source_a="bindings", belief_b=None, source_b="tree",
                     verdict="UNKNOWN", rule="",
@@ -130,7 +143,7 @@ def audit_bindings(bindings: Optional[Dict[str, Any]] = None) -> List[Row]:
             try:
                 rx = re.compile(disc)
             except re.error as e:
-                rows.append(Row(
+                rows.append(_Row(
                     domain="LEXICON", entry_ref=f"{concept}::discover",
                     belief_a=disc, source_a="bindings", belief_b=None, source_b="tree",
                     verdict="UNKNOWN", rule="",
@@ -142,7 +155,7 @@ def audit_bindings(bindings: Optional[Dict[str, Any]] = None) -> List[Row]:
                 # A hit is CLAIMED when some bound pattern appears on the same line.
                 if any(c and c in line for c in claimed):
                     continue
-                rows.append(Row(
+                rows.append(_Row(
                     domain="LEXICON", entry_ref=f"{concept}::discover",
                     belief_a=sorted(set(claimed)), source_a="bindings",
                     belief_b=line.strip()[:120], source_b="tree",
@@ -161,5 +174,5 @@ class LexiconDomain:
     def __init__(self, ground_truth_source: str = "bindings"):
         self._ground = ground_truth_source
 
-    def run(self) -> List[Row]:
+    def run(self) -> List[Any]:
         return audit_bindings()
