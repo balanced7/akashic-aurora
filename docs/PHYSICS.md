@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at a834e64. A bound you discover by collision is not awareness -- this sheet
+> Derived at fb9b514. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (198 names)
+## Configuration flags (199 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -41,6 +41,7 @@ Class: reference
 | `AKASHIC_DAEMON_WAKE` | `"1"` | agent/harness/hooks/claude_stop.py, scripts/hooks/claude_stop.py |
 | `AKASHIC_DEBUG` | `` | agent/harness/hooks/claude_userpromptsubmit.py, scripts/hooks/claude_userpromptsubmit.py |
 | `AKASHIC_DIGESTS_FILE` | `` | scripts/corpus_digests.py |
+| `AKASHIC_DISCORD_WEBHOOK` | `` | agent_cli.py, core/comm/discord_bridge.py |
 | `AKASHIC_DRILL_ECHO` | `` | scripts/bifrost_runner.py, scripts/bifrost_runner_deepseek.py, scripts/bifrost_runner_gemini.py +2 |
 | `AKASHIC_EMBED_THEMES` | `""` | core/narrative/beat_log.py, core/narrative/theme_discovery.py |
 | `AKASHIC_EXPECT_TASK_SETTLE` | `"1"` | core/comm/expectations.py |
@@ -212,7 +213,7 @@ Class: reference
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py |
 
-## Mechanical bounds (109 numeric constants)
+## Mechanical bounds (110 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -249,6 +250,7 @@ Class: reference
 | `DEFAULT_TTL` | 900 | core/coord/intent.py | 15 min -- long enough for a slice, self-heals a crash (mirrors locks) |
 | `DEFAULT_WINDOW_SECONDS` | 1,800 | core/narrative/event_bridge.py | +/- 30 min around a point (Beat / timestamp) |
 | `DIRECTIVE_STALE_DAYS` | 3 | agent_cli.py | W04: a directive older than this confesses its age at boot |
+| `DISCORD_MAX` | 2,000 | core/comm/discord_bridge.py |  |
 | `DRAIN_FLUSH_JOIN_SEC` | 2 | core/comm/launcher.py |  |
 | `DRAIN_TTL_S` | 300 | core/comm/control.py |  |
 | `EVENT_SCAN_LIMIT` | 5,000 | core/recall/funnel.py |  |

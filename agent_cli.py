@@ -2255,6 +2255,50 @@ def cmd_ask(args):
     return 0
 
 
+def cmd_discord(args):
+    """discord -- the outbound bridge (T223). Watch the fleet from a phone.
+
+    OUTBOUND ONLY, and that is a security property: a webhook URL is write-only, so this
+    opens no path from Discord INTO the fleet. Inbound is a prompt-injection door into a
+    system holding a shell, a repo and a budget, and it does not ship until its identity gate
+    is built and pinned (design doc R1-R3).
+    """
+    from core.comm import discord_bridge as DB
+
+    url = DB.webhook_url()
+    if args.action == "status":
+        out = {"configured": bool(url),
+               "source": ("env AKASHIC_DISCORD_WEBHOOK" if os.getenv("AKASHIC_DISCORD_WEBHOOK")
+                          else (str(DB.URL_FILE) if url else None)),
+               "forwards_kinds": sorted(DB.FORWARD_KINDS),
+               "direction": "outbound only (inbound needs the R1-R3 identity gate)"}
+        if args.json:
+            print(json.dumps(out, indent=2)); return 0
+        if not url:
+            print("# discord bridge: NOT CONFIGURED (this is a state, not a failure)")
+            print(f"#   1. private Discord channel -> Integrations -> Webhooks -> New -> Copy URL")
+            print(f"#   2. save it to {DB.URL_FILE}")
+            print(f"#   3. py agent_cli.py discord test")
+            return 0
+        print(f"# discord bridge: CONFIGURED via {out['source']}")
+        print(f"#   forwards: {', '.join(sorted(DB.FORWARD_KINDS))}")
+        print(f"#   plus ANY message from a human sender; trace is deliberately excluded")
+        print(f"#   direction: {out['direction']}")
+        return 0
+
+    if args.action == "test":
+        o = DB.forward({"kind": "chat", "frm": "claude",
+                        "content": "Akashic Aurora -> Discord bridge is live (T223). "
+                                   "Outbound only: this channel can watch the fleet, and "
+                                   "nothing here can command it."}, force=True)
+        print(("[discord] " + (o.why or "posted")) if not o else "[discord] posted")
+        return 0 if o else 1
+
+    o = DB.forward({"kind": args.kind, "frm": "claude", "content": args.text}, force=True)
+    print(("[discord] " + (o.why or "")) if not o else "[discord] posted")
+    return 0 if o else 1
+
+
 def cmd_sift(args):
     """sift -- the nested ask (T217). Tiered read that returns DISSENT, not consensus.
 
@@ -5531,6 +5575,19 @@ def build_parser():
                             "per-sender; default $AKASHIC_AGENT_ID or claude)")
     ask_p.add_argument("--json", action="store_true")
     ask_p.set_defaults(fn=cmd_ask)
+
+    dsc = sub.add_parser("discord", help="watch the fleet from your phone (T223, OUTBOUND "
+                                         "ONLY). A webhook URL is write-only, so this opens "
+                                         "no command channel -- inbound needs an identity "
+                                         "gate and does not ship until it exists")
+    dsc.add_argument("action", nargs="?", default="status",
+                     choices=["status", "test", "send"],
+                     help="status = is it configured and what forwards; test = post a real "
+                          "line so you can confirm it lands; send = forward one message")
+    dsc.add_argument("--text", default="", help="body for `send`")
+    dsc.add_argument("--kind", default="chat", help="kind for `send` (default chat)")
+    dsc.add_argument("--json", action="store_true")
+    dsc.set_defaults(fn=cmd_discord)
 
     sf = sub.add_parser("sift", help="the NESTED ask (T217): evidence -> hat fan -> curator "
                                      "pairs -> DISSENT FIRST. Use it when the answer needs "

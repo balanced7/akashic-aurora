@@ -56,6 +56,11 @@ PLANES = {
     # moment it landed and demanded this line -- which is the bedside test working: nobody had to
     # REMEMBER to classify the new set.
     "NON_CARGO_KINDS": "bus",
+    # T223: the outbound Discord bridge's forward allowlist -- which bus kinds are worth
+    # buzzing a phone. Bus plane, same as every other set that filters seat-to-seat messages.
+    # K-D caught this the moment the set landed and refused the commit, which is the same
+    # bedside test working a second time: I did not have to remember, and I would not have.
+    "FORWARD_KINDS": "bus",
     # the event plane -- what a seat DID
     "EVENT_KINDS": "event",
     # T196a: friction's map of durable terminal-event kinds -> episode outcomes. These are

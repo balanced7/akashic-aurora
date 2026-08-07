@@ -166,6 +166,13 @@ MANIFEST = {
     # dissent tables without the reason a flip rate was refused -- omniscience by transport,
     # the exact defect T200's structured-record contract exists to prevent.
     "sift": "gap",
+    # T223 (2026-08-07): the outbound Discord bridge. CLI_ONLY BY DESIGN, not debt -- and the
+    # reason is the same one that kept `launch` off the MCP door under T200: widening it
+    # widens the CALLER SET. This verb posts to the operator's PRIVATE channel, so an
+    # MCP-attached seat gaining it means any attached seat can page his phone and publish bus
+    # content to a third party. The seat that needs this is the one running the feed, which
+    # has a shell by construction.
+    "discord": "cli_only",
     # T196a: friction is the collaboration-tax readout, and the seat that most needs to
     # read it is the MCP-attached conductor -- same argument as `ask` above, so the same
     # honest classification: debt, not design. Pay down with the membrane gaps.

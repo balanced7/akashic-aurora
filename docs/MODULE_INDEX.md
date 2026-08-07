@@ -24,7 +24,7 @@
 - `agent_signal_ledger.py` — Agent Signal Ledger: the ordered record of every signal agents emit
 - `coordinator_api.py` — Coordinator API: Minimal signal-based logging for agents
 
-## core/comm/  (51 modules)
+## core/comm/  (52 modules)
 - `ask.py` — ask -- a synchronous helper call, with no seat behind it (T171).
 - `ask_bg.py` — ask_bg -- a helper call that outlives your turn without becoming a seat (T205).
 - `ask_state.py` — ask_state -- one durable ask's honest state (T196d).
@@ -37,6 +37,7 @@
 - `control_channel.py` — Out-of-band control: a loopback listener that survives a dead bus.
 - `cursor_admin.py` — cursor_admin -- T076a: SANCTIONED skip-to-now for an agent's consume cursors.
 - `daemon_state.py` — daemon_state -- the autopilot's shared surface (slice A1, T075 gamma-scope).
+- `discord_bridge.py` — Outbound Discord bridge -- the fleet becomes watchable from a phone.
 - `dispatcher.py` — Dispatcher (Bifrost Mesh W2): one resident process that turns doorbell notices into wakes.
 - `doctor.py` — Fleet doctor (L2 / RB-27b) -- the missing READER of the liveness signals: progress,
 - `door_probe.py` — door_probe -- does the MCP door actually answer, right now, in THIS environment?

@@ -8,7 +8,7 @@ Class: reference
 > (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by
 > check_comprehensibility so it cannot silently rot.
 
-## CLI door -- `py agent_cli.py <verb>` (79 verbs)
+## CLI door -- `py agent_cli.py <verb>` (80 verbs)
 
 The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.
 
@@ -35,6 +35,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `console-log` | durable console events (interjection/bus_control/file_drop) | `--limit` `--since` `--until` `--json` |
 | `defer` | the capability-gated standing queue (W33): file a command awaiting an exec/write seat; boot surfaces it; discharge with a receipt | `<agent_id>*` `<cmd_text>` `--needs` `--why` `--list` `--done` `--receipt` |
 | `delta` | what changed since this agent's last boot (T052 delta door) | `<agent_id>*` `--ack` |
+| `discord` | watch the fleet from your phone (T223, OUTBOUND ONLY). A webhook URL is write-only, so this opens no command channel -- inbound needs an identity gate and does not ship until it exists | `<action> {status,test,send}` `--text` `--kind` `--json` |
 | `discover` | list every verb + its purpose (the self-describing door) | `<query>` `--json` `--semantic` |
 | `doc` | seed a new doc with its header contract (library door) | `<sub> {new,adopt}` |
 | `doctor` | fleet liveness doctor (L2): progress, not presence | `--agents` `--deploy` `--page` `--progress` `--json` |

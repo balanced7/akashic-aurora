@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (38 of 149 modules lack both pin and paper by name)
+## GAP queue (39 of 150 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/migrate_to_sqlite.py
@@ -23,6 +23,7 @@ Class: reference
 - core/comm/blobs.py
 - core/comm/cursor_admin.py
 - core/comm/daemon_state.py
+- core/comm/discord_bridge.py
 - core/comm/dispatcher.py
 - core/comm/fence_phase.py
 - core/comm/interject.py
@@ -81,7 +82,7 @@ Class: reference
 | `agent_signal_ledger.py` | Agent Signal Ledger: the ordered record of every signal agents emit | GAP | GAP |  |
 | `coordinator_api.py` | Coordinator API: Minimal signal-based logging for agents | GAP | GAP | `AI_SETUP` |
 
-## core/comm/  (51 modules)
+## core/comm/  (52 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
@@ -97,6 +98,7 @@ Class: reference
 | `control_channel.py` | Out-of-band control: a loopback listener that survives a dead bus. | tests/test_control_channel.py | GAP | `AKASHIC_CONTROL_PORT_BASE` |
 | `cursor_admin.py` | cursor_admin -- T076a: SANCTIONED skip-to-now for an agent's consume cursors. | GAP | GAP |  |
 | `daemon_state.py` | daemon_state -- the autopilot's shared surface (slice A1, T075 gamma-scope). | GAP | GAP | `BIFROST_NAMESPACE` |
+| `discord_bridge.py` | Outbound Discord bridge -- the fleet becomes watchable from a phone. | GAP | GAP | `AKASHIC_DISCORD_WEBHOOK` |
 | `dispatcher.py` | Dispatcher (Bifrost Mesh W2): one resident process that turns doorbell notices into wakes. | GAP | GAP |  |
 | `doctor.py` | Fleet doctor (L2 / RB-27b) -- the missing READER of the liveness signals: progress, | tests/test_doctor_dead_runner_visibility.py | GAP | `AKASHIC_LANE_STALL_PAGE_S`, `AKASHIC_LANE_STALL_WARN_S`, `AKASHIC_RECENT_INBOX_S`, `AKASHIC_STALL_HYSTERESIS_S`, `BIFROST_NAMESPACE`, `BIFROST_UI_PORT` |
 | `door_probe.py` | door_probe -- does the MCP door actually answer, right now, in THIS environment? | tests/test_door_probe.py | research/reviewed/deepseek-door-probe-attack-2026-07-26.md |  |
