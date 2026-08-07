@@ -1869,6 +1869,18 @@ def cmd_ask(args):
         print(f"  caller should: {st['caller_should']}")
         return 0
 
+    # T209, found by a COLD-ENCOUNTER test rather than by review: 0 of 3 fresh readers
+    # given only --help predicted what --bg with --get does, and TWO guessed the
+    # precedence exactly backwards. --get wins because reads run first, so a typo'd
+    # handle never spends a model call -- sound reasoning that no reader can see.
+    # Silently picking a winner IS the defect; refusing makes the impossible state
+    # unrepresentable instead of surprising.
+    if getattr(args, "bg", False) and (getattr(args, "get", None) or
+                                       getattr(args, "list", False)):
+        print("--bg SPAWNS a new ask; --get/--list READ existing ones. Pick one: run "
+              "--bg first, then --get the handle it prints.", file=sys.stderr)
+        return 2
+
     # T205: --get / --list read the background register. Reads first, so a typo in a
     # handle never accidentally spends a model call.
     if getattr(args, "get", None):
@@ -5075,17 +5087,24 @@ def build_parser():
                        help="answer ceiling; hitting it returns a marked PARTIAL, never a silent cut")
     ask_p.add_argument("--fan", type=int, default=0,
                        help="T181: ask the SAME question N times concurrently -- N-version "
-                            "blind. Disagreement between branches is the signal")
+                            "blind. Disagreement between branches is the signal. STATELESS "
+                            "only: cannot be combined with --peer, which is one durable ask "
+                            "to one seat")
     ask_p.add_argument("--prompts-file", dest="prompts_file",
                        help="T181: run MANY questions at once. JSON array, or prompts separated "
                             "by a line containing only --- (so a prompt may be multi-line)")
     ask_p.add_argument("--workers", type=int, default=None,
                        help="fan width (default 6). Merge attention binds before generation "
                             "does -- a fan wider than its integrator makes debt, not progress")
+    # The --fan help says the same thing from its own side: a cold-encounter test found
+    # 3 of 3 fresh readers expected --peer --fan to fan three asks at the seat, because
+    # nothing in either flag's help said otherwise. A conflict documented on only one of
+    # two flags is a conflict the reader meets by surprise.
     ask_p.add_argument("--peer", metavar="SEAT",
                        help="T196c: ONE durable ask to a SEAT (send+arm+poll on the "
                             "bus) instead of the stateless helper. The expectation "
-                            "outlives --wait; timeout hands back a --status handle")
+                            "outlives --wait; timeout hands back a --status handle. ONE "
+                            "seat, ONE ask: cannot be combined with --fan/--prompts-file")
     ask_p.add_argument("--wait", type=float, default=120.0,
                        help="interactive patience in seconds for --peer (default 120); "
                             "the DURABLE expectation keeps redriving after it")
@@ -5097,7 +5116,9 @@ def build_parser():
                             "context. Fan out without drowning")
     ask_p.add_argument("--get", metavar="HANDLE",
                        help="read a background ask: RUNNING / DONE / FAILED / ORPHANED, "
-                            "each with what to do now")
+                            "each with what to do now. A READ, so it cannot be combined "
+                            "with --bg (which is a spawn) -- passing both is refused "
+                            "rather than silently picking one")
     ask_p.add_argument("--list", action="store_true",
                        help="recent background asks, newest first")
     ask_p.add_argument("--bg-child", dest="bg_child", metavar="HANDLE",
