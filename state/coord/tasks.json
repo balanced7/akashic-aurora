@@ -1,5 +1,5 @@
 {
-  "seq": 229,
+  "seq": 231,
   "tasks": [
     {
       "id": "T001",
@@ -8547,6 +8547,75 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-07T22:13:17+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T230",
+      "title": "Strip the Co-Authored-By: Claude trailer from the 12 commits that carry it, and stop emitting it. Daniil 2026-08-07: everything on GitHub should read balanced7; author/committer fields are ALREADY clean across all 2629 commits (verified), so this is the trailer ONLY. Deferred deliberately: 9 of the 12 are pushed, so this needs history rewrite + force-push, which changes every downstream SHA -- and lesson git_history_rewritten_balanced7 records that a prior rewrite invalidated SHAs cited in lessons, notes and docs. Must be scheduled when no sibling session is live (two claude wake-watchers were alive when this was filed).",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "zero Co-Authored-By Claude trailers in git log --all; SHA citations in lessons/notes/docs audited or knowingly accepted as stale; no live sibling session at rewrite time",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-07T23:32:20+00:00",
+      "updated": "2026-08-07T23:32:20+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-07T23:32:20+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T231",
+      "title": "ask --bg --prompt-file <large file> cannot spawn: the resolved prompt is appended to the child ARGV, so a prompt over the Windows ~32k command-line limit dies with WinError 206. Reproduced with a 40k prompt. The two flags are each designed for SIZE -- --prompt-file carries prompts too big to type, --bg keeps big work out of the caller context -- so the pair most worth combining is the pair that breaks. Fix: hand the child a handle-scoped prompt FILE rather than an argv string, one path for all sizes (a size-dependent branch is where this class hides). Found by a cross-learner panel (DeepSeek uniquely; Gemini and GPT both missed it) on evidence held constant -- the measured half of T229.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "agent_cli.py"
+      ],
+      "acceptance": "ask --bg --prompt-file with a 40k prompt spawns and returns a handle; the child receives the prompt via file not argv; small prompts take the identical path",
+      "status": "done",
+      "commit": "cfbca54",
+      "verified_by": "claude",
+      "created": "2026-08-07T23:40:29+00:00",
+      "updated": "2026-08-07T23:54:08+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-07T23:40:29+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-07T23:43:44+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-07T23:43:44+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-08-07T23:43:45+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-07T23:43:45+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-07T23:54:08+00:00"
         }
       ]
     }
