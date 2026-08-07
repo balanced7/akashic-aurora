@@ -411,11 +411,43 @@ def collect_boot_bifrost(agent_id: str, limit: int = 8) -> Dict[str, Any]:
     }
 
 
+def clip_pointer(msg: Any) -> str:
+    """Where the rest of a clipped body lives, using the address the message ALREADY has.
+
+    DANIIL, 2026-08-07: "can we make the truncation be handled by the substrate and have it
+    auto-reconstruct for you when you reach for it?" (W137). This is the mint half; the
+    resolver half has existed since T113.
+
+    DELIBERATELY NOT A NEW BLOB. The body is already durable and already addressed -- the
+    message carries an id and the mailbox indexes it by sha. Spilling a second copy would
+    give one object two addresses, which is the disease this repo is treating. The render
+    owes the reader the address it is already holding.
+
+    Costed on 2026-08-07: a bare " ...[truncated]" with no handle sent a fresh seat through
+    six doors -- spill dir, mailbox LIST, mailbox OPEN, bifrost-fetch, a raw redis scan,
+    promoted, git log -- to recover the tail of one peer note. An unaddressed clip is a
+    data-loss path by design rather than by accident.
+
+    Returns "" when the body was not clipped, and a CONFESSION when there is genuinely no
+    handle: "I cannot reach the rest" must not read as "there is no more".
+    """
+    sha = str(_mget(msg, "sha", "") or "")
+    mid = str(_mget(msg, "id", "") or "")
+    if sha:
+        return f"  [full body: mailbox <you> --open {sha[:10]}]"
+    if mid:
+        return f"  [full body: bifrost-fetch --get {mid}]"
+    return "  [NO ADDRESS -- the rest of this body is not addressable from this render; " \
+           "ask the SENDER, who wrote it to a file before sending (W138)]"
+
+
 def format_inbox_line(msg: Dict[str, Any], max_len: int = 2000) -> str:
     frm = msg.get("frm", "?")
     kind = msg.get("kind", "?")
-    body = _clip(_content_str(msg.get("content")), max_len)
-    return f"[{kind}] from {frm}: {body}"
+    full = _content_str(msg.get("content"))
+    body = _clip(full, max_len)
+    tail = clip_pointer(msg) if len(full) > max_len else ""
+    return f"[{kind}] from {frm}: {body}{tail}"
 
 
 def _mget(m, key, default=""):
@@ -500,8 +532,13 @@ def render_collapsed(messages, *, show_traces: bool = False, max_len: int = 2000
     msgs = list(messages or [])
 
     def _line(m):
+        # T220: same law as format_inbox_line -- this is the render that actually clipped
+        # the peer note behind the 2026-08-07 six-door hunt, so fixing only the other call
+        # site would repeat T219 (a correction that reached one of two callers).
+        full = _content_str(_mget(m, "content"))
+        tail = clip_pointer(m) if len(full) > max_len else ""
         return (f"[{str(_mget(m, 'kind', '?'))}] from {str(_mget(m, 'frm', '?'))}: "
-                f"{_clip(_content_str(_mget(m, 'content')), max_len)}")
+                f"{_clip(full, max_len)}{tail}")
     
     def _twin_key(m):
         """W84: logical identity for dual-write twin detection. (frm, kind, first 200 chars
