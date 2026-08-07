@@ -196,13 +196,14 @@
 ## core/season/  (1 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
 - `scoring.py` — core.season.scoring -- Season 1 scoring, as a pure function over data (T165).
 
-## core/toolbelt/  (10 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
+## core/toolbelt/  (11 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
 - `audit.py` — audit — the belief-vs-belief photographer (deepseek build, kimi's v2 domain #1).
 - `audit_spend.py` — audit_spend — the SPEND domain for core.toolbelt.audit (kimi build, partner night R3).
 - `clobber_scan.py` — clobber_scan — unconditional shared-control-key writes, flagged statically (W47).
 - `contest.py` — contest (T099 · play tier) -- second a toast with proof (kimi's R2 build).
 - `followup.py` — followup — the question-back channel for fire-and-forget charters (W46).
 - `kit.py` — kit (T099 · KIT tier) — installable bundles of belt entries (kimi, PASS 2 build).
+- `lexicon_bindings.py` — CONCEPT -> MECHANISM bindings, and the audit that keeps them honest.
 - `play_sandbox.py` — play_sandbox (T099 · play-tier sandbox) — the bounded subprocess that runs play tools.
 - `registry.py` — Toolbelt registry (T099 · V0 self-tooling) -- agent-authored verb compositions.
 - `tally.py` — tally — the blind-counter consensus matrix (W48).

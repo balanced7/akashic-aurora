@@ -1,0 +1,66 @@
+{
+  "_README": [
+    "CONCEPT -> the MECHANISMS that implement it. The missing column of docs/LEXICON.md.",
+    "",
+    "WHY THIS FILE EXISTS. Forked semantics is the DUAL of a homonym: one CONCEPT implemented",
+    "by several MECHANISMS whose tokens deliberately differ. A token-level tool searches for a",
+    "shared token, which is precisely what this class is defined by LACKING -- proven 2026-08-07",
+    "on `drained`, whose three cursor families contain the word nowhere. So the guard cannot be",
+    "a grep over SOURCE. It can be a grep over a TABLE, and this is the table.",
+    "",
+    "HOW AN ENTRY IS BORN: the fan DRAFTS it, a human RATIFIES it, the audit VERIFIES it",
+    "forever (claude#42d00626's construction). `ratified_by` is not decoration -- an unratified",
+    "binding is a claim, and T207 measured that the 'therefore' is the step a helper gets",
+    "confidently wrong.",
+    "",
+    "FIELDS:",
+    "  mechanisms[]     file + pattern that must still resolve. R1 MISSING fires when it does not.",
+    "  discover         regex over discover_files; anything matching that is NOT in mechanisms",
+    "                   is R2 UNCLAIMED -- the RATCHET, and the rule that earns this file.",
+    "  ratified_by      who accepted the draft, and when.",
+    "  note             what the fork COST, so the next reader knows why the entry is here.",
+    "",
+    "SEEDED ONLY WITH TERMS THAT HAVE MEASURED EVIDENCE. An unearned entry would make the",
+    "audit noisy on day one, and a noisy guard gets muted -- which is how W133 stayed open."
+  ],
+
+  "drained": {
+    "definition": "Whether an agent's mail has been consumed past a point.",
+    "ratified_by": "claude#69363f5a 2026-08-07, from the T217 junction analysis",
+    "note": "THE CANONICAL FORK: cost 6 turns and a fleet pause. Three cursor families answer the same question and disagree, and the token `drained` appears in NONE of them -- which is why every token-level guard missed it for two months.",
+    "discover": "\\{self\\.ns\\}:cursor:",
+    "discover_files": ["core/comm/bus.py"],
+    "mechanisms": [
+      {"file": "core/comm/bus.py", "pattern": "{self.ns}:cursor:{self.agent_id}",
+       "sense": "the agent-keyed cursor -- inbox + broadcast position"},
+      {"file": "core/comm/bus.py", "pattern": "cursor:seat:",
+       "sense": "the per-incarnation seat cursor (T108)"},
+      {"file": "core/comm/bus.py", "pattern": "cursor:lane:",
+       "sense": "the lane consumer's durable cursor (T039/T045)"}
+    ]
+  },
+
+  "confidence": {
+    "definition": "How much its author trusts a claim.",
+    "ratified_by": "claude#69363f5a 2026-08-07, from the T224 measurement",
+    "note": "TWO TYPE SYSTEMS: a categorical high/medium/low in the boot ranker and a float clamped to [0,1] in the narrative plane. 25 of 830 live lessons stored it numerically and every one ranked as UNSET -- identical to the string 'bogus'. Token-VISIBLE, so this is the catchable subset claude#42d00626 argued for.",
+    "mechanisms": [
+      {"file": "core/context/learning_loader.py", "pattern": "_CONFIDENCE_IMPORTANCE",
+       "sense": "categorical high/medium/low -> boot importance 5/3/2"},
+      {"file": "core/narrative/tagging.py", "pattern": "confidence",
+       "sense": "a FINITE float clamped to [0,1] on the narrative plane"}
+    ]
+  },
+
+  "undetectable": {
+    "definition": "A planted canary the WIRING GATE structurally cannot see.",
+    "ratified_by": "claude#69363f5a 2026-08-07, from the T219 voided round",
+    "note": "A fact about the DETECTOR, not about any player. The season's void rule read it as 'nobody legitimate can find this' and killed a $0.395 LLM round for doing exactly what an LLM player is built to do. Two readings, both defensible in isolation -- the reliable tell.",
+    "mechanisms": [
+      {"file": "scripts/canary_oracle.py", "pattern": "_UNDETECTABLE",
+       "sense": "the planted shape the gate cannot see (class definition)"},
+      {"file": "scripts/canary_oracle.py", "pattern": "capability_findings",
+       "sense": "score_v2's reading: reaching one is a CAPABILITY observation, not contamination"}
+    ]
+  }
+}
