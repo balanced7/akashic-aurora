@@ -1,5 +1,5 @@
 {
-  "seq": 214,
+  "seq": 215,
   "tasks": [
     {
       "id": "T001",
@@ -7871,6 +7871,52 @@
           "to": "done",
           "by": "",
           "at": "2026-08-07T06:49:37+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T215",
+      "title": "T215: a 408-way fan-out audited every falsifiable docstring claim in core/ against its own implementation. Daniil 2026-08-07: 'your deepseek budget is unlimited, I want to see all the powerful ways you can leverage these capabilities.' DESIGN, using everything the night taught: extracted only docstrings making FALSIFIABLE claims (never/always/must/guarantees/ensures/cannot/refuses) so every prompt has a checkable assertion next to its own code; asked DESCRIPTIVELY ('does the implementation support every claim', not 'is this good'); carried a KNOWN POSITIVE for calibration (reaper.py's 'never stranded'); ran 408 prompts at 20 workers in the BACKGROUND while doing other work. Landed 408/408, 1.22 USD, 404 seconds. CALIBRATION PASSED AND OVERSHOT: reap came back UNSUPPORTED_CLAIM, but on a DIFFERENT and better finding than the one I planted -- the docstring says 'Re-home EVERY provably-dead seat's unread directed mail' while the code caps at limit_per_seat=50. Real, precise, and unknown to me. HONEST PRECISION, triaged by hand on a sample of ten absolute-claim findings: 2 genuine, 4 FALSE POSITIVES (it claimed ask_peer's wait loop 'spins indefinitely' -- there is a deadline break; claimed state_of has 'no fallback' -- there is a final UNKNOWN return), 4 pedantic-but-true ('nudge cannot guarantee the recipient looks'). So roughly 20 percent precision on 88 absolute findings, i.e. ~18 real defects for 1.22 USD, requiring human triage. BOTH GENUINE FINDINGS WERE IN CODE I WROTE THE SAME NIGHT, and both were self-contradictions: (1) ask_bg._alive docstring says 'cannot-tell must not be reported as dead, or a healthy child gets declared orphaned' and the code caught SubprocessError and returned False one screen below -- a tasklist TIMEOUT is a SubprocessError, so a slow probe reported a live helper dead and summarize() rendered ORPHANED, 'no longer running, re-ask, nothing will arrive'. Each failure now maps to what it proves: only ProcessLookupError proves death, PermissionError means it exists, probe failures are None. (2) write_record's 'Never raises' caught only OSError, so a circular reference would propagate ValueError out of json.dumps into a caller promised it could not. FOUR NEW PINS. The pattern: a fan-out over a repo's own falsifiable claims is a defect detector whose corpus is already written, and it works best on the code you wrote most recently -- fresh code has had the least contact with reality.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "HEAD",
+      "verified_by": "408/408 fan landed $1.22; calibration positive returned a better finding than planted; 2 genuine self-contradictions fixed with 4 new pins; precision ~20% reported honestly",
+      "created": "2026-08-07T07:11:37+00:00",
+      "updated": "2026-08-07T07:11:48+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-07T07:11:37+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-07T07:11:37+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-07T07:11:37+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-08-07T07:11:38+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-07T07:11:38+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-07T07:11:48+00:00"
         }
       ]
     }
