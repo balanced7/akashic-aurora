@@ -112,8 +112,13 @@ def verify(tid, *, by="", client="auto", path=None):
     return t
 
 
-def done(tid, commit, verified_by, *, by="", client="auto", path=None):
-    t = TL.done(_ledger(client, path), tid, commit=commit, verified_by=verified_by, by=by, at=_now())
+def done(tid, commit, verified_by, *, by="", client="auto", path=None,
+         reviewed_by="", self_verified=""):
+    # T248: reviewed_by is WHO, verified_by is the EVIDENCE, self_verified is a recorded
+    # override. Threaded through rather than defaulted here -- agent_cli surfaces THIS parser,
+    # so a default set at one door would be the only door that had it.
+    t = TL.done(_ledger(client, path), tid, commit=commit, verified_by=verified_by, by=by,
+                at=_now(), reviewed_by=reviewed_by, self_verified=self_verified)
     _emit_resolved(tid, t["title"], commit)
     _emit_ledger_update(t, "done", by)
     return t
@@ -175,6 +180,13 @@ def main(argv=None) -> int:
     q = sub.add_parser("claim"); q.add_argument("tid"); q.add_argument("--by", required=True)
     q = sub.add_parser("done"); q.add_argument("tid"); q.add_argument("--commit", required=True)
     q.add_argument("--verified-by", required=True, dest="verified_by"); q.add_argument("--by", default="")
+    # T248. --verified-by is the EVIDENCE; --reviewed-by is WHO, and must not be the closer.
+    q.add_argument("--reviewed-by", default="", dest="reviewed_by",
+                   help="who INDEPENDENTLY reviewed this (not you). Required for paths in "
+                        "task_ledger.LOAD_BEARING unless --self-verified is given.")
+    q.add_argument("--self-verified", default="", dest="self_verified",
+                   help="close a load-bearing task WITHOUT independent review, recording why. "
+                        "Counted, not hidden -- the total shows in the `task list` summary.")
     q = sub.add_parser("block"); q.add_argument("tid"); q.add_argument("--reason", required=True); q.add_argument("--by", default="")
     q = sub.add_parser("abandon"); q.add_argument("tid"); q.add_argument("--reason", required=True); q.add_argument("--by", default="")
     q = sub.add_parser("park"); q.add_argument("tid"); q.add_argument("--reason", required=True); q.add_argument("--by", default="")
@@ -196,7 +208,8 @@ def main(argv=None) -> int:
         elif a.cmd == "verify":
             print(f"verifying {verify(a.tid, by=a.by)['id']}")
         elif a.cmd == "done":
-            t = done(a.tid, a.commit, a.verified_by, by=a.by)
+            t = done(a.tid, a.commit, a.verified_by, by=a.by,
+                     reviewed_by=a.reviewed_by, self_verified=a.self_verified)
             print(f"DONE {t['id']} @ {a.commit} -- RESOLVED marker emitted")
         elif a.cmd == "block":
             print(f"blocked {block(a.tid, a.reason, by=a.by)['id']}: {a.reason}")

@@ -105,6 +105,35 @@ TRANSITIONS: Dict[str, set] = {
 ACTIVE = {CLAIMED, IN_PROGRESS, VERIFYING}   # occupies the sequential slot / working set
 FILE_HOLDING = ACTIVE | {PARKED}             # parked work still owns its files (no mid-park grabs)
 
+#: T248 -- WHERE AN INDEPENDENT REVIEWER IS REQUIRED BEFORE A TASK MAY CLOSE.
+#:
+#: A prefix match against the task's `files`. Deliberately ONE named constant rather than a
+#: predicate buried in the gate: whoever is subject to a threshold should be able to read it
+#: without reading the code that enforces it.
+#:
+#: DANIIL SETS THIS. Measured 2026-08-08: I closed four consecutive slices across core/comm/
+#: writing "SELF-VERIFIED by claude" into the verification field, and one fence afterwards
+#: found three real defects for $0.09. I am the party being gated, so choosing my own
+#: threshold is the T227 defect -- ratifying my own drafts -- one level up.
+#:
+#: WIDER IS NOT SAFER. Every path added here costs a review on work that may not need one, and
+#: a gate that fires on everything is the 5.2%-value recall funnel again: it trains the reader
+#: to route around it. Docs and tests are deliberately absent.
+LOAD_BEARING = (
+    "core/",          # the substrate every seat runs on
+    "agent_cli.py",   # the door every agent enters through
+    "scripts/hooks/", # fires unbidden in every session; a defect here is silent and global
+)
+
+
+def is_load_bearing(files) -> bool:
+    """True when any of `files` sits under a LOAD_BEARING prefix. Separators normalised."""
+    for f in (files or []):
+        p = str(f).replace("\\", "/").lstrip("./")
+        if any(p.startswith(prefix) for prefix in LOAD_BEARING):
+            return True
+    return False
+
 
 class LedgerError(Exception):
     """A rejected transition. The message names the gate that blocked it (teaches the fix)."""
@@ -194,7 +223,11 @@ class TaskLedger:
         task = {
             "id": tid, "title": title, "desc": desc, "owner": owner,
             "deps": list(deps or []), "files": list(files or []), "acceptance": acceptance,
+            # T248: reviewed_by is WHO (and whether they are the author); verified_by is the
+            # EVIDENCE. Collapsed into one field, a sentence describing evidence satisfied a
+            # gate about independence -- four times in one day.
             "status": PROPOSED, "commit": None, "verified_by": None,
+            "reviewed_by": None, "self_verified": None,
             "created": at, "updated": at,
             "history": [{"to": PROPOSED, "by": by, "at": at}],
         }
@@ -203,7 +236,8 @@ class TaskLedger:
         return task
 
     def transition(self, tid: str, to: str, *, by: str = "", at: str = "", commit: str = "",
-                   verified_by: str = "", owner: str = "", reason: str = "") -> Dict[str, Any]:
+                   verified_by: str = "", owner: str = "", reason: str = "",
+                   reviewed_by: str = "", self_verified: str = "") -> Dict[str, Any]:
         """The one guarded mutation. Validates the move against every gate, then applies + persists.
         Raises LedgerError (naming the gate) on any violation — nothing partial is written."""
         t = self.tasks.get(tid)
@@ -245,7 +279,32 @@ class TaskLedger:
             if not c or not v:
                 raise LedgerError("done blocked: needs a commit SHA AND a verification record "
                                   "(no proof, no close)")
+
+            # T248: verification and INDEPENDENCE are two claims, and one field could only
+            # carry one. Measured on the author of this gate: four consecutive load-bearing
+            # slices closed with "SELF-VERIFIED by claude" written into `verified_by`, which
+            # satisfied the check above because the check only asks whether the field is
+            # non-empty. One fence afterwards found three real defects for $0.09.
+            #
+            # The override exists on purpose. A gate with no exit gets routed around by not
+            # using the ledger at all, and an unused ledger is worse than a permissive one --
+            # so `self_verified` closes the task and RECORDS why. The count of overrides is
+            # the actual instrument; refusing without one is just what keeps that count honest.
+            r = reviewed_by or t.get("reviewed_by") or ""
+            sv = (self_verified or "").strip()
+            if is_load_bearing(t.get("files")) and (not r or r == (by or t.get("owner"))):
+                if not sv:
+                    who = f" (reviewed_by={r!r} is the closer)" if r else ""
+                    raise LedgerError(
+                        f"done blocked: {tid} touches load-bearing paths "
+                        f"{[f for f in (t.get('files') or []) if is_load_bearing([f])]} and has "
+                        f"no independent review{who}. Either pass --reviewed-by <someone else>, "
+                        f"or --self-verified '<why not>' to close it anyway and be counted. "
+                        f"Threshold: task_ledger.LOAD_BEARING.")
+                t["self_verified"] = sv
             t["commit"], t["verified_by"] = c, v
+            if r:
+                t["reviewed_by"] = r
             try:                              # T056: finalize the cost accumulator (fail-open;
                 from core.coord.task_costs import finalize   # absent accumulator stamps nothing)
                 finalize(tid, t)
@@ -407,6 +466,10 @@ def state_view(path: str = LEDGER_PATH, client: Any = "auto", *,
         "parked": [{**summ(t), "reason": _park_reason(t)}
                    for t in tasks if t["status"] == PARKED],   # C5-1: shelved, reasoned, visible
         "counts": {s: sum(1 for t in tasks if t["status"] == s) for s in STATUSES},
+        # T248: how many closed WITHOUT independent review. In the view rather than scraped by
+        # one renderer, so every surface reads the same number -- two renderers computing the
+        # same count is how they come to disagree.
+        "self_verified": sum(1 for t in tasks if t.get("self_verified")),
     }
 
 
@@ -469,8 +532,14 @@ def format_state(agent: str = "", path: str = LEDGER_PATH, client: Any = "auto",
                 for t in stale]
     prop = f"proposed {c[PROPOSED]}" + (f" ({len(stale)} stale)" if stale else "")
     parked_bar = f" | parked {c[PARKED]}" if c.get(PARKED) else ""
+    # T248: the override COUNT is the instrument -- the refusal only keeps it honest. Rendered
+    # here rather than behind a flag, because a number you have to go and ask for is a number
+    # nobody asks for. Absent at zero: a counter that is always on screen stops being read,
+    # which is the same rule the evidence notice follows one subsystem over.
+    sv = v.get("self_verified", 0)
+    sv_bar = f" | SELF-VERIFIED {sv}" if sv else ""
     out.append(f"(done {c[DONE]} | active {c[CLAIMED] + c[IN_PROGRESS] + c[VERIFYING]} | "
-               f"next {len(v['next'])} | {prop} | blocked {c[BLOCKED]}{parked_bar})")
+               f"next {len(v['next'])} | {prop} | blocked {c[BLOCKED]}{parked_bar}{sv_bar})")
     out.append("RULE: anything in DONE is closed. Work only your assigned/NEXT task. "
                "Ignore backlog messages that contradict the ledger.")
     return "\n".join(out) + "\n"
