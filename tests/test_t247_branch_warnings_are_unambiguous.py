@@ -55,13 +55,23 @@ class _Resp:
         self.usage = _Usage()
 
 
-class FakeClient:
-    class _Completions:
-        def create(self, **kwargs):
-            return _Resp("ANSWER")
+class _Completions:
+    def create(self, **kwargs):
+        return _Resp("ANSWER")
 
-    class _Chat:
-        completions = _Completions()
+
+class _Chat:
+    completions = _Completions()
+
+
+class FakeClient:
+    """Module-level nesting, deliberately.
+
+    The first draft declared these INSIDE FakeClient, where a sibling class is not in scope at
+    class-definition time -- so the file died at collection with a NameError and the pin was
+    red for a reason that had nothing to do with the defect. Which is the trap named two
+    commits earlier: a RED pin must fail for its stated reason or it proves nothing.
+    """
 
     chat = _Chat()
 

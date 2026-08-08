@@ -946,8 +946,26 @@ def ask_many(prompts, *, system: Optional[str] = None, model: Optional[str] = No
         # notice, so a cited claim traces to what THAT branch actually read. Branches on the
         # fan-wide pack are covered by the top-level `context`; repeating it N times would
         # bloat the payload without adding a fact.
+        # T247: EVERY branch says where its evidence came from and carries the notice for its
+        # OWN pack, whichever pack that is. T244 attached this only to branches that brought
+        # their own files, so a branch riding a CLIPPED fan-wide pack carried nothing -- and
+        # because some branches now had the key and some did not, absence stopped meaning one
+        # thing. "No warnings" was true in the sense "the files this branch named were fine"
+        # and false in the sense "the evidence this branch was given was fine": the same
+        # sense-collision T242 exists to remove, reintroduced one layer down.
+        #
+        # The bloat argument that justified the omission was about the wrong field. Repeating
+        # a whole `context` dict per branch is real weight; a short warning string is not.
+        rec["evidence"] = ("none" if branch_pack[i][1] is None
+                           else "own" if branch_files[i] is not None else "fan")
         if branch_files[i] is not None:
             attach_evidence(rec, branch_pack[i][1])
+        else:
+            # Shared pack: carry its notice, but NOT its meta -- the meta is already on the
+            # aggregate and repeating it N times adds weight without adding a fact.
+            _shared_notice = unusable_evidence_notice(branch_pack[i][1])
+            if _shared_notice:
+                rec["warnings"] = [_shared_notice]
         branches.append(rec)
 
     # T182: does this fan carry N findings, or one finding N times? Measured over the branches
