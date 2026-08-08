@@ -821,7 +821,20 @@ def ask_many(prompts, *, system: Optional[str] = None, model: Optional[str] = No
     Branches are dicts rather than BoundaryOutcomes so the whole aggregate stays JSON-
     serialisable for the CLI door; the aggregate itself keeps the one vocabulary.
     """
-    prompts = [str(p) for p in (prompts or [])]
+    # T244: a branch may declare its OWN evidence as {"prompt": ..., "files": [...]}. A plain
+    # string keeps using the fan-wide `with_files`, so every existing caller is untouched --
+    # `--prompts-file` sends strings. Normalised HERE, before anything indexes `prompts`, so
+    # the rest of the function keeps working on plain text.
+    _raw = list(prompts or [])
+    prompts, branch_files = [], []
+    for _p in _raw:
+        if isinstance(_p, dict):
+            prompts.append(str(_p.get("prompt", "")))
+            _f = _p.get("files")
+            branch_files.append([str(x) for x in _f] if _f else None)
+        else:
+            prompts.append(str(_p))
+            branch_files.append(None)
     if not prompts:
         return BoundaryOutcome.failed(
             "empty fan -- no prompts to ask. Asking nothing is not the same as asking and "
@@ -839,15 +852,32 @@ def ask_many(prompts, *, system: Optional[str] = None, model: Optional[str] = No
     # T216, found while playing: --with was accepted on the fan path and SILENTLY did
     # nothing, because with_files was threaded into the single-ask call and never here.
     # Five helpers correctly reported they had been given no files; the flag had simply
-    # evaporated. Built once per fan rather than per branch -- N branches share one
-    # context, so the read and the budget are paid once.
-    shared_ctx, ctx_meta = ("", None)
-    if with_files:
-        shared_ctx, ctx_meta = build_context(with_files, root=context_root)
+    # evaporated.
+    #
+    # T244: ONE PACK PER UNIQUE FILE SET, not one per fan and not one per branch. Sharing a
+    # single fan-wide pack made every declared standpoint nominal -- a band asking for
+    # "surface only" was handed the implementation and cited it -- and let one refused file
+    # void branches that never named it. Building inside _one() instead would re-read the
+    # same file once per branch and race on this memo, so packs are built HERE, before the
+    # pool exists.
+    #
+    # This does not cost more. The pack is prepended to every branch body either way, so a
+    # branch that declares a narrower need now pays for less than it did before.
+    _packs: Dict[Any, Any] = {}
+
+    def _pack_for(paths):
+        key = tuple(paths) if paths else None
+        if key not in _packs:
+            _packs[key] = (build_context(list(key), root=context_root) if key else ("", None))
+        return _packs[key]
+
+    shared_ctx, ctx_meta = _pack_for(with_files)
+    branch_pack = [_pack_for(bf) if bf else (shared_ctx, ctx_meta) for bf in branch_files]
 
     def _one(i):
-        body = (f"{shared_ctx}\n\n=== QUESTION ===\n{prompts[i]}"
-                if shared_ctx else prompts[i])
+        ctx = branch_pack[i][0]
+        body = (f"{ctx}\n\n=== QUESTION ===\n{prompts[i]}"
+                if ctx else prompts[i])
         try:
             # T226: continue_on_cut/max_continuations were accepted by the CLI and reached
             # NOTHING here -- the T216 shape one flag over, and it bit hardest on the fan,
@@ -881,12 +911,19 @@ def ask_many(prompts, *, system: Optional[str] = None, model: Optional[str] = No
             total_usd += float(usd)
         n_ok += 1 if o.ok else 0
         n_partial += 1 if o.partial else 0
-        branches.append({
+        rec = {
             "i": i, "prompt": prompts[i][:300], "ok": o.ok, "partial": o.partial,
             "why": o.why, "answer": d.get("answer"), "usd": usd,
             "prompt_tokens": d.get("prompt_tokens"), "completion_tokens": d.get("completion_tokens"),
             "elapsed_s": d.get("elapsed_s"), "model": d.get("model"),
-        })
+        }
+        # T244: a branch that brought its OWN evidence carries its own meta and its own
+        # notice, so a cited claim traces to what THAT branch actually read. Branches on the
+        # fan-wide pack are covered by the top-level `context`; repeating it N times would
+        # bloat the payload without adding a fact.
+        if branch_files[i]:
+            attach_evidence(rec, branch_pack[i][1])
+        branches.append(rec)
 
     # T182: does this fan carry N findings, or one finding N times? Measured over the branches
     # that LANDED -- an outage is not a dissenting voice, and counting it as one would
@@ -919,6 +956,16 @@ def ask_many(prompts, *, system: Optional[str] = None, model: Optional[str] = No
         "elapsed_s": round(time.time() - t0, 2), "model": model, "workers": workers,
     }
     attach_evidence(detail, ctx_meta)
+    # T244: name WHICH branches were damaged. "the fan was truncated" cannot be acted on when
+    # branches no longer share a pack, and a caller who has to walk N branch records to find
+    # out is a caller who will not -- measured twice on 2026-08-08, on a notice that existed
+    # and was correct. A branch absent from this list was unaffected, which is the half of the
+    # message that lets the rest of the run still be trusted.
+    _damaged = [b["i"] for b in branches if b.get("warnings")]
+    if _damaged:
+        detail.setdefault("warnings", []).append(
+            f"EVIDENCE PROBLEMS IN BRANCHES {_damaged} -- each is named in "
+            f"branches[i]['warnings'] with its own files. Branches not listed were unaffected.")
 
     if n_ok == 0:
         return BoundaryOutcome.failed(
