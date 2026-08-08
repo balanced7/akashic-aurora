@@ -91,9 +91,45 @@ _OUTCOME_FILE = "recall_outcomes.jsonl"
 _OUTCOME_MAX_BYTES = 4_000_000          # ~4MB ring; oldest half dropped on overflow
 
 
+#: T251. The two rules that produce `excluded_silent`, kept as named constants because the
+#: whole point of the slice is that they must never be collapsed again.
+EXCL_ANTIREPEAT = "antirepeat"     # already shown this SESSION (exclude_sources)
+EXCL_SELF_ECHO = "self_echo"       # the caller authored it within the self-echo window
+
+
+def _note_exclusion(stats: Optional[Dict[str, int]], kind: str) -> None:
+    """Count an exclusion BY RULE as well as in total (T251).
+
+    Both call sites used to bump one `excluded` counter, so the measurement that showed
+    exclusion dominates silence 4:1 could not say WHICH rule dominated -- and the two have
+    opposite fixes. The total is still maintained so the `excluded >= above_floor` test that
+    decides the outcome label is untouched.
+    """
+    if stats is None:
+        return
+    stats["excluded"] = stats.get("excluded", 0) + 1
+    key = f"excluded_{kind}"
+    stats[key] = stats.get(key, 0) + 1
+
+
+def _excl_kind(stats: Optional[Dict[str, int]]) -> str:
+    """Which rule withheld this call: antirepeat | self_echo | mixed | "" when neither."""
+    if not stats:
+        return ""
+    a = stats.get(f"excluded_{EXCL_ANTIREPEAT}", 0)
+    s = stats.get(f"excluded_{EXCL_SELF_ECHO}", 0)
+    if a and s:
+        return "mixed"
+    if a:
+        return EXCL_ANTIREPEAT
+    if s:
+        return EXCL_SELF_ECHO
+    return ""
+
+
 def _record_outcome(outcome: str, reason: str = "", *, query: str = "",
                     n_items: int = 0, agent_id: str = "",
-                    query_shape: str = "") -> None:
+                    query_shape: str = "", excl_kind: str = "") -> None:
     """One row per recall_at call. Best-effort by contract (P6): an exception here must
     never cost the caller its items -- observability must not wedge the path it observes."""
     try:
@@ -114,7 +150,12 @@ def _record_outcome(outcome: str, reason: str = "", *, query: str = "",
                                 # deepseek's R2 review: the census's NONE-NEEDED reasons are
                                 # SHAPE reasons; a silent row must say what shape went silent
                                 # or it cannot be audited against the pack that justified it.
-                                "query_shape": str(query_shape or "")}) + "\n")
+                                "query_shape": str(query_shape or ""),
+                                # T251: WHICH suppression rule withheld the call. Absent on
+                                # every row written before 2026-08-08; those read as "unknown"
+                                # in the breakdown rather than vanishing, because the old rows
+                                # ARE the baseline that made this worth splitting.
+                                "excl_kind": str(excl_kind or "")}) + "\n")
     except Exception:
         pass
 
@@ -123,7 +164,11 @@ def silence_rate(window_s: float = 86400.0) -> Dict[str, Any]:
     """The number the census bar needs: over the window, {calls, fired, silent, by_reason}.
     Reads the outcome sink; zeros when absent (a missing file is 'no calls recorded', and
     the caller can tell that apart from '0% silent' by calls==0)."""
-    out: Dict[str, Any] = {"calls": 0, "fired": 0, "silent": 0, "by_reason": {}}
+    out: Dict[str, Any] = {"calls": 0, "fired": 0, "silent": 0, "by_reason": {},
+                           # T251: excluded_silent dominates silence 4:1 over floor_silent, and
+                           # it merged two rules with opposite fixes. Broken out here so the
+                           # tuning decision has a number behind it instead of a guess.
+                           "excluded_by_kind": {}}
     try:
         cutoff = time.time() - float(window_s)
         with open(os.path.join(_OUTCOME_DIR, _OUTCOME_FILE), encoding="utf-8") as f:
@@ -141,6 +186,13 @@ def silence_rate(window_s: float = 86400.0) -> Dict[str, Any]:
                     out["silent"] += 1
                     r = str(row.get("reason") or "unknown")
                     out["by_reason"][r] = out["by_reason"].get(r, 0) + 1
+                    if r == "excluded_silent":
+                        # "unknown", never dropped: every row written before T251 lacks the
+                        # field, and those rows ARE the baseline that justified the split. A
+                        # silent omission inside the instrument that measures silent omissions
+                        # would be its own punchline.
+                        k = str(row.get("excl_kind") or "unknown")
+                        out["excluded_by_kind"][k] = out["excluded_by_kind"].get(k, 0) + 1
     except OSError:
         pass
     except Exception:
@@ -1360,12 +1412,11 @@ def _lessons(query: str, now: Optional[float], limit: int, min_relevance: float,
             stats_out["above_floor"] = stats_out.get("above_floor", 0) + 1
         src = s.item.get("source")
         if src in seen or src in excl:
-            if stats_out is not None and src in excl:
-                stats_out["excluded"] = stats_out.get("excluded", 0) + 1
+            if src in excl:                       # T251: intra-call dedup is NOT a suppression
+                _note_exclusion(stats_out, EXCL_ANTIREPEAT)
             continue   # intra-call dedup + cross-action anti-repeat (each item adds NEW info)
         if _self_echo(s.item, agent_id, now):
-            if stats_out is not None:
-                stats_out["excluded"] = stats_out.get("excluded", 0) + 1
+            _note_exclusion(stats_out, EXCL_SELF_ECHO)
             continue   # the author just recorded this one; don't echo it back to them
         seen.add(src)
         # usefulness re-rank: proven-useful lessons rise; surfaced-often-yet-never-useful decay
@@ -1496,7 +1547,8 @@ def recall_at(*, path: Optional[str] = None, command: Optional[str] = None,
                 # everything that cleared the floor was withheld (anti-repeat /
                 # self-echo) -- 'already shown' is not 'nothing relevant' (sol P8)
                 _record_outcome("silent", "excluded_silent", query=query,
-                                agent_id=agent_id or "", query_shape=shape)
+                                agent_id=agent_id or "", query_shape=shape,
+                                excl_kind=_excl_kind(lstats))
             else:
                 _record_outcome("silent", "floor_silent", query=query,
                                 agent_id=agent_id or "", query_shape=shape)
