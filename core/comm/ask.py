@@ -830,8 +830,23 @@ def ask_many(prompts, *, system: Optional[str] = None, model: Optional[str] = No
     for _p in _raw:
         if isinstance(_p, dict):
             prompts.append(str(_p.get("prompt", "")))
-            _f = _p.get("files")
-            branch_files.append([str(x) for x in _f] if _f else None)
+            # T246: ABSENT and EMPTY are different claims, and conflating them recreated the
+            # exact defect T244 shipped to fix. `files` absent = unspecified, so inherit the
+            # fan-wide pack. `files: []` = an ASSERTION that this branch needs no evidence,
+            # and must be honoured -- before this, the empty list was falsy and the branch
+            # silently received 8,815 chars of another branch's evidence.
+            if "files" not in _p:
+                branch_files.append(None)
+            else:
+                _f = _p["files"]
+                # A bare string is one path. Left as-is it is ITERABLE, so the comprehension
+                # below walked it character by character and asked for 'R', 'E', 'A', 'D'...
+                # This normalisation is lossless and unambiguous, which is what separates it
+                # from the T245 coercion class: that one turned a dict into its own repr and
+                # destroyed information. The test is whether information survives.
+                if isinstance(_f, (str, bytes, os.PathLike)):
+                    _f = [_f]
+                branch_files.append([str(x) for x in _f] if _f else [])
         else:
             prompts.append(str(_p))
             branch_files.append(None)
@@ -854,7 +869,13 @@ def ask_many(prompts, *, system: Optional[str] = None, model: Optional[str] = No
     # Five helpers correctly reported they had been given no files; the flag had simply
     # evaporated.
     #
-    # T244: ONE PACK PER UNIQUE FILE SET, not one per fan and not one per branch. Sharing a
+    # T244: ONE PACK PER UNIQUE FILE LIST -- ORDER IS SIGNIFICANT, and this said "set" until
+    # T246. build_context spends its per-call budget FIRST-COME, so ["big","small"] includes
+    # big and skips small while ["small","big"] includes small and clips big. They are
+    # genuinely different packs and the cache key must stay order-sensitive. A reviewer read
+    # "set" and correctly reported the code disagreed with it; sorting the key would have
+    # handed a branch evidence it never received. Pinned in test_two_orders_stay_two_packs.
+    # Not one per fan and not one per branch. Sharing a
     # single fan-wide pack made every declared standpoint nominal -- a band asking for
     # "surface only" was handed the implementation and cited it -- and let one refused file
     # void branches that never named it. Building inside _one() instead would re-read the
@@ -872,7 +893,11 @@ def ask_many(prompts, *, system: Optional[str] = None, model: Optional[str] = No
         return _packs[key]
 
     shared_ctx, ctx_meta = _pack_for(with_files)
-    branch_pack = [_pack_for(bf) if bf else (shared_ctx, ctx_meta) for bf in branch_files]
+    # `is not None`, NOT truthiness -- T246. An empty list is a declaration of no evidence and
+    # must reach _pack_for; only an absent key inherits the fan-wide pack. Testing truthiness
+    # here is the same conflation as above, one line down, and it is how the first fix missed.
+    branch_pack = [_pack_for(bf) if bf is not None else (shared_ctx, ctx_meta)
+                   for bf in branch_files]
 
     def _one(i):
         ctx = branch_pack[i][0]
@@ -921,7 +946,7 @@ def ask_many(prompts, *, system: Optional[str] = None, model: Optional[str] = No
         # notice, so a cited claim traces to what THAT branch actually read. Branches on the
         # fan-wide pack are covered by the top-level `context`; repeating it N times would
         # bloat the payload without adding a fact.
-        if branch_files[i]:
+        if branch_files[i] is not None:
             attach_evidence(rec, branch_pack[i][1])
         branches.append(rec)
 
