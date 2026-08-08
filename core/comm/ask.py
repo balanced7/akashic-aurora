@@ -262,6 +262,43 @@ def _file_chars(path) -> Optional[int]:
         return None
 
 
+def attach_evidence(detail: Dict[str, Any], ctx_meta: Optional[Dict[str, Any]]) -> None:
+    """Put the evidence meta AND its notice on the outcome, at the BOUNDARY (T242).
+
+    T218/T225 built the notice and T237 gave JSON callers a discoverable `warnings` list --
+    and all three landed in agent_cli.py. `unusable_evidence_notice` had three call sites,
+    every one of them at the CLI door, so anything that IMPORTED this module received
+    `context` and no warning at all. That is most of what this fleet runs.
+
+    It was paid for twice in one day (2026-08-08): a harness called `ask_many` directly, was
+    clipped at 40,000 chars -- line 744 of an 889-line file -- and every branch went blind on
+    exactly the region under study, while `context.truncated` sat True in the returned detail
+    both times. Same class as T160 one level up: the function IS called, but only on the path
+    a human takes.
+
+    So the notice is minted where the metadata is minted. The door RENDERS what it is handed
+    and must not recompute it: a second implementation drifts from the first, which is the
+    exact risk `unusable_evidence_notice`'s own docstring gives as the reason it lives beside
+    `build_context`.
+
+    ABSENT WHEN CLEAN, deliberately -- T237's rule, and it is load-bearing. A `warnings` key
+    that always appears is a banner, and a banner is how a real warning goes unread.
+
+    Daniil, 2026-08-08, on the general shape: a fact must be glanceable and must carry the
+    SENSE it is true in. "The clipped-evidence warning exists" was TRUE at the CLI door and
+    FALSE at this boundary; stated unqualified it did not merely omit, it told a caller it was
+    protected while it was not.
+    """
+    if ctx_meta is None:
+        return
+    # Which files this answer was based on. Without it a cited claim cannot be traced back to
+    # the version of the file that was actually read.
+    detail["context"] = ctx_meta
+    notice = unusable_evidence_notice(ctx_meta)
+    if notice:
+        detail["warnings"] = [notice]
+
+
 def ask(prompt: str, *, system: Optional[str] = None, model: Optional[str] = None,
         max_tokens: Optional[int] = None, client=None, with_files=None,
         context_root=None, continue_on_cut: bool = False,
@@ -356,10 +393,7 @@ def ask(prompt: str, *, system: Optional[str] = None, model: Optional[str] = Non
               # "reasoned zero" -- the fabricated-measurement lie, one field down.
               "reasoning_tokens": rt, "truncation": truncation,
               "continuations": continuations}
-    if ctx_meta is not None:
-        # Which files this answer was based on. Without it a cited claim cannot be traced
-        # back to the version of the file that was actually read.
-        detail["context"] = ctx_meta
+    attach_evidence(detail, ctx_meta)
 
     if not answer:
         if truncation == "STARVED":
@@ -870,8 +904,7 @@ def ask_many(prompts, *, system: Optional[str] = None, model: Optional[str] = No
         "usd": round(total_usd, 6) if priced_all else None,
         "elapsed_s": round(time.time() - t0, 2), "model": model, "workers": workers,
     }
-    if ctx_meta is not None:
-        detail["context"] = ctx_meta
+    attach_evidence(detail, ctx_meta)
 
     if n_ok == 0:
         return BoundaryOutcome.failed(

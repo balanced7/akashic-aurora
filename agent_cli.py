@@ -2022,17 +2022,13 @@ def _ask_payload(o) -> dict:
     """
     d = dict(o.detail or {})
     body = {"ok": o.ok, "partial": o.partial, "why": o.why, **d}
-    from core.comm.ask import unusable_evidence_notice
-    warn = []
-    # The WIDENED notice only (T225, claude#42d00626): clipped AND refused AND missing AND
-    # skipped. My first draft kept a getattr fallback to the retired clip-only name "for
-    # safety" and his pin refused the commit -- correctly. A fallback to a superseded
-    # narrower function is not safety, it is the silent downgrade this repo has been paying
-    # for all day: T219 was one harness left on the old scorer, and this would have been the
-    # same fork inside a defensive one-liner.
-    notice = unusable_evidence_notice(d.get("context"))
-    if notice:
-        warn.append(notice)
+    # T242: the evidence notice is MINTED AT THE BOUNDARY (core.comm.ask.attach_evidence) and
+    # arrives already in detail["warnings"], so this door RENDERS it and no longer computes
+    # it. Recomputing here is what confined the whole guard to the CLI: three call sites, all
+    # of them in this file, and every importing caller unwarned by construction -- measured
+    # twice on 2026-08-08. The WIDENED notice (T225) still applies; it just applies one layer
+    # down now, where it also protects callers who never reach this function.
+    warn = list(d.get("warnings") or [])
     if o.partial and o.why:
         warn.append(f"PARTIAL: {o.why}")
     if warn:
@@ -2322,8 +2318,8 @@ def cmd_ask(args):
             print(f"== {o.why}", file=sys.stderr)
         # T218, fan path: one shared context feeds every branch, so a clip here silently
         # shapes N answers at once rather than one.
-        _clip = ask_mod.unusable_evidence_notice(d.get("context"))
-        if _clip:
+        # T242: minted at the boundary now, so this renders rather than recomputes.
+        for _clip in (d.get("warnings") or []):
             print(f"!! {_clip}", file=sys.stderr)
         # T182: "3/3 landed" alone lets one answer read as three findings. Say the agreement --
         # in three states, because a lexical metric genuinely cannot resolve paraphrase.
@@ -2366,8 +2362,8 @@ def cmd_ask(args):
     # T218: the helper was told in-band that its file was clipped; the caller was not, so an
     # abstention about the WINDOW read as an abstention about the CODE. Printed AFTER the
     # answer, where the reader is when they form that conclusion.
-    _clip = ask_mod.unusable_evidence_notice(d.get("context"))
-    if _clip:
+    # T242: minted at the boundary now, so this renders rather than recomputes.
+    for _clip in (d.get("warnings") or []):
         print(f"\n!! {_clip}", file=sys.stderr)
     usd = d.get("usd")
     spend = f"${usd:.6f}" if usd is not None else "unpriced"

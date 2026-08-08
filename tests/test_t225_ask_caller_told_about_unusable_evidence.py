@@ -136,18 +136,29 @@ def test_a_clean_evidence_pack_stays_silent():
     assert unusable_evidence_notice(meta) == ""
 
 
-def test_both_cli_doors_use_the_widened_notice():
-    """Single-ask AND fan must both call it. Found the hard way, in this slice.
+def test_both_cli_doors_render_the_widened_notice():
+    """Single-ask AND fan must both emit it. Found the hard way, in this slice.
 
     The edit that widened the two call sites was applied with replace-all and matched only
     one of them -- the two lines differ by four spaces of indentation, one being inside the
     fan block. The single-ask path stayed on the CLIP-only notice and the live re-run of the
     original scenario printed nothing, which read as "the fix does not work" rather than
     "the fix reached one door". Pinned by COUNT so a future edit cannot half-land either.
+
+    T242 CHANGED THE MECHANISM, NOT THIS INVARIANT. The notice is now minted at the boundary
+    (core.comm.ask.attach_evidence) and arrives in detail["warnings"]; these doors RENDER it
+    instead of recomputing it, which is what finally reached callers who never touch this
+    file. But the hazard this pin exists for is untouched -- the two render sites are still
+    near-identical blocks differing only by indentation, and the T242 edit had to touch both
+    of them by hand. So the count stays; only what it counts has moved.
+
+    Who owns what, so neither guard silently covers for the other:
+      this pin  -- BOTH doors render the notice (the half-landed-edit hazard)
+      T242      -- the boundary MINTS it, and this file never recomputes it
     """
     src = (REPO / "agent_cli.py").read_text(encoding="utf-8", errors="replace")
-    assert src.count("ask_mod.unusable_evidence_notice(") == 2, \
-        "both the fan render and the single-ask render must use the widened notice"
+    assert src.count('for _clip in (d.get("warnings") or []):') == 2, \
+        "both the fan render and the single-ask render must emit the boundary's warnings"
     assert "clipped_evidence_notice" not in src, \
         "no CLI door should still reach for the retired CLIP-only name"
 
