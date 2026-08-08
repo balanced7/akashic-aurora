@@ -1,5 +1,5 @@
 {
-  "seq": 231,
+  "seq": 235,
   "tasks": [
     {
       "id": "T001",
@@ -8616,6 +8616,92 @@
           "to": "done",
           "by": "",
           "at": "2026-08-07T23:54:08+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T232",
+      "title": "S1 Recall EFFECTIVENESS instrument: recall_feedback measures RELEVANCE, self-reported by the reader who just demonstrated he was not attending. Effectiveness is different and externally computable -- hook fired at T, lesson said do X, did the next action do X? Needs only a join of the existing injection log against the transcript; no tools, no new door. Motivating receipts 2026-08-07: a recall hook printed the id-collision lesson and I minted a colliding id anyway; four hours after filing a lesson about retrodictions I filed a retrodiction. Retrieval worked both times, attention did not, and inattention cannot observe itself. Cites docs/library/report/20260807_selection-layer-approach_97eb4d.md S1.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "a measured read-past rate over >=30 hook firings, with both known 2026-08-07 instances appearing in it; FALSIFIED and abandoned loudly if the rate is indistinguishable from zero",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-08T01:09:24+00:00",
+      "updated": "2026-08-08T01:09:24+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-08T01:09:24+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T233",
+      "title": "S2 The read-only probe (multimeter): a helper with a BOUNDED READ-ONLY toolset (read/grep inside the repo root; no writes, no network). Read-only first is the whole design -- the multimeter has impedance, and a probe that can write is a participant. Motivation: I am always the load. Arming my own wake watcher made test_healthy_fleet_is_one_line fail; reading the bus advances cursors; any ask I make to study cost IS a cost. The repo already solved this one layer down (the wake listener is detect-dont-consume by design); this moves that principle up to the reasoning layer. REOPENS ask v1 deliberate exclusion of tools ON ITS OWN STATED CONDITION -- \"Single turn first; see how it actually gets used before adding the machinery that broke the last two rounds\" -- which is now met, and the commit must say so. Cites the approach doc S2.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "the probe answers a question about live repo state that a tool-less helper provably cannot, and perturbs no cursor/seat/record (verified by diffing state before and after); KILL IMMEDIATELY if the tool loop reintroduces the wedge/budget failures that ended the last two seat rounds",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-08T01:09:38+00:00",
+      "updated": "2026-08-08T01:09:38+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-08T01:09:38+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T234",
+      "title": "S3 Behavioural ergonomics harness: participants attempt a TASK against a door and we measure ACHIEVEMENT, not prediction. Cold-encounter tests already run here and measure what a reader PREDICTS (0 of 3 predicted what --bg with --get does). But ask --bg --fan 5 silently ran ONE ask while its help reads beautifully -- \"fan out without drowning\" -- so the defect exists only in the doing, and comprehension testing is structurally blind to that class, which is the class of every defect found on 2026-08-07. Also contains failure: a bad ergonomics experiment currently poisons the experimenter (the five-lens run cost 0.065 USD AND a wrong conclusion carried four hours into a ledger task). Needs S2. Cites the approach doc S3.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "the harness independently rediscovers the KNOWN --bg --fan defect (calibrate on a known answer before pointing it at the corpus); FALSIFIED if it cannot rediscover a defect we know is there, in which case it measures nothing",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-08T01:09:39+00:00",
+      "updated": "2026-08-08T01:09:39+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-08T01:09:39+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T235",
+      "title": "S5 Per-branch evidence packs: ask_many calls build_context ONCE outside _one(), so every branch of a fan shares one evidence pack. That is what silently voided a lens in the 2026-08-07 five-lens run -- one refused file damaged a branch that never needed it, and the branch was billed for a question it was structurally unable to answer. Independent of S1-S4 and worth taking regardless. Practitioner accounts also report ~60pct token reduction from scoping each agent context to what it needs, but the reason to build it is the measured failure, not the token saving. Cites the approach doc S5.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/comm/ask.py"
+      ],
+      "acceptance": "a fan where branch A refused file leaves branch B intact and correctly reported; per-branch context meta carried in each branch record",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-08T01:09:49+00:00",
+      "updated": "2026-08-08T01:09:49+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-08T01:09:49+00:00"
         }
       ]
     }
