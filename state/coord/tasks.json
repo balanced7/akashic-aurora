@@ -1,5 +1,5 @@
 {
-  "seq": 239,
+  "seq": 240,
   "tasks": [
     {
       "id": "T001",
@@ -8815,6 +8815,29 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-08T01:37:27+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T240",
+      "title": "T236 observability: the ambient id check fails open through a blanket `except Exception: return \"\"`, so a PERMANENTLY BROKEN check is indistinguishable from a correctly quiet one -- the repo already has a lesson for this (a_gate_that_goes_quiet_gets_believed) and I built it anyway, hours after being shown it. Flagged independently by two lenses of the blind three-view fan 2026-08-07, and named as the thing mature commit-msg/ticket-status hooks all carry. Fail-open must STAY (a helper that can brick a Write is not a helper), so the fix is a side channel: record check-ran / check-errored counts somewhere inspectable, so a dead guard is discoverable without being noisy to the agent. Also from the same fan, worth the same slice: ledger read is uncached per matching path, and the pattern plus terminal-status set are hardcoded.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "scripts/hooks/claude_pretooluse.py"
+      ],
+      "acceptance": "a deliberately broken ledger read is visible in a durable counter within one session; the agent-facing output is unchanged; fail-open behaviour preserved",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-08T01:43:44+00:00",
+      "updated": "2026-08-08T01:43:44+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-08T01:43:44+00:00"
         }
       ]
     }
