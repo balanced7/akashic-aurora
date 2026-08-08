@@ -151,3 +151,24 @@ def test_the_id_pattern_survives_the_ledger_reaching_four_digits():
     big = {"T1000": {"status": "done", "title": "a task from the future"}}
     assert id_facts_for_path("tests/test_t1000_future.py", exists=False, ledger=big)
     assert "T1000" in id_facts_for_path("tests/test_t1000_future.py", exists=False, ledger=big)
+
+
+def test_the_hook_survives_a_non_dict_tool_input():
+    """Found by the ABSENCE lens of a blind multi-view fan: `or {}` guards None but not a
+    truthy non-dict, so a tool whose input is a bare string would raise AttributeError in
+    main() -- outside id_facts_for_path's own try -- and crash the hook on every file call.
+
+    Exercised through the real hook process, because the defect lived in the CALLER, which is
+    exactly the seam a unit test of the function would have missed (and did).
+    """
+    import json as _json
+    import subprocess as _sp
+
+    payload = _json.dumps({"tool_name": "Write", "session_id": "t236-nondict",
+                           "cwd": str(REPO), "tool_input": "a bare string"})
+    for hook in ("scripts/hooks/claude_pretooluse.py",
+                 "agent/harness/hooks/claude_pretooluse.py"):
+        r = _sp.run([sys.executable, hook], input=payload, cwd=REPO,
+                    capture_output=True, text=True, timeout=120)
+        assert r.returncode == 0, f"{hook} crashed on a non-dict tool_input: {r.stderr[:300]}"
+        assert "AttributeError" not in r.stderr

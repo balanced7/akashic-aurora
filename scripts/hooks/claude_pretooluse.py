@@ -79,7 +79,13 @@ def _in_scope(tool: str, data) -> bool:
     """Claude tool names -> the shared scope policy (agent/harness/scope.py): file tools scope
     by their target path, shell tools by session cwd or the command itself."""
     from agent.harness.scope import file_in_scope, shell_in_scope
-    ti = data.get("tool_input") or {}
+    ti = data.get("tool_input")
+    # `or {}` guarded None but NOT a truthy non-dict, so a tool whose input is a bare string
+    # raised AttributeError HERE -- before any of this hook's guards ran -- and crashed the
+    # hook on every file call. Pre-existing; surfaced when a blind multi-view fan named the
+    # pattern in code I wrote an hour earlier, and running it showed the older site crashes
+    # first. Right about the class, wrong about the location.
+    ti = ti if isinstance(ti, dict) else {}
     if tool in _FILE_TOOLS:
         return file_in_scope(ti.get("file_path") or "")
     return shell_in_scope(data.get("cwd") or os.getcwd(), ti.get("command") or "")
@@ -255,7 +261,12 @@ def main() -> int:
     # hand while recall is about the topic. Fires approximately never (terminal id + new path
     # only), so it costs nothing in the volume budget recall already spends.
     if tool in _FILE_TOOLS:
-        fact = id_facts_for_path((data.get("tool_input") or {}).get("file_path") or "")
+        # `or {}` guards None but NOT a truthy non-dict: a tool whose input is a bare string
+        # would raise AttributeError here, OUTSIDE id_facts_for_path's own try, and take the
+        # whole hook down on every file call. Found by the ABSENCE lens of a blind multi-view
+        # fan -- the only crash path it surfaced, in code written an hour earlier.
+        _ti = data.get("tool_input")
+        fact = id_facts_for_path((_ti.get("file_path") or "") if isinstance(_ti, dict) else "")
         if fact:
             ctx = (fact + "\n" + ctx) if ctx else fact
     if ctx:
