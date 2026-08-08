@@ -2000,6 +2000,46 @@ def _bg_forward_argv(args) -> list:
     return out
 
 
+def _ask_payload(o) -> dict:
+    """The JSON body for every `ask` door, WITH a discoverable `warnings` list.
+
+    T237, found by being the machine caller. A blind-draft experiment was silently
+    compromised by a clipped file, and the notice built to prevent exactly that (T218,
+    widened by T225) reached NEITHER channel: it goes to stderr, and the `--json` branches
+    `return` before emitting it. Verified -- the payload carried context.truncated=True while
+    'CLIPPED' never appeared on stderr.
+
+    A JSON CONSUMER DOES NOT READ PROSE, IT READS KEYS. The signal already existed at
+    `context.truncated`, but a caller had to KNOW that nested key; none of four probes did.
+    A top-level `warnings` array is discoverable by anyone who prints the payload once.
+
+    ONE helper for all three ask doors, because the alternative is patching three sites and
+    that is the exact shape of T219 (a fix wired into one of two harnesses) and T220 (one of
+    two clip sites) -- both of which I found in someone else's code the same day I did this.
+
+    Absent when clean: a warnings key that always appears gets filtered out mentally, which
+    is how the real one goes unread.
+    """
+    d = dict(o.detail or {})
+    body = {"ok": o.ok, "partial": o.partial, "why": o.why, **d}
+    from core.comm.ask import unusable_evidence_notice
+    warn = []
+    # The WIDENED notice only (T225, claude#42d00626): clipped AND refused AND missing AND
+    # skipped. My first draft kept a getattr fallback to the retired clip-only name "for
+    # safety" and his pin refused the commit -- correctly. A fallback to a superseded
+    # narrower function is not safety, it is the silent downgrade this repo has been paying
+    # for all day: T219 was one harness left on the old scorer, and this would have been the
+    # same fork inside a defensive one-liner.
+    notice = unusable_evidence_notice(d.get("context"))
+    if notice:
+        warn.append(notice)
+    if o.partial and o.why:
+        warn.append(f"PARTIAL: {o.why}")
+    if warn:
+        body["warnings"] = warn
+    return body
+
+
 def cmd_ask(args):
     """ask -- ONE synchronous question to a helper model, with no seat behind it (T171).
 
@@ -2125,8 +2165,7 @@ def cmd_ask(args):
                      launch=bool(getattr(args, "launch", False)),
                      launch_wait_s=getattr(args, "launch_wait", 60.0))
         if args.json:
-            print(json.dumps({"ok": o.ok, "partial": o.partial, "why": o.why,
-                              **(o.detail or {})}, ensure_ascii=False, default=str))
+            print(json.dumps(_ask_payload(o), ensure_ascii=False, default=str))
             return 0 if (o.ok or o.partial) else 1
         d = o.detail or {}
         # T197: the verdict the caller used to pay 30 minutes and a forensic dig to
@@ -2269,8 +2308,7 @@ def cmd_ask(args):
             _bg.finish(_bg_child, {"ok": o.ok, "partial": o.partial, "why": o.why,
                                    **(o.detail or {})})
         if args.json:
-            print(json.dumps({"ok": o.ok, "partial": o.partial, "why": o.why, **o.detail},
-                             ensure_ascii=False, default=str))
+            print(json.dumps(_ask_payload(o), ensure_ascii=False, default=str))
             return 0 if o.ok else 1
         for b in o.detail.get("branches", []):
             mark = "ok" if b["ok"] and not b["partial"] else ("PARTIAL" if b["partial"] else "FAIL")
@@ -2289,7 +2327,7 @@ def cmd_ask(args):
             print(f"!! {_clip}", file=sys.stderr)
         # T182: "3/3 landed" alone lets one answer read as three findings. Say the agreement --
         # in three states, because a lexical metric genuinely cannot resolve paraphrase.
-        # T228: the SCORE is mode-blind and stays exactly as calibrated; the NEXT MOVE is not.
+        # T237: the SCORE is mode-blind and stays exactly as calibrated; the NEXT MOVE is not.
         # Five different questions used to render low overlap as a positive result, and to
         # prescribe settling a disagreement between answers to questions that were never the
         # same. One shared prescription so this surface and `ask --get` cannot drift (T225's
@@ -2316,8 +2354,7 @@ def cmd_ask(args):
                                **(o.detail or {})})
 
     if args.json:
-        print(json.dumps({"ok": o.ok, "partial": o.partial, "why": o.why, **o.detail},
-                         ensure_ascii=False, default=str))
+        print(json.dumps(_ask_payload(o), ensure_ascii=False, default=str))
         return 0 if bool(o) else 1
 
     if not o.ok:                       # a real failure always says why -- the type guarantees it
