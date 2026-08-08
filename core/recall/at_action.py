@@ -97,19 +97,36 @@ EXCL_ANTIREPEAT = "antirepeat"     # already shown this SESSION (exclude_sources
 EXCL_SELF_ECHO = "self_echo"       # the caller authored it within the self-echo window
 
 
-def _note_exclusion(stats: Optional[Dict[str, int]], kind: str) -> None:
-    """Count an exclusion BY RULE as well as in total (T251).
+def _note_exclusion(stats: Optional[Dict[str, int]], kinds) -> None:
+    """Count one excluded ITEM, under EVERY rule that excluded it (T251).
 
     Both call sites used to bump one `excluded` counter, so the measurement that showed
     exclusion dominates silence 4:1 could not say WHICH rule dominated -- and the two have
-    opposite fixes. The total is still maintained so the `excluded >= above_floor` test that
-    decides the outcome label is untouched.
+    opposite fixes.
+
+    `kinds` is a LIST, and that is the correction Gemini 3.1 Pro found in the first version:
+    the anti-repeat branch `continue`d before `_self_echo` was ever evaluated, so an item
+    breaking BOTH rules was recorded as anti-repeat only. The instrument's implicit promise --
+    that loosening the rule it names will un-silence the call -- was false for exactly those
+    items, which is the worst possible defect in an instrument built to choose between two
+    rules.
+
+    The TOTAL counts ITEMS, not rule-hits. It gates the outcome label through
+    `excluded >= above_floor`, so double-counting an item that broke two rules would
+    manufacture `excluded_silent` calls that never happened.
     """
-    if stats is None:
+    if stats is None or not kinds:
         return
+    # A bare string is ONE kind. Left as-is it is iterable, and `for kind in kinds` would walk
+    # it character by character -- producing excluded_a, excluded_n, excluded_t... This is the
+    # exact defect Gemini 3.1 Pro reported in ask_many's `files` an hour ago, which I then
+    # reproduced here inside the fix for it. Third instance of this class today.
+    if isinstance(kinds, str):
+        kinds = [kinds]
     stats["excluded"] = stats.get("excluded", 0) + 1
-    key = f"excluded_{kind}"
-    stats[key] = stats.get(key, 0) + 1
+    for kind in kinds:
+        key = f"excluded_{kind}"
+        stats[key] = stats.get(key, 0) + 1
 
 
 def _excl_kind(stats: Optional[Dict[str, int]]) -> str:
@@ -129,7 +146,8 @@ def _excl_kind(stats: Optional[Dict[str, int]]) -> str:
 
 def _record_outcome(outcome: str, reason: str = "", *, query: str = "",
                     n_items: int = 0, agent_id: str = "",
-                    query_shape: str = "", excl_kind: str = "") -> None:
+                    query_shape: str = "", excl_kind: str = "",
+                    excl_counts: Optional[Dict[str, int]] = None) -> None:
     """One row per recall_at call. Best-effort by contract (P6): an exception here must
     never cost the caller its items -- observability must not wedge the path it observes."""
     try:
@@ -155,7 +173,13 @@ def _record_outcome(outcome: str, reason: str = "", *, query: str = "",
                                 # every row written before 2026-08-08; those read as "unknown"
                                 # in the breakdown rather than vanishing, because the old rows
                                 # ARE the baseline that made this worth splitting.
-                                "excl_kind": str(excl_kind or "")}) + "\n")
+                                "excl_kind": str(excl_kind or ""),
+                                # T251b (Gemini 3.1 Pro): 'mixed' is a CALL-level label, so a
+                                # call with 99 anti-repeat items and 1 self-echo item reads
+                                # identically to a 1-and-1 call. The per-ITEM counts are the
+                                # only thing that can say which rule dominates, which is the
+                                # single question this instrument exists to answer.
+                                "excl_counts": dict(excl_counts or {})}) + "\n")
     except Exception:
         pass
 
@@ -191,7 +215,17 @@ def silence_rate(window_s: float = 86400.0) -> Dict[str, Any]:
                         # field, and those rows ARE the baseline that justified the split. A
                         # silent omission inside the instrument that measures silent omissions
                         # would be its own punchline.
-                        k = str(row.get("excl_kind") or "unknown")
+                        # T251b (Gemini 3.1 Pro): `.get(k) or "unknown"` folded an EMPTY kind
+                        # into the historical bucket. A pre-T251 row has NO key; a future row
+                        # written with an empty kind -- a third exclusion rule bumping the
+                        # total without setting either flag -- HAS the key. Merging them would
+                        # hide a new rule inside the baseline, which is the exact merge this
+                        # task exists to undo. Missing -> unknown; present-but-empty ->
+                        # unclassified.
+                        if "excl_kind" not in row:
+                            k = "unknown"
+                        else:
+                            k = str(row.get("excl_kind") or "").strip() or "unclassified"
                         out["excluded_by_kind"][k] = out["excluded_by_kind"].get(k, 0) + 1
     except OSError:
         pass
@@ -1411,13 +1445,18 @@ def _lessons(query: str, now: Optional[float], limit: int, min_relevance: float,
         if stats_out is not None:
             stats_out["above_floor"] = stats_out.get("above_floor", 0) + 1
         src = s.item.get("source")
-        if src in seen or src in excl:
-            if src in excl:                       # T251: intra-call dedup is NOT a suppression
-                _note_exclusion(stats_out, EXCL_ANTIREPEAT)
-            continue   # intra-call dedup + cross-action anti-repeat (each item adds NEW info)
+        # T251, corrected by Gemini 3.1 Pro's review: evaluate BOTH rules before deciding, or
+        # the first one shadows the second and the instrument names a rule whose loosening
+        # would not actually un-silence the call. Intra-call dedup (src in seen) is deliberately
+        # NOT a suppression -- the item was already accepted this very call.
+        _hit = []
+        if src in excl:
+            _hit.append(EXCL_ANTIREPEAT)
         if _self_echo(s.item, agent_id, now):
-            _note_exclusion(stats_out, EXCL_SELF_ECHO)
-            continue   # the author just recorded this one; don't echo it back to them
+            _hit.append(EXCL_SELF_ECHO)
+        if src in seen or _hit:
+            _note_exclusion(stats_out, _hit)      # no-op when only intra-call dedup fired
+            continue
         seen.add(src)
         # usefulness re-rank: proven-useful lessons rise; surfaced-often-yet-never-useful decay
         cands.append((s.score * usefulness_factor(s.item.get("_use")), s.item))
@@ -1548,7 +1587,10 @@ def recall_at(*, path: Optional[str] = None, command: Optional[str] = None,
                 # self-echo) -- 'already shown' is not 'nothing relevant' (sol P8)
                 _record_outcome("silent", "excluded_silent", query=query,
                                 agent_id=agent_id or "", query_shape=shape,
-                                excl_kind=_excl_kind(lstats))
+                                excl_kind=_excl_kind(lstats),
+                                excl_counts={k: lstats[f"excluded_{k}"]
+                                             for k in (EXCL_ANTIREPEAT, EXCL_SELF_ECHO)
+                                             if lstats.get(f"excluded_{k}")})
             else:
                 _record_outcome("silent", "floor_silent", query=query,
                                 agent_id=agent_id or "", query_shape=shape)
