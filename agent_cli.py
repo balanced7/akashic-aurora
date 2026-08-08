@@ -2036,6 +2036,52 @@ def _ask_payload(o) -> dict:
     return body
 
 
+def load_fan_prompts(raw: str):
+    """Parse --prompts-file into what ask_many actually takes (T245).
+
+    THREE ACCEPTED FORMS, and the third is the one that was broken:
+      JSON array of strings          ["a", "b"]                         -> unchanged
+      fence-separated text           multi-line prompts split on ^---$  -> unchanged
+      JSON array of objects          [{"prompt": ..., "files": [...]}]  -> per-branch evidence
+
+    T244 taught ask_many that a branch may declare the evidence its standpoint allows. This
+    door then did `[str(p) for p in loaded]` and stringified every element, so the capability
+    was unreachable AND the failure was silent: the dict became its own Python repr and was
+    sent as the question, so a helper received {'prompt': 'audit this', 'files': [...]} and
+    answered it. Built, wired, and destroyed in transit -- the check_wiring class in the shape
+    that is hardest to see.
+
+    REFUSES a `prompt`-less object BY INDEX rather than yielding an empty branch. A paid-for
+    helper that was asked nothing returns nothing, and in a fan of twenty that is
+    indistinguishable from a helper that found nothing -- the same silent-cap lie this repo
+    keeps paying for.
+
+    Extracted to module level because it could not be pinned inline, which is the other half
+    of why the defect shipped.
+    """
+    try:
+        loaded = json.loads(raw)
+    except ValueError:
+        loaded = None
+
+    if isinstance(loaded, list):
+        out = []
+        for i, p in enumerate(loaded):
+            if isinstance(p, dict):
+                if not str(p.get("prompt", "")).strip():
+                    raise ValueError(
+                        f"prompt {i} is an object with no non-empty 'prompt' key: {p!r}. "
+                        "Refusing rather than sending an empty question -- a helper asked "
+                        "nothing answers nothing, which reads as 'found nothing'.")
+                out.append(p)
+            else:
+                out.append(str(p))
+        return out
+
+    # not a JSON array -> fence-separated, so a prompt may itself be multi-line
+    return [chunk.strip() for chunk in re.split(r"(?m)^---\s*$", raw) if chunk.strip()]
+
+
 def cmd_ask(args):
     """ask -- ONE synchronous question to a helper model, with no seat behind it (T171).
 
@@ -2277,12 +2323,10 @@ def cmd_ask(args):
             print(f"cannot read --prompts-file: {e}", file=sys.stderr)
             return 2
         try:
-            loaded = json.loads(raw)
-            prompts = [str(p) for p in loaded] if isinstance(loaded, list) else None
-        except ValueError:
-            prompts = None
-        if prompts is None:      # not JSON -> fence-separated, so a prompt may be multi-line
-            prompts = [chunk.strip() for chunk in re.split(r"(?m)^---\s*$", raw) if chunk.strip()]
+            prompts = load_fan_prompts(raw)
+        except ValueError as e:
+            print(f"--prompts-file: {e}", file=sys.stderr)
+            return 2
     elif getattr(args, "fan", 0) and args.fan > 1:
         prompts = [prompt] * int(args.fan)
 
