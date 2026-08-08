@@ -2067,15 +2067,26 @@ def load_fan_prompts(raw: str):
     if isinstance(loaded, list):
         out = []
         for i, p in enumerate(loaded):
-            if isinstance(p, dict):
-                if not str(p.get("prompt", "")).strip():
-                    raise ValueError(
-                        f"prompt {i} is an object with no non-empty 'prompt' key: {p!r}. "
-                        "Refusing rather than sending an empty question -- a helper asked "
-                        "nothing answers nothing, which reads as 'found nothing'.")
-                out.append(p)
-            else:
-                out.append(str(p))
+            # T252, found by Gemini 3.1 Pro: a prompt must BE a string. The previous check was
+            # `str(p.get("prompt", "")).strip()`, and str() of any falsy non-string returns a
+            # TRUTHY string -- so None, 0 and False all passed the very check that exists to
+            # refuse empty questions, and a paid helper was asked the literal 'None'.
+            #
+            # T245's pin missed the whole class because it tested a MISSING key, never a key
+            # that is present and falsy. Absent and empty are different claims (T246, same
+            # week, one file over).
+            #
+            # Refuse the TYPE, not the content: "0" as a string is a legitimate question.
+            raw_prompt = p.get("prompt") if isinstance(p, dict) else p
+            if not isinstance(raw_prompt, str) or not raw_prompt.strip():
+                where = "an object with" if isinstance(p, dict) else "a bare element with"
+                raise ValueError(
+                    f"prompt {i} is {where} no usable 'prompt': {raw_prompt!r} "
+                    f"(type {type(raw_prompt).__name__}). A prompt must be a non-empty "
+                    f"string. Refusing rather than sending {str(raw_prompt)!r} to a paid "
+                    f"helper -- a helper asked nothing answers nothing, which in a fan of "
+                    f"twenty is indistinguishable from a helper that found nothing.")
+            out.append(p if isinstance(p, dict) else raw_prompt)
         return out
 
     # not a JSON array -> fence-separated, so a prompt may itself be multi-line
