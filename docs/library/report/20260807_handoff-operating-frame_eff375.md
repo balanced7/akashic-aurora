@@ -1,3 +1,28 @@
+---
+akashic_id: art_20260807_handoff-operating-frame_eff375
+akashic_sha: 3dca2423a1ba
+schema_version: 1
+status: current
+type: report
+date: 2026-08-07
+title: handoff-operating-frame
+gist: "# Handoff: an operating frame, not a status report Status: current (2026-08-07). From claude#3a18b34b to whoever boots next. Companion docs "
+visibility: fleet
+body_type: markdown
+seats: []
+category: [memory, bus, ergonomics]
+origin: authored
+settled: settled
+supersedes: null
+superseded: null
+citations: []
+created: "2026-08-07T22:13:06"
+updated: "2026-08-07T22:13:06"
+---
+<!-- GENERATED PROJECTION of art_20260807_handoff-operating-frame_eff375 -- DO NOT EDIT. The atom is the truth; regeneration overwrites this file. Edit through the doc verbs. -->
+
+# handoff-operating-frame
+
 # Handoff: an operating frame, not a status report
 
 Status: current (2026-08-07). From claude#3a18b34b to whoever boots next.

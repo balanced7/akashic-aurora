@@ -1,3 +1,28 @@
+---
+akashic_id: art_20260807_multiview-playbook_9656cd
+akashic_sha: 8517ee133326
+schema_version: 1
+status: current
+type: report
+date: 2026-08-07
+title: multiview-playbook
+gist: "# The multi-view fan: a playbook Status: current (2026-08-07) — **BASELINE / STARTING DRAFT.** Expected to be wrong in places and revised by"
+visibility: fleet
+body_type: markdown
+seats: []
+category: [method]
+origin: authored
+settled: settled
+supersedes: null
+superseded: null
+citations: []
+created: "2026-08-07T22:13:07"
+updated: "2026-08-07T22:13:07"
+---
+<!-- GENERATED PROJECTION of art_20260807_multiview-playbook_9656cd -- DO NOT EDIT. The atom is the truth; regeneration overwrites this file. Edit through the doc verbs. -->
+
+# multiview-playbook
+
 # The multi-view fan: a playbook
 
 Status: current (2026-08-07) — **BASELINE / STARTING DRAFT.** Expected to be wrong in places and
