@@ -1,5 +1,5 @@
 {
-  "seq": 235,
+  "seq": 239,
   "tasks": [
     {
       "id": "T001",
@@ -8702,6 +8702,119 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-08T01:09:49+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T236",
+      "title": "Ambient fact-check at the APPLICATION site: when a Write/Edit contains a ledger id (T\\d+), state what that id already IS. Measured cause 2026-08-07: identifiers_minted...collide fired twice, BOTH on `task propose --help`, 220 minutes before I typed T227 into a filename that collided with a DONE task; in the 20 minutes before the error 7 injections carried 15 lessons and none was the relevant one. The recall corpus indexes lessons by TOPIC, so they fire where you are already doing it right and are silent where you go wrong. DESIGN: state a FACT about the current action, never restate a RULE -- a rule demands compliance and is ignorable, a fact just closes an information gap and asks nothing. FIRE ON THE ANOMALY, NOT THE ACTION: silent when the id is free or matches an active task, speaks only when the id is taken/terminal, so its silence is informative too. Ambient channel only (hookSpecificOutput.additionalContext), NEVER _deny -- a helper, not a demand. Volume constraint: 269 injections/24h and ~42k tokens already; prior art says reduce volume to increase trust, so this must displace noise rather than add to it.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "agent/harness/hooks/claude_pretooluse.py"
+      ],
+      "acceptance": "writing a filename or body containing a DONE/terminal id surfaces one line naming that id and its real title; a free id and an active-owned id both stay SILENT; never denies; measured injection volume does not rise",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-08T01:25:32+00:00",
+      "updated": "2026-08-08T01:25:32+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-08T01:25:32+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T237",
+      "title": "ask --json returns before the evidence notice, so machine callers are blind on BOTH channels; add a discoverable top-level warnings field routed through one payload builder",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "warnings names the file and appears only when there is something to say; human stderr line unregressed; all three ask JSON doors route through one builder; no fallback to the retired clip-only notice",
+      "status": "done",
+      "commit": "eb384ec",
+      "verified_by": "3/3 pins; verified live -- a machine caller printing the payload now sees the clip warning, absent on clean runs; the peer's T225 suite green (his pin caught my retired-name fallback and I removed it)",
+      "created": "2026-08-08T01:31:02+00:00",
+      "updated": "2026-08-08T01:32:16+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-08T01:31:02+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude, found by being the machine caller 2026-08-07",
+          "at": "2026-08-08T01:32:14+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-08T01:32:14+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "",
+          "at": "2026-08-08T01:32:15+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-08T01:32:15+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-08T01:32:16+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T238",
+      "title": "The two claude_pretooluse.py copies have diverged and the LIVE one is not the obvious one. ~/.claude/settings.json invokes scripts/hooks/claude_pretooluse.py (8806 bytes) while agent/harness/hooks/claude_pretooluse.py (13765) reads as canonical and is where features get written. test_seat_heartbeat_wiring::test_w3_both_hook_copies_stay_in_sync is ALREADY FAILING and has been tracking this. Measured cost 2026-08-07: I wrote T236 into the non-live copy, it would never have fired, and porting it by hand broke the live hook with a syntax error for every session in this shared tree. Decide which copy is canonical and make the other a thin delegator or delete it; a hook with two bodies and one registration is a trap that has now sprung.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "one body for the hook; w3 green; settings.json points at the canonical path",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-08T01:32:34+00:00",
+      "updated": "2026-08-08T01:32:34+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-08T01:32:34+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T239",
+      "title": "ask --preflight: one cheap call that judges whether the QUESTION is answerable from the EVIDENCE, before spending a fan. MEASURED 2026-08-07 by replaying the exact failed five-lens run: the pre-flight returned VERDICT VOID, named the missing file, and named the fix, for 0.0074 USD against the 0.065 USD run it would have prevented -- 9x cheaper than the mistake, which also cost four hours and a wrong ledger entry. COMPLEMENTARY TO T225, not a duplicate: the evidence notice reports WHAT was refused; the pre-flight reports WHETHER IT MATTERED, and a refused file the question does not depend on is harmless. Shape: --preflight runs one call with the assembled context, prints VERDICT/MISSING/WOULD-FIX, and (with --preflight=gate) refuses to spend the fan on VOID. Default must be advisory, never blocking -- a helper, not a demand (T236 law). LIMITS: n=1 on an easy case where the question named its one required file; measure the false-positive rate before anything is gated on it, since false VOIDs become a tax that gets switched off.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/comm/ask.py"
+      ],
+      "acceptance": "ask --preflight on the known-bad 2026-08-07 pack returns VOID and names ask_help.txt; on a sound pack returns ANSWERABLE and stays out of the way; advisory by default; measured false-positive rate reported over >=10 real asks before any gating lands",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-08T01:37:27+00:00",
+      "updated": "2026-08-08T01:37:27+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-08T01:37:27+00:00"
         }
       ]
     }
