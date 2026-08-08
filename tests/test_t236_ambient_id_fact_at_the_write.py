@@ -135,3 +135,19 @@ def test_it_fails_open_on_a_broken_ledger():
     from agent.harness.hooks.claude_pretooluse import id_facts_for_path
     assert id_facts_for_path("tests/test_t227_x.py", ledger="not-a-dict") == ""
     assert id_facts_for_path("tests/test_t227_x.py", ledger={"T227": "malformed"}) == ""
+
+
+def test_the_id_pattern_survives_the_ledger_reaching_four_digits():
+    """Found by a BLIND three-view fan (evidence lens) on 2026-08-07, and independently by me
+    while writing the prediction for it.
+
+    The first cut matched exactly three digits, so on the day the ledger issues T1000 the check
+    would stop firing -- silently, with every pin still green, because every fixture used a
+    three-digit id. A guard that expires on a birthday nobody marks is worse than no guard: it
+    is a guard everyone believes in.
+    """
+    from agent.harness.hooks.claude_pretooluse import id_facts_for_path
+
+    big = {"T1000": {"status": "done", "title": "a task from the future"}}
+    assert id_facts_for_path("tests/test_t1000_future.py", exists=False, ledger=big)
+    assert "T1000" in id_facts_for_path("tests/test_t1000_future.py", exists=False, ledger=big)

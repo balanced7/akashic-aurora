@@ -134,8 +134,9 @@ def _recall_context(data) -> str:
         return ""   # recall must never brick the action
 
 
-#: A minted id looks like T227 in a PATH. Three digits: the ledger is T001..T2xx.
-_ID_IN_PATH = re.compile(r"[Tt](\d{3})(?=[^0-9]|$)")
+#: A minted id looks like T227 in a PATH. THREE OR MORE digits -- an exact {3} expires
+#: silently the day the ledger issues T1000, with every pin still green (blind-fan find).
+_ID_IN_PATH = re.compile(r"[Tt](\d{3,})(?=[^0-9]|$)")  # 3,: T999 -> T1000 must not silently stop matching
 #: Statuses that mean the id is SPENT. Anything else (active, or absent) stays silent.
 _TERMINAL = ("done", "abandoned")
 
