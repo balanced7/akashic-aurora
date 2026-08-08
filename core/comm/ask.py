@@ -365,6 +365,14 @@ def ask(prompt: str, *, system: Optional[str] = None, model: Optional[str] = Non
     try:
         choice = resp.choices[0]
         answer = (choice.message.content or "").strip()
+        # T243: reasoning models return the TRACE alongside the answer and we were paying for
+        # it and dropping it -- `reasoning_tokens` is counted twenty lines below. Kept because
+        # a reader of a helper's ROUTE catches what a reader of its VERDICT cannot: measured
+        # 2026-08-08, a helper reached a true conclusion through a false premise, and a
+        # disagreement between two helpers' routes is what located a truncated evidence pack.
+        # Falsy -> absent, never "": an empty trace presented as a trace is the same
+        # fabricated measurement that `reasoning_tokens` uses None-never-0 to avoid.
+        reasoning = getattr(choice.message, "reasoning_content", None) or None
         finish = getattr(choice, "finish_reason", None)
         usage = getattr(resp, "usage", None)
         pt = int(getattr(usage, "prompt_tokens", 0) or 0)
@@ -393,6 +401,12 @@ def ask(prompt: str, *, system: Optional[str] = None, model: Optional[str] = Non
               # "reasoned zero" -- the fabricated-measurement lie, one field down.
               "reasoning_tokens": rt, "truncation": truncation,
               "continuations": continuations}
+    if reasoning:
+        # STATED LIMIT: this is the trace of the FIRST completion. When _continue_answer
+        # stitches a cut answer, later hops carry their own reasoning and it is not merged
+        # here -- a concatenation would read as one continuous train of thought that never
+        # happened. Recorded rather than silently approximated.
+        detail["reasoning"] = reasoning
     attach_evidence(detail, ctx_meta)
 
     if not answer:
