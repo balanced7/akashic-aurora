@@ -127,11 +127,35 @@ LOAD_BEARING = (
 
 
 def is_load_bearing(files) -> bool:
-    """True when any of `files` sits under a LOAD_BEARING prefix. Separators normalised."""
+    """True when any of `files` sits under a LOAD_BEARING prefix.
+
+    THE LIMIT, STATED HERE BECAUSE IT IS THE ONE THAT MATTERS: this reads the task's DECLARED
+    files. It never sees the diff. A task declaring `files=["README.md"]` while editing
+    `core/` is not gated, and nothing here can notice. That makes the gate a SPEED BUMP, not a
+    wall -- it catches the honest omission, not the determined one, and it is worth having for
+    exactly that. A guard believed to be a wall is more dangerous than one known to be a bump.
+
+    Path spelling is normalised because it varied in practice (T250): backslashes, a leading
+    './', absolute paths, and non-leading '../' segments all reached this function and three of
+    the four escaped a naive prefix test. Matching is done on PATH SEGMENTS, so `core/` matches
+    `core/comm/ask.py` and `/srv/repo/core/x.py` but never `core.py`, `mycore/x.py` or
+    `score/x.py` -- those non-matches are correct and are pinned so a later widening cannot
+    start catching documentation.
+    """
+    import posixpath
+
     for f in (files or []):
-        p = str(f).replace("\\", "/").lstrip("./")
-        if any(p.startswith(prefix) for prefix in LOAD_BEARING):
-            return True
+        p = str(f).replace("\\", "/")
+        p = posixpath.normpath(p).lstrip("/")     # resolves ../, strips a leading / or ./
+        segs = p.split("/")
+        for prefix in LOAD_BEARING:
+            pre = prefix.rstrip("/").split("/")
+            if prefix.endswith("/"):
+                # a directory prefix matches at ANY depth, so an absolute path still counts
+                if any(segs[i:i + len(pre)] == pre for i in range(len(segs))):
+                    return True
+            elif segs and segs[-1] == prefix:     # a bare filename, e.g. agent_cli.py
+                return True
     return False
 
 
@@ -290,9 +314,21 @@ class TaskLedger:
             # using the ledger at all, and an unused ledger is worse than a permissive one --
             # so `self_verified` closes the task and RECORDS why. The count of overrides is
             # the actual instrument; refusing without one is just what keeps that count honest.
-            r = reviewed_by or t.get("reviewed_by") or ""
+            r = (reviewed_by or t.get("reviewed_by") or "").strip()
             sv = (self_verified or "").strip()
-            if is_load_bearing(t.get("files")) and (not r or r == (by or t.get("owner"))):
+            # T250: compare NORMALISED, or " claude" and "Claude" review claude's own work.
+            closer = (by or t.get("owner") or "").strip()
+            same = bool(r) and bool(closer) and r.casefold() == closer.casefold()
+            if is_load_bearing(t.get("files")):
+                # A gate about IDENTITY must not run when it cannot establish who is acting.
+                # Before T250 an empty closer compared against "", so any reviewer name passed
+                # -- a check that reported success without having checked.
+                if not closer and not sv:
+                    raise LedgerError(
+                        f"done blocked: {tid} touches load-bearing paths and the CLOSER is "
+                        f"unknown (no --by, no owner), so independence cannot be established. "
+                        f"Pass --by <you>, or --self-verified '<why not>'.")
+            if is_load_bearing(t.get("files")) and (not r or same):
                 if not sv:
                     who = f" (reviewed_by={r!r} is the closer)" if r else ""
                     raise LedgerError(
