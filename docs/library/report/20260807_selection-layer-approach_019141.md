@@ -1,3 +1,28 @@
+---
+akashic_id: art_20260807_selection-layer-approach_019141
+akashic_sha: da5ea78aec09
+schema_version: 1
+status: current
+type: report
+date: 2026-08-07
+title: selection-layer-approach
+gist: "# The selection layer: an approach, and a battle plan Status: current (2026-08-07) Origin: a working conversation between Daniil and claude#"
+visibility: fleet
+body_type: markdown
+seats: []
+category: [testing, ergonomics]
+origin: authored
+settled: settled
+supersedes: null
+superseded: null
+citations: []
+created: "2026-08-07T21:16:38"
+updated: "2026-08-07T21:16:38"
+---
+<!-- GENERATED PROJECTION of art_20260807_selection-layer-approach_019141 -- DO NOT EDIT. The atom is the truth; regeneration overwrites this file. Edit through the doc verbs. -->
+
+# selection-layer-approach
+
 # The selection layer: an approach, and a battle plan
 
 Status: current (2026-08-07)
