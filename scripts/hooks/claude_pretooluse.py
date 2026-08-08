@@ -27,6 +27,7 @@ non-blocking error and PROCEEDS with the action.
 """
 import json
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -133,6 +134,77 @@ def _recall_context(data) -> str:
         return ""   # recall must never brick the action
 
 
+#: A minted id looks like T227 in a PATH. Three digits: the ledger is T001..T2xx.
+_ID_IN_PATH = re.compile(r"[Tt](\d{3})(?=[^0-9]|$)")
+#: Statuses that mean the id is SPENT. Anything else (active, or absent) stays silent.
+_TERMINAL = ("done", "abandoned")
+
+
+def id_facts_for_path(path, *, exists=None, ledger=None) -> str:
+    """One FACT about an id being minted into a new path, or "" (T236).
+
+    THE MEASUREMENT THIS EXISTS FOR. On 2026-08-07 the lesson that prevents this fired twice,
+    both times on `task propose --help` -- the command where the writer is already doing it
+    right -- and was silent 220 minutes later when T227 went into a filename that collided
+    with a DONE task. Lessons are indexed by TOPIC, so they land at the trigger site and not
+    at the application site. This is the application site.
+
+    FACT, NOT RULE. "MINT THE IDENTIFIER FIRST" is a rule: general, true, context-free, and
+    ignorable, because a rule asks something of you. "T227 is DONE: LEXICON gains its MECHANISM
+    column" asks nothing at all -- it just closes an information gap, and that is what makes it
+    ambient rather than a demand.
+
+    FIRE ON THE ANOMALY, NOT THE ACTION. There are already ~269 injections and ~42k tokens a
+    day here, and the corpus's own prior art says reduce volume to increase trust. So precision
+    comes from separating MINTING from MENTIONING:
+      * a PATH carries a minted id; prose merely references one, and commit bodies name done
+        tasks constantly -- those must never fire.
+      * a path that already EXISTS is being edited, not minted.
+      * an ACTIVE id in a new path is someone working their claim.
+    Only a TERMINAL id in a NEW path is the mistake, so this should fire approximately never,
+    and its silence carries information too.
+
+    The regex gate runs BEFORE any ledger read, so the overwhelmingly common case costs one
+    match on a short string. Fails OPEN on everything: a helper that can brick a Write is not
+    a helper.
+    """
+    try:
+        p = str(path or "")
+        m = _ID_IN_PATH.search(os.path.basename(p))
+        if not m:
+            return ""
+        tid = "T" + m.group(1)
+        if exists is None:
+            exists = os.path.exists(p)
+        if exists:
+            return ""          # editing an existing pin, not minting a new id
+        if ledger is None:
+            # state_view() is keyed by STATUS BUCKET (done/in_progress/next/proposed/...),
+            # each a list of task dicts -- NOT {"tasks": [...]}. The first cut assumed the
+            # latter, so every lookup missed and the check was silent on the very case it was
+            # built for, while its pins stayed green because they injected a fake ledger.
+            # Mocking the seam that was wrong is how a pin certifies nothing.
+            from core.coord.task_ledger import state_view
+            ledger = {}
+            for bucket in (state_view() or {}).values():
+                if isinstance(bucket, list):
+                    for t in bucket:
+                        if isinstance(t, dict) and t.get("id"):
+                            ledger[t["id"]] = t
+        rec = (ledger or {}).get(tid)
+        if not isinstance(rec, dict):
+            return ""          # unknown id is FREE, and free is silent
+        status = str(rec.get("status") or "").lower()
+        if status not in _TERMINAL:
+            return ""          # active work on a claimed id -- normal, never interrupt it
+        title = str(rec.get("title") or "").strip()
+        if len(title) > 90:
+            title = title[:87] + "..."
+        return f"[ledger] {tid} is {status}: {title}"
+    except Exception:
+        return ""              # fail open, always
+
+
 def _check_bash(data) -> str:
     """Blanket git-staging veto -- verdict text from the shared policy (agent/harness/guards.py)."""
     try:
@@ -177,6 +249,14 @@ def main() -> int:
     # exclude_sources) now prevents the same lesson repeating, so Bash recall front-loads relevant
     # knowledge then goes quiet instead of spamming. The git-guard above remains Bash's job.
     ctx = _recall_context(data)
+    # T236: a FACT about the id being minted into this path, at the application site. Composed
+    # with recall rather than replacing it, and placed FIRST because it is about the action in
+    # hand while recall is about the topic. Fires approximately never (terminal id + new path
+    # only), so it costs nothing in the volume budget recall already spends.
+    if tool in _FILE_TOOLS:
+        fact = id_facts_for_path((data.get("tool_input") or {}).get("file_path") or "")
+        if fact:
+            ctx = (fact + "\n" + ctx) if ctx else fact
     if ctx:
         _emit_context(ctx)
     return 0

@@ -109,6 +109,27 @@ def test_the_hook_never_denies_on_this_path():
     assert "_deny" not in src[i:j], "the id fact must never block an action"
 
 
+def test_it_works_against_the_REAL_ledger():
+    """The pin that would have caught the actual defect, added after the pins missed it.
+
+    Every test above injects a fake ledger, so none of them exercised the real `state_view()`
+    read -- and that read was wrong: state_view() is keyed by STATUS BUCKET, not
+    {"tasks": [...]}. The implementation was silent on the exact case it was built for while
+    all nine pins stayed green. Mocking the seam that is wrong is how a pin certifies nothing.
+
+    T001 is used as the fixture because it is the oldest DONE task in the ledger and is not
+    going to change status; the test asserts against live state deliberately.
+    """
+    from agent.harness.hooks.claude_pretooluse import id_facts_for_path
+
+    out = id_facts_for_path("tests/test_t001_would_collide.py")
+    assert out, "the real ledger lookup returned nothing for a known-DONE id"
+    assert "T001" in out and "done" in out.lower()
+
+    assert id_facts_for_path("tests/test_t999_free.py") == "", \
+        "a free id must stay silent against the real ledger too"
+
+
 def test_it_fails_open_on_a_broken_ledger():
     """A helper that can brick a Write is not a helper."""
     from agent.harness.hooks.claude_pretooluse import id_facts_for_path
