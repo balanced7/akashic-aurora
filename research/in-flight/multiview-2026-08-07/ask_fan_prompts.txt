@@ -1,0 +1,29 @@
+LENS 1 -- COLD ENCOUNTER. You are a competent engineer who has never seen this tool. You have ONLY the `ask --help` text (ask_help.txt). Do not use the source files for this lens.
+
+Name the specific things a fresh caller will get WRONG on first use: a flag whose name implies behaviour it does not have, a precedence between two flags that is not stated, a default that will surprise, a combination a reader would reasonably expect to work.
+
+For each: quote the exact help line, state what the reader will predict, and state what you believe actually happens. Rank by how expensive the mistake is (wasted model spend > wasted wall-clock > confusion). Be concrete and few. A vague "could be clearer" is worthless here.
+---
+LENS 2 -- SILENT INERTNESS. In this codebase a real defect was found once where `--with` was accepted on the fan path and did nothing at all: the flag was threaded into the single-ask call and never into the fan, so five helpers correctly reported they had been given no files and the flag had simply evaporated.
+
+Hunt that CLASS in the code you were given. Which flag or argument is ACCEPTED by the parser but then never read on some path it plausibly applies to? Trace each one: name the flag, name the code path where it is read, name the code path where it is NOT read, and give the exact command line that would silently do nothing.
+
+Only report a flag where you can point at the reading site and the non-reading site. If you traced a flag and it is correctly wired everywhere, say so explicitly -- a clean trace is a real result.
+---
+LENS 3 -- UNACTIONABLE STATE. This door's design law is that every outcome must leave the caller with a next move: a state is a successful READ whatever it says, and even UNKNOWN is an answer.
+
+Find the outcomes that BREAK that law. Which combination of inputs and failures produces a message, an exit code, or a return that leaves the caller with nothing to do next -- or worse, tells them to do something that will not work?
+
+Pay attention to: exit codes that conflate different situations; a "check later with X" pointer where X could fail or return nothing; an error that names a fix the reader cannot perform; a state printed to stderr that a piping caller will lose. For each, give the triggering command and the exact next-move gap.
+---
+LENS 4 -- COST. A caller pays for an ask in three currencies: money (tokens billed), wall-clock (waiting), and CONTEXT (the answer landing in the caller's limited window).
+
+Find where this door spends one of those currencies for no return. Look specifically for: work paid for and then discarded; a retry that re-pays for something already bought; a path where the caller's context is spent on something that could have been a pointer; a default that is generous where generosity has no payoff, or stingy where the stinginess costs a whole retry.
+
+Quantify wherever the code lets you. Name the specific line or function that spends, and say what the caller gets for it.
+---
+LENS 5 -- REACH. This fleet has several doors onto the same capability: a CLI (agent_cli.py), an MCP tool surface, and a ToolBox for in-process runner agents. A capability that exists on only one door is DEAD for every agent that arrives through another -- a runner cannot shell out, so a CLI-only verb does not exist for it.
+
+Looking only at what the given code proves: which parts of the ask capability are reachable ONLY by passing command-line flags, i.e. would be unavailable or awkward to an agent that can only make a function call? Which flags encode a decision that a programmatic caller would need but could not express?
+
+Do not speculate about files you were not given. Ground every claim in the code shown, and say plainly where your evidence runs out.

@@ -1,0 +1,17 @@
+You are being asked to PRE-FLIGHT a question, not to answer it.
+
+Below is a question I am about to spend five parallel model calls on, together with the evidence pack I am about to attach. Your ONLY job is to judge whether the question is answerable from that evidence.
+
+Reply in exactly this shape:
+  VERDICT: ANSWERABLE | PARTIALLY | VOID
+  MISSING: <what is absent that the question depends on, or "nothing">
+  WOULD-FIX: <the specific file or fact to add, or "nothing">
+
+Do NOT attempt to answer the question itself. If the evidence is sufficient, say ANSWERABLE and stop.
+
+=== THE QUESTION I AM ABOUT TO ASK ===
+LENS 1 -- COLD ENCOUNTER. You are a competent engineer who has never seen this tool. You have ONLY the `ask --help` text (ask_help.txt). Do not use the source files for this lens.
+
+Name the specific things a fresh caller will get WRONG on first use: a flag whose name implies behaviour it does not have, a precedence between two flags that is not stated, a default that will surprise, a combination a reader would reasonably expect to work.
+
+For each: quote the exact help line, state what the reader will predict, and state what you believe actually happens.

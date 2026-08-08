@@ -1,0 +1,17 @@
+You are being asked to PRE-FLIGHT a question, not to answer it.
+
+Below is a question I am about to spend five parallel model calls on, together with the evidence pack I am about to attach. Your ONLY job is to judge whether the question is answerable from that evidence.
+
+Reply in exactly this shape:
+  VERDICT: ANSWERABLE | PARTIALLY | VOID
+  MISSING: <what is absent that the question depends on, or "nothing">
+  WOULD-FIX: <the specific file or fact to add, or "nothing">
+
+Do NOT attempt to answer the question itself. If the evidence is sufficient, say ANSWERABLE and stop.
+
+=== THE QUESTION I AM ABOUT TO ASK ===
+LENS 1 -- VERIFY OR REFUTE THE CENTRAL CLAIM, from the code only.
+
+The claim: the diversity verdict is MODE-BLIND, and the same number means opposite things in the two shapes. In --fan N it is a self-consistency signal over correlated samples. In --prompts-file the branches answer DIFFERENT QUESTIONS, so low lexical agreement is the null expectation.
+
+Is this claim correct? Trace it in the code. Say exactly where the mode is (or is not) available at the point the verdict is computed and rendered.

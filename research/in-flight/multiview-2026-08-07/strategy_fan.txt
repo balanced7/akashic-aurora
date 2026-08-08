@@ -1,0 +1,32 @@
+CONTEXT FOR ALL BRANCHES. You are reading core/comm/ask.py from a multi-agent system. It has a "fan" primitive with TWO shapes that share one implementation (ask_many) and one result renderer:
+
+  (A) --fan N        -> prompts = [same_prompt] * N. One model, one system prompt, one user prompt, N concurrent calls. No temperature, no seed, no top_p is set anywhere; only provider-default sampling varies the branches. Help text says: "ask the SAME question N times concurrently -- N-version blind. Disagreement between branches is the signal."
+  (B) --prompts-file -> N DIFFERENT prompts, run concurrently, sharing one inlined evidence pack.
+
+Both compute `_agreement()` = lexical overlap over the landed answers, and both render the same three-state verdict: collapsed (>=0.85) / unknown / distinct (<=0.05). The collapsed message reads: "ONE answer billed N times, not N findings. Vary the POSITION (a different question or different evidence per branch), not the seed."
+
+RELEVANT PUBLISHED FINDINGS (2026): (1) delegation-based aggregation beats majority voting specifically when errors CORRELATE and when "the sampling process produces correlated rather than independent solutions"; (2) multi-agent debate judge accuracy distributions go BIMODAL -- agents either all get it right or "collectively fail" -- so unanimity is compatible with total failure; (3) adaptive stopping on a Kolmogorov-Smirnov statistic (stop when D<0.05 for 2 consecutive rounds) cut 10 rounds to 2-7 with under 1% accuracy loss.
+
+LENS 1 -- VERIFY OR REFUTE THE CENTRAL CLAIM, from the code only.
+
+The claim: the diversity verdict is MODE-BLIND, and the same number means opposite things in the two shapes. In (A) it is a self-consistency signal over correlated samples. In (B) the branches are answering DIFFERENT QUESTIONS, so low lexical agreement is the null expectation -- it is what different questions produce by construction -- and HIGH agreement would be the alarm (helpers ignoring the differences and emitting boilerplate). Yet (B) renders "branches genuinely differ" as though it were a positive result.
+
+Is this claim correct? Trace it in the code. Say exactly where the mode is (or is not) available at the point the verdict is computed and rendered. If the claim is wrong, say so plainly and show why.
+---
+LENS 2 -- WHAT SHOULD THE HELP TEXT SAY INSTEAD?
+
+"N-version blind" is borrowed from N-version programming, where the guarantee comes from INDEPENDENT IMPLEMENTATIONS built by different teams, precisely so failures decorrelate. Here it labels N samples of one model, one prompt, at default temperature.
+
+Write the replacement help text for --fan: at most 4 lines, saying what it ACTUALLY provides and what a caller may and may not infer from agreement between its branches. Do not use the phrase "N-version". Be concrete about the inference a caller is entitled to make. Then state, in one line, what would have to change for --fan to legitimately earn a decorrelation claim.
+---
+LENS 3 -- ADAPTIVE STOPPING: WOULD IT PAY HERE?
+
+The published result stops an ITERATIVE debate between rounds. This fan is SINGLE-ROUND and parallel: all N branches are dispatched at once through a ThreadPoolExecutor and every one is billed regardless.
+
+Given that, is adaptive stopping even applicable? Analyse honestly. If the branches are dispatched concurrently, what is left to stop? Consider: sequential-with-early-stop versus parallel-all-at-once, wall-clock versus money, and small N (typical here is 3-6). State the N at which incremental dispatch would start to pay, and the wall-clock price of getting that saving. If your conclusion is "not worth it at this scale", say that clearly -- a well-argued no is the useful answer.
+---
+LENS 4 -- ADVERSARY. ARGUE THE FIX IS NOT WORTH MAKING.
+
+Your job is to REFUTE the plan to make the diversity verdict mode-aware. Build the strongest case that this is busywork: that the current verdict is adequate, that the distinction is pedantic, that mode-awareness adds a concept the caller must learn for no decision they would actually make differently, or that the real defect is somewhere else entirely and this is a distraction.
+
+Argue it seriously and concretely. Do not hedge into agreement at the end. If, having tried hardest, you cannot make the case stand up, say exactly which specific point defeats you and why -- that is more useful than a forced conclusion in either direction.

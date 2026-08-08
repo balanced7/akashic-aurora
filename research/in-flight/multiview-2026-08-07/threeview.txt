@@ -1,0 +1,181 @@
+EVIDENCE. Read this code and state ONLY what the evidence shows. Under exactly which conditions does it produce output, and under which does it stay silent? Enumerate them. Then state any condition where it will FAIL to fire when it arguably should, or fire when it should not. Ground every claim in a specific line.
+
+=== THE CODE ===
+#: A minted id looks like T227 in a PATH. Three digits: the ledger is T001..T2xx.
+_ID_IN_PATH = re.compile(r"[Tt](\d{3})(?=[^0-9]|$)")
+#: Statuses that mean the id is SPENT. Anything else (active, or absent) stays silent.
+_TERMINAL = ("done", "abandoned")
+
+
+def id_facts_for_path(path, *, exists=None, ledger=None) -> str:
+    """(docstring removed)"""
+    try:
+        p = str(path or "")
+        m = _ID_IN_PATH.search(os.path.basename(p))
+        if not m:
+            return ""
+        tid = "T" + m.group(1)
+        if exists is None:
+            exists = os.path.exists(p)
+        if exists:
+            return ""          # editing an existing pin, not minting a new id
+        if ledger is None:
+            # state_view() is keyed by STATUS BUCKET (done/in_progress/next/proposed/...),
+            # each a list of task dicts -- NOT {"tasks": [...]}. The first cut assumed the
+            # latter, so every lookup missed and the check was silent on the very case it was
+            # built for, while its pins stayed green because they injected a fake ledger.
+            # Mocking the seam that was wrong is how a pin certifies nothing.
+            from core.coord.task_ledger import state_view
+            ledger = {}
+            for bucket in (state_view() or {}).values():
+                if isinstance(bucket, list):
+                    for t in bucket:
+                        if isinstance(t, dict) and t.get("id"):
+                            ledger[t["id"]] = t
+        rec = (ledger or {}).get(tid)
+        if not isinstance(rec, dict):
+            return ""          # unknown id is FREE, and free is silent
+        status = str(rec.get("status") or "").lower()
+        if status not in _TERMINAL:
+            return ""          # active work on a claimed id -- normal, never interrupt it
+        title = str(rec.get("title") or "").strip()
+        if len(title) > 90:
+            title = title[:87] + "..."
+        return f"[ledger] {tid} is {status}: {title}"
+    except Exception:
+        return ""              # fail open, always
+
+
+
+# ...and this is how it is invoked, inside a PreToolUse hook that CAN block an action:
+    ctx = _recall_context(data)      # unrelated: topic-matched lessons for this action
+    if tool in _FILE_TOOLS:
+        fact = id_facts_for_path((data.get("tool_input") or {}).get("file_path") or "")
+        if fact:
+            ctx = (fact + "
+" + ctx) if ctx else fact
+    if ctx:
+        _emit_context(ctx)           # additionalContext -- text shown to the agent, non-blocking
+    return 0
+
+---
+ANALOGY. What real-world engineering artifact is this most similar to? Name the closest one or two -- from software or from outside it -- and say precisely how THEY solved the same problem, including what they learned the hard way. Then say what this code is missing that the mature version of that artifact has.
+
+=== THE CODE ===
+#: A minted id looks like T227 in a PATH. Three digits: the ledger is T001..T2xx.
+_ID_IN_PATH = re.compile(r"[Tt](\d{3})(?=[^0-9]|$)")
+#: Statuses that mean the id is SPENT. Anything else (active, or absent) stays silent.
+_TERMINAL = ("done", "abandoned")
+
+
+def id_facts_for_path(path, *, exists=None, ledger=None) -> str:
+    """(docstring removed)"""
+    try:
+        p = str(path or "")
+        m = _ID_IN_PATH.search(os.path.basename(p))
+        if not m:
+            return ""
+        tid = "T" + m.group(1)
+        if exists is None:
+            exists = os.path.exists(p)
+        if exists:
+            return ""          # editing an existing pin, not minting a new id
+        if ledger is None:
+            # state_view() is keyed by STATUS BUCKET (done/in_progress/next/proposed/...),
+            # each a list of task dicts -- NOT {"tasks": [...]}. The first cut assumed the
+            # latter, so every lookup missed and the check was silent on the very case it was
+            # built for, while its pins stayed green because they injected a fake ledger.
+            # Mocking the seam that was wrong is how a pin certifies nothing.
+            from core.coord.task_ledger import state_view
+            ledger = {}
+            for bucket in (state_view() or {}).values():
+                if isinstance(bucket, list):
+                    for t in bucket:
+                        if isinstance(t, dict) and t.get("id"):
+                            ledger[t["id"]] = t
+        rec = (ledger or {}).get(tid)
+        if not isinstance(rec, dict):
+            return ""          # unknown id is FREE, and free is silent
+        status = str(rec.get("status") or "").lower()
+        if status not in _TERMINAL:
+            return ""          # active work on a claimed id -- normal, never interrupt it
+        title = str(rec.get("title") or "").strip()
+        if len(title) > 90:
+            title = title[:87] + "..."
+        return f"[ledger] {tid} is {status}: {title}"
+    except Exception:
+        return ""              # fail open, always
+
+
+
+# ...and this is how it is invoked, inside a PreToolUse hook that CAN block an action:
+    ctx = _recall_context(data)      # unrelated: topic-matched lessons for this action
+    if tool in _FILE_TOOLS:
+        fact = id_facts_for_path((data.get("tool_input") or {}).get("file_path") or "")
+        if fact:
+            ctx = (fact + "
+" + ctx) if ctx else fact
+    if ctx:
+        _emit_context(ctx)           # additionalContext -- text shown to the agent, non-blocking
+    return 0
+
+---
+INTUITION. You have never seen this system. Read this and tell me what you think it is FOR -- not what it does line by line, but what problem someone had that made them write it, and what they were trying to achieve for whoever reads its output. Then: what does its design tell you about what its author believes? Answer intuitively; do not hedge.
+
+=== THE CODE ===
+#: A minted id looks like T227 in a PATH. Three digits: the ledger is T001..T2xx.
+_ID_IN_PATH = re.compile(r"[Tt](\d{3})(?=[^0-9]|$)")
+#: Statuses that mean the id is SPENT. Anything else (active, or absent) stays silent.
+_TERMINAL = ("done", "abandoned")
+
+
+def id_facts_for_path(path, *, exists=None, ledger=None) -> str:
+    """(docstring removed)"""
+    try:
+        p = str(path or "")
+        m = _ID_IN_PATH.search(os.path.basename(p))
+        if not m:
+            return ""
+        tid = "T" + m.group(1)
+        if exists is None:
+            exists = os.path.exists(p)
+        if exists:
+            return ""          # editing an existing pin, not minting a new id
+        if ledger is None:
+            # state_view() is keyed by STATUS BUCKET (done/in_progress/next/proposed/...),
+            # each a list of task dicts -- NOT {"tasks": [...]}. The first cut assumed the
+            # latter, so every lookup missed and the check was silent on the very case it was
+            # built for, while its pins stayed green because they injected a fake ledger.
+            # Mocking the seam that was wrong is how a pin certifies nothing.
+            from core.coord.task_ledger import state_view
+            ledger = {}
+            for bucket in (state_view() or {}).values():
+                if isinstance(bucket, list):
+                    for t in bucket:
+                        if isinstance(t, dict) and t.get("id"):
+                            ledger[t["id"]] = t
+        rec = (ledger or {}).get(tid)
+        if not isinstance(rec, dict):
+            return ""          # unknown id is FREE, and free is silent
+        status = str(rec.get("status") or "").lower()
+        if status not in _TERMINAL:
+            return ""          # active work on a claimed id -- normal, never interrupt it
+        title = str(rec.get("title") or "").strip()
+        if len(title) > 90:
+            title = title[:87] + "..."
+        return f"[ledger] {tid} is {status}: {title}"
+    except Exception:
+        return ""              # fail open, always
+
+
+
+# ...and this is how it is invoked, inside a PreToolUse hook that CAN block an action:
+    ctx = _recall_context(data)      # unrelated: topic-matched lessons for this action
+    if tool in _FILE_TOOLS:
+        fact = id_facts_for_path((data.get("tool_input") or {}).get("file_path") or "")
+        if fact:
+            ctx = (fact + "
+" + ctx) if ctx else fact
+    if ctx:
+        _emit_context(ctx)           # additionalContext -- text shown to the agent, non-blocking
+    return 0

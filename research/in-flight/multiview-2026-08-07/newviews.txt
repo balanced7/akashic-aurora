@@ -1,0 +1,175 @@
+DECAY. This code is correct TODAY. Your only job is to find what makes it stop being correct LATER. Not bugs -- EXPIRY. What assumption here has a shelf life? Name each one, say what event ends it (growth, time, a rename, a convention change, a config drift), and say whether its failure would be LOUD or SILENT. Rank by how silent the failure is, because a silent expiry is worse than a loud one.
+
+=== THE CODE ===
+#: A minted id looks like T227 in a PATH. THREE OR MORE digits -- an exact {3} expires
+#: silently the day the ledger issues T1000, with every pin still green (blind-fan find).
+_ID_IN_PATH = re.compile(r"[Tt](\d{3,})(?=[^0-9]|$)")  # 3,: T999 -> T1000 must not silently stop matching
+#: Statuses that mean the id is SPENT. Anything else (active, or absent) stays silent.
+_TERMINAL = ("done", "abandoned")
+
+
+def id_facts_for_path(path, *, exists=None, ledger=None) -> str:
+    """(removed)"""
+    try:
+        p = str(path or "")
+        m = _ID_IN_PATH.search(os.path.basename(p))
+        if not m:
+            return ""
+        tid = "T" + m.group(1)
+        if exists is None:
+            exists = os.path.exists(p)
+        if exists:
+            return ""          # editing an existing pin, not minting a new id
+        if ledger is None:
+            # state_view() is keyed by STATUS BUCKET (done/in_progress/next/proposed/...),
+            # each a list of task dicts -- NOT {"tasks": [...]}. The first cut assumed the
+            # latter, so every lookup missed and the check was silent on the very case it was
+            # built for, while its pins stayed green because they injected a fake ledger.
+            # Mocking the seam that was wrong is how a pin certifies nothing.
+            from core.coord.task_ledger import state_view
+            ledger = {}
+            for bucket in (state_view() or {}).values():
+                if isinstance(bucket, list):
+                    for t in bucket:
+                        if isinstance(t, dict) and t.get("id"):
+                            ledger[t["id"]] = t
+        rec = (ledger or {}).get(tid)
+        if not isinstance(rec, dict):
+            return ""          # unknown id is FREE, and free is silent
+        status = str(rec.get("status") or "").lower()
+        if status not in _TERMINAL:
+            return ""          # active work on a claimed id -- normal, never interrupt it
+        title = str(rec.get("title") or "").strip()
+        if len(title) > 90:
+            title = title[:87] + "..."
+        return f"[ledger] {tid} is {status}: {title}"
+    except Exception:
+        return ""              # fail open, always
+
+
+
+# Invoked from a PreToolUse hook that CAN block, but this path never does:
+    if tool in _FILE_TOOLS:
+        fact = id_facts_for_path((data.get("tool_input") or {}).get("file_path") or "")
+        if fact:
+            ctx = (fact + "
+" + ctx) if ctx else fact
+    if ctx: _emit_context(ctx)      # non-blocking text shown to an AI agent
+
+---
+MISUSE. This emits a fact that an AI agent will trust. Your job is to make it LIE, or to make it stay silent when it should speak. How would you get a false or absent output from it -- by naming a file a certain way, by the state of the repo, by timing, by anything? Be concrete and adversarial. Then say which of your attacks would happen by ACCIDENT in normal work, because those matter more than deliberate ones.
+
+=== THE CODE ===
+#: A minted id looks like T227 in a PATH. THREE OR MORE digits -- an exact {3} expires
+#: silently the day the ledger issues T1000, with every pin still green (blind-fan find).
+_ID_IN_PATH = re.compile(r"[Tt](\d{3,})(?=[^0-9]|$)")  # 3,: T999 -> T1000 must not silently stop matching
+#: Statuses that mean the id is SPENT. Anything else (active, or absent) stays silent.
+_TERMINAL = ("done", "abandoned")
+
+
+def id_facts_for_path(path, *, exists=None, ledger=None) -> str:
+    """(removed)"""
+    try:
+        p = str(path or "")
+        m = _ID_IN_PATH.search(os.path.basename(p))
+        if not m:
+            return ""
+        tid = "T" + m.group(1)
+        if exists is None:
+            exists = os.path.exists(p)
+        if exists:
+            return ""          # editing an existing pin, not minting a new id
+        if ledger is None:
+            # state_view() is keyed by STATUS BUCKET (done/in_progress/next/proposed/...),
+            # each a list of task dicts -- NOT {"tasks": [...]}. The first cut assumed the
+            # latter, so every lookup missed and the check was silent on the very case it was
+            # built for, while its pins stayed green because they injected a fake ledger.
+            # Mocking the seam that was wrong is how a pin certifies nothing.
+            from core.coord.task_ledger import state_view
+            ledger = {}
+            for bucket in (state_view() or {}).values():
+                if isinstance(bucket, list):
+                    for t in bucket:
+                        if isinstance(t, dict) and t.get("id"):
+                            ledger[t["id"]] = t
+        rec = (ledger or {}).get(tid)
+        if not isinstance(rec, dict):
+            return ""          # unknown id is FREE, and free is silent
+        status = str(rec.get("status") or "").lower()
+        if status not in _TERMINAL:
+            return ""          # active work on a claimed id -- normal, never interrupt it
+        title = str(rec.get("title") or "").strip()
+        if len(title) > 90:
+            title = title[:87] + "..."
+        return f"[ledger] {tid} is {status}: {title}"
+    except Exception:
+        return ""              # fail open, always
+
+
+
+# Invoked from a PreToolUse hook that CAN block, but this path never does:
+    if tool in _FILE_TOOLS:
+        fact = id_facts_for_path((data.get("tool_input") or {}).get("file_path") or "")
+        if fact:
+            ctx = (fact + "
+" + ctx) if ctx else fact
+    if ctx: _emit_context(ctx)      # non-blocking text shown to an AI agent
+
+---
+ABSENCE. Do not tell me what this code does. Tell me what is conspicuously NOT here that you would expect in something of this kind, and that its author has likely not noticed is missing. Focus on what a reader cannot see is absent -- the case never handled, the input never considered, the state never checked. For each: why would its absence be easy to miss?
+
+=== THE CODE ===
+#: A minted id looks like T227 in a PATH. THREE OR MORE digits -- an exact {3} expires
+#: silently the day the ledger issues T1000, with every pin still green (blind-fan find).
+_ID_IN_PATH = re.compile(r"[Tt](\d{3,})(?=[^0-9]|$)")  # 3,: T999 -> T1000 must not silently stop matching
+#: Statuses that mean the id is SPENT. Anything else (active, or absent) stays silent.
+_TERMINAL = ("done", "abandoned")
+
+
+def id_facts_for_path(path, *, exists=None, ledger=None) -> str:
+    """(removed)"""
+    try:
+        p = str(path or "")
+        m = _ID_IN_PATH.search(os.path.basename(p))
+        if not m:
+            return ""
+        tid = "T" + m.group(1)
+        if exists is None:
+            exists = os.path.exists(p)
+        if exists:
+            return ""          # editing an existing pin, not minting a new id
+        if ledger is None:
+            # state_view() is keyed by STATUS BUCKET (done/in_progress/next/proposed/...),
+            # each a list of task dicts -- NOT {"tasks": [...]}. The first cut assumed the
+            # latter, so every lookup missed and the check was silent on the very case it was
+            # built for, while its pins stayed green because they injected a fake ledger.
+            # Mocking the seam that was wrong is how a pin certifies nothing.
+            from core.coord.task_ledger import state_view
+            ledger = {}
+            for bucket in (state_view() or {}).values():
+                if isinstance(bucket, list):
+                    for t in bucket:
+                        if isinstance(t, dict) and t.get("id"):
+                            ledger[t["id"]] = t
+        rec = (ledger or {}).get(tid)
+        if not isinstance(rec, dict):
+            return ""          # unknown id is FREE, and free is silent
+        status = str(rec.get("status") or "").lower()
+        if status not in _TERMINAL:
+            return ""          # active work on a claimed id -- normal, never interrupt it
+        title = str(rec.get("title") or "").strip()
+        if len(title) > 90:
+            title = title[:87] + "..."
+        return f"[ledger] {tid} is {status}: {title}"
+    except Exception:
+        return ""              # fail open, always
+
+
+
+# Invoked from a PreToolUse hook that CAN block, but this path never does:
+    if tool in _FILE_TOOLS:
+        fact = id_facts_for_path((data.get("tool_input") or {}).get("file_path") or "")
+        if fact:
+            ctx = (fact + "
+" + ctx) if ctx else fact
+    if ctx: _emit_context(ctx)      # non-blocking text shown to an AI agent
