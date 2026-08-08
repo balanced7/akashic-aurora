@@ -1,5 +1,5 @@
 {
-  "seq": 240,
+  "seq": 241,
   "tasks": [
     {
       "id": "T001",
@@ -8838,6 +8838,27 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-08T01:43:44+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T241",
+      "title": "doc adopt on an already-adopted path MINTS A NEW ATOM instead of updating, leaving stale duplicate projections. Measured 2026-08-07: re-adopting two docs after an edit produced 20260807_handoff-operating-frame_{73b04c,eff375}.md and 20260807_multiview-playbook_{7614ac,9656cd}.md -- both pairs status:current, the stale halves missing the edit, and a handoff briefly pointed at a stale path. Either adopt should detect the same source path and supersede, or it should refuse and direct the writer to an update verb. Also file the retirement of the four duplicates created today.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "a second adopt of the same source path either updates the atom or refuses with the update verb named; no two current projections for one source file; todays four duplicates retired",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "created": "2026-08-08T02:14:45+00:00",
+      "updated": "2026-08-08T02:14:45+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-08T02:14:45+00:00"
         }
       ]
     }
