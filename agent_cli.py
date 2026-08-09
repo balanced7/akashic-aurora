@@ -1981,6 +1981,12 @@ _BG_FORWARD = {
     # store_false: only the NON-default is expressible, so only it is emitted.
     "continue_on_cut": lambda v: [] if v else ["--no-continue"],
     "as_agent":     lambda v: ["--as", str(v)],
+    # T256. Caught by T226's own pin before it shipped -- exactly the case that guard was built
+    # for, since --bg used to assemble its argv from a hand-remembered list and silently dropped
+    # every flag added afterwards. --lens is repeatable, so it emits one pair per lens.
+    "preset":       lambda v: ["--preset", str(v)],
+    "lens":         lambda v: [x for lens in (v or []) for x in ("--lens", str(lens))],
+    "lens_file":    lambda v: ["--lens-file", str(v)],
 }
 
 #: Deliberately NOT forwarded, each with the reason. A flag lands here to be excluded on
