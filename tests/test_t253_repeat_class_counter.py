@@ -57,7 +57,9 @@ def test_a_repeat_records_its_original(store):
     r = store.record_repeat(of="the_original_lesson", agent_id="claude",
                             what="iterated a string in _note_exclusion", recall_outcome="excluded_silent")
     assert r["of"] == "the_original_lesson"
-    assert store.repeat_count() == 1
+    # Deliberately via the report: a second accessor for the same number is a second thing to
+    # keep in agreement, and check_wiring flagged the standalone counter as having no caller.
+    assert store.repeat_report()["count"] == 1
 
 
 def test_a_repeat_captures_elapsed_time_since_the_original(store):

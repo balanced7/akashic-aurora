@@ -463,6 +463,28 @@ def cmd_delta(args):
 # -------------------------------------------------------------------------- learn
 def cmd_learn(args):
     from core.learning.learning_store import get_learning_store
+
+    # T253: a REPEAT is evidence ABOUT an existing lesson, not a new one. It lands here rather
+    # than behind its own verb because this is the door already reached for at the moment of
+    # "I just learned something" -- and the moment you notice a repeat is exactly that moment.
+    # A write door must OFFER a field or it stays empty: the anti-pattern surface sat at zero
+    # for months because no flag exposed it, not because nobody had one to record.
+    if getattr(args, "repeat_of", None):
+        try:
+            rec = get_learning_store().record_repeat(
+                of=args.repeat_of, agent_id=args.agent_id,
+                what=(args.tried or args.result or ""),
+                recall_outcome=getattr(args, "recall_outcome", "") or "")
+        except ValueError as e:
+            print(f"ERROR: {e}", file=sys.stderr)
+            return 2
+        hrs = rec["elapsed_s"] / 3600.0
+        print(f"[repeat] '{rec['of']}' violated again after {hrs:.1f}h"
+              + (f" (recall: {rec['recall_outcome']})" if rec["recall_outcome"] else ""))
+        print("  a FLOOR, not a rate -- this counts only what someone noticed. "
+              "See `py agent_cli.py stats`.")
+        return 0
+
     if not args.experiment or not (args.tried or args.result):
         print("ERROR: need --experiment and at least one of --tried/--result.")
         print('Example: py agent_cli.py learn me --experiment cache_fix '
@@ -3476,9 +3498,42 @@ def cmd_stats(args):
           f"votes: useful={out['votes']['useful']} noise={out['votes']['noise']}")
     print(f"  helped credits (flips that credited a surfaced lesson): {out['helped_credits']}")
     if out.get("value_rate") is not None:
+        # T253: the denominator counts EVERY surfacing while the numerator needs someone to
+        # have acted, so this is dominated by feedback COVERAGE, not by quality. Measured
+        # 2026-08-08: only 327 of 6805 surfacings were ever voted on -- 95.2% unlabelled, not
+        # negative -- and of those judged, 87% were positive. Reported with that split beside
+        # it, because the bare figure was quoted as a verdict on the corpus and misled its own
+        # author. The label stays so the historical series remains comparable.
+        _v, _n = out["votes"]["useful"], out["votes"]["noise"]
+        _judged = _v + _n
         print(f"  value rate ((useful+helped)/surfaced): {out['value_rate'] * 100:.1f}%"
-              " -- the steering number; watch the trend, not the level")
+              " -- COVERAGE-dominated, not a quality verdict")
+        if out["surfaced_impressions"] and _judged:
+            print(f"    of which judged at all: {_judged}/{out['surfaced_impressions']}"
+                  f" ({_judged / out['surfaced_impressions'] * 100:.1f}%) -- the rest is"
+                  " UNLABELLED, not negative")
+            print(f"    of those judged: {_v}/{_judged} ({_v / _judged * 100:.0f}%) rated useful"
+                  " -- self-selected votes, so read as a sample")
     print(f"  lessons with a track record (helped or useful > 0): {out['lessons_with_track_record']}")
+
+    # T253: the honest successor, deliberately printed NEXT TO the figure it corrects. This one
+    # can only move if the system actually prevents something -- and it is a FLOOR, never a rate.
+    try:
+        from core.learning.learning_store import get_learning_store
+        _rep = get_learning_store().repeat_report()
+        if _rep["count"]:
+            print(f"  REPEATS (lesson existed, mistake happened anyway): {_rep['count']}"
+                  "  -- a FLOOR: only what someone noticed, never a rate")
+            for _name, _n in _rep["most_violated"][:3]:
+                print(f"    {_n}x  {_name}")
+            if _rep["by_recall_outcome"]:
+                print(f"    by what recall did: {_rep['by_recall_outcome']}"
+                      "  (fired = reading failure; suppressed = targeting failure)")
+        else:
+            print("  REPEATS: none recorded yet -- `learn <you> --repeat-of <lesson>` when a"
+                  " lesson you already had gets violated again")
+    except Exception:
+        pass
     print(f"  last {hours:g}h: flips={window['flips']} (credited={window['flips_credited']}, "
           f"corpus-gap={window['flips_corpus_gap']}) | lessons recorded={window['lessons_recorded']}"
           f" | lessons-per-flip={window['lessons_per_flip']}")
@@ -5654,7 +5709,19 @@ def build_parser():
     dsc.set_defaults(fn=cmd_discover)
 
     l = sub.add_parser("learn", help="record a lesson")
-    l.add_argument("agent_id"); l.add_argument("--experiment", required=True)
+    l.add_argument("agent_id")
+    # T253: not argparse-required any more, because --repeat-of does not take one. cmd_learn
+    # still refuses a missing --experiment and prints a worked example, so the error TEACHES
+    # instead of just rejecting.
+    l.add_argument("--experiment", default="")
+    l.add_argument("--repeat-of", dest="repeat_of", default="", metavar="LESSON",
+                   help="record that this EXISTING lesson was violated again -- evidence ABOUT "
+                        "a lesson, not a new one. Use --tried for what happened. The count is "
+                        "a FLOOR (only what someone noticed), never a rate.")
+    l.add_argument("--recall-outcome", dest="recall_outcome", default="", metavar="OUTCOME",
+                   help="with --repeat-of: what recall did at that moment (fired / floor_silent "
+                        "/ excluded_silent:antirepeat / excluded_silent:self_echo). FIRED means "
+                        "a reading failure; SUPPRESSED means a targeting failure -- opposite fixes.")
     l.add_argument("--tried", default=""); l.add_argument("--result", default="")
     l.add_argument("--expected", default=""); l.add_argument("--recommend", default="")
     l.add_argument("--category", default=""); l.add_argument("--success", default=None)

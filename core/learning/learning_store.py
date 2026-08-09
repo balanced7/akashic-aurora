@@ -35,6 +35,7 @@ Usage:
     recommendations = load_recommendations_from_store("code_optimization")
 """
 
+import uuid
 import json
 import logging
 import re
@@ -273,6 +274,107 @@ class LearningStore:
     def record_learning(self, learning_signal: Dict[str, Any]) -> bool:
         """Deprecated: Use persist_learning_derived_from_experiment() instead"""
         return self.persist_learning_derived_from_experiment(learning_signal)
+
+    # ----- repeats (T253) -------------------------------------------------------------------
+    #: A REPEAT is evidence ABOUT a lesson: the lesson existed, and the mistake happened anyway.
+    #:
+    #: Nothing here measured that before. `value rate` divided by every surfacing while 95.2% of
+    #: its denominator had never been voted on -- a feedback-COVERAGE number under a QUALITY
+    #: label. `related_to` measures corpus REDUNDANCY (180 of 831 lessons resemble another, but
+    #: zero reach the strong threshold and only 9 match problem+solution, so the corpus is
+    #: clean). Neither can see a mistake recurring, because the pattern is: write ONE lesson,
+    #: then repeat the mistake without writing more.
+    #:
+    #: THE COUNT IS A FLOOR, NEVER A RATE. It counts only repeats someone NOTICED, so its true
+    #: denominator is unknowable. Rendering it as a percentage would recreate exactly the defect
+    #: it replaces. `repeat_report()` refuses to emit one and says so in its own payload.
+    REPEAT_INDEX = "learn:repeats"
+
+    def record_repeat(self, of: str, agent_id: str = "", what: str = "",
+                      recall_outcome: str = "") -> Dict[str, Any]:
+        """Record that a lesson which ALREADY EXISTED was violated anyway.
+
+        `recall_outcome` is the field that earns its place: a repeat where recall FIRED is a
+        READING failure, and one where it was SUPPRESSED is a TARGETING failure. Those need
+        opposite fixes and one field separates them, which no other instrument records.
+
+        Raises on an unknown lesson rather than filing an unresolvable pointer -- that is how a
+        ledger fills with claims nobody can check.
+        """
+        key = f"learn:experiment:{of}"
+        if not of or not self.store.exists(key):
+            raise ValueError(
+                f"cannot record a repeat of {of!r}: no such lesson. A repeat is a pointer AT a "
+                f"lesson; without a resolvable target it is just an unverifiable claim.")
+
+        original = self._load_experiment(of) or {}
+        now = datetime.utcnow()
+        elapsed = 0.0
+        try:
+            ts = original.get("timestamp")
+            if ts:
+                elapsed = max(0.0, (now - datetime.fromisoformat(str(ts))).total_seconds())
+        except Exception:
+            elapsed = 0.0                       # unparseable original timestamp -> 0, not a guess
+
+        # A timestamp alone is NOT unique here. Windows clock granularity let two repeats
+        # recorded in the same tick produce the same id, and `sadd` then silently deduped them
+        # -- three became two. Caught by this slice's own pin. In a counter whose only claim is
+        # to be an honest FLOOR, silently merging two real events is the one unacceptable bug.
+        rid = f"{of}:{now.strftime('%Y%m%dT%H%M%S%f')}:{uuid.uuid4().hex[:8]}"
+        rec = {"id": rid, "of": of, "agent_id": str(agent_id or ""), "what": str(what or ""),
+               "recall_outcome": str(recall_outcome or ""), "at": now.isoformat(),
+               "elapsed_s": round(elapsed, 3)}
+        try:
+            self.store.hset(f"learn:repeat:{rid}", mapping={k: str(v) for k, v in rec.items()})
+            self.store.sadd(self.REPEAT_INDEX, rid)
+        except Exception as e:
+            self.logger.warning(f"repeat not persisted: {e}")
+        return rec
+
+    # NOTE: there is deliberately no `repeat_count()`. The first draft had one, check_wiring
+    # flagged it as a public function with no production caller, and it was right --
+    # `repeat_report()["count"]` already answers it. A second way to ask the same question is
+    # a second thing to keep in agreement.
+
+    def repeat_report(self) -> Dict[str, Any]:
+        """The multifaceted record, deliberately not a score.
+
+        Returns a count, the lessons ranked by how often they were violated, and the split by
+        what recall did at the moment. NO percentage appears anywhere and no key is named a
+        rate -- pinned, because this counts only what was noticed and a rate would imply a
+        denominator nobody has.
+
+        The `most_violated` list is the useful artifact: a lesson that exists, is good, and gets
+        violated anyway is a targeting failure WITH A KNOWN RIGHT ANSWER, which is the rarest
+        thing in the corpus and exactly the training set the recall trigger problem needs.
+        """
+        entries: List[Dict[str, Any]] = []
+        try:
+            for rid in (self.store.smembers(self.REPEAT_INDEX) or []):
+                rec = self.store.hgetall(f"learn:repeat:{rid}") or {}
+                if rec:
+                    entries.append(rec)
+        except Exception:
+            pass
+
+        by_lesson: Dict[str, int] = {}
+        by_outcome: Dict[str, int] = {}
+        for e in entries:
+            by_lesson[e.get("of", "?")] = by_lesson.get(e.get("of", "?"), 0) + 1
+            o = e.get("recall_outcome") or "unrecorded"
+            by_outcome[o] = by_outcome.get(o, 0) + 1
+
+        return {
+            "count": len(entries),
+            # Declared in the payload, not just the docstring: a consumer that renders this
+            # cannot claim it did not know.
+            "floor_not_rate": True,
+            "caveat": "counts only repeats that were NOTICED; the true denominator is unknown",
+            "most_violated": sorted(by_lesson.items(), key=lambda kv: -kv[1]),
+            "by_recall_outcome": by_outcome,
+            "entries": sorted(entries, key=lambda e: str(e.get("at", ""))),
+        }
 
     def tag_anti_pattern(self, experiment_id: str, name: str, reason: str = "") -> bool:
         """Attach an anti_pattern NAME to an EXISTING lesson WITHOUT clobbering its other fields.
