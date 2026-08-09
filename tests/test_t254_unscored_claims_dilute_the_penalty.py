@@ -55,11 +55,20 @@ def test_padding_cannot_change_the_penalty_for_the_same_refuted_claims(policy, p
     flooder = ([claim("flooder", 100 + i, "refuted") for i in range(3)]
                + [claim("flooder", 200 + i, padding_outcome) for i in range(60)])
 
-    totals = score_round(honest + flooder, policy=policy)["totals"]
-    assert totals.get("flooder") == totals.get("honest"), (
-        f"[{policy}/{padding_outcome!r}] identical refuted counts scored differently: "
-        f"honest={totals.get('honest')} flooder={totals.get('flooder')}. Padding with "
-        f"unadjudicated claims changed the penalty, so volume buys immunity.")
+    r = score_round(honest + flooder, policy=policy)
+
+    # Compare the REFUTED-claim points, not the totals. Padding may legitimately carry its own
+    # cost -- `unverifiable` is -1 each in v2_aixcc, so 60 of them is -60 and the flooder ends
+    # up WORSE overall. That is the system working. The invariant under test is narrower and
+    # truer: what a player pays FOR BEING REFUTED must not depend on what else they submitted.
+    def refuted_points(player):
+        return sum(c.get("points") or 0 for c in r["claims"]
+                   if c.get("player") == player and c.get("outcome") == "refuted")
+
+    assert refuted_points("flooder") == refuted_points("honest"), (
+        f"[{policy}/{padding_outcome!r}] identical refuted counts were penalised differently: "
+        f"honest={refuted_points('honest')} flooder={refuted_points('flooder')}. Padding with "
+        f"unadjudicated claims changed the refuted penalty, so volume buys immunity.")
 
 
 @pytest.mark.parametrize("policy", GRADUATED)

@@ -139,6 +139,16 @@ POLICIES = {
     },
 }
 
+#: T254 -- the outcomes that constitute a TRUTH VERDICT about a claim, and therefore the only
+#: universe a refuted RATE may be computed over. A named constant rather than an inline test,
+#: because the set IS the policy decision: anything added here becomes free dilution for the
+#: graduated penalty, and anything removed becomes free severity.
+#:
+#: `unverifiable` and `already-known` are excluded on purpose. "We could not determine this"
+#: and "true but not novel" are both silent about whether the player was ACCURATE, and a rate
+#: about accuracy must not be moved by claims that carry no accuracy signal.
+ADJUDICATED_OUTCOMES = frozenset({"confirmed", "refuted"})
+
 DEFAULT_POLICY = "v1_doc"
 
 
@@ -187,9 +197,27 @@ def score_round(claims, verifications=None, policy: str = DEFAULT_POLICY,
 
     # refuted RATE per player, computed over the whole round before any scoring, so the graduated
     # penalty does not depend on where in the round a claim happens to sit.
+    # T254: the denominator is the ADJUDICATED set, not everything submitted.
+    #
+    # It used to count every claim, and the graduated penalty is rate = refuted/seen -- so
+    # unadjudicated volume bought immunity. Measured on both graduated policies: two players
+    # refuted exactly 3 times scored -15 (only those 3 claims) versus 0 (padded with 60
+    # unadjudicated ones), because 3/63 x -5 rounds away. The padding did not even have to be
+    # valid; an undefined outcome string worked, while score_round reported `unscored: 60` in
+    # the same breath -- it knew it had not scored them and counted them anyway.
+    #
+    # This composes with the low-confidence hedge rather than being covered by it: one attacks
+    # the numerator, this one the denominator of the same rate. And it is silently adversarial,
+    # because outrunning the reviewers lowers your own penalty and the cheapest way to outrun a
+    # reviewer is to submit noise.
+    #
+    # `unverifiable` is deliberately NOT adjudicated: "we could not determine this" is not
+    # evidence about a player's accuracy in either direction, so it belongs in neither half.
     seen, refuted = {}, {}
     for c in ordered:
         p = c.get("player")
+        if c.get("outcome") not in ADJUDICATED_OUTCOMES:
+            continue
         seen[p] = seen.get(p, 0) + 1
         if c.get("outcome") == "refuted":
             refuted[p] = refuted.get(p, 0) + 1
