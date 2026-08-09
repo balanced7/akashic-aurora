@@ -133,3 +133,16 @@ def test_an_empty_lens_file_is_refused_by_name(tmp_path):
     with pytest.raises(ValueError) as e:
         presets.read_lens_file(str(f))
     assert "empty.txt" in str(e.value)
+
+
+def test_a_single_string_lens_is_one_branch_not_one_per_character():
+    """Found by this module's OWN first real fan-out, minutes after it was written.
+
+    `build_prompts("findings", "what does it do")` produced TWELVE branches -- one per character
+    -- each a paid API call asking the model "w", then "h", then "a". Fifth instance of this
+    class in one session. A string is iterable, so iterating a value that might be one fails
+    silently and plausibly rather than loudly.
+    """
+    out = presets.build_prompts("findings", "what does it do")
+    assert len(out) == 1, f"a single string lens must be ONE branch, got {len(out)}"
+    assert out[0].startswith("what does it do")

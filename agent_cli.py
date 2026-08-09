@@ -2348,8 +2348,23 @@ def cmd_ask(args):
     # T181 -- the fan. Two shapes, because the fleet patterns need two:
     #   --fan N        one prompt, N independent answers  -> N-version blind, branch-and-bound
     #   --prompts-file many prompts, run at once          -> breadth wavefront, fenced triangle
+    # T256: a preset supplies the answer CONTRACT and, on the way back, the PARSER for it. The
+    # lens leads and the contract follows -- the question is what the helper should be holding
+    # when it starts generating, and a wall of format rules ahead of it buries the ask (T203).
     prompts = None
-    if getattr(args, "prompts_file", None):
+    _preset = getattr(args, "preset", "") or ""
+    if _preset:
+        from core.comm import presets as _P
+        try:
+            _lenses = list(getattr(args, "lens", None) or [])
+            if getattr(args, "lens_file", None):
+                _lenses += _P.read_lens_file(args.lens_file)
+            prompts = _P.build_prompts(_preset, _lenses)
+        except (KeyError, ValueError, OSError) as e:
+            print(f"--preset: {e}", file=sys.stderr)
+            return 2
+
+    if prompts is None and getattr(args, "prompts_file", None):
         try:
             raw = Path(args.prompts_file).read_text(encoding="utf-8")
         except OSError as e:
@@ -2360,7 +2375,10 @@ def cmd_ask(args):
         except ValueError as e:
             print(f"--prompts-file: {e}", file=sys.stderr)
             return 2
-    elif getattr(args, "fan", 0) and args.fan > 1:
+    elif prompts is None and getattr(args, "fan", 0) and args.fan > 1:
+        # `prompts is None` guard added with T256: without it, --preset built the branches and
+        # then --fan silently replaced them with N copies of one prompt. An elif chain whose
+        # first arm gained a second condition stops being exclusive, and the failure is quiet.
         prompts = [prompt] * int(args.fan)
 
     if prompts is not None:
@@ -2369,6 +2387,25 @@ def cmd_ask(args):
                      with_files=getattr(args, "with_files", None),
                      continue_on_cut=bool(getattr(args, "continue_on_cut", True)),
                      max_continuations=int(getattr(args, "continuations", 2)))
+        # T256: the preset PARSES its own answers on the way back. This is the half that
+        # matters -- five fans in one day each ended with a throwaway regex, and every parsing
+        # error this session lived in that throwaway code, never in the fan. An answer that
+        # ignores the contract lands as ok=false WITH its raw text, never dropped: a paid
+        # branch vanishing into a clean-looking result is how a fan starts lying about its
+        # own coverage.
+        if _preset and isinstance(o.detail, dict):
+            from core.comm import presets as _P
+            _p = _P.get(_preset)
+            _parsed = [_p.parse(b.get("answer") or "")
+                       for b in (o.detail.get("branches") or [])]
+            o.detail["preset"] = _preset
+            o.detail["parsed"] = _parsed
+            _bad = [i for i, r in enumerate(_parsed) if not r.get("ok")]
+            if _bad:
+                o.detail.setdefault("warnings", []).append(
+                    f"UNPARSED branches {_bad}: the answer did not follow the {_preset!r} "
+                    f"contract. Raw text is kept in parsed[i]['raw'] -- read those by hand "
+                    f"rather than treating them as empty results.")
         # T226: the fan path returned WITHOUT writing the background record, because
         # _bg.finish sits only on the single-ask path below. Measured the moment --bg
         # started forwarding --fan: three branches landed, cost real money, and
@@ -5758,6 +5795,20 @@ def build_parser():
     ask_p.add_argument("--prompts-file", dest="prompts_file",
                        help="T181: run MANY questions at once. JSON array, or prompts separated "
                             "by a line containing only --- (so a prompt may be multi-line)")
+    # T256. The preset carries the answer CONTRACT and the PARSER for it, so --json comes back
+    # structured instead of as text you regex apart. Five fans in one day each ended with a
+    # throwaway parser, and every parsing error of that session lived in those, not in the fan.
+    ask_p.add_argument("--preset", default="",
+                       help="named answer contract, e.g. 'findings' (FINDINGS/REASONING/CHECK/"
+                            "BLIND). Supplies the contract to every branch AND parses the "
+                            "answers back, so --json returns structured results. Use with "
+                            "--lens/--lens-file.")
+    ask_p.add_argument("--lens", action="append", default=[], metavar="QUESTION",
+                       help="one branch per --lens, each with the preset's contract appended. "
+                            "Repeatable. The lens leads, the contract follows.")
+    ask_p.add_argument("--lens-file", dest="lens_file", default="", metavar="PATH",
+                       help="one lens per line; blanks and # comments skipped, so a lens file "
+                            "can record WHY each lens is there -- the part that rots first.")
     ask_p.add_argument("--workers", type=int, default=None,
                        help="fan width (default 6). Merge attention binds before generation "
                             "does -- a fan wider than its integrator makes debt, not progress")

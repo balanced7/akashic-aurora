@@ -24,7 +24,7 @@
 - `agent_signal_ledger.py` — Agent Signal Ledger: the ordered record of every signal agents emit
 - `coordinator_api.py` — Coordinator API: Minimal signal-based logging for agents
 
-## core/comm/  (52 modules)
+## core/comm/  (53 modules)
 - `ask.py` — ask -- a synchronous helper call, with no seat behind it (T171).
 - `ask_bg.py` — ask_bg -- a helper call that outlives your turn without becoming a seat (T205).
 - `ask_state.py` — ask_state -- one durable ask's honest state (T196d).
@@ -58,6 +58,7 @@
 - `packet_spec.py` — Packet Spec v1 -- envelope integrity + MTU library (T040 LAW; built in T043).
 - `pager.py` — pager -- page-grade findings reach a HUMAN (T078-W4, the 6h-invisible killer).
 - `peer_ready.py` — peer_ready -- make the peer EXIST before asking it something (T197c).
+- `presets.py` — Fan presets: a named answer contract bound to the parser that reads it back.
 - `promoter.py` — Bifrost B2 -- the durable projection. Promote SALIENT bus messages into the append-only Ledger.
 - `reaper.py` — reaper -- S4: a dead seat's unread directed mail re-homes, loudly. Never stranded.
 - `role_queue.py` — role_queue -- T108 S1: load-balanced role-addressed work with claim semantics.
