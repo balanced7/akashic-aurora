@@ -35,19 +35,43 @@ Use React dashboard on port 3001 instead.
 
 ### 2. Redis not accessible
 
-**Symptoms**: "Connection refused" on port 6379
+**Symptoms**: "Connection refused" on port **16379** (the prod bus -- `config.PORT` family,
+`config.py:23`). `BIFROST_WAKE: bus OFFLINE (Redis unreachable)` is the same fault seen from
+the wake listener.
+
+The container is **`akashic-redis`** (redis:7-alpine, publishes container 6379 -> host 16379).
+`docker-redis-master` binds the SAME host port and `docker-redis-sandbox` is the 16380 sandbox
+(`E:\AI-Setup-Sandbox`) -- **start `akashic-redis` only**, or they collide.
 
 **Fix**:
 ```bash
-# Check Docker
-docker ps
-
-# Start Redis
-docker start ai-redis
-
-# Or create if missing
-docker run -d --name ai-redis -p 6379:6379 redis:7-alpine
+docker start akashic-redis
 ```
+
+**If it reports Up but the port is still refused** (seen 2026-08-08 after a host reboot):
+the container can come up attached to NO network, so it has no IP and Docker publishes
+nothing. `Status` says `Up`, which is why this reads as a client-side problem and is not.
+
+```bash
+# DIAGNOSE -- empty Networks / empty Ports is the tell
+docker inspect akashic-redis --format 'Networks={{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{end}}| Ports={{json .NetworkSettings.Ports}}'
+
+# FIX -- reattach, then restart so the port proxy is established
+docker network connect bridge akashic-redis
+docker restart akashic-redis
+```
+
+Do **not** `docker run` a replacement. The live container owns an anonymous volume at `/data`;
+a fresh one orphans it, and a replacement published on 6379 recreates the two-Redis divergence
+recorded in the architecture audit. Verify instead:
+
+```bash
+py -c "import redis; print(redis.Redis(host='localhost',port=16379).ping())"
+```
+
+A `dbsize` of 0 after this is **expected, not data loss** -- the bus is ephemeral by design and
+the durable plane is git + notes + ledger, which is why `boot`, `note` and `task list` keep
+working while the bus is down.
 
 ### 3. Ollama not responding
 
