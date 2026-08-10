@@ -315,6 +315,15 @@ def place(*, agent: str, family: str = "", team: str = "", number: Optional[int]
     Appends, like everything else here. A re-posting leaves the prior posting intact, because
     "who was in Onyx during exercise 7" is a question about the past and an update-in-place
     would erase the only record that can answer it.
+
+    THIS VERB IS DELIBERATELY CLI-ONLY, and the reason belongs here rather than only in the
+    door-parity manifest where Heimdall's review found it hiding. Placing into a family has
+    ROUTING consequences: once T108 addresses families, a seat that could place ITSELF into
+    Onyx would be opting into work addressed to Onyx -- a capability grant by self-declaration,
+    the T255 class wearing an org chart. `assign` is different and is allowed on the agent
+    surface: the directive licenses a "declarable job title", and provenance is DERIVED from
+    `by`, so a self-assigned role is legal AND labelled. A self-assigned Jester cannot redirect
+    a work stream; a self-placed Onyx member could. That is the whole cut.
     """
     agent = str(agent or "").strip()
     by = str(by or "").strip()

@@ -150,3 +150,26 @@ def test_p6_roster_lists_a_family(posted):
     members = R.family_members("Jade")
     assert "kimi" in members, f"Jade must contain kimi, got {members}"
     assert R.family_members("NoSuchFamily") == [], "an empty family is empty, never everyone"
+
+
+def test_p7_team_membership_is_queryable_too(posted):
+    """Heimdall's T267 review gap: team_members() existed with ZERO pin coverage while being
+    structurally identical to family_members and equally load-bearing for the TEAM half of
+    T108 routing. Same shape as the vendor gap this slice already hit -- a function exists,
+    the code is right, and nothing verifies it before the routing slice depends on it."""
+    from core.fleet import residents as R
+    R.place(agent="kimi", family="Jade", team="Red", number=1, by="daniil_pin")
+    assert "kimi" in R.team_members("Red"), "Red must contain kimi"
+    assert R.team_members("NoSuchTeam") == [], "an empty team is empty, never everyone"
+    assert R.team_members("") == [], "a blank team must not match every unposted resident"
+
+
+def test_p8_a_re_placement_changes_the_vendor_and_the_latest_wins(posted):
+    """The substrate-change path the design atom promises: a model upgrade must render as a
+    flagged change, never as an orphaned archive. Untested until the review named it."""
+    from core.fleet import residents as R
+    R.place(agent="kimi", family="Jade", team="Red", number=1, vendor="Kimi", by="daniil_pin")
+    R.place(agent="kimi", family="Jade", team="Red", number=1, vendor="Kimi-K3", by="daniil_pin")
+    d = R.designation("kimi")
+    assert "Kimi-K3" in d, f"the latest vendor must win: {d!r}"
+    assert R.get("kimi")["callsign"] == "Navi", "and re-homing must NOT rename the resident"
