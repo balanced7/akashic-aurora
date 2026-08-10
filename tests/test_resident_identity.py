@@ -178,3 +178,63 @@ def test_p2b_an_unregistered_seat_boots_clean(seeded):
     rc, out, _ = run("boot", "some_unregistered_seat", "--task", "x")
     assert rc == 0, "an unregistered seat must still boot"
     assert "Snooze" not in out, "one resident's callsign must never leak into another seat's fold"
+
+
+# ------------------------------------------------- P6 / P7: deepseek's T258 review findings
+
+def test_p6_two_drafts_one_callsign_the_latest_wins_and_carries_its_receipts(seeded):
+    """Review point 4: the ONE ceremony path where the door does something other than what the
+    caller may have meant, rather than refusing.
+
+    Two nominators, same callsign, different receipts. Ratify confirms the LATEST draft -- the
+    ceremony has one active draft per callsign and it is the newest -- and the ratified record
+    must CARRY the receipts it confirmed, because the receipts are the only thing that
+    distinguishes the drafts and the ratifier must be able to see what they signed.
+    """
+    from core.fleet import residents as R
+    first = _seed_lesson("kimi", "pin_first_nominators_receipt",
+                         tried="first draft", result="receipt A")
+    second = _seed_lesson("kimi", "pin_second_nominators_receipt",
+                          tried="second draft", result="receipt B")
+    R.nominate(nominee="kimi", callsign="Twice", receipts=[first], by="claude")
+    R.nominate(nominee="kimi", callsign="Twice", receipts=[second], by="deepseek")
+
+    rec = R.ratify(nominee="kimi", callsign="Twice", by="daniil")
+    got = rec.get("receipts") or []
+    assert second in got and first not in got, \
+        f"ratify must confirm the LATEST draft's receipts (got {got}) -- silently confirming " \
+        f"a different draft than the ratifier saw is the defect the review named"
+
+
+def test_p6b_a_wrong_callsign_refusal_names_the_open_drafts(seeded):
+    """The refusal must distinguish 'never nominated at all' from 'nominated under a different
+    name' -- naming the open drafts saves the ratifier the lookup."""
+    from core.fleet import residents as R
+    R.nominate(nominee="kimi", callsign="Snooze", receipts=[seeded["kimi"]], by="claude")
+    with pytest.raises(ValueError) as e:
+        R.ratify(nominee="kimi", callsign="NoSuchName", by="daniil")
+    assert "Snooze" in str(e.value), \
+        "a wrong-callsign refusal must NAME the drafts that are actually open"
+
+
+def test_p7_a_stored_author_with_stray_whitespace_does_not_refuse_a_valid_receipt():
+    """Review point 1: _receipt_author must strip. A store row whose agent_id carries a
+    trailing space is the same author, and refusing it is drift from the stated rule --
+    erring strict is still erring."""
+    from core.fleet import residents as R
+    from core.learning.learning_store import get_learning_store
+
+    exp = "pin_receipt_author_has_trailing_space"
+    # Seed with the whitespace IN THE AGENT ID, through the real learn door ("kimi " with a
+    # trailing space). If the store persists it verbatim, this reproduces the review's exact
+    # case; if the store normalises on write, the defect is unrepresentable from the door and
+    # the pin proves THAT instead. Either way nominate must accept -- same author.
+    _seed_lesson("kimi ", exp, tried="whitespace probe", result="authored by kimi")
+    s = get_learning_store()
+    rec = s._load_experiment(exp)
+    assert rec, "seeded lesson must exist"
+    stored_author = R._receipt_author(exp)
+    assert stored_author == "kimi", \
+        f"author must normalise to 'kimi' regardless of stored whitespace, got {stored_author!r}"
+    out = R.nominate(nominee="kimi", callsign="Whitespace", receipts=[exp], by="claude")
+    assert out, "a receipt whose stored author differs only by whitespace must be ACCEPTED"

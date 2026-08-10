@@ -88,7 +88,10 @@ def _receipt_author(experiment: str) -> Optional[str]:
         return None
     if not rec:
         return None
-    return str(rec.get("agent_id") or rec.get("agent") or "") or None
+    # .strip() per deepseek's T258 review: a stored agent_id carrying stray whitespace would
+    # otherwise refuse a VALID receipt -- erring strict, but still drift from the stated rule.
+    # The nominee and nominator already get this treatment; the author must too.
+    return str(rec.get("agent_id") or rec.get("agent") or "").strip() or None
 
 
 def _records(agent_id: str) -> List[Dict[str, Any]]:
@@ -169,17 +172,31 @@ def ratify(*, nominee: str, callsign: str, by: str) -> Dict[str, Any]:
 
     Refuses a callsign nobody nominated -- ratification confirms a draft, it does not author
     one, which is the T227 shape (the fan drafts, a human ratifies, a checker verifies forever).
+
+    WHEN SEVERAL DRAFTS SHARE THE CALLSIGN (two nominators, different receipts), the LATEST
+    nomination is the one confirmed -- the ceremony has one active draft per callsign and it is
+    the newest. deepseek's T258 review named this as the only ceremony path where the door does
+    something other than what the caller may have meant rather than refusing, so the choice is
+    stated here, pinned, and the returned record carries the receipts it confirmed: the
+    ratifier must be able to SEE what they signed.
     """
     nominee = str(nominee or "").strip()
     callsign = str(callsign or "").strip()
+    records = _records(nominee)
     draft = None
-    for rec in _records(nominee):
+    for rec in records:
         if rec.get("state") == NOMINATED and rec.get("callsign") == callsign:
-            draft = rec
+            draft = rec                   # last match wins -- the newest draft is the live one
     if draft is None:
+        # Distinguish "never nominated at all" from "nominated under a different name" -- a
+        # refusal that names the open drafts saves the ratifier a lookup (review point 4).
+        open_drafts = sorted({r.get("callsign") for r in records if r.get("state") == NOMINATED
+                              and r.get("callsign")})
+        hint = (f" Open draft(s) for '{nominee}': {', '.join(open_drafts)}."
+                if open_drafts else "")
         raise ValueError(
             f"refused: '{callsign}' was never nominated for '{nominee}'. Ratification confirms "
-            f"a draft; it does not author one."
+            f"a draft; it does not author one.{hint}"
         )
     out = dict(draft)
     out.update({"state": RATIFIED, "ratified_by": str(by or "").strip(), "at": time.time()})

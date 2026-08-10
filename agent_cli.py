@@ -4890,6 +4890,9 @@ def cmd_resident(args):
             print(f"[resident] {e}")
             return 1
         print(f"[resident] RATIFIED: {R.designation(rec['agent_id'])}")
+        # The ratifier must SEE what they signed -- with two drafts on one callsign, the
+        # receipts are the only thing that distinguishes them (T258 review, point 4).
+        print(f"           receipts confirmed: {', '.join(rec.get('receipts') or [])}")
         prior = (R.get(rec["agent_id"]) or {}).get("formerly") or []
         if prior:
             print(f"           formerly: {', '.join(prior)}  (superseded, never deleted)")
