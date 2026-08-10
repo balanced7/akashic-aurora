@@ -180,6 +180,59 @@ def test_p2b_an_unregistered_seat_boots_clean(seeded):
     assert "Snooze" not in out, "one resident's callsign must never leak into another seat's fold"
 
 
+# ------------------------------------ P8 / P9: found by the kill-drill's RESIDENT arm (T262)
+#
+# Both defects are in code I wrote the same night, and both are the same family the module
+# lectures about in its own docstring. The drill that found them is at
+# research/in-flight/t262-killdrill-results.md.
+
+def test_p8_a_corrupt_row_is_reported_never_silently_dropped(seeded, capfd):
+    """A dropped record must be LOUD. _records swallowed corrupt JSON with except:continue,
+    so a lost row was invisible to every caller -- while the module docstring two functions
+    above states that absence must not read as success. The T178 guard-of-guards shape."""
+    from core.fleet import residents as R
+    R.nominate(nominee="kimi", callsign="Corrupt", receipts=[seeded["kimi"]], by="claude")
+    R._store().rpush(R._LOG_KEY.format(agent="kimi"), "{not valid json at all")
+
+    capfd.readouterr()                       # drop anything buffered before the read
+    recs = R._records("kimi")
+    err = capfd.readouterr().err
+
+    assert any(r.get("callsign") == "Corrupt" for r in recs), \
+        "the good rows must still be returned -- one bad row cannot hide the rest"
+    assert "kimi" in err and ("corrupt" in err.lower() or "unreadable" in err.lower()), \
+        f"a dropped row must NAME itself on a channel someone reads; stderr was: {err!r}"
+
+
+def test_p9_a_store_fault_is_unknown_not_a_verdict_about_the_receipt(seeded, monkeypatch):
+    """_receipt_author caught bare Exception and returned None, which the ceremony reads as
+    'this receipt does not resolve' and REFUSES the nomination. So a store outage silently
+    became a verdict about someone's callsign evidence -- absence vs UNKNOWN, inside a door
+    built to be strict about exactly that distinction."""
+    from core.fleet import residents as R
+
+    def _explode(*a, **k):
+        raise RuntimeError("redis is on fire")
+
+    monkeypatch.setattr(R, "_receipt_author", _explode)
+    with pytest.raises(ValueError) as e:
+        R.nominate(nominee="kimi", callsign="Outage", receipts=[seeded["kimi"]], by="claude")
+    msg = str(e.value).lower()
+    assert "unknown" in msg or "could not verify" in msg or "unavailable" in msg, \
+        f"a store fault must refuse as UNKNOWN, got: {e.value}"
+    assert "does not resolve" not in msg, \
+        "a store fault must NOT assert the receipt is bad -- that is the false verdict"
+
+
+def test_p9b_a_genuinely_missing_receipt_still_refuses_as_before(seeded):
+    """The mirror: distinguishing UNKNOWN from ABSENT must not weaken the absent case."""
+    from core.fleet import residents as R
+    with pytest.raises(ValueError) as e:
+        R.nominate(nominee="kimi", callsign="Ghost",
+                   receipts=["no_such_lesson_exists_anywhere"], by="claude")
+    assert "no_such_lesson_exists_anywhere" in str(e.value)
+
+
 # ------------------------------------------------- P6 / P7: deepseek's T258 review findings
 
 def test_p6_two_drafts_one_callsign_the_latest_wins_and_carries_its_receipts(seeded):
