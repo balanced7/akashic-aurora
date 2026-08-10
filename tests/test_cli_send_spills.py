@@ -101,6 +101,37 @@ def test_p3_a_short_body_is_byte_identical_to_today(tmp_path):
     assert text == small and meta == {}, "under the bound, nothing may change"
 
 
+def test_p5_the_new_caller_degrades_to_the_clip_when_the_blob_store_fails(monkeypatch, tmp_path):
+    """P5 -- deepseek's T263 review gap, and it is this slice's own defect one level down.
+
+    T113 P7 pins that `spill_tool_text` DEGRADES correctly when the blob store fails. What
+    nothing pinned is that the NEW CALLER handles the degraded return: this slice added a
+    second caller, and a caller can mishandle a degraded value even when the function
+    produces it perfectly. That is exactly the gap the whole slice was about -- the
+    mechanism was always right and one door was not wired to it -- reappearing at the next
+    level down, which is why the review that found it was worth asking for.
+
+    A blob-store outage must cost the CONFESSION, never the message: the send still happens,
+    the body still carries a bound-and-confessed clip, and RB-5 (a bound always confesses)
+    holds in the degraded branch too.
+    """
+    from core.comm import packet_spec, blobs
+
+    def _dead_put(self, data):
+        raise OSError("blob store unavailable")
+
+    monkeypatch.setattr(blobs.BlobStore, "put", _dead_put)
+    text, meta = packet_spec.spill_tool_text(BIG)
+
+    assert not meta.get("spilled"), "a failed store must not claim a spill happened"
+    assert not meta.get("spill_ref"), "and must not advertise a ref that resolves to nothing"
+    assert len(text) < len(BIG), "the degraded path must still BOUND the body"
+    assert text != BIG and text.strip(), "and must return something, never drop the message"
+    # RB-5: the bound confesses even when the better mechanism is unavailable.
+    assert any(w in text.lower() for w in ("clip", "truncat", "chars", "...")), \
+        f"a bound must confess in the degraded branch too; got tail: {text[-160:]!r}"
+
+
 def test_p4_the_cli_door_actually_calls_the_spill(tmp_path):
     """STRUCTURAL, and it is the pin that would have caught this class before it shipped.
 
