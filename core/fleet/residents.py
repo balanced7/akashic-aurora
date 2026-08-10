@@ -254,6 +254,39 @@ def designation(agent_id: str) -> str:
     return " | ".join(parts)
 
 
+def catchup_pack(agent_id: str, topic: str, k: int = 6):
+    """The T261 catch-up: what THIS resident already knows that bears on `topic`.
+
+    Returns (text_block, meta) -- the identity block plus up to `k` of the resident's OWN
+    archive lessons relevant to the topic, ready to ride a system context. Empty block when
+    the seat is not a resident (the caller decides whether that refuses; this function only
+    reports). The pack comes FROM THE STORE, which is the whole point: memory that crosses
+    invocations lives where the fleet can inspect it (ask.py's own no-shadow-history law),
+    and the branch READS it on the way in. T260's agent scope guarantees the pack contains
+    only the named resident's lessons -- a resident is not a fleet-corpus reader.
+    """
+    rec = get(agent_id)
+    if not rec:
+        return "", {"resident": False}
+    lines = [boot_block(agent_id)]
+    ids = []
+    try:
+        from core.learning.learning_store import get_learning_store
+        hits = get_learning_store().search_learnings_by_keyword(topic, agent=agent_id)[:max(0, int(k))]
+        if hits:
+            lines.append("# WHAT YOU ALREADY KNOW (your own archive, most relevant first):")
+            for h in hits:
+                ids.append(str(h.get("id")))
+                gist = str(h.get("recommendation") or h.get("actual") or h.get("what_tried") or "")
+                gist = " ".join(gist.split())[:240]
+                lines.append(f"#   - {h.get('id')}: {gist}")
+    except Exception:
+        # A store fault must not turn a resident ask into a silent blind one WITHOUT saying
+        # so -- the meta records that the pack could not be read; the identity still rides.
+        return "\n".join(lines), {"resident": True, "catchup": [], "catchup_error": True}
+    return "\n".join(lines), {"resident": True, "catchup": ids}
+
+
 def assign(*, agent: str, role: str, side: str = "", exercise: str = "",
            by: str = "") -> Dict[str, Any]:
     """Record that a resident is OPERATING AS `role` -- an event, never a field.

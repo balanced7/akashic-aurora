@@ -180,8 +180,14 @@ def test_p4_a_blind_ask_is_stamped_blind_and_carries_no_identity(resident_kimi):
 
 def test_p6_cli_as_unknown_resident_refuses_before_any_network(resident_kimi):
     """The CLI refusal path must trigger on the registry read, never reaching the API --
-    safe to run offline, and the proof is the nonzero exit with the reason named."""
-    rc, out, err = run("ask", "any question", "--as", "unregistered_seat")
+    safe to run offline, and the proof is the nonzero exit with the reason named.
+
+    NAMED --as-resident, NOT --as, and the distinction was measured before it was designed:
+    the first draft of this pin used --as and got rc 0 with a REAL model call, because --as
+    already exists as the SENDER identity (dest=as_agent, the --status path). Overloading it
+    would fork one flag into two meanings -- the T174 homonym class, live at the door.
+    """
+    rc, out, err = run("ask", "any question", "--as-resident", "unregistered_seat")
     text = (out + err).lower()
     assert rc != 0, "an unknown resident on the CLI must exit nonzero"
     assert "resident" in text, "and say why"

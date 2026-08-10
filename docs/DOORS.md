@@ -15,7 +15,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | Verb | What it does | Inputs |
 |---|---|---|
 | `alias` | toolbelt authoring: mint/list/retire agent-authored verb compositions (sugar-only; honesty labels; quota) | `<agent_id>*` `<action>* {mint,list,retire,history}` `<name>` `--step` `--evidence` `--tested-against` `--why` `--family` `--reason` `--json` |
-| `ask` | ask a helper model ONE question, synchronously (no seat, no lock, no mailbox -- it dies in the call) | `<text>*` `--prompt-file` `--system` `--model` `--max-tokens` `--fan` `--prompts-file` `--preset` `--lens` `--lens-file` `--workers` `--peer` `--wait` `--poll` `--bg` `--get` `--list` `--bg-child` `--no-continue` `--continuations` `--with` `--launch` `--launch-wait` `--status` `--as` `--json` |
+| `ask` | ask a helper model ONE question, synchronously (no seat, no lock, no mailbox -- it dies in the call) | `<text>*` `--prompt-file` `--system` `--as-resident` `--model` `--max-tokens` `--fan` `--prompts-file` `--preset` `--lens` `--lens-file` `--workers` `--peer` `--wait` `--poll` `--bg` `--get` `--list` `--bg-child` `--no-continue` `--continuations` `--with` `--launch` `--launch-wait` `--status` `--as` `--json` |
 | `audit` | belief-vs-state audit: labeled MATCH/DRIFT rows over durable beliefs vs ground truth (v1: VERBS registry<->parser) | `--domain` `--ground` `--json` |
 | `bench` | S0 triage bench (scry-to-bottom): list/park/unpark stale asks -- bottomed so fresh mail flows, NEVER dropped; sender always notified (RB-29) | `<agent_id>*` `<action> {list,park,unpark}` `<ref>` `--reason` `--by` |
 | `bifrost-ack` | durably record you HANDLED a salient bus message (P6) | `<agent_id>*` `<msg_id>*` `--note` `--json` |

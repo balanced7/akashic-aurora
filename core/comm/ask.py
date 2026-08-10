@@ -302,7 +302,7 @@ def attach_evidence(detail: Dict[str, Any], ctx_meta: Optional[Dict[str, Any]]) 
 def ask(prompt: str, *, system: Optional[str] = None, model: Optional[str] = None,
         max_tokens: Optional[int] = None, client=None, with_files=None,
         context_root=None, continue_on_cut: bool = False,
-        max_continuations: int = 2) -> BoundaryOutcome:
+        max_continuations: int = 2, as_resident: Optional[str] = None) -> BoundaryOutcome:
     """Ask a helper one question, synchronously. Never raises.
 
     Returns a BoundaryOutcome whose `detail["answer"]` carries the text. done / partially / failed
@@ -329,6 +329,22 @@ def ask(prompt: str, *, system: Optional[str] = None, model: Optional[str] = Non
     """
     if not str(prompt or "").strip():
         return BoundaryOutcome.failed("empty prompt -- nothing to ask")
+    # T261: tier 1, the caught-up resident branch. Resolved BEFORE key load and BEFORE any
+    # client call, because a tier asserted without a registry entry is the self-declared
+    # identity class (T255) and a helper must never be billed for a refused claim. This does
+    # NOT violate the no-persistent-memory law above -- the pack comes FROM THE STORE, where
+    # the fleet can audit it, and the branch merely reads it on the way in.
+    resident_meta = None
+    if as_resident:
+        from core.fleet import residents as _residents
+        pack, resident_meta = _residents.catchup_pack(as_resident, prompt)
+        if not resident_meta.get("resident"):
+            return BoundaryOutcome.failed(
+                f"'{as_resident}' is not a resident (no ratified designation), so it cannot "
+                f"answer at the resident tier. Run the ceremony first: py agent_cli.py "
+                f"resident nominate {as_resident} --callsign <name> --receipt <their lesson> "
+                f"--by <peer>")
+        system = (system or DEFAULT_SYSTEM) + "\n\n" + pack
     model = model or DEFAULT_MODEL
     # T203: source first, question last. The question is what the model should still be
     # holding when it starts generating, and a wall of code between them buries it.
@@ -400,7 +416,18 @@ def ask(prompt: str, *, system: Optional[str] = None, model: Optional[str] = Non
               # None, never 0: a provider that does not report reasoning must not read as
               # "reasoned zero" -- the fabricated-measurement lie, one field down.
               "reasoning_tokens": rt, "truncation": truncation,
-              "continuations": continuations}
+              "continuations": continuations,
+              # T261: THE TIER RIDES THE FINDING, both tiers. Eight caught-up residents
+              # agreeing is not eight blind branches agreeing, and a report must be able to
+              # state the spread a convergence claim was drawn from. An unlabelled control
+              # arm stops being a control arm, so tier 0 is stamped too.
+              "tier": "resident" if as_resident else "blind"}
+    if as_resident:
+        from core.fleet import residents as _residents
+        detail["designation"] = _residents.designation(as_resident)
+        detail["catchup"] = list((resident_meta or {}).get("catchup") or [])
+        if (resident_meta or {}).get("catchup_error"):
+            detail["catchup_error"] = True
     if reasoning:
         # STATED LIMIT: this is the trace of the FIRST completion. When _continue_answer
         # stitches a cut answer, later hops carry their own reasoning and it is not merged

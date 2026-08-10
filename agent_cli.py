@@ -2001,6 +2001,9 @@ _BG_FORWARD = {
     # store_false: only the NON-default is expressible, so only it is emitted.
     "continue_on_cut": lambda v: [] if v else ["--no-continue"],
     "as_agent":     lambda v: ["--as", str(v)],
+    # T261. NOT merged with as_agent above: --as is the SENDER, --as-resident is the TIER,
+    # and one flag carrying both meanings is the T174 homonym class.
+    "as_resident":  lambda v: ["--as-resident", str(v)],
     # T256. Caught by T226's own pin before it shipped -- exactly the case that guard was built
     # for, since --bg used to assemble its argv from a hand-remembered list and silently dropped
     # every flag added afterwards. --lens is repeatable, so it emits one pair per lens.
@@ -2482,7 +2485,8 @@ def cmd_ask(args):
                    max_tokens=args.max_tokens,
                    with_files=getattr(args, "with_files", None),
                    continue_on_cut=bool(getattr(args, "continue_on_cut", False)),
-                   max_continuations=int(getattr(args, "continuations", 2)))
+                   max_continuations=int(getattr(args, "continuations", 2)),
+                   as_resident=(getattr(args, "as_resident", None) or None))
 
     if _bg_child:
         from core.comm import ask_bg as _bg
@@ -2499,6 +2503,15 @@ def cmd_ask(args):
 
     print(o.detail.get("answer", ""))  # a PARTIAL still prints what it got (the T169 lesson)
     d = o.detail
+    # T261: the tier is part of the finding, rendered where the reader forms conclusions.
+    # Only the resident tier prints a line -- blind is the default and silence IS its label
+    # on the human surface (the JSON envelope stamps both).
+    if d.get("tier") == "resident":
+        pack = d.get("catchup") or []
+        print(f"== tier: resident -- {d.get('designation')} | catch-up: "
+              + (", ".join(pack) if pack else "none relevant")
+              + (" [PACK READ FAILED -- answered on identity only]" if d.get("catchup_error") else ""),
+              file=sys.stderr)
     # T218: the helper was told in-band that its file was clipped; the caller was not, so an
     # abstention about the WINDOW read as an abstention about the CODE. Printed AFTER the
     # answer, where the reader is when they form that conclusion.
@@ -5909,6 +5922,13 @@ def build_parser():
     ask_p.add_argument("text", nargs="*", help="the question (or use --prompt-file)")
     ask_p.add_argument("--prompt-file", dest="prompt_file", help="read the question from PATH")
     ask_p.add_argument("--system", default="", help="override the helper's system prompt")
+    ask_p.add_argument("--as-resident", dest="as_resident", default=None, metavar="AGENT",
+                       help="T261 tier-1: the branch answers AS a ratified resident -- its "
+                            "callsign, receipts and a catch-up pack of its OWN archive lessons "
+                            "ride the system context, and the reply is stamped tier=resident "
+                            "with the designation. NOT --as, which is the SENDER identity: one "
+                            "flag carrying both meanings is the T174 homonym class. A "
+                            "non-resident refuses BEFORE any model call.")
     ask_p.add_argument("--model", default="", help="override the helper model")
     ask_p.add_argument("--max-tokens", dest="max_tokens", type=int, default=None,
                        help="answer ceiling; hitting it returns a marked PARTIAL, never a silent cut")
