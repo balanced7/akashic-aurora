@@ -3326,6 +3326,95 @@ def _recent_lessons(limit=8):
         return []
 
 
+def _suggest_resident(title: str, limit: int = 3):
+    """Which resident's OWN archive bears on this target? Returns [(callsign, agent, [receipts])].
+
+    Evidence, not authority. The match runs T260's agent-scoped search over each resident's own
+    lessons, so a suggestion can NAME what produced it -- an unreceipted suggestion is a vibe.
+    Routing stays the human's act: this never assigns, and the render says SUGGEST.
+    """
+    out = []
+    try:
+        from core.fleet import residents as R
+        from core.learning.learning_store import get_learning_store
+        ls = get_learning_store()
+        st = R._store()
+        for agent in (st.lrange("residents:all", 0, -1) or []):
+            rec = R.get(agent)
+            if not rec:
+                continue
+            hits = ls.search_learnings_by_keyword(title, agent=agent)[:limit]
+            if hits:
+                out.append((rec.get("callsign") or agent, agent,
+                            [str(h.get("id")) for h in hits]))
+    except Exception:
+        return []          # a suggestion engine must never break a wrap
+    out.sort(key=lambda r: -len(r[2]))
+    return out
+
+
+def _wrap_route(args):
+    """Record the routed targets for the next window, with a receipted resident suggestion each.
+
+    An unroutable id REFUSES rather than recording: a target nobody can work would make the
+    night shift pre-chew for a task that does not exist and then report success -- a silent
+    no-op that reads as a working job, which is the failure mode a manual prototype exists to
+    catch before machinery hides it.
+    """
+    from core.coord.task_ledger import TaskLedger
+    from core.learning.agent_memory import get_agent_memory
+
+    ids = [t.strip().upper() for t in str(args.route or "").split(",") if t.strip()]
+    if not ids:
+        print("[wrap] --route needs at least one ledger id, e.g. --route T123,T124")
+        return
+
+    led = TaskLedger()
+    try:
+        led.load()
+    except Exception:
+        pass
+    good, bad, lines = [], [], []
+    for tid in ids:
+        rec = None
+        try:
+            rec = led.get(tid)
+        except Exception:
+            rec = None
+        if not rec:
+            bad.append(tid)
+            continue
+        good.append(tid)
+        title = str(rec.get("title") or "")
+        lines.append(f"  {tid}  {title[:88]}")
+        for callsign, agent, receipts in _suggest_resident(title)[:2]:
+            lines.append(f"      SUGGEST {callsign} ({agent}) -- matched {len(receipts)} of its "
+                         f"own lessons: {', '.join(receipts[:2])}")
+        if not _suggest_resident(title):
+            lines.append("      no resident archive matched -- route by hand")
+
+    for tid in bad:
+        print(f"[wrap] REFUSED to route {tid}: no such task in the ledger. A routed target "
+              f"nobody can work would have the night shift pre-chew for nothing and report "
+              f"success.")
+    if not good:
+        return
+
+    print(f"\n[wrap] ROUTED for the next window ({len(good)} target(s)) -- suggestions only, "
+          f"routing is yours:")
+    for ln in lines:
+        print(ln)
+
+    if getattr(args, "commit", False):
+        body = ("ROUTED TARGETS for the next window (T268). The night shift pre-chews these.\n\n"
+                + "\n".join(lines))
+        try:
+            get_agent_memory().decide_with_retry("next-routing", _clip(body, 4000), curated=True)
+            print(f"\n[OK] routing recorded -> note 'next-routing'; the next boot renders it.")
+        except Exception as e:
+            print(f"WARN: routing note not recorded ({type(e).__name__}: {e})")
+
+
 def cmd_wrap(args):
     """Ambient session capture: distill this session's own commits + lessons + notes into a DRAFT
     where-we-are, so you APPROVE/correct instead of authoring blank. Preview by default; --commit
@@ -3387,6 +3476,21 @@ def cmd_wrap(args):
             except Exception as e:
                 print(f"WARN: grounding pointer not recorded: {e}")
     # F4: --focus sets the CURRENT DIRECTIVE independently of the draft commit -- the whole
+    # T268: ROUTE TOMORROW'S TARGETS. --focus records INTENT; this records WHICH ITEMS, which
+    # is what an overnight pre-chew consumes. Found by running the first manual sleep shift:
+    # its highest-value job could not run because nothing said what tomorrow was. Routing is a
+    # PRECONDITION of precompute, not a property of the world -- the scheduler is us.
+    if getattr(args, "route", None):
+        _wrap_route(args)
+    elif not getattr(args, "focus", None):
+        # THE NUDGE. A rule that lives only in a document needs someone to remember it, which
+        # is the failure this whole slice fixes. It names the CONSEQUENCE, not just the
+        # omission -- an instruction without a reason is the checklist-fatigue shape -- and it
+        # NEVER blocks: a hygiene prompt that can fail a wrap is one people route around.
+        print("[wrap] no routing set for the next window -- the night shift cannot pre-chew "
+              "without targets.\n"
+              "       Set them with: py agent_cli.py wrap --route T123,T124 --commit")
+
     # point is to capture priority intent THE MOMENT it is decided, even on a bare wrap.
     if getattr(args, "focus", None):
         mem = get_agent_memory()
@@ -6339,6 +6443,12 @@ def build_parser():
                     help="set the CURRENT DIRECTIVE (next-focus note) at decision time -- "
                          "what the next session does FIRST / must NOT do yet; boot renders it "
                          "above the NEXT list")
+    wr.add_argument("--route", default=None, metavar="T123,T124",
+                    help="T268: route TARGETS for the next window (comma-separated ledger ids). "
+                         "--focus records intent; this records WHICH ITEMS, which is what an "
+                         "overnight pre-chew actually consumes. Each target gets a resident "
+                         "SUGGESTION drawn from that resident's own archive -- a suggestion, "
+                         "never an assignment: routing is the human's act")
     wr.set_defaults(fn=cmd_wrap)
 
     s = sub.add_parser("status", help="honest system status")
