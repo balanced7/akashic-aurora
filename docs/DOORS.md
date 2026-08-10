@@ -68,7 +68,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `packet-trace` | N0 dry-run: explain the static route for one packet kind (no send) | `<kind>*` `--json` |
 | `promoted` | query durable salient Bifrost msgs (kind=bifrost_msg / B2) | `--limit` `--since` `--until` `--json` |
 | `pulse` | W25 (deepseek): LIFEWORKERS pressure-map -- where is pressure building in the fleet? lane-depths to zones. Companion to vitals. READ-only | `<agent>` `--json` |
-| `recall` | search past lessons (no query = list all) | `<query>` `--json` `--full` |
+| `recall` | search past lessons (no query = list all) | `<query>` `--json` `--full` `--agent` |
 | `recall-at` | recall-at-action: relevant lessons/locks for a path or command | `--path` `--command` `--gesture` `--subject` `--domain` `--agent-id` `--limit` `--hint-style {cli,tool}` `--json` |
 | `recall-counters` | sharpening S2a: fold bare-slug + ghost recall:use:* counters (report; --fold applies) | `--fold` `--agent-id` |
 | `recall-curate` | bench surfaced-never-credited lessons + prune ghost counters (report; --apply stamps) | `--apply` `--forge-audit` `--forge-check` `--draft` `--forge-propose` `--forge-proposals` `--limit` `--json` |

@@ -717,9 +717,10 @@ class LearningStore:
 
     # ----- read: search -----
     def search_learnings_by_keyword(self, keyword: str,
-                                    domain: Optional[str] = None) -> List[Dict[str, Any]]:
+                                    domain: Optional[str] = None,
+                                    agent: Optional[str] = None) -> List[Dict[str, Any]]:
         """
-        Search learnings by keyword, optionally scoped to one domain.
+        Search learnings by keyword, optionally scoped to one domain and/or one agent.
 
         Semantic Relationship: SearchResults derived_from Learnings (by keyword)
 
@@ -728,11 +729,19 @@ class LearningStore:
         stopwords dropped, WORD tokens rather than substrings, and a minimum number of content terms
         that must actually land. `domain` scopes the answer so shader work stops competing with
         bus-lane work -- pass None to search everything, which keeps every existing caller working.
+
+        T260: `agent` scopes to one author's archive -- "what has Navi learned about X", the
+        per-resident read the residents directive makes load-bearing. The filter sits ABOVE the
+        weak-match fallback on purpose: a confession about one agent's archive may only confess
+        that agent's lessons, because the degraded answer must be a SUBSET of the normal one
+        (the audited fallback class). Matching strips and lowercases both sides -- the store
+        persists agent ids verbatim, trailing whitespace included (probed live for T258b).
         """
         try:
             terms = _content_terms(keyword)
             if not terms:
                 return []
+            want_agent = str(agent).strip().lower() if agent else None
             need = _min_hits(len(terms))
             scored, weak, seen = [], [], set()
             for exp_id in self.store.lrange("learn:experiments:all", 0, -1):
@@ -746,6 +755,12 @@ class LearningStore:
                 # what DEFAULT_DOMAIN says, so the filter stays correct across the backfill gap.
                 if domain and (data.get("domain") or DEFAULT_DOMAIN) != domain:
                     continue
+                # T260 agent scope. A record with NO author cannot prove it is the wanted
+                # agent's, so it is excluded from a scoped read -- absence is not membership.
+                if want_agent is not None:
+                    author = str(data.get("agent_id") or data.get("agent") or "").strip().lower()
+                    if author != want_agent:
+                        continue
                 hay = _tokens_of(exp_id) | _tokens_of(" ".join(str(v) for v in data.values()))
                 hits = sum(1 for t in terms if t in hay)
                 if hits >= need:

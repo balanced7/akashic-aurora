@@ -652,9 +652,18 @@ def cmd_recall(args):
     from core.learning.learning_store import get_learning_store
     ls = get_learning_store()
     query = (args.query or "").strip()
+    scope_agent = getattr(args, "agent", None)
     try:
-        hits = ls.load_all_learnings_from_store() if not query \
-            else ls.search_learnings_by_keyword(_clip(query, 200))
+        if not query:
+            hits = ls.load_all_learnings_from_store()
+            # T260: the no-query listing honors the scope too -- "everything Navi has learned"
+            # is a legitimate read of one archive, filtered on the same normalized author.
+            if scope_agent:
+                want = str(scope_agent).strip().lower()
+                hits = [h for h in hits
+                        if str(h.get("agent_id") or h.get("agent") or "").strip().lower() == want]
+        else:
+            hits = ls.search_learnings_by_keyword(_clip(query, 200), agent=scope_agent)
     except Exception as e:
         print(f"ERROR searching: {type(e).__name__}: {e}")
         return 1
@@ -6144,6 +6153,10 @@ def build_parser():
     r.add_argument("query", nargs="?", default=""); r.add_argument("--json", action="store_true")
     r.add_argument("--full", default=None, help="pull the FULL record for one lesson's source pointer "
                     "(e.g. learn:experiment:NAME) -- the one-hop escape from a capped recall-at surface")
+    r.add_argument("--agent", default=None,
+                   help="T260: scope to ONE author's archive -- 'what has Navi learned about X'. "
+                        "The weak-match confession respects the scope (a degraded answer stays a "
+                        "subset of the normal one)")
     r.set_defaults(fn=cmd_recall)
 
     li = sub.add_parser("list", help="list ALL lessons in memory")
