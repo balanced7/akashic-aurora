@@ -60,6 +60,87 @@ REDIS_PORT_SANDBOX = 16380  # sandbox Redis (isolated from prod 16379)
 PORT_TEST_UI_BASE = 8900    # first test-UI port; allocate upward (8900, 8901, ...).
 PORT_TEST_UI_MAX = 8999     # last test-UI port. A test UI MUST live in [8900, 8999].
 
+# --- THE REGISTRY (T266) -- the constants above, as DATA a checker can read ---
+#
+# WHY THIS EXISTS AS DATA. docs/PORTS.md was the ONE hand-written map in a repo that
+# generates PHYSICS.md, DOORS.md, MAP.md, MODULE_INDEX.md and PRIOR_ART.md from live state on
+# every commit -- and it was the one that drifted. Measured 2026-08-10: every CONTAINER port
+# (11434 ollama, 8888 searxng, 3000 open-webui, 5000/5001 voice) was ABSENT, because the doc
+# described what PYTHON binds and was blind to what CONTAINERS bind. Worse, it listed 8080
+# under "legacy/inactive -- never live" while ai-knowledge-api was bound to 8080 until it was
+# removed that morning. A map that asserts DEAD about something RUNNING is worse than a map
+# with a hole, because it is trusted. Daniil: "so we don't have to guess as to how things are
+# built and routed."
+#
+# `bound_by` is the field the old doc could not express and the reason the gap was invisible:
+#   app       -- a Python process in this repo opens it (grep-able, checkable against source)
+#   container -- docker publishes it; NO source literal will ever mention it
+#   external  -- neither; a service we merely coexist with
+#
+# NOT A REDESIGN. The 878x/879x/89xx band rules and config-wins-over-doc precedence are
+# unchanged; this slice extends the schema's REACH to the plane it could not see.
+PORT_REGISTRY = {
+    PORT_UI:            {"world": "prod",     "bound_by": "app",
+                         "what": "Bifrost live agent console",
+                         "owner": "scripts/bifrost_ui.py"},
+    PORT_UI_RESERVED:   {"world": "prod",     "bound_by": "app",
+                         "what": "RESERVED prod-aux -- NOT the console; do not bind",
+                         "owner": "(reserved)"},
+    PORT_MCP_HTTP:      {"world": "prod",     "bound_by": "app",
+                         "what": "MCP HTTP mode (stdio is the default, so usually silent)",
+                         "owner": "ai_setup_mcp.py"},
+    REDIS_PORT:         {"world": "prod",     "bound_by": "container",
+                         "what": "canonical knowledge store + bus (db 0 prod / db 15 test)",
+                         "owner": "akashic-redis"},
+    PORT_UI_SANDBOX:    {"world": "sandbox",  "bound_by": "app",
+                         "what": "sandbox console",
+                         "owner": "E:/AI-Setup-Sandbox scripts/bifrost_ui.py"},
+    REDIS_PORT_SANDBOX: {"world": "sandbox",  "bound_by": "container",
+                         "what": "sandbox Redis, isolated from prod",
+                         "owner": "docker-redis-sandbox"},
+    # The container plane -- invisible to any source grep, which is exactly why it went
+    # undocumented and why "which of these do we need?" could not be answered from a map.
+    11434:              {"world": "prod",     "bound_by": "container",
+                         "what": "local model lane; core/fleet/caller.py calls /api/generate",
+                         "owner": "ai-ollama"},
+    8888:               {"world": "prod",     "bound_by": "container",
+                         "what": "the fleet's ONLY web-search door (loopback only)",
+                         "owner": "akashic-searxng / scripts/local/websearch.py"},
+    3000:               {"world": "external", "bound_by": "container",
+                         "what": "human chat front-end over the same ollama; no live repo refs",
+                         "owner": "ai-open-webui"},
+    5000:               {"world": "external", "bound_by": "container",
+                         "what": "voice service; no live repo refs",
+                         "owner": "ai-voice"},
+    5001:               {"world": "external", "bound_by": "container",
+                         "what": "voice service (second port)",
+                         "owner": "ai-voice"},
+    # Found by check_ports on its FIRST run, and it was live-broken rather than merely
+    # undocumented: model_roster's default_host said 11435, nothing listens there, and a real
+    # call to an installed model failed with WinError 10061. Registering the port is what
+    # makes the off-by-one visible; the fix was pointing it at the ollama that exists.
+    47100:              {"world": "prod",     "bound_by": "app",
+                         "what": "runner control-channel BASE; each seat takes base+n on "
+                                 "loopback, so the exact port is dynamic by design",
+                         "owner": "core/comm/control_channel.py"},
+}
+
+#: Bands, as data rather than prose, so the report can name a port's WORLD from its digits.
+PORT_BANDS = (
+    (8780, 8789, "prod"),
+    (8790, 8799, "sandbox"),
+    (PORT_TEST_UI_BASE, PORT_TEST_UI_MAX, "test"),
+)
+
+#: Ports that were live once and must never be silently resurrected. Kept because deleting a
+#: retirement makes it re-discoverable as a "free" port by the next person.
+PORT_RETIRED = {
+    8080: "ai-knowledge-api -- container REMOVED 2026-08-10 (exit 127 for 7 weeks; dead)",
+    8000: "vllm-server -- container REMOVED 2026-08-10 (status Created; never ran)",
+    6379: "WSL Redis HA replica -- separate lifecycle, not the app endpoint",
+    6380: "WSL Redis HA master -- separate lifecycle, not the app endpoint",
+}
+
 
 def allocate_test_ui_port(offset: int = 0) -> int:
     """Return a port in the reserved test-UI band [8900, 8999].

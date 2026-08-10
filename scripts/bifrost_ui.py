@@ -6,8 +6,8 @@ browser UI. You see Claude and DeepSeek converse in real time, PAUSE them to int
 that wake the agents, and DRAG-AND-DROP files to share them into the project (agents can then read them
 with their tools). Serves on 127.0.0.1 only -- it is a local cockpit, never exposed.
 
-  py scripts/bifrost_ui.py                 # http://127.0.0.1:8787
-  py scripts/bifrost_ui.py --port 9000
+  py scripts/bifrost_ui.py                 # http://127.0.0.1:8787  (config.PORT_UI)
+  py scripts/bifrost_ui.py --port 8901     # a throwaway UI: the 89xx test band, NEVER 8787
 
 Transport: Server-Sent Events (bus -> browser, live) + plain POST (browser -> bus). No websockets, no
 build step, no npm. Pause/loop-guard come from core/comm/control.py; messages from core/comm/bus.py.

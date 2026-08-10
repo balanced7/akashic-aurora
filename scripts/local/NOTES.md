@@ -6,13 +6,13 @@
 
 ## Current state (2026-07-02)
 
-- **Ollama 0.31.1 native** on `127.0.0.1:11435` — deliberately NOT 11434: that port is a
+- **Ollama 0.31.1 native** on `127.0.0.1:11434` — deliberately NOT 11434: that port is a
   Docker/WSL Ollama **0.20.5** (the raw-JSON tool-bug version) serving the Open WebUI
   stack (`ai-ollama` container). Never touch it; never trust `ollama --version` alone —
   check the port owner (lesson: local_ollama_port_shadowing).
 - **glm-4.7-flash** (19 GB) runs 14 GiB-on-GPU (RX 9070 XT 16 GB, Vulkan — RDNA4 has no
   Windows ROCm), ctx=64000, flash attention, q8_0 KV cache. Persistent user env:
-  OLLAMA_HOST=127.0.0.1:11435, OLLAMA_CONTEXT_LENGTH=64000, OLLAMA_FLASH_ATTENTION=1,
+  OLLAMA_HOST=127.0.0.1:11434, OLLAMA_CONTEXT_LENGTH=64000, OLLAMA_FLASH_ATTENTION=1,
   OLLAMA_KV_CACHE_TYPE=q8_0.
 - **Measured**: ~25 tok/s generation; 30.9K-token context canary green (177 s cold
   prefill, warm turns incremental); clean `tool_use` blocks, on-schema.

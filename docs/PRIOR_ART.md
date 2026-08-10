@@ -35,8 +35,8 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 - `core/primitives` -- DRIFT (7->8), reviewed 2026-07-26
 - `core/trust` -- DRIFT (2->3), reviewed 2026-07-26
 - `core/fleet` -- DRIFT (2->3), reviewed 2026-07-26
-- `scripts/checkers` -- DRIFT (12->16), reviewed 2026-07-26
-- `scripts/generators` -- DRIFT (6->7), reviewed 2026-07-26
+- `scripts/checkers` -- DRIFT (12->17), reviewed 2026-07-26
+- `scripts/generators` -- DRIFT (6->8), reviewed 2026-07-26
 - `scripts/ops` -- DRIFT (2->3), reviewed 2026-07-26
 - `tests` -- DRIFT (331->515), reviewed 2026-07-26
 
@@ -447,7 +447,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by deepseek (swept), claude (folded)._
 
-## `scripts/checkers` -- 16 modules  ·  DRIFT (12->16)
+## `scripts/checkers` -- 17 modules  ·  DRIFT (12->17)
 
 **What it does.** Twelve guards run at ship/CI time: door parity, doc currency, pointer promises, comprehensibility, boundaries, clobber scan and others. They fail the build on drift.
 
@@ -469,7 +469,7 @@ _Reviewed 2026-07-26 by deepseek (swept), claude (folded)._
 
 _Reviewed 2026-07-26 by claude._
 
-## `scripts/generators` -- 7 modules  ·  DRIFT (6->7)
+## `scripts/generators` -- 8 modules  ·  DRIFT (6->8)
 
 **What it does.** Six generators projecting live code into documents: MAP.md (module census), MODULE_INDEX.md (docstrings), PHYSICS.md (bounds and env flags), DOORS.md (CLI verb reference), PRIOR_ART.md (this register), and the arch index.
 

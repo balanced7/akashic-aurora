@@ -32,11 +32,11 @@ def _load() -> Dict[str, Any]:
             return doc
     except Exception:
         pass
-    return {"models": [], "default_host": "http://127.0.0.1:11435"}
+    return {"models": [], "default_host": "http://127.0.0.1:11434"}
 
 
 def default_host() -> str:
-    return str(_load().get("default_host") or "http://127.0.0.1:11435")
+    return str(_load().get("default_host") or "http://127.0.0.1:11434")
 
 
 def models(*, status: Optional[str] = None, capability: Optional[str] = None) -> List[Dict[str, Any]]:

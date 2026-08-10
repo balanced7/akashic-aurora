@@ -41,7 +41,7 @@ def _req(url, payload=None, timeout=600):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--host", default="http://127.0.0.1:11435")
+    ap.add_argument("--host", default="http://127.0.0.1:11434")
     ap.add_argument("--model", default="glm-4.7-flash")
     ap.add_argument("--canary-tokens", type=int, default=8000,
                     help="approx filler tokens before the recall question (default 8000 -- "

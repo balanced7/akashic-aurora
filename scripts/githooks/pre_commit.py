@@ -91,7 +91,7 @@ GUARDRAILS = ("check_boundaries", "check_doc_freshness", "check_comprehensibilit
 # rather than on whoever caused it. Measured: regenerated twice in one hour, stale both times.
 # The commit REGENERATES them; it does not check them.
 GENERATORS = ("gen_arch_index", "gen_physics_sheet", "gen_master_map",
-              "gen_doors", "gen_prior_art_register")
+              "gen_doors", "gen_prior_art_register", "gen_ports")
 
 BASELINE_PATH = os.path.join(ROOT, "state", "ci", "guardrail_baseline.json")
 
