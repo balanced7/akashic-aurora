@@ -65,6 +65,13 @@ _LOG_KEY = "residents:log:{agent}"
 #: residents without a keyspace scan (the census lesson: measure the distribution, don't guess).
 _INDEX_KEY = "residents:all"
 
+#: T259 -- ONE global append-only stream of role assignments, each record carrying its agent.
+#: One log rather than per-agent shards because the load-bearing query is CROSS-resident
+#: ("All Jesters on Red of exercise 7") and a single scan cannot miss a shard. Projection cost
+#: is O(assignments); at fleet scale that is tens of rows, and the posture is stated here so
+#: the day it grows chatty the revisit has an address.
+_ROLES_KEY = "residents:roles:log"
+
 NOMINATED = "nominated"
 RATIFIED = "ratified"
 
@@ -247,6 +254,92 @@ def designation(agent_id: str) -> str:
     return " | ".join(parts)
 
 
+def assign(*, agent: str, role: str, side: str = "", exercise: str = "",
+           by: str = "") -> Dict[str, Any]:
+    """Record that a resident is OPERATING AS `role` -- an event, never a field.
+
+    Identity is permanent; the job is situational. Rook stays Rook while operating as Jester
+    on Red in exercise 7, and when the job changes the old assignment SURVIVES, because the
+    query Daniil named -- who was operating as what, when -- is a question about the past and
+    an update-in-place would erase the only record that can answer it.
+
+    PROVENANCE IS DERIVED, NOT DECLARED: by == agent renders `self-declared`, anyone else
+    renders `assigned`. His phrase was "declarable job title", so self-declaration is legal --
+    but T255 is open one plane down on exactly the defect of a player-declared field nothing
+    verifies, so the label must exist and must be filterable. Deriving it from `by` means it
+    cannot be forged by passing a flag.
+
+    Refuses a non-resident: roles live on the identity sheet, and a seat with no sheet has
+    nowhere to wear one. The refusal points at the ceremony that fixes it.
+    """
+    agent = str(agent or "").strip()
+    role = str(role or "").strip()
+    by = str(by or "").strip()
+    if not agent or not role or not by:
+        raise ValueError("assign needs an agent, a role and an assigner (`by`)")
+    if get(agent) is None:
+        raise ValueError(
+            f"refused: '{agent}' is not a resident (no ratified designation), so there is no "
+            f"identity sheet to carry a role. Run the ceremony first: py agent_cli.py resident "
+            f"nominate {agent} --callsign <name> --receipt <their lesson> --by <peer>"
+        )
+    rec = {
+        "agent_id": agent, "role": role, "side": str(side or "").strip(),
+        "exercise": str(exercise or "").strip(), "by": by, "at": time.time(),
+        "provenance": "self-declared" if by.lower() == agent.lower() else "assigned",
+    }
+    _store().rpush(_ROLES_KEY, json.dumps(rec, ensure_ascii=False))
+    return rec
+
+
+def _role_records() -> List[Dict[str, Any]]:
+    raw = _store().lrange(_ROLES_KEY, 0, -1) or []
+    out: List[Dict[str, Any]] = []
+    for r in raw:
+        try:
+            out.append(json.loads(r))
+        except Exception:
+            continue                      # a corrupt row must not hide the rest of the timeline
+    return out
+
+
+def roles(*, agent: Optional[str] = None, role: Optional[str] = None,
+          side: Optional[str] = None, exercise: Optional[str] = None,
+          provenance: Optional[str] = None) -> List[Dict[str, Any]]:
+    """The projection: every assignment matching every given filter, oldest first.
+
+    "All Jesters on Red of exercise 7" is roles(role="Jester", side="Red", exercise="E7").
+    A filter nothing matches returns [] -- never the unfiltered log, because a fallback wider
+    than the thing it replaces is the audited defect class (the degraded answer must be a
+    SUBSET of the normal one).
+    """
+    out = []
+    for rec in _role_records():
+        if agent is not None and rec.get("agent_id") != agent:
+            continue
+        if role is not None and rec.get("role") != role:
+            continue
+        if side is not None and rec.get("side") != side:
+            continue
+        if exercise is not None and rec.get("exercise") != exercise:
+            continue
+        if provenance is not None and rec.get("provenance") != provenance:
+            continue
+        out.append(rec)
+    return out
+
+
+def role_history(agent_id: str) -> List[Dict[str, Any]]:
+    """Every assignment this resident has ever held, oldest first. Nothing is ever removed."""
+    return roles(agent=agent_id)
+
+
+def current_role(agent_id: str) -> Optional[Dict[str, Any]]:
+    """The LATEST assignment, projected -- or None, which is the ordinary state, not an error."""
+    hist = role_history(agent_id)
+    return hist[-1] if hist else None
+
+
 def boot_block(agent_id: str) -> str:
     """The lines a resident's boot fold carries so it can answer 'who am I, and why'.
 
@@ -265,4 +358,12 @@ def boot_block(agent_id: str) -> str:
         lines.append("#   (drill any of them: py agent_cli.py recall --full learn:experiment:<name>)")
     if rec.get("formerly"):
         lines.append("#   formerly: " + ", ".join(rec["formerly"]))
+    # T259: the situational half of the sheet -- what this resident is DOING right now, beside
+    # who it permanently IS. Absent when no assignment exists: no role is the ordinary state.
+    job = current_role(agent_id)
+    if job:
+        where = " / ".join(p for p in (job.get("side"), job.get("exercise")) if p)
+        tag = "" if job.get("provenance") == "assigned" else " [self-declared]"
+        lines.append(f"#   operating as: {job['role']}" + (f" ({where})" if where else "") +
+                     f" -- by {job.get('by')}{tag}")
     return "\n".join(lines)

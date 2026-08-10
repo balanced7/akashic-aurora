@@ -4898,6 +4898,34 @@ def cmd_resident(args):
             print(f"           formerly: {', '.join(prior)}  (superseded, never deleted)")
         return 0
 
+    if sub == "assign":
+        try:
+            rec = R.assign(agent=args.nominee, role=args.role, side=args.side,
+                           exercise=args.exercise, by=args.by)
+        except ValueError as e:
+            print(f"[resident] {e}")
+            return 1
+        where = " / ".join(p for p in (rec.get("side"), rec.get("exercise")) if p)
+        print(f"[resident] {rec['agent_id']} now operating as {rec['role']}"
+              + (f" ({where})" if where else "")
+              + f" -- {rec['provenance']} by {rec['by']}")
+        return 0
+
+    if sub == "roles":
+        hits = R.roles(agent=(args.agent or None), role=(args.role or None),
+                       side=(args.side or None), exercise=(args.exercise or None),
+                       provenance=(args.provenance or None))
+        if not hits:
+            print("# no assignments match")
+            return 0
+        for h in hits:
+            where = " / ".join(p for p in (h.get("side"), h.get("exercise")) if p)
+            cs = (R.get(h["agent_id"]) or {}).get("callsign") or ""
+            print(f"  {h['agent_id']}" + (f" '{cs}'" if cs else "")
+                  + f" -- {h['role']}" + (f" ({where})" if where else "")
+                  + f" [{h.get('provenance')}] by {h.get('by')}")
+        return 0
+
     # show
     who = getattr(args, "nominee", "") or ""
     if not who:
@@ -4920,6 +4948,12 @@ def cmd_resident(args):
     if rec.get("formerly"):
         print(f"  formerly:  {', '.join(rec['formerly'])}")
     print(f"  ratified by {rec.get('ratified_by') or '?'}")
+    # T259: the situational plane, rendered beside the permanent one -- never merged into it.
+    job = R.current_role(who)
+    if job:
+        where = " / ".join(p for p in (job.get("side"), job.get("exercise")) if p)
+        print(f"  operating as: {job['role']}" + (f" ({where})" if where else "")
+              + f" [{job.get('provenance')}] by {job.get('by')}")
     return 0
 
 
@@ -6046,6 +6080,24 @@ def build_parser():
     rsho = rsps.add_parser("show", help="render a resident's designation and the receipts behind it")
     rsho.add_argument("nominee", nargs="?", default="")
     rsho.set_defaults(fn=cmd_resident)
+    # T259: the identity/role split. An assignment is an EVENT (append-only); current role is
+    # a projection; "All Jesters on Red of exercise 7" is `resident roles --role --side --exercise`.
+    rasg = rsps.add_parser("assign", help="record that a resident is operating as a role (an event, never a field)")
+    rasg.add_argument("nominee", help="the resident taking the role")
+    rasg.add_argument("--role", required=True, help="the job (Jester, Oracle, Premise-Check, ...)")
+    rasg.add_argument("--side", default="", help="team side for the exercise (Red, Blue, ...)")
+    rasg.add_argument("--exercise", default="", help="which exercise/round this assignment belongs to")
+    rasg.add_argument("--by", required=True,
+                      help="the assigner. by == agent is LEGAL and renders self-declared; "
+                           "anyone else renders assigned (provenance is derived, not a flag)")
+    rasg.set_defaults(fn=cmd_resident)
+    rrol = rsps.add_parser("roles", help="query assignments: e.g. --role Jester --side Red --exercise E7")
+    rrol.add_argument("--agent", default="", help="filter to one resident")
+    rrol.add_argument("--role", default="")
+    rrol.add_argument("--side", default="")
+    rrol.add_argument("--exercise", default="")
+    rrol.add_argument("--provenance", default="", help="assigned | self-declared")
+    rrol.set_defaults(fn=cmd_resident)
 
     dsp = sub.add_parser("doc", help="seed a new doc with its header contract (library door)")
     dsps = dsp.add_subparsers(dest="sub")

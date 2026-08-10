@@ -252,6 +252,14 @@ MANIFEST = {
     # nominate) and rule 3 (a human ratifies) into one move an agent can perform alone. The
     # shell IS the human's door here. Do NOT pay this one down.
     "ratify": "cli_only",
+    # T259 -- the identity/role split. `assign` is GAP for the same reason as nominate: the
+    # phrase in the directive is "DECLARABLE job title", so residents self-declare and peers
+    # assign, and both of those are agent moves made through the tool surface. Provenance is
+    # derived from `by` (self-declared vs assigned), so agent access does not weaken the T255
+    # guard -- the label cannot be forged by a flag. `roles` is the read half: any seat should
+    # be able to ask who is operating as what. PAY DOWN with the nominate/show MCP twins.
+    "assign": "gap",
+    "roles": "gap",
     "pulse": "cli_only",           # LIFEWORKERS pressure map (W25)
     "run": "cli_only",             # execute a toolbelt alias
     "suite_baseline": "cli_only",  # record/compare the pytest baseline; needs shell
