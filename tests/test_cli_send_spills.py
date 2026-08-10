@@ -64,16 +64,17 @@ def test_p1_a_long_body_sent_to_a_PEER_is_fetchable_by_the_sender(tmp_path):
     mints a stream id addressed to the RECIPIENT's stream, so the sender -- the only party
     who can compare sent-vs-received -- is the one party who cannot read it back.
     """
-    _send_big_to("deepseek", tmp_path)
+    sent = _send_big_to("deepseek", tmp_path)
 
-    # Find whatever address the door advertised, blob ref or stream id, and resolve it.
-    rc, out, _ = run("bifrost-sync", "claude", "--json")
-    ref = None
-    m = re.search(r"(blob:[0-9a-f]{6,})", out)
-    if m:
-        ref = m.group(1)
-    assert ref, ("the send door must advertise a CONTENT-ADDRESSED ref for an oversize "
-                 "body -- a stream id is an address only the recipient can resolve")
+    # The ref must come from THE SEND ITSELF. An earlier draft of this pin looked in the
+    # sender's own inbox and failed -- correctly: the message is on the RECIPIENT's stream,
+    # which is the whole defect. The sender learning the address at send time is the fix,
+    # not a convenience: it is the only moment the sender can still act on it.
+    m = re.search(r"(blob:[0-9a-f]{6,})", sent)
+    assert m, ("the send door must advertise a CONTENT-ADDRESSED ref for an oversize body, "
+               "TO THE SENDER, at send time -- a stream id is an address only the recipient "
+               f"can resolve. Door said: {sent[:300]!r}")
+    ref = m.group(1)
 
     rc, got, err = run("bifrost-fetch", "--get", ref)
     assert rc == 0, f"the advertised ref must resolve for the SENDER: {err or got}"

@@ -5170,6 +5170,21 @@ def cmd_bifrost_send(args):
             if not text.strip():
                 print("[bifrost-send] no message text (positional, --text-file, or piped stdin) -- not sent.")
                 return 2
+    # T263: SPILL AN OVERSIZE BODY, exactly as the tool door has since T113. Until now
+    # spill_tool_text had three callers and all three were in toolbox.py, so a long CLI
+    # message was clipped at RENDER time and the reader was handed a STREAM-ID pointer --
+    # an address that resolves only from a stream the reader can already read. Measured
+    # 2026-08-09: claude->claude fetched fine, claude->deepseek returned "no blob or bus
+    # message" from BOTH ends, and deepseek answered a stale backlog item because it could
+    # not read the brief it had been sent. A blob sha is an address everyone can reach.
+    # Degrades to the historical clip when the blob store is unreachable -- today's
+    # behaviour is the floor, never a dropped message.
+    from core.comm import packet_spec as _pspec
+    text, _spill = _pspec.spill_tool_text(text)
+    if _spill.get("spilled"):
+        print(f"[bifrost-send] body spilled: {_spill['spill_len']} chars -> "
+              f"{_spill['spill_ref']} (the recipient fetches it; nobody re-sends)",
+              file=sys.stderr)
     expect_arg = int(getattr(args, "expect_reply_within", -1))   # -1 = UNSET (arg default)
     # Directed ASKS (request/handoff/question) DEFAULT to a reply-deadline so a dropped ask surfaces
     # itself -- the 2026-07-12 silent-handoff incident: fenced asks fire-and-forgotten to a dead peer
