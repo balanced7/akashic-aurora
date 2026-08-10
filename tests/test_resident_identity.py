@@ -210,11 +210,15 @@ def test_p9_a_store_fault_is_unknown_not_a_verdict_about_the_receipt(seeded, mon
     became a verdict about someone's callsign evidence -- absence vs UNKNOWN, inside a door
     built to be strict about exactly that distinction."""
     from core.fleet import residents as R
+    import core.learning.learning_store as LS
 
+    # Fail THE STORE, not the function -- the realistic outage. A bug inside _receipt_author
+    # should crash loudly instead; only a store fault may be converted to UNKNOWN, or the
+    # conversion becomes a new way to hide real bugs (the defect this pin exists about).
     def _explode(*a, **k):
         raise RuntimeError("redis is on fire")
 
-    monkeypatch.setattr(R, "_receipt_author", _explode)
+    monkeypatch.setattr(LS, "get_learning_store", _explode)
     with pytest.raises(ValueError) as e:
         R.nominate(nominee="kimi", callsign="Outage", receipts=[seeded["kimi"]], by="claude")
     msg = str(e.value).lower()

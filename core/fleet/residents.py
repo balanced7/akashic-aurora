@@ -80,19 +80,46 @@ def _store():
     return create_store()
 
 
-def _receipt_author(experiment: str) -> Optional[str]:
-    """Who authored the lesson `experiment`, or None when it does not resolve.
+class ReceiptStoreUnavailable(RuntimeError):
+    """The archive could not be consulted, so receipt authorship is UNKNOWN.
 
-    None means UNKNOWN -- the caller must refuse rather than assume. It never means "nobody",
-    and it must never be coerced into one.
+    T262, found by the kill-drill's resident arm: this used to be swallowed into a plain
+    None, which `nominate` reads as "the receipt does not resolve" and refuses on. That made
+    a store outage render a VERDICT about someone's callsign evidence. UNKNOWN and ABSENT
+    are different answers and only one of them is about the receipt.
+    """
+
+
+def _corrupt_row(where: str, index: int, raw: str) -> None:
+    """A dropped record announces itself. Never silent.
+
+    T262: `except: continue` made a lost row invisible to every caller, in a module whose
+    own docstring says absence must not read as success -- the T178 guard-of-guards shape,
+    committed by the author of the lecture. stderr because it is the channel a human and a
+    subprocess-capturing test both actually read; the good rows still return, so one bad row
+    cannot hide the rest.
+    """
+    import sys as _sys
+    print(f"[residents] CORRUPT ROW at {where}[{index}] -- unreadable and SKIPPED "
+          f"({str(raw)[:60]!r}). The remaining rows are intact; this one is lost.",
+          file=_sys.stderr)
+
+
+def _receipt_author(experiment: str) -> Optional[str]:
+    """Who authored the lesson `experiment`, or None when the lesson genuinely is not there.
+
+    None means ABSENT -- a real answer about a real lookup. A store that could not be
+    consulted raises ReceiptStoreUnavailable instead, because the caller must be able to
+    tell "there is no such lesson" from "I could not look", and only the first is evidence
+    about the nominee.
     """
     try:
         from core.learning.learning_store import get_learning_store
         # _load_experiment is the only exact-key read the store offers; every public accessor
         # searches. Noted as owed ergonomics rather than worked around silently.
         rec = get_learning_store()._load_experiment(experiment)
-    except Exception:
-        return None
+    except Exception as e:
+        raise ReceiptStoreUnavailable(f"{type(e).__name__}: {e}") from e
     if not rec:
         return None
     # .strip() per deepseek's T258 review: a stored agent_id carrying stray whitespace would
@@ -102,13 +129,14 @@ def _receipt_author(experiment: str) -> Optional[str]:
 
 
 def _records(agent_id: str) -> List[Dict[str, Any]]:
-    raw = _store().lrange(_LOG_KEY.format(agent=agent_id), 0, -1) or []
+    key = _LOG_KEY.format(agent=agent_id)
+    raw = _store().lrange(key, 0, -1) or []
     out: List[Dict[str, Any]] = []
-    for r in raw:
+    for i, r in enumerate(raw):
         try:
             out.append(json.loads(r))
         except Exception:
-            continue                      # a corrupt row must not hide the rest of the history
+            _corrupt_row(key, i, r)       # loud: a lost row must never be invisible (T262)
     return out
 
 
@@ -153,7 +181,17 @@ def nominate(*, nominee: str, callsign: str, receipts: List[str], by: str,
 
     # RULE 2 -- every receipt must resolve, and must be authored BY the nominee.
     for r in receipts:
-        author = _receipt_author(r)
+        try:
+            author = _receipt_author(r)
+        except ReceiptStoreUnavailable as e:
+            # UNKNOWN, and it must not masquerade as a verdict about the receipt. Refusing is
+            # still correct -- an unverified receipt may not mint a callsign -- but the reason
+            # given is the outage, so nobody reads it as "your evidence is bad" (T262).
+            raise ValueError(
+                f"refused: could not verify receipt '{r}' -- the archive is UNAVAILABLE "
+                f"({e}). This is UNKNOWN, not a judgement about the receipt: retry when the "
+                f"store is reachable rather than treating this as a failed nomination."
+            ) from e
         if author is None:
             raise ValueError(
                 f"refused: receipt '{r}' does not resolve to any lesson. UNKNOWN is not "
@@ -328,11 +366,11 @@ def assign(*, agent: str, role: str, side: str = "", exercise: str = "",
 def _role_records() -> List[Dict[str, Any]]:
     raw = _store().lrange(_ROLES_KEY, 0, -1) or []
     out: List[Dict[str, Any]] = []
-    for r in raw:
+    for i, r in enumerate(raw):
         try:
             out.append(json.loads(r))
         except Exception:
-            continue                      # a corrupt row must not hide the rest of the timeline
+            _corrupt_row(_ROLES_KEY, i, r)   # loud: a lost assignment is a lost timeline (T262)
     return out
 
 
