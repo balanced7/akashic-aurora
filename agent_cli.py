@@ -243,6 +243,17 @@ def cmd_boot(args):
         print(_recall_armed_line(_warm_n))
     except Exception:
         print(_recall_armed_line(None))
+    # T258: a resident boots knowing WHO IT IS and WHY. Front-loaded deliberately -- kimi's
+    # provenance-laundering objection was that a callsign asserts an archive the boot may not
+    # carry, measured at 0/8 receipts present before this landed. Silent for a non-resident:
+    # most seats have no designation and that is not a warning.
+    try:
+        from core.fleet import residents as _res
+        _who = _res.boot_block(args.agent_id)
+        if _who:
+            print(_who)
+    except Exception:
+        pass                      # identity is orientation, never a reason a boot fails
     # T133: GHOST MAIL RECONCILES ITSELF, on the same terms as the heal below -- cheap no-op when
     # nothing is due, real work only on drift, silent unless something moved. Ghost mail RECURS by
     # construction (the index ingests on read, so it grows as it is queried and each growth can
@@ -4845,6 +4856,70 @@ def cmd_grant(args):
         return 2
 
 
+def cmd_resident(args):
+    """T258: the callsign ceremony's door -- nominate, ratify, show.
+
+    The registry refuses a self-nomination and a receipt the nominee did not author, so those
+    rules are enforced HERE at the door rather than by anyone remembering them. Refusals exit
+    nonzero and print WHY, because a refusal that does not say why trains the reader to route
+    around it.
+    """
+    from core.fleet import residents as R
+    sub = getattr(args, "sub", "") or "show"
+
+    if sub == "nominate":
+        try:
+            rec = R.nominate(nominee=args.nominee, callsign=args.callsign,
+                             receipts=list(args.receipt or []), by=args.by,
+                             vendor=args.vendor, family=args.family, team=args.team,
+                             number=(int(args.number) if args.number is not None else None),
+                             note=args.note)
+        except ValueError as e:
+            print(f"[resident] {e}")
+            return 1
+        print(f"[resident] nominated {rec['agent_id']} as '{rec['callsign']}' by {rec['by']}")
+        print(f"           receipts: {', '.join(rec['receipts'])}")
+        print(f"           NOT yet active -- rule 3, a human ratifies: "
+              f"py agent_cli.py resident ratify {rec['agent_id']} --callsign {rec['callsign']} --by <you>")
+        return 0
+
+    if sub == "ratify":
+        try:
+            rec = R.ratify(nominee=args.nominee, callsign=args.callsign, by=args.by)
+        except ValueError as e:
+            print(f"[resident] {e}")
+            return 1
+        print(f"[resident] RATIFIED: {R.designation(rec['agent_id'])}")
+        prior = (R.get(rec["agent_id"]) or {}).get("formerly") or []
+        if prior:
+            print(f"           formerly: {', '.join(prior)}  (superseded, never deleted)")
+        return 0
+
+    # show
+    who = getattr(args, "nominee", "") or ""
+    if not who:
+        print("usage: py agent_cli.py resident show <agent>")
+        return 2
+    rec = R.get(who)
+    if not rec:
+        hist = R.history(who)
+        if hist:
+            print(f"# {who} has {len(hist)} nomination(s) on record but NONE ratified yet.")
+            for h in hist:
+                print(f"  [{h.get('state')}] '{h.get('callsign')}' by {h.get('by')} "
+                      f"-- receipts: {', '.join(h.get('receipts') or [])}")
+        else:
+            print(f"# {who} is not a resident (no designation). That is the ordinary state for "
+                  f"most seats, not an error.")
+        return 0
+    print(f"# {R.designation(who)}")
+    print(f"  earned by: {', '.join(rec.get('receipts') or [])}")
+    if rec.get("formerly"):
+        print(f"  formerly:  {', '.join(rec['formerly'])}")
+    print(f"  ratified by {rec.get('ratified_by') or '?'}")
+    return 0
+
+
 def cmd_roster(args):
     """S2: the lobby -- every seat's proven liveness + inventory pointers (W84 render)."""
     from core.comm.roster import roster, render_roster, by_agent, render_by_agent
@@ -5942,6 +6017,33 @@ def build_parser():
     fr.set_defaults(fn=cmd_friction)
 
     # D1: doc new — the library seeding door
+    # T258: the callsign ceremony's door. Three verbs because the ceremony has three moves --
+    # a peer drafts, a human ratifies, anyone can read. The registry refuses self-nomination and
+    # foreign receipts, so the rules cannot be skipped by using the door instead of the module.
+    rsp = sub.add_parser("resident", help="callsign ceremony: nominate / ratify / show a resident's designation")
+    rsps = rsp.add_subparsers(dest="sub")
+    rnom = rsps.add_parser("nominate", help="propose a callsign for a PEER (never yourself)")
+    rnom.add_argument("nominee", help="the agent being named (may not be you)")
+    rnom.add_argument("--callsign", required=True, help="the proposed callsign")
+    rnom.add_argument("--receipt", action="append", required=True,
+                      help="lesson experiment_name the nominee AUTHORED (repeatable); a receipt "
+                           "someone else wrote is a recollection and is refused")
+    rnom.add_argument("--by", required=True, help="you, the nominator")
+    rnom.add_argument("--vendor", default="", help="AI vendor (mutable: a model upgrade must not orphan the archive)")
+    rnom.add_argument("--family", default="", help="family name")
+    rnom.add_argument("--team", default="", help="team or group")
+    rnom.add_argument("--number", default=None, help="individual short id")
+    rnom.add_argument("--note", default="", help="one sentence connecting the receipt to the name")
+    rnom.set_defaults(fn=cmd_resident)
+    rrat = rsps.add_parser("ratify", help="confirm a nominated callsign (rule 3: a human ratifies)")
+    rrat.add_argument("nominee")
+    rrat.add_argument("--callsign", required=True)
+    rrat.add_argument("--by", required=True, help="the ratifier")
+    rrat.set_defaults(fn=cmd_resident)
+    rsho = rsps.add_parser("show", help="render a resident's designation and the receipts behind it")
+    rsho.add_argument("nominee", nargs="?", default="")
+    rsho.set_defaults(fn=cmd_resident)
+
     dsp = sub.add_parser("doc", help="seed a new doc with its header contract (library door)")
     dsps = dsp.add_subparsers(dest="sub")
     dnew = dsps.add_parser("new", help="create a new doc with header + canon name + home")

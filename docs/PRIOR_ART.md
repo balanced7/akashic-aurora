@@ -23,7 +23,7 @@ Letta's plain files beat a graph memory system; Wikidata's three ranks run at ~1
 statements where ATMS dies around 100 beliefs. The cost of NOT sweeping is measured in
 rebuilt wheels and dead ends, so the sweep is now a standing artifact rather than a mood.
 
-## Coverage: 11 current, 11 drift, 0 gap (of 22 subsystems)
+## Coverage: 10 current, 12 drift, 0 gap (of 22 subsystems)
 
 **DRIFT -- surveyed, but the subsystem has changed size since:**
 
@@ -34,6 +34,7 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 - `core/recall` -- DRIFT (10->13), reviewed 2026-07-26
 - `core/primitives` -- DRIFT (7->8), reviewed 2026-07-26
 - `core/trust` -- DRIFT (2->3), reviewed 2026-07-26
+- `core/fleet` -- DRIFT (2->3), reviewed 2026-07-26
 - `scripts/checkers` -- DRIFT (12->16), reviewed 2026-07-26
 - `scripts/generators` -- DRIFT (6->7), reviewed 2026-07-26
 - `scripts/ops` -- DRIFT (2->3), reviewed 2026-07-26
@@ -289,7 +290,7 @@ _Reviewed 2026-07-26 by claude (docstring sweep) + deepseek (partial, p4)._
 
 _Reviewed 2026-07-26 by deepseek (swept), claude (folded)._
 
-## `core/fleet` -- 2 modules  ·  current
+## `core/fleet` -- 3 modules  ·  DRIFT (2->3)
 
 **What it does.** Presence autopilot supervising the fleet: crash backoff, circuit breaker, presence held across Redis outages, and a refusal to steal a running session's seat.
 

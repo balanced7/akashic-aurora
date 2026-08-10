@@ -234,6 +234,24 @@ MANIFEST = {
     "roster": "gap",               # T108 S2 seat directory: CLI only; agents need an MCP read twin
     "stand_down": "gap",           # T086 session yield: CLI only; no MCP lifecycle twin yet
     "new": "cli_only",             # subcommand of `doc`
+    # T258 -- the callsign ceremony's three moves, classified by WHO each one belongs to rather
+    # than by where it happens to live today.
+    # `resident`/`nominate`/`show` are GAP, and the reason is the ceremony's own rule 1: a peer
+    # confers your callsign, never you. The peers are deepseek and kimi, who reach the system
+    # through the tool surface and not a shell -- so a CLI-only nominate means the residents
+    # structurally cannot run the ceremony that names them, and the only nominator left is the
+    # one seat with a shell. That is debt, not a design choice, and the same shape as `adopt`
+    # above: a verb out of reach of exactly the seats it exists for.
+    # PAY DOWN BY: exposing resident_nominate + resident_show on the MCP/ToolBox door.
+    "resident": "gap",
+    "nominate": "gap",
+    "show": "gap",                 # a resident should be able to read its own designation
+    # `ratify` is DELIBERATELY cli_only, and this is the one place the door surface encodes a
+    # rule rather than an accident: rule 3 says a HUMAN ratifies. Putting ratify on the agent
+    # door would let a seat confirm its own or a peer's callsign, which collapses rule 1 (peers
+    # nominate) and rule 3 (a human ratifies) into one move an agent can perform alone. The
+    # shell IS the human's door here. Do NOT pay this one down.
+    "ratify": "cli_only",
     "pulse": "cli_only",           # LIFEWORKERS pressure map (W25)
     "run": "cli_only",             # execute a toolbelt alias
     "suite_baseline": "cli_only",  # record/compare the pytest baseline; needs shell
