@@ -74,6 +74,7 @@ _ROLES_KEY = "residents:roles:log"
 
 NOMINATED = "nominated"
 RATIFIED = "ratified"
+PLACED = "placed"
 
 
 def _store():
@@ -271,6 +272,15 @@ def get(agent_id: str) -> Optional[Dict[str, Any]]:
         if cs and cs != current.get("callsign") and cs not in formerly:
             formerly.append(cs)
     current["formerly"] = formerly
+    # T267: the POSTING is projected onto the identity, not stored in it. The latest placement
+    # wins; an unposted resident keeps whatever the nomination carried, which is usually
+    # nothing -- and nothing must render as ABSENT rather than as an empty field.
+    for rec in _records(agent_id):
+        if rec.get("state") == PLACED:
+            for f in ("family", "team", "number", "vendor"):
+                v = rec.get(f)
+                if v not in (None, ""):
+                    current[f] = v
     return current
 
 
@@ -290,6 +300,91 @@ def designation(agent_id: str) -> str:
         tail = f"{rec['number']} - {tail}"
     parts.append(tail)
     return " | ".join(parts)
+
+
+def place(*, agent: str, family: str = "", team: str = "", number: Optional[int] = None,
+          vendor: str = "", by: str = "") -> Dict[str, Any]:
+    """Post a resident to a family, a team and a number. NOT a re-naming.
+
+    Naming and posting are different acts. Ceremony rule 1 forbids naming yourself; it says
+    nothing about where you are POSTED, and posting is an org decision. Routing this through
+    nominate+ratify would mean re-ratifying an identical callsign purely to set a field --
+    filling the naming history with records that decide nothing, and minting a `formerly:`
+    entry for a name that never changed.
+
+    Appends, like everything else here. A re-posting leaves the prior posting intact, because
+    "who was in Onyx during exercise 7" is a question about the past and an update-in-place
+    would erase the only record that can answer it.
+    """
+    agent = str(agent or "").strip()
+    by = str(by or "").strip()
+    if not agent or not by:
+        raise ValueError("place needs an agent and an actor (`by`)")
+    if get(agent) is None:
+        raise ValueError(
+            f"refused: '{agent}' is not a resident (no ratified designation), so there is "
+            f"nowhere to post them. Run the ceremony first: py agent_cli.py resident nominate "
+            f"{agent} --callsign <name> --receipt <their lesson> --by <peer>"
+        )
+    # VENDOR IS SETTABLE HERE, and that is the substrate-change path the design promised. The
+    # atom's rule is that vendor is a MUTABLE attribute so a model upgrade renders as a flagged
+    # substrate change instead of orphaning the archive -- but until now it could only be set at
+    # NOMINATION, which meant re-homing a resident required re-naming it. Found by a pin of this
+    # slice failing for the "wrong" reason: the gap was real and the pin was right by accident.
+    return _append(agent, {
+        "state": PLACED, "agent_id": agent, "family": str(family or "").strip(),
+        "team": str(team or "").strip(), "number": number,
+        "vendor": str(vendor or "").strip(), "by": by, "at": time.time(),
+    })
+
+
+def placement_history(agent_id: str) -> List[Dict[str, Any]]:
+    """Every posting this resident has held, oldest first. Nothing is removed."""
+    return [r for r in _records(agent_id) if r.get("state") == PLACED]
+
+
+def current_placement(agent_id: str) -> Optional[Dict[str, Any]]:
+    """The latest posting, projected -- or None, which is the ordinary state."""
+    h = placement_history(agent_id)
+    return h[-1] if h else None
+
+
+def family_members(family: str) -> List[str]:
+    """Who is currently posted to `family`. Empty is empty, never everyone.
+
+    A family you cannot enumerate is decoration: the family half of routing needs members to
+    address, and a filter that fell back to the full roster would be the wider-than-the-thing-
+    it-replaces defect wearing an org chart.
+    """
+    want = str(family or "").strip().lower()
+    if not want:
+        return []
+    out = []
+    try:
+        for agent in (_store().lrange(_INDEX_KEY, 0, -1) or []):
+            cur = current_placement(agent)
+            if cur and str(cur.get("family") or "").strip().lower() == want:
+                out.append(agent)
+    except Exception:
+        return []
+    return sorted(out)
+
+
+def team_members(team: str) -> List[str]:
+    """Who is currently posted to `team`. The standing disposition, not the per-exercise side
+    -- that is an assignment event (T259) and deliberately a different plane."""
+    want = str(team or "").strip().lower()
+    if not want:
+        return []
+    out = []
+    try:
+        for agent in (_store().lrange(_INDEX_KEY, 0, -1) or []):
+            cur = current_placement(agent)
+            if cur and str(cur.get("team") or "").strip().lower() == want:
+                out.append(agent)
+    except Exception:
+        return []
+    return sorted(out)
 
 
 def catchup_pack(agent_id: str, topic: str, k: int = 6):

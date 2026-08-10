@@ -5024,6 +5024,41 @@ def cmd_resident(args):
             print(f"           formerly: {', '.join(prior)}  (superseded, never deleted)")
         return 0
 
+    if sub == "place":
+        try:
+            rec = R.place(agent=args.nominee, family=args.family, team=args.team,
+                          number=(int(args.number) if args.number is not None else None),
+                          vendor=getattr(args, "vendor", "") or "", by=args.by)
+        except ValueError as e:
+            print(f"[resident] {e}")
+            return 1
+        print(f"[resident] POSTED: {R.designation(rec['agent_id'])}")
+        prior = R.placement_history(rec["agent_id"])[:-1]
+        if prior:
+            p = prior[-1]
+            print(f"           previously: {p.get('family') or '-'} / {p.get('team') or '-'}"
+                  f" / {p.get('number')}  (kept -- postings append, never overwrite)")
+        return 0
+
+    if sub == "roster":
+        fam = getattr(args, "family", "") or ""
+        team = getattr(args, "team", "") or ""
+        if fam:
+            members = R.family_members(fam)
+            print(f"# family {fam}: {len(members)} member(s)")
+        elif team:
+            members = R.family_members("") or R.team_members(team)
+            print(f"# team {team}: {len(members)} member(s)")
+        else:
+            members = list(R._store().lrange("residents:all", 0, -1) or [])
+            print(f"# all residents: {len(members)}")
+        if not members:
+            print("  (none -- an empty family is empty, never everyone)")
+        for a in members:
+            d = R.designation(a)
+            print(f"  {d or a}")
+        return 0
+
     if sub == "assign":
         try:
             rec = R.assign(agent=args.nominee, role=args.role, side=args.side,
@@ -6239,6 +6274,23 @@ def build_parser():
                       help="the assigner. by == agent is LEGAL and renders self-declared; "
                            "anyone else renders assigned (provenance is derived, not a flag)")
     rasg.set_defaults(fn=cmd_resident)
+    # T267: POSTING, not naming. Rule 1 forbids naming yourself; it says nothing about where
+    # you are posted, and posting is an org decision -- so it is its own verb rather than a
+    # re-nomination that would pollute the callsign history with records deciding nothing.
+    rplc = rsps.add_parser("place", help="post a resident to a family/team/number (not a re-naming)")
+    rplc.add_argument("nominee", help="the resident being posted")
+    rplc.add_argument("--family", default="", help="standing working group (persists across exercises)")
+    rplc.add_argument("--team", default="", help="standing disposition (the per-exercise SIDE is `assign`)")
+    rplc.add_argument("--number", default=None, help="individual short id within the family")
+    rplc.add_argument("--vendor", default="",
+                      help="re-home to a different substrate -- vendor is MUTABLE by design, so "
+                           "a model upgrade is a flagged change and never an orphaned archive")
+    rplc.add_argument("--by", required=True, help="who is posting them")
+    rplc.set_defaults(fn=cmd_resident)
+    rros = rsps.add_parser("roster", help="who is in a family or team -- the thing routing addresses")
+    rros.add_argument("--family", default="")
+    rros.add_argument("--team", default="")
+    rros.set_defaults(fn=cmd_resident)
     rrol = rsps.add_parser("roles", help="query assignments: e.g. --role Jester --side Red --exercise E7")
     rrol.add_argument("--agent", default="", help="filter to one resident")
     rrol.add_argument("--role", default="")

@@ -260,6 +260,14 @@ MANIFEST = {
     # be able to ask who is operating as what. PAY DOWN with the nominate/show MCP twins.
     "assign": "gap",
     "roles": "gap",
+    # T267 -- `place` is DELIBERATELY cli_only, on the same reasoning as `ratify` and not by
+    # accident. Posting is an ORG act, and once routing addresses families (T108), a seat that
+    # could place ITSELF into Onyx could opt into receiving work addressed to Onyx -- a
+    # capability grant by self-declaration, which is the T255 class wearing an org chart.
+    # `assign` is a gap rather than cli_only because the directive explicitly says "DECLARABLE
+    # job title" and provenance is derived from `by`, so self-declaration there is legal AND
+    # labelled. Placement has no such label and no such licence. Do NOT pay this one down.
+    "place": "cli_only",
     "pulse": "cli_only",           # LIFEWORKERS pressure map (W25)
     "run": "cli_only",             # execute a toolbelt alias
     "suite_baseline": "cli_only",  # record/compare the pytest baseline; needs shell

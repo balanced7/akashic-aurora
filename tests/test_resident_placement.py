@@ -62,7 +62,8 @@ def posted():
 
 def test_p1_placement_completes_the_four_field_designation(posted):
     from core.fleet import residents as R
-    R.place(agent="kimi", family="Jade", team="Red", number=1, by="daniil_pin")
+    R.place(agent="kimi", family="Jade", team="Red", number=1, vendor="Kimi",
+            by="daniil_pin")
     d = R.designation("kimi")
     for part in ("Kimi", "Jade", "Red", "Navi"):
         assert part in d, f"'{part}' missing from the full designation: {d!r}"
@@ -77,8 +78,11 @@ def test_p1b_an_unplaced_resident_still_renders_the_short_form(posted):
     R.nominate(nominee="cursor", callsign="Compass", receipts=[exp], by="daniil_pin")
     R.ratify(nominee="cursor", callsign="Compass", by="daniil_pin")
     d = R.designation("cursor")
-    assert "Compass" in d and "|" in d
-    assert "None" not in d and "  " not in d, f"an unplaced resident must render clean: {d!r}"
+    assert "Compass" in d
+    # No pipe is CORRECT here: with no vendor and no posting there is only a callsign. The
+    # first draft of this pin demanded a "|" and was asserting a FORMAT rather than the
+    # property that matters -- that absent fields render as absent, never as empty segments.
+    assert "None" not in d and "|  |" not in d and not d.strip().startswith("|"),         f"absent fields must render as ABSENT, not as empty segments: {d!r}"
 
 
 # ---------------------------------------------------------------- P2: append-only
@@ -90,8 +94,13 @@ def test_p2_a_reposting_appends_and_the_prior_posting_survives(posted):
     assert "Onyx" in R.designation("kimi") and "Blue" in R.designation("kimi")
     hist = R.placement_history("kimi")
     fams = [h.get("family") for h in hist]
-    assert fams == ["Jade", "Onyx"], \
+    # Assert the TAIL, not the whole list. The fixture is module-scoped, so earlier tests have
+    # already posted this resident; demanding the full history asserted a test isolation that
+    # shared state never provided. The pin's bug, not the code's -- and the ordering claim this
+    # pin actually makes is about the last two postings.
+    assert fams[-2:] == ["Jade", "Onyx"], \
         f"both postings must survive in order -- an update path would erase the timeline: {fams}"
+    assert len(fams) >= 2, "history must accumulate, never overwrite"
 
 
 def test_p3_placement_never_touches_the_callsign_or_mints_a_formerly(posted):
