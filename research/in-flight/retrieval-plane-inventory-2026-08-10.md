@@ -56,6 +56,13 @@ result from the readable planes is **not** a negative about what was said.
 Benchmarked against priori.sh's shipped facet surface (Source · Entity · Type · Relationship ·
 Exact phrase, with as-of beside the search box):
 
+> **AUDIT NOTE 2026-08-10 (live API, Daniil's key):** the facet reading CONFIRMED — plus
+> operator syntax (`source:`/`entity:`/`type:`/`rel:`/`-term`) and an "interpreted as" parse
+> echo the screenshot didn't show. One correction rides the lesson
+> `priorish_live_api_audit_corrects_screenshot_claims`: a Pro-gated vector reranker exists in
+> their document plane (second-stage after facets, never on `/search`), so "no semantic at
+> all" overstated it; the conclusion of this inventory is unchanged and strengthened.
+
 | dimension | where it already lives | queryable today? |
 |---|---|---|
 | **Who** | `agent_id` on lessons; `by`/`owner` on tasks; commit author; `frm` on bus | only via `recall --agent`, added 2026-08-10 (T260) |

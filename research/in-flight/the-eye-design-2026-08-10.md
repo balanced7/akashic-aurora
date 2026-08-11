@@ -122,6 +122,13 @@ per-observation URLs (`#observation/<uuid>`) so any fact is addressable and link
 
 **There is no semantic-search facet at all.**
 
+> **CORRECTED by the 2026-08-10 live API audit** (lesson
+> `priorish_live_api_audit_corrects_screenshot_claims`): true for `/search`, which is
+> structured-only — but a vector lane DOES exist in the document plane (`match=` halfvec
+> cosine on sections endpoints), always as a second-stage reranker after the role/facet
+> filter, and Pro-gated. The design rule this section draws stands, strengthened: embeddings
+> enhance a facet surface, never substitute for one — and never rank the primary search door.
+
 ### The lesson, which corrected my first design
 
 **Queryable means having DIMENSIONS, not having embeddings.** Grep has one dimension: the
