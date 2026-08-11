@@ -268,6 +268,11 @@ MANIFEST = {
     # job title" and provenance is derived from `by`, so self-declaration there is legal AND
     # labelled. Placement has no such label and no such licence. Do NOT pay this one down.
     "place": "cli_only",
+    # T275 -- `report` scaffolds a visual report with the design kit inlined. cli_only and
+    # not a gap: its output is a FILE the composing seat then edits and publishes through the
+    # Artifact tool, which is a harness surface rather than a fleet door. An MCP twin would
+    # hand a runner a scaffold it has no way to publish, which is a door to nowhere.
+    "report": "cli_only",
     "pulse": "cli_only",           # LIFEWORKERS pressure map (W25)
     "run": "cli_only",             # execute a toolbelt alias
     "suite_baseline": "cli_only",  # record/compare the pytest baseline; needs shell

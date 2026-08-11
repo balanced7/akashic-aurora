@@ -5118,6 +5118,42 @@ def cmd_resident(args):
     return 0
 
 
+def cmd_report(args):
+    """T275: emit a visual-report scaffold with the design kit inlined.
+
+    Hands over a SYSTEM, never a document. The reports this kit came from needed three
+    different shapes -- a retrospective, a set of decision forks, a reconciliation built
+    around a contradiction -- and the fit was the point; a fixed template would flatten it.
+
+    IMPORTS THE GENERATOR RATHER THAN SPAWNING IT. The first wiring shelled out and produced
+    rc=0 with ZERO output -- the child worked perfectly when run from a plain script and
+    silently from here, which is a process-inheritance quirk I did not chase, because the
+    subprocess bought nothing: this is a Python module in this repo, so calling it is simpler,
+    faster, testable in-process, and has no stdout-inheritance semantics to get wrong.
+    """
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                    "scripts", "generators"))
+    import gen_report_scaffold as _gen
+    if getattr(args, "crib", False):
+        print("report-kit primitives:\n")
+        print(_gen.crib_text())
+        return 0
+    if not (args.title or "").strip():
+        print("[report] --title is required -- it names the browser tab AND the gallery card, "
+              "so an untitled scaffold publishes as an unnamed card.", file=sys.stderr)
+        return 2
+    html = _gen.render(args.title, args.eyebrow)
+    if not args.out:
+        print(html)
+        return 0
+    os.makedirs(os.path.dirname(os.path.abspath(args.out)) or ".", exist_ok=True)
+    with open(args.out, "w", encoding="utf-8") as fh:
+        fh.write(html)
+    print(f"[report] wrote {args.out} ({len(html)} chars, kit inlined)")
+    print("         compose it against the crib, then publish with the Artifact tool.")
+    return 0
+
+
 def cmd_roster(args):
     """S2: the lobby -- every seat's proven liveness + inventory pointers (W84 render)."""
     from core.comm.roster import roster, render_roster, by_agent, render_by_agent
@@ -6240,6 +6276,13 @@ def build_parser():
     # T258: the callsign ceremony's door. Three verbs because the ceremony has three moves --
     # a peer drafts, a human ratifies, anyone can read. The registry refuses self-nomination and
     # foreign receipts, so the rules cannot be skipped by using the door instead of the module.
+    rp = sub.add_parser("report", help="scaffold a visual report with the design kit inlined (T275)")
+    rp.add_argument("--title", default="", help="the <title>: names the browser tab and the gallery card")
+    rp.add_argument("--eyebrow", default="Akashic Aurora", help="small mono line above the headline")
+    rp.add_argument("--out", default="", help="write the scaffold here (default: stdout)")
+    rp.add_argument("--crib", action="store_true", help="print the primitive reference and exit")
+    rp.set_defaults(fn=cmd_report)
+
     rsp = sub.add_parser("resident", help="callsign ceremony: nominate / ratify / show a resident's designation")
     rsps = rsp.add_subparsers(dest="sub")
     rnom = rsps.add_parser("nominate", help="propose a callsign for a PEER (never yourself)")

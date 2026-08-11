@@ -36,9 +36,9 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 - `core/trust` -- DRIFT (2->3), reviewed 2026-07-26
 - `core/fleet` -- DRIFT (2->3), reviewed 2026-07-26
 - `scripts/checkers` -- DRIFT (12->17), reviewed 2026-07-26
-- `scripts/generators` -- DRIFT (6->8), reviewed 2026-07-26
+- `scripts/generators` -- DRIFT (6->9), reviewed 2026-07-26
 - `scripts/ops` -- DRIFT (2->3), reviewed 2026-07-26
-- `tests` -- DRIFT (331->517), reviewed 2026-07-26
+- `tests` -- DRIFT (331->518), reviewed 2026-07-26
 
 ---
 
@@ -469,7 +469,7 @@ _Reviewed 2026-07-26 by deepseek (swept), claude (folded)._
 
 _Reviewed 2026-07-26 by claude._
 
-## `scripts/generators` -- 8 modules  ·  DRIFT (6->8)
+## `scripts/generators` -- 9 modules  ·  DRIFT (6->9)
 
 **What it does.** Six generators projecting live code into documents: MAP.md (module census), MODULE_INDEX.md (docstrings), PHYSICS.md (bounds and env flags), DOORS.md (CLI verb reference), PRIOR_ART.md (this register), and the arch index.
 
@@ -515,7 +515,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `tests` -- 517 modules  ·  DRIFT (331->517)
+## `tests` -- 518 modules  ·  DRIFT (331->518)
 
 **What it does.** 331 test modules plus conftest, providing universal backend isolation, a parity exerciser shared across store backends, and a differential harness that cross-verifies two implementations of the same semantics.
 
