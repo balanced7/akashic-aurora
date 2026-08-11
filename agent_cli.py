@@ -2201,6 +2201,30 @@ def cmd_eye(args):
                 print(f"    {s['session']}: {s['operator_events']} op / {s['events']} total"
                       f"  refs: {', '.join(s['refs'][:3])}")
         return 0
+    if args.eye_cmd == "stats":
+        s = _EYE.stats()
+        if args.json:
+            print(_json.dumps(s, indent=1)); return 0
+        print(f"[eye stats] {s['events_total']:,} events | {s['sessions']} sessions | "
+              f"time-fog {s['time_fog']:.1%} ({s['ts_missing']} timeless)")
+        print(f"  by voice: {s['by_voice']}")
+        print(f"  by kind:  {s['by_kind']}")
+        return 0
+    if args.eye_cmd == "overview":
+        o = _EYE.overview()
+        if args.json:
+            print(_json.dumps(o, indent=1)); return 0
+        import datetime as _dt
+        for srow in o["sessions"]:
+            span = "timeless"
+            if srow["first_ts"]:
+                f = _dt.datetime.fromtimestamp(srow["first_ts"]).strftime("%m-%d")
+                l = _dt.datetime.fromtimestamp(srow["last_ts"]).strftime("%m-%d")
+                span = f"{f}->{l}"
+            print(f"  {srow['session'][:24]:<24} {srow['events']:>6} ev "
+                  f"({srow['operator_events']} op)  {span}")
+        print(f"[eye overview] {len(o['sessions'])} sessions")
+        return 0
     if args.eye_cmd == "get":
         ev = _EYE.get_event(args.event_id)
         if ev is None:
@@ -7060,6 +7084,13 @@ def build_parser():
                                              "mentioned-once / recurring / standing-directive)")
     eye_fq.add_argument("patterns", nargs="+", help="one or more phrasings of the same idea")
     eye_fq.add_argument("--json", action="store_true")
+    eye_st = eye_sub.add_parser("stats", help="S5: crisp numerics -- counts by voice/kind, "
+                                              "sessions, TIME-FOG (the share every as_of "
+                                              "query is blind to)")
+    eye_st.add_argument("--json", action="store_true")
+    eye_ov = eye_sub.add_parser("overview", help="S5: the region map -- sessions as places, "
+                                                 "each with counts and span")
+    eye_ov.add_argument("--json", action="store_true")
     eye.set_defaults(fn=cmd_eye)
 
     # ---- T099 V0 self-tooling (docs/library/design/20260701_self-tooling-arc-reconciled-design-agent_29f578.md) ----

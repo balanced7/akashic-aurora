@@ -333,6 +333,49 @@ def freq(patterns: List[str], db_path: Optional[Path] = None,
             "per_session": per_session, "verdict": verdict}
 
 
+def stats(db_path: Optional[Path] = None) -> Dict[str, Any]:
+    """S5 -- crisp numerics (fence r1 C3: numbers first). TIME-FOG is the share of events
+    with no parseable ts: every as_of query is blind to exactly that fraction, so the
+    number rides every stats read instead of hiding in a reason string."""
+    con = _connect(db_path)
+    try:
+        total = con.execute("SELECT COUNT(*) FROM events").fetchone()[0]
+        by_voice = dict(con.execute(
+            "SELECT voice, COUNT(*) FROM events GROUP BY voice").fetchall())
+        by_kind = dict(con.execute(
+            "SELECT type, COUNT(*) FROM events GROUP BY type").fetchall())
+        sessions = con.execute(
+            "SELECT COUNT(DISTINCT session) FROM events").fetchone()[0]
+        ts_missing = con.execute(
+            "SELECT COUNT(*) FROM events WHERE ts IS NULL").fetchone()[0]
+        first, last = con.execute(
+            "SELECT MIN(ts), MAX(ts) FROM events WHERE ts IS NOT NULL").fetchone()
+    finally:
+        con.close()
+    return {"events_total": int(total), "sessions": int(sessions),
+            "by_voice": {k: int(v) for k, v in by_voice.items()},
+            "by_kind": {k: int(v) for k, v in by_kind.items()},
+            "ts_missing": int(ts_missing),
+            "time_fog": (int(ts_missing) / int(total)) if total else 0.0,
+            "first_ts": first, "last_ts": last}
+
+
+def overview(db_path: Optional[Path] = None) -> Dict[str, Any]:
+    """S5 -- the structural region map: sessions as places, each with its counts and span.
+    A session whose events are all timeless shows first_ts=None -- shown, never faked."""
+    con = _connect(db_path)
+    try:
+        rows = con.execute(
+            "SELECT session, COUNT(*), "
+            "SUM(CASE WHEN voice='operator' THEN 1 ELSE 0 END), "
+            "MIN(ts), MAX(ts) FROM events GROUP BY session ORDER BY MIN(ts)").fetchall()
+    finally:
+        con.close()
+    return {"sessions": [{"session": r[0], "events": int(r[1]),
+                          "operator_events": int(r[2] or 0),
+                          "first_ts": r[3], "last_ts": r[4]} for r in rows]}
+
+
 def get_event(event_id: str, db_path: Optional[Path] = None) -> Optional[Dict[str, Any]]:
     """The address resolves to the verbatim record -- the resolver primitive (T288)."""
     con = _connect(db_path)
