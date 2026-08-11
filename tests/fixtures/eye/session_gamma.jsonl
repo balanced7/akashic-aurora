@@ -1,0 +1,9 @@
+{"type":"user","isMeta":false,"uuid":"u1","parentUuid":null,"timestamp":"2026-08-02T09:00:00.000Z","message":{"role":"user","content":"gamma opening: sharpen the gamma sword"},"cwd":"E:\\AI-Setup","gitBranch":"master"}
+{"type":"assistant","uuid":"a1","parentUuid":"u1","timestamp":"2026-08-02T09:00:05.000Z","message":{"role":"assistant","content":[{"type":"text","text":"gamma reply one - sharpening"}]}}
+{"type":"queue-operation","timestamp":"2026-08-02T09:01:00.000Z","prompt":"gamma queued directive with a twin"}
+{"type":"queue-operation","timestamp":"2026-08-02T09:01:02.000Z","prompt":"gamma queued directive with a twin"}
+{"type":"user","isMeta":false,"uuid":"u2","parentUuid":"a1","timestamp":"2026-08-02T09:01:10.000Z","message":{"role":"user","content":"gamma queued directive with a twin"},"cwd":"E:\\AI-Setup","gitBranch":"master"}
+{"type":"assistant","uuid":"a2","parentUuid":"u2","timestamp":"2026-08-02T09:01:20.000Z","message":{"role":"assistant","content":[{"type":"text","text":"gamma reply two - directive taken"}]}}
+{"type":"queue-operation","timestamp":"2026-08-02T09:02:00.000Z","prompt":"recurring cross session directive about mechanics"}
+{"type":"queue-operation","timestamp":"2026-08-02T09:02:03.000Z","prompt":"recurring cross session directive about mechanics"}
+{"type":"assistant","uuid":"a3","parentUuid":"a2","timestamp":"2026-08-02T09:03:00.000Z","message":{"role":"assistant","content":[{"type":"text","text":"gamma reply three - continuing"}]}}

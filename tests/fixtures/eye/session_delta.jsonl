@@ -1,0 +1,5 @@
+{"type":"user","isMeta":false,"uuid":"d1","parentUuid":null,"timestamp":"2026-08-03T11:00:00.000Z","message":{"role":"user","content":"delta opening turn"},"cwd":"E:\\AI-Setup","gitBranch":"master"}
+{"type":"assistant","uuid":"d2","parentUuid":"d1","timestamp":"2026-08-03T11:00:05.000Z","message":{"role":"assistant","content":[{"type":"text","text":"delta reply one"}]}}
+{"type":"queue-operation","timestamp":"2026-08-03T11:01:00.000Z","prompt":"recurring cross session directive about mechanics"}
+{"type":"queue-operation","timestamp":"2026-08-03T11:01:04.000Z","prompt":"recurring cross session directive about mechanics"}
+{"type":"assistant","uuid":"d3","parentUuid":"d2","timestamp":"2026-08-03T11:02:00.000Z","message":{"role":"assistant","content":[{"type":"text","text":"delta reply two"}]}}
