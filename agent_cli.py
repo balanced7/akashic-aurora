@@ -2178,6 +2178,25 @@ def cmd_eye(args):
             print(f"  {h['event_id']}  [{h['voice']}/{h['type']}]  {h['snippet']}")
         print(f"[eye] {len(hits)} hit(s) -- drill: py agent_cli.py eye get <event_id>")
         return 0
+    if args.eye_cmd == "freq":
+        r = _EYE.freq(args.patterns)
+        if args.json:
+            print(_json.dumps(r, indent=1)); return 0
+        import datetime as _dt
+        span = ""
+        if r["first_ts"] and r["last_ts"]:
+            f = _dt.datetime.fromtimestamp(r["first_ts"]).strftime("%Y-%m-%d")
+            l = _dt.datetime.fromtimestamp(r["last_ts"]).strftime("%Y-%m-%d")
+            span = f"  span {f} -> {l}"
+        print(f"[eye freq] {' | '.join(args.patterns)!r}")
+        print(f"  VERDICT: {r['verdict'].upper()}  -- {r['operator_events']} operator "
+              f"event(s) across {r['sessions']} session(s); "
+              f"{r['events_total']} total (by voice: {r['by_voice']}){span}")
+        for s in r["per_session"]:
+            if s["events"]:
+                print(f"    {s['session']}: {s['operator_events']} op / {s['events']} total"
+                      f"  refs: {', '.join(s['refs'][:3])}")
+        return 0
     if args.eye_cmd == "get":
         ev = _EYE.get_event(args.event_id)
         if ev is None:
@@ -7022,6 +7041,12 @@ def build_parser():
                                             "verbatim record -- the citation resolver primitive")
     eye_gt.add_argument("event_id", help="the address, e.g. 2b1b8946-...:1955")
     eye_gt.add_argument("--json", action="store_true")
+    eye_fq = eye_sub.add_parser("freq", help="S3, HIS axis: a pattern family (phrasings OR'd, "
+                                             "deduped) -> counts, operator-sessions, span, "
+                                             "refs, and a mechanical verdict (unheard / "
+                                             "mentioned-once / recurring / standing-directive)")
+    eye_fq.add_argument("patterns", nargs="+", help="one or more phrasings of the same idea")
+    eye_fq.add_argument("--json", action="store_true")
     eye.set_defaults(fn=cmd_eye)
 
     # ---- T099 V0 self-tooling (docs/library/design/20260701_self-tooling-arc-reconciled-design-agent_29f578.md) ----

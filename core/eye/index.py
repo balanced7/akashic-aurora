@@ -214,6 +214,64 @@ def find_text(q: str, db_path: Optional[Path] = None,
              "voice": r[4], "type": r[5], "snippet": r[6]} for r in rows]
 
 
+def freq(patterns: List[str], db_path: Optional[Path] = None,
+         max_refs_per_session: int = 5) -> Dict[str, Any]:
+    """S3 -- the frequency axis (HIS axis). A pattern FAMILY (phrasings OR'd, deduped by
+    event) becomes counts, sessions, span, per-session refs, and a MECHANICAL verdict.
+
+    The verdict thresholds are written down so they can be argued with:
+      0 operator events -> unheard · 1 -> mentioned-once ·
+      >=3 across >=2 sessions -> standing-directive · else -> recurring
+
+    The repetition-counts note (2026-08-01) was hand-made because nothing measured this;
+    this verb retires that class of hand-count. No LLM anywhere in the path."""
+    con = _connect(db_path)
+    try:
+        seen: Dict[str, Dict[str, Any]] = {}
+        for pat in patterns:
+            phrase = '"' + str(pat).replace('"', " ") + '"'
+            rows = con.execute(
+                "SELECT e.event_id, e.session, e.line, e.ts, e.voice "
+                "FROM events_fts JOIN events e ON e.event_id = events_fts.event_id "
+                "WHERE events_fts MATCH ?", (phrase,)).fetchall()
+            for r in rows:
+                seen[r[0]] = {"event_id": r[0], "session": r[1], "line": r[2],
+                              "ts": r[3], "voice": r[4]}
+    finally:
+        con.close()
+
+    events = sorted(seen.values(), key=lambda e: (e["ts"] or 0, e["event_id"]))
+    ops = [e for e in events if e["voice"] == "operator"]
+    by_voice: Dict[str, int] = {}
+    for e in events:
+        by_voice[e["voice"]] = by_voice.get(e["voice"], 0) + 1
+    op_sessions = sorted({e["session"] for e in ops})
+
+    per_session: List[Dict[str, Any]] = []
+    for s in sorted({e["session"] for e in events}):
+        evs = [e for e in events if e["session"] == s]
+        per_session.append({
+            "session": s, "events": len(evs),
+            "operator_events": sum(1 for e in evs if e["voice"] == "operator"),
+            "refs": [e["event_id"] for e in evs][:max_refs_per_session]})
+
+    n_op, n_sess = len(ops), len(op_sessions)
+    if n_op == 0:
+        verdict = "unheard"
+    elif n_op == 1:
+        verdict = "mentioned-once"
+    elif n_op >= 3 and n_sess >= 2:
+        verdict = "standing-directive"
+    else:
+        verdict = "recurring"
+
+    return {"patterns": list(patterns), "events_total": len(events),
+            "operator_events": n_op, "sessions": n_sess, "by_voice": by_voice,
+            "first_ts": (ops[0]["ts"] if ops else (events[0]["ts"] if events else None)),
+            "last_ts": (ops[-1]["ts"] if ops else (events[-1]["ts"] if events else None)),
+            "per_session": per_session, "verdict": verdict}
+
+
 def get_event(event_id: str, db_path: Optional[Path] = None) -> Optional[Dict[str, Any]]:
     """The address resolves to the verbatim record -- the resolver primitive (T288)."""
     con = _connect(db_path)
