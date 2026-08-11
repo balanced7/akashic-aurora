@@ -126,7 +126,12 @@ Give the right agent the right context at the moment of action.
   not rows. Derived tables (`pyramid`, `edges`) rebuild freely; **`events` does not** — transcripts
   rotate off disk, so for a rotated session the index IS the archive (learned by destroying ≥219
   events on 2026-08-11; migrations now ADD columns and never drop rows).
-  Door: `py agent_cli.py eye ingest|find|get|freq|zoom|stats|overview|trace`.
+  `position.py` = S6 the inhabitant loop — a seat's STANDPOINT keyed per **incarnation**
+  (`agent#sid8`, never per base agent: two live sessions sharing a position clobber each other
+  and poison `since=`), succession inherited explicitly and recorded, and `since=` measured on
+  **`indexed_at`** (known_at) rather than world time — a week-old transcript ingested today is
+  new today.
+  Door: `py agent_cli.py eye ingest|find|get|freq|zoom|stats|overview|trace|look|go|back|since|inherit`.
   Design: atom `the-eye-design-v2_208b26`.
 
 ## Renew (`core/renew/`)

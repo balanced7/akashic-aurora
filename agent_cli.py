@@ -1436,6 +1436,36 @@ def _boot_siblings_line(agent_id: str) -> str:
         return ""
 
 
+def _boot_standpoint_line(agent_id: str) -> str:
+    """T278 S6: boot restores WHERE THIS SEAT WAS and opens with what changed while it slept.
+
+    The VR loop closed -- wake up in the world, where you left off, told what arrived. Keyed
+    per incarnation, so a sibling's travel is never reported as this seat's interval.
+
+    Silent when the seat has no standpoint: a fabricated position would make the delta
+    measure an interval nobody lived. Silent on ANY error -- boot is the hot path and an
+    ornament may never break it."""
+    try:
+        from core.eye import position as _POS
+        seat = _POS.whoami(agent_id)
+        pos = _POS.where(seat)
+        if not pos:
+            return ""
+        d = _POS.since(seat)
+        from core.eye.index import get_event as _GE
+        node = _GE(pos["addr"])
+        snip = " ".join((node["text"] if node else "").split())[:70]
+        where = pos["addr"] + (f' ("{snip}")' if snip else "")
+        tail = (f"{d['events_added']:,} event(s) newly knowable across "
+                f"{d['sessions_touched']} session(s), {d['edges_formed']:,} edge(s) formed"
+                if d["events_added"] or d["edges_formed"] else "nothing new")
+        inh = f" (inherited from {pos['inherited_from']})" if pos["inherited_from"] else ""
+        return (f"# standpoint: {seat} at {where}{inh} -- since you left: {tail}"
+                f"  (eye look / eye since)")
+    except Exception:
+        return ""
+
+
 def _normalize_boot_source(src) -> str:
     """T081-W6 (deepseek W6-P1 convention): normalize a lesson's source pointer to ONE canonical
     form so a runner can match boot-known lessons without regex-parsing rendered text. A bare
@@ -1804,6 +1834,9 @@ def _orientation_header(agent_id: str, primer_aware: bool = False) -> str:
             sib = _boot_siblings_line(agent_id)
             if sib:
                 lines.append(sib)
+            standpoint = _boot_standpoint_line(agent_id)
+            if standpoint:
+                lines.append(standpoint)
         # F1 (2026-07-11 incident): the CURRENT DIRECTIVE -- what to do FIRST and what NOT
         # to do yet -- rendered with authority ABOVE the raw NEXT list. next-focus already
         # IS the priority note-kind (deepseek: no new primitive); the gap was that boot
