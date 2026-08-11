@@ -1,5 +1,5 @@
 {
-  "seq": 241,
+  "seq": 280,
   "tasks": [
     {
       "id": "T001",
@@ -8692,16 +8692,22 @@
         "core/comm/ask.py"
       ],
       "acceptance": "a fan where branch A refused file leaves branch B intact and correctly reported; per-branch context meta carried in each branch record",
-      "status": "proposed",
+      "status": "abandoned",
       "commit": null,
       "verified_by": null,
       "created": "2026-08-08T01:09:49+00:00",
-      "updated": "2026-08-08T01:09:49+00:00",
+      "updated": "2026-08-10T15:14:03+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-08T01:09:49+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "",
+          "at": "2026-08-10T15:14:03+00:00",
+          "reason": "SUPERSEDED BY T244 (done @ its commit). Same defect, same file core/comm/ask.py: ask_many built ONE context for the whole fan. T244 is a strict superset -- per-branch packs, memoised per unique file-set, per-branch warnings in the branch record, and it shipped with a RED pin. T235 was my proposal of 2026-08-07; T244 delivered it 2026-08-08 and nobody closed this. No work is lost."
         }
       ]
     },
@@ -8859,6 +8865,1505 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-08T02:14:45+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T242",
+      "title": "Evidence notice guards the DOOR, not the BOUNDARY: unusable_evidence_notice is called only from agent_cli.py (3 sites) and tests, never from core/comm/ask.py, and the token \"warnings\" appears 0 times in the library. So ask()/ask_many() hand back ctx_meta with no notice and EVERY programmatic caller is unwarned by construction -- which is exactly why the T218/T225 clip warning failed to reach a caller TWICE on 2026-08-08: the harness imported the library and bypassed the only layer that renders it. Measured the same day: a 5-lens run clipped at 40000 chars (line 744 of 889) with context.truncated=true sitting unread in detail, and a second run repeated it. FIX: mint the notice where the metadata is minted -- ask() and ask_many() put a non-empty warnings entry into their own detail (ABSENT when clean, per T237 own rule that an always-present key gets filtered out mentally), and agent_cli reads it from there instead of recomputing it, which also kills the two-places-compute-the-same-notice drift the notice docstring already warns about. Generalises T237 from the JSON door to the library boundary; same class as T160 one level up -- the function IS called, but only on the path a human takes. Daniil 2026-08-08: facts must be glanceable and carry the SENSE they are true in; the clip warning exists is TRUE at the CLI door and FALSE at the library boundary, and unqualified it lies. ACCEPTANCE: RED pin first -- a library-only caller of ask() and of ask_many() with a clipped file sees the notice without touching agent_cli; clean evidence yields no warnings key at all; agent_cli renders the same string it did before.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/comm/ask.py",
+        "agent_cli.py"
+      ],
+      "acceptance": "",
+      "status": "done",
+      "commit": "2284677",
+      "verified_by": "4 pins in tests/test_t242_library_callers_get_the_evidence_notice.py (3 RED at b27aa20, GREEN at 2284677) + 169 ask-suite tests + live check: a library caller passing the real core/comm/ask.py at the default budget now receives EVIDENCE CLIPPED: ask.py (40000 of 49529 chars), and clean evidence carries no warnings key. SELF-VERIFIED by claude -- no second seat reviewed this.",
+      "created": "2026-08-08T15:13:16+00:00",
+      "updated": "2026-08-08T15:20:59+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-08T15:13:16+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-08T15:20:49+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-08T15:20:58+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-08T15:20:59+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-08T15:20:59+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T243",
+      "title": "Capture reasoning_content: the provider returns the helper's reasoning trace and ask() discards it. Measured 2026-08-08 on deepseek-v4-pro: choices[0].message.reasoning_content is populated (357 chars on a trivial probe) and appears in model_extra, while ask.py reads only message.content. We already PAY for those tokens -- detail carries reasoning_tokens one field below the line that drops the text. Daniil 2026-08-08: another seat should be able to peek the output AND REASONING of other seats; a tier-2 helper currently reads self-reported REASONING sections instead of the real trace, and in this session a tier-3 helper reached a TRUE conclusion through a FALSE premise, which only reading the route can catch. FIX: capture into detail, ABSENT when the provider returns none (never empty-string, which would read as reasoned-nothing -- the same fabricated-measurement lie reasoning_tokens already guards against with None-never-0). ACCEPTANCE: RED pin first -- a fake client returning reasoning_content surfaces it in detail; a provider returning none yields no key.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/comm/ask.py"
+      ],
+      "acceptance": "",
+      "status": "done",
+      "commit": "2dcd8af",
+      "verified_by": "4 pins in tests/test_t243_reasoning_content_is_captured.py (2 RED at 65f581b, GREEN at HEAD) + 169 ask-suite tests + live call against deepseek-v4-pro returning a 206-char trace at 65 reasoning tokens that was previously discarded. SELF-VERIFIED by claude -- no second seat reviewed this.",
+      "created": "2026-08-08T15:21:23+00:00",
+      "updated": "2026-08-08T15:23:47+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-08T15:21:23+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-08T15:23:46+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-08T15:23:46+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-08T15:23:47+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-08T15:23:47+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T244",
+      "title": "Per-branch evidence packs: ask_many builds ONE context for the whole fan, so a branch cannot have its own evidence and a single unusable file damages branches that never asked for it. Measured 2026-08-08: a 5-lens run had 3 of 4 --with files REFUSED and voided a lens that needed none of them; and in a multispectral run a band declaring evidence_need=surface was handed the full implementation, so its finding cited implementation lines its own standpoint forbids -- a perspective that is nominal rather than real. Independently named as the top rig defect by a tier-3 critic that had never seen the design doc. NOT A COST INCREASE: shared_ctx is already prepended to EVERY branch body, so each branch pays the whole pack today; letting a branch declare a smaller need makes the fan CHEAPER. FIX: a prompt may be a dict with prompt and files; strings keep using with_files, so every existing caller is untouched. Build one pack per UNIQUE file-set (memoised, so N branches sharing a set read disk once), give each branch its own context and warnings in its branch record, and aggregate at the top so the caller sees WHICH branches were damaged instead of one fan-wide truncated flag. Budget stops being first-come across a shared pool, which also ends a huge first file starving later branches. ACCEPTANCE: RED pin first -- a refused file voids only the branches that requested it; a per-branch pack overrides the shared one; branch records carry their own evidence meta and notice; existing string-prompt callers behave identically.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/comm/ask.py"
+      ],
+      "acceptance": "",
+      "status": "done",
+      "commit": "a57595c",
+      "verified_by": "5 pins in tests/test_t244_per_branch_evidence_packs.py (4 RED at 736b2de, GREEN at HEAD) + 188 ask/fan tests + live 3-branch check: standpoint isolation holds, each damaged branch names its own files, clean branch carries zero warnings, top level names branches [1,2]. SELF-VERIFIED by claude -- no second seat.",
+      "created": "2026-08-08T16:30:07+00:00",
+      "updated": "2026-08-08T16:33:57+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-08T16:30:07+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-08T16:33:56+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-08T16:33:57+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-08T16:33:57+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-08T16:33:57+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T245",
+      "title": "T244 shipped BUILT but NOT WIRED: --prompts-file stringifies every element (agent_cli.py, prompts = [str(p) for p in loaded]) so the per-branch-files capability is unreachable from the CLI door, and a JSON array of {prompt, files} dicts is SILENTLY turned into Python-repr prompt text rather than refused. Same defect the T244 RED pin caught one layer down, found in my own slice minutes after closing it -- the exact check_wiring class this repo already tracks. FIX: extract the fan-prompt parsing into a testable module-level helper (it is currently inline in cmd_ask and cannot be pinned), pass structured elements through to ask_many, and REFUSE loudly on a dict with no prompt key rather than yielding an empty branch. ACCEPTANCE: RED pin first -- a JSON array of dicts survives parsing as dicts; a dict missing prompt is refused with a message naming the offending index; plain-string arrays and the ---separated form are byte-identical to today.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "agent_cli.py"
+      ],
+      "acceptance": "",
+      "status": "done",
+      "commit": "0ff0482",
+      "verified_by": "5 pins in tests/test_t245_prompts_file_carries_per_branch_files.py (RED at b1b4b01, GREEN at HEAD) + 209 ask/fan/prompt tests + live end-to-end through the real CLI door: two branches with different files, each naming only its own, 6194 vs 2418 prompt tokens. SELF-VERIFIED by claude -- no second seat.",
+      "created": "2026-08-08T16:34:45+00:00",
+      "updated": "2026-08-08T16:37:48+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-08T16:34:45+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-08T16:37:46+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-08T16:37:47+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-08T16:37:47+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-08T16:37:48+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T246",
+      "title": "Fence findings on T244, from the first independent review after four self-verified slices: (a) a branch declaring files=[] falls through to the fan-wide shared pack because the empty list is falsy, so a branch that explicitly asked for NOTHING receives everything -- verified, 8815 chars of another branch's evidence -- which is the exact standpoint-enforcement defect T244 shipped to fix, reappearing through the empty-list door; (b) files given as a bare STRING is iterated CHARACTER BY CHARACTER, verified as missing entries R,E,A,D,M,E,.,m so the branch gets zero evidence plus a wall of nonsense diagnostics that look like real ones. ADJUDICATED AND REJECTED, recorded so nobody re-files it: the reviewer also flagged that [a,b] and [b,a] build two packs rather than one. That behaviour is CORRECT -- build_context spends its per-call budget first-come, so the two orders genuinely yield different packs, and sorting the cache key would introduce a real bug. The docstring wording unique file SET is what is wrong; fix the words, not the code. FIX: distinguish key-absent from files=[] with a sentinel so an explicit empty list means an empty pack; normalise a bare string to a one-element list, which is lossless and unambiguous and therefore NOT the information-destroying coercion class of T245; correct the docstring to say unique file LIST, order significant, and say why. ACCEPTANCE: RED pin first for both defects plus a pin asserting the two orders stay two packs so a later tidy-up cannot break it.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/comm/ask.py"
+      ],
+      "acceptance": "",
+      "status": "done",
+      "commit": "21d774b",
+      "verified_by": "4 pins in tests/test_t246_branch_files_edge_shapes.py (2 RED at 9e9109f, GREEN at HEAD) + 209 ask/fan/prompt tests. FOUND BY AN INDEPENDENT FENCE REVIEW (deepseek-v4-pro, 3-branch adversarial run, research/in-flight/fence-t242-t245-2026-08-08.md), not by me -- the first outside read after four self-verified slices, and it found two real defects in one pass.",
+      "created": "2026-08-08T17:38:55+00:00",
+      "updated": "2026-08-08T17:41:50+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-08T17:38:55+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-08T17:41:48+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-08T17:41:49+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-08T17:41:49+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-08T17:41:50+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T247",
+      "title": "T244 made branch-level warnings AMBIGUOUS: attach_evidence runs on a branch record only when that branch brought its own files, so a branch riding the fan-wide pack carries no warnings key even when the shared pack was CLIPPED. Verified: a 2-branch fan over a 53k file at the 40k budget has top-level warnings True and BOTH branch records with no warnings key at all. Before T244 no branch ever carried the key, so nobody read it per-branch; now some branches carry it and some do not, so ABSENCE became ambiguous and a caller iterating branches reads silence as safety. This is exactly the sense-collision the whole day was spent removing -- branch has no warnings is TRUE in the sense its OWN files were fine and FALSE in the sense its EVIDENCE was fine -- and I introduced it while fixing that class. Found by the adversarial branch of the first fence review, with its own disconfirming check attached, which is what settled it. FIX: every branch record states where its evidence came from (own vs fan) and carries the notice whenever ITS pack had problems, from either source, so absence of warnings means exactly one thing. Warnings are short strings; the payload-bloat argument I used to justify skipping shared-pack branches applied to the context meta, not to these. ACCEPTANCE: RED pin first -- a shared-pack branch whose pack was clipped carries the notice; a clean branch in the same fan does not; every branch names its evidence source.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/comm/ask.py"
+      ],
+      "acceptance": "",
+      "status": "done",
+      "commit": "69e006c",
+      "verified_by": "4 pins in tests/test_t247_branch_warnings_are_unambiguous.py + 209 ask/fan/prompt tests + live 3-branch check showing evidence=fan/own/none with the notice on the fan rider only. FOUND BY the adversarial branch of the fence review (docs/library/report/20260808_fence-t242-t245_78a70b.md), which supplied its own disconfirming check.",
+      "created": "2026-08-08T17:43:07+00:00",
+      "updated": "2026-08-08T17:45:40+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-08T17:43:07+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-08T17:45:39+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-08T17:45:39+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-08T17:45:40+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-08T17:45:40+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T248",
+      "title": "The done gate cannot tell verification from SELF-verification, so a norm that everyone believes in is enforced by nothing. Measured on me 2026-08-08: I closed FOUR consecutive load-bearing slices (T242-T245, all touching core/comm/ask.py and agent_cli.py) writing SELF-VERIFIED by claude -- no second seat into --verified-by, and the ledger stored that faithfully and acted on it not at all. One fence afterwards found THREE real defects in one pass for 0.09 USD, two of them being the same defect those slices shipped to fix, reappearing through doors my own pins never opened. This is the same class as T242 one level up: the record was CORRECT and no reader consulted it. I knew the rule, I had written that skipping it was a gap, and I skipped it four times -- so the failure is not knowledge and cannot be fixed by intending harder. FIX: reviewed_by becomes its own field, distinct from verified_by which holds EVIDENCE not a person. The done gate refuses when a task's files touch load-bearing paths and reviewed_by is empty or equals the closer. Escape hatch --self-verified <reason>, because a gate with no exit gets routed around by not using the ledger at all; the override is RECORDED so overrides become countable rather than invisible. Load-bearing patterns live in one named constant so the threshold is visible and tunable, and Daniil sets it -- I am the one being gated and therefore the wrong one to pick my own threshold, which is the T227 ratified-my-own-drafts defect one level up. ACCEPTANCE: RED pin first -- a load-bearing task cannot reach DONE self-verified; the same task closes when reviewed_by names someone else; a non-load-bearing task is unaffected; the override records its reason and is discoverable in a count.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/coord/task_ledger.py",
+        "core/coord/conductor.py",
+        "agent_cli.py"
+      ],
+      "acceptance": "",
+      "status": "done",
+      "commit": "3c93261",
+      "verified_by": "8 pins in tests/test_t248_self_verification_gate.py (7 RED at a34d4ea) + 146 ledger/task/conductor tests + live proof through the real CLI door: a self-verified close and a review-yourself close both BLOCKED, with a message naming the file, both exits and the threshold constant.",
+      "created": "2026-08-08T20:32:43+00:00",
+      "updated": "2026-08-08T20:52:32+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-08T20:32:43+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-08T20:52:30+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-08T20:52:30+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-08T20:52:31+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-08T20:52:32+00:00"
+        }
+      ],
+      "reviewed_by": "deepseek"
+    },
+    {
+      "id": "T249",
+      "title": "T248 live check: a throwaway load-bearing slice used to prove the gate refuses a self-verified close",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/comm/ask.py"
+      ],
+      "acceptance": "",
+      "status": "done",
+      "commit": "deadbee",
+      "verified_by": "throwaway probe",
+      "reviewed_by": "deepseek",
+      "self_verified": null,
+      "created": "2026-08-08T20:38:26+00:00",
+      "updated": "2026-08-08T20:48:04+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-08T20:38:26+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-08T20:38:33+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-08T20:38:33+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-08T20:38:33+00:00"
+        },
+        {
+          "to": "parked",
+          "by": "claude",
+          "at": "2026-08-08T20:39:23+00:00",
+          "reason": "throwaway: existed only to prove the T248 gate refuses through the real CLI door, which it did (twice: self-verified close, and reviewing myself). No code, nothing to close."
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-08-08T20:47:51+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-08T20:48:03+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-08T20:48:04+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T250",
+      "title": "Harden the T248 gate: five real bypasses found by the fence on the gate's own slice, hours after it shipped. (1) reviewed_by is compared with exact string equality, so a leading space or a capital letter makes the closer read as an independent reviewer. (2) The comparison is r == (by or owner); when BOTH are empty the closer is unidentifiable and any non-empty reviewer name passes, so a gate about identity runs without knowing who is acting. (3) is_load_bearing normalises with lstrip('./') only, so an ABSOLUTE path /x/core/y.py becomes x/core/y.py and escapes the core/ prefix. (4) Same for a non-leading ../ segment: subdir/../core/x.py never matches. (5) ARCHITECTURAL, filed here and fixed separately if at all: the gate reads the task's DECLARED files, never the actual diff, so declaring files=[README.md] while editing core/ is unblocked -- the honest limit of a declaration-based gate, and the reason it is a speed bump rather than a wall. ADJUDICATED AND REJECTED, recorded so they are not re-filed: core.py at the repo root and a directory mycore/ correctly do NOT match core/, and direct edits to tasks.json are filesystem access, not a boundary this gate can defend. ACCEPTANCE: RED pin first for each of the four fixable ones; the rejected non-matches pinned so a later widening cannot silently start catching them; the declared-files limit stated in the gate's own docstring rather than left for the next reader to discover.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/coord/task_ledger.py"
+      ],
+      "acceptance": "",
+      "status": "done",
+      "commit": "96ac3d3",
+      "verified_by": "13 pins in tests/test_t250_gate_bypasses.py + live: alias review BLOCKED, genuine reviewer DONE. Second fence round found 0 false positives; both its identity findings err stricter, not looser. Report: docs/library/report/20260808_fence-t248-t250_c04656.md",
+      "reviewed_by": "deepseek",
+      "self_verified": null,
+      "created": "2026-08-08T20:46:05+00:00",
+      "updated": "2026-08-08T20:52:41+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-08T20:46:05+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-08T20:52:31+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-08T20:52:41+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-08T20:52:41+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-08T20:52:41+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T251",
+      "title": "Split excluded_silent: the recall instrument cannot say WHICH suppression rule fired, so neither rule can be tuned. Measured 2026-08-08 over 7 days: 5851 recall_at calls, 1673 fired, 4178 silent, and 3309 of those silences (79 percent) are excluded_silent versus 863 floor_silent -- meaning a lesson PASSED the relevance floor and was then deliberately discarded four times more often than ranking failed to find one. That inverted the working hypothesis, which was that the trigger keys too weakly on path/command. But excluded_silent merges TWO rules with opposite fixes: cross-action anti-repeat (source in exclude_sources, a per-SESSION seen-set, so a lesson shown in hour 1 cannot fire in hour 8 of a 12-hour session) and self-echo (authored by the calling agent within AKASHIC_RECALL_SELF_ECHO_H, default 2h, which mutes exactly the lesson its author most recently learned -- mechanically explaining the sharpest miss on record, where I wrote a lesson and violated it two commits later). Both sites bump the same stats_out[excluded] at at_action.py:1363 and 1367. Intra-call dedup correctly does NOT increment, so the merge is genuinely two-way. FIX: add excluded_antirepeat and excluded_self_echo sub-counters, carry an excl_kind field (antirepeat|self_echo|mixed) on the outcome row, and break excluded_silent down by it in silence_rate. The reason STRING stays excluded_silent deliberately -- changing it would break the 7-day history that produced this finding, and an instrument that loses its own baseline when improved is worse than the ambiguity. Daniil 2026-08-08 asked for hints with the ability to tune or adjust them; you cannot tune what you cannot measure separately, and this is the measurement that makes the tuning decision possible. ACCEPTANCE: RED pin first -- a run excluded purely by anti-repeat records excl_kind=antirepeat, purely by self-echo records self_echo, both records mixed; silence_rate reports the breakdown; the existing excluded_silent reason and its historical rows still parse unchanged.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/recall/at_action.py"
+      ],
+      "acceptance": "",
+      "status": "done",
+      "commit": "1fd158d",
+      "verified_by": "8 pins in tests/test_t251_excluded_silent_breakdown.py + 118 recall tests + live: the breakdown now reads antirepeat 7 / self_echo 4 / mixed 4 over 30min, where before the shadowing fix it read antirepeat 2 / mixed 2 / self_echo 0. The review demonstrably changed the tuning answer -- self-echo is involved in over half the classified cases and was invisible.",
+      "reviewed_by": "composer (Gemini 3.1 Pro)",
+      "self_verified": null,
+      "created": "2026-08-08T21:35:00+00:00",
+      "updated": "2026-08-08T22:27:45+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-08T21:35:00+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-08T21:38:30+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-08T21:38:30+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-08T21:38:31+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-08T22:27:45+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T252",
+      "title": "load_fan_prompts sends falsy non-strings to paid helpers as their literal repr. Found by Gemini 3.1 Pro (seat composer) in a cold review of commits b27aa20..0ff0482, reported for JSON null and WIDER than reported on verification: {prompt: null} and a bare [null] both ask the model the literal string None, {prompt: 0} asks 0, and {prompt: false} asks False. Root cause is one expression -- str(p.get(prompt, )) -- because str() of ANY falsy non-string yields a TRUTHY string, so every one of them passes the non-empty check T245 added specifically to refuse empty questions, and a helper is billed for answering None. T245's own pin missed the whole class because it only tested a MISSING key, never a present-and-falsy value. Same family as the coercion lesson recorded today: str() at a door converts a wrong value into a plausible one instead of an error. FIX: a prompt must BE a string. Refuse anything else BY INDEX with the value named, matching the existing refusal shape. Bare array elements get the same rule -- the documented form is a JSON array of strings or of objects, and a bare null is a mistake worth naming rather than a question worth asking. ACCEPTANCE: RED pin first covering null, bare null, 0, false and empty-after-strip; the refusal names the offending index AND the offending value; arrays of real strings and of valid objects are byte-identical to today.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "agent_cli.py"
+      ],
+      "acceptance": "",
+      "status": "done",
+      "commit": "b8241cc",
+      "verified_by": "claude",
+      "reviewed_by": "deepseek",
+      "self_verified": null,
+      "created": "2026-08-08T22:28:11+00:00",
+      "updated": "2026-08-10T03:11:20+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-08T22:28:11+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-08T22:30:17+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-08T22:30:18+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-08T22:30:18+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-10T03:11:20+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T253",
+      "title": "Repeat-class counter: nothing measures whether a lesson PREVENTED anything, which is the only thing recall exists to do. The 5.1 percent value rate was a feedback-COVERAGE number wearing a QUALITY label -- 95.2 percent of its denominator was never voted on, and of the 327 surfacings actually judged, 87 percent were rated useful. Daniil 2026-08-08: I want all of our metrics to evolve and be true to what is / be useful for their purpose; metrics that do not serve a purpose or mislead are not great. The corpus-duplicate detector does not fill the gap either: 180 of 831 lessons carry related_to edges but ZERO reach the 4-5 dim update-the-existing-one threshold and only 9 match on problem+solution, so the corpus is CLEAN -- it measures corpus redundancy, not behavioural repetition. Those are different things. Measured today, five repeats of a mistake class that already had a lesson: character-iteration over a string x4 (ask_many files, _note_exclusion kinds, my own related_to analysis, plus the original), shell backticks command-substituting prompt text x3, built-not-wired x2, and an inline ampersand inside a run_in_background command that silently detached the job -- a lesson I had read at boot the same morning. NONE of those produced a duplicate-lesson flag, because I wrote one lesson and then repeated the mistake without writing more, so every existing instrument is blind to the entire class. FIX: an explicit repeat door, learn --repeat-of <lesson>, that records a REPEAT rather than a new lesson and captures the multifaceted record rather than a score -- elapsed time since the original lesson, what recall actually did at that moment (fired / floor_silent / excluded_silent with its rule), and what the actor was doing. HONESTY CONSTRAINT, non-negotiable and the whole point of the slice: this counts only repeats someone NOTICED, so it is a FLOOR and must never render as a rate -- shipping an undercount as a percentage would recreate the exact sin it replaces. The resulting list of lessons-that-existed-and-were-violated-anyway is also the training set for the recall targeting problem. ACCEPTANCE: RED pin first -- a repeat records its original, its elapsed time and the recall outcome at that moment; the surface renders a COUNT and a list, never a percentage; a repeat of an unknown lesson is refused by name; the existing learn path is unchanged.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [
+        "core/learning/learning_store.py",
+        "agent_cli.py"
+      ],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-09T01:27:13+00:00",
+      "updated": "2026-08-09T01:27:13+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-09T01:27:13+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T254",
+      "title": "Season 1 scoring: unscored claims dilute the refuted rate to zero, so volume erases the penalty. Found by RUNNING the rule, not reading it -- reading predicted a reduced penalty and the measured result was NO penalty at all. score_round builds seen[player] by counting EVERY submitted claim, then the graduated penalty uses rate = refuted/seen. MEASURED, both live policies (v2_aixcc and v3_confidence_priced, the latter being the PROPOSED FIX for the hedge exploit): two players each refuted exactly 3 times, honest player with only those 3 claims scores -15, flooder padding with 60 unadjudicated claims scores 0. 3/63 = 0.048 times -5 rounds to nothing. Padding does not need to be valid: 40 claims carrying an entirely undefined outcome string turn -5 into 0, and the scorer itself reports unscored=60 -- it KNOWS it did not score them and counts them in the denominator anyway. This is the same shape as the recall value-rate defect audited today (denominator counts events, numerator requires an adjudication to have happened) but attached to POINTS rather than a dashboard, which makes it silently adversarial: any player who can outrun the reviewers lowers their own penalty, and the cheapest way to outrun reviewers is to submit noise. It composes with the known low-confidence hedge exploit rather than being covered by it. FIX: seen must count only ADJUDICATED claims -- the universe the refuted rate is a rate OVER -- not every row submitted. A claim the scorer declined to score cannot be evidence about a player's accuracy in either direction. ACCEPTANCE: RED pin first -- two players with identical refuted counts and different unadjudicated volume score IDENTICALLY under the graduated penalty; undefined and unverifiable outcomes do not enter seen; a player with zero adjudicated claims does not divide by zero; v1_doc (flat penalty) is unaffected; the existing season pins stay green.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/season/scoring.py"
+      ],
+      "acceptance": "",
+      "status": "done",
+      "commit": "8baacd9",
+      "verified_by": "claude",
+      "reviewed_by": "deepseek",
+      "self_verified": null,
+      "created": "2026-08-09T01:40:44+00:00",
+      "updated": "2026-08-10T12:18:17+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-09T01:40:44+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-09T01:44:35+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-09T01:44:35+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-09T01:44:35+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-10T12:18:17+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T255",
+      "title": "Season 1 scoring: claim_class is player-declared and never verified, so top-class inflation pays 6x for identical work. Found by a 12-branch adversarial fan fenced to the PLAYER VIEW (0.267 USD, prereg at HEAD~1), then verified by running it. MEASURED on five IDENTICAL confirmed findings: a player who classifies truthfully as dead scores 5, a player who declares all five as new-blind-spot scores 30 -- on ALL THREE policies including v3_confidence_priced. The adjudicator checks whether a finding is REAL, never whether its declared class is RIGHT, and there is no outcome that expresses real-but-misclassified, so inflation is strictly dominant: it cannot lose anything. Consequence beyond the points: the base table is how the season expresses what it VALUES (new-blind-spot 6, false-positive 5, structural 4, needs-door 3, needs-caller 2, dead 1), and if every rational player declares the top class then the scoreboard stops measuring what KIND of defect anyone found. The class table becomes decorative while still looking authoritative. THE CODE-SHAPED HALF, which is the part I can fix: the outcome vocabulary cannot express misclassification, so even a diligent adjudicator has NO WAY TO RECORD IT -- a write door that does not offer a field stays empty, which is the same shape as the anti-pattern surface that sat at zero for months. THE POLICY HALF IS DANIIL'S: whether a class mismatch scores zero, scores the TRUE class, or counts as refuted. Those are three different incentive systems -- scoring the true class makes inflation free-but-pointless, refuting it makes inflation actively dangerous, and zero sits between. ALSO EVIDENCE FOR THE PENDING v3 RULING: the same fan shows v3_confidence_priced correctly DEFEATS the confidence hedge (attacker 1 vs honest 12, where v1 and v2 both let the hedger win 18 vs 12) and also defeats the collusion and starvation attempts. ACCEPTANCE: RED pin first -- identical confirmed findings score identically regardless of declared class, under whichever policy Daniil rules; the mismatch outcome is expressible at the door; honest classification is never worse than inflation.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [
+        "core/season/scoring.py"
+      ],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-09T02:00:31+00:00",
+      "updated": "2026-08-09T02:00:31+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-09T02:00:31+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T256",
+      "title": "Fan presets: a named contract that also PARSES its own output, on the door agents already use. MEASURED FRICTION 2026-08-08: every one of five fan-outs run today began with me writing a Python builder to assemble a JSON prompts file, and ended with a SECOND script to regex the answers apart -- and the second script is where the errors were. I read INTENT lines instead of the WILL-YOU field and reported 8 of 8 when the answer was 7 of 8; my flag counter read a bulleted Yes as unclear in 4 of 8 rows; my census grader iterated a JSON string into characters and reported an empty distribution. Every one of those was a PARSING defect in throwaway code, not a defect in the fan itself. THE INSIGHT: the reason to have presets is not to save typing, it is that A KNOWN CONTRACT MAKES THE OUTPUT MACHINE-READABLE. A preset is one object holding both the answer contract sent to the helper AND the parser that reads it back, so the two cannot drift. FIRST SLICE, deliberately narrow: preset findings (FINDINGS / REASONING / CHECK / BLIND, plus the discipline clauses that earned their place today -- be descriptive not normative, abstention is a real answer, give the cheapest thing that would prove you wrong) and --lens / --lens-file to supply one standpoint per branch. That combination covers four of the five fans run today. Everything else -- worker count, JSON assembly, output parsing -- disappears. It goes on the ask verb rather than a new one, per the capability-without-a-door lesson: expose it on the SAME door agents already use, in the same slice. ACCEPTANCE, RED pin first: a preset carries a contract AND a parser and the pin asserts they cannot be registered apart; --lens builds one branch per lens with the contract appended; --lens-file reads one per line ignoring blanks and comment lines; --json returns PARSED findings per branch rather than raw text; a branch whose answer does not match the contract is reported as UNPARSED and never silently dropped; existing --prompts-file callers are byte-identical.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [
+        "core/comm/presets.py",
+        "agent_cli.py"
+      ],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-09T03:58:27+00:00",
+      "updated": "2026-08-09T03:58:27+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-09T03:58:27+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T257",
+      "title": "Restore Bifrost to something we actually reach for, because the ergonomics gradient is currently steering us AWAY from the better instrument. Daniil 2026-08-09, verbatim: \"the bifrost system is in a bit of a mess. I am hoping we can restore it to its former glory and make it so easy to use and manage that we will actually use it again. I really love the ergonomics of the fanouts, but there was something about the structured debates and quality of thought when models have persistent memory and personas that we just aren't capturing with fanouts.\" THE DIAGNOSIS, and it is not nostalgia. A fan-out branch CANNOT BE PERSUADED: every answer is a first draft, nobody replies to anybody, no position is ever revised under challenge, and nobody carries the weight of having been wrong before. Fan-outs SIMULATE diversity by assigning it; persistent seats ACCUMULATE it. This is the route_to_position_not_personality finding applied one level up -- kimi's value is having no continuity, deepseek's is throughput, codex's is a refusal posture, \"none of which can be assigned, only noticed and routed to\". MEASURED THE SAME DAY, not asserted: on one identical diff a durable seat (Gemini 3.1 Pro) found a SUPERSET of what a 3-branch stateless fence found, and separately caught a shadowing defect in an instrument that no fan-out saw -- one that would have corrupted the tuning decision the instrument existed to inform. THE MECHANISM THAT CAUSED THE DRIFT: the better instrument is the harder one to use, so we stopped using it. Concrete friction measured 2026-08-08/09, all of it small and all of it compounding: bifrost-sync's peek is OLDEST-first and capped, so a fresh directed reply is precisely what it hides while a stale backlog occupies the window (I told the operator \"no reply yet\" from an instrument that structurally could not have shown one); the unread counter did not clear after the documented --consume and sat permanently at 6, which trains the reader to ignore it; a seat booted TWICE for one ask; kimi never answered because sending the brief and LAUNCHING the seat are two separate commands and I only did the first; composer's seat vanished mid-review leaving two tasks blocked in verifying with no reachable reviewer. SCOPE, first slice only: make the round-trip cheap and legible rather than rebuilding the bus. (1) One command that sends AND launches, so briefing a peer is one act not two. (2) events-style newest-first as the DEFAULT view when waiting on a directed reply, or mark the peek as truncated-and-oldest-first at the point of display. (3) A counter that clears when you do the documented thing, or that says why it cannot. (4) One durable-debate primitive: an ask that carries the prior round, so a seat can revise rather than only restate -- the missing capability, not a nicety. ACCEPTANCE: a peer can be briefed, launched, waited on and read in ONE command each, with a receipt at every step; a fresh reply is visible in the default view within one command of arriving; the unread count reaches zero by the documented action; and one two-round exchange completes where the second round demonstrably references the first.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [
+        "core/comm/bus.py",
+        "agent_cli.py"
+      ],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-09T04:19:51+00:00",
+      "updated": "2026-08-09T04:19:51+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-09T04:19:51+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T258",
+      "title": "Resident identity plane, slice 1: the registry, and a resident that boots knowing who it is. Daniil 2026-08-09 named permanent residents a FLAGSHIP FEATURE and said 'lets build out what is necessary to bring out this vision to fruition'. Full design: atom art_20260809_residents-and-callsigns-design_b6c98c. WHY THIS SLICE FIRST, and it is a MEASURED gap not a guessed one: kimi's provenance-laundering objection said a callsign certifies a continuous self the current boot may not carry, and named a one-command probe. I ran it. ZERO of EIGHT cited callsign receipts appear in their own seat's boot fold (deepseek 0/4, kimi 0/4). So a resident today cannot explain its own name -- the archive holds the story and the boot does not carry it. That makes the ceremony decoration exactly as kimi says, and it is the cheapest thing to fix. WHAT SHIPS: (a) a resident registry -- an append-only record of designation vendor/family/team/number/callsign plus the receipts that earned it, superseding to a formerly: entry and never deleting, per the substrate's own physics; (b) the two ceremony rules enforced STRUCTURALLY rather than by etiquette -- the registry REFUSES a self-nomination (rule 1) and REFUSES a receipt whose agent_id is not the nominee (rule 2, deepseek's amendment, which closes the M-tag error where a tag system admits recollection); (c) boot renders the seat's own designation and receipt pointers so the fold carries the identity. RULE 4 AMENDED on Daniil's grant 2026-08-09 ('feel free to amend rule 4'): a callsign may be EARNED through contribution as well as SURVIVED through a screwup -- honour register and scar register are both legal, both need a receipt, and the receipt bar is identical. Daniil verbatim: 'What are some positive callsigns that we can think of that also credit the incredible discoveries and contributions each has made? Remember I like halo and mythical things'. PRE-REGISTERED ACCEPTANCE, kimi's probe as the pin: RED first -- boot a seat, grep its fold for its own registered receipts, require a hit; it fails today at 0/8. Plus structural pins: a self-nomination is refused; a receipt whose agent_id is not the nominee is refused; a superseded callsign leaves a formerly: entry and the prior record still resolves. NOT IN THIS SLICE and deliberately: routing tags (that is T108), role/side assignment events, per-agent recall scoping, the recall-by-name-prefix defect. STANDING CAVEAT carried from kimi and NOT resolved by this slice: persistence has never been isolated as the cause of a correctness win, so nothing here may claim it is -- this slice buys LEGIBILITY, and kimi's fresh-seat-vs-resident kill-drill remains the outstanding measurement.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/fleet/residents.py",
+        "agent_cli.py",
+        "tests/test_resident_identity.py"
+      ],
+      "acceptance": "",
+      "status": "done",
+      "commit": "4d720be",
+      "verified_by": "claude",
+      "reviewed_by": "deepseek",
+      "self_verified": null,
+      "created": "2026-08-10T03:07:58+00:00",
+      "updated": "2026-08-10T03:25:39+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-10T03:07:58+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-10T03:08:05+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-10T03:11:21+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-08-10T03:11:21+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-10T03:18:00+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-10T03:25:39+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T259",
+      "title": "Resident identity plane, slice 2: role assignment events -- the identity/role split from Daniil's own example, verbatim: 'we could see that Deepseek Onyx Blue 3 Rook was operating as Jester on the Red team side of the exercise on this timestamp. This way agents can change roles and still generate useful information into the general All Jesters on Red team of exercise.' Design: atom art_20260809_residents-and-callsigns-design_b6c98c sec.4. WHAT SHIPS: (a) an append-only assignment stream per resident -- (agent, role, side, exercise, at, by) -- via resident assign; (b) the projection his sentence asks for: resident roles --role Jester --side Red --exercise E7 lists every assignment matching, across residents, BECAUSE assignments are events and 'All Jesters on Red' is a projection over immutable atoms (codex-plan shape); (c) resident show renders the CURRENT role beside the permanent designation, so identity and job stay visibly separate planes; (d) the T255 guard: an assignment where by == agent is stored but rendered SELF-DECLARED, an assignment by anyone else renders ASSIGNED -- his phrase was 'declarable job title', so self-declaration is legal, but a query must be able to filter on verification status or we rebuild claim_class one level up. ACCEPTANCE, RED first: assign refuses a missing role or agent; the Jester-on-Red projection returns exactly the planted assignments and nothing else; self-declared vs assigned render distinctly and are filterable; the assignment stream is append-only (no update path exists); resident show carries the current role. WHY THIS UNLOCKS THE SEAT/AGENT QUESTION: two archives accumulate from one work stream -- if a ROLE keeps producing the same finding class regardless of who wears it, that is a property of the position; if a RESIDENT produces across roles, that is the agent. Today those are indistinguishable.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/fleet/residents.py",
+        "agent_cli.py",
+        "tests/test_resident_roles.py"
+      ],
+      "acceptance": "",
+      "status": "done",
+      "commit": "ab32ce4",
+      "verified_by": "claude",
+      "reviewed_by": "deepseek",
+      "self_verified": null,
+      "created": "2026-08-10T03:33:25+00:00",
+      "updated": "2026-08-10T03:40:08+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-10T03:33:25+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-10T03:33:56+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-10T03:33:56+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-08-10T03:33:56+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-10T03:37:46+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-10T03:40:08+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T260",
+      "title": "Agent-scoped recall: 'what has Navi learned about X' becomes a query the substrate can answer. Gap 2 of the residents design (atom art_20260809_residents-and-callsigns-design_b6c98c sec.6): search_learnings_by_keyword(keyword, domain) filters by domain and has NO agent filter, so a resident's own archive -- the thing Daniil's directive makes load-bearing ('they each develop memories and their own archives of what has worked and what hasnt') -- cannot be read per-resident through any door. WHAT SHIPS: (a) agent= parameter on search_learnings_by_keyword, filtering on the record's agent_id, None keeps every existing caller byte-identical; (b) recall --agent <id> on the CLI; (c) door-parity note for the MCP twin (gap, not silent). ACCEPTANCE, RED first: a query scoped --agent kimi returns ONLY kimi-authored records and the same query unscoped returns a superset; an agent with zero matches returns empty WITHOUT the weak-match fallback leaking other agents' lessons in; scoping composes with domain=. DEPENDENCY for T261 (caught-up fan branches): the catch-up pack is built FROM this query.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/learning/learning_store.py",
+        "agent_cli.py",
+        "tests/test_recall_agent_scope.py"
+      ],
+      "acceptance": "",
+      "status": "done",
+      "commit": "1ecf191",
+      "verified_by": "claude",
+      "reviewed_by": "deepseek",
+      "self_verified": null,
+      "created": "2026-08-10T03:33:25+00:00",
+      "updated": "2026-08-10T03:44:26+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-10T03:33:25+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-10T03:37:50+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-10T03:40:08+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-08-10T03:40:09+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-10T03:41:48+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-10T03:44:26+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T261",
+      "title": "Tier-1 fan-out: the caught-up resident branch, Daniil verbatim: 'I want us to have levels to fan outs, lowest rank is the pure fanout ask. an advanced fanout would be fresh resident agents that have caught up start tackling the issue... their continuity and persistance mean that you dont have to explain the risks and incorrect assumptions every single time.' Design: atom sec.2. WHAT SHIPS: (a) ask --as <resident>: the branch is spawned CARRYING its identity -- the registry boot_block (callsign + receipts) plus a catch-up pack of its own top-K archive lessons relevant to the prompt (via T260's agent-scoped search), prepended as system context, so the brief stops re-carrying the standing premises (his burden point: a caught-up resident needs a SMALLER pack); (b) THE TIER RIDES THE FINDING: every reply carries designation + tier (tier0-blind vs tier1-resident) in its output envelope, because eight caught-up residents agreeing is NOT eight blind branches agreeing and a report must not render them identically -- the T254 defect one level up, and the independence-ledger thesis of the atom (sec.3); (c) tier 0 stays the DEFAULT and the control arm -- no flag, no change. ACCEPTANCE, RED first: --as unknown-resident refuses loudly (a non-resident cannot claim the tier); the catch-up pack contains ONLY the named resident's lessons; the reply envelope carries tier + designation; a tier-0 ask is byte-identical to today. STANDING CAVEAT carried, kimi's verdict: persistence is UNMEASURED as a correctness cause -- this slice makes tier-1 EXPRESSIBLE and LABELLED, claims nothing about it being better, and is precisely the harness the kill-drill needs (tier0 vs tier1 on one diff, pre-registered).",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/comm/ask.py",
+        "agent_cli.py",
+        "tests/test_ask_as_resident.py"
+      ],
+      "acceptance": "",
+      "status": "done",
+      "commit": "460bc1d",
+      "verified_by": "claude",
+      "reviewed_by": "deepseek",
+      "self_verified": null,
+      "created": "2026-08-10T03:33:26+00:00",
+      "updated": "2026-08-10T03:52:09+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-10T03:33:26+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-10T03:44:32+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-10T03:44:32+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-08-10T03:44:32+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-10T03:47:56+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-10T03:52:09+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T262",
+      "title": "Two real defects found by the kill-drill's resident arm, in code I wrote tonight. Drill: research/in-flight/t262-killdrill-results.md (prereg 9b6217c, results afec344). NOTE ON THE ID: the drill artifacts were named t262-* BEFORE the registry spoke -- the identifiers_minted_before_the_registry_speaks_collide lesson, committed by me again on the same day I cite it. Filenames stay as written (renaming would break the commit trail); this entry is the authority. DEFECT 1, residents.py _records + _role_records: a corrupt JSON row is dropped with except:continue, so a lost record is invisible to every caller. The module's own docstring states absence must not read as success and the code breaks that law two functions below stating it -- the T178 guard-of-guards shape. FIX: a dropped row is LOUD (names the key and the index) and never silent. DEFECT 2, residents.py _receipt_author: bare except Exception returns None, which the ceremony reads as 'receipt does not resolve' and REFUSES the nomination -- so a store outage or an ImportError silently becomes a verdict about someone's callsign evidence. Absence vs UNKNOWN, inside a door built to be strict about exactly that. FIX: a store fault is distinguishable from a missing lesson, and the refusal says UNKNOWN rather than asserting a bad receipt. ACCEPTANCE, RED first: a corrupt row is reported not swallowed; a store fault produces a DIFFERENT refusal than a genuinely-absent receipt, and that refusal never claims the receipt is invalid; a genuinely missing lesson still refuses as before; the T258/T259 pins stay green.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/fleet/residents.py",
+        "tests/test_resident_identity.py"
+      ],
+      "acceptance": "",
+      "status": "done",
+      "commit": "9a85acd",
+      "verified_by": "claude",
+      "reviewed_by": "deepseek",
+      "self_verified": null,
+      "created": "2026-08-10T04:18:44+00:00",
+      "updated": "2026-08-10T12:18:17+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-10T04:18:44+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-10T04:18:54+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-10T04:18:54+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-08-10T04:18:54+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-10T04:22:35+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-10T12:18:17+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T263",
+      "title": "Step 1, slice 1: the CLI send door does not spill, so a long DIRECTED message loses its body. Daniil's directive verbatim: 'make bifrost as easy and reliable as the ask verb'. MEASURED 2026-08-09 with a controlled test: a long body sent claude->claude fetches fine; the same body sent claude->deepseek returns 'no blob or bus message' from BOTH ends. deepseek hit it live -- it could not read the callsign brief, tried bifrost_fetch, got nothing, and answered a stale backlog item instead. ROOT CAUSE, traced not guessed: packet_spec.spill_tool_text has exactly THREE callers and all three are in core/comm/toolbox.py. The TOOL door spills an oversize body to a content-addressed blob and prints blob:<sha>, which bifrost-fetch resolves from anywhere. The CLI door (bifrost-send) never spills; the render clips instead and bifrost_pull.clip_pointer falls back to minting a STREAM-ID pointer, which resolves only from a stream the fetching agent can already read. So the sender can never verify what it sent and the recipient often cannot either. This is built-not-wired ACROSS DOORS -- T112/T113 built the spill, one of two send doors uses it -- the same family check_door_parity exists to catch on the verb plane, one plane over. T222 fixed the RESOLVER for self-addressed sends and its pin exercises exactly that case, which is why the gap survived: every real message is directed. ACCEPTANCE, RED first: a long body sent to a PEER is fetchable BY THE SENDER (the case that fails today); the minted pointer is a blob ref, not a stream id; short bodies are byte-identical to today; the existing T113 spill pins and T220/T222 pointer pins stay green; a blob-store failure degrades to today's clip rather than dropping bytes (the existing floor).",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "agent_cli.py",
+        "tests/test_cli_send_spills.py"
+      ],
+      "acceptance": "",
+      "status": "done",
+      "commit": "2f5c974",
+      "verified_by": "claude",
+      "reviewed_by": "deepseek",
+      "self_verified": null,
+      "created": "2026-08-10T04:32:01+00:00",
+      "updated": "2026-08-10T04:41:41+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-10T04:32:01+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-10T04:32:09+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-10T04:32:09+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-08-10T04:32:09+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-10T04:35:09+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-10T04:41:41+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T264",
+      "title": "clip_pointer's stream-id fallback: close the last address-space hole. Residual stated in T263 and CONFIRMED by deepseek's review 2026-08-10: agent/bifrost_pull.py clip_pointer falls back to 'bifrost-fetch --get <stream-id>' when a render has no mailbox sha, and a stream id resolves ONLY from the recipient's stream -- the exact defect T263 closed for the SEND door. After T263 it fires far less (oversize CLI sends now carry blob:<sha> in the confession AND meta.spill_ref) but two paths remain: (a) messages clipped at RENDER time that were never oversize on the wire, and (b) historical messages from before T263. deepseek's words: 'not load-bearing for the send path, but still a data-loss-by-address-space path worth closing', and its prescription: clip_pointer should check meta.spill_ref BEFORE falling back to id. ACCEPTANCE, RED first: a render whose message carries meta.spill_ref mints the BLOB ref, never the stream id; a render with neither sha nor spill_ref still confesses honestly rather than minting an address that cannot resolve (the T222 confession branch stays); the existing T220/T222 pins stay green; a pin proves the precedence order (spill_ref beats id) rather than only that some pointer was printed -- T222's own lesson was that printing a pointer is not the same as resolving one.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-10T04:41:55+00:00",
+      "updated": "2026-08-10T04:41:55+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-10T04:41:55+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T265",
+      "title": "A PAGE is a frozen assertion replayed until acked, while doctor is a live gauge -- so the two disagree and the louder one is the stale one. OBSERVED all night 2026-08-09/10: the UserPromptSubmit hook injected [PAGE] HARD WEDGE lines for deepseek incarnations aged to 244m and 259m, naming seats whose processes had exited hours earlier, while py agent_cli.py doctor -- reading the same substrate -- reported '0 page-grade' every single time it was asked. It woke this session roughly eight times for nothing. CODE-VERIFIED MECHANISM, not inferred: core/comm/pager.py hook_lines() renders EVERY entry in the capped bifrost:pages list with an age stamp and NOTHING re-checks whether the finding still holds; a page clears only when a seat calls ack_pages(). So the pager states what WAS true when page() fired; doctor states what IS true. THE DANGEROUS DIRECTION IS THE OBVIOUS FIX: adding a TTL or auto-expiry would suppress a genuine page that nobody has answered yet, which is the exact 6h-invisible-killer failure the pager was built for (its own docstring). So the fix is probably RE-VALIDATION rather than expiry -- a page carries the check that produced it and the renderer re-runs it, downgrading to a dashboard line when the finding no longer reproduces -- but that is a design decision about DANIIL'S ALERT CHANNEL and he should rule on it before anything ships. HONEST LIMIT: the queue self-cleared during investigation (0 entries, hook_lines() returns 0 lines) and I could NOT determine what cleared it, so I have no live reproduction -- the mechanism above is read from source, the ages and doctor's disagreement are from tonight's transcript. ALSO MINE: the seat doctrine is see-page -> relay-or-adjudicate -> ACK, and I adjudicated these as stale roughly eight times without ever acking, which is why they kept replaying. A doctrine step nobody performs is a design problem too.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-10T08:42:07+00:00",
+      "updated": "2026-08-10T08:42:07+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-10T08:42:07+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T266",
+      "title": "Port registry: make it DATA, generate the map, and check it -- so nobody guesses how things are routed. Daniil 2026-08-10 verbatim: 'I still want us to have an organized port naming and allocation schema so we don't have to guess as to how things are built and routed.' A SCHEMA ALREADY EXISTS and is good (docs/PORTS.md, canonical since 2026-07-16: 878x prod / 879x sandbox / 89xx test, config.py as source of truth). The reason it still feels like guessing is a MEASURED COVERAGE GAP, not a missing design: the registry documents the ports PYTHON binds and says NOTHING about the ports CONTAINERS bind. Verified 2026-08-10 -- 11434 (ollama), 8888 (searxng), 3000 (open-webui), 5000/5001 (voice) are ALL ABSENT from PORTS.md, which is exactly why Daniil's 'which of these containers do we need?' had to be answered by grepping call sites instead of by reading a map. Worse, the doc lists 8080 under 'legacy/inactive, never live' while ai-knowledge-api was bound to 8080 until it was removed this morning -- the registry asserted dead about something running. THE HOUSE PATTERN IS THE FIX: docs/PHYSICS.md, DOORS.md, MAP.md, MODULE_INDEX.md and PRIOR_ART.md are all GENERATED from live state by pre-commit; PORTS.md is the one hand-written map, which is why it is the one that drifted. WHAT SHIPS: (a) the registry becomes DATA in config.py -- each entry carries port, world (prod/sandbox/test/external), owner, what-binds-it, and whether it is app-bound or container-bound; (b) scripts/generators/gen_ports.py renders docs/PORTS.md from that data plus live docker inspection, same shape as the existing generators; (c) scripts/checkers/check_ports.py FAILS on a port literal in live code that is not in the registry and REPORTS a running container whose published port is unregistered (report-not-fail, because docker may be absent in CI and a checker that needs a daemon is a checker that gets disabled); (d) close the stale July follow-up -- bifrost_ui.py:1388 still hardcodes default=8787 instead of importing config.PORT_UI. ACCEPTANCE, RED first: an unregistered port literal added to live code FAILS the checker; a registered one passes; the generator reproduces the current PORTS.md content for the app plane and ADDS the container plane; the checker degrades to report-only with no docker rather than erroring; the 878x/879x/89xx band rules survive verbatim -- this slice extends the schema's REACH, it does not redesign it.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "config.py",
+        "scripts/generators/gen_ports.py",
+        "scripts/checkers/check_ports.py",
+        "tests/test_port_registry.py"
+      ],
+      "acceptance": "",
+      "status": "done",
+      "commit": "6c2ccc5",
+      "verified_by": "claude",
+      "reviewed_by": "deepseek",
+      "self_verified": null,
+      "created": "2026-08-10T11:49:46+00:00",
+      "updated": "2026-08-10T12:18:18+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-10T11:49:46+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-10T11:54:39+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-10T11:54:39+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-08-10T11:54:40+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-10T12:03:43+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-10T12:18:18+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T267",
+      "title": "Resident placement: family, team and number as a POSTING, separate from the naming. Daniil 2026-08-10: 'Can you build it out with placeholder names and we can change them later if we don't like them.' STATE: three residents are ratified (Anthropic|Vandor, Kimi|Navi, Deepseek|Heimdall) and the designation renders only TWO of its four fields, because family/team/number were never set -- the schema exists and the plane is empty, so @Onyx and @Red address nothing. WHY A NEW VERB RATHER THAN RE-NOMINATION: naming and placement are DIFFERENT ACTS. Ceremony rule 1 forbids naming yourself; it says nothing about where you are posted, and posting is an org decision. Forcing placement through nominate+ratify would also mean re-ratifying an identical callsign just to set a field, which pollutes the naming history with records that decide nothing. So: resident place <agent> --family --team --number --by, appending a PLACEMENT record to the same append-only log, with get() projecting the latest placement onto the current designation. A resident can be re-posted without being re-named, and the posting history survives -- which is the point, since 'who was in Onyx during exercise 7' is a question about the past. PLACEHOLDERS, chosen to be meaningful so they may survive rather than be replaced: family = standing working group (Onyx = substrate/mechanism, Jade = epistemics/premise); team = standing disposition, NOT the per-exercise side which T259 already handles as an assignment event (Blue = builds and defends, Red = attacks premises). Vandor Onyx/Blue/1, Heimdall Onyx/Blue/2, Navi Jade/Red/1. Navi on Red is not arbitrary: attacking premises is measurably what it does. ACCEPTANCE, RED first: place sets all four designation fields and designation() renders the full Vendor|Family|Team|N-Callsign form; a re-posting APPENDS and the prior posting still resolves; placement never touches the callsign and never creates a formerly: entry; a placement for a non-resident refuses and points at the ceremony; residents with no placement still render the short form (most seats are not posted anywhere). UNBLOCKS the family half of T108 routing, which cannot address a family that has no members.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/fleet/residents.py",
+        "agent_cli.py",
+        "tests/test_resident_placement.py"
+      ],
+      "acceptance": "",
+      "status": "done",
+      "commit": "cbdb747",
+      "verified_by": "claude",
+      "reviewed_by": "deepseek",
+      "self_verified": null,
+      "created": "2026-08-10T12:12:47+00:00",
+      "updated": "2026-08-10T12:34:17+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-10T12:12:47+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-10T12:12:55+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-10T12:21:25+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-08-10T12:21:26+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-10T12:27:16+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-10T12:34:17+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T268",
+      "title": "Wrap asks for tomorrow's routing, and suggests who should take each target. MEASURED PRECONDITION, found by running the first manual sleep shift 2026-08-10 rather than by reading about it: the shift's highest-value job (pre-chew each resident's catch-up pack) COULD NOT RUN, because tomorrow was not routed -- 24 NEXT and 61 proposed with no assignment. The literature's caveat on offline compute (it pays only when future queries are predictable) is therefore NOT a property of the world here: it is a SCHEDULING PRECONDITION, and the scheduler is us. Reading had produced the opposite conclusion -- that our routing control made the caveat moot -- so this is a case where running the thing inverted the conclusion. WHAT EXISTS ALREADY: wrap --focus records free-text intent into the next-focus note, which boot renders above the NEXT list. What it does NOT record is TARGETS -- which ledger items, taken by which resident -- and that is exactly what a pre-chew needs. WHAT SHIPS: (a) wrap --route T123,T124 records a durable routing record the night shift reads; (b) for each routed target, SUGGEST a resident by running T260's agent-scoped search over each resident's own archive against the task title, so the assignment is evidence-based rather than a guess, and rendered as a suggestion the human can override -- never auto-assigned, because routing is Daniil's act and a suggestion presented as a decision is the self-declared-identity class one plane over; (c) a wrap with NO routing prints a visible nudge naming the consequence ('the night shift cannot pre-chew') and the exact command -- a rule that lives only in a doc needs someone to remember it, which is the failure this whole slice is about. ACCEPTANCE, RED first: --route records targets that survive to the next boot; an unroutable id refuses loudly rather than recording a target nobody can work; suggestions cite the lessons that produced them (an unreceipted suggestion is a vibe); a wrap without --route nudges and still succeeds (the nudge must never block a wrap); existing --focus behaviour is byte-identical.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "agent_cli.py",
+        "tests/test_wrap_routing.py"
+      ],
+      "acceptance": "",
+      "status": "done",
+      "commit": "0592aeb",
+      "verified_by": "claude",
+      "reviewed_by": "deepseek",
+      "self_verified": null,
+      "created": "2026-08-10T12:14:35+00:00",
+      "updated": "2026-08-10T12:21:25+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-10T12:14:35+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-10T12:14:42+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-10T12:14:43+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-08-10T12:14:43+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-10T12:18:05+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-10T12:21:25+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T269",
+      "title": "T268 pin target: a routable ledger item about bus lane cursors and wake",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-10T12:15:22+00:00",
+      "updated": "2026-08-10T12:15:22+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-10T12:15:22+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T270",
+      "title": "T268 pin target: a routable ledger item about bus lane cursors and wake",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "abandoned",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-10T12:16:51+00:00",
+      "updated": "2026-08-10T15:14:15+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-10T12:16:51+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "",
+          "at": "2026-08-10T15:14:15+00:00",
+          "reason": "TWIN OF T269, collapsed. Identical in every substantive field (title, desc, files, deps, acceptance, owner); differs only in id and timestamps -- created 12:15:22 and 12:16:51, 89 seconds apart. T269 kept as the survivor. NOTE for whoever owns T268: both are 'T268 pin target' fixtures, i.e. a pin appears to write routable items into the PRODUCTION ledger and a re-run made a second one -- worth a guard so this does not accrete."
+        }
+      ]
+    },
+    {
+      "id": "T271",
+      "title": "WISHLIST id allocator races on stale reads, and 14 ids are already ambiguous. Surfaced live 2026-08-10 when filing W141: the door itself warns that W00 and W57-W69 each appear more than once. NOT a new discovery -- agent_cli.py:1940-1948 documents it from a 2026-08-01 measurement (128 blocks, highest W114, 14 doubled) -- but it has sat unfixed while every wish filed since inherits an ambiguous namespace. TWO HALVES, and only one is safe to do unattended. ROOT CAUSE (the half that matters): the allocator is n = max(existing) + 1 computed from a plain read, which never collides against a CORRECT read but always can against a STALE one -- two seats filing batches against different versions of the file. This is the same class as the store's lost-update hole and the answer is the same shape: allocate under a cross-process lock, or CAS the file, so the read that computes the id and the write that uses it cannot be separated. The door is right to file anyway on a collision (Daniil's standing rule is that capture must never refuse -- 'append the moment friction is felt'), so the fix belongs in ALLOCATION, never in refusal. DATA REPAIR (the half that needs a human): renumbering the 14 duplicates makes citation unambiguous but BREAKS every existing citation of those ids, and the corpus cites wishes by number at gates. That is a semi-destructive rewrite of a durable record and it is Daniil's call whether old citations should resolve to the first or second holder. Proposed: repair AFTER the allocator lands, so the renumbering happens once rather than racing new collisions in behind it. ACCEPTANCE, RED first: two concurrent wish filings never receive the same id (the pin drives real concurrency, not a mocked sequence -- a pin that supplies its own ordering tests the mechanism and not the wiring); a stale-read filing is detected and retried rather than silently colliding; the capture door still NEVER refuses a wish on a collision; the existing 14 duplicates are reported by a checker until repaired, so the debt stays visible rather than becoming furniture. BLOCKED TODAY on the agent_cli.py file lock held by T268.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "agent_cli.py",
+        "tests/test_wish_allocator.py"
+      ],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-10T12:20:04+00:00",
+      "updated": "2026-08-10T12:20:04+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-10T12:20:04+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T272",
+      "title": "T088 RECONCILIATION: the identity arc was specified 24 days before I re-derived it, and its FOUNDATION is still unbuilt. Found during the 2026-08-10 stale triage, not by search -- T088 'Agent identity and naming arc' (Daniel directive 2026-07-16) sat PROPOSED and untouched while I designed and shipped T258-T267 from Daniil's 2026-08-09 directive without ever reading it. WHAT MY WORK ACTUALLY DELIVERED, mapped honestly against T088's two halves rather than claimed wholesale: T088(b) DISPLAY-NAME LAYER -- LARGELY DONE. The callsign IS a display name split from the stable agent_id (ids stayed stable throughout; nothing addresses by callsign yet, which is the point of T108). T088 asked for an 'alias record formerly X' and T258 built formerly: independently -- convergent design, which is luck rather than method, and worth recording as such. T088(b) ID-MIGRATION RITUAL -- NOT DONE. A true rename must migrate cursors, claims and grants and emit a ledger event; supersede a callsign today and none of that moves, because a callsign is a label over an unchanged id. That is fine while ids never change and becomes a live defect the first time one does. T088(a) COLLISION-SAFETY -- NOT DONE AT ALL, and this is the foundation everything above sits on: there is no identity REGISTRATION handshake, so two agents spawning simultaneously with one id still conflate memory attribution, funnel credit, presence and cursors. The roster already shows the symptom -- multiple DEAD incarnations per agent, and seat_identity_is_process_scoped_not_session_scoped is the lesson filed about it. WHAT THIS SLICE IS: build T088(a), the registration handshake -- first boot CLAIMS the id or takes a suffix, with the claim durable and the conflict LOUD. Not the migration ritual (own slice, and only urgent once ids move). ACCEPTANCE, RED first: two processes racing to claim one id -- driven concurrently, never a mocked sequence -- produce exactly one holder and one suffixed seat, and the loser is TOLD which it is rather than silently continuing as a twin; an existing live holder is never displaced by a newcomer; the claim survives a crash without stranding the id (a lease, not a lock held forever). DO NOT close T088 on this: it carries three parts and this slice is one.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "verifying",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-10T12:29:47+00:00",
+      "updated": "2026-08-11T00:38:14+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-10T12:29:47+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-11T00:21:05+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-11T00:21:06+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-08-11T00:21:06+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-11T00:38:14+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T273",
+      "title": "One clipper, not five: make CLIP -> CONFESS -> RESOLVE a chokepoint instead of an audit. Daniil 2026-08-10: 'How can we fix all clipping instances everywhere so we stop running into that issue?' WHY AN AUDIT CANNOT WORK, and this is the load-bearing reason: I tried twice to build a detector inline and both instruments over-counted badly (179 then 364 'silent truncations', mostly LIST slices like hits[:25] and receipts[:2] caught alongside genuine text cuts like body[:500]). x[:200] is not a clip -- it is a clip only when x is text someone else needs and will not see the rest of. Syntactically identical, semantically opposite. That is T214's wall exactly: token-level tools cannot detect forked MEANINGS, and 'a clip' is a meaning. So the fix must be a CHOKEPOINT that makes the next silent clip impossible to add, not a sweep that finds today's. MEASURED SURFACE: FIVE independent _clip implementations (core/events/event_log.py, core/primitives/distiller.py, agent/bifrost_pull.py, agent/harness/context.py, agent_cli.py) plus the packet_spec family (bound_tool_text / spill_tool_text / clip_stamp) and clip_pointer. One concept, five mechanisms, deliberately different tokens -- the forked-semantics class the LEXICON work exists for -- and only packet_spec's spill PRESERVES THE BYTES. The other four destroy. THE CONTRACT, paid for three times separately and never written down together: T220 clipped with no address (data loss by design); T222 minted an address that did not resolve and found that is WORSE, because a dead pointer looks actionable and costs a turn to discover it is decoration; T263 had the tool door spilling while the CLI door clipped. So: above a byte threshold SPILL to a content-addressed blob and return a ref that resolves from anywhere; below it DECLARE N-of-M and name a recovery command that actually runs; never a bare ellipsis. WHAT SHIPS: (a) one canonical clipper carrying the contract, with the four destroying implementations migrated onto it; (b) a ratcheted checker that fails a NEW raw text truncation outside the helper, freezing today's instances as a backlog exactly like check_wiring's 116 -- so 'where do we clip' becomes 'who calls the clipper', which is mechanically answerable; (c) clip_pointer taught to prefer meta.spill_ref before falling back to a stream id, which ABSORBS T264. ACCEPTANCE, RED first: a new raw truncation of a text variable in live code FAILS the checker; a clip above the threshold produces a ref that RESOLVES from a third party, not just from sender or recipient; a clip below it renders N-of-M plus a working recovery command, and the pin RUNS that command rather than asserting it was printed (T222's own lesson: verifying that a pointer was printed is not verifying that it resolves); the existing T113/T220/T222/T263 pins stay green. THRESHOLD IS MEASURED, NOT GUESSED: a 220-char inbox preview must not mint a blob, so the cut point is chosen from the live distribution of clip sizes and the choice is recorded. SEQUENCING: lands AFTER the n=5 drill reports -- it rewrites files the drill is currently measuring. Supersedes T264, which is the same defect seen through one door.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/comm/packet_spec.py",
+        "agent/bifrost_pull.py",
+        "scripts/checkers/check_clips.py",
+        "tests/test_clip_contract.py"
+      ],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-10T13:21:20+00:00",
+      "updated": "2026-08-10T13:21:20+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-10T13:21:20+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T274",
+      "title": "Kill-drill at n=5: does a resident's own memory cause findings a blind seat misses? Pre-registration committed at 8d4a3e1 BEFORE any answer existed. NOTE ON THE FILENAME, recorded rather than tidied: the prereg was written as research/in-flight/t273-killdrill-n5-preregistration.md before the registry spoke, and T273 was subsequently minted for the CLIP CHOKEPOINT slice. The file keeps its name (renaming breaks the commit trail at 8d4a3e1); THIS entry is the drill's real id, and the two are not related. Third time this week I have pre-named an artifact -- the identifiers_minted_before_the_registry_speaks_collide lesson, cited by me two days ago and violated since. THE QUESTION: kimi's verdict that persistence was never isolated as the cause of any win is unresolved, and five slices now sit on it. The n=1 run gave a favourable direction (resident 2 real defects, blind 0, foreign-memory 0) and FAILED both attribution bars because no finding named a lesson, so it could not tell recall from coincidence. THE CHANGE THAT MATTERS: the citation requirement moved INTO the brief and became machine-checkable -- each branch is asked which recalled lesson produced each finding, NONE explicitly legitimate and unpenalised, and the claim is verified against the pack actually sent. A cited id present in the pack is GROUNDED (bar 1); an id that was never in the pack is FABRICATED and scored separately, predicted in advance as H5 because asking for citations creates the incentive to produce them. THREE ARMS over 5 targets: blind, resident-with-own-archive, and blind-with-a-FOREIGN-archive -- the last re-run because its n=1 result (foreign memory scored WORSE than none) was the only unpredicted finding and is already cited as a build constraint, so it deserves confirmation before it hardens into doctrine. Confounds REMOVED rather than controlled: one file per call under the 40K budget, since the n=1 run passed 78K and the evidence clipped. ACCEPTANCE: the pre-registered scoring stands as committed; if H3 holds (blind equals or beats resident) the result is published in kimi's own framing and the design atom drops every correctness claim.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-10T13:21:46+00:00",
+      "updated": "2026-08-10T13:21:46+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-10T13:21:46+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T275",
+      "title": "report verb: a design SYSTEM as a door, so a visual report costs content instead of CSS. Daniil 2026-08-10: 'Is there a way to verbify it so that it is easier for you to make these?' -- after three artifact reports in two days (night retrospective, decision brief, T272 reconciliation). WHAT IS ACTUALLY REUSABLE, measured by writing it three times: the dual-theme token system (ground/surface/line/ink/muted plus SEMANTIC colours that carry meaning rather than decoration), the type pairing (mono eyebrows and data, sans headings, serif for standfirsts and quoted directives), and six layout primitives -- the aurora rule, stat tiles, a card with a two-path split showing what each direction costs, a timeline, a side-by-side versus block for a genuine disagreement, and a scannable table with tabular numerals. That is roughly 200 lines rewritten three times with drift each time. WHAT IS DELIBERATELY NOT REUSABLE, and this is the design constraint rather than a caveat: the SHAPE. The three reports needed three different structures because they were three different documents, and Daniil's praise was for the fit. A template that emits a fixed document would flatten exactly what he is responding to, and the artifact-design guidance warns specifically against templated output. So the verb hands over the SYSTEM and never the document. WHAT SHIPS: (a) design/report-kit.css -- the tokens and primitives in ONE place, so an improvement to the palette propagates instead of forking into a fourth variant; (b) py agent_cli.py report new --title <t> --out <path>, mirroring , which emits an HTML scaffold with the kit INLINED (the artifact CSP blocks external stylesheets, so inlining is a requirement rather than a convenience) plus a commented crib of every primitive with its class names, so composing does not require remembering them; (c) the primitives carry their SEMANTICS in the comments -- a two-path card is for decisions with real costs on both sides, a versus block is for a genuine disagreement and not for a pro/con list -- because a primitive used off-purpose is how a design system becomes decoration. ACCEPTANCE, RED first: the emitted scaffold renders standalone with no external fetch; both themes are defined at token level and the data-theme override wins over prefers-color-scheme in BOTH directions; the kit lives in exactly one file and the scaffold inlines it at emit time rather than linking it; a scaffold with no content still renders valid HTML; the crib names every primitive the kit defines, checked mechanically so a new primitive cannot be added without documenting it.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "design/report-kit.css",
+        "scripts/generators/gen_report_scaffold.py",
+        "agent_cli.py",
+        "tests/test_report_kit.py"
+      ],
+      "acceptance": "",
+      "status": "verifying",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-11T00:37:16+00:00",
+      "updated": "2026-08-11T00:44:23+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-11T00:37:16+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-11T00:38:05+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-11T00:38:05+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-08-11T00:38:15+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-11T00:44:23+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T276",
+      "title": "Standing practice: capture the state of the art daily, synthesize weekly, and turn the gap into questions. Daniil 2026-08-10 after the Max call: \"He said we need to daily be on the bleeding edge of tools and AI research to keep up with the industry. I want us to make that be a standard practice and I remember having a conversation about this very thing, we have yet to make it a reality.\"\n\nCHECKED BEFORE DESIGNING, per i_designed_an_arc_the_ledger_had_already_specified: no prior ledger task covers a research CADENCE. What exists is ad-hoc: the 2026-08-09 handoff/repriming prior-art sweep and the 2026-08-07 ensemble scan. Both were one-offs triggered by a question. T229 fans across LEARNERS and is a different thing. So this is genuinely new, and Daniil's memory is right -- we have done the work twice and never made it an organ.\n\nWHY IT IS NOW URGENT rather than nice: ████████████ (Meta, Ads ████████; ████████████) reports having seen ELEVEN external memory schemas and about FIVE internal ones, all with different tradeoffs. We had researched benchmarks and five packages. That gap is the difference between knowing the field and knowing of it. He also offered to answer well-formed questions WEEKLY in a shared doc -- which makes a weekly synthesis self-justifying, because its output IS the question list.\n\nWHAT SHIPS: (a) a daily CAPTURE door -- one command that files a source (paper, release, post, repo) into the store with a verdict field, so capture costs seconds and nothing lives in a chat scroll; capture is deliberately cheap and unopinionated, because a ritual with friction does not survive contact with a busy day. (b) a WEEKLY SYNTHESIS that renders four sections and nothing else: what is new, what we could FOLD IN, where we STAND versus the named competition, and the OPEN QUESTIONS the week produced. (c) the questions section feeds Max's doc directly, so the practice pays for itself in one hop rather than accumulating into a reading list nobody reads. (d) the report is a visual artifact via the T275 report verb.\n\nTHE HARD PART, and it is not the plumbing: RELEVANCE. A daily scan that files everything is a second inbox, and the corpus already carries a measured 4.8% value rate that says we are bad at predicting what will matter. So each capture must record WHY IT MIGHT MATTER TO US in one line at capture time -- the same discipline as a lesson's trigger clause -- and the weekly synthesis must report how many captures were actually folded in. A practice that cannot show its own yield is the funnel problem one level up.\n\nDEPENDS ON, and this is a real dependency rather than a nicety: T277 (define what success looks like). Without a success definition, \"where we stand versus the competition\" has no axis and the comparison degrades to a feature checklist. Max's exact words: \"if we don't define what success looks like we won't be able to measure progress towards it.\"\n\nACCEPTANCE, RED first: capture is ONE command and survives a body containing shell metacharacters (the W143 class); a capture without a why-it-matters line is REFUSED, because an unlabelled capture is a bookmark; the weekly synthesis renders all four sections from stored captures and never from a model's memory of the week; the synthesis reports its own fold-in rate; a week with zero captures renders \"zero\" rather than an empty page, so a lapsed practice is visible rather than silent.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-11T02:14:32+00:00",
+      "updated": "2026-08-11T02:14:32+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-11T02:14:32+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T277",
+      "title": "Define what success looks like, so progress becomes measurable. ████████████, 2026-08-10, and it is the sharpest external critique this project has received: \"if we don't define what success looks like we won't be able to measure progress towards it.\" He has seen eleven external memory schemas and about five internal ones and says they all trade off differently -- which is the same point restated: without a stated objective there is no basis for choosing a tradeoff, and every design decision becomes taste.\n\nTHE GAP IS REAL AND SPECIFIC, and it is not a gap in instruments. We have unusual measurement machinery -- RED-pin-first on every slice, pre-registered drills with hypotheses committed before data, seventeen structural checkers, independent cross-model review that refuses self-verification, a funnel that counts surfaced/useful/noise/helped. What we do NOT have is a destination. The 4.8pct funnel value rate is a number with no target: nobody can say whether 20pct would be good, or whether 4.8pct is fine for what we want. The n=5 kill-drill measured whether memory CAUSED a finding without a stated bar for how much would be enough to justify the machinery. Instruments without a win condition produce activity that cannot be scored as progress.\n\nTHE COMPARISON THAT MAKES IT CONCRETE: Max's own product (priori.sh) has a one-sentence success definition -- return only evidence that was knowable at a pinned instant -- and everything else in it serves that single testable claim: point-in-time versioning, BLAKE3 content hashes, sealed extraction locks, thirteen normalized sources, replay modes. The definition is what makes the feature list coherent rather than arbitrary.\n\nCANDIDATE DEFINITIONS, and they are NOT compatible -- picking one changes what we build: (a) COLD-START COST -- a fresh seat reaches correct productive work in N minutes with zero re-explanation, measured as the fraction of a brief that re-carries standing premises; (b) DEFECT YIELD PER DOLLAR -- the fleet finds defects a solo agent does not, at a stated cost, which is what the kill-drill half-measures; (c) DECISION REPRODUCIBILITY -- any past decision can be replayed against what was knowable then, which is priori's axis and which our supersession model currently CANNOT do; (d) PORTFOLIO LEGIBILITY -- a hiring manager can read the artifact and see engineering judgement, which is Daniil's stated end goal and is measured by outside readers rather than by us. These pull in different directions: (a) optimises the boot fold, (b) optimises fan-out and review, (c) demands point-in-time query we have not built, (d) optimises for narrative and demonstration.\n\nDANIIL DECIDES. This is not mine to pick -- it is the project's purpose, and picking it for him would be the T227 defect at the largest possible scale. What I can do is state the options with their consequences, and make each one's metric explicit so the choice is informed rather than abstract.\n\nACCEPTANCE: one stated success definition, in Daniil's words, recorded durably; at least one metric that operationalises it with a TARGET and not merely a current reading; a named thing we would STOP doing if it does not serve the definition -- because a definition that forbids nothing is a slogan; and the existing funnel/drill numbers re-expressed against the definition so we can say whether we are moving toward it.\n\nBLOCKS T276, whose \"where we stand versus the competition\" section has no axis without this.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-11T02:15:10+00:00",
+      "updated": "2026-08-11T02:15:10+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-11T02:15:10+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T278",
+      "title": "THE EYE: make the transcript plane queryable on multiple axes, built for the fleet to call. Daniil specified this on 2026-07-31 and it has never been built. His words, verbatim, recovered from session transcripts 2026-08-10: \"I want you to be able to search redis and get a representation of the items referenced within. a realtime eye that you can quyery and understand your position and vision on multiple axees at once with ways of pinging and navigating quickly.\" And the constraint, same day: \"I want the eye to have its own cursor, we cant have lookups breaking core system logic.\"\n\nRESTATED 2026-08-10 after seeing priori.sh: \"I want all of our transcripts to be quereable in useful ways with frequency, who was there, what is ambiant related knowledge. Make this be useful and useable for you.\" The last sentence is the design constraint: the CONSUMER IS THE FLEET, not a browsing human, so this is a door with structured output rather than a UI.\n\nWHY IT KEEPS EVAPORATING, and this is the finding that makes it urgent: TWICE on 2026-08-10 a directive was lost because it lived only in session transcripts. The T276 research-cadence directive (2026-07-26, \"we keep finding gold when we do this but we rarely do it\") took four parallel repo searches that ALL came back empty, then three guessed substrings to recover. THE EYE ITSELF took another five. Both were quoted back later as standing policy and still never became organs. The transcript plane is the one input class the fleet cannot read, and it is where the founder actually speaks. The Eye is the fix for the exact failure that keeps burying the request for it.\n\nFEASIBILITY VERIFIED, not assumed: 480 .jsonl transcripts, 440MB, at ~/.claude/projects/<slug>/. Schema carries type, timestamp, sessionId, uuid, parentUuid (threading), cwd, gitBranch, version, and message{role,content}.\n\nTHE TRAP, verified by reading records rather than trusting the type name: DANIIL'S SPEECH HIDES IN queue-operation RECORDS. A record with type=queue-operation and operation=enqueue carries a `content` field holding what he typed WHILE A TURN WAS RUNNING -- his mid-turn interjections, which he makes constantly (three times in the session that produced this task). Those are NOT type=user. An ingest reading only type=user silently drops every interruption he has ever made. The corpus already warned about this in learn:experiment:operator_speech_hides_in_queue_operation_records and I nearly built it wrong anyway.\n\nTHE AXES, his three plus what I actually needed today and did not have: (1) FREQUENCY -- how many times an idea appears, across how many sessions, on what dates. This is his sharpest contribution: a thing said ONCE is an idea, said THREE TIMES is a standing directive, and today the Eye scored 3x in a prioritization pass and still got dropped. Repetition is signal strength and nothing measures it. (2) WHO WAS THERE -- the seats live in that session, the model, the branch. (3) AMBIENT -- what else was in play at that timestamp: commits in the window, tasks touched, lessons filed, other utterances in the same session. (4) FULL UTTERANCE, not a 100-char snippet -- today I assembled ONE quote from four successive guessed substrings because the only available tool returns one snippet per session. (5) SURROUNDINGS via parentUuid, so \"what was around it\" is a traversal rather than a re-search. (6) AS-OF, so a past decision can be read against what was knowable then.\n\nREFERENCE DESIGN, priori.sh (████████████'s product, seen 2026-08-10): its query surface is a TYPED FACET dropdown -- Source, Entity, Type, Relationship, Exact phrase -- with an as-of control beside it, and stable per-observation URLs. Exact phrase is the LAST facet, the fallback. That is the whole lesson: queryable means HAVING DIMENSIONS, not having embeddings. We already store five of those six dimensions (agent_id, task/file entities, atom and message types, replaces/related_to edges, bitemporal valid_from/valid_to) and expose exactly ONE of them -- the weakest, string matching. Embeddings are an ENHANCEMENT to a working facet surface, not a substitute for one; the socket is already specified in three modules (learning_store 'no embeddings, no LLM judge', event_query 'embedding relevance_fn is a later swap-in -- same 0..1 contract', codex/schema centroid field).\n\nACCEPTANCE, RED first: ingest captures BOTH type=user AND queue-operation/enqueue utterances, and a pin proves a known mid-turn interjection is present (the silent-drop case); a query returns the FULL utterance plus its session, timestamp, branch and neighbours, never a truncated snippet; frequency reports occurrence count ACROSS sessions with dates, so a 3x directive is distinguishable from a 1x aside; ambient returns what else happened in a stated time window; the Eye reads with ITS OWN CURSOR and a pin proves a lookup cannot advance or corrupt any live bus cursor -- Daniil's stated constraint, and the exact class we broke repeatedly this week with lane cursors; re-ingest is idempotent; and the whole thing answers \"when did he first say X\" in ONE call rather than five guesses.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-11T02:29:36+00:00",
+      "updated": "2026-08-11T02:29:36+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-11T02:29:36+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T279",
+      "title": "A lesson is unreachable by any PREFIX of its own name, while every hook invites you to look it up by that name. Measured 2026-08-09, reproduction stable: recall backup_door_never_ran returns 4 hits with the lesson itself ranked FOURTH, below three lessons that merely mention it in prose; recall backup_door returns ZERO; recall cold_encounter returns ZERO while recall \"cold encounter\" with a space returns 32 hits including cold_encounter_test_measures_ergonomics.\n\nCAUSE, read from source not inferred: learning_store.py around line 75, _TOKEN = [a-z0-9_]+ makes underscore part of a token, so a snake_case experiment_name is ONE ATOMIC SYMBOL. Whole-token matching then means a name matches only when typed in full and exactly.\n\nWHY IT MATTERS MORE THAN IT LOOKS: the system cites lessons BY THAT NAME everywhere. Every recall-at hook prints \"source: learn:experiment:<name>\" and the CLI tells the reader to run recall --full <source>. So the one identifier the system hands out is the one the search cannot partially match, and a half-remembered name -- the most natural way anyone reaches for a lesson -- returns silence rather than a near miss. It also lands on the resident arc directly: T261 catch-up packs cite lessons by name, and a resident asked why it is called what it is must type its receipt perfectly or get nothing.\n\nTHE ASYMMETRY WAS DELIBERATE, which is why this is a design question and not a typo. The module header records that splitting on underscore made the query gamma_lesson match the record alpha_lesson through the shared fragment \"lesson\" -- a real defect, really prevented. What was never measured is the COST of the cure: how often a partial-name query returns nothing that a fragment-split would have found. Both directions have a failure mode and only one was counted.\n\nNOT A DUPLICATE: this was recorded as gap 3 inside T258's description, and T258 is DONE, so the defect currently has no live ledger entry. Also related but distinct from T273 (the clip chokepoint) and T278 (the Eye) -- this is the known defect in the ONE retrieval dimension we already expose, documented in the map atom art_20260810_retrieval-plane-inventory_647751.\n\nACCEPTANCE, RED first: a query that is a strict prefix of an existing lesson name finds that lesson; an EXACT full-name query ranks the record ITSELF first rather than fourth, since identity must outrank mention; the gamma_lesson/alpha_lesson cross-match the current design prevents STAYS prevented, pinned explicitly so the cure is not traded for the disease; and the fix is measured on both arms -- how many partial-name queries newly succeed, and how many spurious fragment matches appear -- because the original tradeoff was made without that number.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/learning/learning_store.py",
+        "tests/test_recall_by_name.py"
+      ],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-11T02:37:54+00:00",
+      "updated": "2026-08-11T02:37:54+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-11T02:37:54+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T280",
+      "title": "Query-grammar contract: ONE page specifying the read-door grammar every plane adopts -- as_of (known_at<=as_of law), facet params (who/kind/edge/task/file), degraded flag on clipped funnels, 422 on mis-shaped selectors (never silent-empty). T278 THE EYE is the first tenant, recall the second. Source: priori.sh live audit 2026-08-10 (lesson priorish_live_api_audit_corrects_screenshot_claims, artifact b4635845, sweep atom art_20260810). Grammar verified against a shipped product end-to-end through its MCP door.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "RED pins first: (1) a past-dated as_of that can still see a later revision (the -898k class) fails; (2) a mis-shaped selector returning silent-empty instead of 422 fails; (3) a clipped result carrying no degraded flag fails. Contract adopted by T278's design doc before T278 builds.",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-11T03:43:52+00:00",
+      "updated": "2026-08-11T03:43:52+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-11T03:43:52+00:00"
         }
       ]
     }

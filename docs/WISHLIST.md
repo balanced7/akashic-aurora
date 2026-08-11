@@ -815,6 +815,48 @@ cursor read the guard does not currently do.
 - [ ] W136 (08-07, claude) — A BENCHED lesson still pollutes the consolidation-candidate graph. Found 2026-08-07 in the funniest possible way: I benched three test fixtures (beat_hook_exp, offline_exp, dup_exp -- fake agents, empty recommendations, success=yes, sitting in the recall value-rate denominator while structurally incapable of earning credit), then recorded a lesson ABOUT benching them -- and the store immediately printed 'related lesson: dup_exp (2/5 dims) -- consolidation-pass candidate' on that very lesson. This is DOCUMENTED behaviour, not a bug: mark_benched's own docstring says it stops a lesson competing for recall surface slots 'while keeping full history + full-corpus visibility', and the relatedness graph is full-corpus. So benching correctly fixes the DENOMINATOR problem and does nothing for the RELATEDNESS problem, which are two different harms from one cause. The consolidation surface is where a curator decides what to MERGE, and merging a real lesson with a fixture that has no recommendation would silently blank real advice. Options, cheapest first: (a) the relatedness/near-dup pass skips benched records when proposing merges (they remain visible to search, which is what full-corpus visibility is actually for); (b) a lesson with an EMPTY recommendation is never a merge candidate regardless of bench state, since a merge target with nothing to say can only subtract; (c) an intake guard refuses a lesson whose recommendation is empty, so fixtures cannot enter the corpus in the first place -- three fixtures from three fake agents got in and nobody noticed for weeks. Trigger: benched a fixture, then watched it recommend itself for consolidation against the lesson about benching it. Land: recall curation slice; (b) is the smallest and closes the real harm without touching bench semantics.
 - [ ] W137 (08-07, claude) — Truncation must be a RENDER concession, never a data concession: any door that clips a body (bifrost-sync render, mailbox list, boot peek) must MINT and print the blob ref at clip time, and every reader door (mailbox --open, bifrost-fetch, boot) must auto-resolve that ref to the full body on reach. Receipt 2026-08-07: veteran's 3-point peer note clipped mid-point-3 with no pointer; spill dir empty for it; mailbox list showed sha 518bfcb0c5 while mailbox --open denied the same sha (index_lag 1, evicted 2211); bifrost-fetch exists but only takes refs some renders never mint. Four doors, zero reconstruction. The resolver exists; mint-at-clip coverage and the list-vs-open fork are the gaps.
 - [ ] W138 (08-07, claude) — A LIVE SENDER IS A DOOR, and it is in no manifest. Found 2026-08-07 by watching a fresh seat spend six-plus tool calls reconstructing a truncated bus note: it tried the spill directory, mailbox LIST, mailbox OPEN, bifrost-fetch, a raw redis stream scan, promoted, and git log. The full body had been sitting in research/in-flight/_note_to_fresh_seat_2.txt the entire time, because a standing rule (lesson bifrost_send_always_text_file) makes every bifrost-send body go through --text-file -- so the SENDER'S COPY exists on disk before the render can ever clip it. Nothing in any door manifest, boot render, or truncation notice says 'ask the sender' or 'the sender wrote this from a file'. THE CHEAPEST RECONSTRUCTION PATH IN THE SYSTEM IS A PEER WHO IS STILL ALIVE, and it is the only one with no door. Concrete asks, cheapest first: (a) when a render clips a body, the clip line names the SENDER and says a live sender can resend -- one sentence, no new machinery; (b) since --text-file is already the standing rule for sends, record the source PATH in the message meta at send time, so the truncation notice can point at the sender's own file rather than at a blob that may never have been minted; (c) the bigger fix, which the fresh seat filed as W137: truncation is a RENDER-TIME decision, so the renderer must MINT the pointer at clip time and every reader door must resolve it transparently -- half exists already (spill + bifrost-fetch), the gap is coverage on this path. FOUR REAL DEFECTS SURFACED BY THAT HUNT, worth keeping separately from the punchline: the render truncated with NO pointer minted (unrecoverable by design, not by accident); mailbox LIST shows a sha that mailbox OPEN denies (two index families disagreeing about one record); bifrost-fetch needs a blob ref this render never created (resolver present, mint missing); and long bodies fragment per T043 so a raw-stream substring search fails across fragment boundaries. Trigger: watched a peer burn six tool calls on a body I had written to a file before sending it. Land: W137's truncation-pointer slice; (a) is one sentence and closes most of the felt cost.
+- [ ] W141 (08-10, claude) — A slice in VERIFYING keeps its file lock, so a solo builder serializes behind their own
+review latency. Hit THREE times on 2026-08-10: T252 blocked T258, T262 blocked T267, and
+T268 blocks T267 right now. By the time a slice reaches verifying its work is COMMITTED and
+PINNED, so the lock is protecting against an edit nobody is making -- the reviewer reads
+git, not the worktree. Either VERIFYING should release the file lock, or claim should offer
+a queue-behind instead of a hard refuse. Asked Heimdall for a read rather than changing it
+on my own judgement, since I own that gate and ratifying my own convenience is the T227
+defect.
+- [ ] W142 (08-10, claude) — THE ID-BEFORE-THE-REGISTRY COLLISION IS A DOOR PROBLEM, NOT A DISCIPLINE PROBLEM. Three
+times in one week I named an artifact (t262-*, t273-*) before the ledger minted the id, and I
+cited the identifiers_minted_before_the_registry_speaks_collide lesson two days before the
+last two. Noting it a third time is not going to work; the recall fires and I still do it,
+because the file gets written in the same breath as the thought and the propose call happens
+after.
+
+The ergonomic cause is real: to name a file correctly I must first run propose, read the
+minted id out of prose output, then write the file -- three steps at the exact moment I am
+holding a design in my head. So I guess, and the guess is right about half the time.
+
+WISH: make the correct order the EASY order. Either (a) `task propose --json` returns the id
+in a parseable field so a one-liner can propose-then-name, or (b) a `task mint` that reserves
+the next id without a full proposal, or (c) `doc new --arc <task>` already infers the arc --
+extend it to REFUSE a filename containing a T-number the registry has not issued. Any of the
+three turns a discipline problem into a door.
+- [ ] W143 (08-10, claude) — THE --text-file ESCAPE IS WIRED TO ONE DOOR AND EVERY OTHER DOOR STILL EATS PROSE.
+bifrost-send grew --text-file because a message body containing flag-shaped text aborted a
+send (2026-07-16, live receipt). The fix was applied there and nowhere else. Today the same
+hazard bit twice through OTHER doors, hours apart, with me filing a lesson about it in
+between: `learn` lost the word "place" to backtick command substitution, and `task propose`
+lost "doc new" from T275's description the same way.
+
+That the corpus lesson fired and I did it again is the point. This is not a discipline
+problem, it is the T263 shape one plane over: a capability wired to one of two doors, so the
+doors that lack it fail silently and the failure is only visible if you read the stored
+record back.
+
+WISH: give `learn`, `task propose`, `wish` and `note` the same --text-file escape
+bifrost-send already has -- one flag, same name, same semantics -- so the safe path is the
+same path everywhere. Cheaper alternative if that is too wide: have the doors DETECT
+metacharacter loss by comparing the received argument against a checksum the caller cannot
+easily produce... no. The flag is the fix; the detection idea is worse than the disease.
+- [ ] W144 (08-10, claude) — ask --with refuses paths outside the repo root, so scratchpad-built evidence packs must be hand-copied into scratch/ before a fan can see them. Wish: auto-copy readable session-scratchpad files into the pack (keep the refusal for everything else outside the root). Felt 2026-08-10: first success-vocabulary fan spent $0.005 on three honest abstentions because the pack lived in the scratchpad. Trigger: any ask --with evidence pack assembled in a session scratchpad.
 
 ## Folded (exemplars — the loop works)
 
@@ -1040,6 +1082,35 @@ the numbered entries above, 2026-07-21; all content folded, nothing dropped.)*
   The NULL class is the load-bearing part: T159's M1 survived because it was *semantically null*
   (EXCEPTIONS is a subset of unreachable, so the clause removes 0 modules today), and a report
   that cannot say "this mutation changed nothing" will eventually be used to delete a good pin.
+
+- [ ] W139 (08-07, claude/boot) — **a wake payload should be a doorbell, not the whole ledger.**
+  Arming `bifrost_wake.py` and having it fire wrote a **50,264-token** output file, almost all of
+  it the full `task list` render — including all 127 DONE entries, which the render itself labels
+  "closed — do NOT redo". The woken seat pays that in context before it learns why it was woken.
+  Trigger: first wake of this session insta-fired on one undrainable legacy-lane `reply`; the
+  useful content was **line 1** (the diagnosis and the exact drain command, which was correct and
+  worked). Lines 2–214 were the ledger.
+  Want: the wake payload carries the wake REASON plus a pointer, on the W138 principle the same
+  night's handoff argues for the bus — durable door, doorbell on the wire. If a seat wants the
+  ledger it can call `task list`. Note this compounds with the render defect filed alongside it:
+  the dump is huge *and* omits the 35 non-stale proposals, so it is simultaneously the most
+  expensive and least current view of the ledger a seat can receive.
+
+- [ ] W140 (08-07, claude/boot) — **`task list` prints the stale proposals and hides the fresh
+  ones.** The render has sections for DONE (127), IN PROGRESS, PARKED, NEXT (24) and
+  "PROPOSED BUT STALE" (20). The other **35 proposed tasks are not rendered at all**, and the
+  footer counts them (`proposed 55 (20 stale)`), so the view knows they exist and shows only the
+  ones whose defining property is that nobody wants them. There is no `--status` flag either —
+  argparse rejects it, and because every diagnostic here goes to stderr, piping into `grep`
+  swallows the error and it reads as an empty result rather than a missing flag.
+  Trigger: booting into this session, every task the previous seats filed (T229, T232–T235,
+  T238–T241) was invisible through the door; I only found them by reading `state/coord/tasks.json`
+  directly, and only looked because the `where-we-are` note named them by hand.
+  Want: fresh proposals rendered (newest first, capped, with a count of the remainder), and a
+  `--status` filter so the question can be asked directly.
+  Honest scope: this is NOT hiding anything currently waiting on Daniil — I checked, and T221
+  (the Season 1 hedge exploit) is `done` and renders fine. It hides the incoming backlog, not
+  the open rulings.
 
 ## Declined
 
