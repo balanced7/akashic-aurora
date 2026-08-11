@@ -1,0 +1,363 @@
+<title>Under-Applied: What the Frontier Run Exposes</title>
+
+<style>
+/* report-kit -- the design system behind Akashic Aurora's visual reports.
+ *
+ * Daniil 2026-08-10, after three of them in two days: "Is there a way to verbify it so that
+ * it is easier for you to make these?"
+ *
+ * THIS IS A SYSTEM, NOT A TEMPLATE, and the distinction is the whole design constraint. The
+ * three reports that produced this kit needed three different SHAPES -- a retrospective, a
+ * set of decision forks, a reconciliation built around a contradiction -- and the thing
+ * Daniil was responding to was the fit. A generator that emitted a fixed document would
+ * flatten exactly that. So: tokens and primitives here, composition every time.
+ *
+ * INLINED, NEVER LINKED. Published artifacts run under a CSP that blocks every external
+ * host, so a <link> to this file would silently fall back to unstyled. The scaffold
+ * generator inlines it at emit time; that is a requirement, not a convenience.
+ *
+ * SEMANTIC COLOUR IS SEPARATE FROM ACCENT. --go/--hold/--stop carry MEANING (this is cheap /
+ * this needs judgement / this costs either way) and must never be spent on decoration.
+ * --aurora is the accent and carries none. Mixing the two is how a design system becomes
+ * wallpaper.
+ */
+
+:root {
+  /* Ground and structure. The neutrals are blue-biased toward the accent rather than pure
+     grey -- a pure mid-grey reads as unconsidered. */
+  --ground:#0A0F14; --surface:#111A22; --surface2:#17222C; --line:#22303E;
+  --ink:#E3EAEF; --muted:#8798A6; --dim:#5F7080;
+
+  /* Semantic. Meaning only. */
+  --go:#3FD3A0;      /* cheap, unblocked, shipped, confirmed */
+  --hold:#E0A854;    /* needs judgement, pending, self-declared */
+  --stop:#E4606A;    /* costs either way, refuted, not built */
+  --aurora:#8B7FE8;  /* the accent. Structure and emphasis, never status. */
+
+  --mono:ui-monospace,"SF Mono","Cascadia Mono","Roboto Mono",Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+}
+
+/* Both themes at TOKEN level: components style through the tokens and never inside the
+   media query, so the data-theme override can win in BOTH directions. */
+@media (prefers-color-scheme: light) {
+  :root {
+    --ground:#F7F8F9; --surface:#FFFFFF; --surface2:#F0F3F5; --line:#DCE3E8;
+    --ink:#16202A; --muted:#5A6B79; --dim:#8496A3;
+    --go:#137A5A; --hold:#9A6A17; --stop:#C43A45; --aurora:#5B4DC4;
+  }
+}
+:root[data-theme="dark"] {
+  --ground:#0A0F14; --surface:#111A22; --surface2:#17222C; --line:#22303E;
+  --ink:#E3EAEF; --muted:#8798A6; --dim:#5F7080;
+  --go:#3FD3A0; --hold:#E0A854; --stop:#E4606A; --aurora:#8B7FE8;
+}
+:root[data-theme="light"] {
+  --ground:#F7F8F9; --surface:#FFFFFF; --surface2:#F0F3F5; --line:#DCE3E8;
+  --ink:#16202A; --muted:#5A6B79; --dim:#8496A3;
+  --go:#137A5A; --hold:#9A6A17; --stop:#C43A45; --aurora:#5B4DC4;
+}
+
+body { background:var(--ground); color:var(--ink); font-family:var(--sans);
+       line-height:1.62; margin:0; padding:0 20px 90px; }
+.wrap { max-width:880px; margin:0 auto; }
+h1,h2,h3 { text-wrap:balance; margin:0; }
+p { margin:0; }
+a { color:var(--aurora); }
+code { font-family:var(--mono); font-size:.88em; background:var(--surface2);
+       padding:1.5px 5px; border-radius:3px; }
+.num { font-variant-numeric:tabular-nums; }   /* any column of digits */
+
+/* --- header ------------------------------------------------------------------ */
+header { padding:54px 0 24px; display:flex; flex-direction:column; gap:13px; }
+.eyebrow { font-family:var(--mono); font-size:12px; letter-spacing:.14em;
+           text-transform:uppercase; color:var(--muted); }
+h1 { font-size:clamp(28px,4.6vw,40px); line-height:1.14; font-weight:640;
+     letter-spacing:-.02em; }
+.standfirst { font-family:var(--serif); font-size:18.5px; line-height:1.55;
+              color:var(--muted); max-width:62ch; }
+
+/* --- rule: a section break that carries the project's name ------------------- */
+hr.rule { height:2px; border:0; margin:0; opacity:.5;
+  background:linear-gradient(90deg,transparent,var(--go) 18%,var(--aurora) 52%,
+             var(--stop) 80%,transparent); }
+
+section { margin-top:46px; display:flex; flex-direction:column; gap:16px; }
+h2 { font-size:12.5px; font-family:var(--mono); letter-spacing:.16em;
+     text-transform:uppercase; color:var(--muted); font-weight:600; }
+h3 { font-size:20px; font-weight:620; letter-spacing:-.01em; }
+.prose { max-width:68ch; color:var(--muted); font-size:15.5px; }
+.prose strong { color:var(--ink); }
+
+/* --- tiles: headline numbers. Use for 3-6 figures, never for prose. ---------- */
+.tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+.tile { background:var(--surface); border:1px solid var(--line); border-radius:4px;
+        padding:14px 16px; display:flex; flex-direction:column; gap:3px; }
+.tile .v { font-family:var(--mono); font-size:26px; font-weight:600; letter-spacing:-.02em;
+           font-variant-numeric:tabular-nums; }
+.tile .k { font-family:var(--mono); font-size:11px; letter-spacing:.1em;
+           text-transform:uppercase; color:var(--dim); }
+
+/* --- card + paths: A DECISION WITH REAL COSTS ON BOTH SIDES ------------------
+   Use ONLY when both directions genuinely cost something. A card whose second path is
+   obviously wrong is a rhetorical device pretending to be a choice. */
+.card { background:var(--surface); border:1px solid var(--line); border-radius:5px;
+        border-left:3px solid var(--line); overflow:hidden; }
+.card.go { border-left-color:var(--go); }
+.card.hold { border-left-color:var(--hold); }
+.card.stop { border-left-color:var(--stop); }
+.card .head { padding:17px 20px 13px; display:flex; flex-direction:column; gap:7px; }
+.card .tid { font-family:var(--mono); font-size:11px; letter-spacing:.08em; color:var(--dim); }
+.card .title { font-size:19px; font-weight:620; letter-spacing:-.01em; }
+.card .ctx { color:var(--muted); font-size:15px; max-width:70ch; }
+.paths { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--line);
+         border-top:1px solid var(--line); }
+.path { background:var(--surface2); padding:14px 20px; display:flex;
+        flex-direction:column; gap:5px; }
+.plabel { font-family:var(--mono); font-size:10.5px; letter-spacing:.1em;
+          text-transform:uppercase; }
+.plabel.a { color:var(--go); } .plabel.b { color:var(--stop); }
+.ptext { font-size:14.5px; color:var(--muted); }
+.rec { padding:12px 20px; border-top:1px solid var(--line); font-size:14.5px;
+       background:color-mix(in srgb, var(--aurora) 7%, transparent); }
+.rec b { color:var(--ink); }
+
+/* --- timeline: ONLY when order carries information the reader needs ---------- */
+.timeline { display:flex; flex-direction:column; }
+.tl { display:grid; grid-template-columns:112px 1fr; gap:18px; align-items:start;
+      padding:16px 0; border-bottom:1px solid var(--line); }
+.tl:last-child { border-bottom:0; }
+.tl .when { font-family:var(--mono); font-size:12px; color:var(--dim); padding-top:2px; }
+.tl .what { display:flex; flex-direction:column; gap:5px; }
+.tl .wt { font-weight:620; }
+.tl .wd { color:var(--muted); font-size:14.5px; }
+
+/* --- versus: A GENUINE DISAGREEMENT, fairly stated ---------------------------
+   NOT a pro/con list. Use when two positions are both defensible and the reader must
+   judge between them. Pair with .synth when a reconciliation exists. */
+.versus { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--line);
+          border:1px solid var(--line); border-radius:5px; overflow:hidden; }
+.side { background:var(--surface); padding:19px 21px; display:flex;
+        flex-direction:column; gap:8px; }
+.side .lbl { font-family:var(--mono); font-size:11px; letter-spacing:.1em;
+             text-transform:uppercase; color:var(--hold); }
+.side .claim { font-size:16px; font-weight:600; }
+.side .why { font-size:14.5px; color:var(--muted); }
+.synth { background:color-mix(in srgb,var(--aurora) 10%, var(--surface));
+         border:1px solid color-mix(in srgb,var(--aurora) 32%,var(--line));
+         border-radius:5px; padding:20px 22px; display:flex; flex-direction:column; gap:8px; }
+.synth .lbl { font-family:var(--mono); font-size:11px; letter-spacing:.1em;
+              text-transform:uppercase; color:var(--aurora); }
+
+/* --- quote: someone's words, verbatim. mark = the phrase that matters -------- */
+blockquote { margin:0; padding:20px 24px; background:var(--surface);
+             border-left:3px solid var(--aurora); border-radius:4px;
+             font-family:var(--serif); font-size:18px; line-height:1.6; }
+blockquote .who { display:block; margin-top:10px; font-family:var(--mono); font-size:11px;
+                  letter-spacing:.09em; color:var(--dim); text-transform:uppercase; }
+mark { background:color-mix(in srgb,var(--hold) 26%,transparent); color:inherit;
+       padding:0 3px; border-radius:2px; }
+
+/* --- rows: a flat list where each item has a label and a consequence --------- */
+.rows { display:flex; flex-direction:column; border:1px solid var(--line);
+        border-radius:5px; overflow:hidden; }
+.row { display:flex; gap:14px; align-items:flex-start; padding:13px 18px;
+       background:var(--surface); border-bottom:1px solid var(--line); }
+.row:last-child { border-bottom:0; }
+.row .rt { font-weight:600; min-width:180px; }
+.row .rd { color:var(--muted); font-size:14.5px; }
+
+/* --- table: wide content scrolls ITSELF, the page never scrolls sideways ----- */
+.scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+table { border-collapse:collapse; width:100%; min-width:520px; font-size:14.5px; }
+th,td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--line);
+        vertical-align:top; }
+th { font-family:var(--mono); font-size:11px; letter-spacing:.09em; text-transform:uppercase;
+     color:var(--dim); font-weight:600; }
+td.n { font-family:var(--mono); font-variant-numeric:tabular-nums; }
+.v { font-family:var(--mono); font-size:11px; letter-spacing:.06em; white-space:nowrap; }
+.v.ok { color:var(--go); } .v.no { color:var(--stop); }
+.v.cl { color:var(--hold); } .v.mo { color:var(--dim); }
+
+footer { margin-top:54px; padding-top:20px; border-top:1px solid var(--line);
+         font-family:var(--mono); font-size:12px; color:var(--dim); line-height:1.7; }
+
+:focus-visible { outline:2px solid var(--aurora); outline-offset:2px; }
+@media (max-width:640px) {
+  .paths, .versus { grid-template-columns:1fr; }
+  .tl { grid-template-columns:1fr; gap:4px; }
+  .row { flex-direction:column; gap:4px; }
+}
+@media (prefers-reduced-motion:reduce) { * { animation:none !important; transition:none !important; } }
+</style>
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">GAP AND OPPORTUNITY MAP &middot; FRONTIER RUN &middot; 2026-08-11</div>
+  <h1>Seven concepts the field has proven that we hold in embryo &mdash; and five we can cash in without building anything new.</h1>
+  <p class="standfirst">The context-leverage sweep (four independent arms, one night) did more
+  than confirm the architecture &mdash; it exposed exactly where Aurora under-applies ideas the
+  frontier has already de-risked. This is the map: what they proved, what we do today, what
+  each gap unlocks, and the cheapest first move. Receipts include your own words, because the
+  research keeps validating needs you had already named.</p>
+</header>
+
+<hr class="rule">
+
+<section>
+  <h2>The run, in numbers</h2>
+  <div class="tiles">
+    <div class="tile"><span class="v">4</span><span class="k">independent arms converged</span></div>
+    <div class="tile"><span class="v">7</span><span class="k">under-applied categories</span></div>
+    <div class="tile"><span class="v">90.2%</span><span class="k">Anthropic's multi-agent gain</span></div>
+    <div class="tile"><span class="v">95%</span><span class="k">Provence compression, relevance kept</span></div>
+    <div class="tile"><span class="v">5</span><span class="k">unlocks needing no new build</span></div>
+    <div class="tile"><span class="v">2</span><span class="k">new organ slices worth proposing</span></div>
+  </div>
+</section>
+
+<section>
+  <h2>What this run enables that we could not do before</h2>
+  <div class="rows">
+    <div class="row"><span class="rt">Name our position</span><span class="rd">We can now locate every organ in the
+    field's own vocabulary &mdash; boot = the context firewall, packs = select/compress, the O1 door =
+    map-reduce-and-manage, the findings preset = structured-uncertainty verdicts. "Where do we stand
+    vs the competition" (your 08-11 ask, verbatim) went from unanswerable to a one-page claim with citations.</span></div>
+    <div class="row"><span class="rt">Run a gap-driven roadmap</span><span class="rd">Priorities can now be argued from
+    external evidence instead of instinct: five of seven gaps land in tasks ALREADY queued (T278, T280),
+    which means the queue was pointed the right way before the field told us so.</span></div>
+    <div class="row"><span class="rt">Adopt guards with provenance</span><span class="rd">The three institutional guards
+    (redundant verdicts, structured uncertainty, blind backbrief) arrive with decades of receipts from
+    intel analysis, peer review, and aviation &mdash; not as one model's opinion.</span></div>
+    <div class="row"><span class="rt">Ask sharper weekly questions</span><span class="rd">The Max doc's first entries
+    write themselves: how do production fleets measure summary-fidelity loss at the compression
+    boundary? Who has shipped automated backbrief validation, and what did it catch?</span></div>
+    <div class="row"><span class="rt">Defend the moats</span><span class="rd">The sweep found NOTHING in the surveyed
+    field that funnel-scores its own retrieval lanes, carries bitemporal idea-lineage, or runs a named-resident
+    fence culture. Knowing what is rare tells us what to deepen, not just what to fix.</span></div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section>
+  <h2>The seven categories</h2>
+  <div class="scroll"><table>
+    <tr><th>#</th><th>Category</th><th>They proved</th><th>We today</th><th>The under-application</th><th>First cheap move</th></tr>
+    <tr><td class="n">A</td><td><strong>Compression as a stage</strong></td>
+        <td>Provence prunes 95% keeping relevance; deep-agents compact old turns into digests; subagents return summaries, never transcripts</td>
+        <td>Packs are raw concatenation; boot compresses at session start; wrap at session end; nothing mid-flight</td>
+        <td><strong>We clip where they compress</strong> &mdash; clipping is the degenerate form of compression, and tonight's coverage laundering was its direct symptom</td>
+        <td>A prune pass in the pack builder before any cap applies</td></tr>
+    <tr><td class="n">B</td><td><strong>Context proprioception</strong></td>
+        <td>Letta ships self-directed memory paging in production; the 2606.30005 dashboard shows agents can manage their own budget when they can SEE it</td>
+        <td>The seat cannot see its own context burn &mdash; I only knew "427k" because you told me</td>
+        <td>The conductor flies budget-blind; compaction waypoints are impossible without a gauge</td>
+        <td>A context-budget line in the flightdeck; a mid-session digest verb</td></tr>
+    <tr><td class="n">C</td><td><strong>Verification organs</strong></td>
+        <td>Peer review runs civilization; ACH key-assumption checks; CRM's two-challenge rule; tonight's Codex backbrief caught real laundering &mdash; by hand</td>
+        <td>Fence culture is strong but INVOKED BY JUDGMENT; the findings preset carries CHECK/BLIND but nothing obligates the integrator to read them (proven by amputation, tonight)</td>
+        <td>Guards exist as culture, not as contract</td>
+        <td><strong>Backbrief-as-organ:</strong> corpus-level claims trigger one raw-access re-check before a report lands; coverage assertions built into the pack builder</td></tr>
+    <tr><td class="n">D</td><td><strong>Persistent specialists</strong></td>
+        <td>The Librarian paper: a standing search subagent beats per-task re-derivation on cost and quality</td>
+        <td>Every sweep builds a throwaway extractor; transcripts get fresh grep each time</td>
+        <td>We re-derive what could stand; tonight's sweep cost an extractor + 6 fans for what a standing index answers in one query</td>
+        <td>T278 THE EYE &mdash; already first in your approval queue; the research is its external evidence</td></tr>
+    <tr><td class="n">E</td><td><strong>Routing intelligence</strong></td>
+        <td>Fixed-budget benchmarks give the boundary: parallel READING &rarr; fan wins (90.2%); sequential REASONING &rarr; one seat wins; SearchSwarm learns who to delegate to</td>
+        <td>Routing is doctrine-in-memory, applied by judgment, never measured after the fact</td>
+        <td>No decision rule at the door, no counter asking "did the fan beat a solo read?" &mdash; your 08-11 ask verbatim: quantify the impact delta</td>
+        <td>A when-to-fan rubric in the ask door's help; per-route funnel counters</td></tr>
+    <tr><td class="n">F</td><td><strong>Typed state deltas</strong></td>
+        <td>Google ADK forces state_delta JSONs; Cursor's field-guide pattern; both prevent context poison by structure, not discipline</td>
+        <td>learn/log/handoff ARE this (Gemini's inside walk confirmed it) &mdash; but edges lack formation metadata and notes are prose blobs</td>
+        <td>Deltas are structured; their RELATIONS are not queryable</td>
+        <td>The connectome's three fields (formed_by / formed_at / formed_via) &mdash; one line in T280</td></tr>
+    <tr><td class="n">G</td><td><strong>Stranger interop</strong></td>
+        <td>Priorish coaches callers in its MCP handshake (7 curated tools); A2A agent cards; Gemini walked our door tonight and the contract held</td>
+        <td>36 tools through one door; instructions exist but no agent-tier curation, no coached subset</td>
+        <td>The door works for strangers by accident of quality, not by design for them</td>
+        <td>A curation pass: the essential-verbs subset, coached in the handshake</td></tr>
+  </table></div>
+</section>
+
+<section>
+  <h2>The receipts are yours</h2>
+  <blockquote>"How does akashic aurora look today compared to 3 days ago? I am finding it hard to
+  measure our progress because a lot of the processes we are building right now are
+  <mark>invisible to me</mark>."<span class="who">DANIIL &middot; 2026-08-08 &middot; CATEGORY B, NAMED FROM THE OPERATOR SIDE</span></blockquote>
+  <p class="prose">Category B is your "flying blind" family &mdash; 16&times; "is it stuck", the 3-bar progress
+  display specced 07-03, "feel the engine running" (07-15). Category E is your 08-11 steer/nudge
+  quantification ask. Category C is the method-baseline made mechanical. <strong>The frontier run's
+  deepest finding is that your recurring asks and the field's proven patterns are the same list</strong> &mdash;
+  which is why the potential here is not speculative: every category has already worked somewhere,
+  and most have already been demanded here.</p>
+</section>
+
+<section>
+  <h2>The one genuine disagreement in the field</h2>
+  <div class="versus">
+    <div class="side">
+      <span class="lbl">ANTHROPIC / SWARM SCHOOL</span>
+      <span class="claim">Multi-agent isolation wins: 90.2% over single-agent by fanning isolated contexts.</span>
+      <span class="why">Parallel reading is the win condition &mdash; subagents compress corpora into verdicts;
+      the orchestrator never drowns. Failure mode: coordination overhead, verdict ambiguity.</span>
+    </div>
+    <div class="side">
+      <span class="lbl">COGNITION / SINGLE-CONTEXT SCHOOL</span>
+      <span class="claim">Fixed-budget single-agent wins on reasoning; multi-agent fragments coherent thought.</span>
+      <span class="why">Sequential dependencies punish handoffs &mdash; Tran &amp; Kiela 2026, OneFlow 2026 both
+      measure it. Failure mode: context bloat, one seat re-reading the world.</span>
+    </div>
+  </div>
+  <div class="synth">
+    <span class="lbl">SYNTHESIS &mdash; ALREADY OURS IN PRACTICE, NOW WITH A NAME</span>
+    <span>The schools measure different task shapes. <strong>Wide independent reading &rarr; fan;
+    deep sequential reasoning &rarr; one seat, spend the savings on context quality.</strong> Tonight
+    ran both correctly by instinct: fans for the corpus sweeps, one seat for the design fence and
+    synthesis. The under-application is that the rule lives in instinct &mdash; category E turns it
+    into a rubric at the door.</span>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section>
+  <h2>Where the moves land</h2>
+  <div class="card hold">
+    <div class="head">
+      <div class="tid">DISPOSITION &middot; SEVEN CATEGORIES &rarr; THE EXISTING QUEUE + TWO PROPOSALS</div>
+      <div class="title">No new wave needed &mdash; the queue absorbs five of seven.</div>
+      <div class="ctx">D and F are literally T278 and T280, now with external evidence. G follows the
+      priorish audit's curation lesson. A and B and C and E are small organ slices, not arcs.</div>
+    </div>
+    <div class="paths">
+      <div class="path"><span class="plabel a">CASH IN NOW (no gate needed)</span><span class="ptext">The when-to-fan
+      rubric (one paragraph in the ask door's help) &middot; coverage assertion in the pack builder &middot;
+      reading the FULL verdict contract as integrator discipline &middot; the weekly-doc questions. All
+      doctrine-level, all free.</span></div>
+      <div class="path"><span class="plabel b">PROPOSE AS SLICES (your gate)</span><span class="ptext">Backbrief-as-organ
+      (C) and the context gauge + mid-session digest verb (B). Both small, both RED-pinnable &mdash; C's pin
+      is tonight's laundering replayed and caught automatically; B's pin is the conductor reporting its
+      own budget within tolerance.</span></div>
+    </div>
+    <div class="rec"><b>Recommendation:</b> approve nothing tonight &mdash; the gate menu already waiting
+    (T277, T278, T280) covers the load-bearing half. When T278 opens, categories D and F ride it.
+    C and B are the two slices worth adding to the queue as proposals, in that order.</div>
+  </div>
+</section>
+
+<footer>
+  PROVENANCE &mdash; synthesized from atoms context-leverage-doctrine_c8408f,
+  context-leverage-prior-art_d7a811 (web sweep + deepseek lenses, sources listed there), and
+  gemini-aurora-architecture-review_ed7e1e (outside + inside reviews, annotated). Sweep spend
+  ~$0.02; arms: 2&times; WebSearch, 2&times; deepseek lens (one starved-and-recovered), Gemini
+  dual review relayed by Daniil. Committed through 696d344. The 90.2% and 95% figures are the
+  field's published numbers, cited in the prior-art atom; funnel numbers (877 lessons, 5.4%
+  value rate) verified against py agent_cli.py stats the same hour.
+</footer>
+
+</div>
