@@ -2201,6 +2201,28 @@ def cmd_eye(args):
                 print(f"    {s['session']}: {s['operator_events']} op / {s['events']} total"
                       f"  refs: {', '.join(s['refs'][:3])}")
         return 0
+    if args.eye_cmd == "zoom":
+        from core.eye import pyramid as _PYR
+        if args.rebuild or not _PYR.nodes():
+            rep = _PYR.build()
+            print(f"[eye] pyramid built: {rep['l1_nodes']} exchanges, "
+                  f"{rep['l2_nodes']} digests across {rep['sessions']} sessions")
+        try:
+            z = _PYR.zoom(args.addr)
+        except ValueError as e:
+            print(f"[eye] 422: {e}", file=sys.stderr)
+            return 2
+        if args.json:
+            print(_json.dumps(z, indent=1)); return 0
+        stale = "  [STALE -- rebuild to clear the fog]" if z["is_stale"] else ""
+        print(f"# {z['node_id']}  ({z['level']}, ~{z['tokens']} tok){stale}")
+        print(z["text"])
+        if z["children"]:
+            print(f"  children: {', '.join(z['children'][:6])}"
+                  + (" …" if len(z["children"]) > 6 else ""))
+        if z["level"] == "L1":
+            print(f"  refs: {', '.join(z['refs'][:6])}")
+        return 0
     if args.eye_cmd == "stats":
         s = _EYE.stats()
         if args.json:
@@ -7091,6 +7113,13 @@ def build_parser():
     eye_ov = eye_sub.add_parser("overview", help="S5: the region map -- sessions as places, "
                                                  "each with counts and span")
     eye_ov.add_argument("--json", action="store_true")
+    eye_zm = eye_sub.add_parser("zoom", help="S2: LOD navigation -- a session -> its L2 "
+                                             "digest + L1 children; an L1 id -> the exchange "
+                                             "+ event refs. Extractive pyramid, staleness "
+                                             "shown as fog")
+    eye_zm.add_argument("addr", help="session name or <session>/L1:NNN")
+    eye_zm.add_argument("--rebuild", action="store_true", help="rebuild the pyramid first")
+    eye_zm.add_argument("--json", action="store_true")
     eye.set_defaults(fn=cmd_eye)
 
     # ---- T099 V0 self-tooling (docs/library/design/20260701_self-tooling-arc-reconciled-design-agent_29f578.md) ----
