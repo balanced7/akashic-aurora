@@ -53,6 +53,10 @@ test_code.json
 # the artifact-substrate durable record IS git-tracked by design (A1, T101):
 # store/docs JSONL = the atoms' append-only ledger; git push = its off-machine backup
 !store/docs/*.jsonl
+# operator-ordered durable copies are records, not volatile data (Daniil 2026-08-11:
+# "persist the entire transcript"): redacted session transcripts + reviewed research raws
+!chronicles/transcripts/*.jsonl
+!research/reviewed/**/*.jsonl
 # corpus digests are the structured yield of a full-corpus sweep, not volatile output:
 # they carry the typed edges (settles / contradicted-by / has-no-implementation / serves)
 # that the rel: roster lacks, and re-deriving them costs a multi-agent read of ~1600 artifacts

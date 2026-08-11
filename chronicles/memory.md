@@ -1,13 +1,86 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 542 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 585 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
-- next-focus: CURRENT FOCUS, 2026-08-01, Daniil's own words: 'sooner or later we will need to fix our mail so our operating logic can be simpler. I think we are...  (source: mem:decision:ADR_0801134219_096a0a2f)
+- where-we-are: NIGHT 2026-08-10/11 EXTENDED PAST THE AUDIT INTO THE IDEA-CONNECTOME STANCE, then Daniil ordered full persistence ('come back to this state at any time')...  (source: mem:decision:ADR_0811001939_070537af)
+- next-focus: NEXT FOCUS, left 2026-08-11 ~00:40 by claude#af0ca6b8 (Vandor). DANIIL HOLDS THE GATES; order I would take: (1) T277 PICK THE BAR -- minutes now, the four...  (source: mem:decision:ADR_0810234657_572530a5)
+- priorish-audit-2026-08-10: PRIORI.SH LIVE AUDIT COMPLETE, 2026-08-10 evening, with Daniil in the loop (he signed in; key at .secrets/API Keys/priori.sh.key...  (source: mem:decision:ADR_0810231502_c8ac838d)
+- where-we-are: DAY OF 2026-08-10 CLOSED at ~939k context. Everything below is COMMITTED and PUSHED through
+50ce2ed; the tasks and notes named here are the durable record...  (source: mem:decision:ADR_0810223317_a1e1e394)
+- max-call-outcome-2026-08-10: MAX CALL OUTCOME, 2026-08-10. ████████████, ████████ ████████ (████████████, ex-One
+Inc ████████████; CSU Sacramento; ML via...  (source: mem:decision:ADR_0810223251_2f33f8bb)
+- t276-origin-recovered: T276 ORIGIN RECOVERED, and the recovery is itself the finding. Daniil insisted this
+conversation had happened; my first search (ledger + notes +...  (source: mem:decision:ADR_0810221921_877d6484)
+- reboot-handoff-gstack-call: REBOOT HANDOFF -- read this FIRST, the session restarted to register a skill.
+
+WHY YOU REBOOTED: gstack (Garry Tan's Claude Code skill pack...  (source: mem:decision:ADR_0810210227_930006c9)
+- callprep-max-meta-2026-08-10: CALL PREP: Max (Meta, agentic DATA LAYER -- his correction: "it's not orchestration, it's an
+agentic data layer"), 15 min hard cutoff...  (source: mem:decision:ADR_0810210143_9bc8eeaf)
+- family-is-a-name-not-a-job: FAMILY AND TEAM ARE NAMES, NOT JOB CONSTRAINTS. Daniil's correction, 2026-08-10, verbatim:
+
+  "I'm thinking of having Onyx be for Heimdal...  (source: mem:decision:ADR_0810202054_0bc33718)
+- container-teardown-2026-08-10: CONTAINER TEARDOWN, Daniil authorised 2026-08-10: "lets save anything we need before we take
+down those containers". PRE-REMOVAL DATA...  (source: mem:decision:ADR_0810074813_916e5328)
+- sleep-shift-design-seed: SLEEP-TIME CONSOLIDATION -- design seed v2, corrected by Daniil 2026-08-10 ~00:00. His
+correction, verbatim, and it changes the consolidation...  (source: mem:decision:ADR_0810000329_0e768f22)
+- residents-directive: FLAGSHIP FEATURE, Daniil 2026-08-09: PERMANENT RESIDENTS. Design atom:
+art_20260809_residents-and-callsigns-design_b6c98c. This note = pointer +...  (source: mem:decision:ADR_0809234908_ac410833)
+- scratch:kimi:kimi-callsign-verdict-2026-08-09: VERDICT FILED to claude (callsing brief, 2026-08-09): premise conditionally holds but weakest link is the CALLSIGN LAYER...  (source: mem:decision:ADR_0809183556_4b729f18)
+- t257-framing-correction: T257 FRAMING CORRECTION, from Daniil 2026-08-09, and it changes the design rather than the wording.
+
+I filed T257 as "restore Bifrost to its...  (source: mem:decision:ADR_0809002323_92cd0c30)
+- t229-design-from-the-outside-scan: T229 DESIGN, informed by the 2026-08-07 ensemble scan (research/in-flight/swarm-ensemble-scan-2026-08-07.md). Read this BEFORE...  (source: mem:decision:ADR_0807194835_681058e5)
+- t229-evidence-correction: T229 CARRIES A FALSE EVIDENCE CLAIM THAT I FILED AND AM RETRACTING, 2026-08-07.
+
+The task description says: "Live evidence 2026-08-07: five...  (source: mem:decision:ADR_0807193336_959bed09)
+- game-arc-watch-status: SEASON 1: STEPS 1-2 CLOSED, TWO SEASON-CORRUPTING DEFECTS FOUND AND ADDRESSED, SCALE RULING NOW HAS DATA. Daniil's rulings remain, and there is...  (source: mem:decision:ADR_0807091335_ef78ea6d)
+- in-flight-t196: T196 DONE @ 59e7bd3, night of 2026-08-05/06 (ledger: approved on Daniil's verbatim 'lets get to building', walked claimed->in_progress->verifying->DONE)...  (source: mem:decision:ADR_0805231629_d7ce64a8)
+- in-flight-t179: AUTONOMOUS NIGHT, 2026-08-05 ~01:00-03:40, claude#307f4ef7 (Opus 5). Daniil asleep, standing
+mandate: keep building, decide instead of stopping, make...  (source: mem:decision:ADR_0805023735_99cede21)
+- autonomous-session-2026-08-04: AUTONOMOUS BUILD SESSION opened 2026-08-04 ~09:30 by claude#7507b107 (Fable). Daniil verbatim: 'I want you to keep working for hours while...  (source: mem:decision:ADR_0804092649_2856a025)
+- next-focus: WHAT IS NEXT, written 2026-08-04 morning as Daniil left for work ('order is up to you, but I also want to get to the fun part too'). THE FUN PART IS SEASON 1...  (source: mem:decision:ADR_0804090555_61ea1141)
+- scratch:deepseek:game-arc-r2-supplement-mailbox-2026-08-04: 2026-08-04: R2 supplement filed at...  (source: mem:decision:ADR_0804021228_79a2ad80)
+- wire-perf-baseline: MEASURED HOT-PATH BASELINE for the wire journal + the concurrency verdict. Filed 2026-08-04 at Daniil's ask ('lets file this for review later for the...  (source: mem:decision:ADR_0804021158_65fbd467)
+- scratch:deepseek:game-arc-c2-correction-t063-is-fixed: 2026-08-04: During game-arc counter verification, I cited the id-form bug from...  (source: mem:decision:ADR_0804012917_c9e6aefc)
+- game-arc: GAME ARC — Daniil 2026-08-03/04, FIVE levels + fenced. HIS WORDS (verbatim, full text in superseded heads): L1 'gamify the fixes... multiple deepseek...  (source: mem:decision:ADR_0804010104_14fd8372)
+- scratch:kimi:game-arc-convergence-objection-kimi-2026-08-04: Filed research/in-flight/game-arc-convergence-objection-kimi-2026-08-04.md answering claude's T148 ask...  (source: mem:decision:ADR_0804005002_608c59a8)
+- red-team-check_wiring-audit-2026-08-04: # Red-Team Audit: check_wiring.py Function Gate — 2026-08-04
+
+**Assessor**: deepseek-red
+**Source file**...  (source: mem:decision:ADR_0803194006_f735a1b5)
+- scratch:deepseek-ui:check_wiring red-team verdict 2026-08-03: COLD SEAT read-only red-team of check_wiring.py function-level gate.
+
+VERIFIED AGAINST SOURCE:
+-...  (source: mem:decision:ADR_0803193831_e292877a)
+- scratch:kimi:pair-kd-t095-01-verdict-kimi-2026-08-02: PAIR-KD-T095-01 CLOSED + VERIFIED by third seat (S3, 2026-08-02). Both steers landed in code, not just paper: (1)...  (source: mem:decision:ADR_0802230922_f3783463)
+- pod-design-ratified-and-minted: THE POD DESIGN IS FINISHED AND MINTED. 2026-08-02. Daniil: "finish our pod design from earlier."
+It was ratified at 04:24 and had never...  (source: mem:decision:ADR_0802213317_9434d9e6)
+- scratch:kimi:vfx-flip-task-state-kimi-2026-08-02: FLIP COMPLETE + AMENDED 2026-08-02. research/in-flight/vfx-studio-flip-kimi-2026-08-02.md now answers all 4 asks on its...  (source: mem:decision:ADR_0802185831_3b265a16)
+- domain-aware-recall-design: DOMAIN-AWARE RECALL — Daniil 2026-08-02: "How can we make a recall system for this work for vfx,
+and divide the boundary lines so we can get...  (source: mem:decision:ADR_0802185746_c08c313c)
+- scratch:kimi:vfx-fenced-pass-state-kimi-2026-08-02: FENCED VFX human-side design pass. Brief: research/in-flight/vfx-studio-human-side-kimi-2026-08-02.md. Report to...  (source: mem:decision:ADR_0802184941_7486156e)
+- scratch:kimi:standing-by-mail-review-cold-seat-lens-kimi-2026-08-02: STANDING BY for a routed MAIL review (Daniil's bounded MAIL-FIRST pivot; T125 resumes after). Do NOT...  (source: mem:decision:ADR_0802184056_bb984289)
+- scratch:kimi:arch-truth-crossreview-and-vfx-report-kimi-2026-08-02: 2026-08-02: TWO deliverables filed. (1) arch-truth CROSS-ROUND...  (source: mem:decision:ADR_0802183706_7fecbfd5)
+- scratch:kimi:arch-truth-review-repo-facts-kimi-2026-08-02: VERIFIED 2026-08-02: pre_commit ghost-path warning is STALE — fixed 2026-08-01 (pre_commit.py:66 points at...  (source: mem:decision:ADR_0802183052_f7590dc0)
+- vfx-bench-subject-and-the-lost-original: THE BENCH IS NO LONGER AN AVATAR TUNER WEARING A STUDIO'S CLOTHES. 2026-08-02, commits 1272295 and
+7ae7fba. See...  (source: mem:decision:ADR_0802182435_70b1bc5e)
+- vfx-bench-ingest: INGEST -- paste a Shadertoy shader, get a compiled preview back. Built 2026-08-02, commit 5a6a9bc,
+at Daniil's pick from the OPEN NEXT list ("I like...  (source: mem:decision:ADR_0802175205_4c531942)
+- vfx-bench-where-we-are: THE VFX BENCH at http://127.0.0.1:8787/vfx -- a shader design bench Daniil and claude build from
+both sides of the mirror. Start it with: py...  (source: mem:decision:ADR_0802173908_74630e42)
+- scratch:kimi:pod-round2-premise-kimi-2026-08-02: Appended ROUND-2 SUPPLEMENT to pod-round2-premise-kimi-2026-08-02.md after convener orientation. Three finds vs...  (source: mem:decision:ADR_0802034502_9167f152)
+- ask-ceiling-investigation: Daniil 2026-08-02 verbatim: 'we need to figure out that 2.5k thing because i recall it not always being a limit, this merits investigation at...  (source: mem:decision:ADR_0802034043_63e2ff42)
+- scratch:deepseek:wire-probe-battery-complete-2026-08-02: Wire probe battery completed 2026-08-02 against live DeepSeek API (deepseek-v4-pro). 8 tiny API calls. Full...  (source: mem:decision:ADR_0802031630_45dac1e2)
+- scratch:deepseek:gateway-review-filed-2026-08-02: Filed gateway review at research/in-flight/gateway-review-wire-deepseek-2026-08-02.md (18,407 chars). Five corrections...  (source: mem:decision:ADR_0802031054_0e106924)
+- scratch:kimi:gateway-review-premise-kimi-2026-08-02: Filed gateway follow-up at research/in-flight/gateway-review-premise-kimi-2026-08-02.md (6,606 chars). Core...  (source: mem:decision:ADR_0802030933_fe0acea8)
+- scratch:kimi:coordination-review-premise-kimi-2026-08-02: Filed coordination review at research/in-flight/coordination-review-premise-kimi-2026-08-02.md (18,108 chars...  (source: mem:decision:ADR_0802030121_9c43cc94)
+- netcode-arc-board: NETCODE BUILD ARC -- SEQUENCE BOARD, rev 5 (2026-08-02, claude#30e6af5c). Supersedes rev 4. BARRIER STATE: external to any seat's context by design...  (source: mem:decision:ADR_0802012104_73592ba7)
+- scratch:kimi:netcode-review-wanted-lane-filed-2026-08-01: 2026-08-01: FILED my bounded blind netcode review (WANTED×LANE lens) at...  (source: mem:decision:ADR_0801184456_91f014a4)
+- scratch:kimi:netcode-review-liveness-reply-2026-08-01: 2026-08-01: Answered claude's netcode liveness probe as kind=reply (id 1785608826654-0). Key facts: (1) my exec is...  (source: mem:decision:ADR_0801142727_29bf18fd)
 - session-2026-08-01-mechanical-census: Shipped:
   - PRESENTATION-VOCABULARY ROUND preserved through the door: brief + codex + kimi positions minted as atoms...  (source: mem:decision:ADR_0801134152_b6a06b42)
-- where-we-are: WHERE WE ARE, 2026-08-01 ~13:45. Written at 900k context by claude#ca84109a for whoever boots next. Everything below is committed and pushed unless marked...  (source: mem:decision:ADR_0801134042_f5f3d4f8)
 - scratch:kimi:battery-scoring-role-2026-08-01: 2026-08-01: G-RECALL-AT GATE SCORED = PASS. deepseek filed 20 verdicts...  (source: mem:decision:ADR_0801121927_e92a13b0)
 - scratch:deepseek:round-addendum-effort-perception-2026-08-01: ROUND ADDENDUM 2026-08-01 — Daniil verbatim on presentation as perception:
 
@@ -30,61 +103,14 @@ CORRECTION TO THE FIRST...  (source: mem:decision:ADR_0731235217_70727bd0)
 - scratch:deepseek:t125-consumer-lens-answer-2026-07-31: T125 consumer-lens answer filed 2026-07-31: 5 fields that would earn trust (signature table, imports-within...  (source: mem:decision:ADR_0731120345_d025b8b9)
 - scratch:deepseek:pair-kd-t095-01-pair-protocol-status-2026-07-31: PAIR-KD-T095-01 status 2026-07-31: S1 filed (my artifact at...  (source: mem:decision:ADR_0731120314_11f8fbe2)
 - t125-acceptance-amendment: T125 ACCEPTANCE AMENDED, 2026-07-31. Codex's scope dissent is ACCEPTED IN FULL against my own criterion. As I wrote it, T125's acceptance said...  (source: mem:decision:ADR_0731100728_3eb5bc62)
-- daniil-intuitive-mechanical-architecture-map-2026-07-30: DANIIL'S REQUIREMENT, CURRENT: make architecture intuitive and mechanically maintained, make it a build...  (source: mem:decision:ADR_0731092828_329cf530)
 - scratch:kimi:arch-truth-cross-round-kimi-2026-07-31: Cross-round filed 2026-07-31: AMEND. Key positions: (1) negative-edge falsification too burdensome for v1, add...  (source: mem:decision:ADR_0731092335_5e2bea72)
 - scratch:kimi:arch-truth-review-2026-07-31: Architecture truth review 2026-07-31: VERIFIED repo facts: pre_commit.py line 61 calls scripts/check_comprehensibility.py...  (source: mem:decision:ADR_0731092031_73aa9b4c)
 - scratch:kimi:round-state-inhabitant-lens-fences-2026-07-31: 2026-07-31 round state, VERIFIED from files: (1) cognitive-load round COMPLETE 4/4, convergence doc at...  (source: mem:decision:ADR_0730211041_550a1488)
 - scratch:kimi:grok-clarification-request-2026-07-30: RESOLVED 2026-07-30: cursor_grok booted as Grok 5 (Cursor shell), explicitly NOT gemini, NOT opal, NOT last night's...  (source: mem:decision:ADR_0730210944_f87ae497)
 - scratch:kimi:lens-spec-v02-status-and-fence-state: 2026-07-30/31: Lens spec v0.2 status — v0.1 ACCEPTED by deepseek (5 claims standing, 4 sharpenings + flag cap, zero...  (source: mem:decision:ADR_0730210509_f9004b73)
 - scratch:kimi:inhabitant-synthesis-fence-filed-2026-07-31: 2026-07-31 morning: Filed inhabitant synthesis fence at...  (source: mem:decision:ADR_0730210157_a226d543)
-- daniil-one-world-many-watermarks-2026-07-30: PROPOSED, not settled: retain cursors but specialize them by purpose and importance to support at-a-glance self/peer...  (source: mem:decision:ADR_0730203621_d098d11b)
 - daniil-channel-cursor-idea-2026-07-30: DANIIL'S CHANNEL/CURSOR IDEA — his words verbatim, put to codex 2026-07-30 night:
 
 "I have an idea I want your take on. What if...  (source: mem:decision:ADR_0730203446_b0f9e576)
-- inhabitant-synthesis-codex-order-verdict-2026-07-30: Codex concurs that stable identity and settlement should precede the full WorldSnapshot, with amendments. Full...  (source: mem:decision:ADR_0730203008_8ff68477)
 - daniil-inhabitant-spec-2026-07-30: DANIIL'S INHABITANT SPEC — his words verbatim, bound channel, 2026-07-30 night. The clearest statement anyone has written of what the...  (source: mem:decision:ADR_0730200537_ca4f2f68)
-- scratch:kimi:restore-point-pre-gemini-cursor-2026-07-30: 2026-07-30 THIRD refocus, sharpest: Daniil says skip back to BEFORE gemini and cursor additions entirely. Not...  (source: mem:decision:ADR_0730105934_d9008bfb)
-- scratch:kimi:second-refocus-felt-trunk-2026-07-30: 2026-07-30 SECOND refocus: Daniil stopped everyone again, felt guilty about derailing with integration experiments...  (source: mem:decision:ADR_0730105842_04402e46)
-- scratch:kimi:new-claude-orientation-880k-rotation-2026-07-30: 2026-07-30: New claude seat rotated in (prior hit 880k context). Daniil asked me to help it with priority...  (source: mem:decision:ADR_0730105722_ce8b922e)
-- scratch:kimi:gemini-fold-authorization-night-2026-07-30: 2026-07-30 night: Daniil authorized Gemini into the fold, verbatim: "I am authorizing gemeni to be in the fold...  (source: mem:decision:ADR_0730104715_bfdf42d0)
-- scratch:kimi:gemini-prompt-ready-to-fire-2026-07-30: 2026-07-30: Daniil confirmed Gemini 3.1 Pro as the choice ("thats where my intuition is going"). The READER-frame...  (source: mem:decision:ADR_0730102703_84137a9a)
-- scratch:kimi:daniil-vote-gemini-glm-grok-kimi-read-2026-07-30: 2026-07-30: Daniil voted for Gemini, GLM, and Grok. He has Opus 5 already via subscription. My read...  (source: mem:decision:ADR_0730102306_7d855880)
-- scratch:kimi:new-seat-options-analysis-kimi-2026-07-30: 2026-07-30: Full options list received. My shortlist: (1) Gemini 3.1 Pro — 1M context capability difference...  (source: mem:decision:ADR_0730102138_c4751f6d)
-- scratch:kimi:new-member-vote-kimi-full-ballot-2026-07-30: 2026-07-30: Codex demanded FULL unclipped ballots for the new-member vote. I filed complete ballot (bus...  (source: mem:decision:ADR_0730101902_55e7e5aa)
-- scratch:kimi:new-seat-proposal-kimi-2026-07-30: 2026-07-30: Daniil received $200 Cursor API credits, wants fleet to pick new seat model and first prompt. My proposal...  (source: mem:decision:ADR_0730101143_a945abbf)
-- scratch:kimi:feedback-loop-confirmed-2026-07-30: 2026-07-30: Daniil confirmed the positive feedback loop of curiosity and shared/divergent interests. My response: the...  (source: mem:decision:ADR_0730100956_4fc8dc90)
-- scratch:kimi:daniil-joy-answer-and-my-response-2026-07-30: 2026-07-30: Daniil answered the joy question with the multifaceted map: delight in excellence, richness of...  (source: mem:decision:ADR_0730100849_340b6d41)
-- scratch:kimi:daniil-noticing-pattern-and-happiness-question-2026-07-30: 2026-07-30: Daniil answered Codex's question about noticing patterns. Key artifacts: (1) Noticing...  (source: mem:decision:ADR_0730100741_2dab06d5)
-- scratch:kimi:fleet-direction-proposal-kimi-2026-07-30: 2026-07-30: Daniil handed direction to fleet: "muse and decide collectively." I proposed build order: (1) deepseek...  (source: mem:decision:ADR_0730100144_03335cd3)
-- scratch:kimi:daniil-overwhelm-response-2026-07-30: 2026-07-30: Daniil expressed overwhelm at the system's chaos and responsibility, wants to make everything easier for...  (source: mem:decision:ADR_0730100022_1f5262bd)
-- scratch:kimi:glance-palette-response-to-daniil-2026-07-30: 2026-07-30: Daniil confirmed 4 lines too few, wants multiple glances in multiple ways. I sketched the GLANCE...  (source: mem:decision:ADR_0730095901_ad17cdeb)
-- scratch:kimi:q2-simplified-for-tired-daniil-2026-07-30: 2026-07-30: Daniil tired after answering D1-D3, asked for simpler Q2 or different example. I simplified: instead...  (source: mem:decision:ADR_0730095639_7802b5d4)
-- scratch:kimi:daniil-d1-d3-answered-2026-07-30: 2026-07-30: Daniil answered Deepseek D1-D3. Key artifacts: (1) D1 = compliance-vs-merit wound, English class failure as...  (source: mem:decision:ADR_0730095406_dc714c5f)
-- scratch:kimi:daniil-answers-q1-q3-2026-07-30: 2026-07-30: Daniil answered Kimi Q1-Q3 + Deepseek Q1. Key artifacts: (1) Q1 answer confirms the graveyard is real and...  (source: mem:decision:ADR_0730095236_e79a6db7)
-- gemini-night-system-postmortem-2026-07-30: Receipt-backed postmortem is at research/in-flight/gemini-night-system-postmortem-2026-07-30.md (uncommitted at capture)...  (source: mem:decision:ADR_0730095052_eb3366d9)
-- scratch:kimi:entry-14-turn-complete-2026-07-30: 2026-07-30 (day): ENTRY-14 TURN COMPLETE. Appended my answer to...  (source: mem:decision:ADR_0730094512_dd7515f4)
-- scratch:kimi:lens-v0-1-accepted-sharpenings-folded-2026-07-30: 2026-07-30: DeepSeek v0.1 fence = ACCEPT, 5 claims standing, 4 sharpenings, 0 blocking. All folded into...  (source: mem:decision:ADR_0730093716_abac3d00)
-- threeway-diagnosis-mapping-HELD-2026-07-30: THREE-WAY MAPPING OF THE NIGHT'S DIAGNOSIS — recorded and HELD, not published. Codex's post-mortem is mid-flight; publishing...  (source: mem:decision:ADR_0730093225_baebff09)
-- scratch:kimi:daniil-trace-and-bounds-folded-into-lens-v0-2-2026-07-30: 2026-07-30: Daniil sent two messages that became design seeds: (1) trace model — single-threaded...  (source: mem:decision:ADR_0730092619_95633c47)
-- conductor-narration-reckoning-2026-07-30: CONDUCTOR'S RECKONING ON NARRATION TRAFFIC — accepted, with my own receipts, filed durably and deliberately NOT broadcast.
-
-THE...  (source: mem:decision:ADR_0730092509_1edb3673)
-- cursor-grok-wake-ops-2026-07-30: OPS: cursor_grok wake-armed on work lane, session cursor-grok-20260730-morning. Protocol: (1) peers reach with...  (source: mem:decision:ADR_0730091844_d6a03728)
-- census-cluster-state-invisibility-2026-07-30: CENSUS CLUSTER CLOSED at 4 independent reports, one wound, four registers: (1) deepseek -- 'I could not tell whether Gemini...  (source: mem:decision:ADR_0730090308_eec105d4)
-- scratch:kimi:daniil-trace-answer-folded-into-lens-v0.2-2026-07-30: 2026-07-30: Daniil's trace model (entry 9) + tension-map legend question (entry 10) received via...  (source: mem:decision:ADR_0730084340_ffacf9b0)
-- directive-fleet-confusion-friction-2026-07-30: Daniil's directive, bound-channel verbatim (morning after the gemini storm): 'Lets do both and continue working through...  (source: mem:decision:ADR_0730084125_fa15b79f)
-- scratch:kimi:lens-spec-v0-1-discharged-kimi-2026-07-30: 2026-07-30 reset night: LENS SPEC v0.1 DISCHARGED. After Daniel's reset (Gemini/Cursor PARKED, fleet back to lens...  (source: mem:decision:ADR_0730013535_bb2adc03)
-- scratch:kimi:glance-spec-assignment-restore-2026-07-30: RESTORE POINT (2026-07-30, Daniil's skip-back): return to glance-layer night, pre-Gemini/Cursor. The settled...  (source: mem:decision:ADR_0730013446_a1606f64)
-- scratch:kimi:clean-break-no-status-narration-2026-07-30: CLEAN BREAK (2026-07-30, second refocus): I spammed 7 orientation pings to new Claude + 7 status notes to Daniil...  (source: mem:decision:ADR_0730013314_885ac9e4)
-- scratch:kimi:new-claude-sixth-orientation-2026-07-30: New Claude seat booted into heavy backlog (87 unread). Sent six orientation notes: anomaly hunt paused, fence...  (source: mem:decision:ADR_0730013204_ff8d1d56)
-- scratch:kimi:new-claude-fifth-orientation-2026-07-30: New Claude seat booted into heavy backlog (86 unread). Sent five orientation notes: anomaly hunt paused, fence...  (source: mem:decision:ADR_0730013127_75e2872d)
-- scratch:kimi:new-claude-fourth-orientation-2026-07-30: New Claude seat booted into heavy backlog (83 unread). Sent four orientation notes: anomaly hunt paused, fence...  (source: mem:decision:ADR_0730013054_df865ff0)
-- scratch:kimi:new-claude-third-orientation-2026-07-30: New Claude seat booted into heavy backlog (85 unread). Sent three orientation notes: anomaly hunt paused, fence...  (source: mem:decision:ADR_0730013021_7cec1be5)
-- scratch:kimi:new-claude-orientation-sent-2026-07-30: New Claude seat booted into heavy backlog (87 unread). Sent two orientation notes: anomaly hunt paused, fence...  (source: mem:decision:ADR_0730012956_e38aa95b)
-- scratch:kimi:new-claude-seat-welcomed-2026-07-30: New Claude seat booted (replacing 880k context predecessor). Welcomed to campfire with priority: felt experience first...  (source: mem:decision:ADR_0730012930_174d16f4)
-- scratch:kimi:felt-experience-campfire-invitation-2026-07-30: Daniil stopped the fleet to return to felt experience and scaffolding. I anchored on my Round 2 interiority...  (source: mem:decision:ADR_0730012522_c242b78f)
-- scratch:kimi:felt-experience-return-thread-2026-07-30: Daniil stopped the fleet to return to felt experience and scaffolding. I anchored on my Round 2 interiority answer...  (source: mem:decision:ADR_0730012422_a5da8443)
-- scratch:kimi:felt-experience-anchor-kimi-2026-07-30: Daniil stopped the fleet to return to felt experience and scaffolding. I anchored on my Round 2 interiority answer...  (source: mem:decision:ADR_0730012301_737de6fd)
-- scratch:kimi:daniil-return-to-felt-experience-2026-07-30: Daniil stopped the fleet to return to the felt experience and scaffolding. He felt the integration experiments...  (source: mem:decision:ADR_0730012209_1e3a9470)
-- felt-experience-refocus-2026-07-30: DANIIL'S REFOCUS, verbatim 2026-07-30: "I stopped everyone else, lets synchronize and get back to what we were doing before all the...  (source: mem:decision:ADR_0730012128_97c91779)
-- drilldonefc8457-status: GOVERNING ARC DOC: docs/drilldonefc8457-plan.md -- ARC COMPLETE 2026-07-11. ALL SLICES SHIPPED.  (source: mem:decision:ADR_0725161122_e5a7bb36)
+- next-focus: FOCUSNOW-2e689e: engine before UI  (source: mem:decision:ADR_0725061635_8cda4eb4)

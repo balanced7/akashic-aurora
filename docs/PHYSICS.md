@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 1a8fe24. A bound you discover by collision is not awareness -- this sheet
+> Derived at 83450e9. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -214,7 +214,7 @@ Class: reference
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py |
 
-## Mechanical bounds (110 numeric constants)
+## Mechanical bounds (111 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -228,6 +228,7 @@ Class: reference
 | `CANONICAL_MAXLEN` | 100,000 | core/events/event_log.py | the firehose: deep but bounded |
 | `CANONICAL_MAXLEN` | 100,000 | core/signals/agent_signal_ledger.py | signals retained on the canonical stream |
 | `CAP` | 50 | core/comm/pager.py |  |
+| `CAP` | 90,000 | research/reviewed/success-sweep-raw-2026-08-10/extract_daniil_success_talk.py |  |
 | `CATEGORY_CAP_PER_ATOM` | 3 | core/library/taxonomy.py |  |
 | `CHAIN_WARN_THRESHOLD` | 50 | core/learning/agent_memory.py |  |
 | `CLARIFY_MAX_PER_TASK` | 3 | core/comm/toolbox.py |  |
