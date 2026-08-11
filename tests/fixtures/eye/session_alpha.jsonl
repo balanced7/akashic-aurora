@@ -4,3 +4,4 @@
 {"type":"queue-operation","timestamp":"2026-08-01T10:02:00.000Z","prompt":"queued directive: measure the fixture progress twice"}
 {"type":"user","isMeta":true,"timestamp":"2026-08-01T10:03:00.000Z","message":{"role":"user","content":"meta housekeeping line"}}
 {"type":"user","isMeta":false,"timestamp":"2026-08-01T10:04:00.000Z","message":{"role":"user","content":[{"type":"text","text":"is the fixture stuck? do we have any way to measure fixture progress?"},{"type":"tool_result","content":"ignored block"}]},"cwd":"E:\\AI-Setup","gitBranch":"master"}
+{"type":"queue-operation","timestamp":"2026-08-01T10:05:00.000Z","prompt":"<task-notification>\n<task-id>abc</task-id> fixture noise</task-notification>"}

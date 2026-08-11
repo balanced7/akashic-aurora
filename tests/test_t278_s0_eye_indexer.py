@@ -54,13 +54,13 @@ def test_p1_manifest_matches_indexed(tmp_path):
     assert rep["manifest_complete"] is True
     # alpha: 6 lines -> user(op) + assistant + user(system caveat) + queue-op + meta(system)
     #        + user(op, block content); beta: user + assistant + system + user
-    assert rep["events_total"] == 10, "every parseable record lands as exactly one event"
+    assert rep["events_total"] == 11, "every parseable record lands as exactly one event"
 
 
 def test_p2_queue_operation_is_operator_speech(tmp_path):
     corpus, db = _fresh(tmp_path)
     EYE.ingest(paths=sorted(corpus.glob("*.jsonl")), db_path=db)
-    hits = EYE.find_text("queued directive", db_path=db)
+    hits = EYE.find(q="queued directive", db_path=db)["results"]
     assert hits, "the queue-operation record must be findable (the operator-speech law)"
     assert hits[0]["voice"] == "operator"
     assert hits[0]["type"] == "queue-operation"
@@ -93,7 +93,7 @@ def test_p4_coverage_names_the_gap(tmp_path):
 def test_p5_event_id_resolves_to_verbatim(tmp_path):
     corpus, db = _fresh(tmp_path)
     EYE.ingest(paths=sorted(corpus.glob("*.jsonl")), db_path=db)
-    hits = EYE.find_text("measure fixture progress", db_path=db)
+    hits = EYE.find(q="measure fixture progress", db_path=db)["results"]
     assert hits and hits[0]["session"] == "session_alpha"
     ev = EYE.get_event(hits[0]["event_id"], db_path=db)
     assert ev is not None, "the address must resolve (grammar address space; T288 resolver)"
@@ -104,13 +104,17 @@ def test_p5_event_id_resolves_to_verbatim(tmp_path):
 def test_p6_voice_labels_are_conservative(tmp_path):
     corpus, db = _fresh(tmp_path)
     EYE.ingest(paths=sorted(corpus.glob("*.jsonl")), db_path=db)
-    caveat = EYE.find_text("command-name", db_path=db)
+    caveat = EYE.find(q="command-name", db_path=db)["results"]
     assert caveat and caveat[0]["voice"] == "system", (
         "a command-caveat block inside a user record is SYSTEM -- the false-positive class "
         "the sweep paid for")
-    meta = EYE.find_text("meta housekeeping", db_path=db)
+    qnoise = EYE.find(q="fixture noise", db_path=db)["results"]
+    assert qnoise and qnoise[0]["voice"] == "system", (
+        "a task-notification riding the QUEUE lane is SYSTEM too -- live S1 smoke caught "
+        "these polluting the operator axis; the law has a marker exception on every lane")
+    meta = EYE.find(q="meta housekeeping", db_path=db)["results"]
     assert meta and meta[0]["voice"] == "system", "isMeta user records are never operator"
-    real = EYE.find_text("sharper every week", db_path=db)
+    real = EYE.find(q="sharper every week", db_path=db)["results"]
     assert real and real[0]["voice"] == "operator"
-    agent = EYE.find_text("Beta acknowledges", db_path=db)
+    agent = EYE.find(q="Beta acknowledges", db_path=db)["results"]
     assert agent and agent[0]["voice"] == "agent"

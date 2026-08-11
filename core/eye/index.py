@@ -106,7 +106,10 @@ def _event_from(obj: Dict[str, Any]) -> Optional[Dict[str, Any]]:
             if isinstance(v, str) and v.strip():
                 text = v
                 break
-        voice = "operator"                    # the operator-speech law
+        # The operator-speech law -- UNLESS the queued payload is itself a system block
+        # (task-notifications ride this lane too; live S1 smoke caught them polluting the
+        # operator axis, the sweep's false-positive class resurfacing one lane over).
+        voice = ("system" if any(m in text for m in _SYSTEM_MARKERS) else "operator")
     elif typ == "assistant":
         msg = obj.get("message") or {}
         text = _texts_from_content(msg.get("content"))
@@ -195,23 +198,81 @@ def ingest(paths: Optional[List[Path]] = None,
             "ran_at": round(time.time(), 2)}
 
 
-# ---------------------------------------------------------------- S0 read smoke
-def find_text(q: str, db_path: Optional[Path] = None,
-              limit: int = 20) -> List[Dict[str, Any]]:
-    """S0 smoke-level phrase search (S1 brings the grammar). Phrase-quoted FTS."""
+# ---------------------------------------------------------------- S1: the grammar door
+def _parse_as_of(as_of: Optional[str]) -> Optional[float]:
+    """The grammar's 422 rule at this door: a malformed as_of REFUSES with the expected
+    shape -- zero rows is never the answer to a malformed selector."""
+    if not as_of:
+        return None
+    try:
+        s = str(as_of).strip().replace("Z", "+00:00")
+        if len(s) == 10:                      # bare date = end of that day UTC (inclusive)
+            s += "T23:59:59+00:00"
+        dt = datetime.fromisoformat(s)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.timestamp()
+    except Exception:
+        raise ValueError(
+            f"as_of {as_of!r} is not a date this door reads -- ISO-8601 (YYYY-MM-DD or "
+            f"full timestamp); got 0 rows is NOT the answer to a malformed selector")
+
+
+def find(q: Optional[str] = None, *, who: str = "", kind: str = "", session: str = "",
+         as_of: Optional[str] = None, limit: int = 20,
+         db_path: Optional[Path] = None) -> Dict[str, Any]:
+    """The grammar door (T280, first tenant): facets AND together, q is the phrase
+    fallback within the faceted slice, as_of applies the one-sentence temporal law, and
+    the ENVELOPE carries degraded honesty + its own token price.
+
+    Degraded case shipped with the door (the formation-trap pattern, applied to time):
+    matching events whose ts could not be parsed are UNEVALUABLE under as_of -- excluded,
+    and the envelope says so. Absence of a warning means exactly one thing."""
+    cutoff = _parse_as_of(as_of)
     con = _connect(db_path)
     try:
-        phrase = '"' + str(q).replace('"', " ") + '"'
+        wheres, params = [], []
+        if q:
+            wheres.append("e.event_id IN (SELECT event_id FROM events_fts "
+                          "WHERE events_fts MATCH ?)")
+            params.append('"' + str(q).replace('"', " ") + '"')
+        if who:
+            wheres.append("e.voice = ?"); params.append(who)
+        if kind:
+            wheres.append("e.type = ?"); params.append(kind)
+        if session:
+            wheres.append("e.session = ?"); params.append(session)
+        base = "FROM events e" + (" WHERE " + " AND ".join(wheres) if wheres else "")
         rows = con.execute(
-            "SELECT e.event_id, e.session, e.line, e.ts, e.voice, e.type, "
-            "snippet(events_fts, 0, '<<', '>>', ' … ', 12) "
-            "FROM events_fts JOIN events e ON e.event_id = events_fts.event_id "
-            "WHERE events_fts MATCH ? ORDER BY e.ts LIMIT ?",
-            (phrase, int(limit))).fetchall()
+            f"SELECT e.event_id, e.session, e.line, e.ts, e.voice, e.type, "
+            f"substr(e.text, 1, 160), e.tokens {base} ORDER BY e.ts", params).fetchall()
     finally:
         con.close()
-    return [{"event_id": r[0], "session": r[1], "line": r[2], "ts": r[3],
-             "voice": r[4], "type": r[5], "snippet": r[6]} for r in rows]
+
+    unevaluable = 0
+    out = []
+    for r in rows:
+        rec = {"event_id": r[0], "session": r[1], "line": r[2], "ts": r[3],
+               "voice": r[4], "type": r[5], "snippet": r[6], "tokens": r[7]}
+        if cutoff is not None:
+            if rec["ts"] is None:
+                unevaluable += 1
+                continue                      # excluded AND counted -- never silent
+            if rec["ts"] > cutoff:
+                continue
+        out.append(rec)
+
+    total = len(out)
+    out = out[:max(1, int(limit))]
+    degraded = unevaluable > 0
+    return {"results": out, "total": total,
+            "degraded": degraded,
+            "degraded_reason": (f"{unevaluable} matching event(s) lack a parseable "
+                                f"timestamp and were unevaluable under as_of"
+                                if degraded else None),
+            "tokens_returned": sum(r["tokens"] or 0 for r in out),
+            "as_of": (datetime.fromtimestamp(cutoff, tz=timezone.utc).isoformat()
+                      if cutoff is not None else None)}
 
 
 def freq(patterns: List[str], db_path: Optional[Path] = None,

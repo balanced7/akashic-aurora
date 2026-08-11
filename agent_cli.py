@@ -2164,19 +2164,23 @@ def cmd_eye(args):
                 print(f"    {f['path']}: {f['why']}")
         return 0 if rep["manifest_complete"] else 1
     if args.eye_cmd == "find":
-        hits = _EYE.find_text(args.query, limit=max(1, args.limit * 3))
-        if args.voice:
-            hits = [h for h in hits if h["voice"] == args.voice]
-        hits = hits[:args.limit]
+        try:
+            env = _EYE.find(q=args.query or None, who=args.who, kind=args.kind,
+                            session=args.session, as_of=args.as_of, limit=args.limit)
+        except ValueError as e:
+            print(f"[eye] 422: {e}", file=sys.stderr)
+            return 2
         if args.json:
-            print(_json.dumps(hits, indent=1)); return 0
-        if not hits:
-            print(f"[eye] 0 hits for {args.query!r} -- phrase search only at S0; "
-                  "try a shorter contiguous phrase (facets land S1)")
-            return 0
-        for h in hits:
+            print(_json.dumps(env, indent=1)); return 0
+        for h in env["results"]:
             print(f"  {h['event_id']}  [{h['voice']}/{h['type']}]  {h['snippet']}")
-        print(f"[eye] {len(hits)} hit(s) -- drill: py agent_cli.py eye get <event_id>")
+        tail = (f"[eye] {len(env['results'])}/{env['total']} hit(s), "
+                f"~{env['tokens_returned']} tok")
+        if env["as_of"]:
+            tail += f", as_of {env['as_of'][:10]}"
+        if env["degraded"]:
+            tail += f"  DEGRADED: {env['degraded_reason']}"
+        print(tail + " -- drill: py agent_cli.py eye get <event_id>")
         return 0
     if args.eye_cmd == "freq":
         r = _EYE.freq(args.patterns)
@@ -7031,10 +7035,19 @@ def build_parser():
     eye_in = eye_sub.add_parser("ingest", help="index every session JSONL incrementally; "
                                               "the report IS the coverage contract")
     eye_in.add_argument("--json", action="store_true")
-    eye_fd = eye_sub.add_parser("find", help="phrase search over the corpus (S0 smoke level)")
-    eye_fd.add_argument("query", help="the phrase")
-    eye_fd.add_argument("--voice", default="", choices=["", "operator", "agent", "system"],
-                        help="filter by conservative voice label")
+    eye_fd = eye_sub.add_parser("find", help="S1: the grammar door -- facets AND together, "
+                                             "the phrase is the fallback within the slice; "
+                                             "malformed selectors refuse with the expected "
+                                             "shape; the envelope carries degraded honesty "
+                                             "+ its own token price")
+    eye_fd.add_argument("query", nargs="?", default="", help="phrase (optional when faceting)")
+    eye_fd.add_argument("--who", "--voice", dest="who", default="",
+                        choices=["", "operator", "agent", "system"],
+                        help="the grammar's who= (conservative voice label)")
+    eye_fd.add_argument("--kind", default="", help="event type: user|assistant|queue-operation|system")
+    eye_fd.add_argument("--session", default="", help="one session's terrain only")
+    eye_fd.add_argument("--as-of", dest="as_of", default=None,
+                        help="the temporal law: only events knowable by this ISO date")
     eye_fd.add_argument("--limit", type=int, default=20)
     eye_fd.add_argument("--json", action="store_true")
     eye_gt = eye_sub.add_parser("get", help="resolve an event address (session:line) to the "
