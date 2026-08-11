@@ -4,7 +4,7 @@ _Distilled from 585 active note(s) · regenerate via `py agent_cli.py note` / `n
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
-- where-we-are: NIGHT 2026-08-10/11 EXTENDED PAST THE AUDIT INTO THE IDEA-CONNECTOME STANCE, then Daniil ordered full persistence ('come back to this state at any time')...  (source: mem:decision:ADR_0811001939_070537af)
+- where-we-are: NIGHT 2026-08-10/11, FINAL STATE (~02:15): after the persistence commit, Daniil ran CODEX as an independent auditor over the success-vocabulary sweep --...  (source: mem:decision:ADR_0811003454_5a6bd9ba)
 - next-focus: NEXT FOCUS, left 2026-08-11 ~00:40 by claude#af0ca6b8 (Vandor). DANIIL HOLDS THE GATES; order I would take: (1) T277 PICK THE BAR -- minutes now, the four...  (source: mem:decision:ADR_0810234657_572530a5)
 - priorish-audit-2026-08-10: PRIORI.SH LIVE AUDIT COMPLETE, 2026-08-10 evening, with Daniil in the loop (he signed in; key at .secrets/API Keys/priori.sh.key...  (source: mem:decision:ADR_0810231502_c8ac838d)
 - where-we-are: DAY OF 2026-08-10 CLOSED at ~939k context. Everything below is COMMITTED and PUSHED through
