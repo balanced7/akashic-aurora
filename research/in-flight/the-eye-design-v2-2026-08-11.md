@@ -1,0 +1,172 @@
+# THE EYE v2 — the sensorium of an inhabitable world (T278)
+
+**Charter (Daniil, verbatim, 2026-08-11 ~05:10):** "I want us to be creative and synthesize
+the best of our thinking and theory crafting for its design. Make sure to capture the
+conversations about idea tracking and making akashic aurora as well as the knowledge and
+system within navigable and to be like a VR experience for the AI inhabiting it. Rich
+information in a context efficient form, ability to navigate, all of it."
+
+**Supersedes:** the-eye-design-2026-08-10 (v1: "make transcripts queryable" — kept whole as
+the corpus-layer spec; this v2 is the world around it). **Binds:** the query grammar
+(docs/query-grammar-2026-08.md, T280 — the physics), the connectome stance (fa0131 — the
+edges), the context-leverage doctrine (c8408f — the streaming law), the fan doctrine
+(b70185 — the coverage contracts), the narrative spine (Atlas→Track→Chapter→Beat — the
+geography), the L1/L2/L3 cache-hierarchy architecture (June — the prefetch instinct),
+RAPTOR-class recursive roll-ups (narrative_skeleton_crossdomain_analogues — the pyramid).
+
+---
+
+## 0 · The reframe
+
+v1 asked: how do we search transcripts? The charter asks the real question: **how does an
+AI INHABIT this system?** Not metaphorically — operationally. An inhabitant needs what any
+world gives its residents: a position, senses tuned to locality, level-of-detail so distance
+costs less than nearness, addresses so anywhere is reachable, time travel because the world
+is bitemporal, and honest fog where the world is unmapped. THE EYE is that sensorium. The
+transcript corpus is its FIRST territory because that is where the operator's voice lives
+and dies (two directives lost; the founding wound) — but the design is the way every plane
+(lessons, atoms, tasks, bus, story) becomes *terrain*.
+
+The VR frame, made rigorous — each game-engine primitive maps to a mechanism we already
+half-own:
+
+| World primitive | THE EYE mechanism | Existing organ it extends |
+|---|---|---|
+| Position (where am I) | per-seat cursor: current node + arc | boot's task context; seat identity |
+| Scene graph + LOD | the summary pyramid (§2) | RAPTOR roll-ups; wrap drafts; spine chapters |
+| Fast travel / portals | stable addresses for EVERY node | atom ids; priorish's per-observation URLs |
+| Minimap | `eye map` — region shape at a glance | knowledge_map tool; his 07-31 boot-vision |
+| Heat / light | staleness + funnel-credit glow | his heatmap ask (07-31); helped-counts |
+| Fog of war | `degraded`/unindexed rendered as FOG | the grammar's honesty flag, made spatial |
+| Physics | the query grammar — same laws every door | T280 |
+| Asset streaming | never load the world; stream the frustum | context-leverage doctrine |
+| Build mode | inhabitants reshape ergonomics | wishes, lessons, W-ledger (his 08-04 ask) |
+| Time machine | `as_of=` everywhere | bitemporal store |
+
+## 1 · The corpus layer (v1, kept)
+
+Ingest every session JSONL (both `user` AND `queue-operation` records — the operator-speech
+law) into EVENT rows: `(event_id, session, ts, who, type, text, cwd, branch, tokens)`.
+Incremental indexer (mtime + line-cursor per file); the redaction classes from
+chronicles/transcripts ride at ingest for any public projection. Coverage contract from the
+fan doctrine: the indexer REPORTS `manifest vs indexed` every run — a clipped index says so
+(the laundering law, built into the organ that exists because of it).
+
+## 2 · The pyramid (LOD — rich information in context-efficient form)
+
+Five levels, each a REGENERABLE PROJECTION over immutable events (codex law), each citing
+its children by id so drilling is following citations, never re-searching:
+
+    L4 ERA      — one paragraph per month-scale sweep          (~100 tok)
+    L3 ARC      — chapter summaries (the narrative spine)      (~300 tok)
+    L2 SESSION  — session digests (wrap drafts, mechanized)    (~200 tok each)
+    L1 EXCHANGE — turn-pair summaries with entity/task refs    (~40 tok each)
+    L0 EVENT    — verbatim records (the ground truth)
+
+Query responses default to the HIGHEST level that answers, with `children:` ids for descent.
+The context-efficiency law is structural: **viewing a session at L2 must cost <5% of its L0
+tokens** (pin). Pyramid rebuilds are incremental (dirty-marking up the ancestry line);
+levels carry `built_at` so staleness is visible, and a stale summary over fresh events is
+FOG, not silence.
+
+## 3 · The senses (the verb surface)
+
+One door, seven verbs — each returns the grammar envelope (results + degraded/fog + budget
+spent + position):
+
+- **`eye look`** — the current position rendered: this node at native LOD, neighbors as
+  silhouettes (one line each), heat as NUMERIC FIELDS (staleness_s, credit -- the glow is
+  UI-layer rendering, never the agent's channel; fence r1 C1), exits (edges out). The "you are
+  standing in" paragraph. THE default verb; costs ~200 tokens, always.
+- **`eye find <grammar>`** — the T280 facets verbatim: `who= kind= edge= edge_to= task=
+  file= as_of= since= q= strict=`. Returns at auto-LOD with descent ids.
+- **`eye go <addr>`** — move the seat's position (session, atom, chapter, task — any
+  address). Position persists per seat incarnation; `eye go back` pops the trail.
+- **`eye zoom in|out [addr]`** — LOD shift without moving. Zoom-in follows child citations;
+  zoom-out ascends the pyramid.
+- **`eye freq <pattern|concept>`** — the frequency axis, HIS axis: occurrences across time
+  with per-session refs, span, trend, and the repetition verdict (said once = idea; said
+  16× = a standing directive being ignored). The repetition-counts note becomes a query.
+- **`eye trace <id>`** — the connectome walk: formation chain (formed_by/at/via) upstream
+  ("where did this idea come from"), descendants downstream ("what did it change"), rendered
+  as a lineage with designations. Idea epidemiology, one verb.
+- **`eye stats [region]`** — crisp numerics: counts-by-kind, fog fraction, staleness_s,
+  credit values, top-N deltas. The did-anything-shift verb (fence r1 C3: numbers first).
+- **`eye overview [region]`** — the structural map: node kinds and edges, for orientation.
+  (One verb split into two -- mixed-modal paragraphs are context-inefficient for agents.)
+
+## 4 · The inhabitant loop (position, boot, ambient)
+
+Position is PER-INCARNATION (agent#sid8), never per base agent (fence r1 C4: two live
+incarnations sharing one cursor clobber each other and poison `since=`); succession
+inherits the predecessor's position explicitly at boot. A seat's position survives its turns: boot restores it and opens with the ambient delta —
+"you are at <arc/node>; since you left: N events nearby, M edges formed, this heat moved"
+(the grammar's `since=` doing continuity). This is the VR loop closed: wake up IN the world,
+where you were, told what changed while you slept. The ambient axis from v1 (what else was
+in play at time T) is `eye look` with `as_of=T` — time travel and ambience are one
+mechanism, which is why the grammar had to come first.
+
+## 5 · What it deliberately is NOT
+
+No embeddings (grammar non-goal; the socket stays open; facets first — audited twice). No
+NL query door (Ask-mode is a product surface; inhabitants speak grammar). No new UI in this
+slice — THE EYE is an ACI organ; the human face (Bifrost UI panel) consumes the same verbs
+later. No write verbs — the sensorium perceives; hands (learn/log/handoff) already exist.
+
+## 6 · RED pins
+
+1. **The summary-fidelity pin (fence r1 C2/C5 -- the load-bearing one):** for N>=20
+   RANDOMLY selected L1 summaries, every entity/task reference resolves to its L0 event;
+   one invented reference fails the organ. A stale summary is honest fog; a LYING summary
+   is invisible poison -- so refs are EXTRACTED mechanically (never LLM-invented), and the
+   prose summary may only describe events its refs anchor.
+2. **The lost-directives smoke (demoted from acceptance to ceremony, fence r1 C5):** the two utterances that died in the transcript plane (the
+   research cadence, 2026-07-26; THE EYE itself, 2026-07-31) are each findable in ≤2 eye
+   calls from cold, with verbatim L0 reachable by descent. If the organ cannot find its own
+   birth certificate, it fails.
+3. **The frequency pin:** `eye freq "is it stuck"` family returns ≥16 with refs (the
+   hand-measured floor from the repetition-counts note).
+4. **The grammar pins inherited** (T280 §6): as_of invisibility, 422-not-silent-empty,
+   degraded-on-clip, facet composition — run against THE EYE as first tenant.
+5. **The LOD pin:** one real session at L2 costs <5% of its L0 tokens; descent reaches
+   verbatim; the pyramid's citations resolve.
+6. **The position pin:** two seat incarnations hold independent positions; boot restores
+   each; `since=` reports only the interval's changes.
+7. **The coverage pin:** the indexer over a corpus with one file withheld REPORTS the gap
+   (manifest vs indexed) — a clipped index cannot claim wholeness.
+
+## 7 · Build slices (each independently shippable, pins first)
+
+- **S0** schema + incremental indexer + coverage report (SQLite WAL + FTS5; the sqlite_wal
+  lesson's checkpoint policy applies)
+- **S1** `eye find` + `eye look` speaking full grammar (envelope incl. budget-spent)
+- **S2** pyramid L1-L2 + `eye zoom` (L3+ ride the existing spine/wrap organs)
+- **S3** `eye freq` (the axis that pays for the whole organ on day one)
+- **S4** `eye trace` + edge formation metadata (the connectome lands)
+- **S5** `eye map` + heat + fog
+- **S6** position + boot/`since=` integration (the inhabitant loop closes)
+
+**Build order amended (fence r1 C6): S0 → S3 → S1.** `eye freq` is keyword-frequency
+over the raw index -- no grammar needed -- and it answers the operator's measured pain
+(the repetition-counts note) the moment S0 lands. S0+S3 pay first; S1 makes it a sensorium. Estimated: S0-S1 one focused day; S2-S3 a second;
+S4-S6 a third. Every slice: RED pin first, Heimdall review before done (fence-every-stage).
+
+## 8 · The bar it serves
+
+His 07-30 sentence is the organ's own metric: **"has the inhabited world become easier to
+inhabit?"** — measured, not felt: tokens-to-orient (boot+look vs today's boot+grep),
+time-to-find (the lost-directives pin, generalized), and the funnel's verdict on eye-surfaced
+results. If T277 picks the felt-difference bar, THE EYE is how it becomes a number.
+
+---
+
+## Fence r1 (Heimdall, resident, $0.013, 6k budget, no starvation) — dispositions
+
+C1 heat-as-glow decorative → ACCEPTED: numeric staleness_s/credit in the envelope; glow is
+UI rendering. C2 lying-summary poison → ACCEPTED WHOLE: extractive refs only + the
+summary-fidelity pin promoted to pin #1. C3 eye map conflation → ACCEPTED: split into
+`eye stats` + `eye overview`. C4 concurrent-incarnation clobber → ACCEPTED: position keyed
+per-incarnation, succession inherits explicitly (the T272 identity law, applied). C5
+lost-directives pin is theater → ACCEPTED: demoted to smoke/ceremony; fidelity pin carries
+acceptance. C6 build order → ACCEPTED: S0→S3→S1 (freq pays first). C7 archive: reinforcement
+(structured channels over analog metaphors), no contradiction.

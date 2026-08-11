@@ -10303,13 +10303,13 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "approved",
+      "status": "verifying",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-11T02:29:36+00:00",
-      "updated": "2026-08-11T05:32:22+00:00",
+      "updated": "2026-08-11T05:50:39+00:00",
       "history": [
         {
           "to": "proposed",
@@ -10320,6 +10320,16 @@
           "to": "approved",
           "by": "daniil",
           "at": "2026-08-11T05:32:22+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-11T05:41:13+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-11T05:50:39+00:00"
         }
       ]
     },
@@ -10357,13 +10367,13 @@
       "deps": [],
       "files": [],
       "acceptance": "RED pins first: (1) a past-dated as_of that can still see a later revision (the -898k class) fails; (2) a mis-shaped selector returning silent-empty instead of 422 fails; (3) a clipped result carrying no degraded flag fails. Contract adopted by T278's design doc before T278 builds.",
-      "status": "approved",
+      "status": "verifying",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-11T03:43:52+00:00",
-      "updated": "2026-08-11T05:32:21+00:00",
+      "updated": "2026-08-11T05:44:53+00:00",
       "history": [
         {
           "to": "proposed",
@@ -10374,6 +10384,16 @@
           "to": "approved",
           "by": "daniil",
           "at": "2026-08-11T05:32:21+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-11T05:41:12+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-11T05:44:53+00:00"
         }
       ]
     },
@@ -10385,13 +10405,13 @@
       "deps": [],
       "files": [],
       "acceptance": "RED pins first: (a) tonight's coverage-laundering replayed against the pack builder is caught mechanically (union assertion); (b) a fan whose BLIND sections went unread is detectable from integration-completeness counters; (c) one task class run solo vs fanned produces a tokens-per-confirmed-finding delta in the route counters; (d) backbrief degraded mode: an unverified corpus claim ships marked, never blocked.",
-      "status": "approved",
+      "status": "claimed",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-11T05:11:38+00:00",
-      "updated": "2026-08-11T05:32:21+00:00",
+      "updated": "2026-08-11T05:41:13+00:00",
       "history": [
         {
           "to": "proposed",
@@ -10402,6 +10422,11 @@
           "to": "approved",
           "by": "daniil",
           "at": "2026-08-11T05:32:21+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-11T05:41:13+00:00"
         }
       ]
     },
