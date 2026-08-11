@@ -115,6 +115,10 @@ Give the right agent the right context at the moment of action.
   `distiller.py` (compact to a token budget + source pointers), `faithfulness.py` (NO-LLM grounding gate —
   silence beats fabrication), `embedder.py`, `clusterer.py`, `consolidator.py`, `supersession.py`
   (newer record retires older).
+- **`core/eye/`** — THE EYE (T278): the sensorium over the transcript plane. `index.py` = S0 incremental
+  indexer (every session JSONL → addressable events with conservative voice labels, coverage contract:
+  a clipped index cannot claim wholeness). Projection only — `state/eye/eye.db` rebuilds from source.
+  Door: `py agent_cli.py eye ingest|find|get`. Design: atom `the-eye-design-v2_208b26`.
 
 ## Renew (`core/renew/`)
 The membrane's temporal (5th) job: keep working context healthy ACROSS sessions

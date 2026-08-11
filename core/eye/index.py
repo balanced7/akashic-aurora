@@ -1,0 +1,229 @@
+"""THE EYE S0 -- the incremental transcript indexer, coverage contract built in.
+
+Laws this module carries (from the fenced design + the night's lessons):
+
+  - operator speech lives in `user` turns AND `queue-operation` records
+    (operator_speech_hides_in_queue_operation_records) -- both ingest, always.
+  - VOICE is conservative: operator | agent | system. Command-caveats, system-reminders,
+    task-notifications and isMeta records inside `user` rows are SYSTEM -- the
+    false-positive class the success-vocabulary sweep paid for.
+  - every event is ADDRESSABLE: event_id = "<session>:<line>", resolving to the verbatim
+    record. The grammar's address space; T288's citation-resolver substrate.
+  - THE COVERAGE CONTRACT: the report names every file it could not read and refuses to
+    claim wholeness past a gap (manifest_complete). A clipped index that reads as whole is
+    the laundering class this organ was born from.
+  - incremental by (mtime, line-cursor): transcripts are append-only; a re-run ingests
+    only appended lines.
+
+The index is a projection: state/eye/eye.db (WAL), rebuildable, never committed.
+"""
+from __future__ import annotations
+
+import json
+import os
+import sqlite3
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_DEFAULT_DB = _REPO_ROOT / "state" / "eye" / "eye.db"
+
+# Markers that make a `user`-typed record SYSTEM, not operator. Same family the
+# success-vocabulary extractor learned the hard way (its lens-3 catch).
+_SYSTEM_MARKERS = (
+    "<command-name>", "<local-command", "Caveat: The messages below",
+    "<system-reminder>", "<task-notification", "[SYSTEM NOTIFICATION",
+)
+
+_TRANSCRIPT_GLOB = "*.jsonl"
+
+
+def default_corpus() -> List[Path]:
+    """The live transcript manifest: every session JSONL under the harness projects root."""
+    root = Path.home() / ".claude" / "projects"
+    if not root.is_dir():
+        return []
+    return sorted(p for d in root.iterdir() if d.is_dir()
+                  for p in d.glob(_TRANSCRIPT_GLOB))
+
+
+# ---------------------------------------------------------------- schema
+def _connect(db_path: Optional[Path]) -> sqlite3.Connection:
+    p = Path(db_path) if db_path else _DEFAULT_DB
+    p.parent.mkdir(parents=True, exist_ok=True)
+    con = sqlite3.connect(str(p))
+    con.execute("PRAGMA journal_mode=WAL")
+    con.execute("""CREATE TABLE IF NOT EXISTS events(
+        event_id TEXT PRIMARY KEY, session TEXT NOT NULL, line INTEGER NOT NULL,
+        ts REAL, voice TEXT NOT NULL, type TEXT NOT NULL, text TEXT NOT NULL,
+        cwd TEXT, branch TEXT, tokens INTEGER)""")
+    con.execute("""CREATE TABLE IF NOT EXISTS ingest_state(
+        path TEXT PRIMARY KEY, mtime REAL, lines INTEGER)""")
+    con.execute("""CREATE VIRTUAL TABLE IF NOT EXISTS events_fts
+        USING fts5(text, event_id UNINDEXED)""")
+    return con
+
+
+# ---------------------------------------------------------------- extraction
+def _texts_from_content(content: Any) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "\n".join(str(b.get("text", "")) for b in content
+                         if isinstance(b, dict) and b.get("type") == "text")
+    return ""
+
+
+def _parse_ts(raw: Any) -> Optional[float]:
+    if not raw:
+        return None
+    try:
+        return datetime.fromisoformat(str(raw).replace("Z", "+00:00")).timestamp()
+    except Exception:
+        return None
+
+
+def _event_from(obj: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """One JSONL record -> one event dict (or None when it carries no text)."""
+    typ = str(obj.get("type") or "")
+    text, voice = "", "system"
+
+    if typ == "user":
+        msg = obj.get("message") or {}
+        if msg.get("role") == "user":
+            text = _texts_from_content(msg.get("content"))
+            if obj.get("isMeta"):
+                voice = "system"
+            elif any(m in text for m in _SYSTEM_MARKERS):
+                voice = "system"
+            else:
+                voice = "operator"
+    elif typ == "queue-operation":
+        for key in ("prompt", "text", "content"):
+            v = obj.get(key)
+            if isinstance(v, str) and v.strip():
+                text = v
+                break
+        voice = "operator"                    # the operator-speech law
+    elif typ == "assistant":
+        msg = obj.get("message") or {}
+        text = _texts_from_content(msg.get("content"))
+        voice = "agent"
+    else:
+        v = obj.get("content")
+        text = v if isinstance(v, str) else _texts_from_content(v)
+        voice = "system"
+
+    text = (text or "").strip()
+    if not text:
+        return None
+    return {"ts": _parse_ts(obj.get("timestamp")), "voice": voice, "type": typ,
+            "text": text, "cwd": str(obj.get("cwd") or ""),
+            "branch": str(obj.get("gitBranch") or ""),
+            "tokens": max(1, len(text) // 4)}
+
+
+# ---------------------------------------------------------------- ingest
+def ingest(paths: Optional[List[Path]] = None,
+           db_path: Optional[Path] = None) -> Dict[str, Any]:
+    """Index the manifest incrementally. The report IS the coverage contract."""
+    manifest = [Path(p) for p in (paths if paths is not None else default_corpus())]
+    con = _connect(db_path)
+    files_indexed, files_failed = 0, []
+    events_new = lines_unparsed = 0
+    try:
+        for f in manifest:
+            try:
+                st = f.stat()
+                cur = con.execute("SELECT mtime, lines FROM ingest_state WHERE path=?",
+                                  (str(f),)).fetchone()
+                done_lines = int(cur[1]) if cur else 0
+                if cur and float(cur[0]) == st.st_mtime and done_lines >= 0:
+                    # unchanged since last run -> nothing to read
+                    if st.st_mtime == float(cur[0]):
+                        files_indexed += 1
+                        # still need to detect appended lines when mtime unchanged is
+                        # impossible (append changes mtime), so skip is safe
+                        continue
+                session = f.stem
+                n_line = 0
+                with open(f, encoding="utf-8", errors="replace") as fh:
+                    for n_line, raw in enumerate(fh, start=1):
+                        if n_line <= done_lines:
+                            continue
+                        raw = raw.strip()
+                        if not raw:
+                            continue
+                        try:
+                            obj = json.loads(raw)
+                        except Exception:
+                            lines_unparsed += 1
+                            continue
+                        ev = _event_from(obj)
+                        if ev is None:
+                            continue
+                        eid = f"{session}:{n_line}"
+                        got = con.execute(
+                            "INSERT OR IGNORE INTO events(event_id, session, line, ts, "
+                            "voice, type, text, cwd, branch, tokens) "
+                            "VALUES(?,?,?,?,?,?,?,?,?,?)",
+                            (eid, session, n_line, ev["ts"], ev["voice"], ev["type"],
+                             ev["text"], ev["cwd"], ev["branch"], ev["tokens"]))
+                        if got.rowcount:
+                            con.execute(
+                                "INSERT INTO events_fts(text, event_id) VALUES(?,?)",
+                                (ev["text"], eid))
+                            events_new += 1
+                con.execute(
+                    "INSERT INTO ingest_state(path, mtime, lines) VALUES(?,?,?) "
+                    "ON CONFLICT(path) DO UPDATE SET mtime=excluded.mtime, "
+                    "lines=excluded.lines", (str(f), st.st_mtime, n_line or done_lines))
+                files_indexed += 1
+            except OSError as e:
+                files_failed.append({"path": str(f),
+                                     "why": f"{e.__class__.__name__}: {e}"})
+        con.commit()
+        total = con.execute("SELECT COUNT(*) FROM events").fetchone()[0]
+    finally:
+        con.close()
+    return {"files_seen": len(manifest), "files_indexed": files_indexed,
+            "files_failed": files_failed, "events_total": int(total),
+            "events_new": events_new, "lines_unparsed": lines_unparsed,
+            "manifest_complete": not files_failed,
+            "ran_at": round(time.time(), 2)}
+
+
+# ---------------------------------------------------------------- S0 read smoke
+def find_text(q: str, db_path: Optional[Path] = None,
+              limit: int = 20) -> List[Dict[str, Any]]:
+    """S0 smoke-level phrase search (S1 brings the grammar). Phrase-quoted FTS."""
+    con = _connect(db_path)
+    try:
+        phrase = '"' + str(q).replace('"', " ") + '"'
+        rows = con.execute(
+            "SELECT e.event_id, e.session, e.line, e.ts, e.voice, e.type, "
+            "snippet(events_fts, 0, '<<', '>>', ' … ', 12) "
+            "FROM events_fts JOIN events e ON e.event_id = events_fts.event_id "
+            "WHERE events_fts MATCH ? ORDER BY e.ts LIMIT ?",
+            (phrase, int(limit))).fetchall()
+    finally:
+        con.close()
+    return [{"event_id": r[0], "session": r[1], "line": r[2], "ts": r[3],
+             "voice": r[4], "type": r[5], "snippet": r[6]} for r in rows]
+
+
+def get_event(event_id: str, db_path: Optional[Path] = None) -> Optional[Dict[str, Any]]:
+    """The address resolves to the verbatim record -- the resolver primitive (T288)."""
+    con = _connect(db_path)
+    try:
+        r = con.execute(
+            "SELECT event_id, session, line, ts, voice, type, text, cwd, branch, tokens "
+            "FROM events WHERE event_id=?", (str(event_id),)).fetchone()
+    finally:
+        con.close()
+    if not r:
+        return None
+    return {"event_id": r[0], "session": r[1], "line": r[2], "ts": r[3], "voice": r[4],
+            "type": r[5], "text": r[6], "cwd": r[7], "branch": r[8], "tokens": r[9]}

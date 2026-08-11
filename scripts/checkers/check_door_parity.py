@@ -154,6 +154,11 @@ MANIFEST = {
     # seat that most needs it is the MCP-attached conductor. Debt, not design.
     "compare": "gap",
     "timeline": "gap",
+    # T278 S0 (2026-08-11): THE EYE's door -- eye ingest|find|get (the subparser names
+    # surface as verbs to this census). Same class and same argument as compare/timeline:
+    # READ verbs whose deepest value is to an MCP-attached conductor; the MCP twin is a
+    # named later slice (rides the door-curation program, T289/G). Debt, not design.
+    "eye": "gap", "find": "gap", "get": "gap", "ingest": "gap",
     # T217 (2026-08-07): sift is the nested ask -- evidence packs, a hat fan, curator pairs,
     # dissent-first. Classified as DEBT rather than design, deliberately and with the same
     # argument as `compare`/`timeline` above: it is a READ verb whose whole value is to an

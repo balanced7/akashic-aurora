@@ -10303,13 +10303,13 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "verifying",
+      "status": "in_progress",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-11T02:29:36+00:00",
-      "updated": "2026-08-11T05:50:39+00:00",
+      "updated": "2026-08-11T11:31:54+00:00",
       "history": [
         {
           "to": "proposed",
@@ -10330,6 +10330,11 @@
           "to": "verifying",
           "by": "claude",
           "at": "2026-08-11T05:50:39+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-08-11T11:31:54+00:00"
         }
       ]
     },
@@ -10542,18 +10547,38 @@
       "deps": [],
       "files": [],
       "acceptance": "Full reports persisted to research/reviewed before synthesis; every named vendor/mechanism verified against a live source (no training-memory-only claims in the final map); the mapping names which of OUR work types each mechanism grounds; steal-list ranked with first-moves.",
-      "status": "proposed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "ed8a5655",
+      "verified_by": "claude",
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-11T05:58:51+00:00",
-      "updated": "2026-08-11T05:58:51+00:00",
+      "updated": "2026-08-11T11:32:19+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-11T05:58:51+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-11T11:31:51+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-11T11:32:18+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-11T11:32:18+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-11T11:32:19+00:00"
         }
       ]
     },
@@ -10565,18 +10590,23 @@
       "deps": [],
       "files": [],
       "acceptance": "One topology doc with every boundary named + crossing rules; the leverage-doctrine atom re-termed at next touch; at least two boundary metrics live in an existing organ (not just specified); fenced by Heimdall.",
-      "status": "proposed",
+      "status": "approved",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-11T05:58:51+00:00",
-      "updated": "2026-08-11T05:58:51+00:00",
+      "updated": "2026-08-11T11:31:52+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-11T05:58:51+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-11T11:31:52+00:00"
         }
       ]
     },
@@ -10588,18 +10618,23 @@
       "deps": [],
       "files": [],
       "acceptance": "The category vocabulary defined with one-line tests for membership; the findings preset emits a provenance field; at least one report template renders it; per-class reliability queryable from funnel counters; fenced by Heimdall.",
-      "status": "proposed",
+      "status": "approved",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-11T05:58:52+00:00",
-      "updated": "2026-08-11T05:58:52+00:00",
+      "updated": "2026-08-11T11:31:52+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-11T05:58:52+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-11T11:31:52+00:00"
         }
       ]
     },
@@ -10611,18 +10646,23 @@
       "deps": [],
       "files": [],
       "acceptance": "A claim-type inventory names every class we emit; each class has a citation form with a resolver (grammar address -> verbatim source); the span-support check (citation proves support, not just existence) runs on a sample per class; one crown artifact rendered with full citation chips end-to-end.",
-      "status": "proposed",
+      "status": "approved",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-11T06:04:42+00:00",
-      "updated": "2026-08-11T06:04:42+00:00",
+      "updated": "2026-08-11T11:31:53+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-11T06:04:42+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-11T11:31:53+00:00"
         }
       ]
     },
@@ -10634,18 +10674,23 @@
       "deps": [],
       "files": [],
       "acceptance": "Multi-arm sweep per T276 shape with full reports persisted; the inventory is a typed census (not a listicle) with counts; every ergonomic claim carries a receipt (a named API/tool exhibiting it); the pattern language maps onto our 36-tool door with concrete curation recommendations; fenced by Heimdall.",
-      "status": "proposed",
+      "status": "approved",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-11T06:04:43+00:00",
-      "updated": "2026-08-11T06:04:43+00:00",
+      "updated": "2026-08-11T11:31:53+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-11T06:04:43+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-11T11:31:53+00:00"
         }
       ]
     }

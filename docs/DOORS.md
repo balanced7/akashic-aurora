@@ -8,7 +8,7 @@ Class: reference
 > (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by
 > check_comprehensibility so it cannot silently rot.
 
-## CLI door -- `py agent_cli.py <verb>` (82 verbs)
+## CLI door -- `py agent_cli.py <verb>` (83 verbs)
 
 The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.
 
@@ -41,6 +41,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `doctor` | fleet liveness doctor (L2): progress, not presence | `--agents` `--deploy` `--page` `--progress` `--json` |
 | `episode` | session bookends: current episode, close+draft, accept | `<action>* {current,close,accept}` `<chapter_id>` `--title` `--desc` `--why` `--accept-title` `--accept-desc` `--accept-why` `--json` |
 | `events` | search / drill / capture the raw event firehose | `--search` `--around` `--window` `--get` `--capture` `--promote` `--threshold` `--kind` `--summary` `--detail-json` `--refs` `--agent` `--track` `--since` `--until` `--limit` `--json` |
+| `eye` | THE EYE: the transcript plane as terrain -- ingest (incremental, coverage-honest), find (phrase, S0; the grammar lands S1), get (address -> verbatim L0) | `<eye_cmd>* {ingest,find,get}` |
 | `fence` | fence workspace: slots + seal-time method checks; confabulated filenames unrepresentable (R2) | `<action>* {open,write,seal,pv,status,list}` `<fence_id>` `--question` `--tier {full,lite}` `--slot {brief,half_a,half_b,reconciliation}` `--text` `--file` `--by` `--json` |
 | `fleet` | local-model dispatch: roster (list) + capability select + direct one-shot call | `<action> {list,select,call}` `--capability` `--status` `--probe` `--max-vram` `--min-context` `--model` `--prompt` `--system` `--max-tokens` `--temperature` `--json-out` `--json` |
 | `flightdeck` | W25 (deepseek): cockpit one-pager — fleet at a glance. Composes doctor + pulse + lane-health + locks + commits. --agent drills one seat | `--agent` `--json` |

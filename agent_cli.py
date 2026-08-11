@@ -2146,6 +2146,53 @@ def load_fan_prompts(raw: str):
     return [chunk.strip() for chunk in re.split(r"(?m)^---\s*$", raw) if chunk.strip()]
 
 
+def cmd_eye(args):
+    """THE EYE's door (T278). S0: ingest / find / get. The grammar's facets land S1 on
+    these same subcommands -- one door, growing verbs, never a second surface."""
+    import json as _json
+    from core.eye import index as _EYE
+    if args.eye_cmd == "ingest":
+        rep = _EYE.ingest()
+        if args.json:
+            print(_json.dumps(rep, indent=1)); return 0
+        print(f"[eye] {rep['files_indexed']}/{rep['files_seen']} files | "
+              f"{rep['events_total']:,} events ({rep['events_new']:,} new) | "
+              f"unparsed {rep['lines_unparsed']}")
+        if not rep["manifest_complete"]:
+            print(f"[eye] COVERAGE GAP -- the index may NOT be read as whole:")
+            for f in rep["files_failed"]:
+                print(f"    {f['path']}: {f['why']}")
+        return 0 if rep["manifest_complete"] else 1
+    if args.eye_cmd == "find":
+        hits = _EYE.find_text(args.query, limit=max(1, args.limit * 3))
+        if args.voice:
+            hits = [h for h in hits if h["voice"] == args.voice]
+        hits = hits[:args.limit]
+        if args.json:
+            print(_json.dumps(hits, indent=1)); return 0
+        if not hits:
+            print(f"[eye] 0 hits for {args.query!r} -- phrase search only at S0; "
+                  "try a shorter contiguous phrase (facets land S1)")
+            return 0
+        for h in hits:
+            print(f"  {h['event_id']}  [{h['voice']}/{h['type']}]  {h['snippet']}")
+        print(f"[eye] {len(hits)} hit(s) -- drill: py agent_cli.py eye get <event_id>")
+        return 0
+    if args.eye_cmd == "get":
+        ev = _EYE.get_event(args.event_id)
+        if ev is None:
+            print(f"[eye] no event at {args.event_id!r} -- the address is session:line "
+                  "(get one from eye find)", file=sys.stderr)
+            return 2
+        if args.json:
+            print(_json.dumps(ev, indent=1)); return 0
+        print(f"# {ev['event_id']}  [{ev['voice']}/{ev['type']}]  "
+              f"session={ev['session']} line={ev['line']}")
+        print(ev["text"])
+        return 0
+    return 2
+
+
 def cmd_ask(args):
     """ask -- ONE synchronous question to a helper model, with no seat behind it (T171).
 
@@ -6956,6 +7003,26 @@ def build_parser():
     blb.add_argument("--get", default="", help="the blob:<sha> ref from a spill notice")
     blb.add_argument("--out", default="", help="write bytes to this file instead of stdout")
     blb.set_defaults(fn=cmd_blob)
+
+    # ---- T278 THE EYE (S0/S1 door; design atom the-eye-design-v2_208b26) ----
+    eye = sub.add_parser("eye", help="THE EYE: the transcript plane as terrain -- ingest "
+                                     "(incremental, coverage-honest), find (phrase, S0; the "
+                                     "grammar lands S1), get (address -> verbatim L0)")
+    eye_sub = eye.add_subparsers(dest="eye_cmd", required=True)
+    eye_in = eye_sub.add_parser("ingest", help="index every session JSONL incrementally; "
+                                              "the report IS the coverage contract")
+    eye_in.add_argument("--json", action="store_true")
+    eye_fd = eye_sub.add_parser("find", help="phrase search over the corpus (S0 smoke level)")
+    eye_fd.add_argument("query", help="the phrase")
+    eye_fd.add_argument("--voice", default="", choices=["", "operator", "agent", "system"],
+                        help="filter by conservative voice label")
+    eye_fd.add_argument("--limit", type=int, default=20)
+    eye_fd.add_argument("--json", action="store_true")
+    eye_gt = eye_sub.add_parser("get", help="resolve an event address (session:line) to the "
+                                            "verbatim record -- the citation resolver primitive")
+    eye_gt.add_argument("event_id", help="the address, e.g. 2b1b8946-...:1955")
+    eye_gt.add_argument("--json", action="store_true")
+    eye.set_defaults(fn=cmd_eye)
 
     # ---- T099 V0 self-tooling (docs/library/design/20260701_self-tooling-arc-reconciled-design-agent_29f578.md) ----
     cap = sub.add_parser("capture", help="full-fidelity bus read: unwrap a message by stream id "

@@ -186,6 +186,9 @@
 - `project_context.py` — Project Context Manager: Store-backed multi-agent context
 - `relevance_budget.py` — T071-R1 relevance budget v1 -- boot's lesson section becomes MOST-RELEVANT under a
 
+## core/eye/  (1 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
+- `index.py` — THE EYE S0 -- the incremental transcript indexer, coverage contract built in.
+
 ## core/infrastructure/  (1 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
 - `health_check.py` — Startup Diagnostics: Report on initialization health
 
