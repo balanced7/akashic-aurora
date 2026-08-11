@@ -310,8 +310,13 @@ mcp = FastMCP(
         "bifrost_inbox(agent) or bifrost_sync(agent) before acting on live messages. "
         "Free Gemini via web: ask_gemini_web(prompt, mode=gemini|ai_mode|both) uses invisible "
         "Chrome (gemini_web_login once). ask_gemini_panel fans to web + optional API. "
-        "Concurrency-safe door (O1): tools may be called in parallel batches; reads run "
-        "concurrently, writes/sends/consumes serialize server-side for ordering."
+        "Concurrency-safe door (slice O1 -- a task id, not O(1) complexity): tools may be "
+        "called in parallel batches; reads run concurrently; writes/sends/consumes "
+        "serialize WITHIN THIS SERVER PROCESS under one lock for ordering. Across "
+        "processes (CLI shells, other doors) there is no global serializer: single-key "
+        "Redis operations are backend-atomic, and multi-step read-modify-write sequences "
+        "need CAS or an advisory lock (see lock/unlock tools) -- do not assume cross-"
+        "process ordering the door cannot give."
     ),
 )
 
