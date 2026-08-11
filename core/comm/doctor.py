@@ -387,9 +387,13 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
                               f"{evidence} -- genuinely working, not wedged",
                               "py agent_cli.py doctor --json"))
             else:
+                # T282: every page names the signals it keyed on -- a page that does not
+                # show its evidence cannot be recalibrated, only ignored.
+                beat_desc = f"beat stale ({int(now - beat_ts)}s)" if beat_ts else "no seat beat"
                 out.append(_f(agent, "hard_wedge", "page",
-                              f"{agent}: HARD WEDGE -- '{phase}' for {int(stuck)}s with a "
-                              "DEAD pulse (worker died inside the turn; not self-healing)",
+                              f"{agent}: HARD WEDGE -- keyed on: non-idle phase '{phase}' "
+                              f"aged {int(stuck)}s + DEAD pulse + {beat_desc} "
+                              "(worker died inside the turn; not self-healing)",
                               f"py-spy dump --pid <runner-pid>  |  relaunch the runner"))
         elif non_idle and stuck >= liveness.APPROACHING_WEDGE_S and not alive_signal:
             # P-S1-0: the sub-threshold window C1-8 hid in. Non-idle + dead pulse but not yet
@@ -1340,8 +1344,24 @@ def _reconcile_pages(pages: List[Dict[str, Any]], agents: List[str]) -> None:
                 continue
             if str(rec.get("agent") or "") not in scope:
                 subject = str(rec.get("agent") or "")
+                # SUCCESSION (T282, 2026-08-11): a page whose subject is a dead INCARNATION
+                # retracts the moment this round examines a DIFFERENT live incarnation of the
+                # same base agent -- succession is the strongest resolution evidence there is.
+                # Without it, a seat that dies mid-turn (pulse and beat expire while the
+                # worklive record lingers non-idle) pages HARD WEDGE into its own wake, decays
+                # out of known_agents() within a minute, and haunts every prompt whisper for
+                # up to GHOST_PAGE_AGE_S. Receipt: night of 2026-08-10/11 -- three seats
+                # cycled, three ghost pages, 6+ whisper renders each; kimi's cross-seat
+                # diagnosis named the stake ("a page that fires on healthy seats trains us
+                # to ignore pages"). Incarnation-form ids only enter scope via live signals
+                # (worklive/presence), so successor-in-scope means recently-alive successor.
+                base, sep, _rest = subject.partition("#")
+                succeeded = bool(sep) and any(
+                    "#" in str(a) and str(a) != subject
+                    and str(a).partition("#")[0] == base
+                    for a in scope)
                 age = now - float(rec.get("ts") or now)
-                if not (full_round and subject not in universe
+                if not succeeded and not (full_round and subject not in universe
                         and age > GHOST_PAGE_AGE_S):
                     continue                  # not ours to retract this round
             pager.clear_key(key, c=c)

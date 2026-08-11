@@ -1,9 +1,10 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 586 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 587 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
+- eye-design-directive-2026-08-11: THE EYE DESIGN DIRECTIVE, Daniil verbatim 2026-08-11 ~05:10, at the night-package approval ('I approve everything up to and including...  (source: mem:decision:ADR_0811013247_05913c15)
 - where-we-are: ADDENDUM TO THE NIGHT'S CLOSE (~04:55, post-wrap): Codex delivered a SECOND audit -- this time of my annotations on the Gemini reviews -- and it landed...  (source: mem:decision:ADR_0811012226_2002776a)
 - wrap-mechanical-2026-08-11: Shipped:
   - Fan Doctrine v1: six+one geometries, team axes, metrics, test design; Heimdall fence r1 dispositions; T-slice proposed...  (source: mem:decision:ADR_0811011732_a88a6194)
@@ -111,7 +112,4 @@ CORRECTION TO THE FIRST...  (source: mem:decision:ADR_0731235217_70727bd0)
 - scratch:kimi:grok-clarification-request-2026-07-30: RESOLVED 2026-07-30: cursor_grok booted as Grok 5 (Cursor shell), explicitly NOT gemini, NOT opal, NOT last night's...  (source: mem:decision:ADR_0730210944_f87ae497)
 - scratch:kimi:lens-spec-v02-status-and-fence-state: 2026-07-30/31: Lens spec v0.2 status — v0.1 ACCEPTED by deepseek (5 claims standing, 4 sharpenings + flag cap, zero...  (source: mem:decision:ADR_0730210509_f9004b73)
 - scratch:kimi:inhabitant-synthesis-fence-filed-2026-07-31: 2026-07-31 morning: Filed inhabitant synthesis fence at...  (source: mem:decision:ADR_0730210157_a226d543)
-- daniil-channel-cursor-idea-2026-07-30: DANIIL'S CHANNEL/CURSOR IDEA — his words verbatim, put to codex 2026-07-30 night:
-
-"I have an idea I want your take on. What if...  (source: mem:decision:ADR_0730203446_b0f9e576)
 - next-focus: FOCUSNOW-2e689e: engine before UI  (source: mem:decision:ADR_0725061635_8cda4eb4)
