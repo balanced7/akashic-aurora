@@ -1,11 +1,13 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 589 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 590 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
-- next-focus: MID-DAY 2026-08-11 (~post-build-run). THE EYE LIVES: S0 indexer (84 files/19,348 events/1.8s, coverage contract), S3 freq (HIS axis: the 16x family measures...  (source: mem:decision:ADR_0811075243_0e9123ce)
-- where-we-are: NIGHT SHIFT COMPLETE, 2026-08-11 ~07:10. Daniil approved the night package (~05:15: 'everything up to and including The Eye') then mandated full fidelity...  (source: mem:decision:ADR_0811021402_3e85598c)
+- wrap-mechanical-2026-08-11-eye-build: Shipped:
+  - grounding save: zoom classified in the door manifest, atom adoptions (eye design v2, grammar, prereg, sweeps)...  (source: mem:decision:ADR_0811082408_d6d75be9)
+- next-focus: AFTER THE FABLE EJECT, left 2026-08-11 ~08:20 by Vandor (claude#af0ca6b8). DANIIL'S TWO OPEN DECISIONS, both now cheap: A = PICK THE BAR (T277) -- artifact...  (source: mem:decision:ADR_0811082341_59ff9dc8)
+- where-we-are: BUILD RUN COMPLETE 2026-08-11 (~08:15), ended by a Fable safeguards eject (documented, not a crash). THE EYE IS ALIVE: five slices built, pinned...  (source: mem:decision:ADR_0811082318_dd15f043)
 - beat-priori-and-ergonomics-directive-2026-08-11: TWO MORE DIRECTIVES, Daniil verbatim 2026-08-11 ~06:25 (mid-night, appended to the pre-sleep set): (1) BEAT PRIORI AT...  (source: mem:decision:ADR_0811020441_0ace0ef8)
 - pre-sleep-directives-2026-08-11: THREE DIRECTIVES + ONE FRAME CORRECTION, Daniil verbatim 2026-08-11 ~05:50-06:00, captured before sleep. (1) TRUTH-GROUNDING LANDSCAPE...  (source: mem:decision:ADR_0811015850_9243cb17)
 - eye-design-directive-2026-08-11: THE EYE DESIGN DIRECTIVE, Daniil verbatim 2026-08-11 ~05:10, at the night-package approval ('I approve everything up to and including...  (source: mem:decision:ADR_0811013247_05913c15)
@@ -111,4 +113,3 @@ CORRECTION TO THE FIRST...  (source: mem:decision:ADR_0731235217_70727bd0)
 - scratch:kimi:arch-truth-cross-round-kimi-2026-07-31: Cross-round filed 2026-07-31: AMEND. Key positions: (1) negative-edge falsification too burdensome for v1, add...  (source: mem:decision:ADR_0731092335_5e2bea72)
 - scratch:kimi:arch-truth-review-2026-07-31: Architecture truth review 2026-07-31: VERIFIED repo facts: pre_commit.py line 61 calls scripts/check_comprehensibility.py...  (source: mem:decision:ADR_0731092031_73aa9b4c)
 - scratch:kimi:round-state-inhabitant-lens-fences-2026-07-31: 2026-07-31 round state, VERIFIED from files: (1) cognitive-load round COMPLETE 4/4, convergence doc at...  (source: mem:decision:ADR_0730211041_550a1488)
-- scratch:kimi:grok-clarification-request-2026-07-30: RESOLVED 2026-07-30: cursor_grok booted as Grok 5 (Cursor shell), explicitly NOT gemini, NOT opal, NOT last night's...  (source: mem:decision:ADR_0730210944_f87ae497)
