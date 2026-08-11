@@ -2235,6 +2235,57 @@ def cmd_eye(args):
         if z["level"] == "L1":
             print(f"  refs: {', '.join(z['refs'][:6])}")
         return 0
+    if args.eye_cmd in ("look", "go", "back", "since", "inherit"):
+        from core.eye import position as _POS
+        seat = args.seat or _POS.whoami(args.agent or "claude")
+        try:
+            if args.eye_cmd == "go":
+                p = _POS.go(seat, args.addr)
+                print(f"[eye] {seat} -> {p['addr']}"
+                      + (f"  (trail {len(p['trail'])} deep)" if p["trail"] else ""))
+                return 0
+            if args.eye_cmd == "back":
+                p = _POS.back(seat)
+                print(f"[eye] {seat} -> {p['addr']}"
+                      + ("  (already at the trail origin)" if p["at_trail_origin"] else ""))
+                return 0
+            if args.eye_cmd == "inherit":
+                p = _POS.inherit(seat, args.from_seat)
+                print(f"[eye] {seat} inherited {p['addr']} from {args.from_seat}")
+                return 0
+            if args.eye_cmd == "since":
+                d = _POS.since(seat)
+                if args.json:
+                    print(_json.dumps(d, indent=1)); return 0
+                print(f"[eye since] at {d['addr']} -- {d['events_added']:,} event(s) "
+                      f"newly knowable across {d['sessions_touched']} session(s) "
+                      f"({d['operator_events']} operator), {d['edges_formed']:,} edge(s) formed")
+                if d["degraded"]:
+                    print(f"  [FOG] {d['degraded_reason']}")
+                return 0
+            v = _POS.look(seat)
+        except ValueError as e:
+            print(f"[eye] 422: {e}", file=sys.stderr)
+            return 2
+        if args.json:
+            print(_json.dumps(v, indent=1)); return 0
+        n = v["node"]
+        stale = v["heat"]["staleness_s"]
+        print(f"# YOU ARE AT {v['addr']}  [{n['voice']}/{n['type']}]  ~{v['tokens']} tok")
+        if v["inherited_from"]:
+            print(f"  (standpoint inherited from {v['inherited_from']})")
+        print(f"  {n['text'][:400]}")
+        print(f"  heat: staleness {stale / 3600:.1f}h | "
+              f"{v['heat']['session_events_after']} event(s) later in this session | "
+              f"credit UNKNOWN (this plane has no funnel)"
+              if stale is not None else "  heat: staleness UNKNOWN (no timestamp)")
+        if len(v["same_utterance"]) > 1:
+            print(f"  one utterance, {len(v['same_utterance'])} record(s)")
+        for nb in v["neighbors"]:
+            print(f"    - [{nb['evidence']}/{nb['edge_kind']}] {nb['voice']}: "
+                  f"{nb['snippet'][:88]}")
+        print(f"  exits: {len(v['exits'])}  (drill: py agent_cli.py eye trace {v['addr']})")
+        return 0
     if args.eye_cmd == "trace":
         from core.eye import connectome as _CONN
         if not _CONN.edges():
@@ -7200,6 +7251,31 @@ def build_parser():
                              "be evaluated against it and are COUNTED in the envelope, "
                              "never silently dropped")
     eye_tr.add_argument("--json", action="store_true")
+    # ---- S6 the inhabitant loop: a seat has a STANDPOINT, keyed per incarnation ----
+    for _name, _help in (
+            ("look", "S6: the standpoint rendered -- this node, neighbours as silhouettes, "
+                     "exits, and heat as NUMBERS (a gauge this plane cannot populate reads "
+                     "UNKNOWN, never 0). The default verb; kept cheap"),
+            ("go", "S6: move the seat's position (per INCARNATION, never per agent -- two "
+                   "live sessions of one agent must not share a standpoint)"),
+            ("back", "S6: pop the trail; at the origin it says so rather than pretending "
+                     "to move"),
+            ("since", "S6: the ambient delta -- what became KNOWABLE while this seat was "
+                      "away (known_at, not world time: a week-old transcript ingested "
+                      "today is new today)"),
+            ("inherit", "S6: succession -- take a predecessor's standpoint EXPLICITLY, "
+                        "recorded on the row, so the interval since= measures is known "
+                        "to have begun at the handover")):
+        _p = eye_sub.add_parser(_name, help=_help)
+        _p.add_argument("--agent", default="claude",
+                        help="whose seat (the incarnation suffix is derived from the session)")
+        _p.add_argument("--seat", default="",
+                        help="an explicit agent#sid8 key, overriding derivation")
+        _p.add_argument("--json", action="store_true")
+        if _name == "go":
+            _p.add_argument("addr", help="the address, e.g. 2b1b8946-...:1955")
+        if _name == "inherit":
+            _p.add_argument("from_seat", help="the predecessor's agent#sid8")
     eye.set_defaults(fn=cmd_eye)
 
     # ---- T099 V0 self-tooling (docs/library/design/20260701_self-tooling-arc-reconciled-design-agent_29f578.md) ----

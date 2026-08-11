@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 461e90ea. A bound you discover by collision is not awareness -- this sheet
+> Derived at a0c0d8fe. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -122,7 +122,7 @@ Class: reference
 | `BIFROST_AGENT` | `` | scripts/wire_journal.py |
 | `BIFROST_APPROACHING_WEDGE_SECONDS` | `"150"` | core/comm/liveness.py |
 | `BIFROST_CONSUME_LANE` | `` | core/comm/bifrost_api.py, scripts/bifrost_runner_deepseek.py, scripts/bifrost_runner_kimi.py |
-| `BIFROST_INCARNATION` | `` | agent/bifrost_pull.py, agent/harness/hooks/claude_posttooluse.py, agent_cli.py +6 |
+| `BIFROST_INCARNATION` | `` | agent/bifrost_pull.py, agent/harness/hooks/claude_posttooluse.py, agent_cli.py +7 |
 | `BIFROST_LANES_DUAL_WRITE` | `True` | core/comm/packet_spec.py |
 | `BIFROST_MAX_HOPS` | `"6"` | core/comm/control.py |
 | `BIFROST_MAX_REPLIES_PER_MIN` | `"12"` | core/comm/control.py |
@@ -138,7 +138,7 @@ Class: reference
 | `BIFROST_WAKE_LONGLIVED` | `"1"` | scripts/bifrost_wake.py |
 | `BIFROST_WEDGE_SECONDS` | `"300"` | core/comm/liveness.py |
 | `BUS_MAX_MESSAGE_BYTES` | `DEFAULT_MAX_MESSAGE_BYTES` | core/comm/packet_spec.py |
-| `CLAUDE_CODE_SESSION_ID` | `""` | agent/bifrost_pull.py, agent/harness/hooks/claude_posttooluse.py, agent_cli.py +3 |
+| `CLAUDE_CODE_SESSION_ID` | `""` | agent/bifrost_pull.py, agent/harness/hooks/claude_posttooluse.py, agent_cli.py +4 |
 | `CLAUDE_SESSION_ID` | `` | agent_cli.py, core/comm/runner_lock.py |
 | `CURSOR_PROJECT_DIR` | `` | agent/harness/hooks/cursor_posttooluse.py, agent/harness/hooks/cursor_sessionstart.py |
 | `DEEPSEEK_API_KEY` | `` | core/comm/ask.py, scripts/ask_deepseek.py, scripts/deepseek_chat.py |

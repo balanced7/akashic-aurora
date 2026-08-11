@@ -52,7 +52,7 @@ _TRANSCRIPT_GLOB = "*.jsonl"
 # So migrations ADD, never DROP. Derived tables (pyramid, edges) are genuinely disposable
 # and may be rebuilt freely; `events` may not. Rows whose source file is gone keep NULL in
 # any column added later, and that NULL is reported as unevaluable rather than as absence.
-_SCHEMA_VERSION = 3
+_SCHEMA_VERSION = 4
 
 
 def utterance_key(session: str, text: str) -> Tuple[str, str]:
@@ -94,7 +94,8 @@ def _connect(db_path: Optional[Path]) -> sqlite3.Connection:
     con.execute("""CREATE TABLE IF NOT EXISTS events(
         event_id TEXT PRIMARY KEY, session TEXT NOT NULL, line INTEGER NOT NULL,
         ts REAL, voice TEXT NOT NULL, type TEXT NOT NULL, text TEXT NOT NULL,
-        cwd TEXT, branch TEXT, tokens INTEGER, uuid TEXT, parent_uuid TEXT)""")
+        cwd TEXT, branch TEXT, tokens INTEGER, uuid TEXT, parent_uuid TEXT,
+        indexed_at REAL)""")
     con.execute("""CREATE TABLE IF NOT EXISTS ingest_state(
         path TEXT PRIMARY KEY, mtime REAL, lines INTEGER)""")
     con.execute("""CREATE VIRTUAL TABLE IF NOT EXISTS events_fts
@@ -112,6 +113,13 @@ def _connect(db_path: Optional[Path]) -> sqlite3.Connection:
         for col in ("uuid", "parent_uuid"):
             if col not in cols:
                 con.execute(f"ALTER TABLE events ADD COLUMN {col} TEXT")
+        if "indexed_at" not in cols:
+            # known_at, in the grammar's sense (sec 1): WHEN THIS BECAME KNOWABLE, which is
+            # not when it happened. A transcript written last week and ingested today is new
+            # to every reader today, and the ambient delta is a knowability question.
+            # Existing rows stay NULL and that NULL is not a guess -- it means "arrived
+            # before this column existed", which is before every mark that can now be taken.
+            con.execute("ALTER TABLE events ADD COLUMN indexed_at REAL")
         # Derived tables only -- rebuilt from `events`, never a source of truth.
         con.execute("DROP TABLE IF EXISTS pyramid")
         con.execute("DROP TABLE IF EXISTS edges")
@@ -199,6 +207,9 @@ def ingest(paths: Optional[List[Path]] = None,
     con = _connect(db_path)
     files_indexed, files_failed = 0, []
     events_new = lines_unparsed = events_backfilled = 0
+    # One known_at for the whole run: every event this pass makes knowable became knowable
+    # together, and a per-row clock would let a long ingest straddle a reader's mark.
+    run_started = time.time()
     try:
         for f in manifest:
             try:
@@ -243,11 +254,11 @@ def ingest(paths: Optional[List[Path]] = None,
                         eid = f"{session}:{n_line}"
                         got = con.execute(
                             "INSERT OR IGNORE INTO events(event_id, session, line, ts, "
-                            "voice, type, text, cwd, branch, tokens, uuid, parent_uuid) "
-                            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                            "voice, type, text, cwd, branch, tokens, uuid, parent_uuid, "
+                            "indexed_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
                             (eid, session, n_line, ev["ts"], ev["voice"], ev["type"],
                              ev["text"], ev["cwd"], ev["branch"], ev["tokens"],
-                             ev["uuid"], ev["parent_uuid"]))
+                             ev["uuid"], ev["parent_uuid"], run_started))
                         if got.rowcount:
                             con.execute(
                                 "INSERT INTO events_fts(text, event_id) VALUES(?,?)",
