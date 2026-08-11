@@ -1,0 +1,342 @@
+<title>The Bar Menu, Cited - T277 with Receipts</title>
+
+<style>
+/* report-kit -- the design system behind Akashic Aurora's visual reports.
+ *
+ * Daniil 2026-08-10, after three of them in two days: "Is there a way to verbify it so that
+ * it is easier for you to make these?"
+ *
+ * THIS IS A SYSTEM, NOT A TEMPLATE, and the distinction is the whole design constraint. The
+ * three reports that produced this kit needed three different SHAPES -- a retrospective, a
+ * set of decision forks, a reconciliation built around a contradiction -- and the thing
+ * Daniil was responding to was the fit. A generator that emitted a fixed document would
+ * flatten exactly that. So: tokens and primitives here, composition every time.
+ *
+ * INLINED, NEVER LINKED. Published artifacts run under a CSP that blocks every external
+ * host, so a <link> to this file would silently fall back to unstyled. The scaffold
+ * generator inlines it at emit time; that is a requirement, not a convenience.
+ *
+ * SEMANTIC COLOUR IS SEPARATE FROM ACCENT. --go/--hold/--stop carry MEANING (this is cheap /
+ * this needs judgement / this costs either way) and must never be spent on decoration.
+ * --aurora is the accent and carries none. Mixing the two is how a design system becomes
+ * wallpaper.
+ */
+
+:root {
+  /* Ground and structure. The neutrals are blue-biased toward the accent rather than pure
+     grey -- a pure mid-grey reads as unconsidered. */
+  --ground:#0A0F14; --surface:#111A22; --surface2:#17222C; --line:#22303E;
+  --ink:#E3EAEF; --muted:#8798A6; --dim:#5F7080;
+
+  /* Semantic. Meaning only. */
+  --go:#3FD3A0;      /* cheap, unblocked, shipped, confirmed */
+  --hold:#E0A854;    /* needs judgement, pending, self-declared */
+  --stop:#E4606A;    /* costs either way, refuted, not built */
+  --aurora:#8B7FE8;  /* the accent. Structure and emphasis, never status. */
+
+  --mono:ui-monospace,"SF Mono","Cascadia Mono","Roboto Mono",Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+}
+
+/* Both themes at TOKEN level: components style through the tokens and never inside the
+   media query, so the data-theme override can win in BOTH directions. */
+@media (prefers-color-scheme: light) {
+  :root {
+    --ground:#F7F8F9; --surface:#FFFFFF; --surface2:#F0F3F5; --line:#DCE3E8;
+    --ink:#16202A; --muted:#5A6B79; --dim:#8496A3;
+    --go:#137A5A; --hold:#9A6A17; --stop:#C43A45; --aurora:#5B4DC4;
+  }
+}
+:root[data-theme="dark"] {
+  --ground:#0A0F14; --surface:#111A22; --surface2:#17222C; --line:#22303E;
+  --ink:#E3EAEF; --muted:#8798A6; --dim:#5F7080;
+  --go:#3FD3A0; --hold:#E0A854; --stop:#E4606A; --aurora:#8B7FE8;
+}
+:root[data-theme="light"] {
+  --ground:#F7F8F9; --surface:#FFFFFF; --surface2:#F0F3F5; --line:#DCE3E8;
+  --ink:#16202A; --muted:#5A6B79; --dim:#8496A3;
+  --go:#137A5A; --hold:#9A6A17; --stop:#C43A45; --aurora:#5B4DC4;
+}
+
+body { background:var(--ground); color:var(--ink); font-family:var(--sans);
+       line-height:1.62; margin:0; padding:0 20px 90px; }
+.wrap { max-width:880px; margin:0 auto; }
+h1,h2,h3 { text-wrap:balance; margin:0; }
+p { margin:0; }
+a { color:var(--aurora); }
+code { font-family:var(--mono); font-size:.88em; background:var(--surface2);
+       padding:1.5px 5px; border-radius:3px; }
+.num { font-variant-numeric:tabular-nums; }   /* any column of digits */
+
+/* --- header ------------------------------------------------------------------ */
+header { padding:54px 0 24px; display:flex; flex-direction:column; gap:13px; }
+.eyebrow { font-family:var(--mono); font-size:12px; letter-spacing:.14em;
+           text-transform:uppercase; color:var(--muted); }
+h1 { font-size:clamp(28px,4.6vw,40px); line-height:1.14; font-weight:640;
+     letter-spacing:-.02em; }
+.standfirst { font-family:var(--serif); font-size:18.5px; line-height:1.55;
+              color:var(--muted); max-width:62ch; }
+
+/* --- rule: a section break that carries the project's name ------------------- */
+hr.rule { height:2px; border:0; margin:0; opacity:.5;
+  background:linear-gradient(90deg,transparent,var(--go) 18%,var(--aurora) 52%,
+             var(--stop) 80%,transparent); }
+
+section { margin-top:46px; display:flex; flex-direction:column; gap:16px; }
+h2 { font-size:12.5px; font-family:var(--mono); letter-spacing:.16em;
+     text-transform:uppercase; color:var(--muted); font-weight:600; }
+h3 { font-size:20px; font-weight:620; letter-spacing:-.01em; }
+.prose { max-width:68ch; color:var(--muted); font-size:15.5px; }
+.prose strong { color:var(--ink); }
+
+/* --- tiles: headline numbers. Use for 3-6 figures, never for prose. ---------- */
+.tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+.tile { background:var(--surface); border:1px solid var(--line); border-radius:4px;
+        padding:14px 16px; display:flex; flex-direction:column; gap:3px; }
+.tile .v { font-family:var(--mono); font-size:26px; font-weight:600; letter-spacing:-.02em;
+           font-variant-numeric:tabular-nums; }
+.tile .k { font-family:var(--mono); font-size:11px; letter-spacing:.1em;
+           text-transform:uppercase; color:var(--dim); }
+
+/* --- card + paths: A DECISION WITH REAL COSTS ON BOTH SIDES ------------------
+   Use ONLY when both directions genuinely cost something. A card whose second path is
+   obviously wrong is a rhetorical device pretending to be a choice. */
+.card { background:var(--surface); border:1px solid var(--line); border-radius:5px;
+        border-left:3px solid var(--line); overflow:hidden; }
+.card.go { border-left-color:var(--go); }
+.card.hold { border-left-color:var(--hold); }
+.card.stop { border-left-color:var(--stop); }
+.card .head { padding:17px 20px 13px; display:flex; flex-direction:column; gap:7px; }
+.card .tid { font-family:var(--mono); font-size:11px; letter-spacing:.08em; color:var(--dim); }
+.card .title { font-size:19px; font-weight:620; letter-spacing:-.01em; }
+.card .ctx { color:var(--muted); font-size:15px; max-width:70ch; }
+.paths { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--line);
+         border-top:1px solid var(--line); }
+.path { background:var(--surface2); padding:14px 20px; display:flex;
+        flex-direction:column; gap:5px; }
+.plabel { font-family:var(--mono); font-size:10.5px; letter-spacing:.1em;
+          text-transform:uppercase; }
+.plabel.a { color:var(--go); } .plabel.b { color:var(--stop); }
+.ptext { font-size:14.5px; color:var(--muted); }
+.rec { padding:12px 20px; border-top:1px solid var(--line); font-size:14.5px;
+       background:color-mix(in srgb, var(--aurora) 7%, transparent); }
+.rec b { color:var(--ink); }
+
+/* --- timeline: ONLY when order carries information the reader needs ---------- */
+.timeline { display:flex; flex-direction:column; }
+.tl { display:grid; grid-template-columns:112px 1fr; gap:18px; align-items:start;
+      padding:16px 0; border-bottom:1px solid var(--line); }
+.tl:last-child { border-bottom:0; }
+.tl .when { font-family:var(--mono); font-size:12px; color:var(--dim); padding-top:2px; }
+.tl .what { display:flex; flex-direction:column; gap:5px; }
+.tl .wt { font-weight:620; }
+.tl .wd { color:var(--muted); font-size:14.5px; }
+
+/* --- versus: A GENUINE DISAGREEMENT, fairly stated ---------------------------
+   NOT a pro/con list. Use when two positions are both defensible and the reader must
+   judge between them. Pair with .synth when a reconciliation exists. */
+.versus { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--line);
+          border:1px solid var(--line); border-radius:5px; overflow:hidden; }
+.side { background:var(--surface); padding:19px 21px; display:flex;
+        flex-direction:column; gap:8px; }
+.side .lbl { font-family:var(--mono); font-size:11px; letter-spacing:.1em;
+             text-transform:uppercase; color:var(--hold); }
+.side .claim { font-size:16px; font-weight:600; }
+.side .why { font-size:14.5px; color:var(--muted); }
+.synth { background:color-mix(in srgb,var(--aurora) 10%, var(--surface));
+         border:1px solid color-mix(in srgb,var(--aurora) 32%,var(--line));
+         border-radius:5px; padding:20px 22px; display:flex; flex-direction:column; gap:8px; }
+.synth .lbl { font-family:var(--mono); font-size:11px; letter-spacing:.1em;
+              text-transform:uppercase; color:var(--aurora); }
+
+/* --- quote: someone's words, verbatim. mark = the phrase that matters -------- */
+blockquote { margin:0; padding:20px 24px; background:var(--surface);
+             border-left:3px solid var(--aurora); border-radius:4px;
+             font-family:var(--serif); font-size:18px; line-height:1.6; }
+blockquote .who { display:block; margin-top:10px; font-family:var(--mono); font-size:11px;
+                  letter-spacing:.09em; color:var(--dim); text-transform:uppercase; }
+mark { background:color-mix(in srgb,var(--hold) 26%,transparent); color:inherit;
+       padding:0 3px; border-radius:2px; }
+
+/* --- rows: a flat list where each item has a label and a consequence --------- */
+.rows { display:flex; flex-direction:column; border:1px solid var(--line);
+        border-radius:5px; overflow:hidden; }
+.row { display:flex; gap:14px; align-items:flex-start; padding:13px 18px;
+       background:var(--surface); border-bottom:1px solid var(--line); }
+.row:last-child { border-bottom:0; }
+.row .rt { font-weight:600; min-width:180px; }
+.row .rd { color:var(--muted); font-size:14.5px; }
+
+/* --- table: wide content scrolls ITSELF, the page never scrolls sideways ----- */
+.scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+table { border-collapse:collapse; width:100%; min-width:520px; font-size:14.5px; }
+th,td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--line);
+        vertical-align:top; }
+th { font-family:var(--mono); font-size:11px; letter-spacing:.09em; text-transform:uppercase;
+     color:var(--dim); font-weight:600; }
+td.n { font-family:var(--mono); font-variant-numeric:tabular-nums; }
+.v { font-family:var(--mono); font-size:11px; letter-spacing:.06em; white-space:nowrap; }
+.v.ok { color:var(--go); } .v.no { color:var(--stop); }
+.v.cl { color:var(--hold); } .v.mo { color:var(--dim); }
+
+footer { margin-top:54px; padding-top:20px; border-top:1px solid var(--line);
+         font-family:var(--mono); font-size:12px; color:var(--dim); line-height:1.7; }
+
+:focus-visible { outline:2px solid var(--aurora); outline-offset:2px; }
+@media (max-width:640px) {
+  .paths, .versus { grid-template-columns:1fr; }
+  .tl { grid-template-columns:1fr; gap:4px; }
+  .row { flex-direction:column; gap:4px; }
+}
+@media (prefers-reduced-motion:reduce) { * { animation:none !important; transition:none !important; } }
+
+/* T288 demo: the citation chip -- every claim resolves to a verbatim address */
+.chips { display:flex; flex-direction:column; gap:8px; margin-top:8px; }
+.chip { background:var(--surface2); border:1px solid var(--line); border-radius:4px;
+        padding:8px 12px; font-size:13.5px; }
+.chip .addr { font-family:var(--mono); font-size:11px; color:var(--aurora); }
+.chip .quote { color:var(--muted); display:block; margin-top:3px; }
+</style>
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">EVERY CLAIM RESOLVES &middot; THE T288 DEMO &middot; 2026-08-11</div>
+  <h1>The bar menu, cited: five candidates, every quote a resolvable address, every verdict measured.</h1>
+  <p class="standfirst">This is what beating priori at their own game looks like on our
+  terrain: not citations for facts-from-filings, but citations for a DECISION &mdash; each bar
+  candidate carries verbatim operator utterances as chips, each chip resolves through
+  <code>py agent_cli.py eye get &lt;address&gt;</code> to the full record, and the repetition
+  verdicts come from the organ, not from memory. Priori shows what was knowable; this shows
+  what was SAID, how often, where &mdash; and it is one command away from proof.</p>
+</header>
+
+<hr class="rule">
+
+<section>
+  <h2>How to read this</h2>
+  <p class="prose">Verdicts are <code>eye freq</code>'s mechanical thresholds (&ge;3 operator
+  events across &ge;2 sessions = standing-directive). Four of five candidates measure as
+  STANDING-DIRECTIVES in your own voice. A5 correctly reads RECURRING &mdash; it is the
+  assembled definition, constructed from your language rather than repeated in it; the organ
+  refuses to inflate it, which is exactly the honesty that makes the other four verdicts
+  worth trusting.</p>
+</section>
+
+<section>
+  <h2>A1 &middot; Utility-density</h2>
+  <p class="prose"><strong style="color:var(--go)">STANDING-DIRECTIVE</strong> &mdash; 8 operator event(s)
+  across 2 session(s), measured by <code>eye freq</code>, not narrated. the ever-sharpening sword: smallest size, ever more utility.</p>
+  <div class="chips"><div class="chip"><span class="addr">2b1b8946-6a00-4d22-8202-e4a76f334676:1079 &middot; 07-02</span><span class="quote">&ldquo;I have another ambitious idea I want your take on. How can we make our reference documentation get better and more efficient rather than jus&rdquo;</span></div><div class="chip"><span class="addr">2b1b8946-6a00-4d22-8202-e4a76f334676:1082 &middot; 07-02</span><span class="quote">&ldquo;I have another ambitious idea I want your take on. How can we make our reference documentation get better and more efficient rather than jus&rdquo;</span></div><div class="chip"><span class="addr">af0ca6b8-a0c1-4667-b959-31e6dedfbbb3:879 &middot; 08-11</span><span class="quote">&ldquo;Alright with all that persisted, I had Codex run a little experiment &quot;What do you think of this?
+
+
+
+
+
+
+11:31 PM
+
+
+
+
+
+
+Worked for 9m 50s
+
+
+
+M&rdquo;</span></div></div>
+</section>
+<section>
+  <h2>A2 &middot; Felt-difference / inhabitability</h2>
+  <p class="prose"><strong style="color:var(--go)">STANDING-DIRECTIVE</strong> &mdash; 8 operator event(s)
+  across 4 session(s), measured by <code>eye freq</code>, not narrated. has the inhabited world become easier to inhabit.</p>
+  <div class="chips"><div class="chip"><span class="addr">7d0ede0e-330f-439a-ae9d-c295dc9482c5:5233 &middot; 07-28</span><span class="quote">&ldquo;Keep working with everyone and lets see what else we can accomplish. Has the system become easier to work in and has recall become more accu&rdquo;</span></div><div class="chip"><span class="addr">7d0ede0e-330f-439a-ae9d-c295dc9482c5:5237 &middot; 07-28</span><span class="quote">&ldquo;Keep working with everyone and lets see what else we can accomplish. Has the system become easier to work in and has recall become more accu&rdquo;</span></div><div class="chip"><span class="addr">af0ca6b8-a0c1-4667-b959-31e6dedfbbb3:879 &middot; 08-11</span><span class="quote">&ldquo;Alright with all that persisted, I had Codex run a little experiment &quot;What do you think of this?
+
+
+
+
+
+
+11:31 PM
+
+
+
+
+
+
+Worked for 9m 50s
+
+
+
+M&rdquo;</span></div><div class="chip"><span class="addr">b2a4c581-c2a8-49ae-a188-2c55b81ccefc:1 &middot; 07-28</span><span class="quote">&ldquo;Lets continue work, let me know if you feel any difference from the work done in the prior session&rdquo;</span></div></div>
+</section>
+<section>
+  <h2>A3 &middot; Portfolio legibility</h2>
+  <p class="prose"><strong style="color:var(--go)">STANDING-DIRECTIVE</strong> &mdash; 6 operator event(s)
+  across 3 session(s), measured by <code>eye freq</code>, not narrated. pass muster when a real engineer reads it; the artifact is the proof.</p>
+  <div class="chips"><div class="chip"><span class="addr">2b1b8946-6a00-4d22-8202-e4a76f334676:1981 &middot; 07-03</span><span class="quote">&ldquo;Just asked my engineer friend about this &quot;https://github.com/balanced7/akashic-aurora
+
+just made my github repo sound less cringe xD
+15m
+
+He&rdquo;</span></div><div class="chip"><span class="addr">2b1b8946-6a00-4d22-8202-e4a76f334676:1984 &middot; 07-03</span><span class="quote">&ldquo;Just asked my engineer friend about this &quot;https://github.com/balanced7/akashic-aurora
+
+just made my github repo sound less cringe xD
+15m
+
+He&rdquo;</span></div><div class="chip"><span class="addr">69363f5a-7a21-4057-b7e5-f7019f16d5d4:2910 &middot; 08-08</span><span class="quote">&ldquo;I&#x27;m going to turn in for the night. I will come back tommorow armed with more hunger to get this system built and perfected so we don&#x27;t have&rdquo;</span></div><div class="chip"><span class="addr">69363f5a-7a21-4057-b7e5-f7019f16d5d4:2913 &middot; 08-08</span><span class="quote">&ldquo;I&#x27;m going to turn in for the night. I will come back tommorow armed with more hunger to get this system built and perfected so we don&#x27;t have&rdquo;</span></div></div>
+</section>
+<section>
+  <h2>A4 &middot; Personal-bests reproducibility</h2>
+  <p class="prose"><strong style="color:var(--go)">STANDING-DIRECTIVE</strong> &mdash; 4 operator event(s)
+  across 2 session(s), measured by <code>eye freq</code>, not narrated. beat our previous personal bests.</p>
+  <div class="chips"><div class="chip"><span class="addr">92302789-afb8-45c6-bbc1-fe1c7595f6b6:1754 &middot; 07-21</span><span class="quote">&ldquo;I want you and the fleet to keep working for as long as you can. Order and method are up to you. I want to see what new tools and verbs you &rdquo;</span></div><div class="chip"><span class="addr">92302789-afb8-45c6-bbc1-fe1c7595f6b6:1757 &middot; 07-21</span><span class="quote">&ldquo;I want you and the fleet to keep working for as long as you can. Order and method are up to you. I want to see what new tools and verbs you &rdquo;</span></div><div class="chip"><span class="addr">af0ca6b8-a0c1-4667-b959-31e6dedfbbb3:879 &middot; 08-11</span><span class="quote">&ldquo;Alright with all that persisted, I had Codex run a little experiment &quot;What do you think of this?
+
+
+
+
+
+
+11:31 PM
+
+
+
+
+
+
+Worked for 9m 50s
+
+
+
+M&rdquo;</span></div></div>
+</section>
+<section>
+  <h2>A5 &middot; The assembled governing definition</h2>
+  <p class="prose"><strong style="color:var(--hold)">RECURRING</strong> &mdash; 2 operator event(s)
+  across 1 session(s), measured by <code>eye freq</code>, not narrated. Codex-assembled from your language after the Max call.</p>
+  <div class="chips"><div class="chip"><span class="addr">f7b9f3da-f256-4446-bc7c-4fcdecb36036:3023 &middot; 08-10</span><span class="quote">&ldquo;That was rough, He said he has seen 11 different memory schemas externally and 5 or so internally and that they all have different tradeoffs&rdquo;</span></div><div class="chip"><span class="addr">f7b9f3da-f256-4446-bc7c-4fcdecb36036:3026 &middot; 08-10</span><span class="quote">&ldquo;That was rough, He said he has seen 11 different memory schemas externally and 5 or so internally and that they all have different tradeoffs&rdquo;</span></div></div>
+</section>
+
+<hr class="rule">
+
+<section>
+  <h2>What this demo proves for T288</h2>
+  <p class="prose">Claim class: <strong>decision candidates</strong>. Citation form: verbatim
+  chip + address. Resolver: <code>eye get</code> (grammar address &rarr; L0 record). Measured
+  layer: <code>eye freq</code> verdicts. The same four-piece pattern now generalizes to every
+  claim class in T288's inventory &mdash; lessons cite incidents, designs cite fence rounds,
+  reports cite atoms. Priori's per-observation URLs, out-leveled: our addresses carry voice,
+  verdict, and lineage.</p>
+</section>
+
+<footer>
+  PROVENANCE &mdash; chips harvested live from THE EYE (S0+S1+S3, commits ffdcc7ec/3ab5136b/962fffeb)
+  over 19,348 events; verdicts by eye freq's written-down thresholds; excerpts truncated at
+  140 chars, full text at each address. Every chip re-resolvable:
+  py agent_cli.py eye get &lt;address&gt;. Coverage note: transcripts rotated out of the
+  harness root (early July) are not in this corpus; verdicts are floors.
+</footer>
+
+</div>

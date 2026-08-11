@@ -4,13 +4,13 @@ _Distilled from 589 active note(s) · regenerate via `py agent_cli.py note` / `n
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
+- next-focus: MID-DAY 2026-08-11 (~post-build-run). THE EYE LIVES: S0 indexer (84 files/19,348 events/1.8s, coverage contract), S3 freq (HIS axis: the 16x family measures...  (source: mem:decision:ADR_0811075243_0e9123ce)
 - where-we-are: NIGHT SHIFT COMPLETE, 2026-08-11 ~07:10. Daniil approved the night package (~05:15: 'everything up to and including The Eye') then mandated full fidelity...  (source: mem:decision:ADR_0811021402_3e85598c)
 - beat-priori-and-ergonomics-directive-2026-08-11: TWO MORE DIRECTIVES, Daniil verbatim 2026-08-11 ~06:25 (mid-night, appended to the pre-sleep set): (1) BEAT PRIORI AT...  (source: mem:decision:ADR_0811020441_0ace0ef8)
 - pre-sleep-directives-2026-08-11: THREE DIRECTIVES + ONE FRAME CORRECTION, Daniil verbatim 2026-08-11 ~05:50-06:00, captured before sleep. (1) TRUTH-GROUNDING LANDSCAPE...  (source: mem:decision:ADR_0811015850_9243cb17)
 - eye-design-directive-2026-08-11: THE EYE DESIGN DIRECTIVE, Daniil verbatim 2026-08-11 ~05:10, at the night-package approval ('I approve everything up to and including...  (source: mem:decision:ADR_0811013247_05913c15)
 - wrap-mechanical-2026-08-11: Shipped:
   - Fan Doctrine v1: six+one geometries, team axes, metrics, test design; Heimdall fence r1 dispositions; T-slice proposed...  (source: mem:decision:ADR_0811011732_a88a6194)
-- next-focus: MORNING MENU, left 2026-08-11 ~04:30 by Vandor at wrap. DANIIL'S GATES, my order: (1) T277 pick the bar -- minutes: the candidates are his own bars (sweep...  (source: mem:decision:ADR_0811011705_c907cb21)
 - priorish-audit-2026-08-10: PRIORI.SH LIVE AUDIT COMPLETE, 2026-08-10 evening, with Daniil in the loop (he signed in; key at .secrets/API Keys/priori.sh.key...  (source: mem:decision:ADR_0810231502_c8ac838d)
 - where-we-are: DAY OF 2026-08-10 CLOSED at ~939k context. Everything below is COMMITTED and PUSHED through
 50ce2ed; the tasks and notes named here are the durable record...  (source: mem:decision:ADR_0810223317_a1e1e394)
