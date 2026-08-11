@@ -61,7 +61,14 @@ STATUSES = (PROPOSED, APPROVED, CLAIMED, IN_PROGRESS, VERIFYING, DONE, BLOCKED, 
 
 # who may move where. DONE/ABANDONED are terminal (empty set).
 TRANSITIONS: Dict[str, set] = {
-    PROPOSED:    {APPROVED, ABANDONED},
+    # 2026-08-11: PARKED reachable from PROPOSED -- "still valid, just not now". The only exits
+    # were ABANDONED (asserts the intent DIED when it merely DRIFTED) and the three-event detour
+    # APPROVED -> CLAIMED -> PARKED, which manufactures a file claim to record one decision. Same
+    # defect as the T139 and T083-C5-1 notes below, one status earlier in the lifecycle. Receipt:
+    # 68 proposals standing, 32 rendered stale, every one facing those two bad doors. The mandatory
+    # --reason gate is unchanged and pinned from this new origin, so the shorter route is a route
+    # and not a hole.
+    PROPOSED:    {APPROVED, ABANDONED, PARKED},
     APPROVED:    {CLAIMED, ABANDONED},
     CLAIMED:     {IN_PROGRESS, VERIFYING, APPROVED, ABANDONED, PARKED},
     #            ^ release: APPROVED drops it silently, PARKED shelves it WITH a reason.
