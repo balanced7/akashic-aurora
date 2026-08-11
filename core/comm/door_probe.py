@@ -126,6 +126,40 @@ def _verdict(verdict, stage, elapsed, cause, detail="", recovery="") -> dict:
 
 
 # --------------------------------------------------------------------- the cache
+#: APPEND-ONLY GATE HISTORY. CACHE above is a one-slot cache: every probe clobbers the last
+#: verdict, so the one instrument with veto power over this repo destroys its own history
+#: each time it fires, and nobody -- including the gate -- can answer "was that RED real?"
+#: 2026-08-11: a push was refused at 5.29s against the 5.0s budget; the named diagnostic
+#: passed, CPU was idle, and a retry at the IDENTICAL sha measured 2.84s GREEN. Resolving a
+#: red gate by re-running it is exactly the habit that eventually waves a true RED through,
+#: and the morning's GREEN 2.52s reading had already been overwritten by then.
+#: This journal is SUBSTRATE ONLY -- it changes no verdict, threshold or gate behaviour.
+#: Counters that read it are a later slice; a week of lines makes the false-RED rate a
+#: measurement instead of an argument. `gate` is a field so other gates can share the file.
+GATE_JOURNAL = ROOT / "state" / "ci" / "gate_journal.jsonl"
+
+
+def _append_gate_journal(v: dict) -> None:
+    """One line per verdict, append-only. Its own failure domain, and fail-open: history
+    that can break the gate it records is worse than no history."""
+    try:
+        GATE_JOURNAL.parent.mkdir(parents=True, exist_ok=True)
+        rec = {
+            "gate": "door",
+            "verdict": v.get("verdict"),
+            "stage": v.get("stage"),
+            "elapsed_s": v.get("elapsed_s"),
+            "budget_s": SLOW_BUDGET_S,   # a verdict is meaningless without its threshold
+            "cause": v.get("cause", ""),
+            "sha": v.get("sha"),
+            "at": v.get("at"),
+        }
+        with open(GATE_JOURNAL, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(rec) + "\n")
+    except Exception:
+        pass
+
+
 def write_verdict(v: dict) -> None:
     """Persist the last verdict where the whisper can read it without paying for a probe."""
     try:
@@ -135,6 +169,7 @@ def write_verdict(v: dict) -> None:
         tmp.replace(CACHE)          # atomic: a reader never sees a half-written verdict
     except Exception:
         pass                        # a cache miss must never break the caller
+    _append_gate_journal(v)         # additive: the clobber above is unchanged
 
 
 def read_verdict() -> dict | None:
