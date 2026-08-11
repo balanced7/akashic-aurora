@@ -1,0 +1,311 @@
+<title>The Gate Menu - Night of 2026-08-11</title>
+
+<style>
+/* report-kit -- the design system behind Akashic Aurora's visual reports.
+ *
+ * Daniil 2026-08-10, after three of them in two days: "Is there a way to verbify it so that
+ * it is easier for you to make these?"
+ *
+ * THIS IS A SYSTEM, NOT A TEMPLATE, and the distinction is the whole design constraint. The
+ * three reports that produced this kit needed three different SHAPES -- a retrospective, a
+ * set of decision forks, a reconciliation built around a contradiction -- and the thing
+ * Daniil was responding to was the fit. A generator that emitted a fixed document would
+ * flatten exactly that. So: tokens and primitives here, composition every time.
+ *
+ * INLINED, NEVER LINKED. Published artifacts run under a CSP that blocks every external
+ * host, so a <link> to this file would silently fall back to unstyled. The scaffold
+ * generator inlines it at emit time; that is a requirement, not a convenience.
+ *
+ * SEMANTIC COLOUR IS SEPARATE FROM ACCENT. --go/--hold/--stop carry MEANING (this is cheap /
+ * this needs judgement / this costs either way) and must never be spent on decoration.
+ * --aurora is the accent and carries none. Mixing the two is how a design system becomes
+ * wallpaper.
+ */
+
+:root {
+  /* Ground and structure. The neutrals are blue-biased toward the accent rather than pure
+     grey -- a pure mid-grey reads as unconsidered. */
+  --ground:#0A0F14; --surface:#111A22; --surface2:#17222C; --line:#22303E;
+  --ink:#E3EAEF; --muted:#8798A6; --dim:#5F7080;
+
+  /* Semantic. Meaning only. */
+  --go:#3FD3A0;      /* cheap, unblocked, shipped, confirmed */
+  --hold:#E0A854;    /* needs judgement, pending, self-declared */
+  --stop:#E4606A;    /* costs either way, refuted, not built */
+  --aurora:#8B7FE8;  /* the accent. Structure and emphasis, never status. */
+
+  --mono:ui-monospace,"SF Mono","Cascadia Mono","Roboto Mono",Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+}
+
+/* Both themes at TOKEN level: components style through the tokens and never inside the
+   media query, so the data-theme override can win in BOTH directions. */
+@media (prefers-color-scheme: light) {
+  :root {
+    --ground:#F7F8F9; --surface:#FFFFFF; --surface2:#F0F3F5; --line:#DCE3E8;
+    --ink:#16202A; --muted:#5A6B79; --dim:#8496A3;
+    --go:#137A5A; --hold:#9A6A17; --stop:#C43A45; --aurora:#5B4DC4;
+  }
+}
+:root[data-theme="dark"] {
+  --ground:#0A0F14; --surface:#111A22; --surface2:#17222C; --line:#22303E;
+  --ink:#E3EAEF; --muted:#8798A6; --dim:#5F7080;
+  --go:#3FD3A0; --hold:#E0A854; --stop:#E4606A; --aurora:#8B7FE8;
+}
+:root[data-theme="light"] {
+  --ground:#F7F8F9; --surface:#FFFFFF; --surface2:#F0F3F5; --line:#DCE3E8;
+  --ink:#16202A; --muted:#5A6B79; --dim:#8496A3;
+  --go:#137A5A; --hold:#9A6A17; --stop:#C43A45; --aurora:#5B4DC4;
+}
+
+body { background:var(--ground); color:var(--ink); font-family:var(--sans);
+       line-height:1.62; margin:0; padding:0 20px 90px; }
+.wrap { max-width:880px; margin:0 auto; }
+h1,h2,h3 { text-wrap:balance; margin:0; }
+p { margin:0; }
+a { color:var(--aurora); }
+code { font-family:var(--mono); font-size:.88em; background:var(--surface2);
+       padding:1.5px 5px; border-radius:3px; }
+.num { font-variant-numeric:tabular-nums; }   /* any column of digits */
+
+/* --- header ------------------------------------------------------------------ */
+header { padding:54px 0 24px; display:flex; flex-direction:column; gap:13px; }
+.eyebrow { font-family:var(--mono); font-size:12px; letter-spacing:.14em;
+           text-transform:uppercase; color:var(--muted); }
+h1 { font-size:clamp(28px,4.6vw,40px); line-height:1.14; font-weight:640;
+     letter-spacing:-.02em; }
+.standfirst { font-family:var(--serif); font-size:18.5px; line-height:1.55;
+              color:var(--muted); max-width:62ch; }
+
+/* --- rule: a section break that carries the project's name ------------------- */
+hr.rule { height:2px; border:0; margin:0; opacity:.5;
+  background:linear-gradient(90deg,transparent,var(--go) 18%,var(--aurora) 52%,
+             var(--stop) 80%,transparent); }
+
+section { margin-top:46px; display:flex; flex-direction:column; gap:16px; }
+h2 { font-size:12.5px; font-family:var(--mono); letter-spacing:.16em;
+     text-transform:uppercase; color:var(--muted); font-weight:600; }
+h3 { font-size:20px; font-weight:620; letter-spacing:-.01em; }
+.prose { max-width:68ch; color:var(--muted); font-size:15.5px; }
+.prose strong { color:var(--ink); }
+
+/* --- tiles: headline numbers. Use for 3-6 figures, never for prose. ---------- */
+.tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+.tile { background:var(--surface); border:1px solid var(--line); border-radius:4px;
+        padding:14px 16px; display:flex; flex-direction:column; gap:3px; }
+.tile .v { font-family:var(--mono); font-size:26px; font-weight:600; letter-spacing:-.02em;
+           font-variant-numeric:tabular-nums; }
+.tile .k { font-family:var(--mono); font-size:11px; letter-spacing:.1em;
+           text-transform:uppercase; color:var(--dim); }
+
+/* --- card + paths: A DECISION WITH REAL COSTS ON BOTH SIDES ------------------
+   Use ONLY when both directions genuinely cost something. A card whose second path is
+   obviously wrong is a rhetorical device pretending to be a choice. */
+.card { background:var(--surface); border:1px solid var(--line); border-radius:5px;
+        border-left:3px solid var(--line); overflow:hidden; }
+.card.go { border-left-color:var(--go); }
+.card.hold { border-left-color:var(--hold); }
+.card.stop { border-left-color:var(--stop); }
+.card .head { padding:17px 20px 13px; display:flex; flex-direction:column; gap:7px; }
+.card .tid { font-family:var(--mono); font-size:11px; letter-spacing:.08em; color:var(--dim); }
+.card .title { font-size:19px; font-weight:620; letter-spacing:-.01em; }
+.card .ctx { color:var(--muted); font-size:15px; max-width:70ch; }
+.paths { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--line);
+         border-top:1px solid var(--line); }
+.path { background:var(--surface2); padding:14px 20px; display:flex;
+        flex-direction:column; gap:5px; }
+.plabel { font-family:var(--mono); font-size:10.5px; letter-spacing:.1em;
+          text-transform:uppercase; }
+.plabel.a { color:var(--go); } .plabel.b { color:var(--stop); }
+.ptext { font-size:14.5px; color:var(--muted); }
+.rec { padding:12px 20px; border-top:1px solid var(--line); font-size:14.5px;
+       background:color-mix(in srgb, var(--aurora) 7%, transparent); }
+.rec b { color:var(--ink); }
+
+/* --- timeline: ONLY when order carries information the reader needs ---------- */
+.timeline { display:flex; flex-direction:column; }
+.tl { display:grid; grid-template-columns:112px 1fr; gap:18px; align-items:start;
+      padding:16px 0; border-bottom:1px solid var(--line); }
+.tl:last-child { border-bottom:0; }
+.tl .when { font-family:var(--mono); font-size:12px; color:var(--dim); padding-top:2px; }
+.tl .what { display:flex; flex-direction:column; gap:5px; }
+.tl .wt { font-weight:620; }
+.tl .wd { color:var(--muted); font-size:14.5px; }
+
+/* --- versus: A GENUINE DISAGREEMENT, fairly stated ---------------------------
+   NOT a pro/con list. Use when two positions are both defensible and the reader must
+   judge between them. Pair with .synth when a reconciliation exists. */
+.versus { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--line);
+          border:1px solid var(--line); border-radius:5px; overflow:hidden; }
+.side { background:var(--surface); padding:19px 21px; display:flex;
+        flex-direction:column; gap:8px; }
+.side .lbl { font-family:var(--mono); font-size:11px; letter-spacing:.1em;
+             text-transform:uppercase; color:var(--hold); }
+.side .claim { font-size:16px; font-weight:600; }
+.side .why { font-size:14.5px; color:var(--muted); }
+.synth { background:color-mix(in srgb,var(--aurora) 10%, var(--surface));
+         border:1px solid color-mix(in srgb,var(--aurora) 32%,var(--line));
+         border-radius:5px; padding:20px 22px; display:flex; flex-direction:column; gap:8px; }
+.synth .lbl { font-family:var(--mono); font-size:11px; letter-spacing:.1em;
+              text-transform:uppercase; color:var(--aurora); }
+
+/* --- quote: someone's words, verbatim. mark = the phrase that matters -------- */
+blockquote { margin:0; padding:20px 24px; background:var(--surface);
+             border-left:3px solid var(--aurora); border-radius:4px;
+             font-family:var(--serif); font-size:18px; line-height:1.6; }
+blockquote .who { display:block; margin-top:10px; font-family:var(--mono); font-size:11px;
+                  letter-spacing:.09em; color:var(--dim); text-transform:uppercase; }
+mark { background:color-mix(in srgb,var(--hold) 26%,transparent); color:inherit;
+       padding:0 3px; border-radius:2px; }
+
+/* --- rows: a flat list where each item has a label and a consequence --------- */
+.rows { display:flex; flex-direction:column; border:1px solid var(--line);
+        border-radius:5px; overflow:hidden; }
+.row { display:flex; gap:14px; align-items:flex-start; padding:13px 18px;
+       background:var(--surface); border-bottom:1px solid var(--line); }
+.row:last-child { border-bottom:0; }
+.row .rt { font-weight:600; min-width:180px; }
+.row .rd { color:var(--muted); font-size:14.5px; }
+
+/* --- table: wide content scrolls ITSELF, the page never scrolls sideways ----- */
+.scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+table { border-collapse:collapse; width:100%; min-width:520px; font-size:14.5px; }
+th,td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--line);
+        vertical-align:top; }
+th { font-family:var(--mono); font-size:11px; letter-spacing:.09em; text-transform:uppercase;
+     color:var(--dim); font-weight:600; }
+td.n { font-family:var(--mono); font-variant-numeric:tabular-nums; }
+.v { font-family:var(--mono); font-size:11px; letter-spacing:.06em; white-space:nowrap; }
+.v.ok { color:var(--go); } .v.no { color:var(--stop); }
+.v.cl { color:var(--hold); } .v.mo { color:var(--dim); }
+
+footer { margin-top:54px; padding-top:20px; border-top:1px solid var(--line);
+         font-family:var(--mono); font-size:12px; color:var(--dim); line-height:1.7; }
+
+:focus-visible { outline:2px solid var(--aurora); outline-offset:2px; }
+@media (max-width:640px) {
+  .paths, .versus { grid-template-columns:1fr; }
+  .tl { grid-template-columns:1fr; gap:4px; }
+  .row { flex-direction:column; gap:4px; }
+}
+@media (prefers-reduced-motion:reduce) { * { animation:none !important; transition:none !important; } }
+</style>
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">SEVEN GATES + A NIGHT PACKAGE &middot; 2026-08-11 ~05:00</div>
+  <h1>Approve four small gates and one design fence, and the fleet builds while you sleep.</h1>
+  <p class="standfirst">Every gate below was minted or sharpened tonight, each carries its
+  evidence, cost, and RED pins already written. Two minutes of reading, one line of approval
+  ("night package" covers my recommendation), and the morning report writes itself. T277 and
+  T283 deliberately wait for your awake judgment.</p>
+</header>
+
+<hr class="rule">
+
+<section>
+  <h2>The ask, up front</h2>
+  <div class="card go">
+    <div class="head">
+      <div class="tid">RECOMMENDED &middot; REPLY "night package" TO APPROVE</div>
+      <div class="title">Night package: T280 + T281 + T282 + T284 built, T278 design-fenced.</div>
+      <div class="ctx">Four self-contained slices sized for one night, plus the big one taken
+      to fenced-design (not build) so your morning read gates the architecture. Underpromise
+      basis: each slice lands committed + noted or reports exactly where it stopped.</div>
+    </div>
+    <div class="paths">
+      <div class="path"><span class="plabel a">WHAT RUNS TONIGHT</span><span class="ptext">T280 grammar contract
+      (one page + Heimdall fence) &middot; T282 detector diagnosis (which signal lies) &middot; T284 door-contract
+      verification (docs vs implementation) &middot; T281 Stage-1 (geometries + rubric at the ask door) &middot;
+      T278 design doc + fence round 1 &middot; T273 (already approved, no gate needed).</span></div>
+      <div class="path"><span class="plabel b">WHAT DELIBERATELY WAITS</span><span class="ptext">T277 &mdash; the bar is
+      YOUR pick, not an approval (2 minutes over coffee beats 2 minutes at 5am). T283 &mdash; the cold A/B
+      needs its prereg reviewed by you BEFORE any run; running it tired would contaminate the one
+      clean shot at virgin ids. T278's BUILD &mdash; starts after you read the fenced design.</span></div>
+    </div>
+    <div class="rec"><b>One line covers it.</b> "night package" = approve T280, T281, T282, T284 +
+    T278-design-only. Or name gates individually. Approving nothing still leaves T273 + verifying
+    closures (T272/T275) as legitimate overnight work.</div>
+  </div>
+</section>
+
+<section>
+  <h2>The seven gates, each in one breath</h2>
+  <div class="scroll"><table>
+    <tr><th>Gate</th><th>What it is</th><th>Why now (tonight's evidence)</th><th>Size</th><th>My read</th></tr>
+    <tr><td class="n"><strong>T280</strong></td>
+        <td>Query-grammar contract: as_of + facets + degraded flag + 422-on-nonsense, one page, every read door adopts it</td>
+        <td>Verified end-to-end against a shipped product (priorish, to the digit); THE EYE's design floor</td>
+        <td class="n">small</td>
+        <td class="n"><span class="v ok">APPROVE</span></td></tr>
+    <tr><td class="n"><strong>T281</strong></td>
+        <td>Fan doctrine Stage 1+2: named geometries at the ask door, route metrics incl. integration-completeness</td>
+        <td>The doctrine is written and fenced; tonight's laundering is the RED pin; makes every future fan safer</td>
+        <td class="n">medium</td>
+        <td class="n"><span class="v ok">APPROVE</span></td></tr>
+    <tr><td class="n"><strong>T282</strong></td>
+        <td>Wedge-detector false pages: find which signal misreads healthy seats</td>
+        <td>6+ ghost pages tonight; kimi's cross-seat diagnosis (credit Navi); "a page that fires on healthy seats trains us to ignore pages"</td>
+        <td class="n">small</td>
+        <td class="n"><span class="v ok">APPROVE</span></td></tr>
+    <tr><td class="n"><strong>T284</strong></td>
+        <td>Door-contract verification: does the MCP door's serialization claim match the implementation?</td>
+        <td>Codex cannot find what our own instructions claim; if our docs overclaim, that is our defect + the O1/O(1) homonym</td>
+        <td class="n">small</td>
+        <td class="n"><span class="v ok">APPROVE</span></td></tr>
+    <tr><td class="n"><strong>T278</strong></td>
+        <td>THE EYE: transcripts queryable (frequency / who / ambient / full utterance)</td>
+        <td>Two directives died in the transcript plane; tonight's sweep cost an extractor + 6 fans for what this makes one query; carries T280's grammar; the field's Librarian pattern</td>
+        <td class="n"><strong>large</strong></td>
+        <td class="n"><span class="v cl">DESIGN TONIGHT, BUILD AFTER YOUR READ</span></td></tr>
+    <tr><td class="n"><strong>T277</strong></td>
+        <td>Pick the bar: which of YOUR OWN formulations becomes the governing success definition</td>
+        <td>The sweep + completion proved the candidates are your July+August bars with receipts; Codex added the missing layers (targets + tradeoff rule)</td>
+        <td class="n">2 min</td>
+        <td class="n"><span class="v cl">YOUR MORNING PICK</span></td></tr>
+    <tr><td class="n"><strong>T283</strong></td>
+        <td>Cold A/B for the oldest bar: does the contract carry strangers; do agents PREFER the store</td>
+        <td>Codex's experimental design; tonight burned the warm Gemini id &mdash; the virgin-id shot must be clean, prereg first</td>
+        <td class="n">medium</td>
+        <td class="n"><span class="v cl">PREREG FIRST, YOU REVIEW</span></td></tr>
+  </table></div>
+</section>
+
+<hr class="rule">
+
+<section>
+  <h2>If the package is approved, the night looks like this</h2>
+  <div class="timeline">
+    <div class="tl"><div class="when">first</div><div class="what"><div class="wt">T282 + T284 &mdash; the two verifications</div>
+      <div class="wd">Diagnose the detector's lying signal; drill the door's serialization claims boundary by boundary. Both are read-and-test work, safe while the fleet is quiet. Restart deepseek + kimi seats onto current code on the way.</div></div></div>
+    <div class="tl"><div class="when">then</div><div class="what"><div class="wt">T280 &mdash; the grammar contract</div>
+      <div class="wd">One page: the as_of law, the facet params, the degraded flag, the 422 rule &mdash; each with its RED pin. Fence round with Heimdall. This is THE EYE's foundation, so it lands before the design.</div></div></div>
+    <div class="tl"><div class="when">core</div><div class="what"><div class="wt">T278 &mdash; THE EYE, design fence</div>
+      <div class="wd">Full design doc on the audited grammar: the four axes (frequency, who-was-there, ambient, full utterance), the extractor-to-index path, coverage contracts from the fan doctrine. Heimdall attacks it; dispositions folded; the build plan waits for your read.</div></div></div>
+    <div class="tl"><div class="when">then</div><div class="what"><div class="wt">T281 &mdash; doctrine to the door</div>
+      <div class="wd">The when-to-fan rubric into the ask door's help; geometry preset bundles; integration-completeness counter. Stage 1 mostly documentation + two flags &mdash; sized to land whole.</div></div></div>
+    <div class="tl"><div class="when">morning</div><div class="what"><div class="wt">The gate report, waiting</div>
+      <div class="wd">One artifact: what landed (committed, pinned, fenced), what stopped and why, T277's candidates laid out for your pick, T283's prereg draft for your review. Plus the funnel numbers so progress is measured, not narrated.</div></div></div>
+  </div>
+</section>
+
+<section>
+  <h2>Capacity, honestly</h2>
+  <p class="prose">Solo seat, wake-loop armed, ~573k context headroom. The package is sized to
+  <strong>underpromise</strong>: four small slices + one design fence is a night's honest work
+  with RED pins first on every one. T278's full build is DAYS, not hours &mdash; which is exactly
+  why tonight buys its design fence instead of pretending otherwise. Anything that stalls gets
+  reported stopped-at-X in the morning artifact, per the no-silent-caps rule. deepseek and kimi
+  get stale-code restarts and can pick up T273 on their own cursors.</p>
+</section>
+
+<footer>
+  PROVENANCE &mdash; gates T280&ndash;T284 minted tonight (commits 83450e9&rarr;9788700); evidence
+  atoms: fan-doctrine-v1_b70185, context-leverage-prior-art_d7a811, daniil-success-vocabulary-
+  sweep_9532ad, gemini-aurora-architecture-review_50872a. T277/T278 carried from 2026-08-10
+  with tonight's sharpening. Approval phrasing: "night package" or name gates individually.
+</footer>
+
+</div>
