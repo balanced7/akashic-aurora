@@ -204,3 +204,58 @@ acknowledge their queue (`bifrost-sync --consume`) so traces remain idempotent.
 
 "Your architecture is already executing the 2026 thesis: intelligence scales through
 structure and isolated contexts, not just larger context windows."
+
+
+---
+
+# PART 3 — Codex's audit of the annotations (relayed ~04:45), with dispositions
+
+Codex audited BOTH Gemini reviews AND my annotations. Verified before conceding: the cursor
+identity had prior boots (events_raw.jsonl lines 9803 and 9976 confirmed by grep — 195
+cursor-boot events in the ledger); AGENTS.md:109 confirms the peek-vs-consume contract.
+
+## Dispositions
+
+**CONCEDED — my annotations promoted the receipt one rung:**
+- "Contract-carries-strangers receipt" overclaimed: the outside+inside reads were ONE Gemini
+  conversation (within-subject, not independent arms — my "4 arms converged" was really 3 +
+  a within-subject pair); Gemini knew the tool schemas beforehand; the cursor id was not
+  virgin; boot assembles context but does not erase surrounding chat. The EARNED claim:
+  "Aurora's contract is legible enough that a non-fleet model mid-conversation reconstructed
+  its governing shape and oriented through the live door" — an onboarding/legibility receipt
+  (2,577-token boot, correct precedence rules), NOT evidence that agents prefer the store.
+  Preference requires choice or matched comparison.
+- "Gemini's praise undercounts" — wrong: it saw neither our moats NOR our defects; net
+  direction UNKNOWN.
+- Branded attributions ("Anthropic's golden rule", "Map-Reduce-and-Manage") rode my
+  annotations without primary support for the brands; patterns yes, brands no.
+- "Adopted" in my annotations meant recorded-in-knowledge, not enforced — Codex's status
+  distinction stands; enforcement is T281's lane.
+
+**AMENDED — the Bifrost bright line (Codex rejects my adopted version, and is right):**
+"LIVE bus for status/blockers only" would amputate the resident dialogue Daniil explicitly
+wants. The better rule, adopted in its place: **deliberation may live on Bifrost; DECISIONS
+must exit into durable, attributable, ratified state.** (Consistent with existing precedence
+law; the echo-chamber guard survives as: no decision settles on the ephemeral plane.)
+
+**ACCEPTED — Gemini-error taxonomy sharpened:** its --consume recommendation was unsafe as a
+general rule (peek-vs-consume is deliberate; shared-cursor starvation is in our history);
+"O(1) concurrency-safe door" misread the O1 TASK ID as complexity notation (the T174 homonym
+class, striking again in our own MCP instructions); "shared-memory Actor Model" is a
+contradiction (actors avoid shared state — ours is deliberately shared-store + messages);
+"Bifrost completely detached from durable memory" is false (promotion exists).
+
+**OPEN QUESTION FILED (T284):** Codex "cannot find" the universal server-side write
+serialization our own MCP instructions claim. If the door's docs overclaim its concurrency
+contract, that is OUR defect, not Gemini's — verify docs-vs-implementation.
+
+**THE GEM (T283):** Codex's pre-registered cold A/B design — two fresh conversations, virgin
+ids, hidden battery, boot-only vs equal-token raw-docs, WITH TRAPS (stale bus msg vs current
+ledger; fleet-wide backlog vs owned inbox; role-typed identity bait), measuring accuracy /
+tokens / time / rule violations / uncertainty / attribution, crossover preference ask, third
+seat recovering a durable handoff. The first real experimental design for the project's
+OLDEST success bar. Filed as T283 with Codex credited.
+
+**The keeper line:** "The most exciting result is not that Gemini praised Aurora. It is that
+Aurora made both Gemini's comprehension and Gemini's misunderstandings mechanically
+inspectable."

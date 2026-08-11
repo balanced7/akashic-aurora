@@ -1,5 +1,5 @@
 {
-  "seq": 282,
+  "seq": 284,
   "tasks": [
     {
       "id": "T001",
@@ -10410,6 +10410,52 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-11T05:16:13+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T283",
+      "title": "Cold A/B for the oldest bar (Codex's design, 2026-08-11): does the contract carry strangers, and do agents PREFER the store? Two fresh conversations, VIRGIN agent ids, same hidden question/task battery; arm A gets boot only, arm B gets an equal-token raw documentation pack. Include traps: stale bus message vs current ledger, fleet-wide backlog vs owned inbox, role-typed identity suggestion. Measure factual accuracy, tokens, elapsed, rule violations, uncertainty handling, source attribution. After crossover, ask each which surface it prefers and why. A third fresh seat recovers a durable handoff from the winner. Pre-registered per T274 template BEFORE any run.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "RED pins: prereg filed before first run; virgin-id check against the events ledger (the Gemini cursor id had 195 prior boot events -- the exact contamination this excludes); traps scored mechanically; the preference question asked only AFTER the battery, never before.",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-11T05:21:48+00:00",
+      "updated": "2026-08-11T05:21:48+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-11T05:21:48+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T284",
+      "title": "Door-contract verification: the akashic-aurora MCP instructions claim 'writes/sends/consumes serialize server-side' (O1) -- Codex cannot find universal serialization in the implementation. Verify docs-vs-implementation boundary by boundary; fix whichever is wrong (narrow the claim or close the gap). Bonus: rename/annotate the O1 reference -- Gemini parsed the task id as O(1) complexity notation (T174 homonym class in our own door docs).",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "RED pin: a concurrent-writes drill against each claimed-serialized boundary either demonstrates the serialization or the instructions stop claiming it; the MCP instructions cite the verified boundaries by name.",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-11T05:21:49+00:00",
+      "updated": "2026-08-11T05:21:49+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-11T05:21:49+00:00"
         }
       ]
     }
