@@ -10674,13 +10674,13 @@
       "deps": [],
       "files": [],
       "acceptance": "Multi-arm sweep per T276 shape with full reports persisted; the inventory is a typed census (not a listicle) with counts; every ergonomic claim carries a receipt (a named API/tool exhibiting it); the pattern language maps onto our 36-tool door with concrete curation recommendations; fenced by Heimdall.",
-      "status": "approved",
+      "status": "claimed",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-11T06:04:43+00:00",
-      "updated": "2026-08-11T11:31:53+00:00",
+      "updated": "2026-08-11T12:34:00+00:00",
       "history": [
         {
           "to": "proposed",
@@ -10691,6 +10691,11 @@
           "to": "approved",
           "by": "daniil",
           "at": "2026-08-11T11:31:53+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-11T12:34:00+00:00"
         }
       ]
     }
