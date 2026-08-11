@@ -25,7 +25,7 @@ import sqlite3
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _DEFAULT_DB = _REPO_ROOT / "state" / "eye" / "eye.db"
@@ -38,6 +38,39 @@ _SYSTEM_MARKERS = (
 )
 
 _TRANSCRIPT_GLOB = "*.jsonl"
+
+# Bump when the events schema changes shape.
+#
+# THE EVENTS TABLE IS NOT DISPOSABLE, and this cost real history to learn (2026-08-11).
+# v2 shipped as a wipe-and-rebuild on the design's own words -- "the index is a projection,
+# rebuildable from source" -- and the first live run destroyed >=219 events from two
+# sessions whose transcripts had rotated off disk hours earlier. The premise was false by
+# measurement: the corpus shrank 85 -> 83 files DURING the session that wiped it. For a
+# rotated session the projection IS the archive, and an archive you can rebuild from a
+# source that no longer exists is just a deletion with extra steps.
+#
+# So migrations ADD, never DROP. Derived tables (pyramid, edges) are genuinely disposable
+# and may be rebuilt freely; `events` may not. Rows whose source file is gone keep NULL in
+# any column added later, and that NULL is reported as unevaluable rather than as absence.
+_SCHEMA_VERSION = 3
+
+
+def utterance_key(session: str, text: str) -> Tuple[str, str]:
+    """THE UTTERANCE LAW, in one place: an utterance is not a row, it is the SET of records
+    carrying it -- and two records carry the same utterance when they hold the same text in
+    the same session.
+
+    The harness records each operator turn more than once (the queue-operation enqueue and
+    dequeue, plus the delivered `user` twin: identical text, 1.6-17s apart). S2's pyramid
+    learned that inline for its digests and `eye freq` had not, counting records as if they
+    were utterances and inflating its verdicts across its own threshold. Both now call
+    this, so the law has ONE definition
+    (convergent_fixes_describe_meaning_not_location_or_membership).
+
+    Session-scoped deliberately: the same sentence in two sessions is two utterances --
+    that is exactly the repetition `freq` measures, and collapsing it would destroy the
+    axis rather than clean it."""
+    return (session, " ".join((text or "").split()))
 
 
 def default_corpus() -> List[Path]:
@@ -55,14 +88,39 @@ def _connect(db_path: Optional[Path]) -> sqlite3.Connection:
     p.parent.mkdir(parents=True, exist_ok=True)
     con = sqlite3.connect(str(p))
     con.execute("PRAGMA journal_mode=WAL")
+    con.execute("CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT)")
+    row = con.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone()
+    have = int(row[0]) if row else 0
     con.execute("""CREATE TABLE IF NOT EXISTS events(
         event_id TEXT PRIMARY KEY, session TEXT NOT NULL, line INTEGER NOT NULL,
         ts REAL, voice TEXT NOT NULL, type TEXT NOT NULL, text TEXT NOT NULL,
-        cwd TEXT, branch TEXT, tokens INTEGER)""")
+        cwd TEXT, branch TEXT, tokens INTEGER, uuid TEXT, parent_uuid TEXT)""")
     con.execute("""CREATE TABLE IF NOT EXISTS ingest_state(
         path TEXT PRIMARY KEY, mtime REAL, lines INTEGER)""")
     con.execute("""CREATE VIRTUAL TABLE IF NOT EXISTS events_fts
         USING fts5(text, event_id UNINDEXED)""")
+    # The RAW parent chain, for every record carrying a uuid -- INCLUDING records that
+    # produce no event (tool calls, tool results, thinking blocks). Without it 93.8% of
+    # parent links dangle: a child's parent is usually a record the indexer skipped for
+    # having no text, so the walk dead-ends one hop out. Measured on the live corpus
+    # before this table existed: 14,983 parent links, 927 resolving.
+    con.execute("""CREATE TABLE IF NOT EXISTS chain(
+        session TEXT NOT NULL, uuid TEXT NOT NULL, parent_uuid TEXT,
+        PRIMARY KEY(session, uuid))""")
+    if have < _SCHEMA_VERSION:
+        cols = {r[1] for r in con.execute("PRAGMA table_info(events)")}
+        for col in ("uuid", "parent_uuid"):
+            if col not in cols:
+                con.execute(f"ALTER TABLE events ADD COLUMN {col} TEXT")
+        # Derived tables only -- rebuilt from `events`, never a source of truth.
+        con.execute("DROP TABLE IF EXISTS pyramid")
+        con.execute("DROP TABLE IF EXISTS edges")
+        # Re-read every file still on disk so the added columns fill in. Rows whose source
+        # has rotated away keep their NULLs and keep their place in the archive.
+        con.execute("DELETE FROM ingest_state")
+    con.execute("INSERT OR REPLACE INTO meta VALUES('schema_version', ?)",
+                (str(_SCHEMA_VERSION),))
+    con.commit()
     return con
 
 
@@ -125,6 +183,11 @@ def _event_from(obj: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     return {"ts": _parse_ts(obj.get("timestamp")), "voice": voice, "type": typ,
             "text": text, "cwd": str(obj.get("cwd") or ""),
             "branch": str(obj.get("gitBranch") or ""),
+            # The harness's own causal chain. Present on user/assistant/system/attachment
+            # records and ABSENT on every queue-operation record (measured: 0/398) -- which
+            # is where his queued voice lives, so S4 must bridge rather than assume.
+            "uuid": str(obj.get("uuid") or "") or None,
+            "parent_uuid": str(obj.get("parentUuid") or "") or None,
             "tokens": max(1, len(text) // 4)}
 
 
@@ -135,7 +198,7 @@ def ingest(paths: Optional[List[Path]] = None,
     manifest = [Path(p) for p in (paths if paths is not None else default_corpus())]
     con = _connect(db_path)
     files_indexed, files_failed = 0, []
-    events_new = lines_unparsed = 0
+    events_new = lines_unparsed = events_backfilled = 0
     try:
         for f in manifest:
             try:
@@ -164,21 +227,42 @@ def ingest(paths: Optional[List[Path]] = None,
                         except Exception:
                             lines_unparsed += 1
                             continue
+                        # The raw chain is recorded for EVERY record with a uuid, before
+                        # the text filter -- a tool call carries no text and no meaning of
+                        # its own, but it is a real link in the causal chain, and dropping
+                        # it is what left 93.8% of parent pointers dangling.
+                        if obj.get("uuid"):
+                            con.execute(
+                                "INSERT OR REPLACE INTO chain(session, uuid, parent_uuid) "
+                                "VALUES(?,?,?)",
+                                (session, str(obj["uuid"]),
+                                 str(obj.get("parentUuid") or "") or None))
                         ev = _event_from(obj)
                         if ev is None:
                             continue
                         eid = f"{session}:{n_line}"
                         got = con.execute(
                             "INSERT OR IGNORE INTO events(event_id, session, line, ts, "
-                            "voice, type, text, cwd, branch, tokens) "
-                            "VALUES(?,?,?,?,?,?,?,?,?,?)",
+                            "voice, type, text, cwd, branch, tokens, uuid, parent_uuid) "
+                            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
                             (eid, session, n_line, ev["ts"], ev["voice"], ev["type"],
-                             ev["text"], ev["cwd"], ev["branch"], ev["tokens"]))
+                             ev["text"], ev["cwd"], ev["branch"], ev["tokens"],
+                             ev["uuid"], ev["parent_uuid"]))
                         if got.rowcount:
                             con.execute(
                                 "INSERT INTO events_fts(text, event_id) VALUES(?,?)",
                                 (ev["text"], eid))
                             events_new += 1
+                        else:
+                            # The row predates a schema that added columns. Backfill in
+                            # place -- the alternative (drop and re-ingest) destroys rows
+                            # whose source file has since rotated away, which is exactly
+                            # how this organ lost >=219 events on 2026-08-11.
+                            fixed = con.execute(
+                                "UPDATE events SET uuid=?, parent_uuid=? "
+                                "WHERE event_id=? AND uuid IS NULL",
+                                (ev["uuid"], ev["parent_uuid"], eid))
+                            events_backfilled += fixed.rowcount or 0
                 con.execute(
                     "INSERT INTO ingest_state(path, mtime, lines) VALUES(?,?,?) "
                     "ON CONFLICT(path) DO UPDATE SET mtime=excluded.mtime, "
@@ -193,7 +277,8 @@ def ingest(paths: Optional[List[Path]] = None,
         con.close()
     return {"files_seen": len(manifest), "files_indexed": files_indexed,
             "files_failed": files_failed, "events_total": int(total),
-            "events_new": events_new, "lines_unparsed": lines_unparsed,
+            "events_new": events_new, "events_backfilled": events_backfilled,
+            "lines_unparsed": lines_unparsed,
             "manifest_complete": not files_failed,
             "ran_at": round(time.time(), 2)}
 
@@ -284,6 +369,15 @@ def freq(patterns: List[str], db_path: Optional[Path] = None,
       0 operator events -> unheard · 1 -> mentioned-once ·
       >=3 across >=2 sessions -> standing-directive · else -> recurring
 
+    THE AXIS COUNTS UTTERANCES, NOT RECORDS (S4 fix, 2026-08-11). The harness records one
+    operator turn several times over -- the queue-operation enqueue and dequeue, plus the
+    delivered `user` twin, identical text seconds apart -- so counting rows double-counts
+    his voice, and it double-counts it across the verdict threshold: the live "fan out /
+    don't get bogged down in the mechanics" family read 4 operator events across 2 sessions
+    (STANDING-DIRECTIVE) when he had in fact said it twice, once per session (RECURRING).
+    `operator_records` keeps the raw number visible -- the correction is labelled, not
+    hidden -- and `utterance_key` holds the collapsing law for every consumer.
+
     The repetition-counts note (2026-08-01) was hand-made because nothing measured this;
     this verb retires that class of hand-count. No LLM anywhere in the path."""
     con = _connect(db_path)
@@ -292,28 +386,39 @@ def freq(patterns: List[str], db_path: Optional[Path] = None,
         for pat in patterns:
             phrase = '"' + str(pat).replace('"', " ") + '"'
             rows = con.execute(
-                "SELECT e.event_id, e.session, e.line, e.ts, e.voice "
+                "SELECT e.event_id, e.session, e.line, e.ts, e.voice, e.text "
                 "FROM events_fts JOIN events e ON e.event_id = events_fts.event_id "
                 "WHERE events_fts MATCH ?", (phrase,)).fetchall()
             for r in rows:
                 seen[r[0]] = {"event_id": r[0], "session": r[1], "line": r[2],
-                              "ts": r[3], "voice": r[4]}
+                              "ts": r[3], "voice": r[4], "text": r[5]}
     finally:
         con.close()
 
     events = sorted(seen.values(), key=lambda e: (e["ts"] or 0, e["event_id"]))
-    ops = [e for e in events if e["voice"] == "operator"]
+    op_records = [e for e in events if e["voice"] == "operator"]
+    # Collapse to distinct utterances, keeping the FIRST record of each -- the earliest
+    # record is when he actually said it, so spans stay honest.
+    ops, _utt_seen = [], set()
+    for e in op_records:
+        k = utterance_key(e["session"], e["text"])
+        if k in _utt_seen:
+            continue
+        _utt_seen.add(k)
+        ops.append(e)
     by_voice: Dict[str, int] = {}
     for e in events:
         by_voice[e["voice"]] = by_voice.get(e["voice"], 0) + 1
     op_sessions = sorted({e["session"] for e in ops})
 
+    _op_ids = {e["event_id"] for e in ops}
     per_session: List[Dict[str, Any]] = []
     for s in sorted({e["session"] for e in events}):
         evs = [e for e in events if e["session"] == s]
         per_session.append({
             "session": s, "events": len(evs),
-            "operator_events": sum(1 for e in evs if e["voice"] == "operator"),
+            "operator_events": sum(1 for e in evs if e["event_id"] in _op_ids),
+            "operator_records": sum(1 for e in evs if e["voice"] == "operator"),
             "refs": [e["event_id"] for e in evs][:max_refs_per_session]})
 
     n_op, n_sess = len(ops), len(op_sessions)
@@ -327,7 +432,8 @@ def freq(patterns: List[str], db_path: Optional[Path] = None,
         verdict = "recurring"
 
     return {"patterns": list(patterns), "events_total": len(events),
-            "operator_events": n_op, "sessions": n_sess, "by_voice": by_voice,
+            "operator_events": n_op, "operator_records": len(op_records),
+            "sessions": n_sess, "by_voice": by_voice,
             "first_ts": (ops[0]["ts"] if ops else (events[0]["ts"] if events else None)),
             "last_ts": (ops[-1]["ts"] if ops else (events[-1]["ts"] if events else None)),
             "per_session": per_session, "verdict": verdict}

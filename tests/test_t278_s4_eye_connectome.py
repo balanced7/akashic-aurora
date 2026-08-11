@@ -79,10 +79,17 @@ def test_p1_recorded_chain_walks_upstream_in_order(db):
 
 
 def test_p1b_downstream_returns_descendants(db):
+    """PIN CORRECTED during the build (v1 expected the pure recorded chain and the code was
+    right): the orphan at line 7 hangs off line 6 by an adjacency edge, so it IS positionally
+    downstream of the root and the walk says so -- flagged. Excluding it would make the
+    orphan invisible from the chain side, which is the founding wound reintroduced inside
+    the organ built to close it."""
     t = CONN.trace(f"{G}:1", db_path=db)          # u1, the root
     assert [d["event_id"] for d in t["downstream"]] == [
-        f"{G}:2", f"{G}:5", f"{G}:6", f"{G}:9"]
+        f"{G}:2", f"{G}:5", f"{G}:6", f"{G}:7", f"{G}:9"]
     assert t["upstream"] == [], "the root has no ancestors -- empty, not fabricated"
+    assert t["degraded"] is True and t["edges_inferred"] == 1, (
+        "reaching the orphan cost one guess, and the envelope charges for it")
 
 
 # ---------------------------------------------------------------- P2: the utterance set
@@ -107,7 +114,12 @@ def test_p3_queued_operator_speech_reaches_the_recorded_chain(db):
     bridge = [u for u in t["upstream"] if u["edge_kind"] == "same_utterance"]
     assert bridge == [] and t["bridged_via"] == f"{G}:5", (
         "the bridge is named in the envelope, not smuggled into the ancestor list")
-    assert t["degraded"] is False, "text identity is DERIVED, not inferred -- no fog"
+    # PIN CORRECTED during the build: v1 asserted degraded is False for the whole envelope,
+    # but this walk's DOWNSTREAM legitimately reaches the orphan across an inferred edge.
+    # The claim being pinned is narrower and is the one that matters: crossing the bridge
+    # itself costs no fog, because text identity is DERIVED, not guessed.
+    assert all(u["evidence"] == "recorded" for u in t["upstream"]), (
+        "the ancestry reached through the twin is the harness's own chain, start to finish")
 
 
 # ---------------------------------------------------------------- P4: the orphan
@@ -191,6 +203,66 @@ def test_p7_freq_counts_distinct_utterances_not_records(db):
     assert r["sessions"] == 2
     assert r["verdict"] == "recurring", (
         "4 records across 2 sessions would read STANDING-DIRECTIVE; 2 utterances do not")
+
+
+# ------------------------------------------------- P8: the chain through silent records
+def test_p8_the_chain_resolves_through_unindexed_records(tmp_path):
+    """A record's parent is usually a TOOL CALL -- a real link the harness wrote, carrying
+    no text and so holding no event. Stopping at the first unindexed parent left 93.8% of
+    links dangling on the live corpus (14,983 parents, 927 resolving) and dead-ended every
+    walk one hop from where it started. Climbing the raw chain took that to 99.5%.
+
+    The edge stays RECORDED -- every hop is the harness's own bookkeeping -- and `hops`
+    makes the compression visible instead of pretending the two turns were adjacent."""
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    shutil.copy(FIX / "session_epsilon.jsonl", corpus / "session_epsilon.jsonl")
+    dbp = tmp_path / "eye.db"
+    EYE.ingest(paths=sorted(corpus.glob("*.jsonl")), db_path=dbp)
+    CONN.build(db_path=dbp)
+
+    t = CONN.trace("session_epsilon:6", db_path=dbp)
+    assert [u["event_id"] for u in t["upstream"]] == ["session_epsilon:1"], (
+        "four silent tool records sit between them; the walk still lands on the question")
+    hop = t["upstream"][0]
+    assert hop["evidence"] == "recorded", "every hop was a real parentUuid link"
+    assert hop["hops"] == 5, "and the count of records passed through is stated, not hidden"
+    assert t["degraded"] is False, "compression is not fog -- nothing here was guessed"
+
+
+# ------------------------------------------------- P9: the archive is not disposable
+def test_p9_migration_adds_columns_and_never_drops_rows(tmp_path):
+    """THE EXPENSIVE ONE (2026-08-11). v2 of this schema shipped as wipe-and-rebuild on the
+    design's own words -- "the index is a projection, rebuildable from source" -- and the
+    first live run destroyed >=219 events from two sessions whose transcripts had rotated
+    off disk hours earlier. The corpus shrank 85 -> 83 files DURING the session that wiped
+    it. For a rotated session the projection IS the archive.
+
+    So: a migration may ADD columns and may rebuild DERIVED tables, and may never drop an
+    event. A row whose source is gone keeps its place with NULLs."""
+    import sqlite3
+    dbp = tmp_path / "old.db"
+    con = sqlite3.connect(str(dbp))
+    con.execute("""CREATE TABLE events(
+        event_id TEXT PRIMARY KEY, session TEXT NOT NULL, line INTEGER NOT NULL,
+        ts REAL, voice TEXT NOT NULL, type TEXT NOT NULL, text TEXT NOT NULL,
+        cwd TEXT, branch TEXT, tokens INTEGER)""")      # the v1 shape, no uuid columns
+    con.execute("INSERT INTO events VALUES('rotated:1','rotated',1,1.0,'operator','user',"
+                "'a directive whose transcript no longer exists','','',9)")
+    con.commit()
+    con.close()
+
+    con = EYE._connect(dbp)                              # migrate
+    try:
+        cols = {r[1] for r in con.execute("PRAGMA table_info(events)")}
+        assert {"uuid", "parent_uuid"} <= cols, "the new columns arrived"
+        row = con.execute("SELECT text, uuid FROM events WHERE event_id='rotated:1'"
+                          ).fetchone()
+        assert row is not None, "THE ROW SURVIVED THE MIGRATION -- this is the whole pin"
+        assert row[0] == "a directive whose transcript no longer exists"
+        assert row[1] is None, "unknowable, and left honestly unknown -- no sentinel"
+    finally:
+        con.close()
 
 
 def test_p7b_a_singly_recorded_utterance_is_unaffected(db):

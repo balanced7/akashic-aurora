@@ -2153,11 +2153,23 @@ def cmd_eye(args):
     from core.eye import index as _EYE
     if args.eye_cmd == "ingest":
         rep = _EYE.ingest()
+        # The connectome rides ingest (0.7s on the full corpus): an edge table stale
+        # against fresh events would answer `trace` with yesterday's ancestry and no way
+        # to tell -- the one failure mode a sensorium may not have.
+        from core.eye import connectome as _CONN
+        rep["edges"] = _CONN.build()
         if args.json:
             print(_json.dumps(rep, indent=1)); return 0
         print(f"[eye] {rep['files_indexed']}/{rep['files_seen']} files | "
-              f"{rep['events_total']:,} events ({rep['events_new']:,} new) | "
+              f"{rep['events_total']:,} events ({rep['events_new']:,} new"
+              + (f", {rep['events_backfilled']:,} backfilled"
+                 if rep.get("events_backfilled") else "") + ") | "
               f"unparsed {rep['lines_unparsed']}")
+        _bk = rep["edges"]["by_kind"]
+        print(f"[eye] connectome: {rep['edges']['edges_total']:,} edges "
+              f"({_bk.get('follows', 0):,} recorded, "
+              f"{_bk.get('same_utterance', 0):,} derived, "
+              f"{_bk.get('adjacent', 0):,} inferred)")
         if not rep["manifest_complete"]:
             print(f"[eye] COVERAGE GAP -- the index may NOT be read as whole:")
             for f in rep["files_failed"]:
@@ -2223,6 +2235,44 @@ def cmd_eye(args):
         if z["level"] == "L1":
             print(f"  refs: {', '.join(z['refs'][:6])}")
         return 0
+    if args.eye_cmd == "trace":
+        from core.eye import connectome as _CONN
+        if not _CONN.edges():
+            print("[eye] the connectome is empty -- run `py agent_cli.py eye ingest` "
+                  "first (it builds the edges)", file=sys.stderr)
+            return 2
+        try:
+            t = _CONN.trace(args.event_id, depth=args.depth,
+                            formed_via=args.formed_via or None)
+        except ValueError as e:
+            print(f"[eye] 422: {e}", file=sys.stderr)
+            return 2
+        if args.json:
+            print(_json.dumps(t, indent=1)); return 0
+        n = t["node"]
+        print(f"# {n['event_id']}  ({n['voice']}, {n['type']})")
+        print(f"  {n['text'][:200]}")
+        if len(t["same_utterance"]) > 1:
+            print(f"  one utterance, {len(t['same_utterance'])} record(s): "
+                  f"{', '.join(t['same_utterance'])}")
+        if t["bridged_via"]:
+            print(f"  reached the chain through its twin at {t['bridged_via']}")
+
+        def _render(rows, label):
+            if not rows:
+                print(f"  {label}: (none)")
+                return
+            print(f"  {label}:")
+            for r in rows:
+                gap = f", {r['hops'] - 1} silent record(s) between" if (
+                    r.get("hops") or 1) > 1 else ""
+                print(f"    [{r['evidence']}/{r['edge_kind']}{gap}] "
+                      f"{r['voice'] or '?'}: {(r['snippet'] or '')[:90]}")
+        _render(t["upstream"], "UPSTREAM (where this came from)")
+        _render(t["downstream"], "DOWNSTREAM (what followed)")
+        if t["degraded"]:
+            print(f"  [FOG] {t['degraded_reason']}")
+        return 0
     if args.eye_cmd == "stats":
         s = _EYE.stats()
         if args.json:
@@ -2253,11 +2303,20 @@ def cmd_eye(args):
             print(f"[eye] no event at {args.event_id!r} -- the address is session:line "
                   "(get one from eye find)", file=sys.stderr)
             return 2
+        # A citation resolves to an UTTERANCE, not to a row. The harness records one
+        # operator turn several times over, so an address is one witness among several
+        # -- naming its siblings is what lets a citation be checked rather than trusted
+        # (T288's resolver need, and the reason `freq` now counts sets).
+        from core.eye.connectome import utterance_group as _UG
+        ev["same_utterance"] = _UG(args.event_id)
         if args.json:
             print(_json.dumps(ev, indent=1)); return 0
         print(f"# {ev['event_id']}  [{ev['voice']}/{ev['type']}]  "
               f"session={ev['session']} line={ev['line']}")
         print(ev["text"])
+        if len(ev["same_utterance"]) > 1:
+            others = [e for e in ev["same_utterance"] if e != ev["event_id"]]
+            print(f"\n[eye] the same utterance is also recorded at: {', '.join(others)}")
         return 0
     return 2
 
@@ -7074,6 +7133,10 @@ def build_parser():
     blb.set_defaults(fn=cmd_blob)
 
     # ---- T278 THE EYE (S0/S1 door; design atom the-eye-design-v2_208b26) ----
+    # The formation vocabulary is READ from the module that owns it -- a copy here would
+    # drift the moment either side gained a value, and the door would then refuse an edge
+    # kind the substrate happily writes. (stdlib-only import; no boot cost.)
+    from core.eye.connectome import FORMED_VIA as CONNECTOME_FORMED_VIA
     eye = sub.add_parser("eye", help="THE EYE: the transcript plane as terrain -- ingest "
                                      "(incremental, coverage-honest), find (phrase, S0; the "
                                      "grammar lands S1), get (address -> verbatim L0)")
@@ -7120,6 +7183,23 @@ def build_parser():
     eye_zm.add_argument("addr", help="session name or <session>/L1:NNN")
     eye_zm.add_argument("--rebuild", action="store_true", help="rebuild the pyramid first")
     eye_zm.add_argument("--json", action="store_true")
+    eye_tr = eye_sub.add_parser("trace", help="S4, the connectome walk: where an utterance "
+                                              "came from (upstream) and what followed it "
+                                              "(downstream). Every edge states HOW it is "
+                                              "known -- recorded (the harness wrote the "
+                                              "link), derived (same utterance, by text), "
+                                              "inferred (adjacency) -- and a walk crossing "
+                                              "an inferred edge says so")
+    eye_tr.add_argument("event_id", help="the address, e.g. 2b1b8946-...:1955 (from eye find)")
+    eye_tr.add_argument("--depth", type=int, default=6,
+                        help="max nodes per direction (default 6; the corpus has long "
+                             "chains and an unbounded walk is a context bomb)")
+    eye_tr.add_argument("--formed-via", dest="formed_via", default="",
+                        choices=("",) + CONNECTOME_FORMED_VIA,
+                        help="filter to edges formed this way; pre-contract edges cannot "
+                             "be evaluated against it and are COUNTED in the envelope, "
+                             "never silently dropped")
+    eye_tr.add_argument("--json", action="store_true")
     eye.set_defaults(fn=cmd_eye)
 
     # ---- T099 V0 self-tooling (docs/library/design/20260701_self-tooling-arc-reconciled-design-agent_29f578.md) ----

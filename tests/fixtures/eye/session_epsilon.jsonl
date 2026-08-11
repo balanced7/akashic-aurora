@@ -1,0 +1,6 @@
+{"type":"user","isMeta":false,"uuid":"e1","parentUuid":null,"timestamp":"2026-08-04T08:00:00.000Z","message":{"role":"user","content":"epsilon opening question"},"cwd":"E:\\AI-Setup","gitBranch":"master"}
+{"type":"assistant","uuid":"t1","parentUuid":"e1","timestamp":"2026-08-04T08:00:02.000Z","message":{"role":"assistant","content":[{"type":"tool_use","id":"tu1","name":"Bash","input":{"command":"ls"}}]}}
+{"type":"user","isMeta":false,"uuid":"t2","parentUuid":"t1","timestamp":"2026-08-04T08:00:03.000Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tu1","content":"a.txt"}]}}
+{"type":"assistant","uuid":"t3","parentUuid":"t2","timestamp":"2026-08-04T08:00:04.000Z","message":{"role":"assistant","content":[{"type":"tool_use","id":"tu2","name":"Bash","input":{"command":"pwd"}}]}}
+{"type":"user","isMeta":false,"uuid":"t4","parentUuid":"t3","timestamp":"2026-08-04T08:00:05.000Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tu2","content":"/e"}]}}
+{"type":"assistant","uuid":"e2","parentUuid":"t4","timestamp":"2026-08-04T08:00:06.000Z","message":{"role":"assistant","content":[{"type":"text","text":"epsilon conclusion after the tool run"}]}}

@@ -117,8 +117,17 @@ Give the right agent the right context at the moment of action.
   (newer record retires older).
 - **`core/eye/`** — THE EYE (T278): the sensorium over the transcript plane. `index.py` = S0 incremental
   indexer (every session JSONL → addressable events with conservative voice labels, coverage contract:
-  a clipped index cannot claim wholeness). Projection only — `state/eye/eye.db` rebuilds from source.
-  Door: `py agent_cli.py eye ingest|find|get`. Design: atom `the-eye-design-v2_208b26`.
+  a clipped index cannot claim wholeness) plus the S1 grammar door, S3 `freq` and S5 numerics;
+  `pyramid.py` = S2 extractive LOD; `connectome.py` = S4 edges that remember their own formation
+  (`formed_by`/`formed_at`/`formed_via` per the query grammar §5, plus an EVIDENCE grade —
+  **recorded** the harness wrote the link, **derived** same utterance by text identity, **inferred**
+  adjacency — and a walk crossing an inferred edge flags `degraded`). The utterance law lives in
+  `index.utterance_key`: one utterance is a SET of records, which is why `freq` counts utterances and
+  not rows. Derived tables (`pyramid`, `edges`) rebuild freely; **`events` does not** — transcripts
+  rotate off disk, so for a rotated session the index IS the archive (learned by destroying ≥219
+  events on 2026-08-11; migrations now ADD columns and never drop rows).
+  Door: `py agent_cli.py eye ingest|find|get|freq|zoom|stats|overview|trace`.
+  Design: atom `the-eye-design-v2_208b26`.
 
 ## Renew (`core/renew/`)
 The membrane's temporal (5th) job: keep working context healthy ACROSS sessions
