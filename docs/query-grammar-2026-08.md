@@ -57,7 +57,11 @@ means completeness — the flag rides even the soft path.
 
 Every response envelope carries `degraded: bool` + `degraded_reason` when any of: the funnel
 clipped candidates, a backing index was cold/rebuilding, a facet was ignored, a shard was
-missing. A caller iterating results must be able to distinguish "empty" from "partial view."
+missing, a scan hit its deadline (time-partial), a fallback retrieval mode ran (index cold →
+weaker scan), an approximate stage ran (any vector/rerank lane is non-exhaustive BY NATURE
+and always flags), or matching rows were skipped for integrity (malformed fields). Open
+vocabulary; these are the named minimums (fence r1 C3).
+A caller iterating results must be able to distinguish "empty" from "partial view."
 (Fan-doctrine corollary: absence of a warning must mean exactly one thing — T247's law,
 generalized to every read door.)
 
