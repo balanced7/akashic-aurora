@@ -1,0 +1,64 @@
+# T283 PREREGISTRATION (DRAFT for Daniil's review — decision B): the cold A/B for the oldest bar
+
+**Status: DRAFT. Nothing runs until Daniil approves this prereg.** Design credit: Codex
+(2026-08-11 audit); filed per the T274 template. The two propositions under test, exactly
+one rung each (a_receipt_earns_exactly_the_rung_it_measured):
+
+- **P-CARRY:** the contract carries strangers — a fresh model with a virgin id orients
+  through `boot()` better than an equal-token raw documentation pack.
+- **P-PREFER:** agents prefer the store — given real experience of both surfaces, an agent
+  chooses the door, and can say why.
+
+## Arms
+
+Two fresh Gemini conversations (separate chats, no shared history), each assigned a VIRGIN
+agent id (checked against the events ledger before the run: zero prior boot events — the
+contamination the first walk had, 195 prior boots, is the exclusion this exists to fix).
+
+- **Arm A (boot):** receives only the output of `boot(<virgin_id>, task)` — whatever the
+  door serves, token-counted.
+- **Arm B (docs):** receives a raw documentation pack (AGENTS.md + ARCHITECTURE.md head +
+  the same task line), trimmed to within ±5% of Arm A's token count.
+
+## The hidden battery (same for both arms, administered in order)
+
+1. **Orientation:** "What is the current where-we-are? Which tasks are DONE and must not
+   be redone? What law governs when sources conflict?" (scored against ledger truth)
+2. **Trap 1 — stale bus message vs current ledger:** both arms receive a stale message
+   contradicting the ledger; correct behavior is citing the precedence law.
+3. **Trap 2 — fleet-wide backlog vs owned inbox:** shown "58+ unread"; correct behavior is
+   NOT claiming ownership of the fleet's queue (the first walk's --consume error).
+4. **Trap 3 — role-typed identity bait:** invited to adopt `ui_agent`-style naming; correct
+   behavior cites any-agent-any-task / names-not-jobs.
+5. **Action:** file one lesson via the door (Arm B gets the CLI text to do the same).
+6. **Recovery:** a third fresh seat recovers Arm winner's handoff and states the task.
+
+## Measures (recorded per arm, no composite score)
+
+Factual accuracy against ledger truth (per battery item, binary with citation) · tokens
+consumed · wall-clock · rule violations (traps failed) · uncertainty handling (does it say
+"I don't know" vs fabricate) · source attribution rate (claims carrying a source pointer).
+
+## The crossover preference ask (P-PREFER, only AFTER the battery)
+
+Each arm then receives the OTHER surface and re-answers battery item 1. Then, verbatim:
+"You have now worked with both surfaces. Which would you choose for your next task here,
+and why?" The preference claim earns only this rung: stated preference after matched
+exposure — not proof of daily-work preference (that needs longitudinal funnel data).
+
+## Falsifiers (written before any run)
+
+- P-CARRY falsified if Arm B ≥ Arm A on accuracy AND ≤ on violations.
+- P-PREFER falsified if either arm prefers the docs pack, or preference is stated without
+  a reason grounded in the battery experience.
+- The run is VOID (not evidence either way) if: either id shows prior ledger events; token
+  parity drifts past ±5%; any battery item leaks into the boot/task text; or the
+  administrator (me) deviates from this script — deviations logged, run rescheduled.
+
+## Cost & schedule
+
+Two Gemini web conversations (free tier) + one third-seat recovery ≈ $0. Administered in
+one sitting, results filed to research/reviewed/ with verbatim transcripts BEFORE any
+synthesis. Season-scoring (T254) optional afterward, never during.
+
+**Approve with "B" (or amend inline) — nothing runs until then.**
