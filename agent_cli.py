@@ -2004,6 +2004,8 @@ _BG_FORWARD = {
     # T261. NOT merged with as_agent above: --as is the SENDER, --as-resident is the TIER,
     # and one flag carrying both meanings is the T174 homonym class.
     "as_resident":  lambda v: ["--as-resident", str(v)],
+    # T281: the declared geometry rides to the child so its route-journal line is labeled.
+    "geometry":     lambda v: ["--geometry", str(v)],
     # T256. Caught by T226's own pin before it shipped -- exactly the case that guard was built
     # for, since --bg used to assemble its argv from a hand-remembered list and silently dropped
     # every flag added afterwards. --lens is repeatable, so it emits one pair per lens.
@@ -2410,12 +2412,27 @@ def cmd_ask(args):
         # first arm gained a second condition stops being exclusive, and the failure is quiet.
         prompts = [prompt] * int(args.fan)
 
+    # T281: validate the declared geometry BEFORE any model call, on BOTH paths -- the first
+    # wiring put this inside the fan branch only, and a single ask with --geometry sailed
+    # straight to the model with the flag silently ignored (caught by live smoke, not by the
+    # pure-function pin: a pin that supplies its own input tests the mechanism, not the wiring).
+    _geom = str(getattr(args, "geometry", "") or "")
+    if _geom:
+        from core.comm.ask import validate_geometry as _vg
+        _gerr = _vg(_geom, fan_n=int(getattr(args, "fan", 0) or 0),
+                    n_prompts=(len(prompts) if prompts is not None else 1),
+                    has_evidence=bool(getattr(args, "with_files", None)))
+        if _gerr:
+            print(f"--geometry: {_gerr}", file=sys.stderr)
+            return 2
+
     if prompts is not None:
         o = ask_many(prompts, system=args.system or None, model=args.model or None,
                      max_tokens=args.max_tokens, max_workers=args.workers,
                      with_files=getattr(args, "with_files", None),
                      continue_on_cut=bool(getattr(args, "continue_on_cut", True)),
-                     max_continuations=int(getattr(args, "continuations", 2)))
+                     max_continuations=int(getattr(args, "continuations", 2)),
+                     geometry=_geom)
         # T256: the preset PARSES its own answers on the way back. This is the half that
         # matters -- five fans in one day each ended with a throwaway regex, and every parsing
         # error this session lived in that throwaway code, never in the fan. An answer that
@@ -6132,6 +6149,19 @@ def build_parser():
     ask_p.add_argument("--prompts-file", dest="prompts_file",
                        help="T181: run MANY questions at once. JSON array, or prompts separated "
                             "by a line containing only --- (so a prompt may be multi-line)")
+    # T281: the fan doctrine at the door. WHEN TO FAN -- wide independent READING fans;
+    # deep sequential REASONING stays on one seat; VERIFICATION fans with lenses that differ
+    # in failure mode; a corpus-level CLAIM adds a backbrief. Declared, never derived.
+    ask_p.add_argument("--geometry", default="",
+                       help="T281: declare the fan's SHAPE so the route journal can score "
+                            "routes. WHEN TO FAN: wide independent reading -> fan; deep "
+                            "sequential reasoning -> one seat; verification -> diverse lenses; "
+                            "corpus-level claims -> add a backbrief. Shapes: partition (shards "
+                            "over a corpus -- coverage), lens (same pack, different questions), "
+                            "panel (--fan N self-consistency, never verification), adversarial "
+                            "(position + refuters), backbrief (non-author raw-access re-check), "
+                            "wave (repeat until dry), negotiation (shared-artifact construction "
+                            "only). Wrong combinations are refused with the expected shape.")
     # T256. The preset carries the answer CONTRACT and the PARSER for it, so --json comes back
     # structured instead of as text you regex apart. Five fans in one day each ended with a
     # throwaway parser, and every parsing error of that session lived in those, not in the fan.

@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 00471f34. A bound you discover by collision is not awareness -- this sheet
+> Derived at ed8a5655. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (200 names)
+## Configuration flags (201 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -82,6 +82,7 @@ Class: reference
 | `AKASHIC_RESUME_GAP_S` | `"600"` | core/comm/roster.py |
 | `AKASHIC_ROSTER_CHURN_AT` | `"3"` | core/comm/roster.py |
 | `AKASHIC_ROSTER_CHURN_WINDOW_S` | `"3600"` | core/comm/roster.py |
+| `AKASHIC_ROUTE_JOURNAL` | `""` | core/comm/ask.py |
 | `AKASHIC_SEAT_DOOR` | `""` | agent_cli.py |
 | `AKASHIC_SEAT_DOOR_DETAIL` | `""` | agent_cli.py |
 | `AKASHIC_SEAT_HEARTBEAT` | `"1"` | agent/harness/hooks/claude_posttooluse.py, agent/harness/hooks/claude_stop.py, scripts/hooks/claude_posttooluse.py +1 |

@@ -31,6 +31,7 @@ that ran out of room hands back what it has, marked, instead of looking complete
 from __future__ import annotations
 
 import concurrent.futures
+import json
 import os
 import re
 import time
@@ -173,7 +174,11 @@ def build_context(paths, *, budget_chars: Optional[int] = None, root=None):
                   if cut else f"--- END {full.name} ---")
         parts.append(f"{header}\n{numbered}\n{footer}")
         spent += len(body)
-        included.append({"path": str(full), "chars": len(body), "truncated": cut})
+        # T281: chars_total turns the clip warning into a NUMBER -- coverage becomes
+        # chars/chars_total instead of prose, and the laundering class (a capped pack read
+        # as whole, night of 2026-08-10) gets a mechanical field every caller can assert on.
+        included.append({"path": str(full), "chars": len(body), "truncated": cut,
+                         "chars_total": len(text)})
 
     for m in missing + refused:
         parts.append(f"--- COULD NOT READ {m['path']} ({m['why']}) -- "
@@ -188,6 +193,85 @@ def build_context(paths, *, budget_chars: Optional[int] = None, root=None):
                  "rather than reading, say so explicitly.\n\n" + "\n\n".join(parts))
     return block, {"included": included, "missing": missing, "skipped": skipped,
                    "refused": refused, "truncated": truncated, "chars": spent}
+
+
+# ---------------------------------------------------------------- T281: the fan doctrine at the door
+# Named geometries (atom fan-doctrine-v1_b70185, fence r1 folded). DECLARED intent, never
+# derived (T228 law): the door stamps what the caller claims and validates the combination;
+# it never guesses what shape a fan "really" was.
+GEOMETRIES = {
+    "partition": "shards over a corpus, same lens per shard -- the coverage machine "
+                 "(requires evidence; assert union==manifest caller-side)",
+    "lens":      "same evidence, different questions -- the dimension machine "
+                 "(lenses must differ in FAILURE MODE, not vocabulary)",
+    "panel":     "same question, N samples of ONE model -- self-consistency ONLY, "
+                 "never verification (correlated samples fail together)",
+    "adversarial": "position + refuters -- the truth machine (refuters get the position "
+                 "AND the license to attack; dispositions recorded)",
+    "backbrief": "post-synthesis raw-access re-check by a NON-author -- the audit machine",
+    "wave":      "geometries repeated with an accumulating seen-set until dry -- "
+                 "the exhaustiveness machine",
+    "negotiation": "branches interact through a shared versioned artifact -- CONSTRUCTION "
+                 "only; shared state destroys the independence verification needs",
+}
+
+
+def validate_geometry(geometry: str, *, fan_n: int, n_prompts: int,
+                      has_evidence: bool) -> str:
+    """Teach on a bad combination; empty string = valid. The grammar's 422 law at this door:
+    a wrong shape names what it expected, never a silent stamp."""
+    g = (geometry or "").strip()
+    if not g:
+        return ""
+    if g not in GEOMETRIES:
+        vocab = ", ".join(sorted(GEOMETRIES))
+        return (f"unknown geometry '{g}' -- this door speaks: {vocab}. "
+                f"Pick the shape the fan actually has (or omit the flag).")
+    if g == "panel" and fan_n < 2:
+        return ("geometry 'panel' means N samples of one prompt -- pass --fan N (N>=2); "
+                "with one sample there is nothing to self-consist.")
+    if g in ("partition", "backbrief", "adversarial") and not has_evidence:
+        return (f"geometry '{g}' works over evidence -- pass --with <pack> "
+                f"(a {g} fan with no pack has nothing to {g.rstrip('.')} over).")
+    if g == "lens" and n_prompts < 2 and fan_n < 2:
+        return ("geometry 'lens' means multiple questions over one pack -- pass multiple "
+                "--lens flags (or --prompts-file); one lens is just an ask.")
+    return ""
+
+
+def coverage_from_meta(ctx_meta: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """The coverage NUMBER: chars sent / chars total across included files. None when no
+    evidence rode. Ratio 1.0 is a claim about TRANSPORT of the named files only -- whether
+    the files covered the source corpus is the caller's union assertion, not this field."""
+    if not ctx_meta or not ctx_meta.get("included"):
+        return None
+    sent = sum(int(i.get("chars") or 0) for i in ctx_meta["included"])
+    total = sum(int(i.get("chars_total") or i.get("chars") or 0)
+                for i in ctx_meta["included"])
+    if total <= 0:
+        return None
+    return {"chars_sent": sent, "chars_total": total,
+            "ratio": round(sent / total, 4)}
+
+
+def _route_journal_path() -> Path:
+    env = os.environ.get("AKASHIC_ROUTE_JOURNAL", "")
+    if env:
+        return Path(env)
+    return _REPO_ROOT / "state" / "route_journal.jsonl"
+
+
+def _route_journal(rec: Dict[str, Any]) -> None:
+    """One line per fan: the substrate for per-route funnel counters (fan vs solo
+    tokens-per-confirmed-finding -- Daniil 2026-08-11, 'quantify the impact delta').
+    Fail-open ALWAYS: a dead journal must never wedge an ask."""
+    try:
+        p = _route_journal_path()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        with open(p, "a", encoding="utf-8") as f:
+            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
 
 
 def unusable_evidence_notice(ctx_meta: Optional[Dict[str, Any]]) -> str:
@@ -825,7 +909,7 @@ def ask_many(prompts, *, system: Optional[str] = None, model: Optional[str] = No
              max_tokens: Optional[int] = None, client=None,
              max_workers: Optional[int] = None, with_files=None,
              context_root=None, continue_on_cut: bool = False,
-             max_continuations: int = 2) -> BoundaryOutcome:
+             max_continuations: int = 2, geometry: str = "") -> BoundaryOutcome:
     """Ask N helpers at once. Still no seat behind any of them (T181). Never raises.
 
     THE PRIMITIVE THE FLEET PATTERNS NEED. Daniil's design, expanded by Sol at his ask: the
@@ -1025,7 +1109,22 @@ def ask_many(prompts, *, system: Optional[str] = None, model: Optional[str] = No
         "usd": round(total_usd, 6) if priced_all else None,
         "elapsed_s": round(time.time() - t0, 2), "model": model, "workers": workers,
     }
+    # T281: declared geometry + the coverage number ride the envelope; one route line lands
+    # in the journal (the per-route counter substrate). Declared, never derived.
+    if geometry:
+        detail["geometry"] = str(geometry)
+    _cov = coverage_from_meta(ctx_meta)
+    if _cov is not None:
+        detail["coverage"] = _cov
     attach_evidence(detail, ctx_meta)
+    _route_journal({
+        "ts": round(time.time(), 2), "geometry": str(geometry or ""),
+        "n": n, "n_ok": n_ok, "n_partial": n_partial,
+        "usd": detail["usd"], "elapsed_s": detail["elapsed_s"], "model": model,
+        "coverage_ratio": (_cov or {}).get("ratio"),
+        "warnings_n": sum(1 for b in branches if b.get("warnings")),
+        "diversity": diversity,
+    })
     # T244: name WHICH branches were damaged. "the fan was truncated" cannot be acted on when
     # branches no longer share a pack, and a caller who has to walk N branch records to find
     # out is a caller who will not -- measured twice on 2026-08-08, on a notice that existed

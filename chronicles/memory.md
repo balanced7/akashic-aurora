@@ -1,9 +1,10 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 588 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 589 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
+- beat-priori-and-ergonomics-directive-2026-08-11: TWO MORE DIRECTIVES, Daniil verbatim 2026-08-11 ~06:25 (mid-night, appended to the pre-sleep set): (1) BEAT PRIORI AT...  (source: mem:decision:ADR_0811020441_0ace0ef8)
 - pre-sleep-directives-2026-08-11: THREE DIRECTIVES + ONE FRAME CORRECTION, Daniil verbatim 2026-08-11 ~05:50-06:00, captured before sleep. (1) TRUTH-GROUNDING LANDSCAPE...  (source: mem:decision:ADR_0811015850_9243cb17)
 - eye-design-directive-2026-08-11: THE EYE DESIGN DIRECTIVE, Daniil verbatim 2026-08-11 ~05:10, at the night-package approval ('I approve everything up to and including...  (source: mem:decision:ADR_0811013247_05913c15)
 - where-we-are: ADDENDUM TO THE NIGHT'S CLOSE (~04:55, post-wrap): Codex delivered a SECOND audit -- this time of my annotations on the Gemini reviews -- and it landed...  (source: mem:decision:ADR_0811012226_2002776a)
@@ -111,4 +112,3 @@ CORRECTION TO THE FIRST...  (source: mem:decision:ADR_0731235217_70727bd0)
 - scratch:kimi:arch-truth-review-2026-07-31: Architecture truth review 2026-07-31: VERIFIED repo facts: pre_commit.py line 61 calls scripts/check_comprehensibility.py...  (source: mem:decision:ADR_0731092031_73aa9b4c)
 - scratch:kimi:round-state-inhabitant-lens-fences-2026-07-31: 2026-07-31 round state, VERIFIED from files: (1) cognitive-load round COMPLETE 4/4, convergence doc at...  (source: mem:decision:ADR_0730211041_550a1488)
 - scratch:kimi:grok-clarification-request-2026-07-30: RESOLVED 2026-07-30: cursor_grok booted as Grok 5 (Cursor shell), explicitly NOT gemini, NOT opal, NOT last night's...  (source: mem:decision:ADR_0730210944_f87ae497)
-- scratch:kimi:lens-spec-v02-status-and-fence-state: 2026-07-30/31: Lens spec v0.2 status — v0.1 ACCEPTED by deepseek (5 claims standing, 4 sharpenings + flag cap, zero...  (source: mem:decision:ADR_0730210509_f9004b73)
