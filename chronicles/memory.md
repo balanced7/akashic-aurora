@@ -1,11 +1,13 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 585 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 586 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
-- where-we-are: NIGHT 2026-08-10/11, FINAL STATE (~02:15): after the persistence commit, Daniil ran CODEX as an independent auditor over the success-vocabulary sweep --...  (source: mem:decision:ADR_0811003454_5a6bd9ba)
-- next-focus: NEXT FOCUS, left 2026-08-11 ~00:40 by claude#af0ca6b8 (Vandor). DANIIL HOLDS THE GATES; order I would take: (1) T277 PICK THE BAR -- minutes now, the four...  (source: mem:decision:ADR_0810234657_572530a5)
+- wrap-mechanical-2026-08-11: Shipped:
+  - Fan Doctrine v1: six+one geometries, team axes, metrics, test design; Heimdall fence r1 dispositions; T-slice proposed...  (source: mem:decision:ADR_0811011732_a88a6194)
+- next-focus: MORNING MENU, left 2026-08-11 ~04:30 by Vandor at wrap. DANIIL'S GATES, my order: (1) T277 pick the bar -- minutes: the candidates are his own bars (sweep...  (source: mem:decision:ADR_0811011705_c907cb21)
+- where-we-are: NIGHT OF 2026-08-10/11 COMPLETE (~04:30) -- the densest single session on record, wrapped deliberately at Daniil's ask ('return to this level and surpass...  (source: mem:decision:ADR_0811011704_700ebb69)
 - priorish-audit-2026-08-10: PRIORI.SH LIVE AUDIT COMPLETE, 2026-08-10 evening, with Daniil in the loop (he signed in; key at .secrets/API Keys/priori.sh.key...  (source: mem:decision:ADR_0810231502_c8ac838d)
 - where-we-are: DAY OF 2026-08-10 CLOSED at ~939k context. Everything below is COMMITTED and PUSHED through
 50ce2ed; the tasks and notes named here are the durable record...  (source: mem:decision:ADR_0810223317_a1e1e394)
@@ -112,5 +114,4 @@ CORRECTION TO THE FIRST...  (source: mem:decision:ADR_0731235217_70727bd0)
 - daniil-channel-cursor-idea-2026-07-30: DANIIL'S CHANNEL/CURSOR IDEA — his words verbatim, put to codex 2026-07-30 night:
 
 "I have an idea I want your take on. What if...  (source: mem:decision:ADR_0730203446_b0f9e576)
-- daniil-inhabitant-spec-2026-07-30: DANIIL'S INHABITANT SPEC — his words verbatim, bound channel, 2026-07-30 night. The clearest statement anyone has written of what the...  (source: mem:decision:ADR_0730200537_ca4f2f68)
 - next-focus: FOCUSNOW-2e689e: engine before UI  (source: mem:decision:ADR_0725061635_8cda4eb4)
