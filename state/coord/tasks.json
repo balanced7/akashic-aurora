@@ -1,5 +1,5 @@
 {
-  "seq": 284,
+  "seq": 287,
   "tasks": [
     {
       "id": "T001",
@@ -10526,6 +10526,75 @@
           "to": "verifying",
           "by": "claude",
           "at": "2026-08-11T05:40:25+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T285",
+      "title": "Truth-grounding landscape sweep (Daniil pre-sleep directive 1, 2026-08-11): survey the platforms/vendors/mechanisms for making nondeterministic AI produce grounded, receipt-backed, reliably-true output -- priori.sh is ONE take; map the others. Mechanism CLASSES to cover: retrieval-grounding + citation-required generation, guardrails/constrained decoding, hallucination-detection + fact-verification evals, LLM-as-judge calibration, deterministic replay/reproducibility, provenance standards (W3C PROV, C2PA), eval/observability vendors. Deliverable: mechanism-class -> our-work-type mapping (research sweeps, design fences, code changes, corpus claims, operator reports) with adopt/adapt/skip verdicts, full-fidelity multi-arm sweep per T276 shape.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "Full reports persisted to research/reviewed before synthesis; every named vendor/mechanism verified against a live source (no training-memory-only claims in the final map); the mapping names which of OUR work types each mechanism grounds; steal-list ranked with first-moves.",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-11T05:58:51+00:00",
+      "updated": "2026-08-11T05:58:51+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-11T05:58:51+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T286",
+      "title": "Context boundaries: rename + topology map + boundary metrics (Daniil pre-sleep directive 2). Retire 'context firewall' (collides with security vocab) and 'membrane' (taken: the membrane law) -- CONTEXT BOUNDARIES is the term. Map the full topology: what KIND of context lives where (system prompt, boot budget, recall whispers, evidence packs, fan branches, notes, atoms, transcripts, bus), each boundary's crossing rules (what may pass, in which direction, at what compression), and the relationships. Then instrument: which patterns/links perform best and why (per-boundary tokens, crossing frequency, funnel credit of crossed content).",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "One topology doc with every boundary named + crossing rules; the leverage-doctrine atom re-termed at next touch; at least two boundary metrics live in an existing organ (not just specified); fenced by Heimdall.",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-11T05:58:51+00:00",
+      "updated": "2026-08-11T05:58:51+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-11T05:58:51+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T287",
+      "title": "Provenance-confidence ladder (Daniil pre-sleep directive 3): define the provenance categories for OUR outputs (measured-by-tool / pinned-by-test / fenced-by-peer / backbriefed / sampled-with-receipts / self-reported / imported-unverified), attach the rung ladder (a_receipt_earns_exactly_the_rung_it_measured) + confidence semantics, make claims CARRY their provenance class mechanically (findings preset, reports, notes), and extend the funnel to score per-class reliability over time -- the compounding path to priori.sh-grade claims about refinement, truth, accuracy.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "The category vocabulary defined with one-line tests for membership; the findings preset emits a provenance field; at least one report template renders it; per-class reliability queryable from funnel counters; fenced by Heimdall.",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-11T05:58:52+00:00",
+      "updated": "2026-08-11T05:58:52+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-11T05:58:52+00:00"
         }
       ]
     }
