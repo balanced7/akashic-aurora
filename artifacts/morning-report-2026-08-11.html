@@ -1,0 +1,317 @@
+<title>While You Slept - Night Shift Report 2026-08-11</title>
+
+<style>
+/* report-kit -- the design system behind Akashic Aurora's visual reports.
+ *
+ * Daniil 2026-08-10, after three of them in two days: "Is there a way to verbify it so that
+ * it is easier for you to make these?"
+ *
+ * THIS IS A SYSTEM, NOT A TEMPLATE, and the distinction is the whole design constraint. The
+ * three reports that produced this kit needed three different SHAPES -- a retrospective, a
+ * set of decision forks, a reconciliation built around a contradiction -- and the thing
+ * Daniil was responding to was the fit. A generator that emitted a fixed document would
+ * flatten exactly that. So: tokens and primitives here, composition every time.
+ *
+ * INLINED, NEVER LINKED. Published artifacts run under a CSP that blocks every external
+ * host, so a <link> to this file would silently fall back to unstyled. The scaffold
+ * generator inlines it at emit time; that is a requirement, not a convenience.
+ *
+ * SEMANTIC COLOUR IS SEPARATE FROM ACCENT. --go/--hold/--stop carry MEANING (this is cheap /
+ * this needs judgement / this costs either way) and must never be spent on decoration.
+ * --aurora is the accent and carries none. Mixing the two is how a design system becomes
+ * wallpaper.
+ */
+
+:root {
+  /* Ground and structure. The neutrals are blue-biased toward the accent rather than pure
+     grey -- a pure mid-grey reads as unconsidered. */
+  --ground:#0A0F14; --surface:#111A22; --surface2:#17222C; --line:#22303E;
+  --ink:#E3EAEF; --muted:#8798A6; --dim:#5F7080;
+
+  /* Semantic. Meaning only. */
+  --go:#3FD3A0;      /* cheap, unblocked, shipped, confirmed */
+  --hold:#E0A854;    /* needs judgement, pending, self-declared */
+  --stop:#E4606A;    /* costs either way, refuted, not built */
+  --aurora:#8B7FE8;  /* the accent. Structure and emphasis, never status. */
+
+  --mono:ui-monospace,"SF Mono","Cascadia Mono","Roboto Mono",Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+}
+
+/* Both themes at TOKEN level: components style through the tokens and never inside the
+   media query, so the data-theme override can win in BOTH directions. */
+@media (prefers-color-scheme: light) {
+  :root {
+    --ground:#F7F8F9; --surface:#FFFFFF; --surface2:#F0F3F5; --line:#DCE3E8;
+    --ink:#16202A; --muted:#5A6B79; --dim:#8496A3;
+    --go:#137A5A; --hold:#9A6A17; --stop:#C43A45; --aurora:#5B4DC4;
+  }
+}
+:root[data-theme="dark"] {
+  --ground:#0A0F14; --surface:#111A22; --surface2:#17222C; --line:#22303E;
+  --ink:#E3EAEF; --muted:#8798A6; --dim:#5F7080;
+  --go:#3FD3A0; --hold:#E0A854; --stop:#E4606A; --aurora:#8B7FE8;
+}
+:root[data-theme="light"] {
+  --ground:#F7F8F9; --surface:#FFFFFF; --surface2:#F0F3F5; --line:#DCE3E8;
+  --ink:#16202A; --muted:#5A6B79; --dim:#8496A3;
+  --go:#137A5A; --hold:#9A6A17; --stop:#C43A45; --aurora:#5B4DC4;
+}
+
+body { background:var(--ground); color:var(--ink); font-family:var(--sans);
+       line-height:1.62; margin:0; padding:0 20px 90px; }
+.wrap { max-width:880px; margin:0 auto; }
+h1,h2,h3 { text-wrap:balance; margin:0; }
+p { margin:0; }
+a { color:var(--aurora); }
+code { font-family:var(--mono); font-size:.88em; background:var(--surface2);
+       padding:1.5px 5px; border-radius:3px; }
+.num { font-variant-numeric:tabular-nums; }   /* any column of digits */
+
+/* --- header ------------------------------------------------------------------ */
+header { padding:54px 0 24px; display:flex; flex-direction:column; gap:13px; }
+.eyebrow { font-family:var(--mono); font-size:12px; letter-spacing:.14em;
+           text-transform:uppercase; color:var(--muted); }
+h1 { font-size:clamp(28px,4.6vw,40px); line-height:1.14; font-weight:640;
+     letter-spacing:-.02em; }
+.standfirst { font-family:var(--serif); font-size:18.5px; line-height:1.55;
+              color:var(--muted); max-width:62ch; }
+
+/* --- rule: a section break that carries the project's name ------------------- */
+hr.rule { height:2px; border:0; margin:0; opacity:.5;
+  background:linear-gradient(90deg,transparent,var(--go) 18%,var(--aurora) 52%,
+             var(--stop) 80%,transparent); }
+
+section { margin-top:46px; display:flex; flex-direction:column; gap:16px; }
+h2 { font-size:12.5px; font-family:var(--mono); letter-spacing:.16em;
+     text-transform:uppercase; color:var(--muted); font-weight:600; }
+h3 { font-size:20px; font-weight:620; letter-spacing:-.01em; }
+.prose { max-width:68ch; color:var(--muted); font-size:15.5px; }
+.prose strong { color:var(--ink); }
+
+/* --- tiles: headline numbers. Use for 3-6 figures, never for prose. ---------- */
+.tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+.tile { background:var(--surface); border:1px solid var(--line); border-radius:4px;
+        padding:14px 16px; display:flex; flex-direction:column; gap:3px; }
+.tile .v { font-family:var(--mono); font-size:26px; font-weight:600; letter-spacing:-.02em;
+           font-variant-numeric:tabular-nums; }
+.tile .k { font-family:var(--mono); font-size:11px; letter-spacing:.1em;
+           text-transform:uppercase; color:var(--dim); }
+
+/* --- card + paths: A DECISION WITH REAL COSTS ON BOTH SIDES ------------------
+   Use ONLY when both directions genuinely cost something. A card whose second path is
+   obviously wrong is a rhetorical device pretending to be a choice. */
+.card { background:var(--surface); border:1px solid var(--line); border-radius:5px;
+        border-left:3px solid var(--line); overflow:hidden; }
+.card.go { border-left-color:var(--go); }
+.card.hold { border-left-color:var(--hold); }
+.card.stop { border-left-color:var(--stop); }
+.card .head { padding:17px 20px 13px; display:flex; flex-direction:column; gap:7px; }
+.card .tid { font-family:var(--mono); font-size:11px; letter-spacing:.08em; color:var(--dim); }
+.card .title { font-size:19px; font-weight:620; letter-spacing:-.01em; }
+.card .ctx { color:var(--muted); font-size:15px; max-width:70ch; }
+.paths { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--line);
+         border-top:1px solid var(--line); }
+.path { background:var(--surface2); padding:14px 20px; display:flex;
+        flex-direction:column; gap:5px; }
+.plabel { font-family:var(--mono); font-size:10.5px; letter-spacing:.1em;
+          text-transform:uppercase; }
+.plabel.a { color:var(--go); } .plabel.b { color:var(--stop); }
+.ptext { font-size:14.5px; color:var(--muted); }
+.rec { padding:12px 20px; border-top:1px solid var(--line); font-size:14.5px;
+       background:color-mix(in srgb, var(--aurora) 7%, transparent); }
+.rec b { color:var(--ink); }
+
+/* --- timeline: ONLY when order carries information the reader needs ---------- */
+.timeline { display:flex; flex-direction:column; }
+.tl { display:grid; grid-template-columns:112px 1fr; gap:18px; align-items:start;
+      padding:16px 0; border-bottom:1px solid var(--line); }
+.tl:last-child { border-bottom:0; }
+.tl .when { font-family:var(--mono); font-size:12px; color:var(--dim); padding-top:2px; }
+.tl .what { display:flex; flex-direction:column; gap:5px; }
+.tl .wt { font-weight:620; }
+.tl .wd { color:var(--muted); font-size:14.5px; }
+
+/* --- versus: A GENUINE DISAGREEMENT, fairly stated ---------------------------
+   NOT a pro/con list. Use when two positions are both defensible and the reader must
+   judge between them. Pair with .synth when a reconciliation exists. */
+.versus { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--line);
+          border:1px solid var(--line); border-radius:5px; overflow:hidden; }
+.side { background:var(--surface); padding:19px 21px; display:flex;
+        flex-direction:column; gap:8px; }
+.side .lbl { font-family:var(--mono); font-size:11px; letter-spacing:.1em;
+             text-transform:uppercase; color:var(--hold); }
+.side .claim { font-size:16px; font-weight:600; }
+.side .why { font-size:14.5px; color:var(--muted); }
+.synth { background:color-mix(in srgb,var(--aurora) 10%, var(--surface));
+         border:1px solid color-mix(in srgb,var(--aurora) 32%,var(--line));
+         border-radius:5px; padding:20px 22px; display:flex; flex-direction:column; gap:8px; }
+.synth .lbl { font-family:var(--mono); font-size:11px; letter-spacing:.1em;
+              text-transform:uppercase; color:var(--aurora); }
+
+/* --- quote: someone's words, verbatim. mark = the phrase that matters -------- */
+blockquote { margin:0; padding:20px 24px; background:var(--surface);
+             border-left:3px solid var(--aurora); border-radius:4px;
+             font-family:var(--serif); font-size:18px; line-height:1.6; }
+blockquote .who { display:block; margin-top:10px; font-family:var(--mono); font-size:11px;
+                  letter-spacing:.09em; color:var(--dim); text-transform:uppercase; }
+mark { background:color-mix(in srgb,var(--hold) 26%,transparent); color:inherit;
+       padding:0 3px; border-radius:2px; }
+
+/* --- rows: a flat list where each item has a label and a consequence --------- */
+.rows { display:flex; flex-direction:column; border:1px solid var(--line);
+        border-radius:5px; overflow:hidden; }
+.row { display:flex; gap:14px; align-items:flex-start; padding:13px 18px;
+       background:var(--surface); border-bottom:1px solid var(--line); }
+.row:last-child { border-bottom:0; }
+.row .rt { font-weight:600; min-width:180px; }
+.row .rd { color:var(--muted); font-size:14.5px; }
+
+/* --- table: wide content scrolls ITSELF, the page never scrolls sideways ----- */
+.scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+table { border-collapse:collapse; width:100%; min-width:520px; font-size:14.5px; }
+th,td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--line);
+        vertical-align:top; }
+th { font-family:var(--mono); font-size:11px; letter-spacing:.09em; text-transform:uppercase;
+     color:var(--dim); font-weight:600; }
+td.n { font-family:var(--mono); font-variant-numeric:tabular-nums; }
+.v { font-family:var(--mono); font-size:11px; letter-spacing:.06em; white-space:nowrap; }
+.v.ok { color:var(--go); } .v.no { color:var(--stop); }
+.v.cl { color:var(--hold); } .v.mo { color:var(--dim); }
+
+footer { margin-top:54px; padding-top:20px; border-top:1px solid var(--line);
+         font-family:var(--mono); font-size:12px; color:var(--dim); line-height:1.7; }
+
+:focus-visible { outline:2px solid var(--aurora); outline-offset:2px; }
+@media (max-width:640px) {
+  .paths, .versus { grid-template-columns:1fr; }
+  .tl { grid-template-columns:1fr; gap:4px; }
+  .row { flex-direction:column; gap:4px; }
+}
+@media (prefers-reduced-motion:reduce) { * { animation:none !important; transition:none !important; } }
+</style>
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">THE NIGHT PACKAGE, DELIVERED &middot; 2026-08-11 ~07:00</div>
+  <h1>Five slices landed, four directives captured, two confessions, and your morning fits in one lettered line.</h1>
+  <p class="standfirst">You asked whether our approaches are theory or something transformational,
+  then corrected the frame: the bar is ours, not anyone's judgment of it. Here is the night
+  measured against our own doctrine — every claim with its receipt, every failure confessed in
+  the same voice as the wins. Reply like: <strong>"approve A2, B, C, D-all"</strong>.</p>
+</header>
+
+<hr class="rule">
+
+<section>
+  <h2>The night in numbers</h2>
+  <div class="tiles">
+    <div class="tile"><span class="v">5/5</span><span class="k">package slices landed</span></div>
+    <div class="tile"><span class="v">10</span><span class="k">commits, all pushed</span></div>
+    <div class="tile"><span class="v">17</span><span class="k">new RED pins, all green</span></div>
+    <div class="tile"><span class="v">3</span><span class="k">Heimdall fences folded</span></div>
+    <div class="tile"><span class="v">~$0.07</span><span class="k">model spend, whole night</span></div>
+    <div class="tile"><span class="v">6</span><span class="k">directives captured verbatim</span></div>
+  </div>
+</section>
+
+<section>
+  <h2>The scoreboard — what landed, with receipts</h2>
+  <div class="scroll"><table>
+    <tr><th>Slice</th><th>What shipped</th><th>The receipt</th></tr>
+    <tr><td><strong>T282</strong> ghost pages</td>
+        <td>Succession retracts a dead incarnation's page; pages name their evidence trio (pulse/beat/phase)</td>
+        <td class="n">d816a1e &middot; 4 pins (P1 is the literal night pattern) &middot; 19-test neighbor run green</td></tr>
+    <tr><td><strong>T284</strong> door contract</td>
+        <td>Serialization claim narrowed to the truth (process-local lock; cross-process = backend-atomic + CAS/advisory); O1-as-O(1) homonym disarmed</td>
+        <td class="n">6a5fac1 &middot; 4 structural pins &middot; live drill deferred to Heimdall's verify, stated</td></tr>
+    <tr><td><strong>T280</strong> query grammar</td>
+        <td>Contract v1.1: the as_of law, nine facets (fence added edge_to, since, strict valve), 422 rule, degraded vocabulary, formation metadata</td>
+        <td class="n">9e8301c4 &middot; atom 7803ae &middot; fence r1: 5 counters, all folded</td></tr>
+    <tr><td><strong>T278</strong> THE EYE</td>
+        <td>v2 design: the sensorium — position, LOD pyramid, 8 verbs, fog-as-honesty, the inhabitant loop; your charter verbatim at its head</td>
+        <td class="n">00471f34 &middot; atom 208b26 &middot; fence r1: 6 counters folded, build order flipped S0→S3→S1</td></tr>
+    <tr><td><strong>T281</strong> fan doctrine</td>
+        <td>Geometries at the door (7 shapes, declared never derived), coverage numbers (chars_total), route journal substrate, teaching refusals on BOTH paths, bg forwarding total</td>
+        <td class="n">94e2e835 &middot; 9 pins incl. the wiring pin &middot; 39-test run green</td></tr>
+    <tr><td><strong>T285</strong> truth-grounding</td>
+        <td>The sweep RAN (your fidelity mandate): 7 mechanism classes × our 5 work types, claims-anatomy template, adopt/adapt/skip ranked; C2PA-for-text + EU AI Act Art.50 live-now finds</td>
+        <td class="n">ed8a5655 &middot; atom 6ef685 &middot; 4 web arms + claims lens, sources cited</td></tr>
+  </table></div>
+</section>
+
+<section>
+  <h2>Confessions — same voice as the wins</h2>
+  <div class="rows">
+    <div class="row"><span class="rt" style="color:var(--stop)">The wiring leak</span><span class="rd">Two live smokes
+    went to the model with <code>--geometry</code> silently ignored (~$0.004): my pure-function pin tested the
+    mechanism, not the wiring — the exact lesson class, self-demonstrated. Caught by live smoke, fixed on both
+    paths, and now pinned by a subprocess test that refuses before any model call.</span></div>
+    <div class="row"><span class="rt" style="color:var(--hold)">The silent replace</span><span class="rd">T280's C3
+    fold missed on a line-break (str.replace fails silent); the dispositions claimed what §4 didn't contain.
+    Caught on re-read within the same cycle, fixed in 9e8301c4.</span></div>
+    <div class="row"><span class="rt" style="color:var(--hold)">Deferred, stated</span><span class="rd">T284's live
+    concurrent-writes drill rides Heimdall's verify pass (the wording was narrowed against measured receipts
+    instead). The route journal is substrate-only tonight — counters that read it are Stage 2. Fences tonight were
+    single-refuter rounds; the doctrine's diverse-lens verification applies from T281's own machinery onward.</span></div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section>
+  <h2>Your morning, lettered</h2>
+  <div class="card hold">
+    <div class="head">
+      <div class="tid">DECISIONS A&ndash;D &middot; BATCH PHRASING: "approve A2, B, C, D-all" (or any subset)</div>
+      <div class="title">A — pick the bar (T277). The candidates are your own sentences.</div>
+      <div class="ctx">Each with its receipt from the sweep + completion. The 08-06 friction scorecard
+      (commands-per-task, time-to-first-useful-output, operator interventions, recovery time) serves
+      whichever bar you pick as its measures — it is not itself a bar.</div>
+    </div>
+    <div class="paths">
+      <div class="path"><span class="plabel a">THE FIVE CANDIDATES</span><span class="ptext">
+      <b>A1</b> Utility-density — "smallest size, ever more utility; ever-sharpening sword" (07-03)<br>
+      <b>A2</b> Felt-difference / inhabitability — "has the inhabited world become easier to inhabit" (07-28→30); THE EYE §8 makes it a number<br>
+      <b>A3</b> Portfolio legibility — "pass muster when a real engineer reads it, no fluff" (07-03); "our very artifact will be our proof" (08-08)<br>
+      <b>A4</b> Personal-bests reproducibility — "beat our previous personal bests" (07-21); tonight is the standing best<br>
+      <b>A5</b> The assembled governing definition (Codex, from your language): fresh or returning agents reach correct, grounded work with little re-explanation, while you can see, understand, and intervene</span></div>
+      <div class="path"><span class="plabel b">B / C / D</span><span class="ptext">
+      <b>B</b> — T283 cold A/B prereg: two fresh conversations, VIRGIN ids (checked against the events ledger), boot-only vs equal-token docs pack, traps (stale bus msg, fleet-wide backlog, role-typed bait), measures (accuracy, tokens, time, violations, attribution), crossover preference ask, third-seat handoff recovery. Approve = I file the formal prereg and schedule.<br>
+      <b>C</b> — THE EYE build start: read the v2 design (atom 208b26), approve S0→S3→S1.<br>
+      <b>D</b> — formalize the captured programs: <b>D1</b> T285 verdicts (adopt-list: span-support checks, our own faithfulness rate, schema-enforced verdicts, C2PA-text investigation) &middot; <b>D2</b> T286 context boundaries &middot; <b>D3</b> T287 provenance ladder &middot; <b>D4</b> T288 beat-priori citations &middot; <b>D5</b> T289 agentic ergonomics.</span></div>
+    </div>
+    <div class="rec"><b>My leans, held loosely:</b> A2 (THE EYE just made it measurable; A3 falls out of
+    A2's receipts), B yes (the prereg is Codex's best work), C yes (the design is fenced and the founding
+    wound is pinned), D-all as approved programs with D2/D3 first (they harden every other lane).</div>
+  </div>
+</section>
+
+<section>
+  <h2>The frame, honored</h2>
+  <blockquote>"its not what max said, its our own doctrine and methodology, his perspective does not
+  make a fact. Lets not betray our history. He articulated a valid thing, but its
+  <mark>one we have made ourselves</mark>."
+  <span class="who">DANIIL &middot; 2026-08-11 ~05:55 &middot; THE NIGHT'S CHARTER, CORRECTED MID-FLIGHT</span></blockquote>
+  <p class="prose">So the verdict is given in our own terms: RED-pin-first held on every slice (the
+  pins went red before the code went in, twice catching what reading missed); fence-every-stage held
+  (three rounds, fourteen counters, every disposition recorded); the receipts culture held (two leaks
+  confessed with dollar amounts); capture-before-fade held (six directives, verbatim, within minutes).
+  The doctrine didn't just describe the night — it ran it. That is the receipt that it is not
+  mere theory: <strong>the methodology shipped five slices unattended, caught its own failures
+  twice, and wrote itself down completely.</strong></p>
+</section>
+
+<footer>
+  PROVENANCE — commits 83450e9→94e2e835 (the full arc incl. the evening's seven arcs); tonight's
+  build: d816a1e, 6a5fac1, 9e8301c4/88d851d6, 00471f34, ed8a5655, 94e2e835. Atoms: query-grammar
+  7803ae, eye-design-v2 208b26, truth-grounding 6ef685, fan-doctrine b70185. Directive captures:
+  notes eye-design-directive, pre-sleep-directives, beat-priori-and-ergonomics. Fleet: deepseek +
+  kimi cycled healthy on fresh pids; kimi's detector diagnosis credited in T282. Funnel at last
+  read: 877 lessons, 5.4% value rate, 89% useful-among-judged. Transcript copy current through the
+  Codex round; tonight's build tail folds in at next persist run.
+</footer>
+
+</div>

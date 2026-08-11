@@ -4,10 +4,10 @@ _Distilled from 589 active note(s) · regenerate via `py agent_cli.py note` / `n
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
+- where-we-are: NIGHT SHIFT COMPLETE, 2026-08-11 ~07:10. Daniil approved the night package (~05:15: 'everything up to and including The Eye') then mandated full fidelity...  (source: mem:decision:ADR_0811021402_3e85598c)
 - beat-priori-and-ergonomics-directive-2026-08-11: TWO MORE DIRECTIVES, Daniil verbatim 2026-08-11 ~06:25 (mid-night, appended to the pre-sleep set): (1) BEAT PRIORI AT...  (source: mem:decision:ADR_0811020441_0ace0ef8)
 - pre-sleep-directives-2026-08-11: THREE DIRECTIVES + ONE FRAME CORRECTION, Daniil verbatim 2026-08-11 ~05:50-06:00, captured before sleep. (1) TRUTH-GROUNDING LANDSCAPE...  (source: mem:decision:ADR_0811015850_9243cb17)
 - eye-design-directive-2026-08-11: THE EYE DESIGN DIRECTIVE, Daniil verbatim 2026-08-11 ~05:10, at the night-package approval ('I approve everything up to and including...  (source: mem:decision:ADR_0811013247_05913c15)
-- where-we-are: ADDENDUM TO THE NIGHT'S CLOSE (~04:55, post-wrap): Codex delivered a SECOND audit -- this time of my annotations on the Gemini reviews -- and it landed...  (source: mem:decision:ADR_0811012226_2002776a)
 - wrap-mechanical-2026-08-11: Shipped:
   - Fan Doctrine v1: six+one geometries, team axes, metrics, test design; Heimdall fence r1 dispositions; T-slice proposed...  (source: mem:decision:ADR_0811011732_a88a6194)
 - next-focus: MORNING MENU, left 2026-08-11 ~04:30 by Vandor at wrap. DANIIL'S GATES, my order: (1) T277 pick the bar -- minutes: the candidates are his own bars (sweep...  (source: mem:decision:ADR_0811011705_c907cb21)
