@@ -2,14 +2,15 @@
 
 Status: current  (2026-07-09, P4: Living ops doc)
 
-Three independent layers protect the system, because code, data and the raw record fail
-differently.
+Four independent layers protect the system, because code, data, the raw record and the
+in-flight traffic all fail differently.
 
 | Layer | Protects | Tool | Recover with |
 |---|---|---|---|
-| **Git** | the **architecture** (code, docs, curated chronicles) | `git` | `git checkout <ref> -- <path>` |
-| **Snapshots** | the **knowledge data** (Store, learnings, chronicles) | `scripts/ops/snapshot_knowledge.py` | `... restore <name>` |
-| **Transcript archive** | the **raw record** (session JSONL — where the operator's voice lives) | `scripts/ops/archive_transcripts.py` | copy back from `E:`/`F:\Akashic Aurora\transcripts\rolling` |
+| **Git** (§1) | the **architecture** (code, docs, curated chronicles) | `git` | `git checkout <ref> -- <path>` |
+| **Snapshots** (§2) | the **knowledge data** (Store, learnings, chronicles) | `scripts/ops/snapshot_knowledge.py` | `... restore <name>` |
+| **Transcript archive** (§4) | the **raw record** (session JSONL — where the operator's voice lives) | `scripts/ops/archive_transcripts.py` | copy back from `E:`/`F:\Akashic Aurora\transcripts\rolling` |
+| **Ephemeral archive** (§5) | the **in-flight traffic** (bus streams, spill, wire, learnings) | `scripts/ops/archive_ephemeral.py` | `--search` the export; copy back from `E:`/`F:\Akashic Aurora\ephemeral` |
 
 > **The transcript layer exists because 2026-08-11 proved the first two do not cover it.**
 > The harness rotates session transcripts off disk silently. A schema migration in THE EYE
