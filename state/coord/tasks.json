@@ -1,5 +1,5 @@
 {
-  "seq": 300,
+  "seq": 301,
   "tasks": [
     {
       "id": "T001",
@@ -11119,6 +11119,29 @@
           "to": "done",
           "by": "",
           "at": "2026-08-12T13:54:59+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T301",
+      "title": "test-order coupling in the resident suites: test_resident_placement::test_p3 fails when run WITH test_resident_identity (planted corrupt row residents:log:kimi[10] bleeds through the session-scoped isolate_canonical flush) and passes alone -- same class as T068 wave-A and the T290 P5/P6 bleed fixed 2026-08-12 (unique agents per pin). Fix: either per-test store namespacing in isolate_canonical or unique drill agents in the identity suite. Evidence: combined run 2026-08-12 ~09:35, suite-baseline says 0 failures alone.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-12T14:01:44+00:00",
+      "updated": "2026-08-12T14:01:44+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-12T14:01:44+00:00"
         }
       ]
     }
