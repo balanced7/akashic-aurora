@@ -57,8 +57,8 @@ The cached verdict goes stale at the age of the last push. If we haven't pushed 
 The line a new agent sees:
 
 ```
-door: GREEN (0.8s, at 97561d2) — MCP path healthy
-door: RED   (timeout after 8s) — DO NOT USE MCP. Boot via CLI: `py agent_cli.py boot <you> --task "..."`. Last green: 4.2h ago at 7f1baac.
+door: GREEN (0.8s, at 1f45787) — MCP path healthy
+door: RED   (timeout after 8s) — DO NOT USE MCP. Boot via CLI: `py agent_cli.py boot <you> --task "..."`. Last green: 4.2h ago at 9ab72bd.
 door: UNKNOWN (1 red, retrying) — MCP probe timed out once; will page if next also fails. CLI boot is safe.
 ```
 

@@ -1,6 +1,6 @@
 # RESULT: the hat ablation, and why uniqueness scoring rewards being loudly wrong
 
-Run 2026-08-07 ~06:10 against predictions committed at `1f31575`. Free — 98 tier-1 answers
+Run 2026-08-07 ~06:10 against predictions committed at `93edb7c`. Free — 98 tier-1 answers
 already on disk from the cost-blind sample. Borrowed frame: competitions score **marginal**
 value, not absolute (Kaggle ablation, Shapley attribution, CTF dynamic scoring).
 

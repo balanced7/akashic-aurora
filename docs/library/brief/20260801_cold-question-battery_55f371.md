@@ -34,7 +34,7 @@ is the pre-registration that makes it testable. Per M3, these bars commit BEFORE
 BEFORE any further reader tuning; a preflight failure is a RESULT, and no threshold moves after the
 fact.
 
-**Frozen under test:** repo revision `84f7cc9` · dataset `data/corpus-digests/digests.jsonl`
+**Frozen under test:** repo revision `035e70e` · dataset `data/corpus-digests/digests.jsonl`
 sha256 `46708bc6085a6dbb…` (first 16). Any reader edit after this commit voids a scoring run —
 re-run against the new revision or don't score.
 

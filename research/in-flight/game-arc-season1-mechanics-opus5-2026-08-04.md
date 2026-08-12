@@ -189,8 +189,8 @@ on which the corpus already holds a `backup_door_never_ran` lesson.
 **`needs-door`** — the capability is complete and correct, but no production entry point exposes it.
 *Burden:* show the capability works (a passing test, or triviality), and show no verb reaches it
 (`py agent_cli.py discover`, `agent_cli.py:4436`, is the self-describing verb list).
-*Precedent:* `core/comm/mailbox.py::declare_intent` at `95e0c55` — 8/8 pins, no door; the gate FAILs
-there and goes silent at `b945813` once the door lands.
+*Precedent:* `core/comm/mailbox.py::declare_intent` at `c91ca73` — 8/8 pins, no door; the gate FAILs
+there and goes silent at `e438ccd` once the door lands.
 
 **`needs-caller`** — built ahead of a consumer that does not exist yet.
 *Burden:* name the intended consumer **from the module's own docstring**, then show that consumer is
@@ -490,7 +490,7 @@ is the surface the pins can test.
 `docs/method-baseline-2026-07.md:180-191`: *"the acceptance is a NAMED failing test (or strict xfail)
 committed BEFORE the fix builds"*; metric = acceptance commit timestamp ≤ implementation commit
 timestamp; *"BAR: no slice ships whose acceptance postdates its implementation."* The prior Opus
-session's own receipt is the standard: 9 pins committed RED and alone at `c61fa98`.
+session's own receipt is the standard: 9 pins committed RED and alone at `09b3fd8`.
 
 **Slice S1-SCORE-A — token recorders wired.** Pins committed RED and alone, before any runner edit:
 

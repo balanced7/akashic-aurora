@@ -26,7 +26,7 @@ shipping the bug it describes: disagreement has THREE causes, not two --
     2. curation artifact (what we want to measure)
     3. THE CURATORS DID NOT RECEIVE THE SAME INPUTS
 
-T216 (54bc84c) was cause 3 one tier down: `--with` was accepted on the fan path and
+T216 (4875fe9) was cause 3 one tier down: `--with` was accepted on the fan path and
 SILENTLY dropped, so five helpers returned well-formed confident answers about zero files.
 It survived a night of heavy use because the big runs inlined their files by hand. So the
 flip rate here REFUSES to compute unless every dossier's evidence hash matches, and says
@@ -487,7 +487,7 @@ DEFAULT_HATS: Dict[str, str] = {
         "strongest confirmation available; a defence that holds is a finding of its own."),
 }
 
-#: RETIRED 2026-08-07 by ablation (pre-registered 1f31575, result 40de626), kept as a record
+#: RETIRED 2026-08-07 by ablation (pre-registered 93edb7c, result 7fc9d35), kept as a record
 #: rather than deleted so the reason survives and nobody re-adds it reasonably.
 #:
 #: `economist` asked where a confusion between senses would produce a WRONG RESULT rather
@@ -602,7 +602,7 @@ CONSENSUS_FLOOR = 1 / 3
 def settle_verdict(dossier: Dict[str, Any]) -> str:
     """The verdict a dossier is entitled to, given the margin it won by.
 
-    MEASURED, first cost-blind sample (pre-registered at b73a757): two of three FORK
+    MEASURED, first cost-blind sample (pre-registered at da5fbc7): two of three FORK
     verdicts were false positives, and both were a LONE hat promoted over a five- or
     six-hat NO_FORK consensus. `behaviour` and `remain` are ordinary English polysemy that
     6-of-7 and 5-of-7 hats respectively rejected, and the curator carried the minority

@@ -33,10 +33,10 @@ PROPOSING A NEW ENTRY describing it, instead of closing the original. The number
 
 | entry | status | its own title says |
 |---|---|---|
-| T110 | proposed | "**T110 DONE** (08f6016+c2244b6): cost meter honesty…" |
-| T111 | proposed | "**T108 slice 2 DONE** (31e6737): per-incarnation lane cursor…" |
-| T112 | proposed | "**T113 DONE** (c94e1f4): the tool send door spills oversize payloads…" |
-| T113 | proposed | "**T115 DONE** (2cc5dc6): check_advertised_verbs…" |
+| T110 | proposed | "**T110 DONE** (0a2e6a4+8fc841b): cost meter honesty…" |
+| T111 | proposed | "**T108 slice 2 DONE** (e8af33f): per-incarnation lane cursor…" |
+| T112 | proposed | "**T113 DONE** (67f9e1a): the tool send door spills oversize payloads…" |
+| T113 | proposed | "**T115 DONE** (2b11fdb): check_advertised_verbs…" |
 
 Note T112's title names "T113" and T113's names "T115", while the real T115 is an unrelated
 faithfulness diagnosis. The IDs and the contents disagree.

@@ -1,6 +1,6 @@
 # RESULT: my headline prediction died, and the reason is the finding
 
-Run 2026-08-07 against predictions committed at `c87a0a9`, before the probe. Ground truth by
+Run 2026-08-07 against predictions committed at `67d9439`, before the probe. Ground truth by
 execution, never from docstrings.
 
 ## Scorecard

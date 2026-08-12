@@ -46,7 +46,7 @@ one. Note the checker is currently flagging **two stale entries in its own EXCEP
 84 open of 133. The census has the full analysis. Two things to know before you touch anything:
 
 **THE LOSS RISK.** Four entries are completion records misfiled as proposals — T110's title
-literally begins `"T110 DONE (08f6016+c2244b6)"`, T111's says `"T108 slice 2 DONE"`, T112's says
+literally begins `"T110 DONE (0a2e6a4+8fc841b)"`, T111's says `"T108 slice 2 DONE"`, T112's says
 `"T113 DONE"`, T113's says `"T115 DONE"` while the real T115 is an unrelated faithfulness
 diagnosis. Close them on their commit shas **and re-file their three named OPEN FOLLOW-UPs** —
 closing a parent without re-filing its follow-ups is exactly how work disappears.
@@ -83,7 +83,7 @@ accounted for before skipping. Do not re-run `bifrost-skip-to-now`.
   surfaced only trace-class telemetry, which correctly is not mail and correctly gets no receipt.
 - `test_robustness::test_cross_backend_equivalence` fails on Windows tempfile/SQLite handles —
   pre-existing, verified by stashing twice.
-- Three gemini runner pins fail — another seat's mid-flight code; commit `d11ffe6` names those exact
+- Three gemini runner pins fail — another seat's mid-flight code; commit `a120213` names those exact
   three in its own message.
 - `state/daemon-claude.pid` says 52552; the live daemon is **pid 9572**. Stale pidfile — the
   documented stop command would target a corpse.

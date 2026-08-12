@@ -18,14 +18,14 @@ why-questions no longer return their governing artifact in top-3:
 
 ## WHY IT IS RED, AND WHY IT IS NOT A TEST BUG
 
-This battery is not an ordinary test. Its own commit (1db3fce, T027/P7) calls it "a PERMANENT
+This battery is not an ordinary test. Its own commit (e5c5cd4, T027/P7) calls it "a PERMANENT
 CANONICAL-CORPUS REGRESSION PIN", dual-pre-registered BEFORE implementation, taken to 12/12
 "after three ROOT-CAUSED rounds, NEVER TUNED". It measures the product claim directly: can a
 why-question find the artifact that answers it.
 
-It was 12/12 green at 9307249 (2026-07-10). Then f8510b6 (2026-07-23) -- "P3: THE SPRAWL DIES
+It was 12/12 green at 77517d6 (2026-07-10). Then 425cf52 (2026-07-23) -- "P3: THE SPRAWL DIES
 -- Daniel's gate verbatim: 'Delete the 643!'" -- removed 621 tracked docs and re-pointed
-references to atom projections. VERIFIED: `git log --diff-filter=D` names f8510b6 as the
+references to atom projections. VERIFIED: `git log --diff-filter=D` names 425cf52 as the
 commit that deleted docs/comms-pillar-synthesis*, and the expected artifacts are absent from
 docs/ AND from docs/library/design/ under their old names.
 
@@ -63,7 +63,7 @@ would not have.
 
 Numbers, now that the construction has actually been run rather than reasoned about:
 
-* f8510b6 deleted **621 tracked files**, of which **103 are top-level `docs/*.md`** --
+* 425cf52 deleted **621 tracked files**, of which **103 are top-level `docs/*.md`** --
   the population the battery's expected slugs live in. Earlier text in this file says
   "621 docs"; that is the total tracked deletion, not the doc-name population. Stated
   here rather than edited above, so the correction is visible.

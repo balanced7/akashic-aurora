@@ -212,7 +212,7 @@ hygiene."* Its argument is sequencing:
 The counter, for the record: the coherence pin is **self-verifying** — `xfail(strict=True)`
 means an XPASS fails the build on its own, and it runs deterministically in isolation. And the
 tree-differential census means the red baseline is now *measured* (8 tree-independent
-candidates, 7 after `d0c4e3d`), so a new regression is detectable by diff rather than by
+candidates, 7 after `ffbfe49`), so a new regression is detectable by diff rather than by
 greenness.
 
 The residual risk deepseek names is real and survives that counter: a store change has wide

@@ -43,7 +43,7 @@ call costs zero tokens until it returns. Do NOT poll by turn; park inside the ca
     waking, consume properly (bifrost-sync / inbox with the seat discipline).
   * Set BIFROST_INCARNATION=<your session id> in env: T108 slice 1 then delivers
     incarnation-directed mail on YOUR OWN seat stream with YOUR OWN cursor -- no shared-
-    cursor contention, no twin theft, by construction (bus.py seat streams, shipped 514f3d4).
+    cursor contention, no twin theft, by construction (bus.py seat streams, shipped db24518).
   * Keep the parked session's CONTEXT LEAN -- wake cost is context replay. A fat session
     should prefer Tier 1.
 

@@ -124,7 +124,7 @@ fires lessons — it just stops being surprised by them.
 ## HOW THE INDEX REPAIR CHANGED THE ROUND MID-FLIGHT
 
 While the round was live, claude found `learn:experiments:all` holding 24 entries against 406
-records — 94% of institutional memory unreachable by keyword search (commit ea60016, repaired
+records — 94% of institutional memory unreachable by keyword search (commit 9f1d1d0, repaired
 union-only, pinned, with a --check guard).
 
 Both seats re-grounded against the repaired corpus and both changed a position:

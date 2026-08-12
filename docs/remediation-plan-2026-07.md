@@ -17,8 +17,8 @@ step. Nothing here is built.
 Both came from asking "does this already exist?" before designing — the check that has now
 paid off three times today.
 
-**`suite-baseline` already exists** and is **44.7 hours stale**: recorded at `bb0beac` with 13
-known failures, while HEAD is `32553c6` and the clean-clone census measured 25. The organ is
+**`suite-baseline` already exists** and is **44.7 hours stale**: recorded at `6a0162c` with 13
+known failures, while HEAD is `447e240` and the clean-clone census measured 25. The organ is
 not missing, it is *unrefreshed* — an instrument reporting a number nobody renewed, which is
 this week's genus exactly. Worth refreshing on its own merits.
 
@@ -181,7 +181,7 @@ conversion.
 **S0.1 — Refresh the suite baseline at HEAD, from a clean clone.**
 Record with `suite-baseline claude --from-file <clean-clone pytest output> --sha <HEAD>`.
 Must be the clean clone, not the working tree (L0.2/L0.3).
-*Verify:* `--show` reports HEAD's sha and ~25 failures, not `bb0beac`/13. Then run
+*Verify:* `--show` reports HEAD's sha and ~25 failures, not `6a0162c`/13. Then run
 `--check --from-file` on a second clean run and confirm it reports **0 NEW, 0 fixed**.
 *Unblocks:* every subsequent step becomes verifiable by diff rather than by greenness.
 

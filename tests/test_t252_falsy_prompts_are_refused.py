@@ -1,6 +1,6 @@
 """T252 -- falsy non-strings reach paid helpers as their literal repr.
 
-Found by Gemini 3.1 Pro (bus seat `composer`) in a cold review of commits b27aa20..0ff0482.
+Found by Gemini 3.1 Pro (bus seat `composer`) in a cold review of commits 6692dce..8b7cb1d.
 It reported the JSON-null case. Verification found the class is wider:
 
     [{"prompt": null}]   -> the model is asked the literal string 'None'

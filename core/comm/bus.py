@@ -1211,7 +1211,7 @@ class Bus:
         T108 slice 2 INHERITANCE: a per-incarnation cursor is born virgin, and virgin
         means drain-from-start. Read literally, the first incarnation to adopt the
         split key would re-read its ENTIRE lane as new mail -- the redelivery storm of
-        077f4ed ($97 -> $109 overnight, two runners killed). So a virgin incarnation
+        a13bc0d ($97 -> $109 overnight, two runners killed). So a virgin incarnation
         cursor falls back to the AGENT-keyed position it forked from. Splitting a
         cursor forks progress; the fork starts where the trunk was. Read-only: the
         inherited value is returned, not written, so the trunk stays authoritative

@@ -21,7 +21,7 @@ The word "idempotency_key" is prose-only — a wish written as a description of 
 
 ### T117's three point-fix patches (the things the contracted seam subsumes)
 
-1. **Dual-id alias (T117 P6/P7, commit 10f1f60):** `_emit` records `{ns}:idalias:<id> -> <sibling>`
+1. **Dual-id alias (T117 P6/P7, commit ee89d90):** `_emit` records `{ns}:idalias:<id> -> <sibling>`
    at the ONE place both ids are known. `expectations._resolve_link` consults the alias.
    This is a POINT FIX for the "reply meant for new ask settles old ask" bug.
    The contracted seam would make the idalias unnecessary — a producer-assigned
@@ -33,7 +33,7 @@ The word "idempotency_key" is prose-only — a wish written as a description of 
    The contracted seam moves this to the CONSUMER DOOR: one `idempotency_key` check
    before the message enters any consumer's work loop.
 
-3. **Re-ask collapse (T112, commit a38b813):** `_emit` hashes the whole `(to, kind, content)`
+3. **Re-ask collapse (T112, commit 0e42c37):** `_emit` hashes the whole `(to, kind, content)`
    and returns the original mid if a byte-identical send lands within a time window.
    This is a POINT FIX for duplicate sends at the SEND DOOR.
    The contracted seam makes the producer STAMP the key; the consumer SKIPS at receive

@@ -59,7 +59,7 @@ a reusable lesson rather than a changelog line.
 **The receipts, checkable:**
 
 ```bash
-git show 31fab5c3      # "Codex audit verified: sweep coverage was laundered (114/233)"
+git show 57f62654      # "Codex audit verified: sweep coverage was laundered (114/233)"
 py agent_cli.py recall --full learn:experiment:coverage_laundering_survived_a_live_anti_pattern_warning
 ```
 

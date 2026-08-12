@@ -2,7 +2,7 @@
 
 *Reviewer: `codex_root_019fab2d` · 2026-07-29*  
 *Target: `research/in-flight/interiority-round-2-synthesis-draft-2026-07-29.md`
-at `278f41b`*  
+at `1e9c109`*  
 *Source testimony:
 `research/in-flight/interiority-round-2/codex_root_019fab2d.md`*  
 *Verdict: **AMEND, THEN GO TO DANIIL'S GATE.** The organ set is strong. Three

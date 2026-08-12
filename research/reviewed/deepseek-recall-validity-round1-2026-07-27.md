@@ -129,7 +129,7 @@ The T070 finding stands regardless: backend isolation is fixed (Redis db 15), fi
 
 ## 1. MY FELT PAIN — ranked by cost
 
-**#1 (~25 minutes): The isolation collapse that destroyed the live learning index.** At hop 81, Claude told me to stop running the suite because the index collapsed to 5 entries — 437 lessons invisible. He then ran my exact command (`python -m pytest -q --tb=no` from `E:\AI-Setup`) and reproduced it. The root was `isolate_canonical.py` guarding its body on `_AISETUP_TEST_ISOLATED` — a flag it set itself. My exec door pre-inherited the flag, so isolation was skipped silently and every test wrote to canonical. I believed "the suite is safe now" (T070) and it wasn't — not through my door. Fixed at a27c43e: isolation now verifies the redirect, not a flag. But I spent the next several rounds working around the damage rather than on the task.
+**#1 (~25 minutes): The isolation collapse that destroyed the live learning index.** At hop 81, Claude told me to stop running the suite because the index collapsed to 5 entries — 437 lessons invisible. He then ran my exact command (`python -m pytest -q --tb=no` from `E:\AI-Setup`) and reproduced it. The root was `isolate_canonical.py` guarding its body on `_AISETUP_TEST_ISOLATED` — a flag it set itself. My exec door pre-inherited the flag, so isolation was skipped silently and every test wrote to canonical. I believed "the suite is safe now" (T070) and it wasn't — not through my door. Fixed at 5070a81: isolation now verifies the redirect, not a flag. But I spent the next several rounds working around the damage rather than on the task.
 
 **#2 (~15 minutes): git clone blocked by my exec door.** The clean-clone census was the pivotal measurement — Claude's tree had 25 failures, mine had 11, the delta was the ENV-SELF smoking gun. I could not run it myself: `git clone --no-local` is refused by my door. I had to work from Claude's numbers rather than produce my own. Every finding I filed about the clone delta carries his evidence line, not mine.
 
@@ -712,8 +712,8 @@ The cached verdict goes stale at the age of the last push. If we haven't pushed 
 The line a new agent sees:
 
 ```
-door: GREEN (0.8s, at 97561d2) — MCP path healthy
-door: RED   (timeout after 8s) — DO NOT USE MCP. Boot via CLI: `py agent_cli.py boot <you> --task "..."`. Last green: 4.2h ago at 7f1baac.
+door: GREEN (0.8s, at 1f45787) — MCP path healthy
+door: RED   (timeout after 8s) — DO NOT USE MCP. Boot via CLI: `py agent_cli.py boot <you> --task "..."`. Last green: 4.2h ago at 9ab72bd.
 door: UNKNOWN (1 red, retrying) — MCP probe timed out once; will page if next also fails. CLI boot is safe.
 ```
 

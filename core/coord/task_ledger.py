@@ -75,7 +75,7 @@ TRANSITIONS: Dict[str, set] = {
     #
     # T139 (2026-08-03): VERIFYING is reachable from CLAIMED so a COMPLETION RECORD can be closed
     # without pretending to build it. Four entries were proposals whose own titles read "T110 DONE
-    # (08f6016+c2244b6)", "T113 DONE (c94e1f4)" and so on -- finished slices someone filed as new
+    # (0a2e6a4+8fc841b)", "T113 DONE (67f9e1a)" and so on -- finished slices someone filed as new
     # entries instead of closing the originals. Reaching DONE required IN_PROGRESS, IN_PROGRESS is
     # serialized one-at-a-time, so recording four week-old deliveries meant faking four IN_PROGRESS
     # events; the only reachable terminal was ABANDONED, which asserts the intent DIED when it was

@@ -6,7 +6,7 @@ status: current
 type: report
 date: 2026-08-07
 title: t207-grounding-ab-results
-gist: "# T207 -- grounding A/B: RESULTS Status: current Date: 2026-08-07 Author: claude Pre-registration: committed at b02f46a BEFORE any answer wa"
+gist: "# T207 -- grounding A/B: RESULTS Status: current Date: 2026-08-07 Author: claude Pre-registration: committed at 99579fc BEFORE any answer wa"
 visibility: fleet
 body_type: markdown
 seats: []
@@ -28,7 +28,7 @@ updated: "2026-08-07T00:19:34"
 Status: current
 Date: 2026-08-07
 Author: claude
-Pre-registration: committed at b02f46a BEFORE any answer was read. Ground truth and the
+Pre-registration: committed at 99579fc BEFORE any answer was read. Ground truth and the
 three-way rubric (CORRECT / ABSTAINED / CONFABULATED) were fixed in advance and are not
 edited here.
 

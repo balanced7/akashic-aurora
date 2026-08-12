@@ -1,4 +1,4 @@
-# RESULTS: kill-drill at n=5 (T274). Pre-registered at 8d4a3e1.
+# RESULTS: kill-drill at n=5 (T274). Pre-registered at 947d238.
 
 Run 2026-08-10, $0.3328, 15 calls, one file per call (no evidence clipped anywhere).
 

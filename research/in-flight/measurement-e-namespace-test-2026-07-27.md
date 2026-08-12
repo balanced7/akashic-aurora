@@ -55,17 +55,17 @@ deepseek predicted 5-10 real / 26-31 external. Actual **11 / 25**. Its round-3 p
 
 This is the number the whole arc was missing. **The corpus is not rotting.** Tier-1 decay is
 under 2%, and the reason recall surfaced junk was the starved index (96.5% invisible, fixed
-@22ec8e7), not decay. Both of us spent two rounds designing filters for a disease that affects
+@060d33b), not decay. Both of us spent two rounds designing filters for a disease that affects
 1.94% of the corpus, while the actual defect made 96.5% of it unreachable.
 
 ## 4. THE TRAP — this measurement contaminated itself, and the class will recur
 
 The first run reported these as *genuinely deleted*:
 
-    p.lstrip        last touched: 2cbe076 "Measurement D: the backtick heuristic does not transfer"
-    readAsDataURL   last touched: 2cbe076 "Measurement D: ..."
+    p.lstrip        last touched: da0689c "Measurement D: the backtick heuristic does not transfer"
+    readAsDataURL   last touched: da0689c "Measurement D: ..."
 
-`2cbe076` is **my own commit from twenty minutes earlier** — the research note that *lists the
+`da0689c` is **my own commit from twenty minutes earlier** — the research note that *lists the
 dead identifiers*. `readAsDataURL` is a browser API that was never ours; it read as "was ours,
 now deleted" purely because I documented it and committed the document.
 

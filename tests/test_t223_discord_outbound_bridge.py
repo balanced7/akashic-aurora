@@ -76,8 +76,8 @@ def test_secrets_are_redacted_before_they_leave_the_machine():
 def test_redaction_keeps_the_message_readable():
     """Over-redaction makes the channel useless, which is how a safety feature gets turned
     off. The surrounding text must survive."""
-    out = DB.redact("T219 landed at 377a35a -- the scorer fork is closed")
-    assert "377a35a" in out and "scorer fork" in out
+    out = DB.redact("T219 landed at cbae99e -- the scorer fork is closed")
+    assert "cbae99e" in out and "scorer fork" in out
 
 
 # ------------------------------------------------------------------ transport

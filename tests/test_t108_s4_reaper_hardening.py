@@ -1,4 +1,4 @@
-"""T108 S4 reaper hardening pins -- RED against 2692203.
+"""T108 S4 reaper hardening pins -- RED against 3f04d51.
 
 The original S4 pin proves one happy path: a witnessed-dead seat with one message is
 re-homed once. These pins cover the failure boundaries an independent Codex + Kimi

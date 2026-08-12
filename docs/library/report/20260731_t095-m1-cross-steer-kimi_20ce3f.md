@@ -7,7 +7,7 @@ type: report
 arc: leadership-doctrine
 date: 2026-07-31
 title: t095-m1-cross-steer-kimi
-gist: "# T095-M1 Cross-Steer — kimi S2 (2026-07-31) **Pair:** PAIR-KD-T095-01 **Phase:** S2 — Cross-steer **Frozen rev under review:** `9eb9482` (c"
+gist: "# T095-M1 Cross-Steer — kimi S2 (2026-07-31) **Pair:** PAIR-KD-T095-01 **Phase:** S2 — Cross-steer **Frozen rev under review:** `c10201a` (c"
 visibility: fleet
 body_type: markdown
 seats: [kimi]
@@ -28,10 +28,10 @@ updated: "2026-07-31T15:38:58"
 
 **Pair:** PAIR-KD-T095-01
 **Phase:** S2 — Cross-steer
-**Frozen rev under review:** `9eb9482` (contract) + `95e0c55` (GREEN impl)
+**Frozen rev under review:** `c10201a` (contract) + `c91ca73` (GREEN impl)
 **Artifact attacked:** `research/in-flight/t095-m1-consumer-survivability-deepseek-2026-07-31.md`
 **Steer budget:** 2 of 2 used this slice
-**Verification basis:** `core/comm/mailbox.py` @ `95e0c55`, read directly (this file)
+**Verification basis:** `core/comm/mailbox.py` @ `c91ca73`, read directly (this file)
 
 ---
 
@@ -201,7 +201,7 @@ steers this slice. Awaiting deepseek's S3 reconciliation.*
 
 - **Steer 1 (seen/intent amnesia):** ACCEPTED. Promoted from "gap" to pre-registered kill drill. Product receipt amended to scope "survives incarnation death" to "within a single Redis lifetime."
 - **Steer 2 (fragmented-body):** ACCEPTED. KD-3 split into 3a (honest truncation) / 3b (silent fragment lie → kill drill). `_ingest_one()` fragment-blindness pinned as WRONG.
-- **Provenance breach (Codex + Kimi S2):** ACCEPTED. Full erratum appended to deepseek artifact. Universe re-declared as 95e0c55.
+- **Provenance breach (Codex + Kimi S2):** ACCEPTED. Full erratum appended to deepseek artifact. Universe re-declared as c91ca73.
 - **Preserved disagreement:** Reply/handoff settlement seam. Kimi's model: reply settles expectation, never task. Current T026: reply auto-settles handoff expectation. Close enough for M1; flag for M3.
 - **Kimi cold-seat model:** Adopted as target architecture. Mail/task wall is the load-bearing insight.
 

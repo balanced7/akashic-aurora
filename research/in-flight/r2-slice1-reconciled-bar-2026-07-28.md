@@ -41,7 +41,7 @@ PLUS kimi's hold-out: ~10 fresh actions from slice 0's live stream, hand-labelle
 gate is called green. Fresh-seed-vs-control, the census's own method, applied to the gate.
 
 deepseek (adopted earlier, restated for one place): hook-only for v1; query_shape on every
-outcome row (live at a091259); its Q5-inverse risk is covered by the CONTESTED-PLANE log.
+outcome row (live at 12f914a); its Q5-inverse risk is covered by the CONTESTED-PLANE log.
 
 ## THE BAR I WILL BUILD AGAINST (kimi's counter-bar, signed)
 

@@ -10,7 +10,7 @@ deepseek's PRE-REGISTERED prediction, recorded before any of this ran:
 
 Method per DOCER (Tan/Wagner/Treude, EmSE): extract code-element references from lesson prose,
 resolve against the whole tree, and call one MISSING only when ALL instances are gone.
-Move-immune by construction. Corpus: all 465 lessons (post index-repair @22ec8e7). 27,235 files
+Move-immune by construction. Corpus: all 465 lessons (post index-repair @060d33b). 27,235 files
 scanned.
 
 ---
@@ -101,5 +101,5 @@ It called the magnitude of the real decay population correctly before seeing any
    corpus is not visibly rotting, our detectors were blindfolded, and now that one is unblinded
    the disease is real but rare.
 4. **Therefore decay filtering is NOT the lever on Daniel's complaint.** The lever was the
-   starved index (96.5% invisible, fixed @22ec8e7). Anchor decay is worth building for the
+   starved index (96.5% invisible, fixed @060d33b). Anchor decay is worth building for the
    future corpus; it was never what made recall surface junk tonight.

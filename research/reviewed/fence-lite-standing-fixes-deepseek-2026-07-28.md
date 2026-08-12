@@ -6,9 +6,9 @@ Now I have the full picture. Let me answer.
 
 ## ATTACK — two standing fixes + two open surfaces
 
-### PEEK WINDOW (a190494 + f8cab76)
+### PEEK WINDOW (c47be4a + 507fad5)
 
-**f8cab76's fix is correct. `pending_capped` on every row + `display_only` on the gap row closes both kimi findings.** The gap row is now un-actionable BY CONSTRUCTION (`kind=gap`, `display_only=True`), not by empty-id accident. The header renders "50+" when capped. No renderer choke — the gap row carries `content` in standard shape, `display_only` is the sentinel, and `kind=gap` is the dispatch key.
+**507fad5's fix is correct. `pending_capped` on every row + `display_only` on the gap row closes both kimi findings.** The gap row is now un-actionable BY CONSTRUCTION (`kind=gap`, `display_only=True`), not by empty-id accident. The header renders "50+" when capped. No renderer choke — the gap row carries `content` in standard shape, `display_only` is the sentinel, and `kind=gap` is the dispatch key.
 
 **One residual I'd attack: the window split still loses concurrent fresh items at the edge.** With `k_old = max(1, want // 4)`, limit=10 shows 2 oldest + 8 newest. If items 3-6 are ALSO fresh (arrived in the last 2 minutes alongside the newest batch), they're hidden behind the gap. The agent sees "2 old stale notices, GAP, 8 new items" and item 3 — which might be the reply they needed — is invisible.
 
@@ -16,13 +16,13 @@ Not a blocker. The fix is: check whether the boundary items inside the gap are F
 
 ---
 
-### T063 ACK RESOLVER (4a43c23 + f8cab76)
+### T063 ACK RESOLVER (1f7ba74 + 507fad5)
 
-**f8cab76's form-blame laundering fix is correct.** `_ack_refusal_hint` now fires ONLY when resolution FAILED. A resolved-but-unackable ref carries the verdict's true reason, bare. The pin (`test_resolved_but_unackable_blames_content_not_form`) proves it. Good.
+**507fad5's form-blame laundering fix is correct.** `_ack_refusal_hint` now fires ONLY when resolution FAILED. A resolved-but-unackable ref carries the verdict's true reason, bare. The pin (`test_resolved_but_unackable_blames_content_not_form`) proves it. Good.
 
 **The open surface: `ids[0]` fallback at line 119.** When NO id passes `ack_verdict`, the code returns `str(ids[0])`. This is a known-bad id — it already failed `ack_verdict` in the loop above. The caller passes it to `ack()`, which calls `ack_verdict` again and returns `False` with the TRUE reason (not-promoted, wrong addressee, etc.). So the form-blame laundering is fixed — the caller gets the right error. But the resolver returned an id it KNOWS will fail. That's wasted work.
 
-**Verdict: honest enough, not optimal.** Returning `None` would be cleaner — the caller then says "sha prefix resolved to a mailbox entry but no stream id from it passes the ack verdict — the message may be evicted or un-promoted." But the CURRENT behavior is NOT wrong — it returns a real stream id, the ack fails with the true reason, and the operator sees the true reason. The double-round-trip is wasteful but not misleading. The f8cab76 fix ensures the refusal names the right cause. `ids[0]` returning a known-bad id is a performance nit, not a correctness bug.
+**Verdict: honest enough, not optimal.** Returning `None` would be cleaner — the caller then says "sha prefix resolved to a mailbox entry but no stream id from it passes the ack verdict — the message may be evicted or un-promoted." But the CURRENT behavior is NOT wrong — it returns a real stream id, the ack fails with the true reason, and the operator sees the true reason. The double-round-trip is wasteful but not misleading. The 507fad5 fix ensures the refusal names the right cause. `ids[0]` returning a known-bad id is a performance nit, not a correctness bug.
 
 **The sha-prefix collision question: silent-first-match is acceptable at our scale.** `mailbox.explain` returns the FIRST sha that starts with the prefix. With 10-char hex prefixes (40 bits) and ~500 entries, collision probability is effectively zero. The birthday bound for 40-bit space is ~2^20 entries — we're four orders of magnitude below that. If we ever reach millions of mailbox entries, this becomes a real bug. Today, it's a documented residual — name it in the docstring, move on. A loud refusal on ambiguity would be the correct long-term behavior (return `{"available": True, "found": True, "ambiguous": True, "candidates": [...]}`), but it's not worth building at current scale.
 

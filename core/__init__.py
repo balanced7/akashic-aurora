@@ -16,7 +16,7 @@ __all__ = ["foundation", "signals", "state", "learning"]
 
 def _quiet_bootstrap() -> None:
     """Windows console-window suppression that survives a reinstall. Closes the durability gap
-    opus-engineer flagged and scoped out of its own fix (bf1fb1c).
+    opus-engineer flagged and scoped out of its own fix (8750018).
 
     THE GAP: scripts/quiet/sitecustomize.py silences the whole spawn tree, but Python only
     auto-imports sitecustomize when its directory is ALREADY on PYTHONPATH at interpreter start.

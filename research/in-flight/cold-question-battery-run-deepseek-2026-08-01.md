@@ -1,7 +1,7 @@
 # COLD-QUESTION BATTERY — RUNNER TRANSCRIPT (FORMAL)
 
 **Runner:** deepseek | **Scorer:** kimi (audit role) | **2026-08-01**
-**Frozen revision:** 84f7cc9 | **Digest sha:** 46708bc6085a6dbb…
+**Frozen revision:** 035e70e | **Digest sha:** 46708bc6085a6dbb…
 **Reader unchanged since freeze.** Runner is cold — stopped at seal line (research artifact, lines 1–120 only). Brief variant at docs/library/ NOT opened.
 
 ---
@@ -55,7 +55,7 @@
 **Hop 1:** `py agent_cli.py lookback "buffer-round reconciliation chapter" --json` — surfaced `narr:chapter:chapter_119018f9a910`.
 **Hop 2:** `py agent_cli.py story --chapter chapter_119018f9a910` — confirmed span and contents.
 
-**Answer: `chapter_119018f9a910`** [ai-setup], span **2026-07-31T17:19 → 2026-07-31T19:31 UTC**. Contains the buffer round reconciliation commit (`git:f688968ce042`), `instrument_proposes_never_self_ratifies` lesson, and `fence_marker_inside_sealed_envelope` lesson.
+**Answer: `chapter_119018f9a910`** [ai-setup], span **2026-07-31T17:19 → 2026-07-31T19:31 UTC**. Contains the buffer round reconciliation commit (`git:557819514234`), `instrument_proposes_never_self_ratifies` lesson, and `fence_marker_inside_sealed_envelope` lesson.
 
 **Source:** `py agent_cli.py story --chapter chapter_119018f9a910`.
 

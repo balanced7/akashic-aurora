@@ -175,7 +175,7 @@ worker-execution model, Dota/GAS the missing command vocabulary.
 
 | Claim | Verdict |
 |---|---|
-| T170 `proposed`, no commit, despite `6a361cb` existing | Confirmed |
+| T170 `proposed`, no commit, despite `00517bb` existing | Confirmed |
 | BoundaryOutcome at one production boundary | Confirmed — `outcome.py` (def), `daemon_state.py`; only other adopter was untracked `ask.py` |
 | Four runners fork one reactor | Confirmed structurally — identical `REPLY_TIMEOUT_SEC = _scaled(600)`, `bus_guard.backoff_s`, `time.sleep(0.4)`, `_heartbeat()` at kimi:814 / sol:736 / gemini:758 |
 | Daemon 0.2s loop | Confirmed at `bifrost_daemon.py:332` |
@@ -301,10 +301,10 @@ inversion: `BoundaryOutcome` migration was never a follow-on to Source 2, it is 
 
 | Item | Outcome |
 |---|---|
-| T170 | Honest transition chain `approve(daniil) → claim → verify → done @ 6a361cb`. The state machine **refused** `approved → start`, forcing the correct path — its refusal is the audit |
+| T170 | Honest transition chain `approve(daniil) → claim → verify → done @ 00517bb`. The state machine **refused** `approved → start`, forcing the correct path — its refusal is the audit |
 | T170 bypass | Filed as lesson `t170_reached_head_without_ever_passing_a_gate`. Status was `proposed`: the slice reached production HEAD with **zero** gate transitions |
-| T171 pins | `a7f5845` — landed alone, before the implementation (M3 pre-registration) |
-| T171 implementation | `e47858b` — `core/comm/ask.py` + CLI verb `ask`; `done @ e47858b`; 7/7 pins |
+| T171 pins | `80b3d02` — landed alone, before the implementation (M3 pre-registration) |
+| T171 implementation | `fe00880` — `core/comm/ask.py` + CLI verb `ask`; `done @ fe00880`; 7/7 pins |
 | K6 | Rewritten as `ast.parse` over imports/attributes/names/call targets. Dynamic-access blind spot stated in the pin |
 | Boundary fix | Two `sys.path.insert` calls removed. Client now from `core/comm/runner_lib.make_openai_compat_client` — core→core, inheriting the G4/L0 per-read timeout and T156 wire-journal recording. Key resolution moved into core |
 | Wiring fix | `ask` wired as a CLI verb — the gate the authoring seat predicted before it died |

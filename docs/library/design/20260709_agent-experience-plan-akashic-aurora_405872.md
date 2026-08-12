@@ -205,7 +205,7 @@ answer of record.
 Respecting: prefer **wiring** over building; **local-hardware** (no embedding on hot path); **determinism**
 (no LLM judge inline); **no separate cursor folder**. (Per-agent file ownership RETIRED 2026-06-29 — any agent edits any file, coordinating via locks.)
 
-> ### ⭐ FIRST MOVE (highest leverage) — ✅ SHIPPED (31a1b67): **`additionalContext` wired into the PreToolUse hook via `core/recall/at_action.py` + a `recall-at` CLI verb.**
+> ### ⭐ FIRST MOVE (highest leverage) — ✅ SHIPPED (3fca65d): **`additionalContext` wired into the PreToolUse hook via `core/recall/at_action.py` + a `recall-at` CLI verb.**
 > It is the single seam that turns passive storage into active recall. mem0 (2026) notes that recall-at-action
 > timing is uncommon in published systems — whether it produces better outcomes than turn-start injection is an
 > open hypothesis. It forces the Index's first real consumer to exist, and it is nearly pure wiring (the hook

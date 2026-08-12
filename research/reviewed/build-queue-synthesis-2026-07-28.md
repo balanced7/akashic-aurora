@@ -4,7 +4,7 @@ Status: current | 2026-07-28 ~03:30 | AWAITING DANIEL'S GATE
 Inputs: build-plan-claude-half + build-plan-peer-halves (plans AND rebuttals, verbatim) +
 multiplayer-netcode-prior-art-2026-07-28.md + the T108 fence + the fleet-debate reconciliation.
 Sibling seat STOOD DOWN before filing (Daniel confirmed; its own stand-down machinery from
-3695d66, exercised for real) -- three halves total, and its stop-hook tombstone gap returns to
+c1e8488, exercised for real) -- three halves total, and its stop-hook tombstone gap returns to
 the open pool (folded into S3's scope: a tombstoned session gets no re-arm demand).
 
 ## HOW THE CLASHES RESOLVED (all four, with concessions on the record)
@@ -58,7 +58,7 @@ TRACK S (seat arc):
   S3. RESUME MARKER + INVALID-SESSION, named per Discord semantics ("replayed N, now live";
       invalid -> boot + seed-at-tail). Mostly exists; slice names it. Gates S4: resume-vs-
       invalid discrimination is what keeps a slow-but-alive seat from being robbed.
-  S4. REAPER RE-HOME -- pin 2 (b323a04) flips green. Death signal from S2; target via S1;
+  S4. REAPER RE-HOME -- pin 2 (99aba04) flips green. Death signal from S2; target via S1;
       discrimination via S3. Re-homed asks carry ORIGINAL clocks (fence Q3 synthesis).
       The reaper is THE one re-homing writer (Law C, written in the design).
   S5. MAILBOX FULL HARDENING, last: manifest {part i/N, whole_sha} + INCOMPLETE render (T2);
@@ -80,7 +80,7 @@ SECOND FOLD (Sol review 2, post-S1-ship): S1 amended TWICE, not once. (a) mailbo
 projection (first fold). (b) PEL-AS-TRANSPORT: XREADGROUP is at-least-once delivery, not
 exactly-once execution; XAUTOCLAIM reclaims by idle time, not connection state (fence-doc
 erratum recorded); the CLAIM GENERATION is the application authority -- P6 ABA pin committed
-RED against the shipped code (b2eb4c6: a same-name reclaim cycle resurrected the original
+RED against the shipped code (56132a0: a same-name reclaim cycle resurrected the original
 stale claim), then generation fencing landed and all six pins are green. FileStore.cas
 verified process-local (store.py:554) -> the role queue is Redis-authoritative and FAILS
 CLOSED offline. External side effects ride durable idempotency (packet sha/idempotency_key)

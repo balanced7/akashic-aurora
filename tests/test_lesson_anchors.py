@@ -49,7 +49,7 @@ from core.recall import anchors  # noqa: E402
 def test_anchor_kinds_are_classified():
     assert anchors.classify("art_20260721_leadership-mechanics-x_225120") == "atom"
     assert anchors.classify("T070") == "task"
-    assert anchors.classify("4d6a65f") == "commit"
+    assert anchors.classify("8232640") == "commit"
     assert anchors.classify("tests/test_t070_universal_isolation.py::test_x") == "pin"
     assert anchors.classify("docs/ARCHITECTURE.md") == "path"
 

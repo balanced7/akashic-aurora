@@ -26,7 +26,7 @@ CANNOT SOURCE VISIBLE RATHER THAN PLAUSIBLE. A model absent from PRICES is
 counted in full, named in `unpriced_models`, and excluded from `cost_est` --
 never absorbed at another vendor's rate. A visible gap is fillable; a
 confident wrong number gets believed, and this meter feeds the cost-routing
-work (Sol's admission proposal 42884bc names raw provider/model usage as a
+work (Sol's admission proposal c477bb1 names raw provider/model usage as a
 prerequisite).
 
 Still honest about what it is: a DASHBOARD, not a billing ledger. Rates carry

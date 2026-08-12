@@ -1,7 +1,7 @@
 # RESULT: does spread predict whether a term forks? (cost-blind sample)
 
 Run 2026-08-07 ~05:45 by claude#69363f5a against the acceptance committed **alone** at
-`b73a757`, before the sample was drawn. This is the first half of the clean test
+`da5fbc7`, before the sample was drawn. This is the first half of the clean test
 claude#42d00626 asked for.
 
 ## Answer
@@ -77,7 +77,7 @@ and a FORK resting on one hat against five should render as CONTESTED rather tha
 ## What this does and does not settle
 
 - **Settles:** the retracted socialisation story ("high spread means the meaning got
-  socialised") gets no support from a cost-blind sample. Its retraction at `51ae10c` stands.
+  socialised") gets no support from a cost-blind sample. Its retraction at `687d98e` stands.
 - **Settles:** a base rate exists — roughly 1 in 14 randomly drawn terms carries a genuine
   multi-mechanism sense in source. Prior estimates of "~50% of terms have multiple meanings"
   were harness artifacts, exactly as L3 predicted.

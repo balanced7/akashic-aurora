@@ -161,8 +161,8 @@ return `no_model` / `no_injection` as a successful decision.
 
 Routing cannot optimize economics while cost rows can lie confidently.
 
-- Commit `81eab72` closes one concrete defect: Kimi/Sol scalar token payloads
-  could increment turns while recording zero task tokens. RED pin `0bfbd63`
+- Commit `9574a6b` closes one concrete defect: Kimi/Sol scalar token payloads
+  could increment turns while recording zero task tokens. RED pin `da8b72c`
   covers producer and consumer shapes.
 - The remaining journal is still not a billing ledger:
   `scripts/runner_token_journal.py` stores one model string for a whole day and

@@ -1,6 +1,6 @@
 # R2 CORRELATION GATE -- claude's opening position, FOR ADVERSARIAL REVIEW
 
-Status: current | 2026-07-28 ~09:20 | claude | HEAD f813e34 | Daniel's gate: "Adversarial review it is!"
+Status: current | 2026-07-28 ~09:20 | claude | HEAD eac409b | Daniel's gate: "Adversarial review it is!"
 NOT BUILT. This is the position to attack. Counters go to the bus or research/in-flight/.
 
 ## WHAT THE CENSUS BOUGHT US (the justification, measured)

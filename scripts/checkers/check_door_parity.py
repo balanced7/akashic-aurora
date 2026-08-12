@@ -191,7 +191,7 @@ MANIFEST = {
     # --- T067 backlog, classified by deepseek 2026-07-25 ---
     # These 23 accumulated invisibly behind a DEAD CANARY: toolbox_verbs() parsed the file
     # `class ToolBox` used to live in, so it returned an EMPTY set and phantom-failed
-    # everything (66 fails, all noise). With the parser repaired (dc107d2) the real backlog
+    # everything (66 fails, all noise). With the parser repaired (4849449) the real backlog
     # surfaced. deepseek classified all 23 against agent_cli.py's own add_parser calls:
     # 22 CLI-only operator/author/diagnostic surfaces, 1 MCP-only health check. No gaps.
     "alias": "cli_only",           # toolbelt authoring: mint/list/retire verb aliases

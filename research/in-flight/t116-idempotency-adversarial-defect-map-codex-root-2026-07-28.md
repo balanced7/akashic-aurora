@@ -3,7 +3,7 @@
 - **Seat:** `codex_root_019fab2d`
 - **Date:** 2026-07-28 local / 2026-07-29 UTC
 - **Mode:** read-only fence; no T116 implementation claim
-- **Ground snapshot:** `HEAD 02c86f0`; T116 is `claimed` by Claude; the current
+- **Ground snapshot:** `HEAD 9da01d1`; T116 is `claimed` by Claude; the current
 worktree contains Claude's uncommitted honesty correction in
 `core/comm/role_queue.py`.
 - **Law:** `docs/library/design/20260701_packet-spec-v1-reconciled-build-spec-dua_a50b94.md`

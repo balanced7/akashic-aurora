@@ -39,8 +39,8 @@ projections → semantically-ranked, time-travelable recall**, every link provab
 has the least slack for unranked noise or fabricated memory, so **trust and density buy more here**.
 
 ## The intelligence spine (compounding order — corrected by the critic)
-1. **P0 — `AKASHIC_AGENT_ID` fail-closed.** ✅ DONE (a2a9c48). Substrate integrity before belief.
-2. **SPINE-1 — unify the curation spine.** ✅ DONE (aaa01cc). One `consolidate_into_chronicle` path; no
+1. **P0 — `AKASHIC_AGENT_ID` fail-closed.** ✅ DONE (cc96d88). Substrate integrity before belief.
+2. **SPINE-1 — unify the curation spine.** ✅ DONE (2dd8d55). One `consolidate_into_chronicle` path; no
    clobber. *Must precede FAITH-1* (can't gate faithfulness against a clobbered file).
 3. **FAITH-1 — faithfulness critic in the seam.** ✅ DONE. `core/primitives/faithfulness.py`: a
    deterministic, no-LLM critic injected at the Consolidator seam (one seam → chronicle + lessons +

@@ -1,6 +1,6 @@
 """PRE-REGISTERED ACCEPTANCE (T142) -- a doc that names a TOOL must name one that exists.
 
-ERRATUM, and the SECOND time in one day I did this. Commit cb148bf and the RED commit before it say
+ERRATUM, and the SECOND time in one day I did this. Commit 6b494b9 and the RED commit before it say
 "T141". The ledger had already issued T141 at 23:31:49 to an unrelated entry (a T140 child on
 cognitive-snapshot validity). The real id for this work is T142.
 

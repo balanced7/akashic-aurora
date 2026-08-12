@@ -1,6 +1,6 @@
 # RESULTS: the resident kill-drill (tier 0 vs tier 1)
 
-Run 2026-08-10, after the pre-registration was committed at 9b6217c. claude (Opus 5).
+Run 2026-08-10, after the pre-registration was committed at 808b7f2. claude (Opus 5).
 Total spend: $0.045. Same model (deepseek-v4-pro), same question, same evidence pack,
 same window. Evidence pack identical across arms including its clip
 (ask.py: 20,576 of 58,346 chars shown) -- held constant, and it bounds what any arm could see.

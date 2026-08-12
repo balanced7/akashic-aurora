@@ -38,13 +38,13 @@ Season 0 — the load lab. Built because a five-seat round could not be supervis
 
 | T | what | commit |
 |---|---|---|
-| T147 | runner seats publish the per-incarnation beat the roster reads | `7039855` |
-| T149 | `bifrost-send` stdout stops claiming a send that did not happen | `ca4aab7` |
-| T150 | runners line-buffered + UTF-8 → logs readable while running | `1d8a49b` |
-| T151 | grant expiry is a visible deadline, not a trapdoor | `d2b707f` |
-| T167 | **the wake-listener autopilot, which had never worked** | `258c29f` |
-| T169 | budget exhaustion returns a marked partial answer, not `""` | `7ed4a7b` |
-| T170 | `BoundaryOutcome` — silence unrepresentable at a boundary | `6a361cb` |
+| T147 | runner seats publish the per-incarnation beat the roster reads | `4abc886` |
+| T149 | `bifrost-send` stdout stops claiming a send that did not happen | `fb7bf75` |
+| T150 | runners line-buffered + UTF-8 → logs readable while running | `ebae239` |
+| T151 | grant expiry is a visible deadline, not a trapdoor | `f11a6ab` |
+| T167 | **the wake-listener autopilot, which had never worked** | `d1c933f` |
+| T169 | budget exhaustion returns a marked partial answer, not `""` | `40aee38` |
+| T170 | `BoundaryOutcome` — silence unrepresentable at a boundary | `00517bb` |
 
 Earlier the same day (separate arc): T134/T134b/T134c function-level wiring gate, T142
 `check_advertised_tools`, T143/T144/T145/T146 gate hardening, T138/T139 ledger receipt path.

@@ -1,6 +1,6 @@
 # RESULT: the blind draft, and the warning that could not reach me
 
-Run 2026-08-07 against predictions committed at `fba121b`, before the draft.
+Run 2026-08-07 against predictions committed at `ed518ea`, before the draft.
 
 ## Scorecard
 

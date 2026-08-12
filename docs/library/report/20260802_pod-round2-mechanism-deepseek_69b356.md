@@ -109,7 +109,7 @@ it was ASYMMETRIC ENFORCEMENT: `run_command` consulted the ACL at toolbox.py:106
 `scripts/`. The write door was gated only by the `--allow-write` process flag — any
 seat with the flag could write anywhere in-root regardless of its grant's `path_scope`.
 
-This is already fixed as of 6a15b28 (fence) and 57b85c8 (fix): `_prewrite` now calls
+This is already fixed as of 6dfaa31 (fence) and 9c491d0 (fix): `_prewrite` now calls
 `resolve(self.agent_id).can_write(rel_true)`. The fix is a per-call gate at the tool
 dispatcher — exactly the conclusion the original filing reached, now with the correct
 reasoning.
@@ -501,4 +501,4 @@ remaining finding is contradiction 5 (the pod is both substrate and projection, 
 addenda never draw the boundary — the slice-1 constraint accidentally fixes this by
 limiting to substrate fields). M1's original premise was wrong: the ACL DOES live-reload
 and evaluate expiry per call. The real defect — asymmetric enforcement (write door never
-consulted the ACL) — was already fixed at 6a15b28/57b85c8.
+consulted the ACL) — was already fixed at 6dfaa31/9c491d0.

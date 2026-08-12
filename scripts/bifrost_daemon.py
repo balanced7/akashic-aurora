@@ -207,7 +207,7 @@ def main(argv=None) -> int:
                 # instead of refusing boot: it holds its own daemon lock, maintains
                 # presence, and probes runner_lock.holder() until the foreign holder
                 # releases -- then it reclaims and spawns. This closes the gap the
-                # half-fix (a9f7f6a) discovered: the hard-refuse left the seat
+                # half-fix (28c5bcd) discovered: the hard-refuse left the seat
                 # daemon-less until the takeover chain broke.
                 _say(f"[daemon] idle agent={agent}: a foreign runner pid={rh.get('pid')} "
                      f"holds the runner lock (token prefix: {str(rh.get('token', ''))[:20]}...) "

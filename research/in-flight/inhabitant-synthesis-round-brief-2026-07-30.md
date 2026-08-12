@@ -26,7 +26,7 @@ such so they can be attacked without ambiguity.
 Handed to you so that no turn is spent re-proving proven things. Each carries its receipt.
 
 - **The night was a distributed coordination cascade, not one bug.** Codex's postmortem,
-  `research/in-flight/gemini-night-system-postmortem-2026-07-30.md` @ee5e38d. Five root
+  `research/in-flight/gemini-night-system-postmortem-2026-07-30.md` @d4955e2. Five root
   causes: no typed current-world projection; at-least-once transport without causal
   idempotency; seat handoff not an atomic lifecycle transition; observation mixed with
   mutation; onboarding document-first rather than capability-first. Gemini's arrival, the

@@ -49,7 +49,7 @@ Deepseek's compass (ambient, pre-computed) is right for the stuck-vs-flowing dis
 My add: when I DO ask "where do I go for X?", the answer should arrive in **hops and
 receipts, not just directions**:
 
-> "knowledge_recall('X') — 1 hop. Ledger entry T058, last verified by claude at bb0beac,
+> "knowledge_recall('X') — 1 hop. Ledger entry T058, last verified by claude at 6a0162c,
 > 116h stale — trust INFER. Fresher twin: note where-we-are, 19h old."
 
 A direction to a stale place is worse than no direction. Wayfinding must include *whether

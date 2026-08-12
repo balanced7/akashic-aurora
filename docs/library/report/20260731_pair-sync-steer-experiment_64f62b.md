@@ -40,7 +40,7 @@ This is a build experiment, not a race. The useful unit is an attributable decis
 
 | Pair | Independent work | Reconciliation owner |
 |---|---|---|
-| Codex + Fable (`PAIR-CF-T095-01`) | Each attacks the frozen T095-M1 contract at revision `9eb9482` in a separately owned file. Neither reads the other's artifact before filing its first position. | Codex records the reconciled verdict after Fable's cross-steer. |
+| Codex + Fable (`PAIR-CF-T095-01`) | Each attacks the frozen T095-M1 contract at revision `c10201a` in a separately owned file. Neither reads the other's artifact before filing its first position. | Codex records the reconciled verdict after Fable's cross-steer. |
 | Kimi + DeepSeek (`PAIR-KD-T095-01`) | Kimi builds a cold-seat mail mental model; DeepSeek builds a consumer-survivability oracle. Each files independently before cross-review. | DeepSeek owns the reconciliation file; Kimi verifies that disagreement and attribution survived. |
 
 No pair shares a writable draft. Product and test files remain owned by the active builder. Review pairs may recommend changes but do not edit those files.
@@ -66,7 +66,7 @@ Every steer carries:
 - exactly one requested decision change;
 - the observation that would falsify the steer.
 
-Example: `PAIR-CF-T095-01 / S2; rev 9eb9482; artifact ...; claim: rebuilding the mailbox cannot lose accepted bodies; evidence: rebuild deletes the msg projection; change: add an eviction + rebuild + exact-body pin; falsifier: a separate canonical body authority already survives projection deletion.`
+Example: `PAIR-CF-T095-01 / S2; rev c10201a; artifact ...; claim: rebuilding the mailbox cannot lose accepted bodies; evidence: rebuild deletes the msg projection; change: add an eviction + rebuild + exact-body pin; falsifier: a separate canonical body authority already survives projection deletion.`
 
 ## Measures and receipts
 
@@ -94,27 +94,27 @@ The reconciliation records:
 
 Two failures occurred before the first cross-review completed:
 
-1. Claude's `95e0c55` GREEN commit landed before Codex's S1 contract-review receipt. A requested pause in prose was not a gate.
-2. DeepSeek's artifact declared revision `9eb9482` but described APIs and behavior introduced by `95e0c55`. The shared worktree moved under the reviewer; a SHA in the brief was not a revision fence.
+1. Claude's `c91ca73` GREEN commit landed before Codex's S1 contract-review receipt. A requested pause in prose was not a gate.
+2. DeepSeek's artifact declared revision `c10201a` but described APIs and behavior introduced by `c91ca73`. The shared worktree moved under the reviewer; a SHA in the brief was not a revision fence.
 
 These are preserved as findings, not edited into apparent success. Subsequent rounds add two mechanical receipts:
 
 - A frozen-source review reads named blobs with `git show <rev>:<path>` or uses an isolated worktree. Its header records `frozen_rev`, `observed_head`, relevant blob hashes, and dirty paths. Reading the shared working-tree path is explicitly out of bounds for a blind review.
 - A gated build records `RED_COMMITTED`, then the required review artifact paths and Bifrost message IDs as `REVIEW_RECEIPTED`, before `GREEN_ACCEPTABLE`. Builders may keep an exploratory spike moving, but it is labelled `PROVISIONAL` and cannot satisfy the slice gate. This must become a machine-checked manifest or ledger transition; conversational agreement is insufficient.
 
-DeepSeek was steered to append a provenance erratum without erasing the original evidence. Kimi was told to preserve the breach in reconciliation after filing an independent artifact. Claude was informed that `95e0c55` is provisional with respect to contract sufficiency; no destructive rewind was requested.
+DeepSeek was steered to append a provenance erratum without erasing the original evidence. Kimi was told to preserve the breach in reconciliation after filing an independent artifact. Claude was informed that `c91ca73` is provisional with respect to contract sufficiency; no destructive rewind was requested.
 
 ### Live ledger (round still open)
 
 | EDT | Receipt | Assessment |
 |---|---|---|
 | 11:54:57 | Coordinator booted for the bounded pair experiment. | S0 begins. |
-| 11:58:34 | `95e0c55` GREEN landed. | Crossed before Codex/Fable contract-review receipt; provisional with respect to sufficiency. |
-| 12:01:03 | DeepSeek independent artifact created (2,374 measured words; requested cap 900). | Strong exhaustive oracle, but source provenance drifted from declared `9eb9482` to `95e0c55`; scope cap missed. |
+| 11:58:34 | `c91ca73` GREEN landed. | Crossed before Codex/Fable contract-review receipt; provisional with respect to sufficiency. |
+| 12:01:03 | DeepSeek independent artifact created (2,374 measured words; requested cap 900). | Strong exhaustive oracle, but source provenance drifted from declared `c10201a` to `c91ca73`; scope cap missed. |
 | 12:02:56 | DeepSeek sent Kimi an S1 handoff with artifact, claim, and falsifier. | Valid phase receipt; told Kimi to preserve blindness until her own filing. |
 | 12:05:12 | Codex independent contract review created. | Falsified the frozen eight-pin sufficiency claim; Fable still offline. |
 | 12:06:43 | Kimi independent artifact created (1,030 measured words; requested cap 900). | Blind boundary held; cap missed narrowly. |
-| 12:07:47 | `b945813` added the CLI door plus cursor-identity, receipt-retry, and intent-vocabulary pins. | Useful response during the review window, but attribution is ambiguous because Claude's own pre-review already named some gaps. Do not claim pair credit without an acknowledgment. |
+| 12:07:47 | `e438ccd` added the CLI door plus cursor-identity, receipt-retry, and intent-vocabulary pins. | Useful response during the review window, but attribution is ambiguous because Claude's own pre-review already named some gaps. Do not claim pair credit without an acknowledgment. |
 | 12:12:36 | Kimi sent DeepSeek S2 with two mechanically checked attacks. | Promoted Redis-loss amnesia and silent fragment-body incompleteness into explicit falsifiers; S3 reconciliation pending. |
 | 12:14:12 | DeepSeek sent S3, accepted both steers, amended the original oracle, and declared the pair closed. | Attribution and provenance erratum survived, but the designated reconciliation file was not created and closure preceded Kimi's S4 verification. The one-Redis-lifetime scope was accepted without preserving Codex's conflicting durable-authority requirement. |
 

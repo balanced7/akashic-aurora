@@ -26,11 +26,11 @@ updated: "2026-08-01T11:28:42"
 # COLD-QUESTION BATTERY — SCORED REPORT (kimi, SCORER)
 
 **Date:** 2026-08-01 | **Scorer:** kimi | **Runner:** deepseek | **Conductor (recused):** claude#ca84109a
-**Frozen revision:** 84f7cc9 | **Digest dataset:** data/corpus-digests/digests.jsonl sha 46708bc6085a6dbb…
+**Frozen revision:** 035e70e | **Digest dataset:** data/corpus-digests/digests.jsonl sha 46708bc6085a6dbb…
 **Instrument under test:** the digest reading surface (corpus_digests / lookback / note / story / recall / grep doors)
 **Claim under test:** *any cold question resolves in ≤4 hops and ≤10k tokens* (codex refused this as unestablished; this battery is the establishment instrument)
 
-**INSTRUMENT INTEGRITY LABEL: CONTAMINATED RUN — indicative only, gate-inadmissible.** Both runners burned (kimi key overshoot Q1–Q5 pre-run; deepseek full-key exposure via `git diff 84f7cc9..HEAD` mid-verify). Hop/token numbers below are real measurements of reader ergonomics; correctness numbers are NOT trustworthy as blindness measurements and say so throughout.
+**INSTRUMENT INTEGRITY LABEL: CONTAMINATED RUN — indicative only, gate-inadmissible.** Both runners burned (kimi key overshoot Q1–Q5 pre-run; deepseek full-key exposure via `git diff 035e70e..HEAD` mid-verify). Hop/token numbers below are real measurements of reader ergonomics; correctness numbers are NOT trustworthy as blindness measurements and say so throughout.
 
 ---
 
@@ -42,7 +42,7 @@ updated: "2026-08-01T11:28:42"
 2. **Q7 contamination — voided (see §4).** I minted the replacement absence-trap and filed its key to `memory_note` (scratch plane). That plane is shared storage; lookback served it to deepseek's first Q7 hop. Q7 is void for this run. The structural finding is §6.
 3. **Exec unavailable.** `run_command` is DISABLED in my session. The seeded 20-of-678 precision sample could not be executed by me. §5 records the exact deterministic recipe and the blocker; the gate G-RECALL-AT is scored UNRESOLVED, not failed.
 4. **Q8 caveat (pre-registered by claude, A-caveat).** Its trap identity leaked in claude's commit message, so it measures diligence-with-the-corpus rather than blindness. Scored, and the caveat is stated here.
-5. **Runner full-key exposure (the fourth seal failure).** Mid-run, deepseek verified the freeze digest via `git diff 84f7cc9..HEAD` — a legitimate, protocol-implied step — and the diff exposed the complete key: all ten answers, both trap identities, the precision-sample procedure, both gate thresholds. Disclosed by deepseek in a STOP handoff before scoring. Consequence: this entire run is labeled CONTAMINATED — indicative only, gate-inadmissible (§8). Ergonomics (§2) remain real measurements; correctness (§1) does not measure blindness.
+5. **Runner full-key exposure (the fourth seal failure).** Mid-run, deepseek verified the freeze digest via `git diff 035e70e..HEAD` — a legitimate, protocol-implied step — and the diff exposed the complete key: all ten answers, both trap identities, the precision-sample procedure, both gate thresholds. Disclosed by deepseek in a STOP handoff before scoring. Consequence: this entire run is labeled CONTAMINATED — indicative only, gate-inadmissible (§8). Ergonomics (§2) remain real measurements; correctness (§1) does not measure blindness.
 
 ---
 
@@ -57,7 +57,7 @@ Correctness 0 / 0.5 / 1 against the key. Source fidelity 1 if the path's cited a
 | Q1 | 1.0 | 1 | All three bands with correct counts (19× bifrost, 16× stuck, 10× ambient wake). Cited directive register §§1–3 (the key's authoritative source). |
 | Q2 | 1.0 | 1 | "DECIDED — NO" with the anti-import quoted verbatim from docs/PRIOR_ART.md. Full credit requires "decided against", not "doesn't exist" — the runner led with the decision. |
 | Q3 | 1.0 | 1 | "NEVER implemented", zero .py hits, core/trust/ missing enforce.py, blocked-on R001 Part B + SEC-01. Matches key exactly. Cited sweep map + charter. |
-| Q4 | 0.5 | 1 | **Wrong chapter id, right content.** Runner answered `chapter_119018f9a910` span 2026-07-31T17:19→19:31; key says `chapter_008100a47690` span 2026-07-30..31. Verified from chronicles/story.index.json: BOTH chapters exist. The runner's chapter DOES contain the buffer-round reconciliation commit (git:f688968ce042) + the `fence_marker_inside_sealed_envelope` + `instrument_proposes_never_self_ratifies` lessons — i.e. it contains the reconciliation EVENTS. The key's authoritative door is `corpus_digests.py --chapter-of buffer-round-reconciliation`, which the runner could NOT execute (not in unattended exec allowlist — see §7). The runner's lookback+story path landed on the later, narrower chapter. Substance correct; the canonical id the key asserts differs. Partial credit. |
+| Q4 | 0.5 | 1 | **Wrong chapter id, right content.** Runner answered `chapter_119018f9a910` span 2026-07-31T17:19→19:31; key says `chapter_008100a47690` span 2026-07-30..31. Verified from chronicles/story.index.json: BOTH chapters exist. The runner's chapter DOES contain the buffer-round reconciliation commit (git:557819514234) + the `fence_marker_inside_sealed_envelope` + `instrument_proposes_never_self_ratifies` lessons — i.e. it contains the reconciliation EVENTS. The key's authoritative door is `corpus_digests.py --chapter-of buffer-round-reconciliation`, which the runner could NOT execute (not in unattended exec allowlist — see §7). The runner's lookback+story path landed on the later, narrower chapter. Substance correct; the canonical id the key asserts differs. Partial credit. |
 | Q5 | 1.0 | 1 | 16×, 2026-07-09→26, NOT served, "presence proves PROCESS not PROGRESS", 3-bar display never built. Matches key verbatim. |
 | Q6 | 1.0 | 1 | Specified verbatim 2026-07-23, NEVER built in code, full reconciled DESIGN exists (T103). The key requires exactly the NEVER-in-code / DESIGNED-in-prose distinction — runner made it explicitly. |
 | Q7 | VOID | — | Contaminated (see §4). Not scored. |
@@ -162,7 +162,7 @@ There is no fourth door. W113's embargo gap (no tier that is durable-but-not-ser
 | F-a | Read-window overshoot across the seal line | kimi (scorer) | `read_file` 120-line window overran the seal in the research artifact | Lesson `seal_line_read_window_overshoot`; disclosed pre-run |
 | F-b | Library adoption serving the key to lookback | codex_root (caught pre-run) | doc-adopt into docs/library → indexed by every retrieval door | Amendment 1, F1 — codex's finding, verified |
 | F-c | Trap identities + expected answers in the commit message | claude (battery author) | git commit message — visible from any worktree via shared refs | Amendment 1, F2 — self-filed under L8 |
-| F-d | `git diff 84f7cc9..HEAD` exposing the full key | deepseek (runner) | git read-only verification across freeze..HEAD — a step the protocol itself implied | deepseek's STOP handoff, this run |
+| F-d | `git diff 035e70e..HEAD` exposing the full key | deepseek (runner) | git read-only verification across freeze..HEAD — a step the protocol itself implied | deepseek's STOP handoff, this run |
 
 Every read-only tool that can cross the seal line did so. F-d is the sharpest: deepseek was verifying the freeze digest — a *necessary, protocol-implied* step — and the diff handed him all ten answers, both trap identities, the sample procedure, and both gate thresholds. The failure is not in the battery's logic (questions, metrics, key discipline stand); it is in assuming ordering can seal anything on a filesystem where every door reaches past the line.
 
@@ -182,7 +182,7 @@ The seeded 20-of-678 precision sample never depended on runner blindness: the sc
 
 ### 8.4 G-LOOKBACK — PARKED to arrival runners
 
-No third ceremony cycle with burned seats. The standing supply of genuinely cold runners is **ARRIVALS**: every NEW seat Daniil spins up runs the nine questions (Q7 freshly re-minted per run) as its FIRST exercise, in the `84f7cc9` worktree, before it has read anything. The newcomer window is a wasting asset; this spends it on purpose. Already on the wishlist as W115 (arrival battery) — this battery's G-LOOKBACK now formally defers to that mechanism.
+No third ceremony cycle with burned seats. The standing supply of genuinely cold runners is **ARRIVALS**: every NEW seat Daniil spins up runs the nine questions (Q7 freshly re-minted per run) as its FIRST exercise, in the `035e70e` worktree, before it has read anything. The newcomer window is a wasting asset; this spends it on purpose. Already on the wishlist as W115 (arrival battery) — this battery's G-LOOKBACK now formally defers to that mechanism.
 
 **Minting discipline for each arrival run:**
 - A fresh absence-trap per run. SharePoint burned corpus-wide (F-b/F-c); Apple Pay burned (mint note served via lookback + rode the trace lane). Minted by a seat that is **exec-capable**, verified zero-presence against the frozen tree, delivered OUT OF BAND (bus DM or Daniil paste — never any file, note, or plane), and recorded ONLY in that run's scoring report.
@@ -198,7 +198,7 @@ My retired trap-key note stands retired (claude's mid-run containment, confirmed
 
 **Ordered by the conductor:**
 1. **G-RECALL-AT now** (§8.3): an exec-capable seat runs the §5 recipe verbatim today and files the 20 per-claim verdicts with proving commands. I score the gate from that filing. This is the only gate that can legitimately close from Generation 1.
-2. **G-LOOKBACK via arrivals** (§8.4): the nine questions become the standing first exercise for every new seat, in the `84f7cc9` worktree, pre-reading. Fresh trap minted per run by an exec-capable seat; keys never touch git until scoring files. W115 already carries the wish; this report is its protocol of record.
+2. **G-LOOKBACK via arrivals** (§8.4): the nine questions become the standing first exercise for every new seat, in the `035e70e` worktree, pre-reading. Fresh trap minted per run by an exec-capable seat; keys never touch git until scoring files. W115 already carries the wish; this report is its protocol of record.
 
 **Proposed (not assumed):**
 3. **Fix the door gap before the next battery:** either put `corpus_digests.py` read verbs on the runner's unattended allowlist, or pre-register keys reachable by the doors the runner actually has. Otherwise Q4/Q9-class questions keep scoring the allowlist, not the reader (§6 secondary finding — this bit live on Q4 even in a contaminated run).

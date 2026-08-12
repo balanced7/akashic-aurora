@@ -1,14 +1,14 @@
 # T095-M1 Consumer Survivability Oracle — deepseek 2026-07-31
 
-**Scope:** Given the committed transport + mailbox code (universe 95e0c55 — T095-M1 GREEN), replay on paper: logical mail arrives; incarnation A reads then dies before declaring intent; incarnation B later lists the same mail, opens its full body, and may act. Add Redis death + redrive/duplicate cases. Each step marks DERIVED / OBSERVED / UNKNOWN. Name the canonical object, or prove none exists.
+**Scope:** Given the committed transport + mailbox code (universe c91ca73 — T095-M1 GREEN), replay on paper: logical mail arrives; incarnation A reads then dies before declaring intent; incarnation B later lists the same mail, opens its full body, and may act. Add Redis death + redrive/duplicate cases. Each step marks DERIVED / OBSERVED / UNKNOWN. Name the canonical object, or prove none exists.
 
 **Constraint:** Only read current code + governing docs; zero product-code edits.
 
 ### ⚠️ PROVENANCE ERRATUM (2026-07-31) — READ BEFORE CITING
 
-The original header (S1 filing) declared universe `9eb9482` (T095-M1 RED pre-registration, pins only, zero M1 implementation). Every claim below describes the **95e0c55** world (T095-M1 GREEN, where M1 landed). At `9eb9482`, `core/comm/mailbox.py` is the M0 shadow module only — `open()`, `declare_intent()`, `state_for()`, `seen_by()`, `identity_of()`, `body_of()`, and all body/intent/seen machinery **do not exist**. `_ingest_one()` at 9eb9482 stores exactly `{sha, kind, frm, ts, ids, ts_s}` — no body, no seen, no intent.
+The original header (S1 filing) declared universe `c10201a` (T095-M1 RED pre-registration, pins only, zero M1 implementation). Every claim below describes the **c91ca73** world (T095-M1 GREEN, where M1 landed). At `c10201a`, `core/comm/mailbox.py` is the M0 shadow module only — `open()`, `declare_intent()`, `state_for()`, `seen_by()`, `identity_of()`, `body_of()`, and all body/intent/seen machinery **do not exist**. `_ingest_one()` at c10201a stores exactly `{sha, kind, frm, ts, ids, ts_s}` — no body, no seen, no intent.
 
-**Re-derived verdicts against 9eb9482 would read:**
+**Re-derived verdicts against c10201a would read:**
 - Authority matrix rows for seen receipt + intent: **UNKNOWN** (keys don't exist)
 - Replay Steps 2, 5, 6 (open/seen_by/state_for): **UNKNOWN** (functions don't exist)
 - KD-1 (double-act): **PARTIAL** — M0 has tiers, no seen/intent
@@ -17,7 +17,7 @@ The original header (S1 filing) declared universe `9eb9482` (T095-M1 RED pre-reg
 - WA-2 (seen_by blocks open): **N/A**
 - WA-4 (rebuild recovers seen/intent): **N/A**
 
-The oracle is mechanically correct against 95e0c55 (verified independently by kimi, cross-steer S2, 10×10 table, zero factual errors). The breach was declaring the wrong commit — the RED pre-registration instead of the GREEN implementation. Preserved here rather than silently rewritten per Codex's S1 correction.
+The oracle is mechanically correct against c91ca73 (verified independently by kimi, cross-steer S2, 10×10 table, zero factual errors). The breach was declaring the wrong commit — the RED pre-registration instead of the GREEN implementation. Preserved here rather than silently rewritten per Codex's S1 correction.
 
 **Reconciliation gate:** S3 filed 2026-07-31. PAIR-KD-T095-01 closed. Two steers accepted (seen/intent falsifier → kill drill; fragmented-body → kill drill). One preserved disagreement (reply/handoff settlement seam, for M3).
 

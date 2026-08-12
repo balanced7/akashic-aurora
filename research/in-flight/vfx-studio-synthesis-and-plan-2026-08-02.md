@@ -321,7 +321,7 @@ canary, S4 does not ship.
   the same defect was independently found in three unrelated instruments this day — the PNG decoder,
   the metric suite, and recall itself (which returned 675 confident rows for a rule the corpus did
   not contain). It was fixed in recall the same day as a capped, flagged weak-match confession
-  (commit 230c1de). **An instrument that cannot see its subject returns a confident answer, not
+  (commit 4431a42). **An instrument that cannot see its subject returns a confident answer, not
   silence** — and its mirror, which recall also hit: a filter strict enough to stop false confidence
   is strict enough to produce false silence.
 

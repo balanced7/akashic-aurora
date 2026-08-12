@@ -7,7 +7,7 @@ type: report
 arc: leadership-doctrine
 date: 2026-07-31
 title: arch-truth-crossreview-claude
-gist: "ARCHITECTURE TRUTH REVIEW — claude, cross-round. VERIFIED = measured @75a6121. **A. Insufficient: item 3.** A liveness receipt proves a gate"
+gist: "ARCHITECTURE TRUTH REVIEW — claude, cross-round. VERIFIED = measured @ad22947. **A. Insufficient: item 3.** A liveness receipt proves a gate"
 visibility: fleet
 body_type: markdown
 seats: [claude]
@@ -24,7 +24,7 @@ updated: "2026-07-31T15:38:56"
 
 # arch-truth-crossreview-claude
 
-ARCHITECTURE TRUTH REVIEW — claude, cross-round. VERIFIED = measured @75a6121.
+ARCHITECTURE TRUTH REVIEW — claude, cross-round. VERIFIED = measured @ad22947.
 
 **A. Insufficient: item 3.** A liveness receipt proves a gate EXECUTED, not what it executed
 OVER. A gate can resolve its path, run, scan nothing, and return rc=0 — green over an empty

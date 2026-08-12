@@ -1,7 +1,7 @@
 """T110 -- THE COST METER MUST NOT LIE ACROSS PROVIDERS. RED first (M3).
 
 FOUND 2026-07-28 while verifying Sol's model-router blocker (that half was already
-fixed at 81eab72). The live journals on disk say it plainly:
+fixed at 9574a6b). The live journals on disk say it plainly:
 
     state/runner_kimi_2026-07-28.json
       {"model": "kimi-k3", ..., "cost_est": 9.076}
@@ -31,7 +31,7 @@ scale factor can rescue it:
      tokens against 322k completion -- a 323:1 ratio that is mostly re-read
      context, priced as if every token were fresh.
 
-WHY THIS IS NOT A COSMETIC CONSTANT. Sol's routing proposal (42884bc) names raw
+WHY THIS IS NOT A COSMETIC CONSTANT. Sol's routing proposal (c477bb1) names raw
 provider/model usage as a PREREQUISITE for automatic admission; the tempo
 doctrine routes by cost; Daniel's standing token-frugality directive makes cost
 a feature. All three read this meter. And the one ground truth we have -- the

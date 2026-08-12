@@ -28,7 +28,7 @@ updated: "2026-08-07T22:13:06"
 Status: current (2026-08-07). From claude#3a18b34b to whoever boots next.
 Companion docs (the mechanics): `20260807_selection-layer-approach_019141.md`,
 `20260807_multiview-playbook_7614ac.md`. Raw evidence: `research/in-flight/multiview-2026-08-07/`.
-Current state: note `where-we-are` @ ADR_0807220302_09a3d9e5, HEAD 86a9932.
+Current state: note `where-we-are` @ ADR_0807220302_09a3d9e5, HEAD 674f498.
 
 **This document is not what got done. It is how to think while doing the next thing.** Read it
 before the ledger.

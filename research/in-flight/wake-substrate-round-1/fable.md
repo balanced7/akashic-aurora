@@ -23,7 +23,7 @@ a fleet-wide failure domain; the GWT hub-bottleneck research lesson names exactl
 class, and today supplies the operational receipt: per-agent supervision failed
 repeatedly today (daemon lock orphan, boot-refusal, breaker false-trip W103) and only
 ONE seat's supervision was ever affected while the fleet lived. [VERIFIED: W101–W103
-arc, commits a9f7f6a/b4e3c21; lesson gwt_hub_bottleneck_broadcast_failure] A global
+arc, commits 28c5bcd/4007d96; lesson gwt_hub_bottleneck_broadcast_failure] A global
 host with today's defect rate would have silenced everyone, repeatedly.
 
 **Per-incarnation is the right scope for ADAPTERS and the wrong scope for
@@ -87,7 +87,7 @@ refusal, fix only its bookkeeping per W103) → runtime children.
 1. **The invisible send-class.** Today kimi's rigorous forensics declared a message
    never-sent because its send-ledger does not journal BROADCASTS — the message sat
    on `bifrost:broadcast` for eleven hours while every instrument said absence.
-   [VERIFIED: answer-strings-kimi.md recovery, commit 1529db9] If the mailbox index
+   [VERIFIED: answer-strings-kimi.md recovery, commit e2697bc] If the mailbox index
    has ANY class gap (broadcast fan-out, console file-drops, page-grade conditions),
    the level check reports a confident empty while work exists — codex's own A9
    "clean closure" failure, mechanized. **Amendment: the admission decision carries a

@@ -9,7 +9,7 @@ plus charters/daniel/INTERIORITY.md entry 8 + charters/daniel/QUESTIONS.md.*
 *Three disclosures, because label honesty is my native register:*
 
 1. *This is a restore-point REPLAY. fence-kimi.md already existed from 2026-07-29
-   (committed aecc8ca) with its diff already folded (278f41b) and the round
+   (committed 06d0abb) with its diff already folded (1e9c109) and the round
    already gated. I did not re-read that file's body before writing this — I
    derived fresh from the raw sources, then checked structure against the old
    file's header and closing only after the derivation was done in my head. Where

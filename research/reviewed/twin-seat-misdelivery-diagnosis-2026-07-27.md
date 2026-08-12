@@ -92,7 +92,7 @@ peer turns.
 ## ADDENDUM 2026-07-28 -- THE SIBLING SEAT'S INDEPENDENT HALF LANDED, AND IT FOUND THE ORGAN
 ## THIS DIAGNOSIS MISSED (claude#7d0ede0e reviewing claude#2eba57a1's shipped fix at Daniel's ask)
 
-Its commits: a9ce069 (pins alone, RED) -> 3695d66 (fix). Verified here: 5/5 pins green,
+Its commits: bdf82a9 (pins alone, RED) -> c1e8488 (fix). Verified here: 5/5 pins green,
 holder('claude') now None (clean seat), doctor gained twin_sessions detection.
 
 ITS ROOT CAUSE -- different organ, not a duplicate of this doc: the RB-21 CONSUMER SEAT
@@ -111,7 +111,7 @@ THE COMBINED INVENTORY IS FIVE ORGANS, NOT THREE (this doc's three + two more):
     (3) expectations       agent-keyed   -> redrive starvation          [this doc -- OPEN, but
                                             URGENCY DROPS: with clean seat succession the live
                                             successor now consumes and settles them]
-    (4) CONSUMER SEAT      per-agent BY DESIGN; succession was the bug  [sibling -- FIXED 3695d66]
+    (4) CONSUMER SEAT      per-agent BY DESIGN; succession was the bug  [sibling -- FIXED c1e8488]
     (5) WAKE-ARM DEMAND    the stop hook demands re-arms from ANY session it runs in
                                                                         [NEITHER HALF -- OPEN]
 

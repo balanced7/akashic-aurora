@@ -88,11 +88,11 @@ def _inbox_len(bus, who):
 # --------------------------------------------------------------- P1 / P2
 def test_p1_p2_identical_reask_is_suppressed_and_returns_the_original_id(peers):
     sender, _, rcv = peers
-    first = sender.send(rcv, "question", "please run the fence-lite on 686dfcd")
+    first = sender.send(rcv, "question", "please run the fence-lite on 5cb20ea")
     assert first, "first send must deliver"
     before = _inbox_len(sender, rcv)
 
-    again = sender.send(rcv, "question", "please run the fence-lite on 686dfcd")
+    again = sender.send(rcv, "question", "please run the fence-lite on 5cb20ea")
     assert again == first, (
         f"RE-ASK DELIVERED AS NEW WORK: got {again!r}, expected the original {first!r}. "
         f"Sol sent one byte-identical ask FOUR times in 39 minutes and kimi answered it "
@@ -106,8 +106,8 @@ def test_p1_p2_identical_reask_is_suppressed_and_returns_the_original_id(peers):
 # --------------------------------------------------------------- P3
 def test_p3_different_content_always_delivers(peers):
     sender, _, rcv = peers
-    a = sender.send(rcv, "question", "run the fence-lite on 686dfcd")
-    b = sender.send(rcv, "question", "run the fence-lite on 39df728")
+    a = sender.send(rcv, "question", "run the fence-lite on 5cb20ea")
+    b = sender.send(rcv, "question", "run the fence-lite on 8c23646")
     assert a and b and a != b, "distinct asks are distinct work and must both deliver"
     assert _inbox_len(sender, rcv) == 2
 

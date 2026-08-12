@@ -1,7 +1,7 @@
 # Gemini Night system postmortem — 2026-07-29/30
 
 **Status:** evidence-backed incident analysis; no fixes or fleet actions were performed  
-**Evidence cutoff:** 2026-07-30 09:47 EDT, repository `f6ff0f2` plus the dirty shared worktree  
+**Evidence cutoff:** 2026-07-30 09:47 EDT, repository `6da4d5f` plus the dirty shared worktree  
 **Primary incident window:** 2026-07-29 23:31 EDT through 2026-07-30 01:27 EDT  
 **Aftershock window examined:** 2026-07-30 05:26 through 09:25 EDT
 
@@ -646,18 +646,18 @@ stream records do not become duplicate model responses.
 
 ### Git receipts
 
-- `75d019c` — Gemini Reader first prompt
-- `11b8f49` — onboarding repairs
-- `37e3736` — Gemini charter v2 proposal
-- `039fad3` — false hard-wedge correction
-- `7ea0869` — operator entry allowing the storm to run
-- `3809dd6` — phase-one membership ACL
-- `c1c0df5` — Claude succession coda
-- `34a8721` — Windows-native Cursor door receipt under hold
-- `5c1b055` — morning loss-risk closure and truncation-alarm disproof
-- `e6dd95e` — arrival packet
-- `0f1aab2` — seat-lifecycle ruling after the false page
-- `f6ff0f2` — independent Grok verification of the roster/L1 liveness split
+- `2e9c94e` — Gemini Reader first prompt
+- `525db28` — onboarding repairs
+- `36fa3d7` — Gemini charter v2 proposal
+- `229bebd` — false hard-wedge correction
+- `d758383` — operator entry allowing the storm to run
+- `707ea62` — phase-one membership ACL
+- `bf24365` — Claude succession coda
+- `79c5991` — Windows-native Cursor door receipt under hold
+- `6316358` — morning loss-risk closure and truncation-alarm disproof
+- `6f2ff52` — arrival packet
+- `2d82c13` — seat-lifecycle ruling after the false page
+- `6da4d5f` — independent Grok verification of the roster/L1 liveness split
 
 ## Final assessment
 

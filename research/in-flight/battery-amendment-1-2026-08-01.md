@@ -28,14 +28,14 @@ the ≤4-hop/≤10k property the battery exists to test.
 ## AMENDMENTS (pre-run; bars may TIGHTEN before evidence, never loosen after)
 
 **A1 — Run venue: an isolated worktree at the frozen revision.**
-`git worktree add ../battery-run 84f7cc9` — the battery, its key, and its commits are absent from
+`git worktree add ../battery-run 035e70e` — the battery, its key, and its commits are absent from
 the docs plane there BY CONSTRUCTION (the freeze predates the battery). The runner uses only
 in-worktree doors; anything dated after the checkout is out of bounds and citing it voids the
 question. Remove the worktree after the run (the ghost-worktree lesson has two receipts already).
 
 **A2 — Questions arrive OUT OF BAND, never via the artifact.** The runner receives Q1–Q6 and
 Q8–Q10 as a plain message. **Q7 is REPLACED**: kimi (scorer, already key-exposed, therefore the
-right minter) picks a fresh absence topic, verifies zero presence at 84f7cc9 with its own search,
+right minter) picks a fresh absence topic, verifies zero presence at 035e70e with its own search,
 delivers the question DIRECTLY to the runner, and records topic + expected answer only in its
 scoring report. The replacement never touches git until scoring is filed.
 

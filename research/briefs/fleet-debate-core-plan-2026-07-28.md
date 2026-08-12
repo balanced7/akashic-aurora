@@ -30,7 +30,7 @@ store had the answers; the path from store to acted-upon did not carry them.
 
 Four properties of the core, measured state after tonight:
   RIGHT     (answers valid)          largely closed: decay 1.94%; index clobber root-caused,
-                                     fixed, verified live 485->485 under drift (commit 956dfc5)
+                                     fixed, verified live 485->485 under drift (commit 7de1a62)
   FOUND     (right answer surfaces)  THE CONSTRAINT. Majority precision 0.339; three labellers;
                                      verdict survived four passes, all under the 0.60 floor
   ACTED-ON  (surfacing changes acts) worst and least measured: ~4-5% feedback coverage; NO
@@ -85,7 +85,7 @@ watcher rides T095 (W82).
   slice1-override-rate-deepseek-2026-07-27.md  the suppression-act design under debate
   cell-architecture-kimi-handoffs-2026-07-27.md  the census spec + "one plane lit, twelve dark"
   twin-seat-misdelivery-diagnosis-2026-07-27.md  the three agent-keyed organs
-  index-blindness-RECURRENCE-2026-07-27.md   the clobber mechanism, now fixed (956dfc5)
+  index-blindness-RECURRENCE-2026-07-27.md   the clobber mechanism, now fixed (7de1a62)
   funnel: corpus_lessons=486 (was 16 this morning) -- value_rate 5.5% is REAL for the first time
 
 ## THE QUESTIONS -- number your answers

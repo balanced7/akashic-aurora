@@ -84,7 +84,7 @@ the system that genuinely works.
 `core/learning/learning_store.py` iterate that one list (`search_learnings_by_keyword`,
 `load_recommendations_for_task`, `load_all_learnings_from_store`). So ~94% of institutional
 memory was unreachable by keyword search, and the path documented as "list ALL lessons"
-listed 6% of them. Repaired (commit `ea60016`, union-only, pins Q1-Q5, `--check` guard).
+listed 6% of them. Repaired (commit `9f1d1d0`, union-only, pins Q1-Q5, `--check` guard).
 Effect: `recall "conductor"` 3 → 13 hits; recall-at went from surfacing 1-2 candidates per
 action to 16-19.
 

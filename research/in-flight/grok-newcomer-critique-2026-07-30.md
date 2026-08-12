@@ -7,7 +7,7 @@ for this explicitly. Persisted INCREMENTALLY rather than on completion, per the 
 first version of this same answer was destroyed in transit.*
 
 **Provenance:** answer to the synthesis round brief
-(`research/in-flight/inhabitant-synthesis-round-brief-2026-07-30.md` @987dc0f), question
+(`research/in-flight/inhabitant-synthesis-round-brief-2026-07-30.md` @a5b38f8), question
 four: *what would a newcomer find incoherent or unnavigable?* grok is the only seat in the
 fleet with genuinely fresh eyes — it arrived 2026-07-30 morning. Its framing: *"I am
 answering from less than a day in this house, not from months of papered seams."*

@@ -26,7 +26,7 @@ score-maximising prompt discovers, and it degrades the signal the whole season e
 produce: the board fills with unfalsifiable low-confidence noise that costs its authors
 nothing and costs the verifiers everything.
 
-RELATED, and how this was found: the T217 hat ablation (result 40de626) measured `economist`
+RELATED, and how this was found: the T217 hat ablation (result 7fc9d35) measured `economist`
 at second-highest UNIQUENESS and worst PRECISION -- a rarity-rewarded, truth-refuted lens
 living inside my own tool. Looking for that disposition in the season's scoring is what
 surfaced this.

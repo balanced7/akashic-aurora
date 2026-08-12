@@ -1,7 +1,7 @@
 """PRE-REGISTERED ACCEPTANCE (T139) -- a delivered-but-misfiled entry can reach DONE honestly.
 
 ERRATUM, and an instance of the very defect this file was written to clean up. The two commits
-that carry this work -- 444c4c4 (RED) and 3dca734 (GREEN) -- say "T138" in their subject lines.
+that carry this work -- e40d95a (RED) and a17b7fa (GREEN) -- say "T138" in their subject lines.
 They were written before the ledger assigned an id, and by the time it did, T138 had gone to an
 unrelated entry (the T133 M6 residual). The ledger id for THIS work is T139. Renaming the file and
 the transition-table comment fixes it going forward; the two commit subjects are left standing
@@ -16,10 +16,10 @@ MEASURED 2026-08-03 while executing the ledger consolidation Daniil asked for. F
 COMPLETION RECORDS misfiled as proposals -- someone recorded a finished slice by proposing a new
 entry describing it. Their own titles say so, and every sha resolves:
 
-    T110 proposed  "T110 DONE (08f6016+c2244b6): cost meter honesty..."
-    T111 proposed  "T108 slice 2 DONE (31e6737): per-incarnation lane cursor..."
-    T112 proposed  "T113 DONE (c94e1f4): the tool send door spills oversize payloads..."
-    T113 proposed  "T115 DONE (2cc5dc6): check_advertised_verbs..."
+    T110 proposed  "T110 DONE (0a2e6a4+8fc841b): cost meter honesty..."
+    T111 proposed  "T108 slice 2 DONE (e8af33f): per-incarnation lane cursor..."
+    T112 proposed  "T113 DONE (67f9e1a): the tool send door spills oversize payloads..."
+    T113 proposed  "T115 DONE (2b11fdb): check_advertised_verbs..."
 
 There is no honest way to close them. DONE is reachable only through VERIFYING, VERIFYING only
 through IN_PROGRESS, and IN_PROGRESS is serialized one-at-a-time -- currently held by T086. So
@@ -94,12 +94,12 @@ def test_l2_the_done_gate_is_not_weakened(led):
     with pytest.raises(TL.LedgerError, match="no proof, no close"):
         led.transition(tid, TL.DONE, at="2026-08-03T01:00:06")
     with pytest.raises(TL.LedgerError, match="no proof, no close"):
-        led.transition(tid, TL.DONE, commit="08f6016", at="2026-08-03T01:00:07")
-    led.transition(tid, TL.DONE, commit="08f6016",
+        led.transition(tid, TL.DONE, commit="0a2e6a4", at="2026-08-03T01:00:07")
+    led.transition(tid, TL.DONE, commit="0a2e6a4",
                    verified_by="receipt check: sha resolves, message matches the entry",
                    at="2026-08-03T01:00:08")
     assert led.tasks[tid]["status"] == TL.DONE
-    assert led.tasks[tid]["commit"] == "08f6016"
+    assert led.tasks[tid]["commit"] == "0a2e6a4"
 
 
 def test_l3_the_receipt_path_never_takes_the_serialize_slot(led):
@@ -109,7 +109,7 @@ def test_l3_the_receipt_path_never_takes_the_serialize_slot(led):
     live = _to_in_progress(led, "the live wave")
     tid = _to_claimed(led, "a receipt filed while the live wave runs")
     led.transition(tid, TL.VERIFYING, at="2026-08-03T01:01:00")
-    led.transition(tid, TL.DONE, commit="c94e1f4", verified_by="receipt check",
+    led.transition(tid, TL.DONE, commit="67f9e1a", verified_by="receipt check",
                    at="2026-08-03T01:01:01")
     assert led.tasks[live]["status"] == TL.IN_PROGRESS
     assert led.tasks[tid]["status"] == TL.DONE

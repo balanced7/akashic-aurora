@@ -12,7 +12,7 @@ The system already knew one of the four. `state/coord/suite_baseline.json` has r
 failure since 2026-07-24. Nothing surfaced it at the moment I hit it. This is the same
 shape as T197 (`the verdict existed, the door never asked`) in a second organ, hours later.
 
-WHY IT ONLY ANSWERED 1 OF 4: the baseline is 320h stale (recorded at bb0beac). The other
+WHY IT ONLY ANSWERED 1 OF 4: the baseline is 320h stale (recorded at 6a0162c). The other
 three broke AFTER it was recorded -- T196c landed 2026-08-05 and turned the T171/T181 laws
 red. So the organ is not the wrong shape; it is out of date and silent about it.
 
@@ -75,7 +75,7 @@ def test_a_stale_baseline_never_says_yours(baseline, monkeypatch):
     """THE DEFECT. delta() called this 'new'. Over a 14-day gap a failure could have
     arrived from anyone -- claiming it is yours is a fabricated attribution, and the
     cost of it is a wrong public claim (which I made today)."""
-    baseline("bb0beac", ["tests/a.py::old"])
+    baseline("6a0162c", ["tests/a.py::old"])
     monkeypatch.setattr(SB, "head_sha", lambda: "99ffff0")
     v = SB.verdicts(["tests/b.py::fresh"])
     assert v["by_node"]["tests/b.py::fresh"]["verdict"] == "UNKNOWN"
@@ -86,7 +86,7 @@ def test_staleness_also_weakens_the_exculpating_verdict(baseline, monkeypatch):
     """The half a naive fix misses. A node IN a stale baseline is only PROBABLY
     inherited -- it could have been fixed and re-broken in the gap. 'It was failing
     before' is the comfortable answer, so it is the one that rots unwatched."""
-    baseline("bb0beac", ["tests/a.py::old"])
+    baseline("6a0162c", ["tests/a.py::old"])
     monkeypatch.setattr(SB, "head_sha", lambda: "99ffff0")
     v = SB.verdicts(["tests/a.py::old"])
     assert v["by_node"]["tests/a.py::old"]["verdict"] == "LIKELY_INHERITED"
@@ -95,7 +95,7 @@ def test_staleness_also_weakens_the_exculpating_verdict(baseline, monkeypatch):
 def test_every_verdict_carries_what_to_do(baseline, monkeypatch):
     """A classification with no next move is a label. UNKNOWN in particular must say
     'bisect this one' -- that is the whole ergonomic win: bisect 3 instead of 4."""
-    baseline("bb0beac", ["tests/a.py::old"])
+    baseline("6a0162c", ["tests/a.py::old"])
     monkeypatch.setattr(SB, "head_sha", lambda: "99ffff0")
     v = SB.verdicts(["tests/a.py::old", "tests/b.py::fresh"])
     for node, row in v["by_node"].items():
@@ -149,7 +149,7 @@ def test_a_subset_run_never_calls_unrun_tests_fixed(baseline, monkeypatch):
 
 def test_summary_counts_match_the_rows(baseline, monkeypatch):
     """A headline that disagrees with its own detail is worse than no headline."""
-    baseline("bb0beac", ["tests/a.py::old"])
+    baseline("6a0162c", ["tests/a.py::old"])
     monkeypatch.setattr(SB, "head_sha", lambda: "99ffff0")
     v = SB.verdicts(["tests/a.py::old", "tests/b.py::x", "tests/c.py::y"])
     counts = v["counts"]

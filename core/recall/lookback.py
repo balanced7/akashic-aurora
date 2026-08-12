@@ -176,7 +176,7 @@ def _doc_class(head: str) -> str:
 
 
 def _library_paths() -> List[str]:
-    """docs/library/<type>/*.md -- the projection plane the corpus MOVED to (f8510b6).
+    """docs/library/<type>/*.md -- the projection plane the corpus MOVED to (425cf52).
 
     The migration preserved bytes as atoms and projections under docs/library/, but the
     docs sweep never followed, so a governing doc became unreachable even though its

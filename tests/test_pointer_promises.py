@@ -5,7 +5,7 @@ WHY THIS EXISTS
 On 2026-07-25 the public README was found citing `research/reviewed/` five times as
 "the verdicts, preserved verbatim -- ~180 records". That directory held 51 files of raw
 April session JSONL and drill JSON: zero verdicts. The records had moved to
-docs/library/report/ in f8510b6, which re-pointed every FILE reference -- but a DIRECTORY
+docs/library/report/ in 425cf52, which re-pointed every FILE reference -- but a DIRECTORY
 reference does not 404 when its contents move, so it survived and kept rendering as a
 working link.
 

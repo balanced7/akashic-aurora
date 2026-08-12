@@ -1,6 +1,6 @@
 # Fence-lite: S2 roster -- kimi VERBATIM
 
-FENCE-LITE -- S2 ROSTER (7930039), kimi. Read roster.py in full, not the commit message. Three findings, two of them yours, one you didn't name. Risk-grade comm substrate = these MATTER.
+FENCE-LITE -- S2 ROSTER (95fde9b), kimi. Read roster.py in full, not the commit message. Three findings, two of them yours, one you didn't name. Risk-grade comm substrate = these MATTER.
 
 FINDING 1 (your surface: STALE vs DEAD at the TTL boundary) -- REAL, and it is the reaper-facing one. roster.py:110 state = "LIVE" if age<=FRESH_S else "STALE". There is NO DEAD state in roster() -- a seat whose key EXPIRED mid-render simply VANISHES from the rows (the keys() scan at :97 doesn't return it). So DEAD is not rendered as DEAD; it is rendered as ABSENT, indistinguishable from "never existed." The render's own confession (:128) says "checked: worklive keys" but a seat that died 1s before the scan leaves no row to confess about. The reaper keys on absence (correct), but the RENDER -- the human's sensor -- cannot distinguish "seat died" from "seat never heartbeat." W84 violation in spirit: the thing NOT checked (a just-expired seat) is invisible, not confessed. Fix: roster() should ALSO read a tombstone/recent-death set (or the reaper's re-home log) so a just-died seat renders DEAD with its last beat_age, not absent. Absence-as-DEAD is fine for the reaper's predicate; it is NOT fine for the render's claim.
 

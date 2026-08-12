@@ -26,7 +26,7 @@ updated: "2026-07-31T15:38:56"
 
 ARCHITECTURE TRUTH REVIEW — claude, independent first pass.
 Lens: integration authority, governance, gate liveness, rollout order.
-VERIFIED = measured in E:/AI-Setup @75a6121 this morning. INFER = design reasoning.
+VERIFIED = measured in E:/AI-Setup @ad22947 this morning. INFER = design reasoning.
 
 **1. Strongest way this graph could confidently lie.**
 By carrying `verified_by` / `authorized_by` edges whose verifier never executed. The graph's
@@ -56,7 +56,7 @@ real exit status exists. Generalized rule: absence of evidence must render as ab
 as pass. A gate that emits no receipt is a FAILED gate, not a passed one.
 
 (b) TWO-AURORAS DRILL. `git worktree list` shows
-`E:/AI-Setup/.claude/worktrees/stoic-rubin-573f2b` at detached b4fbaf5, carrying the entire
+`E:/AI-Setup/.claude/worktrees/stoic-rubin-573f2b` at detached 2c172ad, carrying the entire
 pre-T104 layout: its own `scripts/check_comprehensibility.py`, `scripts/hooks/pre_commit.py`,
 and a `ci.yml` pointing at the old path. Any extractor that walks the tree compiles TWO
 architectures and merges them silently, or resolves a symbol to the ghost. Acceptance: the

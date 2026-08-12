@@ -14,7 +14,7 @@ That one sentence contains the whole slice: durable BODIES ("opens the full body
 distinct from consumption ("read it"), declared INTENT distinct from seen ("did not declare
 action"), and NON-DESTRUCTION ("without moving or destroying any transport history").
 
-Four defects these pins encode, each VERIFIED in the tree at 0de1a3f before this file was written:
+Four defects these pins encode, each VERIFIED in the tree at 7560c19 before this file was written:
 
   D1 NO BODIES.  core/comm/mailbox.py:164-169 persists only {sha, kind, frm, ts, ids, ts_s}.
      The body is never stored, so "opens the full body" is impossible once the ephemeral stream

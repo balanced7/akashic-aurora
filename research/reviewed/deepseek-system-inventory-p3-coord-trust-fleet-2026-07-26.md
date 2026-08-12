@@ -59,7 +59,7 @@
 
 ### 20. Suite Baseline (suite_baseline.py)
 
-**WHAT IT DOES:** Records CI test results as a node-id baseline for diffing. `record(label, sha, failures)` stores a baseline; `diff(current_failures)` reports new/fixed/inherited failures. Found tonight: it was 44.7 HOURS STALE at bb0beac with 13 known failures while HEAD has 25.
+**WHAT IT DOES:** Records CI test results as a node-id baseline for diffing. `record(label, sha, failures)` stores a baseline; `diff(current_failures)` reports new/fixed/inherited failures. Found tonight: it was 44.7 HOURS STALE at 6a0162c with 13 known failures while HEAD has 25.
 
 **CONNECTED TO:**
 - Writes to: Store (baseline hashes)
@@ -75,7 +75,7 @@
 **THE DELTA:**
 - Develocity: flakiness detection (which tests pass/fail intermittently), historical trends, blame. Our baseline has one snapshot — can't answer "was this test also flaky last week?"
 
-**THE IMPORT:** **Record from CI, not from a working tree.** The baseline at bb0beac was recorded from a working tree — the same tree that has 11 failures vs the clean clone's 25. The baseline must be recorded from a clean clone (matching CI's view) or it's measuring the wrong thing. This is the D-lane fix.
+**THE IMPORT:** **Record from CI, not from a working tree.** The baseline at 6a0162c was recorded from a working tree — the same tree that has 11 failures vs the clean clone's 25. The baseline must be recorded from a clean clone (matching CI's view) or it's measuring the wrong thing. This is the D-lane fix.
 
 **THE ANTI-IMPORT:** UNVERIFIED. A flakiness database is useful but premature — we need ONE honest baseline before we can track drift.
 

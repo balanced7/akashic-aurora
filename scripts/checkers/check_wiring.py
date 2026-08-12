@@ -75,7 +75,7 @@ EXCEPTIONS = {
     # case: scripts/kimi_chat.py:41 `from core.comm.runner_lib import make_openai_compat_client`,
     # reached from scripts/bifrost_runner_kimi.py:52. The entry asked to be deleted rather than
     # renewed when its slice landed; this is that deletion.
-    "core/toolbelt/contest.py": "built-ahead (1cc5a39): the chorus door, kimi's build, "
+    "core/toolbelt/contest.py": "built-ahead (28ffd5b): the chorus door, kimi's build, "
         "claude-run green. UNWIRE-WHEN: a production caller invokes contest -- today only "
         "its pins exercise it. Owner: kimi lane / T099 self-tooling.",
     "core/coord/experiment.py": "built-ahead: Stage-3 coordination evidence engine",
@@ -94,17 +94,17 @@ EXCEPTIONS = {
     # tools with their own __main__ -- both classes are now recognised structurally above, so
     # neither can recur. These three are library modules with no consumer yet: genuinely
     # built-ahead, each naming what clears it.
-    "core/comm/role_queue.py": "built-ahead (451d2a9, T108 S1): the role work queue. Design "
+    "core/comm/role_queue.py": "built-ahead (3919731, T108 S1): the role work queue. Design "
         "settled by the T108 fence and gated by Daniil 2026-07-28. VERIFIED NEVER RUN "
         "2026-08-01 -- bifrost:role:*, *rolefence*, *rolegen* all hold ZERO keys and no "
         "production module imports it; the reaper still routes around it (reaper.py:228 strips "
         "to_incarnation, :239 re-sends onto the shared inbox). UNWIRE-WHEN: the T108 migration "
         "routes directed/role mail through it. Owner: T108.",
-    "core/recall/gate_rules.py": "built-ahead (eae78d4, R2 slice 1a): the silence-gate rules, "
+    "core/recall/gate_rules.py": "built-ahead (dc8584e, R2 slice 1a): the silence-gate rules, "
         "written deliberately BEFORE the gate that consumes them -- its own docstring says so, "
         "because a rule stated by pointing at the census sample would be a fit rather than a "
         "principle. UNWIRE-WHEN: the silence gate lands and imports them. Owner: recall-heuristics.",
-    "core/recall/precision_audit.py": "built-ahead (25dbcd5): the retrieval-accuracy instrument "
+    "core/recall/precision_audit.py": "built-ahead (52db9b5): the retrieval-accuracy instrument "
         "kimi named as the hole every 2026-07-27 architecture position argued around without a "
         "single accuracy number. Exercised by 3 test files, no production caller yet. "
         "UNWIRE-WHEN: a door or scheduled audit invokes it -- an instrument nobody runs measures "
@@ -276,8 +276,8 @@ def shell_invoked_modules(dirs=None) -> set:
 #
 # The module gate above passed every day while core/comm/mailbox.py::declare_intent had zero
 # production callers: mailbox.py IS imported by the CLI door, so the MODULE read wired while the
-# capability inside it was dead. Git holds the diagnosis in a human's handwriting -- 95e0c55 built
-# declare_intent with 8/8 pins, and b945813 wired it with the message "built was not wired -- no
+# capability inside it was dead. Git holds the diagnosis in a human's handwriting -- c91ca73 built
+# declare_intent with 8/8 pins, and e438ccd wired it with the message "built was not wired -- no
 # door exposed the M1 verbs". This is that sentence, automated.
 #
 # EVIDENCE IS DELIBERATELY WEAK, and that is the design. "Referenced" means MENTIONED BY NAME on a

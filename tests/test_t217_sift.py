@@ -215,7 +215,7 @@ def test_every_tier_states_its_blindness():
 
 # --------------------------------------------------------------- hats, tier 1
 def test_a_retired_hat_stays_retired_with_its_reason():
-    """ABLATION OUTCOME, pre-registered at 1f31575, measured at 40de626.
+    """ABLATION OUTCOME, pre-registered at 93edb7c, measured at 7fc9d35.
 
     `economist` scored 1/3 precision on the hand-adjudicated terms, reaching FORK on all
     three including BOTH false positives, with the second-highest uniqueness in the pool and
@@ -234,7 +234,7 @@ def test_a_retired_hat_stays_retired_with_its_reason():
 
 
 def test_hats_are_descriptive_not_normative():
-    """L1, measured (T207, pre-registered at b02f46a): grounded factual lookups were
+    """L1, measured (T207, pre-registered at 99579fc): grounded factual lookups were
     correct 5/5 with citations; ONE normative question ('should this count MORE kinds or
     FEWER?') came back confidently wrong with real, accurate citations. It failed by
     equivocating on a word.
@@ -265,7 +265,7 @@ def test_curator_pairs_vary_hats_within_a_pair_on_one_term():
 # --------------------------------------------------------------- the gate, tier 2
 def test_flip_rate_refuses_when_evidence_hashes_differ():
     """THE LOAD-BEARING PIN. claude#42d00626's catch, and he shipped the bug one tier
-    down the same night (T216, 54bc84c): --with was accepted on the fan path and SILENTLY
+    down the same night (T216, 4875fe9): --with was accepted on the fan path and SILENTLY
     dropped, so five helpers answered well-formed about zero files.
 
     Curator disagreement has THREE causes: real ambiguity, curation artifact, and INPUT
@@ -295,7 +295,7 @@ def test_flip_rate_computes_when_hashes_match():
 
 
 def test_a_verdict_resting_on_one_hat_against_five_renders_contested():
-    """MEASURED DEFECT, first cost-blind sample (pre-registered at b73a757).
+    """MEASURED DEFECT, first cost-blind sample (pre-registered at da5fbc7).
 
     Two of three FORK verdicts were false positives and both had one shape: the curator
     promoted a LONE dissenting hat over a five-or-six hat NO_FORK consensus. `behaviour`

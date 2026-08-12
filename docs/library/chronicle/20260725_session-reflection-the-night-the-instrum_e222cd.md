@@ -127,7 +127,7 @@ Caught because kimi's verify pointed at the seam. Guard + pin S9 now prevent it.
 
 - **Stage separation is the instrumentation slice**, ahead of everything. All four seats.
   No automatic feedback -- positive OR negative -- until surfaced/applied/outcome/attributed
-  are distinct events. SHIPPED tonight: 979a6ef, 380939b, d0c3b55.
+  are distinct events. SHIPPED tonight: 75bf0c0, fe391ea, e61b061.
 - **Both feedback loops are confounded.** Positive by self-inflation; negative by exposure
   bias -- and `is_benched` makes it SELF-SEALING: a demoted lesson stops surfacing, so it can
   never earn the credit that would redeem it. The negative loop is LIVE IN PRODUCTION.

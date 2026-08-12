@@ -38,16 +38,16 @@ needed — plus two defects found while doing them, both fixed with pins.
 
 | # | Change | Risk | Undo |
 |---|---|---|---|
-| 1 | `check_wiring.py` gains a FUNCTION-level gate | **Low.** Could block a commit on a false positive | `git revert 1a4ffe8` |
-| 2 | `self_invoking_modules` excludes re-exported modules | **Low-medium.** Could re-open a false positive | `git revert a0115d7` |
-| 2b | `scripts/` counts as production (fixes 6 false positives) | **Very low.** Only ever adds wiring evidence | `git revert 2e46dff` |
-| 3 | Ledger `CLAIMED -> VERIFYING` transition | **Medium — read this one** | `git revert 3dca734` |
-| 4 | Six entries closed, three abandoned, six minted | **Low.** Reversible data | `git revert 3dca734` + see §4 |
+| 1 | `check_wiring.py` gains a FUNCTION-level gate | **Low.** Could block a commit on a false positive | `git revert 075557f` |
+| 2 | `self_invoking_modules` excludes re-exported modules | **Low-medium.** Could re-open a false positive | `git revert 554d9c0` |
+| 2b | `scripts/` counts as production (fixes 6 false positives) | **Very low.** Only ever adds wiring evidence | `git revert ae8fe62` |
+| 3 | Ledger `CLAIMED -> VERIFYING` transition | **Medium — read this one** | `git revert a17b7fa` |
+| 4 | Six entries closed, three abandoned, six minted | **Low.** Reversible data | `git revert a17b7fa` + see §4 |
 
 **I measured the gate's own error rate rather than assuming it.** I sampled 22 entries from the
 117-item backlog it produced and hand-checked each. 21 held up; **6 of 117 (~5%) were wrong**, all
 from one structural cause — 29 of 47 files under `scripts/` were not counted as production, so a
-call from `mirror.py`, `ship.py` or `snapshot.py` read as "no caller". Fixed in `2e46dff`; backlog
+call from `mirror.py`, `ship.py` or `snapshot.py` read as "no caller". Fixed in `ae8fe62`; backlog
 114 → 108. The exposing case was `scripts/snapshot.py:21` calling `list_snapshots` — the **backup
 door**, on which the corpus already holds a `backup_door_never_ran` lesson. A gate that calls the
 backup door dead is worse than no gate, so I treated it as urgent rather than cosmetic.
@@ -57,7 +57,7 @@ Changes 1–2 affect a checker; 3 affects a transition table; 4 is data in a ver
 
 ---
 
-## 1. The function-level wiring gate (`1a4ffe8`)
+## 1. The function-level wiring gate (`075557f`)
 
 **What.** `check_wiring.py` walked the import graph over MODULES. It passed for months while
 `core/comm/mailbox.py::declare_intent` had zero production callers — mailbox.py *is* imported by
@@ -67,10 +67,10 @@ whether each public function is ever named on a production path.
 **Validated against the real case, not a synthetic one.** In throwaway worktrees at the two actual
 commits:
 
-- `95e0c55` (declare_intent built, 8/8 pins, no door) → **FAIL** on `mailbox.py::declare_intent`
-- `b945813` (the door added) → **silent**
+- `c91ca73` (declare_intent built, 8/8 pins, no door) → **FAIL** on `mailbox.py::declare_intent`
+- `e438ccd` (the door added) → **silent**
 
-`b945813`'s own commit message reads *"built was not wired -- no door exposed the M1 verbs"*.
+`e438ccd`'s own commit message reads *"built was not wired -- no door exposed the M1 verbs"*.
 A human diagnosed that by hand once. The gate now does it at commit time.
 
 **Risk.** It runs in `pre_commit.py` and `ship.py`, so a false positive would block commits —
@@ -80,7 +80,7 @@ for every seat, not just mine. Three things bound that:
   path — call, attribute, bare name, import alias, kwarg, or an exact-match string constant. So
   `getattr(mod, "promote")` counts as wiring. Only ZERO-mention capability is reported.
 - It ratchets against a frozen baseline of today's 114 findings. Only NEW orphans fail.
-- 9 pre-registered pins, committed RED and alone at `c61fa98` before any implementation.
+- 9 pre-registered pins, committed RED and alone at `09b3fd8` before any implementation.
 
 **Residual risk I have not eliminated:** a function whose name is assembled at runtime
 (`"declare_" + verb`) is invisible to it. Stated in the module docstring rather than discovered
@@ -89,7 +89,7 @@ later. If the gate ever blocks a commit wrongly, the fast unblock is to add the 
 That is the escape hatch I would want you to know about before anything else here.
 
 **The loudest finding it produced — and a correction to my own first reading.** The gate flagged
-eight uncalled public functions in `core/coord/cognitive_metrics.py`. Commit `1a4ffe8`'s message
+eight uncalled public functions in `core/coord/cognitive_metrics.py`. Commit `075557f`'s message
 calls that "an instrumentation module built whole and never wired". **That summary is wrong, and
 the module must not be deleted.** I chased it down afterwards; the truth is more interesting:
 
@@ -117,7 +117,7 @@ it.
 
 ---
 
-## 2. A `__main__` block in a library is a stub, not an entry point (`a0115d7`)
+## 2. A `__main__` block in a library is a stub, not an entry point (`554d9c0`)
 
 **What.** The gate was warning that `core/state/session_recovery.py`'s exception was stale —
 "now wired (or gone)". It was neither. Traced: no importer, no shell caller. The only thing
@@ -140,7 +140,7 @@ gets argued with; a gate that quietly stops asking gets believed.
 | `core/state/session_recovery.py` | **yes** | library with a stub |
 
 4 of 4. **Risk:** if some genuine tool is also re-exported by its package, it would return to the
-unwired list — a *loud*, easily-corrected failure, not a silent one. 4 pins, RED at `5df699d`.
+unwired list — a *loud*, easily-corrected failure, not a silent one. 4 pins, RED at `a38fac7`.
 
 **Also in this commit:** `core/comm/runner_lib.py`'s exception was removed — genuinely stale. Its
 own text said "UNWIRE-WHEN: a runner imports the factory", and `scripts/kimi_chat.py:41` now does,
@@ -148,7 +148,7 @@ reached from `scripts/bifrost_runner_kimi.py:52`. Exceptions 18 → 17.
 
 ---
 
-## 3. The ledger transition — the one worth your attention (`3dca734`)
+## 3. The ledger transition — the one worth your attention (`a17b7fa`)
 
 **What.** `CLAIMED -> VERIFYING` is now a legal transition.
 
@@ -179,7 +179,7 @@ work being done — checking a claimed sha against the commit.
 in-progress. A seat that wanted to skip the lifecycle could claim → verify → done in three calls.
 It would still need a real commit sha and a verification string, so the lie would be recorded and
 attributable — but the path exists now where it did not before. **If you dislike that trade, revert
-`3dca734`**; the four closures in §4 would need re-doing another way, and nothing else depends on it.
+`a17b7fa`**; the four closures in §4 would need re-doing another way, and nothing else depends on it.
 
 ---
 
@@ -189,11 +189,11 @@ attributable — but the path exists now where it did not before. **If you disli
 
 | entry | sha | what the commit actually says |
 |---|---|---|
-| T110 | `08f6016` (+`c2244b6`) | per-model pricing, cache-aware, UNPRICED state |
-| T111 | `31e6737` | per-incarnation lane cursor, with the inheritance guard |
-| T112 | `c94e1f4` | oversize tool payloads spill to blobs |
-| T113 | `2cc5dc6` | check_advertised_verbs |
-| T133 | `f419596` | mail states load-bearing, M1–M6 (44 pins green) |
+| T110 | `0a2e6a4` (+`8fc841b`) | per-model pricing, cache-aware, UNPRICED state |
+| T111 | `e8af33f` | per-incarnation lane cursor, with the inheritance guard |
+| T112 | `67f9e1a` | oversize tool payloads spill to blobs |
+| T113 | `2b11fdb` | check_advertised_verbs |
+| T133 | `52a7e4e` | mail states load-bearing, M1–M6 (44 pins green) |
 
 Three of those four had **titles naming a different T-number than their own id**. I recorded the
 mismatch in each `verified_by` rather than quietly tidying it. The real T115 (an unrelated
@@ -206,14 +206,14 @@ follow-ups is exactly how work disappears:
 - **T136** — deepseek's open question on the read-only cursor inheritance drain window
 - **T137** — MCP twin for `bifrost_fetch` (5 known CLI↔MCP gaps)
 - **T138** — T133's M6 residual: harness receipts are green-by-pin, never proven green-by-run
-- **T139** — the ledger receipt path itself (§3), since **closed** on `3dca734`
+- **T139** — the ledger receipt path itself (§3), since **closed** on `a17b7fa`
 - **T140** — the `cognitive_metrics` finding above: wire the recorders and a reader, or retire the
   fields that can only report zero
 
-**T134** (the wiring extension) is also **closed**, on `2e46dff`.
+**T134** (the wiring extension) is also **closed**, on `ae8fe62`.
 
 **A naming erratum, and an instance of the very defect this pass was cleaning up.** Commits
-`444c4c4` and `3dca734` say "T138" in their subjects. They were written before the ledger issued an
+`e40d95a` and `a17b7fa` say "T138" in their subjects. They were written before the ledger issued an
 id, and by then T138 had gone to the M6 residual. The real id is **T139**. I renamed the test file
 and repointed the code comment, but left the two commit subjects standing with an erratum rather
 than rewriting pushed history to tidy a label. Cite T139; expect T138 in `git log`. The cause is
@@ -237,7 +237,7 @@ own existence is an open question would mean that if you abandon T098, three liv
 it. That merge should happen after you rule on T098, not before.
 
 **Undo for §4 specifically:** `state/coord/tasks.json` is version-controlled, so
-`git revert 3dca734` restores the pre-consolidation ledger wholesale. To undo one entry only, edit
+`git revert a17b7fa` restores the pre-consolidation ledger wholesale. To undo one entry only, edit
 its `status` back in that file — every transition also left an event, so the history survives either
 way.
 
@@ -259,7 +259,7 @@ way.
 ## Test state, stated plainly
 
 The suite has **23 failures at HEAD**. I checked whether any are mine by running the same file set
-in a throwaway worktree at `957cbb3` (the commit I booted on): **24 failures there.** Failures move
+in a throwaway worktree at `3f4ab31` (the commit I booted on): **24 failures there.** Failures move
 in *both* directions between runs, which is the signature of flakiness, not regression.
 
 Three candidates failed at HEAD but not at baseline. Run in isolation:
@@ -268,11 +268,11 @@ Three candidates failed at HEAD but not at baseline. Run in isolation:
 - `test_t078_w3_mcp_door` → **passes**  (suite interference)
 - `test_runner_gemini_pins::test_p3` → fails on a 15-second **subprocess timeout** launching
   `bifrost_runner_gemini.py`, which the incoming handoff already named as known-failing from
-  another seat's mid-flight code (`d11ffe6`)
+  another seat's mid-flight code (`a120213`)
 
 **Conclusion: zero regressions attributable to this session's changes.** My own new pins — 9 + 4 + 4
 + 5 = 22 — are all green, as are the 44 T133 pins and the 39 ledger tests.
 
 A caveat I will not paper over: a clean full-suite baseline was **impossible** to take. The
-worktree at `957cbb3` cannot even collect three test files, because the working tree depends on
+worktree at `3f4ab31` cannot even collect three test files, because the working tree depends on
 untracked files from other lanes. The comparison above is the best available, not a perfect one.

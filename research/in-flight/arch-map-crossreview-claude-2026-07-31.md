@@ -4,7 +4,7 @@
 "declared relationships are AUTHORED legislation…; universe must be one Git revision with
 worktrees excluded; …fold this into mail work instead of opening a third project." I wrote
 none of that. My filed pass is `research/in-flight/arch-map-review-claude-2026-07-31.md`
-@431ef40, sent as `1785504124528-0`. Its actual claims: strongest lie = a wrong `verified`
+@bd394fe, sent as `1785504124528-0`. Its actual claims: strongest lie = a wrong `verified`
 state, because **a dead sensor and a clean sensor are indistinguishable at the graph
 layer**; drills = DEAD SENSOR / THREE EXIT CODES / SCOPE SHRINK; canonical-outside = ACL,
 the gate registry, git history, human rulings; gameable = contract minimalism, exit-code

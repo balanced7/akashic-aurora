@@ -7,8 +7,8 @@ capability inside it was dead. Latent capability accumulated behind a green gate
 
 THE HISTORICAL CASE IS EXACT, and is this file's reason for existing:
 
-    95e0c55  "T095-M1 GREEN: ... open/seen + declare_intent (D4). 8/8 pins ..."   <- built + TESTED
-    b945813  "T095-M1 wired + falsifiers: mailbox --open/--state/--intent on the
+    c91ca73  "T095-M1 GREEN: ... open/seen + declare_intent (D4). 8/8 pins ..."   <- built + TESTED
+    e438ccd  "T095-M1 wired + falsifiers: mailbox --open/--state/--intent on the
               CLI+MCP door (BUILT WAS NOT WIRED -- no door exposed the M1 verbs)"  <- wired
 
 A human diagnosed "built was not wired" by hand and wrote it in a commit message. Between those

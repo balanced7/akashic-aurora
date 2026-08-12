@@ -79,7 +79,7 @@ def test_p2_truly_dead_seat_still_pages():
 
 
 def test_p3_runner_beat_thread_never_masks_a_real_wedge():
-    """Sol's NO-GO on 2ef082e, and it is the sharpest finding of the arc: a RUNNER's
+    """Sol's NO-GO on a12345f, and it is the sharpest finding of the arc: a RUNNER's
     heartbeat runs on its OWN THREAD (py-spy proved it live -- deepseek's MainThread blocked
     in streams.py flush while 'Thread-3 (_heartbeat)' kept beating). So for a runner the beat
     proves PROCESS liveness, never WORK progress, and counting it as alive_signal would mask

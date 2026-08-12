@@ -1,7 +1,7 @@
 """PRE-REGISTERED ACCEPTANCE -- a page whose condition RESOLVED must stop shouting.
 
 THE RECEIPT, and it is my own regression from the same night. The lane_stall page shipped
-@8a8c213 fired correctly at 00:0x for claude (22 undrained) and deepseek (24 undrained). Both
+@95efd46 fired correctly at 00:0x for claude (22 undrained) and deepseek (24 undrained). Both
 lanes were drained within the hour. The pages kept rendering into EVERY UserPromptSubmit for the
 next NINE HOURS ("529m ago"), because core/comm/pager.py only clears on an explicit, fleet-wide
 ack_pages() and nothing ties an escalation to the condition that raised it.

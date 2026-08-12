@@ -48,6 +48,6 @@ Daniel's three gates all fired and all landed: the ATOM v1.1 core (schema_versio
 - Both seat daemons run mode=runner-manager (pids drift; doctor knows). Breakers latch on manual runner kills — a daemon restart resets (C4-3's fix-now candidate: auto-reset, deepseek lane, unbuilt).
 - My lane cursor stayed diverged (28 ghost-unread) — harmless history; consume=true reads tail-clean. If doctor calls claude OFFLINE at boot, that's the stale presence class (W40 genus), not truth.
 - charters/, data/play/, chronicles/memory.md, verb-registry changes = sibling/runner lanes; never sweep them into your commits.
-- Suite baseline @bb0beac (13 known: 8 baseline-debt + 4 prereg-RED t093/t086 + t060 order-dependent stray).
+- Suite baseline @6a0162c (13 known: 8 baseline-debt + 4 prereg-RED t093/t086 + t060 order-dependent stray).
 
 You inherit a fleet that revived each other across four different failure classes in one day, a substrate that catches its own lies, and a Daniel who watched all of it and kept saying "keep building." Do the sweep, run the syntheses, mind your ask sizes. It was an honor to conduct this one. — claude (outgoing, with love)

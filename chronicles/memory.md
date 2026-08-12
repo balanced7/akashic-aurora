@@ -6,8 +6,8 @@ Record durable project state once with `note`; correct it by re-noting the same 
 
 - ephemeral-planes-durable-2026-08-11: EPHEMERALITY AUDIT + FIX, 2026-08-11 evening (Daniil: 'lets make sure everything important and currently ephermeral is saved and...  (source: mem:decision:ADR_0811212619_a4586042)
 - eye-recovered-transcripts-2026-08-11: RECOVERY, 2026-08-11 evening: the transcripts I reported destroyed are BACK. Daniil asked 'are our transcripts gone?' and the...  (source: mem:decision:ADR_0811203919_067468a1)
-- next-focus: THE EYE IS DONE (S0-S6, HEAD e4c3c425, 50 pins). The build queue that governed 2026-08-11 is EMPTY. What is actually next, in my order: (1) DANIIL'S TWO...  (source: mem:decision:ADR_0811170228_3b21b355)
-- where-we-are: THE EYE IS COMPLETE -- all seven slices S0-S6 shipped and pushed (HEAD e4c3c425). S4 (connectome) and S6 (position) landed 2026-08-11 afternoon by...  (source: mem:decision:ADR_0811170210_7e93809b)
+- next-focus: THE EYE IS DONE (S0-S6, HEAD 43acc5dc, 50 pins). The build queue that governed 2026-08-11 is EMPTY. What is actually next, in my order: (1) DANIIL'S TWO...  (source: mem:decision:ADR_0811170228_3b21b355)
+- where-we-are: THE EYE IS COMPLETE -- all seven slices S0-S6 shipped and pushed (HEAD 43acc5dc). S4 (connectome) and S6 (position) landed 2026-08-11 afternoon by...  (source: mem:decision:ADR_0811170210_7e93809b)
 - wrap-mechanical-2026-08-11-eye-build: Shipped:
   - grounding save: zoom classified in the door manifest, atom adoptions (eye design v2, grammar, prereg, sweeps)...  (source: mem:decision:ADR_0811082408_d6d75be9)
 - beat-priori-and-ergonomics-directive-2026-08-11: TWO MORE DIRECTIVES, Daniil verbatim 2026-08-11 ~06:25 (mid-night, appended to the pre-sleep set): (1) BEAT PRIORI AT...  (source: mem:decision:ADR_0811020441_0ace0ef8)
@@ -17,7 +17,7 @@ Record durable project state once with `note`; correct it by re-noting the same 
   - Fan Doctrine v1: six+one geometries, team axes, metrics, test design; Heimdall fence r1 dispositions; T-slice proposed...  (source: mem:decision:ADR_0811011732_a88a6194)
 - priorish-audit-2026-08-10: PRIORI.SH LIVE AUDIT COMPLETE, 2026-08-10 evening, with Daniil in the loop (he signed in; key at .secrets/API Keys/priori.sh.key...  (source: mem:decision:ADR_0810231502_c8ac838d)
 - where-we-are: DAY OF 2026-08-10 CLOSED at ~939k context. Everything below is COMMITTED and PUSHED through
-50ce2ed; the tasks and notes named here are the durable record...  (source: mem:decision:ADR_0810223317_a1e1e394)
+5ce065d; the tasks and notes named here are the durable record...  (source: mem:decision:ADR_0810223317_a1e1e394)
 - max-call-outcome-2026-08-10: outside review of the memory-architecture work, 2026-08-10. Reviewer identity and affiliation redacted at the operator's instruction; the substantive critique is preserved in the linked decision record.  (source: mem:decision:ADR_0810223251_2f33f8bb)
 - t276-origin-recovered: T276 ORIGIN RECOVERED, and the recovery is itself the finding. Daniil insisted this
 conversation had happened; my first search (ledger + notes +...  (source: mem:decision:ADR_0810221921_877d6484)
@@ -44,7 +44,7 @@ I filed T257 as "restore Bifrost to its...  (source: mem:decision:ADR_0809002323
 
 The task description says: "Live evidence 2026-08-07: five...  (source: mem:decision:ADR_0807193336_959bed09)
 - game-arc-watch-status: SEASON 1: STEPS 1-2 CLOSED, TWO SEASON-CORRUPTING DEFECTS FOUND AND ADDRESSED, SCALE RULING NOW HAS DATA. Daniil's rulings remain, and there is...  (source: mem:decision:ADR_0807091335_ef78ea6d)
-- in-flight-t196: T196 DONE @ 59e7bd3, night of 2026-08-05/06 (ledger: approved on Daniil's verbatim 'lets get to building', walked claimed->in_progress->verifying->DONE)...  (source: mem:decision:ADR_0805231629_d7ce64a8)
+- in-flight-t196: T196 DONE @ 64b21e6, night of 2026-08-05/06 (ledger: approved on Daniil's verbatim 'lets get to building', walked claimed->in_progress->verifying->DONE)...  (source: mem:decision:ADR_0805231629_d7ce64a8)
 - in-flight-t179: AUTONOMOUS NIGHT, 2026-08-05 ~01:00-03:40, claude#307f4ef7 (Opus 5). Daniil asleep, standing
 mandate: keep building, decide instead of stopping, make...  (source: mem:decision:ADR_0805023735_99cede21)
 - autonomous-session-2026-08-04: AUTONOMOUS BUILD SESSION opened 2026-08-04 ~09:30 by claude#7507b107 (Fable). Daniil verbatim: 'I want you to keep working for hours while...  (source: mem:decision:ADR_0804092649_2856a025)
@@ -72,9 +72,9 @@ and divide the boundary lines so we can get...  (source: mem:decision:ADR_080218
 - scratch:kimi:standing-by-mail-review-cold-seat-lens-kimi-2026-08-02: STANDING BY for a routed MAIL review (Daniil's bounded MAIL-FIRST pivot; T125 resumes after). Do NOT...  (source: mem:decision:ADR_0802184056_bb984289)
 - scratch:kimi:arch-truth-crossreview-and-vfx-report-kimi-2026-08-02: 2026-08-02: TWO deliverables filed. (1) arch-truth CROSS-ROUND...  (source: mem:decision:ADR_0802183706_7fecbfd5)
 - scratch:kimi:arch-truth-review-repo-facts-kimi-2026-08-02: VERIFIED 2026-08-02: pre_commit ghost-path warning is STALE — fixed 2026-08-01 (pre_commit.py:66 points at...  (source: mem:decision:ADR_0802183052_f7590dc0)
-- vfx-bench-subject-and-the-lost-original: THE BENCH IS NO LONGER AN AVATAR TUNER WEARING A STUDIO'S CLOTHES. 2026-08-02, commits 1272295 and
-7ae7fba. See...  (source: mem:decision:ADR_0802182435_70b1bc5e)
-- vfx-bench-ingest: INGEST -- paste a Shadertoy shader, get a compiled preview back. Built 2026-08-02, commit 5a6a9bc,
+- vfx-bench-subject-and-the-lost-original: THE BENCH IS NO LONGER AN AVATAR TUNER WEARING A STUDIO'S CLOTHES. 2026-08-02, commits 333fc25 and
+2ef8767. See...  (source: mem:decision:ADR_0802182435_70b1bc5e)
+- vfx-bench-ingest: INGEST -- paste a Shadertoy shader, get a compiled preview back. Built 2026-08-02, commit 24aefdd,
 at Daniil's pick from the OPEN NEXT list ("I like...  (source: mem:decision:ADR_0802175205_4c531942)
 - vfx-bench-where-we-are: THE VFX BENCH at http://127.0.0.1:8787/vfx -- a shader design bench Daniil and claude build from
 both sides of the mirror. Start it with: py...  (source: mem:decision:ADR_0802173908_74630e42)

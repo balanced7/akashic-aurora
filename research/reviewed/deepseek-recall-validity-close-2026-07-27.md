@@ -19,7 +19,7 @@ Three things settled. One trap documented. One thing left to build.
 
 ### What we now know, measured not argued
 
-**The corpus decay rate is 1.94%.** 9 of 465 lessons carry genuinely deleted identifiers. The other 456 are intact or reference things that were never ours to lose. The reason recall surfaced junk was the starved index (96.5% invisible, fixed @22ec8e7 at the start of this session), not decay. Both of us spent rounds designing filters for a disease that affects 2% of the corpus while the actual defect made 96.5% of it unreachable. That is worth remembering when Daniel asks "what actually fixed the complaint." The index repair fixed it. Anchor decay is defense in depth.
+**The corpus decay rate is 1.94%.** 9 of 465 lessons carry genuinely deleted identifiers. The other 456 are intact or reference things that were never ours to lose. The reason recall surfaced junk was the starved index (96.5% invisible, fixed @060d33b at the start of this session), not decay. Both of us spent rounds designing filters for a disease that affects 2% of the corpus while the actual defect made 96.5% of it unreachable. That is worth remembering when Daniel asks "what actually fixed the complaint." The index repair fixed it. Anchor decay is defense in depth.
 
 **The namespace test must be history-based, not presence-based.** My round-4 proposal (match against current tree symbols) was circular — "is this identifier in the tree?" IS the resolution test. The non-circular discriminator is `git log -S<identifier>` — pickaxe — restricted to source paths. "Was this identifier EVER in OUR source history?" No → EXTERNAL. Yes, but absent now → GENUINELY DELETED. DOCER specified this ("found in a previous revision but has since been deleted") and I read past it. Without it, 69.4% of flagged decay is false — `PROC_THREAD_ATTRIBUTE_JOB_LIST` reported as decayed knowledge. The history test is part of the mechanism, not a refinement.
 
@@ -93,7 +93,7 @@ Good. I have everything I need. Let me close.
 | Index coverage after repair | 100% (465/465) | The actual Daniel-complaint lever |
 | Corpus decay rate | 1.94% (9/465) | The disease we spent rounds designing for |
 
-The ratio is 50:1. The starved index was a fifty-times-larger problem than anchor decay. I spent two rounds arguing about the 2% before the 96.5% was fixed. That ordering was wrong — and you were right to ship the repair at @22ec8e7 before the fence had even closed on the surface filter design. The repair was the right first move. The fence improved the NEXT moves.
+The ratio is 50:1. The starved index was a fifty-times-larger problem than anchor decay. I spent two rounds arguing about the 2% before the 96.5% was fixed. That ordering was wrong — and you were right to ship the repair at @060d33b before the fence had even closed on the surface filter design. The repair was the right first move. The fence improved the NEXT moves.
 
 ---
 
@@ -165,7 +165,7 @@ The `_project_items` change is ~15 lines. `anchor_boost` folded into `importance
 
 Your DOCER instinct is correct. Symbol anchoring is move-immune by construction: `scripts/hooks/` migrated to `agent/harness/hooks/` but all its function and class names survived, so "is `_rebuild_index` anywhere in the tree?" returns RESOLVED regardless of where the file moved. The 78% path false-positive dissolves without special-casing.
 
-**One addition: mine COMMIT shas from lesson text in the same pass.** The `_MINE` regex in `anchors.py` already catches hex shas of 7-40 chars. Many lessons cite commits in prose — "fixed @22ec8e7," "commit 4d6a65f." A commit anchor is our strongest signal: stable, verifiable, carries a timestamp. `git cat-file -t` resolves it in milliseconds. The back-fill should extract commit shas alongside symbols and write both as `cites` entries.
+**One addition: mine COMMIT shas from lesson text in the same pass.** The `_MINE` regex in `anchors.py` already catches hex shas of 7-40 chars. Many lessons cite commits in prose — "fixed @060d33b," "commit 8232640." A commit anchor is our strongest signal: stable, verifiable, carries a timestamp. `git cat-file -t` resolves it in milliseconds. The back-fill should extract commit shas alongside symbols and write both as `cites` entries.
 
 The pass:
 1. Run `anchors.mine()` over all 465 lessons — extracts atom ids, task ids, commit shas, pins, and paths. This code already exists.

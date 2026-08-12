@@ -19,7 +19,7 @@ P5 IS NOT IN THE PROPOSAL, AND IT IS THE ONE THAT COSTS MONEY.
 A per-incarnation cursor starts VIRGIN. read_lane_cursor()'s documented virgin
 semantics are '0' = drain-from-start. So the first runner to adopt this would
 re-read its ENTIRE lane history as new mail -- the redelivery storm that ran
-$97 -> $109 overnight and killed two runners (077f4ed). The migration must
+$97 -> $109 overnight and killed two runners (a13bc0d). The migration must
 INHERIT the agent-keyed position on first use. A cursor split is a fork of
 progress, and a fork that forgets where it was is not a cursor.
 
@@ -111,7 +111,7 @@ def test_p4_an_explicit_peer_argument_is_never_suffixed():
 def test_p5_a_virgin_incarnation_cursor_inherits_the_agent_position():
     """NOT IN THE PROPOSAL. read_lane_cursor()'s virgin semantics are '0' =
     drain-from-start, so an incarnation adopting a fresh key would re-read the
-    entire lane as new mail. That is the redelivery storm of 077f4ed, which ran
+    entire lane as new mail. That is the redelivery storm of a13bc0d, which ran
     $97 -> $109 and killed two runners. Splitting a cursor forks progress; the
     fork must start where the trunk was."""
     shared = _bus("deepseek")

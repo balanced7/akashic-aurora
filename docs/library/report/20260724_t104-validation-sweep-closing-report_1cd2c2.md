@@ -25,12 +25,12 @@ updated: "2026-07-24T00:15:25"
 
 DANIEL'S DIRECTIVE (standing, 2026-07-23): "make sure all of our systems are reliably online... a validation sweep... fold in feature improvements." Tonight (2026-07-24): "lets finish the work in flight to make sure we are stable."
 
-VERDICT: STABLE AT BASELINE-OR-BETTER. Nothing that broke in the migration/move era remains broken. Every remaining suite failure is either pre-existing known debt or deliberately-red pre-registered acceptance for unbuilt features. New baseline receipt recorded @bb0beac: 13 failures, all classified.
+VERDICT: STABLE AT BASELINE-OR-BETTER. Nothing that broke in the migration/move era remains broken. Every remaining suite failure is either pre-existing known debt or deliberately-red pre-registered acceptance for unbuilt features. New baseline receipt recorded @6a0162c: 13 failures, all classified.
 
 ## THE NUMBERS
 - Last night's live truth: 22 failing (post the prior seat's 7 fixes).
 - Tonight: 9 more tests FIXED, 1 reclassified, 1 filed as an open defect.
-- Final: 13 = 8 baseline-known (pre-existing debt, recorded 2026-07-21) + 4 pre-registered RED (committed red on purpose at dcfd20d for unbuilt T093 private-signal-groups work; includes t086-C1) + 1 order-dependent stray (t060).
+- Final: 13 = 8 baseline-known (pre-existing debt, recorded 2026-07-21) + 4 pre-registered RED (committed red on purpose at 45feb00 for unbuilt T093 private-signal-groups work; includes t086-C1) + 1 order-dependent stray (t060).
 - Since the old baseline: 4 of its 12 entries are now GREEN (comprehensibility x3 earlier, t058 tonight).
 
 ## FIXED TONIGHT (root causes, not workarounds)
@@ -43,7 +43,7 @@ VERDICT: STABLE AT BASELINE-OR-BETTER. Nothing that broke in the migration/move 
 7. test_t086 spawn window 30s->45s (the historical flake mode under full-suite + live-runner load).
 
 ## RECLASSIFIED
-- t086-C1 is NOT a flake at heart: _daemon_creationflags() returns 0 with "Pre-registered RED" in its docstring (commit dcfd20d) -- it awaits the daemon's CREATE_NEW_PROCESS_GROUP feature (T093 family, unclaimed). Moved to the known-red set with t093 x3.
+- t086-C1 is NOT a flake at heart: _daemon_creationflags() returns 0 with "Pre-registered RED" in its docstring (commit 45feb00) -- it awaits the daemon's CREATE_NEW_PROCESS_GROUP feature (T093 family, unclaimed). Moved to the known-red set with t093 x3.
 
 ## FEATURE FOLD-IN (the one both seats independently specced; Daniel-licensed)
 gen_library --verify: the projection-sha cross-read. BELIEF (projection frontmatter akashic_sha) vs STATE (atom body_sha), plus MISSING and ORPHAN detection. Receipts per the founding-match law:
@@ -55,7 +55,7 @@ gen_library --verify: the projection-sha cross-read. BELIEF (projection frontmat
 - t060 (CLI-vs-MCP route JSON parity): passes alone AND with the full routing cluster; fails only somewhere inside the ~200-file full suite. Order-dependent pollution, polluter unfound after a bounded probe. Not tonight's breakage (failing since at least last night's list).
 
 ## INCIDENT (conductor log, law 8)
-Mid-sweep, a sibling claude seat committed f842dd6 titled "deepseek_chat: kill the 8788 UI-port ghost" -- but the commit's ONLY content is this seat's uncommitted t058 re-export hunk swept from the shared working tree, and no 8788/PORT_UI reference exists in the file at all. Message-vs-diff mismatch: the premature-claim class, generalized to commit scope. No damage (the content was correct), but the fleet rule follows: read the diff you are about to commit; never commit a shared-tree file on a stale intent.
+Mid-sweep, a sibling claude seat committed a5f0e0d titled "deepseek_chat: kill the 8788 UI-port ghost" -- but the commit's ONLY content is this seat's uncommitted t058 re-export hunk swept from the shared working tree, and no 8788/PORT_UI reference exists in the file at all. Message-vs-diff mismatch: the premature-claim class, generalized to commit scope. No damage (the content was correct), but the fleet rule follows: read the diff you are about to commit; never commit a shared-tree file on a stale intent.
 
 ## WHERE THIS LEAVES US
 Substrate: LIVE and self-verifying (--verify is now the mechanical answer to "did the import break anything"). Suite: at a recorded, fully-classified baseline. Gated next (your word): T104 M2/M3, T104.5 seam, the known-red T093 feature work. Forward: recall wire -> A2 audit domain -> Library pane. The atom-design fleet round you ordered is RUNNING: both seats' independent openings are filed and reconciliation counters are dispatched.

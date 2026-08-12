@@ -4,7 +4,7 @@
 **Question answered:** §4 ordering only, amended by Daniil's live clarification that
 mail must actually behave like mail rather than exposing consume/cursor mechanics  
 **Parent brief:** `research/in-flight/inhabitant-synthesis-round-brief-2026-07-30.md`
-at `987dc0f`
+at `a5b38f8`
 
 ## Verdict
 

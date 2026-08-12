@@ -88,7 +88,7 @@ These are not style preferences. Each one is a measured failure from one night.
 ### L1 — Ask DESCRIPTIVE questions. Never outsource the "therefore".
 
 Grounding fixes **facts**; it does not fix **equivocation**. Measured (T207,
-pre-registered at `b02f46a` before any answer was read):
+pre-registered at `99579fc` before any answer was read):
 
 - 5 factual lookups, **blind**: abstained 5/5, zero confabulations. A blind helper is safe.
 - 5 factual lookups, **grounded**: correct 5/5 with line citations.

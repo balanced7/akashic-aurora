@@ -32,7 +32,7 @@ appear verbatim as the tail of the doc.
 
 ## RECEIPTS (run live at 08:50)
 
-    docs deleted by f8510b6 (top-level docs/*.md): 103
+    docs deleted by 425cf52 (top-level docs/*.md): 103
     SUFFIX-MATCHED:                                103
     UNMATCHED:                                       0
     docs with MORE THAN ONE candidate atom:          0

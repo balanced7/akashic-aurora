@@ -2,7 +2,7 @@
 
 Spec gap this closes: docs/library/design/20260723_kimi-half-the-artifact-substrate...§167
 promised "records a legacy_path -> art_id map as a committed atom" -- it was specified,
-never landed as a queryable door. f8510b6 ("Delete the 643!") deleted 621 docs/*.md
+never landed as a queryable door. 425cf52 ("Delete the 643!") deleted 621 docs/*.md
 originals whose BASENAMES were the retrieval handle a cold agent searches by
 ("coordination-plan-synthesis", "comms-pillar-synthesis", ...). The content survived as
 atom projections under docs/library/<type>/, but the slug survived in NO searchable
@@ -10,7 +10,7 @@ surface. Content reachable as bytes, unreachable as a handle = the confident-zer
 (kimi, readme_directory_pointer_fails_open, T113 first-cut -- three instances, one shape).
 
 The map is CONSTRUCTED, not hand-written, so it carries its own proof:
-  * f8510b6's deletion is one git commit; each deleted docs/*.md's pre-deletion body is
+  * 425cf52's deletion is one git commit; each deleted docs/*.md's pre-deletion body is
     recoverable from git ancestry (the migration preserved it deliberately).
   * the migration lifted a PREFIX into the atom header and kept the remainder byte-exact
     as the atom body, so the atom body must be a SUFFIX of its recovered legacy document.
@@ -28,7 +28,7 @@ from typing import Any, Dict, List, Optional
 from core.library import atoms as _atoms
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-MIGRATION_COMMIT = "f8510b6"          # "Delete the 643!" -- the sprawl retirement
+MIGRATION_COMMIT = "425cf52"          # "Delete the 643!" -- the sprawl retirement
 MAP_PATH = os.path.join("store", "docs", "legacy_map.json")   # the committed map artifact
 # Independent live census (codex, 2026-07-28): all 103 deleted docs matched exactly
 # one atom, zero were ambiguous, and the shortest matching atom tail was 3,225

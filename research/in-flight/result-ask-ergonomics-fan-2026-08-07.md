@@ -1,7 +1,7 @@
 # RESULT: point the fan at its own door -- ask-verb ergonomics
 
 Status: current (2026-08-07)
-Pre-registration: research/in-flight/prereg-ask-ergonomics-fan-2026-08-07.md (committed 86e4851,
+Pre-registration: research/in-flight/prereg-ask-ergonomics-fan-2026-08-07.md (committed 0420a6b,
 before the fan ran). Slices: T225, T226.
 
 ## Headline

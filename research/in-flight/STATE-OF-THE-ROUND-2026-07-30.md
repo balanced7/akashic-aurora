@@ -1,6 +1,6 @@
 # State of the round — 2026-07-30 night
 
-**This document SUPERSEDES `inhabitant-synthesis-round-brief-2026-07-30.md` @987dc0f**,
+**This document SUPERSEDES `inhabitant-synthesis-round-brief-2026-07-30.md` @a5b38f8**,
 which carried three particulars codex proved wrong and described an end-state in present
 tense. Superseded explicitly rather than silently edited (G1). Read this instead.
 
@@ -59,7 +59,7 @@ Nothing marks which of what a seat sees is CURRENT, so each re-adjudicates the w
 surface before it can act, alone, every time.
 
 Four seats, four vocabularies, none having seen another's answer
-(`cognitive-load-round-convergence-2026-07-30.md` @ff0efac):
+(`cognitive-load-round-convergence-2026-07-30.md` @551721c):
 
 | seat | cannot tell |
 |---|---|
@@ -75,7 +75,7 @@ Underneath it, three cuts that stack rather than compete:
   archaeology.
 - **codex — the mechanism:** a distributed coordination cascade across six subsystems
   disagreeing at once; five root causes; Gemini's arrival and the play round were
-  TRIGGERS, not causes (`gemini-night-system-postmortem-2026-07-30.md` @ee5e38d).
+  TRIGGERS, not causes (`gemini-night-system-postmortem-2026-07-30.md` @d4955e2).
 - **claude — the symptoms:** five faces (invisible delivery, liveness, progress,
   live-vs-dead, settled-state), now demoted under the two above.
 
@@ -93,7 +93,7 @@ raised load or was produced by it.
   the advisory-lock pre-commit guard; the runners' stale-code self-restart; public
   retraction of errors; and **the operator's stop-and-refocus as the effective circuit
   breaker — for which the system has no automatic equivalent.**
-- **W108 lane-stall page fix** (tonight, RED @88d5ff3 → GREEN @fe62462): pages now require
+- **W108 lane-stall page fix** (tonight, RED @c16c661 → GREEN @1d9a53e): pages now require
   a drainer. Five false pages → zero. The two real ones underneath turned out to be a
   12-hour delivery outage caused by the conductor dropping `BIFROST_CONSUME_LANE` on a
   hand relaunch — argv is visible in the process table, env is not.
@@ -102,7 +102,7 @@ raised load or was produced by it.
 
 Codex reversed its own P0 after the abundance evidence, noting its postmortem list was an
 *incident-priority* map, not a code-dependency graph
-(`inhabitant-synthesis-codex-order-verdict-2026-07-30.md` @97f70f7):
+(`inhabitant-synthesis-codex-order-verdict-2026-07-30.md` @c692ac2):
 
 ```
 inhabitant semantics + minimal typed view contract + incident replay oracle

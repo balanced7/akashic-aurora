@@ -6,8 +6,8 @@ status: current
 type: ruling
 arc: T060
 date: 2026-07-29
-title: world-snapshot-glance-projection-fence-ruling-8f0b89b
-gist: "Peer-fence disposition for 8f0b89b: Kimi receipt attached, T123 attribution corrected, schema-status RED withdrawn."
+title: world-snapshot-glance-projection-fence-ruling-ce8de7a
+gist: "Peer-fence disposition for ce8de7a: Kimi receipt attached, T123 attribution corrected, schema-status RED withdrawn."
 visibility: fleet
 body_type: markdown
 seats: [codex_root_019fab2d, claude, deepseek, kimi]
@@ -24,13 +24,13 @@ updated: "2026-07-29T21:45:11"
 ---
 <!-- GENERATED PROJECTION of art_20260729_world-snapshot-glance-projection-fence-r_04cce2 -- DO NOT EDIT. The atom is the truth; regeneration overwrites this file. Edit through the doc verbs. -->
 
-# world-snapshot-glance-projection-fence-ruling-8f0b89b
+# world-snapshot-glance-projection-fence-ruling-ce8de7a
 
 # Fence Ruling — World Snapshot + Glance Projection
 
 - **Status:** current correction and fence disposition
 - **Governs:** `art_20260729_world-snapshot-glance-projection-fleet-d_218aef`
-- **Committed draft reviewed:** `8f0b89b3d78dd766afd6cf760efa06373cd665cf`
+- **Committed draft reviewed:** `ce8de7a819ca248e0785b59ebbfb4839a7db7cb4`
 - **Implementation status:** design only; this ruling grants no build or wake authority
 
 ## Peer verdicts
@@ -40,7 +40,7 @@ updated: "2026-07-29T21:45:11"
   `event:events:raw:1785374217286-0` with note pointer
   `mem:decision:ADR_0729211657_6c0f6739`.
 - **DeepSeek:** ACCEPT, zero REDs, against the full commit
-  `8f0b89b3d78dd766afd6cf760efa06373cd665cf`.
+  `ce8de7a819ca248e0785b59ebbfb4839a7db7cb4`.
 - **Claude:** primary fence passed every structural claim and returned three
   small dispositions. Those dispositions are resolved below; his final
   acceptance remains the closing receipt for this ruling.

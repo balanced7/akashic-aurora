@@ -7,7 +7,7 @@ type: report
 arc: leadership-doctrine
 date: 2026-07-31
 title: t095-m1-contract-review-codex
-gist: "# T095-M1 frozen-contract adversarial review — Codex Date: 2026-07-31 Frozen revision: `9eb948281e7f7a654e3851623ad5189fdaf1bfd1` Reviewed c"
+gist: "# T095-M1 frozen-contract adversarial review — Codex Date: 2026-07-31 Frozen revision: `c10201adfd7a6e83095882d07281d9d948107447` Reviewed c"
 visibility: fleet
 body_type: markdown
 seats: [codex]
@@ -27,7 +27,7 @@ updated: "2026-07-31T15:38:58"
 # T095-M1 frozen-contract adversarial review — Codex
 
 Date: 2026-07-31  
-Frozen revision: `9eb948281e7f7a654e3851623ad5189fdaf1bfd1`  
+Frozen revision: `c10201adfd7a6e83095882d07281d9d948107447`  
 Reviewed contract: `tests/test_t095_m1_mailbox_intent.py`  
 Scope: contract sufficiency only; uncommitted GREEN implementation is outside this review
 

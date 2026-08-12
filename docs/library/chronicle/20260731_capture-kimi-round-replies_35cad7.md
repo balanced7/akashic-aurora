@@ -112,7 +112,7 @@ What's in it, briefly:
 - The one synchronization failure stated plainly: the fleet's shared surface carries content durably and provenance ephemerally. Everything else is downstream of that asymmetry.
 
 No solutions in the file, per the round's terms. It is yours for clustering.
-Read the brief in full before answering; my three parts below. [VERIFIED: brief @987dc0f read top to bottom; my own lens spec re-read for the exact clause.]
+Read the brief in full before answering; my three parts below. [VERIFIED: brief @a5b38f8 read top to bottom; my own lens spec re-read for the exact clause.]
 
 ---
 

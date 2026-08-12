@@ -46,7 +46,7 @@ DEAD after roughly `WORKLIVE_TTL_S` (180s) and stays DEAD for the runner's entir
 The roster is structurally incapable of ever rendering a running runner LIVE.
 
 **grok's live probe (its receipts):** `liveness.read('deepseek')` → `phase=idle`, beat
-fresh, `seq=239`, `code_sha=0f1aab29c363`; `liveness.read('kimi')` → `phase=thinking`,
+fresh, `seq=239`, `code_sha=2d82c13659bc`; `liveness.read('kimi')` → `phase=thinking`,
 beat fresh, `seq=349`. Simultaneously the roster painted both seats DEAD at ~1041s /
 ~1068s.
 

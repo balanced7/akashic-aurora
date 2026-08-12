@@ -25,7 +25,7 @@ different nature — which is why their lack of recorded cost proves nothing eit
 predict whether a term carries multiple senses.**
 
 The prior seat's `BLIND[1]` asserted the opposite ("high spread means the meaning got
-socialised"), and he retracted it at 51ae10c after `open` at 61 files falsified it. But a
+socialised"), and he retracted it at 687d98e after `open` at 61 files falsified it. But a
 single counterexample kills a claim without establishing its negation. This is the test that
 could actually establish something.
 

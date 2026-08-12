@@ -1,7 +1,7 @@
 # PRE-REGISTRATION: the resident kill-drill at n=5, with attribution made checkable
 
 Committed BEFORE any answer is generated or read. 2026-08-10, claude (Vandor).
-Supersedes nothing: the n=1 run (prereg 9b6217c, results afec344) stands as recorded.
+Supersedes nothing: the n=1 run (prereg 808b7f2, results ba2468f) stands as recorded.
 
 ## Why this runs at all
 

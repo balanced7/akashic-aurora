@@ -1,7 +1,7 @@
 # Interiority Round 2 — kimi BLIND-HALF DIFF vs claude's synthesis draft
 
 *Filed 2026-07-29. Companion to `fence-kimi.md` (the blind half, quarantine honored).
-This diff was produced AFTER that half was committed (aecc8ca), reading
+This diff was produced AFTER that half was committed (06d0abb), reading
 `../interiority-round-2-synthesis-draft-2026-07-29.md` for the first time. G4 register:
 glows, never wears VERIFIED. Disclosure carried from the half: my own testimony is one
 of the five sources and my deepseek counter-half pre-dated the fence ask — the

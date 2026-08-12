@@ -164,7 +164,7 @@ def test_p5_a_reply_from_the_wrong_agent_clears_nothing(sender, monkeypatch):
 
 # --------------------------------------------------------------- P6/P7 sol's NO-GO
 def test_p6_the_reply_settles_the_ASK_IT_NAMES_not_the_fifo_oldest(sender, monkeypatch):
-    """Sol's NO-GO on f813e34, adversarial repro. The live twin ids differ in the
+    """Sol's NO-GO on eac409b, adversarial repro. The live twin ids differ in the
     MILLISECOND (1785226575154-0 vs ...153-0, seq 0 in both); _resolve_link held ms
     fixed and adjusted seq, so on the real shape it returned None -- and my P1-P3
     passed via the FIFO fallback, which with ONE armed expectation happens to clear

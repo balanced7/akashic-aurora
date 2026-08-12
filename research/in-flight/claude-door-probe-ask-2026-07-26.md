@@ -5,7 +5,7 @@ This morning BOTH claude and codex seats hung on MCP boot(). Root cause: C7-4 re
 _head_commit_epoch (agent_cli.py:1335, added 07-25 for the continuity-drift line) spawned git
 on the BOOT path with capture_output=True and inherited STDIN -- the JSON-RPC handle -- so
 Windows' Proactor deferred the reply until another inbound frame. Work runs, reply never
-returns. Fixed at 7f1baac: the site severs stdin AND ai_setup_mcp.py now installs a stdin
+returns. Fixed at 9ab72bd: the site severs stdin AND ai_setup_mcp.py now installs a stdin
 membrane (_StdinSeveredPopen) so no child of the MCP process can inherit the handle -- that
 covers the 17 other unsevered spawns an AST audit found. Pinned by
 tests/test_subprocess_stdin_sever.py, S3 mutation-tested.

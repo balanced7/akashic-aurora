@@ -62,7 +62,7 @@ def test_windowed_peek_confesses_the_hidden_middle():
 
 
 def test_true_tail_visible_beyond_the_overread_cap():
-    """Sol's blocker (independent review of 73349b0/a190494, REPRODUCED at 80 msgs):
+    """Sol's blocker (independent review of b05e08f/c47be4a, REPRODUCED at 80 msgs):
     the over-read XREADs oldest-first from the cursor, so with backlog > cap (50) the
     window's "newest" is the newest OF THE OLDEST 50 -- the TRUE tail (msg-079) is
     invisible, exactly in the storm condition freshness exists for. The 31-message pin

@@ -23,7 +23,7 @@ updated: "2026-08-01T02:40:32"
 
 # corpus-sweep-critic
 
-**The map's mechanical half is sound; its prose-derived half has a systematic hole.** I re-verified its spot-checkable CERTAINs and they hold: `agent_cli.py` = 5,385 lines, `docs/library` = 718 files with 390 `status: draft`, `scripts/check_comprehensibility.py` absent while `scripts/checkers/` holds it, `.git/hooks/pre-commit` not installed (though `scripts/githooks/pre-commit` exists), ghost worktree live at `b4fbaf5`, `docs/rulings/` absent, no non-vendor `package.json`. Where it fails is everywhere a verdict came from grepping identifiers instead of reading prose, and everywhere a corpus wasn't opened at all.
+**The map's mechanical half is sound; its prose-derived half has a systematic hole.** I re-verified its spot-checkable CERTAINs and they hold: `agent_cli.py` = 5,385 lines, `docs/library` = 718 files with 390 `status: draft`, `scripts/check_comprehensibility.py` absent while `scripts/checkers/` holds it, `.git/hooks/pre-commit` not installed (though `scripts/githooks/pre-commit` exists), ghost worktree live at `2c172ad`, `docs/rulings/` absent, no non-vendor `package.json`. Where it fails is everywhere a verdict came from grepping identifiers instead of reading prose, and everywhere a corpus wasn't opened at all.
 
 **(a) Corpus regions never swept**
 

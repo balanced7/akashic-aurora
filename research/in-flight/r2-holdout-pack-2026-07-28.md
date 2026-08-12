@@ -15,7 +15,7 @@ ACTION: python agent_cli.py status
 ACTION: python scripts/checkers/check_door_parity.py
 
 ## holdout 3  [command]  (frm deepseek)
-ACTION: python scripts/checkers/check_pointer_promises.py --against 01d0271 --path README.md
+ACTION: python scripts/checkers/check_pointer_promises.py --against fc38a27 --path README.md
 
 ## holdout 4  [command]  (frm deepseek)
 ACTION: python -m pytest tests/test_wake_pending_spin.py -v

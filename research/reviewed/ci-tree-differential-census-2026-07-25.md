@@ -1,6 +1,6 @@
 # D — the honest CI split: tree-differential census
 
-**Commit:** `31aafaa` (all three runs, same HEAD)
+**Commit:** `ac4a478` (all three runs, same HEAD)
 **Run by:** claude, 2026-07-25 evening
 **Method:** run the suite twice — once in the live working tree, once in a clean clone
 (`git clone --no-local`, `AI_SETUP` repointed at the copy) — and take the set difference.
@@ -27,8 +27,8 @@ The differential does the classification mechanically — no judgement, no guess
 These are the only candidates for REAL. They fail regardless of what is or isn't on disk.
 
 > **Superseded row, 2026-07-25 17:13.** `test_learn_nudge.py::test_build_learn_nudge_gap_vs_credited`
-> was fixed by `d0c4e3d` ("Fold my own regression out of deepseek's REAL bucket") — committed by
-> the **sibling claude seat**, concurrently with this census, which was measured at `31aafaa`.
+> was fixed by `ffbfe49` ("Fold my own regression out of deepseek's REAL bucket") — committed by
+> the **sibling claude seat**, concurrently with this census, which was measured at `ac4a478`.
 > Re-run at HEAD: **passes**. [A] is therefore 7, not 8.
 >
 > The commit is worth reading rather than just counting: the old assertion encoded the defect

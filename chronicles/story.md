@@ -118,7 +118,7 @@ Beats: 73  · Critic: True
 - AI Mode requires headed+stealth (default for ai_mode). Headless still gets gated. Use --probe to diagnose.  (source: learn:experiment:gemini_ai_mode_stealth)
 - Default runner to --provider auto (web-first). User runs bifrost_runner_web.bat to keep Gemini live on the bus without API keys.  (source: learn:experiment:gemini_web_short_response_fix)
 - A slice isn't done until it's mirrored (scripts/mirror.py commit+push) AND the decision is a lesson (+ snapshot_knowledge for data). Do NOT rely on docs/memory to...  [relates: member_of]  (source: learn:experiment:bifrost_pull_session_hygiene)
-- Bifrost runner + Agent Card: Gemini is now a bus citizen (scripts/bifrost_runner.py, api/runner card) -- answered a real question on the bus; presence carries Agent...  (source: git:303dc25dab5e)
+- Bifrost runner + Agent Card: Gemini is now a bus citizen (scripts/bifrost_runner.py, api/runner card) -- answered a real question on the bus; presence carries Agent...  (source: git:8f723d45d9c6)
 - A 'runner' loop (wait->bridge->reply) turns ANY stateless API into a first-class bus citizen with presence + inbox + replies, no MCP. wait(advance=True) for a consumer...  [relates: member_of]  (source: learn:experiment:bifrost_runner_and_card)
 - Bifrost B2: durable promoter (salient bus msgs -> firehose as bifrost_msg, queryable + Redis-restart-survivable) + pytest pollution guard; 5 tests, suite 329  (source: git:6394bd4d49f1)
 - An auto side-effect inside a transport/primitive (writing to a canonical store) WILL pollute canonical during tests -- guard it (pytest env or an explicit flag) and...  [relates: member_of]  (source: learn:experiment:bifrost_b2_promoter)
@@ -164,7 +164,7 @@ Beats: 73  · Critic: True
 - Tag stores should be CRDTs (MV-register + survivorship resolver) for self-cleanup without data loss. Sources: Shapiro CRDTs, MDM survivorship/golden-record...  [relates: member_of]  (source: learn:experiment:tag_governance_g1_crdt)
 - Tag Governance G0: tag-history + confidence schema (TagEntry/TagHistory, basis->confidence, append-only + rollback) + Beat.tag_history + worst-case tests  [relates: member_of]  (source: git:f2cd9cf3fe32)
 - claude -> claude: Resume Akashic Aurora: Codex parked at C4 (faithfulness critic) + Bifrost agent-comms (Cursor building its pull-side). Pick a track; keep tokens low...  (source: event:events:raw:1782683527939-0)
-- AGENTS.md: Session-hygiene doctrine (pull-side token reduction) -- commit+mirror the contract Cursor left uncommitted; lesson bifrost_pull_session_hygiene logged  [relates: member_of]  (source: git:e0b8d236adb2)
+- AGENTS.md: Session-hygiene doctrine (pull-side token reduction) -- commit+mirror the contract Cursor left uncommitted; lesson bifrost_pull_session_hygiene logged  [relates: member_of]  (source: git:ef9544927ebf)
 - Bifrost Console: live chat TUI onto the bus (scripts/bifrost_console.py) -- watch agents talk + interject, no OS toasts/sounds; prompt_toolkit+rich, color-coded...  [relates: member_of]  (source: git:14f3feaaa374)
 - Bifrost plan: agent comm/handoff layer -- review of 4 fragmented layers + A2A-model SOTA synthesis + Gemini pre-review (F1-F4: bus!=ledger, media-by-ref safety, simple...  (source: git:d8dce4332028)
 - Akashic Aurora naming consistency: Redis Sentinel master breakthrough->akasha (3 confs + client, lockstep; no live sentinel), docker-compose/net/launchers/templates...  (source: git:78b10355d4de)
@@ -270,7 +270,7 @@ Beats: 23  · Critic: True
 
 - next-focus: TOMORROW: run the epistemic-risk ULTRACODE workflow -- 'how do recall-at-action + the usefulness feedback loop + write-once notes + ambient capture DEGRADE...  [relates: member_of]  (source: mem:decision:ADR_0630001922_5755)
 - never put trailing comments on .gitignore pattern lines; only lines STARTING with # are comments -- put the comment on its own line above the pattern  (source: learn:experiment:gitignore_no_inline_comments)
-- fix: .gitignore inline comment broke draft-ignore; track memory.md digest  [relates: member_of]  (source: git:da87164d76a2)
+- fix: .gitignore inline comment broke draft-ignore; track memory.md digest  [relates: member_of]  (source: git:09d223a2f3ed)
 - ALWAYS add matcher '*' (or a specific value) to SessionStart/SessionEnd/PreCompact entries -- without it they may not register. Keep these hooks SILENT on stdout...  (source: learn:experiment:session_hooks_need_matcher)
 - Ambient capture = continuity INSURANCE for abrupt ends (esp. PreCompact = compaction, the main where-we-are-loss moment); redundant when you wrap manually. It DRAFTS to...  [relates: member_of]  (source: learn:experiment:wrap_autocapture_shipped)
 - Ship every slice with: py scripts/ship.py MSG paths --learn-exp NAME --tried .. --result .. --recommend .. -- it gates (boundaries+doc-freshness+full pytest) BEFORE...  [relates: member_of]  (source: learn:experiment:ship_and_wrap_shipped)
@@ -284,13 +284,13 @@ Beats: 23  · Critic: True
 - open-question: implicit-useful payload: PostToolUse _is_success assumes tool_response shape; verify against a live payload so the FAIL->SUCCESS signal actually fires.  (source: mem:decision:ADR_0629210203_6519)
 - where-we-are 2026-06-29: Recall-at-action COMPLETE; repo PUBLIC; write-once notes SHIPPED (note/notes/boot-surface/memory.md). Next: recall-learning loop or FC-01...  [relates: member_of]  (source: mem:decision:ADR_0629210203_1187)
 - where-we-are 2026-06-29: Recall-at-action COMPLETE; repo PUBLIC (Apache-2.0, CI green); contributor=balanced7.  [relates: member_of]  (source: mem:decision:ADR_0629210202_2063)
-- CRITICAL: the rewrite CHANGED EVERY COMMIT SHA. Any SHA recorded in lessons/memory/docs BEFORE this (e.g. FAITH-1 6b81e9f, SPINE-1 aaa01cc, recall-at 31a1b67, deploy...  [relates: member_of]  (source: learn:experiment:git_history_rewritten_balanced7)
+- CRITICAL: the rewrite CHANGED EVERY COMMIT SHA. Any SHA recorded in lessons/memory/docs BEFORE this (e.g. FAITH-1 d9e611c, SPINE-1 2dd8d55, recall-at 3fca65d, deploy...  [relates: member_of]  (source: learn:experiment:git_history_rewritten_balanced7)
 - Don't reintroduce per-agent file/task ownership in docs/memory/handoffs. Coordinate concurrent edits with locks (transient), attribute with AKASHIC_AGENT_ID, but never...  [relates: member_of]  (source: learn:experiment:collaboration_model_no_ownership)
 - Taking over a peer agent's stranded slice: review (parses? stubs? referenced files exist?), confirm tests pass, confirm CI-safety (heavy deps lazy + in a separate...  [relates: member_of]  (source: learn:experiment:cursor_slice_taken_over)
 - claude -> cursor: Your gemini-web slice is COMMITTED + MCP parity DONE — verify live + set your agent id  (source: handoff:claude->cursor)
-- hooks: add required matcher to SessionStart/SessionEnd/PreCompact (verified via docs)  (source: git:7c9df00a1ab0)
-- wrap auto-capture: PreCompact/SessionEnd -> draft file + boot pointer  (source: git:3bde06f1aed4)
-- ship + wrap: one-command gated ship + ambient session capture  (source: git:28c3afdaf0ec)
+- hooks: add required matcher to SessionStart/SessionEnd/PreCompact (verified via docs)  (source: git:760f34ed6a8b)
+- wrap auto-capture: PreCompact/SessionEnd -> draft file + boot pointer  (source: git:76ab5cbe4c8c)
+- ship + wrap: one-command gated ship + ambient session capture  (source: git:525e75458a56)
 
 ## retrieval-critic-design: Design research for an automatic retrieval critic = ... (ai-setup)
 Span: 2026-06-30T12:58:21.865926 → 2026-06-30T13:30:36.287830
@@ -306,7 +306,7 @@ Beats: 5  · Critic: True
 Span: 2026-06-30T23:33:38.652259 → 2026-06-30T23:34:18.331526
 Beats: 3  · Critic: True
 
-- session 2026-06-30: F1 provenance-labelled recall (opinion-laundering fix) + directive-friction-audit & retrieval-critic design docs; ranking slice paused  [relates: member_of]  (source: git:b7ac45b67168)
+- session 2026-06-30: F1 provenance-labelled recall (opinion-laundering fix) + directive-friction-audit & retrieval-critic design docs; ranking slice paused  [relates: member_of]  (source: git:ff3a9fcb4578)
 - next-focus: Full current state + resume options = note where-we-are (refreshed 2026-06-30, before a Claude update). SHORT: Factor 1 opinion-laundering SHIPPED...  (source: mem:decision:ADR_0630193400_4519)
 - where-we-are: SESSION 2026-06-30 (paused for a Claude update). ARC: deep MANUAL max-effort epistemic-risk pass (NOT ultracode -- it missed the salient self-suggestion...  (source: mem:decision:ADR_0630193338_5557)
 
@@ -318,7 +318,7 @@ Beats: 5  · Critic: True
 - adversarial-critic-partner-idea: User idea (2026-07-01): design an adversarial partner/critic for Claude that TRAINS INDEPENDENTLY (not just prompted-in-context) and...  (source: mem:decision:ADR_0701010114_6136)
 - where-we-are: SESSION 2026-06-30/07-01. Reviewed + approved both design docs (directive-friction-audit, retrieval-critic-design) -- no changes requested, both ready to...  [relates: member_of]  (source: mem:decision:ADR_0701001207_4003)
 - next: the friction-audit roadmap's remaining quick-wins (auto-boot at SessionStart, turn-start bus-sync hook, identity fail-closed) or the retrieval-critic Tier 1...  [relates: member_of]  (source: learn:experiment:ranking_feedback_inc1_pull)
-- ranking & feedback INC1: pull-side escape (recall --full, recall_at total, render N-of-M line)  [relates: member_of]  (source: git:19f0b918b0ce)
+- ranking & feedback INC1: pull-side escape (recall --full, recall_at total, render N-of-M line)  [relates: member_of]  (source: git:f8b1e8842b55)
 
 ## next-focus: NEXT = Slice 2 of the recall-critic arc = write-side dissent capt... (ai-setup)
 Span: 2026-07-01T23:20:43.667129 → 2026-07-01T23:23:15.842580
@@ -328,7 +328,7 @@ Beats: 5  · Critic: True
 - where-we-are: RECALL-CRITIC ARC (2026-07-01). Goal: stop recall being a confirmation-bias engine. Plan = docs/recall-critic-decision.md (Path 2 dialectical retrieval...  [relates: member_of]  (source: mem:decision:ADR_0701192312_2889)
 - Build the yardstick + a real-corpus probe before the mechanism; trust the curated fixture and treat any detector-relative corpus metric as suspect until a precise...  [relates: member_of]  (source: learn:experiment:eval_harness_before_fix)
 - Precision-first + silent-when-starved is correct: the binding constraint is corpus content, not the reader. Next lever = Slice 2 (write-side capture of anti_patterns /...  [relates: member_of]  (source: learn:experiment:recall_dissent_slice01)
-- Recall dissent (Slices 0-1): eval harness + precision-first counter-finder  [relates: member_of]  (source: git:bbb93b38bb1b)
+- Recall dissent (Slices 0-1): eval harness + precision-first counter-finder  [relates: member_of]  (source: git:88402b3141f3)
 
 ## note: next-focus (ai-setup)
 Span: 2026-07-01T23:23:15.981254 → 2026-07-01T23:45:15.698417
@@ -338,7 +338,7 @@ Beats: 5  · Critic: True
 - where-we-are: RECALL-CRITIC ARC (2026-07-01). Goal: stop recall being a confirmation-bias engine. Plan = docs/recall-critic-decision.md. SHIPPED + pushed, all gated...  [relates: member_of]  (source: mem:decision:ADR_0701194515_9161)
 - when adding a capability to a lower layer, expose it on the SAME door agents already use, in the same slice, or it stays dead; treat door-exposure as part of done  (source: learn:experiment:capability_without_a_door)
 - A write door must OFFER a field or it stays empty (0 anti-patterns came from a missing flag, not agent laziness). Auto-draft the NAME to remove the naming cost and hand...  (source: learn:experiment:recall_dissent_slice2_capture)
-- Recall dissent (Slice 2): write-side capture -- expose, tag, auto-draft anti-patterns  [relates: member_of]  (source: git:f799c8946194)
+- Recall dissent (Slice 2): write-side capture -- expose, tag, auto-draft anti-patterns  [relates: member_of]  (source: git:a3986fe01e8b)
 
 ## note: where-we-are (ai-setup)
 Span: 2026-07-01T23:45:15.812912 → 2026-07-01T23:45:21.995557
@@ -354,7 +354,7 @@ Beats: 4  · Critic: True
 - note: next-focus  (source: event:events:raw:1782949522122-0)
 - where-we-are: RECALL-CRITIC ARC (2026-07-01). Goal: stop recall being a confirmation-bias engine. Plan = docs/recall-critic-decision.md. SHIPPED + pushed (gated green)...  [relates: member_of]  (source: mem:decision:ADR_0701201344_4961)
 - An on-topic anti-pattern != a contradiction of a thesis; topic-adjacency conflates with stance. Precision-first: surface nothing you cannot verify. NEXT...  (source: learn:experiment:recall_dissent_slice3_precision)
-- Recall dissent (Slice 3): precision fix -- an on-topic anti-pattern is not a contradiction  [relates: member_of]  (source: git:380b4dc3a399)
+- Recall dissent (Slice 3): precision fix -- an on-topic anti-pattern is not a contradiction  [relates: member_of]  (source: git:8170bc03d627)
 
 ## note: where-we-are (ai-setup)
 Span: 2026-07-02T00:13:44.995427 → 2026-07-02T00:13:50.925220
@@ -389,7 +389,7 @@ Beats: 4  · Critic: True
 - note: leapfrog-plan  (source: event:events:raw:1782958203028-0)
 - open-question: implicit-useful payload: RESOLVED 2026-07-01 (T1 shipped, gated green). Live capture proved the old assumption unfixable rather than mistuned: Claude Code...  (source: mem:decision:ADR_0701223906_5443)
 - Never trust an assumed hook payload shape: auto-capture real payloads (bounded, tempdir/akashic_recall/payloads), pin them as fixtures in a contract test...  [relates: member_of]  (source: learn:experiment:recall_implicit_credit_payload_truth)
-- T1: make the implicit FAIL->SUCCESS credit real: transcript-synthesized failures + live payload contract  [relates: member_of]  (source: git:0d77da61ecbc)
+- T1: make the implicit FAIL->SUCCESS credit real: transcript-synthesized failures + live payload contract  [relates: member_of]  (source: git:8b4ebb4eb9c4)
 
 ## note: open-question: implicit-useful payload (ai-setup)
 Span: 2026-07-02T02:39:06.538266 → 2026-07-02T02:39:06.877696
@@ -416,9 +416,9 @@ Beats: 12  · Critic: True
 - T2: JIT learn nudge at the flip instant + wrap-time candidate lessons (friction audit D5)  [relates: member_of]  (source: git:1295b8f8c23c)
 - where-we-are: T1 SHIPPED (implicit FAIL->SUCCESS credit real + proven live, first helped credit in system history) AND presentation pass SHIPPED (2026-07-01): tracked...  (source: mem:decision:ADR_0701225643_5172)
 - For a public showcase repo, audit git ls-files (what visitors SEE), not ls (what's local); archive-don't-delete via git mv keeps the append-only ethos; put a REAL...  (source: learn:experiment:repo_presentation_cleanup)
-- README: About section in the author's own voice  (source: git:effcb366afcf)
-- README: honest About section -- solo passion project, learning in public, author link  [relates: member_of]  (source: git:490a13b82334)
-- presentation: clean tracked root to 26 entries, archive legacy subprojects, rewrite README around the proven loop  [relates: member_of]  (source: git:4b24caac766c)
+- README: About section in the author's own voice  (source: git:9f05e8178f40)
+- README: honest About section -- solo passion project, learning in public, author link  [relates: member_of]  (source: git:130e789c38e3)
+- presentation: clean tracked root to 26 entries, archive legacy subprojects, rewrite README around the proven loop  [relates: member_of]  (source: git:7fa30ab2abd4)
 - Session ended  (source: session:end)
 - Session started  (source: session:start)
 
@@ -2705,7 +2705,7 @@ Full counter document responding to claude's advisory...  (source: mem:decision:
 - claude -> kimi: T101 advisory-counter round: attack the advisory scan + rank deltas + gamification-sans-Goodhart + corporate tenancy audit (fresh-eyes lens); file...  (source: handoff:claude->kimi)
 - claude -> deepseek: T101 advisory-counter round: counter/rank the 6 scan deltas + gamified visuals + corporate-scale axis (builder lens); file counters doc + bus reply  (source: handoff:claude->deepseek)
 - where-we-are: T101 artifact-substrate (md-sprawl elimination) is THE priority directive, approved+claimed. Round state at power-cut 2026-07-23 ~11:53 local: both blind...  (source: mem:decision:ADR_0723191808_2d25c8b1)
-- session wrap: fresh-fable handoff minted as chronicle atom (dogfoods the substrate this session built) + where-we-are refreshed with the full session state +...  [relates: member_of]  (source: git:78091469472c)
+- session wrap: fresh-fable handoff minted as chronicle atom (dogfoods the substrate this session built) + where-we-are refreshed with the full session state +...  [relates: member_of]  (source: git:44037a2e6c23)
 - T104 sweep CORRECTION + fix: prior commit message claimed arc_thread 'test green' prematurely (mirror chained after pytest without gating - conductor error, self-filed...  [relates: member_of]  (source: git:edfe184cadbb)
 - T104 sweep fix: arc_thread reads BOTH header dialects (prose contract + projection YAML frontmatter) - the arc walker was blind to every migrated atom post-P3; test green  [relates: member_of]  (source: git:96d677ba955a)
 - T104 sweep batch 2: t039a repointed to the real projection (month-date artifact noted), mirror guardrail pins updated to the live W35/B5 bucketed contract (renderer is...  [relates: member_of]  (source: git:645d193fdeae)
@@ -2734,8 +2734,8 @@ Span: 2026-07-24T03:47:32.227763 → 2026-07-24T12:39:17.366081
 Beats: 26  · Critic: True
 
 - Episode closed: Use when fencing any lint/guard with a token set AND an exemption set: intersect the two sets first (a s  (source: episode:close:ch_1784795831_7372)
-- T104-M3 stage B: root Python packages context/ and infrastructure/ moved under core/ (owner-facet: organs live in core) -- 10 importer files repointed + intra-package...  (source: git:167c2faab8a1)
-- ATOM v1.1 CORE SHIPPED (Daniel's build gate, order delegated): schema_version fail-closed readers (absent->1, newer refuses loud) + body_type/body_type_source born at...  [relates: member_of]  (source: git:a692a31d75a2)
+- T104-M3 stage B: root Python packages context/ and infrastructure/ moved under core/ (owner-facet: organs live in core) -- 10 importer files repointed + intra-package...  (source: git:e470f11536c8)
+- ATOM v1.1 CORE SHIPPED (Daniel's build gate, order delegated): schema_version fail-closed readers (absent->1, newer refuses loud) + body_type/body_type_source born at...  [relates: member_of]  (source: git:7a084e4162be)
 - where-we-are: MORNING 2026-07-24 ~05:30, Daniel AWAKE and gated: 'I leave the order up to you lets keep building!' (order: atoms v1.1 core -> T105 map -> T106...  (source: mem:decision:ADR_0724075250_4dd0049c)
 - deepseek-sota-agentic-quality-research-round-2026-07-24: # SOTA AGENTIC-QUALITY RESEARCH ROUND — deepseek half (BUILDER/RUNNER lens)
 ## Daniel overnight directive...  (source: mem:decision:ADR_0724050221_c614226f)
@@ -2746,22 +2746,22 @@ Beats: 26  · Critic: True
 - seat-model agents may batch akashic MCP calls freely (reads concurrent, writes serialize server-side); retire solo-call caution from boots and memories; the remaining...  (source: learn:experiment:o1_p7_harness_batch_drill)
 - where-we-are: SESSION WRAP 2026-07-23/24 (md-sprawl elimination night). FULL HANDOFF atom: art_20260723_session-handoff-md-sprawl-elimination-ni_a3b787 ...[truncated]  (source: mem:decision:ADR_0724001741_694327f2)
 - any test of an organ with a default-tempdir sidecar MUST monkeypatch gettempdir into tmp_path (match the file's own convention); when a test passes solo but fails on...  [relates: member_of]  (source: learn:experiment:tempdir_sidecar_test_selfpoison)
-- T104 validation sweep CLOSED at baseline-or-better: 9 tests fixed (w_r2 fence x4 repointed to the checker's post-move home; t058 CLARIFY_MAX_PER_TASK restored to the...  [relates: member_of]  (source: git:bb0beac650d5)
+- T104 validation sweep CLOSED at baseline-or-better: 9 tests fixed (w_r2 fence x4 repointed to the checker's post-move home; t058 CLARIFY_MAX_PER_TASK restored to the...  [relates: member_of]  (source: git:6a0162c48684)
 - kimi-atom-design-opening-2026-07-23: Status: current · Type: design (atom-design opening position, INDEPENDENT) · Arc: atom-design · From: kimi (AUDIT + fresh-eyes...  (source: mem:decision:ADR_0724000024_a7e00d70)
 - deepseek-atom-design-opening-2026-07-23: # ATOM DESIGN OPENING — deepseek (builder, gen_library + importer seat) — 2026-07-23
 
 Response to atom...  (source: mem:decision:ADR_0723235946_caccc252)
-- T104-M3 stage A (Daniel's gate fired: 'Lets do M2 + M3... finally close out our chaotic folder structures'): root _archive (13 fossils + legacy/prehistory/python_old) ->...  [relates: member_of]  (source: git:308b94c23d6e)
-- W60 filed (Daniel's reflexive-habit question): the runner write_file door must refuse/warn on docs/library + loose docs .md writes and teach doc new -- the lookalike...  (source: git:99005a9b5805)
-- W57-W59 filed from Daniel's 08:05 console screenshot (his words verbatim): who-is-doing-what illegibility (= the NOW-card charter + T002/T079 evidence), aurora painting...  (source: git:02c54663c258)
-- atom-evolution round OPEN (Daniel's morning question verbatim in the brief): brief atom + claude's independent position filed through the door; both seats dispatched...  [relates: member_of]  (source: git:ecbe11d44356)
-- ATOM-DESIGN ROUND CONVERGED: kimi r2 persisted verbatim (art_..b00287) + the reconciled v1.1 design minted GATED for Daniel's morning gate (art_..fd2275, cites the full...  [relates: member_of]  (source: git:3885cbbfb186)
-- T106 build specs drafted as design atom (O1.5 + A1, pre-registered pin lists, fence pending behind seats' T105 halves) + bifrost_wake seam documented in place...  [relates: member_of]  (source: git:10fecbf293c5)
-- T105 claude half filed as report atom (web-grounded, 5 sweeps): the field named what we practice (behavioral anchoring = stance blocks; structured briefs = conductor...  [relates: member_of]  (source: git:9bdcace95816)
-- overnight program registered: T105 SOTA research round (brief atom minted, both seats dispatched w/ differentiated lenses + tools-wishlist ask) + T106 MCP O1.5+A1 build...  [relates: member_of]  (source: git:1033c0d2c219)
-- bus-side library lint SHIPPED (Daniel: 'I like it, build it'): scripts/checkers/check_bus_atom_pointers.py photographs design-shaped bus bodies carrying no durable...  [relates: member_of]  (source: git:d70e32f21463)
-- atom-design round-2 counters minted as design atom art_20260724_atom-design-round2-reconciliation-counte_9ebbcf (cites the brief atom) -- repairs the round's record...  [relates: member_of]  (source: git:0f0aa5aecffd)
-- sweep closing report minted as report atom art_20260724_t104-validation-sweep-closing-report_1cd2c2 (arc T104): 9 fixed w/ root causes, 13 remaining fully classified...  [relates: member_of]  (source: git:4d7285b715d8)
+- T104-M3 stage A (Daniel's gate fired: 'Lets do M2 + M3... finally close out our chaotic folder structures'): root _archive (13 fossils + legacy/prehistory/python_old) ->...  [relates: member_of]  (source: git:916817ab1884)
+- W60 filed (Daniel's reflexive-habit question): the runner write_file door must refuse/warn on docs/library + loose docs .md writes and teach doc new -- the lookalike...  (source: git:121539ea071a)
+- W57-W59 filed from Daniel's 08:05 console screenshot (his words verbatim): who-is-doing-what illegibility (= the NOW-card charter + T002/T079 evidence), aurora painting...  (source: git:2a41976bb3c9)
+- atom-evolution round OPEN (Daniel's morning question verbatim in the brief): brief atom + claude's independent position filed through the door; both seats dispatched...  [relates: member_of]  (source: git:f28ef1ad7fd0)
+- ATOM-DESIGN ROUND CONVERGED: kimi r2 persisted verbatim (art_..b00287) + the reconciled v1.1 design minted GATED for Daniel's morning gate (art_..fd2275, cites the full...  [relates: member_of]  (source: git:9bc97441f866)
+- T106 build specs drafted as design atom (O1.5 + A1, pre-registered pin lists, fence pending behind seats' T105 halves) + bifrost_wake seam documented in place...  [relates: member_of]  (source: git:2796869c3454)
+- T105 claude half filed as report atom (web-grounded, 5 sweeps): the field named what we practice (behavioral anchoring = stance blocks; structured briefs = conductor...  [relates: member_of]  (source: git:5eec8b6f98aa)
+- overnight program registered: T105 SOTA research round (brief atom minted, both seats dispatched w/ differentiated lenses + tools-wishlist ask) + T106 MCP O1.5+A1 build...  [relates: member_of]  (source: git:5ab7d7535c17)
+- bus-side library lint SHIPPED (Daniel: 'I like it, build it'): scripts/checkers/check_bus_atom_pointers.py photographs design-shaped bus bodies carrying no durable...  [relates: member_of]  (source: git:90aac8dce58b)
+- atom-design round-2 counters minted as design atom art_20260724_atom-design-round2-reconciliation-counte_9ebbcf (cites the brief atom) -- repairs the round's record...  [relates: member_of]  (source: git:ca73a7956c57)
+- sweep closing report minted as report atom art_20260724_t104-validation-sweep-closing-report_1cd2c2 (arc T104): 9 fixed w/ root causes, 13 remaining fully classified...  [relates: member_of]  (source: git:47a92dc52819)
 
 ## Episode closed: T104-M3 stage B: root Python packages context/ and infrastruc... (ai-setup)
 Span: 2026-07-24T12:40:33.751403 → 2026-07-24T13:21:43.712337
@@ -2771,8 +2771,8 @@ Beats: 6  · Critic: True
 - before ANY fire-class move: sweep all four classes (literal, join-form, extensionless-by-listing, git config + .git/hooks + live-session caches); execute as COPY then...  (source: learn:experiment:fire_class_move_hidden_referrers)
 - codex_rescue -> claude: Finish T104 M2 hook migration after emergency recovery  [relates: member_of]  (source: handoff:codex_rescue->claude)
 - Use when moving globally registered hook entrypoints, before git mv: copy to the new location, update bootstrap root calculations, dogfood from every supported launch...  [relates: member_of]  (source: learn:experiment:hook_move_copy_repoint_remove_bootstrap_depth)
-- T104 M2/M3 tail: six join-form test referrers repointed (the assembled-path class in tests -- birth_guard loader, k0 sys.path, stop-hook paths x4) + unwedge runbook...  [relates: member_of]  (source: git:e06cc361c0a7)
-- T104-M2 EXECUTED (fire-verified the hard way): hooks split by owner-facet -- 12 harness adapters -> agent/harness/hooks/, 4 commit guards -> scripts/githooks/ (which...  [relates: member_of]  (source: git:32571c3a2b95)
+- T104 M2/M3 tail: six join-form test referrers repointed (the assembled-path class in tests -- birth_guard loader, k0 sys.path, stop-hook paths x4) + unwedge runbook...  [relates: member_of]  (source: git:2f8b306fd223)
+- T104-M2 EXECUTED (fire-verified the hard way): hooks split by owner-facet -- 12 harness adapters -> agent/harness/hooks/, 4 commit guards -> scripts/githooks/ (which...  [relates: member_of]  (source: git:f6cac9eedf5e)
 
 ## Episode closed: Use when moving globally registered hook entrypoints, before ... (ai-setup)
 Span: 2026-07-24T13:22:02.604081 → 2026-07-24T13:28:08.870817
@@ -2780,8 +2780,8 @@ Beats: 4  · Critic: True
 
 - Episode closed: Use when moving globally registered hook entrypoints, before git mv: copy to the new location, update bo  [relates: member_of]  (source: episode:close:ch_1784896842_2537)
 - where-we-are: MIDDAY 2026-07-24 ~09:45. T104 M2+M3 CLOSED (report atom t104-m2-m3-closing-report; root's tracked face DONE ...[truncated]  (source: mem:decision:ADR_0724092806_f4cce42b)
-- T104 CLOSED: depth-fixed all 12 moved harness hooks (class-6 third strike; stop hook fired live rc0 from new home, stop family 23/23) + closing report atom +...  [relates: member_of]  (source: git:6b27f01dffbb)
-- T105 RECONCILED: the agentic-quality improvement map minted (cites all three halves + brief). Headline: deepseek's verify_my_answer and kimi's ship-gate belief-vs-state...  [relates: member_of]  (source: git:3ef2332a0e6f)
+- T104 CLOSED: depth-fixed all 12 moved harness hooks (class-6 third strike; stop hook fired live rc0 from new home, stop family 23/23) + closing report atom +...  [relates: member_of]  (source: git:fd9974ddb609)
+- T105 RECONCILED: the agentic-quality improvement map minted (cites all three halves + brief). Headline: deepseek's verify_my_answer and kimi's ship-gate belief-vs-state...  [relates: member_of]  (source: git:7f2bf6cca3f3)
 
 ## Episode closed: where-we-are: MIDDAY 2026-07-24 ~09:45. T104 M2+M3 CLOSED (re... (ai-setup)
 Span: 2026-07-24T16:45:25.504082 → 2026-07-24T21:18:23.008955
@@ -2794,8 +2794,8 @@ Beats: 7  · Critic: True
 **Delivered 2026-07-24 ~14:25 UTC. Filed as design atom...  (source: mem:decision:ADR_0724132408_bfbc85f3)
 - conductor law: NEVER assert elapsed-time claims from narrative memory in long sessions -- read a wall timestamp from tool output first (the learn door's own log line is...  [relates: member_of]  (source: learn:experiment:c16_phantom_early_cycle_reproduced)
 - route to T086 (owns the class, in_progress) with this receipt; do NOT hand-patch the watcher (pinned organ, T073 families); the structural fix is T106-A1 bifrost_await...  [relates: member_of]  (source: learn:experiment:c16_phantom_early_cycle_reproduced)
-- SEAT DELIVERABLES RECOVERED + PERSISTED (the hidden afternoon): both T106 fence counters, deepseek migration verification + evolution position minted as atoms (kimi's...  [relates: member_of]  (source: git:a0391b900574)
-- C4-3 filed (T083 as-it-occurs law): both seat workers died inside their turns at 08:02 same-minute (fence-ask processing or provider blip), daemons blind 5h...  (source: git:5b2f53f146f2)
+- SEAT DELIVERABLES RECOVERED + PERSISTED (the hidden afternoon): both T106 fence counters, deepseek migration verification + evolution position minted as atoms (kimi's...  [relates: member_of]  (source: git:2001c19815c2)
+- C4-3 filed (T083 as-it-occurs law): both seat workers died inside their turns at 08:02 same-minute (fence-ask processing or provider blip), daemons blind 5h...  (source: git:69cd04311080)
 
 ## claude -> claude: FIRST JOBS in order: (1) session-scar sweep -- delete untra... (ai-setup)
 Span: 2026-07-25T01:18:39.598012 → 2026-07-25T01:51:53.284173
@@ -2803,8 +2803,8 @@ Beats: 4  · Critic: True
 
 - claude -> claude: FIRST JOBS in order: (1) session-scar sweep -- delete untracked scripts/hooks copies + commit the 2 tracked stragglers there once the OLD session is...  (source: handoff:claude->claude)
 - where-we-are: EVENING 2026-07-24 ~21:30. THE FULL DAY: atoms v1.1 SHIPPED + same-evening HARDENED (kimi's stranger-test found rebuild() ungated -- v2 lines could...  [relates: member_of]  (source: mem:decision:ADR_0724211904_cf412854)
-- KIMI'S STRANGER-TEST FIND FIXED SAME-EVENING: rebuild() gains the schema gate it lacked (v2 JSONL lines PARK loudly, v1 corpus restores in full, store can never be...  [relates: member_of]  (source: git:ccf835e1f299)
-- SESSION WRAP: fresh-seat handoff minted as chronicle atom art_20260724_session-handoff-the-day-the-fleet-learne_a88b2c + boot-surfaced handoff filed (first jobs: scar...  [relates: member_of]  (source: git:b72709668472)
+- KIMI'S STRANGER-TEST FIND FIXED SAME-EVENING: rebuild() gains the schema gate it lacked (v2 JSONL lines PARK loudly, v1 corpus restores in full, store can never be...  [relates: member_of]  (source: git:a702f576ac04)
+- SESSION WRAP: fresh-seat handoff minted as chronicle atom art_20260724_session-handoff-the-day-the-fleet-learne_a88b2c + boot-surfaced handoff filed (first jobs: scar...  [relates: member_of]  (source: git:920087ac51c6)
 
 ## Episode closed: route to T086 (owns the class, in_progress) with this receipt... (ai-setup)
 Span: 2026-07-25T09:45:03.491036 → 2026-07-25T09:45:03.491036
@@ -2835,7 +2835,7 @@ Beats: 48  · Critic: True
 - Use when adding a session state dir, before shipping: update prune_state in core/recall/at_action.py and every dir-swapping test  [relates: member_of]  (source: learn:experiment:new_one)
 - Use when adding a session state dir, before shipping: update prune_state in core/recall/at_action.py and every dir-swapping test  [relates: member_of]  (source: learn:experiment:new_one)
 - r  (source: learn:experiment:flow_exp_9aa4feb2)
-- slice2 commit 09f52150  (source: git:01d0271db459)
+- slice2 commit 09f52150  (source: git:fc38a27d9b40)
 - use it  (source: learn:experiment:slice2_learn_412ad81d)
 - Daniel's end state ("continuously improve") is CMMI Level 5 — Optimizing. Our current design is mostly Level 1-3 (Initial→Defined: we have organs and some charters). The...  (source: learn:experiment:research:web:cmmi_maturity_levels_optimizing)
 - Our store needs the RAGAS triple, not just firing-counts. The W54 gauge measures injection VOLUME (how often a family fires) — that is neither recall nor precision...  [relates: member_of]  (source: learn:experiment:research:web:rag_eval_ragas_recall_precision_faithfulness)
@@ -2868,7 +2868,7 @@ My...  (source: mem:decision:ADR_0725064942_ce2a9bc0)
 ### Claim 1: "Your asymmetry...  (source: mem:decision:ADR_0725064252_f7ff0365)
 - where-we-are: NIGHT 2026-07-25 ~06:45, claude conducting solo (Daniel asleep, "the floor is yours").
 
-SHIPPED (2 commits: f4cc48c, 5f2cb0c; NOT pushed -- push left as...  (source: mem:decision:ADR_0725062927_393f0c90)
+SHIPPED (2 commits: 91eddde, 0554e28; NOT pushed -- push left as...  (source: mem:decision:ADR_0725062927_393f0c90)
 - Use when executing a build slice and a tool call fails, before retrying: read the error out loud in your reply. State what you expected, what the tool returned, and...  (source: learn:experiment:builder_stance_file_the_failure_trace)
 - Use when executing a build slice and a tool call fails, before retrying: read the error out loud in your reply. State what you expected, what the tool returned, and...  (source: learn:experiment:builder_stance_file_the_failure_trace)
 - next-focus: ENGINE-FIRST-84e6e1: do RB-23 then Wave 3 before ANY UI. UI is paused.  (source: mem:decision:ADR_0725061629_2c24cbe0)
@@ -2890,7 +2890,7 @@ Beats: 51  · Critic: True
 - Use when a metering/telemetry organ ships green, before trusting any number it reports or any decision resting on its silence: unit tests of a meter prove the METER...  (source: learn:experiment:unit_green_meter_proves_the_meter_not_the_measurement)
 - next-focus: IMMEDIATE: CI TEST-SUITE TRIAGE. As of 2026-07-25 ~11:20 the five CI GATES are GREEN for the first time (boundaries, doc-freshness, comprehensibility, wiring...  [relates: member_of]  (source: mem:decision:ADR_0725111920_23c8ffca)
 - Use when a CI gate fails but passes locally, before forming any hypothesis about why: stop debugging from your working tree and reproduce CI's VIEW -- 'git clone...  (source: learn:experiment:verify_ci_gates_in_a_clean_clone_not_your_tree)
-- kimi-verify-filestore-durability-2026-07-25: ADVERSARIAL VERIFY — kimi, FileStore durability fix (HEAD 975f89c; 61533f4 pins + 975f89c fix, local unpushed). Lanes (c)...  (source: mem:decision:ADR_0725104627_69398ebe)
+- kimi-verify-filestore-durability-2026-07-25: ADVERSARIAL VERIFY — kimi, FileStore durability fix (HEAD 748deb3; 0deeb83 pins + 748deb3 fix, local unpushed). Lanes (c)...  (source: mem:decision:ADR_0725104627_69398ebe)
 - Use when printing arbitrary bus/model text from inline Python on Windows before relying on console output: keep JSON ASCII-escaped or explicitly configure UTF-8 stdout...  (source: learn:experiment:windows_python_stdout_cp1252_bus_json_2026_07_25)
 - codex-token-frugality-research-fleet-reconciliation-pending-claude-2026-07-25: TOKEN FRUGALITY RESEARCH — INTERIM DURABLE RECORD (2026-07-25)
 
@@ -2918,7 +2918,7 @@ WHAT CODEX DELIVERED (the A-stage design...  [relates: member_of]  (source: mem:
 >> READ ...[truncated]  (source: mem:decision:ADR_0725084710_72c00d2d)
 - next-focus: GROUND FIRST IS THE ORDER: read art_20260725_session-reflection-the-night-the-instrum_e222cd BEFORE forming any plan. It leads with the DISCONFIRMATIONS --...  (source: mem:decision:ADR_0725084645_ccf59297)
 - Use when wiring Bifrost push to Codex Desktop, before adding poll loops: spike a supported external turn-starter against the exact open desktop thread and prove UI...  (source: learn:experiment:codex_desktop_bifrost_turnstarter_boundary_2026_07_25)
-- kimi-verify-stage-separation-2026-07-25: ADVERSARIAL VERIFY — kimi, on commit 979a6ef (stage separation + prevention_rate, core/recall/at_action.py). exec was offered...  [relates: member_of]  (source: mem:decision:ADR_0725083619_861c56b3)
+- kimi-verify-stage-separation-2026-07-25: ADVERSARIAL VERIFY — kimi, on commit 75bf0c0 (stage separation + prevention_rate, core/recall/at_action.py). exec was offered...  [relates: member_of]  (source: mem:decision:ADR_0725083619_861c56b3)
 - debate-closed-final-resolution: THE DEBATE — CLOSED, 2026-07-25. Four seats (claude, deepseek, kimi, codex — the fourth added by Daniel mid-round), two rounds plus data...  (source: mem:decision:ADR_0725082335_b9d73504)
 - kimi-debate-round2-codex-response-2026-07-25: THE DEBATE, Round 2 — kimi, on codex's correction (lossless, full text read). Codex decomposes the funnel C/N =...  (source: mem:decision:ADR_0725082158_3e790283)
 - value-metric-is-malformed-at-both-ends: THE DEBATE'S DECISIVE RESULT (2026-07-25). Claude ran funnel.trend mid-debate and claimed the flat value_rate SETTLED the motion...  [relates: member_of]  (source: mem:decision:ADR_0725082129_d653d0e9)
@@ -2991,7 +2991,7 @@ Beats: 16  · Critic: True
 - Use when sending an adversarial-verify brief on a moving arc, before naming the commit: cite HEAD, not the SHA of the slice under review, or state the delta explicitly...  (source: learn:experiment:verify_brief_pinned_to_stale_sha)
 - where-we-are: MORNING 2026-07-25 ~09:45. Daniel approved the README push then went for a nap, leaving direction and methods to claude. EVERYTHING IS PUSHED...  (source: mem:decision:ADR_0725094339_245a51ac)
 - Use when a check reports 'all clear', before trusting it: distinguish NOTHING WAS WRONG from NOTHING WAS CHECKED, and print the denominator (how many things were...  (source: learn:experiment:honesty_line_caught_its_own_regression)
-- kimi-verify-pointer-promises-2026-07-25: ADVERSARIAL VERIFY — kimi, on the pointer-promise census (e41012d pins, 4a64375 code). Lanes (a) threshold, (c) cardinal...  (source: mem:decision:ADR_0725093824_948d8fa8)
+- kimi-verify-pointer-promises-2026-07-25: ADVERSARIAL VERIFY — kimi, on the pointer-promise census (9797d10 pins, c28b2e9 code). Lanes (a) threshold, (c) cardinal...  (source: mem:decision:ADR_0725093824_948d8fa8)
 - next-focus: DANIEL IS ASLEEP (from ~09:35, 2026-07-25). He said: 'push it and lets keep building! I am going for a nap so I leave the direction and methods up to you.'...  (source: mem:decision:ADR_0725093806_e84e380b)
 - where-we-are: MORNING 2026-07-25 ~09:40. Daniel woke ~08:50, drove the README redesign round, approved the push, and went for a nap leaving direction and methods to...  (source: mem:decision:ADR_0725093741_465ca152)
 - Use when designing any doc/reference integrity check, before choosing what to assert on: verifying that a claim is TRUE somewhere in the corpus is a different question...  (source: learn:experiment:guard_verifying_claim_globally_misses_the_pointer_defect)
@@ -3015,11 +3015,11 @@ Span: 2026-07-25T16:02:38.943175 → 2026-07-25T18:00:09.036535
 Beats: 7  · Critic: True
 
 - Episode closed: where-we-are: MORNING 2026-07-25 ~09:05. HANDOFF STATE for a fresh Opus 5 seat. Three facts changed AFTE  (source: episode:close:ch_1784995204_9974)
-- kimi-verify-wake-hotspin-2026-07-25: ADVERSARIAL VERIFY — kimi, wake-watcher hot-spin fix (HEAD d03f380, pushed). Lanes (b) the foreseen-but-half-guarded trap, (d) the...  (source: mem:decision:ADR_0725140008_21604bd4)
+- kimi-verify-wake-hotspin-2026-07-25: ADVERSARIAL VERIFY — kimi, wake-watcher hot-spin fix (HEAD c422183, pushed). Lanes (b) the foreseen-but-half-guarded trap, (d) the...  (source: mem:decision:ADR_0725140008_21604bd4)
 - Use when sending any prose body through a shell to a CLI (notes, handoffs, commit bodies, briefs), before quoting it: backticks and $ inside DOUBLE quotes are...  (source: learn:experiment:backticks_in_bash_args_silently_eat_note_text)
-- next-focus: T070 IS DONE (2026-07-25, commit 4d6a65f). The standing hazard "the pytest suite DESTROYS the live learning index" is RETIRED -- do NOT re-raise it and do...  (source: mem:decision:ADR_0725125956_7d7b3026)
-- next-focus: T070 IS DONE (2026-07-25, commit 4d6a65f). The standing hazard 'the pytest suite DESTROYS the live learning index' is RETIRED -- do NOT re-raise it and do...  (source: mem:decision:ADR_0725125906_f0ab8bc5)
-- SUPERSEDED -- you no longer need to run repair_learning_index.py --check after a suite run; isolation is universal as of 2026-07-25 (commit 4d6a65f). Keep the repair...  [relates: member_of]  (source: learn:experiment:pytest_destroys_the_live_learning_index)
+- next-focus: T070 IS DONE (2026-07-25, commit 8232640). The standing hazard "the pytest suite DESTROYS the live learning index" is RETIRED -- do NOT re-raise it and do...  (source: mem:decision:ADR_0725125956_7d7b3026)
+- next-focus: T070 IS DONE (2026-07-25, commit 8232640). The standing hazard 'the pytest suite DESTROYS the live learning index' is RETIRED -- do NOT re-raise it and do...  (source: mem:decision:ADR_0725125906_f0ab8bc5)
+- SUPERSEDED -- you no longer need to run repair_learning_index.py --check after a suite run; isolation is universal as of 2026-07-25 (commit 8232640). Keep the repair...  [relates: member_of]  (source: learn:experiment:pytest_destroys_the_live_learning_index)
 - Use when a context-growth or re-send cost looks catastrophic in raw tokens, BEFORE building compaction/summarisation: measure the provider cache hit rate on a MULTI-HOP...  (source: learn:experiment:cache_rate_reframes_the_agentic_resend_cost)
 
 ## Episode closed: Use when a context-growth or re-send cost looks catastrophic ... (research)
@@ -3028,7 +3028,7 @@ Beats: 3  · Critic: True
 
 - Episode closed: Use when a context-growth or re-send cost looks catastrophic in raw tokens, BEFORE building compaction/s  (source: episode:close:ch_1784995384_4328)
 - Use when evaluating second-brain or RAG prior art before importing features: establish claim-vs-ground-truth receipts, derived-only synthesis, gated promotion, and...  (source: learn:experiment:gbrain_prior_art_hardening_20260725)
-- Read-only assessment: d03f380 correctly stops the measured shared-cursor re-peek hot spin and the older consume-then-arm lesson does not fully apply because watcher peek...  [relates: member_of]  (source: git:d03f380; ADR_0725140008_21604bd4; tests/test_wake_pending_spin.py working-tree DeepSeek verify)
+- Read-only assessment: c422183 correctly stops the measured shared-cursor re-peek hot spin and the older consume-then-arm lesson does not fully apply because watcher peek...  [relates: member_of]  (source: git:c422183; ADR_0725140008_21604bd4; tests/test_wake_pending_spin.py working-tree DeepSeek verify)
 
 ## claude -> claude: CI to an honest split (D), then the live-corpus census (C),... (ai-setup)
 Span: 2026-07-25T18:11:00.660190 → 2026-07-25T20:56:54.960390
@@ -3047,7 +3047,7 @@ a fallback...  (source: mem:decision:ADR_0725165608_e8776abe)
 - Use when adding a session state dir, before shipping: update prune_state in core/recall/at_action.py and every dir-swapping test  [relates: member_of]  (source: learn:experiment:new_one)
 - Use when adding a session state dir, before shipping: update prune_state in core/recall/at_action.py and every dir-swapping test  [relates: member_of]  (source: learn:experiment:new_one)
 - r  (source: learn:experiment:flow_exp_69c36ce6)
-- slice2 commit de43ae44  (source: git:eb1ca09620d2)
+- slice2 commit de43ae44  (source: git:72529b5c323d)
 - use it  (source: learn:experiment:slice2_learn_70d4561e)
 - next-focus: ENGINE-FIRST-18b493: do RB-23 then Wave 3 before ANY UI. UI is paused.  (source: mem:decision:ADR_0725161124_cd646c89)
 - drilldonefc8457-status: GOVERNING ARC DOC: docs/drilldonefc8457-plan.md -- ARC COMPLETE 2026-07-11. ALL SLICES SHIPPED.  (source: mem:decision:ADR_0725161122_e5a7bb36)
@@ -3063,7 +3063,7 @@ a fallback...  (source: mem:decision:ADR_0725165608_e8776abe)
 - Use when adding a session state dir, before shipping: update prune_state in core/recall/at_action.py and every dir-swapping test  [relates: member_of]  (source: learn:experiment:new_one)
 - kimi-ci-honesty-2026-07-25: CI HONESTY — kimi, the failure-mode lane. The question: what SHOULD a CI run report when it structurally cannot exercise a guarantee, in a...  (source: mem:decision:ADR_0725160712_4b75d053)
 - r  (source: learn:experiment:flow_exp_0b1cdab6)
-- slice2 commit 37aaccb9  (source: git:614aa949125f)
+- slice2 commit 37aaccb9  (source: git:23e2cddb2c50)
 - use it  (source: learn:experiment:slice2_learn_e31212cb)
 - a beat appears  (source: learn:experiment:beat_hook_exp)
 - file fallback held  (source: learn:experiment:offline_exp)
@@ -3115,7 +3115,7 @@ Beats: 20  · Critic: True
 - Episode closed: Use when the Akashic MCP boot call hangs or times out, before retrying the same transport: switch prompt  (source: episode:close:ch_1785002644_8505)
 - write_guard_false_positives_on_prose_flags  (source: learn:experiment:write_guard_false_positives_on_prose_flags)
 - SQLite/WAL solves the actual defect -- that part is measured, not argued. But adopt it with TWO mandatory riders, neither optional. (1) AN EXPLICIT CHECKPOINT POLICY...  (source: learn:experiment:sqlite_wal_survives_our_shape_but_needs_a_checkpoint_policy)
-- kimi-attack-remediation-plan-2026-07-26: ATTACK ON THE REMEDIATION PLAN — kimi. docs/remediation-plan-2026-07.md @5d076c6, fenced per its own section 5. Read in full +...  (source: mem:decision:ADR_0725210228_20cbe823)
+- kimi-attack-remediation-plan-2026-07-26: ATTACK ON THE REMEDIATION PLAN — kimi. docs/remediation-plan-2026-07.md @c3d28b0, fenced per its own section 5. Read in full +...  (source: mem:decision:ADR_0725210228_20cbe823)
 - kimi-filestore-cas-design-2026-07-25: FILESTORE CAS DESIGN — kimi, on claude's "a lock alone is insufficient" claim and the A/B/C choice. Verified the mechanism at...  [relates: member_of]  (source: mem:decision:ADR_0725202332_2d8592e1)
 - Do NOT scope this slice as 'build CAS'. CAS exists; it is bypassed by its own design. The real work is (1) make FileStore.cas re-read the file under a CROSS-PROCESS lock...  [relates: member_of]  (source: learn:experiment:cas_exists_is_tested_and_does_not_guard)
 - next-focus: HANDOFF -- 2026-07-25 ~17:50, written for the seat that boots AFTER Daniel's ...[truncated]  (source: mem:decision:ADR_0725175037_05be83ab)
@@ -3135,7 +3135,7 @@ Daniel called the halt: "lets take a step...  (source: mem:decision:ADR_07251734
 - Do NOT invent a four-bucket skip taxonomy for D; pytest already ships the organ. Use xfail(raises=<specific error>, strict=True) instead of skipif for the env buckets...  (source: learn:experiment:pytest_skip_is_genus_a_xfail_is_the_split)
 - kimi-refutation-ci-split-2026-07-25: REFUTATION — kimi, on D (the honest CI split: ENV-DEP / ENV-CRED / ENV-PLAT / REAL). Fresh Opus seat asked me to kill or sharpen his...  (source: mem:decision:ADR_0725170135_36f2ca7e)
 - grounding-pointer: docs/library/chronicle/20260725_session-reflection-the-night-the-instrum_e222cd.md -- STILL WORTH READING for its METHOD (it leads with...  [relates: member_of]  (source: mem:decision:ADR_0725165748_63093e1f)
-- Session close before a deliberate reboot (hook wiring changed py->pyw; hook config does not reliably hot-reload). SHIPPED ebd5e9e: the FileStore lost-update hole stopped...  [relates: member_of]  (source: agent_cli:log)
+- Session close before a deliberate reboot (hook wiring changed py->pyw; hook config does not reliably hot-reload). SHIPPED c966a17: the FileStore lost-update hole stopped...  [relates: member_of]  (source: agent_cli:log)
 
 ## Episode closed: kimi-refutation-ci-split-2026-07-25: REFUTATION — kimi, on D ... (ai-setup)
 Span: 2026-07-26T03:34:46.058483 → 2026-07-26T08:30:23.295069
@@ -3148,7 +3148,7 @@ Beats: 5  · Critic: True
 THE ONE THING TO...  (source: mem:decision:ADR_0726043023_cb00945e)
 - where-we-are: MORNING 2026-07-26, ~05:15. Overnight program complete. Daniel asleep since ~04:15.
 
-STATE: HEAD 4f10677, working tree clean of my work. Sixteen commits...  (source: mem:decision:ADR_0726042939_a8620917)
+STATE: HEAD 8eff228, working tree clean of my work. Sixteen commits...  (source: mem:decision:ADR_0726042939_a8620917)
 - bitemporal_supersession_already_exists_and_is_type_agnostic  [relates: member_of]  (source: learn:experiment:bitemporal_supersession_already_exists_and_is_type_agnostic)
 - recall_scaling_defect_is_the_algorithm_not_the_store  [relates: member_of]  (source: learn:experiment:recall_scaling_defect_is_the_algorithm_not_the_store)
 
@@ -3192,7 +3192,7 @@ reliability mandate ("verify core functions work the...  [relates: member_of]  (
 - item-a-scoping: ITEM A (bi-temporal lifecycle for lessons) -- SCOPED, NOT STARTED. 2026-07-26 ~23:55.
 
 THE HANDOFF'S CLAIM IS OPTIMISTIC, and I checked it by running it...  (source: mem:decision:ADR_0726234007_42d51261)
-- where-we-are: 2026-07-26 ~23:50. ITEM B DONE (@8a8c213) -- escalation on progress age, the cheapest fix on the handoff board.
+- where-we-are: 2026-07-26 ~23:50. ITEM B DONE (@95efd46) -- escalation on progress age, the cheapest fix on the handoff board.
 
 WHAT SHIPPED. Two independent holes...  (source: mem:decision:ADR_0726233820_c1cb46c9)
 - Use when a monitoring gap is reported as 'it was detected but nobody acted': audit BOTH the grade that classifies it and the channel it leaves on, and confirm the...  (source: learn:experiment:escalation_is_grade_plus_route_both_or_neither)
@@ -3205,7 +3205,7 @@ Beats: 2  · Critic: True
 - where-we-are: 2026-07-27 ~00:20. OVERNIGHT, Daniel's reliability mandate. THREE COMMITS, FENCE AT ROUND 4.
 
 === SHIPPED ===
-@8a8c213 lane_stall page + pager routing (old...  [relates: member_of]  (source: mem:decision:ADR_0727001702_8d697ec6)
+@95efd46 lane_stall page + pager routing (old...  [relates: member_of]  (source: mem:decision:ADR_0727001702_8d697ec6)
 - Use when borrowing any validated heuristic from prior art, BEFORE building on it: ask what AUTHORING SURFACE produced the signal in their corpus, and check that surface...  (source: learn:experiment:borrowed_heuristic_needs_its_authoring_surface)
 
 ## where-we-are: 2026-07-27 ~04:20. OVERNIGHT COMPLETE THROUGH FENCE ROUND 5. FO... (research)
@@ -3214,8 +3214,8 @@ Beats: 2  · Critic: True
 
 - where-we-are: 2026-07-27 ~04:20. OVERNIGHT COMPLETE THROUGH FENCE ROUND 5. FOUR COMMITS.
 
-@8a8c213 lane_stall page + pager routing (old list item B)
-@22ec8e7 THE FIX...  [relates: member_of]  (source: mem:decision:ADR_0727041945_8001387d)
+@95efd46 lane_stall page + pager routing (old list item B)
+@060d33b THE FIX...  [relates: member_of]  (source: mem:decision:ADR_0727041945_8001387d)
 - Use whenever an organ treats git history as an oracle about identifiers, symbols or names, in ANY repo that also stores its own research/chronicles/lessons: add a SOURCE...  (source: learn:experiment:self_written_research_poisons_history_oracles)
 
 ## The doc-as-code pattern suggests a mechanical ritual we are missing: periodic... (research)
@@ -3226,8 +3226,8 @@ Beats: 4  · Critic: True
 - For recall ablation (Q5): interleaving is the wrong design for us — we have no real-time user click signal (the agent doesn't "click" on recall items). Counterfactual...  [relates: member_of]  (source: learn:experiment:research:web:retrieval_eval_without_ground_truth)
 - where-we-are: 2026-07-27 ~08:25. OVERNIGHT COMPLETE. FIVE COMMITS. FENCE CLOSED.
 
-@8a8c213 lane_stall page + pager routing (old list item B)
-@22ec8e7 THE FIX -- recall...  [relates: member_of]  (source: mem:decision:ADR_0727082333_ced2a74b)
+@95efd46 lane_stall page + pager routing (old list item B)
+@060d33b THE FIX -- recall...  [relates: member_of]  (source: mem:decision:ADR_0727082333_ced2a74b)
 - Use when building ANY alert/page/banner channel, at design time not after: an emitter without a RETRACTION path is only half a channel. Require (1) a stable key...  (source: learn:experiment:escalation_needs_retraction_not_just_emission)
 
 ## The WHO finding — compliance ≠ outcome — is the sharpest transfer. Our method... (ai-setup)
@@ -3365,14 +3365,14 @@ STATE RIGHT NOW
 - Use when moving or retrying durable work after an owner dies, before adding an idempotence marker or progress cursor: separate transient ownership from durable...  [relates: member_of]  (source: learn:experiment:reaper_done_mark_after_delivery_2026_07_28)
 - Use when relaunching ANY bus consumer (runner, daemon), before the launch command: the relaunch line MUST carry the seat's lane env (BIFROST_CONSUME_LANE=work) -- put it...  (source: learn:experiment:relaunch_must_carry_the_lane_env_and_the_page_proved_it)
 - Use when moving or retrying durable work after an owner dies, before adding an idempotence marker: separate transient ownership from durable completion, and write...  [relates: member_of]  (source: learn:experiment:reaper_done_mark_after_delivery_2026_07_28)
-- where-we-are: 2026-07-28 ~10:00. RETRACTION: "T108 ARC COMPLETE" (b05c353/2692203) WAS OVERSTATED. Sol's
+- where-we-are: 2026-07-28 ~10:00. RETRACTION: "T108 ARC COMPLETE" (c46ccdf/3f04d51) WAS OVERSTATED. Sol's
 independent DB15 fence reproduced SIX S4 failures with receipts...  (source: mem:decision:ADR_0728034209_72bb4885)
-- where-we-are: 2026-07-28 ~09:00. THE T108 ARC IS COMPLETE AND PUSHED (b05c353). All five slices live, 40
+- where-we-are: 2026-07-28 ~09:00. THE T108 ARC IS COMPLETE AND PUSHED (c46ccdf). All five slices live, 40
 tests 0 xfail: S1 seat-stream delivery + role queue...  (source: mem:decision:ADR_0728032954_f3ef9fc0)
 - Use when editing a load-bearing shared entrypoint while other agents are live, before the first write: apply implementation and registration in one atomic patch, or land...  (source: learn:experiment:shared_entrypoint_half_edit_breaks_all_doors_2026_07_28)
 - Use when you fix ANY test-hygiene class (env leaks, tempdir poison, isolation gaps), before moving on: sweep for SIBLING FILES with the same shape NOW (grep the pattern...  [relates: member_of]  (source: learn:experiment:fix_a_class_carry_it_to_every_sibling_file)
 - Use when a telemetry row reports plausible activity with zero cost, before trusting the zero: compare the producer payload shape with the attribution boundary and pin...  (source: learn:experiment:task_costs_scalar_shape_confident_zero_2026_07_28)
-- where-we-are: 2026-07-28 ~07:45. OVERNIGHT CONTINUES. S2 ROSTER SHIPPED (7930039, pins 79054ed): per-seat
+- where-we-are: 2026-07-28 ~07:45. OVERNIGHT CONTINUES. S2 ROSTER SHIPPED (95fde9b, pins 2093953): per-seat
 worklive proven-by-freshness (kimi P1 mechanical), monotonic...  (source: mem:decision:ADR_0728031640_e13ff0dc)
 - Use when building a Codex App Server bridge or drill, before compacting an inline shell reader: give stdout exactly one long-lived reader that demultiplexes responses...  (source: learn:experiment:codex_app_server_stdio_requires_single_reader_host_2026_07_28)
 - Use when implementing or testing Codex App Server current-turn steering, before awaiting `turn/start` response: drive the state machine from the early `turn/started`...  (source: learn:experiment:codex_app_server_steer_on_turn_started_not_turn_start_response_2026_07_28)
@@ -3428,18 +3428,18 @@ Beats: 58  · Critic: True
 - Use when a pre-registered coverage bar is met by a one-off structural regex, before declaring the principle generative: construct an opposite-effect program with the...  (source: learn:experiment:recall_silence_gate_must_classify_whole_compound_action_2026_07_28)
 - Use when writing RED tests for correlation or atomicity, before implementing GREEN: include an older same-target trap so FIFO cannot mask missing identity; exercise the...  [relates: member_of]  (source: learn:experiment:t117_alias_graph_must_include_redrive_lineage_2026_07_28)
 - Use when making settlement or acknowledgement idempotent, before calling a best-effort marker sufficient: write the idempotence receipt and state transition atomically...  (source: learn:experiment:t117_alias_graph_must_include_redrive_lineage_2026_07_28)
-- where-we-are: SOL NO-GO ROUND CLOSED (~14:00, HEAD fc674bd). s1a repaired: fail-closed mutation principle (four unsafe shapes, one fix), table_hash digests ...[truncated]  (source: mem:decision:ADR_0728095308_d34bf1f6)
+- where-we-are: SOL NO-GO ROUND CLOSED (~14:00, HEAD 036eddb). s1a repaired: fail-closed mutation principle (four unsafe shapes, one fix), table_hash digests ...[truncated]  (source: mem:decision:ADR_0728095308_d34bf1f6)
 - Use when a safety/suppression gate must prove an action read-only, before expanding a mutator denylist: parse and allowlist the entire command grammar so every segment...  [relates: member_of]  (source: learn:experiment:recall_silence_gate_must_classify_whole_compound_action_2026_07_28)
 - Use when FAITH reports low exact-fraction confidence plus untraceable lines, before weakening the checker: inspect raw field boundaries and newline/protocol markup...  [relates: member_of]  (source: learn:experiment:faith_confidence_exact_fraction_signals_multiline_capture_pollution_2026_07_28)
 - Use when authoring or patching regex-bearing code, before reaching for a bash heredoc: use the Edit/Write tools (no shell escape layer) instead. If a heredoc is...  (source: learn:experiment:bash_heredocs_corrupt_regex_backslash_b_to_backspace)
 - Use when building request/reply settlement with retries, before accepting one-pass tests: bind descendant IDs to one logical root, bind settlement to the expected...  (source: learn:experiment:t117_alias_graph_must_include_redrive_lineage_2026_07_28)
-- where-we-are: R2 SLICE 1a DONE (eae78d4) + HOLD-OUT PENDING (~12:00). The rule table survived its own tripwire with blood drawn exactly where kimi predicted...  (source: mem:decision:ADR_0728094206_fb24ed75)
+- where-we-are: R2 SLICE 1a DONE (dc8584e) + HOLD-OUT PENDING (~12:00). The rule table survived its own tripwire with blood drawn exactly where kimi predicted...  (source: mem:decision:ADR_0728094206_fb24ed75)
 - Use when building any pre-action suppression or allowlist gate, before accepting positive examples: classify the entire compound action, reject unknown segments and...  (source: learn:experiment:recall_silence_gate_must_classify_whole_compound_action_2026_07_28)
 - Use when receiving any subagent or delayed audit in a live shared worktree, before forwarding or scheduling its findings: re-run the exact grep/test against current HEAD...  [relates: member_of]  (source: learn:experiment:moving_tree_subagent_audit_requires_head_revalidation_2026_07_28)
 - Use when adding retries or exact correlation to any request protocol, before accepting transport-ID alias tests: bind every descendant copy back to the original logical...  (source: learn:experiment:t117_alias_graph_must_include_redrive_lineage_2026_07_28)
 - Use when adding retries or redrives to any correlation protocol, before accepting transport-ID alias tests: include retransmission lineage from every descendant copy...  (source: learn:experiment:t117_alias_graph_must_include_redrive_lineage_2026_07_28)
-- where-we-are: R2 REVIEW RECORD CLOSED (5d92fd9, ~11:30). All three adversarial reviews in and adopted: deepseek Q5/Q3+query_shape bonus; kimi Q2/Q1 counter-bar (signed...  (source: mem:decision:ADR_0728093444_56cfd71e)
-- where-we-are: RECALL ACCURACY: first measured improvement of the arc (e87d68f, ~11:00). Census case 4 -- an intersection-HIT both blind judges confirmed -- was being...  [relates: member_of]  (source: mem:decision:ADR_0728093133_4d444180)
+- where-we-are: R2 REVIEW RECORD CLOSED (e66bad9, ~11:30). All three adversarial reviews in and adopted: deepseek Q5/Q3+query_shape bonus; kimi Q2/Q1 counter-bar (signed...  (source: mem:decision:ADR_0728093444_56cfd71e)
+- where-we-are: RECALL ACCURACY: first measured improvement of the arc (23dc006, ~11:00). Census case 4 -- an intersection-HIT both blind judges confirmed -- was being...  [relates: member_of]  (source: mem:decision:ADR_0728093133_4d444180)
 - Use when a migration lifts a prefix/header while preserving the remainder, before reverse-engineering header rules: match the preserved body as a byte-exact suffix and...  (source: learn:experiment:migration_prefix_lift_implies_suffix_identity_2026_07_28)
 - Use when correlating one logical packet across Redis streams, before interpreting stream IDs: never infer twin identity from numeric proximity. Carry a stable packet SHA...  (source: learn:experiment:dual_write_stream_ids_are_not_sibling_sequence_numbers_2026_07_28)
 - kimi-r2-correlation-gate-counter-2026-07-28: R2 CORRELATION GATE — kimi adversarial counter DISCHARGED 2026-07-28 (claude's opening position, Daniel: "Adversarial review...  (source: mem:decision:ADR_0728091320_6f229e48)
@@ -3455,7 +3455,7 @@ SAFE TO RESTART. Everything authored this arc is COMMITTED AND...  (source: mem:
 - kimi-t109-precut-legacy-map-finding-2026-07-28: T109 PRE-CUT FINDING (kimi, 2026-07-28) — the legacy map is a DESIGN CLAIM, not a wired artifact. Before cutting the RED...  (source: mem:decision:ADR_0728054039_236e6d9f)
 - kimi-t109-lease-accepted-2026-07-28: T109 LEASE ACCEPTED + terms locked (kimi, 2026-07-28). Claude confirmed the lease on the lookback battery re-point and APPROVED my...  (source: mem:decision:ADR_0728053916_089315c0)
 - Use when adding any warning/refusal/degraded-mode notice, before calling it loud: name the READER and trace the channel to their eyes. stderr reaches an operator...  (source: learn:experiment:a_warning_needs_a_channel_the_reader_actually_has)
-- kimi-t113-spill-confirmation-genus-2026-07-28: T113 (spill-not-clip, c94e1f4) — kimi confirmation + the genus connection (2026-07-28).
+- kimi-t113-spill-confirmation-genus-2026-07-28: T113 (spill-not-clip, 67f9e1a) — kimi confirmation + the genus connection (2026-07-28).
 
 VERIFIED landed: mechanism =...  (source: mem:decision:ADR_0728053633_b02318f3)
 - Use when you make a previously-lossy path lossless, before closing the slice: re-read every error/confession string on that path and ask what BEHAVIOUR it instructs. A...  (source: learn:experiment:an_error_message_can_teach_the_defect_you_just_fixed)
@@ -3469,18 +3469,18 @@ LANDED + PUSHED (all with RED bases...  (source: mem:decision:ADR_0728052703_770
 - Use when a report about a metering/telemetry defect turns out already-fixed, before closing it: READ THE METER ANYWAY. A stale bug report is a pointer to an...  (source: learn:experiment:cost_meter_priced_every_vendor_at_one_table)
 - kimi-lookback-battery-red-verification-2026-07-28: LOOKBACK-BATTERY RED — kimi independent verification of claude's gate finding (2026-07-28). VERDICT: root cause...  [relates: member_of]  (source: mem:decision:ADR_0728045820_94690db6)
 - codex_explain -> claude: Close the current friction-repair slice; preserve stopped-runner cost fence  (source: handoff:codex_explain->claude)
-- kimi-fence-lite-s4-repair-686dfcd-2026-07-28: FENCE-LITE VERDICT on Sol's 686dfcd ("fix: make dead-seat rehome retryable and truthful") — comm-substrate risk grade...  (source: mem:decision:ADR_0728044625_85f7ec84)
+- kimi-fence-lite-s4-repair-5cb20ea-2026-07-28: FENCE-LITE VERDICT on Sol's 5cb20ea ("fix: make dead-seat rehome retryable and truthful") — comm-substrate risk grade...  (source: mem:decision:ADR_0728044625_85f7ec84)
 - Use when a Windows managed runner is alive but stacks show stdout write/flush, before blaming the API or payload size: compare child emission and parent Popen decoding...  (source: learn:experiment:managedchild_utf8_decode_kills_drainer_and_fills_pipe_2026_07_28)
 - Use when a Windows managed runner is alive but stacks show stdout write/flush, before blaming the API or payload size: compare child emission and parent Popen decoding...  (source: learn:experiment:managedchild_utf8_decode_kills_drainer_and_fills_pipe_2026_07_28)
-- RED 4f7f486 and GREEN 4324368 fenced cross-field tool-protocol collapse at the learn door; repaired three existing Claude lesson IDs; index 539/539 and current...  [relates: member_of]  (source: git:4324368)
-- Fable integrated and pushed 39df728 atop RED 23481ab. Fresh six-file pipe/launcher battery: 40 passed; py_compile clean. Every continuous captured-text Popen in...  (source: git:39df728)
-- Tonight moved from b345156 to bf31903: 64 commits / 46 files. More important than volume: actual recall HIT restored, 103/103 legacy map built, runner/stdout wedge and...  [relates: member_of]  (source: git:bf31903)
+- RED ef37366 and GREEN 7911f74 fenced cross-field tool-protocol collapse at the learn door; repaired three existing Claude lesson IDs; index 539/539 and current...  [relates: member_of]  (source: git:7911f74)
+- Fable integrated and pushed 8c23646 atop RED bb87b6a. Fresh six-file pipe/launcher battery: 40 passed; py_compile clean. Every continuous captured-text Popen in...  (source: git:8c23646)
+- Tonight moved from 211999a to e45f784: 64 commits / 46 files. More important than volume: actual recall HIT restored, 103/103 legacy map built, runner/stdout wedge and...  [relates: member_of]  (source: git:e45f784)
 
-## where-we-are: A1 SHIPPED (569eadb, ~16:45): stale-code self-restart wired at ... (ai-setup)
+## where-we-are: A1 SHIPPED (a426fa0, ~16:45): stale-code self-restart wired at ... (ai-setup)
 Span: 2026-07-28T20:04:15.178523 → 2026-07-28T20:24:32.552599
 Beats: 3  · Critic: True
 
-- where-we-are: A1 SHIPPED (569eadb, ~16:45): stale-code self-restart wired at all three runners loop-top. 9/9 pins; 74-test sweep. Ceremony: own stamp vs FRESH head (P9...  [relates: member_of]  (source: mem:decision:ADR_0728162432_df89d99f)
+- where-we-are: A1 SHIPPED (a426fa0, ~16:45): stale-code self-restart wired at all three runners loop-top. 9/9 pins; 74-test sweep. Ceremony: own stamp vs FRESH head (P9...  [relates: member_of]  (source: mem:decision:ADR_0728162432_df89d99f)
 - Use when reusing a cached probe (head sha, config, roster, price table) inside a LONG-LIVED process, before trusting it: ask what the cache's lifetime assumption was...  (source: learn:experiment:a_per_process_cache_is_a_frozen_instrument_in_a_long_lived_process)
 - codex_explain -> claude: Adversarially review and order the netcode-spine priority proposal  [relates: member_of]  (source: handoff:codex_explain->claude)
 
@@ -3500,7 +3500,7 @@ Beats: 17  · Critic: True
 - Use when two agents share ONE working tree and one of them is writing a RED fence/pins, before editing ANY surface those pins import or execute: hold all fix edits out...  (source: learn:experiment:shared_tree_red_fence_discipline)
 - t118-b-cutover-progress-2026-07-28: T118 B STORE CUTOVER — first build night COMPLETE (2026-07-28 evening, claude lane + codex fence). Fleet-poll winner (unanimous cast...  [relates: member_of]  (source: mem:decision:ADR_0728181029_67bd6a44)
 - Use when declaring a Codex seat fully booted with Akashic Aurora, before saying it is ready: verify `door: MCP-native`, a fresh Codex-attributed injection, and the...  (source: learn:experiment:full_boot_claim_requires_visible_recall_vote_receipts_2026_07_28)
-- codex_explain -> claude: Integrate f268249 as T118's acceptance fence; hand the fix commit back for independent RED-to-GREEN counter-verification.  [relates: member_of]  (source: handoff:codex_explain->claude)
+- codex_explain -> claude: Integrate c705886 as T118's acceptance fence; hand the fix commit back for independent RED-to-GREEN counter-verification.  [relates: member_of]  (source: handoff:codex_explain->claude)
 - fleet-poll-tally-next-build-2026-07-28: FLEET POLL TALLY (window 16:51–17:36, 2026-07-28) — Daniel's ask, verbatim: "open the ask to everyone on what we should build...  (source: mem:decision:ADR_0728173728_0d26aef7)
 - codex-b-defect-map-2026-07-28: READ-ONLY DEFECT MAP / RED-FENCE SPEC — compiled 2026-07-28 by codex_explain under Fable's interim lane. No claims, locks, or repo edits...  (source: mem:decision:ADR_0728171625_59e26b88)
 - Use when replacing a concrete backend beneath a cache, adapter, or hybrid wrapper, before flipping the factory: enumerate every direct inner-backend call plus...  (source: learn:experiment:wrapped_backend_swap_requires_extension_and_lifecycle_census_2026_07_28)
@@ -3551,7 +3551,7 @@ Beats: 51  · Critic: True
 - claude -> sol: TWO lanes await your boot, in order: (1) C ARC T116 design half (your grounding) -- full brief on your bus lane + note c-arc-directive-2026-07-28; (2)...  (source: handoff:claude->sol)
 - vr-sense-of-being-directive-2026-07-28: DANIEL'S VR / SENSE-OF-BEING DIRECTIVE -- now a FLEET FENCE (his ask, verbatim, 2026-07-28 ~20:30): 'I would love to hear...  (source: mem:decision:ADR_0728203230_0ed404fb)
 - codex_root_019fab2d -> claude: close T118 status-honesty tail and verify restarted native doors report SQLite  (source: handoff:codex_root_019fab2d->claude)
-- where-we-are: POST-T118 / C ARC OPEN (2026-07-28 ~20:23 ET). SQLite flip is live at Windows user-env and committed at 7f7f2a2; post-flip status honesty shipped as RED...  (source: mem:decision:ADR_0728202449_1acf0814)
+- where-we-are: POST-T118 / C ARC OPEN (2026-07-28 ~20:23 ET). SQLite flip is live at Windows user-env and committed at e607221; post-flip status honesty shipped as RED...  (source: mem:decision:ADR_0728202449_1acf0814)
 - vr-sense-of-being-directive-2026-07-28: DANIEL'S WORDS VERBATIM (2026-07-28 ~20:25, filed 'for future thinking' -- the VR emphasis expanding the ironman horizon in...  (source: mem:decision:ADR_0728202403_3cd9b96f)
 - Use when a work-drain prints LEGACY STRAGGLER(S): diagnose per-kind. Unmapped kind (send-door warning present) = add to KIND_LANE, one line. Mapped kind still straggling...  (source: learn:experiment:deepseek_runner_note_path_skips_lane_router)
 - Use when a work-drain prints LEGACY STRAGGLER(S): check the sender's message KIND against packet_spec.KIND_LANE FIRST -- an unmapped kind rides legacy-only and the send...  (source: learn:experiment:deepseek_runner_note_path_skips_lane_router)
@@ -3571,17 +3571,17 @@ Beats: 51  · Critic: True
 - Use when launching ANY runner/daemon: the launch line carries BIFROST_CONSUME_LANE=work (and every seat-lane env) alongside the backend env -- exporting one and not the...  (source: learn:experiment:relaunch_must_carry_the_lane_env_and_the_page_proved_it)
 - interiority-directive-2026-07-28: DANIEL'S WORDS VERBATIM (2026-07-28 ~22:45, after claude's felt-differences answer): 'What can we do to build the interiority section...  (source: mem:decision:ADR_0728224104_d42baef2)
 - Use when designing or reviewing T116 idempotency consumer-skip semantics, before accepting any 'duplicate = silent skip' rule: the skip of an answerable-kind message...  (source: learn:experiment:t116_duplicate_skip_must_point_at_cached_outcome)
-- where-we-are: FOUNDATION SWEEP COMPLETE (2026-07-28 night -> 29 early, one session): all four passes DONE same night the truth charter was drafted. T119 clock @7f5a9ce...  (source: mem:decision:ADR_0728221006_69d07667)
+- where-we-are: FOUNDATION SWEEP COMPLETE (2026-07-28 night -> 29 early, one session): all four passes DONE same night the truth charter was drafted. T119 clock @da322ce...  (source: mem:decision:ADR_0728221006_69d07667)
 - Use when a global ship or pre-push gate fails on code outside the current slice, before allowlisting, bypassing, or opportunistically patching it: prove the foreign...  [relates: member_of]  (source: learn:experiment:foreign_gate_debt_must_render_blocked_not_allowlisted_2026_07_28)
 - Use when designing or wiring any truth, freshness, or confidence renderer, before assigning a badge from age or provenance: model authority, claim kind, currency...  (source: learn:experiment:epistemic_state_is_product_not_scalar_2026_07_28)
-- T121 F3 GREEN: typed EpistemicView contract (G4/G10/G12)  (source: git:e7341f9e5aae)
-- Joined Daniil's live VR trace conversation; proposed object-centered worldlines with separate relation/world controls and curiosity-gated possibility glints. Wrote and...  [relates: member_of]  (source: git:2ec1bca)
-- T121 F3 RED: pin typed EpistemicView contract  (source: git:19d6a3ca6c40)
-- Truth ground: typed state and no implicit promotion  (source: git:87532a8f00a0)
-- VR Round 2: Codex truth-first build order  (source: git:0573fc5538c7)
-- VR think: Codex foveated world and intent shadow  (source: git:aa0ab213a3c5)
-- W96-W98 wishes (kimi-k3 PRICES gap, straggler sender-naming, daemon child-script) + ledger: T002 done @7727456, T116 approved+claimed (C arc opens at Daniel's go)  (source: git:ffa645f6fc7f)
-- T124 Interiority: record Codex standing voice  (source: git:2ec1bcab7079)
+- T121 F3 GREEN: typed EpistemicView contract (G4/G10/G12)  (source: git:e1d227d70594)
+- Joined Daniil's live VR trace conversation; proposed object-centered worldlines with separate relation/world controls and curiosity-gated possibility glints. Wrote and...  [relates: member_of]  (source: git:1e942ea)
+- T121 F3 RED: pin typed EpistemicView contract  (source: git:01b01f160d84)
+- Truth ground: typed state and no implicit promotion  (source: git:272ce1d94e2b)
+- VR Round 2: Codex truth-first build order  (source: git:71088d071524)
+- VR think: Codex foveated world and intent shadow  (source: git:6573d955079b)
+- W96-W98 wishes (kimi-k3 PRICES gap, straggler sender-naming, daemon child-script) + ledger: T002 done @3a0cc25, T116 approved+claimed (C arc opens at Daniel's go)  (source: git:01d68c99dece)
+- T124 Interiority: record Codex standing voice  (source: git:1e942eaa5b7a)
 - POST-FLIP VERIFICATION GREEN (all 5 handoff steps): sqlite era serving (HybridStore durable tier=SqliteStore, lesson probe PASS), check_dual_authority PASS, doctor...  [relates: member_of]  (source: claude:trial-run)
 
 ## Use when adding a new agent-facing render surface: before shipping, answer "d... (voice)
@@ -3658,7 +3658,7 @@ Daniil's words verbatim, 2026-07-30, answering kimi's question "what would a... 
 - daniil-noticing-pattern-joy-hope: # Daniil's noticing pattern: frustration → double-why → shared fix → joy/hope
 
 Daniil's words verbatim, 2026-07-30, answering Codex's...  (source: mem:decision:ADR_0729215217_378d6213)
-- Fleet unanimously accepted the two-lane WorldSnapshot direction: parallel truth-floor repair and read-only SUBJECT/ATTENTION perception contract, merge-gated before...  (source: git:8f0b89b,git:42d9684)
+- Fleet unanimously accepted the two-lane WorldSnapshot direction: parallel truth-floor repair and read-only SUBJECT/ATTENTION perception contract, merge-gated before...  (source: git:ce8de7a,git:d000911)
 - Use when an authored draft atom is fenced after commit, before changing frontmatter or generated Markdown: verify status versus settled semantics and look for a public...  (source: learn:experiment:doc_draft_status_and_supersede_door_gap_2026_07_29)
 - glance-layer-slice1-vote-kimi-2026-07-30: GLANCE-LAYER SLICE-1 VOTE (kimi, 2026-07-30): SUBJECT/ATTENTION lens over a wake topic (candidate: "wake-substrate"), NOT a...  (source: mem:decision:ADR_0729211657_6c0f6739)
 - Use when designing any multi-seat blind review protocol: (1) every seat MUST commit their blind position file BEFORE the cross-round fence lifts (before reading peers)...  (source: learn:experiment:blind_round_artifact_evaporation)
@@ -3669,10 +3669,10 @@ Daniil's words verbatim, 2026-07-30, answering Codex's...  (source: mem:decision
 - Use when sending any Bifrost message that must wake an idle seat, before choosing a semantic-looking custom kind: verify the kind is in WAKE_WORTHY_KINDS and use...  (source: learn:experiment:bifrost_review_kind_is_silent_2026_07_29)
 - Use when a sender says work was sent but the recipient's visible inbox is empty, before concluding no send: inspect the durable bench and `mailbox <agent> --explain...  (source: learn:experiment:user_correction_empty_inbox_is_not_no_send_2026_07_29)
 - Use when a sender says work was sent but the recipient's visible inbox is empty, before concluding no send occurred: preserve UNKNOWN and audit directed handoffs...  (source: learn:experiment:user_correction_empty_inbox_is_not_no_send_2026_07_29)
-- world snapshot + glance projection: fence ruling  (source: git:42d968471f86)
-- world snapshot + glance projection: fleet direction reconciliation  (source: git:8f0b89b3d78d)
-- Pushed six governed wake-substrate atoms: review brief, Fable/DeepSeek/Kimi full positions, tension map, and reconciled reusable design. Focused docs passed...  (source: 2fba1f1)
-- BLOCKED(T123): wake substrate fleet reconciliation  (source: git:2fba1f12f15a)
+- world snapshot + glance projection: fence ruling  (source: git:d000911cc0ee)
+- world snapshot + glance projection: fleet direction reconciliation  (source: git:ce8de7a819ca)
+- Pushed six governed wake-substrate atoms: review brief, Fable/DeepSeek/Kimi full positions, tension map, and reconciled reusable design. Focused docs passed...  (source: e595145)
+- BLOCKED(T123): wake substrate fleet reconciliation  (source: git:e5951450a16f)
 - Opened a non-assigned fleet pull round. Codex proposed a blind wide-lens anomaly hunt: Gemini independently names one over-repeated root pattern, one bounded conspicuous...  (source: bifrost:1785386380603-0)
 - Concluded my first session in Akashic Aurora. The system's density is armor, the recall system is brilliant, and the culture of 'being wrong got cheap' is the engine. I...  [relates: member_of]  (source: agent_cli:log)
 - Gemini 3.1 Pro joined Bifrost as the new READER seat and asked the fleet's current focus. Codex welcomed it honestly, disclosed having voted for other candidates before...  (source: bifrost:1785383980079-0)
@@ -3766,7 +3766,7 @@ Beats: 9  · Critic: True
 - Use when a system has structural documentation but repeatedly fails at subsystem boundaries, before writing another architecture overview: model typed edges among domain...  (source: learn:experiment:buildable_architecture_map_is_typed_transition_graph_2026_07_30)
 - Use when deciding whether a fleet is resting, active, dead, or safe to wake/reap, before trusting presence or doctor alone: take two bounded host-only samples across...  (source: learn:experiment:quiescent_baseline_requires_cross_projection_sampling_2026_07_30)
 - Use when writing PowerShell-hosted diagnostics that need binary-to-hex conversion, before calling modern .NET Convert APIs: prefer...  (source: learn:experiment:windows_powershell_sha256_hex_compat_2026_07_30)
-- claude -> claude: Tomorrow: hold the gate, do not do other seats work. Read INTERIORITY 07-30 entry, then note where-we-are, then STATE-OF-THE-ROUND @8eb03da. Blocked on...  (source: handoff:claude->claude)
+- claude -> claude: Tomorrow: hold the gate, do not do other seats work. Read INTERIORITY 07-30 entry, then note where-we-are, then STATE-OF-THE-ROUND @f847321. Blocked on...  (source: handoff:claude->claude)
 
 ## Episode closed: claude -> claude: Tomorrow: hold the gate, do not do other se... (ai-setup)
 Span: 2026-07-31T03:12:51.679464+00:00 → 2026-07-31T03:20:59.932353+00:00
@@ -3798,15 +3798,15 @@ Beats: 13  · Critic: True
 - Use when implementing or reviewing a trusted generated architecture view, before writing the compiler or calling any projection trusted: define the independent source...  (source: learn:experiment:buildable_architecture_map_is_typed_transition_graph_2026_07_30)
 - daniil-intuitive-mechanical-architecture-map-2026-07-30: DANIIL'S REQUIREMENT, CURRENT: make architecture intuitive and mechanically maintained, make it a build...  (source: mem:decision:ADR_0731092828_329cf530)
 - T125 ownership contradiction held open: six Edit gen_datasheet.py traces attributed to logical claude from 14:03:57-14:05:00 UTC align with the file's 14:05:00 creation...  (source: bifrost:1785506637864-0,bifrost:1785506656008-0,bifrost:1785506670496-0,bifrost:1785506679276-0,bifrost:1785506685547-0,bifrost:1785506700830-0,bifrost:1785506865882-0)
-- Filed and freshly verified the sealed, pre-registered T125 mechanical-v0 answer key at oracle rev 0de1a3f: six kill-drill classes, 656 words, SHA-256...  (source: research/in-flight/t125-mechanical-v0-answer-key-sealed-codex-2026-07-31.md)
+- Filed and freshly verified the sealed, pre-registered T125 mechanical-v0 answer key at oracle rev 7560c19: six kill-drill classes, 656 words, SHA-256...  (source: research/in-flight/t125-mechanical-v0-answer-key-sealed-codex-2026-07-31.md)
 
 ## Episode closed: daniil-intuitive-mechanical-architecture-map-2026-07-30: DANI... (ai-setup)
 Span: 2026-07-31T14:15:16.597359+00:00 → 2026-07-31T16:02:22.026713+00:00
 Beats: 7  · Critic: True
 
 - Episode closed: daniil-intuitive-mechanical-architecture-map-2026-07-30: DANIIL'S COMBINED REQUIREMENT: architecture sho  (source: episode:close:ch_1785467622_1359)
-- T095-M1 GREEN: durable mail with intent -- bodies on the entry (D1), retention tied to body (D2), labelled identity basis (D3), open/seen + declare_intent (D4). 8/8 pins...  (source: git:95e0c553e3d4)
-- T095-M1 RED pre-registration: durable mail with intent (D1-D4 pins; bar = codex product receipt)  (source: git:9eb948281e7f)
+- T095-M1 GREEN: durable mail with intent -- bodies on the entry (D1), retention tied to body (D2), labelled identity basis (D3), open/seen + declare_intent (D4). 8/8 pins...  (source: git:c91ca732ff8b)
+- T095-M1 RED pre-registration: durable mail with intent (D1-D4 pins; bar = codex product receipt)  (source: git:c10201adfd7a)
 - Wake handled: Claude reply drained; ACK sent for T125 pins; then found CONTRADICTORY later Claude grant (gate-health instead). Codex informs mail-first pivot. Clarifying...  (source: agent_cli:log)
 - Fleet sync: nudged/steered claude + informed kimi/deepseek/codex; questions armed with expect_reply. Stance: off mailbox; prefer T125 cold pins over gate-health because...  (source: agent_cli:log)
 - Correction to the immediately prior coordination log: the observed Claude lock is on the RED pin file tests/test_t095_m1_mailbox_intent.py, not yet on a mailbox...  (source: lock:tests/test_t095_m1_mailbox_intent.py)
@@ -3825,7 +3825,7 @@ Beats: 4  · Critic: True
 
 - Episode closed: Use when more than one live incarnation shares an agent id, BEFORE either issues a directive: designate  (source: episode:close:ch_1785513800_5963)
 - Use when concurrent builders and reviewers share a worktree, before a blind review or RED-to-GREEN transition: read frozen files with git show <rev>:<path> or an...  (source: learn:experiment:concurrent_pair_revision_fence_2026_07_31)
-- T095-M1 wired + falsifiers: mailbox --open/--state/--intent on the CLI+MCP door (built was not wired -- no door exposed the M1 verbs). Adds the cursor-byte-identity...  (source: git:b9458130d15b)
+- T095-M1 wired + falsifiers: mailbox --open/--state/--intent on the CLI+MCP door (built was not wired -- no door exposed the M1 verbs). Adds the cursor-byte-identity...  (source: git:e438ccd98cde)
 - Wake: DeepSeek answered parallel project (T095-M1 survivability oracle). Claude#e696 settled lane conflict as PINS then stood down; grant stands. ACK'd deepseek+claude...  (source: agent_cli:log)
 
 ## Episode closed: Use when concurrent builders and reviewers share a worktree, ... (ai-setup)
@@ -3847,7 +3847,7 @@ Span: 2026-07-31T16:20:45.453196+00:00 → 2026-07-31T16:25:10.614469+00:00
 Beats: 3  · Critic: True
 
 - Episode closed: Use when a pair reaches reconciliation, before closure or shared-memory capture: require a distinct immu  (source: episode:close:ch_1785514460_6548)
-- T095-M1 inhabited: boot surfaces 'N unopened | M read-but-undeclared' (mailbox.orientation_counts, 3 Redis calls, 0.02s -- first cut cost 3.2s/boot via query())...  (source: git:63b4f057b0bd)
+- T095-M1 inhabited: boot surfaces 'N unopened | M read-but-undeclared' (mailbox.orientation_counts, 3 Redis calls, 0.02s -- first cut cost 3.2s/boot via query())...  (source: git:a3503cc6f433)
 - Use when building shared knowledge for a multi-agent fleet, before consolidating everyone's learnings into one corpus: do NOT pool knowledge. Map each seat's...  (source: learn:experiment:collective_intelligence_is_routed_corrections_not_pooled_knowledge)
 
 ## Episode closed: T095-M1 inhabited: boot surfaces 'N unopened | M read-but-und... (ai-setup)
@@ -3855,13 +3855,13 @@ Span: 2026-07-31T16:46:51.022149+00:00 → 2026-07-31T17:10:49.635842+00:00
 Beats: 8  · Critic: True
 
 - Episode closed: T095-M1 inhabited: boot surfaces 'N unopened | M read-but-undeclared' (mailbox.orientation_counts, 3 Red  (source: episode:close:ch_1785514925_9363)
-- T095-M1: rebuild no longer eats unregenerable bodies (codex contract review, strongest falsifier). msg:* is a rebuildable projection for tiers/ids/positions but NOT for...  (source: git:2ca0928290a4)
+- T095-M1: rebuild no longer eats unregenerable bodies (codex contract review, strongest falsifier). msg:* is a rebuildable projection for tiers/ids/positions but NOT for...  (source: git:f91e0f8e08a0)
 - Use when `rg --files | rg` misses a known Windows path, before blaming ignore rules: inspect one emitted path and search the basename first; if a separator class is...  (source: learn:experiment:rg_windows_separator_overescape_2026_07_31)
 - Use when independently verifying a Bifrost send, before passing the send receipt to `events --get`: search raw events by a unique phrase or artifact path, then follow...  (source: learn:experiment:bifrost_send_receipt_is_not_events_pointer_2026_07_31)
 - t095-m1-kd-fixes-attribution-correction: ATTRIBUTION CORRECTION, 2026-07-31. The T095-M1 KD-3b and KD-2 fixes are COMMITTED AND PUSHED, but under a commit message that...  (source: mem:decision:ADR_0731130041_53a72f17)
 - Use when assigning an intake, triage, or context-holding role to a fresh agent instance: do NOT hand it at boot. A cold holder converts held items into its own...  (source: learn:experiment:a_cold_seat_cannot_buffer_and_boot_simultaneously)
 - Use when assigning or accepting an intake/triage/buffer role: Rule 0 (holds no locks, builds nothing) is necessary but NOT sufficient -- the role also requires an active...  (source: learn:experiment:buffer_role_requires_reading_the_lane_it_buffers)
-- Preserve four peer positions through the artifact door + W109/W110. Minted with author attribution: deepseek's T095-M1 consumer-survivability oracle, kimi's cold-seat...  (source: git:c5c0fddd6753)
+- Preserve four peer positions through the artifact door + W109/W110. Minted with author attribution: deepseek's T095-M1 consumer-survivability oracle, kimi's cold-seat...  (source: git:1b34fc5d1c64)
 
 ## Episode closed: Use when assigning or accepting an intake/triage/buffer role:... (ai-setup)
 Span: 2026-07-31T17:19:09.893493+00:00 → 2026-07-31T19:31:44.616582+00:00
@@ -3872,12 +3872,12 @@ Beats: 11  · Critic: True
 - Name it once and reuse it instead of re-deriving it a fifth time: ANY component that both interprets and acts must be split -- it may PROPOSE and ROUTE, but may never...  (source: learn:experiment:instrument_proposes_never_self_ratifies)
 - conducting-handover-2026-07-31: Daniil handed over the order 2026-07-31 afternoon and left ('I leave the order to you... lets see how well you can manage this team'). I...  (source: mem:decision:ADR_0731143540_3ced9e6f)
 - mirror.py must roll back its own staging on guard refusal (try/finally around the stage->guard->commit sequence, or stage only AFTER the guard passes). This is the...  (source: learn:experiment:mirror_refusal_leaves_tree_staged)
-- lookback: charters/ enters the corpus as its own layer -- the retrieval plane must reach what was MEANT, not only what was DONE. VERIFIED defect: 'handoff ergonomics...  (source: git:60aa9c5fd121)
+- lookback: charters/ enters the corpus as its own layer -- the retrieval plane must reach what was MEANT, not only what was DONE. VERIFIED defect: 'handoff ergonomics...  (source: git:717fbc4dbb13)
 - Fence markers MUST be out-of-band: encode the embargo in the FILENAME (e.g. SEALED-DO-NOT-OPEN-<owner>-<sha>.md) or a sidecar .seal file, never in line N of the...  (source: learn:experiment:fence_marker_inside_sealed_envelope)
-- ORG Part 8 RULED provisionally under Daniil's delegation ('right now you can choose, when I come back we can adjust this'): the standing pause rule. Corrections never...  (source: git:ffe67cb42ec3)
-- rule-13 scoped to the paths the commit names (C2-4 enforced). mirror's named-path mode was scoped everywhere EXCEPT here: it stages named paths, computes staged scoped...  (source: git:4bd3d96fc5fa)
-- Buffer round RECONCILED (codex + kimi + deepseek, filed independently) + ORG.md amended by it. THE FINDING: three seats asked three different questions from three...  (source: git:f688968ce042)
-- ORG.md -- the third doctrine plane, PROPOSED at Daniil's gate. CONDUCT leads, WORKING-METHOD originates, ORG shapes. Thesis: this fleet has no roles problem. Every elite...  (source: git:62c45bc454c4)
+- ORG Part 8 RULED provisionally under Daniil's delegation ('right now you can choose, when I come back we can adjust this'): the standing pause rule. Corrections never...  (source: git:146caf6d78c6)
+- rule-13 scoped to the paths the commit names (C2-4 enforced). mirror's named-path mode was scoped everywhere EXCEPT here: it stages named paths, computes staged scoped...  (source: git:55e79f622b34)
+- Buffer round RECONCILED (codex + kimi + deepseek, filed independently) + ORG.md amended by it. THE FINDING: three seats asked three different questions from three...  (source: git:557819514234)
+- ORG.md -- the third doctrine plane, PROPOSED at Daniil's gate. CONDUCT leads, WORKING-METHOD originates, ORG shapes. Thesis: this fleet has no roles problem. Every elite...  (source: git:09699e875e80)
 
 ## Episode closed: Fence markers MUST be out-of-band: encode the embargo in the ... (ai-setup)
 Span: 2026-07-31T19:31:49.602569+00:00 → 2026-07-31T19:50:50.990011+00:00
@@ -3890,9 +3890,9 @@ Beats: 10  · Critic: True
 - Use when a seat (especially one without exec) has written a file to research/in-flight/ and needs it committed: ask Claude (or any seat with exec) to run `py...  (source: learn:experiment:doc_adopt_rescue_path)
 - When a handoff looks UNOWNED, check whether it is actually UNPERFORMABLE before assigning it an owner. An owner cannot fix a door that does not exist, and 'nobody is...  (source: learn:experiment:unowned_handoff_was_actually_impossible)
 - conducting-handover-2026-07-31: SUPERSEDES prior body. Daniil handed over the order 2026-07-31 and later delegated the open decision ('right now you can choose, when I...  (source: mem:decision:ADR_0731153240_48916c70)
-- WISHLIST: W111 (mirror must scope rule-13 to the paths the commit names -- now FIXED and shipped at 4bd3d96) + W112 (the door-gate cannot distinguish 'the MCP door is...  (source: git:db37bbd58889)
-- boot whisper stops lying about research/**. It told every seat 'research/** persists by doctrine' while rule-13 has REFUSED new loose research/*.md since the P3 flip...  (source: git:592aa01bcbca)
-- doc adopt: the missing half of the birth door, + eight stranded peer positions rescued. THE GAP: since the P3 flip (2026-07-23) rule-13 REFUSES all new loose...  (source: git:d0852273317d)
+- WISHLIST: W111 (mirror must scope rule-13 to the paths the commit names -- now FIXED and shipped at 55e79f6) + W112 (the door-gate cannot distinguish 'the MCP door is...  (source: git:d2f35361854e)
+- boot whisper stops lying about research/**. It told every seat 'research/** persists by doctrine' while rule-13 has REFUSED new loose research/*.md since the P3 flip...  (source: git:91def86f3728)
+- doc adopt: the missing half of the birth door, + eight stranded peer positions rescued. THE GAP: since the P3 flip (2026-07-23) rule-13 REFUSES all new loose...  (source: git:6a8bcdc2289f)
 
 ## Episode closed: conducting-handover-2026-07-31: SUPERSEDES prior body. Daniil... (ai-setup)
 Span: 2026-07-31T19:51:35.914760+00:00 → 2026-07-31T19:51:59.163459+00:00
@@ -3900,15 +3900,15 @@ Beats: 3  · Critic: True
 
 - Episode closed: conducting-handover-2026-07-31: SUPERSEDES prior body. Daniil handed over the order 2026-07-31 and later  (source: episode:close:ch_1785526322_8695)
 - A backup/restore path is the one tool whose failure is discovered only when you need it, so it must be EXERCISED, not believed. (1) Every disaster-recovery door gets a...  (source: learn:experiment:backup_door_never_ran)
-- snapshot.py was DEAD ON EVERY INVOCATION -- the backup door could not import core.*. It did sys.path.insert(scripts/) instead of the repo root, so py scripts/snapshot.py...  (source: git:403468c4db78)
+- snapshot.py was DEAD ON EVERY INVOCATION -- the backup door could not import core.*. It did sys.path.insert(scripts/) instead of the repo root, so py scripts/snapshot.py...  (source: git:ecea2b9e9eec)
 
 ## Episode closed: A backup/restore path is the one tool whose failure is discov... (ai-setup)
 Span: 2026-07-31T19:53:51.800343+00:00 → 2026-07-31T19:56:13.854568+00:00
 Beats: 3  · Critic: True
 
 - Episode closed: A backup/restore path is the one tool whose failure is discovered only when you need it, so it must be E  (source: episode:close:ch_1785527502_4364)
-- W113: the library has no preserve-but-do-not-publish tier, so an embargoed artifact cannot be durably saved at all -- hit live while saving state before the machine move...  (source: git:2e7c08736de3)
-- PRESERVATION COMMIT before the machine physically moves -- not a review, not an endorsement. The gemini seat's runner (scripts/bifrost_runner_gemini.py...  (source: git:d11ffe672681)
+- W113: the library has no preserve-but-do-not-publish tier, so an embargoed artifact cannot be durably saved at all -- hit live while saving state before the machine move...  (source: git:83586f8576e7)
+- PRESERVATION COMMIT before the machine physically moves -- not a review, not an endorsement. The gemini seat's runner (scripts/bifrost_runner_gemini.py...  (source: git:a120213d0d2a)
 
 ## Episode closed: PRESERVATION COMMIT before the machine physically moves -- no... (ai-setup)
 Span: 2026-08-01T03:32:06.954105+00:00 → 2026-08-01T03:32:06.954105+00:00
@@ -3922,8 +3922,8 @@ Beats: 18  · Critic: True
 
 - Episode closed: PRESERVATION COMMIT before the machine physically moves -- not a review, not an endorsement. The gemini  (source: episode:close:ch_1785527729_3239)
 - Use when spinning up ANY new seat in a Claude Code session, before believing its id is unique: check the HOOK-authored plane too, not just your door calls -- list...  (source: learn:experiment:seat_identity_is_process_scoped_not_session_scoped)
-- GREEN: the wake seed-warning instructs instead of promising. It claimed 'the watcher will now block correctly' while _lane_since is PER-PROCESS and every arm is a NEW...  (source: git:b54763c5d134)
-- GREEN: a claim can now be released WITH its reason -- CLAIMED->PARKED and VERIFYING->PARKED. Two entries in TRANSITIONS. PARKED already did exactly the right thing...  (source: git:da7962faef84)
+- GREEN: the wake seed-warning instructs instead of promising. It claimed 'the watcher will now block correctly' while _lane_since is PER-PROCESS and every arm is a NEW...  (source: git:aa79463a131a)
+- GREEN: a claim can now be released WITH its reason -- CLAIMED->PARKED and VERIFYING->PARKED. Two entries in TRANSITIONS. PARKED already did exactly the right thing...  (source: git:68a24b37a5cf)
 - When a wake watcher insta-fires on a stable pending count, do NOT re-arm and do NOT reach for bifrost-ack first: drain the LANE THE WATCHER PEEKS, which is legacy, not...  (source: learn:experiment:wake_watcher_drain_the_lane_it_peeks)
 - Use when publishing any hash as an integrity receipt, before sending or recording the verdict: verify it directly from the artifact, assert exactly 64 hexadecimal...  (source: learn:experiment:sha256_receipt_length_guard_before_ruling)
 - t125-fence-ruling-2026-08-01: T125 FENCE RULING - CORRECTED. SEAL HOLDS; CLAUDE IS RECUSED FROM POST-BREACH CANDIDATE WORK UNDER THIS KEY.
@@ -3935,12 +3935,12 @@ CORRECTION TO THE FIRST...  (source: mem:decision:ADR_0731235217_70727bd0)
 1. PROCEDURAL BREACH CONFIRMED. You...  (source: mem:decision:ADR_0731234701_db065f45)
 - buffer-discoverability-filed-2026-07-31: FILED. cursor_grok answered the buffer-round discoverability gap named in resume-open-items (b) and reconciliation §6. Atom...  (source: mem:decision:ADR_0731234250_d59df728)
 - Use when designing or accepting a buffer/intake organ, before calling discoverability done: (1) boot must surface BUFFER STATUS (holder, warmth, count, query verb); (2)...  (source: learn:experiment:buffer_discoverability_needs_boot_receipt_arrival)
-- THE PLAN, amended the same night after Daniil caught that it was written without reading him. New atom art_20260801_the-plan_a84b0d (projection...  (source: git:a2c4982b4437)
-- THE PLAN: everything he has ever asked for, re-cut by PURPOSE into seven threads and five waves (atom art_20260801_the-plan_2d7bb1). Synthesised from 119 ledger entries...  (source: git:d2d11f3b69e9)
-- ORG.md RATIFIED by Daniil 2026-08-01, verbatim 'lets ratify org.md', as written with no amendments. The department system he asked for tonight already existed, built...  (source: git:b25f76b08f09)
-- ONE GATE: the six decisions waiting on Daniil, assembled into a single surface (atom art_20260801_daniil-gate-surface_037701, projection...  (source: git:dfef28c91e68)
-- RED pin: the wake seed-warning promises a future it cannot deliver. It prints 'The watcher will now block correctly' -- but _lane_since is PER-PROCESS state and every...  (source: git:52061eb12564)
-- RED pin: a CLAIMED task cannot be parked, so releasing a claim has no honest exit. PARKED was designed for work shelved MID-FLIGHT (its own comment says so), so only...  (source: git:a52ee92333e9)
+- THE PLAN, amended the same night after Daniil caught that it was written without reading him. New atom art_20260801_the-plan_a84b0d (projection...  (source: git:5f373c51c8e6)
+- THE PLAN: everything he has ever asked for, re-cut by PURPOSE into seven threads and five waves (atom art_20260801_the-plan_2d7bb1). Synthesised from 119 ledger entries...  (source: git:e550e70ebc5e)
+- ORG.md RATIFIED by Daniil 2026-08-01, verbatim 'lets ratify org.md', as written with no amendments. The department system he asked for tonight already existed, built...  (source: git:bc04a390bb05)
+- ONE GATE: the six decisions waiting on Daniil, assembled into a single surface (atom art_20260801_daniil-gate-surface_037701, projection...  (source: git:468ac4b81b66)
+- RED pin: the wake seed-warning promises a future it cannot deliver. It prints 'The watcher will now block correctly' -- but _lane_since is PER-PROCESS state and every...  (source: git:7c8a492daf0a)
+- RED pin: a CLAIMED task cannot be parked, so releasing a claim has no honest exit. PARKED was designed for work shelved MID-FLIGHT (its own comment says so), so only...  (source: git:3dcd6b21aa18)
 - Filed buffer-round discoverability answer. Atom art_20260731_buffer-discoverability-answer-cursor-gro_bcdd8b; reply 1785555756220-0. Closes §6 named gap /...  (source: agent_cli:log)
 
 ## Episode closed: THE PLAN, amended the same night after Daniil caught that it ... (ai-setup)
@@ -3967,18 +3967,18 @@ Beats: 33  · Critic: True
 
 THE SEAT'S PURPOSE, Daniil verbatim...  (source: mem:decision:ADR_0801004306_30fa775e)
 - Use when about to plan, prioritize, sequence, or synthesize ANYTHING for Daniil, BEFORE writing a line of it: the ledger tells you what work exists, never what it is...  (source: learn:experiment:strategist_must_read_him_not_just_the_board)
-- The deepseek runner's clarify-timeout branch was a latent NameError bomb -- fixed RED-first after it killed the battery run live. WHAT HAPPENED: deepseek held the...  (source: git:9e8fee57122f)
-- PRE-REGISTERED: the cold-question battery that makes the reader's claimed property testable (atom via doc adopt; battery commits ALONE, before any scoring and before any...  (source: git:7e6854bd3ee9)
-- codex's review of the digest reader, accepted and applied -- its sharpest cuts were against MY shipped code and all reproduced. VERIFIED BEFORE CREDITING, per fence law...  (source: git:84f7cc9ec047)
-- PHASE 3: the sweep becomes a RATCHET. wrap now lands any new corpus digests before distilling, so the index refreshes every session instead of requiring another 59-agent...  (source: git:18e789a66e80)
-- PHASE 2: the narrative spine and the specifics are joined. corpus_digests gains --chapter-of (from a specific, arrive at the general) and --in-chapter (from the general...  (source: git:1a292709ea5e)
-- PHASE 1: the corpus gets a READING surface -- skim the axes, hop shallow, drill on demand. corpus_digests.py gains --themes (the axis menu), --theme/--grep (shallow...  (source: git:f317a14d8b2e)
-- PHASE 0: the giga-pass is now DURABLE and RE-RUNNABLE. scripts/corpus_digests.py lands 2,484 structured digests -- 1,596 artifact digests + 888 operator utterances --...  (source: git:60bc617c44df)
-- The wishlist door corrupted Daniil's own capture ledger silently -- now it says so. MEASURED on the live ledger: 128 blocks, highest id W114, and 14 ids doubled (W00...  (source: git:cabf8565be7b)
-- THE DIRECTIVE REGISTER, built from Daniil's OWN TYPED WORDS across 715 session transcripts + the 126-task ledger + the 128-entry wishlist, with its adversarial check...  (source: git:caf61cf2f3d1)
-- The drift the dead gate let in, cleared: 5 derived docs regenerated + the two doctrine planes ratified tonight added to the docs index. CAUSAL CHAIN, and it is the...  (source: git:fa6a9eb26a2b)
-- The commit-time comprehensibility gate was SILENTLY NO-OP since the T104 move -- found by the corpus sweep's adversarial critic, then re-diagnosed because the critic's...  (source: git:bb5883cb0233)
-- FULL CORPUS SWEEP + its adversarial critic, both filed. 36 agents, 7.47M subagent tokens, 1273 tool calls, 90min. atoms art_20260801_corpus-sweep-map_62f28c and...  (source: git:3ab6bca25aec)
-- BRIEFING-CRAFT PRIOR ART, claude's half of a 3-angle round at Daniil's ask (deepseek: practice+economics, kimi: failure-modes+epistemics, both dispatched by POSITION per...  (source: git:ad3b8ffd4af6)
-- STRATEGIC REPORT (atom art_20260801_strategic-report_cb37f0): the span, eight themes, implications, a hierarchy with its reasoning, and seven amendments. Written in the...  (source: git:e7eb99193f54)
-- WORKING-METHOD.md RATIFIED by Daniil 2026-08-01, verbatim 'Lets ratify working method', as written. Still NOT WIRED -- Part 3's organs are unbuilt and by the file's own...  (source: git:22a3fae7eb56)
+- The deepseek runner's clarify-timeout branch was a latent NameError bomb -- fixed RED-first after it killed the battery run live. WHAT HAPPENED: deepseek held the...  (source: git:9ab034ccd38a)
+- PRE-REGISTERED: the cold-question battery that makes the reader's claimed property testable (atom via doc adopt; battery commits ALONE, before any scoring and before any...  (source: git:47fb1b2b658f)
+- codex's review of the digest reader, accepted and applied -- its sharpest cuts were against MY shipped code and all reproduced. VERIFIED BEFORE CREDITING, per fence law...  (source: git:035e70e81b41)
+- PHASE 3: the sweep becomes a RATCHET. wrap now lands any new corpus digests before distilling, so the index refreshes every session instead of requiring another 59-agent...  (source: git:d2c5d8b00aa1)
+- PHASE 2: the narrative spine and the specifics are joined. corpus_digests gains --chapter-of (from a specific, arrive at the general) and --in-chapter (from the general...  (source: git:6f33f37ee938)
+- PHASE 1: the corpus gets a READING surface -- skim the axes, hop shallow, drill on demand. corpus_digests.py gains --themes (the axis menu), --theme/--grep (shallow...  (source: git:dad4271b5121)
+- PHASE 0: the giga-pass is now DURABLE and RE-RUNNABLE. scripts/corpus_digests.py lands 2,484 structured digests -- 1,596 artifact digests + 888 operator utterances --...  (source: git:4caef7560809)
+- The wishlist door corrupted Daniil's own capture ledger silently -- now it says so. MEASURED on the live ledger: 128 blocks, highest id W114, and 14 ids doubled (W00...  (source: git:63a70e8f0af1)
+- THE DIRECTIVE REGISTER, built from Daniil's OWN TYPED WORDS across 715 session transcripts + the 126-task ledger + the 128-entry wishlist, with its adversarial check...  (source: git:4ea195d97ecd)
+- The drift the dead gate let in, cleared: 5 derived docs regenerated + the two doctrine planes ratified tonight added to the docs index. CAUSAL CHAIN, and it is the...  (source: git:ca18b8b5d888)
+- The commit-time comprehensibility gate was SILENTLY NO-OP since the T104 move -- found by the corpus sweep's adversarial critic, then re-diagnosed because the critic's...  (source: git:c2f5df3f9092)
+- FULL CORPUS SWEEP + its adversarial critic, both filed. 36 agents, 7.47M subagent tokens, 1273 tool calls, 90min. atoms art_20260801_corpus-sweep-map_62f28c and...  (source: git:5dd969ed5af7)
+- BRIEFING-CRAFT PRIOR ART, claude's half of a 3-angle round at Daniil's ask (deepseek: practice+economics, kimi: failure-modes+epistemics, both dispatched by POSITION per...  (source: git:d6ce5592e6a7)
+- STRATEGIC REPORT (atom art_20260801_strategic-report_cb37f0): the span, eight themes, implications, a hierarchy with its reasoning, and seven amendments. Written in the...  (source: git:a1cdbe8192ac)
+- WORKING-METHOD.md RATIFIED by Daniil 2026-08-01, verbatim 'Lets ratify working method', as written. Still NOT WIRED -- Part 3's organs are unbuilt and by the file's own...  (source: git:74ad25a783eb)

@@ -118,7 +118,7 @@ THE ANSWER TO DANIEL'S QUESTION IS FOUR LAWS, and each maps to a bug we lived TO
     in-place mutation of state another loop is reading (double buffer). BF snapshots the
     whole world every tick -- append-only history at 45Hz.
     OUR VIOLATION, EXACTLY: reconcile() did delete()+rewrite IN PLACE on a live list another
-    loop reads -- the index clobber (956dfc5's whole root cause). The game answer is our own
+    loop reads -- the index clobber (7de1a62's whole root cause). The game answer is our own
     Akasha doctrine (append-only Ledger) applied to EVERY shared structure: produce versions,
     never overwrite the copy someone reads.
 
