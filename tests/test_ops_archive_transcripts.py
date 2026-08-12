@@ -111,7 +111,11 @@ def test_p5_verify_detects_a_corrupted_archive_copy_and_repairs_it(rig):
     """Equal SIZE is the cheap incremental signal; it cannot see rot. --verify hashes."""
     ARC.archive(rig["sources"], rig["dests"])
     victim = rig["d1"] / "bbbbbbbb-2222.jsonl"
-    victim.write_text('{"type":"user","t":9}\nXXXXXXXXXXXXXXXX', encoding="utf-8")  # same len
+    # PIN CORRECTED during the build: v1 hand-wrote a "same length" string that was not the
+    # same length (text-mode newline translation on Windows makes the byte count differ from
+    # the character count). Derive the size from the file so the pin exercises the case it
+    # names -- size-equal rot, which the fast path CANNOT see and only --verify catches.
+    victim.write_bytes(b"X" * rig["b"].stat().st_size)
 
     quiet = ARC.archive(rig["sources"], rig["dests"])
     assert quiet["destinations"][0]["copied"] == 0, "size-equal, so the fast path skips it"
@@ -140,8 +144,12 @@ def test_p6_one_unreachable_destination_does_not_cost_the_other(rig, tmp_path):
 def test_p7_every_run_leaves_a_dated_receipt(rig, tmp_path):
     receipts = tmp_path / "receipts"
     rep = ARC.archive(rig["sources"], rig["dests"], receipt_dir=receipts)
-    files = sorted(receipts.glob("*.json"))
+    files = sorted(receipts.glob("archive-*.json"))
     assert len(files) == 1, "a run that leaves no trace is how a dead backup looks alive"
+    # ...plus a stable `latest.json` pointer, so `--status` costs one read and never has to
+    # sort filenames to find the newest (v1 of this pin counted *.json and did not know
+    # about the pointer it was asking for).
+    assert (receipts / "latest.json").exists()
     on_disk = json.loads(files[0].read_text(encoding="utf-8"))
     assert on_disk["sources_seen"] == 2
     assert on_disk["ok"] is True and rep["ok"] is True
