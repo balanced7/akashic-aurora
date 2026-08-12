@@ -35,6 +35,19 @@ _DEFAULT_DB = _REPO_ROOT / "state" / "eye" / "eye.db"
 _SYSTEM_MARKERS = (
     "<command-name>", "<local-command", "Caveat: The messages below",
     "<system-reminder>", "<task-notification", "[SYSTEM NOTIFICATION",
+    # The harness writes this into a `user` record when the operator hits escape. It is a
+    # record ABOUT him, not FROM him -- and it recurs often enough to rank as one of his
+    # most-repeated "phrases" until it was excluded (found 2026-08-11 by the directive
+    # watcher, which surfaced it as a top standing directive: the false-positive class the
+    # marker list already existed to fight, with one member missing).
+    "[Request interrupted",
+    # The compaction summary the harness writes into a `user` record when a session runs
+    # out of context. It is the largest false-positive in the class: it is LONG and it
+    # restates the whole conversation, so every phrase in it reads as something he said,
+    # in his voice, at that timestamp. Found 2026-08-11 when the directive watcher ranked
+    # a compaction preamble as one of his top standing directives.
+    "This session is being continued from a previous conversation",
+    "Please continue the conversation from where we left it off",
 )
 
 _TRANSCRIPT_GLOB = "*.jsonl"
@@ -74,12 +87,24 @@ def utterance_key(session: str, text: str) -> Tuple[str, str]:
 
 
 def default_corpus() -> List[Path]:
-    """The live transcript manifest: every session JSONL under the harness projects root."""
+    """The transcript manifest: every session JSONL the harness still holds, PLUS the
+    rescued archive.
+
+    The second half is not optional. Transcripts rotate off the harness disk, and a rebuild
+    that reads only the live directory silently drops every rescued session -- which is
+    exactly what happened twice on 2026-08-11, the second time to the very sessions
+    recovered from a shadow copy hours earlier. A corpus definition that excludes the
+    archive makes every rebuild a partial one, quietly."""
+    out: List[Path] = []
     root = Path.home() / ".claude" / "projects"
-    if not root.is_dir():
-        return []
-    return sorted(p for d in root.iterdir() if d.is_dir()
-                  for p in d.glob(_TRANSCRIPT_GLOB))
+    if root.is_dir():
+        out.extend(p for d in root.iterdir() if d.is_dir()
+                   for p in d.glob(_TRANSCRIPT_GLOB))
+    rescued = _REPO_ROOT / "state" / "eye" / "recovered"
+    if rescued.is_dir():
+        live = {p.name for p in out}
+        out.extend(p for p in rescued.glob(_TRANSCRIPT_GLOB) if p.name not in live)
+    return sorted(out)
 
 
 # ---------------------------------------------------------------- schema

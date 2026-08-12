@@ -2319,6 +2319,28 @@ def cmd_eye(args):
                   f"{nb['snippet'][:88]}")
         print(f"  exits: {len(v['exits'])}  (drill: py agent_cli.py eye trace {v['addr']})")
         return 0
+    if args.eye_cmd == "standing":
+        from core.eye import directives as _DIR
+        rep = _DIR.unheeded(limit=args.limit)
+        if args.json:
+            print(_json.dumps(rep, indent=1)); return 0
+        if rep["clear"]:
+            print(f"[eye standing] nothing unheeded -- {rep['checked']} recurring "
+                  f"directive(s) examined, all cited by some durable plane")
+            return 0
+        print(f"[eye standing] {len(rep['items'])} recurring directive(s) that NO durable "
+              f"plane cites  ({rep['checked']} examined"
+              + (f", {rep['withheld']} withheld by the cap" if rep["withheld"] else "")
+              + ")")
+        for i in rep["items"]:
+            print(f"  [{i['shape']}] said in {i['sessions']} session(s), "
+                  f"{i['utterances']} utterance(s)")
+            print(f"      \"{i['phrase']}\"")
+            print(f"      check it: py agent_cli.py eye get {i['refs'][0]}")
+        print("  (this instrument PROPOSES -- it files nothing. Known false-positive "
+              "class: agent-authored briefs pasted into a fresh seat read as operator "
+              "speech.)")
+        return 0
     if args.eye_cmd == "trace":
         from core.eye import connectome as _CONN
         if not _CONN.edges():
@@ -7284,6 +7306,15 @@ def build_parser():
                              "be evaluated against it and are COUNTED in the envelope, "
                              "never silently dropped")
     eye_tr.add_argument("--json", action="store_true")
+    eye_sd = eye_sub.add_parser("standing", help="S7 the directive watcher: recurring "
+                                                 "OPERATOR instructions that no durable "
+                                                 "plane cites -- the organ looking for the "
+                                                 "class of loss it was built to answer. "
+                                                 "Proposes; files nothing")
+    eye_sd.add_argument("--limit", type=int, default=3,
+                        help="hard cap (default 3): a watcher that surfaces a dozen "
+                             "maybes gets ignored, and then its silence reads as all-clear")
+    eye_sd.add_argument("--json", action="store_true")
     # ---- S6 the inhabitant loop: a seat has a STANDPOINT, keyed per incarnation ----
     for _name, _help in (
             ("look", "S6: the standpoint rendered -- this node, neighbours as silhouettes, "

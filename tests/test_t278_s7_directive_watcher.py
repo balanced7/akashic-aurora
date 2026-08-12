@@ -169,9 +169,35 @@ def test_p6b_ranking_puts_the_strongest_evidence_first(db):
 # ---------------------------------------------------------------- P7: no self-ratifying
 def test_p7_the_watcher_has_no_write_path(db):
     """It surfaces; the human decides. Four independent arrivals in this house landed on
-    instrument_proposes_never_self_ratifies -- inherited, not rediscovered."""
+    instrument_proposes_never_self_ratifies -- inherited, not rediscovered.
+
+    PIN CORRECTED during the build: v1 grepped the raw source and failed on the word
+    'subprocess' inside the docstring SAYING there is no subprocess. A pin that greps prose
+    tests the prose. This reads the AST instead, so it asserts what the module can DO --
+    which is also the only version that could not be defeated by rewording a comment."""
+    import ast
     import inspect
-    src = inspect.getsource(DIR)
-    for forbidden in ("task_ledger", "def learn", "subprocess", "conductor",
-                      "def propose", "git commit"):
-        assert forbidden not in src, f"the watcher must not be able to act: found {forbidden!r}"
+
+    tree = ast.parse(inspect.getsource(DIR))
+    imported = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imported.update(a.name.split(".")[0] for a in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported.add(node.module.split(".")[0])
+    assert not (imported & {"subprocess", "shutil", "requests", "redis"}), (
+        f"the watcher imported something that can act on the world: {imported}")
+
+    called = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            f = node.func
+            called.add(f.attr if isinstance(f, ast.Attribute) else
+                       getattr(f, "id", ""))
+    for forbidden in ("system", "run", "popen", "learn", "propose", "commit", "send"):
+        assert forbidden not in called, f"the watcher calls {forbidden!r}"
+
+    # ...and the only file access it makes is READING.
+    assert "write_text" not in called and "open" not in called, (
+        "the watcher has no write path at all -- reading is its entire relationship "
+        "with the world")

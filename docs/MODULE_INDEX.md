@@ -186,8 +186,9 @@
 - `project_context.py` — Project Context Manager: Store-backed multi-agent context
 - `relevance_budget.py` — T071-R1 relevance budget v1 -- boot's lesson section becomes MOST-RELEVANT under a
 
-## core/eye/  (4 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
+## core/eye/  (5 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
 - `connectome.py` — THE EYE S4 -- the connectome: edges that remember their own formation.
+- `directives.py` — THE EYE S7 -- the directive watcher. The organ closes its own founding wound.
 - `index.py` — THE EYE S0 -- the incremental transcript indexer, coverage contract built in.
 - `position.py` — THE EYE S6 -- position: the inhabitant loop.
 - `pyramid.py` — THE EYE S2 -- the pyramid: LOD as regenerable projection, fidelity by construction.
