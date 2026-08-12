@@ -1,5 +1,5 @@
 {
-  "seq": 292,
+  "seq": 300,
   "tasks": [
     {
       "id": "T001",
@@ -10783,13 +10783,13 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "claimed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "7705e606",
+      "verified_by": "pytest 5/5 + live maiden scout run adjudicated confirmed (scout-ecf07c779142)",
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-12T13:24:06+00:00",
-      "updated": "2026-08-12T13:43:54+00:00",
+      "updated": "2026-08-12T13:51:37+00:00",
       "history": [
         {
           "to": "proposed",
@@ -10805,6 +10805,320 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-08-12T13:43:54+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-12T13:51:36+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-12T13:51:37+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T293",
+      "title": "t292 drill: frobnicate the widget subsystem",
+      "desc": "",
+      "owner": "drill_owner",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "claimed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-12T13:49:32+00:00",
+      "updated": "2026-08-12T13:49:32+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-12T13:49:32+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-12T13:49:32+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "drill_owner",
+          "at": "2026-08-12T13:49:32+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T294",
+      "title": "t292 drill: build the gizmo deduplicator",
+      "desc": "",
+      "owner": "drill_owner",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "deadbee",
+      "verified_by": "t292 drill",
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-12T13:49:33+00:00",
+      "updated": "2026-08-12T13:49:35+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-12T13:49:33+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-12T13:49:33+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "drill_owner",
+          "at": "2026-08-12T13:49:34+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-12T13:49:34+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-12T13:49:35+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T295",
+      "title": "t292 drill: frobnicate the widget subsystem",
+      "desc": "",
+      "owner": "drill_owner",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "claimed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-12T13:51:17+00:00",
+      "updated": "2026-08-12T13:51:18+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-12T13:51:17+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-12T13:51:18+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "drill_owner",
+          "at": "2026-08-12T13:51:18+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T296",
+      "title": "t292 drill: build the gizmo deduplicator",
+      "desc": "",
+      "owner": "drill_owner",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "deadbee",
+      "verified_by": "t292 drill",
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-12T13:51:18+00:00",
+      "updated": "2026-08-12T13:51:20+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-12T13:51:18+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-12T13:51:19+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "drill_owner",
+          "at": "2026-08-12T13:51:19+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-12T13:51:20+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-12T13:51:20+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T297",
+      "title": "done gate: refuse symbolic commit refs -- 'needs a commit SHA' accepted the STRING 'HEAD' (T292's first close did it, and ~8 older rows carry @HEAD). A receipt must be an immutable address: hex 7-40 chars, validated at the gate (task_ledger.py done gate) so every door inherits it. Teaching refusal names git rev-parse. Found minutes after closing T292 with --commit HEAD.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "598be034",
+      "verified_by": "pytest test_t297 green: HEAD refused with teaching message, deadbee1 accepted",
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-12T13:53:37+00:00",
+      "updated": "2026-08-12T13:55:31+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-12T13:53:37+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-12T13:54:17+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-12T13:54:18+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-12T13:55:30+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-12T13:55:31+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T298",
+      "title": "ledger archaeology: repair the ~8 legacy done rows whose commit field is 'HEAD'/'@HEAD' (T052-T059 era) by recovering true SHAs from git log adjacency -- same class as the 1,483-citation repair, ledger-scale. Blocked on nothing; needs an hour of git archaeology + one isolated tasks.json commit.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-12T13:53:37+00:00",
+      "updated": "2026-08-12T13:53:37+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-12T13:53:37+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T299",
+      "title": "t297 drill: a closable slice",
+      "desc": "",
+      "owner": "drill",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "HEAD",
+      "verified_by": "t297 drill",
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-12T13:54:19+00:00",
+      "updated": "2026-08-12T13:54:20+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-12T13:54:19+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-12T13:54:19+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "drill",
+          "at": "2026-08-12T13:54:19+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-12T13:54:20+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-12T13:54:20+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T300",
+      "title": "t297 drill: a closable slice",
+      "desc": "",
+      "owner": "drill",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "deadbee1",
+      "verified_by": "t297 drill",
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-12T13:54:57+00:00",
+      "updated": "2026-08-12T13:54:59+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-12T13:54:57+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-12T13:54:58+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "drill",
+          "at": "2026-08-12T13:54:58+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-12T13:54:58+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-12T13:54:59+00:00"
         }
       ]
     }
