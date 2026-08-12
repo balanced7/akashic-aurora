@@ -10712,13 +10712,13 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "claimed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "c7cf0f35",
+      "verified_by": "pytest tests/test_t290_verdict_fileback.py 8/8 green + live empty-store calibration render honest + door-parity manifest clean",
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-12T13:24:05+00:00",
-      "updated": "2026-08-12T13:31:10+00:00",
+      "updated": "2026-08-12T13:43:54+00:00",
       "history": [
         {
           "to": "proposed",
@@ -10734,6 +10734,16 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-08-12T13:31:10+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-12T13:43:53+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-12T13:43:54+00:00"
         }
       ]
     },
@@ -10769,17 +10779,17 @@
       "id": "T292",
       "title": "RC3 the scout as first calibrated role: assign(role=Scout) on any resident + charter pack builder (roster, locks, active ledger rows, discover output) so the role's evidence travels with whoever wears it; verdicts file under resident AND role. v0 caller-invoked only -- mail routing waits for T108 (no rival addressing). Acceptance: planted in-flight-area drill (claimed row + live lock surfaced with citations); settled-work drill returns the DONE row not a rebuild proposal. Spec: resident-fanout-round2-2026-08-12.md sec RC3.",
       "desc": "",
-      "owner": "",
+      "owner": "claude",
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "approved",
+      "status": "claimed",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-12T13:24:06+00:00",
-      "updated": "2026-08-12T13:25:18+00:00",
+      "updated": "2026-08-12T13:43:54+00:00",
       "history": [
         {
           "to": "proposed",
@@ -10790,6 +10800,11 @@
           "to": "approved",
           "by": "user",
           "at": "2026-08-12T13:25:18+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-12T13:43:54+00:00"
         }
       ]
     }
