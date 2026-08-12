@@ -317,6 +317,17 @@ class TaskLedger:
             if not c or not v:
                 raise LedgerError("done blocked: needs a commit SHA AND a verification record "
                                   "(no proof, no close)")
+            # T297: "needs a commit SHA" accepted the STRING 'HEAD' for weeks -- ~8 rows
+            # carry symbolic receipts that dangle the moment the ref moves (the 1,483-
+            # citation repair was this class at repo scale). A receipt is an immutable
+            # address: hex, 7-40 chars, validated HERE at the meaning so every door
+            # inherits it -- never at a caller, where the next door forgets.
+            import re as _re
+            if not _re.fullmatch(r"[0-9a-fA-F]{7,40}", str(c).strip()):
+                raise LedgerError(
+                    f"done blocked: commit {str(c)!r} is not a hex SHA (7-40 hex chars). "
+                    f"'HEAD' and branch names dangle when the ref moves -- pass the address "
+                    f"itself: git rev-parse --short=8 HEAD")
 
             # T248: verification and INDEPENDENCE are two claims, and one field could only
             # carry one. Measured on the author of this gate: four consecutive load-bearing
