@@ -70,9 +70,9 @@ class FakeRedis:
 @pytest.fixture()
 def rig(tmp_path):
     r = FakeRedis({
-        "bifrost:broadcast": [("1000-0", {"from": "kimi", "kind": "chat", "content": "alpha"}),
-                              ("1001-0", {"from": "deepseek", "kind": "fyi", "content": "beta"})],
-        "bifrost:trace": [("1000-0", {"from": "claude", "kind": "trace", "content": "t1"})],
+        "bifrost:broadcast": [("1000-0", {"frm": "kimi", "kind": "chat", "content": "alpha"}),
+                              ("1001-0", {"frm": "deepseek", "kind": "fyi", "content": "beta"})],
+        "bifrost:trace": [("1000-0", {"frm": "claude", "kind": "trace", "content": "t1"})],
     })
     return {"r": r, "out": tmp_path / "bus", "cursor": tmp_path / "cursors.json"}
 
@@ -92,7 +92,7 @@ def test_p1_streams_become_durable_jsonl_one_file_per_stream(rig):
 # ---------------------------------------------------------------- P2: incremental
 def test_p2_export_resumes_from_its_cursor_and_never_duplicates(rig):
     EPH.export_bus(rig["r"], rig["out"], cursor_file=rig["cursor"])
-    rig["r"].append("bifrost:broadcast", "1002-0", {"from": "kimi", "content": "gamma"})
+    rig["r"].append("bifrost:broadcast", "1002-0", {"frm": "kimi", "content": "gamma"})
     rep = EPH.export_bus(rig["r"], rig["out"], cursor_file=rig["cursor"])
 
     rows = [json.loads(l) for l in
@@ -119,7 +119,10 @@ def test_p3_trimmed_entries_survive_in_the_export(rig):
 def test_p4_the_export_is_queryable_by_who_kind_and_phrase(rig):
     EPH.export_bus(rig["r"], rig["out"], cursor_file=rig["cursor"])
     hits = EPH.search(rig["out"], q="alpha")
-    assert len(hits) == 1 and hits[0]["fields"]["from"] == "kimi"
+    # FIXTURE CORRECTED after the first live run: these records use `frm`, which is the
+    # field the real bifrost envelope carries. v1 invented `from`, so the who= facet passed
+    # its pin and returned silent-empty against every real message on disk.
+    assert len(hits) == 1 and hits[0]["fields"]["frm"] == "kimi"
 
     assert len(EPH.search(rig["out"], who="deepseek")) == 1
     assert len(EPH.search(rig["out"], kind="chat")) == 1

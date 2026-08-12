@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 0b273713. A bound you discover by collision is not awareness -- this sheet
+> Derived at 606a5692. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -199,8 +199,8 @@ Class: reference
 | `PYTEST_CURRENT_TEST` | `` | core/comm/bus.py |
 | `PYTHONPATH` | `""` | agent_cli.py, core/__init__.py, scripts/quiet/sitecustomize.py |
 | `REDIS_DB` | `` | core/foundation/redis_connection.py |
-| `REDIS_HOST` | `` | core/foundation/redis_connection.py |
-| `REDIS_PORT` | `` | core/foundation/redis_connection.py |
+| `REDIS_HOST` | `"localhost"` | core/foundation/redis_connection.py, scripts/ops/archive_ephemeral.py |
+| `REDIS_PORT` | `"16379"` | core/foundation/redis_connection.py, scripts/ops/archive_ephemeral.py |
 | `SOL_401_RETRIES` | `"3"` | scripts/sol_chat.py |
 | `SOL_CONNECT_TIMEOUT` | `"15"` | scripts/sol_chat.py |
 | `SOL_EFFORT` | `"medium"` | scripts/sol_chat.py |

@@ -109,7 +109,8 @@ def _copy_verified(src: Path, dst: Path) -> bool:
     return ok
 
 
-def _archive_one_dest(sources: List[Path], dest: Path, verify: bool) -> Dict[str, Any]:
+def _archive_one_dest(sources: List[Path], dest: Path, verify: bool,
+                      rel_root: Optional[Path] = None) -> Dict[str, Any]:
     rec: Dict[str, Any] = {"path": str(dest), "reachable": False, "copied": 0,
                            "skipped": 0, "repaired": 0, "deleted": 0, "bytes_copied": 0,
                            "refused": [], "failed": [], "present_total": 0}
@@ -121,7 +122,18 @@ def _archive_one_dest(sources: List[Path], dest: Path, verify: bool) -> Dict[str
         return rec
 
     for src in sources:
-        target = dest / src.name
+        # Flattening by basename is safe ONLY when names are globally unique (session
+        # transcripts are UUIDs). It is NOT safe for sharded planes: the wire journal keeps
+        # per-agent shards, so state/wire/deepseek/wire-20260804-001.jsonl and
+        # state/wire/deepseek-red/wire-20260804-001.jsonl collide on the way in. Caught on
+        # the first live run by the refuse-shrinking law, which declined the overwrite and
+        # kept the first shard rather than silently destroying five agents' forensics --
+        # the safety law catching a bug in the tool that carries it. Pass rel_root to keep
+        # the source's own shape.
+        try:
+            target = (dest / src.relative_to(rel_root)) if rel_root else (dest / src.name)
+        except ValueError:
+            target = dest / src.name       # outside rel_root: fall back, never crash
         try:
             s_size = src.stat().st_size
             if target.exists():
@@ -155,7 +167,7 @@ def _archive_one_dest(sources: List[Path], dest: Path, verify: bool) -> Dict[str
     # and so a reader never has to infer the absence of a delete path from silence.
     rec["deleted"] = 0
     try:
-        rec["present_total"] = len(list(dest.glob("*.jsonl")))
+        rec["present_total"] = sum(1 for _ in dest.rglob("*") if _.is_file())
     except Exception:
         pass
     return rec
@@ -163,14 +175,14 @@ def _archive_one_dest(sources: List[Path], dest: Path, verify: bool) -> Dict[str
 
 def archive(sources: List[Path], dests: Optional[List[Path]] = None, *,
             verify: bool = False, receipt_dir: Optional[Path] = None,
-            excluded: int = 0) -> Dict[str, Any]:
+            excluded: int = 0, rel_root: Optional[Path] = None) -> Dict[str, Any]:
     """Copy every source into every destination, additively. Returns the report.
 
     Destinations are independent: two drives exist so that one can die, so an unreachable
     one is recorded and stepped over, never allowed to abort the copy to the live one."""
     dests = list(dests if dests is not None else DEFAULT_DESTS)
     started = time.time()
-    per_dest = [_archive_one_dest(sources, Path(d), verify) for d in dests]
+    per_dest = [_archive_one_dest(sources, Path(d), verify, rel_root) for d in dests]
     ok = all(d["reachable"] and not d["refused"] and not d["failed"] for d in per_dest)
     report = {
         "ran_at": datetime.now(timezone.utc).isoformat(),
