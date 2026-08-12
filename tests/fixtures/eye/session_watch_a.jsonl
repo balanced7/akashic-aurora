@@ -1,0 +1,5 @@
+{"type":"user","isMeta":false,"uuid":"w1","parentUuid":null,"timestamp":"2026-08-05T09:00:00.000Z","message":{"role":"user","content":"I want you to always fence the migration path before shipping it"},"cwd":"E:\\AI-Setup","gitBranch":"master"}
+{"type":"assistant","uuid":"w2","parentUuid":"w1","timestamp":"2026-08-05T09:00:05.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Understood - I will always fence the migration path before shipping it."}]}}
+{"type":"user","isMeta":false,"uuid":"w3","parentUuid":"w2","timestamp":"2026-08-05T09:05:00.000Z","message":{"role":"user","content":"can we make the harvest ledger visible on every boot"},"cwd":"E:\\AI-Setup","gitBranch":"master"}
+{"type":"assistant","uuid":"w4","parentUuid":"w3","timestamp":"2026-08-05T09:05:09.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Noted."}]}}
+{"type":"user","isMeta":false,"uuid":"w5","parentUuid":"w4","timestamp":"2026-08-05T09:09:00.000Z","message":{"role":"user","content":"lets keep building the thing"},"cwd":"E:\\AI-Setup","gitBranch":"master"}
