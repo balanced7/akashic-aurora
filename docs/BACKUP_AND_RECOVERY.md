@@ -112,3 +112,58 @@ run states the excluded count. `--include-subagents` adds them.
 ```
 py scripts/ops/archive_transcripts.py --verify   # proves archive == source, both drives
 ```
+
+## 5. Ephemeral planes — the bus and the local-only stores
+
+`scripts/ops/archive_ephemeral.py`. Two jobs: **export** what is not a file yet, then
+**archive** it with the same engine as §4.
+
+```
+py scripts/ops/archive_ephemeral.py                        # export bus + archive state
+py scripts/ops/archive_ephemeral.py --search "text"        # read the durable bus back
+py scripts/ops/archive_ephemeral.py --who kimi --kind chat # facets AND together
+```
+
+**The bus.** Bifrost streams are bounded transport by design (`bus.DEFAULT_MAXLEN=10_000`;
+measured live retention ~3 days). Salient kinds are already promoted to the durable event
+log at send time (`bus.py:593`) — but `chat`, `fyi` and `trace` are **not**, and that is
+where peer reports, a sibling's diagnosis and all narration live. This was covered by a rule
+about remembering to persist frontier reports by hand (`research_full_fidelity_preservation`);
+a rule that depends on someone remembering is not a mechanism. The export is incremental
+(per-stream last-id cursor) and append-only, so **an entry the bus has trimmed stays
+readable forever**. Currently 8,115 entries.
+
+**Local-only file planes** now archived to `E:`/`F:\Akashic Aurora\ephemeral`:
+
+| Plane | Why it matters |
+|---|---|
+| `state/spill/` | clipped note and handoff bodies — **37 durable records point into it by path** |
+| `session_logs/` | `learnings.jsonl` + store state |
+| `state/wire/` | API forensics (T156), **sharded per agent** |
+| `state/bus-export/` | the durable bus, above |
+
+**Scheduled** `AkashicAurora-EphemeralArchive-Daily` at 12:05, run-when-available. Not on
+SessionEnd: the bus has ~3 days of slack so daily is 3× margin, and session teardown should
+not wait on a Redis round trip. The Redis client is bounded at 5s, and a down Redis never
+costs the file archiving.
+
+### Two traps this slice hit, both worth knowing
+
+1. **Flattening by basename collides sharded planes.** The wire journal keeps per-agent
+   shards, so five agents' `wire-20260804-001.jsonl` landed on one name. The
+   refuse-shrinking law caught it — the safety law catching a bug in the tool carrying it.
+   The engine takes `rel_root` and preserves each plane's shape; transcripts stay flat
+   because their names are UUIDs.
+2. **A facet that reads a field which does not exist returns silent-empty.** The bus
+   envelope's sender is `frm`, not `from`. The pin passed because the fixture supplied its
+   own field name — it tested the mechanism, not the wiring. When a filter returns nothing,
+   confirm the value exists in the data before believing the miss.
+
+### Still ephemeral, knowingly
+
+- **Redis `appendonly=no`** (RDB only, `save 3600 1 300 100 60 10000`, Docker volume
+  present). An unclean shutdown can lose up to the shortest save window. Everything
+  important is dual-written to file or exported, so this is a convenience gap rather than a
+  data-loss one — but `appendonly yes` would close it.
+- **`backups/` (~1 GB) lives on E:, the same physical disk as the repo it protects.** A copy,
+  not a backup. Not yet mirrored to F: because of its size; decide deliberately.
