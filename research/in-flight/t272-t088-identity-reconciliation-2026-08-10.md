@@ -45,7 +45,7 @@ that a single search would have saved. The lesson
 Daniel asked for "an option for agents to **rename themselves**". Ceremony rule 1 says the
 opposite: **you do not name yourself, a peer confers it.** I introduced that rule and
 justified it by the T255 self-declaration defect, and Daniil then ratified three callsigns
-under it — so both positions carry his authority, thirty-four days apart.
+under it — so both positions carry his authority, twenty-four days apart.
 
 Neither is obviously wrong:
 - **Self-rename** serves the stated purpose: an agent that changes context can say so, and

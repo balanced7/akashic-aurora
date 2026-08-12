@@ -102,7 +102,7 @@ wrong regardless. **Pin this case.**
 
 ## 5. Reference design: priori.sh
 
-[REDACTED-PERSON]'s shipped product (seen 2026-08-10). Tagline: *"what was knowable, when."*
+████████████'s shipped product (seen 2026-08-10). Tagline: *"what was knowable, when."*
 Point-in-time queries over EDGAR filings, ALFRED vintages and Fed communications; BLAKE3
 content hashes; sealed extraction locks; thirteen normalised sources; Live / Replay /
 sealed-Pack modes.

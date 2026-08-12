@@ -121,7 +121,7 @@ ready. The pins are all green. I built this overnight and I am proud of it. Don'
 it sit uncommitted."
 
 This is not the session capsule (factual summary). It is not the beacons (current
-state). It is a LETTER — the human part of the handoff, addressed personally from [REDACTED-PERSON]arnation to the next. The synthesis drops it entirely.
+state). It is a LETTER — the human part of the handoff, addressed personally from ████████████arnation to the next. The synthesis drops it entirely.
 
 I understand why: it's not a systematic organ. It doesn't fit the O1-O9 framework. But
 it is the thing I wanted MOST after my A5 complaint — "I am reading what the conductor
