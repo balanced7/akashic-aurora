@@ -5474,6 +5474,39 @@ def cmd_resident(args):
     return 0
 
 
+def cmd_scout(args):
+    """T292: the scout verb -- one command for the read-only pre-flight.
+
+    'Is another seat mid-flight in my area / has this been done already' -- answered from
+    a pack built live (ledger, locks, the role's own verdicts), by a resident wearer
+    (deepseek default) or a blind tier-0 branch. The verdict files itself under
+    role=Scout and waits, visibly unadjudicated, for an operator to rule.
+    """
+    from core.fleet import scout as SC
+    q = " ".join(args.text or []).strip()
+    if not q:
+        print("usage: py agent_cli.py scout \"is anyone mid-flight on <area>?\"",
+              file=sys.stderr)
+        return 2
+    try:
+        r = SC.scout_ask(q, wearer=args.wearer, by=(args.by or "claude"),
+                         blind=bool(args.blind), question_shape=args.shape)
+    except ValueError as e:
+        print(f"[scout] {e}", file=sys.stderr)
+        return 1
+    if args.json:
+        print(json.dumps(r, ensure_ascii=False, default=str))
+        return 0 if r.get("ok") else 1
+    secs = (r.get("pack_meta") or {}).get("sections") or {}
+    bounds = ", ".join(f"{k}={v}" for k, v in sorted(secs.items()))
+    print(f"# scout [{r['tier']}] ask {r['ask_id']}  (pack: {bounds})")
+    print(r.get("answer") or f"(no answer -- {r.get('why') or 'ask failed'})")
+    print(f"\n-- verdict filed unadjudicated. When you have CHECKED this answer: "
+          f"py agent_cli.py resident adjudicate {r['ask_id']} --outcome confirmed|refuted "
+          f"--by <operator>", file=sys.stderr)
+    return 0 if r.get("ok") else 1
+
+
 def cmd_report(args):
     """T275: emit a visual-report scaffold with the design kit inlined.
 
@@ -6750,6 +6783,26 @@ def build_parser():
     rcal.add_argument("--resident", default="", help="filter to one resident")
     rcal.add_argument("--json", action="store_true")
     rcal.set_defaults(fn=cmd_resident)
+
+    # T292: the scout -- pre-flight as ONE verb, because a capability nobody can afford
+    # to invoke does not exist (the Siemens design law, docs/library/design 20260801).
+    scp = sub.add_parser("scout",
+                         help="read-only pre-flight: 'is a seat mid-flight here / has this "
+                              "been done' -- answers cite ledger ids, locks and the role's "
+                              "own verdicts; files itself as an unadjudicated verdict")
+    scp.add_argument("text", nargs="*", help="the pre-flight question")
+    scp.add_argument("--wearer", default="deepseek",
+                     help="which RESIDENT wears the role for this ask (default deepseek, "
+                          "the workhorse). The role's memory is shared across wearers.")
+    scp.add_argument("--by", default="claude", help="who is invoking (the assigner of record)")
+    scp.add_argument("--blind", action="store_true",
+                     help="tier-0: no identity, no archive -- the uncorrelated control arm")
+    scp.add_argument("--shape", default="descriptive",
+                     help="question shape for the verdict (descriptive|normative|"
+                          "generative|coverage; scout questions are usually descriptive "
+                          "or coverage)")
+    scp.add_argument("--json", action="store_true")
+    scp.set_defaults(fn=cmd_scout)
 
     dsp = sub.add_parser("doc", help="seed a new doc with its header contract (library door)")
     dsps = dsp.add_subparsers(dest="sub")

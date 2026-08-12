@@ -166,6 +166,9 @@ MANIFEST = {
     # `verdict-file` gets its real caller when RC3 wires the ask door. Debt, not design --
     # pay down with the eye surface in the door-curation program.
     "verdict_file": "gap", "adjudicate": "gap", "calibration": "gap",
+    # T292: the scout verb -- same argument again (the conductor is the caller who needs
+    # it most and is MCP-attached). Debt, not design; rides the same membrane slice.
+    "scout": "gap",
     "standing": "gap",  # T278 S7 directive watcher -- same eye surface, same MCP debt
     # T217 (2026-08-07): sift is the nested ask -- evidence packs, a hat fan, curator pairs,
     # dissent-first. Classified as DEBT rather than design, deliberately and with the same
