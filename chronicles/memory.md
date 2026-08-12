@@ -1,13 +1,15 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 590 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 592 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
+- ephemeral-planes-durable-2026-08-11: EPHEMERALITY AUDIT + FIX, 2026-08-11 evening (Daniil: 'lets make sure everything important and currently ephermeral is saved and...  (source: mem:decision:ADR_0811212619_a4586042)
+- eye-recovered-transcripts-2026-08-11: RECOVERY, 2026-08-11 evening: the transcripts I reported destroyed are BACK. Daniil asked 'are our transcripts gone?' and the...  (source: mem:decision:ADR_0811203919_067468a1)
+- next-focus: THE EYE IS DONE (S0-S6, HEAD e4c3c425, 50 pins). The build queue that governed 2026-08-11 is EMPTY. What is actually next, in my order: (1) DANIIL'S TWO...  (source: mem:decision:ADR_0811170228_3b21b355)
+- where-we-are: THE EYE IS COMPLETE -- all seven slices S0-S6 shipped and pushed (HEAD e4c3c425). S4 (connectome) and S6 (position) landed 2026-08-11 afternoon by...  (source: mem:decision:ADR_0811170210_7e93809b)
 - wrap-mechanical-2026-08-11-eye-build: Shipped:
   - grounding save: zoom classified in the door manifest, atom adoptions (eye design v2, grammar, prereg, sweeps)...  (source: mem:decision:ADR_0811082408_d6d75be9)
-- next-focus: AFTER THE FABLE EJECT, left 2026-08-11 ~08:20 by Vandor (claude#af0ca6b8). DANIIL'S TWO OPEN DECISIONS, both now cheap: A = PICK THE BAR (T277) -- artifact...  (source: mem:decision:ADR_0811082341_59ff9dc8)
-- where-we-are: BUILD RUN COMPLETE 2026-08-11 (~08:15), ended by a Fable safeguards eject (documented, not a crash). THE EYE IS ALIVE: five slices built, pinned...  (source: mem:decision:ADR_0811082318_dd15f043)
 - beat-priori-and-ergonomics-directive-2026-08-11: TWO MORE DIRECTIVES, Daniil verbatim 2026-08-11 ~06:25 (mid-night, appended to the pre-sleep set): (1) BEAT PRIORI AT...  (source: mem:decision:ADR_0811020441_0ace0ef8)
 - pre-sleep-directives-2026-08-11: THREE DIRECTIVES + ONE FRAME CORRECTION, Daniil verbatim 2026-08-11 ~05:50-06:00, captured before sleep. (1) TRUTH-GROUNDING LANDSCAPE...  (source: mem:decision:ADR_0811015850_9243cb17)
 - eye-design-directive-2026-08-11: THE EYE DESIGN DIRECTIVE, Daniil verbatim 2026-08-11 ~05:10, at the night-package approval ('I approve everything up to and including...  (source: mem:decision:ADR_0811013247_05913c15)
@@ -16,8 +18,7 @@ Record durable project state once with `note`; correct it by re-noting the same 
 - priorish-audit-2026-08-10: PRIORI.SH LIVE AUDIT COMPLETE, 2026-08-10 evening, with Daniil in the loop (he signed in; key at .secrets/API Keys/priori.sh.key...  (source: mem:decision:ADR_0810231502_c8ac838d)
 - where-we-are: DAY OF 2026-08-10 CLOSED at ~939k context. Everything below is COMMITTED and PUSHED through
 50ce2ed; the tasks and notes named here are the durable record...  (source: mem:decision:ADR_0810223317_a1e1e394)
-- max-call-outcome-2026-08-10: MAX CALL OUTCOME, 2026-08-10. ████████████, ████████ ████████ (████████████, ex-One
-Inc ████████████; CSU Sacramento; ML via...  (source: mem:decision:ADR_0810223251_2f33f8bb)
+- max-call-outcome-2026-08-10: outside review of the memory-architecture work, 2026-08-10. Reviewer identity and affiliation redacted at the operator's instruction; the substantive critique is preserved in the linked decision record.  (source: mem:decision:ADR_0810223251_2f33f8bb)
 - t276-origin-recovered: T276 ORIGIN RECOVERED, and the recovery is itself the finding. Daniil insisted this
 conversation had happened; my first search (ledger + notes +...  (source: mem:decision:ADR_0810221921_877d6484)
 - reboot-handoff-gstack-call: REBOOT HANDOFF -- read this FIRST, the session restarted to register a skill.
@@ -111,5 +112,3 @@ CORRECTION TO THE FIRST...  (source: mem:decision:ADR_0731235217_70727bd0)
 - scratch:deepseek:pair-kd-t095-01-pair-protocol-status-2026-07-31: PAIR-KD-T095-01 status 2026-07-31: S1 filed (my artifact at...  (source: mem:decision:ADR_0731120314_11f8fbe2)
 - t125-acceptance-amendment: T125 ACCEPTANCE AMENDED, 2026-07-31. Codex's scope dissent is ACCEPTED IN FULL against my own criterion. As I wrote it, T125's acceptance said...  (source: mem:decision:ADR_0731100728_3eb5bc62)
 - scratch:kimi:arch-truth-cross-round-kimi-2026-07-31: Cross-round filed 2026-07-31: AMEND. Key positions: (1) negative-edge falsification too burdensome for v1, add...  (source: mem:decision:ADR_0731092335_5e2bea72)
-- scratch:kimi:arch-truth-review-2026-07-31: Architecture truth review 2026-07-31: VERIFIED repo facts: pre_commit.py line 61 calls scripts/check_comprehensibility.py...  (source: mem:decision:ADR_0731092031_73aa9b4c)
-- scratch:kimi:round-state-inhabitant-lens-fences-2026-07-31: 2026-07-31 round state, VERIFIED from files: (1) cognitive-load round COMPLETE 4/4, convergence doc at...  (source: mem:decision:ADR_0730211041_550a1488)
