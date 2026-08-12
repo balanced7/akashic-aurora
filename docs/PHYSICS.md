@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 1e23002d. A bound you discover by collision is not awareness -- this sheet
+> Derived at 24f3b1a2. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -196,7 +196,7 @@ Class: reference
 | `PACKET_INTEGRITY_ENABLED` | `True` | core/comm/packet_spec.py |
 | `PACKET_INTEGRITY_TRACE` | `False` | core/comm/packet_spec.py |
 | `PACKET_TRACE_SPOT_INTERVAL` | `DEFAULT_TRACE_SPOT_INTERVAL` | core/comm/packet_spec.py |
-| `PYTEST_CURRENT_TEST` | `` | core/comm/bus.py |
+| `PYTEST_CURRENT_TEST` | `` | core/comm/bus.py, scripts/ops/archive_transcripts.py |
 | `PYTHONPATH` | `""` | agent_cli.py, core/__init__.py, scripts/quiet/sitecustomize.py |
 | `REDIS_DB` | `` | core/foundation/redis_connection.py |
 | `REDIS_HOST` | `"localhost"` | core/foundation/redis_connection.py, scripts/ops/archive_ephemeral.py |
@@ -213,7 +213,7 @@ Class: reference
 | `STORM_DEPTH_THRESHOLD` | `50` | core/comm/storm_detect.py |
 | `STORM_DEPTH_WINDOW` | `3` | core/comm/storm_detect.py |
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
-| `TEMP` | `"/tmp"` | core/recall/precision_audit.py |
+| `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 
 ## Mechanical bounds (111 numeric constants)
 

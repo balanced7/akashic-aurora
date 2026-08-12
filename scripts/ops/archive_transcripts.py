@@ -194,6 +194,13 @@ def archive(sources: List[Path], dests: Optional[List[Path]] = None, *,
         "ok": ok,
     }
     rdir = Path(receipt_dir) if receipt_dir is not None else DEFAULT_RECEIPTS
+    if receipt_dir is None and os.getenv("PYTEST_CURRENT_TEST"):
+        # A test run must never overwrite the PRODUCTION receipt. Found live: the suite
+        # wrote its tmp_path destinations into state/archive/receipts/latest.json, so
+        # `--status` -- the operator's only window onto whether the backup is healthy --
+        # reported a pytest fixture as the last real run. A monitoring surface showing test
+        # data as production is worse than one that shows nothing.
+        rdir = Path(os.getenv("TEMP", ".")) / "akashic-archive-receipts-test"
     try:
         rdir.mkdir(parents=True, exist_ok=True)
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")

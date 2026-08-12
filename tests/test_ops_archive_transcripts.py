@@ -185,3 +185,18 @@ def test_p8_subagent_transcripts_are_excluded_by_default_and_the_count_is_stated
 
     picked_all, _ = ARC.source_transcripts(root, include_subagents=True)
     assert len(picked_all) == 2
+
+
+# ---------------------------------------------------------------- P9: test isolation
+def test_p9_a_test_run_never_overwrites_the_production_receipt(rig):
+    """Found live, by reading --status and seeing a pytest tmp_path reported as the last
+    real run. `--status` is the operator's ONLY window onto whether the backup is healthy;
+    a window showing test data as production is worse than no window. archive() with no
+    explicit receipt_dir must not touch DEFAULT_RECEIPTS while pytest is running."""
+    prod = ARC.DEFAULT_RECEIPTS / "latest.json"
+    before = prod.read_text(encoding="utf-8") if prod.exists() else None
+
+    ARC.archive(rig["sources"], rig["dests"])        # no receipt_dir -- the dangerous call
+
+    after = prod.read_text(encoding="utf-8") if prod.exists() else None
+    assert after == before, "the production receipt was left exactly as it was found"
