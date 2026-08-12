@@ -35,7 +35,7 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 - `core/primitives` -- DRIFT (7->8), reviewed 2026-07-26
 - `core/trust` -- DRIFT (2->3), reviewed 2026-07-26
 - `core/fleet` -- DRIFT (2->3), reviewed 2026-07-26
-- `scripts/checkers` -- DRIFT (12->17), reviewed 2026-07-26
+- `scripts/checkers` -- DRIFT (12->18), reviewed 2026-07-26
 - `scripts/generators` -- DRIFT (6->9), reviewed 2026-07-26
 - `scripts/ops` -- DRIFT (2->5), reviewed 2026-07-26
 - `tests` -- DRIFT (331->534), reviewed 2026-07-26
@@ -447,7 +447,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by deepseek (swept), claude (folded)._
 
-## `scripts/checkers` -- 17 modules  ·  DRIFT (12->17)
+## `scripts/checkers` -- 18 modules  ·  DRIFT (12->18)
 
 **What it does.** Twelve guards run at ship/CI time: door parity, doc currency, pointer promises, comprehensibility, boundaries, clobber scan and others. They fail the build on drift.
 

@@ -69,5 +69,25 @@ if ! py scripts/repair_learning_index.py --check; then
     exit 1
 fi
 
+# --- 4. nothing credential-shaped leaves for a PUBLIC remote (~2s, read-only).
+#        WHY THIS IS HERE: this repo is public, several agent seats hold commit access, and
+#        .secrets/ sits one gitignore rule from the tree. A push is the LAST reversible
+#        moment -- after it, a key is published, and deleting the line does not unpublish
+#        it because the blob stays fetchable until history is rewritten. The scan is
+#        tracked-files only, which is the fast lane; the full history sweep is a weekly
+#        scheduled task, because 8,000 blobs cost 20s and a gate nobody waits for is a gate
+#        that gets bypassed. Findings are MASKED -- printing a key here would publish it
+#        into this log and into the archived session transcript.
+if ! py scripts/checkers/check_secrets.py; then
+    echo ""
+    echo "[secret-gate] BLOCKED: credential-shaped content is staged for a PUBLIC remote."
+    echo "[secret-gate] ROTATE THE CREDENTIAL FIRST, then remove it. Rotation is the only"
+    echo "[secret-gate] step that actually helps -- once pushed, the blob is fetchable"
+    echo "[secret-gate] until history is rewritten, whatever the working tree says."
+    echo "[secret-gate] If the hit is genuinely benign, add its fingerprint WITH A REASON"
+    echo "[secret-gate] to BENIGN_FINGERPRINTS in scripts/checkers/check_secrets.py."
+    exit 1
+fi
+
 echo "[door-gate] green -- push proceeding"
 exit 0

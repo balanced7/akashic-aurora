@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at f058b54a. A bound you discover by collision is not awareness -- this sheet
+> Derived at 2a1e1670. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -215,7 +215,7 @@ Class: reference
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 
-## Mechanical bounds (111 numeric constants)
+## Mechanical bounds (112 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -317,6 +317,7 @@ Class: reference
 | `_DONE_CAP` | 8,192 | core/comm/packet_spec.py |  |
 | `_JOB_OBJECT_EXTENDED_LIMIT_INFORMATION` | 9 | scripts/run_job.py |  |
 | `_MAX` | 4,000 | agent_cli.py | clamp absurdly long fields an agent might paste |
+| `_MAX_BLOB` | 3,000,000 | scripts/checkers/check_secrets.py |  |
 | `_MAX_DETAIL_CHARS` | 8,000 | core/events/event_log.py | raw is rich, but a single payload is still bounded |
 | `_MAX_NOTE` | 100,000 | agent_cli.py | durable note bodies: a ceiling against runaway pastes, not a working size |
 | `_MAX_SUMMARY` | 500 | core/events/event_log.py |  |

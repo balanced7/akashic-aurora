@@ -146,3 +146,20 @@ def test_p7_this_repository_is_currently_clean():
     root = Path(__file__).resolve().parents[1]
     rep = CS.scan_tracked(root, allowlist=CS.DEFAULT_ALLOWLIST)
     assert rep["ok"] is True, f"unallowlisted credential-shaped content: {rep['findings']}"
+
+
+# ---------------------------------------------------------------- P8: built != wired
+def test_p8_the_pre_push_gate_actually_runs_this_scanner():
+    """This repo's own history is the argument. repair_learning_index.py shipped a --check
+    flag explicitly 'to wire into ship gates' and was wired to nothing; the index sat at 16
+    of 464 lessons for two days with 96% of the corpus invisible to recall, and every
+    by-name spot-check passed the whole time. A detector no gate runs is decoration.
+
+    Asserts the hook INVOKES the scanner, not merely that both files exist."""
+    hook = (Path(__file__).resolve().parents[1] / "scripts" / "githooks" / "pre-push")
+    body = hook.read_text(encoding="utf-8", errors="replace")
+    assert "check_secrets.py" in body, "the pre-push gate does not run the secret scanner"
+    assert "if ! py scripts/checkers/check_secrets.py" in body, (
+        "present but not GATING -- it must block the push, not merely be mentioned")
+    assert "exit 1" in body.split("check_secrets.py", 1)[1][:600], (
+        "the scanner runs but its failure does not stop the push")
