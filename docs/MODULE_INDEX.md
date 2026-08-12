@@ -221,7 +221,6 @@
 - `toast.py` — toast (T099 · tools-hunt BETA-2) -- gratitude with a receipt (kimi's hunt B3).
 
 ## entry points (repo root)
-- `_scratch_extract_lines.py` — (no docstring)
 - `agent_cli.py` — agent_cli.py -- THE single door an external agent (e.g. OpenCode) uses.
 - `ai_setup_mcp.py` — ai_setup_mcp.py -- the MCP-transport door into the Akashic Aurora (System 5).
 - `bootstrap.py` — Bootstrap — system entry point & honest status check
@@ -251,7 +250,6 @@
 - `corpus_digests.py` — corpus_digests -- land structured corpus digests as a durable, queryable dataset.
 - `deepseek_chat.py` — deepseek_chat -- an interactive, TOOL-USING conversation with DeepSeek, in its own window.
 - `enrich_corpus.py` — A3 migration pipeline: the ~900-file corpus -> enriched atoms, verified, gated.
-- `g_recall_at_seed.py` — (no docstring)
 - `gemini_chat.py` — gemini_chat -- the gemini seat's model transport: gemini-1.5-pro as a first-class Akashic citizen.
 - `gemini_web.py` — gemini_web -- ask Gemini through the FREE web surfaces (not API quota).
 - `harmonize_knowledge.py` — harmonize_knowledge.py — one-time knowledge-store harmonization (2026-06-20)
@@ -275,8 +273,6 @@
 - `sol_chat.py` — sol_chat -- the Sol seat's model transport: gpt-5.6-sol (OpenAI) as a first-class Akashic citizen.
 - `ui_shot.py` — Headless screenshots of the live console -- the EYES half of the design loop.
 - `vfx_ingest.py` — Turn a pasted Shadertoy shader into one the bench can compile, and SAY WHAT IT CHANGED.
-- `vfx_probe_chroma.py` — Probe: chroma-aware structured metrics over real bench PNGs.
-- `vfx_probe_metrics.py` — Probe: do structured metrics surface anything a PNG does not?
 - `vfx_render.py` — Render something in the VFX bench from the command line, and get a file path back.
 - `wire_journal.py` — The API wire journal -- Wireshark-grade forensics for our own model traffic (T156 WIRE-A).
 - `worktree.py` — worktree.py -- per-agent git worktrees (Concurrency design C1).
