@@ -16,6 +16,10 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # T104-M1 depth
+
+# Tracked content only -- a derived doc describes the repo, not this box.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _tracked import tracked_py, is_tracked_dir  # noqa: E402
 OUT = os.path.join(ROOT, "docs", "MAP.md")
 sys.path.insert(0, ROOT)
 
@@ -27,12 +31,9 @@ AREAS = [f"core/{a}" for a in CORE_ORDER] + ["agent/harness", "agent"]
 
 
 def _modules(rel):
-    d = os.path.join(ROOT, rel)
-    if not os.path.isdir(d):
+    if not is_tracked_dir(rel):
         return []
-    return sorted(f for f in os.listdir(d)
-                  if f.endswith(".py") and f != "__init__.py"
-                  and os.path.isfile(os.path.join(d, f)))
+    return tracked_py(rel)
 
 
 def _name_index(dirpath, exts):

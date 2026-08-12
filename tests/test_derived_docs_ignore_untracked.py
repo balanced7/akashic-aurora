@@ -53,11 +53,24 @@ def _git(*args, cwd=ROOT):
 
 
 def _worktree(tmp_path, name):
-    """A detached worktree at current HEAD. Caller removes it."""
+    """A detached worktree at HEAD, with the WORKING-TREE generator sources copied in.
+
+    The worktree supplies the DATA (a tree state); the generators under test must be the
+    ones currently on disk, not HEAD's. Without this the pin can only ever exercise the
+    committed generators, so it could never go green in the same commit that fixes them --
+    the harness would be testing the wrong thing while looking rigorous.
+    """
     path = str(tmp_path / name)
     r = _git("worktree", "add", "--detach", "-q", path, "HEAD")
     if r.returncode != 0:
         pytest.skip(f"cannot create worktree: {r.stderr[:200]}")
+    src = os.path.join(ROOT, "scripts", "generators")
+    dst = os.path.join(path, "scripts", "generators")
+    os.makedirs(dst, exist_ok=True)
+    for f in os.listdir(src):
+        if f.endswith(".py"):
+            with open(os.path.join(src, f), "rb") as r_fh, open(os.path.join(dst, f), "wb") as w_fh:
+                w_fh.write(r_fh.read())
     return path
 
 

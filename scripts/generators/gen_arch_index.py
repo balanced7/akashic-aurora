@@ -13,6 +13,12 @@ import os
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # T104-M1 depth
+
+# Derived docs are a claim about the REPOSITORY, so discovery reads tracked content, never
+# the working tree. os.listdir here emitted rows for untracked modules and red-lined CI for
+# 15+ runs (see scripts/generators/_tracked.py).
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _tracked import tracked_py, is_tracked_dir  # noqa: E402
 OUT = os.path.join(ROOT, "docs", "MODULE_INDEX.md")
 
 # Areas surveyed, in reading order. Kept in sync with the layers in ARCHITECTURE.md.
@@ -34,10 +40,9 @@ def first_doc(path):
 
 
 def modules(rel):
-    d = os.path.join(ROOT, rel)
-    if not os.path.isdir(d):
+    if not is_tracked_dir(rel):
         return []
-    return sorted(f for f in os.listdir(d) if f.endswith(".py") and f != "__init__.py")
+    return tracked_py(rel)
 
 
 def render():
@@ -51,7 +56,8 @@ def render():
     ]
     # core/ subpackages, known ones first (in layer order), then any newcomers (flagged)
     present = [d for d in os.listdir(os.path.join(ROOT, "core"))
-               if os.path.isdir(os.path.join(ROOT, "core", d)) and not d.startswith("__")]
+               if os.path.isdir(os.path.join(ROOT, "core", d)) and not d.startswith("__")
+               and is_tracked_dir(f"core/{d}")]
     ordered = [d for d in CORE_ORDER if d in present] + sorted(set(present) - set(CORE_ORDER))
     for sub in ordered:
         new = "  ⚠️ NOT in ARCHITECTURE.md layer order — add it there" if sub not in CORE_ORDER else ""
@@ -62,7 +68,7 @@ def render():
         lines.append("")
     # top-level entry points
     lines.append("## entry points (repo root)")
-    for f in sorted(x for x in os.listdir(ROOT) if x.endswith(".py")):
+    for f in tracked_py(""):
         lines.append(f"- `{f}` — {first_doc(os.path.join(ROOT, f))}")
     lines.append("")
     # scripts/

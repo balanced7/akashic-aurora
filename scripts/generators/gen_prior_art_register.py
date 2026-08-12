@@ -29,6 +29,11 @@ from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+
+# Tracked content only -- see scripts/generators/_tracked.py. The tests-module count here
+# was inflated by 10 untracked files, which is what made PRIOR_ART.md read stale in CI.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _tracked import tracked_py_count, is_tracked_dir  # noqa: E402
 REGISTER = ROOT / "data" / "prior-art" / "register.json"
 OUT = ROOT / "docs" / "PRIOR_ART.md"
 
@@ -43,10 +48,9 @@ EXTRA_AREAS = ["scripts/hooks", "scripts/checkers", "scripts/generators", "scrip
 
 
 def _module_count(rel: str) -> int:
-    d = ROOT / rel
-    if not d.is_dir():
+    if not is_tracked_dir(rel):
         return 0
-    return len([p for p in d.glob("*.py") if p.name != "__init__.py"])
+    return tracked_py_count(rel)
 
 
 def _load_register() -> dict:
