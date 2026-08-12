@@ -5385,6 +5385,64 @@ def cmd_resident(args):
                   + f" [{h.get('provenance')}] by {h.get('by')}")
         return 0
 
+    # T290: the verdict planes' door. Filing is mostly programmatic (RC3 wires the ask door);
+    # adjudication is the OPERATOR's verb; calibration renders honest counts and nothing else.
+    if sub == "verdict-file":
+        from core.fleet import verdicts as VD
+        try:
+            rec = VD.file_verdict(agent=args.agent, ask_id=args.ask_id,
+                                  question_shape=args.shape, gist=args.gist,
+                                  geometry=args.geometry, role=args.role,
+                                  cold_twin_of=args.cold_twin_of)
+        except ValueError as e:
+            print(f"[resident] {e}")
+            return 1
+        twin = f" (cold twin of {rec['cold_twin_of']})" if rec.get("cold_twin_of") else ""
+        print(f"[resident] verdict filed: {rec['agent_id']} on ask {rec['ask_id']} "
+              f"[{rec['question_shape']}]{twin} -- unadjudicated until an operator rules: "
+              f"py agent_cli.py resident adjudicate {rec['ask_id']} --outcome ... --by <operator>")
+        return 0
+
+    if sub == "adjudicate":
+        from core.fleet import verdicts as VD
+        try:
+            rec = VD.adjudicate(ask_id=args.ask_id, outcome=args.outcome, by=args.by,
+                                receipt=args.receipt)
+        except ValueError as e:
+            print(f"[resident] {e}")
+            return 1
+        print(f"[resident] ADJUDICATED: ask {rec['ask_id']} -> {rec['outcome']} by {rec['by']}"
+              + (f" ({rec['receipt']})" if rec.get("receipt") else ""))
+        print("           calibration moved: py agent_cli.py resident calibration")
+        return 0
+
+    if sub == "calibration":
+        from core.fleet import verdicts as VD
+        cal = VD.calibration(shape=(getattr(args, "shape", "") or None),
+                             resident=(getattr(args, "resident", "") or None))
+        if getattr(args, "json", False):
+            out = {"shapes": cal["shapes"],
+                   "cells": [{"shape": k[0], "agent": k[1], **v}
+                             for k, v in cal["cells"].items()]}
+            print(json.dumps(out, ensure_ascii=False))
+            return 0
+        if not cal["cells"]:
+            print("# no verdicts filed yet -- calibration has no data. Counts appear as "
+                  "resident-tier asks file verdicts (T290); rates wait for RC2's n-floors.")
+            return 0
+        print("# calibration -- COUNTS ONLY (rates land with RC2's n-floors; an "
+              "unadjudicated verdict is visibly unadjudicated, never a success)")
+        for shp, pool in sorted(cal["shapes"].items()):
+            print(f"  {shp}: filed {pool['filed']} | adjudicated {pool['adjudicated']} "
+                  f"| confirmed {pool['confirmed']} | refuted {pool['refuted']}")
+            for (s, agent), cell in sorted(cal["cells"].items()):
+                if s != shp:
+                    continue
+                print(f"    {agent}: filed {cell['filed']} | adjudicated "
+                      f"{cell['adjudicated']} | confirmed {cell['confirmed']} | "
+                      f"refuted {cell['refuted']}")
+        return 0
+
     # show
     who = getattr(args, "nominee", "") or ""
     if not who:
@@ -6652,6 +6710,46 @@ def build_parser():
     rrol.add_argument("--exercise", default="")
     rrol.add_argument("--provenance", default="", help="assigned | self-declared")
     rrol.set_defaults(fn=cmd_resident)
+    # T290: verdict file-back -- what a branch SAID (verdict-file), what a NON-AUTHOR later
+    # ESTABLISHED (adjudicate, operator-only per fence r2 H-C1), and honest counts
+    # (calibration). Rates are deliberately absent until RC2's n-floors exist: at this
+    # fleet's n a point estimate is a lie with decimals.
+    rvf = rsps.add_parser("verdict-file",
+                          help="file what a fan branch answered (one verdict per ask_id; "
+                               "mostly called by the ask door -- RC3 wires it)")
+    rvf.add_argument("ask_id", help="the ask/handle this verdict answers")
+    rvf.add_argument("--agent", required=True,
+                     help="who answered: a resident id, or 'blind' for a cold tier-0 branch")
+    rvf.add_argument("--shape", default="",
+                     help="question shape: descriptive|normative|generative|coverage "
+                          "(omit -> stored as 'undeclared', visibly -- never guessed)")
+    rvf.add_argument("--gist", required=True, help="the answer's one-line claim")
+    rvf.add_argument("--role", default="", help="role worn while answering (Scout, ...)")
+    rvf.add_argument("--geometry", default="", help="the fan geometry this rode (T281)")
+    rvf.add_argument("--cold-twin-of", dest="cold_twin_of", default="",
+                     help="ask_id of the WARM resident twin this cold branch pairs with -- "
+                          "the pre-registered persistence claim needs pairs recorded at "
+                          "write time, never reconstructed from timestamps")
+    rvf.set_defaults(fn=cmd_resident)
+    radj = rsps.add_parser("adjudicate",
+                           help="rule on a filed verdict: confirmed|refuted. OPERATOR-ONLY "
+                                "(fence H-C1): a branch never grades itself, and a lesson "
+                                "citing an ask_id moves nothing")
+    radj.add_argument("ask_id", help="the ask whose verdict is being ruled on")
+    radj.add_argument("--outcome", required=True, help="confirmed | refuted")
+    radj.add_argument("--by", required=True,
+                      help="you, the adjudicator -- must be in AKASHIC_ADJUDICATORS "
+                           "(default daniil,claude) and never the verdict's own author")
+    radj.add_argument("--receipt", default="",
+                      help="what established it (a file:line, a rerun, a hand-check)")
+    radj.set_defaults(fn=cmd_resident)
+    rcal = rsps.add_parser("calibration",
+                           help="honest COUNTS per question-shape and resident (rates wait "
+                                "for RC2's n-floors; UNTESTED never renders as a rate)")
+    rcal.add_argument("--shape", default="", help="filter to one question shape")
+    rcal.add_argument("--resident", default="", help="filter to one resident")
+    rcal.add_argument("--json", action="store_true")
+    rcal.set_defaults(fn=cmd_resident)
 
     dsp = sub.add_parser("doc", help="seed a new doc with its header contract (library door)")
     dsps = dsp.add_subparsers(dest="sub")

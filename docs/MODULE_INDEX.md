@@ -158,10 +158,11 @@
 - `grant_writer.py` — core.trust.grant_writer -- the WRITE side of security/acl.json (T163, S-3 of the security schema).
 - `registry.py` — Grant registry -- the reader over security/acl.json (source of truth), mirroring core/fleet/model_roster.py (r
 
-## core/fleet/  (3 modules)
+## core/fleet/  (4 modules)
 - `caller.py` — The direct caller -- one-shot invocation of a local model for a BOUNDED subtask.
 - `model_roster.py` — The fleet roster -- the single source of truth for local models (docs/library/design/20260709_fleet-dispatch-a
 - `residents.py` — The resident registry -- who a seat IS, and the receipts that earned the name.
+- `verdicts.py` — Verdict file-back -- what a fan branch SAID, and what a non-author later ESTABLISHED.
 
 ## core/state/  (2 modules)
 - `session_checkpoint.py` — Session Checkpoint: crash-recovery checkpoint system (renamed from session_state.py 2026-07-07 to

@@ -160,6 +160,12 @@ MANIFEST = {
     # named later slice (rides the door-curation program, T289/G). Debt, not design.
     "eye": "gap", "find": "gap", "get": "gap", "ingest": "gap", "freq": "gap", "overview": "gap", "zoom": "gap",
     "trace": "gap",   # T278 S4 connectome walk -- CLI first, MCP with the rest of the eye surface
+    # T290 (2026-08-12): the verdict planes' door -- resident subcommands surfacing as verbs
+    # to this census (the eye precedent). Same argument as ask/timeline: `adjudicate` and
+    # `calibration` belong to the OPERATOR and the MCP-attached conductor most of all, and
+    # `verdict-file` gets its real caller when RC3 wires the ask door. Debt, not design --
+    # pay down with the eye surface in the door-curation program.
+    "verdict_file": "gap", "adjudicate": "gap", "calibration": "gap",
     "standing": "gap",  # T278 S7 directive watcher -- same eye surface, same MCP debt
     # T217 (2026-08-07): sift is the nested ask -- evidence packs, a hat fan, curator pairs,
     # dissent-first. Classified as DEBT rather than design, deliberately and with the same

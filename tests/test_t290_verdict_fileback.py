@@ -134,18 +134,20 @@ def test_p4_operator_adjudication_lands():
 
 # ---------------------------------------------------------------- P5: counts, never rates
 def test_p5_calibration_counts_absence_honestly():
-    V.file_verdict(agent="deepseek", ask_id="c1", question_shape="descriptive", gist="a")
-    V.file_verdict(agent="deepseek", ask_id="c2", question_shape="descriptive", gist="b")
-    V.file_verdict(agent="kimi", ask_id="c3", question_shape="normative", gist="c")
+    # Unique agents per pin: isolate_canonical flushes per SESSION, not per test, so cells
+    # scope by resident to stay independent of sibling pins' records.
+    V.file_verdict(agent="p5_deep", ask_id="c1", question_shape="descriptive", gist="a")
+    V.file_verdict(agent="p5_deep", ask_id="c2", question_shape="descriptive", gist="b")
+    V.file_verdict(agent="p5_kimi", ask_id="c3", question_shape="normative", gist="c")
 
-    cal = V.calibration()
-    cell = cal["cells"][("descriptive", "deepseek")]
+    cal = V.calibration(resident="p5_deep")
+    cell = cal["cells"][("descriptive", "p5_deep")]
     assert cell["filed"] == 2 and cell["adjudicated"] == 0 and cell["confirmed"] == 0, (
         "P5: unadjudicated is VISIBLY unadjudicated -- never coerced toward success (T178)")
 
     V.adjudicate(ask_id="c1", outcome="confirmed", by="daniil")
-    cal2 = V.calibration()
-    cell2 = cal2["cells"][("descriptive", "deepseek")]
+    cal2 = V.calibration(resident="p5_deep")
+    cell2 = cal2["cells"][("descriptive", "p5_deep")]
     assert cell2["adjudicated"] == 1 and cell2["confirmed"] == 1 and cell2["filed"] == 2
 
     pooled = cal2["shapes"]["descriptive"]
@@ -158,13 +160,13 @@ def test_p5_calibration_counts_absence_honestly():
 
 # ---------------------------------------------------------------- P6: the back door
 def test_p6_lessons_never_adjudicate():
-    V.file_verdict(agent="deepseek", ask_id="bd1", question_shape="descriptive", gist="claim")
-    rc, out, err = run("learn", "deepseek", "--experiment", "t290_backdoor_probe",
+    V.file_verdict(agent="p6_deep", ask_id="bd1", question_shape="descriptive", gist="claim")
+    rc, out, err = run("learn", "p6_deep", "--experiment", "t290_backdoor_probe",
                        "--tried", "confirming my own answer for ask bd1",
                        "--result", "bd1 confirmed correct, adjudicated")
     assert rc == 0, f"seeding the probe lesson failed: {err or out}"
-    cal = V.calibration()
-    cell = cal["cells"][("descriptive", "deepseek")]
+    cal = V.calibration(resident="p6_deep")
+    cell = cal["cells"][("descriptive", "p6_deep")]
     assert cell["adjudicated"] == 0, (
         "P6: a lesson CITING an ask_id moves nothing -- adjudication is ONLY the "
         "adjudication record type (Heimdall's BLIND, accepted whole)")
@@ -185,7 +187,10 @@ def test_p7_cold_twin_recorded_and_filterable():
 def test_p8_cli_refuses_and_renders():
     rc, out, err = run("resident", "adjudicate", "cli1", "--outcome", "confirmed",
                        "--by", "some_rando")
-    assert rc == 2, f"P8: non-operator adjudication must refuse pre-write, got rc={rc}"
+    # rc==1, matching the resident door's ceremony-refusal convention (nominate/ratify/
+    # place all return 1) -- amended from 2 pre-implementation; 2 is the ASK door's
+    # usage-error register, and one door speaking two registers is the T174 class.
+    assert rc == 1, f"P8: non-operator adjudication must refuse pre-write, got rc={rc}"
     assert "adjudicat" in (err or out).lower(), "P8: the refusal teaches the rule"
 
     rc2, out2, err2 = run("resident", "calibration")
