@@ -34,14 +34,25 @@ def test_s2_no_saves_no_line():
     assert agent_cli._boot_save_line("claude", None) == ""
 
 
-def test_s3_newest_first_wins():
-    """get_decisions returns newest-first; the FIRST matching save is the checkpoint
-    a booting seat restores from. Older saves stay retrievable by title."""
-    notes = [_n("save:claude:tonight", created="2026-08-13T02:00:00"),
-             _n("save:claude:last-week", created="2026-08-06T02:00:00")]
+def test_s3_newest_first_wins_regardless_of_input_order():
+    """Night-fan hardening (M4, 2026-08-13): get_decisions DOES sort newest-first
+    (agent_memory.py RB-12), but _boot_save_line must not depend on a sort that
+    lives in another module -- it orders its own matches by created_at. Fed
+    OLDEST-first here on purpose: the newest save must still win."""
+    notes = [_n("save:claude:last-week", created="2026-08-06T02:00:00"),
+             _n("save:claude:tonight", created="2026-08-13T02:00:00")]
     line = agent_cli._boot_save_line("claude", notes)
     assert "save:claude:tonight" in line
     assert "last-week" not in line
+
+
+def test_s7_title_whitespace_cannot_break_the_head():
+    """A save title carrying newlines/tabs must not fracture the one-line head
+    format (the W146 family, aimed at the renderer's own new line)."""
+    notes = [_n("save:claude:evil\nlabel\twith   spaces")]
+    line = agent_cli._boot_save_line("claude", notes)
+    assert "\n" not in line and "\t" not in line
+    assert "save:claude:evil label with spaces" in line
 
 
 def test_s4_foreign_seat_saves_never_leak():
@@ -51,6 +62,23 @@ def test_s4_foreign_seat_saves_never_leak():
     assert agent_cli._boot_save_line("claude", notes) == ""
     line = agent_cli._boot_save_line("deepseek", notes)
     assert "heimdall-arc" in line and "navi-arc" not in line
+
+
+def test_s6_title_scoping_inherits_the_plane_trust_model():
+    """DOCUMENTED ACCEPTED BEHAVIOR, not a defect (verified 2026-08-13 by reading
+    agent_memory: get_decisions has no agent param and Decision carries NO author
+    field). Title-prefix is the ONLY scoping, so any seat could write a
+    save:claude:* note and it would render in claude's boot. This is the notes
+    plane's standing trust model -- the same plane where anyone can write
+    where-we-are, which steers every boot. If plane-wide authorship ever lands
+    (W153), tighten _boot_save_line to check it and retire this pin with that
+    slice. Until then: a 'fix' that adds ad-hoc author filtering ONLY to saves
+    would misrepresent the plane's actual guarantees."""
+    from types import SimpleNamespace as SN2
+    forged = SN2(title="save:claude:written-by-anyone",
+                 created_at="2026-08-13T03:00:00", decision="x")
+    line = agent_cli._boot_save_line("claude", [forged])
+    assert "written-by-anyone" in line     # renders: trust-scoped, like the whole plane
 
 
 def test_s5_malformed_notes_never_break_boot():

@@ -75,6 +75,17 @@ def test_b4_non_resident_unchanged(monkeypatch):
     assert residents.boot_block("nobody") == ""
 
 
+def test_b6_role_lookup_failure_never_costs_the_boot(resident, monkeypatch):
+    """Night-fan finding A3 (2026-08-13, CONFIRMED): the receipts loop was fenced
+    but current_role() was not -- a role-store outage raised straight through
+    boot_block. Same law as B2/B5: the badge NEVER costs a boot."""
+    def explode(agent_id):
+        raise ConnectionError("role store down")
+    monkeypatch.setattr(residents, "current_role", explode)
+    block = residents.boot_block("claude", lesson_lookup=lambda s: {})
+    assert "YOU ARE" in block           # sheet renders, role line absent
+
+
 def test_b5_default_lookup_fails_open(resident, monkeypatch):
     """No injected lookup + no reachable store: the block still renders with bare
     slugs -- the badge NEVER costs a boot."""
