@@ -23,7 +23,7 @@ Letta's plain files beat a graph memory system; Wikidata's three ranks run at ~1
 statements where ATMS dies around 100 beliefs. The cost of NOT sweeping is measured in
 rebuilt wheels and dead ends, so the sweep is now a standing artifact rather than a mood.
 
-## Coverage: 10 current, 12 drift, 0 gap (of 22 subsystems)
+## Coverage: 9 current, 13 drift, 0 gap (of 22 subsystems)
 
 **DRIFT -- surveyed, but the subsystem has changed size since:**
 
@@ -35,6 +35,7 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 - `core/primitives` -- DRIFT (7->8), reviewed 2026-07-26
 - `core/trust` -- DRIFT (2->3), reviewed 2026-07-26
 - `core/fleet` -- DRIFT (2->5), reviewed 2026-07-26
+- `scripts/hooks` -- DRIFT (7->8), reviewed 2026-07-26
 - `scripts/checkers` -- DRIFT (12->18), reviewed 2026-07-26
 - `scripts/generators` -- DRIFT (6->10), reviewed 2026-07-26
 - `scripts/ops` -- DRIFT (2->6), reviewed 2026-07-26
@@ -424,7 +425,7 @@ _Reviewed 2026-07-26 by claude (partial), deepseek (p3 adjacent)._
 
 _Reviewed 2026-07-26 by claude._
 
-## `scripts/hooks` -- 7 modules  ·  current
+## `scripts/hooks` -- 8 modules  ·  DRIFT (7->8)
 
 **What it does.** Seven Claude Code integration hooks: pretooluse (recall injection before every tool call), posttooluse (outcome capture, flip detection, learn nudge), sessionstart (cache warm), sessionend (wrap), userpromptsubmit (plan-time recall), stop (wake enforcement), trace (tool-call to bus).
 
