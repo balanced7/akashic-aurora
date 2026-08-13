@@ -148,7 +148,7 @@ DEATH_DELTA_PROMPT = (
 
 
 def distill(sid: str, agent: str = "claude", tail_rows: int = 120,
-            run_ask: bool = True) -> dict:
+            run_ask: bool = True, cause: str = "") -> dict:
     """Digest the dead session's tail; optionally run ONE grounded ask for the
     death-delta; write the draft save point note. Returns a report dict either way
     (ask failures degrade to a mechanical-only draft -- the necropsy never blocks
@@ -171,6 +171,13 @@ def distill(sid: str, agent: str = "claude", tail_rows: int = 120,
                 stail = srows[-30:]
                 digest += (f"\n--- SUBAGENT {sub.stem} (final {len(stail)} rows) ---\n"
                            + "\n".join(f"[{ts}] {k}: {c}" for ts, k, c in stail))
+    # n10 (the maiden calibration's law): death is invisible from inside the record.
+    # The false assumption only exists in the light of how death arrived, and that
+    # evidence lives OUTSIDE the dying transcript -- forensics, the guard's receipt,
+    # the next session's investigation. Supplied, it is labeled evidence; absent,
+    # CANNOT-ESTABLISH stays the honest expected verdict.
+    if cause:
+        digest = f"CAUSE-OF-DEATH EVIDENCE (external forensics): {cause}\n---\n" + digest
     delta = ""
     if run_ask:
         try:

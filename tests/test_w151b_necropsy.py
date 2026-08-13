@@ -116,6 +116,36 @@ def test_n9_distill_folds_in_subagent_tails(monkeypatch, tmp_path):
     assert "shadertoy.com" in captured["prompt"]
 
 
+def test_n10_death_delta_needs_the_coroners_report(monkeypatch, tmp_path):
+    """The maiden calibration's law: death is INVISIBLE from inside the record --
+    the transcript just stops, so 'what did it falsely believe' is honestly
+    CANNOT-ESTABLISH without knowing how death arrived. distill(cause=...) feeds
+    external forensics (the coroner's report) into the prompt as labeled
+    evidence; absent a cause, nothing is invented and no cause section renders."""
+    import scripts.necropsy as nx
+    sid = "c" * 36
+    parent = tmp_path / f"{sid}.jsonl"
+    parent.write_text('{"type":"user","timestamp":"2026-08-12T23:31:00.000Z",'
+                      '"message":{"content":"x"}}\n', encoding="utf-8")
+    monkeypatch.setattr("core.eye.index.default_corpus", lambda: [parent])
+    monkeypatch.setattr(nx, "_write_note", lambda *a, **k: True)
+    captured = {}
+    def fake_ask(prompt, **kw):
+        captured["prompt"] = prompt
+        class O:
+            detail = {"answer": "DEATH-DELTA: believed the pane was safe"}
+        return O()
+    import core.comm.ask as ask_mod
+    monkeypatch.setattr(ask_mod, "ask", fake_ask)
+
+    nx.distill(sid, run_ask=True, cause="GPU child died 6s after the final preview_start")
+    assert "CAUSE-OF-DEATH" in captured["prompt"]
+    assert "preview_start" in captured["prompt"]
+
+    nx.distill(sid, run_ask=True)
+    assert "CAUSE-OF-DEATH" not in captured["prompt"]
+
+
 def test_n8_distill_honors_the_ask_boundary_contract(monkeypatch, tmp_path):
     """ask() returns a BoundaryOutcome carrying detail['answer'] -- its module
     docstring shouts this and the maiden run proved what happens when you
