@@ -1491,15 +1491,19 @@ def _boot_save_line(agent_id: str, notes) -> str:
     REGISTER / FLUENCY / OPTION-SPACE / watermark sections."""
     try:
         prefix = f"save:{agent_id}:"
-        for d in (notes or []):
-            t = str(getattr(d, "title", "") or "")
-            if not t.startswith(prefix):
-                continue
-            created = str(getattr(d, "created_at", "") or "")[:10]
-            stamp = f" [as of {created}]" if created else ""
-            return (f"# personal save: {t}{stamp}"
-                    f"  (restore: py agent_cli.py note {agent_id} --get {t})")
-        return ""
+        matches = [d for d in (notes or [])
+                   if str(getattr(d, "title", "") or "").startswith(prefix)]
+        if not matches:
+            return ""
+        # Night-fan M4 hardening: order locally rather than lean on get_decisions'
+        # RB-12 sort living in another module -- a cross-module ordering contract
+        # is a silent-decay surface. Newest created_at wins; unstamped sorts last.
+        best = max(matches, key=lambda d: str(getattr(d, "created_at", "") or ""))
+        t = " ".join(str(getattr(best, "title", "") or "").split())   # S7: one line, always
+        created = str(getattr(best, "created_at", "") or "")[:10]
+        stamp = f" [as of {created}]" if created else ""
+        return (f"# personal save: {t}{stamp}"
+                f"  (restore: py agent_cli.py note {agent_id} --get {t})")
     except Exception:
         return ""                          # a save render must never cost a boot
 

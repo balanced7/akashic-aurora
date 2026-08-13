@@ -558,10 +558,16 @@ def boot_block(agent_id: str, lesson_lookup=None) -> str:
         lines.append("#   formerly: " + ", ".join(rec["formerly"]))
     # T259: the situational half of the sheet -- what this resident is DOING right now, beside
     # who it permanently IS. Absent when no assignment exists: no role is the ordinary state.
-    job = current_role(agent_id)
-    if job:
-        where = " / ".join(p for p in (job.get("side"), job.get("exercise")) if p)
-        tag = "" if job.get("provenance") == "assigned" else " [self-declared]"
-        lines.append(f"#   operating as: {job['role']}" + (f" ({where})" if where else "") +
-                     f" -- by {job.get('by')}{tag}")
+    # Fenced per night-fan A3 (2026-08-13): the receipts loop above degraded gracefully while
+    # this lookup could raise a store outage straight through the boot -- same law everywhere,
+    # the badge NEVER costs a boot.
+    try:
+        job = current_role(agent_id)
+        if job:
+            where = " / ".join(p for p in (job.get("side"), job.get("exercise")) if p)
+            tag = "" if job.get("provenance") == "assigned" else " [self-declared]"
+            lines.append(f"#   operating as: {job['role']}" + (f" ({where})" if where else "") +
+                         f" -- by {job.get('by')}{tag}")
+    except Exception:
+        pass                               # role line absent; the sheet still renders
     return "\n".join(lines)
