@@ -1480,6 +1480,30 @@ def _boot_you_line(agent_id: str) -> str:
         return "# YOU: wakeability UNKNOWN (probe errored -- boot continues)"
 
 
+def _boot_save_line(agent_id: str, notes) -> str:
+    """W152: the seat's newest PERSONAL SAVE, with its restore drill inline.
+
+    Daniil 2026-08-13: "individual seats like you Vandor, Heimdall and Navi [get]
+    personal saves and checkpoints." A save is a note titled save:<agent>:<label> --
+    the 2026-06-29 checkpoint->note migration given per-seat identity. Write door is
+    the existing note verb; this is render-only, and a foreign seat's save never
+    leaks (identity is the point of a PERSONAL save). Content contract: W151's
+    REGISTER / FLUENCY / OPTION-SPACE / watermark sections."""
+    try:
+        prefix = f"save:{agent_id}:"
+        for d in (notes or []):
+            t = str(getattr(d, "title", "") or "")
+            if not t.startswith(prefix):
+                continue
+            created = str(getattr(d, "created_at", "") or "")[:10]
+            stamp = f" [as of {created}]" if created else ""
+            return (f"# personal save: {t}{stamp}"
+                    f"  (restore: py agent_cli.py note {agent_id} --get {t})")
+        return ""
+    except Exception:
+        return ""                          # a save render must never cost a boot
+
+
 def _boot_standpoint_line(agent_id: str) -> str:
     """T278 S6: boot restores WHERE THIS SEAT WAS and opens with what changed while it slept.
 
@@ -1884,6 +1908,9 @@ def _orientation_header(agent_id: str, primer_aware: bool = False) -> str:
             standpoint = _boot_standpoint_line(agent_id)
             if standpoint:
                 lines.append(standpoint)
+            savep = _boot_save_line(agent_id, notes)   # W152: the seat's own
+            if savep:                                  # checkpoint, restore drill inline
+                lines.append(savep)
         # F1 (2026-07-11 incident): the CURRENT DIRECTIVE -- what to do FIRST and what NOT
         # to do yet -- rendered with authority ABOVE the raw NEXT list. next-focus already
         # IS the priority note-kind (deepseek: no new primitive); the gap was that boot
