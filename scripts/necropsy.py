@@ -160,6 +160,17 @@ def distill(sid: str, agent: str = "claude", tail_rows: int = 120,
     rows = digest_transcript_text(cand[0].read_text(encoding="utf-8", errors="replace"))
     tail = rows[-tail_rows:]
     digest = "\n".join(f"[{ts}] {k}: {c}" for ts, k, c in tail)
+    # n9 (calibration finding, maiden run): the 08-12 death's fatal act lived in a
+    # SUBAGENT transcript the parent-only read never saw -- an honest abstention
+    # where the answer sat one directory over. Fold in each subagent's tail, labeled.
+    subdir = cand[0].parent / cand[0].stem / "subagents"
+    if subdir.is_dir():
+        for sub in sorted(subdir.glob("*.jsonl")):
+            srows = digest_transcript_text(sub.read_text(encoding="utf-8", errors="replace"))
+            if srows:
+                stail = srows[-30:]
+                digest += (f"\n--- SUBAGENT {sub.stem} (final {len(stail)} rows) ---\n"
+                           + "\n".join(f"[{ts}] {k}: {c}" for ts, k, c in stail))
     delta = ""
     if run_ask:
         try:

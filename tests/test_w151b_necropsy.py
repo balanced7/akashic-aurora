@@ -81,6 +81,41 @@ def test_n7_digest_never_raises_on_garbage():
     assert digest_transcript_text("{broken\njson}\n123") == []
 
 
+def test_n9_distill_folds_in_subagent_tails(monkeypatch, tmp_path):
+    """Calibration finding, 2026-08-13 maiden run: the 08-12 death's ACTUAL fatal
+    act lived in a SUBAGENT transcript (the researcher that opened the embedded
+    pane), and the necropsy read only the parent -- an honest CANNOT-ESTABLISH
+    where the answer existed one directory over. Subagent tails fold in, labeled,
+    so the death-delta ask sees the whole organism. A session dir with no
+    subagents/ folds nothing and changes nothing."""
+    import scripts.necropsy as nx
+    sid = "b" * 36
+    parent = tmp_path / f"{sid}.jsonl"
+    parent.write_text('{"type":"user","timestamp":"2026-08-12T23:31:00.000Z",'
+                      '"message":{"content":"parent line"}}\n', encoding="utf-8")
+    subdir = tmp_path / sid / "subagents"
+    subdir.mkdir(parents=True)
+    (subdir / "agent-abc.jsonl").write_text(
+        '{"type":"assistant","timestamp":"2026-08-12T23:33:48.000Z","message":{"content":'
+        '[{"type":"tool_use","name":"mcp__Claude_Browser__preview_start",'
+        '"input":{"url":"https://www.shadertoy.com/howto"}}]}}\n', encoding="utf-8")
+    monkeypatch.setattr("core.eye.index.default_corpus", lambda: [parent])
+    monkeypatch.setattr(nx, "_write_note", lambda *a, **k: True)
+    captured = {}
+    def fake_ask(prompt, **kw):
+        captured["prompt"] = prompt
+        class O:
+            detail = {"answer": "DEATH-DELTA: believed the docs page was safe"}
+        return O()
+    import core.comm.ask as ask_mod
+    monkeypatch.setattr(ask_mod, "ask", fake_ask)
+    r = nx.distill(sid, run_ask=True)
+    assert r["ok"]
+    assert "SUBAGENT" in captured["prompt"]
+    assert "preview_start" in captured["prompt"]
+    assert "shadertoy.com" in captured["prompt"]
+
+
 def test_n8_distill_honors_the_ask_boundary_contract(monkeypatch, tmp_path):
     """ask() returns a BoundaryOutcome carrying detail['answer'] -- its module
     docstring shouts this and the maiden run proved what happens when you
