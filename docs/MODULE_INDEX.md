@@ -258,6 +258,7 @@
 - `mcp_register.py` — T081-W2: make the akashic-aurora MCP door attach from ANY launch cwd.
 - `migrate_time_scores.py` — One-time migration (S5): re-score the persisted time-zsets with the unified `to_epoch`.
 - `mirror.py` — mirror.py -- commit local changes and push to GitHub in one step.
+- `necropsy.py` — necropsy -- unclean deaths detected, then distilled (W151b, disaster-proofing Slice 1b).
 - `rb25_storm_burst.py` — SUPERSEDED tombstone -- points old references to the canonical RB-25 storm-burst drill.
 - `repair_learning_index.py` — Repair `learn:experiments:all` -- the index that decides what recall can SEE.
 - `round_archive.py` — round_archive -- a round's evidence outlives the round, so a scorer can be replaced (T190).
