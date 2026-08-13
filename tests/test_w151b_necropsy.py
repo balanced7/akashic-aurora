@@ -79,3 +79,35 @@ def test_n6_digest_extracts_the_layers_a_savepoint_needs():
 def test_n7_digest_never_raises_on_garbage():
     assert digest_transcript_text("") == []
     assert digest_transcript_text("{broken\njson}\n123") == []
+
+
+def test_n8_distill_honors_the_ask_boundary_contract(monkeypatch, tmp_path):
+    """ask() returns a BoundaryOutcome carrying detail['answer'] -- its module
+    docstring shouts this and the maiden run proved what happens when you
+    subscript it anyway (TypeError, live, 2026-08-13). The distiller extracts
+    the answer when present and degrades to a labeled mechanical draft when
+    not; it never raises and never writes an object repr as the delta."""
+    import scripts.necropsy as nx
+
+    fake_t = tmp_path / ("a" * 36 + ".jsonl")
+    fake_t.write_text('{"type":"user","timestamp":"2026-08-13T01:00:00.000Z",'
+                      '"message":{"content":"final words"}}\n', encoding="utf-8")
+    monkeypatch.setattr("core.eye.index.default_corpus", lambda: [fake_t])
+    monkeypatch.setattr(nx, "_write_note", lambda *a, **k: True)
+
+    class Outcome:
+        def __init__(self, answer):
+            self.detail = {"answer": answer} if answer else {}
+        def line(self):
+            return "boundary: no answer"
+
+    import core.comm.ask as ask_mod
+    monkeypatch.setattr(ask_mod, "ask", lambda *a, **k: Outcome("DEATH-DELTA: believed X"))
+    r = nx.distill("a" * 36, run_ask=True)
+    assert r["ok"] and "believed X" in r["delta_head"]
+
+    monkeypatch.setattr(ask_mod, "ask", lambda *a, **k: Outcome(None))
+    r2 = nx.distill("a" * 36, run_ask=True)
+    assert r2["ok"]
+    assert "mechanical" in r2["delta_head"] or "no answer" in r2["delta_head"]
+    assert "Outcome object" not in r2["delta_head"]

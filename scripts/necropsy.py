@@ -121,6 +121,20 @@ def digest_transcript_text(text: str, asst_clip: int = 400, user_clip: int = 150
     return rows
 
 
+def _write_note(agent: str, title: str, body: str) -> bool:
+    """The note-door write, seam-shaped for tests (n8 monkeypatches it). Subprocess
+    argv list, never shell -- the prime session's backtick lesson, standing."""
+    try:
+        import subprocess, sys
+        r = subprocess.run([sys.executable, "agent_cli.py", "note", agent,
+                            "--title", title, "--category", "save", "--note", body],
+                           cwd=str(Path(__file__).resolve().parent.parent),
+                           capture_output=True, text=True, timeout=120)
+        return r.returncode == 0
+    except Exception:
+        return False
+
+
 DEATH_DELTA_PROMPT = (
     "You are performing a NECROPSY on a dead agent session from its final transcript "
     "minutes (below, chronological). Answer DESCRIPTIVELY in four labeled sections:\n"
@@ -149,22 +163,23 @@ def distill(sid: str, agent: str = "claude", tail_rows: int = 120,
     delta = ""
     if run_ask:
         try:
-            from core.comm.ask import ask as _ask
-            delta = _ask(DEATH_DELTA_PROMPT + "\n---\n" + digest) or ""
+            import core.comm.ask as _ask_mod
+            out = _ask_mod.ask(DEATH_DELTA_PROMPT + "\n---\n" + digest)
+            # ask() returns a BoundaryOutcome, ALWAYS -- detail["answer"] carries the
+            # text (its docstring shouts this; the maiden run proved the subscript
+            # error live, pinned as n8). Extract honestly; degrade with a label.
+            detail = getattr(out, "detail", None) or {}
+            delta = str(detail.get("answer") or "").strip()
+            if not delta:
+                line = getattr(out, "line", None)
+                why = line() if callable(line) else str(out)
+                delta = f"(death-delta ask returned no answer [{why}] -- mechanical draft only)"
         except Exception as e:
             delta = f"(death-delta ask unavailable: {type(e).__name__} -- mechanical draft only)"
     body = (f"AUTO-NECROPSY DRAFT (W151b) -- session {sid[:8]}, distilled "
             f"{time.strftime('%Y-%m-%d %H:%M')}. Ratify by superseding this note.\n\n"
             f"{delta}\n\n--- FINAL {len(tail)} TRANSCRIPT ROWS (mechanical) ---\n{digest[-6000:]}")
     title = f"save:{agent}:recovered-{sid[:8]}"
-    try:
-        import subprocess, sys
-        r = subprocess.run([sys.executable, "agent_cli.py", "note", agent,
-                            "--title", title, "--category", "save", "--note", body],
-                           cwd=str(Path(__file__).resolve().parent.parent),
-                           capture_output=True, text=True, timeout=120)
-        wrote = r.returncode == 0
-    except Exception:
-        wrote = False
+    wrote = _write_note(agent, title, body)
     return {"ok": True, "sid": sid, "rows": len(rows), "note": title if wrote else "",
             "note_written": wrote, "delta_head": delta[:200]}
