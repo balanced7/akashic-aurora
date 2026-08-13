@@ -177,12 +177,13 @@
 - `reinforce.py` — ReinforcedGraph (Slice P1) -- an association graph whose edges STRENGTHEN with co-use
 - `schema.py` — Perspectives schema (Slice P0) -- Lens + Map shapes. Pure data, no behavior.
 
-## core/context/  (9 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
+## core/context/  (10 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
 - `aggregator.py` — Aggregator: assemble the agent's starting context within a token budget.
 - `arch_loader.py` — Arch-slice loader (Context pillar): boot-time ORIENTATION to the code region of the current task.
 - `blocker_loader.py` — Blocker loader: surface the active blockers preventing progress, ranked.
 - `briefing_loader.py` — Briefing loader: the most recent handoff briefing addressed to an agent.
 - `decision_loader.py` — Decision loader: surface the decisions most applicable to a task, ranked.
+- `gap_ledger.py` — gap_ledger -- charter P0: every restoration is honest about what it restored.
 - `learning_loader.py` — Learning loader: surface the learnings most relevant to a task, ranked.
 - `narrative_loader.py` — Narrative loader (Slice 7) — recent Atlas + active chapters for agent boot context.
 - `project_context.py` — Project Context Manager: Store-backed multi-agent context

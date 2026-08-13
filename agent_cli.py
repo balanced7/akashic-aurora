@@ -1804,6 +1804,12 @@ def _orientation_header(agent_id: str, primer_aware: bool = False) -> str:
     T074 W13: under a primer-aware boot the head carries the FULL where-we-are body (the
     whisper already carried the clip; the boot is the resume anchor) + sibling details."""
     lines = []
+    # Charter P0 (disaster-proofing, three-way converged): every restoration is honest
+    # about what it restored. This function's own docstring names the wound -- "a broken
+    # source drops its line, never boot" -- DROPS IT SILENTLY. The ledger ends that:
+    # each guarded organ reports loaded/failed; the render leads the head.
+    from core.context.gap_ledger import GapLedger
+    _gaps = GapLedger()
     root = Path(__file__).resolve().parent
     if (root / "docs" / "ARCHITECTURE.md").is_file():
         lines.append("# Map: docs/ARCHITECTURE.md (the living skeleton) + AGENTS.md (the door contract)")
@@ -1816,6 +1822,7 @@ def _orientation_header(agent_id: str, primer_aware: bool = False) -> str:
     try:
         from core.learning.agent_memory import get_agent_memory
         notes = get_agent_memory().get_decisions(days=90)
+        _gaps.report("notes-store", "loaded")
         # W37/B6: the GROUND-FIRST pointer renders BEFORE everything else that follows --
         # the voice precedes the state (tonight's two boots proved the order). Age-stamped
         # per kimi (a): never grow W04's disease in a new organ.
@@ -1842,8 +1849,8 @@ def _orientation_header(agent_id: str, primer_aware: bool = False) -> str:
             from core.coord.task_ledger import state_view
             active_text = " ".join(t["title"].lower()
                                    for t in (state_view().get("in_progress") or []))
-        except Exception:
-            pass
+        except Exception as _e:
+            _gaps.report("arc-active-read", "failed", why=type(_e).__name__)
         # A DONE arc must NEVER present as governing (2026-07-11 incident: boot pointed a
         # fresh session at comms-pillar-synthesis -- "ARC COMPLETE, ALL SLICES SHIPPED" --
         # which sent it to build paused UI). Skip any <slug>-status note whose body
@@ -1952,19 +1959,22 @@ def _orientation_header(agent_id: str, primer_aware: bool = False) -> str:
             dq_section = _dq.render_boot_section(agent_caps=_agent_acl_caps(agent_id))
             if dq_section:
                 lines.append(dq_section)
-        except Exception:
-            pass
+            _gaps.report("defer-queue", "loaded")
+        except Exception as _e:
+            _gaps.report("defer-queue", "failed", why=type(_e).__name__)
         try:   # W34/B4: the suite-baseline receipt line (age + decay advisory; "" when none)
             from core.coord import suite_baseline as _sb
             sb_line = _sb.render_boot_line()
             if sb_line:
                 lines.append(sb_line)
-        except Exception:
-            pass
-    except Exception:
+            _gaps.report("suite-baseline", "loaded")
+        except Exception as _e:
+            _gaps.report("suite-baseline", "failed", why=type(_e).__name__)
+    except Exception as _e:
         # Store down -> a structurally-valid but semantically-empty head is WORSE than an
         # honest gap line (deepseek gate review, attack 3): say what is missing and where
         # to look instead of silently printing map+doctrine alone.
+        _gaps.report("notes-store", "failed", why=type(_e).__name__)
         lines.append("# (notes store unreachable -- governing arc + where-we-are unavailable; "
                      "start from docs/ARCHITECTURE.md and `task list`)")
     lines.append(PRECEDENCE_DOCTRINE)
@@ -1988,8 +1998,11 @@ def _orientation_header(agent_id: str, primer_aware: bool = False) -> str:
             lines.append(f"#   next: {t['id']} - {_clip(t['title'], 90)}")
         for t in blocked[:3]:
             lines.append(f"#   BLOCKED: {t['id']} - {_clip(t['title'], 70)}")
-    except Exception:
-        pass
+        _gaps.report("task-ledger", "loaded")
+    except Exception as _e:
+        # This bare pass hid the HIGHEST-precedence source in the house failing
+        # silently -- the P0 instrumentation's marquee catch.
+        _gaps.report("task-ledger", "failed", why=type(_e).__name__)
     lc = root / "docs" / "LIVE_CONSTRAINTS.md"
     if lc.is_file():
         # T068-R1 (deepseek M9): the constraint pack -- the live-system rules that break a
@@ -2024,6 +2037,12 @@ def _orientation_header(agent_id: str, primer_aware: bool = False) -> str:
             lines.append(_cd)
     except Exception:
         pass
+    # Charter P0 render: PRESENCE not primacy (new_boot_organ_must_not_spend_head16 --
+    # the same law that placed stance and drift here). When clean it is one quiet line;
+    # when gapped the RECOVERED WITH GAPS block is loud wherever it sits. Heimdall's
+    # first-position argument (P0 leads) is flagged to his 1a review for adjudication
+    # against the head-16 pin; presence ships today, position is his call.
+    lines.append(_gaps.render())
     return "\n".join(lines)
 
 
