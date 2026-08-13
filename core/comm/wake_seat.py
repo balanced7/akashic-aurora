@@ -73,6 +73,55 @@ def read_pid(path: str) -> Optional[int]:
         return None
 
 
+def _pid_alive_tristate(pid: int) -> Optional[bool]:
+    """True / False / None(cannot tell) -- the ask_bg probe semantics, NOT the reaper's.
+
+    K8's "fail toward alive" above governs DESTRUCTIVE decisions (a false-dead re-opens
+    the kill loop). A RENDER consumer needs the opposite discipline: a probe error must
+    surface as cannot-tell, because a boot line that says "wakeable" on a tasklist
+    timeout is the exact over-claim W149 exists to end (fence dissent, 2026-08-13:
+    deepseek's half reused the stop hook's fail-open probe and would have rendered
+    wakeable on probe failure, violating its own A4)."""
+    try:
+        out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"],
+                             capture_output=True, text=True, timeout=6,
+                             stdin=subprocess.DEVNULL)
+        if out.returncode != 0:
+            return None                    # the probe failed: cannot tell
+        return str(pid) in (out.stdout or "")
+    except Exception:
+        return None                        # timeout/probe failure: cannot tell
+
+
+def watcher_state(agent: str, session_id: Optional[str] = None,
+                  tmp: Optional[str] = None,
+                  pid_probe=None) -> Tuple[str, Optional[int]]:
+    """PURE read of THIS session's watcher seat: (state, pid). Writes nothing, spawns
+    nothing, consumes nothing -- the W149 boot line's only probe primitive.
+
+    States (the fence's D1 distinction -- the remedies differ, so the states must):
+      'armed'      seat file present, pid alive       -> armed is NOT proof of reachable
+      'dead-seat'  seat file present, pid dead        -> the 08-12 failure; stale-seat re-arm
+      'unarmed'    no seat file                       -> first arm
+      'unknown'    unreadable pid, or probe cannot tell -> claim NEITHER direction (A4)
+    """
+    try:
+        path = seat_path(agent, session_id, tmp)
+        if not os.path.exists(path):
+            return "unarmed", None
+        pid = read_pid(path)
+        if pid is None:
+            return "unknown", None
+        alive = (pid_probe or _pid_alive_tristate)(pid)
+        if alive is True:
+            return "armed", pid
+        if alive is False:
+            return "dead-seat", pid
+        return "unknown", pid
+    except Exception:
+        return "unknown", None
+
+
 def touch_activity(agent: str, session_id: str, tmp: Optional[str] = None) -> None:
     try:
         with open(activity_marker_path(agent, session_id, tmp), "w") as f:

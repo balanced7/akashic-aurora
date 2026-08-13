@@ -1436,6 +1436,50 @@ def _boot_siblings_line(agent_id: str) -> str:
         return ""
 
 
+def _boot_you_line(agent_id: str) -> str:
+    """W149: the reader's OWN wakeability, rendered BEFORE anyone else's liveness.
+
+    The 08-12 failure this ends: a seat ran a whole session unreachable and learned it
+    from the Stop hook at session END, while boot happily rendered the sibling's idle
+    minutes and the fleet doctor. Reconciled fence contract (claude + deepseek halves):
+    probe order is daemon-first, seat-second, NEVER-SPAWN -- one code path, zero writes
+    (no rearm trigger, no nag latch, no watcher; contrast stop_hook_wake_verdict, which
+    writes and is therefore unusable here). Cannot-tell renders UNKNOWN, never a
+    confident claim in either direction. A live twin holding the consumer seat is
+    NAMED (S3b: the daemon wakes the seat-holder, not necessarily this session)."""
+    try:
+        from core.comm.runner_lock import session_holder_token, holder
+        tok = session_holder_token() or ""
+        if not tok:
+            return ""                      # A6: nothing session-scoped to claim
+        sid = tok.split(":", 1)[1] if ":" in tok else tok
+        from core.comm import daemon_state
+        if daemon_state.daemon_is_live(agent_id):
+            try:
+                htok = str((holder(agent_id) or {}).get("token") or "")
+            except Exception:
+                htok = ""
+            hsid = htok.split(":", 1)[1] if htok.startswith("session:") else ""
+            if hsid and hsid != sid:
+                return (f"# YOU: daemon live; consumer seat held by twin {hsid[:8]} "
+                        "-- the twin wakes first (S3b)")
+            return "# YOU: wakeable (daemon owns wake)"
+        from core.comm import wake_seat
+        state, pid = wake_seat.watcher_state(agent_id, sid)
+        arm = (f"BIFROST_WAKE_LANE=work py scripts/bifrost_wake.py "
+               f"--agent {agent_id} --session {sid}")
+        if state == "armed":
+            return f"# YOU: wakeable (watcher pid {pid}; armed, not proof of reachable)"
+        if state == "dead-seat":
+            return (f"# YOU: NOT WAKEABLE -- watcher DIED (stale seat, pid {pid}); "
+                    f"re-arm: {arm}")
+        if state == "unarmed":
+            return f"# YOU: NOT WAKEABLE -- never armed; arm: {arm}"
+        return "# YOU: wakeability UNKNOWN (probe could not tell -- check by hand)"
+    except Exception:
+        return "# YOU: wakeability UNKNOWN (probe errored -- boot continues)"
+
+
 def _boot_standpoint_line(agent_id: str) -> str:
     """T278 S6: boot restores WHERE THIS SEAT WAS and opens with what changed while it slept.
 
@@ -1831,6 +1875,9 @@ def _orientation_header(agent_id: str, primer_aware: bool = False) -> str:
         else:
             lines.append("# [GAP] where-we-are: (no note yet -- record one with `agent_cli note`)")
         if primer_aware:
+            you = _boot_you_line(agent_id)   # W149: self BEFORE siblings -- the 08-12
+            if you:                          # dark session read everyone's liveness
+                lines.append(you)            # but its own
             sib = _boot_siblings_line(agent_id)
             if sib:
                 lines.append(sib)

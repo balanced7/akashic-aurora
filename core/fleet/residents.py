@@ -515,7 +515,15 @@ def current_role(agent_id: str) -> Optional[Dict[str, Any]]:
     return hist[-1] if hist else None
 
 
-def boot_block(agent_id: str) -> str:
+def _default_lesson_lookup(slug: str) -> Dict[str, Any]:
+    """The store read behind W150's inline receipts. Import-at-call so the module
+    attribute is live (tests fake the store by patching learning_store); ANY failure
+    is the caller's cue to render the bare slug -- never a boot cost."""
+    import core.learning.learning_store as _ls
+    return _ls.get_learning_store_instance()._load_experiment(slug) or {}
+
+
+def boot_block(agent_id: str, lesson_lookup=None) -> str:
     """The lines a resident's boot fold carries so it can answer 'who am I, and why'.
 
     This is the whole point of the slice. The callsign AND the receipts ride the fold, because
@@ -529,7 +537,22 @@ def boot_block(agent_id: str) -> str:
     lines = [f"# YOU ARE: {designation(agent_id)}"]
     receipts = rec.get("receipts") or []
     if receipts:
-        lines.append("#   earned by: " + ", ".join(str(r) for r in receipts))
+        # W150: a badge that names its lessons without their content is a claim the
+        # resident cannot USE at the moment of identity -- the 08-12 seat walked into
+        # the exact failure its own badge slug named. Inline each receipt's
+        # recommendation clause (clipped, word-boundary); degrade to the bare slug on
+        # ANY store trouble -- the badge never costs a boot (fence contract B2).
+        for r in receipts:
+            line = "#   earned by: " + str(r)
+            try:
+                rec_l = (lesson_lookup or _default_lesson_lookup)(str(r)) or {}
+                tip = " ".join(str(rec_l.get("recommendation") or "").split())
+                if tip:
+                    from core.primitives.distiller import _clip_words
+                    line += " -- " + _clip_words(tip, 130)
+            except Exception:
+                pass                       # slug alone; one bad slug breaks nothing
+            lines.append(line)
         lines.append("#   (drill any of them: py agent_cli.py recall --full learn:experiment:<name>)")
     if rec.get("formerly"):
         lines.append("#   formerly: " + ", ".join(rec["formerly"]))
