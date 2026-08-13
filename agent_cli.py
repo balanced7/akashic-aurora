@@ -6143,6 +6143,29 @@ def cmd_unlock(args):
     return 0 if ok else 1
 
 
+def cmd_captions(args):
+    """W154: YouTube captions -> clean readable text. Recreation, institutionalized.
+
+    Captions ONLY -- --skip-download is the contract, not a courtesy; this door never
+    pulls video. The cleaner is pinned pure (tests/test_w154_captions_verb.py); the
+    network half stays yt-dlp's contract. Named captions, never transcript: the eye
+    owns that word, and load-bearing vocabulary does not fork for recreation."""
+    from pathlib import Path as _P
+    from scripts.yt_captions import fetch
+    out = args.out or str(_P.home() / "Desktop" / "captions")
+    try:
+        txts = fetch(args.url, out, args.langs, args.keep_vtt)
+    except RuntimeError as e:
+        print(str(e))
+        return 2
+    if not txts:
+        print("no caption tracks found (the video may have none in the requested langs)")
+        return 1
+    for t in txts:
+        print(t)
+    return 0
+
+
 def cmd_blob(args):
     """T113: fetch a spilled payload by its content-addressed ref.
 
@@ -7466,6 +7489,16 @@ def build_parser():
     blb.add_argument("--get", default="", help="the blob:<sha> ref from a spill notice")
     blb.add_argument("--out", default="", help="write bytes to this file instead of stdout")
     blb.set_defaults(fn=cmd_blob)
+
+    # ---- W154: recreation, institutionalized (2026-08-13, "I am having a blast") ----
+    cap = sub.add_parser("captions", help="YouTube captions -> clean readable text on your "
+                                          "Desktop (captions ONLY, never video; named captions "
+                                          "not transcript -- transcripts are dead sessions here)")
+    cap.add_argument("url", help="the YouTube watch URL")
+    cap.add_argument("--out", default="", help="output dir (default ~/Desktop/captions)")
+    cap.add_argument("--langs", default="en.*", help="yt-dlp sub-langs spec (default en.*)")
+    cap.add_argument("--keep-vtt", action="store_true", help="keep the raw .vtt beside the .txt")
+    cap.set_defaults(fn=cmd_captions)
 
     # ---- T278 THE EYE (S0/S1 door; design atom the-eye-design-v2_208b26) ----
     # The formation vocabulary is READ from the module that owns it -- a copy here would

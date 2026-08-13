@@ -276,3 +276,4 @@
 - `vfx_render.py` — Render something in the VFX bench from the command line, and get a file path back.
 - `wire_journal.py` — The API wire journal -- Wireshark-grade forensics for our own model traffic (T156 WIRE-A).
 - `worktree.py` — worktree.py -- per-agent git worktrees (Concurrency design C1).
+- `yt_captions.py` — yt_captions -- YouTube captions to clean readable text (the W154 `captions` verb).
