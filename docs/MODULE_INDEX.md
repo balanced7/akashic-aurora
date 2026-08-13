@@ -198,10 +198,11 @@
 ## core/infrastructure/  (1 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
 - `health_check.py` — Startup Diagnostics: Report on initialization health
 
-## core/library/  (4 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
+## core/library/  (5 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
 - `atoms.py` — The artifact-atom family (A1 core) -- atoms as truth, JSONL as the durable record.
 - `legacy_map.py` — The legacy_path -> art_id map (T109): the migration's missing handle, finally wired.
 - `projection.py` — Projection renderer (A1) -- one atom -> one read-only markdown file.
+- `reports.py` — Report shelf -- one read surface over every report the fleet has produced.
 - `taxonomy.py` — Taxonomy constants + the birth-door classifier (A1, homes-and-order round).
 
 ## core/season/  (1 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
@@ -238,6 +239,7 @@
 - `bifrost_child.py` — bifrost_child -- managed subprocess + daemon singleton lock (T075 M1-delta).
 - `bifrost_console.py` — Bifrost Console -- a live chat window onto the Bifrost bus.
 - `bifrost_daemon.py` — bifrost.daemon -- the agent's continuous-presence body (T075 M1-alpha + M1-delta).
+- `bifrost_reports.py` — Report shelf -- the Bifrost page and its JSON doors.
 - `bifrost_runner.py` — bifrost_runner -- make a stateless model (Gemini) a FIRST-CLASS Bifrost citizen.
 - `bifrost_runner_deepseek.py` — bifrost_runner_deepseek -- make DeepSeek (a stateless API model) a FIRST-CLASS Bifrost citizen.
 - `bifrost_runner_gemini.py` — bifrost_runner_gemini -- make gemini (gemini-k3, Moonshot) a FIRST-CLASS Bifrost citizen.
