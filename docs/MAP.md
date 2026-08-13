@@ -58,7 +58,7 @@ Class: reference
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
 | `durable_reconcile.py` | Per-family authority reconcile: make the durable source COMPLETE before migrating. | GAP | GAP | `AI_SETUP` |
-| `ledger.py` | Ledger: Swappable event-record interface (append-and-replay) | tests/test_ledger.py | docs/failure-ledger-2026-07.md | `AI_SETUP` |
+| `ledger.py` | Ledger: Swappable event-record interface (append-and-replay) | tests/test_charter_p0_gap_ledger.py | docs/failure-ledger-2026-07.md | `AI_SETUP` |
 | `migrate_to_sqlite.py` | JSON FileStore -> SqliteStore migration: shadow-build, census law, honest verify. | GAP | GAP | `AI_SETUP` |
 | `redis_connection.py` | Redis Connection: Fail-fast connectivity primitive | GAP | GAP | `AKASHIC_REDIS_HEALTH_CHECK_SEC`, `REDIS_DB`, `REDIS_HOST`, `REDIS_PORT` |
 | `relationship_types.py` | Comprehensive Relationship Type Framework for Knowledge Graphs | tests/test_relationship_types.py | GAP |  |
