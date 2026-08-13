@@ -173,7 +173,7 @@ def test_janitor_dead_pid_cleans_file_no_kill(tmp_path):
     p = _seat(tmp_path, "sidA", 999)
     _marker(tmp_path, "sidA", 90.0)
     killed = []
-    res = ws.janitor(AGENT, tmp=str(tmp_path), snapshot_fn=lambda: _snap(), kill_fn=killed.append)
+    res = ws.janitor(AGENT, tmp=str(tmp_path), snapshot_fn=lambda: _snap(), kill_fn=lambda pid: killed.append(pid) or True)  # W153 K3: kill_fn's declared bool is now consulted
     assert res[0][1] == "clean" and not killed and not os.path.exists(p)
 
 
@@ -183,7 +183,7 @@ def test_janitor_idle_alive_immune_and_logged(tmp_path):
     snap = _snap((10, 40, "python.exe", WATCHER_CMD, 5000),
                  (40, 2, "claude.exe", "claude engine", 2000))
     killed = []
-    res = ws.janitor(AGENT, tmp=str(tmp_path), snapshot_fn=lambda: snap, kill_fn=killed.append)
+    res = ws.janitor(AGENT, tmp=str(tmp_path), snapshot_fn=lambda: snap, kill_fn=lambda pid: killed.append(pid) or True)  # W153 K3: kill_fn's declared bool is now consulted
     assert res[0][1] == "skip" and "K7" in res[0][2] and not killed and os.path.exists(p)
     log = open(ws.provenance_path(AGENT, str(tmp_path)), encoding="utf-8").read()
     assert "K7" in log, "the immunity decision is auditable from the log alone"
@@ -194,7 +194,7 @@ def test_janitor_true_orphan_reaped_with_both_factors(tmp_path):
     _marker(tmp_path, "sidA", 65.0)
     snap = _snap((10, 99, "python.exe", WATCHER_CMD, 5000))      # parent 99 gone -> chain dead
     killed = []
-    res = ws.janitor(AGENT, tmp=str(tmp_path), snapshot_fn=lambda: snap, kill_fn=killed.append)
+    res = ws.janitor(AGENT, tmp=str(tmp_path), snapshot_fn=lambda: snap, kill_fn=lambda pid: killed.append(pid) or True)  # W153 K3: kill_fn's declared bool is now consulted
     assert res[0][1] == "kill" and killed == [10] and not os.path.exists(p)
     log = open(ws.provenance_path(AGENT, str(tmp_path)), encoding="utf-8").read()
     assert "stale" in log and "broken" in log, "provenance carries BOTH factors"
@@ -214,7 +214,7 @@ def test_janitor_k6_legacy_ghost_migrated(tmp_path):
     snap = _snap((10, 40, "python.exe", WATCHER_CMD, 5000),
                  (40, 2, "claude.exe", "claude engine", 2000))   # chain alive -- K6 kills anyway
     killed = []
-    res = ws.janitor(AGENT, tmp=str(tmp_path), snapshot_fn=lambda: snap, kill_fn=killed.append)
+    res = ws.janitor(AGENT, tmp=str(tmp_path), snapshot_fn=lambda: snap, kill_fn=lambda pid: killed.append(pid) or True)  # W153 K3: kill_fn's declared bool is now consulted
     assert res[0][1] == "kill" and "K6" in res[0][2] and killed == [10] and not os.path.exists(p)
 
 
