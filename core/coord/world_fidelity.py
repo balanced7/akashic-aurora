@@ -53,7 +53,8 @@ def assess(root: str,
            head_sha: Optional[str],
            source_dirty: Optional[int],
            seeded_from: Optional[str] = None,
-           is_source: bool = False) -> List[PlaneStatus]:
+           is_source: bool = False,
+           tracked_state_present: Optional[bool] = None) -> List[PlaneStatus]:
     """Report each plane. Counts are passed in rather than probed so this stays pure and
     the CLI owns every filesystem and git call -- the module can then be pinned without
     a repo, and the probe can be world-scoped by its caller."""
@@ -97,17 +98,37 @@ def assess(root: str,
             "nothing on record can say which"))
 
     # --- file plane -----------------------------------------------------
-    if state_count is None:
-        out.append(PlaneStatus("file", "unknown", "could not read state/",
-                               "untracked runtime state may or may not be here"))
-    elif state_count <= 5:
+    # MEASURED 2026-08-14, and it corrected this module's own earlier claim. A raw entry
+    # count called the file plane PARTIAL in every twin, which read as a fidelity gap and
+    # was not one: everything LOAD-BEARING in state/ is TRACKED and therefore rides with the
+    # clone -- state/coord (task ledger, defer queue, suite baseline) and state/ci, all
+    # present in a twin. What a clone lacks is untracked residue: daemon pid/log files,
+    # one-off migration scratch, spend counters, per-session ask records.
+    #
+    # And some of that residue MUST NOT ride: daemon-*.pid and state/asks are IDENTITY, the
+    # same class as the bus cursors the seed already refuses. A twin inheriting them would
+    # claim to be processes it is not running.
+    #
+    # So the honest question is not "how many entries" but "are the TRACKED ones here".
+    if tracked_state_present is None:
+        if state_count is None:
+            out.append(PlaneStatus("file", "unknown", "could not read state/",
+                                   "untracked runtime state may or may not be here"))
+        else:
+            out.append(PlaneStatus("file", "unknown",
+                                   f"state/ holds {state_count} entr(y|ies), tracked set unchecked",
+                                   "cannot say whether the load-bearing files are present"))
+    elif tracked_state_present:
         out.append(PlaneStatus(
-            "file", "partial", f"state/ holds {state_count} entr(y|ies)",
-            "gitignored runtime state does not ride with a clone; anything reading state/ "
-            "may behave differently here than in the source"))
+            "file", "present", f"tracked state/ files present ({state_count} entries total)",
+            "the ledger, defer queue and suite baseline ride with the clone; the rest is "
+            "untracked residue, and the identity parts of it (daemon pids, ask records) "
+            "must NOT ride"))
     else:
-        out.append(PlaneStatus("file", "present", f"state/ holds {state_count} entries",
-                               "runtime state is populated"))
+        out.append(PlaneStatus(
+            "file", "partial", "tracked state/ files are MISSING",
+            "the task ledger or suite baseline did not arrive -- anything reading them will "
+            "behave differently here, and that IS a real fidelity gap"))
 
     # --- credentials ----------------------------------------------------
     if secrets_count is None:
