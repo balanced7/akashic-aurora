@@ -136,3 +136,36 @@ def test_p12_no_manifest_and_not_the_source_is_UNKNOWN_never_a_guess():
                                         head_sha="abc", source_dirty=0)}["memory"]
     assert row.status == "unknown"
     assert "seeded from" not in row.detail
+
+
+def test_p13_the_file_plane_asks_whether_the_TRACKED_files_are_here_not_how_many():
+    """CORRECTS THIS MODULE'S OWN EARLIER CLAIM, by measurement.
+
+    The first cut called the file plane PARTIAL from a raw entry count, so every twin read
+    as having a fidelity gap. Measured 2026-08-14: everything load-bearing in state/ is
+    TRACKED and therefore rides with the clone -- state/coord (task ledger, defer queue,
+    suite baseline) and state/ci, all present in alpha. What a clone lacks is untracked
+    residue: daemon pid/log files, one-off migration scratch, spend counters, ask records.
+
+    And some of that residue MUST NOT ride: daemon-*.pid and state/asks are IDENTITY, the
+    same class as the bus cursors the seed already refuses."""
+    present = {r.plane: r for r in F.assess(root="/x", secrets_count=1, state_count=5,
+                                            head_sha="abc", source_dirty=0,
+                                            tracked_state_present=True)}["file"]
+    assert present.status == "present"
+    assert "must NOT ride" in present.consequence
+
+
+def test_p14_a_MISSING_tracked_state_file_is_a_real_gap():
+    missing = {r.plane: r for r in F.assess(root="/x", secrets_count=1, state_count=99,
+                                            head_sha="abc", source_dirty=0,
+                                            tracked_state_present=False)}["file"]
+    assert missing.status == "partial"
+    assert "ledger" in missing.consequence
+
+
+def test_p15_an_unchecked_tracked_set_is_unknown_not_a_count_guess():
+    """A big entry count must not be read as health when the tracked set was never checked."""
+    row = {r.plane: r for r in F.assess(root="/x", secrets_count=1, state_count=99,
+                                        head_sha="abc", source_dirty=0)}["file"]
+    assert row.status == "unknown"

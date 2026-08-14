@@ -80,13 +80,20 @@ def main() -> int:
     except Exception:
         seeded_from = None
 
+    tracked_ok = None
+    tracked = _git(ROOT, "ls-files", "state/")
+    if tracked is not None:
+        wanted = [l for l in tracked.splitlines() if l.strip()]
+        tracked_ok = bool(wanted) and all((ROOT / w).exists() for w in wanted)
+
     rows = F.assess(root=str(ROOT),
                     secrets_count=_count(ROOT / ".secrets"),
                     state_count=_count(ROOT / "state"),
                     head_sha=head,
                     source_dirty=dirty,
                     seeded_from=seeded_from,
-                    is_source=(w.name == "prod"))
+                    is_source=(w.name == "prod"),
+                    tracked_state_present=tracked_ok)
     print(F.render(rows, world=w.name))
     return 0
 
