@@ -77,6 +77,33 @@ def test_r2_prod_restore_proceeds_with_explicit_consent():
     assert ok is True
 
 
+def test_g1_generated_dirt_does_not_count_as_dirty():
+    """FOUND BY RUNNING IT. This repo's working tree is NEVER clean: docs/MAP.md and
+    docs/DOORS.md declare themselves auto-generated, and chronicles/memory.md,
+    data/corpus-digests/, data/verb-registry/ and state/coord/tasks.json are all rewritten
+    by simply operating the system. Counting those as dirt made every savepoint PARTIAL and
+    -- far worse -- made can_restore refuse FOREVER, so the feature was unusable on the
+    repo it was built for. An always-on caveat is an ignored caveat; a never-satisfiable
+    guard is a disabled guard."""
+    files = ["docs/MAP.md", "docs/DOORS.md", "chronicles/memory.md",
+             "data/corpus-digests/digests.jsonl", "state/coord/tasks.json"]
+    assert SP.authored_dirt(files) == []
+
+
+def test_g2_authored_dirt_still_counts():
+    files = ["core/world.py", "docs/MAP.md", "tests/test_x.py"]
+    assert sorted(SP.authored_dirt(files)) == ["core/world.py", "tests/test_x.py"]
+
+
+def test_g3_the_split_is_reported_not_silently_dropped():
+    """Ignoring generated files is a judgement, and a judgement nobody can see is one
+    nobody can correct."""
+    sp = SP.Savepoint(world="alpha", label="x", git_sha="abc", knowledge_snapshot="s",
+                      saved_at="t", dirty_at_save=0, generated_at_save=6)
+    assert sp.complete is True
+    assert "6" in sp.note and "generated" in sp.note.lower()
+
+
 def test_r3_a_dirty_tree_blocks_restore_because_restoring_would_discard_it():
     """Look at the target before overwriting. Uncommitted work in the twin is real work."""
     ok, why = SP.can_restore(_sp(), snapshot_exists=lambda n: True, tree_dirty=7)

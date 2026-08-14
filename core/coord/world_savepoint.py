@@ -38,6 +38,39 @@ from pathlib import Path
 from typing import Callable, List, Optional, Tuple
 
 
+#: Tracked paths this repo REWRITES as a side effect of being operated -- generator output
+#: and derived projections. Measured 2026-08-14: a clean checkout goes dirty within one
+#: commit, because docs/MAP.md and docs/DOORS.md declare themselves auto-generated and the
+#: rest are projections of the store.
+#:
+#: This list exists because counting them as dirt made every savepoint PARTIAL and made
+#: can_restore refuse FOREVER -- the feature was unusable on the repo it was built for. An
+#: always-on caveat is an ignored caveat; a never-satisfiable guard is a disabled guard.
+#: Third time that shape appeared in one arc, after W159's false alarms and the env guard.
+GENERATED_PATHS = (
+    "docs/MAP.md", "docs/DOORS.md", "docs/PHYSICS.md", "docs/PRIOR_ART.md",
+    "docs/MODULE_INDEX.md", "docs/PORTS.md",
+    "chronicles/memory.md",
+    "data/corpus-digests/", "data/verb-registry/",
+    "state/",
+)
+
+
+def authored_dirt(paths) -> list:
+    """The subset of dirty paths a human actually wrote -- what a restore would destroy.
+
+    Generated output is reproducible by definition, so losing it costs a regenerate, not
+    work. Authored files are the ones worth refusing over.
+    """
+    out = []
+    for p in paths:
+        norm = str(p).replace("\\", "/").lstrip("./")
+        if any(norm == g or norm.startswith(g) for g in GENERATED_PATHS):
+            continue
+        out.append(str(p))
+    return out
+
+
 @dataclass
 class Savepoint:
     world: str
@@ -48,10 +81,22 @@ class Savepoint:
     #: Tracked files modified at save time. git can only restore what was COMMITTED, so
     #: uncommitted work sits outside what this label is able to promise.
     dirty_at_save: int = 0
+    #: Generated/derived files dirty at save time. Counted separately and NOT held against
+    #: the point, because they are reproducible -- but reported, since a judgement nobody
+    #: can see is one nobody can correct.
+    generated_at_save: int = 0
 
     @property
     def complete(self) -> bool:
         return self.dirty_at_save == 0 and bool(self.knowledge_snapshot)
+
+    @property
+    def note(self) -> str:
+        if not self.generated_at_save:
+            return ""
+        return (f"{self.generated_at_save} generated file(s) were dirty at save time and "
+                f"deliberately ignored -- they are reproducible, so losing them costs a "
+                f"regenerate rather than work")
 
     @property
     def caveat(self) -> str:
