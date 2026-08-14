@@ -106,7 +106,8 @@ def main() -> int:
         n_s, n_t = _count(src, prefix), _count(dst, prefix)
         rows.append(WD.PlaneRow(prefix, n_s, n_t,
                                 WD.classify(prefix, present_in_target=n_t > 0,
-                                            manifest=manifest)))
+                                            manifest=manifest,
+                                            n_source=n_s, n_target=n_t)))
 
     rows, collapsed = WD.collapse_minor(rows, manifest=manifest)
     gs, gt = _git(args.source), _git(target)
