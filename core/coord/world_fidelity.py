@@ -51,7 +51,9 @@ def assess(root: str,
            secrets_count: Optional[int],
            state_count: Optional[int],
            head_sha: Optional[str],
-           source_dirty: Optional[int]) -> List[PlaneStatus]:
+           source_dirty: Optional[int],
+           seeded_from: Optional[str] = None,
+           is_source: bool = False) -> List[PlaneStatus]:
     """Report each plane. Counts are passed in rather than probed so this stays pure and
     the CLI owns every filesystem and git call -- the module can then be pinned without
     a repo, and the probe can be world-scoped by its caller."""
@@ -68,15 +70,31 @@ def assess(root: str,
             "code", "partial", f"source carries {source_dirty} uncommitted tracked file(s)",
             f"this twin cannot contain those {source_dirty} edits -- each one can surface "
             f"here as a real-looking failure that does not exist in the source"))
+    elif is_source:
+        out.append(PlaneStatus("code", "present", f"at {head_sha}, this IS the source",
+                               "nothing upstream to lag; this checkout defines the code"))
     else:
         out.append(PlaneStatus("code", "present", f"at {head_sha}, source tree clean",
-                               "the twin and the source agree on code"))
+                               "this twin and its source agree on code"))
 
     # --- memory ---------------------------------------------------------
-    out.append(PlaneStatus(
-        "memory", "present", "seeded knowledge plane (transport deliberately refused)",
-        "recall, notes and lessons behave like the house; the bus does NOT -- this twin has "
-        "no inherited cursors or presence, which is the point"))
+    # Read from the seed manifest rather than asserted. The first cut hardcoded "seeded
+    # knowledge plane", which is a claim about history, and it was FALSE in prod -- whose
+    # memory is native and was never seeded by anyone. The organ built to report honestly
+    # was itself responding without answering.
+    if seeded_from:
+        out.append(PlaneStatus(
+            "memory", "present", f"seeded from {seeded_from}; transport deliberately refused",
+            "recall, notes and lessons behave like the source; the bus does NOT -- no "
+            "inherited cursors or presence, which is the point"))
+    elif is_source:
+        out.append(PlaneStatus("memory", "present", "native knowledge plane",
+                               "this store is the original; nothing here was inherited"))
+    else:
+        out.append(PlaneStatus(
+            "memory", "unknown", "no seed manifest found",
+            "this checkout's memory is either native or was populated by some other door -- "
+            "nothing on record can say which"))
 
     # --- file plane -----------------------------------------------------
     if state_count is None:

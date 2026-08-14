@@ -70,11 +70,23 @@ def main() -> int:
     elif w.name == "prod":
         dirty = 0                                    # prod IS the source; nothing lags it
 
+    seeded_from = None
+    try:
+        import redis
+        from core.world_seed import read_manifest
+        m = read_manifest(redis.Redis(host="localhost", port=w.redis_port,
+                                      db=w.redis_db, socket_timeout=2))
+        seeded_from = (m or {}).get("source_world")
+    except Exception:
+        seeded_from = None
+
     rows = F.assess(root=str(ROOT),
                     secrets_count=_count(ROOT / ".secrets"),
                     state_count=_count(ROOT / "state"),
                     head_sha=head,
-                    source_dirty=dirty)
+                    source_dirty=dirty,
+                    seeded_from=seeded_from,
+                    is_source=(w.name == "prod"))
     print(F.render(rows, world=w.name))
     return 0
 

@@ -109,3 +109,30 @@ def test_p9_a_MISSING_plane_is_absent_not_unknown():
                                          head_sha="abc", source_dirty=0)}
     assert rows["credentials"].status == "absent"
     assert "unknown" not in rows["credentials"].status
+
+
+def test_p10_the_memory_row_is_MEASURED_from_the_seed_manifest_not_asserted():
+    """The first cut hardcoded 'seeded knowledge plane' for every world -- a claim about
+    history the renderer never checked. It was FALSE in prod, whose store is native and was
+    seeded by nobody. The organ built to report honestly was responding without answering."""
+    seeded = {r.plane: r for r in F.assess(root="/x", secrets_count=1, state_count=9,
+                                           head_sha="abc", source_dirty=0,
+                                           seeded_from="prod")}["memory"]
+    assert seeded.status == "present" and "seeded from prod" in seeded.detail
+
+
+def test_p11_the_source_reports_a_NATIVE_store_never_a_seeded_one():
+    native = {r.plane: r for r in F.assess(root="/x", secrets_count=1, state_count=9,
+                                           head_sha="abc", source_dirty=0,
+                                           is_source=True)}["memory"]
+    assert native.status == "present"
+    assert "native" in native.detail and "seeded" not in native.detail
+
+
+def test_p12_no_manifest_and_not_the_source_is_UNKNOWN_never_a_guess():
+    """A checkout with no manifest that is not the source cannot say where its memory came
+    from, and must not pick the flattering answer."""
+    row = {r.plane: r for r in F.assess(root="/x", secrets_count=1, state_count=9,
+                                        head_sha="abc", source_dirty=0)}["memory"]
+    assert row.status == "unknown"
+    assert "seeded from" not in row.detail
