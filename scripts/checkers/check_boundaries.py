@@ -40,7 +40,21 @@ import sys
 from pathlib import Path
 from collections import defaultdict
 
-ROOT = Path(os.getenv("AI_SETUP", "E:\\AI-Setup"))
+# W161 (2026-08-14): DERIVED, not defaulted. This read the AI_SETUP env var with a hardcoded
+# fallback -- the exact pattern core/paths.py exists to delete, and whose docstring already
+# measured the reason: "0 machines with AI_SETUP actually set -- including the original one."
+# With three worlds live the cost stopped being hypothetical: run from a twin, this guardrail
+# scanned PRODUCTION's files and returned production's verdict, so a twin could not audit
+# itself and a green result named the wrong world. Found when a class rename verified clean in
+# alpha and the checker kept reporting the old name -- because it was reading prod. Third
+# instance of this class in one arc, after core/paths.py itself and snapshot_knowledge.py.
+try:
+    import sys as _sys
+    _sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    from core.paths import repo_root as _rr
+    ROOT = _rr()
+except Exception:
+    ROOT = Path(os.getenv("AI_SETUP", r"E:\AI-Setup"))
 PROTECTED = ["core"]  # dirs whose boundaries we enforce (add context/ etc. later)
 
 # Pre-existing debt: (rule, relative_path) -> reason. Visible, tracked, not silent.
