@@ -96,6 +96,23 @@ def _declared_intent_for(m, agent: str):
 _SETTLED_INTENTS = frozenset({"act", "decline"})
 
 
+def _reply_is_settled(m, agent: str) -> bool:
+    """Did this message already settle an expectation this seat was waiting on?
+
+    Reads the T117-P8 once-only marker through the module-level predicate in
+    core.comm.expectations, so the key shape has one spelling across write, sweep and here.
+    Fails open (False -> still wake): missed mail is far worse than a spare re-arm.
+    """
+    try:
+        from core.comm import expectations as _E
+        rid = str(getattr(m, "id", "") or (getattr(m, "meta", None) or {}).get("reply_id") or "")
+        if not rid:
+            return False
+        return _E.reply_has_settled(_E._client(), agent, rid)
+    except Exception:
+        return False
+
+
 def wake_worthy(m, *, agent: str, incarnation: str = "") -> bool:
     """T073 Phase 1+2: ONE decision for 'does this message wake this seat'.
 
@@ -135,6 +152,21 @@ def wake_worthy(m, *, agent: str, incarnation: str = "") -> bool:
     # never become a second way to sleep through the human.
     try:
         if str(_declared_intent_for(m, agent) or "") in _SETTLED_INTENTS:
+            return False
+    except Exception:
+        pass
+    # W165: the SECOND notion of handled, and the gate knowing only the first is what pinned
+    # this watcher fifteen times in one session. A declared intent (above) is how a HUMAN
+    # marks mail finished. An ask answer is finished a different way: `ask --peer` polls it
+    # NON-CONSUMINGLY by law (T196c, so sibling sessions keep their mail), the poll settles
+    # the expectation, and nobody ever declares an intent on it. So `bifrost-sync --consume`
+    # truthfully reported "no NEW mail" from its advanced cursor while this detector, which
+    # reads the stream rather than the cursor, still saw the same replies forever. A session
+    # that fenced three rounds manufactured three of its own blockers.
+    #
+    # Same fail-open direction as everything above it: unreadable marker -> still wake.
+    try:
+        if _reply_is_settled(m, agent):
             return False
     except Exception:
         pass

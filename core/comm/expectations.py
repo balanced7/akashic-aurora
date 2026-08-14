@@ -81,6 +81,30 @@ def _key(sender: str) -> str:
     return _expect_prefix() + str(sender)
 
 
+def _settled_key(sender: str, reply_id: Any) -> str:
+    """THE one spelling of the once-only settlement marker (T117 P8).
+
+    It lived inside sweep()'s `_settled` closure, so nothing outside could ask "has this
+    reply already settled something?" -- and the wake gate needed exactly that question.
+    Named here so both callers share one key shape: this arc has already paid once for two
+    spellings of one family (seatseen vs seat_seen, W162).
+    """
+    return f"{_ns()}:reply_settled:{sender}:{reply_id}"
+
+
+def reply_has_settled(client, sender: str, reply_id: Any) -> bool:
+    """Has this reply already settled an expectation for `sender`?
+
+    FAILS OPEN (returns False) on any read error, and the direction is not negotiable: a
+    caller that treats an unreadable marker as "handled" trades a bookkeeping fault for
+    missed mail. Everywhere this is consumed, False means "carry on as before".
+    """
+    try:
+        return bool(reply_id) and bool(client.exists(_settled_key(sender, reply_id)))
+    except Exception:
+        return False
+
+
 def _id_tuple(sid: str) -> Tuple[int, int]:
     """Stream ids compare as (ms, seq) -- string compare lies across digit widths."""
     try:
@@ -307,7 +331,7 @@ def _settle_once(c, sender: str, key: str, oid: str, rid, rec: Dict[str, Any]) -
     try:
         horizon = max(172800, int(float(rec.get("within_s", MIN_WITHIN_S)))
                       * (int(rec.get("redrives_left", 0)) + 2) * 4)
-        c.eval(_SETTLE_LUA, 2, f"{_ns()}:reply_settled:{sender}:{rid}", key,
+        c.eval(_SETTLE_LUA, 2, _settled_key(sender, rid), key,
                oid, horizon)
         return True
     except Exception:
@@ -346,10 +370,8 @@ def sweep(sender: str, now: Optional[float] = None) -> Dict[str, List[str]]:
         # a stream frontier -- a frontier could skip a reply needed by a later-armed
         # expectation whose anchor predates it) makes every settlement once-only.
         def _settled(rid) -> bool:
-            try:
-                return bool(rid) and bool(c.exists(f"{_ns()}:reply_settled:{sender}:{rid}"))
-            except Exception:
-                return False               # marker unreadable -> behave as before
+            # Delegates to the module-level predicate so the key shape has ONE spelling.
+            return reply_has_settled(c, sender, rid)
 
         def _settle_atomic(oid, rid, rec) -> bool:
             return _settle_once(c, sender, key, oid, rid, rec)
