@@ -34,6 +34,7 @@ ENTRY_POINTS = [
     "scripts/seed_world.py",        # W156: seeds a twin's memory from a higher world
     "scripts/world_diff.py",        # W159: the at-a-glance world comparison
     "scripts/world_savepoint.py",   # W160: a world's restore point (code + memory)
+    "scripts/world_fidelity.py",    # W163: what a checkout can and cannot do
 ]
 
 # EVERY seat runner, enumerated rather than listed by hand (2026-08-01). The hand-written list
