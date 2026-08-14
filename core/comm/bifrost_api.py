@@ -27,6 +27,57 @@ from core.comm import control, nudge
 _log = logging.getLogger("bifrost")
 
 
+def classify_straggler(sha, lane_has) -> str:
+    """Is this legacy packet a failed lane WRITE, or just cursor SKEW? (W166)
+
+    MEASURED on prod 2026-08-14 by comparing content hashes across the whole history:
+    191 shas on the work lane, 192 on legacy, exactly ONE present on legacy and absent from
+    work. That one is the only true failed lane write in the entire record -- and a single
+    drain had just reported TEN.
+
+    The old test was "not in `seen`", where `seen` holds the dedup keys of THIS batch's work
+    read. The two lanes are read from independently-positioned cursors (measured skew that
+    day: 33 unread on work, 49 on legacy), so every packet the work read had already passed
+    or not yet reached looked like a transport defect. It was reporting cursor skew as a
+    failed write, and its text told the reader to "investigate the sender side" -- which is
+    where another seat's investigation went.
+
+    Returns: "lane-write-failed" | "cursor-skew" | "unknown". UNKNOWN when the membership
+    check cannot run or there is no sha to check: guessing "failed" there is exactly how the
+    original alarm earned its false positives.
+    """
+    if not sha:
+        return "unknown"
+    try:
+        return "cursor-skew" if lane_has(sha) else "lane-write-failed"
+    except Exception:
+        return "unknown"
+
+
+def render_straggler_summary(counts: Dict[str, int]) -> str:
+    """One honest line. Empty string when there is nothing to report.
+
+    Only the genuinely-absent class earns the transport-defect language; skew is named as
+    skew. A diagnostic that cries wolf is worse than no diagnostic, because it spends other
+    people's attention -- this one spent a day of it.
+    """
+    failed = int(counts.get("lane-write-failed", 0))
+    skew = int(counts.get("cursor-skew", 0))
+    unknown = int(counts.get("unknown", 0))
+    if not (failed or skew or unknown):
+        return ""
+    parts = []
+    if failed:
+        parts.append(f"{failed} LANE WRITE FAILED (absent from the work lane -- a real "
+                     f"transport defect; investigate the sender side)")
+    if skew:
+        parts.append(f"{skew} cursor-skew (present on the work lane, outside this read's "
+                     f"window -- delivery is correct and idempotent, nothing to chase)")
+    if unknown:
+        parts.append(f"{unknown} unknown (membership uncheckable -- not claimed either way)")
+    return "; ".join(parts)
+
+
 def _id_key(sid: str):
     """Sort key for Redis stream ids. "$" (tail) sorts above everything; "0" (virgin cursor)
     and malformed ids sort BELOW every real id -- "0" must lose to "0-0" (seat-2 review
@@ -278,6 +329,35 @@ class BifrostAPI:
         return (str(getattr(m, "frm", "")), str(getattr(m, "ts", "")),
                 str(getattr(m, "kind", "")))
 
+    #: How far back to look when asking "is this packet on the work lane at all?".
+    #: Bounded on purpose: the question only matters for recent traffic, and an unbounded
+    #: XRANGE on every drain would make a diagnostic cost more than the delivery it explains.
+    #: A packet older than this window classifies UNKNOWN rather than being called a defect.
+    LANE_MEMBERSHIP_WINDOW = 500
+
+    def _work_lane_shas(self) -> set:
+        """Dedup keys currently on this agent's WORK lane streams (W166).
+
+        Used only to tell a failed lane write apart from cursor skew. Read from the STREAM,
+        deliberately not from the cursor -- the cursor's position is the very thing that made
+        skew look like a defect.
+        """
+        out = set()
+        try:
+            keys = self.bus._lane_keys("work")
+            client = self.bus._client
+            for stream in (keys.get("inbox"), keys.get("bc")):
+                if not stream:
+                    continue
+                for _sid, fields in client.xrevrange(stream, "+", "-",
+                                                     count=self.LANE_MEMBERSHIP_WINDOW):
+                    g = fields.get if hasattr(fields, "get") else (lambda k, d="": d)
+                    out.add((str(g("frm", "") or ""), str(g("ts", "") or ""),
+                             str(g("kind", "") or "")))
+        except Exception:
+            return set()          # unreadable -> every candidate classifies UNKNOWN
+        return out
+
     def work_drain(self, timeout_ms: int = 1500, *, limit: int = 50,
                    since_out: Optional[Dict[str, str]] = None,
                    generation: int = 0) -> List[Any]:
@@ -376,9 +456,29 @@ class BifrostAPI:
                           and packet_spec.lane_for(str(getattr(m, "kind", ""))) in ("work", None)]
             if stragglers:
                 import sys
-                print(f"[work-drain] {len(stragglers)} LEGACY STRAGGLER(S) for "
-                      f"{self.agent} -- lane write failed upstream; dual-write net caught "
-                      f"them (defect signal, investigate the sender side)", file=sys.stderr)
+                # W166: classify before claiming. The old line said "lane write failed
+                # upstream" for every straggler, and measurement put the true rate at 1 in
+                # 192 while a single drain reported 10.
+                _lane_shas = None
+
+                def _lane_has(key):
+                    nonlocal _lane_shas
+                    if _lane_shas is None:
+                        _lane_shas = self._work_lane_shas()
+                    if not _lane_shas:
+                        # Empty means the lane could not be read, NOT that the lane is
+                        # empty -- claiming "absent" here would recreate the false alarm
+                        # this slice exists to remove.
+                        raise RuntimeError("work lane membership unreadable")
+                    return key in _lane_shas
+
+                counts = {"lane-write-failed": 0, "cursor-skew": 0, "unknown": 0}
+                for m in stragglers:
+                    counts[classify_straggler(self._dedup_key(m), _lane_has)] += 1
+                summary = render_straggler_summary(counts)
+                if summary:
+                    print(f"[work-drain] {len(stragglers)} legacy-net packet(s) for "
+                          f"{self.agent}: {summary}", file=sys.stderr)
                 # W97 (T122 scope 3): name the sender + id per straggler -- the
                 # investigation starts at the defect, not at a census. getattr-safe.
                 for m in stragglers[:20]:
