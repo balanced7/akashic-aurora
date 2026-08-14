@@ -103,3 +103,86 @@ def render(shapes: List[VerbShape]) -> str:
     out.append(f"  ({len(fused_small)} more are fused but under {BIG_ENOUGH_TO_HIDE} lines -- "
                f"small enough to read whole, so fusion costs nothing there)")
     return "\n".join(out)
+
+
+# ---------------------------------------------------------------------------
+# Silent degradation: the same bar, applied to imports rather than verbs.
+# ---------------------------------------------------------------------------
+#
+# MEASURED on agent_cli.py 2026-08-14: 7 top-level imports, 284 FUNCTION-LOCAL ones,
+# 67 try-blocks wrapping an import, and 42 of those swallowing it with a bare `pass`.
+#
+# A swallowed import is the purest form of the bar: a `core/` module that moves or gets
+# renamed produces ZERO error, and the verb simply omits a section. It responds. It does not
+# answer, and nothing anywhere says so.
+#
+# THIS DOES NOT CALL THEM BUGS. Some are deliberate and correct -- "boot must never fail" is a
+# real design choice, and a boot that dies because one optional organ moved is worse than a
+# boot that renders without it. The finding is not that 42 sites are wrong; it is that
+# NOTHING DISTINGUISHES THE DELIBERATE ONES FROM THE ACCIDENTAL ONES, so the whole class is
+# unauditable. A loud handler is self-classifying; a bare `pass` is not.
+
+
+@dataclass(frozen=True)
+class ImportGuard:
+    lineno: int
+    enclosing: str
+    modules: tuple
+    handler: str          # silent | loud | reraise
+
+
+def survey_import_guards(source: str) -> List[ImportGuard]:
+    """Every try-block that wraps an import, and what its handler does about failure."""
+    tree = ast.parse(source)
+    owner = {}
+    for fn in ast.walk(tree):
+        if isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            for c in ast.walk(fn):
+                owner[id(c)] = fn.name
+
+    out: List[ImportGuard] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Try):
+            continue
+        mods = []
+        for b in node.body:
+            for c in ast.walk(b):
+                if isinstance(c, ast.ImportFrom) and c.module:
+                    mods.append(c.module)
+                elif isinstance(c, ast.Import):
+                    mods.extend(a.name for a in c.names)
+        if not mods:
+            continue
+        for h in node.handlers:
+            body = h.body
+            if any(isinstance(st, ast.Raise) for st in body):
+                kind = "reraise"
+            elif len(body) == 1 and isinstance(body[0], ast.Pass):
+                kind = "silent"
+            elif (len(body) == 1 and isinstance(body[0], ast.Expr)
+                  and isinstance(body[0].value, ast.Constant)):
+                kind = "silent"          # a docstring-as-body is still a pass
+            else:
+                kind = "loud"            # it logs, prints, records or sets a fallback flag
+            out.append(ImportGuard(h.lineno, owner.get(id(node), "<module>"),
+                                   tuple(sorted(set(mods))), kind))
+    return out
+
+
+def render_import_guards(guards: List[ImportGuard]) -> str:
+    silent = [g for g in guards if g.handler == "silent"]
+    loud = [g for g in guards if g.handler == "loud"]
+    by_fn = {}
+    for g in silent:
+        by_fn.setdefault(g.enclosing, []).append(g)
+    out = [f"SILENT-DEGRADATION CENSUS -- {len(guards)} import guard(s)",
+           "  A swallowed import means a moved or renamed module produces NO error and the",
+           "  caller simply omits a section. Some of these are deliberate and correct; the",
+           "  finding is that nothing distinguishes those from the accidental ones."]
+    out.append(f"  {len(silent)} SILENT (bare pass) | {len(loud)} loud (logs/records/falls back)")
+    for fn, gs in sorted(by_fn.items(), key=lambda kv: -len(kv[1]))[:12]:
+        mods = sorted({m for g in gs for m in g.modules})[:3]
+        out.append(f"    {len(gs):>3}x  {fn:<28} e.g. {', '.join(mods)}")
+    if not silent:
+        out.append("  no silent import guard -- every failure is announced")
+    return "\n".join(out)

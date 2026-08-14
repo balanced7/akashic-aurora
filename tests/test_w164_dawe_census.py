@@ -95,3 +95,55 @@ def test_d8_the_real_monolith_comes_back_CLEAN_and_that_is_the_finding():
     assert not flagged, (
         f"verbs are now structurally unverifiable: {flagged}. If that is real, good -- the "
         f"census earned its keep. Update this pin with the reason rather than deleting it.")
+
+
+# --------------------------------------------------------------- silent degradation
+
+GUARD_SILENT = "def f():\n    try:\n        from core.x import y\n    except Exception:\n        pass\n"
+GUARD_LOUD = ("def g():\n    try:\n        from core.x import y\n"
+              "    except Exception as e:\n        print('x unavailable', e)\n")
+GUARD_RERAISE = ("def h():\n    try:\n        from core.x import y\n"
+                 "    except Exception:\n        raise\n")
+
+
+def test_s1_a_swallowed_import_is_classified_silent():
+    g = D.survey_import_guards(GUARD_SILENT)[0]
+    assert g.handler == "silent" and g.enclosing == "f"
+    assert "core.x" in g.modules
+
+
+def test_s2_a_handler_that_says_something_is_LOUD():
+    """The distinction the census rests on: a loud handler classifies ITSELF as deliberate.
+    A bare pass cannot, which is why the silent ones are the unauditable class."""
+    assert D.survey_import_guards(GUARD_LOUD)[0].handler == "loud"
+
+
+def test_s3_a_reraise_is_neither_silent_nor_loud():
+    assert D.survey_import_guards(GUARD_RERAISE)[0].handler == "reraise"
+
+
+def test_s4_a_try_block_with_no_import_is_not_surveyed():
+    """Scope discipline: this census is about IMPORT guards, not every try in the file."""
+    assert D.survey_import_guards("def f():\n    try:\n        x = 1\n    except Exception:\n        pass\n") == []
+
+
+def test_s5_the_render_refuses_to_call_the_silent_ones_bugs():
+    """Some are deliberate and correct -- 'boot must never fail' is a real design choice.
+    The finding is that nothing distinguishes deliberate from accidental, not that 42 sites
+    are wrong. A census that overclaimed here would be the failure it is named after."""
+    out = D.render_import_guards(D.survey_import_guards(GUARD_SILENT)).lower()
+    assert "deliberate" in out
+    assert "bug" not in out
+
+
+def test_s6_the_real_monolith_shows_BOTH_kinds_which_is_the_finding():
+    """Measured 2026-08-14: 67 guards, 42 silent, 25 loud. The 25 are the argument -- the
+    house already knows how to announce a failed optional import, so the 42 are drift rather
+    than a uniform policy. If loud ever reaches 0 this pin should fail and be re-read."""
+    from core.paths import repo_root
+    src = (repo_root() / "agent_cli.py").read_text(encoding="utf-8", errors="replace")
+    guards = D.survey_import_guards(src)
+    silent = [g for g in guards if g.handler == "silent"]
+    loud = [g for g in guards if g.handler == "loud"]
+    assert len(guards) >= 40, f"only {len(guards)} import guards surveyed"
+    assert silent and loud, "both kinds must exist for the drift argument to hold"
