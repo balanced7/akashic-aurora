@@ -14,11 +14,12 @@ py scripts/checkers/check_ports.py --report
 
 ```
 8780-8789   PROD
-8790-8799   SANDBOX
+8790-8799   BETA
+8800-8809   ALPHA
 8900-8999   TEST
 ```
 
-Redis mirrors the same worlds: `16379` prod · `16380` sandbox · **db 15** on prod = test isolation
+Redis mirrors the same worlds: `16379` prod · `16380` beta · `16381` alpha · **db 15** on prod = test isolation
 (tests never need their own Redis port — they use a separate logical DB).
 
 ## The map
@@ -36,11 +37,13 @@ this repo would ever have found it.
 | **16379** | prod | container | canonical knowledge store + bus (db 0 prod / db 15 test) | `akashic-redis` |
 | **18765** | prod | app | MCP HTTP mode (stdio is the default, so usually silent) | `ai_setup_mcp.py` |
 | **47100** | prod | app | runner control-channel BASE; each seat takes base+n on loopback, so the exact port is dynamic by design | `core/comm/control_channel.py` |
-| **8790** | sandbox | app | sandbox console | `E:/AI-Setup-Sandbox scripts/bifrost_ui.py` |
-| **16380** | sandbox | container | sandbox Redis, isolated from prod | `docker-redis-sandbox` |
 | **3000** | external | container | human chat front-end over the same ollama; no live repo refs | `ai-open-webui` |
 | **5000** | external | container | voice service; no live repo refs | `ai-voice` |
 | **5001** | external | container | voice service (second port) | `ai-voice` |
+| **8790** | beta | app | beta console (was: sandbox) | `E:/AI-Setup-Beta scripts/bifrost_ui.py` |
+| **8800** | alpha | app | alpha console | `E:/AI-Setup-Alpha scripts/bifrost_ui.py` |
+| **16380** | beta | container | beta Redis, isolated from prod and alpha | `akashic-redis-beta` |
+| **16381** | alpha | container | alpha Redis, isolated from prod and beta | `akashic-redis-alpha` |
 
 ## Retired — never silently resurrect
 
@@ -56,7 +59,7 @@ person, which is how a dead service comes back wearing a live port.
 
 1. **Never hardcode a port.** Import it from `config.py`; a throwaway UI uses `config.allocate_test_ui_port(offset)`, which raises if you escape the band.
 2. **8788 is not the console.** It is reserved prod-aux. The console is `config.PORT_UI` (8787).
-3. **Tests never bind 8787 or 8790.** A test UI lives in [8900, 8999]; test data lives in Redis db 15.
+3. **Tests never bind 8787, 8790 or 8800.** A test UI lives in [8900, 8999]; test data lives in Redis db 15.
 4. **A new port goes in `config.PORT_REGISTRY` with an owner** — `check_ports.py` fails the commit otherwise, and the failure names the three ways out.
 
 ## Dynamic by design
