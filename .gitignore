@@ -156,3 +156,6 @@ state/canary/
 # isolation in tracked config.py and could therefore never be refreshed from prod without
 # surrendering the isolation. See core/world.py.
 .aurora-world
+
+# W160: this checkout's restore points -- untracked for the same reason .aurora-world is.
+.aurora-savepoints.json
