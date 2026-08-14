@@ -37,9 +37,17 @@ REDIS_DOCKER_PORT = 16379
 # =============================================================================
 # THE RULE (read the second digit-pair after 87 to know which world a port is):
 #   87 8x  = PRODUCTION bifrost   (the one live fleet; harness-managed; stable forever)
-#   87 9x  = SANDBOX              (the persistent E:\AI-Setup-Sandbox clone)
+#   87 9x  = BETA                 (E:\AI-Setup-Beta -- longer-form integration)
+#   88 0x  = ALPHA                (E:\AI-Setup-Alpha -- risky work, discardable by design)
 #   89 xx  = TEST / EPHEMERAL UIs (throwaway; may run many at once; never touches prod)
-# Redis mirrors the same worlds: 16379 prod / 16380 sandbox / db 15 = test isolation.
+# Redis mirrors the same worlds: 16379 prod / 16380 beta / 16381 alpha; db 15 = test.
+#
+# WHICH world a given PROCESS is in is decided by core/world.py, NOT by editing these
+# constants per checkout. That distinction is the W156 slice: this file DECLARES what
+# exists (shared, tracked, flows to every world); `.aurora-world` DECLARES WHO YOU ARE
+# (per-checkout, untracked). The July 2026 sandbox conflated them -- it edited REDIS_PORT
+# here to isolate itself -- and so its isolation was a permanent merge conflict on the
+# most-imported file in the repo. It never got refreshed. Do not re-learn that.
 #
 # Born 2026-07-16 to end the 8787-vs-8788 churn: the console has ALWAYS bound 8787,
 # but deepseek_chat.py documented the UI as "8788 (falls back to 8787)", so half the
@@ -52,9 +60,18 @@ PORT_UI = 8787              # Bifrost live agent console (scripts/bifrost_ui.py)
 PORT_UI_RESERVED = 8788     # RESERVED prod-aux. NOT the console. Do not bind for tests.
 PORT_MCP_HTTP = 18765       # ai_setup_mcp.py optional --http mode (MCP is stdio by default).
 
-# --- SANDBOX (879x) -- E:\AI-Setup-Sandbox persistent clone ---
-PORT_UI_SANDBOX = 8790      # sandbox console
-REDIS_PORT_SANDBOX = 16380  # sandbox Redis (isolated from prod 16379)
+# --- BETA (879x) -- E:\AI-Setup-Beta, longer-form integration; prod's waiting room ---
+# Renamed from SANDBOX 2026-08-14 (W156). Same band, same ports, new name: the world
+# gained a sibling, and "sandbox" stopped describing a TIER once there were two of them.
+# `core.world.ALIASES` maps sandbox->beta so old docs and the July clone still resolve.
+PORT_UI_BETA = 8790         # beta console
+REDIS_PORT_BETA = 16380     # beta Redis (isolated from prod 16379)
+PORT_UI_SANDBOX = PORT_UI_BETA          # lineage alias; prefer the BETA names
+REDIS_PORT_SANDBOX = REDIS_PORT_BETA    # lineage alias; prefer the BETA names
+
+# --- ALPHA (880x) -- E:\AI-Setup-Alpha, risky work; discardable by design ---
+PORT_UI_ALPHA = 8800        # alpha console
+REDIS_PORT_ALPHA = 16381    # alpha Redis (isolated from prod 16379 and beta 16380)
 
 # --- TEST / EPHEMERAL UIs (89xx) -- the dedicated throwaway band ---
 PORT_TEST_UI_BASE = 8900    # first test-UI port; allocate upward (8900, 8901, ...).
@@ -92,12 +109,18 @@ PORT_REGISTRY = {
     REDIS_PORT:         {"world": "prod",     "bound_by": "container",
                          "what": "canonical knowledge store + bus (db 0 prod / db 15 test)",
                          "owner": "akashic-redis"},
-    PORT_UI_SANDBOX:    {"world": "sandbox",  "bound_by": "app",
-                         "what": "sandbox console",
-                         "owner": "E:/AI-Setup-Sandbox scripts/bifrost_ui.py"},
-    REDIS_PORT_SANDBOX: {"world": "sandbox",  "bound_by": "container",
-                         "what": "sandbox Redis, isolated from prod",
-                         "owner": "docker-redis-sandbox"},
+    PORT_UI_BETA:       {"world": "beta",     "bound_by": "app",
+                         "what": "beta console (was: sandbox)",
+                         "owner": "E:/AI-Setup-Beta scripts/bifrost_ui.py"},
+    REDIS_PORT_BETA:    {"world": "beta",     "bound_by": "container",
+                         "what": "beta Redis, isolated from prod and alpha",
+                         "owner": "akashic-redis-beta"},
+    PORT_UI_ALPHA:      {"world": "alpha",    "bound_by": "app",
+                         "what": "alpha console",
+                         "owner": "E:/AI-Setup-Alpha scripts/bifrost_ui.py"},
+    REDIS_PORT_ALPHA:   {"world": "alpha",    "bound_by": "container",
+                         "what": "alpha Redis, isolated from prod and beta",
+                         "owner": "akashic-redis-alpha"},
     # The container plane -- invisible to any source grep, which is exactly why it went
     # undocumented and why "which of these do we need?" could not be answered from a map.
     11434:              {"world": "prod",     "bound_by": "container",
@@ -128,7 +151,8 @@ PORT_REGISTRY = {
 #: Bands, as data rather than prose, so the report can name a port's WORLD from its digits.
 PORT_BANDS = (
     (8780, 8789, "prod"),
-    (8790, 8799, "sandbox"),
+    (8790, 8799, "beta"),          # renamed from "sandbox" 2026-08-14 (W156)
+    (8800, 8809, "alpha"),         # W156: the third world
     (PORT_TEST_UI_BASE, PORT_TEST_UI_MAX, "test"),
 )
 
