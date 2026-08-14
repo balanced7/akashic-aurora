@@ -111,6 +111,23 @@ class Savepoint:
             bits.append("no knowledge snapshot -- the memory plane is not captured")
         return "; ".join(bits)
 
+    @property
+    def recovery(self) -> str:
+        """The two commands that restore this point WITHOUT this tool.
+
+        PROVEN NECESSARY BY DRILL, 2026-08-14: rewinding alpha five commits removed
+        scripts/world_savepoint.py itself -- the restore tool rewound itself out of
+        existence. The savepoint DATA survived because it is untracked, which is the same
+        property that keeps .aurora-world alive across a refresh; the CODE did not.
+
+        Same law as the one that opened this arc, one level up: the thing that recovers you
+        must not be subject to the damage. This field is why a human staring at a checkout
+        with no tool in it can still get home -- the record carries its own drill, so the
+        recovery does not depend on the recoverer.
+        """
+        return (f"git checkout {self.git_sha} && "
+                f"py scripts/ops/snapshot_knowledge.py restore {self.knowledge_snapshot}")
+
     def render(self) -> str:
         flag = "" if self.complete else "  [PARTIAL] " + self.caveat
         return (f"{self.label:<24} {self.world:<6} code {self.git_sha:<10} "
