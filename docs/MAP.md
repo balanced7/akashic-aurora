@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (39 of 154 modules lack both pin and paper by name)
+## GAP queue (39 of 156 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/migrate_to_sqlite.py
@@ -140,7 +140,7 @@ Class: reference
 | `turn_metrics.py` | Turn metrics (progress-bars data half; co-designed claude+deepseek 2026-07-11). | tests/test_turn_metrics.py | GAP | `BIFROST_NAMESPACE` |
 | `wake_seat.py` | wake_seat -- the per-session wake-seat protocol (T029 Wave 2, the R1/R16 fix). | tests/test_wake_seat.py | docs/library/design/20260701_wave-2-design-claude-fenced-wake-seat-ow_7c4aaf.md | `AKASHIC_TOMBSTONE`, `AKASHIC_WAKE_MARKER_FRESH_MIN`, `BIFROST_NAMESPACE` |
 
-## core/coord/  (18 modules)
+## core/coord/  (20 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
@@ -162,6 +162,8 @@ Class: reference
 | `task_ledger.py` | Governed task ledger — the deterministic coordination substrate (Phase 1: sequential-correct). | tests/test_task_ledger.py | GAP | `AKASHIC_PROPOSED_STALE_DAYS`, `BIFROST_PREMISE_GATE_MIN_AGE_MS` |
 | `terms.py` | terms -- the vocabulary a codebase TALKS ABOUT, as a comparable set (T214). | tests/test_t214_terms_domain.py | GAP |  |
 | `timeline.py` | timeline -- one chronological SET across domains (T211). | tests/test_t211_timeline.py | GAP | `AKASHIC_TIMELINE_FILE_LIMIT` |
+| `world_diff.py` | world_diff -- what differs between two worlds, MINUS what should differ. | tests/test_w159_world_diff.py | GAP |  |
+| `world_savepoint.py` | world_savepoint -- a world's two planes under one name, or neither. | tests/test_w160_world_savepoint.py | GAP |  |
 
 ## core/learning/  (5 modules)
 

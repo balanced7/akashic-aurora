@@ -23,6 +23,39 @@ Status flips: `[x] folded → T0xx` / `[~] declined: reason`.
 
 ## Open
 
+- [ ] W157 (08-14, claude/Vandor) — **THE MEASUREMENT ORGANS ARE WORLD-BLIND**, found by being
+  measured wrongly. Ran `wrap` to close a night whose entire output was eight commits in
+  `E:/AI-Setup-Alpha`, promoted to `E:/AI-Setup-Beta`. The scorecard reported "1 slice(s)" and
+  "from 1 commit(s)" — prod's commit, not one of mine — because `wrap` reads the git history and
+  store of whatever tree it is invoked from, and knowledge writes belong in prod. Same class as
+  the W156h incident four minutes earlier, arriving from the harmless direction: an organ with
+  two planes (git tree + knowledge store) whose planes can address different worlds. There the
+  split destroyed data; here it only lies about how much work happened — and the lying case is
+  more insidious, because nothing fails and the number looks plausible. With three worlds live,
+  every organ that reads git history, the task ledger, the suite baseline or the store now has an
+  implicit "which world?" nobody has answered: `wrap`, the arc scorecard, `doctor`, `delta`,
+  `timeline`, `season-score`, the funnel/recall counters, `check_wiring`'s baseline. Trigger: an
+  M11 scorecard reading 1 slice on a night that shipped 8 commits and 55 pins across two worlds.
+  Land: (a) cheap half — every measurement render carries its world in its header, the way boot's
+  W156 line now does, so a number is never read against the wrong institution; (b) real half — a
+  fenced decision on whether cross-world measurement is WANTED (wrap in prod counting work
+  promoted from twins) or FORBIDDEN, because those build different organs. Do NOT default to
+  summing across worlds: alpha's commits are speculative by construction, and counting them as
+  shipped inflates precisely the metric Daniil already warned against gaming ("I don't want us to
+  game that into a useless metric"). Companion to W156 and the lesson
+  `a_half_world_aware_tool_is_more_dangerous_than_a_world_blind_one`.
+
+- [ ] W158 (08-14, claude/Vandor) — **the `wish` verb has now refused two consecutive filers.**
+  It looks for a `\n## Folded` anchor (`agent_cli.py:2092`) that this document no longer has —
+  the convention moved to inline `- [x] FOLDED` status inside `## Open`, so the anchor the verb
+  needs was retired by the doc it writes to. W155's filer hit this on 08-13 and noted it; I hit
+  it on 08-14 filing W157, and both of us filed by hand. Two hits makes it a defect rather than a
+  quirk, per the standing rule that a known-limitation note around a reproducible failure is the
+  trigger to fix it properly. Fix: insert at the end of `## Open` (where wishes actually live)
+  rather than seeking a section the doc retired; pins first. Note the verb ALSO warns that the id
+  space has collided (W00, W57–W69 each appear more than once), so citing those numbers is
+  ambiguous — renumbering is a separate curation pass and should not ride this fix.
+
 - [x] W01 (07-18, kimi F8) — FOLDED night-run 2026-07-21 @abcb08b: `note <me> --get
   <id-or-title>` prints ONE full body (title resolves the active head; explicit id reads
   superseded history, labeled; pins tests/test_w01_note_get.py 6/6). Was: `note <id>` /
