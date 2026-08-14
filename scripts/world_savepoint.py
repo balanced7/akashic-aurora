@@ -36,9 +36,16 @@ def _git(*args) -> str:
                           capture_output=True, text=True).stdout.strip()
 
 
+def _dirty_split():
+    """(authored, generated) counts. Only authored dirt is work a restore would destroy."""
+    paths = [l[3:].strip() for l in _git("status", "--porcelain").splitlines()
+             if l and not l.startswith("??")]
+    authored = SP.authored_dirt(paths)
+    return len(authored), len(paths) - len(authored)
+
+
 def _dirty() -> int:
-    return len([l for l in _git("status", "--porcelain").splitlines()
-                if l and not l.startswith("??")])
+    return _dirty_split()[0]
 
 
 def _snapshot_exists(name: str) -> bool:
@@ -67,13 +74,17 @@ def cmd_save(label: str) -> int:
               "this point would restore code without memory.")
         return 2
 
+    authored, generated = _dirty_split()
     sp = SP.Savepoint(world=world, label=label, git_sha=_git("rev-parse", "--short", "HEAD"),
-                      knowledge_snapshot=snap, dirty_at_save=_dirty(),
+                      knowledge_snapshot=snap, dirty_at_save=authored,
+                      generated_at_save=generated,
                       saved_at=datetime.now(timezone.utc).isoformat(timespec="seconds"))
     SP.append(STORE, sp)
     print(f"[savepoint] {sp.render()}")
     if not sp.complete:
         print(f"  PARTIAL: {sp.caveat}")
+    elif sp.note:
+        print(f"  note: {sp.note}")
     return 0
 
 
