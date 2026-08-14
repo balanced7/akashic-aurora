@@ -79,9 +79,11 @@ class World:
     #: The sentence a human gets when they ask why. Never empty.
     why: str = ""
 
-    @property
-    def may_read(self) -> bool:
-        return True
+    # NOTE: there is deliberately no `may_read`. It was written, and check_wiring caught it
+    # as a public function no production path calls -- correctly: a property that returns a
+    # constant True is decoration, and it made "UNKNOWN reads but does not write" look like
+    # an enforced pair when only one half was ever enforced. The read half is not a
+    # permission, it is the absence of a refusal.
 
     @property
     def may_write(self) -> bool:

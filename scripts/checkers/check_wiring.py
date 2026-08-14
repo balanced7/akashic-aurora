@@ -25,6 +25,13 @@ ENTRY_POINTS = [
     "agent_cli.py", "ai_setup_mcp.py", "bootstrap.py", "config.py",
     "scripts/bifrost_runner.py",
     "scripts/bifrost_ui.py", "scripts/bifrost_wake.py", "scripts/deepseek_chat.py",
+    # W156 (2026-08-14): a real CLI door -- argparse + __main__, run by a human to seed a
+    # twin's memory from a higher world. Added BY NAME, which is the discipline this file
+    # warns against three lines below, and deliberately so: the general fix is to enumerate
+    # every scripts/*.py carrying a __main__ block, and that would change what this gate
+    # MEANS (it would surface every pre-existing script-only module at once). Widening a
+    # gate is a gate decision, not a midnight one. Filed for Daniil's call.
+    "scripts/seed_world.py",
 ]
 
 # EVERY seat runner, enumerated rather than listed by hand (2026-08-01). The hand-written list
