@@ -275,12 +275,21 @@ def test_s9b_loud_in_a_twin(monkeypatch):
         assert port in line
 
 
-def test_s9c_the_twin_line_warns_that_memory_was_INHERITED(monkeypatch):
-    """The fact that makes a twin dangerous to read: it was SEEDED from prod, so its boot
-    renders prod's directive, prod's ledger and prod's lessons. Every orientation line is
-    inherited and therefore indistinguishable from the real thing unless this says so."""
+def test_s9c_the_twin_line_never_asserts_a_lineage_it_cannot_support(monkeypatch):
+    """The fact that makes a twin dangerous to read is that it was SEEDED -- its boot renders
+    the source world's directive, ledger and lessons, so every orientation line is inherited
+    and indistinguishable from the real thing unless the render says so.
+
+    But the FIRST version of this line asserted "SEEDED from prod" unconditionally, which is a
+    claim about history the renderer had not checked -- exactly the Glenn Stevens shape this
+    whole slice is named after, committed by the organ built to prevent it. It now reads the
+    seed manifest and reports what it finds, including finding nothing."""
     line = _world_line(monkeypatch, "alpha")
-    assert "SEEDED" in line and "diverged" in line
+    claims_seeded = "SEEDED from" in line
+    admits_unknown = "origin unrecorded" in line or "origin unknown" in line
+    assert claims_seeded ^ admits_unknown, f"line neither claims nor disclaims lineage: {line}"
+    if claims_seeded:
+        assert "diverged" in line
 
 
 def test_s9d_unknown_says_writes_are_refused_and_how_to_fix_it(monkeypatch):

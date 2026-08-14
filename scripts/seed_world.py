@@ -65,6 +65,11 @@ def main() -> int:
     for prefix in plan.excluded:
         counts[prefix] = sum(1 for _ in src.scan_iter(match=f"{prefix}*", count=500))
 
+    if args.apply:
+        from datetime import datetime, timezone
+        S.write_manifest(dst, plan, counts,
+                         datetime.now(timezone.utc).isoformat(timespec="seconds"))
+
     print(plan.render(counts=counts, applied=args.apply))
     print(f"\n  source {plan.source} :{WORLDS[plan.source].redis_port} "
           f"({src.dbsize():,} keys, untouched -- reads only)")

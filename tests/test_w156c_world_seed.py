@@ -116,6 +116,13 @@ class _FakeRedis:
     def __init__(self, keys=None):
         self.data = dict(keys or {})
         self.restored = {}
+        self.strings = {}
+
+    def set(self, key, value):
+        self.strings[key] = value
+
+    def get(self, key):
+        return self.strings.get(key)
 
     def scan_iter(self, match="*", count=100):
         stem = match.rstrip("*")
@@ -152,3 +159,46 @@ def test_c3_a_key_that_expired_mid_scan_is_skipped_not_crashed():
     dst = _FakeRedis()
     assert S.copy_prefix(src, dst, "learn:", apply=True) == 2   # seen
     assert set(dst.restored) == {"learn:a"}                     # written
+
+
+# ---------------------------------------------------------------- provenance
+
+def test_m1_a_seeded_world_records_what_it_inherited():
+    """Corpus-level provenance. A seeded lesson is byte-identical to a native one -- same
+    schema, same id, same agent name -- so without this, "which institution learned this?"
+    has no answer at all the moment a key leaves here. The fence named the concrete road:
+    scripts/ops/snapshot_knowledge.py is a shipped dump/restore of the whole knowledge
+    layer, i.e. a one-command way to make a twin's lessons indistinguishable from prod's."""
+    dst = _FakeRedis()
+    plan = S.plan("prod", "alpha")
+    doc = S.write_manifest(dst, plan, {"learn:": 1056, "mem:": 559}, "2026-08-14T02:00:00+00:00")
+    assert doc["source_world"] == "prod" and doc["target_world"] == "alpha"
+    assert doc["total_carried"] == 1056 + 559
+    assert S.read_manifest(dst) == doc
+
+
+def test_m2_the_manifest_states_its_own_limit():
+    """It answers at CORPUS level, not per key. A provenance record that does not say how
+    far it reaches invites exactly the over-trust it was built to prevent."""
+    dst = _FakeRedis()
+    doc = S.write_manifest(dst, S.plan("prod", "alpha"), {}, "2026-08-14T02:00:00+00:00")
+    assert "corpus-level" in doc["caveat"]
+    assert "indistinguishable" in doc["caveat"]
+
+
+def test_m3_the_manifest_records_the_REFUSED_half_too():
+    doc = S.write_manifest(_FakeRedis(), S.plan("prod", "alpha"), {}, "t")
+    assert any(p.startswith("bifrost") for p in doc["refused"])
+
+
+def test_m4_a_world_with_no_manifest_reads_None_not_a_guess():
+    """Absence must stay legible as absence. A manifest that defaults to something makes an
+    un-seeded world claim a lineage it does not have."""
+    assert S.read_manifest(_FakeRedis()) is None
+
+
+def test_m5_the_manifest_key_never_rides_down_to_the_next_world():
+    """Otherwise a world seeded FROM a seeded world inherits its parent's manifest and
+    reports an ancestry that skips a generation."""
+    assert not any(S.MANIFEST_KEY.startswith(p) for p in S.KNOWLEDGE_PREFIXES)
+    assert not any(S.MANIFEST_KEY.startswith(p) for p, _ in S.OPTIONAL_PREFIXES.values())

@@ -1504,9 +1504,27 @@ def _boot_world_line() -> str:
     if w.name == "unknown":
         return (f"# WORLD: UNKNOWN -- {w.why}. Writes are REFUSED until this checkout "
                 f"declares itself: echo alpha > .aurora-world")
+    # Provenance, MEASURED rather than assumed. The earlier version of this line asserted
+    # "SEEDED from prod" unconditionally -- which would have been a claim the render could
+    # not support the moment someone stood up a twin without seeding it. Read the manifest;
+    # say what it says; say the other thing when it is absent.
+    lineage = ("origin unrecorded -- no seed manifest, so this memory is either native or "
+               "was copied in by hand")
+    try:
+        import redis as _redis
+        from core.world_seed import read_manifest
+        _c = _redis.Redis(host="localhost", port=w.redis_port, db=w.redis_db,
+                          socket_timeout=2)
+        m = read_manifest(_c)
+        if m:
+            lineage = (f"memory SEEDED from {m.get('source_world')} at "
+                       f"{str(m.get('seeded_at'))[:16]} ({m.get('total_carried'):,} keys) and "
+                       f"diverged since -- a lesson you read here may have been learned in "
+                       f"another institution")
+    except Exception:
+        lineage = "origin unknown -- the seed manifest could not be read"
     return (f"# WORLD: {w.name.upper()} -- NOT prod. redis {w.redis_port} | ui {w.ui_port} "
-            f"| resolved by {w.source} ({w.why}). Memory here was SEEDED from prod and has "
-            f"diverged since; a lesson you read may have been learned in another institution.")
+            f"| resolved by {w.source} ({w.why}). {lineage}.")
 
 
 def _boot_save_line(agent_id: str, notes) -> str:

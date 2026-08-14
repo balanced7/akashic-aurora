@@ -73,6 +73,12 @@ REFUSED_PREFIXES = {
 }
 
 
+#: Where a seeded world records what it inherited. Deliberately under a prefix that is NOT in
+#: KNOWLEDGE_PREFIXES, so a manifest never rides down into the next world and claim a lineage
+#: that is not its own.
+MANIFEST_KEY = "world:seed:manifest"
+
+
 class SeedRefusal(RuntimeError):
     """A seed was refused. Always carries why, and what would be legal instead."""
 
@@ -142,6 +148,56 @@ def plan(source: str, target: str, include: Optional[List[str]] = None) -> SeedP
 
     return SeedPlan(source=source, target=target, include=include,
                     prefixes=prefixes, excluded=excluded)
+
+
+def write_manifest(dst, plan: SeedPlan, counts: Dict[str, int], when: str) -> dict:
+    """Record in the TARGET what it inherited, from where, and when.
+
+    THE HOLE THIS PARTIALLY FILLS, stated plainly because it is only partially filled.
+    A seeded lesson is byte-identical to a native one: same schema, same id, same agent
+    name. Nothing in the RECORD says which institution learned it, so the moment anyone
+    copies a key by hand -- or runs the shipped scripts/ops/snapshot_knowledge.py, which
+    does exactly that for the whole knowledge layer -- two institutions collapse into one
+    indistinguishable mass.
+
+    This makes the question answerable at CORPUS level: "was this world's memory inherited,
+    from where, and when?" It does NOT make it answerable per key. The real fix is a
+    provenance.world stamp folded in at the store's write door, the way bus.py already folds
+    frm_incarnation at the transport door -- which is a change to the write path, and belongs
+    at a gate rather than in the same night that discovered the need for it.
+
+    Not stamping INSIDE the values on the way down is deliberate: the copy is DUMP/RESTORE
+    precisely so it preserves types and TTLs exactly, and rewriting payloads in flight would
+    trade that fidelity for a field that belongs at the write door anyway.
+    """
+    import json
+    doc = {
+        "seeded_at": when,
+        "source_world": plan.source,
+        "target_world": plan.target,
+        "carried": {p: counts.get(p, 0) for p in plan.prefixes},
+        "refused": {p: why for p, why in plan.excluded.items()},
+        "total_carried": sum(counts.get(p, 0) for p in plan.prefixes),
+        "caveat": ("corpus-level provenance only -- individual keys carry no world stamp, "
+                   "so a key copied out of here by hand is indistinguishable from a native one"),
+    }
+    dst.set(MANIFEST_KEY, json.dumps(doc))
+    return doc
+
+
+def read_manifest(client) -> Optional[dict]:
+    """What this world inherited, or None if its memory is all its own."""
+    import json
+    try:
+        raw = client.get(MANIFEST_KEY)
+    except Exception:
+        return None
+    if not raw:
+        return None
+    try:
+        return json.loads(raw.decode() if isinstance(raw, bytes) else raw)
+    except Exception:
+        return None
 
 
 def copy_prefix(src, dst, prefix: str, apply: bool = False, batch: int = 500) -> int:
