@@ -33,6 +33,8 @@ def main() -> int:
     src = target.read_text(encoding="utf-8", errors="replace")
     print(f"# {target}")
     print(D.render(D.survey(src)))
+    print()
+    print(D.render_import_guards(D.survey_import_guards(src)))
     return 0                    # a census REPORTS; exit 0 always, so it can never gate
 
 
