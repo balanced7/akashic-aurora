@@ -36,10 +36,22 @@ def _git(*args) -> str:
                           capture_output=True, text=True).stdout.strip()
 
 
+def _status_lines():
+    """Porcelain lines WITHOUT an outer strip.
+
+    _git() strips its whole stdout, which eats the leading space of the FIRST line only --
+    so fixed-width slicing shifted by one and turned `chronicles/memory.md` into
+    `hronicles/memory.md`. Exactly one file misclassified, every time, silently: the shape
+    of bug that makes a guard flaky rather than broken, so nobody chases it.
+    """
+    return subprocess.run(["git", "-C", str(ROOT), "status", "--porcelain"],
+                          capture_output=True, text=True).stdout.splitlines()
+
+
 def _dirty_split():
     """(authored, generated) counts. Only authored dirt is work a restore would destroy."""
-    paths = [l[3:].strip() for l in _git("status", "--porcelain").splitlines()
-             if l and not l.startswith("??")]
+    paths = [l[2:].strip() for l in _status_lines()
+             if l and not l.lstrip().startswith("??")]
     authored = SP.authored_dirt(paths)
     return len(authored), len(paths) - len(authored)
 
