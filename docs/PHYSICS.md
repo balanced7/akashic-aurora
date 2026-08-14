@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at afaed595. A bound you discover by collision is not awareness -- this sheet
+> Derived at b3297eba. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (202 names)
+## Configuration flags (203 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -80,6 +80,7 @@ Class: reference
 | `AKASHIC_REDIS_HEALTH_CHECK_SEC` | `"30"` | core/foundation/redis_connection.py |
 | `AKASHIC_RELEVANCE_BUDGET` | `"1"` | core/context/learning_loader.py |
 | `AKASHIC_RELEVANCE_BUDGET_CHARS` | `""` | core/context/relevance_budget.py |
+| `AKASHIC_RESTORE_PROD` | `` | scripts/ops/snapshot_knowledge.py |
 | `AKASHIC_RESUME_GAP_S` | `"600"` | core/comm/roster.py |
 | `AKASHIC_ROSTER_CHURN_AT` | `"3"` | core/comm/roster.py |
 | `AKASHIC_ROSTER_CHURN_WINDOW_S` | `"3600"` | core/comm/roster.py |
@@ -216,7 +217,7 @@ Class: reference
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 
-## Mechanical bounds (112 numeric constants)
+## Mechanical bounds (113 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -279,6 +280,7 @@ Class: reference
 | `MAX_REFS` | 2 | scripts/season_llm_player.py |  |
 | `MAX_TARGETS_PER_PASS` | 2 | core/recall/forge_optimizer.py | locked design decision 1 |
 | `MAX_TOOL_ROUNDS` | 30 | scripts/deepseek_chat.py |  |
+| `MINOR_FLOOR` | 25 | core/coord/world_diff.py |  |
 | `MIN_BEATS` | 2 | core/narrative/episode_suggester.py | a thin episode has nothing worth bookending |
 | `MIN_N` | 3 | core/comm/turn_metrics.py |  |
 | `MIN_SPAN_S` | 300 | core/narrative/episode_suggester.py | a just-opened episode never suggests (anti rapid-fire after each close) |

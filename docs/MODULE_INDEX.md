@@ -79,7 +79,7 @@
 - `turn_metrics.py` — Turn metrics (progress-bars data half; co-designed claude+deepseek 2026-07-11).
 - `wake_seat.py` — wake_seat -- the per-session wake-seat protocol (T029 Wave 2, the R1/R16 fix).
 
-## core/coord/  (18 modules)
+## core/coord/  (20 modules)
 - `capability_search.py` — capability_search -- "does this system already do X?", asked at the level of MEANING.
 - `cognitive_metrics.py` — Cognitive Efficiency Metrics — live instrumentation for the Stage-3 evidence engine.
 - `compare.py` — compare -- the cross-domain set difference, with a name (T213).
@@ -98,6 +98,8 @@
 - `task_ledger.py` — Governed task ledger — the deterministic coordination substrate (Phase 1: sequential-correct).
 - `terms.py` — terms -- the vocabulary a codebase TALKS ABOUT, as a comparable set (T214).
 - `timeline.py` — timeline -- one chronological SET across domains (T211).
+- `world_diff.py` — world_diff -- what differs between two worlds, MINUS what should differ.
+- `world_savepoint.py` — world_savepoint -- a world's two planes under one name, or neither.
 
 ## core/learning/  (5 modules)
 - `agent_memory.py` — Agent Memory: a multi-type memory for agents (decisions, experiences, reflections, approaches)
@@ -279,4 +281,6 @@
 - `vfx_render.py` — Render something in the VFX bench from the command line, and get a file path back.
 - `wire_journal.py` — The API wire journal -- Wireshark-grade forensics for our own model traffic (T156 WIRE-A).
 - `worktree.py` — worktree.py -- per-agent git worktrees (Concurrency design C1).
+- `world_diff.py` — What differs between two worlds, minus what should differ.
+- `world_savepoint.py` — A world's restore point: code and memory under one name.
 - `yt_captions.py` — yt_captions -- YouTube captions to clean readable text (the W154 `captions` verb).
