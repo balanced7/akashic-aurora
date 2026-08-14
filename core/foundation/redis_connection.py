@@ -94,6 +94,36 @@ def _resolve_default_redis_endpoint() -> Tuple[str, int]:
         host = env_host
     if env_port and env_port.isdigit():
         port = int(env_port)
+        # W156 guard, wired HERE and nowhere else because this is the ONLY path that can
+        # point a twin at another world: the world resolver cannot produce a foreign port,
+        # so an env override is the whole attack surface (a stale shell, a copied command,
+        # a REDIS_PORT exported for one probe and never unset).
+        #
+        # Fires only when the port belongs to a DIFFERENT REGISTERED world. An unregistered
+        # port stays silent on purpose -- the suite and every ad-hoc probe steer with
+        # throwaway ports, and a guard that fought them would be disabled within a week.
+        #
+        # IT REFUSES THE OVERRIDE; IT DOES NOT RAISE. This resolver runs at module import
+        # (DEFAULT_REDIS_PORT is computed at import time), and core/paths.py already wrote
+        # the rule for this exact position: "a path helper that throws during import takes
+        # down every door that imports it." A stale REDIS_PORT=16379 in one shell would
+        # otherwise turn every command in the twin into an ImportError.
+        #
+        # So the safe branch is taken, loudly: drop the foreign override, keep the world's
+        # own endpoint, and say both. The danger being prevented is a twin WRITING to prod;
+        # declining the override removes that danger completely while leaving the process
+        # alive, which a raise does not.
+        try:
+            from core.world import current, owner_of_port
+            if owner_of_port(port) is not None:
+                w = current()
+                try:
+                    w.assert_owns_port(port)
+                except Exception as refusal:
+                    print(f"[world] IGNORING REDIS_PORT={port}: {refusal}")
+                    port = w.redis_port if w.redis_port is not None else port
+        except ImportError:                          # pragma: no cover - import guard
+            pass
     return host, port
 
 

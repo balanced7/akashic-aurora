@@ -84,6 +84,30 @@ def test_w5_unknown_world_falls_back_to_config_but_says_so(monkeypatch, capsys):
     assert "world" in (warned.out + warned.err).lower()
 
 
+def test_w7_a_foreign_worlds_port_in_the_env_is_declined_not_obeyed(monkeypatch, capsys):
+    """The typo case, and the only path that can aim a twin at another world: a stale
+    REDIS_PORT exported in one shell. The override is dropped, the world's own endpoint
+    stands, and both are said out loud."""
+    rc = _fresh(monkeypatch, AKASHIC_WORLD="alpha", REDIS_PORT="16379")
+    assert rc.DEFAULT_REDIS_PORT == 16381, "a twin obeyed prod's port from the environment"
+    said = capsys.readouterr().out + capsys.readouterr().err
+    assert "16379" in said or "IGNORING" in said
+
+
+def test_w8_declining_never_raises_at_import(monkeypatch):
+    """core/paths.py's rule for this exact position: a helper that throws during import
+    takes down every door that imports it. A stale env var must not brick the twin."""
+    rc = _fresh(monkeypatch, AKASHIC_WORLD="alpha", REDIS_PORT="16380")
+    assert rc.DEFAULT_REDIS_PORT == 16381        # got here at all == it did not raise
+
+
+def test_w9_an_unregistered_port_is_still_obeyed(monkeypatch):
+    """The suite and every ad-hoc probe steer with throwaway ports. A guard that fought
+    them would be disabled within a week, so it fires only on REGISTERED foreign worlds."""
+    rc = _fresh(monkeypatch, AKASHIC_WORLD="alpha", REDIS_PORT="16399")
+    assert rc.DEFAULT_REDIS_PORT == 16399
+
+
 def test_w6_the_endpoint_agrees_with_the_world_object(monkeypatch):
     """Two resolvers that can disagree WILL disagree. Pin them to one answer."""
     for name, port in (("alpha", 16381), ("beta", 16380), ("prod", 16379)):

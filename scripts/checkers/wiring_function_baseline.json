@@ -3,7 +3,7 @@
   "generated_by": "T134, claude",
   "what_this_is": "A frozen CENSUS of public functions in WIRED core/ modules that no production entry point names, taken the day the function-level gate landed. It is a BACKLOG, not an amnesty -- the same contract as EXCEPTIONS in check_wiring.py. A NEW orphan FAILS the gate; these are the ones that already existed. Deliberately NOT annotated with 117 hand-written reasons: inventing a justification per entry would read as 117 considered decisions when it is one measurement. Drain it in slices, with a real reason per slice, and delete entries as they are wired or removed. stale_function_baseline() reports entries that became wired, so this list can shrink -- an exemption list that can only grow stops being a backlog.",
   "how_to_read": "module::function -- see py scripts/checkers/check_wiring.py --functions",
-  "count": 116,
+  "count": 117,
   "entries": [
     "core/comm/bifrost_api.py::council",
     "core/comm/bifrost_api.py::covers",
@@ -120,7 +120,8 @@
     "core/state/session_checkpoint.py::print_recovery_info",
     "core/state/session_checkpoint.py::print_recovery_summary",
     "core/state/session_checkpoint.py::save_checkpoint",
-    "core/trust/registry.py::role_template"
+    "core/trust/registry.py::role_template",
+    "core/world.py::assert_may_write"
   ],
   "history": [
     {
@@ -150,6 +151,11 @@
         "core/signals/coordinator_api.py::get_startup_learnings",
         "core/signals/coordinator_api.py::request_handoff"
       ]
+    },
+    {
+      "date": "2026-08-14",
+      "change": "116 -> 117",
+      "why": "W156: core/world.py::assert_may_write is DELIBERATELY unwired -- the write-side half of the world guard. Plumbing a refusal into some write doors but not all of them buys the feeling of a guard while leaving the holes that matter (gate_at_module_level_hides_dead_capability_inside_it). It ships when the write plane is fenced as its own slice. The other three W156 functions this run flagged were NOT baselined: assert_owns_port was WIRED into redis_connection's env-override path (the only path that can aim a twin at another world), redis_endpoint was WIRED into scripts/seed_world.py, and may_read was DELETED as decoration -- it returned a constant True and made 'reads allowed, writes refused' read as an enforced pair when only the write half ever was. Baselining is the third exit; used once, on purpose."
     }
   ]
 }

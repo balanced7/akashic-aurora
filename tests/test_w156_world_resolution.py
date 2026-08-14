@@ -88,10 +88,16 @@ def test_s2_unknown_root_is_unknown_not_prod(tmp_path):
 def test_s2b_unknown_permits_reads_and_refuses_writes(tmp_path):
     """Honest middle: a fresh clone on a new machine must still be able to boot,
     read and orient -- refusing everything is maddening and gets disabled. Writes
-    are where the damage lives, so writes are what UNKNOWN refuses."""
+    are where the damage lives, so writes are what UNKNOWN refuses.
+
+    There is no `may_read` to assert. It existed, and check_wiring flagged it as a
+    public function nothing calls; it returned a constant True, which made this pair
+    look symmetrically enforced when only the write half ever was. Reading is not a
+    permission here -- it is the absence of a refusal, and the pin says so by
+    resolving without raising."""
     w = W.resolve(root=tmp_path / "mystery", env={})
-    assert w.may_read is True
     assert w.may_write is False
+    assert not hasattr(w, "may_read"), "decoration came back; it is not an enforced half"
 
 
 def test_s2c_the_refusal_teaches_the_one_command_that_fixes_it(tmp_path):

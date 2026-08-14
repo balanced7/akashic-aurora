@@ -23,9 +23,11 @@ from core.world import WORLDS                                   # noqa: E402
 
 
 def _client(world: str):
-    w = WORLDS[world]
-    return redis.Redis(host="localhost", port=w.redis_port, db=w.redis_db,
-                       socket_timeout=15)
+    # redis_endpoint() rather than reading .redis_port: it REFUSES when a world cannot say
+    # where it lives, so an unresolved world fails here with a remedy instead of silently
+    # producing a client pointed at None.
+    host, port, db = WORLDS[world].redis_endpoint()
+    return redis.Redis(host=host, port=port, db=db, socket_timeout=15)
 
 
 def main() -> int:
