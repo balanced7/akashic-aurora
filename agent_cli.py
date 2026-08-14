@@ -1480,6 +1480,35 @@ def _boot_you_line(agent_id: str) -> str:
         return "# YOU: wakeability UNKNOWN (probe errored -- boot continues)"
 
 
+def _boot_world_line() -> str:
+    """W156: which Aurora this seat is standing in. Empty string in prod, always.
+
+    THE CASE FOR SILENCE IN PROD. Prod is the assumption every seat already holds, so a
+    line saying so is noise in the one place the header is most contested. Silence also
+    means this organ costs the T022 head-16 contract exactly nothing.
+
+    THE CASE FOR SHOUTING IN A TWIN. A twin is SEEDED from prod, so its boot renders
+    prod's directive, prod's ledger, prod's notes and prod's 828 lessons -- every
+    orientation line is inherited and therefore indistinguishable from the real thing.
+    That is precisely what makes the twin useful and precisely what makes it dangerous
+    to read. Without this line a seat cannot tell which institution it is looking at,
+    and neither can the human reading over its shoulder.
+    """
+    try:
+        from core.world import current
+        w = current()
+    except Exception:
+        return ""
+    if w.name == "prod":
+        return ""
+    if w.name == "unknown":
+        return (f"# WORLD: UNKNOWN -- {w.why}. Writes are REFUSED until this checkout "
+                f"declares itself: echo alpha > .aurora-world")
+    return (f"# WORLD: {w.name.upper()} -- NOT prod. redis {w.redis_port} | ui {w.ui_port} "
+            f"| resolved by {w.source} ({w.why}). Memory here was SEEDED from prod and has "
+            f"diverged since; a lesson you read may have been learned in another institution.")
+
+
 def _boot_save_line(agent_id: str, notes) -> str:
     """W152: the seat's newest PERSONAL SAVE, with its restore drill inline.
 
@@ -2020,6 +2049,18 @@ def _orientation_header(agent_id: str, primer_aware: bool = False) -> str:
                 lines.extend(f"#   {b}" for b in bullets[:6])
         except Exception:
             pass
+    try:   # W156: which Aurora this seat is standing in. SILENT IN PROD by design -- prod
+        # is what everyone already assumes, so a line there would be pure noise, and saying
+        # nothing costs the head-16 contract nothing. In a twin it is the single fact whose
+        # absence makes every other line ambiguous: seeded from prod, alpha's boot renders
+        # prod's directive, prod's ledger and prod's lessons, so without this line a seat
+        # cannot tell which institution it is reading. Presence, not primacy
+        # (new_boot_organ_must_not_spend_head16).
+        _wl = _boot_world_line()
+        if _wl:
+            lines.append(_wl)
+    except Exception:
+        pass
     # C1 stance block, placed here for the SAME reason LIVE CONSTRAINTS is: the four
     # cold-start questions own the head-16 (T022 contract). First placement put stance
     # ahead of the map and pushed "RULE: DONE is closed" out of the window -- the P2 gate

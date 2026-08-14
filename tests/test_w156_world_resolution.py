@@ -242,6 +242,52 @@ def test_s7_isolation_survives_a_byte_identical_config(tmp_path):
     assert W.resolve(root=a, env={}).redis_port != W.resolve(root=p, env={}).redis_port
 
 
+# --------------------------------------------------------------------------
+# S9 -- the boot line: silent in prod, loud in a twin
+# --------------------------------------------------------------------------
+
+def _world_line(monkeypatch, world):
+    import agent_cli
+    from core import world as _w
+    monkeypatch.setenv("AKASHIC_WORLD", world)
+    monkeypatch.setattr(_w, "_cached", None, raising=False)
+    return agent_cli._boot_world_line()
+
+
+def test_s9_silent_in_prod(monkeypatch):
+    """The no-regression pin, and the reason this organ costs the T022 head-16 contract
+    nothing: prod is what every seat already assumes, so saying it is pure noise in the
+    one place the header is most contested."""
+    assert _world_line(monkeypatch, "prod") == ""
+
+
+def test_s9b_loud_in_a_twin(monkeypatch):
+    for name, port in (("alpha", "16381"), ("beta", "16380")):
+        line = _world_line(monkeypatch, name)
+        assert line.startswith("# WORLD:")
+        assert name.upper() in line and "NOT prod" in line
+        assert port in line
+
+
+def test_s9c_the_twin_line_warns_that_memory_was_INHERITED(monkeypatch):
+    """The fact that makes a twin dangerous to read: it was SEEDED from prod, so its boot
+    renders prod's directive, prod's ledger and prod's lessons. Every orientation line is
+    inherited and therefore indistinguishable from the real thing unless this says so."""
+    line = _world_line(monkeypatch, "alpha")
+    assert "SEEDED" in line and "diverged" in line
+
+
+def test_s9d_unknown_says_writes_are_refused_and_how_to_fix_it(monkeypatch):
+    line = _world_line(monkeypatch, "not-a-world")
+    assert "UNKNOWN" in line and "REFUSED" in line and ".aurora-world" in line
+
+
+def test_s9e_the_line_is_exactly_one_line(monkeypatch):
+    """W146/S7 family: a header organ that emits a newline fractures the head format."""
+    for name in ("alpha", "beta", "not-a-world"):
+        assert "\n" not in _world_line(monkeypatch, name)
+
+
 def test_s8_resolution_reports_its_own_provenance(tmp_path):
     """Every resolution says HOW it decided. A world that cannot be asked why it
     thinks it is prod is exactly the Glenn Stevens this slice was named after."""
