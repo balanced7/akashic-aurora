@@ -52,7 +52,7 @@ SEVERITY_ORDER = {"alarm": 0, "report": 1, "unknown": 2, "silent": 3}
 
 
 @dataclass(frozen=True)
-class Verdict:
+class PlaneVerdict:
     expected: bool
     severity: str          # alarm | report | unknown | silent
     why: str
@@ -63,7 +63,7 @@ class PlaneRow:
     prefix: str
     n_source: int
     n_target: int
-    verdict: Verdict
+    verdict: PlaneVerdict
 
     @property
     def identical(self) -> bool:
@@ -78,7 +78,7 @@ LOCAL_LIFE_SHARE = 0.05
 
 def classify(prefix: str, present_in_target: bool,
              manifest: Optional[Dict],
-             n_source: int = 0, n_target: int = 0) -> Verdict:
+             n_source: int = 0, n_target: int = 0) -> PlaneVerdict:
     """Is this prefix's state between two worlds expected, or news?
 
     `present_in_target` rather than a count on purpose: the question the manifest can
@@ -87,7 +87,7 @@ def classify(prefix: str, present_in_target: bool,
     needs no oracle to interpret.
     """
     if not manifest:
-        return Verdict(False, "unknown",
+        return PlaneVerdict(False, "unknown",
                        "no seed manifest in the target world, so nothing can vouch for "
                        "what SHOULD differ here -- run scripts/seed_world.py, or read this "
                        "row as raw difference and judge it yourself")
@@ -97,7 +97,7 @@ def classify(prefix: str, present_in_target: bool,
 
     if prefix in refused:
         if not present_in_target:
-            return Verdict(True, "silent",
+            return PlaneVerdict(True, "silent",
                            f"refused by the seed ({refused[prefix][:60]}) and correctly absent")
         # PRESENCE ALONE IS NOT THE SIGNAL, and assuming it was made this tool cry wolf on
         # its second world within minutes of shipping. A LIVE twin necessarily writes its
@@ -113,12 +113,12 @@ def classify(prefix: str, present_in_target: bool,
         # the source's whole population. Local life was 2 keys against 8,281 (0.02%).
         share = (n_target / n_source) if n_source else 1.0
         if share < LOCAL_LIFE_SHARE:
-            return Verdict(False, "report",
+            return PlaneVerdict(False, "report",
                            f"refused by the seed, and {n_target} key(s) present against the "
                            f"source's {n_source:,} ({share:.1%}) -- consistent with this "
                            f"twin's OWN activity since seeding, not a bulk import. Worth "
                            f"knowing, not worth alarm")
-        return Verdict(False, "alarm",
+        return PlaneVerdict(False, "alarm",
                        f"REFUSED by the seed but holding {share:.0%} of the source's "
                        f"population ({n_target:,} of {n_source:,}) -- that is a BULK IMPORT, "
                        f"so something wrote around the seeding door (a full-fidelity restore "
@@ -127,14 +127,14 @@ def classify(prefix: str, present_in_target: bool,
 
     if prefix in carried:
         if present_in_target:
-            return Verdict(False, "report",
+            return PlaneVerdict(False, "report",
                            "carried by the seed; two institutions drifting apart on a "
                            "shared plane is the normal condition, shown so it stays visible")
-        return Verdict(False, "alarm",
+        return PlaneVerdict(False, "alarm",
                        "carried by the seed but now entirely ABSENT -- the twin lost a "
                        "plane it was given")
 
-    return Verdict(False, "report",
+    return PlaneVerdict(False, "report",
                    "not named in the seed manifest (it postdates the seed, or arrived by "
                    "another door), so the manifest cannot vouch for it either way")
 
