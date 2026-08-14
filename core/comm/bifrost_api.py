@@ -30,10 +30,24 @@ _log = logging.getLogger("bifrost")
 def classify_straggler(sha, lane_has) -> str:
     """Is this legacy packet a failed lane WRITE, or just cursor SKEW? (W166)
 
-    MEASURED on prod 2026-08-14 by comparing content hashes across the whole history:
-    191 shas on the work lane, 192 on legacy, exactly ONE present on legacy and absent from
-    work. That one is the only true failed lane write in the entire record -- and a single
-    drain had just reported TEN.
+    MEASURED on prod 2026-08-14, and the measurement took three attempts because the first
+    two were measuring the wrong thing. The number that stands, taken through THIS module's
+    own _dedup_key and _work_lane_shas AND its own R12 population filter:
+
+        50 peeked legacy packets
+        45 work-lane ELIGIBLE (R12 excludes trace/sig-routed kinds)
+        45 cursor-skew, 0 lane-write-failed
+
+    A drain over that same traffic reported "14 LEGACY STRAGGLER(S) -- lane write failed
+    upstream". Zero of them were.
+
+    The two discarded attempts are recorded because each was wrong in an instructive way.
+    A hand-rolled version that read raw stream fields and built its own dedup tuples said
+    0/60 -- right answer, mirrored detector, so it was not evidence. Redoing it through this
+    module's predicate but NOT its population filter said 5 failed writes, all from conductor
+    six days earlier with kinds ledger_update and resolved -- and lane_for() routes both to
+    'trace', so the real filter would never have looked at them. Borrowing a detector's
+    predicate without its population manufactures defects it would never claim.
 
     The old test was "not in `seen`", where `seen` holds the dedup keys of THIS batch's work
     read. The two lanes are read from independently-positioned cursors (measured skew that
