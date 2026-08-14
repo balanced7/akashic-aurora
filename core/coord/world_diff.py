@@ -70,8 +70,15 @@ class PlaneRow:
         return self.n_source == self.n_target
 
 
+#: Below this share of the source's population, a refused plane reads as the twin's OWN
+#: activity rather than a bulk import. Deliberately generous: the case worth shouting about
+#: was 7,870 keys against 8,276 (95%), and the case worth staying quiet about was 2 (0.02%).
+LOCAL_LIFE_SHARE = 0.05
+
+
 def classify(prefix: str, present_in_target: bool,
-             manifest: Optional[Dict]) -> Verdict:
+             manifest: Optional[Dict],
+             n_source: int = 0, n_target: int = 0) -> Verdict:
     """Is this prefix's state between two worlds expected, or news?
 
     `present_in_target` rather than a count on purpose: the question the manifest can
@@ -92,10 +99,31 @@ def classify(prefix: str, present_in_target: bool,
         if not present_in_target:
             return Verdict(True, "silent",
                            f"refused by the seed ({refused[prefix][:60]}) and correctly absent")
+        # PRESENCE ALONE IS NOT THE SIGNAL, and assuming it was made this tool cry wolf on
+        # its second world within minutes of shipping. A LIVE twin necessarily writes its
+        # own transport -- booting one seat in beta created bifrost:seatseen:<its own sid>
+        # and a handful of events. That is the twin having a life, which is the entire point
+        # of standing it up, and flagging it would train the reader to ignore the alarm.
+        #
+        # Nor is key-name overlap the signal: structural names like `events:raw` exist in
+        # both worlds independently because they are the same SCHEMA, not the same DATA.
+        #
+        # What actually distinguishes the two is PROPORTION. The contamination worth
+        # shouting about was 7,870 keys against prod's 8,276 (95%) -- a bulk import wearing
+        # the source's whole population. Local life was 2 keys against 8,281 (0.02%).
+        share = (n_target / n_source) if n_source else 1.0
+        if share < LOCAL_LIFE_SHARE:
+            return Verdict(False, "report",
+                           f"refused by the seed, and {n_target} key(s) present against the "
+                           f"source's {n_source:,} ({share:.1%}) -- consistent with this "
+                           f"twin's OWN activity since seeding, not a bulk import. Worth "
+                           f"knowing, not worth alarm")
         return Verdict(False, "alarm",
-                       f"REFUSED by the seed but PRESENT anyway -- something wrote around "
-                       f"the seeding door (a full-fidelity restore does exactly this). "
-                       f"Agreement with the source on a refused plane is the bug, not the fix")
+                       f"REFUSED by the seed but holding {share:.0%} of the source's "
+                       f"population ({n_target:,} of {n_source:,}) -- that is a BULK IMPORT, "
+                       f"so something wrote around the seeding door (a full-fidelity restore "
+                       f"does exactly this). Agreement with the source on a refused plane is "
+                       f"the bug, not the fix")
 
     if prefix in carried:
         if present_in_target:

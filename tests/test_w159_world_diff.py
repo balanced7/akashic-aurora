@@ -53,14 +53,36 @@ def test_o1_a_refused_prefix_absent_in_the_target_is_EXPECTED():
     assert v.severity == "silent"
 
 
-def test_o2_a_refused_prefix_PRESENT_in_the_target_is_the_loudest_finding():
+def test_o2_a_BULK_import_into_a_refused_plane_is_the_loudest_finding():
     """The restore-contamination case, 2026-08-14: a full-fidelity restore into a twin
-    imported 7,870 bifrost:* keys the seed refuses, and nothing noticed. Absence is the
-    contract; presence means some other door wrote around it."""
-    v = WD.classify("bifrost:", present_in_target=True, manifest=_manifest())
+    imported 7,870 bifrost:* keys against prod's 8,276, and nothing noticed."""
+    v = WD.classify("bifrost:", present_in_target=True, manifest=_manifest(),
+                    n_source=8276, n_target=7870)
     assert v.expected is False
     assert v.severity == "alarm"
-    assert "bypass" in v.why.lower() or "refused" in v.why.lower()
+    assert "bulk" in v.why.lower()
+
+
+def test_o2b_a_LIVE_twins_own_transport_is_not_an_alarm():
+    """FOUND BY RUNNING IT on the second world. Presence alone was the original rule, and
+    it cried wolf within minutes: booting one seat in beta created bifrost:seatseen:<its
+    own sid> and a handful of events -- the twin having a life, which is the whole point of
+    standing it up. An alarm that fires on normal operation trains the reader to ignore it,
+    which is the same argument that shaped last night's env guard."""
+    v = WD.classify("bifrost:", present_in_target=True, manifest=_manifest(),
+                    n_source=8281, n_target=2)
+    assert v.severity == "report"
+    assert "own activity" in v.why.lower()
+
+
+def test_o2c_name_overlap_is_NOT_the_discriminator():
+    """Recorded as a pin because it was my second wrong theory. Structural key names like
+    events:raw exist in BOTH worlds independently -- same schema, not same data -- so an
+    overlap test would have flagged a clean twin just as loudly. Proportion is the signal;
+    this pin exists so nobody re-derives the overlap idea and 'fixes' it back."""
+    clean = WD.classify("events:", True, _manifest(), n_source=4884, n_target=4)
+    dirty = WD.classify("events:", True, _manifest(), n_source=4884, n_target=4700)
+    assert clean.severity == "report" and dirty.severity == "alarm"
 
 
 def test_o3_a_carried_prefix_that_differs_is_ordinary_divergence():
