@@ -32,6 +32,7 @@ ENTRY_POINTS = [
     # MEANS (it would surface every pre-existing script-only module at once). Widening a
     # gate is a gate decision, not a midnight one. Filed for Daniil's call.
     "scripts/seed_world.py",
+    "scripts/world_diff.py",   # W159: the at-a-glance world comparison, argparse + __main__
 ]
 
 # EVERY seat runner, enumerated rather than listed by hand (2026-08-01). The hand-written list
