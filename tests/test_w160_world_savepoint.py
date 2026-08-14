@@ -160,3 +160,16 @@ def test_s6_a_savepoint_never_crosses_worlds(tmp_path):
                              tree_dirty=0, into_world="beta")
     assert ok is False
     assert "alpha" in why and "beta" in why
+
+
+def test_x1_a_savepoint_carries_the_drill_that_restores_it_without_this_tool():
+    """PROVEN NECESSARY BY DRILL: rewinding alpha five commits deleted
+    scripts/world_savepoint.py -- the restore tool rewound itself out of existence. The
+    savepoint DATA survived (untracked, like .aurora-world); the CODE did not. Same law as
+    the one that opened this arc: the thing that recovers you must not be subject to the
+    damage."""
+    sp = _sp(sha="12b97a31", snapshot="20260814_084728")
+    drill = sp.recovery
+    assert "git checkout 12b97a31" in drill
+    assert "20260814_084728" in drill
+    assert "world_savepoint" not in drill, "the drill must not depend on the tool it recovers"

@@ -93,6 +93,7 @@ def cmd_save(label: str) -> int:
                       saved_at=datetime.now(timezone.utc).isoformat(timespec="seconds"))
     SP.append(STORE, sp)
     print(f"[savepoint] {sp.render()}")
+    print(f"  recover without this tool:  {sp.recovery}")
     if not sp.complete:
         print(f"  PARTIAL: {sp.caveat}")
     elif sp.note:
@@ -110,6 +111,7 @@ def cmd_list() -> int:
     for p in points:
         alive = "" if _snapshot_exists(p.knowledge_snapshot or "") else "   [MEMORY PRUNED]"
         print(f"  {p.render()}{alive}")
+        print(f"      recover: {p.recovery}")
     return 0
 
 
