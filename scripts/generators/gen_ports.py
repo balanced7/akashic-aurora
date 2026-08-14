@@ -54,8 +54,15 @@ def render() -> str:
         L.append(f"{lo}-{hi}   {world.upper()}")
     L.append("```")
     L.append("")
-    L.append("Redis mirrors the same worlds: "
-             f"`{config.REDIS_PORT}` prod · `{config.REDIS_PORT_SANDBOX}` sandbox · "
+    # W156: derived from the registry rather than named by hand -- the prose was the half
+    # of this generator that could still drift, and it did: it said "sandbox" after the
+    # world was renamed and knew about only two of the three Redis worlds.
+    _redis = " · ".join(
+        f"`{p}` {e['world']}"
+        for p, e in sorted(config.PORT_REGISTRY.items())
+        if e.get("bound_by") == "container" and "knowledge store" in e.get("what", "")
+        or (p in (config.REDIS_PORT, config.REDIS_PORT_BETA, config.REDIS_PORT_ALPHA)))
+    L.append(f"Redis mirrors the same worlds: {_redis} · "
              "**db 15** on prod = test isolation")
     L.append("(tests never need their own Redis port — they use a separate logical DB).")
     L.append("")
@@ -90,7 +97,8 @@ def render() -> str:
              "`config.allocate_test_ui_port(offset)`, which raises if you escape the band.")
     L.append(f"2. **{config.PORT_UI_RESERVED} is not the console.** It is reserved prod-aux. "
              f"The console is `config.PORT_UI` ({config.PORT_UI}).")
-    L.append(f"3. **Tests never bind {config.PORT_UI} or {config.PORT_UI_SANDBOX}.** A test UI "
+    L.append(f"3. **Tests never bind {config.PORT_UI}, {config.PORT_UI_BETA} or "
+             f"{config.PORT_UI_ALPHA}.** A test UI "
              f"lives in [{config.PORT_TEST_UI_BASE}, {config.PORT_TEST_UI_MAX}]; test data "
              f"lives in Redis db 15.")
     L.append("4. **A new port goes in `config.PORT_REGISTRY` with an owner** — "
