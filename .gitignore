@@ -151,3 +151,8 @@ artifacts/ui/*.png
 # answer_keys_never_enter_retrieval_planes) -- untracked by rule, sha256 in the commit instead.
 state/canary/
 *.canary-key.json
+
+# W156: which world this checkout IS. Untracked BY DESIGN -- the July 2026 sandbox put its
+# isolation in tracked config.py and could therefore never be refreshed from prod without
+# surrendering the isolation. See core/world.py.
+.aurora-world

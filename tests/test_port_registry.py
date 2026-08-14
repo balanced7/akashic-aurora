@@ -84,8 +84,16 @@ def test_p3_the_canonical_app_ports_survive_verbatim():
     reg = config.PORT_REGISTRY
     assert reg.get(config.PORT_UI, {}).get("world") == "prod"
     assert reg.get(config.REDIS_PORT, {}).get("world") == "prod"
-    assert reg.get(config.PORT_UI_SANDBOX, {}).get("world") == "sandbox"
-    assert reg.get(config.REDIS_PORT_SANDBOX, {}).get("world") == "sandbox"
+    # W156 (2026-08-14): the "sandbox" world was RENAMED "beta" when it gained a sibling
+    # ("alpha"), because "sandbox" names a role and stops discriminating once there are two
+    # of them. The PORTS are untouched -- 8790/16380 are the same ports on the same band --
+    # so this pin's intent ("must not redesign the bands") still holds. The old CONSTANT
+    # names survive as aliases so no caller broke; that is asserted below rather than
+    # assumed, because an alias nobody checks is how a rename quietly becomes a fork.
+    assert reg.get(config.PORT_UI_BETA, {}).get("world") == "beta"
+    assert reg.get(config.REDIS_PORT_BETA, {}).get("world") == "beta"
+    assert config.PORT_UI_SANDBOX == config.PORT_UI_BETA == 8790
+    assert config.REDIS_PORT_SANDBOX == config.REDIS_PORT_BETA == 16380
 
 
 # ------------------------------------------------------------------ the checker's contract

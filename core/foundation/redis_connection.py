@@ -69,6 +69,26 @@ def _resolve_default_redis_endpoint() -> Tuple[str, int]:
         from config import REDIS_HOST as host, REDIS_PORT as port
     except Exception:
         host, port = "localhost", 6380
+
+    # W156 (2026-08-14): the port is a property of the WORLD this checkout is, not of
+    # a tracked constant. Measured that morning: a clean clone at E:/AI-Setup-Alpha
+    # resolved its own repo root correctly and still dialled 16379 -- prod, 19,850 live
+    # keys. A clone of Aurora was a second BODY on the SAME BRAIN. config stays the
+    # fallback so an UNKNOWN checkout still reads; env still wins below, because the
+    # suite and every ad-hoc probe steer with REDIS_PORT and demoting that would break
+    # test isolation in order to add world isolation.
+    try:
+        from core.world import current as _world
+        w = _world()
+        if w.redis_port is not None:
+            port = w.redis_port
+        else:
+            # Loud, never silent: silence here is the original defect in a new coat.
+            print(f"[world] UNKNOWN checkout -- {w.why}; falling back to config "
+                  f"REDIS_PORT={port}. Declare it: echo alpha > .aurora-world")
+    except Exception as exc:                     # pragma: no cover - import guard
+        print(f"[world] unresolved ({exc.__class__.__name__}); using config REDIS_PORT={port}")
+
     env_host, env_port = os.getenv("REDIS_HOST"), os.getenv("REDIS_PORT")
     if env_host:
         host = env_host
