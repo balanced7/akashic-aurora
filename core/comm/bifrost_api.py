@@ -301,12 +301,25 @@ class BifrostAPI:
                     # the recurrence engine: the reader believes it and re-arms instead of
                     # draining. 5 identical arms 2026-07-31, 6 on 2026-07-25.
                     # Name the lane we PEEK -- it is not the lane the operator armed.
+                    # W167: SAY WHAT IS WORKING, not only what will not help. The warning
+                    # below is true and it was still read as "this seat is broken" by three
+                    # seats in one day (and by 5 arms on 2026-07-31, 6 on 2026-07-25 -- the
+                    # counts this comment already carried). Each concluded the watcher was
+                    # dead and stopped arming. It is not: this seeds ONCE, returns these
+                    # messages to the caller, and the loop then blocks correctly for the rest
+                    # of the process -- which is why the arm that prints this goes on to fire
+                    # on real mail or to end with a planned "deadline self-cycle".
+                    #
+                    # A line that states only the failure half of a true statement gets read
+                    # as total failure. That is the same defect class as the straggler alarm
+                    # (W166) and it cost the same currency: other people's attention.
                     _log.warning(
-                        "wake: seeded the lane cursor over %d undrainable wake-worthy "
-                        "message(s) (kinds: %s). This seed is per-process and does NOT carry to "
-                        "the next arm -- if you see this line again, the pending set is not "
-                        "clearing and re-arming will not help. Detection PEEKS the legacy lane "
-                        "(not the lane you armed), so drain that one: "
+                        "wake: ARMED and watching. Seeded the lane cursor past %d already-seen "
+                        "wake-worthy message(s) (kinds: %s) -- this arm is live and will fire on "
+                        "new mail. The seed is per-process and does NOT carry to the next arm, so "
+                        "if you see this line again the pending set is not clearing and RE-ARMING "
+                        "WILL NOT REDUCE IT (the watcher is fine either way). Detection PEEKS the "
+                        "legacy lane, not the lane you armed, so drain that one: "
                         "BIFROST_CONSUME_LANE=legacy py agent_cli.py bifrost-sync %s --consume",
                         len(live),
                         ",".join(sorted({str(getattr(m, "kind", "?")) for m in live})),
