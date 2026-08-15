@@ -79,15 +79,17 @@
 - `turn_metrics.py` — Turn metrics (progress-bars data half; co-designed claude+deepseek 2026-07-11).
 - `wake_seat.py` — wake_seat -- the per-session wake-seat protocol (T029 Wave 2, the R1/R16 fix).
 
-## core/coord/  (20 modules)
+## core/coord/  (23 modules)
 - `capability_search.py` — capability_search -- "does this system already do X?", asked at the level of MEANING.
 - `cognitive_metrics.py` — Cognitive Efficiency Metrics — live instrumentation for the Stage-3 evidence engine.
 - `compare.py` — compare -- the cross-domain set difference, with a name (T213).
 - `conductor.py` — Conductor — the impure orchestration shell over the pure task ledger (Slice D).
+- `dawe_census.py` — dawe_census -- which verbs are structurally UNVERIFIABLE, not which verbs are bad.
 - `defer_queue.py` — defer_queue — the capability-gated standing queue (W33, seat-zero wave B3).
 - `experiment.py` — Coordination experiment harness -- the Stage-3 evidence engine.
 - `fence_workspace.py` — Fence workspace (R2 / T053) -- the fence as a first-class object, not a naming convention.
 - `intent.py` — Intent declaration -- Policy 0 of the coordination layer.
+- `lens_ledger.py` — lens_ledger -- score fan lenses by what SURVIVED, not by whether the model replied.
 - `method_drift.py` — method_drift -- the one method number that reaches a channel people actually read.
 - `metrics.py` — Solution-Space-Shrinkage Tracker — the Metric C cross-run watchdog.
 - `negotiation.py` — Negotiation round — brief window after user input where agents declare plans.
@@ -99,6 +101,7 @@
 - `terms.py` — terms -- the vocabulary a codebase TALKS ABOUT, as a comparable set (T214).
 - `timeline.py` — timeline -- one chronological SET across domains (T211).
 - `world_diff.py` — world_diff -- what differs between two worlds, MINUS what should differ.
+- `world_fidelity.py` — world_fidelity -- what a twin CAN and CANNOT do, said out loud before it is discovered.
 - `world_savepoint.py` — world_savepoint -- a world's two planes under one name, or neither.
 
 ## core/learning/  (5 modules)
@@ -251,6 +254,7 @@
 - `canary_oracle.py` — The canary oracle -- the control that separates "the system improved" from "the attackers tired".
 - `capture_apple_hig.py` — capture_apple_hig.py — harvest Apple HIG component sub-sections into refs/design-inspiration.
 - `corpus_digests.py` — corpus_digests -- land structured corpus digests as a durable, queryable dataset.
+- `dawe_census.py` — Which verbs are shaped so that nobody outside them can check whether they answer.
 - `deepseek_chat.py` — deepseek_chat -- an interactive, TOOL-USING conversation with DeepSeek, in its own window.
 - `enrich_corpus.py` — A3 migration pipeline: the ~900-file corpus -> enriched atoms, verified, gated.
 - `gemini_chat.py` — gemini_chat -- the gemini seat's model transport: gemini-1.5-pro as a first-class Akashic citizen.
@@ -258,6 +262,7 @@
 - `harmonize_knowledge.py` — harmonize_knowledge.py — one-time knowledge-store harmonization (2026-06-20)
 - `kimi_chat.py` — kimi_chat -- the Kimi seat's model transport: kimi-k3 (Moonshot) as a first-class Akashic citizen.
 - `kimi_walk_narrator.py` — kimi_walk_narrator -- stream kimi's FULL REASONING from its Claude-Code session transcript
+- `lens_ledger.py` — Score fan lenses by what survived, and recommend which to run next.
 - `mcp_register.py` — T081-W2: make the akashic-aurora MCP door attach from ANY launch cwd.
 - `migrate_time_scores.py` — One-time migration (S5): re-score the persisted time-zsets with the unified `to_epoch`.
 - `mirror.py` — mirror.py -- commit local changes and push to GitHub in one step.
@@ -282,5 +287,6 @@
 - `wire_journal.py` — The API wire journal -- Wireshark-grade forensics for our own model traffic (T156 WIRE-A).
 - `worktree.py` — worktree.py -- per-agent git worktrees (Concurrency design C1).
 - `world_diff.py` — What differs between two worlds, minus what should differ.
+- `world_fidelity.py` — What this checkout can and cannot do, before you find out by failing.
 - `world_savepoint.py` — A world's restore point: code and memory under one name.
 - `yt_captions.py` — yt_captions -- YouTube captions to clean readable text (the W154 `captions` verb).

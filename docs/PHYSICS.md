@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 962a5f7a. A bound you discover by collision is not awareness -- this sheet
+> Derived at c86c46bd. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (203 names)
+## Configuration flags (204 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -60,6 +60,7 @@ Class: reference
 | `AKASHIC_LANE_STALL_WARN_S` | `"3600"` | core/comm/doctor.py |
 | `AKASHIC_LEARN_NUDGE` | `"1"` | agent/harness/nudge.py |
 | `AKASHIC_LEARN_NUDGE_CAP` | `"3"` | agent/harness/nudge.py |
+| `AKASHIC_LENS_LEDGER` | `""` | core/coord/lens_ledger.py |
 | `AKASHIC_LOOKBACK_NO_COUNT` | `` | core/recall/lookback.py |
 | `AKASHIC_MAILBOX` | `"1"` | core/comm/mailbox.py |
 | `AKASHIC_MCP_DIAG` | `` | ai_setup_mcp.py |
@@ -217,7 +218,7 @@ Class: reference
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 
-## Mechanical bounds (113 numeric constants)
+## Mechanical bounds (115 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -268,6 +269,7 @@ Class: reference
 | `HINT_TTL_SECONDS` | 300 | core/comm/context_hints.py | 5 min soft expiry (stale hints silently dropped by drain) |
 | `HISTORY_CAP` | 200 | core/comm/turn_metrics.py |  |
 | `IMPLAUSIBLE_MIN_N` | 5 | core/coord/sift.py | below this, a high rate is small-n noise, not an alarm |
+| `LANE_MEMBERSHIP_WINDOW` | 500 | core/comm/bifrost_api.py |  |
 | `LINE_BUDGET` | 120 | core/coord/task_costs.py |  |
 | `MAX_BODY` | 240 | core/toolbelt/contest.py | a second voice is shorter than the first; chorus, not solo. |
 | `MAX_BODY` | 400 | core/toolbelt/toast.py | gratitude is short; the leaderboard guard is distinct-users love |
@@ -284,6 +286,7 @@ Class: reference
 | `MIN_BEATS` | 2 | core/narrative/episode_suggester.py | a thin episode has nothing worth bookending |
 | `MIN_N` | 3 | core/comm/turn_metrics.py |  |
 | `MIN_SPAN_S` | 300 | core/narrative/episode_suggester.py | a just-opened episode never suggests (anti rapid-fire after each close) |
+| `MIN_VERIFIED` | 5 | core/coord/lens_ledger.py |  |
 | `MIN_WITHIN_S` | 30 | core/comm/expectations.py | clamp floor: sub-30s reply deadlines on a turn-based bus are noise |
 | `NUDGE_TTL` | 120 | core/comm/nudge.py | a nudge auto-expires so a missed pick-up never sticks |
 | `OUTCOME_MAXLEN` | 20,000 | core/recall/at_action.py |  |
