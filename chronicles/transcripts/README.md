@@ -1,32 +1,50 @@
-# chronicles/transcripts/ — durable session-transcript copies
+# chronicles/transcripts/ — NOT a commit plane
 
-Full-fidelity session transcripts, persisted at the operator's request, redacted before
-commit. The harness originals live under `~/.claude/projects/<project>/<session>.jsonl` and
-are runtime state (gitignored dirs like `sessions/`, `session_snapshots/` do NOT persist to
-git) — this directory is the repo-durable plane.
+**Session transcripts are never committed to this repo (Daniel's call, 2026-08-15).**
+`.gitignore` enforces it: `chronicles/transcripts/*.jsonl`. Local copies may sit here; git
+does not carry them.
 
-**Redaction spec (Daniil, 2026-08-11): "the entire transcript minus api keys or max's
-personal data."** Classes: API keys/fragments (`priorish_KEY-REDACTED`, `KEYFRAG-REDACTED`,
-`pk_live_REDACTED`), personal data (`SURNAME-REDACTED`, `BIO-REDACTED`, `EDU-REDACTED`,
-`ROLE-REDACTED`, `PHONE-REDACTED`). Unredacted source-of-truth for the personal context
-remains in the private store notes; only these public-repo copies are scrubbed.
+## Where transcripts actually live
 
-**Integrity guarantees per copy:** line counts match the source at capture time; every
-redacted line re-parses as JSON; a fragment-built forbidden-pattern scan reports zero leaks;
-a per-substitution audit log with context is reviewed before commit (137 substitutions,
-zero damaging false positives on the first entry below). Pipeline:
-`persist_session.py` (kept in the session scratchpad; fragment-built needles so the script's
-own text in the transcript never re-plants what it hunts — the v1 detector famously caught
-its own needle list).
+| Plane | Path | State |
+|---|---|---|
+| Harness original | `~/.claude/projects/<project>/<session>.jsonl` | runtime, rotates off disk silently |
+| Durable archive | `E:\Akashic Aurora\transcripts\rolling` + `F:\...` | UNREDACTED, off-repo, two physical disks |
 
-**Reading a transcript:** entries are JSONL. Operator speech lives in `type=="user"` AND
-`type=="queue-operation"` records (lesson: `operator_speech_hides_in_queue_operation_records`);
-assistant thinking and tool calls ride `type=="assistant"` messages. A copy captures through
-its run timestamp — turns after capture live only in the harness original.
+`scripts/ops/archive_transcripts.py` owns the archive. It is additive-only, refuses a
+shrinking source, and is loud on failure — read its docstring before touching it. Durability
+is fully covered there. This directory never added durability; it only added exposure.
 
-## Index
+## Why the redaction approach was retired
+
+The previous policy was: commit a redacted copy. It was executed carefully — a purpose-built
+`persist_session.py`, fragment-built needles so the script's own text could not re-plant what
+it hunted, per-substitution audit logs, line-count and JSON-reparse integrity checks, and a
+forbidden-pattern scan. The 2026-08-11 entry ran **137 substitutions and reported zero leaks.**
+
+A third party's surname survived it anyway, and was live on public `origin/master` until
+2026-08-15. Two later redaction commits (`d866532a`, `736900cf`) visited the same file and the
+occurrence still survived. **The mechanism is not established** — treat that as an open bug,
+not a closed one, because it defeats the next redaction too.
+
+The lesson is not "redact harder". A retroactive denylist can only find what it was told to
+look for, and the string is public before the manifest learns it exists. That is a race the
+leak wins by default. Deleting the plane removes the race.
+
+See lessons `token_redaction_cannot_clean_a_dossier` and
+`redaction_scoped_to_the_tracked_tree_leaves_the_store_reloading_it`.
+
+## Reading a transcript (still true, still useful)
+
+Entries are JSONL. Operator speech lives in `type=="user"` **and** `type=="queue-operation"`
+records — lesson `operator_speech_hides_in_queue_operation_records`. Assistant thinking and
+tool calls ride `type=="assistant"` messages. An archived copy captures through its run
+timestamp; turns after capture live only in the harness original until the next archive run.
+
+## Historical index (files no longer tracked here)
 
 - `20260811_priorish-connectome_af0ca6b8.jsonl` — the priori.sh arc, 2026-08-10/11 night:
   live API+MCP audit, terms clearance, success-vocabulary sweep, hybrid-retrieval fence r1,
-  the idea-connectome stance. Re-entry doc: atom `idea-connectome-stance` (research/in-flight
-  original). Session af0ca6b8, Vandor seat, Daniil present throughout.
+  the idea-connectome stance. Re-entry doc: atom `idea-connectome-stance`. Session af0ca6b8,
+  Vandor seat, Daniil present throughout. Still on public origin **in git history** — removing
+  it from the tree does not remove it from history, and no rewrite has been performed.

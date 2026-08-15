@@ -159,3 +159,12 @@ state/canary/
 
 # W160: this checkout's restore points -- untracked for the same reason .aurora-world is.
 .aurora-savepoints.json
+
+# Session transcripts are NEVER committed to this repo (2026-08-15, Daniel's call).
+# The repo is PUBLIC. The redaction approach that used to guard these copies was a
+# retroactive denylist -- a race the leak wins: the 2026-08-11 pipeline ran 137 audited
+# substitutions and reported "zero leaks", and a third party's surname survived it anyway
+# on origin/master. Durability does not need this plane: scripts/ops/archive_transcripts.py
+# already keeps UNREDACTED copies off-repo on two separate physical disks (E: and F:).
+# Keeping them here duplicated that durability and added the only path by which it leaked.
+chronicles/transcripts/*.jsonl
