@@ -1125,6 +1125,26 @@ def ask_many(prompts, *, system: Optional[str] = None, model: Optional[str] = No
         "warnings_n": sum(1 for b in branches if b.get("warnings")),
         "diversity": diversity,
     })
+    # W168: one ledger row per BRANCH, at outcome `unverified`. The route journal above
+    # records that the fan RAN; this records that each branch's findings have not yet been
+    # checked -- which is what makes the coverage gap real instead of depending on someone
+    # remembering to file it. Nothing here claims a branch was good: `unverified` counts
+    # toward no rate by design (T254), and a verifier upgrades a row to confirmed/refuted
+    # later. Fail-open, exactly like the journal it sits beside.
+    try:
+        from core.coord import lens_ledger as _LL
+        _lens_ids = _LL.lens_identity(list(prompts))
+        _fan_id = f"{int(time.time())}"
+        for _b in branches:
+            _i = _b.get("i", 0)
+            _name = _lens_ids[_i] if _i < len(_lens_ids) else f"branch-{_i}"
+            _LL.record(_LL.ledger_path(_REPO_ROOT),
+                       _LL.LensRun(lens=_name, geometry=str(geometry or ""),
+                                   outcome="unverified", fan_id=_fan_id,
+                                   note=f"ok={_b.get('ok')} partial={_b.get('partial')}"))
+    except Exception:
+        pass
+
     # T244: name WHICH branches were damaged. "the fan was truncated" cannot be acted on when
     # branches no longer share a pack, and a caller who has to walk N branch records to find
     # out is a caller who will not -- measured twice on 2026-08-08, on a notice that existed

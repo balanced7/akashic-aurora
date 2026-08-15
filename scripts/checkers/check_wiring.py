@@ -36,6 +36,7 @@ ENTRY_POINTS = [
     "scripts/world_savepoint.py",   # W160: a world's restore point (code + memory)
     "scripts/world_fidelity.py",    # W163: what a checkout can and cannot do
     "scripts/dawe_census.py",       # W164: verbs whose answer nobody outside can check
+    "scripts/lens_ledger.py",       # W168: score fan lenses by what survived
 ]
 
 # EVERY seat runner, enumerated rather than listed by hand (2026-08-01). The hand-written list
