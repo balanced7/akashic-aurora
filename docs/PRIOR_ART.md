@@ -31,7 +31,7 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 - `core/comm` -- DRIFT (36->53), reviewed 2026-07-26
 - `core/coord` -- DRIFT (11->23), reviewed 2026-07-26
 - `core/learning` -- DRIFT (3->5), reviewed 2026-07-26
-- `core/recall` -- DRIFT (10->13), reviewed 2026-07-26
+- `core/recall` -- DRIFT (10->14), reviewed 2026-07-26
 - `core/primitives` -- DRIFT (7->8), reviewed 2026-07-26
 - `core/trust` -- DRIFT (2->3), reviewed 2026-07-26
 - `core/fleet` -- DRIFT (2->5), reviewed 2026-07-26
@@ -179,7 +179,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `core/recall` -- 13 modules  ·  DRIFT (10->13)
+## `core/recall` -- 14 modules  ·  DRIFT (10->14)
 
 **What it does.** Retrieval over the lesson corpus: at_action (PreToolUse injection), funnel (surface/credit accounting), curator (bench/unbench), forge (lesson content optimisation), anchors, dissent, lookback, knowledge_map.
 
