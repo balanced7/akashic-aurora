@@ -1,3 +1,4 @@
+from pathlib import Path
 """W168 pins: score fan lenses by what SURVIVED, not by whether the model replied.
 
 Daniil asked for this on 2026-08-11 -- the route journal's own docstring says so: "the
@@ -44,7 +45,20 @@ import pytest
 from core.coord import lens_ledger as L
 
 
-def _rec(lens, outcome, fan="f1"):
+_FAN_SEQ = [0]
+
+
+def _rec(lens, outcome, fan=None):
+    """One DISTINCT run per call.
+
+    The first version defaulted every record to fan_id="f1", so `[_rec("A","refuted") for _ in range(10)]`
+    was ten copies of ONE run, not ten runs. That went unnoticed until supersession landed
+    (a run has one outcome; newest wins per fan+lens) and the collapse became visible. The
+    helper was hiding the very distinction the ledger is about, so the pins were asserting
+    over a population that could not exist on disk."""
+    if fan is None:
+        _FAN_SEQ[0] += 1
+        fan = f"f{_FAN_SEQ[0]}"
     return L.LensRun(lens=lens, geometry="lens", outcome=outcome, fan_id=fan, note="")
 
 
@@ -66,7 +80,7 @@ def test_v2_an_unknown_outcome_is_refused_not_coerced():
 
 def test_s1_hit_rate_is_confirmed_over_VERIFIED_not_over_total():
     """The T254 rule. Fifty unverified findings must not dilute two refutations to noise."""
-    runs = [_rec("A", "confirmed"), _rec("A", "refuted")] + [_rec("A", "unverified")] * 50
+    runs = [_rec("A", "confirmed"), _rec("A", "refuted")] + [_rec("A", "unverified") for _ in range(50)]
     s = L.score(runs, min_verified=2)["A"]
     assert s.verified_n == 2
     assert s.hit_rate == 0.5
@@ -84,7 +98,7 @@ def test_s2_below_min_verified_the_rate_is_UNRATED_never_zero():
 def test_s3_an_abstention_is_NOT_a_miss():
     """All five branches abstained honestly on 2026-08-14 rather than fabricate. Counting
     that as failure would train the fleet toward confident invention."""
-    runs = [_rec("A", "abstained")] * 5
+    runs = [_rec("A", "abstained") for _ in range(5)]
     s = L.score(runs, min_verified=1)["A"]
     assert s.hit_rate is None, "abstentions must not produce a rate"
     assert s.abstained_n == 5
@@ -93,13 +107,13 @@ def test_s3_an_abstention_is_NOT_a_miss():
 
 def test_s4_abstentions_are_reported_as_a_SIGNAL_not_hidden():
     """A lens that always abstains is telling you the pack is wrong, not that the lens is."""
-    s = L.score([_rec("A", "abstained")] * 5, min_verified=1)["A"]
+    s = L.score([_rec("A", "abstained") for _ in range(5)], min_verified=1)["A"]
     assert s.abstained_n == 5
     assert s.verdict == "ABSTAINING"
 
 
 def test_s5_a_lens_with_only_unverified_runs_is_UNSCORED_and_says_who_should_check():
-    s = L.score([_rec("A", "unverified")] * 9, min_verified=2)["A"]
+    s = L.score([_rec("A", "unverified") for _ in range(9)], min_verified=2)["A"]
     assert s.verdict == "UNSCORED"
     assert s.hit_rate is None
     assert "verif" in s.why.lower()
@@ -118,7 +132,7 @@ def test_s6_scores_are_per_lens_not_per_fan():
 # ---------------------------------------------------------------- gating
 
 def test_g1_a_proven_loser_is_recommended_for_deprioritising():
-    runs = [_rec("dud", "refuted")] * 6 + [_rec("good", "confirmed")] * 6
+    runs = [_rec("dud", "refuted") for _ in range(6)] + [_rec("good", "confirmed") for _ in range(6)]
     plan = L.gate(L.score(runs, min_verified=3), floor=0.0)
     assert plan["good"] == "run"
     assert plan["dud"] == "deprioritise"
@@ -134,15 +148,15 @@ def test_g2_an_UNRATED_lens_is_never_gated_off():
 def test_g3_the_exploration_floor_keeps_sampling_a_loser():
     """A lens gated to zero can never earn its way back -- the sample that condemned it is
     frozen forever. The floor is what makes the ledger a measurement rather than a verdict."""
-    runs = [_rec("dud", "refuted")] * 10
+    runs = [_rec("dud", "refuted") for _ in range(10)]
     plan = L.gate(L.score(runs, min_verified=3), floor=0.2)
     assert plan["dud"] == "explore"
 
 
 def test_g4_gating_is_a_RECOMMENDATION_and_says_so():
     """instrument_proposes_never_self_ratifies: no lens gets silenced by arithmetic alone."""
-    out = L.render(L.score([_rec("dud", "refuted")] * 6, min_verified=3),
-                   L.gate(L.score([_rec("dud", "refuted")] * 6, min_verified=3), floor=0.0))
+    out = L.render(L.score([_rec("dud", "refuted") for _ in range(6)], min_verified=3),
+                   L.gate(L.score([_rec("dud", "refuted") for _ in range(6)], min_verified=3), floor=0.0))
     assert "recommend" in out.lower()
     assert "not enforced" in out.lower() or "advisory" in out.lower()
 
@@ -152,7 +166,7 @@ def test_g4_gating_is_a_RECOMMENDATION_and_says_so():
 def test_r1_the_render_shows_the_UNVERIFIED_gap_not_only_the_rate():
     """The coverage gap is the honest headline: a ledger of mostly-unchecked findings is a
     ledger that has not earned its numbers."""
-    runs = [_rec("A", "confirmed")] * 2 + [_rec("A", "unverified")] * 20
+    runs = [_rec("A", "confirmed") for _ in range(2)] + [_rec("A", "unverified") for _ in range(20)]
     out = L.render(L.score(runs, min_verified=2), {})
     assert "20" in out
     assert "unverified" in out.lower()
@@ -179,7 +193,7 @@ def test_s7_a_confirmed_finding_outranks_the_abstention_signal():
 def test_s8_ABSTAINING_still_fires_when_NOTHING_was_verified():
     """The signal must survive the fix: a lens that only ever abstained is telling you the
     pack is broken, and that is worth its own verdict."""
-    s = L.score([_rec("A", "abstained")] * 4, min_verified=5)["A"]
+    s = L.score([_rec("A", "abstained") for _ in range(4)], min_verified=5)["A"]
     assert s.verdict == "ABSTAINING"
 
 
@@ -225,3 +239,63 @@ def test_i4_a_single_prompt_still_gets_a_name():
 
 def test_i5_empty_input_is_empty_not_a_crash():
     assert L.lens_identity([]) == []
+
+
+# ---------------------------------------------------------------- supersession
+
+def test_x1_a_later_verdict_SUPERSEDES_the_auto_recorded_placeholder():
+    """FOUND BY USING IT. Fans auto-record `unverified`; verifying a branch then appended
+    `confirmed` beside it, so ONE run counted twice and inflated the very coverage gap the
+    verification had just shrunk. A run has one outcome; the newest wins at read time."""
+    runs = [L.LensRun(lens="A", geometry="lens", outcome="unverified", fan_id="f1"),
+            L.LensRun(lens="A", geometry="lens", outcome="confirmed", fan_id="f1")]
+    s = L.score(runs, min_verified=1)["A"]
+    assert s.runs_n == 1, "the same run was counted twice"
+    assert s.confirmed_n == 1 and s.unverified_n == 0
+
+
+def test_x2_supersession_is_scoped_to_the_FAN_not_the_lens():
+    """The same lens run in two different fans is two runs, not one superseding the other --
+    otherwise a lens could never accumulate evidence at all."""
+    runs = [L.LensRun(lens="A", geometry="lens", outcome="confirmed", fan_id="f1"),
+            L.LensRun(lens="A", geometry="lens", outcome="refuted", fan_id="f2")]
+    s = L.score(runs, min_verified=2)["A"]
+    assert s.runs_n == 2 and s.verified_n == 2
+    assert s.hit_rate == 0.5
+
+
+def test_x3_storage_stays_append_only():
+    """Supersession happens at READ time. A verdict is never edited or deleted on disk, so
+    the history of what was believed when survives."""
+    import inspect
+    src = inspect.getsource(L.record)
+    assert '"a"' in src or "'a'" in src, "record() must append, never rewrite"
+
+
+# ---------------------------------------------------------------- test isolation
+
+def test_z1_the_ledger_path_honours_an_env_override_like_its_neighbour(monkeypatch, tmp_path):
+    """THE NEIGHBOUR HAD ALREADY SOLVED THIS. The route journal this sits beside honours
+    AKASHIC_ROUTE_JOURNAL, which is exactly why the T281 fan tests never polluted it. Mine
+    had no override, so the auto-record hook wrote those tests' fixtures -- lenses literally
+    named "1", "2", "p1" -- into the LIVE ledger. Twelve junk rows before anyone looked."""
+    monkeypatch.setenv("AKASHIC_LENS_LEDGER", str(tmp_path / "l.jsonl"))
+    assert L.ledger_path(Path("/wherever")) == tmp_path / "l.jsonl"
+
+
+def test_z2_record_is_a_noop_under_test_isolation(monkeypatch, tmp_path):
+    """Belt for the same class: even with no override set, a run marked isolated must not
+    reach the live file."""
+    monkeypatch.setenv("_AISETUP_TEST_ISOLATED", "1")
+    p = tmp_path / "l.jsonl"
+    L.record(p, L.LensRun(lens="x", geometry="lens", outcome="confirmed", fan_id="f"))
+    assert not p.exists(), "an isolated test wrote a ledger row"
+
+
+def test_z3_without_isolation_record_still_works(monkeypatch, tmp_path):
+    """The suite sets _AISETUP_TEST_ISOLATED globally -- which is itself the proof that z2's
+    belt is load-bearing -- so this must clear it explicitly to exercise the live path."""
+    monkeypatch.delenv("_AISETUP_TEST_ISOLATED", raising=False)
+    p = tmp_path / "l.jsonl"
+    L.record(p, L.LensRun(lens="x", geometry="lens", outcome="confirmed", fan_id="f"))
+    assert len(L.read(p)) == 1

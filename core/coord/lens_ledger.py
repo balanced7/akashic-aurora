@@ -100,8 +100,20 @@ class LensScore:
 
 def score(runs: List[LensRun], min_verified: int = MIN_VERIFIED) -> Dict[str, LensScore]:
     """Per-lens outcomes -> honest verdicts. Never invents a rate it has not earned."""
-    by: Dict[str, Dict[str, int]] = {}
+    # SUPERSESSION, last-writer-wins per (fan, lens). Storage is append-only -- a verdict is
+    # written, never edited -- but a RUN has exactly one outcome, and the auto-recorded
+    # `unverified` row is a placeholder that a later verification replaces.
+    #
+    # Found by using it: verifying a branch appended `confirmed` beside the existing
+    # `unverified`, so one run counted twice and inflated the coverage gap it was supposed
+    # to shrink. Two rows claiming one run's state is the same shape as any other dual
+    # authority; the fix is that the newest wins at READ time, exactly like the notes plane.
+    latest: Dict[tuple, LensRun] = {}
     for r in runs:
+        latest[(r.fan_id, r.lens)] = r          # file order is chronological (append-only)
+
+    by: Dict[str, Dict[str, int]] = {}
+    for r in latest.values():
         d = by.setdefault(r.lens, {k: 0 for k in OUTCOMES})
         d[r.outcome] += 1
 
@@ -240,12 +252,28 @@ def _slug(text: str, width: int) -> str:
 # ------------------------------------------------------------------ persistence
 
 def ledger_path(root: Path) -> Path:
+    """Where the ledger lives. Honours AKASHIC_LENS_LEDGER, exactly like the route journal
+    beside it honours AKASHIC_ROUTE_JOURNAL.
+
+    THE NEIGHBOUR HAD ALREADY SOLVED THIS AND I DID NOT COPY IT. Without the override, the
+    auto-record hook fired during the T281 fan tests and wrote their fixtures -- lenses
+    literally named "1", "2", "p1" -- into the LIVE ledger. The route journal was untouched
+    by the same tests precisely because they point its env var at a tmp path. Twelve junk
+    rows before anyone looked.
+    """
+    import os
+    env = os.environ.get("AKASHIC_LENS_LEDGER", "")
+    if env:
+        return Path(env)
     return Path(root) / "state" / "lens_ledger.jsonl"
 
 
 def record(path: Path, run: LensRun) -> None:
     """Append one run. Fail-open like the route journal it sits beside: a dead ledger must
     never wedge a fan."""
+    import os
+    if os.environ.get("_AISETUP_TEST_ISOLATED"):
+        return          # a test run must never write the live ledger
     try:
         p = Path(path)
         p.parent.mkdir(parents=True, exist_ok=True)
