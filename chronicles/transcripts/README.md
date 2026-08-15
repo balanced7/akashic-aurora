@@ -24,8 +24,21 @@ forbidden-pattern scan. The 2026-08-11 entry ran **137 substitutions and reporte
 
 A third party's surname survived it anyway, and was live on public `origin/master` until
 2026-08-15. Two later redaction commits (`d866532a`, `736900cf`) visited the same file and the
-occurrence still survived. **The mechanism is not established** — treat that as an open bug,
-not a closed one, because it defeats the next redaction too.
+occurrence still survived.
+
+**Mechanism, established 2026-08-15.** The redaction ran as an inline script inside a Bash tool
+call, so the harness recorded the script's own source into the transcript. The script built its
+needles by concatenation on purpose — `'Sur'+'name'` — so its own text could not re-plant
+what it hunted. A second needle in the same line spelled the target out as a complete uppercase
+literal, and the concatenation split the name phrase. The captured text had the shape
+`FIRST '+'SURNAME`, which **no search for the intact phrase can match**, case-insensitive or
+not, because the `+` operator sits inside the name. The anti-self-planting defense manufactured the one variant the
+denylist was structurally blind to, and every later pass looked straight through it.
+
+The house already adopted the correct fix without knowing it closed this: needles now live in
+`.secrets/redaction-manifest.json`, a gitignored file, so a target never appears in a command
+line the transcript can capture. Lesson:
+`fragment_built_needles_plant_a_variant_no_later_search_can_match`.
 
 The lesson is not "redact harder". A retroactive denylist can only find what it was told to
 look for, and the string is public before the manifest learns it exists. That is a race the
