@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (39 of 156 modules lack both pin and paper by name)
+## GAP queue (39 of 159 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/migrate_to_sqlite.py
@@ -140,7 +140,7 @@ Class: reference
 | `turn_metrics.py` | Turn metrics (progress-bars data half; co-designed claude+deepseek 2026-07-11). | tests/test_turn_metrics.py | GAP | `BIFROST_NAMESPACE` |
 | `wake_seat.py` | wake_seat -- the per-session wake-seat protocol (T029 Wave 2, the R1/R16 fix). | tests/test_wake_seat.py | docs/library/design/20260701_wave-2-design-claude-fenced-wake-seat-ow_7c4aaf.md | `AKASHIC_TOMBSTONE`, `AKASHIC_WAKE_MARKER_FRESH_MIN`, `BIFROST_NAMESPACE` |
 
-## core/coord/  (20 modules)
+## core/coord/  (23 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
@@ -148,10 +148,12 @@ Class: reference
 | `cognitive_metrics.py` | Cognitive Efficiency Metrics — live instrumentation for the Stage-3 evidence engine. | tests/test_cognitive_metrics.py | GAP |  |
 | `compare.py` | compare -- the cross-domain set difference, with a name (T213). | tests/test_t213_compare.py | GAP |  |
 | `conductor.py` | Conductor — the impure orchestration shell over the pure task ledger (Slice D). | tests/test_conductor.py | docs/library/chronicle/20260723_session-reflection-fable-s-conductor-nig_415441.md |  |
+| `dawe_census.py` | dawe_census -- which verbs are structurally UNVERIFIABLE, not which verbs are bad. | tests/test_w164_dawe_census.py | GAP |  |
 | `defer_queue.py` | defer_queue — the capability-gated standing queue (W33, seat-zero wave B3). | tests/test_w33_defer_queue.py | GAP |  |
 | `experiment.py` | Coordination experiment harness -- the Stage-3 evidence engine. | tests/test_coord_experiment.py | docs/library/report/20260731_pair-sync-steer-experiment_64f62b.md |  |
 | `fence_workspace.py` | Fence workspace (R2 / T053) -- the fence as a first-class object, not a naming convention. | tests/test_fence_workspace.py | GAP | `AKASHIC_FENCE_ROOT` |
 | `intent.py` | Intent declaration -- Policy 0 of the coordination layer. | tests/test_boot_intent_surface.py | docs/library/report/20260711_claude-s-diagnosis-half-the-boot-intent_794515.md | `BIFROST_NAMESPACE` |
+| `lens_ledger.py` | lens_ledger -- score fan lenses by what SURVIVED, not by whether the model replied. | tests/test_w168_lens_ledger.py | GAP | `AKASHIC_LENS_LEDGER` |
 | `method_drift.py` | method_drift -- the one method number that reaches a channel people actually read. | tests/test_boot_surfaces_method_drift.py | GAP |  |
 | `metrics.py` | Solution-Space-Shrinkage Tracker — the Metric C cross-run watchdog. | tests/narrative_metrics.py | GAP |  |
 | `negotiation.py` | Negotiation round — brief window after user input where agents declare plans. | tests/test_negotiation.py | GAP |  |
@@ -163,6 +165,7 @@ Class: reference
 | `terms.py` | terms -- the vocabulary a codebase TALKS ABOUT, as a comparable set (T214). | tests/test_t214_terms_domain.py | GAP |  |
 | `timeline.py` | timeline -- one chronological SET across domains (T211). | tests/test_t211_timeline.py | GAP | `AKASHIC_TIMELINE_FILE_LIMIT` |
 | `world_diff.py` | world_diff -- what differs between two worlds, MINUS what should differ. | tests/test_w159_world_diff.py | GAP |  |
+| `world_fidelity.py` | world_fidelity -- what a twin CAN and CANNOT do, said out loud before it is discovered. | tests/test_w163_world_fidelity.py | GAP |  |
 | `world_savepoint.py` | world_savepoint -- a world's two planes under one name, or neither. | tests/test_w160_world_savepoint.py | GAP |  |
 
 ## core/learning/  (5 modules)
