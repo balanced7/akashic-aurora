@@ -1135,6 +1135,7 @@ def ask_many(prompts, *, system: Optional[str] = None, model: Optional[str] = No
         from core.coord import lens_ledger as _LL
         _lens_ids = _LL.lens_identity(list(prompts))
         _fan_id = f"{int(time.time())}"
+        _recorded = []
         for _b in branches:
             _i = _b.get("i", 0)
             _name = _lens_ids[_i] if _i < len(_lens_ids) else f"branch-{_i}"
@@ -1142,6 +1143,18 @@ def ask_many(prompts, *, system: Optional[str] = None, model: Optional[str] = No
                        _LL.LensRun(lens=_name, geometry=str(geometry or ""),
                                    outcome="unverified", fan_id=_fan_id,
                                    note=f"ok={_b.get('ok')} partial={_b.get('partial')}"))
+            _recorded.append(_name)
+        # A ledger nobody knows about is a ledger nobody feeds. Name the rows and the one
+        # command that turns them into evidence -- otherwise every run stays `unverified`
+        # forever and the scorer never earns a rate it is allowed to report.
+        if _recorded:
+            detail["lens_ledger"] = {"fan_id": _fan_id, "lenses": _recorded,
+                                     "outcome": "unverified"}
+            detail.setdefault("warnings", []).append(
+                f"LENS LEDGER: {len(_recorded)} branch(es) recorded as UNVERIFIED (fan "
+                f"{_fan_id}). They count toward no hit-rate until something checks them: "
+                f"py scripts/lens_ledger.py record --fan {_fan_id} --lens <name> "
+                f"--outcome confirmed|refuted --note '<the evidence>'")
     except Exception:
         pass
 
