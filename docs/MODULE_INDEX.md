@@ -112,7 +112,7 @@
 - `learning_store.py` — Learning Store: Persists and retrieves experiment outcomes via the Store.
 - `vfx_chunk_lessons.py` — Adopt the VFX chunk rules into recall — as a PROJECTION, not a migration.
 
-## core/recall/  (14 modules)
+## core/recall/  (15 modules)
 - `anchors.py` — Lesson anchor resolver -- does a lesson's premise still hold?
 - `at_action.py` — Recall-at-action (`core/recall`) — read the right knowledge AT THE MOMENT of action.
 - `curator.py` — Recall curator (vNext loop 1) -- the funnel's triage made an ACTOR, not a report.
@@ -126,6 +126,7 @@
 - `pack_replay.py` — pack_replay (R2) -- replay the frozen census pack through TODAY's recall pipeline.
 - `precision_audit.py` — precision_audit -- the missing instrument: is recall ACCURATE?
 - `replay.py` — Forge F0 -- replay harness + data-sufficiency audit (docs/library/design/20260701_lesson-forge-evidence-gated-
+- `staleness.py` — The stale-claim detector: a lesson's ANCHORS can resolve while its CLAIM has gone false.
 - `surface.py` — The recall cluster's CLI surface -- W169 slice 1 of the agent_cli extraction.
 
 ## core/primitives/  (8 modules)

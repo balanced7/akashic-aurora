@@ -269,6 +269,15 @@ EPHEMERAL_PREFIXES = (
     # its "bottomed, never dropped" contract wants File-backing, flagged as a wish for
     # its owner (a Redis-only 'never dropped' is a latent RB-25 gap, not this slice's fix).
     "*:steer:*", "*:steer", "*:triage:*", "*:triage",
+    # T108 role queue (2026-08-16): three families the rule-7 guard surfaced as unregistered,
+    # each an exact twin of a family already rostered above. `role` is the per-agent work
+    # STREAM (same class as the registered `work` lane -- transport, not the record; the
+    # message's durable copy lives on the legacy/durable planes). `rolefence` and `rolegen`
+    # are the P6 ABA-race fencing token and its monotonic claim counter, per-message and
+    # short-lived -- the same class as the already-registered `*:generation:*`. Classified by
+    # OPERATIONAL TRUTH (Redis-only today, regenerable by construction), matching how
+    # mailbox/activity/seat were swept in W38.
+    "*:role:*", "*:role", "*:rolefence:*", "*:rolegen:*",
     # ephemeral streams / channels (per-agent event fan-out + broadcast pub/sub); note the durable
     # 'events:raw:*' family is caught by the file-family check FIRST, so it is never mis-swept here
     "*:events", "*:events:*", "*:broadcast", "*:broadcast:*",
