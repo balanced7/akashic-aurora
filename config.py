@@ -187,6 +187,18 @@ SESSION_LOG_DIR.mkdir(parents=True, exist_ok=True)
 BACKUP_DIR = DATA_DIR / "backups"
 BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
+# T313: the transcript archive, declared ONCE because two archives that do not know about each
+# other is how ninety sessions went missing. scripts/ops/archive_transcripts.py WRITES here and
+# core/eye/index.py READS here; a pin asserts they agree, so a destination added to one side only
+# fails loudly instead of opening a silent gap.
+#
+# Deliberately OUTSIDE the repo: these are UNREDACTED transcripts and the repo is public. Separate
+# PHYSICAL disks on purpose -- two copies on one drive is one failure domain wearing a disguise.
+TRANSCRIPT_ARCHIVE_ROOTS = [
+    Path(r"E:\Akashic Aurora\transcripts\rolling"),
+    Path(r"F:\Akashic Aurora\transcripts\rolling"),
+]
+
 # Canonical agent-agnostic session log (Redis Stream on WSL master)
 SESSION_EVENTS_STREAM = "session:events"
 SESSION_NOTE_SCHEMA_VERSION = "1"

@@ -49,10 +49,16 @@ from typing import Any, Dict, List, Optional, Tuple
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # Deliberately OUTSIDE the repo: these are UNREDACTED transcripts and the repo is public.
-DEFAULT_DESTS: List[Path] = [
-    Path(r"E:\Akashic Aurora\transcripts\rolling"),
-    Path(r"F:\Akashic Aurora\transcripts\rolling"),
-]
+#
+# T313: the destinations now live in config.TRANSCRIPT_ARCHIVE_ROOTS rather than as a literal
+# here. Not tidiness -- this tool is the WRITER of the archive and core/eye/index.py is its
+# READER, and they disagreed: the reader looked at state/eye/recovered (12 files) while this
+# wrote to the rolling dirs (102). Ninety archived sessions were unreachable by the indexer for
+# as long as nobody compared the two lists. One declaration, one pin asserting they agree.
+sys.path.insert(0, str(_REPO_ROOT))
+from config import TRANSCRIPT_ARCHIVE_ROOTS  # noqa: E402
+
+DEFAULT_DESTS: List[Path] = list(TRANSCRIPT_ARCHIVE_ROOTS)
 DEFAULT_RECEIPTS = _REPO_ROOT / "state" / "archive" / "receipts"
 
 # A path no filesystem will give us, for the unreachable-destination pin. Named rather than
