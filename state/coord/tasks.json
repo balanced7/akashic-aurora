@@ -1,5 +1,5 @@
 {
-  "seq": 322,
+  "seq": 324,
   "tasks": [
     {
       "id": "T001",
@@ -11815,6 +11815,58 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-16T15:34:36+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T323",
+      "title": "Routes as reified provenance: the string through the forest becomes walkable. PROVENANCE, exact per the twin's own request: Daniil's idea (ed728d23:2173, verbatim: 'a string through a forest you can walk with by hand so you dont need to re-discover relationships between different things... a mechanical through line for work we did'; also 'routing savepoints... A unclear route is still a route, and we can update them as we go') -> the twin seat's formal synthesis (ed728d23:2461; CASE/UCO+STIX vocabulary is the twin's from its forensics research; synthesis was TRANSCRIPT-ONLY until this filing, twin-confirmed on the bus 1786896402625-0) -> filed by seat 7b78fb20. THE DESIGN: (1) reify provenance as NODES, not edge attributes -- a route IS a chain of wasInformedBy links, and a reified chain can be saved, named, updated, and re-walked, which edge attributes structurally cannot; (2) rootExhibitNumber field on derived artifacts (notes, lessons, arcs, edges): the ULTIMATE origin id carried forward, O(1) self-grounding; (3) Assertion nodes so disagreement SURVIVES -- the 16 contested typed edges from the extraction arc finally get a home (two readers disagree = two assertions with their own provenance, both alive); (4) retraction + negative judgement on edges (nomenklatura shape: judgement, score, deleted_at-as-assertion) -- REQUIRED by 'update them as we go': a route that can only accumulate is not updatable, twin-flagged as the handoff's missing gap; (5) SHACL-style failing constraints on the graph (typed edges carry formed_by becomes a failing report, not a convention). GROUND TRUTH FROM THE LIVE SEAT: position table = 0 rows -- the walk substrate (go/back/inherit) is shipped, working, and has never held a single standpoint; the idea needs its first row, not a foundation. Cross-plane manual edges need ZERO schema change today (src/dst are opaque TEXT, formed_via already accepts manual). RELATED, not merged: T322 (ingress origin at the record) is the record-level layer of the same provenance law; this is the edge/route layer. FENCE REQUIRED. Daniil gates.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [
+        "core/eye/connectome.py",
+        "core/eye/position.py"
+      ],
+      "acceptance": "Provenance nodes chain (wasInformedBy walk works on real data); a saved named route can be re-walked; the 16 contested edges live as coexisting assertions; an edge can be retracted and a route updated without mutation; SHACL-style report can FAIL; RED pins first; fenced; Daniil gates the vocabulary.",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-16T16:09:02+00:00",
+      "updated": "2026-08-16T16:09:02+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-16T16:09:02+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T324",
+      "title": "Verbify the scratch SQL: a named-query register with the lesson lifecycle, and a planner that composes only named records. PROVENANCE: Daniil's ask (2026-08-16, verbatim: 'how do we verbify the sql queries, we are not the first ones with this challenge' + 'a standard query path that auto calls the mechanical tools to fulfill its task') -> prior-art fan, 6 deepseek branches (ask 2cbc9ad3, full receipts research/in-flight/verbified-queries-fan-2026-08-16.md) -> filed by seat 7b78fb20. EVIDENCE BASE: five bespoke SQL scratch scripts in one hour answered real questions the door could not express (density-rank across vocabularies, co-occurrence in one utterance, line-range voice pulls) -- the substrate answered everything, the door expressed almost none of it; queryable-by-programmers-only excludes the operator. PRIOR ART CONVERGES (Splunk saved searches/macros, Kusto stored functions, Sigma rules-as-records, osquery packs, dbt models, Datasette canned queries -- the last over SQLite, our literal substrate): the query becomes a NAMED, PARAMETERIZED, VERSIONED RECORD; execution stays mechanical. THE DESIGN (fan branch 3, deepseek): q_records (qid, name, version, status draft|active|superseded|retired, contract line, sql, params_schema, attribution, supersedes) + q_usage receipts per run; surface: eye q <name> [params] / --save / --ls / --show / --history / --graduate + eye plan '<question>' with interpreted-as echo; lifecycle mirrors the lesson loop with distinct-session thresholds (active at first ok receipt; candidate at 5 receipts over 3 sessions; proposed at 20 over 10 + operator validation; graduation RATIFIED by a human, never auto). Planner composes ONLY the active catalog + 5 primitives, no free SQL (hallucinating-router class stays dead); wrong-query correction is supersede-by-new-qid, contract changes take a NEW NAME. STOP LIST once live: bespoke SQL as first resort; query logic living only in transcripts; hand-adding CLI verbs; unreceipted answers. First five register candidates: this session's five scratch scripts. RENDER LESSON RIDES ALONG: the find snippet truncated the payload at char 300 and cost an hour of hunting -- snippet width/drill hints are part of the query path, glanceable AND true. FENCE REQUIRED. Daniil gates.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [
+        "core/eye/index.py",
+        "agent_cli.py"
+      ],
+      "acceptance": "q_records + q_usage exist; eye q saves/runs/lists with receipts; the five scratch queries of 2026-08-16 run as named records; eye plan echoes interpreted-as and composes only named records; graduation requires human ratification; RED pins first; fenced; Daniil gates.",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-16T16:09:02+00:00",
+      "updated": "2026-08-16T16:09:02+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-16T16:09:02+00:00"
         }
       ]
     }
