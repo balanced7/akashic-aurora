@@ -1,5 +1,5 @@
 {
-  "seq": 330,
+  "seq": 332,
   "tasks": [
     {
       "id": "T001",
@@ -12108,6 +12108,59 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-16T18:28:11+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T331",
+      "title": "T323 s2-s5 (follow-on to the shipped s1): the route arc's remaining slices. s1 SHIPPED 2026-08-16 -- RED 66a95108, GREEN 437b6159, INHABITED f65adf48 (route #1 'the-string-through-the-forest', 7 legs, walked, one leg honestly dangling). Module core/eye/routes.py; journal state/coord/routes.jsonl is the tracked TRUTH, the eye.db table is the rebuildable projection (lesson: authored_vs_derived_decides_the_plane_not_the_organ). REMAINING: s2 the recall join -- routes become a recallable kind so 'if you have hit this, go here' fires at the moment of action; trigger threshold ships conservative pending kimi's fence counter (its precision/ranking lane, queued on its seat). s3 competing routes coexist + walk-time ranking (Assertion-node shape). s4 retraction / negative judgement -- REQUIRED by Daniil's 'we can update them as we go'; a route that only accumulates is not updatable. s5 prefetch: walking step N warms step N+1's L1 summary. Fence receipts: atoms art_20260816_t323-fence-deepseek_9f8fb4 + art_20260816_troubleshooting-re-fan_3ddf5a (branch 5 = the record schema).",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [
+        "core/eye/routes.py",
+        "core/recall/at_action.py"
+      ],
+      "acceptance": "s2: a saved route surfaces at the action its trigger signature matches, with a precision bar kimi's counter sets; s3: two routes over one territory coexist and rank at walk time; s4: a step can be retracted by new assertion without mutation; s5: walking warms the next step. RED pins first per slice; Daniil gates.",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-16T19:30:37+00:00",
+      "updated": "2026-08-16T19:30:37+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-16T19:30:37+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T332",
+      "title": "T176 s2 (follow-on to the shipped s1): rewire the 14 kind policy sites onto the registry, by strangler fig. s1 SHIPPED 2026-08-16 -- RED 66a95108 (7 pins), GREEN with core/comm/kinds.py + KindVerdict (three states; refuses bool() coercion because that coercion IS the defect), seeded byte-identically from all 14 live sets, wired into doctor. FIRST LIVE OUTPUT FOUND TWO REAL THINGS: concept 'ask' is FORKED across three sets differing on 'blocker' (agent/bifrost_pull.py _ASK_KINDS carries it; agent_cli.py ASK_KINDS and core/comm/packet_spec.py STALE_ASK_KINDS do not), and TWO plane collisions -- 'note' as the T176 row predicted, plus 'decision' which nobody had named. REMAINING: convert call sites one door at a time with parity pins (T044/T045 dual-write precedent), each site moving from `kind in SET` to resolve(kind, dim) and handling UNCLASSIFIED explicitly; the ask fork and the note/decision collisions need Daniil's ruling before the sites that depend on them are converted -- the registry proposes, it does not pick winners.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [
+        "core/comm/kinds.py",
+        "scripts/bifrost_wake.py",
+        "core/comm/promoter.py"
+      ],
+      "acceptance": "Each converted door has a parity pin proving identical behaviour on known kinds plus an explicit UNCLASSIFIED branch; the coverage report shows shrinking undecided sets; no door treats absence as denial; Daniil rules on the ask fork and the note/decision collisions before their dependent sites convert.",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-16T19:30:37+00:00",
+      "updated": "2026-08-16T19:30:37+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-16T19:30:37+00:00"
         }
       ]
     }
