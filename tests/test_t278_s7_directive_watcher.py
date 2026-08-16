@@ -201,3 +201,79 @@ def test_p7_the_watcher_has_no_write_path(db):
     assert "write_text" not in called and "open" not in called, (
         "the watcher has no write path at all -- reading is its entire relationship "
         "with the world")
+
+
+# ------------------------------------------------- P8: A FAN IS ONE VOICE, NOT MANY
+#
+# Found 2026-08-16, the first live run after T313 made 430 subagent transcripts reachable.
+# The watcher's top three findings, all rated `strong`, were OUR OWN prompt boilerplate:
+# "must fit comfortably in 16gb vram with 32k context" (104 sessions), "must be a concrete
+# checkable statement not vague generalities" (42), "must never be paraphrased when quoted
+# files under docs library" (29). Not one of them was ever said by him.
+#
+# THE MECHANISM, and it is not a bad marker list -- it is an axis error. In a SUBAGENT
+# transcript the entire brief arrives as a `user` record, so `_event_from` labels it
+# voice='operator' correctly by its own rule and wrongly in fact: the author is the
+# dispatching agent. Measured on the live corpus the day this pin was written: 419 of 523
+# operator-voice sessions were subagent briefs -- 11% of the RECORDS but 80% of the
+# SESSIONS, and `unheeded()` ranks by sessions. A fan of 104 voters carrying one
+# byte-identical brief reads as 104 independent sittings, so for a real directive of his to
+# outrank it he would have to say it in 105 separate sessions. The organ built to stop his
+# directives evaporating was drowning them in our own voice, and it got WORSE the moment
+# the corpus got better.
+#
+# The doc-frequency guard cannot save it either: those sessions inflate its denominator, so
+# it LOOSENS exactly as the noise rises.
+#
+# THE FIX IS AT THE DATA LAYER, NOT HERE. `corpus_coverage()` already draws this line from
+# the source path (_SUBAGENT_MARKERS) and reported "104 operator-bearing" on the same run --
+# matching the 104 real sessions exactly. It was never persisted into `events`, so no
+# consumer could apply it. Three read the operator axis (directives, position, stats); all
+# three inherited the contamination. Persisting the flag fixes the class, not the site.
+@pytest.fixture()
+def db_with_fan(tmp_path):
+    """Two real operator sessions, plus a three-voter fan carrying ONE authored brief --
+    the live shape in miniature. The fan lives under `subagents/`, which is the marker
+    `corpus_coverage()` already keys on; the pin must not invent a second discriminator."""
+    corpus = tmp_path / "corpus"
+    (corpus / "subagents").mkdir(parents=True)
+    for f in ("session_watch_a.jsonl", "session_watch_b.jsonl"):
+        shutil.copy(FIX / f, corpus / f)
+    for voter in ("agent-fan01", "agent-fan02", "agent-fan03"):
+        shutil.copy(FIX / "subagent_brief.jsonl", corpus / "subagents" / f"{voter}.jsonl")
+    dbp = tmp_path / "eye.db"
+    EYE.ingest(paths=sorted(corpus.rglob("*.jsonl")), db_path=dbp)
+    return dbp
+
+
+def test_p8_a_subagent_brief_is_never_reported_as_his_directive(db_with_fan):
+    """The founding failure of 2026-08-16, in one assertion. The brief says 'must' twice
+    and recurs across three sessions -- it satisfies every test the watcher applies. The
+    only thing wrong with it is that he never said it."""
+    rep = DIR.unheeded(db_path=db_with_fan, durable_texts=[])
+    said = _phrases(rep["items"])
+    assert "16gb vram" not in said, (
+        f"a subagent brief was reported as the operator's standing directive: {said}")
+    assert "vague generalities" not in said, (
+        f"a subagent brief was reported as the operator's standing directive: {said}")
+
+
+def test_p8b_a_fan_cannot_outrank_him(db_with_fan):
+    """The ranking defect, pinned separately from the reporting one: even capped at a
+    single item, the slot belongs to the human. Three voters must not outvote him."""
+    rep = DIR.unheeded(db_path=db_with_fan, durable_texts=[], limit=1)
+    assert rep["items"], "the real directive vanished entirely"
+    assert "fence the migration path" in rep["items"][0]["phrase"], (
+        f"a fan of 3 briefs outranked the directive he said across 2 sittings: "
+        f"{_phrases(rep['items'])}")
+
+
+def test_p8c_the_operator_axis_counts_only_operator_bearing_sessions(db_with_fan):
+    """The root cause, pinned at the layer that owns it. The distinction must live IN the
+    index -- not be re-derived by each consumer, which is the two-declarations drift T313
+    was fixed to end. Three consumers read this axis; one filter serves all of them."""
+    utts = DIR._operator_utterances(db_with_fan)
+    sessions = {u["session"] for u in utts}
+    assert not any(s.startswith("agent-fan") for s in sessions), (
+        f"subagent sessions are still on the operator axis: {sorted(sessions)}")
+    assert len(sessions) == 2, f"expected his 2 sessions, got {sorted(sessions)}"
