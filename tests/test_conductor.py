@@ -34,7 +34,9 @@ def test_next_task_respects_deps_and_one_at_a_time(tmp_path, monkeypatch):
     C.start(a["id"], **k)
     assert C.next_task(**k) is None                 # one-at-a-time: a is running
     C.verify(a["id"], **k)
-    C.done(a["id"], "c0ffee", "pytest", **k)
+    # 8-hex fixture: T297's done gate (598be034) refuses commits under 7 hex chars,
+    # and 'c0ffee' was six -- the fixtures predated the validator by four days.
+    C.done(a["id"], "c0ffee42", "pytest", **k)
     assert C.next_task(**k)["id"] == b["id"]        # a DONE -> b now claimable
 
 
@@ -48,8 +50,8 @@ def test_done_emits_resolved_marker(tmp_path, monkeypatch):
     C.claim(a["id"], "claude", **k)
     C.start(a["id"], **k)
     C.verify(a["id"], **k)
-    C.done(a["id"], "sha9", "v", **k)
-    assert seen == {"tid": a["id"], "commit": "sha9"}
+    C.done(a["id"], "5badc0de", "v", **k)
+    assert seen == {"tid": a["id"], "commit": "5badc0de"}
 
 
 def test_offline_conductor_loses_no_transition(tmp_path, monkeypatch):
@@ -65,7 +67,7 @@ def test_offline_conductor_loses_no_transition(tmp_path, monkeypatch):
     C.claim(a["id"], "claude", **k)
     C.start(a["id"], **k)
     C.verify(a["id"], **k)
-    C.done(a["id"], "cafe12", "pytest", **k)
+    C.done(a["id"], "cafe1234", "pytest", **k)
     t = C._ledger(None, k["path"]).get(a["id"])
     assert t["status"] == "done", "file truth carries every transition despite a dead bus"
     assert [h["to"] for h in t["history"]][-1] == "done"
