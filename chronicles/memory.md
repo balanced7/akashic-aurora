@@ -1,13 +1,15 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 626 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 627 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
-- next-focus: SEAT HANDOFF 2026-08-15 evening (claude, session ed728d23). Daniel is the operator; address him
-as Daniel, plainly. Prior arc (T310 Spectrum) is NOT dead --...  (source: mem:decision:ADR_0815204636_fa59c78d)
-- where-we-are: SESSION 2026-08-15 EVENING (claude seat, session ed728d23) -- THE PRIVACY-PLANE ARC. Opened on
-the T310 Spectrum handoff, became a privacy/projection arc...  (source: mem:decision:ADR_0815204600_8c7bb5cb)
+- where-we-are: SESSION 2026-08-16 (claude, session ed728d23) -- THE DAY WE FOUND THE EYE. Prod moved
+3287a218 -> 0c89d9b8, all pushed. Ran ~920k context. Full handoff in...  (source: mem:decision:ADR_0816104211_739bd8e0)
+- next-focus: SEAT HANDOFF 2026-08-16 (claude, session ed728d23). Daniel is the operator; address him as Daniel.
+This session ran ~920k context. READ THIS BEFORE DESIGNING...  (source: mem:decision:ADR_0816104148_abb54ef0)
+- the-glance-directive-standing-since-2026-07-09: THE OPERATOR'S LONGEST-STANDING DIRECTIVE, reconstructed 2026-08-16 by a four-vocabulary fan over
+~499 session...  (source: mem:decision:ADR_0816101310_af222950)
 - callprep-max-meta-2026-08-10: CALL PREP: CONTACT-1 (industry ML-infrastructure engineer -- identity in the PRIVATE PLANE; his
 correction: "it's not orchestration, it's...  (source: mem:decision:ADR_0815204515_4255b208)
 - max-call-outcome-2026-08-10: MAX CALL OUTCOME, 2026-08-10. CONTACT-1 (industry ML-infrastructure engineer; name, employer, prior roles and school are held in the PRIVATE...  (source: mem:decision:ADR_0815204325_e3ee8cae)
@@ -125,5 +127,3 @@ VERIFIED AGAINST SOURCE:
 - pod-design-ratified-and-minted: THE POD DESIGN IS FINISHED AND MINTED. 2026-08-02. Daniil: "finish our pod design from earlier."
 It was ratified at 04:24 and had never...  (source: mem:decision:ADR_0802213317_9434d9e6)
 - scratch:kimi:vfx-flip-task-state-kimi-2026-08-02: FLIP COMPLETE + AMENDED 2026-08-02. research/in-flight/vfx-studio-flip-kimi-2026-08-02.md now answers all 4 asks on its...  (source: mem:decision:ADR_0802185831_3b265a16)
-- domain-aware-recall-design: DOMAIN-AWARE RECALL — Daniil 2026-08-02: "How can we make a recall system for this work for vfx,
-and divide the boundary lines so we can get...  (source: mem:decision:ADR_0802185746_c08c313c)
