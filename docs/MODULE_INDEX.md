@@ -24,7 +24,7 @@
 - `agent_signal_ledger.py` — Agent Signal Ledger: the ordered record of every signal agents emit
 - `coordinator_api.py` — Coordinator API: Minimal signal-based logging for agents
 
-## core/comm/  (53 modules)
+## core/comm/  (54 modules)
 - `ask.py` — ask -- a synchronous helper call, with no seat behind it (T171).
 - `ask_bg.py` — ask_bg -- a helper call that outlives your turn without becoming a seat (T205).
 - `ask_state.py` — ask_state -- one durable ask's honest state (T196d).
@@ -49,6 +49,7 @@
 - `friction.py` — friction -- read the collaboration tax from evidence that already exists (T196a).
 - `incarnation.py` — incarnation -- who else is HERE right now, per agent id (T074 W3/R4).
 - `interject.py` — Adaptive interjection router -- when a human types into a live agent session, decide whether the
+- `kinds.py` — T176 s1 -- the kind registry: total resolution, so a miss stops reading as a decision.
 - `lane_depths.py` — lane_depths -- the engine room's flow gauge source (T079-E2).
 - `launcher.py` — Bifrost Launcher — spawn and monitor agent processes from the Bifrost UI.
 - `liveness.py` — Work-progress heartbeat (L1) -- pure observability for wedge detection.

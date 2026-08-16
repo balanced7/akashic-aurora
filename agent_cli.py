@@ -4958,6 +4958,24 @@ def cmd_doctor(args):
         print(f"  {_family_gauge_render(injections_by_family(24.0))}")
     except Exception:
         pass
+    try:   # T176 s1: the taxonomy's own coverage. A kind outside every policy's universe is
+        from core.comm.kinds import coverage as _kind_coverage   # BORN SILENT -- not
+        _kc = _kind_coverage()                                   # rejected, just never asked
+        _forks, _colls = _kc["forks"], _kc["plane_collisions"]
+        if _forks or _colls:
+            print("## TAXONOMY (T176 -- a miss must not read as a decision)")
+            for _c, _f in _forks.items():
+                print(f"  [dashboard] concept {_c!r} is FORKED across "
+                      f"{len(_f['variants'])} sets, differing on {_f['differs_on']}")
+                print(f"              drill: py -c \"from core.comm.kinds import forks; "
+                      f"print(forks()['{_c}'])\"")
+            if _colls:
+                print(f"  [dashboard] {len(_colls)} kind(s) live on >1 plane: "
+                      f"{', '.join(sorted(_colls)[:6])}")
+                print("              drill: py -c \"from core.comm.kinds import "
+                      "plane_collisions; print(plane_collisions())\"")
+    except Exception:
+        pass
     try:   # T151: a time-box must be a DEADLINE, not a trapdoor. resolve() drops an expired grant
         from core.trust.registry import expiring_grants   # to quarantined, and nothing ever said so
         _exp = expiring_grants(within_h=72.0)
