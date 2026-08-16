@@ -1,5 +1,5 @@
 {
-  "seq": 320,
+  "seq": 322,
   "tasks": [
     {
       "id": "T001",
@@ -11661,18 +11661,24 @@
         "core/comm/bus.py"
       ],
       "acceptance": "Origin field present on new bus/transcript records with UNKNOWN for legacy (never guessed); RED pin proving a proposed agent-authored row no longer silences eye standing but annotates it; RED pin proving an operator-authored or approved+ citation DOES settle; eye voice axis prefers recorded origin over path inference; fenced by deepseek + kimi blind half; Daniil gates the vocabulary.",
-      "status": "proposed",
+      "status": "abandoned",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-16T15:30:55+00:00",
-      "updated": "2026-08-16T15:30:55+00:00",
+      "updated": "2026-08-16T15:34:10+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-16T15:30:55+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-16T15:34:10+00:00",
+          "reason": "attribution disproportion, Daniil's correction 2026-08-16: the headline credited a fleet seat's re-derivation as the finding's origin. The law is Daniil's prior art (ingress directive 2026-08-15, 'provenance categories' standing vocabulary, the voice-label house lesson). Same slice re-filed with lineage-proportional credit; see the superseding row."
         }
       ]
     },
@@ -11759,6 +11765,56 @@
           "to": "done",
           "by": "",
           "at": "2026-08-16T15:31:01+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T321",
+      "title": "T268 pin target: a routable ledger item about bus lane cursors and wake",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-16T15:32:06+00:00",
+      "updated": "2026-08-16T15:32:06+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-16T15:32:06+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T322",
+      "title": "Ingress provenance: origin captured at the RECORD, and a watcher that cannot be settled by its own echo (supersedes T318, re-filed for lineage-proportional attribution). THE LAW IS DANIIL'S PRIOR ART: his ingress directive (2026-08-15, verbatim: 'gates and checks in multiple directions, similar to how ISP's try to shape and police traffic closest to the source'), his standing vocabulary ('provenance categories'), and the house lesson the_operator_voice_label_conflates_the_human_with_their_channel already name it: capture WHO a record is from at the source, not at the projection. Later arrivals sharpening it: deepseek's fence counter (classification must live ON THE RECORD IN THE STORE, not only at the projection boundary), the is_subagent column (a5afd360/7d2ed2ff, the projection-time compromise), and a codex re-derivation with a live observation (2026-08-16). DEFECT 1: the eye's voice axis conflates channel with author -- the path fix catches subagent transcripts only; dispatch briefs pasted or queued into REAL seats still read as operator speech (the clean run's top hit is one; abandoned T315 cited two as 'Daniil's directive'). Root: origin is inferred at PROJECTION time because no plane RECORDS it at write time -- an egress gate where his directive asks for ingress. DEFECT 2 (observed live by the codex seat, mechanics verified from code): directives._is_cited ingests raw tasks.json text with no status or origin filter, so a PROPOSED row authored by the watcher's own reader textually silenced the watcher minutes after it fired (T315). In a ledger with 58 stale proposed rows, silence-on-proposed is re-evaporation with a green light -- instrument-proposes-never-ratifies defeated by one indirection. SLICE: (1) an origin field stamped at enqueue/write on bus messages and transcript-bound records (human | agent-dispatch | system | UNKNOWN; UNKNOWN for legacy, never guessed); (2) _is_cited requires provenance-qualified settling -- an approved+ transition or an operator-authored citation settles; a proposed row ANNOTATES ('parked behind N proposals, day M') instead of silencing; (3) the eye voice axis reads recorded origin where present, path inference as fallback only. FENCE REQUIRED (deepseek authored the store-side counter and consumes the bus shape; kimi blind half per method). Daniil gates.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [
+        "core/eye/directives.py",
+        "core/eye/index.py",
+        "core/comm/bus.py"
+      ],
+      "acceptance": "Origin field present on new bus/transcript records with UNKNOWN for legacy (never guessed); RED pin proving a proposed agent-authored row no longer silences eye standing but annotates it; RED pin proving an operator-authored or approved+ citation DOES settle; eye voice axis prefers recorded origin over path inference; fenced by deepseek + kimi blind half; Daniil gates the vocabulary.",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-16T15:34:36+00:00",
+      "updated": "2026-08-16T15:34:36+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-16T15:34:36+00:00"
         }
       ]
     }
