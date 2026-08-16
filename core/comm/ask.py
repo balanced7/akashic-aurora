@@ -974,21 +974,36 @@ def _diagnose(peer: str, peer_state: str):
                     known_seat=known_seat)
 
 
-def _fan_client(client):
+def _fan_client(client, model: Optional[str] = None):
     """ONE client for the whole fan, or a named configuration failure for the whole fan.
 
     Shared deliberately: the SDK's httpx client is thread-safe and pools connections, so N
     branches cost N requests rather than N clients. A missing key is ONE configuration state,
     not N model failures, and saying so is cheaper to act on than N identical branch errors.
+
+    T312b: the shared client must be the RIGHT VENDOR'S. A fan is single-model by construction
+    (ask_many passes one `model` to every branch), so one client per fan is still correct -- but
+    this used to hardcode DeepSeek's key and base_url, and because the branches then received a
+    non-None client, ask()'s vendor resolution was skipped entirely. `--prompts-file --model
+    kimi-k3` therefore sent a Moonshot model id to api.deepseek.com and every branch failed with
+    "you passed kimi-k3". Found by running it, one commit after the scope note predicting it.
+
+    This does NOT make a fan span vendors -- that needs per-branch models, which ask_many does
+    not have. It makes a fan run on ONE non-default vendor, which is what --model already claimed.
     """
     if client is not None:
         return client, None
-    key = _load_key()
+    vendor = _vendor_for(model)
+    key = _load_key_for(vendor)
     if not key:
-        return None, ("no DEEPSEEK_API_KEY and no .secrets/deepseek.key -- the door is closed "
-                      "for the WHOLE fan; that is a configuration state, not N model failures")
+        return None, (f"no {vendor['key_env']} and no .secrets/{vendor['key_file']} -- the "
+                      f"{vendor['name']} door is closed for the WHOLE fan; that is a "
+                      "configuration state, not N model failures")
     from core.comm.runner_lib import make_openai_compat_client
-    return make_openai_compat_client(key, BASE_URL), None
+    _mk = {}
+    if vendor.get("read_timeout"):
+        _mk["read_timeout"] = float(vendor["read_timeout"])
+    return make_openai_compat_client(key, vendor["base_url"], **_mk), None
 
 
 def ask_many(prompts, *, system: Optional[str] = None, model: Optional[str] = None,
@@ -1054,7 +1069,7 @@ def ask_many(prompts, *, system: Optional[str] = None, model: Optional[str] = No
 
     model = model or DEFAULT_MODEL
     workers = max(1, min(int(max_workers or DEFAULT_FAN_WORKERS), len(prompts)))
-    client, why = _fan_client(client)
+    client, why = _fan_client(client, model)
     if client is None:
         return BoundaryOutcome.failed(why, n=len(prompts), n_ok=0, branches=[])
 
