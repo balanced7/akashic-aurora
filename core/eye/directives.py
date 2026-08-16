@@ -139,12 +139,26 @@ def _content_ratio(words: Sequence[str]) -> float:
 def _operator_utterances(db_path: Optional[Path]) -> List[Dict[str, Any]]:
     """His voice, deduped to UTTERANCES. The harness records one turn as a queue-operation
     enqueue, a dequeue and a delivered `user` twin; counting rows would treat one sentence
-    as three and inflate every verdict built on top."""
+    as three and inflate every verdict built on top.
+
+    AND IT IS HIS VOICE ONLY (T314). A subagent's brief arrives as a `user` record, so the
+    indexer labels it operator by its own rule and wrongly in fact -- the author is the
+    dispatching agent. The docstring of this module already named that false-positive class
+    and the report already disclaimed it; a disclaimer is not a filter, and on the first
+    full-corpus run the class took all three capped slots. `is_subagent` is stamped from the
+    source path at ingest, so the discriminator is the same one corpus_coverage() counts by
+    rather than a second one invented here -- the two-declarations drift T313 was fixed to
+    end.
+
+    NULL COALESCES TO 'HIS'. An unknown row is one whose source rotated away before the
+    column existed, and the twenty rescued sessions in that population exist nowhere else.
+    Including an unknown risks a little contamination; excluding it risks deleting his voice
+    from the only copy, which is the failure this whole organ was built to prevent."""
     con = _connect(db_path)
     try:
         rows = con.execute(
             "SELECT event_id, session, text FROM events WHERE voice='operator' "
-            "ORDER BY session, line").fetchall()
+            "AND COALESCE(is_subagent, 0) = 0 ORDER BY session, line").fetchall()
     finally:
         con.close()
     seen: Set[Tuple[str, str]] = set()
