@@ -46,13 +46,17 @@ from core.trust import private_plane as PP  # noqa: E402
 @pytest.fixture()
 def plane(tmp_path):
     """A private plane holding one assessment, mirroring the live shape."""
+    # SYNTHETIC identifiers on purpose. The first draft used the REAL atom id, and the guard
+    # promptly flagged its own test file on the live run -- a test that embeds a genuine
+    # private identifier is itself a leak vector, and a fixture is a tracked file like any
+    # other. The guard catching its author is the pin working.
     priv = tmp_path / "private" / "assessments"
     priv.mkdir(parents=True)
-    (priv / "REDACTED.md").write_text(
-        "# The Daniil competency register\n\nname: synthetic-sample-dossier\n"
-        "L1 findings: asked what a palindrome is.\n", encoding="utf-8")
+    (priv / "20260101_synthetic-sample-dossier_ff00aa.md").write_text(
+        "# A synthetic dossier\n\nname: synthetic-sample-dossier\n"
+        "fixture body, no real content.\n", encoding="utf-8")
     (priv / "atoms-private.jsonl").write_text(
-        '{"id": "art_REDACTED", '
+        '{"id": "art_20260101_synthetic-sample-dossier_ff00aa", '
         '"title": "synthetic-sample-dossier"}\n', encoding="utf-8")
     return tmp_path
 
@@ -63,14 +67,14 @@ def test_p1_markers_come_from_what_is_actually_in_the_plane(plane):
     plane."""
     m = PP.markers(root=plane)
     assert "ff00aa" in m, "the atom id short-hash is the strongest single marker"
-    assert any("competency-register" in x for x in m), "the title/slug must be a marker"
+    assert any("sample-dossier" in x for x in m), "the title/slug must be a marker"
 
 
 def test_p1b_markers_are_not_generic_words(plane):
     """A marker like 'the' or 'daniil' would refuse every commit in the repo. The guard must
     be specific or it gets bypassed within a day (the wolf-guard law)."""
     m = PP.markers(root=plane)
-    for junk in ("the", "and", "md", "report", "daniil"):
+    for junk in ("the", "and", "md", "report", "synthetic"):
         assert junk not in m, f"{junk!r} is far too generic to be a leak marker"
 
 
@@ -79,7 +83,7 @@ def test_p2_a_tracked_file_carrying_a_marker_is_refused(plane, tmp_path):
     """The live shape: a generated chronicle absorbs a private note title."""
     tracked = plane / "chronicles" / "memory.md"
     tracked.parent.mkdir(parents=True, exist_ok=True)
-    tracked.write_text("- synthetic-sample-dossier: L1 findings...\n", encoding="utf-8")
+    tracked.write_text("- synthetic-sample-dossier: fixture line...\n", encoding="utf-8")
     findings = PP.scan([str(tracked)], root=plane)
     assert findings, "a tracked file carrying a private marker must be refused"
     assert findings[0]["marker"]
@@ -90,7 +94,7 @@ def test_p2b_existence_metadata_counts_as_a_leak(plane):
     """deepseek's sharpest point: publishing IDS and TITLES leaks even with no body."""
     tracked = plane / "docs" / "MAP.md"
     tracked.parent.mkdir(parents=True, exist_ok=True)
-    tracked.write_text("atom art_REDACTED -> report\n",
+    tracked.write_text("atom art_20260101_synthetic-sample-dossier_ff00aa -> report\n",
                        encoding="utf-8")
     assert PP.scan([str(tracked)], root=plane), \
         "an id-only reference is still a leak -- existence metadata is content"
@@ -100,7 +104,7 @@ def test_p2b_existence_metadata_counts_as_a_leak(plane):
 def test_p3_files_inside_the_private_plane_are_never_flagged(plane):
     """The guard protects the boundary, not the room. Flagging the plane's own files would
     make it unusable and train everyone to pass --no-verify."""
-    inside = plane / "private" / "assessments" / "REDACTED.md"
+    inside = plane / "private" / "assessments" / "20260101_synthetic-sample-dossier_ff00aa.md"
     assert PP.scan([str(inside)], root=plane) == []
 
 
