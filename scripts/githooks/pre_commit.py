@@ -314,6 +314,31 @@ def main():
         sys.stderr.write(reason + "\n")
         return 1
 
+    # PRIVATE-PLANE LEAK GUARD, before anything is regenerated or ratcheted. Daniil's ruling
+    # 2026-08-16: personal material never reaches the public repo. This runs FIRST and REFUSES
+    # rather than warns, because the failure it prevents is unrecoverable once pushed -- and
+    # because the live incident was caught by hand at push, which is the egress position his
+    # ingress directive rejects. It fires on the STAGED set only, so it costs nothing on an
+    # ordinary commit, and files inside the plane are exempt by design.
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__)))))
+        from core.trust.private_plane import report as _pp_report
+        _pp = _pp_report(_staged_files())
+        if _pp["findings"]:
+            sys.stderr.write(
+                "pre-commit BLOCKED: staged file(s) carry PRIVATE-PLANE identifiers.\n")
+            for _f in _pp["findings"][:6]:
+                sys.stderr.write(f"  {_f['path']}:{_f['line']} -- marker "
+                                 f"{_f['marker']!r}\n    {_f['remedy']}\n")
+            sys.stderr.write("  Existence metadata is a leak: an id or title alone is "
+                             "enough, no body required.\n  Emergency bypass: "
+                             "`git commit --no-verify` -- and if you use it, say so out "
+                             "loud, because this one does not fail safe.\n")
+            return 1
+    except Exception:
+        pass   # a guard that crashes must not wedge every commit; the checker run reports it
+
     # DERIVED DOCS FIRST: regenerate and stage BEFORE any freshness gate looks at them.
     # Ordering is the whole point -- checking a derivative before refreshing it is what made
     # the comprehensibility gate fire on people who had not caused the staleness.

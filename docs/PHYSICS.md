@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at d1bbaf4a. A bound you discover by collision is not awareness -- this sheet
+> Derived at cb4f7755. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -220,7 +220,7 @@ Class: reference
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 
-## Mechanical bounds (115 numeric constants)
+## Mechanical bounds (116 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -329,6 +329,7 @@ Class: reference
 | `_MAX_DETAIL_CHARS` | 8,000 | core/events/event_log.py | raw is rich, but a single payload is still bounded |
 | `_MAX_NOTE` | 100,000 | agent_cli.py | durable note bodies: a ceiling against runaway pastes, not a working size |
 | `_MAX_SUMMARY` | 500 | core/events/event_log.py |  |
+| `_MIN_MARKER` | 6 | core/trust/private_plane.py |  |
 | `_MIN_SUFFIX_CHARS` | 200 | core/library/legacy_map.py |  |
 | `_NOTE_WINDOW_DAYS` | 60 | agent/harness/context.py | one store pull feeds every note-derived section |
 | `_OUTCOME_MAX_BYTES` | 4,000,000 | core/recall/at_action.py | ~4MB ring; oldest half dropped on overflow |
