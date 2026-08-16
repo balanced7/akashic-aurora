@@ -2150,6 +2150,11 @@ def cmd_eye(args):
         # to tell -- the one failure mode a sensorium may not have.
         from core.eye import connectome as _CONN
         rep["edges"] = _CONN.build()
+        # T313: manifest_complete is a ratio, and a ratio without its FRAME is how this organ
+        # once printed "83/83 manifest_complete" while globbing one level and seeing 82 of 443
+        # files on disk. The frame ships with the number now: which roots were reached, what each
+        # contributed, and how much of it is subagent rather than operator-bearing.
+        rep["corpus"] = _EYE.corpus_coverage()
         if args.json:
             print(_json.dumps(rep, indent=1)); return 0
         print(f"[eye] {rep['files_indexed']}/{rep['files_seen']} files | "
@@ -2162,6 +2167,12 @@ def cmd_eye(args):
               f"({_bk.get('follows', 0):,} recorded, "
               f"{_bk.get('same_utterance', 0):,} derived, "
               f"{_bk.get('adjacent', 0):,} inferred)")
+        _cov = rep["corpus"]
+        print("[eye] corpus: " + " · ".join(
+            f"{r['label']} {r['files']}" for r in _cov["roots"])
+            + f" = {_cov['total']} file(s)"
+            + f"  ({_cov['operator_bearing']} operator-bearing, "
+              f"{_cov['subagent_transcripts']} subagent)")
         if not rep["manifest_complete"]:
             print(f"[eye] COVERAGE GAP -- the index may NOT be read as whole:")
             for f in rep["files_failed"]:

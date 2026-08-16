@@ -98,12 +98,26 @@ def test_projects_glob_reaches_nested_transcripts():
     `for d in root.iterdir() if d.is_dir() for p in d.glob('*.jsonl')` cannot see a transcript in
     projects/<x>/subagents/. The recorded instance of this class is THE EYE reporting
     '83/83 manifest_complete' while seeing 82 of 443 files on disk."""
-    import core.eye.index as idx
-    import inspect
-    src = inspect.getsource(idx.default_corpus)
-    assert "rglob" in src or "walk" in src, (
-        "default_corpus still globs one level into each project directory; nested transcripts "
-        "(e.g. subagent sessions) are structurally invisible")
+    from core.eye.index import default_corpus, corpus_coverage
+    live = Path.home() / ".claude" / "projects"
+    if not live.is_dir():
+        import pytest
+        pytest.skip("no live projects directory on this machine")
+    nested = [p for p in live.rglob("*.jsonl") if p.parent.parent != live]
+    if not nested:
+        import pytest
+        pytest.skip("no nested transcripts exist to find")
+    seen = {p.name for p in default_corpus()}
+    missing = [p for p in nested if p.name not in seen]
+    assert not missing, (
+        f"{len(missing)} nested transcript(s) are invisible to default_corpus(), e.g. "
+        f"{[str(p.relative_to(live)) for p in missing[:3]]} -- a one-level glob cannot reach "
+        "projects/<id>/subagents/, where every research agent's findings live")
+    cov = corpus_coverage()
+    assert "subagent_transcripts" in cov, (
+        "nested subagent transcripts must be COUNTED separately, not silently mixed in: ~5x more "
+        "of them exist than operator sessions, and an unlabelled mix makes a terse operator "
+        "look verbose")
 
 
 if __name__ == "__main__":

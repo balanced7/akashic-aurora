@@ -52,6 +52,22 @@ _SYSTEM_MARKERS = (
 
 _TRANSCRIPT_GLOB = "*.jsonl"
 
+# T313: the archive roots come from ONE declaration shared with the tool that writes them.
+# Imported defensively: the indexer must still work if config is unavailable, but a missing
+# constant is a shrunken corpus, so it is reported by corpus_coverage() rather than swallowed.
+try:
+    import sys as _sys
+    if str(_REPO_ROOT) not in _sys.path:
+        _sys.path.insert(0, str(_REPO_ROOT))
+    from config import TRANSCRIPT_ARCHIVE_ROOTS
+except Exception:                                    # pragma: no cover - config is a leaf module
+    TRANSCRIPT_ARCHIVE_ROOTS = []
+
+# Subagent transcripts are INDEXED (their findings are real) but counted separately, because
+# ~5x more of them exist than operator-bearing sessions and an unlabelled mix makes a terse
+# operator look verbose. Same markers the archiver uses to EXCLUDE them; here they only tag.
+_SUBAGENT_MARKERS = ("subagents", "workflows")
+
 # Bump when the events schema changes shape.
 #
 # THE EVENTS TABLE IS NOT DISPOSABLE, and this cost real history to learn (2026-08-11).
@@ -95,16 +111,70 @@ def default_corpus() -> List[Path]:
     exactly what happened twice on 2026-08-11, the second time to the very sessions
     recovered from a shadow copy hours earlier. A corpus definition that excludes the
     archive makes every rebuild a partial one, quietly."""
-    out: List[Path] = []
-    root = Path.home() / ".claude" / "projects"
-    if root.is_dir():
-        out.extend(p for d in root.iterdir() if d.is_dir()
-                   for p in d.glob(_TRANSCRIPT_GLOB))
+    return sorted(p for _label, _base, files in _corpus_roots() for p in files)
+
+
+def _corpus_roots() -> List[Any]:
+    """(label, files) per root, deduped by filename, in precedence order.
+
+    T313. Three faults fixed here, all of the same family -- a reader that could not see what a
+    writer produced:
+
+      1. THE ARCHIVE WAS THE WRONG ONE. This read state/eye/recovered (12 files) while
+         scripts/ops/archive_transcripts.py wrote to config.TRANSCRIPT_ARCHIVE_ROOTS (102 files,
+         20 of them no longer anywhere else). Ninety sessions were unreachable. Both sides now
+         read one declaration and a pin asserts they agree.
+      2. THE LIVE GLOB WAS ONE LEVEL. `d.glob()` cannot see projects/<id>/subagents/*.jsonl --
+         404 of them at time of writing, holding every research agent's findings. rglob reaches
+         them. They are INDEXED, not excluded, because the index already carries a `voice` field
+         that separates operator from agent; excluding them would hide real findings, and
+         including them silently would drown operator-speech analysis in agent prompts (the
+         measured failure: naive sampling concludes he is verbose when he is terse).
+      3. NOTHING PUBLISHED COVERAGE. A root that vanishes or a glob that narrows used to return
+         a smaller list with no signal. corpus_coverage() now names every root and its count, so
+         a shortfall is a number rather than a silence.
+
+    Dedup is by FILENAME and precedence is live > archive > rescued: the live copy is the one
+    still being appended to, so an archived copy of the same session must never shadow it."""
+    roots: List[Any] = []
+    seen: set = set()
+
+    def _take(label: str, base: Path, files) -> None:
+        picked = [p for p in sorted(files) if p.name not in seen]
+        seen.update(p.name for p in picked)
+        roots.append((label, str(base), picked))
+
+    live = Path.home() / ".claude" / "projects"
+    if live.is_dir():
+        _take("live", live, live.rglob(_TRANSCRIPT_GLOB))
+    for base in TRANSCRIPT_ARCHIVE_ROOTS:
+        b = Path(base)
+        if b.is_dir():
+            _take("archive", b, b.glob(_TRANSCRIPT_GLOB))
     rescued = _REPO_ROOT / "state" / "eye" / "recovered"
     if rescued.is_dir():
-        live = {p.name for p in out}
-        out.extend(p for p in rescued.glob(_TRANSCRIPT_GLOB) if p.name not in live)
-    return sorted(out)
+        _take("rescued", rescued, rescued.glob(_TRANSCRIPT_GLOB))
+    return [(lbl, base, files) for lbl, base, files in roots]
+
+
+def corpus_coverage() -> Dict[str, Any]:
+    """What the corpus definition actually reached -- the frame that must ship with the number.
+
+    Lesson a_coverage_contract_must_state_the_scope_it_globs_not_just_the_files_it_read, whose own
+    example is THE EYE printing "83/83 manifest_complete" while globbing one level and seeing 82
+    of 443 files on disk. A count without its frame is not a coverage claim."""
+    rows = _corpus_roots()
+    subagent = sum(1 for _l, _b, files in rows for p in files
+                   if any(m in str(p).lower() for m in _SUBAGENT_MARKERS))
+    total = sum(len(files) for _l, _b, files in rows)
+    return {
+        "roots": [{"label": lbl, "path": base, "files": len(files)}
+                  for lbl, base, files in rows],
+        "total": total,
+        "subagent_transcripts": subagent,
+        "operator_bearing": total - subagent,
+        "dedup": "by filename; precedence live > archive > rescued",
+    }
 
 
 # ---------------------------------------------------------------- schema
