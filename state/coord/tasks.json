@@ -1,5 +1,5 @@
 {
-  "seq": 301,
+  "seq": 315,
   "tasks": [
     {
       "id": "T001",
@@ -11142,6 +11142,445 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-12T14:01:44+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T302",
+      "title": "t292 drill: frobnicate the widget subsystem",
+      "desc": "",
+      "owner": "drill_owner",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "claimed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-14T13:06:19+00:00",
+      "updated": "2026-08-14T13:06:20+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-14T13:06:19+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-14T13:06:19+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "drill_owner",
+          "at": "2026-08-14T13:06:20+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T303",
+      "title": "t292 drill: build the gizmo deduplicator",
+      "desc": "",
+      "owner": "drill_owner",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "deadbee",
+      "verified_by": "t292 drill",
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-14T13:06:21+00:00",
+      "updated": "2026-08-14T13:06:22+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-14T13:06:21+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-14T13:06:21+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "drill_owner",
+          "at": "2026-08-14T13:06:21+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-14T13:06:22+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-14T13:06:22+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T304",
+      "title": "t297 drill: a closable slice",
+      "desc": "",
+      "owner": "drill",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "deadbee1",
+      "verified_by": "t297 drill",
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-14T13:06:25+00:00",
+      "updated": "2026-08-14T13:06:27+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-14T13:06:25+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-14T13:06:25+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "drill",
+          "at": "2026-08-14T13:06:25+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-14T13:06:26+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-14T13:06:27+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T305",
+      "title": "T268 pin target: a routable ledger item about bus lane cursors and wake",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-14T13:07:27+00:00",
+      "updated": "2026-08-14T13:07:27+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-14T13:07:27+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T306",
+      "title": "t292 drill: frobnicate the widget subsystem",
+      "desc": "",
+      "owner": "drill_owner",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "claimed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-15T13:09:01+00:00",
+      "updated": "2026-08-15T13:09:02+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-15T13:09:01+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-15T13:09:01+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "drill_owner",
+          "at": "2026-08-15T13:09:02+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T307",
+      "title": "t292 drill: build the gizmo deduplicator",
+      "desc": "",
+      "owner": "drill_owner",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "deadbee",
+      "verified_by": "t292 drill",
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-15T13:09:02+00:00",
+      "updated": "2026-08-15T13:09:04+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-15T13:09:02+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-15T13:09:03+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "drill_owner",
+          "at": "2026-08-15T13:09:03+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-15T13:09:03+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-15T13:09:04+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T308",
+      "title": "t297 drill: a closable slice",
+      "desc": "",
+      "owner": "drill",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "deadbee1",
+      "verified_by": "t297 drill",
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-15T13:09:07+00:00",
+      "updated": "2026-08-15T13:09:08+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-15T13:09:07+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-15T13:09:07+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "drill",
+          "at": "2026-08-15T13:09:07+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-15T13:09:08+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-15T13:09:08+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T309",
+      "title": "T268 pin target: a routable ledger item about bus lane cursors and wake",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-15T13:10:05+00:00",
+      "updated": "2026-08-15T13:10:05+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-15T13:10:05+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T310",
+      "title": "Spectrum services & operations analysis, Gartner-grade (Daniil 2026-08-15: 'fanout of EVERY service current and legacy... dispatch system and command and control structure... teams and their responsibilities. Netops, sbnoe, MSO video restore, UC Voice Restore, Client Services, Project Management... at the level of a gartner report'). Fence: Navi=service census, Heimdall=ops/C2, Vandor=web sweep+synthesis. Brief: research/in-flight/spectrum-analysis-brief-2026-08-15.md. Deliverable: report-kit artifact + research/reviewed halves.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-15T16:00:10+00:00",
+      "updated": "2026-08-15T16:00:10+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-15T16:00:10+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T311",
+      "title": "capability-recall: recall-at gains a verb channel so the door's 85 verbs reach the agent at the moment of need",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/recall/at_action.py",
+        "tests/"
+      ],
+      "acceptance": "RED pins commit ALONE first (M3). (1) a trigger command carrying a youtube URL surfaces the captions verb; (2) a trigger about ergonomic friction surfaces the wish or friction verb; (3) a capability shipped as a FLAG on an existing verb is surfaced, closing the structural blind spot recorded in lesson discover_reads_verbs_not_flags, which discover itself cannot see; (4) NOISE FLOOR, mandatory: an unrelated trigger surfaces ZERO verbs, because calibrated silence is a stated feature of this surface and a chatty organ gets ignored; (5) the verb index is parsed from agent_cli's AST INCLUDING add_argument help strings, never from a snapshot file, so it cannot drift from the parser (T115 check_advertised_verbs precedent); (6) verbs are capped at 2 per surface and never displace a lesson. EVIDENCE THIS IS REAL: discover --semantic returned EXISTS:partially, naming core/recall/at_action.py as the push channel that carries lessons and locks but not verbs, and discover itself as the NEAREST MISS because it is self-serve and must be asked for. Measured the same day: 85 verbs on the door, one seat used 14.",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-16T01:03:46+00:00",
+      "updated": "2026-08-16T01:03:46+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-16T01:03:46+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T312",
+      "title": "ask gains vendor resolution: kimi becomes a first-class door model so a fan can span vendors",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/comm/ask.py",
+        "tests/"
+      ],
+      "acceptance": "RED pins commit ALONE first (M3). (1) _vendor_for('kimi-k3') resolves the Moonshot base_url, the KIMI_API_KEY/.secrets/kimi.key credential pair, and the max_completion_tokens cap parameter; (2) _vendor_for('deepseek-v4-pro') and the default model both resolve DeepSeek unchanged -- zero behaviour change on the existing path, which is the whole risk of this slice; (3) a caller-supplied cap below kimi's floor is raised to it, because thinking bills INSIDE completion on that vendor and a skimpy cap returns EMPTY content rather than an error (kimi_chat delta 3, probe-verified 2026-07-18); (4) core does NOT import scripts/kimi_chat.py -- core/comm/ask.py's own _load_key docstring forbids core reaching into scripts for a credential, so the conventions are mirrored, not imported; (5) LIVE END-TO-END PROOF: one real kimi call through the door returning non-empty content, because a mocked pass proves nothing about the parameter-name delta that motivated the slice. WHY: kimi has been reachable since 2026-07-18 via scripts/ask_kimi.py and its runner seat, but never through ask -- so every --fan was N samples of ONE model family, which lesson fan_agreement_is_correlated_sampling_not_n_version says is one measurement taken N times, not N-version blind.",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-16T11:50:46+00:00",
+      "updated": "2026-08-16T11:50:46+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-16T11:50:46+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T313",
+      "title": "THE EYE cannot see 90 of 102 archived sessions: one corpus definition, read by the archiver and the indexer alike",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "config.py",
+        "core/eye/index.py",
+        "scripts/ops/archive_transcripts.py",
+        "tests/"
+      ],
+      "acceptance": "RED pins commit ALONE first (M3). (1) config declares TRANSCRIPT_ARCHIVE_ROOTS once; (2) core.eye.index.default_corpus() includes sessions from those roots, so the 90 archive-only files become visible to ingest; (3) scripts/ops/archive_transcripts.py reads the SAME constant rather than its own literal, so the writer and the reader of the archive can never disagree; (4) a pin asserts writer-and-reader agreement, because the whole defect is two archives neither of which knew about the other; (5) default_corpus() publishes its COVERAGE -- how many roots it scanned and how many files each contributed -- so a future shortfall is visible rather than silent. MEASURED DEFECT: the eye rescue dir state/eye/recovered holds 12 files; the archiver's destination holds 102; 90 are archive-only and unreachable. index.py's own docstring says a rebuild reading only the live directory 'silently drops every rescued session -- which is exactly what happened twice on 2026-08-11', so the rescue path was built and pointed at the wrong archive. Second-order: the projects glob is one level (d.glob) and misses nested subagent transcripts.",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-16T14:31:46+00:00",
+      "updated": "2026-08-16T14:31:46+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-16T14:31:46+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T314",
+      "title": "a door for record_repeat: the organ that measures whether we repeat our mistakes has no verb, so its count reads as zero",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "agent_cli.py",
+        "tests/"
+      ],
+      "acceptance": "RED pins commit ALONE first (M3). (1) py agent_cli.py repeat <lesson-source> --what ... --recall-outcome ... records a repeat through the EXISTING core.learning.learning_store.record_repeat, no new storage; (2) py agent_cli.py repeat --report renders repeat_report() including elapsed_s, the time between learning a lesson and violating it, which is the number that says whether a lesson is working; (3) an unknown lesson source REFUSES rather than recording a repeat against a lesson that does not exist, because a repeat is evidence ABOUT a lesson and a dangling one is noise; (4) the verb appears in discover, since the whole defect is a capability with no door; (5) check_wiring passes, which it will enforce anyway. WHY: record_repeat and repeat_report have existed since T253 with a docstring stating 'a REPEAT is evidence ABOUT a lesson: the lesson existed, and the mistake happened anyway' and 'THE COUNT IS A FLOOR, NEVER A RATE'. discover 'repeat' returns 0 verbs. Before today the store held 4 repeats across the project's life; one session's honest accounting added 3. Daniel asked for timestamps on when lessons were learned AND violated: elapsed_s already carries it and nothing surfaces it.",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-16T14:52:17+00:00",
+      "updated": "2026-08-16T14:52:17+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-16T14:52:17+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T315",
+      "title": "Rescue + merge the ledger-shards work: review-ready fix for the tasks.json collision class, stranded on a pre-rewrite branch. Daniil's directive, stated twice (eye 3a18b34b:2005 @08-10 'lets independent sessions write the ledger without colliding', eye 9562cc66:611 @08-11 'the ledger root-cause, diagnosis-first'), diagnosed + approved + built REVIEW-READY in session 9562cc66: branch ledger-shards-review, worktree E:/_shard-review, review plan docs/ledger-shards-plan-2026-08-11.md (on the branch). Design: per-task shards state/coord/tasks/T*.json become tracked source of truth; the 547KB blob becomes a gitignored derived cache recomposed FROM DISK (that line is what lets a concurrent writer's row survive); readers untouched via fallback. Proven: byte-identical round-trip on the real 289-task ledger, 10 shard pins green. FOUND STRANDED 2026-08-16 by the fixed eye-standing watcher (first clean run): the branch sits on PRE-REWRITE history (its base c78fd67b = master's 14bcb718, same timestamp+subject, merge-base regressed to June) so its four shard commits (d435d2e3 RED, c65ff7d1 GREEN, 9206d70d migration, 20d46d10 plan) must be CHERRY-PICKED onto current master, not merged; ledger has since grown 289->314 so migration re-runs at the window per the plan's own precondition. No ledger row ever cited this work -- the C2 orphaned-row pathology the branch itself fixes is why no reminder fired. NEEDS DANIIL: the governance ruling in the plan (published-object shape: one 547KB blob -> 289+ per-task files) + a coordinated merge window; then rescue is mechanical.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [
+        "docs/ledger-shards-plan-2026-08-11.md",
+        "core/coord/task_ledger.py"
+      ],
+      "acceptance": "Branch content cherry-picked onto current master at a coordinated window after Daniil's governance ruling; migration --verify green on the 314-task ledger; shard pins green on master; the stranded branch + worktree retired loudly; next eye-standing run goes quiet on this directive.",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-16T15:18:56+00:00",
+      "updated": "2026-08-16T15:18:56+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-16T15:18:56+00:00"
         }
       ]
     }
