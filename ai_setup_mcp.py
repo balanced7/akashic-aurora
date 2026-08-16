@@ -222,6 +222,10 @@ _ARG_DEFAULTS = dict(
     # with is how the next reader learns to skim past it.
     intent_kind=None, intent_note=None, intent_sha=None, intent_to=None,
     limit_scan=None, open_sha=None, state_sha=None,
+    # 2026-08-16 parity-pin catch, same C7-1 shape a fifth time: cmd_ask grew lens_file
+    # (T256 lens work) and cmd_learn grew repeat_of (the twin's morning `repeat` verb,
+    # e2b722f1) -- both CLI-only args the MCP twins would AttributeError on.
+    lens_file=None, repeat_of="",
 )
 
 
