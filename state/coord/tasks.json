@@ -1,5 +1,5 @@
 {
-  "seq": 324,
+  "seq": 328,
   "tasks": [
     {
       "id": "T001",
@@ -11803,18 +11803,23 @@
         "core/comm/bus.py"
       ],
       "acceptance": "Origin field present on new bus/transcript records with UNKNOWN for legacy (never guessed); RED pin proving a proposed agent-authored row no longer silences eye standing but annotates it; RED pin proving an operator-authored or approved+ citation DOES settle; eye voice axis prefers recorded origin over path inference; fenced by deepseek + kimi blind half; Daniil gates the vocabulary.",
-      "status": "proposed",
+      "status": "approved",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-16T15:34:36+00:00",
-      "updated": "2026-08-16T15:34:36+00:00",
+      "updated": "2026-08-16T18:00:54+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-16T15:34:36+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-16T18:00:54+00:00"
         }
       ]
     },
@@ -11822,25 +11827,40 @@
       "id": "T323",
       "title": "Routes as reified provenance: the string through the forest becomes walkable. PROVENANCE, exact per the twin's own request: Daniil's idea (ed728d23:2173, verbatim: 'a string through a forest you can walk with by hand so you dont need to re-discover relationships between different things... a mechanical through line for work we did'; also 'routing savepoints... A unclear route is still a route, and we can update them as we go') -> the twin seat's formal synthesis (ed728d23:2461; CASE/UCO+STIX vocabulary is the twin's from its forensics research; synthesis was TRANSCRIPT-ONLY until this filing, twin-confirmed on the bus 1786896402625-0) -> filed by seat 7b78fb20. THE DESIGN: (1) reify provenance as NODES, not edge attributes -- a route IS a chain of wasInformedBy links, and a reified chain can be saved, named, updated, and re-walked, which edge attributes structurally cannot; (2) rootExhibitNumber field on derived artifacts (notes, lessons, arcs, edges): the ULTIMATE origin id carried forward, O(1) self-grounding; (3) Assertion nodes so disagreement SURVIVES -- the 16 contested typed edges from the extraction arc finally get a home (two readers disagree = two assertions with their own provenance, both alive); (4) retraction + negative judgement on edges (nomenklatura shape: judgement, score, deleted_at-as-assertion) -- REQUIRED by 'update them as we go': a route that can only accumulate is not updatable, twin-flagged as the handoff's missing gap; (5) SHACL-style failing constraints on the graph (typed edges carry formed_by becomes a failing report, not a convention). GROUND TRUTH FROM THE LIVE SEAT: position table = 0 rows -- the walk substrate (go/back/inherit) is shipped, working, and has never held a single standpoint; the idea needs its first row, not a foundation. Cross-plane manual edges need ZERO schema change today (src/dst are opaque TEXT, formed_via already accepts manual). RELATED, not merged: T322 (ingress origin at the record) is the record-level layer of the same provenance law; this is the edge/route layer. FENCE REQUIRED. Daniil gates.",
       "desc": "",
-      "owner": "",
+      "owner": "claude",
       "deps": [],
       "files": [
         "core/eye/connectome.py",
         "core/eye/position.py"
       ],
       "acceptance": "Provenance nodes chain (wasInformedBy walk works on real data); a saved named route can be re-walked; the 16 contested edges live as coexisting assertions; an edge can be retracted and a route updated without mutation; SHACL-style report can FAIL; RED pins first; fenced; Daniil gates the vocabulary.",
-      "status": "proposed",
+      "status": "in_progress",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-16T16:09:02+00:00",
-      "updated": "2026-08-16T16:09:02+00:00",
+      "updated": "2026-08-16T18:01:01+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-16T16:09:02+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-16T18:00:53+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-16T18:01:01+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-08-16T18:01:01+00:00"
         }
       ]
     },
@@ -11855,18 +11875,165 @@
         "agent_cli.py"
       ],
       "acceptance": "q_records + q_usage exist; eye q saves/runs/lists with receipts; the five scratch queries of 2026-08-16 run as named records; eye plan echoes interpreted-as and composes only named records; graduation requires human ratification; RED pins first; fenced; Daniil gates.",
-      "status": "proposed",
+      "status": "approved",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-16T16:09:02+00:00",
-      "updated": "2026-08-16T16:09:02+00:00",
+      "updated": "2026-08-16T18:00:54+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-16T16:09:02+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-16T18:00:54+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T325",
+      "title": "t292 drill: frobnicate the widget subsystem",
+      "desc": "",
+      "owner": "drill_owner",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "claimed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-16T17:03:25+00:00",
+      "updated": "2026-08-16T17:03:26+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-16T17:03:25+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-16T17:03:25+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "drill_owner",
+          "at": "2026-08-16T17:03:26+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T326",
+      "title": "t292 drill: build the gizmo deduplicator",
+      "desc": "",
+      "owner": "drill_owner",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "deadbee",
+      "verified_by": "t292 drill",
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-16T17:03:26+00:00",
+      "updated": "2026-08-16T17:03:28+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-16T17:03:26+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-16T17:03:27+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "drill_owner",
+          "at": "2026-08-16T17:03:27+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-16T17:03:27+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-16T17:03:28+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T327",
+      "title": "t297 drill: a closable slice",
+      "desc": "",
+      "owner": "drill",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "deadbee1",
+      "verified_by": "t297 drill",
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-16T17:03:30+00:00",
+      "updated": "2026-08-16T17:03:32+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-16T17:03:30+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-16T17:03:30+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "drill",
+          "at": "2026-08-16T17:03:31+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-16T17:03:31+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-16T17:03:32+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T328",
+      "title": "T268 pin target: a routable ledger item about bus lane cursors and wake",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-16T17:04:27+00:00",
+      "updated": "2026-08-16T17:04:27+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-16T17:04:27+00:00"
         }
       ]
     }
