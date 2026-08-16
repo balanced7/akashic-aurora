@@ -6,6 +6,14 @@
 # and would bloat history). See docs/BACKUP_AND_RECOVERY.md.
 # ============================================================
 
+# --- Private plane: personal assessments and operator-identifying material ---
+# Daniil's ruling 2026-08-16: "Lets not commit the competency and surname stuff to the repo.
+# I want to make sure its internally accesible." Locally readable by any seat, never pushed.
+# This is his private-plane directive (2026-08-15) in its smallest honest form: a PLACE with
+# a procedure, not a redaction dance at the boundary. Anything about the operator as a
+# person -- gradings, portraits, identifying detail -- lives here, not in the public tree.
+private/
+
 # --- Copyrighted design references (public repo -- assets stay LOCAL; the capture
 #     is reproducible: scripts/capture_apple_hig.py + the OneUI URL in refs/design-inspiration docs;
 #     only INDEX.md metadata is tracked) ---
