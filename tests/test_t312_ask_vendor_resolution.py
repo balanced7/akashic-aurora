@@ -95,6 +95,20 @@ def test_kimi_cap_floor_is_applied():
         "the DeepSeek path must not acquire a floor it never had"
 
 
+def test_kimi_carries_a_longer_read_timeout():
+    """Found by USE, not by reading. The 6-second toy prompt that proved routing works was too
+    easy to expose this; the first real analytical brief timed out. Thinking is always on at max
+    effort on kimi, so runner_lib's 120s default is short -- kimi_chat sets 180 with the comment
+    'thinking turns run long', and that is the value taken here rather than an invented one."""
+    v = _vendor_for("kimi-k3")
+    rt = float(v.get("read_timeout") or 0)
+    assert rt >= 180, (
+        f"kimi needs a read timeout of at least 180s, got {rt}. runner_lib defaults to 120, "
+        "which times out a normal analytical turn on this vendor.")
+    assert not _vendor_for("deepseek-v4-pro").get("read_timeout"), \
+        "the DeepSeek path must keep runner_lib's default, not acquire kimi's"
+
+
 def test_core_does_not_import_scripts_for_credentials():
     """The boundary _load_key's docstring states. Mirrored conventions, never a scripts import."""
     import inspect

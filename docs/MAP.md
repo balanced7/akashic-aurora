@@ -86,7 +86,7 @@ Class: reference
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
-| `ask.py` | ask -- a synchronous helper call, with no seat behind it (T171). | tests/test_ask_as_resident.py | GAP | `AKASHIC_ASK_BASE_URL`, `AKASHIC_ASK_COLLAPSE_AT`, `AKASHIC_ASK_CONTEXT_CHARS`, `AKASHIC_ASK_DISTINCT_AT`, `AKASHIC_ASK_FAN_WORKERS`, `AKASHIC_ASK_MAX_TOKENS`, `AKASHIC_ASK_MODEL`, `AKASHIC_ROUTE_JOURNAL`, `DEEPSEEK_API_KEY`, `KIMI_BASE_URL` |
+| `ask.py` | ask -- a synchronous helper call, with no seat behind it (T171). | tests/test_ask_as_resident.py | GAP | `AKASHIC_ASK_BASE_URL`, `AKASHIC_ASK_COLLAPSE_AT`, `AKASHIC_ASK_CONTEXT_CHARS`, `AKASHIC_ASK_DISTINCT_AT`, `AKASHIC_ASK_FAN_WORKERS`, `AKASHIC_ASK_MAX_TOKENS`, `AKASHIC_ASK_MODEL`, `AKASHIC_ROUTE_JOURNAL`, `DEEPSEEK_API_KEY`, `KIMI_BASE_URL`, `KIMI_READ_TIMEOUT` |
 | `ask_bg.py` | ask_bg -- a helper call that outlives your turn without becoming a seat (T205). | tests/test_t205_ask_bg.py | GAP | `AKASHIC_AGENT_ID`, `AKASHIC_ASK_BG_ORPHAN_S` |
 | `ask_state.py` | ask_state -- one durable ask's honest state (T196d). | tests/test_t196d_ask_state.py | GAP |  |
 | `assertions.py` | Pre-flight assertions (T068-R3 / deepseek M10) -- verify a directed answer's FACTUAL | GAP | GAP | `BIFROST_PREFLIGHT_ASSERT` |
