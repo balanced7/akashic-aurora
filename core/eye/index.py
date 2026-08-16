@@ -68,6 +68,24 @@ except Exception:                                    # pragma: no cover - config
 # operator look verbose. Same markers the archiver uses to EXCLUDE them; here they only tag.
 _SUBAGENT_MARKERS = ("subagents", "workflows")
 
+
+def is_subagent_path(path: Any) -> bool:
+    """Is this transcript a SUBAGENT's, by its source path? The one declaration.
+
+    T314. The distinction existed here and was only ever used to COUNT (corpus_coverage),
+    never persisted, so no consumer could apply it -- and the consumers that needed it most
+    are the ones reading `voice='operator'`. In a subagent transcript the whole brief lands
+    as a `user` record, so `_event_from` labels it operator by its own rule and wrongly in
+    fact: the author is the dispatching agent, not the human.
+
+    Measured 2026-08-16, the first live run after T313 made 430 of these reachable: 419 of
+    523 operator-voice sessions were subagent briefs. Eleven percent of the RECORDS and
+    eighty percent of the SESSIONS -- and `directives.unheeded()` ranks by sessions, so a
+    104-voter fan carrying one authored brief outranked everything the operator has ever
+    said. The organ built to keep his directives from evaporating was burying them under
+    our own prompts, and it got worse the moment the corpus got better."""
+    return any(m in str(path).lower() for m in _SUBAGENT_MARKERS)
+
 # Bump when the events schema changes shape.
 #
 # THE EVENTS TABLE IS NOT DISPOSABLE, and this cost real history to learn (2026-08-11).
@@ -81,7 +99,7 @@ _SUBAGENT_MARKERS = ("subagents", "workflows")
 # So migrations ADD, never DROP. Derived tables (pyramid, edges) are genuinely disposable
 # and may be rebuilt freely; `events` may not. Rows whose source file is gone keep NULL in
 # any column added later, and that NULL is reported as unevaluable rather than as absence.
-_SCHEMA_VERSION = 4
+_SCHEMA_VERSION = 5
 
 
 def utterance_key(session: str, text: str) -> Tuple[str, str]:
@@ -164,8 +182,7 @@ def corpus_coverage() -> Dict[str, Any]:
     example is THE EYE printing "83/83 manifest_complete" while globbing one level and seeing 82
     of 443 files on disk. A count without its frame is not a coverage claim."""
     rows = _corpus_roots()
-    subagent = sum(1 for _l, _b, files in rows for p in files
-                   if any(m in str(p).lower() for m in _SUBAGENT_MARKERS))
+    subagent = sum(1 for _l, _b, files in rows for p in files if is_subagent_path(p))
     total = sum(len(files) for _l, _b, files in rows)
     return {
         "roots": [{"label": lbl, "path": base, "files": len(files)}
@@ -208,6 +225,14 @@ def _connect(db_path: Optional[Path]) -> sqlite3.Connection:
         for col in ("uuid", "parent_uuid"):
             if col not in cols:
                 con.execute(f"ALTER TABLE events ADD COLUMN {col} TEXT")
+        if "is_subagent" not in cols:
+            # T314. Whose transcript this row came from, stamped from the source PATH at
+            # ingest. NULL means "arrived before this column existed AND its source has
+            # since rotated away" -- unevaluable, not false. Readers COALESCE it to 0 (see
+            # directives._operator_utterances): including an unknown row risks a little
+            # contamination, dropping it risks losing his voice from the twenty rescued
+            # sessions that exist nowhere else, and this organ exists to stop exactly that.
+            con.execute("ALTER TABLE events ADD COLUMN is_subagent INTEGER")
         if "indexed_at" not in cols:
             # known_at, in the grammar's sense (sec 1): WHEN THIS BECAME KNOWABLE, which is
             # not when it happened. A transcript written last week and ingested today is new
@@ -309,6 +334,15 @@ def ingest(paths: Optional[List[Path]] = None,
         for f in manifest:
             try:
                 st = f.stat()
+                session = f.stem
+                # T314: the flag is a property of the SOURCE PATH, not of any record, so it
+                # is stamped for every file in the manifest -- BEFORE the unchanged-skip
+                # below, whose rows are exactly the ones that predate the column and would
+                # otherwise never be reached again.
+                sub_flag = 1 if is_subagent_path(f) else 0
+                con.execute(
+                    "UPDATE events SET is_subagent=? WHERE session=? AND is_subagent IS NULL",
+                    (sub_flag, session))
                 cur = con.execute("SELECT mtime, lines FROM ingest_state WHERE path=?",
                                   (str(f),)).fetchone()
                 done_lines = int(cur[1]) if cur else 0
@@ -319,7 +353,6 @@ def ingest(paths: Optional[List[Path]] = None,
                         # still need to detect appended lines when mtime unchanged is
                         # impossible (append changes mtime), so skip is safe
                         continue
-                session = f.stem
                 n_line = 0
                 with open(f, encoding="utf-8", errors="replace") as fh:
                     for n_line, raw in enumerate(fh, start=1):
@@ -350,10 +383,10 @@ def ingest(paths: Optional[List[Path]] = None,
                         got = con.execute(
                             "INSERT OR IGNORE INTO events(event_id, session, line, ts, "
                             "voice, type, text, cwd, branch, tokens, uuid, parent_uuid, "
-                            "indexed_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                            "indexed_at, is_subagent) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                             (eid, session, n_line, ev["ts"], ev["voice"], ev["type"],
                              ev["text"], ev["cwd"], ev["branch"], ev["tokens"],
-                             ev["uuid"], ev["parent_uuid"], run_started))
+                             ev["uuid"], ev["parent_uuid"], run_started, sub_flag))
                         if got.rowcount:
                             con.execute(
                                 "INSERT INTO events_fts(text, event_id) VALUES(?,?)",
