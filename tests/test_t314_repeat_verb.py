@@ -51,12 +51,25 @@ def test_repeat_is_discoverable():
 
 def test_report_surfaces_elapsed_since_the_lesson():
     """elapsed_s is the number Daniel asked for: learned-then-violated, with the gap."""
-    rc, out = _cli("repeat", "--report")
+    import json as _j
+    rc, out = _cli("repeat", "--report", "--json")
     assert rc == 0, f"repeat --report failed (rc={rc}): {out[:300]}"
-    low = out.lower()
-    assert "elapsed" in low or "ago" in low or "since" in low, (
-        "the report does not surface elapsed time between learning and violating -- that gap is "
-        f"the signal for when prose should become a gate. Got: {out[:300]}")
+    try:
+        rep = _j.loads(out[out.index("{"):out.rindex("}") + 1])
+    except Exception as e:
+        raise AssertionError(f"--report --json did not emit JSON ({e}): {out[:200]}")
+    # Shape, not ambient data: this pin must not depend on the live store having rows, or it
+    # passes or fails on whatever else ran first (lesson: a pin that reads ambient state).
+    assert "entries" in rep, f"the report drops the per-repeat entries entirely: {list(rep)}"
+    for e in rep["entries"]:
+        assert "elapsed_s" in e, (
+            "an entry carries no elapsed_s -- the gap between learning a lesson and violating "
+            "it is the number this verb exists to surface")
+    if rep["entries"]:
+        rc2, txt = _cli("repeat", "--report")
+        assert "elapsed" in txt.lower(), (
+            "entries carry elapsed_s but the human-readable report hides it; a number only in "
+            f"--json is a number nobody reads. Got: {txt[:300]}")
 
 
 def test_report_names_no_rate():

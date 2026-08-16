@@ -293,6 +293,15 @@ MANIFEST = {
     "run": "cli_only",             # execute a toolbelt alias
     "suite_baseline": "cli_only",  # record/compare the pytest baseline; needs shell
     "tally": "cli_only",           # local counter roll-up
+    "repeat": "gap",               # T314: records that an EXISTING lesson was violated anyway.
+                                   # Classified gap, not cli_only, deliberately: runners break
+                                   # lessons too and a repeat only a human can file undercounts
+                                   # the very floor it measures. MCP twin owed.
+    "captions": "cli_only",        # W154: youtube captions -> text on the operator's Desktop.
+                                   # Pre-existing unclassified drift, paid down here rather than
+                                   # left to block the next seat. Writes to a human's disk and
+                                   # takes a URL a human just watched; a runner asking for it
+                                   # would be odd. Reclassify if that turns out wrong.
     "toast": "cli_only",           # peer credit; receipt verifies against the learning store
     "tool": "cli_only",            # toolbelt introspection
     "unwedge": "cli_only",         # operator recovery for a wedged seat

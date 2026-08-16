@@ -1019,6 +1019,83 @@ def cmd_graduate(args):
 
 
 # recall-feedback + recall-curate live in core/recall/surface.py (W169 slice 1)
+
+
+# ------------------------------------------------------------------------ repeat
+def cmd_repeat(args):
+    """T314: the door for record_repeat, which had none.
+
+    A REPEAT is evidence ABOUT a lesson -- the lesson existed and the mistake happened anyway.
+    core/learning/learning_store.py has carried record_repeat() and repeat_report() since T253
+    and `discover repeat` returned zero verbs, so the store held FOUR repeats across the whole
+    project. That is not a low recurrence rate; it is an unreachable organ, and the count read
+    as reassurance.
+
+    The number this exists to surface is `elapsed_s`: the gap between LEARNING a lesson and
+    VIOLATING it. Measured the day this shipped: 1.9h, 1.8h, and 5.4 days. A short gap on a
+    prose lesson is the signal that prose is the wrong instrument and a gate is the right one.
+    """
+    from core.learning.learning_store import LearningStore
+    store = LearningStore()
+
+    if args.report:
+        rep = store.repeat_report()
+        if args.json:
+            print(json.dumps(rep, indent=1)); return 0
+        print(f"# repeats: {rep.get('count', 0)} recorded -- {rep.get('caveat', '')}")
+        by = rep.get("by_recall_outcome") or {}
+        if by:
+            print("  what recall did at the moment of the repeat:")
+            for k, v in sorted(by.items(), key=lambda kv: -kv[1]):
+                print(f"    {k:<46} {v}")
+            print("    (fired = a READING failure · silent/suppressed = a TARGETING failure)")
+        mv = rep.get("most_violated") or []
+        if mv:
+            print("  most violated:")
+            for name, n in mv[:8]:
+                print(f"    {str(name)[:56]:<56} x{n}")
+        # elapsed_s is the number this verb exists to surface: how long a lesson survived before
+        # it was broken. A short gap on a prose lesson says prose was the wrong instrument.
+        ent = [e for e in (rep.get("entries") or []) if e.get("elapsed_s")]
+        if ent:
+            print("  ELAPSED between learning and violating (worst first):")
+            for e in sorted(ent, key=lambda e: float(e["elapsed_s"]))[:10]:
+                s = float(e["elapsed_s"])
+                gap = f"{s/86400:6.1f}d" if s >= 86400 else f"{s/3600:6.1f}h"
+                print(f"    {gap} ago-learned  {str(e.get('of', '?'))[:46]:<46} "
+                      f"[{e.get('recall_outcome', '') or 'unrecorded'}]")
+        return 0
+
+    if not args.source:
+        print("[repeat] name the lesson that was violated, or pass --report", file=sys.stderr)
+        return 2
+
+    of = args.source.split("learn:experiment:")[-1].strip()
+    # A repeat against a lesson that does not exist is not a cautious record -- it is noise in
+    # the only honest count we have, and it cannot be audited back to a source.
+    known = {str(r.get("experiment_name", "")).strip()
+             for r in (store.load_all_learnings_from_store() or [])}
+    if of not in known:
+        print(f"[repeat] no lesson named '{of}' -- a repeat is evidence ABOUT a lesson, so a "
+              f"dangling one inflates a count nobody can audit. Check: py agent_cli.py recall "
+              f"--full learn:experiment:{of}", file=sys.stderr)
+        return 2
+
+    out = store.record_repeat(of=of, agent_id=args.agent or os.getenv("AKASHIC_AGENT_ID", ""),
+                              what=args.what or "", recall_outcome=args.recall_outcome or "")
+    if args.json:
+        print(json.dumps(out, indent=1)); return 0
+    el = out.get("elapsed_s")
+    when = ""
+    if el:
+        when = (f" -- {el/86400:.1f} days after it was learned" if el >= 86400
+                else f" -- {el/3600:.1f} hours after it was learned")
+    print(f"[repeat] recorded against '{of}'{when}")
+    print("     the count is a floor over what was NOTICED; a short gap means prose is the "
+          "wrong instrument and a gate is the right one")
+    return 0
+
+
 # ------------------------------------------------------------------------ discover
 def list_verbs(query=""):
     """Introspect the live argparse subparsers -> [(verb, purpose)]. ONE source of truth (the parser
@@ -6877,6 +6954,24 @@ def build_parser():
                     help="which domain it was useful IN (system|vfx) -- credit in 2+ domains "
                          "promotes the lesson to domain-general")
     rf.set_defaults(fn=cmd_recall_feedback)
+
+    rp = sub.add_parser("repeat", help="record that a lesson which ALREADY EXISTED was violated "
+                                       "anyway (T253 evidence); --report shows how long after "
+                                       "learning each one was broken")
+    rp.add_argument("source", nargs="?", default="",
+                    help="the violated lesson: a bare experiment name or learn:experiment:NAME")
+    rp.add_argument("--what", default="",
+                    help="what actually happened -- the repeat is only useful if it is specific")
+    rp.add_argument("--recall-outcome", dest="recall_outcome", default="",
+                    help="what recall did at the moment: fired (a READING failure) vs "
+                         "suppressed/silent (a TARGETING failure) vs gate_caught. This field is "
+                         "what turns a tally into a diagnosis")
+    rp.add_argument("--agent", default="", help="who repeated it (defaults to AKASHIC_AGENT_ID)")
+    rp.add_argument("--report", action="store_true",
+                    help="the multifaceted record: counts, ranking, and elapsed-since-learned. "
+                         "Never a rate -- it counts only what someone noticed")
+    rp.add_argument("--json", action="store_true")
+    rp.set_defaults(fn=cmd_repeat)
 
     rc = sub.add_parser("recall-curate",
                         help="bench surfaced-never-credited lessons + prune ghost counters (report; --apply stamps)")

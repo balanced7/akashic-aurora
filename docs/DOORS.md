@@ -8,7 +8,7 @@ Class: reference
 > (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by
 > check_comprehensibility so it cannot silently rot.
 
-## CLI door -- `py agent_cli.py <verb>` (85 verbs)
+## CLI door -- `py agent_cli.py <verb>` (86 verbs)
 
 The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.
 
@@ -75,6 +75,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `recall-counters` | sharpening S2a: fold bare-slug + ghost recall:use:* counters (report; --fold applies) | `--fold` `--agent-id` |
 | `recall-curate` | bench surfaced-never-credited lessons + prune ghost counters (report; --apply stamps) | `--apply` `--forge-audit` `--forge-check` `--draft` `--forge-propose` `--forge-proposals` `--limit` `--json` |
 | `recall-feedback` | mark a recalled lesson useful/noise (teaches recall what helps) | `--source*` `--useful` `--noise` `--domain` |
+| `repeat` | record that a lesson which ALREADY EXISTED was violated anyway (T253 evidence); --report shows how long after learning each one was broken | `<source>` `--what` `--recall-outcome` `--agent` `--report` `--json` |
 | `report` | scaffold a visual report with the design kit inlined (T275) | `--title` `--eyebrow` `--out` `--crib` |
 | `resident` | callsign ceremony: nominate / ratify / show a resident's designation | `<sub> {nominate,ratify,show,assign,place,roster,roles,verdict-file,adjudicate,calibration}` |
 | `roster` | S2 lobby: per-seat worklive (LIVE/STALE proven by beat freshness, never key-existence) + have-summaries | `--json` `--reap` `--by-agent` |
