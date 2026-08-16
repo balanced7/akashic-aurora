@@ -104,6 +104,12 @@ _VENDORS = (
         # than an error. Silent emptiness is the worst failure available, hence the floor below.
         "cap_param": "max_completion_tokens",
         "min_cap": 8000,
+        # Thinking is ALWAYS on at max effort on this vendor, so a turn runs long. runner_lib
+        # defaults to 120s and kimi_chat sets 180 with the comment "thinking turns run long" --
+        # value taken from kimi's own transport rather than invented. Found by use, not by
+        # reading: the 6-second toy prompt that proved routing works was too easy to expose it,
+        # and the first real analytical brief timed out.
+        "read_timeout": float(os.getenv("KIMI_READ_TIMEOUT", "180")),
     },
     {
         "name": "deepseek",
@@ -518,7 +524,10 @@ def ask(prompt: str, *, system: Optional[str] = None, model: Optional[str] = Non
             # core -> core. runner_lib is the G4/L0 anti-wedge factory, so ask inherits the
             # per-read timeout AND lands in the T156 wire journal for free.
             from core.comm.runner_lib import make_openai_compat_client
-            client = make_openai_compat_client(key, vendor["base_url"])
+            _mk = {}
+            if vendor.get("read_timeout"):
+                _mk["read_timeout"] = float(vendor["read_timeout"])
+            client = make_openai_compat_client(key, vendor["base_url"], **_mk)
         kwargs = {
             "model": model,
             "messages": [{"role": "system", "content": system or DEFAULT_SYSTEM},
