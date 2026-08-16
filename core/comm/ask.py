@@ -81,6 +81,74 @@ def _load_key() -> Optional[str]:
         return None
 
 
+# T312 vendor resolution. This door was DeepSeek-only: one BASE_URL, one key loader, one cap
+# parameter -- so `--model` switched the model NAME while the endpoint and credential stayed
+# DeepSeek's. Kimi has been a first-class citizen since 2026-07-18 (its own transport, one-shot
+# CLI, runner seat, key and reconciled spend meter) and was reachable everywhere EXCEPT here.
+#
+# The cost was not convenience. Every `--fan` ran N branches against ONE model family, which
+# lesson fan_agreement_is_correlated_sampling_not_n_version calls one measurement taken N times.
+# Cross-vendor fan is the reason this exists.
+#
+# Conventions are MIRRORED, never imported: _load_key's docstring above states that core does not
+# reach into scripts/ for a credential, and scripts/kimi_chat.py is where kimi's live.
+_VENDORS = (
+    {
+        "name": "kimi",
+        "prefix": "kimi-",
+        "base_url": os.getenv("KIMI_BASE_URL", "https://api.moonshot.ai/v1"),
+        "key_env": "KIMI_API_KEY",
+        "key_file": "kimi.key",
+        # kimi_chat delta 3, probe-verified: this vendor rejects max_tokens, and thinking bills
+        # INSIDE completion -- so a skimpy cap returns EMPTY content with finish=length rather
+        # than an error. Silent emptiness is the worst failure available, hence the floor below.
+        "cap_param": "max_completion_tokens",
+        "min_cap": 8000,
+    },
+    {
+        "name": "deepseek",
+        "prefix": "",                      # last entry, matches everything: the default vendor
+        "base_url": BASE_URL,
+        "key_env": "DEEPSEEK_API_KEY",
+        "key_file": "deepseek.key",
+        "cap_param": "max_tokens",
+        "min_cap": 0,
+    },
+)
+
+
+def _vendor_for(model: Optional[str]) -> dict:
+    """Which vendor serves this model. Unknown models fall back to DeepSeek, deliberately:
+    an unrecognised name must not become a no-vendor that fails at call time with a confusing
+    endpoint error. The fallback is the door's historical behaviour, unchanged."""
+    name = (model or "").strip().lower()
+    for v in _VENDORS:
+        if v["prefix"] and name.startswith(v["prefix"]):
+            return v
+    return _VENDORS[-1]
+
+
+def _load_key_for(vendor: dict) -> Optional[str]:
+    """_load_key generalised over vendors: env first, then the gitignored key file, same order.
+
+    The DEFAULT vendor delegates to _load_key() rather than reimplementing it, and that is a
+    contract rather than tidiness: T171's keyless-door test patches _load_key to prove the door
+    reports a CONFIGURATION failure instead of a model failure. Resolving deepseek's credential
+    inline here would route around that patch -- caught immediately, and the giveaway was ugly:
+    the keyless test started making a live API call and passing.
+    """
+    if vendor is _VENDORS[-1] or vendor.get("key_env") == "DEEPSEEK_API_KEY":
+        return _load_key()
+    v = os.getenv(vendor["key_env"])
+    if v and v.strip():
+        return v.strip()
+    try:
+        path = Path(__file__).resolve().parents[2] / ".secrets" / vendor["key_file"]
+        return path.read_text(encoding="utf-8").strip() or None
+    except Exception:
+        return None
+
+
 def _usd(model: str, prompt_tokens: int, completion_tokens: int) -> Optional[float]:
     """Cost in USD, or None when the model has no sourced rate.
 
@@ -439,16 +507,18 @@ def ask(prompt: str, *, system: Optional[str] = None, model: Optional[str] = Non
             prompt = f"{block}\n\n=== QUESTION ===\n{prompt}"
     t0 = time.time()
     try:
+        vendor = _vendor_for(model)      # T312: endpoint, credential and cap param travel together
         if client is None:
-            key = _load_key()
+            key = _load_key_for(vendor)
             if not key:
                 return BoundaryOutcome.failed(
-                    "no DEEPSEEK_API_KEY and no .secrets/deepseek.key -- the door is closed, "
-                    "which is a configuration state and not a model failure")
+                    f"no {vendor['key_env']} and no .secrets/{vendor['key_file']} -- the "
+                    f"{vendor['name']} door is closed, which is a configuration state and not a "
+                    "model failure")
             # core -> core. runner_lib is the G4/L0 anti-wedge factory, so ask inherits the
             # per-read timeout AND lands in the T156 wire journal for free.
             from core.comm.runner_lib import make_openai_compat_client
-            client = make_openai_compat_client(key, BASE_URL)
+            client = make_openai_compat_client(key, vendor["base_url"])
         kwargs = {
             "model": model,
             "messages": [{"role": "system", "content": system or DEFAULT_SYSTEM},
@@ -456,7 +526,14 @@ def ask(prompt: str, *, system: Optional[str] = None, model: Optional[str] = Non
         }
         cap = DEFAULT_MAX_TOKENS if max_tokens is None else int(max_tokens)
         if cap > 0:                      # 0 -> omit entirely: the model's own ceiling
-            kwargs["max_tokens"] = cap
+            # A cap under the vendor's floor is raised rather than honoured. On kimi, thinking
+            # bills inside completion, so an honoured-but-skimpy cap returns EMPTY content and
+            # the caller cannot tell that from "the model had nothing to say". Clamping is the
+            # lesser surprise: it is visible in the usage numbers, silence is not.
+            floor = int(vendor.get("min_cap") or 0)
+            if floor and cap < floor:
+                cap = floor
+            kwargs[vendor["cap_param"]] = cap
         resp = client.chat.completions.create(**kwargs)
     except Exception as e:
         return BoundaryOutcome.caught(e, where=f"ask({model})")
