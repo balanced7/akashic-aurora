@@ -6326,16 +6326,36 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
+      "status": "in_progress",
       "commit": null,
       "verified_by": null,
       "created": "2026-08-05T04:29:02+00:00",
-      "updated": "2026-08-05T04:29:02+00:00",
+      "updated": "2026-08-16T19:02:06+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-05T04:29:02+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-16T19:01:19+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-16T19:01:19+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-16T19:01:52+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-08-16T19:02:06+00:00"
         }
       ]
     },
@@ -11834,13 +11854,13 @@
         "core/eye/position.py"
       ],
       "acceptance": "Provenance nodes chain (wasInformedBy walk works on real data); a saved named route can be re-walked; the 16 contested edges live as coexisting assertions; an edge can be retracted and a route updated without mutation; SHACL-style report can FAIL; RED pins first; fenced; Daniil gates the vocabulary.",
-      "status": "in_progress",
+      "status": "verifying",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-16T16:09:02+00:00",
-      "updated": "2026-08-16T18:01:01+00:00",
+      "updated": "2026-08-16T19:01:52+00:00",
       "history": [
         {
           "to": "proposed",
@@ -11861,6 +11881,11 @@
           "to": "in_progress",
           "by": "claude",
           "at": "2026-08-16T18:01:01+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-16T19:01:52+00:00"
         }
       ]
     },
