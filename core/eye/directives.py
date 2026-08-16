@@ -141,7 +141,8 @@ def _operator_utterances(db_path: Optional[Path]) -> List[Dict[str, Any]]:
     enqueue, a dequeue and a delivered `user` twin; counting rows would treat one sentence
     as three and inflate every verdict built on top.
 
-    AND IT IS HIS VOICE ONLY (T314). A subagent's brief arrives as a `user` record, so the
+    AND IT IS HIS VOICE ONLY (authorship fix, RED a5afd360). A subagent's brief arrives
+    as a `user` record, so the
     indexer labels it operator by its own rule and wrongly in fact -- the author is the
     dispatching agent. The docstring of this module already named that false-positive class
     and the report already disclaimed it; a disclaimer is not a filter, and on the first
