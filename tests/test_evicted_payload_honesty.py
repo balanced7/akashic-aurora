@@ -31,7 +31,8 @@ def _tiny_log(tmp_path, monkeypatch, maxlen=5):
 
 def test_evicted_pointer_confesses_aging(tmp_path, monkeypatch):
     log = _tiny_log(tmp_path, monkeypatch)
-    refs = [log.capture("note", f"event {i}")["_ref"] for i in range(8)]
+    # capture() returns a BoundaryOutcome since T179 (64066a3f); .ref IS the _ref pointer.
+    refs = [log.capture("note", f"event {i}").ref for i in range(8)]
     ev, why = log.resolve(refs[0])          # ids 1..3 evicted by the bound of 5
     assert ev is None
     assert "aged out" in why, f"an evicted payload must say so, got: {why!r}"
@@ -44,7 +45,7 @@ def test_evicted_pointer_confesses_aging(tmp_path, monkeypatch):
 
 def test_present_pointer_resolves_clean(tmp_path, monkeypatch):
     log = _tiny_log(tmp_path, monkeypatch)
-    refs = [log.capture("note", f"event {i}")["_ref"] for i in range(8)]
+    refs = [log.capture("note", f"event {i}").ref for i in range(8)]
     ev, why = log.resolve(refs[-1])
     assert why is None and ev is not None and ev["summary"] == "event 7"
 
@@ -67,14 +68,14 @@ def test_malformed_pointer_is_named(tmp_path, monkeypatch):
 def test_get_still_returns_bare_event(tmp_path, monkeypatch):
     """get() keeps its contract (event-or-None) and shares resolve()'s scan."""
     log = _tiny_log(tmp_path, monkeypatch)
-    refs = [log.capture("note", f"event {i}")["_ref"] for i in range(3)]
+    refs = [log.capture("note", f"event {i}").ref for i in range(3)]
     assert log.get(refs[0])["summary"] == "event 0"
     assert log.get(f"event:{EL.RAW_STREAM}:777") is None
 
 
 def test_query_layer_shares_the_honest_door(tmp_path, monkeypatch):
     log = _tiny_log(tmp_path, monkeypatch)
-    refs = [log.capture("note", f"event {i}")["_ref"] for i in range(8)]
+    refs = [log.capture("note", f"event {i}").ref for i in range(8)]
     eq = EventQuery(log)
     ev, why = eq.resolve(refs[0])
     assert ev is None and "aged out" in why

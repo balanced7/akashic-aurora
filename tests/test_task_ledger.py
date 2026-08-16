@@ -52,9 +52,11 @@ def test_done_requires_commit_and_verification(tmp_path):
     TL.verifying(L, t["id"], at="t4")
     with pytest.raises(TL.LedgerError, match="no proof"):
         TL.done(L, t["id"], commit="", verified_by="", at="t5")
-    TL.done(L, t["id"], commit="abc123", verified_by="pytest", at="t6")
+    # 8-hex fixtures: T297's done gate (598be034) refuses commits under 7 hex chars;
+    # 'abc123', 'c' and 'x' predated the validator.
+    TL.done(L, t["id"], commit="abc12345", verified_by="pytest", at="t6")
     assert L.get(t["id"])["status"] == TL.DONE
-    assert L.get(t["id"])["commit"] == "abc123"
+    assert L.get(t["id"])["commit"] == "abc12345"
 
 
 def test_one_in_progress_gate_serializes(tmp_path):
@@ -87,7 +89,7 @@ def test_done_is_terminal(tmp_path):
     TL.claim(L, t["id"], "claude", at="t2")
     TL.start(L, t["id"], at="t3")
     TL.verifying(L, t["id"], at="t4")
-    TL.done(L, t["id"], commit="c", verified_by="v", at="t5")
+    TL.done(L, t["id"], commit="cafe5150", verified_by="v", at="t5")
     with pytest.raises(TL.LedgerError, match="terminal|illegal"):
         L.transition(t["id"], TL.IN_PROGRESS, at="t6")
 
@@ -136,7 +138,7 @@ def test_state_view_next_needs_deps_done(tmp_path):
     assert a["id"] in ids_next and b["id"] not in ids_next   # b blocked: dep a not DONE
     # finish a → b becomes next
     TL.claim(L, a["id"], "c", at="t2"); TL.start(L, a["id"], at="t3")
-    TL.verifying(L, a["id"], at="t4"); TL.done(L, a["id"], commit="x", verified_by="v", at="t5")
+    TL.verifying(L, a["id"], at="t4"); TL.done(L, a["id"], commit="ab5ca1e0", verified_by="v", at="t5")
     v2 = TL.state_view(p, client=None)
     assert {t["id"] for t in v2["done"]} == {a["id"]}
     assert b["id"] in {t["id"] for t in v2["next"]}
