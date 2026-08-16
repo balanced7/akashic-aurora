@@ -72,7 +72,8 @@ _SUBAGENT_MARKERS = ("subagents", "workflows")
 def is_subagent_path(path: Any) -> bool:
     """Is this transcript a SUBAGENT's, by its source path? The one declaration.
 
-    T314. The distinction existed here and was only ever used to COUNT (corpus_coverage),
+    The 2026-08-16 authorship fix (RED a5afd360). The distinction existed here and was
+    only ever used to COUNT (corpus_coverage),
     never persisted, so no consumer could apply it -- and the consumers that needed it most
     are the ones reading `voice='operator'`. In a subagent transcript the whole brief lands
     as a `user` record, so `_event_from` labels it operator by its own rule and wrongly in
@@ -226,7 +227,8 @@ def _connect(db_path: Optional[Path]) -> sqlite3.Connection:
             if col not in cols:
                 con.execute(f"ALTER TABLE events ADD COLUMN {col} TEXT")
         if "is_subagent" not in cols:
-            # T314. Whose transcript this row came from, stamped from the source PATH at
+            # 2026-08-16 authorship fix (RED a5afd360). Whose transcript this row came
+            # from, stamped from the source PATH at
             # ingest. NULL means "arrived before this column existed AND its source has
             # since rotated away" -- unevaluable, not false. Readers COALESCE it to 0 (see
             # directives._operator_utterances): including an unknown row risks a little
@@ -335,7 +337,8 @@ def ingest(paths: Optional[List[Path]] = None,
             try:
                 st = f.stat()
                 session = f.stem
-                # T314: the flag is a property of the SOURCE PATH, not of any record, so it
+                # authorship fix a5afd360: the flag is a property of the SOURCE PATH, not
+                # of any record, so it
                 # is stamped for every file in the manifest -- BEFORE the unchanged-skip
                 # below, whose rows are exactly the ones that predate the column and would
                 # otherwise never be reached again.

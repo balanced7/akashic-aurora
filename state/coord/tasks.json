@@ -1,5 +1,5 @@
 {
-  "seq": 315,
+  "seq": 320,
   "tasks": [
     {
       "id": "T001",
@@ -11569,18 +11569,196 @@
         "core/coord/task_ledger.py"
       ],
       "acceptance": "Branch content cherry-picked onto current master at a coordinated window after Daniil's governance ruling; migration --verify green on the 314-task ledger; shard pins green on master; the stranded branch + worktree retired loudly; next eye-standing run goes quiet on this directive.",
-      "status": "proposed",
+      "status": "abandoned",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-16T15:18:56+00:00",
-      "updated": "2026-08-16T15:18:56+00:00",
+      "updated": "2026-08-16T15:30:28+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-16T15:18:56+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-16T15:30:28+00:00",
+          "reason": "provenance overclaim, caught by codex/Sol 2026-08-16: headline called two agent-authored dispatch briefs 'Daniil's directive, stated twice'. Channel role != authorship. Superseded by T316, same rescue with honest provenance. The watcher-silencing subtlety this exposed (a PROPOSED row textually silences eye standing) is filed separately."
+        }
+      ]
+    },
+    {
+      "id": "T316",
+      "title": "Rescue + merge the ledger-shards work: review-ready fix for the tasks.json collision class, stranded on a pre-rewrite branch. PROVENANCE, stated honestly (supersedes T315, whose headline claimed 'Daniil's directive, stated twice' off two eye addresses that are DISPATCH BRIEFS -- operator CHANNEL, agent AUTHOR, both speaking of Daniil in the third person; codex/Sol caught the conflation 2026-08-16): the intent IS Daniil's -- his approval and build order are relayed at eye 9562cc66:656 ('Daniil approved all of it... HOLD sharding for a separate instruction') and 9562cc66:784 ('Now build the sharding fix (option B) to a REVIEW-READY state... Daniil is away and will review at home') -- but no address in the corpus holds the directive in his own first-person words; channel role != authorship. THE WORK: branch ledger-shards-review, worktree E:/_shard-review, review plan docs/ledger-shards-plan-2026-08-11.md (on the branch). Per-task shards state/coord/tasks/T*.json become tracked source of truth; the 547KB blob becomes a gitignored derived cache recomposed FROM DISK; readers untouched via fallback. Proven at build time: byte-identical round-trip on the 289-task ledger, 10 shard pins green. STRANDED: the branch sits on PRE-REWRITE history (its base c78fd67b = master's 14bcb718, same timestamp+subject; merge-base regressed to June) so its four shard commits (d435d2e3 RED, c65ff7d1 GREEN, 9206d70d migration, 20d46d10 plan) must be CHERRY-PICKED onto current master, not merged; ledger has since grown to 314+ so migration re-runs at the window per the plan's own precondition. NEEDS DANIIL: the governance ruling in the plan (published-object shape: one 547KB blob -> per-task files) + a coordinated merge window; then rescue is mechanical.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [
+        "docs/ledger-shards-plan-2026-08-11.md",
+        "core/coord/task_ledger.py"
+      ],
+      "acceptance": "Branch content cherry-picked onto current master at a coordinated window after Daniil's governance ruling; migration --verify green on the current ledger; shard pins green on master; the stranded branch + worktree retired loudly; next eye-standing run stays quiet on this directive for the RIGHT reason (a ruled-on row, not a textual echo).",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-16T15:30:28+00:00",
+      "updated": "2026-08-16T15:30:28+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-16T15:30:28+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T317",
+      "title": "t292 drill: frobnicate the widget subsystem",
+      "desc": "",
+      "owner": "drill_owner",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "claimed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-16T15:30:54+00:00",
+      "updated": "2026-08-16T15:30:55+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-16T15:30:54+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-16T15:30:54+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "drill_owner",
+          "at": "2026-08-16T15:30:55+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T318",
+      "title": "channel role != authorship: origin captured at the RECORD, and a watcher that cannot be settled by its own echo. Two defects, one law, three convergent arrivals (2026-08-16). DEFECT 1 (codex/Sol): the eye's voice axis conflates channel with author. The is_subagent fix (a5afd360/7d2ed2ff) catches subagent-PATH transcripts only; dispatch briefs pasted or queued into REAL seats still read as operator speech -- the clean run's top hit is one, and abandoned T315 cited two as 'Daniil's directive'. Root: origin is inferred at PROJECTION time from the path, because no plane RECORDS it at write time. DEFECT 2 (codex/Sol, mechanics verified from code): directives._is_cited ingests raw tasks.json text with no status or origin filter, so a PROPOSED row authored by the watcher's own reader textually silences the watcher -- instrument-proposes-never-ratifies defeated by one indirection. Observed live: T315 (proposed, agent-authored) silenced the collision directive within minutes of the watcher surfacing it. In a ledger with 58 stale proposed rows, silence-on-proposed is re-evaporation with a green light. THE LAW (third arrival): deepseek's queued fence counter says classification must live ON THE RECORD IN THE STORE, not only at the projection boundary; Sol says capture origin at enqueue (human | agent-dispatch | system | UNKNOWN); the is_subagent column is the projection-time compromise. SLICE: (1) an origin field stamped at enqueue/write on bus messages and transcript-bound records, UNKNOWN for legacy, never guessed; (2) _is_cited requires provenance-qualified settling -- an approved+ transition or an operator-authored citation settles; a proposed row ANNOTATES ('parked behind N proposals, day M') instead of silencing; (3) the eye voice axis reads recorded origin where present, path inference as fallback only. FENCE REQUIRED (deepseek is a live consumer of the bus shape and authored arrival #1; kimi as blind half per method). Daniil gates.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [
+        "core/eye/directives.py",
+        "core/eye/index.py",
+        "core/comm/bus.py"
+      ],
+      "acceptance": "Origin field present on new bus/transcript records with UNKNOWN for legacy (never guessed); RED pin proving a proposed agent-authored row no longer silences eye standing but annotates it; RED pin proving an operator-authored or approved+ citation DOES settle; eye voice axis prefers recorded origin over path inference; fenced by deepseek + kimi blind half; Daniil gates the vocabulary.",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-16T15:30:55+00:00",
+      "updated": "2026-08-16T15:30:55+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-16T15:30:55+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T319",
+      "title": "t292 drill: build the gizmo deduplicator",
+      "desc": "",
+      "owner": "drill_owner",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "deadbee",
+      "verified_by": "t292 drill",
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-16T15:30:55+00:00",
+      "updated": "2026-08-16T15:30:57+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-16T15:30:55+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-16T15:30:56+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "drill_owner",
+          "at": "2026-08-16T15:30:56+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-16T15:30:56+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-16T15:30:57+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T320",
+      "title": "t297 drill: a closable slice",
+      "desc": "",
+      "owner": "drill",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "deadbee1",
+      "verified_by": "t297 drill",
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-16T15:31:00+00:00",
+      "updated": "2026-08-16T15:31:01+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-16T15:31:00+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-16T15:31:00+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "drill",
+          "at": "2026-08-16T15:31:00+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-16T15:31:01+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-16T15:31:01+00:00"
         }
       ]
     }
