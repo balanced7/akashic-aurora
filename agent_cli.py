@@ -3923,6 +3923,20 @@ def cmd_wrap(args):
                       f"-> py agent_cli.py recall-curate --apply")
         except Exception:
             pass
+        try:   # stale-claim sweep: a lesson's ANCHORS can resolve while its CLAIM has gone
+            from core.recall.staleness import sweep as _stale_sweep   # false. Surfaced at
+            _st = _stale_sweep()                                      # wrap because that is
+            if _st.get("stale"):                                      # the reflective moment
+                print(f"\n# [stale-claims] {len(_st['stale'])} lesson(s) assert a count or "
+                      f"absence their own artifact now refutes "
+                      f"({_st['checkable']} checkable of {_st['examined']} examined)")
+                for _s in _st["stale"][:3]:
+                    print(f"    {_s['lesson']}: {_s['claim'][:90]}")
+                    print(f"      refuted in {_s['artifact']}: "
+                          f"{(_s['evidence'] or [''])[0][:90]}")
+                print("    (proposes a RE-READ; it never retracts a lesson)")
+        except Exception:
+            pass
         try:   # Forge F2 nudge: pending optimizer proposals want the human's eyes
             from core.recall.forge_optimizer import pending_proposals
             props = pending_proposals()
