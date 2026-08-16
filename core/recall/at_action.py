@@ -1490,6 +1490,209 @@ def _floor_default() -> float:
         return 0.20
 
 
+# --- T311 capability-recall: the verb channel -------------------------------------------------
+# This surface already pushes lessons and locks at the moment of action. It did not push VERBS,
+# and the door has 85 of them. Measured 2026-08-15: a seat met a YouTube URL, reached for a web
+# fetch, then grepped the repo for a script, while `captions` sat on the door with tests behind
+# it. Daniel: "We forget it every time Q__Q".
+#
+# `discover` is the near miss, not the answer: it lists every verb, but it is SELF-SERVE -- an
+# agent must already suspect the capability exists to ask. This channel is the push side.
+#
+# The index is parsed from the PARSER (T115 check_advertised_verbs precedent), never from a
+# snapshot file, so it cannot drift from the door. It reads add_argument help too, which closes
+# the structural blind spot in `discover`: a capability shipped as a FLAG is invisible to a
+# verb-table read (lesson discover_reads_verbs_not_flags).
+
+_VERB_CACHE: Dict[str, Any] = {"mtime": None, "index": None, "df": None}
+
+
+def _agent_cli_path() -> str:
+    return os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__)))), "agent_cli.py")
+
+
+def verb_index(source_path: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Every door verb, its purpose, and its flags -- read from agent_cli's AST.
+
+    Returns [{verb, purpose, flags:[...]}]. Cached on the source file's mtime because this runs
+    before every edit and command; a cold parse of a 7k-line module is not hot-path work.
+
+    Adjacent string literals in a help= are concatenated by the Python parser itself, so a
+    multi-line help arrives here as one Constant and needs no reassembly. Flags are attached to
+    the most recent preceding add_parser assignment for that variable, which is source order and
+    therefore exactly how argparse itself binds them.
+
+    Fail-soft by contract: any parse problem returns [] so the verb channel goes quiet rather
+    than taking the whole recall surface down with it."""
+    path = source_path or _agent_cli_path()
+    try:
+        mtime = os.path.getmtime(path)
+        if _VERB_CACHE["mtime"] == mtime and _VERB_CACHE["index"] is not None:
+            return _VERB_CACHE["index"]
+        import ast
+        with open(path, "r", encoding="utf-8") as fh:
+            tree = ast.parse(fh.read())
+        parsers: List[Any] = []        # (lineno, var_name, entry)
+        args: List[Any] = []           # (lineno, var_name, flag_names, help_text)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call):
+                fn = node.value.func
+                if isinstance(fn, ast.Attribute) and fn.attr == "add_parser" and node.value.args:
+                    first = node.value.args[0]
+                    if isinstance(first, ast.Constant) and isinstance(first.value, str):
+                        helptext = ""
+                        for kw in node.value.keywords:
+                            if kw.arg in ("help", "description") and \
+                                    isinstance(kw.value, ast.Constant) and \
+                                    isinstance(kw.value.value, str):
+                                helptext = kw.value.value
+                        tgt = node.targets[0]
+                        var = tgt.id if isinstance(tgt, ast.Name) else ""
+                        parsers.append((node.lineno, var,
+                                        {"verb": first.value, "purpose": helptext, "flags": []}))
+            elif isinstance(node, ast.Call):
+                fn = node.func
+                if isinstance(fn, ast.Attribute) and fn.attr == "add_argument" and \
+                        isinstance(fn.value, ast.Name) and node.args:
+                    names = [a.value for a in node.args
+                             if isinstance(a, ast.Constant) and isinstance(a.value, str)]
+                    helptext = ""
+                    for kw in node.keywords:
+                        if kw.arg == "help" and isinstance(kw.value, ast.Constant) and \
+                                isinstance(kw.value.value, str):
+                            helptext = kw.value.value
+                    args.append((node.lineno, fn.value.id, names, helptext))
+        parsers.sort(key=lambda t: t[0])
+        for lineno, var, names, helptext in sorted(args, key=lambda t: t[0]):
+            owner = None
+            for p_line, p_var, entry in parsers:
+                if p_var == var and p_line < lineno:
+                    owner = entry
+                elif p_line > lineno:
+                    break
+            if owner is not None:
+                owner["flags"].extend(n.lstrip("-") for n in names)
+                if helptext:
+                    owner["flags"].append(helptext)
+        index = [e for _, _, e in parsers]
+        _VERB_CACHE.update({"mtime": mtime, "index": index, "df": None})
+        return index
+    except Exception:
+        return []
+
+
+def _verb_tokens(entry: Dict[str, Any]) -> set:
+    text = " ".join([entry.get("verb", "").replace("-", " "), entry.get("purpose", "")]
+                    + [str(f) for f in entry.get("flags", [])])
+    return {t.lower() for t in _TOKEN_RE.findall(text)
+            if len(t) > 3 and t.lower() not in _STOP}
+
+
+_EXTERNAL_TOOLS = {"git", "npm", "docker", "pip", "node", "cargo", "yarn", "pytest", "poetry"}
+_VERB_NOISE = {"claude", "deepseek", "kimi", "agent", "python"}
+
+
+def _verb_exclusions(command: Optional[str]) -> set:
+    """Tokens that must NOT be allowed to summon a verb, and why each class is here.
+
+    Measured before this existed: 67% false-positive rate over a sample of sixteen real triggers
+    from one session (12 of which should have stayed silent; 8 fired). Every class below is one
+    of those failures, not a hypothetical.
+
+      PATH TOKENS -- `py tests/test_t311_capability_recall.py` summoned `recall` and `recall-at`
+      off the FILENAME. A path says where you are working; a verb answers what you want to do.
+      Lessons legitimately match on filenames, which is why this filter lives here and not in
+      _query_from: the two channels want different things from the same trigger.
+
+      ANOTHER TOOL'S SUBCOMMAND -- `git status` summoned our `status`; `npm install` summoned
+      `kit`. The token after a known external executable belongs to that executable.
+
+      THE VERB ALREADY BEING RUN -- `py agent_cli.py boot claude` summoned `boot`. Telling an
+      agent about the verb it is at that moment invoking is pure noise, and worse, it is the
+      kind of noise that teaches a reader to skip the whole surface.
+
+      FLEET NOISE -- agent ids appear in a large share of commands and carry no intent."""
+    excl = set(_VERB_NOISE)
+    if not command:
+        return excl
+    toks = command.split()
+    for i, seg in enumerate(toks):
+        low = seg.lower()
+        # A URL is NOT a path. It is the SUBJECT of the action, and it carries the strongest
+        # signal this channel has -- a youtube URL is the whole reason `captions` should speak.
+        # Caught by the pins immediately after the path rule silenced the motivating case.
+        is_url = "://" in low or low.startswith("www.")
+        if not is_url and ("/" in seg or "\\" in seg or seg.endswith(".py")):
+            excl |= {t.lower() for t in _TOKEN_RE.findall(seg)}
+        if i > 0 and toks[i - 1].lower() in _EXTERNAL_TOOLS:
+            excl |= {t.lower() for t in _TOKEN_RE.findall(seg)}
+    if "agent_cli" in command:
+        # the door is being driven directly: every bare token is a candidate verb being invoked
+        excl |= {t.lower() for t in _TOKEN_RE.findall(command)}
+    return excl
+
+
+def _verbs(query: str, command: Optional[str] = None, limit: int = 2) -> List[Dict[str, Any]]:
+    """Rank verbs against the SAME query the lessons ranked against, and stay quiet by default.
+
+    Scoring is inverse-document-frequency over the verb corpus: a token appearing in one verb's
+    help is worth 1.0, a token appearing in twenty is worth 0.05. The floor is therefore "at
+    least one token that is nearly unique to this verb" -- 'youtube' names captions and nothing
+    else; 'file' names half the door and must never fire.
+
+    This floor is deliberately strict. Calibrated silence is a stated property of this surface,
+    and a chatty verb channel would train the reader to skip the whole render, costing more than
+    it pays. Pin: test_noise_floor_unrelated_trigger_surfaces_no_verbs."""
+    try:
+        index = verb_index()
+        if not index or not query:
+            return []
+        df = _VERB_CACHE.get("df")
+        if not df:
+            df = {}
+            for e in index:
+                for t in _verb_tokens(e):
+                    df[t] = df.get(t, 0) + 1
+            _VERB_CACHE["df"] = df
+        q = {t for t in query.split() if t and t not in _verb_exclusions(command)}
+        scored: List[Any] = []
+        for e in index:
+            toks = _verb_tokens(e)
+            hits = q & toks
+            if not hits:
+                continue
+            score = sum(1.0 / df.get(t, 1) for t in hits)
+            # A token that IS the verb's own name is the strongest signal available, and plain
+            # IDF punishes it: 'friction' appears in two verbs' help, so the verb literally NAMED
+            # friction scored 0.5 and was filtered. Naming the organ is not a coincidence, so a
+            # name hit always clears the floor. (Found by the friction pin, 2026-08-15.)
+            name_toks = {t.lower() for t in _TOKEN_RE.findall(e.get("verb", "").replace("-", " "))
+                         if len(t) > 3}
+            if q & name_toks:
+                score = max(score, _VERB_FLOOR)
+            elif len(hits) < 2:
+                # ONE generic help-text token is not evidence of intent. This single rule killed
+                # four of the eight measured false positives: 'directory' summoned `tally`,
+                # 'install' summoned `kit`, 'item' summoned `defer`, 'remove' summoned `grant`.
+                # IDF over 108 verbs cannot see that a token is common ENGLISH, only that it is
+                # rare in this corpus -- so corroboration does the job frequency cannot.
+                continue
+            if score >= _VERB_FLOOR:
+                scored.append((score, sorted(hits), e))
+        scored.sort(key=lambda t: (-t[0], t[2].get("verb", "")))
+        out = []
+        for score, hits, e in scored[:max(0, limit)]:
+            out.append({"verb": e["verb"], "purpose": e.get("purpose", ""),
+                        "score": round(score, 3), "matched": hits})
+        return out
+    except Exception:
+        return []
+
+
+_VERB_FLOOR = float(os.environ.get("AKASHIC_VERB_FLOOR", "0.9"))
+
+
 def recall_at(*, path: Optional[str] = None, command: Optional[str] = None,
               subject: Optional[str] = None, gesture: Optional[str] = None,
               domain: Optional[str] = None,
@@ -1596,8 +1799,14 @@ def recall_at(*, path: Optional[str] = None, command: Optional[str] = None,
                                 agent_id=agent_id or "", query_shape=shape)
         except Exception:
             pass
+        # T311: verbs ride the same query the lessons ranked against. Computed independently of
+        # `lessons` on purpose -- the motivating case (a YouTube URL, and `captions` on the door)
+        # had NO matching lesson, so gating verbs on a lesson hit would have stayed silent in the
+        # exact situation that prompted this channel.
+        verbs = _verbs(query, command=command) if query else []
         return {"path": path, "command": command, "query": query, "lessons": lessons,
-                "locks": locks, "counter": counter, "shown": len(lessons) + len(locks),
+                "locks": locks, "counter": counter, "verbs": verbs,
+                "shown": len(lessons) + len(locks),
                 "total": total, "faithful": faithful, "confidence": conf}
     except Exception as e:
         # faithful/confidence describe a check that RAN. This one raised, so they are
@@ -1618,7 +1827,7 @@ def recall_at(*, path: Optional[str] = None, command: Optional[str] = None,
         except Exception:
             pass                              # the fail-soft contract outranks the record
         return {"path": path, "command": command, "query": "", "lessons": [], "locks": [],
-                "counter": None, "shown": 0, "total": 0,
+                "counter": None, "verbs": [], "shown": 0, "total": 0,
                 "faithful": None, "confidence": None,
                 "error": type(e).__name__, "error_detail": str(e)[:200]}
 
@@ -1713,6 +1922,19 @@ def render(result: Dict[str, Any], *, max_chars: int = 110,
             if len(cs) > max_chars:
                 cs = cs[:max_chars].rsplit(" ", 1)[0] + "..."
             lines.append(f"[counter] {cs} (source: {counter.get('source')})")
+    # T311 verb channel: the door already has a verb for this. Rendered AFTER the lessons because
+    # lessons are the proven cargo and verbs ride along; rendered BEFORE the empty-check so a
+    # trigger that matches a verb but no lesson still speaks -- that was the motivating case.
+    # hint_style is honoured for the same reason T048 gave it: naming `py agent_cli.py <verb>` to
+    # a tool-loop reader that cannot run CLI verbs is a dead end in its surface.
+    for v in result.get("verbs", []):
+        p = v.get("purpose", "")
+        if len(p) > max_chars:
+            p = p[:max_chars].rsplit(" ", 1)[0] + "..."
+        if hint_style == "tool":
+            lines.append(f"[verb] the door already has a `{v.get('verb')}` verb — {p}")
+        else:
+            lines.append(f"[verb] `py agent_cli.py {v.get('verb')}` — {p}")
     if not lines:
         return ""
     shown, total = len(result.get("lessons", [])), result.get("total", 0)
