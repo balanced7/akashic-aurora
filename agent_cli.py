@@ -2450,6 +2450,50 @@ def cmd_eye(args):
                   f"({srow['operator_events']} op)  {span}")
         print(f"[eye overview] {len(o['sessions'])} sessions")
         return 0
+    if args.eye_cmd == "route":
+        from core.eye import routes as _RT
+        if args.route_action == "ls":
+            rows = _RT.list_routes()
+            if args.json:
+                print(_json.dumps(rows, indent=1)); return 0
+            if not rows:
+                print("[eye route] no strings tied yet -- `eye route save NAME "
+                      "--steps-file F` ties the first one")
+                return 0
+            for r in rows:
+                print(f"  {r['name']:<32} [{r['status']}] steps={r['steps']} "
+                      f"walked={r['walk_count']}  by {r['by']}  {r['route_id']}")
+            return 0
+        if args.route_action == "save":
+            if not args.name or not args.steps_file:
+                print("[eye route] save needs NAME and --steps-file (a JSON array of "
+                      "steps)", file=sys.stderr)
+                return 2
+            steps = _json.loads(open(args.steps_file, encoding="utf-8").read())
+            rid = _RT.save(args.name, steps, by=args.by)
+            print(f"[eye route] tied: {args.name!r} = {rid} ({len(steps)} step(s)) -- "
+                  f"walk it: py agent_cli.py eye route walk {args.name!r}")
+            return 0
+        if args.route_action == "walk":
+            if not args.name:
+                print("[eye route] walk needs NAME (see: eye route ls)", file=sys.stderr)
+                return 2
+            w = _RT.walk(args.name, resolve=args.resolve)
+            if args.json:
+                print(_json.dumps(w, indent=1)); return 0
+            print(f"# route {w['name']}  [{w['status']}]  walk #{w['walk_count']}  "
+                  f"{w['route_id']}")
+            for s in w["steps"]:
+                res = f"  <{s['resolution']}>" if "resolution" in s else ""
+                dead = f"  IS-NOT: {', '.join(s['is_not'])}" if s["is_not"] else ""
+                print(f"  {s['id']:>3} [{s['type']:<19}] {s['target']:<44}{res}")
+                if s["note"]:
+                    print(f"      {s['note']}{dead}")
+                elif dead:
+                    print(f"      {dead.strip()}")
+            print(f"  (drill any leg: py agent_cli.py eye get <target>)")
+            return 0
+        return 2
     if args.eye_cmd == "get":
         ev = _EYE.get_event(args.event_id)
         if ev is None:
@@ -7589,6 +7633,24 @@ def build_parser():
             _p.add_argument("addr", help="the address, e.g. 2b1b8946-...:1955")
         if _name == "inherit":
             _p.add_argument("from_seat", help="the predecessor's agent#sid8")
+    # ---- T323 s1: routes -- the string through the forest, as verbs ----
+    eye_rt = eye_sub.add_parser("route", help="T323: saved walkable strings through the "
+                                              "corpus -- save ties one, walk re-walks it "
+                                              "(receipts attached, broken legs named), ls "
+                                              "lists the register. An unclear route is "
+                                              "still a route")
+    eye_rt.add_argument("route_action", choices=("save", "walk", "ls"),
+                        help="save NAME --steps-file F | walk NAME [--resolve] | ls")
+    eye_rt.add_argument("name", nargs="?", default="",
+                        help="the route's name -- the handle the next walker grabs")
+    eye_rt.add_argument("--steps-file", default="", metavar="PATH",
+                        help="save: JSON array of step dicts (type, target, receipt, note, "
+                             "is_not, outcome); vocabulary: observation | "
+                             "discriminating-test | decision | dead-end | anchor | handoff")
+    eye_rt.add_argument("--by", default="claude", help="who tied the string (attribution)")
+    eye_rt.add_argument("--resolve", action="store_true",
+                        help="walk: name each leg's resolution (current | dangling)")
+    eye_rt.add_argument("--json", action="store_true")
     eye.set_defaults(fn=cmd_eye)
 
     # ---- T099 V0 self-tooling (docs/library/design/20260701_self-tooling-arc-reconciled-design-agent_29f578.md) ----
