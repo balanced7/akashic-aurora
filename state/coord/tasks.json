@@ -1,5 +1,5 @@
 {
-  "seq": 328,
+  "seq": 330,
   "tasks": [
     {
       "id": "T001",
@@ -12034,6 +12034,55 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-16T17:04:27+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T329",
+      "title": "Doctor conflates seat-ABSENCE with seat-RETIREMENT, then spends that verdict on the MAIL -- and its printed remedy strands live directed asks. LIVE RECEIPT 2026-08-16 (fresh seat bc4646eb, cold boot): the seat handoff asserted kimi's T323 fence counter was \"queued on its seat, expectation armed\" and diagnosed non-arrival as a starved one-shot door needing the full session lane. FALSE. kimi mailbox: unhandled=12 back to 2026-08-13, including ALL THREE fence handoffs (756e40c3f2 16:33, 8d6985332a + 2c11a8723c 18:11) plus four directed questions. Never starved -- never RUNNING: `service daemon: LIVE -- claude, deepseek` spawns no kimi, though scripts/bifrost_runner_kimi.py sits on disk (cf lesson daemon_spawn_runner_hardcodes_deepseek_script). THE DEFECT, pinned at core/comm/doctor.py:426-443: an agent with backlog and no presence signal yields severity \"dashboard\" reading \"OFFLINE - N unread but the agent is GONE ... The backlog is ghost mail from a retired seat - retire the inbox or ignore\", drill `bifrost-skip-to-now`. Three faults compound. (1) SEAT->MAIL TRANSFER: absence of a runner is a fact about the SEAT, spent as a verdict on the MAIL. Mail addressed TO an absent seat is not ghost mail; it is live mail that is UNDELIVERABLE, which is more urgent than mail queued at a live seat, not less. (2) OVERGENERALIZED FROM ONE RECEIPT: the code comment names its validating case, \"Live receipt: census (a retired one-off task-agent)\" -- correct for a retired one-off; kimi is a permanent fleet member whose runner was merely never started, and lands in the same bucket. (3) THE REMEDY STRANDS THE WORK: core/comm/cursor_admin.py advances ALL consume cursors (legacy hash + lane hash) to their stream tails, content-blind. An operator following the doctor's own advice this morning would have set kimi's cursors to NOW; a kimi runner started afterward begins at NOW and never DELIVERS the three fence handoffs T323 s2's trigger threshold is blocked on. The records survive in the mailbox index; the delivery does not. Its rails (reason required, fleet paused, guarded Lua) guard against RACING A LIVE CONSUMER, never against skipping LIVE WORK -- the guard describes timing, not meaning. THE CLASS, worth naming once instead of patching a third time: T322 defect 1 conflates CHANNEL with AUTHOR; T322 defect 2 conflates A PROPOSED ROW with A SETTLED CITATION; this conflates SEAT-ABSENCE with SEAT-RETIREMENT. Each infers a durable status from a transient signal, then acts destructively on the inference. Daniil's ingress directive governs all three (2026-08-15 verbatim: \"gates and checks in multiple directions, similar to how ISP's try to shape and police traffic closest to the source\"). PRIOR ART -- this is a RE-OPEN, not a discovery: T077 A3 \"runner-down visibility (doctor flag + whisper SIBLINGS render + 10min re-escalation)\" was filed on Daniil's directive 2026-07-15 and anticipated exactly this; and doctor.py:413-417 records the MIRROR bug already fixed once -- W40 (deepseek 2026-07-21) plus a claude fence-fix taught this same function that \"no worklive\" is a RUNNER signal only, after it falsely marked the live interactive claude seat GONE. That fix landed on the present-but-not-running branch; the absent branch kept the bad inference. T115 then swapped this finding's drill (a `retire` verb that never existed) for skip-to-now -- repairing the advice's AVAILABILITY without re-examining its CORRECTNESS, which is lesson harden_the_meaning_not_the_location verbatim. SLICE: (1) before calling a backlog ghost, ask what the messages ARE -- a backlog holding unsettled directed asks of an ANSWER_KIND (RB-29: only reply/handoff/completion settle) is not ghost mail at any severity; (2) that case earns its own finding, UNMANNED SEAT -- backlog holds N unsettled ask(s), oldest Xh -- whose drill is START THE RUNNER or REROUTE THE ASK, never skip-to-now; (3) skip-to-now REFUSES fail-closed (consistent with its own pause-probe doctrine) when the range it would skip holds unsettled answerable asks, absent an explicit override naming them; (4) mailbox --retire-ghosts inherits the same predicate. ACCEPTANCE pre-registered per M3: a RED pin committed ALONE standing up an absent agent holding one unsettled handoff, asserting the doctor does not emit offline_backlog/ghost for it; plus a pin that skip-to-now refuses that range. PROVENANCE: defect found 2026-08-16 by seat bc4646eb on a cold boot, by disbelieving its own handoff; the anticipating design is Daniil's (T077 A3); the half-fix this extends is deepseek's W40 plus a claude fence-fix. FENCE REQUIRED (deepseek owns the bus/store side and authored W40). Daniil gates.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-16T18:22:34+00:00",
+      "updated": "2026-08-16T18:22:34+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-16T18:22:34+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T330",
+      "title": "doc adopt cannot supersede: re-adopting a corrected file mints a SECOND current atom, and the stale one can win resolution. Found by codex 2026-08-16 on the competency register (ff00bb verdict-less + ff00aa repaired, BOTH current; the resolver returned the stale one first). Root cause: cmd_doc calls fam.mint() at agent_cli.py:3402 unconditionally; AtomFamily.supersede (core/library/atoms.py:220) exists, does the CAS-flip correctly, and is unreachable from the door. Live pair repaired by hand this session (ff00bb -> superseded, ff00aa -> supersedes chain, both projections re-rendered), but the DOOR still reproduces the defect on the next re-adopt by anyone. SLICE: (1) doc adopt gains --supersedes ID and/or detects an existing current atom with the same title and REFUSES with the teaching line rather than silently minting a twin; (2) a checker or doctor line that pages when two current atoms share a title; (3) audit the library for existing duplicate-current pairs (the atoms docstring already names this as the class the --repair pass reconciles at team scale). RELATED: the house lesson research_full_fidelity_preservation and the new synthesis_must_cross_the_archive_boundary_with_its_data both assume the repaired artifact WINS -- this defect silently voids that assumption.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [
+        "agent_cli.py",
+        "core/library/atoms.py"
+      ],
+      "acceptance": "doc adopt either supersedes explicitly or refuses a duplicate-title current mint with a teaching line; a gate/doctor surface pages on duplicate-current-by-title; existing duplicates audited and reconciled; RED pins first; the competency-register pair stays as the regression fixture.",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-16T18:28:11+00:00",
+      "updated": "2026-08-16T18:28:11+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-16T18:28:11+00:00"
         }
       ]
     }
