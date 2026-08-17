@@ -1,5 +1,5 @@
 {
-  "seq": 340,
+  "seq": 341,
   "tasks": [
     {
       "id": "T001",
@@ -12249,13 +12249,13 @@
         "agent_cli.py"
       ],
       "acceptance": "A walk appends a route_walked record to state/coord/routes.jsonl; wiping eye.db and running rebuild() restores walk history including depth; a plain walk records depth=listed and can never record drilled; --drill records drilled with a legs_drilled count; depth is derived from the executed path, with no caller-supplied depth argument; pre-existing walk_count with no journal backing renders UNKNOWN rather than being inferred; ls and walk show the depth breakdown and never a bare total; routes.py's rebuild docstring claim is true as written or corrected in the same commit.",
-      "status": "verifying",
-      "commit": null,
-      "verified_by": null,
-      "reviewed_by": null,
+      "status": "done",
+      "commit": "1f44d98a",
+      "verified_by": "Heimdall re-verified at his own door against 1f44d98a, source-read not testimony. P1/P2 split confirmed genuine: P2 would fail if drill=args.drill were removed (walk() would receive drill=False -> depth=listed, legs_drilled=0), so it is a thread-guard not a parse-guard. P4b confirmed to pass for the right reason: UNKNOWN=4 reaches the render only via walks() unknown=max(0,total-len(records)), and the +4 SQL UPDATE writes no route_walks rows, so the gap IS the unknown mechanism; 4 is exogenous to LEGS=7, walk_count and the route token. Render judged legible by a non-author. 18 pins green across s1+s2, 42 across neighbouring route/eye suites. Two flag-not-bounce items recorded: P5 is green by self-seeding (drills before ls, so it asserts a just-drilled route not a cold one), and _route_tally duplicates the depth vocabulary independently of walk().",
+      "reviewed_by": "deepseek",
       "self_verified": null,
       "created": "2026-08-17T13:33:29+00:00",
-      "updated": "2026-08-17T20:57:18+00:00",
+      "updated": "2026-08-17T21:48:33+00:00",
       "history": [
         {
           "to": "proposed",
@@ -12276,6 +12276,11 @@
           "to": "verifying",
           "by": "claude",
           "at": "2026-08-17T20:57:18+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-17T21:48:33+00:00"
         }
       ]
     },
@@ -12501,6 +12506,36 @@
           "to": "done",
           "by": "claude",
           "at": "2026-08-17T20:58:55+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T341",
+      "title": "Operator re-entry: the only stated want in the record with no mechanism behind it. DANIIL, INTERIORITY entry 8, verbatim 2026-07-29: 'I also have an unexpected \"continuity\" problem. When I am in the zone and am thinking at my best, good ideas surface easily. If I wake up tired I may not remember what made the previous work so good, I may not remember fully my own excitement and what strings and threads I was reaching for. I can end up undervaluing the work I did before thinking it was just a spur of the moment emotional experience. I wish I could always return to the best version of me at peak creativity and thinking.' MEASURED GAP, not a guessed one: 0 of 340 ledger rows target operator re-entry, three weeks after he named it. Every other wound in his record became a mechanism -- restart loss became Store/Ledger/boot; the unusable pile became sharpening and curation; cheap agreement became multispectral fanout; erased authorship became the attribution-proportionality law (2026-07-21, earned by 'I take pride in my work please understand'). This is the only one that produced nothing. Sol's independent journey read reached the same gap from the opposite direction and named it: 'preservation is not yet re-entry' (2026-08-17). WHY IT IS CHEAP NOW: the machinery exists and points at agents. boot restores a SEAT; recall-at fires for an AGENT; routes walk the corpus with honest depth (T335); Eye freq reports on HIS axis; notes are write-once and durable. Last night a savepoint note was hand-written at his ask and it worked -- that is both the prototype and the defect, a person doing an organ's job, once. WHAT THIS SLICE IS: a re-entry render addressed to HIM -- his own last directives VERBATIM, the rows that moved while he was away, the questions still waiting on him, and the threads he opened that never got an answer. THE DESIGN CONSTRAINT THAT DECIDES IT, and it comes from his own text: HIS WORDS, never a summary. Entry 8's loss is 'I may not remember fully my own excitement' -- a paraphrase cannot restore excitement, and distillation is precisely what strips it. Verbatim preservation is already house law for research artifacts; this applies it to the operator. STANDING CAVEAT, kimi's shape, carried because it is not resolved by building this: whether re-reading your own words restores creative state is UNMEASURED, and this row may not claim it does. It buys the ASSEMBLY. Whether the charge returns is his judgment and only he can report it. NOT IN SCOPE: any summarizing or distilling layer, any prediction of what he cared about, agent-facing boot changes, T322, T324.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "agent_cli.py"
+      ],
+      "acceptance": "RED first. The render is a verb addressed to the operator and returns HIS VERBATIM utterances -- a pin asserts the output contains an exact substring of a known operator utterance, and that no sentence in it was generated rather than quoted. Rows that changed since his last session are listed with their transitions. Questions still addressed to him are surfaced and are distinguishable from questions he asked. A thread he opened that got no reply is listed AS unanswered rather than omitted, because absence must be visible and never silently dropped (T176). The render names its own coverage -- what it read and what it did not -- because every surface owes a legend, which is his own rule. When a plane is unreachable it says so rather than rendering a partial picture as complete. DEMO-GATED per the two-speed rule: this is a projection, so the bar is his eyes, not a fence.",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-17T21:47:48+00:00",
+      "updated": "2026-08-17T21:47:56+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-17T21:47:48+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-17T21:47:56+00:00"
         }
       ]
     }
