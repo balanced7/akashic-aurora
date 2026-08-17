@@ -98,9 +98,21 @@ def test_p5_the_names_stay_string_literals_so_check_wiring_can_see_them():
 
 
 # ------------------------------------------------------------------ read-only, by construction
-def test_p6_no_eye_verb_can_write_THE_CORPUS():
+def test_p6_no_TOOLBOX_eye_verb_can_write_the_corpus():
     """The corpus is the record of what was said. A door onto it that could write would let a
     seat edit the evidence it is reasoning from.
+
+    SCOPE TIGHTENED (Heimdall, independent verification 2026-08-17). The earlier name claimed
+    "no Eye verb can write THE CORPUS", which is FALSE at the CLI: `agent_cli.py` exposes
+    `eye ingest`, routed at cmd_eye and backed by core/eye/index.py:ingest -- a corpus-writing
+    Eye door. What is true, and what this pin actually checks, is narrower: the TOOLBOX door
+    T336 shipped is read-only, because each verb hard-codes its subcommand and can never reach
+    `ingest`. He marked it CLOSE because every pin passes for the reason it claims and the
+    shipped surface is genuinely read-only -- but the pin's NAME overreached its evidence, and
+    a name that claims more than it tests is the defect this suite exists to catch. His exact
+    residual risk, recorded: if a later refactor routes a ToolBox Eye verb through a
+    subcommand computed from caller input, this pin would still pass while the door gained a
+    write path.
 
     AMENDED (T338): the first version of this pin banned the tokens 'write' and 'open(' from
     each method's own source. That was the right INTENT expressed as the wrong TEST, twice
