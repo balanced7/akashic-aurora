@@ -1,12 +1,13 @@
 """The private-plane leak guard: ingress, at the one place everything must pass.
 
-DANIIL'S RULING, 2026-08-16: "Lets not commit the competency and surname stuff to the repo.
-I want to make sure its internally accesible." His standing directive, 2026-08-15: "instead of
-a dance for redaction we have procedures and protocol." His ingress principle: police traffic
-closest to the source.
+DANIIL'S RULING, 2026-08-16: "Lets not commit the [REDACTED] and [REDACTED] stuff to the repo.
+I want to make sure its internally accesible." (Verbatim, two nouns bracketed: naming them
+here would be the leak this module exists to prevent.) His standing directive, 2026-08-15:
+"instead of a dance for redaction we have procedures and protocol." His ingress principle:
+police traffic closest to the source.
 
-WHAT HAPPENED. Personal assessment material (a competency register grading the operator, two
-peer portraits of him) was authored into research/in-flight/ (tracked), adopted into atoms
+WHAT HAPPENED. Personal assessment material (an evaluation of the operator, plus two peer
+notes about him) was authored into research/in-flight/ (tracked), adopted into atoms
 whose bodies landed in store/docs/report.jsonl (tracked), and rendered into docs/library/
 (tracked). The repo is public. It was caught by hand at push -- pure egress, the position he
 criticised.

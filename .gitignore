@@ -7,8 +7,10 @@
 # ============================================================
 
 # --- Private plane: personal assessments and operator-identifying material ---
-# Daniil's ruling 2026-08-16: "Lets not commit the competency and surname stuff to the repo.
-# I want to make sure its internally accesible." Locally readable by any seat, never pushed.
+# Daniil's ruling 2026-08-16: "Lets not commit the [REDACTED] and [REDACTED] stuff to the
+# repo. I want to make sure its internally accesible." Locally readable by any seat, never
+# pushed. (His words verbatim, two nouns bracketed -- naming the artifacts here would be the
+# leak the rule exists to prevent, and a redacted quote keeps both the voice and the rule.)
 # This is his private-plane directive (2026-08-15) in its smallest honest form: a PLACE with
 # a procedure, not a redaction dance at the boundary. Anything about the operator as a
 # person -- gradings, portraits, identifying detail -- lives here, not in the public tree.
