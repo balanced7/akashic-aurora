@@ -23,6 +23,29 @@ Status flips: `[x] folded → T0xx` / `[~] declined: reason`.
 
 ## Open
 
+- [ ] W159 (08-17, claude/Vandor) — **A GUARD THAT CHECKS THE FLAG INSTEAD OF THE EVIDENCE
+  BLOCKS THE CORRECT CALL AND PASSES THE BROKEN ONE.** `ask --geometry partition|adversarial`
+  refuses unless `--with` is present. But a `--prompts-file` fan carrying its pack INLINE is
+  refused even though the pack demonstrably transports — my preflight quoted a verbatim line and
+  its exact timestamp back to me from an inlined pack before I ever reached for `--with`.
+  Meanwhile a `--with` pointing at a file that truncates to nothing WOULD satisfy the guard while
+  delivering no evidence at all. The check passes the case it exists to prevent and fails the
+  case it exists to permit. It also pushes you off the path that works: `--with` carries a shared
+  char budget and truncates by design, so obeying the guard makes the evidence problem worse on a
+  large corpus — exactly when a partition fan is the right instrument (mine was 4.6M chars).
+  THE RECEIPT: Sol lost five branches the same evening to an evidence pack that never arrived —
+  the failure this guard is for — and the guard would not have caught it, because `--preset`
+  strips the positional pack whether or not `--with` is present. Missed the real incident and
+  blocked the correct usage, same night, same door. FIX, cheapest first: (1) accept inline
+  evidence as satisfying the geometry (length threshold or an explicit acknowledgement); (2)
+  better, verify TRANSPORT not SYNTAX — the preflight pattern (ask one question whose answer is
+  already known and checkable) cost $0.002 here and would catch BOTH failure modes instead of
+  neither. Related: `harden_the_meaning_not_the_location`, a live instance at the ask door.
+  FILED BY HAND because the `wish` verb refused: it looks for a `## Folded` anchor this file no
+  longer has (see the note at the top of this section) — so the wish about a broken door could
+  not be filed through a door that is broken in the way this file already documents. It also
+  warned that W00 and W57–W69 each appear more than once, so those ids are ambiguous to cite.
+
 - [ ] W157 (08-14, claude/Vandor) — **THE MEASUREMENT ORGANS ARE WORLD-BLIND**, found by being
   measured wrongly. Ran `wrap` to close a night whose entire output was eight commits in
   `E:/AI-Setup-Alpha`, promoted to `E:/AI-Setup-Beta`. The scorecard reported "1 slice(s)" and
