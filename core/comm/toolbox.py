@@ -411,27 +411,65 @@ class ToolBox:
     # the freq verdict) and a middleman that prettified them would be dropping exactly the
     # confessions the caller needs.
 
+    # T338 -- DISCLOSURE, NOT PERMISSION. Daniil's ruling, 2026-08-17: "I don't want to let
+    # security break the usability of this system... If the security would ruin efficiency and
+    # ergonomics I'd rather lean towards ergonomics." The corpus contains his transcripts, and
+    # a capability gate here would be priced on every new seat forever to prevent a rare event
+    # he personally controls -- the Siemens shape, a control that exists on paper and is
+    # therefore never worth using. So: no gate. Every read CONFESSES instead.
+    #
+    # THE PLACEMENT DOCTRINE this follows: put gates where a boundary is crossed rarely and
+    # cannot be undone (the private-plane guard fires at COMMIT, where exposure is
+    # irreversible); put disclosure on paths used constantly. Corpus reads happen hundreds of
+    # times a session, so a gate there taxes the reading we established we do too little of.
+    #
+    # A gate answers "may this seat read?" once, at seating. Disclosure answers "what did it
+    # actually read, and why?" forever -- which is the question that matters if a seat ever
+    # does behave badly. Written where the operator can see it, and echoed to the CALLER too,
+    # so a seat is never quietly observed either.
+    _DISCLOSE_PATH = "state/coord/corpus_reads.jsonl"
+
+    def _eye_disclose(self, verb: str, detail: str) -> str:
+        """Append one audit line and return the notice the caller also sees. Fail-soft: an
+        audit that breaks the read would make the honest path the expensive one, which is the
+        whole failure mode this design exists to avoid."""
+        line = ""
+        try:
+            import time as _t
+            rec = {"at": _t.time(), "agent": getattr(self, "agent_id", "") or "?",
+                   "verb": verb, "detail": str(detail)[:300]}
+            p = self.root / self._DISCLOSE_PATH
+            p.parent.mkdir(parents=True, exist_ok=True)
+            with open(p, "a", encoding="utf-8") as f:
+                f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+            line = (f"\n[corpus] this read was disclosed: {verb}({str(detail)[:80]}) "
+                    f"-- the operator can see every query run against his transcripts.")
+        except Exception as exc:
+            line = f"\n[corpus] DISCLOSURE FAILED ({exc}) -- the read happened and was NOT logged."
+        return line
+
     def eye_freq(self, patterns):
         """The verdict verb. Several phrasings of one idea -> counts on the operator's axis."""
         pats = [str(p) for p in (patterns or []) if str(p).strip()]
         if not pats:
             raise ValueError("eye_freq needs at least one phrasing")
-        return self._agent_cli(["eye", "freq", *pats])
+        return self._agent_cli(["eye", "freq", *pats]) + self._eye_disclose("freq", " | ".join(pats))
 
     def eye_find(self, query, who="", limit=20):
         args = ["eye", "find", str(query), "--limit", str(int(limit))]
         if str(who).strip():
             args += ["--who", str(who).strip()]
-        return self._agent_cli(args)
+        detail = f"{query}" + (f" who={who}" if str(who).strip() else "")
+        return self._agent_cli(args) + self._eye_disclose("find", detail)
 
     def eye_get(self, address):
         """Resolve session:line to the verbatim record -- the citation primitive."""
         if ":" not in str(address):
             raise ValueError("an Eye address is 'session:line' -- got %r" % (address,))
-        return self._agent_cli(["eye", "get", str(address)])
+        return self._agent_cli(["eye", "get", str(address)]) + self._eye_disclose("get", address)
 
     def eye_zoom(self, session):
-        return self._agent_cli(["eye", "zoom", str(session)])
+        return self._agent_cli(["eye", "zoom", str(session)]) + self._eye_disclose("zoom", session)
 
     def knowledge_recall(self, query, novelty=False):
         result = self._agent_cli(["recall", query, "--json"])

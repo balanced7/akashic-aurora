@@ -98,12 +98,49 @@ def test_p5_the_names_stay_string_literals_so_check_wiring_can_see_them():
 
 
 # ------------------------------------------------------------------ read-only, by construction
-def test_p6_no_eye_verb_can_write():
-    """The corpus is a record of what was said. A door onto it that could write would let a seat
-    edit the evidence it is being asked to reason from."""
+def test_p6_no_eye_verb_can_write_THE_CORPUS():
+    """The corpus is the record of what was said. A door onto it that could write would let a
+    seat edit the evidence it is reasoning from.
+
+    AMENDED (T338): the first version of this pin banned the tokens 'write' and 'open(' from
+    each method's own source. That was the right INTENT expressed as the wrong TEST, twice
+    over. (a) It is too broad: it forbade an audit write to a different file, which the
+    disclosure design now REQUIRES. (b) It is too narrow: inspect.getsource(eye_freq) cannot
+    see what eye_freq CALLS, so moving a write one frame down defeated it silently -- exactly
+    the instrument-blindness class this suite exists to catch, committed by this suite. The
+    pin now names the thing it actually protects: the CORPUS."""
+    import inspect
+    src = "".join(inspect.getsource(getattr(TB.ToolBox, n)) for n in EYE_TOOLS)
+    src += inspect.getsource(TB.ToolBox._eye_disclose)   # follow the call, do not stop at it
+    for forbidden in ("ingest", "--persist", "eye.db", "DB_PATH"):
+        assert forbidden not in src, (
+            f"an Eye door (or its helper) references {forbidden!r} -- these surfaces read the "
+            f"corpus and must never write it")
+
+
+def test_p7_every_corpus_read_discloses_itself():
+    """T338, Daniil's ruling: disclosure instead of a permission gate, because a gate priced on
+    every new seat forever protects against a rare event he personally controls, while
+    disclosure costs nothing at invocation and answers the better question -- not 'may this
+    seat read?' but 'what did it actually read?'
+
+    The corpus holds his transcripts. A read of them must not be able to happen quietly, and
+    that has to be structural: an agent that must REMEMBER to disclose will not."""
     import inspect
     for name in EYE_TOOLS:
         src = inspect.getsource(getattr(TB.ToolBox, name))
-        for forbidden in ("ingest", "--persist", "open(", "write"):
-            assert forbidden not in src, (
-                f"{name} references {forbidden!r} -- Eye doors at the peer surface are read-only")
+        assert "_eye_disclose" in src, (
+            f"{name} can read the operator's transcripts without leaving a trace")
+
+
+def test_p8_a_failed_disclosure_confesses_and_never_blocks_the_read():
+    """Two properties in tension, and both matter. The read must not fail because the audit
+    failed -- making the honest path the expensive one is the exact failure mode this design
+    was chosen to avoid. But a silent audit failure would be worse than no audit at all,
+    because it would look identical to a disclosed read."""
+    import inspect
+    src = inspect.getsource(TB.ToolBox._eye_disclose)
+    assert "except Exception" in src, "the audit must never break the read"
+    assert "DISCLOSURE FAILED" in src, (
+        "a failed audit must say so in the returned text -- silence here is indistinguishable "
+        "from a disclosed read, which is the T176 defect wearing an audit's coat")
