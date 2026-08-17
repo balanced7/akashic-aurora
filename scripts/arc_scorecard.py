@@ -191,6 +191,19 @@ def main() -> int:
             print(f"  {mid:<4} {label:<28} FIRED   {read}{tag}")
         elif health.get(mid, {}).get("status") == "UNCHECKABLE":
             print(f"  {mid:<4} {label:<28} UNCHECKABLE -- {health[mid]['detail']}")
+        elif mid in SELF_REPORT:
+            # T337. A SELF_REPORT metric has no detector -- its signal exists only if somebody
+            # wrote it down. So silence here CANNOT mean zero; it can only mean unknown, and
+            # rendering it as "(no signal)" made performed-but-unannotated indistinguishable
+            # from never-performed. Found live: M5 and M6 both read "no signal" on the night
+            # T335 was exercised against the real door and four fence halves were persisted
+            # verbatim. The bias is not noise -- missingness depends on the state being
+            # measured, because the busy slice is exactly the one that skips its annotation.
+            # This is T176's law one plane over: absence of a record is not a record of
+            # absence. The words matter as much as the label; a bare rename still reads as a
+            # zero to a tired reader at 3am.
+            print(f"  {mid:<4} {label:<28} UNRECORDED -- nobody wrote it down; this is NOT "
+                  f"evidence of absence (self-reported: no detector exists){tag}")
         else:
             print(f"  {mid:<4} {label:<28} (no signal -- annotate fired/skipped-with-reason "
                   f"in the wrap note){tag}")

@@ -46,27 +46,37 @@ def test_p1_a_self_reported_metric_renders_unrecorded_not_no_signal():
         "was never taken")
 
 
+# A source-shaped pin cannot see through the ways Python lets one string be written. The first
+# drafts of P2/P3 failed because the required phrase is split across an f-string join
+# ("this is NOT " f"evidence of absence"), so it never appears contiguously in the file -- the
+# same blindness that made a grep for '"answers":' miss reply_meta["answers"] = m.id earlier
+# tonight, and the same one that let a write hide behind a helper call in T336's P6. Three
+# instances, one class. NORM collapses quotes, joins and whitespace so the pin reads what the
+# program will PRINT rather than how it happens to be typed.
+NORM = re.sub(r"\s+", " ", re.sub(r"[\"']\s*(?:f?[\"'])?", "", SRC)).lower()
+
+
 def test_p2_unrecorded_says_it_is_not_evidence_of_absence():
-    """A label alone still gets read as a zero by a tired reader at 3am. The render must carry the
-    epistemic claim, not just the word."""
-    m = re.search(r"UNRECORDED[^\n]*\n?[^\n]*", SRC)
-    assert m, "UNRECORDED not rendered"
-    window = SRC[max(0, m.start() - 400):m.end() + 400].lower()
-    assert "not evidence of absence" in window or "not absence" in window, (
-        "the UNRECORDED render must state that it is not evidence of absence -- otherwise the "
-        "rename moves the lie rather than removing it")
+    """A label alone still reads as a zero to a tired reader at 3am. The render must carry the
+    epistemic claim in words, not just the word."""
+    assert "unrecorded" in NORM, "UNRECORDED not rendered"
+    assert "not evidence of absence" in NORM, (
+        "the UNRECORDED render must SAY it is not evidence of absence -- otherwise the rename "
+        "moves the lie rather than removing it")
 
 
 def test_p3_the_two_states_are_distinguished_by_whether_a_detector_exists():
-    """SELF_REPORT is already the discriminator in this file: those metrics have no detector, so
-    their silence is unknown. A MEASURED metric's silence is an earned zero and must keep saying
-    so -- collapsing both into UNRECORDED would be the same error pointing the other way."""
-    assert "SELF_REPORT" in SRC
-    idx = SRC.find("UNRECORDED")
-    assert idx > 0
-    window = SRC[max(0, idx - 700):idx + 700]
-    assert "SELF_REPORT" in window, (
-        "UNRECORDED must be gated on SELF_REPORT membership, not applied to every silent metric")
+    """SELF_REPORT is the discriminator already in this file: those metrics have no detector, so
+    their silence can only be unknown. A MEASURED metric's silence is an earned zero and must
+    keep saying so -- collapsing both into UNRECORDED would be the same error pointing the other
+    way, and would make a real zero unactionable."""
+    assert "SELF_REPORT = " in SRC, "the self-reported set must stay declared in this file"
+    branch = re.search(r"elif\s+mid\s+in\s+SELF_REPORT\s*:", SRC)
+    assert branch, (
+        "UNRECORDED must be gated on SELF_REPORT membership, not applied to every silent "
+        "metric -- a measured zero and an unrecorded unknown are different findings")
+    assert SRC.index("UNRECORDED") > branch.start(), (
+        "the UNRECORDED render must sit INSIDE the SELF_REPORT branch")
 
 
 def test_p4_a_measured_metric_keeps_its_honest_zero():
