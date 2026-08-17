@@ -30,9 +30,24 @@ WHAT s1 DOES NOT DO. It does not rewire the 14 call sites. The sets below are SE
 those live sets, so behaviour today is byte-identical and P3 pins that. Rewiring is s2, by
 strangler fig, one door at a time with parity pins (the T044/T045 dual-write precedent).
 
-AND IT PROPOSES, NEVER RATIFIES. Seeding surfaced a real fork -- `ask` is three sets that
-disagree about `blocker`. This module reports that in forks(); it does not pick a winner,
+AND IT PROPOSES, NEVER RATIFIES. Seeding surfaced a fork -- `ask` across three sets that
+disagreed about `blocker`. This module reported it in forks() and did not pick a winner,
 because picking one is a policy ruling and rulings belong to the operator.
+
+T332 (Daniil, 2026-08-17) RULED ON BOTH FINDINGS, and one of them came back inverted. The
+`ask` fork was FALSE: enumerating the producers found a single emitter of kind="blocker" --
+the daemon circuit breaker, and both of its call sites BROADCAST -- which dissolved one
+disputed concept into three honest questions that merely shared a word. They are now named
+NEVER_DROP_WHEN_STALE / AUTO_REDRIVE_KINDS / _NEEDS_ATTENTION_KINDS, and exactly one real
+defect fell out: a stale blocker was being dropped by the cursor sweep. The plane collision
+was ruled the other way -- `plane` is now a REQUIRED argument to resolve(), so the ambiguous
+question cannot be asked at all.
+
+WHAT THAT COST THE INSTRUMENT, kept here because the next fork will find the same edge:
+forks() compares memberships BY NAME, so it reported a disagreement where three names were
+lying in the same direction. Grouping by identifier inherits every lie the identifiers tell.
+The registry was right that something was wrong and wrong about what -- which is the correct
+behaviour for an organ that proposes, and the reason it must never be the thing that decides.
 """
 from __future__ import annotations
 
@@ -91,64 +106,84 @@ _BUS_UNIVERSE: FrozenSet[str] = frozenset({
     "heartbeat", "review",
 })
 
+# EVERY DIMENSION DECLARES ITS PLANE (T332). Not a default and not a separate lookup table:
+# a second place to register the same fact is a second place to forget it, which is the defect
+# genus this whole organ exists to close. All ten seed from bus-plane policy sets today; an
+# event- or beat-plane dimension declares its own and resolve() will refuse to answer it with
+# a bus question.
 _DIMENSIONS: Dict[str, Dict[str, Any]] = {
     "wake_worthy": {
         "members": frozenset({"request", "handoff", "reply", "blocker", "question",
                               "completion", "nudge"}),
+        "plane": "bus_kind",
         "source": "scripts/bifrost_wake.py:WAKE_WORTHY_KINDS",
     },
     "wake_skip": {
         "members": frozenset({"trace", "steer", "resolved", "ledger_update"}),
+        "plane": "bus_kind",
         "source": "scripts/bifrost_wake.py:SKIP_KINDS",
     },
     "pending_skip": {
         "members": frozenset({"trace", "steer", "resolved", "ledger_update", "note",
                               "status"}),
+        "plane": "bus_kind",
         "source": "core/comm/bifrost_api.py:PENDING_SKIP_KINDS",
     },
     "answer": {
         "members": frozenset({"reply", "handoff", "completion"}),
+        "plane": "bus_kind",
         "source": "core/comm/expectations.py:ANSWER_KINDS",
     },
     "escalate": {
         "members": frozenset({"request", "handoff", "question", "blocker"}),
+        "plane": "bus_kind",
         "source": "core/comm/dispatcher.py:ESCALATE_KINDS",
     },
     "salient": {
         "members": frozenset({"handoff", "decision", "completion", "blocker"}),
+        "plane": "bus_kind",
         "source": "core/comm/promoter.py:SALIENT_KINDS",
     },
     "flaggable": {
         "members": frozenset({"handoff", "blocker"}),
+        "plane": "bus_kind",
         "source": "core/comm/promoter.py:FLAGGABLE_KINDS",
     },
     "long": {
         "members": frozenset({"handoff", "request", "question", "blocker"}),
+        "plane": "bus_kind",
         "source": "core/comm/mailbox.py:LONG_KINDS",
     },
     "trace": {
         "members": frozenset({"trace", "steer", "nudge", "ledger_update", "resolved"}),
+        "plane": "bus_kind",
         "source": "agent/bifrost_pull.py:_TRACE_KINDS",
     },
     "non_cargo": {
         "members": frozenset({"trace", "halt", "interrupt", "pause", "resume", "nudge",
                               "steer", "ledger_update", "presence", "heartbeat"}),
+        "plane": "bus_kind",
         "source": "scripts/checkers/check_bus_atom_pointers.py:NON_CARGO_KINDS",
     },
 }
 
 # FORKED CONCEPTS -- registered as variants, never merged. The registry's job here is to make
 # the disagreement impossible to miss; choosing a winner is the operator's ruling.
-_FORKS: Dict[str, List[Dict[str, Any]]] = {
-    "ask": [
-        {"source": "agent/bifrost_pull.py:_ASK_KINDS",
-         "members": frozenset({"request", "question", "handoff", "blocker"})},
-        {"source": "agent_cli.py:ASK_KINDS",
-         "members": frozenset({"request", "handoff", "question"})},
-        {"source": "core/comm/packet_spec.py:STALE_ASK_KINDS",
-         "members": frozenset({"question", "request", "handoff"})},
-    ],
-}
+#
+# `ask` LIVED HERE AND IS RULED (T332, Daniil 2026-08-17). It is removed rather than marked
+# resolved because it was never one concept: the producer census found a single emitter of
+# kind="blocker" -- the daemon circuit breaker, scripts/bifrost_daemon.py:221 and :448, BOTH
+# BROADCASTS -- and that dissolved the disagreement into three separate honest questions, now
+# named NEVER_DROP_WHEN_STALE / AUTO_REDRIVE_KINDS / _NEEDS_ATTENTION_KINDS. Keeping a
+# "resolved fork" entry would assert a shared concept that never existed.
+#
+# THE INSTRUMENT'S OWN BLIND SPOT, recorded because the next fork will hit it too: forks()
+# compares memberships BY NAME. By name this WAS one concept, so the registry reported a
+# disagreement that was really three names lying in the same direction. An instrument that
+# groups by identifier inherits every lie its identifiers tell -- the mirror of W134's
+# finding about token-level checkers, one level up. What settled it was not the registry but
+# ENUMERATING THE PRODUCERS: ask who emits the kind before asking who agrees about it.
+_FORKS: Dict[str, List[Dict[str, Any]]] = {}
 
 # The three planes that all say "kind" and mean different taxonomies. `note` is a member of
 # all three WITH OPPOSITE POLICIES, which is the collision the T176 row names.
@@ -181,19 +216,53 @@ def universe(dimension: str) -> Set[str]:
     if d is None:
         raise KeyError(f"unknown dimension {dimension!r}")
     u = d.get("universe")
-    return set(u) if u else set(_BUS_UNIVERSE)
+    return set(u) if u else set(_PLANES[d["plane"]])
 
 
-def resolve(kind: str, dimension: str) -> KindVerdict:
+# T332: the registry says bus_kind/event_kind/beat_kind; check_kind_policy.py's PLANES manifest
+# has said bus/event/beat since T177. Two spellings of one vocabulary is the very fork this
+# slice is closing, so the door NORMALIZES and accepts both forever rather than electing a
+# winner and breaking the other caller -- the house rule for an open boundary.
+_PLANE_ALIASES: Dict[str, str] = {"bus": "bus_kind", "event": "event_kind",
+                                  "beat": "beat_kind"}
+
+
+def _normalize_plane(plane: Any) -> str:
+    p = str(plane or "").strip().lower()
+    return _PLANE_ALIASES.get(p, p)
+
+
+def resolve(kind: str, dimension: str, *, plane: str) -> KindVerdict:
     """TOTAL resolution. Three answers, never two.
 
     A kind IN the dimension's universe but NOT in its members is a real, considered NO.
     A kind outside the universe is UNCLASSIFIED -- nobody ever decided, and the caller is
-    told so rather than handed a False that looks like a decision."""
+    told so rather than handed a False that looks like a decision.
+
+    `plane` IS REQUIRED (T332, Daniil's ruling 2026-08-17). `note` exists on all three planes
+    with opposite policies and `decision` on two, so "is note salient?" is not a question with
+    an answer -- it is three questions wearing one word. Making the argument required turns an
+    ambiguous call into a TypeError at the call site instead of a confident answer about
+    whichever plane the registry happened to be seeded from. Chosen over renaming the kinds
+    per plane because a rename rewrites the meaning of records already at rest: a migration
+    event, not a store primitive. This is additive and touches nothing already written."""
     d = _DIMENSIONS.get(dimension)
     if d is None:
         return KindVerdict(kind, dimension, False, None,
                            f"unknown dimension {dimension!r} (known: {dimensions()})")
+    asked = _normalize_plane(plane)
+    if asked not in _PLANES:
+        return KindVerdict(
+            kind, dimension, False, None,
+            f"unknown plane {plane!r} -- known: {sorted(_PLANES)} (short forms "
+            f"{sorted(_PLANE_ALIASES)} also accepted)")
+    if asked != d["plane"]:
+        return KindVerdict(
+            kind, dimension, False, None,
+            f"plane mismatch: {dimension!r} is a {d['plane']!r} policy and you asked about "
+            f"the {asked!r} plane. {kind!r} may exist on both, but the policy registered at "
+            f"{d['source']} has no opinion about the {asked!r} one -- and saying False here "
+            f"would be exactly the silent-exclusion defect this registry exists to end")
     uni = universe(dimension)
     if kind in d["members"]:
         return KindVerdict(kind, dimension, True, True)
@@ -252,6 +321,7 @@ def coverage() -> Dict[str, Any]:
             "members": len(d["members"]),
             "universe": len(uni),
             "undecided": sorted(uni - set(d["members"])),
+            "plane": d["plane"],
             "source": d["source"],
         }
     return {

@@ -75,10 +75,14 @@ def test_stale_non_ask_not_parked(monkeypatch):
     from core.comm import triage_park, packet_spec
     bench_before = triage_park.count("deepseek")
     # Inform is NOT an ask kind — should never be parked
-    assert not packet_spec.is_ask_kind("inform"), "inform is not an ask kind"
-    assert not packet_spec.is_ask_kind("trace"), "trace is not an ask kind"
-    assert packet_spec.is_ask_kind("question"), "question IS an ask kind"
-    assert packet_spec.is_ask_kind("handoff"), "handoff IS an ask kind"
+    # T332: is_ask_kind -> never_drop_when_stale, named for what it decides (surfaced vs
+    # skipped past by the cursor sweep), and `blocker` joined it -- a tripped circuit breaker
+    # is the clearest case of a message that must survive going unread.
+    assert not packet_spec.never_drop_when_stale("inform"), "inform may be skipped when stale"
+    assert not packet_spec.never_drop_when_stale("trace"), "telemetry may be skipped"
+    assert packet_spec.never_drop_when_stale("question"), "a question must be surfaced"
+    assert packet_spec.never_drop_when_stale("handoff"), "a handoff must be surfaced"
+    assert packet_spec.never_drop_when_stale("blocker"), "a tripped breaker must be surfaced"
     # The runner only parks stale_asks, never stale_skips — the non-ask kinds are
     # skipped by partition_stale, and nothing in the runner calls park() on them.
     # This pin verifies the contract: the bench count doesn't grow from non-asks.

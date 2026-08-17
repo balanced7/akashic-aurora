@@ -24,12 +24,16 @@ registry, total resolution, and the coverage report, SEEDED FROM the live sets s
 is byte-identical today. It deliberately does NOT rewire the 14 call sites -- that is s2, by
 strangler fig, one door at a time with parity pins (the T044/T045 precedent).
 
-FOUND WHILE SEEDING, and P7 pins it: "ask" is FORKED THREE WAYS. agent/bifrost_pull.py's
-_ASK_KINDS carries `blocker`; agent_cli.py's ASK_KINDS and core/comm/packet_spec.py's
-STALE_ASK_KINDS do not. One concept, three memberships, no duplicate token anywhere -- the
-exact forked-semantics class W134 named as structurally invisible to token-level checkers.
-The registry's job is not to resolve that fork (that needs a human ruling); it is to make it
-IMPOSSIBLE TO MISS.
+FOUND WHILE SEEDING: "ask" appeared FORKED THREE WAYS. agent/bifrost_pull.py's _ASK_KINDS
+carried `blocker`; agent_cli.py's ASK_KINDS and core/comm/packet_spec.py's STALE_ASK_KINDS
+did not. The registry's job was not to resolve that (it needs a human ruling); it was to make
+it IMPOSSIBLE TO MISS.
+
+RULED 2026-08-17 (T332), and the answer inverted the question: the three sets were three
+DIFFERENT questions sharing one word, not one concept in dispute. `plane` is now a required
+argument to resolve(), which is why every call below names one. P7 was rewritten to pin the
+fork-reporting MECHANISM against an injected fork rather than the resolved `ask` instance --
+retiring a pin because its instance got fixed would quietly retire the instrument too.
 
 Run: py -m pytest tests/test_t176_s1_kind_resolution.py -q
 """
@@ -49,16 +53,16 @@ from core.comm import kinds as K  # noqa: E402
 def test_p1_an_unknown_kind_resolves_unclassified_not_false():
     """THE WHOLE SLICE, in one assertion. A kind nobody registered is not a decision --
     it is an absence of one, and the caller must be able to tell the difference."""
-    v = K.resolve("brand_new_kind_nobody_registered", "wake_worthy")
+    v = K.resolve("brand_new_kind_nobody_registered", "wake_worthy", plane="bus_kind")
     assert v.classified is False, "an unregistered kind cannot be classified"
     assert v.value is None, "an unclassified verdict carries NO policy answer, not False"
     assert v.why, "an unclassified verdict must say why -- silence is the defect"
 
 
 def test_p1b_a_registered_kind_resolves_with_a_real_answer():
-    yes = K.resolve("handoff", "wake_worthy")
+    yes = K.resolve("handoff", "wake_worthy", plane="bus_kind")
     assert yes.classified is True and yes.value is True
-    no = K.resolve("trace", "wake_worthy")
+    no = K.resolve("trace", "wake_worthy", plane="bus_kind")
     assert no.classified is True and no.value is False, (
         "a kind registered in the dimension's universe but NOT in the set is a real NO -- "
         "that is the distinction the whole organ exists to make")
@@ -68,14 +72,14 @@ def test_p1c_resolve_never_returns_a_bare_bool():
     """The BoundaryOutcome discipline: the type itself makes the silent answer
     unrepresentable, so no call site can accidentally treat absence as denial."""
     for kind in ("handoff", "trace", "not_a_kind_at_all"):
-        v = K.resolve(kind, "wake_worthy")
+        v = K.resolve(kind, "wake_worthy", plane="bus_kind")
         assert not isinstance(v, bool), f"resolve({kind!r}) returned a bare bool"
         assert hasattr(v, "classified") and hasattr(v, "value") and hasattr(v, "why")
 
 
 # ---------------------------------------------------------------- P2: unknown dimension
 def test_p2_an_unknown_dimension_is_also_unclassified_and_loud():
-    v = K.resolve("handoff", "dimension_that_does_not_exist")
+    v = K.resolve("handoff", "dimension_that_does_not_exist", plane="bus_kind")
     assert v.classified is False
     assert "dimension" in v.why.lower(), "the confession must name WHICH half was missing"
 
@@ -114,8 +118,8 @@ def test_p4_coverage_reports_per_dimension_and_names_the_universe():
 def test_p5_registration_is_sparse_and_orthogonal():
     """Declaring a kind wake-worthy must not make it salient. The 14-set design's one real
     virtue was orthogonality; the fix must not trade it away for tidiness."""
-    assert K.resolve("nudge", "wake_worthy").value is True
-    assert K.resolve("nudge", "salient").value is False, (
+    assert K.resolve("nudge", "wake_worthy", plane="bus_kind").value is True
+    assert K.resolve("nudge", "salient", plane="bus_kind").value is False, (
         "nudge is wake-worthy but NOT salient -- if these moved together the registry "
         "collapsed two independent dimensions into one")
 
@@ -133,16 +137,34 @@ def test_p6_the_three_planes_are_named_and_note_is_shown_colliding():
 
 
 # ---------------------------------------------------------------- P7: the fork it found
-def test_p7_a_forked_concept_is_reported_not_silently_merged():
-    """Found while seeding: 'ask' is three sets that disagree -- bifrost_pull's _ASK_KINDS
-    carries `blocker`, agent_cli's ASK_KINDS and packet_spec's STALE_ASK_KINDS do not. One
+def test_p7_a_forked_concept_is_reported_not_silently_merged(monkeypatch):
+    """Found while seeding: 'ask' was three sets that disagreed -- bifrost_pull's _ASK_KINDS
+    carried `blocker`, agent_cli's ASK_KINDS and packet_spec's STALE_ASK_KINDS did not. One
     concept, three memberships, no duplicate token: W134's forked-semantics class. The
     registry must SURFACE the disagreement rather than pick a winner, because picking one
-    is a policy ruling and this organ proposes, never ratifies."""
+    is a policy ruling and this organ proposes, never ratifies.
+
+    T332 UPDATE: Daniil ruled on the `ask` instance 2026-08-17, so this pin no longer asserts
+    that specific fork -- tests/test_t332_s1_ruling_the_forks.py holds the ruling. What stays
+    here is the MECHANISM, exercised against an injected fork, because deleting this pin when
+    its instance got resolved would silently retire the instrument that found it. The ruling
+    also found the instrument's edge: forks() groups by NAME, so `ask` was three honest
+    questions sharing a word rather than one concept in dispute."""
+    monkeypatch.setattr(K, "_FORKS", {
+        "synthetic": [
+            {"source": "a.py:X_KINDS", "members": frozenset({"one", "two"})},
+            {"source": "b.py:Y_KINDS", "members": frozenset({"one"})},
+        ],
+    })
     forks = K.forks()
-    assert "ask" in forks, "the ask fork vanished -- the registry merged what it should show"
-    f = forks["ask"]
+    assert "synthetic" in forks, "a live fork must be reported, never silently merged"
+    f = forks["synthetic"]
     assert len(f["variants"]) >= 2, "a fork with one variant is not a fork"
-    assert "blocker" in f["differs_on"], (
-        "the disagreement is precisely `blocker`; naming WHICH kind differs is what makes "
-        "the report actionable instead of an alarm")
+    assert "two" in f["differs_on"], (
+        "naming WHICH kind differs is what makes the report actionable instead of an alarm")
+
+
+def test_p7b_the_ruled_fork_is_gone_from_the_live_report():
+    """The other half: a ruling that leaves the instrument still shouting has not been
+    applied, only remembered."""
+    assert "ask" not in K.forks(), "the ask fork was ruled (T332) and must not still report"
