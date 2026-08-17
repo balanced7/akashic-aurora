@@ -174,6 +174,38 @@ TOOLS = [
         {"question": {"type": "string", "description": "the specific question, one sentence"},
          "context": {"type": "string", "description": "what you're doing + which decision hangs on it (optional)"}},
         ["question"]),
+    # T336: the Eye at the peer door. This surface had 20+ verbs and no way to reach the session
+    # corpus -- 25,194 events across 526 sessions -- so a seat asked to explore it fell back to
+    # grep. These are read-only doors; ingest and persist are deliberately not offered.
+    _fn("eye_freq",
+        "MEASURE how often an idea appears in the OPERATOR's own voice across the whole session "
+        "corpus, and get a mechanical VERDICT: unheard / mentioned-once / recurring / "
+        "standing-directive. This is not a search -- it is the only door that says what the "
+        "operator KEEPS asking for, which is how you find what the house repeatedly hears and "
+        "never builds. Pass several phrasings of ONE idea; they are OR'd and deduped.",
+        {"patterns": {"type": "array", "items": {"type": "string"},
+                      "description": "phrasings of the SAME idea, e.g. ['fan out','multi-agent','swarm']"}},
+        ["patterns"]),
+    _fn("eye_find",
+        "SEARCH the session corpus (every transcript, 526 sessions) by phrase, optionally faceted "
+        "by voice. Use who='operator' to read only what the human said -- the highest-signal slice "
+        "in the corpus. Returns event addresses you can resolve with eye_get.",
+        {"query": {"type": "string", "description": "the phrase to find"},
+         "who": {"type": "string", "description": "operator|agent|system -- omit for all voices"},
+         "limit": {"type": "integer", "description": "max hits (default 20)"}},
+        ["query"]),
+    _fn("eye_get",
+        "Resolve one corpus address to its VERBATIM record -- the citation primitive. An address "
+        "is 'session:line', e.g. '3a18b34b-4d03-4706-8433-ab0a3cf1a55a:100', exactly as eye_find "
+        "and eye_freq return them. Quote from this, never from a summary.",
+        {"address": {"type": "string", "description": "session:line, e.g. 'abc123-...:1420'"}},
+        ["address"]),
+    _fn("eye_zoom",
+        "Digest ONE session: its L2 summary and the L1 children beneath it. Use when eye_find or "
+        "eye_freq points at a session and you want to know what that session WAS before spending "
+        "reads inside it.",
+        {"session": {"type": "string", "description": "the session id"}},
+        ["session"]),
 ]
 
 # R7 (T058, deepseek design): mid-turn clarification dials.
@@ -372,6 +404,34 @@ class ToolBox:
             return (p.stdout or p.stderr or "(no output)")[:MAX_CMD_OUT]
         except Exception as e:
             return f"ERROR: agent_cli failed: {e}"
+
+    # --- T336: the Eye at the peer door -------------------------------------------------
+    # Read-only by construction: each shells the CLI's own read verb and returns its output
+    # unreformatted. The Eye's renders carry their own honesty (degraded envelopes, time-fog,
+    # the freq verdict) and a middleman that prettified them would be dropping exactly the
+    # confessions the caller needs.
+
+    def eye_freq(self, patterns):
+        """The verdict verb. Several phrasings of one idea -> counts on the operator's axis."""
+        pats = [str(p) for p in (patterns or []) if str(p).strip()]
+        if not pats:
+            raise ValueError("eye_freq needs at least one phrasing")
+        return self._agent_cli(["eye", "freq", *pats])
+
+    def eye_find(self, query, who="", limit=20):
+        args = ["eye", "find", str(query), "--limit", str(int(limit))]
+        if str(who).strip():
+            args += ["--who", str(who).strip()]
+        return self._agent_cli(args)
+
+    def eye_get(self, address):
+        """Resolve session:line to the verbatim record -- the citation primitive."""
+        if ":" not in str(address):
+            raise ValueError("an Eye address is 'session:line' -- got %r" % (address,))
+        return self._agent_cli(["eye", "get", str(address)])
+
+    def eye_zoom(self, session):
+        return self._agent_cli(["eye", "zoom", str(session)])
 
     def knowledge_recall(self, query, novelty=False):
         result = self._agent_cli(["recall", query, "--json"])
