@@ -170,6 +170,36 @@ def scan(paths: Iterable[str], root: Optional[Path] = None) -> List[Dict[str, An
     return findings
 
 
+def scan_text(text: str, label: str = "text",
+              root: Optional[Path] = None) -> List[Dict[str, Any]]:
+    """Findings for a blob of prose that is about to become durable and public.
+
+    ADDED 2026-08-16, AFTER THE MISS THAT PROVED IT NECESSARY. The first purge rewrote file
+    CONTENT and was verified with `git log -S`, which searches content -- so four pushed
+    COMMIT MESSAGES still named the artifacts and one carried the real atom ids. I verified
+    the thing that was easy to query rather than the thing I had claimed.
+
+    It is the generalised form of kimi's fence counter (ask 4ec09cc3): DERIVED RECORDS DO NOT
+    INHERIT THEIR SOURCES' VISIBILITY -- "private material escapes not as a copied file, but
+    as a paraphrase or summary written into the public plane". A commit message is a derived
+    description; so is a ledger row, a lesson, a chronicle, a PR body. Any of them can name
+    what it must not name while every file on disk stays clean."""
+    marks = markers(root)
+    if not marks or not text:
+        return []
+    low = str(text).lower()
+    out: List[Dict[str, Any]] = []
+    for m in sorted(marks):
+        if m in low:
+            out.append({
+                "path": label, "marker": m, "line": 0,
+                "remedy": (f"this {label} names {m!r}, which identifies private-plane "
+                           "content. Describe the work without naming the artifact -- "
+                           "existence metadata is a leak even when no body is published."),
+            })
+    return out
+
+
 def report(paths: Iterable[str], root: Optional[Path] = None) -> Dict[str, Any]:
     """The frame that ships with the number. An empty result must be distinguishable from a
     guard that never ran -- absence of findings is not evidence of a clean tree."""

@@ -324,7 +324,18 @@ def main():
         sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
             os.path.abspath(__file__)))))
         from core.trust.private_plane import report as _pp_report
+        from core.trust.private_plane import scan_text as _pp_text
         _pp = _pp_report(_staged_files())
+        # The COMMIT MESSAGE is scanned too, and it is not optional: the message is a derived
+        # description of the work, and a derived record does not inherit its sources'
+        # visibility. Four messages published artifact names and ids on 2026-08-16 while every
+        # staged file was clean.
+        _msg_path = os.path.join(".git", "COMMIT_EDITMSG")
+        try:
+            with open(_msg_path, encoding="utf-8", errors="replace") as _mf:
+                _pp["findings"].extend(_pp_text(_mf.read(), label="commit message"))
+        except Exception:
+            pass
         if _pp["findings"]:
             sys.stderr.write(
                 "pre-commit BLOCKED: staged file(s) carry PRIVATE-PLANE identifiers.\n")
