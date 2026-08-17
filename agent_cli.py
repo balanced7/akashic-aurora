@@ -129,6 +129,57 @@ def _intake(s, n, field, confessions):
     return s[:n] + f"\n...[clipped at {n} of {len(s)} chars -- remainder NOT stored]"
 
 
+def _briefing_intake(s, n, field, confessions, *, to_agent, by_agent=""):
+    """T338: bound a BRIEFING -- a field whose value is worthless when incomplete.
+
+    `_intake` is right for context/focus/task: a clipped context still helps, and its
+    spill-to-file plus confession closes the RB-5 silent-corruption class properly. A handoff
+    note is different on two counts, and both were paid for tonight.
+
+    (a) A BRIEFING THAT ENDS MID-SENTENCE IS WORSE THAN A SHORT ONE, because the reader cannot
+        tell what was lost or judge whether to go looking for it.
+    (b) THE RECOVERY PATH WAS INVISIBLE TO THE ONE READER IT EXISTS FOR. `_intake` spills to
+        state/spill/<file>.txt and `boot` never reads state/spill/. The full text survived on
+        disk in the single place the next seat would not look.
+
+    So on overflow the full body goes to a durable NOTE -- project-scoped, not per-agent
+    (`note <anyone> --get <title>` resolves it), which is exactly what boot-adjacent readers
+    already use -- and the stored field LEADS with the pointer so it survives any further
+    truncation downstream and is the first thing read rather than the last.
+
+    WHY THIS IS NOT A WRITING DISCIPLINE. The lesson
+    `a_cap_you_know_about_still_needs_the_body_written_to_fit` records two prior sessions lost
+    to this and prescribes "write the body to the cap FIRST". It fired at its own author
+    tonight, by accident, on an unrelated call, AFTER two overruns -- and a third attempt was
+    still needed to fit. A rule that must be recalled at compose time will not be.
+
+    Degrades to `_intake` if the note store is unreachable: a door must not die because a
+    store was down, and the file spill is honest, just less reachable."""
+    s = "" if s is None else str(s)
+    if len(s) <= n:
+        return s
+    try:
+        import time as _time
+        # Imported HERE, not at module scope: every other caller in this file does the same,
+        # and a top-level import would make this door's cost the whole CLI's startup cost.
+        from core.learning.agent_memory import get_agent_memory
+        title = f"handoff-spill:{to_agent}:{_time.strftime('%Y%m%d-%H%M%S')}"
+        get_agent_memory().decide_with_retry(title, s, curated=True)
+        ptr = (f"[FULL BRIEFING -- {len(s)} chars, this field caps at {n}. Retrieve with:\n"
+               f"   py agent_cli.py note {to_agent} --get {title}\n"
+               f"-- what follows is the opening only]\n")
+        confessions.append(
+            f"[SPILLED-TO-NOTE] {field}: {len(s)} chars exceeds the {n}-char cap -- the FULL "
+            f"body is stored as note '{title}' (reachable by any seat), and the stored field "
+            f"leads with the retrieval command so a truncated read still finds it")
+        return (ptr + s)[:n]
+    except Exception as exc:
+        confessions.append(
+            f"[SPILLED-TO-NOTE FAILED] {field}: {type(exc).__name__}: {exc} -- falling back "
+            f"to the file spill, which boot does NOT read; carry the body yourself")
+        return _intake(s, n, field, confessions)
+
+
 def _working_tree_status():
     """Best-effort git cleanliness for the repo this file lives in.
 
@@ -4660,7 +4711,10 @@ def cmd_handoff(args):
     clipped = []
     ctx = {}
     if (args.note or "").strip():
-        ctx["note"] = _intake(args.note, 1000, "note", clipped)
+        # T338: a handoff note is a BRIEFING -- see _briefing_intake for why it does not share
+        # _intake's clip-and-spill-to-file path. The other capped fields here keep _intake.
+        ctx["note"] = _briefing_intake(args.note, 1000, "note", clipped,
+                                       to_agent=to_agent, by_agent=args.agent_id)
     blockers = [b.strip() for b in (args.blocker or "").split("||") if b.strip()]
     try:
         em = SignalEmitter(_clip(args.agent_id, 200))

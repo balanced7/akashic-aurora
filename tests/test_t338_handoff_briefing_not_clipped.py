@@ -111,18 +111,28 @@ def test_p4_under_cap_briefings_are_untouched():
 def test_p5_a_store_failure_degrades_and_never_raises():
     """A door must not die because a store was unreachable. The fallback is today's
     behaviour -- file spill plus confession -- which is honest, just less reachable."""
-    import agent_cli
+    # The seam is core.learning.agent_memory.get_agent_memory, imported INSIDE the helper --
+    # every caller in agent_cli.py does the same, so there is no module-level name to patch.
+    # The first draft of this pin patched agent_cli.get_agent_memory and failed with "expected
+    # get_agent_memory to be the note seam", which was the pin discovering the real wiring
+    # rather than a defect: a monkeypatch that misses its target tests nothing, and would have
+    # gone green the moment the helper started failing for unrelated reasons.
+    import core.learning.agent_memory as _am
     fn = _briefing_fn()
     assert fn is not None
+
     def _boom(*a, **k):
         raise RuntimeError("store down")
-    monkey = getattr(agent_cli, "get_agent_memory", None)
-    assert monkey is not None, "expected get_agent_memory to be the note seam"
-    agent_cli.get_agent_memory = _boom          # type: ignore[assignment]
+
+    real = _am.get_agent_memory
+    _am.get_agent_memory = _boom                # type: ignore[assignment]
     try:
         confessions: list = []
         out = fn("Z" * 4000, 1000, "note", confessions, to_agent="claude", by_agent="claude")
         assert isinstance(out, str) and len(out) <= 1100
         assert confessions, "a degraded path must still confess"
+        assert any("FAILED" in c for c in confessions), (
+            "the degraded path must say the note write FAILED -- falling back silently would "
+            "leave the writer believing the body is reachable when it is not")
     finally:
-        agent_cli.get_agent_memory = monkey     # type: ignore[assignment]
+        _am.get_agent_memory = real             # type: ignore[assignment]
