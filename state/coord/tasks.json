@@ -12095,7 +12095,7 @@
     "agent_cli.py",
     "core/library/atoms.py"
    ],
-   "acceptance": "doc adopt either supersedes explicitly or refuses a duplicate-title current mint with a teaching line; a gate/doctor surface pages on duplicate-current-by-title; existing duplicates audited and reconciled; RED pins first; the competency-register pair stays as the regression fixture.",
+   "acceptance": "doc adopt either supersedes explicitly or refuses a duplicate-title current mint with a teaching line; a gate/doctor surface pages on duplicate-current-by-title; existing duplicates audited and reconciled; RED pins first. [Regression fixture named in the private plane -- the original wording identified it, and the row it belongs to is withdrawn.]",
    "status": "abandoned",
    "commit": null,
    "verified_by": null,

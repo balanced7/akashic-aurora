@@ -1,9 +1,10 @@
 """RED: the private-plane leak guard -- ingress, at the one place everything must pass.
 
-DANIIL'S RULING, 2026-08-16: "Lets not commit the competency and surname stuff to the repo.
-I want to make sure its internally accesible." His standing directive, 2026-08-15: "instead
-of a dance for redaction we have procedures and protocol." And his ingress principle: police
-traffic closest to the source, not at the boundary.
+DANIIL'S RULING, 2026-08-16: "Lets not commit the [REDACTED] and [REDACTED] stuff to the
+repo. I want to make sure its internally accesible." (Verbatim, two nouns bracketed.) His
+standing directive, 2026-08-15: "instead of a dance for redaction we have procedures and
+protocol." And his ingress principle: police traffic closest to the source, not at the
+boundary.
 
 THE LIVE INCIDENT. Personal assessment material was written to research/in-flight/ (tracked),
 adopted into atoms whose BODIES landed in store/docs/report.jsonl (tracked), and rendered into
