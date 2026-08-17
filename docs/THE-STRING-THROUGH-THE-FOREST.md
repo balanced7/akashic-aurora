@@ -388,14 +388,40 @@ is the signature of a man who heard these concepts before he read them.
 blinded audits, fail-closed defaults — *"Be SKEPTICAL. Try to REFUTE this claim. ≥2/3 refutations
 kill it. Default to refuted=true if uncertain"* — has no April analogue.
 
-**4. One possible regression, recorded because he asked for the true version.** The reader argues
-he became less curious about mechanism: in April he asked *"what is librocdxg and where did you
-find it? where were you looking initially?"*; in August he asks *"can you help me digest
-everything."* But that same reader also argues the two samples are **not comparable** — different
-tasks, stakes, and tools — and those two claims cannot both be load-bearing. If the work changed in
-kind, asking fewer questions about a driver library is a change of altitude, not of appetite. The
-honest verdict is **unresolved**, and it is the one thing in this document I would most want
-checked by someone who is not me.
+**4. One alleged regression, raised and then RESOLVED — the reader was wrong, and its own sample
+proves it.** The adversarial reader argued he became less curious about mechanism: April's *"what
+is librocdxg and where did you find it? where were you looking initially?"* versus August's *"can
+you help me digest everything."*
+
+Asked about it directly, he answered:
+
+> *"I get interested at the level that its relevant and when I am trying to fix something
+> specific... I am still the same Daniel today."*
+
+That is testimony, and testimony is a weak evidence class — so it was checked. The claim predicts
+that when he *was* fixing something concrete at a low level in August, the April behaviour should
+reappear unchanged. It does, **inside the very window the reader sampled** (2026-08-09 → 08-16):
+
+> *"I am still a newbie in this space, how does python versioning work? is it possible to have
+> multiple concurrent versions? are there legacy modes you can use with the newer stuff so code
+> doesn't break"* — 2026-08-12 21:51
+
+> *"whats a shebang, can we find a better word?"* — 2026-08-12 23:57
+
+Structurally identical to the librocdxg question — not *what is it* but *how does it work, what
+are the constraints, what breaks* — and both arrive while he is fixing something specific.
+
+So the finding fails, and it fails by **selection**: the reader drew the "digest this for me"
+quotes from its sample and passed over the disconfirming mechanism questions sitting in the same
+sample. That is precisely the error it was commissioned to hunt for, committed by the hunter. It is
+the second time tonight an adversarial reader was defeated by evidence it had been handed and did
+not weigh, and it is the strongest argument in this document for why a refutation must itself be
+checked rather than deferred to because it sounds rigorous.
+
+**The corrected finding: curiosity about mechanism is situational, not diminishing.** It fires at
+the altitude the problem occupies. In April the problem was a GPU driver, so he went to the driver.
+In August the problem was a schema, so he went to the schema — and when the problem was a Python
+interpreter, he went straight back to first principles and called himself a newbie while doing it.
 
 **5. What never changed at all.** *"ill leave the order up to you"* — 2026-04-12 00:46, and again
 in his last message of the arc. *"don't build anything yet im just trying to think outloud"* —
