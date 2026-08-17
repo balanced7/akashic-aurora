@@ -293,14 +293,43 @@ class ToolBox:
             return f"ERROR: no such file: {path}"
         if p.is_dir():
             return f"ERROR: {path} is a directory (use list_directory)"
+        # T340: SLICE FIRST, BOUND THE RESULT. This used to cap the INPUT and then slice what
+        # survived, which made every line past MAX_FILE_BYTES unreachable while the tool's own
+        # description said "prefer start_line/end_line for big files". Measured on the ledger:
+        # tasks.json is 646,935 bytes and T275's row starts at byte 510,416 -- 4.25x past the
+        # 120,000 cap -- so the slice indexed an array that ended near line 2,000 and returned
+        # "", which `or "(empty file)"` then rendered as an EMPTY FILE. A silent wrong answer
+        # naming the wrong cause. Found by Heimdall while doing the one job nobody else in this
+        # house can do: independently verifying a row its author owns.
+        if start_line or end_line:
+            s = max(1, int(start_line) if start_line else 1)
+            e = int(end_line) if end_line else None
+            picked, total = [], 0
+            size = 0
+            with open(p, encoding="utf-8", errors="replace") as fh:
+                for i, ln in enumerate(fh, 1):          # streamed: memory stays bounded
+                    total = i
+                    if i < s:
+                        continue
+                    if e is not None and i > e:
+                        # keep counting so an out-of-range request can be answered honestly
+                        continue
+                    if size <= MAX_FILE_BYTES:
+                        picked.append(ln.rstrip("\n"))
+                        size += len(ln)
+            text = "\n".join(picked)
+            if size > MAX_FILE_BYTES:
+                text += f"\n... [truncated at {MAX_FILE_BYTES} bytes]"
+            if not picked:
+                # T176 at a read door: absence must never read as a decision. "That line does
+                # not exist and here is how many there are" is a different answer from "the
+                # file is empty", and only one of them lets the caller fix the request.
+                return (f"(no lines in range {s}-{e if e is not None else 'end'}: "
+                        f"{path} has {total} line(s))")
+            return text
         raw = p.read_bytes()
         truncated = len(raw) > MAX_FILE_BYTES
         text = raw[:MAX_FILE_BYTES].decode("utf-8", errors="replace")
-        if start_line or end_line:
-            lines = text.splitlines()
-            s = (start_line - 1) if start_line else 0
-            e = end_line if end_line else len(lines)
-            text = "\n".join(lines[max(0, s):e])
         if truncated:
             text += f"\n... [truncated at {MAX_FILE_BYTES} bytes]"
         return text or "(empty file)"
