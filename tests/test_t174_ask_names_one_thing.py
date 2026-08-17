@@ -96,7 +96,11 @@ def test_k2_no_producer_emits_kind_ask():
 def test_k3_the_concept_survives_only_the_token_is_retired():
     from core.comm import packet_spec
     from scripts import bifrost_wake as bw
-    assert set(packet_spec.STALE_ASK_KINDS) == {"question", "request", "handoff"}
+    # T332: the set was renamed NEVER_DROP_WHEN_STALE and gained `blocker`. T174's invariant
+    # is that the TOKEN `ask` stays retired -- pinned directly now, instead of riding on an
+    # exact-equality assertion that also froze membership T174 never ruled on.
+    assert "ask" not in packet_spec.NEVER_DROP_WHEN_STALE
+    assert {"question", "request", "handoff"} <= set(packet_spec.NEVER_DROP_WHEN_STALE)
     assert {"question", "request", "handoff"} <= set(bw.WAKE_WORTHY_KINDS), (
         "the real ask kinds must keep waking their recipient")
 

@@ -48,9 +48,18 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 PLANES = {
     # the bus plane -- messages between seats
     "ANSWER_KINDS": "bus", "ESCALATE_KINDS": "bus", "LONG_KINDS": "bus",
-    "STALE_ASK_KINDS": "bus", "SALIENT_KINDS": "bus", "FLAGGABLE_KINDS": "bus",
+    "SALIENT_KINDS": "bus", "FLAGGABLE_KINDS": "bus",
     "PENDING_SKIP_KINDS": "bus", "SKIP_KINDS": "bus", "SKIP_KINDS_LANE": "bus",
-    "WAKE_WORTHY_KINDS": "bus", "ASK_KINDS": "bus", "CONSOLE_KINDS": "bus",
+    "WAKE_WORTHY_KINDS": "bus", "CONSOLE_KINDS": "bus",
+    # T332 (Daniil's ruling, 2026-08-17): STALE_ASK_KINDS, ASK_KINDS and _ASK_KINDS were three
+    # DIFFERENT questions sharing one word, which is why K-A never saw them -- it compares
+    # identical identifiers across files, and these were three distinct identifiers telling the
+    # same lie. Renamed for what each actually gates. The registry (core/comm/kinds.py) caught
+    # what this checker structurally could not, and its own blind spot is the mirror image:
+    # forks() groups by NAME, so it reported one forked concept where there were three honest
+    # ones. Neither instrument is wrong; each is blind where the other looks.
+    "NEVER_DROP_WHEN_STALE": "bus", "AUTO_REDRIVE_KINDS": "bus",
+    "_NEEDS_ATTENTION_KINDS": "bus",
     # T175: was SKIP_KINDS in check_bus_atom_pointers, colliding with bifrost_wake's. Renamed for
     # what it excludes (cargo), not for what the code does with it. K-D caught the rename the
     # moment it landed and demanded this line -- which is the bedside test working: nobody had to
@@ -73,7 +82,26 @@ PLANES = {
 
 # A cross-plane name collision with a WRITTEN rationale is a recorded decision, not drift.
 ALLOWED_COLLISIONS = {
-    # (none yet -- 'note' is the open one; T176 names the three planes and retires it)
+    # T332 (Daniil's ruling, 2026-08-17) -- this is the written rationale K-B has been asking
+    # for since T177, and it is a RULING, not a suppression. The collision is real and stays:
+    # a bus note is a cue skipped from pending, an event note is a captured record, a beat
+    # note is narrative. What changed is that the ambiguous QUESTION can no longer be asked --
+    # core/comm/kinds.py:resolve() now takes `plane` as a REQUIRED argument, so "is note
+    # salient?" is a TypeError and a cross-plane question returns UNCLASSIFIED-with-a-reason
+    # instead of a confident False. The house move: make the bad state unrepresentable rather
+    # than rename around it. Renaming per plane was the alternative and was rejected because
+    # it rewrites the meaning of records already at rest -- a migration event, not a store
+    # primitive (note durability-over-legibility-2026-08-16).
+    "note": ("three planes, opposite policies, ruled T332: resolve() requires `plane`, so the "
+             "ambiguous question cannot be asked. Verified by this checker (bus+event)."),
+    # Same ruling, different instrument. THIS CHECKER CANNOT SEE THIS ONE: BEAT_KINDS reads as
+    # UNRESOLVED (a computed membership), so K-B never had the beat plane in view. The registry
+    # did -- kinds.plane_collisions() reports decision on bus_kind+beat_kind -- which is the
+    # complementarity worth keeping: the checker is blind where the registry looks, and the
+    # registry groups by name where the checker compares identifiers. Recorded here so that if
+    # BEAT_KINDS ever becomes statically resolvable this does not fire as a fresh surprise.
+    "decision": ("bus + beat, ruled T332 with `note`; found by kinds.plane_collisions(), NOT "
+                 "by this checker -- BEAT_KINDS is UNRESOLVED here."),
 }
 
 ADVISORY = {"redundancy"}

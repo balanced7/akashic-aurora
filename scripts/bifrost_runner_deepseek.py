@@ -1537,7 +1537,7 @@ def main() -> int:
                         for _m in msgs:
                             _mid = getattr(_m, "id", "")
                             if (_mid and _mid not in _seen_ids
-                                    and packet_spec.is_ask_kind(getattr(_m, "kind", ""))
+                                    and packet_spec.never_drop_when_stale(getattr(_m, "kind", ""))
                                     and str(getattr(_m, "frm", "")) != args.agent):
                                 _seen_ids.add(_mid)
                                 try:

@@ -492,7 +492,11 @@ def _is_trace_class(msg) -> bool:
     return bool(isinstance(meta, dict) and meta.get("display_only"))
 
 
-_ASK_KINDS = frozenset({"request", "question", "handoff", "blocker"})
+# T332 (Daniil's ruling, 2026-08-17): renamed from _ASK_KINDS. This set answers "must the seat
+# DO something about this?" -- a triage bucket, not a taxonomy of asks. `blocker` was always
+# correctly a member (a tripped circuit breaker needs action), and it was this site's NAME, not
+# its membership, that made the registry report a fork across three unrelated questions.
+_NEEDS_ATTENTION_KINDS = frozenset({"request", "question", "handoff", "blocker"})
 _TRACE_KINDS = frozenset({"trace", "steer", "nudge", "ledger_update", "resolved"})
 
 
@@ -502,7 +506,7 @@ def kind_summary(messages) -> Dict[str, int]:
     out = {"asks": 0, "fyi": 0, "traces": 0}
     for m in (messages or []):
         k = str(_mget(m, "kind", "")).lower()
-        if k in _ASK_KINDS:
+        if k in _NEEDS_ATTENTION_KINDS:
             out["asks"] += 1
         elif k in _TRACE_KINDS:
             out["traces"] += 1

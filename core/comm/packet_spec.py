@@ -364,12 +364,28 @@ def lane_stream_key(ns: str, lane: str, to: Optional[str] = None) -> str:
 
 # ------------------------------------------------- stale-mail gate (D2) + send bound (D3)
 # T174: 'ask' RETIRED from this tuple. It was the only set in the tree containing it, so a
-# kind="ask" message got no automatic expectation window (ASK_KINDS gates that and excluded it)
-# and woke nobody (WAKE_WORTHY_KINDS excluded it) while this predicate still called it an ask --
-# the kind=review casualty pre-loaded. Nothing has ever emitted it: every send-shaped call site
-# in the tree is walked by tests/test_t174_ask_names_one_thing.py::test_k2, which now FAILS if a
-# producer appears. `ask` is the T171 CLI verb; one token, one meaning.
-STALE_ASK_KINDS = ("question", "request", "handoff")
+# kind="ask" message got no automatic expectation window (AUTO_REDRIVE_KINDS gates that and
+# excluded it) and woke nobody (WAKE_WORTHY_KINDS excluded it) while this predicate still called
+# it an ask -- the kind=review casualty pre-loaded. Nothing has ever emitted it: every
+# send-shaped call site in the tree is walked by tests/test_t174_ask_names_one_thing.py::test_k2,
+# which now FAILS if a producer appears. `ask` is the T171 CLI verb; one token, one meaning.
+#
+# T332 (Daniil's ruling, 2026-08-17): RENAMED from STALE_ASK_KINDS, and `blocker` ADDED. The old
+# name described neither its members nor its effect -- it decides whether a stale message is
+# SURFACED for triage or SKIPPED past by the cursor sweep, which is not a question about asks.
+# The registry (core/comm/kinds.py) reported this set as one third of a forked concept `ask`,
+# but the fork was false: the producer census found exactly one emitter of kind="blocker" --
+# the daemon circuit breaker at scripts/bifrost_daemon.py:221 and :448 -- and BOTH ARE
+# BROADCASTS. So the three sets that shared the name are three different questions:
+#     agent/bifrost_pull.py:_NEEDS_ATTENTION_KINDS  must the seat DO something?   blocker: yes
+#     agent_cli.py:AUTO_REDRIVE_KINDS               directed send arms a deadline? blocker: n/a
+#     THIS                                          stale -> surfaced or dropped?  blocker: yes
+# The middle is n/a, not no: agent_cli refuses to arm an expectation on a broadcast ("a
+# broadcast has no single answerer to redrive"), so that machinery cannot apply here at all.
+# The defect this closes: a tripped breaker nobody read inside the stale window was classified
+# a non-ask and dropped -- the one message whose entire purpose is to still be there when
+# somebody finally looks. Same shape as T174 above, same fix: make the token mean one thing.
+NEVER_DROP_WHEN_STALE = ("question", "request", "handoff", "blocker")
 DEFAULT_STALE_MS = 6 * 3600 * 1000        # kimi D2: 6h default; 0 disables the gate (P2)
 
 TOOL_SEND_TEXT_MAX = 8000                 # D3 (deepseek verdict 2026-07-19): the 4000 door
@@ -432,8 +448,12 @@ def msg_age_ms(message_or_id: Any, now_ms: int) -> Optional[int]:
         return None
 
 
-def is_ask_kind(kind: Any) -> bool:
-    return str(kind or "").strip().lower() in STALE_ASK_KINDS
+def never_drop_when_stale(kind: Any) -> bool:
+    """T332: named for what it decides. True means a stale message of this kind is SURFACED
+    for triage; False means the cursor sweep may commit past it. Renamed from is_ask_kind --
+    a tripped circuit breaker is not an ask, and it is the clearest case of a message that
+    must survive going unread."""
+    return str(kind or "").strip().lower() in NEVER_DROP_WHEN_STALE
 
 
 def partition_stale(messages, *, now_ms: int, stale_ms: int,
@@ -453,7 +473,7 @@ def partition_stale(messages, *, now_ms: int, stale_ms: int,
         age = msg_age_ms(id_of(m), now_ms)
         if age is None or age < stale_ms:
             fresh.append(m)
-        elif is_ask_kind(kind_of(m)):
+        elif never_drop_when_stale(kind_of(m)):
             asks.append(m)
         else:
             skips.append(m)

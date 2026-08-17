@@ -479,7 +479,7 @@ def premise_settled(kind: str, age_ms: Optional[int], text: str, *,
                                             2 * 3600 * 1000))
         except (TypeError, ValueError):
             min_age_ms = 2 * 3600 * 1000
-    if min_age_ms <= 0 or not packet_spec.is_ask_kind(kind):
+    if min_age_ms <= 0 or not packet_spec.never_drop_when_stale(kind):
         return []
     if age_ms is None or age_ms < min_age_ms:
         return []

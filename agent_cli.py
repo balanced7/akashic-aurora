@@ -5876,7 +5876,14 @@ def cmd_bifrost_send(args):
     # Directed ASKS (request/handoff/question) DEFAULT to a reply-deadline so a dropped ask surfaces
     # itself -- the 2026-07-12 silent-handoff incident: fenced asks fire-and-forgotten to a dead peer
     # went unflagged for hours. UNSET + ask-kind -> AUTO window; explicit 0 opts out; explicit >0 wins.
-    ASK_KINDS = {"request", "handoff", "question"}
+    #
+    # T332 (Daniil's ruling, 2026-08-17): renamed from ASK_KINDS, which the registry read as one
+    # third of a forked concept. This set gates exactly ONE mechanism -- the auto-armed reply
+    # deadline on a DIRECTED send -- so it is named for that. `blocker` is absent by CONSEQUENCE,
+    # not by oversight: its only producers broadcast (scripts/bifrost_daemon.py:221 and :448), and
+    # the branch above already refuses a deadline on a broadcast because there is no single
+    # answerer to redrive. A kind that cannot be directed cannot be auto-redriven.
+    AUTO_REDRIVE_KINDS = {"request", "handoff", "question"}
     ASK_EXPECT_DEFAULT_S = int(os.getenv("AKASHIC_ASK_EXPECT_S", "1800"))
     expect = 0
     if args.broadcast:
@@ -5895,7 +5902,7 @@ def cmd_bifrost_send(args):
         meta = {"to_incarnation": args.to_incarnation} if getattr(args, "to_incarnation", None) else None
         mid = bus.send(args.to, args.kind, text, meta=meta)
         dest = args.to + (f"#{args.to_incarnation[:8]}" if getattr(args, "to_incarnation", None) else "")
-        auto = expect_arg < 0 and args.kind in ASK_KINDS
+        auto = expect_arg < 0 and args.kind in AUTO_REDRIVE_KINDS
         expect = ASK_EXPECT_DEFAULT_S if auto else max(0, expect_arg)
         if mid and expect > 0:
             # RB-29 (T030 L4): arm the sender-side deadline; the pull floor sweeps it.
