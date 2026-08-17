@@ -24,6 +24,20 @@ so wiping the projection loses nothing authored (pin P5). deepseek's idempotency
 both layers: the route id is a content hash, so a crash-redelivered or double-pasted save is
 the SAME line and the SAME row (pin P2), and the projection insert is INSERT OR IGNORE.
 
+T335 -- WALKS ARE RECORDS TOO, and until 2026-08-17 they were the exception to the sentence
+above. A walk only incremented walk_count in the PROJECTION; rebuild() replayed nothing but
+route_saved, and _project() inserts walk_count=0. So "wiping the projection loses nothing
+authored" was true of every field except the one this organ produces by being USED -- the
+route survived a wipe and the evidence anyone had walked it did not. Walks now journal as
+kind="route_walked" and replay like saves, so the law holds as written.
+
+The same record closes the ambiguity Daniil named ("I don't want our forest thread to lie to
+us"): walk_count could not tell a glance from a traversal. Each walk now carries a DEPTH
+derived from the executed path -- listed / resolved / drilled, with legs_drilled counting
+BODIES OBTAINED rather than legs attempted. Walks taken before this existed resolve UNKNOWN
+in walks(); they are never backfilled, because inventing a depth for them would be the exact
+defect the field was added to remove.
+
 STEP VOCABULARY (fan-5, trimmed to s1): observation | discriminating-test | decision |
 dead-end | anchor | handoff. Dead ends are first-class and carry the refuted hypothesis in
 `is_not` plus the receipt that killed it -- half a route's value is the pruned branch the
@@ -38,6 +52,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -105,7 +120,29 @@ def _connect() -> sqlite3.Connection:
         route_id TEXT NOT NULL, seq INTEGER NOT NULL, id TEXT, type TEXT NOT NULL,
         target TEXT, receipt TEXT, note TEXT, is_not TEXT, outcome TEXT,
         superseded_by TEXT, PRIMARY KEY(route_id, seq))""")
+    # T335: the typed walk record. walk_count above survives as the TOTAL (it is the only
+    # thing carrying the walks taken before this table existed); this table carries the ones
+    # whose depth is actually known. The difference between them is the UNKNOWN population,
+    # and it is computed, never backfilled.
+    con.execute("""CREATE TABLE IF NOT EXISTS route_walks(
+        walk_id TEXT PRIMARY KEY, route_id TEXT NOT NULL, at TEXT, by TEXT,
+        depth TEXT NOT NULL, legs_shown INTEGER, legs_drilled INTEGER)""")
     return con
+
+
+def _project_walk(con: sqlite3.Connection, rec: Dict[str, Any]) -> None:
+    """T335: one route_walked journal record -> one route_walks row, and the total moves
+    ONLY when a row was really inserted. INSERT OR IGNORE plus rowcount is what makes a
+    replayed journal idempotent here -- an unconditional `walk_count + 1` would inflate the
+    total on every rebuild, which is the same class of lie this slice exists to remove."""
+    cur = con.execute(
+        "INSERT OR IGNORE INTO route_walks(walk_id, route_id, at, by, depth, legs_shown, "
+        "legs_drilled) VALUES(?,?,?,?,?,?,?)",
+        (rec["walk_id"], rec["route_id"], rec.get("at", ""), rec.get("by", ""),
+         rec["depth"], rec.get("legs_shown"), rec.get("legs_drilled")))
+    if cur.rowcount:
+        con.execute("UPDATE routes SET walk_count = walk_count + 1 WHERE route_id=?",
+                    (rec["route_id"],))
 
 
 def _project(con: sqlite3.Connection, rec: Dict[str, Any]) -> None:
@@ -178,6 +215,11 @@ def rebuild() -> int:
             if rec.get("kind") == "route_saved":
                 _project(con, rec)
                 n += 1
+            elif rec.get("kind") == "route_walked":
+                # T335: walks replay too, or the docstring above is false for the one record
+                # the organ produces by being used.
+                _project_walk(con, rec)
+                n += 1
         con.commit()
     finally:
         con.close()
@@ -205,9 +247,45 @@ def _resolve(step: Dict[str, Any]) -> str:
         return "dangling"
 
 
-def walk(name_or_id: str, *, resolve: bool = False) -> Dict[str, Any]:
+def _drill(step: Dict[str, Any]) -> Optional[str]:
+    """T335: fetch a leg's BODY, which is what distinguishes reading a route from reading
+    its table of contents. Returns the text, or None when the address does not resolve --
+    and the None is the point: legs_drilled counts bodies obtained, never legs attempted."""
+    target = str(step.get("target", ""))
+    if ":" not in target:
+        return None
+    sess, _, line = target.rpartition(":")
+    try:
+        con = sqlite3.connect(str(DB_PATH))
+        try:
+            row = con.execute(
+                "SELECT text FROM events WHERE session LIKE ? AND line=?",
+                (sess + "%", int(line))).fetchone()
+        finally:
+            con.close()
+        return row[0] if row else None
+    except Exception:
+        return None
+
+
+def walk(name_or_id: str, *, resolve: bool = False, drill: bool = False,
+         by: str = "") -> Dict[str, Any]:
     """Re-walk a saved string: steps in authored order, receipts attached, and (with
-    resolve=True) each leg's resolution named."""
+    resolve=True) each leg's resolution named. With drill=True each leg's BODY is read.
+
+    T335 -- THE WALK IS NOW A RECORD, AND THE RECORD NAMES ITS DEPTH. Daniil's ruling: "I
+    don't want our forest thread to lie to us and make traversal records be ambiguous." A
+    bare walk_count could not tell a glance from a traversal, and the walk was never written
+    to the journal at all, so the module's own lossless-rebuild law had a hole exactly the
+    shape of its usage history.
+
+    DEPTH IS DERIVED FROM THE EXECUTED PATH, NEVER PASSED IN. There is deliberately no
+    `depth` parameter: a self-declared fidelity field is exactly as trustworthy as the
+    number it replaced, and the whole point is that the record reports what actually ran.
+        listed    the index was printed -- real, useful, and not a traversal
+        resolved  every leg's ADDRESS was checked (current/dangling)
+        drilled   every leg's BODY was read; legs_drilled counts the ones obtained
+    """
     con = _connect()
     try:
         row = con.execute(
@@ -228,15 +306,78 @@ def walk(name_or_id: str, *, resolve: bool = False) -> Dict[str, Any]:
             if resolve:
                 s["resolution"] = _resolve(s)
             steps.append(s)
-        # A walk is a read plus one honest side effect: the walk counter (plain UPDATE,
-        # atomic and monotonic -- deepseek's physics answer; no CAS needed).
-        con.execute("UPDATE routes SET walk_count = walk_count + 1 WHERE route_id=?",
-                    (rid,))
+    finally:
+        con.close()
+
+    # The depth is whatever this call ACTUALLY did, computed after doing it.
+    legs_drilled = 0
+    if drill:
+        for s in steps:
+            body = _drill(s)
+            if body is not None:
+                s["body"] = body
+                legs_drilled += 1
+    depth = "drilled" if drill else ("resolved" if resolve else "listed")
+
+    rec = {"v": 1, "kind": "route_walked", "walk_id": uuid.uuid4().hex[:16],
+           "route_id": rid, "name": name, "at": _now_iso(), "by": str(by),
+           "depth": depth, "legs_shown": len(steps), "legs_drilled": legs_drilled}
+
+    # Journal FIRST, projection second -- the same ordering save() uses, and the reason a
+    # wiped eye.db now loses no walk history either.
+    jp = Path(JOURNAL_PATH)
+    jp.parent.mkdir(parents=True, exist_ok=True)
+    with open(jp, "a", encoding="utf-8") as f:
+        f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+
+    con = _connect()
+    try:
+        _project_walk(con, rec)
         con.commit()
     finally:
         con.close()
+
+    # The walk reports its own honest tally. `walk_count` alone is the bare total this slice
+    # exists to stop trusting, so it never travels without the breakdown beside it -- a count
+    # without its scope is not a coverage claim, one organ over. This is also what makes
+    # walks() reachable from the door every walk already comes through, rather than only from
+    # a render that has not been written yet.
     return {"route_id": rid, "name": name, "status": status,
-            "walk_count": walk_count + 1, "steps": steps}
+            "walk_count": walk_count + 1, "depth": depth,
+            "legs_shown": len(steps), "legs_drilled": legs_drilled,
+            "tally": walks(rid), "steps": steps}
+
+
+def walks(name_or_id: str) -> Dict[str, Any]:
+    """T335: the honest read side. Never a bare total -- a count without its scope is not a
+    coverage claim, which is the frame this house already enforces on every other number.
+
+    `unknown` is the walks the projection counted before walks were journaled. They had a
+    real depth and nobody recorded it, so the only true answer is UNKNOWN. Backfilling them
+    as 'listed' would be a guess wearing a measurement's clothes -- the T176 defect committed
+    by the fix that closes it."""
+    con = _connect()
+    try:
+        row = con.execute(
+            "SELECT route_id, walk_count FROM routes WHERE name=? OR route_id=? "
+            "ORDER BY at DESC LIMIT 1", (name_or_id, name_or_id)).fetchone()
+        if not row:
+            raise KeyError(f"no route named {name_or_id!r} -- `eye route ls` shows what "
+                           "strings exist")
+        rid, total = row
+        records = [
+            {"walk_id": w, "at": at, "by": by, "depth": d,
+             "legs_shown": ls, "legs_drilled": ld}
+            for (w, at, by, d, ls, ld) in con.execute(
+                "SELECT walk_id, at, by, depth, legs_shown, legs_drilled FROM route_walks "
+                "WHERE route_id=? ORDER BY at", (rid,))]
+    finally:
+        con.close()
+    by_depth: Dict[str, int] = {}
+    for r in records:
+        by_depth[r["depth"]] = by_depth.get(r["depth"], 0) + 1
+    return {"route_id": rid, "total": total, "by_depth": by_depth,
+            "unknown": max(0, total - len(records)), "records": records}
 
 
 def list_routes() -> List[Dict[str, Any]]:
