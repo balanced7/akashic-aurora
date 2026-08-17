@@ -2266,6 +2266,26 @@ def load_fan_prompts(raw: str):
     return [chunk.strip() for chunk in re.split(r"(?m)^---\s*$", raw) if chunk.strip()]
 
 
+def _route_tally(tally) -> str:
+    """T335 s2: render a walk history so the total can never travel without its scope.
+
+    UNKNOWN is rendered as its own bucket and only when it is non-zero -- those are walks the
+    projection counted before walks were journaled. They had a real depth and nobody recorded
+    it, so naming them UNKNOWN is the only honest answer; folding them into `listed` would be
+    a guess wearing a measurement's clothes, which is the defect T176 forbids and the one s1
+    refused to commit at the read side.
+
+    A route nobody has walked renders `never walked` rather than an empty breakdown, because
+    an empty string beside a zero reads as a missing render rather than a real zero.
+    """
+    by_depth = dict(tally.get("by_depth") or {})
+    unknown = int(tally.get("unknown") or 0)
+    parts = [f"{d}={by_depth[d]}" for d in ("drilled", "resolved", "listed") if by_depth.get(d)]
+    if unknown:
+        parts.append(f"UNKNOWN={unknown}")
+    return " ".join(parts) if parts else "never walked"
+
+
 def cmd_eye(args):
     """THE EYE's door (T278). S0: ingest / find / get. The grammar's facets land S1 on
     these same subcommands -- one door, growing verbs, never a second surface."""
@@ -2512,8 +2532,16 @@ def cmd_eye(args):
                       "--steps-file F` ties the first one")
                 return 0
             for r in rows:
+                # T335 s2, clause 7: this is the surface a seat reads BEFORE choosing a
+                # route, so a bare walked=N is the ambiguous number at the exact moment
+                # someone decides whether the string is worth walking.
+                try:
+                    tally = _route_tally(_RT.walks(r["route_id"]))
+                except Exception:
+                    tally = "UNKNOWN (tally unavailable)"
                 print(f"  {r['name']:<32} [{r['status']}] steps={r['steps']} "
-                      f"walked={r['walk_count']}  by {r['by']}  {r['route_id']}")
+                      f"walked={r['walk_count']} ({tally})  by {r['by']}  "
+                      f"{r['route_id']}")
             return 0
         if args.route_action == "save":
             if not args.name or not args.steps_file:
@@ -2529,11 +2557,18 @@ def cmd_eye(args):
             if not args.name:
                 print("[eye route] walk needs NAME (see: eye route ls)", file=sys.stderr)
                 return 2
-            w = _RT.walk(args.name, resolve=args.resolve)
+            w = _RT.walk(args.name, resolve=args.resolve, drill=args.drill, by=args.by)
             if args.json:
                 print(_json.dumps(w, indent=1)); return 0
+            # T335 s2, clause 7: the total never travels alone. `this:` is the walk that just
+            # ran; `history:` is every walk before it, with UNKNOWN kept as its own bucket
+            # rather than folded into `listed` -- backfilling a depth nobody recorded would be
+            # the guess s1 refused to make at the read side, committed at the render side.
             print(f"# route {w['name']}  [{w['status']}]  walk #{w['walk_count']}  "
                   f"{w['route_id']}")
+            print(f"  this walk: {w['depth']}  "
+                  f"({w['legs_drilled']}/{w['legs_shown']} legs drilled)   "
+                  f"history: {_route_tally(w['tally'])}")
             for s in w["steps"]:
                 res = f"  <{s['resolution']}>" if "resolution" in s else ""
                 dead = f"  IS-NOT: {', '.join(s['is_not'])}" if s["is_not"] else ""
@@ -7743,6 +7778,10 @@ def build_parser():
     eye_rt.add_argument("--by", default="claude", help="who tied the string (attribution)")
     eye_rt.add_argument("--resolve", action="store_true",
                         help="walk: name each leg's resolution (current | dangling)")
+    eye_rt.add_argument("--drill", action="store_true",
+                        help="walk: READ each leg's body, and record the walk as a real "
+                             "traversal (depth=drilled) rather than a glance. Depth is "
+                             "derived from what actually ran -- it can never be declared")
     eye_rt.add_argument("--json", action="store_true")
     eye.set_defaults(fn=cmd_eye)
 

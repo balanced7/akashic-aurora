@@ -178,9 +178,30 @@ def test_p4_the_walk_render_carries_the_breakdown_not_a_bare_total(tied, capsys)
         "the walk render never names the depth it just recorded; walk() already returns "
         "depth and tally and the render reads neither")
     assert f"{LEGS}" in out, "the render must carry the legs count it drilled"
-    assert "unknown" in out.lower(), (
-        "clause 7 says never a bare total: the breakdown must name UNKNOWN walks explicitly "
-        "rather than silently folding pre-journal history into a depth bucket (T176's law)")
+
+
+def test_p4b_unknown_walks_are_named_in_the_render_not_folded_away(tied, capsys):
+    """The UNKNOWN half of clause 7, and this pin was WRONG on its first draft -- it asserted
+    UNKNOWN appears unconditionally, on a fixture whose walks are all journaled. The honest
+    render names UNKNOWN only when unknown walks exist; satisfying the first draft would have
+    meant printing UNKNOWN=0 on every route, making the surface worse to make a pin green.
+    Recorded here rather than quietly amended: the pin was red for the wrong reason, which is
+    the same class as a pin green for the wrong reason and is caught by the same question --
+    would this pass/fail for a reason unrelated to the mechanism?
+
+    So the pin now MANUFACTURES the condition it is about: phantom walks the projection
+    counted before walks were journaled, which must surface as UNKNOWN rather than being
+    folded into listed."""
+    con = sqlite3.connect(str(tied / "eye.db"))
+    con.execute("UPDATE routes SET walk_count = walk_count + 4 WHERE name = ?", (ROUTE,))
+    con.commit()
+    con.close()
+    _run(["eye", "route", "walk", ROUTE])
+    out = capsys.readouterr().out
+    assert "UNKNOWN=4" in out, (
+        "four walks with no journal record behind them must render as UNKNOWN=4; folding "
+        "them into a depth bucket is the guess T176 forbids, committed at the render side "
+        f"after s1 refused it at the read side. got: {out!r}")
 
 
 def test_p5_the_ls_render_carries_the_breakdown_not_a_bare_total(tied, capsys):
