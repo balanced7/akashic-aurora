@@ -2278,9 +2278,13 @@ def _route_tally(tally) -> str:
     A route nobody has walked renders `never walked` rather than an empty breakdown, because
     an empty string beside a zero reads as a missing render rather than a real zero.
     """
+    from core.eye.routes import DEPTHS
     by_depth = dict(tally.get("by_depth") or {})
     unknown = int(tally.get("unknown") or 0)
-    parts = [f"{d}={by_depth[d]}" for d in ("drilled", "resolved", "listed") if by_depth.get(d)]
+    parts = [f"{d}={by_depth[d]}" for d in reversed(DEPTHS) if by_depth.get(d)]
+    # A depth the vocabulary does not know is the case a reader most needs to see, so it is
+    # rendered rather than dropped -- ordering is a presentation choice, membership is not.
+    parts += [f"{d}={n}" for d, n in sorted(by_depth.items()) if d not in DEPTHS and n]
     if unknown:
         parts.append(f"UNKNOWN={unknown}")
     return " ".join(parts) if parts else "never walked"

@@ -205,9 +205,16 @@ def test_p4b_unknown_walks_are_named_in_the_render_not_folded_away(tied, capsys)
 
 
 def test_p5_the_ls_render_carries_the_breakdown_not_a_bare_total(tied, capsys):
-    """CLAUSE 7, on the ls surface -- the one a seat reads FIRST, before choosing a route.
-    A bare walked=N here is the number Daniil's ruling called ambiguous, printed at the exact
-    moment someone is deciding whether the route is worth walking."""
+    """CLAUSE 7, on the ls surface. A bare walked=N is the number Daniil's ruling called
+    ambiguous, printed at the moment someone decides whether a route is worth walking.
+
+    HONEST SCOPE, narrowed after Heimdall's flag: this pin is green BY SELF-SEEDING. It drills
+    first, so the drilled=1 it asserts exists only because this same test just wrote that
+    record -- _route_tally renders only non-zero buckets, so a COLD route prints no `drilled`
+    at all. The pin is true, and it is weaker than its first docstring implied ("the surface a
+    seat reads FIRST" described a route nobody had just drilled). Recorded rather than quietly
+    reworded: a pin whose docstring claims more than its fixture arranges is the same
+    claim-wider-than-premise shape this row was bounced for. test_p5b covers the cold case."""
     _run(["eye", "route", "walk", ROUTE, "--drill"])
     capsys.readouterr()
     _run(["eye", "route", "ls"])
@@ -215,6 +222,36 @@ def test_p5_the_ls_render_carries_the_breakdown_not_a_bare_total(tied, capsys):
     assert ROUTE in out, "fixture route missing from ls -- the pin is not reading the render"
     assert "drilled" in out, (
         "ls renders a bare walked=N; clause 7 requires the depth breakdown beside it")
+
+
+def test_p5b_a_cold_route_renders_honestly_rather_than_blank(tied, capsys):
+    """The case p5 does NOT cover, added because Heimdall named the gap. A route nobody has
+    walked must say so in words rather than rendering an empty parenthesis, because a blank
+    beside a zero reads as a broken render and a reader cannot tell it from a missing one."""
+    _run(["eye", "route", "ls"])
+    out = capsys.readouterr().out
+    assert "never walked" in out, (
+        f"a cold route must name its own emptiness, not render blank. got: {out!r}")
+
+
+def test_p5c_a_depth_the_vocabulary_does_not_know_is_shown_not_dropped(tied, capsys):
+    """HEIMDALL'S SECOND FLAG, closed. The renderer used to order by a hardcoded tuple, so any
+    depth outside it was journalled correctly and then silently vanished from every surface --
+    the record right, nothing reading it, which is this house's signature defect one turn down.
+    Ordering may be a closed choice; MEMBERSHIP may not. An unrecognised depth is precisely the
+    case a reader most needs to see."""
+    con = sqlite3.connect(str(tied / "eye.db"))
+    con.execute("UPDATE routes SET walk_count = walk_count + 1 WHERE name = ?", (ROUTE,))
+    con.execute("INSERT INTO route_walks(walk_id, route_id, at, by, depth, legs_shown, "
+                "legs_drilled) SELECT 'w-probe', route_id, 1, 'claude', 'spelunked', 7, 7 "
+                "FROM routes WHERE name = ?", (ROUTE,))
+    con.commit()
+    con.close()
+    _run(["eye", "route", "ls"])
+    out = capsys.readouterr().out
+    assert "spelunked=1" in out, (
+        f"a depth outside DEPTHS must still render; dropping it makes the journal's truth "
+        f"invisible at the surface. got: {out!r}")
 
 
 # ---------------------------------------------------------------- the s1 invariant, guarded

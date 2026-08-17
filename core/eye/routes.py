@@ -68,6 +68,15 @@ SCHEMA_VERSION = 1
 STEP_TYPES = ("observation", "discriminating-test", "decision", "dead-end", "anchor",
               "handoff")
 
+# The walk-depth vocabulary, ordered shallow -> deep, and the ONE place it is written down.
+# Heimdall's flag on the s2 render (2026-08-17): the depth strings lived here implicitly, in
+# walk()'s conditional, and again as a hardcoded tuple in the renderer -- so a fourth depth
+# would be journalled correctly and then silently vanish from every surface that showed it.
+# That is this house's signature defect one turn further down: the record would be right and
+# nothing would read it. A renderer must order by this and still show what it does not
+# recognise, because an unknown depth is exactly the case where a reader most needs to see it.
+DEPTHS = ("listed", "resolved", "drilled")
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
