@@ -160,6 +160,9 @@ MANIFEST = {
     # named later slice (rides the door-curation program, T289/G). Debt, not design.
     "eye": "gap", "find": "gap", "get": "gap", "ingest": "gap", "freq": "gap", "overview": "gap", "zoom": "gap",
     "trace": "gap",   # T278 S4 connectome walk -- CLI first, MCP with the rest of the eye surface
+    "route": "gap",   # T323 saved walkable strings (`eye route save|walk|ls`). Shipped 2026-08-16
+                      # and never classified -- this guard has been failing on it since, which is
+                      # the ratchet working: it caught a verb its author forgot to declare.
     # T290 (2026-08-12): the verdict planes' door -- resident subcommands surfacing as verbs
     # to this census (the eye precedent). Same argument as ask/timeline: `adjudicate` and
     # `calibration` belong to the OPERATOR and the MCP-attached conductor most of all, and
@@ -358,6 +361,16 @@ MANIFEST = {
     "knowledge_note": "toolbox_only",    # ToolBox spelling of shared `note` (alias below)
     "knowledge_boot": "toolbox_only",    # ToolBox spelling of shared `boot` (alias below)
     "knowledge_full": "toolbox_only",    # CLI reaches this as `recall --full`
+    # T336: the Eye at the peer door. ToolBox spellings of the CLI's `eye find|freq|get|zoom`,
+    # added because the runner seats have exec=off and so could not reach the session corpus at
+    # all -- they were grepping a 526-session archive that has a grammar and a frequency verdict.
+    # Classified here rather than `gap` because the CLI twin already carries that debt under its
+    # own names (eye/find/freq/get/zoom are in KNOWN GAPS); double-counting it would inflate the
+    # backlog with one omission wearing two spellings.
+    "eye_freq": "toolbox_only",          # CLI reaches this as `eye freq`
+    "eye_find": "toolbox_only",          # CLI reaches this as `eye find`
+    "eye_get": "toolbox_only",           # CLI reaches this as `eye get`
+    "eye_zoom": "toolbox_only",          # CLI reaches this as `eye zoom`
     "memory_note": "toolbox_only", "memory_recall": "toolbox_only",  # private scratchpad, no twin
     "write_file": "toolbox_only", "edit_file": "toolbox_only",       # guarded write (T048/T050)
     "run_command": "toolbox_only",       # gated shell
