@@ -1,5 +1,5 @@
 {
-  "seq": 334,
+  "seq": 340,
   "tasks": [
     {
       "id": "T001",
@@ -10234,13 +10234,13 @@
         "tests/test_report_kit.py"
       ],
       "acceptance": "",
-      "status": "verifying",
-      "commit": null,
-      "verified_by": null,
-      "reviewed_by": null,
+      "status": "done",
+      "commit": "5ce065d8",
+      "verified_by": "deepseek",
+      "reviewed_by": "deepseek",
       "self_verified": null,
       "created": "2026-08-11T00:37:16+00:00",
-      "updated": "2026-08-11T00:44:23+00:00",
+      "updated": "2026-08-17T18:04:34+00:00",
       "history": [
         {
           "to": "proposed",
@@ -10266,6 +10266,11 @@
           "to": "verifying",
           "by": "claude",
           "at": "2026-08-11T00:44:23+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-17T18:04:34+00:00"
         }
       ]
     },
@@ -12147,7 +12152,7 @@
       "id": "T332",
       "title": "T176 s2 (follow-on to the shipped s1): rewire the 14 kind policy sites onto the registry, by strangler fig. s1 SHIPPED 2026-08-16 -- RED 66a95108 (7 pins), GREEN with core/comm/kinds.py + KindVerdict (three states; refuses bool() coercion because that coercion IS the defect), seeded byte-identically from all 14 live sets, wired into doctor. FIRST LIVE OUTPUT FOUND TWO REAL THINGS: concept 'ask' is FORKED across three sets differing on 'blocker' (agent/bifrost_pull.py _ASK_KINDS carries it; agent_cli.py ASK_KINDS and core/comm/packet_spec.py STALE_ASK_KINDS do not), and TWO plane collisions -- 'note' as the T176 row predicted, plus 'decision' which nobody had named. REMAINING: convert call sites one door at a time with parity pins (T044/T045 dual-write precedent), each site moving from `kind in SET` to resolve(kind, dim) and handling UNCLASSIFIED explicitly; the ask fork and the note/decision collisions need Daniil's ruling before the sites that depend on them are converted -- the registry proposes, it does not pick winners.",
       "desc": "",
-      "owner": "",
+      "owner": "claude",
       "deps": [],
       "files": [
         "core/comm/kinds.py",
@@ -12155,18 +12160,28 @@
         "core/comm/promoter.py"
       ],
       "acceptance": "Each converted door has a parity pin proving identical behaviour on known kinds plus an explicit UNCLASSIFIED branch; the coverage report shows shrinking undecided sets; no door treats absence as denial; Daniil rules on the ask fork and the note/decision collisions before their dependent sites convert.",
-      "status": "proposed",
+      "status": "claimed",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-16T19:30:37+00:00",
-      "updated": "2026-08-16T19:30:37+00:00",
+      "updated": "2026-08-17T12:51:32+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-16T19:30:37+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-17T12:51:18+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-17T12:51:32+00:00"
         }
       ]
     },
@@ -12220,6 +12235,272 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-17T03:41:54+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T335",
+      "title": "Routes: a traversal record must not lie -- journal walks with their DEPTH, and make the rebuild-is-lossless claim true. DANIIL'S RULING 2026-08-17, verbatim: 'Lets add that fidelity, I don't want our forest thread to lie to us and make traversal records be ambiguous.' PROVENANCE: found while walking route #1 at his ask 'did it actually help' -- the honest answer was that I read the INDEX (seven one-line labels) and never drilled a leg, yet the organ recorded that identically to a full traversal. TWO DEFECTS, ONE CAUSE -- walk history lives only in the eye.db PROJECTION as a bare integer. (1) AMBIGUITY: walk_count counts a glance and a real traversal the same, so walked=3 is a health number nobody measured -- same class as the M3 pre-registration finding and T324's q_usage receipts. (2) DURABILITY, and this one is worse: walks are NEVER journaled. rebuild() replays only kind=route_saved and _project() hardcodes walk_count=0 on insert, so wiping eye.db destroys every traversal ever recorded -- while routes.py:165 states the opposite in its own docstring ('wiping eye.db loses nothing authored'). The one artifact the organ produces that its tracked-truth plane does not hold is the record of it being used. DESIGN: a new journal record kind route_walked (walks join saves on the durable plane); each carries a DEPTH recorded from what the command actually did and never declarable by the caller -- listed (printed the index) / resolved (checked every leg address) / drilled (read every leg body) plus legs_shown and legs_drilled; rebuild() replays them so the lossless claim becomes true; legacy walk_count with no journal record renders UNKNOWN, never guessed (the T176/T322 law -- legacy is UNKNOWN, and inferring 'listed' would be the silent-False shape one plane over); ls and walk render the breakdown, never a bare total. FOLLOW-ON to T323 s1 (routes shipped 2026-08-16).",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/eye/routes.py",
+        "agent_cli.py"
+      ],
+      "acceptance": "A walk appends a route_walked record to state/coord/routes.jsonl; wiping eye.db and running rebuild() restores walk history including depth; a plain walk records depth=listed and can never record drilled; --drill records drilled with a legs_drilled count; depth is derived from the executed path, with no caller-supplied depth argument; pre-existing walk_count with no journal backing renders UNKNOWN rather than being inferred; ls and walk show the depth breakdown and never a bare total; routes.py's rebuild docstring claim is true as written or corrected in the same commit.",
+      "status": "verifying",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-17T13:33:29+00:00",
+      "updated": "2026-08-17T20:57:18+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-17T13:33:29+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-17T13:33:43+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-17T20:57:17+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-17T20:57:18+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T336",
+      "title": "Eye tools at the peer door: give Heimdall and Navi corpus access they have never had. DANIIL 2026-08-17: 'We need to give deepseek and kimi eye access, I am most curious where they will go, since they didn't get to use it this time around.' FOUND LIVE: core/comm/toolbox.py TOOLS exposes 20+ verbs (read_file, search_files, git_*, knowledge_recall, knowledge_map, recall_at, delta, bifrost_*) and NOT ONE Eye verb. The runners have exec=off, so a curiosity brief handing them 'py agent_cli.py eye find' commands is handing them commands they structurally cannot run -- which is exactly what I did an hour ago; their first curiosity run went through read_file/search_files instead of the corpus instrument. The Eye indexes 25,194 events across 526 sessions at time-fog 0.0%, and its freq verb returns a mechanical verdict on the OPERATOR'S OWN AXIS (unheard/mentioned-once/recurring/standing-directive) that no other door in the house can produce. SLICE: add eye_find, eye_freq, eye_get, eye_zoom to the toolbox, each shelling to agent_cli like knowledge_recall does (self._agent_cli). eye_freq is the load-bearing one -- it is the only verb that measures what the operator keeps asking for. Dispatch is getattr(self,name) so a method per tool is the whole wiring; the TOOLS entries carry the names as string literals so check_wiring's ast.Constant match still sees them (deepseek-red's A5 dispatch-bypass lesson does not bite here). NOT IN SCOPE: eye trace/stats/overview (add when a run asks for them), and any write verb -- these are read-only doors on a read-only corpus.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/comm/toolbox.py"
+      ],
+      "acceptance": "eye_find, eye_freq, eye_get and eye_zoom appear in TOOLS and dispatch via getattr; each returns the CLI's own output rather than a reformatting; a malformed address or unknown session returns the door's error rather than an exception; check_wiring stays green (the names are string literals in TOOLS); a live call from a runner seat is exercised and its output pasted into the ship note, not inferred from a passing test.",
+      "status": "done",
+      "commit": "2543ffc8",
+      "verified_by": "deepseek",
+      "reviewed_by": "deepseek",
+      "self_verified": null,
+      "created": "2026-08-17T16:01:00+00:00",
+      "updated": "2026-08-17T18:59:31+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-17T16:01:00+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-17T16:01:05+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-17T16:01:06+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-17T18:59:31+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-17T18:59:31+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T337",
+      "title": "Scorecard: UNRECORDED is not ABSENT -- stop rendering missing annotations as measured zeros. DANIIL 2026-08-17: 'KPIs have a nasty habit of being good at one thing and missing a heard of elephants.' Live instance found the same night, in our own instrument: tonight's arc scorecard reported M5 (live-exercise after ship) and M6 (verbatim preservation) as '(no signal)' when BOTH had fired -- T335 was exercised against the real door with its journal line read by hand, and four fence halves were persisted verbatim to research/reviewed/. Neither was annotated, so the instrument rendered performed-but-unannotated identically to never-performed, and the wrap read it as absence. PROPER NAME (from tonight's statistics pass): missing-not-at-random aliased as a false negative -- missingness depends on the state being measured, because the busy slice is exactly the one that skips its annotation, so the bias points one way rather than being noise. Prescribed minimum instrumentation: a third state, not-recorded/unknown, distinct from not-performed. THIS IS T176's LAW ONE PLANE OVER: an unlisted kind resolves UNCLASSIFIED, never a silent False. The scorecard does to our method exactly what we forbade the taxonomy to do to our kinds, and it does it to the instrument we steer by. DISCRIMINATOR ALREADY IN THE FILE: SELF_REPORT metrics have no detector, so their silence can only mean unknown; MEASURED metrics (M3, M11) compute from git and their silence is an earned zero that must keep saying so -- collapsing both would trade a false negative for a false unknown, which is worse because it makes a real zero unactionable.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "scripts/arc_scorecard.py"
+      ],
+      "acceptance": "A SELF_REPORT metric with no annotation renders UNRECORDED, not '(no signal)'; the render states in words that this is not evidence of absence; the UNRECORDED branch is gated on SELF_REPORT membership; MEASURED metrics keep rendering their real zeros; the live scorecard is run after the change and its output pasted into the ship note.",
+      "status": "done",
+      "commit": "5ac63274",
+      "verified_by": "claude",
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-17T17:06:38+00:00",
+      "updated": "2026-08-17T18:54:18+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-17T17:06:38+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-17T17:06:51+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-17T17:06:52+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-17T18:54:18+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-17T18:54:18+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T338",
+      "title": "Handoff briefings must not arrive clipped mid-thought: spill the overflow to a NOTE, not a file, and lead with the pointer. DANIIL 2026-08-17: 'why are things still clipping, how do we get around that, I thought we fixed this.' NOT A REGRESSION -- the cap at agent_cli.py:4663 (_intake(args.note, 1000)) is deliberate and the door behaves perfectly: it spills the full original to state/spill/, confesses in the result, and leaves an in-band marker. THE DEFECT IS NARROWER AND REAL: a handoff is a BRIEFING, and (a) an incomplete briefing is worse than a short one because the reader cannot tell what was lost, (b) the spill lands in state/spill/ which BOOT NEVER READS, so the recovery path is invisible to exactly the reader the handoff exists for. Filed lesson a_cap_you_know_about_still_needs_the_body_written_to_fit already records two prior sessions burned by this; tonight was the third, and I hit it three times in one session before fitting -- which is the proof that a writing discipline is not the fix. FIX: on overflow the handoff note's FULL body is written as a durable project-scoped NOTE (verified project-scoped, not per-agent: note deepseek --get resolves a note written by claude), and the stored field LEADS with the pointer so it survives any further truncation and is the first thing the reader sees. Falls back to the existing file-spill if the note write fails -- the door must never die because a store was unreachable. SCOPE: the handoff note path only. _intake stays as-is for context/focus/task, where a clip is survivable.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "agent_cli.py"
+      ],
+      "acceptance": "A handoff note over the cap stores a leading pointer of the form 'FULL BRIEFING -> py agent_cli.py note <to> --get <title>'; the full body is retrievable by that exact command; the confession names the note title rather than only a spill path; a note-write failure degrades to the current file spill rather than raising; under-cap notes are byte-identical to today.",
+      "status": "done",
+      "commit": "43d1c8f3",
+      "verified_by": "deepseek",
+      "reviewed_by": "deepseek",
+      "self_verified": null,
+      "created": "2026-08-17T17:57:27+00:00",
+      "updated": "2026-08-17T18:59:32+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-17T17:57:27+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-17T17:58:01+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-17T18:04:46+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-17T18:59:32+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-17T18:59:32+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T339",
+      "title": "Corpus reads confess instead of asking permission (RETROACTIVE ROW -- the work shipped as commit 44a60234 under the label 'T338', an id I cited before the registry issued it; the registry has since assigned T338 to the handoff-clipping fix, so this row is the real home and 44a60234's prefix is WRONG). Daniil's ruling, verbatim: 'I don't want to let security break the usability of this system... If the security would ruin efficiency and ergonomics I'd rather lean towards ergonomics.' Shipped: eye_freq/find/get/zoom each append to state/coord/corpus_reads.jsonl AND echo the disclosure to the calling seat, so neither party is quietly observed. A capability gate was proposed and withdrawn: a new vendor seat arrives by the operator's deliberate act a handful of times ever, so a gate is priced daily to prevent a rare event he controls -- the Siemens shape from his own record. DOCTRINE ESTABLISHED: gates go where a boundary is crossed rarely and cannot be undone (the private-plane guard fires at commit); disclosure goes on paths used constantly. Also amended T336's P6, which had been passing for the wrong reason -- it read each method's own source and could not see a write behind a helper call.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/comm/toolbox.py"
+      ],
+      "acceptance": "Shipped and verified live at 44a60234; this row exists to correct the citation, not to re-do the work. Done when the id correction is on the record and the row is closed against the real sha.",
+      "status": "done",
+      "commit": "44a60234",
+      "verified_by": "deepseek",
+      "reviewed_by": "deepseek",
+      "self_verified": null,
+      "created": "2026-08-17T17:57:55+00:00",
+      "updated": "2026-08-17T20:58:48+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-17T17:57:55+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-17T20:57:16+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-17T20:57:16+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-17T20:57:17+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-17T20:58:48+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T340",
+      "title": "read_file truncates BEFORE it slices, so every line past 120KB is silently unreachable while the door advertises the opposite. FOUND BY HEIMDALL under load, 2026-08-17: asked to independently verify T275 he could not read the ledger row he was judging and reconstructed it field-by-field through grep, then named the gap in his own report. MECHANISM (core/comm/toolbox.py read_file): raw=p.read_bytes(); text=raw[:MAX_FILE_BYTES].decode(); THEN if start_line/end_line: lines=text.splitlines(). The byte cap is applied to the INPUT, so the requested lines are cut off before the slice ever runs. Measured: MAX_FILE_BYTES=120,000; state/coord/tasks.json is 646,935 bytes; T275's row begins at byte offset 510,416 -- 4.25x past the cap. lines[10224:10240] indexes an array that ends near 2,000, so the call returns an EMPTY STRING. Not an error, not a truncation notice: silence. And the tool's own description reads 'Prefer start_line/end_line for big files to save tokens' -- it advertises precisely the capability it cannot deliver, which is the names-that-lie class at a door. SEVERITY: this is a silent WRONG ANSWER, not an honest refusal, and it degrades every seat reading any file over 120KB -- the ledger, the corpus index, any large doc. FIX: when a line range is requested, stream the file and collect only those lines, then bound the RESULT rather than the input; an out-of-range request must confess with the file's real line count rather than returning the empty-file string, since absence must never read as a decision (T176).",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/comm/toolbox.py"
+      ],
+      "acceptance": "read_file with start_line/end_line beyond the 120KB byte cap returns the ACTUAL lines; the whole-file path still truncates and confesses exactly as today; an out-of-range range confesses with the real line count and never returns '(empty file)'; an oversized SLICE result is bounded and says so; memory stays bounded (no full decode of an arbitrarily large file); verified live against state/coord/tasks.json line 10225.",
+      "status": "done",
+      "commit": "d3e289ce",
+      "verified_by": "deepseek",
+      "reviewed_by": "deepseek",
+      "self_verified": null,
+      "created": "2026-08-17T18:49:28+00:00",
+      "updated": "2026-08-17T20:58:55+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-17T18:49:28+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-17T18:52:46+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-17T20:58:54+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-17T20:58:54+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-17T20:58:55+00:00"
         }
       ]
     }
