@@ -1,0 +1,9 @@
+# The recovered archives are BYTE ARTIFACTS, not text. Git's autocrlf stripped 18,435 CR bytes
+# from april-aof-raw.aof on its first commit (2,808,112 -> 2,789,677) and would have canonized
+# an unparseable file that still looked correct in a directory listing -- RESP delimits on
+# \r\n, so removing CR destroys the format the archive IS.
+#
+# Marking them binary is not a preference. It is the difference between an archive and a story
+# about one.
+*.aof   binary
+*.rdb   binary
