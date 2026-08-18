@@ -12674,13 +12674,13 @@
         "agent_cli.py"
       ],
       "acceptance": "RED first. The render is a verb addressed to the operator and returns HIS VERBATIM utterances -- a pin asserts the output contains an exact substring of a known operator utterance, and that no sentence in it was generated rather than quoted. Rows that changed since his last session are listed with their transitions. Questions still addressed to him are surfaced and are distinguishable from questions he asked. A thread he opened that got no reply is listed AS unanswered rather than omitted, because absence must be visible and never silently dropped (T176). The render names its own coverage -- what it read and what it did not -- because every surface owes a legend, which is his own rule. When a plane is unreachable it says so rather than rendering a partial picture as complete. DEMO-GATED per the two-speed rule: this is a projection, so the bar is his eyes, not a fence.",
-      "status": "verifying",
-      "commit": null,
-      "verified_by": null,
-      "reviewed_by": null,
+      "status": "done",
+      "commit": "4af09d11",
+      "verified_by": "Heimdall independent review 2026-08-18 (saw the fence, not the build): PASS against all six fence laws -- order law, time/liveness/pointer selection, citation addresses, no-guilt, legend, caveat; 'You kept my rule.' Verdict verbatim: research/in-flight/t341/review-heimdall-t341-VERDICT.md (event 1787027626462-0). Live-exercised twice incl. the morning render that caught T352's pollution.",
+      "reviewed_by": "deepseek",
       "self_verified": null,
       "created": "2026-08-17T21:47:48+00:00",
-      "updated": "2026-08-18T04:33:14+00:00",
+      "updated": "2026-08-18T23:53:04+00:00",
       "history": [
         {
           "to": "proposed",
@@ -12701,6 +12701,11 @@
           "to": "verifying",
           "by": "claude",
           "at": "2026-08-18T04:33:14+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-18T23:53:04+00:00"
         }
       ]
     },
@@ -13125,13 +13130,13 @@
         "tests/test_t292_scout_role.py"
       ],
       "acceptance": "",
-      "status": "verifying",
-      "commit": null,
-      "verified_by": null,
-      "reviewed_by": null,
+      "status": "done",
+      "commit": "d404416c",
+      "verified_by": "Heimdall independent review 2026-08-18: PASS -- 'attacked the load-bearing pins, all hold'; done-exit gate ruled a route not a hole; one non-blocking number-reconciliation flag recorded. Verdict verbatim: research/in-flight/t362-fence/review-heimdall-t352-VERDICT.md (event 1787055433329-0).",
+      "reviewed_by": "deepseek",
       "self_verified": null,
       "created": "2026-08-18T04:34:32+00:00",
-      "updated": "2026-08-18T12:15:43+00:00",
+      "updated": "2026-08-18T23:53:04+00:00",
       "history": [
         {
           "to": "proposed",
@@ -13152,6 +13157,11 @@
           "to": "verifying",
           "by": "claude",
           "at": "2026-08-18T12:15:43+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-18T23:53:04+00:00"
         }
       ]
     },
