@@ -72,6 +72,24 @@ def _streams(bus: Any) -> List[str]:
     return keys
 
 
+def _forward_global(msg: Dict[str, Any]) -> None:
+    """The default global path: the seat speaks AS ITSELF (rung 2 of person-hood,
+    Daniil 2026-08-18: 'show up as your own person in the chat'). Reuses the rooms
+    transport, which already carries a username; the manual `discord test/send`
+    verbs keep the bridge's who-in-body render untouched. Same laws as everywhere:
+    allowlist inherited, redaction + clip via the rooms render, never raises."""
+    if not DB.should_forward(msg):
+        return
+    url = DB.webhook_url()
+    if not url:
+        return
+    try:
+        ROOMS._default_post(url, ROOMS._render_room(msg),
+                            username=ROOMS.username_for(str(msg.get("frm") or "")))
+    except Exception:                                                   # noqa: BLE001
+        pass          # a listener never wounds the beat; the room half still tries
+
+
 def pump(bus: Any, *, post: Optional[Callable[..., Any]] = None,
          room_post: Optional[Callable[..., Any]] = None) -> BoundaryOutcome:
     """One feed beat: forward everything new on the legacy plane, then advance."""
@@ -105,7 +123,7 @@ def pump(bus: Any, *, post: Optional[Callable[..., Any]] = None,
                 mid_s = mid.decode() if isinstance(mid, bytes) else str(mid)
                 msg = _decode(fields)
                 msg.setdefault("id", mid_s)
-                (post or DB.forward)(msg)
+                (post or _forward_global)(msg)
                 (room_post or ROOMS.post_to_room)(msg)
                 client.hset(CURSOR_KEY, key, mid_s)      # advance AFTER the attempt
                 forwarded += 1
