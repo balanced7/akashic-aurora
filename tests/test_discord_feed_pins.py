@@ -112,6 +112,11 @@ def test_p3_unconfigured_is_a_fast_no_op(wired, monkeypatch):
     bus, client = wired
     monkeypatch.delenv("AKASHIC_DISCORD_WEBHOOK")
     monkeypatch.delenv("AKASHIC_DISCORD_FORUM_WEBHOOK")
+    # ... and isolate from the AMBIENT config: the operator's real webhook file
+    # landed in .secrets/ on 2026-08-18 and turned this pin red from the outside.
+    # A pin must not depend on whether the repo it runs in is wired to Discord.
+    monkeypatch.setattr(F.DB, "webhook_url", lambda: "")
+    monkeypatch.setattr(F.ROOMS, "forum_url", lambda: "")
     out = F.pump(bus, post=lambda m, **k: (_ for _ in ()).throw(AssertionError),
                  room_post=lambda m, **k: (_ for _ in ()).throw(AssertionError))
     assert not out.ok and "not configured" in str(out.why).lower()
