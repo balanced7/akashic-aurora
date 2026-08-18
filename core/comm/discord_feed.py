@@ -42,17 +42,23 @@ def configured() -> bool:
 
 
 def _decode(fields: Dict[Any, Any]) -> Dict[str, Any]:
-    """Envelope fields arrive as flat (possibly bytes) pairs; meta rides as JSON."""
+    """Envelope fields arrive as flat (possibly bytes) pairs — and bus._emit
+    json.dumps's content/meta/parts with ensure_ascii, so an em-dash rides as a
+    literal backslash-u2014 inside a QUOTED string. The phone is not a JSON
+    parser (live receipt 2026-08-18: first-light rendered on Daniil's screen
+    with wrapping quotes and raw escapes). Decode every field that parses;
+    leave anything that doesn't exactly as it came."""
     out: Dict[str, Any] = {}
     for k, v in fields.items():
         ks = k.decode() if isinstance(k, (bytes, bytearray)) else str(k)
         vs = v.decode(errors="replace") if isinstance(v, (bytes, bytearray)) else v
         out[ks] = vs
-    if isinstance(out.get("meta"), str):
-        try:
-            out["meta"] = json.loads(out["meta"])
-        except ValueError:
-            pass
+    for field in ("content", "meta", "parts"):
+        if isinstance(out.get(field), str):
+            try:
+                out[field] = json.loads(out[field])
+            except ValueError:
+                pass
     return out
 
 
