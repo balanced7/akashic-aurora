@@ -1,36 +1,45 @@
-# Book fan — coverage manifest
+# Book fan — coverage manifest (CORRECTED 2026-08-17)
 
-Auto-sliced to a 250,000-char budget. COMPLETE COVERAGE of the
-operator spine 2026-04-11..2026-08-16; zero utterances dropped.
+**This file previously documented a 26-shard geometry that the book did not use.** That was the
+pre-filter auto-slice, in which twelve shards were a single agent-authored dispatch brief each
+(the largest a lone 711,573-char item). Those were classified out before the fan ran. The book
+was written from the geometry below and from nothing else.
 
-## Partition shards
-- shard 00: 2026-04-11 14:34 .. 2026-04-18 08:21 — 558 utterances, 249,895 chars
-- shard 01: 2026-04-18 09:58 .. 2026-07-03 00:12 — 308 utterances, 248,893 chars
-- shard 02: 2026-07-03 00:13 .. 2026-07-03 12:05 — 121 utterances, 247,864 chars
-- shard 03: 2026-07-03 12:05 .. 2026-07-03 12:09 — 74 utterances, 248,376 chars
-- shard 04: 2026-07-03 12:09 .. 2026-07-19 09:22 — 593 utterances, 249,178 chars
-- shard 05: 2026-07-19 09:25 .. 2026-07-19 23:34 — 149 utterances, 248,566 chars
-- shard 06: 2026-07-19 23:34 .. 2026-07-27 19:18 — 438 utterances, 244,577 chars
-- shard 07: 2026-07-27 19:18 .. 2026-08-01 01:15 — 450 utterances, 249,326 chars
-- shard 08: 2026-08-01 01:16 .. 2026-08-01 02:09 — 6 utterances, 174,785 chars
-- shard 09: 2026-08-01 02:09 .. 2026-08-01 02:09 — 1 utterances, 184,295 chars
-- shard 10: 2026-08-01 02:09 .. 2026-08-01 02:09 — 1 utterances, 282,746 chars
-- shard 11: 2026-08-01 02:09 .. 2026-08-01 02:09 — 1 utterances, 711,573 chars
-- shard 12: 2026-08-01 02:09 .. 2026-08-01 02:09 — 1 utterances, 300,460 chars
-- shard 13: 2026-08-01 02:30 .. 2026-08-01 02:30 — 1 utterances, 333,084 chars
-- shard 14: 2026-08-01 02:33 .. 2026-08-01 02:53 — 17 utterances, 178,855 chars
-- shard 15: 2026-08-01 02:53 .. 2026-08-01 02:53 — 1 utterances, 131,769 chars
-- shard 16: 2026-08-01 02:53 .. 2026-08-01 02:53 — 1 utterances, 128,107 chars
-- shard 17: 2026-08-01 02:53 .. 2026-08-01 12:24 — 67 utterances, 249,884 chars
-- shard 18: 2026-08-01 12:27 .. 2026-08-01 13:20 — 32 utterances, 86,489 chars
-- shard 19: 2026-08-01 13:27 .. 2026-08-01 13:58 — 17 utterances, 191,365 chars
-- shard 20: 2026-08-01 14:16 .. 2026-08-02 11:44 — 185 utterances, 247,554 chars
-- shard 21: 2026-08-02 14:17 .. 2026-08-04 02:19 — 214 utterances, 238,220 chars
-- shard 22: 2026-08-04 02:19 .. 2026-08-05 23:37 — 107 utterances, 245,025 chars
-- shard 23: 2026-08-05 23:46 .. 2026-08-11 00:23 — 569 utterances, 249,057 chars
-- shard 24: 2026-08-11 00:23 .. 2026-08-12 20:43 — 221 utterances, 246,890 chars
-- shard 25: 2026-08-12 20:44 .. 2026-08-16 11:04 — 446 utterances, 229,545 chars
+Correction found by codex on an independent read of book-vs-manifest, filed as
+`book_evidence_geometry_must_match_final_corpus`. A synthesis whose coverage labels cannot be
+reconstructed from its own manifest is not auditable, whatever the prose says.
+
+## Corpus actually read
+
+- 4,547 operator utterances, 3,178,225 chars, 2026-04-11 → 2026-08-16
+- EXCLUDED and named: 32 agent-authored dispatch briefs carrying 3,218,153 chars (50.3% of the
+  raw operator plane). Not operator speech; see `dispatch_briefs_are_recorded_as_operator_speech`.
+- Auto-sliced to a 250,000-char budget. **Complete coverage of the filtered spine; zero drops.**
+
+## Partition shards (13 sent, 12 landed, 1 starved)
+
+- shard 00: 2026-04-11 .. 2026-04-18 — 558 utterances, 251,591 prompt chars
+- shard 01: 2026-04-18 .. 2026-07-03 — 333 utterances, 247,794 prompt chars
+- shard 02: 2026-07-03 .. 2026-07-03 — 106 utterances, 250,845 prompt chars
+- shard 03: 2026-07-03 .. 2026-07-11 — 174 utterances, 247,948 prompt chars
+- shard 04: 2026-07-11 .. 2026-07-19 — 551 utterances, 251,248 prompt chars
+- shard 05: 2026-07-19 .. 2026-07-21 — 218 utterances, 250,012 prompt chars
+- shard 06: 2026-07-21 .. 2026-07-30 — 587 utterances, 240,820 prompt chars
+- shard 07: 2026-07-30 .. 2026-08-01 — 285 utterances, 251,230 prompt chars
+- shard 08: 2026-08-01 .. 2026-08-04 — 382 utterances, 251,443 prompt chars
+- shard 09: 2026-08-04 .. 2026-08-05 — 118 utterances, 244,810 prompt chars
+- shard 10: 2026-08-05 .. 2026-08-11 — 573 utterances, 251,233 prompt chars
+- shard 11: 2026-08-11 .. 2026-08-12 — 224 utterances, 248,864 prompt chars
+- shard 12: 2026-08-12 .. 2026-08-16 — 438 utterances, 212,435 prompt chars
+
+Shard 10 (2026-08-05 → 08-11) STARVED — its reasoning consumed the full 16,000-token completion
+budget before visible output. That window is therefore **unread** and any claim resting on it is
+unsupported.
 
 ## Decorrelated-by-question branches
-- silence — 2026-04-28..2026-06-20
-- adversarial — April vs August samples
+- **silence** — 2026-04-28 .. 2026-06-20, 124,726 chars. Landed.
+- **adversarial** — two 120,000-char samples (April vs August). Landed.
+
+## Standing limits
+- All branches ran on one vendor (deepseek-v4-pro). Correlated failure is NOT excluded.
+- Branch outputs are preserved verbatim in this directory and were not edited into the prose.
