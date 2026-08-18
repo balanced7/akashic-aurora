@@ -1,5 +1,5 @@
 {
-  "seq": 341,
+  "seq": 342,
   "tasks": [
     {
       "id": "T001",
@@ -12536,6 +12536,36 @@
           "to": "approved",
           "by": "claude",
           "at": "2026-08-17T21:47:56+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T342",
+      "title": "Read the graveyard: a design-time check for capabilities that EXISTED AND WERE LOST, because every instrument we own reads only the living system. PROVENANCE, and it is a measured wound not a guessed one: tonight's archaeology recovered a COMPLETE working message bus from the 2026-04-15 Redis command log -- envelope carrying msg_id/from_agent/to_agent/msg_type/priority/reply_to/expires_at, over consumer groups with XCLAIM and XACK, i.e. Bifrost's delivery semantics -- which was deleted and then re-derived across the following four months by seats who did not know it had ever existed. Alongside it: agents:active and agents:heartbeat (the presence roster with TTL) and fast:* (372 writes, zero survivors, a RAM cache answering his 2026-04-13 ask verbatim). THE STRUCTURAL REASON NOTHING CAUGHT IT: discover reads the live verb table; the Eye indexes sessions; recall searches lessons; check_wiring reads the tree. Every surface reads the LIVING system, so a deleted capability is invisible to all of them at once -- asking does this exist and asking did this exist and get lost return opposite answers, and we only ever ask the first. MEASURED GRAVEYARD: 951 paths deleted and never restored (133 of them python modules); 32 of 341 ledger rows abandoned or parked; 83 proposed and never started; 25 of 203 keys lost in the ONE April window where the key plane is observable. Against that, FOSSILS.md holds 7 entries -- the house documents abandoned DECISIONS with care and keeps no record of abandoned CAPABILITIES, off by about two orders of magnitude. THIS IS AN EXISTING LAW TRANSFERRED, NOT A NEW ONE: death_is_invisible_from_inside_the_record governs a dying SESSION whose transcript cannot contain its own death, and prescribes piping EXTERNAL cause evidence in as a labeled input with CANNOT-ESTABLISH as the honest default. The same law holds one plane over for a capability, and the slice inherits that mechanism rather than inventing a second one. WHAT SHIPS: a read-only probe over the DEAD planes -- git deleted-path history intersected against what is live today, abandoned/parked ledger rows, FOSSILS entries, and where a command log survives, keys written-but-not-surviving -- returning WAS-LOST hits with their last-seen sha and date, or an explicit CANNOT-ESTABLISH when the dead planes are silent. NOT IN SCOPE: resurrecting anything, judging whether the death was correct (many were -- see FOSSILS F1-F7), any write path, or coupling to discover's semantic layer. The verb reports; the human decides whether a death was a mistake.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "agent_cli.py"
+      ],
+      "acceptance": "RED first. A concept known to have been built-and-deleted (the 2026-04-15 agent_comm:stream bus) returns a WAS-LOST hit naming its last-seen commit and date; a concept that is merely absent and never existed returns CANNOT-ESTABLISH and never a guess; a concept that is LIVE today is not reported as lost (no false positives against the working tree); the probe is read-only and touches no store; a dead plane that is unreachable is named as unreachable rather than silently treated as empty (T176's law). DEMO-GATED per the two-speed rule: this is a reader, so the bar is his eyes.",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-18T00:57:58+00:00",
+      "updated": "2026-08-18T00:58:14+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-18T00:57:58+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-18T00:58:14+00:00"
         }
       ]
     }
