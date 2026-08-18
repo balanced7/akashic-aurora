@@ -7898,6 +7898,19 @@ def build_parser():
     pu.add_argument("--json", action="store_true")
     pu.set_defaults(fn=cmd_pulse)
 
+    ree = sub.add_parser("reentry", help="T341: the operator re-entry render, addressed "
+                                         "to Daniil -- what moved (measured), one open "
+                                         "door (his words verbatim + eye address), his "
+                                         "move (no counts, no ages). Assembly, not "
+                                         "charge. READ-only")
+    ree.add_argument("--show-open-loops", action="store_true",
+                     help="surface open loops (never on the default render)")
+    ree.add_argument("--since", help="override the diff point (ISO); default = his "
+                                     "last recorded word")
+    ree.add_argument("--stale-ok", action="store_true",
+                     help="skip the incremental eye ingest before rendering")
+    ree.set_defaults(fn=cmd_reentry)
+
     fd = sub.add_parser("flightdeck", help="W25 (deepseek): cockpit one-pager — fleet at "
                                             "a glance. Composes doctor + pulse + lane-health "
                                             "+ locks + commits. --agent drills one seat")
@@ -8294,6 +8307,18 @@ def cmd_clobber_scan(args):
         return 0
     print(clobber_scan.render(findings))
     return 1 if findings else 0
+
+
+def cmd_reentry(args):
+    """T341: the operator re-entry render. Reads the organs (eye, ledger, QUESTIONS.md),
+    never replaces them; every quoted word is his, verbatim, with its address."""
+    if not args.stale_ok:
+        from core.eye import index as _EYE
+        _EYE.ingest()  # a render diffed against a stale corpus lies about "since"
+    from core.reentry import build_reentry, render_reentry
+    built = build_reentry(show_open_loops=args.show_open_loops, since=args.since)
+    print(render_reentry(built))
+    return 0
 
 
 def cmd_pulse(args):
