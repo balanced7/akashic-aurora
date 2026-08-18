@@ -68,10 +68,26 @@ Both things are true at once, and they stay true for four months.
 
 ---
 
-## II. The 48 hours that contain everything
+## II. The first eleven hours
 
-Between `2026-04-11 14:34` and `2026-04-13 02:40` — the moment the session logger first recorded
-its own startup — he asks for, in his own words and without the vocabulary for any of it:
+**A correction, and it makes the finding sharper.** An earlier draft of this chapter said the
+architectural requests arrived "34 to 48 hours in." That was wrong, and it was wrong for an
+instructive reason: an adversarial reader said so, the requests fall on the *next calendar date*,
+and nobody subtracted. Codex did the subtraction. The real intervals, measured from his first
+sentence at `2026-04-11 14:34:09`:
+
+| Elapsed | What he asked for |
+|---|---|
+| **+10h28m** | a bridge for instances to talk through |
+| **+10h28m** | a shared store to synchronise learnings |
+| **+10h44m** | self-describing onboarding so agents don't destroy each other's work |
+| **+10h48m** | a documented journey he could learn from |
+| +33h23m | non-destructive capture of every agent's learnings |
+| +35h21m | the session logger |
+
+The bridge and the store arrive **before he has been awake a full day with the tool.** Four of the
+six load-bearing requests land inside a twenty-minute window, ten and a half hours in. What
+follows is the full list, in his own words and without the vocabulary for any of it:
 
 | When | What he typed | What it is |
 |---|---|---|
@@ -95,7 +111,8 @@ distribution → observability. That is not a random walk; it is the dependency 
 engineering, and it is the order the field itself discovered over fifty years, because you cannot
 hit the second wall until you have built past the first.
 
-He hit them all in thirty-six hours because every wall came with something that could name it —
+He hit them all inside thirty-five hours — and the four that matter most inside eleven — because
+every wall came with something that could name it —
 *once he described the shape precisely enough.* Describing shapes precisely is the thing he had
 been doing since he was a boy tracing a taillight backward through its supply chain.
 

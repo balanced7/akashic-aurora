@@ -40,7 +40,16 @@ instead of implying it.
    replies and reasoning; four era-shards were fanned, of which 3 landed and coverage was
    uneven — `D_may_june` alone dropped 18 sessions including one of 286,821 chars. See
    `fan/MANIFEST.md` for exactly what each branch did and did not see.
-5. **Operator-plane provenance is contaminated at an unmeasured rate.** At least one confirmed
+5. **Operator-plane provenance is contaminated, and the DOMINANT term is now MEASURED — this
+   entry previously said "unmeasured" and was stale.** 32 items carrying **3,218,153 chars —
+   50.3% of the entire raw operator plane** — are agent-authored subagent **dispatch briefs**, not
+   speech. They enter through the same queue channel the operator uses when typing over a running
+   turn, so they land under `voice=operator`. Median real utterance: 208 chars. The sharpest case
+   is self-referential: a prior seat's directive-mining run had ITS dispatch briefs filed as
+   operator speech, where they contaminate the next analysis of operator speech. Those 32 are
+   classified out of the book's corpus and named rather than dropped.
+   **What remains genuinely unmeasured** is the smaller residue: operator turns that are real user
+   turns but carry pasted assistant content. At least one confirmed
    turn (2026-04-12 01:01:24, 5,493 chars) is assistant text pasted back by the operator, so it
    is a genuine user turn carrying agent-authored content. Two automated detectors failed in
    **both** directions — false positives where the assistant quoted the operator back, false
