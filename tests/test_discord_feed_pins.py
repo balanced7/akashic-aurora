@@ -122,6 +122,30 @@ def test_p3_unconfigured_is_a_fast_no_op(wired, monkeypatch):
     assert not out.ok and "not configured" in str(out.why).lower()
 
 
+def test_p5_global_feed_posts_as_the_seat_itself(wired, monkeypatch):
+    """Rung 2 of person-hood (Daniil, 2026-08-18: 'show up as your own person in
+    the chat'): the DEFAULT global path posts with the seat's persona as the
+    webhook username — Vandor (claude) speaking, not a narrator quoting him —
+    while the manual bridge verbs keep their who-in-body contract untouched."""
+    bus, client = wired
+    from core.comm import discord_rooms as R
+    calls = []
+    monkeypatch.setattr(
+        R, "_default_post",
+        lambda url, content, **kw: calls.append({"url": url, "content": content, **kw}))
+    F.pump(bus)                                             # init (silent)
+    client.streams["bifrost:broadcast"].append(
+        ("101-0", {"frm": "claude", "kind": "chat", "content": '"a line of mine"'}))
+    F.pump(bus)
+    glob = [c for c in calls if "webhooks/1/g" in c["url"]]
+    assert glob, "the default global path must post through the persona transport"
+    assert glob[0].get("username") == "Vandor (claude)", (
+        "the seat speaks as itself on the global feed — the Species-A law, "
+        "now on both surfaces")
+    assert "**claude**" not in glob[0]["content"], (
+        "the narrator head leaves the body once the username carries the speaker")
+
+
 def test_p4_feed_exposes_no_inbound_door():
     for banned in ("receive", "poll", "listen", "on_message", "read_channel"):
         assert not hasattr(F, banned), (
