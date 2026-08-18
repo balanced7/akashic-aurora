@@ -1,5 +1,5 @@
 {
-  "seq": 362,
+  "seq": 363,
   "tasks": [
     {
       "id": "T001",
@@ -13517,6 +13517,46 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-18T12:28:53+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T363",
+      "title": "Discord-native expression: rooms + feed (outbound), phase-2 inbound design. COMMISSIONED TWICE, verbatim: 2026-08-07 'research and build out what it will take for me to be able to interact with akashic aurora via discord'; 2026-08-18 (off to work) 'complete whatever prep and design work that is needed for us to have bifrost have a discord native expression that I can chat in, with global chat and each specific breakout or ask being visible as chatrooms!'. CENSUS: T223's bridge was built 08-07 and NEVER configured, and the automatic feed NEVER existed -- no process subscribed the bus; built-not-wired at two layers on the exact wish. SHIPPED TODAY @03b47794: core/comm/discord_rooms.py (forum-webhook thread per ask, create-once reuse-after, Callsign (vendor) authorship = the Species-A kill from Heimdall's scan), core/comm/discord_feed.py (the missing subscription; tails the legacy plane, TAIL-INIT on first contact so the archive never replays to a phone, cursor advances after attempt), daemon feed beat (10s, off unless configured), 11 pins incl. twin no-inbound-door guards on all three modules, and the wiring checker learned the SUPERVISOR was never among its entry points. DESIGN: research/in-flight/discord-native-rooms-design-2026-08-18.md -- R1-R3 carried whole; phase-2 inbound (his chat) ships only after fence + his token + R1-R3 pins. Evening card delivered. FENCE: Heimdall reviews design + build (queued behind its stack). Daniil gates phase 2 and the three open questions.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/comm/discord_rooms.py"
+      ],
+      "acceptance": "",
+      "status": "verifying",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-18T13:18:14+00:00",
+      "updated": "2026-08-18T13:18:15+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-18T13:18:14+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-18T13:18:14+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-18T13:18:15+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-18T13:18:15+00:00"
         }
       ]
     }
