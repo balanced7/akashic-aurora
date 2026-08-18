@@ -1,5 +1,5 @@
 {
-  "seq": 342,
+  "seq": 352,
   "tasks": [
     {
       "id": "T001",
@@ -12519,13 +12519,13 @@
         "agent_cli.py"
       ],
       "acceptance": "RED first. The render is a verb addressed to the operator and returns HIS VERBATIM utterances -- a pin asserts the output contains an exact substring of a known operator utterance, and that no sentence in it was generated rather than quoted. Rows that changed since his last session are listed with their transitions. Questions still addressed to him are surfaced and are distinguishable from questions he asked. A thread he opened that got no reply is listed AS unanswered rather than omitted, because absence must be visible and never silently dropped (T176). The render names its own coverage -- what it read and what it did not -- because every surface owes a legend, which is his own rule. When a plane is unreachable it says so rather than rendering a partial picture as complete. DEMO-GATED per the two-speed rule: this is a projection, so the bar is his eyes, not a fence.",
-      "status": "approved",
+      "status": "verifying",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-17T21:47:48+00:00",
-      "updated": "2026-08-17T21:47:56+00:00",
+      "updated": "2026-08-18T04:33:14+00:00",
       "history": [
         {
           "to": "proposed",
@@ -12536,6 +12536,16 @@
           "to": "approved",
           "by": "claude",
           "at": "2026-08-17T21:47:56+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-18T02:16:15+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-18T04:33:14+00:00"
         }
       ]
     },
@@ -12566,6 +12576,355 @@
           "to": "approved",
           "by": "claude",
           "at": "2026-08-18T00:58:14+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T343",
+      "title": "t292 drill: frobnicate the widget subsystem",
+      "desc": "",
+      "owner": "drill_owner",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "claimed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-18T04:18:08+00:00",
+      "updated": "2026-08-18T04:18:08+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-18T04:18:08+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-18T04:18:08+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "drill_owner",
+          "at": "2026-08-18T04:18:08+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T344",
+      "title": "t292 drill: build the gizmo deduplicator",
+      "desc": "",
+      "owner": "drill_owner",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "deadbee",
+      "verified_by": "t292 drill",
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-18T04:18:09+00:00",
+      "updated": "2026-08-18T04:18:10+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-18T04:18:09+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-18T04:18:09+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "drill_owner",
+          "at": "2026-08-18T04:18:10+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-18T04:18:10+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-18T04:18:10+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T345",
+      "title": "t297 drill: a closable slice",
+      "desc": "",
+      "owner": "drill",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "deadbee1",
+      "verified_by": "t297 drill",
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-18T04:18:13+00:00",
+      "updated": "2026-08-18T04:18:15+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-18T04:18:13+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-18T04:18:13+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "drill",
+          "at": "2026-08-18T04:18:13+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-18T04:18:14+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-18T04:18:15+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T346",
+      "title": "T268 pin target: a routable ledger item about bus lane cursors and wake",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-18T04:19:20+00:00",
+      "updated": "2026-08-18T04:19:20+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-18T04:19:20+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T347",
+      "title": "Doctor: a fresh seat heartbeat renders as 'genuinely working' -- alive is not working; add the third state. DANIIL APPROVED 2026-08-18 (night board, verbatim: 'Yes to all the above, order is up to you' on item 'Fix the doctor's alive-vs-working defect'). LIVE RECEIPT 2026-08-17 ~22:05: doctor printed 'deepseek#23444-de: long work in running (571s) but the worklive BEAT is fresh (2s ago) -- genuinely working, not wedged' while the runner measured 0.00s CPU delta over 6s, held no outbound socket (Redis-only), backlog 0 -- idle, not working; Vandor repeated the false verdict to the operator. SITE core/comm/doctor.py:380-388: alive_signal = pulse_fresh OR beat_fresh, but the two are different evidence classes -- the progress PULSE carries work detail; the seat BEAT proves only that the beat thread lives. When only beat_fresh holds, the verdict must be a distinct third state (beating-unproven: alive, no progress evidence) with a drill pointing at CPU/queue, never 'genuinely working'. SIBLING CLASS: T329 (absence->retirement, same infer-durable-from-transient family) and T335/T337 (glance==traversal, unrecorded==zero) -- this is the third instance in the same week, in the organ the fleet is steered by. T282 law kept: the verdict names the signals it keyed on.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/comm/doctor.py"
+      ],
+      "acceptance": "",
+      "status": "verifying",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-18T04:21:02+00:00",
+      "updated": "2026-08-18T04:33:14+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-18T04:21:02+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-18T04:21:18+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-18T04:21:19+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-18T04:33:14+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T348",
+      "title": "t292 drill: frobnicate the widget subsystem",
+      "desc": "",
+      "owner": "drill_owner",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "claimed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-18T04:30:01+00:00",
+      "updated": "2026-08-18T04:30:01+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-18T04:30:01+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-18T04:30:01+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "drill_owner",
+          "at": "2026-08-18T04:30:01+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T349",
+      "title": "t292 drill: build the gizmo deduplicator",
+      "desc": "",
+      "owner": "drill_owner",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "deadbee",
+      "verified_by": "t292 drill",
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-18T04:30:02+00:00",
+      "updated": "2026-08-18T04:30:03+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-18T04:30:02+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-18T04:30:02+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "drill_owner",
+          "at": "2026-08-18T04:30:03+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-18T04:30:03+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-18T04:30:03+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T350",
+      "title": "t297 drill: a closable slice",
+      "desc": "",
+      "owner": "drill",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "deadbee1",
+      "verified_by": "t297 drill",
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-18T04:30:06+00:00",
+      "updated": "2026-08-18T04:30:08+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-18T04:30:06+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-18T04:30:06+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "drill",
+          "at": "2026-08-18T04:30:07+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-18T04:30:07+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-18T04:30:08+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T351",
+      "title": "T268 pin target: a routable ledger item about bus lane cursors and wake",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-18T04:31:12+00:00",
+      "updated": "2026-08-18T04:31:12+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-18T04:31:12+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T352",
+      "title": "Tests exercise the REAL task door without store isolation -- every full-suite run mints phantom ledger rows. FOUND 2026-08-18 by the reentry render's first morning run (the instrument surfaced its own store's pollution). MEASURED: 24 drill rows since 2026-08-12 (frobnicate/gizmo/t297-closable from tests/test_t292_scout_role.py _propose(), which calls run('task','propose',...) against the production ledger; plus the T268-pin-target rows, same class, different test). Roughly 10 phantom 'done' rows inflate every done-count the house quotes, and registry ids (T293-T351 range) are minted mid-pollution -- T347 (real) sits between T346 and T348 (phantom). CLASS: a drill through the real door tests what production sees (the test's own stated rationale, and it is RIGHT) but must do it against an ISOLATED store -- the Redis-side idiom already exists (isolate_canonical, db 15, per evidence-C's reading of test_coordinator_foundation); the FILE-backed ledger needs its twin (env-pointed tasks.json path or tmp store fixture). SLICE: (1) isolation fixture for the ledger path honored by the task door; (2) both test files onto it; (3) Daniil RULES on the 24+ historical phantom rows -- abandon-with-reason keeps append-only history honest, but rewriting counts is an operator call; (4) a pin that a full suite run leaves the production ledger byte-identical.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [
+        "tests/test_t292_scout_role.py"
+      ],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-18T04:34:32+00:00",
+      "updated": "2026-08-18T04:34:32+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-18T04:34:32+00:00"
         }
       ]
     }
