@@ -116,7 +116,7 @@ def test_p5_rooms_expose_no_inbound_door():
 def test_p6_unconfigured_is_a_state_not_a_failure(env, monkeypatch):
     monkeypatch.delenv("AKASHIC_DISCORD_FORUM_WEBHOOK")
     out = _mod().post_to_room(_msg(), post=_Spy())
-    assert not out.ok and "not configured" in str(out.detail).lower(), (
+    assert not out.ok and "not configured" in str(out.why).lower(), (
         "an unconfigured room webhook is opt-in-and-unset, distinguishable from "
         "a delivery failure (T170 vocabulary, carried from the bridge)")
 

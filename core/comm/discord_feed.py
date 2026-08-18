@@ -1,0 +1,109 @@
+"""The automatic Discord feed — the subscription that makes the bridge real.
+
+CENSUS FINDING 2026-08-18: the outbound bridge (T223, 08-07) shipped its module and manual
+verbs, and NO process ever subscribed the bus to it — built-not-wired at the feed layer.
+Even a configured webhook posted nothing except by hand. This module is the missing caller:
+the daemon pumps it every few seconds, it tails the LEGACY plane (broadcast + per-agent
+inboxes — the complete straggler net per the T039a/T045 dual-write law, so tailing it alone
+yields every message exactly once, no work-lane twins), and forwards each new message to the
+global channel (discord_bridge.forward) and its ask's room (discord_rooms.post_to_room),
+each of which self-filters.
+
+THE RULE THIS MODULE EXISTS TO KEEP: a first run against a stream with history must
+initialize its cursor to the stream's TAIL and post NOTHING. The legacy plane holds
+millions of entries; "turn on the feed" must never mean "replay the archive to a phone."
+
+Cursor: one Redis hash, stream_key -> last_seen_id, advanced AFTER the post attempt
+(RB-26 shape: a crash redelivers, so a duplicate phone line is possible and chosen —
+duplicate beats lost on a notification surface).
+
+NEVER RAISES into the daemon; unconfigured is a state, and the fast-exit costs one env
+read plus at most one file stat.
+"""
+
+from __future__ import annotations
+
+import json
+from typing import Any, Callable, Dict, List, Optional
+
+from core.outcome import BoundaryOutcome
+from core.comm import discord_bridge as DB
+from core.comm import discord_rooms as ROOMS
+
+CURSOR_KEY = "bifrost:discord:feed_cursor"
+
+#: per pump() call — the daemon runs this at ~0.1 Hz, so this caps burst size, and
+#: Discord's 30/min/webhook budget stays respected under sustained chatter.
+MAX_PER_PUMP = 20
+
+
+def configured() -> bool:
+    return bool(DB.webhook_url() or ROOMS.forum_url())
+
+
+def _decode(fields: Dict[Any, Any]) -> Dict[str, Any]:
+    """Envelope fields arrive as flat (possibly bytes) pairs; meta rides as JSON."""
+    out: Dict[str, Any] = {}
+    for k, v in fields.items():
+        ks = k.decode() if isinstance(k, (bytes, bytearray)) else str(k)
+        vs = v.decode(errors="replace") if isinstance(v, (bytes, bytearray)) else v
+        out[ks] = vs
+    if isinstance(out.get("meta"), str):
+        try:
+            out["meta"] = json.loads(out["meta"])
+        except ValueError:
+            pass
+    return out
+
+
+def _streams(bus: Any) -> List[str]:
+    keys = [f"{bus.ns}:broadcast"]
+    try:
+        agents = sorted(bus.known_agents())
+    except Exception:                                                   # noqa: BLE001
+        agents = []
+    keys.extend(bus._inbox_key(a) for a in agents)
+    return keys
+
+
+def pump(bus: Any, *, post: Optional[Callable[..., Any]] = None,
+         room_post: Optional[Callable[..., Any]] = None) -> BoundaryOutcome:
+    """One feed beat: forward everything new on the legacy plane, then advance."""
+    if not configured():
+        return BoundaryOutcome.failed(
+            "discord feed not configured — no webhook on either channel; a state, "
+            "not a failure (the pump costs one check and exits)")
+    client = bus._client
+    try:
+        cursors = {k.decode() if isinstance(k, bytes) else str(k):
+                   (v.decode() if isinstance(v, bytes) else str(v))
+                   for k, v in (client.hgetall(CURSOR_KEY) or {}).items()}
+    except Exception as e:                                              # noqa: BLE001
+        return BoundaryOutcome.failed(f"feed cursor read failed ({type(e).__name__}: {e})")
+
+    forwarded = 0
+    initialized = 0
+    for key in _streams(bus):
+        try:
+            if key not in cursors:
+                # FIRST CONTACT: tail-init, forward nothing. The archive stays home.
+                last = client.xrevrange(key, count=1)
+                tail_id = (last[0][0] if last else "0-0")
+                tail_id = tail_id.decode() if isinstance(tail_id, bytes) else str(tail_id)
+                client.hset(CURSOR_KEY, key, tail_id)
+                cursors[key] = tail_id
+                initialized += 1
+                continue
+            entries = client.xrange(key, min="(" + cursors[key], count=MAX_PER_PUMP)
+            for mid, fields in entries:
+                mid_s = mid.decode() if isinstance(mid, bytes) else str(mid)
+                msg = _decode(fields)
+                msg.setdefault("id", mid_s)
+                (post or DB.forward)(msg)
+                (room_post or ROOMS.post_to_room)(msg)
+                client.hset(CURSOR_KEY, key, mid_s)      # advance AFTER the attempt
+                forwarded += 1
+        except Exception:                                               # noqa: BLE001
+            continue          # one bad stream must not starve the rest of the beat
+    return BoundaryOutcome.done(ref=f"forwarded={forwarded}",
+                                forwarded=forwarded, initialized=initialized)

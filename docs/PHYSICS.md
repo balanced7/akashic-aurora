@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 6a2193a8. A bound you discover by collision is not awareness -- this sheet
+> Derived at e7e0be91. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (207 names)
+## Configuration flags (209 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -42,6 +42,8 @@ Class: reference
 | `AKASHIC_DAEMON_WAKE` | `"1"` | agent/harness/hooks/claude_stop.py, scripts/hooks/claude_stop.py |
 | `AKASHIC_DEBUG` | `` | agent/harness/hooks/claude_userpromptsubmit.py, scripts/hooks/claude_userpromptsubmit.py |
 | `AKASHIC_DIGESTS_FILE` | `` | scripts/corpus_digests.py |
+| `AKASHIC_DISCORD_FORUM_WEBHOOK` | `` | core/comm/discord_rooms.py |
+| `AKASHIC_DISCORD_ROOMS_REGISTRY` | `` | core/comm/discord_rooms.py |
 | `AKASHIC_DISCORD_WEBHOOK` | `` | agent_cli.py, core/comm/discord_bridge.py |
 | `AKASHIC_DRILL_ECHO` | `` | scripts/bifrost_runner.py, scripts/bifrost_runner_deepseek.py, scripts/bifrost_runner_gemini.py +2 |
 | `AKASHIC_EMBED_THEMES` | `""` | core/narrative/beat_log.py, core/narrative/theme_discovery.py |
@@ -221,7 +223,7 @@ Class: reference
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 
-## Mechanical bounds (116 numeric constants)
+## Mechanical bounds (117 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -281,6 +283,7 @@ Class: reference
 | `MAX_FILE_BYTES` | 120,000 | core/comm/toolbox.py |  |
 | `MAX_LIST` | 400 | core/comm/toolbox.py |  |
 | `MAX_MATCHES` | 120 | core/comm/toolbox.py |  |
+| `MAX_PER_PUMP` | 20 | core/comm/discord_feed.py |  |
 | `MAX_REFLECTIONS` | 50 | core/learning/agent_memory.py | keep only the newest N reflections in the index |
 | `MAX_REFS` | 2 | scripts/season_llm_player.py |  |
 | `MAX_TARGETS_PER_PASS` | 2 | core/recall/forge_optimizer.py | locked design decision 1 |
