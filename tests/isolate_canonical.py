@@ -77,6 +77,13 @@ if not _already_redirected():
     # the side channel is how the hazard got reported retired while a hole remained.
     os.environ["AKASHIC_SPILL_DIR"] = os.path.join(_tmp, "spill")
     os.makedirs(os.environ["AKASHIC_SPILL_DIR"], exist_ok=True)
+    # task_ledger.LEDGER_PATH is the SAME class of side channel (root from __file__, so
+    # AI_SETUP cannot reach it). T352 receipt: 32 phantom rows minted into the production
+    # ledger 2026-08-12..18 by drill tests walking the real task verbs through this very
+    # isolation. TaskLedger resolves AKASHIC_TASKS_PATH at construction, so the importing
+    # process AND every shelled agent_cli child inherit the redirect; the ledger creates
+    # its own fresh file on first touch.
+    os.environ["AKASHIC_TASKS_PATH"] = os.path.join(_tmp, "tasks.json")
     os.environ["_AISETUP_TEST_ISOLATED"] = "1"
 
     # Start from an empty test DB so Redis-backed state can't accumulate across runs.
