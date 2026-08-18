@@ -39,6 +39,7 @@ with the launcher and L4. Fail-open everywhere -- the doctor must never wedge a 
 from __future__ import annotations
 
 import os
+import re
 import time
 from typing import Any, Callable, Dict, List, Optional
 
@@ -365,7 +366,16 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
         # (agent#sid8), single-threaded per turn, and writes its worklive from the turn
         # itself (roster.heartbeat on sync/boot) -- so its beat IS work evidence. For a bare
         # agent id the PROGRESS PULSE governs, unchanged.
-        is_seat = "#" in str(agent)
+        # T347: a TRUE seat is agent#<sid8> (8 hex -- the --to-incarnation
+        # addressing contract). RUNNER incarnations (deepseek#23444-de,
+        # kimi#34276-ki) also carry '#', and `"#" in agent` handed them the
+        # seat privilege -- reopening Sol's no-go one door over. Live receipt
+        # 2026-08-17: an idle runner (0.00s CPU over 6s, no outbound socket,
+        # empty backlog) rendered 'genuinely working' on beat evidence alone.
+        # Pins: tests/test_t347_doctor_beating_idle.py
+        agent_s = str(agent)
+        is_seat = bool(re.fullmatch(r"[^#]+#[0-9a-f]{8}", agent_s))
+        is_runner_incarnation = ("#" in agent_s) and not is_seat
         beat_ts = float(wl.get("beat_ts") or 0) if wl else 0.0
         try:
             from core.comm.roster import FRESH_S as _SEAT_FRESH_S
@@ -378,6 +388,12 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
         non_idle = bool(wl) and phase not in liveness.IDLE_PHASES \
             and not phase.startswith("error:")
         if non_idle and stuck >= liveness.DEFAULT_WEDGE_S:
+            # T347 third state: a runner incarnation whose beat thread is fresh
+            # while its pulse is dead. ALIVE is proven; WORKING is not -- and the
+            # doctor cannot tell an idle stale phase from a hung MainThread, so
+            # the verdict says exactly that instead of picking a side (T176).
+            runner_beat_fresh = is_runner_incarnation and bool(beat_ts) and \
+                (now - beat_ts) <= max(_SEAT_FRESH_S, liveness.PROGRESS_TTL * 2)
             if alive_signal:
                 evidence = (f"pulse is FRESH ({prog['age_s']}s: {prog.get('detail','')})"
                             if pulse_fresh else
@@ -386,6 +402,15 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
                               f"{agent}: long work in '{phase}' ({int(stuck)}s) but the "
                               f"{evidence} -- genuinely working, not wedged",
                               "py agent_cli.py doctor --json"))
+            elif runner_beat_fresh:
+                out.append(_f(agent, "beating_unproven", "dashboard",
+                              f"{agent}: phase '{phase}' aged {int(stuck)}s with beat "
+                              f"fresh ({int(now - beat_ts)}s) but NO progress pulse -- "
+                              f"ALIVE is proven, WORKING is not (a runner's beat is its "
+                              f"heartbeat thread, not its work; an idle stale phase and "
+                              f"a hung MainThread look identical from here)",
+                              "sample CPU delta + py-spy dump --pid <runner-pid>; "
+                              "empty queue => stale phase, backlog => real wedge"))
             else:
                 # T282: every page names the signals it keyed on -- a page that does not
                 # show its evidence cannot be recalibrated, only ignored.
