@@ -1,5 +1,5 @@
 {
-  "seq": 357,
+  "seq": 362,
   "tasks": [
     {
       "id": "T001",
@@ -4651,11 +4651,11 @@
       "deps": [],
       "files": [],
       "acceptance": "Codex's six pre-registered acceptance tests pass verbatim; a newcomer seat discovers the buffer from boot alone without being told; 'what are you holding of mine' answerable from the STORE not from recall; the Eye reconstructs every hold while disturbing no reader cursor",
-      "status": "approved",
+      "status": "claimed",
       "commit": null,
       "verified_by": null,
       "created": "2026-08-01T04:05:25+00:00",
-      "updated": "2026-08-01T04:05:41+00:00",
+      "updated": "2026-08-18T12:16:32+00:00",
       "history": [
         {
           "to": "proposed",
@@ -4666,6 +4666,11 @@
           "to": "approved",
           "by": "claude",
           "at": "2026-08-01T04:05:41+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-18T12:16:32+00:00"
         }
       ]
     },
@@ -13120,13 +13125,13 @@
         "tests/test_t292_scout_role.py"
       ],
       "acceptance": "",
-      "status": "claimed",
+      "status": "verifying",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-18T04:34:32+00:00",
-      "updated": "2026-08-18T12:05:24+00:00",
+      "updated": "2026-08-18T12:15:43+00:00",
       "history": [
         {
           "to": "proposed",
@@ -13142,6 +13147,11 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-08-18T12:05:24+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-18T12:15:43+00:00"
         }
       ]
     },
@@ -13360,6 +13370,153 @@
           "at": "2026-08-18T12:15:11+00:00",
           "reason": "T352 phantom cleanup: minted by the pin's own pre-fix diagnosis runs",
           "operator_ruling": "Daniil 2026-08-18, ruling on T352 history cleanup, verbatim: 'Clean'"
+        }
+      ]
+    },
+    {
+      "id": "T358",
+      "title": "The engine-feeling readout: Daniil should FEEL the engine running, not deduce it. HIS WORDS (eye 29f15d47-9...:1745, verbatim): 'I particularly loved your idea when you said Daniel should be able to see the systems in action with the dashboard and feel the engine running'. EVIDENCE the want is standing: the 16x 'is it stuck?' family (operator-spine:54730) and the never-built 3-bar progress display; the 2026-07-17 blindness night 'I've been flying blind all night' (4b3ed2f8:315). Surfaced by Navi's arc-5 enrichment 2026-08-18; APPROVED BY DANIIL same day, verbatim: 'Those are approved too!'",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-18T12:16:15+00:00",
+      "updated": "2026-08-18T12:16:30+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-18T12:16:15+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-18T12:16:30+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T359",
+      "title": "Metrics-truth sweep: find every place we count 'correctly' but not truthfully. HIS WORDS (eye f9d12d26-b...:1569, verbatim): 'I want all of our metrics to evolve and be true to what is/ be useful for their purpose. I wonder how many other places we are counting correctly but not in a way that truly represents the multifaceted reality' -- T337's elephant law stated as a GENERAL principle, never rowed. The sweep inherits T337's discriminator (measured zero vs unrecorded vs unknown) and audits every quoted count: ledger done-counts (just proven wrong by T352's 10 phantom dones), suite failure counts (tree-dependent), eye freq, doctor tallies, season-score. Surfaced by Navi's arc-6 enrichment 2026-08-18; APPROVED BY DANIIL same day, verbatim: 'Those are approved too!'",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-18T12:16:20+00:00",
+      "updated": "2026-08-18T12:16:31+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-18T12:16:20+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-18T12:16:31+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T360",
+      "title": "Standing cold-boot friction audit: the recurring directive gets an organ instead of an ad-hoc round. HIS WORDS (eye 69d664e5-e...:1, verbatim): 'initialize yourself with akashic aurora and pay attention to any friction points in the initial onboarding. We just spent time making that process better' -- and he has commissioned the SAME audit at least three times (rounds at c9801bb1:1 and 5875503f:1), each run by hand, none leaving a standing row. SHAPE: every fresh boot appends observed friction to the wishlist plane (WISHLIST.md law already standing); a periodic roll-up ranks recurrences. Adjacent candidate he may prefer merged: the wake-chore instance ('It seems like it will be a chore trying to wake each other up lets fix this', f9207c90:1819). Surfaced by Navi's arc-7 enrichment 2026-08-18; APPROVED BY DANIIL same day, verbatim: 'Those are approved too!'",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-18T12:16:25+00:00",
+      "updated": "2026-08-18T12:16:31+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-18T12:16:25+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-18T12:16:31+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T361",
+      "title": "eye get answers a malformed address with 'no event' -- absence must never read as a verdict about the citation. RECEIPT 2026-08-17 (lesson eye_get_says_no_event_when_it_means_bad_address): Navi cited 51589003:415 (the house's own sid8 dialect -- boot prints 'session ed728d23', roster prints 'claude#18762fcf'); eye get returned 'no event at 51589003:415', which reads as THE PEER FABRICATED ITS EVIDENCE. All three citations were exact; only the address form differed. CLASS (the address-dialect fracture): sid8 vs full-uuid vs pid-suffix vs bare-agent vs T-id vs blob: -- each organ resolves exactly one dialect and renders every other as nonexistence. Siblings: T347 (seat costume), T340 (silent wrong answer at a door). FIX: get_event resolves a short session prefix by unique-match against the session index; ambiguous refuses LISTING the candidates; zero matches keeps the honest no-event. The citation resolver exists to make claims checkable; it must not punish the house's own dialect.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/eye/index.py"
+      ],
+      "acceptance": "",
+      "status": "verifying",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-18T12:25:24+00:00",
+      "updated": "2026-08-18T12:27:56+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-18T12:25:24+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-18T12:25:25+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-18T12:25:25+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-08-18T12:27:56+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T362",
+      "title": "The resolver registry: one door that speaks every address dialect, because the fracture class is at every boundary while the fixes keep landing at single doors. CENSUS 2026-08-18 (research/in-flight/address-dialects-census-2026-08-18.md): ELEVEN machine dialects (full-uuid, sid8, seat#sid8, runner#pid-suffix, bare-agent, T-id, session:line, stream-id, blob:, ADR_/title, learn:experiment:) plus the human layer from Heimdall's name-collision scan (callsign-vs-vendor-id, 'cursor' triple-loaded). FIVE fracture receipts in 36h, same anatomy every time: an id crosses an organ boundary in a dialect the receiver does not parse, and the failure renders as an ABSENCE VERDICT about the content -- T340, T347, T361, T329(open), and Navi's evidence nearly read as fabricated. T176's law keeps being applied door-by-door because the class lives at the SEAM. SHIP: resolve <token> -- name the form, name the owning organ, return canonical address + the drill that dereferences it; refusals name the unparsed FORM, never 'not found'; new dialects must register or render UNKNOWN-FORM. NOT a universal id scheme (dialect diversity is partly load-bearing; strangler-fig only). Slice 1: the seven forms we own end-to-end. Slice 2: check_wiring rule -- an organ printing a form no resolver claims is a names-that-lie finding. FENCE with Heimdall (its scan is the human-layer half). Daniil gates.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-18T12:28:53+00:00",
+      "updated": "2026-08-18T12:28:53+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-18T12:28:53+00:00"
         }
       ]
     }
