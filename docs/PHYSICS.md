@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at c8800301. A bound you discover by collision is not awareness -- this sheet
+> Derived at b207d563. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (206 names)
+## Configuration flags (207 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -101,6 +101,7 @@ Class: reference
 | `AKASHIC_STOP_PROMISE` | `"1"` | agent/harness/hooks/claude_stop.py, scripts/hooks/claude_stop.py |
 | `AKASHIC_STOP_WAKE` | `"1"` | agent/harness/hooks/claude_stop.py, scripts/hooks/claude_stop.py |
 | `AKASHIC_STORE_BACKEND` | `""` | core/foundation/store.py, scripts/checkers/check_dual_authority.py |
+| `AKASHIC_TASKS_PATH` | `` | core/coord/task_ledger.py |
 | `AKASHIC_TEST_SHOW_CONSOLES` | `` | core/__init__.py, scripts/quiet/sitecustomize.py |
 | `AKASHIC_TIMELINE_FILE_LIMIT` | `"4000"` | core/coord/timeline.py |
 | `AKASHIC_TIMEOUT_MULTIPLIER` | `"1"` | core/comm/timescale.py |

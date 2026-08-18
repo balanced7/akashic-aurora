@@ -37,7 +37,10 @@ def _now() -> str:
 
 
 def _ledger(client="auto", path=None) -> TL.TaskLedger:
-    return TL.TaskLedger(path or TL.LEDGER_PATH, client=client)
+    # T352: pass None THROUGH -- TaskLedger's own default chain is path -> AKASHIC_TASKS_PATH
+    # (the test-isolation redirect) -> LEDGER_PATH. Forcing the constant here re-imposed the
+    # production path over isolated drills and was the last leak in the 32-phantom-row class.
+    return TL.TaskLedger(path, client=client)
 
 
 def _broadcast(kind: str, text: str, meta: dict) -> None:
@@ -130,10 +133,12 @@ def block(tid, reason, *, by="", client="auto", path=None):
     return t
 
 
-def abandon(tid, reason, *, by="", client="auto", path=None):
+def abandon(tid, reason, *, by="", client="auto", path=None, operator_ruling=""):
     """P5 (T025): the explicit verdict for parked intent -- terminal, with a recorded reason
-    (a proposal that decays without one is exactly the ambiguity the decay flag exists to end)."""
-    t = TL.abandon(_ledger(client, path), tid, reason, by=by, at=_now())
+    (a proposal that decays without one is exactly the ambiguity the decay flag exists to end).
+    T352: abandoning a DONE row additionally requires operator_ruling (recorded in history)."""
+    t = TL.abandon(_ledger(client, path), tid, reason, by=by, at=_now(),
+                   operator_ruling=operator_ruling)
     _emit_ledger_update(t, "abandoned", by)
     return t
 
@@ -189,6 +194,8 @@ def main(argv=None) -> int:
                         "Counted, not hidden -- the total shows in the `task list` summary.")
     q = sub.add_parser("block"); q.add_argument("tid"); q.add_argument("--reason", required=True); q.add_argument("--by", default="")
     q = sub.add_parser("abandon"); q.add_argument("tid"); q.add_argument("--reason", required=True); q.add_argument("--by", default="")
+    q.add_argument("--operator-ruling", default="", dest="operator_ruling",
+                   help="T352: required to abandon a DONE row -- the operator's words, recorded in history")
     q = sub.add_parser("park"); q.add_argument("tid"); q.add_argument("--reason", required=True); q.add_argument("--by", default="")
     q = sub.add_parser("unpark"); q.add_argument("tid"); q.add_argument("--by", default="")
     sub.add_parser("list"); sub.add_parser("next")
@@ -214,7 +221,7 @@ def main(argv=None) -> int:
         elif a.cmd == "block":
             print(f"blocked {block(a.tid, a.reason, by=a.by)['id']}: {a.reason}")
         elif a.cmd == "abandon":
-            print(f"ABANDONED {abandon(a.tid, a.reason, by=a.by)['id']}: {a.reason}")
+            print(f"ABANDONED {abandon(a.tid, a.reason, by=a.by, operator_ruling=a.operator_ruling)['id']}: {a.reason}")
         elif a.cmd == "park":
             print(f"PARKED {park(a.tid, a.reason, by=a.by)['id']} (slot freed; unpark to resume): {a.reason}")
         elif a.cmd == "unpark":

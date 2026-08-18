@@ -73,7 +73,8 @@ def test_p2_done_to_abandoned_is_gated_on_an_operator_ruling(tmp_path, monkeypat
     tid = t["id"]
     TL.approve(led, tid, by="pin")
     TL.claim(led, tid, owner="pin", by="pin")
-    TL.done(led, tid, commit="deadpin1", verified_by="pin", by="pin")
+    TL.verifying(led, tid, by="pin")
+    TL.done(led, tid, commit="deadbee2", verified_by="pin", by="pin")
 
     # without a ruling: REFUSED (the gate is the point)
     with pytest.raises(Exception):

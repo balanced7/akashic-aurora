@@ -91,7 +91,15 @@ TRANSITIONS: Dict[str, set] = {
     IN_PROGRESS: {VERIFYING, BLOCKED, ABANDONED, PARKED},
     VERIFYING:   {DONE, IN_PROGRESS, BLOCKED, PARKED},  # verification can bounce it back, or shelve
     BLOCKED:     {APPROVED, IN_PROGRESS, ABANDONED},
-    DONE:        set(),
+    # T352 (2026-08-18): DONE gains exactly one exit, and it is OPERATOR-GATED.
+    # Receipt: 16 phantom 'done' rows (test drills with @deadbee shas) sat unremovable --
+    # the only alternatives were silent JSON surgery (defeats every gate this ledger
+    # exists to keep) or lying forever in every count. The gate: transition() refuses
+    # DONE->ABANDONED unless an explicit operator_ruling rides the call, and the ruling
+    # is recorded in the history entry. Daniil's ruling for the founding cleanup,
+    # verbatim: "Clean". A reasoned route with recorded authority is a route, not a
+    # hole -- same law as PROPOSED->PARKED above.
+    DONE:        {ABANDONED},
     ABANDONED:   set(),
     # T083-C5-1: PARKED = deliberately shelved mid-flight (reason mandatory). Unlike BLOCKED
     # (waiting on something external, still "the" current work), a parked wave FREES the Phase-1
@@ -178,8 +186,13 @@ class LedgerError(Exception):
 
 
 class TaskLedger:
-    def __init__(self, path: str = LEDGER_PATH, client: Any = "auto"):
-        self.path = path
+    def __init__(self, path: Optional[str] = None, client: Any = "auto"):
+        # T352: AKASHIC_TASKS_PATH is the isolation door for drills that walk the
+        # REAL verbs -- resolved at construction (not import) so a test can point a
+        # subprocess-shelled CLI *and* its own in-process readers at one tmp store.
+        # 32 phantom rows (2026-08-12..18) were minted by drill tests that lacked
+        # this; the receipt lives in T352 and tests/test_t352_ledger_isolation_pins.py.
+        self.path = path or os.environ.get("AKASHIC_TASKS_PATH") or LEDGER_PATH
         # client: "auto" resolves the bus Redis client lazily; None disables the mirror (git-only,
         # used by tests); or pass an object with get/set for an injected/fake client.
         self._client = client
@@ -275,7 +288,8 @@ class TaskLedger:
 
     def transition(self, tid: str, to: str, *, by: str = "", at: str = "", commit: str = "",
                    verified_by: str = "", owner: str = "", reason: str = "",
-                   reviewed_by: str = "", self_verified: str = "") -> Dict[str, Any]:
+                   reviewed_by: str = "", self_verified: str = "",
+                   operator_ruling: str = "") -> Dict[str, Any]:
         """The one guarded mutation. Validates the move against every gate, then applies + persists.
         Raises LedgerError (naming the gate) on any violation — nothing partial is written."""
         t = self.tasks.get(tid)
@@ -287,6 +301,13 @@ class TaskLedger:
         if to not in TRANSITIONS.get(frm, set()):
             raise LedgerError(f"illegal transition {frm} -> {to} for {tid} "
                               f"(allowed: {sorted(TRANSITIONS.get(frm, set())) or 'none — terminal'})")
+
+        # --- T352 gate: leaving DONE requires recorded operator authority ---
+        if frm == DONE and to == ABANDONED and not operator_ruling.strip():
+            raise LedgerError(
+                f"done is closed: abandoning {tid} from DONE requires an explicit "
+                f"--operator-ruling (the operator's words, recorded in history). "
+                f"A terminal-state exit with no recorded authority is a hole, not a route.")
 
         # --- claim gate ---
         if to == CLAIMED:
@@ -384,6 +405,8 @@ class TaskLedger:
         entry = {"to": to, "by": by, "at": at}
         if reason:
             entry["reason"] = reason
+        if operator_ruling:
+            entry["operator_ruling"] = operator_ruling   # T352: the authority that opened DONE
         t["history"].append(entry)
         self.save()
         return t

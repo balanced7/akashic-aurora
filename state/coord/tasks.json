@@ -1,5 +1,5 @@
 {
-  "seq": 352,
+  "seq": 357,
   "tasks": [
     {
       "id": "T001",
@@ -10896,13 +10896,13 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "done",
+      "status": "abandoned",
       "commit": "deadbee",
       "verified_by": "t292 drill",
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-12T13:49:33+00:00",
-      "updated": "2026-08-12T13:49:35+00:00",
+      "updated": "2026-08-18T12:14:39+00:00",
       "history": [
         {
           "to": "proposed",
@@ -10928,6 +10928,13 @@
           "to": "done",
           "by": "",
           "at": "2026-08-12T13:49:35+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:14:39+00:00",
+          "reason": "T352 phantom cleanup: test fixture (fake sha @deadbee*) minted through the unisolated task door; never real work",
+          "operator_ruling": "Daniil 2026-08-18, ruling on T352 history cleanup, verbatim: 'Clean'"
         }
       ]
     },
@@ -10978,13 +10985,13 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "done",
+      "status": "abandoned",
       "commit": "deadbee",
       "verified_by": "t292 drill",
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-12T13:51:18+00:00",
-      "updated": "2026-08-12T13:51:20+00:00",
+      "updated": "2026-08-18T12:14:39+00:00",
       "history": [
         {
           "to": "proposed",
@@ -11010,6 +11017,13 @@
           "to": "done",
           "by": "",
           "at": "2026-08-12T13:51:20+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:14:39+00:00",
+          "reason": "T352 phantom cleanup: test fixture (fake sha @deadbee*) minted through the unisolated task door; never real work",
+          "operator_ruling": "Daniil 2026-08-18, ruling on T352 history cleanup, verbatim: 'Clean'"
         }
       ]
     },
@@ -11087,13 +11101,13 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "done",
+      "status": "abandoned",
       "commit": "HEAD",
       "verified_by": "t297 drill",
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-12T13:54:19+00:00",
-      "updated": "2026-08-12T13:54:20+00:00",
+      "updated": "2026-08-18T12:14:39+00:00",
       "history": [
         {
           "to": "proposed",
@@ -11119,6 +11133,13 @@
           "to": "done",
           "by": "",
           "at": "2026-08-12T13:54:20+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:14:39+00:00",
+          "reason": "T352 phantom cleanup: test fixture (fake sha @deadbee*) minted through the unisolated task door; never real work",
+          "operator_ruling": "Daniil 2026-08-18, ruling on T352 history cleanup, verbatim: 'Clean'"
         }
       ]
     },
@@ -11130,13 +11151,13 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "done",
+      "status": "abandoned",
       "commit": "deadbee1",
       "verified_by": "t297 drill",
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-12T13:54:57+00:00",
-      "updated": "2026-08-12T13:54:59+00:00",
+      "updated": "2026-08-18T12:14:40+00:00",
       "history": [
         {
           "to": "proposed",
@@ -11162,6 +11183,13 @@
           "to": "done",
           "by": "",
           "at": "2026-08-12T13:54:59+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:14:40+00:00",
+          "reason": "T352 phantom cleanup: test fixture (fake sha @deadbee*) minted through the unisolated task door; never real work",
+          "operator_ruling": "Daniil 2026-08-18, ruling on T352 history cleanup, verbatim: 'Clean'"
         }
       ]
     },
@@ -11235,13 +11263,13 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "done",
+      "status": "abandoned",
       "commit": "deadbee",
       "verified_by": "t292 drill",
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-14T13:06:21+00:00",
-      "updated": "2026-08-14T13:06:22+00:00",
+      "updated": "2026-08-18T12:14:40+00:00",
       "history": [
         {
           "to": "proposed",
@@ -11267,6 +11295,13 @@
           "to": "done",
           "by": "",
           "at": "2026-08-14T13:06:22+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:14:40+00:00",
+          "reason": "T352 phantom cleanup: test fixture (fake sha @deadbee*) minted through the unisolated task door; never real work",
+          "operator_ruling": "Daniil 2026-08-18, ruling on T352 history cleanup, verbatim: 'Clean'"
         }
       ]
     },
@@ -11278,13 +11313,13 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "done",
+      "status": "abandoned",
       "commit": "deadbee1",
       "verified_by": "t297 drill",
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-14T13:06:25+00:00",
-      "updated": "2026-08-14T13:06:27+00:00",
+      "updated": "2026-08-18T12:14:41+00:00",
       "history": [
         {
           "to": "proposed",
@@ -11310,6 +11345,13 @@
           "to": "done",
           "by": "",
           "at": "2026-08-14T13:06:27+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:14:41+00:00",
+          "reason": "T352 phantom cleanup: test fixture (fake sha @deadbee*) minted through the unisolated task door; never real work",
+          "operator_ruling": "Daniil 2026-08-18, ruling on T352 history cleanup, verbatim: 'Clean'"
         }
       ]
     },
@@ -11389,13 +11431,13 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "done",
+      "status": "abandoned",
       "commit": "deadbee",
       "verified_by": "t292 drill",
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-15T13:09:02+00:00",
-      "updated": "2026-08-15T13:09:04+00:00",
+      "updated": "2026-08-18T12:14:41+00:00",
       "history": [
         {
           "to": "proposed",
@@ -11421,6 +11463,13 @@
           "to": "done",
           "by": "",
           "at": "2026-08-15T13:09:04+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:14:41+00:00",
+          "reason": "T352 phantom cleanup: test fixture (fake sha @deadbee*) minted through the unisolated task door; never real work",
+          "operator_ruling": "Daniil 2026-08-18, ruling on T352 history cleanup, verbatim: 'Clean'"
         }
       ]
     },
@@ -11432,13 +11481,13 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "done",
+      "status": "abandoned",
       "commit": "deadbee1",
       "verified_by": "t297 drill",
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-15T13:09:07+00:00",
-      "updated": "2026-08-15T13:09:08+00:00",
+      "updated": "2026-08-18T12:14:42+00:00",
       "history": [
         {
           "to": "proposed",
@@ -11464,6 +11513,13 @@
           "to": "done",
           "by": "",
           "at": "2026-08-15T13:09:08+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:14:42+00:00",
+          "reason": "T352 phantom cleanup: test fixture (fake sha @deadbee*) minted through the unisolated task door; never real work",
+          "operator_ruling": "Daniil 2026-08-18, ruling on T352 history cleanup, verbatim: 'Clean'"
         }
       ]
     },
@@ -11763,13 +11819,13 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "done",
+      "status": "abandoned",
       "commit": "deadbee",
       "verified_by": "t292 drill",
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-16T15:30:55+00:00",
-      "updated": "2026-08-16T15:30:57+00:00",
+      "updated": "2026-08-18T12:14:42+00:00",
       "history": [
         {
           "to": "proposed",
@@ -11795,6 +11851,13 @@
           "to": "done",
           "by": "",
           "at": "2026-08-16T15:30:57+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:14:42+00:00",
+          "reason": "T352 phantom cleanup: test fixture (fake sha @deadbee*) minted through the unisolated task door; never real work",
+          "operator_ruling": "Daniil 2026-08-18, ruling on T352 history cleanup, verbatim: 'Clean'"
         }
       ]
     },
@@ -11806,13 +11869,13 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "done",
+      "status": "abandoned",
       "commit": "deadbee1",
       "verified_by": "t297 drill",
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-16T15:31:00+00:00",
-      "updated": "2026-08-16T15:31:01+00:00",
+      "updated": "2026-08-18T12:14:42+00:00",
       "history": [
         {
           "to": "proposed",
@@ -11838,6 +11901,13 @@
           "to": "done",
           "by": "",
           "at": "2026-08-16T15:31:01+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:14:42+00:00",
+          "reason": "T352 phantom cleanup: test fixture (fake sha @deadbee*) minted through the unisolated task door; never real work",
+          "operator_ruling": "Daniil 2026-08-18, ruling on T352 history cleanup, verbatim: 'Clean'"
         }
       ]
     },
@@ -12026,13 +12096,13 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "done",
+      "status": "abandoned",
       "commit": "deadbee",
       "verified_by": "t292 drill",
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-16T17:03:26+00:00",
-      "updated": "2026-08-16T17:03:28+00:00",
+      "updated": "2026-08-18T12:14:43+00:00",
       "history": [
         {
           "to": "proposed",
@@ -12058,6 +12128,13 @@
           "to": "done",
           "by": "",
           "at": "2026-08-16T17:03:28+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:14:43+00:00",
+          "reason": "T352 phantom cleanup: test fixture (fake sha @deadbee*) minted through the unisolated task door; never real work",
+          "operator_ruling": "Daniil 2026-08-18, ruling on T352 history cleanup, verbatim: 'Clean'"
         }
       ]
     },
@@ -12069,13 +12146,13 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "done",
+      "status": "abandoned",
       "commit": "deadbee1",
       "verified_by": "t297 drill",
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-16T17:03:30+00:00",
-      "updated": "2026-08-16T17:03:32+00:00",
+      "updated": "2026-08-18T12:14:43+00:00",
       "history": [
         {
           "to": "proposed",
@@ -12101,6 +12178,13 @@
           "to": "done",
           "by": "",
           "at": "2026-08-16T17:03:32+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:14:43+00:00",
+          "reason": "T352 phantom cleanup: test fixture (fake sha @deadbee*) minted through the unisolated task door; never real work",
+          "operator_ruling": "Daniil 2026-08-18, ruling on T352 history cleanup, verbatim: 'Clean'"
         }
       ]
     },
@@ -12692,13 +12776,13 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "done",
+      "status": "abandoned",
       "commit": "deadbee",
       "verified_by": "t292 drill",
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-18T04:18:09+00:00",
-      "updated": "2026-08-18T04:18:10+00:00",
+      "updated": "2026-08-18T12:14:44+00:00",
       "history": [
         {
           "to": "proposed",
@@ -12724,6 +12808,13 @@
           "to": "done",
           "by": "",
           "at": "2026-08-18T04:18:10+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:14:44+00:00",
+          "reason": "T352 phantom cleanup: test fixture (fake sha @deadbee*) minted through the unisolated task door; never real work",
+          "operator_ruling": "Daniil 2026-08-18, ruling on T352 history cleanup, verbatim: 'Clean'"
         }
       ]
     },
@@ -12735,13 +12826,13 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "done",
+      "status": "abandoned",
       "commit": "deadbee1",
       "verified_by": "t297 drill",
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-18T04:18:13+00:00",
-      "updated": "2026-08-18T04:18:15+00:00",
+      "updated": "2026-08-18T12:14:44+00:00",
       "history": [
         {
           "to": "proposed",
@@ -12767,6 +12858,13 @@
           "to": "done",
           "by": "",
           "at": "2026-08-18T04:18:15+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:14:44+00:00",
+          "reason": "T352 phantom cleanup: test fixture (fake sha @deadbee*) minted through the unisolated task door; never real work",
+          "operator_ruling": "Daniil 2026-08-18, ruling on T352 history cleanup, verbatim: 'Clean'"
         }
       ]
     },
@@ -12891,13 +12989,13 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "done",
+      "status": "abandoned",
       "commit": "deadbee",
       "verified_by": "t292 drill",
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-18T04:30:02+00:00",
-      "updated": "2026-08-18T04:30:03+00:00",
+      "updated": "2026-08-18T12:14:44+00:00",
       "history": [
         {
           "to": "proposed",
@@ -12923,6 +13021,13 @@
           "to": "done",
           "by": "",
           "at": "2026-08-18T04:30:03+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:14:44+00:00",
+          "reason": "T352 phantom cleanup: test fixture (fake sha @deadbee*) minted through the unisolated task door; never real work",
+          "operator_ruling": "Daniil 2026-08-18, ruling on T352 history cleanup, verbatim: 'Clean'"
         }
       ]
     },
@@ -12934,13 +13039,13 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "done",
+      "status": "abandoned",
       "commit": "deadbee1",
       "verified_by": "t297 drill",
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-18T04:30:06+00:00",
-      "updated": "2026-08-18T04:30:08+00:00",
+      "updated": "2026-08-18T12:14:45+00:00",
       "history": [
         {
           "to": "proposed",
@@ -12966,6 +13071,13 @@
           "to": "done",
           "by": "",
           "at": "2026-08-18T04:30:08+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:14:45+00:00",
+          "reason": "T352 phantom cleanup: test fixture (fake sha @deadbee*) minted through the unisolated task door; never real work",
+          "operator_ruling": "Daniil 2026-08-18, ruling on T352 history cleanup, verbatim: 'Clean'"
         }
       ]
     },
@@ -13030,6 +13142,224 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-08-18T12:05:24+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T353",
+      "title": "t292 drill: frobnicate the widget subsystem",
+      "desc": "",
+      "owner": "drill_owner",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "abandoned",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-18T12:12:34+00:00",
+      "updated": "2026-08-18T12:15:10+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-18T12:12:34+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-18T12:12:34+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "drill_owner",
+          "at": "2026-08-18T12:12:35+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:15:10+00:00",
+          "reason": "T352 phantom cleanup: minted by the pin's own pre-fix diagnosis runs"
+        }
+      ]
+    },
+    {
+      "id": "T354",
+      "title": "t292 drill: build the gizmo deduplicator",
+      "desc": "",
+      "owner": "drill_owner",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "abandoned",
+      "commit": "deadbee",
+      "verified_by": "t292 drill",
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-18T12:12:35+00:00",
+      "updated": "2026-08-18T12:15:10+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-18T12:12:35+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-18T12:12:36+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "drill_owner",
+          "at": "2026-08-18T12:12:36+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-18T12:12:36+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-18T12:12:37+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:15:10+00:00",
+          "reason": "T352 phantom cleanup: minted by the pin's own pre-fix diagnosis runs",
+          "operator_ruling": "Daniil 2026-08-18, ruling on T352 history cleanup, verbatim: 'Clean'"
+        }
+      ]
+    },
+    {
+      "id": "T355",
+      "title": "t297 drill: a closable slice",
+      "desc": "",
+      "owner": "drill",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "abandoned",
+      "commit": "deadbee1",
+      "verified_by": "t297 drill",
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-18T12:12:39+00:00",
+      "updated": "2026-08-18T12:15:11+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-18T12:12:39+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-18T12:12:40+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "drill",
+          "at": "2026-08-18T12:12:40+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-18T12:12:40+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-18T12:12:41+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:15:11+00:00",
+          "reason": "T352 phantom cleanup: minted by the pin's own pre-fix diagnosis runs",
+          "operator_ruling": "Daniil 2026-08-18, ruling on T352 history cleanup, verbatim: 'Clean'"
+        }
+      ]
+    },
+    {
+      "id": "T356",
+      "title": "T268 pin target: a routable ledger item about bus lane cursors and wake",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "abandoned",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-18T12:12:42+00:00",
+      "updated": "2026-08-18T12:15:11+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-18T12:12:42+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:15:11+00:00",
+          "reason": "T352 phantom cleanup: minted by the pin's own pre-fix diagnosis runs"
+        }
+      ]
+    },
+    {
+      "id": "T357",
+      "title": "t297 drill: a closable slice",
+      "desc": "",
+      "owner": "drill",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "abandoned",
+      "commit": "deadbee1",
+      "verified_by": "t297 drill",
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-18T12:13:16+00:00",
+      "updated": "2026-08-18T12:15:11+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-18T12:13:16+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-18T12:13:17+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "drill",
+          "at": "2026-08-18T12:13:17+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-18T12:13:17+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-18T12:13:18+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:15:11+00:00",
+          "reason": "T352 phantom cleanup: minted by the pin's own pre-fix diagnosis runs",
+          "operator_ruling": "Daniil 2026-08-18, ruling on T352 history cleanup, verbatim: 'Clean'"
         }
       ]
     }
