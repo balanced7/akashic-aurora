@@ -40,8 +40,41 @@ FORUM_URL_FILE = _ROOT / ".secrets" / "discord_forum_webhook.url"
 REG_FILE = _ROOT / "state" / "coord" / "discord_rooms.json"
 
 #: The surface Daniil reads teaches BOTH names on every line (Heimdall's name-collision
-#: scan, Species A). Ratified callsigns only; anyone else posts under their bare id.
-CALLSIGNS = {"claude": "Vandor", "deepseek": "Heimdall", "kimi": "Navi", "codex": "Sol"}
+#: scan, Species A) -- and reads the RESIDENTS REGISTRY, never a second hand-kept table
+#: (Heimdall's drift warning, honored 2026-08-18 when the map became load-bearing).
+#: Avatars are the designation made visible: family = disc, team = ring
+#: (scripts/generators/gen_avatars.py); a seat's SELF-SELECTED emoji rides the username.
+AVATAR_BASE = "https://raw.githubusercontent.com/balanced7/akashic-aurora/master/assets/avatars"
+
+#: agent -> {"icon": <self-selected emoji>, ...}. Written only on a seat's OWN pick --
+#: assignment is not selection, and an empty entry renders no icon rather than a guess.
+ICONS_FILE = _ROOT / "state" / "coord" / "discord_personas.json"
+
+
+def _icons() -> Dict[str, Any]:
+    try:
+        return json.loads(ICONS_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def persona(frm: str) -> Dict[str, Optional[str]]:
+    """username + avatar for a seat, from the registry + its own icon pick.
+    Unratified/unplaced seats keep their bare id and no face -- honest absence."""
+    agent = str(frm or "").strip()
+    base = agent.split("#", 1)[0].lower()          # incarnations wear the agent's face
+    try:
+        from core.fleet import residents as _R
+        rec = _R.get(base)
+        placed = _R.current_placement(base)
+    except Exception:                                                   # noqa: BLE001
+        rec, placed = None, None
+    if not rec or not placed:
+        return {"username": agent or "?", "avatar_url": None}
+    cs = str(rec.get("callsign") or base)
+    icon = str((_icons().get(base) or {}).get("icon") or "").strip()
+    name = f"{icon} {cs} ({base})".strip()
+    return {"username": name, "avatar_url": f"{AVATAR_BASE}/{cs.lower()}.png"}
 
 
 def forum_url() -> str:
@@ -72,11 +105,6 @@ def _save_reg(reg: Dict[str, Any]) -> None:
     p.write_text(json.dumps(reg, indent=1), encoding="utf-8")
 
 
-def username_for(frm: str) -> str:
-    cs = CALLSIGNS.get(str(frm or "").lower())
-    return f"{cs} ({frm})" if cs else str(frm or "?")
-
-
 def _render_room(msg: Dict[str, Any]) -> str:
     """Body + kind tag; the author line is carried by the webhook username instead of
     markdown (rooms show the speaker natively — that is what 'native expression' buys).
@@ -96,7 +124,8 @@ def _render_room(msg: Dict[str, Any]) -> str:
 
 def _default_post(url: str, content: str, *, thread_id: Optional[str] = None,
                   thread_name: Optional[str] = None,
-                  username: Optional[str] = None) -> Optional[str]:
+                  username: Optional[str] = None,
+                  avatar_url: Optional[str] = None) -> Optional[str]:
     """The only network call in this module, isolated so every pin runs offline.
     Returns the thread id Discord minted (wait=true => the created forum post's
     channel_id IS the thread id), or None when the response carries none."""
@@ -107,6 +136,8 @@ def _default_post(url: str, content: str, *, thread_id: Optional[str] = None,
     payload: Dict[str, Any] = {"content": content}
     if username:
         payload["username"] = username
+    if avatar_url:
+        payload["avatar_url"] = avatar_url
     if thread_name:
         payload["thread_name"] = thread_name
     r = requests.post(url, params=params, json=payload, timeout=10)
@@ -152,10 +183,11 @@ def post_to_room(msg: Dict[str, Any], *, url: Optional[str] = None, force: bool 
         thread_name = (f"{ask_id} — {title}" if title else ask_id)[:100]
 
     content = _render_room(msg)
+    who = persona(str(msg.get("frm") or ""))
     try:
         minted = (post or _default_post)(
             target, content, thread_id=thread_id, thread_name=thread_name,
-            username=username_for(str(msg.get("frm") or "")))
+            username=who["username"], avatar_url=who["avatar_url"])
     except Exception as e:                                              # noqa: BLE001
         return BoundaryOutcome.failed(
             f"discord room post failed ({type(e).__name__}: {e}) — the bus is unaffected; "

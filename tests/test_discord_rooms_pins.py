@@ -37,9 +37,11 @@ class _Spy:
     def __init__(self):
         self.calls = []
 
-    def __call__(self, url, content, *, thread_id=None, thread_name=None, username=None):
+    def __call__(self, url, content, *, thread_id=None, thread_name=None, username=None,
+                 avatar_url=None):
         self.calls.append({"url": url, "content": content, "thread_id": thread_id,
-                           "thread_name": thread_name, "username": username})
+                           "thread_name": thread_name, "username": username,
+                           "avatar_url": avatar_url})
         return "789012345678"          # the thread id Discord would mint
 
 
@@ -83,7 +85,8 @@ def test_p2_second_post_reuses_the_room(env):
 
 
 # ---- P3: seats post as Callsign (vendor) — the Species-A kill ----------------
-def test_p3_username_teaches_both_names(env):
+def test_p3_username_teaches_both_names(env, monkeypatch):
+    _fake_registry(monkeypatch)
     spy = _Spy()
     _mod().post_to_room(_msg(frm="deepseek"), post=spy)
     assert spy.calls[0]["username"] == "Heimdall (deepseek)", (
@@ -101,6 +104,50 @@ def test_p4_unknown_kind_does_not_forward(env):
     assert not out.ok and not spy.calls, (
         "rooms inherit the bridge's allowlist — the firehose stays out, and a "
         "second hand-kept kind list is the fork this repo keeps paying for")
+
+
+# ---- P8-P10: the face is the designation, the icon is the seat's own choice --
+# conftest isolates EVERY pytest run (T070), so the live residents registry is
+# empty here BY DESIGN — these pins patch the registry seam and test the
+# mechanism, not the roster.
+def _fake_registry(monkeypatch, callsign="Heimdall"):
+    from core.fleet import residents as _R
+    monkeypatch.setattr(_R, "get",
+                        lambda a: {"callsign": callsign} if a == "deepseek" else None)
+    monkeypatch.setattr(_R, "current_placement",
+                        lambda a: ({"family": "Onyx", "team": "Blue"}
+                                   if a == "deepseek" else None))
+
+
+def test_p8_persona_wears_the_registry_face(env, monkeypatch):
+    _fake_registry(monkeypatch)
+    spy = _Spy()
+    _mod().post_to_room(_msg(frm="deepseek"), post=spy)
+    c = spy.calls[0]
+    assert c["username"] == "Heimdall (deepseek)", "no icon until Heimdall picks one"
+    assert c["avatar_url"] and c["avatar_url"].endswith("/heimdall.png"), (
+        "the avatar is the designation made visible — Onyx disc, Blue ring, "
+        "served from the public repo")
+
+
+def test_p9_unplaced_seats_keep_an_honest_bare_face(env, monkeypatch):
+    _fake_registry(monkeypatch)
+    who = _mod().persona("somebot")
+    assert who["username"] == "somebot" and who["avatar_url"] is None, (
+        "no registry placement -> no callsign, no face; ratification mints both")
+
+
+def test_p10_a_selected_icon_rides_the_name(env, tmp_path, monkeypatch):
+    import json as _json
+    _fake_registry(monkeypatch)
+    icons = tmp_path / "personas.json"
+    icons.write_text(_json.dumps({"deepseek": {"icon": "👁️"}}, ensure_ascii=False),
+                     encoding="utf-8")
+    monkeypatch.setattr(_mod(), "ICONS_FILE", icons)
+    who = _mod().persona("deepseek")
+    assert who["username"].startswith("👁️ Heimdall"), (
+        "a seat's SELF-SELECTED emoji prefixes its name the moment it picks — "
+        "assignment is not selection, so nothing renders before the pick")
 
 
 # ---- P5: the twin no-inbound-door guard --------------------------------------

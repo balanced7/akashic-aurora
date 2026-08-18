@@ -133,15 +133,23 @@ def test_p5_global_feed_posts_as_the_seat_itself(wired, monkeypatch):
     monkeypatch.setattr(
         R, "_default_post",
         lambda url, content, **kw: calls.append({"url": url, "content": content, **kw}))
+    # the registry is empty under conftest isolation (T070) — the persona seam is
+    # rooms' contract (its own P8-P10); the FEED's contract is faithful pass-through.
+    monkeypatch.setattr(
+        R, "persona",
+        lambda frm: {"username": "🧵 Vandor (claude)",
+                     "avatar_url": "https://example.invalid/vandor.png"})
     F.pump(bus)                                             # init (silent)
     client.streams["bifrost:broadcast"].append(
         ("101-0", {"frm": "claude", "kind": "chat", "content": '"a line of mine"'}))
     F.pump(bus)
     glob = [c for c in calls if "webhooks/1/g" in c["url"]]
     assert glob, "the default global path must post through the persona transport"
-    assert glob[0].get("username") == "Vandor (claude)", (
-        "the seat speaks as itself on the global feed — the Species-A law, "
-        "now on both surfaces")
+    assert glob[0].get("username") == "🧵 Vandor (claude)", (
+        "the seat speaks as itself on the global feed — the Species-A law on both "
+        "surfaces, wearing whatever icon the seat chose")
+    assert glob[0].get("avatar_url", "").endswith("vandor.png"), (
+        "the face rides with the name — persona fields pass through whole")
     assert "**claude**" not in glob[0]["content"], (
         "the narrator head leaves the body once the username carries the speaker")
 
