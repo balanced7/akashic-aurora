@@ -35,6 +35,11 @@ import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Top-level so check_wiring's reachability graph SEES the edge — the feed beat below is the
+# production caller that makes the T223 bridge real (built != wired was this exact feature's
+# recurring wound, and an import hidden inside the loop body re-created it at the graph layer).
+from core.comm import discord_feed as _DFEED  # noqa: E402
+
 _STOP = {"flag": False, "reason": ""}
 
 
@@ -318,6 +323,7 @@ def main(argv=None) -> int:
     _install_signals()
     started = time.time()
     next_beat = 0.0
+    next_discord_feed = 0.0
     next_dark_probe = 0.0
     dark_since = None
     reason = "stop"
@@ -331,6 +337,18 @@ def main(argv=None) -> int:
                 break
             time.sleep(0.2)
             now = time.time()
+
+            # ---- discord feed beat: the subscription that makes the T223 bridge real.
+            # Off-by-default (configured() is one env read when unset); tail-inits on
+            # first contact so the archive never replays to a phone; and a notification
+            # mirror must never wound the supervisor, hence the blanket except.
+            if now >= next_discord_feed:
+                next_discord_feed = now + 10.0
+                try:
+                    if _DFEED.configured():
+                        _DFEED.pump(bus)
+                except Exception:                                       # noqa: BLE001
+                    pass
 
             # ---- child poll -------------------------------------------------------
             if child is not None:

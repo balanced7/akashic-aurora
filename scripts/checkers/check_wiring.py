@@ -37,6 +37,11 @@ ENTRY_POINTS = [
     "scripts/world_fidelity.py",    # W163: what a checkout can and cannot do
     "scripts/dawe_census.py",       # W164: verbs whose answer nobody outside can check
     "scripts/lens_ledger.py",       # W168: score fan lenses by what survived
+    # 2026-08-18: the SUPERVISOR was never an entry point -- the process that runs 24/7,
+    # spawns runners and owns wake was invisible to this walk, so core/comm/discord_feed.py
+    # (called from the daemon's own loop) reported built-not-wired while being precisely
+    # wired. Same class as the 2026-08-01 runner-enumeration incident recorded above.
+    "scripts/bifrost_daemon.py",
 ]
 
 # EVERY seat runner, enumerated rather than listed by hand (2026-08-01). The hand-written list

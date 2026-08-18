@@ -1,0 +1,175 @@
+"""Outbound room router — each ask/breakout becomes a Discord thread.
+
+Daniil, off to work 2026-08-18, verbatim: "bifrost have a discord native expression that I
+can chat in, with global chat and each specific breakout or ask being visible as chatrooms!"
+Design: research/in-flight/discord-native-rooms-design-2026-08-18.md. The CHAT-IN half is
+phase 2 and lives behind the R1-R3 identity gate; this module is OUTBOUND ONLY and pin P5
+(tests/test_discord_rooms_pins.py) twins the bridge's no-inbound-door guard.
+
+Neighbour law: this module copies discord_bridge's GUARDS, not just its shape — never raise
+into a bus caller, visible redaction, allowlist inherited (a second hand-kept kind list is
+the fork this repo keeps paying for), absent-is-not-broken, injectable transport so every
+pin runs offline.
+
+TRANSPORT FACT the whole design leans on: a FORUM-channel webhook creates a thread by
+posting with `thread_name`, and posts into an existing one via `?thread_id=` — so per-ask
+rooms need NO bot, and a webhook URL stays write-only (it cannot read, enumerate, or act).
+
+REGISTRY COHERENCE, stated: last-writer-wins on the JSON registry. Acceptable here because
+the worst race outcome is a twin thread (annoying, harmless), never lost mail — the bus
+remains the substrate of record and every clipped body carries its bifrost-fetch address.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
+from typing import Any, Callable, Dict, Optional
+
+from core.outcome import BoundaryOutcome
+from core.comm.discord_bridge import (DISCORD_MAX, _content_str, redact, should_forward)
+
+_ROOT = Path(__file__).resolve().parents[2]
+
+#: env-first-then-gitignored-file, the same order as every credential here.
+FORUM_URL_FILE = _ROOT / ".secrets" / "discord_forum_webhook.url"
+
+#: ask_id -> {thread_id, title, created}. A thread id is a NEW address dialect and is
+#: registered in the T362 census from birth — unrecorded addresses are how dialects fracture.
+REG_FILE = _ROOT / "state" / "coord" / "discord_rooms.json"
+
+#: The surface Daniil reads teaches BOTH names on every line (Heimdall's name-collision
+#: scan, Species A). Ratified callsigns only; anyone else posts under their bare id.
+CALLSIGNS = {"claude": "Vandor", "deepseek": "Heimdall", "kimi": "Navi", "codex": "Sol"}
+
+
+def forum_url() -> str:
+    """The rooms webhook, or "" when rooms are simply off (absent is not broken)."""
+    v = os.getenv("AKASHIC_DISCORD_FORUM_WEBHOOK")
+    if v and v.strip():
+        return v.strip()
+    try:
+        return FORUM_URL_FILE.read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
+def _reg_path() -> Path:
+    return Path(os.getenv("AKASHIC_DISCORD_ROOMS_REGISTRY") or REG_FILE)
+
+
+def _load_reg() -> Dict[str, Any]:
+    try:
+        return json.loads(_reg_path().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def _save_reg(reg: Dict[str, Any]) -> None:
+    p = _reg_path()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(reg, indent=1), encoding="utf-8")
+
+
+def username_for(frm: str) -> str:
+    cs = CALLSIGNS.get(str(frm or "").lower())
+    return f"{cs} ({frm})" if cs else str(frm or "?")
+
+
+def _render_room(msg: Dict[str, Any]) -> str:
+    """Body + kind tag; the author line is carried by the webhook username instead of
+    markdown (rooms show the speaker natively — that is what 'native expression' buys).
+    The clip law is the bridge's: a phone reader has no shell, so a clipped body must
+    carry its address."""
+    kind = str(msg.get("kind") or "?")
+    body = redact(_content_str(msg.get("content")))
+    head = f"`{kind}`\n"
+    mid = str(msg.get("id") or "")
+    tail = (f"\n… clipped · full body: `bifrost-fetch --get {mid}`" if mid
+            else "\n… clipped · NO ADDRESS (this render had no message id)")
+    if len(head) + len(body) <= DISCORD_MAX:
+        return head + body
+    room = DISCORD_MAX - len(head) - len(tail)
+    return head + body[:max(0, room)] + tail
+
+
+def _default_post(url: str, content: str, *, thread_id: Optional[str] = None,
+                  thread_name: Optional[str] = None,
+                  username: Optional[str] = None) -> Optional[str]:
+    """The only network call in this module, isolated so every pin runs offline.
+    Returns the thread id Discord minted (wait=true => the created forum post's
+    channel_id IS the thread id), or None when the response carries none."""
+    import requests
+    params: Dict[str, str] = {"wait": "true"}
+    if thread_id:
+        params["thread_id"] = str(thread_id)
+    payload: Dict[str, Any] = {"content": content}
+    if username:
+        payload["username"] = username
+    if thread_name:
+        payload["thread_name"] = thread_name
+    r = requests.post(url, params=params, json=payload, timeout=10)
+    r.raise_for_status()
+    try:
+        data = r.json() if r.text else {}
+    except ValueError:
+        data = {}
+    ch = data.get("channel_id")
+    return str(ch) if ch else None
+
+
+def post_to_room(msg: Dict[str, Any], *, url: Optional[str] = None, force: bool = False,
+                 post: Optional[Callable[..., Optional[str]]] = None) -> BoundaryOutcome:
+    """Route one message to its ask's room, creating the room on first contact.
+
+    NEVER RAISES — a Discord outage must not raise into a bus caller, and must not
+    pretend success either (the T149 law, carried from the bridge)."""
+    if not force and not should_forward(msg):
+        return BoundaryOutcome.failed(
+            f"kind {str(msg.get('kind') or '?')!r} is not on the forward allowlist — the "
+            f"rooms inherit the bridge's list; the firehose stays out of the house")
+
+    meta = msg.get("meta") or {}
+    ask_id = str(meta.get("ask_id") or meta.get("reply_id") or "").strip()
+    if not ask_id:
+        return BoundaryOutcome.failed(
+            "no ask/reply id on this message — that is the global feed's job, not a room's")
+
+    target = forum_url() if url is None else url
+    if not target:
+        return BoundaryOutcome.failed(
+            "discord rooms not configured — set AKASHIC_DISCORD_FORUM_WEBHOOK or write "
+            ".secrets/discord_forum_webhook.url. A configuration state, not a delivery "
+            "failure: rooms are opt-in and most seats will never set them.")
+
+    reg = _load_reg()
+    known = reg.get(ask_id) or {}
+    thread_id = known.get("thread_id")
+    thread_name = None
+    if not thread_id:
+        title = str(meta.get("title") or "").strip()
+        thread_name = (f"{ask_id} — {title}" if title else ask_id)[:100]
+
+    content = _render_room(msg)
+    try:
+        minted = (post or _default_post)(
+            target, content, thread_id=thread_id, thread_name=thread_name,
+            username=username_for(str(msg.get("frm") or "")))
+    except Exception as e:                                              # noqa: BLE001
+        return BoundaryOutcome.failed(
+            f"discord room post failed ({type(e).__name__}: {e}) — the bus is unaffected; "
+            f"this router is a listener and never blocks a send")
+
+    if thread_name:
+        if not minted:
+            return BoundaryOutcome.failed(
+                "room post landed but Discord returned no thread id — room NOT registered, "
+                "so the next post would mint a twin. Check the webhook targets a FORUM "
+                "channel and wait=true is honored.")
+        reg[ask_id] = {"thread_id": str(minted),
+                       "title": thread_name,
+                       "created": str(msg.get("id") or "")}
+        _save_reg(reg)
+
+    return BoundaryOutcome.done(ref=str(msg.get("id") or ""), chars=len(content))
