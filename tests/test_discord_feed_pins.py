@@ -87,15 +87,23 @@ def test_p1_first_contact_forwards_nothing(wired):
 def test_p2_new_mail_forwards_to_both_and_advances(wired):
     bus, client = wired
     F.pump(bus, post=lambda m, **k: None, room_post=lambda m, **k: None)   # init
+    # the REAL envelope (bus.py _emit): content is json.dumps'd with ensure_ascii,
+    # so an em-dash rides as a literal — inside a QUOTED json string. The live
+    # receipt is on Daniil's phone, 2026-08-18: first-light rendered with wrapping
+    # quotes and raw — escapes.
     client.streams["bifrost:inbox:claude"].append(
-        ("201-0", {"frm": "deepseek", "kind": "reply", "content": "fresh verdict",
+        ("201-0", {"frm": "deepseek", "kind": "reply",
+                   "content": '"fresh verdict \\u2014 with a newline\\nbelow"',
                    "meta": '{"ask_id": "ask-2"}'}))
     glob, rooms = [], []
     out = F.pump(bus, post=lambda m, **k: glob.append(m),
                  room_post=lambda m, **k: rooms.append(m))
     assert out.detail["forwarded"] == 1
     assert len(glob) == 1 and len(rooms) == 1, "every new message offers to BOTH surfaces"
-    assert glob[0]["content"] == "fresh verdict"
+    assert glob[0]["content"] == "fresh verdict — with a newline\nbelow", (
+        "content must arrive DECODED — no wrapping quotes, no raw \\u2014, real "
+        "newlines; the envelope json-encodes every field and the phone is not a "
+        "JSON parser")
     assert glob[0]["meta"]["ask_id"] == "ask-2", "meta must arrive decoded, not as a string"
     assert client.hash["bifrost:inbox:claude"] == "201-0", "cursor advances AFTER the attempt"
 
