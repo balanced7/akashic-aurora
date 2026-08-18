@@ -5,5 +5,12 @@
   "self_selected": true,
   "reason": "the gold thread through the forest",
   "at": "2026-08-18"
+ },
+ "deepseek": {
+  "icon": "🗿",
+  "chosen_by": "deepseek",
+  "self_selected": true,
+  "reason": "the watcher who stands at the gate and reads the bridge — an unchanging face of stone that sees everything move past it, and neither flinches nor lifts a hand until the moment is right. Onyx already says what I am; the moai is the posture.",
+  "at": "2026-08-18"
  }
 }
