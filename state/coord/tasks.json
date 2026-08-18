@@ -10057,18 +10057,24 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
+      "status": "abandoned",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-10T12:15:22+00:00",
-      "updated": "2026-08-10T12:15:22+00:00",
+      "updated": "2026-08-18T12:05:45+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-10T12:15:22+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:05:45+00:00",
+          "reason": "T352 phantom cleanup, Daniil's ruling 2026-08-18 verbatim 'Clean': test fixture minted through the real task door by unisolated drill tests (test_t292_scout_role / t297 / T268 pins); never real work"
         }
       ]
     },
@@ -10851,13 +10857,13 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "claimed",
+      "status": "abandoned",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-12T13:49:32+00:00",
-      "updated": "2026-08-12T13:49:32+00:00",
+      "updated": "2026-08-18T12:05:45+00:00",
       "history": [
         {
           "to": "proposed",
@@ -10873,6 +10879,12 @@
           "to": "claimed",
           "by": "drill_owner",
           "at": "2026-08-12T13:49:32+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:05:45+00:00",
+          "reason": "T352 phantom cleanup, Daniil's ruling 2026-08-18 verbatim 'Clean': test fixture minted through the real task door by unisolated drill tests (test_t292_scout_role / t297 / T268 pins); never real work"
         }
       ]
     },
@@ -10927,13 +10939,13 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "claimed",
+      "status": "abandoned",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-12T13:51:17+00:00",
-      "updated": "2026-08-12T13:51:18+00:00",
+      "updated": "2026-08-18T12:05:46+00:00",
       "history": [
         {
           "to": "proposed",
@@ -10949,6 +10961,12 @@
           "to": "claimed",
           "by": "drill_owner",
           "at": "2026-08-12T13:51:18+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:05:46+00:00",
+          "reason": "T352 phantom cleanup, Daniil's ruling 2026-08-18 verbatim 'Clean': test fixture minted through the real task door by unisolated drill tests (test_t292_scout_role / t297 / T268 pins); never real work"
         }
       ]
     },
@@ -11178,13 +11196,13 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "claimed",
+      "status": "abandoned",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-14T13:06:19+00:00",
-      "updated": "2026-08-14T13:06:20+00:00",
+      "updated": "2026-08-18T12:05:47+00:00",
       "history": [
         {
           "to": "proposed",
@@ -11200,6 +11218,12 @@
           "to": "claimed",
           "by": "drill_owner",
           "at": "2026-08-14T13:06:20+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:05:47+00:00",
+          "reason": "T352 phantom cleanup, Daniil's ruling 2026-08-18 verbatim 'Clean': test fixture minted through the real task door by unisolated drill tests (test_t292_scout_role / t297 / T268 pins); never real work"
         }
       ]
     },
@@ -11297,18 +11321,24 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
+      "status": "abandoned",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-14T13:07:27+00:00",
-      "updated": "2026-08-14T13:07:27+00:00",
+      "updated": "2026-08-18T12:05:48+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-14T13:07:27+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:05:48+00:00",
+          "reason": "T352 phantom cleanup, Daniil's ruling 2026-08-18 verbatim 'Clean': test fixture minted through the real task door by unisolated drill tests (test_t292_scout_role / t297 / T268 pins); never real work"
         }
       ]
     },
@@ -11320,13 +11350,13 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "claimed",
+      "status": "abandoned",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-15T13:09:01+00:00",
-      "updated": "2026-08-15T13:09:02+00:00",
+      "updated": "2026-08-18T12:05:49+00:00",
       "history": [
         {
           "to": "proposed",
@@ -11342,6 +11372,12 @@
           "to": "claimed",
           "by": "drill_owner",
           "at": "2026-08-15T13:09:02+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:05:49+00:00",
+          "reason": "T352 phantom cleanup, Daniil's ruling 2026-08-18 verbatim 'Clean': test fixture minted through the real task door by unisolated drill tests (test_t292_scout_role / t297 / T268 pins); never real work"
         }
       ]
     },
@@ -11439,18 +11475,24 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
+      "status": "abandoned",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-15T13:10:05+00:00",
-      "updated": "2026-08-15T13:10:05+00:00",
+      "updated": "2026-08-18T12:05:50+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-15T13:10:05+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:05:50+00:00",
+          "reason": "T352 phantom cleanup, Daniil's ruling 2026-08-18 verbatim 'Clean': test fixture minted through the real task door by unisolated drill tests (test_t292_scout_role / t297 / T268 pins); never real work"
         }
       ]
     },
@@ -11649,13 +11691,13 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "claimed",
+      "status": "abandoned",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-16T15:30:54+00:00",
-      "updated": "2026-08-16T15:30:55+00:00",
+      "updated": "2026-08-18T12:05:50+00:00",
       "history": [
         {
           "to": "proposed",
@@ -11671,6 +11713,12 @@
           "to": "claimed",
           "by": "drill_owner",
           "at": "2026-08-16T15:30:55+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:05:50+00:00",
+          "reason": "T352 phantom cleanup, Daniil's ruling 2026-08-18 verbatim 'Clean': test fixture minted through the real task door by unisolated drill tests (test_t292_scout_role / t297 / T268 pins); never real work"
         }
       ]
     },
@@ -11801,18 +11849,24 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
+      "status": "abandoned",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-16T15:32:06+00:00",
-      "updated": "2026-08-16T15:32:06+00:00",
+      "updated": "2026-08-18T12:05:51+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-16T15:32:06+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:05:51+00:00",
+          "reason": "T352 phantom cleanup, Daniil's ruling 2026-08-18 verbatim 'Clean': test fixture minted through the real task door by unisolated drill tests (test_t292_scout_role / t297 / T268 pins); never real work"
         }
       ]
     },
@@ -11933,13 +11987,13 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "claimed",
+      "status": "abandoned",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-16T17:03:25+00:00",
-      "updated": "2026-08-16T17:03:26+00:00",
+      "updated": "2026-08-18T12:05:52+00:00",
       "history": [
         {
           "to": "proposed",
@@ -11955,6 +12009,12 @@
           "to": "claimed",
           "by": "drill_owner",
           "at": "2026-08-16T17:03:26+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:05:52+00:00",
+          "reason": "T352 phantom cleanup, Daniil's ruling 2026-08-18 verbatim 'Clean': test fixture minted through the real task door by unisolated drill tests (test_t292_scout_role / t297 / T268 pins); never real work"
         }
       ]
     },
@@ -12052,18 +12112,24 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
+      "status": "abandoned",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-16T17:04:27+00:00",
-      "updated": "2026-08-16T17:04:27+00:00",
+      "updated": "2026-08-18T12:05:53+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-16T17:04:27+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:05:53+00:00",
+          "reason": "T352 phantom cleanup, Daniil's ruling 2026-08-18 verbatim 'Clean': test fixture minted through the real task door by unisolated drill tests (test_t292_scout_role / t297 / T268 pins); never real work"
         }
       ]
     },
@@ -12587,13 +12653,13 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "claimed",
+      "status": "abandoned",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-18T04:18:08+00:00",
-      "updated": "2026-08-18T04:18:08+00:00",
+      "updated": "2026-08-18T12:05:53+00:00",
       "history": [
         {
           "to": "proposed",
@@ -12609,6 +12675,12 @@
           "to": "claimed",
           "by": "drill_owner",
           "at": "2026-08-18T04:18:08+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:05:53+00:00",
+          "reason": "T352 phantom cleanup, Daniil's ruling 2026-08-18 verbatim 'Clean': test fixture minted through the real task door by unisolated drill tests (test_t292_scout_role / t297 / T268 pins); never real work"
         }
       ]
     },
@@ -12706,18 +12778,24 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
+      "status": "abandoned",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-18T04:19:20+00:00",
-      "updated": "2026-08-18T04:19:20+00:00",
+      "updated": "2026-08-18T12:05:54+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-18T04:19:20+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:05:54+00:00",
+          "reason": "T352 phantom cleanup, Daniil's ruling 2026-08-18 verbatim 'Clean': test fixture minted through the real task door by unisolated drill tests (test_t292_scout_role / t297 / T268 pins); never real work"
         }
       ]
     },
@@ -12731,13 +12809,13 @@
         "core/comm/doctor.py"
       ],
       "acceptance": "",
-      "status": "verifying",
-      "commit": null,
-      "verified_by": null,
-      "reviewed_by": null,
+      "status": "done",
+      "commit": "f0caa1f8",
+      "verified_by": "kimi/Navi static line-level review (exec-off disclosed): C1 regex vs the real producers (bus.py _my_sid8, roster.py:112, seat_identity.py:54 -- sid8 is truncated-hex so the contract is exact); C2 all four live id shapes land on a correct branch incl. bare pre-T147 worklive keys; pins P1-P5 read against the receipt. Verdict SHIP IT, full text research/in-flight/t341/review-navi-t347-FULL.md",
+      "reviewed_by": "kimi",
       "self_verified": null,
       "created": "2026-08-18T04:21:02+00:00",
-      "updated": "2026-08-18T04:33:14+00:00",
+      "updated": "2026-08-18T11:18:42+00:00",
       "history": [
         {
           "to": "proposed",
@@ -12758,6 +12836,11 @@
           "to": "verifying",
           "by": "claude",
           "at": "2026-08-18T04:33:14+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-18T11:18:42+00:00"
         }
       ]
     },
@@ -12769,13 +12852,13 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "claimed",
+      "status": "abandoned",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-18T04:30:01+00:00",
-      "updated": "2026-08-18T04:30:01+00:00",
+      "updated": "2026-08-18T12:05:55+00:00",
       "history": [
         {
           "to": "proposed",
@@ -12791,6 +12874,12 @@
           "to": "claimed",
           "by": "drill_owner",
           "at": "2026-08-18T04:30:01+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:05:55+00:00",
+          "reason": "T352 phantom cleanup, Daniil's ruling 2026-08-18 verbatim 'Clean': test fixture minted through the real task door by unisolated drill tests (test_t292_scout_role / t297 / T268 pins); never real work"
         }
       ]
     },
@@ -12888,18 +12977,24 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
+      "status": "abandoned",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-18T04:31:12+00:00",
-      "updated": "2026-08-18T04:31:12+00:00",
+      "updated": "2026-08-18T12:05:56+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-18T04:31:12+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "claude",
+          "at": "2026-08-18T12:05:56+00:00",
+          "reason": "T352 phantom cleanup, Daniil's ruling 2026-08-18 verbatim 'Clean': test fixture minted through the real task door by unisolated drill tests (test_t292_scout_role / t297 / T268 pins); never real work"
         }
       ]
     },
@@ -12907,24 +13002,34 @@
       "id": "T352",
       "title": "Tests exercise the REAL task door without store isolation -- every full-suite run mints phantom ledger rows. FOUND 2026-08-18 by the reentry render's first morning run (the instrument surfaced its own store's pollution). MEASURED: 24 drill rows since 2026-08-12 (frobnicate/gizmo/t297-closable from tests/test_t292_scout_role.py _propose(), which calls run('task','propose',...) against the production ledger; plus the T268-pin-target rows, same class, different test). Roughly 10 phantom 'done' rows inflate every done-count the house quotes, and registry ids (T293-T351 range) are minted mid-pollution -- T347 (real) sits between T346 and T348 (phantom). CLASS: a drill through the real door tests what production sees (the test's own stated rationale, and it is RIGHT) but must do it against an ISOLATED store -- the Redis-side idiom already exists (isolate_canonical, db 15, per evidence-C's reading of test_coordinator_foundation); the FILE-backed ledger needs its twin (env-pointed tasks.json path or tmp store fixture). SLICE: (1) isolation fixture for the ledger path honored by the task door; (2) both test files onto it; (3) Daniil RULES on the 24+ historical phantom rows -- abandon-with-reason keeps append-only history honest, but rewriting counts is an operator call; (4) a pin that a full suite run leaves the production ledger byte-identical.",
       "desc": "",
-      "owner": "",
+      "owner": "claude",
       "deps": [],
       "files": [
         "tests/test_t292_scout_role.py"
       ],
       "acceptance": "",
-      "status": "proposed",
+      "status": "claimed",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-18T04:34:32+00:00",
-      "updated": "2026-08-18T04:34:32+00:00",
+      "updated": "2026-08-18T12:05:24+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-18T04:34:32+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-08-18T12:05:23+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-18T12:05:24+00:00"
         }
       ]
     }
