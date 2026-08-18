@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sqlite3
 import time
 from datetime import datetime, timezone
@@ -625,12 +626,39 @@ def overview(db_path: Optional[Path] = None) -> Dict[str, Any]:
 
 
 def get_event(event_id: str, db_path: Optional[Path] = None) -> Optional[Dict[str, Any]]:
-    """The address resolves to the verbatim record -- the resolver primitive (T288)."""
+    """The address resolves to the verbatim record -- the resolver primitive (T288).
+
+    T361: the resolver speaks the house sid8 dialect. boot prints `session ed728d23`,
+    roster prints `claude#18762fcf`, handoffs cite `seat 7b78fb20` -- so a citation like
+    `51589003:415` is the house's OWN address form, and answering it with "no event"
+    rendered a correct citation as fabrication (receipt 2026-08-17, a peer's verified
+    evidence nearly discarded over address form). Resolution: a short hex session prefix
+    unique in the index resolves; an AMBIGUOUS prefix raises ValueError naming every
+    candidate (a third outcome -- found / refused / absent -- because collapsing
+    "two matches" into None is the same lie one branch over, T176); a prefix matching
+    nothing stays an honest None."""
     con = _connect(db_path)
     try:
         r = con.execute(
             "SELECT event_id, session, line, ts, voice, type, text, cwd, branch, tokens "
             "FROM events WHERE event_id=?", (str(event_id),)).fetchone()
+        if not r:
+            m = re.fullmatch(r"([0-9a-f]{6,32}):(\d+)", str(event_id))
+            if m:
+                prefix, line = m.group(1), m.group(2)
+                sessions = [s[0] for s in con.execute(
+                    "SELECT DISTINCT session FROM events WHERE session LIKE ? "
+                    "ORDER BY session LIMIT 5", (prefix + "%",)).fetchall()]
+                if len(sessions) > 1:
+                    raise ValueError(
+                        f"ambiguous session prefix '{prefix}' -- {len(sessions)} candidates: "
+                        + ", ".join(sessions)
+                        + ". Cite one full id (the record's `session` field is canonical).")
+                if len(sessions) == 1:
+                    r = con.execute(
+                        "SELECT event_id, session, line, ts, voice, type, text, cwd, branch, "
+                        "tokens FROM events WHERE event_id=?",
+                        (f"{sessions[0]}:{line}",)).fetchone()
     finally:
         con.close()
     if not r:

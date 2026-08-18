@@ -2585,17 +2585,23 @@ def cmd_eye(args):
             return 0
         return 2
     if args.eye_cmd == "get":
-        ev = _EYE.get_event(args.event_id)
+        try:
+            ev = _EYE.get_event(args.event_id)
+        except ValueError as e:
+            # T361: ambiguity is a REFUSAL with candidates, never "no event" -- an
+            # unresolvable address must not render as an absence claim about the record.
+            print(f"[eye] 422: {e}", file=sys.stderr)
+            return 2
         if ev is None:
             print(f"[eye] no event at {args.event_id!r} -- the address is session:line "
-                  "(get one from eye find)", file=sys.stderr)
+                  "(full id or a unique sid8 prefix; get one from eye find)", file=sys.stderr)
             return 2
         # A citation resolves to an UTTERANCE, not to a row. The harness records one
         # operator turn several times over, so an address is one witness among several
         # -- naming its siblings is what lets a citation be checked rather than trusted
         # (T288's resolver need, and the reason `freq` now counts sets).
         from core.eye.connectome import utterance_group as _UG
-        ev["same_utterance"] = _UG(args.event_id)
+        ev["same_utterance"] = _UG(ev["event_id"])
         if args.json:
             print(_json.dumps(ev, indent=1)); return 0
         print(f"# {ev['event_id']}  [{ev['voice']}/{ev['type']}]  "
