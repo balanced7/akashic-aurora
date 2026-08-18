@@ -178,3 +178,8 @@ state/canary/
 # already keeps UNREDACTED copies off-repo on two separate physical disks (E: and F:).
 # Keeping them here duplicated that durability and added the only path by which it leaked.
 chronicles/transcripts/*.jsonl
+# the seats' faces ship with the repo -- raw.githubusercontent serves them as avatars
+# (the assets/ ignore above predates this and guarded the dead AssetsManager download cache)
+!assets/
+!assets/avatars/
+!assets/avatars/*.png

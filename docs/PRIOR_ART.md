@@ -37,7 +37,7 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 - `core/fleet` -- DRIFT (2->5), reviewed 2026-07-26
 - `scripts/hooks` -- DRIFT (7->8), reviewed 2026-07-26
 - `scripts/checkers` -- DRIFT (12->18), reviewed 2026-07-26
-- `scripts/generators` -- DRIFT (6->10), reviewed 2026-07-26
+- `scripts/generators` -- DRIFT (6->11), reviewed 2026-07-26
 - `scripts/ops` -- DRIFT (2->6), reviewed 2026-07-26
 - `tests` -- DRIFT (331->570), reviewed 2026-07-26
 
@@ -470,7 +470,7 @@ _Reviewed 2026-07-26 by deepseek (swept), claude (folded)._
 
 _Reviewed 2026-07-26 by claude._
 
-## `scripts/generators` -- 10 modules  ·  DRIFT (6->10)
+## `scripts/generators` -- 11 modules  ·  DRIFT (6->11)
 
 **What it does.** Six generators projecting live code into documents: MAP.md (module census), MODULE_INDEX.md (docstrings), PHYSICS.md (bounds and env flags), DOORS.md (CLI verb reference), PRIOR_ART.md (this register), and the arch index.
 

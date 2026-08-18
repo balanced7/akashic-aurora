@@ -84,8 +84,9 @@ def _forward_global(msg: Dict[str, Any]) -> None:
     if not url:
         return
     try:
+        who = ROOMS.persona(str(msg.get("frm") or ""))
         ROOMS._default_post(url, ROOMS._render_room(msg),
-                            username=ROOMS.username_for(str(msg.get("frm") or "")))
+                            username=who["username"], avatar_url=who["avatar_url"])
     except Exception:                                                   # noqa: BLE001
         pass          # a listener never wounds the beat; the room half still tries
 
