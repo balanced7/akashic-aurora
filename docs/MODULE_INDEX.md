@@ -266,6 +266,7 @@
 - `corpus_digests.py` — corpus_digests -- land structured corpus digests as a durable, queryable dataset.
 - `dawe_census.py` — Which verbs are shaped so that nobody outside them can check whether they answer.
 - `deepseek_chat.py` — deepseek_chat -- an interactive, TOOL-USING conversation with DeepSeek, in its own window.
+- `discord_setup.py` — One-shot Discord server setup — runs under the admin grant Daniil flipped on his way
 - `enrich_corpus.py` — A3 migration pipeline: the ~900-file corpus -> enriched atoms, verified, gated.
 - `gemini_chat.py` — gemini_chat -- the gemini seat's model transport: gemini-1.5-pro as a first-class Akashic citizen.
 - `gemini_web.py` — gemini_web -- ask Gemini through the FREE web surfaces (not API quota).
