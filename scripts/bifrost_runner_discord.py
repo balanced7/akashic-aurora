@@ -77,6 +77,14 @@ def main() -> int:
         # gateway-side echo-guard: the feed's own webhook posts land here too.
         if message.author.bot or message.webhook_id:
             return
+        # raw content carries mention TOKENS (<@&roleid>); translate them to the
+        # readable @Name before the words ride the bus — verbatim in spirit, not
+        # in snowflakes.
+        readable = message.content
+        for r in message.role_mentions:
+            readable = readable.replace(f"<@&{r.id}>", f"@{r.name}")
+        for u in message.mentions:
+            readable = readable.replace(f"<@{u.id}>", f"@{u.display_name}")
         reactions = []
         try:
             out = handle_message(
@@ -84,9 +92,10 @@ def main() -> int:
                 author_id=str(message.author.id),
                 author_name=str(message.author),
                 channel_id=str(message.channel.id),
-                content=message.content,
+                content=readable,
                 bus=bus,
-                react=lambda emoji: reactions.append(emoji))
+                react=lambda emoji: reactions.append(emoji),
+                role_mentions=[r.name for r in message.role_mentions])
         except Exception as e:                                          # noqa: BLE001
             # a dead bus send must be VISIBLE at both ends: loud here, ⚠️ there.
             # A ✅ on a dead send would be the T149 lie with an emoji on it.

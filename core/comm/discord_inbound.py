@@ -75,9 +75,28 @@ def _rooms_reverse() -> Dict[str, str]:
     return out
 
 
+def _mention_map() -> Dict[str, str]:
+    """role-name (lowercased) -> agent id, fed by the residents registry — never a
+    second hand-kept roster. Agent ids map to themselves so @claude works alongside
+    @Vandor; a role the registry doesn't know is simply not an address."""
+    agents = ("claude", "deepseek", "kimi", "codex")
+    out: Dict[str, str] = {a: a for a in agents}
+    try:
+        from core.fleet import residents as _R
+        for a in agents:
+            rec = _R.get(a)
+            cs = str((rec or {}).get("callsign") or "").strip().lower()
+            if cs:
+                out[cs] = a
+    except Exception:                                                   # noqa: BLE001
+        pass                       # registry down -> agent ids still resolve
+    return out
+
+
 def handle_message(cfg: Dict[str, str], *, author_id: str, author_name: str,
                    channel_id: str, content: str,
-                   bus: Any, react: Callable[[str], Any]) -> Dict[str, Any]:
+                   bus: Any, react: Callable[[str], Any],
+                   role_mentions: Any = None) -> Dict[str, Any]:
     """One inbound message, fully decided. Returns what happened and why.
 
     Raises nothing it can help; but a BUS failure raises to the caller — the runner
@@ -97,6 +116,34 @@ def handle_message(cfg: Dict[str, str], *, author_id: str, author_name: str,
     ask = _rooms_reverse().get(str(channel_id))
     if ask:
         meta["ask_id"] = ask
+
+    # @-mentions are the wake mechanism (Daniil 2026-08-19, after his first heard
+    # message summoned nobody): a known role mention becomes a DIRECTED send, and
+    # directed mail is already wake-worthy on every existing semantic — runners
+    # spring for their inbox, the wake watcher fires for the seat. No broadcast
+    # ride-along: one summons, one copy. Unknown roles are not addresses; a
+    # message mentioning only those stays ambient like any other.
+    mmap = _mention_map()
+    targets = []
+    for r in (role_mentions or []):
+        agent = mmap.get(str(r).strip().lower())
+        if agent and agent not in targets:
+            targets.append(agent)
+    if targets:
+        meta["mentioned"] = True
+        sent_ids = []
+        for agent in targets:
+            mid = bus.send(agent, "chat", text, meta=meta)
+            if mid is None:
+                raise RuntimeError(
+                    f"the bus accepted nothing for @{agent} (send returned None — "
+                    f"offline or refused); no receipt may be given for an "
+                    f"undelivered summons"
+                    + (f" ({len(sent_ids)} earlier summons in this message DID "
+                       f"deliver — duplicates beat losses on retype)" if sent_ids else ""))
+            sent_ids.append(str(mid))
+        react("✅")
+        return {"acted": True, "id": sent_ids[-1], "ask_id": ask, "to": targets}
 
     mid = bus.broadcast("chat", text, meta=meta)
     if mid is None:
