@@ -48,10 +48,24 @@ def _mod():
 class _Bus:
     def __init__(self):
         self.sent = []
+        self.directed = []
 
     def broadcast(self, kind, text, meta=None):
         self.sent.append({"kind": kind, "text": text, "meta": meta or {}})
         return "1787000000099-0"
+
+    def send(self, to, kind, content, meta=None):
+        self.directed.append({"to": to, "kind": kind, "content": content,
+                              "meta": meta or {}})
+        return "1787000000100-0"
+
+
+def _fake_callsigns(monkeypatch):
+    m = _mod()
+    from core.fleet import residents as _R
+    table = {"claude": "Vandor", "deepseek": "Heimdall", "kimi": "Navi"}
+    monkeypatch.setattr(_R, "get",
+                        lambda a: ({"callsign": table[a]} if a in table else None))
 
 
 @pytest.fixture()
@@ -114,6 +128,49 @@ def test_p4_heard_message_gets_the_checkmark(cfg):
         channel_id="c1", content="ping", bus=_Bus(),
         react=lambda emoji: reacts.append(emoji))
     assert reacts == ["✅"], "delivery truth: the ✅ appears only after the bus accepted"
+
+
+# ---- P8-P10: @-mentions are the wake mechanism --------------------------------
+# Daniil, 2026-08-19, after his first heard message summoned nobody: "How do we
+# make you and the fleet wakeable from discord? ... I also want to be able to
+# @claude and @heimdall / and navi of course". A role mention becomes a DIRECTED
+# send — and directed mail is already wake-worthy on every existing semantic.
+def test_p8_a_role_mention_becomes_a_directed_send(cfg, monkeypatch):
+    _fake_callsigns(monkeypatch)
+    bus = _Bus()
+    out = _mod().handle_message(
+        cfg, author_id="111222333444555666", author_name="d",
+        channel_id="c1", content="@Heimdall check the fence please",
+        bus=bus, react=lambda e: None, role_mentions=["Heimdall"])
+    assert out["acted"] is True
+    assert not bus.sent, "a mentioned message must NOT also broadcast (no doubles)"
+    assert len(bus.directed) == 1 and bus.directed[0]["to"] == "deepseek", (
+        "@Heimdall resolves through the residents registry to deepseek — "
+        "the summons rides the inbox, which is what wakes a seat")
+    assert bus.directed[0]["meta"].get("source") == "discord"
+
+
+def test_p9_multiple_mentions_summon_each_seat_once(cfg, monkeypatch):
+    _fake_callsigns(monkeypatch)
+    bus = _Bus()
+    _mod().handle_message(
+        cfg, author_id="111222333444555666", author_name="d",
+        channel_id="c1", content="@Vandor @Navi morning standup",
+        bus=bus, react=lambda e: None, role_mentions=["Vandor", "Navi"])
+    assert sorted(d["to"] for d in bus.directed) == ["claude", "kimi"]
+    assert not bus.sent
+
+
+def test_p10_unknown_roles_are_ambient(cfg, monkeypatch):
+    _fake_callsigns(monkeypatch)
+    bus = _Bus()
+    _mod().handle_message(
+        cfg, author_id="111222333444555666", author_name="d",
+        channel_id="c1", content="@everyone-else hello",
+        bus=bus, react=lambda e: None, role_mentions=["Moderators"])
+    assert not bus.directed and len(bus.sent) == 1, (
+        "a role the registry doesn't know is not an address — the message stays "
+        "a broadcast, ambient, exactly as an unmentioned one")
 
 
 # ---- P7: a dead bus gets no checkmark (Heimdall's load-bearing find) ---------
