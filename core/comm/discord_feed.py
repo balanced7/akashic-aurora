@@ -124,6 +124,15 @@ def pump(bus: Any, *, post: Optional[Callable[..., Any]] = None,
                 mid_s = mid.decode() if isinstance(mid, bytes) else str(mid)
                 msg = _decode(fields)
                 msg.setdefault("id", mid_s)
+                # ECHO-GUARD, and it must outrank the operator-always-forwards rule:
+                # a message that CAME FROM Discord (the ear's stamp) must not be
+                # pumped back TO Discord, or every phone line returns to its sender
+                # wearing the fleet's face. Cursor still advances — skipped is
+                # handled, not pending.
+                if isinstance(msg.get("meta"), dict) and \
+                        msg["meta"].get("source") == "discord":
+                    client.hset(CURSOR_KEY, key, mid_s)
+                    continue
                 (post or _forward_global)(msg)
                 (room_post or ROOMS.post_to_room)(msg)
                 client.hset(CURSOR_KEY, key, mid_s)      # advance AFTER the attempt

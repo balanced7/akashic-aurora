@@ -111,12 +111,17 @@ def test_p4_unknown_kind_does_not_forward(env):
 # empty here BY DESIGN — these pins patch the registry seam and test the
 # mechanism, not the roster.
 def _fake_registry(monkeypatch, callsign="Heimdall"):
+    from pathlib import Path
     from core.fleet import residents as _R
     monkeypatch.setattr(_R, "get",
                         lambda a: {"callsign": callsign} if a == "deepseek" else None)
     monkeypatch.setattr(_R, "current_placement",
                         lambda a: ({"family": "Onyx", "team": "Blue"}
                                    if a == "deepseek" else None))
+    # hermetic means ALL the stores: the live icons file moved under this pin the
+    # night Heimdall picked the moai — "no icon yet" must be a fixture, not a bet
+    # on the fleet staying indecisive.
+    monkeypatch.setattr(_mod(), "ICONS_FILE", Path("nonexistent-icons-fixture.json"))
 
 
 def test_p8_persona_wears_the_registry_face(env, monkeypatch):
