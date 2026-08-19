@@ -84,6 +84,18 @@ if not _already_redirected():
     # process AND every shelled agent_cli child inherit the redirect; the ledger creates
     # its own fresh file on first touch.
     os.environ["AKASHIC_TASKS_PATH"] = os.path.join(_tmp, "tasks.json")
+    # THE VAULT, same class one plane further out (2026-08-19): a rooms pin read the
+    # REAL .secrets/ webhook and bot token through module constants and MINTED A LIVE
+    # THREAD in the operator's Discord server mid-test. Credentials in tests are not a
+    # flakiness problem, they are an outbound-side-effect problem — an isolated run
+    # must be POSTALLY inert. Every credential reader resolves through
+    # secret_intake.secrets_dir(), which honors this.
+    os.environ["AKASHIC_SECRETS_DIR"] = os.path.join(_tmp, "secrets")
+    os.makedirs(os.environ["AKASHIC_SECRETS_DIR"], exist_ok=True)
+    # The seat-channel registry steers OUTBOUND physics (text-mode rooms mint live
+    # threads through the bot) — an isolated run points it at an absent file, which
+    # resolves to the inert forum default.
+    os.environ["AKASHIC_DISCORD_SEATS_REGISTRY"] = os.path.join(_tmp, "discord_seats.json")
     os.environ["_AISETUP_TEST_ISOLATED"] = "1"
 
     # Start from an empty test DB so Redis-backed state can't accumulate across runs.

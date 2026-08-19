@@ -78,18 +78,63 @@ def persona(frm: str) -> Dict[str, Optional[str]]:
 
 
 def forum_url() -> str:
-    """The rooms webhook, or "" when rooms are simply off (absent is not broken)."""
+    """The rooms webhook, or "" when rooms are simply off (absent is not broken).
+    Resolved through the VAULT's own secrets_dir() — one resolution rule for every
+    credential (2026-08-19: a pin reading this file directly reached the REAL
+    webhook and minted a live thread in his server; the vault's env override is
+    what lets isolation actually isolate)."""
     v = os.getenv("AKASHIC_DISCORD_FORUM_WEBHOOK")
     if v and v.strip():
         return v.strip()
+    from core.comm.secret_intake import secrets_dir
     try:
-        return FORUM_URL_FILE.read_text(encoding="utf-8").strip()
+        return (secrets_dir() / "discord_forum_webhook.url").read_text(
+            encoding="utf-8").strip()
     except OSError:
         return ""
 
 
 def _reg_path() -> Path:
     return Path(os.getenv("AKASHIC_DISCORD_ROOMS_REGISTRY") or REG_FILE)
+
+
+#: setup-written: {"mode": forum|text, "rooms_channel_id": ..., "channels": {...}}.
+#: Akashic Labs carries no Community flag (setup receipt 2026-08-19), so rooms run
+#: TEXT mode there: threads are minted by the BOT's rest call and the webhook only
+#: ever posts INTO them — thread_name on a non-forum webhook is a 400.
+SEATS_FILE = _ROOT / "state" / "coord" / "discord_seat_channels.json"
+
+
+def _seats_registry() -> Dict[str, Any]:
+    path = Path(os.getenv("AKASHIC_DISCORD_SEATS_REGISTRY") or SEATS_FILE)
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"mode": "forum", "channels": {}}
+
+
+def _default_create_thread(name: str) -> Optional[str]:
+    """TEXT-mode thread mint via the bot token (admin-granted). Isolated so pins
+    run offline; returns the thread id or None (and None is a refusal upstream —
+    an unregistered room would mint twins forever)."""
+    import requests
+    reg = _seats_registry()
+    channel_id = str(reg.get("rooms_channel_id") or "")
+    if not channel_id:
+        return None
+    from core.comm.secret_intake import secrets_dir
+    try:
+        token = os.getenv("AKASHIC_DISCORD_BOT_TOKEN") or \
+            (secrets_dir() / "discord_bot.token").read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    r = requests.post(
+        f"https://discord.com/api/v10/channels/{channel_id}/threads",
+        headers={"Authorization": f"Bot {token}"},
+        json={"name": name[:100], "type": 11, "auto_archive_duration": 10080},
+        timeout=15)
+    r.raise_for_status()
+    return str(r.json().get("id") or "") or None
 
 
 def _load_reg() -> Dict[str, Any]:
@@ -178,9 +223,25 @@ def post_to_room(msg: Dict[str, Any], *, url: Optional[str] = None, force: bool 
     known = reg.get(ask_id) or {}
     thread_id = known.get("thread_id")
     thread_name = None
+    minted_by_bot = None
     if not thread_id:
         title = str(meta.get("title") or "").strip()
-        thread_name = (f"{ask_id} — {title}" if title else ask_id)[:100]
+        room_name = (f"{ask_id} — {title}" if title else ask_id)[:100]
+        if _seats_registry().get("mode") == "text":
+            try:
+                minted_by_bot = _default_create_thread(room_name)
+            except Exception as e:                                      # noqa: BLE001
+                return BoundaryOutcome.failed(
+                    f"text-mode thread mint failed ({type(e).__name__}: {e}) — "
+                    f"the bus is unaffected")
+            if not minted_by_bot:
+                return BoundaryOutcome.failed(
+                    "text-mode room needs a bot-minted thread and none was "
+                    "minted (no rooms_channel_id or no token) — refusing "
+                    "beats minting twins")
+            thread_id = minted_by_bot
+        else:
+            thread_name = room_name
 
     content = _render_room(msg)
     who = persona(str(msg.get("frm") or ""))
@@ -193,14 +254,15 @@ def post_to_room(msg: Dict[str, Any], *, url: Optional[str] = None, force: bool 
             f"discord room post failed ({type(e).__name__}: {e}) — the bus is unaffected; "
             f"this router is a listener and never blocks a send")
 
-    if thread_name:
-        if not minted:
+    if thread_name or minted_by_bot:
+        tid = str(minted_by_bot or minted or "")
+        if not tid:
             return BoundaryOutcome.failed(
-                "room post landed but Discord returned no thread id — room NOT registered, "
+                "room post landed but no thread id came back — room NOT registered, "
                 "so the next post would mint a twin. Check the webhook targets a FORUM "
                 "channel and wait=true is honored.")
-        reg[ask_id] = {"thread_id": str(minted),
-                       "title": thread_name,
+        reg[ask_id] = {"thread_id": tid,
+                       "title": str(thread_name or f"{ask_id} (text-mode)"),
                        "created": str(msg.get("id") or "")}
         _save_reg(reg)
 

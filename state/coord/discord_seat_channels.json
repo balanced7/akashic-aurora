@@ -1,5 +1,6 @@
 {
  "mode": "text",
+ "rooms_channel_id": "1539625010132426803",
  "channels": {
   "1539625011365552180": "claude",
   "1539625012028252280": "deepseek",

@@ -62,6 +62,32 @@ def _decode(fields: Dict[Any, Any]) -> Dict[str, Any]:
     return out
 
 
+#: the operator's inbox names — a seat's question FOR HIM rides these streams, and
+#: each routes to his lane with that seat (his ask, 2026-08-19: "separate messaging
+#: channels for all of you so that if anyone has a question specifically for me
+#: I can respond").
+_OPERATOR_INBOXES = ("daniil", "daniel", "user")
+
+
+def seat_channel_url(agent: str) -> str:
+    """The webhook of his lane with this seat — callsign-derived (registry-fed,
+    never a second roster), vaulted by discord_setup. Empty when unconfigured."""
+    base = str(agent or "").split("#", 1)[0].lower()
+    try:
+        from core.fleet import residents as _R
+        cs = str((_R.get(base) or {}).get("callsign") or "").strip().lower()
+    except Exception:                                                   # noqa: BLE001
+        cs = ""
+    if not cs:
+        return ""
+    from core.comm.secret_intake import secrets_dir
+    try:
+        return (secrets_dir() / f"discord_channel_{cs}.url").read_text(
+            encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
 def _streams(bus: Any) -> List[str]:
     keys = [f"{bus.ns}:broadcast"]
     try:
@@ -69,6 +95,8 @@ def _streams(bus: Any) -> List[str]:
     except Exception:                                                   # noqa: BLE001
         agents = []
     keys.extend(bus._inbox_key(a) for a in agents)
+    keys.extend(bus._inbox_key(op) for op in _OPERATOR_INBOXES
+                if bus._inbox_key(op) not in keys)
     return keys
 
 
@@ -133,6 +161,23 @@ def pump(bus: Any, *, post: Optional[Callable[..., Any]] = None,
                         msg["meta"].get("source") == "discord":
                     client.hset(CURSOR_KEY, key, mid_s)
                     continue
+                # SEAT LANE: a message addressed TO the operator posts in his
+                # channel with that seat — and ONLY there (a question for him is
+                # not ambient; double-posting it to global would train him to
+                # read neither surface carefully).
+                if str(msg.get("to") or "") in _OPERATOR_INBOXES:
+                    lane = seat_channel_url(str(msg.get("frm") or ""))
+                    if lane and DB.should_forward(msg):
+                        try:
+                            who = ROOMS.persona(str(msg.get("frm") or ""))
+                            ROOMS._default_post(lane, ROOMS._render_room(msg),
+                                                username=who["username"],
+                                                avatar_url=who["avatar_url"])
+                        except Exception:                               # noqa: BLE001
+                            pass
+                        client.hset(CURSOR_KEY, key, mid_s)
+                        forwarded += 1
+                        continue
                 (post or _forward_global)(msg)
                 (room_post or ROOMS.post_to_room)(msg)
                 client.hset(CURSOR_KEY, key, mid_s)      # advance AFTER the attempt

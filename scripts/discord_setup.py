@@ -112,7 +112,9 @@ def main() -> int:
     rooms_type = 15 if forum_ok else 0
     rooms = ensure_channel("aurora-rooms", rooms_type, cat_id)
 
-    registry: dict = {"mode": ("forum" if forum_ok else "text"), "channels": {}}
+    registry: dict = {"mode": ("forum" if forum_ok else "text"),
+                      "rooms_channel_id": (rooms or {}).get("id", ""),
+                      "channels": {}}
     for chan_name, agent in SEAT_CHANNELS:
         c = ensure_channel(chan_name, 0, cat_id)
         if c:
