@@ -206,6 +206,12 @@ MANIFEST = {
     # everything (66 fails, all noise). With the parser repaired (4849449) the real backlog
     # surfaced. deepseek classified all 23 against agent_cli.py's own add_parser calls:
     # 22 CLI-only operator/author/diagnostic surfaces, 1 MCP-only health check. No gaps.
+    # 2026-08-19 -- `secret` is CLI-only BY DECISION, and it is the sharpest instance of
+    # the launch/grant rule yet: the verb pops a credential-capture window at the OPERATOR.
+    # An MCP twin would let any attached seat summon that window -- "Akashic vault --
+    # openai.key" appearing on Daniil's screen at an agent's initiative is a phishing
+    # surface, not a convenience. Capture is operator-initiated or it is an attack.
+    "secret": "cli_only",
     "alias": "cli_only",           # toolbelt authoring: mint/list/retire verb aliases
     "audit": "cli_only",           # belief-vs-state audit; operator diagnostic, writes nothing
     "bench": "cli_only",           # S0 triage bench: operator mailbox management

@@ -24,7 +24,7 @@
 - `agent_signal_ledger.py` — Agent Signal Ledger: the ordered record of every signal agents emit
 - `coordinator_api.py` — Coordinator API: Minimal signal-based logging for agents
 
-## core/comm/  (57 modules)
+## core/comm/  (58 modules)
 - `ask.py` — ask -- a synchronous helper call, with no seat behind it (T171).
 - `ask_bg.py` — ask_bg -- a helper call that outlives your turn without becoming a seat (T205).
 - `ask_state.py` — ask_state -- one durable ask's honest state (T196d).
@@ -73,6 +73,7 @@
 - `runner_lock.py` — Bifrost runner singleton-lock -- at most ONE live runner per agent id.
 - `runtime_age.py` — runtime_age (T116) -- how much code a RUNNING process cannot possibly contain.
 - `seat_identity.py` — seat_identity -- WHO AM I, resolved per SESSION instead of per PROCESS.
+- `secret_intake.py` — Secret intake — credentials travel window -> file, never through a transcript.
 - `self_restart.py` — self_restart (A1) -- a runner that knows it is stale restarts itself.
 - `session_exit.py` — session_exit -- the clean-death trio (T075 M1-beta, reconciliation ruling 3).
 - `session_state.py` — Session State — snapshot the live Bifrost session so it can be resumed later.
