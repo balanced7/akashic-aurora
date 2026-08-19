@@ -195,6 +195,11 @@ def test_p7_seat_questions_land_in_their_own_lane(wired, monkeypatch):
     calls = []
     monkeypatch.setattr(R, "_default_post",
                         lambda url, content, **kw: calls.append({"url": url, **kw}))
+    # the lane exists BEFORE tail-init (first contact is silent by law); the old
+    # entry is the archive that must stay home, the appended one is the question.
+    client.streams["bifrost:inbox:daniil"] = [
+        ("299-0", {"frm": "kimi", "to": "daniil", "kind": "question",
+                   "content": '"old question, already his"'})]
     F.pump(bus)                                             # tail-init
     client.streams["bifrost:inbox:daniil"].append(
         ("300-0", {"frm": "deepseek", "to": "daniil", "kind": "question",

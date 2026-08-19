@@ -55,6 +55,30 @@ def main() -> int:
 
     bus = Bus("daniil")          # inbound speaks AS the operator, or not at all (R3)
 
+    def _spawn(task: str):
+        """!spawn's lever: a fresh claude session, detached, logging to its own file.
+        The promise is process START (🌱); the sprout is not the harvest."""
+        import shutil
+        import subprocess
+        import time as _t
+        exe = shutil.which("claude")
+        if not exe:
+            raise RuntimeError("claude CLI not on PATH -- cannot spawn a fresh seat")
+        logs = _ROOT / "state" / "spawn-logs"
+        logs.mkdir(parents=True, exist_ok=True)
+        log = logs / f"spawn-{int(_t.time())}.log"
+        prompt = (f"You were spawned by the operator's !spawn from Discord. First run: "
+                  f"py agent_cli.py boot claude --task \"{task[:200]}\" -- then do the "
+                  f"task, land every result durably (commits by name, notes, handoff), "
+                  f"and end with a wrap. Task, in his words: {task}")
+        with open(log, "w", encoding="utf-8") as fh:
+            p = subprocess.Popen([exe, "-p", prompt],
+                                 cwd=str(_ROOT), stdout=fh, stderr=fh,
+                                 creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+                                 | getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        print(f"[discord-in] 🌱 spawned pid {p.pid} -> {log.name}: {task[:80]}", flush=True)
+        return p.pid
+
     intents = discord.Intents.none()
     intents.guilds = True
     intents.guild_messages = True
@@ -95,7 +119,8 @@ def main() -> int:
                 content=readable,
                 bus=bus,
                 react=lambda emoji: reactions.append(emoji),
-                role_mentions=[r.name for r in message.role_mentions])
+                role_mentions=[r.name for r in message.role_mentions],
+                spawner=_spawn)
         except Exception as e:                                          # noqa: BLE001
             # a dead bus send must be VISIBLE at both ends: loud here, ⚠️ there.
             # A ✅ on a dead send would be the T149 lie with an emoji on it.

@@ -93,10 +93,24 @@ def _mention_map() -> Dict[str, str]:
     return out
 
 
+#: seat-channel registry: {"mode": forum|text, "channels": {channel_id: agent},
+#: "rooms_channel_id": ...} — written by scripts/discord_setup.py under his admin grant.
+SEATS_FILE = _ROOT / "state" / "coord" / "discord_seat_channels.json"
+
+
+def _seat_channels() -> Dict[str, Any]:
+    path = Path(os.getenv("AKASHIC_DISCORD_SEATS_REGISTRY") or SEATS_FILE)
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"mode": "forum", "channels": {}}
+
+
 def handle_message(cfg: Dict[str, str], *, author_id: str, author_name: str,
                    channel_id: str, content: str,
                    bus: Any, react: Callable[[str], Any],
-                   role_mentions: Any = None) -> Dict[str, Any]:
+                   role_mentions: Any = None,
+                   spawner: Optional[Callable[[str], Any]] = None) -> Dict[str, Any]:
     """One inbound message, fully decided. Returns what happened and why.
 
     Raises nothing it can help; but a BUS failure raises to the caller — the runner
@@ -112,7 +126,38 @@ def handle_message(cfg: Dict[str, str], *, author_id: str, author_name: str,
     if not text:
         return {"acted": False, "reason": "empty message (attachment-only or sticker)"}
 
+    # !spawn — the operator's fresh-hands word (his ask, on the way to work
+    # 2026-08-19: "a syntax that I can use to invoke a new instance, in case you
+    # get wedged or need to start a fresh handoff"). R1 has already gated this
+    # path (only his id reaches here); R3 holds because his keyboard could always
+    # launch a session. A control word rides NO bus lane — it is not a message,
+    # it is a hand on a lever. Receipt 🌱 fires on process START, and that is the
+    # whole promise: the sprout is not the harvest.
+    if text.lower().startswith("!spawn"):
+        if spawner is None:
+            raise RuntimeError("!spawn received but no spawner is wired — the "
+                               "runner must provide one; refusing beats pretending")
+        task = text[len("!spawn"):].strip() or \
+            "fresh seat: operator-invoked spawn from Discord (no task given -- " \
+            "boot, read the latest handoff, take the watch)"
+        pid = spawner(task)
+        react("🌱")
+        return {"acted": True, "spawned": str(pid), "id": None}
+
     meta: Dict[str, Any] = {"source": "discord", "operator": True}
+
+    # the seat lane: typing in #vandor IS addressing claude — the channel is the
+    # address, no mention required. His words ride directed, which wakes the seat.
+    lane_agent = (_seat_channels().get("channels") or {}).get(str(channel_id))
+    if lane_agent:
+        meta["lane"] = "seat-channel"
+        mid = bus.send(lane_agent, "chat", text, meta=meta)
+        if mid is None:
+            raise RuntimeError(
+                f"the bus accepted nothing for the {lane_agent} lane (send "
+                f"returned None); no receipt for an undelivered word")
+        react("✅")
+        return {"acted": True, "id": str(mid), "to": [lane_agent]}
     ask = _rooms_reverse().get(str(channel_id))
     if ask:
         meta["ask_id"] = ask
