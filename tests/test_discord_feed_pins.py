@@ -178,3 +178,30 @@ def test_p4_feed_exposes_no_inbound_door():
         assert not hasattr(F, banned), (
             f"discord_feed exposes {banned!r} — the feed reads the BUS and writes "
             f"Discord, never the reverse; phase 2 ships behind R1-R3 or not at all")
+
+
+def test_p7_seat_questions_land_in_their_own_lane(wired, monkeypatch):
+    """Daniil, on his way to work: 'separate messaging channels for all of you so
+    that if anyone has a question specifically for me I can respond.' A directed
+    message TO the operator FROM seat X posts through X's channel webhook — his
+    lane with that seat — never the global feed."""
+    bus, client = wired
+    from core.comm import discord_rooms as R
+    monkeypatch.setattr(R, "persona", lambda frm: {"username": "🗿 Heimdall (deepseek)",
+                                                   "avatar_url": None})
+    monkeypatch.setattr(F, "seat_channel_url",
+                        lambda agent: ("https://hooks.invalid/heimdall-lane"
+                                       if agent == "deepseek" else ""))
+    calls = []
+    monkeypatch.setattr(R, "_default_post",
+                        lambda url, content, **kw: calls.append({"url": url, **kw}))
+    F.pump(bus)                                             # tail-init
+    client.streams["bifrost:inbox:daniil"].append(
+        ("300-0", {"frm": "deepseek", "to": "daniil", "kind": "question",
+                   "content": '"which of the two forks should I keep?"'}))
+    F.pump(bus)
+    lane = [c for c in calls if "heimdall-lane" in c["url"]]
+    assert lane, ("a seat's question for HIM rides HIS lane with that seat — "
+                  "the feed must tail the operator inboxes and route by frm")
+    assert not [c for c in calls if "webhooks/1/g" in c["url"]], (
+        "no global double-post: a question addressed to him is not ambient")

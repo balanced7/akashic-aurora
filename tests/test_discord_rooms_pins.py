@@ -180,3 +180,26 @@ def test_p7_secrets_are_redacted_in_rooms(env):
     assert "sk-abcdefghijklmnop" not in spy.calls[0]["content"], (
         "rooms publish to a third party exactly like the bridge — redact() is "
         "not optional equipment")
+
+
+# ---- P11: text-mode rooms (Akashic Labs has no Community flag) ----------------
+def test_p11_text_mode_creates_threads_through_the_bot(env, monkeypatch, tmp_path):
+    """The guild refused us a forum (2026-08-19 setup receipt: '[no community]'),
+    so in text mode the THREAD is minted by the bot's REST call and the webhook
+    only ever posts INTO it — thread_name on a text-channel webhook is a 400."""
+    import json as _json
+    m = _mod()
+    seats = tmp_path / "seats.json"
+    seats.write_text(_json.dumps({"mode": "text", "channels": {}}), encoding="utf-8")
+    monkeypatch.setenv("AKASHIC_DISCORD_SEATS_REGISTRY", str(seats))
+    minted = []
+    monkeypatch.setattr(m, "_default_create_thread",
+                        lambda name: (minted.append(name) or "777000111"))
+    spy = _Spy()
+    out = m.post_to_room(_msg(), post=spy)
+    assert out.ok, out
+    assert minted == ["ask-42 — T362 fence"], "text mode mints the thread via the bot"
+    c = spy.calls[0]
+    assert c["thread_id"] == "777000111" and c["thread_name"] is None, (
+        "the webhook posts INTO the minted thread; thread_name never leaves the "
+        "house in text mode (it is a 400 on non-forum channels)")
