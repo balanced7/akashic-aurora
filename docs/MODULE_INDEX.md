@@ -38,8 +38,8 @@
 - `cursor_admin.py` — cursor_admin -- T076a: SANCTIONED skip-to-now for an agent's consume cursors.
 - `daemon_state.py` — daemon_state -- the autopilot's shared surface (slice A1, T075 gamma-scope).
 - `discord_bridge.py` — Outbound Discord bridge -- the fleet becomes watchable from a phone.
-- `discord_ear.py` — The ear — Daniil's Discord messages become his voice on the bus. Nothing else does.
 - `discord_feed.py` — The automatic Discord feed — the subscription that makes the bridge real.
+- `discord_inbound.py` — Discord inbound — Daniil's Discord messages become his voice on the bus. Nothing else does.
 - `discord_rooms.py` — Outbound room router — each ask/breakout becomes a Discord thread.
 - `dispatcher.py` — Dispatcher (Bifrost Mesh W2): one resident process that turns doorbell notices into wakes.
 - `doctor.py` — Fleet doctor (L2 / RB-27b) -- the missing READER of the liveness signals: progress,
@@ -255,7 +255,7 @@
 - `bifrost_daemon.py` — bifrost.daemon -- the agent's continuous-presence body (T075 M1-alpha + M1-delta).
 - `bifrost_runner.py` — bifrost_runner -- make a stateless model (Gemini) a FIRST-CLASS Bifrost citizen.
 - `bifrost_runner_deepseek.py` — bifrost_runner_deepseek -- make DeepSeek (a stateless API model) a FIRST-CLASS Bifrost citizen.
-- `bifrost_runner_ear.py` — The ear's gateway shell — a thin discord.py loop around core/comm/discord_ear.py.
+- `bifrost_runner_discord.py` — Discord inbound gateway shell — a thin discord.py loop around core/comm/discord_inbound.py.
 - `bifrost_runner_gemini.py` — bifrost_runner_gemini -- make gemini (gemini-k3, Moonshot) a FIRST-CLASS Bifrost citizen.
 - `bifrost_runner_kimi.py` — bifrost_runner_kimi -- make Kimi (kimi-k3, Moonshot) a FIRST-CLASS Bifrost citizen.
 - `bifrost_runner_sol.py` — bifrost_runner_sol -- make Sol (gpt-5.6-sol, OpenAI Responses API) a FIRST-CLASS Bifrost citizen.

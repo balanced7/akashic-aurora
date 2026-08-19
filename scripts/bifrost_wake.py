@@ -62,7 +62,7 @@ def _operator_ids() -> frozenset:
     """Senders whose mail wakes a seat REGARDLESS of kind (the operator override).
     Default covers the UI composer's frm=user stamp and Daniel's name; read
     per-call so drills can dial it (AKASHIC_OPERATOR_IDS, comma-sep, empty=off)."""
-    raw = os.environ.get("AKASHIC_OPERATOR_IDS", "user,daniel")
+    raw = os.environ.get("AKASHIC_OPERATOR_IDS", "user,daniel,daniil")
     return frozenset(x.strip() for x in raw.split(",") if x.strip())
 
 

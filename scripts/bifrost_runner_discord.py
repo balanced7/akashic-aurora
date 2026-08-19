@@ -1,4 +1,4 @@
-"""The ear's gateway shell — a thin discord.py loop around core/comm/discord_ear.py.
+"""Discord inbound gateway shell — a thin discord.py loop around core/comm/discord_inbound.py.
 
 Runner family member (wait -> bridge -> reply), auto-enumerated as a wiring entry
 point by the bifrost_runner_* rule. Everything decidable lives in the core module
@@ -10,7 +10,7 @@ core logic ever sees them — the feed's own posts arrive on this socket too, an
 fleet that hears itself narrate is one bad conditional from a conversation with
 itself at 100k messages a second (the tin droplets at least make light).
 
-Run:  py scripts/bifrost_runner_ear.py            (refuses loudly if unconfigured)
+Run:  py scripts/bifrost_runner_discord.py            (refuses loudly if unconfigured)
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from pathlib import Path
 
-from core.comm.discord_ear import EarConfigError, build_config, handle_message
+from core.comm.discord_inbound import EarConfigError, build_config, handle_message
 
 _ROOT = Path(__file__).resolve().parents[1]
 TOKEN_FILE = _ROOT / ".secrets" / "discord_bot.token"
@@ -41,19 +41,19 @@ def _token() -> str:
 def main() -> int:
     token = _token()
     if not token:
-        print(f"[ear] REFUSED: no bot token ({TOKEN_FILE}). Developer portal -> Bot -> "
+        print(f"[discord-in] REFUSED: no bot token ({TOKEN_FILE}). Developer portal -> Bot -> "
               f"Reset Token -> save as that file's one line.", flush=True)
         return 2
     try:
         cfg = build_config()
     except EarConfigError as e:
-        print(f"[ear] REFUSED: {e}", flush=True)
+        print(f"[discord-in] REFUSED: {e}", flush=True)
         return 2
 
     import discord
     from core.comm.bus import Bus
 
-    bus = Bus("daniil")          # the ear speaks AS the operator, or not at all (R3)
+    bus = Bus("daniil")          # inbound speaks AS the operator, or not at all (R3)
 
     intents = discord.Intents.none()
     intents.guilds = True
@@ -63,7 +63,7 @@ def main() -> int:
 
     @client.event
     async def on_ready():
-        print(f"[ear] listening as {client.user} -- R1 allowlist is one id; "
+        print(f"[discord-in] listening as {client.user} -- R1 allowlist is one id; "
               f"everyone else is weather", flush=True)
         try:
             await client.change_presence(
@@ -90,7 +90,7 @@ def main() -> int:
         except Exception as e:                                          # noqa: BLE001
             # a dead bus send must be VISIBLE at both ends: loud here, ⚠️ there.
             # A ✅ on a dead send would be the T149 lie with an emoji on it.
-            print(f"[ear] send FAILED ({type(e).__name__}: {e})", flush=True)
+            print(f"[discord-in] send FAILED ({type(e).__name__}: {e})", flush=True)
             try:
                 await message.add_reaction("⚠️")
             except Exception:                                           # noqa: BLE001
@@ -100,11 +100,11 @@ def main() -> int:
             try:
                 await message.add_reaction(emoji)
             except Exception:                                           # noqa: BLE001
-                print("[ear] heard (bus accepted) but the receipt reaction failed "
+                print("[discord-in] heard (bus accepted) but the receipt reaction failed "
                       "-- delivery stands, the checkmark does not", flush=True)
         if out.get("acted"):
             room = f" -> ask {out['ask_id']}" if out.get("ask_id") else " -> global"
-            print(f"[ear] heard the operator{room} (bus id {out['id']})", flush=True)
+            print(f"[discord-in] heard the operator{room} (bus id {out['id']})", flush=True)
 
     client.run(token, log_handler=None)
     return 0
