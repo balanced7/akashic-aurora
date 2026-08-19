@@ -154,6 +154,25 @@ def test_p5_global_feed_posts_as_the_seat_itself(wired, monkeypatch):
         "the narrator head leaves the body once the username carries the speaker")
 
 
+def test_p6_his_own_words_never_bounce_back(wired, monkeypatch):
+    """The echo-guard: a message that CAME FROM Discord (the ear stamps
+    meta.source=discord) must not be pumped back TO Discord — else every phone
+    message returns to its sender wearing the fleet's face, at pump cadence."""
+    bus, client = wired
+    F.pump(bus, post=lambda m, **k: None, room_post=lambda m, **k: None)   # init
+    client.streams["bifrost:broadcast"].append(
+        ("102-0", {"frm": "daniil", "kind": "chat",
+                   "content": '"hello from my phone"',
+                   "meta": '{"source": "discord", "operator": true}'}))
+    echoes = []
+    F.pump(bus, post=lambda m, **k: echoes.append(m),
+           room_post=lambda m, **k: echoes.append(m))
+    assert not echoes, (
+        "meta.source=discord must short-circuit BEFORE the operator-always-"
+        "forwards rule — the override that makes his words loud is exactly the "
+        "rule that would make them echo")
+
+
 def test_p4_feed_exposes_no_inbound_door():
     for banned in ("receive", "poll", "listen", "on_message", "read_channel"):
         assert not hasattr(F, banned), (
