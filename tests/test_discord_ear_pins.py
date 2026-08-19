@@ -129,11 +129,31 @@ def test_p5_missing_operator_id_refuses_to_build(tmp_path, monkeypatch):
 
 # ---- P6 / R3: the ear owns no verbs ------------------------------------------
 def test_p6_the_ear_exposes_no_authority():
-    m = _mod()
+    """AST, not prose: the module's DOCUMENTATION may say 'no grant, no shell'
+    (it should); the pin cares what the CODE imports and calls."""
+    import ast
     import inspect
-    src = inspect.getsource(m)
-    for banned in ("subprocess", "task_ledger", "conductor", "os.system",
-                   "grant", "cmd_"):
-        assert banned not in src, (
-            f"R3 violated: the ear's source references {banned!r} — reach, never "
-            f"authority; its only house-write is the bus")
+    m = _mod()
+    tree = ast.parse(inspect.getsource(m))
+    imported = set()
+    called = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imported.update(a.name for a in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            imported.add(node.module or "")
+            imported.update(f"{node.module}.{a.name}" for a in node.names)
+        elif isinstance(node, ast.Call):
+            f = node.func
+            if isinstance(f, ast.Name):
+                called.add(f.id)
+            elif isinstance(f, ast.Attribute):
+                called.add(f.attr)
+    for banned in ("subprocess", "core.coord.task_ledger", "core.coord.conductor"):
+        assert not any(i == banned or i.startswith(banned + ".") for i in imported), (
+            f"R3 violated: the ear IMPORTS {banned} — reach, never authority; "
+            f"its only house-write is the bus")
+    for banned in ("system", "popen", "spawn", "grant", "transition"):
+        assert banned not in called, (
+            f"R3 violated: the ear CALLS {banned}() — a Discord message may do "
+            f"exactly what a bifrost-send could, and nothing more")
