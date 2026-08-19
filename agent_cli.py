@@ -7917,6 +7917,17 @@ def build_parser():
                      help="skip the incremental eye ingest before rendering")
     ree.set_defaults(fn=cmd_reentry)
 
+    sec = sub.add_parser("secret", help="the vault door: capture a credential via a popup "
+                                        "window -- paste lands in .secrets/<target>, never "
+                                        "in any transcript. Bare `secret` lists targets. "
+                                        "Receipts count bytes they never show.")
+    sec.add_argument("target", nargs="?", default=None,
+                     help="allowlisted name (see bare `secret` for the list)")
+    sec.add_argument("--stdin", action="store_true",
+                     help="headless path: read the value from stdin instead of a window "
+                          "(pipe it: Get-Clipboard | py agent_cli.py secret X --stdin)")
+    sec.set_defaults(fn=cmd_secret)
+
     fd = sub.add_parser("flightdeck", help="W25 (deepseek): cockpit one-pager — fleet at "
                                             "a glance. Composes doctor + pulse + lane-health "
                                             "+ locks + commits. --agent drills one seat")
@@ -8324,6 +8335,81 @@ def cmd_reentry(args):
     from core.reentry import build_reentry, render_reentry
     built = build_reentry(show_open_loops=args.show_open_loops, since=args.since)
     print(render_reentry(built))
+    return 0
+
+
+def cmd_secret(args):
+    """The vault door (Daniil, 1:40am 2026-08-19: 'some kind of pop up window for
+    credential capture that I can paste into and you can invoke with a verb'). The
+    window is the whole point: the paste travels clipboard -> window -> file and never
+    touches a transcript, which is how this house's two standing credential wounds
+    happened. Every printed line here is transcript-safe by construction."""
+    from core.comm.secret_intake import IntakeError, TARGETS, inventory, save_secret
+
+    if not args.target:
+        inv = inventory()
+        print("# the vault (sizes only -- contents are never printed)")
+        for name, rec in inv.items():
+            state = f"present, {rec['bytes']}B" if rec["present"] else "absent"
+            print(f"  {name:<28} {state:<16} {rec['desc']}")
+        print("# capture one:  py agent_cli.py secret <name>")
+        return 0
+
+    if args.target not in TARGETS:
+        print(f"[vault] unknown target {args.target!r} -- bare `secret` lists the "
+              f"allowlist; the vault takes names, never paths", file=sys.stderr)
+        return 2
+
+    if args.stdin:
+        value = sys.stdin.read()
+    else:
+        try:
+            import tkinter as tk
+            from tkinter import messagebox
+        except Exception as e:                                          # noqa: BLE001
+            print(f"[vault] no window available ({type(e).__name__}) -- use --stdin: "
+                  f"Get-Clipboard | py agent_cli.py secret {args.target} --stdin",
+                  file=sys.stderr)
+            return 2
+        captured = {"value": None}
+        root = tk.Tk()
+        root.title(f"Akashic vault -- {args.target}")
+        root.attributes("-topmost", True)
+        root.resizable(False, False)
+        tk.Label(root, text=TARGETS[args.target], padx=12, pady=6).pack()
+        entry = tk.Entry(root, show="•", width=64)
+        entry.pack(padx=12, pady=4)
+        entry.focus_set()
+        shown = tk.BooleanVar(value=False)
+        tk.Checkbutton(root, text="show while typing", variable=shown,
+                       command=lambda: entry.config(
+                           show="" if shown.get() else "•")).pack()
+
+        def _save(_event=None):
+            captured["value"] = entry.get()
+            root.destroy()
+
+        def _cancel():
+            root.destroy()
+
+        row = tk.Frame(root); row.pack(pady=8)
+        tk.Button(row, text="Save to vault", command=_save, width=14).pack(side="left", padx=6)
+        tk.Button(row, text="Cancel", command=_cancel, width=10).pack(side="left", padx=6)
+        entry.bind("<Return>", _save)
+        root.protocol("WM_DELETE_WINDOW", _cancel)
+        root.mainloop()
+        value = captured["value"]
+        if value is None:
+            print("[vault] cancelled -- nothing written")
+            return 1
+
+    try:
+        receipt = save_secret(args.target, value)
+    except IntakeError as e:
+        print(f"[vault] refused: {e}", file=sys.stderr)
+        return 2
+    print(f"[vault] saved {receipt['bytes']} byte(s) to .secrets/{receipt['target']} "
+          f"-- the value exists in exactly one place")
     return 0
 
 
