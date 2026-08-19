@@ -1,9 +1,9 @@
-"""The ear — Daniil's Discord messages become his voice on the bus. Nothing else does.
+"""Discord inbound — Daniil's Discord messages become his voice on the bus. Nothing else does.
 
 Born 2026-08-19, the night he typed into #aurora and asked what happened to his message
-(answer: nothing — the house had a voice there and no ear). This module is the R1-R3
+(answer: nothing — the house had a voice there and no inbound path). This module is the R1-R3
 security model of discord-bridge-design-2026-08-07 made executable, pins in
-tests/test_discord_ear_pins.py:
+tests/test_discord_inbound_pins.py:
 
   R1  the operator allowlist is ONE numeric Discord id. Display names are costume —
       an author named "Daniil" with the wrong id is weather.
@@ -16,7 +16,7 @@ tests/test_discord_ear_pins.py:
       message content.
 
 This module is PURE and hermetic: no discord.py, no network, no token. The gateway
-shell (scripts/bifrost_runner_ear.py) owns the credential and the socket; everything
+shell (scripts/bifrost_runner_discord.py) owns the credential and the socket; everything
 decidable is decided here where pins can reach it.
 """
 
@@ -34,7 +34,7 @@ OPERATOR_ID_FILE = _ROOT / ".secrets" / "discord_operator_id"
 
 
 class EarConfigError(RuntimeError):
-    """Refusal at the gate: the ear must never start on a guessed allowlist."""
+    """Refusal at the gate: inbound must never start on a guessed allowlist."""
 
 
 def build_config() -> Dict[str, str]:
@@ -99,5 +99,13 @@ def handle_message(cfg: Dict[str, str], *, author_id: str, author_name: str,
         meta["ask_id"] = ask
 
     mid = bus.broadcast("chat", text, meta=meta)
+    if mid is None:
+        # Heimdall's load-bearing find (review 2026-08-19): bus.broadcast returns
+        # None WITHOUT RAISING when Redis is down (bus.py:451) or both writes fail
+        # (bus.py:566). Reacting ✅ on that None is the exact T149 lie the module
+        # docstring promises to prevent — raise so the runner's ⚠️ path fires.
+        raise RuntimeError(
+            "the bus accepted nothing (broadcast returned None — Redis down or "
+            "both writes failed); no receipt may be given for an undelivered word")
     react("✅")
     return {"acted": True, "id": str(mid), "ask_id": ask}

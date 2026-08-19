@@ -1,7 +1,7 @@
-"""The ear's acceptance pins — R1, R2, R3 made executable (RED committed alone, M3).
+"""Discord inbound acceptance pins — R1, R2, R3 made executable (RED committed alone, M3).
 
 Daniil sent a Discord message tonight and asked what happened to it; the answer was
-"nothing — the house has a voice there and no ear." This is the ear, and these pins ARE
+"nothing — the house has a voice there and no ear." This is that path, and these pins ARE
 the 08-07 security model (discord-bridge-design R1-R3, carried whole into the v2 rooms
 design):
 
@@ -20,10 +20,10 @@ Plus the wiring laws learned this week:
   REFUSE LOUD missing token or id is a refusal at startup, never a guess (T176 at the
               gate: an absent allowlist must not resolve to "allow" OR to a quiet died).
 
-Hermetic: core/comm/discord_ear.py holds the pure logic; the gateway runner
-(scripts/bifrost_runner_ear.py) is a thin discord.py shell no pin imports.
+Hermetic: core/comm/discord_inbound.py holds the pure logic; the gateway runner
+(scripts/bifrost_runner_discord.py) is a thin discord.py shell no pin imports.
 
-Run:  py -m pytest tests/test_discord_ear_pins.py -v
+Run:  py -m pytest tests/test_discord_inbound_pins.py -v
 """
 
 from __future__ import annotations
@@ -39,10 +39,10 @@ sys.path.insert(0, ROOT)
 
 def _mod():
     try:
-        from core.comm import discord_ear
+        from core.comm import discord_inbound
     except ImportError:
-        pytest.fail("core.comm.discord_ear missing — the ear is not built (RED)")
-    return discord_ear
+        pytest.fail("core.comm.discord_inbound missing — the ear is not built (RED)")
+    return discord_inbound
 
 
 class _Bus:
@@ -145,7 +145,7 @@ def test_p5_missing_operator_id_refuses_to_build(tmp_path, monkeypatch):
     with pytest.raises(Exception) as exc:
         _mod().build_config()
     assert "operator" in str(exc.value).lower(), (
-        "no allowlist -> no ear. Guessing an allowlist is the one unforgivable "
+        "no allowlist -> no inbound. Guessing an allowlist is the one unforgivable "
         "default; the refusal must name what is missing")
 
 
@@ -173,9 +173,9 @@ def test_p6_the_ear_exposes_no_authority():
                 called.add(f.attr)
     for banned in ("subprocess", "core.coord.task_ledger", "core.coord.conductor"):
         assert not any(i == banned or i.startswith(banned + ".") for i in imported), (
-            f"R3 violated: the ear IMPORTS {banned} — reach, never authority; "
+            f"R3 violated: this module IMPORTS {banned} — reach, never authority; "
             f"its only house-write is the bus")
     for banned in ("system", "popen", "spawn", "grant", "transition"):
         assert banned not in called, (
-            f"R3 violated: the ear CALLS {banned}() — a Discord message may do "
+            f"R3 violated: this module CALLS {banned}() — a Discord message may do "
             f"exactly what a bifrost-send could, and nothing more")
