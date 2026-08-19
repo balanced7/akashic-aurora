@@ -116,6 +116,28 @@ def test_p4_heard_message_gets_the_checkmark(cfg):
     assert reacts == ["✅"], "delivery truth: the ✅ appears only after the bus accepted"
 
 
+# ---- P7: a dead bus gets no checkmark (Heimdall's load-bearing find) ---------
+def test_p7_a_none_from_the_bus_is_a_failure_not_a_receipt(cfg):
+    """bus.broadcast returns None WITHOUT RAISING when Redis is down (bus.py:451)
+    or both writes fail (bus.py:566). Reviewed 2026-08-19 by Heimdall: the ear
+    react('✅')ed on that None — the exact T149 lie the docstring promises to
+    prevent, implemented anyway because the pin's fake bus always returned an id.
+    A fake that cannot fail tests nothing about failure."""
+
+    class _DeadBus:
+        def broadcast(self, kind, text, meta=None):
+            return None                     # Redis down: silence, not an exception
+
+    reacts = []
+    with pytest.raises(Exception) as exc:
+        _mod().handle_message(
+            cfg, author_id="111222333444555666", author_name="d",
+            channel_id="c1", content="hello?", bus=_DeadBus(),
+            react=lambda e: reacts.append(e))
+    assert not reacts, "NO reaction on a dead send — a ✅ here is a lie with an emoji"
+    assert "none" in str(exc.value).lower() or "accepted nothing" in str(exc.value).lower()
+
+
 # ---- P5: an absent allowlist refuses loudly ----------------------------------
 def test_p5_missing_operator_id_refuses_to_build(tmp_path, monkeypatch):
     monkeypatch.setenv("AKASHIC_DISCORD_OPERATOR_ID_FILE",
