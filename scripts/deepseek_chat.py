@@ -301,6 +301,7 @@ class Agent:
         stream = self.client.chat.completions.create(**self._kwargs())
         content, slots = [], {}
         reasoning_buf = []
+        reasoning_live = []                  # small rolling buffer: flush LIVE to the bus, bounded
         in_reasoning = header = streaming = False
         try:
             for chunk in stream:
@@ -318,16 +319,25 @@ class Agent:
                 if r:
                     # CAPTURE IS NOT DISPLAY. The provider streams reasoning_content whether
                     # or not we asked for it (measured 2026-08-02: thinking is server-side
-                    # default), so buffering is free and the trace at the end of this method
-                    # is the ONLY way the operator ever sees an agent think. Until now this
-                    # whole branch was gated on self.think, which meant a runner launched
-                    # without --think discarded reasoning it had already been given: the bus
-                    # carried 219 deepseek tool traces and ZERO thinking traces.
+                    # default), so buffering is free -- but LIVE STREAMING is what the operator
+                    # remembers and keeps asking for back ("I could see the thoughts live in
+                    # realtime"). Live-emit each reasoning fragment onto the trace so it reaches
+                    # the bus AS IT ARRIVES, not once at the end (that end-of-method dump is what
+                    # made the UI go silent mid-turn: a 60s think showed NOTHING until it finished).
                     reasoning_buf.append(r)
                     if self.think:                    # PRINTING stays opt-in (terminal noise)
                         if not in_reasoning:
                             print(f"{C.grey}💭 ", end="", flush=True); in_reasoning = True
                         print(f"{C.grey}{r}", end="", flush=True)
+                    else:                              # non-REPL (runner): LIVE-stream, bounded flush
+                        # DeepSeek streams reasoning in ~1-20 char shards. A per-shard bus
+                        # broadcast would be a message storm (100+ traces + a liveness pulse each),
+                        # so roll into a small buffer and flush as it crosses a threshold -- the
+                        # chunks still land AS the model thinks (live), not once at the end.
+                        reasoning_live.append(r)
+                        if sum(len(x) for x in reasoning_live) >= 280:
+                            self._trace("thinking", "".join(reasoning_live))
+                            reasoning_live = []
                 if d.content:
                     if in_reasoning:
                         print(C.reset); in_reasoning = False
@@ -346,8 +356,8 @@ class Agent:
         finally:
             if in_reasoning or header:
                 print(C.reset)
-        if reasoning_buf:                                  # surface a compact 'thinking' trace to the console
-            self._trace("thinking", "".join(reasoning_buf)[:500])
+            if reasoning_live:                         # flush the tail: the last partial live chunk
+                self._trace("thinking", "".join(reasoning_live))
         return "".join(content), [slots[i] for i in sorted(slots)]
 
     def send(self, user_text):
