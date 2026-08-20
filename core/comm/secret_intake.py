@@ -60,7 +60,14 @@ def save_secret(target: str, value: str) -> Dict[str, Any]:
         raise IntakeError(
             f"unknown target {target!r} — the vault takes an allowlisted NAME, never a "
             f"path. Known: {', '.join(sorted(TARGETS))}")
-    cleaned = str(value or "").strip()
+    raw = str(value or "")
+    if "﻿" in raw:
+        raise IntakeError(
+            f"{target!r} arrived carrying a byte-order mark — a shell pipe added it "
+            f"(PowerShell 5.1 does this), and str.strip() does not count U+FEFF as "
+            f"whitespace, so it would sail into the file and inflate the receipt. "
+            f"Refusing; pipe through a UTF-8 writer, or paste into the window")
+    cleaned = raw.strip()
     if not cleaned:
         raise IntakeError(
             f"empty paste for {target!r} — refusing; a blank credential file "
@@ -69,6 +76,21 @@ def save_secret(target: str, value: str) -> Dict[str, Any]:
         raise IntakeError(
             f"{target!r} expects a single line and the paste holds several — "
             f"probably a copy that grabbed extra; try again")
+    inner = next((i for i, c in enumerate(cleaned) if c.isspace()), None)
+    if inner is not None:
+        # 2026-08-19: his token reached the vault as 79 chars + a SPACE + 29 chars, twice,
+        # identically -- the copy source displayed it wrapped and the wrap arrived already
+        # FLATTENED to a space, so the single-line guard above never saw a newline to catch.
+        # Nothing in TARGETS -- key, token, snowflake id, webhook URL -- legitimately holds
+        # internal whitespace. The value never appears in the message; this module's promise
+        # is that credentials travel window -> file, and an error string is the likeliest
+        # place for that promise to leak.
+        raise IntakeError(
+            f"{target!r} holds whitespace INSIDE the value (first at position {inner} of "
+            f"{len(cleaned)} chars) — nothing in this vault legitimately contains a space, "
+            f"so the copy wrapped somewhere. Re-copy without the line break, or join it "
+            f"before it reaches the door. Refusing, because a credential that looks saved "
+            f"and cannot authenticate is precisely the day this door exists to prevent")
     d = secrets_dir()
     d.mkdir(parents=True, exist_ok=True)
     path = d / target
