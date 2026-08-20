@@ -27,6 +27,19 @@ NL = chr(10)          # newline, spelled out: an escape in this file got eaten o
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# THE RECEIPT MUST NOT KILL THE LISTENER (2026-08-19, measured): this runner prints 🌱/⚠️
+# and relays his words, but a Windows console hands Python cp1252 stdout -- so the FIRST
+# !spawn raised UnicodeEncodeError inside the handler, which the on_message except-path
+# reported to him as "send FAILED" on a spawn that had actually started. A door whose
+# CONFESSION is unprintable confesses nothing. Force UTF-8 on our own streams rather than
+# trusting the launch environment (a launcher flag is one forgotten env away from this
+# recurring); errors="replace" so an exotic glyph degrades to a mark instead of a crash.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:                                                   # noqa: BLE001
+        pass                    # older/odd streams: keep going, the bus is the record
+
 from pathlib import Path
 from typing import Optional
 
