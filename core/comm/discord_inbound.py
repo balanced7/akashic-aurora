@@ -59,6 +59,45 @@ def build_config() -> Dict[str, str]:
     return {"operator_id": raw}
 
 
+# Lines that mean the seat never drew breath. The CLI prints its auth failure to
+# STDOUT and exits 1 -- so neither stream alone nor the code alone is the witness;
+# we read both and let either convict (T365, from the day his !spawn sprouted a
+# corpse). Markers are lowercase substrings, matched against a stripped line.
+SPAWN_FATAL_MARKERS = (
+    "failed to authenticate",
+    "oauth session expired",
+    "invalid api key",
+    "credit balance is too low",
+    "please run /login",
+    "is not recognized as",          # Windows: the exe went missing under us
+    "command not found",
+)
+
+
+def spawn_stillborn_reason(exit_code: Optional[int], log_text: str,
+                           max_len: int = 300) -> Optional[str]:
+    """Did the spawned seat LIVE? None means yes; a string is the reason it did not.
+
+    `exit_code` is None while the child is still breathing after its grace window --
+    the honest 🌱 case, and the only case that earns a sprout. A corpse gets its
+    cause of death named in ONE line, because the reader is Daniil on a phone and a
+    receipt that says only "spawn failed" is the same silence with punctuation.
+
+    The false-alarm floor is deliberate: a clean fast exit with an ordinary log is a
+    finished run, not a death. A gate with a false-positive rate is a gate nobody
+    reads (sample_a_new_gate_for_its_false_positive_rate_before_trusting_it)."""
+    if exit_code is None:
+        return None                    # still running: the sprout is true, so far
+    lines = [ln.strip() for ln in str(log_text or "").splitlines() if ln.strip()]
+    fatal = next((ln for ln in lines
+                  if any(m in ln.lower() for m in SPAWN_FATAL_MARKERS)), None)
+    if exit_code == 0 and fatal is None:
+        return None                    # it ran, it finished, it said nothing alarming
+    detail = fatal or (lines[-1] if lines else "(no output)")
+    reason = " ".join(f"exit {exit_code}: {detail}".split())
+    return reason[:max_len]
+
+
 def _rooms_reverse() -> Dict[str, str]:
     """thread_id -> ask_id, from the rooms registry. The registry maps the route;
     message content never does (R3)."""
