@@ -146,8 +146,16 @@ def evaluate(current_nodes: List[str], *, now: Optional[float] = None,
                      f"run and were NOT collected -- absence is not a pass, exemption kept:")
         lines.extend(f"    unchecked  {n}" for n in unchecked[:8])
     if rec is None:
-        lines.append("NO BASELINE -- failing closed; every failure blocks. "
-                     "Record one: py agent_cli.py suite-baseline --record")
+        # The advice must be RUNNABLE. This line used to read `suite-baseline --record`,
+        # which fails twice over: there is no --record flag (recording is the DEFAULT action,
+        # and --check is what opts out of it), and it omits the required agent_id positional.
+        # A reader who pasted it got an argparse error from the tool that had just told them
+        # what to do. Last survivor of the flag census; the other seven were instrument-side.
+        lines.append("NO BASELINE -- failing closed; every failure blocks. Record one: "
+                     # `;` not `&&`: a suite WITH failures exits nonzero, so && would skip
+                     # the record exactly when a baseline is most needed.
+                     "py -m pytest -q > suite.txt; "
+                     "py agent_cli.py suite-baseline <you> --from-file suite.txt")
     elif age is not None and age > float(stale_after_s):
         lines.append(f"baseline is STALE ({int(age / 3600)}h old, seat={rec.get('seat', '?')}) "
                      f"-- an inherited list nobody refreshes is how a red becomes furniture")
