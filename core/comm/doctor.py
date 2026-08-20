@@ -1151,8 +1151,13 @@ def _token_cost_line(agent: str, journal_dir: str = "") -> Optional[Dict[str, An
         if unpriced:
             names = ", ".join(str(m) for m in missing) if missing else "unknown model"
             line += f" · {_fmt_toks(unpriced)} UNPRICED ({names} — no rate in PRICES)"
+        # Remediation points at the JSON form (machine-readable pricing), NOT
+        # `doctor --token <agent>` -- that flag has never existed. A remedy that
+        # argparse rejects is worse than none: it looks actionable and burns trust
+        # in the finding that raised it (T222's class; check_advertised_verbs guards
+        # the verb, not the flags, so this dead --token slipped the checker).
         return _f(agent, "token_cost", "dashboard", line,
-                  f"py agent_cli.py doctor --token {agent}")
+                  "py agent_cli.py doctor --json")
     except Exception:
         return None
 
