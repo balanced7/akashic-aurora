@@ -16,16 +16,25 @@ Run:  py scripts/bifrost_runner_discord.py            (refuses loudly if unconfi
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import subprocess
 import sys
 import threading
+import time
+
+NL = chr(10)          # newline, spelled out: an escape in this file got eaten once
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from pathlib import Path
+from typing import Optional
 
-from core.comm.discord_inbound import EarConfigError, build_config, handle_message, spawn_stillborn_reason
+from core.comm.discord_inbound import (EarConfigError, build_config,
+                                      credential_horizon_days,
+                                      credential_warning, handle_message,
+                                      spawn_credential_refusal,
+                                      spawn_stillborn_reason)
 
 _ROOT = Path(__file__).resolve().parents[1]
 # How long a fresh seat must keep breathing before its sprout is proven honest.
@@ -36,7 +45,48 @@ _ROOT = Path(__file__).resolve().parents[1]
 # on a thread and speaks in a follow-up; only an INSTANT death rides the reply.
 _SPAWN_PROOF_SECONDS = float(os.getenv("AKASHIC_SPAWN_PROOF_SECONDS") or 25.0)
 _SPAWN_INSTANT_SECONDS = float(os.getenv("AKASHIC_SPAWN_INSTANT_SECONDS") or 2.0)
-TOKEN_FILE = _ROOT / ".secrets" / "discord_bot.token"
+#: Vault names, not paths. Resolved through secret_intake.secrets_dir() so
+#: AKASHIC_SECRETS_DIR redirects them -- a module-path constant is UNISOLATABLE, and a pin
+#: one ambient file away from a real credential eventually does something real to a third
+#: party (2026-08-19: a rooms pin minted a live thread in his server, using exactly this
+#: shape). The lesson said the class was closed at the organ; this file was still an
+#: instance, so it is closed here too.
+BOT_TOKEN_NAME = "discord_bot.token"
+SPAWN_TOKEN_NAME = "claude_oauth.token"
+
+
+def _vault(name: str) -> str:
+    """One credential, by allowlisted NAME, through the one vault function."""
+    from core.comm.secret_intake import secrets_dir
+    try:
+        return (secrets_dir() / name).read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
+def _cli_logged_in(exe: str) -> Optional[bool]:
+    """`claude auth status` as a tri-state: True, False, or None for 'could not tell'.
+
+    Budget MEASURED at 0.29-0.31s over five runs -- 10s is generous, and instant beside the
+    16s death it exists to prevent. Every failure mode collapses to None on purpose: an
+    unanswerable probe must not masquerade as a 'no'."""
+    try:
+        r = subprocess.run([exe, "auth", "status"], capture_output=True, text=True,
+                           timeout=10)
+        return bool(json.loads(r.stdout).get("loggedIn"))
+    except Exception:                                                   # noqa: BLE001
+        return None
+
+
+def _credential_horizon() -> Optional[float]:
+    """Days left on the refresh token behind !spawn. Env-overridable so a pin can pin it."""
+    path = Path(os.getenv("AKASHIC_CLAUDE_CREDENTIALS")
+                or (Path.home() / ".claude" / ".credentials.json"))
+    try:
+        creds = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return credential_horizon_days(creds, int(time.time() * 1000))
 
 
 # pid -> (Popen, log path), handed from the spawner to the watcher. Bounded by how
@@ -58,16 +108,15 @@ def _token() -> str:
     v = os.getenv("AKASHIC_DISCORD_BOT_TOKEN")
     if v and v.strip():
         return v.strip()
-    try:
-        return TOKEN_FILE.read_text(encoding="utf-8").strip()
-    except OSError:
-        return ""
+    return _vault(BOT_TOKEN_NAME)
 
 
 def main() -> int:
     token = _token()
     if not token:
-        print(f"[discord-in] REFUSED: no bot token ({TOKEN_FILE}). Developer portal -> Bot -> "
+        from core.comm.secret_intake import secrets_dir
+        print(f"[discord-in] REFUSED: no bot token ({secrets_dir() / BOT_TOKEN_NAME}). "
+              f"Developer portal -> Bot -> "
               f"Reset Token -> save as that file's one line.", flush=True)
         return 2
     try:
@@ -95,6 +144,12 @@ def main() -> int:
         exe = shutil.which("claude")
         if not exe:
             raise RuntimeError("claude CLI not on PATH -- cannot spawn a fresh seat")
+        # Preflight: a failure knowable at t=0 should not cost 16 seconds of his evening.
+        vault_token = _vault(SPAWN_TOKEN_NAME)
+        refusal = spawn_credential_refusal(vault_token, _cli_logged_in(exe))
+        if refusal:
+            print(f"[discord-in] SPAWN REFUSED (preflight): {refusal}", flush=True)
+            raise RuntimeError(refusal)
         logs = _ROOT / "state" / "spawn-logs"
         logs.mkdir(parents=True, exist_ok=True)
         log = logs / f"spawn-{int(_t.time())}.log"
@@ -102,8 +157,14 @@ def main() -> int:
                   f"py agent_cli.py boot claude --task \"{task[:200]}\" -- then do the "
                   f"task, land every result durably (commits by name, notes, handoff), "
                   f"and end with a wrap. Task, in his words: {task}")
+        # A vaulted long-lived token, when present, is what the child authenticates with --
+        # that is the whole cure: the seat we build stops inheriting the expiry date of the
+        # session that built it. Absent one, the child falls back to the CLI's own login.
+        env = os.environ.copy()
+        if vault_token:
+            env["CLAUDE_CODE_OAUTH_TOKEN"] = vault_token
         with open(log, "w", encoding="utf-8") as fh:
-            p = subprocess.Popen([exe, "-p", prompt],
+            p = subprocess.Popen([exe, "-p", prompt], env=env,
                                  cwd=str(_ROOT), stdout=fh, stderr=fh,
                                  creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
                                  | getattr(subprocess, "CREATE_NO_WINDOW", 0))
@@ -161,9 +222,13 @@ def main() -> int:
                       f"{_SPAWN_PROOF_SECONDS:.0f}s -- the sprout holds", flush=True)
                 return
             print(f"[discord-in] SPAWN STILLBORN ({log.name}): {reason}", flush=True)
+            horizon = credential_warning(_credential_horizon())
             try:
                 asyncio.run_coroutine_threadsafe(
-                    _confess(f"⚠️ that spawn never lived — {reason} (log: {log.name})"),
+                    _confess(NL.join(filter(None, [
+                        f"⚠️ that spawn never lived — {reason} (log: {log.name})",
+                        horizon,          # the next expiry, while he is already looking
+                    ]))),
                     loop)
             except Exception as e:                                      # noqa: BLE001
                 print(f"[discord-in] could not reach the loop to confess: {e}", flush=True)
@@ -180,6 +245,9 @@ def main() -> int:
     async def on_ready():
         print(f"[discord-in] listening as {client.user} -- R1 allowlist is one id; "
               f"everyone else is weather", flush=True)
+        warn = credential_warning(_credential_horizon())
+        if warn:                        # the recovery path's own expiry, said BEFORE it bites
+            print(f"[discord-in] CREDENTIAL: {warn}", flush=True)
         try:
             await client.change_presence(
                 activity=discord.Activity(type=discord.ActivityType.watching,
