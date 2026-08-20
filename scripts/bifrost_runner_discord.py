@@ -117,6 +117,93 @@ def _spawn_said(log) -> str:
         return ""
 
 
+#: The gateway's own liveness identity. NOT "daniil" -- it SPEAKS as the operator on the bus (R3)
+#: but claiming his liveness id would report the operator alive whenever a socket is up.
+GATEWAY_AGENT_ID = "discord"
+
+#: Resting phase must be one of liveness.IDLE_PHASES, or a gateway quietly waiting for a message
+#: pages as a wedge after BIFROST_WEDGE_SECONDS. An observability feature that manufactures false
+#: alarms gets switched off, and then we are blind again for a worse reason.
+RESTING_PHASE = "online"
+
+
+def _heartbeat_seconds() -> float:
+    """Derived from WORKLIVE_TTL, never chosen. The TTL's own comment sizes it for a ~5s refresh
+    'so a live record never flaps'; a second number here could only disagree with the first."""
+    try:
+        from core.comm.liveness import WORKLIVE_TTL
+        return max(1.0, float(WORKLIVE_TTL) / 9.0)
+    except Exception:                                                   # noqa: BLE001
+        return 5.0
+
+
+HEARTBEAT_S = _heartbeat_seconds()
+
+
+def gateway_log_path():
+    """Where the gateway's own words go, so they outlive whatever launched it. 2026-08-19: a
+    harness wrapper exited 127 while the detached service kept serving, and its stdout went
+    with the wrapper -- the bridge was up and unreadable."""
+    return Path(os.getenv("AKASHIC_DISCORD_GATEWAY_LOG")
+                or (_ROOT / "state" / "logs" / "discord-gateway.log"))
+
+
+def beat(wl, phase: str = "", detail: str = "") -> None:
+    """Stamp the gateway's liveness record. FAIL-OPEN by contract, inherited from liveness._flush
+    ('observability must never wedge the path it observes'): a dead bus costs the signal, never
+    the bridge."""
+    try:
+        if phase:
+            wl.set(phase, detail)
+        else:
+            wl.refresh()
+    except Exception:                                                   # noqa: BLE001
+        pass
+
+
+class Tee:
+    """Write to the live stream AND a durable file. utf-8 explicitly, because this module prints
+    a sprout and a warning glyph and a cp1252 handle would crash the gateway on its own receipt --
+    which is how an observability feature causes an outage."""
+
+    def __init__(self, stream, path):
+        self._stream = stream
+        self._fh = None
+        try:
+            dest = Path(path)
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            self._fh = open(dest, "a", encoding="utf-8", errors="replace")
+        except Exception:                                               # noqa: BLE001
+            self._fh = None          # lose the record, keep the bridge
+
+    def write(self, text):
+        try:
+            self._stream.write(text)
+        except Exception:                                               # noqa: BLE001
+            pass
+        if self._fh is not None:
+            try:
+                self._fh.write(text)
+                self._fh.flush()
+            except Exception:                                           # noqa: BLE001
+                pass
+        return len(text or "")
+
+    def flush(self):
+        for target in (self._stream, self._fh):
+            try:
+                if target is not None:
+                    target.flush()
+            except Exception:                                           # noqa: BLE001
+                pass
+
+    def isatty(self):
+        try:
+            return bool(self._stream.isatty())
+        except Exception:                                               # noqa: BLE001
+            return False
+
+
 def _token() -> str:
     v = os.getenv("AKASHIC_DISCORD_BOT_TOKEN")
     if v and v.strip():
@@ -125,6 +212,14 @@ def _token() -> str:
 
 
 def main() -> int:
+    # Durable log before anything can refuse: a REFUSED line nobody can read is the same blind
+    # spot as a crash nobody can read.
+    sys.stdout = Tee(sys.stdout, gateway_log_path())
+    from core.comm import liveness as _liveness
+    wl = _liveness.worklive(GATEWAY_AGENT_ID)
+    beat(wl, RESTING_PHASE, "gateway starting")
+    print(f"[discord-in] log -> {gateway_log_path()}  |  liveness id "
+          f"{GATEWAY_AGENT_ID}, beat {HEARTBEAT_S:.0f}s", flush=True)
     token = _token()
     if not token:
         from core.comm.secret_intake import secrets_dir
@@ -248,6 +343,15 @@ def main() -> int:
 
         threading.Thread(target=_watch, name=f"spawn-watch-{pid}", daemon=True).start()
 
+    def _pulse():
+        """Keep the liveness record fresh so ABSENCE is detectable. A daemon thread: it must
+        never be the reason the gateway outlives its usefulness."""
+        while True:
+            time.sleep(HEARTBEAT_S)
+            beat(wl)
+
+    threading.Thread(target=_pulse, name="discord-gateway-beat", daemon=True).start()
+
     intents = discord.Intents.none()
     intents.guilds = True
     intents.guild_messages = True
@@ -258,6 +362,7 @@ def main() -> int:
     async def on_ready():
         print(f"[discord-in] listening as {client.user} -- R1 allowlist is one id; "
               f"everyone else is weather", flush=True)
+        beat(wl, RESTING_PHASE, f"listening as {client.user}")
         warn = credential_warning(_credential_horizon())
         if warn:                        # the recovery path's own expiry, said BEFORE it bites
             print(f"[discord-in] CREDENTIAL: {warn}", flush=True)
@@ -276,6 +381,7 @@ def main() -> int:
         # raw content carries mention TOKENS (<@&roleid>); translate them to the
         # readable @Name before the words ride the bus — verbatim in spirit, not
         # in snowflakes.
+        beat(wl, "handling", f"msg from {message.author}")
         readable = message.content
         for r in message.role_mentions:
             readable = readable.replace(f"<@&{r.id}>", f"@{r.name}")
@@ -308,6 +414,7 @@ def main() -> int:
             except Exception:                                           # noqa: BLE001
                 print("[discord-in] heard (bus accepted) but the receipt reaction failed "
                       "-- delivery stands, the checkmark does not", flush=True)
+        beat(wl, RESTING_PHASE, "idle")
         if out.get("spawned"):
             try:
                 _watch_spawn(int(out["spawned"]), message)
