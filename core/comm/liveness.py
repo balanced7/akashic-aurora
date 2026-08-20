@@ -205,6 +205,44 @@ def read(agent: str):
         return None
 
 
+def live_incarnations(agent: str) -> list:
+    """Every id currently holding a worklive record for `agent` -- the seat's own name if it
+    beats directly, plus any `agent#<session>` incarnations beating under it.
+
+    THE GAP THIS CLOSES, measured 2026-08-20 while the seat was demonstrably running:
+        read("claude")          -> None
+        read("claude#06528775") -> phase=running, beat 1s, seq=19
+    Anthropic 529'd overnight, and both peers wrote their replies "self-contained since Vandor's
+    seat is down" -- a guess, because nothing in the house could answer the question. Then the
+    conductor queried the bare id, got absence, and reported that it emits no heartbeat at all.
+    Absence of a KEY is not absence of a SEAT.
+
+    _id_forms does not help here: it strips a suffix (incarnation -> bare, T155). This is the
+    reverse direction, and it needs a scan.
+
+    Deliberately NOT folded into read(): a seat and one of its incarnations are different
+    subjects, and silently substituting one for the other would trade a false negative for a
+    false identity -- worse, given this house has already paid for two incarnations of one agent
+    issuing contradictory directives. This NAMES the ids so the caller decides.
+
+    Fail-open, per this module's standing contract: a dead bus costs the answer, never the path."""
+    c = _client()
+    if c is None:
+        return []
+    try:
+        pre = _worklive_prefix()
+        bare = str(agent)
+        out = []
+        if c.get(pre + bare):
+            out.append(bare)
+        for k in (c.keys(f"{pre}{bare}#*") or []):
+            key = k.decode() if isinstance(k, (bytes, bytearray)) else str(k)
+            out.append(key[len(pre):])
+        return sorted(set(out))
+    except Exception:
+        return []
+
+
 def worklive_beat_age(agent: str):
     """Seconds since this agent's worklive record was last stamped, or None if there is no record.
 
