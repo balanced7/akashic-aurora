@@ -74,6 +74,66 @@ SPAWN_FATAL_MARKERS = (
 )
 
 
+#: Below this many days left, the credential behind !spawn is worth saying out loud.
+CREDENTIAL_CLIFF_DAYS = 7.0
+
+
+def spawn_credential_refusal(vault_token: str,
+                             cli_logged_in: Optional[bool]) -> Optional[str]:
+    """Can a fresh seat authenticate at all? None means yes (or we cannot tell).
+
+    T366, from the day it cost him: with no credential anywhere, !spawn spent 16 seconds
+    to arrive at a failure that was knowable at t=0. Refuse instantly instead, and name
+    both fixes -- a refusal that does not say what to type is just a faster silence.
+
+    FAIL-OPEN ON IGNORANCE, deliberately: `cli_logged_in=None` means the probe could not
+    answer, and a gate that blocks every spawn whenever its own probe is flaky is worse
+    than the failure it guards. Refuse only on a KNOWN bad state; T365's watcher catches
+    whatever this lets through."""
+    if str(vault_token or "").strip():
+        return None                     # the vault outlives the session: that is the point
+    if cli_logged_in is False:
+        return ("no credential for a fresh seat: the CLI reports logged out and the vault "
+                "holds no claude_oauth.token. Either `claude auth login` to restore the "
+                "session, or `claude setup-token` and vault it with "
+                "`py agent_cli.py secret claude_oauth.token` for one that outlives it")
+    return None
+
+
+def credential_horizon_days(creds: Dict[str, Any], now_ms: int) -> Optional[float]:
+    """Days until the REFRESH token dies -- the clock that actually ends resuscitation.
+
+    The access token expires every few hours and rolls over silently, which is why nobody
+    watches it; the refresh token behind it lasts weeks and takes the recovery path with it
+    when it goes (measured: his died 2026-08-15, and the fleet found out four days later
+    from a stranded operator). None means unknown, which is a STATE -- returning 0.0 here
+    would read as 'expires today' and cry wolf on every boot."""
+    try:
+        exp = creds["claudeAiOauth"]["refreshTokenExpiresAt"]
+    except (KeyError, TypeError, IndexError):
+        return None
+    if isinstance(exp, bool) or not isinstance(exp, (int, float)):
+        return None
+    return (float(exp) - float(now_ms)) / 86_400_000.0
+
+
+def credential_warning(days: Optional[float],
+                       cliff: float = CREDENTIAL_CLIFF_DAYS) -> Optional[str]:
+    """The line worth surfacing BEFORE he reaches for the lever. Silent when there is
+    nothing to say -- a warning that fires at 28 days out teaches people to ignore it."""
+    if days is None:
+        return None
+    if days < 0:
+        return (f"the spawn credential EXPIRED {abs(days):.0f} day(s) ago -- !spawn cannot "
+                f"build a seat until `claude auth login` runs, or a long-lived "
+                f"`claude setup-token` lands in the vault")
+    if days <= cliff:
+        return (f"the spawn credential dies in {days:.0f} day(s) -- renew before it takes "
+                f"the recovery path with it; a vaulted `claude setup-token` beats another "
+                f"`claude auth login` on a clock")
+    return None
+
+
 def spawn_stillborn_reason(exit_code: Optional[int], log_text: str,
                            max_len: int = 300) -> Optional[str]:
     """Did the spawned seat LIVE? None means yes; a string is the reason it did not.
