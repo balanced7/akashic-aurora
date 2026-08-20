@@ -236,6 +236,7 @@
 - `toast.py` — toast (T099 · tools-hunt BETA-2) -- gratitude with a receipt (kimi's hunt B3).
 
 ## entry points (repo root)
+- `_scratch_edges_heimdall.py` — (no docstring)
 - `agent_cli.py` — agent_cli.py -- THE single door an external agent (e.g. OpenCode) uses.
 - `ai_setup_mcp.py` — ai_setup_mcp.py -- the MCP-transport door into the Akashic Aurora (System 5).
 - `bootstrap.py` — Bootstrap — system entry point & honest status check
