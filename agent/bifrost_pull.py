@@ -328,6 +328,44 @@ def consume_inbox(agent_id: str, limit: int = 20) -> Dict[str, Any]:
         return {"seat_held": False, "consumed": []}
 
 
+def steer_facts_lines(agent_id: str, nudge=None, drain: bool = True) -> list:
+    """The steering facts queued for a SESSION seat, rendered at the turn boundary.
+
+    Measured 2026-08-19: a steer pushed at both runners was popped between tool rounds within
+    seconds; the one pushed at this seat sat in the queue for ninety seconds and would have sat
+    there forever, because a session seat has no round loop. codex_nudge_audit filed that on
+    2026-07-17 and it stayed open for a month, so steering ran one way -- the conductor could
+    steer every seat and no seat could steer the conductor.
+
+    The bus copy of a steer does survive (--mode steer sends one), but 'steer' is in
+    PENDING_SKIP_KINDS, so nothing counts it, wakes on it, or announces it. What this restores is
+    the property that makes a steer a steer: it reaches the work in progress.
+
+    HONEST ABOUT ITS OWN GRAIN (T120): a runner folds between tool ROUNDS, a session seat can only
+    fold at TURN boundaries. The render says which, because implying parity would be the
+    comfortable lie -- a steer landing mid-turn waits for the next one.
+
+    Fail-open, inheriting nudge.steer_drain's own contract ('never wedge the loop'): a broken
+    backend costs the facts, never the seat's turn."""
+    if nudge is None:                       # injected in pins so they never touch the LIVE queue
+        from core.comm import nudge as nudge
+    try:
+        if int(nudge.steer_pending(agent_id) or 0) <= 0:
+            return []                       # silence is honest only when nothing moved (W65)
+        facts = nudge.steer_drain(agent_id) if drain else None
+        if facts is None:                   # peek: render without eating another turn's mail
+            facts = [f"({int(nudge.steer_pending(agent_id))} queued -- peek, not drained)"]
+    except Exception:                                                   # noqa: BLE001
+        return []
+    if not facts:
+        return []
+    out = [f"## STEER FACTS folded at this turn boundary ({len(facts)})"]
+    out.extend(f"  {f}" for f in facts)
+    out.append("  (a session seat folds at TURN boundaries, not between tool ROUNDS as a runner "
+               "does -- a steer that landed mid-turn waited for this one)")
+    return out
+
+
 def stale_notice_lines(res: Dict[str, Any], agent_id: str) -> List[str]:
     """W65: the honest tail EVERY consume door must render.
 
