@@ -111,6 +111,14 @@ CLI_MCP_ALIASES = {
 #   mcp_only -> intentionally MCP-only
 #   gap      -> KNOWN DEBT: a core verb reachable on one door but not the other; pay down later.
 MANIFEST = {
+    # 2026-08-20: the out-of-band deadman's seat-facing door. GAP, honestly: it ships CLI-only,
+    # so a Claude Code seat can arm it but the runner seats (which reach the door through the
+    # ToolBox) currently CANNOT declare an expectation. That is a real half-feature and it is
+    # recorded here rather than hidden -- the MCP/ToolBox twins are the next slice.
+    "watch": "gap",
+    # pre-existing, unclassified until now: the operator re-entry organ assembles "what moved
+    # since your last word" for Daniil at a terminal. Agent-facing twins would serve nobody.
+    "reentry": "cli_only",
     # --- shared: the core verb surface, on both doors ---
     "boot": "shared", "learn": "shared", "recall": "shared", "recall_at": "shared",
     "recall_feedback": "shared", "stats": "shared", "status": "shared", "story": "shared",

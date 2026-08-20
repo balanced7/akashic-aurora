@@ -7980,6 +7980,19 @@ def build_parser():
     df.add_argument("--receipt", default="", help="REQUIRED with --done: what happened")
     df.set_defaults(fn=cmd_defer)
 
+    wd = sub.add_parser("watch", help="the out-of-band deadman: declare a run so SILENCE becomes "
+                                      "a finding, checkpoint while it lives, stand down when done")
+    wd.add_argument("agent_id", help="you (the seat declaring or closing the expectation)")
+    wd.add_argument("--declare", default=None, metavar="WHAT",
+                    help="open an expectation: from now until --stand-down, going quiet alarms")
+    wd.add_argument("--grace", type=float, default=1800.0,
+                    help="seconds of silence allowed before it is wrong (default 1800)")
+    wd.add_argument("--checkpoint", action="store_true", help="say 'still here'")
+    wd.add_argument("--stand-down", action="store_true", dest="stand_down",
+                    help="close it; after this, silence is correct again")
+    wd.add_argument("--status", action="store_true", help="what the watcher would decide right now")
+    wd.set_defaults(fn=cmd_watch)
+
     ki = sub.add_parser("kit", help="install a kit bundle on a seat's belt (T099 KIT tier); "
                                     "first resident: recovery-kit (the wake-loop/stall floor)")
     ki.add_argument("agent_id", help="the installing seat")
@@ -8495,6 +8508,45 @@ def cmd_followup(args):
     print(f"[followup] {res['qid']} filed in {res['path']} + deferred to {args.to} "
           f"(defer {res['defer_id']}){tag} -- their next boot surfaces it; the discharge "
           f"receipt points at the answered block")
+    return 0
+
+
+def cmd_watch(args):
+    """The seat-facing door to the failsafe deadman (scripts/ops/failsafe_watcher.py runs on the
+    OS scheduler and reads what this writes).
+
+    Wired because a watcher nobody can ARM is the built-not-wired pattern with a stopwatch on it --
+    check_wiring caught exactly that when this organ landed with no door."""
+    from core.comm import failsafe as _F
+    path = _F.default_path()
+    if args.declare:
+        doc = _F.declare(path, who=args.agent_id, what=args.declare, grace_s=args.grace)
+        print(f"[watch] expectation OPEN for {args.agent_id}: {args.declare!r} -- silence past "
+              f"{int(args.grace // 60)} min is now a finding ({path})")
+        return 0
+    if args.checkpoint:
+        doc = _F.checkpoint(path)
+        print("[watch] checkpointed" if doc else
+              "[watch] nothing to checkpoint -- no expectation is open")
+        return 0 if doc else 1
+    if args.stand_down:
+        doc = _F.stand_down(path)
+        print("[watch] stood down -- silence is correct again" if doc else
+              "[watch] nothing open to stand down")
+        return 0 if doc else 1
+    doc = _F.load(path)
+    alarm = _F.verdict(doc)
+    if doc is None:
+        print("[watch] no expectation on disk -- the deadman is armed and correctly silent")
+    elif not doc.get("active"):
+        print(f"[watch] stood down (last: {doc.get('what')!r}) -- silent")
+    elif alarm:
+        print(f"[watch] WOULD ALARM: {alarm}")
+    else:
+        import time as _t
+        quiet = int(_t.time() - float(doc.get("checkpoint_at") or 0))
+        print(f"[watch] open: {doc.get('what')!r} by {doc.get('declared_by')} -- quiet {quiet}s "
+              f"of {int(float(doc.get('grace_s') or 0))}s grace")
     return 0
 
 
