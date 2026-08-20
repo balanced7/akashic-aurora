@@ -8516,7 +8516,29 @@ def cmd_defer(args):
     if getattr(args, "list", False):
         items = dq.pending()
         if not items:
-            print("[defer] queue empty -- nothing awaits a capable seat")
+            # ABSENCE AND NONEXISTENCE MUST NOT RENDER IDENTICALLY. Until 2026-08-20 an unknown
+            # seat's queue printed the same cheerful "queue empty" as a real one, so an
+            # unsubstituted $SELF$ (or a plain typo) read a phantom queue and reported nothing
+            # waiting while the real queue filled. Same class as
+            # eye_get_says_no_event_when_it_means_bad_address, on a different door. We teach
+            # rather than refuse: a brand-new seat legitimately has no queue yet, so an unknown
+            # id is a HINT, not a wall.
+            try:
+                from core.comm.doctor import known_agents
+                roster = set(known_agents())
+            except Exception:                                           # noqa: BLE001
+                roster = set()          # cannot tell -> say nothing extra, never a false alarm
+            if roster and args.agent_id not in roster:
+                print(f"[defer] no queue for {args.agent_id!r} -- and that id is UNKNOWN to the "
+                      f"fleet roster. Empty because the seat does not exist, not because nothing "
+                      f"awaits. Known: {', '.join(sorted(roster)[:8])}"
+                      f"{' ...' if len(roster) > 8 else ''}")
+                return 0
+            # NAME THE SUBJECT OF THE ANSWER. Roster-free and therefore honest in every
+            # environment: a reader seeing an id they did not intend spots the typo without any
+            # fleet lookup. The roster hint above is an ENHANCEMENT when context exists, never
+            # the only thing standing between a phantom queue and a cheerful negative.
+            print(f"[defer] queue empty for {args.agent_id!r} -- nothing awaits a capable seat")
             return 0
         for i in items:
             why = f"  ({i['why']})" if i.get("why") else ""

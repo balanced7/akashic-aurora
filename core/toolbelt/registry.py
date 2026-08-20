@@ -141,9 +141,20 @@ class Toolbelt:
         return [h for h in self._doc["history"] if h["name"] == str(name)]
 
     def resolve(self, name: str, args: Optional[List[str]] = None) -> List[List[str]]:
+        """Resolve a macro's steps: $SELF$ -> the running seat, then $1..$N positional slots.
+
+        $SELF$ IS SUBSTITUTED HERE, AT THE ORGAN, and not at either call site. The shipped
+        recovery-kit writes $SELF$ into its own ceremonies (kit.py: "$SELF$"), and until
+        2026-08-20 nothing ever replaced it -- `run --dry` rendered `defer $SELF$ --list`
+        literally. Worse, the downstream door ACCEPTED the literal token: `defer '$SELF$' --list`
+        exits 0 and prints "queue empty", so an unsubstituted ceremony read a phantom seat's queue
+        and reported nothing waiting, cheerfully, while the real queue filled. Locally true about
+        that queue, false about the world. Closing it in resolve() means every path that resolves
+        steps -- run, kits, and any future composer -- inherits the fix."""
         e = self._require(name)
         need = int(e.get("params", 0) or 0)
         args = list(args or [])
+        steps = [[(self.agent if str(t) == "$SELF$" else t) for t in s] for s in e["steps"]]
         if need:
             if len(args) < need:
                 raise ValueError(f"macro {name!r} expects {need} arg(s) "
@@ -152,8 +163,8 @@ class Toolbelt:
             def sub(tok):
                 m = _SLOT.fullmatch(str(tok))
                 return args[int(m.group(1)) - 1] if m else tok
-            return [[sub(t) for t in s] for s in e["steps"]]
-        return [list(s) for s in e["steps"]]
+            return [[sub(t) for t in s] for s in steps]
+        return [list(s) for s in steps]
 
     def render_list(self) -> str:
         rows = [f"# toolbelt: {self.agent} -- {len(self.active())} active "

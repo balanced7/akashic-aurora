@@ -88,6 +88,10 @@ def test_defer_refuses_an_unknown_seat_instead_of_reporting_empty():
     unsubstituted token silently reads a phantom queue and reports nothing waiting. A door that
     answers a malformed address with a cheerful negative manufactures false confidence -- the
     eye_get_says_no_event_when_it_means_bad_address lesson, on a different door."""
+    roster = _run("doctor", "--json")
+    if "discord" not in roster.stdout and "claude" not in roster.stdout:
+        pytest.skip("no live fleet roster in this environment -- the roster HINT is untestable "
+                    "here; the roster-free invariant is covered by the sibling pin below")
     out = _run("defer", "totally-not-an-agent-xyz", "--list")
     combined = (out.stdout + out.stderr).lower()
     assert out.returncode != 0 or "unknown" in combined or "no such" in combined, (
