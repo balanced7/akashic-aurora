@@ -5801,7 +5801,7 @@ def cmd_bifrost_sync(args):
     from agent.bifrost_pull import (collect_boot_bifrost, consume_inbox, format_inbox_line,
                                      format_digest_line, print_boot_bifrost_section,
                                      print_boot_locks_section, render_collapsed,
-                                     stale_notice_lines)
+                                     stale_notice_lines, steer_facts_lines)
     show_traces = bool(getattr(args, "traces", False))   # W4: --traces expands folded telemetry
     # T133: READ THE LANE THE RUNNERS READ. The runners self-default onto `work`; this door did not,
     # so the harness seat read LEGACY -- the same lane, plus every trace, from a cursor that drifted
@@ -5854,6 +5854,11 @@ def cmd_bifrost_sync(args):
                       f"`mailbox {args.agent_id} --intent <sha> --as act|decline|defer|delegate`)")
         except Exception:
             pass      # a bookkeeping failure must never break the read that already succeeded
+        # The steer queue has no cursor and no round loop on this seat, so THIS is where a
+        # steering fact reaches the agent -- rendering it IS the delivery, which is why it drains
+        # here rather than accumulating for a loop that will never come.
+        for _sl in steer_facts_lines(args.agent_id):
+            print(_sl)
         return 0
     block = collect_boot_bifrost(args.agent_id, limit=args.limit or 10)
     if args.json:
@@ -5867,10 +5872,14 @@ def cmd_bifrost_sync(args):
               + (" (bus OFFLINE)" if not block.get("bus_online") else ""))
         for m in msgs:
             print(format_digest_line(m))
+        for _sl in steer_facts_lines(args.agent_id, drain=False):
+            print(_sl)
         print_boot_locks_section(block, args.agent_id)
         return 0
     print(f"# bifrost-sync for {args.agent_id}")
     print_boot_bifrost_section(block, show_traces=show_traces)
+    for _sl in steer_facts_lines(args.agent_id):
+        print(_sl)
     print_boot_locks_section(block, args.agent_id)
     return 0
 
