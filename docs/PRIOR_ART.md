@@ -28,7 +28,7 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 **DRIFT -- surveyed, but the subsystem has changed size since:**
 
 - `core/foundation` -- DRIFT (8->9), reviewed 2026-07-26
-- `core/comm` -- DRIFT (36->58), reviewed 2026-07-26
+- `core/comm` -- DRIFT (36->59), reviewed 2026-07-26
 - `core/coord` -- DRIFT (11->23), reviewed 2026-07-26
 - `core/learning` -- DRIFT (3->5), reviewed 2026-07-26
 - `core/recall` -- DRIFT (10->15), reviewed 2026-07-26
@@ -38,8 +38,8 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 - `scripts/hooks` -- DRIFT (7->8), reviewed 2026-07-26
 - `scripts/checkers` -- DRIFT (12->18), reviewed 2026-07-26
 - `scripts/generators` -- DRIFT (6->11), reviewed 2026-07-26
-- `scripts/ops` -- DRIFT (2->6), reviewed 2026-07-26
-- `tests` -- DRIFT (331->581), reviewed 2026-07-26
+- `scripts/ops` -- DRIFT (2->7), reviewed 2026-07-26
+- `tests` -- DRIFT (331->582), reviewed 2026-07-26
 
 ---
 
@@ -110,7 +110,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `core/comm` -- 58 modules  ·  DRIFT (36->58)
+## `core/comm` -- 59 modules  ·  DRIFT (36->59)
 
 **What it does.** The Bifrost bus and everything around it -- purpose-keyed lanes (work / trace / sig), per-agent consume cursors, packet envelopes with integrity and fragmentation, expectations and redrives, the wake listener, the launcher, and the fidelity ladder (inform / steer / interrupt / halt). By far our largest subsystem.
 
@@ -493,7 +493,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `scripts/ops` -- 6 modules  ·  DRIFT (2->6)
+## `scripts/ops` -- 7 modules  ·  DRIFT (2->7)
 
 **What it does.** Operator tools for the knowledge substrate: snapshot_knowledge.py (snapshot / list / restore / verify across Redis, the file tier and chronicles, keeping the last 20) and reheal_durable_tier.py (backfill the durable tier FROM Redis, added 2026-07-26).
 
@@ -516,7 +516,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `tests` -- 581 modules  ·  DRIFT (331->581)
+## `tests` -- 582 modules  ·  DRIFT (331->582)
 
 **What it does.** 331 test modules plus conftest, providing universal backend isolation, a parity exerciser shared across store backends, and a differential harness that cross-verifies two implementations of the same semantics.
 

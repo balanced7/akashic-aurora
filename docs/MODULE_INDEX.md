@@ -24,7 +24,7 @@
 - `agent_signal_ledger.py` — Agent Signal Ledger: the ordered record of every signal agents emit
 - `coordinator_api.py` — Coordinator API: Minimal signal-based logging for agents
 
-## core/comm/  (58 modules)
+## core/comm/  (59 modules)
 - `ask.py` — ask -- a synchronous helper call, with no seat behind it (T171).
 - `ask_bg.py` — ask_bg -- a helper call that outlives your turn without becoming a seat (T205).
 - `ask_state.py` — ask_state -- one durable ask's honest state (T196d).
@@ -46,6 +46,7 @@
 - `door_probe.py` — door_probe -- does the MCP door actually answer, right now, in THIS environment?
 - `engine_vitals.py` — engine_vitals -- gauge_snapshot(), the engine room's pulse (T079-E1).
 - `expectations.py` — expectations -- sender-side reply deadlines + redrive (T030 L4 / RB-29).
+- `failsafe.py` — The failsafe deadman -- an out-of-band watcher that survives the bus it watches.
 - `failure_class.py` — failure_class -- name the cause of a dead ask, and say what to do about it (T202).
 - `fence_phase.py` — fence_phase -- the method board's state source (T079-E2).
 - `flow_trace.py` — flow_trace (R3 / T054) -- the OTel-style waterfall over lanes: what HAPPENED, in causal
