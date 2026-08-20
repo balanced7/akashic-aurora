@@ -113,8 +113,9 @@ def _forward_global(msg: Dict[str, Any]) -> None:
         return
     try:
         who = ROOMS.persona(str(msg.get("frm") or ""))
-        ROOMS._default_post(url, ROOMS._render_room(msg),
-                            username=who["username"], avatar_url=who["avatar_url"])
+        for part in ROOMS.render_room_parts(msg):
+            ROOMS._default_post(url, part,
+                                username=who["username"], avatar_url=who["avatar_url"])
     except Exception:                                                   # noqa: BLE001
         pass          # a listener never wounds the beat; the room half still tries
 
@@ -170,9 +171,10 @@ def pump(bus: Any, *, post: Optional[Callable[..., Any]] = None,
                     if lane and DB.should_forward(msg):
                         try:
                             who = ROOMS.persona(str(msg.get("frm") or ""))
-                            ROOMS._default_post(lane, ROOMS._render_room(msg),
-                                                username=who["username"],
-                                                avatar_url=who["avatar_url"])
+                            for part in ROOMS.render_room_parts(msg):
+                                ROOMS._default_post(lane, part,
+                                                    username=who["username"],
+                                                    avatar_url=who["avatar_url"])
                         except Exception:                               # noqa: BLE001
                             pass
                         client.hset(CURSOR_KEY, key, mid_s)

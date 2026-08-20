@@ -114,24 +114,134 @@ def _default_post(url: str, content: str) -> bool:
     return True
 
 
-def render(msg: Dict[str, Any]) -> str:
-    """One Discord line: who, what kind, the body, and -- when clipped -- its ADDRESS.
+_FENCE_RE = re.compile(r"^\s*```", re.MULTILINE)
 
-    The clip carries a handle for the same reason T220/T222 did, but the stakes are higher
-    here: the reader is on a phone with no shell, so an unaddressed clip is unrecoverable by
-    the person actually reading it rather than merely expensive.
+
+def chunk(text: str, max_len: int = DISCORD_MAX) -> list:
+    """Split `text` into whole-line parts, none over `max_len`, never splitting a word.
+
+    THE LAW 2026-08-19 (T364). An oversize body used to become ONE truncated post whose
+    tail carried `bifrost-fetch --get <id>` — a SHELL command. The reader is Daniil on a
+    phone: a recovery handle he cannot run is the T220/T222 defect wearing gloves. The fix
+    is to POST N parts instead of one clip, so a long message is simply read, top to
+    bottom, no shell required.
+
+    Three guarantees, in priority order:
+    1. No part exceeds `max_len` (Discord rejects an overlarge body outright, so this one
+       is absolute — if a single line overflows the cap, it hard-splits at a word boundary).
+    2. No part splits a WORD — boundaries fall on whitespace, or on a newline.
+    3. No part splits a markdown fence — a ``` ... ``` block stays in one part until the
+       block alone exceeds the cap, at which point it hard-splits (atomic-until-impossible).
     """
+    if not text:
+        return [""]
+
+    lines = text.split("\n")
+    parts: list = []
+    current: list = []
+
+    def _flush() -> None:
+        if current:
+            parts.append("\n".join(current))
+            current.clear()
+
+    def _fits(line: str) -> bool:
+        joined = "\n".join(current + [line])
+        return len(joined) <= max_len
+
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        # A fence-opener line pulls its WHOLE block along atomically.
+        if _FENCE_RE.match(line):
+            block = [line]
+            j = i + 1
+            while j < len(lines):
+                block.append(lines[j])
+                # a closing fence is a fence line that is not the opener
+                if _FENCE_RE.match(lines[j]) and j != i:
+                    break
+                j += 1
+            block_text = "\n".join(block)
+            if block_text and len(block_text) > max_len:
+                # atomic-until-impossible: the block alone overflows, hard-split it.
+                _flush()
+                parts.extend(_hard_split(block_text, max_len))
+                i = j + 1
+                continue
+            # fits appended to the current part? else start a fresh part for it.
+            if current and _len_joined(current, block_text) > max_len:
+                _flush()
+            current.extend(block)
+            i = j + 1
+            continue
+        if not current:
+            if len(line) <= max_len:
+                current.append(line)
+            else:
+                parts.extend(_hard_split(line, max_len))
+        elif len(line) <= max_len and _fits(line):
+            current.append(line)
+        else:
+            _flush()
+            if len(line) > max_len:
+                parts.extend(_hard_split(line, max_len))
+            else:
+                current.append(line)
+        i += 1
+    _flush()
+    return [p for p in parts if p]
+
+
+def _len_joined(current: list, block_text: str) -> int:
+    return len("\n".join(current + [block_text]))
+
+
+def _hard_split(text: str, max_len: int) -> list:
+    """Split overflow text at word boundaries without exceeding max_len. A word longer
+    than max_len is itself hard-split at max_len (there is no other faithful choice)."""
+    out: list = []
+    buf = ""
+    for word in text.split(" "):
+        candidate = (buf + " " + word) if buf else word
+        if len(candidate) <= max_len:
+            buf = candidate
+        else:
+            if buf:
+                out.append(buf)
+                buf = ""
+            while len(word) > max_len:
+                out.append(word[:max_len])
+                word = word[max_len:]
+            buf = word
+    if buf:
+        out.append(buf)
+    return out
+
+
+def render_parts(msg: Dict[str, Any]) -> list:
+    """One or more Discord posts for a message: the head rides every part, and a body
+    over the cap becomes N whole-line parts — none truncated, none carrying a shell
+    handle. This is what makes a long message readable top-to-bottom from a phone."""
     frm = str(msg.get("frm") or "?")
     kind = str(msg.get("kind") or "?")
     body = redact(_content_str(msg.get("content")))
     head = f"**{frm}** · `{kind}`\n"
-    mid = str(msg.get("id") or "")
-    tail = f"\n… clipped · full body: `bifrost-fetch --get {mid}`" if mid else \
-           "\n… clipped · NO ADDRESS (this render had no message id)"
-    room = DISCORD_MAX - len(head) - len(tail)
-    if len(body) <= DISCORD_MAX - len(head):
-        return head + body
-    return head + body[:max(0, room)] + tail
+    if not body:
+        return [head.rstrip("\n")]
+    if len(head) + len(body) <= DISCORD_MAX:
+        return [head + body]
+    # body must carry the head+body budget, so chunk the BODY against the remaining room.
+    room = DISCORD_MAX - len(head)
+    parts = chunk(body, max_len=room)
+    return [head + p for p in parts]
+
+
+def render(msg: Dict[str, Any]) -> str:
+    """Backward-compatible single-render: the FIRST part of render_parts. Kept because a
+    caller asking for one string is asking for one string; the multi-post path (forward)
+    iterates render_parts directly."""
+    return render_parts(msg)[0]
 
 
 def _content_str(c: Any) -> str:
@@ -165,11 +275,13 @@ def forward(msg: Dict[str, Any], *, url: Optional[str] = None, force: bool = Fal
             "discord bridge not configured -- set AKASHIC_DISCORD_WEBHOOK or write "
             ".secrets/discord_webhook.url. This is a configuration state, not a delivery "
             "failure: the bridge is opt-in and most seats will never set it.")
-    content = render(msg)
+    parts = render_parts(msg)
     try:
-        (post or _default_post)(target, content)
+        for content in parts:
+            (post or _default_post)(target, content)
     except Exception as e:                                              # noqa: BLE001
         return BoundaryOutcome.failed(
             f"discord post failed ({type(e).__name__}: {e}) -- the bus is unaffected; this "
             f"bridge is a listener and never blocks a send")
-    return BoundaryOutcome.done(ref=str(msg.get("id") or ""), chars=len(content))
+    return BoundaryOutcome.done(ref=str(msg.get("id") or ""),
+                                chars=sum(len(p) for p in parts))
