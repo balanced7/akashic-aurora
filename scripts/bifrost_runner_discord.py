@@ -15,17 +15,43 @@ Run:  py scripts/bifrost_runner_discord.py            (refuses loudly if unconfi
 
 from __future__ import annotations
 
+import asyncio
 import os
+import subprocess
 import sys
+import threading
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from pathlib import Path
 
-from core.comm.discord_inbound import EarConfigError, build_config, handle_message
+from core.comm.discord_inbound import EarConfigError, build_config, handle_message, spawn_stillborn_reason
 
 _ROOT = Path(__file__).resolve().parents[1]
+# How long a fresh seat must keep breathing before its sprout is proven honest.
+# MEASURED, not guessed: an expired-OAuth death takes 15.8-16.9s (n=3, all exit 1) --
+# the CLI spends that time trying to refresh before it gives up. A 5s window, which
+# is what intuition first offered, would have called every one of those a live seat.
+# That is far past discord.py's 10s heartbeat-blocked warning, so the long watch runs
+# on a thread and speaks in a follow-up; only an INSTANT death rides the reply.
+_SPAWN_PROOF_SECONDS = float(os.getenv("AKASHIC_SPAWN_PROOF_SECONDS") or 25.0)
+_SPAWN_INSTANT_SECONDS = float(os.getenv("AKASHIC_SPAWN_INSTANT_SECONDS") or 2.0)
 TOKEN_FILE = _ROOT / ".secrets" / "discord_bot.token"
+
+
+# pid -> (Popen, log path), handed from the spawner to the watcher. Bounded by how
+# many times he can type !spawn; entries are popped by the watcher that claims them.
+_pending_spawns: dict = {}
+
+
+def _spawn_said(log) -> str:
+    """Whatever the child managed to say before it stopped. The child still holds this
+    handle open, so read it, never move it -- and an unreadable log is silence, not an
+    excuse to crash the gateway on top of a spawn that already failed."""
+    try:
+        return log.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
 
 
 def _token() -> str:
@@ -57,7 +83,12 @@ def main() -> int:
 
     def _spawn(task: str):
         """!spawn's lever: a fresh claude session, detached, logging to its own file.
-        The promise is process START (🌱); the sprout is not the harvest."""
+
+        The sprout is still not the harvest -- but it is now proof of LIFE, not proof
+        of start. T365: on the day he could not reach anyone, this lever answered 🌱
+        over a child that had already died on an expired OAuth session, and a receipt
+        that is true about the syscall and false about the world is worse than none.
+        Raise on a corpse; on_message's except-path turns that into his ⚠️."""
         import shutil
         import subprocess
         import time as _t
@@ -76,8 +107,68 @@ def main() -> int:
                                  cwd=str(_ROOT), stdout=fh, stderr=fh,
                                  creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
                                  | getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        # An INSTANT death (missing exe, immediate refusal) is cheap to convict here,
+        # and raising lets on_message's ⚠️ path carry it. The SLOW death cannot ride
+        # this reply -- 16s of blocked event loop would starve the heartbeat -- so it
+        # goes to the watcher below. The decidable half lives in core with the pins.
+        try:
+            code = p.wait(timeout=_SPAWN_INSTANT_SECONDS)
+        except subprocess.TimeoutExpired:
+            code = None                     # still breathing -- keep watching it
+        if code is not None:
+            reason = spawn_stillborn_reason(code, _spawn_said(log))
+            if reason:
+                print(f"[discord-in] SPAWN STILLBORN ({log.name}): {reason}", flush=True)
+                raise RuntimeError(f"spawn died before it lived -- {reason}")
+        _pending_spawns[p.pid] = (p, log)
         print(f"[discord-in] 🌱 spawned pid {p.pid} -> {log.name}: {task[:80]}", flush=True)
         return p.pid
+
+    def _watch_spawn(pid: int, message) -> None:
+        """The sprout receipt is a promise; this is the part that keeps it.
+
+        Proof of life arrives ~16s late (measured), so it cannot ride the reply he
+        already got. A daemon thread watches the child and, if it turns out to be a
+        corpse, speaks into the same channel he typed in -- naming the cause, because
+        "spawn failed" is the original silence with punctuation on it. A seat that
+        keeps breathing says nothing: he does not need a second receipt for good news,
+        and an unprompted all-clear is how a channel becomes noise."""
+        rec = _pending_spawns.pop(pid, None)
+        if rec is None:
+            return
+        proc, log = rec
+        loop = asyncio.get_running_loop()
+
+        async def _confess(text: str) -> None:
+            try:
+                await message.add_reaction("⚠️")
+            except Exception:                                           # noqa: BLE001
+                pass                        # the reaction is garnish; the words matter
+            try:                            # 1900 < Discord's 2000: a confession that
+                await message.reply(text[:1900], mention_author=False)   # clips is a
+            except Exception as e:                                      # noqa: BLE001
+                print(f"[discord-in] stillbirth notice UNDELIVERABLE ({type(e).__name__}"
+                      f": {e}) -- it stands in this log only", flush=True)
+
+        def _watch() -> None:
+            try:
+                code = proc.wait(timeout=_SPAWN_PROOF_SECONDS)
+            except subprocess.TimeoutExpired:
+                code = None
+            reason = spawn_stillborn_reason(code, _spawn_said(log))
+            if not reason:
+                print(f"[discord-in] spawn {pid} still breathing after "
+                      f"{_SPAWN_PROOF_SECONDS:.0f}s -- the sprout holds", flush=True)
+                return
+            print(f"[discord-in] SPAWN STILLBORN ({log.name}): {reason}", flush=True)
+            try:
+                asyncio.run_coroutine_threadsafe(
+                    _confess(f"⚠️ that spawn never lived — {reason} (log: {log.name})"),
+                    loop)
+            except Exception as e:                                      # noqa: BLE001
+                print(f"[discord-in] could not reach the loop to confess: {e}", flush=True)
+
+        threading.Thread(target=_watch, name=f"spawn-watch-{pid}", daemon=True).start()
 
     intents = discord.Intents.none()
     intents.guilds = True
@@ -136,6 +227,11 @@ def main() -> int:
             except Exception:                                           # noqa: BLE001
                 print("[discord-in] heard (bus accepted) but the receipt reaction failed "
                       "-- delivery stands, the checkmark does not", flush=True)
+        if out.get("spawned"):
+            try:
+                _watch_spawn(int(out["spawned"]), message)
+            except (TypeError, ValueError):
+                pass                        # no pid to watch is not a reason to die
         if out.get("acted"):
             room = f" -> ask {out['ask_id']}" if out.get("ask_id") else " -> global"
             print(f"[discord-in] heard the operator{room} (bus id {out['id']})", flush=True)

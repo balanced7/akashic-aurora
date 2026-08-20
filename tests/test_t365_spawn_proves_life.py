@@ -97,3 +97,19 @@ def test_handle_message_does_not_sprout_when_the_spawner_raises():
             spawner=dead_spawner,
         )
     assert "🌱" not in reactions, "a sprout receipt fired over a corpse"
+
+
+# ------------------------------------------------------- the budget is a measurement
+def test_proof_window_outlives_the_measured_death():
+    """A guard against a slow failure needs a LATENCY BUDGET, not a round number.
+
+    Measured 2026-08-19 on the real CLI with an expired OAuth session: 15.76s, 16.16s,
+    16.92s (n=3, every one exit 1). The first window written here was 5s -- it called
+    all three of those a living seat. This pin holds the measurement so the next person
+    to 'tidy' the constant has to argue with the stopwatch instead of their intuition."""
+    import re
+    src = (REPO / "scripts" / "bifrost_runner_discord.py").read_text(encoding="utf-8")
+    m = re.search(r'_SPAWN_PROOF_SECONDS\s*=\s*float\(.*?or\s*([\d.]+)\s*\)', src)
+    assert m, "the proof window is no longer a readable default -- re-pin it"
+    assert float(m.group(1)) >= 20.0, (
+        f"proof window {m.group(1)}s is inside the measured 15.8-16.9s death window")
