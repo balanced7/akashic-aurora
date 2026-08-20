@@ -28,7 +28,8 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
 from core.outcome import BoundaryOutcome
-from core.comm.discord_bridge import (DISCORD_MAX, _content_str, redact, should_forward)
+from core.comm.discord_bridge import (DISCORD_MAX, _content_str, chunk, redact,
+                                       should_forward)
 
 _ROOT = Path(__file__).resolve().parents[2]
 
@@ -153,18 +154,25 @@ def _save_reg(reg: Dict[str, Any]) -> None:
 def _render_room(msg: Dict[str, Any]) -> str:
     """Body + kind tag; the author line is carried by the webhook username instead of
     markdown (rooms show the speaker natively — that is what 'native expression' buys).
-    The clip law is the bridge's: a phone reader has no shell, so a clipped body must
-    carry its address."""
+    Single-part render kept for callers that want one string; post_to_room and the feed
+    iterate render_room_parts() for the multi-post law (T364)."""
+    return render_room_parts(msg)[0]
+
+
+def render_room_parts(msg: Dict[str, Any]) -> list:
+    """One or more room posts for a message: the kind tag rides every part, and a body
+    over the cap becomes N whole-line parts (chunk()) — no truncation, no shell handle.
+    T364: a `bifrost-fetch --get` tail is a command Daniil cannot run from a phone, so
+    a clip was the defect; N parts is the fix."""
     kind = str(msg.get("kind") or "?")
     body = redact(_content_str(msg.get("content")))
     head = f"`{kind}`\n"
-    mid = str(msg.get("id") or "")
-    tail = (f"\n… clipped · full body: `bifrost-fetch --get {mid}`" if mid
-            else "\n… clipped · NO ADDRESS (this render had no message id)")
+    if not body:
+        return [head.rstrip("\n")]
     if len(head) + len(body) <= DISCORD_MAX:
-        return head + body
-    room = DISCORD_MAX - len(head) - len(tail)
-    return head + body[:max(0, room)] + tail
+        return [head + body]
+    parts = chunk(body, max_len=DISCORD_MAX - len(head))
+    return [head + p for p in parts]
 
 
 def _default_post(url: str, content: str, *, thread_id: Optional[str] = None,
@@ -243,12 +251,14 @@ def post_to_room(msg: Dict[str, Any], *, url: Optional[str] = None, force: bool 
         else:
             thread_name = room_name
 
-    content = _render_room(msg)
     who = persona(str(msg.get("frm") or ""))
+    parts = render_room_parts(msg)
+    minted = None
     try:
-        minted = (post or _default_post)(
-            target, content, thread_id=thread_id, thread_name=thread_name,
-            username=who["username"], avatar_url=who["avatar_url"])
+        for content in parts:
+            minted = (post or _default_post)(
+                target, content, thread_id=thread_id, thread_name=thread_name,
+                username=who["username"], avatar_url=who["avatar_url"])
     except Exception as e:                                              # noqa: BLE001
         return BoundaryOutcome.failed(
             f"discord room post failed ({type(e).__name__}: {e}) — the bus is unaffected; "
@@ -266,4 +276,5 @@ def post_to_room(msg: Dict[str, Any], *, url: Optional[str] = None, force: bool 
                        "created": str(msg.get("id") or "")}
         _save_reg(reg)
 
-    return BoundaryOutcome.done(ref=str(msg.get("id") or ""), chars=len(content))
+    return BoundaryOutcome.done(ref=str(msg.get("id") or ""),
+                                chars=sum(len(p) for p in parts))

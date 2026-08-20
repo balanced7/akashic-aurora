@@ -89,17 +89,20 @@ def test_a_post_carries_who_and_what():
     assert "deepseek" in content and "handoff" in content
 
 
-def test_oversize_bodies_are_clipped_with_their_address():
-    """Discord caps a message at 2000 chars. A clip here must carry the handle, or it repeats
-    T220/T222 on a new surface -- and this time the reader is on a phone with no shell."""
+def test_oversize_bodies_post_multiple_parts_never_over_the_cap():
+    """Discord caps a message at 2000 chars. T368 (shipped under the t364 test filename,
+    before the registry spoke): a long body posts as N whole-line parts instead of one
+    truncated clip — a `bifrost-fetch` handle is a shell command the reader (Daniil on a
+    phone) cannot run, so multi-part posting replaces it."""
     long_body = "x" * 5000
     post = FakePost()
     DB.forward({**_msg(content=long_body), "id": "1786094136458-0"},
                url="https://example.invalid/hook", post=post)
-    _, content = post.sent[0]
-    assert len(content) <= 2000, "Discord will reject this outright"
-    assert "1786094136458-0" in content, \
-        "clipped on a phone with no address is unrecoverable by the person reading it"
+    assert len(post.sent) > 1, "an oversize body must post multiple parts, not one clip"
+    for _, content in post.sent:
+        assert len(content) <= 2000, "Discord will reject any part over 2000 outright"
+        assert "bifrost-fetch" not in content, \
+            "the recovery handle is a shell command a phone cannot run -- N parts replace it"
 
 
 def test_a_dead_webhook_never_breaks_the_bus():
