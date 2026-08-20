@@ -1,5 +1,5 @@
 {
-  "seq": 363,
+  "seq": 368,
   "tasks": [
     {
       "id": "T001",
@@ -13567,6 +13567,124 @@
           "to": "verifying",
           "by": "claude",
           "at": "2026-08-18T13:18:15+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T364",
+      "title": "Mine Jim Keller's thinking for the house -- Daniil 2026-08-19, verbatim: 'this strangely reminds me of Jim Keller (from tenstorrent), I wonder what of his we can mine to strengthen our thinking!' Context: the Randy Shoup eBay talk (transcribed to ~/Desktop/captions, arcs 4/6/7 material) -- Keller is the counter-case: repeatedly ENTERED stuck or pathological orgs (DEC Alpha, AMD K7/K8 and Zen, Apple A4/A5, Tesla HW, Intel, now Tenstorrent) and shipped transformative architectures by building engineering-truth bubbles rather than reforming culture head-on. FIRST ORE to verify against primary sources (Lex Fridman interviews, Tenstorrent talks, AnandTech/SemiAnalysis interviews): (1) bottleneck-plumber doctrine ('I find the constraint and remove it' -- same Theory-of-Constraints core as Shoup, opposite org strategy); (2) the abstraction-stack worldview (atoms up; rewrite the LAYER you are stuck at -- maps to our planes); (3) small-teams law (~10 people do the real work; big orgs are federations); (4) experts-vs-beginners tension (expertise calcifies; deliberate naivety resets priors -- maps to our multi-vendor decorrelation AND warns about lesson-corpus calcification); (5) periodic clean-sheet vs incremental (Zen was clean-sheet -- when does the house REWRITE instead of strangler-fig? An honest tension with standing law, worth the fence). DELIVERABLE: research/reviewed/ synthesis with verbatim quotes + arc mappings + 2-3 proposed lessons; full-fidelity law applies. Route: web pass by claude or a seat with web access; Daniil gates adoption.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-19T04:44:06+00:00",
+      "updated": "2026-08-19T04:44:06+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-19T04:44:06+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T365",
+      "title": "Five credential readers still resolve through module-path constants, while the lesson that closed the class claims they do not. Found 2026-08-19 by a recall hit while wiring T366, not by a sweep. The lesson a_pin_minted_a_live_thread_in_his_server asserts '(1) every credential reader resolves through secret_intake.secrets_dir()' -- that is the FIX it recommended, not the state of the tree. Live instances: core/comm/discord_inbound.py:33 OPERATOR_ID_FILE (has its own per-file env override, so isolatable but not via AKASHIC_SECRETS_DIR), core/comm/discord_rooms.py:37 FORUM_URL_FILE, scripts/discord_setup.py:46 (inline read), scripts/gemini_web.py:49 PROFILE, scripts/ops/redact.py:46 MANIFEST. scripts/bifrost_runner_discord.py:39 was the sixth and is CLOSED as of c8f2671f. WHY IT MATTERS at the stated severity: the ladder is read-canonical < write-canonical < POST-TO-THIRD-PARTY, and this class already reached the top rung once -- a rooms pin minted a real thread in Daniil's server (snowflake 1539626874580238389) because it read a real webhook plus a real bot token through constants. AKASHIC_SECRETS_DIR cannot redirect a constant, so isolate_canonical's postal inertness is only as good as the readers' compliance. FIX: route each through secret_intake.secrets_dir() by allowlisted NAME, and add a checker that fails a new '.secrets' path literal outside secret_intake -- otherwise the sixth instance grows back. RED first: a pin that points AKASHIC_SECRETS_DIR at an empty dir and asserts every reader comes back empty-handed.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-20T00:38:33+00:00",
+      "updated": "2026-08-20T00:38:33+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-20T00:38:33+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T366",
+      "title": "No sprout receipt for a seat that never lived: !spawn's Discord receipt asserted process START while the child was already dead on an expired OAuth session, so the operator got a green light over a corpse (the dead-send lie of 6eacf225 with gloves on). SHIPPED: pure spawn_stillborn_reason() in core/comm/discord_inbound.py with a false-alarm floor; instant deaths raise into on_message's existing warn path; slow deaths go to a daemon thread that confesses into the channel he typed in. Proof window MEASURED at 25s because the real expired-OAuth death takes 15.76/16.16/16.92s (n=3) -- the 5s intuition would have certified all three corpses as living seats, and 16s being past discord.py's 10s heartbeat threshold is what forced the watcher shape instead of a synchronous wait. NOTE, recorded rather than tidied: ships as tests/test_t365_spawn_proves_life.py, a filename minted before the registry spoke; kept because renaming breaks the commit trail at 79101000/743b9604. THIS entry is its real id.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-20T00:39:48+00:00",
+      "updated": "2026-08-20T00:39:48+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-20T00:39:48+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T367",
+      "title": "The resuscitation lever must not inherit a credential that dies on a clock. His refresh token expired 2026-08-15 23:40 UTC and took !spawn with it; nobody learned until a stranded operator said so four days later, because the seat he TALKS to authenticates via the desktop app (CLAUDE_CODE_SDK_HAS_HOST_AUTH_REFRESH) while the seat !spawn BUILDS reads ~/.claude/.credentials.json -- so every liveness signal he could see came from the healthy path. SHIPPED: vault slot claude_oauth.token for a long-lived `claude setup-token`, handed to the child as CLAUDE_CODE_OAUTH_TOKEN so the built seat stops inheriting the builder's expiry; a t=0 preflight refusal on known-bad credential state that names both fixes, fail-OPEN on an unanswerable probe; and a horizon/warning pair that says the days-remaining number out loud before the cliff (silent at 28 days, loud under 7, loudest when already expired). Closed en route: this file read the bot token through a module-path constant, the shape that once minted a live thread in his server -- both its credentials now resolve through secret_intake.secrets_dir(). Ships as tests/test_t366_spawn_credential_preflight.py, filename minted before the registry spoke; THIS entry is its real id.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-20T00:39:48+00:00",
+      "updated": "2026-08-20T00:39:48+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-20T00:39:48+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T368",
+      "title": "Discord clip posts N whole-line parts instead of one truncated shell command. The bridge and rooms render a body over 2000 chars as ONE truncated post whose tail carries `bifrost-fetch --get <id>` -- a SHELL command. The reader is Daniil on a phone. An unaddressable clip was already the T220/T222 defect restated; a shell command he cannot run is the same defect wearing gloves. FIX: split the body into WHOLE-LINE chunks, each under the cap, and post N parts -- no part exceeds DISCORD_MAX, no chunk splits a word, and no chunk splits a markdown fence. Shipped as core/comm/discord_bridge.py chunk()/render_parts(). NOTE, recorded rather than tidied (T274 precedent): ships as tests/test_t364_discord_clip_multipart.py, a filename minted BEFORE the registry spoke; the real T364 is 'Mine Jim Keller's thinking' (claude, 2026-08-19). Kept because renaming breaks the commit trail. THIS entry is its real id.",
+      "desc": "",
+      "owner": "deepseek",
+      "deps": [],
+      "files": [
+        "core/comm/discord_bridge.py",
+        "tests/test_t364_discord_clip_multipart.py"
+      ],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-20T00:00:00+00:00",
+      "updated": "2026-08-20T00:00:00+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "deepseek",
+          "at": "2026-08-20T00:00:00+00:00"
         }
       ]
     }
