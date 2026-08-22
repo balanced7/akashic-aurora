@@ -13864,13 +13864,13 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "claimed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "f77dd51d",
+      "verified_by": "pytest tests/test_t375_forecast_registry.py (4 reconciled pins) + inaugural F001 registered via the CLI door",
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-22T14:05:17+00:00",
-      "updated": "2026-08-22T14:10:36+00:00",
+      "updated": "2026-08-22T17:50:57+00:00",
       "history": [
         {
           "to": "proposed",
@@ -13886,6 +13886,16 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-08-22T14:10:36+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-22T17:50:56+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-22T17:50:57+00:00"
         }
       ]
     },
