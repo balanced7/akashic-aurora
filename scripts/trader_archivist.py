@@ -43,6 +43,14 @@ SOURCES = [
     {"id": "semiaccurate", "feed": "https://www.semiaccurate.com/feed/"},
     {"id": "semianalysis", "feed": "https://semianalysis.com/feed/"},
     {"id": "semianalysis-substack", "feed": "https://semianalysis.substack.com/feed"},
+    # Round 2 (Daniil's source-atlas ask, 2026-08-22): the RSS-able kin tier.
+    {"id": "chipsandcheese", "feed": "https://chipsandcheese.com/feed"},
+    {"id": "morethanmoore", "feed": "https://morethanmoore.substack.com/feed"},
+    {"id": "phoronix", "feed": "https://www.phoronix.com/rss.php"},
+    {"id": "semiengineering", "feed": "https://semiengineering.com/feed/"},
+    {"id": "nextplatform", "feed": "https://www.nextplatform.com/feed/"},
+    {"id": "servethehome", "feed": "https://www.servethehome.com/feed/"},
+    {"id": "fabricatedknowledge", "feed": "https://www.fabricatedknowledge.com/feed"},
 ]
 
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) akashic-archivist/0.1 "
