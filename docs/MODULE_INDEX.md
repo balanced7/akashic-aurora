@@ -294,6 +294,7 @@
 - `ship_gate.py` — ship_gate -- the suite gate as a ONE-WAY RATCHET (T031 unblock, 2026-07-27).
 - `snapshot.py` — Snapshot the current Bifrost session for later resume. Run before shutting down.
 - `sol_chat.py` — sol_chat -- the Sol seat's model transport: gpt-5.6-sol (OpenAI) as a first-class Akashic citizen.
+- `trader_archivist.py` — P0b — the archivist: forward-accruing, self-stamped capture of niche semi sources.
 - `ui_shot.py` — Headless screenshots of the live console -- the EYES half of the design loop.
 - `vfx_ingest.py` — Turn a pasted Shadertoy shader into one the bench can compile, and SAY WHAT IT CHANGED.
 - `vfx_render.py` — Render something in the VFX bench from the command line, and get a file path back.
