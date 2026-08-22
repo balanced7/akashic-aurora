@@ -200,7 +200,10 @@ def test_p4_heard_message_gets_the_checkmark(cfg):
         cfg, author_id="111222333444555666", author_name="d",
         channel_id="c1", content="ping", bus=_Bus(),
         react=lambda emoji: reacts.append(emoji))
-    assert reacts == ["✅"], "delivery truth: the ✅ appears only after the bus accepted"
+    # T380 renamed the receipt: 📨 claims RELAYED (landed), never answered --
+    # ✅ now belongs to the ladder's strict answer-link. Contract unchanged:
+    # the reaction appears only after the bus accepted.
+    assert reacts == ["📨"], "delivery truth: the 📨 appears only after the bus accepted"
 
 
 # ---- P8-P10: @-mentions are the wake mechanism --------------------------------
@@ -264,7 +267,7 @@ def test_p7_a_none_from_the_bus_is_a_failure_not_a_receipt(cfg):
             cfg, author_id="111222333444555666", author_name="d",
             channel_id="c1", content="hello?", bus=_DeadBus(),
             react=lambda e: reacts.append(e))
-    assert not reacts, "NO reaction on a dead send — a ✅ here is a lie with an emoji"
+    assert not reacts, "NO reaction on a dead send — a receipt here is a lie with an emoji"
     assert "none" in str(exc.value).lower() or "accepted nothing" in str(exc.value).lower()
 
 

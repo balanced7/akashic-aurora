@@ -24,7 +24,7 @@
 - `agent_signal_ledger.py` — Agent Signal Ledger: the ordered record of every signal agents emit
 - `coordinator_api.py` — Coordinator API: Minimal signal-based logging for agents
 
-## core/comm/  (59 modules)
+## core/comm/  (60 modules)
 - `ask.py` — ask -- a synchronous helper call, with no seat behind it (T171).
 - `ask_bg.py` — ask_bg -- a helper call that outlives your turn without becoming a seat (T205).
 - `ask_state.py` — ask_state -- one durable ask's honest state (T196d).
@@ -40,6 +40,7 @@
 - `discord_bridge.py` — Outbound Discord bridge -- the fleet becomes watchable from a phone.
 - `discord_feed.py` — The automatic Discord feed — the subscription that makes the bridge real.
 - `discord_inbound.py` — Discord inbound — Daniil's Discord messages become his voice on the bus. Nothing else does.
+- `discord_ladder.py` — T380 -- the comms-stage reaction ladder, pure half (no discord import).
 - `discord_rooms.py` — Outbound room router — each ask/breakout becomes a Discord thread.
 - `dispatcher.py` — Dispatcher (Bifrost Mesh W2): one resident process that turns doorbell notices into wakes.
 - `doctor.py` — Fleet doctor (L2 / RB-27b) -- the missing READER of the liveness signals: progress,

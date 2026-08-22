@@ -6007,8 +6007,14 @@ def cmd_bifrost_send(args):
         # T073 Phase 1: explicit incarnation addressing -- names ONE session of the
         # target agent (>=8-char session-id prefix); that seat wakes even on same-agent
         # mail (the twin channel), and no other incarnation does.
-        meta = {"to_incarnation": args.to_incarnation} if getattr(args, "to_incarnation", None) else None
-        mid = bus.send(args.to, args.kind, text, meta=meta)
+        meta = {}
+        if getattr(args, "to_incarnation", None):
+            meta["to_incarnation"] = args.to_incarnation
+        if getattr(args, "answers", None):
+            # T380/T139: the strict answer-link -- the only signal allowed to claim
+            # "answered" downstream (ladder checkmark, expectation settle).
+            meta["answers"] = str(args.answers)
+        mid = bus.send(args.to, args.kind, text, meta=meta or None)
         dest = args.to + (f"#{args.to_incarnation[:8]}" if getattr(args, "to_incarnation", None) else "")
         auto = expect_arg < 0 and args.kind in AUTO_REDRIVE_KINDS
         expect = ASK_EXPECT_DEFAULT_S if auto else max(0, expect_arg)
@@ -7569,6 +7575,12 @@ def build_parser():
     snd.add_argument("--to", default="", help="recipient agent id (e.g. deepseek); omit with --broadcast")
     snd.add_argument("--kind", default="chat", help="chat|request|question|handoff|... (default chat)")
     snd.add_argument("--broadcast", action="store_true", help="send to ALL agents instead of one --to")
+    snd.add_argument("--answers", default=None, metavar="MSG_ID",
+                     help="T380/T139: stream id of the message this send ANSWERS -- stamps "
+                          "meta.answers so obligations settle by LINK, not inference, and the "
+                          "Discord reaction ladder can flip the operator's message to the strict "
+                          "checkmark. Daemon runners stamp it automatically; harness seats pass it "
+                          "here. Directed sends only.")
     snd.add_argument("--expect-reply-within", type=int, default=-1, metavar="SECONDS",
                      help="RB-29: arm a sender-side reply deadline (clamped >=30s; 3 redrives then a "
                           "loud expectation_dead; swept at boot/bifrost-sync). DIRECTED asks "

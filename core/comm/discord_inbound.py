@@ -342,8 +342,10 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
     """One inbound message, fully decided. Returns what happened and why.
 
     Raises nothing it can help; but a BUS failure raises to the caller — the runner
-    must know a send died, because a ✅ on a dead send would be the T149 lie with
-    an emoji on it. The reaction fires only AFTER the bus accepted."""
+    must know a send died, because a receipt on a dead send would be the T149 lie
+    with an emoji on it. The landed reaction (📨, T380 -- it claims RELAYED, never
+    answered; ✅ now belongs to the ladder's strict answer-link) fires only AFTER
+    the bus accepted."""
     people = _people_of(cfg)
     who = people.get(str(author_id))
     is_operator = bool(who) and who.get("tier") == "operator"
@@ -430,7 +432,7 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
             raise RuntimeError(
                 f"the bus accepted nothing for the {lane_agent} lane (send "
                 f"returned None); no receipt for an undelivered word")
-        react("✅")
+        react("📨")
         return {"acted": True, "id": str(mid), "to": [lane_agent]}
     ask = _rooms_reverse().get(str(channel_id))
     if ask:
@@ -461,17 +463,17 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
                     + (f" ({len(sent_ids)} earlier summons in this message DID "
                        f"deliver — duplicates beat losses on retype)" if sent_ids else ""))
             sent_ids.append(str(mid))
-        react("✅")
+        react("📨")
         return {"acted": True, "id": sent_ids[-1], "ask_id": ask, "to": targets}
 
     mid = bus.broadcast("chat", body, meta=meta)
     if mid is None:
         # Heimdall's load-bearing find (review 2026-08-19): bus.broadcast returns
         # None WITHOUT RAISING when Redis is down (bus.py:451) or both writes fail
-        # (bus.py:566). Reacting ✅ on that None is the exact T149 lie the module
+        # (bus.py:566). Reacting 📨 on that None is the exact T149 lie the module
         # docstring promises to prevent — raise so the runner's ⚠️ path fires.
         raise RuntimeError(
             "the bus accepted nothing (broadcast returned None — Redis down or "
             "both writes failed); no receipt may be given for an undelivered word")
-    react("✅")
+    react("📨")
     return {"acted": True, "id": str(mid), "ask_id": ask}

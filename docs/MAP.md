@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (39 of 168 modules lack both pin and paper by name)
+## GAP queue (40 of 169 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/migrate_to_sqlite.py
@@ -24,6 +24,7 @@ Class: reference
 - core/comm/cursor_admin.py
 - core/comm/daemon_state.py
 - core/comm/discord_bridge.py
+- core/comm/discord_ladder.py
 - core/comm/dispatcher.py
 - core/comm/fence_phase.py
 - core/comm/interject.py
@@ -82,7 +83,7 @@ Class: reference
 | `agent_signal_ledger.py` | Agent Signal Ledger: the ordered record of every signal agents emit | GAP | GAP |  |
 | `coordinator_api.py` | Coordinator API: Minimal signal-based logging for agents | GAP | GAP | `AI_SETUP` |
 
-## core/comm/  (59 modules)
+## core/comm/  (60 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
@@ -101,6 +102,7 @@ Class: reference
 | `discord_bridge.py` | Outbound Discord bridge -- the fleet becomes watchable from a phone. | GAP | GAP | `AKASHIC_DISCORD_WEBHOOK` |
 | `discord_feed.py` | The automatic Discord feed — the subscription that makes the bridge real. | tests/test_discord_feed_pins.py | GAP |  |
 | `discord_inbound.py` | Discord inbound — Daniil's Discord messages become his voice on the bus. Nothing else does. | tests/test_discord_inbound_pins.py | GAP | `AKASHIC_DISCORD_OPERATOR_ID_FILE`, `AKASHIC_DISCORD_PEOPLE_FILE`, `AKASHIC_DISCORD_ROOTS_FILE`, `AKASHIC_DISCORD_SEATS_REGISTRY` |
+| `discord_ladder.py` | T380 -- the comms-stage reaction ladder, pure half (no discord import). | GAP | GAP |  |
 | `discord_rooms.py` | Outbound room router — each ask/breakout becomes a Discord thread. | tests/test_discord_rooms_pins.py | GAP | `AKASHIC_DISCORD_BOT_TOKEN`, `AKASHIC_DISCORD_FORUM_WEBHOOK`, `AKASHIC_DISCORD_ROOMS_REGISTRY`, `AKASHIC_DISCORD_SEATS_REGISTRY` |
 | `dispatcher.py` | Dispatcher (Bifrost Mesh W2): one resident process that turns doorbell notices into wakes. | GAP | GAP |  |
 | `doctor.py` | Fleet doctor (L2 / RB-27b) -- the missing READER of the liveness signals: progress, | tests/test_doctor_dead_runner_visibility.py | GAP | `AKASHIC_LANE_STALL_PAGE_S`, `AKASHIC_LANE_STALL_WARN_S`, `AKASHIC_RECENT_INBOX_S`, `AKASHIC_STALL_HYSTERESIS_S`, `BIFROST_NAMESPACE`, `BIFROST_UI_PORT` |
