@@ -8,7 +8,7 @@ Class: reference
 > (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by
 > check_comprehensibility so it cannot silently rot.
 
-## CLI door -- `py agent_cli.py <verb>` (89 verbs)
+## CLI door -- `py agent_cli.py <verb>` (90 verbs)
 
 The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.
 
@@ -48,6 +48,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `flightdeck` | W25 (deepseek): cockpit one-pager — fleet at a glance. Composes doctor + pulse + lane-health + locks + commits. --agent drills one seat | `--agent` `--json` |
 | `flow` | OTel-style waterfall of recent message flows across lanes: asks, answers, gaps, duplicate copies exposed (R3) | `<agent>` `--window` `--limit` `--json` |
 | `followup` | charter question-back (W46): append a q-id'd question to a verdict's Open Questions block + defer it to the responsible seat | `<agent_id>*` `--on*` `--to*` `--ask*` `--needs` `--json` |
+| `forecast` | T375 engineering forecast registry -- register bets at gates, score at review, render calibration | `<action>* {register,score,list}` `<id_pos>` `--id` `--task` `--by` `--statement` `--metric` `--target` `--horizon` `--mechanism` `--dies-when` `--observed` `--evidence` `--verdict` `--calibration` |
 | `friction` | collaboration-friction readout from existing evidence (T196a): episodes, dead-rate, time-to-settle. Read-only | `<agent_id>*` `--window-h` `--json` |
 | `graduate` | retire a lesson from recall surfacing -- automation now enforces its rule | `<agent_id>*` `--experiment` `--enforced-by` `--undo` `--json` |
 | `grant` | S-3: mint / revoke / list ACL grants (atomic + audited). NOT an auth boundary -- see the module docstring | `<agent_id>` `--role` `--by` `--reason` `--hours` `--permanent` `--caps` `--path-scope` `--request-ref` `--revoke` `--list` `--dry-run` `--json` |
