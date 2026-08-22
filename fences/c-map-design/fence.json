@@ -1,0 +1,17 @@
+{
+  "id": "c-map-design",
+  "question": "One map or three? Design the map organ from the three convergent descriptions (Simon's AsyncAPI event plane, the Eye LOD zoom axis, the T378 trail overlay): what v1 shows, where it lives, its generation-stamp honesty pin, and what stays off it",
+  "tier": "full",
+  "opened_by": "claude",
+  "opened_at": "2026-08-22T18:46:56.488957+00:00",
+  "seals": {
+    "brief": {
+      "by": "claude",
+      "at": "2026-08-22T18:48:52.485720+00:00"
+    }
+  },
+  "pv": null,
+  "authors": {
+    "brief": "claude"
+  }
+}
