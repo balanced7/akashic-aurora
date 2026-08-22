@@ -1,5 +1,5 @@
 {
-  "seq": 368,
+  "seq": 380,
   "tasks": [
     {
       "id": "T001",
@@ -13685,6 +13685,347 @@
           "to": "proposed",
           "by": "deepseek",
           "at": "2026-08-20T00:00:00+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T369",
+      "title": "Recall eval suite -- golden bank of extremes (synonym misses, collision traps, stem edges, gate false-silences), self-seeding from credited FAIL->SUCCESS flips; tune/holdout split (Goodhart guard); metrics precision@K/recall@K/noise/false-silence; cross-vendor LLM judge with process-primed prompt (lesson prime_by_process_not_persona); criticals escalate to Daniil with judge report. SPEC: note recall-eval-suite v4 (ADR_0821183614). Provenance: Simon's review 2026-08-21",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-22T01:21:42+00:00",
+      "updated": "2026-08-22T01:25:43+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-22T01:21:42+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-22T01:25:43+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T370",
+      "title": "Fuzzy/robust recall marriage -- embedding scorer in SHADOW PROBATION (async, zero hot-path cost); divergence log = self-building dataset feeding the eval suite; offline vocabulary compiler proposes trigger enrichments; lexical+credit ranker remains sole decider until evidence-gated promotion. SPEC: note fuzzy-robust-recall-marriage v3 (ADR_0821181822). Provenance: Daniil's marriage proposal + Simon's hybrid counter, 2026-08-21",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-22T01:21:42+00:00",
+      "updated": "2026-08-22T01:25:43+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-22T01:21:42+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-22T01:25:43+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T371",
+      "title": "Off-machine dead-man heartbeat listener -- machine pings healthchecks.io-class free service on schedule; missed pings alarm into Discord webhook. Converts the 8-silent-hours failure mode into a phone ping within minutes. ~10 min setup, $0, no new infrastructure. Ships with a D-catalog drill (kill the pinger, prove the alarm). Provenance: OOB design arc + Simon's opportunity-cost scoping, 2026-08-21",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-22T01:21:43+00:00",
+      "updated": "2026-08-22T01:25:44+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-22T01:21:43+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-22T01:25:44+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T372",
+      "title": "Substrate durability ceremony -- make the 2026-08-21 live AOF flip permanent: recreate akashic-redis with a proper volume + appendonly baked in (BGSAVE, dump copy-out, recreate, restore, verify). Closes the D in ACID that Simon's probe exposed (snapshots-only, 1945 unsaved writes at check). DATA-MOVING: gated + drilled. Provenance: Simon's ACID probe 2026-08-21",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-22T01:21:43+00:00",
+      "updated": "2026-08-22T01:25:44+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-22T01:21:43+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-22T01:25:44+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T373",
+      "title": "Thinking-emoji processing receipts on Discord -- Law 4 ack ladder as emoji: gateway carries each Discord message id in bus meta so seats can react 'being worked' back to the original message; checkmark stays 'landed'. Fixes the request-buried-in-flurry class (its own spec request was buried 2h, 2026-08-21). Provenance: Daniil 15:04 ask",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-22T01:21:43+00:00",
+      "updated": "2026-08-22T01:25:45+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-22T01:21:43+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-22T01:25:45+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T374",
+      "title": "Two-store census + master-declaration doctrine + mechanized reconciler -- (1) CENSUS: enumerate every fact living in 2+ stores (redis/git-files/sqlite-echo/state-coord/caches), one master declared per fact, classified by cause: transitional/physics/cache/accidental. (2) DOCTRINE: no peer truths -- master + derived only; derived carries generation stamps, regenerable; writes only through the master's door. (3) MECHANIZE: reconciler on cadence via durable_reconcile + doctor drift section (compare stamps, heal=regenerate-projection, BACKFILL never overwrite per lesson heal_must_backfill_never_overwrite). (4) End-date every transitional dual-write (finish T045 cutover, retire legacy stream). (5) D-catalog drift drill: skew a projection deliberately, prove detection+heal, dated receipt. Provenance: Daniil's four questions 2026-08-22 morning (why arise / need both / mechanize sync) following the LangFuse drift-class thread",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-22T12:55:37+00:00",
+      "updated": "2026-08-22T14:10:26+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-22T12:55:37+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-22T14:10:26+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T375",
+      "title": "Engineering forecast registry (B of the 2026-08-22 attention deck, Daniil-sequenced FIRST) -- the cross-cutting registry primitive in its cheapest instance: at every gate, the approved slice registers expected outcomes (metric/behavior/horizon, registered-by, registered-at, append-only); scored at review against observed results. Join semantics carry the ECHO-BAN (credit only from outcome joins, never agreement) + knowable-ts discipline so T369 and the trader registry inherit both. Deliverable includes the calibration render: the fleet's engineering-bet hit rate over time. Provenance: trader-arc synthesis + Daniil's B-C-D-A ruling",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "claimed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-22T14:05:17+00:00",
+      "updated": "2026-08-22T14:10:36+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-22T14:05:17+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-22T14:10:27+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-22T14:10:36+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T376",
+      "title": "Fleet metabolism slice (D of the 2026-08-22 attention deck) -- generalize runner-style stale-code self-restart (detect HEAD drift, wait for idle boundary, exit clean, spawn successor, singleton-lock guards) to the discord gateway, bifrost daemon, and UI; unify with OOB Law-6 succession as ONE organ with three triggers (stale-code / wedged / deadline). Receipt: a rolling-refresh drill -- commit a trivial change, observe all long-lived organs rotate hands-free. Provenance: the 2026-08-22 autonomous runner rotation + Daniil's sequencing",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-22T14:05:18+00:00",
+      "updated": "2026-08-22T14:10:27+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-22T14:05:18+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-22T14:10:27+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T377",
+      "title": "Intent-time recall pass (recall-at-choice) -- extend recall-at to the user-prompt boundary: a UserPromptSubmit-hook pass keyed on choice-shaped features of the operator's message (URLs, file/path references, verb-shaped nouns), surfacing door-routing lessons BEFORE the first tool call, same funnel/floor/budget discipline as the action pass. Founding golden case for T369: the 2026-08-22 captions miss (lesson trigger phrased in intent plane, matcher reads action plane, four human interventions substituted). Provenance: Daniil verbatim -- 'this is the sort of thing I want our threads to catch and for you to be able to navigate'",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-22T14:34:19+00:00",
+      "updated": "2026-08-22T14:37:31+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-22T14:34:19+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-22T14:37:31+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T378",
+      "title": "Proximity sensor v0 (trail sensing) -- the SENSING half of the proximity vision, substrate verified already-deployed (recall:outcome stream: per-action {at, command-text, ok, surfaced, agent, sid}). Build: situation-signature via the SAME stem/IDF engine as the recall funnel pointed at the trail corpus (a --scope trails on the query plane, no new engine per enablement-first); returns prior trail SEGMENTS (who was here, what they tried, where they turned back, where they arrived) at intent-time, composing with T377's recall pass (distilled lesson + evidential trail = navigation with lineage). Loop-detection half: same-signature repeats with failing outcomes in-session alarm with the prior exit. ACCEPTANCE GATES, registered before build (calibration-first per Daniil): (G1) signature 'youtube URL' retrieves the 2026-08-15 WebFetch-fail->captions-door trail with terminus; (G2) the redelivery-storm five-repeat pattern triggers loop alarm on replay. Provenance: the 2026-08-22 captions miss + Daniil verbatim 'we can use this to calibrate and build the proximity sensor, looks like its broken or nonexistent right now' -- verified: recording exists, sensing nonexistent",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "approved",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-22T14:35:51+00:00",
+      "updated": "2026-08-22T14:37:32+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-22T14:35:51+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniil",
+          "at": "2026-08-22T14:37:32+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T379",
+      "title": "AsyncAPI domain-event catalog (checked contract) -- Simon's proposal 2026-08-22: a human-readable AsyncAPI spec documenting every domain event (channels/streams, payload schemas, meanings, subscribers). UPGRADE from doc to CHECKED CONTRACT per house DNA (check_advertised_verbs/tools/kind_policy siblings): a checker validates spec-vs-reality BOTH directions -- documented-but-never-emitted = dead entry; emitted-but-undocumented = fragmentation bug (directly attacks T174 ask-verb/kind collision, T175 SKIP_KINDS reconcile, T177 kind-plane fragmentation). Derive from actual emit sites + enrich with human meaning (hand-kept manifests drift -- derived-and-checked can't). PRECONDITION for the event-highway north-star (note event-highway-northstar-for-t374 -- can't derive-all-from-events until events are cataloged). Also feeds: Simon's 5am tracing gap (catalog = half a trace viewer), T375 forecast registry (events are what get scored), the map ambition (event-topology layer). Provenance: Simon verbatim 'human-readable map of all our domain events in an AsyncAPI spec file... clarity in this area can give a huge boost'",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-22T16:13:39+00:00",
+      "updated": "2026-08-22T16:13:39+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-22T16:13:39+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T380",
+      "title": "Discord comms-stage reaction ladder \u2014 make message state legible at a glance from the phone. TODAY: checkmark means only THE BUS ACCEPTED THE RELAY (fires after enqueue, deliberately never before \u2014 a checkmark on a dead send would be the T149 lie with an emoji on it), warning-sign means the relay died; no other stages exist, so received impersonates done. BUILD (true observables only, no lying emoji): (1) rename relay-accept reaction to inbox-tray \ud83d\udce8 = landed; (2) thinking \ud83e\udd14 added when the target seat actually takes the message in hand \u2014 cursor passage / declare_intent, both already wired for daemon seats per the read-state fence verification, harness seat covered by its consume; (3) checkmark \u2705 replaces \ud83e\udd14 only when a reply linking meta.answers back to the original bus id posts to his channel through the feed \u2014 correlation durable via inbound meta channel_id+discord message id; (4) warning \u26a0\ufe0f additionally fires on expectation_dead so exhausted redrives cannot stay silent (drill doctrine: silent failure impossible). Mechanism: bot process (holds the token; webhooks cannot react) grows a small background poll for the three events, state re-derivable from bus meta (crash-safe, idempotent re-reacts). ACCEPTANCE, pre-registered: G1 live drill \u2014 test message shows \ud83d\udce8 then \ud83e\udd14 then \u2705 on the real Discord message, dated receipt; G2 dead-path drill \u2014 bus down or dead seat yields \u26a0\ufe0f and no \u2705 ever lies. Gateway restart (or T376 metabolism once built) to pick up the ship. Provenance: Daniil 2026-08-21 19:04 verbatim thinking-emoji ask (W161, subsumed) + 2026-08-22 verbatim: would be nice to know which stage in the communication things are at via the emote reactions, thinking, processed. if I can tell at a glance what is going on it will help me understand it better",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "claimed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-22T16:52:44+00:00",
+      "updated": "2026-08-22T16:55:16+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-22T16:52:44+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-22T16:55:05+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-22T16:55:16+00:00"
         }
       ]
     }

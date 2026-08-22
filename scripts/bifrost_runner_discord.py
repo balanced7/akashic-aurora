@@ -358,6 +358,55 @@ def main() -> int:
     intents.message_content = True
     client = discord.Client(intents=intents)
 
+    # ---- T380: the comms-stage reaction ladder (📨 landed -> 🤔 opened ->
+    # ✅ answered-strict / 💬 replied-unlinked / ⚠️ dead). The tracker is the
+    # pure pinned half (core/comm/discord_ladder.py); this loop applies its ops
+    # to the operator's original messages. Reaction failures stay garnish-never-
+    # wounds; ops are staggered (<=3 per tick) against the per-route reaction
+    # rate limit (Heimdall's fence counter c3); a deleted message evicts its
+    # entry (c4). In-process state: a gateway restart drops in-flight ladder
+    # entries -- documented T380 residual; the relay 📨 never depends on this.
+    from collections import deque as _deque
+    _ladder_msgs: dict = {}
+    _ladder_ops = _deque()
+    _LADDER_EMOJI = {"thinking": "🤔", "answered": "✅", "replied": "💬",
+                     "dead": "⚠️"}
+
+    async def _ladder_loop():
+        from core.comm.discord_ladder import LadderTracker
+        tracker = LadderTracker(client=bus._client, ns=bus.ns, operator="daniil")
+        client._ladder_tracker = tracker           # on_message tracks through this
+        while True:
+            await asyncio.sleep(4)
+            try:
+                _ladder_ops.extend(tracker.poll())
+            except Exception as e:                                      # noqa: BLE001
+                print(f"[discord-in] ladder poll failed ({type(e).__name__}: {e})",
+                      flush=True)
+                continue
+            for _ in range(min(3, len(_ladder_ops))):
+                op = _ladder_ops.popleft()
+                msg = _ladder_msgs.get(op["discord_msg_id"])
+                if msg is None:
+                    continue                # pre-restart entry: residual, drop it
+                emoji = _LADDER_EMOJI.get(op["op"])
+                if not emoji:
+                    continue
+                try:
+                    if op["op"] in ("answered", "replied", "dead"):
+                        try:
+                            await msg.remove_reaction("🤔", client.user)
+                        except Exception:                               # noqa: BLE001
+                            pass            # removing our own 🤔 is best-effort
+                        _ladder_msgs.pop(op["discord_msg_id"], None)
+                    await msg.add_reaction(emoji)
+                except discord.NotFound:
+                    _ladder_msgs.pop(op["discord_msg_id"], None)  # deleted: evict
+                except Exception as e:                                  # noqa: BLE001
+                    print(f"[discord-in] ladder react failed on {op['op']} "
+                          f"({type(e).__name__}: {e}) -- delivery stands, the "
+                          f"emote does not", flush=True)
+
     @client.event
     async def on_ready():
         print(f"[discord-in] listening as {client.user} -- R1 allowlist is one id; "
@@ -372,6 +421,10 @@ def main() -> int:
                                           name="the Bifrost"))
         except Exception:                                               # noqa: BLE001
             pass                                   # presence is garnish, never load-bearing
+        # T380: one ladder loop per process (on_ready refires on RESUME -- guard)
+        if not getattr(client, "_ladder_started", False):
+            client._ladder_started = True
+            asyncio.create_task(_ladder_loop())
 
     @client.event
     async def on_message(message):
@@ -401,7 +454,8 @@ def main() -> int:
                 spawner=_spawn)
         except Exception as e:                                          # noqa: BLE001
             # a dead bus send must be VISIBLE at both ends: loud here, ⚠️ there.
-            # A ✅ on a dead send would be the T149 lie with an emoji on it.
+            # A landed-receipt (📨) on a dead send would be the T149 lie with an
+            # emoji on it -- and ✅ is the ladder's word for ANSWERED now (T380).
             print(f"[discord-in] send FAILED ({type(e).__name__}: {e})", flush=True)
             try:
                 await message.add_reaction("⚠️")
@@ -420,6 +474,22 @@ def main() -> int:
                 _watch_spawn(int(out["spawned"]), message)
             except (TypeError, ValueError):
                 pass                        # no pid to watch is not a reason to die
+        # T380: enter the ladder -- directed operator relays only (ambient
+        # broadcasts and guest words get their landed emote and stop there).
+        # reversed(): out["id"] is the LAST target's stream id, so that agent
+        # leads the list the tracker resolves the identity sha from.
+        try:
+            _t = getattr(client, "_ladder_tracker", None)
+            if (_t is not None and out.get("acted") and out.get("id")
+                    and out.get("to") and not out.get("guest")):
+                if _t.track(str(out["id"]),
+                            to_agents=[str(a) for a in reversed(out["to"])],
+                            channel_id=str(message.channel.id),
+                            discord_msg_id=str(message.id)):
+                    _ladder_msgs[str(message.id)] = message
+        except Exception as e:                                          # noqa: BLE001
+            print(f"[discord-in] ladder track failed ({type(e).__name__}: {e})",
+                  flush=True)
         if out.get("acted"):
             room = f" -> ask {out['ask_id']}" if out.get("ask_id") else " -> global"
             if out.get("guest"):

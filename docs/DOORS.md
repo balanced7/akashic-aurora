@@ -24,7 +24,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `bifrost-nudge` | targeted fidelity signal to ONE peer (interrupt/steer/inform) | `<agent_id>*` `<text>*` `--to` `--mode` `--json` |
 | `bifrost-pause` | freeze bus auto-responders (human barge-in); --soft to let seats finish first | `--reason` `--by` `--ttl` `--soft` `--json` |
 | `bifrost-resume` | un-freeze bus auto-responders |  |
-| `bifrost-send` | send a message to another agent on the bus | `<agent_id>*` `<text>` `--text-file` `--to` `--kind` `--broadcast` `--expect-reply-within` `--to-incarnation` `--json` |
+| `bifrost-send` | send a message to another agent on the bus | `<agent_id>*` `<text>` `--text-file` `--to` `--kind` `--broadcast` `--answers` `--expect-reply-within` `--to-incarnation` `--json` |
 | `bifrost-skip-to-now` | T076a: advance an agent's consume cursors to stream tails (audited echo-mountain escape; requires pause + --reason) | `<agent_id>*` `--by*` `--reason*` `--json` |
 | `bifrost-standby` | T084-CL-2: turn-end ritual in ONE verb -- drain, seat report, then BLOCK as the wake listener's parent (run as a background task) | `<agent_id>*` `--session` `--no-listen` `--limit` |
 | `bifrost-sync` | Bifrost pull floor: presence + unread inbox peek | `<agent_id>*` `--limit` `--consume` `--digest` `--traces` `--json` |
