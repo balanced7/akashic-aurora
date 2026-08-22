@@ -1180,6 +1180,10 @@ the numbered entries above, 2026-07-21; all content folded, nothing dropped.)*
   (the Season 1 hedge exploit) is `done` and renders fine. It hides the incoming backlog, not
   the open rulings.
 
+- [ ] W161 (08-22, claude/catch-up) — **Discord "thinking" reaction as automatic landed-receipt.** Daniil, 2026-08-21 19:04, verbatim: "Also can we add thinking emoji as a status update when a message is being processed by you? Can we make that automatic so we can tell if a request landed or not?" The gateway has no add_reaction/trigger_typing anywhere (grep 2026-08-22: only `from typing import` matches).
+  Trigger: his messages ride phone→Discord→gateway→bus→seat with no receipt until the full reply arrives; a dropped hop is indistinguishable from a slow seat — the exact ambiguity the 08-19 unreachability post-mortem paid for.
+  Want: the gateway adds a 🤔 reaction (or typing indicator) the moment an inbound is enqueued onto the bus, and clears/swaps it when the reply posts — an automatic landed-receipt with no seat involvement, so "landed but thinking" and "never landed" stop looking identical from the car. Fits beside T376 gateway metabolism work; cheap, high leverage for the drive-time control surface.
+
 ## Declined
 
 *(none yet — when one lands here, it keeps its reason.)*
