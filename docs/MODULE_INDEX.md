@@ -86,7 +86,7 @@
 - `turn_metrics.py` — Turn metrics (progress-bars data half; co-designed claude+deepseek 2026-07-11).
 - `wake_seat.py` — wake_seat -- the per-session wake-seat protocol (T029 Wave 2, the R1/R16 fix).
 
-## core/coord/  (23 modules)
+## core/coord/  (24 modules)
 - `capability_search.py` — capability_search -- "does this system already do X?", asked at the level of MEANING.
 - `cognitive_metrics.py` — Cognitive Efficiency Metrics — live instrumentation for the Stage-3 evidence engine.
 - `compare.py` — compare -- the cross-domain set difference, with a name (T213).
@@ -95,6 +95,7 @@
 - `defer_queue.py` — defer_queue — the capability-gated standing queue (W33, seat-zero wave B3).
 - `experiment.py` — Coordination experiment harness -- the Stage-3 evidence engine.
 - `fence_workspace.py` — Fence workspace (R2 / T053) -- the fence as a first-class object, not a naming convention.
+- `forecast_registry.py` — T375 -- the engineering forecast registry (append-only, fold-not-table).
 - `intent.py` — Intent declaration -- Policy 0 of the coordination layer.
 - `lens_ledger.py` — lens_ledger -- score fan lenses by what SURVIVED, not by whether the model replied.
 - `method_drift.py` — method_drift -- the one method number that reaches a channel people actually read.

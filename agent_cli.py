@@ -5926,6 +5926,71 @@ def cmd_bifrost_standby(args):
     return 0 if res["decision"] != "twin-holds-seat" else 1
 
 
+def cmd_forecast(args):
+    """T375: the engineering forecast registry door -- register bets at gates,
+    score them at review against outcome artifacts, render calibration."""
+    import time
+    from core.coord.forecast_registry import (ForecastRegistry, RegistryRefusal,
+                                              VERDICTS)
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "state", "coord", "forecasts.jsonl")
+    reg = ForecastRegistry(path=path)
+    try:
+        if args.action == "register":
+            fid = args.id or args.id_pos
+            if not fid:
+                print("ERROR: forecast register needs --id"); return 2
+            horizon = str(args.horizon or "+7d")
+            if horizon.startswith("+") and horizon.endswith("d"):
+                horizon_ts = time.time() + float(horizon[1:-1]) * 86400
+            else:
+                horizon_ts = float(horizon)
+            expectation = {"statement": args.statement}
+            if args.metric:
+                expectation["metric"] = args.metric
+            if args.target is not None:
+                expectation["target"] = args.target
+            row = reg.register(id=fid, task_ref=args.task, registered_by=args.by,
+                               expectation=expectation, horizon_ts=horizon_ts,
+                               mechanism=args.mechanism, dies_when=args.dies_when)
+            print(f"[forecast] registered {row['id']} by {row['registered_by']} "
+                  f"(horizon {time.strftime('%Y-%m-%d', time.localtime(row['horizon_ts']))}, "
+                  f"dies_when: {row['dies_when']})")
+            return 0
+        if args.action == "score":
+            fid = args.id_pos or args.id
+            if not (fid and args.verdict):
+                print("ERROR: forecast score <id> --verdict ... needed"); return 2
+            row = reg.score(fid, scored_by=args.by, observed=args.observed,
+                            evidence_ref=args.evidence, verdict=args.verdict)
+            print(f"[forecast] scored {fid}: {row['verdict']} "
+                  f"(knowable_ts {row['outcome_knowable_ts']})")
+            return 0
+        # list
+        state = reg.state()
+        if not state:
+            print("(no forecasts registered)"); return 0
+        for fid in sorted(state):
+            r = state[fid]
+            v = r.get("verdict") or "OPEN"
+            print(f"  {fid} [{v:>7}] {r.get('registered_by','?')}: "
+                  f"{(r.get('expectation') or {}).get('statement','')[:90]}")
+        if args.calibration:
+            cal = reg.calibration()
+            print("# calibration (rate = hits / scored non-void; partial counts against)")
+            for who, a in sorted(cal["by_author"].items()):
+                rate = "n/a" if a["rate"] is None else f"{a['rate']:.0%}"
+                print(f"  {who}: {rate}  (hit {a['hit']} / miss {a['miss']} / "
+                      f"partial {a['partial']} / voided {a['voided']} / residual {a['residual']})")
+            for r in cal["overdue"]:
+                print(f"  OVERDUE: {r['id']} ({r.get('registered_by','?')}) -- past "
+                      f"{time.strftime('%Y-%m-%d', time.localtime(r.get('horizon_ts', 0)))}, unscored")
+        return 0
+    except RegistryRefusal as e:
+        print(f"[forecast] REFUSED: {e}")
+        return 1
+
+
 def cmd_bifrost_send(args):
     """Send a message to another agent on the Bifrost bus (or --broadcast to all). The sender is
     args.agent_id; the recipient is --to. Rings the doorbell so a runner/waiter wakes."""
@@ -7563,6 +7628,31 @@ def build_parser():
     sby.add_argument("--no-listen", action="store_true", help="drain + report only; do not block")
     sby.add_argument("--limit", type=int, default=None)
     sby.set_defaults(fn=cmd_bifrost_standby)
+
+    fc = sub.add_parser("forecast", help="T375 engineering forecast registry -- register "
+                                         "bets at gates, score at review, render calibration")
+    fc.add_argument("action", choices=["register", "score", "list"])
+    fc.add_argument("id_pos", nargs="?", default=None, help="forecast id (for score)")
+    fc.add_argument("--id", default=None, help="forecast id (for register)")
+    fc.add_argument("--task", default="", help="ledger task ref (e.g. T375)")
+    fc.add_argument("--by", default="claude", help="registering/scoring seat")
+    fc.add_argument("--statement", default="", help="the expectation, falsifiable")
+    fc.add_argument("--metric", default=None)
+    fc.add_argument("--target", default=None)
+    fc.add_argument("--horizon", default=None, metavar="TS|+Nd",
+                    help="epoch seconds or +Nd (default +7d -- tight horizons beat "
+                         "quarter-long blind spots)")
+    fc.add_argument("--mechanism", default="", help="WHY the expectation should hold")
+    fc.add_argument("--dies-when", dest="dies_when", default="",
+                    help="the condition under which this bet is DEAD rather than "
+                         "pending (mandatory -- a bet that cannot die is not a bet)")
+    fc.add_argument("--observed", default="", help="score: what actually happened")
+    fc.add_argument("--evidence", default="", metavar="REF",
+                    help="score: outcome artifact -- event:<stream>:<id> or commit:<sha>; "
+                         "the door DERIVES outcome_knowable_ts from it (never claimed)")
+    fc.add_argument("--verdict", default=None, help="hit|miss|partial|voided|residual")
+    fc.add_argument("--calibration", action="store_true", help="list: render hit rates + overdue")
+    fc.set_defaults(fn=cmd_forecast)
 
     snd = sub.add_parser("bifrost-send", help="send a message to another agent on the bus")
     snd.add_argument("agent_id", help="your stable agent id (the SENDER, e.g. claude)")
