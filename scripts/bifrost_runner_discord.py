@@ -422,7 +422,24 @@ def main() -> int:
                 pass                        # no pid to watch is not a reason to die
         if out.get("acted"):
             room = f" -> ask {out['ask_id']}" if out.get("ask_id") else " -> global"
-            print(f"[discord-in] heard the operator{room} (bus id {out['id']})", flush=True)
+            if out.get("guest"):
+                # The guest's snowflake is printed ON PURPOSE. It is the single
+                # fact an operator needs to promote a visitor, and making him hunt
+                # it through Developer Mode is friction the ear can just delete --
+                # a visitor SAYING HELLO is the most natural way to hand it over.
+                # Printing an id grants nothing: R3 still holds, reach not authority.
+                print(f"[discord-in] heard a GUEST {message.author} "
+                      f"id={message.author.id} (authority: none){room} "
+                      f"(bus id {out['id']})", flush=True)
+            else:
+                who = (out.get("speaker") or "the operator")
+                print(f"[discord-in] heard {who}{room} (bus id {out['id']})",
+                      flush=True)
+        elif out.get("reason"):
+            # A refused message used to vanish. Silence at a gate is how a visitor
+            # concludes the house is dead -- say what was refused and whose it was.
+            print(f"[discord-in] REFUSED {message.author} id={message.author.id}: "
+                  f"{out['reason']}", flush=True)
 
     client.run(token, log_handler=None)
     return 0

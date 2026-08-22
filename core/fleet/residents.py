@@ -284,6 +284,81 @@ def get(agent_id: str) -> Optional[Dict[str, Any]]:
     return current
 
 
+#: Reverse index (callsign -> agent_id) plus the set of real agent ids. Callsigns change
+#: only by ratification ceremony, so a short TTL is generous and the hot path stays a dict
+#: lookup. Rebuilt lazily; a store outage returns the last good map rather than an empty one
+#: (an empty map silently un-routes every callsign -- the exact failure this closes).
+_ALIAS_CACHE: Dict[str, Any] = {"at": 0.0, "alias": {}, "ids": set()}
+_ALIAS_TTL = 120.0
+
+
+def _alias_index(now: Optional[float] = None) -> Dict[str, Any]:
+    now = time.time() if now is None else now
+    if _ALIAS_CACHE["alias"] and (now - float(_ALIAS_CACHE["at"])) < _ALIAS_TTL:
+        return _ALIAS_CACHE
+    prefix = _LOG_KEY.format(agent="")
+    try:
+        keys = _store().keys(prefix + "*") or []
+    except Exception:
+        return _ALIAS_CACHE                      # last good map beats no map
+    alias: Dict[str, str] = {}
+    ids = set()
+    for k in keys:
+        agent_id = str(k)[len(prefix):]
+        if not agent_id:
+            continue
+        ids.add(agent_id.lower())
+        try:
+            rec = get(agent_id)
+        except Exception:
+            continue
+        if not rec:
+            continue
+        cs = str(rec.get("callsign") or "").strip().lower()
+        if cs:
+            alias[cs] = agent_id
+        # A retired name must still route. `formerly:` is derived from the append-only log,
+        # so mail addressed to a name someone used to carry reaches the person who carried
+        # it rather than a mailbox nobody serves.
+        for old in (rec.get("formerly") or []):
+            o = str(old).strip().lower()
+            if o and o not in alias:
+                alias[o] = agent_id
+    _ALIAS_CACHE.update({"at": now, "alias": alias, "ids": ids})
+    return _ALIAS_CACHE
+
+
+def resolve_agent(name: str) -> str:
+    """A ratified CALLSIGN resolves to its agent_id; everything else passes through.
+
+    Born 2026-08-20 from a live silence: `doctor` read `vandor: OFFLINE -- 2 unread but the
+    agent is GONE (no worklive, no runner, no wake seat)`. Heimdall and Navi were addressing
+    the ratified callsign; the seat is registered under the agent id. The callsign had become
+    an IDENTITY without becoming an ADDRESS, so every send was cheerfully ACCEPTED into a
+    stream no seat drains and no watcher watches. Delivery succeeded; arrival never happened.
+
+    Two properties this must hold, both learned expensively elsewhere in this tree:
+
+    IDEMPOTENT -- resolve(resolve(x)) == resolve(x). Agent ids pass through untouched, so it
+    is safe to apply at more than one seam without double-routing (bus.send and
+    bus.send_reply are separate paths; send_reply is lane-first and does NOT delegate).
+
+    AN AGENT ID ALWAYS WINS. A callsign that collides with a real agent id must never shadow
+    that seat -- the id is the address of record. R1's costume doctrine, one plane over.
+
+    An unknown name passes through UNCHANGED rather than raising: this function's job is to
+    rescue known aliases, not to become a new way for mail to fail.
+    """
+    n = str(name or "").strip()
+    if not n:
+        return name
+    idx = _alias_index()
+    low = n.lower()
+    if low in idx["ids"]:
+        return n                                 # a real seat: never shadowed by a callsign
+    return idx["alias"].get(low, n)
+
+
 def designation(agent_id: str) -> str:
     """Render the full designation, omitting fields that were never set.
 

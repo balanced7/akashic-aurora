@@ -270,6 +270,30 @@ class Bus:
         return str(sid)[:8]
 
     # ------------------------------------------------------------------ send
+    def _resolve_recipient(self, to: Any, meta: Optional[Dict[str, Any]]):
+        """Callsign -> agent id, carrying a receipt of the name actually typed.
+
+        2026-08-20: `doctor` read `vandor: OFFLINE -- 2 unread but the agent is GONE`. Two
+        seats had been addressing the ratified callsign for days; the seat is registered
+        under the agent id. Every one of those sends was ACCEPTED -- into a stream no seat
+        drains and no watcher watches. Delivery is not arrival (T108, one plane over).
+
+        FAIL-OPEN on every error: a resolver outage must degrade to today's behaviour, never
+        become a new way for mail to die. `addressed_as` keeps attribution honest -- the fleet
+        can still see which name was typed, so a callsign send is not silently rewritten.
+        """
+        raw = str(to)
+        try:
+            from core.fleet.residents import resolve_agent
+            resolved = resolve_agent(raw)
+        except Exception:
+            return raw, meta
+        if not resolved or resolved == raw:
+            return raw, meta
+        m = dict(meta or {})
+        m.setdefault("addressed_as", raw)
+        return resolved, m
+
     def send(self, to: str, kind: str, content: Any = None, *, parts: Optional[List[Part]] = None,
              meta: Optional[Dict[str, Any]] = None, allow_frag: bool = True) -> Optional[str]:
         """Direct message to one agent's inbox (optionally with `parts` -- inline or media-by-ref).
@@ -277,6 +301,7 @@ class Bus:
         `allow_frag` is False (a REFUSE-LOUD, never a silent truncation -- T043). By default
         oversize payloads are auto-fragmented (P2 auto-chunk); pass allow_frag=False for the
         legacy LOUD-refusal behavior."""
+        to, meta = self._resolve_recipient(to, meta)
         # T108 slice 1: incarnation-directed mail also lands on the target SEAT's own stream.
         self._warn_if_unattended(str(to))     # T108-S0: delivery is not receipt
         inc = str((meta or {}).get("to_incarnation") or "")[:8]
@@ -370,6 +395,7 @@ class Bus:
         legacy-first machinery (documented residual). Lanes off -> plain send()."""
         if not self.online:
             return None
+        to, meta = self._resolve_recipient(to, meta)
         from uuid import uuid4
         meta = dict(meta or {})
         meta.setdefault("reply_id", uuid4().hex)

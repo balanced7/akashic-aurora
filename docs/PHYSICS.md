@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at f41a544c. A bound you discover by collision is not awareness -- this sheet
+> Derived at 1ea02823. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (218 names)
+## Configuration flags (220 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -47,7 +47,9 @@ Class: reference
 | `AKASHIC_DISCORD_FORUM_WEBHOOK` | `` | core/comm/discord_rooms.py |
 | `AKASHIC_DISCORD_GATEWAY_LOG` | `` | scripts/bifrost_runner_discord.py |
 | `AKASHIC_DISCORD_OPERATOR_ID_FILE` | `` | core/comm/discord_inbound.py |
+| `AKASHIC_DISCORD_PEOPLE_FILE` | `` | core/comm/discord_inbound.py |
 | `AKASHIC_DISCORD_ROOMS_REGISTRY` | `` | core/comm/discord_rooms.py |
+| `AKASHIC_DISCORD_ROOTS_FILE` | `` | core/comm/discord_inbound.py |
 | `AKASHIC_DISCORD_SEATS_REGISTRY` | `` | core/comm/discord_inbound.py, core/comm/discord_rooms.py |
 | `AKASHIC_DISCORD_WEBHOOK` | `` | agent_cli.py, core/comm/discord_bridge.py |
 | `AKASHIC_DRILL_ECHO` | `` | scripts/bifrost_runner.py, scripts/bifrost_runner_deepseek.py, scripts/bifrost_runner_gemini.py +2 |

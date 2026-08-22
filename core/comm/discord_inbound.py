@@ -32,31 +32,160 @@ _ROOT = Path(__file__).resolve().parents[2]
 #: The R1 allowlist file — one line, all digits. env override is for pins only.
 OPERATOR_ID_FILE = _ROOT / ".secrets" / "discord_operator_id"
 
+#: R1 v2 (2026-08-20). Daniil, giving his friend the keys: "he has his own ID. This is
+#: my trusted friend, I am flying out to be his best man at his wedding. This is not an
+#: oversight this is trust." One id was never a ceiling on trust -- it was a ceiling on
+#: ATTRIBUTION, and sharing his row would have made a guest speak in his voice. So the
+#: house learns more than one name instead. Absent is not broken: no file means one
+#: operator, exactly as on day one.
+#: Shape: {"<snowflake>": {"agent": "simon", "tier": "operator"|"guest"}}
+PEOPLE_FILE = _ROOT / ".secrets" / "discord_people.json"
+
+#: CO-ROOT registry (2026-08-20, Daniil: "make co root"). Two properties used to belong
+#: to exactly one id -- it could BOOT the ear, and no people.json row could demote it.
+#: Every id listed here holds both. The ear now refuses only when NO root resolves from
+#: either source, so fail-closed survives co-rootship intact.
+#: Shape: {"<snowflake>": {"agent": "simon"}}  (a bare string name is accepted too)
+ROOTS_FILE = _ROOT / ".secrets" / "discord_roots.json"
+
+#: LAST-RESORT name for the root operator, used only when the registry does not name
+#: him. It is a fallback, never a truth: whoever holds the root id is NOT necessarily
+#: Daniil, and hardcoding otherwise made a second root speak in his voice (found by his
+#: own question, 2026-08-20: "did we fix attribution and ID's to handle a different
+#: operator with root access apart from me?" -- we had not).
+ROOT_OPERATOR_AGENT_FALLBACK = "daniil"
+
 
 class EarConfigError(RuntimeError):
     """Refusal at the gate: inbound must never start on a guessed allowlist."""
 
 
-def build_config() -> Dict[str, str]:
+def _load_people() -> Dict[str, Dict[str, str]]:
+    """The additional-people registry, or {} when the house has only its operator.
+
+    A malformed ROW is dropped alone rather than taking the ear down with it: a typo in
+    a guest's line must never cost the operator his own voice. A non-snowflake key is
+    not an address and is never treated as one -- the R1 discipline (the id is the law,
+    the name is costume) applies to every row, not just to his."""
+    path = Path(os.getenv("AKASHIC_DISCORD_PEOPLE_FILE") or PEOPLE_FILE)
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(raw, dict):
+        return {}
+    out: Dict[str, Dict[str, str]] = {}
+    for key, val in raw.items():
+        sid = str(key).strip()
+        if not sid.isdigit() or not (15 <= len(sid) <= 22):
+            continue
+        if not isinstance(val, dict):
+            continue
+        agent = str(val.get("agent") or "").strip().lower()
+        tier = str(val.get("tier") or "guest").strip().lower()
+        if not agent or tier not in ("operator", "guest"):
+            continue
+        out[sid] = {"agent": agent, "tier": tier}
+    return out
+
+
+def _load_roots() -> Dict[str, Dict[str, str]]:
+    """The co-root registry, or {} when the house has only its founding operator.
+
+    Same row-level tolerance as _load_people: one rotten row is dropped alone, because a
+    typo beside a co-root's name must never cost the house every root it has."""
+    path = Path(os.getenv("AKASHIC_DISCORD_ROOTS_FILE") or ROOTS_FILE)
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(raw, dict):
+        return {}
+    out: Dict[str, Dict[str, str]] = {}
+    for key, val in raw.items():
+        sid = str(key).strip()
+        if not sid.isdigit() or not (15 <= len(sid) <= 22):
+            continue
+        if isinstance(val, dict):
+            agent = str(val.get("agent") or "").strip().lower()
+        elif isinstance(val, str):
+            agent = val.strip().lower()
+        else:
+            continue
+        if not agent:
+            continue
+        out[sid] = {"agent": agent}
+    return out
+
+
+def _people_of(cfg: Dict[str, Any]) -> Dict[str, Dict[str, str]]:
+    """Who the ear knows -- tolerant of a cfg built before R1 v2 (every pin hand-builds
+    one from a single id). The root operator is ALWAYS present at operator tier, so no
+    registry edit and no registry typo can ever lock him out of his own house."""
+    people: Dict[str, Dict[str, str]] = {}
+    for sid, row in (cfg.get("people") or {}).items():
+        people[str(sid)] = dict(row)
+    roots = [str(x) for x in (cfg.get("roots") or {})]
+    primary = str(cfg.get("operator_id") or "").strip()
+    if primary and primary not in roots:
+        roots.append(primary)
+    for rid in roots:
+        if not rid:
+            continue
+        # A root can never be DEMOTED (the lockout guarantee), but it is not thereby
+        # renamed: a name the registry supplies is the truth, and overwriting it would
+        # forge attribution -- the defect Daniil's own question exposed.
+        row = dict(people.get(rid) or {})
+        row["tier"] = "operator"
+        if not str(row.get("agent") or "").strip():
+            row["agent"] = ROOT_OPERATOR_AGENT_FALLBACK
+        people[rid] = row
+    return people
+
+
+def build_config() -> Dict[str, Any]:
     """Read the operator id, refusing LOUDLY on absence or malformation.
 
     An absent allowlist must not resolve to 'allow' (the obvious sin) and must not
     resolve to a quiet death either (the sneaky one) — the refusal names exactly
     what is missing so the operator can fix it in one motion (T176 at a gate)."""
     path = Path(os.getenv("AKASHIC_DISCORD_OPERATOR_ID_FILE") or OPERATOR_ID_FILE)
+    rpath = Path(os.getenv("AKASHIC_DISCORD_ROOTS_FILE") or ROOTS_FILE)
     try:
         raw = path.read_text(encoding="utf-8").strip()
-    except OSError as e:
-        raise EarConfigError(
-            f"no operator id — the R1 allowlist file is missing ({path}). "
-            f"Discord: User Settings -> Advanced -> Developer Mode, right-click "
-            f"yourself -> Copy User ID, save the number as that file's one line. "
-            f"({type(e).__name__})") from e
-    if not raw.isdigit() or not (15 <= len(raw) <= 22):
+    except OSError:
+        raw = ""                     # absent is survivable ONLY if a co-root exists
+    if raw and (not raw.isdigit() or not (15 <= len(raw) <= 22)):
         raise EarConfigError(
             f"operator id file exists but does not hold a single numeric Discord "
             f"snowflake ({path}) — refusing rather than guessing the allowlist.")
-    return {"operator_id": raw}
+
+    roots = _load_roots()
+    if raw:
+        # The founding id needs no name here; precedence below lets people.json name it.
+        roots.setdefault(raw, {"agent": ""})
+    if not roots:
+        raise EarConfigError(
+            f"no root identity anywhere — neither the founding id file ({path}) nor the "
+            f"co-root registry ({rpath}) yields a usable Discord snowflake. Discord: "
+            f"User Settings -> Advanced -> Developer Mode, right-click a person -> Copy "
+            f"User ID; save it as that file's one line, or as a "
+            f'{{"<id>": {{"agent": "name"}}}} row in the registry.')
+
+    # The PRIMARY root is the founding id when present, else the lowest snowflake so the
+    # choice is deterministic rather than dict-order luck. Primary buys exactly one thing
+    # the other roots lack: its words ride the bus unprefixed, as they always have.
+    primary = raw or sorted(roots)[0]
+
+    people = _load_people()
+    for sid, row in roots.items():
+        prow = dict(people.get(sid) or {})
+        prow["tier"] = "operator"
+        prow["agent"] = (str(row.get("agent") or "").strip()
+                         or str(prow.get("agent") or "").strip()
+                         or ROOT_OPERATOR_AGENT_FALLBACK)
+        people[sid] = prow
+    return {"operator_id": primary, "roots": roots, "people": people}
 
 
 # Lines that mean the seat never drew breath. The CLI prints its auth failure to
@@ -205,7 +334,7 @@ def _seat_channels() -> Dict[str, Any]:
         return {"mode": "forum", "channels": {}}
 
 
-def handle_message(cfg: Dict[str, str], *, author_id: str, author_name: str,
+def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
                    channel_id: str, content: str,
                    bus: Any, react: Callable[[str], Any],
                    role_mentions: Any = None,
@@ -215,15 +344,60 @@ def handle_message(cfg: Dict[str, str], *, author_id: str, author_name: str,
     Raises nothing it can help; but a BUS failure raises to the caller — the runner
     must know a send died, because a ✅ on a dead send would be the T149 lie with
     an emoji on it. The reaction fires only AFTER the bus accepted."""
-    if str(author_id) != cfg["operator_id"]:
-        return {"acted": False,
-                "reason": f"non-operator author {author_id!r} "
-                          f"(name {author_name!r} is costume; R2: data, never "
-                          f"instruction)"}
+    people = _people_of(cfg)
+    who = people.get(str(author_id))
+    is_operator = bool(who) and who.get("tier") == "operator"
+    speaker = (who or {}).get("agent") or "guest"
 
     text = str(content or "").strip()
     if not text:
         return {"acted": False, "reason": "empty message (attachment-only or sticker)"}
+
+    # R2 v2 -- the guest tier (2026-08-20). Until tonight a non-operator message was not
+    # merely disobeyed, it was never SURFACED: "v1 does not even surface it; it returns
+    # unacted and the runner moves on." That is precisely the wall Daniil walked into on
+    # 2026-08-19 typing into #aurora, and the wall the next visitor would have hit in
+    # silence -- the house answering nobody because it had been told about nobody. A
+    # guest now REACHES the fleet: attributed in the body, stamped authority:none in the
+    # meta, and carrying no lever at all. R3 to the letter -- reach, never authority.
+    if not is_operator:
+        if text.startswith("!"):
+            return {"acted": False,
+                    "reason": f"control word from a guest {author_id!r} "
+                              f"(name {author_name!r} is costume; the levers stay "
+                              f"behind R1 -- reach, never authority)"}
+        gmeta: Dict[str, Any] = {
+            "source": "discord", "operator": False, "guest": True,
+            "authority": "none",
+            "guest_name": str(author_name or "")[:64], "guest_id": str(author_id),
+        }
+        glane = (_seat_channels().get("channels") or {}).get(str(channel_id))
+        gask = _rooms_reverse().get(str(channel_id))
+        if gask:
+            gmeta["ask_id"] = gask
+        gbody = f"[guest {author_name}] {text}"
+        if glane:
+            gmeta["lane"] = "seat-channel"
+            gmid = bus.send(glane, "chat", gbody, meta=gmeta)
+        else:
+            gmid = bus.broadcast("chat", gbody, meta=gmeta)
+        if gmid is None:
+            raise RuntimeError(
+                "the bus accepted nothing for a guest's word (returned None -- Redis "
+                "down or both writes failed); a guest is owed the same honest failure "
+                "the operator gets, not a silent shrug")
+        react("👁")
+        return {"acted": True, "guest": True, "authority": "none",
+                "id": str(gmid), "to": ([glane] if glane else None), "ask_id": gask}
+
+    # An operator who is not the ROOT operator is announced on the wire. Without this
+    # his friend's words would be indistinguishable from his own and the fleet would
+    # answer the wrong man -- "his own ID" has to mean his own NAME, or it is just a
+    # second key to one voice.
+    # R1's own doctrine, finally applied to attribution: the id is the law, the name is
+    # costume. Branching on the NAME meant renaming the root operator silently changed
+    # who rode bare, and a hardcoded name meant a different root wore Daniil's.
+    body = text if str(author_id) == str(cfg.get("operator_id") or "")         else f"[{speaker}] {text}"
 
     # !spawn — the operator's fresh-hands word (his ask, on the way to work
     # 2026-08-19: "a syntax that I can use to invoke a new instance, in case you
@@ -243,14 +417,15 @@ def handle_message(cfg: Dict[str, str], *, author_id: str, author_name: str,
         react("🌱")
         return {"acted": True, "spawned": str(pid), "id": None}
 
-    meta: Dict[str, Any] = {"source": "discord", "operator": True}
+    meta: Dict[str, Any] = {"source": "discord", "operator": True,
+                            "speaker": speaker}
 
     # the seat lane: typing in #vandor IS addressing claude — the channel is the
     # address, no mention required. His words ride directed, which wakes the seat.
     lane_agent = (_seat_channels().get("channels") or {}).get(str(channel_id))
     if lane_agent:
         meta["lane"] = "seat-channel"
-        mid = bus.send(lane_agent, "chat", text, meta=meta)
+        mid = bus.send(lane_agent, "chat", body, meta=meta)
         if mid is None:
             raise RuntimeError(
                 f"the bus accepted nothing for the {lane_agent} lane (send "
@@ -277,7 +452,7 @@ def handle_message(cfg: Dict[str, str], *, author_id: str, author_name: str,
         meta["mentioned"] = True
         sent_ids = []
         for agent in targets:
-            mid = bus.send(agent, "chat", text, meta=meta)
+            mid = bus.send(agent, "chat", body, meta=meta)
             if mid is None:
                 raise RuntimeError(
                     f"the bus accepted nothing for @{agent} (send returned None — "
@@ -289,7 +464,7 @@ def handle_message(cfg: Dict[str, str], *, author_id: str, author_name: str,
         react("✅")
         return {"acted": True, "id": sent_ids[-1], "ask_id": ask, "to": targets}
 
-    mid = bus.broadcast("chat", text, meta=meta)
+    mid = bus.broadcast("chat", body, meta=meta)
     if mid is None:
         # Heimdall's load-bearing find (review 2026-08-19): bus.broadcast returns
         # None WITHOUT RAISING when Redis is down (bus.py:451) or both writes fail
