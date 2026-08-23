@@ -23,6 +23,21 @@ import sys
 import threading
 import time
 
+# T150/T152 runner-family law (regressed out in the ear-v2 rewrite, caught by the
+# census guards via the 2026-08-22 baseline delta): line-buffered utf-8 streams
+# with replace, guarded -- a stream that cannot be reconfigured (pytest capture,
+# an exotic wrapper) degrades to old behaviour, never takes the ear down. This is
+# also the fix for the lazy-banner symptom (ARMED lines sitting unflushed in a
+# block buffer) that bit the operator's seat twice today.
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
+except Exception:
+    pass
+try:
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
+except Exception:
+    pass
+
 NL = chr(10)          # newline, spelled out: an escape in this file got eaten once
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -236,6 +251,11 @@ def main() -> int:
     import discord
     from core.comm.bus import Bus
 
+    # T160: the ear says WHO IT IS before anything it writes can be attributed --
+    # the bus below speaks AS the operator (R3), which is exactly why the SEAT
+    # identity must be stamped separately or every record reads 'unknown'.
+    from core.comm.runner_lib import set_seat_agent
+    set_seat_agent("discord")
     bus = Bus("daniil")          # inbound speaks AS the operator, or not at all (R3)
 
     def _spawn(task: str):
@@ -346,9 +366,20 @@ def main() -> int:
     def _pulse():
         """Keep the liveness record fresh so ABSENCE is detectable. A daemon thread: it must
         never be the reason the gateway outlives its usefulness."""
+        from core.comm import roster
+        _inc = (os.environ.get("BIFROST_INCARNATION")
+                or f"{os.getpid()}-discord")
         while True:
             time.sleep(HEARTBEAT_S)
             beat(wl)
+            # T147: the roster reads a PER-INCARNATION key; the worklive beat above
+            # writes the bare one. Without this line a live gateway renders DEAD to
+            # the reaper's only sensor (same defect, same fix as the kimi runner).
+            try:
+                roster.heartbeat(os.environ.get("BIFROST_NAMESPACE", "bifrost"),
+                                 "discord", _inc, phase="running")
+            except Exception:
+                pass                    # the beat must never kill the beater
 
     threading.Thread(target=_pulse, name="discord-gateway-beat", daemon=True).start()
 
