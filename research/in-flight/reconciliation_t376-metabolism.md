@@ -130,3 +130,19 @@ verification; no content invalidated.
 **Gate:** this design awaits Daniil's morning ratification; the build claims
 T376 on his word. Registered bets riding it: F002 (the drill), F004
 (Heimdall's discriminator, scoring at S5's drill).
+
+## POST-SEAL ERRATA (2026-08-23, pre-breakfast — the sealed fence copy stands;
+## this source doc is the build spec and carries the corrections)
+
+E1 (Heimdall's cold verification, credited): the N1 citation path is
+scripts/bifrost_child.py:247-254 — NOT core/comm/. Zero design impact; the
+fence's own PV discipline caught its author.
+E2 (code-reality reframe, Heimdall verified at four call sites): runners
+ALREADY metabolize (maybe_self_restart wired at deepseek:1457, gemini:859,
+kimi:930, sol:789). The daemon has NO stale-code arm (only --max-runtime +
+the child breaker). The build's true scope: the daemon and the gateway are
+the organs that do not yet metabolize — they are the whole point of D.
+E3 (slice order, Heimdall's proposal, accepted): S-order becomes (1) pin the
+N1 contract as law everywhere RED-first, (2) daemon's missing arms
+(stale-code self-check + respawn-before-exit-0), (3) gateway layered dedupe,
+(4) wedged arm per half_a §2. UI snippet and drill close as before.
