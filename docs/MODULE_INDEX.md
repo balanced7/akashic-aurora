@@ -279,6 +279,7 @@
 - `kimi_chat.py` — kimi_chat -- the Kimi seat's model transport: kimi-k3 (Moonshot) as a first-class Akashic citizen.
 - `kimi_walk_narrator.py` — kimi_walk_narrator -- stream kimi's FULL REASONING from its Claude-Code session transcript
 - `lens_ledger.py` — Score fan lenses by what survived, and recommend which to run next.
+- `map_generator.py` — T381 M1 -- the living map's first render (c-map-design reconciled).
 - `mcp_register.py` — T081-W2: make the akashic-aurora MCP door attach from ANY launch cwd.
 - `migrate_time_scores.py` — One-time migration (S5): re-score the persisted time-zsets with the unified `to_epoch`.
 - `mirror.py` — mirror.py -- commit local changes and push to GitHub in one step.
