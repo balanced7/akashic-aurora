@@ -69,10 +69,49 @@ CLEAN: 8 · TRANSITIONAL with end-date: 1 (bus dual-write, T045→T047) ·
 ACCIDENTAL: 1 (secrets readers, =T365) · NEEDS-RULING: 1 (notes durability,
 item 2 — the one real question this pass surfaces for Daniil).
 
-## Second pass (the completing sweep, next session)
+## Second pass — the sweep, DONE 2026-08-23 (receipt: 25,954 keys, 1,219
+## families, scan NOT truncated)
 
-- Enumerate Redis key families (`SCAN` by prefix, group, count) and diff
-  against this table — anything ungrouped is an undeclared fact class.
-- Same for `state/**` and `store/**` files not named above.
-- Then the reconciler slice: generation stamps on document renders (item 6),
-  drift section in doctor, and the deliberate-skew drill that F003 bets on.
+The families the first pass missed, now classified:
+
+12. **`bifrost:idalias` (10,153 keys)** — the dual-write twin map: at `_emit`
+    the bus records lane_mid ↔ legacy_mid sibling pairs (bus.py:603, 48h TTL).
+    TRANSITIONAL, same end-date as item 5 (T045→T047); TTL makes it
+    self-cleaning, so retirement is free once the legacy stream dies.
+13. **The Akasha atom substrate as one class** — `events:raw` (6,281) +
+    `narr:*` (~4,000) + `mem:decisions` (664) + `learn:*` (~1,150) +
+    `artifact:index` (444) ≈ **12.5k keys of durable truth mastered in Redis
+    BY ARCHITECTURE** (Akasha = the immutable append-only substrate). This
+    subsumes item 2's notes question and sharpens the v0 amendment needed:
+    not "git masters durable" but *git masters durable FILES; the atom
+    substrate is Redis-mastered with the snapshot ritual
+    (scripts/ops/snapshot_knowledge.py + mirror push) as its durability
+    organ.* THE EXPOSURE: that ritual's restore path has NO dated receipt —
+    the house has never once proven it can come back from the snapshot
+    (the backup-door class, where a sibling backup door turned out to have
+    never worked while memory called it proven). Filed as its own deferred
+    drill; the ruling for Daniil is now ONE question: bless
+    snapshot-as-durability-organ WITH a restore drill, or migrate durable
+    atoms to git-master.
+14. **Test-namespace residue** — `t-w43-*:idalias` and kin: leaked namespaces
+    from test runs that crashed before cleanup. ACCIDENTAL, small (dozens of
+    keys), permanent by default. Fix is cheap: test namespaces get a TTL at
+    creation or a janitor sweep matches the `*_test_*`/`t-*` pattern.
+15. **Telemetry planes** — `recall:use` (905), `bifrost:turn_metrics`,
+    `lookback:hits`: derived-from-traffic counters, rebuildable or honestly
+    losable. Verdict: CLEAN once the loss policy is declared in one line each.
+
+## Census verdict counts (after second pass)
+
+CLEAN: 10 · TRANSITIONAL with end-date: 2 (bus dual-write + its idalias twin
+map, both T045→T047) · ACCIDENTAL: 2 (secrets readers =T365; test-ns residue) ·
+NEEDS-RULING: 1 (the atom-substrate durability question, item 13 — subsumes
+the notes question and is the census's single ask of Daniil).
+
+## Remaining (third pass + reconciler)
+
+- File inventory diff (`state/**`, `store/**`, `data/**`) — expected mostly
+  covered; verify nothing undeclared.
+- The reconciler slice: generation stamps on document renders (item 6), drift
+  section in doctor, deliberate-skew drill (F003's bet), and the RESTORE drill
+  item 13 demands.
