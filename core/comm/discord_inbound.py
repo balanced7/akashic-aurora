@@ -340,8 +340,8 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
                    role_mentions: Any = None,
                    spawner: Optional[Callable[[str], Any]] = None,
                    message_id: Optional[str] = None,
-                   reviver: Optional[Callable[[Optional[str], bool], Any]] = None
-                   ) -> Dict[str, Any]:
+                   reviver: Optional[Callable[[Optional[str], bool], Any]] = None,
+                   attachments: Optional[list] = None) -> Dict[str, Any]:
     """One inbound message, fully decided. Returns what happened and why.
 
     Raises nothing it can help; but a BUS failure raises to the caller — the runner
@@ -355,6 +355,22 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
     speaker = (who or {}).get("agent") or "guest"
 
     text = str(content or "").strip()
+    # 2026-08-23 (Serge's shader ask): media rides the bus's OWN organ -- B1
+    # parts, filesystem blob store, content-addressed refs (file_part was
+    # built for this and waited). An image IS a message now.
+    parts = None
+    if attachments:
+        from core.comm.bus import file_part
+        parts = []
+        for p in attachments:
+            try:
+                parts.append(file_part(p))
+            except Exception:                                           # noqa: BLE001
+                continue          # one unreadable file never silences the words
+        parts = parts or None
+        if not text and parts:
+            names = ", ".join(os.path.basename(str(p)) for p in attachments)
+            text = f"[media: {names}]"
     if not text:
         return {"acted": False, "reason": "empty message (attachment-only or sticker)"}
 
@@ -388,9 +404,9 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
         gbody = f"[guest {author_name}] {text}"
         if glane:
             gmeta["lane"] = "seat-channel"
-            gmid = bus.send(glane, "chat", gbody, meta=gmeta)
+            gmid = bus.send(glane, "chat", gbody, meta=gmeta, **({"parts": parts} if parts else {}))
         else:
-            gmid = bus.broadcast("chat", gbody, meta=gmeta)
+            gmid = bus.broadcast("chat", gbody, meta=gmeta, **({"parts": parts} if parts else {}))
         if gmid is None:
             raise RuntimeError(
                 "the bus accepted nothing for a guest's word (returned None -- Redis "
@@ -499,7 +515,7 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
     lane_agent = (_seat_channels().get("channels") or {}).get(str(channel_id))
     if lane_agent:
         meta["lane"] = "seat-channel"
-        mid = bus.send(lane_agent, "chat", body, meta=meta)
+        mid = bus.send(lane_agent, "chat", body, meta=meta, **({"parts": parts} if parts else {}))
         if mid is None:
             raise RuntimeError(
                 f"the bus accepted nothing for the {lane_agent} lane (send "
@@ -526,7 +542,7 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
         meta["mentioned"] = True
         sent_ids = []
         for agent in targets:
-            mid = bus.send(agent, "chat", body, meta=meta)
+            mid = bus.send(agent, "chat", body, meta=meta, **({"parts": parts} if parts else {}))
             if mid is None:
                 raise RuntimeError(
                     f"the bus accepted nothing for @{agent} (send returned None — "
@@ -538,7 +554,7 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
         react("📨")
         return {"acted": True, "id": sent_ids[-1], "ask_id": ask, "to": targets}
 
-    mid = bus.broadcast("chat", body, meta=meta)
+    mid = bus.broadcast("chat", body, meta=meta, **({"parts": parts} if parts else {}))
     if mid is None:
         # Heimdall's load-bearing find (review 2026-08-19): bus.broadcast returns
         # None WITHOUT RAISING when Redis is down (bus.py:451) or both writes fail
