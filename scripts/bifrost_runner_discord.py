@@ -386,20 +386,27 @@ def main() -> int:
                 continue
             for _ in range(min(3, len(_ladder_ops))):
                 op = _ladder_ops.popleft()
-                msg = _ladder_msgs.get(op["discord_msg_id"])
-                if msg is None:
+                entry = _ladder_msgs.get(op["discord_msg_id"])
+                if entry is None:
                     continue                # pre-restart entry: residual, drop it
+                msg, current = entry
                 emoji = _LADDER_EMOJI.get(op["op"])
                 if not emoji:
                     continue
                 try:
-                    if op["op"] in ("answered", "replied", "dead"):
+                    # ONE evolving badge: remove exactly the badge we last
+                    # applied, then add the next stage. The remove targets our
+                    # own reaction only (no manage_messages needed).
+                    if current:
                         try:
-                            await msg.remove_reaction("🤔", client.user)
+                            await msg.remove_reaction(current, client.user)
                         except Exception:                               # noqa: BLE001
-                            pass            # removing our own 🤔 is best-effort
-                        _ladder_msgs.pop(op["discord_msg_id"], None)
+                            pass            # removing our own badge is best-effort
                     await msg.add_reaction(emoji)
+                    if op["op"] in ("answered", "replied", "dead"):
+                        _ladder_msgs.pop(op["discord_msg_id"], None)  # terminal
+                    else:
+                        entry[1] = emoji                    # 🤔 is now current
                 except discord.NotFound:
                     _ladder_msgs.pop(op["discord_msg_id"], None)  # deleted: evict
                 except Exception as e:                                  # noqa: BLE001
@@ -486,7 +493,12 @@ def main() -> int:
                             to_agents=[str(a) for a in reversed(out["to"])],
                             channel_id=str(message.channel.id),
                             discord_msg_id=str(message.id)):
-                    _ladder_msgs[str(message.id)] = message
+                    # [message, current badge] -- the ladder is ONE evolving
+                    # badge, not an accumulation (Daniil 2026-08-22: "have mail
+                    # update to something once it reaches the agent, and the
+                    # reply be the checkmark"). 📨 was just added by the react
+                    # loop below; the applier swaps it forward stage by stage.
+                    _ladder_msgs[str(message.id)] = [message, "📨"]
         except Exception as e:                                          # noqa: BLE001
             print(f"[discord-in] ladder track failed ({type(e).__name__}: {e})",
                   flush=True)
