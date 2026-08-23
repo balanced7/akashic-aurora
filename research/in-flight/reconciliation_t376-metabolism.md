@@ -152,3 +152,8 @@ E4 (Heimdall, S1 pin work): the reconciliation's jitter formula `hash(organ)
 deterministic primitive the tree already uses is zlib.crc32 (port_for()
 precedent). Jitter = crc32(organ) % 120, pinned at S1-P2. Credited: the
 build's first pin round caught the build spec's own formula.
+E5 (Heimdall, S5 build): half_a section 2.3 used the kimi receipt as the
+exemplar for BOTH thinking AND instrument_fault -- same stack signature; the
+separating axis is PHASE AGE. Encoded: instrument_fault = sub-floor form
+(phase_age < DEFAULT_WEDGE_S, fix the liveness organ), thinking = over-floor
+form (age alone is never a wedge, never kill). Lesson filed by deepseek.
