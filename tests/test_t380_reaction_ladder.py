@@ -188,3 +188,38 @@ def test_p5_expectation_dead_marks_dead():
         assert t.poll() == [], "dead is terminal and idempotent"
     finally:
         _cleanup(c, ns)
+
+
+# ------------------------------------------------- P6: fire-time seen (v1.3)
+def test_p6_wake_fire_stamps_seen_and_the_ladder_thinks(monkeypatch):
+    """Daniil's latency report, verbatim: 'I saw the read of the message happen
+    in claude code before i saw the thinking notification.' The fix: the wake
+    watcher's fire IS the read point, so say_seen_at_fire stamps the seen
+    receipt at fire time and the ladder's thinking op no longer waits for the
+    formal consume. This pin drives the REAL watcher function with a REAL
+    bus-parsed Message -- both shapes live, per tonight's forked-sha lesson."""
+    import importlib.util
+    c = _client()
+    ns = _ns()
+    monkeypatch.setenv("BIFROST_NAMESPACE", ns)   # the stamp must land in the test ns
+    try:
+        b, mid = _operator_send(c, ns)
+        t = _tracker(c, ns)
+        _track(t, b, mid)
+        assert t.poll() == [], "no receipt yet -- thinking must wait for the fire"
+
+        spec = importlib.util.spec_from_file_location(
+            "bifrost_wake_under_test",
+            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                         "scripts", "bifrost_wake.py"))
+        bw = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(bw)
+
+        n = bw.say_seen_at_fire("claude", [_consumed_msg(c, ns, mid)], "pinincarn")
+        assert n == 1, "the fire stamp must report one receipt written"
+
+        ops = t.poll()
+        assert [o["op"] for o in ops] == ["thinking"], (
+            f"the ladder must think from the fire-time receipt alone, got {ops}")
+    finally:
+        _cleanup(c, ns)

@@ -286,6 +286,31 @@ def save_seen(path: str, keys: list) -> None:
         pass
 
 
+def say_seen_at_fire(agent: str, delivered: list, session_id: str = "") -> int:
+    """T380 v1.3: the fire-time SEEN stamp. The watcher's render is this seat's
+    read point (it prints the bodies into the session's own task output), so the
+    seen receipt belongs HERE -- one hop earlier than the consume, which is where
+    the thinking emoji used to wait while the operator watched the harness
+    already reading (his report, verbatim: 'I saw the read of the message happen
+    in claude code before i saw the thinking notification'). Same mailbox seam as
+    the consume (T133/M6), consumer-shaped Messages in, SEEN only -- never an
+    intent. Returns receipts written; swallows everything (the receipt must never
+    cost the wake)."""
+    n = 0
+    try:
+        from core.comm import mailbox as _mbx
+        inc = str(session_id or "")[:8] or "wake"
+        for m in delivered:
+            try:
+                if _mbx.open_for_message(agent, m, incarnation=inc).get("ok"):
+                    n += 1
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return n
+
+
 def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
           api=None, hb_path: str = None, my_pid: int = None,
           session_id: str = "", seen_file: str = None) -> int:
@@ -318,6 +343,7 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
     # (T073: the skip-set assignment that lived here is gone -- wake_worthy() is the sole
     # wake gate; SKIP_KINDS/SKIP_KINDS_LANE remain for the lane-mode arm-time pending check.)
     out, seen = [], []
+    delivered = []        # the Message objects behind `out` -- say_seen_at_fire stamps these
     steers = 0            # skipped steers are counted so the quiet exit says "check at next boot"
     deadline = time.time() + total_deadline_s
     chunk_s = max(1.0, inner_block_ms / 1000.0)
@@ -385,9 +411,18 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
                 continue
             seen_set.add(k)
             seen_keys.append(k)
+            delivered.append(m)
             out.append({"frm": frm, "kind": kind, "text": str(getattr(m, "content", "") or "")[:2000]})
     if out:
         save_seen(sf, seen_keys)   # S0-gamma: delivered -> remembered (before any print can throw)
+        # T380 v1.3 (Daniil: "the thinking receipt should land the instant you make
+        # your first toolcall or have commenced working -- I saw the read happen in
+        # claude code before the thinking notification"): the watcher's render IS
+        # this seat's read point for the bodies below, so say SEEN here at fire
+        # time, through the same mailbox seam the consume uses (T133/M6). SEEN
+        # only, never an intent -- a woken-but-died session honestly reads
+        # read_but_undeclared. Fail-open: the receipt must never cost the wake.
+        say_seen_at_fire(agent, delivered, str(session_id or ""))
     # Read-state-first (Slice C): the governed task ledger prints BEFORE the messages, so a waking
     # agent obeys DONE/NEXT and never acts on a stale backlog message. Fail-open.
     try:
