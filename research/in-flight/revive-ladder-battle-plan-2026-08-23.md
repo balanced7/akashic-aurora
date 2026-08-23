@@ -83,6 +83,29 @@ The lapsed-watcher domino class dies structurally instead of by discipline.
   (L0's follow-up proven).
 Forecasts registered on D1 and D4 at this plan's gate.
 
+## L2 IDEMPOTENCY DOCTRINE (Daniil's question, 2026-08-23: safe when docker
+## is already running -- answered as design law)
+
+!revive is a RECONCILER, never a launcher: observe -> skip-if-healthy ->
+heal-only-the-dead -> verify, per rung, in dependency order (redis -> daemon
+-> runners), stopping at any rung that fails verification. Probes are the
+organs' REAL health signals (PING, DaemonLock holder + heartbeat age, roster
+beats), never process-name existence. Heals use the gentlest sufficient
+lever: docker START (no-op on running, NEVER restart on the default path),
+spawn-only-when-no-live-holder. Bare !revive can kill NOTHING; supersession
+exists only in targeted form and rides T376 make-before-break. Robustness
+under races: single-flight revive lock + per-rung cooldown (belt), and the
+house's own singleton machinery absorbs any over-spawn that slips through
+(DaemonLock twin-refusal, runner lock contest, S3a relay dedupe) --
+suspenders. Every run confesses what it SAW before what it did; an all-skip
+run is a successful, boring run. !status-deep = the observe phase alone.
+Same doctrine as the T374 store reconciler and Kubernetes level-triggered
+convergence: compare declared vs observed, heal only the delta, never touch
+the living. PINS: P-idem (healthy house -> identical pids, all-skip),
+P-race (concurrent revives -> one converges), P-partial (only the dead rung
+acts). DRILL D5: !revive twice back-to-back on a healthy house from the
+phone, both runs boring, dated receipt.
+
 ## Sequencing
 
 L0 shipped. L1+L2 are one build slice (mine, next) — the scheduled task, the
