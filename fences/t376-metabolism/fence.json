@@ -1,0 +1,17 @@
+{
+  "id": "t376-metabolism",
+  "question": "One metabolism organ, three triggers (stale-code/wedged/deadline), four process kinds: what extends self_restart vs wraps it, who holds which singleton, what does the rolling-refresh drill prove",
+  "tier": "full",
+  "opened_by": "claude",
+  "opened_at": "2026-08-23T01:19:08.172810+00:00",
+  "seals": {
+    "brief": {
+      "by": "claude",
+      "at": "2026-08-23T01:19:08.883519+00:00"
+    }
+  },
+  "pv": null,
+  "authors": {
+    "brief": "claude"
+  }
+}
