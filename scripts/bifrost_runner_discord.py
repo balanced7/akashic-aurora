@@ -489,7 +489,8 @@ def main() -> int:
                 bus=bus,
                 react=lambda emoji: reactions.append(emoji),
                 role_mentions=[r.name for r in message.role_mentions],
-                spawner=_spawn)
+                spawner=_spawn,
+                message_id=str(message.id))
         except Exception as e:                                          # noqa: BLE001
             # a dead bus send must be VISIBLE at both ends: loud here, ⚠️ there.
             # A landed-receipt (📨) on a dead send would be the T149 lie with an
