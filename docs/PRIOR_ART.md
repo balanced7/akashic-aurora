@@ -28,7 +28,7 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 **DRIFT -- surveyed, but the subsystem has changed size since:**
 
 - `core/foundation` -- DRIFT (8->9), reviewed 2026-07-26
-- `core/comm` -- DRIFT (36->60), reviewed 2026-07-26
+- `core/comm` -- DRIFT (36->61), reviewed 2026-07-26
 - `core/coord` -- DRIFT (11->24), reviewed 2026-07-26
 - `core/learning` -- DRIFT (3->5), reviewed 2026-07-26
 - `core/recall` -- DRIFT (10->15), reviewed 2026-07-26
@@ -39,7 +39,7 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 - `scripts/checkers` -- DRIFT (12->18), reviewed 2026-07-26
 - `scripts/generators` -- DRIFT (6->11), reviewed 2026-07-26
 - `scripts/ops` -- DRIFT (2->7), reviewed 2026-07-26
-- `tests` -- DRIFT (331->587), reviewed 2026-07-26
+- `tests` -- DRIFT (331->588), reviewed 2026-07-26
 
 ---
 
@@ -110,7 +110,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `core/comm` -- 60 modules  ·  DRIFT (36->60)
+## `core/comm` -- 61 modules  ·  DRIFT (36->61)
 
 **What it does.** The Bifrost bus and everything around it -- purpose-keyed lanes (work / trace / sig), per-agent consume cursors, packet envelopes with integrity and fragmentation, expectations and redrives, the wake listener, the launcher, and the fidelity ladder (inform / steer / interrupt / halt). By far our largest subsystem.
 
@@ -516,7 +516,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `tests` -- 587 modules  ·  DRIFT (331->587)
+## `tests` -- 588 modules  ·  DRIFT (331->588)
 
 **What it does.** 331 test modules plus conftest, providing universal backend isolation, a parity exerciser shared across store backends, and a differential harness that cross-verifies two implementations of the same semantics.
 

@@ -24,7 +24,7 @@
 - `agent_signal_ledger.py` — Agent Signal Ledger: the ordered record of every signal agents emit
 - `coordinator_api.py` — Coordinator API: Minimal signal-based logging for agents
 
-## core/comm/  (60 modules)
+## core/comm/  (61 modules)
 - `ask.py` — ask -- a synchronous helper call, with no seat behind it (T171).
 - `ask_bg.py` — ask_bg -- a helper call that outlives your turn without becoming a seat (T205).
 - `ask_state.py` — ask_state -- one durable ask's honest state (T196d).
@@ -85,6 +85,7 @@
 - `triage_park.py` — Triage park (S0-alpha) -- the scry-to-bottom bench.
 - `turn_metrics.py` — Turn metrics (progress-bars data half; co-designed claude+deepseek 2026-07-11).
 - `wake_seat.py` — wake_seat -- the per-session wake-seat protocol (T029 Wave 2, the R1/R16 fix).
+- `wedge_discriminator.py` — wedge_discriminator (T376 S5) -- the wedged-vs-thinking decision rule.
 
 ## core/coord/  (24 modules)
 - `capability_search.py` — capability_search -- "does this system already do X?", asked at the level of MEANING.
