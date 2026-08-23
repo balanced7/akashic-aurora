@@ -258,14 +258,24 @@ def main() -> int:
     set_seat_agent("discord")
     bus = Bus("daniil")          # inbound speaks AS the operator, or not at all (R3)
 
-    def _spawn(task: str):
+    def _spawn(task: str, mode: str = "default"):
         """!spawn's lever: a fresh claude session, detached, logging to its own file.
 
         The sprout is still not the harvest -- but it is now proof of LIFE, not proof
         of start. T365: on the day he could not reach anyone, this lever answered 🌱
         over a child that had already died on an expired OAuth session, and a receipt
         that is true about the syscall and false about the world is worse than none.
-        Raise on a corpse; on_message's except-path turns that into his ⚠️."""
+        Raise on a corpse; on_message's except-path turns that into his ⚠️.
+
+        mode (2026-08-23, spawn GRANT):
+          default    -- read-only posture, no permission flags (the historical shape;
+                        a spawned seat needs a live approver for any mutation/exec).
+          arm        -- scoped resuscitation: --permission-mode acceptEdits +
+                        --allowedTools Bash,Read,Write,Edit,Glob,Grep so the seat can
+                        arm its own wake watcher, drain, and build. Guards still on.
+          dangerous  -- break-glass: --dangerously-skip-permissions. Bypasses every
+                        approval. The blunt hammer, for when arm is provably not enough.
+        """
         import shutil
         import subprocess
         import time as _t
@@ -291,8 +301,30 @@ def main() -> int:
         env = os.environ.copy()
         if vault_token:
             env["CLAUDE_CODE_OAUTH_TOKEN"] = vault_token
+        # spawn GRANT (2026-08-23): translate the mode into CLI permission flags that ride
+        # the launch line. Session-scoped by the harness; a spawned seat cannot grant these
+        # to itself (security-schema-proposal.md:439).
+        #
+        #   default    -- read-only (the historical shape; needs a live approver).
+        #   arm        -- DEFAULT since 2026-08-23: acceptEdits (file writes auto-approve)
+        #                 + the Bash/Read/Write/Edit/Glob/Grep tools available. File edits
+        #                 carry a guard rail; Bash command AUTO-APPROVE is scoped by the
+        #                 `permissions.allow` rules in .claude/settings.json (self-arm +
+        #                 drain verbs are there) rather than broad open.
+        #   dangerous  -- --dangerously-skip-permissions: bypass every approval. Full hammer.
+        permission_flags = []
+        mode = str(mode or "default").strip().lower()
+        # The operator asked for the DEFAULT to be not-read-only; arm is now the assumed
+        # posture for a bare `!spawn vandor <task>`. --dangerous remains the louder hammer.
+        if mode == "default":
+            mode = "arm"
+        if mode == "dangerous":
+            permission_flags = ["--dangerously-skip-permissions"]
+        else:  # arm (and anything unknown degrades to arm rather than silently read-only)
+            permission_flags = ["--permission-mode", "acceptEdits",
+                                "--allowedTools", "Bash,Read,Write,Edit,Glob,Grep"]
         with open(log, "w", encoding="utf-8") as fh:
-            p = subprocess.Popen([exe, "-p", prompt], env=env,
+            p = subprocess.Popen([exe, "-p", prompt, *permission_flags], env=env,
                                  cwd=str(_ROOT), stdout=fh, stderr=fh,
                                  creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
                                  | getattr(subprocess, "CREATE_NO_WINDOW", 0))
@@ -388,6 +420,46 @@ def main() -> int:
     intents.guild_messages = True
     intents.message_content = True
     client = discord.Client(intents=intents)
+
+    def _revive(target, observe_only, message):
+        """The R3-amendment lever (T382): run the reconciler and speak its
+        confession back into the channel that pulled it. FIXED script, enum-
+        validated target, zero content passthrough -- and it must work when
+        the bus is a corpse, so the reply path is the raw socket, never a
+        webhook and never the feed."""
+        import threading as _th
+
+        def _work():
+            cmd = [sys.executable, str(_ROOT / "scripts" / "revive.py")]
+            if target:
+                cmd += ["--target", str(target)]
+            if observe_only:
+                cmd += ["--observe"]
+            try:
+                r = subprocess.run(cmd, capture_output=True, text=True,
+                                   timeout=240, cwd=str(_ROOT),
+                                   encoding="utf-8", errors="replace")
+                out = (r.stdout or "").strip()
+                if (r.stderr or "").strip():
+                    out += NL + "stderr: " + r.stderr.strip()[:400]
+                out = out or f"(revive exited {r.returncode} with no words)"
+            except Exception as e:                                      # noqa: BLE001
+                out = f"revive FAILED to launch: {type(e).__name__}: {e}"
+
+            async def _say(txt):
+                try:
+                    await message.channel.send(txt)
+                except Exception:                                       # noqa: BLE001
+                    pass                    # the socket too can die; log remains
+            print(f"[discord-in] revive lever ran (target={target}, "
+                  f"observe={observe_only})", flush=True)
+            for i in range(0, len(out), 1800):
+                try:
+                    asyncio.run_coroutine_threadsafe(_say(out[i:i + 1800]),
+                                                     client.loop)
+                except Exception:                                       # noqa: BLE001
+                    pass
+        _th.Thread(target=_work, name="revive-lever", daemon=True).start()
 
     # ---- T380: the comms-stage reaction ladder (📨 landed -> 🤔 opened ->
     # ✅ answered-strict / 💬 replied-unlinked / ⚠️ dead). The tracker is the
@@ -490,7 +562,9 @@ def main() -> int:
                 react=lambda emoji: reactions.append(emoji),
                 role_mentions=[r.name for r in message.role_mentions],
                 spawner=_spawn,
-                message_id=str(message.id))
+                message_id=str(message.id),
+                reviver=lambda target, observe_only: _revive(
+                    target, observe_only, message))
         except Exception as e:                                          # noqa: BLE001
             # a dead bus send must be VISIBLE at both ends: loud here, ⚠️ there.
             # A landed-receipt (📨) on a dead send would be the T149 lie with an
