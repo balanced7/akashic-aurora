@@ -339,7 +339,9 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
                    bus: Any, react: Callable[[str], Any],
                    role_mentions: Any = None,
                    spawner: Optional[Callable[[str], Any]] = None,
-                   message_id: Optional[str] = None) -> Dict[str, Any]:
+                   message_id: Optional[str] = None,
+                   reviver: Optional[Callable[[Optional[str], bool], Any]] = None
+                   ) -> Dict[str, Any]:
     """One inbound message, fully decided. Returns what happened and why.
 
     Raises nothing it can help; but a BUS failure raises to the caller — the runner
@@ -414,16 +416,76 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
     # launch a session. A control word rides NO bus lane — it is not a message,
     # it is a hand on a lever. Receipt 🌱 fires on process START, and that is the
     # whole promise: the sprout is not the harvest.
+    if text.lower().startswith("!revive") or text.lower() in ("!status-deep",
+                                                              "!statusdeep"):
+        # R3 AMENDMENT (gate-2026-08-23-revive-ladder-ratified, Daniil verbatim
+        # "Lets run the drills"): named recovery levers, ROOTS ONLY. Each word
+        # maps to ONE fixed script; message content NEVER reaches the command
+        # line -- the only thing extracted is a target validated against a
+        # closed enum. Like !spawn, a lever rides NO bus lane: it must work
+        # when the bus is a corpse, which is its entire reason to exist.
+        roots = {str(r) for r in (cfg.get("roots") or {})}
+        primary = str(cfg.get("operator_id") or "").strip()
+        if primary:
+            roots.add(primary)
+        if str(author_id) not in roots:
+            return {"acted": False,
+                    "reason": f"recovery levers are root-only (R3 amendment); "
+                              f"{author_id!r} is operator-tier, not root"}
+        if reviver is None:
+            raise RuntimeError("!revive received but no reviver is wired -- "
+                               "the runner must provide one; refusing beats "
+                               "pretending")
+        if text.lower().startswith("!revive"):
+            raw = text[len("!revive"):].strip().lower()
+            if raw and raw not in ("redis", "daemon", "gateway"):
+                react("❓")
+                return {"acted": False,
+                        "reason": f"unknown revive target {raw!r} -- "
+                                  f"redis|daemon|gateway, or bare !revive"}
+            target, observe_only = (raw or None), False
+        else:
+            target, observe_only = None, True
+        reviver(target, observe_only)
+        react("🚑")
+        return {"acted": True, "id": None,
+                "revive": {"target": target, "observe_only": observe_only}}
+
     if text.lower().startswith("!spawn"):
         if spawner is None:
             raise RuntimeError("!spawn received but no spawner is wired — the "
                                "runner must provide one; refusing beats pretending")
-        task = text[len("!spawn"):].strip() or \
+        # T366-adjacent (2026-08-23): spawn GRANT. Until now every !spawn-born seat
+        # inherited the CLI's default read-only posture and could not arm its own wake
+        # watcher, write, or exec remotely — the exact shape that left Vandor stranded
+        # with "no live approver present on this unattended spawn". The cure is a
+        # leading per-spawn GRANT token that rides the launch line (session-scoped, per
+        # security-schema-proposal.md:439 — a spawned seat cannot grant ITSELF these).
+        #
+        # --arm    scoped resuscitation: write + exec posture (arm this seat so it can
+        #          arm its own watcher, drain mail, and build), guards still on (secrets
+        #          blocked, ACL scoped). The DEFAULT for a word that means "fix the wedge".
+        # --dangerous  break-glass: bypass every permission (skip-permissions). For
+        #          "I am locked out and need you to do literally anything". Full hammer;
+        #          use only when --arm is provably not enough.
+        rest = text[len("!spawn"):].strip()
+        spawn_mode = "default"
+        for token, mode in (("--dangerous", "dangerous"), ("--arm", "arm")):
+            if rest.lower().startswith(token):
+                spawn_mode = mode
+                rest = rest[len(token):].strip()
+                break
+        task = rest or \
             "fresh seat: operator-invoked spawn from Discord (no task given -- " \
             "boot, read the latest handoff, take the watch)"
-        pid = spawner(task)
+        try:
+            pid = spawner(task, mode=spawn_mode)
+        except TypeError:
+            # an older runner whose spawner does not take the mode kwarg yet
+            pid = spawner(task)
         react("🌱")
-        return {"acted": True, "spawned": str(pid), "id": None}
+        return {"acted": True, "spawned": str(pid), "id": None,
+                "mode": spawn_mode}
 
     meta: Dict[str, Any] = {"source": "discord", "operator": True,
                             "speaker": speaker}
