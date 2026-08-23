@@ -71,6 +71,10 @@ for _hd, _prefix in ((os.path.join(ROOT, "agent", "harness", "hooks"), "agent/ha
 # the gate; it must be wired, deleted, or added here with a reason.
 EXCEPTIONS = {
     # built-ahead -- capability built before its production consumer; wire it when that lands
+    "core/comm/wedge_discriminator.py": "KEEP built-ahead: T376 S5 decision core (half_a section 2.3 "
+        "verbatim, 8 pins green in tests/test_t376_s5_wedge_discriminator.py, authored deepseek); the "
+        "production consumer is the doctor/OOB py-spy executor which needs a live runner PID -- lands "
+        "at the S6 drill (F004's own dies_when). Wire it there, then remove this entry.",
     # P2 investigate-before-delete verdicts (arch-triage 2026-07-07): DeepSeek's blind triage said
     # DELETE codex/*+fast_cache+session_recovery; code investigation KEEPS codex (paused tested
     # roadmap), CONSOLIDATES session_recovery (dup-class, not dead), and confirms only fast_cache dead.
