@@ -70,8 +70,20 @@ class LadderTracker:
         self.operator = operator
         self._events_reader = events_reader
         self._entries: Dict[str, _Entry] = {}
+        self._parser = None      # lazy Bus handle, used ONLY for _to_msg parsing
         # first contact: tail-init, settle nothing from the archive (feed pattern)
         self._op_cursor = self._tail(self._operator_inbox_key())
+
+    def _parse_bus(self):
+        """A Bus handle for parsing alone (never registered, never sends): the
+        one-seam law applied to SHAPE -- records become Messages only through
+        Bus._to_msg, so this tracker can never disagree with a consumer about
+        what a message looks like."""
+        if self._parser is None:
+            from core.comm.bus import Bus
+            self._parser = Bus("ladder-parse", client=self._c,
+                               namespace=self.ns, promote=False)
+        return self._parser
 
     # ---------------------------------------------------------------- keys
     def _operator_inbox_key(self) -> str:
@@ -93,30 +105,31 @@ class LadderTracker:
     # ---------------------------------------------------------------- track
     def track(self, mid: str, *, to_agents: List[str], channel_id: str,
               discord_msg_id: str) -> bool:
-        """Register one relayed operator message. Resolves the identity sha the
-        seen plane keys on by reading the record's OWN stream fields -- the same
-        ingredients mailbox._identity_for_message sees at open time, so the join
-        holds by construction rather than by hope."""
+        """Register one relayed operator message. The identity sha is derived by
+        parsing the stream record through Bus._to_msg -- the SAME seam every
+        consumer rides -- then mailbox._identity_for_message. Two prior forks
+        forced this all the way down: hashing raw fields forked on the
+        projection (pin P1, test-time), and hand-building the consumer shape
+        forked LIVE on decoded-vs-raw content/ts, caught by Daniil's own eyes
+        ('it just went from mail to checkmark' -- thinking never fired). The
+        parse seam lifts the packet sha into meta.sha (bus.py's own prior
+        incident, 'the fb prefix announcing itself'), which is what makes both
+        sides resolve packet_sha instead of two different content fallbacks."""
         mid = str(mid)
         if mid in self._entries or not to_agents:
             return False
         try:
-            # identity through the ONE seam every open/declare path uses
-            # (mailbox._identity_for_message) -- the pin P1 proved that hashing
-            # the raw stream fields instead forks the sha (asserted packet_sha
-            # vs the content fallback the projection produces).
             from core.comm.mailbox import _identity_for_message
             entries = self._c.xrange(self._inbox_key(str(to_agents[0])),
                                      min=mid, max=mid)
             if not entries:
                 return False
-            _, fields = entries[0]
+            sid, fields = entries[0]
             fields = {(k.decode() if isinstance(k, bytes) else str(k)):
                       (v.decode() if isinstance(v, bytes) else str(v))
                       for k, v in dict(fields).items()}
-            msg_shape: Dict[str, Any] = dict(fields)
-            msg_shape["meta"] = _meta_of(fields)
-            sha, _basis = _identity_for_message(msg_shape)
+            msg = self._parse_bus()._to_msg(mid, fields)
+            sha, _basis = _identity_for_message(msg)
         except Exception:
             return False
         self._entries[mid] = _Entry(mid=mid, sha=str(sha),

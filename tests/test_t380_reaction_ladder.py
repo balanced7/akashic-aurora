@@ -76,13 +76,18 @@ def _track(t, b, mid, text="hello from the car"):
     return t
 
 
-def _consumed_shape(client, ns, mid):
-    """The message as a consumer sees it: the raw stream fields of the sent record."""
+def _consumed_msg(client, ns, mid):
+    """The message AS A CONSUMER ACTUALLY HOLDS IT: parsed through Bus._to_msg,
+    the one shape seam (decoded content, lifted meta.sha). Hand-building this
+    dict is exactly how the LIVE sha fork slipped past the first version of
+    this pin -- both producers were fed the same fake shape, so the join
+    'passed' while the wire forked (Daniil's report: 'it just went from mail
+    to checkmark' -- thinking never fired)."""
     b = Bus("claude", client=client, namespace=ns, promote=False)
     entries = client.xrange(b._inbox_key("claude"), min=mid, max=mid)
     assert entries, "sent message not found on its own inbox stream"
-    _, fields = entries[0]
-    return dict(fields)
+    sid, fields = entries[0]
+    return b._to_msg(str(sid), dict(fields))
 
 
 # ------------------------------------------------------------------ P1 + P2: thinking
@@ -98,7 +103,7 @@ def test_p1_p2_thinking_fires_once_on_seen_receipt():
 
         # the HARNESS producer: exactly what agent_cli's consume does (T133/M6)
         opened = mailbox.open_for_message(
-            "claude", _consumed_shape(c, ns, mid), incarnation="testinc",
+            "claude", _consumed_msg(c, ns, mid), incarnation="testinc",
             ns=ns, client=c)
         assert opened.get("ok"), f"open_for_message failed: {opened}"
 
@@ -129,7 +134,7 @@ def test_p3_strict_answer_settles_and_swallows():
 
         # settled: a later seen receipt must not resurrect thinking
         opened = mailbox.open_for_message(
-            "claude", _consumed_shape(c, ns, mid), incarnation="testinc",
+            "claude", _consumed_msg(c, ns, mid), incarnation="testinc",
             ns=ns, client=c)
         assert opened.get("ok")
         assert t.poll() == [], "settled entry must emit nothing further"
