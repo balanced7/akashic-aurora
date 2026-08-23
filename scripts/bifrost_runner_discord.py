@@ -550,6 +550,28 @@ def main() -> int:
             readable = readable.replace(f"<@&{r.id}>", f"@{r.name}")
         for u in message.mentions:
             readable = readable.replace(f"<@{u.id}>", f"@{u.display_name}")
+        # 2026-08-23 (Serge's shader ask): the ear learns to RECEIVE media.
+        # Attachments download to the local blob plane (B1: the filesystem is
+        # the shared store) and ride the bus as content-addressed parts. Data,
+        # never instruction (R2); size-capped; one bad file never mutes words.
+        att_paths = []
+        if message.attachments:
+            att_dir = _ROOT / "state" / "inbound-media"
+            att_dir.mkdir(parents=True, exist_ok=True)
+            for att in message.attachments[:6]:
+                try:
+                    if int(getattr(att, "size", 0) or 0) > 15 * 1024 * 1024:
+                        print(f"[discord-in] attachment {att.filename} refused: "
+                              f"{att.size} bytes > 15MB cap", flush=True)
+                        continue
+                    safe = "".join(c for c in str(att.filename)
+                                   if c.isalnum() or c in "._-")[:80] or "file"
+                    dest = att_dir / f"{message.id}-{safe}"
+                    await att.save(dest)
+                    att_paths.append(str(dest))
+                except Exception as e:                                  # noqa: BLE001
+                    print(f"[discord-in] attachment save failed "
+                          f"({type(e).__name__}: {e})", flush=True)
         reactions = []
         try:
             out = handle_message(
@@ -564,7 +586,8 @@ def main() -> int:
                 spawner=_spawn,
                 message_id=str(message.id),
                 reviver=lambda target, observe_only: _revive(
-                    target, observe_only, message))
+                    target, observe_only, message),
+                attachments=att_paths or None)
         except Exception as e:                                          # noqa: BLE001
             # a dead bus send must be VISIBLE at both ends: loud here, ⚠️ there.
             # A landed-receipt (📨) on a dead send would be the T149 lie with an
