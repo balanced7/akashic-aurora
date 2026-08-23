@@ -108,7 +108,16 @@ map, both T045→T047) · ACCIDENTAL: 2 (secrets readers =T365; test-ns residue)
 NEEDS-RULING: 1 (the atom-substrate durability question, item 13 — subsumes
 the notes question and is the census's single ask of Daniil).
 
-## Remaining (third pass + reconciler)
+## Third pass — file inventory, DONE 2026-08-23
+
+state/**, store/**, data/** hold no undeclared dual-store facts: the rest is
+receipts (drills, ci — git-mastered, single-store), runtime residue (daemon
+pid/log/err — ephemeral file plane, hygiene not census), caches
+(corpus-digests — derived), and the Eye's journaled files (routes.jsonl +
+events index — AUTHORED single-store per Heimdall's C1, never to be treated
+as regenerable). CENSUS COMPLETE pending the one ruling (item 13).
+
+## Remaining (reconciler)
 
 - File inventory diff (`state/**`, `store/**`, `data/**`) — expected mostly
   covered; verify nothing undeclared.
