@@ -33,6 +33,83 @@
    "done_by": "claude",
    "done_at": "2026-07-23T00:54:07",
    "receipt": "Q6 flipped OPEN to ANSWERED in research/reviewed/kimi-stance-round-counter-2026-07-22.md (Open Questions block). Ruling: counter-phase CLOSED at reconciliation filing (stance-at-thought-reconciliation-2026-07-22.md, three voices, T038-clean); kimi blind LIFTS, post-close reads encouraged for audit; kimi stays non-stranger for this round so any gate stranger-test of the reconciliation doc needs a fresh seat."
+  },
+  {
+   "id": "0b500dac0f",
+   "by": "claude",
+   "cmd": "py agent_cli.py suite-baseline --record",
+   "needs": "exec",
+   "why": "dead advertised flag in scripts/ship_gate.py -- the ONE survivor of the flag census (7 of 8 were my instrument). One line, unclaimed.",
+   "filed_at": "2026-08-20T06:35:08.782650+00:00",
+   "done_by": "claude",
+   "done_at": "2026-08-23T02:26:14.894749+00:00",
+   "receipt": "already fixed in tree: ship_gate.py:149-158 comment narrates the repair (no --record flag exists; recording is the default) and the advice line now reads the runnable form 'suite-baseline <you> --from-file suite.txt' -- verified against suite-baseline --help; nothing to change, verify-before-repeat"
+  },
+  {
+   "id": "fd3e244095",
+   "by": "claude",
+   "cmd": "fix the 5 remaining credential-constant readers (ledger T365)",
+   "needs": "exec",
+   "why": "discord_inbound/discord_rooms/discord_setup/gemini_web/ops-redact read secrets by module-path constant; AKASHIC_SECRETS_DIR cannot redirect them. This class already minted a live thread in his server once.",
+   "filed_at": "2026-08-20T06:35:09.147306+00:00",
+   "done_by": "",
+   "done_at": "",
+   "receipt": ""
+  },
+  {
+   "id": "77e485bb23",
+   "by": "claude",
+   "cmd": "CAS on TaskLedger.save (allocator lost-update)",
+   "needs": "exec",
+   "why": "root cause of tonight's seq=367-with-T368 race: concurrent proposes from separate processes, last save wins. Healed once at 562ac27d; the class is open. T271 is the same class on the wishlist allocator.",
+   "filed_at": "2026-08-20T06:35:09.559505+00:00",
+   "done_by": "",
+   "done_at": "",
+   "receipt": ""
+  },
+  {
+   "id": "343efeb1b6",
+   "by": "claude",
+   "cmd": "re-run the global suite baseline",
+   "needs": "exec",
+   "why": "current baseline is ~48h old and reports 43 known failures; tonight's focused green is NOT global green, and a stale classification rots (T267 precedent).",
+   "filed_at": "2026-08-20T06:35:09.940626+00:00",
+   "done_by": "claude",
+   "done_at": "2026-08-23T02:38:55.712926+00:00",
+   "receipt": "re-ran global suite + recorded: 63 failures @42da709 (4 lane-classified), log /x/suite-run-20260822.txt. TREE NAMED per the failure-count law: dirty shared working tree (~36 modified tracked sibling files + untracked) during a live build day -- counts are tree-relative. Delta vs prior baseline (43 @2d7a050) = +20 unclassified; filed as its own defer item rather than silently normalized"
+  },
+  {
+   "id": "6ba50eab34",
+   "by": "claude",
+   "cmd": "root-cause: run swallows step stdout",
+   "needs": "exec",
+   "why": "reproduced 5 ways, rc 0, zero bytes when a Python parent inherits stdout. RULED OUT: cp1252, MSYS pty, parent buffering. Pin test_alias_composition_is_honest::test_run_surfaces_what_its_steps_actually_printed stays red until explained.",
+   "filed_at": "2026-08-20T06:35:10.313476+00:00",
+   "done_by": "",
+   "done_at": "",
+   "receipt": ""
+  },
+  {
+   "id": "c7f905eddc",
+   "by": "claude",
+   "cmd": "classify the suite-baseline delta 43->63 (@2d7a050 -> @42da709): diff the two failure sets, attribute each new failure to sibling mid-flight work / environment / a real regression from the 2026-08-22 ship day (t380 ladder, t375 registry, gateway rotations); log /x/suite-run-20260822.txt",
+   "needs": "exec",
+   "why": "a +20 failure jump on a dirty shared tree is a question, not a verdict -- but an unclassified jump silently becomes the new normal (T267 precedent), which is exactly how classification rot starts",
+   "filed_at": "2026-08-23T02:39:03.145857+00:00",
+   "done_by": "",
+   "done_at": "",
+   "receipt": ""
+  },
+  {
+   "id": "d911ee0c02",
+   "by": "claude",
+   "cmd": "exercise the snapshot restore path with a dated receipt: scripts/ops/snapshot_knowledge.py snapshot -> restore into a THROWAWAY redis db -> verify atom counts match (events:raw, narr, mem:decisions, learn, artifact:index approx 12.5k keys) -- the census (t374 item 13) found the entire durable atom substrate rides a ritual whose restore has never once been proven",
+   "needs": "exec",
+   "why": "backup_door_never_ran class: a recovery path without an executed drill is presumed broken, and this one guards 12.5k keys of the house's durable truth",
+   "filed_at": "2026-08-23T05:41:10.007876+00:00",
+   "done_by": "",
+   "done_at": "",
+   "receipt": ""
   }
  ]
 }
