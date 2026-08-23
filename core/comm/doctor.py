@@ -314,6 +314,7 @@ def _default_probes() -> Dict[str, Any]:
         "lane_health": _probe_lane_health,
         "token_cost": _token_cost_line,
         "wire": _wire_findings,               # T156 Expert Info -- through the seam, like the rest
+        "feed_failures": _feed_failure_findings,   # T382/D4: the mouth's deaths, loud
         "stale_code": _stale_code_line,
         "bench_count": _probe_bench_count,
         "now": time.time(),
@@ -528,6 +529,14 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
         wf = p["wire"](agent)
         if wf:
             out.extend(wf)
+    except Exception:
+        pass
+
+    # T382/D4: a dying Discord mouth surfaces here within one doctor round
+    try:
+        ff = p["feed_failures"](agent)
+        if ff:
+            out.extend(ff)
     except Exception:
         pass
 
@@ -1159,6 +1168,44 @@ def _token_cost_line(agent: str, journal_dir: str = "") -> Optional[Dict[str, An
         return _f(agent, "token_cost", "dashboard", line,
                   "py agent_cli.py doctor --json")
     except Exception:
+        return None
+
+
+def _feed_failure_findings(agent: str):
+    """T382/D4: the mouth's failures on the health surface. The 2026-08-23
+    incident's villain was a webhook dying SILENTLY while the feed counted its
+    posts as forwarded; the feed now journals discord_feed_post_failed events,
+    and this probe makes them a doctor line within one round -- a dying mouth
+    pages the house instead of waiting for the operator to feel the silence.
+    Scoped to the discord agent's examine; read-only; fail-quiet."""
+    if agent != "discord":
+        return None
+    try:
+        import json as _json
+        client = _client()
+        now = time.time()
+        fails = []
+        for sid, fields in client.xrevrange("events:raw", count=300):
+            try:
+                d = _json.loads(dict(fields).get("data") or "{}")
+            except Exception:
+                continue
+            if str(d.get("kind")) != "discord_feed_post_failed":
+                continue
+            sid_ms = int(str(sid).split("-")[0])
+            if (now - sid_ms / 1000.0) > 3600:
+                break                     # bounded: only the last hour matters
+            fails.append(d)
+        if not fails:
+            return None
+        latest = (fails[0].get("detail") or {})
+        grade = "banner" if len(fails) >= 5 else "dashboard"
+        return [_f(agent, "feed", grade,
+                   f"feed: {len(fails)} Discord post failure(s) in the last "
+                   f"hour ({latest.get('path')}: {str(latest.get('error'))[:80]})"
+                   f" -- replies may not be reaching the operator",
+                   "py agent_cli.py events --kind discord_feed_post_failed")]
+    except Exception:                                                   # noqa: BLE001
         return None
 
 
