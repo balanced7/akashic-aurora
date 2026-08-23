@@ -338,7 +338,8 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
                    channel_id: str, content: str,
                    bus: Any, react: Callable[[str], Any],
                    role_mentions: Any = None,
-                   spawner: Optional[Callable[[str], Any]] = None) -> Dict[str, Any]:
+                   spawner: Optional[Callable[[str], Any]] = None,
+                   message_id: Optional[str] = None) -> Dict[str, Any]:
     """One inbound message, fully decided. Returns what happened and why.
 
     Raises nothing it can help; but a BUS failure raises to the caller — the runner
@@ -373,6 +374,11 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
             "authority": "none",
             "guest_name": str(author_name or "")[:64], "guest_id": str(author_id),
         }
+        if message_id:
+            # T376 S3a: derived from the Discord snowflake, never minted -- one
+            # message is ONE identity at the door no matter how many gateway
+            # generations relay it (uuid4-minted keys are the crash-race trap).
+            gmeta["idempotency_key"] = f"discord:{message_id}"
         glane = (_seat_channels().get("channels") or {}).get(str(channel_id))
         gask = _rooms_reverse().get(str(channel_id))
         if gask:
@@ -421,6 +427,10 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
 
     meta: Dict[str, Any] = {"source": "discord", "operator": True,
                             "speaker": speaker}
+    if message_id:
+        # T376 S3a: same law as the guest path -- the relay self-identifies by
+        # its Discord message id so double-relay dies at the bus door.
+        meta["idempotency_key"] = f"discord:{message_id}"
 
     # the seat lane: typing in #vandor IS addressing claude — the channel is the
     # address, no mention required. His words ride directed, which wakes the seat.
