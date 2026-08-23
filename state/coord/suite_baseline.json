@@ -1,8 +1,8 @@
 {
  "v": 1,
- "sha": "2d7a050e",
+ "sha": "42da7090",
  "seat": "claude",
- "at": "2026-08-16T17:06:08.245367+00:00",
+ "at": "2026-08-23T02:38:26.599957+00:00",
  "failures": [
   {
    "node": "tests/test_agent_interface.py::test_redis_down_file_fallback",
@@ -10,6 +10,22 @@
   },
   {
    "node": "tests/test_agent_memory.py::test_hybrid_redis_down",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_alias_composition_is_honest.py::test_run_surfaces_what_its_steps_actually_printed",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_boot_orientation.py::test_cold_start_drill_answers_the_four_questions",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_clip_chokepoint_contract.py::test_a_new_raw_text_truncation_outside_the_helper_FAILS_the_checker",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_clip_chokepoint_contract.py::test_the_ratchet_does_not_fire_on_a_list_slice",
    "lane": ""
   },
   {
@@ -49,6 +65,14 @@
    "lane": ""
   },
   {
+   "node": "tests/test_reasoning_trace_reaches_the_bus.py::test_reasoning_is_still_traced_when_think_is_on",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_reasoning_trace_reaches_the_bus.py::test_thinking_trace_is_bounded",
+   "lane": ""
+  },
+  {
    "node": "tests/test_resident_placement.py::test_p3_placement_never_touches_the_callsign_or_mints_a_formerly",
    "lane": "T267"
   },
@@ -66,6 +90,10 @@
   },
   {
    "node": "tests/test_runner_gemini_pins.py::test_p10_boot_prints",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_seat_beat_retracts_wedge.py::test_a_fresh_seat_beat_suppresses_the_page_and_a_stale_one_does_not",
    "lane": ""
   },
   {
@@ -105,6 +133,14 @@
    "lane": ""
   },
   {
+   "node": "tests/test_t067_1_toolbox_parity.py::test_d1_toolbox_enumerated_and_reality_passes",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_t067_1_toolbox_parity.py::test_d4_report_includes_toolbox",
+   "lane": ""
+  },
+  {
    "node": "tests/test_t078_w3_mcp_door.py::test_p6_boot_returns_without_a_second_inbound_frame",
    "lane": ""
   },
@@ -129,11 +165,55 @@
    "lane": "T093"
   },
   {
+   "node": "tests/test_t116_retroactive_staleness.py::test_p1_an_old_process_reports_the_commits_it_cannot_contain",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_t147_runner_seats_are_visible.py::test_r3_every_runner_publishes_the_seat_beat",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_t150_runner_streams_are_watchable.py::test_o1_every_runner_is_line_buffered",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_t150_runner_streams_are_watchable.py::test_o2_every_runner_pins_utf8_with_replace",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_t150_runner_streams_are_watchable.py::test_o3_stderr_is_reconfigured_too",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_t150_runner_streams_are_watchable.py::test_o4_the_reconfigure_is_guarded",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_t152_generic_runner_is_watchable_too.py::test_w4_the_enumeration_covers_every_runner_including_the_bare_prefix",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_t160_wire_seat_attribution.py::test_a3_every_runner_stamps_its_seat_identity",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_t200_ask_friction_mcp_twins.py::test_door_parity_guard_passes",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_t211_timeline.py::test_git_rows_carry_readable_timestamps",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_t218_ask_reports_clipped_evidence_to_caller.py::test_caller_is_told_when_its_evidence_was_clipped",
+   "lane": ""
+  },
+  {
    "node": "tests/test_t248_self_verification_gate.py::test_overrides_are_countable",
    "lane": ""
   },
   {
-   "node": "tests/test_w38_family_guard.py::test_p4_live_core_comm_is_clean",
+   "node": "tests/test_w162_seat_seen_family.py::test_f4_the_three_role_families_are_still_UNREGISTERED_on_purpose",
    "lane": ""
   },
   {
@@ -290,40 +370,42 @@
   "T266": "done",
   "T267": "done",
   "T268": "done",
+  "T275": "done",
   "T285": "done",
   "T290": "done",
   "T292": "done",
-  "T294": "done",
-  "T296": "done",
   "T297": "done",
-  "T299": "done",
-  "T300": "done",
-  "T303": "done",
-  "T304": "done",
-  "T307": "done",
-  "T308": "done",
-  "T319": "done",
-  "T320": "done",
+  "T335": "done",
+  "T336": "done",
+  "T337": "done",
+  "T338": "done",
+  "T339": "done",
+  "T340": "done",
+  "T341": "done",
+  "T347": "done",
+  "T352": "done",
+  "T375": "done",
   "T058": "verifying",
   "T108": "claimed",
   "T118": "claimed",
   "T125": "claimed",
+  "T126": "claimed",
   "T141": "claimed",
   "T148": "claimed",
   "T158": "claimed",
+  "T176": "in_progress",
   "T272": "verifying",
-  "T275": "verifying",
   "T278": "verifying",
   "T280": "verifying",
   "T281": "verifying",
   "T282": "verifying",
   "T284": "verifying",
   "T289": "claimed",
-  "T293": "claimed",
-  "T295": "claimed",
-  "T302": "claimed",
-  "T306": "claimed",
-  "T317": "claimed",
+  "T323": "verifying",
+  "T332": "claimed",
+  "T361": "verifying",
+  "T363": "verifying",
+  "T380": "claimed",
   "T003": "approved",
   "T007": "approved",
   "T030": "approved",
@@ -345,13 +427,27 @@
   "T097": "approved",
   "T107": "approved",
   "T123": "approved",
-  "T126": "approved",
   "T127": "approved",
   "T132": "approved",
   "T286": "approved",
   "T287": "approved",
   "T288": "approved",
   "T291": "approved",
+  "T322": "approved",
+  "T324": "approved",
+  "T342": "approved",
+  "T358": "approved",
+  "T359": "approved",
+  "T360": "approved",
+  "T369": "approved",
+  "T370": "approved",
+  "T371": "approved",
+  "T372": "approved",
+  "T373": "approved",
+  "T374": "approved",
+  "T376": "approved",
+  "T377": "approved",
+  "T378": "approved",
   "T020": "proposed",
   "T032": "proposed",
   "T041": "proposed",
@@ -388,7 +484,6 @@
   "T168": "proposed",
   "T172": "proposed",
   "T173": "proposed",
-  "T176": "proposed",
   "T180": "proposed",
   "T185": "proposed",
   "T188": "proposed",
@@ -412,7 +507,6 @@
   "T257": "proposed",
   "T264": "proposed",
   "T265": "proposed",
-  "T269": "proposed",
   "T271": "proposed",
   "T273": "proposed",
   "T274": "proposed",
@@ -422,18 +516,23 @@
   "T283": "proposed",
   "T298": "proposed",
   "T301": "proposed",
-  "T305": "proposed",
-  "T309": "proposed",
   "T310": "proposed",
   "T311": "proposed",
   "T312": "proposed",
   "T313": "proposed",
   "T314": "proposed",
   "T316": "proposed",
-  "T321": "proposed",
-  "T322": "proposed",
-  "T323": "proposed",
-  "T324": "proposed",
+  "T329": "proposed",
+  "T331": "proposed",
+  "T333": "proposed",
+  "T334": "proposed",
+  "T362": "proposed",
+  "T364": "proposed",
+  "T365": "proposed",
+  "T366": "proposed",
+  "T367": "proposed",
+  "T368": "proposed",
+  "T379": "proposed",
   "T031": "parked",
   "T067": "parked",
   "T068": "parked",
