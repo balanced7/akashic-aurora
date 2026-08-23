@@ -100,7 +100,7 @@ Class: reference
 | `cursor_admin.py` | cursor_admin -- T076a: SANCTIONED skip-to-now for an agent's consume cursors. | GAP | GAP |  |
 | `daemon_state.py` | daemon_state -- the autopilot's shared surface (slice A1, T075 gamma-scope). | GAP | GAP | `BIFROST_NAMESPACE` |
 | `discord_bridge.py` | Outbound Discord bridge -- the fleet becomes watchable from a phone. | GAP | GAP | `AKASHIC_DISCORD_WEBHOOK` |
-| `discord_feed.py` | The automatic Discord feed — the subscription that makes the bridge real. | tests/test_discord_feed_pins.py | GAP |  |
+| `discord_feed.py` | The automatic Discord feed — the subscription that makes the bridge real. | tests/test_discord_feed_honesty.py | GAP |  |
 | `discord_inbound.py` | Discord inbound — Daniil's Discord messages become his voice on the bus. Nothing else does. | tests/test_discord_inbound_pins.py | GAP | `AKASHIC_DISCORD_OPERATOR_ID_FILE`, `AKASHIC_DISCORD_PEOPLE_FILE`, `AKASHIC_DISCORD_ROOTS_FILE`, `AKASHIC_DISCORD_SEATS_REGISTRY` |
 | `discord_ladder.py` | T380 -- the comms-stage reaction ladder, pure half (no discord import). | GAP | GAP |  |
 | `discord_rooms.py` | Outbound room router — each ask/breakout becomes a Discord thread. | tests/test_discord_rooms_pins.py | GAP | `AKASHIC_DISCORD_BOT_TOKEN`, `AKASHIC_DISCORD_FORUM_WEBHOOK`, `AKASHIC_DISCORD_ROOMS_REGISTRY`, `AKASHIC_DISCORD_SEATS_REGISTRY` |

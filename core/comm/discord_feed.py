@@ -100,6 +100,28 @@ def _streams(bus: Any) -> List[str]:
     return keys
 
 
+def _post_failure_loud(path: str, msg: Dict[str, Any], mid: str, exc: Exception) -> None:
+    """A failed Discord post is a FINDING, never a shrug: stderr line + durable
+    event, so the doctor and the next post-mortem can see exactly which reply
+    died on which path. Never raises (the pump's beat survives the confession)."""
+    try:
+        import sys as _sys
+        print(f"[discord-feed] POST FAILED ({path}) mid={mid} "
+              f"frm={msg.get('frm')} to={msg.get('to')} "
+              f"({type(exc).__name__}: {str(exc)[:120]})", file=_sys.stderr)
+    except Exception:                                                   # noqa: BLE001
+        pass
+    try:
+        from core.events.event_log import capture_event
+        capture_event("discord_feed_post_failed",
+                      f"{path} post failed for {msg.get('frm')}->{msg.get('to')}",
+                      agent_id="discord", refs=[str(mid)],
+                      detail={"path": path, "frm": str(msg.get("frm")),
+                              "error": f"{type(exc).__name__}: {str(exc)[:200]}"})
+    except Exception:                                                   # noqa: BLE001
+        pass
+
+
 def _forward_global(msg: Dict[str, Any]) -> None:
     """The default global path: the seat speaks AS ITSELF (rung 2 of person-hood,
     Daniil 2026-08-18: 'show up as your own person in the chat'). Reuses the rooms
@@ -116,8 +138,10 @@ def _forward_global(msg: Dict[str, Any]) -> None:
         for part in ROOMS.render_room_parts(msg):
             ROOMS._default_post(url, part,
                                 username=who["username"], avatar_url=who["avatar_url"])
-    except Exception:                                                   # noqa: BLE001
-        pass          # a listener never wounds the beat; the room half still tries
+    except Exception as exc:                                            # noqa: BLE001
+        # same incident class as the seat-lane swallow: the beat survives, but
+        # the failure is loud and journaled instead of impersonating success
+        _post_failure_loud("global", msg, str(msg.get("id") or "?"), exc)
 
 
 def pump(bus: Any, *, post: Optional[Callable[..., Any]] = None,
@@ -137,6 +161,7 @@ def pump(bus: Any, *, post: Optional[Callable[..., Any]] = None,
 
     forwarded = 0
     initialized = 0
+    failed = 0
     for key in _streams(bus):
         try:
             if key not in cursors:
@@ -169,16 +194,28 @@ def pump(bus: Any, *, post: Optional[Callable[..., Any]] = None,
                 if str(msg.get("to") or "") in _OPERATOR_INBOXES:
                     lane = seat_channel_url(str(msg.get("frm") or ""))
                     if lane and DB.should_forward(msg):
+                        ok = True
                         try:
                             who = ROOMS.persona(str(msg.get("frm") or ""))
                             for part in ROOMS.render_room_parts(msg):
                                 ROOMS._default_post(lane, part,
                                                     username=who["username"],
                                                     avatar_url=who["avatar_url"])
-                        except Exception:                               # noqa: BLE001
-                            pass
+                        except Exception as exc:                        # noqa: BLE001
+                            # 2026-08-23 incident (root-caused by the vandor
+                            # sprout, spawn-1787516635): this except used to
+                            # `pass` AND count the post as forwarded -- a dead
+                            # webhook ate every reply to the operator while the
+                            # feed reported success, and even the sprout's own
+                            # answer died here. A failed post is now LOUD,
+                            # counted, and journaled; the cursor still advances
+                            # (skip, never retry-block) but nothing lies.
+                            ok = False
+                            failed += 1
+                            _post_failure_loud("seat-lane", msg, mid_s, exc)
                         client.hset(CURSOR_KEY, key, mid_s)
-                        forwarded += 1
+                        if ok:
+                            forwarded += 1
                         continue
                 (post or _forward_global)(msg)
                 (room_post or ROOMS.post_to_room)(msg)
@@ -186,5 +223,6 @@ def pump(bus: Any, *, post: Optional[Callable[..., Any]] = None,
                 forwarded += 1
         except Exception:                                               # noqa: BLE001
             continue          # one bad stream must not starve the rest of the beat
-    return BoundaryOutcome.done(ref=f"forwarded={forwarded}",
-                                forwarded=forwarded, initialized=initialized)
+    return BoundaryOutcome.done(ref=f"forwarded={forwarded} failed={failed}",
+                                forwarded=forwarded, initialized=initialized,
+                                failed=failed)
