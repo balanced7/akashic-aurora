@@ -146,3 +146,9 @@ E3 (slice order, Heimdall's proposal, accepted): S-order becomes (1) pin the
 N1 contract as law everywhere RED-first, (2) daemon's missing arms
 (stale-code self-check + respawn-before-exit-0), (3) gateway layered dedupe,
 (4) wedged arm per half_a §2. UI snippet and drill close as before.
+E4 (Heimdall, S1 pin work): the reconciliation's jitter formula `hash(organ)
+% 120s` is a TRAP -- Python's builtin hash() is per-process randomized
+(PYTHONHASHSEED), so two processes disagree on one organ's delay. The
+deterministic primitive the tree already uses is zlib.crc32 (port_for()
+precedent). Jitter = crc32(organ) % 120, pinned at S1-P2. Credited: the
+build's first pin round caught the build spec's own formula.
