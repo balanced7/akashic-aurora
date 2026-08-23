@@ -35,9 +35,35 @@ import os
 import subprocess
 import sys
 import time
+import zlib
 from typing import Any, Dict, List, Optional
 
 _PROC_START = time.time()
+
+# Fleet-blackout smoothing: when a busy repo makes every long-lived organ stale
+# at once, a naive rotation would have the daemon + gateway + UI all respawn in
+# the same instant and black the fleet for the spawn window. Each organ derives
+# a DETERMINISTIC per-organ delay so their rotations spread across the window
+# instead of stacking. Deterministic is the whole point: every process computing
+# the same organ's delay must AGREE, so the smoothing cannot ride Python's
+# builtin hash() -- that is randomised per process (PYTHONHASHSEED; the tree's
+# own law at control_channel.py:66), and two processes would then disagree about
+# the same organ's delay. crc32 is the same deterministic primitive port_for()
+# already uses for the control-plane port map.
+_JITTER_WINDOW_S = 120.0
+
+
+def rotation_jitter_s(organ: str) -> float:
+    """A deterministic per-organ rotation delay in [0, 120)s, pure in `organ`.
+
+    Fleet-blackout smoothing (t376 reconciliation rule 2): spread the planned
+    rotations of the daemon / gateway / UI (and any future organ) so a
+    single commit that stales all of them does not rotate them in one stack.
+    Pure function, crc32-keyed, deterministic across processes and restarts."""
+    try:
+        return float(zlib.crc32(str(organ).encode("utf-8")) % int(_JITTER_WINDOW_S))
+    except Exception:
+        return 0.0
 
 
 def _truthy(name: str, default: bool) -> bool:
@@ -66,12 +92,19 @@ def uptime_s() -> float:
 
 
 def should_restart(*, stamped_sha: str, head_sha: str, commits_behind: int,
-                   uptime_s: float, in_flight: bool) -> Optional[str]:
+                   uptime_s: float, in_flight: bool,
+                   jitter_s: float = 0.0) -> Optional[str]:
     """A reason string when the ceremony should fire, else None.
 
     Pure decision core -- every input is passed in so pins never need a repo,
     a clock, or a git. The reason NAMES stamp/head/count because a restart
-    nobody can explain is a crash with better manners."""
+    nobody can explain is a crash with better manners.
+
+    `jitter_s` is the per-organ fleet-blackout delay (rotation_jitter_s): it
+    EXTENDS the anti-thrash floor so organs rotate at spread instants rather
+    than all at once. Default 0.0 preserves the runner's existing behaviour
+    (runners already break-before-make on a serialized lock and carry no
+    fleet-blackout role)."""
     try:
         if not _truthy("AKASHIC_SELF_RESTART", True):
             return None
@@ -87,8 +120,8 @@ def should_restart(*, stamped_sha: str, head_sha: str, commits_behind: int,
             return None
         if behind < _min_behind():
             return None                    # differing stamp alone is UNPROVEN age
-        if float(uptime_s) < _min_uptime_s():
-            return None                    # anti-thrash cooldown
+        if float(uptime_s) < _min_uptime_s() + float(jitter_s):
+            return None                    # anti-thrash cooldown + fleet-blackout spread
         return (f"stale-code self-restart: running {stamped[:12]}, HEAD is "
                 f"{head[:12]}, {behind} commit(s) behind; uptime "
                 f"{int(uptime_s)}s >= floor, idle at turn boundary")
@@ -175,13 +208,20 @@ def respawn_self(argv: Optional[List[str]] = None) -> bool:
 def maybe_self_restart(agent: str, *, in_flight: bool = False) -> Optional[str]:
     """The one-call integration point for runner turn boundaries. Returns the
     reason if a respawn was LAUNCHED (caller must then stand down cleanly),
-    else None. Never raises."""
+    else None. Never raises.
+
+    Feeds the organ's deterministic fleet-blackout jitter (rotation_jitter_s)
+    into the decision core so a busy repo that stales every organ at once
+    spreads their rotations instead of stacking them (t376 reconciliation
+    rule 2). The organ name is the agent id: distinct seats/organ-kinds get
+    distinct crc32-derived delays in [0,120)s."""
     try:
         facts = gather(agent)
         reason = should_restart(stamped_sha=facts["stamped_sha"],
                                 head_sha=facts["head_sha"],
                                 commits_behind=facts["commits_behind"],
-                                uptime_s=uptime_s(), in_flight=in_flight)
+                                uptime_s=uptime_s(), in_flight=in_flight,
+                                jitter_s=rotation_jitter_s(agent))
         if not reason:
             return None
         if not respawn_self():
