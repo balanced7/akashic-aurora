@@ -45,8 +45,9 @@ def test_p1_healthy_house_empty_plan():
 
 def test_p2_partial_only_the_dead_rung():
     plan = decide(_obs(daemon=False))
-    organs = [p["organ"] for p in plan]
-    assert organs == ["daemon"], f"only the dead rung may be planned: {organs}"
+    organs = sorted({p["organ"] for p in plan})
+    assert organs == ["daemon"], f"only the dead RUNG may be planned: {organs}"
+    assert len(plan) >= 1                 # (one spawn per daemon agent is fine)
 
 
 def test_p3_order_and_dependency_gating():
@@ -73,7 +74,11 @@ def test_p5_single_flight(tmp_path, monkeypatch):
     monkeypatch.setattr(rv, "LOCK_PATH", str(tmp_path / "revive.lock"))
     monkeypatch.setattr(rv, "observe", lambda: _obs())
     report = converge(observe_only=True)
-    assert report["plan"] == []
+    assert report["plan"] == []                  # healthy: nothing contends
+    # single-flight guards HEALS: a second converge with real work refuses
+    monkeypatch.setattr(rv, "observe", lambda: _obs(daemon=False))
+    monkeypatch.setattr(rv, "_heal_step", lambda step: True)
+    monkeypatch.setattr(rv, "_verify", lambda organ, deadline_s=1: True)
     with open(rv.LOCK_PATH, "w", encoding="utf-8") as f:
         f.write("99999999")                      # a holder that isn't us
     with pytest.raises(ReviveLocked):
