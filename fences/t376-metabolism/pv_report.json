@@ -1,0 +1,29 @@
+{
+  "ran_at": "2026-08-23T06:02:14.596222+00:00",
+  "verified": [
+    "half_a: core/comm/control_channel.py",
+    "half_a: core/comm/doctor.py:406",
+    "half_a: core/comm/doctor.py:408",
+    "half_a: core/comm/liveness.py",
+    "half_a: core/comm/liveness.py:96",
+    "half_a: core/comm/runner_lock.py:1",
+    "half_a: core/comm/self_restart.py",
+    "half_a: core/comm/self_restart.py:68",
+    "half_a: core/foundation/streams.py:32",
+    "half_a: research/in-flight/oob-counter-heimdall-2026-08-21.md",
+    "half_a: scripts/bifrost_child.py",
+    "half_a: scripts/bifrost_runner_discord.py",
+    "half_a: scripts/bifrost_ui.py",
+    "half_b: core/comm/self_restart.py:191",
+    "half_b: core/comm/self_restart.py:71",
+    "half_b: scripts/bifrost_child.py",
+    "half_b: scripts/bifrost_child.py:262",
+    "half_b: scripts/bifrost_child.py:33",
+    "half_b: scripts/bifrost_daemon.py:178",
+    "half_b: scripts/bifrost_runner_discord.py",
+    "half_b: scripts/bifrost_runner_discord.py:137"
+  ],
+  "missing": [
+    "half_a: core/comm/self_restart.gather"
+  ]
+}
