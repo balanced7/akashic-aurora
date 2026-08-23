@@ -39,6 +39,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # production caller that makes the T223 bridge real (built != wired was this exact feature's
 # recurring wound, and an import hidden inside the loop body re-created it at the graph layer).
 from core.comm import discord_feed as _DFEED  # noqa: E402
+from core.comm import self_restart as _SELF_RESTART  # noqa: E402  (t376 S2: daemon stale-code arm)
 
 _STOP = {"flag": False, "reason": ""}
 
@@ -325,6 +326,7 @@ def main(argv=None) -> int:
     next_beat = 0.0
     next_discord_feed = 0.0
     next_dark_probe = 0.0
+    next_self_restart_check = 0.0
     dark_since = None
     reason = "stop"
     try:
@@ -347,6 +349,30 @@ def main(argv=None) -> int:
                 try:
                     if _DFEED.configured():
                         _DFEED.pump(bus)
+                except Exception:                                       # noqa: BLE001
+                    pass
+
+            # ---- t376 S2: the daemon's stale-code arm (its own metabolism) --------
+            # Runners already metabolize (maybe_self_restart at their loop top); the
+            # daemon did not (E2). This is the same ceremony: at a turn boundary,
+            # compare the daemon's OWN stamp to a FRESH HEAD, and when provably stale
+            # past cooldown + jitter and idle, respawn a successor (same argv/env) and
+            # stand down cleanly via the respawn-before-exit-0 contract (S1). Gated on
+            # a slow cadence (guard_every, 30s) so gather()'s git calls don't run every
+            # 0.2s tick. in_flight reflects LIVE child-management state — a stale-code
+            # rotation must never land mid-child-spawn and orphan a spawn (S2-P3).
+            if now >= next_self_restart_check:
+                next_self_restart_check = now + guard_every
+                try:
+                    _in_flight = bool(child is not None and child.alive) or \
+                                 any(lch.alive for lch in listeners.values())
+                    _reason = _SELF_RESTART.maybe_self_restart(
+                        agent, in_flight=_in_flight)
+                    if _reason:
+                        _say(f"[daemon] self-restart agent={agent}: {_reason} -- "
+                             f"successor launched; standing down (respawn-before-exit-0)")
+                        reason = _reason
+                        break
                 except Exception:                                       # noqa: BLE001
                     pass
 

@@ -133,6 +133,9 @@ def test_s1_p4_successful_respawn_precedes_the_reason(monkeypatch):
         "stamped_sha": "a" * 12, "head_sha": "b" * 12, "commits_behind": 7})
     monkeypatch.setattr(SR, "_min_behind", lambda: 1)
     monkeypatch.setattr(SR, "_min_uptime_s", lambda: 0.0)
+    # uptime must clear the floor even after the organ's jitter extends it
+    # (S1: jitter is a floor EXTENSION, not a gate removal).
+    monkeypatch.setattr(SR, "uptime_s", lambda: 10_000.0)
     # worklive write is a side effect we don't care about here; stub it.
     import core.comm.liveness as _liv
     monkeypatch.setattr(_liv, "worklive", lambda agent: type(
