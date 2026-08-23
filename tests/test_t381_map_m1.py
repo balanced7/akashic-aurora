@@ -61,11 +61,12 @@ def test_p1_stamp_block_or_refusal():
 
 
 def test_p2_red_takes_the_banner():
+    banner = 'class="map-alarm"'          # the rendered DIV, not the stylesheet
     quiet = build_map(_data(page_grades=0))
-    assert "map-alarm" not in quiet, "no page-grades must mean no banner"
+    assert banner not in quiet, "no page-grades must mean no banner"
     loud = build_map(_data(page_grades=2))
-    assert "map-alarm" in loud
-    assert loud.index("map-alarm") < loud.index("T381"), (
+    assert banner in loud
+    assert loud.index(banner) < loud.index("T381"), (
         "the alarm banner must render ABOVE every landmark")
 
 
