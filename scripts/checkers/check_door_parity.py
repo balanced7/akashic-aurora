@@ -111,6 +111,17 @@ CLI_MCP_ALIASES = {
 #   mcp_only -> intentionally MCP-only
 #   gap      -> KNOWN DEBT: a core verb reachable on one door but not the other; pay down later.
 MANIFEST = {
+    # T375 engineering forecast registry: register/score/list at gates. CLI-only by
+    # design v1; W162 wants a bus path so no-exec seats can bet without a proxy
+    # (F004 was proxy-registered for exactly this reason) -- that slice flips this
+    # to shared when it lands.
+    "forecast": "cli_only",
+    # 2026-08-23 incident lever (Daniil from the phone: "Can we add a command to
+    # restart the discord gateway?"): status/restart for the ear, detached relaunch
+    # with stdio to its log. CLI-only; the no-bus Discord control-word twin
+    # (!revive family) is the revive-ladder plan's L2 -- classified here the day
+    # it was born so the door surface never drifts silently.
+    "gateway": "cli_only",
     # 2026-08-20: the out-of-band deadman's seat-facing door. GAP, honestly: it ships CLI-only,
     # so a Claude Code seat can arm it but the runner seats (which reach the door through the
     # ToolBox) currently CANNOT declare an expectation. That is a real half-feature and it is

@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at c3289831. A bound you discover by collision is not awareness -- this sheet
+> Derived at 5bc1a6b5. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -45,7 +45,7 @@ Class: reference
 | `AKASHIC_DIGESTS_FILE` | `` | scripts/corpus_digests.py |
 | `AKASHIC_DISCORD_BOT_TOKEN` | `` | core/comm/discord_rooms.py, scripts/bifrost_runner_discord.py, scripts/discord_setup.py |
 | `AKASHIC_DISCORD_FORUM_WEBHOOK` | `` | core/comm/discord_rooms.py |
-| `AKASHIC_DISCORD_GATEWAY_LOG` | `` | scripts/bifrost_runner_discord.py |
+| `AKASHIC_DISCORD_GATEWAY_LOG` | `` | agent_cli.py, scripts/bifrost_runner_discord.py |
 | `AKASHIC_DISCORD_OPERATOR_ID_FILE` | `` | core/comm/discord_inbound.py |
 | `AKASHIC_DISCORD_PEOPLE_FILE` | `` | core/comm/discord_inbound.py |
 | `AKASHIC_DISCORD_ROOMS_REGISTRY` | `` | core/comm/discord_rooms.py |
