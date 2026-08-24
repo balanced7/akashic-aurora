@@ -58,26 +58,12 @@ def _emit_context(text: str) -> None:
 
 
 def _recall_block(sid: str, path: str, command: str) -> str:
-    """Unseen lessons + lock warnings for this target; marks seen/impressions and ledgers the
-    push. Same sequence as claude_pretooluse._recall_context -- second copy; a third harness
-    triggers extraction (rule of three, the deferred actions.py)."""
-    if not path and not command:
-        return ""
+    """Delegates to the shared orchestration (rule of three fired: the third harness
+    arrived and the copies collapsed into agent/harness/actions.py, t383). The hook's
+    sid serves as both keys — byte-for-byte the old single-key behavior."""
     try:
-        from core.recall.at_action import (recall_at, render, mark_impression, normalize_target,
-                                           log_injection)
-        from agent.harness.seen import load_seen, mark_seen
-        res = recall_at(path=path or None, command=command or None,
-                        agent_id=os.getenv("AKASHIC_AGENT_ID"),
-                        exclude_sources=load_seen(sid), count_surface=True)
-        out = render(res)
-        if out:
-            srcs = [l.get("source") for l in res.get("lessons", [])]
-            mark_seen(sid, srcs)
-            target = normalize_target(path or None, command or None)
-            mark_impression(sid, target, srcs)
-            log_injection(sid, "action", target, srcs, len(out))
-        return out
+        from agent.harness.actions import recall_block
+        return recall_block(sid, sid, path or None, command or None)
     except Exception:
         return ""   # recall must never brick the agent
 
@@ -109,31 +95,22 @@ def main() -> int:
     try:
         if not _in_scope(data, command, path):
             return 0
-        from core.recall.at_action import normalize_target, resolve_action_outcome, build_learn_nudge
+        from core.recall.at_action import normalize_target
         target = normalize_target(path or None, command or None)
         if not target:
             return 0
+        # Outcome + nudge now ride the shared door (t383): resolve, credit-on-flip,
+        # capture the flip event, rate-limited nudge — all inside outcome_block.
+        from agent.harness.actions import outcome_block
         if "failure" in _event(data).lower():
-            resolve_action_outcome(sid, target, False)
+            outcome_block(sid, sid, target, False)
             ctx = _recall_block(sid, path, command)
             if ctx:
                 _emit_context(ctx)
             return 0
-        rep = resolve_action_outcome(sid, target, True)
-        if rep.get("flipped"):
-            try:   # durable funnel signal (flips observed vs lessons recorded) -- best-effort
-                from core.events.event_log import capture_event
-                capture_event("flip", f"FAIL->SUCCESS: {target}",
-                              agent_id=os.getenv("AKASHIC_AGENT_ID") or "unknown",
-                              detail={"target": target, "credited": rep.get("credited", 0),
-                                      "sources": rep.get("sources", [])})
-            except Exception:
-                pass
-            from agent.harness.nudge import nudge_allowed, mark_nudged
-            if nudge_allowed(_NUDGE_DIR, sid, target):
-                _emit_context(build_learn_nudge(target, rep.get("credited", 0), rep.get("sources"),
-                                                os.getenv("AKASHIC_AGENT_ID")))
-                mark_nudged(_NUDGE_DIR, sid, target)
+        nudge_text = outcome_block(sid, sid, target, True)
+        if nudge_text:
+            _emit_context(nudge_text)
         else:
             ctx = _recall_block(sid, path, command)
             if ctx:

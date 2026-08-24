@@ -54,22 +54,10 @@ def _seat(session_id: str = "") -> str:
         return (_os.getenv("AKASHIC_AGENT_ID") or "").strip() or "unknown"
 
 def build_plan_recall(prompt: str, session_id: str, agent_id: str) -> str:
-    """The plan-altitude context block for this prompt, or "" for silence."""
-    if os.getenv("AKASHIC_PLAN_RECALL", "1") == "0":
-        return ""
-    if not (prompt or "").strip():
-        return ""
-    from core.recall.at_action import recall_at, render, log_injection
-    from agent.harness.seen import load_seen, mark_seen
-    res = recall_at(command=prompt, agent_id=agent_id, limit=2,
-                    exclude_sources=load_seen(session_id), count_surface=True)
-    out = render(res, header="Plan-time recall (Akashic) - corpus knowledge relevant to this request:")
-    if not out:
-        return ""
-    srcs = [l.get("source") for l in res.get("lessons", [])]
-    mark_seen(session_id, srcs)
-    log_injection(session_id, "plan", "", srcs, len(out))
-    return out
+    """The plan-altitude context block for this prompt, or "" for silence.
+    Rule of three fired (t383): the sequence lives in agent/harness/actions.py."""
+    from agent.harness.actions import plan_block
+    return plan_block(prompt, session_id, session_id, agent_id=agent_id)
 
 
 def build_bus_line(agent_id: str) -> str:

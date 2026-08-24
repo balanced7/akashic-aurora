@@ -23,7 +23,7 @@ Letta's plain files beat a graph memory system; Wikidata's three ranks run at ~1
 statements where ATMS dies around 100 beliefs. The cost of NOT sweeping is measured in
 rebuilt wheels and dead ends, so the sweep is now a standing artifact rather than a mood.
 
-## Coverage: 9 current, 13 drift, 0 gap (of 22 subsystems)
+## Coverage: 8 current, 14 drift, 0 gap (of 22 subsystems)
 
 **DRIFT -- surveyed, but the subsystem has changed size since:**
 
@@ -35,6 +35,7 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 - `core/primitives` -- DRIFT (7->8), reviewed 2026-07-26
 - `core/trust` -- DRIFT (2->4), reviewed 2026-07-26
 - `core/fleet` -- DRIFT (2->5), reviewed 2026-07-26
+- `agent/harness` -- DRIFT (9->10), reviewed 2026-07-26
 - `scripts/hooks` -- DRIFT (7->8), reviewed 2026-07-26
 - `scripts/checkers` -- DRIFT (12->18), reviewed 2026-07-26
 - `scripts/generators` -- DRIFT (6->11), reviewed 2026-07-26
@@ -379,7 +380,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `agent/harness` -- 9 modules  ·  current
+## `agent/harness` -- 10 modules  ·  DRIFT (9->10)
 
 **What it does.** The seat side of the fleet: how an agent session is launched, kept alive, woken from idle, and stood down. Includes the wake listener, seat lifecycle and the runner glue that turns a bus message into a live turn.
 
