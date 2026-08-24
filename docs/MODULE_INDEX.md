@@ -24,7 +24,7 @@
 - `agent_signal_ledger.py` — Agent Signal Ledger: the ordered record of every signal agents emit
 - `coordinator_api.py` — Coordinator API: Minimal signal-based logging for agents
 
-## core/comm/  (62 modules)
+## core/comm/  (63 modules)
 - `ask.py` — ask -- a synchronous helper call, with no seat behind it (T171).
 - `ask_bg.py` — ask_bg -- a helper call that outlives your turn without becoming a seat (T205).
 - `ask_state.py` — ask_state -- one durable ask's honest state (T196d).
@@ -80,6 +80,7 @@
 - `self_restart.py` — self_restart (A1) -- a runner that knows it is stale restarts itself.
 - `session_exit.py` — session_exit -- the clean-death trio (T075 M1-beta, reconciliation ruling 3).
 - `session_state.py` — Session State — snapshot the live Bifrost session so it can be resumed later.
+- `shift_turn.py` — The runner turn boundary: one shared decision per loop top, for every runner.
 - `storm_detect.py` — storm_detect — S0-beta storm signature detection (lane-depth spike + repeat-delivery).
 - `timescale.py` — Timescale (T030 L1 follow-up) -- ONE seam for BUGGIFY-style timeout shrinking.
 - `toolbox.py` — core.comm.toolbox -- the fleet's guarded tool surface (schemas + executor), shared seam.
