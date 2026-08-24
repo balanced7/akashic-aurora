@@ -299,7 +299,42 @@ def main() -> int:
         # below, unchanged -- a lever that sometimes swallows your sentence because it
         # began with a name would be worse than the one it replaces.
         from core.fleet import seat_launchers as _sl
-        _seat = _sl.resolve_seat(task)
+        _seat, _flags = _sl.parse_spawn_target(task)
+        if _seat and _seat.get("kind") == "claude_seat":
+            # `!spawn vandor` has TWO preconditions that 2026-08-24 proved independent:
+            # the Claude Code DESKTOP APP (dead 12:01:59 -> 14:45:52) and the `claude`
+            # CLI, which kept working the whole time the app was down. So the app is
+            # never ensured as a side effect -- when it is missing he gets the state and
+            # the choices, because package surgery fired from a phone by one bare word is
+            # not something this house does silently.
+            from core.fleet import app_package as _ap
+            _row = _ap.observe_app()
+            try:
+                from core.comm import wake_seat as _ws
+                _live = len(_ws.iter_seats("claude") or [])
+            except Exception:                                           # noqa: BLE001
+                _live = 0
+            _plan = _sl.claude_seat_plan(
+                app_healthy=bool(_row.get("healthy")),
+                app_repairable=bool(_row.get("repairable")),
+                app_detail=str(_row.get("detail")), live_seats=_live, flags=_flags)
+            print(f"[discord-in] vandor preflight: {_plan['action']}", flush=True)
+            if _plan["action"] == "options":
+                # The handler's except-path carries this straight into his channel. It is
+                # a REFUSAL TO GUESS, not a failure, and it names every way forward.
+                raise RuntimeError(_plan["message"])
+            if _plan["action"] == "repair_then_spawn":
+                import scripts.revive as _revive
+                _step = {"organ": "app", "kind": "msix-repair", "pkg": _row.get("pkg")}
+                _ok = _revive._heal_app(_step)
+                _lines = NL.join(str(x) for x in (_step.get("receipt") or ()))
+                if not _ok:
+                    raise RuntimeError(f"app repair REFUSED — no seat spawned.{NL}{_lines}")
+                print(f"[discord-in] app repaired:{NL}{_lines}", flush=True)
+            # fall through to the CLI spawn, with a task worth booting on
+            task = ("fresh Vandor seat, launched by the operator from Discord: boot, "
+                    "read the latest handoff, drain the work lane, and take the watch")
+            _seat = None
         if _seat:
             argv, env_overlay, cwd = _sl.launch_argv(_seat, root=str(_ROOT))
             lenv = os.environ.copy()
@@ -350,17 +385,14 @@ def main() -> int:
         #                 `permissions.allow` rules in .claude/settings.json (self-arm +
         #                 drain verbs are there) rather than broad open.
         #   dangerous  -- --dangerously-skip-permissions: bypass every approval. Full hammer.
-        permission_flags = []
-        mode = str(mode or "default").strip().lower()
-        # The operator asked for the DEFAULT to be not-read-only; arm is now the assumed
-        # posture for a bare `!spawn vandor <task>`. --dangerous remains the louder hammer.
-        if mode == "default":
-            mode = "arm"
-        if mode == "dangerous":
-            permission_flags = ["--dangerously-skip-permissions"]
-        else:  # arm (and anything unknown degrades to arm rather than silently read-only)
-            permission_flags = ["--permission-mode", "acceptEdits",
-                                "--allowedTools", "Bash,Read,Write,Edit,Glob,Grep"]
+        # THE RULE NOW LIVES IN CORE, WITH ITS PINS (2026-08-24). Daniil: "lets make sure
+        # the cli version it spawns is exec enabled so it can respond, we have been bitten
+        # by that so many times." A seat spawned read-only boots, appears on every dial,
+        # and can do nothing -- it cannot arm its own watcher, drain, commit or test. A
+        # rule kept inline here is a rule that can regress silently; kept in core it is
+        # governed by test_a_spawned_claude_seat_can_ALWAYS_exec across every mode,
+        # including the unknown ones, which degrade to ARMED rather than to read-only.
+        permission_flags = _sl.claude_permission_flags(mode)
         with open(log, "w", encoding="utf-8") as fh:
             p = subprocess.Popen([exe, "-p", prompt, *permission_flags], env=env,
                                  cwd=str(_ROOT), stdout=fh, stderr=fh,
