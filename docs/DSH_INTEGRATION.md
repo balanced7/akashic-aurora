@@ -118,8 +118,28 @@ not-automated by design — the scoreboard never flatters (commit `3559f478`).
 - **R2 HMR race**: patch hot-reload replaces plugin generations; a mid-edit reload can
   leave a listener silently absent. The plugin registers a `dsh-invariants` check so
   absence is loud.
+- **⚠ EDITING THE PLUGIN JS REQUIRES A SERVER RESTART — HMR IS NOT ENOUGH** (drilled
+  2026-08-24, the costliest finding of the first wiring). DSH documents HMR hot-swap
+  ("editing the entry triggers disconnect + reconnect without process restart"), and the
+  loader *does* re-apply the entry tree — but Node's ESM cache serves the **same module
+  object** on entry restart, so your edited JS never loads. Proven twice: a comment touch
+  and a real patch-row change both re-applied the entry while the live behavior stayed
+  pre-fix. **The bridge and the JS have different freshness**: `bridge.py` is a fresh
+  subprocess per event, so Python-side fixes apply instantly; `lib/index.js` is imported
+  once at boot and is frozen for the life of the process. A half-applied fix looks
+  inexplicable until you check the host process start time against the file mtime:
+  `Get-CimInstance Win32_Process` CreationDate vs `Get-Item` LastWriteTime.
+  **Operational rule: after any `install_dsh_plugin.py` run that copies `lib/index.js`,
+  restart the DSH server before trusting any behavior.**
 - **Target-join evaporation**: if surface and outcome derive path/command differently,
-  every flip credits zero, silently. The receipt in §6 (T3/T4) is the guard.
+  every flip credits zero, silently. The receipt in §6 (T3/T4) is the guard — and this
+  is not hypothetical: it fired for real on 2026-08-24 via the stale-JS path above
+  (surface keyed `c:<normalized>`, outcome keyed `<raw>`), making every T4 number from
+  that server instance untrustworthy while the code on disk was correct.
+- **Invariant design note**: an invariant that asserts a listener is *present* passes
+  happily on a listener that is present but **stale**. Assert generation freshness
+  (loaded stamp vs disk mtime), not mere presence — absence is loud, staleness is silent
+  and lies in exactly the same place.
 
 ## 8. The two-design experiment
 
