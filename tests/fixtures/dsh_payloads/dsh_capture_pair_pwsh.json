@@ -1,0 +1,8 @@
+{
+  "provenance": "First live DSH captures, 2026-08-24, session-1266b57c (Rill). Event shapes verbatim from %TEMP%/akashic_recall/payloads_dsh/captures.jsonl; the path/command VALUES are the actual arguments of this session's tool calls (the plugin persists argKeys only, so the pair values are pinned from the live calls they describe).",
+  "session_key": "dsh_agent",
+  "cases": [
+    {"path": null, "command": "Set-Location E:\\AI-Setup; py agent_cli.py status --json"},
+    {"path": "E:\\AI-Setup\\docs\\WISHLIST.md", "command": null}
+  ]
+}
