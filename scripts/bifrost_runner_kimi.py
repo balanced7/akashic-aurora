@@ -41,6 +41,7 @@ sys.path.insert(0, HERE)
 
 from core.comm.bus import Bus
 from core.comm import control
+from core.comm import shift_turn as _shift_turn  # noqa: E402  (turn boundary)
 from core.comm import liveness, roster
 
 # T150: make this runner WATCHABLE. Python block-buffers stdout when it is not a TTY -- exactly the
@@ -63,6 +64,7 @@ except Exception:
 from core.comm import nudge
 from core.comm import runner_lock
 from core.comm import self_restart
+from core.comm.conductor_gate import notice_conductor_absence
 from core.comm import context_hints
 from core.comm.timescale import scaled as _scaled
 from core.comm.toolbox import ToolBox, TOOLS   # K0 canonical seam -- first direct consumer
@@ -908,6 +910,7 @@ def main() -> int:
 
     exit_code = 0
     bus_guard = liveness.BusLossGuard(max_dead=10)
+    next_conductor_check = 0.0                          # t384: conductor-absence notice cadence
     try:
         while True:
             _progress["loop_beats"] += 1   # cycling, not merely alive
@@ -927,10 +930,28 @@ def main() -> int:
             # A1: stale-code self-restart -- loop-top only, nothing claimed. The fresh
             # copy takes the lock at a higher generation; this process stands down
             # through the same takeover path a crash would use. Proven staleness only.
+            # TURN BOUNDARY (shift loop, step 2). ONE shared decision for every
+            # runner -- never a local next_beat block; four call sites is already
+            # past the rule of three. Never raises: idle is the fail-closed answer,
+            # because an exception here would wedge every runner at once.
+            _beat = _shift_turn.turn_beat(args.agent)
+            if _beat.get("action") not in ("idle", "blocked"):
+                print(f"[kimi-runner] shift: {_beat['action']}"
+                      + (f" {_beat['task']}" if _beat.get('task') else '')
+                      + f" -- {_beat.get('reason','')}")
             _sr = self_restart.maybe_self_restart(args.agent)
             if _sr:
                 print(f"[kimi-runner] {_sr} -- exiting clean; the successor takes the lock.")
                 break
+            # t384 conductor-absence notice: a MACHINE (this successor runner) evaluates
+            # succession on a slow cadence, so conductor absence is noticed at the loop
+            # boundary instead of by Daniil at 4am. Fail-closed: notice_conductor_absence
+            # never raises and never activates on a probe error; it is LOUD only on a real
+            # activation. Side-by-side with maybe_self_restart (the same turn boundary).
+            _now = time.time()
+            if _now >= next_conductor_check:
+                next_conductor_check = _now + 60.0
+                notice_conductor_absence(agent_self=args.agent)
             # LOOP-TOP GATE (2026-07-30): is_frozen, not is_halted -- it also honors a
             # SOFT pause ("finish the message in hand, then hold"). is_halted stays the
             # MID-TURN interrupt above, so a soft pause never abandons live work.

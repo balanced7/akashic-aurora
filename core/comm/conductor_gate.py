@@ -532,3 +532,34 @@ def decide_and_act(*, agent_self: Optional[str] = None, bus=None, dry_run: bool 
 
     append_provenance(line)
     return v
+
+
+# ---------------------------------------------------------------- production caller
+# The runner-side notice: a successor seat evaluates succession at its loop top. This is
+# the ONE function the runners call, and it is the production caller that retires the
+# built-ahead EXCEPTIONS entry -- a MACHINE now notices conductor absence, not Daniil at 4am.
+# It is fail-closed in both directions that matter:
+#   - DETECTION leaks toward "not dead" (K7/K8 + _attendance/_operator_recently_present all
+#     fail toward stand-down), so a probe error reads as "do not activate", never a false
+#     succession.
+#   - CRASH leaks toward "do not activate": ANY exception inside this pass resolves to a
+#     stand-down verdict and the runner loop continues -- a turn boundary that could raise
+#     would wedge EVERY runner in the fleet at once, so it must never raise.
+# It stays QUIET on stand-down (no ledger/broadcast spam per beat): only an ACTIVATION calls
+# decide_and_act, which is the loud path (broadcast + ledger event + provenance). The optional
+# `now` pins the evaluation for drills/tests.
+def notice_conductor_absence(*, agent_self: str, bus=None,
+                             now: Optional[float] = None) -> ConductorVerdict:
+    """Evaluate succession for `agent_self` and (only on activation) emit it loudly."""
+    try:
+        v = evaluate_succession(agent_self=agent_self, bus=bus, now=now)
+        if not v.activate:
+            return v
+        return decide_and_act(agent_self=agent_self, bus=bus, now=now)
+    except Exception as e:  # noqa: BLE001 -- fail-closed: never raise out of the loop top
+        append_provenance(f"notice refused: probe error {type(e).__name__} -> stand-down")
+        return ConductorVerdict(
+            activate=False,
+            reason=f"notice refused on probe error {type(e).__name__} -> stand-down "
+                   f"(fail-closed: a turn boundary must never raise)",
+            conductor_state="UNKNOWN", conductor_watcher="unknown", operator_present=False)
