@@ -1,0 +1,38 @@
+# re-entry — assembled for Daniil
+  (since your last word, 2026-08-18T04:11:54.851000+00:00)
+
+## 1 · WHAT MOVED (measured, from outside yourself)
+  no ledger rows moved — and this line would say so if none had, so it means exactly that
+  commits landed: 1
+    59d2bfc8 T341 RED: re-entry render pins -- order law, citation law, no-guilt law, legend, caveat
+
+## 2 · OPEN DOOR (your own reaching, verbatim — one, never a stack)
+  "Yes, I am excited to see what you come back with, remember to use eye and ask. I hope you have fun!"
+      — you, at fe21e40d-3a4b-4f77-9d9a-9b4677e9214f:223 (full text resolves there)
+      [selected by: most recent operator 'user'-kind utterance matching a disclosed phrase list (i want, i wish, what if, we need, i would love, i am excited, curious, reaching for, what do you think) — by time and pattern, never by meaning]
+
+## 3 · YOUR MOVE (each closable in a word; none carries a clock)
+  · T334 — Private plane, slice 1 SHIPPED 2026-08-16 -- filed retroactively because the wra …
+      one word opens this: approve T334
+  · T333 — doc adopt cannot supersede: re-adopting a corrected file mints a SECOND current …
+      one word opens this: approve T333
+  · T331 — T323 s2-s5 (follow-on to the shipped s1): the route arc's remaining slices. s1 S …
+      one word opens this: approve T331
+  · T329 — Doctor conflates seat-ABSENCE with seat-RETIREMENT, then spends that verdict on …
+      one word opens this: approve T329
+  · T328 — T268 pin target: a routable ledger item about bus lane cursors and wake
+      one word opens this: approve T328
+  · founding entry: the continuity question (seeded from Daniil's eighth interiority entry, delivered to deepseek on the bus)
+      yours whenever it strikes the vein — QUESTIONS.md holds it
+  · live question: what strings was I reaching for last night?
+      yours whenever it strikes the vein — QUESTIONS.md holds it
+  · live question: the tension-map legend (how does kimi see what matters when?)
+      yours whenever it strikes the vein — QUESTIONS.md holds it
+  · desire: recover the graveyard years (seeded from his answer to kimi's Q1, verbatim source in INTERIORITY.md entry 12)
+      yours whenever it strikes the vein — QUESTIONS.md holds it
+
+  legend — shown: ledger rows whose updated-stamp moved since your last recorded word; commits landed since then; one verbatim utterance of yours selected by disclosed phrase match; newest proposed rows and QUESTIONS.md doors, titles only
+  legend — excluded: open loops and unanswered threads (off by default — ask for them); counts and ages of anything that is yours to move; every form of paraphrase; agent chatter
+  legend — why: order law: evidence -> open door -> your move — measured outcomes first because that is what you ask for at every return (eye_freq, 8/8 sessions). Voice labels are conservative: a pasted dispatch brief can wear operator voice (known class). corpus time-fog: 0.0.
+
+  this render buys the assembly, not the charge — whether the spark returns is yours to report, and only you can (kimi's caveat, standing on the row)

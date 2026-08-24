@@ -1,0 +1,6 @@
+# T342 graveyard probe — 2026-08-18T04:11:06Z @ 93c110e1
+deleted-ever: 1053
+dead-at-HEAD: 1048
+dead-python-modules: 216
+extracted-sources: 216
+extract-failures: 0

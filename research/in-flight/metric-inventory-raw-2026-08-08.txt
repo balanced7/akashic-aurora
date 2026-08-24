@@ -1,0 +1,27 @@
+core\context\project_context.py:555: progress_pct = int(100 * completed_milestone_count / total_milestones)
+core\coord\sift.py:728: rate = (len(dissents) / n_deciding) if n_deciding else None
+core\fleet\caller.py:57: url = resolved_host.rstrip("/") + "/api/generate"
+core\learning\learning_store.py:708: success_rate = success_count["yes"] / total if total > 0 else 0
+core\narrative\chronicler.py:488: coverage_pct = (covered / high_weight * 100) if high_weight > 0 else 100.0
+core\recall\at_action.py:673: rate = max(0.0, min(1.0, (eff + 1.0) / denom))   # ~0.5 neutral; ->1 proven; ->0 stale/noise
+core\recall\curator.py:104: base_rate = (_credit(base) / base_surf) if base_surf else 0.0
+core\recall\funnel.py:111: value_rate = round((useful + helped) / surfaced, 4) if surfaced else None
+core\recall\precision_audit.py:197: coverage = (labelled / total_surfaced) if total_surfaced else 1.0
+core\recall\precision_audit.py:198: precision = (on / labelled) if labelled else None
+core\recall\precision_audit.py:203: misses_rate = (len(miss_cases) / len(cases)) if cases else None
+core\season\scoring.py:282: rate = refuted.get(player, 0) / max(1, seen.get(player, 1))
+core\season\scoring.py:284: detail.update(points=int(round(worst * rate)),
+scripts\bifrost_runner_deepseek.py:1117: rate = f"{100 * shape['cache_hit'] / seen:.0f}% cached" if seen else "cache: unmeasured"
+scripts\bifrost_ui.py:2306: <canvas id="voiceline" class="voiceline" title="emission rate"></canvas>
+scripts\bifrost_ui.py:2666: // ===== THE FLEET'S VOICE: emission rate as a waveform =====
+scripts\bifrost_ui.py:2717: if(m && now > m.t && c >= m.c) rate += (c - m.c) * 1000 / (now - m.t);
+scripts\bifrost_ui.py:2722: _voice.setRate(Math.min(1, rate / 50));      // 50 tok/s = full scale
+scripts\canary_oracle.py:313: catch_rate = (cat["caught"] / cat["total"]) if cat["total"] else None
+scripts\runner_token_journal.py:144: total += fresh / 1_000_000 * rate["prompt"]
+scripts\runner_token_journal.py:145: total += cached / 1_000_000 * rate.get("cached_prompt", rate["prompt"])
+scripts\runner_token_journal.py:146: total += b.get("completion", 0) / 1_000_000 * rate["completion"]
+scripts\wire_journal.py:546: out["cache_hit_rate"] = round(hit / (hit + miss), 4)
+agent_cli.py:2648: rate = "n/a (nothing closed)" if a["dead_rate"] is None else f"{a['dead_rate']:.1%}"
+agent_cli.py:2679: rate = ("n/a" if b.get("answer_rate") is None
+agent_cli.py:2689: rate = "n/a" if p["dead_rate"] is None else f"{p['dead_rate']:.0%}"
+agent_cli.py:5994: nts.add_argument("--project", action="store_true", help="regenerate the chronicles/memory.md digest")

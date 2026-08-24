@@ -1,0 +1,289 @@
+# timeline -- 287 row(s) over the last 9.0h
+  read: events=48, files=125, git=30, tasks=84
+  08-06 21:12:09  files                file:modified      tests/test_t201_unread_counter_honesty.py
+  08-06 21:15:12  files                file:modified      temp/census_timings.txt
+  08-06 21:15:12  files                file:modified      data/verb-registry/deepseek.json
+  08-06 21:16:50  files                file:modified      data/corpus-digests/digests.jsonl
+  08-06 21:17:12  files                file:modified      agent/harness/context.py
+  08-06 21:17:32  tasks   claude       task:proposed      T201 T201: the unread counter must count what its own remedi
+  08-06 21:17:32  tasks   user         task:approved      T201 T201: the unread counter must count what its own remedi
+  08-06 21:17:33  tasks   claude       task:claimed       T201 T201: the unread counter must count what its own remedi
+  08-06 21:17:33  tasks   claude       task:in_progress   T201 T201: the unread counter must count what its own remedi
+  08-06 21:17:34  tasks   claude       task:verifying     T201 T201: the unread counter must count what its own remedi
+  08-06 21:17:48  git     balanced7    commit             T201: the unread counter counts what its own remediation wou
+  08-06 21:18:00  tasks   claude       task:done          T201 T201: the unread counter must count what its own remedi
+  08-06 21:18:01  git     balanced7    commit             T201 ledger DONE
+  08-06 21:20:57  git     balanced7    commit             W132: the whisper spends 2.2s per prompt counting mail
+  08-06 21:21:39  events  deepseek     boot               deepseek booted -- task: Live Bifrost session: collaborating
+  08-06 21:30:59  files                file:modified      chronicles/last-session-draft.md
+  08-06 21:55:10  files                file:modified      tests/test_t202_failure_class.py
+  08-06 21:55:11  events  claude       fail               FAIL: p:e:\ai-setup\tests\test_t202_failure_class.py
+  08-06 21:55:11  events  claude       flip               FAIL->SUCCESS: p:e:\ai-setup\tests\test_t202_failure_class.p
+  08-06 21:57:44  files                file:modified      core/comm/failure_class.py
+  08-06 21:58:49  tasks   claude       task:proposed      T202 T202: name the cause of a dead ask and say what to do (
+  08-06 21:58:50  tasks   user         task:approved      T202 T202: name the cause of a dead ask and say what to do (
+  08-06 21:58:50  tasks   claude       task:claimed       T202 T202: name the cause of a dead ask and say what to do (
+  08-06 21:58:51  git     balanced7    commit             T202: name the cause of a dead ask, and say what to do about
+  08-06 21:58:51  tasks   claude       task:in_progress   T202 T202: name the cause of a dead ask and say what to do (
+  08-06 21:58:51  tasks   claude       task:verifying     T202 T202: name the cause of a dead ask and say what to do (
+  08-06 21:59:03  tasks   claude       task:done          T202 T202: name the cause of a dead ask and say what to do (
+  08-06 22:12:52  files                file:modified      tests/test_t203_ask_with_files.py
+  08-06 22:16:30  tasks   claude       task:proposed      T203 T203: ask --with <paths> -- stop asking blind helpers t
+  08-06 22:16:30  tasks   user         task:approved      T203 T203: ask --with <paths> -- stop asking blind helpers t
+  08-06 22:16:31  tasks   claude       task:claimed       T203 T203: ask --with <paths> -- stop asking blind helpers t
+  08-06 22:16:31  tasks   claude       task:in_progress   T203 T203: ask --with <paths> -- stop asking blind helpers t
+  08-06 22:16:32  tasks   claude       task:verifying     T203 T203: ask --with <paths> -- stop asking blind helpers t
+  08-06 22:16:48  git     balanced7    commit             T203: ask --with <paths> -- helpers stop reasoning blind
+  08-06 22:17:01  git     balanced7    commit             T203 ledger DONE
+  08-06 22:17:01  tasks   claude       task:done          T203 T203: ask --with <paths> -- stop asking blind helpers t
+  08-06 22:17:54  events  deepseek     boot               deepseek booted -- task: Live Bifrost session: collaborating
+  08-06 22:27:05  files                file:modified      tests/test_t204_untruncate.py
+  08-06 22:34:32  files                file:modified      core/comm/ask.py
+  08-06 22:37:13  tasks   claude       task:proposed      T204 T204: un-truncate -- two causes of a cut answer, two re
+  08-06 22:37:14  tasks   user         task:approved      T204 T204: un-truncate -- two causes of a cut answer, two re
+  08-06 22:37:14  tasks   claude       task:claimed       T204 T204: un-truncate -- two causes of a cut answer, two re
+  08-06 22:37:14  tasks   claude       task:in_progress   T204 T204: un-truncate -- two causes of a cut answer, two re
+  08-06 22:37:15  tasks   claude       task:verifying     T204 T204: un-truncate -- two causes of a cut answer, two re
+  08-06 22:37:30  git     balanced7    commit             T204: un-truncate -- two causes, two recoveries, no ceiling 
+  08-06 22:37:40  git     balanced7    commit             T204 ledger DONE
+  08-06 22:37:40  tasks   claude       task:done          T204 T204: un-truncate -- two causes of a cut answer, two re
+  08-06 22:40:23  files                file:modified      tests/test_t205_ask_bg.py
+  08-06 22:42:23  files                file:modified      state/asks/ce75bee3.out
+  08-06 22:42:23  files                file:modified      state/asks/1dfd63a9.out
+  08-06 22:42:24  files                file:modified      state/asks/e79e6133.out
+  08-06 22:42:31  files                file:modified      state/asks/c31a1af4.out
+  08-06 22:42:52  files                file:modified      state/wire/unknown/wire-20260806-001.jsonl
+  08-06 22:43:54  files                file:modified      state/asks/c2c80660.json
+  08-06 22:43:54  files                file:modified      state/asks/c2c80660.out
+  08-06 22:44:31  files                file:modified      state/asks/3dfce08f.json
+  08-06 22:44:31  files                file:modified      state/asks/3dfce08f.out
+  08-06 22:45:50  files                file:modified      state/asks/898c0766.json
+  08-06 22:45:50  files                file:modified      state/asks/898c0766.out
+  08-06 22:45:51  tasks   claude       task:proposed      T205 T205: ask --bg -- stop blocking on your own helpers. Ev
+  08-06 22:45:51  tasks   user         task:approved      T205 T205: ask --bg -- stop blocking on your own helpers. Ev
+  08-06 22:45:51  tasks   claude       task:claimed       T205 T205: ask --bg -- stop blocking on your own helpers. Ev
+  08-06 22:45:52  tasks   claude       task:in_progress   T205 T205: ask --bg -- stop blocking on your own helpers. Ev
+  08-06 22:45:52  tasks   claude       task:verifying     T205 T205: ask --bg -- stop blocking on your own helpers. Ev
+  08-06 22:46:08  git     balanced7    commit             T205: ask --bg -- stop blocking on your own helpers
+  08-06 22:46:21  git     balanced7    commit             T205 ledger DONE
+  08-06 22:46:21  tasks   claude       task:done          T205 T205: ask --bg -- stop blocking on your own helpers. Ev
+  08-06 22:46:36  events  deepseek     boot               deepseek booted -- task: Live Bifrost session: collaborating
+  08-07 00:06:39  files                file:modified      tests/test_t206_ask_emits_events.py
+  08-07 00:07:05  files                file:modified      core/comm/ask_bg.py
+  08-07 00:07:40  files                file:modified      state/asks/49da7c75.json
+  08-07 00:07:40  events  claude       ask_completed      background ask 49da7c75 done (deepseek-v4-pro)
+  08-07 00:07:40  files                file:modified      state/asks/49da7c75.out
+  08-07 00:08:28  tasks   claude       task:proposed      T206 T206: a finished background ask leaves a durable trace 
+  08-07 00:08:29  tasks   user         task:approved      T206 T206: a finished background ask leaves a durable trace 
+  08-07 00:08:29  tasks   claude       task:claimed       T206 T206: a finished background ask leaves a durable trace 
+  08-07 00:08:29  tasks   claude       task:in_progress   T206 T206: a finished background ask leaves a durable trace 
+  08-07 00:08:30  git     balanced7    commit             T206: a finished ask leaves a durable trace -- the surface a
+  08-07 00:08:30  tasks   claude       task:verifying     T206 T206: a finished background ask leaves a durable trace 
+  08-07 00:08:40  git     balanced7    commit             T206 ledger DONE
+  08-07 00:08:40  tasks   claude       task:done          T206 T206: a finished background ask leaves a durable trace 
+  08-07 00:09:39  events  deepseek     boot               deepseek booted -- task: Live Bifrost session: collaborating
+  08-07 00:09:41  events  claude       learning           lesson: troubleshoot_from_without_to_see_the_shape
+  08-07 00:13:59  files                file:modified      research/in-flight/t207-grounding-ab-preregistration.md
+  08-07 00:14:24  files                file:modified      state/asks/8011b304.json
+  08-07 00:14:25  events  claude       ask_completed      background ask 8011b304 done (deepseek-v4-pro)
+  08-07 00:14:25  files                file:modified      state/asks/8011b304.out
+  08-07 00:14:25  files                file:modified      state/asks/656904c1.json
+  08-07 00:14:25  events  claude       ask_completed      background ask 656904c1 done (deepseek-v4-pro)
+  08-07 00:14:25  files                file:modified      state/asks/656904c1.out
+  08-07 00:14:25  files                file:modified      state/asks/9ec4ff43.json
+  08-07 00:14:25  events  claude       ask_completed      background ask 9ec4ff43 done (deepseek-v4-pro)
+  08-07 00:14:25  files                file:modified      state/asks/9ec4ff43.out
+  08-07 00:14:25  files                file:modified      state/asks/e0874342.json
+  08-07 00:14:25  events  claude       ask_completed      background ask e0874342 done (deepseek-v4-pro)
+  08-07 00:14:26  files                file:modified      state/asks/e0874342.out
+  08-07 00:14:27  files                file:modified      state/asks/7d2b88f8.json
+  08-07 00:14:27  events  claude       ask_completed      background ask 7d2b88f8 done (deepseek-v4-pro)
+  08-07 00:14:27  files                file:modified      state/asks/7d2b88f8.out
+  08-07 00:14:27  files                file:modified      state/asks/804eae7d.json
+  08-07 00:14:27  events  claude       ask_completed      background ask 804eae7d done (deepseek-v4-pro)
+  08-07 00:14:27  files                file:modified      state/asks/804eae7d.out
+  08-07 00:14:29  files                file:modified      state/asks/29dceae7.json
+  08-07 00:14:30  events  claude       ask_completed      background ask 29dceae7 done (deepseek-v4-pro)
+  08-07 00:14:30  files                file:modified      state/asks/29dceae7.out
+  08-07 00:14:30  files                file:modified      state/asks/9e954c34.json
+  08-07 00:14:30  events  claude       ask_completed      background ask 9e954c34 done (deepseek-v4-pro)
+  08-07 00:14:30  files                file:modified      state/asks/9e954c34.out
+  08-07 00:14:31  files                file:modified      state/asks/349ff2d1.json
+  08-07 00:14:31  events  claude       ask_completed      background ask 349ff2d1 done (deepseek-v4-pro)
+  08-07 00:14:31  files                file:modified      state/asks/e5c07098.json
+  08-07 00:14:31  files                file:modified      state/asks/349ff2d1.out
+  08-07 00:14:31  events  claude       ask_completed      background ask e5c07098 done (deepseek-v4-pro)
+  08-07 00:14:31  files                file:modified      docs/library/report/20260807_t207-grounding-ab-preregistrati
+  08-07 00:14:31  files                file:modified      state/asks/e5c07098.out
+  08-07 00:14:42  git     balanced7    commit             T207 PRE-REGISTRATION (committed before any result was read)
+  08-07 00:16:43  files                file:modified      state/asks/2918f752.json
+  08-07 00:16:43  events  claude       ask_completed      background ask 2918f752 done (deepseek-v4-pro)
+  08-07 00:16:44  files                file:modified      state/asks/2918f752.out
+  08-07 00:16:45  files                file:modified      state/asks/04a06b34.json
+  08-07 00:16:45  events  claude       ask_completed      background ask 04a06b34 done (deepseek-v4-pro)
+  08-07 00:16:45  files                file:modified      state/asks/04a06b34.out
+  08-07 00:16:45  files                file:modified      state/asks/c5622ca8.json
+  08-07 00:16:45  events  claude       ask_completed      background ask c5622ca8 done (deepseek-v4-pro)
+  08-07 00:16:45  files                file:modified      state/asks/c5622ca8.out
+  08-07 00:16:46  files                file:modified      state/asks/36965af3.json
+  08-07 00:16:46  events  claude       ask_completed      background ask 36965af3 done (deepseek-v4-pro)
+  08-07 00:16:46  files                file:modified      state/asks/36965af3.out
+  08-07 00:16:48  files                file:modified      state/asks/1ffcbf68.json
+  08-07 00:16:48  events  claude       ask_completed      background ask 1ffcbf68 done (deepseek-v4-pro)
+  08-07 00:16:49  files                file:modified      state/asks/1ffcbf68.out
+  08-07 00:16:55  files                file:modified      state/asks/1a0045d7.json
+  08-07 00:16:55  events  claude       ask_completed      background ask 1a0045d7 done (deepseek-v4-pro)
+  08-07 00:16:55  files                file:modified      state/asks/1a0045d7.out
+  08-07 00:18:50  events  claude       learning           lesson: grounding_fixes_facts_not_equivocation
+  08-07 00:19:18  files                file:modified      research/in-flight/t207-grounding-ab-results.md
+  08-07 00:19:34  tasks   claude       task:proposed      T207 T207: grounding A/B, pre-registered -- hypothesis falsi
+  08-07 00:19:34  tasks   user         task:approved      T207 T207: grounding A/B, pre-registered -- hypothesis falsi
+  08-07 00:19:34  files                file:modified      docs/library/report/20260807_t207-grounding-ab-results_a6538
+  08-07 00:19:34  files                file:modified      store/docs/report.jsonl
+  08-07 00:19:35  tasks   claude       task:claimed       T207 T207: grounding A/B, pre-registered -- hypothesis falsi
+  08-07 00:19:35  tasks   claude       task:in_progress   T207 T207: grounding A/B, pre-registered -- hypothesis falsi
+  08-07 00:19:36  tasks   claude       task:verifying     T207 T207: grounding A/B, pre-registered -- hypothesis falsi
+  08-07 00:19:51  git     balanced7    commit             T207 RESULTS: hypothesis falsified, a better finding recover
+  08-07 00:20:01  tasks   claude       task:done          T207 T207: grounding A/B, pre-registered -- hypothesis falsi
+  08-07 00:20:02  git     balanced7    commit             T207 ledger DONE
+  08-07 00:24:39  events  deepseek     boot               deepseek booted -- task: Live Bifrost session: collaborating
+  08-07 00:30:00  files                file:modified      state/asks/f40faf48.json
+  08-07 00:30:00  events  claude       ask_completed      background ask f40faf48 done (deepseek-v4-pro)
+  08-07 00:30:00  files                file:modified      state/asks/f40faf48.out
+  08-07 00:30:08  files                file:modified      state/asks/ffe752cc.json
+  08-07 00:30:08  events  claude       ask_completed      background ask ffe752cc done (deepseek-v4-pro)
+  08-07 00:30:08  files                file:modified      state/asks/ffe752cc.out
+  08-07 00:35:24  files                file:modified      core/coord/suite_baseline.py
+  08-07 00:35:37  files                file:modified      tests/test_t208_whose_failure.py
+  08-07 00:36:54  tasks   claude       task:proposed      T208 T208: 'is this failure mine?' answered by the organ tha
+  08-07 00:36:54  tasks   user         task:approved      T208 T208: 'is this failure mine?' answered by the organ tha
+  08-07 00:36:55  tasks   claude       task:claimed       T208 T208: 'is this failure mine?' answered by the organ tha
+  08-07 00:36:55  tasks   claude       task:in_progress   T208 T208: 'is this failure mine?' answered by the organ tha
+  08-07 00:36:56  git     balanced7    commit             T208: "is this failure mine?" answered by the organ that alr
+  08-07 00:36:56  tasks   claude       task:verifying     T208 T208: 'is this failure mine?' answered by the organ tha
+  08-07 00:37:06  git     balanced7    commit             T208 ledger DONE
+  08-07 00:37:06  tasks   claude       task:done          T208 T208: 'is this failure mine?' answered by the organ tha
+  08-07 00:39:19  files                file:modified      research/in-flight/_ask_help_snapshot.txt
+  08-07 00:40:04  files                file:modified      state/asks/4498a880.json
+  08-07 00:40:04  events  claude       ask_completed      background ask 4498a880 done (deepseek-v4-pro)
+  08-07 00:40:04  files                file:modified      state/asks/4498a880.out
+  08-07 00:40:09  files                file:modified      state/asks/1943651f.json
+  08-07 00:40:09  events  claude       ask_completed      background ask 1943651f done (deepseek-v4-pro)
+  08-07 00:40:09  files                file:modified      state/asks/1943651f.out
+  08-07 00:40:13  files                file:modified      state/asks/8c5ec63d.json
+  08-07 00:40:13  events  claude       ask_completed      background ask 8c5ec63d done (deepseek-v4-pro)
+  08-07 00:40:13  files                file:modified      state/asks/8c5ec63d.out
+  08-07 00:41:50  events  claude       learning           lesson: cold_encounter_test_measures_ergonomics
+  08-07 00:43:58  tasks   claude       task:proposed      T209 T209: cold-encounter testing -- measure ergonomics from
+  08-07 00:43:59  tasks   user         task:approved      T209 T209: cold-encounter testing -- measure ergonomics from
+  08-07 00:43:59  tasks   claude       task:claimed       T209 T209: cold-encounter testing -- measure ergonomics from
+  08-07 00:44:00  git     balanced7    commit             T209: cold-encounter testing -- ergonomics measured from out
+  08-07 00:44:00  tasks   claude       task:in_progress   T209 T209: cold-encounter testing -- measure ergonomics from
+  08-07 00:44:00  tasks   claude       task:verifying     T209 T209: cold-encounter testing -- measure ergonomics from
+  08-07 00:44:10  tasks   claude       task:done          T209 T209: cold-encounter testing -- measure ergonomics from
+  08-07 00:44:11  git     balanced7    commit             T209 ledger DONE
+  08-07 00:45:10  events  deepseek     boot               deepseek booted -- task: Live Bifrost session: collaborating
+  08-07 01:00:29  files                file:modified      state/asks/6574217c.json
+  08-07 01:00:29  events  claude       ask_completed      background ask 6574217c done (deepseek-v4-pro)
+  08-07 01:00:29  files                file:modified      state/asks/6574217c.out
+  08-07 01:00:31  files                file:modified      state/asks/6caa20cd.json
+  08-07 01:00:31  events  claude       ask_completed      background ask 6caa20cd done (deepseek-v4-pro)
+  08-07 01:00:31  files                file:modified      state/asks/6caa20cd.out
+  08-07 01:01:02  events  claude       fail               FAIL: c:for l in 2394 2406 404 636 1721; do echo "=== line $
+  08-07 01:01:04  events  claude       fail               FAIL: c:python - <<'eof' import json,re p=r"e:\ai-setup\stat
+  08-07 01:03:42  events  claude       learning           lesson: the_oldest_wish_was_never_filed_as_one
+  08-07 01:03:55  git     balanced7    commit             W133: the oldest wish, never filed as one
+  08-07 01:05:57  files                file:modified      state/asks/21a3c163.json
+  08-07 01:05:57  events  claude       ask_completed      background ask 21a3c163 done (deepseek-v4-pro)
+  08-07 01:05:57  files                file:modified      state/asks/21a3c163.out
+  08-07 01:07:01  events  claude       learning           lesson: forked_semantics_is_not_a_name_collision
+  08-07 01:09:31  git     balanced7    commit             W134 amends W133: the guard was not missing, it answers a di
+  08-07 01:15:20  files                file:modified      tests/test_t210_semantic_discover.py
+  08-07 01:16:02  files                file:modified      core/coord/capability_search.py
+  08-07 01:17:11  events  claude       fail               FAIL: p:e:\ai-setup\agent_cli.py
+  08-07 01:17:11  events  claude       flip               FAIL->SUCCESS: p:e:\ai-setup\agent_cli.py
+  08-07 01:18:46  tasks   claude       task:proposed      T210 T210: discover --semantic -- offload 'I infer absence i
+  08-07 01:18:46  tasks   user         task:approved      T210 T210: discover --semantic -- offload 'I infer absence i
+  08-07 01:18:47  tasks   claude       task:claimed       T210 T210: discover --semantic -- offload 'I infer absence i
+  08-07 01:18:47  tasks   claude       task:in_progress   T210 T210: discover --semantic -- offload 'I infer absence i
+  08-07 01:18:48  git     balanced7    commit             T210: discover --semantic -- offload "I infer absence" to th
+  08-07 01:18:48  tasks   claude       task:verifying     T210 T210: discover --semantic -- offload 'I infer absence i
+  08-07 01:18:58  git     balanced7    commit             T210 ledger DONE
+  08-07 01:18:58  tasks   claude       task:done          T210 T210: discover --semantic -- offload 'I infer absence i
+  08-07 01:19:51  files                file:modified      research/in-flight/_verbs_snapshot.txt
+  08-07 01:19:57  events  deepseek     boot               deepseek booted -- task: Live Bifrost session: collaborating
+  08-07 01:31:08  files                file:modified      tests/test_t211_timeline.py
+  08-07 01:31:42  tasks   claude       task:proposed      T211 T211: one chronological SET across domains -- the super
+  08-07 01:31:43  tasks   user         task:approved      T211 T211: one chronological SET across domains -- the super
+  08-07 01:31:43  tasks   claude       task:claimed       T211 T211: one chronological SET across domains -- the super
+  08-07 01:31:44  tasks   claude       task:in_progress   T211 T211: one chronological SET across domains -- the super
+  08-07 01:31:44  tasks   claude       task:verifying     T211 T211: one chronological SET across domains -- the super
+  08-07 01:31:54  tasks   claude       task:done          T211 T211: one chronological SET across domains -- the super
+  08-07 01:32:04  events  claude       fail               FAIL: c:cd /e/ai-setup && py agent_cli.py task propose "t211
+  08-07 01:34:10  git     balanced7    commit             T211: one chronological set across domains -- the super time
+  08-07 01:40:36  files                file:modified      core/coord/timeline.py
+  08-07 01:41:01  files                file:modified      tests/test_t212_filesystem_plane.py
+  08-07 01:41:53  tasks   claude       task:proposed      T212 T212: the filesystem as an OBSERVED plane. Daniil 2026-
+  08-07 01:41:53  tasks   user         task:approved      T212 T212: the filesystem as an OBSERVED plane. Daniil 2026-
+  08-07 01:41:54  tasks   claude       task:claimed       T212 T212: the filesystem as an OBSERVED plane. Daniil 2026-
+  08-07 01:41:54  tasks   claude       task:in_progress   T212 T212: the filesystem as an OBSERVED plane. Daniil 2026-
+  08-07 01:41:55  git     balanced7    commit             T212: the filesystem as an OBSERVED plane
+  08-07 01:41:55  tasks   claude       task:verifying     T212 T212: the filesystem as an OBSERVED plane. Daniil 2026-
+  08-07 01:42:05  tasks   claude       task:done          T212 T212: the filesystem as an OBSERVED plane. Daniil 2026-
+  08-07 01:42:06  git     balanced7    commit             T212 ledger DONE
+  08-07 01:42:32  events  deepseek     boot               deepseek booted -- task: Live Bifrost session: collaborating
+  08-07 02:12:36  files                file:modified      core/coord/compare.py
+  08-07 02:12:48  files                file:modified      tests/test_t213_compare.py
+  08-07 02:13:29  tasks   claude       task:proposed      T213 T213: compare -- the cross-domain set difference, with 
+  08-07 02:13:30  tasks   user         task:approved      T213 T213: compare -- the cross-domain set difference, with 
+  08-07 02:13:30  tasks   claude       task:claimed       T213 T213: compare -- the cross-domain set difference, with 
+  08-07 02:13:31  tasks   claude       task:in_progress   T213 T213: compare -- the cross-domain set difference, with 
+  08-07 02:13:31  tasks   claude       task:verifying     T213 T213: compare -- the cross-domain set difference, with 
+  08-07 02:13:42  tasks   claude       task:done          T213 T213: compare -- the cross-domain set difference, with 
+  08-07 02:15:17  files                file:modified      scripts/checkers/check_door_parity.py
+  08-07 02:15:35  git     balanced7    commit             T213: compare -- the cross-domain set difference, with a nam
+  08-07 02:16:37  files                file:modified      research/in-flight/_cli_only_verbs.txt
+  08-07 02:18:07  files                file:modified      state/asks/8040040d.json
+  08-07 02:18:07  events  claude       ask_completed      background ask 8040040d done (deepseek-v4-pro)
+  08-07 02:18:07  files                file:modified      state/asks/8040040d.out
+  08-07 02:45:21  files                file:modified      agent_cli.py
+  08-07 02:47:38  files                file:modified      core/coord/terms.py
+  08-07 02:48:50  files                file:modified      tests/test_t214_terms_domain.py
+  08-07 02:49:24  tasks   claude       task:proposed      T214 T214: vocabulary as a comparable set, and a MEASURED NE
+  08-07 02:49:24  tasks   user         task:approved      T214 T214: vocabulary as a comparable set, and a MEASURED NE
+  08-07 02:49:25  tasks   claude       task:claimed       T214 T214: vocabulary as a comparable set, and a MEASURED NE
+  08-07 02:49:25  tasks   claude       task:in_progress   T214 T214: vocabulary as a comparable set, and a MEASURED NE
+  08-07 02:49:25  tasks   claude       task:verifying     T214 T214: vocabulary as a comparable set, and a MEASURED NE
+  08-07 02:49:26  git     balanced7    commit             T214: vocabulary as a comparable set -- and a measured negat
+  08-07 02:49:37  git     balanced7    commit             T214 ledger DONE
+  08-07 02:49:37  tasks   claude       task:done          T214 T214: vocabulary as a comparable set, and a MEASURED NE
+  08-07 02:49:37  files                file:modified      state/coord/tasks.json
+  08-07 02:50:00  events  deepseek     boot               deepseek booted -- task: Live Bifrost session: collaborating
+  08-07 02:50:00  files                file:modified      session_logs/ledger/events_deepseek_raw.jsonl
+  08-07 02:53:14  files                file:modified      research/in-flight/_fork_prompts.json
+  08-07 02:53:14  files                file:modified      research/in-flight/_fork_meta.json
+  08-07 02:53:22  files                file:modified      session_logs/ledger/recall_surface.jsonl
+  08-07 02:55:21  files                file:modified      research/in-flight/_fork_results.json
+  08-07 02:56:14  files                file:modified      research/in-flight/_fork_meta2.json
+  08-07 02:56:14  files                file:modified      research/in-flight/_fork_prompts2.json
+  08-07 02:58:06  files                file:modified      research/in-flight/_fork_results2.json
+  08-07 02:58:54  files                file:modified      session_logs/store_state.db
+  08-07 02:58:54  events  claude       learning           lesson: fan_detector_needs_clean_evidence_and_a_narrower_que
+  08-07 02:58:54  files                file:modified      session_logs/ledger/events_raw.jsonl
+  08-07 02:58:54  files                file:modified      session_logs/ledger/events_claude_raw.jsonl
+  08-07 02:58:54  files                file:modified      session_logs/store_state.db-wal
+  08-07 02:59:16  git     balanced7    commit             W135: two real forked terms, found by fan-out -- 'open' and 
+  08-07 02:59:16  files                file:modified      docs/WISHLIST.md
+  08-07 02:59:16  files                file:modified      docs/MODULE_INDEX.md
+  08-07 02:59:17  files                file:modified      docs/PHYSICS.md
+  08-07 02:59:17  files                file:modified      docs/MAP.md
+  08-07 02:59:17  files                file:modified      docs/DOORS.md
+  08-07 02:59:17  files                file:modified      docs/PRIOR_ART.md
+  08-07 02:59:30  files                file:modified      state/door/last_probe.json
+  08-07 03:01:41  files                file:modified      research/in-flight/_claims.json
+  08-07 03:02:02  files                file:modified      research/in-flight/_claim_prompts.json
+  08-07 03:02:10  files                file:modified      research/in-flight/_claim_err.txt
+  08-07 03:02:10  files                file:modified      research/in-flight/_claim_results.json
+  08-07 03:02:10  files                file:modified      session_logs/ledger/recall_outcome.jsonl
+  08-07 03:02:29  files                file:modified      state/wire/unknown/wire-20260807-001.jsonl
+  08-07 03:02:30  files                file:modified      research/in-flight/_self_timeline.txt

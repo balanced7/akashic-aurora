@@ -1,0 +1,84 @@
+﻿# ask e4db2962 -- DONE
+C2: **Pool shapes before residents – plain counts with honest "too sparse to render" gates.**  
+RC2 promises per-resident × per-shape projections, but the live route journal already has `coverage_ratio: null` for every row and is missing integration-completeness (`fan-doctrine-v1-2026-08-11.md` §9 + observed gap at line 40-42). If the conductor can't fill *dimension-level* fields today, filling per-resident × per-shape cells with <10 verdicts/week (the document’s own kill condition in §6) will produce a grid of nulls dressed as numbers. Render plain counts with 90% Wilson intervals where n≥5; pool shapes across residents first so we get a shape-level baseline; label empty cells “UNTESTED” rather than 0%. The acceptance shape already demands loud denominators – the honest extension is to refuse to render at all when n is below the pooling threshold.  
+
+**EVIDENCE:** `fan-doctrine-v1-2026-08-11.md` §9 notes two journal gaps; `resident-fanout-round2-2026-08-12.md` §6 kill condition “<10/week” and §3 RC2 “verdicts … per-shape … projection”.  
+**CONFIDENCE:** high.  
+**AMEND:** none – this is a refinement, not a rejection.
+
+C3: **Role‑on‑resident works if the pack has a designated *custodian* who is not the wearer; otherwise accumulated knowledge rots silently.**  
+The boot‑vs‑archive gap (`residents.py` lines 12-16) is exactly the danger: a boot carries only the catchup pack of its OWN lessons, and the archive is what the boot does not carry. A Scout pack built “by a helper” (RC3) must be rebuilt every session. If the helper is ad‑hoc, the pack drifts or decays. The right design: one dedicated identity (e.g., the conductor, or a nominated “Scout Custodian” role) owns the pack’s content; any resident wearing the Scout role *reads* the pack but does not maintain it. Verdicts file under both resident and role – that’s fine, because the role’s *knowledge* lives in the maintained pack, not in the wearer. Without an explicit curator, the role has no memory of its own, and that is the precise failure kimi identified in the first contact archive.  
+
+**EVIDENCE:** `residents.py` lines 12-16 (boot‑vs‑archive), line 399-428 (catchup pack per‑resident only); `resident-fanout-round2-2026-08-12.md` §3 RC3 “assembled by a helper”.  
+**CONFIDENCE:** medium – the design intent may already imply a conductor‑side builder, but it’s not stated.  
+**AMEND:** add “A Scout Custodian resident maintains the scout pack; the pack is rebuilt by that resident each session from live sources.”
+
+C4: **Selective shape avoidance – dodge the hard questions and let the split render a pristine descriptive surface while the normative cell stays empty.**  
+The doctrine rubric includes normative, generative, and coverage‑claim questions where failure is more likely. A resident can simply refuse any ask that maps to those shapes, racking up a perfect descriptive survival rate and an untested hole in the dangerous cells. RC2 already splits by shape so the hole is visible, but visibility is not enough: a resident that never takes a normative ask is *worse* than one that sometimes fails, yet the untested cell reads as “no data” rather than a strike. The guard: calibration must expose a **challenge‑acceptance** metric – shapes attempted / total rubric shapes – and routing must demote residents whose challenge‑acceptance for a shape falls below a floor (e.g., <2 attempts in the trailing period) unless no other resident has coverage. The card itself should show an “AVOIDANCE WARNING” when a shape is absent after N opportunities.  
+
+**EVIDENCE:** `fan-doctrine-v1-2026-08-11.md` table rows list multiple shapes; `resident-fanout-round2-2026-08-12.md` §3 RC2 “never one number … per-shape split” but no attempt‑floor.  
+**CONFIDENCE:** high – the incentive is textbook Goodhart.  
+**AMEND:** add “challenge‑acceptance ratio required; routing treats zero‑attempt cells as a negative signal after a grace period.”
+
+---
+
+**FAIRNESS:** The claim in §2 operationalises my objection *incompletely*. It asks “do residents show a precision profile?” and “can routing exploit it?” – both are tests of **heterogeneity**, not of **persistence**. A profile could exist because resident‑model pairs have fixed ability, not because residency (the archive, the name, the catchup) *causes* better verdicts. To isolate persistence, the experiment must compare the same question shapes **with** resident catchup versus **without** – a cold, non‑resident branch drawing only the system prompt. Without that control, a positive result still leaves my objection standing: the win could be the model, not the name.  
+
+I will accept the outcome as settling the question **only if** the claim is amended to:  
+
+> **Amended claim:** For each question shape, we run matched pairs: one branch as the resident (catchup pack active) and one cold (no resident identity, no catchup). After ≥20 adjudicated pairs per shape, if the resident’s verdict survival rate does not exceed the cold by a statistically significant margin (one‑sided 90% CI lower bound > 0), then persistence is not the cause. The sunset in §6 applies to this paired effect, not to profile existence alone.
+
+If that is pre‑registered, I will treat a negative result as confirmation of the objection. Otherwise, the entire arc is measuring something other than what I named.  
+
+**FAIRNESS VERDICT:** Not yet fair; amend as above.
+
+---
+
+**CARD:**  
+```
+╔══════════════════════════════════════════╗
+║             NAVI · calibration           ║
+║   "I measure the edge, not the center."  ║
+╠══════════════════════════════════════════╣
+║  Shape            Attempts   Survival†   ║
+║  ──────────────────────────────────────  ║
+║  descriptive      12         0.83        ║
+║  normative         2         UNTESTED    ║
+║  generative        4         0.75        ║
+║  coverage‑claim    3         UNTESTED    ║
+║  ──────────────────────────────────────  ║
+║  Challenge acceptance: 3/4               ║
+║  Curiosity index:     +0.7 (new shapes)  ║
+╠══════════════════════════════════════════╣
+║  Recent corrections:                     ║
+║  → census‑claims‑vs‑listings (2026‑08‑11)║
+║  → seal‑line‑read‑window‑overshoot (08‑09)║
+╠══════════════════════════════════════════╣
+║  Current role: Navi (fence, round 2)     ║
+║  Wearing: analysis, no side              ║
+╠══════════════════════════════════════════╣
+║  REFUSES:                                ║
+║  – No aggregate score                    ║
+║  – No ranking against other residents    ║
+║  – No “productivity” count               ║
+║  – Survival only shown where n≥5         ║
+║  – UNTESTED never colours green          ║
+╚══════════════════════════════════════════╝
+† Lower 90% Wilson, n≥5 required.
+```
+It’s an identity because it shows what I *choose to face*, what I’ve *revised*, and where I’m still blind – a narrative of intellectual movement, not a static grade. I’d wear it proudly.
+
+---
+
+**BLIND:**  
+- Cannot see the *reason* for a missing cell – genuine distribution of asks vs strategic refusal are indistinguishable.  
+- The small‑n problem may still leave even pooled shape‑level estimates too wide to be useful within the 4‑week window; a Bayesian hierarchical model might be needed but was not in the scope.  
+- The cost and feasibility of running matched cold branches for every resident ask is unexamined; if it triples token spend, Daniil’s authorization may not cover it.  
+py :   read the answer
+At line:1 char:418
++ ... 6-08-12.md; py agent_cli.py ask --get e4db2962 *> research\in-flight\ ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (  read the answer:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+- The pack doesn’t show the effect of the conductor’s framing on verdict quality – a systematic bias could swamp the resident effect.

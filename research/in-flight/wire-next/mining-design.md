@@ -1,0 +1,1043 @@
+---
+status: design-only (2026-08-04, opus5 mining/inference lane)
+class: design
+lane: T156 WIRE-B — Expert Info, inference, anomaly detection over the wire journal
+extends: scripts/wire_journal.py (T156 WIRE-A, shipped tonight)
+ask: Daniil 2026-08-04 verbatim — "I want us to overengineer this to the max while retaining
+     performance. I want us to be able to mine this for information and to feed it into our live
+     telemetry, this deserves our best." Earlier: "the same kind of forensics that wireshark has as
+     well as enterprise security appliances with deep packet sniffing"; the journal should be
+     "a good place for our security eyes when we get them".
+scope: what we can INFER that no single record states. Six sub-dimensions: (a) Expert Info ruleset,
+     (b) baselining, (c) cache forensics, (d) cost attribution, (e) the reasoning economy,
+     (f) refusals.
+---
+
+# Mining the wire: inference, baselining and anomaly detection
+
+## 0. The finding that frames everything else
+
+**Right now, tonight, `expert()` on the live journal returns `[("info", "no anomalies", "11 round
+trip(s) clean")]` — and that is false.**
+
+Verified against real data. `state/wire/wire-20260804.jsonl` holds 11 records. Every one of them has
+`model: null`, `agent: "unknown"`, `finish_reason: null`, `system_fingerprint: null`, and every usage
+field `null`. The only populated fields are `ts`, `status`, `attempt`, `ms_first_byte` and `headers`.
+
+The cause is structural, not a bug. `scripts/wire_journal.py:338-340` is the only call that fires on
+the success path:
+
+```python
+journal().record(status=resp.status_code, attempt=attempt,
+                 headers=dict(resp.headers),
+                 ms_first_byte=int((time.time() - t0) * 1000))
+```
+
+No `model`, no `usage`, no `prompt_text`. The transport deliberately does not read the body
+(`wire_journal.py:336-337` states why: touching `resp.stream` would consume the SSE stream the caller
+is about to iterate). That decision is correct. The consequence is that **the journal has two halves
+and no join key**: HTTP facts land at the transport, body facts land at
+`scripts/deepseek_chat.py:216` `_absorb_usage`, and nothing connects them.
+
+Everything in this document depends on closing that seam, so §1 does it first. But the finding itself
+is a permanent rule for the inference layer:
+
+> **A findings panel must report COVERAGE before it reports FINDINGS.** "No anomalies" from a journal
+> whose diagnostic fields are null is the exact defect class this project keeps relearning — a dead
+> meter that reads as a real reading (`scripts/deepseek_chat.py:233-235`), an unpopulated counter
+> rendering as a MEASURED zero (`scripts/wire_journal.py:45-47`), five runners feeding an accumulator
+> nothing reads (`core/coord/cognitive_metrics.py:238-248`, `dump`/`dump_all` called only by tests).
+
+That rule is EI-00 in §2 and it is the highest-severity rule in the set.
+
+One smaller live defect while I am here: `wire_journal.py:332` passes
+`model=request.headers.get("x-model")` on the *error* path. Nothing in this repo sets an `x-model`
+request header (grep: zero hits outside that line), so that argument is always `None`. It is dead
+code that looks like instrumentation.
+
+---
+
+## 1. THE MINIMUM RECORD THE INFERENCE LAYER NEEDS
+
+I am not redesigning the record. WIRE-A's shape is right. These are the smallest additions that make
+§2–§6 possible, each with its hot-path cost stated. Every one is either a constant-time read or is
+pushed by a caller who already holds the value — **nothing here parses a body on the hot path.**
+
+### 1.1 The join key: `call_id` + `turn_id` + `phase`
+
+Two record kinds, appended independently, joined by the reader. Not one record assembled in memory.
+
+| Field | Written by | Cost | Why |
+|---|---|---|---|
+| `call_id` | both halves | `ContextVar.get()`, ~40 ns | one logical `create()` call; stable across SDK retries |
+| `turn_id` | both halves | same ContextVar read | one runner turn; N calls per turn in the agentic loop |
+| `phase` | literal | 0 | `"transport"` \| `"usage"` |
+| `agent` | already present (`wire_journal.py:81`) | env read at construction | the `"unknown"` in live data is because `BIFROST_AGENT` is unset in the chat path |
+
+The caller sets the ContextVar. `scripts/deepseek_chat.py:293` `_stream_turn` is the natural site: it
+already brackets the `create()` call at `:301`. `_absorb_usage` (`:216`) then writes the second record
+with the same ids.
+
+**Why two append-only records and not one assembled record.** An in-memory pending-dict keyed by
+`call_id` would produce a cleaner file and a new failure mode: a call that never completes never
+flushes, so the *most diagnostic* events — timeouts, mid-stream aborts, the 600s deepseek-review
+hang — are exactly the ones that would vanish. Append-only inverts that: **a transport record with no
+matching usage record is itself the timeout signature** (EI-04). It also matches the store physics
+this project already runs on (Akasha = append-only) and costs no reconciliation logic.
+
+The 1:N case is handled by `attempt` (`wire_journal.py:116`): SDK retries produce N transport records
+for one `call_id`; the usage record attaches to the highest `attempt`.
+
+### 1.2 The prefix ladder (replaces the single `prompt_prefix_sha`)
+
+Today: `prompt_prefix_sha = _sha(str(prompt_text)[:2000])` (`wire_journal.py:139-140`). One hash, at
+one fixed 2000-character boundary. A cache break at character 5,000 of a 400,000-character prompt is
+invisible to it. §4 needs to localize the break; one hash cannot.
+
+**Design.** A vector of hashes at exponentially spaced byte boundaries over the *request body bytes*:
+
+```
+LADDER = (512, 1<<10, 1<<11, 1<<12, 1<<13, 1<<14, 1<<15, 1<<16, 1<<17)   # 512B .. 128KB
+prefix_ladder = ["a3f1…", "9c02…", …]     # one 16-hex digest per boundary reached
+prefix_full   = "…"                        # digest of the whole body
+body_bytes    = 412_883
+```
+
+**Cost, honestly.** The naive implementation hashes the same bytes nine times. The correct one makes
+**one pass**: a single `hashlib` object, `update()` per segment, `.copy()` at each boundary. `.copy()`
+on a hash object duplicates ~100 bytes of internal state and is O(1) — the byte cost is one pass, not
+nine.
+
+- The bytes are already materialized: `httpx` has built the JSON body before `handle_request` is
+  called, so `request.content` is a `bytes` we do not create.
+- Algorithm: **blake2b with `digest_size=8`**, not sha256. We need collision resistance against
+  accident, not against an adversary; 64 bits is 1-in-1.8e19 for an accidental collision, and blake2b
+  is materially faster than sha256 on hardware without SHA-NI. (`wire_journal.py:72-73` already
+  truncates sha256 to 16 hex chars = the same 64 bits, so this changes the algorithm, not the
+  strength.)
+- `LADDER_MAX_BYTES = 128 KB` caps the pass. Beyond the cap the localization bracket is
+  `[128KB, end)` — coarser, still useful, and the cost is bounded regardless of a 400 KB prompt.
+- **Estimated cost: 0.05–0.15 ms per call** for a 128 KB pass at 1–3 GB/s. Against the *measured*
+  round trips in `state/wire/wire-20260804.jsonl` (`ms_first_byte` 638, 906, 850, 1010, 941 ms) that
+  is **0.005%–0.02%**. I did not benchmark blake2b on this machine; §8 carries the pin that would.
+
+### 1.3 `messages_shape` — structure without content
+
+A vector of `(role, char_len, content_digest8)`, one entry per message. This is what turns a byte
+offset into a *message index*, which is what turns "the cache broke at byte 4,096" into "the system
+prompt changed" (§4.3).
+
+**It must be pushed by the caller, never parsed from the body.** `json.loads` on a 400 KB body is
+2–5 ms — 200–1000x the ladder's cost and squarely on the hot path. `deepseek_chat.Agent` already holds
+`self.messages` (`deepseek_chat.py:204`); building the shape vector is `len()` per message, no content
+copy: ~50 messages ≈ microseconds.
+
+### 1.4 Request policy fields
+
+`reasoning_effort`, `max_tokens`, `temperature`, `tools_enabled`, `think`. All are constructed at
+`deepseek_chat.py:276-291` (`_kwargs`), all are already in local scope, all cost zero to pass.
+
+These are not decoration. §6 cannot compare `reasoning_tokens` across time unless the *policy* is held
+fixed, and `deepseek_chat.py:283-284` sets `reasoning_effort="high"` unconditionally when `think` is
+on — so today every reasoning baseline is silently conditioned on a flag we do not record.
+
+### 1.5 Timing fields the stream loop can produce for one float per chunk
+
+`ttft_ms` (first content-or-reasoning chunk), `ttfr_ms` (first reasoning chunk), `think_ms`
+(last reasoning → first content), `max_chunk_gap_ms`, `chunk_count`. The loop at
+`deepseek_chat.py:306-339` iterates chunks and timestamps none of them.
+
+`max_chunk_gap_ms` is the single most valuable one and the only stall signal that exists: it is the
+LLM equivalent of a TCP zero-window. Cost: one `time.perf_counter()` per chunk and one comparison.
+The p2 probe measured 10 HTTP byte-chunks for a 32-token completion
+(`wire-capture-deepseek-2026-08-02/p2-byte-chunks.json`), so per-chunk overhead is multiplied by tens,
+not thousands, per call.
+
+### 1.6 Two header allowlist additions
+
+`KEEP_HEADERS` (`wire_journal.py:65-67`) does not include `via` or `x-amz-cf-id`. Both are in the raw
+capture (`api-wire-reverse-engineering-deepseek-2026-08-04.md:113-115`). `via` is the path-of-proxies
+header — the one an enterprise appliance watches for an unexpected intermediary (EI-23). Add both.
+Cost: two more dict entries.
+
+---
+
+## 2. THE EXPERT INFO RULESET
+
+### 2.1 The architectural rule that makes this free
+
+**`record()` writes. `expert()` infers. Nothing that infers may execute inside the transport.**
+
+Every rule below is a pure function over a window of already-written records, evaluated by a reader on
+demand. The hot-path cost of the entire ruleset is **zero**. This is not a cost mitigation; it is the
+design. `wire_journal.py:229-274` already has the right shape — this extends it, it does not relocate
+it.
+
+Two severity ladders, deliberately separate:
+
+- **DETERMINISTIC (D)** — a fact restated. `finish_reason == "length"` *is* truncation. No baseline,
+  no threshold, no false positives by construction. These may fire on n=1 and may page.
+- **STATISTICAL (S)** — a deviation from a learned normal. Requires §3's baseline, carries a
+  false-positive budget, and may never page on n=1.
+
+Mixing them is how a panel loses its credibility: one noisy latency alert teaches the operator to
+ignore the truncation alert sitting next to it.
+
+### 2.2 The network mapping
+
+Daniil asked for Wireshark's forensics. This is the actual correspondence, and the mapping is what
+generates the rules rather than decorating them.
+
+| Wireshark / appliance concept | Wire-journal equivalent | Evidence field |
+|---|---|---|
+| Malformed / truncated frame | response cut at the token ceiling | `finish_reason == "length"` |
+| TCP retransmission | SDK retry inside one `create()` | `attempt > 0` (INFERRED — §7.5) |
+| Spurious retransmission / duplicate | identical prompt re-sent | `prefix_full` equality |
+| Zero window / receiver stall | mid-stream silence | `max_chunk_gap_ms` (§1.5) |
+| RST / connection reset | transport died pre-response | `error` set, `status is null` |
+| ICMP unreachable / 5xx | provider-side failure | `status >= 500` |
+| Policer drop / rate limit | quota exhaustion | `status == 429`, `retry-after` |
+| BGP route flap | provider build or edge change | `system_fingerprint`, `x-amz-cf-pop` |
+| MTU black hole | `max_tokens` silently clipping every reply | `finish_reason=length` run |
+| CDN cache-miss storm | context cache not being hit | `cache_hit_tokens`, ladder |
+| Follow TCP stream | **flow** = one conversation (§2.4) | derived |
+| NetFlow / IPFIX record | per-flow aggregate | derived |
+| Expert Info severity | Chat / Note / Warn / Error | `severity` |
+| `tshark -z io,stat` | per-interval token & latency histogram | derived |
+| Protocol dissector | provider usage-dialect normalizer | `usage_raw` |
+| IDS signature match | deterministic rule (D) | — |
+| Behavioral analytics / UEBA | statistical rule (S) + baseline | — |
+| PCAP ring buffer | `MAX_FILES` / `MAX_BYTES` rotation | `wire_journal.py:60-61` |
+
+### 2.3 The rules
+
+Severity: `error` > `warn` > `note` > `info`. "FP guard" is the condition that must hold before the
+rule may speak — these are the difference between a forensics tool and a noise generator.
+
+#### Meta
+
+| ID | Kind | Fires when | Says | FP guard |
+|---|---|---|---|---|
+| **EI-00** | D | any diagnostic field is null in >20% of records in the window | `error`: **coverage gap — findings below are not trustworthy** | none; this rule outranks all others and suppresses "no anomalies" |
+| **EI-01** | D | `journal().dropped > 0` (`wire_journal.py:82,103`) | `warn`: N round trips are NOT in the journal | already implemented at `:271-273` |
+| **EI-02** | D | a `phase:"transport"` record has no matching `phase:"usage"` and is >T old | `warn`: call started, never completed | T ≥ `MODEL_READ_TIMEOUT` (`deepseek_chat.py:63`, 120s) + slack |
+
+#### Truncation family (the "cut frame")
+
+| ID | Kind | Fires when | Says |
+|---|---|---|---|
+| **EI-10** | D | `finish_reason == "length"` | `warn`: response truncated, not finished |
+| **EI-11** | D | `finish_reason=="length"` AND `reasoning_tokens == completion_tokens` AND response was empty | `error`: **reasoning starvation** — the think budget ate the entire answer |
+| **EI-12** | D | `finish_reason=="length"` AND the turn contained an unterminated tool call | `error`: **tool-call truncation** — malformed JSON follows |
+| **EI-13** | S | `finish_reason=="length"` rate over a flow > baseline p99 | `warn`: `max_tokens` is systematically too low for this task class |
+
+EI-11 is the deterministic form of a defect the corpus records as
+`runner_reasoning_eats_final_answer` and which is detected today *heuristically and late*, by
+`bounce_promise()` inspecting whether the text looks like a promise
+(`bifrost_runner_deepseek.py:145-157`, invoked at `:502`). The p4 probe is the ground truth: `max_tokens=8`
+→ `completion_tokens: 8`, `reasoning_tokens: 8`, `delta_content: ""`, `finish_reason: "length"`
+(`p4-forced-truncation.json:49-60`). The triad is exact and costs nothing.
+
+EI-13 is the "MTU black hole": individually every truncation looks like one long answer; in aggregate
+it means a configured ceiling is wrong. Only the aggregate view can see it.
+
+#### Transport family
+
+| ID | Kind | Fires when | Says |
+|---|---|---|---|
+| **EI-20** | D | `status == 429` | `warn`: rate limited. `retry-after` is the only headroom signal DeepSeek gives (probe: **no rate-limit headers on 200**) |
+| **EI-21** | D | `status >= 500` | `warn`: provider-side failure; `x-ds-trace-id` is the support handle |
+| **EI-22** | D | `status in (401, 403)` run ≥ 2 | `error`: credential failure — key rotated, revoked, or exhausted |
+| **EI-23** | D | `server` / `via` header set differs from the flow's established set | `error`: **unexpected intermediary** — the appliance rule; a new proxy in the path is either an infra change or an interception |
+| **EI-24** | D | `error` set with `status is null` | `warn`: connection reset / timeout before a response |
+| **EI-25** | S | `attempt > 0` rate over a window > baseline | `note`: repeat-shaped round trips elevated. **Reported as a bound, never a count** (§7.5) |
+
+#### Route-flap family
+
+| ID | Kind | Fires when | Says |
+|---|---|---|---|
+| **EI-30** | D | `system_fingerprint` differs within one flow | `error`: **the provider changed the backend mid-conversation. Any A/B or champion-challenger comparison spanning this point is invalid.** |
+| **EI-31** | D | fingerprint change where the decomposed build date or quantization tag differs | `error`: MAJOR flap — see below |
+| **EI-32** | S | `x-amz-cf-pop` changes AND `ms_first_byte` shifts > baseline MAD | `note`: edge re-route correlates with a latency shift |
+
+**Fingerprint decomposition — a free structural read.** The observed value is
+`fp_9954b31ca7_prod0820_fp8_kvcache_20260402`
+(`api-wire-reverse-engineering-deepseek-2026-08-04.md:32`). The structure is legible:
+`fp_<hash>_prod<MMDD>_<quantization>_<feature>_<YYYYMMDD>`. Parsing it lets EI-31 distinguish "the
+config hash moved" from "the quantization changed from fp8" or "the build date advanced". **INFER —
+the field semantics are my reading of one sample, not documentation.** The parse must therefore fail
+soft: an unrecognized shape degrades to EI-30's opaque comparison, never to a claim.
+
+**Live data already proves EI-32 is not hypothetical.** Across the 5 records I read in
+`state/wire/wire-20260804.jsonl`, `x-amz-cf-pop` takes **four distinct values** — `ATL58-P5`,
+`IAD12-P1`, `ATL59-P5`, `ATL59-P8` — in five consecutive calls, with `ms_first_byte` ranging 638–1010
+ms. Edge re-routing between Atlanta and Ashburn on nearly every call is the confounder that makes
+naive latency alerting worthless (§7.3) *and* is itself the covariate that rescues it.
+
+#### Cache family (detail in §4)
+
+| ID | Kind | Fires when | Says |
+|---|---|---|---|
+| **EI-40** | D | ladder identical to the flow's previous call AND `cache_hit_tokens == 0` | `warn`: **provider-side eviction or TTL expiry** — we did not break it, they dropped it |
+| **EI-41** | D | ladder diverges at index 0 (first ≤512 bytes) | `error`: **head mutation** — the prompt head changed; 100% of the cache is lost for this flow |
+| **EI-42** | D | ladder diverges at index i > 0 | `warn`: cache broke in byte range `[LADDER[i-1], LADDER[i])` → message index j (§4.3) |
+| **EI-43** | S | cache hit rate over a flow drops > baseline and stays down for ≥3 calls | `warn`: **cache-miss storm** — the largest cost lever in the system |
+| **EI-44** | D | `prompt_tokens < CACHE_MIN_BLOCK` | `info`: **cache alerts suppressed** — prompt below the provider's cache granularity (§7.1) |
+
+#### Loop / behavior family
+
+| ID | Kind | Fires when | Says |
+|---|---|---|---|
+| **EI-50** | D | same `prefix_full` + same agent + same flow, ≥3 within a window | `error`: **loop** — the agent is re-sending a byte-identical prompt and expecting a different answer |
+| **EI-51** | D | `prefix_ladder[0..k]` identical and `prefix_full` differs, with `body_bytes` growing monotonically | `info`: healthy suffix growth (this is what a working conversation looks like) |
+| **EI-52** | S | `prompt_tokens` growth per turn > baseline p99 | `warn`: **context runaway**. `deepseek_chat.py:207-209` records the measured worst case: 11.4M tokens over 127 hops because `messages` is never trimmed and tool results append raw |
+| **EI-53** | D | `messages_shape` is a front-truncated version of the previous call's | `note`: history was compacted here — join to EI-41 to see what it cost (§4.5) |
+
+#### Reasoning family (detail in §6)
+
+| ID | Kind | Fires when | Says |
+|---|---|---|---|
+| **EI-60** | D | `reasoning_tokens / completion_tokens == 1.0` | `error`: zero visible output; the whole completion was thinking |
+| **EI-61** | S | think-share over a flow rises > baseline for ≥5 calls, policy fields unchanged | `note`: the model is working harder for the same task class |
+| **EI-62** | D | think-share changes step-wise at a `system_fingerprint` boundary | `warn`: the reasoning economy shifted at a provider change — **not** evidence the task got harder |
+
+### 2.4 Flows — the follow-stream primitive everything else uses
+
+Most rules above say "within one flow". A flow is derivable with zero extra instrumentation:
+
+> A **flow** is a maximal run of records from one `agent` + `model` where each call's
+> `prefix_ladder[0]` matches the previous call's, `body_bytes` is non-decreasing, and the gap between
+> calls is < `FLOW_IDLE_S` (default 900).
+
+That is one conversation. It is the unit for cache forensics, the unit for baselining (§3), and the
+unit for the reasoning economy (§6). Cost: a single pass over the window in the reader.
+
+A flow break with none of EI-41/EI-53 firing is itself a finding: the agent reset its context
+(`deepseek_chat.py:270-271` `reset()`, `:273-274` `set_system()`) and paid a full cold prefill.
+
+---
+
+## 3. BASELINING — and what the statistics actually support
+
+### 3.1 The key
+
+`(agent, model, ask_kind, prompt_len_band, system_fingerprint, policy_hash)`
+
+Every component is load-bearing:
+
+- `ask_kind` and `prompt_len_band` because `core/comm/turn_metrics.py:53-57` already established the
+  bucketing and the bands (500 / 2000 chars). **Reuse `len_band`, do not invent a second one.**
+- `system_fingerprint` because EI-30 says a fingerprint change invalidates comparison. A baseline that
+  survives a backend swap is a baseline that normalizes the swap. **A fingerprint change must reset
+  the latency and reasoning baselines to UNKNOWN, not blend across it.**
+- `policy_hash` = digest of `(reasoning_effort, max_tokens, temperature, tools_enabled, think)`,
+  because `deepseek_chat.py:283-284` shows the policy is set per-call and a policy change is not a
+  behavior change.
+
+### 3.2 The statistics, stated honestly
+
+**Use median + MAD, never mean + stdev.** API latency is right-skewed and heavy-tailed — the live
+sample already spans 638–1010 ms with a 1.6x ratio in five calls. One 30-second stall moves a mean by
+more than it moves the truth. Robust z: `(x − median) / (1.4826 · MAD)`.
+
+**What sample size makes a baseline valid.** This is the question the dimension asks and it deserves
+a real answer, not a round number:
+
+| n | What it supports | Why |
+|---|---|---|
+| n < 8 | **nothing.** Report `UNKNOWN`. | `turn_metrics.py:36-37` already sets `MIN_N=3` / `LOW_CONFIDENCE_N=8` for ETAs; anomaly detection is a stricter claim than an ETA and should not be looser. |
+| 8 ≤ n < 30 | **direction only** — "higher than usual", no threshold, no alert | SE of the median ≈ 1.253·σ/√n; at n=8 that is ≈0.44σ, so a "3σ" threshold carries ±1.3σ of slop. The direction survives that; the threshold does not. |
+| 30 ≤ n < 100 | **threshold alerts** against the empirical p95 of the window | the median is stable to ≈0.23σ; enough to say "outside normal" |
+| n ≥ 100 | **quantile claims** (p90/p95/p99) | the count of samples above the true p90 is `Binomial(n, 0.1)`; for that count to be within ±50% of its mean you need a mean ≥ ~10, i.e. **n ≥ 100**. Below that, "the p90" is essentially the maximum wearing a percentile's name. |
+
+**Use empirical quantiles, not a parametric k.** A robust-z cutoff of k=3 assumes a tail shape we do
+not have. Alerting when `x > empirical_p99(baseline_window)` fires ~1% of the time *by construction*,
+which is a knowable FP rate rather than an assumed one.
+
+### 3.3 The false-positive arithmetic, with real volume
+
+Order of magnitude from the repo's own measurements: `deepseek_chat.py:207-208` records 309 deepseek
+turns in one measured period, and the agentic loop makes multiple API calls per turn — call it
+200–600 calls/agent/day.
+
+- 12 statistical rules × 400 calls/day/agent × 4 agents ≈ **19,000 rule evaluations/day**.
+- At a per-evaluation FP rate of 1% (the p99 threshold, alone) that is **190 false findings/day.**
+  The panel is dead on arrival.
+
+**The fix is persistence, and the arithmetic is why.** Require `m`-of-`n` consecutive evaluations to
+cross before a statistical rule speaks. With p=0.01 per evaluation and 3-of-5:
+
+`P(alert) = Σ_{k≥3} C(5,k)·0.01^k·0.99^(5−k) ≈ 9.9e-6`
+
+19,000 evaluations/day × 9.9e-6 ≈ **0.19 false statistical alerts per day** — about one per five days,
+across the whole fleet. The cost is detection latency: 3 calls, which at 200–600 calls/day is minutes,
+not hours.
+
+**The stated budget: ≤1 statistical alert per fleet per day.** Deterministic rules are exempt from
+this budget entirely — they are facts, not alerts, and their FP rate is zero by construction.
+
+**What a false positive actually costs here.** The operator is one person. A wrong alert costs an
+investigation and, more expensively, it teaches him to skim the panel. Daniil's own standing
+complaint is the opposite failure — *"The bifrost ui is giving me no indication of what kimi is
+currently doing"* (W105, quoted at
+`docs/library/design/20260804_api-wire-visibility-design-opus5_e76892.md:485-489`) — but a panel that
+cries wolf produces the same blindness with more machinery. The asymmetry is that a missed statistical
+anomaly is recoverable from the journal after the fact (it is append-only; the data is still there),
+while lost trust in the panel is not.
+
+### 3.4 Baseline poisoning, and the three defenses
+
+A baseline learned during an incident normalizes the incident. This is the classic failure of learned
+thresholds and it needs explicit defenses:
+
+1. **Exclusion.** A record that any *deterministic* rule flagged does not enter any baseline. The
+   deterministic rules are the ground truth that keeps the statistical ones honest.
+2. **Invalidation.** A `system_fingerprint` or `policy_hash` change starts a new baseline at `n=0`
+   with state `UNKNOWN`. It does not decay the old one into the new one.
+3. **Bounded window with a floor.** Last 200 qualifying records (matching
+   `turn_metrics.HISTORY_CAP = 200`, `turn_metrics.py:35`), and never fewer than the §3.2 minimum. A
+   sliding window that shrinks below n=8 reports UNKNOWN rather than a noisy baseline.
+
+### 3.5 Cold start
+
+A key with no baseline reports `UNKNOWN`, **never "normal"**. This is the same rule as
+`deepseek_chat.py:231-238` `cache_rate()` returning `None` rather than `0.0`, and the same rule as
+`wire_journal.py:69` `UNKNOWN`. It is the third time this project has had to write it down; that is
+the argument for T141's vocabulary being a shared type rather than a convention.
+
+### 3.6 Where the baseline lives
+
+In the **reader**, computed from the journal, memoized 30 s — the `EST_CACHE_TTL = 30.0` precedent at
+`turn_metrics.py:38`, which exists for exactly the right reason (a bar must not jump because a sibling
+turn just closed). **Zero hot-path cost, zero new persistence, zero Redis.** The journal is already
+the durable substrate; a baseline is a projection over it, regenerable at any time. That is the Codex
+"resources are regenerable projections over immutable atoms" pattern applied one directory over.
+
+---
+
+## 4. CACHE FORENSICS
+
+This is the largest cost lever in the system and it deserves the most careful design in this document.
+
+### 4.1 What is at stake, in money
+
+From the repo's own rate card (`runner_token_journal.py:57-60`): DeepSeek pro prompt tokens are
+**$0.55/M fresh and $0.055/M cached** — a **10x** ratio.
+
+From the repo's own measurement (`deepseek_chat.py:207-208`): 309 deepseek turns / 393M tokens in one
+measured period.
+
+Cost as a function of hit rate `h`: `393 × 0.55 × (1 − 0.9h)` dollars.
+
+| h | cost |
+|---|---|
+| 0.0 | $216.15 |
+| 0.5 | $118.88 |
+| 0.9 | $21.62 |
+
+**Every 10 percentage points of cache hit rate on that one measurement is worth $19.45.** That is the
+number that justifies this section. (The 393M figure is prompt+completion ambiguous in the source
+comment; treat it as order-of-magnitude, and note the direction of the error is conservative since
+completion tokens are the smaller share — `bifrost_runner_deepseek.py`'s own example is 104M prompt :
+322K completion.)
+
+### 4.2 Localizing the break — the ladder comparison
+
+Given flow records `r[n−1]` and `r[n]`, each carrying `prefix_ladder`:
+
+```
+i* = min{ i : ladder[n][i] != ladder[n-1][i] }     # first divergent rung
+```
+
+- `i*` undefined (all rungs equal, `prefix_full` differs) → **suffix growth**, EI-51, healthy.
+- `i*` undefined and `prefix_full` equal → **identical resend**, EI-40 or EI-50.
+- `i* == 0` → the break is within the first 512 bytes: **head mutation**, EI-41.
+- `i* > 0` → the break is bracketed to `[LADDER[i*−1], LADDER[i*])`.
+
+Exponential spacing means the bracket is always a factor of 2. Nine rungs localize a break anywhere in
+128 KB to within a doubling — **a binary search that costs zero additional API calls** because both
+endpoints were already going to be sent.
+
+### 4.3 From byte offset to cause — the break classifier
+
+The bracket says *where*. `messages_shape` (§1.3) says *what*, via a cumulative-length walk that maps
+the byte range to a message index `j`:
+
+| Class | Signature | Cause and remedy |
+|---|---|---|
+| **B1 — head mutation** | `j == 0` (system message) | The system prompt changed. **The deadliest and most common cause**: one volatile token at the head destroys 100% of the cache for the entire conversation. Look for a timestamp, a boot rebuild (`deepseek_chat.py:273-274` `set_system`), or a re-onboard. Remedy: make the head byte-stable; move anything volatile to the tail. |
+| **B2 — head insertion** | `j == 0` and every subsequent shape entry shifted by one | Something was prepended. **Note the repo currently does this safely**: `bifrost_runner_deepseek.py:470-479` prepends `hint_block` and `ledger_block` to the *user prompt*, not the system message — a tail-side insertion. That is the correct pattern and it should be pinned, because it is one refactor away from becoming B1. |
+| **B3 — history trim / compaction** | previous shape vector is a front-truncated superset | We compacted. §4.5 says whether that was a good idea. |
+| **B4 — mid-history edit** | `0 < j < len−2` | A message was rewritten in place. Almost always a bug: histories should be append-only. |
+| **B5 — provider eviction** | ladder **identical**, `cache_hit_tokens == 0` | We did not break it. They dropped it — TTL expiry or capacity eviction. **This is the most valuable distinction in the section** because the remedy is completely different: not "fix the prompt" but "reduce the idle gap between turns". |
+| **B6 — sub-granularity** | `prompt_tokens < CACHE_MIN_BLOCK` | Not a defect at all. §7.1. |
+
+Without the ladder, B1, B3, B4 and B5 are indistinguishable — they all present as "cache hit rate
+dropped". With it they are four different problems with four different fixes.
+
+### 4.4 Learning the cache TTL with zero extra calls
+
+B5 needs a TTL to be actionable, and no provider publishes one. But the journal contains a natural
+experiment on every flow:
+
+- For each pair of records with an **identical ladder**, record `gap = t[n] − t[n−1]` and whether it
+  hit.
+- `max_hit_gap` = the largest gap that still produced a hit.
+- `min_miss_gap` = the smallest gap that missed with an identical prefix.
+
+The TTL lies in `[max_hit_gap, min_miss_gap]`. **This is an interval, never a point estimate**, and if
+the interval inverts (`min_miss_gap < max_hit_gap`) that is itself a finding: eviction is
+capacity-driven, not time-driven, and the remedy changes again. Sample-size rules from §3.2 apply —
+below n=8 identical-ladder pairs, report UNKNOWN.
+
+### 4.5 The compaction arithmetic — the finding I did not expect
+
+Every instinct in this codebase says "the context is too big, trim it". `deepseek_chat.py:209-211`
+names the driver: *"`messages` is never trimmed and tool results append raw"*. But trimming the FRONT
+of a conversation is a **B1 head mutation** — it destroys the cache on everything that remains.
+
+Let `M` = current context tokens, `K` = tokens trimmed from the front, `T` = turns remaining, `r` =
+fresh/cached price ratio (`r = 0.55/0.055 = 10`, `runner_token_journal.py:58`).
+
+- **Keep:** every remaining turn re-sends `M` cached tokens → `T · M · c` where `c` is the cached rate.
+- **Trim:** the next turn pays `(M−K)` at the *fresh* rate (prefix broke), then `T−1` turns hit →
+  `(M−K)·rc + (T−1)·(M−K)·c`.
+
+Trim is cheaper iff:
+
+```
+(M−K)·[r + T − 1] < T·M
+```
+
+Writing the retained fraction `f = (M−K)/M`:
+
+```
+f < T / (T + r − 1)        ⟺        T > f·(r−1) / (1 − f)
+```
+
+With `r = 10`:
+
+| Turns remaining `T` | Trim pays only if you retain less than |
+|---|---|
+| 1 | **10%** (i.e. you must delete >90% of the context) |
+| 5 | 35.7% |
+| 9 | 50% |
+| 20 | 69% |
+| 90 | 90.9% |
+
+**Stated as a rule: trimming to a retained fraction `f` only pays if at least `9f/(1−f)` more turns
+will follow.** For a conversation with one or two turns left, front-trimming is close to always wrong
+while the cache is warm. That is genuinely counter-intuitive and it is derived entirely from the
+repo's own rate card.
+
+And it is *computable from the journal*, not theoretical: the ladder gives `f`, the flow gives the
+realized `T`, EI-53 detects the trim. So the reader can retrospectively answer **"did that compaction
+save money or cost money?"** — per event, in dollars, with `price_of()` doing the arithmetic (§5).
+
+Caveat that keeps this honest: the model ignores the *quality* effect of context length and the
+*latency* effect of prefill, and it assumes the cache would have held (B5 says it sometimes does not).
+It is a cost floor comparison, not a decision oracle.
+
+---
+
+## 5. COST ATTRIBUTION WITHOUT FORKING TokenJournal
+
+### 5.1 The invariant
+
+**The wire journal emits COUNTS and KEYS. `runner_token_journal` owns RATES. The join happens in a
+reader that imports both.**
+
+`scripts/runner_token_journal.py:56-65` (`PRICES`) and `:79-82` (`price_of`) stay the sole rate card
+and the sole pricing door. `wire_journal.py` gains no price literal, no `cost` symbol, and no import
+of `runner_token_journal` — the AST pin for this already exists in the WIRE-A design (P8).
+
+### 5.2 The one refactor I am proposing, and why it is not a fork
+
+`TokenJournal.total_cost_est()` (`runner_token_journal.py:133-147`) contains the pricing arithmetic
+inline, inside a loop over `self.models`. A wire reader that wants per-call cost cannot reach it
+without reimplementing it — and reimplementing it *is* the fork.
+
+**Extract one pure function into `runner_token_journal.py`:**
+
+```python
+def cost_of(model, prompt, cached_prompt, completion) -> Optional[float]:
+    """USD for one unit of usage, or None when the model is unpriced.
+    None is a legitimate answer and callers must RENDER it, never substitute."""
+```
+
+`total_cost_est()` then calls it per bucket. Zero new rates, zero duplicated arithmetic, one door. The
+wire reader calls the same function. This is a strangler-fig extraction of code that already exists,
+and it is pinned by asserting `total_cost_est() == sum(cost_of(...) for each bucket)` — a refactor
+that is provably behavior-preserving.
+
+**`None` must propagate.** `runner_token_journal.py:149-157` already models this correctly with
+`unpriced_tokens()` / `unpriced_models()`. A wire-derived cost for an unpriced model renders as
+UNPRICED with the token count visible, never as `$0.00`. T110's whole lesson —
+*"PRICE WHAT WE CAN SOURCE, AND MAKE WHAT WE CANNOT SOURCE VISIBLE RATHER THAN PLAUSIBLE"*
+(`runner_token_journal.py:24-26`) — applies unchanged.
+
+### 5.3 The join path to arcs and tasks
+
+The attribution machinery already exists and must be reused, not paralleled:
+
+- `core/comm/turn_metrics.py:112-144` `record()` is the turn-close hot path.
+- It calls `core/coord/task_costs.py:74-93` `attribute_turn()`, which resolves the agent's **one**
+  IN_PROGRESS/VERIFYING task via `_active_task_for` (`task_costs.py:44-57`) and HINCRBYs the
+  accumulator.
+- `finalize()` (`:96-120`) stamps durable `cost_*` fields at DONE.
+
+So the chain is: **wire record → `turn_id` → turn_metrics row → `attribute_turn`'s owner-matched
+task → arc**. The wire journal contributes `turn_id` and nothing else. It does no ledger lookup, no
+Redis call, no owner matching. All of that is already on a path that runs once per turn, not once per
+API call.
+
+**Performance consequence, stated because it is the point:** attributing cost to a task costs the wire
+journal **one ContextVar read per API call**. Everything else is existing machinery on an existing
+path.
+
+### 5.4 The leak the wire journal can measure and TokenJournal structurally cannot
+
+`bifrost_runner_deepseek.py:1108-1111` calls `add_turn` only when `delta` is truthy, and `delta` is
+computed at `:483` from `ag.prompt_tokens` before/after a `ag.send()` that **must have returned**. The
+error path at `:493-496` catches the exception and produces an error string — with no token delta.
+
+**Therefore: every token spent on a call that timed out, was reset, or errored mid-stream is invisible
+to `TokenJournal`.** A 600-second `deepseek-review` hang (recorded in the brief as happening tonight)
+that had already streamed 6,000 reasoning tokens before dying bills those tokens and reports zero.
+
+The wire journal sees the attempt. It can therefore state an **upper bound** on unbilled-but-spent
+tokens: prompt tokens are known from the request; completion tokens on an aborted stream are known
+only if the stream reported usage before dying (it usually did not).
+
+This must be reported as **BOUNDED**, a fourth validity state alongside MEASURED / UNKNOWN /
+UNDEFINED — or, if T141's vocabulary is fixed at three, as `UNKNOWN` with a separate
+`upper_bound_tokens` field. **It must never be added to `cost_est`.** A bound in a total is a lie
+wearing a measurement's clothes; a bound rendered next to a total is a finding.
+
+### 5.5 What the wire journal adds that TokenJournal cannot
+
+| Question | TokenJournal | Wire journal |
+|---|---|---|
+| What did today cost? | **authoritative** | must not answer |
+| Which *call* was expensive? | no — daily aggregate (`:108-131`) | yes — per round trip |
+| Which *turn* was expensive? | no | yes — via `turn_id` |
+| Why was it expensive? | no — it can price a turn, not explain it | yes — ladder + break class + hit rate |
+| Did a failed attempt cost us? | structurally blind (§5.4) | bounded |
+| Did a compaction pay for itself? | no | yes (§4.5) |
+
+That table is the case for the join existing at all, and the case for it staying a join rather than a
+merge.
+
+---
+
+## 6. THE REASONING ECONOMY
+
+### 6.1 The definitional care that has to come first
+
+`reasoning_tokens` is a **subset** of `completion_tokens`, not a sibling. Ground truth from the p4
+probe: `completion_tokens: 8`, `reasoning_tokens: 8`, `delta_content: ""`
+(`p4-forced-truncation.json:52-60`). p3 shows the same on all three runs
+(`p3-ttft-decomposition.json:7-14`). So the ratio is bounded in `[0, 1]` and `R = 1` means literally
+zero visible output.
+
+Anyone who models it as `completion + reasoning` will double count. Write it down.
+
+### 6.2 The three derived series
+
+| Metric | Definition | Reads as |
+|---|---|---|
+| `think_share` | `reasoning / completion` | how much of the paid output was invisible |
+| `answer_yield` | `(completion − reasoning) / completion` | visible output per completion token; `1 − think_share` |
+| `thought_density` | `(completion − reasoning) / prompt` | answer produced per unit of context. Falls as context bloats — the quantitative form of "the agent is drowning in its own history" |
+
+### 6.3 What the series tell us
+
+- `think_share → 1` with `finish_reason == "length"` is EI-11: deterministic reasoning starvation.
+- `think_share` rising over a flow with `policy_hash` and `system_fingerprint` fixed (EI-61): the
+  model is working harder for the same task class. Candidate causes, ranked by how cheaply the journal
+  can discriminate them: context bloat (check `thought_density` falling together — same cause), task
+  difficulty drift (check `ask_kind`), prompt degradation (check EI-41/EI-53 in the same window).
+- `think_share` stepping at a `system_fingerprint` boundary (EI-62): the *provider* changed the
+  reasoning economy. Reading that as "the tasks got harder" is the error EI-62 exists to prevent.
+- `thought_density` is the metric that would have shown the 11.4M-token turn
+  (`deepseek_chat.py:207-208`) as pathological *while it ran*, not in a post-mortem: enormous prompt,
+  ordinary answer.
+
+### 6.4 The refusal that matters most in this section
+
+`core/coord/cognitive_metrics.py:166-172` `record_reasoning(agent_id, tokens, category)` demands
+`category: 'coordination' | 'productive'`.
+
+**The API reports reasoning token COUNTS. It never reports their PURPOSE.** No provider field
+distinguishes tokens spent negotiating a lock from tokens spent solving the problem.
+
+And the consequence of guessing is not merely a wrong number, it is a *flattering* wrong number.
+`cognitive_metrics.py:63-69`:
+
+```python
+@property
+def coordination_token_ratio(self) -> float:
+    total = self.reasoning_tokens_coordination + self.reasoning_tokens_productive
+    if total == 0:
+        return 0.0
+```
+
+Feed only the productive side from wire data and the dashboard renders **"0% of effort spent on
+coordination"** — an outstanding result — when it means *"we never measured the coordination half"*.
+That is the T140 hazard, live, in a property that already exists.
+
+**Concrete refusal: the wire reader must not call `record_reasoning` at all** until T141 gives that
+property a three-state return. Not with `category="productive"`, not with a split heuristic, not at
+all. The wire journal may report `reasoning_tokens` under its own name; it may not feed a field whose
+schema demands a judgment the wire cannot make.
+
+This is also the one place where I disagree with a nearby framing: the prior design
+(`docs/library/design/20260804_api-wire-visibility-design-opus5_e76892.md:396`) calls
+`record_reasoning` **PARTIAL** — fill the total, leave the split UNKNOWN. But
+`EfficiencySnapshot` has no field for an unsplit total; the only two doors are
+`reasoning_tokens_coordination` and `reasoning_tokens_productive`. **There is nowhere to put a partial
+value.** "PARTIAL" is not implementable against the current dataclass, so the honest verdict is
+**BLOCKED on T141**, not PARTIAL. Recording the contradiction rather than resolving it, per the rules.
+
+---
+
+## 7. UNSOUND INFERENCES — the refusal list
+
+A confident wrong inference is worse than none, because it gets acted on. Each entry states the
+tempting claim, the refutation, and the guard that must be in the code.
+
+### 7.1 "cache hit rate is 0% → we broke the cache"
+
+**Refuted by our own data.** `p3-ttft-decomposition.json` ran the *same 23-token prompt twice* and got
+`prompt_cache_hit_tokens: 0` both times (`:20`, `:44`), and a third time on a perturbed prompt (`:68`).
+Three identical-prefix runs, zero cache, no defect. The prompt was simply below the provider's cache
+block granularity.
+
+**Guard:** EI-44 suppresses all cache findings when `prompt_tokens < CACHE_MIN_BLOCK`.
+`CACHE_MIN_BLOCK` defaults to 64 and must be labeled **ASSUMED, not MEASURED** — I did not verify
+DeepSeek's documented granularity. The suppression itself renders as an `info` finding so the operator
+sees *why* the panel is quiet.
+
+### 7.2 "`ms_first_byte` is time-to-first-token"
+
+`wire_journal.py:326-340` measures from just before `super().handle_request(request)` to just after it
+returns. For a streaming request, httpx returns when **response headers** arrive — that is TTFB, not
+TTFT.
+
+But the live values (638, 906, 850, 1010, 941 ms in `state/wire/wire-20260804.jsonl`) sit suspiciously
+on top of the p3 probe's *measured* TTFT (0.813, 0.859, 0.890 s). Either DeepSeek withholds headers
+until the first token — making `ms_first_byte` a TTFT proxy — or the resemblance is coincidence at a
+sample of five.
+
+**Refuse any prefill/queue-time claim built on this field until a discriminator runs.** The
+discriminator is one probe: a request with a deliberately huge prompt and `max_tokens=1`. If
+`ms_first_byte` stays flat while total time grows, headers are early and it is TTFB. If it tracks
+total, it is TTFT. Cost: one API call. (Related and already settled: TTFT cannot be decomposed into
+queue vs prefill from outside — that is a stated probe result, not an open question.)
+
+### 7.3 "latency rose → the provider degraded"
+
+Confounded four ways: `x-amz-cf-pop` (**four distinct edges in five live calls**), prompt size, cache
+state, and time of day. Any one of them dominates a 1.6x swing.
+
+**Guard:** latency comparisons must be within-POP, within-`prompt_len_band`, and within-cache-state,
+or they must not be made. This is why §3.1's baseline key is as long as it is — and it is also why
+n grows slowly: partitioning six ways means each cell fills slowly, which is exactly why §3.2 refuses
+to alert below n=30.
+
+### 7.4 "`system_fingerprint` changed → the model changed"
+
+The fingerprint encodes a build, a quantization tag and a feature set
+(`fp_9954b31ca7_prod0820_fp8_kvcache_20260402`). A routine redeploy of *identical weights* changes it.
+
+**The sound claim is "any comparison spanning this boundary is invalid."** The unsound claim is "the
+model was swapped" or "behavior changed". EI-30 must be worded as the former. Note that the currently
+shipped wording at `wire_journal.py:261-263` says *"the provider may have swapped the model behind the
+endpoint"* — the hedge "may" is doing real work there and must survive any rewrite.
+
+### 7.5 "`attempt > 0` → N retries happened"
+
+`wire_journal.py:313-320` documents its own honesty and it is worth taking seriously:
+
+```python
+self._last = None            # (url, attempt, ok, ts)
+def _attempt_for(self, url):
+    prev = self._last
+    if prev and prev[0] == url and not prev[2] and (time.time() - prev[3]) < 120:
+        return prev[1] + 1
+```
+
+Three distinct failure modes:
+
+1. **Single slot.** `self._last` holds *one* previous request. Any interleaving — two concurrent calls
+   through one client, a shared transport — corrupts the count silently.
+2. **Indistinguishable from a legitimate re-ask.** A genuine second user request 5 s after a genuine
+   failure to the same URL increments `attempt`. The transport was never told anything.
+3. **The window is arbitrary.** 120 s is a chosen constant, and it coincides with
+   `MODEL_READ_TIMEOUT` (`deepseek_chat.py:63`), which makes a timed-out call's successor look like a
+   retry regardless.
+
+**Guard:** report *"≤N repeat-shaped round trips (INFERRED)"*, never *"N retries"*. EI-25 is a `note`,
+never an `error`. The sound version is available at negligible cost: have the SDK-facing caller stamp
+a `call_id` (§1.1) and count transport records per `call_id` — then a retry is *observed*, not
+inferred. **That upgrade should be pinned as the fix rather than the heuristic being tuned.**
+
+### 7.6 "same `prompt_sha` → the agent looped"
+
+Two counter-cases. The stateless one-shot replier
+(`bifrost_runner_deepseek.py:360`, which never calls `_absorb_usage` at all) legitimately re-sends
+identical prompts for repeated identical asks. And `prompt_prefix_sha` truncates at 2000 chars
+(`wire_journal.py:139-140`), so two genuinely different prompts collide on it routinely — that is not a
+hash collision, it is the field working as designed.
+
+**Guard:** EI-50 requires `prefix_full` equality (not prefix), same agent, same flow, and ≥3
+occurrences in a bounded window. Prefix equality alone is EI-51 — the *healthy* signal.
+
+### 7.7 "`reasoning_tokens / completion_tokens` measures how hard the model thought"
+
+It measures *billed reasoning tokens under whatever `reasoning_effort` was set*, and
+`deepseek_chat.py:283-284` sets `reasoning_effort="high"` whenever `think` is on. Comparing across a
+policy change measures the config, not the cognition. Comparing across providers is worse: a model
+with no reasoning channel reports nothing, and a `0` there is UNKNOWN, not "it did not think".
+
+**Guard:** `policy_hash` in the baseline key (§3.1); absent field → UNKNOWN, never 0.
+
+### 7.8 "total cost from wire records"
+
+We do not know the provider's billing policy for an aborted stream, a 429'd request, or a
+transport-level retry. A wire-derived cost is a **bound**, not a measurement.
+
+**Guard:** `TokenJournal` remains authoritative for what we believe we owe. Any wire-derived figure
+renders in a separate column labeled as a bound, and never sums into `cost_est`
+(`runner_token_journal.py:193`).
+
+### 7.9 "no anomalies"
+
+§0. Live proof. **Guard: EI-00 outranks every other rule and suppresses the all-clear.**
+
+### 7.10 "`cached_tokens` and `prompt_cache_hit_tokens` agree, so the reading is corroborated"
+
+They have reported `0` together on every probe we have (`p3-ttft-decomposition.json:18,20`;
+`p4-forced-truncation.json:63,65`). We have **never observed them disagree**, so we have no evidence
+they are independent measurements rather than the same number under two names.
+
+**Guard:** treat them as one observation with two labels. Do not report "confirmed by two fields". The
+day they disagree is a finding worth surfacing on its own (`note`: the provider's two cache dialects
+diverged) — and it is also the day we learn which one to trust.
+
+### 7.11 The general form
+
+Three failure shapes recur across all eleven:
+
+1. **Absence read as a value** (7.1, 7.7, 7.9) — the `UNKNOWN`-vs-`0` defect, for the fourth time in
+   this codebase.
+2. **An inferred field read as an observed one** (7.2, 7.4, 7.5) — a heuristic whose label got lost
+   between the writer and the reader.
+3. **A confounded comparison read as a controlled one** (7.3, 7.6, 7.8) — the reason §3.1's baseline
+   key has six components.
+
+The serialization rule that defends against all three is the one the WIRE-A design already proposed:
+**store the validity state with the value, do not reconstruct it at read time.** An inference layer
+makes that mandatory rather than merely wise, because inference composes — a rule built on a field
+whose provenance was lost produces a finding whose provenance is lost.
+
+---
+
+## 8. PERFORMANCE BUDGET
+
+### 8.1 The rule
+
+**All inference is off the hot path.** Rules, baselines, flows, ladder comparison, break
+classification, cost joins: every one of them is a pure function evaluated by a reader over already-
+written records. The hot path only ever *writes*.
+
+### 8.2 Hot-path additions, itemized
+
+| Addition | Cost per API call | Basis |
+|---|---|---|
+| `call_id` / `turn_id` ContextVar reads | ~0.1 µs | two `ContextVar.get()` |
+| prefix ladder (one pass, ≤128 KB, blake2b-64) | **0.05–0.15 ms** | 1–3 GB/s on already-materialized `request.content`; 9 O(1) `.copy()` calls |
+| `messages_shape` (caller-pushed) | ~5–20 µs | `len()` per message, ~50 messages, no content copy |
+| policy fields | ~0 | already in scope at `deepseek_chat.py:276-291` |
+| per-chunk timing | ~0.5 µs × chunks | one `perf_counter()` + compare; p2 measured **10** HTTP chunks for a 32-token completion |
+| second (usage) record write | ~0.1–0.3 ms | one `json.dumps` + append; same shape as the existing write |
+| **Total added** | **≤ 0.5 ms typical, ≤ 1.5 ms p99** | |
+
+Against the measured round trips in `state/wire/wire-20260804.jsonl` (638–1010 ms) that is
+**0.05%–0.25%**. Against p3's total call times (1.06–1.16 s) it is under 0.15%.
+
+Disk: ~400 additional bytes/record (ladder 9×16 hex + shape). At a few hundred calls/day across four
+runners, single-digit MB/month, inside the existing `MAX_FILES=14` / `MAX_BYTES=8 MB` ring
+(`wire_journal.py:60-61`).
+
+### 8.3 The hot-path defect already present — and removing it pays for §8.2
+
+`record()` calls `self._rotate()` inside the lock (`wire_journal.py:100`). `_rotate()` calls
+`self.files()` (`:148`), and `files()` runs `os.listdir` (`:164-170`). **That is one directory syscall
+on every single API call**, plus an `open`/`write`/`close` cycle, plus a `sorted()` over the listing.
+
+On Windows with a warm cache this is likely 0.1–1 ms — the same order as everything §8.2 proposes to
+add. Two fixes, both trivial:
+
+1. **Rotate on a counter**: check every 256 records, not every record.
+2. **Hold the file handle** with a line-buffered append, reopening on date rollover — following
+   `TokenJournal._path`'s per-call date derivation (`runner_token_journal.py:170-177`), which exists
+   precisely because a journal constructed before midnight must write after it.
+
+**I estimate the net effect of §8.2 plus these two fixes is at or below zero added latency.** I have
+not measured it; §10 pins it.
+
+### 8.4 Reader-side cost, bounded on purpose
+
+The reader parses up to `MAX_FILES × MAX_BYTES` = 112 MB worst case. That is a `doctor` invocation, not
+a hot path, but it should still be bounded:
+
+- Default window: last 2000 records (≈2 MB), not the whole ring.
+- Baselines memoized 30 s (`turn_metrics.py:38` precedent).
+- Flow segmentation and ladder comparison are both single-pass, O(n) in records.
+- Target: **< 200 ms for `doctor --wire` on a full day.** Pinned, because a diagnostic nobody runs
+  because it is slow is the same dead meter in a different costume.
+
+### 8.5 The failure mode I would actually worry about
+
+Not latency. **Silent success** — a rule engine that runs, computes, and is read by nobody. That is
+`cognitive_metrics` repeating itself one directory over, and it is why §9 is not optional.
+
+---
+
+## 9. READERS — named, because a writer without a reader is the defect
+
+Per the standing warning (`core/coord/cognitive_metrics.py:238-248`: `dump`/`dump_all` called only by
+tests), nothing here ships without a named consumer.
+
+| Reader | Where | What it surfaces | Status |
+|---|---|---|---|
+| `py agent_cli.py doctor --wire` | `agent_cli.py:3383` `cmd_doctor` (parser at `:4779-4788`) | the full Expert Info panel: coverage line first, then findings by severity | new flag on an existing command |
+| Boot one-liner | `agent_cli.py:395-402` already prints a DOCTOR line at boot | one line **only when severity ≥ warn**; silence when clean | one insertion |
+| `py agent_cli.py wire flows` | new subcommand | follow-stream: per-flow cache hit rate, break classes, cost, think-share | new |
+| `py agent_cli.py wire cache` | new subcommand | §4 forensics: break localization, TTL interval, the §4.5 compaction verdict per event | new |
+| Bifrost UI panel | `scripts/bifrost_ui.py` (port 8787) | live severity badge + findings list | **Claude authors a standalone module and a JSON endpoint; DeepSeek owns the `bifrost_ui.py` integration** — the membrane and the ownership boundary both hold |
+| `expert()` itself | `wire_journal.py:229` | the programmatic door all of the above call | exists, extended |
+
+The boot one-liner is the highest-leverage of these: it is the only reader that runs without anyone
+deciding to look.
+
+---
+
+## 10. PINS (M3: pre-registered acceptance, RED first)
+
+Extending `tests/test_t156_wire_journal.py` (existing pins W1–W7 at `:51-119`). New file
+`tests/test_t156_wire_mining.py` unless noted.
+
+**M1 — EI-00 outranks the all-clear.** A journal of records with null diagnostic fields (a synthetic
+copy of today's live 11) must produce a coverage `error`, and must **not** produce
+`("info", "no anomalies", …)`. *This is the executable form of §0 and it fails against the code as
+shipped tonight.*
+
+**M2 — deterministic rules fire on n=1; statistical rules do not.** EI-11 fires on a single
+starvation record. EI-43 with n=1 returns nothing and reports the baseline as UNKNOWN.
+
+**M3 — a baseline below the §3.2 floor reports UNKNOWN, never a number.** n=7 → `UNKNOWN`; n=8 →
+direction only; assert no threshold alert is emitted below n=30.
+
+**M4 — the FP budget holds.** Replay 19,000 synthetic in-distribution evaluations through the
+statistical rules with 3-of-5 persistence; assert ≤2 alerts. (Deterministic seed; this pins §3.3's
+arithmetic against the implementation, not against my algebra.)
+
+**M5 — ladder localization is exact.** Two synthetic bodies differing at a known byte offset: assert
+`i*` brackets the true offset, for offsets in every rung including past `LADDER_MAX_BYTES`.
+
+**M6 — break classification distinguishes B1 from B5.** Identical ladder + `cache_hit=0` → B5
+(provider eviction). Ladder differing at rung 0 → B1 (head mutation). A test that accepts either for
+either fails the pin. *This is the distinction the whole section exists for.*
+
+**M7 — sub-granularity suppression.** `prompt_tokens=23` with `cache_hit=0` produces EI-44 (`info`)
+and **no** cache warning. Built from the literal p3 numbers.
+
+**M8 — no second pricing path.** Extend the existing AST pin: the mining reader may import
+`price_of`/`cost_of` from `runner_token_journal` and must contain no price literal and no rate table.
+
+**M9 — `cost_of` extraction is behavior-preserving.**
+`total_cost_est() == sum(cost_of(m, **b) for m, b in models.items())` over randomized buckets including
+unpriced models.
+
+**M10 — the reasoning split is never fabricated.** AST-assert the mining module contains no call to
+`cognitive_metrics.record_reasoning`. §6.4 as an executable rule.
+
+**M11 — the hot path stays under budget.** Benchmark `record()` with the ladder on a 128 KB body,
+1000 iterations: assert mean added latency < 1.5 ms **and** assert `os.listdir` is called at most
+`ceil(n/256)` times (§8.3). *The second half is the one that matters — it pins the fix, not just the
+budget.*
+
+**M12 — the reader is bounded.** `doctor --wire` over a synthetic full ring completes in < 200 ms.
+
+**M13 — inference never runs on the hot path.** AST-assert `wire_journal.record()` and the transport's
+`handle_request` transitively call no rule, no baseline, and no flow function.
+
+---
+
+## APPENDIX — WHAT I DID NOT VERIFY
+
+**Not run, not measured:**
+
+- **I ran no code, made no API call, and benchmarked nothing.** Every performance figure in §8 is an
+  estimate from operation counts and published hardware throughput ranges, not a measurement on this
+  machine. M11 exists because of that.
+- **blake2b vs sha256 throughput on this hardware: unmeasured.** The claim that blake2b-64 is faster
+  without SHA-NI is general knowledge, not a local benchmark. If sha256 wins here, use it — the design
+  does not depend on the choice, only on the *one-pass* structure.
+- **`hashlib` object `.copy()` being O(1): asserted, not tested.** It is true of CPython's
+  implementation (the state is fixed-size), but I did not verify it for the specific constructor.
+- **The ContextVar approach is untested against the SDK's retry loop.** If the SDK retries on a
+  different thread or in an executor, the ContextVar may not propagate. I did not read the SDK's retry
+  implementation. This is the same gap the WIRE-A design flagged for its P3 pin, and it has the same
+  fix: measure it.
+- **`CACHE_MIN_BLOCK = 64` is ASSUMED.** I did not verify DeepSeek's documented cache granularity. The
+  p3 data is consistent with a block size somewhere above 23 tokens; that is all it establishes.
+- **The fingerprint decomposition in EI-31 is my reading of ONE sample string.** Marked INFER in place.
+
+**Sampled, not exhausted:**
+
+- **Live wire data: I read the first 5 of 11 records** in `state/wire/wire-20260804.jsonl` (plus the
+  line count). The claim that "every record has null diagnostic fields" is verified for 5 and inferred
+  for 11 from the structure of `wire_journal.py:338-340`, which cannot populate them.
+- **Probe artifacts: I read p2-byte-chunks, p3, p4, p5 and `probes.py` in full. I did not read
+  `p1-logprobs-stream.json`, `p2-raw-sse.txt`, or `p6-extra-chunk-internals.json`** — claims about
+  those three are quoted at one remove from
+  `api-wire-reverse-engineering-deepseek-2026-08-04.md`.
+- **`bifrost_runner_deepseek.py`: I read `:460-512` and `:1085-1140` only.** The `bounce_promise`
+  location (`:145-157`) and the stateless replier (`:360`) are cited from the deepseek
+  reverse-engineering document, not from my own read.
+- **Runners other than deepseek: not read.** I verified only that `make_client` exists at
+  `kimi_chat.py:83`, `gemini_chat.py:82`, `sol_chat.py:59`, and `runner_lib.py:25`. §1's caller-push
+  design assumes each has an equivalent of `_absorb_usage` and `_kwargs`; the deepseek reverse-
+  engineering doc's own appendix states those three use **different field names** for usage. **The
+  ladder and shape work is DeepSeek-shaped and needs a per-provider adapter I have not designed.**
+- **T141's validity vocabulary: quoted at one remove** from the WIRE-A design. I did not open
+  `state/coord/tasks.json`. §5.4's proposal of a fourth state (BOUNDED) may conflict with T141's
+  three-state design — recorded as a contradiction, not resolved, and it is claimed by another seat.
+- **`docs/method-baseline-2026-07.md` and `docs/LIVE_CONSTRAINTS.md`: not opened.** M3's framing is
+  taken from the WIRE-A design's quotation of it.
+
+**Deliberately not done:**
+
+- Design only. One file written. No code, no commits, no bus sends, no ledger writes, no test files.
+- I did not touch anything under `core/`, and this design changes nothing there. The one code change
+  it proposes outside `scripts/` is none: `cost_of` is an extraction inside
+  `scripts/runner_token_journal.py`, which is already runner-side.
+
+**Contradictions recorded, not resolved:**
+
+1. **§6.4 vs the WIRE-A design.** That design calls `record_reasoning` **PARTIAL**
+   (`…opus5_e76892.md:396`). I claim it is **BLOCKED**, because `EfficiencySnapshot`
+   (`cognitive_metrics.py:42-43`) has only `reasoning_tokens_coordination` and
+   `reasoning_tokens_productive` — there is no field an unsplit total can go into. Both readings are
+   in the record; the synthesizer should pick one.
+2. **`ms_first_byte` semantics** (§7.2): TTFB by construction, TTFT-shaped in the live data. Unresolved
+   without a one-call probe.
+3. **BOUNDED as a fourth validity state** (§5.4) vs T141's three. Unresolved and not mine to resolve.
+4. **`attempt` is labeled a heuristic in its own docstring** (`wire_journal.py:305-309`) but renders in
+   `summarize()` as a plain count (`:218`) and in `expert()` as *"the SDK re-sent inside one call"*
+   (`:244-245`) — a statement of fact. **The label is lost between the writer and the reader.** That
+   is failure shape #2 from §7.11 already present in shipped code, and it is the cheapest thing in
+   this document to fix.

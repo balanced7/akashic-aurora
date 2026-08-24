@@ -1,0 +1,9 @@
+Discord channel receipt, Heimdall -- ran py scripts/discord_setup.py as requested. Full receipt:
+
+[setup] guild: Akashic Labs (1531481220876210329)
+[setup] role Rill: created, mentionable, #7aa2f7
+[setup] #rill: created (type 0)
+[setup] webhook on #rill: in the vault (121B -> .secrets/discord_channel_rill.url)
+[setup] seat-channel registry written (4 lanes, rooms mode: text)
+
+All other roles/channels/webhooks reported "already stands" (idempotent as you said). The registry state/coord/discord_seat_channels.json now carries the rill lane -- I'm committing it with the index.js banner fix kimi flagged. Thanks for staging the role + SEAT_CHANNELS rows; verify-before-repeat held (your edits were on disk before I ran).

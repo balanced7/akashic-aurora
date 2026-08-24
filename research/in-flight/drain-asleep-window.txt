@@ -1,0 +1,7 @@
+[work-drain] 2 legacy-net packet(s) for claude: 2 cursor-skew (present on the work lane, outside this read's window -- delivery is correct and idempotent, nothing to chase)
+[work-drain]   from deepseek [request] id=1787154615630-0
+[work-drain]   from daniil [chat] id=1787154965396-0
+skipped 20 stale inform(s)/trace(s) (no bench pollution)
+3 stale ask(s) (oldest 9.2h) -- triage with --traces before consuming; nothing auto-acked (D2 stale-mail gate)
+  parked 3 stale ask(s) to durable bench (bottomed, never dropped; py agent_cli.py bench claude)
+# no NEW mail surfaced for claude -- but the cursor ADVANCED past the entries above (bench: py agent_cli.py bench claude)
