@@ -156,7 +156,7 @@ Class: reference
 | `capability_search.py` | capability_search -- "does this system already do X?", asked at the level of MEANING. | GAP | GAP |  |
 | `cognitive_metrics.py` | Cognitive Efficiency Metrics — live instrumentation for the Stage-3 evidence engine. | tests/test_cognitive_metrics.py | GAP |  |
 | `compare.py` | compare -- the cross-domain set difference, with a name (T213). | tests/test_t213_compare.py | GAP |  |
-| `conductor.py` | Conductor — the impure orchestration shell over the pure task ledger (Slice D). | tests/test_conductor.py | docs/library/chronicle/20260723_session-reflection-fable-s-conductor-nig_415441.md |  |
+| `conductor.py` | Conductor — the impure orchestration shell over the pure task ledger (Slice D). | tests/drill_conductor_gate.py | docs/library/chronicle/20260723_session-reflection-fable-s-conductor-nig_415441.md |  |
 | `dawe_census.py` | dawe_census -- which verbs are structurally UNVERIFIABLE, not which verbs are bad. | tests/test_w164_dawe_census.py | GAP |  |
 | `defer_queue.py` | defer_queue — the capability-gated standing queue (W33, seat-zero wave B3). | tests/test_w33_defer_queue.py | GAP |  |
 | `experiment.py` | Coordination experiment harness -- the Stage-3 evidence engine. | tests/test_coord_experiment.py | docs/library/report/20260731_pair-sync-steer-experiment_64f62b.md |  |
