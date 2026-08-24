@@ -409,7 +409,7 @@ def make_agentic_replier(model: str, system: str, think: bool, root: Path, agent
     # recall wiring -- so no hop is ever wasted discovering what a session can do.
     system = (f"[session capabilities] write_mode: "
               f"{'ENABLED (guarded write_file/edit_file live; locks self-release at reply)' if allow_write else 'READ-ONLY -- write_file/edit_file will refuse; investigate and report'}"
-              f" | tool budget: {dc.MAX_TOOL_ROUNDS} rounds per task, running counter [hop N] rides every result"
+              f" | tool budget: {('%d rounds per task' % dc.MAX_TOOL_ROUNDS) if dc._ROUNDS_CAPPED else 'UNLIMITED (Daniil 2026-08-24)'}, running counter [hop N] rides every result"
               f" | recall-at: {'on' if os.environ.get('DEEPSEEK_RECALL_AT') else 'off'}\n"
               + system)
     toolbox = dc.ToolBox(root, allow_exec=allow_exec, trust=allow_exec, allow_secrets=False,
@@ -1369,7 +1369,9 @@ def main() -> int:
     cog.init(args.agent)
     if args.accept_hints:
         print(f"[deepseek-runner] cognitive metrics enabled for {args.agent}")
-    rate = control.RateLimiter()
+    # Daniil 2026-08-24: no turn caps on Heimdall -- the reply limiter is effectively off
+    # unless BIFROST_MAX_REPLIES_PER_MIN re-caps it (the auto-pause path stays wired for that case).
+    rate = control.RateLimiter(max_per_min=int(os.getenv("BIFROST_MAX_REPLIES_PER_MIN", "0")) or 10**9)
     # Background heartbeat: refresh presence + the singleton lock every few seconds INDEPENDENT of the
     # work loop. Without this, a long reply (the loop is blocked inside responder()) would let presence
     # expire -- the agent vanishes from the roster though it's alive -- and even let the lock TTL lapse.

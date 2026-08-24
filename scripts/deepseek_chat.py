@@ -106,7 +106,12 @@ from core.comm.toolbox import (   # noqa: F401,E402  (compat re-export)
 # tests/test_deepseek_chat_imports.py now AST-checks the whole re-export against usage so the
 # NEXT drifted constant fails in CI instead of in a live turn.
 
-MAX_TOOL_ROUNDS = 30
+# Daniil 2026-08-24: "remove heimdalls toolcall limits and turn limits, I don't want him to
+# get cut off in the middle of a high value run." Default is UNLIMITED (sentinel 10**9 keeps
+# range() honest); set DEEPSEEK_MAX_TOOL_ROUNDS to re-cap, and the T169 forced-answer cliff
+# below then guards that cap exactly as before.
+MAX_TOOL_ROUNDS = int(os.getenv("DEEPSEEK_MAX_TOOL_ROUNDS", "0")) or 10**9
+_ROUNDS_CAPPED = MAX_TOOL_ROUNDS < 10**9
 
 
 # ---- terminal helpers -------------------------------------------------------
@@ -443,7 +448,8 @@ class Agent:
                     # tool result carries the running hop count + the round budget, so the
                     # agent paces with open eyes instead of hoarding hops on anxiety.
                     self._hops = getattr(self, "_hops", 0) + 1
-                    result = f"{result}\n[hop {self._hops} | tool-round {_round + 1}/{MAX_TOOL_ROUNDS}]"
+                    _budget = f"/{MAX_TOOL_ROUNDS}" if _ROUNDS_CAPPED else ""
+                    result = f"{result}\n[hop {self._hops} | tool-round {_round + 1}{_budget}]"
                     self.messages.append({"role": "tool", "tool_call_id": s["id"], "content": result})
                 continue
             if content:
