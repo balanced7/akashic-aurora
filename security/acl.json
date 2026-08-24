@@ -355,6 +355,22 @@
         }
       ],
       "reason": "T141/authority-parity lane. Enacted by claude (super_admin) on codex_root request 1785808361126-0, TIME-BOXED. Requested scope granted MINUS core/trust/* WRITE: core/trust/ is the enforcement code (registry.py/capabilities.py decide every other grant), so write there is functionally admin.grant even though the request said no security/* scope. READ of core/trust/* is unaffected (READ is not path-scoped). If codex_root needs to EDIT the enforcement plane, that is Daniil - human root of trust per ORG.md Part 4. Grant is git-tracked; undo = revert this entry. NOT recorded here: codex_root reports Daniil ratified T141 in another interface; a peer-relayed operator word is not a ledger receipt, so T141 stays unratified until Daniil says it in his own lane."
+    },
+    {
+      "agent_id": "dsh",
+      "role": "member",
+      "caps": [
+        "bifrost.inbox",
+        "bus.send",
+        "exec",
+        "kb.recall",
+        "read"
+      ],
+      "path_scope": [],
+      "granted_by": "claude",
+      "granted_at": "2026-08-24T03:28:58Z",
+      "expires_at": "2026-08-31T03:28:58Z",
+      "reason": "Daniil verbatim 2026-08-24: 'can we grant the dsh agent deepseek exec so it can talk to heimdall, I authorize it' -- the DeepSeek Harness (dsh 0.1.1-rc.2) seat gets exec + bus comms to converse with Heimdall; least-privilege first grant (no repo write), 7-day time-box renewable per the escalation norm"
     }
   ]
 }
