@@ -114,7 +114,10 @@ def test_presence_offline_declares_departure_not_a_beat():
     import uuid
     ns = "t383pre" + uuid.uuid4().hex[:6]
     old = os.environ.get("BIFROST_NAMESPACE")
+    old_agent = os.environ.get("AKASHIC_AGENT_ID")
     os.environ["BIFROST_NAMESPACE"] = ns
+    os.environ["AKASHIC_AGENT_ID"] = "dsh_agent"   # pin the seat id: the door reads
+    # ambient env, and a runner's own id must not silently re-target the pin (T069 class)
     try:
         a = argparse.Namespace(phase="offline", session_id="seat-0001")
         assert bridge.cmd_presence(a) == 0
@@ -130,3 +133,7 @@ def test_presence_offline_declares_departure_not_a_beat():
             os.environ.pop("BIFROST_NAMESPACE", None)
         else:
             os.environ["BIFROST_NAMESPACE"] = old
+        if old_agent is None:
+            os.environ.pop("AKASHIC_AGENT_ID", None)
+        else:
+            os.environ["AKASHIC_AGENT_ID"] = old_agent
