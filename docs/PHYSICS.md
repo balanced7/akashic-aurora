@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 5a76ae08. A bound you discover by collision is not awareness -- this sheet
+> Derived at da04520b. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (245 names)
+## Configuration flags (246 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -117,6 +117,7 @@ Class: reference
 | `AKASHIC_SHOW_CONSOLES` | `` | core/__init__.py, core/comm/launcher.py, scripts/quiet/sitecustomize.py |
 | `AKASHIC_SPAWN_INSTANT_SECONDS` | `` | scripts/bifrost_runner_discord.py |
 | `AKASHIC_SPAWN_PROOF_SECONDS` | `` | scripts/bifrost_runner_discord.py |
+| `AKASHIC_SPAWN_REPORT_DEADLINE` | `` | scripts/bifrost_runner_discord.py |
 | `AKASHIC_SPILL_DIR` | `` | agent_cli.py |
 | `AKASHIC_STALE_CUE_DAYS` | `"30"` | core/recall/at_action.py |
 | `AKASHIC_STALL_HYSTERESIS_S` | `"180"` | core/comm/doctor.py |
