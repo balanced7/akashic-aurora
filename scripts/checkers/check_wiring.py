@@ -162,6 +162,53 @@ EXCEPTIONS = {
         "test_t134_self_invoking_is_not_a_library.py.",
 }
 
+# ---------------------------------------------------------------- EXPIRY (2026-08-24)
+# The block above opens by insisting it is "a BACKLOG, not an amnesty". It was not: 20
+# entries, ZERO with an expiry, while the sibling REF_ALLOWLIST in check_comprehensibility
+# carries dated expiries -- and one of those LAPSED this morning, blocked a commit, and
+# forced a deliberate renewal. That lapse is the whole difference between the two words.
+#
+# A RATCHET, deliberately, not a flag day: the existing string entries stay valid, because
+# a rule that breaks every commit on the day it lands is a rule that gets reverted. A DICT
+# entry may carry {"reason": ..., "expires": "YYYY-MM-DD"}; past that date the gate FAILS
+# with re-verify-or-remove. And GRANDFATHERED_UNDATED freezes today's undated count, so the
+# NEXT author must date theirs -- which is what makes the comment true for someone other
+# than the person who wrote it.
+GRANDFATHERED_UNDATED = 20
+
+
+def exception_reason(entry):
+    """The prose, whichever shape the entry is in."""
+    return entry.get("reason", "") if isinstance(entry, dict) else str(entry)
+
+
+def exception_expired(path, entry, today=None):
+    """True iff a DATED entry has lapsed. Undated (string) entries never expire -- they
+    are the grandfathered set. An UNPARSEABLE date counts as EXPIRED: an expiry nobody can
+    read is the amnesty failure mode wearing a typo, and failing closed on it costs one
+    correction while failing open costs the whole discipline."""
+    if not isinstance(entry, dict):
+        return False
+    raw = str(entry.get("expires", "")).strip()
+    if not raw:
+        return False
+    import datetime
+    today = today or datetime.date.today()
+    try:
+        due = datetime.date.fromisoformat(raw)
+    except ValueError:
+        return True
+    return today > due
+
+
+def exception_expiry_message(path, entry):
+    raw = (entry.get("expires", "") if isinstance(entry, dict) else "")
+    return (f"FAIL: built-not-wired exemption EXPIRED for '{path}' (expired {raw}) -> "
+            f"re-verify the module is still legitimately unwired and RENEW the date, or "
+            f"wire it, or remove the entry. Reason on file: "
+            f"{exception_reason(entry)[:120]}")
+
+
 
 def _dotted(rel):
     d = rel[:-3].replace("/", ".").replace("\\", ".")
@@ -627,6 +674,9 @@ def main():
         for u in unwired:
             print(f"  {u}{'   [exception]' if u in EXCEPTIONS else ''}")
     new_unwired = [u for u in unwired if u not in EXCEPTIONS]
+    expired = [(k, v) for k, v in EXCEPTIONS.items() if exception_expired(k, v)]
+    for k, v in expired:
+        print(exception_expiry_message(k, v))
     stale = sorted(e for e in EXCEPTIONS if e not in unwired)  # exception now wired or gone
     for s in stale:
         print(f"WARN: '{s}' is in EXCEPTIONS but is now wired (or gone) -> remove the stale entry")
@@ -655,7 +705,11 @@ def main():
               f"(built != wired, one level down) -> wire it, delete it, or add it to "
               f"{os.path.relpath(BASELINE_PATH, ROOT).replace(os.sep, '/')} with a reason")
 
-    if new_unwired or new_orphans:
+    # An EXPIRED exemption fails the gate. Printing 'FAIL:' while exiting 0 is the
+    # amnesty this whole change exists to remove -- and it is what this function did
+    # for about four minutes, until the author noticed he had rebuilt the defect
+    # while fixing it.
+    if new_unwired or new_orphans or expired:
         if new_unwired:
             print(f"\n{len(new_unwired)} NEW unwired core/ module(s). "
                   f"Latent capability must not accumulate.")
