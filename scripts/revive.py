@@ -43,7 +43,11 @@ LOCK_TTL_S = 300.0
 REDIS_CONTAINER = "akashic-redis"
 DAEMON_AGENTS = ("deepseek", "kimi")      # one daemon per runner agent; the
                                           # DaemonLock absorbs duplicates
-_ORDER = ("redis", "daemon", "gateway")   # runners are the daemon's children:
+# `app` is FIRST because it is the deepest layer and the one this ladder was blind to
+# until 2026-08-24: the MSIX package that HOSTS the conductor seat. On that day the
+# ladder began at redis, so a dead Claude Desktop was not merely unhealed -- it was
+# invisible, and !revive ran twice reporting that it ran. See core/fleet/app_package.py.
+_ORDER = ("app", "redis", "daemon", "gateway")   # runners are the daemon's children:
                                           # it spawns them; we verify, not heal
 
 
@@ -76,8 +80,20 @@ def _cmdlines() -> str:
         return ""
 
 
-def observe() -> Dict[str, Dict[str, Any]]:
+def observe(include_app: bool = True) -> Dict[str, Dict[str, Any]]:
     out: Dict[str, Dict[str, Any]] = {}
+    if include_app:
+        # Cheap probe: status only. The 629 MB block-map verification is part of the
+        # HEAL, never of a probe that a scheduled task runs every few minutes.
+        try:
+            from core.fleet import app_package
+            out["app"] = app_package.observe_app()
+        except Exception as e:                                          # noqa: BLE001
+            # A probe that cannot run must read as NOT healthy. An unreadable answer
+            # reported as health is the defect this whole rung exists to end.
+            out["app"] = {"healthy": False, "repairable": False, "pkg": None,
+                          "detail": f"app probe failed ({type(e).__name__}: "
+                                    f"{str(e)[:60]}) -- cannot prove healthy"}
     try:
         from core.comm.bus import Bus
         ok = bool(Bus("revive-probe", promote=False)._client.ping())
@@ -121,7 +137,7 @@ def observe() -> Dict[str, Dict[str, Any]]:
 
 
 # -------------------------------------------------------------------- decide
-_DEPS = {"redis": (), "daemon": ("redis",), "gateway": ()}
+_DEPS = {"app": (), "redis": (), "daemon": ("redis",), "gateway": ()}
 
 
 def decide(observed: Dict[str, Dict[str, Any]],
@@ -139,7 +155,15 @@ def decide(observed: Dict[str, Dict[str, Any]],
             continue
         if any(not (observed.get(d) or {}).get("healthy") for d in _DEPS[organ]):
             continue                       # deferred: dependency is dead
-        if organ == "redis":
+        if organ == "app":
+            # ONLY a repairable state earns a plan. An app that is down for a reason
+            # this rung has no lever for is left ALONE and named in the unreachable
+            # report -- we never treat an unknown bad state as the one we can fix.
+            if not row.get("repairable"):
+                continue
+            plan.append({"organ": "app", "kind": "msix-repair",
+                         "pkg": row.get("pkg")})
+        elif organ == "redis":
             plan.append({"organ": "redis",
                          "cmd": ["docker", "start", REDIS_CONTAINER],
                          "kind": "docker-start"})
@@ -160,10 +184,87 @@ def decide(observed: Dict[str, Dict[str, Any]],
     return plan
 
 
+def unreachable_report(observed: Dict[str, Dict[str, Any]],
+                       plan: List[Dict[str, Any]],
+                       target: Optional[str] = None) -> List[str]:
+    """Name every organ that is DOWN and that this run will NOT heal, and say why.
+
+    THE SENTENCE THIS EXISTS TO PRODUCE. On 2026-08-24 Daniil ran !revive twice while
+    the conductor was dead; the ladder had no rung at the application layer, saw
+    nothing wrong in the three rungs it owned, and reported that the lever ran. A
+    lever that recovered nothing must never render as "touched NOTHING (a boring run
+    is a successful run)" -- boring and blind produce the same silence, and only one
+    of them is good news.
+
+    So an organ that is down and unplanned is reported with its REASON: deferred
+    behind a dependency, owned by another rung, or -- the 12:05 case -- outside
+    anything this ladder can reach.
+    """
+    planned = {s.get("organ") for s in plan}
+    lines: List[str] = []
+    for organ in _ORDER + ("runners",):
+        if target and organ != target:
+            continue
+        row = observed.get(organ) or {}
+        if row.get("healthy") or organ in planned:
+            continue
+        deps_down = [d for d in _DEPS.get(organ, ())
+                     if not (observed.get(d) or {}).get("healthy")]
+        if deps_down:
+            lines.append(f"{organ}: DOWN, deferred -- dependency {', '.join(deps_down)} "
+                         f"is down; the next converge plans further")
+        elif organ == "runners":
+            lines.append(f"{organ}: DOWN -- the daemon owns its children; the daemon "
+                         f"rung heals them")
+        else:
+            lines.append(f"{organ}: DOWN and no rung here reaches it -- "
+                         f"{row.get('detail')}. The fault is below this ladder.")
+    return lines
+
+
 # ---------------------------------------------------------------------- heal
+def _heal_app(step: Dict[str, Any]) -> bool:
+    """Sol's 2026-08-24 repair, as a rung: prove the payload, clear ONLY the stale
+    status bit, then prove recovery BY LAUNCHING -- never by re-reading the field we
+    just wrote.
+
+    Refusal-first: `clear_refusals` is the door. Missing evidence refuses. A refusal
+    is written into the step's receipt so the confession Discord relays says WHY, not
+    just that something did not happen."""
+    from core.fleet import app_package as ap
+
+    receipt: List[str] = []
+    step["receipt"] = receipt
+    pkg = step.get("pkg") or ap.query_package()
+    elevated = ap.is_elevated()
+
+    loc = (pkg or {}).get("install_location") or ""
+    receipt.append(f"verifying payload at {loc or '<unknown>'} (this reads the whole "
+                   f"package; it is the expensive half and it is the point)")
+    proof = ap.verify_payload(loc)
+    receipt.append(ap.proof_receipt(proof))
+
+    refusals = ap.clear_refusals(pkg, proof, elevated=elevated)
+    if refusals:
+        receipt.append(f"REFUSED to clear ({len(refusals)} reason(s)):")
+        receipt.extend(f"  - {r}" for r in refusals)
+        return False
+
+    ok, detail = ap.clear_modified_status(str(pkg.get("full_name")))
+    receipt.append(f"ClearPackageStatus(Modified): {'ok' if ok else 'FAILED'} -- {detail}")
+    if not ok:
+        return False
+
+    recovered, why = ap.verify_recovered(str(pkg.get("full_name")))
+    receipt.append(f"PROOF (a launch, not a status read): {why}")
+    return recovered
+
+
 def _heal_step(step: Dict[str, Any]) -> bool:
     kind = step.get("kind")
     try:
+        if kind == "msix-repair":
+            return _heal_app(step)
         if kind == "docker-start":
             r = subprocess.run(step["cmd"], capture_output=True, text=True,
                                timeout=60)
@@ -225,19 +326,32 @@ def converge(target: Optional[str] = None,
              observe_only: bool = False) -> Dict[str, Any]:
     say = lambda s: print(s, flush=True)                     # noqa: E731
     observed = observe()
-    for organ in ("redis", "daemon", "runners", "gateway"):
+    for organ in ("app", "redis", "daemon", "runners", "gateway"):
         row = observed.get(organ) or {}
         mark = "OK  " if row.get("healthy") else "DEAD"
         say(f"[revive] SAW {mark} {organ}: {row.get('detail')}")
     plan = decide(observed, target=target)
+    unreachable = unreachable_report(observed, plan, target=target)
     report: Dict[str, Any] = {"observed": observed, "plan": plan,
-                              "healed": [], "stopped_at": None}
+                              "healed": [], "stopped_at": None,
+                              "unreachable": unreachable}
     if observe_only:
         say(f"[revive] observe-only: {len(plan)} rung(s) would heal")
+        for line in unreachable:
+            say(f"[revive] UNREACHED {line}")
         return report
     if not plan:
-        say("[revive] all rungs healthy or deferred -- touched NOTHING "
-            "(a boring run is a successful run)")
+        # A boring run and a blind run produce the same silence; only one of them is
+        # good news. So say WHICH, always, and never claim health for an organ this
+        # ladder merely cannot see (2026-08-24).
+        if unreachable:
+            say(f"[revive] recovered NOTHING -- {len(unreachable)} organ(s) down that "
+                f"this run will not heal:")
+            for line in unreachable:
+                say(f"[revive]   {line}")
+        else:
+            say("[revive] all rungs healthy -- touched NOTHING "
+                "(a boring run is a successful run)")
         return report
     _take_lock()
     try:
@@ -247,14 +361,32 @@ def converge(target: Optional[str] = None,
             say(f"[revive] HEAL {organ}: {step['kind']} "
                 f"{step.get('agent', '')}".rstrip())
             ok = _heal_step(step)
+            for line in step.get("receipt") or ():
+                say(f"[revive]   {line}")
             if ok and organ not in healed_organs:
                 healed_organs.append(organ)
             if not ok:
+                # `app` has no dependents, so a refusal there must NOT block the bus
+                # rungs. Stopping the whole ladder on an app refusal would have made
+                # 2026-08-24 worse, not better: a package this rung declines to touch
+                # would have blocked redis/daemon recovery too.
+                if organ == "app":
+                    report.setdefault("refused", []).append(organ)
+                    say(f"[revive] {organ} not repaired -- see its receipt above; "
+                        f"continuing (nothing downstream depends on it)")
+                    continue
                 report["stopped_at"] = organ
                 say(f"[revive] STOP: {organ} heal failed -- nothing "
                     f"downstream attempted; fix this rung and re-run")
                 return report
         for organ in healed_organs:
+            if organ == "app":
+                # Already proven by a LAUNCH inside _heal_app. Re-observing here would
+                # re-read the status field we just wrote -- asking the gauge how it is
+                # feeling, which is precisely how a dead seat got certified alive.
+                report["healed"].append({"organ": organ, "verified": True})
+                say(f"[revive] PROVE {organ}: proven by launch (see receipt above)")
+                continue
             proved = _verify(organ)
             report["healed"].append({"organ": organ, "verified": proved})
             verdict = ("verified alive" if proved else
@@ -271,7 +403,7 @@ def main() -> int:
     ap.add_argument("--observe", action="store_true",
                     help="dry run: report health, heal nothing (=!status-deep)")
     ap.add_argument("--target", default=None,
-                    choices=["redis", "daemon", "gateway"],
+                    choices=["app", "redis", "daemon", "gateway"],
                     help="converge one rung only")
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args()

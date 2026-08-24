@@ -183,3 +183,88 @@ def test_converge_names_what_it_cannot_reach_instead_of_reporting_a_boring_run()
         "converge must be able to name targets it has no rung for"
     assert "no rung" in src.lower(), \
         "the refusal must say, in words, that no rung reaches the fault"
+
+
+# ============================================================================
+# F1, EXECUTED: the verifier meets a corruption it must catch.
+#
+# The pins above test the DOOR (clear_refusals) with hand-built proofs. These test
+# the VERIFIER itself, because a door that refuses correctly on a proof that is
+# always clean is theatre. On 2026-08-24 verify_payload returned
+# "2348/2348 files, 11411/11411 blocks, 629549194 bytes, 0 mismatches" against the
+# real package in 0.4s -- a confirmation that agreed with me, arrived fast, and
+# carried exactly the numbers I was hoping for. Per [[the-easy-crossword]], internal
+# agreement is not external truth, so the claim is checked against an oracle that can
+# say no: a package with a byte deliberately flipped.
+# ============================================================================
+import base64 as _b64
+import hashlib as _hl
+
+_BM_NS = "http://schemas.microsoft.com/appx/2010/blockmap"
+
+
+def _make_package(tmp_path, payload: bytes, name="a.bin"):
+    """A real (tiny) package layout: files on disk + an AppxBlockMap that declares
+    their true SHA-256 block hashes. Built from the payload, so the map is honest."""
+    loc = tmp_path / "pkg"
+    loc.mkdir()
+    (loc / name).write_bytes(payload)
+    blocks = [payload[i:i + ap.BLOCK_SIZE]
+              for i in range(0, max(len(payload), 1), ap.BLOCK_SIZE)] or [b""]
+    els = "".join(
+        '<Block Hash="%s" Size="%d"/>'
+        % (_b64.b64encode(_hl.sha256(b).digest()).decode(), len(b))
+        for b in blocks)
+    (loc / "AppxBlockMap.xml").write_text(
+        f'<?xml version="1.0" encoding="UTF-8"?>'
+        f'<BlockMap xmlns="{_BM_NS}" HashMethod="http://www.w3.org/2001/04/xmlenc#sha256">'
+        f'<File Name="{name}" Size="{len(payload)}" LfhSize="30">{els}</File>'
+        f'</BlockMap>', encoding="utf-8")
+    return loc
+
+
+def test_verifier_passes_a_genuinely_intact_payload(tmp_path):
+    """Calibration: the detector must not cry wolf, or its refusals mean nothing."""
+    loc = _make_package(tmp_path, b"\x5a" * (ap.BLOCK_SIZE * 2 + 17))
+    proof = ap.verify_payload(str(loc))
+    assert proof.error is None, proof.error
+    assert proof.mismatches == [], proof.mismatches
+    assert proof.complete and proof.blocks == 3, ap.proof_receipt(proof)
+
+
+def test_F1_EXECUTED_one_flipped_byte_is_caught_and_refuses(tmp_path):
+    """THE falsifier, run rather than asserted. If this passes silently, the whole
+    rung is a green light that cannot go red."""
+    payload = bytearray(b"\x5a" * (ap.BLOCK_SIZE * 2 + 17))
+    loc = _make_package(tmp_path, bytes(payload))
+    tampered = bytearray(payload)
+    tampered[ap.BLOCK_SIZE + 5] ^= 0xFF          # one byte, in the SECOND block
+    (loc / "a.bin").write_bytes(bytes(tampered))
+
+    proof = ap.verify_payload(str(loc))
+    assert proof.mismatches, \
+        "a flipped byte MUST be caught -- a verifier that cannot go red is theatre"
+    assert ap.clear_refusals(PKG_OK, proof, elevated=True), \
+        "a mismatched payload MUST refuse the clear"
+
+
+def test_F1b_a_truncated_file_is_caught(tmp_path):
+    """Truncation removes blocks rather than changing them -- a distinct failure that
+    a hash-only loop can miss by simply reading fewer blocks and finding no mismatch."""
+    payload = b"\x5a" * (ap.BLOCK_SIZE * 2 + 17)
+    loc = _make_package(tmp_path, payload)
+    (loc / "a.bin").write_bytes(payload[:ap.BLOCK_SIZE])      # drop 2 of 3 blocks
+
+    proof = ap.verify_payload(str(loc))
+    assert proof.mismatches or not proof.complete, \
+        "a truncated payload must not read as intact"
+    assert ap.clear_refusals(PKG_OK, proof, elevated=True), \
+        "a truncated payload MUST refuse the clear"
+
+
+def test_F1c_a_missing_file_is_caught(tmp_path):
+    loc = _make_package(tmp_path, b"\x5a" * 128)
+    (loc / "a.bin").unlink()
+    proof = ap.verify_payload(str(loc))
+    assert proof.mismatches or not proof.complete, "a missing file must not read as intact"
+    assert ap.clear_refusals(PKG_OK, proof, elevated=True)

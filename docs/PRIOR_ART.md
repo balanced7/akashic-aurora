@@ -34,7 +34,7 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 - `core/recall` -- DRIFT (10->16), reviewed 2026-07-26
 - `core/primitives` -- DRIFT (7->8), reviewed 2026-07-26
 - `core/trust` -- DRIFT (2->4), reviewed 2026-07-26
-- `core/fleet` -- DRIFT (2->5), reviewed 2026-07-26
+- `core/fleet` -- DRIFT (2->6), reviewed 2026-07-26
 - `agent/harness` -- DRIFT (9->10), reviewed 2026-07-26
 - `scripts/hooks` -- DRIFT (7->8), reviewed 2026-07-26
 - `scripts/checkers` -- DRIFT (12->18), reviewed 2026-07-26
@@ -292,7 +292,7 @@ _Reviewed 2026-07-26 by claude (docstring sweep) + deepseek (partial, p4)._
 
 _Reviewed 2026-07-26 by deepseek (swept), claude (folded)._
 
-## `core/fleet` -- 5 modules  ·  DRIFT (2->5)
+## `core/fleet` -- 6 modules  ·  DRIFT (2->6)
 
 **What it does.** Presence autopilot supervising the fleet: crash backoff, circuit breaker, presence held across Redis outages, and a refusal to steal a running session's seat.
 

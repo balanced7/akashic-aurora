@@ -31,6 +31,14 @@ ENTRY_POINTS = [
     # every scripts/*.py carrying a __main__ block, and that would change what this gate
     # MEANS (it would surface every pre-existing script-only module at once). Widening a
     # gate is a gate decision, not a midnight one. Filed for Daniil's call.
+    # 2026-08-24: the recovery ladder's own front door was never listed here. It is a
+    # real production entry point on TWO paths -- the Discord !revive lever, and the
+    # scheduled task that runs `--target gateway` as L1's supervisor -- so everything
+    # it reaches was invisible to this gate. Found by adding the app rung: the gate
+    # correctly refused core/fleet/app_package.py as unwired, and the module WAS wired,
+    # to a door the gate could not see. A small instance of the mode the same day's
+    # sketch named: the register was accurate and had stopped being about anything.
+    "scripts/revive.py",            # the recovery reconciler (!revive + OS watchdog)
     "scripts/seed_world.py",        # W156: seeds a twin's memory from a higher world
     "scripts/world_diff.py",        # W159: the at-a-glance world comparison
     "scripts/world_savepoint.py",   # W160: a world's restore point (code + memory)
