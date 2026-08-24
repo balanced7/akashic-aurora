@@ -96,10 +96,15 @@ function attachContext(decision, text) {
   if (!decision || !text) return decision
   if (decision.kind === 'accept' || decision.kind === 'block') {
     const ctxMsg = {
-      // PIN-ITEM: UserMessage id/source fields are best-effort until captured
-      // from a real DSH producer (UserMessage = {id, role, content, source}).
+      // Message contract (dsh-llm message.d.ts): id + role + content + source are
+      // REQUIRED — an absent source crashes the ferry on source.kind (drilled
+      // 2026-08-24). The source vocabulary has a first-class slot for us:
+      // kind 'plugin' with form 'recall' ("material lifted out of another
+      // session's log, possibly reduced on the way in").
+      id: `akashic-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
       role: 'user',
       content: [{ type: 'text', text }],
+      source: { kind: 'plugin', plugin: 'dsh-akashic-recall', form: 'recall' },
     }
     return { ...decision, additionalContexts: [...(decision.additionalContexts ?? []), ctxMsg] }
   }
@@ -109,6 +114,13 @@ function attachContext(decision, text) {
 const _probeToken = () => `akashic-probe-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 
 export const name = 'dsh-akashic-recall'
+// NO inject export: this cordis fork treats every declared inject as REQUIRED
+// (_refresh goes INACTIVE on any missing key — no optional mechanism exists), and
+// invariants/systemPrompt are not mounted in every profile. The R2 invariant check
+// therefore registers via try/catch and logs 'skipped' where the service is absent;
+// the WEB wiring gives R2 its real home (a config-level inject there, where
+// dsh-invariants is mounted). Drilled 2026-08-24: with an inject export the plugin
+// sat 'pending (waiting for service)' in headless and the whole tree refused to boot.
 
 export function apply(ctx) {
   observeOnly = !!process.env.AKASHIC_AGENT_ID && process.env.AKASHIC_AGENT_ID !== SESSION_KEY

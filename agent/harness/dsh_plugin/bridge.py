@@ -105,7 +105,15 @@ def cmd_action_recall(a) -> int:
 def cmd_outcome_credit(a) -> int:
     try:
         _, outcome_block, _ = _import_actions()
-        text = outcome_block(a.session_key, a.seen_key, a.target, bool(a.success),
+        # V27 target-join law (caught LIVE in the 2026-08-24 drill): the target must be
+        # THE SAME derivation at surface and resolve. Surface (recall_block) normalizes
+        # internally, so outcome derives through the same normalize_target from the same
+        # path/command inputs. --target remains only as an already-normalized override.
+        target = a.target
+        if a.path or a.command:
+            from core.recall.at_action import normalize_target
+            target = normalize_target(a.path or None, a.command or None)
+        text = outcome_block(a.session_key, a.seen_key, target, bool(a.success),
                              agent_id=a.session_key)
         return _emit({"text": text or ""})
     except Exception as e:
