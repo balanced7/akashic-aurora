@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at d496c5ea. A bound you discover by collision is not awareness -- this sheet
+> Derived at 6504abd7. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (223 names)
+## Configuration flags (225 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -39,6 +39,7 @@ Class: reference
 | `AKASHIC_CHAPTERS_FILE` | `` | scripts/corpus_digests.py |
 | `AKASHIC_CLAUDE_CREDENTIALS` | `` | scripts/bifrost_runner_discord.py |
 | `AKASHIC_CLEAN_DEATH` | `"1"` | core/comm/session_exit.py |
+| `AKASHIC_CONDUCTOR_SUCCESSORS` | `",".join(SUCCESSION_ORDER` | core/comm/conductor_gate.py |
 | `AKASHIC_CONTROL_PORT_BASE` | `"47100"` | core/comm/control_channel.py |
 | `AKASHIC_DAEMON_WAKE` | `"1"` | agent/harness/hooks/claude_stop.py, scripts/hooks/claude_stop.py |
 | `AKASHIC_DEBUG` | `` | agent/harness/hooks/claude_userpromptsubmit.py, scripts/hooks/claude_userpromptsubmit.py |
@@ -73,7 +74,7 @@ Class: reference
 | `AKASHIC_LOOKBACK_NO_COUNT` | `` | core/recall/lookback.py |
 | `AKASHIC_MAILBOX` | `"1"` | core/comm/mailbox.py |
 | `AKASHIC_MCP_DIAG` | `` | ai_setup_mcp.py |
-| `AKASHIC_OPERATOR_IDS` | `"user,daniel,daniil"` | scripts/bifrost_wake.py |
+| `AKASHIC_OPERATOR_IDS` | `OPERATOR_IDS_DEFAULT` | core/comm/conductor_gate.py, scripts/bifrost_wake.py |
 | `AKASHIC_PAYLOAD_CAPTURE` | `"1"` | agent/harness/capture.py |
 | `AKASHIC_PLAN_RECALL` | `"1"` | agent/harness/actions.py, scripts/hooks/claude_userpromptsubmit.py |
 | `AKASHIC_PLAY_NETWORK` | `"0"` | core/toolbelt/play_sandbox.py |
@@ -139,6 +140,7 @@ Class: reference
 | `AKASHIC_WORKLIVE_FRESH_S` | `"45"` | core/comm/roster.py |
 | `AKASHIC_WORKLIVE_TTL_S` | `"180"` | core/comm/roster.py |
 | `BIFROST_AGENT` | `` | scripts/wire_journal.py |
+| `BIFROST_AGENT_ID` | `` | core/comm/conductor_gate.py |
 | `BIFROST_APPROACHING_WEDGE_SECONDS` | `"150"` | core/comm/liveness.py |
 | `BIFROST_CONSUME_LANE` | `` | core/comm/bifrost_api.py, scripts/bifrost_runner_deepseek.py, scripts/bifrost_runner_kimi.py |
 | `BIFROST_INCARNATION` | `` | agent/bifrost_pull.py, agent/harness/hooks/claude_posttooluse.py, agent_cli.py +8 |
