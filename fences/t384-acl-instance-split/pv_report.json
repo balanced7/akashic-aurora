@@ -1,0 +1,36 @@
+{
+  "ran_at": "2026-08-24T12:25:08.644503+00:00",
+  "verified": [
+    "half_a: charters/sa1-cap-enforcement-charter-2026-07-22.md",
+    "half_a: core/comm/roster.py",
+    "half_a: core/comm/roster.py:17",
+    "half_a: core/comm/seat_identity.py",
+    "half_a: core/comm/wake_seat.py",
+    "half_a: core/comm/wake_seat.py:7",
+    "half_a: core/fleet/models.json",
+    "half_a: core/trust/capabilities.py",
+    "half_a: core/trust/registry.py:38",
+    "half_a: core/world.py",
+    "half_a: core/world.py:29",
+    "half_a: docs/library/design/20260722_security-schema-amendment-scoped-admin-g_17c9ca.md",
+    "half_a: scripts/githooks/pre_commit.py",
+    "half_a: security/acl.json",
+    "half_b: core/trust/capabilities.py",
+    "half_b: core/trust/registry.py:38",
+    "half_b: security/acl.json",
+    "half_b: security/launcher.json",
+    "half_b: state/ci/guardrail_baseline.json",
+    "half_b: state/coord/discord_seat_channels.json",
+    "half_b: state/coord/tasks.json"
+  ],
+  "missing": [
+    "half_a: claude/settings.local.json",
+    "half_a: core/comm/conductor_gate.py",
+    "half_a: docs/security-acl-runbook.md",
+    "half_a: security/acl.example.json",
+    "half_a: security/acl.json.bak",
+    "half_a: security/acl.template.json",
+    "half_b: claude/settings.local.json",
+    "half_b: user.name/user.email"
+  ]
+}
