@@ -53,7 +53,12 @@ HARNESSES = {
                   "unwired, so no lessons arrive at the action yet",
             "T4": "yes -- tools/post-execute carries a direct fail signal; outcome-credit "
                   "wired, subcommand verified live 2026-08-24 (first real flip-credit "
-                  "still unobserved)",
+                  "still unobserved, and WHY is now known: the DSH server running at that "
+                  "hour loaded the plugin at 03:02 while the V27 target-join fix landed in "
+                  "lib/index.js at 03:36, so the live generation still pre-joined the "
+                  "target raw -- surface keyed c:<normalized>, outcome keyed <raw>, join "
+                  "evaporates, flips credit zero silently. Code correct on disk; awaiting "
+                  "a plugin-generation reload to observe a real credit)",
             "T5": "pending -- trigger observed live 2026-08-24 (user/message captured, "
                   "planPending set post-mount) and the plan-recall door verified end-to-end; "
                   "the assemble-time injection itself is still unobserved",
