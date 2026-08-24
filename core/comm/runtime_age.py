@@ -46,7 +46,16 @@ _HEAD_SHA: Optional[str] = None
 
 def _git(*args: str, timeout: int = 5) -> str:
     try:
+        # ENCODING EXPLICIT. text=True alone decodes with the LOCALE codec (cp1252 here),
+        # so ONE commit subject carrying a character outside cp1252 raised
+        # UnicodeDecodeError, hit the except below, and returned "" -- which
+        # commits_since() reads as ZERO COMMITS LANDED, i.e. "your code is current".
+        # Measured 2026-08-24: reported 0 while git reported 102, blinded by an emoji in
+        # this repo's own commit subject. The zero-on-doubt doctrine below is right for a
+        # COUNT and backwards for a STALENESS CHECK -- silence there means "nothing
+        # changed", which is the unsafe direction. Git speaks UTF-8; read it as UTF-8.
         r = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True,
+                           encoding="utf-8", errors="replace",
                            timeout=timeout, stdin=subprocess.DEVNULL, close_fds=True)
         return (r.stdout or "").strip() if r.returncode == 0 else ""
     except Exception:
